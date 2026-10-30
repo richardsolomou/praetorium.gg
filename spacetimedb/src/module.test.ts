@@ -9,7 +9,7 @@ vi.mock('spacetime:sys@2.2', async (original) => ({ ...(await original<object>()
 import spacetime, * as module from './index'
 import { UNIT_LOADOUT_NAME_MAX_LENGTH, UNIT_LOADOUTS_MAX } from '../../src/core/unitLoadouts'
 import { ABILITY_REMINDERS_MAX } from '../../src/core/reminders'
-import { LEAGUE_REMINDER_COOLDOWN_MS } from '../../src/core/league'
+import { SEALED_EVENT_REMINDER_COOLDOWN_MS } from '../../src/core/sealedEvent'
 
 const ISSUER = 'https://praetorium.gg/api/auth'
 const AUDIENCE = 'praetorium'
@@ -405,7 +405,7 @@ describe('what a league event allows', () => {
     const league = setup('[]')
     league.remind(NOW)
     league.seal([])
-    expect(league.remind(NOW + LEAGUE_REMINDER_COOLDOWN_MS)).toEqual({ outcome: 'reminded', recipientIds: ['ally'] })
+    expect(league.remind(NOW + SEALED_EVENT_REMINDER_COOLDOWN_MS)).toEqual({ outcome: 'reminded', recipientIds: ['ally'] })
   })
 
   it('refuses a list sealed after the roster deadline', () => {

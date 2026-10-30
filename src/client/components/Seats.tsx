@@ -28,7 +28,7 @@ export function seatLabel(id: string | null, labels: ReadonlyMap<string, string>
  *
  * The caller says who may fill a seat, because that differs by surface — friends and
  * practice opponents when opening a battle by hand, entrants assigned a matching roster
- * size in a league. Who is already sitting somewhere is this component's business.
+ * size in a sealed event. Who is already sitting somewhere is this component's business.
  */
 export function SeatRows({
   idPrefix,

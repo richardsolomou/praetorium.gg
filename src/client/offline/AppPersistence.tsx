@@ -12,7 +12,7 @@ import {
   friendBattlesQuery,
   friendshipsQuery,
   homeRostersQuery,
-  leaguesQuery,
+  sealedEventsQuery,
   meQuery,
   onboardingQuery,
   publicBattlesQuery,
@@ -30,8 +30,8 @@ import {
   collectionCountsAsQuery,
   playerDefaultsQuery,
   opponentsQuery,
-  leagueQuery,
-  leagueRosterQuery,
+  sealedEventQuery,
+  sealedEventRosterQuery,
 } from '../queries'
 import { refreshBattleFeed } from './refreshBattleFeed'
 import { prepareRosters } from './prepareRosters'
@@ -114,17 +114,20 @@ export function AppPersistence() {
                 }),
                 refreshBattleFeed(client, friendBattlesQuery()),
                 client.query({ ...homeRostersQuery(), staleTime: Infinity }),
-                client.query({ ...leaguesQuery(), staleTime: Infinity }).then(async (leagues) => {
-                  for (const league of leagues.filter((summary) => summary.personal)) {
+                client.query({ ...sealedEventsQuery(), staleTime: Infinity }).then(async (sealedEvents) => {
+                  for (const sealedEvent of sealedEvents.filter((summary) => summary.personal)) {
                     if (!stillSignedInAs(me.id)) break
-                    const saved = await client.query({ ...leagueQuery(league.token), staleTime: Infinity })
+                    const saved = await client.query({ ...sealedEventQuery(sealedEvent.token), staleTime: Infinity })
                     if (!saved) continue
                     const entries = saved.entries.filter((entry) => entry.submitted && (saved.revealedAt || entry.userId === me.id))
                     for (const batch of chunks(entries, 3)) {
                       if (!stillSignedInAs(me.id)) break
                       await Promise.allSettled(
                         batch.map((entry) =>
-                          client.query({ ...leagueRosterQuery(league.token, saved.eventToken, entry.userId), staleTime: Infinity }),
+                          client.query({
+                            ...sealedEventRosterQuery(sealedEvent.token, saved.eventToken, entry.userId),
+                            staleTime: Infinity,
+                          }),
                         ),
                       )
                     }

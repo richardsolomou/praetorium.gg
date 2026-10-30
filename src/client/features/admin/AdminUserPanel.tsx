@@ -127,7 +127,7 @@ export function AdminUserPanel({ user, current, onClose }: { user: AdminUser; cu
             <Fact label="Friends" value={String(user.friendCount)} />
             <Fact label="Rosters" value={String(user.rosterCount)} />
             <Fact label="Battles" value={String(user.battleCount)} />
-            <Fact label="Tournaments run" value={String(user.leagueCount)} />
+            <Fact label="Tournaments run" value={String(user.sealedEventCount)} />
           </dl>
 
           <Section title="Profile">
@@ -617,7 +617,7 @@ function deletionImpact(user: AdminUser) {
   const parts = [
     user.rosterCount ? countLabel(user.rosterCount, 'roster') : '',
     user.battleCount ? countLabel(user.battleCount, 'battle') : '',
-    user.leagueCount ? countLabel(user.leagueCount, 'tournament they organize', 'tournaments they organize') : '',
+    user.sealedEventCount ? countLabel(user.sealedEventCount, 'tournament they organize', 'tournaments they organize') : '',
   ].filter(Boolean)
   const deletes = parts.length ? `Deletes the account, ${formatList(parts)}.` : 'Deletes the account.'
   const shared = user.battleCount ? ' Battles are removed for every player in them.' : ''

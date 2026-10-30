@@ -2,7 +2,7 @@ import { createHash, randomBytes } from 'node:crypto'
 
 /**
  * Public reference pages and the files crawlers read. None of these addresses names a player,
- * battle, league or saved list, so a request for one can be recorded without its owner.
+ * battle, sealed event or saved list, so a request for one can be recorded without its owner.
  */
 export const PUBLIC_PATH =
   /^\/(?:|factions(?:\/.*)?|missions(?:\/.*)?|mission-packs(?:\/.*)?|mission-matchups\/.*|force-dispositions(?:\/.*)?|rules(?:\/.*)?|data-updates(?:\/.*)?|leaderboard|simulator|sources|rosters|sitemap\.xml|robots\.txt|llms\.txt|api\/reference\/v1(?:\/.*)?)$/

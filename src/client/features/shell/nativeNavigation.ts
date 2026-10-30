@@ -41,9 +41,9 @@ export function nativeNavigation(path: string, search: Record<string, unknown> =
       ? { back: '/tournaments', section: 'events', title: 'Tournament' }
       : { back: '/more', section: 'events', title: 'Tournaments' }
   }
-  if (root === 'clubs') {
-    if (id && child === 'games' && detail) return { back: `/clubs/${id}`, section: 'events', title: 'Sealed game' }
-    return id ? { back: '/clubs', section: 'events', title: 'Club' } : { back: '/more', section: 'events', title: 'Clubs' }
+  if (root === 'groups') {
+    if (id && child === 'games' && detail) return { back: `/groups/${id}`, section: 'events', title: 'Hidden-list game' }
+    return id ? { back: '/groups', section: 'events', title: 'Group' } : { back: '/more', section: 'events', title: 'Groups' }
   }
   if (root === 'factions') {
     if (!id) return { section: 'factions', title: 'Factions' }

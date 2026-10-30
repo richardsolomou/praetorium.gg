@@ -1,4 +1,4 @@
-In a tournament everyone seals a roster in secret, the rosters open together at the reveal, and then the players play each other while the results build up. Start one with **New tournament** on [Tournaments](/tournaments). To see one before you commit, open the [sample tournament](/tournaments/sample), a made-up Swiss event shown from sealed lists to the final standings. A [club](/docs/clubs) runs the same sealing as a sealed game, started from the club page.
+In a tournament everyone seals a roster in secret, the rosters open together at the reveal, and then the players play each other while the results build up. Start one with **New tournament** on [Tournaments](/tournaments). To see one before you commit, open the [sample tournament](/tournaments/sample), a made-up Swiss event shown from sealed lists to the final standings. A [group](/docs/groups) runs the same sealing as a hidden-list game, started from the group page.
 
 ## Set it up
 
@@ -41,7 +41,7 @@ Once you pair the next round, the results of earlier rounds are locked. Only you
 
 If a player leaves or doesn't show, press the drop button on their roster card, then **Drop player**. They aren't paired again and can't rejoin, and their results stay in the table, including in their opponents' strength of schedule. If their table in the current round hasn't finished, their opponent takes it as a bye, so the next round can be paired. A battle already started at that table stays in the battle list but no longer counts for the round. Players can withdraw themselves the same way.
 
-To play again with new rosters, start a new tournament. A [club](/docs/clubs) keeps a standing table across all of them.
+To play again with new rosters, start a new tournament. A [group](/docs/groups) keeps a standing table across all of them.
 
 ## Organizers
 

@@ -1,15 +1,15 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { LeagueIndex } from '../client/features/leagues/LeagueIndex'
+import { SealedEventIndex } from '../client/features/sealedEvents/SealedEventIndex'
 import { pageHead } from '../client/linkPreview'
-import { leaguesQuery } from '../client/queries'
+import { sealedEventsQuery } from '../client/queries'
 
 export const Route = createFileRoute('/tournaments/')({
-  loader: ({ context }) => context.queryClient.query({ ...leaguesQuery(), staleTime: 'static' }),
+  loader: ({ context }) => context.queryClient.query({ ...sealedEventsQuery(), staleTime: 'static' }),
   head: ({ match }) =>
     pageHead(match.context.origin, {
       title: 'Tournaments',
-      description: 'Collect sealed rosters for an event, then reveal every accepted list together.',
+      description: 'Collect sealed rosters for a tournament, then reveal every accepted list together.',
       path: '/tournaments',
     }),
-  component: LeagueIndex,
+  component: SealedEventIndex,
 })

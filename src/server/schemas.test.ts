@@ -5,10 +5,10 @@ import { PROFILE_NAME_MAX_LENGTH } from '../core/profileName'
 import {
   battleReplayBatchSchema,
   createBattleSchema,
-  createLeagueBattleSchema,
-  createClubGameSchema,
-  createLeagueSchema,
-  leagueBattleOptionsSchema,
+  createSealedEventBattleSchema,
+  createHiddenListGameSchema,
+  createSealedEventSchema,
+  sealedEventBattleOptionsSchema,
   priceSchema,
   datasheetSchema,
   detachmentRulesSchema,
@@ -19,7 +19,7 @@ import {
   submitSchema,
   terrainReferencesSchema,
   unitsSchema,
-  updateLeagueSchema,
+  updateSealedEventSchema,
 } from '../contracts/schemas'
 
 describe('replay batch input', () => {
@@ -60,9 +60,9 @@ describe('battle creation input', () => {
     })
   })
 
-  it('requires an explicit casual confirmation to bypass a league match', () => {
+  it('requires an explicit casual confirmation to bypass a sealed event match', () => {
     expect(createBattleSchema.parse({ opponentId: 'bob', casual: true }).casual).toBe(true)
-    expect(leagueBattleOptionsSchema.parse({ opponentIds: ['bob', 'carol'], allyId: 'dave' })).toEqual({
+    expect(sealedEventBattleOptionsSchema.parse({ opponentIds: ['bob', 'carol'], allyId: 'dave' })).toEqual({
       opponentIds: ['bob', 'carol'],
       allyId: 'dave',
     })
@@ -143,45 +143,49 @@ describe('unit picker input', () => {
   })
 })
 
-describe('league creation input', () => {
-  const league = { name: 'League', visibility: 'public', admission: 'approval' }
+describe('sealedEvent creation input', () => {
+  const sealedEvent = { name: 'Autumn tournament', visibility: 'public', admission: 'approval' }
 
   it('allows an optional bounded player limit', () => {
-    expect(createLeagueSchema.parse({ ...league, playerLimit: 16 })).toMatchObject({ playerLimit: 16 })
+    expect(createSealedEventSchema.parse({ ...sealedEvent, playerLimit: 16 })).toMatchObject({ playerLimit: 16 })
   })
 
-  it('defaults a new league to a 2,000-point 1v1 its organizer does not play in', () => {
-    expect(createLeagueSchema.parse(league)).toMatchObject({ format: '1v1', rosterLimit: 2_000, ownerPlays: false })
+  it('defaults a new sealed event to a 2,000-point 1v1 its organizer does not play in', () => {
+    expect(createSealedEventSchema.parse(sealedEvent)).toMatchObject({ format: '1v1', rosterLimit: 2_000, ownerPlays: false })
   })
 
-  it('rejects a new 2v1 league at King of the Colosseum', () => {
-    expect(createLeagueSchema.safeParse({ ...league, format: '2v1', rosterLimit: 600 }).success).toBe(false)
+  it('rejects a new 2v1 sealed event at King of the Colosseum', () => {
+    expect(createSealedEventSchema.safeParse({ ...sealedEvent, format: '2v1', rosterLimit: 600 }).success).toBe(false)
   })
 
   it('leaves the event rule alone when an update does not name one', () => {
-    expect(updateLeagueSchema.parse({ ...league, token: 'league', description: '', playerLimit: null })).not.toHaveProperty('rule')
+    expect(updateSealedEventSchema.parse({ ...sealedEvent, token: 'league', description: '', playerLimit: null })).not.toHaveProperty(
+      'rule',
+    )
   })
 
   it('accepts the supported 2v1 roster-size pair', () => {
-    expect(createLeagueSchema.safeParse({ ...league, format: '2v1', rosterLimit: 2_000 }).success).toBe(true)
+    expect(createSealedEventSchema.safeParse({ ...sealedEvent, format: '2v1', rosterLimit: 2_000 }).success).toBe(true)
   })
 
   it('refuses an update carrying only some of a tournament’s details', () => {
-    expect(updateLeagueSchema.safeParse({ token: 'league', name: 'League' }).success).toBe(false)
+    expect(updateSealedEventSchema.safeParse({ token: 'league', name: 'Autumn tournament' }).success).toBe(false)
   })
 
-  it('refuses Swiss rounds for a club’s sealed game', () => {
-    expect(createClubGameSchema.safeParse({ clubToken: 'club', rounds: 3 }).success).toBe(false)
+  it('refuses Swiss rounds for a group’s hidden-list game', () => {
+    expect(createHiddenListGameSchema.safeParse({ groupToken: 'group', rounds: 3 }).success).toBe(false)
   })
 
   it('refuses a solo player’s points at a doubles event', () => {
-    const details = { ...league, token: 'league', description: '', playerLimit: null }
-    expect(updateLeagueSchema.safeParse({ ...details, rule: { format: '2v2', rosterLimit: 2_000, soloPoints: 1_000 } }).success).toBe(false)
+    const details = { ...sealedEvent, token: 'league', description: '', playerLimit: null }
+    expect(updateSealedEventSchema.safeParse({ ...details, rule: { format: '2v2', rosterLimit: 2_000, soloPoints: 1_000 } }).success).toBe(
+      false,
+    )
   })
 
   it('accepts all four doubles seats', () => {
     expect(
-      createLeagueBattleSchema.safeParse({
+      createSealedEventBattleSchema.safeParse({
         token: 'league',
         opponentId: 'solo',
         allyId: 'ally',
@@ -190,21 +194,21 @@ describe('league creation input', () => {
     ).toBe(true)
   })
 
-  it('rejects a one-player league', () => {
-    expect(createLeagueSchema.safeParse({ ...league, playerLimit: 1 }).success).toBe(false)
+  it('rejects a one-player sealed event', () => {
+    expect(createSealedEventSchema.safeParse({ ...sealedEvent, playerLimit: 1 }).success).toBe(false)
   })
 
-  it('requires the league token when editing the same fields', () => {
-    expect(updateLeagueSchema.safeParse({ ...league, description: '', playerLimit: null }).success).toBe(false)
-    expect(updateLeagueSchema.safeParse({ ...league, token: 'league', description: '', playerLimit: null }).success).toBe(true)
+  it('requires the sealed event token when editing the same fields', () => {
+    expect(updateSealedEventSchema.safeParse({ ...sealedEvent, description: '', playerLimit: null }).success).toBe(false)
+    expect(updateSealedEventSchema.safeParse({ ...sealedEvent, token: 'league', description: '', playerLimit: null }).success).toBe(true)
   })
 
   it('requires an explicit description when editing', () => {
-    expect(updateLeagueSchema.safeParse({ ...league, token: 'league', playerLimit: null }).success).toBe(false)
+    expect(updateSealedEventSchema.safeParse({ ...sealedEvent, token: 'league', playerLimit: null }).success).toBe(false)
   })
 
   it('requires an explicit player limit when editing', () => {
-    expect(updateLeagueSchema.safeParse({ ...league, token: 'league', description: '' }).success).toBe(false)
+    expect(updateSealedEventSchema.safeParse({ ...sealedEvent, token: 'league', description: '' }).success).toBe(false)
   })
 })
 

@@ -35,10 +35,10 @@ export const AREAS: Record<
     summary: 'Track a game from setup to the final score.',
     action: { to: '/battles', label: 'Open Battles' },
   },
-  Clubs: {
+  Groups: {
     icon: UsersRound,
     summary: 'Keep a running table of the games your group plays.',
-    action: { to: '/clubs', label: 'Open Clubs' },
+    action: { to: '/groups', label: 'Open Groups' },
   },
   Tournaments: {
     icon: Trophy,

@@ -24,7 +24,7 @@ The [privacy policy](/privacy) lists what Praetorium stores and who it's shared 
 2. Enter your password under **Confirm your password**. If you only sign in with a provider, your recent sign-in confirms it instead.
 3. Tick **I understand that my account and its battles cannot be recovered.** and choose **Permanently delete account**. **Keep account** backs out.
 
-Deletion removes your profile and sign-in methods, rosters, saved loadouts, ability alerts, collection with its photos and wishlist, favourites, friendships, club memberships, tournament entries, tournaments you organise, clubs you own (for every member: the club, its leaderboard and its sealed games), and every battle you played, including games other players were in. It can't be undone.
+Deletion removes your profile and sign-in methods, rosters, saved loadouts, ability alerts, collection with its photos and wishlist, favourites, friendships, group memberships, tournament entries, tournaments you organise, groups you own (for every member: the group, its leaderboard and its hidden-list games), and every battle you played, including games other players were in. It can't be undone.
 
 It can't reach copies other players have already made: rosters they copied, and anything they downloaded or captured.
 

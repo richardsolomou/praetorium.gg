@@ -15,6 +15,7 @@ export function BattleChooserDialog({
   fit = false,
   onClose,
   onStart,
+  action,
   children,
 }: {
   open: boolean
@@ -27,6 +28,8 @@ export function BattleChooserDialog({
   fit?: boolean
   onClose: () => void
   onStart: () => void
+  /** What the start button says, when it leads somewhere other than straight into a battle. */
+  action?: ReactNode
   children: ReactNode
 }) {
   return (
@@ -46,7 +49,11 @@ export function BattleChooserDialog({
             Cancel
           </Button>
           <Button disabled={!ready || pending} onClick={onStart}>
-            <Swords /> {pending ? 'Starting…' : 'Start battle'}
+            {action ?? (
+              <>
+                <Swords /> {pending ? 'Starting…' : 'Start battle'}
+              </>
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>

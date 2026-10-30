@@ -9,25 +9,25 @@ export type Notifier = { notify: (notices: readonly Notice[]) => void }
 /** An instance without a push service sends nothing, and nothing else changes. */
 export const silentNotifier: Notifier = { notify: () => {} }
 
-type PushRepository = Pick<SpacetimeRepository, 'pushTargets' | 'namesByIds' | 'leagueNames' | 'clubNames'>
+type PushRepository = Pick<SpacetimeRepository, 'pushTargets' | 'namesByIds' | 'sealedEventNames' | 'groupNames'>
 
 export function pushNotifier(repository: PushRepository, sender: PushSender): Notifier {
   async function deliver(notices: readonly Notice[]) {
     const addressed = notices.map((notice) => ({ notice, recipients: noticeRecipients(notice) })).filter((one) => one.recipients.length)
     const targets = await repository.pushTargets(addressed.flatMap((one) => one.recipients))
     if (!targets.length) return
-    const leagueTokens = addressed.flatMap(({ notice }) => ('leagueToken' in notice ? [notice.leagueToken] : []))
-    const clubTokens = addressed.flatMap(({ notice }) => ('clubToken' in notice ? [notice.clubToken] : []))
-    const [names, leagues, clubs] = await Promise.all([
+    const sealedEventTokens = addressed.flatMap(({ notice }) => ('sealedEventToken' in notice ? [notice.sealedEventToken] : []))
+    const groupTokens = addressed.flatMap(({ notice }) => ('groupToken' in notice ? [notice.groupToken] : []))
+    const [names, sealedEvents, groups] = await Promise.all([
       repository.namesByIds(addressed.map(({ notice }) => notice.actorId)),
-      repository.leagueNames(leagueTokens),
-      repository.clubNames(clubTokens),
+      repository.sealedEventNames(sealedEventTokens),
+      repository.groupNames(groupTokens),
     ])
     const messages: PushMessage[] = addressed.flatMap(({ notice, recipients }) => {
       const message = noticeMessage(notice, {
         actor: names.get(notice.actorId)?.name,
-        league: 'leagueToken' in notice ? leagues.get(notice.leagueToken) : undefined,
-        club: 'clubToken' in notice ? clubs.get(notice.clubToken) : undefined,
+        sealedEvent: 'sealedEventToken' in notice ? sealedEvents.get(notice.sealedEventToken) : undefined,
+        group: 'groupToken' in notice ? groups.get(notice.groupToken) : undefined,
       })
       if (!message) return []
       return targets.filter((target) => recipients.includes(target.userId)).map((target) => ({ to: target.token, ...message }))

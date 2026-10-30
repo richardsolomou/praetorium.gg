@@ -105,7 +105,7 @@ export function battlebaseArmy(battle: BattlebaseBattle, creator: boolean) {
       }
 }
 
-/** BattleBase's pack id spells the season `2026-27`; this app's spells it `2026-2027`. */
+/** BattleBase's pack id spells the year `2026-27`; this app's spells it `2026-2027`. */
 export function battlebasePack(battle: BattlebaseBattle, packIds: readonly string[]) {
   const pack = battle.battleSetupJson.missionPackId?.replace(/^mission-pack-/, '')
   return packIds.find((id) => pack && id.replace(/-20(\d\d)$/, '-$1') === pack) ?? null

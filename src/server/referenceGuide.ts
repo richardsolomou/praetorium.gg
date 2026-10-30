@@ -5,7 +5,7 @@ export const PRAETORIUM_GUIDE = {
     'Compare shooting and melee, equipment alternatives, and destruction probabilities in the free combat simulator.',
     'Read the docs at /docs for army building, roster imports, combat comparisons, battle tracking, and AI assistant setup.',
     'Set up and track 1v1, 2v1, and 2v2 battles, including missions, phases, command points, scoring, casualties, undo, and corrections.',
-    'Run public or private sealed-roster tournaments, and clubs with a standing table.',
+    'Run public or private sealed-roster tournaments, and groups with a standing table.',
     'Run Swiss rounds in one-on-one tournaments: Praetorium pairs each round and keeps the Swiss standings.',
     'Watch live or finished public battles and read public leaderboards, profiles, and rosters.',
   ],

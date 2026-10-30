@@ -276,7 +276,7 @@ export function AccountSecurity({ me, preferences }: { me: AccountIdentity; pref
         <SectionHeading title="Delete account" className="text-destructive" />
         <div className="mt-4 flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-dim">
-            Permanently deletes your rosters, friendships, tournaments, the clubs you own and every battle you played.
+            Permanently deletes your rosters, friendships, tournaments, the groups you own and every battle you played.
           </p>
           <Button type="button" variant="destructive" disabled={!methods} onClick={() => setDialog('delete-account')}>
             <Trash2 /> Delete account
@@ -326,7 +326,7 @@ export function AccountSecurity({ me, preferences }: { me: AccountIdentity; pref
       {dialog === 'delete-account' ? (
         <AccountDialog
           title="Delete your account"
-          description="This cannot be undone. Your rosters, friendships, tournament entries, the clubs you own and every battle you played will be deleted."
+          description="This cannot be undone. Your rosters, friendships, tournament entries, the groups you own and every battle you played will be deleted."
           onClose={() => setDialog(undefined)}
         >
           <DeleteAccountForm hasPassword={hasPassword} />

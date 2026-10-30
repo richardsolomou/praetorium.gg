@@ -3,7 +3,7 @@ export const DOC_SECTIONS = [
   'Imports',
   'Combat simulator',
   'Battles',
-  'Clubs',
+  'Groups',
   'Tournaments',
   'AI assistants',
   'Account and app',
@@ -168,10 +168,10 @@ export const PRODUCT_DOCS = [
     description: 'Greyed-out Start battle, blocked phases and other battle messages.',
   },
   {
-    slug: 'clubs',
-    section: 'Clubs',
-    title: 'Clubs',
-    description: 'Joining a club, playing for its table, and sealed games.',
+    slug: 'groups',
+    section: 'Groups',
+    title: 'Groups',
+    description: 'Joining a group, playing for its table, and hidden-list games.',
   },
   {
     slug: 'run-a-tournament',

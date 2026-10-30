@@ -6,7 +6,7 @@ vi.mock('./publishedTextFiles', () => ({
   publishedTextLocations: async () => ({ files: {}, holds: () => false, recordsHolding: () => [] }),
 }))
 vi.mock('./app', () => ({
-  app: () => ({ service: { leagueService: { ownRoster } }, catalogueFor: async () => null, rulesFor: async () => null }),
+  app: () => ({ service: { sealedEventService: { ownRoster } }, catalogueFor: async () => null, rulesFor: async () => null }),
 }))
 vi.mock('./referenceApi', () => ({ activeReferenceCorpus: async () => null, referenceDocumentFor: async () => null }))
 

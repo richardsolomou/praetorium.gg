@@ -13,6 +13,6 @@ You can also start from a datasheet: **Simulate** on any unit's reference page o
 
 ## Use a whole roster on one side
 
-When you're signed in, each side gets a **Roster** picker above the unit. Pick from **Your rosters**, **Friends' rosters** (their public lists) or **Friends' sealed rosters** (sealed lists from a revealed tournament or club sealed game you can see that is still on: a club game until it moves to past games, a Swiss tournament until its last round is played). That side then keeps the roster's detachment, enhancements, attachments and army rules, and the unit picker lists only that roster's units. Choose **No roster** under **Catalogue** to go back to any datasheet.
+When you're signed in, each side gets a **Roster** picker above the unit. Pick from **Your rosters**, **Friends' rosters** (their public lists) or **Friends' sealed rosters** (sealed lists from a revealed tournament or group hidden-list game you can see that is still on: a hidden-list game until it moves to past games, a Swiss tournament until its last round is played). That side then keeps the roster's detachment, enhancements, attachments and army rules, and the unit picker lists only that roster's units. Choose **No roster** under **Catalogue** to go back to any datasheet.
 
 On a roster side, attachments come from the list itself, so you can't add or remove members there.

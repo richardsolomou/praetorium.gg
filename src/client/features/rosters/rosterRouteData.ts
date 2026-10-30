@@ -3,8 +3,8 @@ import { notFound } from '@tanstack/react-router'
 import { rosterExposure, rosterPreview } from '../../linkPreview'
 import {
   battleQuery,
-  leagueRosterQuery,
-  outdatedLeagueEntriesQuery,
+  sealedEventRosterQuery,
+  outdatedSealedEventEntriesQuery,
   setupPriceQuery,
   rosterAccessQuery,
   rosterBootstrapQuery,
@@ -18,13 +18,13 @@ import { preparePickerUnits } from '../../functions'
 export async function loadRoster(
   queryClient: QueryClient,
   id: string,
-  deps: { battle?: string; league?: string; event?: string },
+  deps: { battle?: string; sealedEvent?: string; event?: string },
   preload = false,
 ) {
-  if (deps.league) {
-    const roster = await queryClient.query({ ...leagueRosterQuery(deps.league, deps.event, id), staleTime: Infinity })
+  if (deps.sealedEvent) {
+    const roster = await queryClient.query({ ...sealedEventRosterQuery(deps.sealedEvent, deps.event, id), staleTime: Infinity })
     if (!roster) throw notFound()
-    return { editable: false, snapshot: true, league: true }
+    return { editable: false, snapshot: true, sealedEvent: true }
   }
   if (deps.battle) {
     const screen = await queryClient.query({ ...battleQuery(deps.battle), staleTime: 'static' })
@@ -69,7 +69,7 @@ export async function loadRoster(
   seedBootstrap(bootstrap, updatedAt)
   const { editable, price } = bootstrap
   let { roster, faction } = bootstrap
-  if (editable) void queryClient.query({ ...outdatedLeagueEntriesQuery(id), staleTime: 'static' }).catch(() => {})
+  if (editable) void queryClient.query({ ...outdatedSealedEventEntriesQuery(id), staleTime: 'static' }).catch(() => {})
   // The editor asks for this list's picker once it renders; starting the build now hides most of a first build's
   // seconds. A hovered link preloads this route too, and starts nothing the reader may never open.
   if (editable && !preload)

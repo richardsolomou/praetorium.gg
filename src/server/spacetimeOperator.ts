@@ -27,10 +27,15 @@ import { abilityReminderSchema, type AbilityReminder } from '../core/reminders'
 import { onboardingProgress as foldOnboardingProgress, type OnboardingProgressOperation } from '../core/onboarding'
 import { TABLE_SHAPES } from '../core/tableShape'
 import type { PushPlatform } from '../core/notificationConfig'
-import { LEAGUE_ADMISSIONS, LEAGUE_ENTRY_STATUSES, LEAGUE_VISIBILITIES, parseLeagueAllowances } from '../core/league'
-import { CLUB_MEMBER_STATUSES, CLUB_ROLES } from '../core/club'
+import {
+  SEALED_EVENT_ADMISSIONS,
+  SEALED_EVENT_ENTRY_STATUSES,
+  SEALED_EVENT_VISIBILITIES,
+  parseSealedEventAllowances,
+} from '../core/sealedEvent'
+import { GROUP_MEMBER_STATUSES, GROUP_ROLES } from '../core/group'
 import { unitLoadoutSchema, type UnitLoadout } from '../core/unitLoadouts'
-import { leagueRosterSharingSchema } from '../contracts/leagueRosterSharing'
+import { sealedEventRosterSharingSchema } from '../contracts/sealedEventRosterSharing'
 
 // Module results drop fields this build does not know, so a replica still on the previous build keeps
 // reading after a newer module appends a column or result field.
@@ -149,8 +154,8 @@ const tournament = z.object({
   ownerId: z.string(),
   name: z.string(),
   description: z.string(),
-  visibility: z.enum(LEAGUE_VISIBILITIES),
-  admission: z.enum(LEAGUE_ADMISSIONS),
+  visibility: z.enum(SEALED_EVENT_VISIBILITIES),
+  admission: z.enum(SEALED_EVENT_ADMISSIONS),
   playerLimit: z.number().int().nullable(),
   createdAt: z.number().int(),
   adminIds: z.array(z.string()),
@@ -176,7 +181,7 @@ const sealedEvent = z.object({
   allowances: z
     .string()
     .nullable()
-    .transform((value) => (value === null ? null : parseLeagueAllowances(value))),
+    .transform((value) => (value === null ? null : parseSealedEventAllowances(value))),
   rounds: z.number().int().nullable(),
   pointsBudget: z.number().int().nullable(),
   soloPoints: eventPoints,
@@ -211,7 +216,7 @@ const leagueEntry = z.object({
   key: z.string(),
   eventId: z.string(),
   userId: z.string(),
-  status: z.enum(LEAGUE_ENTRY_STATUSES),
+  status: z.enum(SEALED_EVENT_ENTRY_STATUSES),
   joinedAt: z.number().int(),
   rosterId: z.string().nullable(),
   rosterName: z.string().nullable(),
@@ -261,14 +266,14 @@ const club = z.object({
   ownerId: z.string(),
   name: z.string(),
   description: z.string(),
-  visibility: z.enum(LEAGUE_VISIBILITIES),
-  admission: z.enum(LEAGUE_ADMISSIONS),
+  visibility: z.enum(SEALED_EVENT_VISIBILITIES),
+  admission: z.enum(SEALED_EVENT_ADMISSIONS),
   createdAt: z.number().int(),
 })
 const clubMember = z.object({
   userId: z.string(),
-  status: z.enum(CLUB_MEMBER_STATUSES),
-  role: z.enum(CLUB_ROLES),
+  status: z.enum(GROUP_MEMBER_STATUSES),
+  role: z.enum(GROUP_ROLES),
   joinedAt: z.number().int(),
 })
 const battleClub = club.pick({ id: true, token: true, name: true, visibility: true })
@@ -1185,12 +1190,12 @@ export class SpacetimeOperator {
   }
 
   async leagueRosterSharing(token: string, eventToken: string, userId: string) {
-    return this.read('league_roster_sharing', [token, eventToken, userId], leagueRosterSharingSchema.nullable())
+    return this.read('league_roster_sharing', [token, eventToken, userId], sealedEventRosterSharingSchema.nullable())
   }
 
   async leagueCommand<S extends z.ZodType>(command: Record<string, unknown>, result: S): Promise<z.output<S>> {
     const value = await this.read('league_command', [JSON.stringify(command)], z.unknown())
-    if (value === 'past') throw new Response('This sealed game has moved to Past. Start a new game to play again.', { status: 409 })
+    if (value === 'past') throw new Response('This hidden-list game has moved to Past. Start a new game to play again.', { status: 409 })
     return result.parse(value)
   }
 

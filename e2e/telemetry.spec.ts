@@ -303,7 +303,7 @@ test('cancelled creation forms report intent without submissions, and opening th
     .toEqual([
       { name: 'roster_creation_started', properties: {} },
       { name: 'battle_creation_started', properties: {} },
-      { name: 'league_creation_started', properties: {} },
+      { name: 'sealed_event_creation_started', properties: {} },
       { name: 'combat_simulator_opened', properties: { source: 'standalone' } },
     ])
 })

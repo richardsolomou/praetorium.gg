@@ -15,7 +15,7 @@ import { replayBattleBatch } from '../../functions'
 import { deploymentFor } from '../../battleSummary'
 import { replayPreloadBatches } from '../../replayPrefetch'
 import { missionCardsByKey } from './missionDeck'
-import { battleClubsQuery, battleReplayKey, deploymentsQuery, gameReferencesQuery, meQuery, replayAtQuery } from '../../queries'
+import { battleGroupsQuery, battleReplayKey, deploymentsQuery, gameReferencesQuery, meQuery, replayAtQuery } from '../../queries'
 import { formatName, sides, type Side, type SideMission } from '../../sides'
 import { ArmyIdentity } from './ArmyIdentity'
 import { PlayerName } from './PlayerName'
@@ -119,9 +119,9 @@ export function Spectator({
       status: view.status,
       format: formatName(table),
       player_count: view.players.length,
-      league: Boolean(view.leagueToken),
+      sealedEvent: Boolean(view.sealedEventToken),
     })
-  }, [table, view.leagueToken, view.players, view.status])
+  }, [table, view.sealedEventToken, view.players, view.status])
 
   return (
     <>
@@ -164,19 +164,19 @@ export function Spectator({
           ))}
 
           <section className="min-w-0 space-y-3 rounded-lg border border-edge bg-panel p-3 lg:col-start-2 lg:row-start-1">
-            {view.leagueToken || view.clubId ? (
+            {view.sealedEventToken || view.groupId ? (
               <div className="flex min-w-0 items-center gap-3 text-xs">
-                {view.leagueToken ? (
+                {view.sealedEventToken ? (
                   <Link
                     to="/tournaments/$token"
-                    params={{ token: view.leagueToken }}
-                    search={view.leagueEventToken ? { event: view.leagueEventToken } : {}}
+                    params={{ token: view.sealedEventToken }}
+                    search={view.eventToken ? { event: view.eventToken } : {}}
                     className="inline-flex shrink-0 items-center gap-1 text-info hover:text-bone"
                   >
                     <ArrowLeft className="size-3.5" /> Event
                   </Link>
                 ) : null}
-                {view.clubId ? <ClubLink token={view.token} /> : null}
+                {view.groupId ? <GroupLink token={view.token} /> : null}
               </div>
             ) : null}
             <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
@@ -405,13 +405,13 @@ function SpectatorSide({
   )
 }
 
-/** The club a watched battle counts for, when that club is public. */
-function ClubLink({ token }: { token: string }) {
-  const { data } = useQuery(battleClubsQuery(token))
+/** The group a watched battle counts for, when that group is public. */
+function GroupLink({ token }: { token: string }) {
+  const { data } = useQuery(battleGroupsQuery(token))
   if (!data?.current) return null
   return (
     <Link
-      to="/clubs/$token"
+      to="/groups/$token"
       params={{ token: data.current.token }}
       className="inline-flex min-w-0 items-center gap-1 text-info hover:text-bone"
     >

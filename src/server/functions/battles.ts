@@ -13,7 +13,7 @@ import {
   battleReplayBatchSchema,
   createBattleSchema,
   deleteBattleSchema,
-  leagueBattleOptionsSchema,
+  sealedEventBattleOptionsSchema,
   playerProfileSchema,
   submitSchema,
   tokenSchema,
@@ -138,12 +138,12 @@ export const replayBattleBatch = createServerFn({ method: 'GET' })
     rpc(async () => app().service.replayBatch(data.token, await battleViewerId(data.token), data.seqs, await app().rulesFor())),
   )
 
-export const leagueBattleOptions = createServerFn({ method: 'GET' })
-  .validator(leagueBattleOptionsSchema)
+export const sealedEventBattleOptions = createServerFn({ method: 'GET' })
+  .validator(sealedEventBattleOptionsSchema)
   .handler(({ data }) =>
     rpc(async () => {
       const userId = await requireUserId()
-      return app().service.leagueBattleOptions(userId, data)
+      return app().service.sealedEventBattleOptions(userId, data)
     }),
   )
 

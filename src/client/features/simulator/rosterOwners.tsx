@@ -1,13 +1,13 @@
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
 import type { SimulatorRosterSource } from '../../../contracts/simulatorState'
-import { discoveredRostersQuery, friendLeagueRostersQuery, friendshipsQuery, meQuery, savedRosterSummariesQuery } from '../../queries'
+import { discoveredRostersQuery, friendSealedEventRostersQuery, friendshipsQuery, meQuery, savedRosterSummariesQuery } from '../../queries'
 
 export type RosterOwner = { name: string; image?: string | null }
 
-type FriendLeagueRoster = {
-  leagueToken: string
-  leagueName: string
+type FriendSealedEventRoster = {
+  sealedEventToken: string
+  sealedEventName: string
   eventToken: string
   userId: string
   rosterName: string
@@ -15,14 +15,14 @@ type FriendLeagueRoster = {
   ownerImage?: string | null
 }
 
-/** A friend's sealed league list as the simulator links to it. */
-export const friendLeagueSource = ({ leagueToken: token, eventToken, userId }: FriendLeagueRoster) => ({
+/** A friend's sealed list as the simulator links to it. */
+export const friendSealedEventSource = ({ sealedEventToken: token, eventToken, userId }: FriendSealedEventRoster) => ({
   league: { token, eventToken, userId },
 })
 
-/** A friend's sealed league list named by list, player and tournament. */
-export const friendLeagueLabel = (entry: FriendLeagueRoster) =>
-  [entry.rosterName || 'Sealed roster', entry.ownerName, entry.leagueName].join(' · ')
+/** A friend's sealed list named by list, player and tournament. */
+export const friendSealedEventLabel = (entry: FriendSealedEventRoster) =>
+  [entry.rosterName || 'Sealed roster', entry.ownerName, entry.sealedEventName].join(' · ')
 
 type KnownRosters = {
   me: RosterOwner | null | undefined
@@ -48,15 +48,15 @@ export function rosterOwner(source: SimulatorRosterSource | undefined, known: Kn
 /**
  * The rosters a simulator offers to pick from: the player's own, including archived ones,
  * the newest page of friends' public rosters as the roster library's Friends tab lists
- * them, and friends' revealed league lists from events still on.
+ * them, and friends' revealed sealed lists from events still on.
  */
 export function useSimulatorRosters(enabled = true) {
   const me = useQuery({ ...meQuery(), enabled })
   const signedIn = enabled && Boolean(me.data)
   const saved = useQuery({ ...savedRosterSummariesQuery(), enabled: signedIn })
   const friends = useInfiniteQuery({ ...discoveredRostersQuery({}, 'friends', 'updated-desc'), enabled: signedIn })
-  const leagues = useQuery({ ...friendLeagueRostersQuery(), enabled: signedIn })
-  return { me, saved, friendRosters: friends.data?.pages[0]?.rosters ?? [], leagueRosters: leagues.data ?? [] }
+  const sealedEvents = useQuery({ ...friendSealedEventRostersQuery(), enabled: signedIn })
+  return { me, saved, friendRosters: friends.data?.pages[0]?.rosters ?? [], sealedEventRosters: sealedEvents.data ?? [] }
 }
 
 /** `rosterOwner` over the simulator's roster picker reads and the player's friends. */

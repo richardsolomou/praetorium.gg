@@ -48,13 +48,13 @@ export async function prepareBrowserAgentWrite(name: string, input: unknown, exp
   switch (name) {
     case 'save_roster': {
       const data = saveRosterSchema.parse(normalized)
-      const saved = data.id ? await instance.service.leagueService.ownRoster(user.id, data.id) : null
+      const saved = data.id ? await instance.service.sealedEventService.ownRoster(user.id, data.id) : null
       summary = `${saved ? `Replace the saved choices in “${saved.name}”` : 'Save a roster'}${data.name ? ` as “${data.name}”` : ' with an automatic name'}. Visibility: ${data.visibility}.`
       break
     }
     case 'set_roster_visibility': {
       const data = rosterVisibilitySchema.parse(normalized)
-      const roster = await instance.service.leagueService.ownRoster(user.id, data.id)
+      const roster = await instance.service.sealedEventService.ownRoster(user.id, data.id)
       if (!roster) throw new Response('Roster not found.', { status: 404 })
       summary = `Make “${roster.name}” ${data.visibility}.`
       break

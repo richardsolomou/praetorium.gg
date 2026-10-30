@@ -24,7 +24,7 @@ export function rosterProblems(
   ]
 }
 
-/** Why a list cannot be fielded, if it cannot: the one answer a battle, a league and the library all read. */
+/** Why a list cannot be fielded, if it cannot: the one answer a battle, a sealed event and the library all read. */
 export const rosterUseProblem = (priced: PricedRosterLegality, roster: RosterAllowance) => rosterProblems(priced, roster)[0] ?? null
 
 export const rosterUseError = (priced: PricedRosterLegality, roster: RosterAllowance) => rosterUseProblem(priced, roster)?.message ?? null

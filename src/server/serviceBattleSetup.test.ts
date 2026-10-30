@@ -67,15 +67,15 @@ it('refuses a battle with nobody across the table', async () => {
   await expect(service.createBattle('actor', { missionPackId: null, casual: true })).rejects.toMatchObject({ status: 400 })
 })
 
-function clubService(memberIds: string[]) {
+function groupService(memberIds: string[]) {
   const createBattle = vi.fn()
   const repository = {
     namesByIds: vi.fn().mockResolvedValue(new Map([['stranger', 'Stranger']])),
     relationships: vi.fn().mockResolvedValue([]),
     practiceOpponents: vi.fn().mockResolvedValue([]),
-    clubByToken: vi.fn().mockResolvedValue({
-      id: 'club-id',
-      token: 'club',
+    groupByToken: vi.fn().mockResolvedValue({
+      id: 'group-id',
+      token: 'group',
       ownerId: 'actor',
       members: memberIds.map((userId) => ({ userId, status: 'accepted', role: 'member', name: userId, image: null })),
     }),
@@ -91,15 +91,15 @@ function clubService(memberIds: string[]) {
   }
 }
 
-it('starts a club game against a member who is not a friend', async () => {
-  const { service, createBattle } = clubService(['actor', 'stranger'])
-  await service.createBattle('actor', { opponentId: 'stranger', missionPackId: null, clubToken: 'club' })
-  expect(createBattle.mock.calls[0]?.[0]?.initialCommands.at(-1)).toEqual({ kind: 'set-battle-club', clubId: 'club-id' })
+it('starts a group game against a member who is not a friend', async () => {
+  const { service, createBattle } = groupService(['actor', 'stranger'])
+  await service.createBattle('actor', { opponentId: 'stranger', missionPackId: null, groupToken: 'group' })
+  expect(createBattle.mock.calls[0]?.[0]?.initialCommands.at(-1)).toEqual({ kind: 'set-battle-club', clubId: 'group-id' })
 })
 
-it('refuses a club game against someone outside the club', async () => {
-  const { service } = clubService(['actor'])
-  await expect(service.createBattle('actor', { opponentId: 'stranger', missionPackId: null, clubToken: 'club' })).rejects.toMatchObject({
+it('refuses a group game against someone outside the group', async () => {
+  const { service } = groupService(['actor'])
+  await expect(service.createBattle('actor', { opponentId: 'stranger', missionPackId: null, groupToken: 'group' })).rejects.toMatchObject({
     status: 403,
   })
 })

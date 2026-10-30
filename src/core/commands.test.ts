@@ -163,14 +163,14 @@ describe('command schema', () => {
     ).toEqual({ kind: 'set-unit-formation', unitKey: 'unit', formation: 'strategic-reserves' })
   })
 
-  it('accepts a server-created league roster lock', () => {
+  it('accepts a server-created sealed event roster lock', () => {
     expect(commandSchema.parse({ kind: 'lock-league-rosters', leagueToken: 'league' })).toEqual({
       kind: 'lock-league-rosters',
       leagueToken: 'league',
     })
   })
 
-  it('accepts the event behind a league roster lock', () => {
+  it('accepts the event behind a sealed event roster lock', () => {
     expect(commandSchema.parse({ kind: 'lock-league-rosters', leagueToken: 'league', eventToken: 'event' })).toEqual({
       kind: 'lock-league-rosters',
       leagueToken: 'league',

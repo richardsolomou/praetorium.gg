@@ -423,10 +423,10 @@ it('shares a saved roster’s unit by roster and position, without its note', ()
   })
 })
 
-it('shares a revealed league list’s unit by event, entrant and position', () => {
-  const league = { token: 'league-1', eventToken: 'event-1', userId: 'friend-1' }
-  expect(renderBattle({ ...savedRoster(1), saved: { source: { league }, name: 'Sealed' } }).shared?.roster).toEqual({
-    league,
+it('shares a revealed sealed event list’s unit by event, entrant and position', () => {
+  const sealedEvent = { token: 'sealed-event-1', eventToken: 'event-1', userId: 'friend-1' }
+  expect(renderBattle({ ...savedRoster(1), saved: { source: { league: sealedEvent }, name: 'Sealed' } }).shared?.roster).toEqual({
+    league: sealedEvent,
     pickIndex: 1,
   })
 })

@@ -2,19 +2,19 @@ import { expect, it, vi } from 'vitest'
 import { app } from './app'
 import { offlineActions } from './offlineActions'
 import { saveRosterSchema } from '../contracts/schemas'
-import { leagueRosterFixture } from './leagueRoster.fixtures'
+import { sealedEventRosterFixture } from './sealedEventRoster.fixtures'
 
 vi.mock('./app', () => ({ app: vi.fn() }))
 
-it.each(['preview', 'released', 'retired'] as const)('submits a queued %s league seal with frozen rules metadata', async (status) => {
-  const { saved, catalogue, rules, edition } = leagueRosterFixture(status)
+it.each(['preview', 'released', 'retired'] as const)('submits a queued %s sealed event seal with frozen rules metadata', async (status) => {
+  const { saved, catalogue, rules, edition } = sealedEventRosterFixture(status)
   const submit = vi.fn().mockResolvedValue({ format: '1v1', requiredLimit: 1000 })
   vi.mocked(app).mockReturnValue({
     telemetry: { capture: vi.fn() },
     repository: { abilityRemindersByUser: async () => [] },
     service: {
       rosterService: { usableRoster: async () => ({ roster: saved, lentBy: null }) },
-      leagueService: { submitLeagueRoster: submit },
+      sealedEventService: { submitSealedEventRoster: submit },
     },
     catalogueFor: async () => catalogue,
     rulesFor: async () => rules,
@@ -35,7 +35,7 @@ it.each(['preview', 'released', 'retired'] as const)('submits a queued %s league
 })
 
 it('seals a roster a device captured before its alerts moved to the account', async () => {
-  const { saved, catalogue, rules } = leagueRosterFixture('released')
+  const { saved, catalogue, rules } = sealedEventRosterFixture('released')
   const submit = vi.fn().mockResolvedValue({ format: '1v1', requiredLimit: 1000 })
   const prep = { stratagems: [], secondaries: [], remindersEnabled: true }
   vi.mocked(app).mockReturnValue({
@@ -43,7 +43,7 @@ it('seals a roster a device captured before its alerts moved to the account', as
     repository: { abilityRemindersByUser: async () => [] },
     service: {
       rosterService: { usableRoster: async () => ({ roster: { ...saved, prep }, lentBy: null }) },
-      leagueService: { submitLeagueRoster: submit },
+      sealedEventService: { submitSealedEventRoster: submit },
     },
     catalogueFor: async () => catalogue,
     rulesFor: async () => rules,

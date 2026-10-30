@@ -4,7 +4,7 @@ import { byId, chunks, countBy } from '../core/collections'
 import { guestSeatId, isGuestSeat, newBattleSeats, type NewBattlePlayers, type CreateBattleInput } from '../core/newBattle'
 import { type BattlebaseBattle, battlebaseBattleImport, battlebaseBattleSchema } from '../core/battlebaseBattle'
 import { guestSessionCurrent } from '../core/guestSession'
-import { matchingLeagueBattles } from '../shared/leagueBattleOptions'
+import { matchingSealedEventBattles } from '../shared/sealedEventBattleOptions'
 import { battleSummary, type BattleFaction } from '../shared/battleSummary'
 import { offlineIdentifier, offlineContext } from './offlineContext'
 import {
@@ -63,8 +63,8 @@ import {
 import { opposingSide, refuse } from '../core/battlePrimitives'
 import { ACHIEVEMENTS, achievementPoints, achievements, type AchievementId, type EarnedAchievements } from '../core/achievements'
 import { swissPairings, swissStandings, type SwissMatch } from '../core/swiss'
-import { seasonDraw, seasonFixtureStatus } from '../core/clubSeason'
-import { LEAGUE_RESULTS_BATTLE_LIMIT, leagueResults } from '../core/leagueResults'
+import { leagueDraw, leagueFixtureStatus } from '../core/groupLeague'
+import { SEALED_EVENT_RESULTS_BATTLE_LIMIT, sealedEventResults } from '../core/sealedEventResults'
 import { REPLAY_BATCH_SIZE, type BattlesCursor } from '../contracts/battles'
 import { gameReferencesFor } from '../shared/gameReferences'
 import { archivedArmies } from '../core/archivedArmies'
@@ -72,8 +72,8 @@ import { currentCatalogueFamilyId } from '../core/retiredCatalogueIds'
 import { type BattleMissionRules, type BattleReadRules, type LoadedRules } from './rules'
 import type { Mission } from '../shared/rulesCards'
 import { type Notifier, silentNotifier } from './pushNotifier'
-import { LeagueService } from './services/leagueService'
-import { ClubService } from './services/clubService'
+import { SealedEventService } from './services/sealedEventService'
+import { GroupService } from './services/groupService'
 import { RosterService } from './services/rosterService'
 import { SocialService } from './services/socialService'
 import { StandingsRefresh, storedBattle } from './standingsRefresh'
@@ -148,9 +148,9 @@ const PUBLIC_FEED_HELD_PAGES = 200
 /** How recently a player must have played to be listed; their rating counts every battle the standings read. */
 const STANDINGS_DAYS = 90
 const DAY_MS = 24 * 60 * 60 * 1000
-/** Pages of 500 battles a club's table reads, newest first, before it rates only those. */
+/** Pages of 500 battles a group's table reads, newest first, before it rates only those. */
 const STANDINGS_PAGES = 20
-const CLUB_RECENT_BATTLES = 6
+const GROUP_RECENT_BATTLES = 6
 /** How long one leaderboard read serves repeated reads, such as a burst of tabs refetching after the same signal. */
 const STANDINGS_HOLD_MS = 5_000
 
@@ -180,8 +180,8 @@ type SubmitArgs = [
 ]
 
 export class PraetoriumService {
-  readonly leagueService: LeagueService
-  readonly clubService: ClubService
+  readonly sealedEventService: SealedEventService
+  readonly groupService: GroupService
   readonly rosterService: RosterService
   readonly socialService: SocialService
   private readonly standingsRefresh: StandingsRefresh
@@ -196,8 +196,8 @@ export class PraetoriumService {
     private readonly notifier: Notifier = silentNotifier,
     private readonly battleFactions: () => Promise<readonly BattleFaction[]> = async () => [],
   ) {
-    this.leagueService = new LeagueService(repository, clock, notifier)
-    this.clubService = new ClubService(repository, clock, notifier)
+    this.sealedEventService = new SealedEventService(repository, clock, notifier)
+    this.groupService = new GroupService(repository, clock, notifier)
     this.rosterService = new RosterService(repository, clock)
     this.socialService = new SocialService(repository, clock, notifier)
     this.standingsRefresh = new StandingsRefresh(repository, battleFactions)
@@ -229,7 +229,7 @@ export class PraetoriumService {
   /**
    * The battles anyone may watch, for the home page.
    *
-   * Folded with no viewer, the same as a league event's list: a reader with no
+   * Folded with no viewer, the same as a sealed event's list: a reader with no
    * seat is told what a spectator of any one of these would be told, and nothing
    * in a summary is hidden from a spectator anyway.
    */
@@ -458,7 +458,7 @@ export class PraetoriumService {
     })
     const tournaments = await Promise.all(
       facts.tournaments.map(async ({ token, eventToken, ...tournament }) => {
-        const table = tournament.played ? await this.leagueResults(token, eventToken, undefined, [], userId) : null
+        const table = tournament.played ? await this.sealedEventResults(token, eventToken, undefined, [], userId) : null
         return { ...tournament, won: Boolean(table && !table.partial && table.swiss?.[0]?.userId === userId) }
       }),
     )
@@ -563,15 +563,15 @@ export class PraetoriumService {
     return history.players.length > 0
   }
 
-  async leagueBattles(
-    leagueToken: string,
+  async sealedEventBattles(
+    sealedEventToken: string,
     eventToken: string,
     page: { limit: number; before?: BattlesCursor },
     rules?: BattleMissionRules | null,
     factions?: readonly BattleFaction[],
     viewerId: string | null = null,
   ) {
-    const { battles: histories, nextCursor } = await this.repository.battlesByLeagueEvent(leagueToken, eventToken, {
+    const { battles: histories, nextCursor } = await this.repository.battlesBySealedEvent(sealedEventToken, eventToken, {
       ...page,
       viewerId,
     })
@@ -587,65 +587,75 @@ export class PraetoriumService {
   }
 
   /** A revealed event's results table and who has met whom, from the battles this reader may watch. */
-  async leagueResults(
-    leagueToken: string,
+  async sealedEventResults(
+    sealedEventToken: string,
     eventToken: string,
     rules?: BattleMissionRules | null,
     factions?: readonly BattleFaction[],
     viewerId: string | null = null,
   ) {
-    const league = await this.leagueService.league(leagueToken, viewerId, eventToken)
-    if (!league?.revealedAt) return null
-    const { battles, nextCursor } = await this.leagueBattles(
-      leagueToken,
+    const sealedEvent = await this.sealedEventService.sealedEvent(sealedEventToken, viewerId, eventToken)
+    if (!sealedEvent?.revealedAt) return null
+    const { battles, nextCursor } = await this.sealedEventBattles(
+      sealedEventToken,
       eventToken,
-      { limit: LEAGUE_RESULTS_BATTLE_LIMIT },
+      { limit: SEALED_EVENT_RESULTS_BATTLE_LIMIT },
       rules,
       factions,
       viewerId,
     )
-    const entrantIds = league.entries.filter((entry) => entry.status === 'accepted').map((entry) => entry.userId)
+    const entrantIds = sealedEvent.entries.filter((entry) => entry.status === 'accepted').map((entry) => entry.userId)
     return {
-      ...leagueResults(entrantIds, battles),
-      swiss: league.rounds === null ? null : swissStandings(entrantIds, swissMatches(league.pairings, battles), droppedIds(league.entries)),
+      ...sealedEventResults(entrantIds, battles),
+      swiss:
+        sealedEvent.rounds === null
+          ? null
+          : swissStandings(entrantIds, swissMatches(sealedEvent.pairings, battles), droppedIds(sealedEvent.entries)),
       partial: nextCursor !== null,
     }
   }
 
   /** Pairs the next Swiss round from the results so far. */
-  async pairLeagueRound(leagueToken: string, eventToken: string | undefined, userId: string) {
-    const league = await this.leagueService.league(leagueToken, userId, eventToken)
-    if (!league) throw new Response('no such event', { status: 404 })
-    if (league.rounds === null || !league.revealedAt) throw new Response('pair rounds once the rosters are out', { status: 409 })
-    const { battles, nextCursor } = await this.leagueBattles(
-      leagueToken,
-      league.eventToken,
-      { limit: LEAGUE_RESULTS_BATTLE_LIMIT },
+  async pairSealedEventRound(sealedEventToken: string, eventToken: string | undefined, userId: string) {
+    const sealedEvent = await this.sealedEventService.sealedEvent(sealedEventToken, userId, eventToken)
+    if (!sealedEvent) throw new Response('no such tournament', { status: 404 })
+    if (sealedEvent.rounds === null || !sealedEvent.revealedAt) throw new Response('pair rounds once the rosters are out', { status: 409 })
+    const { battles, nextCursor } = await this.sealedEventBattles(
+      sealedEventToken,
+      sealedEvent.eventToken,
+      { limit: SEALED_EVENT_RESULTS_BATTLE_LIMIT },
       null,
       [],
       userId,
     )
     // A battle past the read limit would read as unplayed and skew every score the pairing depends on.
-    if (nextCursor !== null) throw new Response('this event has too many battles to pair its next round', { status: 409 })
-    const players = league.entries.filter((entry) => entry.status === 'accepted' && entry.submitted).map((entry) => entry.userId)
-    const matches = swissMatches(league.pairings, battles)
-    const round = Math.max(0, ...league.pairings.map((pairing) => pairing.round)) + 1
-    const result = await this.repository.pairLeagueRound({
-      token: leagueToken,
-      eventToken: league.eventToken,
+    if (nextCursor !== null) throw new Response('this tournament has too many battles to pair its next round', { status: 409 })
+    const players = sealedEvent.entries.filter((entry) => entry.status === 'accepted' && entry.submitted).map((entry) => entry.userId)
+    const matches = swissMatches(sealedEvent.pairings, battles)
+    const round = Math.max(0, ...sealedEvent.pairings.map((pairing) => pairing.round)) + 1
+    const result = await this.repository.pairSealedEventRound({
+      token: sealedEventToken,
+      eventToken: sealedEvent.eventToken,
       ownerId: userId,
       round,
-      pairs: swissPairings(players, matches, Math.random, droppedIds(league.entries)),
+      pairs: swissPairings(players, matches, Math.random, droppedIds(sealedEvent.entries)),
     })
     if (result === 'paired') {
       this.notifier.notify([
-        { kind: 'league-round-paired', actorId: userId, recipientIds: players, leagueToken, eventToken: league.eventToken, round },
+        {
+          kind: 'sealed-event-round-paired',
+          actorId: userId,
+          recipientIds: players,
+          sealedEventToken,
+          eventToken: sealedEvent.eventToken,
+          round,
+        },
       ])
       return { round }
     }
     if (result === 'forbidden') throw new Response('only the organizer pairs rounds', { status: 403 })
     if (result === 'not-ready') throw new Response('every table must finish its battle before the next round', { status: 409 })
-    if (result === 'missing') throw new Response('no such event', { status: 404 })
+    if (result === 'missing') throw new Response('no such tournament', { status: 404 })
     throw new Response('the round changed while it was being paired; try again', { status: 409 })
   }
 
@@ -653,12 +663,12 @@ export class PraetoriumService {
    * Reopens a finished Swiss table for one of its event's organizers, who need not have played it, so its players can
    * correct the result. The standings follow the corrected result; no round is paired again.
    */
-  async reopenSwissTable(leagueToken: string, eventToken: string | undefined, battleToken: string, userId: string) {
-    const league = await this.leagueService.league(leagueToken, userId, eventToken)
-    if (!league) throw new Response('no such event', { status: 404 })
-    if (!league.organizer) throw new Response('only the organizer can reopen a result', { status: 403 })
-    if (!league.pairings.some((pairing) => pairing.battleToken === battleToken))
-      throw new Response('no such table in this event', { status: 404 })
+  async reopenSwissTable(sealedEventToken: string, eventToken: string | undefined, battleToken: string, userId: string) {
+    const sealedEvent = await this.sealedEventService.sealedEvent(sealedEventToken, userId, eventToken)
+    if (!sealedEvent) throw new Response('no such tournament', { status: 404 })
+    if (!sealedEvent.organizer) throw new Response('only the organizer can reopen a result', { status: 403 })
+    if (!sealedEvent.pairings.some((pairing) => pairing.battleToken === battleToken))
+      throw new Response('no such table in this tournament', { status: 404 })
     const history = await this.mustFind(battleToken)
     const { result } = await this.repository.submit({
       battleId: history.battle.id,
@@ -673,33 +683,33 @@ export class PraetoriumService {
   }
 
   /**
-   * A club's standing table: every battle tagged for it, rated together, with rows for its current members only, so
-   * someone who leaves drops off and comes back with their record if they rejoin. A private club shows it to members alone.
+   * A group's standing table: every battle tagged for it, rated together, with rows for its current members only, so
+   * someone who leaves drops off and comes back with their record if they rejoin. A private group shows it to members alone.
    */
-  async clubStandings(token: string, viewerId: string | null, factions: readonly BattleFaction[] = []) {
-    const club = await this.clubService.club(token, viewerId)
-    if (!club) return null
-    const memberIds = new Set(club.members.filter((member) => member.status === 'accepted').map((member) => member.userId))
-    if (club.visibility === 'private' && !(viewerId && memberIds.has(viewerId))) return null
+  async groupStandings(token: string, viewerId: string | null, factions: readonly BattleFaction[] = []) {
+    const group = await this.groupService.group(token, viewerId)
+    if (!group) return null
+    const memberIds = new Set(group.members.filter((member) => member.status === 'accepted').map((member) => member.userId))
+    if (group.visibility === 'private' && !(viewerId && memberIds.has(viewerId))) return null
     const histories: BattleHistory[] = []
     let before: BattlesCursor | undefined
     for (let page = 0; page < STANDINGS_PAGES; page++) {
-      const { battles, nextCursor } = await this.repository.battlesByClub(token, { limit: LEAGUE_RESULTS_BATTLE_LIMIT, before })
+      const { battles, nextCursor } = await this.repository.battlesByGroup(token, { limit: SEALED_EVENT_RESULTS_BATTLE_LIMIT, before })
       histories.push(...battles)
       before = nextCursor ?? undefined
       if (!before) break
     }
     const practice = await this.repository.practiceOpponents()
-    // A game's battles name its event; one from before events were recorded on battles names only its league, now this club.
-    const gameEvents = new Set(club.games.map((game) => game.token))
-    // Which sealed game each battle came from, so the page can name it and leave a game's battles inside its card.
+    // A game's battles name its event; one from before events were recorded on battles names only its sealed event, now this group.
+    const gameEvents = new Set(group.games.map((game) => game.token))
+    // Which hidden-list game each battle came from, so the page can name it and leave a game's battles inside its card.
     const gameOf = new Map<string, string>()
     const counted = this.battleSummaries(
       histories.filter((history) => {
         const state = foldHistory(history)
-        const fromGame = state.leagueEventToken !== null && gameEvents.has(state.leagueEventToken)
-        if (fromGame) gameOf.set(history.battle.token, state.leagueEventToken!)
-        return state.clubId === club.id || fromGame || (state.leagueEventToken === null && state.leagueToken === club.token)
+        const fromGame = state.eventToken !== null && gameEvents.has(state.eventToken)
+        if (fromGame) gameOf.set(history.battle.token, state.eventToken!)
+        return state.groupId === group.id || fromGame || (state.eventToken === null && state.sealedEventToken === group.token)
       }),
       viewerId,
       null,
@@ -707,8 +717,8 @@ export class PraetoriumService {
     )
     const tables = standings(counted, { exclude: practice.map((opponent) => opponent.id) })
     const rows = tables.overall.filter((row) => memberIds.has(row.id))
-    const recent = counted.filter((battle) => battle.status === 'finished').slice(0, CLUB_RECENT_BATTLES)
-    // The reader's own club battles still being set up or played, which is what they most likely came back for.
+    const recent = counted.filter((battle) => battle.status === 'finished').slice(0, GROUP_RECENT_BATTLES)
+    // The reader's own group battles still being set up or played, which is what they most likely came back for.
     const active = viewerId ? counted.filter((battle) => battle.status !== 'finished' && battle.playerIds.includes(viewerId)) : []
     return {
       table: { faction: null, players: rows.length, rows },
@@ -721,30 +731,30 @@ export class PraetoriumService {
           return game ? [[battle.token, game]] : []
         }),
       ),
-      // Sealed games with a battle still being set up or played, which stay current until it ends.
+      // Hidden-list games with a battle still being set up or played, which stay current until it ends.
       playing: [...new Set(counted.flatMap((battle) => (battle.status === 'finished' ? [] : (gameOf.get(battle.token) ?? []))))],
       partial: before !== undefined,
     }
   }
 
   /**
-   * A club's season: who plays, each round's fixtures and the table, read from the battles its fixtures started. A
-   * draft's fixtures are its organizers' to review; a private club shows the season to members alone.
+   * A group's league: who plays, each round's fixtures and the table, read from the battles its fixtures started. A
+   * draft's fixtures are its organizers' to review; a private group shows the league to members alone.
    */
-  async clubSeason(token: string, viewerId: string | null, factions: readonly BattleFaction[] = []) {
-    const { club, season } = (await this.clubService.clubWithSeason(token, viewerId)) ?? {}
-    if (!club || !season) return null
-    if (club.visibility === 'private' && !club.members.some((member) => member.userId === viewerId && member.status === 'accepted'))
+  async groupLeague(token: string, viewerId: string | null, factions: readonly BattleFaction[] = []) {
+    const { group, league } = (await this.groupService.groupWithLeague(token, viewerId)) ?? {}
+    if (!group || !league) return null
+    if (group.visibility === 'private' && !group.members.some((member) => member.userId === viewerId && member.status === 'accepted'))
       return null
-    const published = season.publishedAt !== null
-    const histories = published ? await this.repository.battlesBySeason(token) : []
+    const published = league.publishedAt !== null
+    const histories = published ? await this.repository.battlesByLeague(token) : []
     const battles = this.battleSummaries(histories, viewerId, null, factions)
     const byToken = new Map(battles.map((battle) => [battle.token, battle]))
-    const playing = new Set(season.players.filter((player) => !player.withdrawn).map((player) => player.userId))
+    const playing = new Set(league.players.filter((player) => !player.withdrawn).map((player) => player.userId))
     const drawn = published
-      ? season.fixtures
-      : club.organizer
-        ? seasonDraw([...playing], season.seed).flatMap((tables, index) =>
+      ? league.fixtures
+      : group.organizer
+        ? leagueDraw([...playing], league.seed).flatMap((tables, index) =>
             tables.map(([aId, bId], at) => ({ key: null, round: index + 1, table: at + 1, aId, bId, battleToken: null })),
           )
         : []
@@ -754,21 +764,21 @@ export class PraetoriumService {
         battle && userId ? sideScore(battle, battle.sides[battle.playerIds.indexOf(userId)] ?? -1) : 0
       return {
         ...fixture,
-        status: seasonFixtureStatus({ ...fixture, battle }, (userId) => playing.has(userId)),
+        status: leagueFixtureStatus({ ...fixture, battle }, (userId) => playing.has(userId)),
         battle: battle && { token: battle.token, status: battle.status, scores: [score(fixture.aId), score(fixture.bId)] as const },
       }
     })
     return {
       published,
       // The seed decides the draw, so only the organizers reviewing a draft are given it.
-      seed: club.organizer && !published ? season.seed : null,
-      organizer: club.organizer,
-      players: season.players,
-      deadlines: season.deadlines,
+      seed: group.organizer && !published ? league.seed : null,
+      organizer: group.organizer,
+      players: league.players,
+      deadlines: league.deadlines,
       fixtures,
       table: published
         ? swissStandings(
-            season.players.map((player) => player.userId),
+            league.players.map((player) => player.userId),
             swissMatches(
               fixtures.filter((fixture) => fixture.status !== 'void'),
               battles,
@@ -778,16 +788,16 @@ export class PraetoriumService {
     }
   }
 
-  /** The club a battle counts for, and for a seated player during setup the clubs it could; a private club's name stays with its players. */
-  async battleClubs(token: string, viewerId: string | null) {
+  /** The group a battle counts for, and for a seated player during setup the groups it could; a private group's name stays with its players. */
+  async battleGroups(token: string, viewerId: string | null) {
     const seats = await this.repository.battleByToken(token)
     if (!seats) throw new Response('no such battle', { status: 404 })
     const seated = viewerId !== null && this.seated(seats, viewerId)
-    const { current, options } = await this.repository.battleClubs(seats.battle.id)
-    const summary = (club: { token: string; name: string }) => ({ token: club.token, name: club.name })
+    const { current, options } = await this.repository.battleGroups(seats.battle.id)
+    const summary = (group: { token: string; name: string }) => ({ token: group.token, name: group.name })
     return {
       current: current && (seated || current.visibility === 'public') ? summary(current) : null,
-      options: seated ? options.map((club) => ({ id: club.id, ...summary(club) })) : [],
+      options: seated ? options.map((group) => ({ id: group.id, ...summary(group) })) : [],
     }
   }
 
@@ -871,18 +881,18 @@ export class PraetoriumService {
       throw new Response('choose an opponent', { status: 400 })
     }
     const allowed = byId(invitable)
-    // Joining a club is consent to play its members, so a club game needs no friendship; the product database checks membership again.
-    const clubToken = typeof input === 'object' ? input.clubToken : undefined
-    const { club = null, season = null } = (clubToken && (await this.clubService.clubWithSeason(clubToken, userId))) || {}
-    if (clubToken) {
-      const members = new Set(club?.members.filter((member) => member.status === 'accepted').map((member) => member.userId))
-      if (!club || !members.has(userId) || guestNames.length || invited.some((id) => !members.has(id)))
-        throw new Response('a club game is played between its members', { status: 403 })
+    // Joining a group is consent to play its members, so a group game needs no friendship; the product database checks membership again.
+    const groupToken = typeof input === 'object' ? input.groupToken : undefined
+    const { group = null, league = null } = (groupToken && (await this.groupService.groupWithLeague(groupToken, userId))) || {}
+    if (groupToken) {
+      const members = new Set(group?.members.filter((member) => member.status === 'accepted').map((member) => member.userId))
+      if (!group || !members.has(userId) || guestNames.length || invited.some((id) => !members.has(id)))
+        throw new Response('a group game is played between its members', { status: 403 })
     } else if (invited.some((id) => !allowed.has(id)))
       throw new Response('battle players must be your friends or a practice opponent', { status: 403 })
-    // The product database checks the rest of a fixture: its two players, both still in the season, and its club.
+    // The product database checks the rest of a fixture: its two players, both still in the league, and its group.
     const fixtureKey = typeof input === 'object' ? input.fixture : undefined
-    const fixture = fixtureKey ? season?.fixtures.find((candidate) => candidate.key === fixtureKey) : undefined
+    const fixture = fixtureKey ? league?.fixtures.find((candidate) => candidate.key === fixtureKey) : undefined
     if (fixtureKey && (!fixture || fixture.battleToken !== null || ![fixture.aId, fixture.bId].includes(userId)))
       throw new Response('this fixture is not yours to start, or has already started', { status: 409 })
     // How many chairs a battle has is `battleCapacity`'s to say, here as everywhere.
@@ -891,10 +901,10 @@ export class PraetoriumService {
     // Every battle names its table. There is no opening a game and waiting to see
     // who turns up, so a battle without an opponent is not a battle yet.
     if (!opponentIds.length && !guestNames.length) throw new Response('choose an opponent', { status: 400 })
-    // A league seats its own entrants, so a table with a guest at it can only be casual.
-    if (!club && invited.length && !guestNames.length && (typeof input !== 'object' || !input.casual)) {
-      const leagueMatches = await this.leagueBattleOptions(userId, input)
-      if (leagueMatches.length) {
+    // A sealed event seats its own entrants, so a table with a guest at it can only be casual.
+    if (!group && invited.length && !guestNames.length && (typeof input !== 'object' || !input.casual)) {
+      const sealedEventMatches = await this.sealedEventBattleOptions(userId, input)
+      if (sealedEventMatches.length) {
         throw new Response('start this matchup from its event page, or confirm a casual battle', { status: 409 })
       }
     }
@@ -920,12 +930,12 @@ export class PraetoriumService {
           clockLimitMinutes: null,
           ...(settings.manual ? { manual: true } : {}),
         },
-        ...(club ? [{ kind: 'set-battle-club' as const, clubId: club.id }] : []),
+        ...(group ? [{ kind: 'set-battle-club' as const, clubId: group.id }] : []),
       ],
       now: offlineContext.getStore()?.createdAt ?? this.clock(),
       fixtureKey,
     })
-    this.notifier.notify([{ kind: 'battle-created', actorId: userId, recipientIds: invited, battleToken: token, league: false }])
+    this.notifier.notify([{ kind: 'battle-created', actorId: userId, recipientIds: invited, battleToken: token, sealedEvent: false }])
     return { battleId: id, token, practice }
   }
 
@@ -968,12 +978,12 @@ export class PraetoriumService {
     return 'imported'
   }
 
-  async leagueBattleOptions(userId: string, input?: string | NewBattlePlayers) {
+  async sealedEventBattleOptions(userId: string, input?: string | NewBattlePlayers) {
     const { opponentIds, invited } = newBattleSeats(input)
     const participantIds = [userId, ...invited]
     if (!opponentIds.length || new Set(participantIds).size !== participantIds.length) return []
-    const candidates = await this.repository.leagueBattleCandidates(userId, participantIds)
-    return matchingLeagueBattles(candidates, userId, input)
+    const candidates = await this.repository.sealedEventBattleCandidates(userId, participantIds)
+    return matchingSealedEventBattles(candidates, userId, input)
   }
 
   /** Who sat at each of a player's latest battles and how far it got. The battles themselves still open through `mayWatch`. */
@@ -1144,10 +1154,10 @@ export class PraetoriumService {
     if (sync) command = restoreOpaqueBattleKeys(history.players, history.log, command)
     if (command.kind === 'lock-league-rosters') throw new Response('sealed roster locks are created by the server', { status: 403 })
     // The product database refuses a non-member too; asking first gives the refusal its code.
-    const clubId = command.kind === 'set-battle-club' ? command.clubId : null
-    const clubRefusal =
-      clubId && !(await this.repository.battleClubs(history.battle.id)).options.some((club) => club.id === clubId)
-        ? refuse('club-members-only', 'every player must be a member of the club')
+    const groupId = command.kind === 'set-battle-club' ? command.clubId : null
+    const groupRefusal =
+      groupId && !(await this.repository.battleGroups(history.battle.id)).options.some((group) => group.id === groupId)
+        ? refuse('group-members-only', 'every player must be a member of the group')
         : null
     // The log comes back with the answer, so a refusal and a lost race both report
     // the state that refused them rather than the one the caller was holding —
@@ -1163,7 +1173,7 @@ export class PraetoriumService {
         ...sync,
       },
       (state) => {
-        if (clubRefusal) return clubRefusal
+        if (groupRefusal) return groupRefusal
         if (command.kind === 'begin-battle') return rules ? setupReferenceError(state, rules) : null
         if (command.kind === 'set-prep' && state.status === 'playing') {
           return rules ? repairPrepReferenceError(state, userId, command, rules) : null

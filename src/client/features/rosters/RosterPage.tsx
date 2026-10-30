@@ -3,44 +3,44 @@ import { fieldedRoster } from './fieldedRoster'
 import { BattleRosterSnapshot } from './BattleRosterSnapshot'
 import { ListBuilder } from './ListBuilder'
 import { NO_PREP } from './rosterDraft'
-import { battleQuery, leagueRosterQuery, rosterAccessQuery } from '../../queries'
+import { battleQuery, sealedEventRosterQuery, rosterAccessQuery } from '../../queries'
 import { FullPageState } from '../../components/PageState'
 
 export function RosterPage({
   id,
   battle,
-  league,
+  sealedEvent,
   event,
   print,
   editable,
   snapshot,
-  leagueSnapshot,
+  sealedEventSnapshot,
   requested,
 }: {
   id: string
   battle?: string
-  league?: string
+  sealedEvent?: string
   event?: string
   print?: boolean
   editable: boolean
   snapshot: boolean
-  leagueSnapshot?: boolean
+  sealedEventSnapshot?: boolean
   requested?: Parameters<typeof ListBuilder>[0]['requested']
 }) {
   const { data: screen } = useQuery({ ...battleQuery(battle ?? ''), enabled: snapshot && Boolean(battle) })
   const { data: sealed } = useQuery({
-    ...leagueRosterQuery(league ?? '', event ?? '', id),
-    enabled: Boolean(leagueSnapshot && league),
+    ...sealedEventRosterQuery(sealedEvent ?? '', event ?? '', id),
+    enabled: Boolean(sealedEventSnapshot && sealedEvent),
   })
   const { data: access } = useQuery({ ...rosterAccessQuery(id, battle), enabled: !snapshot })
   const roster = access?.roster
 
-  if (leagueSnapshot)
+  if (sealedEventSnapshot)
     return sealed ? (
       <BattleRosterSnapshot
         roster={sealed}
         print={print}
-        simulatorSource={league && event ? { league: { token: league, eventToken: event, userId: id } } : undefined}
+        simulatorSource={sealedEvent && event ? { league: { token: sealedEvent, eventToken: event, userId: id } } : undefined}
       />
     ) : null
   if (snapshot && battle && screen && screen.kind !== 'unavailable') {

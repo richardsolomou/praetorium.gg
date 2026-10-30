@@ -1,5 +1,5 @@
 import { expect, it, vi } from 'vitest'
-import { leagueRosterFixture } from './leagueRoster.fixtures'
+import { sealedEventRosterFixture } from './sealedEventRoster.fixtures'
 import { app } from './app'
 import { ability, bookOf, points } from './catalogue.fixtures'
 import { rosterUseError, rosterUseProblem } from '../core/rosterLegality'
@@ -7,8 +7,8 @@ import { rosterForUse, withCurrentAlerts } from './rosterUsage'
 
 vi.mock('./app', () => ({ app: vi.fn() }))
 
-it.each(['preview', 'released', 'retired'] as const)('snapshots a %s league roster with its rules identity', async (status) => {
-  const { saved, catalogue, rules, edition } = leagueRosterFixture(status)
+it.each(['preview', 'released', 'retired'] as const)('snapshots a %s sealed event roster with its rules identity', async (status) => {
+  const { saved, catalogue, rules, edition } = sealedEventRosterFixture(status)
   vi.mocked(app).mockReturnValue({
     repository: { abilityRemindersByUser: async () => [] },
     service: { rosterService: { usableRoster: async () => ({ roster: saved, lentBy: null }) } },

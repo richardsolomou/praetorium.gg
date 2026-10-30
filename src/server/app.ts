@@ -333,7 +333,7 @@ export function app(): App {
       spacetimeAccess,
       process.env.SPACETIME_INTERNAL_HOST,
     )
-    // Leagues ran as clubs before clubs existed. The module turns whatever leagues remain into clubs and answers 0 once
+    // Sealed events ran as groups before groups existed. The module turns whatever sealed events remain into groups and answers 0 once
     // none do; a start under load can time the call out, so it tries a few times before waiting for the next start.
     void pRetry(() => operator.migrateLeaguesToClubs(Date.now()), {
       retries: 4,

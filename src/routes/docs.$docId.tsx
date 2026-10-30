@@ -5,9 +5,9 @@ import { pageHead } from '../client/linkPreview'
 
 /** Slugs that moved, so links shared before the rename still land. */
 const MOVED: Record<string, string> = {
-  'run-a-league': 'run-a-tournament',
-  'play-in-a-league': 'play-in-a-tournament',
-  'league-problems': 'tournament-problems',
+  'run-a-sealed-event': 'run-a-tournament',
+  'play-in-a-sealed-event': 'play-in-a-tournament',
+  'sealed-event-problems': 'tournament-problems',
 }
 
 export const Route = createFileRoute('/docs/$docId')({

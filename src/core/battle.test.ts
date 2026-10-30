@@ -159,7 +159,7 @@ describe('setup', () => {
 
     expect(state.settings.playerCount).toBe(3)
   })
-  const leagueBattle = () =>
+  const sealedEventBattle = () =>
     reduceBattle(
       PLAYERS,
       log(
@@ -180,21 +180,21 @@ describe('setup', () => {
       ),
     )
 
-  it('shares the league that sealed the battle rosters', () => {
-    expect(battleView({ token: 'league-battle' }, NAMES, leagueBattle(), ALICE).leagueToken).toBe('league')
+  it('shares the sealed event that sealed the battle rosters', () => {
+    expect(battleView({ token: 'sealed-event-battle' }, NAMES, sealedEventBattle(), ALICE).sealedEventToken).toBe('league')
   })
 
   it.each<[string, Command]>([
-    ['replace a sealed league roster', builtRoster('Replacement', ['Terminators'])],
-    ['remove a sealed league roster', { kind: 'detach-roster' }],
-    ['reset sealed league rosters', { kind: 'reset-setup' }],
+    ['replace a sealed roster', builtRoster('Replacement', ['Terminators'])],
+    ['remove a sealed roster', { kind: 'detach-roster' }],
+    ['reset sealed rosters', { kind: 'reset-setup' }],
   ])('refuses to %s', (_action, command) => {
-    expect(validate(leagueBattle(), ALICE, command)).toBe('these rosters are sealed')
+    expect(validate(sealedEventBattle(), ALICE, command)).toBe('these rosters are sealed')
   })
 
-  it('refuses to change a sealed league battle size', () => {
+  it('refuses to change a sealed battle size', () => {
     expect(
-      validate(leagueBattle(), ALICE, {
+      validate(sealedEventBattle(), ALICE, {
         kind: 'configure-battle',
         limit: 1000,
         missionPackId: null,
@@ -205,9 +205,9 @@ describe('setup', () => {
     ).toBe('this battle’s size is sealed')
   })
 
-  it('refuses to add another side to a sealed league battle', () => {
+  it('refuses to add another side to a sealed battle', () => {
     expect(
-      validate(leagueBattle(), ALICE, {
+      validate(sealedEventBattle(), ALICE, {
         kind: 'configure-battle',
         limit: 2000,
         missionPackId: null,
@@ -573,7 +573,7 @@ describe('setup', () => {
       ).toBe('take-and-hold')
     })
 
-    describe('sealed by a league lock', () => {
+    describe('sealed by a sealed event lock', () => {
       const entries = table(
         army('Marines', 'recon', ['recon', 'take-and-hold'], 1000),
         army('Guard', 'purge-the-foe', ['purge-the-foe'], 1000),
@@ -1168,8 +1168,8 @@ describe('refusal codes', () => {
   })
 })
 
-describe('club battles', () => {
-  const club: Command = { kind: 'set-battle-club', clubId: 'club' }
+describe('group battles', () => {
+  const group: Command = { kind: 'set-battle-club', clubId: 'group' }
   const configure = (manual: boolean): Command => ({
     kind: 'configure-battle',
     limit: 2000,
@@ -1180,28 +1180,28 @@ describe('club battles', () => {
     manual,
   })
 
-  it('refuses a club once the battle has started', () => {
-    expect(commandRefusal(reduceBattle(PLAYERS, log(...started())), ALICE, club)?.code).toBe('battle-started')
+  it('refuses a group once the battle has started', () => {
+    expect(commandRefusal(reduceBattle(PLAYERS, log(...started())), ALICE, group)?.code).toBe('battle-started')
   })
 
-  it('refuses a club for a battle with a guest', () => {
-    expect(commandRefusal(reduceBattle([ALICE, guestSeatId('battle', 1)], []), ALICE, club)?.code).toBe('club-ineligible')
+  it('refuses a group for a battle with a guest', () => {
+    expect(commandRefusal(reduceBattle([ALICE, guestSeatId('battle', 1)], []), ALICE, group)?.code).toBe('group-ineligible')
   })
 
-  it('refuses a club for a league battle', () => {
+  it('refuses a group for a sealed event battle', () => {
     const state = reduceBattle(PLAYERS, log([ALICE, { kind: 'lock-league-rosters', leagueToken: 'league' }]))
-    expect(commandRefusal(state, ALICE, club)?.code).toBe('club-ineligible')
+    expect(commandRefusal(state, ALICE, group)?.code).toBe('group-ineligible')
   })
 
-  it('refuses a club for a manually tracked battle', () => {
-    expect(commandRefusal(reduceBattle(PLAYERS, log([ALICE, configure(true)])), ALICE, club)?.code).toBe('club-ineligible')
+  it('refuses a group for a manually tracked battle', () => {
+    expect(commandRefusal(reduceBattle(PLAYERS, log([ALICE, configure(true)])), ALICE, group)?.code).toBe('group-ineligible')
   })
 
-  it('keeps a club battle on missions and scoring', () => {
-    expect(commandRefusal(reduceBattle(PLAYERS, log([ALICE, club])), ALICE, configure(true))?.code).toBe('club-ineligible')
+  it('keeps a group battle on missions and scoring', () => {
+    expect(commandRefusal(reduceBattle(PLAYERS, log([ALICE, group])), ALICE, configure(true))?.code).toBe('group-ineligible')
   })
 
-  it('forgets the club when its choice is undone', () => {
-    expect(reduceBattle(PLAYERS, log([ALICE, club], [ALICE, { kind: 'undo', target: 1 }])).clubId).toBeNull()
+  it('forgets the group when its choice is undone', () => {
+    expect(reduceBattle(PLAYERS, log([ALICE, group], [ALICE, { kind: 'undo', target: 1 }])).groupId).toBeNull()
   })
 })

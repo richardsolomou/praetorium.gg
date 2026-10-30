@@ -132,21 +132,24 @@ describe('saved roster sides', () => {
   })
 })
 
-describe('league roster sides', () => {
-  const league = { token: 'league-1', eventToken: 'event-1', userId: 'friend-1' }
-  const fromLeague: SimulatorState = {
+describe('sealedEvent roster sides', () => {
+  const sealedEvent = { token: 'sealed-event-1', eventToken: 'event-1', userId: 'friend-1' }
+  const fromSealedEvent: SimulatorState = {
     ...state,
-    sides: [{ ...state.sides[0]!, roster: { league, pickIndex: 2 } }, state.sides[1]],
+    sides: [{ ...state.sides[0]!, roster: { league: sealedEvent, pickIndex: 2 } }, state.sides[1]],
   }
   it('restore the sealed list and unit they name', () => {
-    expect(decodeSimulatorState(encodeSimulatorState(fromLeague))?.sides[0]?.roster).toEqual({ league, pickIndex: 2 })
+    expect(decodeSimulatorState(encodeSimulatorState(fromSealedEvent))?.sides[0]?.roster).toEqual({ sealedEvent, pickIndex: 2 })
   })
   it('pair apart from the same entrant in another event', () => {
     const other: SimulatorState = {
-      ...fromLeague,
-      sides: [{ ...fromLeague.sides[0]!, roster: { league: { ...league, eventToken: 'event-2' }, pickIndex: 2 } }, state.sides[1]],
+      ...fromSealedEvent,
+      sides: [
+        { ...fromSealedEvent.sides[0]!, roster: { league: { ...sealedEvent, eventToken: 'event-2' }, pickIndex: 2 } },
+        state.sides[1],
+      ],
     }
-    expect(simulatorPairing(encodeSimulatorState(fromLeague))).not.toBe(simulatorPairing(encodeSimulatorState(other)))
+    expect(simulatorPairing(encodeSimulatorState(fromSealedEvent))).not.toBe(simulatorPairing(encodeSimulatorState(other)))
   })
 })
 

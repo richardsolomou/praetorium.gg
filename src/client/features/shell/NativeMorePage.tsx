@@ -37,8 +37,8 @@ const TOOLS: readonly MoreLink[] = [
 ]
 
 const COMMUNITY: readonly MoreLink[] = [
-  { description: 'Your group’s games and table', icon: Users, label: 'Clubs', to: '/clubs' },
-  { description: 'One-off events with sealed lists', icon: Trophy, label: 'Tournaments', to: '/tournaments' },
+  { description: 'Your group’s games and table', icon: Users, label: 'Groups', to: '/groups' },
+  { description: 'One-offs with sealed lists', icon: Trophy, label: 'Tournaments', to: '/tournaments' },
   { description: 'Player standings', icon: Medal, label: 'Leaderboard', to: '/leaderboard' },
 ]
 

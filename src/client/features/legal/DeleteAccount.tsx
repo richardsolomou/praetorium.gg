@@ -26,8 +26,8 @@ export function DeleteAccount() {
 
       <LegalSection title="What deletion removes">
         <p>
-          Deletion removes your profile, credentials, sessions, rosters, friendships, tournament entries, the clubs you own and every battle
-          you played, including shared battles. The action cannot be undone.
+          Deletion removes your profile, credentials, sessions, rosters, friendships, tournament entries, the groups you own and every
+          battle you played, including shared battles. The action cannot be undone.
         </p>
       </LegalSection>
     </LegalPage>

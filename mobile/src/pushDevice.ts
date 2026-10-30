@@ -15,7 +15,7 @@ const ANDROID_CHANNEL = 'default'
 export async function pushAnswer(prompt: boolean): Promise<NativePushAnswer> {
   if (Platform.OS === 'android') {
     await Notifications.setNotificationChannelAsync(ANDROID_CHANNEL, {
-      name: 'Battles, friends and leagues',
+      name: 'Battles, friends, groups and tournaments',
       importance: Notifications.AndroidImportance.DEFAULT,
     })
   }

@@ -183,7 +183,9 @@ export const syncBattleCommand = createServerFn({ method: 'POST' })
         if (!replay && command.kind === 'attach-roster' && command.roster.built) {
           const captured = data.capturedRoster
           const owned =
-            captured && captured.id === command.roster.id ? await instance.service.leagueService.ownRoster(player.id, captured.id) : null
+            captured && captured.id === command.roster.id
+              ? await instance.service.sealedEventService.ownRoster(player.id, captured.id)
+              : null
           if (!captured || !owned)
             return unsynced(
               player.id,

@@ -5,7 +5,7 @@ import { PraetoriumService } from './service'
 
 it('refuses to pair a round from a partial read of the event’s battles', async () => {
   const repository = {
-    leagueByToken: vi.fn().mockResolvedValue({
+    sealedEventByToken: vi.fn().mockResolvedValue({
       organizerIds: [ALICE],
       eventToken: 'event',
       rounds: 3,
@@ -13,14 +13,14 @@ it('refuses to pair a round from a partial read of the event’s battles', async
       pairings: [],
       entries: [ALICE, BOB].map((userId) => ({ userId, status: 'accepted', submitted: true })),
     }),
-    battlesByLeagueEvent: vi.fn().mockResolvedValue({ battles: [], nextCursor: { at: 0, id: 'older' } }),
+    battlesBySealedEvent: vi.fn().mockResolvedValue({ battles: [], nextCursor: { at: 0, id: 'older' } }),
     practiceOpponents: vi.fn().mockResolvedValue([]),
-    pairLeagueRound: vi.fn().mockResolvedValue('paired'),
+    pairSealedEventRound: vi.fn().mockResolvedValue('paired'),
   } as unknown as RepositoryPort
   const service = new PraetoriumService(
     repository,
     () => 10,
     () => 0,
   )
-  await expect(service.pairLeagueRound('league', 'event', ALICE)).rejects.toMatchObject({ status: 409 })
+  await expect(service.pairSealedEventRound('league', 'event', ALICE)).rejects.toMatchObject({ status: 409 })
 })

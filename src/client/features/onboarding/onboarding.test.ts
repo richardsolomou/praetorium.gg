@@ -35,7 +35,7 @@ const PAGE_ADDRESSES = [
   ['/', 'home'],
   ['/tournaments', 'leagues'],
   ['/tournaments/', 'leagues'],
-  ['/tournaments/a-league', 'league'],
+  ['/tournaments/a-sealed-event', 'league'],
 ] as const
 
 describe('onboarding page', () => {
@@ -268,7 +268,7 @@ describe('onboarding focus', () => {
   })
 
   it('leaves a step whose successor shares its page to the control that opens it', () => {
-    const focus = { task: 'league', step: 'league-start' } as const
+    const focus = { task: 'league', step: 'sealed-event-start' } as const
     expect(focusAfterOnboardingNavigation(focus, 'leagues')).toBe(focus)
   })
 

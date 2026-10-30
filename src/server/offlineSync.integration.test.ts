@@ -48,10 +48,10 @@ it.skipIf(!url || !database || !token)('reports one newly applied transaction ac
   }
 })
 
-it.skipIf(!url || !database || !token)('acknowledges and replays a successfully sealed offline league roster', async () => {
+it.skipIf(!url || !database || !token)('acknowledges and replays a successfully sealed offline sealed event roster', async () => {
   const operator = store()
   const owner = randomUUID()
-  const leagueToken = randomUUID()
+  const sealedEventToken = randomUUID()
   const row = { ...rowFor(owner), limit: 2000 }
   const id = randomUUID()
   const context = () => ({ id, owner, fingerprint, createdAt: Date.now(), identifiers: {}, wrote: false })
@@ -61,12 +61,12 @@ it.skipIf(!url || !database || !token)('acknowledges and replays a successfully 
       {
         op: 'create',
         id: randomUUID(),
-        token: leagueToken,
+        token: sealedEventToken,
         eventId: randomUUID(),
-        eventToken: leagueToken,
+        eventToken: sealedEventToken,
         ownerId: owner,
         ownerPlays: true,
-        name: 'Offline league',
+        name: 'Offline sealed event',
         description: '',
         visibility: 'private',
         admission: 'automatic',
@@ -79,8 +79,8 @@ it.skipIf(!url || !database || !token)('acknowledges and replays a successfully 
     )
     const command = {
       op: 'submit',
-      token: leagueToken,
-      eventToken: leagueToken,
+      token: sealedEventToken,
+      eventToken: sealedEventToken,
       ownerId: owner,
       userId: owner,
       rosterId: row.id,
@@ -110,7 +110,7 @@ it.skipIf(!url || !database || !token)('acknowledges and replays a successfully 
       result,
       retry,
       receipt: (await operator.syncReceipt(id, owner, fingerprint))?.outcome,
-      snapshot: (await operator.leagueRosters(leagueToken, owner))?.entry.rosterSnapshot,
+      snapshot: (await operator.leagueRosters(sealedEventToken, owner))?.entry.rosterSnapshot,
     }).toEqual({ result: { outcome: 'sealed' }, retry: { outcome: 'sealed' }, receipt: 'applied', snapshot: command.snapshot })
   } finally {
     await operator.deleteUserData(owner)

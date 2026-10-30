@@ -46,8 +46,8 @@ import {
   factionKey,
   friendBattlesKey,
   homeRostersKey,
-  leagueBattlesKey,
-  leagueKey,
+  sealedEventBattlesKey,
+  sealedEventKey,
   meKey,
   playerProfileKey,
   playerRankingsKey,
@@ -448,9 +448,9 @@ export function projectLocalState(state: LocalState) {
     }
     if (resource.startsWith('league:')) {
       if (navigator.onLine && !state.operations.some((operation) => operation.resource === resource)) continue
-      const league = document.data as Awaited<ReturnType<typeof server.openLeague>>
-      const keys = [leagueKey(resource.slice(7)), leagueKey(resource.slice(7), league?.eventToken)]
-      client.setQueriesData({ predicate: (query) => keys.some((key) => partialMatchKey(query.queryKey, key)) }, league)
+      const sealedEvent = document.data as Awaited<ReturnType<typeof server.openSealedEvent>>
+      const keys = [sealedEventKey(resource.slice(7)), sealedEventKey(resource.slice(7), sealedEvent?.eventToken)]
+      client.setQueriesData({ predicate: (query) => keys.some((key) => partialMatchKey(query.queryKey, key)) }, sealedEvent)
       continue
     }
     if (!resource.startsWith('roster:')) continue
@@ -498,7 +498,9 @@ export async function setRosterVisibility(
   return null
 }
 
-export async function shareLeagueRoster(args: Parameters<typeof server.shareLeagueRoster>[0]): ReturnType<typeof server.shareLeagueRoster> {
+export async function shareSealedEventRoster(
+  args: Parameters<typeof server.shareSealedEventRoster>[0],
+): ReturnType<typeof server.shareSealedEventRoster> {
   const owner = localOwner()?.id
   const resource = `roster:${args.data.rosterId}`
   if (!navigator.onLine) throw new Error('Connect to the internet to share your sealed roster.')
@@ -507,7 +509,7 @@ export async function shareLeagueRoster(args: Parameters<typeof server.shareLeag
     if (await hasLocalChanges(resource)) throw new Error('This roster has changes waiting to sync. Sync or review them first.')
   }
   if (localOwner()?.id !== owner) throw accountChanged()
-  const result = await server.shareLeagueRoster(args)
+  const result = await server.shareSealedEventRoster(args)
   const roster = result.roster
   const local = await localDocument<LocalRoster | null>(resource)
   if (local)
@@ -806,7 +808,7 @@ export {
   replayBattleAt,
   replayBattleBatch,
   createBattle,
-  createLeagueBattle,
+  createSealedEventBattle,
   myBattles,
 } from './offline/battleFunctions'
 
@@ -828,30 +830,30 @@ export {
   notificationSettings,
   friendships,
   opponents,
-  listLeagues,
+  listSealedEvents,
   activeFriendInvite,
   friendInvite,
-  openLeagueRoster,
-  listFriendLeagueRosters,
-  outdatedLeagueEntriesForRoster,
-  openLeague,
+  openSealedEventRoster,
+  listFriendSealedEventRosters,
+  outdatedSealedEventEntriesForRoster,
+  openSealedEvent,
   requestFriend,
   acceptFriend,
   rejectFriend,
   removeFriend,
   acceptFriendInvite,
-  joinLeague,
-  addLeagueEntrants,
-  admitLeagueEntries,
-  moderateLeagueEntry,
-  submitLeagueRoster,
-  revealLeague,
-  unsealLeagueRoster,
-  assignLeagueRosterRequirement,
-  assignLeagueTeam,
-  chooseLeagueSide,
-  updateLeague,
-  deleteLeague,
+  joinSealedEvent,
+  addSealedEventEntrants,
+  admitSealedEventEntries,
+  moderateSealedEventEntry,
+  submitSealedEventRoster,
+  revealSealedEvent,
+  unsealSealedEventRoster,
+  assignSealedEventRosterRequirement,
+  assignSealedEventTeam,
+  chooseSealedEventSide,
+  updateSealedEvent,
+  deleteSealedEvent,
   deleteBattle,
   setOwned,
   setCollectionModels,
@@ -870,8 +872,8 @@ export {
   setPushNotifications,
   createFriendInvite,
   cancelFriendInvite,
-  createLeague,
-  leagueBattleOptions,
+  createSealedEvent,
+  sealedEventBattleOptions,
 } from './offline/actionFunctions'
 
 export const me = (args?: Parameters<typeof server.me>[0]) => cachedRead(meKey(), () => server.me(args))
@@ -895,8 +897,8 @@ export const publicBattles = (args: Parameters<typeof server.publicBattles>[0]) 
   cachedPage(publicBattlesKey(), args.data.before, () => server.publicBattles(args))
 export const friendBattles = (args: Parameters<typeof server.friendBattles>[0]) =>
   cachedPage(friendBattlesKey(), args.data.before, () => server.friendBattles(args))
-export const listLeagueBattles = (args: Parameters<typeof server.listLeagueBattles>[0]) =>
-  cachedPage(leagueBattlesKey(args.data.token, args.data.eventToken), args.data.before, () => server.listLeagueBattles(args))
+export const listSealedEventBattles = (args: Parameters<typeof server.listSealedEventBattles>[0]) =>
+  cachedPage(sealedEventBattlesKey(args.data.token, args.data.eventToken), args.data.before, () => server.listSealedEventBattles(args))
 export const standings = () => cachedRead(standingsKey(), () => server.standings())
 export const playerRosters = (args: Parameters<typeof server.playerRosters>[0]) =>
   cachedRead(playerRostersKey(args.data.userId), () => server.playerRosters(args))
