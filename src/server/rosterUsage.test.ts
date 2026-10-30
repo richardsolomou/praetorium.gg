@@ -147,6 +147,39 @@ it('snapshots an over-points saved roster when its points limit is waived', asyn
   })
 })
 
+it('seals a roster over its own points limit, which its event checks instead', async () => {
+  vi.mocked(app).mockReturnValue({
+    repository: { abilityRemindersByUser: async () => [] },
+    service: {
+      rosterService: {
+        usableRoster: vi.fn().mockResolvedValue({
+          roster: {
+            id: 'roster',
+            name: 'Test roster',
+            catalogueId: 'cat',
+            detachmentIds: [],
+            disposition: null,
+            limit: 1_000,
+            picks: [{ entryId: 'squad' }],
+            waivedRules: ['warlord'],
+          },
+          lentBy: null,
+        }),
+      },
+    },
+    catalogueFor: async () => bookOf({ selectionEntries: [{ id: 'squad', name: 'Squad', type: 'model', costs: points(1_010) }] }),
+    rulesFor: async () => ({
+      factionKeys: new Map(),
+      detachmentReferences: new Map(),
+      detachmentDetails: new Map(),
+      factionRestrictions: new Map(),
+    }),
+  } as never)
+
+  const { snapshot } = await rosterForUse('player', 'roster', { sealing: true })
+  expect(snapshot.text.split('\n')[0]).toBe('1010 / 1000 pts')
+})
+
 it('rejects a roster over its custom points budget though within its battle size', () => {
   expect(rosterUseError({ ...priced, points: 1_505 }, { limit: 2_000, pointsBudget: 1_500 })).toBe(
     'roster has 1505 points, over its 1500-point limit',

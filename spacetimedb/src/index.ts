@@ -16,6 +16,7 @@ import {
   pointsBudgetError,
   pointsBudgetOf,
   pointsSpent,
+  withinArmyPoints,
   importedCommandRefusal,
   applyEntry,
   reduceBattle,
@@ -5595,6 +5596,8 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
     if (refusal) return productJson({ outcome: 'disallowed', message: refusal })
     if (event.pointsBudget !== undefined && (submitted.built?.pointsBudget ?? submitted.built?.limit) !== event.pointsBudget)
       return productJson({ outcome: 'wrong-budget', pointsBudget: event.pointsBudget })
+    if (!team && submitted.built && !withinArmyPoints(submitted.built, pointsBudgetOf(submitted.built)))
+      return productJson({ outcome: 'over-points', points: pointsBudgetOf(submitted.built) })
     const teammate =
       entry.teamId === undefined
         ? undefined
