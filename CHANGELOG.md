@@ -1,5 +1,18 @@
 # praetorium
 
+## 0.203.4 (2026-10-30)
+
+### Patch Changes
+
+- 6cb4bee: The club invite button confirms when the link is copied or shared.
+- b2adc93: The "Remind players" note tells apart entrants who share a display name.
+- 0d2b2d4: The battle size filter on your rosters writes points with a thousands separator, such as 2,000 points.
+- e31f240: Scoring no longer animates the scroll when your device asks for reduced motion.
+- 6cb4bee: Battle setup shows the chosen layout for older battles instead of "No layout yet".
+- 6cb4bee: Battle setup and the scoring draw dialog say "1 unit", "1 model" and "1 card" instead of "1 units", "1 models" and "1 cards".
+- 0d2b2d4: Share and copy buttons for invites and links use the same wording everywhere.
+- 0d2b2d4: The simulator shows chances under 1% to two decimal places, and very small ones as <0.01% instead of 0.0%.
+
 ## 0.203.3 (2026-10-30)
 
 ### Patch Changes
