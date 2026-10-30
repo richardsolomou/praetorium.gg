@@ -876,12 +876,130 @@ describe('exact calculation against every roll sequence', () => {
         scenario.weapons = [torrent({ damage: attacks(3) })]
       },
     ],
+    [
+      'a Command Re-roll spent on the first weapon to fail a hit roll',
+      (scenario: CombatInput) => {
+        scenario.target.groups = [group({ wounds: 3 })]
+        scenario.options.commandReroll = 'hit'
+        const weapon = scenario.weapons[0]!
+        scenario.weapons = [
+          { ...weapon, skill: 4, damage: attacks(1) },
+          { ...weapon, skill: 2, damage: attacks(2) },
+        ]
+      },
+    ],
+    [
+      'a Command Re-roll on a wound roll among Sustained Hits and Lethal Hits',
+      (scenario: CombatInput) => {
+        scenario.target.groups = [group({ wounds: 3, save: 5 })]
+        scenario.options.commandReroll = 'wound'
+        Object.assign(scenario.weapons[0]!, { skill: 4, lethal: true, sustained: 1, damage: attacks(1) })
+      },
+    ],
+    [
+      'a Command Re-roll on a save that save re-rolls of one left alone',
+      (scenario: CombatInput) => {
+        scenario.target.groups = [group({ models: 2, wounds: 2, save: 4 })]
+        scenario.target.saveReroll = 'ones'
+        scenario.options.commandReroll = 'save'
+        scenario.weapons = [torrent({ attacks: attacks(2) })]
+      },
+    ],
+    [
+      'a Command Re-roll on an Attacks roll below its average',
+      (scenario: CombatInput) => {
+        scenario.target.groups = [group({ models: 3 })]
+        scenario.options.commandReroll = 'attacks'
+        scenario.weapons = [torrent({ attacks: { dice: 1, sides: 3, bonus: 0 } })]
+      },
+    ],
   ])('matches %s', (_, arrange) => {
     const scenario = input()
     arrange(scenario)
     const expected = enumerated(scenario)
     const exact = calculateCombat(scenario).damage
     expect(Math.max(...exact.map((weight, lost) => Math.abs(weight - (expected.get(lost) ?? 0))))).toBeLessThan(1e-12)
+  })
+})
+
+describe('Command Re-roll', () => {
+  /** Two 3+ to-hit, 4+ to-wound attacks of Damage 1 against unsaved one-wound models. */
+  const pair = (commandReroll?: CombatInput['options']['commandReroll'], weapon: Partial<CombatInput['weapons'][number]> = {}) => {
+    const scenario = input()
+    scenario.target.groups[0]!.wounds = 1
+    Object.assign(scenario.weapons[0]!, { attacks: { dice: 0, sides: 6, bonus: 2 }, damage: { dice: 0, sides: 6, bonus: 1 }, ...weapon })
+    if (commandReroll) scenario.options.commandReroll = commandReroll
+    return scenario
+  }
+  const distribution = (scenario: CombatInput) => calculateCombat(scenario).damage.slice(0, 3)
+
+  it('re-rolls one failed hit roll', () => {
+    // Hits: both 4/9 + one miss re-rolled 4/9 × 2/3 = 20/27; one 6/27; none 1/27. Each hit then wounds on a 4+.
+    expect(distribution(pair('hit'))).toEqual([expect.closeTo(9 / 27), expect.closeTo(13 / 27), expect.closeTo(5 / 27)])
+  })
+
+  it('re-rolls one failed wound roll', () => {
+    expect(distribution(pair('wound', { torrent: true }))).toEqual([expect.closeTo(1 / 8), expect.closeTo(3 / 8), expect.closeTo(1 / 2)])
+  })
+
+  it('re-rolls one failed save', () => {
+    const scenario = pair('save', { torrent: true })
+    scenario.target.groups[0]!.save = 4
+    expect(distribution(scenario)).toEqual([expect.closeTo(24 / 32), expect.closeTo(7 / 32), expect.closeTo(1 / 32)])
+  })
+
+  it('re-rolls the first Attacks roll below its average', () => {
+    // Two D6 rolls of 7 on average; when either shows 1–3 (3/4), one becomes a fresh 3.5 instead of 2.
+    const scenario = pair('attacks', { torrent: true, strength: 8, count: 2, attacks: { dice: 1, sides: 6, bonus: 0 } })
+    scenario.target.groups[0]!.models = 20
+    expect(calculateCombat(scenario).meanDamage).toBeCloseTo((7 + (3 / 4) * 1.5) * (5 / 6))
+  })
+
+  it('never re-rolls a hit roll another rule already re-rolled', () => {
+    expect(distribution(pair('hit', { hitReroll: 'failed' }))).toEqual(distribution(pair(undefined, { hitReroll: 'failed' })))
+  })
+
+  it('re-rolls a failed hit roll that re-rolling ones left alone', () => {
+    // A 1 is re-rolled by the weapon and stands; a 2 is re-rolled by the Command Re-roll: 4/6 + 2 × 1/6 × 2/3 hit, then 2+ wounds.
+    const scenario = pair('hit', { hitReroll: 'ones', strength: 8, attacks: { dice: 0, sides: 6, bonus: 1 } })
+    expect(calculateCombat(scenario).meanDamage).toBeCloseTo((8 / 9) * (5 / 6))
+  })
+
+  it('cannot re-roll hit rolls for indirect fire', () => {
+    const scenario = pair('hit', { indirectFire: true })
+    scenario.options.indirectFire = 'spotted'
+    const without = structuredClone(scenario)
+    delete without.options.commandReroll
+    expect(calculateCombat(scenario).damage).toEqual(calculateCombat(without).damage)
+  })
+
+  it('is spent once per phase in a sequence', () => {
+    const melee = pair('wound', { torrent: true })
+    melee.options.phase = 'melee'
+    melee.target.groups[0]!.models = 4
+    const shooting = structuredClone(melee)
+    shooting.options.phase = 'ranged'
+    // Each phase alone loses 11/8 wounds on average; together nothing carries over before the four models run out.
+    expect(calculateCombatSequence([shooting, melee]).meanDamage).toBeCloseTo(11 / 4)
+  })
+
+  it.each([
+    ['damage roll', pair('damage'), 'damage roll'],
+    ['several-dice Attacks roll', pair('attacks', { attacks: { dice: 2, sides: 6, bonus: 0 } }), 'several dice'],
+  ])('refuses a %s', (_, scenario, message) => {
+    expect(() => calculateCombat(scenario)).toThrow(message)
+  })
+
+  it('refuses a save when the defence groups need different saves', () => {
+    const scenario = pair('save')
+    scenario.target.groups.push({ models: 1, toughness: 4, save: 3, invulnerable: null, wounds: 3 })
+    expect(() => calculateCombat(scenario)).toThrow('save roll is not calculated')
+  })
+
+  it('refuses a save when critical wounds need a different save', () => {
+    const scenario = pair('save', { criticalAp: -2, criticalWound: 5 })
+    scenario.target.groups[0]!.save = 3
+    expect(() => calculateCombat(scenario)).toThrow('save roll is not calculated')
   })
 })
 

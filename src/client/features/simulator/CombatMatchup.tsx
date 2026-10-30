@@ -76,6 +76,23 @@ const rerollOptions = (roll: string, rolls: string) =>
 const hitRerolls = rerollOptions('hit', 'hits')
 const woundRerolls = rerollOptions('wound', 'wounds')
 const saveRerolls = rerollOptions('save', 'saves')
+const commandRerolls = [
+  ['hit', 'Hit roll'],
+  ['wound', 'Wound roll'],
+  ['save', 'Save roll'],
+  ['attacks', 'Attacks roll'],
+  ['damage', 'Damage roll'],
+] as const
+const commandRerollLabels = Object.fromEntries(commandRerolls)
+/** The same settings with no Command Re-roll, so the results can show what spending it changes. */
+const withoutCommandReroll = (settings: CombatAdjustments): CombatAdjustments => ({
+  ...settings,
+  ...Object.fromEntries(
+    (['all', 'ranged', 'melee'] as const).flatMap((scope) =>
+      settings[scope] ? [[scope, { ...settings[scope], commandReroll: undefined }]] : [],
+    ),
+  ),
+})
 const grants = [
   ['lethal', 'Lethal Hits'],
   ['devastating', 'Devastating Wounds'],
@@ -139,7 +156,7 @@ export function CombatMatchup({
   const [adjustments, setAdjustments] = useState<CombatAdjustments>(initialSettings?.adjustments ?? {})
   const [modifiersOpen, setModifiersOpen] = useState(Boolean(Object.keys(initialSettings?.adjustments ?? {}).length))
   const [excludedWeapons, setExcludedWeapons] = useState<Record<CombatPhase, string[]>>(initialSettings?.excluded ?? noExclusions())
-  const [outcome, setOutcome] = useState<{ key: string; attempt: number; answer: CombatAnswer } | null>(null)
+  const [outcome, setOutcome] = useState<{ key: string; attempt: number; answer: CombatAnswer; without?: CombatAnswer } | null>(null)
   const [retry, setRetry] = useState(0)
   const [invalidatedChoice, setInvalidatedChoice] = useState(false)
   const reported = useRef(false)
@@ -182,6 +199,12 @@ export function CombatMatchup({
     () => ({ ranged: matchup.scenario('ranged', adjustments), melee: matchup.scenario('melee', adjustments), sequenceError }),
     [matchup, adjustments, sequenceError],
   )
+  const commandRerolled = Boolean(adjustments.all?.commandReroll || adjustments.ranged?.commandReroll || adjustments.melee?.commandReroll)
+  const scenariosWithout = useMemo<CombatRequest | null>(() => {
+    if (!commandRerolled) return null
+    const settings = withoutCommandReroll(adjustments)
+    return { ranged: matchup.scenario('ranged', settings), melee: matchup.scenario('melee', settings), sequenceError }
+  }, [commandRerolled, matchup, adjustments, sequenceError])
   const adjustmentValue = (scope: PhaseScope, source: AdjustmentSource, field: string) =>
     source === 'weapon'
       ? adjustments.weapons?.[scope]?.[field as keyof WeaponAdjustment]
@@ -290,17 +313,21 @@ export function CombatMatchup({
     return 'The current weapon rules, target, and other modifiers give the same result with or without this choice.'
   }
   const requestKey = JSON.stringify(scenarios)
+  const comparisonKey = JSON.stringify(scenariosWithout)
   const canSimulate = Boolean(scenarios.ranged || scenarios.melee)
-  const updating = pending || (canSimulate && (outcome?.key !== requestKey || outcome?.attempt !== retry))
+  const outcomeKey = `${requestKey}\n${comparisonKey}`
+  const updating = pending || (canSimulate && (outcome?.key !== outcomeKey || outcome?.attempt !== retry))
   useEffect(() => {
     if (pending || failed) return
     const request = JSON.parse(requestKey) as CombatRequest
+    const comparison = JSON.parse(comparisonKey) as CombatRequest | null
     if (!request.ranged && !request.melee) return
     const controller = new AbortController()
-    void calculateCombatPair(request, controller.signal)
-      .then((answer) => {
+    const key = `${requestKey}\n${comparisonKey}`
+    void Promise.all([calculateCombatPair(request, controller.signal), comparison && calculateCombatPair(comparison, controller.signal)])
+      .then(([answer, without]) => {
         if (controller.signal.aborted) return
-        setOutcome({ key: requestKey, attempt: retry, answer })
+        setOutcome({ key, attempt: retry, answer, ...(without ? { without } : {}) })
         const telemetry = combatOutcomeEvent(answer, entryPoint)
         if (telemetry?.name === 'combat_simulation_completed') completed()
         if (telemetry?.name === 'combat_simulation_completed' && !reported.current) {
@@ -314,7 +341,7 @@ export function CombatMatchup({
       .catch(() => {
         if (controller.signal.aborted) return
         setOutcome({
-          key: requestKey,
+          key,
           attempt: retry,
           answer: {
             ranged: request.ranged ? { error: 'The calculation failed. Try again.' } : null,
@@ -328,7 +355,7 @@ export function CombatMatchup({
       })
     const stop = () => controller.abort()
     return stop
-  }, [requestKey, pending, failed, retry, entryPoint])
+  }, [requestKey, comparisonKey, pending, failed, retry, entryPoint])
   // After the estimate's effect, so the matchup's own calculation starts first.
   const loadoutScoring = useMemo(
     () =>
@@ -359,7 +386,7 @@ export function CombatMatchup({
     preferences,
     excluded: excludedWeapons,
     results:
-      outcome?.key === requestKey
+      outcome?.key === outcomeKey
         ? {
             combined: outcome.answer.combined?.result,
             ranged: outcome.answer.ranged?.result,
@@ -430,6 +457,14 @@ export function CombatMatchup({
             value,
           )
       }
+      if (attack.commandReroll)
+        add(
+          scope,
+          'attack',
+          'commandReroll',
+          `Command Re-roll: ${commandRerollLabels[attack.commandReroll]!.toLowerCase()} (${name})`,
+          attack.commandReroll,
+        )
       for (const [field, label] of [
         ['cover', 'Cover'],
         ['halfRange', 'Half range'],
@@ -560,7 +595,7 @@ export function CombatMatchup({
               const plan = plans[phase]
               const answer = outcome?.answer[phase]
               const valid = Boolean(scenario(phase))
-              const error = outcome?.key === requestKey ? answer?.error : undefined
+              const error = outcome?.key === outcomeKey ? answer?.error : undefined
               return (
                 <section key={phase} aria-label={`${title} results`} aria-busy={valid && updating && !failed} className="min-w-0 space-y-2">
                   <h2 className="rubric flex items-center gap-2">
@@ -743,6 +778,14 @@ export function CombatMatchup({
                             onChange={set('criticalWound')}
                             ineffective={(option) => !modifierChoiceHasEffect(scope, 'weapon', 'criticalWound', option)}
                             reason={(option) => noEffectReason(scope, 'weapon', 'criticalWound', option)}
+                          />
+                        </ChipRow>
+                        <ChipRow label="Command Re-roll">
+                          <ChipFamily
+                            value={adjustments[scope]?.commandReroll}
+                            options={commandRerolls}
+                            onChange={(value) => change(scope, 'commandReroll', value)}
+                            ineffective={(option) => !modifierChoiceHasEffect(scope, 'attack', 'commandReroll', option)}
                           />
                         </ChipRow>
                         <ChipRow label="Stats">
@@ -934,7 +977,7 @@ export function CombatMatchup({
             </section>
           </section>
         </div>
-        {outcome?.key === requestKey && outcome.answer.combined?.error ? (
+        {outcome?.key === outcomeKey && outcome.answer.combined?.error ? (
           <Problem className="mt-3">
             Combined estimate: {outcome.answer.combined.error}
             <Button className="ml-2" size="sm" variant="outline" onClick={() => setRetry((value) => value + 1)}>
@@ -947,6 +990,15 @@ export function CombatMatchup({
         ranged={scenarios.ranged ? outcome?.answer.ranged?.result : undefined}
         melee={scenarios.melee ? outcome?.answer.melee?.result : undefined}
         combined={scenarios.ranged && scenarios.melee ? outcome?.answer.combined?.result : undefined}
+        without={
+          outcome?.without && commandRerolled
+            ? {
+                ranged: outcome.without.ranged?.result,
+                melee: outcome.without.melee?.result,
+                combined: outcome.without.combined?.result,
+              }
+            : undefined
+        }
         updating={updating}
         failed={failed}
         inDialog={inDialog}

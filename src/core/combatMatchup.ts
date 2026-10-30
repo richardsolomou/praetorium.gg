@@ -108,6 +108,7 @@ export function combatMatchup(
       charged: base.charged || Boolean(extra.charged),
       lethal: extra.lethal ?? base.lethal,
       indirectFire: extra.indirectFire ?? base.indirectFire,
+      ...(extra.commandReroll ? { commandReroll: extra.commandReroll } : {}),
       hitModifier: (attack.hitModifier ?? 0) + (defence.hitModifier ?? 0) + (extra.hitModifier ?? 0),
       woundModifier: (attack.woundModifier ?? 0) + (defence.woundModifier ?? 0) + (extra.woundModifier ?? 0),
       hitReroll: better('hitReroll'),
