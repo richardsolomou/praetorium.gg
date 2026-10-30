@@ -363,7 +363,6 @@ jobs:
     if: needs.changes.outputs.runtime == 'true'
     runs-on: ubuntu-latest
     env:
-      BASE_SHA: ${{ github.event.pull_request.base.sha || github.sha }}
       HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
       - uses: actions/checkout@v7
@@ -379,11 +378,15 @@ jobs:
         id: comparison
         run: |
           set -euo pipefail
-          base_sha="$BASE_SHA"
-          if ! git diff --quiet "$BASE_SHA" "$HEAD_SHA" -- catalogue.json; then
+          # The event's base SHA goes stale once the base branch moves; the merge commit's first parent is what it merges into.
+          base_sha="$(git rev-parse "$GITHUB_SHA^1")"
+          head_sha="$GITHUB_SHA"
+          if ! git diff --quiet "$base_sha" "$GITHUB_SHA" -- catalogue.json; then
             base_sha="$(git rev-parse "$HEAD_SHA^")"
+            head_sha="$HEAD_SHA"
           fi
           echo "sha=$base_sha" >> "$GITHUB_OUTPUT"
+          echo "head-sha=$head_sha" >> "$GITHUB_OUTPUT"
       # Definitions and the points reference can publish at different times. Run
       # both revisions against one snapshot and report absolute source baselines.
       # A new snapshot needs a preceding code revision able to read its source format.
@@ -404,7 +407,7 @@ jobs:
           CATALOGUE_BASELINES: report
         run: |
           set -euo pipefail
-          git checkout --quiet --force "$HEAD_SHA"
+          git checkout --quiet --force '${{ steps.comparison.outputs.head-sha }}'
           pnpm install --frozen-lockfile
           rm -rf catalogue-data && cp -a catalogue-data.pinned catalogue-data
           pnpm catalogue:descriptions
