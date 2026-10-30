@@ -1,4 +1,4 @@
-import { beforeEach, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { PostHog } from 'posthog-node'
 import type { CanonicalCatalogue } from '../contracts/catalogue'
 import type { ReferenceCorpus } from './referenceCorpus'
@@ -137,6 +137,30 @@ it('challenges account tools while keeping public reference tools available', as
   } finally {
     vi.unstubAllEnvs()
   }
+})
+
+describe('a signed-in call while the signing keys cannot be read', () => {
+  const encode = (value: object) => Buffer.from(JSON.stringify(value)).toString('base64url')
+  const signedIn = () => {
+    const request = toolRequest('get_my_roster', { id: 'roster-1' })
+    request.headers.set('Authorization', `Bearer ${encode({ alg: 'ES256', kid: 'key' })}.${encode({})}.signature`)
+    return request
+  }
+  const unreachable = vi.fn(async () => {
+    throw new TypeError('fetch failed')
+  })
+  beforeEach(() => vi.stubGlobal('fetch', unreachable))
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('asks the client to retry', async () => {
+    const response = await handleReferenceMcp(signedIn())
+    expect([response.status, response.headers.get('retry-after')]).toEqual([503, '5'])
+  })
+
+  it('reads the keys from this server rather than its public address', async () => {
+    await handleReferenceMcp(signedIn())
+    expect(String((unreachable.mock.calls[0] as unknown[])[0])).toBe('http://127.0.0.1:3000/api/auth/jwks')
+  })
 })
 
 it('treats an inherited object name as an unknown tool', async () => {

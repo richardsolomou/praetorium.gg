@@ -1,5 +1,6 @@
 import type { CanonicalDatasheet, UnitSummary } from '../contracts/catalogue'
 import type { ReferenceDocument } from '../contracts/reference'
+import type { DatasheetRelationship } from '../core/datasheet'
 import { routeSlug } from '../core/slug'
 import { publishedFacts } from '../shared/sourceText'
 import { countBy, remember } from '../core/collections'
@@ -77,8 +78,10 @@ export function referenceUnits(
   if (detachment && !selectedDetachment) return null
   const detachmentIds = selectedDetachment ? [selectedDetachment.id] : []
   const wanted = query?.trim().toLocaleLowerCase()
-  const units = factionUnits(loaded, rules, foundFaction, { battleSize, detachmentIds, nonMatchedPlay })
-    .map((unit) => unitReference(corpus, unit, sheets.get(unit.id)))
+  const offered = factionUnits(loaded, rules, foundFaction, { battleSize, detachmentIds, nonMatchedPlay })
+  const offeredIds = new Set(offered.map((unit) => unit.id))
+  const units = offered
+    .map((unit) => unitReference(corpus, unit, sheets.get(unit.id), offeredIds))
     .filter((unit) => !wanted || [unit.name, ...unit.keywords].some((value) => value.toLocaleLowerCase().includes(wanted)))
   return {
     faction: foundFaction,
@@ -207,7 +210,12 @@ export function datasheetCitation(corpus: ReferenceCorpus, sheet: CanonicalDatas
   }
 }
 
-function unitReference(corpus: ReferenceCorpus, unit: UnitSummary, sheet: CanonicalDatasheet | undefined) {
+function unitReference(corpus: ReferenceCorpus, unit: UnitSummary, sheet: CanonicalDatasheet | undefined, offered: ReadonlySet<string>) {
+  // A relationship names only a unit this list can take, so a Legends leader stays out of a matched play list.
+  const names = (relationships: readonly DatasheetRelationship[]) =>
+    relationships
+      .filter((relationship) => !relationship.entryId || offered.has(relationship.entryId))
+      .map((relationship) => relationship.name)
   return {
     ...unit,
     keywords: sheet?.keywords ?? [],
@@ -220,10 +228,10 @@ function unitReference(corpus: ReferenceCorpus, unit: UnitSummary, sheet: Canoni
       ...(faction ? { faction } : {}),
       ...(detachment ? { detachment } : {}),
     })),
-    canLead: sheet?.attachments.filter((relationship) => relationship.kind === 'leader').map((relationship) => relationship.name) ?? [],
-    canSupport: sheet?.attachments.filter((relationship) => relationship.kind === 'support').map((relationship) => relationship.name) ?? [],
-    canBeLedBy: sheet?.leaders.map((relationship) => relationship.name) ?? [],
-    canBeSupportedBy: sheet?.supporters.map((relationship) => relationship.name) ?? [],
+    canLead: names(sheet?.attachments.filter((relationship) => relationship.kind === 'leader') ?? []),
+    canSupport: names(sheet?.attachments.filter((relationship) => relationship.kind === 'support') ?? []),
+    canBeLedBy: names(sheet?.leaders ?? []),
+    canBeSupportedBy: names(sheet?.supporters ?? []),
     ...datasheetCitation(corpus, sheet),
   }
 }

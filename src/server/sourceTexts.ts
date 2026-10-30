@@ -165,9 +165,22 @@ export function recordIdsIn(file: string) {
 // Game Datacards keys a detachment's rules by the detachment they belong to; they have no id of their own.
 const RECORD_KEYS = new Set(['id', 'detachment_id'])
 
-const recordIdOf = (value: object) => {
-  const { id, detachment_id: detachment } = value as { id?: unknown; detachment_id?: unknown }
-  return typeof id === 'string' ? id : typeof detachment === 'string' ? detachment : undefined
+/** A file's detachment ids by name, for a transcription that keys a detachment's rules by its name alone. */
+function detachmentIdsByName(root: unknown) {
+  const detachments = (root as { detachments?: unknown } | null)?.detachments
+  return new Map(
+    (Array.isArray(detachments) ? detachments : []).flatMap((detachment: { id?: unknown; name?: unknown }) => {
+      const name = typeof detachment.name === 'string' ? detachment.name : (detachment.name as { en?: unknown } | undefined)?.en
+      return typeof detachment.id === 'string' && typeof name === 'string' ? [[name, detachment.id] as const] : []
+    }),
+  )
+}
+
+const recordIdOf = (value: object, detachments: ReadonlyMap<string, string>) => {
+  const { id, detachment_id: detachmentId, detachment } = value as { id?: unknown; detachment_id?: unknown; detachment?: unknown }
+  if (typeof id === 'string') return id
+  if (typeof detachmentId === 'string') return detachmentId
+  return typeof detachment === 'string' ? detachments.get(detachment) : undefined
 }
 
 /**
@@ -178,6 +191,7 @@ const recordIdOf = (value: object) => {
 export function textRecordsIn(file: string) {
   const records = new Map<string, string[]>()
   const root: unknown = JSON.parse(fs.readFileSync(file, 'utf8'))
+  const detachments = detachmentIdsByName(root)
   const visit = (value: unknown, record: string | undefined) => {
     if (typeof value === 'string') {
       if (!record) return
@@ -185,7 +199,7 @@ export function textRecordsIn(file: string) {
       if (!holding.includes(record)) holding.push(record)
     } else if (Array.isArray(value)) for (const entry of value) visit(entry, record)
     else if (value && typeof value === 'object') {
-      const own = value === root ? undefined : recordIdOf(value)
+      const own = value === root ? undefined : recordIdOf(value, detachments)
       for (const entry of Object.values(value)) visit(entry, own ?? record)
     }
   }
