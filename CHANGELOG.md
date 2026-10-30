@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.204.0 (2026-10-30)
+
+### Minor Changes
+
+- 4afa8ea: What's new folds each day into one row and lists that day's releases in order, with a view that shows only new features.
+
 ## 0.203.9 (2026-10-30)
 
 ### Patch Changes
