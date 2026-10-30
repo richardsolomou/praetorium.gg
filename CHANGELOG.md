@@ -1,5 +1,13 @@
 # praetorium
 
+## 0.203.1 (2026-10-30)
+
+### Patch Changes
+
+- ea1ae0c: An assistant reading a detachment rule whose source names its detachment only by name, such as the Custodes ones, now gets that detachment's record to look it up.
+- ea1ae0c: An assistant planning a matched play list sees only the leaders and support units that list can take, without Legends or Crucible ones.
+- ea1ae0c: A signed-in assistant no longer gets a server error while Praetorium is deploying; it is asked to retry instead.
+
 ## 0.203.0 (2026-10-30)
 
 ### Minor Changes
