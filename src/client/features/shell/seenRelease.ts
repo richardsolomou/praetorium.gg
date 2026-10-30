@@ -8,7 +8,7 @@ const SEEN_KEY = 'praetorium-seen-release'
 /** The What's new notice waits this long after the player last looked, since releases ship several times a day. */
 export const NOTICE_INTERVAL = 7 * 86_400_000
 
-export type SeenRelease = { version: string; at: number }
+type SeenRelease = { version: string; at: number }
 
 /** The release this browser last acknowledged and when, or null when storage is unavailable, empty or unreadable. */
 export function seenRelease(stored = readStoredValue(SEEN_KEY)): SeenRelease | null {

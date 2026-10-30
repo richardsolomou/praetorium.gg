@@ -54,7 +54,6 @@ export type BattleReadRules = Pick<
   LoadedRules,
   'missions' | 'fixedSecondaryCaps' | 'primaries' | 'secondaries' | 'missionTwists' | 'dispositions' | 'dispositionDetails' | 'deployments'
 >
-export type TerrainReadRules = Pick<LoadedRules, 'terrainLayouts' | 'terrainTemplates'>
 /**
  * Which faction directory a player-facing slug's rules are filed under.
  *
@@ -82,7 +81,7 @@ export function missionFor(
   rules: BattleMissionRules,
   one: string | null,
   two: string | null,
-  missionPackId: string | null = null,
+  missionPackId: string | null,
 ): Mission | null {
   const mission = missionForIn(rules.missions, one, two, missionPackId)
   // The per-card ceiling belongs to the pack rather than to the matchup, and it is

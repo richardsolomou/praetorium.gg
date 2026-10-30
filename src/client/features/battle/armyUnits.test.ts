@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { UnitState } from '../../../core/battle'
-import { armyModels, armyShelves } from './armyUnits'
+import { armyShelves } from './armyUnits'
 
 const unit = (overrides: Partial<UnitState> & Pick<UnitState, 'key'>): UnitState => ({
   name: overrides.key,
@@ -12,13 +12,6 @@ const unit = (overrides: Partial<UnitState> & Pick<UnitState, 'key'>): UnitState
   alive: overrides.models ?? 5,
   damage: 0,
   ...overrides,
-})
-
-describe('armyModels', () => {
-  it('counts the models still standing against the ones the army brought', () => {
-    const units = [unit({ key: 'a', models: 5, alive: 2 }), unit({ key: 'b', models: 10, alive: 10 })]
-    expect(armyModels(units)).toEqual({ standing: 12, total: 15 })
-  })
 })
 
 describe('armyShelves', () => {

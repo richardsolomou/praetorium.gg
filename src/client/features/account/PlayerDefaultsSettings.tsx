@@ -36,7 +36,7 @@ export function PlayerDefaultsSettings() {
   })
   const defaults = save.isPending ? save.variables : saved
   return (
-    <section className="grid gap-3 py-4 first:pt-0 last:pb-0 lg:grid-cols-[16rem_minmax(0,1fr)] lg:gap-8">
+    <section className="grid gap-3 lg:grid-cols-[16rem_minmax(0,1fr)] lg:gap-8">
       <div>
         <h3 className="text-base">Roster defaults</h3>
         <p className="mt-1 text-sm text-dim">What a new roster starts with. You can change both when you create one.</p>

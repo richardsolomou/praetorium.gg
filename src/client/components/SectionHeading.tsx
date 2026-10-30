@@ -21,13 +21,15 @@ export function SectionHeading({
   if (!action)
     return (
       <h2 id={id} className={cn('rubric mb-2 flex items-baseline justify-between border-b border-edge pb-2', className)}>
-        {title} {trailing}
+        <span>{title}</span>
+        {trailing}
       </h2>
     )
   return (
     <div className={cn('mb-2 flex min-h-8 items-end justify-between gap-3 border-b border-edge pb-2', className)}>
       <h2 id={id} className="rubric flex items-baseline gap-2">
-        {title} {trailing}
+        <span>{title}</span>
+        {trailing}
       </h2>
       {action}
     </div>

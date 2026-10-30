@@ -1,14 +1,6 @@
 import type { UnitState } from '../../../core/battle'
 import { GROUPS } from '../../unitGroups'
 
-/** The models an army still has on the table, out of the ones it brought. */
-export function armyModels(units: readonly UnitState[]) {
-  return {
-    standing: units.reduce((total, unit) => total + unit.alive, 0),
-    total: units.reduce((total, unit) => total + unit.models, 0),
-  }
-}
-
 /**
  * An army on the shelves a roster is read by, with the units it has lost set aside.
  *

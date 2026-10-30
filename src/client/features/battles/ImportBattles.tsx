@@ -1,7 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { Download } from 'lucide-react'
 import { posthog } from 'posthog-js'
-import { type ReactNode, useCallback, useState } from 'react'
+import { type ReactNode, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -35,7 +35,6 @@ export function ImportBattles() {
   const [open, setOpen] = useState(false)
   const [app, setApp] = useState<ImportSource | 'other'>('battlebase')
   const [busy, setBusy] = useState(false)
-  const onBusy = useCallback((next: boolean) => setBusy(next), [])
   const close = () => {
     setOpen(false)
     setApp('battlebase')
@@ -65,9 +64,9 @@ export function ImportBattles() {
         {/* Mounted only while open, so each opening starts afresh. */}
         {open ? (
           app === 'other' ? (
-            <SuggestApp picker={picker} onBusy={onBusy} onDone={close} />
+            <SuggestApp picker={picker} onBusy={setBusy} onDone={close} />
           ) : (
-            <BattlebaseImport picker={picker} onBusy={onBusy} onDone={close} />
+            <BattlebaseImport picker={picker} onBusy={setBusy} onDone={close} />
           )
         ) : null}
       </DialogContent>

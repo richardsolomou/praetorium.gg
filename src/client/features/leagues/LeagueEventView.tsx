@@ -310,6 +310,15 @@ export function LeagueEventView({
           league,
         )
       : null
+  const startLeagueBattle = (players: Parameters<typeof battle.mutate>[0]) =>
+    battle.mutate(players, { onSuccess: () => setChoosingBattle(false) })
+  const chooser = {
+    open: choosingBattle,
+    pending: battle.isPending,
+    error: battle.error,
+    onIntentChange: () => battle.reset(),
+    onClose: closeBattleChooser,
+  }
   const aside = isOrganizer ? <aside className="space-y-3">{!revealed ? <InvitePanel league={league} /> : null}</aside> : null
 
   return (
@@ -499,42 +508,30 @@ export function LeagueEventView({
       {battleFormat === '1v1' && ownEntry?.status === 'accepted' ? (
         <OneOnOneBattleChooser
           key={league.eventToken}
-          open={choosingBattle}
+          {...chooser}
           ownUserId={ownEntry.userId}
           entries={oneOnOneEntrants}
-          pending={battle.isPending}
-          error={battle.error}
-          onIntentChange={() => battle.reset()}
-          onClose={closeBattleChooser}
-          onStart={(opponentId) => battle.mutate({ opponentId }, { onSuccess: () => setChoosingBattle(false) })}
+          onStart={(opponentId) => startLeagueBattle({ opponentId })}
         />
       ) : null}
       {league.format === '2v1' && ownEntry?.status === 'accepted' && league.rosterLimit ? (
         <LeagueBattleChooser
           key={league.eventToken}
-          open={choosingBattle}
+          {...chooser}
           ownUserId={ownEntry.userId}
           ownRequiredLimit={ownEntry.requiredLimit}
           rosterLimit={league.rosterLimit}
           entries={sealedEntrants}
-          pending={battle.isPending}
-          error={battle.error}
-          onIntentChange={() => battle.reset()}
-          onClose={closeBattleChooser}
-          onStart={(players) => battle.mutate(players, { onSuccess: () => setChoosingBattle(false) })}
+          onStart={startLeagueBattle}
         />
       ) : null}
       {league.format === '2v2' && ownEntry?.status === 'accepted' ? (
         <DoublesBattleChooser
           key={league.eventToken}
-          open={choosingBattle}
+          {...chooser}
           ownUserId={ownEntry.userId}
           entries={accepted}
-          pending={battle.isPending}
-          error={battle.error}
-          onIntentChange={() => battle.reset()}
-          onClose={closeBattleChooser}
-          onStart={(opponentId) => battle.mutate({ opponentId }, { onSuccess: () => setChoosingBattle(false) })}
+          onStart={(opponentId) => startLeagueBattle({ opponentId })}
         />
       ) : null}
     </>

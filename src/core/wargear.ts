@@ -8,9 +8,9 @@
  * wargear when the model has one.
  */
 
-import type { CatalogueIndex } from './catalogue'
+import { type CatalogueIndex, resolve } from './catalogue'
 import { fieldedCount } from './collective'
-import { childrenOf, isRosterToggle, resolve } from './definitions'
+import { childrenOf, isRosterToggle } from './definitions'
 import type { Selection } from './evaluate'
 import { routeSlug } from './slug'
 import { remember } from './collections'

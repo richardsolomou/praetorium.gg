@@ -36,6 +36,9 @@ export function rosterWaivers(
 /** The waived restrictions as one readable list, for a sentence that names them. */
 const waiverLabels = (rules: readonly FormatRule[]) => rules.map((rule) => rule.label).join(', ')
 
+const switchedOff = (rules: readonly FormatRule[]) =>
+  `${rules.length} format ${rules.length === 1 ? 'restriction is' : 'restrictions are'} switched off`
+
 /**
  * A mark beside a list's identity, which says what it is on hover.
  *
@@ -56,9 +59,7 @@ export function WaiverChip({ rules, className = '' }: { rules: readonly FormatRu
         <span className="sr-only">{summary}</span>
       </TooltipTrigger>
       <TooltipContent className="block">
-        <span className="block font-semibold">
-          {rules.length} format {rules.length === 1 ? 'restriction is' : 'restrictions are'} switched off
-        </span>
+        <span className="block font-semibold">{switchedOff(rules)}</span>
         <span className="mt-0.5 block">{waiverLabels(rules)}</span>
       </TooltipContent>
     </Tooltip>
@@ -178,9 +179,7 @@ export function WaiverWarning({
     >
       <TriangleAlert className="mt-px size-4 shrink-0" aria-hidden />
       <div className="min-w-0 flex-1">
-        <p className="font-semibold uppercase">
-          {rules.length} format {rules.length === 1 ? 'restriction is' : 'restrictions are'} switched off
-        </p>
+        <p className="font-semibold uppercase">{switchedOff(rules)}</p>
         <ul className="mt-1 list-inside list-disc">
           {rules.map((rule) => (
             <li key={rule.id}>

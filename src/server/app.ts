@@ -285,17 +285,13 @@ function catalogueReads(getInstance: () => App, loaded: ReturnType<typeof catalo
           }
         : null
     },
-    factionsFor: async () => {
-      return versions().factions()
-    },
+    factionsFor: async () => versions().factions(),
     factionFor: async (catalogueId: string) => {
       const faction = versions().factionFor(catalogueId)
       return faction ? publishedFaction(faction, versions().catalogueFor(faction.id)) : null
     },
     factionIconFor: async (id: string) => getInstance().rules()?.factionIcons.get(id) ?? null,
-    searchIndexFor: async () => {
-      return loaded.searchIndex()
-    },
+    searchIndexFor: async () => loaded.searchIndex(),
   }
 }
 

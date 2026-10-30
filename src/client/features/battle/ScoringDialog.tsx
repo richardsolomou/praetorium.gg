@@ -495,7 +495,7 @@ export function dueFromTheirTurn(
   side: Side,
   awardsFor: (key: string, mode?: string) => MissionAward[],
   hand: readonly string[],
-  endOfBattle = false,
+  endOfBattle: boolean,
 ): DueCard[] {
   return cardsDueFromTheirTurn(round, rounds, playable(side, awardsFor), hand, endOfBattle && side.finalPrimary === 0, side.secondaryMode)
 }

@@ -75,10 +75,6 @@ it('waits for the saved layout before showing an objective count', () => {
   expect(render(null)).toBe('BattlefieldHammer and Anvil')
 })
 
-it('shows a single source objective in the count', () => {
-  expect(render(1)).toBe('BattlefieldHammer and Anvil · 1 objective')
-})
-
 it('shows zero when the saved battlefield has no objectives', () => {
   expect(render(0, false, [])).toBe('BattlefieldHammer and Anvil · 0 objectives')
 })

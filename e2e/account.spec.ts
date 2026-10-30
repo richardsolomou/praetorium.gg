@@ -11,6 +11,7 @@ import {
   expectNoPageOverflow,
   addUnit,
   visitorSetup,
+  signIn,
   signOut,
   chooseLibraryAction,
   PHONE,
@@ -516,14 +517,7 @@ test('onboarding waits in the profile menu and disappears when complete', async 
 test('a list saved under an account is there on another device', async ({ browser }) => {
   const first = await browser.newContext()
   const page = await first.newPage()
-  const email = `alice-${crypto.randomUUID()}@example.test`
-
-  await page.goto('/sign-in')
-  await page.getByRole('button', { name: 'I need an account' }).click()
-  await page.getByLabel('Your name').fill('Alice')
-  await page.getByLabel('Email').fill(email)
-  await page.getByLabel('Password').fill('a-long-enough-password')
-  await page.getByRole('button', { name: 'Create account', exact: true }).click()
+  const { email, password } = await signUp(page, 'Alice')
   await expect(page.getByRole('button', { name: 'Account menu for Alice' })).toBeVisible()
 
   await expectOnboardingProgress(page, 0)
@@ -537,11 +531,7 @@ test('a list saved under an account is there on another device', async ({ browse
   // A different browser entirely: no cookie, no storage, nothing but the account.
   const second = await browser.newContext()
   const elsewhere = await second.newPage()
-  await elsewhere.goto('/sign-in')
-  await elsewhere.waitForLoadState('networkidle')
-  await elsewhere.getByLabel('Email').fill(email)
-  await elsewhere.getByLabel('Password').fill('a-long-enough-password')
-  await elsewhere.getByRole('button', { name: 'Sign in', exact: true }).click()
+  await signIn(elsewhere, email, password)
   await elsewhere.waitForURL('/')
   await expect(elsewhere.getByRole('button', { name: 'Account menu for Alice' })).toBeVisible()
 
@@ -563,20 +553,10 @@ test('a seated battle signs the opponent in and drops them back into setup', asy
   const guest = await (await browser.newContext()).newPage()
   const aliceName = uniqueName('Alice')
   const bobName = uniqueName('Bob')
-  const bobEmail = `${bobName.toLowerCase()}@example.test`
-
-  await guest.goto('/sign-in')
-  await guest.getByRole('button', { name: 'I need an account' }).click()
-  await guest.getByLabel('Your name').fill(bobName)
-  await guest.getByLabel('Email').fill(bobEmail)
-  await guest.getByLabel('Password').fill('a-long-enough-password')
-  await guest.getByRole('button', { name: 'Create account', exact: true }).click()
-  const accountMenu = guest.getByRole('button', { name: `Account menu for ${bobName}` })
-  await accountMenu.waitFor()
+  const bob = await signUp(guest, bobName)
   await signUp(host, aliceName)
   await befriend(host, guest)
-  await accountMenu.click()
-  await guest.getByRole('menuitem', { name: 'Sign out' }).click()
+  await signOut(guest)
   await expect(guest.getByRole('link', { name: 'Sign in' }).first()).toBeVisible()
 
   const link = await createBattle(host, { opponent: bobName })
@@ -584,8 +564,8 @@ test('a seated battle signs the opponent in and drops them back into setup', asy
   await guest.goto(link)
   await guest.getByRole('main').getByRole('link', { name: 'Sign in' }).click()
   await guest.waitForLoadState('networkidle')
-  await guest.getByLabel('Email').fill(bobEmail)
-  await guest.getByLabel('Password').fill('a-long-enough-password')
+  await guest.getByLabel('Email').fill(bob.email)
+  await guest.getByLabel('Password').fill(bob.password)
   await guest.getByRole('button', { name: 'Sign in', exact: true }).click()
 
   await guest.waitForURL(/\/battles\/[^/]+$/)

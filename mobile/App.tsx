@@ -722,8 +722,6 @@ function AppShell() {
               openSavedReference(nativeEvent.url || shellRef.current.lastInternalUrl)
           }}
           onHttpError={({ nativeEvent }) => {
-            // A failing sub-resource must not tear down the loaded document; only
-            // an error on the main frame itself is a load failure.
             if (!isMainFrameHttpError(nativeEvent.url, nativeEvent.statusCode, mainFrameUrl.current)) return
             captureNativeException('web_http', new Error(`WebView HTTP error ${nativeEvent.statusCode}: ${nativeEvent.description}`))
             cancelScheduledDrain()

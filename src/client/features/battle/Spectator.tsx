@@ -47,7 +47,6 @@ type Props = {
 }
 
 const ignoreCommand = (_command: Command) => {}
-const noAwards = () => []
 const emptyTimeline: readonly ReplayPoint[] = []
 const noReference = () => undefined
 const noPrompts: never[] = []
@@ -269,7 +268,7 @@ function ReplayTimeline({
             {loading ? <span className="truncate text-3xs text-dim">Loading…</span> : null}
             {error ? <span className="truncate text-3xs text-destructive">Could not load</span> : null}
           </div>
-          <p className="text-xs font-semibold text-parchment">{selected.round > 0 ? `Round ${selected.round}` : 'Setup'}</p>
+          <p className="text-xs font-semibold text-parchment">{roundName}</p>
           <p className="readout justify-self-end text-xs text-dim">
             {index + 1}/{points.length}
           </p>
@@ -353,7 +352,6 @@ function SpectatorSide({
     actionable: false,
     pending: false,
     send: ignoreCommand,
-    awardsFor: noAwards,
     referenceFor,
     guides,
   }

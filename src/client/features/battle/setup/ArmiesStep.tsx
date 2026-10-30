@@ -43,6 +43,7 @@ import { GuestRosterChooser } from './GuestRosterChooser'
 import { visitorFieldingReminders } from '../../rosters/visitorReminders'
 import { useHistoryDialog } from '../../../useHistoryDialog'
 import { SectionHeading } from '../../../components/SectionHeading'
+import { countLabel } from '../../../text'
 
 type SavedRoster = QueryData<typeof savedRosterSummariesQuery>[number]
 type Props = {
@@ -132,7 +133,7 @@ export function ArmiesStep({ view, sides, send, attachRoster, pending, problem }
                     {army.roster ? (
                       <span className="mt-0.5 block text-xs text-dim">
                         {army.roster.built
-                          ? `${army.unitCount} units · ${(army.points ?? 0).toLocaleString('en')} of ${pointsLabel(team ? (sharedSidePoints(view, side.index) ?? armyPointsFor(view, side.index) ?? pointsBudgetOf(army.roster.built)) : pointsBudgetOf(army.roster.built))}`
+                          ? `${countLabel(army.unitCount, 'unit')} · ${(army.points ?? 0).toLocaleString('en')} of ${pointsLabel(team ? (sharedSidePoints(view, side.index) ?? armyPointsFor(view, side.index) ?? pointsBudgetOf(army.roster.built)) : pointsBudgetOf(army.roster.built))}`
                           : 'Imported army'}
                       </span>
                     ) : null}

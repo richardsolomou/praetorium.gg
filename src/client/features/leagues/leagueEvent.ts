@@ -39,10 +39,9 @@ export function leagueNoun(league: { club?: unknown }) {
 }
 
 /** Names a few people outright and counts the rest, so a long waiting list stays one line. */
-export function namesPhrase(names: string[], shown = 3) {
-  if (names.length <= shown) return formatList(names)
-  const rest = names.length - (shown - 1)
-  return `${names.slice(0, shown - 1).join(', ')} and ${rest} others`
+export function namesPhrase(names: string[]) {
+  if (names.length <= 3) return formatList(names)
+  return `${names.slice(0, 2).join(', ')} and ${names.length - 2} others`
 }
 
 /** Which side of a 2v1 table an entry's assigned size puts it on. */

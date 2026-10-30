@@ -1,4 +1,5 @@
 import { type NamedRosterDifferences, type RosterUnitChange, rosterDifferences } from '../core/rosterDifferences'
+import { byId } from '../core/collections'
 import { app } from './app'
 
 type Compared = Parameters<typeof rosterDifferences>[0] & { id: string; name: string; baseRosterId: string | null }
@@ -7,7 +8,7 @@ type Compared = Parameters<typeof rosterDifferences>[0] & { id: string; name: st
 export async function variantDifferences(userId: string, rosters: readonly Compared[]) {
   const variants = rosters.filter((roster) => roster.baseRosterId)
   if (!variants.length) return new Map<string, NamedRosterDifferences>()
-  const known = new Map(rosters.map((roster) => [roster.id, roster]))
+  const known = byId(rosters)
   const missing = [...new Set(variants.map((roster) => roster.baseRosterId!))].filter((id) => !known.has(id))
   if (missing.length) for (const base of await app().service.rosterService.savedRostersByIds(userId, missing)) known.set(base.id, base)
   const differences = new Map<string, NamedRosterDifferences>()

@@ -1,4 +1,4 @@
-export function canvasBlob(canvas: HTMLCanvasElement, type: string, quality: number) {
+function canvasBlob(canvas: HTMLCanvasElement, type: string, quality: number) {
   return new Promise<Blob>((resolve, reject) =>
     canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error('The image could not be prepared.'))), type, quality),
   )

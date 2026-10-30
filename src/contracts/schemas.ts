@@ -3,7 +3,8 @@ import { z } from 'zod'
 import { REPLAY_BATCH_SIZE } from './battles'
 import { onboardingTaskIds, tourTaskIds } from '../core/onboarding'
 import { PLAYER_SEARCH_MAX_LENGTH } from '../core/playerSearch'
-import { MAX_COLLECTION_DATASHEETS, MAX_COLLECTION_MODELS, MAX_COUNTS_AS } from '../core/collection'
+import { MAX_COLLECTION_DATASHEETS, MAX_COUNTS_AS } from '../core/collection'
+import { collectionCount, collectionModels } from './collection'
 import { PUSH_PLATFORMS } from '../core/notificationConfig'
 import { unitLoadoutNameSchema, unitLoadoutSchema } from '../core/unitLoadouts'
 import { pushTokenSchema } from '../core/notifications'
@@ -503,8 +504,7 @@ export const unitLoadoutIdSchema = z.object({ id: z.uuid() })
 export const renameUnitLoadoutSchema = unitLoadoutIdSchema.extend({ name: unitLoadoutNameSchema })
 
 export const ownedSchema = z.object({ entryId: id, owned: z.boolean() })
-export const collectionModelsSchema = z.object({ entryId: id, models: z.number().int().min(1).max(MAX_COLLECTION_MODELS) })
-const collectionCount = z.number().int().min(0).max(MAX_COLLECTION_MODELS)
+export const collectionModelsSchema = z.object({ entryId: id, models: collectionModels })
 export const collectionProgressSchema = z
   .object({ entryId: id, built: collectionCount, painted: collectionCount })
   .refine((input) => input.painted <= input.built, 'Painted models must be built')

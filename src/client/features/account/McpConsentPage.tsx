@@ -1,6 +1,7 @@
 import { useAuthAction } from 'ras-stack/auth/react'
 import { Button } from '@/components/ui/button'
 import { buttonClass } from '../../components/buttonClass'
+import { Problem } from '../../components/Problem'
 import { authClient } from '../../authClient'
 
 export function McpConsentPage({
@@ -41,11 +42,7 @@ export function McpConsentPage({
             {scopes.includes('mcp:write') && <li>Edit your rosters, create battles, and record battle actions.</li>}
             {scopes.includes('offline_access') && <li>Stay connected until you revoke access.</li>}
           </ul>
-          {error && (
-            <p role="alert" className="mt-4 text-destructive">
-              {error}
-            </p>
-          )}
+          {error && <Problem className="mt-4 text-base">{error}</Problem>}
           <div className="mt-8 flex gap-3">
             <Button disabled={pending} onClick={() => void decide(true)}>
               Allow access

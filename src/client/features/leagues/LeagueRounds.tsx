@@ -3,7 +3,7 @@ import { Link } from '@tanstack/react-router'
 import { Lock, RotateCcw, Shuffle, Swords } from 'lucide-react'
 import { type ReactNode, useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { IconAction } from './LeagueEntrants'
 import type { LeagueEntryView } from '../../../core/league'
 import { rematches } from '../../../core/swiss'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
@@ -197,9 +197,7 @@ function TableRow({
         {pairing.bId ? name(pairing.bId) : null}
       </span>
       {rematch ? <span className="chip shrink-0 text-dim">Rematch</span> : null}
-      {!pairing.bId ? (
-        <span className="chip shrink-0 text-dim">Bye</span>
-      ) : forfeit ? (
+      {!pairing.bId || forfeit ? (
         <span className="chip shrink-0 text-dim">Bye</span>
       ) : pairing.battleToken && sample ? (
         <span className="shrink-0 text-sm text-info">{battleState(battle, pairing.aId, pairing.bId)}</span>
@@ -234,28 +232,24 @@ function ReopenTable({ token, eventToken, battleToken, table }: { token: string;
   })
   return (
     <>
-      <Tooltip>
-        <TooltipTrigger
-          render={
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              className="shrink-0 text-dim pointer-coarse:size-11"
-              aria-label={`Reopen table ${table}`}
-              disabled={reopen.isPending}
-              onClick={() => {
-                reopen.reset()
-                setConfirming(true)
-              }}
-            />
-          }
-        >
-          <RotateCcw aria-hidden />
-        </TooltipTrigger>
-        <TooltipContent role="tooltip" side="bottom">
-          Reopen result
-        </TooltipContent>
-      </Tooltip>
+      <IconAction
+        tooltip="Reopen result"
+        trigger={
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="shrink-0 text-dim pointer-coarse:size-11"
+            aria-label={`Reopen table ${table}`}
+            disabled={reopen.isPending}
+            onClick={() => {
+              reopen.reset()
+              setConfirming(true)
+            }}
+          />
+        }
+      >
+        <RotateCcw aria-hidden />
+      </IconAction>
       <ConfirmDialog
         open={confirming}
         title={`Reopen table ${table}?`}

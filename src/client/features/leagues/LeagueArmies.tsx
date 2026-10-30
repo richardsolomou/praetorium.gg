@@ -195,7 +195,7 @@ export function LeagueArmies({
                   <Button
                     variant="ghost"
                     size="icon-sm"
-                    className={ICON_ACTION}
+                    className="text-dim hover:text-info pointer-coarse:size-11"
                     aria-label={`Simulate against ${named}`}
                     onClick={() => onSimulate(entry.userId)}
                   />
@@ -231,5 +231,3 @@ export function LeagueArmies({
     )
   }
 }
-
-const ICON_ACTION = 'text-dim hover:text-info pointer-coarse:size-11'

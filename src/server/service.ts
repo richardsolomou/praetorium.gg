@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import { constantTimeEqual } from 'better-auth/crypto'
-import { byId, countBy } from '../core/collections'
+import { byId, chunks, countBy } from '../core/collections'
 import { guestSeatId, isGuestSeat, newBattleSeats, type NewBattlePlayers, type CreateBattleInput } from '../core/newBattle'
 import { type BattlebaseBattle, battlebaseBattleImport, battlebaseBattleSchema } from '../core/battlebaseBattle'
 import { guestSessionCurrent } from '../core/guestSession'
@@ -853,8 +853,8 @@ export class PraetoriumService {
     const finished = battles.flatMap((battle) => ('status' in battle && battle.status !== 'finished' ? [] : [battle.token]))
     if (finished.length) await this.refreshStandings()
     const changes = new Map<string, Readonly<Record<string, number>>>()
-    for (let at = 0; at < finished.length; at += 500)
-      for (const row of await this.repository.ratingChanges(finished.slice(at, at + 500))) changes.set(row.token, row.changes)
+    for (const batch of chunks(finished, 500))
+      for (const row of await this.repository.ratingChanges(batch)) changes.set(row.token, row.changes)
     return battles.map((battle) => {
       const ratingChanges = changes.get(battle.token)
       return ratingChanges ? { ...battle, ratingChanges } : battle
@@ -923,7 +923,7 @@ export class PraetoriumService {
     if (new Set(invited).size !== invited.length || invited.some((id) => id === userId || !known.has(id))) {
       throw new Response('choose an opponent', { status: 400 })
     }
-    const allowed = new Map(invitable.map((opponent) => [opponent.id, opponent]))
+    const allowed = byId(invitable)
     // Joining a club is consent to play its members, so a club game needs no friendship; the product database checks membership again.
     const clubToken = typeof input === 'object' ? input.clubToken : undefined
     const { club = null, season = null } = (clubToken && (await this.clubService.clubWithSeason(clubToken, userId))) || {}

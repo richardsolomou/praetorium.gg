@@ -52,20 +52,12 @@ function snapshotRpc<T>(work: () => Promise<T>) {
   })
 }
 
-export const factionIndex = createServerFn({ method: 'GET' }).handler(() =>
-  snapshotRpc(async () => {
-    return app().factionIndexFor()
-  }),
-)
+export const factionIndex = createServerFn({ method: 'GET' }).handler(() => snapshotRpc(async () => app().factionIndexFor()))
 
 /** One faction by slug or id, for pages that should not ship every faction. */
 export const faction = createServerFn({ method: 'GET' })
   .validator(factionSchema)
-  .handler(({ data }) =>
-    snapshotRpc(async () => {
-      return app().factionFor(data.catalogueId)
-    }),
-  )
+  .handler(({ data }) => snapshotRpc(async () => app().factionFor(data.catalogueId)))
 
 export const globalSearch = createServerFn({ method: 'GET' })
   .validator(globalSearchSchema)
@@ -136,11 +128,7 @@ export const datasheetOfferedBy = createServerFn({ method: 'GET' })
     }),
   )
 
-export const combatUnits = createServerFn({ method: 'GET' }).handler(() =>
-  snapshotRpc(async () => {
-    return app().combatUnitsFor()
-  }),
-)
+export const combatUnits = createServerFn({ method: 'GET' }).handler(() => snapshotRpc(async () => app().combatUnitsFor()))
 
 export const factionDatasheets = createServerFn({ method: 'GET' })
   .validator(unitsSchema)
@@ -338,11 +326,7 @@ export const gameReferences = createServerFn({ method: 'GET' }).handler(() =>
 )
 
 /** Where each source file a rules-text token names lives upstream; Praetorium serves where the words are, never the words. */
-export const textSources = createServerFn({ method: 'GET' }).handler(() =>
-  snapshotRpc(async () => {
-    return publishedTextFiles()
-  }),
-)
+export const textSources = createServerFn({ method: 'GET' }).handler(() => snapshotRpc(async () => publishedTextFiles()))
 
 /** Every rules document and section by name, with the numbers their prose quotes. */
 export const ruleIndex = createServerFn({ method: 'GET' }).handler(() =>

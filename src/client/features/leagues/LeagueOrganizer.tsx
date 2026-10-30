@@ -4,6 +4,7 @@ import { useState, type ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { isTeamFormat, alliedLeagueRosterLimit, type LeagueEntryView } from '../../../core/league'
+import { withMember } from '../../../core/collections'
 import {
   addLeagueEntrants,
   admitLeagueEntries,
@@ -70,8 +71,8 @@ export function OrganizerEntrants({ league, token, row }: { league: League; toke
 
   const labels = entrantLabels(league.entries)
   const label = (entry: LeagueEntryView) => labels.get(entry.userId) ?? entry.name
-  const nameOf = (userId: string) => labels.get(userId) ?? league.entries.find((entry) => entry.userId === userId)?.name ?? 'someone'
-  const byJoin = [...league.entries].sort((left, right) => left.joinedAt - right.joinedAt)
+  const nameOf = (userId: string) => labels.get(userId) ?? 'someone'
+  const byJoin = league.entries.toSorted((left, right) => left.joinedAt - right.joinedAt)
   const accepted = byJoin.filter((entry) => entry.status === 'accepted')
   const pending = byJoin.filter((entry) => entry.status === 'pending')
   const rejected = byJoin.filter((entry) => entry.status === 'rejected')
@@ -153,7 +154,7 @@ export function OrganizerEntrants({ league, token, row }: { league: League; toke
           aria-label={`Pick ${label(entry)} for a ${league.format === '2v1' ? 'pair' : 'team'}`}
           checked={checked}
           disabled={!checked && pickedLive.length === 2}
-          onChange={() => setPicked(checked ? pickedLive.filter((id) => id !== entry.userId) : [...pickedLive, entry.userId])}
+          onChange={() => setPicked(withMember(pickedLive, entry.userId))}
         />
         Pick
       </label>
@@ -420,7 +421,7 @@ export function InvitePanel({ league }: { league: League }) {
   const shareLabel = shareButtonLabel(invite.feedback, useNativeShare(), 'invite')
   return (
     <section className="border border-edge bg-panel p-4">
-      <h2 className="rubric border-b border-edge pb-2">Invite players</h2>
+      <SectionHeading title="Invite players" className="mb-0" />
       <p className="mt-1 text-xs text-dim">
         {league.club
           ? 'Members also find it on the club page.'
@@ -542,7 +543,7 @@ function AddPlayers({ league, token }: { league: League; token: string }) {
                           className="size-5 accent-parchment"
                           checked={checked}
                           disabled={add.isPending || (!checked && places !== null && picked.length >= places)}
-                          onChange={() => setPicked(checked ? picked.filter((id) => id !== person.id) : [...picked, person.id])}
+                          onChange={() => setPicked(withMember(picked, person.id))}
                         />
                         <PlayerAvatar name={person.name} image={person.image} className="size-8 text-3xs" />
                         <span className="min-w-0 truncate font-bold uppercase">{person.name}</span>

@@ -6,7 +6,7 @@ import { BattleDialogContent, BattlePromptDialog } from './BattlePromptDialog'
 import { casualtyOutcome, type Command, transportLabel, type UnitState } from '../../../core/battle'
 import { battleUnitCounts } from '../../../core/attachedUnits'
 import type { SendCommand } from './useCommand'
-import { armyModels, armyShelves } from './armyUnits'
+import { armyShelves } from './armyUnits'
 import type { Army, Side } from '../../sides'
 import { ArmyIdentity } from './ArmyIdentity'
 import { Section } from '../rosters/builder/Section'
@@ -76,7 +76,10 @@ export function ArmyRoster({ army, side, actionable, pending, blocked = false, s
   const roster = army.roster
   if (!roster) return null
 
-  const models = armyModels(units)
+  const models = {
+    standing: units.reduce((total, unit) => total + unit.alive, 0),
+    total: units.reduce((total, unit) => total + unit.models, 0),
+  }
   const standing = battleUnitCounts(units).standing
   const shelves = armyShelves(units)
   const lost = units.filter((unit) => unit.destroyed)

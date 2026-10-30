@@ -1,8 +1,8 @@
 /** Saved picks are rebuilt and repriced against the current catalogue. */
 
-import type { CatalogueIndex, Definition } from './catalogue'
+import { type CatalogueIndex, type Definition, resolve } from './catalogue'
 import { isCollective, storesUnitTotal } from './collective'
-import { childrenOf, MAX_DEPTH, maximumCount, type Option, pointsOf, requiredCount, resolve } from './definitions'
+import { childrenOf, MAX_DEPTH, maximumCount, type Option, pointsOf, requiredCount } from './definitions'
 import { evaluate, type EvaluateOptions, type Selection } from './evaluate'
 import { defaultSelection, expand, withChoice } from './expand'
 import { at as selectionAt, countAt, updateSelection, withCounts } from './selection'

@@ -212,9 +212,8 @@ export function RosterSetupDialog({
   // The King of the Colosseum optional rule. Nothing offers it unasked: a roster only sees it
   // at a size that plays it, and it borrows a disposition alone — never the detachment's
   // rules, enhancements or stratagems.
-  const ownPoints = selected.some((detachment) => detachment.points == null)
-    ? null
-    : selected.reduce((sum, detachment) => sum + (detachment.points ?? 0), 0)
+  const spent = selected.reduce((sum, detachment) => sum + (detachment.points ?? 0), 0)
+  const ownPoints = selected.some((detachment) => detachment.points == null) ? null : spent
   const offeredOptionalRules = optionalRules(draft.limit)
   const pickedRules = pickedOptionalRules(draft.limit, draft.optionalRules)
   const borrowing = plays(draft.optionalRules, 'kotc-borrowed-disposition')
@@ -236,7 +235,6 @@ export function RosterSetupDialog({
   )
   const dispositions = dispositionsFor(faction?.detachments ?? [], borrowed ? [...draft.detachmentIds, borrowed.id] : draft.detachmentIds)
   const selectedDisposition = dispositions.length === 1 ? (dispositions[0]?.id ?? null) : draft.disposition
-  const spent = selected.reduce((sum, detachment) => sum + (detachment.points ?? 0), 0)
   const allowance = detachmentPointBudget(draft.limit)
   const pointsError = detachmentPointsError(
     selected.map((detachment) => ({ points: detachment.points ?? null })),

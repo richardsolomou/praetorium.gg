@@ -57,7 +57,7 @@ export function errorMessage(error: unknown, fallback = 'Something went wrong. T
 const SELF_REPORTED = new Set(['rules-text'])
 
 /** Counts each read that failed, by the static name its key starts with; a signed-out or offline refusal is an answer, not a failure. */
-export function reportQueryFailure(error: unknown, query: Pick<Query, 'queryKey'>) {
+function reportQueryFailure(error: unknown, query: Pick<Query, 'queryKey'>) {
   if (typeof window === 'undefined' || isSignedOut(error) || error instanceof OfflineRefusal) return
   const [name] = query.queryKey
   if (typeof name === 'string' && SELF_REPORTED.has(name)) return

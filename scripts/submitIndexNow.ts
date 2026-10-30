@@ -1,6 +1,7 @@
 import { readFile, writeFile } from 'node:fs/promises'
 import { INDEXNOW_BATCH, INDEXNOW_KEY_PATH, indexNowKey, sitemapChanges } from '../src/server/indexNow.ts'
 import { isEntryPoint } from './lib/entryPoint.ts'
+import { requiredEnv } from './lib/requiredEnv.ts'
 import { waitForWebRevision } from './lib/webReadiness.ts'
 import { setTimeout as delay } from 'node:timers/promises'
 
@@ -65,8 +66,7 @@ export async function submitIndexNow({ key: configured, revision, origin, before
 if (isEntryPoint(import.meta.url)) {
   const [beforeFile, origin, afterFile] = process.argv.slice(2)
   if (!beforeFile || !origin) throw new Error('Usage: submitIndexNow.ts <sitemap-before.xml> <origin> [sitemap-after.xml]')
-  const revision = process.env.DEPLOY_SHA
-  if (!revision) throw new Error('DEPLOY_SHA is required')
+  const revision = requiredEnv('DEPLOY_SHA')
   const before = await readFile(beforeFile, 'utf8').catch(() => '')
   await submitIndexNow({ key: process.env.INDEXNOW_KEY, revision, origin, before, afterFile })
 }

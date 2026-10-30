@@ -9,7 +9,6 @@ import { PlayerRatingChange } from './PlayerRatingChange'
 import { ArmyIdentity } from './ArmyIdentity'
 import type { BattleCombatSelection } from '../simulator/BattleCombatDialog'
 import { ArmyRoster } from './ArmyRoster'
-import type { MissionAward } from '../../missionText'
 import { PrimaryMission, type ReferenceCard, SecondaryMissions, type StratagemText } from './MissionCards'
 import { Stratagems } from './Stratagems'
 import { tint } from './battleTints'
@@ -24,7 +23,6 @@ type Props = {
   /** A parked prompt, which holds controls that otherwise stay usable while a write is in flight. */
   blocked: boolean
   send: SendCommand
-  awardsFor: (key: string, mode?: string) => MissionAward[]
   referenceFor: (key: string) => ReferenceCard | undefined
   writtenFor: (side: Side, key: string) => StratagemText | undefined
   /** The ceilings this mission actually plays to, which the pack can lower. */
@@ -51,7 +49,6 @@ export const SidePanel = memo(function SidePanel({
   pending,
   blocked,
   send,
-  awardsFor,
   referenceFor,
   writtenFor,
   guides,
@@ -65,7 +62,6 @@ export const SidePanel = memo(function SidePanel({
     actionable: true,
     pending,
     send,
-    awardsFor,
     referenceFor,
     guides,
   }

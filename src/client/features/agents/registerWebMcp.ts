@@ -27,7 +27,7 @@ export function browserModelContext(): ModelContext | undefined {
   return (document as Document & { modelContext?: ModelContext }).modelContext
 }
 
-const failure = (text: string): ToolResult => ({ content: [{ type: 'text', text }], isError: true })
+export const failure = (text: string): ToolResult => ({ content: [{ type: 'text', text }], isError: true })
 
 export async function installWebMcp(context: ModelContext, descriptors: AgentToolDescriptor[], handlers: Handlers) {
   let writing = false

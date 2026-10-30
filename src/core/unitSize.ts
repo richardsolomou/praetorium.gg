@@ -8,8 +8,8 @@
  * report a minimum of six for a five-model squad.
  */
 
-import type { CatalogueIndex } from './catalogue'
-import { childrenOf, maximumCount, replacesSquadmate, requiredCount, resolve, UNBOUNDED } from './definitions'
+import { type CatalogueIndex, resolve } from './catalogue'
+import { childrenOf, maximumCount, replacesSquadmate, requiredCount, UNBOUNDED } from './definitions'
 import type { Selection } from './evaluate'
 import { defaultSelection } from './expand'
 

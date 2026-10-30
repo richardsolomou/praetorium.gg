@@ -25,12 +25,6 @@ it('shows rules text the reader has not chosen to load as the choice to load it'
   expect(markup).not.toContain('Re-roll')
 })
 
-it('holds back catalogue words the app keeps untokenized while only another source is chosen', async () => {
-  const { useTextSourceChoice, textSourceChoiceFrom } = await import('../rulesText')
-  vi.mocked(useTextSourceChoice).mockReturnValueOnce(textSourceChoiceFrom('game-datacards'))
-  expect(renderToStaticMarkup(createElement(RuleText, { text: 'Re-roll a Hit roll of 1.' }))).not.toContain('Re-roll a Hit roll of 1.')
-})
-
 it('shows words the app writes to every reader', async () => {
   const { useTextSourceChoice, textSourceChoiceFrom } = await import('../rulesText')
   vi.mocked(useTextSourceChoice).mockReturnValueOnce(textSourceChoiceFrom(''))

@@ -1,4 +1,4 @@
-import { groupBy } from './collections'
+import { byId, groupBy } from './collections'
 import { csv, parseCsv } from './csv'
 import { countsAsList, MAX_COLLECTION_DATASHEETS, MAX_COLLECTION_MODELS, MAX_COUNTS_AS, type CollectionEntry } from './collection'
 
@@ -64,8 +64,8 @@ export function readCollectionCsv(text: string, sheets: readonly Sheet[]): Colle
     return { error: 'The first row must name the columns, including datasheet or datasheet_id.' }
   if (records.length > MAX_COLLECTION_DATASHEETS)
     return { error: `A collection holds up to ${MAX_COLLECTION_DATASHEETS.toLocaleString('en')} datasheets.` }
-  const byId = new Map(sheets.map((sheet) => [sheet.id, sheet]))
-  const byName = groupBy(byId.values(), (sheet) => normalise(sheet.name))
+  const sheetsById = byId(sheets)
+  const byName = groupBy(sheetsById.values(), (sheet) => normalise(sheet.name))
   const value = (record: string[], column: string) => {
     const index = columns.get(column)
     return index === undefined ? undefined : record[index]
@@ -96,14 +96,14 @@ export function readCollectionCsv(text: string, sheets: readonly Sheet[]): Colle
     const links = (value(record, 'counts_as_ids') ?? '')
       .split(LINK_SEPARATOR)
       .map((link) => link.trim())
-      .filter((link) => byId.has(link))
+      .filter((link) => sheetsById.has(link))
     if (links.length > MAX_COUNTS_AS)
       return { line, name, status: 'invalid', reason: `A datasheet's models can be up to ${MAX_COUNTS_AS} other datasheets.` }
     if (links.length && !valid.models) return { line, name, status: 'invalid', reason: 'Only owned models can also be other datasheets.' }
     const faction = normalise(value(record, 'faction') ?? '')
     const named = byName.get(normalise(name)) ?? []
-    const candidates = byId.has(id)
-      ? [byId.get(id)!]
+    const candidates = sheetsById.has(id)
+      ? [sheetsById.get(id)!]
       : faction && named.some((sheet) => normalise(sheet.faction) === faction)
         ? named.filter((sheet) => normalise(sheet.faction) === faction)
         : named

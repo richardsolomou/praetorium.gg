@@ -4,6 +4,7 @@ import type { CanonicalCatalogue, CanonicalDatasheet, CanonicalDetachment } from
 import type { ReferenceDocument, ReferenceSection } from '../contracts/reference'
 import type { RuleDocument, RuleEntry } from '../contracts/rules'
 import { routeSlug } from '../core/slug'
+import { byId } from '../core/collections'
 import type { MissionSelectionKind } from '../core/missionSelections'
 import { compileCanonicalDetachments } from './canonicalCatalogue'
 import type { LoadedCatalogue } from './catalogueIndex'
@@ -67,7 +68,7 @@ export function referenceCorpusFor(sources: ReferenceSources): ReferenceCorpus |
     (left, right) => left.kind.localeCompare(right.kind) || left.title.localeCompare(right.title) || left.id.localeCompare(right.id),
   )
   const revision = hash('sha256', JSON.stringify({ catalogue, documents }))
-  const corpus = { catalogue, documents, byId: new Map(documents.map((document) => [document.id, document])), revision }
+  const corpus = { catalogue, documents, byId: byId(documents), revision }
   corpora.set(canonical, { catalogue: loaded, rules, files, factions: sources.factions, corpus })
   return corpus
 }
@@ -180,8 +181,8 @@ function deploymentDocuments(
   rules: LoadedRules,
   revisions: CanonicalCatalogue['revisions'],
 ): ReferenceDocument[] {
-  return (rules.deployments ?? []).map((deployment) => {
-    const layout = (rules.terrainLayouts ?? []).find((candidate) => candidate.deploymentId === deployment.id)
+  return rules.deployments.map((deployment) => {
+    const layout = rules.terrainLayouts.find((candidate) => candidate.deploymentId === deployment.id)
     const pageUrl = layout ? terrainUrl(references, layout.matchupId, layout.id).split('#')[0]! : '/missions'
     const url = `${pageUrl}#deployment-${deployment.id}`
     return {
@@ -216,8 +217,8 @@ function terrainDocuments(
   rules: LoadedRules,
   revisions: CanonicalCatalogue['revisions'],
 ): ReferenceDocument[] {
-  const deployments = new Map((rules.deployments ?? []).map((deployment) => [deployment.id, deployment]))
-  return (rules.terrainLayouts ?? []).map((layout) => {
+  const deployments = byId(rules.deployments)
+  return rules.terrainLayouts.map((layout) => {
     const url = terrainUrl(references, layout.matchupId, layout.id)
     const matchup = matchupFor(references, layout.matchupId)
     return {

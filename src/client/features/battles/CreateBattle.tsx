@@ -132,10 +132,13 @@ export function CreateBattle({
         ...(players.allyId ? { allyId: players.allyId } : {}),
       }
       // A league seats only its entrants, so a table with a guest at it has no league match to offer.
-      if (!casual && !guests.length) {
+      const leagueMatch = async () => {
+        if (casual || guests.length) return null
         const matches = await leagueBattleOptions({ data: playerData })
-        if (matches.length) return { kind: 'league' as const, matches }
+        return matches.length ? { kind: 'league' as const, matches } : null
       }
+      const offered = await leagueMatch()
+      if (offered) return offered
       const missionPackId = tracking === 'manual' ? null : await defaultMissionPackId()
       let battle
       try {
@@ -150,10 +153,8 @@ export function CreateBattle({
           },
         })
       } catch (error) {
-        if (!casual && !guests.length) {
-          const matches = await leagueBattleOptions({ data: playerData })
-          if (matches.length) return { kind: 'league' as const, matches }
-        }
+        const fallback = await leagueMatch()
+        if (fallback) return fallback
         throw error
       }
       if (rosterId) await bringRoster(battle.token, rosterId)

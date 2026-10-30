@@ -63,15 +63,9 @@ export function CatalogueChangesPage({ before, faction }: { before?: string; fac
         )}
         {before || data?.older ? (
           <nav aria-label="Older and newer updates" className="flex justify-between gap-3 border-t border-edge pt-4 text-sm">
-            {before ? (
-              <PageLink faction={faction} className="text-info hover:text-bone">
-                Newest updates
-              </PageLink>
-            ) : (
-              <span />
-            )}
+            {before ? <PageLink faction={faction}>Newest updates</PageLink> : <span />}
             {data?.older ? (
-              <PageLink faction={faction} before={data.older} className="text-info hover:text-bone">
+              <PageLink faction={faction} before={data.older}>
                 Older updates
               </PageLink>
             ) : null}
@@ -83,18 +77,9 @@ export function CatalogueChangesPage({ before, faction }: { before?: string; fac
 }
 
 /** A link to another page of the same list of updates. */
-function PageLink({
-  faction,
-  before,
-  className,
-  children,
-}: {
-  faction?: { slug: string }
-  before?: string
-  className: string
-  children: ReactNode
-}) {
+function PageLink({ faction, before, children }: { faction?: { slug: string }; before?: string; children: ReactNode }) {
   const search = before ? { before } : {}
+  const className = 'text-info hover:text-bone'
   return faction ? (
     <Link to="/data-updates/$catalogueId" params={{ catalogueId: faction.slug }} search={search} className={className}>
       {children}

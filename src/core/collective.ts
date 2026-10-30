@@ -9,10 +9,8 @@
  * choices offering room, the wargear list adding up pieces — asks this one question here.
  */
 
-import { type CatalogueIndex, type Definition, targetOf } from './catalogue'
+import { type CatalogueIndex, type Definition, resolve } from './catalogue'
 import { remember } from './collections'
-
-const resolve = (definition: Definition, index: CatalogueIndex) => targetOf(definition, index.definitions)
 
 // Every count the evaluator reads asks these of a definition, and a loaded catalogue's definitions never change.
 const collectiveCache = new WeakMap<CatalogueIndex, WeakMap<Definition, boolean>>()

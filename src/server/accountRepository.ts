@@ -2,7 +2,7 @@ import { and, asc, desc, eq, exists, inArray, ne, not, notInArray, or, sql } fro
 import { alias } from 'drizzle-orm/sqlite-core'
 import type { LibSQLDatabase } from 'drizzle-orm/libsql'
 import { account, githubSponsor, schema, user } from '../db/authSchema'
-import { remember } from '../core/collections'
+import { byId, remember } from '../core/collections'
 import type { GithubSponsor } from './githubSponsors'
 import type { AdminUserCountSort, AdminUserSort, AdminUsersRequest } from '../admin'
 
@@ -74,7 +74,7 @@ export class SqliteAccountRepository {
       .select({ id: user.id, name: user.name })
       .from(user)
       .where(inArray(user.id, [...new Set(ids)]))
-    return new Map(rows.map((row) => [row.id, row]))
+    return byId(rows)
   }
 
   /** How the player's linked GitHub account sponsors the project, or null when it does not or none is linked. */
@@ -102,7 +102,7 @@ export class SqliteAccountRepository {
       .select({ id: user.id, name: user.name, image: user.image })
       .from(user)
       .where(inArray(user.id, [...new Set(ids)]))
-    return new Map(rows.map((row) => [row.id, row]))
+    return byId(rows)
   }
 
   /** One page of players in an order the account database can sort by itself. */
@@ -146,8 +146,8 @@ export class SqliteAccountRepository {
           .from(user)
           .where(inArray(user.id, [...ids]))
       : []
-    const byId = new Map(rows.map((row) => [row.id, row]))
-    return this.withSignInMethods(ids.flatMap((id) => byId.get(id) ?? []))
+    const found = byId(rows)
+    return this.withSignInMethods(ids.flatMap((id) => found.get(id) ?? []))
   }
 
   private async withSignInMethods<Row extends { id: string }>(rows: Row[]) {

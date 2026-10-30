@@ -18,9 +18,9 @@ export function RosterChooser({
   error,
   failedRosterId,
   requiredLimit,
-  pointsBudget = null,
-  seatPoints = null,
-  shared = false,
+  pointsBudget,
+  seatPoints,
+  shared,
   onClose,
   onChoose,
 }: {
@@ -30,11 +30,11 @@ export function RosterChooser({
   failedRosterId: string | null
   requiredLimit: number | null
   /** The event's own points total, which a roster's budget must match; null where the size's full points apply. */
-  pointsBudget?: number | null
+  pointsBudget: number | null
   /** What a team event's seat may spend; its list is built at `requiredLimit` or smaller, with any points total. */
-  seatPoints?: number | null
+  seatPoints: number | null
   /** Whether the seat splits twice `seatPoints` with an ally rather than spending its own. */
-  shared?: boolean
+  shared: boolean
   onClose: () => void
   onChoose: (roster: SavedRoster) => void
 }) {

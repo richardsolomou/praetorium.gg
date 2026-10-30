@@ -198,9 +198,8 @@ export function catalogueEditionLoaders(
   }
   const canonicalFor = (id: string) => canonical(id, (_key, steps) => completeSteps(steps()))
   const compiling = new Map<string, Promise<CanonicalCatalogue>>()
-  const compileCooperatively = (key: string, steps: () => CanonicalCatalogueSteps) => {
-    return remember(compiling, key, () => completeStepsCooperatively(steps()).finally(() => compiling.delete(key)))
-  }
+  const compileCooperatively = (key: string, steps: () => CanonicalCatalogueSteps) =>
+    remember(compiling, key, () => completeStepsCooperatively(steps()).finally(() => compiling.delete(key)))
   const defaults = () =>
     new Set(
       allFactions()

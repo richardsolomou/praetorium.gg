@@ -447,6 +447,8 @@ export function targetOf(definition: Definition, definitions: ReadonlyMap<string
   return 'targetId' in definition ? (definitions.get(definition.targetId) ?? definition) : definition
 }
 
+export const resolve = (definition: Definition, index: CatalogueIndex) => targetOf(definition, index.definitions)
+
 /** An entry, and its target when it is a link: the two places its own data can be written. */
 export function definitionAndTarget(definition: Definition, index: CatalogueIndex): Definition[] {
   const target = targetOf(definition, index.definitions)

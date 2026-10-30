@@ -92,7 +92,7 @@ function ClubScreen({
   const accepted = club.members.filter((candidate) => candidate.status === 'accepted')
   const admins = accepted.filter((candidate) => candidate.role === 'admin')
   const invite = useInviteShare(`/clubs/${club.token}`, club.name, 'club_invite_shared')
-  const shareLabel = shareButtonLabel(null, useNativeShare(), 'invite')
+  const shareLabel = shareButtonLabel(invite.feedback, useNativeShare(), 'invite')
   const now = useNow(club.games.map((game) => game.pastAt))
   const playing = new Set(table?.playing)
   const open = club.games.filter((game) => clubGameOpen(game, now))

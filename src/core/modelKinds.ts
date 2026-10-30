@@ -8,9 +8,9 @@
  * gives no profile, the name the loadouts agree on stands in for one.
  */
 
-import type { CatalogueIndex, Definition } from './catalogue'
+import { type CatalogueIndex, type Definition, resolve } from './catalogue'
 import { groupBy } from './collections'
-import { childrenOf, MAX_DEPTH, modelProfileOf, resolve } from './definitions'
+import { childrenOf, MAX_DEPTH, modelProfileOf } from './definitions'
 import { hiddenByRules, type Selection } from './evaluate'
 import { defaultSelection } from './expand'
 import { allAt, updateSelection } from './selection'
@@ -77,13 +77,8 @@ export const modelRowPieces = (row: ModelRow, rows: readonly ModelRow[]) =>
       ),
   )
 
-function optionPieces(
-  optionId: string,
-  index: CatalogueIndex,
-  options: ChoiceOptions = {},
-  selected: readonly Selection[] = [],
-): string[] | undefined {
-  const pieces = optionWargear(optionId, index, options, selected).map((piece) => piece.name)
+function optionPieces(optionId: string, index: CatalogueIndex, options: ChoiceOptions): string[] | undefined {
+  const pieces = optionWargear(optionId, index, options).map((piece) => piece.name)
   return pieces.length ? pieces : undefined
 }
 
@@ -135,7 +130,7 @@ function carriedAt(selection: Selection, path: readonly string[], carriers = 1):
     .flatMap((child) => (rest.length ? carriedAt(child, rest, carriers * (child.count ?? 1)) : carriedAt(child, rest, carriers)))
 }
 
-export function optionWargear(optionId: string, index: CatalogueIndex, options: ChoiceOptions = {}, selected: readonly Selection[] = []) {
+export function optionWargear(optionId: string, index: CatalogueIndex, options: ChoiceOptions, selected: readonly Selection[] = []) {
   const fallback = selected.length ? null : defaultSelection(optionId, index, options)
   const selections = selected.length ? selected : fallback ? [fallback] : []
   const found = new Map<string, { name: string; count: number }>()

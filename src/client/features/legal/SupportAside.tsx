@@ -2,14 +2,13 @@ import { Link } from '@tanstack/react-router'
 import { Bug, Mail, MessagesSquare, UserX, type LucideIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { version } from '../../../../package.json'
-import { cn } from '@/lib/utils'
 import { DISCORD, PRIVACY_EMAIL, SOURCE } from '../../projectLinks'
 import { SectionHeading } from '../../components/SectionHeading'
 
-/** How feedback reaches us and the other channels, beside the Support page and each conversation. */
-export function SupportAside({ className }: { className?: string }) {
+/** How feedback reaches us and the other channels, beside the Support page. */
+export function SupportAside() {
   return (
-    <aside aria-label="Contact us" className={cn('space-y-8 text-sm text-dim', className)}>
+    <aside aria-label="Contact us" className="space-y-8 text-sm text-dim">
       <section aria-labelledby="how-feedback-works" className="space-y-2">
         <SectionHeading id="how-feedback-works" title="How feedback works" />
         <p>

@@ -96,26 +96,16 @@ export function NativeAuthPage({ search }: { search: NativeAuthSearch }) {
         if (!sessionToken) throw new Error('missing session token')
         const exchanged = await authClient.oneTimeToken.verify({ token: sessionToken })
         if (exchanged.error) throw exchanged.error
-        const linked = await authClient.linkSocial({
-          provider,
-          callbackURL: nativeAuthPath({ action, bridge, challenge, complete: true, next, provider }),
-          errorCallbackURL: nativeAuthPath({ action, bridge, challenge, complete: true, next, provider }),
-        })
+        const back = nativeAuthPath({ action, bridge, challenge, complete: true, next, provider })
+        const linked = await authClient.linkSocial({ provider, callbackURL: back, errorCallbackURL: back })
         if (linked.error) throw linked.error
         return
       }
+      const back = nativeAuthPath({ action, bridge, challenge, complete: true, next, provider, requestSignUp: search.requestSignUp })
       const signedIn = await authClient.signIn.social({
         provider,
-        callbackURL: nativeAuthPath({ action, bridge, challenge, complete: true, next, provider, requestSignUp: search.requestSignUp }),
-        errorCallbackURL: nativeAuthPath({
-          action,
-          bridge,
-          challenge,
-          complete: true,
-          next,
-          provider,
-          requestSignUp: search.requestSignUp,
-        }),
+        callbackURL: back,
+        errorCallbackURL: back,
         requestSignUp: search.requestSignUp,
       })
       if (signedIn.error) throw signedIn.error

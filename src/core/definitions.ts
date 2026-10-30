@@ -17,7 +17,7 @@ import {
   definitionAndTarget,
   type Modifier,
   type ModifierGroup,
-  targetOf,
+  resolve,
 } from './catalogue'
 import { isCollectiveGroup } from './collective'
 import {
@@ -45,8 +45,6 @@ export const UNBOUNDED = Number.MAX_SAFE_INTEGER
 
 /** One entry a group offers, reached by the id the path holds rather than the one it resolves to. */
 export type Option = { id: string; definition: Definition }
-
-export const resolve = (definition: Definition, index: CatalogueIndex) => targetOf(definition, index.definitions)
 
 export function childrenOf(definition: Definition, index: CatalogueIndex): Option[] {
   const found: Option[] = []

@@ -11,7 +11,7 @@ import {
   pointsBudgetOf,
   waivedFormatRules,
 } from '../../../core/battle'
-import { countLabel } from '../../text'
+import { countLabel, signedLabel } from '../../text'
 import { factionDisposition } from '../../components/rosterSetup'
 
 export function SetupConsequences({ review, guest }: { review: Review; guest: boolean }) {
@@ -126,12 +126,7 @@ export function SetupConsequences({ review, guest }: { review: Review; guest: bo
         <span className="readout text-lg">
           {after.points} / {budget} pts
         </span>
-        {before.points !== after.points ? (
-          <span className="readout">
-            {after.points > before.points ? '+' : '−'}
-            {Math.abs(after.points - before.points)} pts
-          </span>
-        ) : null}
+        {before.points !== after.points ? <span className="readout">{signedLabel(after.points - before.points)} pts</span> : null}
       </div>
       {problems.length || warnings.length ? (
         <section aria-label="Needs attention" className="space-y-3 border border-discarded/40 bg-discarded/5 p-3">

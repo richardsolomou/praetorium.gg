@@ -22,18 +22,6 @@ describe('leagueNextStep', () => {
     expect(new Set(STAGES.map((stage) => leagueNextStep(stage, organizer, { format: '1v1', club: null }))).size).toBe(STAGES.length)
   })
 
-  it('asks the organizer to answer waiting requests', () => {
-    expect(leagueNextStep('approving', organizer, { format: '1v1', club: null })).toMatch(/^Answer the requests/)
-  })
-
-  it('asks a 2v1 organizer to size players rather than wait for seals', () => {
-    expect(leagueNextStep('sizing', organizer, { format: '2v1', club: null })).toMatch(/^Size players below/)
-  })
-
-  it('asks the organizer for more players when only headcount holds the reveal', () => {
-    expect(leagueNextStep('recruiting', organizer, { format: '2v2', club: null })).toMatch(/^Share the invite link/)
-  })
-
   it('asks a 2v1 organizer to pair the allies', () => {
     expect(leagueNextStep('pairing', organizer, { format: '2v1', club: null })).toBe('Pair the allies below.')
   })

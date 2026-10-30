@@ -51,15 +51,11 @@ export function onboardingProgress(stored: StoredOnboarding, facts: OnboardingFa
   }
 }
 
-function resolvedOnboardingTasks(progress: OnboardingProgress): Set<OnboardingTaskId> {
-  return new Set([...progress.completedTasks, ...progress.skippedTasks])
-}
-
 export function onboardingComplete(progress: OnboardingProgress): boolean {
   return resolvedGettingStartedTasks(progress).length === gettingStartedTaskIds.length
 }
 
 export function resolvedGettingStartedTasks(progress: OnboardingProgress) {
-  const resolved = resolvedOnboardingTasks(progress)
+  const resolved = new Set([...progress.completedTasks, ...progress.skippedTasks])
   return gettingStartedTaskIds.filter((task) => resolved.has(task))
 }

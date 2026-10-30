@@ -166,7 +166,7 @@ function ProfileForm({
           </section>
 
           <section className="space-y-4">
-            <h2 className="rubric border-b border-edge pb-2">Details</h2>
+            <SectionHeading title="Details" />
             <div className="space-y-2">
               <Label htmlFor="profile-name">Display name</Label>
               <Input

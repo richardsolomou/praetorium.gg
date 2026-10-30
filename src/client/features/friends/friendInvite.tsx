@@ -49,11 +49,7 @@ export function useFriendInvite() {
   }
 }
 
-export function InviteQr({
-  url,
-  disabled,
-  ...trigger
-}: { url: string; disabled: boolean } & Pick<ComponentProps<typeof Button>, 'variant' | 'size'>) {
+export function InviteQr({ url, disabled, ...trigger }: { url: string; disabled: boolean } & Pick<ComponentProps<typeof Button>, 'size'>) {
   const [open, setOpen] = useState(false)
   const { image, failed } = useQrCode(open ? url : null, 256)
   const shareLabel = shareButtonLabel(null, useNativeShare(), 'invite')

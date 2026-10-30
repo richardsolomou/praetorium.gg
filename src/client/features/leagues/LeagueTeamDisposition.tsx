@@ -5,6 +5,7 @@ import { setLeagueTeamDisposition } from '../../functions'
 import { gameReferencesQuery } from '../../queries'
 import { useLeagueRefresh } from './leagueEvent'
 import { Problem } from '../../components/Problem'
+import { SectionHeading } from '../../components/SectionHeading'
 
 /**
  * The one Force Disposition a fixed pair plays, chosen before the reveal from every card either sealed roster offers.
@@ -29,9 +30,7 @@ export function TeamDispositionPanel({
   const shown = choose.isPending ? choose.variables : team.disposition
   return (
     <section data-team-disposition aria-labelledby="team-disposition" className="border border-edge bg-panel p-4">
-      <h2 id="team-disposition" className="rubric border-b border-edge pb-2">
-        Team Force Disposition
-      </h2>
+      <SectionHeading id="team-disposition" title="Team Force Disposition" className="mb-0" />
       <p className="mt-1 text-xs text-dim">
         {team.disposition
           ? 'Your team plays this card. You can change it until the rosters are revealed.'

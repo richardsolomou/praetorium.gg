@@ -24,14 +24,8 @@ export function OneOnOneBattleChooser({
   onIntentChange,
   onClose,
   onStart,
-}: {
-  open: boolean
-  ownUserId: string
+}: ChooserProps & {
   entries: { userId: string; name: string; image: string | null }[]
-  pending: boolean
-  error: Error | null
-  onIntentChange: () => void
-  onClose: () => void
   onStart: (opponentId: string) => void
 }) {
   const [opponentId, setOpponentId] = useState<string | null>(null)
@@ -87,16 +81,10 @@ export function LeagueBattleChooser({
   onIntentChange,
   onClose,
   onStart,
-}: {
-  open: boolean
-  ownUserId: string
+}: ChooserProps & {
   ownRequiredLimit: number | null
   rosterLimit: number
   entries: { userId: string; name: string; image: string | null; requiredLimit: number | null; teamId: string | null }[]
-  pending: boolean
-  error: Error | null
-  onIntentChange: () => void
-  onClose: () => void
   onStart: (players: { opponentId: string; allyId?: string; secondOpponentId?: string }) => void
 }) {
   const [theirIds, setTheirIds] = useState<(string | null)[]>([null, null])
@@ -202,14 +190,8 @@ export function DoublesBattleChooser({
   onIntentChange,
   onClose,
   onStart,
-}: {
-  open: boolean
-  ownUserId: string
+}: ChooserProps & {
   entries: DoublesEntrant[]
-  pending: boolean
-  error: Error | null
-  onIntentChange: () => void
-  onClose: () => void
   onStart: (opponentId: string) => void
 }) {
   const [opponentId, setOpponentId] = useState<string | null>(null)
@@ -259,6 +241,15 @@ export function DoublesBattleChooser({
       </div>
     </BattleChooserDialog>
   )
+}
+
+type ChooserProps = {
+  open: boolean
+  ownUserId: string
+  pending: boolean
+  error: Error | null
+  onIntentChange: () => void
+  onClose: () => void
 }
 
 /** The only option a picker offers, so a table with one possible opponent is ready to start. */

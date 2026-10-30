@@ -34,7 +34,7 @@ export function missionForIn(
   missions: ReadonlyMap<string, Mission>,
   one: string | null,
   two: string | null,
-  missionPackId: string | null = null,
+  missionPackId: string | null,
 ): Mission | null {
   if (!one || !two) return null
   if (missionPackId) {

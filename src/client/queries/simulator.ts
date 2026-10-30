@@ -28,18 +28,21 @@ export const combatantDatasheetQuery = (
     staleTime: Infinity,
   })
 
-type LoadoutContext = { catalogueId: string; detachmentIds: readonly string[]; picks: readonly RosterPick[]; pickIndex: number }
-const loadoutData = ({ catalogueId, detachmentIds, picks, pickIndex }: LoadoutContext) => ({
+export const combatLoadoutsQuery = ({
   catalogueId,
-  detachmentIds: [...detachmentIds],
-  picks: [...picks],
+  detachmentIds,
+  picks,
   pickIndex,
-})
-
-export const combatLoadoutsQuery = (context: LoadoutContext) =>
+}: {
+  catalogueId: string
+  detachmentIds: readonly string[]
+  picks: readonly RosterPick[]
+  pickIndex: number
+}) =>
   queryOptions({
-    queryKey: ['combat-loadouts', context.catalogueId, context.detachmentIds, context.picks, context.pickIndex],
-    queryFn: ({ signal }) => combatLoadouts({ data: loadoutData(context), signal }),
-    enabled: Boolean(context.catalogueId && context.picks[context.pickIndex]),
+    queryKey: ['combat-loadouts', catalogueId, detachmentIds, picks, pickIndex],
+    queryFn: ({ signal }) =>
+      combatLoadouts({ data: { catalogueId, detachmentIds: [...detachmentIds], picks: [...picks], pickIndex }, signal }),
+    enabled: Boolean(catalogueId && picks[pickIndex]),
     staleTime: Infinity,
   })

@@ -237,7 +237,7 @@ export const PRODUCT_DOCS = [
     slug: 'mobile-app',
     section: 'Account and app',
     title: 'Use the mobile app',
-    description: 'Signing in on the app, offline use, notifications and updates.',
+    description: 'Signing in on the app, offline use, notifications, updates and the Apple Watch.',
   },
   {
     slug: 'search',

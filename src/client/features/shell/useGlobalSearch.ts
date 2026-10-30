@@ -4,7 +4,6 @@ import { OWN_SEARCH_BATTLES, SEARCH_MIN_LENGTH } from '../../../core/referenceSe
 import { currentReference, searchDownload, subscribeReference } from '../../offline/runtime'
 import { battlesQuery, factionIndexQuery, globalSearchQuery, meQuery, savedRosterSummariesQuery } from '../../queries'
 import { useSettled } from '../../useSettled'
-import { SEARCH_DEBOUNCE_MS } from './globalSearchPages'
 
 const downloadIsCurrent = () => Boolean(currentReference())
 
@@ -29,7 +28,7 @@ export function useGlobalSearch(trimmed: string, open = true) {
   }, [own, moreBattles, isFetchingNextPage, fetchNextPage])
   const { data: factionIndex } = useQuery({ ...factionIndexQuery(), enabled: own })
   const local = downloaded && me !== undefined && (!me || (rosters !== undefined && battles !== undefined && !moreBattles))
-  const settled = useSettled(trimmed, SEARCH_DEBOUNCE_MS)
+  const settled = useSettled(trimmed, 250)
   const localResults = useMemo(
     () =>
       local && trimmed.length >= SEARCH_MIN_LENGTH

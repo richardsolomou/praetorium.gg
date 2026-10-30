@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { collectionPhotoPath } from '../../../contracts/collection'
 import { keepCollectionPhotoAsAdmin, removeCollectionPhotoAsAdmin } from '../../functions'
 import { adminCollectionPhotosQuery, heldCollectionPhotosQuery, refreshAdminQueries } from '../../queries'
-import { useDateFormatting } from '../../dates'
+import { useMoment } from '../../dates'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { Problem } from '../../components/Problem'
 import { PhotoLightbox, usePhotoSteps } from '../collection/PhotoLightbox'
@@ -149,14 +149,14 @@ export function AdminPhotos() {
 
 /** Whose photo it is, linking to their collection, and when it was uploaded. */
 function PhotoCredit({ photo, stacked = false }: { photo: AdminPhoto; stacked?: boolean }) {
-  const dates = useDateFormatting()
+  const moment = useMoment()
   return (
     <>
       <Link to="/users/$userId" params={{ userId: photo.owner.id }} search={{ tab: 'collection' }} className="text-info underline">
         {photo.owner.name}
       </Link>
       {stacked ? <br /> : ' · '}
-      {dates.date(photo.at)}, {dates.time(photo.at)}
+      {moment(photo.at)}
     </>
   )
 }

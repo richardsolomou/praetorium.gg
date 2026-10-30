@@ -4,7 +4,7 @@ import { remember, uniqueBy } from '../core/collections'
 import { PHASES, type Stratagem } from '../core/battle'
 import { routeSlug } from '../core/slug'
 import { catalogueFactionName } from './factionNames'
-import { countLabel, joinKey } from '../core/text'
+import { countLabel, foldedText, joinKey } from '../core/text'
 import type { SourceTexts, TextTransform } from './sourceText'
 import type { TextFactsByKey } from './textFacts'
 import { type PrintedTransport, printedTransport } from '../core/transport'
@@ -510,12 +510,7 @@ export function enhancementEligibility(
   ) {
     keywords.push('Character')
   }
-  const words = (text: string) =>
-    text
-      .normalize('NFKD')
-      .replaceAll(/\p{M}/gu, '')
-      .toLowerCase()
-      .match(/[a-z0-9]+/g) ?? []
+  const words = (text: string) => foldedText(text).match(/[a-z0-9]+/g) ?? []
   const requirement = (phrase: string) => {
     const key = joinKey(phrase)
     const named = datasheetNames.filter((name) => joinKey(name) === key)
