@@ -1004,6 +1004,43 @@ describe('club games', () => {
     expect(fixture.game({ op: 'update', ownerId: 'owner', details })).toBe('forbidden')
   })
 
+  it('counts its finished battles as club battles for achievements', () => {
+    const fixture = setup()
+    fixture.create('owner')
+    module.createBattle(fixture.procedure(fixture.operator), {
+      payload: JSON.stringify({
+        id: 'sealed',
+        token: 'sealed-token',
+        userId: 'owner',
+        allyIds: [],
+        opponentIds: ['member'],
+        guestNames: [],
+        initialCommands: [],
+        now: NOW * 1_000,
+      }),
+    })
+    fixture.call(TestAuth.internal(), (ctx) => {
+      ctx.db.leagueEventBattles.insert({ battleId: 'sealed', eventId: 'game-id' })
+      for (const [seq, body] of [
+        { kind: 'begin-battle', firstPlayerId: 'owner' },
+        { kind: 'end-battle', reason: 'conceded', concededBy: 'member' },
+      ].entries())
+        ctx.db.commands.insert({
+          key: JSON.stringify(['sealed', seq + 1]),
+          battleId: 'sealed',
+          seq: seq + 1,
+          userId: seq ? 'member' : 'owner',
+          at: BigInt(NOW * 1_000),
+          body: JSON.stringify(body),
+        })
+    })
+    const facts = JSON.parse(module.achievementFactsByUser(fixture.procedure(fixture.operator), { userId: 'owner' })) as {
+      clubBattles: number[]
+      clubs: { battles: number[] }[]
+    }
+    expect([facts.clubBattles, facts.clubs[0]?.battles]).toEqual([[NOW * 1_000], [NOW * 1_000]])
+  })
+
   it('goes with its club', () => {
     const fixture = setup()
     fixture.create('owner')

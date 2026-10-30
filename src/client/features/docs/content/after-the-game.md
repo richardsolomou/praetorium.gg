@@ -17,6 +17,7 @@ Every profile has an **Achievements** tab, and its first row is a tour of the ap
 
 - Battle achievements count only battles that count for the leaderboard, so guest and practice battles never earn them. A conceded win is never a close one, and a streak ends at any loss or draw.
 - **Recruiter** goes to the player whose guest created an account to add the battle to their own record. Each guest counts once, and imported battles never count.
+- Club achievements count casual battles played for a club and the club's sealed games.
 - Tournament achievements need a Swiss tournament played to its last round.
 - **Admired** counts likes from other players on one collection photo.
 - Some medals count things only you can open, such as private rosters, friends, reminders, favourites and simulations. The medal shows that you reached the count, never what you built, who your friends are or what you simulated.

@@ -540,6 +540,12 @@ function* clubBattleIds(ctx: Context, clubId: string) {
     for (const row of ctx.db.leagueEventBattles.eventId.filter(game.eventId)) yield row.battleId
 }
 
+/** Whether `clubBattleIds` yields this battle for any club. */
+function isClubBattle(ctx: Context, battleId: string) {
+  const game = ctx.db.leagueEventBattles.battleId.find(battleId)
+  return Boolean(ctx.db.clubBattles.battleId.find(battleId) ?? (game && ctx.db.clubGames.eventId.find(game.eventId)))
+}
+
 /** Clubs every seat belongs to, none of them a guest or practice opponent: the clubs this battle may count for. */
 function battleClubIds(ctx: Context, seats: readonly { id: string; automated: boolean }[]) {
   if (seats.some((seat) => seat.automated || isGuestSeat(seat.id))) return []
@@ -3078,8 +3084,8 @@ export const achievementFactsByUser = spacetime.procedure({ userId: t.string() }
     }
     const clubs = Array.from(tx.db.clubs.ownerId.filter(userId), (club) => ({
       members: clubMembersOf(tx, club.id).flatMap((row) => (row.status === 'accepted' ? [safeNumber(row.joinedAt)] : [])),
-      battles: Array.from(tx.db.clubBattles.clubId.filter(club.id)).flatMap((row) => {
-        const at = finishedAt(tx, row.battleId)
+      battles: Array.from(clubBattleIds(tx, club.id)).flatMap((battleId) => {
+        const at = finishedAt(tx, battleId)
         return at === null ? [] : [at]
       }),
     }))
@@ -3119,7 +3125,7 @@ export const achievementFactsByUser = spacetime.procedure({ userId: t.string() }
       tournaments,
       clubs,
       photos,
-      clubBattles: finishedSeats((battleId) => Boolean(tx.db.clubBattles.battleId.find(battleId))),
+      clubBattles: finishedSeats((battleId) => isClubBattle(tx, battleId)),
       imports: finishedSeats((battleId) => Boolean(tx.db.battleImports.battleId.find(battleId))),
       seasons,
       seasonsRun,
