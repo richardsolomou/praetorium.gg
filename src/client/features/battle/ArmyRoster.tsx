@@ -11,6 +11,8 @@ import type { Army, Side } from '../../sides'
 import { ArmyIdentity } from './ArmyIdentity'
 import { Section } from '../rosters/builder/Section'
 import { UnitCard } from '../rosters/builder/UnitCard'
+import { AttachedUnitBlock } from '../rosters/builder/AttachedUnitBlock'
+import { unitRoleRows } from '../rosters/builder/shelves'
 import { formationLabel } from './setup/chrome'
 import type { BattleCombatSelection } from '../simulator/BattleCombatDialog'
 import { tint } from './battleTints'
@@ -81,7 +83,6 @@ export function ArmyRoster({ army, side, actionable, pending, blocked = false, s
     total: units.reduce((total, unit) => total + unit.models, 0),
   }
   const standing = battleUnitCounts(units).standing
-  const shelves = armyShelves(units)
   const lost = units.filter((unit) => unit.destroyed)
   const readable = (unit: UnitState) => Boolean(roster.built?.picks?.length && unit.entryId)
   const sheets = units.some(readable)
@@ -91,21 +92,30 @@ export function ArmyRoster({ army, side, actionable, pending, blocked = false, s
   const unitProps: UnitControls = { army, actionable, pending, blocked, send, press }
   // Allies field one Warlord between them, so only the list whose Warlord leads the side wears the crown.
   const leads = (side.warlord ?? army.playerId) === army.playerId
-  const card = (unit: UnitState) => (
+  const card = (unit: UnitState, inUnit = false) => (
     <BattleUnit
       key={unit.key}
       {...unitProps}
       unit={unit}
       warlord={leads && unit.warlord === true}
+      inUnit={inUnit}
       selected={unit.key === selected?.key}
       onSelect={readable(unit) ? () => setSelectedKey(unit.key) : undefined}
     />
   )
   const list = units.length ? (
     <div>
-      {shelves.map((shelf) => (
-        <Section key={shelf.id} title={shelf.plural} count={shelf.units.length}>
-          {shelf.units.map(card)}
+      {armyShelves(units, leads).map(({ id, plural, count, entries }) => (
+        <Section key={id} title={plural} count={count}>
+          {entries.map(([host, ...joined]) =>
+            joined.length ? (
+              <AttachedUnitBlock key={host!.key} name={host!.name} nickname={host!.unit.nickname} bodyguard={card(host!.unit, true)}>
+                {joined.map((member) => card(member.unit, true))}
+              </AttachedUnitBlock>
+            ) : (
+              card(host!.unit)
+            ),
+          )}
         </Section>
       ))}
       {/*
@@ -115,7 +125,7 @@ export function ArmyRoster({ army, side, actionable, pending, blocked = false, s
        */}
       {lost.length ? (
         <Section title="Destroyed" count={lost.length} open={destroyedOpen} onOpenChange={setDestroyedOpen}>
-          {lost.map(card)}
+          {lost.map((unit) => card(unit))}
         </Section>
       ) : null}
     </div>
@@ -217,6 +227,7 @@ export function ArmyRoster({ army, side, actionable, pending, blocked = false, s
 function BattleUnit({
   unit,
   warlord,
+  inUnit,
   selected,
   onSelect,
   ...controls
@@ -225,6 +236,8 @@ function BattleUnit({
   onSelect?: () => void
   unit: UnitState
   warlord: boolean
+  /** Drawn inside its attached unit's block, which already shows the units it joined. */
+  inUnit: boolean
 } & UnitControls) {
   const { actionable } = controls
   // A whole unit on the table with nothing to press has nothing to report, so it says nothing.
@@ -246,7 +259,7 @@ function BattleUnit({
       note={unit.note}
       selected={selected}
       onSelect={onSelect}
-      joined={unit.joined ?? []}
+      joined={inUnit ? unitRoleRows(unit.joined ?? []) : (unit.joined ?? [])}
       editable={false}
       status={worthSaying ? <UnitStatus {...controls} unit={unit} /> : undefined}
     />

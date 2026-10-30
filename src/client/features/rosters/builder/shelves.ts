@@ -6,7 +6,14 @@ import { GROUPS } from '../../../unitGroups'
 /** How the roster list arranges its cards: one per datasheet, or one block per attached unit. */
 export type ShelfArrangement = 'role' | 'attached'
 
-type ShelfCard = { key: string | number; attachedTo?: string | number; attaches?: 'leader' | 'support'; group: UnitGroup; name: string }
+type ShelfCard = {
+  key: string | number
+  attachedTo?: string | number
+  attaches?: 'leader' | 'support'
+  group: UnitGroup
+  name: string
+  warlord?: boolean
+}
 
 /**
  * The roster's shelves, each entry the cards of one unit in the order they are drawn,
@@ -14,7 +21,8 @@ type ShelfCard = { key: string | number; attachedTo?: string | number; attaches?
  *
  * By role, every datasheet is its own entry on its role's shelf. Attached together, each
  * attached unit sits on the shelf of the unit its leaders and support joined, drawn as
- * that unit, then its leaders, then its support.
+ * that unit, then its leaders, then its support. The Warlord's unit leads its shelf;
+ * the rest follow by name.
  */
 export function rosterShelves<C extends ShelfCard>(cards: readonly C[], arrangement: ShelfArrangement) {
   const units =
@@ -28,10 +36,18 @@ export function rosterShelves<C extends ShelfCard>(cards: readonly C[], arrangem
   return GROUPS.flatMap(({ id, plural }) => {
     const entries = units
       .filter((members) => members[0]!.group === id)
-      .toSorted((left, right) => left[0]!.name.localeCompare(right[0]!.name))
+      .toSorted(
+        (left, right) =>
+          Number(right.some((card) => card.warlord)) - Number(left.some((card) => card.warlord)) ||
+          left[0]!.name.localeCompare(right[0]!.name),
+      )
     return entries.length ? [{ id, plural, count: entries.length, entries }] : []
   })
 }
+
+/** How a frozen unit joined another, which it keeps only in the words of its row naming that unit. */
+export const frozenAttaches = (joined: readonly { label: string }[] | undefined) =>
+  joined?.some((row) => joiningKind(row.label) === 'support') ? ('support' as const) : undefined
 
 /**
  * A card's attachment rows inside an attached unit's block: just the role each joined

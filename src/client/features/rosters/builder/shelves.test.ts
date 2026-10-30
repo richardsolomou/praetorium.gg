@@ -67,6 +67,23 @@ describe('rosterShelves', () => {
     expect(shelves.map((shelf) => [shelf.plural, shelf.count])).toEqual([['Battleline', 2]])
   })
 
+  it("leads a shelf with the Warlord's attached unit", () => {
+    const shelves = rosterShelves(
+      [
+        ...roster,
+        { ...card(6, 'Arbites', 'battleline'), warlord: false },
+        { ...card(7, 'Lord Solar', 'character', { to: 5, as: 'leader' }), warlord: true },
+      ],
+      'attached',
+    )
+
+    expect(shelves.find((shelf) => shelf.plural === 'Battleline')?.entries.map((members) => members[0]!.name)).toEqual([
+      'Cadian Shock Troops',
+      'Arbites',
+      'Tempestus Scions',
+    ])
+  })
+
   it('counts a role shelf by its datasheets', () => {
     expect(rosterShelves(roster, 'role').map((shelf) => shelf.count)).toEqual([3, 2, 1])
   })

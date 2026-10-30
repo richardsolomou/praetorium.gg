@@ -38,7 +38,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { MENU_ITEM, MenuSection } from '../../components/MenuSection'
 import { attachedUnitCount, attachmentHost } from '../../../core/attachedUnits'
-import { type AttachmentRow, joiningKind } from '../../../core/attachmentRows'
+import type { AttachmentRow } from '../../../core/attachmentRows'
 import type { BuiltRoster, FormatRuleId, Secondary, Stratagem } from '../../../core/battle'
 import { canTransport, enforces, type OptionalRuleId, ROSTER_NAME_MAX_LENGTH, waivedFormatRules } from '../../../core/battle'
 import type { RosterPick } from '../../../core/roster'
@@ -87,7 +87,7 @@ import { shownKind } from './builder/pickerRows'
 import { SaveLoadoutDialog } from './builder/SaveLoadoutDialog'
 import { Section } from './builder/Section'
 import { AttachedUnitBlock } from './builder/AttachedUnitBlock'
-import { rosterShelves, unitRoleRows } from './builder/shelves'
+import { frozenAttaches, rosterShelves, unitRoleRows } from './builder/shelves'
 import { keepRosterArrangement } from './rosterArrangement'
 import { Pane } from './builder/Pane'
 import { useRosterPanes } from './builder/useRosterPanes'
@@ -954,8 +954,7 @@ export function ListBuilder({
         index,
         key: unit.key,
         attachedTo: unit.attachedTo,
-        // A frozen unit keeps how it joined only in the row naming the unit it joined.
-        attaches: unit.joined?.some((row) => joiningKind(row.label) === 'support') ? ('support' as const) : undefined,
+        attaches: frozenAttaches(unit.joined),
         name: unit.name,
         group: unit.group ?? ('other' as const),
         warlord: unit.warlord,
