@@ -70,7 +70,7 @@ export const ACHIEVEMENTS = [
     count: 1,
     goal: 'Play a leaderboard battle with an army from your rosters.',
   },
-  { id: 'mathhammer', name: 'Mathhammer', tier: 'bronze', metric: 'simulations', count: 1, goal: 'Run a combat simulation.' },
+  { id: 'augury', name: 'Augury', tier: 'bronze', metric: 'simulations', count: 1, goal: 'Run a combat simulation.' },
   { id: 'drill', name: 'Drill', tier: 'bronze', metric: 'practice', count: 1, goal: 'Finish a practice battle.' },
   { id: 'open-table', name: 'Open Table', tier: 'bronze', metric: 'guest-battles', count: 1, goal: 'Finish a battle with a guest.' },
   {
@@ -467,8 +467,8 @@ export type TournamentFact = { entrants: number; finishedAt: number; organised: 
 export type AchievementFacts = {
   /** Finished battles the player sat in; only those the leaderboard counts are read. */
   battles: readonly StandingBattle[]
-  /** Battles the player fought against a guest who then claimed their seat. */
-  recruits: readonly number[]
+  /** Each guest seat an account claimed in a battle the player started in, and when that account signed up. */
+  recruits: readonly { userId: string; startedAt: number; at: number; signedUpAt: number }[]
   tournaments: readonly TournamentFact[]
   /** Clubs the player owns: when each member joined and when each club battle finished. */
   clubs: readonly { members: readonly number[]; battles: readonly number[] }[]
@@ -510,6 +510,17 @@ function best(groups: readonly (readonly number[])[]) {
   const sorted = groups.map(ascending)
   const length = Math.max(0, ...sorted.map((times) => times.length))
   return Array.from({ length }, (_, index) => Math.min(...sorted.flatMap((times) => (times[index] === undefined ? [] : [times[index]]))))
+}
+
+/** Each guest counts once, from the first battle they joined before they had an account. */
+function recruitTimes(claims: AchievementFacts['recruits']) {
+  const firsts = new Map<string, number>()
+  for (const claim of claims) {
+    if (claim.signedUpAt < claim.startedAt) continue
+    const first = firsts.get(claim.userId)
+    if (first === undefined || claim.at < first) firsts.set(claim.userId, claim.at)
+  }
+  return [...firsts.values()]
 }
 
 type BattleMetric =
@@ -601,7 +612,7 @@ export function achievements(playerId: string, facts: AchievementFacts, exclude:
     practice: seated.filter((battle) => battle.playerIds.some((id) => practice.has(id))).map((battle) => battle.lastActivity),
     photos: facts.photos.map((photo) => photo.at),
     likes: best(facts.photos.map((photo) => photo.likes)),
-    recruits: facts.recruits,
+    recruits: recruitTimes(facts.recruits),
     tournaments: tournaments((tournament) => tournament.played),
     organised: tournaments((tournament) => tournament.organised && tournament.entrants >= 4),
     championships: tournaments((tournament) => tournament.won && tournament.entrants >= 8),
