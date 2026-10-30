@@ -1,5 +1,7 @@
+import { z } from 'zod'
 import type { Phase } from '../../../core/battle'
 import { ROSTER_REMINDERS_MAX } from '../../../core/reminders'
+import { parseStored } from '../../storedValue'
 
 const REMINDER_DISMISSAL_SCOPES = ['phase', 'turn', 'round', 'battle'] as const
 
@@ -29,16 +31,9 @@ export function reminderDismissalKeys(reminderKey: string, context: ReminderDism
   return REMINDER_DISMISSAL_SCOPES.map((scope) => reminderDismissalKey(reminderKey, scope, context))
 }
 
-export function parseReminderDismissals(value: string | null): Set<string> {
-  if (!value) return new Set()
-  try {
-    const parsed: unknown = JSON.parse(value)
-    if (!Array.isArray(parsed) || parsed.some((entry) => typeof entry !== 'string')) return new Set()
-    return new Set(parsed.slice(-MAX_DISMISSALS))
-  } catch {
-    return new Set()
-  }
-}
+const dismissalsSchema = z.array(z.string())
+
+export const parseReminderDismissals = (value: string | null) => new Set(parseStored(dismissalsSchema, value)?.slice(-MAX_DISMISSALS))
 
 export const serializeReminderDismissals = (dismissals: ReadonlySet<string>) => JSON.stringify([...dismissals].slice(-MAX_DISMISSALS))
 

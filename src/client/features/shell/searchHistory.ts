@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
+import { z } from 'zod'
 import type { GlobalSearchResult } from '../../functions'
-import { readStoredValue, useStoredValue, writeStoredValue } from '../../storedValue'
+import { parseStored, readStoredValue, useStoredValue, writeStoredValue } from '../../storedValue'
 
 const KEY = 'praetorium:recent-searches'
 const LIMIT = 8
@@ -22,14 +23,9 @@ const isRecentSearch = (value: unknown): value is RecentSearch => {
   )
 }
 
-export function parseRecentSearches(raw: string | null): RecentSearch[] {
-  try {
-    const value: unknown = JSON.parse(raw ?? '[]')
-    return Array.isArray(value) ? value.filter(isRecentSearch).slice(0, LIMIT) : []
-  } catch {
-    return []
-  }
-}
+const recentSearchesSchema = z.array(z.unknown()).transform((entries) => entries.filter(isRecentSearch).slice(0, LIMIT))
+
+export const parseRecentSearches = (raw: string | null): RecentSearch[] => parseStored(recentSearchesSchema, raw) ?? []
 
 export function withRecentSearch(recent: readonly RecentSearch[], result: GlobalSearchResult): RecentSearch[] {
   const { id, group, label, detail, href, faction } = result

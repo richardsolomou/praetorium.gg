@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import type { combatUnits } from '../../functions'
 import type { CombatRoster } from './useCombatant'
+import { parseStored } from '../../storedValue'
 
 export type CombatUnitIndex = Awaited<ReturnType<typeof combatUnits>>
 const targetSchema = z.object({
@@ -44,12 +45,7 @@ export function defaultBenchmarkTargets(index: CombatUnitIndex) {
 
 export function parseBenchmarkTargets(raw: string | null): BenchmarkTarget[] | null {
   if (!raw || raw.length > 32_000) return null
-  try {
-    const parsed = targetsSchema.safeParse(JSON.parse(raw))
-    return parsed.success ? parsed.data : null
-  } catch {
-    return null
-  }
+  return parseStored(targetsSchema, raw)
 }
 
 export function benchmarkRosters(targets: readonly BenchmarkTarget[], index: CombatUnitIndex): CombatRoster[] {

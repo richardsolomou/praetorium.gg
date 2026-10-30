@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react'
+import type { z } from 'zod'
 
 const STORED_VALUE_EVENT = 'praetorium-stored-value'
 /** What this page wrote, which stays readable when browser storage refuses a write. */
@@ -49,6 +50,17 @@ export function useStoredValue(key: string) {
     () => readStoredValue(key),
     () => null,
   )
+}
+
+/** A stored JSON value that `schema` accepts, or null when it is missing, malformed or of another shape. */
+export function parseStored<Schema extends z.ZodType>(schema: Schema, raw: string | null): z.output<Schema> | null {
+  if (raw === null) return null
+  try {
+    const parsed = schema.safeParse(JSON.parse(raw))
+    return parsed.success ? parsed.data : null
+  } catch {
+    return null
+  }
 }
 
 /** A value stored for this tab, or null on the server or when storage refuses to be read. */
