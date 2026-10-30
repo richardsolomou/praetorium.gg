@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.203.5 (2026-10-30)
+
+### Patch Changes
+
+- 87f2c76: The combat simulator for AI assistants now calculates detachment rules, stratagems and abilities whose wording comes only from Game Datacards, such as the Adeptus Custodes' Martial Mastery.
+- 87f2c76: The combat simulator for AI assistants no longer quotes a rule's wording when it names a condition the rule depends on.
+
 ## 0.203.4 (2026-10-30)
 
 ### Patch Changes
