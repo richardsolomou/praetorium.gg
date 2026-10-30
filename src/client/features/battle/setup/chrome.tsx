@@ -180,8 +180,14 @@ export const BATTLE_SIZE_CONTROL = 'battle-size'
  */
 export function useDispositionNames() {
   const { data: references } = useQuery(gameReferencesQuery())
-  return (id: string | null | undefined) => (id ? (references?.dispositions.find((entry) => entry.id === id) ?? null) : null)
+  return (id: string | null | undefined) => dispositionIn(references, id)
 }
+
+/** {@link useDispositionNames} for a component that already holds the references. */
+export const dispositionIn = <T extends { id: string }>(
+  references: { dispositions: T[] } | null | undefined,
+  id: string | null | undefined,
+) => (id ? (references?.dispositions.find((entry) => entry.id === id) ?? null) : null)
 
 /** A disposition in the colour the roster builder gave it, or nothing at all. */
 export function DispositionChip({ disposition, className = '' }: { disposition: { id: string; name: string } | null; className?: string }) {

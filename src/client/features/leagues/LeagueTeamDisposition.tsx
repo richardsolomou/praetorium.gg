@@ -1,8 +1,8 @@
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useMutation } from '@tanstack/react-query'
 import { Check } from 'lucide-react'
 import { dispositionTone } from '../../components/rosterSetup'
 import { setLeagueTeamDisposition } from '../../functions'
-import { gameReferencesQuery } from '../../queries'
+import { useDispositionNames } from '../battle/setup/chrome'
 import { useLeagueRefresh } from './leagueEvent'
 import { Problem } from '../../components/Problem'
 import { SectionHeading } from '../../components/SectionHeading'
@@ -22,12 +22,14 @@ export function TeamDispositionPanel({
   team: { choices: string[]; disposition: string | null }
 }) {
   const refresh = useLeagueRefresh(token)
-  const { data: references } = useQuery(gameReferencesQuery())
+  const nameDisposition = useDispositionNames()
   const choose = useMutation({
     mutationFn: (disposition: string) => setLeagueTeamDisposition({ data: { token, eventToken, disposition } }),
     onSettled: refresh,
   })
   const shown = choose.isPending ? choose.variables : team.disposition
+  const cards = team.choices.flatMap((id) => nameDisposition(id) ?? [])
+  if (!cards.length) return null
   return (
     <section data-team-disposition aria-labelledby="team-disposition" className="border border-edge bg-panel p-4">
       <SectionHeading id="team-disposition" title="Team Force Disposition" className="mb-0" />
@@ -38,7 +40,7 @@ export function TeamDispositionPanel({
       </p>
       <fieldset className="mt-3 grid gap-2">
         <legend className="sr-only">Force Disposition your team plays</legend>
-        {team.choices.map((id) => {
+        {cards.map(({ id, name }) => {
           const chosen = shown === id
           return (
             <button
@@ -51,7 +53,7 @@ export function TeamDispositionPanel({
               }}
               className={`flex min-h-12 items-center justify-between border px-3 text-left font-bold uppercase disabled:cursor-wait ${dispositionTone(id, chosen)}`}
             >
-              {references?.dispositions.find((disposition) => disposition.id === id)?.name ?? id}
+              {name}
               <span
                 className={`grid size-6 place-items-center rounded-full border ${chosen ? 'border-current bg-bone text-void' : 'border-current/60'}`}
               >
