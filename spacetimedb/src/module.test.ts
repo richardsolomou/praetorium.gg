@@ -1292,6 +1292,140 @@ describe('swiss rounds', () => {
   })
 })
 
+describe('friends’ sealed rosters', () => {
+  const built = { catalogueId: 'catalogue', revision: 'revision', limit: 2000, detachment: null, disposition: null, units: [] }
+  const snapshot = JSON.stringify({ name: 'Army', text: 'Army', built })
+  function setup() {
+    const host = harness()
+    module.requestFriend(host.procedure(host.operator), { requesterId: 'viewer', addresseeId: 'friend', now: BigInt(NOW) })
+    module.acceptFriend(host.procedure(host.operator), { requesterId: 'viewer', addresseeId: 'friend', now: BigInt(NOW) })
+    const enter = (ctx: Ctx, eventId: string) => {
+      for (const userId of ['viewer', 'friend'])
+        ctx.db.leagueEventEntries.insert({
+          key: JSON.stringify([eventId, userId]),
+          eventId,
+          userId,
+          status: 'accepted',
+          joinedAt: 1n,
+          rosterId: undefined,
+          rosterName: 'Army',
+          rosterSnapshot: snapshot,
+          submittedAt: 1n,
+          requiredLimit: undefined,
+          teamId: undefined,
+          droppedAt: undefined,
+        })
+    }
+    const finish = (battleId: string) =>
+      host.call(TestAuth.internal(), (ctx) => {
+        for (const [index, body] of [
+          { kind: 'begin-battle', firstPlayerId: 'viewer' },
+          { kind: 'end-battle', reason: 'conceded', concededBy: 'friend' },
+        ].entries())
+          ctx.db.commands.insert({
+            key: JSON.stringify([battleId, index + 1]),
+            battleId,
+            seq: index + 1,
+            userId: 'viewer',
+            at: BigInt(NOW * 1_000),
+            body: JSON.stringify(body),
+          })
+      })
+    const listed = () =>
+      (JSON.parse(module.friendLeagueRosters(host.procedure(host.operator), { viewerId: 'viewer' })) as { userId: string }[]).map(
+        (row) => row.userId,
+      )
+    return { ...host, enter, finish, listed }
+  }
+
+  it('keeps a past club game’s lists until its last battle ends', () => {
+    const fixture = setup()
+    const now = Date.parse('2026-10-25T19:00:00Z')
+    fixture.at(now / 1000)
+    const command = (input: Record<string, unknown>) =>
+      JSON.parse(module.leagueCommand(fixture.procedure(fixture.operator), { payload: JSON.stringify(input) })) as unknown
+    module.clubCommand(fixture.procedure(fixture.operator), {
+      payload: JSON.stringify({
+        token: 'club',
+        op: 'create',
+        id: 'club-id',
+        ownerId: 'viewer',
+        now,
+        name: 'Club',
+        description: '',
+        visibility: 'private',
+        admission: 'automatic',
+      }),
+    })
+    module.clubCommand(fixture.procedure(fixture.operator), {
+      payload: JSON.stringify({ token: 'club', op: 'join', userId: 'friend', now }),
+    })
+    command({
+      op: 'create-club-game',
+      eventId: 'game-id',
+      eventToken: 'game',
+      clubToken: 'club',
+      ownerId: 'viewer',
+      format: '1v1',
+      rosterLimit: 2000,
+      now,
+      timeZone: 'UTC',
+    })
+    fixture.call(fixture.operator, (ctx) => {
+      ctx.db.sealedEvents.id.update({ ...ctx.db.sealedEvents.id.find('game-id')!, revealedAt: BigInt(now) })
+      fixture.enter(ctx, 'game-id')
+    })
+    command({
+      token: 'game',
+      op: 'create-battle',
+      ownerId: 'viewer',
+      userId: 'viewer',
+      id: 'battle',
+      battleToken: 'battle',
+      allyIds: [],
+      opponentIds: ['friend'],
+      initialCommands: [],
+      now,
+      expectedEntries: ['friend', 'viewer'].map((userId) => ({ userId, snapshot })),
+    })
+    fixture.at(Date.parse('2026-10-26T09:00:00Z') / 1000)
+    const playing = fixture.listed()
+    fixture.finish('battle')
+    expect([playing, fixture.listed()]).toEqual([['friend'], []])
+  })
+
+  it('drops a Swiss tournament’s lists once its final round has finished', () => {
+    const fixture = setup()
+    module.createBattle(fixture.procedure(fixture.operator), {
+      payload: JSON.stringify({
+        id: 'battle',
+        token: 'battle',
+        userId: 'viewer',
+        allyIds: [],
+        opponentIds: ['friend'],
+        initialCommands: [],
+        now: NOW,
+      }),
+    })
+    fixture.call(fixture.operator, (ctx) => {
+      insertTournament(ctx, { format: '1v1', rosterLimit: 2000, revealedAt: 2n, revealedBy: 'organizer', rounds: 1 })
+      fixture.enter(ctx, 'event')
+      ctx.db.leagueRoundPairings.insert({
+        key: 'table',
+        eventId: 'event',
+        round: 1,
+        table: 1,
+        aId: 'viewer',
+        bId: 'friend',
+        battleId: 'battle',
+      })
+    })
+    const playing = fixture.listed()
+    fixture.finish('battle')
+    expect([playing, fixture.listed()]).toEqual([['friend'], []])
+  })
+})
+
 describe('saved action acknowledgements', () => {
   const saved = JSON.stringify(JSON.stringify({ rosterVisibility: 'private', battleSize: 1000 }))
   const input = () => ({

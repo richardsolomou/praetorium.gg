@@ -5,17 +5,7 @@ const known = {
   me: { name: 'Ana', image: 'ana.png' },
   saved: [{ id: 'mine' }],
   friends: [{ roster: { id: 'theirs' }, owner: { name: 'Ben', image: 'ben.png' } }],
-  leagues: [
-    {
-      leagueToken: 'league',
-      leagueName: 'Doubles Open',
-      eventToken: 'event',
-      userId: 'cy',
-      rosterName: 'Swarm',
-      ownerName: 'Cy',
-      ownerImage: null,
-    },
-  ],
+  people: [{ id: 'cy', name: 'Cy', image: null }],
 }
 
 describe('whose roster a simulator side comes from', () => {
@@ -27,7 +17,7 @@ describe('whose roster a simulator side comes from', () => {
     expect(rosterOwner({ id: 'theirs' }, known)).toEqual({ name: 'Ben', image: 'ben.png' })
   })
 
-  it("is the entrant for a friend's revealed league list", () => {
+  it('is the friend for their sealed list, whether or not the simulator still lists it', () => {
     expect(rosterOwner({ league: { token: 'league', eventToken: 'event', userId: 'cy' } }, known)).toEqual({ name: 'Cy', image: null })
   })
 
