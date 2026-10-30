@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.203.8 (2026-10-30)
+
+### Patch Changes
+
+- e915766: A club's past sealed games always show their lists instead of folding them away.
+- 2e7d5a0: Allies who split their points can seal a list that costs more than the points it was saved to, as long as the pair stays within its total.
+
 ## 0.203.7 (2026-10-30)
 
 ### Patch Changes
