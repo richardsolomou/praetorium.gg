@@ -364,13 +364,10 @@ export function ClubSealedGame({
           </div>
           {gameBattles}
           {sealed.length ? (
-            <details className="group border-t border-edge" open={game.battles === 0}>
-              <summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-2 text-sm text-dim hover:text-bone">
-                <ChevronRight className="size-4 shrink-0 group-open:rotate-90" aria-hidden />
-                <span>Lists · {countLabel(sealed.length, 'player')}</span>
-              </summary>
+            <div className="border-t border-edge">
+              <p className="px-4 py-2 text-sm text-dim">Lists · {countLabel(sealed.length, 'player')}</p>
               <ul className="divide-y divide-edge border-t border-edge">{sealed.map(row)}</ul>
-            </details>
+            </div>
           ) : null}
         </>
       ) : (
