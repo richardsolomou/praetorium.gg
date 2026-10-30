@@ -132,14 +132,14 @@ describe('saved roster sides', () => {
   })
 })
 
-describe('sealedEvent roster sides', () => {
+describe('sealed list roster sides', () => {
   const sealedEvent = { token: 'sealed-event-1', eventToken: 'event-1', userId: 'friend-1' }
   const fromSealedEvent: SimulatorState = {
     ...state,
     sides: [{ ...state.sides[0]!, roster: { league: sealedEvent, pickIndex: 2 } }, state.sides[1]],
   }
   it('restore the sealed list and unit they name', () => {
-    expect(decodeSimulatorState(encodeSimulatorState(fromSealedEvent))?.sides[0]?.roster).toEqual({ sealedEvent, pickIndex: 2 })
+    expect(decodeSimulatorState(encodeSimulatorState(fromSealedEvent))?.sides[0]?.roster).toEqual({ league: sealedEvent, pickIndex: 2 })
   })
   it('pair apart from the same entrant in another event', () => {
     const other: SimulatorState = {
