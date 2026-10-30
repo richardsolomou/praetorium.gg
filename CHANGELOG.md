@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.204.1 (2026-10-30)
+
+### Patch Changes
+
+- 54e0074: Burden of Trust lets one unit guard more than one objective.
+- 54e0074: A Tempting Target choice lists only No Man's Land objectives and records without a confirmation switch.
+
 ## 0.204.0 (2026-10-30)
 
 ### Minor Changes
