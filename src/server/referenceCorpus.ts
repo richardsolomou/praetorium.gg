@@ -290,7 +290,7 @@ function missionReferenceLines(mission: GameReferencePack['missions'][number]): 
 const selectionTracking: Record<MissionSelectionKind, string> = {
   punishment: 'punishment nominations with recorded table confirmations',
   guards: 'guards nominations with recorded table confirmations',
-  'tempting-target': 'tempting-target nominations with recorded table confirmations',
+  'tempting-target': 'tempting-target nominations',
   beacon: 'manual Beacon nomination',
   'locate-and-deny': 'start-of-battle operation markers with recorded table confirmations and manual Sensor Sweep removals',
   'sensor-sweep': 'manual Sensor Sweep removals of opposing operation markers',

@@ -47,7 +47,6 @@ test('New Orders, discard CP and carried cards survive a complete two-player rou
       .getByRole('group', { name: 'Tempting target objective', exact: true })
       .getByRole('button', { name: 'Centre', exact: true })
       .click()
-    await target.getByRole('switch', { name: 'It is in No Man’s Land and not a home objective', exact: true }).click()
     await target.getByRole('button', { name: 'Record choice', exact: true }).click()
     await expect(target).toBeHidden()
   } else if ((await side.getByRole('button', { name: 'Read Burden Of Trust', exact: true, includeHidden: true }).count()) > 0) {
