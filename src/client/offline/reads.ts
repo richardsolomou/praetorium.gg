@@ -14,6 +14,8 @@ export function accountGuard() {
   }
 }
 
+export const isOffline = () => typeof window !== 'undefined' && typeof navigator.onLine === 'boolean' && !navigator.onLine
+
 export async function cachedRead<T>(
   key: readonly unknown[],
   online: () => Promise<T>,
@@ -22,7 +24,7 @@ export async function cachedRead<T>(
   const client = localClient()
   const cached = client?.getQueryData<T>(key)
   if (typeof window === 'undefined') return online()
-  if (typeof navigator.onLine === 'boolean' && !navigator.onLine) {
+  if (isOffline()) {
     if (cached !== undefined) return cached
     throw new OfflineRefusal('This screen has not been saved on this device. Reconnect to load it.')
   }
@@ -42,7 +44,7 @@ export async function cachedPage<T>(key: readonly unknown[], cursor: unknown, on
   const cached = localClient()?.getQueryData<{ pages: T[]; pageParams: unknown[] }>(key)
   const index = cached?.pageParams.findIndex((value) => JSON.stringify(value ?? null) === JSON.stringify(cursor ?? null)) ?? -1
   const page = index >= 0 ? cached?.pages[index] : undefined
-  if (typeof window !== 'undefined' && typeof navigator.onLine === 'boolean' && !navigator.onLine) {
+  if (isOffline()) {
     if (page !== undefined) return page
     throw new OfflineRefusal('This page has not been downloaded yet.')
   }

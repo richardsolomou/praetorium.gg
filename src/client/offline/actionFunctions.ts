@@ -14,7 +14,7 @@ import { localClient, localOwner, localDocument, localEngine, hasLocalChanges, q
 import { localConstruction } from './construction'
 import { saveRosterSchema } from '../../contracts/schemas'
 import type { LocalRoster } from './localRuntime'
-import { accountChanged, cachedRead } from './reads'
+import { accountChanged, cachedRead, isOffline } from './reads'
 import type { LocalDocumentUpdate } from './syncEngine'
 import {
   collectionCountsKey,
@@ -125,37 +125,42 @@ export const openLeague = async (args: Parameters<typeof server.openLeague>[0]):
   return cachedRead(leagueKey(args.data.token, args.data.eventToken), () => server.openLeague(args))
 }
 
-async function deferred(
-  kind: OfflineActionKind,
-  input: unknown,
-  resource: string,
-  data?: unknown,
-  identifiers: Record<string, string> = {},
-  dependencies?: string[],
-  owner?: string,
-  update?: LocalDocumentUpdate,
-  waitForSync = true,
-) {
-  const normalized = offlineActionSchemas[kind].parse(input)
-  const operation = await queueLocal(kind, { input: normalized, identifiers }, resource, { data, dependencies, owner, update })
-  if (waitForSync && navigator.onLine) {
-    await attemptLocalSync()
-    if (localOwner()?.id !== owner) throw new Error('The account changed while saving this action.')
-    const saved = (await localEngine()?.storage.read())?.operations.find((candidate) => candidate.id === operation.id)
-    if (saved && saved.status !== 'pending') throw new Error(saved.message || 'Review this saved action before continuing.')
-  }
-}
 function deferredForAccount(waitForSync = true) {
   const owner = localOwner()?.id
-  return (
+  return async (
     kind: OfflineActionKind,
     input: unknown,
     resource: string,
     data?: unknown,
-    identifiers: Record<string, string> = {},
-    dependencies?: string[],
-    update?: LocalDocumentUpdate,
-  ) => deferred(kind, input, resource, data, identifiers, dependencies, owner, update, waitForSync)
+    {
+      identifiers = {},
+      dependencies,
+      update,
+    }: { identifiers?: Record<string, string>; dependencies?: string[]; update?: LocalDocumentUpdate } = {},
+  ) => {
+    const normalized = offlineActionSchemas[kind].parse(input)
+    const operation = await queueLocal(kind, { input: normalized, identifiers }, resource, { data, dependencies, owner, update })
+    if (waitForSync && navigator.onLine) {
+      await attemptLocalSync()
+      if (localOwner()?.id !== owner) throw new Error('The account changed while saving this action.')
+      const saved = (await localEngine()?.storage.read())?.operations.find((candidate) => candidate.id === operation.id)
+      if (saved && saved.status !== 'pending') throw new Error(saved.message || 'Review this saved action before continuing.')
+    }
+  }
+}
+
+function queuedAction<Args extends { data: object }, Result>(
+  online: () => (args: Args) => Promise<Result>,
+  kind: OfflineActionKind,
+  resource: (data: Args['data']) => string,
+  answer: Result,
+) {
+  return async (args: Args): Promise<Result> => {
+    const defer = deferredForAccount()
+    if (!localEngine()) return online()(args)
+    await defer(kind, args.data, resource(args.data))
+    return answer
+  }
 }
 
 export async function setOwned(args: Parameters<typeof server.setOwned>[0]): ReturnType<typeof server.setOwned> {
@@ -206,9 +211,9 @@ export async function setCollectionProgress(
   if (!localEngine()) return server.setCollectionProgress(args)
   const progress =
     (await localDocument<Record<string, CollectionProgress>>(queryResource(collectionProgressKey()))) ?? (await collectionProgress())
-  await defer('setCollectionProgress', args.data, queryResource(collectionProgressKey()), undefined, {}, undefined, (current) =>
-    withProgress((current as typeof progress | undefined) ?? progress, args.data),
-  )
+  await defer('setCollectionProgress', args.data, queryResource(collectionProgressKey()), undefined, {
+    update: (current) => withProgress((current as typeof progress | undefined) ?? progress, args.data),
+  })
 }
 export async function setCollectionCountsAs(
   args: Parameters<typeof server.setCollectionCountsAs>[0],
@@ -216,9 +221,9 @@ export async function setCollectionCountsAs(
   const defer = deferredForAccount(false)
   if (!localEngine()) return server.setCollectionCountsAs(args)
   const saved = (await localDocument<Record<string, string[]>>(queryResource(collectionCountsAsKey()))) ?? (await collectionCountsAs())
-  await defer('setCollectionCountsAs', args.data, queryResource(collectionCountsAsKey()), undefined, {}, undefined, (current) =>
-    withCountsAs((current as typeof saved | undefined) ?? saved, args.data),
-  )
+  await defer('setCollectionCountsAs', args.data, queryResource(collectionCountsAsKey()), undefined, {
+    update: (current) => withCountsAs((current as typeof saved | undefined) ?? saved, args.data),
+  })
 }
 export async function setCollectionWanted(
   args: Parameters<typeof server.setCollectionWanted>[0],
@@ -226,9 +231,9 @@ export async function setCollectionWanted(
   const defer = deferredForAccount(false)
   if (!localEngine()) return server.setCollectionWanted(args)
   const wishes = (await localDocument<Record<string, number>>(queryResource(collectionWishesKey()))) ?? (await collectionWishes())
-  await defer('setCollectionWanted', args.data, queryResource(collectionWishesKey()), undefined, {}, undefined, (current) =>
-    withWanted((current as typeof wishes | undefined) ?? wishes, args.data),
-  )
+  await defer('setCollectionWanted', args.data, queryResource(collectionWishesKey()), undefined, {
+    update: (current) => withWanted((current as typeof wishes | undefined) ?? wishes, args.data),
+  })
 }
 export async function setFavouriteFaction(
   args: Parameters<typeof server.setFavouriteFaction>[0],
@@ -236,9 +241,9 @@ export async function setFavouriteFaction(
   const defer = deferredForAccount(false)
   if (!localEngine()) return server.setFavouriteFaction(args)
   const favourites = (await localDocument<string[]>(queryResource(favouriteFactionsKey()))) ?? (await favouriteFactions())
-  await defer('setFavouriteFaction', args.data, queryResource(favouriteFactionsKey()), undefined, {}, undefined, (current) =>
-    withMember((current as typeof favourites | undefined) ?? favourites, args.data.catalogueId, args.data.favourite),
-  )
+  await defer('setFavouriteFaction', args.data, queryResource(favouriteFactionsKey()), undefined, {
+    update: (current) => withMember((current as typeof favourites | undefined) ?? favourites, args.data.catalogueId, args.data.favourite),
+  })
   return null
 }
 export async function setFavouriteDetachment(
@@ -248,9 +253,9 @@ export async function setFavouriteDetachment(
   if (!localEngine()) return server.setFavouriteDetachment(args)
   const favourites =
     (await localDocument<FavouriteDetachment[]>(queryResource(favouriteDetachmentsKey()))) ?? (await favouriteDetachments())
-  await defer('setFavouriteDetachment', args.data, queryResource(favouriteDetachmentsKey()), undefined, {}, undefined, (current) =>
-    withFavouriteDetachment((current as typeof favourites | undefined) ?? favourites, args.data),
-  )
+  await defer('setFavouriteDetachment', args.data, queryResource(favouriteDetachmentsKey()), undefined, {
+    update: (current) => withFavouriteDetachment((current as typeof favourites | undefined) ?? favourites, args.data),
+  })
   return null
 }
 export async function setFavouriteDatasheet(
@@ -259,9 +264,9 @@ export async function setFavouriteDatasheet(
   const defer = deferredForAccount(false)
   if (!localEngine()) return server.setFavouriteDatasheet(args)
   const favourites = (await localDocument<string[]>(queryResource(favouriteDatasheetsKey()))) ?? (await favouriteDatasheets())
-  await defer('setFavouriteDatasheet', args.data, queryResource(favouriteDatasheetsKey()), undefined, {}, undefined, (current) =>
-    withMember((current as typeof favourites | undefined) ?? favourites, args.data.entryId, args.data.favourite),
-  )
+  await defer('setFavouriteDatasheet', args.data, queryResource(favouriteDatasheetsKey()), undefined, {
+    update: (current) => withMember((current as typeof favourites | undefined) ?? favourites, args.data.entryId, args.data.favourite),
+  })
   return null
 }
 export async function rememberMatchup(args: Parameters<typeof server.rememberMatchup>[0]): ReturnType<typeof server.rememberMatchup> {
@@ -269,18 +274,18 @@ export async function rememberMatchup(args: Parameters<typeof server.rememberMat
   if (!localEngine()) return server.rememberMatchup(args)
   const input = offlineActionSchemas.rememberMatchup.parse(args.data)
   const recent = (await localDocument<RecentMatchup[]>(queryResource(recentMatchupsKey()))) ?? (await recentMatchups())
-  await defer('rememberMatchup', input, queryResource(recentMatchupsKey()), undefined, {}, undefined, (current) =>
-    withRecentMatchup((current as RecentMatchup[] | undefined) ?? recent, input),
-  )
+  await defer('rememberMatchup', input, queryResource(recentMatchupsKey()), undefined, {
+    update: (current) => withRecentMatchup((current as RecentMatchup[] | undefined) ?? recent, input),
+  })
   return null
 }
 export async function forgetMatchup(args: Parameters<typeof server.forgetMatchup>[0]): ReturnType<typeof server.forgetMatchup> {
   const defer = deferredForAccount(false)
   if (!localEngine()) return server.forgetMatchup(args)
   const recent = (await localDocument<RecentMatchup[]>(queryResource(recentMatchupsKey()))) ?? (await recentMatchups())
-  await defer('forgetMatchup', args.data, queryResource(recentMatchupsKey()), undefined, {}, undefined, (current) =>
-    withoutRecentMatchup((current as RecentMatchup[] | undefined) ?? recent, args.data.shared),
-  )
+  await defer('forgetMatchup', args.data, queryResource(recentMatchupsKey()), undefined, {
+    update: (current) => withoutRecentMatchup((current as RecentMatchup[] | undefined) ?? recent, args.data.shared),
+  })
   return null
 }
 export async function setAbilityReminder(
@@ -290,9 +295,9 @@ export async function setAbilityReminder(
   if (!localEngine()) return server.setAbilityReminder(args)
   const input = offlineActionSchemas.setAbilityReminder.parse(args.data)
   const saved = (await localDocument<AbilityReminder[]>(queryResource(abilityRemindersKey()))) ?? (await abilityReminders())
-  await defer('setAbilityReminder', input, queryResource(abilityRemindersKey()), undefined, {}, undefined, (current) =>
-    withAbilityReminder((current as AbilityReminder[] | undefined) ?? saved, input),
-  )
+  await defer('setAbilityReminder', input, queryResource(abilityRemindersKey()), undefined, {
+    update: (current) => withAbilityReminder((current as AbilityReminder[] | undefined) ?? saved, input),
+  })
   return null
 }
 export async function removeAbilityReminder(
@@ -301,9 +306,9 @@ export async function removeAbilityReminder(
   const defer = deferredForAccount()
   if (!localEngine()) return server.removeAbilityReminder(args)
   const saved = (await localDocument<AbilityReminder[]>(queryResource(abilityRemindersKey()))) ?? (await abilityReminders())
-  await defer('removeAbilityReminder', args.data, queryResource(abilityRemindersKey()), undefined, {}, undefined, (current) =>
-    ((current as AbilityReminder[] | undefined) ?? saved).filter((reminder) => reminder.key !== args.data.key),
-  )
+  await defer('removeAbilityReminder', args.data, queryResource(abilityRemindersKey()), undefined, {
+    update: (current) => ((current as AbilityReminder[] | undefined) ?? saved).filter((reminder) => reminder.key !== args.data.key),
+  })
   return null
 }
 export async function setPlayerDefaults(args: Parameters<typeof server.setPlayerDefaults>[0]): ReturnType<typeof server.setPlayerDefaults> {
@@ -326,7 +331,7 @@ export async function createFriendInvite(): ReturnType<typeof server.createFrien
   const defer = deferredForAccount()
   if (!localEngine()) return server.createFriendInvite()
   const token = crypto.randomUUID()
-  await defer('createFriendInvite', {}, queryResource(friendInviteKey('active')), token, { inviteToken: token })
+  await defer('createFriendInvite', {}, queryResource(friendInviteKey('active')), token, { identifiers: { inviteToken: token } })
   return { token }
 }
 export async function cancelFriendInvite(): ReturnType<typeof server.cancelFriendInvite> {
@@ -383,77 +388,73 @@ export async function createLeague(args: Parameters<typeof server.createLeague>[
     occupiedCount: 0,
     entries: [],
   }
-  await defer('createLeague', input, `league:${identifiers.leagueToken}`, draft, identifiers)
+  await defer('createLeague', input, `league:${identifiers.leagueToken}`, draft, { identifiers })
   return { token: identifiers.leagueToken, eventToken: identifiers.eventToken }
 }
-export async function requestFriend(args: Parameters<typeof server.requestFriend>[0]): ReturnType<typeof server.requestFriend> {
-  const defer = deferredForAccount()
-  if (!localEngine()) return server.requestFriend(args)
-  await defer('requestFriend', args.data, `friend:${args.data.userId}`)
-  return undefined
-}
+export const requestFriend = queuedAction(
+  () => server.requestFriend,
+  'requestFriend',
+  (data) => `friend:${data.userId}`,
+  undefined,
+)
 
-export async function acceptFriend(args: Parameters<typeof server.acceptFriend>[0]): ReturnType<typeof server.acceptFriend> {
-  const defer = deferredForAccount()
-  if (!localEngine()) return server.acceptFriend(args)
-  await defer('acceptFriend', args.data, `friend:${args.data.userId}`)
-  return undefined
-}
+export const acceptFriend = queuedAction(
+  () => server.acceptFriend,
+  'acceptFriend',
+  (data) => `friend:${data.userId}`,
+  undefined,
+)
 
-export async function rejectFriend(args: Parameters<typeof server.rejectFriend>[0]): ReturnType<typeof server.rejectFriend> {
-  const defer = deferredForAccount()
-  if (!localEngine()) return server.rejectFriend(args)
-  await defer('rejectFriend', args.data, `friend:${args.data.userId}`)
-  return undefined
-}
+export const rejectFriend = queuedAction(
+  () => server.rejectFriend,
+  'rejectFriend',
+  (data) => `friend:${data.userId}`,
+  undefined,
+)
 
-export async function removeFriend(args: Parameters<typeof server.removeFriend>[0]): ReturnType<typeof server.removeFriend> {
-  const defer = deferredForAccount()
-  if (!localEngine()) return server.removeFriend(args)
-  await defer('removeFriend', args.data, `friend:${args.data.userId}`)
-  return undefined
-}
+export const removeFriend = queuedAction(
+  () => server.removeFriend,
+  'removeFriend',
+  (data) => `friend:${data.userId}`,
+  undefined,
+)
 
-export async function acceptFriendInvite(
-  args: Parameters<typeof server.acceptFriendInvite>[0],
-): ReturnType<typeof server.acceptFriendInvite> {
-  const defer = deferredForAccount()
-  if (!localEngine()) return server.acceptFriendInvite(args)
-  await defer('acceptFriendInvite', args.data, `invite:${args.data.token}`)
-  return null
-}
+export const acceptFriendInvite = queuedAction(
+  () => server.acceptFriendInvite,
+  'acceptFriendInvite',
+  (data) => `invite:${data.token}`,
+  null,
+)
 
-export async function joinLeague(args: Parameters<typeof server.joinLeague>[0]): ReturnType<typeof server.joinLeague> {
-  const defer = deferredForAccount()
-  if (!localEngine()) return server.joinLeague(args)
-  await defer('joinLeague', args.data, `league:${args.data.token}`)
-  return 'pending'
-}
+export const joinLeague = queuedAction(
+  () => server.joinLeague,
+  'joinLeague',
+  (data) => `league:${data.token}`,
+  'pending',
+)
 
-export async function addLeagueEntrants(args: Parameters<typeof server.addLeagueEntrants>[0]): ReturnType<typeof server.addLeagueEntrants> {
-  const defer = deferredForAccount()
-  if (!localEngine()) return server.addLeagueEntrants(args)
-  await defer('addLeagueEntrants', args.data, `league:${args.data.token}`)
-  return { added: 0 }
-}
+export const addLeagueEntrants = queuedAction(
+  () => server.addLeagueEntrants,
+  'addLeagueEntrants',
+  (data) => `league:${data.token}`,
+  { added: 0 },
+)
 
-export async function admitLeagueEntries(
-  args: Parameters<typeof server.admitLeagueEntries>[0],
-): ReturnType<typeof server.admitLeagueEntries> {
-  const defer = deferredForAccount()
-  if (!localEngine()) return server.admitLeagueEntries(args)
-  await defer('admitLeagueEntries', args.data, `league:${args.data.token}`)
-  return { admitted: 0 }
-}
+export const admitLeagueEntries = queuedAction(
+  () => server.admitLeagueEntries,
+  'admitLeagueEntries',
+  (data) => `league:${data.token}`,
+  {
+    admitted: 0,
+  },
+)
 
-export async function moderateLeagueEntry(
-  args: Parameters<typeof server.moderateLeagueEntry>[0],
-): ReturnType<typeof server.moderateLeagueEntry> {
-  const defer = deferredForAccount()
-  if (!localEngine()) return server.moderateLeagueEntry(args)
-  await defer('moderateLeagueEntry', args.data, `league:${args.data.token}`)
-  return null
-}
+export const moderateLeagueEntry = queuedAction(
+  () => server.moderateLeagueEntry,
+  'moderateLeagueEntry',
+  (data) => `league:${data.token}`,
+  null,
+)
 
 export async function submitLeagueRoster(
   args: Parameters<typeof server.submitLeagueRoster>[0],
@@ -484,82 +485,73 @@ export async function submitLeagueRoster(
     { ...args.data, capturedRoster: saveRosterSchema.parse(roster), catalogueRevision: construction.catalogue.index.revision },
     `league:${args.data.token}`,
     undefined,
-    {},
-    [`roster:${args.data.rosterId}`],
+    { dependencies: [`roster:${args.data.rosterId}`] },
   )
   return null
 }
 
-export async function setLeagueTeamWarlord(
-  args: Parameters<typeof server.setLeagueTeamWarlord>[0],
-): ReturnType<typeof server.setLeagueTeamWarlord> {
-  const defer = deferredForAccount()
-  if (!localEngine()) return server.setLeagueTeamWarlord(args)
-  await defer('setLeagueTeamWarlord', args.data, `league:${args.data.token}`)
-  return null
-}
+export const setLeagueTeamWarlord = queuedAction(
+  () => server.setLeagueTeamWarlord,
+  'setLeagueTeamWarlord',
+  (data) => `league:${data.token}`,
+  null,
+)
 
-export async function setLeagueTeamDisposition(
-  args: Parameters<typeof server.setLeagueTeamDisposition>[0],
-): ReturnType<typeof server.setLeagueTeamDisposition> {
-  const defer = deferredForAccount()
-  if (!localEngine()) return server.setLeagueTeamDisposition(args)
-  await defer('setLeagueTeamDisposition', args.data, `league:${args.data.token}`)
-  return null
-}
+export const setLeagueTeamDisposition = queuedAction(
+  () => server.setLeagueTeamDisposition,
+  'setLeagueTeamDisposition',
+  (data) => `league:${data.token}`,
+  null,
+)
 
-export async function revealLeague(args: Parameters<typeof server.revealLeague>[0]): ReturnType<typeof server.revealLeague> {
-  const defer = deferredForAccount()
-  if (!localEngine()) return server.revealLeague(args)
-  await defer('revealLeague', args.data, `league:${args.data.token}`)
-  return null
-}
+export const revealLeague = queuedAction(
+  () => server.revealLeague,
+  'revealLeague',
+  (data) => `league:${data.token}`,
+  null,
+)
 
-export async function unsealLeagueRoster(
-  args: Parameters<typeof server.unsealLeagueRoster>[0],
-): ReturnType<typeof server.unsealLeagueRoster> {
-  const defer = deferredForAccount()
-  if (!localEngine()) return server.unsealLeagueRoster(args)
-  await defer('unsealLeagueRoster', args.data, `league:${args.data.token}`)
-  return null
-}
+export const unsealLeagueRoster = queuedAction(
+  () => server.unsealLeagueRoster,
+  'unsealLeagueRoster',
+  (data) => `league:${data.token}`,
+  null,
+)
 
-export async function assignLeagueRosterRequirement(
-  args: Parameters<typeof server.assignLeagueRosterRequirement>[0],
-): ReturnType<typeof server.assignLeagueRosterRequirement> {
-  const defer = deferredForAccount()
-  if (!localEngine()) return server.assignLeagueRosterRequirement(args)
-  await defer('assignLeagueRosterRequirement', args.data, `league:${args.data.token}`)
-  return null
-}
+export const assignLeagueRosterRequirement = queuedAction(
+  () => server.assignLeagueRosterRequirement,
+  'assignLeagueRosterRequirement',
+  (data) => `league:${data.token}`,
+  null,
+)
 
-export async function chooseLeagueSide(args: Parameters<typeof server.chooseLeagueSide>[0]): ReturnType<typeof server.chooseLeagueSide> {
-  const defer = deferredForAccount()
-  if (!localEngine()) return server.chooseLeagueSide(args)
-  await defer('chooseLeagueSide', args.data, `league:${args.data.token}`)
-  return null
-}
+export const chooseLeagueSide = queuedAction(
+  () => server.chooseLeagueSide,
+  'chooseLeagueSide',
+  (data) => `league:${data.token}`,
+  null,
+)
 
 export async function assignLeagueTeam(args: Parameters<typeof server.assignLeagueTeam>[0]): ReturnType<typeof server.assignLeagueTeam> {
   const defer = deferredForAccount()
   if (!localEngine()) return server.assignLeagueTeam(args)
-  await defer('assignLeagueTeam', args.data, `league:${args.data.token}`, undefined, { teamId: crypto.randomUUID() })
+  await defer('assignLeagueTeam', args.data, `league:${args.data.token}`, undefined, { identifiers: { teamId: crypto.randomUUID() } })
   return null
 }
 
-export async function updateLeague(args: Parameters<typeof server.updateLeague>[0]): ReturnType<typeof server.updateLeague> {
-  const defer = deferredForAccount()
-  if (!localEngine()) return server.updateLeague(args)
-  await defer('updateLeague', args.data, `league:${args.data.token}`)
-  return null
-}
+export const updateLeague = queuedAction(
+  () => server.updateLeague,
+  'updateLeague',
+  (data) => `league:${data.token}`,
+  null,
+)
 
-export async function deleteLeague(args: Parameters<typeof server.deleteLeague>[0]): ReturnType<typeof server.deleteLeague> {
-  const defer = deferredForAccount()
-  if (!localEngine()) return server.deleteLeague(args)
-  await defer('deleteLeague', args.data, `league:${args.data.token}`)
-  return null
-}
+export const deleteLeague = queuedAction(
+  () => server.deleteLeague,
+  'deleteLeague',
+  (data) => `league:${data.token}`,
+  null,
+)
 
 export async function deleteBattle(args: Parameters<typeof server.deleteBattle>[0]): ReturnType<typeof server.deleteBattle> {
   const defer = deferredForAccount()
@@ -627,7 +619,7 @@ export async function leagueBattleOptions(
     owner.id,
     args.data,
   )
-  if (typeof window !== 'undefined' && typeof navigator.onLine === 'boolean' && !navigator.onLine) return matching
+  if (isOffline()) return matching
   try {
     return await server.leagueBattleOptions(args)
   } catch {
