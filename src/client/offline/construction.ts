@@ -1,4 +1,5 @@
 import { referenceData } from './runtime'
+import { holdsConstruction } from './compressedReference'
 import { calculationRead } from './calculationRead'
 import { deviceConstructionRead } from './constructionWorker'
 import { SERVER_READS, type ConstructionReadData, type ConstructionReadName } from './constructionReads'
@@ -18,15 +19,16 @@ export function hasLocalConstruction() {
   return Boolean(referenceData()?.construction)
 }
 
-/** `localConstruction()` once something has built it, never building it: the first build takes about a second on a phone. */
+/** `localConstruction()` once something has built it, never building or decoding it: the first build takes about a second on a phone. */
 export function builtLocalConstruction() {
-  const saved = referenceData()?.construction
+  const saved = referenceData()
   return (saved && builtFor.get(saved)) || null
 }
 
 /** Builds `localConstruction()` while the page is idle, so an action needing it does not freeze the page to build it. */
 export function warmLocalConstruction() {
-  if (!hasLocalConstruction() || builtLocalConstruction()) return () => {}
+  const saved = referenceData()
+  if (!saved || !holdsConstruction(saved) || builtLocalConstruction()) return () => {}
   let cancelled = false
   let handle = 0
   const idle = (run: () => void) => {
@@ -52,7 +54,7 @@ export function localConstruction(catalogueId?: string) {
   if (!saved) return null
   const existing = cache.get(saved)
   if (existing) {
-    if (!catalogueId) builtFor.set(referenceData()!.construction!, existing)
+    if (!catalogueId) builtFor.set(referenceData()!, existing)
     return existing
   }
   const built = buildConstruction(saved)
@@ -69,7 +71,7 @@ export function localConstruction(catalogueId?: string) {
     ]
   }
   cache.set(saved, built)
-  if (!catalogueId) builtFor.set(referenceData()!.construction!, built)
+  if (!catalogueId) builtFor.set(referenceData()!, built)
   return built
 }
 

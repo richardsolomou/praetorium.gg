@@ -175,12 +175,11 @@ test('a club seals lists for a game night and plays them from the club page', as
     return date.getTime()
   })
   await owner.clock.fastForward(midnight - (await owner.evaluate(() => Date.now())) + 1)
-  await expect(game.locator('summary')).toBeVisible()
+  await expect(game.getByText(/^Lists · /)).toBeVisible()
   // Its day is over but its battle isn't, so it stays under Up next rather than among the past games.
   await expect(
     owner.getByRole('heading', { name: 'Up next', exact: true }).locator('..').locator(`[data-sealed-game="${gameToken}"]`),
   ).toBeVisible()
-  await game.locator('summary').click()
   await expect(game.getByRole('button', { name: /^Play / })).toHaveCount(0)
   await expect(game.getByRole('button', { name: `Simulate against ${memberName}`, exact: true })).toBeVisible()
   await expect(game.locator(`a[href="${battlePath}"]`)).toBeVisible()
@@ -270,9 +269,8 @@ test('club team rows keep their actions inside the card at narrow widths', async
   await page.goto('/clubs/preview-club?tab=sealed')
   const game = page.locator('[data-sealed-game="preview-club-game-doubles"]')
   await expect.poll(() => historyStarted).toBe(true)
-  await expect(game.locator('details')).not.toHaveAttribute('open', '')
   const simulation = game.getByRole('button', { name: 'Simulate against Preview Opponent', exact: true })
-  await retryUntilVisible(simulation, () => game.locator('summary').click({ timeout: 1_000 }))
+  await expect(simulation).toBeVisible()
   const historyLoaded = page.waitForResponse((response) => isHistory(response.url()))
   releaseHistory()
   await historyLoaded
@@ -299,9 +297,7 @@ test('club team rows keep their actions inside the card at narrow widths', async
   )
   await simulator.getByRole('button', { name: 'Close', exact: true }).click()
   const past = page.locator('[data-sealed-game="preview-club-game-duel-past"]')
-  await retryUntilVisible(past.getByRole('button', { name: 'Simulate against Preview Opponent', exact: true }), () =>
-    past.locator('summary').click({ timeout: 1_000 }),
-  )
+  await expect(past.getByRole('button', { name: 'Simulate against Preview Opponent', exact: true })).toBeVisible()
   await expect(past.getByRole('button', { name: /^Play / })).toHaveCount(0)
   await past.getByRole('button', { name: 'Simulate against Preview Opponent', exact: true }).click()
   await expect(simulator.getByRole('combobox', { name: 'Attacking roster', exact: true })).toContainText('Preview Player')

@@ -4,7 +4,8 @@ import { packRuntimeData } from '../../contracts/runtimeData'
 import { catalogueEditionSchema } from '../../core/catalogueEdition'
 import type { OfflineConstructionSource } from '../../contracts/offlineReference'
 import { calculateRosterAssessment } from '../../shared/pricing'
-import { localConstruction, constructionRead } from './construction'
+import { localConstruction, constructionRead, warmLocalConstruction } from './construction'
+import { compressReference, decompressReference } from './compressedReference'
 import { buildConstruction } from './constructionSource'
 import { datacardOf } from '../../shared/datasheetJoin'
 import { shareRuntimeData } from '../../contracts/sharedRuntimeData'
@@ -291,4 +292,26 @@ it('keeps exports on the server, which records them, while the device could answ
   mocks.device.mockReturnValue(Promise.resolve('device'))
   const online = vi.fn().mockResolvedValue('server')
   expect(await constructionRead('exportRoster', {} as never, online, 'cat')).toBe('server')
+})
+
+it('schedules construction data for idle time without decoding it while the page renders', async () => {
+  const restored = decompressReference(
+    await compressReference({
+      version: 1,
+      savedAt: 1,
+      revision: 'saved',
+      queries: [],
+      search: { factions: [], detachments: [], datasheets: [], missions: [], rules: [] },
+      css: '',
+      logo: '',
+      construction: source(80),
+    }),
+  )!
+  mocks.reference.mockReturnValue(restored)
+  const idle = vi.fn()
+  vi.stubGlobal('window', { requestIdleCallback: idle })
+  const parse = vi.spyOn(JSON, 'parse')
+  warmLocalConstruction()
+  expect({ scheduled: idle.mock.calls.length, decoded: parse.mock.calls.length }).toEqual({ scheduled: 1, decoded: 0 })
+  parse.mockRestore()
 })
