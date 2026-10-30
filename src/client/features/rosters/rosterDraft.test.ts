@@ -56,37 +56,23 @@ it('sees picks the builder rewrote while loading as a draft to save', () => {
   expect(draftKey(untouched(dangling))).not.toBe(draftKey(savedDraft(roster(dangling), prep)))
 })
 
-it('sees a rewritten note as a draft to save', () => {
-  const rewritten = {
+it.each([
+  ['rewritten note', { note: 'Lead from the front.' }],
+  ['renamed unit', { nickname: 'Szarekh' }],
+  ['changed starting embark', { embarkedIn: 2 }],
+] as const)('sees a %s as a draft to save', (_, change) => {
+  const changed = {
     ...untouched(picks),
-    picks: positionedAnnotatedPicks(picks.map((pick, key) => ({ ...pick, key, note: key === 0 ? 'Lead from the front.' : pick.note }))),
+    picks: positionedAnnotatedPicks(picks.map((pick, key) => ({ ...pick, key, ...(key === 0 ? change : {}) }))),
   }
 
-  expect(draftKey(rewritten)).not.toBe(draftKey(savedDraft(roster(picks), prep)))
-})
-
-it('sees a renamed unit as a draft to save', () => {
-  const renamed = {
-    ...untouched(picks),
-    picks: positionedAnnotatedPicks(picks.map((pick, key) => ({ ...pick, key, nickname: key === 0 ? 'Szarekh' : pick.nickname }))),
-  }
-
-  expect(draftKey(renamed)).not.toBe(draftKey(savedDraft(roster(picks), prep)))
+  expect(draftKey(changed)).not.toBe(draftKey(savedDraft(roster(picks), prep)))
 })
 
 it('saves a starting embark at the position of its transport', () => {
   const keyed = picks.map((pick, key) => ({ ...pick, key: key + 10, ...(key === 1 ? { embarkedIn: 12 } : {}) }))
 
   expect(positionedAnnotatedPicks(keyed)[1]?.embarkedIn).toBe(2)
-})
-
-it('sees a changed starting embark as a draft to save', () => {
-  const embarked = {
-    ...untouched(picks),
-    picks: positionedAnnotatedPicks(picks.map((pick, key) => ({ ...pick, key, ...(key === 1 ? { embarkedIn: 0 } : {}) }))),
-  }
-
-  expect(draftKey(embarked)).not.toBe(draftKey(savedDraft(roster(picks), prep)))
 })
 
 it('prices the same picks wherever they start', () => {

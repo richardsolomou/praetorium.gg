@@ -2,7 +2,7 @@ import { attachedUnitList, type AttachedUnit } from '../../../../core/attachedUn
 import { transportLabel } from '../../../../core/battle'
 import { nicknamedUnit } from '../../../../core/unitNotes'
 import type { Army } from '../../../sides'
-import { GROUPS } from '../../../unitGroups'
+import { shelvesOf } from '../../../unitGroups'
 
 /**
  * The army as this step asks about it: the units it is played as, deep strike first.
@@ -14,7 +14,7 @@ import { GROUPS } from '../../../unitGroups'
  */
 export function reserveSections(units: Army['units']) {
   const attached = attachedUnitList(units)
-  const ordered = GROUPS.flatMap((group) => attached.filter((unit) => (unit.host.group ?? 'other') === group.id))
+  const ordered = shelvesOf(attached, (unit) => unit.host.group).flatMap((shelf) => shelf.units)
   const deepStrike = ordered.filter((unit) => unit.formationOptions.includes('deep-strike'))
   const strategicReserves = ordered.filter((unit) => !unit.formationOptions.includes('deep-strike'))
 

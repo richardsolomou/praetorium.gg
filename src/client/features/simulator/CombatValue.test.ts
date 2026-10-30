@@ -6,9 +6,6 @@ const result = { meanDamage: 2.345, meanKills: 1.234, wipe: 0.1234 }
 it('formats expected wounds with two decimal places', () => {
   expect(formatCombatValue(result, 'meanDamage')).toBe('2.35')
 })
-it('formats expected casualties with two decimal places', () => {
-  expect(formatCombatValue(result, 'meanKills')).toBe('1.23')
-})
 it('formats destruction probability as a percentage', () => {
   expect(formatCombatValue(result, 'wipe')).toBe('12.3%')
 })

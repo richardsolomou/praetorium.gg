@@ -9,7 +9,7 @@ import { Choice } from '../../components/Choice'
 import { DialogBody, DialogFooter } from '../../components/Dialog'
 import { feedbackScreenshotPath, FEEDBACK_KINDS, type FeedbackKind } from '../../../contracts/feedback'
 import { uploadFeedbackScreenshot } from '../../functions'
-import { SOURCE } from '../../projectLinks'
+import { NEW_ISSUE } from '../../projectLinks'
 import { meQuery } from '../../queries'
 import { FEEDBACK_MESSAGE_MAX_LENGTH, feedbackTicketMessage } from './feedback'
 import { prepareFeedbackScreenshot } from './screenshot'
@@ -183,7 +183,7 @@ export function FeedbackForm({
         {failure === 'unavailable' ? (
           <Problem>
             Feedback could not be sent from this browser, which may be blocking analytics. Your message is still here; you can{' '}
-            <a href={`${SOURCE}/issues/new`} target="_blank" rel="noreferrer" className="text-info underline hover:text-parchment">
+            <a href={NEW_ISSUE} target="_blank" rel="noreferrer" className="text-info underline hover:text-parchment">
               report it on GitHub
             </a>{' '}
             instead.

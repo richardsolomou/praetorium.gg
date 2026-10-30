@@ -126,6 +126,7 @@ test('signing up keeps the list a visitor built', async ({ page }) => {
   await startGuestRoster(page)
   await add(page, 'Necron Warriors')
   await expect(page.locator('[data-stat="points"]')).not.toHaveText(/^0\//)
+  const id = lastPathSegment(page.url())
 
   await page.getByRole('button', { name: 'Save roster' }).click()
   await page.waitForURL(/\/sign-in\?next=%2Frosters&join=true$/)
@@ -135,8 +136,9 @@ test('signing up keeps the list a visitor built', async ({ page }) => {
   await page.getByLabel('Password').fill('a-long-enough-password')
   await page.getByRole('button', { name: 'Create account and save roster' }).click()
 
-  await page.waitForURL(/\/rosters\/[^/]+$/)
+  await page.waitForURL(new RegExp(`/rosters/${id}$`))
   await expect(page.locator('[data-unit="Necron Warriors"]').first()).toBeVisible()
+  expect(await guestDraft(page)).toBe('')
   await page.goto('/rosters')
   await expect(page.locator('[data-roster]')).toHaveCount(1)
   expect(saves).toHaveLength(1)
@@ -240,27 +242,6 @@ test("a visitor's Friends tab offers an account rather than an empty list", asyn
   await page.goto('/rosters?view=friends')
 
   await expect(page.getByRole('heading', { name: 'See what your friends are building' })).toBeVisible()
-})
-
-test('signing up from the second-roster prompt moves the roster into the account', async ({ page }) => {
-  await startGuestRoster(page)
-  await add(page, 'Necron Warriors')
-  await expect.poll(() => guestDraft(page)).toContain('"picks":[{')
-  const id = lastPathSegment(page.url())
-  await page.goto('/rosters')
-  await page.waitForLoadState('networkidle')
-  const prompt = page.getByRole('dialog', { name: 'Keep more than one roster' })
-  await retryUntilVisible(prompt, () => page.getByRole('button', { name: 'New roster', exact: true }).click())
-  await prompt.getByRole('link', { name: 'Create an account' }).click()
-  await page.waitForLoadState('networkidle')
-  await page.getByLabel('Your name').fill(uniqueName('Visitor'))
-  await page.getByLabel('Email').fill(`visitor-${crypto.randomUUID()}@example.test`)
-  await page.getByLabel('Password').fill('a-long-enough-password')
-  await page.getByRole('button', { name: 'Create account and save roster' }).click()
-
-  await page.waitForURL(new RegExp(`/rosters/${id}$`))
-  await expect(page.locator('[data-unit="Necron Warriors"]').first()).toBeVisible()
-  expect(await guestDraft(page)).toBe('')
 })
 
 test("a visitor's list for an army the data no longer holds can be started again", async ({ page }) => {

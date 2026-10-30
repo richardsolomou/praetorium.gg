@@ -248,15 +248,10 @@ it('reports the home page address of a not-found page as itself', () => {
   expect(capture).toHaveBeenCalledWith('page_not_found', { path: '/' })
 })
 
-it('holds a not-found report made before the SDK loads, as on a page opened at a missing address', () => {
+it('holds a not-found report made before the SDK loads until it loads', () => {
   client.__loaded = false
   notFoundPage('/missing', [])
   expect(capture).not.toHaveBeenCalled()
-})
-
-it('sends a held not-found report once the SDK loads', () => {
-  client.__loaded = false
-  notFoundPage('/missing', [])
   POSTHOG_BROWSER_OPTIONS.loaded(client as unknown as PostHog)
   expect(capture).toHaveBeenCalledWith('page_not_found', { path: '/:id' })
 })

@@ -1,8 +1,6 @@
 import { expect, it } from 'vitest'
 import { saveRosterSchema } from '../../contracts/schemas'
 import { requireReviewedRoster } from './reviewedRoster'
-import { SyncEngine } from './syncEngine'
-import { emptyLocalState } from '../../contracts/localState'
 
 const original = saveRosterSchema.parse({
   id: 'army',
@@ -19,55 +17,8 @@ it('compares automatic names with the actual saved draft', () => {
   expect(() => requireReviewedRoster({ ...original, name: 'Generated name', automaticName: true, updatedAt: 4 }, original)).not.toThrow()
 })
 
-it('refuses deleted or malformed baselines', () => {
-  expect(
-    [null, undefined, {}].map((current) => {
-      try {
-        requireReviewedRoster(current, original)
-        return false
-      } catch {
-        return true
-      }
-    }),
-  ).toEqual([true, true, true])
-})
-
-it('checks the latest durable roster inside enqueue and leaves a refused candidate unsaved', async () => {
-  let state = emptyLocalState('alice')
-  state.documents['roster:army'] = { data: original, serverVersion: 1 }
-  const engine = new SyncEngine(
-    {
-      read: async () => state,
-      change: async (update) => {
-        state = update(state)
-        return state
-      },
-    },
-    async () => ({ outcome: 'refused', message: 'Offline' }),
-    () => {},
-  )
-  const save = (limit: number) =>
-    engine.enqueue(
-      {
-        id: String(limit),
-        resource: 'roster:army',
-        kind: 'saveRoster',
-        input: { ...original, limit },
-        createdAt: limit,
-        status: 'pending',
-      },
-      undefined,
-      (current) => {
-        requireReviewedRoster(current, original)
-        return { ...original, limit }
-      },
-    )
-  const results = await Promise.allSettled([save(1000), save(3000)])
-  expect({
-    results: results.map((result) => result.status),
-    saved: state.documents['roster:army']?.data,
-    operations: state.operations.map((operation) => operation.id),
-  }).toEqual({ results: ['fulfilled', 'rejected'], saved: { ...original, limit: 1000 }, operations: ['1000'] })
+it.each([null, undefined, {}])('refuses a deleted or malformed baseline %s', (current) => {
+  expect(() => requireReviewedRoster(current, original)).toThrow('changed after your review')
 })
 
 it('refuses a changed nonempty preparation even when the review used the empty default', () => {

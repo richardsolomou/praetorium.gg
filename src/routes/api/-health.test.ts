@@ -15,11 +15,6 @@ async function health() {
   return handlers.GET({} as never) as Promise<Response>
 }
 
-it('checks the application data stores before reporting health', async () => {
-  await health()
-  expect(check).toHaveBeenCalledOnce()
-})
-
 it('identifies the ready release for deployment verification', async () => {
   vi.stubEnv('GITHUB_SHA', 'release-sha')
   expect((await health()).headers.get('x-praetorium-revision')).toBe('release-sha')

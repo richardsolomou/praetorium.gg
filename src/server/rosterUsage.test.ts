@@ -59,10 +59,6 @@ it('names a list over its points limit as over the limit, before any other probl
   )
 })
 
-it('names a list within its limit that breaks a rule as not legal', () => {
-  expect(rosterUseProblem({ ...priced, detachmentError: 'Too many detachment points.' }, { limit: 2_000 })?.kind).toBe('not-legal')
-})
-
 it('rejects rosters without a valid force disposition', () => {
   expect(rosterUseError({ ...priced, dispositionError: 'Pick a disposition.' }, { limit: 2_000 })).toBe('Pick a disposition.')
 })

@@ -16,7 +16,7 @@ import { deploymentFor } from '../../battleSummary'
 import { replayPreloadBatches } from '../../replayPrefetch'
 import { missionCardsByKey } from './missionDeck'
 import { battleClubsQuery, battleReplayKey, deploymentsQuery, gameReferencesQuery, meQuery, replayAtQuery } from '../../queries'
-import { sides, type Side, type SideMission } from '../../sides'
+import { formatName, sides, type Side, type SideMission } from '../../sides'
 import { ArmyIdentity } from './ArmyIdentity'
 import { PlayerName } from './PlayerName'
 import { PlayerRatingChange } from './PlayerRatingChange'
@@ -117,10 +117,7 @@ export function Spectator({
     captured.current = true
     posthog.capture('battle_spectated', {
       status: view.status,
-      format: table
-        .map((side) => side.armies.length)
-        .toSorted((left, right) => right - left)
-        .join('v'),
+      format: formatName(table),
       player_count: view.players.length,
       league: Boolean(view.leagueToken),
     })

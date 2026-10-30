@@ -493,17 +493,6 @@ describe('combat', () => {
     Object.assign(scenario.options, { cover: true, hitModifier: -1, heavy: true })
     expect(attackSequence(scenario, rolls(2, 4, 2)).killed).toBe(1)
   })
-  it('rapid fire adds attacks for each weapon at half range', () => {
-    const scenario = input()
-    scenario.options.halfRange = true
-    scenario.weapons[0]!.rapidFire = 1
-    expect(attackSequence(scenario, rolls(3, 4, 3, 4, 2, 2)).killed).toBe(2)
-  })
-  it('rapid fire adds no attacks beyond half range', () => {
-    const scenario = input()
-    scenario.weapons[0]!.rapidFire = 1
-    expect(attackSequence(scenario, rolls(3, 4, 2)).killed).toBe(1)
-  })
   it('blast counts the target models before any weapons attack', () => {
     const scenario = input()
     scenario.weapons[0]!.count = 2

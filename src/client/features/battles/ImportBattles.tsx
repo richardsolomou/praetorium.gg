@@ -19,7 +19,7 @@ import {
   DialogTrigger,
 } from '../../components/Dialog'
 import { Problem } from '../../components/Problem'
-import { SOURCE } from '../../projectLinks'
+import { NEW_ISSUE } from '../../projectLinks'
 import { errorMessage } from '../../queryClient'
 import { FEEDBACK_MESSAGE_MAX_LENGTH, feedbackTicketMessage } from '../feedback/feedback'
 import { openConversation, refreshSupport, startConversation } from '../feedback/support'
@@ -152,7 +152,7 @@ function SuggestApp({ picker, onBusy, onDone }: { picker: ReactNode; onBusy: (bu
         {failure === 'unavailable' ? (
           <Problem>
             Your suggestion could not be sent from this browser, which may be blocking analytics. You can{' '}
-            <a href={`${SOURCE}/issues/new`} target="_blank" rel="noreferrer" className="text-info underline hover:text-parchment">
+            <a href={NEW_ISSUE} target="_blank" rel="noreferrer" className="text-info underline hover:text-parchment">
               suggest it on GitHub
             </a>{' '}
             instead.

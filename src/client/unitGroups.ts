@@ -16,3 +16,11 @@ export const GROUPS: { id: UnitGroup; plural: string }[] = [
   { id: 'fortification', plural: 'Fortifications' },
   { id: 'other', plural: 'Other datasheets' },
 ]
+
+/** Items on the shelves they sit on, in roster order and without empty shelves; an item with no group sits on the last. */
+export function shelvesOf<T>(items: readonly T[], groupOf: (item: T) => UnitGroup | null | undefined) {
+  return GROUPS.flatMap(({ id, plural }) => {
+    const units = items.filter((item) => (groupOf(item) ?? 'other') === id)
+    return units.length ? [{ id, plural, units }] : []
+  })
+}

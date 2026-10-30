@@ -48,6 +48,11 @@ afterEach(() => {
   stopLocalRuntime()
   vi.unstubAllGlobals()
 })
+const receipt = { expectedVersion: 1, operationId: '3127aef0-4077-4b5d-bc87-66666159621b' }
+function nativeSave() {
+  mocks.native = 3
+  return saveRoster({ data: { ...original, limit: 1000 } }, original, 'alice', receipt)
+}
 
 it('saves only one candidate reviewed against the same baseline during concurrent facade calls', async () => {
   const result = await Promise.allSettled([
@@ -78,11 +83,9 @@ it('accepts the existing builder empty-preparation default for an unchanged null
 })
 
 it('uses the captured server version and receipt for a native-v3 account save', async () => {
-  mocks.native = 3
   mocks.sync.mockResolvedValue({ outcome: 'applied', version: 9 })
   mocks.shared.mockResolvedValue({ ...original, limit: 1000, updatedAt: 9 })
-  const receipt = { expectedVersion: 1, operationId: '3127aef0-4077-4b5d-bc87-66666159621b' }
-  const saved = await saveRoster({ data: { ...original, limit: 1000 } }, original, 'alice', receipt)
+  const saved = await nativeSave()
   expect({ saved, request: mocks.sync.mock.calls[0]?.[0].data, directWrites: mocks.directSave.mock.calls.length }).toEqual({
     saved: { id: 'army', updatedAt: 9 },
     request: { ...receipt, owner: 'alice', roster: { ...original, limit: 1000 } },
@@ -91,13 +94,10 @@ it('uses the captured server version and receipt for a native-v3 account save', 
 })
 
 it('preserves the same server receipt and candidate after an uncertain native save', async () => {
-  mocks.native = 3
   mocks.sync.mockRejectedValueOnce(new Error('Connection lost')).mockResolvedValue({ outcome: 'applied', version: 9 })
   mocks.shared.mockResolvedValue({ ...original, limit: 1000, updatedAt: 9 })
-  const receipt = { expectedVersion: 1, operationId: '3127aef0-4077-4b5d-bc87-66666159621b' }
-  const save = () => saveRoster({ data: { ...original, limit: 1000 } }, original, 'alice', receipt)
-  await expect(save()).rejects.toThrow('Connection lost')
-  await save()
+  await expect(nativeSave()).rejects.toThrow('Connection lost')
+  await nativeSave()
   expect(mocks.sync.mock.calls.map(([request]) => request.data)).toEqual([
     { ...receipt, owner: 'alice', roster: { ...original, limit: 1000 } },
     { ...receipt, owner: 'alice', roster: { ...original, limit: 1000 } },
@@ -105,54 +105,30 @@ it('preserves the same server receipt and candidate after an uncertain native sa
 })
 
 it('refuses an older native acknowledgement even when the later row has the same candidate content', async () => {
-  mocks.native = 3
   mocks.sync.mockResolvedValue({ outcome: 'applied', version: 9 })
   mocks.shared.mockResolvedValue({ ...original, limit: 1000, updatedAt: 10 })
-  await expect(
-    saveRoster({ data: { ...original, limit: 1000 } }, original, 'alice', {
-      expectedVersion: 1,
-      operationId: '3127aef0-4077-4b5d-bc87-66666159621b',
-    }),
-  ).rejects.toThrow('changed after your review')
+  await expect(nativeSave()).rejects.toThrow('changed after your review')
 })
 
 it('refuses native result projection when the account changes during the server save', async () => {
-  mocks.native = 3
   mocks.sync.mockImplementation(async () => {
     client.setQueryData(['me'], { id: 'bob' })
     return { outcome: 'applied', version: 9 }
   })
-  await expect(
-    saveRoster({ data: { ...original, limit: 1000 } }, original, 'alice', {
-      expectedVersion: 1,
-      operationId: '3127aef0-4077-4b5d-bc87-66666159621b',
-    }),
-  ).rejects.toThrow('account changed')
+  await expect(nativeSave()).rejects.toThrow('account changed')
 })
 
 it('refuses a native acknowledgement whose saved candidate differs at the same version', async () => {
-  mocks.native = 3
   mocks.sync.mockResolvedValue({ outcome: 'applied', version: 9 })
   mocks.shared.mockResolvedValue({ ...original, limit: 2000, updatedAt: 9 })
-  await expect(
-    saveRoster({ data: { ...original, limit: 1000 } }, original, 'alice', {
-      expectedVersion: 1,
-      operationId: '3127aef0-4077-4b5d-bc87-66666159621b',
-    }),
-  ).rejects.toThrow('changed after your review')
+  await expect(nativeSave()).rejects.toThrow('changed after your review')
 })
 
 it('refuses native result projection when the account changes during acknowledgement verification', async () => {
-  mocks.native = 3
   mocks.sync.mockResolvedValue({ outcome: 'applied', version: 9 })
   mocks.shared.mockImplementation(async () => {
     client.setQueryData(['me'], { id: 'bob' })
     return { ...original, limit: 1000, updatedAt: 9 }
   })
-  await expect(
-    saveRoster({ data: { ...original, limit: 1000 } }, original, 'alice', {
-      expectedVersion: 1,
-      operationId: '3127aef0-4077-4b5d-bc87-66666159621b',
-    }),
-  ).rejects.toThrow('account changed')
+  await expect(nativeSave()).rejects.toThrow('account changed')
 })

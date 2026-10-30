@@ -3,6 +3,7 @@ import { cn } from '@/lib/utils'
 import { groupBy } from '../../../../core/collections'
 
 import {
+  battlefieldObjectives,
   deploymentLines,
   deploymentObjectiveMarkers,
   deploymentNeedsFlip,
@@ -87,11 +88,8 @@ export function TerrainBoard({
   const { geometry } = layout
   const objectives = useMemo(() => deploymentObjectiveMarkers(geometry, deployment?.objectives ?? []), [geometry, deployment?.objectives])
   const objectivePositions = useMemo(
-    () => [
-      ...objectives.map((objective) => objective.position),
-      ...(geometry ? objectiveTerrainMarkers(geometry).map((objective) => objective.position) : []),
-    ],
-    [geometry, objectives],
+    () => battlefieldObjectives(geometry, deployment?.objectives ?? []).map((objective) => objective.position),
+    [geometry, deployment?.objectives],
   )
   const [terrain, lines] = [show.includes('terrain'), show.includes('lines')]
   // Placement walks every corner against every edge drawn so far, so it only reruns when the layout or toggles change.
@@ -409,7 +407,7 @@ function ObjectiveBadge() {
   )
 }
 
-export function deploymentZoneClass(player: string) {
+function deploymentZoneClass(player: string) {
   if (player === 'attacker') return 'fill-side-a/20 stroke-side-a'
   if (player === 'defender') return 'fill-side-b/20 stroke-side-b'
   return 'fill-parchment/20 stroke-parchment'

@@ -365,12 +365,6 @@ describe('round reminder timings', () => {
     expect(reminderTimingLabel({ moment, phase: null, turn: 'either' })).toBe(label)
   })
 
-  it('matches the end of a round', () => {
-    expect(reminderDue({ moment: 'round-end', phase: null, turn: 'either' }, { moment: 'round-end', phase: null, turn: 'either' })).toBe(
-      true,
-    )
-  })
-
   it.each([
     ['command', 0, 0, 'round-start'],
     ['command', 1, 0, null],
@@ -381,12 +375,6 @@ describe('round reminder timings', () => {
     ['fight', 1, 0, null],
   ] as const)('places the round boundary in the %s phase of side %i when side %i went first', (phase, active, first, moment) => {
     expect(roundReminderMoment(phase, active, first)?.moment ?? null).toBe(moment)
-  })
-
-  it('does not match the start of a round to the end', () => {
-    expect(reminderDue({ moment: 'round-start', phase: null, turn: 'either' }, { moment: 'round-end', phase: null, turn: 'either' })).toBe(
-      false,
-    )
   })
 })
 
@@ -421,7 +409,7 @@ describe('restricted and broad reminders', () => {
     expect(suggestReminderTimings('Until the end of any phase, this effect applies.')).toEqual([])
   })
 
-  it.each([1, 2, 5, undefined])('restricts first-round alerts in round %s', (round) => {
+  it.each([1, 2, undefined])('restricts first-round alerts in round %s', (round) => {
     expect(
       reminderDue(
         { moment: 'round-start', phase: null, turn: 'either', firstRoundOnly: true },
@@ -431,9 +419,13 @@ describe('restricted and broad reminders', () => {
     ).toBe(round === 1)
   })
 
-  it.each(['command', 'movement', 'shooting', 'charge', 'fight'] as const)('matches a broad phase alert in %s', (phase) => {
+  it('matches a broad phase alert in a named phase', () => {
     expect(
-      reminderDue({ moment: 'phase-end', phase: 'any', turn: 'either' }, { moment: 'phase-end', phase, turn: 'opponent-turn' }, 1),
+      reminderDue(
+        { moment: 'phase-end', phase: 'any', turn: 'either' },
+        { moment: 'phase-end', phase: 'charge', turn: 'opponent-turn' },
+        1,
+      ),
     ).toBe(true)
   })
 

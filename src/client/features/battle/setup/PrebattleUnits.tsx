@@ -1,6 +1,6 @@
 import { attachedUnitList } from '../../../../core/attachedUnits'
 import type { Army, Side } from '../../../sides'
-import { GROUPS } from '../../../unitGroups'
+import { shelvesOf } from '../../../unitGroups'
 import { formationLabel, SetupSidePanel } from './chrome'
 
 type Rule = 'infiltrators' | 'scouts'
@@ -54,27 +54,22 @@ function ArmyRules({ army, rule, empty, multiple }: { army: Army; rule: Rule; em
         <span className="chip shrink-0">{standing.length} on the table</span>
       </div>
       {carrying.length ? (
-        GROUPS.flatMap((group) => {
-          const units = carrying.filter((unit) => (unit.host.group ?? 'other') === group.id)
-          return units.length
-            ? [
-                <section key={group.id} className="space-y-1">
-                  <p className="eyebrow">{group.plural}</p>
-                  {units.map(({ host, joined }) => (
-                    <div key={host.key} className="flex flex-wrap items-center justify-between gap-2 rounded-sm bg-sunken px-2.5 py-1.5">
-                      <span className="min-w-0">
-                        <span className="block truncate text-sm font-semibold">{host.name}</span>
-                        {joined.length ? (
-                          <span className="block text-3xs text-dim">with {joined.map((character) => character.name).join(', ')}</span>
-                        ) : null}
-                      </span>
-                      <span className="chip shrink-0 border-discarded/60 text-discarded">{formationLabel(rule)}</span>
-                    </div>
-                  ))}
-                </section>,
-              ]
-            : []
-        })
+        shelvesOf(carrying, (unit) => unit.host.group).map((shelf) => (
+          <section key={shelf.id} className="space-y-1">
+            <p className="eyebrow">{shelf.plural}</p>
+            {shelf.units.map(({ host, joined }) => (
+              <div key={host.key} className="flex flex-wrap items-center justify-between gap-2 rounded-sm bg-sunken px-2.5 py-1.5">
+                <span className="min-w-0">
+                  <span className="block truncate text-sm font-semibold">{host.name}</span>
+                  {joined.length ? (
+                    <span className="block text-3xs text-dim">with {joined.map((character) => character.name).join(', ')}</span>
+                  ) : null}
+                </span>
+                <span className="chip shrink-0 border-discarded/60 text-discarded">{formationLabel(rule)}</span>
+              </div>
+            ))}
+          </section>
+        ))
       ) : (
         <p className="text-xs text-dim">{empty}</p>
       )}

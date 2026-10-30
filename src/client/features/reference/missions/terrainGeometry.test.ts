@@ -11,7 +11,6 @@ import {
   pointInPolygon,
   polygonCentroid,
   portraitPoint,
-  svgPoints,
   terrainAreaJoins,
   terrainMarkerPosition,
   territoryBoundary,
@@ -52,15 +51,6 @@ describe('reading a polygon', () => {
     const shape = square(0, 0, 10)
     expect(pointInPolygon({ x: 5, y: 5 }, shape)).toBe(true)
     expect(pointInPolygon({ x: 15, y: 5 }, shape)).toBe(false)
-  })
-
-  it('writes points the way an SVG polygon reads them', () => {
-    expect(
-      svgPoints([
-        { x: 1, y: 2 },
-        { x: 3, y: 4 },
-      ]),
-    ).toBe('1,2 3,4')
   })
 })
 

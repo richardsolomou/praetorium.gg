@@ -2,7 +2,7 @@ import { Link } from '@tanstack/react-router'
 import { Bug, Mail, MessagesSquare, UserX, type LucideIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { version } from '../../../../package.json'
-import { DISCORD, PRIVACY_EMAIL, SOURCE } from '../../projectLinks'
+import { DISCORD, NEW_ISSUE, PRIVACY_EMAIL } from '../../projectLinks'
 import { SectionHeading } from '../../components/SectionHeading'
 
 /** How feedback reaches us and the other channels, beside the Support page. */
@@ -27,7 +27,7 @@ export function SupportAside() {
           <Channel icon={MessagesSquare} href={DISCORD} label="Praetorium Discord">
             Community help and feature ideas.
           </Channel>
-          <Channel icon={Bug} href={`${SOURCE}/issues/new`} label="Public issue tracker">
+          <Channel icon={Bug} href={NEW_ISSUE} label="Public issue tracker">
             Report a problem in public. Include what you expected, what happened, the page address, your device, operating system and
             Praetorium version. Never include a password, two-factor secret, recovery code or private roster link.
           </Channel>

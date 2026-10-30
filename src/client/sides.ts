@@ -196,6 +196,14 @@ export function sideName(side: { armies: readonly { playerName: string }[] }): s
   return side.armies.map((army) => army.playerName).join(' & ')
 }
 
+/** The shape of the table only, such as 2v1: a seat nobody signs in to is already named for what it is. */
+export function formatName(table: readonly { armies: readonly unknown[] }[]): string {
+  return table
+    .map((side) => side.armies.length)
+    .toSorted((left, right) => right - left)
+    .join('v')
+}
+
 /** Any player at the table may settle setup choices for either side. */
 export function canWritePrep(view: Pick<BattleView, 'players' | 'viewerId'>): boolean {
   return view.players.some((player) => player.id === view.viewerId)

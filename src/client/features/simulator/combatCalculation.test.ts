@@ -165,12 +165,15 @@ describe('a local worker', () => {
     expect(current.terminate).toHaveBeenCalledOnce()
   })
 
-  it.each(['onerror', 'onmessageerror'] as const)('settles %s without hanging the batch', async (event) => {
+  it.each([
+    ['onerror', 'calculation failed'],
+    ['onmessageerror', 'could not be read'],
+  ] as const)('settles %s without hanging the batch', async (event, message) => {
     const current = idleWorker()
     mocks.worker.mockReturnValue(current)
     const result = calculateCombatPair(request(), new AbortController().signal)
     current[event]?.()
-    expect((await result).ranged?.error).toBeTruthy()
+    expect((await result).ranged?.error).toContain(message)
   })
 
   it('settles a worker constructor failure', async () => {

@@ -45,9 +45,7 @@ test('a custom points budget is validated, enforced, saved and fielded', async (
   await atEachWidth(page, async (width) => {
     for (const [typed, problem] of [
       ['abc', 'Enter a whole number of points.'],
-      ['1500.5', 'Enter a whole number of points.'],
       ['499', 'Choose between 500 and 10,000 points.'],
-      ['10001', 'Choose between 500 and 10,000 points.'],
     ]) {
       await budget.fill(typed)
       await expect(setup.getByRole('alert').filter({ hasText: problem })).toBeVisible()

@@ -12,7 +12,7 @@ import { DialogBody, DialogDescription, DialogHeader, DialogTitle } from '../../
 import { PageState } from '../../components/PageState'
 import { Problem } from '../../components/Problem'
 import { useDateFormatting } from '../../dates'
-import { SOURCE } from '../../projectLinks'
+import { NEW_ISSUE } from '../../projectLinks'
 import { readTicketMessage, ticketSubject } from '../../../contracts/feedback'
 import { FEEDBACK_MESSAGE_MAX_LENGTH } from './feedback'
 import { refreshSupport, replyToConversation, useSupportAvailable } from './support'
@@ -63,7 +63,7 @@ export function Conversation({ ticketId, notice, onBack }: { ticketId: string; n
             title="Feedback is unavailable here"
             explanation="This browser may be blocking analytics, which also carries feedback. You can report a problem on GitHub instead."
             action={
-              <a href={`${SOURCE}/issues/new`} target="_blank" rel="noreferrer" className="text-info underline hover:text-parchment">
+              <a href={NEW_ISSUE} target="_blank" rel="noreferrer" className="text-info underline hover:text-parchment">
                 Report it on GitHub
               </a>
             }

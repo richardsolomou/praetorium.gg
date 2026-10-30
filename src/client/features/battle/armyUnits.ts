@@ -1,5 +1,5 @@
 import type { UnitState } from '../../../core/battle'
-import { GROUPS } from '../../unitGroups'
+import { shelvesOf } from '../../unitGroups'
 
 /**
  * An army on the shelves a roster is read by, with the units it has lost set aside.
@@ -10,9 +10,8 @@ import { GROUPS } from '../../unitGroups'
  * table is the question this list is read to answer.
  */
 export function armyShelves(units: readonly UnitState[]) {
-  const standing = units.filter((unit) => !unit.destroyed)
-  return GROUPS.flatMap(({ id, plural }) => {
-    const shelf = standing.filter((unit) => (unit.group ?? 'other') === id)
-    return shelf.length ? [{ id, plural, units: shelf }] : []
-  })
+  return shelvesOf(
+    units.filter((unit) => !unit.destroyed),
+    (unit) => unit.group,
+  )
 }

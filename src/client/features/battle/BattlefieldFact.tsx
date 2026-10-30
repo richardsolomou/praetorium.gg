@@ -5,7 +5,7 @@ import type { Deployment } from '../../../contracts/terrain'
 import { terrainReferencesQuery } from '../../queries'
 import { Dialog, DialogBody, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../../components/Dialog'
 import { Fact } from '../../components/Fact'
-import { deploymentObjectiveMarkers, objectiveTerrainMarkers } from '../reference/missions/terrainGeometry'
+import { battlefieldObjectives } from '../reference/missions/terrainGeometry'
 import { TerrainBoard } from '../reference/missions/TerrainBoard'
 import { battleMatchupIds, battlefieldLayout } from './battlefieldLayout'
 import { countLabel } from '../../text'
@@ -27,8 +27,7 @@ export function BattlefieldFact({
   if (!deployment) return <Fact label="Battlefield" value="Not chosen" />
 
   const count = layout
-    ? deploymentObjectiveMarkers(layout.geometry, deployment.objectives).length +
-      (layout.geometry ? objectiveTerrainMarkers(layout.geometry).length : 0)
+    ? battlefieldObjectives(layout.geometry, deployment.objectives).length
     : view.settings.terrainLayoutId
       ? null
       : deployment.objectives.length

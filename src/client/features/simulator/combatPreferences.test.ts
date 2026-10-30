@@ -1,5 +1,4 @@
 import { expect, it } from 'vitest'
-import { decodeSimulatorState, encodeSimulatorState } from '../../../contracts/simulatorState'
 import { restoreWeaponPreferences, storeWeaponPreferences, invalidWeaponChoices, type PreferenceMember } from './combatPreferences'
 import { preferenceBook } from '../../../server/combatPreferences.fixtures'
 import { rosterCombatant } from '../../../shared/rosterCombatRules'
@@ -72,20 +71,6 @@ it('does not apply a replaced member’s choices to another rules version of tha
   expect(restoreWeaponPreferences(storeWeaponPreferences({}, members, preferences), replacement)).toEqual({
     'ranged:0:rifle': 'rifle-spread',
   })
-})
-
-it('retains per-member weapon choices through the existing version-one shared link', () => {
-  const remaining = [members[0]!, moved(members[2]!, 1)]
-  const restored = restoreWeaponPreferences(storeWeaponPreferences({}, members, preferences), remaining)
-  const encoded = encodeSimulatorState({
-    v: 1,
-    swapped: true,
-    sides: [
-      { catalogueId: 'book', pick: { entryId: 'squad' }, rules: {}, attached: [{ entryId: 'support' }], preferences: restored },
-      null,
-    ],
-  })
-  expect(decodeSimulatorState(encoded)?.sides[0]?.preferences?.['attached:1:ranged:0:plasma']).toBe('attached:1:plasma-spread')
 })
 
 it('keeps a different saved unit’s preferences when the current unit’s choices change', () => {

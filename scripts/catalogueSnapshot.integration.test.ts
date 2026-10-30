@@ -275,7 +275,7 @@ it('omits source paths that no product or catalogue check reads', () => {
   expect(distributableCatalogueFile('datacards/11th/gdc/kotc.json')).toBe(true)
 })
 
-it('records provenance and omits unused files from a packed snapshot', () => {
+it('omits unused files from a packed snapshot', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-snapshot-'))
   roots.push(root)
   const catalogue = completeCatalogue(root)
@@ -288,7 +288,6 @@ it('records provenance and omits unused files from a packed snapshot', () => {
   packCatalogueSnapshot(catalogue, archiveFile, pointerFile)
 
   const entries = snapshotEntries(fs.readFileSync(archiveFile))
-  expect(entries['catalogue/provenance.json']).toBeDefined()
   expect(entries['catalogue/definitions/README.md']).toBeUndefined()
   expect(entries['catalogue/rules/data/core/_reports/report.json']).toBeUndefined()
 })

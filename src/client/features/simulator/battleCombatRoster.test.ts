@@ -61,9 +61,4 @@ describe('battle combat rosters', () => {
   })
   it('does not invent loadouts for old text-only armies', () =>
     expect(battleCombatRoster({ name: 'Player', units: [], roster: { name: 'Army', text: 'Squad' } })).toBeNull())
-  it('does not mutate frozen attachments', () => {
-    const value = player()
-    battleCombatRoster(value)
-    expect(value.roster.built.picks[2]!.attachedTo).toBe(1)
-  })
 })

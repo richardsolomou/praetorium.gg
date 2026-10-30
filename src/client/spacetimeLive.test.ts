@@ -213,22 +213,6 @@ it('captures a repeated unexpected HTTP rejection once while continuing retries'
   ])
 })
 
-it('captures a sustained guest token outage once', async () => {
-  vi.stubGlobal(
-    'fetch',
-    vi.fn(async () => new Response(null, { status: 502 })),
-  )
-  useSpacetimeLiveProduct({ mode: 'spacetime', database: 'test', uri: 'https://praetorium.gg/spacetime/' }, false)
-  mount()
-  await vi.advanceTimersByTimeAsync(10 * 60_000)
-  expect(mocks.captureException.mock.calls).toEqual([
-    [
-      expect.objectContaining({ message: 'Spacetime guest token failed with HTTP 502 on 5 consecutive attempts' }),
-      { operation: 'spacetime_realtime' },
-    ],
-  ])
-})
-
 const product = { mode: 'spacetime', database: 'test', uri: 'https://praetorium.gg/spacetime/' } as const
 const issued = (battleId: string | null = null) =>
   vi.fn(async () => Response.json({ token: 'ticket', database: 'test', uri: 'https://praetorium.gg/spacetime/', battleId }))

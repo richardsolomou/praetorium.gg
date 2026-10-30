@@ -11,7 +11,7 @@ import { deploymentsQuery, terrainReferencesQuery } from '../../queries'
 import { deploymentFor } from '../../battleSummary'
 import { SearchableSelect } from '../../components/SearchableSelect'
 import { DialogBody, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/Dialog'
-import { deploymentObjectiveMarkers, objectiveNames, objectiveTerrainMarkers } from '../reference/missions/terrainGeometry'
+import { battlefieldObjectives, objectiveNames } from '../reference/missions/terrainGeometry'
 import { battleMatchupIds, battlefieldLayout } from './battlefieldLayout'
 import { BattleDialogContent, BattlePromptDialog } from './BattlePromptDialog'
 import type { ReferenceCard } from './MissionCards'
@@ -73,15 +73,7 @@ export function MissionSelectionDialog({
   const layout = battlefieldLayout(view.settings.terrainLayoutId, terrain.data?.layouts)
   const deployment = deploymentFor(view.deploymentId, useQuery(deploymentsQuery()).data)
   const markers =
-    !deployment || (view.settings.terrainLayoutId && !layout)
-      ? []
-      : [
-          ...deploymentObjectiveMarkers(layout?.geometry ?? null, deployment.objectives).map((marker, index) => ({
-            key: `deployment-${index}`,
-            position: marker.position,
-          })),
-          ...(layout?.geometry ? objectiveTerrainMarkers(layout.geometry) : []),
-        ]
+    !deployment || (view.settings.terrainLayoutId && !layout) ? [] : battlefieldObjectives(layout?.geometry ?? null, deployment.objectives)
   const viewer = !view.attackerId || choice.playerId === view.attackerId ? 'attacker' : 'defender'
   const attacker = view.players.find((player) => player.id === view.attackerId)
   const defender = attacker && view.players.find((player) => player.id !== attacker.id)

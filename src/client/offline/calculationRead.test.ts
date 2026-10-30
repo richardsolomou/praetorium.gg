@@ -3,25 +3,27 @@ import { calculationRead } from './calculationRead'
 
 afterEach(() => vi.unstubAllGlobals())
 
-it('uses server calculations without starting local work while connected', async () => {
+function connect(onLine: boolean) {
   vi.stubGlobal('window', {})
-  vi.stubGlobal('navigator', { onLine: true })
+  vi.stubGlobal('navigator', { onLine })
+}
+
+it('uses server calculations without starting local work while connected', async () => {
+  connect(true)
   const local = vi.fn(() => 'device')
   const result = await calculationRead(async () => 'server', local)
   expect({ result, calculations: local.mock.calls.length }).toEqual({ result: 'server', calculations: 0 })
 })
 
 it('calculates locally without attempting the server while offline', async () => {
-  vi.stubGlobal('window', {})
-  vi.stubGlobal('navigator', { onLine: false })
+  connect(false)
   const online = vi.fn(async () => 'server')
   const result = await calculationRead(online, () => 'device')
   expect({ result, requests: online.mock.calls.length }).toEqual({ result: 'device', requests: 0 })
 })
 
 it('falls back locally when connectivity is reported but the request fails', async () => {
-  vi.stubGlobal('window', {})
-  vi.stubGlobal('navigator', { onLine: true })
+  connect(true)
   expect(
     await calculationRead(
       async () => {
@@ -33,8 +35,7 @@ it('falls back locally when connectivity is reported but the request fails', asy
 })
 
 it('aborts a stalled server request after five seconds before falling back locally', async () => {
-  vi.stubGlobal('window', {})
-  vi.stubGlobal('navigator', { onLine: true })
+  connect(true)
   const deadline = new AbortController()
   const timeout = vi.spyOn(AbortSignal, 'timeout').mockReturnValue(deadline.signal)
   let requestSignal: AbortSignal | undefined
@@ -59,8 +60,7 @@ it('aborts a stalled server request after five seconds before falling back local
 })
 
 it('does not start local calculations for a cancelled caller', async () => {
-  vi.stubGlobal('window', {})
-  vi.stubGlobal('navigator', { onLine: true })
+  connect(true)
   const controller = new AbortController()
   const local = vi.fn(() => 'device')
   const result = calculationRead(

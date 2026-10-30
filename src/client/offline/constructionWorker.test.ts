@@ -143,7 +143,9 @@ it('answers unit reads once their faction is prepared', async () => {
   start(units)
   await loaded()
   mocks.workers[0]!.prepare()
-  expect(units()).not.toBeNull()
+  const answer = units()!
+  mocks.workers[0]!.answer({ value: 'units' })
+  expect(await answer).toBe('units')
 })
 
 it('prepares a rules version apart from the current rules', async () => {

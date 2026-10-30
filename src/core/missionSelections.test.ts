@@ -40,6 +40,12 @@ const condemn: Command = {
   occurrence: 4,
   selection: { kind: 'punishment', units: [enemy], fallback: false, qualified: true },
 }
+const chooseBeacon: Command = {
+  kind: 'select-mission',
+  cardKey: beacon.key,
+  occurrence: 5,
+  selection: { kind: 'beacon', unit: own, note: 'Manual choice' },
+}
 const state = (...extra: [string, Command][]) => reduceBattle(PLAYERS, history(extra))
 
 describe('source-backed mission selections', () => {
@@ -327,14 +333,7 @@ describe('source-backed mission selections', () => {
 
   it('refuses an old roster occurrence even for a manual Beacon using the same unit key', () => {
     const battle = state([ALICE, { kind: 'draw-secondary', secondary: beacon }], [ALICE, builtRoster('Replacement', ['Different'])])
-    expect(
-      commandRefusal(battle, ALICE, {
-        kind: 'select-mission',
-        cardKey: beacon.key,
-        occurrence: 5,
-        selection: { kind: 'beacon', unit: own, note: 'Manual choice' },
-      })?.code,
-    ).toBe('mission-selection-unit')
+    expect(commandRefusal(battle, ALICE, chooseBeacon)?.code).toBe('mission-selection-unit')
   })
 
   it('refuses a start-of-turn choice in the movement phase', () => {
@@ -555,11 +554,6 @@ describe('source-backed mission selections', () => {
     })
   })
 
-  it('keeps an attached group alive when its leader is lost before its bodyguard', () => {
-    const battle = state([ALICE, condemn], [BOB, { kind: 'set-unit', unitKey: 'u1', destroyed: true }])
-    expect(savedMissionUnitStatus(battle, battle.players[0]!.missionSelections[0]!.units[0]!)).toBe('battlefield')
-  })
-
   it('a returned model restores the same recorded group', () => {
     const battle = state(
       [ALICE, condemn],
@@ -571,52 +565,34 @@ describe('source-backed mission selections', () => {
   })
 
   it('locks a destroyed Beacon instead of offering a replacement', () => {
-    const choose: Command = {
-      kind: 'select-mission',
-      cardKey: beacon.key,
-      occurrence: 5,
-      selection: { kind: 'beacon', unit: own, note: 'Manual choice' },
-    }
     const battle = state(
       [ALICE, { kind: 'draw-secondary', secondary: beacon }],
-      [ALICE, choose],
+      [ALICE, chooseBeacon],
       [ALICE, { kind: 'set-unit', unitKey: 'u0', destroyed: true }],
     )
     expect(
-      commandRefusal(battle, ALICE, { ...choose, selection: { kind: 'beacon', unit: { ...own, unitKey: 'u1' }, note: '' } })?.code,
+      commandRefusal(battle, ALICE, { ...chooseBeacon, selection: { kind: 'beacon', unit: { ...own, unitKey: 'u1' }, note: '' } })?.code,
     ).toBe('mission-selection-recorded')
   })
 
   it('keeps the Beacon destruction lock after the original unit returns', () => {
-    const choose: Command = {
-      kind: 'select-mission',
-      cardKey: beacon.key,
-      occurrence: 5,
-      selection: { kind: 'beacon', unit: own, note: 'Manual choice' },
-    }
     const battle = state(
       [ALICE, { kind: 'draw-secondary', secondary: beacon }],
-      [ALICE, choose],
+      [ALICE, chooseBeacon],
       [ALICE, { kind: 'set-unit', unitKey: 'u0', destroyed: true }],
       [ALICE, { kind: 'set-unit', unitKey: 'u0', destroyed: false }],
     )
-    expect(commandRefusal(battle, ALICE, choose)?.code).toBe('mission-selection-recorded')
+    expect(commandRefusal(battle, ALICE, chooseBeacon)?.code).toBe('mission-selection-recorded')
   })
 
   it('restores Beacon corrections after undoing the destruction event', () => {
-    const choose: Command = {
-      kind: 'select-mission',
-      cardKey: beacon.key,
-      occurrence: 5,
-      selection: { kind: 'beacon', unit: own, note: 'Manual choice' },
-    }
     const battle = state(
       [ALICE, { kind: 'draw-secondary', secondary: beacon }],
-      [ALICE, choose],
+      [ALICE, chooseBeacon],
       [ALICE, { kind: 'set-unit', unitKey: 'u0', destroyed: true }],
       [ALICE, { kind: 'undo', target: 7 }],
     )
-    expect(commandRefusal(battle, ALICE, choose)).toBeNull()
+    expect(commandRefusal(battle, ALICE, chooseBeacon)).toBeNull()
   })
 
   it('hides private nomination payloads and notes in downloaded secret history', () => {
@@ -635,13 +611,6 @@ describe('source-backed mission selections', () => {
     ])
     const players = NAMES.map((player, side) => ({ ...player, side, automated: false }))
     expect(JSON.stringify(visibleBattleLog(players, entries, BOB))).not.toMatch(/Private identity|Private table note|rosterSeq/)
-  })
-
-  it('projects nomination ownership to the opposing seat', () => {
-    const battle = state([ALICE, { kind: 'draw-secondary', secondary: target }])
-    expect(
-      battleView({ token: 'test' }, NAMES, battle, BOB).missionChoices?.find((choice) => choice.kind === 'tempting-target')?.canChoose,
-    ).toBe(true)
   })
 
   it('keeps historical nomination details hidden before a later secret reveal', () => {

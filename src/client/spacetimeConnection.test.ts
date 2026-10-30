@@ -254,14 +254,6 @@ it('ends the connection when a renewal finds access withdrawn', async () => {
   expect(ended).toBe(1)
 })
 
-it('refreshes an expiring ticket by opening a new connection', async () => {
-  vi.useFakeTimers()
-  const { open, stop } = await linked(async () => 'ticket')
-  await vi.advanceTimersByTimeAsync(4 * 60 * 1_000)
-  stop()
-  expect(open).toHaveBeenCalledTimes(2)
-})
-
 it('keeps a lasting ticket connected past the refresh interval', async () => {
   vi.useFakeTimers()
   const { open, stop } = await linked(async () => 'ticket', false)

@@ -5,7 +5,6 @@ import {
   onboardingProgress,
   onboardingTaskIds,
   resolvedGettingStartedTasks,
-  tourTaskIds,
   type StoredOnboarding,
 } from './onboarding'
 
@@ -68,8 +67,10 @@ it('finishes onboarding when every task is completed or skipped', () => {
   ).toBe(true)
 })
 
-it.each(tourTaskIds)('records completion of the %s tour', (task) => {
-  expect(onboardingProgress({ welcomed: true, tasks: [{ task, state: 'completed' }] }, NOTHING_DONE).completedTasks).toContain(task)
+it('does not complete a task the player has not done because storage says so', () => {
+  const stored: StoredOnboarding = { welcomed: false, tasks: [{ task: 'roster', state: 'completed' }] }
+
+  expect(onboardingProgress(stored, NOTHING_DONE).completedTasks).toEqual([])
 })
 
 it('keeps onboarding available while the first matchup is unresolved', () => {

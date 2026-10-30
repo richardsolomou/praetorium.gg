@@ -2,24 +2,53 @@ import { describe, expect, it } from 'vitest'
 import type { RosterPick } from './roster'
 import { rosterSnapshot } from './rosterSnapshot'
 
+type Saved = Parameters<typeof rosterSnapshot>[0]
+type Priced = Parameters<typeof rosterSnapshot>[1]
+
+const saved = (over: Partial<Saved> = {}): Saved => ({
+  id: 'roster',
+  name: 'Army',
+  catalogueId: 'catalogue',
+  detachmentIds: [],
+  disposition: null,
+  limit: 2_000,
+  waivedRules: [],
+  picks: [],
+  ...over,
+})
+const priced = (over: Partial<Priced> = {}): Priced => ({
+  points: 0,
+  revision: 'revision',
+  label: 'Army',
+  detachment: null,
+  detachments: [],
+  detachmentPointBudget: null,
+  disposition: null,
+  dispositions: [],
+  units: [],
+  ...over,
+})
+const unit = (over: Partial<Priced['units'][number]> = {}): Priced['units'][number] => ({
+  key: 0,
+  entryId: 'unit',
+  name: 'Unit',
+  points: 80,
+  group: 'infantry',
+  keywords: [],
+  toggles: [],
+  size: { models: 5, resizable: false },
+  attachment: null,
+  wargear: [],
+  enhancements: [],
+  upgrades: [],
+  formationOptions: [],
+  prebattleRules: [],
+  ...over,
+})
+
 it('freezes the preview label when the same codex is later released', () => {
   const edition = { id: 'codex', name: 'Test codex', status: 'preview' as 'preview' | 'released' }
-  const snapshot = rosterSnapshot(
-    { id: 'list', name: 'Army', catalogueId: 'codex~book', detachmentIds: [], disposition: null, limit: 2000, waivedRules: [], picks: [] },
-    {
-      edition,
-      points: 0,
-      revision: 'revision',
-      label: 'Army',
-      detachment: null,
-      detachments: [],
-      detachmentPointBudget: null,
-      disposition: null,
-      dispositions: [],
-      units: [],
-    },
-    [],
-  )
+  const snapshot = rosterSnapshot(saved({ catalogueId: 'codex~book' }), priced({ edition }), [])
   edition.status = 'released'
   expect(snapshot.built?.edition?.status).toBe('preview')
   expect(snapshot.text).toContain('Codex: Test codex · Preview')
@@ -27,49 +56,21 @@ it('freezes the preview label when the same codex is later released', () => {
 
 it('freezes unit wounds, reserve exemptions, and transport capability into a roster snapshot', () => {
   const roster = rosterSnapshot(
-    {
-      id: 'roster',
-      name: 'Army',
-      catalogueId: 'catalogue',
-      detachmentIds: [],
-      disposition: null,
-      limit: 2_000,
-      waivedRules: [],
-      picks: [{ entryId: 'unit' }],
-    },
-    {
+    saved({ picks: [{ entryId: 'unit' }] }),
+    priced({
       points: 80,
-      revision: 'revision',
       strategicReserveFactsComplete: true,
-      label: 'GTF 2K',
-      detachment: null,
-      detachments: [],
-      detachmentPointBudget: null,
-      disposition: null,
-      dispositions: [],
       units: [
-        {
-          key: 0,
-          entryId: 'unit',
-          name: 'Unit',
-          points: 80,
-          group: 'infantry',
+        unit({
           keywords: ['Infantry'],
-          toggles: [],
-          size: { models: 5, resizable: false },
-          attachment: null,
-          wargear: [],
-          enhancements: [],
-          upgrades: [],
           formationOptions: ['battlefield'],
-          prebattleRules: [],
           strategicReserveExempt: true,
           embarksWithBodyguard: true,
           embarkedSpace: 3,
           transport: true,
-        },
+        }),
       ],
-    },
+    }),
     [{ entryId: 'unit', wounds: 3, transportRule: 'This model has a transport capacity of 12 models.' }],
   )
 
@@ -96,32 +97,7 @@ it('freezes enabled reminders into a roster snapshot', () => {
     description: 'At the start of your Command phase, select one enemy unit.',
     timings: [{ moment: 'phase-start' as const, phase: 'command' as const, turn: 'your-turn' as const }],
   }
-  const roster = rosterSnapshot(
-    {
-      id: 'roster',
-      name: 'Army',
-      catalogueId: 'catalogue',
-      detachmentIds: [],
-      disposition: null,
-      limit: 2_000,
-      waivedRules: [],
-      picks: [],
-      reminders: [reminder],
-      remindersEnabled: true,
-    },
-    {
-      points: 0,
-      revision: 'revision',
-      label: 'GTF 2K',
-      detachment: null,
-      detachments: [],
-      detachmentPointBudget: null,
-      disposition: null,
-      dispositions: [],
-      units: [],
-    },
-    [],
-  )
+  const roster = rosterSnapshot(saved({ reminders: [reminder], remindersEnabled: true }), priced(), [])
 
   expect(roster).toMatchObject({ reminders: [reminder], remindersEnabled: true })
 })
@@ -129,48 +105,14 @@ it('freezes enabled reminders into a roster snapshot', () => {
 it('maps unit alerts from roster picks to the battle units they produced', () => {
   const timing = { moment: 'phase-start' as const, phase: 'command' as const, turn: 'your-turn' as const }
   const roster = rosterSnapshot(
-    {
-      id: 'roster',
-      name: 'Army',
-      catalogueId: 'catalogue',
-      detachmentIds: [],
-      disposition: null,
-      limit: 2_000,
-      waivedRules: [],
+    saved({
       picks: [{ entryId: 'missing' }, { entryId: 'unit' }],
       reminders: [
         { key: 'missing', ability: 'Missing', description: '', unit: { index: 0, name: 'Missing' }, timings: [timing] },
         { key: 'unit', ability: 'Unit', description: '', unit: { index: 1, name: 'Unit' }, timings: [timing] },
       ],
-    },
-    {
-      points: 80,
-      revision: 'revision',
-      label: 'Army',
-      detachment: null,
-      detachments: [],
-      detachmentPointBudget: null,
-      disposition: null,
-      dispositions: [],
-      units: [
-        {
-          key: 1,
-          entryId: 'unit',
-          name: 'Unit',
-          points: 80,
-          group: 'infantry',
-          keywords: [],
-          toggles: [],
-          size: { models: 5, resizable: false },
-          attachment: null,
-          wargear: [],
-          enhancements: [],
-          upgrades: [],
-          formationOptions: ['battlefield'],
-          prebattleRules: [],
-        },
-      ],
-    },
+    }),
+    priced({ points: 80, units: [unit({ key: 1 })] }),
     [],
   )
 
@@ -179,44 +121,19 @@ it('maps unit alerts from roster picks to the battle units they produced', () =>
 
 it('freezes catalogue-derived Warlord eligibility into a roster snapshot', () => {
   const roster = rosterSnapshot(
-    {
-      id: 'roster',
-      name: 'Army',
-      catalogueId: 'catalogue',
-      detachmentIds: [],
-      disposition: null,
-      limit: 1_000,
-      waivedRules: [],
-      picks: [{ entryId: 'captain' }],
-    },
-    {
+    saved({ limit: 1_000, picks: [{ entryId: 'captain' }] }),
+    priced({
       points: 80,
-      revision: 'revision',
-      label: 'GTF 2K',
-      detachment: null,
-      detachments: [],
-      detachmentPointBudget: null,
-      disposition: null,
-      dispositions: [],
       units: [
-        {
-          key: 0,
+        unit({
           entryId: 'captain',
           name: 'Captain',
-          points: 80,
           group: 'vehicle',
-          keywords: [],
           toggles: [{ name: 'Warlord', selected: true }],
           size: { models: 1, resizable: false },
-          attachment: null,
-          wargear: [],
-          enhancements: [],
-          upgrades: [],
-          formationOptions: ['battlefield'],
-          prebattleRules: [],
-        },
+        }),
       ],
-    },
+    }),
     [],
   )
 
@@ -224,73 +141,21 @@ it('freezes catalogue-derived Warlord eligibility into a roster snapshot', () =>
 })
 
 it('does not freeze a reserve limit from incomplete rules facts', () => {
-  const roster = rosterSnapshot(
-    {
-      id: 'roster',
-      name: 'Army',
-      catalogueId: 'catalogue',
-      detachmentIds: [],
-      disposition: null,
-      limit: 2_000,
-      waivedRules: [],
-      picks: [],
-    },
-    {
-      points: 0,
-      revision: 'revision',
-      strategicReserveFactsComplete: false,
-      label: 'Empty army',
-      detachment: null,
-      detachments: [],
-      detachmentPointBudget: null,
-      disposition: null,
-      dispositions: [],
-      units: [],
-    },
-    [],
-  )
+  const roster = rosterSnapshot(saved(), priced({ strategicReserveFactsComplete: false }), [])
 
   expect(roster.built).not.toHaveProperty('strategicReserveLimit')
 })
 
 it('freezes the unit a character joined into a roster snapshot', () => {
-  const unit = {
-    points: 80,
-    keywords: [],
-    toggles: [],
-    size: { models: 5, resizable: false },
-    attachment: null,
-    wargear: [],
-    enhancements: [],
-    upgrades: [],
-    formationOptions: [] as const,
-    prebattleRules: [] as const,
-  }
   const roster = rosterSnapshot(
-    {
-      id: 'roster',
-      name: 'Army',
-      catalogueId: 'catalogue',
-      detachmentIds: [],
-      disposition: null,
-      limit: 2_000,
-      waivedRules: [],
-      picks: [{ entryId: 'marines' }, { entryId: 'lord', attachedTo: 0 }],
-    },
-    {
+    saved({ picks: [{ entryId: 'marines' }, { entryId: 'lord', attachedTo: 0 }] }),
+    priced({
       points: 160,
-      revision: 'revision',
-      label: 'GTF 2K',
-      detachment: null,
-      detachments: [],
-      detachmentPointBudget: null,
-      disposition: null,
-      dispositions: [],
       units: [
-        { ...unit, key: 0, entryId: 'marines', name: 'Plague Marines', group: 'battleline' },
-        { ...unit, key: 1, entryId: 'lord', name: 'Lord of Contagion', group: 'character' },
+        unit({ key: 0, entryId: 'marines', name: 'Plague Marines', group: 'battleline' }),
+        unit({ key: 1, entryId: 'lord', name: 'Lord of Contagion', group: 'character' }),
       ],
-    },
+    }),
     [],
   )
 
@@ -299,44 +164,19 @@ it('freezes the unit a character joined into a roster snapshot', () => {
 
 it('leaves a character the list joined to nothing unattached', () => {
   const roster = rosterSnapshot(
-    {
-      id: 'roster',
-      name: 'Army',
-      catalogueId: 'catalogue',
-      detachmentIds: [],
-      disposition: null,
-      limit: 2_000,
-      waivedRules: [],
-      picks: [{ entryId: 'lord' }],
-    },
-    {
+    saved({ picks: [{ entryId: 'lord' }] }),
+    priced({
       points: 80,
-      revision: 'revision',
-      label: 'GTF 2K',
-      detachment: null,
-      detachments: [],
-      detachmentPointBudget: null,
-      disposition: null,
-      dispositions: [],
       units: [
-        {
-          key: 0,
+        unit({
           entryId: 'lord',
           name: 'Lord of Contagion',
-          points: 80,
           group: 'character',
-          keywords: [],
-          toggles: [],
           size: { models: 1, resizable: false },
-          attachment: null,
-          wargear: [],
-          enhancements: [],
-          upgrades: [],
           formationOptions: ['deep-strike'],
-          prebattleRules: [],
-        },
+        }),
       ],
-    },
+    }),
     [],
   )
 
@@ -345,44 +185,8 @@ it('leaves a character the list joined to nothing unattached', () => {
 
 it('fields a list nobody named under the label it had when it was fielded', () => {
   const snapshot = rosterSnapshot(
-    {
-      id: 'roster',
-      name: '',
-      catalogueId: 'catalogue',
-      detachmentIds: [],
-      disposition: null,
-      limit: 1_000,
-      waivedRules: [],
-      picks: [{ entryId: 'unit' }],
-    },
-    {
-      points: 80,
-      revision: 'revision',
-      label: "HL 1K - C'tan & Hexmark",
-      detachment: null,
-      detachments: [],
-      detachmentPointBudget: null,
-      disposition: null,
-      dispositions: [],
-      units: [
-        {
-          key: 0,
-          entryId: 'unit',
-          name: 'Unit',
-          points: 80,
-          group: 'infantry',
-          keywords: [],
-          toggles: [],
-          size: { models: 5, resizable: false },
-          attachment: null,
-          wargear: [],
-          enhancements: [],
-          upgrades: [],
-          formationOptions: [],
-          prebattleRules: [],
-        },
-      ],
-    },
+    saved({ name: '', limit: 1_000, picks: [{ entryId: 'unit' }] }),
+    priced({ points: 80, label: "HL 1K - C'tan & Hexmark", units: [unit()] }),
     [],
   )
   expect(snapshot.name).toBe("HL 1K - C'tan & Hexmark")
@@ -390,29 +194,8 @@ it('fields a list nobody named under the label it had when it was fielded', () =
 
 it('freezes a custom points budget and halves it for the strategic reserve limit', () => {
   const roster = rosterSnapshot(
-    {
-      id: 'roster',
-      name: 'Army',
-      catalogueId: 'catalogue',
-      detachmentIds: [],
-      disposition: null,
-      limit: 2_000,
-      pointsBudget: 1_500,
-      waivedRules: [],
-      picks: [],
-    },
-    {
-      points: 0,
-      revision: 'revision',
-      strategicReserveFactsComplete: true,
-      label: 'Army',
-      detachment: null,
-      detachments: [],
-      detachmentPointBudget: 3,
-      disposition: null,
-      dispositions: [],
-      units: [],
-    },
+    saved({ pointsBudget: 1_500 }),
+    priced({ strategicReserveFactsComplete: true, detachmentPointBudget: 3 }),
     [],
   )
 
@@ -425,52 +208,18 @@ it('freezes a custom points budget and halves it for the strategic reserve limit
 })
 
 it('freezes two identical units with their own nicknames and notes, unaffected by later edits to the saved list', () => {
-  const unit = (key: number) => ({
-    key,
-    entryId: 'intercessors',
-    name: 'Intercessor Squad',
-    points: 80,
-    group: 'battleline' as const,
-    keywords: [],
-    toggles: [],
-    size: { models: 5, resizable: false },
-    attachment: null,
-    wargear: [],
-    enhancements: [],
-    upgrades: [],
-    formationOptions: [],
-    prebattleRules: [],
-  })
-  const saved = {
-    id: 'list',
-    name: 'Army',
-    catalogueId: 'marines',
-    detachmentIds: [],
-    disposition: null,
-    limit: 2_000,
-    waivedRules: [],
-    picks: [
-      { entryId: 'intercessors', nickname: 'Alpha', note: 'Hold home.' },
-      { entryId: 'intercessors', nickname: 'Bravo', note: 'Push midfield.' },
-    ],
-  }
+  const intercessors = (key: number) => unit({ key, entryId: 'intercessors', name: 'Intercessor Squad', group: 'battleline' })
+  const picks = [
+    { entryId: 'intercessors', nickname: 'Alpha', note: 'Hold home.' },
+    { entryId: 'intercessors', nickname: 'Bravo', note: 'Push midfield.' },
+  ]
   const snapshot = rosterSnapshot(
-    saved,
-    {
-      points: 160,
-      revision: 'revision',
-      label: 'Army',
-      detachment: null,
-      detachments: [],
-      detachmentPointBudget: null,
-      disposition: null,
-      dispositions: [],
-      units: [unit(0), unit(1)],
-    },
+    saved({ catalogueId: 'marines', picks }),
+    priced({ points: 160, units: [intercessors(0), intercessors(1)] }),
     [],
   )
-  saved.picks[0]!.nickname = 'Renamed'
-  saved.picks[1]!.note = 'Changed plan.'
+  picks[0]!.nickname = 'Renamed'
+  picks[1]!.note = 'Changed plan.'
 
   expect({
     units: snapshot.built?.units.map(({ name, nickname, note }) => ({ name, nickname, note })),
@@ -488,32 +237,13 @@ it('freezes two identical units with their own nicknames and notes, unaffected b
 })
 
 describe('starting embarks', () => {
-  const unit = {
-    points: 80,
-    keywords: [],
-    toggles: [],
-    size: { models: 5, resizable: false },
-    attachment: null,
-    wargear: [],
-    enhancements: [],
-    upgrades: [],
-    formationOptions: [] as const,
-    prebattleRules: [] as const,
-  }
   const snapshot = (picks: RosterPick[], built: number[]) =>
     rosterSnapshot(
-      { id: 'roster', name: 'Army', catalogueId: 'catalogue', detachmentIds: [], disposition: null, limit: 2_000, waivedRules: [], picks },
-      {
+      saved({ picks }),
+      priced({
         points: 240,
-        revision: 'revision',
-        label: 'GTF 2K',
-        detachment: null,
-        detachments: [],
-        detachmentPointBudget: null,
-        disposition: null,
-        dispositions: [],
-        units: built.map((key) => ({ ...unit, key, entryId: picks[key]!.entryId, name: picks[key]!.entryId, group: 'other' as const })),
-      },
+        units: built.map((key) => unit({ key, entryId: picks[key]!.entryId, name: picks[key]!.entryId, group: 'other' })),
+      }),
       [],
     )
 

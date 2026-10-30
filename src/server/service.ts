@@ -52,7 +52,6 @@ import {
 import { routeSlug } from '../core/slug'
 import type { PushPlatform } from '../core/notificationConfig'
 import {
-  armyOf,
   battleOutcome,
   OVERALL,
   sideScore,
@@ -329,7 +328,10 @@ export class PraetoriumService {
   private async armyTables() {
     const factions = await this.battleFactions()
     return new Map(
-      factions.map(({ slug: _slug, displayName, icon }) => [armyOf({ displayName }), { slug: armyOf({ displayName }), displayName, icon }]),
+      factions.map(({ displayName, icon }) => {
+        const slug = routeSlug(displayName)
+        return [slug, { slug, displayName, icon }]
+      }),
     )
   }
 

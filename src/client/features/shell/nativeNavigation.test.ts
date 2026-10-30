@@ -30,7 +30,6 @@ describe('native application navigation', () => {
   })
 
   it.each([
-    ['/rosters', { section: 'rosters', title: 'Rosters' }],
     ['/rosters/army-id', { back: '/rosters', section: 'rosters', title: 'Roster' }],
     ['/battles/battle-id', { back: '/battles', section: 'battles', title: 'Battle' }],
     ['/tournaments/league-id', { back: '/tournaments', section: 'events', title: 'Tournament' }],

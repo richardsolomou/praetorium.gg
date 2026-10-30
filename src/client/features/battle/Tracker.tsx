@@ -33,7 +33,7 @@ import {
   type ReminderDismissalScope,
 } from './reminderDismissals'
 import { armyRulesRequest } from './sideRules'
-import { type Side, type SideMission, sides } from '../../sides'
+import { formatName, type Side, type SideMission, sides } from '../../sides'
 import { asSecondary, battleSizeText } from '../../../core/battle'
 import type { BattleClock } from '../../../core/battleClock'
 import type { BattleView, MissionChoiceView } from '../../../core/battleView'
@@ -833,14 +833,6 @@ const discardableSecondaries = (side: Side) =>
   side.secondaryMode === 'tactical'
     ? side.secondaries.filter((card) => !card.secret && card.status === 'active').map((card) => card.key)
     : []
-
-/** The shape of the table only: a seat nobody signs in to is already named for what it is. */
-function formatName(table: Side[]) {
-  return table
-    .map((side) => side.armies.length)
-    .toSorted((left, right) => right - left)
-    .join('v')
-}
 
 /** The cards a side was holding, as keys, so a later hand can be told from this one. */
 const heldKeys = (side: Side | undefined) => (side?.secondaries ?? []).filter((card) => card.status === 'active').map((card) => card.key)

@@ -241,34 +241,34 @@ it('uses connected reads when the server navigator has no connectivity property'
   expect(await constructionRead('unitWounds', { catalogueId: 'cat', entryIds: [] }, online)).toBe('server')
 })
 
+function connect() {
+  vi.stubGlobal('window', {})
+  vi.stubGlobal('navigator', { onLine: true })
+}
 const wounds = (online: () => Promise<unknown>, signal?: AbortSignal) =>
   constructionRead('unitWounds', { catalogueId: 'cat', entryIds: [] }, online, 'cat', signal)
 
 it('answers from the device without asking the server once the device has prepared the read', async () => {
-  vi.stubGlobal('window', {})
-  vi.stubGlobal('navigator', { onLine: true })
+  connect()
   mocks.device.mockReturnValue(Promise.resolve('device'))
   const online = vi.fn()
   expect({ answer: await wounds(online), asked: online.mock.calls.length }).toEqual({ answer: 'device', asked: 0 })
 })
 
 it('asks only the server while the device has not prepared the read', async () => {
-  vi.stubGlobal('window', {})
-  vi.stubGlobal('navigator', { onLine: true })
+  connect()
   mocks.device.mockReturnValue(null)
   expect(await wounds(() => Promise.resolve('server'))).toBe('server')
 })
 
 it('asks the server when the device fails to answer', async () => {
-  vi.stubGlobal('window', {})
-  vi.stubGlobal('navigator', { onLine: true })
+  connect()
   mocks.device.mockReturnValue(Promise.reject(new Error('worker failed')))
   expect(await wounds(() => Promise.resolve('server'))).toBe('server')
 })
 
 it('stops waiting for the device when the read is cancelled', async () => {
-  vi.stubGlobal('window', {})
-  vi.stubGlobal('navigator', { onLine: true })
+  connect()
   mocks.device.mockReturnValue(new Promise(() => {}))
   const controller = new AbortController()
   const answer = wounds(vi.fn(), controller.signal)
@@ -277,8 +277,7 @@ it('stops waiting for the device when the read is cancelled', async () => {
 })
 
 it('does not ask the server for a cancelled read the device failed', async () => {
-  vi.stubGlobal('window', {})
-  vi.stubGlobal('navigator', { onLine: true })
+  connect()
   const controller = new AbortController()
   mocks.device.mockReturnValue(Promise.reject(new Error('worker failed')))
   controller.abort(new Error('left the page'))
@@ -288,8 +287,7 @@ it('does not ask the server for a cancelled read the device failed', async () =>
 })
 
 it('keeps exports on the server, which records them, while the device could answer', async () => {
-  vi.stubGlobal('window', {})
-  vi.stubGlobal('navigator', { onLine: true })
+  connect()
   mocks.device.mockReturnValue(Promise.resolve('device'))
   const online = vi.fn().mockResolvedValue('server')
   expect(await constructionRead('exportRoster', {} as never, online, 'cat')).toBe('server')

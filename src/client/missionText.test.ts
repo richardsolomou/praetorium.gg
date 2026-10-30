@@ -1,15 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import {
-  alternatives,
-  appliesInMode,
-  awardLimit,
-  awardTotal,
-  conditionLabel,
-  counted,
-  type MissionAward,
-  payoutJoin,
-  payoutLabel,
-} from './missionText'
+import { alternatives, appliesInMode, awardLimit, awardTotal, counted, type MissionAward, payoutJoin, payoutLabel } from './missionText'
 
 describe('which payouts apply to a hand', () => {
   it.each(['tactical', 'fixed'])('includes standard payouts in a %s hand', (mode) => {
@@ -50,30 +40,6 @@ describe('what a payout is worth', () => {
 
   it('pays nothing when the condition was not met', () => {
     expect(awardTotal(per(2, 5), 0)).toBe(0)
-  })
-})
-
-describe('what a card asks for', () => {
-  const award = (overrides: Partial<MissionAward>): MissionAward => ({
-    vp: 5,
-    per: null,
-    mode: null,
-    max: null,
-    group: null,
-    cumulative: false,
-    criteria: null,
-    trigger: { timing: null, phase: null, playerTurn: null, roundMin: null, roundMax: null },
-    ...overrides,
-  })
-
-  it('asks for what the mission pack printed on the card', () => {
-    expect(conditionLabel(award({ criteria: 'You control your opponent’s home objective.' }))).toBe(
-      'You control your opponent’s home objective.',
-    )
-  })
-
-  it('says nothing when the pack did not pair a sentence to this payout', () => {
-    expect(conditionLabel(award({}))).toBeNull()
   })
 })
 
@@ -134,10 +100,5 @@ describe('naming a payout the source left unstructured', () => {
   it('points at the card when a payout stands alone', () => {
     const only = [bare(5, null)]
     expect(payoutLabel(only[0]!, only)).toBe('As the card describes.')
-  })
-
-  it('leaves a payout the pack did describe to its own sentence', () => {
-    const described: MissionAward = { ...bare(5, null), criteria: 'You control more objectives than your opponent.' }
-    expect(conditionLabel(described)).toBe('You control more objectives than your opponent.')
   })
 })

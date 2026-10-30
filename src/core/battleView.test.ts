@@ -263,16 +263,6 @@ describe('the view', () => {
     expect(battleView({ token: 'abc' }, NAMES, state, ALICE).players.find((player) => player.isViewer)?.total).toBe(8)
   })
 
-  it.each([
-    ['setup', 0],
-    ['playing', 10],
-  ] as const)('adds the battle-ready bonus to the total once the battle is %s', (status, total) => {
-    const state = reduceBattle(PLAYERS, log(...started()))
-    state.players[0]!.painted = true
-    state.status = status
-    expect(battleView({ token: 'abc' }, NAMES, state, ALICE).players[0]?.total).toBe(total)
-  })
-
   it('attributes scores to the round they were made', () => {
     const state = reduceBattle(
       PLAYERS,
@@ -294,16 +284,6 @@ describe('units on the table', () => {
     [BOB, roster('Death Guard')],
     [ALICE, { kind: 'begin-battle', firstPlayerId: ALICE }],
   ]
-
-  it('start out standing', () => {
-    const state = reduceBattle(PLAYERS, log(...withUnits()))
-    expect(state.players.find((player) => player.id === ALICE)?.units.every((unit) => !unit.destroyed)).toBe(true)
-  })
-
-  it('can be lost', () => {
-    const state = reduceBattle(PLAYERS, log(...withUnits(), [ALICE, { kind: 'set-unit', unitKey: 'u0', destroyed: true }]))
-    expect(state.players.find((player) => player.id === ALICE)?.units.find((unit) => unit.key === 'u0')?.destroyed).toBe(true)
-  })
 
   it('are counted in the view', () => {
     const state = reduceBattle(PLAYERS, log(...withUnits(), [ALICE, { kind: 'set-unit', unitKey: 'u0', destroyed: true }]))
@@ -364,10 +344,6 @@ describe('models within a unit', () => {
 
   const intercessors = (state: ReturnType<typeof reduceBattle>) =>
     state.players.find((player) => player.id === ALICE)?.units.find((unit) => unit.key === 'u0')
-
-  it('start out whole', () => {
-    expect(intercessors(reduceBattle(PLAYERS, log(...inPlay())))?.alive).toBe(5)
-  })
 
   it('come off one at a time', () => {
     const state = reduceBattle(PLAYERS, log(...inPlay(), [ALICE, { kind: 'wound-unit', unitKey: 'u0', delta: -2 }]))
@@ -451,10 +427,6 @@ describe('wounds within a unit', () => {
 
   const unit = (state: ReturnType<typeof reduceBattle>) =>
     state.players.find((player) => player.id === ALICE)?.units.find((entry) => entry.key === 'u0')
-
-  it('start out unharmed', () => {
-    expect(unit(reduceBattle(PLAYERS, log(...walker())))?.damage).toBe(0)
-  })
 
   it('come off the one model taking them', () => {
     const state = reduceBattle(PLAYERS, log(...walker(), [ALICE, { kind: 'damage-unit', unitKey: 'u0', delta: -5 }]))

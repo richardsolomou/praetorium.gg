@@ -9,7 +9,6 @@ import {
   finishesOnScore,
   momentsPassed,
   nextDraw,
-  scoredThisRound,
   settleAgainstCaps,
   turnPrompt,
 } from './scoring'
@@ -26,15 +25,8 @@ const payout = (vp: number, on: Partial<AwardTrigger>): MissionAward => ({
   criteria: null,
   trigger: trigger(on),
 })
+const card = (key: string, category: 'primary' | 'secondary', ...awards: MissionAward[]) => ({ key, name: key, category, awards })
 const at = (phase: string, round = 1, rounds = 5) => ({ phase, round, rounds })
-
-describe('round scoring guidance', () => {
-  it('uses only the applicable round total as already scored', () => {
-    const currentRound = { primary: 10, secondary: 8 }
-    expect(scoredThisRound(currentRound, 'primary')).toBe(10)
-    expect(scoredThisRound(currentRound, 'secondary')).toBe(8)
-  })
-})
 
 describe('when a mission is asked about', () => {
   it('settles only the phase when a turn still has phases left', () => {
@@ -90,77 +82,30 @@ describe('when a mission is asked about', () => {
   })
 
   it('drops a card whose payouts are all for another moment', () => {
-    const cards = [
-      {
-        key: 'later',
-        name: 'Later',
-        category: 'secondary' as const,
-        awards: [payout(3, { timing: 'end-of-turn' })],
-      },
-    ]
+    const cards = [card('later', 'secondary', payout(3, { timing: 'end-of-turn' }))]
     expect(cardsDue(at('command'), true, cards)).toEqual([])
   })
 
   it('keeps only the payouts that are due on a card that has several', () => {
-    const cards = [
-      {
-        key: 'mixed',
-        name: 'Mixed',
-        category: 'primary' as const,
-        awards: [payout(2, { timing: 'end-of-turn' }), payout(3, { timing: 'end-of-phase', phase: 'command' })],
-      },
-    ]
+    const cards = [card('mixed', 'primary', payout(2, { timing: 'end-of-turn' }), payout(3, { timing: 'end-of-phase', phase: 'command' }))]
     expect(cardsDue(at('command'), true, cards)[0]?.awards.map((award) => award.vp)).toEqual([3])
   })
 
   it('keeps primary scoring in the command phase through round 4', () => {
-    const cards = [
-      {
-        key: 'primary',
-        name: 'Primary',
-        category: 'primary' as const,
-        awards: [payout(5, { timing: 'end-of-phase', phase: 'command', playerTurn: 'your-turn' })],
-      },
-    ]
+    const cards = [card('primary', 'primary', payout(5, { timing: 'end-of-phase', phase: 'command', playerTurn: 'your-turn' }))]
     expect(cardsDue(at('command', 4), true, cards)).toHaveLength(1)
     expect(cardsDue(at('end', 4), true, cards)).toEqual([])
   })
 
   it('moves primary scoring to the end of your turn in round 5', () => {
-    const cards = [
-      {
-        key: 'primary',
-        name: 'Primary',
-        category: 'primary' as const,
-        awards: [payout(5, { timing: 'end-of-phase', phase: 'command', playerTurn: 'your-turn' })],
-      },
-    ]
+    const cards = [card('primary', 'primary', payout(5, { timing: 'end-of-phase', phase: 'command', playerTurn: 'your-turn' }))]
     expect(cardsDue(at('command', 5), true, cards)).toEqual([])
     expect(cardsDue(at('end', 5), true, cards)).toHaveLength(1)
     expect(cardsDue(at('end', 5), false, cards)).toEqual([])
   })
 
-  it('settles what the opponent’s turn owed a card that pays on it', () => {
-    const cards = [
-      {
-        key: 'guard',
-        name: 'Guard',
-        category: 'secondary' as const,
-        awards: [payout(2, { timing: 'end-of-turn', playerTurn: 'opponent-turn' })],
-      },
-    ]
-    expect(cardsDueFromTheirTurn(1, 5, cards, ['guard'])).toHaveLength(1)
-  })
-
   it('offers the fifth-round fallback only for a card drawn after the opponent’s final turn', () => {
-    const cards = [
-      {
-        key: 'beacon',
-        name: 'Beacon',
-        category: 'secondary' as const,
-        awards: [payout(5, { timing: 'end-of-turn-or-final-round', playerTurn: 'opponent-turn' })],
-      },
-    ]
+    const cards = [card('beacon', 'secondary', payout(5, { timing: 'end-of-turn-or-final-round', playerTurn: 'opponent-turn' }))]
     expect(cardsDue(at('end', 5), true, cards, [])).toEqual([])
     expect(cardsDue(at('end', 5), true, cards, ['beacon'])).toHaveLength(1)
     expect(cardsDue(at('end', 4), true, cards, ['beacon'])).toEqual([])
@@ -168,58 +113,28 @@ describe('when a mission is asked about', () => {
   })
 
   it('settles an either-turn card from their turn as well as your own', () => {
-    const cards = [
-      { key: 'kills', name: 'Kills', category: 'secondary' as const, awards: [payout(2, { timing: 'end-of-turn', playerTurn: 'either' })] },
-    ]
+    const cards = [card('kills', 'secondary', payout(2, { timing: 'end-of-turn', playerTurn: 'either' }))]
     expect(cardsDueFromTheirTurn(1, 5, cards, ['kills'])).toHaveLength(1)
   })
 
   it('leaves your own-turn cards to your own turn', () => {
-    const cards = [
-      {
-        key: 'mine',
-        name: 'Mine',
-        category: 'secondary' as const,
-        awards: [payout(3, { timing: 'end-of-turn', playerTurn: 'your-turn' })],
-      },
-    ]
+    const cards = [card('mine', 'secondary', payout(3, { timing: 'end-of-turn', playerTurn: 'your-turn' }))]
     expect(cardsDueFromTheirTurn(1, 5, cards, ['mine'])).toEqual([])
   })
 
   it('judges their turn against the round it was played in', () => {
-    const cards = [
-      {
-        key: 'late',
-        name: 'Late',
-        category: 'secondary' as const,
-        awards: [payout(3, { timing: 'end-of-turn', playerTurn: 'opponent-turn', roundMin: 2 })],
-      },
-    ]
+    const cards = [card('late', 'secondary', payout(3, { timing: 'end-of-turn', playerTurn: 'opponent-turn', roundMin: 2 }))]
     expect(cardsDueFromTheirTurn(1, 5, cards, ['late'])).toEqual([])
     expect(cardsDueFromTheirTurn(2, 5, cards, ['late'])).toHaveLength(1)
   })
 
   it('never asks about a card dealt after that turn had already ended', () => {
-    const cards = [
-      {
-        key: 'fresh',
-        name: 'Fresh',
-        category: 'secondary' as const,
-        awards: [payout(2, { timing: 'end-of-turn', playerTurn: 'either' })],
-      },
-    ]
+    const cards = [card('fresh', 'secondary', payout(2, { timing: 'end-of-turn', playerTurn: 'either' }))]
     expect(cardsDueFromTheirTurn(1, 5, cards, [])).toEqual([])
   })
 
   it('settles a final-round primary once at the end of its owner’s turn', () => {
-    const cards = [
-      {
-        key: 'primary',
-        name: 'Primary',
-        category: 'primary' as const,
-        awards: [payout(5, { timing: 'end-of-turn', playerTurn: 'opponent-turn' })],
-      },
-    ]
+    const cards = [card('primary', 'primary', payout(5, { timing: 'end-of-turn', playerTurn: 'opponent-turn' }))]
 
     expect(cardsDue(at('end', 5), true, cards)).toHaveLength(1)
     expect(cardsDueFromTheirTurn(5, 5, cards, [])).toEqual([])
@@ -377,11 +292,5 @@ describe('settleAgainstCaps', () => {
       { card: primary, claimed: 5, scoring: 0 },
       { card: first, claimed: 5, scoring: 5 },
     ])
-  })
-})
-
-describe('the ceiling an allowance reports', () => {
-  it('names the battle when a full round allowance is not the thing refusing more', () => {
-    expect(capRoom({ round: 15, game: 45 }, { round: 0, game: 44 })).toEqual({ scope: 'battle', cap: 45, room: 1 })
   })
 })

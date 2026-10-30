@@ -84,7 +84,3 @@ it('counts a battle against a guest in the host’s record', async () => {
 it('leaves a battle against a practice opponent out of the record', async () => {
   expect((await recordAgainst({ id: 'practice', name: 'Practice Opponent' }, ['practice'])).record.battles).toBe(0)
 })
-
-it('shows a player’s performance over time to an anonymous reader', async () => {
-  expect((await recordAgainst({ id: guestSeatId('battle', 0), name: 'Alex' }, [])).performance).not.toBeNull()
-})

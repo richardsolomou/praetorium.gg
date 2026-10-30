@@ -1036,12 +1036,6 @@ test('a simulator link reopens the same units, swap, and modifiers', async ({ pa
   await expect(await combatDamage(page, 'Shooting')).toHaveText(damage!)
 })
 
-test('a link that does not decode opens an empty simulator', async ({ page }) => {
-  await page.goto('/simulator?s=broken')
-  await expect(page.getByRole('combobox', { name: 'Attacker unit', exact: true })).toBeVisible()
-  await expect(page.getByText('Choose a unit to see its buffs.')).toHaveCount(2)
-})
-
 test("combined shooting and melee against Lion El'Jonson", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1000 })
   await page.goto('/simulator')

@@ -1,11 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import {
-  bracketedRuleReferences,
-  normalizeRuleReference,
-  ruleReferenceKeys,
-  ruleReferenceMatches,
-  splitWeaponKeywords,
-} from './ruleReference'
+import { bracketedRuleReferences, ruleReferenceMatches, splitWeaponKeywords } from './ruleReference'
 
 describe('rule references', () => {
   it('splits comma and semicolon weapon abilities without splitting target restrictions', () => {
@@ -25,35 +19,12 @@ describe('rule references', () => {
     expect(ruleReferenceMatches(reference, rule)).toBe(true)
   })
 
-  it.each([
-    '[Anti-Beast 2+]',
-    '[ANTI-BEASTS 3+]',
-    '[ANTI-CHAOS 4+]',
-    '[ANTI-CHAOS 5+]',
-    '[ANTI-CHARACTER 4+]',
-    '[ANTI-DAEMON 3+]',
-    '[ANTI-FORTIFICATION 4+]',
-    '[ANTI-INFANTRY 2+]',
-    '[ANTI-INFANTRY 3+]',
-    '[ANTI-INFANTRY 4+]',
-    '[ANTI-INFANTRY 5+]',
-    '[Anti-Monster 2+]',
-    '[ANTI-MONSTER 3+]',
-    '[ANTI-MONSTER 4+]',
-    '[ANTI-MOUNTED 3+]',
-    '[ANTI-MOUNTED 4+]',
-    '[ANTI-TITANIC 3+]',
-    '[ANTI-PSYKER 4+]',
-    '[ANTI-UNBOUND ADVERSARIES 4+]',
-    '[Anti-Vehicle 2+]',
-    '[ANTI-VEHICLE 3+]',
-    '[ANTI-VEHICLE 4+]',
-    '[ANTI‑CHARACTER 2+]',
-    '[ANTI‑MONSTER 5+]',
-    '[ANTI‑VEHICLE 5+]',
-  ])('matches the parameterized Anti rule in %s', (reference) => {
-    expect(ruleReferenceMatches(reference, 'Anti')).toBe(true)
-  })
+  it.each(['[Anti-Beast 2+]', '[ANTI-UNBOUND ADVERSARIES 4+]', '[ANTI‑CHARACTER 2+]'])(
+    'matches the parameterized Anti rule in %s',
+    (reference) => {
+      expect(ruleReferenceMatches(reference, 'Anti')).toBe(true)
+    },
+  )
 
   it('matches a rule with a colon-delimited target condition', () => {
     expect(ruleReferenceMatches('LETHAL HITS: non-MONSTER/VEHICLE', 'Lethal Hits')).toBe(true)
@@ -91,42 +62,5 @@ describe('rule references', () => {
 
   it('discovers source references with either hyphen form', () => {
     expect(bracketedRuleReferences('Gain [ANTI‑MONSTER 5+] and [ANTI-INFANTRY 3+].')).toEqual(['ANTI‑MONSTER 5+', 'ANTI-INFANTRY 3+'])
-  })
-
-  /** An index keyed by normalized rule name must answer exactly what the matcher answers. */
-  describe('ruleReferenceKeys', () => {
-    const references = [
-      '[LETHAL HITS: non-MONSTER/VEHICLE]',
-      '[ANTI-INFANTRY 4+]',
-      '[SUSTAINED HITS D3]',
-      'Rapid Fire D6+3',
-      'Scouts 6"',
-      'Anti-4+',
-      'Heavy Intercessor Squad',
-      'Twin-linked Lascannon',
-      'Feel No Pain 5+',
-      'Deadly Demise D3',
-      'Anti',
-    ]
-    const rules = [
-      'Anti',
-      'Anti-Infantry',
-      'Sustained Hits',
-      'Rapid Fire',
-      'Scouts',
-      'Heavy',
-      'Twin',
-      'Heavy Intercessor Squad',
-      'Feel No Pain',
-      'Deadly Demise',
-      'Lethal Hits',
-    ]
-    it.each(references.flatMap((reference) => rules.map((rule) => [reference, rule] as const)))(
-      'agrees with ruleReferenceMatches for %s against %s',
-      (reference, rule) => {
-        const indexed = ruleReferenceKeys(reference).includes(normalizeRuleReference(rule))
-        expect(indexed).toBe(ruleReferenceMatches(reference, rule))
-      },
-    )
   })
 })

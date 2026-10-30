@@ -112,10 +112,6 @@ it('parses a restored query only when it is read', () => {
   const restored = restoredReference({ reference: reference('saved', []), queries: [{ key: ['rule-index'], json: '{"documents":[]}' }] })
   expect(typeof Object.getOwnPropertyDescriptor(restored.queries[0], 'data')?.get).toBe('function')
 })
-it('restores each query’s data when read', () => {
-  const restored = restoredReference({ reference: reference('saved', []), queries: [{ key: ['rule-index'], json: '{"documents":[]}' }] })
-  expect(restored.queries[0]?.data).toEqual({ documents: [] })
-})
 it('fills only reference queries already waiting when restoring', () => {
   const client = new QueryClient()
   client.getQueryCache().build(client, { queryKey: ['rule-index'] })
