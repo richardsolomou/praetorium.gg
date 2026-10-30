@@ -84,22 +84,18 @@ const BACKGROUND = '#0f1113'
 /** The web header's and tab bar's `--color-sunken`, so the safe areas continue them. */
 const BARS = '#090d0f'
 const PENDING_AUTH_KEY = 'praetorium.native-auth.pending'
-let pendingAuthTestValue: string | null = null
-const pendingAuthStorage = process.env.EXPO_PUBLIC_NATIVE_AUTH_TEST_APP_URL
-  ? {
-      getItemAsync: async () => pendingAuthTestValue,
-      setItemAsync: async (_key: string, value: string) => {
-        pendingAuthTestValue = value
-      },
-      deleteItemAsync: async () => {
-        pendingAuthTestValue = null
-      },
-    }
-  : {
-      getItemAsync: getSecureValue,
-      setItemAsync: setSecureValue,
-      deleteItemAsync: deleteSecureValue,
-    }
+
+/** Claims the callback token and stores the completed pending sign-in, releasing the claim if the write fails. */
+async function rememberAuthCallback(handledTokens: Set<string>, token: string, pending: PendingNativeAuth, url: string) {
+  handledTokens.add(token)
+  try {
+    await setSecureValue(PENDING_AUTH_KEY, JSON.stringify(completedPendingNativeAuth(pending, url)))
+  } catch (error) {
+    handledTokens.delete(token)
+    throw error
+  }
+}
+
 const ACTIVE_BATTLE_KEEP_AWAKE_TAG = 'praetorium-active-battle'
 const alertProviderRetry = () => Alert.alert('Sign-in did not finish', 'Return to Praetorium and try the provider again.')
 const POSTHOG_OPTIONS = {
@@ -259,21 +255,15 @@ function AppShell() {
 
   const handleAuthCallback = useCallback(
     async (url: string, knownPending?: PendingNativeAuth) => {
-      const pending = knownPending ?? parsePendingNativeAuth(await pendingAuthStorage.getItemAsync(PENDING_AUTH_KEY))
+      const pending = knownPending ?? parsePendingNativeAuth(await getSecureValue(PENDING_AUTH_KEY))
       const callback = parseNativeAuthCallback(url, pending ?? undefined)
       if (callback.kind === 'success') {
         if (handledAuthTokens.current.has(callback.token)) return
         setOfflineView(null)
-        handledAuthTokens.current.add(callback.token)
-        try {
-          await pendingAuthStorage.setItemAsync(PENDING_AUTH_KEY, JSON.stringify(completedPendingNativeAuth(pending!, url)))
-        } catch (error) {
-          handledAuthTokens.current.delete(callback.token)
-          throw error
-        }
+        await rememberAuthCallback(handledAuthTokens.current, callback.token, pending!, url)
         commitAndDrain(authReceived(shellRef.current, callback))
       } else {
-        await pendingAuthStorage.deleteItemAsync(PENDING_AUTH_KEY)
+        await deleteSecureValue(PENDING_AUTH_KEY)
         commitShell(warmUrlReceived(shellRef.current, url))
         alertProviderRetry()
       }
@@ -288,18 +278,18 @@ function AppShell() {
       authOpen.current = true
       const pending = pendingNativeAuth(request)
       try {
-        await pendingAuthStorage.setItemAsync(PENDING_AUTH_KEY, JSON.stringify(pending))
+        await setSecureValue(PENDING_AUTH_KEY, JSON.stringify(pending))
         const result = await WebBrowser.openAuthSessionAsync(nativeAuthStartUrl(request), NATIVE_AUTH_CALLBACK_URL)
         if ('url' in result) await handleAuthCallback(result.url, pending)
         else {
-          await pendingAuthStorage.deleteItemAsync(PENDING_AUTH_KEY)
+          await deleteSecureValue(PENDING_AUTH_KEY)
           if (result.type !== WebBrowser.WebBrowserResultType.CANCEL && result.type !== WebBrowser.WebBrowserResultType.DISMISS) {
             alertProviderRetry()
           }
         }
       } catch (error) {
         captureNativeException('native_auth', error)
-        await pendingAuthStorage.deleteItemAsync(PENDING_AUTH_KEY)
+        await deleteSecureValue(PENDING_AUTH_KEY)
         Alert.alert('Could not open sign-in', 'The secure system sign-in session could not be opened.')
       } finally {
         authOpen.current = false
@@ -520,7 +510,7 @@ function AppShell() {
       const url = notificationUrl(response.notification.request.content.data)
       if (url) navigateApplication(url)
     })
-    const storedPromise = pendingAuthStorage.getItemAsync(PENDING_AUTH_KEY).then(
+    const storedPromise = getSecureValue(PENDING_AUTH_KEY).then(
       (value) => ({ value, error: null }),
       (error: unknown) => ({ value: null, error }),
     )
@@ -539,17 +529,11 @@ function AppShell() {
             if (initialUrl?.startsWith(NATIVE_AUTH_CALLBACK_URL)) {
               const callback = parseNativeAuthCallback(initialUrl, pending ?? undefined)
               if (callback.kind === 'success' && pending && !handledAuthTokens.current.has(callback.token)) {
-                handledAuthTokens.current.add(callback.token)
-                try {
-                  await pendingAuthStorage.setItemAsync(PENDING_AUTH_KEY, JSON.stringify(completedPendingNativeAuth(pending, initialUrl)))
-                } catch (error) {
-                  handledAuthTokens.current.delete(callback.token)
-                  throw error
-                }
+                await rememberAuthCallback(handledAuthTokens.current, callback.token, pending, initialUrl)
                 if (!active) return
                 commitAndDrain(initialAuthReceived(shellRef.current, callback))
               } else {
-                void pendingAuthStorage.deleteItemAsync(PENDING_AUTH_KEY)
+                void deleteSecureValue(PENDING_AUTH_KEY)
                 commitShell(initialUrlReceived(shellRef.current, null))
                 alertProviderRetry()
               }
@@ -749,7 +733,7 @@ function AppShell() {
                 const delivering = shellRef.current.delivering
                 if (delivering?.kind !== 'auth' || delivering.callback.id !== result.id) return
                 commitShell(authDeliverySucceeded(shellRef.current, result.id))
-                void pendingAuthStorage.deleteItemAsync(PENDING_AUTH_KEY).then(
+                void deleteSecureValue(PENDING_AUTH_KEY).then(
                   () => webView.current?.injectJavaScript(nativeAuthConsumeScript(delivering.callback)),
                   (error) => captureNativeException('native_auth_cleanup', error),
                 )
@@ -767,7 +751,7 @@ function AppShell() {
                 const failed = authDeliveryFailed(shellRef.current, result.id)
                 if (failed === shellRef.current) return
                 commitAndDrain(failed)
-                void pendingAuthStorage.deleteItemAsync(PENDING_AUTH_KEY)
+                void deleteSecureValue(PENDING_AUTH_KEY)
                 Alert.alert('Sign-in did not finish', 'The secure sign-in code expired. Try again.')
               }
               return
