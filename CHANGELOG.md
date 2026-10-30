@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.203.9 (2026-10-30)
+
+### Patch Changes
+
+- 1b9cef6: Opening a club with sealed games no longer freezes the page for a moment on a device with downloaded rules.
+
 ## 0.203.8 (2026-10-30)
 
 ### Patch Changes
