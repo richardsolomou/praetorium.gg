@@ -1,5 +1,13 @@
 # praetorium
 
+## 0.201.2 (2026-10-30)
+
+### Patch Changes
+
+- 580cdcb: The combat simulation achievement is now called Augury.
+- 580cdcb: Sealed club games count towards Club Night, Club Stalwart, Pillar of the Club and Founder.
+- 580cdcb: Recruiter, Herald and Muster count each guest once, only when they created an account to keep the battle, and never for imported battles.
+
 ## 0.201.1 (2026-10-29)
 
 ### Patch Changes
