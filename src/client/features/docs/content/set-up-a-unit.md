@@ -2,7 +2,7 @@ Select a unit card to open its loadout. Along the top are:
 
 - **Points** for the unit as built.
 - **Model count**: use the minus and plus buttons, or pick a count from the number between them. Only sizes the datasheet allows are listed.
-- **Warlord**: the first eligible unit you add becomes your Warlord automatically. Press **Warlord** on another character to move it; if you remove it on purpose, it stays removed. A unit whose datasheet says it must be your Warlord, such as Trajann Valoris, takes it as soon as you add it and keeps it. Your Warlord has a crown beside its name in the roster list.
+- **Warlord**: the first eligible unit you add becomes your Warlord automatically. Press **Warlord** on another character to move it; if you remove it on purpose, it stays removed. A unit whose datasheet says it must be your Warlord, such as Trajann Valoris, takes it as soon as you add it and keeps it. Your Warlord has a crown beside its name and comes first on its shelf in the roster list.
 - **Simulate combat**, which opens the [simulator](/docs/set-up-a-matchup) with this unit and never changes the list.
 
 ![An Intercessor Squad loadout with its points, model count and buttons along the top.](screenshot:build-an-army-loadout 'The loadout header: points, model count, Simulate combat and the full datasheet link')

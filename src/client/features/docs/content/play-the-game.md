@@ -24,7 +24,7 @@ Press a stratagem's cost button (for example **2 CP**) to use one. The **⋮** b
 
 ## Casualties
 
-Open **Army** under a player's name to see their units. Remove models and wounds as they go, or mark a unit **Destroyed**. Units in reserves or transports show **Arrive** or **Disembark**. **Simulate** opens the [combat simulator](/simulator) with the units still standing.
+Open **Army** under a player's name to see their units, shelved as in the roster: attached units together and each list's Warlord first on its shelf. Remove models and wounds as they go, or mark a unit **Destroyed**. Units in reserves or transports show **Arrive** or **Disembark**. **Simulate** opens the [combat simulator](/simulator) with the units still standing.
 
 ## Notes, timer and reminders
 
