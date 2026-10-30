@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.203.7 (2026-10-30)
+
+### Patch Changes
+
+- fd2df21: A battle's army list now groups attached units together, as the roster does.
+- fd2df21: The Warlord now comes first on its shelf in the roster and in a battle's army list.
+
 ## 0.203.6 (2026-10-30)
 
 ### Patch Changes
