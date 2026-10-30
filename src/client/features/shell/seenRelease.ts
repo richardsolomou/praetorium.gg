@@ -1,24 +1,18 @@
+import { z } from 'zod'
 import { version } from '../../../../package.json'
 import type { ReleaseNote } from '../../../core/releaseNotes'
 import { newerRelease } from '../../releaseUpdate'
-import { readStoredValue, useStoredValue, writeStoredValue } from '../../storedValue'
+import { parseStored, readStoredValue, useStoredValue, writeStoredValue } from '../../storedValue'
 
 const SEEN_KEY = 'praetorium-seen-release'
 
 /** The What's new notice waits this long after the player last looked, since releases ship several times a day. */
 export const NOTICE_INTERVAL = 7 * 86_400_000
 
-type SeenRelease = { version: string; at: number }
+const seenReleaseSchema = z.object({ version: z.string(), at: z.number() })
 
 /** The release this browser last acknowledged and when, or null when storage is unavailable, empty or unreadable. */
-export function seenRelease(stored = readStoredValue(SEEN_KEY)): SeenRelease | null {
-  try {
-    const seen = JSON.parse(stored ?? '') as Partial<SeenRelease>
-    return typeof seen.version === 'string' && typeof seen.at === 'number' ? { version: seen.version, at: seen.at } : null
-  } catch {
-    return null
-  }
-}
+export const seenRelease = (stored = readStoredValue(SEEN_KEY)) => parseStored(seenReleaseSchema, stored)
 
 export function markReleaseSeen(seen = version, at = Date.now()) {
   writeStoredValue(SEEN_KEY, JSON.stringify({ version: seen, at }))

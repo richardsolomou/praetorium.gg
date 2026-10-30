@@ -11,7 +11,8 @@ import {
 } from './visitorReminders'
 
 const stored = vi.hoisted(() => new Map<string, string | null>())
-vi.mock('../../storedValue', () => ({
+vi.mock('../../storedValue', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../storedValue')>()),
   readStoredValue: (key: string) => stored.get(key) ?? null,
   writeStoredValue: (key: string, value: string | null) => void stored.set(key, value),
 }))

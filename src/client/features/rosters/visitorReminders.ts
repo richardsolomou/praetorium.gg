@@ -6,19 +6,12 @@ import {
   type RosterReminder,
 } from '../../../core/reminders'
 import { abilityReminders, setAbilityReminder } from '../../functions'
-import { readStoredValue, writeStoredValue } from '../../storedValue'
+import { parseStored, readStoredValue, writeStoredValue } from '../../storedValue'
 
 /** A visitor's ability alerts, kept in this browser as an account keeps a player's. */
 export const VISITOR_REMINDERS_KEY = 'praetorium.ability-reminders'
 
-export function parseVisitorReminders(stored: string | null): AbilityReminder[] | null {
-  try {
-    const parsed = abilityReminderSchema.array().safeParse(JSON.parse(stored ?? 'null'))
-    return parsed.success ? parsed.data : null
-  } catch {
-    return null
-  }
-}
+export const parseVisitorReminders = (stored: string | null): AbilityReminder[] | null => parseStored(abilityReminderSchema.array(), stored)
 
 /** An empty list is stored too, so a visitor who removed every alert never adopts their draft's old ones again. */
 export const writeVisitorReminders = (reminders: readonly AbilityReminder[]) =>

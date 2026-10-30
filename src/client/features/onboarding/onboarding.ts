@@ -1,4 +1,5 @@
-import { readSessionValue } from '../../storedValue'
+import { z } from 'zod'
+import { parseStored, readSessionValue } from '../../storedValue'
 import { gettingStartedTaskIds, onboardingTaskIds, type OnboardingProgressOperation, type OnboardingTaskId } from '../../../core/onboarding'
 import type { OnboardingTarget } from '../../onboardingTargets'
 
@@ -21,16 +22,8 @@ export function onboardingFocusStorageKey(userId: string) {
   return `praetorium:focused-onboarding-step:${userId}`
 }
 
-export function storedOnboardingFocus(userId: string): OnboardingFocus | undefined {
-  try {
-    const stored = JSON.parse(readSessionValue(onboardingFocusStorageKey(userId)) ?? 'null') as Partial<OnboardingFocus> | null
-    const task = onboardingTaskIds.find((candidate) => candidate === stored?.task)
-    const step = onboardingStepIds.find((candidate) => candidate === stored?.step)
-    return task && step && ONBOARDING_UI[step].task === task ? { task, step } : undefined
-  } catch {
-    return undefined
-  }
-}
+export const storedOnboardingFocus = (userId: string): OnboardingFocus | undefined =>
+  parseStored(onboardingFocusSchema, readSessionValue(onboardingFocusStorageKey(userId))) ?? undefined
 
 type OnboardingPage = 'home' | 'rosters' | 'roster' | 'friends' | 'battles' | 'battle' | 'simulator' | 'leagues' | 'league'
 
@@ -687,6 +680,10 @@ export const ONBOARDING_UI: Record<OnboardingStepId, OnboardingStep> = {
     final: true,
   },
 }
+
+const onboardingFocusSchema = z
+  .object({ task: z.enum(onboardingTaskIds), step: z.enum(onboardingStepIds) })
+  .refine(({ task, step }) => ONBOARDING_UI[step].task === task)
 
 export function openOnboarding(task?: OnboardingTaskId, step?: OnboardingStepId) {
   window.dispatchEvent(
