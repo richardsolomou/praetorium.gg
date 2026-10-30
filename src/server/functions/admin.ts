@@ -30,7 +30,7 @@ export const adminUsers = createServerFn({ method: 'GET' })
   .handler(({ data }) =>
     rpc(async () => {
       await requireAdmin()
-      return app().service.adminUsers(data)
+      return app().repository.adminUsers(data)
     }),
   )
 

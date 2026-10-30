@@ -15,7 +15,7 @@ export const battlebaseImportCode = createServerFn({ method: 'GET' })
 /** The BattleBase account this player proved is theirs, if any. */
 export const battlebaseAccount = createServerFn({ method: 'GET' }).handler(() =>
   rpc(async () => {
-    const accounts = await app().service.externalAccounts(await requireUserId())
+    const accounts = await app().repository.externalAccountsByUser(await requireUserId())
     const linked = accounts.find((account) => account.source === 'battlebase')
     return linked ? { username: linked.name } : null
   }),
@@ -32,14 +32,14 @@ export const importBattlebaseBattles = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const userId = await requireUserId()
       const instance = app()
-      const linked = (await instance.service.externalAccounts(userId)).find((account) => account.source === 'battlebase')
+      const linked = (await instance.repository.externalAccountsByUser(userId)).find((account) => account.source === 'battlebase')
       const proving = data.username && data.username.toLowerCase() !== linked?.name.toLowerCase()
       const player = await battlebasePlayer(proving || !linked ? { username: data.username ?? '' } : { id: linked.playerId })
       if (!player) return { outcome: 'not-found' as const }
       let joined = 0
       if (proving || !linked) {
         if (!player.tagline?.includes(battlebaseCode(userId, player.username))) return { outcome: 'unverified' as const }
-        joined = await instance.service.linkExternalAccount({ source: 'battlebase', playerId: player.id, userId, name: player.username })
+        joined = await instance.repository.linkExternalAccount({ source: 'battlebase', playerId: player.id, userId, name: player.username })
       }
       const [loaded, rules] = [instance.catalogue(), await instance.rulesFor()]
       if (!loaded || !rules) throw new Response('Army data is unavailable. Try again later.', { status: 503 })

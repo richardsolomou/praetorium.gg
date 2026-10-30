@@ -133,10 +133,10 @@ it('announces a medal earned in a battle', async () => {
 })
 
 it('announces a medal once', async () => {
-  const { service, conceded } = product()
+  const { service, operator, conceded } = product()
   await service.syncAchievementDefinitions()
   await conceded('one', ALICE, BOB, NOW)
-  await service.markAchievementsSeen(
+  await operator.markAchievementsSeen(
     ALICE,
     (await service.newAchievements(ALICE)).map((achievement) => achievement.id),
   )

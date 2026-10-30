@@ -11,8 +11,8 @@ it.each(['preview', 'released', 'retired'] as const)('submits a queued %s league
   const submit = vi.fn().mockResolvedValue({ format: '1v1', requiredLimit: 1000 })
   vi.mocked(app).mockReturnValue({
     telemetry: { capture: vi.fn() },
+    repository: { abilityRemindersByUser: async () => [] },
     service: {
-      abilityReminders: async () => [],
       rosterService: { usableRoster: async () => ({ roster: saved, lentBy: null }) },
       leagueService: { submitLeagueRoster: submit },
     },
@@ -40,8 +40,8 @@ it('seals a roster a device captured before its alerts moved to the account', as
   const prep = { stratagems: [], secondaries: [], remindersEnabled: true }
   vi.mocked(app).mockReturnValue({
     telemetry: { capture: vi.fn() },
+    repository: { abilityRemindersByUser: async () => [] },
     service: {
-      abilityReminders: async () => [],
       rosterService: { usableRoster: async () => ({ roster: { ...saved, prep }, lentBy: null }) },
       leagueService: { submitLeagueRoster: submit },
     },

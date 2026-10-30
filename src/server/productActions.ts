@@ -4,6 +4,8 @@ import { offlineActionSchemas as schemas, type OfflineActionKind } from '../cont
 import { app } from './app'
 import { rosterForUse, withCurrentAlerts } from './rosterUsage'
 import { captureMutation, captureBattleCreated, captureLeagueCreated, captureLeagueBattleCreated } from './mutationTelemetry'
+import { requireUserId } from './playerSession'
+import { mutationRpc } from './rpc'
 
 const ONBOARDING_TASK_EVENTS = {
   complete: 'onboarding_task_completed',
@@ -13,6 +15,11 @@ const ONBOARDING_TASK_EVENTS = {
 
 function action<S extends z.ZodType, R>(schema: S, work: (owner: string, data: z.output<S>) => Promise<R>) {
   return (owner: string, input: unknown) => work(owner, schema.parse(input))
+}
+
+/** Runs a product action from a server function as the signed-in player. */
+export function signedInAction<R>(run: (owner: string, input: unknown) => Promise<R>, input: unknown) {
+  return mutationRpc(async () => run(await requireUserId(), input))
 }
 
 /** A roster as a seal compares it: alerts belong to the player, so a device's older copy of them never conflicts. */
@@ -70,7 +77,7 @@ export const productActions = {
     return null
   }),
   removeAbilityReminder: action(schemas.removeAbilityReminder, async (owner, data) => {
-    await app().service.removeAbilityReminder(owner, data.key)
+    await app().repository.deleteAbilityReminder(owner, data.key)
     await captureMutation(owner, 'ability_reminder_removed')
     return null
   }),
@@ -89,7 +96,7 @@ export const productActions = {
     return enabled
   }),
   updateOnboardingProgress: action(schemas.updateOnboardingProgress, async (owner, data) => {
-    const progress = await app().service.updateOnboardingProgress(owner, data)
+    const progress = await app().repository.updateOnboardingProgress(owner, data)
     if (data.operation === 'welcome') await captureMutation(owner, 'onboarding_welcomed')
     else await captureMutation(owner, ONBOARDING_TASK_EVENTS[data.operation], { task: data.task })
     return progress

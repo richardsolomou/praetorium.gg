@@ -18,7 +18,7 @@ const mocks = vi.hoisted(() => ({
   syncReceipt: vi.fn(),
   createAction: vi.fn(),
   capture: vi.fn(),
-  abilityReminders: vi.fn(),
+  abilityRemindersByUser: vi.fn(),
 }))
 vi.mock('@tanstack/react-start', () => {
   const builder = () => ({ validator: () => builder(), handler: (handler: unknown) => handler })
@@ -107,6 +107,7 @@ vi.mock('../app', () => ({
   app: () => ({
     telemetry: { capture: mocks.capture },
     service: { ...mocks, leagueService: { ownRoster: mocks.ownRoster } },
+    repository: mocks,
     catalogueFor: mocks.catalogueFor,
     catalogue: mocks.catalogue,
     rulesFor: mocks.rulesFor,
@@ -345,7 +346,7 @@ it('fields the syncing player’s alert on the captured roster’s unit holding 
     description: '',
     timings: [{ moment: 'turn-start', phase: null, turn: 'your-turn' }],
   }
-  mocks.abilityReminders.mockImplementation(async (userId: string) => (userId === 'actor' ? [alert] : []))
+  mocks.abilityRemindersByUser.mockImplementation(async (userId: string) => (userId === 'actor' ? [alert] : []))
   const data = input()
   data.catalogueRevision = catalogue.index.revision
   data.command.roster.built!.revision = catalogue.index.revision

@@ -23,7 +23,7 @@ export function registerPushDeviceRequest(request: Request, device: z.infer<type
 
 export function unregisterPushDeviceRequest(request: Request, token: string) {
   return mutationRpc(async () => {
-    await app().service.unregisterPushDevice(await requireUserId(request), token)
+    await app().repository.unregisterPushToken(await requireUserId(request), token)
     return null
   }, request)
 }

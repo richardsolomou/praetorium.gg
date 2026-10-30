@@ -398,7 +398,7 @@ async function readBack(repository: SpacetimeRepository, product: SpacetimeOpera
     await repository.collectionProfile(userId, userId)
     await repository.achievementFacts(userId)
     await service.playerRankings(userId)
-    await service.markAchievementsSeen(
+    await repository.markAchievementsSeen(
       userId,
       (await service.newAchievements(userId)).map((achievement) => achievement.id),
     )

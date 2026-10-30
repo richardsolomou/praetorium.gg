@@ -1,4 +1,4 @@
-import { productActions } from '../productActions'
+import { productActions, signedInAction } from '../productActions'
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
 import { app } from '../app'
@@ -110,7 +110,7 @@ export const newAchievements = createServerFn({ method: 'GET' }).handler(() =>
 /** The signed-in player has been told of these medals, on whichever device. */
 export const markAchievementsSeen = createServerFn({ method: 'POST' })
   .validator(z.object({ achievementIds: z.array(z.string().max(64)).max(100) }))
-  .handler(({ data }) => mutationRpc(async () => app().service.markAchievementsSeen(await requireUserId(), data.achievementIds)))
+  .handler(({ data }) => mutationRpc(async () => app().repository.markAchievementsSeen(await requireUserId(), data.achievementIds)))
 
 /** How far a finished battle moved each player's leaderboard rating, or null when it does not count. */
 export const battleRatingChanges = createServerFn({ method: 'GET' })
@@ -149,21 +149,11 @@ export const leagueBattleOptions = createServerFn({ method: 'GET' })
 
 export const createBattle = createServerFn({ method: 'POST' })
   .validator(createBattleSchema)
-  .handler(({ data }) =>
-    mutationRpc(async () => {
-      const userId = await requireUserId()
-      return productActions.createBattle(userId, data)
-    }),
-  )
+  .handler(({ data }) => signedInAction(productActions.createBattle, data))
 
 export const deleteBattle = createServerFn({ method: 'POST' })
   .validator(deleteBattleSchema)
-  .handler(({ data }) =>
-    mutationRpc(async () => {
-      const userId = await requireUserId()
-      return productActions.deleteBattle(userId, data)
-    }),
-  )
+  .handler(({ data }) => signedInAction(productActions.deleteBattle, data))
 
 export const submit = createServerFn({ method: 'POST' })
   .validator(submitSchema.extend({ workspace: z.boolean().optional() }))

@@ -39,7 +39,6 @@ import { battleReport, type ReportEntry } from '../core/battleReport'
 import { battleClock, type BattleClock } from '../core/battleClock'
 import { battleLogThroughSeq, battleTimeline, type ReplayPoint } from '../core/battleReplay'
 import { compactReplayFrames } from '../core/replayFrames'
-import type { OnboardingProgressOperation } from '../core/onboarding'
 import {
   filterBattles,
   personalPerformance,
@@ -78,7 +77,7 @@ import { ClubService } from './services/clubService'
 import { RosterService } from './services/rosterService'
 import { SocialService } from './services/socialService'
 import { StandingsRefresh, storedBattle } from './standingsRefresh'
-import type { BattleHistory, BattleSeats, RepositoryPort, SpacetimeRepository } from './spacetimeRepository'
+import type { BattleHistory, BattleSeats, RepositoryPort } from './spacetimeRepository'
 
 /**
  * `mission` is the viewer's, for the screens that are about them. `missions` is every
@@ -204,35 +203,11 @@ export class PraetoriumService {
     this.standingsRefresh = new StandingsRefresh(repository, battleFactions)
   }
 
-  onboardingProgress(userId: string) {
-    return this.repository.onboardingProgress(userId)
-  }
-
-  updateOnboardingProgress(userId: string, operation: OnboardingProgressOperation) {
-    return this.repository.updateOnboardingProgress(userId, operation)
-  }
-
-  collectionProfile(userId: string, viewerId: string | null) {
-    return this.repository.collectionProfile(userId, viewerId)
-  }
-
   private standingsHeld: { key: string; until: number; answer: Promise<StandingsAnswer> } | null = null
   private readonly publicFeedHeld = new Map<string, { until: number; page: Promise<unknown> }>()
 
-  adminUsers(input: Parameters<SpacetimeRepository['adminUsers']>[0]) {
-    return this.repository.adminUsers(input)
-  }
-
   userById(id: string) {
     return this.repository.userById(id)
-  }
-
-  adminEmails() {
-    return this.repository.adminEmails()
-  }
-
-  unlinkAccount(userId: string, providerId: string, availableProviders: readonly string[]) {
-    return this.repository.unlinkAccount(userId, providerId, availableProviders)
   }
 
   /**
@@ -419,10 +394,6 @@ export class PraetoriumService {
     return (await this.checkedAchievements(userId)).flatMap((row) => (row.seen ? [] : [{ id: row.achievementId, earnedAt: row.earnedAt }]))
   }
 
-  markAchievementsSeen(userId: string, achievementIds: readonly string[]) {
-    return this.repository.markAchievementsSeen(userId, achievementIds)
-  }
-
   /**
    * Has every player checked again, quietly, once the medals on offer differ from the ones they were checked against.
    * Once per process, and before any check: a check ahead of it would announce every medal a player already held.
@@ -554,17 +525,8 @@ export class PraetoriumService {
     return [...uses].map(([entryId, battles]) => ({ entryId, battles })).toSorted((a, b) => b.battles - a.battles)
   }
 
-  pushEnabled(userId: string) {
-    return this.repository.pushEnabled(userId)
-  }
-
   setPushEnabled(userId: string, enabled: boolean) {
     return this.repository.setPushEnabled(userId, enabled, this.clock())
-  }
-
-  /** What this player's new rosters and battles start with. */
-  playerDefaults(userId: string) {
-    return this.repository.playerDefaults(userId)
   }
 
   setPlayerDefaults(userId: string, defaults: PlayerDefaults) {
@@ -587,26 +549,13 @@ export class PraetoriumService {
     if (pairing) await this.repository.forgetMatchup(userId, pairing)
   }
 
-  /** The alerts this player set for abilities, which every roster they field applies to its units. */
-  abilityReminders(userId: string) {
-    return this.repository.abilityRemindersByUser(userId)
-  }
-
   async setAbilityReminder(userId: string, reminder: AbilityReminder) {
     if ((await this.repository.saveAbilityReminder(userId, reminder, this.clock())) === 'full')
       throw new Response(ABILITY_REMINDERS_FULL, { status: 409 })
   }
 
-  async removeAbilityReminder(userId: string, key: string) {
-    await this.repository.deleteAbilityReminder(userId, key)
-  }
-
   registerPushDevice(userId: string, device: { token: string; platform: PushPlatform }) {
     return this.repository.registerPushToken({ userId, ...device, now: this.clock() })
-  }
-
-  unregisterPushDevice(userId: string, token: string) {
-    return this.repository.unregisterPushToken(userId, token)
   }
 
   /** Every battle with a seated player is open to watch; a table nobody sits at is not. */
@@ -911,10 +860,6 @@ export class PraetoriumService {
     return profile ? { ...profile, supporter: sponsorship === 'public', admin } : null
   }
 
-  githubSponsorship(userId: string) {
-    return this.repository.githubSponsorship(userId)
-  }
-
   async createBattle(userId: string, input?: string | CreateBattleInput) {
     const settings =
       typeof input === 'object' ? { ...input, limit: input.limit ?? null } : { limit: null, missionPackId: null, manual: false }
@@ -1021,15 +966,6 @@ export class PraetoriumService {
       },
     })
     return 'imported'
-  }
-
-  externalAccounts(userId: string) {
-    return this.repository.externalAccountsByUser(userId)
-  }
-
-  /** How many battles already copied from the account the player now sits in. */
-  linkExternalAccount(...args: Parameters<RepositoryPort['linkExternalAccount']>) {
-    return this.repository.linkExternalAccount(...args)
   }
 
   async leagueBattleOptions(userId: string, input?: string | NewBattlePlayers) {
@@ -1174,14 +1110,6 @@ export class PraetoriumService {
       serverSeq: history.log.at(-1)?.seq ?? 0,
       serverNow: this.clock(),
     }
-  }
-
-  syncReceipt(...args: Parameters<RepositoryPort['syncReceipt']>) {
-    return this.repository.syncReceipt(...args)
-  }
-
-  syncRoster(...args: Parameters<RepositoryPort['syncRoster']>) {
-    return this.repository.syncRoster(...args)
   }
 
   async hasBattleOperation(token: string, userId: string, operationId: string) {

@@ -25,7 +25,7 @@ vi.mock('../rpc', () => ({
   },
 }))
 vi.mock('../app', () => ({
-  app: () => ({ email: mocks.email ? { send: mocks.send } : undefined, service: { adminEmails: mocks.adminEmails } }),
+  app: () => ({ email: mocks.email ? { send: mocks.send } : undefined, repository: { adminEmails: mocks.adminEmails } }),
 }))
 vi.mock('../playerSession', () => ({
   currentUser: async () => null,
