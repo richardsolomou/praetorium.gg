@@ -1,5 +1,16 @@
 # praetorium
 
+## 0.205.0 (2026-10-30)
+
+### Minor Changes
+
+- 535265e: Select several rosters in your library to archive, lock, change the access of, or delete them together.
+- 136dc2e: The combat simulator in tournaments and club games now opens on shooting and melee together, highlighting the best attacker for each of your opponent's units.
+
+### Patch Changes
+
+- 2a33590: The combat simulator's friends' sealed rosters now list only games and tournaments that are still on, not finished ones.
+
 ## 0.204.1 (2026-10-30)
 
 ### Patch Changes
