@@ -63,7 +63,8 @@ export const playerRostersKey = (userId: string) => ['player-rosters', userId]
 export const playerRankingsKey = (userId: string) => ['player-rankings', userId]
 export const playerAchievementsKey = (userId: string) => ['player-achievements', userId]
 export const newAchievementsKey = () => ['achievement-news']
-export const playerProfileKey = (userId: string, filter: PlayerProfileFilter) => ['player-profile', userId, filter]
+/** Without a player, every player's profile. */
+export const playerProfileKey = (...player: [userId: string, filter: PlayerProfileFilter] | []) => ['player-profile', ...player]
 /** Without a query, every search. */
 export const playerSearchKey = (query?: string) => (query === undefined ? ['player-search'] : ['player-search', query])
 export const standingsKey = () => ['standings']

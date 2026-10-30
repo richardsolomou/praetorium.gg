@@ -4,7 +4,7 @@ import { battleOutcome, sideScore, type StandingBattle } from './standings'
 export const LEAGUE_RESULTS_BATTLE_LIMIT = 500
 
 /** One entrant's line in an event's results: finished battles only, with the victory points their side finished on. */
-export type LeagueResult = { userId: string; played: number; won: number; drawn: number; lost: number; points: number }
+type LeagueResult = { userId: string; played: number; won: number; drawn: number; lost: number; points: number }
 
 /**
  * An event's results table and who has met whom, from the battles started in it.

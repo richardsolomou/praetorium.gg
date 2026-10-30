@@ -2,6 +2,8 @@ import { z } from 'zod'
 import type { CatalogueFile } from './catalogue'
 import type { RosterPick } from './roster'
 
+const EDITION_STATUSES = ['preview', 'released', 'retired'] as const
+
 export const catalogueEditionSummarySchema = z.object({
   id: z.string().regex(/^[a-z0-9][a-z0-9-]{0,19}$/),
   slug: z
@@ -12,7 +14,7 @@ export const catalogueEditionSummarySchema = z.object({
     .optional(),
   name: z.string().trim().min(1).max(80),
   description: z.string().trim().min(1).max(240).optional(),
-  status: z.enum(['preview', 'released', 'retired']),
+  status: z.enum(EDITION_STATUSES),
 })
 
 export const catalogueEditionSchema = catalogueEditionSummarySchema
@@ -29,7 +31,7 @@ export const catalogueEditionSchema = catalogueEditionSummarySchema
       .min(1)
       .max(64),
     releases: z
-      .array(z.object({ at: z.number().int().nonnegative(), status: z.enum(['preview', 'released', 'retired']) }))
+      .array(z.object({ at: z.number().int().nonnegative(), status: z.enum(EDITION_STATUSES) }))
       .min(1)
       .max(100),
   })

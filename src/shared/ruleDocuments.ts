@@ -1,4 +1,5 @@
 import { routeSlug } from '../core/slug'
+import { capitalised } from '../core/text'
 import type { RuleBlock, RuleDocument, RuleEntry, RuleFact, RuleSection, RuleTextSource } from '../contracts/rules'
 import { english } from './datacards'
 
@@ -168,10 +169,7 @@ function facts(fields: Record<string, unknown>, preferred: readonly string[]): R
 }
 
 /** `afterMoving` is what the source calls it; `After moving` is what a player reads. */
-const factLabel = (key: string) => {
-  const words = key.replaceAll(/([a-z0-9])([A-Z])/g, '$1 $2').toLowerCase()
-  return `${words.slice(0, 1).toUpperCase()}${words.slice(1)}`
-}
+const factLabel = (key: string) => capitalised(key.replaceAll(/([a-z0-9])([A-Z])/g, '$1 $2').toLowerCase())
 
 /** The source writes a field it has nothing to say in as a dash, which is not a rule. */
 const stated = (value: string | null | undefined) => (value && /[\p{L}\p{N}]/u.test(value) ? value : null)

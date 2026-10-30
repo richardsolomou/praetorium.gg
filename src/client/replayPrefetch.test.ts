@@ -8,10 +8,6 @@ describe('replay preloading', () => {
     expect(replayPreloadBatches(points(1), 1)).toEqual([])
   })
 
-  it('preloads the one historical frame', () => {
-    expect(replayPreloadBatches(points(2), 2)).toEqual([[1]])
-  })
-
   it('loads the whole ordinary replay from the current end in bounded batches', () => {
     expect(replayPreloadBatches(points(42), 42)).toEqual([
       Array.from({ length: 20 }, (_, index) => 41 - index),

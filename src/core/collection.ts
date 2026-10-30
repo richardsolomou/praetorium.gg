@@ -9,7 +9,7 @@ export const MAX_COLLECTION_DATASHEETS = 5_000
 export const MAX_COUNTS_AS = 32
 
 /** Owned models, how many of them are built and painted, and how many more the player wants; zero models means not owned. */
-export type CollectionCounts = { models: number; built: number; painted: number; wanted: number }
+type CollectionCounts = { models: number; built: number; painted: number; wanted: number }
 
 export type CollectionProgress = { built: number; painted: number }
 

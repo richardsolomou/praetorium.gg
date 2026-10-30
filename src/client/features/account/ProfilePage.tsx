@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label'
 import { PROFILE_NAME_MAX_LENGTH } from '../../../core/profileName'
 import { authClient } from '../../authClient'
 import { AccountSecurity } from './AccountSecurity'
-import { authFailureReason } from './authFailureReason'
+import { captureAuthFailure } from './authFailureReason'
 import { PlayerDefaultsSettings } from './PlayerDefaultsSettings'
 import { PageContent, PageHeader } from '../../components/Page'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
@@ -43,7 +43,7 @@ export function ProfilePage({ error, verified }: { error?: string; verified?: bo
   const callbackError = accountLinkErrorMessage(error)
   // A link that failed at the provider comes back here with only its code, so the provider is not known.
   useEffect(() => {
-    if (error) posthog.capture('account_authentication_failed', { action: 'link', method: 'social', reason: authFailureReason(error) })
+    if (error) captureAuthFailure(error, { action: 'link', method: 'social' })
   }, [error])
   if (!me && callbackError) {
     return <SignInRequired title="Could not complete account verification" explanation={`${callbackError} Sign in to try again.`} />

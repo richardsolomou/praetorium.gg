@@ -1,4 +1,5 @@
 import { readSessionValue, writeSessionValue } from '../../storedValue'
+import { prefersReducedMotion } from '../../useMediaQuery'
 
 const CELEBRATED_KEY = 'praetorium.celebrated-battles'
 
@@ -36,7 +37,7 @@ function celebrated(token: string) {
  */
 export async function celebrateVictory(token: string, side: number) {
   if (typeof window === 'undefined') return
-  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+  if (prefersReducedMotion()) return
   if (celebrated(token)) return
   const { default: confetti } = await import('canvas-confetti')
   const canvas = document.createElement('canvas')

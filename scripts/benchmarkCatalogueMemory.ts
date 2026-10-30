@@ -1,5 +1,6 @@
 import { hash } from 'node:crypto'
 import path from 'node:path'
+import { parseArgs } from 'node:util'
 import { referenceCatalogue } from '../src/server/canonicalCatalogue'
 import { readCatalogueComposition } from '../src/server/catalogueComposition'
 import { catalogueEditionLoaders } from '../src/server/catalogueEditions'
@@ -12,7 +13,10 @@ import { pickerUnitsFor } from '../src/shared/pickerUnits'
 import type { LoadedRules } from '../src/shared/rules'
 import { catalogueDataDirectory } from './lib/catalogueFiles'
 
-const mode = process.argv[2]
+const {
+  positionals: [mode, snapshot, runtimeOutput],
+  values: { verify },
+} = parseArgs({ allowPositionals: true, options: { verify: { type: 'boolean', default: false } } })
 if (mode !== 'source' && mode !== 'runtime') {
   throw new Error(
     'Usage: node --expose-gc --import tsx scripts/benchmarkCatalogueMemory.ts source|runtime [snapshot] [runtime-output] [--verify]',
@@ -20,9 +24,9 @@ if (mode !== 'source' && mode !== 'runtime') {
 }
 if (!global.gc) throw new Error('Run with --expose-gc so measurements follow garbage collection')
 const gc = global.gc
-const directory = path.resolve(process.argv[3] ?? catalogueDataDirectory())
+const directory = path.resolve(snapshot ?? catalogueDataDirectory())
 const runtime =
-  mode === 'runtime' ? readCatalogueRuntime(directory, path.resolve(process.argv[4] ?? '.output/server/catalogue-runtime')) : null
+  mode === 'runtime' ? readCatalogueRuntime(directory, path.resolve(runtimeOutput ?? '.output/server/catalogue-runtime')) : null
 // The base catalogue loads lazily so runtime mode measures only what the compiled runtime reads.
 let baseCatalogue: ReturnType<typeof loadCatalogue> | undefined
 let baseLoadedRules: LoadedRules | null | undefined
@@ -57,7 +61,7 @@ const combat = versions.combatUnits()
 const factions = versions.factions()
 versions.prepare()
 await report('ready')
-if (process.argv.includes('--verify')) {
+if (verify) {
   digest('canonical', canonical)
   digest('search', search)
   digest('combat', combat)
@@ -73,7 +77,7 @@ for (let cycle = 0; cycle < 2; cycle++) {
     const selected = versions.catalogueFor(id)!
     const selectedRules = versions.rulesFor(id)
     for (const bookId of edition.catalogueIds) pickerUnitsFor(selected, selectedRules, `${edition.id}~${bookId}`, '')
-    if (cycle === 0 && process.argv.includes('--verify')) {
+    if (cycle === 0 && verify) {
       digest(`${edition.id}:canonical`, versions.canonicalFor(id))
       digest(`${edition.id}:rules`, selectedRules)
       for (const book of selected.factions) {

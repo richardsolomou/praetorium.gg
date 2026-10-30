@@ -29,7 +29,7 @@ export type Notice = { actorId: string; recipientIds: readonly string[] } & (
   | { kind: 'club-member-requested' | 'club-member-accepted'; clubToken: string }
 )
 
-export type NoticeMessage = { title: string; body: string; path: string }
+type NoticeMessage = { title: string; body: string; path: string }
 
 export const pushTokenSchema = z
   .string()

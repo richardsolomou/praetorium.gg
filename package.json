@@ -10,7 +10,6 @@
     "build": "ras build && ras build --config vite.seed.config.ts && tsx scripts/compileCatalogueRuntime.ts",
     "typecheck": "ras typecheck && pnpm --dir mobile typecheck && pnpm --dir spacetimedb typecheck",
     "lint": "ras lint --report-unused-disable-directives-severity=error .",
-    "lint:fix": "ras lint --fix .",
     "format": "ras format .",
     "format:check": "ras format --check .",
     "docs:lint": "markdownlint-cli2 '**/*.md' '#**/node_modules' '#.output' '#data-dev' '#catalogue-data' '#mobile/ios/**' '#mobile/.simulator-derived/**' '#CHANGELOG.md' '#test-results*/**' '#playwright-report/**'",

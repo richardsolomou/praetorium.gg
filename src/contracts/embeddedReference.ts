@@ -1,6 +1,11 @@
+/** JSON safe to inline in a script element: an escaped `<` cannot close it. */
+export function scriptJson(value: unknown) {
+  return JSON.stringify(value).replaceAll('<', '\\u003c')
+}
+
 // Compiling the reference as an object literal can exhaust the iOS renderer's memory; parsing JSON does not.
 export function referenceJsonExpression(json: string) {
-  return `JSON.parse(${JSON.stringify(json).replaceAll('<', '\\u003c')})`
+  return `JSON.parse(${scriptJson(json)})`
 }
 
 export function embeddedReferenceJson(html: string): string | null {

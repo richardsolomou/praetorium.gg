@@ -80,7 +80,7 @@ export const syncRoster = createServerFn({ method: 'POST' })
           ? calculateRosterTotals(
               { ...data.roster, units: data.roster.picks },
               await instance.catalogueFor(data.roster.catalogueId),
-              await instance.rosterLabelRulesFor(data.roster.catalogueId),
+              await instance.rulesFor(data.roster.catalogueId),
             )
           : null
       const row = {
@@ -115,9 +115,7 @@ export const syncRoster = createServerFn({ method: 'POST' })
 
 export const battleWorkspace = createServerFn({ method: 'GET' })
   .validator(z.object({ token: z.string().min(1).max(128) }))
-  .handler(({ data }) =>
-    rpc(async () => app().service.battleWorkspace(data.token, await requireUserId(), await app().battleReadRulesFor())),
-  )
+  .handler(({ data }) => rpc(async () => app().service.battleWorkspace(data.token, await requireUserId(), await app().rulesFor())))
 
 export const syncAction = createServerFn({ method: 'POST' })
   .validator(offlineActionSchema)
@@ -137,11 +135,7 @@ export const syncAction = createServerFn({ method: 'POST' })
         if (!saved) throw new Error('The saved action did not commit a receipt.')
         if (saved.outcome === 'refused') return unsynced(player.id, data.kind, saved, 'database')
         if (saved.outcome === 'applied' && (data.kind === 'createBattle' || data.kind === 'createLeagueBattle')) {
-          const { workspace } = await app().service.battleWorkspace(
-            data.identifiers.battleToken!,
-            player.id,
-            await app().battleReadRulesFor(),
-          )
+          const { workspace } = await app().service.battleWorkspace(data.identifiers.battleToken!, player.id, await app().rulesFor())
           return { ...saved, workspace, version: workspace.serverSeq }
         }
         return saved
@@ -270,8 +264,7 @@ export const syncBattleCommand = createServerFn({ method: 'POST' })
           )
         if (result.outcome === 'refused')
           return unsynced(player.id, 'battle-command', { outcome: 'refused' as const, message: result.reason }, result.code)
-        const workspace =
-          appended ?? (await instance.service.battleWorkspace(data.token, player.id, await instance.battleReadRulesFor())).workspace
+        const workspace = appended ?? (await instance.service.battleWorkspace(data.token, player.id, await instance.rulesFor())).workspace
         return { outcome: 'applied' as const, workspace, version: workspace.serverSeq }
       } catch (error) {
         return syncRefusal(player.id, 'battle-command', error)

@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import type { Roster, BuiltRoster } from '../../../core/battle'
+import { builtDetachments, pointsSpent, type Roster, type BuiltRoster } from '../../../core/battle'
 import type { SimulatorRosterSource } from '../../../contracts/simulatorState'
 import { factionQuery } from '../../queries'
 import { rosterWaivers } from '../../components/FormatWaivers'
@@ -71,7 +71,7 @@ export function BattleRosterSnapshot({
           faction={faction}
           edition={built?.edition ?? null}
           factionLoading={Boolean(built) && factionResult.isLoading}
-          points={built ? total(built) : undefined}
+          points={built ? pointsSpent(built) : undefined}
           limit={built?.limit}
           pointsBudget={built?.pointsBudget}
           detachments={detachments(built)}
@@ -105,13 +105,11 @@ export function rosterReading(roster: Roster): { kind: 'text' } | { kind: 'roste
   if (!built) return { kind: 'text' }
   if (roster.id && built.picks && built.detachmentIds) return { kind: 'roster' }
   if (!built.units.some((unit) => unit.group !== undefined)) return { kind: 'text' }
-  return { kind: 'roster', frozen: { units: built.units, points: total(built), detachments: detachments(built) } }
+  return { kind: 'roster', frozen: { units: built.units, points: pointsSpent(built), detachments: detachments(built) } }
 }
 
-const total = (built: Built) => built.units.reduce((points, unit) => points + unit.points, 0)
-
 const detachments = (built: Built | undefined) =>
-  (built?.detachments ?? (built?.detachment ? [{ name: built.detachment, points: null }] : [])).map((detachment, index) => ({
+  builtDetachments(built).map((detachment, index) => ({
     ...detachment,
     id: built?.detachmentIds?.[index],
   }))

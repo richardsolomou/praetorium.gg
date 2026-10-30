@@ -89,7 +89,7 @@ export type BattlebaseImport = {
   commands: { command: Command; at: number }[]
 }
 
-export type BattlebaseSkip = 'unfinished' | 'not-a-player' | 'test-opponent' | 'unreadable'
+type BattlebaseSkip = 'unfinished' | 'not-a-player' | 'test-opponent' | 'unreadable'
 
 export const battlebaseLimit = (battle: BattlebaseBattle) => BATTLEBASE_SIZES[battle.battleSetupJson.battleSizeId ?? ''] ?? null
 

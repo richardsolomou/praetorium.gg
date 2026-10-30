@@ -21,6 +21,7 @@ Pins live in `catalogue/composition.json`, `catalogue/sources.json`, and `catalo
 - Promote a preview by keeping its ID and files and switching `status`/`default`; never rename or copy it.
 - New MFM version: freeze the current base to explicit pins, add a new `base: true` default, and fold the outgoing base in `catalogue/edition-migrations.json`.
 - Retired sources and IDs stay resolvable so old snapshots and rosters verify; retired IDs are illegal, never dropped or free.
+- `scripts/retainRosterCatalogue.ts` is a manual release tool: it rebuilds a historical snapshot's profile construction with the compiler, transform, and icons pinned in `catalogue/retained-profile-build.json`, and packs the result as a new snapshot.
 
 ## Pricing and legality
 

@@ -26,7 +26,7 @@ export type DatasheetSearchReason = {
 }
 
 /** `effectOnly` marks a datasheet found only through what its abilities say, which only counts when nothing is found by its own fields. */
-export type DatasheetSearchMatch = { score: number; reasons: DatasheetSearchReason[]; effectOnly: boolean }
+type DatasheetSearchMatch = { score: number; reasons: DatasheetSearchReason[]; effectOnly: boolean }
 
 /** The matches found by their own fields, or the ability-effect matches when there are none. */
 export function strongestMatches<M extends { match: DatasheetSearchMatch }>(matches: readonly M[]): readonly M[] {

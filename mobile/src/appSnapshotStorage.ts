@@ -1,4 +1,5 @@
 import { MAX_APP_SNAPSHOT_BYTES, parseAppSnapshot, type AppSnapshot } from '../../src/contracts/appSnapshot'
+import { scriptJson } from '../../src/contracts/embeddedReference'
 import { deleteSavedState, readSavedState, writeSavedState } from './savedStateStorage'
 
 export function readAppSnapshot(): AppSnapshot | null {
@@ -18,5 +19,5 @@ export function storeAppSnapshot(snapshot: AppSnapshot | null, id: string) {
 }
 
 export function appSnapshotScript(snapshot = readAppSnapshot()) {
-  return `window.PraetoriumAppSnapshot=${JSON.stringify(snapshot).replaceAll('<', '\\u003c')};`
+  return `window.PraetoriumAppSnapshot=${scriptJson(snapshot)};`
 }

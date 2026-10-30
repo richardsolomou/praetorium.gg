@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { PlayerAvatar } from './PlayerAvatar'
+import { byId } from '../../core/collections'
 
 export type AdminPerson = { id: string; name: string; image: string | null }
 
@@ -26,7 +27,7 @@ export function AdminsField({
   onChange: (ids: string[]) => void
   labels: { former: string; add: string; none: string; hint: string }
 }) {
-  const known = new Map([...people, ...candidates].map((person) => [person.id, person]))
+  const known = byId([...people, ...candidates])
   const available = candidates.filter((candidate) => !selected.includes(candidate.id))
   const full = selected.length >= max
   return (

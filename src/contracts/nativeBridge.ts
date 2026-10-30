@@ -1,3 +1,5 @@
+import type { PushPlatform } from '../core/notificationConfig'
+
 /** Events the native shell dispatches on `window` for the web application. */
 export const NATIVE_EVENTS = {
   appBack: 'praetorium-app-back',
@@ -14,5 +16,5 @@ export type NativeEvent = (typeof NATIVE_EVENTS)[keyof typeof NATIVE_EVENTS]
 
 /** What the shell said about notifications on this device. */
 export type NativePushAnswer =
-  | { status: 'granted'; token: string; platform: 'ios' | 'android' }
+  | { status: 'granted'; token: string; platform: PushPlatform }
   | { status: 'denied' | 'undetermined' | 'unavailable' }

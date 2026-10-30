@@ -99,7 +99,7 @@ vi.mock('./app', () => ({
   app: () => ({
     catalogueHistoryFor: async () => history.entries,
     canonicalCatalogueFor: async () => canonical,
-    battleReadRulesFor: async () => rules,
+    rulesFor: async () => rules,
   }),
 }))
 vi.mock('../shared/gameReferences', () => ({ gameReferencesFor: () => ({ dispositions: [{ id: 'take-and-hold' }] }) }))

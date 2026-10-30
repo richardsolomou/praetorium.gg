@@ -34,7 +34,7 @@ export function readLocalDevPreview(file: string): LocalDevPreview | undefined {
     if (legacy.success && value && typeof value === 'object' && !('token' in value)) {
       try {
         process.kill(legacy.data.pid, 0)
-        throw new Error('Stop the older development runner in its owning terminal before starting just dev')
+        throw new Error(`Older development runner ${legacy.data.pid} is still running`)
       } catch (error) {
         if ((error as NodeJS.ErrnoException).code !== 'ESRCH') throw error
       }

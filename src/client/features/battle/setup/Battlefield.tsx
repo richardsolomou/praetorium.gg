@@ -10,6 +10,7 @@ import { deploymentsQuery, terrainReferencesQuery } from '../../../queries'
 import { battleMatchupIds } from '../battlefieldLayout'
 import { CHOSEN } from './chrome'
 import { Dialog } from '../../../components/Dialog'
+import { Problem } from '../../../components/Problem'
 import { TerrainBoard } from '../../reference/missions/TerrainBoard'
 import { TerrainLayoutDialogContent } from '../../reference/missions/TerrainLayoutDialogContent'
 import type { SendCommand } from '../useCommand'
@@ -184,9 +185,7 @@ export function Battlefield({ view, send, pending, allowedIds, matchup }: Props)
         </Button>
       ) : null}
       {options.some((option) => !option.terrain.geometry) ? (
-        <p role="alert" className="mt-2 text-xs text-destructive">
-          Terrain labels and measurements are still loading. Those layouts cannot be selected yet.
-        </p>
+        <Problem className="mt-2 text-xs">Terrain labels and measurements are still loading. Those layouts cannot be selected yet.</Problem>
       ) : null}
       <Dialog open={Boolean(inspected)} onOpenChange={(open) => !open && setInspecting(null)}>
         {inspected ? (

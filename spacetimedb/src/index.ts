@@ -609,10 +609,11 @@ type SeasonRow = NonNullable<ReturnType<Context['db']['clubSeasons']['id']['find
 
 const seasonPlayerKey = (seasonId: string, userId: string) => JSON.stringify([seasonId, userId])
 
+const byJoined = (a: { joinedAt: bigint; userId: string }, b: { joinedAt: bigint; userId: string }) =>
+  a.joinedAt < b.joinedAt ? -1 : a.joinedAt > b.joinedAt ? 1 : a.userId.localeCompare(b.userId)
+
 function seasonPlayers(ctx: Context, seasonId: string) {
-  return Array.from(ctx.db.clubSeasonPlayers.seasonId.filter(seasonId)).sort((a, b) =>
-    a.joinedAt < b.joinedAt ? -1 : a.joinedAt > b.joinedAt ? 1 : a.userId.localeCompare(b.userId),
-  )
+  return Array.from(ctx.db.clubSeasonPlayers.seasonId.filter(seasonId)).sort(byJoined)
 }
 
 /** A season takes its players and fixtures with it; its battles stay. */
@@ -3531,9 +3532,7 @@ export const publicStandingsRevision = spacetime.procedure({}, t.string(), (ctx)
 )
 
 function leagueEntriesFor(ctx: Context, eventId: string) {
-  return Array.from(ctx.db.leagueEventEntries.eventId.filter(eventId)).sort((a, b) =>
-    a.joinedAt < b.joinedAt ? -1 : a.joinedAt > b.joinedAt ? 1 : a.userId.localeCompare(b.userId),
-  )
+  return Array.from(ctx.db.leagueEventEntries.eventId.filter(eventId)).sort(byJoined)
 }
 
 function droppedFrom(ctx: Context, eventId: string, userId: string) {
@@ -4228,9 +4227,7 @@ const clubCommandInput = z.discriminatedUnion('op', [
 ])
 
 function clubMembersOf(ctx: Context, clubId: string) {
-  return Array.from(ctx.db.clubMembers.clubId.filter(clubId)).sort((a, b) =>
-    a.joinedAt < b.joinedAt ? -1 : a.joinedAt > b.joinedAt ? 1 : a.userId.localeCompare(b.userId),
-  )
+  return Array.from(ctx.db.clubMembers.clubId.filter(clubId)).sort(byJoined)
 }
 
 function clubMemberRows(ctx: Context, club: ClubRow) {

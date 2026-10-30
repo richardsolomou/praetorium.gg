@@ -16,6 +16,7 @@ import {
   practiceBattle,
   chooseOption,
   PHONE,
+  playerPanel,
 } from './account'
 
 test('the battle matchup planner uses live survivors, isolates experiments, and refreshes after another tab records casualties', async ({
@@ -26,7 +27,7 @@ test('the battle matchup planner uses live survivors, isolates experiments, and 
   for (const name of ['Intercessor Squad', 'Terminator Squad', 'Rhino']) await addUnit(page, name)
   await practiceBattle(page, roster)
   await startBattle(page)
-  const panels = [0, 1].map((side) => page.locator(`[data-panel="player"][data-side="${side}"]`))
+  const panels = ([0, 1] as const).map((side) => playerPanel(page, side))
   for (const [side, panel] of panels.entries()) {
     await panel.getByRole('button', { name: `Open ${roster}`, exact: true }).click()
     const army = page.locator('[data-army-roster]')
@@ -75,7 +76,7 @@ test('the battle matchup planner uses live survivors, isolates experiments, and 
   await cachedGate.release()
   const referee = await page.context().newPage()
   await referee.goto(page.url())
-  const otherPanels = [0, 1].map((side) => referee.locator(`[data-panel="player"][data-side="${side}"]`))
+  const otherPanels = ([0, 1] as const).map((side) => playerPanel(referee, side))
   await otherPanels[0].getByRole('button', { name: `Open ${roster}`, exact: true }).click()
   const otherArmy = referee.locator('[data-army-roster]')
   const otherSquad = otherArmy.locator('[data-unit="Intercessor Squad"]')
@@ -119,7 +120,7 @@ test('unit-level equipment remains an explicit survivor choice after a casualty'
   await waitForRosterSave(page, () => page.getByRole('button', { name: 'Select Demolition charge', exact: true }).click())
   await practiceBattle(page, roster)
   await startBattle(page)
-  const panel = page.locator('[data-panel="player"][data-side="0"]')
+  const panel = playerPanel(page, 0)
   await panel.getByRole('button', { name: /Simulate .*combat/ }).click()
   const simulator = page.getByRole('dialog', { name: 'Combat simulator', exact: true })
   await expect(simulator.getByRole('region', { name: 'Shooting results' })).toContainText('Demolition charge')
@@ -160,7 +161,7 @@ test('battle combat uses frozen loadouts and live casualties', async ({ page, br
   await addUnit(page, 'Intercessor Squad')
   await practiceBattle(page, roster)
   await startBattle(page)
-  const panel = page.locator('[data-panel="player"][data-side="0"]')
+  const panel = playerPanel(page, 0)
   const army = page.locator('[data-army-roster]')
   const squad = army.locator('[data-unit="Intercessor Squad"]')
   const simulator = page.getByRole('dialog', { name: 'Combat simulator', exact: true })
@@ -231,8 +232,7 @@ test('battle combat uses frozen loadouts and live casualties', async ({ page, br
   await expect(cover).toHaveAttribute('aria-pressed', 'true')
   const referee = await page.context().newPage()
   await referee.goto(page.url())
-  await referee
-    .locator('[data-panel="player"][data-side="0"]')
+  await playerPanel(referee, 0)
     .getByRole('button', { name: `Open ${roster}` })
     .click()
   const otherSquad = referee.locator('[data-army-roster] [data-unit="Intercessor Squad"]')
@@ -313,7 +313,7 @@ test('battle support auras respect the recipient, role, conditions, and living s
   }
   await practiceBattle(page, roster)
   await startBattle(page)
-  const panel = page.locator('[data-panel="player"][data-side="0"]')
+  const panel = playerPanel(page, 0)
   await panel.getByRole('button', { name: /Simulate .*combat/ }).click()
   const simulator = page.getByRole('dialog', { name: 'Combat simulator', exact: true })
   const damage = await combatDamage(simulator, 'Shooting')

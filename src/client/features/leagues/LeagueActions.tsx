@@ -12,6 +12,7 @@ import { LeagueSettingsDialog } from './LeagueSettingsDialog'
 import { eventFullName, eventLink, eventName, eventPath, leagueNoun, useLeagueRefresh } from './leagueEvent'
 import type { TableShape } from '../../../core/tableShape'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
+import { FloatingNotice } from '../../components/FloatingNotice'
 import { useNativeShare } from '../../nativeBridge'
 import { shareButtonLabel, useShareLink } from '../../useShareLink'
 
@@ -146,12 +147,9 @@ function LeagueActionDialogs({ actions }: { actions: LeagueActionsController }) 
 function LeagueActionFeedback({ feedback }: { feedback: InviteFeedback }) {
   if (!feedback) return null
   return (
-    <p
-      aria-live="polite"
-      className="fixed bottom-4 left-1/2 z-60 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 border border-edge bg-panel px-4 py-3 text-sm shadow-lg"
-    >
+    <FloatingNotice className="z-60 block w-[calc(100%-2rem)] max-w-md border-edge px-4 py-3">
       {inviteFeedbackText(feedback)}
-    </p>
+    </FloatingNotice>
   )
 }
 

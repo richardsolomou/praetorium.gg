@@ -5,3 +5,4 @@ export const DEFAULT_PUSH_NOTIFICATIONS = true
 export const PUSH_TOKENS_PER_USER = 10
 
 export const PUSH_PLATFORMS = ['ios', 'android'] as const
+export type PushPlatform = (typeof PUSH_PLATFORMS)[number]

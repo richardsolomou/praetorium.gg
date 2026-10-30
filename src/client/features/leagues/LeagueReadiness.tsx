@@ -14,10 +14,10 @@ import {
 } from '../../../core/league'
 import { remindLeagueEntrants, revealLeague } from '../../functions'
 import { entryRules, namesPhrase, useLeagueRefresh, type League } from './leagueEvent'
-import { useMoment } from './EventSchedule'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { Problem } from '../../components/Problem'
 import { countLabel } from '../../text'
+import { useMoment } from '../../dates'
 
 /** What the organizer still has to do before every roster can open, said to everyone so nobody wonders what the wait is. */
 const ORGANIZER_STEPS: Partial<Record<LeagueRevealCheck['step'], string>> = {

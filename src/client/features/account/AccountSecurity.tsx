@@ -14,7 +14,7 @@ import { authClient } from '../../authClient'
 import { hasNativeAuthBridge, requestNativeAuth, useGithubAuthAvailability } from '../../nativeAuth'
 import { accountMethodsQuery, mcpConnectionsQuery, meQuery } from '../../queries'
 import { AuthMethodIcon } from './AuthMethodIcon'
-import { authFailureReason } from './authFailureReason'
+import { captureAuthFailure } from './authFailureReason'
 import { ConnectedAppIcon } from './ConnectedAppIcon'
 import { GithubSupporter } from './GithubSupporter'
 import {
@@ -191,11 +191,7 @@ export function AccountSecurity({ me, preferences }: { me: AccountIdentity; pref
                           }
                           const started = await authClient.linkSocial({ provider, callbackURL: '/profile', errorCallbackURL: '/profile' })
                           if (started.error) {
-                            posthog.capture('account_authentication_failed', {
-                              action: 'link',
-                              method: provider,
-                              reason: authFailureReason(started.error),
-                            })
+                            captureAuthFailure(started.error, { action: 'link', method: provider })
                             setLinkError(true)
                           }
                         }}

@@ -4,6 +4,9 @@ import { requestNativeLocalState, supportsNativeLocalState } from '../nativeBrid
 import type { LocalStateStorage } from './syncEngine'
 import { holdingReload } from '../pendingWrites'
 
+export const STORAGE_LIMIT_MESSAGE = 'Saved work exceeds this device’s storage limit.'
+export const SAVING_ELSEWHERE_MESSAGE = 'Another window is saving changes. Try again.'
+
 declare global {
   interface Window {
     PraetoriumLocalState?: { epoch: string; state: LocalState | null }
@@ -98,7 +101,7 @@ export function localStateStorage(owner: string): LocalStateStorage {
           const changed = change(current)
           if (changed === current) return current
           const next = { ...changed, revision: current.revision + 1 }
-          if (!parseLocalState(next)) throw new Error('Saved work exceeds this device’s storage limit.')
+          if (!parseLocalState(next)) throw new Error(STORAGE_LIMIT_MESSAGE)
           const answer = await requestNativeLocalState(owner, {
             state: next,
             epoch: saved.epoch,
@@ -110,7 +113,7 @@ export function localStateStorage(owner: string): LocalStateStorage {
           }
           verify(answer)
         }
-        throw new Error('Another window is saving changes. Try again.')
+        throw new Error(SAVING_ELSEWHERE_MESSAGE)
       })
     let result!: StoredState
     let kept: LocalState | undefined
@@ -125,7 +128,7 @@ export function localStateStorage(owner: string): LocalStateStorage {
           return previous
         }
         const next = { ...changed, revision: current.revision + 1 }
-        if (!parseLocalState(next)) throw new Error('Saved work exceeds this device’s storage limit.')
+        if (!parseLocalState(next)) throw new Error(STORAGE_LIMIT_MESSAGE)
         result = { epoch: previous.epoch, state: next }
         return result
       },

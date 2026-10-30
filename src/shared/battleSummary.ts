@@ -1,4 +1,4 @@
-import { type BattleState, type LoggedCommand, sideCaptain, sidePaintedPoints } from '../core/battle'
+import { type BattleState, builtDetachments, type LoggedCommand, sideCaptain, sidePaintedPoints } from '../core/battle'
 import { resolvedMissionForSide } from './battleRules'
 import type { BattleMissionRules } from './rules'
 import type { StandingFaction } from '../core/standings'
@@ -51,11 +51,7 @@ export function battleSummary(
     // The catalogue army each seat brought, so a battle can also be counted as a
     // result for the faction that fielded it. A pasted list has none.
     factions: state.players.map((player) => builtFaction(player.roster?.built, factionsById)),
-    detachments: state.players.map(
-      (player) =>
-        player.roster?.built?.detachments?.map((detachment) => detachment.name) ??
-        (player.roster?.built?.detachment ? [player.roster.built.detachment] : []),
-    ),
+    detachments: state.players.map((player) => builtDetachments(player.roster?.built).map((detachment) => detachment.name)),
     // Who took the first turn, and the two halves each seat's score is made of,
     // so a player's record can separate going first from going second and say
     // where their points came from. `scores` only carries the total.

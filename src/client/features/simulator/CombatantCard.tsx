@@ -9,6 +9,7 @@ import { Dialog, DialogBody, DialogContent, DialogHeader, DialogTitle } from '..
 import { MAX_COMBAT_MODELS } from '../../../core/combat'
 import { modelCountChoices } from '../../../core/unitSize'
 import { FactionLabel, FactionMark } from '../../components/FactionMark'
+import { factionFor } from '../../factions'
 import { SearchableSelect } from '../../components/SearchableSelect'
 import { combatLoadoutsQuery, combatUnitsQuery, factionIndexQuery, factionQuery, loadoutDatasheetsQuery } from '../../queries'
 import { Loadout } from '../rosters/builder/Loadout'
@@ -73,7 +74,7 @@ export function CombatantCard({
   const selectedFaction = indexedFaction ?? (combatant.roster ? rosterFaction.data : undefined)
   const factionIcon = (catalogueId: string | undefined) => {
     const faction =
-      factions.data?.factions.find((entry) => entry.id === catalogueId || entry.slug === catalogueId) ??
+      (catalogueId ? factionFor(factions.data, catalogueId) : undefined) ??
       (catalogueId === combatant.faction ? selectedFaction : undefined)
     return faction ? <FactionMark faction={faction} size="sm" /> : undefined
   }

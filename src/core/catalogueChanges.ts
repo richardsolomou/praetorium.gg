@@ -66,7 +66,7 @@ export type CatalogueChange =
   | { kind: 'enhancement-points'; detachmentId: string; detachment: string; name: string; upgrade: boolean; from: Points; to: Points }
   | { kind: 'enhancement-added' | 'enhancement-removed'; detachmentId: string; detachment: string; name: string; upgrade: boolean }
 
-export type FactionChanges = { catalogueId: string; faction: string; changes: CatalogueChange[] }
+type FactionChanges = { catalogueId: string; faction: string; changes: CatalogueChange[] }
 
 export type CatalogueChangeSet = {
   factions: FactionChanges[]
@@ -390,7 +390,7 @@ export type ListContents = {
 }
 
 export type RecordedChangeSet = { recordedAt: number; changes: CatalogueChangeSet }
-export type ListChange = { recordedAt: number; catalogueId: string; faction: string; change: CatalogueChange }
+type ListChange = { recordedAt: number; catalogueId: string; faction: string; change: CatalogueChange }
 
 /** Being there stands in for a value, so leaving and coming back fold like any other change. */
 const PRESENT = '\0present'

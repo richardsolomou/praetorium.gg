@@ -3,6 +3,7 @@ import { Download, FileUp } from 'lucide-react'
 import { posthog } from 'posthog-js'
 import { useId, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { byId } from '../../../core/collections'
 import { countsAsList, type CollectionEntry, type CollectionImportRow } from '../../../core/collection'
 import {
   collectionCsv,
@@ -22,10 +23,8 @@ import {
   collectionProgressKey,
   collectionWishesKey,
 } from '../../queries/queryKeys'
-import { nativeBridgeVersion } from '../../nativeBridge'
 import { Problem } from '../../components/Problem'
-import { useCopyText } from '../../useCopyText'
-import { downloadFile } from '../../downloadFile'
+import { useExportText } from '../../useCopyText'
 import { countLabel } from '../../text'
 
 type Sheet = { id: string; name: string; faction: string }
@@ -33,20 +32,18 @@ type Sheet = { id: string; name: string; faction: string }
 /** A collection file's export and its reviewed import; importing adds what is missing and changes saved counts only when asked. */
 export function CollectionExchange({ sheets, current }: { sheets: readonly Sheet[]; current: ReadonlyMap<string, CollectionEntry> }) {
   const [reading, setReading] = useState<{ rows: ImportedRow[] } | { error: string } | null>(null)
-  const { copy, copied, problem } = useCopyText()
-  const byId = new Map(sheets.map((sheet) => [sheet.id, sheet]))
+  const { exportText, native, copied, problem } = useExportText()
+  const named = byId(sheets)
   const csv = () =>
     collectionCsv(
       [...current].map(([entryId, counts]): CollectionCsvRow => {
-        const sheet = byId.get(entryId)
+        const sheet = named.get(entryId)
         return { entryId, name: sheet?.name ?? entryId, faction: sheet?.faction ?? '', ...counts }
       }),
     )
-  const native = nativeBridgeVersion() !== undefined
   const exportFile = async () => {
     posthog.capture('collection_exported', { datasheets: current.size })
-    if (native) await copy(csv(), { failure: 'Copy failed. Try again.', operation: 'collection_export_copy' })
-    else downloadFile('praetorium-collection.csv', csv(), 'text/csv;charset=utf-8')
+    await exportText(csv(), { name: 'praetorium-collection.csv', type: 'text/csv;charset=utf-8', operation: 'collection_export_copy' })
   }
   const input = useRef<HTMLInputElement>(null)
   return (

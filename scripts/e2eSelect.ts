@@ -7,16 +7,13 @@
  * to GITHUB_OUTPUT. Without a usable map, or when the map's revision is not part of the base's
  * history, every spec runs.
  */
-import { execFileSync } from 'node:child_process'
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { harnessFiles } from './lib/e2eHarness.ts'
-import { isAncestor } from './lib/git.ts'
+import { git, isAncestor } from './lib/git.ts'
 import { stepOutput } from './lib/stepOutput.ts'
 import { importClosures } from './lib/moduleGraph.ts'
 import { builtCatalogue, type E2eMap } from './lib/e2eMap.ts'
 import { changedHunks, lineMoves, selectSpecs, type Graph, type Selection } from './lib/e2eSelection.ts'
-
-const git = (...args: string[]) => execFileSync('git', args, { encoding: 'utf8', maxBuffer: 256_000_000 })
 
 async function graph(): Promise<Graph> {
   // Playwright finds specs anywhere under `e2e/`.
@@ -35,7 +32,7 @@ async function selection(): Promise<Selection> {
   if (!mapFile || !existsSync(mapFile)) return { all: true, reason: 'no coverage map is available' }
   const map = JSON.parse(readFileSync(mapFile, 'utf8')) as E2eMap
   // `base...head` numbers its old lines from the merge base, so every comparison starts there.
-  const fork = git('merge-base', base, head).trim()
+  const fork = git(process.cwd(), 'merge-base', base, head).trim()
   let mapInHistory = false
   try {
     mapInHistory = isAncestor(process.cwd(), map.revision, fork)
@@ -45,13 +42,13 @@ async function selection(): Promise<Selection> {
   if (!mapInHistory) return { all: true, reason: `the map's revision ${map.revision} is not in the base's history` }
   const show = (revision: string, file: string) => {
     try {
-      return git('show', `${revision}:${file}`)
+      return git(process.cwd(), 'show', `${revision}:${file}`)
     } catch {
       return null
     }
   }
-  const moves = lineMoves(git('diff', '--unified=0', '--no-renames', '--no-color', map.revision, fork))
-  const changes = changedHunks(git('diff', '--unified=0', '--no-renames', '--no-color', fork, head))
+  const moves = lineMoves(git(process.cwd(), 'diff', '--unified=0', '--no-renames', '--no-color', map.revision, fork))
+  const changes = changedHunks(git(process.cwd(), 'diff', '--unified=0', '--no-renames', '--no-color', fork, head))
   const chosen = selectSpecs(map, changes, moves, (file) => ({ base: show(fork, file), head: show(head, file) }), await graph())
   // A spec the map remembers may have been deleted since.
   return chosen.all ? chosen : { all: false, specs: chosen.specs.filter((spec) => existsSync(spec)) }

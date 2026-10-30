@@ -12,7 +12,7 @@ import { CollectionCard, CollectionCardGrid } from './CollectionCard'
 
 const SUGGESTIONS_SHOWN = 6
 
-type Datasheet = { id: string; slug: string; name: string; catalogueId: string; faction: string; presentation?: FactionPresentation }
+export type Datasheet = { id: string; slug: string; name: string; catalogueId: string; faction: string; presentation?: FactionPresentation }
 
 /** Models a player plans to buy, counted apart from those they own. */
 export function CollectionWishlist({ datasheets }: { datasheets: ReadonlyMap<string, Datasheet> }) {

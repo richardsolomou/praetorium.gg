@@ -13,4 +13,4 @@
 
 - MCP registry: `mcp-publisher login github`, then `mcp-publisher publish`, keeping `server.json` and the server version aligned.
 - ChatGPT: after any plugin change, `just plugin-zip` and upload `dist/praetorium-plugin.zip` by hand.
-- Claude: bump `plugin/.claude-plugin/plugin.json` `version` and run `claude plugin validate ./plugin`.
+- Claude: bump `version` in both `plugin/.claude-plugin/plugin.json` and `plugin/plugin.json`, then run `claude plugin validate ./plugin`.

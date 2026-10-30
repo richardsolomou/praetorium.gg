@@ -14,11 +14,13 @@ import {
   invalidatePublicProductQueries,
 } from './productSignals'
 import { setLiveProductRefresh } from './liveProductRefresh'
-import { spacetimeBrowserUri } from './spacetimeBrowserUri'
 import { isExpectedRealtimeDisconnect, RealtimeHttpError } from './realtimeErrors'
 import { withTimeout } from './abortSignals'
 import { battleCommandsSettled } from './pendingWrites'
 import { meKey, realtimeModeKey, reportKey } from './queries/queryKeys'
+
+/** The SpacetimeDB proxy on the page's own origin, which a local server may have named by another host. */
+const browserUri = (uri: string) => new URL(new URL(uri).pathname, window.location.origin).toString()
 
 export function useRealtimeConfig() {
   const { data, error } = useQuery({
@@ -27,7 +29,7 @@ export function useRealtimeConfig() {
       const response = await fetch('/api/realtime/mode', { signal: withTimeout(signal, 10_000) })
       if (!response.ok) throw new RealtimeHttpError('Realtime mode', response.status)
       const parsed = z.object({ mode: z.literal('spacetime'), database: z.string().min(1), uri: z.url() }).parse(await response.json())
-      return { ...parsed, uri: spacetimeBrowserUri(parsed.uri, window.location.origin) }
+      return { ...parsed, uri: browserUri(parsed.uri) }
     },
     staleTime: Infinity,
   })
@@ -51,7 +53,7 @@ async function ticket(battle?: string) {
   const response = await fetch(url, { cache: 'no-store' })
   if (!response.ok) throw new RealtimeHttpError('Spacetime token', response.status)
   const issued = ticketSchema.parse(await response.json())
-  return { ...issued, uri: spacetimeBrowserUri(issued.uri, window.location.origin) }
+  return { ...issued, uri: browserUri(issued.uri) }
 }
 
 async function guestTicket(config: RealtimeConfig) {

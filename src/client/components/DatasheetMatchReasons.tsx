@@ -1,6 +1,6 @@
 import { Search } from 'lucide-react'
 import { Fragment } from 'react'
-import type { DatasheetSearchReason } from '../../contracts/catalogue'
+import type { DatasheetSearchReason } from '../../core/datasheetSearch'
 import { escapeRegExp } from '../../core/text'
 
 type Props = {

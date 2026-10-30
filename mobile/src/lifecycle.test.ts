@@ -6,7 +6,7 @@ describe('app lifecycle', () => {
     const backgrounded = appStateChanged(initialAppLifecycle('active'), 'background')
 
     expect(appStateChanged(backgrounded.lifecycle, 'active')).toEqual({
-      lifecycle: { status: 'active', backgrounded: false },
+      lifecycle: { backgrounded: false },
       shouldResumeWebApp: true,
     })
   })

@@ -31,6 +31,7 @@ import {
 } from '../../../core/league'
 import { TABLE_SHAPES, TABLE_SHAPE_LABELS, type TableShape } from '../../../core/tableShape'
 import { Choice } from '../../components/Choice'
+import { Problem } from '../../components/Problem'
 import { SWISS_ROUNDS_MAX } from '../../../core/swiss'
 import { leagueAllowances } from './leagueEvent'
 import { asSentence, countLabel } from '../../text'
@@ -250,11 +251,7 @@ function ArmyPointsFields({
           </div>
         ))}
       </div>
-      {error ? (
-        <p role="alert" className="text-xs text-destructive">
-          {asSentence(error)}
-        </p>
-      ) : null}
+      {error ? <Problem className="text-xs">{asSentence(error)}</Problem> : null}
       <p className="text-xs text-dim">
         Lists are built at the battle size or smaller and spend up to their seat’s points.
         {value.sharedPoints ? '' : ' Allies bring lists saved to the same total.'}{' '}

@@ -35,6 +35,12 @@ it('submits the address a sitemap escapes, unescaped', () => {
   ])
 })
 
+it('submits an address with an apostrophe the sitemap escapes, unescaped', () => {
+  expect(sitemapChanges(sitemap(), sitemap('<url><loc>https://praetorium.gg/factions/t&#39;au</loc></url>'))).toEqual([
+    "https://praetorium.gg/factions/t'au",
+  ])
+})
+
 it('refuses a key the protocol does not accept', () => {
   expect(indexNowKey('short')).toBeNull()
 })

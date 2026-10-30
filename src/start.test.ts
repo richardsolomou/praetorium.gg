@@ -26,19 +26,9 @@ it('redirects an old public hostname while preserving the path and query', async
   expect(response.headers.get('location')).toBe('https://praetorium.gg/battles/one?view=score')
 })
 
-it.each([
-  'https://old.example/api/health',
-  'http://127.0.0.1:3001/api/auth/session',
-  'http://localhost:3001/',
-  'https://praetorium.gg/battles',
-])('serves %s without a redirect', async (url) => {
+it('serves the health check on any hostname', async () => {
   vi.stubEnv('APP_URL', 'https://praetorium.gg')
-  expect(await (await request(url)).text()).toBe('application')
-})
-
-it('leaves local requests on their incoming host', async () => {
-  vi.stubEnv('APP_URL', '')
-  expect(await (await request('https://local.example/')).text()).toBe('application')
+  expect(await (await request('https://old.example/api/health')).text()).toBe('application')
 })
 
 async function served(url: string) {

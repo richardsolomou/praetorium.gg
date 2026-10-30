@@ -1,6 +1,6 @@
 import type { Stratagem } from '../../../core/battle'
 import type { RosterView } from '../../../core/battleView'
-import { STRATAGEMS_MAX } from '../../../core/battle'
+import { builtDetachments, STRATAGEMS_MAX } from '../../../core/battle'
 import { uniqueBy } from '../../../core/collections'
 
 /**
@@ -15,7 +15,7 @@ export function armyRulesRequest(roster: RosterView | null | undefined): { catal
   const built = roster?.built
   return {
     catalogueId: built?.catalogueId ?? '',
-    detachmentNames: built?.detachments?.map((detachment) => detachment.name) ?? (built?.detachment ? [built.detachment] : []),
+    detachmentNames: builtDetachments(built).map((detachment) => detachment.name),
   }
 }
 

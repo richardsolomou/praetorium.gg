@@ -20,6 +20,7 @@ import {
   practiceBattle,
   PHONE,
   startBattle,
+  playerPanel,
 } from './account'
 
 /** The page fits at desktop and phone widths, leaving the viewport at the phone's. */
@@ -185,8 +186,7 @@ test('roster reminders cover selected rules and advances from another device', a
   while (await opponentReminder.isVisible()) {
     await opponentReminder.getByRole('button', { name: 'Dismiss', exact: true }).click()
   }
-  await opponent
-    .locator('[data-panel="player"][data-side="0"]')
+  await playerPanel(opponent, 0)
     .getByRole('button', { name: `Open ${roster}` })
     .click()
   await opponent.locator('[data-army-roster] [data-unit="Plasmancer"]').getByRole('button', { name: 'Mark Plasmancer destroyed' }).click()

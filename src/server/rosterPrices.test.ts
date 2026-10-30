@@ -4,7 +4,6 @@ import { cachedRosterAssessmentsFor, cachedRosterPrice, cachedRosterTotalsFor, c
 
 const reads = vi.hoisted(() => ({
   factionIndexFor: vi.fn(),
-  rosterLabelRulesFor: vi.fn(),
   catalogueFor: vi.fn(),
   rulesFor: vi.fn(),
 }))
@@ -26,7 +25,6 @@ const priceable = (id: string) => ({ ...roster(id), optionalRules: [], borrowedD
 beforeEach(() => {
   vi.clearAllMocks()
   reads.factionIndexFor.mockResolvedValue({ revision: 'batch-test' })
-  reads.rosterLabelRulesFor.mockResolvedValue({ factionNames: new Map() })
   reads.catalogueFor.mockResolvedValue(bookOf({}))
   reads.rulesFor.mockResolvedValue({
     factionNames: new Map(),

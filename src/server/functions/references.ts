@@ -166,13 +166,8 @@ export const datasheet = createServerFn({ method: 'GET' })
   )
 
 /**
- * Both views the loadout needs, after expanding the roster once.
- *
- * The chosen and offered weapon views differ only at the final datasheet
- * projection. Expanding every unit once per view made opening a unit scale at
- * twice the cost of its roster for no domain reason. A complete roster is too
- * large for a reliable query string, so this read uses POST and the same origin
- * check as roster pricing.
+ * The chosen and offered weapon views of a unit from one expansion of its roster. POST because a complete roster is too
+ * large for a reliable query string.
  */
 export const loadoutDatasheets = createServerFn({ method: 'POST' })
   .validator(datasheetSchema)
@@ -185,7 +180,7 @@ export const loadoutDatasheets = createServerFn({ method: 'POST' })
       const userId = await currentUserId()
       if (userId)
         await app().telemetry.capture(userId, 'roster_datasheet_loaded', {
-          ...rosterDatasheetLoadedProperties(data, result),
+          ...rosterDatasheetLoadedProperties(data, result, false),
           duration_ms: Math.round(performance.now() - startedAt),
         })
       return result
@@ -235,10 +230,8 @@ export const savedRosterLoadoutDatasheets = createServerFn({ method: 'GET' })
       )
       if (userId)
         await app().telemetry.capture(userId, 'roster_datasheet_loaded', {
-          unit_count: roster.picks.length,
+          ...rosterDatasheetLoadedProperties(roster, result, true),
           duration_ms: Math.round(performance.now() - startedAt),
-          persisted: true,
-          datacard_join: result.datacardJoin,
         })
       return result
     }),
@@ -331,14 +324,14 @@ export const dispositionDetachments = createServerFn({ method: 'GET' })
 /** The battlefields on offer, as polygons, so the interface can draw one. */
 export const deployments = createServerFn({ method: 'GET' }).handler(() =>
   snapshotRpc(async () => {
-    const rules = await app().battleReadRulesFor()
+    const rules = await app().rulesFor()
     return rules?.deployments ?? []
   }),
 )
 
 export const gameReferences = createServerFn({ method: 'GET' }).handler(() =>
   snapshotRpc(async () => {
-    const rules = await app().battleReadRulesFor()
+    const rules = await app().rulesFor()
     if (!rules) return null
     return gameReferencesFor(rules)
   }),
@@ -375,10 +368,10 @@ export const terrainReferences = createServerFn({ method: 'GET' })
   .validator(terrainReferencesSchema)
   .handler(({ data }) =>
     snapshotRpc(async () => {
-      const rules = await app().terrainReadRulesFor(data.matchupIds)
+      const rules = await app().rulesFor()
       if (!rules) return { layouts: [], templates: [] }
       return {
-        layouts: rules.terrainLayouts,
+        layouts: rules.terrainLayouts.filter((layout) => data.matchupIds.includes(layout.matchupId)),
         templates: rules.terrainTemplates,
       }
     }),

@@ -1,5 +1,5 @@
 import { CalendarDays } from 'lucide-react'
-import { useDateFormatting } from '../../dates'
+import { useMoment } from '../../dates'
 import { cn } from '@/lib/utils'
 
 /** When an event is played and its roster deadline, in the reader's timezone; nothing when neither is set. */
@@ -17,10 +17,4 @@ export function EventSchedule({ event, className }: { event: { playsAt: number |
         .join(' · ')}
     </p>
   )
-}
-
-/** A date and time of day, such as "2 Nov 2026, 18:00". */
-export function useMoment() {
-  const { date, time } = useDateFormatting()
-  return (at: number) => `${date(at)}, ${time(at)}`
 }

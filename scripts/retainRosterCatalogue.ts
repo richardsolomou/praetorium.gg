@@ -5,15 +5,14 @@ import os from 'node:os'
 import path from 'node:path'
 import recipe from '../catalogue/retained-profile-build.json' with { type: 'json' }
 import { packCatalogueSnapshot, verifyInstalledSnapshot } from '../src/server/catalogueSnapshot'
-import { isEntryPoint } from './lib/entryPoint.ts'
 
-export function retainRosterCatalogue(source: string, icons: string, output: string) {
+function retainRosterCatalogue(source: string, icons: string, output: string) {
   const sourcePointer = verifyInstalledSnapshot(source)
   const selected = recipe.snapshots.find(({ pointer: expected }) => JSON.stringify(sourcePointer) === JSON.stringify(expected))
   if (!selected) throw new Error('Historical source does not match the retained build recipe')
   if (JSON.stringify(verifyInstalledSnapshot(icons)) !== JSON.stringify(recipe.iconSnapshot))
     throw new Error('Icons snapshot does not match the retained build recipe')
-  if (fs.existsSync(output) || fs.lstatSync(output, { throwIfNoEntry: false })) throw new Error('Retained output already exists')
+  if (fs.lstatSync(output, { throwIfNoEntry: false })) throw new Error('Retained output already exists')
   const work = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-retained-'))
   const repository = path.resolve(import.meta.dirname, '..')
   try {
@@ -77,9 +76,7 @@ fs.writeFileSync(path.join(output, '..', 'reference-policy.json'), JSON.stringif
   }
 }
 
-if (isEntryPoint(import.meta.url)) {
-  const [source, icons, output] = process.argv.slice(2)
-  if (!source || !icons || !output || process.argv.length !== 5)
-    throw new Error('Usage: retainRosterCatalogue.ts <verified-historical-directory> <verified-icons-directory> <new-output-directory>')
-  console.log(retainRosterCatalogue(source, icons, output))
-}
+const [source, icons, output] = process.argv.slice(2)
+if (!source || !icons || !output || process.argv.length !== 5)
+  throw new Error('Usage: retainRosterCatalogue.ts <verified-historical-directory> <verified-icons-directory> <new-output-directory>')
+console.log(retainRosterCatalogue(source, icons, output))

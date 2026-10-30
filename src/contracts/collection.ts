@@ -51,5 +51,3 @@ export const adminCollectionPhotosSchema = z.object({ before: adminCollectionPho
 /** Where a collection photo is served; the route checks the owner still shares it on every read. */
 export const collectionPhotoPath = (photoId: string, size: 'original' | 'thumbnail' = 'original') =>
   `/api/collection-photos/${photoId}${size === 'thumbnail' ? '?size=thumbnail' : ''}`
-
-export type { CollectionGroup } from '../core/collection'

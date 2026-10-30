@@ -4,7 +4,7 @@ import path from 'node:path'
 import { z } from 'zod'
 import { iosDeliveryFingerprint } from './iosDelivery.ts'
 import { isEntryPoint } from './lib/entryPoint.ts'
-import { isAncestor } from './lib/git.ts'
+import { git, isAncestor } from './lib/git.ts'
 import { stepOutput } from './lib/stepOutput.ts'
 
 const runtimeSchema = z.object({ runtimeVersion: z.string().min(1), appVersion: z.string().min(1) })
@@ -107,7 +107,7 @@ if (isEntryPoint(import.meta.url)) {
     stepOutput({ changed: JSON.stringify(iosNativeRuntime(root)) !== JSON.stringify(iosNativeRuntime(path.resolve(channel))) })
   } else {
     if (channel !== 'canary' && channel !== 'stable') throw new Error('Expected the canary or stable iOS channel')
-    const revision = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim()
+    const revision = git(root, 'rev-parse', 'HEAD').trim()
     const main = process.env.GITHUB_REF === 'refs/heads/main'
     if (main && !isAncestor(root, revision, 'refs/remotes/origin/main')) {
       throw new Error(`iOS revision ${revision} is not in origin/main; select its branch for a canary build`)

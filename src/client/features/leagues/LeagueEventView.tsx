@@ -53,7 +53,6 @@ import { LeagueReadiness, RevealRostersDialog } from './LeagueReadiness'
 import { RosterChooser } from './LeagueRosterChooser'
 import { LeagueCombatDialog } from './LeagueCombatDialog'
 import { LeagueResults } from './LeagueResults'
-import { useMoment } from './EventSchedule'
 import { useNow } from '../../useNow'
 import { forfeited, LeagueRounds, ownTable, swissProgress } from './LeagueRounds'
 import { TeamDispositionPanel } from './LeagueTeamDisposition'
@@ -62,6 +61,7 @@ import { LeagueRosterSharing } from './LeagueRosterSharing'
 import { Problem } from '../../components/Problem'
 import { formatList } from '../../text'
 import { useStartBattle } from '../battles/useStartBattle'
+import { useMoment } from '../../dates'
 
 type ClickAction = {
   label: string

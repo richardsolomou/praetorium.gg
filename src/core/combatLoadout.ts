@@ -8,7 +8,7 @@ import { withoutFactionPrefix } from './name'
 import { selectionCountBoundsAt, type EvaluateOptions, type Selection } from './evaluate'
 import { wargearKey, wargearOf, type Wargear } from './wargear'
 
-export type CombatEquipment = Wargear & { profileIds?: string[] }
+type CombatEquipment = Wargear & { profileIds?: string[] }
 export type CombatCarrier = {
   name: string
   models: number

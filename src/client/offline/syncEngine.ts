@@ -3,6 +3,9 @@ import { jsonByteLength } from '../../core/json'
 import { MAX_LOCAL_OPERATIONS, MAX_LOCAL_STATE_BYTES, type LocalOperation, type LocalState } from '../../contracts/localState'
 import { OfflineRefusal } from './offlineRefusal'
 
+export const TOO_MANY_CHANGES_MESSAGE = 'Too many unsynced changes. Connect before making more edits.'
+export const NO_ROOM_MESSAGE = 'This device has no room for more saved changes.'
+
 export interface LocalStateStorage {
   read(): Promise<LocalState>
   change(update: (state: LocalState) => LocalState): Promise<LocalState>
@@ -93,8 +96,7 @@ export class SyncEngine {
         !last.attempted &&
         last.status === 'pending'
       const operations = coalesce ? current.operations.slice(0, -1) : current.operations
-      if (operations.length >= MAX_LOCAL_OPERATIONS)
-        throw new OfflineRefusal('Too many unsynced changes. Connect before making more edits.')
+      if (operations.length >= MAX_LOCAL_OPERATIONS) throw new OfflineRefusal(TOO_MANY_CHANGES_MESSAGE)
       const projected = update ? update(current.documents[operation.resource]?.data) : data
       const documents = { ...current.documents }
       if (projected !== undefined)
@@ -104,7 +106,7 @@ export class SyncEngine {
         if (updated !== undefined) documents[resource] = { data: updated, serverVersion: documents[resource]?.serverVersion ?? null }
       }
       const next = { ...current, operations: [...operations, operation], documents }
-      if (jsonByteLength(next) > MAX_LOCAL_STATE_BYTES) throw new OfflineRefusal('This device has no room for more saved changes.')
+      if (jsonByteLength(next) > MAX_LOCAL_STATE_BYTES) throw new OfflineRefusal(NO_ROOM_MESSAGE)
       return next
     })
     this.changed(state)

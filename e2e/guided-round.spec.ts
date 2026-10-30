@@ -1,6 +1,6 @@
 import { waitForOfflineApp } from './offline'
 import { expect, test } from './test'
-import { advance, advanceButton, createRoster, desktopContext, setupBattle, signUp, takeTheTurn, uniqueName } from './account'
+import { advance, advanceButton, createRoster, desktopContext, setupBattle, signUp, takeTheTurn, uniqueName, playerPanel } from './account'
 import { battleCommands, battleLog, lastPathSegment, battleIdFor } from './storage'
 import type { Command } from '../src/core/battle'
 
@@ -21,7 +21,7 @@ test('New Orders, discard CP and carried cards survive a complete two-player rou
   await signUp(page, uniqueName('Round host'))
   const ours = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'First army' })
   await setupBattle(page, opponent, { opponent: name, hostRoster: ours, guestRoster: theirs, openingSecondaries: ['Cleanse', 'Plunder'] })
-  const side = page.locator('[data-panel="player"][data-side="0"]')
+  const side = playerPanel(page, 0)
   await side.getByRole('button', { name: 'Use New Orders', exact: true }).click()
   await page
     .getByRole('dialog', { name: 'New Orders', exact: true })
@@ -83,9 +83,7 @@ test('New Orders, discard CP and carried cards survive a complete two-player rou
   )
   await opponent.reload()
   await expect(opponent.locator('[data-scoreboard]')).toContainText('Round 2 of 5')
-  await expect(
-    opponent.locator('[data-panel="player"][data-side="0"]').getByRole('button', { name: 'Read Plunder', exact: true }),
-  ).toBeVisible()
+  await expect(playerPanel(opponent, 0).getByRole('button', { name: 'Read Plunder', exact: true })).toBeVisible()
 })
 
 test('both sides settle source final awards beyond round caps through cold offline resume', async ({

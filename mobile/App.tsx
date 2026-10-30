@@ -101,6 +101,7 @@ const pendingAuthStorage = process.env.EXPO_PUBLIC_NATIVE_AUTH_TEST_APP_URL
       deleteItemAsync: deleteSecureValue,
     }
 const ACTIVE_BATTLE_KEEP_AWAKE_TAG = 'praetorium-active-battle'
+const alertProviderRetry = () => Alert.alert('Sign-in did not finish', 'Return to Praetorium and try the provider again.')
 const POSTHOG_OPTIONS = {
   host: process.env.EXPO_PUBLIC_POSTHOG_HOST,
   // Browser replay provides DOM-aware masking; native screenshot replay cannot
@@ -274,7 +275,7 @@ function AppShell() {
       } else {
         await pendingAuthStorage.deleteItemAsync(PENDING_AUTH_KEY)
         commitShell(warmUrlReceived(shellRef.current, url))
-        Alert.alert('Sign-in did not finish', 'Return to Praetorium and try the provider again.')
+        alertProviderRetry()
       }
     },
     [commitAndDrain, commitShell],
@@ -293,7 +294,7 @@ function AppShell() {
         else {
           await pendingAuthStorage.deleteItemAsync(PENDING_AUTH_KEY)
           if (result.type !== WebBrowser.WebBrowserResultType.CANCEL && result.type !== WebBrowser.WebBrowserResultType.DISMISS) {
-            Alert.alert('Sign-in did not finish', 'Return to Praetorium and try the provider again.')
+            alertProviderRetry()
           }
         }
       } catch (error) {
@@ -486,7 +487,7 @@ function AppShell() {
   useEffect(() => {
     const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
       if (!historyBack) return false
-      if (offlineView) webView.current?.injectJavaScript(`window.dispatchEvent(new Event('${NATIVE_EVENTS.appBack}')); true;`)
+      if (offlineView) webView.current?.injectJavaScript(nativeAnswerScript(NATIVE_EVENTS.appBack, null))
       else webView.current?.goBack()
       return true
     })
@@ -550,7 +551,7 @@ function AppShell() {
               } else {
                 void pendingAuthStorage.deleteItemAsync(PENDING_AUTH_KEY)
                 commitShell(initialUrlReceived(shellRef.current, null))
-                Alert.alert('Sign-in did not finish', 'Return to Praetorium and try the provider again.')
+                alertProviderRetry()
               }
             } else if (active && pending?.callbackUrl) {
               await handleAuthCallback(pending.callbackUrl, pending)
@@ -613,7 +614,7 @@ function AppShell() {
       if (!saved) return
       const target = new URL(url, APP_URL)
       offlinePath.current = target.pathname + target.search + target.hash
-      setOfflineView({ path: target.pathname + target.search + target.hash, html: saved.html })
+      setOfflineView({ path: offlinePath.current, html: saved.html })
     } catch (error) {
       captureNativeException('offline_reference_read', error)
     }
@@ -673,7 +674,10 @@ function AppShell() {
             if (navigationType !== 'click') return true
             const decision = classifyNavigation(url)
             if (decision.kind === 'external') void openExternal(decision.url)
-            if (decision.kind === 'internal') retryOnline(new URL(decision.url).pathname + new URL(decision.url).search)
+            if (decision.kind === 'internal') {
+              const { pathname, search } = new URL(decision.url)
+              retryOnline(pathname + search)
+            }
             return false
           }}
           onContentProcessDidTerminate={recoverSavedRenderer}

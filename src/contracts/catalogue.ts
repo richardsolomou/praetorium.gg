@@ -15,8 +15,6 @@ export type {
   StructuredDatasheetProfile,
 } from '../core/datasheet'
 
-export type { DatasheetSearchReason } from '../core/datasheetSearch'
-
 export type UnitSummary = {
   id: string
   slug: string

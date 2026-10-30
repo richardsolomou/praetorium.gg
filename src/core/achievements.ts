@@ -461,7 +461,7 @@ export const ACHIEVEMENTS = [
 export type AchievementId = (typeof ACHIEVEMENTS)[number]['id']
 
 /** A finished Swiss tournament as one of its organisers or entrants sees it. */
-export type TournamentFact = { entrants: number; finishedAt: number; organised: boolean; played: boolean; won: boolean }
+type TournamentFact = { entrants: number; finishedAt: number; organised: boolean; played: boolean; won: boolean }
 
 /** Every time is when the thing happened, which is when the achievement it completes was earned. */
 export type AchievementFacts = {

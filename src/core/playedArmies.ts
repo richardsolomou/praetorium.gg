@@ -1,7 +1,7 @@
-import type { BattleState, Roster } from './battle'
+import { type BattleState, builtDetachments, type Roster } from './battle'
 import { listUnitCount } from './attachedUnits'
 import type { RosterPick } from './roster'
-import { battleOutcome, opponentScore, sideScore, type StandingBattle, type StandingFaction } from './standings'
+import { battleOutcome, type BattleOutcome, opponentScore, sideScore, type StandingBattle, type StandingFaction } from './standings'
 
 type Built = NonNullable<Roster['built']>
 
@@ -26,7 +26,7 @@ export type PlayedArmy = {
 
 /** How the battle went for the side an army stood on, as standings count it. */
 export type PlayedOutcome = {
-  result: 'won' | 'lost' | 'drawn'
+  result: BattleOutcome
   conceded: boolean
   score: number
   /** The best total among the opposing sides. */
@@ -67,7 +67,7 @@ export function playedArmies(
         catalogueId: built.catalogueId,
         edition: built.edition ?? null,
         detachmentIds: built.detachmentIds ?? [],
-        detachments: built.detachments?.map((detachment) => detachment.name) ?? (built.detachment ? [built.detachment] : []),
+        detachments: builtDetachments(built).map((detachment) => detachment.name),
         disposition: built.disposition,
         limit: built.limit,
         pointsBudget: built.pointsBudget ?? null,

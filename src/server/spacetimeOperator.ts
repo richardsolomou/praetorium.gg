@@ -25,6 +25,7 @@ import { recentMatchupSchema, type RecentMatchup } from '../core/recentMatchups'
 import { abilityReminderSchema, type AbilityReminder } from '../core/reminders'
 import { onboardingProgress as foldOnboardingProgress, type OnboardingProgressOperation } from '../core/onboarding'
 import { TABLE_SHAPES } from '../core/tableShape'
+import type { PushPlatform } from '../core/notificationConfig'
 import { LEAGUE_ADMISSIONS, LEAGUE_ENTRY_STATUSES, LEAGUE_VISIBILITIES, parseLeagueAllowances } from '../core/league'
 import { CLUB_MEMBER_STATUSES, CLUB_ROLES } from '../core/club'
 import { unitLoadoutSchema, type UnitLoadout } from '../core/unitLoadouts'
@@ -1098,7 +1099,7 @@ export class SpacetimeOperator {
     return this.read('set_player_defaults', [userId, defaults.rosterVisibility, defaults.battleSize, now], playerDefaultsSchema)
   }
 
-  async registerPushToken(input: { userId: string; token: string; platform: 'ios' | 'android'; now: number }) {
+  async registerPushToken(input: { userId: string; token: string; platform: PushPlatform; now: number }) {
     await this.call('register_push_token', [input.userId, input.token, input.platform, input.now])
   }
 

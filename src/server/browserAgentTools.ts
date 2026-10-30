@@ -69,7 +69,7 @@ export async function prepareBrowserAgentWrite(name: string, input: unknown, exp
     default: {
       const data = submitSchema.parse(normalized)
       await instance.service.userBattleId(data.token, user.id)
-      const screen = await instance.service.screen(data.token, user.id, await instance.battleReadRulesFor())
+      const screen = await instance.service.screen(data.token, user.id, await instance.rulesFor())
       summary =
         screen?.kind === 'battle'
           ? `Record an action in ${screen.view.players.map((player) => player.name).join(' vs ')}.`

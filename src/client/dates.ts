@@ -38,3 +38,18 @@ const local = { date: formatDate, time: formatTime, day: (day: string) => format
 export function useDateFormatting() {
   return useHydrated() ? local : utc
 }
+
+/** A date and time of day, such as "2 Nov 2026, 18:00". */
+export function useMoment() {
+  const { date, time } = useDateFormatting()
+  return (at: number) => `${date(at)}, ${time(at)}`
+}
+
+/** A moment as a `datetime-local` field holds it, in the reader's own timezone. */
+export const inputMoment = (at: number | null) => {
+  if (at === null) return ''
+  const date = new Date(at)
+  const pad = (part: number) => String(part).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
+}
+export const momentFromInput = (text: string) => (text ? new Date(text).getTime() : null)

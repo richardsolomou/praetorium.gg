@@ -1,7 +1,6 @@
 import { ADMIN_USER_ROLES, ADMIN_USER_SORTS } from '../admin'
 import { z } from 'zod'
-import { clubGameTimeZoneSchema } from '../core/club'
-import { REPLAY_BATCH_SIZE } from '../contracts/battles'
+import { REPLAY_BATCH_SIZE } from './battles'
 import { onboardingTaskIds, tourTaskIds } from '../core/onboarding'
 import { PLAYER_SEARCH_MAX_LENGTH } from '../core/playerSearch'
 import { MAX_COLLECTION_DATASHEETS, MAX_COLLECTION_MODELS, MAX_COUNTS_AS } from '../core/collection'
@@ -56,7 +55,7 @@ import {
   type LeagueArmyPoints,
 } from '../core/league'
 import { TABLE_SHAPES, type TableShape } from '../core/tableShape'
-import { CLUB_ADMIN_MAX, CLUB_DESCRIPTION_MAX_LENGTH, CLUB_GAME_SIDES, CLUB_NAME_MAX_LENGTH } from '../core/club'
+import { CLUB_ADMIN_MAX, CLUB_DESCRIPTION_MAX_LENGTH, CLUB_GAME_SIDES, CLUB_NAME_MAX_LENGTH, clubGameTimeZoneSchema } from '../core/club'
 import { SWISS_ROUNDS_MAX } from '../core/swiss'
 import { CLUB_SEASON_PLAYERS_MAX, CLUB_SEASON_SEED_MAX } from '../core/clubSeason'
 import { PASSWORD_MIN_LENGTH, SOCIAL_PROVIDERS } from '../authConfig'

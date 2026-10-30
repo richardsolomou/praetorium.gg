@@ -12,7 +12,7 @@ import { Label } from '@/components/ui/label'
 import { PASSWORD_MIN_LENGTH, SOCIAL_AUTH_PROVIDER_NAMES } from '../../../authConfig'
 import { authClient, authRedirectUrl } from '../../authClient'
 import { AuthMethodIcon } from './AuthMethodIcon'
-import { authFailureReason } from './authFailureReason'
+import { captureAuthFailure } from './authFailureReason'
 import { TwoFactorSignIn } from './TwoFactorSignIn'
 import { requestNativeAuth, useGithubAuthAvailability } from '../../nativeAuth'
 import { signInOptionsQuery } from '../../queries'
@@ -71,12 +71,7 @@ export function SignInPage({
   const callbackError = socialAuthErrorMessage(error)
   // The callback does not say which provider failed, so it counts as social.
   useEffect(() => {
-    if (error)
-      posthog.capture('account_authentication_failed', {
-        method: 'social',
-        action: join ? 'create' : 'sign_in',
-        reason: authFailureReason(error),
-      })
+    if (error) captureAuthFailure(error, { method: 'social', action: join ? 'create' : 'sign_in' })
   }, [error, join])
   const githubAuthAvailable = useGithubAuthAvailability()
   const providers = options?.providers.filter((provider) => provider !== 'github' || githubAuthAvailable) ?? []
@@ -127,11 +122,7 @@ export function SignInPage({
       if (next) window.location.replace(next)
       else await navigate({ to: '/', replace: true })
     } else {
-      posthog.capture('account_authentication_failed', {
-        method: 'email',
-        action: joining ? 'create' : 'sign_in',
-        reason: authFailureReason(result.error),
-      })
+      captureAuthFailure(result.error, { method: 'email', action: joining ? 'create' : 'sign_in' })
     }
   }
 
@@ -314,12 +305,7 @@ export function SignInPage({
                           errorCallbackURL,
                           requestSignUp: joining,
                         })
-                        if (result.error)
-                          posthog.capture('account_authentication_failed', {
-                            method: provider,
-                            action: joining ? 'create' : 'sign_in',
-                            reason: authFailureReason(result.error),
-                          })
+                        if (result.error) captureAuthFailure(result.error, { method: provider, action: joining ? 'create' : 'sign_in' })
                       }}
                     >
                       <AuthMethodIcon method={provider} />

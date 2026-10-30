@@ -1,5 +1,7 @@
 import { posthog } from 'posthog-js'
 import { useCallback, useRef, useState } from 'react'
+import { downloadFile } from './downloadFile'
+import { nativeBridgeVersion } from './nativeBridge'
 
 /** Clipboard writes whose outcome is shown, where only the latest attempt may set `copied` or `problem`. */
 export function useCopyText() {
@@ -26,4 +28,15 @@ export function useCopyText() {
     }
   }
   return { copy, copied, problem, reset }
+}
+
+/** Text a player takes away: copied in the app, where a download goes nowhere, and saved as a file elsewhere. */
+export function useExportText() {
+  const { copy, copied, problem } = useCopyText()
+  const native = nativeBridgeVersion() !== undefined
+  const exportText = async (text: string, { name, type, operation }: { name: string; type: string; operation: string }) => {
+    if (native) await copy(text, { failure: 'Copy failed. Try again.', operation })
+    else downloadFile(name, text, type)
+  }
+  return { exportText, native, copied, problem }
 }

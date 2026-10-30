@@ -76,7 +76,7 @@ export function WaiverNote({ rules, className = '' }: { rules: readonly FormatRu
  * about them. A run-on sentence made the reader count commas to find out what they
  * were agreeing to.
  */
-export function WaiverList({ rules }: { rules: readonly FormatRule[] }) {
+function WaiverList({ rules }: { rules: readonly FormatRule[] }) {
   return (
     <ul className="my-3 min-w-0 space-y-1.5 border border-discarded/40 bg-discarded/5 p-2.5">
       {rules.map((rule) => (

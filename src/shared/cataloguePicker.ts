@@ -24,8 +24,6 @@ import { rosterDetachments } from './rosterDetachments'
 import { isOfferedDatasheet, listPriceOf, priceOf, seedListPrice } from './catalogueUnit'
 import { completeSteps, type Steps, type Stepwise, stepwise } from './steps'
 
-export { isMatchedPlayDatasheet } from './catalogueUnit'
-
 /** Derived from one immutable catalogue snapshot. Search filters this list in memory. */
 const unitSummaryCache = new WeakMap<LoadedCatalogue, Map<string, Stepwise<UnitSummary[]>>>()
 

@@ -2,6 +2,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
+import { useQuery } from '@tanstack/react-query'
 import { ChevronDown } from 'lucide-react'
 import { useState } from 'react'
 import {
@@ -10,6 +11,7 @@ import {
   leaguePlacesSeat,
   leagueArmyPointsError,
   leagueFormat,
+  LEAGUE_ADMIN_MAX,
   LEAGUE_MEMBER_MAX,
   type LeagueAdmission,
   type LeagueAllowance,
@@ -17,9 +19,11 @@ import {
 } from '../../../core/league'
 import { pointsBudgetError } from '../../../core/battle'
 import type { TableShape } from '../../../core/tableShape'
+import { AdminsField, type AdminPerson } from '../../components/AdminsField'
 import { Choice } from '../../components/Choice'
+import { inputMoment, momentFromInput } from '../../dates'
+import { friendshipsQuery } from '../../queries'
 import { LeagueEventRuleFields, CLUB_ROSTER_RULE, ROSTER_RULE } from './LeagueEventRuleFields'
-import { LeagueAdminsField, type AdminChoice } from './LeagueAdminsField'
 import { leagueAllowances } from './leagueEvent'
 
 export type LeagueFormValue = {
@@ -239,15 +243,6 @@ export function leagueFormValid(value: LeagueFormValue, seated: number, limitFor
 const scheduleProblem = ({ playsAt, sealBy }: Pick<LeagueFormValue, 'playsAt' | 'sealBy'>) =>
   playsAt !== null && sealBy !== null && sealBy > playsAt ? 'Set the roster deadline before the date it’s played.' : null
 
-/** A moment as a `datetime-local` field holds it, in the reader's own timezone. */
-export const inputMoment = (at: number | null) => {
-  if (at === null) return ''
-  const date = new Date(at)
-  const pad = (part: number) => String(part).padStart(2, '0')
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
-}
-export const momentFromInput = (text: string) => (text ? new Date(text).getTime() : null)
-
 /** When the event is played and when rosters must be sealed by, both optional and open to change until the reveal. */
 function ScheduleFields({
   idPrefix,
@@ -295,5 +290,30 @@ function ScheduleFields({
             : 'Both optional. After the deadline nobody can seal, and anyone who hasn’t sealed doesn’t play.')}
       </p>
     </div>
+  )
+}
+
+/** The admins being chosen: `known` names the ones already saved, so a friendship that has since ended still shows them. */
+type AdminChoice = { selected: string[]; known: readonly AdminPerson[]; onChange: (ids: string[]) => void }
+
+/** Friends the owner trusts to run the league beside them: start events, change settings, and manage players. */
+function LeagueAdminsField({ idPrefix, admins, disabled }: { idPrefix: string; admins: AdminChoice; disabled: boolean }) {
+  const { data: friendships } = useQuery(friendshipsQuery())
+  return (
+    <AdminsField
+      id={`${idPrefix}-admin`}
+      people={admins.known}
+      candidates={friendships?.friends ?? []}
+      selected={admins.selected}
+      max={LEAGUE_ADMIN_MAX}
+      disabled={disabled}
+      onChange={admins.onChange}
+      labels={{
+        former: 'Former friend',
+        add: 'Add a friend as an admin',
+        none: 'Add friends to make them admins',
+        hint: 'Admins change settings and manage players. Only you can delete it.',
+      }}
+    />
   )
 }

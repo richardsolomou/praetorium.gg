@@ -1,3 +1,4 @@
+import { pointsBudgetOf } from './battle'
 import { type CatalogueEdition, editionLabel } from './catalogueEdition'
 import { countLabel } from './text'
 import type { UnitGroup } from './unitGroups'
@@ -47,7 +48,7 @@ export function toGwText(roster: GwTextRoster, version: string): string {
     ...(roster.dispositions.length
       ? [`Force Disposition${roster.dispositions.length === 1 ? '' : 's'}: ${roster.dispositions.join(', ')}`]
       : []),
-    `${roster.size} (${(roster.pointsBudget ?? roster.limit).toLocaleString('en-GB')} Points)`,
+    `${roster.size} (${pointsBudgetOf(roster).toLocaleString('en-GB')} Points)`,
   ]
 
   for (const group of Object.keys(headings) as (keyof typeof headings)[]) {

@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { ArrowLeft, ArrowRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import { useMediaQuery } from '../../../useMediaQuery'
+import { prefersReducedMotion, useMediaQuery } from '../../../useMediaQuery'
 import { createContext, useContext, type ReactNode } from 'react'
 import { gameReferencesQuery } from '../../../queries'
 import { sideName, type Side } from '../../../sides'
@@ -115,8 +115,8 @@ export function SideSwitchNext({ sides }: { sides: Side[] }) {
  * browser has kept its place across it, or the two scrolls fight.
  */
 export function landOn(step: Element | null) {
-  const smooth = !window.matchMedia('(prefers-reduced-motion: reduce)').matches
-  requestAnimationFrame(() => step?.scrollIntoView({ block: 'start', behavior: smooth ? 'smooth' : 'auto' }))
+  const behavior = prefersReducedMotion() ? 'auto' : 'smooth'
+  requestAnimationFrame(() => step?.scrollIntoView({ block: 'start', behavior }))
 }
 
 /** Something the step says in passing: what a rule implies, or who may do this. */

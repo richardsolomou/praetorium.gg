@@ -16,13 +16,7 @@ export default defineConfig({
   // One CI retry turns a flake into a minute on one runner instead of a full rerun; the
   // github reporter still reports the test as flaky, and a local run never retries.
   retries: process.env.CI ? 1 : 0,
-  /*
-   * A journey test signs two players up, builds a list, sets a table and plays a turn.
-   * None of that is asserting speed, and on a loaded CI runner the whole run can pass
-   * 45 seconds without anything being wrong — the budget is only here so a genuinely
-   * stuck test stops rather than hangs. `expect.timeout` below is the wait that means
-   * something, and it stays where it was.
-   */
+  // A whole journey can pass 45 seconds on a loaded runner; this only stops a stuck test, and `expect.timeout` is the wait that matters.
   timeout: 120_000,
   // Live updates include a SpacetimeDB subscription and a refetch.
   expect: { timeout: 15_000 },

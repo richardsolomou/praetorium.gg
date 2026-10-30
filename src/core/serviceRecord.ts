@@ -4,7 +4,15 @@ import { groupBy } from './collections'
 import { isGuestSeat } from './newBattle'
 import { routeSlug } from './slug'
 import { type BattleState, mayNameCard, type PlayerId, pointsLabel } from './battle'
-import { battleOutcome, opponentScore, sideScore, type StandingBattle, type StandingFaction, winRate } from './standings'
+import {
+  battleOutcome,
+  opponentScore,
+  sideScore,
+  type StandingBattle,
+  type StandingFaction,
+  type BattleOutcome,
+  winRate,
+} from './standings'
 
 /**
  * One stratagem use as the log states it, with the page printing it where the
@@ -158,7 +166,7 @@ type Appearance = {
   battle: RecordBattle
   side: number
   seat: number
-  result: 'won' | 'lost' | 'drawn'
+  result: BattleOutcome
   points: number
 }
 

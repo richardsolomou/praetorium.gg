@@ -36,7 +36,7 @@ jobs:
       - name: Inventory all rule descriptions
         run: |
           mkdir -p combat-reports
-          pnpm exec tsx scripts/auditCombatRules.ts --json > combat-reports/inventory.json
+          pnpm -s catalogue:combat --json > combat-reports/inventory.json
       - name: Restore Jev judgments
         id: judgments
         run: |

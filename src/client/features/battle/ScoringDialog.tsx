@@ -24,6 +24,7 @@ import { MissionSelectionRecords } from './MissionSelectionRecord'
 import { BattleDialogContent, BattlePromptDialog } from './BattlePromptDialog'
 import { tint } from './battleTints'
 import { UndoLatest, type UndoTarget } from './UndoLatest'
+import { prefersReducedMotion } from '../../useMediaQuery'
 
 /** Which side a prompt is recording for, in the colours it wears to say so. */
 type Tone = ReturnType<typeof tint>
@@ -110,8 +111,9 @@ export function ScoringDialog({
     if (!scroller) return
     const view = scroller.getBoundingClientRect()
     const next = [...scroller.querySelectorAll('section[data-due]')].find((card) => card.getBoundingClientRect().bottom > view.bottom + 1)
-    if (!next) scroller.scrollTo({ top: scroller.scrollHeight, behavior: 'smooth' })
-    else next.scrollIntoView({ behavior: 'smooth', block: next.getBoundingClientRect().top > view.top + 1 ? 'start' : 'end' })
+    const behavior = prefersReducedMotion() ? 'auto' : 'smooth'
+    if (!next) scroller.scrollTo({ top: scroller.scrollHeight, behavior })
+    else next.scrollIntoView({ behavior, block: next.getBoundingClientRect().top > view.top + 1 ? 'start' : 'end' })
   }
   const answerFor = (card: DueCard) => answers[card.key] ?? card.awards.map(() => 0)
   const claimedFor = (card: DueCard) => card.awards.reduce((total, award, at) => total + awardTotal(award, answerFor(card)[at] ?? 0), 0)

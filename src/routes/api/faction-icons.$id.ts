@@ -1,12 +1,13 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { app } from '../../server/app'
+import { notFound } from '../../server/notFound'
 
 export const Route = createFileRoute('/api/faction-icons/$id')({
   server: {
     handlers: {
       GET: async ({ params }) => {
         const icon = await app().factionIconFor(params.id)
-        if (!icon) return new Response('Not found', { status: 404 })
+        if (!icon) return notFound()
         const encoded = icon.match(/^data:image\/svg\+xml;base64,(.+)$/)?.[1]
         if (!encoded) return Response.redirect(icon, 307)
         return new Response(Buffer.from(encoded, 'base64'), {

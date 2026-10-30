@@ -22,6 +22,7 @@ import {
   practiceBattle,
   PHONE,
   uploadAvatar,
+  playerPanel,
 } from './account'
 import { battleCommands, battleLog, productSql, lastPathSegment, battleIdFor } from './storage'
 import { expectNoHorizontalOverflow } from './builder.harness'
@@ -58,7 +59,7 @@ test('Cleanse and Centre Ground prompt for scoring on the first turn', async ({ 
   await practiceBattle(page, roster)
   await startBattle(page, undefined, true, ['Cleanse', 'Centre Ground'])
 
-  const ongoing = page.locator('[data-panel="player"][data-side="0"]')
+  const ongoing = playerPanel(page, 0)
   await expect(ongoing.locator('[data-secondary]')).toHaveCount(2)
   await expect(ongoing.locator('[data-secondary] [aria-label="Victory points by battle round"]')).toHaveCount(0)
   for (const width of [900, 1100, 1440]) {
@@ -124,12 +125,12 @@ test('Cleanse and Centre Ground prompt for scoring on the first turn', async ({ 
   await page.getByRole('button', { name: 'Pass the turn', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'command phase' })).toBeVisible()
   await page.reload()
-  await expect(page.locator('[data-panel="player"][data-side="0"] [data-stat="secondary"]')).toHaveText('5')
+  await expect(playerPanel(page, 0).locator('[data-stat="secondary"]')).toHaveText('5')
   await page
     .getByRole('dialog', { name: /secondary missions$/ })
     .getByRole('button', { name: 'Minimize dialog' })
     .click()
-  const side = page.locator('[data-panel="player"][data-side="0"]')
+  const side = playerPanel(page, 0)
   await side.getByRole('button', { name: 'Show 2 resolved missions', exact: true }).click()
   const cleanse = side.locator('[data-secondary]').filter({ has: page.getByRole('button', { name: 'Read Cleanse', exact: true }) })
   const centre = side.locator('[data-secondary]').filter({ has: page.getByRole('button', { name: 'Read Centre Ground', exact: true }) })

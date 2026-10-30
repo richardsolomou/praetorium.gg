@@ -50,6 +50,7 @@ import {
   serviceRecord,
 } from '../core/serviceRecord'
 import { routeSlug } from '../core/slug'
+import type { PushPlatform } from '../core/notificationConfig'
 import {
   armyOf,
   battleOutcome,
@@ -70,7 +71,8 @@ import { REPLAY_BATCH_SIZE, type BattlesCursor } from '../contracts/battles'
 import { gameReferencesFor } from '../shared/gameReferences'
 import { archivedArmies } from '../core/archivedArmies'
 import { currentCatalogueFamilyId } from '../core/retiredCatalogueIds'
-import { type BattleMissionRules, type BattleReadRules, type LoadedRules, type Mission } from './rules'
+import { type BattleMissionRules, type BattleReadRules, type LoadedRules } from './rules'
+import type { Mission } from '../shared/rulesCards'
 import { type Notifier, silentNotifier } from './pushNotifier'
 import { LeagueService } from './services/leagueService'
 import { ClubService } from './services/clubService'
@@ -597,7 +599,7 @@ export class PraetoriumService {
     await this.repository.deleteAbilityReminder(userId, key)
   }
 
-  registerPushDevice(userId: string, device: { token: string; platform: 'ios' | 'android' }) {
+  registerPushDevice(userId: string, device: { token: string; platform: PushPlatform }) {
     return this.repository.registerPushToken({ userId, ...device, now: this.clock() })
   }
 

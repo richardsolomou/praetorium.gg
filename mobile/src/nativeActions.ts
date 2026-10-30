@@ -1,6 +1,7 @@
 import { parseSavedReference, type SavedReference } from './offlineReference'
 import { classifyNavigation } from './navigation'
 import { MAX_APP_SNAPSHOT_BYTES, parseAppSnapshot, type AppSnapshot } from '../../src/contracts/appSnapshot'
+import { scriptJson } from '../../src/contracts/embeddedReference'
 import { MAX_LOCAL_STATE_BYTES, parseLocalState, type LocalState } from '../../src/contracts/localState'
 
 import { NATIVE_EVENTS, type NativeEvent } from '../../src/contracts/nativeBridge'
@@ -27,9 +28,8 @@ export type NativeActionRequest =
   | { kind: 'push'; id: string; prompt: boolean }
   | { kind: 'share'; title?: string; url: string }
 
-/** Dispatches `detail` to the page as data; `<` stays escaped so the JSON cannot close a script element. */
 export function nativeAnswerScript(event: NativeEvent, detail: unknown) {
-  return `window.dispatchEvent(new CustomEvent('${event}', { detail: ${JSON.stringify(detail).replaceAll('<', '\\u003c')} })); true;`
+  return `window.dispatchEvent(new CustomEvent('${event}', { detail: ${scriptJson(detail)} })); true;`
 }
 
 export function parseNativeActionRequest(message: string): NativeActionRequest | null {
@@ -108,7 +108,7 @@ export function parseNativeActionRequest(message: string): NativeActionRequest |
 }
 
 export const NATIVE_BRIDGE_SCRIPT = `(() => {
-  const capabilities = ['app-navigation', 'app-snapshot', 'local-state', 'back-gesture', 'battle-active', 'github-auth', 'haptic', 'notifications', 'offline-reference', 'open-window', 'print', 'share'];
+  const capabilities = ['app-navigation', 'app-snapshot', 'local-state', 'back-gesture', 'battle-active', 'github-auth', 'haptic', 'notifications', 'offline-reference', 'share'];
   window.PraetoriumNative = Object.freeze({ bridgeVersion: 3, capabilities });
   const disableZoom = () => {
     const viewport = document.querySelector('meta[name="viewport"]');

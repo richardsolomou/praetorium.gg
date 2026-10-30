@@ -17,8 +17,6 @@ type NativeCapability =
   | 'github-auth'
   | 'notifications'
   | 'offline-reference'
-  | 'open-window'
-  | 'print'
   | 'share'
   | 'watch-battle'
 

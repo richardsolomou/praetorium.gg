@@ -9,7 +9,7 @@ import { DialogBody, DialogFooter } from '../../components/Dialog'
 import { Problem } from '../../components/Problem'
 import { ProgressBar } from '../../components/ProgressBar'
 import { battlebaseAccount, battlebaseImportCode, importBattlebaseBattles } from '../../functions'
-import { battlebaseAccountKey, battlesKey } from '../../queries/queryKeys'
+import { battlebaseAccountKey, battlesKey, playerProfileKey } from '../../queries/queryKeys'
 import { countLabel } from '../../text'
 import { useCopyText } from '../../useCopyText'
 
@@ -63,7 +63,7 @@ export function BattlebaseImport({ picker, onBusy, onDone }: { picker: ReactNode
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: battlebaseAccountKey() }),
         queryClient.invalidateQueries({ queryKey: battlesKey() }),
-        queryClient.invalidateQueries({ queryKey: ['player-profile'] }),
+        queryClient.invalidateQueries({ queryKey: playerProfileKey() }),
       ])
     },
   })

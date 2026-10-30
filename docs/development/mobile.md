@@ -18,7 +18,6 @@
 ## Saved application data
 
 - Saved launches must preserve authentication, capabilities, cookies, and origin checks.
-- A sync conflict requires the player's choice; never overwrite it by retrying.
 - Run `just e2e-native-offline-ios` after changing saved launch or storage, and test an upgrade with a previous build's reference download intact.
 
 ## Notifications

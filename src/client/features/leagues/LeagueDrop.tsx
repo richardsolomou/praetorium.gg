@@ -2,10 +2,10 @@ import { useMutation } from '@tanstack/react-query'
 import { LogOut, UserMinus } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { dropLeagueEntrant } from '../../functions'
 import { useLeagueRefresh } from './leagueEvent'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
+import { IconAction } from './LeagueEntrants'
 
 /** Takes a player out of every later Swiss round: the viewer withdrawing, or an organizer dropping a no-show. */
 export function DropEntrant({
@@ -34,28 +34,24 @@ export function DropEntrant({
   const [them, their] = self ? ['You', 'your'] : ['They', 'their']
   return (
     <>
-      <Tooltip>
-        <TooltipTrigger
-          render={
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              className="text-dim hover:text-side-a pointer-coarse:size-11"
-              aria-label={self ? 'Withdraw from the tournament' : `Drop ${label}`}
-              disabled={drop.isPending}
-              onClick={() => {
-                drop.reset()
-                setConfirming(true)
-              }}
-            />
-          }
-        >
-          {self ? <LogOut aria-hidden /> : <UserMinus aria-hidden />}
-        </TooltipTrigger>
-        <TooltipContent role="tooltip" side="bottom">
-          {action}
-        </TooltipContent>
-      </Tooltip>
+      <IconAction
+        tooltip={action}
+        trigger={
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="text-dim hover:text-side-a pointer-coarse:size-11"
+            aria-label={self ? 'Withdraw from the tournament' : `Drop ${label}`}
+            disabled={drop.isPending}
+            onClick={() => {
+              drop.reset()
+              setConfirming(true)
+            }}
+          />
+        }
+      >
+        {self ? <LogOut aria-hidden /> : <UserMinus aria-hidden />}
+      </IconAction>
       <ConfirmDialog
         open={confirming}
         title={self ? 'Withdraw from the tournament?' : `Drop ${label}?`}

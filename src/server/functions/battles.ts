@@ -34,7 +34,7 @@ export const myBattles = createServerFn({ method: 'GET' })
   .handler(({ data }) =>
     rpc(() =>
       forSignedIn({ battles: [], nextCursor: null }, async (id) => {
-        const [rules, factions] = await Promise.all([app().battleMissionRulesFor(), app().battleFactionsFor()])
+        const [rules, factions] = await Promise.all([app().rulesFor(), app().battleFactionsFor()])
         return app().service.battles(id, rules, { limit: BATTLES_PAGE, before: data.before ?? undefined }, factions)
       }),
     ),
@@ -51,7 +51,7 @@ export const publicBattles = createServerFn({ method: 'GET' })
   .validator(battlesPageSchema)
   .handler(({ data }) =>
     rpc(async () => {
-      const [viewerId, rules, factions] = await Promise.all([currentUserId(), app().battleMissionRulesFor(), app().battleFactionsFor()])
+      const [viewerId, rules, factions] = await Promise.all([currentUserId(), app().rulesFor(), app().battleFactionsFor()])
       return app().service.publicBattles(viewerId, rules, { before: data.before ?? undefined }, factions)
     }),
   )
@@ -62,7 +62,7 @@ export const friendBattles = createServerFn({ method: 'GET' })
   .handler(({ data }) =>
     rpc(() =>
       forSignedIn({ battles: [], nextCursor: null }, async (id) => {
-        const [rules, factions] = await Promise.all([app().battleMissionRulesFor(), app().battleFactionsFor()])
+        const [rules, factions] = await Promise.all([app().rulesFor(), app().battleFactionsFor()])
         return app().service.friendBattles(id, rules, { before: data.before ?? undefined }, factions)
       }),
     ),
@@ -87,7 +87,7 @@ export const playerProfile = createServerFn({ method: 'GET' })
     rpc(async () => {
       const { userId, ...filter } = data
       const viewerId = await currentUserId()
-      const [rules, factions] = await Promise.all([app().battleReadRulesFor(), app().battleFactionsFor()])
+      const [rules, factions] = await Promise.all([app().rulesFor(), app().battleFactionsFor()])
       return app().service.playerProfile(userId, viewerId, filter, rules, factions)
     }),
   )
@@ -122,20 +122,20 @@ export const openBattle = createServerFn({ method: 'GET' })
   .handler(({ data }) =>
     rpc(async () => {
       const userId = await battleViewerId(data.token)
-      return orNull(async () => app().service.screen(data.token, userId, await app().battleReadRulesFor()))
+      return orNull(async () => app().service.screen(data.token, userId, await app().rulesFor()))
     }),
   )
 
 export const replayBattleAt = createServerFn({ method: 'GET' })
   .validator(battleReplaySchema)
   .handler(({ data }) =>
-    rpc(async () => app().service.replayAt(data.token, await battleViewerId(data.token), data.seq, await app().battleReadRulesFor())),
+    rpc(async () => app().service.replayAt(data.token, await battleViewerId(data.token), data.seq, await app().rulesFor())),
   )
 
 export const replayBattleBatch = createServerFn({ method: 'GET' })
   .validator(battleReplayBatchSchema)
   .handler(({ data }) =>
-    rpc(async () => app().service.replayBatch(data.token, await battleViewerId(data.token), data.seqs, await app().battleReadRulesFor())),
+    rpc(async () => app().service.replayBatch(data.token, await battleViewerId(data.token), data.seqs, await app().rulesFor())),
   )
 
 export const leagueBattleOptions = createServerFn({ method: 'GET' })
@@ -171,6 +171,4 @@ export const submit = createServerFn({ method: 'POST' })
 
 export const battleReport = createServerFn({ method: 'GET' })
   .validator(tokenSchema)
-  .handler(({ data }) =>
-    rpc(async () => app().service.report(data.token, await requireBattleActor(data.token), await app().battleReadRulesFor())),
-  )
+  .handler(({ data }) => rpc(async () => app().service.report(data.token, await requireBattleActor(data.token), await app().rulesFor())))

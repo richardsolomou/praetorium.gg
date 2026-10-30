@@ -3,6 +3,7 @@ import { requireReviewedRoster, type ReviewedServerSave } from './offline/review
 import { projectBattles } from './offline/battleFunctions'
 import { accountChanged, accountGuard, cachedRead, cachedPage } from './offline/reads'
 import { hasLocalChanges, localOwner, syncLocalWork } from './offline/localRuntime'
+import { byId } from '../core/collections'
 import { lockedRosterRefusal } from '../core/rosterLock'
 import { rosterDifferences } from '../core/rosterDifferences'
 import { convertedSetup } from '../core/rosterSetup'
@@ -296,6 +297,8 @@ export async function sharedRoster(args: Parameters<typeof server.sharedRoster>[
   return access?.roster ?? null
 }
 
+export const DELETED_ROSTER_MESSAGE = 'This roster was deleted. Save it as a new roster.'
+
 export async function saveRoster(
   args: Parameters<typeof server.saveRoster>[0],
   reviewed?: RosterInput,
@@ -340,7 +343,7 @@ export async function saveRoster(
     await rememberDocument(resource, opened.roster, opened.roster.updatedAt, owner, null)
     previous = await localDocument<LocalRoster | null>(resource)
   }
-  if (previous === null) throw new Error('This roster was deleted. Save it as a new roster.')
+  if (previous === null) throw new Error(DELETED_ROSTER_MESSAGE)
   const now = Math.max(Date.now(), (previous?.updatedAt ?? 0) + 1)
   const roster: LocalRoster = {
     ...input,
@@ -421,7 +424,7 @@ function overlaySummaries(
   all = false,
   retained?: Set<string>,
 ) {
-  const byId = new Map(summaries.map((roster) => [roster.id, roster]))
+  const listed = byId(summaries)
   for (const [resource, document] of Object.entries(state?.documents ?? {})) {
     if (
       !resource.startsWith('roster:') ||
@@ -429,10 +432,10 @@ function overlaySummaries(
     )
       continue
     const roster = document.data as LocalRoster | null
-    if (!roster) byId.delete(resource.slice(7))
-    else byId.set(roster.id, summaryFor(roster))
+    if (!roster) listed.delete(resource.slice(7))
+    else listed.set(roster.id, summaryFor(roster))
   }
-  return [...byId.values()].sort((left, right) => right.updatedAt - left.updatedAt)
+  return [...listed.values()].sort((left, right) => right.updatedAt - left.updatedAt)
 }
 export function projectLocalState(state: LocalState) {
   const client = localClient()
@@ -746,7 +749,7 @@ export async function homeRosters(args?: { signal?: AbortSignal }): ReturnType<t
   if (fresh) {
     const page = await savedRosterPage({ data: { ids: recent.map((roster) => roster.id) }, signal: args?.signal })
     assertAccount()
-    const rows = new Map(page.map((row) => [row.id, row]))
+    const rows = byId(page)
     return {
       count: active.length,
       rosters: recent.map((roster) => ({

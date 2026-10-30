@@ -1,4 +1,4 @@
-import { FIXED_SECONDARIES } from '../core/battle'
+import { FIXED_SECONDARIES, pointsSpent } from '../core/battle'
 import type { BattleView } from '../core/battleView'
 
 type ViewPlayer = BattleView['players'][number]
@@ -230,6 +230,6 @@ function toArmy(player: ViewPlayer): Army {
     unitCount: player.unitCount,
     painted: player.painted,
     paintedPoints: player.paintedPoints,
-    points: units?.length ? units.reduce((total, unit) => total + unit.points, 0) : null,
+    points: units?.length ? pointsSpent({ units }) : null,
   }
 }

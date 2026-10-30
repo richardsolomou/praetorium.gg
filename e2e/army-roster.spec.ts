@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './test'
-import { createRoster, signUp, startBattle, uniqueName, addUnit, practiceBattle } from './account'
+import { createRoster, signUp, startBattle, uniqueName, addUnit, practiceBattle, playerPanel } from './account'
 
 /** A Death Guard list of Plague Marines and a Foetid Bloat-drone, started in a practice battle. */
 async function guardBattle(page: Page, label: string, name: string) {
@@ -16,7 +16,7 @@ test('an army is read and its losses recorded without leaving the battle', async
   const { player, roster } = await guardBattle(page, 'Attrition', 'Attrition Guard')
 
   // The list opens over the battle rather than on a page of its own.
-  const panel = page.locator('[data-panel="player"][data-side="0"]')
+  const panel = playerPanel(page, 0)
   await expect(panel.getByRole('link', { name: roster, exact: true })).toHaveCount(0)
   const units = panel.locator('[data-army-units]')
   const models = panel.locator('[data-army-models]')
@@ -96,7 +96,7 @@ test('an army is read and its losses recorded without leaving the battle', async
 test('a multi-wound model is tracked in wounds, and losing them all takes the model', async ({ page }) => {
   const { roster } = await guardBattle(page, 'Wounds', 'Wounded Guard')
 
-  const panel = page.locator('[data-panel="player"][data-side="0"]')
+  const panel = playerPanel(page, 0)
   await panel.getByRole('button', { name: `Open ${roster}` }).click()
   const army = page.locator('[data-army-roster]')
   const squad = army.locator('[data-army-list] [data-unit="Plague Marines"]')

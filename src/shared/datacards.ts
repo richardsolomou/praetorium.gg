@@ -64,7 +64,6 @@ type ConstructionEnhancement = {
   eligibility: EnhancementEligibility | null
 }
 import type { EnhancementEligibility } from '../contracts/factions'
-export type { EnhancementEligibility } from '../contracts/factions'
 type FactionStratagem = {
   id: string
   name: string

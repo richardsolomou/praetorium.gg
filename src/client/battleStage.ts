@@ -1,8 +1,7 @@
-import { battleOutcome, type StandingBattle } from '../core/standings'
+import type { BattleStatus } from '../core/battle'
+import { battleOutcome, type BattleOutcome, type StandingBattle } from '../core/standings'
 
 /** Share stage labels and colors across battle lists, with setup amber, live green, and finished grey. */
-type BattleStatus = 'setup' | 'playing' | 'finished'
-
 type BattleStage = { name: string; tint: string }
 
 const STAGES: Record<BattleStatus, BattleStage> = {
@@ -13,7 +12,7 @@ const STAGES: Record<BattleStatus, BattleStage> = {
 
 export const battleStage = (status: BattleStatus): BattleStage => STAGES[status]
 
-const OUTCOMES: Record<'won' | 'lost' | 'drawn', BattleStage> = {
+const OUTCOMES: Record<BattleOutcome, BattleStage> = {
   won: { name: 'Won', tint: 'text-achieved' },
   lost: { name: 'Lost', tint: 'text-rust' },
   drawn: { name: 'Drawn', tint: 'text-dim' },

@@ -1,5 +1,9 @@
 import { execFileSync, spawnSync } from 'node:child_process'
 
+export function git(cwd: string, ...args: string[]) {
+  return execFileSync('git', args, { cwd, encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 })
+}
+
 export function isAncestor(root: string, older: string, newer: string) {
   const result = spawnSync('git', ['merge-base', '--is-ancestor', older, newer], { cwd: root, encoding: 'utf8' })
   if (result.status === 0) return true

@@ -52,9 +52,7 @@ export async function currentUserId(request = getRequest()) {
 }
 
 export async function requireUserId(request = getRequest()) {
-  const id = await currentUserId(request)
-  if (!id) throw new Response(SIGN_IN_REQUIRED, { status: 401 })
-  return id
+  return (await requireUser(request)).id
 }
 
 /** Runs `work` for the signed-in player; a signed-out request gets `signedOut` instead. */

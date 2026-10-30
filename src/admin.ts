@@ -1,3 +1,5 @@
+import type { BattleStatus } from './core/battle'
+
 export type AdminUser = {
   id: string
   name: string
@@ -70,7 +72,7 @@ export type AdminBattle = {
   token: string
   createdAt: number
   lastActivity: number
-  status: 'setup' | 'playing' | 'finished'
+  status: BattleStatus
   round: number
   players: { id: string; name: string; side: number }[]
 }

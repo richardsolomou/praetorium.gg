@@ -1,17 +1,16 @@
 import { APP_URL } from './navigation'
-import { PKCE_VALUE } from '../../src/contracts/nativeAuth'
+import { SOCIAL_PROVIDERS, type SocialAuthProvider } from '../../src/authConfig'
+import { NATIVE_AUTH_ERROR_QUERY, NATIVE_AUTH_SUCCESS_QUERY, PKCE_VALUE } from '../../src/contracts/nativeAuth'
 
 export const NATIVE_AUTH_CALLBACK_URL = 'praetorium://auth'
 const NATIVE_AUTH_EXCHANGE_KEY = 'praetorium.native-auth.exchange'
-const NATIVE_AUTH_SUCCESS_QUERY = '__native_auth'
-const NATIVE_AUTH_ERROR_QUERY = '__native_auth_error'
 
-const PROVIDERS = new Set(['apple', 'discord', 'google', 'github'])
+const PROVIDERS = new Set<string>(SOCIAL_PROVIDERS)
 const ACTIONS = new Set(['link', 'sign-in'])
 
 export type NativeAuthRequest = {
   action: 'link' | 'sign-in'
-  provider: 'apple' | 'discord' | 'google' | 'github'
+  provider: SocialAuthProvider
   next: string
   requestSignUp: boolean
   sessionToken?: string

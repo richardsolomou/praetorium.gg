@@ -41,7 +41,7 @@ function library(rosters: (typeof base)[], editable = true) {
       },
     },
     catalogueFor: async () => null,
-    rosterLabelRulesFor: async () => null,
+    rulesFor: async () => null,
   } as never)
 }
 const saved = () => saveRoster.mock.calls[0]?.[1]

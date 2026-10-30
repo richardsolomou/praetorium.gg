@@ -91,7 +91,7 @@ export const constructionReadEvents: {
   }),
   loadoutDatasheets: (_, data, result) => ({
     name: 'roster_datasheet_loaded',
-    properties: rosterDatasheetLoadedProperties(datasheetSchema.parse(data), result),
+    properties: rosterDatasheetLoadedProperties(datasheetSchema.parse(data), result, false),
   }),
 }
 

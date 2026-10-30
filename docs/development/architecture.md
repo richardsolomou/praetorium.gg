@@ -8,6 +8,7 @@ Dependencies point inward: `routes → client → contracts → core`; `server f
 - Components call `src/client/functions.ts`; transport calls stay in it and `src/client/offline`.
 - Never move a `createServerFn` file: its path is part of the production function ID, so older open clients break.
 - `src/core/battle.ts` owns the whole battle fold and validation; do not split it.
+- After changing `src/db/authSchema.ts` or `src/db/oauthSchema.ts`, run `pnpm auth:db:generate` to add the migration in `drizzle-auth/`.
 - Request adapters rebuild foreign `Request` objects from URL, fields, and body instead of `new Request(request)`.
 
 ## Offline work

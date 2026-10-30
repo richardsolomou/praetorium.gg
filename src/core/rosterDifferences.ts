@@ -15,7 +15,7 @@ type Compared = {
 }
 
 export type RosterUnitChange = { entryId: string; catalogueId?: string; count: number }
-export type RosterSetupChange = 'faction' | 'size' | 'detachment' | 'disposition' | 'rules'
+type RosterSetupChange = 'faction' | 'size' | 'detachment' | 'disposition' | 'rules'
 
 export type RosterDifferences = {
   setup: RosterSetupChange[]

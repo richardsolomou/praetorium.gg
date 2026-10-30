@@ -18,6 +18,8 @@ import {
   type FormatRuleId,
   type Roster,
   type BuiltRoster,
+  builtDetachments,
+  pointsSpent,
 } from './battle'
 import { z } from 'zod'
 import { matchedPlayName, NON_MATCHED_PLAY_KINDS, nonMatchedPlayKind, type NonMatchedPlayKind } from './name'
@@ -596,14 +598,14 @@ export function leagueArmy(roster: Roster): LeagueArmy {
     disposition: built.disposition,
     pointsBudget: built.pointsBudget ?? null,
     waivedRules: built.waivedRules ?? [],
-    points: built.units.reduce((total, unit) => total + unit.points, 0),
+    points: pointsSpent(built),
     limit: built.limit,
     unitCount: attachedUnitCount(built.units),
   }
 }
 
 function sealedDetachments(built: BuiltRoster) {
-  const names = built.detachments?.map((detachment) => detachment.name) ?? (built.detachment ? [built.detachment] : [])
+  const names = builtDetachments(built).map((detachment) => detachment.name)
   return (built.detachmentIds ?? []).map((id, index) => ({ id, name: names[index] ?? id }))
 }
 

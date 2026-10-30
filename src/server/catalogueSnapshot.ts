@@ -453,7 +453,6 @@ async function fetchSnapshotObjects(
   revocations: CatalogueRevocations,
   revisions?: Record<string, string>,
 ) {
-  const base = baseUrl.replace(/\/$/, '')
   const request = async (url: string) => {
     const response = await fetchCatalogueObject(url).catch((error: unknown) => {
       throw new CatalogueObjectTransportError('catalogue object transport failed', { cause: error })
@@ -461,7 +460,7 @@ async function fetchSnapshotObjects(
     if (!response.ok) throw new CatalogueObjectTransportError(`catalogue object answered ${response.status}`)
     return response
   }
-  const response = await request(`${base}/manifests/${pointer.id}.json`)
+  const response = await request(`${baseUrl}/manifests/${pointer.id}.json`)
   const manifestFile = path.join(objectCache(directory), `manifest-${pointer.id}-${randomUUID()}`)
   try {
     await saveResponse(response, manifestFile, MAX_MANIFEST_BYTES)
@@ -479,7 +478,7 @@ async function fetchSnapshotObjects(
       const file = path.join(objectCache(directory), objectHash)
       if (!fs.existsSync(file) || fs.statSync(file).size > MAX_OBJECT_BYTES || hashCatalogueFile(file) !== objectHash) {
         await replaceFile(file, async (temporary) =>
-          downloadCatalogueObject(await request(`${base}/objects/${objectHash}.gz`), temporary, objectHash),
+          downloadCatalogueObject(await request(`${baseUrl}/objects/${objectHash}.gz`), temporary, objectHash),
         )
       }
       const bytes = fs.statSync(file).size
@@ -547,15 +546,14 @@ export function historicalSnapshotSources(directory: string): SnapshotSourceName
 }
 
 export async function fetchCurrentPointer(baseUrl: string) {
-  const base = baseUrl.replace(/\/$/, '')
-  const response = await fetchCatalogueObject(`${base}/current.json`, { cache: 'no-store' })
+  const response = await fetchCatalogueObject(`${baseUrl}/current.json`, { cache: 'no-store' })
   if (!response.ok) throw new Error(`catalogue snapshot pointer answered ${response.status}`)
   return parsePointer(await response.json())
 }
 
 export async function fetchReleasePointer(baseUrl: string, id: string) {
   if (!/^[a-f0-9]{64}$/.test(id)) throw new Error('catalogue release id is invalid')
-  const response = await fetchCatalogueObject(`${baseUrl.replace(/\/$/, '')}/releases/${id}.json`, {}, ARTIFACT_REQUEST)
+  const response = await fetchCatalogueObject(`${baseUrl}/releases/${id}.json`, {}, ARTIFACT_REQUEST)
   if (!response.ok) throw new Error(`catalogue release pointer answered ${response.status}`)
   const pointer = parsePointer(await response.json())
   if (pointer.id !== id) throw new Error('catalogue release pointer does not match its id')
@@ -563,8 +561,7 @@ export async function fetchReleasePointer(baseUrl: string, id: string) {
 }
 
 export async function remoteRevocations(baseUrl: string) {
-  const base = baseUrl.replace(/\/$/, '')
-  const response = await fetchCatalogueObject(`${base}/revocations.json`, { cache: 'no-store' })
+  const response = await fetchCatalogueObject(`${baseUrl}/revocations.json`, { cache: 'no-store' })
   if (response.status === 404) return configuredCatalogueRevocations()
   if (!response.ok) throw new Error(`catalogue revocations answered ${response.status}`)
   return mergeRevocations(configuredCatalogueRevocations(), parseRevocations(await response.json()))
@@ -676,7 +673,7 @@ export function catalogueUpdateMode(value = process.env.CATALOGUE_UPDATE_MODE): 
 async function saveSnapshotArchive(baseUrl: string, pointer: SnapshotPointer, file: string) {
   await pRetry(
     async () => {
-      const response = await fetchCatalogueObject(`${baseUrl.replace(/\/$/, '')}/snapshots/${pointer.id}.zip`, {}, ARTIFACT_REQUEST)
+      const response = await fetchCatalogueObject(`${baseUrl}/snapshots/${pointer.id}.zip`, {}, ARTIFACT_REQUEST)
       if (!response.ok) throw new Error(`catalogue snapshot answered ${response.status}`)
       if (Number(response.headers.get('content-length') ?? 0) > MAX_ARCHIVE_BYTES)
         throw new Error('catalogue snapshot archive is too large')

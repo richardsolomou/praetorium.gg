@@ -2,14 +2,7 @@ import { QueryClient } from '@tanstack/react-query'
 import { describe, expect, it, vi } from 'vitest'
 import * as functions from '../server/functions'
 import { PLAYER_SEARCH_MAX_LENGTH } from '../core/playerSearch'
-import {
-  gameReferencesQuery,
-  loadoutDatasheetsQuery,
-  newestBattleScreen,
-  playerSearchQuery,
-  ruleIndexQuery,
-  terrainReferencesQuery,
-} from './queries'
+import { gameReferencesQuery, loadoutDatasheetsQuery, newestBattleScreen, playerSearchQuery, terrainReferencesQuery } from './queries'
 
 describe('battle query ordering', () => {
   it('keeps the newer cached battle when an older refetch finishes late', () => {
@@ -67,11 +60,8 @@ describe('player search queries', () => {
 })
 
 describe('game reference queries', () => {
-  it.each([
-    ['game references', gameReferencesQuery],
-    ['rule index', ruleIndexQuery],
-  ] as const)('retries the %s while startup data is unavailable', (_name, query) => {
-    const refetchInterval = query().refetchInterval as (query: { state: { data: unknown } }) => number | false
+  it('retries reference data while startup data is unavailable', () => {
+    const refetchInterval = gameReferencesQuery().refetchInterval as (query: { state: { data: unknown } }) => number | false
     expect(refetchInterval({ state: { data: null } })).toBe(1_000)
     expect(refetchInterval({ state: { data: {} } })).toBe(false)
   })

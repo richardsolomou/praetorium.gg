@@ -1,7 +1,8 @@
 import { routeSlug } from '../core/slug'
 import { whenDrawnCondition } from '../shared/datacards'
 import { compareText } from '../core/text'
-import type { Mission, MissionCard, Award, AwardTrigger } from './rulesCards'
+import type { Mission, MissionCard } from '../shared/rulesCards'
+import type { AwardTrigger, MissionAward } from '../core/scoring'
 import { type MissionPack, packText } from './missionPacks'
 import { english, records } from '../shared/datacards'
 import { actionsIn, missionCardKey } from './missionActions'
@@ -66,7 +67,7 @@ function cardOf(
 ): MissionCard | null {
   const name = english(raw.name)
   if (!name || typeof raw.id !== 'string') return null
-  const awards: Award[] = records(raw, 'objectives').flatMap((objective) => {
+  const awards: MissionAward[] = records(raw, 'objectives').flatMap((objective) => {
     const scorings = records(objective, 'scoring')
     const exclusiveModes = new Set(
       scorings

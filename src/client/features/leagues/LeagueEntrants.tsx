@@ -1,6 +1,6 @@
 import { Link } from '@tanstack/react-router'
 import { Eye } from 'lucide-react'
-import type { ReactNode } from 'react'
+import type { ReactElement, ReactNode } from 'react'
 import { buttonClass } from '../../components/buttonClass'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import type { LeagueEntryView } from '../../../core/league'
@@ -97,22 +97,30 @@ export function ViewRosterButton({
   label: string
 }) {
   return (
+    <IconAction
+      tooltip="View roster"
+      trigger={
+        <Link
+          to="/rosters/$id"
+          params={{ id: userId }}
+          search={{ league: token, event: eventToken }}
+          aria-label={`View ${label}’s roster`}
+          className={buttonClass({ variant: 'ghost', size: 'icon-sm', className: 'text-dim hover:text-info pointer-coarse:size-11' })}
+        />
+      }
+    >
+      <Eye aria-hidden />
+    </IconAction>
+  )
+}
+
+/** A borderless icon with its name in a tooltip, the way entrant rows offer their actions. */
+export function IconAction({ tooltip, trigger, children }: { tooltip: string; trigger: ReactElement; children: ReactNode }) {
+  return (
     <Tooltip>
-      <TooltipTrigger
-        render={
-          <Link
-            to="/rosters/$id"
-            params={{ id: userId }}
-            search={{ league: token, event: eventToken }}
-            aria-label={`View ${label}’s roster`}
-            className={buttonClass({ variant: 'ghost', size: 'icon-sm', className: 'text-dim hover:text-info pointer-coarse:size-11' })}
-          />
-        }
-      >
-        <Eye aria-hidden />
-      </TooltipTrigger>
+      <TooltipTrigger render={trigger}>{children}</TooltipTrigger>
       <TooltipContent role="tooltip" side="bottom">
-        View roster
+        {tooltip}
       </TooltipContent>
     </Tooltip>
   )

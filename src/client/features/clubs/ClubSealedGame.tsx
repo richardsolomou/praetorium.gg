@@ -18,11 +18,10 @@ import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { Problem } from '../../components/Problem'
 import { chooseLeagueSide, createLeagueBattle, deleteLeague, revealLeague, submitLeagueRoster } from '../../functions'
 import { battlesFrom, leagueBattlesQuery, leagueQuery } from '../../queries'
-import { useDateFormatting } from '../../dates'
+import { useDateFormatting, useMoment } from '../../dates'
 import { countLabel } from '../../text'
 import { useNow } from '../../useNow'
-import { useMoment } from '../leagues/EventSchedule'
-import { ViewRosterButton } from '../leagues/LeagueEntrants'
+import { IconAction, ViewRosterButton } from '../leagues/LeagueEntrants'
 import { LeagueCombatDialog } from '../leagues/LeagueCombatDialog'
 import { RosterChooser } from '../leagues/LeagueRosterChooser'
 import { RemindEntrants } from '../leagues/LeagueReadiness'
@@ -235,16 +234,20 @@ export function ClubSealedGame({
                 )
               ) : null}
               {member && own?.sealed && player.sealed && player.userId !== viewerId ? (
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label={`Simulate against ${name}`}
-                  title="Simulate"
-                  className="text-dim hover:text-info pointer-coarse:size-11"
-                  onClick={() => setSimulating(player.userId)}
+                <IconAction
+                  tooltip="Simulate"
+                  trigger={
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label={`Simulate against ${name}`}
+                      className="text-dim hover:text-info pointer-coarse:size-11"
+                      onClick={() => setSimulating(player.userId)}
+                    />
+                  }
                 >
                   <Calculator aria-hidden />
-                </Button>
+                </IconAction>
               ) : null}
               <ViewRosterButton token={game.token} eventToken={game.token} userId={player.userId} label={name} />
             </>

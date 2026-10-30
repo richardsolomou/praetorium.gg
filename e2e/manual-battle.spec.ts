@@ -1,4 +1,4 @@
-import { expect, test, type Page } from './test'
+import { expect, test } from './test'
 import {
   PRACTICE_OPPONENT,
   advance,
@@ -12,10 +12,10 @@ import {
   expectNoPageOverflow,
   desktopContext,
   scoreboard,
+  playerPanel,
 } from './account'
 import { battleLog } from './storage'
 
-const panel = (page: Page, side: number) => page.locator(`[data-panel="player"][data-side="${side}"]`)
 test('a table keeps score by hand in a manually tracked battle', async ({ page }) => {
   test.setTimeout(240_000)
   const phone = { width: 390, height: 900 }
@@ -48,28 +48,28 @@ test('a table keeps score by hand in a manually tracked battle', async ({ page }
 
   await expect(page.getByRole('heading', { name: 'command phase' })).toBeVisible()
   await expect(page.getByRole('dialog')).toHaveCount(0)
-  await expect(panel(page, 0).locator('[data-stat="cp"]')).toHaveText('0')
+  await expect(playerPanel(page, 0).locator('[data-stat="cp"]')).toHaveText('0')
 
-  await panel(page, 0)
+  await playerPanel(page, 0)
     .getByRole('button', { name: `Add 5 primary VP for ${host}` })
     .click()
-  await expect(panel(page, 0).locator('[data-stat="vp"]')).toHaveText('5')
-  await panel(page, 0)
+  await expect(playerPanel(page, 0).locator('[data-stat="vp"]')).toHaveText('5')
+  await playerPanel(page, 0)
     .getByRole('button', { name: `Add 1 CP for ${host}` })
     .click()
-  await expect(panel(page, 0).locator('[data-stat="cp"]')).toHaveText('1')
-  await panel(page, 0)
+  await expect(playerPanel(page, 0).locator('[data-stat="cp"]')).toHaveText('1')
+  await playerPanel(page, 0)
     .getByRole('button', { name: `Add 1 CP for ${host}` })
     .click()
-  await expect(panel(page, 0).locator('[data-stat="cp"]')).toHaveText('2')
-  await panel(page, 0)
+  await expect(playerPanel(page, 0).locator('[data-stat="cp"]')).toHaveText('2')
+  await playerPanel(page, 0)
     .getByRole('button', { name: `Remove 1 CP for ${host}` })
     .click()
-  await expect(panel(page, 0).locator('[data-stat="cp"]')).toHaveText('1')
-  await panel(page, 1)
+  await expect(playerPanel(page, 0).locator('[data-stat="cp"]')).toHaveText('1')
+  await playerPanel(page, 1)
     .getByRole('button', { name: `Add 1 secondary VP for ${PRACTICE_OPPONENT}` })
     .click()
-  await expect(panel(page, 1).locator('[data-stat="vp"]')).toHaveText('1')
+  await expect(playerPanel(page, 1).locator('[data-stat="vp"]')).toHaveText('1')
 
   const note = 'Objective three contested by both sides'
   await page.getByLabel('Battle note').fill(note)
@@ -80,17 +80,17 @@ test('a table keeps score by hand in a manually tracked battle', async ({ page }
 
   await page.setViewportSize(phone)
   await page.getByRole('tab', { name: 'Your side' }).click()
-  await expect(panel(page, 0).locator('[data-stat="vp"]')).toHaveText('5')
-  await panel(page, 0)
+  await expect(playerPanel(page, 0).locator('[data-stat="vp"]')).toHaveText('5')
+  await playerPanel(page, 0)
     .getByRole('button', { name: `Add 1 CP for ${host}` })
     .click()
-  await expect(panel(page, 0).locator('[data-stat="cp"]')).toHaveText('2')
-  await panel(page, 0)
+  await expect(playerPanel(page, 0).locator('[data-stat="cp"]')).toHaveText('2')
+  await playerPanel(page, 0)
     .getByRole('button', { name: `Remove 1 CP for ${host}` })
     .click()
-  await expect(panel(page, 0).locator('[data-stat="cp"]')).toHaveText('1')
+  await expect(playerPanel(page, 0).locator('[data-stat="cp"]')).toHaveText('1')
   await page.getByRole('tab', { name: 'Opponent' }).click()
-  await expect(panel(page, 1).locator('[data-stat="vp"]')).toHaveText('1')
+  await expect(playerPanel(page, 1).locator('[data-stat="vp"]')).toHaveText('1')
   await page.getByRole('tab', { name: 'Battle' }).click()
   await expect(page.locator('[data-battle-report-scroll]')).toContainText(`notes: ${note}`)
   await expect(page.locator('[data-battle-report-scroll]')).not.toContainText('gain 1 CP')
@@ -100,16 +100,16 @@ test('a table keeps score by hand in a manually tracked battle', async ({ page }
   for (let step = 0; step < 12; step += 1) await advance(page)
   await expect(scoreboard(page).locator('[data-stat="round"]')).toHaveText('2')
   await expect(page.getByRole('dialog')).toHaveCount(0)
-  await panel(page, 1)
+  await playerPanel(page, 1)
     .getByRole('button', { name: `Add 5 primary VP for ${PRACTICE_OPPONENT}` })
     .click()
-  await expect(panel(page, 1).locator('[data-stat="vp"]')).toHaveText('6')
+  await expect(playerPanel(page, 1).locator('[data-stat="vp"]')).toHaveText('6')
 
   await page.reload()
   await expect(scoreboard(page).locator('[data-stat="round"]')).toHaveText('2')
-  await expect(panel(page, 0).locator('[data-stat="vp"]')).toHaveText('5')
-  await expect(panel(page, 1).locator('[data-stat="vp"]')).toHaveText('6')
-  await expect(panel(page, 0).locator('[data-stat="cp"]')).toHaveText('1')
+  await expect(playerPanel(page, 0).locator('[data-stat="vp"]')).toHaveText('5')
+  await expect(playerPanel(page, 1).locator('[data-stat="vp"]')).toHaveText('6')
+  await expect(playerPanel(page, 0).locator('[data-stat="cp"]')).toHaveText('1')
 
   // Manual turns are bare phase advances, which battle.manual.test.ts already plays to the end, so seed them.
   const log = await battleLog(page)

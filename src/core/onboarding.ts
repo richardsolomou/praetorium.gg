@@ -7,7 +7,7 @@ export const gettingStartedTaskIds = ['roster', 'simulator'] as const
 /** Tours that only a finished walkthrough can complete; every other task is folded from what the player has actually done. */
 export const tourTaskIds = ['reference', 'community', 'simulator', 'roster-tools'] as const
 
-export type TourTaskId = (typeof tourTaskIds)[number]
+type TourTaskId = (typeof tourTaskIds)[number]
 
 const factTaskIds = ['roster', 'friend', 'battle', 'league'] as const
 

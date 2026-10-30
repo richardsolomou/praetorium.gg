@@ -2,20 +2,20 @@ import { createHash } from 'node:crypto'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Route } from './spacetime.token'
 
-const { currentUser, heldGuestSeat, spacetimeGuestToken, spacetimeToken, userBattleId } = vi.hoisted(() => ({
-  currentUser: vi.fn(),
+const { currentUserId, heldGuestSeat, spacetimeGuestToken, spacetimeToken, userBattleId } = vi.hoisted(() => ({
+  currentUserId: vi.fn(),
   heldGuestSeat: vi.fn(),
   spacetimeGuestToken: vi.fn(),
   spacetimeToken: vi.fn(),
   userBattleId: vi.fn(),
 }))
-vi.mock('../../server/playerSession', () => ({ currentUser }))
+vi.mock('../../server/playerSession', () => ({ currentUserId }))
 vi.mock('../../server/guestSession', () => ({ heldGuestSeat }))
 vi.mock('../../server/app', () => ({ app: () => ({ spacetimeToken, spacetimeGuestToken, service: { userBattleId } }) }))
 beforeEach(() => {
   vi.stubEnv('SPACETIME_DATABASE', 'praetorium')
   vi.stubEnv('APP_URL', 'https://praetorium.gg')
-  currentUser.mockReset().mockResolvedValue({ id: 'player-1' })
+  currentUserId.mockReset().mockResolvedValue('player-1')
   heldGuestSeat.mockReset().mockResolvedValue(null)
   spacetimeGuestToken.mockReset().mockResolvedValue('guest-token')
   spacetimeToken.mockReset().mockResolvedValue('access-token')
@@ -31,7 +31,7 @@ async function token(search = '') {
 }
 
 it('issues no realtime token to a signed-out caller', async () => {
-  currentUser.mockResolvedValue(null)
+  currentUserId.mockResolvedValue(null)
   expect(((await token()) as Response).status).toBe(401)
   expect(spacetimeToken).not.toHaveBeenCalled()
 })
@@ -51,7 +51,7 @@ it('issues a signed-in player a token with their seated battle', async () => {
 describe('a guest seat’s device', () => {
   const held = { token: 'guest-battle', seat: 'guest:battle-2:0', secret: 'device-secret' }
   beforeEach(() => {
-    currentUser.mockResolvedValue(null)
+    currentUserId.mockResolvedValue(null)
     heldGuestSeat.mockImplementation(async (battle: string) => (battle === held.token ? held : null))
     userBattleId.mockResolvedValue('battle-2')
   })

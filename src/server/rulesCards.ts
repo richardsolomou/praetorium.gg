@@ -5,7 +5,6 @@ import { correctStratagemTiming } from '../core/stratagemCorrections'
 import { localizedField, stratagemLimit, stratagemText, type TextsFor } from './datacards'
 import { publishedTexts } from './sourceTexts'
 import { type LoadedCards } from '../shared/rulesCards'
-export * from '../shared/rulesCards'
 export function coreFromDatacards(directory: string, textsFor: TextsFor = publishedTexts): Pick<LoadedCards, 'core' | 'coreDetails'> {
   const file = path.join(directory, 'core.json')
   if (!fs.existsSync(file)) return { core: [], coreDetails: [] }

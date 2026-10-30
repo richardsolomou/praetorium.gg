@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
     failed?: (current: unknown, error: unknown, retrying?: number) => void
     dropped?: (current: unknown, error?: unknown, retrying?: number) => void
     renew?: () => Promise<string>
+    uri?: string
     applied?: () => void
     disconnect?: ReturnType<typeof vi.fn>
     unwatchBattle?: ReturnType<typeof vi.fn>
@@ -39,7 +40,10 @@ vi.mock('../spacetime/generated', () => ({
       const socket: (typeof mocks.sockets)[number] = {}
       mocks.sockets.push(socket)
       const builder = {
-        withUri: () => builder,
+        withUri: (uri: string) => {
+          socket.uri = uri
+          return builder
+        },
         withDatabaseName: () => builder,
         withToken: () => builder,
         withAutomaticReconnect: () => builder,
@@ -422,6 +426,18 @@ it.each(['product', 'battle'] as const)('replaces a %s connection the SDK has gi
   mocks.sockets[0]!.dropped!(null, new Error('WebSocket closed (code 1002)'))
   await vi.advanceTimersByTimeAsync(5_000)
   expect(mocks.sockets.length).toBe(2)
+})
+
+it('connects to the SpacetimeDB proxy on the browser origin', async () => {
+  vi.stubGlobal('window', { location: { origin: 'http://localhost:3000' }, setInterval, clearInterval })
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () => Response.json({ token: 'ticket', database: 'test', uri: 'http://127.0.0.1:3000/spacetime/', battleId: null })),
+  )
+  useSpacetimeLiveProduct(product, true)
+  mount()
+  await vi.advanceTimersByTimeAsync(0)
+  expect(mocks.sockets[0]!.uri).toBe('http://localhost:3000/spacetime/')
 })
 
 it('reconnects with a freshly issued token', async () => {

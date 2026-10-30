@@ -276,7 +276,7 @@ export type Catalogue = {
 }
 
 /** A kind of force, carrying the limits the game system puts on a whole army. */
-export type ForceEntry = {
+type ForceEntry = {
   id: string
   name: string
   constraints?: Constraint[]

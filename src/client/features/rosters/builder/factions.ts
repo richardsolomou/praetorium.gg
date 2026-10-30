@@ -1,4 +1,3 @@
-import { favouritesFirst } from '../../../favouriteFactions'
 import { catalogueLeafName } from '../../../../shared/factionNames'
 import { groupBy } from '../../../../core/collections'
 import type { FactionPresentation } from '../../../components/FactionMark'
@@ -44,10 +43,7 @@ export function factionSelectGroups<
         }
       : undefined,
   })
-  const favourite = favouritesFirst(
-    factions.filter((entry) => favourites.has(entry.id)),
-    favourites,
-  )
+  const favourite = factions.filter((entry) => favourites.has(entry.id))
   const groups = shelve(factions.filter((entry) => !favourites.has(entry.id))).map((shelf) => ({
     label: shelf.lineage,
     items: shelf.factions.map(option),

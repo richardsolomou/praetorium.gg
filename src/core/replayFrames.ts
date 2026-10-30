@@ -1,7 +1,7 @@
 type Path = (string | number)[]
 type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue }
 
-export type ReplayChange = { path: Path; value: JsonValue } | { path: Path; remove: true } | { path: Path; length: number }
+type ReplayChange = { path: Path; value: JsonValue } | { path: Path; remove: true } | { path: Path; length: number }
 
 function record(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value)

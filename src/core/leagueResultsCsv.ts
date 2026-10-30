@@ -1,7 +1,7 @@
 import { csv } from './csv'
 import { LEAGUE_RESULTS_BATTLE_LIMIT } from './leagueResults'
 
-export type ResultsCsvRow = { place: number; player: string; figures: readonly number[] }
+type ResultsCsvRow = { place: number; player: string; figures: readonly number[] }
 
 /** An event's results table as the reader sees it, headed by the event, when it was captured and whether it is complete. */
 export function leagueResultsCsv({

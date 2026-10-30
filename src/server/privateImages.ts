@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto'
 import { notFound } from './notFound'
 import { objectsIn, privateR2Client } from './r2Client'
 
@@ -41,21 +40,6 @@ export type PrivateObjects = {
 export function privateObjects(environment: NodeJS.ProcessEnv = process.env): PrivateObjects | null {
   const objects = objectsIn(environment, privateR2Client)
   return objects && { ...objects, put: (key, body, contentType) => objects.put(key, body, { 'content-type': contentType }) }
-}
-
-/** Stores an uploaded image under `prefix` and a random id after checking its bytes match its declared type; returns the id. */
-export async function storePrivateImage(
-  objects: PrivateObjects | null,
-  prefix: string,
-  image: string,
-  { maxBytes, refusal }: { maxBytes: number; refusal: string },
-): Promise<string> {
-  if (!objects) throw new Response('image uploads are not available', { status: 503 })
-  const parsed = parseImageDataUrl(image)
-  if (!parsed || parsed.bytes.byteLength > maxBytes) throw new Response(refusal, { status: 400 })
-  const id = randomUUID()
-  await objects.put(`${prefix}${id}`, parsed.bytes, parsed.contentType)
-  return id
 }
 
 /** Serves a stored image with the type its bytes were checked against on upload, never cached because access can be revoked. */
