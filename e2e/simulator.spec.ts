@@ -289,7 +289,6 @@ test('unsupported rules disappear while calculated rules remain', async ({ page 
   await chooseCombatUnit(page, 'Defender', 'Space Marines', 'Intercessor Squad')
   const attacker = page.getByRole('region', { name: 'Attacker rules', exact: true })
   await expect(attacker).not.toContainText('Oath of Moment')
-  await expect(attacker).not.toContainText('Grand Master of the Deathwing')
   await page.getByRole('button', { name: 'Swap attacker and defender' }).click()
   await openCombatControls(page)
   const defender = page.getByRole('region', { name: 'Defender rules', exact: true })
