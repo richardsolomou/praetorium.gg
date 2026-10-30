@@ -55,7 +55,6 @@ export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret
   const environment = options.environment
   const authUrl = new URL('/api/auth', environment.APP_URL)
   const mcpResource = new URL('/mcp', environment.APP_URL).toString()
-  const jwksUrl = new URL('/api/auth/jwks', environment.APP_URL).toString()
   const alternateLoopbackOrigin =
     authUrl.hostname === '127.0.0.1' || authUrl.hostname === 'localhost'
       ? `${authUrl.protocol}//${authUrl.hostname === 'localhost' ? '127.0.0.1' : 'localhost'}${authUrl.port ? `:${authUrl.port}` : ''}`
@@ -546,7 +545,6 @@ export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret
 
   return Object.assign(auth, {
     mcpResource,
-    jwksUrl,
     issuer,
     changeUserRole,
     deleteUserAsAdmin,
