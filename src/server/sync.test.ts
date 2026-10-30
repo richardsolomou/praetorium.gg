@@ -119,3 +119,21 @@ it('replaces a stale cached layout with the downloaded one', async () => {
 
   expect(JSON.parse(fs.readFileSync(cached, 'utf8')).layout.layoutKey).toBe('current')
 })
+
+it('refuses an oversized Battlemaster catalogue', async () => {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () => Response.json({ catalogKey: 'catalog-key', layouts: [], padding: 'x'.repeat(1024 * 1024) })),
+  )
+
+  await expect(fetchBattlemasterInto(battlemaster, path.join(directory, 'target'), null)).rejects.toThrow('catalog exceeds')
+})
+
+it('refuses a Battlemaster catalogue whose layouts are malformed', async () => {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () => Response.json({ catalogKey: 'catalog-key', layouts: [{ id: layoutId }] })),
+  )
+
+  await expect(fetchBattlemasterInto(battlemaster, path.join(directory, 'target'), null)).rejects.toThrow('catalog has an unexpected shape')
+})
