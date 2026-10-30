@@ -70,7 +70,7 @@ export const ACHIEVEMENTS = [
     count: 1,
     goal: 'Play a leaderboard battle with an army from your rosters.',
   },
-  { id: 'mathhammer', name: 'Mathhammer', tier: 'bronze', metric: 'simulations', count: 1, goal: 'Run a combat simulation.' },
+  { id: 'augury', name: 'Augury', tier: 'bronze', metric: 'simulations', count: 1, goal: 'Run a combat simulation.' },
   { id: 'drill', name: 'Drill', tier: 'bronze', metric: 'practice', count: 1, goal: 'Finish a practice battle.' },
   { id: 'open-table', name: 'Open Table', tier: 'bronze', metric: 'guest-battles', count: 1, goal: 'Finish a battle with a guest.' },
   {
