@@ -50,6 +50,7 @@ export function RosterCombatComparison({
   initialDefender = '',
   liveKey,
   sessionKey = 'simulator',
+  eventPairing = false,
 }: {
   sources?: RosterCombatSource[]
   currentRoster?: CombatRoster
@@ -57,6 +58,7 @@ export function RosterCombatComparison({
   initialDefender?: string
   liveKey?: string
   sessionKey?: string
+  eventPairing?: boolean
 }) {
   const { me, saved, friendRosters, leagueRosters } = useSimulatorRosters(!sources)
   const activeRosters = saved.data?.filter((roster) => !roster.archived) ?? []
@@ -406,6 +408,7 @@ export function RosterCombatComparison({
           defenders={comparison.defenders}
           results={comparison.results}
           benchmarkTargets={defenderId === 'benchmarks'}
+          eventPairing={eventPairing}
           onSelect={(row, column) => setPair({ row, column })}
         />
       ) : null}

@@ -62,6 +62,7 @@ export function LeagueCombatDialog({
         initialAttacker={pairing.attacker}
         initialDefender={pairing.defender}
         sessionKey={`league:${token}:${eventToken}:${viewerId}:${opponentId}`}
+        eventPairing
       />
     </CombatDialog>
   )

@@ -62,16 +62,19 @@ export function RosterCombatTable({
   results,
   onSelect,
   benchmarkTargets = false,
+  eventPairing = false,
 }: {
   attackers: RosterCombatUnit[]
   defenders: RosterCombatUnit[]
   results: Record<string, RosterCombatSummary>
   onSelect: (row: number, column: number) => void
   benchmarkTargets?: boolean
+  /** Opens on the whole turn and on how to answer each of the opponent's units, as preparing for a paired game asks. */
+  eventPairing?: boolean
 }) {
-  const [phase, setPhase] = useState<keyof RosterCombatSummary>('ranged')
+  const [phase, setPhase] = useState<keyof RosterCombatSummary>(eventPairing ? 'combined' : 'ranged')
   const [metric, setMetric] = useState<CombatMetric>('meanDamage')
-  const [highlight, setHighlight] = useState(benchmarkTargets ? 'attackers' : 'targets')
+  const [highlight, setHighlight] = useState(benchmarkTargets || eventPairing ? 'attackers' : 'targets')
   const [optionsOpen, setOptionsOpen] = useState(false)
   const attackingHealth = useMemo(() => attackers.map(modelCount), [attackers])
   const defendingHealth = useMemo(() => defenders.map(modelCount), [defenders])

@@ -224,6 +224,8 @@ test('revealed rosters compare every unit using frozen loadouts and preserve lea
   await expect(table.getByRole('cell')).toHaveCount(4)
   await expect(table).not.toContainText('Skorpekh Destroyers')
   await expect(table.getByRole('columnheader').nth(2)).toContainText('Lokhust Destroyers')
+  await expect(dialog.getByRole('tab', { name: 'Shooting + melee' })).toHaveAttribute('aria-selected', 'true')
+  await expect(dialog.getByRole('combobox', { name: 'Highlight matchups', exact: true })).toContainText('Best attackers per target')
   await owner.setViewportSize(PHONE)
   await expectNoPageOverflow(owner)
   await dialog.getByRole('button', { name: 'Close', exact: true }).click()
