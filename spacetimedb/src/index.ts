@@ -3552,6 +3552,25 @@ function pairingFinished(ctx: Context, pairing: { eventId: string; aId: string; 
   return battleState(ctx, pairing.battleId).state.status === 'finished'
 }
 
+/** A Swiss event is over once its final round is paired and every table has finished. */
+function swissFinished(ctx: Context, event: SealedEventRow) {
+  if (event.rounds === undefined) return false
+  const pairings = roundPairings(ctx, event.id)
+  return pairings.some((pairing) => pairing.round === event.rounds) && pairings.every((pairing) => pairingFinished(ctx, pairing))
+}
+
+/**
+ * Whether an event is still on: a club game while it is open or a battle it started is still going, as its club page
+ * shows it, and a Swiss tournament until it is over. Other tournaments have no end, so they stay on.
+ */
+function eventOn(ctx: Context, host: EventHost) {
+  if (host.kind === 'tournament') return !swissFinished(ctx, host.event)
+  if (!pastClubGame(ctx, host)) return true
+  for (const row of ctx.db.leagueEventBattles.eventId.filter(host.event.id))
+    if (ctx.db.battles.id.find(row.battleId) && battleState(ctx, row.battleId).state.status !== 'finished') return true
+  return false
+}
+
 /** Who hosts an event, as every read names it: a tournament with its admins, or the club whose game it is. */
 function hostFields(ctx: Context, host: EventHost) {
   return {
@@ -3679,10 +3698,8 @@ export const achievementFactsByUser = spacetime.procedure({ userId: t.string() }
     for (const eventId of personalEventIds(tx, userId)) {
       const event = tx.db.sealedEvents.id.find(eventId)
       const host = event && hostOfEvent(tx, event)
-      if (host?.kind !== 'tournament' || event?.rounds === undefined) continue
+      if (!event || host?.kind !== 'tournament' || !swissFinished(tx, event)) continue
       const pairings = roundPairings(tx, eventId)
-      if (!pairings.some((pairing) => pairing.round === event.rounds) || !pairings.every((pairing) => pairingFinished(tx, pairing)))
-        continue
       const entries = leagueEntriesFor(tx, eventId).filter((entry) => entry.status === 'accepted')
       const own = entries.find((entry) => entry.userId === userId)
       const ends = pairings.flatMap((pairing) => (pairing.battleId ? [finishedAt(tx, pairing.battleId) ?? 0] : []))
@@ -3850,11 +3867,12 @@ function listsEvent(ctx: Context, host: EventHost, readerId: string, personal: R
   return host.club.visibility === 'public' || isClubMember(ctx, host.club.id, readerId)
 }
 
-/** Friends' sealed lists from revealed events the viewer can list, newest reveal first. */
+/** Friends' sealed lists from revealed events the viewer can list and that are still on, newest reveal first. */
 export const friendLeagueRosters = spacetime.procedure({ viewerId: t.string() }, t.string(), (ctx, { viewerId }) =>
   operatorTx(ctx, (tx) => {
     if (!validId(viewerId)) throw new SenderError('Invalid league roster list')
     const personal = personalEventIds(tx, viewerId)
+    const on = new Map<string, boolean>()
     const rosters = []
     let scanned = 0
     for (const friendId of acceptedFriendIds(tx, viewerId)) {
@@ -3865,6 +3883,8 @@ export const friendLeagueRosters = spacetime.procedure({ viewerId: t.string() },
         if (!event || event.revealedAt === undefined) continue
         const host = hostOfEvent(tx, event)
         if (!host || !listsEvent(tx, host, viewerId, personal)) continue
+        if (!on.has(event.id)) on.set(event.id, eventOn(tx, host))
+        if (!on.get(event.id)) continue
         const catalogueId = rosterSnapshotOrNull(entry.rosterSnapshot)?.built?.catalogueId
         if (!catalogueId) continue
         rosters.push({

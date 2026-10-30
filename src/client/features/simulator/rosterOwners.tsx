@@ -1,7 +1,7 @@
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
-import { rosterSourceKey, type SimulatorRosterSource } from '../../../contracts/simulatorState'
-import { discoveredRostersQuery, friendLeagueRostersQuery, meQuery, savedRosterSummariesQuery } from '../../queries'
+import type { SimulatorRosterSource } from '../../../contracts/simulatorState'
+import { discoveredRostersQuery, friendLeagueRostersQuery, friendshipsQuery, meQuery, savedRosterSummariesQuery } from '../../queries'
 
 export type RosterOwner = { name: string; image?: string | null }
 
@@ -28,15 +28,18 @@ type KnownRosters = {
   me: RosterOwner | null | undefined
   saved: readonly { id: string }[]
   friends: readonly { roster: { id: string }; owner: RosterOwner }[]
-  leagues: readonly FriendLeagueRoster[]
+  people: readonly ({ id: string } & RosterOwner)[]
 }
 
-/** Whose roster a simulator side comes from, among the rosters the simulator lists; a roster opened by someone else's link is unknown. */
+/**
+ * Whose roster a simulator side comes from: the player's own, a friend's listed roster, or a friend's sealed list,
+ * whether or not its event is still on. A roster opened by someone else's link is unknown.
+ */
 export function rosterOwner(source: SimulatorRosterSource | undefined, known: KnownRosters): RosterOwner | undefined {
   if (!source) return undefined
   if ('league' in source) {
-    const entry = known.leagues.find((candidate) => rosterSourceKey(friendLeagueSource(candidate)) === rosterSourceKey(source))
-    return entry ? { name: entry.ownerName, image: entry.ownerImage } : undefined
+    const friend = known.people.find((candidate) => candidate.id === source.league.userId)
+    return friend ? { name: friend.name, image: friend.image } : undefined
   }
   if (known.me && known.saved.some((roster) => roster.id === source.id)) return known.me
   return known.friends.find(({ roster }) => roster.id === source.id)?.owner
@@ -45,7 +48,7 @@ export function rosterOwner(source: SimulatorRosterSource | undefined, known: Kn
 /**
  * The rosters a simulator offers to pick from: the player's own, including archived ones,
  * the newest page of friends' public rosters as the roster library's Friends tab lists
- * them, and friends' revealed league lists.
+ * them, and friends' revealed league lists from events still on.
  */
 export function useSimulatorRosters(enabled = true) {
   const me = useQuery({ ...meQuery(), enabled })
@@ -56,10 +59,11 @@ export function useSimulatorRosters(enabled = true) {
   return { me, saved, friendRosters: friends.data?.pages[0]?.rosters ?? [], leagueRosters: leagues.data ?? [] }
 }
 
-/** `rosterOwner` over the same reads the simulator's roster picker makes, so it adds no requests of its own. */
+/** `rosterOwner` over the simulator's roster picker reads and the player's friends. */
 export function useRosterOwners() {
-  const { me, saved, friendRosters, leagueRosters } = useSimulatorRosters()
-  const known: KnownRosters = { me: me.data, saved: saved.data ?? [], friends: friendRosters, leagues: leagueRosters }
+  const { me, saved, friendRosters } = useSimulatorRosters()
+  const people = useQuery({ ...friendshipsQuery(), enabled: Boolean(me.data) })
+  const known: KnownRosters = { me: me.data, saved: saved.data ?? [], friends: friendRosters, people: people.data?.friends ?? [] }
   return (source: SimulatorRosterSource | undefined) => rosterOwner(source, known)
 }
 
