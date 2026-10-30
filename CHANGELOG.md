@@ -1,5 +1,15 @@
 # praetorium
 
+## 0.203.0 (2026-10-30)
+
+### Minor Changes
+
+- 29aad97: Organizers can let allies in a 2v1 or doubles event split their pair's points however they agree, such as 900 and 1,100 of 2,000.
+
+### Patch Changes
+
+- 29aad97: Organizers can change a sealed game's or tournament's points per army and house rules after lists are sealed, as long as every sealed list still fits.
+
 ## 0.202.1 (2026-10-30)
 
 ### Patch Changes
