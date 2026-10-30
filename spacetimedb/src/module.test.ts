@@ -427,6 +427,17 @@ describe('what a league event allows', () => {
     expect(league.seal([])).toMatchObject({ outcome: 'wrong-budget' })
   })
 
+  it('refuses a duel list spending past its points total', () => {
+    expect(setup('[]').seal([], { points: 2010 })).toMatchObject({ outcome: 'over-points', points: 2000 })
+  })
+
+  it('seals a list over its own saved total when allies share their points', () => {
+    const league = setup('[]', '2v2')
+    league.set({ sharedPoints: true })
+    league.seal([], { userId: 'ally', limit: 1000, points: 990 })
+    expect(league.seal([], { limit: 1000, points: 1010 })).toMatchObject({ outcome: 'sealed' })
+  })
+
   it('seals a doubles list built smaller than the event’s size, within its points per army', () => {
     const league = setup('[]', '2v2')
     league.set({ allyPoints: 800 })

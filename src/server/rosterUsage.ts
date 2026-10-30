@@ -8,7 +8,7 @@ import { app } from './app'
 import { unitBattleDetailsIn } from '../shared/catalogue'
 import { calculateRosterPrice, savedRosterPriceInput } from '../shared/pricing'
 
-import { rosterUseError } from '../core/rosterLegality'
+import { rosterProblems } from '../core/rosterLegality'
 
 /**
  * A battle may field a roster a friend lent; a league entry is sealed from the entrant's own rosters, without alerts,
@@ -22,23 +22,26 @@ export async function rosterForUse(userId: string, rosterId: string, options: { 
   const { roster: saved, lentBy } = usable
   // The player fielding a list brings their own alerts, a borrowed list included.
   const settings = options.sealing ? [] : await app().repository.abilityRemindersByUser(userId)
-  return { saved, snapshot: { ...(await frozenRoster(saved, settings)), ...(lentBy ? { lentBy } : {}) } }
+  return { saved, snapshot: { ...(await frozenRoster(saved, settings, options)), ...(lentBy ? { lentBy } : {}) } }
 }
 
 type UsableRoster = Parameters<typeof rosterSnapshot>[0] &
   Parameters<typeof savedRosterPriceInput>[0] &
-  Parameters<typeof rosterUseError>[1]
+  Parameters<typeof rosterProblems>[1]
 
-/** A list priced, checked, and frozen the way a battle fields it, whoever holds it, with its player's alerts. */
-export async function frozenRoster(saved: UsableRoster, settings: readonly AbilityReminder[]) {
+/**
+ * A list priced, checked, and frozen the way a battle fields it, whoever holds it, with its player's alerts. A sealed
+ * list's points answer to its event instead, where allies who share points may spend past their own saved total.
+ */
+export async function frozenRoster(saved: UsableRoster, settings: readonly AbilityReminder[], options: { sealing?: boolean } = {}) {
   const catalogue = await app().catalogueFor(saved.catalogueId)
   if (!catalogue) throw new Response('army data is not available', { status: 409 })
   const rules = await app().rulesFor(saved.catalogueId)
   if (!rules) throw new Response('army rules data is not available', { status: 409 })
   const priced = calculateRosterPrice(savedRosterPriceInput(saved), catalogue, rules)
   if (!priced) throw new Response('army data is not available', { status: 409 })
-  const error = rosterUseError(priced, saved)
-  if (error) throw new Response(`${ROSTER_NOT_USABLE}: ${error}`, { status: 409 })
+  const problem = rosterProblems(priced, saved).find(({ kind }) => !options.sealing || kind !== 'over-limit')
+  if (problem) throw new Response(`${ROSTER_NOT_USABLE}: ${problem.message}`, { status: 409 })
   const details = unitBattleDetailsIn(
     catalogue,
     saved.catalogueId,
