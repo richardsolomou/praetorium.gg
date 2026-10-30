@@ -1,5 +1,15 @@
 # praetorium
 
+## 0.202.0 (2026-10-30)
+
+### Minor Changes
+
+- 230a5b7: When you earn an achievement, a message tells you once, on whichever device you're using, with a link to your achievements.
+
+### Patch Changes
+
+- 230a5b7: The leaderboard and rating changes update as soon as a battle finishes, instead of up to a minute later.
+
 ## 0.201.2 (2026-10-30)
 
 ### Patch Changes
