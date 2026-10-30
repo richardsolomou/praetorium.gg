@@ -15,6 +15,7 @@ import {
   POINTS_BUDGET_MIN,
   pointsBudgetError,
   pointsBudgetOf,
+  pointsSpent,
   importedCommandRefusal,
   applyEntry,
   reduceBattle,
@@ -34,6 +35,7 @@ import {
   leagueArmyPointsError,
   leagueEntryPoints,
   leagueSeatRefusal,
+  leagueSharesPoints,
   parseLeagueAllowances,
   leagueAllowanceRefusal,
   leaguePlacesSeat,
@@ -422,6 +424,7 @@ function eventTitle(host: EventHost) {
     pointsBudget: host.event.pointsBudget,
     soloPoints: host.event.soloPoints ?? null,
     allyPoints: host.event.allyPoints ?? null,
+    sharedPoints: host.event.sharedPoints ?? false,
   })
 }
 
@@ -3473,6 +3476,7 @@ export const migrateLeaguesToClubs = spacetime.procedure({ now: t.u64() }, t.u32
           soloPoints: undefined,
           allyPoints: undefined,
           remindedAt: undefined,
+          sharedPoints: undefined,
         })
         tx.db.clubGames.insert({
           eventId: event.id,
@@ -4004,6 +4008,7 @@ const leagueRuleInput = z.object({
   pointsBudget: leaguePointsBudgetInput.optional(),
   soloPoints: leagueArmyPointsInput.optional(),
   allyPoints: leagueArmyPointsInput.optional(),
+  sharedPoints: z.boolean().optional(),
 })
 
 /** An event's format, size and points per army, as the league rules read them. */
@@ -4012,7 +4017,44 @@ const eventPoints = (event: SealedEventRow) => ({
   rosterLimit: event.rosterLimit ?? null,
   soloPoints: event.soloPoints ?? null,
   allyPoints: event.allyPoints ?? null,
+  sharedPoints: event.sharedPoints ?? false,
 })
+
+type SealedBuilt = NonNullable<Roster['built']>
+
+/** Why a sealed list cannot take its team seat; a pair that shares points reads it beside the partner's sealed list. */
+function teamSeatRefusal(event: SealedEventRow, entry: LeagueEntryRow, built: SealedBuilt, partner: SealedBuilt | null) {
+  const seat = { requiredLimit: entry.requiredLimit ?? null, teamId: entry.teamId ?? null }
+  const points = leagueEntryPoints(eventPoints(event), seat)
+  if (points === null) return { refusal: 'wrong-limit' as const, points: null }
+  const pair = leagueSharesPoints(eventPoints(event), seat) ? { partner } : undefined
+  const refusal = leagueSeatRefusal(built, event.rosterLimit!, points, pair)
+  // What the list may spend: its seat's points, or what its pair has left beside the partner's list.
+  return { refusal, points: pair ? points * 2 - (partner ? pointsSpent(partner) : 0) : points }
+}
+
+/** The sealed list of an entrant's partner in a fixed pair, or null before it has one. */
+function partnerBuilt(entries: readonly LeagueEntryRow[], entry: LeagueEntryRow) {
+  if (entry.teamId === undefined) return null
+  const partner = entries.find(
+    (row) => row.userId !== entry.userId && row.teamId === entry.teamId && row.status === 'accepted' && row.rosterSnapshot !== undefined,
+  )
+  return rosterSnapshotOrNull(partner?.rosterSnapshot)?.built ?? null
+}
+
+/** Whether every sealed list still meets the event's allowances and, once seated at a team event, its points. */
+function sealedListsFit(event: SealedEventRow, entries: readonly LeagueEntryRow[]) {
+  const allowances = leagueEventAllowances(event)
+  return entries.every((entry) => {
+    if (entry.status !== 'accepted' || entry.rosterSnapshot === undefined) return true
+    const sealed = rosterSnapshotOrNull(entry.rosterSnapshot)
+    if (!sealed?.built || leagueAllowanceRefusal(sealed, allowances)) return false
+    if (!leagueWarlordWaived(sealed, allowances) && !leagueWarlordValid(sealed)) return false
+    const seat = { requiredLimit: entry.requiredLimit ?? null, teamId: entry.teamId ?? null }
+    if (leagueEntryPoints(eventPoints(event), seat) === null) return true
+    return teamSeatRefusal(event, entry, sealed.built, partnerBuilt(entries, entry)).refusal === null
+  })
+}
 
 /** Null for an event created before allowances were recorded. */
 const leagueEventAllowances = (event: SealedEventRow) => (event.allowances === undefined ? null : parseLeagueAllowances(event.allowances))
@@ -4061,8 +4103,7 @@ function revealLeagueEvent(tx: Context, event: SealedEventRow, now: number, acto
       const built = snapshots[index]!.built
       if (required === null || !built) return true
       if (format === '1v1') return built.limit !== required
-      const points = leagueEntryPoints(eventPoints(event), { requiredLimit: entry.requiredLimit ?? null, teamId: entry.teamId ?? null })
-      return points === null || leagueSeatRefusal(built, event.rosterLimit!, points) !== null
+      return teamSeatRefusal(event, entry, built, partnerBuilt(entries, entry)).refusal !== null
     })
   )
     return { outcome: 'not-ready' as const }
@@ -4397,6 +4438,7 @@ export const clubByToken = spacetime.procedure({ token: t.string() }, t.string()
           pointsBudget: event.pointsBudget ?? null,
           soloPoints: event.soloPoints ?? null,
           allyPoints: event.allyPoints ?? null,
+          sharedPoints: event.sharedPoints ?? false,
           players: leagueEntriesFor(tx, event.id)
             .filter((entry) => entry.status === 'accepted')
             .map((entry) => ({
@@ -4937,6 +4979,7 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
         pointsBudget: leaguePointsBudgetInput.default(null),
         soloPoints: leagueArmyPointsInput.default(null),
         allyPoints: leagueArmyPointsInput.default(null),
+        sharedPoints: z.boolean().default(false),
         schedule: leagueScheduleInput.default({ playsAt: null, sealBy: null }),
         now: leagueTimeInput,
       }),
@@ -4994,6 +5037,7 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
       soloPoints: input.soloPoints ?? undefined,
       allyPoints: input.allyPoints ?? undefined,
       remindedAt: undefined,
+      sharedPoints: input.sharedPoints || undefined,
     })
     if (input.ownerPlays) insertLeagueEntry(tx, input.eventId, input.ownerId, 'accepted', input.now)
     touchEventById(tx, input.eventId)
@@ -5102,18 +5146,29 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
     if (details && (host.kind === 'club' || !details.name.trim())) return productJson('forbidden')
     const entries = leagueEntriesFor(tx, event.id)
     const accepted = entries.filter((entry) => entry.status === 'accepted').length
+    const shapeChanged = input.rule !== null && (input.rule.format !== event.format || input.rule.rosterLimit !== event.rosterLimit)
+    const pointsChanged =
+      input.rule !== null &&
+      ((input.rule.soloPoints !== undefined && input.rule.soloPoints !== (event.soloPoints ?? null)) ||
+        (input.rule.allyPoints !== undefined && input.rule.allyPoints !== (event.allyPoints ?? null)) ||
+        (input.rule.sharedPoints !== undefined && input.rule.sharedPoints !== (event.sharedPoints ?? false)))
     const rule =
       input.rule &&
-      (input.rule.format !== event.format ||
-        input.rule.rosterLimit !== event.rosterLimit ||
-        (input.rule.soloPoints !== undefined && input.rule.soloPoints !== (event.soloPoints ?? null)) ||
-        (input.rule.allyPoints !== undefined && input.rule.allyPoints !== (event.allyPoints ?? null)) ||
+      (shapeChanged ||
+        pointsChanged ||
         (input.rule.allowances !== undefined && JSON.stringify(input.rule.allowances) !== JSON.stringify(leagueEventAllowances(event))))
         ? input.rule
         : null
+    // Points per army and allowances stay open after sealing, as long as every sealed list still meets them; the format,
+    // size, pairing and a duel's own total lock, since changing them unseats or reprices every list.
+    const openAfterSealing =
+      rule !== null &&
+      !shapeChanged &&
+      (rule.rounds === undefined || (rule.rounds ?? undefined) === event.rounds) &&
+      (rule.pointsBudget === undefined || (rule.pointsBudget ?? undefined) === event.pointsBudget)
     if (rule) {
       if (event.revealedAt !== undefined) return productJson('closed')
-      if (entries.some((entry) => entry.rosterSnapshot !== undefined)) return productJson('sealed')
+      if (!openAfterSealing && entries.some((entry) => entry.rosterSnapshot !== undefined)) return productJson('sealed')
     }
     const format = (rule?.format ?? event.format ?? null) as TableShape | null
     const playerLimit = details ? details.playerLimit : hostEntryRules(host).playerLimit
@@ -5133,8 +5188,9 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
       const kept = rule.format === event.format && rule.rosterLimit === event.rosterLimit
       const soloPoints = rule.soloPoints === undefined ? (kept ? event.soloPoints : undefined) : (rule.soloPoints ?? undefined)
       const allyPoints = rule.allyPoints === undefined ? (kept ? event.allyPoints : undefined) : (rule.allyPoints ?? undefined)
-      if (!points || leagueArmyPointsError(rule.format, { soloPoints, allyPoints })) return productJson('forbidden')
-      tx.db.sealedEvents.id.update({
+      const sharedPoints = rule.sharedPoints === undefined ? (kept ? event.sharedPoints : undefined) : rule.sharedPoints || undefined
+      if (!points || leagueArmyPointsError(rule.format, { soloPoints, allyPoints, sharedPoints })) return productJson('forbidden')
+      const next = {
         ...event,
         format: rule.format,
         rosterLimit: rule.rosterLimit,
@@ -5143,7 +5199,10 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
         pointsBudget: points.budget,
         soloPoints,
         allyPoints,
-      })
+        sharedPoints,
+      }
+      if (!sealedListsFit(next, entries)) return productJson('misfit')
+      tx.db.sealedEvents.id.update(next)
       // Sizes and pairs follow the format and points; what lists may waive leaves them standing.
       if (rule.format !== event.format || rule.rosterLimit !== event.rosterLimit) {
         for (const entry of entries) tx.db.leagueEventEntries.key.update({ ...entry, requiredLimit: undefined, teamId: undefined })
@@ -5531,15 +5590,18 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
             (row) => row.userId !== input.userId && row.teamId === entry.teamId && row.status === 'accepted',
           )
     if (team) {
-      const points = leagueEntryPoints(eventPoints(event), { requiredLimit: entry.requiredLimit ?? null, teamId: entry.teamId ?? null })
-      if (!submitted.built || points === null) return productJson({ outcome: 'wrong-limit' })
-      const seat = leagueSeatRefusal(submitted.built, event.rosterLimit!, points)
-      if (seat === 'wrong-limit') return productJson({ outcome: 'wrong-limit' })
-      if (seat === 'over-points') return productJson({ outcome: 'over-points', points })
-      // Allies bring lists saved to the same points total, so the first to seal sets it for the other.
-      const partnerBuilt = rosterSnapshotOrNull(teammate?.rosterSnapshot)?.built
-      if (partnerBuilt && pointsBudgetOf(partnerBuilt) !== pointsBudgetOf(submitted.built))
-        return productJson({ outcome: 'ally-mismatch', pointsBudget: pointsBudgetOf(partnerBuilt) })
+      if (!submitted.built) return productJson({ outcome: 'wrong-limit' })
+      const partner = rosterSnapshotOrNull(teammate?.rosterSnapshot)?.built ?? null
+      const seat = teamSeatRefusal(event, entry, submitted.built, partner)
+      if (seat.refusal === 'wrong-limit') return productJson({ outcome: 'wrong-limit' })
+      if (seat.refusal === 'over-points') return productJson({ outcome: 'over-points', points: seat.points })
+      // Allies bring lists saved to the same points total, so the first to seal sets it for the other, unless they share points.
+      if (
+        partner &&
+        !leagueSharesPoints(eventPoints(event), { requiredLimit: entry.requiredLimit ?? null }) &&
+        pointsBudgetOf(partner) !== pointsBudgetOf(submitted.built)
+      )
+        return productJson({ outcome: 'ally-mismatch', pointsBudget: pointsBudgetOf(partner) })
     }
     if (event.format === '2v2' && !teammate) return productJson({ outcome: 'unassigned' })
     // After reveal the pair's card is fixed, so a replacement list must leave it one the pair still offers.

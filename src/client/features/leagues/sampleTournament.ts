@@ -120,6 +120,7 @@ export function sampleTournament(stage: SampleStage): League {
     pointsBudget: null,
     soloPoints: null,
     allyPoints: null,
+    sharedPoints: false,
     rounds: 3,
     playsAt: today + 5 * DAY + 9 * HOUR,
     sealBy,

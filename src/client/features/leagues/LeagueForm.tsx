@@ -35,6 +35,7 @@ export type LeagueFormValue = {
   pointsBudget: number | null
   soloPoints: number | null
   allyPoints: number | null
+  sharedPoints: boolean
   playsAt: number | null
   sealBy: number | null
 }
@@ -53,6 +54,7 @@ export function LeagueFormFields({
   seated = 0,
   limitFormat = value.format,
   ruleLock = null,
+  shapeLock = null,
   tournament,
   ownerPlays,
   optionsOpen = false,
@@ -69,6 +71,8 @@ export function LeagueFormFields({
   limitFormat?: TableShape | null
   /** Why the format and points can no longer change, or null while they can. */
   ruleLock?: string | null
+  /** Why the format and size can no longer change while points and house rules still can, or null. */
+  shapeLock?: string | null
   /** Whether the form sets up a tournament rather than a club's sealed game. */
   tournament: boolean
   /** Whether the organizer enters as a player; omitted where their entry already stands on its own. */
@@ -119,6 +123,7 @@ export function LeagueFormFields({
           <LeagueEventRuleFields
             value={value}
             pairing={tournament}
+            shapeLock={shapeLock}
             disabled={disabled}
             onChange={(rule) =>
               // A shape the limit cannot seat starts its limit at the fewest places that do.

@@ -168,17 +168,15 @@ export function buildLeagueBattle(
       allyIds = [ally]
     }
     participantIds = [userId, ...allyIds, ...opponentIds]
-    for (const playerId of participantIds) {
-      const built = rosters.get(playerId)?.built
-      if (!built || leagueSeatRefusal(built, limit, leagueSeatPoints(league, requirements.get(playerId) === limit)!))
-        throw new LeagueBattleSetupError('a sealed roster does not fit its seat', 409)
-    }
   }
-  if (league.format === '2v2') {
-    const points = leagueSeatPoints(league, false)!
+  if (isTeamFormat(league.format)) {
+    const pairs = [[userId, ...allyIds], opponentIds]
     const misfit = (playerId: string) => {
       const built = rosters.get(playerId)?.built
-      return !built || leagueSeatRefusal(built, limit, points) !== null
+      const solo = league.format === '2v1' && league.entries.find((entry) => entry.userId === playerId)?.requiredLimit === limit
+      const partnerId = pairs.find((pair) => pair.includes(playerId))!.find((id) => id !== playerId)
+      const pair = league.sharedPoints && !solo ? { partner: rosters.get(partnerId!)?.built ?? null } : undefined
+      return !built || leagueSeatRefusal(built, limit, leagueSeatPoints(league, solo)!, pair) !== null
     }
     if (participantIds.some(misfit)) throw new LeagueBattleSetupError('a sealed roster does not fit its seat', 409)
   }
@@ -194,7 +192,10 @@ export function buildLeagueBattle(
       playerCount: expectedPlayers,
       // The creator's side sits first, so its seat's points do too.
       ...(isTeamFormat(league.format)
-        ? { armyPoints: [allyIds.length > 0, opponentIds.length > 1].map((pair) => leagueSeatPoints(league, !pair)!) }
+        ? {
+            armyPoints: [allyIds.length > 0, opponentIds.length > 1].map((pair) => leagueSeatPoints(league, !pair)!),
+            ...(league.sharedPoints ? { sharedArmyPoints: true } : {}),
+          }
         : {}),
       clockLimitMinutes: null,
     },

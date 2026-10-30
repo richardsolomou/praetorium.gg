@@ -63,13 +63,14 @@ export function doublesTeams<T extends Pick<LeagueEntryView, 'teamId' | 'status'
 
 /** What each side of a 2v1 means at the table, said where the side is named rather than left to be guessed. */
 function sideGroups(
-  league: Pick<League, 'rosterLimit' | 'soloPoints' | 'allyPoints'>,
+  league: Pick<League, 'rosterLimit' | 'soloPoints' | 'allyPoints' | 'sharedPoints'>,
 ): Record<'solo' | 'allied' | 'unsized', { title: string; detail?: string }> {
+  const ally = leagueSeatPoints(league, false) ?? 0
   return {
     solo: { title: `Solo · ${pointsLabel(leagueSeatPoints(league, true) ?? 0)}`, detail: 'Plays alone against a pair.' },
     allied: {
-      title: `Allied · ${pointsLabel(leagueSeatPoints(league, false) ?? 0)}`,
-      detail: 'Plays beside another ally.',
+      title: league.sharedPoints ? `Allied · ${pointsLabel(ally * 2)} shared` : `Allied · ${pointsLabel(ally)}`,
+      detail: league.sharedPoints ? 'Plays beside another ally, splitting the points between them.' : 'Plays beside another ally.',
     },
     unsized: { title: 'Waiting for a size' },
   }
@@ -84,7 +85,7 @@ type EntrantGrouping<T> = { key: string; title?: string; detail?: string; teamId
 
 /** The groups the entrant list, the organizer and the revealed rosters all split an event into, so a pairing reads the same everywhere. */
 export function entrantGroups<T extends Pick<LeagueEntryView, 'teamId' | 'status' | 'requiredLimit'>>(
-  league: Pick<League, 'format' | 'rosterLimit' | 'soloPoints' | 'allyPoints'>,
+  league: Pick<League, 'format' | 'rosterLimit' | 'soloPoints' | 'allyPoints' | 'sharedPoints'>,
   accepted: readonly T[],
   names: (members: T[]) => string,
 ): EntrantGrouping<T>[] {
@@ -153,6 +154,7 @@ type NamedEvent = {
   pointsBudget?: number | null
   soloPoints?: number | null
   allyPoints?: number | null
+  sharedPoints?: boolean
 }
 
 /** An event's name where its club is in view: a tournament's own name, or what a sealed game plays. */
@@ -171,6 +173,7 @@ function namedEvent(event: NamedEvent, withClub: boolean) {
       pointsBudget: event.pointsBudget,
       soloPoints: event.soloPoints,
       allyPoints: event.allyPoints,
+      sharedPoints: event.sharedPoints,
     },
     { withClub },
   )

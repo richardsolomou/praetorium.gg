@@ -604,6 +604,8 @@ export type BattleSettings = {
   playerCount: 2 | 3 | 4
   /** What each army on a side may spend in a team battle, by side; absent splits the battle size evenly. */
   armyPoints?: number[]
+  /** Allies spend their side's points between them, in any split, rather than each army its own share. */
+  sharedArmyPoints?: boolean
   /** The table keeps its own score: no mission pack, cards, caps, automatic CP or battle ready bonus. */
   manual?: boolean
 }
@@ -897,6 +899,7 @@ export type Command =
       playerCount?: 2 | 3 | 4
       /** A team battle's points per army, by side; absent or null splits the battle size evenly. */
       armyPoints?: number[] | null
+      sharedArmyPoints?: boolean
       clockLimitMinutes: number | null
       manual?: boolean
     }
@@ -1516,6 +1519,10 @@ export function commandRefusal(state: BattleState, by: PlayerId, command: Comman
       if (command.teamBattle && isKotcLimit(command.limit)) return refuse('unsupported-battle-size', 'choose a supported battle size')
       if (state.leagueToken && JSON.stringify(command.armyPoints ?? null) !== JSON.stringify(state.settings.armyPoints ?? null))
         return refuse('league-sealed', 'this battle’s points are sealed')
+      if (state.leagueToken && (command.sharedArmyPoints ?? false) !== (state.settings.sharedArmyPoints ?? false))
+        return refuse('league-sealed', 'this battle’s points are sealed')
+      if (command.sharedArmyPoints && !command.teamBattle)
+        return refuse('invalid-army-points', 'only a team battle shares points between allies')
       if (command.armyPoints) {
         if (!command.teamBattle) return refuse('invalid-army-points', 'only a team battle sets points per army')
         if (command.armyPoints.length !== 2 || !command.armyPoints.every(validArmyPoints))
@@ -2030,6 +2037,7 @@ function apply(state: BattleState, by: PlayerId, command: Command, seq: number) 
         teamBattle: command.teamBattle ?? false,
         playerCount: battleCapacity(command),
         ...(command.armyPoints ? { armyPoints: command.armyPoints } : {}),
+        ...(command.sharedArmyPoints ? { sharedArmyPoints: true } : {}),
         ...(command.manual ? { manual: true } : {}),
       }
       if (missionPackChanged) {
@@ -2943,11 +2951,22 @@ export function evenArmyPoints(state: TableArmies & { settings: BattleSettings }
 export const armyPointsFor = (state: TableArmies & { settings: BattleSettings }, side: number): number | null =>
   state.settings.armyPoints?.[side] ?? evenArmyPoints(state, side)
 
-const pointsSpent = (built: Pick<TableBuilt, 'units'>) => built.units?.reduce((total, unit) => total + unit.points, 0) ?? 0
+export const pointsSpent = (built: Pick<TableBuilt, 'units'>) => built.units?.reduce((total, unit) => total + unit.points, 0) ?? 0
 
 /** Whether a list spends no more than the points its army may, unless it waives its points limit. */
 export const withinArmyPoints = (built: Pick<TableBuilt, 'units' | 'waivedRules'>, points: number) =>
   !enforces(built.waivedRules, 'points-limit') || pointsSpent(built) <= points
+
+/** Whether allies who share their points spend no more than `total` between them; a list that waives its points limit is not counted. */
+export const withinSharedArmyPoints = (armies: readonly Pick<TableBuilt, 'units' | 'waivedRules'>[], total: number) =>
+  armies.reduce((spent, built) => spent + (enforces(built.waivedRules, 'points-limit') ? pointsSpent(built) : 0), 0) <= total
+
+/** What a side's armies may spend together when they share their points, or null when each army spends its own. */
+export function sharedSidePoints(state: TableArmies & { settings: BattleSettings }, side: number): number | null {
+  const armies = sidePlayers(state, side).length
+  const points = armyPointsFor(state, side)
+  return state.settings.sharedArmyPoints && armies > 1 && points !== null ? points * armies : null
+}
 
 type TeamArmyProblem = { code: 'over-army-points' | 'allies-mismatch'; side: number; message: string }
 
@@ -2955,7 +2974,8 @@ type TeamArmyProblem = { code: 'over-army-points' | 'allies-mismatch'; side: num
  * What stops a team battle's armies from playing, side by side.
  *
  * Each army spends no more than its side's points per army, unless it waives its points limit, and allies bring lists
- * saved to the same points total so neither half of a side is the bigger one.
+ * saved to the same points total so neither half of a side is the bigger one. Allies who share their points may split
+ * them any way, so only their total counts.
  */
 export function teamArmyProblems(state: TableArmies & { settings: BattleSettings }): TeamArmyProblem[] {
   if (!state.settings.teamBattle || state.settings.limit === null) return []
@@ -2964,10 +2984,18 @@ export function teamArmyProblems(state: TableArmies & { settings: BattleSettings
       player.side === side && player.roster?.built ? [{ ...player.roster.built, units: player.units ?? player.roster.built.units }] : [],
     )
     const points = armyPointsFor(state, side)
+    const shared = sharedSidePoints(state, side)
     const problems: TeamArmyProblem[] = []
-    if (points !== null && armies.some((army) => !withinArmyPoints(army, points)))
-      problems.push({ code: 'over-army-points', side, message: `an army spends more than its ${pointsLabel(points)}` })
-    if (new Set(armies.map(pointsBudgetOf)).size > 1)
+    if (
+      shared !== null ? !withinSharedArmyPoints(armies, shared) : points !== null && armies.some((army) => !withinArmyPoints(army, points))
+    )
+      problems.push({
+        code: 'over-army-points',
+        side,
+        message:
+          shared !== null ? `allies spend more than their ${pointsLabel(shared)}` : `an army spends more than its ${pointsLabel(points!)}`,
+      })
+    if (shared === null && new Set(armies.map(pointsBudgetOf)).size > 1)
       problems.push({ code: 'allies-mismatch', side, message: 'allies bring lists saved to the same points total' })
     return problems
   })
@@ -3008,10 +3036,12 @@ export function battlePointsBudget(state: TableArmies & { settings: BattleSettin
   return customPointsBudget(state.settings.limit, allowances[0])
 }
 
-/** A team battle's points per army as a table says them, side by side: "1,750 vs 800 + 800". */
+/** A team battle's points per army as a table says them, side by side: "1,750 vs 800 + 800", or "2,000 vs 2,000 shared". */
 export function armyPointsText(state: TableArmies & { settings: BattleSettings }): string {
   return [0, 1]
     .map((side) => {
+      const shared = sharedSidePoints(state, side)
+      if (shared !== null) return `${shared.toLocaleString('en')} shared`
       const points = armyPointsFor(state, side)?.toLocaleString('en') ?? '?'
       const armies = Math.max(1, sidePlayers(state, side).length)
       return Array.from({ length: armies }, () => points).join(' + ')

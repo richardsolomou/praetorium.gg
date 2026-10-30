@@ -310,6 +310,7 @@ export class SpacetimeRepository {
     pointsBudget?: number | null
     soloPoints?: number | null
     allyPoints?: number | null
+    sharedPoints?: boolean
     schedule?: LeagueSchedule
     now: number
   }) {
@@ -331,6 +332,7 @@ export class SpacetimeRepository {
     pointsBudget?: number | null
     soloPoints?: number | null
     allyPoints?: number | null
+    sharedPoints?: boolean
     schedule?: LeagueSchedule
     now: number
   }) {
@@ -360,6 +362,7 @@ export class SpacetimeRepository {
         pointsBudget?: number | null
         soloPoints?: number | null
         allyPoints?: number | null
+        sharedPoints?: boolean
       }
       schedule?: LeagueSchedule
     },
@@ -368,7 +371,7 @@ export class SpacetimeRepository {
       { op: 'update', token, ownerId, ...input },
       z.union([
         z.object({ admitted: z.array(z.string()), ruleChanged: z.boolean() }),
-        z.enum(['missing', 'forbidden', 'below-accepted', 'team-minimum', 'closed', 'sealed']),
+        z.enum(['missing', 'forbidden', 'below-accepted', 'team-minimum', 'closed', 'sealed', 'misfit']),
       ]),
     )
   }
@@ -414,6 +417,7 @@ export class SpacetimeRepository {
         pointsBudget: event.pointsBudget,
         soloPoints: event.soloPoints,
         allyPoints: event.allyPoints,
+        sharedPoints: event.sharedPoints,
         playsAt: event.playsAt,
         sealBy: event.sealBy,
         entrantCount: accepted,
@@ -636,6 +640,7 @@ export class SpacetimeRepository {
       pointsBudget: event.pointsBudget,
       soloPoints: event.soloPoints,
       allyPoints: event.allyPoints,
+      sharedPoints: event.sharedPoints,
       playsAt: event.playsAt,
       sealBy: event.sealBy,
       remindedAt: event.remindedAt,
@@ -892,6 +897,7 @@ export class SpacetimeRepository {
       rosterLimit: event.rosterLimit,
       soloPoints: event.soloPoints,
       allyPoints: event.allyPoints,
+      sharedPoints: event.sharedPoints,
       revealedAt: event.revealedAt,
       rounds: event.rounds,
       paired: Boolean(pairing),

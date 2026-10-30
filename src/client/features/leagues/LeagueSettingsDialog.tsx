@@ -4,7 +4,7 @@ import { Link, useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
 import { posthog } from 'posthog-js'
 import { Button } from '@/components/ui/button'
-import { effectiveLeagueAllowances, leagueTableShape, LEAGUE_DEFAULT_ROSTER_LIMIT } from '../../../core/league'
+import { effectiveLeagueAllowances, isTeamFormat, leagueTableShape, LEAGUE_DEFAULT_ROSTER_LIMIT } from '../../../core/league'
 import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/Dialog'
 import { createClubGame, createLeague, setLeagueAdmins, updateLeague } from '../../functions'
 import { leagueQuery, leagueReadsKey, leaguesQuery, meQuery } from '../../queries'
@@ -80,6 +80,7 @@ function SettingsForm({ mode, league, onClose }: { mode: LeagueSettingsMode; lea
     pointsBudget: league?.pointsBudget ?? null,
     soloPoints: league?.soloPoints ?? null,
     allyPoints: league?.allyPoints ?? null,
+    sharedPoints: league?.sharedPoints ?? false,
     playsAt: league?.playsAt ?? null,
     sealBy: league?.sealBy ?? null,
   }))
@@ -95,13 +96,11 @@ function SettingsForm({ mode, league, onClose }: { mode: LeagueSettingsMode; lea
   const seated =
     mode.kind === 'edit' && league && !league.revealedAt ? league.entries.filter((entry) => entry.status === 'accepted').length : 0
   const ruleLock =
-    mode.kind !== 'edit' || !league
-      ? null
-      : league.revealedAt
-        ? `The rosters are out; start a new ${noun} to play a different format.`
-        : league.entries.some((entry) => entry.submitted)
-          ? 'Locked now that a roster is sealed.'
-          : null
+    mode.kind === 'edit' && league?.revealedAt ? `The rosters are out; start a new ${noun} to play a different format.` : null
+  const shapeLock =
+    mode.kind === 'edit' && league?.entries.some((entry) => entry.submitted)
+      ? `Format and size are locked now that a list is sealed. ${isTeamFormat(current) ? 'Points per army and house rules' : 'House rules'} can still change, as long as every sealed list still fits them.`
+      : null
   // A revealed event takes nobody new, so its limit no longer has to seat its shape.
   const limitFormat = mode.kind === 'edit' && league?.revealedAt ? null : value.format
   const shapeChanged = value.format !== current || value.rosterLimit !== league?.rosterLimit
@@ -112,7 +111,8 @@ function SettingsForm({ mode, league, onClose }: { mode: LeagueSettingsMode; lea
         value.rounds !== league.rounds ||
         value.pointsBudget !== league.pointsBudget ||
         value.soloPoints !== league.soloPoints ||
-        value.allyPoints !== league.allyPoints))
+        value.allyPoints !== league.allyPoints ||
+        value.sharedPoints !== league.sharedPoints))
   const clearsAssignments =
     mode.kind === 'edit' &&
     shapeChanged &&
@@ -127,9 +127,10 @@ function SettingsForm({ mode, league, onClose }: { mode: LeagueSettingsMode; lea
       if (mode.kind === 'create') posthog.capture('league_creation_failed', { reason: 'request', club: sealedGame })
     },
     mutationFn: async () => {
-      const { format, rosterLimit, allowances, rounds, pointsBudget, soloPoints, allyPoints, playsAt, sealBy, ...details } = value
+      const { format, rosterLimit, allowances, rounds, pointsBudget, soloPoints, allyPoints, sharedPoints, playsAt, sealBy, ...details } =
+        value
       const schedule = { playsAt, sealBy }
-      const points = { pointsBudget, soloPoints, allyPoints }
+      const points = { pointsBudget, soloPoints, allyPoints, sharedPoints }
       if (mode.kind === 'create')
         return mode.clubToken
           ? createClubGame({
@@ -218,6 +219,7 @@ function SettingsForm({ mode, league, onClose }: { mode: LeagueSettingsMode; lea
             seated={seated}
             limitFormat={limitFormat}
             ruleLock={ruleLock}
+            shapeLock={shapeLock}
             tournament={!sealedGame}
             // A club game's players enter by sealing a list or taking a seat, its organizer included.
             ownerPlays={mode.kind === 'edit' || sealedGame ? undefined : ownerPlays}

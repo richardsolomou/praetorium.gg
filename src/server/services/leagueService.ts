@@ -36,10 +36,10 @@ export class LeagueService {
   ) {}
 
   async createTournament(ownerId: string, input: TournamentDetails & EventRuleInput & { ownerPlays: boolean; schedule?: LeagueSchedule }) {
-    const { format, rosterLimit, allowances, rounds, pointsBudget, soloPoints, allyPoints, ...details } = input
+    const { format, rosterLimit, allowances, rounds, pointsBudget, soloPoints, allyPoints, sharedPoints, ...details } = input
     const token = offlineIdentifier('leagueToken', randomToken)
     const eventToken = offlineIdentifier('eventToken', randomToken)
-    const rule = eventRule({ format, rosterLimit, allowances, rounds, pointsBudget, soloPoints, allyPoints })
+    const rule = eventRule({ format, rosterLimit, allowances, rounds, pointsBudget, soloPoints, allyPoints, sharedPoints })
     const result = await this.repository.createTournament({
       id: offlineIdentifier('leagueId', randomId),
       token,
@@ -102,7 +102,9 @@ export class LeagueService {
     if (result === 'missing') throw new Response('no such event', { status: 404 })
     if (result === 'forbidden') throw new Response('only the organizer can edit this event', { status: 403 })
     if (result === 'closed') throw new Response('the event’s rules cannot change after reveal', { status: 409 })
-    if (result === 'sealed') throw new Response('the event’s rules cannot change once a list is sealed', { status: 409 })
+    if (result === 'sealed') throw new Response('the event’s format and size cannot change once a list is sealed', { status: 409 })
+    if (result === 'misfit')
+      throw new Response('a sealed list would no longer fit; ask its player to reseal, or keep the current rules', { status: 409 })
     if (result === 'team-minimum') throw new Response('the open team event needs a supported number of places', { status: 409 })
     throw new Response('the player limit cannot be lower than the accepted entrant count', { status: 409 })
   }
@@ -510,6 +512,7 @@ type EventRuleInput = {
   pointsBudget?: number | null
   soloPoints?: number | null
   allyPoints?: number | null
+  sharedPoints?: boolean
 }
 
 /** Missing allowances stay missing, which an update reads as "leave them as they are". */
@@ -537,6 +540,7 @@ function eventRule(rule: EventRuleInput) {
     pointsBudget: rule.pointsBudget,
     soloPoints: rule.soloPoints,
     allyPoints: rule.allyPoints,
+    sharedPoints: rule.sharedPoints,
   }
 }
 

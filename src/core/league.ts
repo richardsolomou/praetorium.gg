@@ -12,6 +12,7 @@ import {
   validArmyPoints,
   pointsLabel,
   withinArmyPoints,
+  withinSharedArmyPoints,
   waivedFormatRules,
   type FormatRule,
   type FormatRuleId,
@@ -49,8 +50,11 @@ export function alliedLeagueRosterLimit(rosterLimit: number) {
   return rosterLimit / 2
 }
 
-/** An organizer's points per army at a team event, by seat; null plays an even share of the battle size. */
-export type LeagueArmyPoints = { soloPoints: number | null; allyPoints: number | null }
+/**
+ * An organizer's points per army at a team event, by seat; null plays an even share of the battle size. With
+ * `sharedPoints`, allies spend their pair's points between them in any split: 900 and 1,100 of 2,000.
+ */
+export type LeagueArmyPoints = { soloPoints: number | null; allyPoints: number | null; sharedPoints: boolean }
 
 /** What one army spends at a team event: the organizer's number for its seat, or an even share of the battle size. */
 export function leagueSeatPoints(event: { rosterLimit: number | null } & Partial<LeagueArmyPoints>, solo: boolean) {
@@ -61,22 +65,26 @@ export function leagueSeatPoints(event: { rosterLimit: number | null } & Partial
 /** Why an organizer's points per army do not fit the event's format, or null. */
 export function leagueArmyPointsError(format: TableShape, points: Partial<LeagueArmyPoints>): string | null {
   const given = [points.soloPoints, points.allyPoints].filter((value) => value !== null && value !== undefined)
-  if (format === '1v1' && given.length) return 'only a team event sets points per army'
+  if (format === '1v1' && (given.length || points.sharedPoints)) return 'only a team event sets points per army'
   if (format === '2v2' && points.soloPoints != null) return 'a doubles event has no solo player'
   if (!given.every(validArmyPoints)) return ARMY_POINTS_ERROR
   return null
 }
 
 /**
- * How a team shape spends its points, side against side: "1,750 vs 800 + 800".
+ * How a team shape spends its points, side against side: "1,750 vs 800 + 800", or "2,000 vs 2,000 shared" when allies
+ * split their pair's points.
  *
  * A 1v1 splits nothing, so it has no phrasing here and each surface prints the size in
  * whatever density it has room for.
  */
 export function leagueRosterSplit(event: { format: TableShape; rosterLimit: number } & Partial<LeagueArmyPoints>) {
-  const ally = leagueSeatPoints(event, false)!.toLocaleString('en')
-  if (event.format === '2v1') return `${leagueSeatPoints(event, true)!.toLocaleString('en')} vs ${ally} + ${ally}`
-  if (event.format === '2v2') return `${ally} + ${ally} vs ${ally} + ${ally}`
+  const ally = leagueSeatPoints(event, false)!
+  const pair = event.sharedPoints
+    ? `${(ally * 2).toLocaleString('en')} shared`
+    : `${ally.toLocaleString('en')} + ${ally.toLocaleString('en')}`
+  if (event.format === '2v1') return `${leagueSeatPoints(event, true)!.toLocaleString('en')} vs ${pair}`
+  if (event.format === '2v2') return `${pair} vs ${pair}`
   return null
 }
 
@@ -108,14 +116,31 @@ export function leagueEntryPoints(
   return null
 }
 
-/** Why a sealed list cannot play its seat at a team event: built bigger than the event's size, or spending past its seat. */
+type SeatedList = { limit: number; waivedRules?: readonly string[]; units: readonly { points: number }[] }
+
+/**
+ * Why a sealed list cannot play its seat at a team event: built bigger than the event's size, or spending past its seat.
+ * An ally who shares points passes `pair` with their partner's sealed list, or null before it, and spends what is left of
+ * twice the seat's points.
+ */
 export function leagueSeatRefusal(
-  built: { limit: number; waivedRules?: readonly string[]; units: readonly { points: number }[] },
+  built: SeatedList,
   eventLimit: number,
   points: number,
+  pair?: { partner: SeatedList | null },
 ): 'wrong-limit' | 'over-points' | null {
   if (!fitsBattleSize({ limit: eventLimit, teamBattle: true }, built)) return 'wrong-limit'
-  return withinArmyPoints(built, points) ? null : 'over-points'
+  const within = pair ? withinSharedArmyPoints(pair.partner ? [built, pair.partner] : [built], points * 2) : withinArmyPoints(built, points)
+  return within ? null : 'over-points'
+}
+
+/** Whether a seated entrant splits their pair's points with an ally: an allied or doubles seat at an event that shares them. */
+export function leagueSharesPoints(
+  event: { format: TableShape | null; rosterLimit: number | null; sharedPoints?: boolean },
+  entry: { requiredLimit: number | null },
+) {
+  if (!event.sharedPoints) return false
+  return event.format === '2v2' || (event.format === '2v1' && entry.requiredLimit !== null && entry.requiredLimit !== event.rosterLimit)
 }
 
 export const LEAGUE_NAME_MAX_LENGTH = 100
