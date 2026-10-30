@@ -37,6 +37,32 @@ export function compileMortalRule(text: string, rule: CombatRule): CombatRuleCho
     /^In your Shooting phase, each time you select a target for this model's (.+?), roll one D6 for the target unit and one D6 for (?:each|every) other enemy unit within (\d+)" of the target unit\. On a ([2-6])\+, the unit being rolled for is struck by (.+?); after resolving all of this model's attacks against the target unit, each unit struck by \4 suffers (\d*D[36](?:\+\d+)?|\d+) mortal wounds\.?$/i.exec(
       text,
     )
+  const sacrifice =
+    /^At the start of the Fight phase, if this unit is within Engagement Range of one or more enemy units, you can select one model in this unit to destroy\. If you do, select one enemy unit within Engagement Range of that model and roll one D6, adding 1 to the result if that unit is an? ([A-Z]+)\. (.+)$/i.exec(
+      text,
+    )
+  if (sacrifice) {
+    const base = outcomes(sacrifice[2]!)
+    if (!base) return null
+    const mortalWounds = (result: MortalWounds['outcomes']) => ({ timing: 'before' as const, rolls: 1, sacrifice: 1, outcomes: result })
+    return [
+      {
+        label: 'Target in Engagement Range · Destroy one model',
+        effects: [
+          { role: 'attacker', phases: ['melee'], excludedTargetKeywords: [sacrifice[1]!], mortalWounds: mortalWounds(base) },
+          {
+            role: 'attacker',
+            phases: ['melee'],
+            targetKeywords: [sacrifice[1]!],
+            // Adding 1 to the roll moves each band down one face; a band reaching 6 keeps it.
+            mortalWounds: mortalWounds(
+              base.map((outcome) => ({ ...outcome, min: Math.max(1, outcome.min - 1), max: outcome.max === 6 ? 6 : outcome.max - 1 })),
+            ),
+          },
+        ],
+      },
+    ]
+  }
   if (!charge && !shooting && !fight && !arcing) return null
   const written = charge?.[2] ?? shooting?.[3] ?? fight?.[1] ?? `on a ${arcing![3]}+, that unit suffers ${arcing![5]} mortal wounds`
   const result = outcomes(written.replace(/ and this model regains up to that many lost wounds\.?$/i, '.'))
