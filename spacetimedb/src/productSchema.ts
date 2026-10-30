@@ -467,6 +467,15 @@ const clubBattles = table(
   },
 )
 
+/** When each battle last had a command, so a battle feed orders battles without reading every log; filled lazily by `lastActivity` and dropped by `touchBattle`. */
+const battleActivity = table(
+  { name: 'battle_activity' },
+  {
+    battleId: t.string().primaryKey(),
+    at: t.u64(),
+  },
+)
+
 /**
  * The `battles` revision at which each battle's log or seats last changed, so a reader keeping its own copy of results
  * rereads only what changed since it last read. The row outlives its battle, which tells that reader it is gone.
@@ -812,6 +821,7 @@ export const productTables = {
   clubs,
   clubMembers,
   clubBattles,
+  battleActivity,
   battleChanges,
   battleResults,
   ratingSteps,

@@ -324,6 +324,17 @@ function touchBattle(ctx: Context, battleId: string) {
   const revision = ctx.db.publicRevisions.scope.find('battles')!.revision
   ctx.db.battleChanges.battleId.delete(battleId)
   ctx.db.battleChanges.insert({ battleId, revision })
+  ctx.db.battleActivity.battleId.delete(battleId)
+}
+
+/** When a battle last had a command, read from its log only the first time after the log changed. */
+function lastActivity(ctx: Context, battle: { id: string; createdAt: bigint }) {
+  const stored = ctx.db.battleActivity.battleId.find(battle.id)
+  if (stored) return stored.at
+  let at = battle.createdAt
+  for (const command of ctx.db.commands.battleId.filter(battle.id)) if (command.at > at) at = command.at
+  ctx.db.battleActivity.insert({ battleId: battle.id, at })
+  return at
 }
 
 function touchAdmin(ctx: Context) {
@@ -1085,6 +1096,15 @@ export const battleFeed = spacetime.procedure({ payload: t.string() }, t.string(
           const battle = tx.db.battles.id.find(entry.battleId)
           if (battle) yield battle
         }
+      } else if (input.scope === 'friends') {
+        const seen = new Set<string>()
+        for (const friendId of friendIds)
+          for (const seat of tx.db.battleUsers.userId.filter(friendId)) {
+            if (seen.has(seat.battleId)) continue
+            seen.add(seat.battleId)
+            const battle = tx.db.battles.id.find(seat.battleId)
+            if (battle) yield battle
+          }
       } else yield* tx.db.battles.iter()
     }
     for (const battle of candidates()) {
@@ -1093,13 +1113,8 @@ export const battleFeed = spacetime.procedure({ payload: t.string() }, t.string(
       const hasPractice = seats.some((seat) => Boolean(tx.db.practiceOpponents.userId.find(seat.userId)))
       if (input.scope === 'user' && input.withUserId && !seatIds.has(input.withUserId)) continue
       if (input.scope === 'public' && (hasPractice || (input.viewerId && seatIds.has(input.viewerId)))) continue
-      if (input.scope === 'friends' && (hasPractice || seatIds.has(input.userId!) || !seats.some((seat) => friendIds.has(seat.userId))))
-        continue
-      let activity = battle.createdAt
-      if (input.scope !== 'public' && input.scope !== 'friends') {
-        for (const command of tx.db.commands.battleId.filter(battle.id)) if (command.at > activity) activity = command.at
-      }
-      const at = safeNumber(activity)
+      if (input.scope === 'friends' && (hasPractice || seatIds.has(input.userId!))) continue
+      const at = safeNumber(input.scope === 'public' || input.scope === 'friends' ? battle.createdAt : lastActivity(tx, battle))
       if (input.scope === 'watchable' && at < input.since!) continue
       if (input.before && (at > input.before.at || (at === input.before.at && battle.id >= input.before.id))) continue
       const row = { id: battle.id, token: battle.token, createdAt: safeNumber(battle.createdAt), at }

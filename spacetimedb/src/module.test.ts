@@ -1424,6 +1424,37 @@ describe('public battle feed', () => {
   })
 })
 
+describe('friends battle feed', () => {
+  it("lists only friends' battles the viewer is not in", () => {
+    const { operator, procedure } = harness()
+    const create = (id: string, userId: string, opponentId: string) =>
+      module.createBattle(procedure(operator), {
+        payload: JSON.stringify({ id, token: id, userId, allyIds: [], opponentIds: [opponentId], initialCommands: [], now: NOW }),
+      })
+    module.requestFriend(procedure(operator), { requesterId: 'viewer', addresseeId: 'friend', now: BigInt(NOW) })
+    module.acceptFriend(procedure(operator), { requesterId: 'viewer', addresseeId: 'friend', now: BigInt(NOW) })
+    create('friend-game', 'friend', 'stranger')
+    create('shared-game', 'friend', 'viewer')
+    create('stranger-game', 'stranger', 'other')
+    const feed = JSON.parse(
+      module.battleFeed(procedure(operator), {
+        payload: JSON.stringify({
+          scope: 'friends',
+          userId: 'viewer',
+          viewerId: 'viewer',
+          withUserId: null,
+          leagueToken: null,
+          eventToken: null,
+          since: null,
+          before: null,
+          limit: 10,
+        }),
+      }),
+    ) as { battles: { battle: { id: string } }[] }
+    expect(feed.battles.map((row) => row.battle.id)).toEqual(['friend-game'])
+  })
+})
+
 describe('battle changes', () => {
   const create = ({ operator, procedure }: ReturnType<typeof harness>, id: string) =>
     module.createBattle(procedure(operator), {
@@ -1573,6 +1604,50 @@ describe('battle commands', () => {
     const { test, operator, procedure } = harness()
     expect(() => create(procedure, operator, [{ kind: 'begin-battle', firstPlayerId: 'stranger' }])).toThrow()
     expect(test.db.battles.count()).toBe(0n)
+  })
+
+  it("moves a battle to the top of its player's feed when it takes a command after the feed was read", () => {
+    const { operator, procedure } = harness()
+    create(procedure, operator)
+    module.createBattle(procedure(operator), {
+      payload: JSON.stringify({
+        id: 'later',
+        token: 'later-token',
+        userId: creator,
+        allyIds: [],
+        opponentIds: ['opponent'],
+        initialCommands: [],
+        now: NOW + 1,
+      }),
+    })
+    const feed = () =>
+      (
+        JSON.parse(
+          module.battleFeed(procedure(operator), {
+            payload: JSON.stringify({
+              scope: 'user',
+              userId: creator,
+              viewerId: creator,
+              withUserId: null,
+              leagueToken: null,
+              eventToken: null,
+              since: null,
+              before: null,
+              limit: 10,
+            }),
+          }),
+        ) as { battles: { battle: { id: string } }[] }
+      ).battles.map((row) => row.battle.id)
+    feed()
+    module.submitBattle(procedure(operator), {
+      battleId: 'battle',
+      userId: creator,
+      expectedSeq: 0,
+      body: JSON.stringify({ kind: 'set-setup-step', step: 1 }),
+      now: BigInt(NOW + 2),
+      externalRefusal: '',
+    })
+    expect(feed()).toEqual(['battle', 'later'])
   })
 })
 
