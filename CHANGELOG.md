@@ -1,5 +1,14 @@
 # praetorium
 
+## 0.203.2 (2026-10-30)
+
+### Patch Changes
+
+- 8acdf79: The simulator now calculates more Adeptus Custodes rules, including Trajann's Moment Shackle, the Blade Champion's Sword of the Throne, the Sodality objective rules, Venatari's Strike from the Skies, Memento Moritoi and Not a Shell Wasted.
+- 8acdf79: Enhancements that only boost a bearer's melee weapons no longer boost its ranged weapons in the simulator.
+- 8acdf79: The simulator now calculates more rules across factions, such as the Biologus Putrifier's Foul Infusion, the Lord of Contagion's Vector of Disease, Worthy Foes and several re-roll and cover rules.
+- 8acdf79: The simulator can now calculate Canoptek Scarab Swarms' Self-destruction, removing the destroyed Scarab before the rest of the unit fights.
+
 ## 0.203.1 (2026-10-30)
 
 ### Patch Changes
