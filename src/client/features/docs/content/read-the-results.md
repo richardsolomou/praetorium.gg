@@ -10,6 +10,8 @@ Open **Breakdown** to compare phases:
 
 ![The results bar with Breakdown open, showing Shooting, Melee and Combined rows.](screenshot:compare-loadouts-breakdown 'Combined carries shooting survivors into melee')
 
+With a **Command Re-roll** chosen, the bar also shows how much it changes each phase's chance to destroy, wounds lost and models lost compared with not using it, so you can tell whether it's worth the CP.
+
 A higher average doesn't always mean a better chance to wipe the unit. If you need the kill, compare the destruction chance.
 
 When the attacker would usually destroy the whole target, you may see **uncapped kills** instead of models lost: the average models destroyed if the target had enough models to absorb every attack.

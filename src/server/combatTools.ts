@@ -78,7 +78,7 @@ const simulateCombatInputSchema = z.object({
   modifiers: combatAdjustmentsSchema
     .optional()
     .describe(
-      'Situational modifiers the simulator page offers, such as { "all": { "cover": true, "hitModifier": -1 } }, { "melee": { "charged": true } }, or { "target": { "invulnerable": 4 } }.',
+      'Situational modifiers the simulator page offers, such as { "all": { "cover": true, "hitModifier": -1 } }, { "melee": { "charged": true } }, or { "target": { "invulnerable": 4 } }. commandReroll spends one Command Re-roll per phase on the first failed hit, wound, or save roll, or the first single-die Attacks roll below its average; compare with a run without it to judge the CP.',
     ),
   weaponModes: z
     .record(z.string().max(400), z.string().max(200))

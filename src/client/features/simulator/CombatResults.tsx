@@ -9,6 +9,7 @@ export function CombatResults({
   ranged,
   melee,
   combined,
+  without,
   updating,
   failed,
   inDialog,
@@ -18,6 +19,8 @@ export function CombatResults({
   ranged?: CombatResult
   melee?: CombatResult
   combined?: CombatResult
+  /** The same matchup without its Command Re-roll, to show what spending it changes. */
+  without?: { ranged?: CombatResult; melee?: CombatResult; combined?: CombatResult }
   updating: boolean
   failed: boolean
   inDialog: boolean
@@ -83,6 +86,16 @@ export function CombatResults({
             </div>
           </div>
         </section>
+        {without ? (
+          <CommandRerollChange
+            rows={[
+              [PHASE_TITLES.ranged, ranged, without.ranged],
+              [PHASE_TITLES.melee, melee, without.melee],
+              ['Shooting + melee', combined, without.combined],
+            ]}
+            muted={muted}
+          />
+        ) : null}
         <details className="group/breakdown">
           <summary className="cursor-pointer px-3 py-1.5 text-xs text-info outline-none focus-visible:ring-2 focus-visible:ring-primary sm:px-4">
             Breakdown
@@ -153,5 +166,35 @@ export function CombatResults({
         </details>
       </div>
     </>
+  )
+}
+
+/** A difference with its sign, rounded first so a negligible change reads as ±0. */
+const changeLabel = (value: number, digits: number, unit = '') => {
+  const rounded = Number(value.toFixed(digits))
+  return `${rounded > 0 ? '+' : rounded < 0 ? '−' : '±'}${Math.abs(rounded).toFixed(digits)}${unit}`
+}
+
+function CommandRerollChange({
+  rows,
+  muted,
+}: {
+  rows: readonly (readonly [string, CombatResult | undefined, CombatResult | undefined])[]
+  muted: boolean
+}) {
+  const shown = rows.flatMap(([title, result, without]) => (result && without ? [{ title, result, without }] : []))
+  if (!shown.length) return null
+  return (
+    <section aria-label="Command Re-roll change" className={`px-3 pt-2 text-xs sm:px-4 ${muted ? 'text-faint' : 'text-dim'}`}>
+      <h3 className="font-semibold text-bone">Command Re-roll compared with none</h3>
+      <ul className="readout mt-0.5 space-y-0.5">
+        {shown.map(({ title, result, without }) => (
+          <li key={title}>
+            {title}: {changeLabel((result.wipe - without.wipe) * 100, 1, '%')} chance to destroy ·{' '}
+            {changeLabel(result.meanDamage - without.meanDamage, 2)} wounds · {changeLabel(result.meanKills - without.meanKills, 2)} models
+          </li>
+        ))}
+      </ul>
+    </section>
   )
 }

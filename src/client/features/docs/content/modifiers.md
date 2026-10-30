@@ -3,6 +3,7 @@
 **Manual modifiers** covers anything the rules don't, separately for **All**, **Shooting** and **Melee**:
 
 - **Rolls**: hit and wound modifiers, re-rolls and critical thresholds.
+- **Command Re-roll**: spend the stratagem once in that phase on a hit, wound, save or Attacks roll. The simulator re-rolls the first failed hit, wound or save roll that no other rule already re-rolled, taking weapons in order, or the first single-die Attacks roll below its average. Hit rolls for indirect fire can't be re-rolled. A damage roll, an Attacks roll of several dice, and saves when the defender's models or critical wounds need different saves aren't calculated, and that phase says so instead.
 - **Stats**: BS or WS, S, A, AP and D.
 - **Abilities**: Sustained Hits, Lethal Hits, Devastating Wounds and damage re-rolls.
 - **Situation**: **Cover (−1 BS)** and **Half range** for shooting, **Charged** for melee, plus indirect fire and **Decline Lethal Hits** when a weapon has them.
