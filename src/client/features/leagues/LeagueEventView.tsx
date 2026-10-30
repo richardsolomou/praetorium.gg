@@ -23,6 +23,7 @@ import {
   leagueRegistrationFull,
   leagueEntryPoints,
   leagueRevealChecklist,
+  leagueSharesPoints,
   leagueSealingClosed,
   leagueStage,
   leagueTableShape,
@@ -480,6 +481,7 @@ export function LeagueEventView({
         requiredLimit={seatPoints === null ? (ownEntry?.requiredLimit ?? null) : league.rosterLimit}
         pointsBudget={league.pointsBudget}
         seatPoints={seatPoints}
+        shared={ownEntry ? leagueSharesPoints(league, ownEntry) : false}
         onClose={() => {
           if (submit.isPending) return
           submit.reset()
@@ -679,7 +681,8 @@ export function entryStatus({
       steps: steps('assign'),
     }
   }
-  const points = leagueEntryPoints(league, ownEntry) ?? ownEntry.requiredLimit
+  // A list that splits its pair's points has no size of its own to name.
+  const points = leagueSharesPoints(league, ownEntry) ? null : (leagueEntryPoints(league, ownEntry) ?? ownEntry.requiredLimit)
   const size = points ? `${pointsSize(points)} ` : ''
   if (!revealed && !ownEntry.submitted && sealingClosed)
     return {

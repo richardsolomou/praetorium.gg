@@ -232,6 +232,18 @@ describe('team battle points', () => {
     expect(validate(state, ALICE, begin)).toBeNull()
   })
 
+  it('starts allies who share their points with an uneven split', () => {
+    const shared = { ...teamBattle(2000), sharedArmyPoints: true } as Command
+    const state = table(shared, list(ALICE, 2000, 20), list(BOB, 2000, 11), list(CAROL, 1000, 9))
+    expect(validate(state, ALICE, begin)).toBeNull()
+  })
+
+  it('refuses allies who share their points spending past their side’s total', () => {
+    const shared = { ...teamBattle(2000), sharedArmyPoints: true } as Command
+    const state = table(shared, list(ALICE, 2000, 20), list(BOB, 2000, 11), list(CAROL, 1000, 10))
+    expect(validate(state, ALICE, begin)).toBe('allies spend more than their 2,000 points')
+  })
+
   it('names each side’s points per army beside the battle size', () => {
     const state = table(teamBattle(2000, [1750, 800]), list(ALICE, 2000, 17), list(BOB, 1000, 8), list(CAROL, 1000, 8))
     expect(battleSizeText(state)).toBe('Strike Force · 1,750 vs 800 + 800')

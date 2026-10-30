@@ -20,6 +20,7 @@ export function RosterChooser({
   requiredLimit,
   pointsBudget = null,
   seatPoints = null,
+  shared = false,
   onClose,
   onChoose,
 }: {
@@ -32,6 +33,8 @@ export function RosterChooser({
   pointsBudget?: number | null
   /** What a team event's seat may spend; its list is built at `requiredLimit` or smaller, with any points total. */
   seatPoints?: number | null
+  /** Whether the seat splits twice `seatPoints` with an ally rather than spending its own. */
+  shared?: boolean
   onClose: () => void
   onChoose: (roster: SavedRoster) => void
 }) {
@@ -65,7 +68,7 @@ export function RosterChooser({
             {size === null
               ? 'Hidden until the reveal. You can swap it until then.'
               : seatPoints !== null
-                ? `Your rosters built for ${battleSizeName(requiredLimit!)} or smaller, spending up to ${pointsLabel(seatPoints)}. Hidden until the reveal; you can swap it until then.`
+                ? `Your rosters built for ${battleSizeName(requiredLimit!)} or smaller, ${shared ? `sharing ${pointsLabel(seatPoints * 2)} with your ally` : `spending up to ${pointsLabel(seatPoints)}`}. Hidden until the reveal; you can swap it until then.`
                 : `Your ${size} rosters. Hidden until the reveal; you can swap it until then.`}
           </DialogDescription>
         </DialogHeader>

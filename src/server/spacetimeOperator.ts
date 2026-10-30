@@ -159,6 +159,10 @@ const eventPoints = z
   .int()
   .nullish()
   .transform((value) => value ?? null)
+const eventSharedPoints = z
+  .boolean()
+  .nullish()
+  .transform((value) => value ?? false)
 
 const sealedEvent = z.object({
   token: z.string(),
@@ -175,6 +179,7 @@ const sealedEvent = z.object({
   pointsBudget: z.number().int().nullable(),
   soloPoints: eventPoints,
   allyPoints: eventPoints,
+  sharedPoints: eventSharedPoints,
   playsAt: z.number().int().nullable(),
   sealBy: z.number().int().nullable(),
   // Absent from a module released before organizers sent seal reminders.
@@ -277,6 +282,7 @@ const clubGame = z.object({
   pointsBudget: z.number().int().nullable(),
   soloPoints: eventPoints,
   allyPoints: eventPoints,
+  sharedPoints: eventSharedPoints,
   players: z.array(
     z.object({ userId: z.string(), sealed: z.boolean(), teamId: z.string().nullable(), requiredLimit: z.number().int().nullable() }),
   ),

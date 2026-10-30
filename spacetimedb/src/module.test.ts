@@ -71,6 +71,7 @@ function insertTournament(ctx: Ctx, event: Partial<SealedEvent> = {}) {
     soloPoints: undefined,
     allyPoints: undefined,
     remindedAt: undefined,
+    sharedPoints: undefined,
     ...event,
   })
   ctx.db.tournaments.insert({
@@ -388,7 +389,7 @@ describe('what a league event allows', () => {
       command({ op: 'update', ownerId: 'organizer', rule: { format, rosterLimit: 2000, ...rule } })
     const event = () => host.call(host.operator, (ctx) => ctx.db.sealedEvents.id.find('event'))
     const entry = () => host.call(host.operator, (ctx) => ctx.db.leagueEventEntries.key.find('["event","entrant"]'))
-    const set = (fields: { sealBy?: bigint; pointsBudget?: number; allyPoints?: number }) =>
+    const set = (fields: { sealBy?: bigint; pointsBudget?: number; allyPoints?: number; sharedPoints?: boolean }) =>
       host.call(host.operator, (ctx) => ctx.db.sealedEvents.id.update({ ...ctx.db.sealedEvents.id.find('event')!, ...fields }))
     const reveal = (now: number) => command({ op: 'reveal', ownerId: 'organizer', now })
     const remind = (now: number, ownerId = 'organizer') => command({ op: 'remind', ownerId, now })
@@ -446,6 +447,39 @@ describe('what a league event allows', () => {
     const league = setup('[]', '2v2')
     league.seal([], { userId: 'ally', limit: 1000, pointsBudget: 800 })
     expect(league.seal([], { limit: 1000 })).toMatchObject({ outcome: 'ally-mismatch', pointsBudget: 800 })
+  })
+
+  it('seals doubles lists split unevenly when allies share their points', () => {
+    const league = setup('[]', '2v2')
+    league.set({ sharedPoints: true })
+    const seals = [league.seal([], { userId: 'ally', points: 1100 }), league.seal([], { limit: 1000, points: 900 })]
+    expect(seals).toMatchObject([{ outcome: 'sealed' }, { outcome: 'sealed' }])
+  })
+
+  it('refuses a shared list spending past what its pair has left', () => {
+    const league = setup('[]', '2v2')
+    league.set({ sharedPoints: true })
+    league.seal([], { userId: 'ally', points: 1100 })
+    expect(league.seal([], { limit: 1000, points: 1000 })).toMatchObject({ outcome: 'over-points', points: 900 })
+  })
+
+  it('changes points per army after a list is sealed', () => {
+    const league = setup('[]', '2v2')
+    league.seal([], { limit: 1000, points: 850 })
+    league.update({ allyPoints: 900 })
+    expect(league.event()?.allyPoints).toBe(900)
+  })
+
+  it('refuses points per army a sealed list no longer fits', () => {
+    const league = setup('[]', '2v2')
+    league.seal([], { limit: 1000, points: 850 })
+    expect(league.update({ allyPoints: 800 })).toBe('misfit')
+  })
+
+  it('refuses a new battle size once a list is sealed', () => {
+    const league = setup('[]', '2v2')
+    league.seal([], { limit: 1000 })
+    expect(league.update({ rosterLimit: 1000 })).toBe('sealed')
   })
 
   it('seals a list with a restriction switched off at an event from before allowances', () => {

@@ -14,11 +14,11 @@ A duel tournament seals lists built at its battle size. A 2v1 or doubles tournam
 
 ### "choose a roster that spends at most … points"
 
-In a 2v1 or doubles tournament each seat has its own points per army. Take units out of the list until it spends no more than that, then seal again.
+In a 2v1 or doubles tournament each seat has its own points per army. When allies split their points, the number is what your pair has left after your ally's sealed list. Take units out of the list until it spends no more than that, or ask your ally to seal a smaller one, then seal again.
 
 ### "your ally sealed a list saved to … points"
 
-Allies seal lists saved to the same points total. Set your list's points total in the builder to match your ally's, or ask them to change theirs.
+Unless the event lets allies split their points, allies seal lists saved to the same points total. Set your list's points total in the builder to match your ally's, or ask them to change theirs.
 
 ### "wait for the organizer to give you a size or team"
 
@@ -26,7 +26,7 @@ In a 2v1 or doubles tournament you can't seal until the organizer sets your size
 
 ### The format, points or house rules can't be changed
 
-They lock once anyone seals a roster, and for good after the reveal. Start a new tournament to play different rules.
+The format, battle size, pairing and points total lock once anyone seals a roster. Points per army, **Allies split their points** and house rules stay open until the reveal, but only to values every sealed roster still fits. If you see "a sealed list would no longer fit", ask that player to seal a roster that fits first. Everything locks for good after the reveal. Start a new tournament to play different rules.
 
 ### Pair the next round doesn't appear
 

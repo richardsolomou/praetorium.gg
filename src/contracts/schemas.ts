@@ -98,6 +98,7 @@ const leagueEventRuleFields = {
   pointsBudget,
   soloPoints: z.number().int().min(1).max(POINTS_BUDGET_MAX).nullable().optional(),
   allyPoints: z.number().int().min(1).max(POINTS_BUDGET_MAX).nullable().optional(),
+  sharedPoints: z.boolean().optional(),
 }
 /** When the event is played and the roster deadline, as instants; a deadline after the date would let lists in once play started. */
 const leagueSchedule = z

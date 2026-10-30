@@ -10,6 +10,7 @@ import {
   isTeamFormat,
   leagueEntryPoints,
   leagueRevealChecklist,
+  leagueSharesPoints,
   leagueSealingClosed,
   requiredLeagueRosterLimit,
 } from '../../../core/league'
@@ -461,6 +462,7 @@ export function ClubSealedGame({
         requiredLimit={team && seatPoints === null ? null : ownLimit}
         pointsBudget={game.pointsBudget}
         seatPoints={seatPoints}
+        shared={ownEntry ? leagueSharesPoints(game, ownEntry) : false}
         onClose={() => !seal.isPending && setChoosing(false)}
         onChoose={(roster) => seal.mutate(roster.id)}
       />

@@ -271,6 +271,8 @@ const sealedEvents = table(
     allyPoints: t.option(t.u32()).default(undefined),
     /** When an organizer last reminded the entrants without a sealed list, which spaces out the next reminder. */
     remindedAt: t.option(t.u64()).default(undefined),
+    /** Allies spend their pair's points between them in any split; absent spends each ally's own. */
+    sharedPoints: t.option(t.bool()).default(undefined),
   },
 )
 

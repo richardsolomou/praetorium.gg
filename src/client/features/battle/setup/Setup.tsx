@@ -10,6 +10,7 @@ import type { Command } from '../../../../core/battle'
 import type { BattleView } from '../../../../core/battleView'
 import {
   armyPointsFor,
+  sharedSidePoints,
   battlePointsBudget,
   evenArmyPoints,
   FIXED_SECONDARIES,
@@ -173,7 +174,9 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
           ? `${sideName(table.find((side) => side.index === armyProblem.side)!)}: ${
               armyProblem.code === 'allies-mismatch'
                 ? 'choose lists saved to the same points total.'
-                : `an army spends more than its ${armyPointsFor(view, armyProblem.side)?.toLocaleString('en')} points.`
+                : sharedSidePoints(view, armyProblem.side) !== null
+                  ? `allies spend more than their ${sharedSidePoints(view, armyProblem.side)!.toLocaleString('en')} points.`
+                  : `an army spends more than its ${armyPointsFor(view, armyProblem.side)?.toLocaleString('en')} points.`
             }`
           : null
       : !ready
@@ -247,6 +250,7 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
       teamBattle: view.settings.teamBattle,
       playerCount: view.settings.playerCount,
       armyPoints: view.settings.armyPoints ?? null,
+      ...(view.settings.sharedArmyPoints ? { sharedArmyPoints: true } : {}),
       clockLimitMinutes: null,
       ...(manual ? { manual: true } : {}),
       ...settings,

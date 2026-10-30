@@ -3,6 +3,7 @@ const failures = new Set([
   'forbidden',
   'closed',
   'sealed',
+  'misfit',
   'too-small',
   'team-minimum',
   'below-accepted',

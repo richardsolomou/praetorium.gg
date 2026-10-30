@@ -32,6 +32,8 @@ An organizer can press **New game**, then **New sealed game**, and pick its form
 - **Duel**: any member seals a list. After reveal, use **Play** beside the person you’re playing that evening; nobody has to play every participant.
 - **Solo vs pair** and **doubles**: pick your side with **Join**, then seal a list for it. Each pair chooses its Force Disposition and whose Warlord leads before the reveal. Afterwards, **Start battle** sets up the one battle between the sides.
 
+Each sealed game has its own format, points and house rules, set as a tournament's are (see [Run a tournament](/docs/run-a-tournament)). Before the reveal an organizer can change them from **Edit** in the game's ⋯ menu. Once anyone seals a list, the format and battle size lock, but points per army, **Allies split their points** and house rules can still change as long as every sealed list still fits them.
+
 Before the reveal, an organizer can press **Remind players** to send a notification to each player in the game who hasn't sealed a list yet, once a day.
 
 After reveal, use **Simulate** beside another player’s list to compare your sealed armies. For team games, the simulator combines each side’s lists.

@@ -17,6 +17,7 @@ import {
 import { Skeleton } from '@/components/ui/skeleton'
 import {
   armyPointsFor,
+  sharedSidePoints,
   armyPointsText,
   fitsBattleSize,
   PAINTED_ARMY_POINTS,
@@ -105,7 +106,13 @@ export function ArmiesStep({ view, sides, send, attachRoster, pending, problem }
   const oneWaiver = confirmingWaivers.length === 1
   return (
     <div className="space-y-4">
-      {team && view.settings.limit !== null ? <SetupNote>Each army spends up to {armyPointsText(view)} points.</SetupNote> : null}
+      {team && view.settings.limit !== null ? (
+        <SetupNote>
+          {view.settings.sharedArmyPoints
+            ? `${armyPointsText(view)} points. Allies split theirs however they agree.`
+            : `Each army spends up to ${armyPointsText(view)} points.`}
+        </SetupNote>
+      ) : null}
       <div className="grid items-start gap-6 md:grid-cols-2">
         {sides.map((side) => (
           <SetupSidePanel key={side.index} side={side} named>
@@ -128,7 +135,7 @@ export function ArmiesStep({ view, sides, send, attachRoster, pending, problem }
                     {army.roster ? (
                       <span className="mt-0.5 block text-xs text-dim">
                         {army.roster.built
-                          ? `${army.unitCount} units · ${(army.points ?? 0).toLocaleString('en')} of ${pointsLabel(team ? (armyPointsFor(view, side.index) ?? pointsBudgetOf(army.roster.built)) : pointsBudgetOf(army.roster.built))}`
+                          ? `${army.unitCount} units · ${(army.points ?? 0).toLocaleString('en')} of ${pointsLabel(team ? (sharedSidePoints(view, side.index) ?? armyPointsFor(view, side.index) ?? pointsBudgetOf(army.roster.built)) : pointsBudgetOf(army.roster.built))}`
                           : 'Imported army'}
                       </span>
                     ) : null}

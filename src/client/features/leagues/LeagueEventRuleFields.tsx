@@ -1,5 +1,6 @@
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
 import { ChevronDown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -53,6 +54,7 @@ const offeredAllowances = (rule: LeagueEventRuleValue): LeagueEventRuleValue => 
   pointsBudget: rule.format === '1v1' && allowsPointsBudget(rule.rosterLimit) ? rule.pointsBudget : null,
   soloPoints: rule.format === '2v1' ? rule.soloPoints : null,
   allyPoints: rule.format === '1v1' ? null : rule.allyPoints,
+  sharedPoints: rule.format !== '1v1' && rule.sharedPoints,
 })
 
 /** What a team shape asks of an entrant's roster; a duel's points say it all. A tournament's organizer seats entrants, a club's players seat themselves. */
@@ -68,15 +70,19 @@ export const CLUB_ROSTER_RULE: Partial<Record<TableShape, string>> = {
 export function LeagueEventRuleFields({
   value,
   pairing = false,
+  shapeLock = null,
   disabled = false,
   onChange,
 }: {
   value: LeagueEventRuleValue
   /** Whether the organizer may choose Swiss rounds, which a club's sealed game never plays. */
   pairing?: boolean
+  /** Why the format, size, pairing and a duel's own total can no longer change, while points per army and house rules still can. */
+  shapeLock?: string | null
   disabled?: boolean
   onChange: (value: LeagueEventRuleValue) => void
 }) {
+  const shapeDisabled = disabled || shapeLock !== null
   const limits = value.format === '1v1' ? GAME_SIZES.map((size) => size.limit) : LEAGUE_TEAM_ROSTER_LIMITS
   // A duel may play its size at its own total, typed beside the size; the text is kept so a half-typed total stays as typed.
   const budgeted = value.format === '1v1' && allowsPointsBudget(value.rosterLimit)
@@ -94,7 +100,7 @@ export function LeagueEventRuleFields({
         value={value.format}
         options={TABLE_SHAPES.map((shape) => ({ value: shape, ...TABLE_SHAPE_LABELS[shape] }))}
         columns={3}
-        disabled={disabled}
+        disabled={shapeDisabled}
         onChange={(format) =>
           onChange(
             offeredAllowances({
@@ -115,7 +121,7 @@ export function LeagueEventRuleFields({
             <div className="flex items-stretch gap-2">
               <Select
                 value={String(value.rosterLimit)}
-                disabled={disabled}
+                disabled={shapeDisabled}
                 onValueChange={(limit) => limit && onChange(offeredAllowances({ ...value, rosterLimit: Number(limit) }))}
               >
                 <SelectTrigger id="league-event-roster-limit" className="h-11 min-w-0 flex-1">
@@ -136,7 +142,7 @@ export function LeagueEventRuleFields({
                   limit={value.rosterLimit}
                   value={budgetText}
                   error={budgetError}
-                  disabled={disabled}
+                  disabled={shapeDisabled}
                   onChange={(text) => {
                     setBudgetText(text)
                     onChange({ ...value, pointsBudget: text.trim() ? Number(text) : null })
@@ -158,7 +164,8 @@ export function LeagueEventRuleFields({
           <p className="text-xs text-dim">{(pairing ? ROSTER_RULE : CLUB_ROSTER_RULE)[value.format]}</p>
         ) : null}
       </div>
-      {pairing && value.format === '1v1' ? <Pairing value={value} disabled={disabled} onChange={onChange} /> : null}
+      {shapeLock ? <p className="text-xs text-dim">{shapeLock}</p> : null}
+      {pairing && value.format === '1v1' ? <Pairing value={value} disabled={shapeDisabled} onChange={onChange} /> : null}
       <HouseRules value={value} disabled={disabled} onChange={onChange} />
     </>
   )
@@ -168,7 +175,8 @@ export function LeagueEventRuleFields({
  * What each army may spend at a team event, typed per seat: 1,750 for the solo player against 800 for each ally, say.
  *
  * Most events play an even split, so it reads as one line until the organizer asks for the boxes or has set their own
- * numbers. A box left empty plays an even share of the battle size, which its placeholder shows.
+ * numbers. A box left empty plays an even share of the battle size, which its placeholder shows. Sharing lets each pair
+ * split its points however its players agree.
  */
 function ArmyPointsFields({
   value,
@@ -179,7 +187,7 @@ function ArmyPointsFields({
   disabled: boolean
   onChange: (value: LeagueEventRuleValue) => void
 }) {
-  const seats: { key: keyof LeagueArmyPoints; label: string; solo: boolean }[] =
+  const seats: { key: 'soloPoints' | 'allyPoints'; label: string; solo: boolean }[] =
     value.format === '2v1'
       ? [
           { key: 'soloPoints', label: 'Solo player', solo: true },
@@ -188,14 +196,36 @@ function ArmyPointsFields({
       : [{ key: 'allyPoints', label: 'Each player', solo: false }]
   const error = leagueArmyPointsError(value.format, value)
   const [open, setOpen] = useState(false)
+  const pairPoints = leagueSeatPoints(value, false)! * 2
+  const sharing = (
+    <label htmlFor="league-event-shared-points" className="flex items-start justify-between gap-3 pt-2">
+      <span>
+        <span className="block text-sm font-medium">Allies split their points</span>
+        <span className="block text-xs text-dim">
+          Each pair spends {pointsLabel(pairPoints)} between them however they agree, such as {(pairPoints / 2 - 100).toLocaleString('en')}{' '}
+          and {(pairPoints / 2 + 100).toLocaleString('en')}.
+        </span>
+      </span>
+      <Switch
+        id="league-event-shared-points"
+        checked={value.sharedPoints}
+        disabled={disabled}
+        onCheckedChange={(sharedPoints) => onChange({ ...value, sharedPoints })}
+      />
+    </label>
+  )
   if (!open && value.soloPoints === null && value.allyPoints === null)
     return (
-      <p className="text-xs text-dim">
-        {leagueRosterSplit(value)}, an even split.{' '}
-        <Button variant="link" size="xs" className="h-auto px-0 text-xs text-info" disabled={disabled} onClick={() => setOpen(true)}>
-          Set points per army
-        </Button>
-      </p>
+      <>
+        <p className="text-xs text-dim">
+          {leagueRosterSplit(value)}
+          {value.sharedPoints ? '.' : ', an even split.'}{' '}
+          <Button variant="link" size="xs" className="h-auto px-0 text-xs text-info" disabled={disabled} onClick={() => setOpen(true)}>
+            Set points per army
+          </Button>
+        </p>
+        {sharing}
+      </>
     )
   return (
     <div className="space-y-1.5 pt-2">
@@ -226,7 +256,8 @@ function ArmyPointsFields({
         </p>
       ) : null}
       <p className="text-xs text-dim">
-        Lists are built at the battle size or smaller and spend up to their seat’s points. Allies bring lists saved to the same total.{' '}
+        Lists are built at the battle size or smaller and spend up to their seat’s points.
+        {value.sharedPoints ? '' : ' Allies bring lists saved to the same total.'}{' '}
         <Button
           variant="link"
           size="xs"
@@ -240,6 +271,7 @@ function ArmyPointsFields({
           Use an even split
         </Button>
       </p>
+      {sharing}
     </div>
   )
 }
