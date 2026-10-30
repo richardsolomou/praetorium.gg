@@ -83,7 +83,7 @@ const missionSelection = z.discriminatedUnion('kind', [
     unavailable: z.literal(true).optional(),
   }),
   z.object({ kind: z.literal('guards'), guards: z.array(z.object({ objective: missionObjective, unit: missionUnit })).max(20) }),
-  z.object({ kind: z.literal('tempting-target'), objective: missionObjective, notHome: z.boolean(), noMansLand: z.boolean() }),
+  z.object({ kind: z.literal('tempting-target'), objective: missionObjective }),
   z.object({ kind: z.literal('beacon'), unit: missionUnit.nullable(), note: z.string().max(200) }),
   z.object({
     kind: z.literal('locate-and-deny'),

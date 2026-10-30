@@ -212,7 +212,7 @@ describe('source-backed mission selections', () => {
         playerId: ALICE,
         cardKey: target.key,
         occurrence: 5,
-        selection: { kind: 'tempting-target', objective: { key: 'c', name: 'Centre' }, notHome: true, noMansLand: true },
+        selection: { kind: 'tempting-target', objective: { key: 'c', name: 'Centre' } },
       }),
     ).toBeNull()
   })
@@ -225,22 +225,9 @@ describe('source-backed mission selections', () => {
         playerId: ALICE,
         cardKey: target.key,
         occurrence: 5,
-        selection: { kind: 'tempting-target', objective: { key: 'c', name: 'Centre' }, notHome: true, noMansLand: true },
+        selection: { kind: 'tempting-target', objective: { key: 'c', name: 'Centre' } },
       }),
     ).toBeNull()
-  })
-
-  it.each(['notHome', 'noMansLand'] as const)('requires the independent %s table fact for a tempting target', (missing) => {
-    const battle = state([ALICE, { kind: 'draw-secondary', secondary: target }])
-    expect(
-      commandRefusal(battle, BOB, {
-        kind: 'select-mission',
-        playerId: ALICE,
-        cardKey: target.key,
-        occurrence: 5,
-        selection: { kind: 'tempting-target', objective: { key: 'c', name: 'Centre' }, notHome: true, noMansLand: true, [missing]: false },
-      })?.code,
-    ).toBe('mission-selection-facts')
   })
 
   it('does not invent compulsory selection work for old cards without source metadata', () => {
@@ -383,7 +370,7 @@ describe('source-backed mission selections', () => {
         kind: 'select-mission',
         cardKey: target.key,
         occurrence: 5,
-        selection: { kind: 'tempting-target', objective: { key: 'c', name: 'Centre' }, notHome: true, noMansLand: true },
+        selection: { kind: 'tempting-target', objective: { key: 'c', name: 'Centre' } },
       })?.code,
     ).toBe('mission-selection-owner')
   })
@@ -486,7 +473,7 @@ describe('source-backed mission selections', () => {
           playerId: ALICE,
           cardKey: target.key,
           occurrence: 5,
-          selection: { kind: 'tempting-target', objective: { key: 'c', name: 'Centre' }, notHome: true, noMansLand: true },
+          selection: { kind: 'tempting-target', objective: { key: 'c', name: 'Centre' } },
         },
       ],
     ] as [string, Command][])
@@ -519,7 +506,7 @@ describe('source-backed mission selections', () => {
           playerId: ALICE,
           cardKey: target.key,
           occurrence: 5,
-          selection: { kind: 'tempting-target', objective: { key: 'c', name: 'Centre' }, notHome: true, noMansLand: true },
+          selection: { kind: 'tempting-target', objective: { key: 'c', name: 'Centre' } },
         },
       ],
     ])

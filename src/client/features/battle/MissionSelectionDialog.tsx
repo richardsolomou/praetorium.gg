@@ -11,7 +11,7 @@ import { deploymentsQuery, terrainReferencesQuery } from '../../queries'
 import { deploymentFor } from '../../battleSummary'
 import { SearchableSelect } from '../../components/SearchableSelect'
 import { DialogBody, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/Dialog'
-import { battlefieldObjectives, objectiveNames } from '../reference/missions/terrainGeometry'
+import { battlefieldObjectives, objectiveNames, pointInPolygon } from '../reference/missions/terrainGeometry'
 import { battleMatchupIds, battlefieldLayout } from './battlefieldLayout'
 import { BattleDialogContent, BattlePromptDialog } from './BattlePromptDialog'
 import type { ReferenceCard } from './MissionCards'
@@ -52,7 +52,6 @@ export function MissionSelectionDialog({
   const [fallback, setFallback] = useState(false)
   const [qualified, setQualified] = useState(false)
   const [notHome, setNotHome] = useState(false)
-  const [noMansLand, setNoMansLand] = useState(false)
   const [objective, setObjective] = useState('')
   const [manualName, setManualName] = useState('')
   const [manualObjectives, setManualObjectives] = useState<MissionObjectiveRef[]>([])
@@ -85,6 +84,9 @@ export function MissionSelectionDialog({
     owner,
   )
   const objectives: MissionObjectiveRef[] = markers.map((marker, index) => ({ key: marker.key, name: names[index]! }))
+  const nonHomeObjectives = objectives.filter(
+    (_, index) => !deployment?.zones.some((zone) => pointInPolygon(markers[index]!.position, zone.points)),
+  )
   const consecrated = new Set(choice.consecrated?.map((candidate) => candidate.key))
   const named = manualName.trim()
   const manual = named ? { key: `manual-${named.toLocaleLowerCase()}`, name: named } : null
@@ -123,8 +125,7 @@ export function MissionSelectionDialog({
   else if (choice.kind === 'sensor-sweep' && controlled) {
     const picked = choice.markers?.find((candidate) => JSON.stringify([candidate.playerId, candidate.key]) === sweptMarker)
     if (picked) selection = { kind: 'sensor-sweep', marker: { playerId: picked.playerId, key: picked.key, name: picked.name }, controlled }
-  } else if (choice.kind === 'tempting-target' && pickedObjective && notHome && noMansLand)
-    selection = { kind: 'tempting-target', objective: pickedObjective, notHome, noMansLand }
+  } else if (choice.kind === 'tempting-target' && pickedObjective) selection = { kind: 'tempting-target', objective: pickedObjective }
   else if (choice.kind === 'beacon' && ref(beacon)) selection = { kind: 'beacon', unit: ref(beacon), note }
   const staleUnits =
     selected.some((key) => !ref(key)) || Object.values(guards).some((key) => key && !ref(key)) || Boolean(beacon && !ref(beacon))
@@ -134,7 +135,9 @@ export function MissionSelectionDialog({
       groups={[
         {
           label: 'Units',
-          items: unitOptions.filter((unit) => unit.value === value || !Object.values(guards).includes(unit.value)),
+          items: unitOptions.filter(
+            (unit) => choice.kind !== 'consecrate' || unit.value === value || !Object.values(guards).includes(unit.value),
+          ),
         },
       ]}
       value={value}
@@ -249,48 +252,32 @@ export function MissionSelectionDialog({
                     onChange={(event) => {
                       setManualName(event.target.value)
                       setNotHome(false)
-                      setNoMansLand(false)
                     }}
                   />
                 </label>
               ) : null}
               {choice.kind === 'tempting-target' ? (
-                <>
-                  {objectives.length ? (
-                    <fieldset aria-label="Tempting target objective" className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                      {objectives.map((candidate) => (
-                        <Button
-                          key={candidate.key}
-                          variant={objective === candidate.key ? 'default' : 'outline'}
-                          className="h-auto min-h-8 py-1.5 whitespace-normal"
-                          aria-pressed={objective === candidate.key}
-                          disabled={pending}
-                          onClick={() => {
-                            setObjective(candidate.key)
-                            setNotHome(false)
-                            setNoMansLand(false)
-                          }}
-                        >
-                          {candidate.name}
-                        </Button>
-                      ))}
-                    </fieldset>
-                  ) : null}
-                  <FactSwitch
-                    label="It is in No Man’s Land and not a home objective"
-                    checked={notHome && noMansLand}
-                    disabled={pending || !pickedObjective}
-                    onChange={(next) => {
-                      setNotHome(next)
-                      setNoMansLand(next)
-                    }}
-                  />
-                </>
+                objectives.length ? (
+                  <fieldset aria-label="Tempting target objective" className="grid grid-cols-2 gap-2">
+                    {nonHomeObjectives.map((candidate) => (
+                      <Button
+                        key={candidate.key}
+                        variant={objective === candidate.key ? 'default' : 'outline'}
+                        className="h-auto min-h-8 py-1.5 whitespace-normal"
+                        aria-pressed={objective === candidate.key}
+                        disabled={pending}
+                        onClick={() => setObjective(candidate.key)}
+                      >
+                        {candidate.name}
+                      </Button>
+                    ))}
+                  </fieldset>
+                ) : null
               ) : (
                 <>
                   <p className="text-sm">
                     {choice.kind === 'guards'
-                      ? 'Guards are optional. Each unit guards one objective.'
+                      ? 'Guards are optional. Each objective has at most one guard; a unit within range of several can guard each of them.'
                       : 'Consecrating is optional. Each consecration unit can consecrate one objective it is within range of.'}
                   </p>
                   {!objectives.length ? (

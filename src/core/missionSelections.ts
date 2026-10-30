@@ -20,7 +20,7 @@ type MissionMarkerRef = { playerId: string; key: string; name: string }
 export type MissionSelection =
   | { kind: 'punishment'; units: MissionUnitRef[]; fallback: boolean; qualified: boolean; unavailable?: true }
   | { kind: 'guards'; guards: { objective: MissionObjectiveRef; unit: MissionUnitRef }[] }
-  | { kind: 'tempting-target'; objective: MissionObjectiveRef; notHome: boolean; noMansLand: boolean }
+  | { kind: 'tempting-target'; objective: MissionObjectiveRef }
   | { kind: 'beacon'; unit: MissionUnitRef | null; note: string }
   | { kind: 'locate-and-deny'; areas: MissionObjectiveRef[]; outsideZone: boolean; allEligible: boolean }
   | { kind: 'sensor-sweep'; marker: MissionMarkerRef; controlled: boolean }
@@ -248,11 +248,8 @@ export function missionSelectionRefusal(state: BattleState, by: string, player: 
     if (new Set(selection.guards.map((guard) => guard.objective.key)).size !== selection.guards.length)
       return refuse('mission-selection-objective', 'choose at most one guard for each objective')
   }
-  if (selection.kind === 'tempting-target') {
-    if (!validObjective(selection.objective)) return refuse('mission-selection-objective', 'choose one objective')
-    if (!selection.notHome || !selection.noMansLand)
-      return refuse('mission-selection-facts', 'confirm that the objective is not a home objective and is within No Man’s Land')
-  }
+  if (selection.kind === 'tempting-target' && !validObjective(selection.objective))
+    return refuse('mission-selection-objective', 'choose one objective')
   if (selection.kind === 'beacon' && previous?.beaconDestroyed)
     return refuse('mission-selection-recorded', 'a destroyed Beacon cannot be replaced; undo the original choice to correct it')
   if (selection.kind === 'locate-and-deny') {
