@@ -136,6 +136,15 @@ describe('the records holding a file’s texts', () => {
     expect(records({ stratagems: [{ id: 'stratagem', effect: 'Words.' }] }).get(hashOf('Words.'))).toEqual(['stratagem'])
   })
 
+  it('names a detachment rule keyed by detachment name by that detachment’s id', () => {
+    expect(
+      records({
+        detachments: [{ id: 'detachment', name: { en: 'Guardians' } }],
+        rules: { detachment: [{ detachment: 'Guardians', rules: [{ text: 'Words.' }] }] },
+      }).get(hashOf('Words.')),
+    ).toEqual(['detachment'])
+  })
+
   it('names a detachment rule by the detachment it belongs to', () => {
     expect(records({ id: 'faction', rules: [{ detachment_id: 'detachment', rule: 'Words.' }] }).get(hashOf('Words.'))).toEqual([
       'detachment',

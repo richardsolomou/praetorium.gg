@@ -51,12 +51,20 @@ export async function handleReferenceMcp(request: Request) {
       {
         resource,
         issuer: auth.issuer,
-        jwksUrl: new URL('/api/auth/jwks', process.env.APP_URL).toString(),
+        // The keys are this server's own; through the public address a rolling deploy can route the fetch to a container that is not serving.
+        jwksUrl: `http://127.0.0.1:${process.env.PORT ?? 3000}/api/auth/jwks`,
         ...(scope ? { requiredScopes: [scope] } : {}),
         challengeScopes: ['mcp:read', 'mcp:write'],
       },
     )
-    return referenceMcpResponse(await protectedHandler(request))
+    try {
+      return referenceMcpResponse(await protectedHandler(request))
+    } catch (error) {
+      if (!(error instanceof Error) || !/jwks/i.test(`${error.name} ${error.message}`)) throw error
+      return referenceMcpResponse(
+        mcpError(503, -32000, 'Sign-in could not be checked just now. Try again shortly.', { 'Retry-After': '5' }),
+      )
+    }
   }
   return referenceMcpResponse(await serveMcp(request, parsed, null))
 }

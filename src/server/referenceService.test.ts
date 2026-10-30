@@ -7,7 +7,11 @@ import type { LoadedRules } from './rules'
 
 it('returns roster-planning facts for a whole detachment in one read', () => {
   const loaded = bookOf({
-    selectionEntries: [{ id: 'captain', name: 'Captain', type: 'unit', costs: points(80) }],
+    selectionEntries: [
+      { id: 'captain', name: 'Captain', type: 'unit', costs: points(80) },
+      { id: 'squad', name: 'Test Squad', type: 'unit', costs: points(90) },
+      { id: 'ancient', name: 'Ancient', type: 'unit', costs: points(50) },
+    ],
   })
   const sheet = {
     id: 'captain',
@@ -68,8 +72,8 @@ it('returns roster-planning facts for a whole detachment in one read', () => {
     faction: { id: 'cat', slug: 'test-faction', name: 'Test Faction' },
     battleSize: 1_000,
     detachment: { name: 'Vanguard', rules: [{ name: 'Forward Positions' }] },
-    units: [
-      {
+    units: expect.arrayContaining([
+      expect.objectContaining({
         name: 'Captain',
         points: 80,
         keywords: ['Character', 'Infantry'],
@@ -81,8 +85,8 @@ it('returns roster-planning facts for a whole detachment in one read', () => {
         canBeSupportedBy: ['Ancient'],
         referenceId: 'datasheet:test-faction:captain',
         url: '/factions/test-faction/rules/mfm-1-6/datasheets/captain',
-      },
-    ],
+      }),
+    ]),
   })
 })
 
@@ -91,7 +95,21 @@ const lordsCorpus = (): ReferenceCorpus => ({
     format: 'praetorium.canonical-catalogue.v1',
     compilerVersion: 1,
     revisions: {},
-    datasheets: [{ id: 'overlord', catalogueId: 'cat', faction: 'Necrons', keywords: [], attachments: [], leaders: [], supporters: [] }],
+    datasheets: [
+      { id: 'overlord', catalogueId: 'cat', faction: 'Necrons', keywords: [], attachments: [], leaders: [], supporters: [] },
+      {
+        id: 'immortals',
+        catalogueId: 'cat',
+        faction: 'Necrons',
+        keywords: [],
+        attachments: [],
+        leaders: [
+          { kind: 'leader', name: 'Overlord', entryId: 'overlord', route: null },
+          { kind: 'leader', name: 'Lord [Legends]', entryId: 'lord', route: null },
+        ],
+        supporters: [],
+      },
+    ],
     detachments: [],
     ruleDocuments: [],
     issues: [],
@@ -111,6 +129,12 @@ const lords = bookOf({
 
 it('leaves Legends datasheets out of a planning list unless asked for them', () => {
   expect(referenceUnits(lordsCorpus(), lords, null, 'cat')?.units.map((unit) => unit.name)).toEqual(['Immortals', 'Overlord'])
+})
+
+it('names only the leaders a matched play list can take', () => {
+  expect(referenceUnits(lordsCorpus(), lords, null, 'cat')?.units.find((unit) => unit.name === 'Immortals')?.canBeLedBy).toEqual([
+    'Overlord',
+  ])
 })
 
 it('narrows a planning list to the units a query names', () => {
