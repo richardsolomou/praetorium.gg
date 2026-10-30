@@ -11,6 +11,7 @@ import { combatLoadoutsQuery, combatantDatasheetQuery, priceQuery } from '../../
 import type { SimulatorRosterSource, SimulatorSide } from '../../../contracts/simulatorState'
 import type { RosterOwner } from './rosterOwners'
 import { useSettled } from '../../useSettled'
+import { useStableValue } from '../../useStableValue'
 import { survivingUnits } from '../rosters/builder/pricePlaceholder'
 import type { KeyedPick } from '../rosters/rosterPicks'
 import { pickEditor, usePicks } from '../rosters/builder/usePicks'
@@ -56,10 +57,10 @@ export function useCombatant(roster?: CombatRoster, initial?: SimulatorSide | nu
     roster?.picks ??
       (initial ? [initial.pick, ...(initial.attached ?? []).map((pick) => ({ ...pick, attachedTo: pick.attachedTo ?? 0 }))] : []),
   )
-  const battlePicks = roster?.battle ? JSON.stringify(roster.picks) : null
+  const battlePicks = useStableValue(roster?.battle ? roster.picks : null)
   const { resetPicks } = picks
   useEffect(() => {
-    if (battlePicks) resetPicks(JSON.parse(battlePicks) as RosterPick[])
+    if (battlePicks) resetPicks(battlePicks)
   }, [battlePicks, resetPicks])
   // A shared link's detachments belong to its faction; picking another faction's unit leaves them behind.
   const detachmentIds = roster?.detachmentIds ?? (initial?.catalogueId === catalogueId ? initial.detachmentIds : undefined) ?? []
@@ -174,7 +175,7 @@ export function useCombatant(roster?: CombatRoster, initial?: SimulatorSide | nu
     !price.isError &&
     !sheets.isError,
   )
-  const preferenceKey = JSON.stringify(
+  const preferenceMembers = useStableValue<PreferenceMember[]>(
     [pickIndex, ...attachedUnit(picks.positioned, pickIndex).filter((index) => roster?.battle?.units[index]?.available !== false)].map(
       (index) => ({
         identity: identityAt(index),
@@ -187,8 +188,8 @@ export function useCombatant(roster?: CombatRoster, initial?: SimulatorSide | nu
       }),
     ),
   )
-  const preferenceMembers = useMemo(() => JSON.parse(preferenceKey) as PreferenceMember[], [preferenceKey])
-  const preferenceRoster = JSON.stringify(picks.picks.map((_, index) => identityAt(index)))
+  const preferenceKey = JSON.stringify(preferenceMembers)
+  const preferenceRoster = useStableValue(picks.picks.map((_, index) => identityAt(index)))
   const weaponPreferences = useMemo(
     () => (selectedPreferences ? restoreWeaponPreferences(selectedPreferences, preferenceMembers, ready) : initialPreferences),
     [selectedPreferences, preferenceMembers, initialPreferences, ready],
@@ -207,7 +208,7 @@ export function useCombatant(roster?: CombatRoster, initial?: SimulatorSide | nu
     (update: SetStateAction<Record<string, string>>) => {
       if (!preferenceContext.current.ready || preferenceContext.current.key !== preferenceKey) return
       setSelectedPreferences((current) => {
-        const identities = new Set(JSON.parse(preferenceRoster) as string[])
+        const identities = new Set(preferenceRoster)
         const retained = Object.fromEntries(Object.entries(current ?? {}).filter(([key]) => identities.has(key)))
         const preferences =
           typeof update === 'function'

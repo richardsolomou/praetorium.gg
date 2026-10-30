@@ -84,7 +84,8 @@ vi.mock('../../queries', () => ({
 vi.mock('../../useSettled', () => ({ useSettled: (picks: readonly RosterPick[]) => hooks.settled ?? picks }))
 // Rules here carry their words, so nothing needs loading.
 vi.mock('../../sourceText', () => ({ useSourceTexts: () => ({ chosen: false, loaded: 0 }), loadedWords: (text: string) => text }))
-vi.mock('@tanstack/react-query', () => ({
+vi.mock('@tanstack/react-query', async (actual) => ({
+  replaceEqualDeep: (await actual<typeof import('@tanstack/react-query')>()).replaceEqualDeep,
   useQuery: ({ kind, args }: { kind: string; args: unknown[] }) => ({
     data:
       kind === 'price'

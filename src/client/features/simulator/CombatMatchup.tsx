@@ -35,6 +35,7 @@ import type { LoadoutSpace } from '../../../core/combatLoadouts'
 import { groupBy } from '../../../core/collections'
 import { Problem } from '../../components/Problem'
 import { signedLabel } from '../../text'
+import { useStableValue } from '../../useStableValue'
 import { calculationInputs } from './calculationInputs'
 
 function weaponToggleGroups(entries: readonly { profile: Datasheet['profiles'][number]; count: number }[]) {
@@ -153,16 +154,16 @@ export function CombatMatchup({
     [attacker, defender, preferences, excludedWeapons, allocation],
   )
   const { target, labels, attackRules, defenceRules, inheritedOptions, plans, sequenceError } = matchup
-  const invalidChoices = JSON.stringify(
+  const invalidChoices = useStableValue(
     !pending && !failed && !attacker?.allocationRequired
       ? phases.flatMap(([phase]) => (plans[phase]?.errors.length ? [] : invalidWeaponChoices(preferences, plans[phase]?.choices ?? [])))
       : [],
   )
   // The notice that a choice stopped applying stays until the player picks again, after the choice itself is dropped.
-  if (!invalidatedChoice && ((invalidatedPreferences && !pending && !failed) || invalidChoices !== '[]')) setInvalidatedChoice(true)
+  if (!invalidatedChoice && ((invalidatedPreferences && !pending && !failed) || invalidChoices.length)) setInvalidatedChoice(true)
   useEffect(() => {
-    const keys = JSON.parse(invalidChoices) as string[]
-    if (keys.length) setPreferences((current) => Object.fromEntries(Object.entries(current).filter(([key]) => !keys.includes(key))))
+    if (invalidChoices.length)
+      setPreferences((current) => Object.fromEntries(Object.entries(current).filter(([key]) => !invalidChoices.includes(key))))
   }, [invalidChoices, setPreferences])
   const allocateEarlier = (index: number) =>
     setAllocation(labels.map((label, at) => (at === index - 1 ? labels[index]! : at === index ? labels[index - 1]! : label)))
