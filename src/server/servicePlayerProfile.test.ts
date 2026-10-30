@@ -12,8 +12,8 @@ it('shows a player’s battles in their profile to an anonymous reader', async (
   }
   const repository = {
     battlesSeatedBy: vi.fn().mockResolvedValue([history]),
-    battleChanges: vi.fn().mockResolvedValue({ cursor: 1, battleIds: ['battle'] }),
-    battlesByIds: vi.fn().mockResolvedValue([history]),
+    claimStandingsRefresh: vi.fn().mockResolvedValue({ state: 'fresh', standings: '1' }),
+    ratingChanges: vi.fn().mockResolvedValue([]),
     profilesByIds: vi.fn().mockResolvedValue(new Map()),
     practiceOpponents: vi.fn().mockResolvedValue([]),
   } as unknown as RepositoryPort
@@ -25,7 +25,7 @@ it('shows a player’s battles in their profile to an anonymous reader', async (
   expect((await service.playerProfile(ALICE, null)).played).toBe(1)
 })
 
-it('shows how far each profile battle moved each player’s rating', async () => {
+it('shows how far the leaderboard says each profile battle moved each player’s rating', async () => {
   const history = {
     battle: { id: 'battle', token: 'token', createdAt: 0 },
     players: NAMES.map((player, side) => ({ ...player, side, automated: false })),
@@ -33,8 +33,8 @@ it('shows how far each profile battle moved each player’s rating', async () =>
   }
   const repository = {
     battlesSeatedBy: vi.fn().mockResolvedValue([history]),
-    battleChanges: vi.fn().mockResolvedValue({ cursor: 1, battleIds: ['battle'] }),
-    battlesByIds: vi.fn().mockResolvedValue([history]),
+    claimStandingsRefresh: vi.fn().mockResolvedValue({ state: 'fresh', standings: '1' }),
+    ratingChanges: vi.fn().mockResolvedValue([{ token: 'token', changes: { [ALICE]: -12, bob: 12 } }]),
     profilesByIds: vi.fn().mockResolvedValue(new Map()),
     practiceOpponents: vi.fn().mockResolvedValue([]),
   } as unknown as RepositoryPort
@@ -45,7 +45,7 @@ it('shows how far each profile battle moved each player’s rating', async () =>
   )
   const [battle] = (await service.playerProfile(ALICE, null)).battles
 
-  expect(Object.values(battle?.ratingChanges ?? {}).map(Math.sign)).toEqual([-1, 1])
+  expect(battle?.ratingChanges).toEqual({ [ALICE]: -12, bob: 12 })
 })
 
 function recordAgainst(opponent: { id: string; name: string }, practiceIds: string[]) {
@@ -64,8 +64,8 @@ function recordAgainst(opponent: { id: string; name: string }, practiceIds: stri
   }
   const repository = {
     battlesSeatedBy: vi.fn().mockResolvedValue([history]),
-    battleChanges: vi.fn().mockResolvedValue({ cursor: 1, battleIds: ['battle'] }),
-    battlesByIds: vi.fn().mockResolvedValue([history]),
+    claimStandingsRefresh: vi.fn().mockResolvedValue({ state: 'fresh', standings: '1' }),
+    ratingChanges: vi.fn().mockResolvedValue([]),
     profilesByIds: vi.fn().mockResolvedValue(new Map()),
     practiceOpponents: vi.fn().mockResolvedValue(practiceIds.map((id) => ({ id, name: 'Practice Opponent', image: null }))),
   } as unknown as RepositoryPort

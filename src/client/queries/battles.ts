@@ -12,6 +12,7 @@ import {
   playerProfile,
   playerRankings,
   playerAchievements,
+  newAchievements,
   playerRosters,
   publicBattles,
   replayBattleAt,
@@ -26,6 +27,7 @@ import { uniqueBy } from '../../core/collections'
 import {
   battleKey,
   battleRatingChangesKey,
+  newAchievementsKey,
   battleReplayKey,
   battlesKey,
   friendBattlesKey,
@@ -109,6 +111,9 @@ export const playerAchievementsQuery = (userId: string) =>
     queryFn: () => playerAchievements({ data: { userId } }),
     staleTime: 60_000,
   })
+
+/** Not kept for offline use: an announcement belongs to the moment it is new. */
+export const newAchievementsQuery = () => queryOptions({ queryKey: newAchievementsKey(), queryFn: () => newAchievements() })
 
 export const battleRatingChangesQuery = (token: string) =>
   queryOptions({ queryKey: battleRatingChangesKey(token), queryFn: () => battleRatingChanges({ data: { token } }), staleTime: 60_000 })

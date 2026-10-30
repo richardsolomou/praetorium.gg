@@ -69,15 +69,13 @@ export const friendBattles = createServerFn({ method: 'GET' })
   )
 
 /**
- * The standings folded from finished public battles. Signed out too, for the same reason.
+ * The standings rated from finished public battles. Signed out too, for the same reason.
  *
  * `battleFactions` names the armies, the same index the battle list is given, so a
  * faction table is headed with a name a player recognises and addressed by its
  * slug. An instance with no catalogue synced still answers with the overall table.
  */
-export const standings = createServerFn({ method: 'GET' }).handler(() =>
-  rpc(async () => app().service.standings(await app().battleFactionsFor())),
-)
+export const standings = createServerFn({ method: 'GET' }).handler(() => rpc(async () => app().service.standings()))
 
 /**
  * One player's profile: the battles this reader may see them in, their record, and
@@ -94,20 +92,30 @@ export const playerProfile = createServerFn({ method: 'GET' })
     }),
   )
 
-/** Where one player sits in the leaderboard's tables. The same fold the leaderboard pages. */
+/** Where one player sits in the leaderboard's tables, read from the same stored ratings the leaderboard pages. */
 export const playerRankings = createServerFn({ method: 'GET' })
   .validator(userSchema)
-  .handler(({ data }) => rpc(async () => app().service.playerRankings(data.userId, await app().battleFactionsFor())))
+  .handler(({ data }) => rpc(async () => app().service.playerRankings(data.userId)))
 
 /** What one player has earned and when, the same for every reader. Signed out too. */
 export const playerAchievements = createServerFn({ method: 'GET' })
   .validator(userSchema)
-  .handler(({ data }) => rpc(async () => app().service.playerAchievements(data.userId, await app().battleFactionsFor())))
+  .handler(({ data }) => rpc(async () => app().service.playerAchievements(data.userId)))
+
+/** The medals the signed-in player has earned and not yet been told of. */
+export const newAchievements = createServerFn({ method: 'GET' }).handler(() =>
+  rpc(() => forSignedIn([], (id) => app().service.newAchievements(id))),
+)
+
+/** The signed-in player has been told of these medals, on whichever device. */
+export const markAchievementsSeen = createServerFn({ method: 'POST' })
+  .validator(z.object({ achievementIds: z.array(z.string().max(64)).max(100) }))
+  .handler(({ data }) => mutationRpc(async () => app().service.markAchievementsSeen(await requireUserId(), data.achievementIds)))
 
 /** How far a finished battle moved each player's leaderboard rating, or null when it does not count. */
 export const battleRatingChanges = createServerFn({ method: 'GET' })
   .validator(tokenSchema)
-  .handler(({ data }) => rpc(async () => app().service.battleRatingChanges(data.token, await app().battleFactionsFor())))
+  .handler(({ data }) => rpc(async () => app().service.battleRatingChanges(data.token)))
 
 export const openBattle = createServerFn({ method: 'GET' })
   .validator(tokenSchema)

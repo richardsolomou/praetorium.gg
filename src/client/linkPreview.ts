@@ -227,7 +227,7 @@ export const rosterExposure = (visibility: RosterVisibility) => ({ image: visibi
  * A player as their name, and their record and rank where this reader may see them.
  *
  * `record` arrives narrowed to the battles the reader may watch and `rankings` from
- * the leaderboard's own fold, the two things the profile page itself shows, so a
+ * the leaderboard's stored ratings, the two things the profile page itself shows, so a
  * player who keeps their battles to themselves previews as a name alone.
  */
 export function playerPreview(name: string, record: ServiceRecord | null | undefined, rankings: Rankings | null | undefined): LinkPreview {

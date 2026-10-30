@@ -37,3 +37,10 @@ export const achievementFactsSchema = z.object({
   favourites: z.array(time),
   app: z.array(time),
 })
+
+/** A player's stored medals, and the revisions that say whether they need checking again. */
+export const achievementStatusSchema = z.object({
+  revision: time,
+  checked: time,
+  earned: z.array(z.object({ achievementId: z.string(), earnedAt: time.nullable(), seen: z.boolean() })),
+})

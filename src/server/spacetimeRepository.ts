@@ -1285,6 +1285,66 @@ export class SpacetimeRepository {
     return this.product.battleChanges(after)
   }
 
+  claimStandingsRefresh(...args: Parameters<SpacetimeOperator['claimStandingsRefresh']>) {
+    return this.product.claimStandingsRefresh(...args)
+  }
+
+  saveBattleResults(...args: Parameters<SpacetimeOperator['saveBattleResults']>) {
+    return this.product.saveBattleResults(...args)
+  }
+
+  battleResultsAfter(...args: Parameters<SpacetimeOperator['battleResultsAfter']>) {
+    return this.product.battleResultsAfter(...args)
+  }
+
+  ratingsBefore(...args: Parameters<SpacetimeOperator['ratingsBefore']>) {
+    return this.product.ratingsBefore(...args)
+  }
+
+  saveRatingSteps(...args: Parameters<SpacetimeOperator['saveRatingSteps']>) {
+    return this.product.saveRatingSteps(...args)
+  }
+
+  finishStandingsRefresh(...args: Parameters<SpacetimeOperator['finishStandingsRefresh']>) {
+    return this.product.finishStandingsRefresh(...args)
+  }
+
+  leaderboard(...args: Parameters<SpacetimeOperator['leaderboard']>) {
+    return this.product.leaderboard(...args)
+  }
+
+  playerStandings(...args: Parameters<SpacetimeOperator['playerStandings']>) {
+    return this.product.playerStandings(...args)
+  }
+
+  ratingChanges(...args: Parameters<SpacetimeOperator['ratingChanges']>) {
+    return this.product.ratingChanges(...args)
+  }
+
+  battleResultsByUser(...args: Parameters<SpacetimeOperator['battleResultsByUser']>) {
+    return this.product.battleResultsByUser(...args)
+  }
+
+  achievementStatus(...args: Parameters<SpacetimeOperator['achievementStatus']>) {
+    return this.product.achievementStatus(...args)
+  }
+
+  saveAchievements(...args: Parameters<SpacetimeOperator['saveAchievements']>) {
+    return this.product.saveAchievements(...args)
+  }
+
+  markAchievementsSeen(...args: Parameters<SpacetimeOperator['markAchievementsSeen']>) {
+    return this.product.markAchievementsSeen(...args)
+  }
+
+  syncAchievementDefinitions(...args: Parameters<SpacetimeOperator['syncAchievementDefinitions']>) {
+    return this.product.syncAchievementDefinitions(...args)
+  }
+
+  practiceOpponentIds(...args: Parameters<SpacetimeOperator['practiceOpponentIds']>) {
+    return this.product.practiceOpponentIds(...args)
+  }
+
   /** The battles still held among these ids, at most 500. */
   async battlesByIds(battleIds: readonly string[]): Promise<BattleHistory[]> {
     const snapshots = await this.product.battlesForOperator(battleIds)
