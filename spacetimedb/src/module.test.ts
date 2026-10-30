@@ -1725,8 +1725,47 @@ describe('guest devices', () => {
     finish()
     claim()
     const recruits = (userId: string) =>
-      (JSON.parse(module.achievementFactsByUser(procedure(operator), { userId })) as { recruits: number[] }).recruits
-    expect([recruits('host'), recruits('newcomer')]).toEqual([[NOW * 1_000], []])
+      (JSON.parse(module.achievementFactsByUser(procedure(operator), { userId })) as { recruits: unknown[] }).recruits
+    expect([recruits('host'), recruits('newcomer')]).toEqual([[{ userId: 'newcomer', startedAt: NOW * 1_000, at: NOW * 1_000 }], []])
+  })
+
+  it('credits nobody with recruiting the opponent of a copied battle', () => {
+    const h = harness()
+    const link = (playerId: string, userId: string) =>
+      module.linkExternalAccount(h.procedure(h.operator), {
+        payload: JSON.stringify({ source: 'battlebase', playerId, userId, name: playerId }),
+      })
+    link('me', 'importer')
+    module.createBattle(h.procedure(h.operator), {
+      payload: JSON.stringify({
+        id: 'copied',
+        token: 'copied-token',
+        userId: 'importer',
+        allyIds: [],
+        opponentIds: [],
+        guestNames: ['Them'],
+        initialCommands: [],
+        now: NOW * 1_000,
+        imported: { source: 'battlebase', sourceId: 'source', times: [], players: ['me', 'them'] },
+      }),
+    })
+    h.call(TestAuth.internal(), (ctx) => {
+      for (const [seq, body] of [
+        { kind: 'begin-battle', firstPlayerId: 'importer' },
+        { kind: 'end-battle', reason: 'conceded', concededBy: 'importer' },
+      ].entries())
+        ctx.db.commands.insert({
+          key: JSON.stringify(['copied', seq + 1]),
+          battleId: 'copied',
+          seq: seq + 1,
+          userId: 'importer',
+          at: BigInt(NOW * 1_000),
+          body: JSON.stringify(body),
+        })
+    })
+    link('them', 'opponent')
+    const facts = JSON.parse(module.achievementFactsByUser(h.procedure(h.operator), { userId: 'importer' })) as { recruits: unknown[] }
+    expect(facts.recruits).toEqual([])
   })
 
   it('leaves every logged command as it was written when a guest claims', () => {

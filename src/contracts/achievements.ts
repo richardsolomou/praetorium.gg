@@ -4,7 +4,8 @@ const time = z.number().int().nonnegative()
 
 /** What `achievement_facts_by_user` reads; the tokens stay on the server, which needs them to score a tournament. */
 export const achievementFactsSchema = z.object({
-  recruits: z.array(time),
+  /** Each seat another account claimed in a live battle this player started in: who, when the battle began, and when it finished. */
+  recruits: z.array(z.object({ userId: z.string(), startedAt: time, at: time })),
   tournaments: z.array(
     z.object({
       token: z.string(),

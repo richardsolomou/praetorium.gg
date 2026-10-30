@@ -3046,11 +3046,15 @@ export const achievementFactsByUser = spacetime.procedure({ userId: t.string() }
     if (!validId(userId)) throw new SenderError('Invalid user ID')
     const recruits = []
     for (const seat of tx.db.battleUsers.userId.filter(userId)) {
-      const claimed = Array.from(tx.db.battleUsers.battleId.filter(seat.battleId)).some(
+      // A copied battle's seats are claimed by whoever links the source account, so nobody was recruited there.
+      if (seat.claimedSeat !== undefined || tx.db.battleImports.battleId.find(seat.battleId)) continue
+      const claimants = Array.from(tx.db.battleUsers.battleId.filter(seat.battleId)).filter(
         (other) => other.userId !== userId && other.claimedSeat !== undefined,
       )
-      const at = claimed ? finishedAt(tx, seat.battleId) : null
-      if (at !== null) recruits.push(at)
+      const battle = claimants.length ? tx.db.battles.id.find(seat.battleId) : undefined
+      const at = battle ? finishedAt(tx, seat.battleId) : null
+      if (!battle || at === null) continue
+      for (const other of claimants) recruits.push({ userId: other.userId, startedAt: safeNumber(battle.createdAt), at })
     }
     const tournaments = []
     for (const eventId of personalEventIds(tx, userId)) {

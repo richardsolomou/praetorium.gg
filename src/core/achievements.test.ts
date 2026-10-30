@@ -95,6 +95,16 @@ describe('achievements', () => {
   })
 
   it('adds up each earned tier', () => {
-    expect(achievements('me', facts({ battles: [lost('a', 1)], recruits: [2] }), []).points).toBe(35)
+    const recruits = [{ userId: 'alex', startedAt: 1, at: 2, signedUpAt: 2 }]
+    expect(achievements('me', facts({ battles: [lost('a', 1)], recruits }), []).points).toBe(35)
+  })
+
+  it('counts a guest who claimed several battles as one recruit', () => {
+    const recruits = [1, 2, 3].map((at) => ({ userId: 'alex', startedAt: at, at, signedUpAt: 3 }))
+    expect(earned({ recruits }).herald).toBeUndefined()
+  })
+
+  it('does not count a guest who already had an account', () => {
+    expect(earned({ recruits: [{ userId: 'alex', startedAt: 5, at: 6, signedUpAt: 1 }] }).recruiter).toBeUndefined()
   })
 })

@@ -400,6 +400,17 @@ export class PraetoriumService {
       this.repository.practiceOpponents(),
       this.repository.achievementFacts(userId),
     ])
+    const signups = new Map(
+      await Promise.all(
+        [...new Set(facts.recruits.map((claim) => claim.userId))].map(
+          async (id) => [id, (await this.repository.userById(id))?.createdAt.getTime()] as const,
+        ),
+      ),
+    )
+    const recruits = facts.recruits.flatMap((claim) => {
+      const signedUpAt = signups.get(claim.userId)
+      return signedUpAt === undefined ? [] : [{ ...claim, signedUpAt }]
+    })
     const tournaments = await Promise.all(
       facts.tournaments.map(async ({ token, eventToken, ...tournament }) => {
         const results = tournament.played ? await this.leagueResults(token, eventToken, undefined, [], userId) : null
@@ -408,7 +419,7 @@ export class PraetoriumService {
     )
     return achievements(
       userId,
-      { ...facts, battles, tournaments },
+      { ...facts, battles, recruits, tournaments },
       practice.map((opponent) => opponent.id),
     )
   }
