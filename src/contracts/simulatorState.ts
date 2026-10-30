@@ -32,6 +32,8 @@ const sideSchema = z.object({
     .max(7)
     .refine((units) => units.every((unit, at) => (unit.attachedTo ?? 0) <= at), 'An attached unit joins the main unit or an earlier one.')
     .optional(),
+  /** Detachments whose rules and stratagems the side fields without a roster, as an assistant's matchup names them. */
+  detachmentIds: z.array(idSchema).max(4).optional(),
   /** A unit from a saved roster or a revealed league list, simulated with its detachment, enhancements, and attachments. */
   roster: z
     .union([savedRosterSource.extend({ pickIndex: pickIndexSchema }), leagueRosterSource.extend({ pickIndex: pickIndexSchema })])

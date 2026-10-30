@@ -14,7 +14,7 @@ Missions come back as structured cards, deployments and terrain layouts, so the 
 
 ## Plan an army
 
-For list building, the assistant can pull a whole faction's pickable units in one go: costs at each unit size, composition, which leaders and support units can join which units, how many of a unit you may take, roles, keywords and links. Give it a battle size and it uses the limits for that size; give it a detachment and it also gets that detachment's rules, enhancements, upgrades and stratagems by name, cost and timing.
+For list building, the assistant can pull a whole faction's pickable units in one go: costs at each unit size, composition, which leaders and support units can join which units, how many of a unit you may take, roles, keywords and links. Give it a battle size and it uses the limits for that size; give it a detachment and it also gets that detachment's rules, enhancements, upgrades and stratagems by name, cost and timing. Legends and Crucible datasheets are left out unless you ask for them. For a faction with many units, such as a Space Marine chapter, the assistant may ask for units by name or keyword instead of the whole list.
 
 > Using Praetorium, plan a 2,000-point Necrons list around two units of Immortals, and tell me which detachments suit it.
 
@@ -28,4 +28,4 @@ The assistant can run Praetorium's combat simulator for one attacking unit, with
 
 It can apply situational modifiers the simulator page offers, such as cover, a hit modifier, having charged or a defender's invulnerable save, and you can ask it to switch a rule or weapon profile on or off and run it again. Datasheet rules that always apply are on by default; stratagems and conditional rules stay off until you ask for them.
 
-Like the standalone simulator, it uses each unit's default loadout and no detachment. To compare specific wargear, use the simulator page directly; see [Set up a matchup](/docs/set-up-a-matchup).
+It uses each unit's default loadout. Name a detachment for either side and it also applies that detachment's rules and offers its stratagems; otherwise it uses none. To compare specific wargear, use the simulator page directly; see [Set up a matchup](/docs/set-up-a-matchup).

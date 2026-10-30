@@ -73,6 +73,18 @@ export function referenceOpenApi(request: Request) {
             ...pathParameters('catalogueId'),
             { name: 'battleSize', in: 'query', schema: { type: 'integer', minimum: 1, maximum: 10_000 } },
             { name: 'detachment', in: 'query', schema: { type: 'string', maxLength: REFERENCE_FILTER_MAX_LENGTH } },
+            {
+              name: 'nonMatchedPlay',
+              in: 'query',
+              description: 'Also list Legends and Crucible datasheets.',
+              schema: { type: 'boolean', default: false },
+            },
+            {
+              name: 'query',
+              in: 'query',
+              description: 'List only units whose name or keywords contain this text.',
+              schema: { type: 'string', maxLength: REFERENCE_FILTER_MAX_LENGTH },
+            },
           ],
           responses: responseSchemas('Faction units', schemaRef('UnitIndex')),
         },
@@ -153,11 +165,13 @@ export function referenceOpenApi(request: Request) {
           {
             faction: schemaRef('FactionSummary'),
             battleSize: nullable({ type: 'integer', minimum: 1 }),
+            nonMatchedPlay: { type: 'boolean' },
+            query: nullable({ type: 'string' }),
             detachment: nullable(schemaRef('Detachment')),
             units: { type: 'array', items: schemaRef('UnitSummary') },
             revisions: schemaRef('Revisions'),
           },
-          ['faction', 'battleSize', 'detachment', 'units', 'revisions'],
+          ['faction', 'battleSize', 'nonMatchedPlay', 'query', 'detachment', 'units', 'revisions'],
         ),
         ReferenceRecord: objectSchema(
           {

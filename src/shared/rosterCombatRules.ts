@@ -11,6 +11,8 @@ import type { Datasheet } from '../contracts/catalogue'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { describeDatasheetAbilities } from './datasheetDescriptions'
 import { detachmentReference } from './detachmentReference'
+import { detachmentCatalogueDetail } from './catalogueDescriptions'
+import { joinKey } from '../core/text'
 import { buildRosterPick, rosterDatasheetContext } from './rosterDatasheetContext'
 import { type LoadedRules, rulesFaction } from './rules'
 import { selectedDetachmentRules } from './selectedDetachmentRules'
@@ -330,14 +332,20 @@ function rosterCombatRules(
       )
     }
     for (const option of options) {
+      // A card's words are withheld as tokens; the catalogue's own copy of the same rule, where it has one, can be judged now.
+      const catalogued = detachmentCatalogueDetail(loaded, data.catalogueId, option.id, [])?.rules ?? []
       for (const rule of detachmentReference(loaded, rules, data.catalogueId, routeSlug(option.name))?.rules ?? []) {
-        if (rule.description)
+        const plain = catalogued.find(
+          (candidate) => joinKey(candidate.name) === joinKey(rule.name) && candidate.description && !hasTextTokens(candidate.description),
+        )?.description
+        const description = rule.description && hasTextTokens(rule.description) ? (plain ?? rule.description) : rule.description
+        if (description)
           add(
             {
               id: `detachment:${option.id}:${rule.name}`,
               name: rule.name,
               source: option.name,
-              description: rule.description,
+              description,
               scope: 'detachment',
             },
             { origin: 'listed' },

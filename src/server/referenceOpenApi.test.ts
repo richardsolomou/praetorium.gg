@@ -22,7 +22,7 @@ it('publishes concrete OpenAPI response contracts', () => {
         ProductGuide: { required: ['product', 'capabilities', 'boundaries', 'dataModel', 'agentWorkflow'] },
         ReferenceIndex: { required: ['corpusRevision', 'revisions', 'kinds', 'factions', 'missionPacks', 'ruleDocuments'] },
         ReferenceSearchResponse: { required: ['query', 'results', 'revisions', 'nextCursor'] },
-        UnitIndex: { required: ['faction', 'battleSize', 'detachment', 'units', 'revisions'] },
+        UnitIndex: { required: ['faction', 'battleSize', 'nonMatchedPlay', 'query', 'detachment', 'units', 'revisions'] },
         ReferenceRecord: { required: ['document', 'data'] },
         DatasheetRecord: {
           properties: { data: { $ref: '#/components/schemas/Datasheet' } },

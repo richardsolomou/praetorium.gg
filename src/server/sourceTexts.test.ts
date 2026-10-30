@@ -5,7 +5,7 @@ import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { catalogueSources } from './catalogueSources'
 import type { CatalogueComposition } from './catalogueComposition'
-import { publishedTexts, sourceTexts, textFileId, textSourceFiles, upstreamUrl, withDefinitionTokens } from './sourceTexts'
+import { publishedTexts, sourceTexts, textFileId, textRecordsIn, textSourceFiles, upstreamUrl, withDefinitionTokens } from './sourceTexts'
 import { resolvedText, textTokensIn } from '../shared/sourceText'
 
 const base = {
@@ -113,6 +113,33 @@ describe('the files a reader can load', () => {
 
   it('lists nothing outside the text sources', () => {
     expect(Object.keys(files)).toHaveLength(2)
+  })
+})
+
+describe('the records holding a file’s texts', () => {
+  const hashOf = (text: string) => createHash('sha256').update(text).digest('hex').slice(0, 16)
+  const records = (parsed: unknown) => {
+    const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-text-records-')), 'file.json')
+    fs.writeFileSync(file, JSON.stringify(parsed))
+    return textRecordsIn(file)
+  }
+
+  it('names no record for a text the file holds by its own id', () => {
+    expect(records({ id: 'catalogue', name: 'Words.' }).get(hashOf('Words.'))).toBeUndefined()
+  })
+
+  it('names the innermost record holding a text', () => {
+    expect(records({ id: 'catalogue', rules: [{ id: 'rule', description: 'Words.' }] }).get(hashOf('Words.'))).toEqual(['rule'])
+  })
+
+  it('names a top-level record in a file with no id of its own', () => {
+    expect(records({ stratagems: [{ id: 'stratagem', effect: 'Words.' }] }).get(hashOf('Words.'))).toEqual(['stratagem'])
+  })
+
+  it('names a detachment rule by the detachment it belongs to', () => {
+    expect(records({ id: 'faction', rules: [{ detachment_id: 'detachment', rule: 'Words.' }] }).get(hashOf('Words.'))).toEqual([
+      'detachment',
+    ])
   })
 })
 

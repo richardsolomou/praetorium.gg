@@ -10,6 +10,7 @@ import {
   combatRuleEligible,
   combatRuleOptions,
   combatRuleProfiles,
+  combatRuleRoles,
   combatRuleWeapons,
   type CombatRule,
   type CombatRuleJudge,
@@ -614,6 +615,12 @@ describe('combat roles', () => {
         'defender',
       ),
     ).toBe(false))
+  it.each([
+    "This unit's ranged attacks that target a MONSTER/VEHICLE unit can: Re-roll one hit roll. Re-roll one wound roll. Re-roll one damage roll.",
+    'Friendly ADEPTUS CUSTODES units (excluding MONSTER/VEHICLE units) within 6" of this model can\n- Re-roll hit rolls of 1\n- Re-roll wound rolls of 1',
+  ])('recognises %s as an attacking rule, so the simulator names it when it cannot apply it', (description) =>
+    expect(combatRuleRoles(description)).toContain('attacker'),
+  )
   it('filters already projected offensive stats by role too', () =>
     expect(
       combatRuleAppliesTo(rule('Melee weapons equipped by this model have the [LETHAL HITS] ability.', { included: true }), 'defender'),

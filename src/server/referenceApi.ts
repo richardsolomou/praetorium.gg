@@ -21,6 +21,7 @@ import {
   referenceRecord,
   referenceRecordCatalogueId,
   referenceUnits,
+  type ReferenceUnitsQuery,
 } from './referenceService'
 import { DATACARDS_ATTRIBUTION } from './datacards'
 import { ifNoneMatch } from './ifNoneMatch'
@@ -70,7 +71,7 @@ export async function activeReferenceCorpus(catalogueId?: string) {
 }
 
 /** One faction's planning units, with the corpus they came from; null while no snapshot can answer. */
-export async function referenceUnitsFor(faction: string, battleSize?: number, detachment?: string) {
+export async function referenceUnitsFor(faction: string, query: ReferenceUnitsQuery = {}) {
   const corpus = await activeReferenceCorpus(faction)
   const instance = app()
   const selected = corpus && referenceFaction(corpus, faction)
@@ -80,7 +81,7 @@ export async function referenceUnitsFor(faction: string, battleSize?: number, de
     corpus,
     faction: selected ?? null,
     detachments: selected ? factionDetachmentNames(loaded, selected.id) : [],
-    units: referenceUnits(corpus, loaded, rules, faction, battleSize, detachment, await currentFactionIds()),
+    units: referenceUnits(corpus, loaded, rules, faction, query, await currentFactionIds()),
   }
 }
 
@@ -171,7 +172,11 @@ export async function referenceUnitsResponse(request: Request, catalogueId: stri
   const detachment = url.searchParams.get('detachment')?.trim() || undefined
   if (detachment && detachment.length > REFERENCE_FILTER_MAX_LENGTH)
     return problem(`detachment must contain at most ${REFERENCE_FILTER_MAX_LENGTH} characters`, 400)
-  const found = await referenceUnitsFor(catalogueId, battleSize, detachment)
+  const query = url.searchParams.get('query')?.trim() || undefined
+  if (query && query.length > REFERENCE_FILTER_MAX_LENGTH)
+    return problem(`query must contain at most ${REFERENCE_FILTER_MAX_LENGTH} characters`, 400)
+  const nonMatchedPlay = url.searchParams.get('nonMatchedPlay') === 'true'
+  const found = await referenceUnitsFor(catalogueId, { battleSize, detachment, nonMatchedPlay, query })
   if (!found) return referenceUnavailable()
   const { corpus, units: data } = found
   if (!data) return problem('faction or detachment not found', 404)
@@ -186,7 +191,13 @@ export async function referenceUnitsResponse(request: Request, catalogueId: stri
   ]
     .filter(Boolean)
     .join('\n\n')
-  return referenceResponse(request, corpus.revision, `units:${catalogueId}:${battleSize ?? ''}:${detachment ?? ''}`, data, markdown)
+  return referenceResponse(
+    request,
+    corpus.revision,
+    `units:${catalogueId}:${battleSize ?? ''}:${detachment ?? ''}:${nonMatchedPlay}:${query ?? ''}`,
+    data,
+    markdown,
+  )
 }
 
 export async function referenceRecordResponse(request: Request, id: string) {

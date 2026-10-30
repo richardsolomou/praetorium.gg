@@ -7,7 +7,7 @@ import { rosterDatasheetContext } from '../../shared/rosterDatasheetContext'
 import { rosterDatasheet, rosterLoadoutDatasheets } from '../../shared/rosterReads'
 import { rosterCombatant } from '../../shared/rosterCombatRules'
 import { combatLoadoutSpace } from '../../shared/combatLoadouts'
-import { exportRosterFile, importRosterFile, importRosterExchange } from '../../shared/rosterFiles'
+import { exportRosterFile, importRosterFile, importRosterExchange, pricedDispositionNames } from '../../shared/rosterFiles'
 import { ROSTER_EXCHANGE_RULES_UNAVAILABLE, type decodeRosterExchange } from '../../core/rosterExchange'
 import { battleDetachmentData, selectedBattleDetachmentData } from '../../shared/battleDetachmentData'
 import { unitBattleDetailsIn, unitWoundsIn } from '../../shared/catalogue'
@@ -54,12 +54,7 @@ export const constructionReads = {
   exportRoster: ({ catalogue, rules }: Construction, data: Data<typeof server.exportRoster>) => {
     const priced = calculateRosterPrice(priceSchema.parse(data), catalogue, rules)
     if (!priced) throw new Error('Army data is unavailable.')
-    return exportRosterFile(
-      data,
-      catalogue,
-      { ...priced, disposition: priced.disposition ?? null },
-      (priced.disposition ? [priced.disposition] : priced.dispositions).map((id) => rules.dispositions.get(id) ?? id),
-    )
+    return exportRosterFile(data, catalogue, { ...priced, disposition: priced.disposition ?? null }, pricedDispositionNames(priced, rules))
   },
   importExchange: (
     { catalogue, rules }: Construction,

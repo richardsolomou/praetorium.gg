@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "praetorium",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Warhammer 40,000 datasheets, points, detachments, missions and a combat simulator, plus your saved rosters and battles on Praetorium.",
   "author": {
     "name": "Richard Solomou",

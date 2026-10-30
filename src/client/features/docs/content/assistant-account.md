@@ -4,7 +4,7 @@ Sign-in is optional and only needed for your own rosters and battles. There are 
 
 **Read** lets the assistant:
 
-- list your saved rosters and read the choices in one of them
+- list your saved rosters and read one of them as you'd see it in the builder: each unit's name, points, wargear, enhancements, Warlord and attachments, the total, and any problems that stop it being fielded
 - list your battles, 25 at a time, and read the current state of one you're seated in
 
 **Change** additionally lets it:

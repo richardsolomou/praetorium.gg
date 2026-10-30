@@ -52,7 +52,9 @@ vi.mock('./referenceApi', async () => {
     referenceRateLimit: rateLimit,
   }
 })
-vi.mock('./publishedTextFiles', () => ({ publishedTextLocations: async () => ({ files: {}, holds: () => false }) }))
+vi.mock('./publishedTextFiles', () => ({
+  publishedTextLocations: async () => ({ files: {}, holds: () => false, recordsHolding: () => [] }),
+}))
 vi.mock('./app', () => ({
   app: () => ({
     catalogueFor: async () => null,

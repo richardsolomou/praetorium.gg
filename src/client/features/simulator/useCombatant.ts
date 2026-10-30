@@ -61,7 +61,8 @@ export function useCombatant(roster?: CombatRoster, initial?: SimulatorSide | nu
   useEffect(() => {
     if (battlePicks) resetPicks(JSON.parse(battlePicks) as RosterPick[])
   }, [battlePicks, resetPicks])
-  const detachmentIds = roster?.detachmentIds ?? []
+  // A shared link's detachments belong to its faction; picking another faction's unit leaves them behind.
+  const detachmentIds = roster?.detachmentIds ?? (initial?.catalogueId === catalogueId ? initial.detachmentIds : undefined) ?? []
   const settled = useSettled(picks.positioned)
   const pick = picks.positioned[pickIndex]
   const faction = pick?.catalogueId ?? catalogueId
@@ -294,7 +295,16 @@ export function useCombatant(roster?: CombatRoster, initial?: SimulatorSide | nu
       })
     },
     /** What a shared link needs to restore this standalone side. */
-    shared: shareable(roster, catalogueId, picks.picks[pickIndex], pickIndex, ruleSelections, weaponPreferences, picks.picks),
+    shared: shareable(
+      roster,
+      catalogueId,
+      picks.picks[pickIndex],
+      pickIndex,
+      ruleSelections,
+      weaponPreferences,
+      picks.picks,
+      detachmentIds,
+    ),
     addAttachment: (attachmentId: string) => {
       const option = sheets.data?.attachmentOptions.find((candidate) => candidate.entryId === attachmentId)
       const host = picks.picks[pickIndex]
@@ -362,6 +372,7 @@ function shareable(
   rules: Record<string, number>,
   preferences: Record<string, string>,
   picks: readonly KeyedPick[],
+  detachmentIds: readonly string[],
 ): SimulatorSide | null {
   if ((roster && !roster.saved) || !catalogueId || !pick) return null
   const { key: _key, attachedTo: _attachedTo, note: _note, ...shared } = pick
@@ -384,5 +395,6 @@ function shareable(
     rules,
     ...(Object.keys(preferences).length ? { preferences } : {}),
     ...(attached.length ? { attached } : {}),
+    ...(detachmentIds.length ? { detachmentIds: [...detachmentIds] } : {}),
   }
 }
