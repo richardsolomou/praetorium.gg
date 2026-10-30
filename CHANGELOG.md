@@ -1,5 +1,17 @@
 # praetorium
 
+## 0.202.1 (2026-10-30)
+
+### Patch Changes
+
+- ac4a96f: An AI assistant reading one of your saved rosters now sees each unit's name, points, wargear, enhancements and attachments, the total, and any problems with the list, instead of catalogue ids.
+- ac4a96f: When Praetorium leaves out a rule's wording, an assistant is now pointed at the exact entry in the source file that holds it, including detachment rules and enhancements.
+- ac4a96f: An assistant listing a faction's units for list building gets a shorter answer that leaves out Legends and Crucible datasheets unless asked, and can ask for units by name or keyword, so large factions no longer overflow what it can read.
+- ac4a96f: Assistants no longer receive empty "When:", "Target:" and "Effect:" labels where Praetorium leaves out a rule's wording.
+- ac4a96f: The combat simulator now applies Martial Ka'tah, Captain-General and other Adeptus Custodes abilities that it previously couldn't read.
+- ac4a96f: An assistant using the combat simulator can name each side's detachment to apply its rules and offer its stratagems, and the simulator link it shares keeps that detachment.
+- ac4a96f: The assistant combat simulator now names re-roll abilities it can't apply, such as a Caladius Annihilator's Advanced Firepower, instead of leaving them out silently.
+
 ## 0.202.0 (2026-10-30)
 
 ### Minor Changes
