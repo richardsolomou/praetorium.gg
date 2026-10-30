@@ -1,4 +1,4 @@
-import { type CombatRule, judgedCombatRule } from '../../../core/combatRules'
+import { type CombatRule, readCombatRule } from '../../../core/combatRules'
 import { hasTextTokens } from '../../../shared/sourceText'
 import { loadedWords } from '../../sourceText'
 
@@ -11,11 +11,7 @@ export function readableRules(rules: readonly CombatRule[]): CombatRule[] {
   return rules.flatMap((rule) => {
     if (!hasTextTokens(rule.description)) return [rule]
     const description = loadedWords(rule.description)
-    if (description === null) return []
-    const { judge, ...read } = { ...rule, description }
-    // The server could not judge a rule it held only as a token, so it is judged here against the place it recorded.
-    const judged = judge ? judgedCombatRule(read, judge) : read
-    return judged ? [judged] : []
+    return (description !== null && readCombatRule(rule, description)) || []
   })
 }
 

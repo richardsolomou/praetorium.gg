@@ -9,6 +9,7 @@ import {
   combatRuleKey,
   combatRuleRoles,
   combatRuleSelections,
+  readCombatRule,
   type CombatRule,
 } from '../core/combatRules'
 import { admitsHost, attachmentOf } from '../core/attach'
@@ -20,6 +21,7 @@ import { hasTextTokens } from '../shared/sourceText'
 import type { ToolErrorType } from '../contracts/agentTools'
 import { READ_ONLY_TOOL, structured, toolError, type AgentTools } from './agentTools'
 import { app } from './app'
+import { serverWords } from './publishedTextFiles'
 import { activeReferenceCorpus, currentFactionIds } from './referenceApi'
 import type { ReferenceCorpus } from './referenceCorpus'
 import { datasheetCitation, factionDatasheets, factionUnits, referenceFaction } from './referenceService'
@@ -220,13 +222,26 @@ async function combatant(corpus: ReferenceCorpus, side: SideInput, role: Role) {
   if (!loaded) throw new CombatRefusal([REFERENCE_UNAVAILABLE], 'unavailable')
   const detachmentIds = side.detachment ? [detachmentId(loaded, named.catalogueId, side.detachment)] : []
   const resolved = { ...named, detachmentIds, picks: joinedPicks(loaded, named.catalogueId, detachmentIds, named.picks) }
-  const projection = rosterCombatant(loaded, rules, {
+  let projection = rosterCombatant(loaded, rules, {
     catalogueId: resolved.catalogueId,
     detachmentIds,
     picks: resolved.picks,
     pickIndex: 0,
   })
   if (!projection) throw new CombatRefusal([`${side.unit} could not be loaded.`])
+  const words = await serverWords()
+  // A rule whose words the snapshot does not hold stays a token, which `ruleSummary` reports as not calculated.
+  const read = (unread: readonly CombatRule[]) =>
+    unread.flatMap((rule) => {
+      if (!hasTextTokens(rule.description)) return [rule]
+      const description = words(rule.description)
+      return description === null ? [rule] : (readCombatRule(rule, description) ?? [])
+    })
+  projection = {
+    ...projection,
+    rules: read(projection.rules),
+    companions: projection.companions.map((member) => ({ ...member, rules: read(member.rules) })),
+  }
   const errors = [
     ...projection.attachmentErrors.map((error) => `${error.entryName}: ${error.message}.`),
     ...[
@@ -279,12 +294,31 @@ async function combatant(corpus: ReferenceCorpus, side: SideInput, role: Role) {
 
 type Combatant = Awaited<ReturnType<typeof combatant>>
 
+const comparable = (text: string) =>
+  text
+    .replaceAll(/\*\*|\^\^|<\/?[a-z]+>/gi, '')
+    .replaceAll(/[‘’]/g, "'")
+    .replaceAll(/[“”]/g, '"')
+    .replaceAll(/\s+/g, ' ')
+    .trim()
+    .toLowerCase()
+
+/** A choice's label with each part that repeats a clause of the rule's words replaced, since agents get no rules text. */
+function unquoted(label: string, words: string) {
+  const text = comparable(words)
+  const quotes = (clause: string) => clause.split(' ').length >= 5 && text.includes(comparable(clause))
+  return label
+    .split(' · ')
+    .map((part) => (part.split(/ or /i).some(quotes) ? 'Condition the rule states' : part))
+    .join(' · ')
+}
+
 /** The rules a side can change and the recognised rules the calculation cannot apply. */
 function ruleSummary(side: Combatant, opponent: Combatant) {
   const keywords = combatUnitKeywords(opponent.snapshot)
   const options = (rule: CombatRule) =>
     combatRuleChoices(rule)
-      .map((choice, index) => ({ choice: index + 1, label: choice.label, effects: choice.effects }))
+      .map((choice, index) => ({ choice: index + 1, label: unquoted(choice.label, rule.description), effects: choice.effects }))
       .filter((choice) => choice.effects.some((effect) => combatEffectAppliesTo(effect, side.role, keywords)))
       .map(({ choice, label }) => ({ choice, label }))
   return {
@@ -306,7 +340,7 @@ function ruleSummary(side: Combatant, opponent: Combatant) {
           !rule.appliedDefences?.length &&
           !combatRuleChoices(rule).length &&
           (combatRuleRoles(rule.description).includes(side.role) ||
-            // The server holds only a token for a card's words, so it cannot tell what such a rule does; a stratagem stays off anyway.
+            // The snapshot does not hold this card's words, so what the rule does is unknown; a stratagem stays off anyway.
             (rule.scope !== 'stratagem' && hasTextTokens(rule.description))),
       )
       .map((rule) => ({ id: rule.id, name: rule.name, source: rule.source, scope: rule.scope })),

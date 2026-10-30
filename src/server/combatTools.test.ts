@@ -15,6 +15,7 @@ const sizes = (min: number, max: number) => [
   { id: 'min', type: 'min' as const, value: min, field: 'selections', scope: 'parent' },
   { id: 'max', type: 'max' as const, value: max, field: 'selections', scope: 'parent' },
 ]
+const CARD_TOKEN = '⟦0123abcd:plain:0123456789abcdef⟧'
 const loaded = shelfOf(
   {
     sharedSelectionEntries: [
@@ -78,6 +79,20 @@ const loaded = shelfOf(
         ],
       },
       {
+        id: 'sentinel',
+        name: 'Sentinel',
+        type: 'model',
+        profiles: [
+          profile('sentinel-stats', 'Sentinel', 'Unit', { T: '4', Sv: '3+', W: '3' }),
+          profile('halberd', 'Halberd', 'Melee Weapons', { A: '3', WS: '3+', S: '5', AP: '-1', D: '1' }),
+          profile('sentinel-card', 'Card Rule', 'Abilities', { Description: CARD_TOKEN }),
+          profile('sentinel-vengeful', 'Vengeful', 'Abilities', {
+            Description:
+              'While this unit is below its Starting Strength, each time a model in this unit makes an attack, add 1 to the Wound roll.',
+          }),
+        ],
+      },
+      {
         id: 'wraith',
         name: 'Wraith',
         type: 'model',
@@ -138,7 +153,7 @@ const document = (name: string) => ({
   revisions: { datacards: 'revision' },
   attribution: ['Community data'],
 })
-const documents = ['Squad', 'Leader', 'Protector', 'Beast', 'Oddity', 'Wraith'].map(document)
+const documents = ['Squad', 'Leader', 'Protector', 'Beast', 'Oddity', 'Wraith', 'Sentinel'].map(document)
 const corpus: ReferenceCorpus = {
   catalogue: {
     format: 'praetorium.canonical-catalogue.v1',
@@ -151,6 +166,7 @@ const corpus: ReferenceCorpus = {
       canonical('beast', 'Beast'),
       canonical('oddity', 'Oddity'),
       canonical('wraith', 'Wraith'),
+      canonical('sentinel', 'Sentinel'),
       {
         ...canonical('chapter-beast', 'Beast'),
         catalogueId: 'cat-1',
@@ -178,6 +194,11 @@ vi.mock('./app', () => ({
     rulesFor: async () => null,
     combatUnitsFor: async () => combatUnitsFor(loaded, null),
   }),
+}))
+
+vi.mock('./publishedTextFiles', () => ({
+  serverWords: async () => (text: string) =>
+    text === CARD_TOKEN ? 'Each time a model in this unit makes an attack, add 1 to the Hit roll.' : null,
 }))
 
 import { simulateCombat } from './combatTools'
@@ -306,6 +327,23 @@ it('refuses a unit size the datasheet cannot field', async () => {
 it('refuses an attachment the datasheets do not allow', async () => {
   const result = await simulateCombat({ attacker: { ...beast, attached: [{ unit: 'Leader' }] }, defender: squad })
   expect(result.structuredContent).toEqual({ refused: ['Leader: cannot be attached to Beast.'] })
+})
+
+describe('the rules of a unit', () => {
+  const rules = async () =>
+    (
+      (await simulateCombat({ attacker: { faction: 'test', unit: 'Sentinel' }, defender: beast })).structuredContent as {
+        attacker: { rules: { name: string; options: { label: string }[] }[] }
+      }
+    ).attacker.rules
+
+  it('calculates a rule published as a token from the words the snapshot holds', async () => {
+    expect((await rules()).map((rule) => rule.name)).toContain('Card Rule')
+  })
+
+  it('withholds a choice label that quotes the rule', async () => {
+    expect((await rules()).find((rule) => rule.name === 'Vengeful')?.options).toEqual([{ choice: 1, label: 'Condition the rule states' }])
+  })
 })
 
 describe('a weapon ability the simulator cannot calculate', () => {
