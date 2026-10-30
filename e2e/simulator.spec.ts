@@ -20,6 +20,8 @@ import {
 } from './account'
 import { waitForOfflineApp } from './offline'
 
+const KILL_CHANCE = /^(?:<0\.01|\d+\.\d\d?)%$/
+
 function chip(scope: Page | Locator, name: string) {
   return scope.getByRole('button', { name, exact: true })
 }
@@ -153,7 +155,7 @@ test('weapon switches leave profiles visible and shared modifiers can be overrid
   expect(await resultsSummary.evaluate((element) => getComputedStyle(element).position)).toBe('sticky')
   await expect(shootingDamage).toHaveText(/^\d+\.\d{2}$/)
   await expect(meleeDamage).toHaveText(/^\d+\.\d{2}$/)
-  await expect(page.getByRole('region', { name: 'Combined estimate' }).locator('[data-combat-wipe]')).toHaveText(/^\d+\.\d%$/)
+  await expect(page.getByRole('region', { name: 'Combined estimate' }).locator('[data-combat-wipe]')).toHaveText(KILL_CHANCE)
   const startingShooting = Number(await shootingDamage.textContent())
   const startingMelee = Number(await meleeDamage.textContent())
   const boltRifle = page.getByRole('switch', { name: 'Include ➤ Bolt Rifle - Focused Fire in shooting calculation' })
@@ -785,7 +787,7 @@ test('mixed defences allocate attacks in the chosen group order', async ({ page 
   const numbers = (await combatEstimate(page, 'Shooting')).locator('[data-result-numbers] .readout')
   await expect(defender.getByRole('row')).toHaveText([/Order/, /^1\. Boy ×9/, /^2\. Nob ×1/])
   await expect(shooting).toHaveAttribute('aria-busy', 'false')
-  await expect(numbers).toHaveText([/^\d+\.\d{2}$/, /^\d+\.\d{2}$/, /^\d+\.\d%$/])
+  await expect(numbers).toHaveText([/^\d+\.\d{2}$/, /^\d+\.\d{2}$/, KILL_CHANCE])
   const [wounds, models] = await numbers.allTextContents()
   expect(Number(models)).toBe(Number(wounds))
   await closeCombatBreakdown(page)
@@ -1043,7 +1045,7 @@ test("combined shooting and melee against Lion El'Jonson", async ({ page }) => {
   await chooseCombatUnit(page, 'Defender', 'Dark Angels', "Lion El'Jonson")
   const combined = page.getByRole('region', { name: 'Combined estimate' })
   await expect(combined).toHaveAttribute('aria-busy', 'false')
-  await expect(combined.locator('[data-combat-wipe]')).toHaveText(/^\d+\.\d%$/)
+  await expect(combined.locator('[data-combat-wipe]')).toHaveText(KILL_CHANCE)
   const percentage = async (region: Locator) => Number((await region.locator('[data-combat-wipe]').textContent())!.replace('%', ''))
   expect(await percentage(combined)).toBeGreaterThan(
     (await percentage(await combatEstimate(page, 'Shooting'))) + (await percentage(await combatEstimate(page, 'Melee'))),
@@ -1256,11 +1258,11 @@ test('the headline retains results when weapon phases are empty', async ({ page 
   await expect(headline.locator('.readout').nth(1)).toHaveText('0.00')
   await expect(headline.locator('.readout').nth(2)).toHaveText('0.00')
   await togglePhase('Shooting')
-  await expect(headline).toContainText('0.3%')
+  await expect(headline).toContainText('0.26%')
   await matchesPhase('Shooting')
   await chooseCatalogueUnit(page, 'Attacker', 'Tyranids', 'Hormagaunts')
   await expect(page.getByRole('region', { name: 'Shooting results' })).toContainText('No shooting weapons equipped')
-  await expect(headline.locator('[data-combat-wipe]')).toHaveText(/^\d+\.\d%$/)
+  await expect(headline.locator('[data-combat-wipe]')).toHaveText(KILL_CHANCE)
   await expect(headline).toHaveAttribute('aria-busy', 'false')
   await matchesPhase('Melee')
   await atWidths(page, [1440, 390], async () => noOverflow(page))
@@ -1490,7 +1492,7 @@ test('Immortals and Overlord calculate combined attacks against Deathshroud and 
   ).toHaveText('4+')
   const headline = page.getByRole('region', { name: 'Combined estimate' })
   await expect(headline).toHaveAttribute('aria-busy', 'false')
-  await expect(headline.locator('[data-combat-wipe]')).toHaveText(/^\d+(?:\.\d+)?%$/)
+  await expect(headline.locator('[data-combat-wipe]')).toHaveText(KILL_CHANCE)
   await expect(page.getByRole('alert')).toHaveCount(0)
   const optimize = page.getByRole('button', { name: 'Optimize', exact: true })
   await expect(optimize).toBeEnabled()
@@ -1498,7 +1500,7 @@ test('Immortals and Overlord calculate combined attacks against Deathshroud and 
   await expect(optimize).toBeVisible({ timeout: 120_000 })
   await expect(page.getByRole('alert')).toHaveCount(0)
   await page.reload()
-  await expect(headline.locator('[data-combat-wipe]')).toHaveText(/^\d+(?:\.\d+)?%$/)
+  await expect(headline.locator('[data-combat-wipe]')).toHaveText(KILL_CHANCE)
   await atWidths(page, [1440, 390], async (width) => {
     await noOverflow(page)
     await page.screenshot({ path: test.info().outputPath(`simulator-deathshroud-typhus-${width}.png`), fullPage: true })
