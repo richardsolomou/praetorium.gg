@@ -1,4 +1,4 @@
-import { withoutText } from '../shared/sourceText'
+import { publishedFacts } from '../shared/sourceText'
 
 const TAGS = /<\/?(?:b|i|u|k|ul|li|table|tbody|tr|td|th|appref)>/g
 
@@ -15,7 +15,7 @@ const clean = (markup: string) =>
 
 /** The known source markup as searchable text, without treating arbitrary angle-bracketed words as HTML. */
 export function referenceText(markup: string): string {
-  return clean(withoutText(markup))
+  return clean(publishedFacts(markup))
     .replaceAll(/<li>/g, '\n- ')
     .replaceAll(/<\/li>/g, '')
     .replaceAll(/<\/?(?:tr)>/g, '\n')

@@ -7,7 +7,7 @@ import { currentUserId, forSignedIn, requireUserId } from '../playerSession'
 import { calculateRosterPrice } from '../../shared/pricing'
 import { cachedRosterAssessmentsFor, cachedRosterPrice, cachedRosterTotalsFor, cachedRosterVerdictsFor } from '../rosterPrices'
 import { mutationRpc, rpc } from '../rpc'
-import { exportRosterFile } from '../../shared/rosterFiles'
+import { exportRosterFile, pricedDispositionNames } from '../../shared/rosterFiles'
 import { importRosterInput } from '../rosterImport'
 import { captureMutation } from '../mutationTelemetry'
 import { captureRosterCreated } from '../rosterTelemetry'
@@ -573,10 +573,12 @@ export const exportRoster = createServerFn({ method: 'POST' })
       const rules = await instance.rulesFor(data.catalogueId)
       const priced = calculateRosterPrice(data, loaded, rules)
       if (!priced) throw new Response('army data is not available', { status: 409 })
-      const dispositionNames = (priced.disposition ? [priced.disposition] : priced.dispositions).map(
-        (disposition) => rules?.dispositions.get(disposition) ?? disposition,
+      const result = exportRosterFile(
+        data,
+        loaded,
+        { ...priced, disposition: priced.disposition ?? null },
+        pricedDispositionNames(priced, rules),
       )
-      const result = exportRosterFile(data, loaded, { ...priced, disposition: priced.disposition ?? null }, dispositionNames)
       const userId = await currentUserId()
       if (userId)
         await instance.telemetry.capture(userId, 'roster_exported', {

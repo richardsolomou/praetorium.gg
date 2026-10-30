@@ -17,8 +17,10 @@ export const textFileId = (upstream: string) => hash('sha256', upstream).slice(0
 /** Tokens for the strings of one file, named by its upstream address, or by its snapshot path where it has none. */
 export function sourceTexts(upstream: string): SourceTexts {
   const file = textFileId(upstream)
-  return (raw, transform) => textToken({ file, transform, hash: hash('sha256', raw).slice(0, TEXT_HASH_LENGTH) })
+  return (raw, transform) => textToken({ file, transform, hash: textHash(raw) })
 }
+
+const textHash = (raw: string) => hash('sha256', raw).slice(0, TEXT_HASH_LENGTH)
 
 const SNAPSHOT_FILE = /(?:^|\/)((?:editions\/[^/]+\/)?(?:definitions|points|datacards)\/.+)$/
 
@@ -152,12 +154,43 @@ export function recordIdsIn(file: string) {
     if (Array.isArray(value)) for (const entry of value) visit(entry)
     else if (value && typeof value === 'object')
       for (const [key, entry] of Object.entries(value)) {
-        if (key === 'id' && typeof entry === 'string') ids.add(entry)
+        if (RECORD_KEYS.has(key) && typeof entry === 'string') ids.add(entry)
         else visit(entry)
       }
   }
   visit(JSON.parse(fs.readFileSync(file, 'utf8')))
   return ids
+}
+
+// Game Datacards keys a detachment's rules by the detachment they belong to; they have no id of their own.
+const RECORD_KEYS = new Set(['id', 'detachment_id'])
+
+const recordIdOf = (value: object) => {
+  const { id, detachment_id: detachment } = value as { id?: unknown; detachment_id?: unknown }
+  return typeof id === 'string' ? id : typeof detachment === 'string' ? detachment : undefined
+}
+
+/**
+ * The innermost records holding each string of a source file, by the hash a token names it with;
+ * a stratagem several detachments share is held by each. The file's own id, as a catalogue
+ * has, tells a reader nothing about where to look.
+ */
+export function textRecordsIn(file: string) {
+  const records = new Map<string, string[]>()
+  const root: unknown = JSON.parse(fs.readFileSync(file, 'utf8'))
+  const visit = (value: unknown, record: string | undefined) => {
+    if (typeof value === 'string') {
+      if (!record) return
+      const holding = remember(records, textHash(value), () => [])
+      if (!holding.includes(record)) holding.push(record)
+    } else if (Array.isArray(value)) for (const entry of value) visit(entry, record)
+    else if (value && typeof value === 'object') {
+      const own = value === root ? undefined : recordIdOf(value)
+      for (const entry of Object.values(value)) visit(entry, own ?? record)
+    }
+  }
+  visit(root, undefined)
+  return records
 }
 
 const TOKENS_AND_WORDS = /(\u27E6[^\u27E7]*\u27E7)/

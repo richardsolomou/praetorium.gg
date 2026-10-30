@@ -64,7 +64,7 @@ it('returns roster-planning facts for a whole detachment in one read', () => {
   }
   const corpus: ReferenceCorpus = { catalogue, documents: [document], byId: new Map([[document.id, document]]), revision: 'snapshot' }
 
-  expect(referenceUnits(corpus, loaded, null, 'test-faction', 1_000, 'vanguard')).toMatchObject({
+  expect(referenceUnits(corpus, loaded, null, 'test-faction', { battleSize: 1_000, detachment: 'vanguard' })).toMatchObject({
     faction: { id: 'cat', slug: 'test-faction', name: 'Test Faction' },
     battleSize: 1_000,
     detachment: { name: 'Vanguard', rules: [{ name: 'Forward Positions' }] },
@@ -86,6 +86,39 @@ it('returns roster-planning facts for a whole detachment in one read', () => {
   })
 })
 
+const lordsCorpus = (): ReferenceCorpus => ({
+  catalogue: {
+    format: 'praetorium.canonical-catalogue.v1',
+    compilerVersion: 1,
+    revisions: {},
+    datasheets: [{ id: 'overlord', catalogueId: 'cat', faction: 'Necrons', keywords: [], attachments: [], leaders: [], supporters: [] }],
+    detachments: [],
+    ruleDocuments: [],
+    issues: [],
+  } as unknown as CanonicalCatalogue,
+  documents: [],
+  byId: new Map(),
+  revision: 'snapshot',
+})
+
+const lords = bookOf({
+  selectionEntries: [
+    { id: 'overlord', name: 'Overlord', type: 'unit', costs: points(85) },
+    { id: 'lord', name: 'Lord [Legends]', type: 'unit', costs: points(65) },
+    { id: 'immortals', name: 'Immortals', type: 'unit', costs: points(65) },
+  ],
+})
+
+it('leaves Legends datasheets out of a planning list unless asked for them', () => {
+  expect(referenceUnits(lordsCorpus(), lords, null, 'cat')?.units.map((unit) => unit.name)).toEqual(['Immortals', 'Overlord'])
+})
+
+it('narrows a planning list to the units a query names', () => {
+  expect(
+    referenceUnits(lordsCorpus(), lords, null, 'cat', { query: 'lord', nonMatchedPlay: true })?.units.map((unit) => unit.name),
+  ).toEqual(['Lord [Legends]', 'Overlord'])
+})
+
 it('rejects a detachment outside the requested faction', () => {
   const loaded = bookOf({ selectionEntries: [] })
   const catalogue = {
@@ -99,7 +132,7 @@ it('rejects a detachment outside the requested faction', () => {
   } as CanonicalCatalogue
   const corpus: ReferenceCorpus = { catalogue, documents: [], byId: new Map(), revision: 'snapshot' }
 
-  expect(referenceUnits(corpus, loaded, null, 'cat', undefined, 'missing')).toBeNull()
+  expect(referenceUnits(corpus, loaded, null, 'cat', { detachment: 'missing' })).toBeNull()
 })
 
 it('plans a chapter with a detachment its codex holds', () => {
@@ -161,7 +194,7 @@ it('plans a chapter with a detachment its codex holds', () => {
   } as unknown as CanonicalCatalogue
   const corpus: ReferenceCorpus = { catalogue, documents: [], byId: new Map(), revision: 'snapshot' }
 
-  const planned = referenceUnits(corpus, loaded, null, 'chapter', undefined, 'Gladius Task Force', new Set(['cat-1', 'current~cat']))
+  const planned = referenceUnits(corpus, loaded, null, 'chapter', { detachment: 'Gladius Task Force' }, new Set(['cat-1', 'current~cat']))
   expect(planned?.detachment).toMatchObject({ id: 'gladius', catalogueId: 'current~cat' })
   expect(planned?.units.find((unit) => unit.name === 'Intercessors')?.referenceId).toBe('datasheet:current~cat:intercessors')
 })
@@ -188,9 +221,8 @@ it("cites an allied unit's page under the faction that owns it, not another fact
   const corpus: ReferenceCorpus = { catalogue, documents: [], byId: new Map(), revision: 'snapshot' }
 
   expect(
-    referenceUnits(corpus, loaded, null, 'army', undefined, undefined, new Set(['cat', 'cat-1', 'mfm~cat-2']))?.units.find(
-      (unit) => unit.name === 'Assassin',
-    )?.referenceId,
+    referenceUnits(corpus, loaded, null, 'army', {}, new Set(['cat', 'cat-1', 'mfm~cat-2']))?.units.find((unit) => unit.name === 'Assassin')
+      ?.referenceId,
   ).toBe('datasheet:agents:assassin')
 })
 
@@ -227,9 +259,8 @@ it.each([
   const corpus: ReferenceCorpus = { catalogue, documents: [], byId: new Map(), revision: 'snapshot' }
 
   expect(
-    referenceUnits(corpus, loaded, null, 'cat', undefined, undefined, new Set(['cat', 'cat-1', 'cat-2']))?.units.find(
-      (unit) => unit.name === 'Armiger',
-    )?.referenceId,
+    referenceUnits(corpus, loaded, null, 'cat', {}, new Set(['cat', 'cat-1', 'cat-2']))?.units.find((unit) => unit.name === 'Armiger')
+      ?.referenceId,
   ).toBe(referenceId)
 })
 

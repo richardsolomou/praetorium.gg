@@ -956,53 +956,64 @@ function countsForChoice(
   }
 }
 
-export function exportRosterFile(
-  data: ExportRosterInput,
-  loaded: LoadedCatalogue,
-  priced: {
+type ExportPrice = {
+  points: number
+  disposition: string | null
+  detachments: { name: string; points: number | null }[]
+  units: {
+    key: number
+    size: { models: number }
+    name: string
     points: number
-    disposition: string | null
-    detachments: { name: string; points: number | null }[]
-    units: {
-      key: number
-      size: { models: number }
-      name: string
-      points: number
-      group: UnitGroup
-      attachment: Attachment | null
-      enhancements: string[]
-      upgrades: string[]
-      wargear: { name: string; count: number }[]
-    }[]
-  },
-  dispositionNames: string[],
-) {
+    group: UnitGroup
+    attachment: Attachment | null
+    enhancements: string[]
+    upgrades: string[]
+    wargear: { name: string; count: number }[]
+  }[]
+}
+
+/** The disposition names a priced list fields: its chosen one, or every one its detachments allow. */
+export const pricedDispositionNames = (
+  priced: { disposition?: string | null; dispositions: readonly string[] },
+  rules: Pick<LoadedRules, 'dispositions'> | null,
+) => (priced.disposition ? [priced.disposition] : priced.dispositions).map((id) => rules?.dispositions.get(id) ?? id)
+
+export function exportRosterFile(data: ExportRosterInput, loaded: LoadedCatalogue, priced: ExportPrice, dispositionNames: string[]) {
+  return {
+    text: toGwText(readableRoster(data, loaded, priced, dispositionNames), version) + gwTextVersionLines(loaded.edition, data.catalogueId),
+    name: data.name,
+    omittedUnitCount: data.units.length - priced.units.length,
+  }
+}
+
+/** A priced list by name, points, loadout and attachment, as the readable export prints it. */
+export function readableRoster(data: ExportRosterInput, loaded: LoadedCatalogue, priced: ExportPrice, dispositionNames: string[]) {
   const faction = loaded.index.catalogues.get(data.catalogueId)?.name ?? data.catalogueId
   const keyedPicks = data.units.map((pick, key) => ({ ...pick, key }))
   const unitsByPick = data.units.map((_, index) => priced.units.find((unit) => unit.key === index))
-  const roster: GwTextRoster = {
+  return {
     name: data.name,
     faction: factionDisplayName(faction),
-    detachments: priced.detachments,
+    detachments: priced.detachments.map(({ name, points }) => ({ name, points })),
     dispositions: dispositionNames,
     size: GAME_SIZES.find((size) => size.limit === data.limit)?.name ?? 'Battle',
     limit: data.limit,
     ...(data.pointsBudget ? { pointsBudget: data.pointsBudget } : {}),
     points: priced.points,
     units: priced.units.map((unit) => ({
-      ...unit,
+      name: unit.name,
       nickname: textNickname(data.units[unit.key]?.nickname ?? ''),
       models: unit.size.models,
       entry: unit.key + 1,
       attachedToEntry: data.units[unit.key]?.attachedTo !== undefined ? data.units[unit.key]!.attachedTo! + 1 : undefined,
+      points: unit.points,
       group: gwTextGroup(unit.group),
       warlord: Object.values(data.units[unit.key]?.toggles ?? {}).some((count) => count > 0),
       joined: attachmentRows(keyedPicks, unitsByPick, unit.key).map(({ label, name }) => ({ label, name })),
+      enhancements: unit.enhancements,
+      upgrades: unit.upgrades,
+      wargear: unit.wargear.map(({ name, count }) => ({ name, count })),
     })),
-  }
-  return {
-    text: toGwText(roster, version) + gwTextVersionLines(loaded.edition, data.catalogueId),
-    name: data.name,
-    omittedUnitCount: data.units.length - priced.units.length,
-  }
+  } satisfies GwTextRoster
 }

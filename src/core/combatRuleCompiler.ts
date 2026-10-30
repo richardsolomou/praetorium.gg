@@ -6,6 +6,8 @@ import type { DatasheetCharacteristicKind } from './datasheet'
 import type { CombatRule, CombatRuleChoice, CombatRuleEffect } from './combatRules'
 import { compileMortalRule } from './combatMortalRules'
 import { combatKeyword, combatKeywordPhraseMatches } from './combatKeywords'
+import { printedPhrasing } from './combatPhrasing'
+import { combatRuleRoles } from './combatRules'
 
 type Clause = { effects: CombatRuleEffect[]; conditions: string[]; instead?: boolean }
 type Context = {
@@ -181,8 +183,16 @@ function compileRule(rule: CombatRule, enemy = false): { choices: CombatRuleChoi
     const phases = stances[1] ? actionPhases(stances[1]) : rule.phases
     return optionChoices(chunks(sections, 2).map(([name, description]) => [name!.trim(), { ...rule, description: description!, phases }]))
   }
+  if (/^At the start of your Command phase, friendly .+? units with this ability become readied\./i.test(intro)) {
+    // Each readied ability a unit may use is a choice; one that changes no attack, such as a move, is none.
+    const options = named.sections.flatMap((section) => {
+      const effect = /EFFECT:\s*([\s\S]+)$/i.exec(section.description)?.[1]
+      return effect && combatRuleRoles(effect).length ? [[section.name, { ...rule, description: effect }] as const] : []
+    })
+    return options.length ? optionChoices(options) : null
+  }
   const effectSection = ruleSection(rule.description, 'Effect') ?? rule.description
-  let text = normalizeCombatText(effectSection.replaceAll(/(?:^|\n)\s*- /g, ' ■ ')).replace(
+  let text = printedPhrasing(normalizeCombatText(effectSection.replaceAll(/(?:^|\n)\s*- /g, ' ■ '))).replace(
     /^.+? (?:model|unit) only(?: \(excluding [^)]+\))?\.\s*/i,
     '',
   )
@@ -581,8 +591,10 @@ function compileRule(rule: CombatRule, enemy = false): { choices: CombatRuleChoi
       }
       if (qualifier) {
         const target = /^(?:that targets|against) (?:an? |the )?(.+?) (?:unit|model)$/i.exec(qualifier)
+        const excluded = /^that targets an? (?:enemy )?unit (?:that is not an? (.+?)|\(excluding (.+?) units\))$/i.exec(qualifier)
         if (target && !/enemy|closest|below|within|that|this|your|selected/i.test(target[1]!))
           next = { ...next, targetKeywords: target[1]!.split(/ or |,\s*|\//i) }
+        else if (excluded) next = { ...next, excludedTargetKeywords: (excluded[1] ?? excluded[2])!.split(/ or | and |,\s*|\//i) }
         else {
           const checked = condition(qualifier.replace(/^that targets /i, 'Target is '), next)
           if (!checked) return checked === false ? [] : null

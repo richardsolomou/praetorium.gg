@@ -126,7 +126,7 @@ export function registerReferenceTools(server: AgentTools) {
     {
       title: 'List compact faction units for roster planning',
       description:
-        'Returns every pickable unit in one bounded response with unit-size costs, composition, attachment relationships, roster limits, roles, keywords, and links. Include a detachment, including one a chapter takes from its codex, to list only the units it allows and receive its rules, enhancements, upgrades, and stratagems by name, cost, and timing without opening every unit page. Their rules text is at each record’s textSources.',
+        'Returns every pickable unit in one bounded response with unit-size costs, composition, attachment relationships, roster limits, roles, keywords, and links. Include a detachment, including one a chapter takes from its codex, to list only the units it allows and receive its rules, enhancements, upgrades, and stratagems by name, cost, and timing without opening every unit page. Their rules text is at each record’s textSources. A unit’s points is what its smallest size costs in this battle size and detachment, including any wargear or enhancement the detachment makes it take; costs is the Munitorum Field Manual table for every size. Legends and Crucible datasheets are left out unless nonMatchedPlay is true. A large faction such as a Space Marine chapter can exceed what an assistant reads at once, so pass query to list only the units whose name or keywords contain it.',
       inputSchema: {
         faction: z
           .string()
@@ -136,18 +136,31 @@ export function registerReferenceTools(server: AgentTools) {
           .describe('Faction id, URL slug, or display name from list_reference.'),
         battleSize: z.number().int().min(1).max(10_000).optional().describe('Battle size in points for size-dependent limits.'),
         detachment: z.string().trim().min(1).max(REFERENCE_FILTER_MAX_LENGTH).optional().describe('Detachment id, slug, or display name.'),
+        nonMatchedPlay: z
+          .boolean()
+          .default(false)
+          .describe('Also list Legends and Crucible datasheets, which matched play does not allow.'),
+        query: z
+          .string()
+          .trim()
+          .min(1)
+          .max(REFERENCE_FILTER_MAX_LENGTH)
+          .optional()
+          .describe('List only units whose name or keywords contain this text, such as Terminator or Character.'),
       },
       outputSchema: {
         faction: factionSummarySchema,
         battleSize: z.number().int().nullable(),
+        nonMatchedPlay: z.boolean(),
+        query: z.string().nullable(),
         detachment: z.unknown().nullable(),
         units: z.array(unitSummarySchema),
         revisions: revisionsSchema,
       },
       annotations: READ_ONLY_TOOL,
     },
-    async ({ faction, battleSize, detachment }) => {
-      const found = await referenceUnitsFor(faction, battleSize, detachment)
+    async ({ faction, battleSize, detachment, nonMatchedPlay, query }) => {
+      const found = await referenceUnitsFor(faction, { battleSize, detachment, nonMatchedPlay, query })
       if (!found) return unavailable()
       const result = found.units
       if (!result)

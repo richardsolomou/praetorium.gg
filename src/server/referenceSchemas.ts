@@ -87,9 +87,10 @@ export const unitSummarySchema = z.object({
     z.object({
       models: z.string(),
       cost: z.string(),
-      keyword: z.string().nullable(),
-      faction: z.string().nullable(),
-      detachment: z.string().nullable(),
+      keyword: z.string().optional(),
+      faction: z.string().optional(),
+      detachment: z.string().optional(),
+      copies: z.string().optional(),
     }),
   ),
   canLead: z.array(z.string()),

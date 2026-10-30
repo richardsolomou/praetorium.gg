@@ -16,6 +16,7 @@ import { combatUnitKeywords } from '../core/combatUnit'
 import type { RosterPick } from '../core/roster'
 import { encodeSimulatorState } from '../contracts/simulatorState'
 import { joinKey } from '../core/text'
+import { hasTextTokens } from '../shared/sourceText'
 import type { ToolErrorType } from '../contracts/agentTools'
 import { READ_ONLY_TOOL, structured, toolError, type AgentTools } from './agentTools'
 import { app } from './app'
@@ -58,6 +59,13 @@ const sideSchema = z.object({
     .describe(
       'Leaders or support units joined to the unit, from its canBeLedBy and canBeSupportedBy. A unit that joins one of these instead, such as Nork Deddog joining a Cadian Command Squad, goes after it.',
     ),
+  detachment: z
+    .string()
+    .trim()
+    .min(1)
+    .max(160)
+    .optional()
+    .describe('Detachment id, slug, or name from list_units, to field its rules and offer its stratagems; omit it for none.'),
   rules: ruleChoicesSchema
     .optional()
     .describe('Rule choices by rule id from a previous result: 0 turns a rule off and n selects its nth option.'),
@@ -127,8 +135,8 @@ async function sidePicks(corpus: ReferenceCorpus, side: SideInput) {
       throw new CombatRefusal([`The simulator does not offer ${faction.name}.`], 'not_found')
     const [loaded, rules] = await Promise.all([instance.catalogueFor(faction.id), instance.rulesFor(faction.id)])
     if (!loaded) throw new CombatRefusal([REFERENCE_UNAVAILABLE], 'unavailable')
-    // The same units list_units offers, so a chapter fields the codex units its lists can take.
-    const units = factionUnits(loaded, rules, faction)
+    // The units list_units offers with Legends and Crucible included, so a chapter fields the codex units its lists can take.
+    const units = factionUnits(loaded, rules, faction, { nonMatchedPlay: true })
     const sheets = factionDatasheets(corpus, loaded, faction.id, current)
     const wanted = unitName.toLocaleLowerCase()
     const key = joinKey(unitName)
@@ -176,8 +184,8 @@ async function sidePicks(corpus: ReferenceCorpus, side: SideInput) {
 }
 
 /** Each attached unit joins the main unit, or else the first attached unit before it that can take it, as a Loyal Protector joins a Command Squad. */
-function joinedPicks(loaded: LoadedCatalogue, catalogueId: string, picks: readonly RosterPick[]): RosterPick[] {
-  const built = rosterDatasheetSelections(loaded, { catalogueId, detachmentIds: [], picks: [...picks] })
+function joinedPicks(loaded: LoadedCatalogue, catalogueId: string, detachmentIds: string[], picks: readonly RosterPick[]): RosterPick[] {
+  const built = rosterDatasheetSelections(loaded, { catalogueId, detachmentIds, picks: [...picks] })
   const admits = (member: number, host: number) => {
     const definition = loaded.index.definitions.get(picks[member]!.entryId)
     const unit = built.unitSelections.find((candidate) => candidate.pickIndex === member)
@@ -190,16 +198,31 @@ function joinedPicks(loaded: LoadedCatalogue, catalogueId: string, picks: readon
   )
 }
 
+/** The detachment a side names, by id, slug, or name among those its faction's lists can take. */
+function detachmentId(loaded: LoadedCatalogue, catalogueId: string, detachment: string) {
+  const options = loaded.detachments.get(catalogueId)?.options ?? []
+  const key = joinKey(detachment)
+  const found = options.find((option) => option.id === detachment || joinKey(option.name) === key)
+  if (found) return found.id
+  throw new CombatRefusal(
+    [
+      `This faction has no detachment named ${detachment}. Its detachments are: ${options.map((option) => option.name).join(', ') || 'none'}.`,
+    ],
+    'not_found',
+  )
+}
+
 /** One side at full strength, with the rules it brings and the choices an agent can make about them. */
 async function combatant(corpus: ReferenceCorpus, side: SideInput, role: Role) {
   const named = await sidePicks(corpus, side)
   const instance = app()
   const [loaded, rules] = await Promise.all([instance.catalogueFor(named.catalogueId), instance.rulesFor(named.catalogueId)])
   if (!loaded) throw new CombatRefusal([REFERENCE_UNAVAILABLE], 'unavailable')
-  const resolved = { ...named, picks: joinedPicks(loaded, named.catalogueId, named.picks) }
+  const detachmentIds = side.detachment ? [detachmentId(loaded, named.catalogueId, side.detachment)] : []
+  const resolved = { ...named, detachmentIds, picks: joinedPicks(loaded, named.catalogueId, detachmentIds, named.picks) }
   const projection = rosterCombatant(loaded, rules, {
     catalogueId: resolved.catalogueId,
-    detachmentIds: [],
+    detachmentIds,
     picks: resolved.picks,
     pickIndex: 0,
   })
@@ -282,7 +305,9 @@ function ruleSummary(side: Combatant, opponent: Combatant) {
           !rule.included &&
           !rule.appliedDefences?.length &&
           !combatRuleChoices(rule).length &&
-          combatRuleRoles(rule.description).includes(side.role),
+          (combatRuleRoles(rule.description).includes(side.role) ||
+            // The server holds only a token for a card's words, so it cannot tell what such a rule does; a stratagem stays off anyway.
+            (rule.scope !== 'stratagem' && hasTextTokens(rule.description))),
       )
       .map((rule) => ({ id: rule.id, name: rule.name, source: rule.source, scope: rule.scope })),
   }
@@ -367,6 +392,7 @@ function sharedSide({ resolved }: Combatant, rules: SideInput['rules']) {
     catalogueId: resolved.catalogueId,
     pick: host,
     rules: rules ?? {},
+    ...(resolved.detachmentIds.length ? { detachmentIds: resolved.detachmentIds } : {}),
     ...(attached.length
       ? { attached: attached.map(({ attachedTo, ...member }) => (attachedTo ? { ...member, attachedTo } : member)) }
       : {}),
@@ -379,7 +405,7 @@ export function registerCombatTools(tools: AgentTools) {
     {
       title: 'Estimate combat between two units',
       description:
-        "Runs Praetorium's exact combat simulator for one attacking unit, with any attached leaders, against one defending unit at full strength: shooting, melee, and shooting followed by melee. Returns expected models destroyed, expected wounds lost, the chance to destroy the unit, cumulative odds, weapons used, the rule and weapon-mode choices each side can change, datasheet citations, and a simulator link. Passive datasheet rules apply by default; stratagems and conditional rules stay off until chosen. Rules the simulator cannot calculate are never approximated: a phase it cannot estimate has status refused with its reasons, and recognised rules it leaves out are listed under notCalculated, so explain those gaps rather than retrying. Errors are reserved for unknown factions or units, illegal unit sizes or attachments, and unavailable reference data. Like the standalone simulator page, it uses default loadouts and no detachment; unit sizes and attachments must be legal.",
+        "Runs Praetorium's exact combat simulator for one attacking unit, with any attached leaders, against one defending unit at full strength: shooting, melee, and shooting followed by melee. Returns expected models destroyed, expected wounds lost, the chance to destroy the unit, cumulative odds, weapons used, the rule and weapon-mode choices each side can change, datasheet citations, and a simulator link. Passive datasheet rules apply by default; stratagems and conditional rules stay off until chosen. Rules the simulator cannot calculate are never approximated: a phase it cannot estimate has status refused with its reasons, and recognised rules it leaves out are listed under notCalculated, so explain those gaps rather than retrying. Errors are reserved for unknown factions or units, illegal unit sizes or attachments, and unavailable reference data. It uses default loadouts, and a side fields a detachment's rules and offers its stratagems only when its detachment is named; unit sizes and attachments must be legal.",
       inputSchema: simulateCombatInputSchema,
       annotations: READ_ONLY_TOOL,
     },

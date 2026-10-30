@@ -3,7 +3,8 @@ import { AgentTools } from './agentTools'
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js'
 
-const { ownRoster, saveOwnedRoster, submit, userBattleId, screen, createBattle, setRosterVisibility, capture } = vi.hoisted(() => ({
+const { ownRoster, saveOwnedRoster, submit, userBattleId, screen, createBattle, setRosterVisibility, capture, shelf } = vi.hoisted(() => ({
+  shelf: { value: null as LoadedCatalogue | null },
   ownRoster: vi.fn(),
   saveOwnedRoster: vi.fn(),
   submit: vi.fn(),
@@ -14,18 +15,22 @@ const { ownRoster, saveOwnedRoster, submit, userBattleId, screen, createBattle, 
   capture: vi.fn(),
 }))
 vi.mock('./saveOwnedRoster', () => ({ saveOwnedRoster }))
-vi.mock('./publishedTextFiles', () => ({ publishedTextLocations: async () => ({ files: {}, holds: () => false }) }))
+vi.mock('./publishedTextFiles', () => ({
+  publishedTextLocations: async () => ({ files: {}, holds: () => false, recordsHolding: () => [] }),
+}))
 vi.mock('./app', () => ({
   app: () => ({
     service: { submit, userBattleId, screen, createBattle, leagueService: { ownRoster }, rosterService: { setRosterVisibility } },
     telemetry: { capture },
-    catalogueFor: async () => null,
+    catalogueFor: async () => shelf.value,
     rulesFor: async () => null,
     battleReadRulesFor: async () => null,
   }),
 }))
 
 import { registerAccountMcpTools } from './accountMcp'
+import { bookOf, points } from './catalogue.fixtures'
+import type { LoadedCatalogue } from './catalogueIndex'
 
 beforeEach(() => capture.mockReset())
 
@@ -62,6 +67,14 @@ it('reads only the signed-in player’s roster', async () => {
   const response = await call('player-1', 'get_my_roster', { id: 'roster-1' })
   expect(response.result.structuredContent.roster.name).toBe('My army')
   expect(ownRoster).toHaveBeenLastCalledWith('player-1', 'roster-1')
+})
+
+it('names each unit of a saved roster with its points, so an assistant need not resolve catalogue ids', async () => {
+  shelf.value = bookOf({ selectionEntries: [{ id: 'overlord', name: 'Overlord', type: 'model', costs: points(85) }] })
+  ownRoster.mockResolvedValueOnce({ ...roster, id: 'roster-1', name: 'My army', catalogueId: 'cat', picks: [{ entryId: 'overlord' }] })
+  const response = await call('player-1', 'get_my_roster', { id: 'roster-1' })
+  shelf.value = null
+  expect(response.result.structuredContent.summary).toMatchObject({ points: 85, units: [{ name: 'Overlord', points: 85, entry: 1 }] })
 })
 
 it('links a saved roster to its page so the assistant can share it', async () => {

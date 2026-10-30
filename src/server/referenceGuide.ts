@@ -27,7 +27,7 @@ export const PRAETORIUM_GUIDE = {
   ],
   agentWorkflow: [
     'Use list_reference to discover factions, rule documents, mission packs, kinds, and the active snapshot.',
-    'For roster planning, call list_units once with the faction, battle size, and optional detachment to get unit-size costs, composition, attachments, limits, and detachment rules instead of reading every datasheet.',
+    'For roster planning, call list_units once with the faction, battle size, and optional detachment to get unit-size costs, composition, attachments, limits, and detachment rules instead of reading every datasheet; for a large faction such as a Space Marine chapter, narrow it with query. To review a saved list, read get_my_roster’s summary instead of resolving its catalogue ids.',
     'To compare two units in combat, call simulate_combat with unit ids from list_units instead of calculating odds yourself; report refused or notCalculated rules rather than estimating them.',
     'Use search_reference to find a record by name or number, then get_reference or get_reference_record before answering. Fetch the textSources URLs when the answer depends on a rule’s exact wording.',
     'Use faction, pack, and document filters when names or rule numbers are ambiguous.',

@@ -1,6 +1,7 @@
 import type { CanonicalDatasheet, UnitSummary } from '../contracts/catalogue'
 import type { ReferenceDocument } from '../contracts/reference'
 import { routeSlug } from '../core/slug'
+import { publishedFacts } from '../shared/sourceText'
 import { countBy, remember } from '../core/collections'
 import { catalogueEditionId } from '../core/catalogueEdition'
 import { joinKey } from '../core/text'
@@ -59,13 +60,14 @@ export function referenceIndex(corpus: ReferenceCorpus) {
 
 const documentSummary = (document: ReferenceDocument) => ({ id: document.id, title: document.title, url: document.url })
 
+export type ReferenceUnitsQuery = { battleSize?: number; detachment?: string; nonMatchedPlay?: boolean; query?: string }
+
 export function referenceUnits(
   corpus: ReferenceCorpus,
   loaded: LoadedCatalogue,
   rules: LoadedRules | null,
   faction: string,
-  battleSize?: number,
-  detachment?: string,
+  { battleSize, detachment, nonMatchedPlay = false, query }: ReferenceUnitsQuery = {},
   currentCatalogueIds: ReadonlySet<string> = new Set(),
 ) {
   const foundFaction = referenceFaction(corpus, faction)
@@ -74,12 +76,15 @@ export function referenceUnits(
   const selectedDetachment = detachment ? referenceDetachment(corpus, loaded, foundFaction.id, detachment, currentCatalogueIds) : null
   if (detachment && !selectedDetachment) return null
   const detachmentIds = selectedDetachment ? [selectedDetachment.id] : []
-  const units = factionUnits(loaded, rules, foundFaction, { battleSize, detachmentIds }).map((unit) =>
-    unitReference(corpus, unit, sheets.get(unit.id)),
-  )
+  const wanted = query?.trim().toLocaleLowerCase()
+  const units = factionUnits(loaded, rules, foundFaction, { battleSize, detachmentIds, nonMatchedPlay })
+    .map((unit) => unitReference(corpus, unit, sheets.get(unit.id)))
+    .filter((unit) => !wanted || [unit.name, ...unit.keywords].some((value) => value.toLocaleLowerCase().includes(wanted)))
   return {
     faction: foundFaction,
     battleSize: battleSize ?? null,
+    nonMatchedPlay,
+    query: wanted || null,
     detachment: selectedDetachment,
     units,
     revisions: corpus.catalogue.revisions,
@@ -91,12 +96,12 @@ export function factionUnits(
   loaded: LoadedCatalogue,
   rules: LoadedRules | null,
   faction: ReferenceFaction,
-  options: { battleSize?: number; detachmentIds?: readonly string[] } = {},
+  options: { battleSize?: number; detachmentIds?: readonly string[]; nonMatchedPlay?: boolean } = {},
 ) {
   const book = loaded.factions.find((entry) => entry.id === faction.id)
   const displayName = book ? factionDisplayName(book.name, rules?.factionNames) : faction.name
   const restrictions = rules?.factionRestrictions.get(routeSlug(displayName))
-  return unitsIn(loaded, faction.id, '', { restrictions, ...options, nonMatchedPlay: true })
+  return unitsIn(loaded, faction.id, '', { restrictions, ...options })
 }
 
 /** The names of the detachments a faction's lists can take, including any its codex holds. */
@@ -206,8 +211,15 @@ function unitReference(corpus: ReferenceCorpus, unit: UnitSummary, sheet: Canoni
   return {
     ...unit,
     keywords: sheet?.keywords ?? [],
-    composition: sheet?.composition ?? [],
-    costs: sheet?.costs ?? [],
+    // Composition is often withheld rules text, which would publish as empty strings.
+    composition: (sheet?.composition ?? []).map(publishedFacts).filter(Boolean),
+    // Most costs apply to any list, so a condition is named only where one applies.
+    costs: (sheet?.costs ?? []).map(({ keyword, faction, detachment, ...cost }) => ({
+      ...cost,
+      ...(keyword ? { keyword } : {}),
+      ...(faction ? { faction } : {}),
+      ...(detachment ? { detachment } : {}),
+    })),
     canLead: sheet?.attachments.filter((relationship) => relationship.kind === 'leader').map((relationship) => relationship.name) ?? [],
     canSupport: sheet?.attachments.filter((relationship) => relationship.kind === 'support').map((relationship) => relationship.name) ?? [],
     canBeLedBy: sheet?.leaders.map((relationship) => relationship.name) ?? [],

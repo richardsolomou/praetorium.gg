@@ -2,8 +2,12 @@ import { beforeEach, expect, it, vi } from 'vitest'
 
 const { user, ownRoster } = vi.hoisted(() => ({ user: vi.fn(), ownRoster: vi.fn() }))
 vi.mock('./playerSession', () => ({ currentUser: user }))
-vi.mock('./publishedTextFiles', () => ({ publishedTextLocations: async () => ({ files: {}, holds: () => false }) }))
-vi.mock('./app', () => ({ app: () => ({ service: { leagueService: { ownRoster } } }) }))
+vi.mock('./publishedTextFiles', () => ({
+  publishedTextLocations: async () => ({ files: {}, holds: () => false, recordsHolding: () => [] }),
+}))
+vi.mock('./app', () => ({
+  app: () => ({ service: { leagueService: { ownRoster } }, catalogueFor: async () => null, rulesFor: async () => null }),
+}))
 vi.mock('./referenceApi', () => ({ activeReferenceCorpus: async () => null, referenceDocumentFor: async () => null }))
 
 import { browserAgentDescriptors, executeBrowserAgentTool, prepareBrowserAgentWrite } from './browserAgentTools'

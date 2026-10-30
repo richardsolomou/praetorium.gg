@@ -17,6 +17,16 @@ const sizes = (min: number, max: number) => [
 ]
 const loaded = shelfOf(
   {
+    sharedSelectionEntries: [
+      {
+        id: 'detachment-wrapper',
+        name: 'Detachment',
+        type: 'upgrade',
+        selectionEntryGroups: [
+          { id: 'detachments', name: 'Detachment', selectionEntries: [{ id: 'vanguard', name: 'Vanguard Spearhead', type: 'upgrade' }] },
+        ],
+      },
+    ],
     selectionEntries: [
       {
         id: 'squad',
@@ -241,6 +251,22 @@ it('links to the simulator page with the same matchup', async () => {
       { catalogueId: 'cat', pick: { entryId: 'beast' } },
     ],
     matchup: { adjustments: { all: { cover: true } } },
+  })
+})
+
+it("links a side's detachment so the simulator page fields the same rules", async () => {
+  const result = await simulateCombat({ attacker: { ...squad, detachment: 'vanguard-spearhead' }, defender: beast })
+  const url = (result.structuredContent as { simulatorUrl: string }).simulatorUrl
+  expect(decodeSimulatorState(new URL(url, 'https://praetorium.gg').searchParams.get('s') ?? undefined)?.sides[0]).toMatchObject({
+    detachmentIds: ['vanguard'],
+  })
+})
+
+it('refuses a detachment the faction cannot take, naming those it can', async () => {
+  const result = await simulateCombat({ attacker: { ...squad, detachment: 'Gladius' }, defender: beast })
+  expect(result).toMatchObject({
+    isError: true,
+    structuredContent: { refused: ['This faction has no detachment named Gladius. Its detachments are: Vanguard Spearhead.'] },
   })
 })
 

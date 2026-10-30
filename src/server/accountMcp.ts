@@ -1,8 +1,12 @@
+import { rosterProblems } from '../core/rosterLegality'
+import { calculateRosterPrice, savedRosterPriceInput } from '../shared/pricing'
+import { pricedDispositionNames, readableRoster } from '../shared/rosterFiles'
 import { READ_ONLY_TOOL, responseToolError, structured, type AgentTools } from './agentTools'
 import { app } from './app'
 import { submitBattleCommand } from './battleSubmission'
 import { agentWrites } from './mutationTelemetry'
 import { productActions } from './productActions'
+import type { rosterFromRow } from './rosterPersistence'
 import { rosterActions } from './rosterActions'
 import { BATTLES_PAGE } from './service'
 import {
@@ -38,6 +42,29 @@ async function resultOf(work: () => Promise<Record<string, unknown>>) {
   }
 }
 
+/** A saved list as the readable export names it, so an agent never has to resolve catalogue ids itself. */
+async function rosterSummary(roster: ReturnType<typeof rosterFromRow>) {
+  const instance = app()
+  const [loaded, rules] = await Promise.all([instance.catalogueFor(roster.catalogueId), instance.rulesFor(roster.catalogueId)])
+  if (!loaded) return null
+  const input = savedRosterPriceInput(roster)
+  const priced = calculateRosterPrice(input, loaded, rules)
+  if (!priced) return null
+  const missing = roster.picks.length - priced.units.length
+  return {
+    ...readableRoster(
+      { ...input, name: roster.name, pointsBudget: roster.pointsBudget },
+      loaded,
+      { ...priced, disposition: priced.disposition ?? null },
+      pricedDispositionNames(priced, rules),
+    ),
+    problems: [
+      ...rosterProblems(priced, roster).map((problem) => problem.message),
+      ...(missing > 0 ? [`${missing} saved ${missing === 1 ? 'unit is' : 'units are'} missing from the current army data`] : []),
+    ],
+  }
+}
+
 export function registerAccountMcpTools(server: AgentTools, userId: string | null) {
   const owner = () => {
     if (!userId) throw new Response('Sign in to use this tool.', { status: 401 })
@@ -59,7 +86,7 @@ export function registerAccountMcpTools(server: AgentTools, userId: string | nul
     {
       title: 'Read my saved roster',
       description:
-        'Returns the saved choices for one roster owned by the signed-in player, by an id from list_my_rosters. Requires mcp:read.',
+        'Returns one roster owned by the signed-in player, by an id from list_my_rosters. summary names each unit with its points, models, wargear, enhancements, Warlord and attachments, and gives the total and any problems that stop the list being fielded; it is null while army data is unavailable. roster holds the saved choices by catalogue id, the shape save_roster takes. Requires mcp:read.',
       inputSchema: rosterIdSchema.shape,
       annotations: READ_ONLY_TOOL,
     },
@@ -67,7 +94,7 @@ export function registerAccountMcpTools(server: AgentTools, userId: string | nul
       resultOf(async () => {
         const roster = await app().service.leagueService.ownRoster(owner(), id)
         if (!roster) throw new Response('You have no saved roster with this id. Use an id from list_my_rosters.', { status: 404 })
-        return { roster }
+        return { summary: await rosterSummary(roster), roster }
       }),
   )
   server.registerTool(

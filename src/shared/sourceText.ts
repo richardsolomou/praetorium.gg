@@ -69,9 +69,20 @@ export const withoutText = (text: string) =>
     () => '',
   ).trim()
 
+/**
+ * The text with every token removed, for agents and reference pages that cannot load the words:
+ * headings and labels such as `**When:**` that only framed them say nothing alone, so they go too.
+ */
+export function publishedFacts(text: string) {
+  const facts = withoutText(text)
+  return hasTextTokens(text) && facts.split('\n').every((line) => FRAME_LINE.test(line)) ? '' : facts
+}
+
+const FRAME_LINE = /^\s*(?:#{1,6}\s.*|\*{1,3}[^*\n]+(?::\*{1,3}|\*{1,3}:))?\s*$/
+
 /** A value with every token removed from every string in it, for answers that go to agents and other programs. */
 export function withoutTexts<T>(value: T): T {
-  if (typeof value === 'string') return (hasTextTokens(value) ? withoutText(value) : value) as T
+  if (typeof value === 'string') return (hasTextTokens(value) ? publishedFacts(value) : value) as T
   if (Array.isArray(value)) return value.map(withoutTexts) as T
   if (value && typeof value === 'object' && Object.getPrototypeOf(value) === Object.prototype)
     return Object.fromEntries(Object.entries(value).map(([key, entry]) => [key, withoutTexts(entry)])) as T
@@ -84,22 +95,30 @@ export function withoutTexts<T>(value: T): T {
  */
 export type TextPointer = { source: TextSource; url: string; id?: string }
 
-/** Where every file a token names lives upstream, and whether one of those files holds a record by its id. */
+/**
+ * Where every file a token names lives upstream, whether one of those files holds a record by its
+ * id, and which record in it holds the string a token names.
+ */
 export type TextLocations = {
   files: Readonly<Record<string, TextSourceFile>>
   holds: (url: string, id: string) => boolean
+  recordsHolding: (url: string, hash: string) => readonly string[]
 }
 
 /**
- * The upstream files the tokens in these texts name, once each, located by `id` in each file
- * that holds a record by it; a text drawn from a shared rule elsewhere is pointed at by file alone.
+ * The upstream files the tokens in these texts name, once each, located by the record in each file
+ * that holds the text, `id` first when several do, or else by `id` where the file holds a record
+ * by it; a text drawn from a shared rule elsewhere is pointed at by file alone.
  */
 export function textPointersIn(texts: readonly (string | null | undefined)[], locations: TextLocations, id?: string): TextPointer[] {
   const pointers = new Map<string, TextPointer>()
   for (const text of texts)
-    for (const { file } of text ? textTokensIn(text) : []) {
+    for (const { file, hash } of text ? textTokensIn(text) : []) {
       const found = locations.files[file]
-      if (found && !pointers.has(found.url)) pointers.set(found.url, { ...found, ...(id && locations.holds(found.url, id) ? { id } : {}) })
+      if (!found || pointers.has(found.url)) continue
+      const holding = locations.recordsHolding(found.url, hash)
+      const record = id && holding.includes(id) ? id : (holding[0] ?? (id && locations.holds(found.url, id) ? id : undefined))
+      pointers.set(found.url, { ...found, ...(record ? { id: record } : {}) })
     }
   return [...pointers.values()]
 }

@@ -29,7 +29,7 @@ export type ReferenceCorpus = {
   revision: string
 }
 
-const NO_LOCATIONS: TextLocations = { files: {}, holds: () => false }
+const NO_LOCATIONS: TextLocations = { files: {}, holds: () => false, recordsHolding: () => [] }
 type CachedCorpus = {
   catalogue: LoadedCatalogue | null
   rules: LoadedRules | null

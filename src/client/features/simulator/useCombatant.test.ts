@@ -161,6 +161,10 @@ describe('a link with a unit joined to an attached unit', () => {
   })
 })
 
+it("fields a shared link's detachment and shares it again", () => {
+  expect(render({ ...initial, detachmentIds: ['vanguard'] }).shared?.detachmentIds).toEqual(['vanguard'])
+})
+
 it('retains version-one preferences while the selected sheets are loading', () => {
   hooks.loading = true
   const waiting = render()
