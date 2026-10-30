@@ -8,7 +8,7 @@ import { configuredAuthProviders } from './authProviders'
  */
 export async function unlinkSignInMethod(userId: string, provider: 'credential' | SocialAuthProvider) {
   const instance = app()
-  const result = await instance.service.unlinkAccount(userId, provider, ['credential', ...configuredAuthProviders()])
+  const result = await instance.repository.unlinkAccount(userId, provider, ['credential', ...configuredAuthProviders()])
   if (result.status === 'removed' && provider === 'apple') await instance.auth.revokeAppleTokens(result.account)
   return result.status
 }

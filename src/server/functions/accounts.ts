@@ -1,4 +1,4 @@
-import { productActions } from '../productActions'
+import { productActions, signedInAction } from '../productActions'
 import { groupCollection } from '../../core/collection'
 import { createServerFn } from '@tanstack/react-start'
 import { getRequest, getRequestHeaders } from '@tanstack/react-start/server'
@@ -41,31 +41,21 @@ import {
 export const me = createServerFn({ method: 'GET' }).handler(() => rpc(() => currentUser()))
 
 export const onboardingProgress = createServerFn({ method: 'GET' }).handler(() =>
-  rpc(async () => app().service.onboardingProgress(await requireUserId())),
+  rpc(async () => app().repository.onboardingProgress(await requireUserId())),
 )
 
 export const updateOnboardingProgress = createServerFn({ method: 'POST' })
   .validator(onboardingUpdateSchema)
-  .handler(({ data }) =>
-    mutationRpc(async () => {
-      const userId = await requireUserId()
-      return productActions.updateOnboardingProgress(userId, data)
-    }),
-  )
+  .handler(({ data }) => signedInAction(productActions.updateOnboardingProgress, data))
 
 /** What this player's new rosters and battles start with. */
 export const playerDefaults = createServerFn({ method: 'GET' }).handler(() =>
-  rpc(async () => app().service.playerDefaults(await requireUserId())),
+  rpc(async () => app().repository.playerDefaults(await requireUserId())),
 )
 
 export const setPlayerDefaults = createServerFn({ method: 'POST' })
   .validator(playerDefaultsSchema)
-  .handler(({ data }) =>
-    mutationRpc(async () => {
-      const userId = await requireUserId()
-      return productActions.setPlayerDefaults(userId, data)
-    }),
-  )
+  .handler(({ data }) => signedInAction(productActions.setPlayerDefaults, data))
 
 export const accountMethods = createServerFn({ method: 'GET' }).handler(() =>
   rpc(async () => {
@@ -90,7 +80,7 @@ export const githubSponsorship = createServerFn({ method: 'GET' }).handler(() =>
     const instance = app()
     const [linked, sponsorship] = await Promise.all([
       instance.auth.api.listUserAccounts({ headers: getRequestHeaders() }),
-      instance.service.githubSponsorship(userId),
+      instance.repository.githubSponsorship(userId),
     ])
     return {
       available: githubLinkConfigured() && instance.githubSponsors.configured,
@@ -110,7 +100,7 @@ export const checkGithubSponsorship = createServerFn({ method: 'POST' }).handler
       reportServerFailure({ event: 'github_sponsor_refresh_failed', error })
       throw new Response('GitHub could not be reached', { status: 502 })
     }
-    const sponsorship = await instance.service.githubSponsorship(userId)
+    const sponsorship = await instance.repository.githubSponsorship(userId)
     await instance.telemetry.capture(userId, 'github_sponsorship_checked', { sponsorship: sponsorship ?? 'none' })
     return sponsorship
   }),
@@ -168,28 +158,13 @@ export const friendInvite = createServerFn({ method: 'GET' })
   .validator(friendInviteSchema)
   .handler(({ data }) => rpc(() => app().service.socialService.friendInvite(data.token)))
 
-export const createFriendInvite = createServerFn({ method: 'POST' }).handler(() =>
-  mutationRpc(async () => {
-    const userId = await requireUserId()
-    return productActions.createFriendInvite(userId, {})
-  }),
-)
+export const createFriendInvite = createServerFn({ method: 'POST' }).handler(() => signedInAction(productActions.createFriendInvite, {}))
 
-export const cancelFriendInvite = createServerFn({ method: 'POST' }).handler(() =>
-  mutationRpc(async () => {
-    const userId = await requireUserId()
-    return productActions.cancelFriendInvite(userId, {})
-  }),
-)
+export const cancelFriendInvite = createServerFn({ method: 'POST' }).handler(() => signedInAction(productActions.cancelFriendInvite, {}))
 
 export const acceptFriendInvite = createServerFn({ method: 'POST' })
   .validator(friendInviteSchema)
-  .handler(({ data }) =>
-    mutationRpc(async () => {
-      const userId = await requireUserId()
-      return productActions.acceptFriendInvite(userId, data)
-    }),
-  )
+  .handler(({ data }) => signedInAction(productActions.acceptFriendInvite, data))
 
 /** The players a name could mean, for someone with a friend to add. */
 export const searchPlayers = createServerFn({ method: 'GET' })
@@ -198,39 +173,19 @@ export const searchPlayers = createServerFn({ method: 'GET' })
 
 export const requestFriend = createServerFn({ method: 'POST' })
   .validator(friendSchema)
-  .handler(({ data }) =>
-    mutationRpc(async () => {
-      const userId = await requireUserId()
-      return productActions.requestFriend(userId, data)
-    }),
-  )
+  .handler(({ data }) => signedInAction(productActions.requestFriend, data))
 
 export const acceptFriend = createServerFn({ method: 'POST' })
   .validator(friendSchema)
-  .handler(({ data }) =>
-    mutationRpc(async () => {
-      const userId = await requireUserId()
-      return productActions.acceptFriend(userId, data)
-    }),
-  )
+  .handler(({ data }) => signedInAction(productActions.acceptFriend, data))
 
 export const rejectFriend = createServerFn({ method: 'POST' })
   .validator(friendSchema)
-  .handler(({ data }) =>
-    mutationRpc(async () => {
-      const userId = await requireUserId()
-      return productActions.rejectFriend(userId, data)
-    }),
-  )
+  .handler(({ data }) => signedInAction(productActions.rejectFriend, data))
 
 export const removeFriend = createServerFn({ method: 'POST' })
   .validator(friendSchema)
-  .handler(({ data }) =>
-    mutationRpc(async () => {
-      const userId = await requireUserId()
-      return productActions.removeFriend(userId, data)
-    }),
-  )
+  .handler(({ data }) => signedInAction(productActions.removeFriend, data))
 
 export const collection = createServerFn({ method: 'GET' }).handler(() =>
   rpc(() => forSignedIn([], (id) => app().service.rosterService.collection(id))),
@@ -238,12 +193,7 @@ export const collection = createServerFn({ method: 'GET' }).handler(() =>
 
 export const setOwned = createServerFn({ method: 'POST' })
   .validator(ownedSchema)
-  .handler(({ data }) =>
-    mutationRpc(async () => {
-      const userId = await requireUserId()
-      return productActions.setOwned(userId, data)
-    }),
-  )
+  .handler(({ data }) => signedInAction(productActions.setOwned, data))
 
 export const collectionCounts = createServerFn({ method: 'GET' }).handler(() =>
   rpc(() => forSignedIn({}, (id) => app().service.rosterService.collectionCounts(id))),
@@ -255,12 +205,7 @@ export const fieldedDatasheets = createServerFn({ method: 'GET' }).handler(() =>
 
 export const setCollectionModels = createServerFn({ method: 'POST' })
   .validator(collectionModelsSchema)
-  .handler(({ data }) =>
-    mutationRpc(async () => {
-      const userId = await requireUserId()
-      return productActions.setCollectionModels(userId, data)
-    }),
-  )
+  .handler(({ data }) => signedInAction(productActions.setCollectionModels, data))
 
 export const collectionProgress = createServerFn({ method: 'GET' }).handler(() =>
   rpc(() => forSignedIn({}, (id) => app().service.rosterService.collectionProgress(id))),
@@ -268,12 +213,7 @@ export const collectionProgress = createServerFn({ method: 'GET' }).handler(() =
 
 export const setCollectionProgress = createServerFn({ method: 'POST' })
   .validator(collectionProgressSchema)
-  .handler(({ data }) =>
-    mutationRpc(async () => {
-      const userId = await requireUserId()
-      return productActions.setCollectionProgress(userId, data)
-    }),
-  )
+  .handler(({ data }) => signedInAction(productActions.setCollectionProgress, data))
 
 export const collectionCountsAs = createServerFn({ method: 'GET' }).handler(() =>
   rpc(() => forSignedIn({}, (id) => app().service.rosterService.collectionCountsAs(id))),
@@ -281,12 +221,7 @@ export const collectionCountsAs = createServerFn({ method: 'GET' }).handler(() =
 
 export const setCollectionCountsAs = createServerFn({ method: 'POST' })
   .validator(collectionCountsAsSchema)
-  .handler(({ data }) =>
-    mutationRpc(async () => {
-      const userId = await requireUserId()
-      return productActions.setCollectionCountsAs(userId, data)
-    }),
-  )
+  .handler(({ data }) => signedInAction(productActions.setCollectionCountsAs, data))
 
 export const collectionWishes = createServerFn({ method: 'GET' }).handler(() =>
   rpc(() => forSignedIn({}, (id) => app().service.rosterService.collectionWishes(id))),
@@ -294,12 +229,7 @@ export const collectionWishes = createServerFn({ method: 'GET' }).handler(() =>
 
 export const setCollectionWanted = createServerFn({ method: 'POST' })
   .validator(collectionWantedSchema)
-  .handler(({ data }) =>
-    mutationRpc(async () => {
-      const userId = await requireUserId()
-      return productActions.setCollectionWanted(userId, data)
-    }),
-  )
+  .handler(({ data }) => signedInAction(productActions.setCollectionWanted, data))
 
 export const importCollection = createServerFn({ method: 'POST' })
   .validator(collectionImportSchema)
@@ -381,7 +311,7 @@ export const reportCollectionPhoto = createServerFn({ method: 'POST' })
       const delivery = app().email
       if (delivery && process.env.APP_URL) {
         const email = collectionPhotoReportEmail({ ...data, ownerId: photo.userId }, reporter, process.env.APP_URL)
-        const recipients = await app().service.adminEmails()
+        const recipients = await app().repository.adminEmails()
         await Promise.all(recipients.map((to) => delivery.send({ to, ...email })))
       }
       await captureMutation(reporter.id, 'collection_photo_reported')
@@ -395,12 +325,7 @@ export const favouriteFactions = createServerFn({ method: 'GET' }).handler(() =>
 
 export const setFavouriteFaction = createServerFn({ method: 'POST' })
   .validator(favouriteFactionSchema)
-  .handler(({ data }) =>
-    mutationRpc(async () => {
-      const userId = await requireUserId()
-      return productActions.setFavouriteFaction(userId, data)
-    }),
-  )
+  .handler(({ data }) => signedInAction(productActions.setFavouriteFaction, data))
 
 export const favouriteDatasheets = createServerFn({ method: 'GET' }).handler(() =>
   rpc(() => forSignedIn([], (id) => app().service.rosterService.favouriteDatasheets(id))),
@@ -408,12 +333,7 @@ export const favouriteDatasheets = createServerFn({ method: 'GET' }).handler(() 
 
 export const setFavouriteDatasheet = createServerFn({ method: 'POST' })
   .validator(favouriteDatasheetSchema)
-  .handler(({ data }) =>
-    mutationRpc(async () => {
-      const userId = await requireUserId()
-      return productActions.setFavouriteDatasheet(userId, data)
-    }),
-  )
+  .handler(({ data }) => signedInAction(productActions.setFavouriteDatasheet, data))
 
 export const favouriteDetachments = createServerFn({ method: 'GET' }).handler(() =>
   rpc(() => forSignedIn([], (id) => app().service.rosterService.favouriteDetachments(id))),
@@ -421,12 +341,7 @@ export const favouriteDetachments = createServerFn({ method: 'GET' }).handler(()
 
 export const setFavouriteDetachment = createServerFn({ method: 'POST' })
   .validator(favouriteDetachmentSchema)
-  .handler(({ data }) =>
-    mutationRpc(async () => {
-      const userId = await requireUserId()
-      return productActions.setFavouriteDetachment(userId, data)
-    }),
-  )
+  .handler(({ data }) => signedInAction(productActions.setFavouriteDetachment, data))
 
 export const signInOptions = createServerFn({ method: 'GET' }).handler(() =>
   rpc(() => ({ providers: configuredAuthProviders(), passwordReset: Boolean(app().email) })),
@@ -436,7 +351,7 @@ export const collectionProfile = createServerFn({ method: 'GET' })
   .validator(userSchema)
   .handler(({ data }) =>
     rpc(async () => {
-      const profileCollection = await app().service.collectionProfile(data.userId, await currentUserId())
+      const profileCollection = await app().repository.collectionProfile(data.userId, await currentUserId())
       if (!profileCollection) return null
       const factions = await app().combatUnitsFor()
       return {

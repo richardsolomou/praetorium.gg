@@ -31,7 +31,7 @@ export const emailFeedback = createServerFn({ method: 'POST' })
       if (limited) throw limited
       const delivery = app().email
       if (!delivery) return null
-      const [sender, recipients] = await Promise.all([currentUser(), app().service.adminEmails()])
+      const [sender, recipients] = await Promise.all([currentUser(), app().repository.adminEmails()])
       const email = feedbackEmail(data, sender)
       await Promise.all(recipients.map((to) => delivery.send({ to, ...email })))
       return null

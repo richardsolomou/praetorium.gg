@@ -42,7 +42,7 @@ export async function copySavedRoster(userId: string, id: string, variant: boole
   const access = await instance.service.rosterService.rosterAccess(id, userId)
   if (!access || (variant && !access.editable)) return null
   const { roster } = access
-  const { rosterVisibility } = await instance.service.playerDefaults(userId)
+  const { rosterVisibility } = await instance.repository.playerDefaults(userId)
   const data: z.infer<typeof saveRosterSchema> = {
     name: variant
       ? await variantNameFor(userId, roster)

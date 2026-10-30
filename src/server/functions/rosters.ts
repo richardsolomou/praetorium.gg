@@ -416,7 +416,7 @@ export const copyPlayedArmy = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const userId = await requireUserId()
       const instance = app()
-      const { rosterVisibility } = await instance.service.playerDefaults(userId)
+      const { rosterVisibility } = await instance.repository.playerDefaults(userId)
       const roster = { ...(await playedArmyCopy(data)), visibility: rosterVisibility }
       const saved = await saveOwnedRoster(userId, roster)
       await captureRosterCreated(instance, userId, roster, { played: true })

@@ -75,7 +75,9 @@ beforeEach(async () => {
       registerPushDevice: async (userId: string, device: typeof DEVICE) => {
         devices.set(device.token, userId)
       },
-      unregisterPushDevice: async (userId: string, token: string) => {
+    },
+    repository: {
+      unregisterPushToken: async (userId: string, token: string) => {
         if (devices.get(token) === userId) devices.delete(token)
       },
     },

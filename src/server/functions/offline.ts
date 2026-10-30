@@ -90,7 +90,7 @@ export const syncRoster = createServerFn({ method: 'POST' })
         name: data.roster.name || totals?.label || '',
         now: Date.now(),
       }
-      const result = await instance.service.syncRoster({
+      const result = await instance.repository.syncRoster({
         row: JSON.stringify(row),
         operationId: data.operationId,
         expectedVersion: data.expectedVersion,
@@ -124,13 +124,13 @@ export const syncAction = createServerFn({ method: 'POST' })
       const player = await requireOwner(data.owner)
       const fingerprint = hash('sha256', JSON.stringify({ kind: data.kind, input: data.input, identifiers: data.identifiers }))
       try {
-        let saved = await app().service.syncReceipt(data.operationId, player.id, fingerprint)
+        let saved = await app().repository.syncReceipt(data.operationId, player.id, fingerprint)
         if (!saved) {
           await offlineContext.run(
             { id: data.operationId, owner: player.id, fingerprint, createdAt: data.createdAt, identifiers: data.identifiers, wrote: false },
             () => offlineActions[data.kind](player.id, data.input),
           )
-          saved = await app().service.syncReceipt(data.operationId, player.id, fingerprint)
+          saved = await app().repository.syncReceipt(data.operationId, player.id, fingerprint)
         }
         if (!saved) throw new Error('The saved action did not commit a receipt.')
         if (saved.outcome === 'refused') return unsynced(player.id, data.kind, saved, 'database')
@@ -225,7 +225,7 @@ export const syncBattleCommand = createServerFn({ method: 'POST' })
                   rosterRules,
                   draft,
                   priced.units,
-                  await instance.service.abilityReminders(player.id),
+                  await instance.repository.abilityRemindersByUser(player.id),
                 ),
                 remindersEnabled: draft.prep?.remindersEnabled,
               },

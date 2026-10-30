@@ -51,6 +51,7 @@ type App = {
   hotReloadToken?: object
   health: () => Promise<void>
   service: PraetoriumService
+  repository: SpacetimeRepository
   collectionPhotos: CollectionPhotoStore
   /** Scores uploads for review without acting on them; null without `TYPESAFE_API_KEY`. */
   photoScreening: PhotoScreening | null
@@ -386,6 +387,7 @@ export function app(): App {
           throw error
         }
       },
+      repository,
       service: new PraetoriumService(repository, Date.now, randomInt, push ? pushNotifier(repository, push) : silentNotifier, () =>
         instance.battleFactionsFor(),
       ),

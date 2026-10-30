@@ -20,7 +20,12 @@ vi.mock('@tanstack/react-start', () => {
 vi.mock('../rpc', () => ({ rpc: (work: () => unknown) => work(), mutationRpc: (work: () => unknown) => work() }))
 vi.mock('../playerSession', () => ({ requireUser: async () => mocks.player }))
 vi.mock('../app', () => ({
-  app: () => ({ service: { ...mocks, leagueService: mocks }, telemetry: { capture: mocks.capture }, rulesFor: async () => null }),
+  app: () => ({
+    service: { ...mocks, leagueService: mocks },
+    repository: mocks,
+    telemetry: { capture: mocks.capture },
+    rulesFor: async () => null,
+  }),
 }))
 
 const cases = [

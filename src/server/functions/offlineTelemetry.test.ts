@@ -11,7 +11,13 @@ vi.mock('@tanstack/react-start', () => {
 vi.mock('../rpc', () => ({ rpc: (work: () => unknown) => work(), mutationRpc: (work: () => unknown) => work() }))
 vi.mock('../playerSession', () => ({ requireUser: async () => mocks.player }))
 vi.mock('../app', () => ({
-  app: () => ({ service: mocks, telemetry: { capture: mocks.capture }, catalogueFor: async () => null, rulesFor: async () => null }),
+  app: () => ({
+    service: mocks,
+    repository: mocks,
+    telemetry: { capture: mocks.capture },
+    catalogueFor: async () => null,
+    rulesFor: async () => null,
+  }),
 }))
 
 const input = () => ({

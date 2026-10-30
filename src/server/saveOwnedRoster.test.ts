@@ -27,8 +27,8 @@ let saveRoster: ReturnType<typeof vi.fn>
 function library(rosters: (typeof base)[], editable = true) {
   saveRoster = vi.fn().mockResolvedValue({ id: 'copy', created: true, updatedAt: 1 })
   vi.mocked(app).mockReturnValue({
+    repository: { playerDefaults: vi.fn().mockResolvedValue({ rosterVisibility: 'private', battleSize: 2_000 }) },
     service: {
-      playerDefaults: vi.fn().mockResolvedValue({ rosterVisibility: 'private', battleSize: 2_000 }),
       rosterService: {
         rosterAccess: vi.fn(async (id: string) => {
           const roster = rosters.find((candidate) => candidate.id === id)

@@ -21,7 +21,7 @@ export async function rosterForUse(userId: string, rosterId: string, options: { 
   }
   const { roster: saved, lentBy } = usable
   // The player fielding a list brings their own alerts, a borrowed list included.
-  const settings = options.sealing ? [] : await app().service.abilityReminders(userId)
+  const settings = options.sealing ? [] : await app().repository.abilityRemindersByUser(userId)
   return { saved, snapshot: { ...(await frozenRoster(saved, settings)), ...(lentBy ? { lentBy } : {}) } }
 }
 
@@ -53,7 +53,7 @@ export async function withCurrentAlerts(roster: Roster, userId: string): Promise
   const { reminders: _sealed, ...list } = roster
   const built = roster.built
   if (!built?.picks) return list
-  const settings = await app().service.abilityReminders(userId)
+  const settings = await app().repository.abilityRemindersByUser(userId)
   if (!settings.length) return list
   const catalogueId = migratedEditionId(built.catalogueId)
   const [catalogue, rules] = await Promise.all([app().catalogueFor(catalogueId), app().rulesFor(catalogueId)])

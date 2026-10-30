@@ -1,4 +1,4 @@
-import { productActions } from '../productActions'
+import { productActions, signedInAction } from '../productActions'
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
 import { app } from '../app'
@@ -90,12 +90,7 @@ export const leagueResults = createServerFn({ method: 'GET' })
 
 export const createLeague = createServerFn({ method: 'POST' })
   .validator(createLeagueSchema)
-  .handler(({ data }) =>
-    mutationRpc(async () => {
-      const userId = await requireUserId()
-      return productActions.createLeague(userId, data)
-    }),
-  )
+  .handler(({ data }) => signedInAction(productActions.createLeague, data))
 
 export const createClubGame = createServerFn({ method: 'POST' })
   .validator(createClubGameSchema)
@@ -113,75 +108,35 @@ export const createClubGame = createServerFn({ method: 'POST' })
 
 export const joinLeague = createServerFn({ method: 'POST' })
   .validator(leagueEventSchema)
-  .handler(({ data }) =>
-    mutationRpc(async () => {
-      const userId = await requireUserId()
-      return productActions.joinLeague(userId, data)
-    }),
-  )
+  .handler(({ data }) => signedInAction(productActions.joinLeague, data))
 
 export const addLeagueEntrants = createServerFn({ method: 'POST' })
   .validator(addLeagueEntrantsSchema)
-  .handler(({ data }) =>
-    mutationRpc(async () => {
-      const userId = await requireUserId()
-      return productActions.addLeagueEntrants(userId, data)
-    }),
-  )
+  .handler(({ data }) => signedInAction(productActions.addLeagueEntrants, data))
 
 export const admitLeagueEntries = createServerFn({ method: 'POST' })
   .validator(admitLeagueEntriesSchema)
-  .handler(({ data }) =>
-    mutationRpc(async () => {
-      const userId = await requireUserId()
-      return productActions.admitLeagueEntries(userId, data)
-    }),
-  )
+  .handler(({ data }) => signedInAction(productActions.admitLeagueEntries, data))
 
 export const moderateLeagueEntry = createServerFn({ method: 'POST' })
   .validator(moderateLeagueEntrySchema)
-  .handler(({ data }) =>
-    mutationRpc(async () => {
-      const userId = await requireUserId()
-      return productActions.moderateLeagueEntry(userId, data)
-    }),
-  )
+  .handler(({ data }) => signedInAction(productActions.moderateLeagueEntry, data))
 
 export const submitLeagueRoster = createServerFn({ method: 'POST' })
   .validator(submitLeagueRosterSchema)
-  .handler(({ data }) =>
-    mutationRpc(async () => {
-      const userId = await requireUserId()
-      return productActions.submitLeagueRoster(userId, data)
-    }),
-  )
+  .handler(({ data }) => signedInAction(productActions.submitLeagueRoster, data))
 
 export const setLeagueTeamDisposition = createServerFn({ method: 'POST' })
   .validator(setLeagueTeamDispositionSchema)
-  .handler(({ data }) =>
-    mutationRpc(async () => {
-      const userId = await requireUserId()
-      return productActions.setLeagueTeamDisposition(userId, data)
-    }),
-  )
+  .handler(({ data }) => signedInAction(productActions.setLeagueTeamDisposition, data))
 
 export const setLeagueTeamWarlord = createServerFn({ method: 'POST' })
   .validator(setLeagueTeamWarlordSchema)
-  .handler(({ data }) =>
-    mutationRpc(async () => {
-      const userId = await requireUserId()
-      return productActions.setLeagueTeamWarlord(userId, data)
-    }),
-  )
+  .handler(({ data }) => signedInAction(productActions.setLeagueTeamWarlord, data))
 
 export const revealLeague = createServerFn({ method: 'POST' })
   .validator(leagueEventSchema)
-  .handler(({ data }) =>
-    mutationRpc(async () => {
-      const userId = await requireUserId()
-      return productActions.revealLeague(userId, data)
-    }),
-  )
+  .handler(({ data }) => signedInAction(productActions.revealLeague, data))
 
 export const remindLeagueEntrants = createServerFn({ method: 'POST' })
   .validator(leagueEventSchema)
@@ -244,48 +199,23 @@ export const dismissLeagueRosterSharing = createServerFn({ method: 'POST' })
 
 export const unsealLeagueRoster = createServerFn({ method: 'POST' })
   .validator(leagueRosterSchema)
-  .handler(({ data }) =>
-    mutationRpc(async () => {
-      const userId = await requireUserId()
-      return productActions.unsealLeagueRoster(userId, data)
-    }),
-  )
+  .handler(({ data }) => signedInAction(productActions.unsealLeagueRoster, data))
 
 export const assignLeagueRosterRequirement = createServerFn({ method: 'POST' })
   .validator(assignLeagueRosterRequirementSchema)
-  .handler(({ data }) =>
-    mutationRpc(async () => {
-      const userId = await requireUserId()
-      return productActions.assignLeagueRosterRequirement(userId, data)
-    }),
-  )
+  .handler(({ data }) => signedInAction(productActions.assignLeagueRosterRequirement, data))
 
 export const assignLeagueTeam = createServerFn({ method: 'POST' })
   .validator(assignLeagueTeamSchema)
-  .handler(({ data }) =>
-    mutationRpc(async () => {
-      const userId = await requireUserId()
-      return productActions.assignLeagueTeam(userId, data)
-    }),
-  )
+  .handler(({ data }) => signedInAction(productActions.assignLeagueTeam, data))
 
 export const chooseLeagueSide = createServerFn({ method: 'POST' })
   .validator(chooseLeagueSideSchema)
-  .handler(({ data }) =>
-    mutationRpc(async () => {
-      const userId = await requireUserId()
-      return productActions.chooseLeagueSide(userId, data)
-    }),
-  )
+  .handler(({ data }) => signedInAction(productActions.chooseLeagueSide, data))
 
 export const updateLeague = createServerFn({ method: 'POST' })
   .validator(updateLeagueSchema)
-  .handler(({ data }) =>
-    mutationRpc(async () => {
-      const userId = await requireUserId()
-      return productActions.updateLeague(userId, data)
-    }),
-  )
+  .handler(({ data }) => signedInAction(productActions.updateLeague, data))
 
 export const setLeagueAdmins = createServerFn({ method: 'POST' })
   .validator(setLeagueAdminsSchema)
@@ -300,21 +230,11 @@ export const setLeagueAdmins = createServerFn({ method: 'POST' })
 
 export const deleteLeague = createServerFn({ method: 'POST' })
   .validator(tokenSchema)
-  .handler(({ data }) =>
-    mutationRpc(async () => {
-      const userId = await requireUserId()
-      return productActions.deleteLeague(userId, data)
-    }),
-  )
+  .handler(({ data }) => signedInAction(productActions.deleteLeague, data))
 
 export const createLeagueBattle = createServerFn({ method: 'POST' })
   .validator(createLeagueBattleSchema)
-  .handler(({ data }) =>
-    mutationRpc(async () => {
-      const userId = await requireUserId()
-      return productActions.createLeagueBattle(userId, data)
-    }),
-  )
+  .handler(({ data }) => signedInAction(productActions.createLeagueBattle, data))
 
 export const dropLeagueEntrant = createServerFn({ method: 'POST' })
   .validator(leagueRosterSchema)

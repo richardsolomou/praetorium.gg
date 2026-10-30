@@ -4,8 +4,8 @@ import { rosterCombatantsSchema, combatRequestsSchema } from '../../contracts/co
 import { forgetMatchupSchema, rememberMatchupSchema } from '../../contracts/schemas'
 import { rosterCombatants } from '../../shared/rosterCombatants'
 import { app } from '../app'
-import { forSignedIn, requireUserId } from '../playerSession'
-import { productActions } from '../productActions'
+import { forSignedIn } from '../playerSession'
+import { productActions, signedInAction } from '../productActions'
 import { mutationRpc, rpc } from '../rpc'
 import { combatCalculationPool } from '../combatCalculationPool'
 
@@ -40,18 +40,8 @@ export const recentMatchups = createServerFn({ method: 'GET' }).handler(() =>
 
 export const rememberMatchup = createServerFn({ method: 'POST' })
   .validator(rememberMatchupSchema)
-  .handler(({ data }) =>
-    mutationRpc(async () => {
-      const userId = await requireUserId()
-      return productActions.rememberMatchup(userId, data)
-    }),
-  )
+  .handler(({ data }) => signedInAction(productActions.rememberMatchup, data))
 
 export const forgetMatchup = createServerFn({ method: 'POST' })
   .validator(forgetMatchupSchema)
-  .handler(({ data }) =>
-    mutationRpc(async () => {
-      const userId = await requireUserId()
-      return productActions.forgetMatchup(userId, data)
-    }),
-  )
+  .handler(({ data }) => signedInAction(productActions.forgetMatchup, data))

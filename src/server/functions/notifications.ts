@@ -1,10 +1,10 @@
-import { productActions } from '../productActions'
+import { productActions, signedInAction } from '../productActions'
 import { createServerFn } from '@tanstack/react-start'
 import { getRequest } from '@tanstack/react-start/server'
 import { app } from '../app'
 import { requireUserId } from '../playerSession'
 import { registerPushDeviceRequest, unregisterPushDeviceRequest } from '../pushDevices'
-import { mutationRpc, rpc } from '../rpc'
+import { rpc } from '../rpc'
 import { pushDeviceSchema, pushPreferenceSchema, pushTokenOnlySchema } from '../../contracts/schemas'
 
 /** Whether this instance sends notifications. */
@@ -17,12 +17,7 @@ export const notificationSettings = createServerFn({ method: 'GET' }).handler(()
 
 export const setPushNotifications = createServerFn({ method: 'POST' })
   .validator(pushPreferenceSchema)
-  .handler(({ data }) =>
-    mutationRpc(async () => {
-      const userId = await requireUserId()
-      return productActions.setPushNotifications(userId, data)
-    }),
-  )
+  .handler(({ data }) => signedInAction(productActions.setPushNotifications, data))
 
 export const registerPushDevice = createServerFn({ method: 'POST' })
   .validator(pushDeviceSchema)
