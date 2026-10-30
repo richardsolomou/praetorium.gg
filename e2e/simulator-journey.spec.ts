@@ -11,7 +11,7 @@ import {
   expectNoPageOverflow,
   PHONE,
 } from './account'
-import { chooseCombatUnit, holdCombatCalculations, combatDamage } from './combat'
+import { chooseCombatUnit, chooseRosterUnit, holdCombatCalculations, combatDamage } from './combat'
 import { decodeSimulatorState } from '../src/contracts/simulatorState'
 
 const pairing = 'Intercessor Squad vs Necron Warriors'
@@ -135,9 +135,8 @@ test(
     )
     await page.goto('/simulator')
     await page.waitForLoadState('networkidle')
-    const option = page.getByRole('option', { name: 'Ankh Court', exact: true })
-    await retryUntilVisible(option, () => page.getByRole('combobox', { name: 'First roster', exact: true }).click())
-    await option.click()
+    await chooseRosterUnit(page, 'Attacker', 'Ankh Court', /^Overlord/)
+    await expect(page.getByLabel('Attacker roster', { exact: true })).toContainText('Ankh Court')
     await expect(page.getByRole('combobox', { name: 'Attacker unit', exact: true })).toContainText('Overlord')
     await chooseCombatUnit(page, 'Defender', 'Space Marines', 'Intercessor Squad')
     const melee = page.getByRole('region', { name: 'Melee results' })
@@ -153,7 +152,7 @@ test(
     await expect(home.getByRole('link', { name: 'Overlord · Ankh Court vs Intercessor Squad' })).toBeVisible()
     await page.screenshot({ path: test.info().outputPath('recent-simulations-home-roster.png') })
     await home.getByRole('link', { name: 'Overlord · Ankh Court vs Intercessor Squad' }).click()
-    await expect(page.getByRole('combobox', { name: 'First roster', exact: true })).toContainText('Ankh Court')
+    await expect(page.getByLabel('Attacker roster', { exact: true })).toContainText('Ankh Court')
     await expect(enhanced).toBeVisible()
     await page.setViewportSize(PHONE)
     await expectNoPageOverflow(page)

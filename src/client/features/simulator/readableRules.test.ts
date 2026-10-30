@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { CombatRule } from '../../../core/combatRules'
 import { textToken } from '../../../shared/sourceText'
 import { loadTextFile, registerTextSources } from '../../sourceText'
-import { readableRules } from './readableRules'
+import { missingRuleText, readableRules } from './readableRules'
 
 const words = 'Each time a model in this unit makes an attack, re-roll a Hit roll of 1.'
 const tokenFor = (value: string) =>
@@ -39,4 +39,11 @@ describe('rules the simulator can compile on this device', () => {
     await loadTextFile('000000aa')
     expect(readableRules([rule(tokenFor(words))]).map((read) => read.description)).toEqual([words])
   })
+})
+
+it('says a side is missing rules whose source this device has not chosen', () => {
+  vi.stubGlobal('localStorage', { getItem: () => '' })
+  registerTextSources({ '000000bb': { url: 'https://raw.githubusercontent.com/owner/repo/sha/other.json', source: 'game-datacards' } })
+  const unread = textToken({ file: '000000bb', transform: 'plain', hash: '0000000000000000' })
+  expect(missingRuleText({ rules: [rule(unread)], companions: [] })).toBe('unchosen')
 })

@@ -1,7 +1,7 @@
 import { PICKER_POPUP } from './CombatControls'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useContext, useState, type ReactNode } from 'react'
-import { ChevronDown, Plus, Settings, WandSparkles, X } from 'lucide-react'
+import { ChevronDown, Plus, ScrollText, Settings, WandSparkles, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
@@ -15,7 +15,6 @@ import { combatLoadoutsQuery, combatUnitsQuery, factionIndexQuery, factionQuery,
 import { Loadout } from '../rosters/builder/Loadout'
 import { Stepper } from '../../components/Stepper'
 import { CombatSurvivorControls } from './CombatSurvivorControls'
-import { UnitPicker } from '../../components/UnitPicker'
 import { LoadoutOddsContext, LoadoutOddsStatus, LoadoutOptimizationContext, useOptionNote, useProfileNote } from './LoadoutOdds'
 import { useLoadoutOdds } from './useLoadoutOdds'
 import { namespaceLoadoutSpace } from '../../../core/combatLoadouts'
@@ -23,20 +22,25 @@ import { attachedProfilePrefix } from '../../../core/combatScenario'
 import { WeaponProfileNote } from '../../components/DatasheetProfiles'
 import type { Combatant } from './useCombatant'
 import { useLoadoutOptimizer } from './useLoadoutOptimizer'
+import { DetachmentPicker } from './DetachmentPicker'
+import { type RosterNavigation, SideUnitPicker } from './SideUnitPicker'
+import { OwnerName } from './rosterOwners'
 import { attachedUnit } from '../../../core/attachedUnits'
 import { rulesVersionLabel } from '../../../core/catalogueEdition'
 import { Problem } from '../../components/Problem'
-import { countLabel } from '../../text'
+import { countLabel, formatList } from '../../text'
 
 export function CombatantCard({
   side,
   combatant,
   armyControl,
+  rosters,
   headingAction,
 }: {
   side: string
   combatant: Combatant
   armyControl?: ReactNode
+  rosters?: RosterNavigation
   headingAction?: ReactNode
 }) {
   const [loadoutIndex, setLoadoutIndex] = useState<number | null>(null)
@@ -44,7 +48,7 @@ export function CombatantCard({
   const optimizer = useLoadoutOptimizer(combatant)
   const queryClient = useQueryClient()
   const factions = useQuery(factionIndexQuery())
-  const catalogueUnits = useQuery({ ...combatUnitsQuery(), enabled: !combatant.roster })
+  const catalogueUnits = useQuery({ ...combatUnitsQuery(), enabled: !combatant.roster || Boolean(rosters) })
   const { unit, picks, edit, ready, pick, pickIndex, battleUnit } = combatant
   const companionSurvivors = combatant.companionSurvivors.find((member) => member.pickIndex === survivorIndex)
   const members = [pickIndex, ...attachedUnit(picks.positioned, pickIndex)]
@@ -107,43 +111,19 @@ export function CombatantCard({
           },
         ]
       : undefined
-  const unitPicker = combatant.roster ? (
-    <SearchableSelect
-      ariaLabel={`${side} unit`}
-      popupClassName={PICKER_POPUP}
+  const unitPicker = (
+    <SideUnitPicker
+      side={side}
+      combatant={combatant}
+      rosters={rosters}
+      factionIcon={factionIcon}
       loading={Boolean(pick) && !ready}
-      placeholder="Choose a unit"
-      value={String(pickIndex)}
-      onValueChange={(index) => combatant.selectRosterUnit(Number(index))}
-      groups={[
-        {
-          label: 'Roster units',
-          items: (combatant.price.data?.units ?? []).flatMap((entry, index) =>
-            combatant.availableUnits && !combatant.availableUnits[index]
-              ? []
-              : [
-                  {
-                    value: String(index),
-                    icon: factionIcon(picks.positioned[index]?.catalogueId ?? combatant.catalogueId),
-                    label: `${entry.name}${(combatant.price.data?.units ?? []).filter((candidate) => candidate.entryId === entry.entryId).length > 1 ? ` · ${index + 1}` : ''}`,
-                  },
-                ],
-          ),
-        },
-      ]}
-    />
-  ) : (
-    <UnitPicker
-      ariaLabel={`${side} unit`}
-      popupClassName={PICKER_POPUP}
-      loading={Boolean(pick) && !ready}
-      placeholder="Choose a unit"
-      searchPlaceholder="Search units…"
-      index={catalogueUnits.data ?? []}
-      emptyText={catalogueUnits.isPending ? 'Loading units…' : undefined}
-      extraBooks={selectedOutsideIndex}
-      selected={pick ? { catalogueId: combatant.faction, entryId: pick.entryId } : undefined}
-      onUnitChange={combatant.selectUnit}
+      catalogue={{
+        index: catalogueUnits.data ?? [],
+        emptyText: catalogueUnits.isPending ? 'Loading units…' : undefined,
+        extraBooks: selectedOutsideIndex,
+        selected: pick && !combatant.roster ? { catalogueId: combatant.faction, entryId: pick.entryId } : undefined,
+      }}
     />
   )
   const warmLoadout = (index: number) => {
@@ -261,7 +241,7 @@ export function CombatantCard({
         </div>
       </div>
       {armyControl}
-      {/* A saved roster's own picker already names it and its faction. */}
+      {/* A saved roster's caption under the unit names it instead. */}
       {combatant.roster && !combatant.rosterName ? (
         <div className="mb-3 flex h-8 min-w-0 items-center gap-2 text-sm text-dim" aria-label={`${side} faction`}>
           {selectedFaction ? <FactionLabel faction={selectedFaction} /> : 'Loading faction…'}
@@ -272,7 +252,7 @@ export function CombatantCard({
         <div className="space-y-1" aria-label={`${side} unit members`}>
           {members.map((member) => (
             <div key={member.index} className="flex min-w-0 flex-wrap items-center gap-2 text-sm" data-combat-member={member.name}>
-              <div className="min-w-12 flex-1 [&_[data-slot=combobox-trigger]>span]:truncate">
+              <div className="min-w-40 flex-1 [&_[data-slot=combobox-trigger]>span]:truncate">
                 {member.index === pickIndex ? (
                   unitPicker
                 ) : (
@@ -348,6 +328,16 @@ export function CombatantCard({
                     )}
                   </span>
                 )}
+                {member.index === pickIndex && !combatant.roster ? (
+                  <DetachmentPicker
+                    side={side}
+                    options={combatant.detachmentOptions ?? []}
+                    value={combatant.detachmentIds}
+                    limit={combatant.limit}
+                    disabled={!ready || optimizer.busy || !combatant.detachmentOptions}
+                    onChange={combatant.selectDetachments}
+                  />
+                ) : null}
                 <Button
                   variant="outline"
                   size="icon-sm"
@@ -392,6 +382,9 @@ export function CombatantCard({
             </div>
           ))}
         </div>
+        {rosters && combatant.rosterName && combatant.shared ? (
+          <RosterCaption side={side} name={combatant.rosterName} combatant={combatant} rosters={rosters} />
+        ) : null}
         {!unit && (failed || unavailable) ? (
           <p className="text-sm text-faint">
             {failed ? 'Unit data could not load.' : 'This unit cannot be configured. Choose another unit.'}
@@ -494,6 +487,45 @@ export function CombatantCard({
           </div>
         </DialogContent>
       </Dialog>
+    </div>
+  )
+}
+
+/** Where a roster side's unit comes from, and the way back to choosing any datasheet. */
+function RosterCaption({
+  side,
+  name,
+  combatant,
+  rosters,
+}: {
+  side: string
+  name: string
+  combatant: Combatant
+  rosters: RosterNavigation
+}) {
+  return (
+    <div className="flex min-w-0 flex-wrap items-center gap-2 text-xs text-dim" aria-label={`${side} roster`}>
+      <span className="flex min-w-0 flex-1 basis-56 items-center gap-2">
+        <ScrollText className="size-4 shrink-0 text-info" aria-hidden />
+        <span className="min-w-0 truncate">
+          From <span className="text-bone">{name}</span>
+          {combatant.detachmentNames.length ? ` · ${formatList(combatant.detachmentNames)}` : ''}
+        </span>
+      </span>
+      {rosters.owner ? <OwnerName owner={rosters.owner} className="ml-auto shrink-0" /> : null}
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        className={rosters.owner ? 'shrink-0' : 'ml-auto shrink-0'}
+        aria-label={`Use ${side.toLowerCase()} unit without ${name}`}
+        title="Use this unit without the roster"
+        onClick={() => {
+          const { roster: _roster, ...unit } = combatant.shared!
+          rosters.replace({ ...unit, ...(combatant.detachmentIds.length ? { detachmentIds: [...combatant.detachmentIds] } : {}) })
+        }}
+      >
+        <X aria-hidden />
+      </Button>
     </div>
   )
 }

@@ -24,6 +24,10 @@ It needs a defender, both units fully loaded, and a legal attacker. It's only on
 
 The search hit its time limit. The best loadout found so far is kept.
 
+### "Rules text isn't loaded." under Rules & buffs
+
+The simulator works rules out from their wording, which your browser loads from community sources you choose. Until you do, abilities, detachment rules and stratagems are left out. Choose **Choose sources** and turn on the sources to load.
+
 ### A buff does nothing
 
 Check **Calculation uses**. If a chip is dimmed, hover it for the reason.

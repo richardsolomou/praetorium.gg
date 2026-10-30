@@ -1,6 +1,6 @@
 import { expect, type Locator, type Page, type Request, type Route } from '@playwright/test'
 import { decodeSimulatorState } from '../src/contracts/simulatorState'
-import { chooseUnit } from './account'
+import { chooseUnit, retryUntilVisible } from './account'
 
 declare global {
   interface Window {
@@ -73,6 +73,21 @@ export async function chooseCombatUnit(page: Page, side: string, faction: string
   await chooseUnit(page, side, faction, name)
   await expect(page.getByRole('region', { name: side, exact: true }).getByRole('button', { name: 'Loadout', exact: true })).toBeEnabled()
   await openCombatControls(page)
+}
+
+/** Opens a roster from a side's unit picker and fields one of its units, the first when none is named. */
+export async function chooseRosterUnit(page: Page, side: string, roster: string | RegExp, unit?: RegExp) {
+  await openRosterList(page, side)
+  await page.getByRole('option', { name: roster }).click()
+  const listed = page.getByRole('listbox').getByRole('option')
+  await (unit ? listed.filter({ hasText: unit }) : listed).first().click()
+}
+
+/** Opens a side's unit picker at the list of rosters. */
+export async function openRosterList(page: Page, side: string) {
+  const fromRoster = page.getByRole('button', { name: /^From a roster/ })
+  await retryUntilVisible(fromRoster, () => page.getByRole('combobox', { name: `${side} unit`, exact: true }).click())
+  await fromRoster.click()
 }
 
 export async function combatEstimate(scope: Page | Locator, phase: 'Shooting' | 'Melee') {

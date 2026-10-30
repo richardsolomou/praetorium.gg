@@ -80,6 +80,7 @@ vi.mock('../../queries', () => ({
   priceQuery: (...args: unknown[]) => ({ kind: 'price', args }),
   combatantDatasheetQuery: (...args: unknown[]) => ({ kind: 'sheets', args }),
   combatLoadoutsQuery: () => ({ kind: 'loadouts' }),
+  factionQuery: () => ({ kind: 'faction' }),
 }))
 vi.mock('../../useSettled', () => ({ useSettled: (picks: readonly RosterPick[]) => hooks.settled ?? picks }))
 // Rules here carry their words, so nothing needs loading.
@@ -164,6 +165,18 @@ describe('a link with a unit joined to an attached unit', () => {
 
 it("fields a shared link's detachment and shares it again", () => {
   expect(render({ ...initial, detachmentIds: ['vanguard'] }).shared?.detachmentIds).toEqual(['vanguard'])
+})
+
+it('fields a chosen detachment', () => {
+  render().selectDetachments(['vanguard'])
+  render()
+  expect(hooks.sheets).toHaveBeenLastCalledWith(expect.objectContaining({ detachmentIds: ['vanguard'] }))
+})
+
+it("leaves a chosen detachment behind for another faction's unit", () => {
+  render().selectDetachments(['vanguard'])
+  render().selectUnit('other', 'squad')
+  expect(render().detachmentIds).toEqual([])
 })
 
 it('retains version-one preferences while the selected sheets are loading', () => {
