@@ -40,7 +40,7 @@ After reveal, use **Simulate** beside another player’s list to compare your se
 
 The results go on the club's leaderboard. Starting a new sealed game automatically moves the previous one to **Past sealed games**, on the **Sealed games** tab. A scheduled game also moves there after its scheduled day ends; an undated game moves after the day its lists were revealed. Days end at midnight in the timezone of the organizer who created the game. An undated game with unrevealed lists stays open until replaced. A game with a battle still being played stays under **Up next** until that battle ends, though nobody can start another battle from it.
 
-Past games keep their results and any battles already underway, which you can still resume. Expand **Lists** to view or simulate revealed armies. You can’t start another battle or change lists in a past game. **Recent games**, on **Overview**, shows the club's latest battles of every kind.
+Past games keep their results and any battles already underway, which you can still resume. View or simulate revealed armies under **Lists**. You can’t start another battle or change lists in a past game. **Recent games**, on **Overview**, shows the club's latest battles of every kind.
 
 ## Seasons
 
