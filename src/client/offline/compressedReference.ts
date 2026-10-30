@@ -59,6 +59,9 @@ const packedConstructions = new WeakMap<OfflineReferenceData, string>()
 /** A reference's construction data as it was saved, still packed, so it can be handed on without decoding it here. */
 export const packedConstructionOf = (data: OfflineReferenceData) => packedConstructions.get(data)
 
+/** Whether a reference carries construction data, without decoding it: reading packed `construction` blocks the page for a second on a phone. */
+export const holdsConstruction = (data: OfflineReferenceData) => packedConstructions.has(data) || Boolean(data.construction)
+
 /** Every field but `construction`, read without decoding construction data that is still packed. */
 export function referenceFields(data: OfflineReferenceData) {
   return Object.fromEntries(
