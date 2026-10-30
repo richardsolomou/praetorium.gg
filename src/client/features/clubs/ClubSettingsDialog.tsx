@@ -1,18 +1,16 @@
 import { sameSet } from '../../../core/collections'
 import { useIsMutating, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
-import { X } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { CLUB_ADMIN_MAX, CLUB_DESCRIPTION_MAX_LENGTH, CLUB_NAME_MAX_LENGTH } from '../../../core/club'
 import type { LeagueAdmission, LeagueVisibility } from '../../../core/league'
 import { Choice } from '../../components/Choice'
 import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/Dialog'
-import { PlayerAvatar } from '../../components/PlayerAvatar'
+import { AdminsField } from '../../components/AdminsField'
 import { Problem } from '../../components/Problem'
 import { createClub, setClubAdmins, updateClub } from '../../functions'
 import { clubKey, clubsKey } from '../../queries'
@@ -54,6 +52,10 @@ function SettingsForm({ club, isOwner, onClose }: { club: Club | null; isOwner: 
   const currentAdmins = club?.members.filter((member) => member.role === 'admin').map((member) => member.userId) ?? []
   const [adminIds, setAdminIds] = useState(currentAdmins)
   const adminsChanged = !sameSet(adminIds, currentAdmins)
+  const members =
+    club?.members
+      .filter((member) => member.status === 'accepted' && member.userId !== club.ownerId)
+      .map((member) => ({ id: member.userId, name: member.name, image: member.image })) ?? []
   const save = useMutation({
     mutationKey: SAVE,
     mutationFn: async () => {
@@ -137,7 +139,23 @@ function SettingsForm({ club, isOwner, onClose }: { club: Club | null; isOwner: 
             disabled={disabled}
             onChange={(admission) => setValue({ ...value, admission })}
           />
-          {club && isOwner ? <AdminsField club={club} selected={adminIds} disabled={disabled} onChange={setAdminIds} /> : null}
+          {club && isOwner ? (
+            <AdminsField
+              id="club-admin"
+              people={members}
+              candidates={members}
+              selected={adminIds}
+              max={CLUB_ADMIN_MAX}
+              disabled={disabled}
+              onChange={setAdminIds}
+              labels={{
+                former: 'Former member',
+                add: 'Add a member as an admin',
+                none: 'Members can become admins once they join',
+                hint: 'Admins can edit the club and manage members. Only you can delete it.',
+              }}
+            />
+          ) : null}
           {save.isPending ? <output className="sr-only">{submit}</output> : null}
           {save.error ? <Problem error={save.error} /> : null}
         </DialogBody>
@@ -151,66 +169,5 @@ function SettingsForm({ club, isOwner, onClose }: { club: Club | null; isOwner: 
         </DialogFooter>
       </form>
     </DialogContent>
-  )
-}
-
-function AdminsField({
-  club,
-  selected,
-  disabled,
-  onChange,
-}: {
-  club: Club
-  selected: string[]
-  disabled: boolean
-  onChange: (ids: string[]) => void
-}) {
-  const members = club.members.filter((member) => member.status === 'accepted' && member.userId !== club.ownerId)
-  const people = new Map(members.map((member) => [member.userId, member]))
-  const candidates = members.filter((member) => !selected.includes(member.userId))
-  const full = selected.length >= CLUB_ADMIN_MAX
-  return (
-    <div className="space-y-1.5">
-      <Label htmlFor="club-admin">Admins</Label>
-      {selected.length ? (
-        <ul className="flex flex-wrap gap-2">
-          {selected.map((id) => {
-            const person = people.get(id)
-            return (
-              <li key={id} className="flex min-w-0 items-center gap-2 border border-edge py-1 pr-1 pl-1 text-sm">
-                <PlayerAvatar name={person?.name ?? '?'} image={person?.image ?? null} className="size-6 text-3xs" />
-                <span className="max-w-40 truncate">{person?.name ?? 'Former member'}</span>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-xs"
-                  className="pointer-coarse:size-11"
-                  aria-label={`Remove ${person?.name ?? 'this admin'} as an admin`}
-                  disabled={disabled}
-                  onClick={() => onChange(selected.filter((candidate) => candidate !== id))}
-                >
-                  <X aria-hidden />
-                </Button>
-              </li>
-            )
-          })}
-        </ul>
-      ) : null}
-      <Select value="" disabled={disabled || full || !candidates.length} onValueChange={(id) => id && onChange([...selected, id])}>
-        <SelectTrigger id="club-admin" className="h-11 w-full">
-          <SelectValue>
-            {() => (full ? 'No more admins' : candidates.length ? 'Add a member as an admin' : 'Members can become admins once they join')}
-          </SelectValue>
-        </SelectTrigger>
-        <SelectContent>
-          {candidates.map((member) => (
-            <SelectItem key={member.userId} value={member.userId}>
-              {member.name}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      <p className="text-xs text-dim">Admins can edit the club and manage members. Only you can delete it.</p>
-    </div>
   )
 }

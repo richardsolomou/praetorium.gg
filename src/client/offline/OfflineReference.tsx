@@ -16,7 +16,7 @@ import { downloadInBackground } from './referenceDownloadWorker'
 import { rulesVersionsIn, rulesVersionsInUse } from './rulesVersionsInUse'
 import { PUBLIC_REFERENCE_QUERIES } from '../../contracts/appSnapshot'
 import type { OfflineReferenceVersion } from '../../contracts/offlineReference'
-import { anySignal } from '../abortSignals'
+import { withTimeout } from '../abortSignals'
 import { useClientValue } from '../useClientValue'
 
 const RECHECK_MS = 5 * 60_000
@@ -55,7 +55,7 @@ export function OfflineReference() {
       const abort = new AbortController()
       controller = abort
       try {
-        const signal = anySignal([abort.signal, AbortSignal.timeout(15_000)])
+        const signal = withTimeout(abort.signal, 15_000)
         const [manifest, version] = await Promise.all([offlineReferenceVersion(signal), offlineAppVersion(signal)])
         abort.signal.throwIfAborted()
         published = manifest

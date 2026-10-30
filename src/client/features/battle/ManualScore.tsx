@@ -2,6 +2,7 @@ import { Button } from '@/components/ui/button'
 import type { Command } from '../../../core/battle'
 import { type Side, sideName } from '../../sides'
 import { tint } from './battleTints'
+import { signedLabel } from '../../text'
 
 type Props = {
   side: Side
@@ -65,7 +66,7 @@ export function ManualScore({ side, actionable, pending, send }: Props) {
                     aria-label={`${step > 0 ? 'Add' : 'Remove'} ${Math.abs(step)} ${row.label === 'CP' ? 'CP' : `${row.label.toLowerCase()} VP`} for ${name}`}
                     onClick={() => send(row.change(step))}
                   >
-                    {step > 0 ? `+${step}` : `−${Math.abs(step)}`}
+                    {signedLabel(step)}
                   </Button>
                 ))}
               </span>

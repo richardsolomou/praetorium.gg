@@ -16,7 +16,7 @@ import { defaultSelection } from './expand'
 export type UnitSize = { min: number; max: number; models: number; path: string[]; options?: number[] }
 
 /** A group whose size the data lets the player change, and the selection to change. */
-export type BoundedGroup = { min: number; max: number; total: number; adjust: string[] }
+type BoundedGroup = { min: number; max: number; total: number; adjust: string[] }
 
 /** Every group in this selection whose size can vary, for a caller scaling all of them at once. */
 export const boundedGroups = (selection: Selection, index: CatalogueIndex): BoundedGroup[] => survey(selection, index, []).groups

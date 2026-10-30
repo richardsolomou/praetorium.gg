@@ -1,36 +1,29 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { ROSTER_VISIBILITIES, type RosterVisibility } from '../core/savedRoster'
+import { ROSTER_VISIBILITIES } from '../core/savedRoster'
 import { GAME_SIZES } from '../core/battle'
 import { keptRosterSort } from '../client/features/rosters/rosterSort'
-import { ROSTER_UPDATE_FILTERS, type RosterUpdateFilter } from '../client/features/rosters/RosterFilters'
-import { useQuery } from '@tanstack/react-query'
-import { BuilderFrame, ClaimGuestRoster, useGuestDraft } from '../client/features/rosters/GuestRoster'
+import { ROSTER_UPDATE_FILTERS } from '../client/features/rosters/RosterFilters'
 import { GUEST_DRAFT_COOKIE, ROSTER_SORT_COOKIE } from '../contracts/rosterCookies'
 import { requestCookie } from '../server/requestCookie'
-import { RosterLibraryPage, type RosterLibrarySearch } from '../client/features/rosters/RosterLibraryPage'
-import { discoveryFilter, RosterDiscoveryPage, type RosterDiscoverySearch } from '../client/features/rosters/RosterDiscoveryPage'
-import { RULES_VERSION_STATUSES, type RulesVersionStatus } from '../core/rosterDiscovery'
+import { discoveryFilter } from '../client/features/rosters/RosterDiscoveryPage'
+import { ROSTER_VIEWS, RostersRoute, type RostersSearch } from '../client/features/rosters/RostersRoute'
+import { RULES_VERSION_STATUSES } from '../core/rosterDiscovery'
 import { ROSTER_SORTS } from '../core/rosterSort'
 import { discoveredRostersQuery, factionIndexQuery, meQuery, playedArmiesQuery } from '../client/queries'
 import { pageHead } from '../client/linkPreview'
 import { RosterLoading } from '../client/features/rosters/RosterLoading'
 import { searchText } from '../client/searchParams'
-import { rosterStartSearch, type MissionReference } from '../client/features/rosters/rosterStart'
-
-const VIEWS = ['friends', 'public', 'played'] as const
-type RosterView = (typeof VIEWS)[number]
+import { rosterStartSearch } from '../client/features/rosters/rosterStart'
 
 export const Route = createFileRoute('/rosters/')({
   pendingComponent: RosterLoading,
-  validateSearch: (
-    search: Record<string, unknown>,
-  ): RosterLibrarySearch & RosterDiscoverySearch & { view?: RosterView; new?: true; reference?: MissionReference } => {
+  validateSearch: (search: Record<string, unknown>): RostersSearch => {
     const limit = Number(search.limit)
     const faction = searchText(search.faction, 128)
-    const view = VIEWS.find((known) => known === search.view)
+    const view = ROSTER_VIEWS.find((known) => known === search.view)
     if (view) {
       const detachment = faction && searchText(search.detachment, 128)
-      const rules = RULES_VERSION_STATUSES.find((status): status is RulesVersionStatus => status === search.rules)
+      const rules = RULES_VERSION_STATUSES.find((status) => status === search.rules)
       const sort = ROSTER_SORTS.find((known) => known !== 'updated-desc' && known === search.sort)
       return {
         view,
@@ -40,15 +33,13 @@ export const Route = createFileRoute('/rosters/')({
         ...(sort ? { sort } : {}),
       }
     }
-    const visibility =
-      typeof search.visibility === 'string' && ROSTER_VISIBILITIES.includes(search.visibility as RosterVisibility)
-        ? (search.visibility as RosterVisibility)
-        : undefined
+    const visibility = ROSTER_VISIBILITIES.find((known) => known === search.visibility)
+    const updates = ROSTER_UPDATE_FILTERS.find((known) => known === search.updates)
     return {
       ...(GAME_SIZES.some((size) => size.limit === limit) ? { limit } : {}),
       ...(faction ? { faction } : {}),
       ...(visibility ? { visibility } : {}),
-      ...(ROSTER_UPDATE_FILTERS.includes(search.updates as RosterUpdateFilter) ? { updates: search.updates as RosterUpdateFilter } : {}),
+      ...(updates ? { updates } : {}),
       ...rosterStartSearch(search),
     }
   },
@@ -65,7 +56,6 @@ export const Route = createFileRoute('/rosters/')({
           staleTime: 'static',
         })
     }
-    // Whether this browser holds a visitor's list, so the first frame holds its row or the claim it becomes.
     return { guestDraft: requestCookie(GUEST_DRAFT_COOKIE) === '1', sort: keptRosterSort(requestCookie(ROSTER_SORT_COOKIE)) }
   },
   head: ({ match }) =>
@@ -95,26 +85,7 @@ export const Route = createFileRoute('/rosters/')({
   component: RosterLibraryRoute,
 })
 
-/**
- * A player's library, or a visitor's one list on this device on the same page; either may instead ask for friends' or
- * public rosters. Signing up comes back here, and a player arriving with a visitor's list still on the device has it
- * saved first. `new` opens the setup for another roster, as `/rosters/new` asks.
- */
 function RosterLibraryRoute() {
-  const { view, detachment, rules, sort: listSort, new: starting, reference, ...search } = Route.useSearch()
-  const { guestDraft: hinted, sort } = Route.useLoaderData()
-  const { data: me } = useQuery(meQuery())
-  const [{ ready, guest }, setGuest] = useGuestDraft(hinted)
-  if (view) return <RosterDiscoveryPage view={view} search={{ faction: search.faction, detachment, rules, sort: listSort }} />
-  if (me && !ready && hinted) return <BuilderFrame />
-  if (me && guest) return <ClaimGuestRoster key={guest.id} guest={guest} onDiscard={() => setGuest(null)} />
-  return (
-    <RosterLibraryPage
-      search={search}
-      sort={sort}
-      starting={starting && ready}
-      reference={reference}
-      device={{ guest, pending: !ready && hinted, onChange: setGuest }}
-    />
-  )
+  const { guestDraft, sort } = Route.useLoaderData()
+  return <RostersRoute search={Route.useSearch()} guestDraft={guestDraft} sort={sort} />
 }

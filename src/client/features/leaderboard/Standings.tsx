@@ -4,6 +4,7 @@ import { averagePoints, winRate } from '../../../core/standings'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { SearchableSelect } from '../../components/SearchableSelect'
 import { percentLabel } from '../../text'
+import { SectionHeading } from '../../components/SectionHeading'
 
 /** One table of players: everybody, or everybody who has fielded one faction. */
 export type StandingsTable = { faction: StandingFaction | null; players: number; rows: readonly Standing[] }
@@ -29,10 +30,7 @@ export function Standings({
 }) {
   return (
     <section data-standings>
-      <h2 className="rubric flex items-baseline justify-between border-b border-edge pb-2">
-        <span>{title}</span>
-        <span className="readout">{table.players}</span>
-      </h2>
+      <SectionHeading title={title} count={table.players} />
       {table.rows.length ? (
         /*
           The table scrolls inside this rather than dropping columns on a narrow
@@ -41,7 +39,7 @@ export function Standings({
           the columns need and the wrapper keeps that off the document — a table
           that widens the page is the one thing on here that pushes a phone sideways.
         */
-        <div className="mt-2 overflow-x-auto border border-edge bg-panel">
+        <div className="overflow-x-auto border border-edge bg-panel">
           <table className="w-full min-w-xl table-fixed border-collapse text-sm">
             <thead>
               <tr className="border-b border-edge text-left text-xs tracking-wide text-faint uppercase">
@@ -90,7 +88,7 @@ export function Standings({
           </table>
         </div>
       ) : (
-        <p className="mt-2 text-sm text-dim">{empty}</p>
+        <p className="text-sm text-dim">{empty}</p>
       )}
     </section>
   )

@@ -1,3 +1,4 @@
+import { favouritesFirst } from '../../../favouriteFactions'
 import { catalogueLeafName } from '../../../../shared/factionNames'
 import { groupBy } from '../../../../core/collections'
 import type { FactionPresentation } from '../../../components/FactionMark'
@@ -53,4 +54,3 @@ export function factionSelectGroups<
   }))
   return favourite.length ? [{ label: 'Favourites', items: favourite.map(option) }, ...groups] : groups
 }
-import { favouritesFirst } from '../../../favouriteFactions'

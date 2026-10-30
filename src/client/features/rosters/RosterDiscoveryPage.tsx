@@ -19,7 +19,14 @@ import { PageState } from '../../components/PageState'
 import type { SearchableGroup } from '../../components/SearchableSelect'
 import { copyPlayedArmy, copyRoster } from '../../functions'
 import { useFavouriteFactions } from '../../favouriteFactions'
-import { discoveredRostersQuery, factionIndexQuery, invalidateSavedRosters, meQuery, playedArmiesQuery } from '../../queries'
+import {
+  discoveredRostersQuery,
+  factionIndexQuery,
+  invalidateSavedRosters,
+  meQuery,
+  playedArmiesQuery,
+  type QueryData,
+} from '../../queries'
 import { errorMessage } from '../../queryClient'
 import { factionSelectGroups } from './builder/factions'
 import { CreateRoster } from './CreateRoster'
@@ -38,10 +45,10 @@ import { OwnerLink } from './OwnerLink'
 
 export type RosterDiscoverySearch = { faction?: string; detachment?: string; rules?: RulesVersionStatus; sort?: RosterSort }
 
-type IndexedFactions = NonNullable<Awaited<ReturnType<NonNullable<ReturnType<typeof factionIndexQuery>['queryFn']>>>>['factions']
-type DiscoveredPage = Awaited<ReturnType<NonNullable<ReturnType<typeof discoveredRostersQuery>['queryFn']>>>
+type IndexedFactions = NonNullable<QueryData<typeof factionIndexQuery>>['factions']
+type DiscoveredPage = QueryData<typeof discoveredRostersQuery>
 type Discovered = DiscoveredPage['rosters'][number]
-type PlayedArmy = Awaited<ReturnType<NonNullable<ReturnType<typeof playedArmiesQuery>['queryFn']>>>['armies'][number]
+type PlayedArmy = QueryData<typeof playedArmiesQuery>['armies'][number]
 
 const RULES_LABEL: Record<RulesVersionStatus, string> = { current: 'Current', archived: 'Archived', preview: 'Preview' }
 const RULES_GROUPS: SearchableGroup[] = [
@@ -323,7 +330,7 @@ function PlayedArmies({
   onCopy,
   onClearFilters,
 }: {
-  result: ReturnType<typeof useInfiniteQuery<Awaited<ReturnType<NonNullable<ReturnType<typeof playedArmiesQuery>['queryFn']>>>>>
+  result: ReturnType<typeof useInfiniteQuery<QueryData<typeof playedArmiesQuery>>>
   factions: IndexedFactions
   filtered: boolean
   copying: PlayedArmy | null

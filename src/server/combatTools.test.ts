@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { CanonicalCatalogue } from '../contracts/catalogue'
 import { decodeSimulatorState } from '../contracts/simulatorState'
 import { categories, shelfOf } from './catalogue.fixtures'
-import { combatUnitsFor } from './combatUnits'
+import { combatUnitsFor } from '../shared/combatUnits'
 import type { ReferenceCorpus } from './referenceCorpus'
 
 const profile = (id: string, name: string, typeName: string, values: Record<string, string>) => ({

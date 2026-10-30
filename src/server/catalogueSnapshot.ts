@@ -11,6 +11,8 @@ import {
   catalogueSources,
   disabledCatalogueSources,
   isSnapshotSourceName,
+  readRevisions,
+  revisionsOf,
   SNAPSHOT_SOURCE_NAMES,
   type SnapshotSourceName,
 } from './catalogueSources'
@@ -35,6 +37,7 @@ import { replaceDirectory } from './replaceDirectory'
 import { replaceFile, replaceFileSync } from './replaceFile'
 import { isSafeRelativePath } from './relativePath'
 import { reportServerFailure } from '../adapters/posthog'
+import { forEachConcurrently } from '../shared/forEachConcurrently'
 
 const LEGACY_FORMAT = 'praetorium.catalogue.v1'
 const COMPLETE_FORMAT = 'praetorium.catalogue.v2'
@@ -113,21 +116,6 @@ function parsePointer(value: unknown): SnapshotPointer {
   }
 }
 
-/** `historical` reads a published snapshot as history, passing over a source this code no longer has. */
-function revisionsOf(value: unknown, historical = false): Record<string, string> {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('catalogue revisions are invalid')
-  const revisions: Record<string, string> = {}
-  for (const [name, revision] of Object.entries(value)) {
-    const known = isSnapshotSourceName(name)
-    if (historical && !known) continue
-    if (!known || typeof revision !== 'string' || !revision) {
-      throw new Error(`catalogue revision ${name} is invalid`)
-    }
-    revisions[name] = revision
-  }
-  return revisions
-}
-
 function parseCatalogueLock(value: unknown): CatalogueLock {
   if (!value || typeof value !== 'object') throw new Error('catalogue lock is invalid')
   const candidate = value as Partial<CatalogueLock>
@@ -179,7 +167,7 @@ function sourceDirectoryComplete(directory: string, name: SnapshotSourceName) {
 }
 
 function includedSources(directory: string, disabled: ReadonlySet<SnapshotSourceName>) {
-  const revisions = revisionsOf(JSON.parse(fs.readFileSync(path.join(directory, 'revision.json'), 'utf8')))
+  const revisions = readRevisions(directory)
   const included = SNAPSHOT_SOURCE_NAMES.filter((name) => !disabled.has(name))
   for (const name of included) {
     if (!revisions[name]) throw new Error(`catalogue snapshot has no ${name} revision`)
@@ -486,26 +474,19 @@ async function fetchSnapshotObjects(
     const hashes = [...new Set(Object.values(manifest.files))]
     if (hashes.some((objectHash) => !/^[a-f0-9]{64}$/.test(objectHash))) throw new Error('catalogue object hash is invalid')
     const entries = new Map<string, ExtractedFile>()
-    let cursor = 0
     let total = 0
-    const workers = Array.from({ length: Math.min(8, hashes.length) }, async () => {
-      while (cursor < hashes.length) {
-        const objectHash = hashes[cursor++]!
-        const file = path.join(objectCache(directory), objectHash)
-        if (!fs.existsSync(file) || fs.statSync(file).size > MAX_OBJECT_BYTES || hashCatalogueFile(file) !== objectHash) {
-          await replaceFile(file, async (temporary) =>
-            downloadCatalogueObject(await request(`${base}/objects/${objectHash}.gz`), temporary, objectHash),
-          )
-        }
-        const bytes = fs.statSync(file).size
-        total += bytes
-        if (bytes > MAX_OBJECT_BYTES || total > MAX_EXTRACTED_BYTES) throw new Error('catalogue objects exceed their size limit')
-        entries.set(`objects/${objectHash}`, { sha256: objectHash, bytes, file })
+    await forEachConcurrently(hashes, 8, async (objectHash) => {
+      const file = path.join(objectCache(directory), objectHash)
+      if (!fs.existsSync(file) || fs.statSync(file).size > MAX_OBJECT_BYTES || hashCatalogueFile(file) !== objectHash) {
+        await replaceFile(file, async (temporary) =>
+          downloadCatalogueObject(await request(`${base}/objects/${objectHash}.gz`), temporary, objectHash),
+        )
       }
+      const bytes = fs.statSync(file).size
+      total += bytes
+      if (bytes > MAX_OBJECT_BYTES || total > MAX_EXTRACTED_BYTES) throw new Error('catalogue objects exceed their size limit')
+      entries.set(`objects/${objectHash}`, { sha256: objectHash, bytes, file })
     })
-    const settled = await Promise.allSettled(workers)
-    const failure = settled.find((result) => result.status === 'rejected')
-    if (failure?.status === 'rejected') throw failure.reason
     installManifestFiles(directory, raw, entries, pointer, revocations, revisions)
   } finally {
     fs.rmSync(manifestFile, { force: true })
@@ -515,7 +496,7 @@ async function fetchSnapshotObjects(
 function installedSnapshotDetails(directory: string, historical = false): InstalledSnapshot | null {
   try {
     const pointer = readSnapshotPointer(path.join(directory, '.snapshot.json'))
-    const revisions = revisionsOf(JSON.parse(fs.readFileSync(path.join(directory, 'revision.json'), 'utf8')), historical)
+    const revisions = readRevisions(directory, historical)
     const manifestFile = path.join(directory, '.snapshot-manifest.json')
     const sources = fs.existsSync(manifestFile)
       ? manifestSources(JSON.parse(fs.readFileSync(manifestFile, 'utf8')) as SnapshotManifest)
@@ -537,7 +518,7 @@ export function verifyInstalledSnapshot(directory: string): SnapshotPointer {
   const manifest = readManifest(rawManifest, pointer)
   const sources = manifestSources(manifest)
   assertCatalogueSnapshotAllowed(pointer, sources, configuredCatalogueRevocations())
-  const revisions = revisionsOf(JSON.parse(fs.readFileSync(path.join(directory, 'revision.json'), 'utf8')))
+  const revisions = readRevisions(directory)
   if (JSON.stringify(revisions) !== JSON.stringify(manifest.revisions)) throw new Error('catalogue revisions do not match the manifest')
   let size = 0
   for (const [name, fileHash] of Object.entries(manifest.files)) {

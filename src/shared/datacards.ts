@@ -4,7 +4,7 @@ import { remember, uniqueBy } from '../core/collections'
 import { PHASES, type Stratagem } from '../core/battle'
 import { routeSlug } from '../core/slug'
 import { catalogueFactionName } from './factionNames'
-import { joinKey } from '../core/text'
+import { countLabel, joinKey } from '../core/text'
 import type { SourceTexts, TextTransform } from './sourceText'
 import type { TextFactsByKey } from './textFacts'
 import { type PrintedTransport, printedTransport } from '../core/transport'
@@ -823,7 +823,7 @@ export function compositionCount(lines: readonly string[]) {
         ]
       : [],
   )
-  if (!totals.length) return `${lines.length} ${lines.length === 1 ? 'model' : 'models'}`
+  if (!totals.length) return countLabel(lines.length, 'model')
 
   const minimum = Math.min(...totals.map((total) => total.minimum))
   const maximum = Math.max(...totals.map((total) => total.maximum))

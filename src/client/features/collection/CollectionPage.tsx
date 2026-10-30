@@ -147,8 +147,7 @@ export function CollectionPage() {
             placeholder="Add a datasheet…"
             searchPlaceholder="Search datasheets…"
             loading={units.isPending}
-            value=""
-            onValueChange={(value) => add((JSON.parse(value) as [string, string])[1])}
+            onUnitChange={(_, entryId) => add(entryId)}
             index={(units.data ?? []).map((book) => ({ ...book, units: book.units.filter((unit) => !owned.has(unit.id)) }))}
           />
           <p className="flex flex-wrap items-baseline gap-x-4 gap-y-1 sm:ml-auto">

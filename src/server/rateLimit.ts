@@ -2,13 +2,13 @@ type RateWindow = { startedAt: number; requests: number }
 const RATE_WINDOW_MS = 60_000
 const RATE_BUCKET_MAX = 10_000
 
-/** A per-address, per-minute request limit; each limiter counts only its own requests. */
-export function fixedWindowRateLimit(error: string) {
+/** A per-address limit of `limit` requests a minute; each limiter counts only its own requests. */
+export function fixedWindowRateLimit(error: string, limit: number) {
   const rateWindows = new Map<string, RateWindow>()
   const rateLimitResponse = (retryAfter: number) =>
     Response.json({ error }, { status: 429, headers: { 'Cache-Control': 'no-store', 'Retry-After': String(retryAfter) } })
 
-  return (request: Request, limit: number) => {
+  return (request: Request) => {
     const now = Date.now()
     const forwarded = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
     const key = forwarded || 'unknown'

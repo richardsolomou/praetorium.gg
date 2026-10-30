@@ -1,6 +1,7 @@
 import type { CatalogueEdition } from './catalogueEdition'
 import { isGuestSeat } from './newBattle'
 import { routeSlug } from './slug'
+import { compareText } from './text'
 /** Standings rate players from finished battles; each faction table rates the seats that fielded it. */
 import { ordinal, rate, rating, type Rating } from 'openskill'
 
@@ -79,6 +80,11 @@ export function sideOutcome(
 
 export function sideScore(battle: StandingBattle, side: number) {
   return battle.sides.reduce((total, seat, index) => (seat === side ? total + (battle.scores[index] ?? 0) : total), 0)
+}
+
+/** The best score among the sides opposing `side`, 0 when none does. */
+export function opponentScore(battle: StandingBattle, side: number) {
+  return Math.max(0, ...[...new Set(battle.sides)].filter((other) => other !== side).map((other) => sideScore(battle, other)))
 }
 
 /**
@@ -246,7 +252,7 @@ export function compareStandings(one: Standing, other: Standing): number {
     winRate(other) - winRate(one) ||
     averagePoints(other) - averagePoints(one) ||
     one.name.localeCompare(other.name) ||
-    one.id.localeCompare(other.id)
+    compareText(one.id, other.id)
   )
 }
 

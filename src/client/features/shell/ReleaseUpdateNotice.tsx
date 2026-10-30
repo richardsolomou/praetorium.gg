@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { releaseQuery } from '../../queries'
 import { staleBuildRelease } from '../../releaseUpdate'
 import { retireDeviceConstruction } from '../../functions'
+import { FloatingNotice } from '../../components/FloatingNotice'
 
 export function ReleaseUpdateNotice() {
   useQuery(releaseQuery())
@@ -14,18 +15,12 @@ export function ReleaseUpdateNotice() {
   }, [outdated])
   if (!outdated) return null
   return (
-    <aside
-      aria-label="Release update"
-      aria-live="polite"
-      className="fixed bottom-4 left-1/2 z-40 flex w-max max-w-[calc(100%-1.5rem)] -translate-x-1/2 items-center gap-2 border border-edge-strong bg-panel p-2 text-sm shadow-lg"
-      data-release-update
-      data-print-hide
-    >
+    <FloatingNotice aria-label="Release update" data-release-update>
       <span className="px-2 font-medium text-bone">Praetorium has been updated.</span>
       <Button size="sm" onClick={() => window.location.reload()}>
         <RefreshCw />
         Refresh
       </Button>
-    </aside>
+    </FloatingNotice>
   )
 }

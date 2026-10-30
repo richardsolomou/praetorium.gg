@@ -29,6 +29,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import type { NamedRosterDifferences } from '../../../core/rosterDifferences'
 import { useNativeShare } from '../../nativeBridge'
+import { shareButtonLabel } from '../../useShareLink'
 import type { RosterActions, SavedRoster } from './rosterLibrary'
 import type { AccountReason } from './AccountPrompt'
 import {
@@ -219,9 +220,7 @@ function RosterActionItems({
             <span className="block text-xs text-dim">Anyone with the link can read this roster.</span>
           </span>
         ) : (
-          <span>
-            {feedback === 'shared' ? 'Link shared' : feedback === 'copied' ? 'Link copied' : nativeShare ? 'Share link' : 'Copy link'}
-          </span>
+          <span>{shareButtonLabel(feedback, nativeShare, 'link')}</span>
         )}
       </Item>
       {showPrivacy && roster.visibility !== 'private' ? (

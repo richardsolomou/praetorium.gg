@@ -25,7 +25,7 @@ import { recentMatchupSchema, type RecentMatchup } from '../core/recentMatchups'
 import { abilityReminderSchema, type AbilityReminder } from '../core/reminders'
 import { onboardingProgress as foldOnboardingProgress, type OnboardingProgressOperation } from '../core/onboarding'
 import { TABLE_SHAPES } from '../core/tableShape'
-import { LEAGUE_ADMISSIONS, LEAGUE_VISIBILITIES, parseLeagueAllowances } from '../core/league'
+import { LEAGUE_ADMISSIONS, LEAGUE_ENTRY_STATUSES, LEAGUE_VISIBILITIES, parseLeagueAllowances } from '../core/league'
 import { CLUB_MEMBER_STATUSES, CLUB_ROLES } from '../core/club'
 import { unitLoadoutSchema, type UnitLoadout } from '../core/unitLoadouts'
 import { leagueRosterSharingSchema } from '../contracts/leagueRosterSharing'
@@ -209,7 +209,7 @@ const leagueEntry = z.object({
   key: z.string(),
   eventId: z.string(),
   userId: z.string(),
-  status: z.enum(['pending', 'accepted', 'rejected']),
+  status: z.enum(LEAGUE_ENTRY_STATUSES),
   joinedAt: z.number().int(),
   rosterId: z.string().nullable(),
   rosterName: z.string().nullable(),

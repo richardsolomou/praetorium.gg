@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { POINTS_BUDGET_MAX, validArmyPoints } from '../../../../core/battle'
+import { ARMY_POINTS_ERROR, validArmyPoints } from '../../../../core/battle'
+import { capitalised } from '../../../../core/text'
 import { sideName, type Side } from '../../../sides'
 
 const textFor = (chosen: number[] | undefined, side: number) => (chosen?.[side] === undefined ? '' : String(chosen[side]))
@@ -61,7 +62,7 @@ export function ArmyPoints({
       <div className="mt-1 grid gap-3 sm:grid-cols-2">
         {sides.map((side) => {
           const id = `army-points-${side.index}`
-          const error = invalid(points[side.index]!) ? `Choose between 1 and ${POINTS_BUDGET_MAX.toLocaleString('en')} points.` : null
+          const error = invalid(points[side.index]!) ? `${capitalised(ARMY_POINTS_ERROR)}.` : null
           return (
             <div key={side.index} className="min-w-0 space-y-1">
               <Label htmlFor={id} className="truncate text-xs text-dim">

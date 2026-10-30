@@ -59,7 +59,7 @@ import { initialLaunch } from './src/initialLaunch'
 import {
   NATIVE_BRIDGE_SCRIPT,
   nativeWatchCapabilityScript,
-  nativePushAnswerScript,
+  nativeAnswerScript,
   parseNativeActionRequest,
   type NativeActionRequest,
 } from './src/nativeActions'
@@ -78,6 +78,7 @@ import { notificationUrl } from './src/notifications'
 import { pushAnswer } from './src/pushDevice'
 import { NATIVE_USER_AGENT } from './src/version'
 import { deleteSecureValue, getSecureValue, setSecureValue } from './src/secureStorage'
+import { NATIVE_EVENTS } from '../src/contracts/nativeBridge'
 
 const BACKGROUND = '#0f1113'
 /** The web header's and tab bar's `--color-sunken`, so the safe areas continue them. */
@@ -340,9 +341,7 @@ function AppShell() {
   const navigateApplication = useCallback(
     (url: string) => {
       if (offlineView && classifyNavigation(url).kind === 'internal') {
-        webView.current?.injectJavaScript(
-          `window.dispatchEvent(new CustomEvent('praetorium-app-navigate', { detail: ${JSON.stringify(url)} })); true;`,
-        )
+        webView.current?.injectJavaScript(nativeAnswerScript(NATIVE_EVENTS.navigate, url))
         return
       }
       setOfflineView(null)
@@ -366,9 +365,7 @@ function AppShell() {
           } finally {
             if (file.exists) file.delete()
           }
-          webView.current?.injectJavaScript(
-            `window.dispatchEvent(new CustomEvent('praetorium-native-export-work', { detail: ${JSON.stringify({ id: action.id, error }).replaceAll('<', '\u003c')} })); true;`,
-          )
+          webView.current?.injectJavaScript(nativeAnswerScript(NATIVE_EVENTS.exportWork, { id: action.id, error }))
           break
         }
         case 'local-state': {
@@ -382,9 +379,7 @@ function AppShell() {
             captureNativeException('local_state_save', error)
             answer = { saved: false, error: 'Changes could not be saved on this device.' }
           }
-          webView.current?.injectJavaScript(
-            `window.dispatchEvent(new CustomEvent('praetorium-native-local-state', { detail: ${JSON.stringify({ id: action.id, ...answer }).replaceAll('<', '\\u003c')} })); true;`,
-          )
+          webView.current?.injectJavaScript(nativeAnswerScript(NATIVE_EVENTS.localState, { id: action.id, ...answer }))
           break
         }
         case 'watch-battle':
@@ -399,9 +394,7 @@ function AppShell() {
           } catch (error) {
             captureNativeException('app_snapshot_save', error)
           }
-          webView.current?.injectJavaScript(
-            `window.dispatchEvent(new CustomEvent('praetorium-native-app-snapshot', { detail: ${JSON.stringify({ id: action.id, saved })} })); true;`,
-          )
+          webView.current?.injectJavaScript(nativeAnswerScript(NATIVE_EVENTS.appSnapshot, { id: action.id, saved }))
           break
         }
         case 'offline-save': {
@@ -413,10 +406,7 @@ function AppShell() {
           } catch (error) {
             captureNativeException('offline_reference_save', error)
           }
-          const detail = JSON.stringify({ id: action.id, saved })
-          webView.current?.injectJavaScript(
-            `window.dispatchEvent(new CustomEvent('praetorium-native-offline', { detail: ${detail} })); true;`,
-          )
+          webView.current?.injectJavaScript(nativeAnswerScript(NATIVE_EVENTS.offline, { id: action.id, saved }))
           break
         }
         case 'back-gesture':
@@ -445,7 +435,7 @@ function AppShell() {
             captureNativeException('native_push', error)
             return { status: 'unavailable' } as const
           })
-          webView.current?.injectJavaScript(nativePushAnswerScript(action.id, answer))
+          webView.current?.injectJavaScript(nativeAnswerScript(NATIVE_EVENTS.push, { id: action.id, ...answer }))
           break
         }
         case 'share':
@@ -496,7 +486,7 @@ function AppShell() {
   useEffect(() => {
     const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
       if (!historyBack) return false
-      if (offlineView) webView.current?.injectJavaScript("window.dispatchEvent(new Event('praetorium-app-back')); true;")
+      if (offlineView) webView.current?.injectJavaScript(`window.dispatchEvent(new Event('${NATIVE_EVENTS.appBack}')); true;`)
       else webView.current?.goBack()
       return true
     })

@@ -22,3 +22,11 @@ export function useShareLink(event: string) {
   }
   return { shared, problem, share, reset }
 }
+
+/** A share button's text: what it will do with the `noun`, then what it did; a failed share reads as not yet shared. */
+export function shareButtonLabel(shared: 'copied' | 'shared' | 'error' | null, nativeShare: boolean, noun: 'invite' | 'link') {
+  if (shared === 'copied') return 'Link copied'
+  if (shared === 'shared') return noun === 'invite' ? 'Invite shared' : 'Link shared'
+  if (nativeShare) return noun === 'invite' ? 'Share invite' : 'Share link'
+  return noun === 'invite' ? 'Copy invite link' : 'Copy link'
+}

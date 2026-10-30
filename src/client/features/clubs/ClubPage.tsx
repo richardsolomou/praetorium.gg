@@ -30,11 +30,12 @@ import { PageTabsList } from '../../components/PageTabs'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { Problem } from '../../components/Problem'
 import { deleteClub, joinClub, leaveClub, moderateClubMember, removeClubMember } from '../../functions'
-import { clubQuery, clubSeasonQuery, clubStandingsQuery, meQuery } from '../../queries'
+import { clubQuery, clubSeasonQuery, clubStandingsQuery, meQuery, type QueryData } from '../../queries'
 import { useDateFormatting } from '../../dates'
 import { BattleShelf } from '../battles/BattleShelf'
 import type { Battle } from '../battles/battle'
-import { useInviteShareLabel } from '../friends/friendInvite'
+import { useNativeShare } from '../../nativeBridge'
+import { shareButtonLabel } from '../../useShareLink'
 import { Standings } from '../leaderboard/Standings'
 import { inviteFeedbackText, useInviteShare } from '../leagues/LeagueActions'
 import { SectionHeading } from '../../components/SectionHeading'
@@ -42,7 +43,7 @@ import { accessSummary, OrganizerLinks, VisibilityIcon } from '../leagues/EventA
 import { LeagueSettingsDialog } from '../leagues/LeagueSettingsDialog'
 import { useMoment } from '../leagues/EventSchedule'
 import { eventName, namesPhrase } from '../leagues/leagueEvent'
-import { useClubRefresh, usePlayClubGame, type Club, type ClubTab } from './club'
+import { memberNameOf, useClubRefresh, usePlayClubGame, type Club, type ClubTab } from './club'
 import { ClubSettingsDialog } from './ClubSettingsDialog'
 import { ClubSealedGame, unplayedOpponents } from './ClubSealedGame'
 import { ClubSeason } from './ClubSeason'
@@ -53,8 +54,8 @@ import { useNow } from '../../useNow'
 import { countLabel } from '../../text'
 
 type Member = Club['members'][number]
-type ClubTable = NonNullable<Awaited<ReturnType<NonNullable<ReturnType<typeof clubStandingsQuery>['queryFn']>>>>
-type Season = NonNullable<Awaited<ReturnType<NonNullable<ReturnType<typeof clubSeasonQuery>['queryFn']>>>>
+type ClubTable = NonNullable<QueryData<typeof clubStandingsQuery>>
+type Season = NonNullable<QueryData<typeof clubSeasonQuery>>
 type Game = Club['games'][number]
 
 export function ClubPage({ token, game, tab }: { token: string; game?: string; tab?: ClubTab }) {
@@ -92,7 +93,7 @@ function ClubScreen({
   const accepted = club.members.filter((candidate) => candidate.status === 'accepted')
   const admins = accepted.filter((candidate) => candidate.role === 'admin')
   const invite = useInviteShare(`/clubs/${club.token}`, club.name, 'club_invite_shared')
-  const shareLabel = useInviteShareLabel()
+  const shareLabel = shareButtonLabel(null, useNativeShare(), 'invite')
   const now = useNow(club.games.map((game) => game.pastAt))
   const playing = new Set(table?.playing)
   const open = club.games.filter((game) => clubGameOpen(game, now))
@@ -509,7 +510,7 @@ function ClubNext({
 }) {
   const play = usePlayClubGame(club.token)
   const moment = useMoment()
-  const nameOf = (userId: string) => club.members.find((member) => member.userId === userId)?.name ?? 'A former member'
+  const nameOf = memberNameOf(club)
   const battle = table?.active[0]
   const toSeal = games.find(
     (game) =>

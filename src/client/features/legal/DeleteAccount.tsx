@@ -1,5 +1,5 @@
 import { Link } from '@tanstack/react-router'
-import { LegalPage, LegalSection } from './LegalPage'
+import { LegalPage, LegalSection, PrivacyEmail } from './LegalPage'
 
 export function DeleteAccount() {
   return (
@@ -19,11 +19,8 @@ export function DeleteAccount() {
 
       <LegalSection title="If you cannot sign in">
         <p>
-          Email{' '}
-          <a href="mailto:privacy@praetorium.gg" className="text-info hover:text-parchment">
-            privacy@praetorium.gg
-          </a>{' '}
-          from the account address and request permanent deletion. We will verify that the account belongs to you before deleting it.
+          Email <PrivacyEmail /> from the account address and request permanent deletion. We will verify that the account belongs to you
+          before deleting it.
         </p>
       </LegalSection>
 

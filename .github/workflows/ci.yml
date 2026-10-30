@@ -56,13 +56,12 @@ jobs:
         with:
           out-dir: src/spacetime/generated
           format-command: pnpm exec oxfmt src/spacetime/generated
-      - run: pnpm catalogue:sync
+      - uses: ./.github/actions/catalogue-sync
         if: needs.changes.outputs.runtime == 'true'
-        # Catalogue snapshots are private, read with these on this step alone.
-        env:
-          R2_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
-          R2_ACCESS_KEY_ID: ${{ secrets.PRIVATE_R2_ACCESS_KEY_ID }}
-          R2_SECRET_ACCESS_KEY: ${{ secrets.PRIVATE_R2_SECRET_ACCESS_KEY }}
+        with:
+          r2-account-id: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          r2-access-key-id: ${{ secrets.PRIVATE_R2_ACCESS_KEY_ID }}
+          r2-secret-access-key: ${{ secrets.PRIVATE_R2_SECRET_ACCESS_KEY }}
       - run: pnpm reference:evaluate
         if: needs.changes.outputs.runtime == 'true'
 
@@ -75,12 +74,11 @@ jobs:
         with:
           fetch-depth: 0
       - uses: richardsolomou/ras-stack/actions/setup-js@v1
-      - run: pnpm catalogue:sync
-        # Catalogue snapshots are private, read with these on this step alone.
-        env:
-          R2_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
-          R2_ACCESS_KEY_ID: ${{ secrets.PRIVATE_R2_ACCESS_KEY_ID }}
-          R2_SECRET_ACCESS_KEY: ${{ secrets.PRIVATE_R2_SECRET_ACCESS_KEY }}
+      - uses: ./.github/actions/catalogue-sync
+        with:
+          r2-account-id: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          r2-access-key-id: ${{ secrets.PRIVATE_R2_ACCESS_KEY_ID }}
+          r2-secret-access-key: ${{ secrets.PRIVATE_R2_SECRET_ACCESS_KEY }}
       # `scripts/releasedServer.test.ts` runs the released server against this module.
       - name: Check out the latest release
         run: git worktree add --detach "$RUNNER_TEMP/released" "$(git describe --tags --abbrev=0 origin/main)"
@@ -95,12 +93,11 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: richardsolomou/ras-stack/actions/setup-js@v1
-      - run: pnpm catalogue:sync
-        # Catalogue snapshots are private, read with these on this step alone.
-        env:
-          R2_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
-          R2_ACCESS_KEY_ID: ${{ secrets.PRIVATE_R2_ACCESS_KEY_ID }}
-          R2_SECRET_ACCESS_KEY: ${{ secrets.PRIVATE_R2_SECRET_ACCESS_KEY }}
+      - uses: ./.github/actions/catalogue-sync
+        with:
+          r2-account-id: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          r2-access-key-id: ${{ secrets.PRIVATE_R2_ACCESS_KEY_ID }}
+          r2-secret-access-key: ${{ secrets.PRIVATE_R2_SECRET_ACCESS_KEY }}
       # The build lane audits publication after generating the offline bundle once.
       - run: pnpm test:integration --exclude scripts/clientText.integration.test.ts
       - run: pnpm test:python
@@ -118,12 +115,11 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: richardsolomou/ras-stack/actions/setup-js@v1
-      - run: pnpm catalogue:sync
-        # Catalogue snapshots are private, read with these on this step alone.
-        env:
-          R2_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
-          R2_ACCESS_KEY_ID: ${{ secrets.PRIVATE_R2_ACCESS_KEY_ID }}
-          R2_SECRET_ACCESS_KEY: ${{ secrets.PRIVATE_R2_SECRET_ACCESS_KEY }}
+      - uses: ./.github/actions/catalogue-sync
+        with:
+          r2-account-id: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          r2-access-key-id: ${{ secrets.PRIVATE_R2_ACCESS_KEY_ID }}
+          r2-secret-access-key: ${{ secrets.PRIVATE_R2_SECRET_ACCESS_KEY }}
       - name: Fingerprint the catalogue runtime
         id: runtime
         run: echo "key=$(pnpm exec tsx scripts/catalogueRuntimeKey.ts)" >> "$GITHUB_OUTPUT"
@@ -189,12 +185,11 @@ jobs:
           path: e2e-map.json
           key: e2e-map-${{ github.sha }}
           restore-keys: e2e-map-
-      - run: pnpm catalogue:sync
-        # Catalogue snapshots are private, read with these on this step alone.
-        env:
-          R2_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
-          R2_ACCESS_KEY_ID: ${{ secrets.PRIVATE_R2_ACCESS_KEY_ID }}
-          R2_SECRET_ACCESS_KEY: ${{ secrets.PRIVATE_R2_SECRET_ACCESS_KEY }}
+      - uses: ./.github/actions/catalogue-sync
+        with:
+          r2-account-id: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          r2-access-key-id: ${{ secrets.PRIVATE_R2_ACCESS_KEY_ID }}
+          r2-secret-access-key: ${{ secrets.PRIVATE_R2_SECRET_ACCESS_KEY }}
       - name: Require the terrain geometry
         run: pnpm catalogue:terrain
       - name: Fingerprint the browser-test build
@@ -375,18 +370,17 @@ jobs:
         with:
           fetch-depth: 0
       - uses: richardsolomou/ras-stack/actions/setup-js@v1
-      - run: pnpm catalogue:sync
-        # Catalogue snapshots are private, read with these on this step alone.
-        env:
-          R2_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
-          R2_ACCESS_KEY_ID: ${{ secrets.PRIVATE_R2_ACCESS_KEY_ID }}
-          R2_SECRET_ACCESS_KEY: ${{ secrets.PRIVATE_R2_SECRET_ACCESS_KEY }}
+      - uses: ./.github/actions/catalogue-sync
+        with:
+          r2-account-id: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          r2-access-key-id: ${{ secrets.PRIVATE_R2_ACCESS_KEY_ID }}
+          r2-secret-access-key: ${{ secrets.PRIVATE_R2_SECRET_ACCESS_KEY }}
       - name: Choose a compatible comparison revision
         id: comparison
         run: |
           set -euo pipefail
           base_sha="$BASE_SHA"
-          if ! git diff --quiet "$BASE_SHA" "$HEAD_SHA" -- catalogue.json catalogue/lock.json; then
+          if ! git diff --quiet "$BASE_SHA" "$HEAD_SHA" -- catalogue.json; then
             base_sha="$(git rev-parse "$HEAD_SHA^")"
           fi
           echo "sha=$base_sha" >> "$GITHUB_OUTPUT"
@@ -454,7 +448,7 @@ jobs:
         run: |
           set -euo pipefail
           base_sha="$(git rev-parse "$GITHUB_SHA^1")"
-          if ! git diff --quiet "$BASE_SHA" "$HEAD_SHA" -- catalogue.json catalogue/lock.json; then
+          if ! git diff --quiet "$BASE_SHA" "$HEAD_SHA" -- catalogue.json; then
             base_sha="$(git rev-parse "$HEAD_SHA^")"
           fi
           {
@@ -473,13 +467,12 @@ jobs:
           else
             echo needed=true >> "$GITHUB_OUTPUT"
           fi
-      - if: steps.scope.outputs.needed == 'true'
-        run: pnpm catalogue:sync
-        # Catalogue snapshots are private, read with these on this step alone.
-        env:
-          R2_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
-          R2_ACCESS_KEY_ID: ${{ secrets.PRIVATE_R2_ACCESS_KEY_ID }}
-          R2_SECRET_ACCESS_KEY: ${{ secrets.PRIVATE_R2_SECRET_ACCESS_KEY }}
+      - uses: ./.github/actions/catalogue-sync
+        if: steps.scope.outputs.needed == 'true'
+        with:
+          r2-account-id: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          r2-access-key-id: ${{ secrets.PRIVATE_R2_ACCESS_KEY_ID }}
+          r2-secret-access-key: ${{ secrets.PRIVATE_R2_SECRET_ACCESS_KEY }}
       # Both snapshots must read one revision.json, or an upstream change between
       # the runs reads back as a phantom loss.
       - if: steps.scope.outputs.needed == 'true'
@@ -542,7 +535,7 @@ jobs:
           key: catalogue-coverage-${{ matrix.sha }}-${{ matrix.file }}-${{ hashFiles('catalogue-data/.snapshot.json') }}
       - name: Snapshot the ${{ matrix.revision }}
         if: matrix.revision == 'head' || steps.base-cache.outputs.cache-hit != 'true'
-        run: pnpm catalogue:coverage:parallel ${{ matrix.file }} ${{ matrix.part && format('--part {0}', matrix.part) || '' }}
+        run: pnpm catalogue:coverage:parallel ${{ matrix.file }} --part ${{ matrix.part }}
       - uses: actions/upload-artifact@v7
         with:
           name: coverage-${{ matrix.file }}

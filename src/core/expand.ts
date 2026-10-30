@@ -6,7 +6,7 @@ import { childrenOf, hasDynamicSelectionLimit, MAX_DEPTH, maximumCount, type Opt
 import { evaluate, type EvaluateOptions, hiddenByRules, type Selection } from './evaluate'
 import { updateSelection, withCounts, withPlaceFor } from './selection'
 
-export type DefaultOptions = EvaluateOptions & { maxDepth?: number }
+type DefaultOptions = EvaluateOptions & { maxDepth?: number }
 
 /**
  * The smallest legal selection of an entry, or null when the id is unknown.

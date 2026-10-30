@@ -128,7 +128,7 @@ type Props = {
  * Whether a detachment answers what was typed, by its own name or a disposition it
  * offers — "reconnaissance" is a reason to pick one, and the chips already say so.
  */
-export function matchesQuery(detachment: Pick<Detachment, 'name' | 'dispositions'>, query: string) {
+function matchesQuery(detachment: Pick<Detachment, 'name' | 'dispositions'>, query: string) {
   return [detachment.name, ...detachment.dispositions.map((disposition) => disposition.name)].some((text) => matchesSearch(text, query))
 }
 

@@ -1,21 +1,12 @@
 import { useInfiniteQuery, useMutation, useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { ArrowRight, Check, Eye, FileLock2, Pencil, Play, ShieldCheck, Swords, TriangleAlert, UserPlus } from 'lucide-react'
+import { ArrowRight, Check, Eye, FileLock2, Play, ShieldCheck, Swords, UserPlus } from 'lucide-react'
 import { posthog } from 'posthog-js'
 import { useEffect, useState, type ReactNode } from 'react'
 import { warmLocalConstruction } from '../../offline/construction'
 import { afterPaint } from '../../afterPaint'
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
 import { buttonClass } from '../../components/buttonClass'
 import { GAME_SIZES, pointsSize } from '../../../core/battle'
 import {
@@ -33,7 +24,7 @@ import {
   type LeagueEntryView,
 } from '../../../core/league'
 import { createLeagueBattle, joinLeague, submitLeagueRoster } from '../../functions'
-import { rosterWaivers, WaiverList } from '../../components/FormatWaivers'
+import { rosterWaivers, WaiverConfirmDialog } from '../../components/FormatWaivers'
 import { entrantLabels } from '../../playerLabels'
 import { battlesFrom, gameReferencesQuery, leagueBattlesQuery, leagueResultsQuery } from '../../queries'
 import { BattleShelf } from '../battles/BattleShelf'
@@ -59,7 +50,7 @@ import {
 import { InvitePanel, OrganizerEntrants } from './LeagueOrganizer'
 import { LeagueArmies } from './LeagueArmies'
 import { LeagueReadiness, RevealRostersDialog } from './LeagueReadiness'
-import { LeagueBattleSkeleton, RosterChooser } from './LeagueRosterChooser'
+import { RosterChooser } from './LeagueRosterChooser'
 import { LeagueCombatDialog } from './LeagueCombatDialog'
 import { LeagueResults } from './LeagueResults'
 import { useMoment } from './EventSchedule'
@@ -266,7 +257,6 @@ export function LeagueEventView({
       }
     : entryCard
   const problem = join.error ?? (duel ? battle.error : null)
-  const sealWaivers = sealing ? rosterWaivers(sealing) : []
   // Before the reveal a row offers only your own or an ally's roster; once the rosters are out, the cards carry every one.
   const row = (entry: LeagueEntryView, detail: ReactNode = sealStatus(entry, revealed), controls?: ReactNode, last?: ReactNode) => (
     <EntrantRow key={entry.userId} entry={entry} label={label(entry)} detail={detail}>
@@ -494,52 +484,18 @@ export function LeagueEventView({
           else submit.mutate(roster.id)
         }}
       />
-      <AlertDialog
-        open={sealing !== null}
-        onOpenChange={(open) => {
-          if (submit.isPending) return
-          if (!open) setSealing(null)
+      <WaiverConfirmDialog
+        roster={sealing}
+        noun="roster"
+        consequence="this roster may not be legal here. The organizer and every opponent see what it waives at reveal."
+        confirmLabel="Seal it anyway"
+        pending={submit.isPending}
+        onCancel={() => setSealing(null)}
+        onConfirm={(roster) => {
+          submit.mutate(roster.id)
+          setSealing(null)
         }}
-      >
-        <AlertDialogContent aria-busy={submit.isPending} className="border-discarded/50 sm:max-w-lg [&>*]:min-w-0">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2 text-discarded">
-              <TriangleAlert className="size-5 shrink-0" aria-hidden />
-              {sealWaivers.length === 1 ? 'This roster waives a rule' : `This roster waives ${sealWaivers.length} rules`}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {sealing?.name} is not playing {sealWaivers.length === 1 ? 'one of' : 'some of'} the rules of its battle size:
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <WaiverList rules={sealWaivers} />
-          <p className="text-sm text-dim">
-            Praetorium has not checked {sealWaivers.length === 1 ? 'it' : 'them'}, so this roster may not be legal here. The organizer and
-            every opponent see what it waives at reveal.
-          </p>
-          <AlertDialogFooter className="sm:flex-wrap">
-            {sealing ? (
-              <Link
-                to="/rosters/$id"
-                params={{ id: sealing.id }}
-                data-slot="button"
-                className={buttonClass({ variant: 'outline', className: 'sm:mr-auto' })}
-              >
-                <Pencil /> Edit roster
-              </Link>
-            ) : null}
-            <AlertDialogCancel disabled={submit.isPending}>Choose another</AlertDialogCancel>
-            <AlertDialogAction
-              disabled={submit.isPending}
-              onClick={() => {
-                if (sealing) submit.mutate(sealing.id)
-                setSealing(null)
-              }}
-            >
-              Seal it anyway
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      />
       {battleFormat === '1v1' && ownEntry?.status === 'accepted' ? (
         <OneOnOneBattleChooser
           key={league.eventToken}
@@ -866,4 +822,22 @@ export function swissDetail(
     : progress.round < progress.rounds
       ? `Your round ${progress.round} battle is done. Round ${progress.round + 1} is paired once every table has finished.`
       : `Your last battle is done. The results are final once every table has finished.`
+}
+
+function LeagueBattleSkeleton() {
+  return (
+    <div className="space-y-2" aria-label="Loading battles">
+      <Skeleton className="h-4 w-20" />
+      {Array.from({ length: 2 }, (_, index) => (
+        <div key={index} className="flex min-h-20 items-center gap-3 border border-edge bg-panel p-3" aria-hidden>
+          <Skeleton className="size-10 shrink-0 rounded-full" />
+          <div className="flex-1 space-y-2">
+            <Skeleton className="h-4 w-1/2" />
+            <Skeleton className="h-3 w-2/3" />
+          </div>
+          <Skeleton className="h-8 w-20" />
+        </div>
+      ))}
+    </div>
+  )
 }

@@ -112,24 +112,6 @@ export function RosterChooser({
   )
 }
 
-export function LeagueBattleSkeleton() {
-  return (
-    <div className="space-y-2" aria-label="Loading battles">
-      <Skeleton className="h-4 w-20" />
-      {Array.from({ length: 2 }, (_, index) => (
-        <div key={index} className="flex min-h-20 items-center gap-3 border border-edge bg-panel p-3" aria-hidden>
-          <Skeleton className="size-10 shrink-0 rounded-full" />
-          <div className="flex-1 space-y-2">
-            <Skeleton className="h-4 w-1/2" />
-            <Skeleton className="h-3 w-2/3" />
-          </div>
-          <Skeleton className="h-8 w-20" />
-        </div>
-      ))}
-    </div>
-  )
-}
-
 function RosterChooserSkeleton() {
   return (
     <div className="space-y-2" aria-label="Loading rosters">

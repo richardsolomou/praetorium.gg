@@ -3,6 +3,7 @@ import { hash, randomUUID } from 'node:crypto'
 import path from 'node:path'
 import { unzipSync } from 'fflate'
 import { type BattlemasterSource } from './catalogueSources'
+import { boundedBytes } from './boundedBody'
 import { fetchWithRetry } from './fetch'
 import { battlemasterObjectiveHosts } from './battlemasterObjectives'
 import { replaceDirectory } from './replaceDirectory'
@@ -115,8 +116,7 @@ async function downloadLayout(source: BattlemasterSource, entry: BattlemasterCat
   // Fetch sequentially to avoid bursting the public API.
   const detailResponse = await fetchWithRetry(detailUrl)
   if (!detailResponse.ok) throw new Error(`${entry.id} answered ${detailResponse.status}`)
-  const detail = new Uint8Array(await detailResponse.arrayBuffer())
-  if (detail.length > MAX_BATTLEMASTER_FILE_BYTES) throw new Error(`${entry.id} exceeds ${MAX_BATTLEMASTER_FILE_BYTES} bytes`)
+  const detail = await boundedBytes(detailResponse, MAX_BATTLEMASTER_FILE_BYTES, `${entry.id} exceeds ${MAX_BATTLEMASTER_FILE_BYTES} bytes`)
   const parsed = parseJson(detail) as BattlemasterDetail
   if (!battlemasterDetailMatches(entry, parsed, source.baseUrl)) throw new Error(`${entry.id} changed during sync`)
   const slot = parsed.layout?.chapterApprovedSlot
@@ -133,7 +133,12 @@ async function downloadLayout(source: BattlemasterSource, entry: BattlemasterCat
   }
   const liteResponse = await fetchWithRetry(liteUrl)
   if (!liteResponse.ok) throw new Error(`${entry.id} objective layout answered ${liteResponse.status}`)
-  return { detail, lite: new Uint8Array(await liteResponse.arrayBuffer()) }
+  const lite = await boundedBytes(
+    liteResponse,
+    MAX_BATTLEMASTER_FILE_BYTES,
+    `${entry.id} objective layout exceeds ${MAX_BATTLEMASTER_FILE_BYTES} bytes`,
+  )
+  return { detail, lite }
 }
 
 function battlemasterDetailMatches(entry: BattlemasterCatalog['layouts'][number], detail: BattlemasterDetail, baseUrl: string) {
@@ -160,7 +165,8 @@ const MAX_EXTRACTED_BYTES = 512 * 1024 * 1024
 export async function fetchInto(repository: string, revision: string, target: string, sourcePath?: string) {
   const response = await fetchWithRetry(`https://codeload.github.com/${repository}/zip/${revision}`)
   if (!response.ok) throw new Error(`${repository} answered ${response.status}`)
-  extractSourceArchive(new Uint8Array(await response.arrayBuffer()), repository, target, sourcePath)
+  const archive = await boundedBytes(response, MAX_ARCHIVE_BYTES, `${repository} archive exceeds ${MAX_ARCHIVE_BYTES} bytes`)
+  extractSourceArchive(archive, repository, target, sourcePath)
 }
 
 /**

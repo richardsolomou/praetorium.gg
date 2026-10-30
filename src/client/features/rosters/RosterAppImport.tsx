@@ -10,13 +10,13 @@ import { Problem } from '../../components/Problem'
 import { ProgressBar } from '../../components/ProgressBar'
 import { findImportableRosters } from '../../functions'
 import { countLabel } from '../../text'
-import type { MatchedImport } from './RosterImport'
+import { isMatchedImport, type MatchedImport } from './RosterImport'
 
 type Found = Awaited<Extract<Awaited<ReturnType<typeof findImportableRosters>>, { found: true }>['rosters'][number]>
 export type RosterApp = 'battlebase' | 'newrecruit'
 
 const matched = (found: Found): found is Extract<Found, { kind: 'read' }> & { imported: MatchedImport } =>
-  found.kind === 'read' && Boolean(found.imported.catalogueId && found.imported.source)
+  found.kind === 'read' && isMatchedImport(found.imported)
 const complete = (imported: MatchedImport) => !imported.unknown.length && !imported.unplaced.length
 
 /**

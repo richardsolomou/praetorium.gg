@@ -1,5 +1,6 @@
 import { groupBy } from './collections'
 import { ROSTER_NAME_MAX_LENGTH } from './battle'
+import { compareText } from './text'
 
 /** The first `<base> · <n>` no list in the group holds, counting the base as the first. */
 export function variantName(stem: string, taken: readonly string[]) {
@@ -16,7 +17,7 @@ export function orderVariantGroup<T extends { id: string; createdAt: number | bi
   return members.toSorted(
     (left, right) =>
       Number(right.id === baseId) - Number(left.id === baseId) ||
-      (left.createdAt < right.createdAt ? -1 : left.createdAt > right.createdAt ? 1 : left.id.localeCompare(right.id)),
+      (left.createdAt < right.createdAt ? -1 : left.createdAt > right.createdAt ? 1 : compareText(left.id, right.id)),
   )
 }
 

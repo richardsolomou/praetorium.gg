@@ -7,7 +7,7 @@ import { parseSharedJson } from './sharedJson'
 import type { CanonicalCatalogue, UnitSummary } from '../contracts/catalogue'
 import type { GlobalSearchIndex } from '../core/referenceSearch'
 import type { factionsFor } from '../shared/factionReferences'
-import type { combatUnitsFor } from './combatUnits'
+import type { combatUnitsFor } from '../shared/combatUnits'
 import type { ConstructionSummaries } from '../shared/pickerUnits'
 
 export const MAX_RUNTIME_FILE_BYTES = 64 * 1024 * 1024

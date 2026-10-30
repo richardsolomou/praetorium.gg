@@ -15,11 +15,12 @@ import { PlayerDefaultsSettings } from './PlayerDefaultsSettings'
 import { PageContent, PageHeader } from '../../components/Page'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { SignInRequired } from '../../components/SignInRequired'
-import { accountMethodsQuery, meQuery } from '../../queries'
+import { accountMethodsQuery, meQuery, type QueryData } from '../../queries'
 import { errorMessage } from '../../queryClient'
 import { prepareProfileImage } from './profileImage'
 import { refreshProfileQueries } from './refreshProfileQueries'
 import { Problem } from '../../components/Problem'
+import { SectionHeading } from '../../components/SectionHeading'
 
 const accountLinkErrorMessage = (error?: string) => {
   if (!error) return undefined
@@ -59,7 +60,7 @@ function ProfileForm({
   callbackError,
   verified,
 }: {
-  me: NonNullable<Awaited<ReturnType<NonNullable<ReturnType<typeof meQuery>['queryFn']>>>>
+  me: NonNullable<QueryData<typeof meQuery>>
   callbackError?: string
   verified?: boolean
 }) {
@@ -129,7 +130,7 @@ function ProfileForm({
           }}
         >
           <section>
-            <h2 className="rubric border-b border-edge pb-2">Profile picture</h2>
+            <SectionHeading title="Profile picture" />
             <div className="mt-4 flex items-center gap-4">
               <PlayerAvatar name={name || me.name} image={image} className="size-24 text-3xl" />
               <div className="flex flex-wrap gap-2">
@@ -201,7 +202,7 @@ function ProfileForm({
           me={me}
           preferences={
             <div className="border border-edge bg-panel p-5 md:p-7">
-              <h2 className="rubric border-b border-edge pb-2">Preferences</h2>
+              <SectionHeading title="Preferences" />
               <div className="mt-4">
                 <PlayerDefaultsSettings />
               </div>

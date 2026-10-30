@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest'
 import { categories, points, shelfOf } from './catalogue.fixtures'
-import { combatUnitsFor } from './combatUnits'
+import { combatUnitsFor } from '../shared/combatUnits'
 import { searchEverything } from './globalSearch'
 
 it('builds the simulator unit index for every faction', () => {

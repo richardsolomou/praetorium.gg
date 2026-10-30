@@ -1,5 +1,6 @@
 import type { PerformanceRow, PersonalPerformance } from '../../../core/serviceRecord'
 import { percentLabel } from '../../text'
+import { SectionHeading } from '../../components/SectionHeading'
 
 export function PersonalPerformancePanel({ performance }: { performance: PersonalPerformance }) {
   const groups: { label: string; rows: PerformanceRow[] }[] = [
@@ -10,8 +11,8 @@ export function PersonalPerformancePanel({ performance }: { performance: Persona
   return (
     <section aria-label="Personal performance" className="space-y-3">
       <div>
-        <h2 className="rubric border-b border-edge pb-2">Performance over time</h2>
-        <p className="mt-2 text-xs text-dim">Win rate counts a draw as half a win. Open a row for results by month.</p>
+        <SectionHeading title="Performance over time" />
+        <p className="text-xs text-dim">Win rate counts a draw as half a win. Open a row for results by month.</p>
       </div>
       <div className="grid gap-3 lg:grid-cols-3">
         {groups.map(({ label, rows }) => (

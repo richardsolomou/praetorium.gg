@@ -6,6 +6,7 @@ import { pointsBudgetOf } from '../../../core/battle'
 import { FactionMark } from '../../components/FactionMark'
 import { PROBLEM_LABEL, type RosterProblem, type RosterSummaryFaction, rosterTitle } from '../rosters/RosterSummary'
 import { countLabel } from '../../text'
+import { SectionHeading } from '../../components/SectionHeading'
 
 /** One saved list as the home page shows it, already joined to its faction, totals and status. */
 export type HomeRoster = {
@@ -26,10 +27,7 @@ export type HomeRoster = {
 export function HomeRosters({ rosters, count, changed }: { rosters: readonly HomeRoster[]; count: number; changed: number }) {
   return (
     <section data-home-rosters>
-      <h2 className="rubric flex items-baseline justify-between border-b border-edge pb-2">
-        <span>Your rosters</span>
-        <span className="readout">{count}</span>
-      </h2>
+      <SectionHeading title="Your rosters" count={count} className="mb-0" />
       {rosters.length ? (
         <ul className="divide-y divide-edge border-b border-edge">
           {rosters.map(({ roster, faction, points, label, problem }) => (

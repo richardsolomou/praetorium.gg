@@ -30,7 +30,7 @@ type Matched<T> = T extends { catalogueId: string | null; source: string | null 
   : never
 /** A list whose faction was recognised, which is the only thing an import cannot do without. */
 export type MatchedImport = Matched<Imported>
-const matched = (imported: Imported): imported is MatchedImport => Boolean(imported.catalogueId && imported.source)
+export const isMatchedImport = (imported: Imported): imported is MatchedImport => Boolean(imported.catalogueId && imported.source)
 
 /** The roster setup an import carries; text exports leave out rule waivers and allied detachments. */
 export function importedSetup(imported: MatchedImport, defaultLimit: number) {
@@ -161,7 +161,7 @@ export function RosterImport({ onImport, blocked }: { onImport?: (imported: Matc
           ? await findImportableRosters({ data: { source: 'newrecruit', links: [file] } }).catch(() => null)
           : null
         const shared = found?.found ? await found.rosters[0]?.catch(() => undefined) : undefined
-        if (shared?.kind === 'read' && matched(shared.imported)) return shared.imported
+        if (shared?.kind === 'read' && isMatchedImport(shared.imported)) return shared.imported
         posthog.capture('roster_import_failed', { reason: 'share_link', input: inputOf(file), format: 'newrecruit' })
         throw new Error(
           'That New Recruit link could not be opened. Copy the share link from the list in New Recruit, or export the list as text and paste the text here.',
@@ -174,7 +174,7 @@ export function RosterImport({ onImport, blocked }: { onImport?: (imported: Matc
         reportImportFailure({ reason: 'request', inputKind: inputOf(file), unknown: [], unplaced: [], input: file })
         throw error
       })
-      if (!matched(imported)) {
+      if (!isMatchedImport(imported)) {
         posthog.capture('roster_import_failed', {
           reason: 'catalogue_unmatched',
           input: inputOf(file),

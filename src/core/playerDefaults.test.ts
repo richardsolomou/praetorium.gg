@@ -12,7 +12,3 @@ it('rejects a battle size nobody can create a battle at', () => {
 it('rejects a visibility a roster cannot have', () => {
   expect(isPlayerDefaults({ rosterVisibility: 'friends', battleSize: 1000 })).toBe(false)
 })
-
-it('starts new rosters public for a player who has not chosen', () => {
-  expect(DEFAULT_PLAYER_DEFAULTS.rosterVisibility).toBe('public')
-})

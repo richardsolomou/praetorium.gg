@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { ROSTER_VISIBILITIES } from '../core/savedRoster'
 import { leagueEventSchema } from './schemas'
 
 export const leagueRosterSharingSchema = z.object({
@@ -7,7 +8,7 @@ export const leagueRosterSharingSchema = z.object({
   roster: z.object({
     id: z.string(),
     name: z.string(),
-    visibility: z.enum(['private', 'unlisted', 'public']),
+    visibility: z.enum(ROSTER_VISIBILITIES),
     updatedAt: z.number().int().nonnegative(),
   }),
 })

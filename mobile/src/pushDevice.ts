@@ -1,7 +1,7 @@
 import * as Notifications from 'expo-notifications'
 import { Platform } from 'react-native'
 import appConfig from '../app.json'
-import type { NativePushAnswer } from './nativeActions'
+import type { NativePushAnswer } from '../../src/contracts/nativeBridge'
 
 /** Android 13 only shows the permission prompt once the application has a channel to post in. */
 const ANDROID_CHANNEL = 'default'

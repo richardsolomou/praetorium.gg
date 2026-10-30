@@ -1,4 +1,4 @@
-import { useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { posthog } from 'posthog-js'
 import { useEffect } from 'react'
 import type { BattleClock } from '../../../core/battleClock'
@@ -30,37 +30,24 @@ export function useWatchBattle(
 ) {
   const queryClient = useQueryClient()
   const available = useNativeWatchBattleAvailability()
+  const polling = available && view.status === 'playing'
+  // Query timers skip hidden pages, and 'always' refreshes on becoming visible however fresh the battle is.
+  const { dataUpdatedAt } = useQuery({
+    ...battleQuery(view.token),
+    refetchInterval: polling ? 15_000 : false,
+    refetchOnWindowFocus: polling ? 'always' : false,
+    refetchOnMount: false,
+  })
   useEffect(() => {
-    const live = view.status === 'playing'
-    if (!available || !(live || (view.status === 'finished' && following === view.token))) return
-    let current = true
-    const queryKey = battleQuery(view.token).queryKey
-    const publish = () => {
-      const held = queryClient.getQueryData(queryKey)
-      if (!current || document.visibilityState !== 'visible' || !held || held.kind === 'unavailable' || held.view.seq !== view.seq) return
-      const updatedAt = queryClient.getQueryState(queryKey)?.dataUpdatedAt ?? 0
-      const liveUrl = `${location.origin}/api/watch/battles/${encodeURIComponent(view.token)}`
-      const snapshot = watchBattle(view, clock, missions, referenceFor, prompts, updatedAt, liveUrl)
-      if (!snapshot) return
-      if (following !== view.token) posthog.capture('watch_battle_followed', { status: view.status })
-      following = view.token
-      setNativeWatchBattle(snapshot)
-    }
-    publish()
-    if (!live)
-      return () => {
-        current = false
-      }
-    const refresh = () => {
-      if (document.visibilityState !== 'visible') return
-      void queryClient.refetchQueries({ queryKey, exact: true, type: 'active' }).then(publish)
-    }
-    const timer = window.setInterval(refresh, 15_000)
-    document.addEventListener('visibilitychange', refresh)
-    return () => {
-      current = false
-      window.clearInterval(timer)
-      document.removeEventListener('visibilitychange', refresh)
-    }
-  }, [view, clock, missions, referenceFor, prompts, queryClient, available])
+    if (!available || !(view.status === 'playing' || (view.status === 'finished' && following === view.token))) return
+    if (document.visibilityState !== 'visible') return
+    const held = queryClient.getQueryData(battleQuery(view.token).queryKey)
+    if (!held || held.kind === 'unavailable' || held.view.seq !== view.seq) return
+    const liveUrl = `${location.origin}/api/watch/battles/${encodeURIComponent(view.token)}`
+    const snapshot = watchBattle(view, clock, missions, referenceFor, prompts, dataUpdatedAt, liveUrl)
+    if (!snapshot) return
+    if (following !== view.token) posthog.capture('watch_battle_followed', { status: view.status })
+    following = view.token
+    setNativeWatchBattle(snapshot)
+  }, [view, clock, missions, referenceFor, prompts, queryClient, available, dataUpdatedAt])
 }

@@ -6,12 +6,13 @@ import { build, type Rolldown } from 'vite'
 export const compilerEntries = ['scripts/catalogueRefresh.ts', 'scripts/compileCatalogueRuntime.ts']
 // The compiler reads catalogue configuration from disk; the seed build config bundles the production worker.
 const compilerFiles = ['catalogue', 'vite.seed.config.ts']
+export const testFile = /\.(?:integration\.)?test\.[^.]+$/
 
 function* sourceFiles(root: string, relative: string): Generator<string> {
   const target = path.join(root, relative)
   if (!fs.existsSync(target)) return
   if (fs.statSync(target).isFile()) {
-    if (!/\.(?:integration\.)?test\.[^.]+$/.test(relative)) yield relative
+    if (!testFile.test(relative)) yield relative
     return
   }
   for (const entry of fs.readdirSync(target).sort()) yield* sourceFiles(root, path.join(relative, entry))

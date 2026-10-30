@@ -1,7 +1,7 @@
 /** Achievements are derived from what a player has done; the server stores what each check finds, so a new medal can be announced once. */
 
 import { isGuestSeat } from './newBattle'
-import { battleOutcome, counted, sideScore, type StandingBattle } from './standings'
+import { battleOutcome, counted, opponentScore, sideScore, type StandingBattle } from './standings'
 
 export const ACHIEVEMENT_TIERS = { bronze: 10, silver: 25, gold: 50, platinum: 100 } as const
 export type AchievementTier = keyof typeof ACHIEVEMENT_TIERS
@@ -567,8 +567,7 @@ function battleMetrics(battles: readonly StandingBattle[], playerId: string): Re
     if (outcome === 'drawn') record('draws', at)
     if (outcome === 'won') {
       record('wins', at)
-      const margin =
-        sideScore(battle, side) - Math.max(...battle.sides.filter((other) => other !== side).map((other) => sideScore(battle, other)))
+      const margin = sideScore(battle, side) - opponentScore(battle, side)
       if (battle.result?.concededBy) record('concessions', at)
       else if (margin <= CLOSE_MARGIN) record('close-wins', at)
       else if (margin >= ROUT_MARGIN) record('routs', at)

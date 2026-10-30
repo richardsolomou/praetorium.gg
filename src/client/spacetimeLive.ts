@@ -16,7 +16,7 @@ import {
 import { setLiveProductRefresh } from './liveProductRefresh'
 import { spacetimeBrowserUri } from './spacetimeBrowserUri'
 import { isExpectedRealtimeDisconnect, RealtimeHttpError } from './realtimeErrors'
-import { anySignal } from './abortSignals'
+import { withTimeout } from './abortSignals'
 import { battleCommandsSettled } from './pendingWrites'
 import { meKey, realtimeModeKey, reportKey } from './queries/queryKeys'
 
@@ -24,7 +24,7 @@ export function useRealtimeConfig() {
   const { data, error } = useQuery({
     queryKey: realtimeModeKey(),
     queryFn: async ({ signal }) => {
-      const response = await fetch('/api/realtime/mode', { signal: anySignal([signal, AbortSignal.timeout(10_000)]) })
+      const response = await fetch('/api/realtime/mode', { signal: withTimeout(signal, 10_000) })
       if (!response.ok) throw new RealtimeHttpError('Realtime mode', response.status)
       const parsed = z.object({ mode: z.literal('spacetime'), database: z.string().min(1), uri: z.url() }).parse(await response.json())
       return { ...parsed, uri: spacetimeBrowserUri(parsed.uri, window.location.origin) }

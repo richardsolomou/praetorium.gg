@@ -5,6 +5,7 @@ import { PhotoDropZone } from '../../collection/PhotoDropZone'
 import { PhotoLike } from '../../collection/PhotoLike'
 import { PhotoViewer } from '../../collection/PhotoViewer'
 import { usePhotoSteps } from '../../collection/PhotoLightbox'
+import { SectionHeading } from '../../../components/SectionHeading'
 
 /**
  * Players' photos of this datasheet from their shared collections, most liked first, led by space for a signed-in reader to add theirs.
@@ -18,17 +19,13 @@ export function DatasheetPhotos({ entryId, name }: { entryId: string; name: stri
   if (!photos.data) return null
   return (
     <section aria-labelledby="player-photos" data-datasheet-photos>
-      <h2 id="player-photos" className="rubric border-b border-edge pb-2">
-        Player photos
-      </h2>
-      {me ? (
-        <p className="mt-2 text-sm text-dim">Show off your own models. Adding a photo puts this datasheet in your collection.</p>
-      ) : null}
+      <SectionHeading id="player-photos" title="Player photos" />
+      {me ? <p className="text-sm text-dim">Show off your own models. Adding a photo puts this datasheet in your collection.</p> : null}
       {photos.data.length || me ? (
         <ul className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
           {me ? (
             <li>
-              <PhotoDropZone entryId={entryId} name={name} className="aspect-square" />
+              <PhotoDropZone entryId={entryId} name={name} />
             </li>
           ) : null}
           {photos.data.map((photo) => (

@@ -9,7 +9,7 @@
  * worth a sentence of its own.
  */
 
-import { plainQuotes, plainDashes } from '../core/text'
+import { countLabel, plainQuotes, plainDashes } from '../core/text'
 import { cachedIn, remember } from '../core/collections'
 import { type CatalogueIndex, nameOf } from '../core/catalogue'
 import { eachDefinition } from '../core/definitions'
@@ -95,7 +95,7 @@ export const DROPPED_REASON = 'no model in the imported unit carries it'
 
 export function squadSizeReason(size: UnitSize): string {
   if (size.options?.length) return `this datasheet fields ${size.options.join(' or ')} models`
-  if (size.min === size.max) return `this datasheet fields ${size.min} model${size.min === 1 ? '' : 's'}`
+  if (size.min === size.max) return `this datasheet fields ${countLabel(size.min, 'model')}`
   return `this datasheet fields ${size.min} to ${size.max} models`
 }
 

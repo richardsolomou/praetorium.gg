@@ -40,7 +40,6 @@ import {
 } from '../functions'
 import { inFamilies, savedRosterFamilies } from '../productSignals'
 import { referenceStaleTime, SSR_STALE_TIME } from './shared'
-import { rosterPriceKey } from './rosterPriceKey'
 import {
   collectionCountsKey,
   collectionKey,
@@ -58,6 +57,7 @@ import {
   savedRosterSummariesKey,
   sharedRosterKey,
   unitLoadoutsKey,
+  rosterPriceKey,
 } from './queryKeys'
 
 /** The player's saved unit loadouts, which the builder offers to every roster of the same army. */

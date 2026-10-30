@@ -54,8 +54,7 @@ export function CollectionWishlist({ datasheets }: { datasheets: ReadonlyMap<str
         placeholder="Add to wishlist…"
         searchPlaceholder="Search datasheets…"
         loading={units.isPending}
-        value=""
-        onValueChange={(value) => void set((JSON.parse(value) as [string, string])[1], 1).catch(() => undefined)}
+        onUnitChange={(_, entryId) => void set(entryId, 1).catch(() => undefined)}
         index={(units.data ?? []).map((book) => ({ ...book, units: book.units.filter((unit) => !wishes.data?.[unit.id]) }))}
       />
       {wanted.length ? (

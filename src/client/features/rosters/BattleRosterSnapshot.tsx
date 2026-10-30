@@ -3,8 +3,8 @@ import type { Roster, BuiltRoster } from '../../../core/battle'
 import type { SimulatorRosterSource } from '../../../contracts/simulatorState'
 import { factionQuery } from '../../queries'
 import { rosterWaivers } from '../../components/FormatWaivers'
-import type { FrozenRoster } from './ListBuilder'
-import { RosterEditor } from './RosterEditor'
+import { ListBuilder, type FrozenRoster } from './ListBuilder'
+import { NO_PREP } from './rosterDraft'
 import { RosterBody, RosterHeader, RosterShell, RosterUnits } from './RosterPresentation'
 import { usePrintWhenReady } from './usePrintWhenReady'
 
@@ -34,28 +34,32 @@ export function BattleRosterSnapshot({
 
   if (built && reading.kind === 'roster') {
     return (
-      <RosterEditor
-        roster={{
-          id: roster.id ?? '',
-          name: roster.name,
-          catalogueId: built.catalogueId,
-          detachmentIds: built.detachmentIds ?? [],
-          disposition: built.disposition,
-          limit: built.limit,
-          pointsBudget: built.pointsBudget ?? null,
-          picks: built.picks ?? [],
-          waivedRules: built.waivedRules ?? [],
-          visibility: 'private',
-          source: 'editable',
-        }}
-        faction={faction}
-        snapshotEdition={built.edition ?? null}
-        editable={false}
-        resolvePersistedRoster={false}
-        simulatorSource={simulatorSource}
-        print={print}
-        frozen={reading.frozen}
-      />
+      <main className="flex h-full w-full min-w-0 max-w-full flex-col overflow-x-hidden">
+        <ListBuilder
+          key={roster.id ?? ''}
+          prep={NO_PREP}
+          initial={{
+            id: roster.id ?? '',
+            name: roster.name,
+            catalogueId: built.catalogueId,
+            detachmentIds: built.detachmentIds ?? [],
+            disposition: built.disposition,
+            limit: built.limit,
+            pointsBudget: built.pointsBudget ?? null,
+            picks: built.picks ?? [],
+            waivedRules: built.waivedRules ?? [],
+            visibility: 'private',
+            source: 'editable',
+          }}
+          initialFaction={faction}
+          snapshotEdition={built.edition ?? null}
+          editable={false}
+          resolvePersistedRoster={false}
+          simulatorSource={simulatorSource}
+          print={print}
+          frozen={reading.frozen}
+        />
+      </main>
     )
   }
 

@@ -1,9 +1,10 @@
-import { execFileSync, spawnSync } from 'node:child_process'
+import { execFileSync } from 'node:child_process'
 import { createRequire } from 'node:module'
 import path from 'node:path'
 import { z } from 'zod'
 import { iosDeliveryFingerprint } from './iosDelivery.ts'
 import { isEntryPoint } from './lib/entryPoint.ts'
+import { isAncestor } from './lib/git.ts'
 import { stepOutput } from './lib/stepOutput.ts'
 
 const runtimeSchema = z.object({ runtimeVersion: z.string().min(1), appVersion: z.string().min(1) })
@@ -11,13 +12,6 @@ const payloadSchema = runtimeSchema.extend({ inputFingerprint: z.string().min(1)
 const deploymentSchema = z.object({ sha: z.string().regex(/^[a-f0-9]{40}$/), payload: payloadSchema })
 type Payload = z.infer<typeof payloadSchema>
 type Deployment = z.infer<typeof deploymentSchema>
-
-function isAncestor(root: string, older: string, newer: string) {
-  const result = spawnSync('git', ['merge-base', '--is-ancestor', older, newer], { cwd: root, encoding: 'utf8' })
-  if (result.status === 0) return true
-  if (result.status === 1) return false
-  throw new Error(`Cannot compare iOS revisions: ${result.stderr}`, { cause: result.error })
-}
 
 export function iosNativeRuntime(root: string) {
   const mobile = path.join(root, 'mobile')

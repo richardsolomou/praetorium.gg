@@ -4,7 +4,7 @@ import { groupBy } from './collections'
 import { isGuestSeat } from './newBattle'
 import { routeSlug } from './slug'
 import { type BattleState, mayNameCard, type PlayerId, pointsLabel } from './battle'
-import { battleOutcome, sideScore, type StandingBattle, type StandingFaction, winRate } from './standings'
+import { battleOutcome, opponentScore, sideScore, type StandingBattle, type StandingFaction, winRate } from './standings'
 
 /**
  * One stratagem use as the log states it, with the page printing it where the
@@ -22,7 +22,7 @@ export type StratagemPlay = {
 export type CardPlay = { key: string; name: string; points: number; reference?: { packId: string } }
 
 /** The primary mission a side played. */
-export type MissionPlay = { key: string; name: string; reference?: { packId: string; you: string; opponent: string } }
+type MissionPlay = { key: string; name: string; reference?: { packId: string; you: string; opponent: string } }
 
 /** What one seat's army did with the side's resources, as the reader may see it. */
 export type SeatPlay = { cpSpent: number; stratagems: readonly StratagemPlay[]; cards: readonly CardPlay[]; primary: MissionPlay | null }
@@ -133,11 +133,11 @@ export type CardRecord = {
   reference?: CardPlay['reference']
 }
 
-export type MissionRecord = Omit<Split, 'rate'> & { key: string; name: string; averagePoints: number; reference?: MissionPlay['reference'] }
+type MissionRecord = Omit<Split, 'rate'> & { key: string; name: string; averagePoints: number; reference?: MissionPlay['reference'] }
 
-export type FactionRecord = Split & { faction: StandingFaction }
+type FactionRecord = Split & { faction: StandingFaction }
 
-export type OpponentRecord = Split & { id: string; name: string; image: string | null }
+type OpponentRecord = Split & { id: string; name: string; image: string | null }
 
 /** How many battles a card or stratagem has to appear in before it can be the best or the worst. */
 export const RECORD_SAMPLE = 3
@@ -293,12 +293,7 @@ export function serviceRecord(battles: readonly RecordBattle[], playerId: string
     averagePoints: mean(taken.map((one) => one.points)),
     averageInWins: mean(wins.map((one) => one.points)),
     averageInLosses: mean(losses.map((one) => one.points)),
-    lossDifferential: mean(
-      losses.map((one) => {
-        const best = Math.max(...opposingSeats(one).map((seat) => sideScore(one.battle, one.battle.sides[seat] ?? 0)))
-        return best - one.points
-      }),
-    ),
+    lossDifferential: mean(losses.map((one) => opponentScore(one.battle, one.side) - one.points)),
     averagePrimary: mean(taken.map((one) => sideTotal(one, one.battle.primaries))),
     averageSecondary: mean(taken.map((one) => sideTotal(one, one.battle.secondaries))),
     ...streaks(taken),

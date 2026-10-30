@@ -28,8 +28,9 @@ import { Keyword, KEYWORD_TAG_CLASS, KeywordList, type KeywordRule, UnitKeywords
 import { ProfileRules } from '../../rosters/ProfileRules'
 import { RuleText } from '../../../components/RuleText'
 import { PageContent, PageHeader } from '../../../components/Page'
-import type { OnboardingTarget } from '../../onboarding/onboarding'
+import type { OnboardingTarget } from '../../../onboardingTargets'
 import { groupBy } from '../../../../core/collections'
+import { SectionHeading } from '../../../components/SectionHeading'
 
 export function FactionDatasheet() {
   const params = useParams({ strict: false })
@@ -88,8 +89,8 @@ export function FactionDatasheet() {
         ) : null}
         {unit.length > 1 && invulnerable.length ? (
           <section>
-            <h2 className="rubric border-b border-edge pb-2">Invulnerable save</h2>
-            <div className="mt-2 flex flex-wrap gap-2">
+            <SectionHeading title="Invulnerable save" />
+            <div className="flex flex-wrap gap-2">
               {invulnerable.map((profile) => (
                 <div key={profile.name} className="border border-edge bg-panel px-3 py-2">
                   <span className="text-sm font-semibold">{profile.name}</span>
@@ -129,7 +130,7 @@ export function Abilities({
     const found = abilities.filter((ability) => ability.kind === kind)
     if (!found.length) return null
     const cards = (
-      <div className="mt-2 grid gap-2 md:grid-cols-2">
+      <div className="grid gap-2 md:grid-cols-2">
         {found.map((ability) => (
           <article id={`ability-${ability.id}`} key={ability.id} className="border border-edge bg-panel p-3">
             <h3 className="text-sm">{ability.source ?? ability.name}</h3>
@@ -142,10 +143,8 @@ export function Abilities({
     if (kind === 'core' || kind === 'faction') {
       return (
         <section key={kind} data-onboarding={onboarding}>
-          <h2 className="rubric flex items-baseline justify-between border-b border-edge pb-2">
-            <span>{title}</span> <span className="readout">{found.length}</span>
-          </h2>
-          <div className="mt-2 flex flex-wrap gap-1">
+          <SectionHeading title={title} count={found.length} />
+          <div className="flex flex-wrap gap-1">
             {found.map((ability) => (
               <span id={`ability-${ability.id}`} key={ability.id} className="scroll-mt-header">
                 <Keyword
@@ -167,9 +166,7 @@ export function Abilities({
     }
     return (
       <section key={kind} data-onboarding={onboarding}>
-        <h2 className="rubric flex items-baseline justify-between border-b border-edge pb-2">
-          <span>{title}</span> <span className="readout">{found.length}</span>
-        </h2>
+        <SectionHeading title={title} count={found.length} />
         {cards}
       </section>
     )
@@ -182,8 +179,8 @@ function UnitConfiguration({ sheet, rules, onboarding }: { sheet: Datasheet; rul
   if (!sheet.composition.length && !sheet.loadout && !wargearOptions.length && !sheet.costs.length) return null
   return (
     <section data-onboarding={onboarding}>
-      <h2 className="rubric border-b border-edge pb-2">Unit configuration</h2>
-      <div className="mt-2 overflow-hidden border border-edge bg-panel">
+      <SectionHeading title="Unit configuration" />
+      <div className="overflow-hidden border border-edge bg-panel">
         <div className="grid md:grid-cols-2 md:divide-x md:divide-edge">
           <div className="space-y-2 p-3">
             <h3 className="eyebrow">Composition</h3>
@@ -242,8 +239,8 @@ function PointsChanges({ faction, slug }: { faction: { slug: string; displayName
   if (!changes?.length) return null
   return (
     <section id="points-changes">
-      <h2 className="rubric border-b border-edge pb-2">Points changes</h2>
-      <ul className="mt-2 border border-edge bg-panel">
+      <SectionHeading title="Points changes" />
+      <ul className="border border-edge bg-panel">
         {changes.map(({ recordedAt, change }) => (
           <li
             key={`${recordedAt}${JSON.stringify(change)}`}
@@ -277,8 +274,8 @@ export function Relationships({
   return (
     <section id="relationships">
       <ReferenceAnchors prefix="ability" ids={abilityIds} />
-      <h2 className="rubric border-b border-edge pb-2">Attachments</h2>
-      <div className="mt-2 grid gap-2 md:grid-cols-2">
+      <SectionHeading title="Attachments" />
+      <div className="grid gap-2 md:grid-cols-2">
         {groups.map(({ title, relationships }) => (
           <div key={title} className="border border-edge bg-panel p-3">
             <h3 className="eyebrow mb-2">{title}</h3>
@@ -378,10 +375,8 @@ export function ProfileTable({
       : profiles.map((profile) => [profile])
   return (
     <section data-onboarding={onboarding}>
-      <h2 className="rubric flex items-baseline justify-between border-b border-edge pb-2">
-        <span>{title}</span> <span className="readout">{groups.length}</span>
-      </h2>
-      <div className="mt-2 overflow-x-auto border border-edge bg-panel">
+      <SectionHeading title={title} count={groups.length} />
+      <div className="overflow-x-auto border border-edge bg-panel">
         <table className="w-full min-w-max text-left text-sm">
           <thead className="eyebrow border-b border-edge bg-raised">
             <tr>
@@ -457,8 +452,8 @@ export function TransportReference({
   return (
     <section>
       {anchors}
-      <h2 className="rubric border-b border-edge pb-2">Transport</h2>
-      <div className="mt-2 border border-edge bg-panel p-3">
+      <SectionHeading title="Transport" />
+      <div className="border border-edge bg-panel p-3">
         <RuleText text={shown} rules={rules} className="mt-0" />
       </div>
     </section>

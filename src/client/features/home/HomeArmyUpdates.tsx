@@ -3,6 +3,7 @@ import { ChevronRight } from 'lucide-react'
 import { FactionMark, type FactionPresentation } from '../../components/FactionMark'
 import { useDateFormatting } from '../../dates'
 import { countLabel } from '../../text'
+import { SectionHeading } from '../../components/SectionHeading'
 
 /** How many armies the panel names, the most recently updated first. */
 const SHOWN = 3
@@ -28,7 +29,7 @@ export function HomeArmyUpdates({ updates }: { updates: readonly ArmyUpdate[] })
   const newest = updates.toSorted((one, other) => other.recordedAt - one.recordedAt).slice(0, SHOWN)
   return (
     <section data-home-army-updates>
-      <h2 className="rubric border-b border-edge pb-2">Updates for your armies</h2>
+      <SectionHeading title="Updates for your armies" className="mb-0" />
       <ul className="divide-y divide-edge border-b border-edge">
         {newest.map(({ faction, recordedAt, anchor, changes }) => (
           <li key={faction.slug}>

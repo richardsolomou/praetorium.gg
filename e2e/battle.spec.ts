@@ -23,7 +23,7 @@ import {
   PHONE,
   uploadAvatar,
 } from './account'
-import { battleLog, productSql, lastPathSegment, battleIdFor } from './storage'
+import { battleCommands, battleLog, productSql, lastPathSegment, battleIdFor } from './storage'
 import { expectNoHorizontalOverflow } from './builder.harness'
 
 test('the opening draw prompt starts at the top, pins its actions and holds the page still on a phone', async ({ page }) => {
@@ -771,19 +771,10 @@ test('a secret mission chosen before they were retired is handed off before its 
   // No supported mission pack offers secret missions any more, so these stand in for a battle that chose them earlier.
   const { id, append, first: aliceId, second: bobId } = await battleLog(alice)
   const deckCard = async (playerId: string, name: string) => {
-    const rows = await productSql<{
-      seq: number
-      user_id: string
-      body: string
-    }>`SELECT seq, user_id, body FROM commands WHERE battle_id = ${id}`
-    const decks = rows
-      .toSorted((left, right) => left.seq - right.seq)
-      .map((row) => ({
-        by: row.user_id,
-        body: JSON.parse(row.body) as { kind: string; playerId?: string; secondaryDeck?: { key: string; name: string }[] },
-      }))
-      .filter(({ by, body }) => body.kind === 'set-prep' && (body.playerId ?? by) === playerId && body.secondaryDeck)
-    const card = decks.at(-1)?.body.secondaryDeck?.find((candidate) => candidate.name === name)
+    const decks = (await battleCommands(id)).flatMap(({ by, body }) =>
+      body.kind === 'set-prep' && (body.playerId ?? by) === playerId && body.secondaryDeck ? [body.secondaryDeck] : [],
+    )
+    const card = decks.at(-1)?.find((candidate) => candidate.name === name)
     if (!card) throw new Error(`${name} is not in the deck`)
     return { key: card.key, name: card.name }
   }

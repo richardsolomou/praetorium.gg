@@ -1,0 +1,26 @@
+name: Catalogue sync
+description: Sync the private catalogue snapshot, passing its read credentials to this step alone.
+inputs:
+  r2-account-id:
+    description: Cloudflare account that holds the private catalogue snapshots.
+    required: true
+  r2-access-key-id:
+    description: Read key for the private catalogue snapshots.
+    required: true
+  r2-secret-access-key:
+    description: Read secret for the private catalogue snapshots.
+    required: true
+  args:
+    description: Extra arguments for `pnpm catalogue:sync`.
+    required: false
+    default: ''
+runs:
+  using: composite
+  steps:
+    - name: Sync the catalogue
+      shell: bash
+      run: pnpm catalogue:sync ${{ inputs.args }}
+      env:
+        R2_ACCOUNT_ID: ${{ inputs.r2-account-id }}
+        R2_ACCESS_KEY_ID: ${{ inputs.r2-access-key-id }}
+        R2_SECRET_ACCESS_KEY: ${{ inputs.r2-secret-access-key }}

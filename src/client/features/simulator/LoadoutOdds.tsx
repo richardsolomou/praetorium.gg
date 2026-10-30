@@ -8,12 +8,8 @@ import type { CombatRequest } from '../../../core/combatMatchup'
 import { Button } from '@/components/ui/button'
 import { countLabel } from '../../text'
 import { PHASE_TITLES, PhaseIcon } from './CombatControls'
+import { chanceLabel } from './CombatValue'
 
-const percent = (value: number) => {
-  const chance = value * 100
-  if (chance > 0 && chance < 0.01) return '<0.01%'
-  return `${chance.toFixed(chance > 0 && chance < 1 ? 2 : 1)}%`
-}
 const bestLabels: Record<OutcomePriority, string> = { wipe: 'Best kill %', meanKills: 'Best models', meanDamage: 'Best wounds' }
 const bestReasons: Record<OutcomePriority, string> = {
   wipe: 'Highest kill chance, even if another option averages more wounds.',
@@ -65,7 +61,7 @@ function Odds({
   subject: string
   muted: boolean
 }) {
-  const destroyed = percent(result.wipe)
+  const destroyed = chanceLabel(result.wipe)
   const wounds = result.meanDamage.toFixed(2)
   return (
     <span
@@ -82,7 +78,7 @@ function Odds({
             <>
               <p>{bestBy ? bestReasons[bestBy] : 'Kill chance, average models destroyed, and average wounds are tied.'}</p>
               <p className="mt-1">
-                Kill chance: {Number((result.wipe * 100).toPrecision(3))}%. Models: {result.meanKills.toFixed(2)}. Wounds: {wounds}.
+                Kill chance: {destroyed}. Models: {result.meanKills.toFixed(2)}. Wounds: {wounds}.
               </p>
             </>
           }

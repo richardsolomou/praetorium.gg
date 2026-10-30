@@ -549,7 +549,7 @@ function gamePastAt({ game, event }: Extract<EventHost, { kind: 'club' }>) {
 }
 
 function pastClubGame(ctx: Context, host: EventHost) {
-  return host.kind === 'club' && !clubGameOpen({ pastAt: gamePastAt(host) }, safeNumber(ctx.timestamp.microsSinceUnixEpoch / 1_000n))
+  return host.kind === 'club' && !clubGameOpen({ pastAt: gamePastAt(host) }, safeNumber(nowMs(ctx)))
 }
 
 /** How many battles a club has and when the latest began, for its card. */
@@ -710,7 +710,7 @@ export const onConnect = spacetime.clientConnected((ctx) => {
         device?.deviceHash !== undefined &&
         device.joinedAt !== undefined &&
         guestDeviceSubject(device.deviceHash) === subject &&
-        guestSessionCurrent(safeNumber(device.joinedAt), safeNumber(ctx.timestamp.microsSinceUnixEpoch / 1_000n))
+        guestSessionCurrent(safeNumber(device.joinedAt), safeNumber(nowMs(ctx)))
       )
     },
   })
@@ -1396,7 +1396,7 @@ export const claimStandingsRefresh = spacetime.procedure(
  */
 export const saveBattleResults = spacetime.procedure({ payload: t.string() }, t.string(), (ctx, { payload }) =>
   operatorTx(ctx, (tx) => {
-    const input = resultWrite.parse(JSON.parse(payload))
+    const input = decodePayload(resultWrite, payload, 'Invalid battle results')
     heldStandings(tx, input.holder)
     let moved = false
     const changed = (
@@ -1461,7 +1461,7 @@ export const ratingsBefore = spacetime.procedure({ from: t.u64(), playerIds: t.a
  */
 export const saveRatingSteps = spacetime.procedure({ payload: t.string() }, t.bool(), (ctx, { payload }) =>
   operatorTx(ctx, (tx) => {
-    const input = stepWrite.parse(JSON.parse(payload))
+    const input = decodePayload(stepWrite, payload, 'Invalid rating steps')
     heldStandings(tx, input.holder)
     if (input.first) {
       const holders = new Set<string>()
@@ -1647,7 +1647,7 @@ const achievementWrite = z.object({
  */
 export const saveAchievements = spacetime.procedure({ payload: t.string() }, t.bool(), (ctx, { payload }) =>
   operatorTx(ctx, (tx) => {
-    const input = achievementWrite.parse(JSON.parse(payload))
+    const input = decodePayload(achievementWrite, payload, 'Invalid achievements')
     const check = tx.db.achievementChecks.userId.find(input.userId)
     if (!check || check.revision !== BigInt(input.revision) || derivedState(tx, ACHIEVEMENTS).version !== input.definitions) return false
     const stored = new Map(Array.from(tx.db.earnedAchievements.userId.filter(input.userId), (row) => [row.achievementId, row]))
@@ -5854,7 +5854,7 @@ export const syncProduct = spacetime.procedure({ payload: t.string() }, t.string
       if (prior.owner !== input.owner || prior.fingerprint !== input.fingerprint) throw new SenderError('Operation ID reused')
       return input.reportApplied ? productJson({ result: prior.result, applied: false }) : prior.result
     }
-    const now = safeNumber(tx.timestamp.microsSinceUnixEpoch / 1_000n)
+    const now = safeNumber(nowMs(tx))
     if (input.createdAt < now - SYNC_RETENTION_MS || input.createdAt > now + 5 * 60_000)
       throw new SenderError('Saved action expired; review it before sending it again')
     const receipts = Array.from(tx.db.syncReceipts.owner.filter(input.owner))

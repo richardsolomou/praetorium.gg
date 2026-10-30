@@ -14,6 +14,9 @@ const FORMATS = {
 
 type ImageFormat = keyof typeof FORMATS
 
+/** The content type `bytes` start with, among the raster formats accepted anywhere. */
+export const sniffedImageType = (bytes: Buffer) => Object.values(FORMATS).find((format) => format.matches(bytes))?.contentType
+
 /** An image data URL's bytes, when they match its declared format and that format is one of `formats`; otherwise null. */
 export function parseImageDataUrl(image: string, formats: readonly ImageFormat[] = ['png', 'jpeg', 'webp']) {
   const match = DATA_URL.exec(image)
@@ -60,11 +63,11 @@ export async function privateImageResponse(objects: PrivateObjects | null, key: 
   if (!objects) return new Response('image storage is not available', { status: 503, headers: { 'Cache-Control': 'no-store' } })
   const stored = await objects.get(key)
   const bytes = stored && Buffer.from(stored)
-  const format = bytes && Object.values(FORMATS).find((candidate) => candidate.matches(bytes))
-  if (!bytes || !format) return notFound()
+  const contentType = bytes && sniffedImageType(bytes)
+  if (!bytes || !contentType) return notFound()
   return new Response(new Uint8Array(bytes), {
     headers: {
-      'Content-Type': format.contentType,
+      'Content-Type': contentType,
       'Cache-Control': 'private, no-store',
       'X-Content-Type-Options': 'nosniff',
     },

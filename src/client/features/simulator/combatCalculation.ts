@@ -1,5 +1,5 @@
 import { calculateCombatBatch } from '../../functions'
-import { anySignal } from '../../abortSignals'
+import { withTimeout } from '../../abortSignals'
 import { CombatAnswerCache } from '../../../shared/combatAnswerCache'
 import type { CombatAnswer, CombatRequest } from '../../../core/combatMatchup'
 import CombatWorker from './combatWorker'
@@ -67,15 +67,11 @@ export function combatCalculator() {
       if (!missing.length) return hits as CombatAnswer[]
       let fresh: CombatAnswer[] | undefined
       if (online && navigator.onLine) {
-        const timeout = new AbortController()
-        const timer = setTimeout(() => timeout.abort(new Error('Calculation request timed out.')), 16_000)
         try {
-          fresh = await calculateCombatBatch({ data: missing, signal: anySignal([signal, timeout.signal]) })
+          fresh = await calculateCombatBatch({ data: missing, signal: withTimeout(signal, 16_000) })
         } catch {
           signal.throwIfAborted()
           online = false
-        } finally {
-          clearTimeout(timer)
         }
       }
       if (!fresh) {

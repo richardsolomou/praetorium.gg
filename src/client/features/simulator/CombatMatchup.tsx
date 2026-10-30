@@ -34,6 +34,7 @@ import type { MatchupSettings } from '../../../contracts/simulatorState'
 import type { LoadoutSpace } from '../../../core/combatLoadouts'
 import { groupBy } from '../../../core/collections'
 import { Problem } from '../../components/Problem'
+import { signedLabel } from '../../text'
 import { calculationInputs } from './calculationInputs'
 
 function weaponToggleGroups(entries: readonly { profile: Datasheet['profiles'][number]; count: number }[]) {
@@ -47,7 +48,6 @@ function weaponToggleGroups(entries: readonly { profile: Datasheet['profiles'][n
 
 type PhaseScope = CombatPhase | 'all'
 type AdjustmentSource = 'attack' | 'weapon' | 'target' | 'feelNoPain'
-const signed = (value: number) => `${value > 0 ? '+' : '−'}${Math.abs(value)}`
 type CombatEntryPoint = 'standalone' | 'roster' | 'battle'
 
 export function combatOutcomeEvent(answer: CombatAnswer, source: CombatEntryPoint) {
@@ -80,7 +80,7 @@ const grants = [
   ['devastating', 'Devastating Wounds'],
   ['damageReroll', 'Re-roll damage 1s'],
 ] as const
-const signedOptions = (values: readonly number[], name: string) => values.map((value) => [value, `${signed(value)} ${name}`] as const)
+const signedOptions = (values: readonly number[], name: string) => values.map((value) => [value, `${signedLabel(value)} ${name}`] as const)
 const rollOptions = (values: readonly number[], prefix: string) => values.map((value) => [value, `${prefix}${value}+`] as const)
 const situations = {
   ranged: [
@@ -413,7 +413,7 @@ export function CombatMatchup({
         ['woundModifier', 'to wound'],
       ] as const) {
         const value = attack[field]
-        if (value) applied.push(`${signed(value)} ${label} (${name})`)
+        if (value) applied.push(`${signedLabel(value)} ${label} (${name})`)
       }
       for (const [field, label] of [
         ['hitReroll', 'hit'],
@@ -449,7 +449,7 @@ export function CombatMatchup({
         ['damage', 'Damage'],
       ] as const) {
         const value = weapon[field]
-        if (value) add(scope, 'weapon', field, `${signed(value)} ${label} (${name})`, value)
+        if (value) add(scope, 'weapon', field, `${signedLabel(value)} ${label} (${name})`, value)
       }
       if (weapon.criticalHit) add(scope, 'weapon', 'criticalHit', `Critical hits on ${weapon.criticalHit}+ (${name})`, weapon.criticalHit)
       if (weapon.criticalWound)
@@ -470,7 +470,7 @@ export function CombatMatchup({
       ['save', 'Save'],
     ] as const) {
       const value = adjustments.target?.[field]
-      if (value) add('all', 'target', field, `${signed(value)} defender ${label}`, value)
+      if (value) add('all', 'target', field, `${signedLabel(value)} defender ${label}`, value)
     }
     const targetAdjustments = adjustments.target
     if (targetAdjustments?.invulnerable)

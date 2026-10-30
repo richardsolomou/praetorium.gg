@@ -137,7 +137,7 @@ async function deferred(
   waitForSync = true,
 ) {
   const normalized = offlineActionSchemas[kind].parse(input)
-  const operation = await queueLocal(kind, { input: normalized, identifiers }, resource, data, dependencies, undefined, owner, update)
+  const operation = await queueLocal(kind, { input: normalized, identifiers }, resource, { data, dependencies, owner, update })
   if (waitForSync && navigator.onLine) {
     await attemptLocalSync()
     if (localOwner()?.id !== owner) throw new Error('The account changed while saving this action.')
@@ -164,23 +164,17 @@ export async function setOwned(args: Parameters<typeof server.setOwned>[0]): Ret
   const input = offlineActionSchemas.setOwned.parse(args.data)
   const resource = queryResource(collectionKey())
   const owned = (await localDocument<string[]>(resource)) ?? (await collection())
-  await queueLocal(
-    'setOwned',
-    { input, identifiers: {} },
-    resource,
-    undefined,
-    undefined,
-    undefined,
+  await queueLocal('setOwned', { input, identifiers: {} }, resource, {
     owner,
-    (current) => withMember((current as typeof owned | undefined) ?? owned, input.entryId, input.owned),
-    input.owned
+    update: (current) => withMember((current as typeof owned | undefined) ?? owned, input.entryId, input.owned),
+    relatedUpdates: input.owned
       ? undefined
       : {
           [queryResource(collectionCountsKey())]: (current) => withoutEntry(current, input.entryId),
           [queryResource(collectionProgressKey())]: (current) => withoutEntry(current, input.entryId),
           [queryResource(collectionCountsAsKey())]: (current) => withoutEntry(current, input.entryId),
         },
-  )
+  })
   return undefined
 }
 const withoutEntry = (current: unknown, entryId: string) =>
@@ -193,23 +187,17 @@ export async function setCollectionModels(
   const input = offlineActionSchemas.setCollectionModels.parse(args.data)
   const resource = queryResource(collectionCountsKey())
   const counts = (await localDocument<Record<string, number>>(resource)) ?? (await collectionCounts())
-  await queueLocal(
-    'setCollectionModels',
-    { input, identifiers: {} },
-    resource,
-    undefined,
-    undefined,
-    undefined,
+  await queueLocal('setCollectionModels', { input, identifiers: {} }, resource, {
     owner,
-    (current) => ({ ...(current ?? counts), [input.entryId]: input.models }),
-    {
+    update: (current) => ({ ...(current ?? counts), [input.entryId]: input.models }),
+    relatedUpdates: {
       [queryResource(collectionProgressKey())]: (current) => {
         const saved = current as Record<string, CollectionProgress> | undefined
         const progress = saved?.[input.entryId]
         return progress ? { ...saved, [input.entryId]: boundedProgress(input.models, progress) } : current
       },
     },
-  )
+  })
 }
 export async function setCollectionProgress(
   args: Parameters<typeof server.setCollectionProgress>[0],

@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
-  NATIVE_PUSH_EVENT,
   requestNativeHaptic,
   requestNativePush,
   setNativeAccount,
@@ -11,6 +10,7 @@ import {
   setNativeWatchBattle,
   shareLink,
 } from './nativeBridge'
+import { NATIVE_EVENTS } from '../contracts/nativeBridge'
 
 describe('native application actions', () => {
   afterEach(() => vi.unstubAllGlobals())
@@ -65,7 +65,7 @@ describe('native push requests', () => {
     const postMessage = vi.fn((message: string) => {
       const request = JSON.parse(message) as { id: string; prompt: boolean }
       const detail = reply(request)
-      if (detail) queueMicrotask(() => events.dispatchEvent(new CustomEvent(NATIVE_PUSH_EVENT, { detail })))
+      if (detail) queueMicrotask(() => events.dispatchEvent(new CustomEvent(NATIVE_EVENTS.push, { detail })))
     })
     vi.stubGlobal('window', {
       PraetoriumNative: { bridgeVersion: 3, capabilities: ['notifications'] },

@@ -1,7 +1,7 @@
 import type { BattleState, Roster } from './battle'
 import { listUnitCount } from './attachedUnits'
 import type { RosterPick } from './roster'
-import { battleOutcome, sideScore, type StandingBattle, type StandingFaction } from './standings'
+import { battleOutcome, opponentScore, sideScore, type StandingBattle, type StandingFaction } from './standings'
 
 type Built = NonNullable<Roster['built']>
 
@@ -82,7 +82,6 @@ export function playedArmies(
 }
 
 function outcome(battle: StandingBattle, side: number): PlayedOutcome {
-  const opposing = [...new Set(battle.sides)].filter((other) => other !== side)
   const opponents = new Map<string, StandingFaction>()
   battle.sides.forEach((seated, seat) => {
     const faction = battle.factions[seat]
@@ -92,7 +91,7 @@ function outcome(battle: StandingBattle, side: number): PlayedOutcome {
     result: battleOutcome(battle, side),
     conceded: Boolean(battle.result?.concededBy),
     score: sideScore(battle, side),
-    opponentScore: Math.max(0, ...opposing.map((other) => sideScore(battle, other))),
+    opponentScore: opponentScore(battle, side),
     opponents: [...opponents.values()],
   }
 }

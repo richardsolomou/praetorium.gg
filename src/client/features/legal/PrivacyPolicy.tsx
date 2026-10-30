@@ -1,4 +1,4 @@
-import { LegalLinks, LegalPage, LegalSection } from './LegalPage'
+import { LegalLinks, LegalPage, LegalSection, PrivacyEmail } from './LegalPage'
 
 export function PrivacyPolicy() {
   return (
@@ -176,11 +176,7 @@ export function PrivacyPolicy() {
 
       <LegalSection title="Contact">
         <p>
-          Questions, and requests for access, correction or deletion:{' '}
-          <a href="mailto:privacy@praetorium.gg" className="text-info hover:text-parchment">
-            privacy@praetorium.gg
-          </a>
-          .
+          Questions, and requests for access, correction or deletion: <PrivacyEmail />.
         </p>
       </LegalSection>
     </LegalPage>

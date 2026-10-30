@@ -10,7 +10,14 @@ import {
   simulatorState,
 } from './combat'
 import { expect, startUnchosen, test, type Locator, type Page } from './test'
-import { chooseUnit as chooseCatalogueUnit, retryUntilVisible, expectNoPageOverflow, chooseOption, PHONE } from './account'
+import {
+  chooseUnit as chooseCatalogueUnit,
+  retryUntilVisible,
+  expectNoHorizontalOverflow,
+  expectNoPageOverflow,
+  chooseOption,
+  PHONE,
+} from './account'
 import { waitForOfflineApp } from './offline'
 
 function chip(scope: Page | Locator, name: string) {
@@ -102,11 +109,7 @@ async function matchup(page: Page) {
 
 async function noOverflow(page: Page) {
   await expectNoPageOverflow(page)
-  expect(
-    await page
-      .locator('main section, [role=dialog], [data-slot=scroll-area-viewport]')
-      .evaluateAll((panels) => panels.every((element) => element.scrollWidth <= element.clientWidth + 1)),
-  ).toBe(true)
+  await expectNoHorizontalOverflow(page.locator('main section, [role=dialog], [data-slot=scroll-area-viewport]'))
 }
 
 /** Repeats width-dependent checks at each width, then restores the viewport the journey runs at. */

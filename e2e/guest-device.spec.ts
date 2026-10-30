@@ -18,7 +18,7 @@ import {
   setupStep,
 } from './account'
 import { add } from './builder.harness'
-import { productSql, userIdNamed, lastPathSegment, battleIdFor, guestDraft } from './storage'
+import { battleCommands, productSql, userIdNamed, lastPathSegment, battleIdFor, guestDraft } from './storage'
 
 const GUEST = uniqueName('Sam the Guest')
 const phase = (page: Page) => page.locator('[data-scoreboard] h1')
@@ -28,10 +28,6 @@ const LIVE_MS = 3_000
 /** The sessions subscribed to the battle's live signal, which a page records once its subscription applies. */
 async function watchers(id: string) {
   return (await productSql<{ subject: string }>`SELECT subject FROM watched_battles WHERE battle_id = ${id}`).map((row) => row.subject)
-}
-
-async function loggedCommands(id: string) {
-  return productSql`SELECT seq, user_id, body FROM commands WHERE battle_id = ${id}`
 }
 
 /** A short panel on a phone sizes to what it holds rather than taking the whole screen. */
@@ -160,12 +156,12 @@ test('a guest joins from their own device, plays their side and keeps the game b
 
   const claim = guest.getByRole('region', { name: 'Add this battle to your record' })
   await shotAtWidths(guest, 'claim', { fullPage: true })
-  const written = await loggedCommands(id)
+  const written = await battleCommands(id)
   await claim.getByRole('button', { name: 'Add to my record' }).click()
   const claimed = guest.getByRole('region', { name: 'This battle is in your record' })
   await expect(claimed).toBeVisible()
   // Claiming records who the seat was; the log stays exactly as it was played.
-  expect(await loggedCommands(id)).toEqual(written)
+  expect(await battleCommands(id)).toEqual(written)
   await shotAtWidths(guest, 'claimed', { fullPage: true })
   await claimed.getByRole('button', { name: `Add ${hostName} as a friend` }).click()
   await expect(claimed.getByRole('button', { name: 'Friend request sent' })).toBeVisible()

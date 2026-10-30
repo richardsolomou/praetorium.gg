@@ -14,6 +14,7 @@ import { FullPageState, PageState } from '../../../components/PageState'
 import { PageContent, PageHeader } from '../../../components/Page'
 import { groupBy } from '../../../../core/collections'
 import { countLabel, matchesSearch } from '../../../text'
+import { SectionHeading } from '../../../components/SectionHeading'
 
 export function FactionIndexPage() {
   const { data } = useQuery(factionIndexQuery())
@@ -113,12 +114,9 @@ function FactionShelf({
 }) {
   return (
     <section data-shelf={title} className="mt-6">
-      <h2 className="rubric flex items-baseline justify-between border-b border-edge pb-2">
-        <span>{title}</span>
-        <span className="readout">{entries.length}</span>
-      </h2>
+      <SectionHeading title={title} count={entries.length} />
       {entries.length ? (
-        <div className="mt-2 grid grid-cols-1 gap-px border border-edge bg-panel md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid grid-cols-1 gap-px border border-edge bg-panel md:grid-cols-2 xl:grid-cols-3">
           {entries.map((entry) => {
             const editions = versions.filter(
               (version) => currentCatalogueFamilyId(version.id) === currentCatalogueFamilyId(entry.id),

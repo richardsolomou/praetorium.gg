@@ -10,6 +10,7 @@
 import { execFileSync } from 'node:child_process'
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { harnessFiles } from './lib/e2eHarness.ts'
+import { isAncestor } from './lib/git.ts'
 import { stepOutput } from './lib/stepOutput.ts'
 import { importClosures } from './lib/moduleGraph.ts'
 import { builtCatalogue, type E2eMap } from './lib/e2eMap.ts'
@@ -35,11 +36,13 @@ async function selection(): Promise<Selection> {
   const map = JSON.parse(readFileSync(mapFile, 'utf8')) as E2eMap
   // `base...head` numbers its old lines from the merge base, so every comparison starts there.
   const fork = git('merge-base', base, head).trim()
+  let mapInHistory = false
   try {
-    git('merge-base', '--is-ancestor', map.revision, fork)
+    mapInHistory = isAncestor(process.cwd(), map.revision, fork)
   } catch {
-    return { all: true, reason: `the map's revision ${map.revision} is not in the base's history` }
+    // A revision this clone lacks is no more usable than one outside the base's history.
   }
+  if (!mapInHistory) return { all: true, reason: `the map's revision ${map.revision} is not in the base's history` }
   const show = (revision: string, file: string) => {
     try {
       return git('show', `${revision}:${file}`)

@@ -203,16 +203,25 @@ export async function queueLocal(
   kind: string,
   input: unknown,
   resource: string,
-  data?: unknown,
-  dependencies?: string[],
-  id = crypto.randomUUID(),
-  expectedOwner = localOwner()?.id,
-  update?: LocalDocumentUpdate,
-  relatedUpdates?: Record<string, LocalDocumentUpdate>,
+  {
+    data,
+    dependencies,
+    id = crypto.randomUUID(),
+    owner,
+    update,
+    relatedUpdates,
+  }: {
+    data?: unknown
+    dependencies?: string[]
+    id?: string
+    owner: string | undefined
+    update?: LocalDocumentUpdate
+    relatedUpdates?: Record<string, LocalDocumentUpdate>
+  },
 ) {
   const engine = localEngine()
   if (!engine) throw new Error('Sign in before saving changes.')
-  if (localOwner()?.id !== expectedOwner) throw new Error('The account changed before these edits could be saved.')
+  if (localOwner()?.id !== owner) throw new Error('The account changed before these edits could be saved.')
   const operation: LocalOperation = { id, kind, input, resource, dependencies, createdAt: Date.now(), status: 'pending' }
   await engine.enqueue(operation, data, update, relatedUpdates)
   if (navigator.onLine)

@@ -10,6 +10,7 @@ import {
 } from '../../contracts/collection'
 import { collectionPhotoReportEmail } from '../collectionPhotos'
 import { COLLECTION_PHOTO_QUESTIONS, recordScreening } from '../photoScreening'
+import { reportServerFailure } from '../../adapters/posthog'
 import { app } from '../app'
 import { captureMutation } from '../mutationTelemetry'
 import { configuredAuthProviders, githubLinkConfigured } from '../authProviders'
@@ -106,7 +107,7 @@ export const checkGithubSponsorship = createServerFn({ method: 'POST' }).handler
     try {
       await instance.githubSponsors.refresh()
     } catch (error) {
-      console.error({ event: 'github_sponsor_refresh_failed', error })
+      reportServerFailure({ event: 'github_sponsor_refresh_failed', error })
       throw new Response('GitHub could not be reached', { status: 502 })
     }
     const sponsorship = await instance.service.githubSponsorship(userId)
@@ -320,14 +321,14 @@ export const collectionPhotoShows = createServerFn({ method: 'GET' }).handler(()
   rpc(() => forSignedIn({}, (id) => app().service.rosterService.collectionPhotoShows(id))),
 )
 
-const photoRateLimit = fixedWindowRateLimit('too many photo uploads')
+const photoRateLimit = fixedWindowRateLimit('too many photo uploads', 12)
 
 export const uploadCollectionPhoto = createServerFn({ method: 'POST' })
   .validator(collectionPhotoSchema)
   .handler(({ data }) =>
     mutationRpc(async () => {
       const userId = await requireUserId()
-      const limited = photoRateLimit(getRequest(), 12)
+      const limited = photoRateLimit(getRequest())
       if (limited) throw limited
       const photoId = await app().collectionPhotos.upload(userId, data.entryId, data.image, data.shows)
       await captureMutation(userId, 'collection_photo_uploaded')
@@ -364,7 +365,7 @@ export const likeCollectionPhoto = createServerFn({ method: 'POST' })
     }),
   )
 
-const reportRateLimit = fixedWindowRateLimit('too many photo reports')
+const reportRateLimit = fixedWindowRateLimit('too many photo reports', 3)
 
 /** Holds a photo the reporter can see for review and emails every administrator, where this instance sends email. */
 export const reportCollectionPhoto = createServerFn({ method: 'POST' })
@@ -372,7 +373,7 @@ export const reportCollectionPhoto = createServerFn({ method: 'POST' })
   .handler(({ data }) =>
     mutationRpc(async () => {
       const reporter = await requireUser()
-      const limited = reportRateLimit(getRequest(), 3)
+      const limited = reportRateLimit(getRequest())
       if (limited) throw limited
       const photo = await app().collectionPhotos.visibleTo(data.photoId, reporter.id)
       if (!photo) throw new Response('that photo is no longer shown', { status: 404 })

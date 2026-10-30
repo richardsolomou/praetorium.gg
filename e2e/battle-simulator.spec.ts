@@ -2,6 +2,7 @@ import { combatEstimate, holdCombatCalculations, openCombatControls, combatDamag
 import { expect, test, type Locator } from './test'
 import {
   addUnit,
+  expectNoHorizontalOverflow,
   attachRoster,
   befriend,
   createBattle,
@@ -62,7 +63,7 @@ test('the battle matchup planner uses live survivors, isolates experiments, and 
   await expect(cell.locator('.readout')).toHaveText(baseline!)
   await page.setViewportSize(PHONE)
   await expect.poll(async () => (await planner.boundingBox())?.width).toBe(390)
-  expect(await planner.locator('[data-simulator-scroll]').evaluate((node) => node.scrollWidth <= node.clientWidth + 1)).toBe(true)
+  await expectNoHorizontalOverflow(planner.locator('[data-simulator-scroll]'))
   await page.setViewportSize({ width: 1440, height: 900 })
   await planner.getByRole('button', { name: 'Close', exact: true }).click()
   await panels[0].getByRole('button', { name: "Simulate Live planner's combat", exact: true }).click()
@@ -135,7 +136,7 @@ test('unit-level equipment remains an explicit survivor choice after a casualty'
   await expect(count).toHaveText('1')
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 1000 })
-    expect(await survivors.locator('[data-slot="dialog-body"]').evaluate((node) => node.scrollWidth <= node.clientWidth + 1)).toBe(true)
+    await expectNoHorizontalOverflow(survivors.locator('[data-slot="dialog-body"]'))
   }
   await survivors.getByRole('button', { name: 'Use survivors', exact: true }).click()
   const shooting = simulator.getByRole('region', { name: 'Shooting results' })
@@ -174,7 +175,7 @@ test('battle combat uses frozen loadouts and live casualties', async ({ page, br
     await expect(squad.locator('[data-count="models"]')).toHaveText('4/5')
     if (width === 1440) await squad.getByRole('button', { name: 'Take a wound off Intercessor Squad' }).click()
     await expect(squad.locator('[data-count="wounds"]')).toHaveText('1/2')
-    expect(await army.locator('[data-army-list]').evaluate((node) => node.scrollWidth <= node.clientWidth + 1)).toBe(true)
+    await expectNoHorizontalOverflow(army.locator('[data-army-list]'))
     await expect(army.getByRole('button', { name: /^Simulate/ })).toHaveCount(0)
     await army.getByRole('button', { name: 'Close', exact: true }).click()
     await panel.getByRole('button', { name: /Simulate .*combat/ }).click()
@@ -213,7 +214,7 @@ test('battle combat uses frozen loadouts and live casualties', async ({ page, br
         .poll(async () => Number(await (await combatEstimate(simulator, 'Melee')).locator('.readout').nth(1).textContent()))
         .toBeLessThan(woundedKills)
     }
-    expect(await simulator.locator('[data-simulator-scroll]').evaluate((node) => node.scrollWidth <= node.clientWidth + 1)).toBe(true)
+    await expectNoHorizontalOverflow(simulator.locator('[data-simulator-scroll]'))
     await simulator.getByRole('button', { name: 'Close', exact: true }).click()
     await panel.getByRole('button', { name: `Open ${roster}` }).click()
     await expect(squad.locator('[data-count="models"]')).toHaveText('4/5')
@@ -345,7 +346,7 @@ test('battle support auras respect the recipient, role, conditions, and living s
   await expect(defender).not.toContainText('Not calculated')
   for (const width of [390, 900]) {
     await page.setViewportSize({ width, height: 1000 })
-    expect(await simulator.locator('[data-simulator-scroll]').evaluate((node) => node.scrollWidth <= node.clientWidth + 1)).toBe(true)
+    await expectNoHorizontalOverflow(simulator.locator('[data-simulator-scroll]'))
   }
   await page.setViewportSize({ width: 1440, height: 1000 })
   await chooseAttacker(simulator, 'Skorpekh Destroyers')

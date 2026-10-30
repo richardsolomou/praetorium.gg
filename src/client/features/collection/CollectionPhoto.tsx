@@ -110,7 +110,7 @@ export function OwnPhotos({
           <img src={collectionPhotoPath(photoId, 'thumbnail')} alt="" className="aspect-square w-full bg-sunken object-cover" />
         </button>
       ))}
-      {addable ? <PhotoDropZone entryId={entryId} name={name} className="aspect-square" /> : null}
+      {addable ? <PhotoDropZone entryId={entryId} name={name} /> : null}
       <PhotoViewer
         entryId={entryId}
         name={name}

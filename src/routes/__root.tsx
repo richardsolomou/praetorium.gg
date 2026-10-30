@@ -8,6 +8,7 @@ import martianMono from '@fontsource-variable/martian-mono/files/martian-mono-la
 import { FullPageState } from '../client/components/PageState'
 import { siteMeta } from '../client/linkPreview'
 import { AppShell } from '../client/features/shell/AppShell'
+import { warnIfSlow } from '../client/features/shell/slowLoader'
 import { meQuery } from '../client/queries'
 import { notFoundPage } from '../client/routeErrors'
 import { TEXT_SOURCES_SCRIPT } from '../client/rulesText'
@@ -17,12 +18,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient; orig
   loader: async ({ context }) => {
     const startedAt = performance.now()
     await context.queryClient.query({ ...meQuery(), staleTime: 'static' })
-    if (import.meta.env.SSR && performance.now() - startedAt > 1000) {
-      console.warn({
-        event: 'slow_root_loader',
-        duration_ms: Math.round(performance.now() - startedAt),
-      })
-    }
+    warnIfSlow('slow_root_loader', startedAt)
   },
   head: ({ match }) => ({
     meta: [

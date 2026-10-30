@@ -100,7 +100,7 @@ export async function referenceDocumentFor(id: string) {
 }
 
 export async function referenceSearchResponse(request: Request) {
-  const limited = referenceRateLimit(request, 120)
+  const limited = referenceRateLimit(request)
   if (limited) return limited
   const parsed = parseReferenceSearch(new URL(request.url))
   if ('error' in parsed) return problem(parsed.error, 400)
@@ -118,7 +118,7 @@ export async function referenceSearchResponse(request: Request) {
 }
 
 export async function referenceFactionsResponse(request: Request) {
-  const limited = referenceRateLimit(request, 120)
+  const limited = referenceRateLimit(request)
   if (limited) return limited
   const corpus = await activeReferenceCorpus()
   if (!corpus) return referenceUnavailable()
@@ -128,7 +128,7 @@ export async function referenceFactionsResponse(request: Request) {
 }
 
 export async function referenceIndexResponse(request: Request) {
-  const limited = referenceRateLimit(request, 120)
+  const limited = referenceRateLimit(request)
   if (limited) return limited
   const corpus = await activeReferenceCorpus()
   if (!corpus) return referenceUnavailable()
@@ -147,7 +147,7 @@ export async function referenceIndexResponse(request: Request) {
 }
 
 export async function referenceGuideResponse(request: Request) {
-  const limited = referenceRateLimit(request, 120)
+  const limited = referenceRateLimit(request)
   if (limited) return limited
   const corpus = await activeReferenceCorpus()
   if (!corpus) return referenceUnavailable()
@@ -161,7 +161,7 @@ export async function referenceGuideResponse(request: Request) {
 }
 
 export async function referenceUnitsResponse(request: Request, catalogueId: string) {
-  const limited = referenceRateLimit(request, 60)
+  const limited = unitsRateLimit(request)
   if (limited) return limited
   const url = new URL(request.url)
   const rawBattleSize = url.searchParams.get('battleSize')
@@ -201,7 +201,7 @@ export async function referenceUnitsResponse(request: Request, catalogueId: stri
 }
 
 export async function referenceRecordResponse(request: Request, id: string) {
-  const limited = referenceRateLimit(request, 120)
+  const limited = referenceRateLimit(request)
   if (limited) return limited
   const found = await referenceRecordFor(id)
   if (!found) return referenceUnavailable()
@@ -211,7 +211,7 @@ export async function referenceRecordResponse(request: Request, id: string) {
 }
 
 export async function referenceDatasheetResponse(request: Request, catalogueId: string, slug: string) {
-  const limited = referenceRateLimit(request, 120)
+  const limited = referenceRateLimit(request)
   if (limited) return limited
   const corpus = await activeReferenceCorpus(catalogueId)
   if (!corpus) return referenceUnavailable()
@@ -232,7 +232,7 @@ export async function referenceDatasheetResponse(request: Request, catalogueId: 
 }
 
 export async function referenceDetachmentResponse(request: Request, catalogueId: string, slug: string) {
-  const limited = referenceRateLimit(request, 120)
+  const limited = referenceRateLimit(request)
   if (limited) return limited
   const corpus = await activeReferenceCorpus(catalogueId)
   if (!corpus) return referenceUnavailable()
@@ -251,7 +251,7 @@ export async function referenceDetachmentResponse(request: Request, catalogueId:
 }
 
 export async function referenceRuleSectionResponse(request: Request, documentId: string, sectionId: string) {
-  const limited = referenceRateLimit(request, 120)
+  const limited = referenceRateLimit(request)
   if (limited) return limited
   const corpus = await activeReferenceCorpus()
   if (!corpus) return referenceUnavailable()
@@ -276,7 +276,7 @@ export async function referenceRuleSectionResponse(request: Request, documentId:
 }
 
 export async function referenceDocumentResponse(request: Request, id: string) {
-  const limited = referenceRateLimit(request, 120)
+  const limited = referenceRateLimit(request)
   if (limited) return limited
   const found = await referenceDocumentFor(id)
   if (!found) return referenceUnavailable()
@@ -350,4 +350,5 @@ function problem(error: string, status: number) {
   return Response.json({ error }, { status, headers: { 'Cache-Control': 'no-store' } })
 }
 
-export const referenceRateLimit = fixedWindowRateLimit('too many reference requests')
+export const referenceRateLimit = fixedWindowRateLimit('too many reference requests', 120)
+const unitsRateLimit = fixedWindowRateLimit('too many reference requests', 60)

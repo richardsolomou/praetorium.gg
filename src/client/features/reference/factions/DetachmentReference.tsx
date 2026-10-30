@@ -10,6 +10,7 @@ import { FavouriteDetachmentToggle } from './FavouriteDetachmentToggle'
 import { PageState } from '../../../components/PageState'
 import { PageContent, PageHeader } from '../../../components/Page'
 import { title } from '../../../missionText'
+import { SectionHeading } from '../../../components/SectionHeading'
 
 export function DetachmentReference({
   catalogueId,
@@ -90,8 +91,8 @@ export function DetachmentReference({
 
           {detachment.rules.length ? (
             <section>
-              <SectionTitle title="Detachment rules" count={detachment.rules.length} />
-              <div className="mt-2 grid gap-2">
+              <SectionHeading title="Detachment rules" count={detachment.rules.length} />
+              <div className="grid gap-2">
                 {detachment.rules.map((rule) => (
                   <article id={`rule-${routeSlug(rule.name)}`} key={rule.name} className="border border-edge bg-panel p-4">
                     <h2 className="text-lg">{rule.name}</h2>
@@ -103,8 +104,8 @@ export function DetachmentReference({
           ) : null}
 
           <section>
-            <SectionTitle title="Enhancements" count={detachment.enhancements.length} />
-            <div className="mt-2 grid gap-2 md:grid-cols-2">
+            <SectionHeading title="Enhancements" count={detachment.enhancements.length} />
+            <div className="grid gap-2 md:grid-cols-2">
               {!detachment.enhancements.length ? <p className="py-2 text-sm text-dim">No enhancement details are available.</p> : null}
               {detachment.enhancements.map((enhancement) => (
                 <article
@@ -124,8 +125,8 @@ export function DetachmentReference({
 
           {detachment.upgrades.length ? (
             <section>
-              <SectionTitle title="Unit upgrades" count={detachment.upgrades.length} />
-              <div className="mt-2 grid gap-2 md:grid-cols-2">
+              <SectionHeading title="Unit upgrades" count={detachment.upgrades.length} />
+              <div className="grid gap-2 md:grid-cols-2">
                 {detachment.upgrades.map((upgrade) => (
                   <article id={`upgrade-${routeSlug(upgrade.name)}`} key={upgrade.name} className="border border-edge bg-panel p-4">
                     <div className="flex items-start justify-between gap-3">
@@ -140,9 +141,9 @@ export function DetachmentReference({
           ) : null}
 
           <section aria-label="Stratagems">
-            <SectionTitle title="Stratagems" count={detachment.stratagems.length} />
+            <SectionHeading title="Stratagems" count={detachment.stratagems.length} />
             {detachment.stratagems.some((stratagem) => !stratagem.description) ? (
-              <p className="mt-2 text-sm text-dim">Some stratagem descriptions are not available.</p>
+              <p className="text-sm text-dim">Some stratagem descriptions are not available.</p>
             ) : null}
             <div className="mt-2 grid gap-2 md:grid-cols-2">
               {!detachment.stratagems.length ? <p className="py-2 text-sm text-dim">No stratagem details are available.</p> : null}
@@ -167,15 +168,6 @@ export function DetachmentReference({
         </PageContent>
       </div>
     </div>
-  )
-}
-
-function SectionTitle({ title: label, count }: { title: string; count: number }) {
-  return (
-    <h2 className="rubric flex items-baseline justify-between border-b border-edge pb-2">
-      <span>{label}</span>
-      <span className="readout">{count}</span>
-    </h2>
   )
 }
 

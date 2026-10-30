@@ -15,8 +15,8 @@ export function dataUrl(blob: Blob) {
 
 /**
  * Downscales and re-encodes an image until it fits `maxBytes`, trying each longest edge at each quality, as WebP unless
- * the browser cannot encode it or JPEG is asked for. Re-encoding also drops any metadata the original carried, such as
- * where a photo was taken.
+ * the browser cannot encode it or JPEG is asked for. `square` centre-crops instead, to exactly each edge, scaling up a
+ * smaller image. Re-encoding also drops any metadata the original carried, such as where a photo was taken.
  */
 export async function shrinkImage(
   file: Blob,
@@ -26,7 +26,8 @@ export async function shrinkImage(
     maxBytes,
     noun,
     jpeg = false,
-  }: { edges: readonly number[]; qualities: readonly number[]; maxBytes: number; noun: string; jpeg?: boolean },
+    square = false,
+  }: { edges: readonly number[]; qualities: readonly number[]; maxBytes: number; noun: string; jpeg?: boolean; square?: boolean },
 ): Promise<string> {
   let source: ImageBitmap
   try {
@@ -41,11 +42,18 @@ export async function shrinkImage(
     if (!context) throw new Error(`This browser cannot prepare the ${noun}.`)
 
     let type = jpeg ? 'image/jpeg' : 'image/webp'
+    const crop = Math.min(source.width, source.height)
     for (const edge of edges) {
-      const scale = Math.min(1, edge / Math.max(source.width, source.height))
-      canvas.width = Math.max(1, Math.round(source.width * scale))
-      canvas.height = Math.max(1, Math.round(source.height * scale))
-      context.drawImage(source, 0, 0, canvas.width, canvas.height)
+      if (square) {
+        canvas.width = edge
+        canvas.height = edge
+        context.drawImage(source, (source.width - crop) / 2, (source.height - crop) / 2, crop, crop, 0, 0, edge, edge)
+      } else {
+        const scale = Math.min(1, edge / Math.max(source.width, source.height))
+        canvas.width = Math.max(1, Math.round(source.width * scale))
+        canvas.height = Math.max(1, Math.round(source.height * scale))
+        context.drawImage(source, 0, 0, canvas.width, canvas.height)
+      }
       for (const quality of qualities) {
         let blob = await canvasBlob(canvas, type, quality)
         if (type === 'image/webp' && blob.type !== type) {

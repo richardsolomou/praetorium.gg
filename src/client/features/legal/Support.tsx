@@ -1,15 +1,22 @@
-import { Link } from '@tanstack/react-router'
+import { Link, useNavigate } from '@tanstack/react-router'
 import { MessageSquareWarning } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { PageContent, PageHeader } from '../../components/Page'
-import { openFeedback } from '../feedback/support'
+import { openConversation, openFeedback } from '../feedback/support'
 import { YourFeedback } from '../feedback/YourFeedback'
 import { DocsSearchField, DocsSearchResults, TroubleshootingLinks } from '../docs/DocsSearch'
 import { SupportAside } from './SupportAside'
 
-export function Support() {
+/** `conversation`, which a reply email links to, opens over the page and leaves the address. */
+export function Support({ conversation }: { conversation?: string }) {
   const [query, setQuery] = useState('')
+  const navigate = useNavigate()
+  useEffect(() => {
+    if (!conversation) return
+    openConversation(conversation)
+    void navigate({ to: '/support', search: {}, replace: true })
+  }, [conversation, navigate])
   return (
     <main className="w-full">
       <PageHeader

@@ -21,6 +21,7 @@ import {
   isKotcLimit,
   pointsBudgetsAgree,
   rosterBattleFormat,
+  pointsLabel,
   teamArmyProblems,
 } from '../../../../core/battle'
 import { ArmyPoints } from './ArmyPoints'
@@ -175,8 +176,8 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
               armyProblem.code === 'allies-mismatch'
                 ? 'choose lists saved to the same points total.'
                 : sharedSidePoints(view, armyProblem.side) !== null
-                  ? `allies spend more than their ${sharedSidePoints(view, armyProblem.side)!.toLocaleString('en')} points.`
-                  : `an army spends more than its ${armyPointsFor(view, armyProblem.side)?.toLocaleString('en')} points.`
+                  ? `allies spend more than their ${pointsLabel(sharedSidePoints(view, armyProblem.side)!)}.`
+                  : `an army spends more than its ${pointsLabel(armyPointsFor(view, armyProblem.side)!)}.`
             }`
           : null
       : !ready

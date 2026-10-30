@@ -8,6 +8,7 @@ import { useDateFormatting } from '../../dates'
 import { releaseNotesQuery, releaseQuery } from '../../queries'
 import { newerRelease } from '../../releaseUpdate'
 import { markReleaseSeen, NOTICE_INTERVAL, seenRelease, unseenReleases, useSeenRelease, useUnseenRelease } from './seenRelease'
+import { FloatingNotice } from '../../components/FloatingNotice'
 
 /**
  * Says what changed at most once a week, so a day of releases reads as one summary.
@@ -43,13 +44,7 @@ function Notice({ since, changes, releases }: { since: number; changes: readonly
     markReleaseSeen()
   }
   return (
-    <aside
-      aria-label="What's new"
-      aria-live="polite"
-      data-whats-new
-      data-print-hide
-      className="fixed bottom-4 left-1/2 z-40 flex w-max max-w-[min(40rem,calc(100%-1.5rem))] -translate-x-1/2 flex-wrap items-center gap-2 border border-edge-strong bg-panel p-2 text-sm shadow-lg"
-    >
+    <FloatingNotice aria-label="What's new" data-whats-new className="max-w-[min(40rem,calc(100%-1.5rem))] flex-wrap">
       <p className="min-w-0 basis-full px-2 text-bone sm:basis-0 sm:flex-1">
         <span className="font-semibold">New since {date(since)}: </span>
         <span className="line-clamp-2">
@@ -65,7 +60,7 @@ function Notice({ since, changes, releases }: { since: number; changes: readonly
           Dismiss
         </Button>
       </span>
-    </aside>
+    </FloatingNotice>
   )
 }
 

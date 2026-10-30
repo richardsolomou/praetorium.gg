@@ -32,7 +32,7 @@ export type LeagueVisibility = (typeof LEAGUE_VISIBILITIES)[number]
 export const LEAGUE_ADMISSIONS = ['automatic', 'approval'] as const
 export type LeagueAdmission = (typeof LEAGUE_ADMISSIONS)[number]
 
-const LEAGUE_ENTRY_STATUSES = ['pending', 'accepted', 'rejected'] as const
+export const LEAGUE_ENTRY_STATUSES = ['pending', 'accepted', 'rejected'] as const
 export type LeagueEntryStatus = (typeof LEAGUE_ENTRY_STATUSES)[number]
 
 export const LEAGUE_DEFAULT_ROSTER_LIMIT = 2_000
@@ -416,7 +416,7 @@ export function readsSealedLeagueRoster(
  * A fixed pair's sealed choices: the Force Disposition its lists offer and the card it plays, and the entrants whose
  * lists name a Warlord and whose leads it. Each is null while the pair still owes it.
  */
-export type LeagueTeam = {
+type LeagueTeam = {
   id: string
   userIds: string[]
   choices: string[]

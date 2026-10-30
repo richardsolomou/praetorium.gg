@@ -2,7 +2,8 @@ import { expect, it, vi } from 'vitest'
 import { leagueRosterFixture } from './leagueRoster.fixtures'
 import { app } from './app'
 import { ability, bookOf, points } from './catalogue.fixtures'
-import { rosterForUse, rosterUseError, rosterUseProblem, withCurrentAlerts } from './rosterUsage'
+import { rosterUseError, rosterUseProblem } from '../core/rosterLegality'
+import { rosterForUse, withCurrentAlerts } from './rosterUsage'
 
 vi.mock('./app', () => ({ app: vi.fn() }))
 

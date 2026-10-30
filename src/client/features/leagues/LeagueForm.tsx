@@ -51,39 +51,39 @@ export type LeagueFormValue = {
 export function LeagueFormFields({
   idPrefix,
   value,
-  seated = 0,
-  limitFormat = value.format,
-  ruleLock = null,
-  shapeLock = null,
+  seated,
+  limitFormat,
+  ruleLock,
+  shapeLock,
   tournament,
   ownerPlays,
-  optionsOpen = false,
+  optionsOpen,
   admins,
-  disabled = false,
+  disabled,
   onChange,
   onOwnerPlaysChange,
 }: {
   idPrefix: string
   value: LeagueFormValue
   /** Accepted entrants in the open event, who each hold a place the limit cannot drop below. */
-  seated?: number
+  seated: number
   /** The shape the limit must seat, or null once the event it would constrain is revealed. */
-  limitFormat?: TableShape | null
+  limitFormat: TableShape | null
   /** Why the format and points can no longer change, or null while they can. */
-  ruleLock?: string | null
+  ruleLock: string | null
   /** Why the format and size can no longer change while points and house rules still can, or null. */
-  shapeLock?: string | null
+  shapeLock: string | null
   /** Whether the form sets up a tournament rather than a club's sealed game. */
   tournament: boolean
   /** Whether the organizer enters as a player; omitted where their entry already stands on its own. */
-  ownerPlays?: boolean
+  ownerPlays: boolean | undefined
   /** Whether More options starts unfolded, as it does when editing a league that already has them set. */
-  optionsOpen?: boolean
+  optionsOpen: boolean
   /** The owner's choice of admins, offered only to the owner of a league that already exists. */
-  admins?: AdminChoice
-  disabled?: boolean
+  admins: AdminChoice | undefined
+  disabled: boolean
   onChange: (value: LeagueFormValue) => void
-  onOwnerPlaysChange?: (plays: boolean) => void
+  onOwnerPlaysChange: (plays: boolean) => void
 }) {
   const [showOptions, setShowOptions] = useState(optionsOpen)
   const minimum = leagueMinimumPlaces(limitFormat, seated)
@@ -139,7 +139,7 @@ export function LeagueFormFields({
         )}
       </div>
       <ScheduleFields idPrefix={idPrefix} value={value} tournament={tournament} disabled={disabled} onChange={onChange} />
-      {ownerPlays === undefined || !onOwnerPlaysChange ? null : (
+      {ownerPlays === undefined ? null : (
         <div className="flex items-center gap-3">
           <Switch id={`${idPrefix}-owner-plays`} checked={ownerPlays} disabled={disabled} onCheckedChange={onOwnerPlaysChange} />
           <Label htmlFor={`${idPrefix}-owner-plays`} className="cursor-pointer text-sm font-bold uppercase">
@@ -227,7 +227,7 @@ export function LeagueFormFields({
 }
 
 /** Whether the form can be saved: a tournament's name and a limit that seats the chosen shape and everyone already in. */
-export function leagueFormValid(value: LeagueFormValue, seated = 0, limitFormat: TableShape | null = value.format, tournament = true) {
+export function leagueFormValid(value: LeagueFormValue, seated: number, limitFormat: TableShape | null, tournament: boolean) {
   return (
     (!tournament || (Boolean(value.name.trim()) && leaguePlacesSeat(limitFormat, value.playerLimit, seated))) &&
     !pointsBudgetError(value.rosterLimit, value.pointsBudget) &&

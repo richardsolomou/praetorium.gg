@@ -4,6 +4,7 @@ import { winRate } from '../../../core/standings'
 import { FactionMark } from '../../components/FactionMark'
 import { percentLabel, countLabel } from '../../text'
 import { RatingHistory } from './RatingHistory'
+import { SectionHeading } from '../../components/SectionHeading'
 
 type Ranking<T> = { faction: T; place: number; of: number; standing: Standing }
 
@@ -30,10 +31,7 @@ export function PlayerRankings({ rankings }: { rankings: Rankings }) {
   if (!rows.length) return null
   return (
     <section data-rankings>
-      <h2 className="rubric flex items-baseline justify-between border-b border-edge pb-2">
-        <span>Leaderboard</span>
-        <span className="text-xs text-faint normal-case">Last {rankings.days} days</span>
-      </h2>
+      <SectionHeading title="Leaderboard" detail={<span className="text-xs text-faint normal-case">Last {rankings.days} days</span>} />
       <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
         {rows.map(({ faction, place, of, standing }) => (
           <Link

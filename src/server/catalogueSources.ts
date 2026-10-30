@@ -1,3 +1,5 @@
+import fs from 'node:fs'
+import path from 'node:path'
 import { z } from 'zod'
 import rawSources from '../../catalogue/sources.json' with { type: 'json' }
 import { isSafeRelativePath } from './relativePath'
@@ -46,6 +48,25 @@ export type SnapshotSourceName = (typeof SNAPSHOT_SOURCE_NAMES)[number] | (typeo
 export function isSnapshotSourceName(value: string): value is SnapshotSourceName {
   return [...RETIRED_SOURCE_NAMES, ...SNAPSHOT_SOURCE_NAMES].some((name) => name === value)
 }
+/** `historical` reads a published snapshot as history, passing over a source this code no longer has. */
+export function revisionsOf(value: unknown, historical = false): Record<string, string> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('catalogue revisions are invalid')
+  const revisions: Record<string, string> = {}
+  for (const [name, revision] of Object.entries(value)) {
+    const known = isSnapshotSourceName(name)
+    if (historical && !known) continue
+    if (!known || typeof revision !== 'string' || !revision) {
+      throw new Error(`catalogue revision ${name} is invalid`)
+    }
+    revisions[name] = revision
+  }
+  return revisions
+}
+
+/** A snapshot directory's `revision.json`, validated like every other revision record. */
+export const readRevisions = (directory: string, historical = false) =>
+  revisionsOf(JSON.parse(fs.readFileSync(path.join(directory, 'revision.json'), 'utf8')), historical)
+
 export type CatalogueSourceConfig = z.infer<typeof catalogueSourcesSchema>
 export type BattlemasterSource = CatalogueSourceConfig['battlemaster']
 

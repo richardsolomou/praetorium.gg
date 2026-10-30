@@ -1,3 +1,5 @@
+import { chanceLabel } from './CombatValue'
+
 export function atLeastProbabilities(distribution: number[]) {
   const chances = Array<number>(distribution.length)
   let chance = 0
@@ -26,7 +28,7 @@ export function CombatHistogram({ distribution }: { distribution: number[] }) {
             <div className="h-2 overflow-hidden rounded-sm bg-sunken">
               <div className="h-full rounded-sm bg-primary/70" style={{ width: `${100 * chance}%` }} />
             </div>
-            <span className="readout text-right">{(100 * chance).toFixed(1)}%</span>
+            <span className="readout text-right">{chanceLabel(chance)}</span>
           </div>
         ))}
       </div>

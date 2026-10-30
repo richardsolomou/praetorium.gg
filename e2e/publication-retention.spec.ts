@@ -15,7 +15,7 @@ import {
   chooseLibraryAction,
   scoreboard,
 } from './account'
-import { productOperator, productSql, savedWork, withAuthSql, userIdNamed, lastPathSegment, battleIdFor } from './storage'
+import { battleCommands, productOperator, productSql, savedWork, withAuthSql, userIdNamed, lastPathSegment, battleIdFor } from './storage'
 
 test.setTimeout(300_000)
 
@@ -134,9 +134,8 @@ test('saved roster deletion preserves its actual sealed and fielded copies until
   await startBattle(page)
   await concedeAndSync(page)
   const battleId = await battleIdFor(lastPathSegment(battleUrl))
-  const battleCommands = () => productSql`SELECT seq, body FROM commands WHERE battle_id = ${battleId}`
-  const commandsBefore = await battleCommands()
-  expect(commandsBefore.some((row) => String(row.body).includes('Skorpekh Lord'))).toBe(true)
+  const commandsBefore = await battleCommands(battleId)
+  expect(commandsBefore.some(({ body }) => JSON.stringify(body).includes('Skorpekh Lord'))).toBe(true)
 
   await page.goto(rosterUrl)
   await waitForRosterSave(page, () => page.getByLabel('List name').fill('Changed saved roster'), 'Changed saved roster')
@@ -149,7 +148,7 @@ test('saved roster deletion preserves its actual sealed and fielded copies until
   await chooseLibraryAction(page, 'Changed saved roster', 'Delete')
   await deletion.getByRole('button', { name: 'Delete roster', exact: true }).click()
   await expect.poll(() => productSql`SELECT id FROM rosters WHERE id = ${rosterId}`).toEqual([])
-  expect(await battleCommands()).toEqual(commandsBefore)
+  expect(await battleCommands(battleId)).toEqual(commandsBefore)
   expect(await sealedCopy()).toEqual(sealedBefore)
 
   // Its owner still reads the sealed copy before the reveal, after the saved roster is gone.
@@ -190,7 +189,7 @@ test('saved roster deletion preserves its actual sealed and fielded copies until
   await expect.poll(() => productSql`SELECT id FROM tournaments WHERE id = ${league.id}`).toEqual([])
   expect(await productSql`SELECT id FROM sealed_events WHERE id = ${league.eventId}`).toEqual([])
   expect(await productSql`SELECT user_id FROM league_event_entries WHERE event_id = ${league.eventId}`).toEqual([])
-  expect(await battleCommands()).toEqual(commandsBefore)
+  expect(await battleCommands(battleId)).toEqual(commandsBefore)
   await page.goto(sealedUrl)
   await expect(page.getByRole('heading', { name: 'Nothing here', exact: true })).toBeVisible()
   await page.goto(`/rosters/${rosterId}?battle=${lastPathSegment(battleUrl)}`)

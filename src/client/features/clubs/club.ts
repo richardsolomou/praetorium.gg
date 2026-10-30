@@ -5,6 +5,10 @@ import { useStartBattle } from '../battles/useStartBattle'
 
 export type Club = NonNullable<Awaited<ReturnType<typeof openClub>>>
 
+/** Names a player by their club membership, including one who has since left. */
+export const memberNameOf = (club: Pick<Club, 'members'>) => (userId: string) =>
+  club.members.find((member) => member.userId === userId)?.name ?? 'A former member'
+
 export const CLUB_TABS = ['overview', 'leaderboard', 'season', 'sealed'] as const
 export type ClubTab = (typeof CLUB_TABS)[number]
 

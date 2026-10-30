@@ -1,4 +1,5 @@
-import { csv } from './csv'
+import { groupBy } from './collections'
+import { csv, parseCsv } from './csv'
 import { countsAsList, MAX_COLLECTION_DATASHEETS, MAX_COLLECTION_MODELS, MAX_COUNTS_AS, type CollectionEntry } from './collection'
 
 /** A collection file is a few hundred kilobytes at the datasheet limit; anything far larger is not one. */
@@ -35,37 +36,6 @@ export function collectionCsv(rows: readonly CollectionCsvRow[]) {
   ])
 }
 
-/** RFC 4180 records; a quote inside an unquoted field is kept as text. */
-export function parseCsv(text: string) {
-  const records: string[][] = []
-  let record: string[] = []
-  let field = ''
-  let quoted = false
-  let index = text.charCodeAt(0) === 0xfeff ? 1 : 0
-  for (; index < text.length; index++) {
-    const char = text[index]!
-    if (quoted) {
-      if (char !== '"') field += char
-      else if (text[index + 1] === '"') {
-        field += '"'
-        index++
-      } else quoted = false
-    } else if (char === '"' && field === '') quoted = true
-    else if (char === ',') {
-      record.push(field)
-      field = ''
-    } else if (char === '\n' || char === '\r') {
-      if (char === '\r' && text[index + 1] === '\n') index++
-      record.push(field)
-      records.push(record)
-      record = []
-      field = ''
-    } else field += char
-  }
-  if (field !== '' || record.length) records.push([...record, field])
-  return records.filter((row) => row.some((value) => value.trim() !== ''))
-}
-
 const normalise = (value: string) => value.trim().replace(/^'/, '').replaceAll(/\s+/g, ' ').toLocaleLowerCase('en')
 
 export type ImportedRow = { line: number; name: string } & (
@@ -74,7 +44,7 @@ export type ImportedRow = { line: number; name: string } & (
   | { status: 'unmatched' | 'duplicate' | 'invalid'; reason: string }
 )
 
-export type CollectionImport = { rows: ImportedRow[] } | { error: string }
+type CollectionImport = { rows: ImportedRow[] } | { error: string }
 
 function count(raw: string | undefined) {
   const text = raw?.trim() ?? ''
@@ -95,8 +65,7 @@ export function readCollectionCsv(text: string, sheets: readonly Sheet[]): Colle
   if (records.length > MAX_COLLECTION_DATASHEETS)
     return { error: `A collection holds up to ${MAX_COLLECTION_DATASHEETS.toLocaleString('en')} datasheets.` }
   const byId = new Map(sheets.map((sheet) => [sheet.id, sheet]))
-  const byName = new Map<string, Sheet[]>()
-  for (const sheet of byId.values()) byName.set(normalise(sheet.name), [...(byName.get(normalise(sheet.name)) ?? []), sheet])
+  const byName = groupBy(byId.values(), (sheet) => normalise(sheet.name))
   const value = (record: string[], column: string) => {
     const index = columns.get(column)
     return index === undefined ? undefined : record[index]
@@ -150,7 +119,7 @@ export function readCollectionCsv(text: string, sheets: readonly Sheet[]): Colle
   return { rows }
 }
 
-export type ImportChange = 'new' | 'same' | 'conflict'
+type ImportChange = 'new' | 'same' | 'conflict'
 
 /** Import only adds or raises what a row lists: a zero or no links leaves the saved value alone, and nothing is removed. */
 export function importChange(row: CollectionEntry, current: CollectionEntry | undefined): ImportChange {

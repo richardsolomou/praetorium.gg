@@ -1,38 +1,19 @@
 import { PROFILE_IMAGE_MAX_LENGTH } from '../../../authConfig'
-import { canvasBlob, dataUrl } from '../../imageFile'
+import { shrinkImage } from '../../imageFile'
 
 const INPUT_MAX_BYTES = 10_000_000
-/** JPEG at 280 pixels or more, because the screening model reads only JPEG and PNG of at least that size. */
-const PROFILE_IMAGE_SIZES = [320, 288]
-const PROFILE_IMAGE_QUALITIES = [0.86, 0.7, 0.55]
+/** The stored limit is on the data URL, and base64 spends four characters on every three bytes. */
+const PROFILE_IMAGE_MAX_BYTES = Math.floor((PROFILE_IMAGE_MAX_LENGTH - 'data:image/jpeg;base64,'.length) / 4) * 3
 
 export async function prepareProfileImage(file: File): Promise<string> {
   if (!file.type.startsWith('image/') || file.size > INPUT_MAX_BYTES) throw new Error('Choose an image smaller than 10 MB.')
-
-  let source: ImageBitmap
-  try {
-    source = await createImageBitmap(file)
-  } catch {
-    throw new Error('That image could not be read. Choose a JPEG, PNG or WebP file.')
-  }
-
-  try {
-    const canvas = document.createElement('canvas')
-    const context = canvas.getContext('2d')
-    if (!context) throw new Error('This browser cannot prepare the profile picture.')
-
-    const edge = Math.min(source.width, source.height)
-    for (const size of PROFILE_IMAGE_SIZES) {
-      canvas.width = size
-      canvas.height = size
-      context.drawImage(source, (source.width - edge) / 2, (source.height - edge) / 2, edge, edge, 0, 0, size, size)
-      for (const quality of PROFILE_IMAGE_QUALITIES) {
-        const image = await dataUrl(await canvasBlob(canvas, 'image/jpeg', quality))
-        if (image.length <= PROFILE_IMAGE_MAX_LENGTH) return image
-      }
-    }
-    throw new Error('That image could not be made small enough. Choose a simpler picture.')
-  } finally {
-    source.close()
-  }
+  // JPEG at 280 pixels or more, because the screening model reads only JPEG and PNG of at least that size.
+  return shrinkImage(file, {
+    edges: [320, 288],
+    qualities: [0.86, 0.7, 0.55],
+    maxBytes: PROFILE_IMAGE_MAX_BYTES,
+    noun: 'profile picture',
+    jpeg: true,
+    square: true,
+  })
 }

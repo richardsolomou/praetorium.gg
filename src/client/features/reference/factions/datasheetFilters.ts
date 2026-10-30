@@ -1,4 +1,5 @@
 import type { FactionDatasheet } from '../../../../contracts/catalogue'
+import { countBy } from '../../../../core/collections'
 import type { NonMatchedPlayKind } from '../../../../core/name'
 
 export type DatasheetSource = 'matched' | NonMatchedPlayKind
@@ -18,9 +19,12 @@ export const sourceOf = (unit: Pick<FactionDatasheet, 'nonMatchedPlay'>): Datash
  * carries is almost always that datasheet's own name, which search already finds.
  */
 export function keywordOptions(units: readonly FactionDatasheet[]) {
-  const counts = new Map<string, number>()
-  for (const unit of units) for (const keyword of new Set(unit.keywords)) counts.set(keyword, (counts.get(keyword) ?? 0) + 1)
-  return [...counts]
+  return [
+    ...countBy(
+      units.flatMap((unit) => [...new Set(unit.keywords)]),
+      (keyword) => keyword,
+    ),
+  ]
     .filter(([, count]) => count > 1 && count < units.length)
     .map(([keyword, count]) => ({ keyword, count }))
     .toSorted((left, right) => left.keyword.localeCompare(right.keyword))

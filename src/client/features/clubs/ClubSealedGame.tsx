@@ -5,7 +5,6 @@ import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import type { LeagueSide } from '../../../contracts/schemas'
-import { battleOutcome } from '../../../core/standings'
 import {
   isTeamFormat,
   leagueEntryPoints,
@@ -31,10 +30,10 @@ import { LeagueSettingsDialog } from '../leagues/LeagueSettingsDialog'
 import { TeamDispositionPanel } from '../leagues/LeagueTeamDisposition'
 import { TeamWarlordPanel } from '../leagues/LeagueTeamWarlord'
 import { eventName, namesPhrase, useLeagueRefresh } from '../leagues/leagueEvent'
-import { battleOutcomeStage, battleStage } from '../../battleStage'
+import { sideLost, viewerStage } from '../../battleStage'
 import { summarySides } from '../../battleSummary'
 import type { Battle } from '../battles/battle'
-import { useClubRefresh, type Club } from './club'
+import { memberNameOf, useClubRefresh, type Club } from './club'
 import { useStartBattle } from '../battles/useStartBattle'
 import { warmLocalConstruction } from '../../offline/construction'
 import { afterPaint } from '../../afterPaint'
@@ -106,7 +105,7 @@ export function ClubSealedGame({
   const gameName = eventName({ ...game, tournament: null, club })
   const member = club.members.some((candidate) => candidate.userId === viewerId && candidate.status === 'accepted')
   const people = new Map(club.members.map((candidate) => [candidate.userId, candidate]))
-  const nameOf = (userId: string) => people.get(userId)?.name ?? 'A former member'
+  const nameOf = memberNameOf(club)
   const team = isTeamFormat(game.format)
   const revealed = game.revealedAt !== null
   const closed = !revealed && leagueSealingClosed(game, now)
@@ -516,9 +515,7 @@ export function ClubSealedGame({
 function BattleResult({ battle, viewerId }: { battle: Battle; viewerId: string | null }) {
   const seat = viewerId ? battle.playerIds.indexOf(viewerId) : -1
   const sides = summarySides(battle)
-  const finished = battle.status === 'finished'
-  const stage = seat !== -1 && finished ? battleOutcomeStage(battleOutcome(battle, battle.sides[seat]!)) : battleStage(battle.status)
-  const lost = (index: number) => finished && battleOutcome(battle, index) === 'lost'
+  const stage = viewerStage(battle, viewerId)
   const label = sides.map((side) => side.players.join(' and ')).join(' versus ')
   return (
     <li>
@@ -533,7 +530,7 @@ function BattleResult({ battle, viewerId }: { battle: Battle; viewerId: string |
         </span>
         <span className="min-w-0 flex-1 text-sm wrap-break-word max-sm:order-last max-sm:basis-full">
           {sides.map((side, at) => (
-            <span key={side.index} className={`uppercase ${lost(side.index) ? 'text-faint' : 'font-bold'}`}>
+            <span key={side.index} className={`uppercase ${sideLost(battle, side.index) ? 'text-faint' : 'font-bold'}`}>
               {at ? <span className="px-1.5 font-normal text-faint normal-case">vs</span> : null}
               {side.seats.map(({ player }, index) => (
                 <span key={player.id || player.name}>
@@ -550,7 +547,9 @@ function BattleResult({ battle, viewerId }: { battle: Battle; viewerId: string |
             {sides.map((side, at) => (
               <span key={side.index}>
                 {at ? <span className="px-1 text-faint">–</span> : null}
-                <span className={`${at ? 'text-side-b' : 'text-side-a'} ${lost(side.index) ? 'opacity-50' : ''}`}>{side.score}</span>
+                <span className={`${at ? 'text-side-b' : 'text-side-a'} ${sideLost(battle, side.index) ? 'opacity-50' : ''}`}>
+                  {side.score}
+                </span>
               </span>
             ))}
           </span>

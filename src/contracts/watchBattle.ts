@@ -93,5 +93,3 @@ export function watchLive(view: BattleView, clock: BattleClock, now: number) {
     sides: captains.map((captain) => ({ index: captain.side, vp: captain.total, cp: captain.cp })),
   }
 }
-
-export type WatchLive = ReturnType<typeof watchLive>

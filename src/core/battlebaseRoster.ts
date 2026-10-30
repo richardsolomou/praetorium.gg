@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { ROSTER_NAME_MAX_LENGTH, type Roster } from './battle'
 import { catalogueEditionId } from './catalogueEdition'
 import { routeSlug } from './slug'
+import { capitalised } from './text'
 import type { TextRoster, TextRosterUnit } from './textRoster'
 
 const ref = z.string().max(200)
@@ -150,7 +151,7 @@ export function titled(slug: string) {
   return slug
     .split('-')
     .filter(Boolean)
-    .map((word, index) => (index && SMALL_WORDS.has(word) ? word : word[0]!.toUpperCase() + word.slice(1)))
+    .map((word, index) => (index && SMALL_WORDS.has(word) ? word : capitalised(word)))
     .join(' ')
 }
 

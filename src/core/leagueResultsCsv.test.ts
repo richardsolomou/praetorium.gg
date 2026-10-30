@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseCsv } from './collectionCsv'
+import { parseCsv } from './csv'
 import { leagueResultsCsv } from './leagueResultsCsv'
 
 const file = (partial: boolean, player = 'Ada') =>

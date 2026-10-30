@@ -1,3 +1,4 @@
+import type { PriceInput } from '../../contracts/schemas'
 import type { PlayerProfileFilter } from './battles'
 
 export const meKey = () => ['me']
@@ -108,3 +109,18 @@ export const leagueBattlesKey = (token: string, eventToken: string) => ['league-
 /** Without a roster, every roster's outdated entries. */
 export const outdatedLeagueEntriesKey = (rosterId?: string) =>
   rosterId === undefined ? ['outdated-league-entries'] : ['outdated-league-entries', rosterId]
+
+export function rosterPriceKey(data: PriceInput) {
+  return [
+    'price',
+    data.catalogueId,
+    data.detachmentIds,
+    data.disposition,
+    data.limit,
+    data.waivedRules ?? [],
+    data.borrowedDetachmentId ?? null,
+    data.optionalRules ?? [],
+    ...(data.includeUnitLimits ? ['unit-limits'] : []),
+    data.units,
+  ]
+}

@@ -63,6 +63,7 @@ vi.mock('./app', () => ({
       $context: Promise.resolve({ baseURL: 'https://praetorium.gg/api/auth', internalAdapter: {} }),
       mcpResource: 'https://praetorium.gg/mcp',
       issuer: 'https://praetorium.gg/api/auth',
+      jwksUrl: 'https://praetorium.gg/api/auth/jwks',
     },
   }),
 }))

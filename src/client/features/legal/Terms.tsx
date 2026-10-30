@@ -1,4 +1,4 @@
-import { LegalLinks, LegalPage, LegalSection } from './LegalPage'
+import { LegalLinks, LegalPage, LegalSection, PrivacyEmail } from './LegalPage'
 
 export function Terms() {
   return (
@@ -14,11 +14,8 @@ export function Terms() {
 
       <LegalSection title="Accounts">
         <p>
-          You must be at least 13 years old. Give accurate information, keep your credentials private, and email{' '}
-          <a href="mailto:privacy@praetorium.gg" className="text-info hover:text-parchment">
-            privacy@praetorium.gg
-          </a>{' '}
-          if you think an account has been compromised. You are responsible for activity under your account.
+          You must be at least 13 years old. Give accurate information, keep your credentials private, and email <PrivacyEmail /> if you
+          think an account has been compromised. You are responsible for activity under your account.
         </p>
         <p>We may suspend or close accounts that break these terms or endanger the service or its players.</p>
       </LegalSection>
@@ -76,11 +73,8 @@ export function Terms() {
 
       <LegalSection title="Ending">
         <p>
-          Delete your account from your profile whenever you like, or email{' '}
-          <a href="mailto:privacy@praetorium.gg" className="text-info hover:text-parchment">
-            privacy@praetorium.gg
-          </a>{' '}
-          for help. When an account ends, its data is handled as the{' '}
+          Delete your account from your profile whenever you like, or email <PrivacyEmail /> for help. When an account ends, its data is
+          handled as the{' '}
           <a href="/privacy" className="text-info hover:text-parchment">
             privacy policy
           </a>{' '}

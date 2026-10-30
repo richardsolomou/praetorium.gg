@@ -3,6 +3,7 @@ import { classifyNavigation } from './navigation'
 import { MAX_APP_SNAPSHOT_BYTES, parseAppSnapshot, type AppSnapshot } from '../../src/contracts/appSnapshot'
 import { MAX_LOCAL_STATE_BYTES, parseLocalState, type LocalState } from '../../src/contracts/localState'
 
+import { NATIVE_EVENTS, type NativeEvent } from '../../src/contracts/nativeBridge'
 import { MAX_WATCH_MESSAGE_BYTES, parseWatchBattle, type WatchBattle } from '../../src/contracts/watchBattle'
 
 /** The id a request carries so its answer can find it, and the local state epoch, which is shaped the same. */
@@ -26,14 +27,9 @@ export type NativeActionRequest =
   | { kind: 'push'; id: string; prompt: boolean }
   | { kind: 'share'; title?: string; url: string }
 
-/** The shell's answer to a `push` request, as the web application reads it. */
-export type NativePushAnswer =
-  | { status: 'granted'; token: string; platform: 'ios' | 'android' }
-  | { status: 'denied' | 'undetermined' | 'unavailable' }
-
-export function nativePushAnswerScript(id: string, answer: NativePushAnswer) {
-  const detail = JSON.stringify({ id, ...answer })
-  return `window.dispatchEvent(new CustomEvent('praetorium-native-push', { detail: ${detail} })); true;`
+/** Dispatches `detail` to the page as data; `<` stays escaped so the JSON cannot close a script element. */
+export function nativeAnswerScript(event: NativeEvent, detail: unknown) {
+  return `window.dispatchEvent(new CustomEvent('${event}', { detail: ${JSON.stringify(detail).replaceAll('<', '\\u003c')} })); true;`
 }
 
 export function parseNativeActionRequest(message: string): NativeActionRequest | null {
@@ -175,6 +171,6 @@ export function nativeWatchCapabilityScript(enabled: boolean) {
     const capabilities = window.PraetoriumNative.capabilities.filter(value => value !== 'watch-battle');
     ${enabled ? "capabilities.push('watch-battle');" : ''}
     window.PraetoriumNative = Object.freeze({ ...window.PraetoriumNative, capabilities });
-    window.dispatchEvent(new CustomEvent('praetorium-native-capabilities'));
+    window.dispatchEvent(new CustomEvent('${NATIVE_EVENTS.capabilities}'));
   })(); true;`
 }

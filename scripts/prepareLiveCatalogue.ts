@@ -10,6 +10,7 @@
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import { parseArgs } from 'node:util'
 import { catalogueBaseUrl, fetchPinnedSnapshot } from '../src/server/catalogueSnapshot'
 import { liveCatalogueRevision } from '../src/server/liveCatalogue'
 import { prepareCatalogueOutputs } from './lib/catalogueOutputs'
@@ -18,13 +19,16 @@ import { refreshLiveCatalogue } from './lib/liveCatalogue'
 import { fetchLiveCatalogue, publishLiveCatalogue } from './lib/liveCatalogueArchive'
 import { liveRevisionId, prepareLiveRevision, readLiveRevisionSources } from './lib/liveCatalogueRefresh'
 
-const [target, flag, ...rest] = process.argv.slice(2)
-if (!target || rest.length || (flag !== undefined && (flag !== '--publish' || target === '--pinned')))
+const {
+  values: { pinned = false, publish = false },
+  positionals: [target, ...rest],
+} = parseArgs({ allowPositionals: true, options: { pinned: { type: 'boolean' }, publish: { type: 'boolean' } } })
+if (rest.length || pinned === (target !== undefined) || (pinned && publish))
   throw new Error('expected a deployment target, optionally with --publish, or --pinned')
 const staging = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-live-catalogue-'))
 try {
   const compiler = await compilerFingerprint()
-  if (target === '--pinned') {
+  if (target === undefined) {
     const directory = path.join(staging, 'catalogue')
     await fetchPinnedSnapshot(directory, catalogueBaseUrl(), console.log)
     await prepareCatalogueOutputs(directory, staging, compiler)
@@ -46,7 +50,7 @@ try {
     if (!live) throw new Error('No live catalogue was prepared')
     const directory = path.join(live.directory, 'catalogue')
     if (!changed) await prepareCatalogueOutputs(directory, path.join(staging, 'outputs'), compiler)
-    else if (flag === '--publish') {
+    else if (publish) {
       const { key } = readLiveRevisionSources(live.directory)
       console.log(`Live catalogue archive ${await publishLiveCatalogue(directory, target, { authoring, sources: key }, published)}`)
     }

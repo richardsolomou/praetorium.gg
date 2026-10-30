@@ -72,7 +72,7 @@ describe('storeProfileImageFromUrl', () => {
 
   it('downloads and uploads under a content-addressed key', async () => {
     configuredObjectStore.mockReturnValue(STORE)
-    const bytes = Buffer.from('provider-avatar-bytes')
+    const bytes = Buffer.from('89504e470d0a1a0a', 'hex')
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => new Response(bytes, { status: 200, headers: { 'content-type': 'image/png' } })),

@@ -222,15 +222,12 @@ export async function submit(args: Parameters<typeof server.submit>[0]): ReturnT
   const operationId = crypto.randomUUID()
   log[log.length - 1]!.operationId = operationId
   const next = { ...workspace, log }
-  await queueLocal(
-    'battleCommand',
-    input,
-    resource,
-    next,
-    capturedRoster ? [`roster:${capturedRoster.id}`] : undefined,
-    operationId,
-    owner.id,
-  )
+  await queueLocal('battleCommand', input, resource, {
+    data: next,
+    dependencies: capturedRoster ? [`roster:${capturedRoster.id}`] : undefined,
+    id: operationId,
+    owner: owner.id,
+  })
   return { result: { outcome: 'appended', seq: state.seq + 1 }, screen: workspaceScreen(next, owner.id) }
 }
 
@@ -395,7 +392,7 @@ export async function createBattle(args: Parameters<typeof server.createBattle>[
     serverSeq: 0,
     serverNow: now,
   }
-  await queueLocal('createBattle', { input, identifiers }, `battle:${identifiers.battleToken}`, workspace, undefined, undefined, owner.id)
+  await queueLocal('createBattle', { input, identifiers }, `battle:${identifiers.battleToken}`, { data: workspace, owner: owner.id })
   return { battleId: identifiers.battleId, token: identifiers.battleToken, practice: players.some(isPracticeSeat) }
 }
 
@@ -474,15 +471,11 @@ export async function createLeagueBattle(
     serverNow: now,
     log: prepared.initialCommands.map((command, index) => ({ seq: index + 1, command, at: now, by: owner.id })),
   }
-  await queueLocal(
-    'createLeagueBattle',
-    { input: args.data, identifiers },
-    `battle:${identifiers.battleToken}`,
-    workspace,
-    [`league:${league.token}`],
-    undefined,
-    owner.id,
-  )
+  await queueLocal('createLeagueBattle', { input: args.data, identifiers }, `battle:${identifiers.battleToken}`, {
+    data: workspace,
+    dependencies: [`league:${league.token}`],
+    owner: owner.id,
+  })
   return { token: identifiers.battleToken }
 }
 

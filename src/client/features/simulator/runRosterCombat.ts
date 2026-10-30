@@ -3,6 +3,7 @@ import { combatantDatasheets } from '../../functions'
 import { combatCalculator, readCombatAnswer } from './combatCalculation'
 import { COMBAT_BATCH_SIZE } from '../../../contracts/combatCalculation'
 import { errorMessage } from '../../queryClient'
+import { forEachConcurrently } from '../../../shared/forEachConcurrently'
 import type { CombatAnswer, CombatRequest } from '../../../core/combatMatchup'
 import type { CombatRoster } from './useCombatant'
 import { hasRosterCombatCache, readRosterCombatCache, writeRosterCombatCache } from './rosterCombatCache'
@@ -52,16 +53,14 @@ export async function runRosterCombat({
   const prepare = async (rosters: readonly CombatRoster[], indices: { rosterIndex: number; pickIndex: number }[]) => {
     type Projection = Awaited<ReturnType<typeof combatantDatasheets>>[number] | { error: string }
     const projections: Projection[][] = []
-    let nextRoster = 0
-    const load = async () => {
-      while (nextRoster < rosters.length) {
-        signal.throwIfAborted()
-        const rosterIndex = nextRoster++
-        const roster = rosters[rosterIndex]!
+    await forEachConcurrently(
+      rosters,
+      CONCURRENT_MATCHUPS,
+      async (roster, rosterIndex) => {
         const pickIndices = indices.filter((index) => index.rosterIndex === rosterIndex).map((index) => index.pickIndex)
         if (!pickIndices.length) {
           projections[rosterIndex] = []
-          continue
+          return
         }
         try {
           projections[rosterIndex] = await combatantDatasheets({
@@ -78,9 +77,9 @@ export async function runRosterCombat({
           signal.throwIfAborted()
           projections[rosterIndex] = pickIndices.map(() => ({ error: errorMessage(error) }))
         }
-      }
-    }
-    await Promise.all(Array.from({ length: Math.min(CONCURRENT_MATCHUPS, rosters.length) }, load))
+      },
+      signal,
+    )
     signal.throwIfAborted()
     const positions = rosters.map(() => 0)
     return indices.map(({ rosterIndex, pickIndex }): RosterCombatUnit => {

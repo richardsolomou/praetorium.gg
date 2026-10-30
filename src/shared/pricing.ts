@@ -610,7 +610,7 @@ function calculateRoster(
       }),
     ),
     ...factionRestrictionViolations(restrictions, constructionUnits),
-    ...(isKotcLimit(data.limit) ? kotcViolations(chosen.length, constructionUnits, data.limit, data.waivedRules) : []),
+    ...(isKotcLimit(data.limit) ? kotcViolations(chosen.length, constructionUnits, data.limit, data.waivedRules ?? []) : []),
     ...(!isKotcLimit(data.limit) && enforces(data.waivedRules, 'warlord') ? armyWarlordErrors(picked) : []),
     ...detachmentLockErrors(loaded, data, picked, roster),
     ...pointCaps.errors,

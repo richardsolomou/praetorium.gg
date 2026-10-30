@@ -12,8 +12,8 @@ import { LeagueSettingsDialog } from './LeagueSettingsDialog'
 import { eventFullName, eventLink, eventName, eventPath, leagueNoun, useLeagueRefresh } from './leagueEvent'
 import type { TableShape } from '../../../core/tableShape'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
-import { useInviteShareLabel } from '../friends/friendInvite'
-import { useShareLink } from '../../useShareLink'
+import { useNativeShare } from '../../nativeBridge'
+import { shareButtonLabel, useShareLink } from '../../useShareLink'
 
 type ManageableLeague = {
   token: string
@@ -98,7 +98,7 @@ function LeagueActionItems({
   actions: LeagueActionsController
   canDelete: boolean
 }) {
-  const shareLabel = useInviteShareLabel()
+  const nativeShare = useNativeShare()
   return (
     <>
       <Item render={<Link {...eventLink(actions.league)} />}>
@@ -106,7 +106,7 @@ function LeagueActionItems({
       </Item>
       <Item onClick={actions.copyInvite}>
         {actions.copyFeedback === 'shared' ? <Share2 /> : actions.copyFeedback === 'copied' ? <Check /> : <Clipboard />}{' '}
-        {actions.copyFeedback === 'shared' ? 'Invite shared' : actions.copyFeedback === 'copied' ? 'Invite link copied' : shareLabel}
+        {shareButtonLabel(actions.copyFeedback, nativeShare, 'invite')}
       </Item>
       <Item onClick={actions.openEdit}>
         <Pencil /> Edit {actions.noun}

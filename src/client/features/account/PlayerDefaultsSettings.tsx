@@ -7,7 +7,6 @@ import { playerDefaultsQuery } from '../../queries'
 import { Choice, type ChoiceOption } from '../../components/Choice'
 import { VISIBILITY_NAME, VISIBILITY_REACH } from '../rosters/visibility'
 import { Problem } from '../../components/Problem'
-import { SettingsSection } from './SettingsSection'
 
 const VISIBILITIES: ChoiceOption<RosterVisibility>[] = (['public', 'unlisted', 'private'] as const).map((value) => ({
   value,
@@ -37,21 +36,27 @@ export function PlayerDefaultsSettings() {
   })
   const defaults = save.isPending ? save.variables : saved
   return (
-    <SettingsSection title="Roster defaults" description="What a new roster starts with. You can change both when you create one.">
-      <Choice
-        label="Roster visibility"
-        value={defaults.rosterVisibility}
-        options={VISIBILITIES}
-        onChange={(rosterVisibility) => save.mutate({ ...defaults, rosterVisibility })}
-      />
-      <Choice
-        label="Battle size"
-        value={String(defaults.battleSize)}
-        options={SIZES}
-        columns={2}
-        onChange={(size) => save.mutate({ ...defaults, battleSize: Number(size) })}
-      />
-      {save.error ? <Problem error={save.error} /> : null}
-    </SettingsSection>
+    <section className="grid gap-3 py-4 first:pt-0 last:pb-0 lg:grid-cols-[16rem_minmax(0,1fr)] lg:gap-8">
+      <div>
+        <h3 className="text-base">Roster defaults</h3>
+        <p className="mt-1 text-sm text-dim">What a new roster starts with. You can change both when you create one.</p>
+      </div>
+      <div className="space-y-3">
+        <Choice
+          label="Roster visibility"
+          value={defaults.rosterVisibility}
+          options={VISIBILITIES}
+          onChange={(rosterVisibility) => save.mutate({ ...defaults, rosterVisibility })}
+        />
+        <Choice
+          label="Battle size"
+          value={String(defaults.battleSize)}
+          options={SIZES}
+          columns={2}
+          onChange={(size) => save.mutate({ ...defaults, battleSize: Number(size) })}
+        />
+        {save.error ? <Problem error={save.error} /> : null}
+      </div>
+    </section>
   )
 }

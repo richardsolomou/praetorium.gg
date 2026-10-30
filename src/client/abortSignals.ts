@@ -11,3 +11,6 @@ export function anySignal(signals: AbortSignal[]): AbortSignal {
   }
   return controller.signal
 }
+
+export const withTimeout = (signal: AbortSignal | undefined, ms: number): AbortSignal =>
+  signal ? anySignal([signal, AbortSignal.timeout(ms)]) : AbortSignal.timeout(ms)

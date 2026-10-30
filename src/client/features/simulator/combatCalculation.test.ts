@@ -101,13 +101,18 @@ it('falls back locally after server failure and avoids repeating failed requests
 })
 
 it('falls back locally when the server request times out', async () => {
-  vi.useFakeTimers()
-  mocks.server.mockImplementation(
-    ({ signal }: { signal: AbortSignal }) => new Promise((_, reject) => signal.addEventListener('abort', () => reject(signal.reason))),
-  )
-  const pending = calculateCombatPair(request(), new AbortController().signal)
-  await vi.advanceTimersByTimeAsync(16_000)
-  expect(await pending).toEqual(resolveCombatRequest(request()))
+  const deadline = new AbortController()
+  const timeout = vi.spyOn(AbortSignal, 'timeout').mockReturnValue(deadline.signal)
+  try {
+    mocks.server.mockImplementation(
+      ({ signal }: { signal: AbortSignal }) => new Promise((_, reject) => signal.addEventListener('abort', () => reject(signal.reason))),
+    )
+    const pending = calculateCombatPair(request(), new AbortController().signal)
+    deadline.abort(new DOMException('The operation timed out.', 'TimeoutError'))
+    expect(await pending).toEqual(resolveCombatRequest(request()))
+  } finally {
+    timeout.mockRestore()
+  }
 })
 
 it('cancels a server request without starting local work or caching its late answer', async () => {

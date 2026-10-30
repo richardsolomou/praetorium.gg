@@ -1,14 +1,34 @@
 import { hash } from 'node:crypto'
+import path from 'node:path'
 import { referenceCatalogue } from '../src/server/canonicalCatalogue'
 import { readCatalogueComposition } from '../src/server/catalogueComposition'
+import { catalogueEditionLoaders } from '../src/server/catalogueEditions'
+import { loadCatalogue } from '../src/server/catalogueIndex'
+import { readCatalogueRuntime } from '../src/server/catalogueRuntime'
+import { loadRules } from '../src/server/rules'
 import { packRuntimeData } from '../src/contracts/runtimeData'
 import { unitsIn } from '../src/shared/cataloguePicker'
 import { pickerUnitsFor } from '../src/shared/pickerUnits'
-import { benchmarkEditions } from './lib/catalogueSnapshotLoad'
+import type { LoadedRules } from '../src/shared/rules'
+import { catalogueDataDirectory } from './lib/catalogueFiles'
 
-const { gc, mode, directory, runtime, base, baseRules, versions } = benchmarkEditions(
-  'Usage: node --expose-gc --import tsx scripts/benchmarkCatalogueMemory.ts source|runtime [snapshot] [runtime-output] [--verify]',
-)
+const mode = process.argv[2]
+if (mode !== 'source' && mode !== 'runtime') {
+  throw new Error(
+    'Usage: node --expose-gc --import tsx scripts/benchmarkCatalogueMemory.ts source|runtime [snapshot] [runtime-output] [--verify]',
+  )
+}
+if (!global.gc) throw new Error('Run with --expose-gc so measurements follow garbage collection')
+const gc = global.gc
+const directory = path.resolve(process.argv[3] ?? catalogueDataDirectory())
+const runtime =
+  mode === 'runtime' ? readCatalogueRuntime(directory, path.resolve(process.argv[4] ?? '.output/server/catalogue-runtime')) : null
+// The base catalogue loads lazily so runtime mode measures only what the compiled runtime reads.
+let baseCatalogue: ReturnType<typeof loadCatalogue> | undefined
+let baseLoadedRules: LoadedRules | null | undefined
+const base = () => (baseCatalogue ??= loadCatalogue(directory))
+const baseRules = () => (baseLoadedRules ??= loadRules(directory, { loadedDatacards: base()?.datacards }))
+const versions = catalogueEditionLoaders(directory, base, baseRules, runtime)
 const started = performance.now()
 
 async function report(stage: string) {

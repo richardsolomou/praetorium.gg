@@ -31,6 +31,7 @@ import { GROUPS } from '../../../unitGroups'
 import { Section } from '../../rosters/builder/Section'
 import { PageState } from '../../../components/PageState'
 import { PageContent, PageHeader } from '../../../components/Page'
+import { SectionHeading } from '../../../components/SectionHeading'
 
 export function FactionDatasheets() {
   const faction = useReferenceFaction()
@@ -120,12 +121,9 @@ export function FactionDatasheets() {
           ) : null}
         </div>
         <section>
-          <h2 className="rubric flex items-baseline justify-between border-b border-edge pb-2">
-            <span>Datasheets</span>
-            {/* The faction's own count is an estimate from its cards, so it only stands in until the list itself arrives. */}
-            <span className="readout">{isPending ? faction.references[0]?.datasheets : units.length}</span>
-          </h2>
-          <div className="mt-2">
+          {/* The faction's own count is an estimate from its cards, so it only stands in until the list itself arrives. */}
+          <SectionHeading title="Datasheets" count={isPending ? faction.references[0]?.datasheets : units.length} />
+          <div>
             {units.length ? (
               GROUPS.map((group) => {
                 const rows = favouritesFirst(

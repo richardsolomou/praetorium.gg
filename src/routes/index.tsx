@@ -1,95 +1,10 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { Home } from '../client/features/home/Home'
-import { armySlugs } from '../client/features/home/HomeArmyUpdates'
-import { playerProfile, playerRankings } from '../client/functions'
+import { loadHome } from '../client/features/home/homeRouteData'
 import { canonicalLink, siteStructuredData } from '../client/linkPreview'
-import {
-  armyUpdatesQuery,
-  battlesQuery,
-  deploymentsQuery,
-  factionIndexQuery,
-  friendBattlesQuery,
-  friendshipsQuery,
-  homeRostersQuery,
-  leaguesQuery,
-  meQuery,
-  onboardingQuery,
-  playerProfileQuery,
-  playerRankingsQuery,
-  publicBattlesQuery,
-  standingsQuery,
-} from '../client/queries'
 
-/** How long the loader waits, from its start, for the player's record before leaving it to the client. */
-const RECORD_BUDGET_MS = 300
-
-/** Fetch home feeds in the loader so the first frame has its final layout. */
 export const Route = createFileRoute('/')({
-  loader: async ({ context }) => {
-    const startedAt = performance.now()
-    const durations: Record<string, number> = {}
-    const timed = async <T,>(name: string, work: Promise<T>) => {
-      const started = performance.now()
-      try {
-        return await work
-      } finally {
-        durations[name] = Math.round(performance.now() - started)
-      }
-    }
-    // The record folds every battle the player has played, so it joins the first frame only within a budget and
-    // otherwise loads on the client. Left pending in the cache, it would hold the streamed page, and its hydration,
-    // open until it settled.
-    let record: Promise<(() => void) | undefined> | undefined
-    await Promise.all([
-      timed('publicBattles', context.queryClient.infiniteQuery({ ...publicBattlesQuery(), staleTime: 'static' })),
-      // Battle rows name their battlefield from it; without it the rows can only add it after hydration.
-      timed(
-        'deployments',
-        context.queryClient.query({ ...deploymentsQuery(), staleTime: 'static' }).catch(() => null),
-      ),
-      timed('me', context.queryClient.query({ ...meQuery(), staleTime: 'static' })).then((me): Promise<unknown> => {
-        if (!me) return timed('standings', context.queryClient.query({ ...standingsQuery(), staleTime: 'static' }))
-        record = Promise.all([playerProfile({ data: { userId: me.id } }), playerRankings({ data: { userId: me.id } })]).then(
-          ([profile, rankings]) =>
-            () => {
-              context.queryClient.setQueryData(playerProfileQuery(me.id).queryKey, profile)
-              context.queryClient.setQueryData(playerRankingsQuery(me.id).queryKey, rankings)
-            },
-          () => undefined,
-        )
-        const rosters = timed('homeRosters', context.queryClient.query({ ...homeRostersQuery(), staleTime: 'static' }))
-        const factions = timed('factionIndex', context.queryClient.query({ ...factionIndexQuery(), staleTime: 'static' }))
-        return Promise.all([
-          timed('myBattles', context.queryClient.infiniteQuery({ ...battlesQuery(), staleTime: 'static' })),
-          timed('friendBattles', context.queryClient.infiniteQuery({ ...friendBattlesQuery(), staleTime: 'static' })),
-          Promise.all([rosters, factions]).then(([home, index]) => {
-            const armies = armySlugs(home.rosters.map(({ roster }) => index?.factions.find((faction) => faction.id === roster.catalogueId)))
-            // A side panel the page reads fine without; the client asks again rather than the page failing.
-            return armies.length
-              ? timed(
-                  'armyUpdates',
-                  context.queryClient.query({ ...armyUpdatesQuery(armies), staleTime: 'static' }).catch(() => null),
-                )
-              : null
-          }),
-          timed('leagues', context.queryClient.query({ ...leaguesQuery(), staleTime: 'static' })),
-          timed('friendships', context.queryClient.query({ ...friendshipsQuery(), staleTime: 'static' })),
-          timed(
-            'onboarding',
-            context.queryClient.query({ ...onboardingQuery(), staleTime: 'static' }).catch(() => null),
-          ),
-        ])
-      }),
-    ])
-    if (record) {
-      const late = new Promise<undefined>((resolve) => setTimeout(resolve, startedAt + RECORD_BUDGET_MS - performance.now()))
-      const fill = await Promise.race([record, late])
-      fill?.()
-    }
-    if (import.meta.env.SSR && performance.now() - startedAt > 1000) {
-      console.warn({ event: 'slow_home_loader', duration_ms: Math.round(performance.now() - startedAt), queries_ms: durations })
-    }
-  },
+  loader: ({ context }) => loadHome(context.queryClient),
   // The instance's own title and card are the home page's; only its address is its own.
   head: ({ match }) => ({
     meta: [{ property: 'og:url', content: `${match.context.origin}/` }, siteStructuredData(match.context.origin)],

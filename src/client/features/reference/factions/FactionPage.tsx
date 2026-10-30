@@ -17,6 +17,7 @@ import { currentCatalogueFamilyId } from '../../../../core/retiredCatalogueIds'
 import { useDateFormatting } from '../../../dates'
 import { factionReferenceHref } from '../../../../core/factionReferenceRoute'
 import { StartRoster } from '../../rosters/ReferenceRosterActions'
+import { SectionHeading } from '../../../components/SectionHeading'
 
 export function FactionPage({ catalogueId }: { catalogueId: string }) {
   const { data: faction } = useQuery(factionQuery(catalogueId))
@@ -125,8 +126,8 @@ export function FactionPage({ catalogueId }: { catalogueId: string }) {
         </section>
         {faction.armyRules.length ? (
           <section>
-            <h2 className="rubric border-b border-edge pb-2">Faction abilities</h2>
-            <div className="mt-2 divide-y divide-edge border border-edge bg-panel">
+            <SectionHeading title="Faction abilities" />
+            <div className="divide-y divide-edge border border-edge bg-panel">
               {faction.armyRules.map((rule) => (
                 <article key={rule.name} className="p-3">
                   <h3 className="text-sm">{rule.name}</h3>
@@ -137,11 +138,8 @@ export function FactionPage({ catalogueId }: { catalogueId: string }) {
           </section>
         ) : null}
         <section aria-label="Detachments">
-          <h2 className="rubric flex items-baseline justify-between border-b border-edge pb-2">
-            <span>Detachments</span>
-            <span className="readout">{detachments.length}</span>
-          </h2>
-          <div className="mt-2 grid grid-cols-1 gap-px border border-edge bg-panel md:grid-cols-2">
+          <SectionHeading title="Detachments" count={detachments.length} />
+          <div className="grid grid-cols-1 gap-px border border-edge bg-panel md:grid-cols-2">
             {!detachments.length ? (
               <p className="px-3 py-2 text-sm text-dim md:col-span-2">No detachment rules are available for this faction.</p>
             ) : null}

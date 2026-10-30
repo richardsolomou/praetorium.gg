@@ -13,7 +13,7 @@ import { fixedWindowRateLimit } from '../rateLimit'
 import { importParsedList } from '../rosterImport'
 import { inTurn, mutationRpc } from '../rpc'
 
-const rateLimit = fixedWindowRateLimit('too many roster searches')
+const rateLimit = fixedWindowRateLimit('too many roster searches', 10)
 
 /**
  * The lists another app holds that can be imported, each read and matched the way a pasted list
@@ -24,7 +24,7 @@ export const findImportableRosters = createServerFn({ method: 'POST' })
   .validator(importableRostersSchema)
   .handler(({ data }) =>
     mutationRpc(async () => {
-      const limited = rateLimit(getRequest(), 10)
+      const limited = rateLimit(getRequest())
       if (limited) throw limited
       const instance = app()
       const loaded = instance.catalogue()

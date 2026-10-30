@@ -9,12 +9,12 @@ import { PageContent, PageHeader } from '../../components/Page'
 import { PageState } from '../../components/PageState'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { useDateFormatting } from '../../dates'
-import { clubsQuery, meQuery } from '../../queries'
+import { clubsQuery, meQuery, type QueryData } from '../../queries'
 import { LEAGUE_CARD } from '../leagues/LeagueActions'
 import { ClubSettingsDialog } from './ClubSettingsDialog'
 import { countLabel } from '../../text'
 
-type ClubSummary = Awaited<ReturnType<NonNullable<ReturnType<typeof clubsQuery>['queryFn']>>>[number]
+type ClubSummary = QueryData<typeof clubsQuery>[number]
 
 export function ClubIndex() {
   const { data: me } = useQuery(meQuery())

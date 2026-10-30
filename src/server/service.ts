@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import { constantTimeEqual } from 'better-auth/crypto'
-import { byId } from '../core/collections'
+import { byId, countBy } from '../core/collections'
 import { guestSeatId, isGuestSeat, newBattleSeats, type NewBattlePlayers, type CreateBattleInput } from '../core/newBattle'
 import { type BattlebaseBattle, battlebaseBattleImport, battlebaseBattleSchema } from '../core/battlebaseBattle'
 import { guestSessionCurrent } from '../core/guestSession'
@@ -534,16 +534,19 @@ export class PraetoriumService {
       this.repository.rostersByUser(userId),
     ])
     const archived = archivedArmies(rosters)
-    const uses = new Map<string, number>()
-    for (const history of seated) {
-      const built = foldHistory(history).players.find((player) => player.id === userId)?.roster?.built
-      if (built && archived.has(currentCatalogueFamilyId(built.catalogueId))) continue
-      const entries = new Set([
-        ...(built?.picks ?? []).map((pick) => pick.entryId),
-        ...(built?.units ?? []).flatMap((unit) => (unit.entryId ? [unit.entryId] : [])),
-      ])
-      for (const entryId of entries) uses.set(entryId, (uses.get(entryId) ?? 0) + 1)
-    }
+    const uses = countBy(
+      seated.flatMap((history) => {
+        const built = foldHistory(history).players.find((player) => player.id === userId)?.roster?.built
+        if (built && archived.has(currentCatalogueFamilyId(built.catalogueId))) return []
+        return [
+          ...new Set([
+            ...(built?.picks ?? []).map((pick) => pick.entryId),
+            ...(built?.units ?? []).flatMap((unit) => (unit.entryId ? [unit.entryId] : [])),
+          ]),
+        ]
+      }),
+      (entryId) => entryId,
+    )
     return [...uses].map(([entryId, battles]) => ({ entryId, battles })).toSorted((a, b) => b.battles - a.battles)
   }
 

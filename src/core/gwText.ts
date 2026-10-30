@@ -1,4 +1,5 @@
 import { type CatalogueEdition, editionLabel } from './catalogueEdition'
+import { countLabel } from './text'
 import type { UnitGroup } from './unitGroups'
 
 export type GwTextRoster = {
@@ -42,7 +43,7 @@ export function toGwText(roster: GwTextRoster, version: string): string {
     `${roster.name} (${roster.points.toLocaleString('en-GB')} Points)`,
     '',
     roster.faction,
-    detachments ? `${detachments} (${detachmentPoints} Detachment ${detachmentPoints === 1 ? 'Point' : 'Points'})` : 'No detachment',
+    detachments ? `${detachments} (${countLabel(detachmentPoints, 'Detachment Point')})` : 'No detachment',
     ...(roster.dispositions.length
       ? [`Force Disposition${roster.dispositions.length === 1 ? '' : 's'}: ${roster.dispositions.join(', ')}`]
       : []),

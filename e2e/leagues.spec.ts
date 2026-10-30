@@ -28,6 +28,7 @@ import {
   battleIdFor,
   seatsBySide,
   appendCommand,
+  battleCommands,
 } from './storage'
 import { holdCombatCalculations } from './combat'
 import type { Command } from '../src/core/battle'
@@ -1788,8 +1789,7 @@ test('a 2v1 event assigns entrant sizes, filters rosters, and prepares a battle'
   const product = await productOperator()
   const battleId = await battleIdFor(lastPathSegment(battleUrl))
   // The pair's sealed card is written into the battle, so setup never asks it again.
-  const battleCommands = await productSql<{ body: string }>`SELECT body FROM commands WHERE battle_id = ${battleId}`
-  expect(battleCommands.map((row) => JSON.parse(row.body) as Command).find((entry) => entry.kind === 'lock-league-rosters')).toMatchObject({
+  expect((await battleCommands(battleId)).find(({ body }) => body.kind === 'lock-league-rosters')?.body).toMatchObject({
     dispositions: [{ side: 1, disposition: 'priority-assets' }],
   })
   const [eventLink] = await productSql<{
