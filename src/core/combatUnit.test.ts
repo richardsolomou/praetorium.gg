@@ -60,6 +60,37 @@ it('includes squad, leader and support attacks without sharing personal buffs', 
   ])
 })
 
+const sacrifice = (unit: CombatMember) => {
+  unit.rules = [
+    {
+      name: 'Self-sacrifice',
+      effects: [
+        {
+          role: 'attacker',
+          phases: ['ranged'],
+          mortalWounds: {
+            timing: 'before',
+            rolls: 1,
+            sacrifice: 1,
+            outcomes: [{ min: 2, max: 6, damage: { dice: 0, sides: 6, bonus: 1 } }],
+          },
+        },
+      ],
+    },
+  ]
+  const { base } = combatAttacks(unit, { keywords: [], rules: [] }, {}, { ranged: [], melee: [] }).ranged
+  return [base?.weapons.map((weapon) => weapon.count), base?.mortalWounds.length]
+}
+
+it('attacks without the model a mortal-wound ability destroys', () => expect(sacrifice(member('Swarm', 3))).toEqual([[2], 1]))
+
+it('leaves out a model-destroying ability when which model goes would change the weapons left', () => {
+  const swarm = member('Swarm', 3)
+  swarm.carriers[0]!.weapons[0]!.count = 2
+  swarm.sheet.profiles[1]!.count = 2
+  expect(sacrifice(swarm)).toEqual([[2], 0])
+})
+
 it('preserves separate weapon mode choices for each attached model', () => {
   const squad = member('Squad')
   const leader = member('Leader')

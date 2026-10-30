@@ -30,6 +30,9 @@ export const normalizeCombatText = (text: string) =>
     .replaceAll(/\p{Pd}/gu, '-')
     .replaceAll(/\bunmodifed\b/gi, 'unmodified')
     .replaceAll(/\breroll\b/gi, 're-roll')
+    .replaceAll(/\ba (unmodified|attack)\b/gi, 'an $1')
+    .replaceAll(/\babilty\b/gi, 'ability')
+    .replaceAll(/\babilties\b/gi, 'abilities')
     .replaceAll('▪', '■')
     .replaceAll(/\s+/g, ' ')
     .trim()
@@ -66,7 +69,7 @@ const noDamageKeywords = /^(?:Assault|Hazardous|Precision|Pistol|Close-Quarters)
 const selfSubject =
   "(?:a model (?:(?:in|from) (?:your|this|that|that enemy|that friendly|the bearer's|this model's) unit|with this ability)|models in (?:your|this|that) unit|this model|the bearer|this unit|that unit|that model|a model in any of those selected units)"
 const effectStart =
-  /^(?:add|subtract|improve|worsen|halve|re-roll|you can (?:re-roll|ignore)|a successful|an unmodified|a successful unmodified|that attack|models in|this model|the bearer|this unit|your unit|enemy units|ranged weapons|melee weapons|weapons|until |if |each time|on )/i
+  /^(?:add|subtract|improve|worsen|halve|re-roll|you can (?:re-roll|ignore)|a successful|an unmodified|a Critical (?:Hit|Wound) is scored|a successful unmodified|that attack|models in|this model|the bearer|this unit|your unit|enemy units|ranged weapons|melee weapons|weapons|until |if |each time|on )/i
 const offensive = new RegExp(
   `^each time ${selfSubject} makes (?:a (ranged|melee) |an )attack(.*?), (?=${effectStart.source.slice(1)})(.+)$`,
   'i',
@@ -192,10 +195,11 @@ function compileRule(rule: CombatRule, enemy = false): { choices: CombatRuleChoi
     return options.length ? optionChoices(options) : null
   }
   const effectSection = ruleSection(rule.description, 'Effect') ?? rule.description
-  let text = printedPhrasing(normalizeCombatText(effectSection.replaceAll(/(?:^|\n)\s*- /g, ' ■ '))).replace(
-    /^.+? (?:model|unit) only(?: \(excluding [^)]+\))?\.\s*/i,
-    '',
-  )
+  let text = printedPhrasing(normalizeCombatText(effectSection.replaceAll(/(?:^|\n)\s*- /g, ' ■ ')))
+    .replace(/^.+? (?:model|unit) only(?: \(excluding [^)]+\))?\.\s*/i, '')
+    .replace(/^One per army\.\s*/i, '')
+    // A lowered critical threshold replaces only the default 6, not the rule's other effects.
+    .replaceAll(/,? instead of only (?:on )?a 6\b/gi, '')
   text = text.replaceAll(
     /when you select (this unit|this model|the bearer's unit) to (shoot or fight|shoot|fight)/gi,
     'when $1 is selected to $2',
@@ -280,7 +284,7 @@ function compileRule(rule: CombatRule, enemy = false): { choices: CombatRuleChoi
     return phrase
       .replace(excluded?.[0] ?? '\0', '')
       .trim()
-      .split(/\s+or\s+/i)
+      .split(/\s*,\s*|\s+or\s+/i)
       .some(matches)
   }
   const condition = (predicate: string, context: Context): Context | false | null => {
@@ -312,11 +316,11 @@ function compileRule(rule: CombatRule, enemy = false): { choices: CombatRuleChoi
     )
       return { ...context, condition: 'not-stronger' }
     if (/critical (?:hit|wound)|unmodified|(?:hit|wound|saving) roll|strength characteristic.*toughness/i.test(predicate)) return null
-    if (!predicate || predicate.length > 350 || /\b(?:add|subtract|improve|worsen|halve|inflict)\b/i.test(predicate)) return null
+    if (!predicate || predicate.length > 350 || /\b(?:add|subtract|improve|worsen|halve|inflict)\b|:/i.test(predicate)) return null
     const doctrine = /^(?:your|this|that) unit is under the effects of (.+)$/i.exec(predicate)
     if (doctrine) predicate = `With ${doctrine[1]}`
     if (/^(?:this|that) unit made a Charge move this turn$/i.test(predicate)) predicate = 'Charged this turn'
-    if (/^(?:(?:targeting|Target is) )?that (?:enemy )?unit$/i.test(predicate)) predicate = 'Against the selected target'
+    if (/^(?:(?:targeting|Target is|against) )?that (?:enemy )?unit$/i.test(predicate)) predicate = 'Against the selected target'
     if (/^the target of that attack is an enemy unit within range of an objective marker$/i.test(predicate))
       predicate = 'Target within range of an objective marker'
     predicate = predicate.replace(/^targeting an enemy unit within (\d+)"$/i, 'Target within $1"')
@@ -549,7 +553,7 @@ function compileRule(rule: CombatRule, enemy = false): { choices: CombatRuleChoi
     const friendlyAttack = /^each time a friendly (.+?) model makes (.+)$/i.exec(written)
     if (friendlyAttack) return again(`each time an ${friendlyAttack[1]} model from your army makes ${friendlyAttack[2]}`)
     const armyAttack =
-      /^each time (?:a model in (?:a |an? )?|an? )([^.,;]+?) (model|unit)( \(excluding .+?\))? from your army makes (?:a (ranged|melee) |an )attack(.*?), (.+)$/i.exec(
+      /^each time (?:a model in (?:a |an? )?|an? )([^.;]+?) (model|unit)( \(excluding .+?\))? from your army makes (?:a (ranged|melee) |an )attack(.*?), (.+)$/i.exec(
         written,
       )
     if (armyAttack) {
@@ -584,9 +588,12 @@ function compileRule(rule: CombatRule, enemy = false): { choices: CombatRuleChoi
       let qualifier = attack[2]!.trim().replace(/^that targets an enemy unit$/i, '')
       const weapon = /^with (?:an? |its )?(.+?)(?= that targets| against|$)/i.exec(qualifier)
       if (weapon) {
+        const keyworded = /^(.+?) weapon$/i.exec(weapon[1]!)?.[1]
         next = /^(?:ranged|melee) weapon$/i.test(weapon[1]!)
           ? { ...next, phases: phasesOf(weapon[1], context.phases) }
-          : { ...next, weapon: weapon[1] }
+          : keyworded && combatKeyword(keyworded)
+            ? { ...next, requiresWeaponKeyword: keyworded }
+            : { ...next, weapon: weapon[1] }
         qualifier = qualifier.slice(weapon[0].length).trim()
       }
       if (qualifier) {
@@ -688,6 +695,28 @@ function compileRule(rule: CombatRule, enemy = false): { choices: CombatRuleChoi
         written,
       )
     if (chargeReroll) return again(chargeReroll[1]!)
+    const anyOf = /^(.+?) if any of the following apply: [■▪] (.+)$/i.exec(written)
+    if (anyOf) {
+      const checked = condition(
+        anyOf[2]!
+          .split(/\s+[■▪]\s+/)
+          .map(stripEnd)
+          .join(' or '),
+        context,
+      )
+      return checked ? again(anyOf[1]!, checked) : checked === false ? [] : null
+    }
+    // A quarry chosen once for the battle: its replacement after the first is destroyed changes no attack.
+    const quarry =
+      /^At the start of (?:the battle|the first battle round), select (?:one|up to one) enemy unit to be this (model|unit)'s (\w+)(?: unit)?\. [■▪] (this \1's attacks) that target this \1's \2(?: unit)? (.+?) [■▪] Each time this \1's \2 is destroyed, select (?:one|up to one) enemy unit to be this \1's \2$/i.exec(
+        written,
+      )
+    if (quarry)
+      return again(`${quarry[3]} ${quarry[4]}`, {
+        ...context,
+        enemy: true,
+        conditions: [...context.conditions, 'Against the selected target'],
+      })
     const attackList = /^((?:this|your|that) unit's (?:ranged |melee )?attacks) have: [■▪] (.+)$/i.exec(written)
     if (attackList) return again(attackList[2]!, { ...context, attackSubject: attackList[1] })
     const bullets = written.split(/\s+[■▪]\s+/)
@@ -731,7 +760,7 @@ function compileRule(rule: CombatRule, enemy = false): { choices: CombatRuleChoi
       return result
     }
     const conjunction =
-      /^(.+?)(?:,? and,? |; )((?:if |at the start of |re-roll |you can re-roll |add |subtract |improve |worsen |each time |those weapons |the bearer |it has |models in |that unit |this unit ).+)$/i.exec(
+      /^(.+?)(?:,? and,? |; )((?:if |at the start of |re-roll |you can re-roll |add |subtract |improve |worsen |each time |those weapons |the bearer |the bearer's |it has |models in |that unit |this unit ).+)$/i.exec(
         written,
       )
     if (conjunction) {
@@ -781,6 +810,22 @@ function compileRule(rule: CombatRule, enemy = false): { choices: CombatRuleChoi
       return effect(context, {
         options: { [reroll[1]!.toLowerCase() === 'hit' ? 'hitReroll' : 'woundReroll']: reroll[2] ? 'ones' : 'failed' },
       })
+    const attacksReroll =
+      /^(?:(?:(this|your|that|the) unit's|(this model's|the bearer's)) (ranged |melee )?attacks|those attacks) can re-roll (hit|wound) rolls( of 1)?$/i.exec(
+        written,
+      )
+    if (attacksReroll) {
+      if (attacksReroll[2] && rule.models !== 1) return rule.scope === 'attached' ? [] : null
+      return effect(
+        { ...context, phases: phasesOf(attacksReroll[3], context.phases) },
+        { options: { [/hit/i.test(attacksReroll[4]!) ? 'hitReroll' : 'woundReroll']: attacksReroll[5] ? 'ones' : 'failed' } },
+      )
+    }
+    const targetedAttacks = /^When this unit's (ranged |melee )?attacks target (.+?), (those attacks .+)$/i.exec(written)
+    if (targetedAttacks) {
+      const checked = condition(`Target is ${targetedAttacks[2]}`, { ...context, phases: phasesOf(targetedAttacks[1], context.phases) })
+      return checked ? again(targetedAttacks[3]!, checked) : checked === false ? [] : null
+    }
     if (/^(?:you can )?re-roll (?:a|the) Damage roll of 1$/i.test(written)) return effect(context, { damageReroll: 'ones' })
     const roll = /^(add|subtract) ([1-6]) (?:to|from) (?:the|that attack's) (Hit|Wound) roll$/i.exec(written)
     if (roll)
@@ -803,6 +848,9 @@ function compileRule(rule: CombatRule, enemy = false): { choices: CombatRuleChoi
           ? { [critical[1]!.toLowerCase() === 'hit' ? 'criticalHitRequiresSuccess' : 'criticalWoundRequiresSuccess']: true }
           : {}),
       })
+    const criticalScored = /^a Critical (Hit|Wound) is scored on an unmodified \1 roll of ([2-6])\+$/i.exec(written)
+    if (criticalScored)
+      return effect(context, { [criticalScored[1]!.toLowerCase() === 'hit' ? 'criticalHit' : 'criticalWound']: Number(criticalScored[2]) })
     if (/^a successful Hit roll scores a Critical Hit$/i.test(written)) return effect(context, { allHitsCritical: true })
     const criticalCondition = /^on a Critical Wound, (.+)$/i.exec(written)
     if (criticalCondition) return again(criticalCondition[1]!, { ...context, condition: 'critical-wound' })
@@ -823,7 +871,7 @@ function compileRule(rule: CombatRule, enemy = false): { choices: CombatRuleChoi
       return clauses.some((clause) => clause === null) ? null : clauses.flatMap((clause) => clause!)
     }
     const defence =
-      /^(this model|the bearer|models in (?:your|this|that|the bearer's|this model's) unit|the bearer's unit|your unit|this unit|that unit|it) (?:has|have) (?:the )?(?:Feel No Pain ([2-6])\+(?: ability)?( against (?:mortal wounds and Psychic Attacks|Psychic Attacks and mortal wounds|Psychic Attacks|mortal wounds))?|(?:an? )?([2-6])\+ (?:invulnerable save|InSv)(?: against (ranged|melee) attacks)?|(?:a )?Save characteristic of ([2-6])\+|(?:the )?(Stealth|Benefit of Cover)(?: ability)?)$/i.exec(
+      /^(this model|the bearer|models in (?:your|this|that|the bearer's|this model's) unit|the bearer's unit|your unit|this unit|that unit|it) (?:has|have) (?:the )?(?:Feel No Pain ([2-6])\+(?: ability)?( against (?:mortal wounds and Psychic Attacks|Psychic Attacks and mortal wounds|Psychic Attacks|mortal wounds))?|(?:an? )?([2-6])\+ (?:invulnerable save|InSv)(?: against (ranged|melee) attacks)?|(?:a )?Save characteristic of ([2-6])\+|(?:the )?(Stealth|Benefit of Cover)(?: ability| against (?:that|the) attack)?)$/i.exec(
         written,
       )
     if (defence) {
@@ -861,7 +909,7 @@ function compileRule(rule: CombatRule, enemy = false): { choices: CombatRuleChoi
         ].join('. '),
       )
     const grant =
-      /^(?:(ranged |melee )?weapons equipped by (.+?)|(?:this unit's|your unit's|that unit's|its) (ranged |melee )?(?:attacks|weapons)|those weapons|that attack) (?:have|has|gain) (?:the )?(.+?)(?: abilit(?:y|ies))?(?: (?:when|while) targeting (.+))?$/i.exec(
+      /^(?:(ranged |melee )?weapons equipped by (.+?)|(?:this unit's|your unit's|that unit's|its|the bearer's) (ranged |melee )?(?:attacks|weapons)|those weapons|that attack) (?:have|has|gain) (?:the )?(.+?)(?: abilit(?:y|ies))?(?: (?:when|while) targeting (.+))?$/i.exec(
         written,
       )
     if (grant && grant[4]!.includes('[')) {
@@ -929,7 +977,7 @@ function compileRule(rule: CombatRule, enemy = false): { choices: CombatRuleChoi
         const subtract = /^(?:subtract|worsen)/i.test(written)
         return (
           effect(
-            { ...scoped, phases: phasesOf(weapon?.[1], context.phases) },
+            { ...scoped, phases: phasesOf(weapon?.[1] ?? /\b(ranged|melee) weapons$/i.exec(stat[4]!)?.[1], context.phases) },
             {
               characteristic: {
                 kind,
@@ -965,13 +1013,26 @@ function compileRule(rule: CombatRule, enemy = false): { choices: CombatRuleChoi
           },
         },
       )
+    const attackStat = /^that attack has ([+-][1-9]) (AP|S|A|D)$/i.exec(written)
+    if (attackStat)
+      return effect(context, {
+        characteristic: {
+          kind: characteristic[combatTextKey(attackStat[2]!)]!,
+          add: Number(attackStat[1]) * (/^AP$/i.test(attackStat[2]!) ? -1 : 1),
+        },
+      })
     const namedWeapon = /^(?:its|the bearer's|this model's) (.+?)(?: weapon)? has (.+)$/i.exec(written)
     if (namedWeapon) {
       if (rule.models !== 1) return rule.scope === 'attached' ? [] : null
       return again(`that attack has ${namedWeapon[2]}`, { ...context, weapon: namedWeapon[1] })
     }
+    const statList =
+      /^((?:(?:this|your|that|the) unit's )?(?:ranged |melee )?attacks have) ([+-][1-9] (?:S|AP|A|D)(?:, [+-][1-9] (?:S|AP|A|D))*),? and ([+-][1-9] (?:S|AP|A|D))$/i.exec(
+        written,
+      )
+    if (statList) return again([...statList[2]!.split(', '), statList[3]!].map((bonus) => `${statList[1]} ${bonus}`).join('. '))
     const simple =
-      /^(?:(this|your|that) unit's )?(ranged |melee )?attacks(?: that target (?:this|your) unit)? have ([+-][1-9]) (S|AP|A|D|WS|BS|to hit rolls|to wound rolls)(?: and (AP|S|A|D|WS|BS))?$/i.exec(
+      /^(?:(this|your|that|the) unit's )?(ranged |melee )?attacks(?: that target (?:this|your) unit)? have ([+-][1-9]) (S|AP|A|D|WS|BS|to hit rolls|to wound rolls)(?: and (AP|S|A|D|WS|BS))?$/i.exec(
         written,
       )
     if (simple) {
@@ -1089,6 +1150,14 @@ function compileRule(rule: CombatRule, enemy = false): { choices: CombatRuleChoi
       }),
     )
   }
+  const eitherGrant =
+    /^(.*?(?:its|this unit's|your unit's|that unit's) (?:ranged |melee )?attacks have) (\[[^\]]+\]) or (\[[^\]]+\]) \(choose one\)\.?$/i.exec(
+      text,
+    )
+  if (eitherGrant)
+    return optionChoices(
+      [eitherGrant[2]!, eitherGrant[3]!].map((grant) => [grant.slice(1, -1), { ...rule, description: `${eitherGrant[1]} ${grant}.` }]),
+    )
   const abilitySelection =
     /^(.*?)select (?:one of the following abilities:|either the) (.+?)(?: ability)?\. (Until .+?, (?:ranged |melee )?weapons equipped by .+?) have (?:that|the selected) ability\.?$/i.exec(
       text,
@@ -1115,7 +1184,7 @@ function compileRule(rule: CombatRule, enemy = false): { choices: CombatRuleChoi
     )
   }
   // Printed alternatives are mutually exclusive; ordinary bullets are cumulative clauses.
-  const alternatives = /^(.*?select one of the following.*?):\s*[■▪-]\s*(.+)$/i.exec(text)
+  const alternatives = /^(.*?select one of the following.*?)(?::\s*[■▪-]|\s+[■▪])\s*(.+)$/i.exec(text)
   if (alternatives) {
     const parts = alternatives[2]!.split(/\s*[■▪]\s*/).map((part) => part.replace(/^Or:?\s*/i, ''))
     const choices: CombatRuleChoice[] = []

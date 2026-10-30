@@ -70,7 +70,8 @@ export type CombatRuleEffect = {
   feelNoPain?: number
   psychicFeelNoPain?: number
   mortalFeelNoPain?: number
-  mortalWounds?: NonNullable<CombatInput['mortalWounds']>[number] & { perModel?: boolean }
+  /** Sacrifice is how many of the attacker's own models the ability destroys before it attacks. */
+  mortalWounds?: NonNullable<CombatInput['mortalWounds']>[number] & { perModel?: boolean; sacrifice?: number }
   damageReroll?: 'ones'
   damageReduction?: number
 }
@@ -518,6 +519,13 @@ function matchesEffectTarget(effect: CombatRuleEffect, keywords: readonly string
   const matches = (phrase: string) => combatKeywordPhraseMatches(combatTextKey(phrase), held)
   return (!effect.targetKeywords || effect.targetKeywords.some(matches)) && !effect.excludedTargetKeywords?.some(matches)
 }
+
+/** How many of its own models the attacker destroys for its abilities before attacking the target in a phase. */
+export const combatRuleSacrifices = (rules: readonly ActiveCombatRule[], phase: CombatPhase, targetKeywords: readonly string[]) =>
+  rules
+    .flatMap((rule) => rule.effects)
+    .filter((effect) => effect.role === 'attacker' && effect.phases.includes(phase) && matchesEffectTarget(effect, targetKeywords))
+    .reduce((total, effect) => total + (effect.mortalWounds?.sacrifice ?? 0), 0)
 
 export function combatRuleMortals(
   rules: readonly ActiveCombatRule[],

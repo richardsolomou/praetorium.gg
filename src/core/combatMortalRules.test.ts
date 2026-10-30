@@ -77,6 +77,19 @@ describe('separate mortal-wound abilities', () => {
   it('does not enable a self-sacrificing ability without allocating the lost model', () => {
     expect(combatRuleChoices(rule(charge + ' This model is then destroyed.'))).toEqual([])
   })
+  it('destroys one model for mortal wounds that roll one higher against the named keyword', () => {
+    const effects = combatRuleChoices(
+      rule(
+        'At the start of the Fight phase, if this unit is within Engagement Range of one or more enemy units, you can select one model in this unit to destroy. If you do, select one enemy unit within Engagement Range of that model and roll one D6, adding 1 to the result if that unit is a VEHICLE. On a 2-5, that unit suffers D3 mortal wounds; on a 6+, that unit suffers 3 mortal wounds.',
+      ),
+    )[0]!.effects
+    const bands = (keywords: string[]) =>
+      combatRuleMortals([{ name: 'Ability', effects }], 'melee', keywords, [], 3).map(({ sacrifice, outcomes }) => [
+        sacrifice,
+        outcomes.map(({ min, max }) => `${min}-${max}`),
+      ])
+    expect([bands(['Infantry']), bands(['Vehicle'])]).toEqual([[[1, ['2-5', '6-6']]], [[1, ['1-4', '5-6']]]])
+  })
   it('does not enable an unknown extra mortal effect', () => {
     expect(combatRuleChoices(rule(charge + ' Double the target damage.'))).toEqual([])
   })

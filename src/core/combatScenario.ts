@@ -3,7 +3,7 @@ import { MAX_COMBAT_MODELS, type CombatInput, type CombatOptions, type CombatWea
 import { adjustCombatWeapon, type WeaponAdjustment } from './combatAdjustments'
 import type { CombatCarrier } from './combatLoadout'
 import { combatPlan, combatWeapons } from './combatProfiles'
-import { combatRuleMortals, combatRuleProfiles, combatRuleWeapons, type ActiveCombatRule } from './combatRules'
+import { combatRuleMortals, combatRuleProfiles, combatRuleSacrifices, combatRuleWeapons, type ActiveCombatRule } from './combatRules'
 import type { StructuredDatasheetProfile } from './datasheet'
 
 /** Keeps the profile ids of the unit at this position in an attached group apart from the others'. */
@@ -29,14 +29,26 @@ function ruledAttack(
   active: readonly CarriedWeapon[],
   scopedOptions = false,
 ) {
-  const rules = attacker.rules ?? []
-  const mortalWounds = combatRuleMortals(rules, phase, defender.keywords, active, attacker.models)
+  let rules = attacker.rules ?? []
+  let models = attacker.models
+  let carried = active
+  const sacrificed = combatRuleSacrifices(rules, phase, defender.keywords)
+  if (sacrificed) {
+    // Which model goes changes what is left only when models carry different weapons, and that choice is the player's.
+    if (sacrificed <= models && active.every(({ count }) => count % models === 0)) {
+      carried = active
+        .map((weapon) => ({ ...weapon, count: weapon.count - (weapon.count / models) * sacrificed }))
+        .filter(({ count }) => count > 0)
+      models -= sacrificed
+    } else rules = rules.map((rule) => ({ ...rule, effects: rule.effects.filter((effect) => !effect.mortalWounds?.sacrifice) }))
+  }
+  const mortalWounds = combatRuleMortals(rules, phase, defender.keywords, carried, models)
   const weapons = combatRuleWeapons(
     attacker.sheet,
-    combatRuleWeapons(attacker.sheet, active, rules, 'attacker', phase, defender.keywords, scopedOptions).map((weapon, index) => ({
+    combatRuleWeapons(attacker.sheet, carried, rules, 'attacker', phase, defender.keywords, scopedOptions).map((weapon, index) => ({
       weapon,
       count: weapon.count,
-      profile: active[index]!.profile,
+      profile: carried[index]!.profile,
     })),
     defender.rules,
     'defender',

@@ -632,3 +632,74 @@ Worsen the Move, Leadership and Objective Control characteristics of models in t
     ).toBeNull()
   })
 })
+
+describe('shorthand transcriptions', () => {
+  const labels = (description: string, extra: Partial<CombatRule> = {}) =>
+    combatRuleChoices(rule(description, extra)).map((choice) => choice.label)
+  it('offers each ability of an either-or grant as its own choice', () =>
+    expect(
+      labels('When a friendly unit is selected to fight, its melee attacks have [SUSTAINED HITS 1] or [LETHAL HITS] (choose one).'),
+    ).toEqual(['SUSTAINED HITS 1', 'LETHAL HITS']))
+  it('reads bulleted alternatives that follow their selection without a colon', () =>
+    expect(
+      effects(
+        "At the start of any phase, you can select one of the following to take effect until the end of the phase\n- This model's Big Axe weapon has +3 A\n- This model has 3+ InSv",
+      ),
+    ).toEqual([
+      [{ role: 'attacker', phases: ['ranged', 'melee'], weapon: 'Big Axe', characteristic: { kind: 'attacks', add: 3 } }],
+      [{ role: 'defender', phases: ['ranged', 'melee'], invulnerable: 3 }],
+    ]))
+  it('applies every characteristic of a listed bonus', () =>
+    expect(effects('Melee attacks have +1 A, +1 S and +1 D.')[0]!.map((effect) => effect.characteristic?.kind)).toEqual([
+      'attacks',
+      'strength',
+      'damage',
+    ]))
+  it('makes listed alternatives one condition the player confirms', () =>
+    expect(
+      labels(
+        "This unit's attacks have [LETHAL HITS] if any of the following apply:\n- This unit is on an objective\n- The target is on an objective",
+      ),
+    ).toEqual(['This unit is on an objective or The target is on an objective']))
+  it('limits a quarry bonus to the selected target', () =>
+    expect(
+      labels(
+        "At the start of the first battle round, select one enemy unit to be this model's mark.\n- This model's attacks that target this model's mark have +1 to wound rolls\n- Each time this model's mark is destroyed, select one enemy unit to be this model's mark.",
+      ),
+    ).toEqual(['Against the selected target']))
+  it('reads re-rolls granted to a unit’s attacks under a condition', () =>
+    expect(effects("While this unit is below half-strength, this unit's melee attacks can re-roll wound rolls.")).toEqual([
+      [{ role: 'attacker', phases: ['melee'], options: { woundReroll: 'failed' } }],
+    ]))
+  it('keeps the other effects of a rule that lowers the critical threshold instead of the default', () =>
+    expect(
+      effects(
+        'Weapons equipped by models in this unit have the [LETHAL HITS] ability. In addition, each time a model in this unit makes an attack, a Critical Hit is scored on an unmodified Hit roll of 5+, instead of only a 6.',
+      ),
+    ).toEqual([
+      [
+        { role: 'attacker', phases: ['ranged', 'melee'], keyword: 'LETHAL HITS' },
+        { role: 'attacker', phases: ['ranged', 'melee'], criticalHit: 5 },
+      ],
+    ]))
+  it("keeps a bonus to the bearer's melee weapons off its ranged weapons", () =>
+    expect(effects("Improve the Armour Penetration characteristic of the bearer's melee weapons by 1.")).toEqual([
+      [{ role: 'attacker', phases: ['melee'], characteristic: { kind: 'armour-penetration', add: -1 } }],
+    ]))
+  it('requires the ability a weapon is named by instead of a weapon with that name', () =>
+    expect(
+      effects('Each time this model makes an attack with a Lethal Hits weapon, an unmodified Hit roll of 5+ scores a Critical Hit.'),
+    ).toEqual([[{ role: 'attacker', phases: ['ranged', 'melee'], requiresWeaponKeyword: 'Lethal Hits', criticalHit: 5 }]]))
+  it('refuses a condition that runs on into a list of effects', () =>
+    expect(
+      effects(
+        'While this unit is near a transport:\nModels in this unit have the Stealth ability\nEach time a ranged attack targets this unit, models in that unit have the Benefit of Cover against that attack.',
+      ),
+    ).toEqual([]))
+  it('matches a unit by any keyword in a comma-separated list', () =>
+    expect(
+      labels('Each time a NOBLE, LYCHGUARD or TRIARCH unit from your army makes an attack, add 1 to the Wound roll.', {
+        keywords: ['Lychguard'],
+      }),
+    ).toEqual(['Active']))
+})
