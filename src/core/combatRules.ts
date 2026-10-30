@@ -275,6 +275,12 @@ export function judgedCombatRule(rule: CombatRule, judge: CombatRuleJudge): Comb
   return combatRuleIsRelevant(judged) && eligible ? judged : null
 }
 
+/** A rule published as a token, read from its words and judged against the place the roster recorded, or null when it takes no part. */
+export function readCombatRule(rule: CombatRule, words: string): CombatRule | null {
+  const { judge, ...read } = { ...rule, description: words }
+  return judge ? judgedCombatRule(read, judge) : read
+}
+
 function combatRuleIsRelevant(rule: CombatRule) {
   const compiled = compileCombatRule(rule)
   return compiled ? compiled.choices.some((choice) => choice.effects.length) : combatRuleRoles(rule.description).length > 0

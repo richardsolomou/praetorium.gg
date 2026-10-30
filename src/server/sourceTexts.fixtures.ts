@@ -1,15 +1,14 @@
-import { hash } from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 import { transformed } from '../shared/datacards'
-import { TEXT_HASH_LENGTH, resolvedText, sourceStrings } from '../shared/sourceText'
+import { resolvedText } from '../shared/sourceText'
+import { stringsByHash } from './sourceTexts'
 
 /** Published text read back as a reader's browser reads it, from a JSON file or every JSON file under a directory. */
 export function wordsFrom(source: string) {
   const strings = new Map<string, string>()
   const read = (file: string) => {
-    for (const value of sourceStrings(JSON.parse(fs.readFileSync(file, 'utf8'))))
-      strings.set(hash('sha256', value).slice(0, TEXT_HASH_LENGTH), value)
+    for (const [key, value] of stringsByHash(file)) strings.set(key, value)
   }
   const visit = (directory: string) => {
     for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {

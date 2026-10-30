@@ -4,7 +4,7 @@ import path from 'node:path'
 import { remember } from '../core/collections'
 import { type CatalogueComposition, readCatalogueComposition } from './catalogueComposition'
 import { type CatalogueSourceConfig, catalogueSources } from './catalogueSources'
-import { type SourceTexts, TEXT_HASH_LENGTH, type TextSource, type TextSourceFile, textToken } from '../shared/sourceText'
+import { type SourceTexts, TEXT_HASH_LENGTH, type TextSource, type TextSourceFile, sourceStrings, textToken } from '../shared/sourceText'
 
 export type { SourceTexts }
 
@@ -146,6 +146,10 @@ export function textSourceFiles(root: string, composition: CatalogueComposition 
 
 export const textFilesFrom = (paths: readonly TextSourceFile[]): Record<string, TextSourceFile> =>
   Object.fromEntries(paths.map(({ url, source }) => [textFileId(url), { url, source }]))
+
+/** Every string a source file holds, under the hash its tokens name it by. */
+export const stringsByHash = (file: string): ReadonlyMap<string, string> =>
+  new Map([...sourceStrings(JSON.parse(fs.readFileSync(file, 'utf8')))].map((value) => [textHash(value), value]))
 
 /** The ids a source file gives its records, read once per file: what lets a pointer name a record an agent can find there. */
 export function recordIdsIn(file: string) {
