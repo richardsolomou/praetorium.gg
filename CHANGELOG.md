@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.203.6 (2026-10-30)
+
+### Patch Changes
+
+- 5051fd3: League pages and roster exports no longer show a raw id when a Force Disposition's name can't be found.
+
 ## 0.203.5 (2026-10-30)
 
 ### Patch Changes
