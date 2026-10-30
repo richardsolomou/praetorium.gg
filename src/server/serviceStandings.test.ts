@@ -51,7 +51,7 @@ function product() {
   }
   const reopen = (id: string, by: string, at: number) => send(id, by, 4, { kind: 'reopen-battle' }, at)
   /** Every battle still held, as the leaderboard would rate it from scratch. */
-  const replay = async () => {
+  const replay = async (exclude: string[] = []) => {
     const held: BattleHistory[] = await repository.battlesByIds(ids)
     return standings(
       held.map((history) =>
@@ -63,28 +63,66 @@ function product() {
           byId(FACTIONS),
         ),
       ),
-      { activeSince: NOW - 90 * 24 * 60 * 60 * 1000 },
+      { exclude, activeSince: NOW - 90 * 24 * 60 * 60 * 1000 },
     )
   }
-  return { service, operator, names, conceded, reopen, replay }
+  const tables = (answer: Awaited<ReturnType<typeof service.standings>>) => ({
+    overall: answer.overall.rows,
+    factions: answer.factions.map((table) => table.rows),
+  })
+  const replayed = (expected: Awaited<ReturnType<typeof replay>>) => ({
+    overall: expected.overall,
+    factions: expected.factions.map((table) => table.rows),
+  })
+  return { service, operator, names, conceded, reopen, replay, tables, replayed }
 }
 
 it('rates the same after changes as a full replay of every log', async () => {
-  const { service, operator, names, conceded, reopen, replay } = product()
+  const { service, operator, names, conceded, reopen, replay, tables, replayed } = product()
   await conceded('one', ALICE, BOB, NOW - 4_000)
   await conceded('two', BOB, CAROL, NOW - 3_000)
   await conceded('three', CAROL, ALICE, NOW - 2_000)
-  await service.standings(FACTIONS)
+  await service.standings()
   await reopen('one', ALICE, NOW - 1_000)
   await conceded('four', DAVE, ALICE, NOW)
   await operator.deleteBattle('two', BOB)
   names.set(CAROL, 'Caz')
-  const expected = await replay()
-  const answer = await service.standings(FACTIONS)
-  expect({ overall: answer.overall.rows, factions: answer.factions.map((table) => table.rows) }).toEqual({
-    overall: expected.overall,
-    factions: expected.factions.map((table) => table.rows),
-  })
+  expect(tables(await service.standings())).toEqual(replayed(await replay()))
+})
+
+it('rates a battle finishing between rated ones the same as a full replay', async () => {
+  const { service, conceded, replay, tables, replayed } = product()
+  await conceded('one', ALICE, BOB, NOW - 4_000)
+  await conceded('two', CAROL, ALICE, NOW - 2_000)
+  await conceded('three', DAVE, ALICE, NOW)
+  await service.standings()
+  await conceded('between', BOB, DAVE, NOW - 1_000)
+  expect(tables(await service.standings())).toEqual(replayed(await replay()))
+})
+
+it('places a player on their profile where the leaderboard lists them', async () => {
+  const { service, conceded } = product()
+  await conceded('one', ALICE, BOB, NOW - 2_000)
+  await conceded('two', CAROL, ALICE, NOW - 1_000)
+  const { overall } = await service.standings()
+  expect((await service.playerRankings(ALICE)).overall?.place).toBe(overall.rows.findIndex((row) => row.id === ALICE) + 1)
+})
+
+it('shows how far a battle moved each rating as a full replay does', async () => {
+  const { service, conceded, replay } = product()
+  await conceded('one', ALICE, BOB, NOW - 1_000)
+  await conceded('two', CAROL, ALICE, NOW)
+  const [battle, change] = [...(await replay()).changes].find(([summary]) => summary.token === 'two-token')!
+  expect(await service.battleRatingChanges('two-token')).toEqual(Object.fromEntries(battle.playerIds.map((id, seat) => [id, change[seat]])))
+})
+
+it('stops rating battles against a player once they are a practice opponent', async () => {
+  const { service, operator, conceded, replay, tables, replayed } = product()
+  await conceded('one', ALICE, BOB, NOW - 1_000)
+  await conceded('two', DAVE, ALICE, NOW)
+  await service.standings()
+  await operator.registerPracticeOpponent(DAVE)
+  expect(tables(await service.standings())).toEqual(replayed(await replay([DAVE])))
 })
 
 it('announces a medal earned in a battle', async () => {
@@ -110,4 +148,12 @@ it('stores the medals a player held before medals were stored as already seen', 
   await conceded('one', ALICE, BOB, NOW)
   await service.syncAchievementDefinitions()
   expect(await service.newAchievements(ALICE)).toEqual([])
+})
+
+it('announces a medal earned after the quiet first check', async () => {
+  const { service, operator, conceded } = product()
+  await conceded('one', ALICE, BOB, NOW)
+  await service.newAchievements(ALICE)
+  await operator.registerPushToken({ userId: ALICE, token: 'device', platform: 'ios', now: NOW })
+  expect((await service.newAchievements(ALICE)).map((achievement) => achievement.id)).toEqual(['field-kit'])
 })

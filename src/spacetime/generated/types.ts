@@ -211,9 +211,12 @@ export type CompletedMigrations = __Infer<typeof CompletedMigrations>
 export const DerivedState = __t.object('DerivedState', {
   name: __t.string(),
   cursor: __t.u64(),
-  results: __t.string(),
+  seen: __t.u64(),
+  version: __t.string(),
   ratings: __t.string(),
+  versionsAt: __t.u64(),
   ratingsFrom: __t.option(__t.u64()),
+  replays: __t.u64(),
   holder: __t.string(),
   heldUntil: __t.u64(),
 })
@@ -224,6 +227,7 @@ export const EarnedAchievements = __t.object('EarnedAchievements', {
   userId: __t.string(),
   achievementId: __t.string(),
   earnedAt: __t.option(__t.u64()),
+  held: __t.bool(),
   seen: __t.bool(),
 })
 export type EarnedAchievements = __Infer<typeof EarnedAchievements>

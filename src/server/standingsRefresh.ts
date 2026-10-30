@@ -47,6 +47,7 @@ export function storedBattle({ battleId, finishedAt, result }: StoredResult, fac
 export class StandingsRefresh {
   private readonly holder = randomUUID()
   private running: Promise<string> | null = null
+  private queued: Promise<string> | null = null
 
   constructor(
     private readonly repository: Pick<
@@ -69,32 +70,50 @@ export class StandingsRefresh {
   ) {}
 
   /** Shares a refresh this process already has running. Answers the standings revision, which rises whenever the leaderboard may have changed. */
-  refresh() {
-    this.running ??= this.run().finally(() => {
-      this.running = null
-    })
-    return this.running
+  refresh(): Promise<string> {
+    if (!this.running) {
+      this.running = this.run().finally(() => {
+        this.running = null
+      })
+      return this.running
+    }
+    // A run already going may have read the changes before this caller's, so the caller waits for one more after it.
+    this.queued ??= this.running
+      .catch(() => undefined)
+      .then(() => {
+        this.queued = null
+        return this.refresh()
+      })
+    return this.queued
   }
 
   private async run() {
     const factions = await this.factions()
     const ratings = ratingsVersion(factions)
     const claim = await this.repository.claimStandingsRefresh(this.holder, RESULTS_VERSION, ratings)
-    if (claim.state !== 'claimed') return claim.standings
-    let ratingsFrom = claim.ratingsFrom
+    if (claim.state !== 'claimed') return String(claim.standings)
+    let { ratingsFrom, replays } = claim
+    let changed = false
     const { cursor, battleIds } = await this.repository.battleChanges(claim.cursor)
     for (let at = 0; at < battleIds.length; at += BATCH) {
       const ids = battleIds.slice(at, at + BATCH)
       const results = (await this.repository.battlesByIds(ids)).flatMap((history) => storedResult(history) ?? [])
       const found = new Set(results.map((row) => row.battleId))
-      ;({ ratingsFrom } = await this.repository.saveBattleResults({
-        holder: this.holder,
-        results,
-        removed: ids.filter((id) => !found.has(id)),
-      }))
+      const saved = await this.repository.saveBattleResults({ holder: this.holder, results, removed: ids.filter((id) => !found.has(id)) })
+      ;({ ratingsFrom, replays } = saved)
+      changed ||= saved.changed
     }
     if (ratingsFrom !== null) await this.replay(ratingsFrom, factions)
-    return this.repository.finishStandingsRefresh(this.holder, cursor, RESULTS_VERSION, ratings, ratingsFrom)
+    return this.repository.finishStandingsRefresh({
+      holder: this.holder,
+      cursor,
+      seen: claim.standings,
+      results: RESULTS_VERSION,
+      ratings,
+      replayed: ratingsFrom !== null,
+      replays,
+      changed,
+    })
   }
 
   private async replay(from: number, factions: readonly BattleFaction[]) {
@@ -155,6 +174,7 @@ export class StandingsRefresh {
 
 /** Ratings name each army's table from the catalogue, so a catalogue that names armies differently replays them. */
 function ratingsVersion(factions: readonly BattleFaction[]) {
+  if (!factions.length) return `${RATINGS_VERSION}:`
   const armies = factions.map(({ id, displayName }) => [id, displayName]).toSorted(([one], [other]) => one!.localeCompare(other!))
   return `${RATINGS_VERSION}:${createHash('sha256').update(JSON.stringify(armies)).digest('hex').slice(0, 16)}`
 }

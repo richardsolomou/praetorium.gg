@@ -2696,14 +2696,75 @@ describe('collection photo thumbnail inventory', () => {
 })
 
 describe('derived standings and medals', () => {
-  it('leaves a player to be checked again when a write lands during their check', () => {
+  /** A player with product revisions, checked against definitions `v`, and a save of what a check at `revision` found. */
+  function medals() {
     const h = harness()
-    h.call(h.operator, (ctx) => ctx.db.achievementChecks.insert({ userId: 'player', revision: 2n, checked: 0n, quiet: false }))
-    const save = (revision: number) =>
+    module.syncAchievementDefinitions(h.procedure(h.operator), { version: 'v' })
+    h.call(h.operator, (ctx) => {
+      ctx.db.productRevisions.insert({ key: '["player","rosters"]', userId: 'player', scope: 'rosters', revision: 1n })
+      ctx.db.achievementChecks.insert({ userId: 'player', revision: 1n, checked: 0n, quiet: false })
+    })
+    const save = (revision: number, earned: string[], definitions = 'v') =>
       module.saveAchievements(h.procedure(h.operator), {
-        payload: JSON.stringify({ userId: 'player', revision, earned: [{ achievementId: 'first-blood', earnedAt: 1 }] }),
+        payload: JSON.stringify({
+          userId: 'player',
+          revision,
+          definitions,
+          earned: earned.map((achievementId) => ({ achievementId, earnedAt: 1 })),
+        }),
       })
-    expect(save(1)).toBe(false)
+    const recheck = () =>
+      h.call(h.operator, (ctx) => {
+        const check = ctx.db.achievementChecks.userId.find('player')!
+        ctx.db.achievementChecks.userId.update({ ...check, revision: check.revision + 1n })
+      })
+    const status = () =>
+      JSON.parse(module.achievementStatus(h.procedure(h.operator), { userId: 'player' })) as {
+        earned: { achievementId: string; seen: boolean }[]
+      }
+    return { h, save, recheck, status }
+  }
+
+  it('leaves a player to be checked again when a write lands during their check', () => {
+    const { save, recheck } = medals()
+    recheck()
+    expect(save(1, ['first-blood'])).toBe(false)
+  })
+
+  it('refuses a check against other medals than every player was checked against', () => {
+    const { save } = medals()
+    expect(save(1, ['first-blood'], 'older')).toBe(false)
+  })
+
+  it('does not announce again a medal lost and earned back', () => {
+    const { h, save, recheck, status } = medals()
+    save(1, ['first-blood'])
+    module.markAchievementsSeen(h.procedure(h.operator), { userId: 'player', achievementIds: ['first-blood'] })
+    recheck()
+    save(2, [])
+    recheck()
+    save(3, ['first-blood'])
+    expect(status().earned).toEqual([{ achievementId: 'first-blood', earnedAt: 1, seen: true }])
+  })
+
+  it('lets a server with a catalogue replace ratings a server without one just wrote', () => {
+    const h = harness()
+    h.call(h.operator, (ctx) =>
+      ctx.db.derivedState.insert({
+        name: 'standings',
+        cursor: 0n,
+        seen: 0n,
+        version: '1',
+        ratings: '1:',
+        versionsAt: BigInt(NOW) * 1_000n,
+        ratingsFrom: undefined,
+        replays: 0n,
+        holder: '',
+        heldUntil: 0n,
+      }),
+    )
+    const claim = JSON.parse(module.claimStandingsRefresh(h.procedure(h.operator), { holder: 'server', results: '1', ratings: '1:armies' }))
+    expect(claim.state).toBe('claimed')
   })
 
   it('finds the standings refresh busy while another server holds it', () => {

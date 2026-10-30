@@ -541,18 +541,22 @@ const standings = table(
 )
 
 /**
- * How far the operator's derived tables have caught up. For `standings`: the `battle_changes` revision read up to, the
- * versions the results and ratings were derived with, the finish time ratings must be replayed from, and which server
- * holds the refresh. For `achievements`: the definitions every stored medal was checked against.
+ * How far the operator's derived tables have caught up. The `standings` row holds the `battle_changes` revision read up
+ * to, the `standings` signal revision it was current with, the results `version` and `ratings` version they were derived
+ * with and when either last changed, the finish ratings must be replayed from and how often that was asked for, and which
+ * server holds the refresh. The `achievements` row's `version` is the definitions every stored medal was checked against.
  */
 const derivedState = table(
   { name: 'derived_state' },
   {
     name: t.string().primaryKey(),
     cursor: t.u64(),
-    results: t.string(),
+    seen: t.u64(),
+    version: t.string(),
     ratings: t.string(),
+    versionsAt: t.u64(),
     ratingsFrom: t.option(t.u64()),
+    replays: t.u64(),
     holder: t.string(),
     heldUntil: t.u64(),
   },
@@ -572,7 +576,10 @@ const achievementChecks = table(
   },
 )
 
-/** The medals a player has earned, when, and whether they have been told. */
+/**
+ * The medals a player has earned, when, and whether they have been told. A medal they lose stays, no longer `held`, so
+ * earning it again is not announced again.
+ */
 const earnedAchievements = table(
   { name: 'earned_achievements' },
   {
@@ -580,6 +587,7 @@ const earnedAchievements = table(
     userId: t.string().index('btree'),
     achievementId: t.string(),
     earnedAt: t.option(t.u64()),
+    held: t.bool(),
     seen: t.bool(),
   },
 )

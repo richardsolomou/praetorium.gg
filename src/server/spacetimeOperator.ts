@@ -319,6 +319,7 @@ const visibleClub = z.object({
 })
 
 /** A nullable procedure argument as SpacetimeDB's option type. */
+const revision = z.number().int().nonnegative()
 const option = <T>(value: T | null) => (value === null ? { none: [] } : { some: value })
 
 type SaveRosterInput = {
@@ -403,19 +404,25 @@ export class SpacetimeOperator {
       'claim_standings_refresh',
       [holder, results, ratings],
       z.discriminatedUnion('state', [
-        z.object({ state: z.literal('fresh'), standings: z.string() }),
-        z.object({ state: z.literal('busy'), standings: z.string() }),
+        z.object({ state: z.literal('fresh'), standings: revision }),
+        z.object({ state: z.literal('busy'), standings: revision }),
         z.object({
           state: z.literal('claimed'),
-          cursor: z.number().int().nonnegative(),
-          ratingsFrom: z.number().int().nonnegative().nullable(),
+          cursor: revision,
+          ratingsFrom: revision.nullable(),
+          replays: revision,
+          standings: revision,
         }),
       ]),
     )
   }
 
   async saveBattleResults(input: { holder: string; results: z.input<typeof storedBattleResultSchema>[]; removed: string[] }) {
-    return this.read('save_battle_results', [JSON.stringify(input)], z.object({ ratingsFrom: z.number().int().nonnegative().nullable() }))
+    return this.read(
+      'save_battle_results',
+      [JSON.stringify(input)],
+      z.object({ ratingsFrom: revision.nullable(), replays: revision, changed: z.boolean() }),
+    )
   }
 
   async battleResultsAfter(afterAt: number, afterId: string, limit: number) {
@@ -430,8 +437,18 @@ export class SpacetimeOperator {
     return this.reply('save_rating_steps', [JSON.stringify(input)], z.literal(true))
   }
 
-  async finishStandingsRefresh(holder: string, cursor: number, results: string, ratings: string, replayedFrom: number | null) {
-    return this.reply('finish_standings_refresh', [holder, cursor, results, ratings, option(replayedFrom)], z.string())
+  async finishStandingsRefresh(input: {
+    holder: string
+    cursor: number
+    seen: number
+    results: string
+    ratings: string
+    replayed: boolean
+    replays: number
+    changed: boolean
+  }) {
+    const { holder, cursor, seen, results, ratings, replayed, replays, changed } = input
+    return this.reply('finish_standings_refresh', [holder, cursor, seen, results, ratings, replayed, replays, changed], z.string())
   }
 
   async leaderboard(activeSince: number, limit: number) {
@@ -458,7 +475,12 @@ export class SpacetimeOperator {
     return this.read('achievement_status', [userId], achievementStatusSchema)
   }
 
-  async saveAchievements(input: { userId: string; revision: number; earned: { achievementId: string; earnedAt: number | null }[] }) {
+  async saveAchievements(input: {
+    userId: string
+    revision: number
+    definitions: string
+    earned: { achievementId: string; earnedAt: number | null }[]
+  }) {
     return this.reply('save_achievements', [JSON.stringify(input)], z.boolean())
   }
 

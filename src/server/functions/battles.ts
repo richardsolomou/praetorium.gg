@@ -75,9 +75,7 @@ export const friendBattles = createServerFn({ method: 'GET' })
  * faction table is headed with a name a player recognises and addressed by its
  * slug. An instance with no catalogue synced still answers with the overall table.
  */
-export const standings = createServerFn({ method: 'GET' }).handler(() =>
-  rpc(async () => app().service.standings(await app().battleFactionsFor())),
-)
+export const standings = createServerFn({ method: 'GET' }).handler(() => rpc(async () => app().service.standings()))
 
 /**
  * One player's profile: the battles this reader may see them in, their record, and
@@ -97,16 +95,16 @@ export const playerProfile = createServerFn({ method: 'GET' })
 /** Where one player sits in the leaderboard's tables, read from the same stored ratings the leaderboard pages. */
 export const playerRankings = createServerFn({ method: 'GET' })
   .validator(userSchema)
-  .handler(({ data }) => rpc(async () => app().service.playerRankings(data.userId, await app().battleFactionsFor())))
+  .handler(({ data }) => rpc(async () => app().service.playerRankings(data.userId)))
 
 /** What one player has earned and when, the same for every reader. Signed out too. */
 export const playerAchievements = createServerFn({ method: 'GET' })
   .validator(userSchema)
-  .handler(({ data }) => rpc(async () => app().service.playerAchievements(data.userId, await app().battleFactionsFor())))
+  .handler(({ data }) => rpc(async () => app().service.playerAchievements(data.userId)))
 
 /** The medals the signed-in player has earned and not yet been told of. */
 export const newAchievements = createServerFn({ method: 'GET' }).handler(() =>
-  rpc(() => forSignedIn([], async (id) => app().service.newAchievements(id, await app().battleFactionsFor()))),
+  rpc(() => forSignedIn([], (id) => app().service.newAchievements(id))),
 )
 
 /** The signed-in player has been told of these medals, on whichever device. */

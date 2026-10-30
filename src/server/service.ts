@@ -53,7 +53,6 @@ import { routeSlug } from '../core/slug'
 import {
   armyOf,
   battleOutcome,
-  compareStandings,
   OVERALL,
   sideScore,
   type RatingPoint,
@@ -130,6 +129,11 @@ type PlayerRankings = {
 const SPECTATOR_ID = ''
 
 const ACHIEVEMENT_IDS = new Set<string>(ACHIEVEMENTS.map((achievement) => achievement.id))
+/** The medals on offer, so a check against other ones, such as a release still serving through a deploy, is not stored. */
+const ACHIEVEMENT_DEFINITIONS = createHash('sha256')
+  .update(JSON.stringify(ACHIEVEMENTS.map(({ id, metric, count }) => [id, metric, count])))
+  .digest('hex')
+  .slice(0, 16)
 type AchievementRows = { achievementId: AchievementId; earnedAt: number | null; seen: boolean }[]
 
 /** A page of the battle list. History grows for an account's lifetime; a page does not. */
@@ -190,7 +194,7 @@ export class PraetoriumService {
     private readonly clock: () => number,
     private readonly randomIndex: (limit: number) => number,
     private readonly notifier: Notifier = silentNotifier,
-    battleFactions: () => Promise<readonly BattleFaction[]> = async () => [],
+    private readonly battleFactions: () => Promise<readonly BattleFaction[]> = async () => [],
   ) {
     this.leagueService = new LeagueService(repository, clock, notifier)
     this.clubService = new ClubService(repository, clock, notifier)
@@ -320,7 +324,8 @@ export class PraetoriumService {
   }
 
   /** Each army's table as a reader is shown it, keyed by the slug the stored ratings name it with. */
-  private armyTables(factions: readonly BattleFaction[]) {
+  private async armyTables() {
+    const factions = await this.battleFactions()
     return new Map(
       factions.map(({ slug: _slug, displayName, icon }) => [armyOf({ displayName }), { slug: armyOf({ displayName }), displayName, icon }]),
     )
@@ -335,17 +340,16 @@ export class PraetoriumService {
     })
   }
 
-  async standings(factions: readonly BattleFaction[] = []): Promise<StandingsAnswer> {
+  async standings(): Promise<StandingsAnswer> {
     const now = this.clock()
     const revision = await this.refreshStandings()
-    const key = JSON.stringify([revision, factions.map(({ id, displayName, icon }) => [id, displayName, icon])])
+    const key = revision
     if (this.standingsHeld?.key === key && this.standingsHeld.until > now) return this.standingsHeld.answer
     const read = async (): Promise<StandingsAnswer> => {
       const tables = await this.repository.leaderboard(now - STANDINGS_DAYS * DAY_MS, STANDINGS_ROWS)
-      const armies = this.armyTables(factions)
+      const armies = await this.armyTables()
       const named = await this.namedRows(tables.flatMap((table) => table.rows))
-      const rows = (table: (typeof tables)[number]) =>
-        table.rows.map((row) => named.find((one) => one.id === row.id)!).sort(compareStandings)
+      const rows = (table: (typeof tables)[number]) => table.rows.map((row) => named.find((one) => one.id === row.id)!)
       const overall = tables.find((table) => table.table === OVERALL)
       return {
         days: STANDINGS_DAYS,
@@ -368,11 +372,11 @@ export class PraetoriumService {
   }
 
   /** Where one player sits in each table they appear in, read from the same stored ratings the leaderboard pages. */
-  async playerRankings(userId: string, factions: readonly BattleFaction[] = []): Promise<PlayerRankings> {
+  async playerRankings(userId: string): Promise<PlayerRankings> {
     await this.refreshStandings()
     const { places, history } = await this.repository.playerStandings(userId, this.clock() - STANDINGS_DAYS * DAY_MS)
     const [named] = await this.namedRows([{ id: userId }])
-    const armies = this.armyTables(factions)
+    const armies = await this.armyTables()
     const ranking = <T>(faction: T, place: (typeof places)[number]) => ({
       faction,
       place: place.place,
@@ -400,17 +404,15 @@ export class PraetoriumService {
    * What a player has earned, as last checked. A write that could change it has the player checked again here, on the
    * next read, rather than every player on every write.
    */
-  async playerAchievements(userId: string, factions: readonly BattleFaction[] = []): Promise<EarnedAchievements> {
+  async playerAchievements(userId: string): Promise<EarnedAchievements> {
     const earned: Partial<Record<AchievementId, number | null>> = {}
-    for (const row of await this.checkedAchievements(userId, factions)) earned[row.achievementId] = row.earnedAt
+    for (const row of await this.checkedAchievements(userId)) earned[row.achievementId] = row.earnedAt
     return { earned, points: achievementPoints(earned) }
   }
 
   /** The medals a player has earned and not yet been told of. */
-  async newAchievements(userId: string, factions: readonly BattleFaction[] = []) {
-    return (await this.checkedAchievements(userId, factions)).flatMap((row) =>
-      row.seen ? [] : [{ id: row.achievementId, earnedAt: row.earnedAt }],
-    )
+  async newAchievements(userId: string) {
+    return (await this.checkedAchievements(userId)).flatMap((row) => (row.seen ? [] : [{ id: row.achievementId, earnedAt: row.earnedAt }]))
   }
 
   markAchievementsSeen(userId: string, achievementIds: readonly string[]) {
@@ -422,25 +424,22 @@ export class PraetoriumService {
    * Once per process, and before any check: a check ahead of it would announce every medal a player already held.
    */
   syncAchievementDefinitions() {
-    const definitions = ACHIEVEMENTS.map(({ id, metric, count }) => [id, metric, count])
-    this.definitionsSynced ??= this.repository
-      .syncAchievementDefinitions(createHash('sha256').update(JSON.stringify(definitions)).digest('hex').slice(0, 16))
-      .catch((error: unknown) => {
-        this.definitionsSynced = null
-        throw error
-      })
+    this.definitionsSynced ??= this.repository.syncAchievementDefinitions(ACHIEVEMENT_DEFINITIONS).catch((error: unknown) => {
+      this.definitionsSynced = null
+      throw error
+    })
     return this.definitionsSynced
   }
 
-  private checkedAchievements(userId: string, factions: readonly BattleFaction[]) {
+  private checkedAchievements(userId: string) {
     const running = this.achievementChecks.get(userId)
     if (running) return running
-    const check = this.checkAchievements(userId, factions).finally(() => this.achievementChecks.delete(userId))
+    const check = this.checkAchievements(userId).finally(() => this.achievementChecks.delete(userId))
     this.achievementChecks.set(userId, check)
     return check
   }
 
-  private async checkAchievements(userId: string, factions: readonly BattleFaction[]): Promise<AchievementRows> {
+  private async checkAchievements(userId: string): Promise<AchievementRows> {
     await this.syncAchievementDefinitions()
     // A finished battle reaches a player's revision only once the refresh stores its result.
     await this.refreshStandings()
@@ -449,10 +448,11 @@ export class PraetoriumService {
       rows.filter((row): row is AchievementRows[number] => ACHIEVEMENT_IDS.has(row.achievementId))
     if (status.revision === status.checked) return known(status.earned)
     // Read after the revision, so a write landing during the check leaves the player to be checked again.
-    const { earned } = await this.earnedAchievements(userId, factions)
+    const { earned } = await this.earnedAchievements(userId)
     const saved = await this.repository.saveAchievements({
       userId,
       revision: status.revision,
+      definitions: ACHIEVEMENT_DEFINITIONS,
       earned: Object.entries(earned).map(([achievementId, earnedAt]) => ({ achievementId, earnedAt: earnedAt ?? null })),
     })
     return known(saved ? (await this.repository.achievementStatus(userId)).earned : status.earned)
@@ -463,8 +463,8 @@ export class PraetoriumService {
    *
    * A tournament's winner is the top of the table its results page shows, read as an entrant so a private one counts.
    */
-  private async earnedAchievements(userId: string, factions: readonly BattleFaction[]) {
-    const factionsById = byId(factions)
+  private async earnedAchievements(userId: string) {
+    const factionsById = byId(await this.battleFactions())
     const [stored, practice, facts] = await Promise.all([
       this.repository.battleResultsByUser(userId),
       this.repository.practiceOpponentIds(),

@@ -8,8 +8,11 @@ import { TypeBuilder as __TypeBuilder, t as __t, type AlgebraicTypeType as __Alg
 export const params = {
   holder: __t.string(),
   cursor: __t.u64(),
+  seen: __t.u64(),
   results: __t.string(),
   ratings: __t.string(),
-  replayedFrom: __t.option(__t.u64()),
+  replayed: __t.bool(),
+  replays: __t.u64(),
+  changed: __t.bool(),
 }
 export const returnType = __t.string()
