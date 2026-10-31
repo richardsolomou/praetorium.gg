@@ -151,7 +151,7 @@ export function TerrainLayoutDialogContent({ title, description, layout, deploym
               <span className="flex size-3 items-center justify-center rounded-full border border-bone bg-void text-[0.5rem] font-extrabold text-bone">
                 1
               </span>
-              Placement order · distance from the numbered corner, nearest ⅛″
+              Placement order · distance from the numbered corner, nearest ½″
             </span>
           ) : null}
           {placing ? (
@@ -182,8 +182,8 @@ export function TerrainLayoutDialogContent({ title, description, layout, deploym
         </div>
         {placing ? (
           <p className="text-xs text-dim">
-            Put the pieces down in numbered order, measuring each one square from its numbered corner. A tilted piece has one more distance
-            at a second corner to set its angle.
+            Put the pieces down in numbered order. Measure square from the board edge or a line, or with a tape straight from the two marked
+            corners of pieces already down to the numbered corner. A tilted piece has one more distance at a second corner to set its angle.
           </p>
         ) : null}
         {show.includes('mat') ? (

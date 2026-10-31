@@ -532,7 +532,7 @@ function ordinal(step: number) {
 
 /** A mat ruler prints bare numbers, so the label drops the inch mark to read the same. */
 function matInches(value: number) {
-  return formatInches(value).replace('″', '')
+  return formatInches(value, 2).replace('″', '')
 }
 
 function TerrainMeasurements({
@@ -580,6 +580,12 @@ function TerrainMeasurements({
     return [{ step: measurement.step, at: { x: corner.x + (inward.x / length) * 1.1, y: corner.y + (inward.y / length) * 1.1 } }]
   })
   for (const { at } of steps) occupied.push({ left: at.x - 0.6, right: at.x + 0.6, top: at.y - 0.6, bottom: at.y + 0.6 })
+  // A terrain distance starts on a corner already down; a label over it would hide where to put the tape.
+  const endpoints = measurements.flatMap((measurement) => [
+    portraitPoint(measurement.to, flipped, geometry.board),
+    ...(measurement.reference === 'terrain' ? [portraitPoint(measurement.from, flipped, geometry.board)] : []),
+  ])
+  for (const point of endpoints) occupied.push({ left: point.x - 0.3, right: point.x + 0.3, top: point.y - 0.3, bottom: point.y + 0.3 })
   const length = (measurement: Measurement) => Math.hypot(measurement.to.x - measurement.from.x, measurement.to.y - measurement.from.y)
   // Short arrows place their labels first: they have the least room before a label drifts away from its arrow.
   const annotations = measurements
@@ -589,7 +595,7 @@ function TerrainMeasurements({
       const from = portraitPoint(measurement.from, flipped, geometry.board)
       const to = portraitPoint(measurement.to, flipped, geometry.board)
       const vertical = Math.abs(from.x - to.x) < Math.abs(from.y - to.y)
-      const distance = formatInches(Math.hypot(to.x - from.x, to.y - from.y))
+      const distance = formatInches(Math.hypot(to.x - from.x, to.y - from.y), measurement.reference ? 2 : 8)
       const edge = vertical ? (from.y < to.y ? 'top' : 'bottom') : from.x < to.x ? 'left' : 'right'
       const text = `${measurement.approximate ? '≈' : ''}${measurement.ruler ? `${distance} from ${edge}` : distance}`
       const label = placeMeasurementLabel(to, from, vertical, text, occupied, geometry.board)
@@ -643,7 +649,7 @@ function TerrainMeasurements({
           </text>
         </g>
       ))}
-      {[...new Map(annotations.map(({ to }) => [`${to.x}-${to.y}`, to])).values()].map((point) => (
+      {[...new Map(endpoints.map((point) => [`${point.x}-${point.y}`, point])).values()].map((point) => (
         <circle key={`${point.x}-${point.y}`} cx={point.x} cy={point.y} r=".18" className="fill-bone">
           <title>Measurement endpoint</title>
         </circle>
