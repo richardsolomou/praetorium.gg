@@ -42,7 +42,7 @@ it.skipIf(!url || !database || !token)('streams sealed event entry removal when 
     disconnect = () => connection.disconnect()
   })
   try {
-    await operator.leagueCommand(
+    await operator.sealedEventCommand(
       {
         op: 'create',
         id: randomUUID(),
@@ -62,7 +62,7 @@ it.skipIf(!url || !database || !token)('streams sealed event entry removal when 
       z.null(),
     )
     expect(
-      await operator.leagueCommand(
+      await operator.sealedEventCommand(
         { op: 'join', token: sealedEventToken, eventToken: '', userId: entrantId, memberLimit: 128, now: Date.now() },
         z.literal('accepted'),
       ),
@@ -71,7 +71,7 @@ it.skipIf(!url || !database || !token)('streams sealed event entry removal when 
 
     await operator.deleteUserData(entrantId)
     await vi.waitFor(() => expect(changes.at(-1)).toBe(initial + 3n))
-    expect((await operator.leagueByToken(sealedEventToken))?.entries).toEqual([])
+    expect((await operator.sealedEventByToken(sealedEventToken))?.entries).toEqual([])
   } finally {
     disconnect()
     await operator.deleteUserData(ownerId)

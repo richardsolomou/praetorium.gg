@@ -26,11 +26,9 @@ type RosterSummary = Awaited<ReturnType<SpacetimeOperator['rosterSummariesByUser
 /** When an event is played and when its rosters must be sealed by, either unset. */
 export type SealedEventSchedule = { playsAt: number | null; sealBy: number | null }
 
-type Tournament = NonNullable<NonNullable<Awaited<ReturnType<SpacetimeOperator['leagueByToken']>>>['tournament']>
+type Tournament = NonNullable<NonNullable<Awaited<ReturnType<SpacetimeOperator['sealedEventByToken']>>>['tournament']>
 
 /** A tournament's own details; its host fields already address and date it, and each read names its admins its own way. */
-/** The module stores a group under its earlier name, club. */
-const hostKind = (kind: 'tournament' | 'club') => (kind === 'club' ? ('group' as const) : kind)
 
 function tournamentDetails({ token: _token, createdAt: _createdAt, adminIds: _adminIds, ...details }: Tournament) {
   return details
@@ -48,12 +46,11 @@ const ADMIN_USER_COUNT_FIELDS = {
 
 type ProductStat = ReturnType<Awaited<ReturnType<SpacetimeOperator['productStats']>>['get']>
 
-/** The module counts sealed event entries under their stored name. */
 function productCounts(stat: ProductStat) {
   return {
     rosterCount: stat?.rosterCount ?? 0,
     battleCount: stat?.battleCount ?? 0,
-    sealedEventCount: stat?.leagueCount ?? 0,
+    sealedEventCount: stat?.tournamentCount ?? 0,
     friendCount: stat?.friendCount ?? 0,
   }
 }
@@ -292,12 +289,12 @@ export class SpacetimeRepository {
     return this.product.pushTargets(...args)
   }
 
-  sealedEventNames(...args: Parameters<SpacetimeOperator['leagueNames']>) {
-    return this.product.leagueNames(...args)
+  sealedEventNames(...args: Parameters<SpacetimeOperator['sealedEventNames']>) {
+    return this.product.sealedEventNames(...args)
   }
 
-  groupNames(...args: Parameters<SpacetimeOperator['clubNames']>) {
-    return this.product.clubNames(...args)
+  groupNames(...args: Parameters<SpacetimeOperator['groupNames']>) {
+    return this.product.groupNames(...args)
   }
 
   createTournament(input: {
@@ -323,7 +320,7 @@ export class SpacetimeRepository {
     schedule?: SealedEventSchedule
     now: number
   }) {
-    return this.product.leagueCommand(
+    return this.product.sealedEventCommand(
       { ...input, op: 'create', format: input.format ?? null, rosterLimit: input.rosterLimit ?? null },
       z.enum(['too-small', 'forbidden']).nullable(),
     )
@@ -346,8 +343,8 @@ export class SpacetimeRepository {
     now: number
   }) {
     const { groupToken, ...rest } = input
-    return this.product.leagueCommand(
-      { ...rest, clubToken: groupToken, op: 'create-club-game', format: rest.format ?? null, rosterLimit: rest.rosterLimit ?? null },
+    return this.product.sealedEventCommand(
+      { ...rest, groupToken, op: 'create-hidden-list-game', format: rest.format ?? null, rosterLimit: rest.rosterLimit ?? null },
       z.literal('forbidden').nullable(),
     )
   }
@@ -377,7 +374,7 @@ export class SpacetimeRepository {
       schedule?: SealedEventSchedule
     },
   ) {
-    return this.product.leagueCommand(
+    return this.product.sealedEventCommand(
       { op: 'update', token, ownerId, ...input },
       z.union([
         z.object({ admitted: z.array(z.string()), ruleChanged: z.boolean() }),
@@ -387,34 +384,31 @@ export class SpacetimeRepository {
   }
 
   pairSealedEventRound(input: { token: string; eventToken: string; ownerId: string; round: number; pairs: [string, string | null][] }) {
-    return this.product.leagueCommand({ op: 'pair-round', ...input }, z.enum(['paired', 'not-ready', 'stale', 'missing', 'forbidden']))
+    return this.product.sealedEventCommand({ op: 'pair-round', ...input }, z.enum(['paired', 'not-ready', 'stale', 'missing', 'forbidden']))
   }
 
   deleteSealedEvent(token: string, ownerId: string) {
-    return this.product.leagueCommand({ op: 'delete', token, ownerId }, z.enum(['deleted', 'missing', 'forbidden']))
+    return this.product.sealedEventCommand({ op: 'delete', token, ownerId }, z.enum(['deleted', 'missing', 'forbidden']))
   }
 
   setSealedEventAdmins(token: string, ownerId: string, userIds: readonly string[], now: number) {
-    return this.product.leagueCommand(
+    return this.product.sealedEventCommand(
       { op: 'set-admins', token, ownerId, userIds, now },
       z.union([z.object({ added: z.array(z.string()) }), z.enum(['missing', 'forbidden', 'not-friends'])]),
     )
   }
 
-  async eventAddress(...args: Parameters<SpacetimeOperator['eventAddress']>) {
-    const address = await this.product.eventAddress(...args)
-    if (address?.kind === 'club') return { kind: 'group' as const, groupToken: address.clubToken }
-    if (address?.kind === 'club-game') return { kind: 'hidden-list-game' as const, groupToken: address.clubToken, token: address.token }
-    return address
+  eventAddress(...args: Parameters<SpacetimeOperator['sealedEventAddress']>) {
+    return this.product.sealedEventAddress(...args)
   }
 
   async sealedEventsVisibleTo(userId: string | null) {
-    const rows = await this.product.leaguesVisibleTo(userId, 100)
+    const rows = await this.product.sealedEventsVisibleTo(userId, 100)
     const owners = await this.accounts.profilesByIds(rows.flatMap((row) => (row.tournament ? [row.tournament.ownerId] : [])))
-    return rows.map(({ kind, token, tournament, club: group, event, personal, joined, accepted, occupied, ownEntry }) => {
+    return rows.map(({ kind, token, tournament, group, event, personal, joined, accepted, occupied, ownEntry }) => {
       const owner = tournament && profileOf(owners, tournament.ownerId, 'Tournament owner')
       return {
-        kind: hostKind(kind),
+        kind,
         token,
         tournament:
           tournament && owner
@@ -458,7 +452,7 @@ export class SpacetimeRepository {
     admission: SealedEventAdmission
     now: number
   }) {
-    return this.product.clubCommand({ ...input, op: 'create' }, z.literal('created'))
+    return this.product.groupCommand({ ...input, op: 'create' }, z.literal('created'))
   }
 
   updateGroup(
@@ -466,92 +460,92 @@ export class SpacetimeRepository {
     actorId: string,
     input: { name: string; description: string; visibility: SealedEventVisibility; admission: SealedEventAdmission },
   ) {
-    return this.product.clubCommand(
+    return this.product.groupCommand(
       { op: 'update', token, actorId, ...input },
       z.union([z.object({ admitted: z.array(z.string()) }), z.enum(['missing', 'forbidden'])]),
     )
   }
 
   deleteGroup(token: string, actorId: string) {
-    return this.product.clubCommand({ op: 'delete', token, actorId }, z.enum(['deleted', 'missing', 'forbidden']))
+    return this.product.groupCommand({ op: 'delete', token, actorId }, z.enum(['deleted', 'missing', 'forbidden']))
   }
 
   joinGroup(token: string, userId: string, now: number) {
-    return this.product.clubCommand(
+    return this.product.groupCommand(
       { op: 'join', token, userId, now },
       z.union([z.object({ status: z.enum(GROUP_MEMBER_STATUSES), organizerIds: z.array(z.string()) }), z.enum(['missing', 'full'])]),
     )
   }
 
   leaveGroup(token: string, userId: string) {
-    return this.product.clubCommand({ op: 'leave', token, userId }, z.enum(['left', 'missing', 'owner']))
+    return this.product.groupCommand({ op: 'leave', token, userId }, z.enum(['left', 'missing', 'owner']))
   }
 
   moderateGroupMember(token: string, actorId: string, userId: string, accept: boolean) {
-    return this.product.clubCommand(
+    return this.product.groupCommand(
       { op: 'moderate', token, actorId, userId, accept },
       z.enum(['accepted', 'rejected', 'missing', 'forbidden']),
     )
   }
 
   removeGroupMember(token: string, actorId: string, userId: string) {
-    return this.product.clubCommand({ op: 'remove', token, actorId, userId }, z.enum(['removed', 'missing', 'forbidden']))
+    return this.product.groupCommand({ op: 'remove', token, actorId, userId }, z.enum(['removed', 'missing', 'forbidden']))
   }
 
   joinGroupLeague(token: string, userId: string, now: number) {
-    return this.product.clubCommand(
-      { op: 'season-join', token, userId, now },
+    return this.product.groupCommand(
+      { op: 'league-join', token, userId, now },
       z.enum(['joined', 'missing', 'published', 'forbidden', 'full']),
     )
   }
 
   leaveGroupLeague(token: string, userId: string) {
-    return this.product.clubCommand({ op: 'season-leave', token, userId }, z.enum(['left', 'missing']))
+    return this.product.groupCommand({ op: 'league-leave', token, userId }, z.enum(['left', 'missing']))
   }
 
   drawGroupLeague(token: string, actorId: string, { id, ...input }: { id: string; seed: number; now: number }) {
-    return this.product.clubCommand(
-      { op: 'season-draw', token, actorId, seasonId: id, ...input },
+    return this.product.groupCommand(
+      { op: 'league-draw', token, actorId, leagueId: id, ...input },
       z.enum(['drawn', 'missing', 'forbidden', 'published']),
     )
   }
 
   publishGroupLeague(token: string, actorId: string, input: { seed: number; playerIds: readonly string[]; now: number }) {
-    return this.product.clubCommand(
-      { op: 'season-publish', token, actorId, ...input },
+    return this.product.groupCommand(
+      { op: 'league-publish', token, actorId, ...input },
       z.enum(['published', 'missing', 'forbidden', 'stale', 'too-few']),
     )
   }
 
   setGroupLeagueDeadline(token: string, actorId: string, round: number, deadline: number | null) {
-    return this.product.clubCommand({ op: 'season-deadline', token, actorId, round, deadline }, z.enum(['set', 'missing', 'forbidden']))
+    return this.product.groupCommand({ op: 'league-deadline', token, actorId, round, deadline }, z.enum(['set', 'missing', 'forbidden']))
   }
 
   deleteGroupLeague(token: string, actorId: string) {
-    return this.product.clubCommand({ op: 'season-delete', token, actorId }, z.enum(['deleted', 'missing', 'forbidden']))
+    return this.product.groupCommand({ op: 'league-delete', token, actorId }, z.enum(['deleted', 'missing', 'forbidden']))
   }
 
   setGroupAdmins(token: string, actorId: string, userIds: readonly string[]) {
-    return this.product.clubCommand(
+    return this.product.groupCommand(
       { op: 'set-admins', token, actorId, userIds },
       z.union([z.object({ added: z.array(z.string()) }), z.enum(['missing', 'forbidden', 'not-members'])]),
     )
   }
 
   async groupByToken(token: string) {
-    const record = await this.product.clubByToken(token)
+    const record = await this.product.groupByToken(token)
     if (!record) return undefined
     const profiles = await this.accounts.profilesByIds([
       ...record.members.map((member) => member.userId),
-      ...(record.season?.players.map((player) => player.userId) ?? []),
+      ...(record.league?.players.map((player) => player.userId) ?? []),
     ])
-    const owner = profileOf(profiles, record.club.ownerId, 'Group owner')
+    const owner = profileOf(profiles, record.group.ownerId, 'Group owner')
     return {
-      ...record.club,
+      ...record.group,
       games: record.games,
-      league: record.season && {
-        ...record.season,
-        players: record.season.players.flatMap((player) => {
+      league: record.league && {
+        ...record.league,
+        players: record.league.players.flatMap((player) => {
           const profile = profiles.get(player.userId)
           return profile ? [{ ...player, name: profile.name, image: profile.image }] : []
         }),
@@ -566,31 +560,31 @@ export class SpacetimeRepository {
   }
 
   async groupsVisibleTo(userId: string | null) {
-    const rows = await this.product.clubsVisibleTo(userId, 100)
-    const owners = await this.accounts.profilesByIds(rows.map((row) => row.club.ownerId))
-    return rows.map(({ club: group, adminIds, memberCount, battleCount, lastBattleAt, ownMember }) => {
+    const rows = await this.product.groupsVisibleTo(userId, 100)
+    const owners = await this.accounts.profilesByIds(rows.map((row) => row.group.ownerId))
+    return rows.map(({ group, adminIds, memberCount, battleCount, lastBattleAt, ownMember }) => {
       const owner = profileOf(owners, group.ownerId, 'Group owner')
       return { ...group, ownerName: owner.name, ownerImage: owner.image, adminIds, memberCount, battleCount, lastBattleAt, ownMember }
     })
   }
 
   outdatedSealedEventEntriesForRoster(userId: string, rosterId: string) {
-    return this.product.outdatedLeagueEntriesForRoster(userId, rosterId)
+    return this.product.outdatedSealedEventEntriesForRoster(userId, rosterId)
   }
 
   async friendSealedEventRosters(viewerId: string) {
-    const rows = await this.product.friendLeagueRosters(viewerId)
+    const rows = await this.product.friendSealedEventRosters(viewerId)
     const owners = await this.accounts.profilesByIds(rows.map((row) => row.userId))
-    return rows.flatMap(({ leagueToken, leagueName, ...rest }) => {
+    return rows.flatMap(({ hostToken, hostName, ...rest }) => {
       const owner = owners.get(rest.userId)
       return owner
-        ? [{ ...rest, sealedEventToken: leagueToken, sealedEventName: leagueName, ownerName: owner.name, ownerImage: owner.image }]
+        ? [{ ...rest, sealedEventToken: hostToken, sealedEventName: hostName, ownerName: owner.name, ownerImage: owner.image }]
         : []
     })
   }
 
   async sealedEventBattleCandidates(userId: string, participantIds: readonly string[]) {
-    const rows = await this.product.leagueBattleCandidates(userId, participantIds)
+    const rows = await this.product.sealedEventBattleCandidates(userId, participantIds)
     return rows.map(({ token, name, event, entries }) => ({
       token,
       name,
@@ -611,9 +605,9 @@ export class SpacetimeRepository {
   }
 
   async sealedEventByToken(token: string, viewerId: string | null = null, eventToken?: string) {
-    const record = await this.product.leagueByToken(token, eventToken)
+    const record = await this.product.sealedEventByToken(token, eventToken)
     if (!record) return undefined
-    const { kind, tournament, club: group, event, organizerIds, entries, teams, teamWarlords, pairings } = record
+    const { kind, tournament, group, event, organizerIds, entries, teams, teamWarlords, pairings } = record
     const profiles = await this.accounts.profilesByIds([
       ...(tournament ? [tournament.ownerId, ...tournament.adminIds] : []),
       ...entries.map((entry) => entry.userId),
@@ -631,7 +625,7 @@ export class SpacetimeRepository {
     )
     const owner = tournament && profileOf(profiles, tournament.ownerId, 'Tournament owner')
     return {
-      kind: hostKind(kind),
+      kind,
       token: record.token,
       eventToken: event.token,
       createdAt: event.createdAt,
@@ -695,7 +689,7 @@ export class SpacetimeRepository {
   }
 
   joinSealedEvent(token: string, userId: string, now: number, memberLimit: number, eventToken?: string) {
-    return this.product.leagueCommand(
+    return this.product.sealedEventCommand(
       { op: 'join', token, userId, now, memberLimit, eventToken: eventToken ?? '', noticeResults: true },
       z.union([
         z.object({ status: z.literal('pending'), organizerIds: z.array(z.string()) }),
@@ -712,7 +706,7 @@ export class SpacetimeRepository {
     memberLimit: number,
     eventToken?: string,
   ) {
-    return this.product.leagueCommand(
+    return this.product.sealedEventCommand(
       { op: 'moderate', token, ownerId, userId, status, memberLimit, eventToken: eventToken ?? '', noticeResults: true },
       z.union([
         z.object({ rejected: z.boolean(), resealIds: z.array(z.string()) }),
@@ -729,21 +723,21 @@ export class SpacetimeRepository {
     now: number,
     eventToken?: string,
   ) {
-    return this.product.leagueCommand(
+    return this.product.sealedEventCommand(
       { op: 'add', token, ownerId, userIds, memberLimit, now, eventToken: eventToken ?? '' },
       z.union([z.object({ added: z.array(z.string()) }), z.enum(['missing', 'forbidden', 'closed', 'not-friends', 'not-members', 'full'])]),
     )
   }
 
   admitSealedEventEntries(token: string, ownerId: string, userIds: readonly string[], eventToken?: string) {
-    return this.product.leagueCommand(
+    return this.product.sealedEventCommand(
       { op: 'admit', token, ownerId, userIds, eventToken: eventToken ?? '' },
       z.union([z.object({ admitted: z.array(z.string()) }), z.enum(['missing', 'forbidden', 'closed'])]),
     )
   }
 
   assignSealedEventRosterRequirement(token: string, ownerId: string, userId: string, requiredLimit: number, eventToken?: string) {
-    return this.product.leagueCommand(
+    return this.product.sealedEventCommand(
       { op: 'assign-limit', token, ownerId, userId, requiredLimit, eventToken: eventToken ?? '', noticeResults: true },
       z.union([
         z.object({ resealIds: z.array(z.string()) }),
@@ -753,14 +747,14 @@ export class SpacetimeRepository {
   }
 
   assignSealedEventTeam(token: string, ownerId: string, userIds: readonly string[], teamId: string, eventToken?: string) {
-    return this.product.leagueCommand(
+    return this.product.sealedEventCommand(
       { op: 'assign-team', token, ownerId, userIds, teamId, eventToken: eventToken ?? '', noticeResults: true },
       z.union([z.object({ resealIds: z.array(z.string()) }), z.enum(['updated', 'missing', 'forbidden', 'closed', 'wrong-format'])]),
     )
   }
 
   chooseSealedEventSide(token: string, ownerId: string, side: SealedEventSide | null, now: number, eventToken?: string) {
-    return this.product.leagueCommand(
+    return this.product.sealedEventCommand(
       { op: 'set-side', token, ownerId, side, now, eventToken: eventToken ?? '' },
       z.enum(['updated', 'missing', 'forbidden', 'closed', 'wrong-format', 'full', 'members-only']),
     )
@@ -777,7 +771,7 @@ export class SpacetimeRepository {
     now: number
     eventToken?: string
   }) {
-    return this.product.leagueCommand(
+    return this.product.sealedEventCommand(
       { ...input, op: 'submit', ownerId: input.userId, eventToken: input.eventToken ?? '', rosterLimit: input.rosterLimit ?? null },
       z.union([
         z.object({
@@ -797,21 +791,21 @@ export class SpacetimeRepository {
   }
 
   setSealedEventTeamDisposition(token: string, ownerId: string, disposition: string, now: number, eventToken?: string) {
-    return this.product.leagueCommand(
+    return this.product.sealedEventCommand(
       { op: 'set-team-disposition', token, ownerId, disposition, now, eventToken: eventToken ?? '' },
       z.union([z.object({ outcome: z.literal('chosen') }), z.object({ outcome: z.enum(['missing', 'closed', 'not-offered']) })]),
     )
   }
 
   setSealedEventTeamWarlord(token: string, ownerId: string, userId: string, now: number, eventToken?: string) {
-    return this.product.leagueCommand(
+    return this.product.sealedEventCommand(
       { op: 'set-team-warlord', token, ownerId, userId, now, eventToken: eventToken ?? '' },
       z.union([z.object({ outcome: z.literal('chosen') }), z.object({ outcome: z.enum(['missing', 'closed', 'not-offered']) })]),
     )
   }
 
   revealSealedEvent(token: string, ownerId: string, now: number, eventToken?: string) {
-    return this.product.leagueCommand(
+    return this.product.sealedEventCommand(
       { op: 'reveal', token, ownerId, now, eventToken: eventToken ?? '' },
       z.union([
         z.object({ outcome: z.literal('revealed'), entrantIds: z.array(z.string()) }),
@@ -822,7 +816,7 @@ export class SpacetimeRepository {
   }
 
   remindSealedEvent(token: string, ownerId: string, now: number, eventToken?: string) {
-    return this.product.leagueCommand(
+    return this.product.sealedEventCommand(
       { op: 'remind', token, ownerId, now, eventToken: eventToken ?? '' },
       z.union([
         z.object({ outcome: z.literal('reminded'), recipientIds: z.array(z.string()) }),
@@ -834,18 +828,18 @@ export class SpacetimeRepository {
   }
 
   unsealSealedEventRoster(token: string, ownerId: string, userId: string, eventToken?: string) {
-    return this.product.leagueCommand(
+    return this.product.sealedEventCommand(
       { op: 'unseal', token, ownerId, userId, eventToken: eventToken ?? '' },
       z.enum(['unsealed', 'missing', 'forbidden', 'not-revealed']),
     )
   }
 
   dropSealedEventEntrant(input: { token: string; eventToken: string; ownerId: string; userId: string; now: number }) {
-    return this.product.leagueCommand({ op: 'drop', ...input }, z.enum(['dropped', 'missing', 'forbidden', 'closed']))
+    return this.product.sealedEventCommand({ op: 'drop', ...input }, z.enum(['dropped', 'missing', 'forbidden', 'closed']))
   }
 
   async sealedEventRoster(token: string, userId: string, eventToken?: string, readerId?: string | null) {
-    const row = await this.product.leagueRosters(token, userId, eventToken, readerId)
+    const row = await this.product.sealedEventRosters(token, userId, eventToken, readerId)
     if (!row) return null
     const { event, entry, reader } = row
     return {
@@ -868,7 +862,7 @@ export class SpacetimeRepository {
 
   /** Every accepted entrant's sealed list in one read, with whether the event has revealed them. */
   async sealedRosters(token: string, eventToken?: string) {
-    const record = await this.product.leagueByToken(token, eventToken)
+    const record = await this.product.sealedEventByToken(token, eventToken)
     if (!record) return null
     return {
       revealedAt: record.event.revealedAt,
@@ -879,7 +873,7 @@ export class SpacetimeRepository {
   }
 
   sealedEventRosterSharing(token: string, eventToken: string | undefined, userId: string) {
-    return this.product.leagueRosterSharing(token, eventToken ?? '', userId)
+    return this.product.sealedEventRosterSharing(token, eventToken ?? '', userId)
   }
 
   updateSealedEventRosterSharing(
@@ -889,7 +883,7 @@ export class SpacetimeRepository {
       ownerId: string
     } & ({ op: 'share-roster'; submittedAt: number; now: number; rosterId: string } | { op: 'dismiss-roster-sharing' }),
   ) {
-    return this.product.leagueCommand(
+    return this.product.sealedEventCommand(
       { ...input, eventToken: input.eventToken ?? '' },
       z.union([sealedEventRosterSharingSchema, z.enum(['missing', 'forbidden', 'unavailable', 'stale'])]),
     )
@@ -903,7 +897,7 @@ export class SpacetimeRepository {
       | { allyIds: string[]; opponentIds: string[]; initialCommands: Command[]; result: T }
       | Promise<{ allyIds: string[]; opponentIds: string[]; initialCommands: Command[]; result: T }>,
   ): Promise<T | undefined> {
-    const record = await this.product.leagueByToken(input.sealedEventToken, input.eventToken)
+    const record = await this.product.sealedEventByToken(input.sealedEventToken, input.eventToken)
     if (!record) return undefined
     const { event } = record
     const picks = new Map(record.teams.map((team) => [team.teamId, team.disposition]))
@@ -935,7 +929,7 @@ export class SpacetimeRepository {
         teamWarlord: (entry.teamId && warlords.get(entry.teamId)) ?? null,
       })),
     })
-    const created = await this.product.leagueCommand(
+    const created = await this.product.sealedEventCommand(
       {
         op: 'create-battle',
         token: record.token,
@@ -1292,8 +1286,8 @@ export class SpacetimeRepository {
     page: { limit: number; before?: BattlesCursor; viewerId?: string | null },
   ) {
     return this.feed({
-      scope: 'league',
-      leagueToken: sealedEventToken,
+      scope: 'sealed-event',
+      hostToken: sealedEventToken,
       eventToken,
       before: page.before,
       limit: page.limit,
@@ -1302,16 +1296,16 @@ export class SpacetimeRepository {
   }
 
   async battlesByGroup(groupToken: string, page: { limit: number; before?: BattlesCursor }) {
-    return this.feed({ scope: 'club', clubToken: groupToken, before: page.before, limit: page.limit })
+    return this.feed({ scope: 'group', groupToken, before: page.before, limit: page.limit })
   }
 
   /** Every battle a group's league fixtures started, which one page always holds. */
   async battlesByLeague(groupToken: string) {
-    return (await this.feed({ scope: 'season', clubToken: groupToken, limit: 500 })).battles
+    return (await this.feed({ scope: 'group-league', groupToken, limit: 500 })).battles
   }
 
   battleGroups(battleId: string) {
-    return this.product.battleClubs(battleId)
+    return this.product.battleGroups(battleId)
   }
 
   async publicBattles(page: { limit: number; before?: BattlesCursor; viewerId?: string | null }) {

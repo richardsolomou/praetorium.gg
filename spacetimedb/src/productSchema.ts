@@ -189,7 +189,7 @@ const rosterLoans = table(
 )
 
 /**
- * Retired: each league became a club and each of its events a club game. The server empties these at its start, and
+ * Retired: each league became a group and each of its events a hidden-list game. `moveRetiredRows` empties these, and
  * SpacetimeDB refuses to drop a table that still holds rows, so they stay until a later release.
  */
 const leagues = table(
@@ -242,7 +242,7 @@ const leagueAdmins = table(
 )
 
 /**
- * One sealed-roster event, which either a tournament or a club game hosts; its entries, picks, pairings and battles
+ * One sealed-roster event, which either a tournament or a hidden-list game hosts; its entries, picks, pairings and battles
  * are keyed by its id.
  */
 const sealedEvents = table(
@@ -252,7 +252,7 @@ const sealedEvents = table(
     token: t.string().unique(),
     format: t.option(t.string()),
     rosterLimit: t.option(t.u32()),
-    /** JSON `LeagueAllowance[]`; absent on events created before organizers chose them, which accept any waiver. */
+    /** JSON `SealedEventAllowance[]`; absent on events created before organizers chose them, which accept any waiver. */
     allowances: t.option(t.string()),
     /** How many Swiss rounds the organizer pairs; absent for open play, where entrants choose their own opponents. */
     rounds: t.option(t.u32()),
@@ -304,12 +304,12 @@ const tournamentAdmins = table(
   },
 )
 
-/** A club's casual hidden-list game: the club's organizers run it and only its members play. Its address is its event's token. */
-const clubGames = table(
-  { name: 'club_games' },
+/** A group's casual hidden-list game: the group's organizers run it and only its members play. Its address is its event's token. */
+const hiddenListGames = table(
+  { name: 'hidden_list_games' },
   {
     eventId: t.string().primaryKey(),
-    clubId: t.string().index('btree'),
+    groupId: t.string().index('btree'),
     creatorId: t.string(),
     createdAt: t.u64(),
     timeZone: t.option(t.string()).default(undefined),
@@ -318,11 +318,11 @@ const clubGames = table(
 )
 
 /**
- * One table of one Swiss round or one club season fixture, keyed by event or season, round and table. `bId` is absent
+ * One table of one Swiss round or one group league fixture, keyed by event or league, round and table. `bId` is absent
  * for a bye.
  */
-const leagueRoundPairings = table(
-  { name: 'league_round_pairings' },
+const roundPairings = table(
+  { name: 'round_pairings' },
   {
     key: t.string().primaryKey(),
     eventId: t.string().index('btree'),
@@ -334,8 +334,8 @@ const leagueRoundPairings = table(
   },
 )
 
-const leagueEventEntries = table(
-  { name: 'league_event_entries' },
+const sealedEventEntries = table(
+  { name: 'sealed_event_entries' },
   {
     key: t.string().primaryKey(),
     eventId: t.string().index('btree'),
@@ -354,8 +354,8 @@ const leagueEventEntries = table(
 )
 
 /** The Force Disposition a fixed pair chose before reveal, keyed by event and team; a pick its sealed lists no longer offer counts for nothing. */
-const leagueEventTeams = table(
-  { name: 'league_event_teams' },
+const sealedEventTeams = table(
+  { name: 'sealed_event_teams' },
   {
     key: t.string().primaryKey(),
     eventId: t.string().index('btree'),
@@ -365,8 +365,8 @@ const leagueEventTeams = table(
 )
 
 /** Whose Warlord leads a fixed pair, chosen before reveal, keyed by event and team; a pick for an entrant no longer on the team counts for nothing. */
-const leagueEventTeamWarlords = table(
-  { name: 'league_event_team_warlords' },
+const sealedEventTeamWarlords = table(
+  { name: 'sealed_event_team_warlords' },
   {
     key: t.string().primaryKey(),
     eventId: t.string().index('btree'),
@@ -375,8 +375,8 @@ const leagueEventTeamWarlords = table(
   },
 )
 
-const leagueRosterSharing = table(
-  { name: 'league_roster_sharing' },
+const sealedEventRosterSharing = table(
+  { name: 'sealed_event_roster_sharing' },
   {
     key: t.string().primaryKey(),
     eventId: t.string().index('btree'),
@@ -385,17 +385,17 @@ const leagueRosterSharing = table(
   },
 )
 
-/** The battles a sealed event or a club season started, keyed by battle. */
-const leagueEventBattles = table(
-  { name: 'league_event_battles' },
+/** The battles a sealed event or a group league started, keyed by battle. */
+const eventBattles = table(
+  { name: 'event_battles' },
   {
     battleId: t.string().primaryKey(),
     eventId: t.string().index('btree'),
   },
 )
 
-const clubs = table(
-  { name: 'clubs' },
+const groups = table(
+  { name: 'groups' },
   {
     id: t.string().primaryKey(),
     token: t.string().unique(),
@@ -408,12 +408,12 @@ const clubs = table(
   },
 )
 
-/** Keyed by club and user. The owner holds an accepted row too, so "every player is a member" is one check; an admin is always a member. */
-const clubMembers = table(
-  { name: 'club_members' },
+/** Keyed by group and user. The owner holds an accepted row too, so "every player is a member" is one check; an admin is always a member. */
+const groupMembers = table(
+  { name: 'group_members' },
   {
     key: t.string().primaryKey(),
-    clubId: t.string().index('btree'),
+    groupId: t.string().index('btree'),
     userId: t.string().index('btree'),
     status: t.string(),
     role: t.string(),
@@ -422,14 +422,14 @@ const clubMembers = table(
 )
 
 /**
- * A club's round robin, at most one per club. Its draft draws from `seed` and whoever has joined; publishing writes the
- * fixtures to `league_round_pairings`. `deadlines` is a JSON array of each round's deadline or null.
+ * A group's round robin, at most one per group. Its draft draws from `seed` and whoever has joined; publishing writes the
+ * fixtures to `round_pairings`. `deadlines` is a JSON array of each round's deadline or null.
  */
-const clubSeasons = table(
-  { name: 'club_seasons' },
+const groupLeagues = table(
+  { name: 'group_leagues' },
   {
     id: t.string().primaryKey(),
-    clubId: t.string().unique(),
+    groupId: t.string().unique(),
     seed: t.u32(),
     createdAt: t.u64(),
     publishedAt: t.option(t.u64()),
@@ -437,12 +437,12 @@ const clubSeasons = table(
   },
 )
 
-/** Keyed by season and user. Withdrawing keeps the row, so played results stay on the table. */
-const clubSeasonPlayers = table(
-  { name: 'club_season_players' },
+/** Keyed by league and user. Withdrawing keeps the row, so played results stay on the table. */
+const groupLeaguePlayers = table(
+  { name: 'group_league_players' },
   {
     key: t.string().primaryKey(),
-    seasonId: t.string().index('btree'),
+    leagueId: t.string().index('btree'),
     userId: t.string().index('btree'),
     joinedAt: t.u64(),
     withdrawn: t.bool(),
@@ -458,12 +458,12 @@ const completedMigrations = table(
   },
 )
 
-/** Which battles count on which club's table: an index of each battle's folded `set-battle-club`, rewritten whenever one could change it. */
-const clubBattles = table(
-  { name: 'club_battles' },
+/** Which battles count on which group's table: an index of each battle's folded `set-battle-club`, rewritten whenever one could change it. */
+const groupBattles = table(
+  { name: 'group_battles' },
   {
     battleId: t.string().primaryKey(),
-    clubId: t.string().index('btree'),
+    groupId: t.string().index('btree'),
   },
 )
 
@@ -789,6 +789,150 @@ const syncReceipts = table(
   },
 )
 
+/**
+ * Retired: these held groups, leagues, hidden-list games and sealed event entries under their earlier names. The module
+ * moves their rows into the current tables at its first operator call (`moveRetiredRows`), and SpacetimeDB refuses to
+ * drop a table that still holds rows, so they stay until a later release.
+ */
+const retiredClubs = table(
+  { name: 'clubs' },
+  {
+    id: t.string().primaryKey(),
+    token: t.string().unique(),
+    ownerId: t.string().index('btree'),
+    name: t.string(),
+    description: t.string(),
+    visibility: t.string(),
+    admission: t.string(),
+    createdAt: t.u64(),
+  },
+)
+
+const retiredClubMembers = table(
+  { name: 'club_members' },
+  {
+    key: t.string().primaryKey(),
+    clubId: t.string().index('btree'),
+    userId: t.string().index('btree'),
+    status: t.string(),
+    role: t.string(),
+    joinedAt: t.u64(),
+  },
+)
+
+const retiredClubSeasons = table(
+  { name: 'club_seasons' },
+  {
+    id: t.string().primaryKey(),
+    clubId: t.string().unique(),
+    seed: t.u32(),
+    createdAt: t.u64(),
+    publishedAt: t.option(t.u64()),
+    deadlines: t.option(t.string()),
+  },
+)
+
+const retiredClubSeasonPlayers = table(
+  { name: 'club_season_players' },
+  {
+    key: t.string().primaryKey(),
+    seasonId: t.string().index('btree'),
+    userId: t.string().index('btree'),
+    joinedAt: t.u64(),
+    withdrawn: t.bool(),
+  },
+)
+
+const retiredClubBattles = table(
+  { name: 'club_battles' },
+  {
+    battleId: t.string().primaryKey(),
+    clubId: t.string().index('btree'),
+  },
+)
+
+const retiredClubGames = table(
+  { name: 'club_games' },
+  {
+    eventId: t.string().primaryKey(),
+    clubId: t.string().index('btree'),
+    creatorId: t.string(),
+    createdAt: t.u64(),
+    timeZone: t.option(t.string()).default(undefined),
+    supersededAt: t.option(t.u64()).default(undefined),
+  },
+)
+
+const retiredLeagueRoundPairings = table(
+  { name: 'league_round_pairings' },
+  {
+    key: t.string().primaryKey(),
+    eventId: t.string().index('btree'),
+    round: t.u32(),
+    table: t.u32(),
+    aId: t.string(),
+    bId: t.option(t.string()),
+    battleId: t.option(t.string()),
+  },
+)
+
+const retiredLeagueEventEntries = table(
+  { name: 'league_event_entries' },
+  {
+    key: t.string().primaryKey(),
+    eventId: t.string().index('btree'),
+    userId: t.string().index('btree'),
+    status: t.string(),
+    joinedAt: t.u64(),
+    rosterId: t.option(t.string()),
+    rosterName: t.option(t.string()),
+    rosterSnapshot: t.option(t.string()),
+    submittedAt: t.option(t.u64()),
+    requiredLimit: t.option(t.u32()),
+    teamId: t.option(t.string()),
+    /** When a revealed Swiss entrant withdrew or was dropped: they are never paired again and can't rejoin. */
+    droppedAt: t.option(t.u64()).default(undefined),
+  },
+)
+
+const retiredLeagueEventTeams = table(
+  { name: 'league_event_teams' },
+  {
+    key: t.string().primaryKey(),
+    eventId: t.string().index('btree'),
+    teamId: t.string(),
+    disposition: t.string(),
+  },
+)
+
+const retiredLeagueEventTeamWarlords = table(
+  { name: 'league_event_team_warlords' },
+  {
+    key: t.string().primaryKey(),
+    eventId: t.string().index('btree'),
+    teamId: t.string(),
+    userId: t.string(),
+  },
+)
+
+const retiredLeagueRosterSharing = table(
+  { name: 'league_roster_sharing' },
+  {
+    key: t.string().primaryKey(),
+    eventId: t.string().index('btree'),
+    userId: t.string().index('btree'),
+    rosterId: t.option(t.string()),
+  },
+)
+
+const retiredLeagueEventBattles = table(
+  { name: 'league_event_battles' },
+  {
+    battleId: t.string().primaryKey(),
+    eventId: t.string().index('btree'),
+  },
+)
+
 export const productTables = {
   syncReceipts,
   rosterSync,
@@ -811,16 +955,16 @@ export const productTables = {
   sealedEvents,
   tournaments,
   tournamentAdmins,
-  clubGames,
-  leagueEventEntries,
-  leagueEventTeams,
-  leagueEventTeamWarlords,
-  leagueRosterSharing,
-  leagueEventBattles,
-  leagueRoundPairings,
-  clubs,
-  clubMembers,
-  clubBattles,
+  hiddenListGames,
+  sealedEventEntries,
+  sealedEventTeams,
+  sealedEventTeamWarlords,
+  sealedEventRosterSharing,
+  eventBattles,
+  roundPairings,
+  groups,
+  groupMembers,
+  groupBattles,
   battleActivity,
   battleChanges,
   battleResults,
@@ -829,8 +973,8 @@ export const productTables = {
   derivedState,
   achievementChecks,
   earnedAchievements,
-  clubSeasons,
-  clubSeasonPlayers,
+  groupLeagues,
+  groupLeaguePlayers,
   completedMigrations,
   collection,
   collectionWishes,
@@ -850,4 +994,16 @@ export const productTables = {
   abilityReminders,
   productRevisions,
   publicRevisions,
+  retiredClubs,
+  retiredClubMembers,
+  retiredClubSeasons,
+  retiredClubSeasonPlayers,
+  retiredClubBattles,
+  retiredClubGames,
+  retiredLeagueRoundPairings,
+  retiredLeagueEventEntries,
+  retiredLeagueEventTeams,
+  retiredLeagueEventTeamWarlords,
+  retiredLeagueRosterSharing,
+  retiredLeagueEventBattles,
 }

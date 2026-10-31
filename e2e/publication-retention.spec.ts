@@ -52,7 +52,7 @@ async function seedCollection(userId: string, entryId: string) {
 async function sealedEventFixture(ownerId: string, members: string[]) {
   const product = await productOperator()
   const sealedEvent = { id: crypto.randomUUID(), token: crypto.randomUUID(), eventId: crypto.randomUUID(), eventToken: crypto.randomUUID() }
-  await product.leagueCommand(
+  await product.sealedEventCommand(
     {
       op: 'create',
       ...sealedEvent,
@@ -70,7 +70,7 @@ async function sealedEventFixture(ownerId: string, members: string[]) {
   )
   for (const userId of members) {
     expect(
-      await product.leagueCommand(
+      await product.sealedEventCommand(
         { op: 'join', token: sealedEvent.token, eventToken: sealedEvent.eventToken, userId, memberLimit: 128, now: Date.now() },
         z.string(),
       ),
@@ -125,7 +125,7 @@ test('saved roster deletion preserves its actual sealed and fielded copies until
   const sealedEvent = await sealedEventFixture(userId, [userId])
   await sealThroughPage(page, sealedEvent.token, rosterName)
   const sealedCopy = () =>
-    productSql`SELECT roster_snapshot FROM league_event_entries WHERE event_id = ${sealedEvent.eventId} AND user_id = ${userId}`
+    productSql`SELECT roster_snapshot FROM sealed_event_entries WHERE event_id = ${sealedEvent.eventId} AND user_id = ${userId}`
   const sealedBefore = await sealedCopy()
   expect(sealedBefore).toHaveLength(1)
   expect(z.tuple([z.literal(0), z.string()]).parse(sealedBefore[0]?.roster_snapshot)[1]).toContain('Skorpekh Lord')
@@ -188,7 +188,7 @@ test('saved roster deletion preserves its actual sealed and fielded copies until
   await page.getByRole('alertdialog').getByRole('button', { name: 'Delete tournament', exact: true }).click()
   await expect.poll(() => productSql`SELECT id FROM tournaments WHERE id = ${sealedEvent.id}`).toEqual([])
   expect(await productSql`SELECT id FROM sealed_events WHERE id = ${sealedEvent.eventId}`).toEqual([])
-  expect(await productSql`SELECT user_id FROM league_event_entries WHERE event_id = ${sealedEvent.eventId}`).toEqual([])
+  expect(await productSql`SELECT user_id FROM sealed_event_entries WHERE event_id = ${sealedEvent.eventId}`).toEqual([])
   expect(await battleCommands(battleId)).toEqual(commandsBefore)
   await page.goto(sealedUrl)
   await expect(page.getByRole('heading', { name: 'Nothing here', exact: true })).toBeVisible()
@@ -259,7 +259,7 @@ test('self-account deletion removes populated shared history and sealed entries 
     const finishedId = await battleIdFor(lastPathSegment(finished))
     const otherId = await battleIdFor(lastPathSegment(otherCreated))
     expect(await productSql`SELECT user_id FROM battle_users WHERE user_id = ${ownerId}`).toHaveLength(2)
-    expect(await productSql`SELECT user_id FROM league_event_entries WHERE user_id = ${ownerId}`).toHaveLength(2)
+    expect(await productSql`SELECT user_id FROM sealed_event_entries WHERE user_id = ${ownerId}`).toHaveLength(2)
     await expectRecord(anonymous, ownerId, 1)
     await opponent.goto(finished)
     await expect(scoreboard(opponent).getByRole('heading')).toContainText('wins by concession')
@@ -305,7 +305,7 @@ test('self-account deletion removes populated shared history and sealed entries 
     expect(await productSql`SELECT seq FROM commands WHERE battle_id = ${finishedId} OR battle_id = ${otherId}`).toEqual([])
     expect(await productSql`SELECT id FROM tournaments WHERE owner_id = ${ownerId}`).toEqual([])
     expect(await productSql`SELECT id FROM sealed_events WHERE id = ${ownSealedEvent.eventId}`).toEqual([])
-    expect(await productSql`SELECT user_id FROM league_event_entries WHERE user_id = ${ownerId}`).toEqual([])
+    expect(await productSql`SELECT user_id FROM sealed_event_entries WHERE user_id = ${ownerId}`).toEqual([])
     expect(await productSql`SELECT id FROM rosters WHERE id = ${opponentRosterId}`).toEqual([{ id: opponentRosterId }])
     expect(await productSql`SELECT id FROM tournaments WHERE id = ${otherSealedEvent.id}`).toEqual([{ id: otherSealedEvent.id }])
     expect(await productSql`SELECT token FROM battles WHERE token = ${lastPathSegment(unrelated)}`).toEqual([

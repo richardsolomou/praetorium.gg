@@ -137,7 +137,7 @@ const productStat = z.object({
   userId: z.string(),
   rosterCount: z.number().int().nonnegative(),
   battleCount: z.number().int().nonnegative(),
-  leagueCount: z.number().int().nonnegative(),
+  tournamentCount: z.number().int().nonnegative(),
   friendCount: z.number().int().nonnegative(),
   practiceOpponent: z.boolean(),
 })
@@ -196,15 +196,15 @@ const sealedEvent = z.object({
     .nullish()
     .transform((value) => value ?? null),
 })
-/** Who hosts an event: a tournament, or the club whose game it is, which `token` addresses either way. */
+/** Who hosts an event: a tournament, or the group whose game it is, which `token` addresses either way. */
 const eventHost = {
-  kind: z.enum(['tournament', 'club']),
+  kind: z.enum(['tournament', 'group']),
   token: z.string(),
   tournament: tournament.nullable(),
-  club: z.object({ token: z.string(), name: z.string() }).nullable(),
+  group: z.object({ token: z.string(), name: z.string() }).nullable(),
   event: sealedEvent,
 }
-const leaguePairing = z.object({
+const sealedEventPairing = z.object({
   key: z.string(),
   round: z.number().int(),
   table: z.number().int(),
@@ -212,7 +212,7 @@ const leaguePairing = z.object({
   bId: z.string().nullable(),
   battleToken: z.string().nullable(),
 })
-const leagueEntry = z.object({
+const sealedEventEntry = z.object({
   key: z.string(),
   eventId: z.string(),
   userId: z.string(),
@@ -226,41 +226,41 @@ const leagueEntry = z.object({
   teamId: z.string().nullable(),
   droppedAt: z.number().int().nullish(),
 })
-const leagueRecord = z.object({
+const sealedEventRecord = z.object({
   ...eventHost,
   organizerIds: z.array(z.string()),
-  entries: z.array(leagueEntry),
+  entries: z.array(sealedEventEntry),
   teams: z.array(z.object({ teamId: z.string(), disposition: z.string() })),
   teamWarlords: z.array(z.object({ teamId: z.string(), userId: z.string() })),
-  pairings: z.array(leaguePairing),
+  pairings: z.array(sealedEventPairing),
 })
-const eventAddress = z.discriminatedUnion('kind', [
+const sealedEventAddress = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('tournament'), token: z.string() }),
-  z.object({ kind: z.literal('club'), clubToken: z.string() }),
-  z.object({ kind: z.literal('club-game'), clubToken: z.string(), token: z.string() }),
+  z.object({ kind: z.literal('group'), groupToken: z.string() }),
+  z.object({ kind: z.literal('hidden-list-game'), groupToken: z.string(), token: z.string() }),
 ])
-const visibleLeague = z.object({
+const visibleSealedEvent = z.object({
   ...eventHost,
   personal: z.boolean(),
   joined: z.number().int(),
   accepted: z.number().int(),
   occupied: z.number().int(),
-  ownEntry: leagueEntry.nullable(),
+  ownEntry: sealedEventEntry.nullable(),
 })
-const leagueCandidate = z.object({ token: z.string(), name: z.string(), event: sealedEvent, entries: z.array(leagueEntry) })
-const leagueRoster = z.object({ event: sealedEvent, entry: leagueEntry, reader: leagueEntry.nullable() })
-const friendLeagueRoster = z.object({
-  leagueToken: z.string(),
-  leagueName: z.string(),
+const sealedEventCandidate = z.object({ token: z.string(), name: z.string(), event: sealedEvent, entries: z.array(sealedEventEntry) })
+const sealedEventRoster = z.object({ event: sealedEvent, entry: sealedEventEntry, reader: sealedEventEntry.nullable() })
+const friendSealedEventRoster = z.object({
+  hostToken: z.string(),
+  hostName: z.string(),
   eventToken: z.string(),
   userId: z.string(),
   rosterName: z.string(),
   catalogueId: z.string(),
   revealedAt: z.number(),
 })
-const outdatedLeagueEntry = z.object({ token: z.string(), name: z.string(), club: z.object({ token: z.string() }).nullable() })
+const outdatedSealedEventEntry = z.object({ token: z.string(), name: z.string(), group: z.object({ token: z.string() }).nullable() })
 
-const club = z.object({
+const group = z.object({
   id: z.string(),
   token: z.string(),
   ownerId: z.string(),
@@ -270,14 +270,14 @@ const club = z.object({
   admission: z.enum(SEALED_EVENT_ADMISSIONS),
   createdAt: z.number().int(),
 })
-const clubMember = z.object({
+const groupMember = z.object({
   userId: z.string(),
   status: z.enum(GROUP_MEMBER_STATUSES),
   role: z.enum(GROUP_ROLES),
   joinedAt: z.number().int(),
 })
-const battleClub = club.pick({ id: true, token: true, name: true, visibility: true })
-const clubGame = z.object({
+const battleGroup = group.pick({ id: true, token: true, name: true, visibility: true })
+const hiddenListGame = z.object({
   token: z.string(),
   createdAt: z.number().int(),
   pastAt: z.number().int().nullable(),
@@ -297,7 +297,7 @@ const clubGame = z.object({
   playing: z.array(z.string()),
   played: z.array(z.tuple([z.string(), z.string()])),
 })
-const clubSeason = z.object({
+const groupLeague = z.object({
   seed: z.number().int(),
   createdAt: z.number().int(),
   publishedAt: z.number().int().nullable(),
@@ -314,21 +314,21 @@ const clubSeason = z.object({
     }),
   ),
 })
-const clubRecord = z.object({
-  club,
-  members: z.array(clubMember),
-  games: z.array(clubGame),
-  // Absent from a module deployed before club seasons.
-  season: clubSeason.nullable().default(null),
+const groupRecord = z.object({
+  group,
+  members: z.array(groupMember),
+  games: z.array(hiddenListGame),
+  // Absent from a module deployed before group leagues.
+  league: groupLeague.nullable().default(null),
 })
-const visibleClub = z.object({
-  club,
+const visibleGroup = z.object({
+  group,
   adminIds: z.array(z.string()),
   memberCount: z.number().int(),
-  // Absent from a module deployed before club tables counted battles.
+  // Absent from a module deployed before group tables counted battles.
   battleCount: z.number().int().default(0),
   lastBattleAt: z.number().int().nullable().default(null),
-  ownMember: clubMember.pick({ status: true, role: true }).nullable(),
+  ownMember: groupMember.pick({ status: true, role: true }).nullable(),
 })
 
 /** A nullable procedure argument as SpacetimeDB's option type. */
@@ -385,10 +385,6 @@ export class SpacetimeOperator {
   async revokeSession(sessionId: string) {
     if (!sessionId || sessionId.length > 128) throw new Error('Invalid session ID')
     await this.call('revoke_session', [sessionId])
-  }
-
-  async migrateLeaguesToClubs(now: number) {
-    return this.reply('migrate_leagues_to_clubs', [now], z.number().int())
   }
 
   async health() {
@@ -586,13 +582,13 @@ export class SpacetimeOperator {
   }
 
   async battleFeed(input: {
-    scope: 'user' | 'league' | 'club' | 'season' | 'public' | 'friends' | 'profile'
+    scope: 'user' | 'sealed-event' | 'group' | 'group-league' | 'public' | 'friends' | 'profile'
     userId?: string | null
     viewerId?: string | null
     withUserId?: string | null
-    leagueToken?: string | null
+    hostToken?: string | null
     eventToken?: string | null
-    clubToken?: string
+    groupToken?: string
     before?: { at: number; id: string } | null
     limit: number
   }) {
@@ -604,9 +600,9 @@ export class SpacetimeOperator {
           userId: input.userId ?? null,
           viewerId: input.viewerId ?? null,
           withUserId: input.withUserId ?? null,
-          leagueToken: input.leagueToken ?? null,
+          hostToken: input.hostToken ?? null,
           eventToken: input.eventToken ?? null,
-          ...(input.clubToken ? { clubToken: input.clubToken } : {}),
+          ...(input.groupToken ? { groupToken: input.groupToken } : {}),
           since: null,
           before: input.before ?? null,
           limit: input.limit,
@@ -1131,70 +1127,70 @@ export class SpacetimeOperator {
     return this.read('push_targets', [[...new Set(userIds)]], z.array(pushTarget))
   }
 
-  leagueNames(tokens: readonly string[]) {
-    return this.namesByToken('league_names', tokens)
+  sealedEventNames(tokens: readonly string[]) {
+    return this.namesByToken('sealed_event_names', tokens)
   }
 
-  clubNames(tokens: readonly string[]) {
-    return this.namesByToken('club_names', tokens)
+  groupNames(tokens: readonly string[]) {
+    return this.namesByToken('group_names', tokens)
   }
 
-  private async namesByToken(procedure: 'league_names' | 'club_names', tokens: readonly string[]) {
+  private async namesByToken(procedure: 'sealed_event_names' | 'group_names', tokens: readonly string[]) {
     if (!tokens.length) return new Map<string, string>()
     const pairs = await this.read(procedure, [[...new Set(tokens)]], z.array(z.tuple([z.string(), z.string()])))
     return new Map(pairs)
   }
 
-  async leagueByToken(token: string, eventToken?: string) {
-    return this.read('league_by_token', [token, eventToken ?? ''], leagueRecord.nullable())
+  async sealedEventByToken(token: string, eventToken?: string) {
+    return this.read('sealed_event_by_token', [token, eventToken ?? ''], sealedEventRecord.nullable())
   }
 
-  async eventAddress(token: string, eventToken?: string) {
-    return this.read('event_address', [token, eventToken ?? ''], eventAddress.nullable())
+  async sealedEventAddress(token: string, eventToken?: string) {
+    return this.read('sealed_event_address', [token, eventToken ?? ''], sealedEventAddress.nullable())
   }
 
-  async leaguesVisibleTo(userId: string | null, limit: number) {
-    return this.read('leagues_visible_to', [userId ?? '', limit], z.array(visibleLeague))
+  async sealedEventsVisibleTo(userId: string | null, limit: number) {
+    return this.read('sealed_events_visible_to', [userId ?? '', limit], z.array(visibleSealedEvent))
   }
 
-  async clubByToken(token: string) {
-    return this.read('club_by_token', [token], clubRecord.nullable())
+  async groupByToken(token: string) {
+    return this.read('group_by_token', [token], groupRecord.nullable())
   }
 
-  async clubsVisibleTo(userId: string | null, limit: number) {
-    return this.read('clubs_visible_to', [userId ?? '', limit], z.array(visibleClub))
+  async groupsVisibleTo(userId: string | null, limit: number) {
+    return this.read('groups_visible_to', [userId ?? '', limit], z.array(visibleGroup))
   }
 
-  async battleClubs(battleId: string) {
-    return this.read('battle_clubs', [battleId], z.object({ current: battleClub.nullable(), options: z.array(battleClub) }))
+  async battleGroups(battleId: string) {
+    return this.read('battle_groups', [battleId], z.object({ current: battleGroup.nullable(), options: z.array(battleGroup) }))
   }
 
-  async clubCommand<S extends z.ZodType>(command: Record<string, unknown>, result: S): Promise<z.output<S>> {
-    return this.read('club_command', [JSON.stringify(command)], result)
+  async groupCommand<S extends z.ZodType>(command: Record<string, unknown>, result: S): Promise<z.output<S>> {
+    return this.read('group_command', [JSON.stringify(command)], result)
   }
 
-  async outdatedLeagueEntriesForRoster(userId: string, rosterId: string) {
-    return this.read('outdated_league_entries_for_roster', [userId, rosterId], z.array(outdatedLeagueEntry))
+  async outdatedSealedEventEntriesForRoster(userId: string, rosterId: string) {
+    return this.read('outdated_sealed_event_entries_for_roster', [userId, rosterId], z.array(outdatedSealedEventEntry))
   }
 
-  async friendLeagueRosters(viewerId: string) {
-    return this.read('friend_league_rosters', [viewerId], z.array(friendLeagueRoster))
+  async friendSealedEventRosters(viewerId: string) {
+    return this.read('friend_sealed_event_rosters', [viewerId], z.array(friendSealedEventRoster))
   }
 
-  async leagueBattleCandidates(userId: string, participantIds: readonly string[]) {
-    return this.read('league_battle_candidates', [userId, [...participantIds]], z.array(leagueCandidate))
+  async sealedEventBattleCandidates(userId: string, participantIds: readonly string[]) {
+    return this.read('sealed_event_battle_candidates', [userId, [...participantIds]], z.array(sealedEventCandidate))
   }
 
-  async leagueRosters(token: string, userId: string, eventToken?: string, readerId?: string | null) {
-    return this.read('league_rosters', [token, userId, eventToken ?? '', readerId ?? ''], leagueRoster.nullable())
+  async sealedEventRosters(token: string, userId: string, eventToken?: string, readerId?: string | null) {
+    return this.read('sealed_event_rosters', [token, userId, eventToken ?? '', readerId ?? ''], sealedEventRoster.nullable())
   }
 
-  async leagueRosterSharing(token: string, eventToken: string, userId: string) {
-    return this.read('league_roster_sharing', [token, eventToken, userId], sealedEventRosterSharingSchema.nullable())
+  async sealedEventRosterSharing(token: string, eventToken: string, userId: string) {
+    return this.read('sealed_event_roster_sharing', [token, eventToken, userId], sealedEventRosterSharingSchema.nullable())
   }
 
-  async leagueCommand<S extends z.ZodType>(command: Record<string, unknown>, result: S): Promise<z.output<S>> {
-    const value = await this.read('league_command', [JSON.stringify(command)], z.unknown())
+  async sealedEventCommand<S extends z.ZodType>(command: Record<string, unknown>, result: S): Promise<z.output<S>> {
+    const value = await this.read('sealed_event_command', [JSON.stringify(command)], z.unknown())
     if (value === 'past') throw new Response('This hidden-list game has moved to Past. Start a new game to play again.', { status: 409 })
     return result.parse(value)
   }

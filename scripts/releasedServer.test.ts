@@ -64,6 +64,22 @@ const UNREACHED = new Set([
   'sync_receipt',
   'sync_roster',
   'update_onboarding',
+  // Read only by servers released before groups, leagues and hidden-list games took their names.
+  'battle_clubs',
+  'club_by_token',
+  'club_command',
+  'club_names',
+  'clubs_visible_to',
+  'event_address',
+  'friend_league_rosters',
+  'league_battle_candidates',
+  'league_by_token',
+  'league_command',
+  'league_names',
+  'league_roster_sharing',
+  'league_rosters',
+  'leagues_visible_to',
+  'outdated_league_entries_for_roster',
 ])
 
 afterEach(() => {

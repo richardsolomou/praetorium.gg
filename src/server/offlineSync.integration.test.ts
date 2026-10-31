@@ -57,7 +57,7 @@ it.skipIf(!url || !database || !token)('acknowledges and replays a successfully 
   const context = () => ({ id, owner, fingerprint, createdAt: Date.now(), identifiers: {}, wrote: false })
   try {
     await operator.saveRoster(row)
-    await operator.leagueCommand(
+    await operator.sealedEventCommand(
       {
         op: 'create',
         id: randomUUID(),
@@ -104,13 +104,17 @@ it.skipIf(!url || !database || !token)('acknowledges and replays a successfully 
         },
       }),
     }
-    const result = await offlineContext.run(context(), () => operator.leagueCommand(command, z.object({ outcome: z.literal('sealed') })))
-    const retry = await offlineContext.run(context(), () => operator.leagueCommand(command, z.object({ outcome: z.literal('sealed') })))
+    const result = await offlineContext.run(context(), () =>
+      operator.sealedEventCommand(command, z.object({ outcome: z.literal('sealed') })),
+    )
+    const retry = await offlineContext.run(context(), () =>
+      operator.sealedEventCommand(command, z.object({ outcome: z.literal('sealed') })),
+    )
     expect({
       result,
       retry,
       receipt: (await operator.syncReceipt(id, owner, fingerprint))?.outcome,
-      snapshot: (await operator.leagueRosters(sealedEventToken, owner))?.entry.rosterSnapshot,
+      snapshot: (await operator.sealedEventRosters(sealedEventToken, owner))?.entry.rosterSnapshot,
     }).toEqual({ result: { outcome: 'sealed' }, retry: { outcome: 'sealed' }, receipt: 'applied', snapshot: command.snapshot })
   } finally {
     await operator.deleteUserData(owner)
