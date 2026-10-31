@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.208.2 (2026-10-31)
+
+### Patch Changes
+
+- 77947f9: A battle reminder for an ability several units share shows once, naming each unit.
+
 ## 0.208.1 (2026-10-31)
 
 ### Patch Changes
