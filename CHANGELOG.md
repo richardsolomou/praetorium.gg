@@ -1,5 +1,19 @@
 # praetorium
 
+## 0.208.6 (2026-10-31)
+
+### Patch Changes
+
+- 1fdcb32: Revealed lists in group hidden-list games show each army's faction and points beside the list name.
+- 1fdcb32: Group doubles and solo-vs-pair games keep their sides, named as on a tournament page, after the lists are revealed.
+- ed2753e: Roster comparisons fill in as soon as both sides are chosen and again after every change, without a Run button.
+- ed2753e: The simulator's buttons look disabled until they can be used, and each says what it does, or why it can't, when you hover it.
+- ed2753e: The simulator chooses each side's units or rosters at the top of one page instead of in separate Units and Rosters tabs.
+- ed2753e: Choosing a roster in the simulator lists its units, so you can field one of them or the whole roster.
+- ed2753e: A simulator side can hold several rosters at once, from your own, friends' and sealed lists, to try a doubles or 2v1 game.
+- ed2753e: In doubles and 2v1 tournaments and hidden-list games, Simulate sits on the other side and compares both sides' lists, instead of repeating on each player.
+- d063dbe: Tournament pages show revealed rosters as compact rows by side, matching group hidden-list games.
+
 ## 0.208.5 (2026-10-31)
 
 ### Patch Changes
