@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.208.3 (2026-10-31)
+
+### Patch Changes
+
+- 602791a: Passing the turn on a slow connection no longer shows "there is no previous turn to settle" when your opponent's device finishes the turn first.
+
 ## 0.208.2 (2026-10-31)
 
 ### Patch Changes
