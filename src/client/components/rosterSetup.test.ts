@@ -45,7 +45,14 @@ it('offers a detachment that shares no limit with the chosen ones', () => {
 const priced = (id: string, points: number) => ({ id, name: id, points })
 
 it('refuses a detachment that costs more DP than the battle size has left', () => {
-  expect(detachmentRefusal(priced('two', 2), [priced('one', 2)], 2000)).toBe('two costs 2 DP, and only 1 of 3 DP are left.')
+  expect(detachmentRefusal(priced('two', 2), [priced('one', 2)], 2000)).toEqual({
+    kind: 'points',
+    reason: 'two costs 2 DP, and only 1 of 3 DP are left.',
+  })
+})
+
+it('offers a detachment over the DP left once the budget is waived', () => {
+  expect(detachmentRefusal(priced('two', 2), [priced('one', 2)], 2000, ['detachment-points'])).toBeNull()
 })
 
 it('offers a detachment that fits in the DP left', () => {
@@ -57,7 +64,8 @@ it('offers any lone detachment whatever it costs', () => {
 })
 
 it('refuses a detachment past the most an army can include', () => {
-  expect(detachmentRefusal(priced('four', 0), [priced('one', 0), priced('two', 0), priced('three', 0)], 2000)).toBe(
-    'An army can include at most 3 detachments.',
-  )
+  expect(detachmentRefusal(priced('four', 0), [priced('one', 0), priced('two', 0), priced('three', 0)], 2000)).toEqual({
+    kind: 'count',
+    reason: 'An army can include at most 3 detachments.',
+  })
 })

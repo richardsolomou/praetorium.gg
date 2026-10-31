@@ -38,7 +38,7 @@ export function DetachmentPicker({
   const refusals = new Map(
     options.flatMap((option) => {
       const refusal = value.includes(option.id) ? null : detachmentRefusal(option, selected, limit)
-      return refusal ? [[option.id, refusal] as const] : []
+      return refusal ? [[option.id, refusal.reason] as const] : []
     }),
   )
   return (
