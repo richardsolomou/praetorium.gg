@@ -1,3 +1,4 @@
+import type { Route } from '@playwright/test'
 import { expect, test, type Locator, type Page } from './test'
 import {
   advance,
@@ -840,4 +841,62 @@ test('a secret mission chosen before they were retired is handed off before its 
   await refereeing.getByRole('button', { name: 'Take the turn' }).click()
   await expect(owed).toBeHidden()
   await expect(alice.getByRole('dialog')).toHaveCount(0)
+})
+
+test('a pass answered slowly leaves settling the empty turn to the device that got there first', async ({ browser }) => {
+  const alice = await (await browser.newContext(desktopContext)).newPage()
+  const bob = await (await browser.newContext(desktopContext)).newPage()
+  const bobName = uniqueName('Bob')
+  await signUp(bob, bobName)
+  const bobRoster = await createRoster(bob, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Necrons' })
+  await signUp(alice, uniqueName('Alice'))
+  const aliceRoster = await createRoster(alice, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Necrons' })
+  await setupBattle(alice, bob, { opponent: bobName, hostRoster: aliceRoster, guestRoster: bobRoster })
+  const token = lastPathSegment(alice.url())
+  const { id } = await battleLog(alice)
+  // A battle page prepares the rules that show a pass ahead of the service only if they are on the device as it opens.
+  await expect.poll(() => alice.evaluate(() => Boolean(window.PraetoriumReferenceCache?.construction)), { timeout: 60_000 }).toBe(true)
+  await alice.getByRole('navigation').getByRole('link', { name: 'Battles', exact: true }).first().click()
+  await alice.locator(`a[href$="${token}"]`).first().click()
+  await expect(alice.getByRole('button', { name: 'End the command phase' })).toBeVisible()
+  for (let phase = 0; phase < 5; phase += 1) await advance(alice)
+
+  // As on a slow phone: Alice's pass lands but its answer is late, so her device queues
+  // settling Bob's empty turn behind it. Bob's device settles first, and Alice's realtime
+  // refresh shows that before her pass's answer arrives.
+  const hold = () => Promise.withResolvers<void>()
+  const [passAnswer, aliceRefresh, bobSettle] = [hold(), hold(), hold()]
+  const command = (route: Route, kind: string) =>
+    route.request().method() === 'POST' && Boolean(route.request().postData()?.includes(`"${kind}"`))
+  let passing = false
+  await alice.route('**/_serverFn/**', async (route) => {
+    if (command(route, 'advance')) {
+      passing = true
+      const response = await route.fetch()
+      await passAnswer.promise
+      return route.fulfill({ response })
+    }
+    if (passing && route.request().method() === 'GET' && route.request().url().includes(token)) await aliceRefresh.promise
+    return route.fallback()
+  })
+  await bob.route('**/_serverFn/**', async (route) => {
+    if (command(route, 'settle-opponent-turn')) await bobSettle.promise
+    return route.fallback()
+  })
+  const note = alice.getByRole('button', { name: 'Add note' })
+  await alice.getByLabel('Battle note').fill('Held')
+  await alice.getByRole('button', { name: 'Pass the turn' }).click()
+  await confirmScoring(alice.getByRole('dialog', { name: /^Scoring end of turn points/ }), 'Pass the turn')
+  await alice.getByRole('dialog', { name: 'Discard tactical secondaries?' }).getByRole('button', { name: 'Keep hand' }).click()
+  // The pass shows Bob's turn ahead of the service, and the settlement queues as the controls settle.
+  await expect(alice.locator('[data-scoreboard] h1')).toContainText('command phase')
+  await expect(note).toBeEnabled()
+  bobSettle.resolve()
+  await expect.poll(async () => (await battleCommands(id)).some(({ body }) => body.kind === 'settle-opponent-turn')).toBe(true)
+  const refreshed = alice.waitForResponse((response) => response.request().method() === 'GET' && response.url().includes(token))
+  aliceRefresh.resolve()
+  await refreshed
+  const aliceSettles = alice.waitForResponse((response) => Boolean(response.request().postData()?.includes('settle-opponent-turn')))
+  passAnswer.resolve()
+  expect((await (await aliceSettles).text()).includes('nothing-to-settle')).toBe(false)
 })

@@ -100,6 +100,15 @@ describe('a command sent while the connection drops', () => {
   })
 })
 
+describe('a write that holds only for the screen it was worked out from', () => {
+  it('is sent against that screen once the command ahead of it has moved the history on', async () => {
+    const settle = { command: { kind: 'settle-opponent-turn' } as never, basedOn: 4, background: true, onlyAt: 5 }
+    submit.mockClear().mockResolvedValue({ result: { outcome: 'appended' }, screen: { kind: 'battle', view: { seq: 6 } } })
+    await drain({ seen: { current: 4 }, queued: { current: [settle, settle] } })
+    expect(submit.mock.calls.map(([{ data }]) => data.expectedSeq)).toEqual([5, 5])
+  })
+})
+
 it('shows a sync conflict to review without reporting it', async () => {
   submit.mockRejectedValueOnce(new OfflineRefusal('Review this battle’s sync conflict before continuing.'))
   captureException.mockClear()
