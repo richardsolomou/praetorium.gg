@@ -124,13 +124,13 @@ async function execute(operation: LocalOperation, state: LocalState): Promise<Sy
     },
   })
   if (answer.outcome !== 'applied') return { outcome: 'refused', message: answer.message }
-  if (operation.kind === 'createBattle' || operation.kind === 'createLeagueBattle') {
+  if (operation.kind === 'createBattle' || operation.kind === 'createSealedEventBattle') {
     if (!('workspace' in answer)) throw new Error('The saved battle acknowledgement is incomplete. Try syncing again.')
     return { outcome: 'applied', data: answer.workspace, serverVersion: answer.version }
   }
-  if (operation.resource.startsWith('league:')) {
+  if (operation.resource.startsWith('sealed-event:')) {
     const { openSealedEvent } = await import('../../server/functions')
-    const data = await openSealedEvent({ signal: AbortSignal.timeout(15_000), data: { token: operation.resource.slice(7) } })
+    const data = await openSealedEvent({ signal: AbortSignal.timeout(15_000), data: { token: operation.resource.slice(13) } })
     return { outcome: 'applied', data }
   }
   return { outcome: 'applied', data: state.documents[operation.resource]?.data ?? null }

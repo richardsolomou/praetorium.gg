@@ -19,7 +19,7 @@ export function GroupChoice({ view, send, disabled }: { view: BattleView; send: 
       options={[{ value: '', name: 'No group', detail: 'Not for a group table' }, ...options]}
       columns={2}
       disabled={disabled}
-      onChange={(groupId) => send({ kind: 'set-battle-club', clubId: groupId || null })}
+      onChange={(groupId) => send({ kind: 'set-battle-group', groupId: groupId || null })}
     />
   )
 }

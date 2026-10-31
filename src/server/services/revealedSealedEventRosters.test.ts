@@ -30,7 +30,7 @@ function rosters(revealedAt: number | null) {
   const sealedRosters = vi.fn().mockResolvedValue({ revealedAt, rosters: [{ userId: 'ada', snapshot: JSON.stringify(sealed) }] })
   return new SealedEventService({ sealedRosters } as Partial<RepositoryPort> as RepositoryPort, () => 1, {
     notify: vi.fn(),
-  }).revealedSealedEventRosters('league')
+  }).revealedSealedEventRosters('tournament')
 }
 
 describe('revealed sealed event rosters', () => {

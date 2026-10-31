@@ -3,8 +3,8 @@ import { readFileSync } from 'node:fs'
 
 /**
  * Groups were once clubs, their leagues seasons and their hidden-list games sealed games, and the old words crept back
- * whenever code was copied from nearby. They survive only where data or a deploy depends on them, as
- * docs/development/groups-and-tournaments.md lists. "League" is legal again, so its stored names need no listing.
+ * whenever code was copied from nearby. They survive only in links already shared, as
+ * docs/development/groups-and-tournaments.md lists. "League" is legal again, so this cannot catch its old sense.
  */
 const EXEMPT = [
   // Generated from the module, so it repeats the names below.
@@ -16,24 +16,21 @@ const EXEMPT = [
   /^docs\/development\/groups-and-tournaments\.md$/,
   /^src\/routes\/clubs\./,
   /^scripts\/checkVocabulary\.ts$/,
+  // Translates the previous release's names until the next release drops it.
+  /^src\/core\/releasedNames\.ts$/,
 ]
 
 const STORED_NAMES = new Set([
-  // Battle-log commands.
+  // The previous release's names, which the module rewrites and its tests store.
   'set-battle-club',
   'clubId',
-  // Achievement ids.
   'club-night',
-  'club-stalwart',
-  'pillar-of-the-club',
-  'club-battles',
+  'leagues-to-clubs',
 ])
-/** The bare words stay legal only where they are data: a quoted id or key (the `clubs` realtime scope) and a legacy `/clubs` address. */
+/** The bare words stay legal only where they are data: a quoted name and the legacy `/clubs` address. */
 const STORED_FORMS = /(['"`])clubs?\1|(?<![\w-])clubs(?=: )|\/clubs\b/g
 /** Words that only look like ours: catalogue names and the Season Ticket achievement. */
 const LOOKALIKES = /trench club|listforge\.club|season[ -]ticket/gi
-/** Preview seed tokens, which preview databases already hold. */
-const PREVIEW_TOKEN = /^preview-club[\w-]*$/
 
 const WORD = /[\w$:/-]*(?:club|season)[\w$:/-]*/gi
 const SEALED_GAME = /sealed[\s_-]?games?/gi
@@ -59,7 +56,7 @@ const problems = files.flatMap((file) => {
     const words = [
       ...(line.replace(LOOKALIKES, '').replace(STORED_FORMS, '').match(WORD) ?? [])
         .flatMap(segments)
-        .filter((word) => !STORED_NAMES.has(word) && !PREVIEW_TOKEN.test(word)),
+        .filter((word) => !STORED_NAMES.has(word)),
       ...(line.match(SEALED_GAME) ?? []),
     ]
     return words.length ? [`${file}:${at + 1}: ${[...new Set(words)].join(', ')}`] : []

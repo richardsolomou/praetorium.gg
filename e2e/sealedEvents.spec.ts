@@ -922,7 +922,7 @@ for (const { rules, status } of [
     expect(JSON.parse(sealed!.entry.rosterSnapshot!).built.catalogueId).toBe(saved.catalogueId)
     await revealEvent(page)
     await viewRoster(page, ownerName).click()
-    await expect(page).toHaveURL(/\/rosters\/[^?]+\?league=/)
+    await expect(page).toHaveURL(/\/rosters\/[^?]+\?sealedEvent=/)
     if (status === 'current') await expect(page.locator('main header [data-rules-version]')).toHaveCount(0)
     await expect(page.locator(`[data-unit="${unit}"]`)).toBeVisible()
     await page.reload()
@@ -1792,7 +1792,7 @@ test('a 2v1 event assigns entrant sizes, filters rosters, and prepares a battle'
   const product = await productOperator()
   const battleId = await battleIdFor(lastPathSegment(battleUrl))
   // The pair's sealed card is written into the battle, so setup never asks it again.
-  expect((await battleCommands(battleId)).find(({ body }) => body.kind === 'lock-league-rosters')?.body).toMatchObject({
+  expect((await battleCommands(battleId)).find(({ body }) => body.kind === 'lock-sealed-event-rosters')?.body).toMatchObject({
     dispositions: [{ side: 1, disposition: 'priority-assets' }],
   })
   const [eventLink] = await productSql<{

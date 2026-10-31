@@ -31,7 +31,7 @@ export type AchievementMetric =
   | 'guest-battles'
   | 'imports'
   | 'published'
-  | 'club-battles'
+  | 'group-battles'
   | 'leagues'
   | 'leagues-run'
   | 'seals'
@@ -95,20 +95,20 @@ export const ACHIEVEMENTS = [
   { id: 'comrade', name: 'Comrade', tier: 'bronze', metric: 'friends', count: 1, goal: 'Make a friend on Praetorium.' },
   { id: 'warband', name: 'Warband', tier: 'silver', metric: 'friends', count: 5, goal: 'Have 5 friends on Praetorium.' },
   { id: 'brotherhood', name: 'Brotherhood', tier: 'gold', metric: 'friends', count: 10, goal: 'Have 10 friends on Praetorium.' },
-  { id: 'club-night', name: 'Group Night', tier: 'bronze', metric: 'club-battles', count: 1, goal: 'Play a battle for a group.' },
+  { id: 'group-night', name: 'Group Night', tier: 'bronze', metric: 'group-battles', count: 1, goal: 'Play a battle for a group.' },
   {
-    id: 'club-stalwart',
+    id: 'group-stalwart',
     name: 'Group Stalwart',
     tier: 'silver',
-    metric: 'club-battles',
+    metric: 'group-battles',
     count: 10,
     goal: 'Play 10 battles for your groups.',
   },
   {
-    id: 'pillar-of-the-club',
+    id: 'pillar-of-the-group',
     name: 'Pillar of the Group',
     tier: 'gold',
-    metric: 'club-battles',
+    metric: 'group-battles',
     count: 25,
     goal: 'Play 25 battles for your groups.',
   },
@@ -625,7 +625,7 @@ export function achievements(playerId: string, facts: AchievementFacts, exclude:
     founded,
     imports: facts.imports,
     published: facts.published,
-    'club-battles': facts.groupBattles,
+    'group-battles': facts.groupBattles,
     leagues: facts.leagues,
     'leagues-run': facts.leaguesRun,
     seals: facts.seals,

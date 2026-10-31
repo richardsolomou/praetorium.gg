@@ -23,10 +23,10 @@ export function nativeNavigation(path: string, search: Record<string, unknown> =
         title: 'Roster',
       }
     }
-    if (typeof search.league === 'string') {
+    if (typeof search.sealedEvent === 'string') {
       const event = typeof search.event === 'string' ? `?${new URLSearchParams({ event: search.event })}` : ''
       return {
-        back: `/tournaments/${search.league}${event}`,
+        back: `/tournaments/${search.sealedEvent}${event}`,
         section: 'rosters',
         title: 'Roster',
       }

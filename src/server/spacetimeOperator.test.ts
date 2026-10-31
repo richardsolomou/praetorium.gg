@@ -291,7 +291,7 @@ it('reads onboarding carrying a fact added after this build', async () => {
   const stored = {
     welcomed: true,
     tasks: [],
-    facts: { roster: true, friend: false, battle: false, league: false, factFromALaterRelease: true },
+    facts: { roster: true, friend: false, battle: false, tournament: false, factFromALaterRelease: true },
   }
   const request = vi.fn(async () => Response.json(JSON.stringify(stored)))
   const operator = new SpacetimeOperator('https://spacetime.example/', 'preview-42', 'operator-secret', request)

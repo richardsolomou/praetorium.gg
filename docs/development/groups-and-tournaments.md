@@ -15,23 +15,16 @@ Who plays decides the kind of thing; how they play is its format. A new feature 
 
 The navigation files groups and tournaments under "Events"; "community" already means the Discord and social links.
 
-Players never read "club", "season" or "sealed game", and copy names a tournament or a hidden-list game rather than an event; only the shared engine's refusals in `src/core/sealedEvent.ts` and `src/server/services/sealedEventService.ts` still say "event", since they serve both. `scripts/checkVocabulary.ts` fails CI on those words outside the stored names below.
+Players never read "club", "season" or "sealed game", and copy names a tournament or a hidden-list game rather than an event; only the shared engine's refusals in `src/core/sealedEvent.ts` and `src/server/services/sealedEventService.ts` still say "event", since they serve both. `scripts/checkVocabulary.ts` fails CI on those words outside the links below.
 
-"League" once meant a standing group of events, and its stored names below still do: `leagueToken` and the offline `*League` kinds name a sealed event or its host, never a group's league.
-
-Stored names keep the old words, because renaming them breaks battle logs, queued offline actions, connected browsers or shared links:
-
-- Battle-log commands `set-battle-club` (`clubId`) and `lock-league-rosters` (`leagueToken`).
-- Offline action kinds (`createLeague`, `joinLeague`, …), their `league:` resources and `leagueId`/`leagueToken` identifiers, which devices queue.
-- The onboarding task `league` and its fact, achievement ids such as `club-night` and `season-ticket`, and the realtime scopes `clubs` and `leagues` (`src/client/productSignals.ts`), which `product_revisions` stores and open tabs read.
-- `/clubs/…` and `/leagues/…` addresses, which redirect, the roster page's `?league=` and the simulator's `league` roster source, which shared links spell.
+The old words survive only where links already shared spell them: `/clubs/…` and `/leagues/…` addresses redirect, and the roster page's `?league=` and the simulator's `league` roster source still read as a sealed event. `src/core/releasedNames.ts` translates the names the previous release stored and sent, and the module rewrites its rows at the first operator call after a deploy; the next release deletes both.
 
 ## Sealed events
 
 `src/core/sealedEvent.ts` owns decisions; `src/server/services/sealedEventService.ts` owns operations.
 
 - A sealed event (`sealed_events`) is the shared engine: entries, picks, pairings and battles key on its id. Exactly one host holds it: a tournament (`tournaments`, with its own name, listing, admission, limit and admins) or a hidden-list game (`hidden_list_games`), which has none of those and is run by its group's organizers for its group's members.
-- A host's token is its address and what its battles' `lock-league-rosters` name beside the event's token; a hidden-list game's is its event's. Old logs name a retired league's token, which is now its group's.
+- A host's token is its address and what its battles' `lock-sealed-event-rosters` name beside the event's token; a hidden-list game's is its event's. Old logs name a retired league's token, which is now its group's.
 - Each retired league became a group with the same token, and each of its events one of that group's hidden-list games, so the tournaments route resolves every old league link.
 - Sealing stores a repriced, legality-checked snapshot; saved-list edits never change it. Alerts are the player's, not the list's: sealing leaves them out, and a sealed event's battle fields each player's current alerts onto their snapshot (`withCurrentAlerts`).
 - Before reveal, only `readsSealedRoster` and `readsAlliedSealedEventRoster` grant roster access, organizers included.
@@ -56,8 +49,8 @@ Swiss is a Praetorium house format for one-on-one tournaments, not a copy of any
 
 `src/core/group.ts` owns decisions; `src/server/services/groupService.ts` owns operations, and the group table is `groupStandings` in `src/server/service.ts`.
 
-- A battle counts for a group through `set-battle-club` in its log, which names the group's internal id: every battle is public, and a group's token is its invite link. A hidden-list game's battles count through the event its lock names.
-- `group_battles` indexes that choice for reads. The module rewrites it from the folded log on `set-battle-club` and `undo`, and the table still checks each log, so the log stays the authority.
+- A battle counts for a group through `set-battle-group` in its log, which names the group's internal id: every battle is public, and a group's token is its invite link. A hidden-list game's battles count through the event its lock names.
+- `group_battles` indexes that choice for reads. The module rewrites it from the folded log on `set-battle-group` and `undo`, and the table still checks each log, so the log stays the authority.
 - Membership needs IO, so the module refuses a non-member group; the core refuses guests, practice opponents, sealed event and manual battles.
 - A hidden-list game's lifecycle is shared by every reader: a new game permanently supersedes earlier games; a scheduled game expires at the end of its scheduled day, an undated one at the end of its reveal day. The creator's timezone is captured automatically; existing games without one use UTC. Past games refuse mutations except deletion and roster-sharing preferences; existing battles and revealed roster access remain available.
 - A league (`group_leagues`, at most one per group) is not a sealed event, but keys its fixtures in `round_pairings` and its battles in `event_battles` by its id, as an event does. A draft stores only a seed and its players; `leagueDraw` draws its fixtures on every read, and publishing writes them once. Published fixtures are never redrawn. A battle links to its fixture as it starts, and the module refuses any other pair. Void is derived: a fixture whose player withdrew counts only if its battle finished. Withdrawal unlinks an unfinished battle, which keeps counting for the group.

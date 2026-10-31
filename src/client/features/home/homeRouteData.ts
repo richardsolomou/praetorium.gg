@@ -70,7 +70,7 @@ export async function loadHome(queryClient: QueryClient) {
               )
             : null
         }),
-        timed('leagues', queryClient.query({ ...sealedEventsQuery(), staleTime: 'static' })),
+        timed('sealedEvents', queryClient.query({ ...sealedEventsQuery(), staleTime: 'static' })),
         timed('friendships', queryClient.query({ ...friendshipsQuery(), staleTime: 'static' })),
         timed(
           'onboarding',

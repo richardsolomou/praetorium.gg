@@ -17,7 +17,7 @@ const matchupSettingsSchema = z.object({
 export type MatchupSettings = z.infer<typeof matchupSettingsSchema>
 
 const savedRosterSource = z.object({ id: idSchema })
-const sealedEventRosterSource = z.object({ league: z.object({ token: idSchema, eventToken: idSchema, userId: idSchema }) })
+const sealedEventRosterSource = z.object({ sealedEvent: z.object({ token: idSchema, eventToken: idSchema, userId: idSchema }) })
 export type SimulatorRosterSource = z.infer<typeof savedRosterSource> | z.infer<typeof sealedEventRosterSource>
 const pickIndexSchema = z.int().min(0).max(500)
 
@@ -36,14 +36,23 @@ const sideSchema = z.object({
   detachmentIds: z.array(idSchema).max(4).optional(),
   /** A unit from a saved roster or a revealed sealed event list, simulated with its detachment, enhancements, and attachments. */
   roster: z
-    .union([savedRosterSource.extend({ pickIndex: pickIndexSchema }), sealedEventRosterSource.extend({ pickIndex: pickIndexSchema })])
+    .preprocess(
+      // Links shared before sealed events had their name spell the source `league`.
+      (value) =>
+        value && typeof value === 'object' && 'league' in value
+          ? (({ league, ...rest }) => ({ ...rest, sealedEvent: league }))(value)
+          : value,
+      z.union([savedRosterSource.extend({ pickIndex: pickIndexSchema }), sealedEventRosterSource.extend({ pickIndex: pickIndexSchema })]),
+    )
     .optional(),
 })
 export type SimulatorSide = z.infer<typeof sideSchema>
 
 /** Identifies a side's roster, whichever kind it is. */
 export function rosterSourceKey(source: SimulatorRosterSource) {
-  return 'id' in source ? source.id : JSON.stringify(['league', source.league.token, source.league.eventToken, source.league.userId])
+  return 'id' in source
+    ? source.id
+    : JSON.stringify(['sealed-event', source.sealedEvent.token, source.sealedEvent.eventToken, source.sealedEvent.userId])
 }
 
 /** Everything a shared simulator link restores; the first side attacks unless swapped. */

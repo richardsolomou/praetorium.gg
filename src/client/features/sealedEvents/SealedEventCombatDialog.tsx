@@ -61,7 +61,7 @@ export function SealedEventCombatDialog({
         sources={sources}
         initialAttacker={pairing.attacker}
         initialDefender={pairing.defender}
-        sessionKey={`league:${token}:${eventToken}:${viewerId}:${opponentId}`}
+        sessionKey={`sealed-event:${token}:${eventToken}:${viewerId}:${opponentId}`}
         eventPairing
       />
     </CombatDialog>

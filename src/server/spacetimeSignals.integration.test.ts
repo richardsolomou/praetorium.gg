@@ -24,7 +24,7 @@ it.skipIf(!url || !database || !token)('streams sealed event entry removal when 
       .onConnect((current) => {
         let applied = false
         const changed = (row: { scope: string; revision: bigint }) => {
-          if (applied && row.scope === 'leagues') changes.push(row.revision)
+          if (applied && row.scope === 'sealed-events') changes.push(row.revision)
         }
         current.db.publicProductSignals.onInsert((_context, row) => changed(row))
         current.db.publicProductSignals.onUpdate((_context, _previous, row) => changed(row))
@@ -32,7 +32,7 @@ it.skipIf(!url || !database || !token)('streams sealed event entry removal when 
           .subscriptionBuilder()
           .onApplied(() => {
             applied = true
-            resolve([...current.db.publicProductSignals.iter()].find((row) => row.scope === 'leagues')?.revision ?? 0n)
+            resolve([...current.db.publicProductSignals.iter()].find((row) => row.scope === 'sealed-events')?.revision ?? 0n)
           })
           .onError((context) => reject(new Error(context.event?.message || 'SealedEvent subscription failed')))
           .subscribe(tables.publicProductSignals)

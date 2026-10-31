@@ -14,8 +14,10 @@ it.skipIf(!url || !database || !token)('derives onboarding from product facts', 
   try {
     expect(await operator.onboardingProgress(userId)).toEqual({ completedTasks: [], skippedTasks: [], welcomed: false })
     expect((await operator.updateOnboardingProgress(userId, { operation: 'welcome' })).welcomed).toBe(true)
-    expect((await operator.updateOnboardingProgress(userId, { operation: 'skip', task: 'league' })).skippedTasks).toEqual(['league'])
-    expect((await operator.updateOnboardingProgress(userId, { operation: 'restore', task: 'league' })).skippedTasks).toEqual([])
+    expect((await operator.updateOnboardingProgress(userId, { operation: 'skip', task: 'tournament' })).skippedTasks).toEqual([
+      'tournament',
+    ])
+    expect((await operator.updateOnboardingProgress(userId, { operation: 'restore', task: 'tournament' })).skippedTasks).toEqual([])
     expect((await operator.updateOnboardingProgress(userId, { operation: 'complete', task: 'reference' })).completedTasks).toEqual([
       'reference',
     ])

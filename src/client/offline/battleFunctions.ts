@@ -473,9 +473,9 @@ export async function createSealedEventBattle(
     serverNow: now,
     log: prepared.initialCommands.map((command, index) => ({ seq: index + 1, command, at: now, by: owner.id })),
   }
-  await queueLocal('createLeagueBattle', { input: args.data, identifiers }, `battle:${identifiers.battleToken}`, {
+  await queueLocal('createSealedEventBattle', { input: args.data, identifiers }, `battle:${identifiers.battleToken}`, {
     data: workspace,
-    dependencies: [`league:${sealedEvent.token}`],
+    dependencies: [`sealed-event:${sealedEvent.token}`],
     owner: owner.id,
   })
   return { token: identifiers.battleToken }

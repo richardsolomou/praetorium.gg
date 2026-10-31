@@ -10,7 +10,9 @@ function fixture(sealedEvent: boolean, seated = true) {
     players: seated ? NAMES.map((player, side) => ({ ...player, side, automated: false })) : [],
     log: log(
       ...started(),
-      ...(sealedEvent ? [[ALICE, { kind: 'lock-league-rosters', leagueToken: 'league', eventToken: 'event' }] as [string, Command]] : []),
+      ...(sealedEvent
+        ? [[ALICE, { kind: 'lock-sealed-event-rosters', sealedEventToken: 'tournament', eventToken: 'event' }] as [string, Command]]
+        : []),
     ),
   }
   const repository = {
@@ -37,13 +39,13 @@ it('refuses a battle screen for a table nobody sits at', async () => {
 
 it('retains a sealed event battle in an anonymous event feed', async () => {
   const { service } = fixture(true)
-  expect((await service.sealedEventBattles('league', 'event', { limit: 25 })).battles.map((battle) => battle.token)).toEqual(['token'])
+  expect((await service.sealedEventBattles('tournament', 'event', { limit: 25 })).battles.map((battle) => battle.token)).toEqual(['token'])
 })
 
 it('passes the event reader to the repository so access is filtered before pagination', async () => {
   const { service, repository } = fixture(true)
-  await service.sealedEventBattles('league', 'event', { limit: 25 }, undefined, undefined, 'reader')
-  expect(repository.battlesBySealedEvent).toHaveBeenCalledWith('league', 'event', { limit: 25, viewerId: 'reader' })
+  await service.sealedEventBattles('tournament', 'event', { limit: 25 }, undefined, undefined, 'reader')
+  expect(repository.battlesBySealedEvent).toHaveBeenCalledWith('tournament', 'event', { limit: 25, viewerId: 'reader' })
 })
 
 it('refuses the live watch read for a table nobody sits at', async () => {

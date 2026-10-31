@@ -235,7 +235,7 @@ export function SyncStatus() {
                 document?.name ||
                 (resource.startsWith('battle:')
                   ? 'Battle'
-                  : resource.startsWith('league:')
+                  : resource.startsWith('sealed-event:')
                     ? 'Tournament'
                     : resource.startsWith('query:')
                       ? 'Preferences'

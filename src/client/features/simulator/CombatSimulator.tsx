@@ -87,7 +87,7 @@ export function CombatSimulator({
   const linkedSources = linked?.sides.flatMap((side) => (side?.roster ? [side.roster] : [])) ?? []
   const linkedIds = [...new Set(linkedSources.flatMap((source) => ('id' in source ? [source.id] : [])))]
   const linkedSealedEvents = new Map(
-    linkedSources.flatMap((source) => ('league' in source ? [[rosterSourceKey(source), source.league]] : [])),
+    linkedSources.flatMap((source) => ('sealedEvent' in source ? [[rosterSourceKey(source), source.sealedEvent]] : [])),
   )
   const linkedRosters = useQueries({ queries: linkedIds.map((id) => sharedRosterQuery(id)) })
   const linkedSealedEventRosters = useQueries({
@@ -144,14 +144,14 @@ export function CombatSimulator({
   }
   const rosterSource = (key: string): SimulatorRosterSource => {
     const linkedSealedEvent = linkedSealedEvents.get(key)
-    return sealedEventSources.get(key) ?? (linkedSealedEvent ? { league: linkedSealedEvent } : { id: key })
+    return sealedEventSources.get(key) ?? (linkedSealedEvent ? { sealedEvent: linkedSealedEvent } : { id: key })
   }
   const loadRoster = (key: string) => {
     const source = rosterSource(key)
     return (
-      'league' in source
+      'sealedEvent' in source
         ? queryClient
-            .query(sealedEventRosterQuery(source.league.token, source.league.eventToken, source.league.userId))
+            .query(sealedEventRosterQuery(source.sealedEvent.token, source.sealedEvent.eventToken, source.sealedEvent.userId))
             .then(sealedCombatRoster)
         : queryClient.query(sharedRosterQuery(key)).then(savedCombatRoster)
     ).catch(() => null)

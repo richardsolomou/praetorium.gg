@@ -930,7 +930,7 @@ export class PraetoriumService {
           clockLimitMinutes: null,
           ...(settings.manual ? { manual: true } : {}),
         },
-        ...(group ? [{ kind: 'set-battle-club' as const, clubId: group.id }] : []),
+        ...(group ? [{ kind: 'set-battle-group' as const, groupId: group.id }] : []),
       ],
       now: offlineContext.getStore()?.createdAt ?? this.clock(),
       fixtureKey,
@@ -1152,9 +1152,9 @@ export class PraetoriumService {
   private async append(...[token, userId, expectedSeq, command, rules, sync]: SubmitArgs) {
     const history = await this.mustSeatHistory(token, userId)
     if (sync) command = restoreOpaqueBattleKeys(history.players, history.log, command)
-    if (command.kind === 'lock-league-rosters') throw new Response('sealed roster locks are created by the server', { status: 403 })
+    if (command.kind === 'lock-sealed-event-rosters') throw new Response('sealed roster locks are created by the server', { status: 403 })
     // The product database refuses a non-member too; asking first gives the refusal its code.
-    const groupId = command.kind === 'set-battle-club' ? command.clubId : null
+    const groupId = command.kind === 'set-battle-group' ? command.groupId : null
     const groupRefusal =
       groupId && !(await this.repository.battleGroups(history.battle.id)).options.some((group) => group.id === groupId)
         ? refuse('group-members-only', 'every player must be a member of the group')

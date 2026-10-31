@@ -98,6 +98,7 @@ import { z } from 'zod'
 import { productTables } from './productSchema'
 import { UNIT_LOADOUTS_MAX, unitLoadoutNameSchema, unitLoadoutSchema } from '../../src/core/unitLoadouts'
 import { productSyncRefusal } from './syncOutcome'
+import { currentCommand, RELEASED_ACHIEVEMENTS, RELEASED_SCOPES, RELEASED_TASKS, releasedCommand } from '../../src/core/releasedNames'
 
 // Auth settings live in the module environment; the issuer, audience and operator columns stay
 // because automatic migration cannot remove columns.
@@ -250,6 +251,48 @@ function auth(ctx: Context) {
 
 function requireOperator(ctx: Context) {
   if (ctx.sender.toHexString() !== auth(ctx).operator) throw new SenderError('Operator required')
+  renameStoredNames(ctx)
+}
+
+/**
+ * Rewrites the rows the previous release stored under old names, so the first operator call after a deploy renames them
+ * before anything reads them. Only its writes left the `clubs` and `leagues` public revisions, which this renames last.
+ */
+function renameStoredNames(ctx: Context) {
+  const { db } = ctx
+  if (!Array.from(RELEASED_SCOPES.keys()).some((scope) => db.publicRevisions.scope.find(scope))) return
+  for (const row of Array.from(db.commands.iter())) {
+    if (!row.body.includes('"set-battle-club"') && !row.body.includes('"lock-league-rosters"')) continue
+    db.commands.key.update({ ...row, body: JSON.stringify(currentCommand(JSON.parse(row.body))) })
+  }
+  for (const row of Array.from(db.earnedAchievements.iter())) {
+    const achievementId = RELEASED_ACHIEVEMENTS.get(row.achievementId)
+    if (!achievementId) continue
+    db.earnedAchievements.key.delete(row.key)
+    const key = JSON.stringify([row.userId, achievementId])
+    if (!db.earnedAchievements.key.find(key)) db.earnedAchievements.insert({ ...row, key, achievementId })
+  }
+  for (const row of Array.from(db.userOnboardingTasks.iter())) {
+    const task = RELEASED_TASKS.get(row.task)
+    if (!task) continue
+    db.userOnboardingTasks.key.delete(row.key)
+    const key = JSON.stringify([row.userId, task])
+    if (!db.userOnboardingTasks.key.find(key)) db.userOnboardingTasks.insert({ ...row, key, task })
+  }
+  for (const row of Array.from(db.productRevisions.iter())) {
+    const scope = RELEASED_SCOPES.get(row.scope)
+    if (!scope) continue
+    db.productRevisions.key.delete(row.key)
+    const key = JSON.stringify([row.userId, scope])
+    if (!db.productRevisions.key.find(key)) db.productRevisions.insert({ ...row, key, scope })
+  }
+  for (const [released, scope] of RELEASED_SCOPES) {
+    const row = db.publicRevisions.scope.find(released)
+    if (!row) continue
+    db.publicRevisions.scope.delete(released)
+    if (!db.publicRevisions.scope.find(scope)) db.publicRevisions.insert({ scope, revision: row.revision })
+  }
+  db.completedMigrations.clear()
 }
 
 function operatorTx<T>(ctx: ProcedureCtx<InferSchema<typeof spacetime>>, run: (tx: Context) => T) {
@@ -269,8 +312,8 @@ type ProductScope =
   | 'invites'
   | 'onboarding'
   | 'settings'
-  | 'leagues'
-  | 'clubs'
+  | 'sealed-events'
+  | 'groups'
   | 'battles'
   | 'simulator'
   | 'achievements'
@@ -282,8 +325,8 @@ const ACHIEVEMENT_SCOPES = new Set<ProductScope>([
   'favourites',
   'friends',
   'settings',
-  'leagues',
-  'clubs',
+  'sealed-events',
+  'groups',
   'simulator',
 ])
 
@@ -299,7 +342,7 @@ function touchProduct(ctx: Context, userId: string, ...scopes: ProductScope[]) {
   if (scopes.some((scope) => ACHIEVEMENT_SCOPES.has(scope))) recheckAchievements(ctx, userId)
 }
 
-type PublicScope = 'collection' | 'battles' | 'rosters' | 'leagues' | 'clubs' | 'invites' | 'standings' | 'opponents'
+type PublicScope = 'collection' | 'battles' | 'rosters' | 'sealed-events' | 'groups' | 'invites' | 'standings' | 'opponents'
 
 type ScopeRevision = { scope: string; revision: bigint }
 
@@ -443,8 +486,8 @@ function eventTitle(host: EventHost) {
 function touchEvent(ctx: Context, host: EventHost) {
   const users = new Set(hostOrganizerIds(ctx, host))
   for (const entry of ctx.db.sealedEventEntries.eventId.filter(host.event.id)) users.add(entry.userId)
-  for (const userId of users) touchProduct(ctx, userId, 'leagues', 'onboarding')
-  touchPublic(ctx, 'leagues')
+  for (const userId of users) touchProduct(ctx, userId, 'sealed-events', 'onboarding')
+  touchPublic(ctx, 'sealed-events')
   if (host.kind === 'group') touchGroup(ctx, host.group.id)
 }
 
@@ -498,9 +541,9 @@ function deleteHost(ctx: Context, host: EventHost) {
 function touchGroup(ctx: Context, groupId: string) {
   const group = ctx.db.groups.id.find(groupId)
   if (!group) return
-  touchProduct(ctx, group.ownerId, 'clubs')
-  for (const member of ctx.db.groupMembers.groupId.filter(groupId)) touchProduct(ctx, member.userId, 'clubs')
-  touchPublic(ctx, 'clubs')
+  touchProduct(ctx, group.ownerId, 'groups')
+  for (const member of ctx.db.groupMembers.groupId.filter(groupId)) touchProduct(ctx, member.userId, 'groups')
+  touchPublic(ctx, 'groups')
 }
 
 const GROUP_MEMBERS_ONLY = 'every player must be a member of the group'
@@ -668,7 +711,7 @@ function openFixture(
     !players.has(battle.opponentIds[0]!) ||
     !playing(fixture.aId) ||
     !playing(fixture.bId) ||
-    !battle.initialCommands.some((command) => command.kind === 'set-battle-club' && command.clubId === league.groupId)
+    !battle.initialCommands.some((command) => command.kind === 'set-battle-group' && command.groupId === league.groupId)
   )
     throw new SenderError(NOT_A_FIXTURE)
   return { fixture, league }
@@ -1762,7 +1805,7 @@ export const submitBattle = spacetime.procedure(
       const isOrganizer = Boolean(swiss?.organizerIds.includes(input.userId))
       const refusal =
         validate(state, input.userId, parsed.data, isOrganizer) ??
-        (parsed.data.kind === 'set-battle-club' && parsed.data.clubId && !battleGroupIds(tx, seats).includes(parsed.data.clubId)
+        (parsed.data.kind === 'set-battle-group' && parsed.data.groupId && !battleGroupIds(tx, seats).includes(parsed.data.groupId)
           ? GROUP_MEMBERS_ONLY
           : null) ??
         (swiss && swissResultLocked({ ...swiss, isOrganizer }) ? SWISS_RESULT_LOCKED : null)
@@ -1788,7 +1831,7 @@ export const submitBattle = spacetime.procedure(
       if (!wasFinished && parsed.data.kind !== 'undo')
         applyEntry(state, { seq, by: input.userId, at: safeNumber(at), command: parsed.data })
       if (wasFinished || parsed.data.kind === 'undo' || state.status === 'finished') touchPublic(tx, 'standings')
-      if (parsed.data.kind === 'set-battle-club' || parsed.data.kind === 'undo') indexGroupBattle(tx, input.battleId)
+      if (parsed.data.kind === 'set-battle-group' || parsed.data.kind === 'undo') indexGroupBattle(tx, input.battleId)
       return productJson({
         result: { outcome: 'appended', seq },
         ...(sync?.reportApplied ? { applied: true } : {}),
@@ -2169,6 +2212,9 @@ function onboardingData(ctx: Context, userId: string) {
   const friend = [...ctx.db.friendships.requesterId.filter(userId), ...ctx.db.friendships.addresseeId.filter(userId)].some(
     (row) => row.acceptedAt !== undefined,
   )
+  const tournament = Boolean(
+    ctx.db.tournaments.ownerId.filter(userId).next().value || ctx.db.sealedEventEntries.userId.filter(userId).next().value,
+  )
   return {
     welcomed: ctx.db.userOnboarding.userId.find(userId)?.welcomed ?? false,
     tasks,
@@ -2176,9 +2222,9 @@ function onboardingData(ctx: Context, userId: string) {
       roster,
       friend,
       battle: Boolean(ctx.db.battleUsers.userId.filter(userId).next().value),
-      league: Boolean(
-        ctx.db.tournaments.ownerId.filter(userId).next().value || ctx.db.sealedEventEntries.userId.filter(userId).next().value,
-      ),
+      tournament,
+      // The released server requires the fact by its old name.
+      league: tournament,
     },
   }
 }
@@ -2203,7 +2249,8 @@ function safeNumber(value: bigint) {
 
 function productJson(value: unknown) {
   return JSON.stringify(value, (_key, field: unknown) => {
-    if (typeof field !== 'bigint') return field === undefined ? null : field
+    // The released server reads commands only by their old names.
+    if (typeof field !== 'bigint') return field === undefined ? null : releasedCommand(field)
     return safeNumber(field)
   })
 }
@@ -4321,7 +4368,7 @@ function groupCommandIn(tx: Context, args: unknown[]) {
     if (input.accept) tx.db.groupMembers.key.update({ ...row, status: 'accepted' })
     else tx.db.groupMembers.key.delete(row.key)
     touchGroup(tx, group.id)
-    touchProduct(tx, input.userId, 'clubs')
+    touchProduct(tx, input.userId, 'groups')
     return productJson(input.accept ? 'accepted' : 'rejected')
   }
   if (input.op === 'remove') {
@@ -4643,11 +4690,11 @@ function createBattleIn(tx: Context, args: unknown[]) {
     initialCommands,
     (state, command) =>
       validate(state, userId, command) ??
-      (command.kind === 'set-battle-club' && command.clubId && !battleGroupIds(tx, battleData(tx, id).seats).includes(command.clubId)
+      (command.kind === 'set-battle-group' && command.groupId && !battleGroupIds(tx, battleData(tx, id).seats).includes(command.groupId)
         ? GROUP_MEMBERS_ONLY
         : null),
   )
-  if (initialCommands.some((command) => command.kind === 'set-battle-club')) indexGroupBattle(tx, id)
+  if (initialCommands.some((command) => command.kind === 'set-battle-group')) indexGroupBattle(tx, id)
   if (battle.fixtureKey !== undefined) {
     const { fixture, league } = openFixture(tx, battle.fixtureKey, battle)
     tx.db.roundPairings.key.update({ ...fixture, battleId: id })
@@ -5125,7 +5172,7 @@ function sealedEventCommandIn(tx: Context, args: unknown[]) {
       })
     }
     touchEvent(tx, host)
-    for (const row of current) touchProduct(tx, row.userId, 'leagues')
+    for (const row of current) touchProduct(tx, row.userId, 'sealed-events')
     return productJson({ added: userIds.filter((userId) => !current.some((row) => row.userId === userId)) })
   }
 
@@ -5302,7 +5349,7 @@ function sealedEventCommandIn(tx: Context, args: unknown[]) {
     }
     if (previous) tx.db.sealedEventRosterSharing.key.update(row)
     else tx.db.sealedEventRosterSharing.insert(row)
-    touchProduct(tx, ownerId, 'leagues')
+    touchProduct(tx, ownerId, 'sealed-events')
     return productJson(sealedEventRosterSharingState(tx, event, ownerId)!.state)
   }
   if (operation === 'admit') {
@@ -5775,7 +5822,7 @@ function sealedEventCommandIn(tx: Context, args: unknown[]) {
       tx,
       { id: input.id, token: input.battleToken, now: input.now, by: input.userId, seats },
       input.initialCommands,
-      (state, command) => (command.kind === 'set-battle-club' ? 'a group is chosen during setup' : validate(state, input.userId, command)),
+      (state, command) => (command.kind === 'set-battle-group' ? 'a group is chosen during setup' : validate(state, input.userId, command)),
     )
     tx.db.eventBattles.insert({ battleId: input.id, eventId: event.id })
     if (pairing && event.rounds !== undefined) tx.db.roundPairings.key.update({ ...pairing, battleId: input.id })

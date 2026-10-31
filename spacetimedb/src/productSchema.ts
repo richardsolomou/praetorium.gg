@@ -405,7 +405,7 @@ const completedMigrations = table(
   },
 )
 
-/** Which battles count on which group's table: an index of each battle's folded `set-battle-club`, rewritten whenever one could change it. */
+/** Which battles count on which group's table: an index of each battle's folded `set-battle-group`, rewritten whenever one could change it. */
 const groupBattles = table(
   { name: 'group_battles' },
   {

@@ -140,7 +140,7 @@ describe('battle size from saved rosters', () => {
         [ALICE, configure(1000)],
         [ALICE, army(1000)],
         [BOB, army(1000)],
-        [ALICE, { kind: 'lock-league-rosters', leagueToken: 'league' }],
+        [ALICE, { kind: 'lock-sealed-event-rosters', sealedEventToken: 'tournament' }],
       ),
     )
     expect(validate(state, ALICE, configure())).toBe('this battle’s size is sealed')

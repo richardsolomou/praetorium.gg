@@ -176,12 +176,12 @@ describe('setup', () => {
         ],
         [ALICE, builtRoster('Alice army', ['Intercessors'])],
         [BOB, builtRoster('Bob army', ['Plague Marines'])],
-        [ALICE, { kind: 'lock-league-rosters', leagueToken: 'league' }],
+        [ALICE, { kind: 'lock-sealed-event-rosters', sealedEventToken: 'tournament' }],
       ),
     )
 
   it('shares the sealed event that sealed the battle rosters', () => {
-    expect(battleView({ token: 'sealed-event-battle' }, NAMES, sealedEventBattle(), ALICE).sealedEventToken).toBe('league')
+    expect(battleView({ token: 'sealed-event-battle' }, NAMES, sealedEventBattle(), ALICE).sealedEventToken).toBe('tournament')
   })
 
   it.each<[string, Command]>([
@@ -579,8 +579,8 @@ describe('setup', () => {
         army('Guard', 'purge-the-foe', ['purge-the-foe'], 1000),
       )
       const lock = (dispositions?: { side: number; disposition: string }[]): Command => ({
-        kind: 'lock-league-rosters',
-        leagueToken: 'league',
+        kind: 'lock-sealed-event-rosters',
+        sealedEventToken: 'tournament',
         eventToken: 'event',
         ...(dispositions ? { dispositions } : {}),
       })
@@ -1169,7 +1169,7 @@ describe('refusal codes', () => {
 })
 
 describe('group battles', () => {
-  const group: Command = { kind: 'set-battle-club', clubId: 'group' }
+  const group: Command = { kind: 'set-battle-group', groupId: 'group' }
   const configure = (manual: boolean): Command => ({
     kind: 'configure-battle',
     limit: 2000,
@@ -1189,7 +1189,7 @@ describe('group battles', () => {
   })
 
   it('refuses a group for a sealed event battle', () => {
-    const state = reduceBattle(PLAYERS, log([ALICE, { kind: 'lock-league-rosters', leagueToken: 'league' }]))
+    const state = reduceBattle(PLAYERS, log([ALICE, { kind: 'lock-sealed-event-rosters', sealedEventToken: 'tournament' }]))
     expect(commandRefusal(state, ALICE, group)?.code).toBe('group-ineligible')
   })
 

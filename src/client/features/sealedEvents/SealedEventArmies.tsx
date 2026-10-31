@@ -218,7 +218,7 @@ export function SealedEventArmies({
           <Link
             to="/rosters/$id"
             params={{ id: entry.userId }}
-            search={{ league: token, event: eventToken }}
+            search={{ sealedEvent: token, event: eventToken }}
             tabIndex={-1}
             aria-hidden
             className="flex min-w-0 p-3"

@@ -26,7 +26,7 @@ vi.mock('@tanstack/react-start', () => {
 })
 
 const invokeAction = syncAction as unknown as (input: { data: Parameters<typeof syncAction>[0]['data'] }) => ReturnType<typeof syncAction>
-function creation(kind: 'createBattle' | 'createLeagueBattle') {
+function creation(kind: 'createBattle' | 'createSealedEventBattle') {
   return {
     owner: 'actor',
     operationId: crypto.randomUUID(),
@@ -36,7 +36,7 @@ function creation(kind: 'createBattle' | 'createLeagueBattle') {
     identifiers: { battleToken: crypto.randomUUID() },
   }
 }
-it.each(['createBattle', 'createLeagueBattle'] as const)(
+it.each(['createBattle', 'createSealedEventBattle'] as const)(
   'retains a deleted %s after recovering its applied receipt and continues unrelated work',
   async (kind) => {
     mocks.syncReceipt.mockResolvedValue({ outcome: 'applied', message: '' })

@@ -47,7 +47,7 @@ const cases = [
     },
   },
   {
-    kind: 'createLeague' as const,
+    kind: 'createSealedEvent' as const,
     method: 'createTournament' as const,
     input: {
       name: 'Private sealed event',
@@ -62,7 +62,7 @@ const cases = [
     properties: { delivery: 'sync', visibility: 'private', admission: 'approval', format: '2v2', roster_limit: 2000, owner_plays: true },
   },
   {
-    kind: 'createLeagueBattle' as const,
+    kind: 'createSealedEventBattle' as const,
     method: 'createSealedEventBattle' as const,
     input: { token: 'private-sealed-event', opponentId: 'private-opponent' },
     result: { battleId: 'battle-id', token: 'private-battle', format: '1v1', requiredLimit: 2000 },

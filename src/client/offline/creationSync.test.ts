@@ -33,7 +33,7 @@ afterEach(() => {
   stopLocalRuntime()
   vi.unstubAllGlobals()
 })
-it.each(['createBattle', 'createLeagueBattle'] as const)(
+it.each(['createBattle', 'createSealedEventBattle'] as const)(
   'uses the hydrated %s acknowledgement without another network read',
   async (kind) => {
     const workspace = { battle: { token: 'created' }, serverSeq: 1, log: [] }
@@ -47,7 +47,7 @@ it.each(['createBattle', 'createLeagueBattle'] as const)(
       createdAt: 1,
       status: 'pending',
       input: {
-        input: kind === 'createBattle' ? { opponentId: 'friend' } : { token: 'league', opponentId: 'friend' },
+        input: kind === 'createBattle' ? { opponentId: 'friend' } : { token: 'tournament', opponentId: 'friend' },
         identifiers: { battleToken: 'created' },
       },
     })

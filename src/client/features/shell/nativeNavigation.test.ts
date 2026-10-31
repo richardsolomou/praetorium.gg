@@ -88,7 +88,7 @@ describe('native application navigation', () => {
 
   it('returns a shared roster to the battle or tournament that opened it', () => {
     expect(nativeNavigation('/rosters/roster-id', { battle: 'battle-token' }).back).toBe('/battles/battle-token')
-    expect(nativeNavigation('/rosters/roster-id', { league: 'sealed-event-token', event: 'event-token' }).back).toBe(
+    expect(nativeNavigation('/rosters/roster-id', { sealedEvent: 'sealed-event-token', event: 'event-token' }).back).toBe(
       '/tournaments/sealed-event-token?event=event-token',
     )
   })

@@ -144,10 +144,10 @@ function describe(
       // The list is gone from the fold by the time this is written, so the line names
       // whose seat was emptied rather than what used to be in it.
       return `${who} took ${whose} army off the table`
-    case 'lock-league-rosters':
+    case 'lock-sealed-event-rosters':
       return 'The rosters are sealed for this battle'
-    case 'set-battle-club':
-      return command.clubId ? 'The battle counts for a group' : 'The battle no longer counts for a group'
+    case 'set-battle-group':
+      return command.groupId ? 'The battle counts for a group' : 'The battle no longer counts for a group'
     case 'set-prep': {
       const parts = [
         command.primary ? `${command.primary.name} as the primary` : null,

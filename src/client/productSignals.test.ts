@@ -56,7 +56,7 @@ it('refreshes public roster and sealed event readers without touching catalogue 
   for (const key of ['player-rosters', 'shared-roster', 'sealed-events', 'sealed-event', 'faction-index']) client.setQueryData([key], {})
 
   await invalidatePublicProductQueries(client, 'rosters')
-  await invalidatePublicProductQueries(client, 'leagues')
+  await invalidatePublicProductQueries(client, 'sealed-events')
 
   expect(
     ['player-rosters', 'shared-roster', 'sealed-events', 'sealed-event', 'faction-index'].map(
@@ -74,9 +74,9 @@ it('takes a roster out of public army discovery when its owner changes who can r
   expect(client.getQueryState(['discovered-rosters', {}])?.isInvalidated).toBe(true)
 })
 
-it.each(['rosters', 'leagues'] as const)('refreshes sealed event roster sharing after a %s change', async (scope) => {
+it.each(['rosters', 'sealed-events'] as const)('refreshes sealed event roster sharing after a %s change', async (scope) => {
   const client = new QueryClient()
-  const key = ['sealed-event-roster-sharing', 'league', 'event', 'owner']
+  const key = ['sealed-event-roster-sharing', 'tournament', 'event', 'owner']
   client.setQueryData(key, {})
   await invalidateProductQueries(client, scope)
   expect(client.getQueryState(key)?.isInvalidated).toBe(true)

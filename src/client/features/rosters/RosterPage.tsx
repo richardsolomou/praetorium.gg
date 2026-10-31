@@ -40,7 +40,7 @@ export function RosterPage({
       <BattleRosterSnapshot
         roster={sealed}
         print={print}
-        simulatorSource={sealedEvent && event ? { league: { token: sealedEvent, eventToken: event, userId: id } } : undefined}
+        simulatorSource={sealedEvent && event ? { sealedEvent: { token: sealedEvent, eventToken: event, userId: id } } : undefined}
       />
     ) : null
   if (snapshot && battle && screen && screen.kind !== 'unavailable') {

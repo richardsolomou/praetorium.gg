@@ -33,9 +33,9 @@ const PAGE_ADDRESSES = [
   ['/simulator', 'simulator'],
   ['/simulator/', 'simulator'],
   ['/', 'home'],
-  ['/tournaments', 'leagues'],
-  ['/tournaments/', 'leagues'],
-  ['/tournaments/a-sealed-event', 'league'],
+  ['/tournaments', 'tournaments'],
+  ['/tournaments/', 'tournaments'],
+  ['/tournaments/a-sealed-event', 'tournament'],
 ] as const
 
 describe('onboarding page', () => {
@@ -268,8 +268,8 @@ describe('onboarding focus', () => {
   })
 
   it('leaves a step whose successor shares its page to the control that opens it', () => {
-    const focus = { task: 'league', step: 'sealed-event-start' } as const
-    expect(focusAfterOnboardingNavigation(focus, 'leagues')).toBe(focus)
+    const focus = { task: 'tournament', step: 'sealed-event-start' } as const
+    expect(focusAfterOnboardingNavigation(focus, 'tournaments')).toBe(focus)
   })
 
   it('clears a focused task when the player skips it', () => {

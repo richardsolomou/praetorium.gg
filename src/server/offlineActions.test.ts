@@ -19,14 +19,14 @@ it.each(['preview', 'released', 'retired'] as const)('submits a queued %s sealed
     catalogueFor: async () => catalogue,
     rulesFor: async () => rules,
   } as never)
-  await offlineActions.submitLeagueRoster('player', {
-    token: 'league',
+  await offlineActions.submitSealedEventRoster('player', {
+    token: 'tournament',
     rosterId: saved.id,
     capturedRoster: saveRosterSchema.parse(saved),
     catalogueRevision: catalogue.index.revision,
   })
   expect(submit).toHaveBeenCalledWith(
-    'league',
+    'tournament',
     'player',
     saved,
     expect.objectContaining({ built: expect.objectContaining({ edition }) }),
@@ -55,8 +55,8 @@ it('seals a roster a device captured before its alerts moved to the account', as
     unit: { index: 0, name: 'Squad' },
     timings: [{ moment: 'turn-start', phase: null, turn: 'your-turn' }],
   }
-  await offlineActions.submitLeagueRoster('player', {
-    token: 'league',
+  await offlineActions.submitSealedEventRoster('player', {
+    token: 'tournament',
     rosterId: saved.id,
     capturedRoster: saveRosterSchema.parse({ ...saved, prep: { ...prep, reminders: [reminder] } }),
     catalogueRevision: catalogue.index.revision,

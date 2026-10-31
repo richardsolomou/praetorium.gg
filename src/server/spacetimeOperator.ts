@@ -146,7 +146,7 @@ const acceptedInvite = z.union([z.enum(['missing', 'self', 'already-friends']), 
 const onboarding = z.object({
   welcomed: z.boolean(),
   tasks: z.array(z.object({ task: z.string(), state: z.enum(['completed', 'skipped']) })),
-  facts: z.object({ roster: z.boolean(), friend: z.boolean(), battle: z.boolean(), league: z.boolean() }),
+  facts: z.object({ roster: z.boolean(), friend: z.boolean(), battle: z.boolean(), tournament: z.boolean() }),
 })
 
 const tournament = z.object({
