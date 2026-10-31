@@ -1,4 +1,6 @@
-const REFERENCE_CACHE = 'praetorium-reference-v2'
+const REFERENCE_CACHE = 'praetorium-reference-v3'
+// An earlier release's single-file download, which a page deletes once its own is saved.
+const LEGACY_REFERENCE_CACHE = 'praetorium-reference-v2'
 const HOSTED_PATH = /^\/(?:api|admin|sign-in|sign-up|reset-password|verify-email|oauth|\.well-known)(?:\/|$)/
 self.addEventListener('install', (event) => event.waitUntil(self.skipWaiting()))
 self.addEventListener('activate', (event) => event.waitUntil(self.clients.claim()))
@@ -7,7 +9,9 @@ self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET' || event.request.mode !== 'navigate' || url.origin !== self.location.origin) return
   event.respondWith(
     (async () => {
-      const saved = await (await caches.open(REFERENCE_CACHE)).match('/offline-reference.html')
+      const saved =
+        (await (await caches.open(REFERENCE_CACHE)).match('/offline-reference.html')) ??
+        (await (await caches.open(LEGACY_REFERENCE_CACHE)).match('/offline-reference.html'))
       try {
         return await fetch(event.request, { cache: 'no-store', signal: AbortSignal.timeout(5000) })
       } catch {

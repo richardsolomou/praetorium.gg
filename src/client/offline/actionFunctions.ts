@@ -462,7 +462,7 @@ export async function submitSealedEventRoster(
   const defer = deferredForAccount()
   if (!localEngine()) return server.submitSealedEventRoster(args)
   const roster = await localDocument<LocalRoster>(`roster:${args.data.rosterId}`)
-  const construction = roster ? localConstruction(roster.catalogueId) : null
+  const construction = roster ? await localConstruction(roster.catalogueId) : null
   if (!roster || !construction) {
     if (navigator.onLine) return server.submitSealedEventRoster(args)
     throw new OfflineRefusal('Save this roster and army data on this device before sealing it offline.')

@@ -1,7 +1,7 @@
 import { TERRAIN_GEOMETRY_VERSION } from '../../contracts/terrainReference'
 import { withTimeout } from '../abortSignals'
 export { terrainMatchupIds } from '../../contracts/terrainReference'
-import { offlineSearch } from '../offline/runtime'
+import { loadSearch, offlineSearch } from '../offline/runtime'
 import { queryOptions, type QueryClient } from '@tanstack/react-query'
 import { referenceFactionId } from '../../core/factionReferenceRoute'
 import { SEARCH_MIN_LENGTH } from '../../core/referenceSearch'
@@ -66,12 +66,15 @@ export const globalSearchQuery = (query: string) =>
     initialData: () => (query.trim().length >= SEARCH_MIN_LENGTH ? (offlineSearch(query) ?? undefined) : undefined),
     initialDataUpdatedAt: 0,
     queryFn: async ({ signal, client }) => {
+      if (!navigator.onLine) await loadSearch().catch(() => {})
       const saved = offlineSearch(query, client)
       if (saved && !navigator.onLine) return saved
       try {
         return await globalSearch({ data: { query }, signal: withTimeout(signal, 5_000) })
       } catch (error) {
-        if (saved) return saved
+        await loadSearch().catch(() => {})
+        const fallback = offlineSearch(query, client)
+        if (fallback) return fallback
         throw error
       }
     },

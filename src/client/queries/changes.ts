@@ -1,5 +1,5 @@
 import { queryOptions } from '@tanstack/react-query'
-import { currentReference, referenceData, savedQuery } from '../offline/runtime'
+import { currentReference, loadSavedQuery, referenceData, savedQuery } from '../offline/runtime'
 import { armyUpdates, catalogueChangeLog, referenceChanges, rosterChanges, savedRosterChangedIds } from '../functions'
 import type { ReferenceLink } from '../../contracts/catalogueChanges'
 import { referenceStaleTime, SSR_STALE_TIME } from './shared'
@@ -34,7 +34,7 @@ export const referenceChangesQuery = (link: ReferenceLink) => {
     networkMode: 'always',
     initialData: () => savedQuery<Changes>(currentReference(), key),
     queryFn: async ({ signal }) => {
-      const saved = savedQuery<Changes>(referenceData(), key)
+      const saved = await loadSavedQuery<Changes>(referenceData(), key)
       if (saved && currentReference()) return saved
       if (referenceData() && !navigator.onLine) return saved ?? []
       try {

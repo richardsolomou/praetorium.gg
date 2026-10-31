@@ -2,18 +2,17 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import type { ConstructionWorkerAnswer, ConstructionWorkerRequest } from './construction.worker'
 
 const mocks = vi.hoisted(() => ({
-  download: vi.fn(),
-  unpack: vi.fn(),
+  part: vi.fn(),
   candidates: vi.fn(),
   read: vi.fn(),
   source: vi.fn(),
   steps: vi.fn(),
 }))
 
-vi.mock('./download', () => ({ bundleAt: mocks.download }))
-vi.mock('./compressedReference', () => ({ unpackConstruction: mocks.unpack }))
+vi.mock('./referenceStore', () => ({ readPart: mocks.part }))
 vi.mock('../../shared/combatLoadouts', () => ({ combatLoadoutCandidates: mocks.candidates }))
-vi.mock('./constructionSource', () => ({
+vi.mock('./constructionSource', async (actual) => ({
+  loadConstructionData: (await actual<typeof import('./constructionSource')>()).loadConstructionData,
   constructionSource: mocks.source,
   buildConstruction: () => ({ catalogue: {}, rules: {} }),
   runConstructionRead: mocks.read,
@@ -30,7 +29,10 @@ let handle: (request: ConstructionWorkerRequest) => Promise<unknown>
 beforeEach(async () => {
   vi.resetModules()
   posted = []
-  mocks.download.mockResolvedValue({ construction: { revision: 'base' } })
+  mocks.part.mockImplementation(async (asset: string) => {
+    if (!(asset in PARTS)) throw new Error('This part of the download is unavailable')
+    return structuredClone(PARTS[asset])
+  })
   mocks.source.mockReturnValue({ revision: 'base' })
   mocks.read.mockReturnValue('answer')
   mocks.steps.mockImplementation(function* () {})
@@ -46,9 +48,13 @@ beforeEach(async () => {
 })
 afterEach(() => vi.unstubAllGlobals())
 
-const source = { url: '/assets/construction-a.bin' }
-const prepare = (catalogueId = 'cat', from: { url: string; packed?: string } = source) =>
-  handle({ kind: 'prepare', source: from, catalogueId, units: true, keys: ['build:', `units:${catalogueId}`] })
+const source = { id: 'download', parts: { catalogue: '/catalogue', rules: '/rules', editions: { mfm: '/mfm' } } }
+const PARTS: Record<string, unknown> = {
+  '/catalogue': { version: 1, revision: 'base', files: [], datacards: {}, mfm: null, editions: [] },
+  '/rules': { revision: 'base', rules: {} },
+}
+const prepare = (catalogueId = 'cat') =>
+  handle({ kind: 'prepare', source, catalogueId, units: true, keys: ['build:', `units:${catalogueId}`] })
 /** A read after its preparation, which is when the page sends one; answers before it are dropped. */
 const read = async (name: Extract<ConstructionWorkerRequest, { kind: 'read' }>['name'] = 'unitWounds') => {
   await prepare()
@@ -69,16 +75,15 @@ it('reports a read the rules cannot answer without giving up on the download', a
   expect(posted).toEqual([{ id: 1, error: 'Unknown datasheet' }])
 })
 
-it('gives up on a download it cannot fetch', async () => {
-  mocks.download.mockRejectedValue(new Error('offline'))
+it('gives up on a download whose current rules it cannot read', async () => {
+  mocks.part.mockRejectedValue(new Error('offline'))
   await prepare()
   expect(posted.some((answer) => 'unavailable' in answer)).toBe(true)
 })
 
-it('loads the page’s packed copy instead of fetching the download', async () => {
-  mocks.unpack.mockResolvedValue({ revision: 'base' })
-  await prepare('cat', { ...source, packed: 'packed' })
-  expect({ unpacked: mocks.unpack.mock.calls, fetched: mocks.download.mock.calls.length }).toEqual({ unpacked: [['packed']], fetched: 0 })
+it('keeps the download for the current rules when another rules version cannot be read', async () => {
+  await prepare('mfm~cat')
+  expect(posted).toEqual([{ unprepared: ['build:', 'units:mfm~cat'] }])
 })
 
 it('streams a loadout search a batch at a time, as the page asks', async () => {

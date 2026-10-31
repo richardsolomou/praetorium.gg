@@ -8,7 +8,6 @@ const mocks = vi.hoisted(() => ({
   current: vi.fn(),
   held: vi.fn(),
   offline: vi.fn(),
-  packed: vi.fn(),
   published: [] as (() => void)[],
 }))
 
@@ -43,9 +42,7 @@ class FakeWorker {
 
 vi.mock('./construction.worker?worker&inline', () => ({ default: FakeWorker }))
 vi.mock('posthog-js', () => ({ posthog: { get_property: () => mocks.userState, capture: mocks.capture } }))
-vi.mock('./compressedReference', () => ({ packedConstructionOf: mocks.packed }))
 vi.mock('./runtime', () => ({
-  currentConstruction: () => mocks.current()?.constructionBundle,
   currentReference: mocks.current,
   referenceData: mocks.held,
   offlineData: mocks.offline,
@@ -53,7 +50,13 @@ vi.mock('./runtime', () => ({
 }))
 
 let worker: typeof import('./constructionWorker')
-const DOWNLOAD = { constructionBundle: '/assets/construction-a.bin' }
+const download = (revision: string) => ({
+  download: {
+    revision,
+    construction: { catalogue: `/assets/construction-${revision}.bin`, rules: '/assets/construction-r.bin', editions: {} },
+  },
+})
+const DOWNLOAD = download('a')
 
 beforeEach(async () => {
   vi.resetModules()
@@ -64,7 +67,6 @@ beforeEach(async () => {
   mocks.current.mockReturnValue(DOWNLOAD)
   mocks.held.mockReturnValue(DOWNLOAD)
   mocks.offline.mockReturnValue(undefined)
-  mocks.packed.mockReturnValue(undefined)
   vi.stubGlobal('Worker', FakeWorker)
   vi.stubGlobal('navigator', { onLine: true })
   vi.stubGlobal('location', { href: 'https://praetorium.gg/simulator' })
@@ -81,44 +83,46 @@ const wounds = () => worker.deviceConstructionRead('unitWounds', { catalogueId: 
 const units = () => worker.deviceConstructionRead('units', { catalogueId: 'cat', query: '' }, 'cat')
 /** Makes a read only for what it starts; one the worker answers is left to settle unobserved. */
 const start = (read: () => Promise<unknown> | null) => void read()?.catch(() => {})
-/** A worker that has built its data, as the first read leaves one. */
+/** A worker that has built its data, as the roster builder's first unit read leaves one. */
 const prepared = async () => {
-  start(wounds)
+  start(units)
   await loaded()
   mocks.workers[0]!.prepare()
 }
 const disconnected = () => {
   vi.stubGlobal('navigator', { onLine: false })
   mocks.current.mockReturnValue(undefined)
-  mocks.packed.mockReturnValue('packed')
 }
 
 it('leaves a read to the server while the worker has not prepared it', () => {
   expect(wounds()).toBeNull()
 })
 
-it('starts preparing what an unanswered read needs from the published download', async () => {
+it('leaves other pages’ reads to the server without building construction data for them while connected', async () => {
   start(wounds)
+  await loaded()
+  expect(mocks.workers).toHaveLength(0)
+})
+
+it('starts preparing an unanswered unit read from the published download’s parts', async () => {
+  start(units)
   await loaded()
   expect(mocks.workers[0]!.of('prepare')).toEqual([
     {
       kind: 'prepare',
-      source: { url: `https://praetorium.gg${DOWNLOAD.constructionBundle}` },
+      source: {
+        id: 'a',
+        parts: {
+          catalogue: 'https://praetorium.gg/assets/construction-a.bin',
+          rules: 'https://praetorium.gg/assets/construction-r.bin',
+          editions: {},
+        },
+      },
       catalogueId: 'cat',
-      units: false,
-      keys: ['build:'],
+      units: true,
+      keys: ['build:', 'units:cat'],
     },
   ])
-})
-
-it('hands the worker the page’s packed copy so it need not fetch the download again', async () => {
-  mocks.packed.mockReturnValue('packed')
-  start(wounds)
-  await loaded()
-  expect(mocks.workers[0]!.of('prepare')[0]?.source).toEqual({
-    url: `https://praetorium.gg${DOWNLOAD.constructionBundle}`,
-    packed: 'packed',
-  })
 })
 
 it('answers a prepared read from the worker', async () => {
@@ -128,15 +132,17 @@ it('answers a prepared read from the worker', async () => {
   expect(await answer).toBe('wounds')
 })
 
+const otherUnits = () => worker.deviceConstructionRead('units', { catalogueId: 'other', query: '' }, 'other')
+
 it('leaves unit reads to the server until their faction is prepared', async () => {
   await prepared()
-  expect(units()).toBeNull()
+  expect(otherUnits()).toBeNull()
 })
 
 it('prepares the faction of an unanswered unit read', async () => {
   await prepared()
-  start(units)
-  expect(mocks.workers[0]!.of('prepare').at(-1)?.keys).toEqual(['units:cat'])
+  start(otherUnits)
+  expect(mocks.workers[0]!.of('prepare').at(-1)?.keys).toEqual(['units:other'])
 })
 
 it('answers unit reads once their faction is prepared', async () => {
@@ -154,23 +160,23 @@ it('prepares a rules version apart from the current rules', async () => {
 })
 
 it('does not ask for a preparation already under way', async () => {
-  start(wounds)
-  start(wounds)
+  start(units)
+  start(units)
   await loaded()
   expect(mocks.workers[0]!.of('prepare').length).toBe(1)
 })
 
 it('asks again after a preparation failed', async () => {
-  start(wounds)
+  start(units)
   await loaded()
-  mocks.workers[0]!.message({ unprepared: ['build:'] })
-  start(wounds)
+  mocks.workers[0]!.message({ unprepared: ['build:', 'units:cat'] })
+  start(units)
   expect(mocks.workers[0]!.of('prepare').length).toBe(2)
 })
 
 it('leaves reads to the server without a current construction download', () => {
   mocks.current.mockReturnValue(undefined)
-  start(wounds)
+  start(units)
   expect(mocks.workers.length).toBe(0)
 })
 
@@ -193,14 +199,11 @@ it('waits for the worker to prepare a read while disconnected, since nothing els
   expect(await answer).toBe('wounds')
 })
 
-it('loads the held download from its packed copy while disconnected', async () => {
+it('reads the download the page holds while disconnected', async () => {
   disconnected()
   start(wounds)
   await loaded()
-  expect(mocks.workers[0]!.of('prepare')[0]?.source).toEqual({
-    url: `https://praetorium.gg${DOWNLOAD.constructionBundle}`,
-    packed: 'packed',
-  })
+  expect(mocks.workers[0]!.of('prepare')[0]?.source.id).toBe('a')
 })
 
 it('lets a disconnected read fall back when the worker cannot prepare it', async () => {
@@ -211,25 +214,19 @@ it('lets a disconnected read fall back when the worker cannot prepare it', async
   await expect(answer).rejects.toThrow('could not be prepared')
 })
 
-it('does not use the worker while disconnected without a packed copy to load', () => {
-  disconnected()
-  mocks.packed.mockReturnValue(undefined)
-  expect(wounds()).toBeNull()
-})
-
 it('replaces the worker when the download changes', async () => {
   await prepared()
-  mocks.current.mockReturnValue({ constructionBundle: '/assets/construction-b.bin' })
-  start(wounds)
+  mocks.current.mockReturnValue(download('b'))
+  start(units)
   await loaded()
   expect({ workers: mocks.workers.length, stopped: mocks.workers[0]!.terminated }).toEqual({ workers: 2, stopped: true })
 })
 
 it('gives up on a download the worker cannot read', async () => {
-  start(wounds)
+  start(units)
   await loaded()
   mocks.workers[0]!.message({ unavailable: 'offline' })
-  start(wounds)
+  start(units)
   await loaded()
   expect(mocks.workers.length).toBe(1)
 })
@@ -251,7 +248,7 @@ it('stops an idle worker so it does not keep the catalogue in memory', async () 
 })
 
 it('keeps a worker that is still preparing', async () => {
-  start(wounds)
+  start(units)
   await loaded()
   vi.useFakeTimers()
   vi.advanceTimersByTime(worker.CONSTRUCTION_WORKER_IDLE_MS)

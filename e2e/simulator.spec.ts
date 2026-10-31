@@ -1832,10 +1832,6 @@ test('Defiler can optimize ranged attacks instead of its stronger combined loado
   await chooseCombatUnit(page, 'Attacker', 'Death Guard', 'Defiler')
   await chooseCombatUnit(page, 'Defender', 'Space Marines', 'Intercessor Squad')
   await waitForOfflineApp(page)
-  // A fresh download has no packed copy for the worker, so it must fetch its construction asset.
-  await page.evaluate(() => {
-    window.PraetoriumReferenceCache = structuredClone(window.PraetoriumReferenceCache)
-  })
   const attacker = page.getByRole('region', { name: 'Attacker', exact: true })
   const options = attacker.getByRole('button', { name: 'Optimization options', exact: true })
   const optimize = attacker.getByRole('button', { name: 'Optimize', exact: true })

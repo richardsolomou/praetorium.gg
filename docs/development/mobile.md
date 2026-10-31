@@ -18,6 +18,7 @@
 ## Saved application data
 
 - Saved launches must preserve authentication, capabilities, cookies, and origin checks.
+- The shell stores only the saved application; its download's parts stay in the web view's Cache Storage, which hosted pages and the saved application share.
 - Run `just e2e-native-offline-ios` after changing saved launch or storage, and test an upgrade with a previous build's reference download intact.
 
 ## Notifications

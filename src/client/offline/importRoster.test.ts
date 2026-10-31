@@ -3,15 +3,15 @@ import { importRoster } from '../functions'
 
 const mocks = vi.hoisted(() => ({ exchangeFaction: vi.fn() }))
 vi.mock('../../server/functions', () => ({ importRoster: async () => Promise.reject(new TypeError('Failed to fetch')) }))
-vi.mock('./runtime', async (actual) => ({
-  ...(await actual<typeof import('./runtime')>()),
-  referenceData: () => ({
-    queries: [
-      { key: ['faction-index'], data: { factions: [{ id: 'mfm~necrons-root', name: 'Necrons', isDefault: true }] } },
-      { key: ['faction', 'necrons-root'], data: { id: 'necrons-root', name: 'Necrons' } },
-    ],
-  }),
-}))
+vi.mock('./referenceStore', async () => (await import('./savedReference.fixtures')).storedPartReader)
+vi.mock('./runtime', async (actual) => {
+  const { savedDownload } = await import('./savedReference.fixtures')
+  const saved = savedDownload([
+    { key: ['faction-index'], data: { factions: [{ id: 'mfm~necrons-root', name: 'Necrons', isDefault: true }] } },
+    { key: ['faction', 'necrons-root'], data: { id: 'necrons-root', name: 'Necrons' } },
+  ])
+  return { ...(await actual<typeof import('./runtime')>()), referenceData: () => saved }
+})
 vi.mock('./construction', async (actual) => ({
   ...(await actual<typeof import('./construction')>()),
   constructionRead: async (name: 'importExchange', data: never) =>

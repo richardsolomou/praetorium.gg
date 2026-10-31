@@ -8,7 +8,11 @@ import { prepareReferenceBundle, referenceBundleKey, type ReferenceStore } from 
 const bundle = `/assets/reference-${'a'.repeat(64)}.bin`
 const current = `/assets/construction-${'b'.repeat(64)}.bin`
 const complete = `/assets/construction-${'c'.repeat(64)}.bin`
-const manifest = JSON.stringify({ revision: 'a'.repeat(64), bundle, construction: { current, complete, versions: [] } })
+const manifest = JSON.stringify({
+  revision: 'a'.repeat(64),
+  reference: { core: bundle, search: bundle, parts: {} },
+  construction: { catalogue: current, rules: complete, editions: {} },
+})
 
 let root: string
 let directory: string

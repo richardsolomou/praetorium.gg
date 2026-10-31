@@ -17,7 +17,7 @@ test('a connected launch loads the current application instead of the saved appl
   await page.goto('/')
   await page.evaluate(async () => {
     await (
-      await caches.open('praetorium-reference-v2')
+      await caches.open('praetorium-reference-v3')
     ).put('/offline-reference.html', new Response('<h1>Previous application release</h1>', { headers: { 'Content-Type': 'text/html' } }))
     await navigator.serviceWorker.register('/reference-worker.js')
     await navigator.serviceWorker.ready

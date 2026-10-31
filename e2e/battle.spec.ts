@@ -158,7 +158,7 @@ test('a double tap on the turn control ends one phase', async ({ page }) => {
   await practiceBattle(page, roster)
   await startBattle(page)
   // With the rules on the device, the next phase shows before the service answers and puts its button under the same finger.
-  await expect.poll(() => page.evaluate(() => Boolean(window.PraetoriumReferenceCache?.construction)), { timeout: 60_000 }).toBe(true)
+  await expect.poll(() => page.evaluate(() => window.PraetoriumReferenceCache?.version), { timeout: 60_000 }).toBe(2)
   const heading = page.locator('[data-scoreboard] h1')
   await expect(heading).toContainText('command phase')
   const box = (await advanceButton(page).boundingBox())!
@@ -480,7 +480,7 @@ test('a tactical hand pays out when the card says', async ({ browser }) => {
   await expect(scoring).toContainText(`Scoring ${scored} VP`)
 
   // Hold Bob's first submission so Alice deterministically wins this race.
-  await expect.poll(() => bob.evaluate(() => Boolean(window.PraetoriumReferenceCache?.construction))).toBe(true)
+  await expect.poll(() => bob.evaluate(() => window.PraetoriumReferenceCache?.version)).toBe(2)
   const answerName = await answer.getAttribute('aria-label')
   await bobScoring.getByRole('button', { name: answerName ?? '', exact: true }).click()
   const { promise: held, resolve: releaseBob } = Promise.withResolvers<void>()

@@ -1,11 +1,12 @@
 import { keepPreviousData, useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { useEffect, useMemo, useSyncExternalStore } from 'react'
 import { OWN_SEARCH_BATTLES, SEARCH_MIN_LENGTH } from '../../../core/referenceSearch'
-import { currentReference, searchDownload, subscribeReference } from '../../offline/runtime'
+import { currentReference, decodedSearch, loadSearch, searchDownload, subscribeReference } from '../../offline/runtime'
 import { battlesQuery, factionIndexQuery, globalSearchQuery, meQuery, savedRosterSummariesQuery } from '../../queries'
 import { useSettled } from '../../useSettled'
 
 const downloadIsCurrent = () => Boolean(currentReference())
+const searchIsDecoded = () => Boolean(currentReference() && decodedSearch())
 
 /**
  * Global search results for what the player typed. A download the service still publishes answers on
@@ -13,9 +14,14 @@ const downloadIsCurrent = () => Boolean(currentReference())
  * the service once typing settles.
  */
 export function useGlobalSearch(trimmed: string, open = true) {
-  const downloaded = useSyncExternalStore(subscribeReference, downloadIsCurrent, () => false)
+  const current = useSyncExternalStore(subscribeReference, downloadIsCurrent, () => false)
+  const downloaded = useSyncExternalStore(subscribeReference, searchIsDecoded, () => false)
+  // The search index is decoded only once a player searches: it covers every faction.
+  useEffect(() => {
+    if (open && current && !downloaded) void loadSearch().catch(() => {})
+  }, [open, current, downloaded])
   const { data: me } = useQuery(meQuery())
-  const own = open && downloaded && Boolean(me)
+  const own = open && current && Boolean(me)
   const { data: rosters } = useQuery({ ...savedRosterSummariesQuery(), enabled: own })
   const battlePages = useInfiniteQuery({ ...battlesQuery(), enabled: own })
   const battles = battlePages.data

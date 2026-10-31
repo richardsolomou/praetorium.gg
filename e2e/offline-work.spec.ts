@@ -44,9 +44,7 @@ test('simulation and loadout optimization work in a cold offline application', a
   await page.close()
   const reopened = await context.newPage()
   await reopened.goto('/simulator')
-  await expect
-    .poll(() => reopened.evaluate(() => window.PraetoriumOffline?.queries.some((entry) => entry.key[0] === 'combat-units')))
-    .toBe(true)
+  await expect.poll(() => reopened.evaluate(() => Boolean(window.PraetoriumOffline?.download.reference.parts['combat-units']))).toBe(true)
   await chooseCombatUnit(reopened, 'Attacker', 'Dark Angels', 'Deathwing Knights')
   await chooseCombatUnit(reopened, 'Defender', 'Death Guard', 'Mortarion')
   const attacker = reopened.getByRole('region', { name: 'Attacker', exact: true })
@@ -355,15 +353,22 @@ test('a roster on another rules version saves that version for offline edits', a
   await signUp(page, uniqueName('Older rules'))
   await createRoster(page, { faction: 'Adeptus Custodes', detachment: /Aquilan Shield/, name: 'Archived army' })
   await waitForOfflineApp(page)
-  // A device without rosters on other versions downloads construction data for the current rules alone.
-  expect(await page.evaluate(() => window.PraetoriumReferenceCache?.constructionBundle)).toBe(construction.current)
+  // A device without rosters on other versions saves construction data for the current rules alone.
+  expect(await page.evaluate(() => window.PraetoriumReferenceCache?.version === 2 && window.PraetoriumReferenceCache.editions)).toEqual([])
   const dialog = await openRosterSetup(page)
   await chooseRulesVersion(dialog, 'MFM 1.5 · Archived', 'Shield Host')
   await confirmRosterSetup(dialog)
   await expect(page.locator('[data-rules-version]')).toHaveAttribute('aria-label', 'Rules version: MFM 1.5 · Archived')
+  // Saving the roster names its rules version, which the device then saves construction data for alone.
   await expect
-    .poll(() => page.evaluate(() => window.PraetoriumReferenceCache?.constructionBundle), { timeout: 180_000 })
-    .toBe(construction.complete)
+    .poll(() => page.evaluate(() => window.PraetoriumReferenceCache?.version === 2 && window.PraetoriumReferenceCache.editions.length), {
+      timeout: 180_000,
+    })
+    .toBe(1)
+  const [edition] = await page.evaluate(() =>
+    window.PraetoriumReferenceCache?.version === 2 ? window.PraetoriumReferenceCache.editions : [],
+  )
+  expect(Object.keys(construction.editions)).toContain(edition)
   await context.setOffline(true)
   await page.getByLabel('Add a unit').fill('Allarus Custodians')
   await page.getByRole('button', { name: 'Add Allarus Custodians', exact: true }).first().click()
