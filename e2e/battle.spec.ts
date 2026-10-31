@@ -854,8 +854,8 @@ test('a pass answered slowly leaves settling the empty turn to the device that g
   await setupBattle(alice, bob, { opponent: bobName, hostRoster: aliceRoster, guestRoster: bobRoster })
   const token = lastPathSegment(alice.url())
   const { id } = await battleLog(alice)
-  // A battle page prepares the rules that show a pass ahead of the service only if they are on the device as it opens.
-  await expect.poll(() => alice.evaluate(() => Boolean(window.PraetoriumReferenceCache?.construction)), { timeout: 60_000 }).toBe(true)
+  // A battle page reads the rules that show a pass ahead of the service only once the device has saved its download.
+  await expect.poll(() => alice.evaluate(() => window.PraetoriumReferenceCache?.version), { timeout: 60_000 }).toBe(2)
   await alice.getByRole('navigation').getByRole('link', { name: 'Battles', exact: true }).first().click()
   await alice.locator(`a[href$="${token}"]`).first().click()
   await expect(alice.getByRole('button', { name: 'End the command phase' })).toBeVisible()
