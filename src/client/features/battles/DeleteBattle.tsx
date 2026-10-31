@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
-import { battlesQuery } from '../../queries'
+import { forgetBattle } from '../../queries'
 import { deleteBattle } from '../../functions'
 import type { Battle } from './battle'
 
@@ -14,8 +14,8 @@ export function DeleteBattleDialog({ battle, onClose }: { battle: Battle | null;
   const queryClient = useQueryClient()
   const remove = useMutation({
     mutationFn: (token: string) => deleteBattle({ data: { token } }),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: battlesQuery().queryKey })
+    onSuccess: (_, token) => {
+      forgetBattle(queryClient, token)
       onClose()
     },
   })

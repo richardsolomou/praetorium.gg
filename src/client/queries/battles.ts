@@ -1,4 +1,11 @@
-import { infiniteQueryOptions, keepPreviousData, queryOptions, replaceEqualDeep } from '@tanstack/react-query'
+import {
+  infiniteQueryOptions,
+  keepPreviousData,
+  queryOptions,
+  replaceEqualDeep,
+  type InfiniteData,
+  type QueryClient,
+} from '@tanstack/react-query'
 import {
   battleRatingChanges,
   battleReport,
@@ -65,6 +72,19 @@ export function battleFeedQuery<Page extends { nextCursor: BattlesCursor | null 
 }
 
 export const battlesQuery = () => battleFeedQuery(battlesKey(), (before) => myBattles({ data: { before } }))
+
+/** Takes a deleted battle off the player's list at once rather than after the refetch, which can take a second. */
+export function forgetBattle(queryClient: QueryClient, token: string) {
+  queryClient.setQueryData<InfiniteData<Awaited<ReturnType<typeof myBattles>> | undefined>>(
+    battlesKey(),
+    (feed) =>
+      feed && {
+        ...feed,
+        pages: feed.pages.map((page) => page && { ...page, battles: page.battles.filter((battle) => battle.token !== token) }),
+      },
+  )
+  void queryClient.invalidateQueries({ queryKey: battlesKey() })
+}
 
 export function battlesFrom(data: { pages: ({ battles: unknown[] } | undefined)[] } | undefined) {
   return uniqueBy(
