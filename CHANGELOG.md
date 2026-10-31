@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.208.7 (2026-10-31)
+
+### Patch Changes
+
+- 3facaa5: Terrain placement distances and mat ruler readings are now given to the nearest half inch.
+- 3facaa5: Terrain layout distances between pieces now run straight from corner to corner, two per piece, instead of ending partway along another piece's side.
+
 ## 0.208.6 (2026-10-31)
 
 ### Patch Changes
