@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.208.5 (2026-10-31)
+
+### Patch Changes
+
+- 86ae567: Starting or deleting a battle no longer waits on your whole battle list to reload.
+- 86ae567: Starting a battle checks for a tournament matchup in one request instead of opening each of your tournaments.
+
 ## 0.208.4 (2026-10-31)
 
 ### Patch Changes
