@@ -153,6 +153,11 @@ describe('printing a measurement', () => {
     expect(formatInches(6.5)).toBe('6½\u2033')
     expect(formatInches(6.003)).toBe('6″')
     expect(formatInches(15.877)).toBe('15⅞″')
+    expect(formatInches(0.875)).toBe('⅞″')
+  })
+
+  it('prints placement distances to the nearest half inch', () => {
+    expect(formatInches(6.3, 2)).toBe('6½″')
   })
 })
 
@@ -317,16 +322,76 @@ describe('placing terrain piece by piece', () => {
     expect(ends).not.toContainEqual({ x: 13, y: 13 })
   })
 
-  it('measures a later piece from the edge of one already down when that is nearest', () => {
+  it('measures a later piece from corners of one already down', () => {
     const geometry = {
       board,
       areas: [
         { ...openArea(square(2, 2, 4)), id: 'first' },
-        { ...openArea(square(9, 2, 4)), id: 'second' },
+        { ...openArea(square(9, 6, 3)), id: 'second' },
       ],
     }
     const froms = placementMeasurements(geometry, [], [], { terrain: true }).map((measurement) => measurement.from)
     expect(froms).toContainEqual({ x: 6, y: 2 })
+  })
+
+  it('places a piece flush with the board edge', () => {
+    const geometry = { board, areas: [{ ...openArea(square(3, 0, 2)), id: 'flush' }] }
+    expect(placementMeasurements(geometry, [], [], { terrain: true })).not.toHaveLength(0)
+  })
+
+  it('skips corners whose distances fall between half inches', () => {
+    const geometry = {
+      board,
+      areas: [
+        { ...openArea(square(2, 2, 4)), id: 'first' },
+        { ...openArea(square(9, 3, 4)), id: 'second' },
+      ],
+    }
+    const froms = placementMeasurements(geometry, [], [], { terrain: true }).map((measurement) => measurement.from)
+    expect(froms).not.toContainEqual({ x: 6, y: 2 })
+  })
+
+  it('measures from corners of a piece already down, never partway along a side', () => {
+    const diamond = [
+      { x: 5, y: 2 },
+      { x: 8, y: 5 },
+      { x: 5, y: 8 },
+      { x: 2, y: 5 },
+    ]
+    const geometry = {
+      board,
+      areas: [
+        { ...openArea(diamond), id: 'first' },
+        { ...openArea(square(11, 3, 4)), id: 'second' },
+      ],
+    }
+    const offsets = placementMeasurements(geometry, [], [], { terrain: true }).filter((measurement) => measurement.reference === 'terrain')
+    const loose = offsets.filter(({ from }) => !diamond.some((corner) => corner.x === from.x && corner.y === from.y))
+    expect(loose).toEqual([])
+  })
+
+  it('never measures along a piece’s own side', () => {
+    const barrier = [
+      { x: 2, y: 2 },
+      { x: 8, y: 2 },
+      { x: 8, y: 3 },
+      { x: 2, y: 3 },
+    ]
+    const block = [
+      { x: 8, y: 3 },
+      { x: 9.5, y: 3 },
+      { x: 9.5, y: 4.5 },
+      { x: 8, y: 4.5 },
+    ]
+    const geometry = {
+      board,
+      areas: [
+        { ...openArea(barrier), id: 'first' },
+        { ...openArea(block), id: 'second' },
+      ],
+    }
+    const froms = placementMeasurements(geometry, [], [], { terrain: true }).map((measurement) => measurement.from)
+    expect(froms).not.toContainEqual({ x: 8, y: 3 })
   })
 
   it('keeps the step number when a published distance repeats a placement one', () => {
