@@ -47,7 +47,7 @@ import { SearchableSelect, type SearchableGroup } from '../../components/Searcha
 import { PointsTotalError, PointsTotalInput } from '../../components/PointsTotalInput'
 import { factionSelectGroups } from './builder/factions'
 import { OptionalRulesDialog } from './OptionalRulesDialog'
-import { detachmentConflict, dispositionsFor, dispositionTone } from '../../components/rosterSetup'
+import { detachmentRefusal, dispositionsFor, dispositionTone } from '../../components/rosterSetup'
 import { useFavouriteFactions } from '../../favouriteFactions'
 import { favouriteDetachmentsFirst, useFavouriteDetachments } from '../../favouriteDetachments'
 import { FavouriteDetachmentToggle } from '../reference/factions/FavouriteDetachmentToggle'
@@ -204,7 +204,6 @@ export function RosterSetupDialog({
   // act on. What is waived still shapes this dialog, because a size that no longer
   // caps detachments or their points is offering the player a different set.
   const singleDetachment = isKotcLimit(draft.limit) && enforces(draft.waivedRules, 'detachments')
-  const budgeted = enforces(draft.waivedRules, 'detachment-points')
   const selected = faction?.detachments.filter((detachment) => draft.detachmentIds.includes(detachment.id)) ?? []
   const unavailableDetachmentIds = faction
     ? draft.detachmentIds.filter((id) => !faction.detachments.some((detachment) => detachment.id === id))
@@ -241,13 +240,18 @@ export function RosterSetupDialog({
     allowance,
     draft.waivedRules,
   )
+  // Choosing another detachment replaces a single-detachment list's only one, so nothing taken stands in its way.
+  const refusals = new Map(
+    (faction?.detachments ?? []).flatMap((detachment) => {
+      const refusal = draft.detachmentIds.includes(detachment.id)
+        ? null
+        : detachmentRefusal(detachment, singleDetachment ? [] : selected, draft.limit, draft.waivedRules)
+      return refusal ? [[detachment.id, refusal] as const] : []
+    }),
+  )
+  // A clash stays on the shelf to say why; one over the count or the DP budget is not offered at all.
   const offeredDetachments = favouriteDetachmentsFirst(
-    faction?.detachments.filter((detachment) => {
-      if (draft.detachmentIds.includes(detachment.id)) return true
-      if (draft.detachmentIds.length >= detachmentLimit(draft.limit, draft.waivedRules) && !singleDetachment) return false
-      if (!budgeted || !selected.length || allowance === null || detachment.points == null) return true
-      return spent + detachment.points <= allowance
-    }) ?? [],
+    faction?.detachments.filter((detachment) => (refusals.get(detachment.id)?.kind ?? 'conflict') === 'conflict') ?? [],
     faction?.id ?? '',
     favouriteDetachments,
   )
@@ -499,7 +503,7 @@ export function RosterSetupDialog({
         <div className="mt-2 grid max-h-72 gap-2 overflow-y-auto sm:grid-cols-2">
           {availableDetachments.map((detachment) => {
             const chosen = draft.detachmentIds.includes(detachment.id)
-            const conflict = chosen || singleDetachment ? null : detachmentConflict(detachment, selected)
+            const conflict = refusals.get(detachment.id)?.reason ?? null
             return (
               <div
                 key={detachment.id}
