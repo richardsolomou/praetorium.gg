@@ -1,5 +1,16 @@
 # praetorium
 
+## 0.208.0 (2026-10-31)
+
+### Minor Changes
+
+- 9c51913: Each side of the combat simulator can choose detachments for its unit within the Strike Force DP budget, fielding their rules, stratagems and enhancements.
+- 9c51913: The simulator's unit picker now opens rosters with From a roster, replacing the roster picker above each unit.
+
+### Patch Changes
+
+- 9c51913: The simulator's Rules & buffs now says when rules text isn't loaded, instead of leaving abilities and stratagems out without a word.
+
 ## 0.207.0 (2026-10-31)
 
 ### Minor Changes
