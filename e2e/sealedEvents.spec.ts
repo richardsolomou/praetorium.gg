@@ -117,8 +117,8 @@ test('players can decline and publish their original sealed event roster across 
   await sharing.getByRole('button', { name: 'Make public', exact: true }).click()
   await expect(sharing).toHaveCount(0)
   const sealedEventToken = lastPathSegment(sealedEventUrl)
-  const { event } = (await product.leagueByToken(sealedEventToken))!
-  const publication = await product.leagueRosterSharing(sealedEventToken, event.token, saved.userId)
+  const { event } = (await product.sealedEventByToken(sealedEventToken))!
+  const publication = await product.sealedEventRosterSharing(sealedEventToken, event.token, saved.userId)
   const sharedId = publication!.roster.id
   expect(sharedId).toBe(savedId)
   expect((await product.roster(savedId))?.visibility).toBe('public')
@@ -322,7 +322,7 @@ async function submitFixtureRoster(
     now,
   })
   if (!saved) throw new Error('The sealed event fixture roster was refused.')
-  const result = await product.leagueCommand(
+  const result = await product.sealedEventCommand(
     {
       op: 'submit',
       token: sealedEventToken,
@@ -345,7 +345,7 @@ async function submitFixtureRoster(
 async function revealThroughServer(sealedEventToken: string) {
   const event = await tournamentEvent(sealedEventToken)
   const product = await productOperator()
-  const result = await product.leagueCommand(
+  const result = await product.sealedEventCommand(
     { op: 'reveal', token: sealedEventToken, ownerId: event.ownerId, eventToken: event.token, now: Date.now() },
     z.object({ outcome: z.string() }),
   )
@@ -356,7 +356,7 @@ async function sealEventRosters(sealedEventToken: string) {
   const event = await tournamentEvent(sealedEventToken)
   const entries = await productSql<{
     user_id: string
-  }>`SELECT user_id FROM league_event_entries WHERE event_id = ${event.id} AND status = 'accepted'`
+  }>`SELECT user_id FROM sealed_event_entries WHERE event_id = ${event.id} AND status = 'accepted'`
   if (entries.length !== 2) throw new Error('The sealed event test entrants are missing.')
   for (const entry of entries) {
     if ((await submitFixtureRoster(sealedEventToken, event, entry.user_id, 2_000, true, 'Sealed roster')) !== 'sealed') {
@@ -369,7 +369,7 @@ async function createTournamentWithoutFormat(ownerName: string, sealedEventName:
   const ownerId = await userIdNamed(ownerName)
   const token = crypto.randomUUID()
   const product = await productOperator()
-  await product.leagueCommand(
+  await product.sealedEventCommand(
     {
       op: 'create',
       id: crypto.randomUUID(),
@@ -440,7 +440,7 @@ async function sealTeamEventRosters(sealedEventToken: string) {
   const entries = await productSql<{
     user_id: string
     required_limit: [number, number | []]
-  }>`SELECT user_id, required_limit FROM league_event_entries WHERE event_id = ${event.id} AND status = 'accepted'`
+  }>`SELECT user_id, required_limit FROM sealed_event_entries WHERE event_id = ${event.id} AND status = 'accepted'`
   if (entries.length !== 3 || entries.some((entry) => option(entry.required_limit) === null)) {
     throw new Error('The team sealed event assignments are incomplete.')
   }
@@ -459,7 +459,7 @@ async function sealDoublesEventRosters(sealedEventToken: string, invalidWarlords
   const entries = await productSql<{
     user_id: string
     team_id: [number, string | []]
-  }>`SELECT user_id, team_id FROM league_event_entries WHERE event_id = ${event.id} AND status = 'accepted'`
+  }>`SELECT user_id, team_id FROM sealed_event_entries WHERE event_id = ${event.id} AND status = 'accepted'`
   if (entries.length !== 4 || entries.some((entry) => option(entry.team_id) === null)) throw new Error('The doubles teams are incomplete.')
   const seen = new Set<string>()
   for (const entry of entries) {
@@ -918,7 +918,7 @@ for (const { rules, status } of [
     const entry = page.locator(`[data-person="${ownerName}"]`)
     await expect(entry.getByText('Roster sealed', { exact: true })).toBeVisible()
     const sealedEventToken = lastPathSegment(page.url())
-    const sealed = await operator.leagueRosters(sealedEventToken, saved.userId)
+    const sealed = await operator.sealedEventRosters(sealedEventToken, saved.userId)
     expect(JSON.parse(sealed!.entry.rosterSnapshot!).built.catalogueId).toBe(saved.catalogueId)
     await revealEvent(page)
     await viewRoster(page, ownerName).click()
@@ -1455,7 +1455,7 @@ test('an organizer adds friends to an event without waiting for them to ask', as
   const strangerId = await userIdNamed(names[3])
   const { ownerId } = await tournamentEvent(sealedEventToken)
   const product = await productOperator()
-  const outcome = await product.leagueCommand(
+  const outcome = await product.sealedEventCommand(
     {
       op: 'add',
       token: sealedEventToken,
@@ -1622,7 +1622,7 @@ test('a 2v1 event assigns entrant sizes, filters rosters, and prepares a battle'
       const event = await tournamentEvent(sealedEventToken)
       const entries = await productSql<{
         required_limit: [number, number | []]
-      }>`SELECT required_limit FROM league_event_entries WHERE event_id = ${event.id} AND status = 'accepted'`
+      }>`SELECT required_limit FROM sealed_event_entries WHERE event_id = ${event.id} AND status = 'accepted'`
       return entries.map((entry) => option(entry.required_limit)).toSorted((left, right) => (left ?? 0) - (right ?? 0))
     })
     .toEqual([1_000, 1_000, 2_000])
@@ -1698,11 +1698,11 @@ test('a 2v1 event assigns entrant sizes, filters rosters, and prepares a battle'
   const sealedEntries = await productSql<{
     user_id: string
     roster_snapshot: [number, string | []]
-  }>`SELECT user_id, roster_snapshot FROM league_event_entries WHERE event_id = ${revealedEvent.id} AND status = 'accepted'`
+  }>`SELECT user_id, roster_snapshot FROM sealed_event_entries WHERE event_id = ${revealedEvent.id} AND status = 'accepted'`
   const holder = sealedEntries.find((entry) => option(entry.roster_snapshot)?.includes('priority-assets'))!
   const operator = await productOperator()
   const command = (input: Record<string, unknown>) =>
-    operator.leagueCommand({ token: sealedEventToken, eventToken: revealedEvent.token, now: Date.now(), ...input }, z.unknown())
+    operator.sealedEventCommand({ token: sealedEventToken, eventToken: revealedEvent.token, now: Date.now(), ...input }, z.unknown())
   expect(await command({ op: 'set-team-disposition', ownerId: holder.user_id, disposition: 'take-and-hold' })).toEqual({
     outcome: 'closed',
   })
@@ -1797,10 +1797,10 @@ test('a 2v1 event assigns entrant sizes, filters rosters, and prepares a battle'
   })
   const [eventLink] = await productSql<{
     event_id: string
-  }>`SELECT event_id FROM league_event_battles WHERE battle_id = ${battleId}`
+  }>`SELECT event_id FROM event_battles WHERE battle_id = ${battleId}`
   const [eventIdentity] = await productSql<{ token: string }>`SELECT token FROM sealed_events WHERE id = ${eventLink.event_id}`
   const feed = (viewerId?: string) =>
-    product.battleFeed({ scope: 'league', leagueToken: sealedEventToken, eventToken: eventIdentity.token, limit: 1, viewerId })
+    product.battleFeed({ scope: 'sealed-event', hostToken: sealedEventToken, eventToken: eventIdentity.token, limit: 1, viewerId })
   expect((await feed()).battles).toHaveLength(1)
   await owner.setViewportSize({ width: 1440, height: 900 })
   await owner.goto(battleUrl)

@@ -277,7 +277,7 @@ it('reads product stats carrying a field added after this build', async () => {
     userId: 'user',
     rosterCount: 1,
     battleCount: 0,
-    leagueCount: 0,
+    tournamentCount: 0,
     friendCount: 0,
     practiceOpponent: false,
     fieldFromALaterRelease: 1,

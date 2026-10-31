@@ -238,6 +238,12 @@ export const EarnedAchievements = __t.object('EarnedAchievements', {
 })
 export type EarnedAchievements = __Infer<typeof EarnedAchievements>
 
+export const EventBattles = __t.object('EventBattles', {
+  battleId: __t.string(),
+  eventId: __t.string(),
+})
+export type EventBattles = __Infer<typeof EventBattles>
+
 export const ExternalAccounts = __t.object('ExternalAccounts', {
   key: __t.string(),
   userId: __t.string(),
@@ -286,6 +292,53 @@ export const Friendships = __t.object('Friendships', {
 })
 export type Friendships = __Infer<typeof Friendships>
 
+export const GroupBattles = __t.object('GroupBattles', {
+  battleId: __t.string(),
+  groupId: __t.string(),
+})
+export type GroupBattles = __Infer<typeof GroupBattles>
+
+export const GroupLeaguePlayers = __t.object('GroupLeaguePlayers', {
+  key: __t.string(),
+  leagueId: __t.string(),
+  userId: __t.string(),
+  joinedAt: __t.u64(),
+  withdrawn: __t.bool(),
+})
+export type GroupLeaguePlayers = __Infer<typeof GroupLeaguePlayers>
+
+export const GroupLeagues = __t.object('GroupLeagues', {
+  id: __t.string(),
+  groupId: __t.string(),
+  seed: __t.u32(),
+  createdAt: __t.u64(),
+  publishedAt: __t.option(__t.u64()),
+  deadlines: __t.option(__t.string()),
+})
+export type GroupLeagues = __Infer<typeof GroupLeagues>
+
+export const GroupMembers = __t.object('GroupMembers', {
+  key: __t.string(),
+  groupId: __t.string(),
+  userId: __t.string(),
+  status: __t.string(),
+  role: __t.string(),
+  joinedAt: __t.u64(),
+})
+export type GroupMembers = __Infer<typeof GroupMembers>
+
+export const Groups = __t.object('Groups', {
+  id: __t.string(),
+  token: __t.string(),
+  ownerId: __t.string(),
+  name: __t.string(),
+  description: __t.string(),
+  visibility: __t.string(),
+  admission: __t.string(),
+  createdAt: __t.u64(),
+})
+export type Groups = __Infer<typeof Groups>
+
 export const GuestSeats = __t.object('GuestSeats', {
   seatId: __t.string(),
   battleId: __t.string(),
@@ -294,6 +347,16 @@ export const GuestSeats = __t.object('GuestSeats', {
   joinedAt: __t.option(__t.u64()),
 })
 export type GuestSeats = __Infer<typeof GuestSeats>
+
+export const HiddenListGames = __t.object('HiddenListGames', {
+  eventId: __t.string(),
+  groupId: __t.string(),
+  creatorId: __t.string(),
+  createdAt: __t.u64(),
+  timeZone: __t.option(__t.string()),
+  supersededAt: __t.option(__t.u64()),
+})
+export type HiddenListGames = __Infer<typeof HiddenListGames>
 
 export const ImportedSeats = __t.object('ImportedSeats', {
   key: __t.string(),
@@ -572,6 +635,57 @@ export const Rosters = __t.object('Rosters', {
   archived: __t.option(__t.bool()),
 })
 export type Rosters = __Infer<typeof Rosters>
+
+export const RoundPairings = __t.object('RoundPairings', {
+  key: __t.string(),
+  eventId: __t.string(),
+  round: __t.u32(),
+  table: __t.u32(),
+  aId: __t.string(),
+  bId: __t.option(__t.string()),
+  battleId: __t.option(__t.string()),
+})
+export type RoundPairings = __Infer<typeof RoundPairings>
+
+export const SealedEventEntries = __t.object('SealedEventEntries', {
+  key: __t.string(),
+  eventId: __t.string(),
+  userId: __t.string(),
+  status: __t.string(),
+  joinedAt: __t.u64(),
+  rosterId: __t.option(__t.string()),
+  rosterName: __t.option(__t.string()),
+  rosterSnapshot: __t.option(__t.string()),
+  submittedAt: __t.option(__t.u64()),
+  requiredLimit: __t.option(__t.u32()),
+  teamId: __t.option(__t.string()),
+  droppedAt: __t.option(__t.u64()),
+})
+export type SealedEventEntries = __Infer<typeof SealedEventEntries>
+
+export const SealedEventRosterSharing = __t.object('SealedEventRosterSharing', {
+  key: __t.string(),
+  eventId: __t.string(),
+  userId: __t.string(),
+  rosterId: __t.option(__t.string()),
+})
+export type SealedEventRosterSharing = __Infer<typeof SealedEventRosterSharing>
+
+export const SealedEventTeamWarlords = __t.object('SealedEventTeamWarlords', {
+  key: __t.string(),
+  eventId: __t.string(),
+  teamId: __t.string(),
+  userId: __t.string(),
+})
+export type SealedEventTeamWarlords = __Infer<typeof SealedEventTeamWarlords>
+
+export const SealedEventTeams = __t.object('SealedEventTeams', {
+  key: __t.string(),
+  eventId: __t.string(),
+  teamId: __t.string(),
+  disposition: __t.string(),
+})
+export type SealedEventTeams = __Infer<typeof SealedEventTeams>
 
 export const SealedEvents = __t.object('SealedEvents', {
   id: __t.string(),

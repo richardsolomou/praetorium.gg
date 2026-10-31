@@ -180,17 +180,19 @@ it.skipIf(!url || !database || !token)('joins SQLite profiles with SpacetimeDB b
       ['Creator', 80],
       ['Opponent', 80],
     ])
-    const creatorRosterId = (await operator.leagueByToken(sealedEventToken))!.entries.find((entry) => entry.userId === creatorId)!.rosterId!
+    const creatorRosterId = (await operator.sealedEventByToken(sealedEventToken))!.entries.find(
+      (entry) => entry.userId === creatorId,
+    )!.rosterId!
     expect(await repository.outdatedSealedEventEntriesForRoster(creatorId, creatorRosterId)).toEqual([])
     expect((await repository.sealedEventBattleCandidates(creatorId, [creatorId, opponentId])).map((row) => row.token)).toEqual([
       sealedEventToken,
     ])
-    expect((await operator.leagueByToken(sealedEventToken))?.entries.map((entry) => [entry.status, entry.rosterSnapshot !== null])).toEqual(
-      [
-        ['accepted', true],
-        ['accepted', true],
-      ],
-    )
+    expect(
+      (await operator.sealedEventByToken(sealedEventToken))?.entries.map((entry) => [entry.status, entry.rosterSnapshot !== null]),
+    ).toEqual([
+      ['accepted', true],
+      ['accepted', true],
+    ])
     expect(
       await repository.createSealedEventBattle(
         {

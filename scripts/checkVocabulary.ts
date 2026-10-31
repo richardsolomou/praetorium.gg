@@ -6,13 +6,9 @@ import { readFileSync } from 'node:fs'
  * whenever code was copied from nearby. They survive only where data or a deploy depends on them, as
  * docs/development/groups-and-tournaments.md lists. "League" is legal again, so its stored names need no listing.
  */
-const STORED_LAYERS = [
-  /^spacetimedb\/src\//,
-  /^src\/spacetime\/generated\//,
-  /^src\/server\/spacetimeOperator(\.test)?\.ts$/,
-  /^src\/server\/spacetimeRepository\.ts$/,
-]
 const EXEMPT = [
+  // Generated from the module, so it repeats the names below.
+  /^src\/spacetime\/generated\//,
   /^catalogue\//,
   /^CHANGELOG\.md$/,
   /^\.changeset\//,
@@ -23,16 +19,24 @@ const EXEMPT = [
 ]
 
 const STORED_NAMES = new Set([
-  // Tables, columns and procedures, as the adapter and browser tests name them.
+  // Tables the module empties into the current ones, and their columns.
   'clubs',
   'club_battles',
   'club_games',
   'club_seasons',
   'club_season_players',
   'club_members',
-  'club_id',
+  'retiredClubs',
+  'retiredClubMembers',
+  'retiredClubSeasons',
+  'retiredClubSeasonPlayers',
+  'retiredClubBattles',
+  'retiredClubGames',
   'clubId',
+  'seasonId',
+  // Procedures, fields and values servers released before the current names call the module with.
   'clubToken',
+  'clubBattles',
   'clubNames',
   'clubCommand',
   'clubByToken',
@@ -41,25 +45,30 @@ const STORED_NAMES = new Set([
   'club_command',
   'club_names',
   'club_by_token',
+  'clubs_visible_to',
+  'battle_clubs',
   'migrateLeaguesToClubs',
   'migrate_leagues_to_clubs',
-  'league_club_migration_failed',
-  'leagues_migrated_to_clubs',
-  'clubBattles',
   'seasons',
   'seasonsRun',
-  // Battle-log commands.
-  'set-battle-club',
+  'season-deadline',
+  'season-delete',
+  'season-draw',
+  'season-join',
+  'season-leave',
+  'season-publish',
   'create-club-game',
   'club-game',
+  // Battle-log commands.
+  'set-battle-club',
   // Achievement ids.
   'club-night',
   'club-stalwart',
   'pillar-of-the-club',
   'club-battles',
 ])
-/** The bare words stay legal only where they are data: a quoted id or key (the `clubs` realtime scope) and a legacy `/clubs` address. */
-const STORED_FORMS = /(['"`])clubs?\1|(?<![\w-])clubs(?=: )|\/clubs\b/g
+/** The bare words stay legal only where they are data: a quoted id, key or value (the `clubs` realtime scope, a released server's `season` feed) and a legacy `/clubs` address. */
+const STORED_FORMS = /(['"`])(?:clubs?|season)\1|(?<![\w-])clubs(?=: )|\/clubs\b/g
 /** Words that only look like ours: catalogue names and the Season Ticket achievement. */
 const LOOKALIKES = /trench club|listforge\.club|season[ -]ticket/gi
 /** Preview seed tokens, which preview databases already hold. */
@@ -76,10 +85,7 @@ const segments = (word: string) =>
 
 const files = execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard'], { encoding: 'utf8' })
   .split('\n')
-  .filter(
-    (file) =>
-      file && ![...STORED_LAYERS, ...EXEMPT].some((pattern) => pattern.test(file)) && !/\.(png|jpg|webp|ico|woff2?|wasm|zip)$/.test(file),
-  )
+  .filter((file) => file && !EXEMPT.some((pattern) => pattern.test(file)) && !/\.(png|jpg|webp|ico|woff2?|wasm|zip)$/.test(file))
 
 const problems = files.flatMap((file) => {
   let text: string

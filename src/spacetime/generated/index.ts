@@ -82,6 +82,7 @@ import * as BattleChangesProcedure from './battle_changes_procedure'
 import * as BattleClubsProcedure from './battle_clubs_procedure'
 import * as BattleFeedProcedure from './battle_feed_procedure'
 import * as BattleForOperatorProcedure from './battle_for_operator_procedure'
+import * as BattleGroupsProcedure from './battle_groups_procedure'
 import * as BattleResultsAfterProcedure from './battle_results_after_procedure'
 import * as BattleResultsByUserProcedure from './battle_results_by_user_procedure'
 import * as BattlesForOperatorProcedure from './battles_for_operator_procedure'
@@ -116,7 +117,12 @@ import * as FinishStandingsRefreshProcedure from './finish_standings_refresh_pro
 import * as FriendInviteByInviterProcedure from './friend_invite_by_inviter_procedure'
 import * as FriendInviteByTokenProcedure from './friend_invite_by_token_procedure'
 import * as FriendLeagueRostersProcedure from './friend_league_rosters_procedure'
+import * as FriendSealedEventRostersProcedure from './friend_sealed_event_rosters_procedure'
 import * as FriendshipsByUserProcedure from './friendships_by_user_procedure'
+import * as GroupByTokenProcedure from './group_by_token_procedure'
+import * as GroupCommandProcedure from './group_command_procedure'
+import * as GroupNamesProcedure from './group_names_procedure'
+import * as GroupsVisibleToProcedure from './groups_visible_to_procedure'
 import * as GuestDeviceProcedure from './guest_device_procedure'
 import * as GuestInviteProcedure from './guest_invite_procedure'
 import * as GuestSeatByInviteProcedure from './guest_seat_by_invite_procedure'
@@ -140,6 +146,7 @@ import * as MigrateProductDataProcedure from './migrate_product_data_procedure'
 import * as OnboardingByUserProcedure from './onboarding_by_user_procedure'
 import * as OperatorHealthProcedure from './operator_health_procedure'
 import * as OutdatedLeagueEntriesForRosterProcedure from './outdated_league_entries_for_roster_procedure'
+import * as OutdatedSealedEventEntriesForRosterProcedure from './outdated_sealed_event_entries_for_roster_procedure'
 import * as PlayerDefaultsProcedure from './player_defaults_procedure'
 import * as PlayerStandingsProcedure from './player_standings_procedure'
 import * as PracticeOpponentIdsProcedure from './practice_opponent_ids_procedure'
@@ -169,6 +176,14 @@ import * as SaveBattleResultsProcedure from './save_battle_results_procedure'
 import * as SaveRatingStepsProcedure from './save_rating_steps_procedure'
 import * as SaveRosterProcedure from './save_roster_procedure'
 import * as SaveUnitLoadoutProcedure from './save_unit_loadout_procedure'
+import * as SealedEventAddressProcedure from './sealed_event_address_procedure'
+import * as SealedEventBattleCandidatesProcedure from './sealed_event_battle_candidates_procedure'
+import * as SealedEventByTokenProcedure from './sealed_event_by_token_procedure'
+import * as SealedEventCommandProcedure from './sealed_event_command_procedure'
+import * as SealedEventNamesProcedure from './sealed_event_names_procedure'
+import * as SealedEventRosterSharingProcedure from './sealed_event_roster_sharing_procedure'
+import * as SealedEventRostersProcedure from './sealed_event_rosters_procedure'
+import * as SealedEventsVisibleToProcedure from './sealed_events_visible_to_procedure'
 import * as SetPlayerDefaultsProcedure from './set_player_defaults_procedure'
 import * as SetPushEnabledProcedure from './set_push_enabled_procedure'
 import * as SetRosterArchivedProcedure from './set_roster_archived_procedure'
@@ -298,6 +313,7 @@ const proceduresSchema = __procedures(
   __procedureSchema('battle_clubs', BattleClubsProcedure.params, BattleClubsProcedure.returnType),
   __procedureSchema('battle_feed', BattleFeedProcedure.params, BattleFeedProcedure.returnType),
   __procedureSchema('battle_for_operator', BattleForOperatorProcedure.params, BattleForOperatorProcedure.returnType),
+  __procedureSchema('battle_groups', BattleGroupsProcedure.params, BattleGroupsProcedure.returnType),
   __procedureSchema('battle_results_after', BattleResultsAfterProcedure.params, BattleResultsAfterProcedure.returnType),
   __procedureSchema('battle_results_by_user', BattleResultsByUserProcedure.params, BattleResultsByUserProcedure.returnType),
   __procedureSchema('battles_for_operator', BattlesForOperatorProcedure.params, BattlesForOperatorProcedure.returnType),
@@ -340,7 +356,12 @@ const proceduresSchema = __procedures(
   __procedureSchema('friend_invite_by_inviter', FriendInviteByInviterProcedure.params, FriendInviteByInviterProcedure.returnType),
   __procedureSchema('friend_invite_by_token', FriendInviteByTokenProcedure.params, FriendInviteByTokenProcedure.returnType),
   __procedureSchema('friend_league_rosters', FriendLeagueRostersProcedure.params, FriendLeagueRostersProcedure.returnType),
+  __procedureSchema('friend_sealed_event_rosters', FriendSealedEventRostersProcedure.params, FriendSealedEventRostersProcedure.returnType),
   __procedureSchema('friendships_by_user', FriendshipsByUserProcedure.params, FriendshipsByUserProcedure.returnType),
+  __procedureSchema('group_by_token', GroupByTokenProcedure.params, GroupByTokenProcedure.returnType),
+  __procedureSchema('group_command', GroupCommandProcedure.params, GroupCommandProcedure.returnType),
+  __procedureSchema('group_names', GroupNamesProcedure.params, GroupNamesProcedure.returnType),
+  __procedureSchema('groups_visible_to', GroupsVisibleToProcedure.params, GroupsVisibleToProcedure.returnType),
   __procedureSchema('guest_device', GuestDeviceProcedure.params, GuestDeviceProcedure.returnType),
   __procedureSchema('guest_invite', GuestInviteProcedure.params, GuestInviteProcedure.returnType),
   __procedureSchema('guest_seat_by_invite', GuestSeatByInviteProcedure.params, GuestSeatByInviteProcedure.returnType),
@@ -367,6 +388,11 @@ const proceduresSchema = __procedures(
     'outdated_league_entries_for_roster',
     OutdatedLeagueEntriesForRosterProcedure.params,
     OutdatedLeagueEntriesForRosterProcedure.returnType,
+  ),
+  __procedureSchema(
+    'outdated_sealed_event_entries_for_roster',
+    OutdatedSealedEventEntriesForRosterProcedure.params,
+    OutdatedSealedEventEntriesForRosterProcedure.returnType,
   ),
   __procedureSchema('player_defaults', PlayerDefaultsProcedure.params, PlayerDefaultsProcedure.returnType),
   __procedureSchema('player_standings', PlayerStandingsProcedure.params, PlayerStandingsProcedure.returnType),
@@ -397,6 +423,18 @@ const proceduresSchema = __procedures(
   __procedureSchema('save_rating_steps', SaveRatingStepsProcedure.params, SaveRatingStepsProcedure.returnType),
   __procedureSchema('save_roster', SaveRosterProcedure.params, SaveRosterProcedure.returnType),
   __procedureSchema('save_unit_loadout', SaveUnitLoadoutProcedure.params, SaveUnitLoadoutProcedure.returnType),
+  __procedureSchema('sealed_event_address', SealedEventAddressProcedure.params, SealedEventAddressProcedure.returnType),
+  __procedureSchema(
+    'sealed_event_battle_candidates',
+    SealedEventBattleCandidatesProcedure.params,
+    SealedEventBattleCandidatesProcedure.returnType,
+  ),
+  __procedureSchema('sealed_event_by_token', SealedEventByTokenProcedure.params, SealedEventByTokenProcedure.returnType),
+  __procedureSchema('sealed_event_command', SealedEventCommandProcedure.params, SealedEventCommandProcedure.returnType),
+  __procedureSchema('sealed_event_names', SealedEventNamesProcedure.params, SealedEventNamesProcedure.returnType),
+  __procedureSchema('sealed_event_roster_sharing', SealedEventRosterSharingProcedure.params, SealedEventRosterSharingProcedure.returnType),
+  __procedureSchema('sealed_event_rosters', SealedEventRostersProcedure.params, SealedEventRostersProcedure.returnType),
+  __procedureSchema('sealed_events_visible_to', SealedEventsVisibleToProcedure.params, SealedEventsVisibleToProcedure.returnType),
   __procedureSchema('set_player_defaults', SetPlayerDefaultsProcedure.params, SetPlayerDefaultsProcedure.returnType),
   __procedureSchema('set_push_enabled', SetPushEnabledProcedure.params, SetPushEnabledProcedure.returnType),
   __procedureSchema('set_roster_archived', SetRosterArchivedProcedure.params, SetRosterArchivedProcedure.returnType),

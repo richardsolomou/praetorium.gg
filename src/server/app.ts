@@ -1,6 +1,5 @@
 import { randomInt } from 'node:crypto'
 import { globalSingleton } from 'ras-stack/server'
-import pRetry from 'p-retry'
 import os from 'node:os'
 import { setImmediate as yieldToEventLoop } from 'node:timers/promises'
 import { deploymentHost, reportServerFailure, serverTelemetry } from '../adapters/posthog'
@@ -333,20 +332,6 @@ export function app(): App {
       spacetimeAccess,
       process.env.SPACETIME_INTERNAL_HOST,
     )
-    // Sealed events ran as groups before groups existed. The module turns whatever sealed events remain into groups and answers 0 once
-    // none do; a start under load can time the call out, so it tries a few times before waiting for the next start.
-    void pRetry(() => operator.migrateLeaguesToClubs(Date.now()), {
-      retries: 4,
-      minTimeout: 30_000,
-      factor: 1,
-      onFailedAttempt: ({ error, attemptNumber }) =>
-        reportServerFailure({ event: 'league_club_migration_failed', attempt: attemptNumber, error }),
-    })
-      .then((count) => {
-        if (count) console.info({ event: 'leagues_migrated_to_clubs', count })
-      })
-      // Every attempt has already been logged; the next start tries again.
-      .catch(() => {})
     const accounts = new SqliteAccountRepository(authDatabase)
     const repository = new SpacetimeRepository(accounts, operator)
     const githubSponsors = githubSponsorRefresh(process.env.GITHUB_SPONSORS_TOKEN?.trim() || undefined, (sponsors) =>

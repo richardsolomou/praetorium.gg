@@ -26,7 +26,7 @@ async function joinGroup(page: Page, groupUrl: string, name: string) {
 }
 
 const expectGroupBattle = (battleId: string) =>
-  expect.poll(async () => (await productSql`SELECT club_id FROM club_battles WHERE battle_id = ${battleId}`).length).toBe(1)
+  expect.poll(async () => (await productSql`SELECT group_id FROM group_battles WHERE battle_id = ${battleId}`).length).toBe(1)
 
 test('group members choose their group at battle setup', async ({ browser }, testInfo) => {
   const ownerContext = await browser.newContext({ viewport: { width: 1440, height: 1000 } })

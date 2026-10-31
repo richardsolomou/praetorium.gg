@@ -28,6 +28,8 @@ export const SYNC_PRODUCT_ACTION_NAMES = [
   'delete_ability_reminder',
   'set_push_enabled',
   'set_player_defaults',
+  'sealed_event_command',
+  // Replayed by servers released before sealed event commands took their name.
   'league_command',
 ] as const
 
