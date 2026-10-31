@@ -7,7 +7,7 @@ import { afterInitialScreen } from './background'
 import { requestNativeOfflineSave, supportsNativeOffline } from '../nativeBridge'
 import { offlineData, referenceData, setPublishedReference } from './runtime'
 import { applyReferenceData } from './referenceData'
-import { saveReference, savedReference, storePart } from './referenceStore'
+import { saveReference, savedReference, storePart, storesEvery } from './referenceStore'
 import { offlineAppVersion, offlineApplication, offlineReferenceVersion } from './download'
 import { cataloguesIn, cataloguesInUse } from './cataloguesInUse'
 import { PUBLIC_REFERENCE_QUERIES } from '../../contracts/appSnapshot'
@@ -101,7 +101,8 @@ export function OfflineReference() {
         if (
           held?.download.revision === manifest.revision &&
           held.appRevision === version.revision &&
-          held.editions.join() === editions.join()
+          held.editions.join() === editions.join() &&
+          (await storesEvery(held))
         )
           return
         if (!downloads) {
@@ -140,6 +141,8 @@ export function OfflineReference() {
                 : 'error',
           })
       } finally {
+        // Stops the other download loops once one part fails, so a retry never fetches the same parts alongside them.
+        abort.abort()
         controller = null
         if (pending) {
           pending = false

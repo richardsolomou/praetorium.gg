@@ -1,6 +1,6 @@
 import { gzipSync } from 'node:zlib'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
-import { readPart, saveReference } from './referenceStore'
+import { readPart, saveReference, storesEvery } from './referenceStore'
 import { encodeReferencePart, type OfflineReferenceData } from '../../contracts/offlineReference'
 
 const origin = 'https://praetorium.gg'
@@ -34,7 +34,7 @@ it('refuses to decode a part beyond its size limit', async () => {
   await expect(readPart('/assets/reference-a.bin', 1_000, false)).rejects.toThrow('size limit')
 })
 
-it('repairs a damaged stored part from the service while connected', async () => {
+it('reads a damaged stored part from the service while connected and deletes it for the next download to store', async () => {
   stored.set(`${origin}/assets/reference-a.bin`, new Response('truncated'))
   vi.stubGlobal('fetch', async () => part(['Rules']))
   expect({ read: await readPart('/assets/reference-a.bin', 1_000, true), kept: stored.has(`${origin}/assets/reference-a.bin`) }).toEqual({
@@ -62,6 +62,14 @@ const record = (revision: string, names: string[], editions: string[] = []): Off
       editions: Object.fromEntries([...editions, 'unused'].map((id) => [id, asset(id)])),
     },
   },
+})
+
+it('notices a part a saved download names has gone', async () => {
+  const saved = record('a', ['core', 'search', 'catalogue', 'rules'], ['kept'])
+  for (const name of ['core', 'search', 'catalogue', 'rules']) stored.set(`${origin}${asset(name)}`, part([]))
+  const missing = await storesEvery(saved)
+  stored.set(`${origin}${asset('kept')}`, part([]))
+  expect([missing, await storesEvery(saved)]).toEqual([false, true])
 })
 
 it('deletes only parts neither the new download nor the one it replaces names, keeping the rules versions each saved', async () => {

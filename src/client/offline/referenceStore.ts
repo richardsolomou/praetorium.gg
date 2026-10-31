@@ -66,6 +66,13 @@ const savedAssets = (data: OfflineReferenceData) => [
   ...data.editions.map((id) => data.download.construction.editions[id]!),
 ]
 
+/** Whether the device still stores every part `data` names, which a damaged part or another tab's save can undo. */
+export async function storesEvery(data: OfflineReferenceData) {
+  // `keys` rather than `match`, which would copy every body into the page in WebKit.
+  const stored = new Set((await (await openStore()).keys()).map((request) => request.url))
+  return savedAssets(data).every((path) => stored.has(new URL(path, location.href).href))
+}
+
 /**
  * Records a complete download, with the offline application the service worker opens when given one, then deletes
  * the parts neither it nor the download it replaces names, which another open tab may still be reading, and the
