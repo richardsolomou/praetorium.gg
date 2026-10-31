@@ -29,8 +29,6 @@ export const SYNC_PRODUCT_ACTION_NAMES = [
   'set_push_enabled',
   'set_player_defaults',
   'sealed_event_command',
-  // Replayed by servers released before sealed event commands took their name.
-  'league_command',
 ] as const
 
 export type SyncProductActionName = (typeof SYNC_PRODUCT_ACTION_NAMES)[number]

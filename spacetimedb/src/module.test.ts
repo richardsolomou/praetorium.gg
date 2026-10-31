@@ -741,178 +741,6 @@ describe('group leagues', () => {
   })
 })
 
-describe('retired tables', () => {
-  function setup() {
-    const host = harness()
-    const league = (ctx: Ctx, id: string, token: string, clubId?: string) =>
-      ctx.db.leagues.insert({
-        id,
-        token,
-        ownerId: 'owner',
-        name: clubId ? '' : 'Group night',
-        description: '',
-        visibility: 'private',
-        admission: 'automatic',
-        playerLimit: undefined,
-        recurring: true,
-        createdAt: 1n,
-        clubId,
-      })
-    const event = (ctx: Ctx, leagueId: string, number: number) =>
-      ctx.db.leagueEvents.insert({
-        id: `event-${number}`,
-        token: `event-token-${number}`,
-        leagueId,
-        number,
-        format: '1v1',
-        rosterLimit: 1000,
-        createdAt: BigInt(number),
-        revealedAt: undefined,
-        revealedBy: undefined,
-        allowances: '[]',
-        rounds: undefined,
-        pointsBudget: undefined,
-        playsAt: undefined,
-        sealBy: undefined,
-      })
-    const entry = (eventId: string, userId: string, status: string) => ({
-      key: JSON.stringify([eventId, userId]),
-      eventId,
-      userId,
-      status,
-      joinedAt: 1n,
-      rosterId: undefined,
-      rosterName: undefined,
-      rosterSnapshot: undefined,
-      submittedAt: undefined,
-      requiredLimit: undefined,
-      teamId: undefined,
-      droppedAt: undefined,
-    })
-    host.call(host.operator, (ctx) => {
-      league(ctx, 'league', 'league-token')
-      ctx.db.leagueAdmins.insert({ key: JSON.stringify(['league', 'admin']), leagueId: 'league', userId: 'admin', addedAt: 1n })
-      for (const number of [1, 2]) event(ctx, 'league', number)
-      ctx.db.retiredLeagueEventEntries.insert(entry('event-1', 'player', 'accepted'))
-      ctx.db.retiredLeagueEventEntries.insert(entry('event-2', 'waiting', 'pending'))
-      ctx.db.retiredClubs.insert({
-        id: 'stored',
-        token: 'stored-token',
-        ownerId: 'owner',
-        name: 'Stored',
-        description: '',
-        visibility: 'private',
-        admission: 'automatic',
-        createdAt: 1n,
-      })
-      ctx.db.retiredClubMembers.insert({
-        key: JSON.stringify(['stored', 'owner']),
-        clubId: 'stored',
-        userId: 'owner',
-        status: 'accepted',
-        role: 'member',
-        joinedAt: 1n,
-      })
-      ctx.db.retiredClubSeasons.insert({
-        id: 'stored-league',
-        clubId: 'stored',
-        seed: 1,
-        createdAt: 1n,
-        publishedAt: undefined,
-        deadlines: undefined,
-      })
-      ctx.db.retiredClubSeasonPlayers.insert({
-        key: JSON.stringify(['stored-league', 'owner']),
-        seasonId: 'stored-league',
-        userId: 'owner',
-        joinedAt: 1n,
-        withdrawn: false,
-      })
-    })
-    const group = (token = 'league-token') =>
-      JSON.parse(module.groupByToken(host.procedure(host.operator), { token })) as {
-        members: { userId: string; role: string }[]
-        games: { token: string }[]
-        league: { players: { userId: string }[] } | null
-      } | null
-    const address = (token: string, eventToken = '') =>
-      JSON.parse(module.sealedEventAddress(host.procedure(host.operator), { token, eventToken })) as unknown
-    return { ...host, league, event, group, address }
-  }
-
-  it('makes a group of a league’s owner, admins and accepted entrants', () => {
-    expect(
-      setup()
-        .group()
-        ?.members.map((member) => [member.userId, member.role]),
-    ).toEqual(
-      expect.arrayContaining([
-        ['owner', 'member'],
-        ['admin', 'admin'],
-        ['player', 'member'],
-      ]),
-    )
-  })
-
-  it('leaves out entrants who were never let in', () => {
-    expect(
-      setup()
-        .group()
-        ?.members.some((member) => member.userId === 'waiting'),
-    ).toBe(false)
-  })
-
-  it('makes each event of a league one of the group’s games', () => {
-    expect(
-      setup()
-        .group()
-        ?.games.map((game) => game.token),
-    ).toEqual(['event-token-2', 'event-token-1'])
-  })
-
-  it('moves a group stored under its earlier names with its league', () => {
-    expect(
-      setup()
-        .group('stored-token')
-        ?.league?.players.map(({ userId }) => userId),
-    ).toEqual(['owner'])
-  })
-
-  it('empties every retired table', () => {
-    const fixture = setup()
-    fixture.group()
-    expect(
-      fixture.call(fixture.operator, (ctx) =>
-        Object.entries(ctx.db)
-          .filter(([name]) => name.startsWith('retired') || ['leagues', 'leagueEvents', 'leagueAdmins'].includes(name))
-          .map(([, table]) => (table as { count(): bigint }).count()),
-      ),
-    ).toEqual(Array(15).fill(0n))
-  })
-
-  it('sends an old league link to its group', () => {
-    expect(setup().address('league-token')).toEqual({ kind: 'group', groupToken: 'league-token' })
-  })
-
-  it('sends an old link to one of a league’s events to that game', () => {
-    expect(setup().address('league-token', 'event-token-2')).toEqual({
-      kind: 'hidden-list-game',
-      groupToken: 'league-token',
-      token: 'event-token-2',
-    })
-  })
-
-  it('moves the events of a league an earlier migration already made a group', () => {
-    const fixture = setup()
-    fixture.group()
-    fixture.call(fixture.operator, (ctx) => {
-      fixture.league(ctx, 'later', 'later-token', 'league')
-      fixture.event(ctx, 'later', 3)
-    })
-    expect(fixture.group()?.games.map((game) => game.token)).toEqual(['event-token-3', 'event-token-2', 'event-token-1'])
-  })
-})
-
 describe('hidden-list games', () => {
   function setup() {
     const host = harness()
@@ -947,6 +775,24 @@ describe('hidden-list games', () => {
     const game = (input: Record<string, unknown>) => command({ token: 'game', ...input })
     return { ...host, group, create, game }
   }
+
+  it('sends an old link to a group’s token to the group', () => {
+    const fixture = setup()
+    expect(JSON.parse(module.sealedEventAddress(fixture.procedure(fixture.operator), { token: 'group', eventToken: '' }))).toEqual({
+      kind: 'group',
+      groupToken: 'group',
+    })
+  })
+
+  it('sends an old link naming one of a group’s events to that game', () => {
+    const fixture = setup()
+    fixture.create('owner')
+    expect(JSON.parse(module.sealedEventAddress(fixture.procedure(fixture.operator), { token: 'group', eventToken: 'game' }))).toEqual({
+      kind: 'hidden-list-game',
+      groupToken: 'group',
+      token: 'game',
+    })
+  })
 
   it('starts only for the group’s organizers', () => {
     expect(setup().create('member')).toBe('forbidden')

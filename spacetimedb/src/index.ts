@@ -255,112 +255,8 @@ function requireOperator(ctx: Context) {
 function operatorTx<T>(ctx: ProcedureCtx<InferSchema<typeof spacetime>>, run: (tx: Context) => T) {
   return ctx.withTx((tx) => {
     requireOperator(tx)
-    moveRetiredRows(tx)
     return run(tx)
   })
-}
-
-function moveRows<Row>(from: { count(): bigint; iter(): Iterable<Row>; clear(): bigint }, insert: (row: Row) => unknown) {
-  if (!from.count()) return
-  for (const row of from.iter()) insert(row)
-  from.clear()
-}
-
-/**
- * Empties the retired tables, so the first operator call after a deploy moves every row before anything reads it and a
- * later release can drop them. Groups, their leagues and hidden-list games, and sealed event entries move from the tables
- * named before them. Leagues ran as standing groups, each a series of events: each becomes a group with its people, and
- * each of its events one of the group's hidden-list games.
- */
-function moveRetiredRows(tx: Context) {
-  const { db } = tx
-  moveRows(db.retiredClubs, (row) => db.groups.insert(row))
-  moveRows(db.retiredClubMembers, ({ clubId, ...row }) => db.groupMembers.insert({ ...row, groupId: clubId }))
-  moveRows(db.retiredClubSeasons, ({ clubId, ...row }) => db.groupLeagues.insert({ ...row, groupId: clubId }))
-  moveRows(db.retiredClubSeasonPlayers, ({ seasonId, ...row }) => db.groupLeaguePlayers.insert({ ...row, leagueId: seasonId }))
-  moveRows(db.retiredClubBattles, ({ clubId, ...row }) => db.groupBattles.insert({ ...row, groupId: clubId }))
-  moveRows(db.retiredClubGames, ({ clubId, ...row }) => db.hiddenListGames.insert({ ...row, groupId: clubId }))
-  moveRows(db.retiredLeagueRoundPairings, (row) => db.roundPairings.insert(row))
-  moveRows(db.retiredLeagueEventEntries, (row) => db.sealedEventEntries.insert(row))
-  moveRows(db.retiredLeagueEventTeams, (row) => db.sealedEventTeams.insert(row))
-  moveRows(db.retiredLeagueEventTeamWarlords, (row) => db.sealedEventTeamWarlords.insert(row))
-  moveRows(db.retiredLeagueRosterSharing, (row) => db.sealedEventRosterSharing.insert(row))
-  moveRows(db.retiredLeagueEventBattles, (row) => db.eventBattles.insert(row))
-  if (!db.leagues.count()) return
-  const now = nowMs(tx)
-  for (const league of Array.from(db.leagues.iter())) {
-    const groupId = league.clubId ?? league.id
-    const adminIds = Array.from(db.leagueAdmins.leagueId.filter(league.id), (row) => row.userId)
-    const events = Array.from(db.leagueEvents.leagueId.filter(league.id))
-    if (!db.groups.id.find(groupId)) {
-      db.groups.insert({
-        id: groupId,
-        token: league.token,
-        ownerId: league.ownerId,
-        name: league.name,
-        description: league.description,
-        visibility: league.visibility,
-        admission: league.admission,
-        createdAt: league.createdAt,
-      })
-      const people = new Set([league.ownerId, ...adminIds])
-      for (const event of events)
-        for (const entry of db.sealedEventEntries.eventId.filter(event.id)) if (entry.status === 'accepted') people.add(entry.userId)
-      for (const userId of people)
-        db.groupMembers.insert({
-          key: JSON.stringify([groupId, userId]),
-          groupId,
-          userId,
-          status: 'accepted',
-          role: adminIds.includes(userId) && userId !== league.ownerId ? 'admin' : 'member',
-          joinedAt: now,
-        })
-    }
-    for (const event of events) {
-      db.sealedEvents.insert({
-        id: event.id,
-        token: event.token,
-        format: event.format,
-        rosterLimit: event.rosterLimit,
-        allowances: event.allowances,
-        rounds: event.rounds,
-        pointsBudget: event.pointsBudget,
-        playsAt: event.playsAt,
-        sealBy: event.sealBy,
-        createdAt: event.createdAt,
-        revealedAt: event.revealedAt,
-        revealedBy: event.revealedBy,
-        soloPoints: undefined,
-        allyPoints: undefined,
-        remindedAt: undefined,
-        sharedPoints: undefined,
-      })
-      db.hiddenListGames.insert({
-        eventId: event.id,
-        groupId,
-        creatorId: league.ownerId,
-        createdAt: event.createdAt,
-        timeZone: undefined,
-        supersededAt: undefined,
-      })
-      db.leagueEvents.id.delete(event.id)
-      touchEventById(tx, event.id)
-    }
-    for (const row of Array.from(db.leagueAdmins.leagueId.filter(league.id))) db.leagueAdmins.key.delete(row.key)
-    db.leagues.id.delete(league.id)
-    touchGroup(tx, groupId)
-  }
-  for (const group of db.groups.iter()) {
-    const games = hiddenListGameHosts(tx, group)
-    let changed = false
-    for (let index = 1; index < games.length; index++) {
-      const { game } = games[index]!
-      if (game.supersededAt !== undefined) continue
-      db.hiddenListGames.eventId.update({ ...game, supersededAt: games[index - 1]!.game.createdAt })
-      changed = true
-    }
-    if (changed) touchGroup(tx, group.id)
-  }
 }
 
 const ROSTER_LOANS_PER_ROSTER = 100
@@ -849,7 +745,6 @@ export const revokeSession = spacetime.reducer({ subject: t.string() }, (ctx, { 
 
 export const deleteUserData = spacetime.reducer({ userId: t.string() }, (ctx, { userId }) => {
   requireOperator(ctx)
-  moveRetiredRows(ctx)
   if (!validId(userId)) throw new SenderError('Invalid user ID')
   for (const row of Array.from(ctx.db.sessionAccess.userId.filter(userId))) revoke(ctx, row.subject)
   for (const row of Array.from(ctx.db.battleUsers.userId.filter(userId))) deleteBattle(ctx, row.battleId)
@@ -1164,7 +1059,7 @@ const battleFeedQuery = z.strictObject({
 export const battleFeed = spacetime.procedure({ payload: t.string() }, t.string(), (ctx, { payload }) =>
   operatorTx(ctx, (tx) => {
     if (payload.length > 2_000) throw new SenderError('Invalid battle feed')
-    const input = decodePayload(battleFeedQuery, fromReleased(payload), 'Invalid battle feed')
+    const input = decodePayload(battleFeedQuery, payload, 'Invalid battle feed')
     if (
       ((input.scope === 'user' || input.scope === 'friends' || input.scope === 'profile') && !input.userId) ||
       (input.scope === 'sealed-event' && (!input.hostToken || !input.eventToken)) ||
@@ -2095,18 +1990,16 @@ export const productStats = spacetime.procedure({ userIds: t.array(t.string()) }
   operatorTx(ctx, (tx) => {
     if (userIds.length > 100 || userIds.some((id) => !validId(id))) throw new SenderError('Invalid product stats query')
     return productJson(
-      [...new Set(userIds)].map((userId) =>
-        withReleasedKeys({
-          userId,
-          rosterCount: Array.from(tx.db.rosters.userId.filter(userId)).length,
-          battleCount: Array.from(tx.db.battleUsers.userId.filter(userId)).length,
-          tournamentCount: Array.from(tx.db.tournaments.ownerId.filter(userId)).length,
-          friendCount: [...tx.db.friendships.requesterId.filter(userId), ...tx.db.friendships.addresseeId.filter(userId)].filter(
-            (row) => row.acceptedAt !== undefined,
-          ).length,
-          practiceOpponent: Boolean(tx.db.practiceOpponents.userId.find(userId)),
-        }),
-      ),
+      [...new Set(userIds)].map((userId) => ({
+        userId,
+        rosterCount: Array.from(tx.db.rosters.userId.filter(userId)).length,
+        battleCount: Array.from(tx.db.battleUsers.userId.filter(userId)).length,
+        tournamentCount: Array.from(tx.db.tournaments.ownerId.filter(userId)).length,
+        friendCount: [...tx.db.friendships.requesterId.filter(userId), ...tx.db.friendships.addresseeId.filter(userId)].filter(
+          (row) => row.acceptedAt !== undefined,
+        ).length,
+        practiceOpponent: Boolean(tx.db.practiceOpponents.userId.find(userId)),
+      })),
     )
   }),
 )
@@ -3805,42 +3698,40 @@ export const achievementFactsByUser = spacetime.procedure({ userId: t.string() }
     }
     const rosters = Array.from(tx.db.rosters.userId.filter(userId))
     const collection = Array.from(tx.db.collection.userId.filter(userId))
-    return productJson(
-      withReleasedKeys({
-        recruits,
-        tournaments,
-        groups,
-        photos,
-        groupBattles: finishedSeats((battleId) => isGroupBattle(tx, battleId)),
-        imports: finishedSeats((battleId) => Boolean(tx.db.battleImports.battleId.find(battleId))),
-        leagues,
-        leaguesRun,
-        seals: Array.from(tx.db.sealedEventEntries.userId.filter(userId)).flatMap((entry) =>
-          entry.submittedAt === undefined ? [] : [safeNumber(entry.submittedAt)],
-        ),
-        published: rosters.flatMap((roster) => (roster.visibility === 'public' ? [safeNumber(roster.createdAt)] : [])),
-        collected: collection.map((row) => safeNumber(row.at)),
-        painted: collection.reduce((sum, row) => sum + (row.painted ?? 0), 0),
-        wishes: Array.from(tx.db.collectionWishes.userId.filter(userId), (row) => safeNumber(row.at)),
-        rosters: rosters.map((roster) => safeNumber(roster.createdAt)),
-        loans: rosters.flatMap((roster) => Array.from(tx.db.rosterLoans.rosterId.filter(roster.id), (loan) => safeNumber(loan.lentAt))),
-        friends: [...tx.db.friendships.requesterId.filter(userId), ...tx.db.friendships.addresseeId.filter(userId)].flatMap((row) =>
-          row.acceptedAt === undefined ? [] : [safeNumber(row.acceptedAt)],
-        ),
-        likesGiven: Array.from(tx.db.collectionPhotoLikes.userId.filter(userId)).flatMap((like) =>
-          tx.db.collectionPhotos.photoId.find(like.photoId)?.userId === userId ? [] : [safeNumber(like.at)],
-        ),
-        simulations: Array.from(tx.db.recentMatchups.userId.filter(userId), (row) => safeNumber(row.at)),
-        reminders: Array.from(tx.db.abilityReminders.userId.filter(userId), (row) => safeNumber(row.updatedAt)),
-        loadouts: Array.from(tx.db.unitLoadouts.userId.filter(userId), (row) => safeNumber(row.createdAt)),
-        favourites: [
-          ...tx.db.favouriteFactions.userId.filter(userId),
-          ...tx.db.favouriteDetachments.userId.filter(userId),
-          ...tx.db.favouriteDatasheets.userId.filter(userId),
-        ].map((row) => safeNumber(row.at)),
-        app: Array.from(tx.db.pushTokens.userId.filter(userId), (row) => safeNumber(row.createdAt)),
-      }),
-    )
+    return productJson({
+      recruits,
+      tournaments,
+      groups,
+      photos,
+      groupBattles: finishedSeats((battleId) => isGroupBattle(tx, battleId)),
+      imports: finishedSeats((battleId) => Boolean(tx.db.battleImports.battleId.find(battleId))),
+      leagues,
+      leaguesRun,
+      seals: Array.from(tx.db.sealedEventEntries.userId.filter(userId)).flatMap((entry) =>
+        entry.submittedAt === undefined ? [] : [safeNumber(entry.submittedAt)],
+      ),
+      published: rosters.flatMap((roster) => (roster.visibility === 'public' ? [safeNumber(roster.createdAt)] : [])),
+      collected: collection.map((row) => safeNumber(row.at)),
+      painted: collection.reduce((sum, row) => sum + (row.painted ?? 0), 0),
+      wishes: Array.from(tx.db.collectionWishes.userId.filter(userId), (row) => safeNumber(row.at)),
+      rosters: rosters.map((roster) => safeNumber(roster.createdAt)),
+      loans: rosters.flatMap((roster) => Array.from(tx.db.rosterLoans.rosterId.filter(roster.id), (loan) => safeNumber(loan.lentAt))),
+      friends: [...tx.db.friendships.requesterId.filter(userId), ...tx.db.friendships.addresseeId.filter(userId)].flatMap((row) =>
+        row.acceptedAt === undefined ? [] : [safeNumber(row.acceptedAt)],
+      ),
+      likesGiven: Array.from(tx.db.collectionPhotoLikes.userId.filter(userId)).flatMap((like) =>
+        tx.db.collectionPhotos.photoId.find(like.photoId)?.userId === userId ? [] : [safeNumber(like.at)],
+      ),
+      simulations: Array.from(tx.db.recentMatchups.userId.filter(userId), (row) => safeNumber(row.at)),
+      reminders: Array.from(tx.db.abilityReminders.userId.filter(userId), (row) => safeNumber(row.updatedAt)),
+      loadouts: Array.from(tx.db.unitLoadouts.userId.filter(userId), (row) => safeNumber(row.createdAt)),
+      favourites: [
+        ...tx.db.favouriteFactions.userId.filter(userId),
+        ...tx.db.favouriteDetachments.userId.filter(userId),
+        ...tx.db.favouriteDatasheets.userId.filter(userId),
+      ].map((row) => safeNumber(row.at)),
+      app: Array.from(tx.db.pushTokens.userId.filter(userId), (row) => safeNumber(row.createdAt)),
+    })
   }),
 )
 
@@ -4641,125 +4532,6 @@ export const battleGroups = spacetime.procedure({ battleId: t.string() }, t.stri
     })
   }),
 )
-
-/**
- * Names and JSON fields as servers released before groups, leagues and hidden-list games took their names send and read
- * them, for the minutes a deploy runs one against this module. Nothing calls these once none of them still serves.
- */
-const RELEASED_KEYS = new Map([
-  ['group', 'club'],
-  ['groups', 'clubs'],
-  ['groupId', 'clubId'],
-  ['groupToken', 'clubToken'],
-  ['groupBattles', 'clubBattles'],
-  ['league', 'season'],
-  ['leagues', 'seasons'],
-  ['leagueId', 'seasonId'],
-  ['leaguesRun', 'seasonsRun'],
-  ['hostToken', 'leagueToken'],
-  ['hostName', 'leagueName'],
-  ['tournamentCount', 'leagueCount'],
-])
-/** Renamed `kind`, `op` and `scope` values. */
-const RELEASED_VALUES = new Map([
-  ['group', 'club'],
-  ['hidden-list-game', 'club-game'],
-  ['create-hidden-list-game', 'create-club-game'],
-  ['sealed-event', 'league'],
-  ['group-league', 'season'],
-  ['league-deadline', 'season-deadline'],
-  ['league-delete', 'season-delete'],
-  ['league-draw', 'season-draw'],
-  ['league-join', 'season-join'],
-  ['league-leave', 'season-leave'],
-  ['league-publish', 'season-publish'],
-])
-const CURRENT_KEYS = new Map(Array.from(RELEASED_KEYS, ([current, released]) => [released, current]))
-const CURRENT_VALUES = new Map(Array.from(RELEASED_VALUES, ([current, released]) => [released, current]))
-
-/** Renames a JSON record's keys and its `kind`, `op` and `scope` values, at every depth or only at the top. */
-function renameJson(value: unknown, keys: Map<string, string>, values: Map<string, string>, deep: boolean): unknown {
-  if (Array.isArray(value)) return deep ? value.map((item) => renameJson(item, keys, values, deep)) : value
-  if (value === null || typeof value !== 'object') return value
-  return Object.fromEntries(
-    Object.entries(value).map(([key, item]) => [
-      keys.get(key) ?? key,
-      ['kind', 'op', 'scope'].includes(key) && typeof item === 'string'
-        ? (values.get(item) ?? item)
-        : deep
-          ? renameJson(item, keys, values, deep)
-          : item,
-    ]),
-  )
-}
-
-/** Adds the fields a released server reads beside the current ones, under their earlier names. */
-function withReleasedKeys<T extends object>(value: T) {
-  return {
-    ...value,
-    ...Object.fromEntries(
-      Object.entries(value).flatMap(([key, item]) => (RELEASED_KEYS.has(key) ? [[RELEASED_KEYS.get(key)!, item]] : [])),
-    ),
-  }
-}
-
-/** A released server's payload as this module reads it; a current one passes through unchanged. */
-function fromReleased(payload: string) {
-  try {
-    return JSON.stringify(renameJson(JSON.parse(payload), CURRENT_KEYS, CURRENT_VALUES, false))
-  } catch {
-    return payload
-  }
-}
-
-const toReleased = (json: string) => JSON.stringify(renameJson(JSON.parse(json), RELEASED_KEYS, RELEASED_VALUES, true))
-
-const released =
-  <Args>(current: (ctx: ProcedureCtx<InferSchema<typeof spacetime>>, args: Args) => string) =>
-  (ctx: ProcedureCtx<InferSchema<typeof spacetime>>, args: Args) =>
-    toReleased(current(ctx, args))
-
-const releasedCommand =
-  (current: (tx: Context, args: unknown[]) => string) =>
-  (tx: Context, [payload]: unknown[]) =>
-    toReleased(current(tx, [typeof payload === 'string' ? fromReleased(payload) : payload]))
-
-export const migrateLeaguesToClubs = spacetime.procedure({ now: t.u64() }, t.u32(), (ctx) => operatorTx(ctx, () => 0))
-export const leagueNames = spacetime.procedure({ tokens: t.array(t.string()) }, t.string(), released(sealedEventNames))
-export const clubNames = spacetime.procedure({ tokens: t.array(t.string()) }, t.string(), released(groupNames))
-export const leagueByToken = spacetime.procedure({ token: t.string(), eventToken: t.string() }, t.string(), released(sealedEventByToken))
-export const eventAddress = spacetime.procedure({ token: t.string(), eventToken: t.string() }, t.string(), released(sealedEventAddress))
-export const leaguesVisibleTo = spacetime.procedure({ userId: t.string(), limit: t.u32() }, t.string(), released(sealedEventsVisibleTo))
-export const outdatedLeagueEntriesForRoster = spacetime.procedure(
-  { userId: t.string(), rosterId: t.string() },
-  t.string(),
-  released(outdatedSealedEventEntriesForRoster),
-)
-export const friendLeagueRosters = spacetime.procedure({ viewerId: t.string() }, t.string(), released(friendSealedEventRosters))
-export const leagueBattleCandidates = spacetime.procedure(
-  { userId: t.string(), participantIds: t.array(t.string()) },
-  t.string(),
-  released(sealedEventBattleCandidates),
-)
-export const leagueRosters = spacetime.procedure(
-  { token: t.string(), userId: t.string(), eventToken: t.string(), readerId: t.string() },
-  t.string(),
-  released(sealedEventRosters),
-)
-export const leagueRosterSharing = spacetime.procedure(
-  { token: t.string(), eventToken: t.string(), userId: t.string() },
-  t.string(),
-  released(sealedEventRosterSharing),
-)
-export const leagueCommand = spacetime.procedure({ payload: t.string() }, t.string(), (ctx, { payload }) =>
-  operatorTx(ctx, (tx) => releasedCommand(sealedEventCommandIn)(tx, [payload])),
-)
-export const clubCommand = spacetime.procedure({ payload: t.string() }, t.string(), (ctx, { payload }) =>
-  operatorTx(ctx, (tx) => releasedCommand(groupCommandIn)(tx, [payload])),
-)
-export const clubByToken = spacetime.procedure({ token: t.string() }, t.string(), released(groupByToken))
-export const clubsVisibleTo = spacetime.procedure({ userId: t.string(), limit: t.u32() }, t.string(), released(groupsVisibleTo))
-export const battleClubs = spacetime.procedure({ battleId: t.string() }, t.string(), released(battleGroups))
 
 /** Saved actions replay through the same functions as live calls, so arguments arrive untyped. */
 const textArg = z.string().max(2_000_000)
@@ -6043,7 +5815,6 @@ const syncProductActions = {
   set_push_enabled: setPushEnabledIn,
   set_player_defaults: setPlayerDefaultsIn,
   sealed_event_command: sealedEventCommandIn,
-  league_command: releasedCommand(sealedEventCommandIn),
 } satisfies Record<SyncProductActionName, unknown>
 
 const syncProductInput = z.object({

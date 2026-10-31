@@ -189,59 +189,6 @@ const rosterLoans = table(
 )
 
 /**
- * Retired: each league became a group and each of its events a hidden-list game. `moveRetiredRows` empties these, and
- * SpacetimeDB refuses to drop a table that still holds rows, so they stay until a later release.
- */
-const leagues = table(
-  { name: 'leagues' },
-  {
-    id: t.string().primaryKey(),
-    token: t.string().unique(),
-    ownerId: t.string().index('btree'),
-    name: t.string(),
-    description: t.string(),
-    visibility: t.string(),
-    admission: t.string(),
-    playerLimit: t.option(t.u32()),
-    recurring: t.bool(),
-    createdAt: t.u64(),
-    clubId: t.option(t.string()).default(undefined),
-  },
-)
-
-/** Retired with `leagues`. */
-const leagueEvents = table(
-  { name: 'league_events' },
-  {
-    id: t.string().primaryKey(),
-    token: t.string().unique(),
-    leagueId: t.string().index('btree'),
-    number: t.u32(),
-    format: t.option(t.string()),
-    rosterLimit: t.option(t.u32()),
-    createdAt: t.u64(),
-    revealedAt: t.option(t.u64()),
-    revealedBy: t.option(t.string()).default(undefined),
-    allowances: t.option(t.string()).default(undefined),
-    rounds: t.option(t.u32()).default(undefined),
-    pointsBudget: t.option(t.u32()).default(undefined),
-    playsAt: t.option(t.u64()).default(undefined),
-    sealBy: t.option(t.u64()).default(undefined),
-  },
-)
-
-/** Retired with `leagues`. */
-const leagueAdmins = table(
-  { name: 'league_admins' },
-  {
-    key: t.string().primaryKey(),
-    leagueId: t.string().index('btree'),
-    userId: t.string().index('btree'),
-    addedAt: t.u64(),
-  },
-)
-
-/**
  * One sealed-roster event, which either a tournament or a hidden-list game hosts; its entries, picks, pairings and battles
  * are keyed by its id.
  */
@@ -789,150 +736,6 @@ const syncReceipts = table(
   },
 )
 
-/**
- * Retired: these held groups, leagues, hidden-list games and sealed event entries under their earlier names. The module
- * moves their rows into the current tables at its first operator call (`moveRetiredRows`), and SpacetimeDB refuses to
- * drop a table that still holds rows, so they stay until a later release.
- */
-const retiredClubs = table(
-  { name: 'clubs' },
-  {
-    id: t.string().primaryKey(),
-    token: t.string().unique(),
-    ownerId: t.string().index('btree'),
-    name: t.string(),
-    description: t.string(),
-    visibility: t.string(),
-    admission: t.string(),
-    createdAt: t.u64(),
-  },
-)
-
-const retiredClubMembers = table(
-  { name: 'club_members' },
-  {
-    key: t.string().primaryKey(),
-    clubId: t.string().index('btree'),
-    userId: t.string().index('btree'),
-    status: t.string(),
-    role: t.string(),
-    joinedAt: t.u64(),
-  },
-)
-
-const retiredClubSeasons = table(
-  { name: 'club_seasons' },
-  {
-    id: t.string().primaryKey(),
-    clubId: t.string().unique(),
-    seed: t.u32(),
-    createdAt: t.u64(),
-    publishedAt: t.option(t.u64()),
-    deadlines: t.option(t.string()),
-  },
-)
-
-const retiredClubSeasonPlayers = table(
-  { name: 'club_season_players' },
-  {
-    key: t.string().primaryKey(),
-    seasonId: t.string().index('btree'),
-    userId: t.string().index('btree'),
-    joinedAt: t.u64(),
-    withdrawn: t.bool(),
-  },
-)
-
-const retiredClubBattles = table(
-  { name: 'club_battles' },
-  {
-    battleId: t.string().primaryKey(),
-    clubId: t.string().index('btree'),
-  },
-)
-
-const retiredClubGames = table(
-  { name: 'club_games' },
-  {
-    eventId: t.string().primaryKey(),
-    clubId: t.string().index('btree'),
-    creatorId: t.string(),
-    createdAt: t.u64(),
-    timeZone: t.option(t.string()).default(undefined),
-    supersededAt: t.option(t.u64()).default(undefined),
-  },
-)
-
-const retiredLeagueRoundPairings = table(
-  { name: 'league_round_pairings' },
-  {
-    key: t.string().primaryKey(),
-    eventId: t.string().index('btree'),
-    round: t.u32(),
-    table: t.u32(),
-    aId: t.string(),
-    bId: t.option(t.string()),
-    battleId: t.option(t.string()),
-  },
-)
-
-const retiredLeagueEventEntries = table(
-  { name: 'league_event_entries' },
-  {
-    key: t.string().primaryKey(),
-    eventId: t.string().index('btree'),
-    userId: t.string().index('btree'),
-    status: t.string(),
-    joinedAt: t.u64(),
-    rosterId: t.option(t.string()),
-    rosterName: t.option(t.string()),
-    rosterSnapshot: t.option(t.string()),
-    submittedAt: t.option(t.u64()),
-    requiredLimit: t.option(t.u32()),
-    teamId: t.option(t.string()),
-    /** When a revealed Swiss entrant withdrew or was dropped: they are never paired again and can't rejoin. */
-    droppedAt: t.option(t.u64()).default(undefined),
-  },
-)
-
-const retiredLeagueEventTeams = table(
-  { name: 'league_event_teams' },
-  {
-    key: t.string().primaryKey(),
-    eventId: t.string().index('btree'),
-    teamId: t.string(),
-    disposition: t.string(),
-  },
-)
-
-const retiredLeagueEventTeamWarlords = table(
-  { name: 'league_event_team_warlords' },
-  {
-    key: t.string().primaryKey(),
-    eventId: t.string().index('btree'),
-    teamId: t.string(),
-    userId: t.string(),
-  },
-)
-
-const retiredLeagueRosterSharing = table(
-  { name: 'league_roster_sharing' },
-  {
-    key: t.string().primaryKey(),
-    eventId: t.string().index('btree'),
-    userId: t.string().index('btree'),
-    rosterId: t.option(t.string()),
-  },
-)
-
-const retiredLeagueEventBattles = table(
-  { name: 'league_event_battles' },
-  {
-    battleId: t.string().primaryKey(),
-    eventId: t.string().index('btree'),
-  },
-)
-
 export const productTables = {
   syncReceipts,
   rosterSync,
@@ -949,9 +752,6 @@ export const productTables = {
   commands,
   rosters,
   rosterLoans,
-  leagues,
-  leagueEvents,
-  leagueAdmins,
   sealedEvents,
   tournaments,
   tournamentAdmins,
@@ -994,16 +794,4 @@ export const productTables = {
   abilityReminders,
   productRevisions,
   publicRevisions,
-  retiredClubs,
-  retiredClubMembers,
-  retiredClubSeasons,
-  retiredClubSeasonPlayers,
-  retiredClubBattles,
-  retiredClubGames,
-  retiredLeagueRoundPairings,
-  retiredLeagueEventEntries,
-  retiredLeagueEventTeams,
-  retiredLeagueEventTeamWarlords,
-  retiredLeagueRosterSharing,
-  retiredLeagueEventBattles,
 }
