@@ -62,6 +62,11 @@ type Props = {
   virtualized?: boolean
   /** Shown when no option matches, such as while the options are still loading. */
   emptyText?: string
+  /** Pinned between the search box and the list, such as a way to another list. */
+  header?: ReactNode
+  /** Opens on mount, for a list that replaces another while the reader moves between levels. */
+  defaultOpen?: boolean
+  onOpenChange?: (open: boolean, reason: ComboboxPrimitive.Root.ChangeEventReason) => void
 }
 
 export function SearchableSelect({
@@ -82,6 +87,9 @@ export function SearchableSelect({
   onboarding,
   virtualized = false,
   emptyText = 'No matches.',
+  header,
+  defaultOpen,
+  onOpenChange,
 }: Props) {
   const options = useMemo(() => groups.flatMap((group) => group.items.map((option) => ({ ...option, group: group.label }))), [groups])
   const selected = options.find((option) => option.value === value) ?? null
@@ -101,8 +109,10 @@ export function SearchableSelect({
       itemToStringLabel={(option) => option.label}
       itemToStringValue={(option) => option.value}
       isItemEqualToValue={(option, candidate) => option.value === candidate.value}
-      onOpenChange={(open) => {
+      defaultOpen={defaultOpen}
+      onOpenChange={(open, details) => {
         if (open && !virtualized) requestAnimationFrame(() => centreSelected(list.current))
+        onOpenChange?.(open, details.reason)
       }}
       onItemHighlighted={(option, { reason, index }) => {
         const current = virtual.current
@@ -136,6 +146,7 @@ export function SearchableSelect({
         className={cn('transition-none', trigger ? 'w-72 min-w-64 max-w-[calc(100vw-2rem)]' : undefined, popupClassName)}
       >
         <ComboboxInput placeholder={searchPlaceholder} showTrigger={false} />
+        {header}
         <ComboboxEmpty className="text-dim">{emptyText}</ComboboxEmpty>
         <ComboboxList ref={list} className={virtualized ? 'max-h-none overflow-visible p-0' : undefined}>
           {virtualized ? (

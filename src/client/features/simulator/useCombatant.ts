@@ -7,7 +7,7 @@ import type { CombatCarrier } from '../../../core/combatLoadout'
 import { combatRuleSelections } from '../../../core/combatRules'
 import { useSourceTexts } from '../../sourceText'
 import { combatantTexts, readableCombatant } from './readableRules'
-import { combatLoadoutsQuery, combatantDatasheetQuery, priceQuery } from '../../queries'
+import { combatLoadoutsQuery, combatantDatasheetQuery, factionQuery, priceQuery } from '../../queries'
 import type { SimulatorRosterSource, SimulatorSide } from '../../../contracts/simulatorState'
 import type { RosterOwner } from './rosterOwners'
 import { useSettled } from '../../useSettled'
@@ -62,8 +62,16 @@ export function useCombatant(roster?: CombatRoster, initial?: SimulatorSide | nu
   useEffect(() => {
     if (battlePicks) resetPicks(battlePicks)
   }, [battlePicks, resetPicks])
-  // A shared link's detachments belong to its faction; picking another faction's unit leaves them behind.
-  const detachmentIds = roster?.detachmentIds ?? (initial?.catalogueId === catalogueId ? initial.detachmentIds : undefined) ?? []
+  const [chosenDetachments, setChosenDetachments] = useState({
+    catalogueId: initial?.catalogueId,
+    ids: initial?.detachmentIds ?? NO_DETACHMENTS,
+  })
+  // Detachments belong to a faction; picking another faction's unit leaves them behind.
+  const detachmentIds = roster?.detachmentIds ?? (chosenDetachments.catalogueId === catalogueId ? chosenDetachments.ids : NO_DETACHMENTS)
+  const factionDetail = useQuery({ ...factionQuery(catalogueId), enabled: Boolean(catalogueId) })
+  const detachmentOptions = factionDetail.data?.detachments
+  // A lone unit has no list to set a battle size, so it is priced and limited as Strike Force.
+  const limit = roster?.limit ?? 2000
   const settled = useSettled(picks.positioned)
   const pick = picks.positioned[pickIndex]
   const faction = pick?.catalogueId ?? catalogueId
@@ -80,7 +88,7 @@ export function useCombatant(roster?: CombatRoster, initial?: SimulatorSide | nu
       catalogueId,
       detachmentIds,
       roster?.disposition ?? null,
-      roster?.limit ?? 2000,
+      limit,
       settled,
       roster?.waivedRules,
       roster?.borrowedDetachmentId,
@@ -238,6 +246,13 @@ export function useCombatant(roster?: CombatRoster, initial?: SimulatorSide | nu
     roster: Boolean(roster),
     rosterName: roster?.saved?.name,
     detachmentIds,
+    /** Undefined while the faction is loading. */
+    detachmentOptions,
+    detachmentNames: detachmentIds.flatMap((id) => detachmentOptions?.find((option) => option.id === id)?.name ?? []),
+    limit,
+    selectDetachments: (ids: readonly string[]) => {
+      if (!roster) setChosenDetachments({ catalogueId, ids })
+    },
     pickIndex,
     pick,
     identity,
@@ -362,6 +377,8 @@ export function useCombatant(roster?: CombatRoster, initial?: SimulatorSide | nu
     },
   }
 }
+
+const NO_DETACHMENTS: readonly string[] = []
 
 export type Combatant = ReturnType<typeof useCombatant>
 

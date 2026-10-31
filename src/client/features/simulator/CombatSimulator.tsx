@@ -2,7 +2,7 @@ import { noExclusions } from '../../../core/combatMatchup'
 import { GuideHelp } from '../onboarding/GuideHelp'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { posthog } from 'posthog-js'
-import { ArrowLeftRight, BookOpen } from 'lucide-react'
+import { ArrowLeftRight } from 'lucide-react'
 import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
 import { PageContent, PageHeader } from '../../components/Page'
@@ -10,8 +10,8 @@ import { advanceOnboarding, ONBOARDING_FOCUS_EVENT } from '../onboarding/onboard
 import { CombatantCard } from './CombatantCard'
 import { CombatMatchup } from './CombatMatchup'
 import { CombatBuffControls } from './CombatBuffControls'
-import { PICKER_POPUP, SimulationMode } from './CombatControls'
-import { RosterPicker } from './RosterPicker'
+import { SimulationMode } from './CombatControls'
+import type { RosterNavigation } from './SideUnitPicker'
 import { RosterCombatComparison } from './RosterCombatComparison'
 import { type Combatant, type CombatRoster, useCombatant } from './useCombatant'
 import { attachedUnit } from '../../../core/attachedUnits'
@@ -30,10 +30,8 @@ import { rosterTitle } from '../rosters/RosterSummary'
 import { exampleMatchup, useMatchupHistory } from './matchupHistory'
 import { RecentSimulations } from './RecentSimulations'
 import { sealedCombatRoster } from './rosterCombat'
-import { friendSealedEventLabel, friendSealedEventSource, OwnerName, useRosterOwners, useSimulatorRosters } from './rosterOwners'
+import { friendSealedEventLabel, friendSealedEventSource, useRosterOwners, useSimulatorRosters } from './rosterOwners'
 import type { RecentMatchup } from '../../../core/recentMatchups'
-
-const NO_ROSTER = 'none'
 
 /** A link's roster side with that roster's current contents; null when the roster or its unit is gone. */
 function savedRosterSide(side: SimulatorSide, roster: CombatRoster | null, name: string): CombatRoster | null {
@@ -133,30 +131,8 @@ export function CombatSimulator({
     setComparingRosters(false)
     setProblem(null)
   }
-  const chooseRoster = async (index: 0 | 1, key: string) => {
-    const request = ++rosterRequests.current[index]
-    let side: SimulatorSide | null = null
-    if (key !== NO_ROSTER) {
-      const linkedSealedEvent = linkedSealedEvents.get(key)
-      const source = sealedEventSources.get(key) ?? (linkedSealedEvent ? { league: linkedSealedEvent } : { id: key })
-      const { league: sealedEvent } = 'league' in source ? source : {}
-      const roster = await (
-        sealedEvent
-          ? queryClient
-              .query(sealedEventRosterQuery(sealedEvent.token, sealedEvent.eventToken, sealedEvent.userId))
-              .then(sealedCombatRoster)
-          : queryClient.query(sharedRosterQuery(key)).then(savedCombatRoster)
-      ).catch(() => null)
-      if (request !== rosterRequests.current[index]) return
-      const pickIndex = roster?.picks.findIndex((pick) => pick.attachedTo === undefined) ?? -1
-      const host = roster?.picks[pickIndex]
-      if (!roster || !host) {
-        setProblem(roster ? 'That roster has no units yet.' : 'That roster could not be opened.')
-        return
-      }
-      const { attachedTo: _attachedTo, note: _note, ...pick } = host
-      side = { catalogueId: roster.catalogueId, pick, rules: {}, roster: { ...source, pickIndex } }
-    }
+  const setSide = (index: 0 | 1, side: SimulatorSide | null) => {
+    rosterRequests.current[index]++
     setSession((current) => {
       const state = decodeSimulatorState(current.shared)
       const next = [...(state?.sides ?? [null, null])] as SimulatorState['sides']
@@ -166,51 +142,66 @@ export function CombatSimulator({
     setComparingRosters(false)
     setProblem(null)
   }
-  const rosterControl = (index: 0 | 1) => {
-    const sideOwner = ownerOf(sides?.[index]?.roster?.saved?.source)
-    return savedRosters.length || friendRosters.length || sealedEventSources.size || otherRosters.length ? (
-      <div className="mb-3 text-xs text-dim">
-        <span className="flex min-w-0 items-center justify-between gap-2">
-          Roster
-          {sideOwner ? <OwnerName owner={sideOwner} className="text-bone" /> : null}
-        </span>
-        <RosterPicker
-          ariaLabel={`${index ? 'Second' : 'First'} roster`}
-          className="mt-1"
-          popupClassName={PICKER_POPUP}
-          searchPlaceholder="Search rosters…"
-          groups={[
-            {
-              label: 'Catalogue',
-              options: [{ id: NO_ROSTER, label: 'No roster', icon: <BookOpen className="size-4 text-info" aria-hidden /> }],
-            },
-            { label: 'Opened rosters', options: otherRosters },
-            {
-              label: 'Your rosters',
-              options: savedRosters.map((roster) => ({ id: roster.id, label: titled(roster), catalogueId: roster.catalogueId })),
-            },
-            {
-              label: "Friends' rosters",
-              options: friendRosters.map(({ roster, owner }) => ({
-                id: roster.id,
-                label: `${titled(roster)} · ${owner.name}`,
-                catalogueId: roster.catalogueId,
-              })),
-            },
-            {
-              label: "Friends' sealed rosters",
-              options: sealedEventRosters.map((entry) => ({
-                id: rosterSourceKey(friendSealedEventSource(entry)),
-                label: friendSealedEventLabel(entry),
-                catalogueId: entry.catalogueId,
-              })),
-            },
-          ]}
-          value={sides?.[index]?.roster?.saved ? rosterSourceKey(sides[index].roster.saved.source) : NO_ROSTER}
-          onValueChange={(id) => void chooseRoster(index, id)}
-        />
-      </div>
-    ) : undefined
+  const rosterSource = (key: string): SimulatorRosterSource => {
+    const linkedSealedEvent = linkedSealedEvents.get(key)
+    return sealedEventSources.get(key) ?? (linkedSealedEvent ? { league: linkedSealedEvent } : { id: key })
+  }
+  const loadRoster = (key: string) => {
+    const source = rosterSource(key)
+    return (
+      'league' in source
+        ? queryClient
+            .query(sealedEventRosterQuery(source.league.token, source.league.eventToken, source.league.userId))
+            .then(sealedCombatRoster)
+        : queryClient.query(sharedRosterQuery(key)).then(savedCombatRoster)
+    ).catch(() => null)
+  }
+  const chooseRosterUnit = async (index: 0 | 1, key: string, pickIndex: number) => {
+    const request = ++rosterRequests.current[index]
+    const roster = await loadRoster(key)
+    if (request !== rosterRequests.current[index]) return
+    const chosen = roster?.picks[pickIndex]
+    if (!roster || !chosen) {
+      setProblem('That roster could not be opened.')
+      return
+    }
+    const { attachedTo: _attachedTo, note: _note, ...pick } = chosen
+    setSide(index, { catalogueId: roster.catalogueId, pick, rules: {}, roster: { ...rosterSource(key), pickIndex } })
+  }
+  const rosterGroups = [
+    { label: 'Opened rosters', options: otherRosters },
+    {
+      label: 'Your rosters',
+      options: savedRosters.map((roster) => ({ id: roster.id, label: titled(roster), catalogueId: roster.catalogueId })),
+    },
+    {
+      label: "Friends' rosters",
+      options: friendRosters.map(({ roster, owner }) => ({
+        id: roster.id,
+        label: `${titled(roster)} · ${owner.name}`,
+        catalogueId: roster.catalogueId,
+      })),
+    },
+    {
+      label: "Friends' sealed rosters",
+      options: sealedEventRosters.map((entry) => ({
+        id: rosterSourceKey(friendSealedEventSource(entry)),
+        label: friendSealedEventLabel(entry),
+        catalogueId: entry.catalogueId,
+      })),
+    },
+  ]
+  const rosterNavigation = (index: 0 | 1): RosterNavigation | undefined => {
+    if (!rosterGroups.some((group) => group.options.length)) return undefined
+    const fielded = sides?.[index]?.roster?.saved
+    return {
+      groups: rosterGroups,
+      current: fielded ? rosterSourceKey(fielded.source) : null,
+      owner: ownerOf(fielded?.source),
+      load: loadRoster,
+      chooseRosterUnit: (key, pickIndex) => void chooseRosterUnit(index, key, pickIndex),
+      replace: (side) => setSide(index, side),
+    }
   }
   const share = useCallback((state: SimulatorState) => {
     const encoded = state.sides.some(Boolean) ? encodeSimulatorState(state) : undefined
@@ -255,8 +246,8 @@ export function CombatSimulator({
                   key={session.key}
                   roster={sides?.[0]?.roster}
                   opponentRoster={sides?.[1]?.roster}
-                  firstArmyControl={rosterControl(0)}
-                  secondArmyControl={rosterControl(1)}
+                  firstRosters={rosterNavigation(0)}
+                  secondRosters={rosterNavigation(1)}
                   initial={linked && sides ? { ...linked, sides: [sides[0]!.side, sides[1]!.side] } : null}
                   onChange={share}
                   onRemember={history.remember}
@@ -292,6 +283,8 @@ export function CombatSimulatorMatchup({
   opponentRoster,
   firstArmyControl,
   secondArmyControl,
+  firstRosters,
+  secondRosters,
   inDialog = false,
   initial,
   onChange,
@@ -303,6 +296,9 @@ export function CombatSimulatorMatchup({
   opponentRoster?: CombatRoster
   firstArmyControl?: ReactNode
   secondArmyControl?: ReactNode
+  /** The standalone page's way into each side's rosters. */
+  firstRosters?: RosterNavigation
+  secondRosters?: RosterNavigation
   inDialog?: boolean
   initial?: SimulatorState | null
   onChange?: (state: SimulatorState) => void
@@ -423,6 +419,7 @@ export function CombatSimulatorMatchup({
           side="Attacker"
           combatant={attacker}
           armyControl={reversed ? secondArmyControl : firstArmyControl}
+          rosters={reversed ? secondRosters : firstRosters}
           headingAction={
             <Button
               variant="outline"
@@ -438,7 +435,14 @@ export function CombatSimulatorMatchup({
           }
         />
       }
-      defenderControl={<CombatantCard side="Defender" combatant={defender} armyControl={reversed ? firstArmyControl : secondArmyControl} />}
+      defenderControl={
+        <CombatantCard
+          side="Defender"
+          combatant={defender}
+          armyControl={reversed ? firstArmyControl : secondArmyControl}
+          rosters={reversed ? firstRosters : secondRosters}
+        />
+      }
       attackerBuffs={<CombatBuffControls side="Attacker" combatant={attacker} opponent={defender} />}
       defenderBuffs={<CombatBuffControls side="Defender" combatant={defender} opponent={attacker} />}
     />

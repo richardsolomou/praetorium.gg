@@ -1,4 +1,6 @@
+import { detachmentLimit, detachmentPointBudget } from '../../core/battle'
 import { routeSlug } from '../../core/slug'
+import { countLabel } from '../text'
 
 type DispositionOption = { id: string; name: string }
 
@@ -70,4 +72,21 @@ export function detachmentConflict(detachment: OfferedDetachment, selected: read
     if (shared) return `An army can include only one ${shared.limit} detachment, and this army already has ${other.name}.`
   }
   return null
+}
+
+/** Why this detachment cannot join the ones already taken at this battle size, if it cannot. */
+export function detachmentRefusal(
+  detachment: OfferedDetachment & { points?: number | null },
+  selected: readonly (OfferedDetachment & { points?: number | null })[],
+  limit: number,
+) {
+  const conflict = detachmentConflict(detachment, selected)
+  if (conflict) return conflict
+  const most = detachmentLimit(limit)
+  if (selected.length >= most) return `An army can include at most ${countLabel(most, 'detachment')}.`
+  const allowance = detachmentPointBudget(limit)
+  // A lone detachment is never over budget, whatever it costs.
+  if (!selected.length || allowance === null || detachment.points == null) return null
+  const left = allowance - selected.reduce((total, other) => total + (other.points ?? 0), 0)
+  return detachment.points > left ? `${detachment.name} costs ${detachment.points} DP, and only ${left} of ${allowance} DP are left.` : null
 }

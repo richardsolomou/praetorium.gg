@@ -1720,17 +1720,21 @@ test('defender can add a squad to a standalone Captain', async ({ page }) => {
   await atWidths(page, [1440, 390], async () => noOverflow(page))
 })
 
-test('unit controls remain beside truncated pickers', async ({ page }) => {
+/** A unit row's control sits beside its picker on a wide card, and beside or wholly below it on a narrow one. */
+function expectBesideOrBelow(picker: { y: number; height: number }, control: { y: number; height: number }, beside: boolean) {
+  const centred = Math.abs(picker.y + picker.height / 2 - control.y - control.height / 2) < 2
+  expect(beside ? centred : centred || control.y >= picker.y + picker.height - 1).toBe(true)
+}
+
+test('unit controls sit beside pickers until a name would be cut short', async ({ page }) => {
   const widths = [1024, 320, 690]
   await page.setViewportSize({ width: 1024, height: 1000 })
   await page.goto('/simulator')
-  await atWidths(page, widths, async () => {
+  await atWidths(page, widths, async (width) => {
     for (const side of ['Attacker', 'Defender']) {
       const picker = page.getByRole('combobox', { name: `${side} unit`, exact: true })
       const models = page.getByRole('button', { name: `Fewer ${side.toLowerCase()} models`, exact: true })
-      const pickerBounds = await picker.boundingBox()
-      const modelBounds = await models.boundingBox()
-      expect(Math.abs(pickerBounds!.y + pickerBounds!.height / 2 - modelBounds!.y - modelBounds!.height / 2)).toBeLessThan(2)
+      expectBesideOrBelow((await picker.boundingBox())!, (await models.boundingBox())!, width >= 1024)
     }
   })
   await chooseCombatUnit(page, 'Attacker', 'Necrons', 'Immortals')
@@ -1757,8 +1761,7 @@ test('unit controls remain beside truncated pickers', async ({ page }) => {
         const picker = await row.getByRole('combobox', { name: / unit$/ }).boundingBox()
         const loadout = row.getByRole('button', { name: /loadout/i })
         await expect(loadout).toBeEnabled()
-        const gear = await loadout.boundingBox()
-        expect(Math.abs(picker!.y + picker!.height / 2 - gear!.y - gear!.height / 2)).toBeLessThan(2)
+        expectBesideOrBelow(picker!, (await loadout.boundingBox())!, width >= 1024)
       }
     }
     const picker = page.getByRole('combobox', { name: 'Attacker unit', exact: true })

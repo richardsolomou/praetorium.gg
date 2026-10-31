@@ -1,6 +1,6 @@
 import { type CombatRule, readCombatRule } from '../../../core/combatRules'
 import { hasTextTokens } from '../../../shared/sourceText'
-import { loadedWords } from '../../sourceText'
+import { loadedText, loadedWords, type MissingText } from '../../sourceText'
 
 /**
  * A combatant's rules as the simulator can compile them: rules are compiled from their
@@ -26,3 +26,9 @@ export function readableCombatant<T extends { rules: CombatRule[]; companions: {
 /** Every rule text a combatant carries, for loading what they name. */
 export const combatantTexts = (data: { rules: CombatRule[]; companions: { rules: CombatRule[] }[] } | null | undefined) =>
   data ? [...data.rules, ...data.companions.flatMap((member) => member.rules)].map((rule) => rule.description) : []
+
+/** Why some of a combatant's rules cannot be read yet, worst first, so a side can say rather than drop them silently. */
+export function missingRuleText(data: Parameters<typeof combatantTexts>[0]): Exclude<MissingText, 'unavailable'> {
+  const missing = new Set(combatantTexts(data).map((text) => loadedText(text).missing))
+  return (['unchosen', 'failed', 'loading'] as const).find((reason) => missing.has(reason)) ?? null
+}
