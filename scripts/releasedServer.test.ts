@@ -15,7 +15,7 @@ import { moduleFetch, snake } from '../src/server/moduleFetch.fixtures'
  * A deploy publishes this module while the released server still serves, for the minutes the new server takes to warm
  * up, so the released server must read what this module returns and write what it accepts. This runs the released
  * preview seed, which writes the preview data and reads back every procedure it reaches, against this module in memory.
- * CI points `RELEASED_CHECKOUT` at a checkout of the latest release.
+ * CI points `RELEASED_CHECKOUT` at a checkout of the revision production runs.
  */
 const released = process.env.RELEASED_CHECKOUT
 /**

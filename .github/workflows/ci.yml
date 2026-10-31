@@ -80,9 +80,12 @@ jobs:
           r2-account-id: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
           r2-access-key-id: ${{ secrets.PRIVATE_R2_ACCESS_KEY_ID }}
           r2-secret-access-key: ${{ secrets.PRIVATE_R2_SECRET_ACCESS_KEY }}
-      # `scripts/releasedServer.test.ts` runs the released server against this module.
-      - name: Check out the latest release
-        run: git worktree add --detach "$RUNNER_TEMP/released" "$(git describe --tags --abbrev=0 origin/main)"
+      # `scripts/releasedServer.test.ts` runs the released server against this module. A merge without a changeset
+      # deploys without a tag, so production's own revision header names the released server.
+      - name: Check out the revision production runs
+        run: |
+          live="$(curl --silent --show-error --fail --retry 3 --max-time 30 --head https://praetorium.gg/api/health | tr -d '\r' | sed -n 's/^x-praetorium-revision: //Ip')"
+          git worktree add --detach "$RUNNER_TEMP/released" "${live:?production sent no revision}"
       - run: pnpm test:unit
         env:
           RELEASED_CHECKOUT: ${{ runner.temp }}/released

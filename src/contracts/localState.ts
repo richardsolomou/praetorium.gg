@@ -3,7 +3,6 @@ import { idSchema } from '../core/commands'
 import { jsonByteLength } from '../core/json'
 import { predatesEventHosts } from './savedSealedEvents'
 import { migrateSavedRoster } from '../core/savedRosterMigrations'
-import { currentCommands, currentOfflineAction, currentResource } from '../core/releasedNames'
 
 export const MAX_LOCAL_STATE_BYTES = 50_000_000
 export const MAX_LOCAL_OPERATIONS = 2_000
@@ -33,31 +32,6 @@ export type LocalState = z.infer<typeof localStateSchema>
 
 export function emptyLocalState(owner: string): LocalState {
   return { version: 1, owner, epoch: crypto.randomUUID(), revision: 0, operations: [], documents: {} }
-}
-
-/** Saved work queued under the previous release's names, renamed so this release can sync and show it. */
-export function withCurrentNames(value: unknown) {
-  const state = currentCommands(value) as { operations?: unknown; documents?: unknown }
-  if (!Array.isArray(state?.operations) || typeof state.documents !== 'object' || state.documents === null) return state
-  return {
-    ...state,
-    operations: state.operations.map((operation: { kind?: unknown; resource?: unknown; dependencies?: unknown; input?: unknown }) => ({
-      ...operation,
-      kind: (currentOfflineAction({ kind: operation.kind }) as { kind: unknown }).kind,
-      ...(typeof operation.resource === 'string' ? { resource: currentResource(operation.resource) } : {}),
-      ...(Array.isArray(operation.dependencies)
-        ? {
-            dependencies: operation.dependencies.map((dependency) =>
-              typeof dependency === 'string' ? currentResource(dependency) : dependency,
-            ),
-          }
-        : {}),
-      ...(typeof operation.input === 'object' && operation.input !== null && 'identifiers' in operation.input
-        ? { input: { ...operation.input, identifiers: (currentOfflineAction(operation.input) as { identifiers: unknown }).identifiers } }
-        : {}),
-    })),
-    documents: Object.fromEntries(Object.entries(state.documents).map(([resource, document]) => [currentResource(resource), document])),
-  }
 }
 
 export function parseLocalState(value: unknown): LocalState | null {

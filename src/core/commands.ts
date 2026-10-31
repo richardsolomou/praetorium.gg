@@ -28,7 +28,6 @@ import {
 import { UNIT_GROUPS } from './unitGroups'
 import { rosterReminderSchema, ROSTER_REMINDERS_MAX } from './reminders'
 import { MISSION_SELECTION_KINDS } from './missionSelections'
-import { currentCommand } from './releasedNames'
 import { UNIT_NICKNAME_MAX_LENGTH, UNIT_NOTE_MAX_LENGTH } from './unitNotes'
 import { PROFILE_NAME_MAX_LENGTH } from './profileName'
 
@@ -123,7 +122,7 @@ const battlePrep = z.object({
  * limits are the domain's, so a command cannot be stored that `validate` would
  * have refused.
  */
-const commandUnion = z.discriminatedUnion('kind', [
+export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
   z.object({
     kind: z.literal('select-mission'),
     cardKey: id,
@@ -347,7 +346,6 @@ const commandUnion = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('add-note'), text: z.string().max(NOTE_MAX_LENGTH) }),
   z.object({ kind: z.literal('undo'), target: z.number().int().positive() }),
 ])
-export const commandSchema: z.ZodType<Command> = z.preprocess(currentCommand, commandUnion)
 
 export function parseRosterSnapshot(snapshot: string): Roster {
   const command = commandSchema.parse({ kind: 'attach-roster', roster: JSON.parse(snapshot) })

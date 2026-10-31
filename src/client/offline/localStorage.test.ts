@@ -47,33 +47,6 @@ afterEach(() => {
   native.reads = 0
   vi.unstubAllGlobals()
 })
-it('renames work saved under the previous release’s names', async () => {
-  const id = crypto.randomUUID()
-  disk.set(`work:${owner}`, {
-    epoch: 'generation',
-    state: {
-      ...emptyLocalState(owner),
-      epoch: 'generation',
-      operations: [
-        {
-          id,
-          resource: 'league:tournament',
-          kind: 'createLeague',
-          input: { input: {}, identifiers: { leagueToken: 'token' } },
-          createdAt: 1,
-          status: 'pending',
-        },
-      ],
-      documents: { 'battle:battle': { data: { log: [{ command: { kind: 'set-battle-club', clubId: 'group' } }] }, serverVersion: 1 } },
-    },
-  })
-  expect(await localStateStorage(owner).read()).toMatchObject({
-    operations: [
-      { id, resource: 'sealed-event:tournament', kind: 'createSealedEvent', input: { identifiers: { tournamentToken: 'token' } } },
-    ],
-    documents: { 'battle:battle': { data: { log: [{ command: { kind: 'set-battle-group', groupId: 'group' } }] } } },
-  })
-})
 it.each(['browser', 'native'])('drops a queued event saved before hosts from %s storage, keeping its action', async (surface) => {
   const legacy: LocalState = {
     ...emptyLocalState(owner),

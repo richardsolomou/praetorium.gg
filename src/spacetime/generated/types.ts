@@ -151,12 +151,6 @@ export const Commands = __t.object('Commands', {
 })
 export type Commands = __Infer<typeof Commands>
 
-export const CompletedMigrations = __t.object('CompletedMigrations', {
-  name: __t.string(),
-  at: __t.u64(),
-})
-export type CompletedMigrations = __Infer<typeof CompletedMigrations>
-
 export const DerivedState = __t.object('DerivedState', {
   name: __t.string(),
   cursor: __t.u64(),

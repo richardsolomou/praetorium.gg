@@ -4,7 +4,6 @@ import { offlineActionSchema, type OfflineActionKind } from '../../contracts/off
 import { offlineActions } from '../offlineActions'
 import { offlineContext } from '../offlineContext'
 import { commandSchema, idSchema } from '../../core/commands'
-import { currentOfflineAction } from '../../core/releasedNames'
 import { rosterSnapshot } from '../../core/rosterSnapshot'
 import { fieldingReminders } from '../../shared/reminderAbilities'
 import { rosterUseError } from '../../core/rosterLegality'
@@ -119,7 +118,7 @@ export const battleWorkspace = createServerFn({ method: 'GET' })
   .handler(({ data }) => rpc(async () => app().service.battleWorkspace(data.token, await requireUserId(), await app().rulesFor())))
 
 export const syncAction = createServerFn({ method: 'POST' })
-  .validator((data: z.input<typeof offlineActionSchema>) => offlineActionSchema.parse(currentOfflineAction(data)))
+  .validator(offlineActionSchema)
   .handler(({ data }) =>
     mutationRpc(async () => {
       const player = await requireOwner(data.owner)

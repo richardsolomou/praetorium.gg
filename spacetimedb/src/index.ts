@@ -98,7 +98,6 @@ import { z } from 'zod'
 import { productTables } from './productSchema'
 import { UNIT_LOADOUTS_MAX, unitLoadoutNameSchema, unitLoadoutSchema } from '../../src/core/unitLoadouts'
 import { productSyncRefusal } from './syncOutcome'
-import { currentCommand, RELEASED_ACHIEVEMENTS, RELEASED_SCOPES, RELEASED_TASKS, releasedCommand } from '../../src/core/releasedNames'
 
 // Auth settings live in the module environment; the issuer, audience and operator columns stay
 // because automatic migration cannot remove columns.
@@ -251,48 +250,6 @@ function auth(ctx: Context) {
 
 function requireOperator(ctx: Context) {
   if (ctx.sender.toHexString() !== auth(ctx).operator) throw new SenderError('Operator required')
-  renameStoredNames(ctx)
-}
-
-/**
- * Rewrites the rows the previous release stored under old names, so the first operator call after a deploy renames them
- * before anything reads them. Only its writes left the `clubs` and `leagues` public revisions, which this renames last.
- */
-function renameStoredNames(ctx: Context) {
-  const { db } = ctx
-  if (!Array.from(RELEASED_SCOPES.keys()).some((scope) => db.publicRevisions.scope.find(scope))) return
-  for (const row of Array.from(db.commands.iter())) {
-    if (!row.body.includes('"set-battle-club"') && !row.body.includes('"lock-league-rosters"')) continue
-    db.commands.key.update({ ...row, body: JSON.stringify(currentCommand(JSON.parse(row.body))) })
-  }
-  for (const row of Array.from(db.earnedAchievements.iter())) {
-    const achievementId = RELEASED_ACHIEVEMENTS.get(row.achievementId)
-    if (!achievementId) continue
-    db.earnedAchievements.key.delete(row.key)
-    const key = JSON.stringify([row.userId, achievementId])
-    if (!db.earnedAchievements.key.find(key)) db.earnedAchievements.insert({ ...row, key, achievementId })
-  }
-  for (const row of Array.from(db.userOnboardingTasks.iter())) {
-    const task = RELEASED_TASKS.get(row.task)
-    if (!task) continue
-    db.userOnboardingTasks.key.delete(row.key)
-    const key = JSON.stringify([row.userId, task])
-    if (!db.userOnboardingTasks.key.find(key)) db.userOnboardingTasks.insert({ ...row, key, task })
-  }
-  for (const row of Array.from(db.productRevisions.iter())) {
-    const scope = RELEASED_SCOPES.get(row.scope)
-    if (!scope) continue
-    db.productRevisions.key.delete(row.key)
-    const key = JSON.stringify([row.userId, scope])
-    if (!db.productRevisions.key.find(key)) db.productRevisions.insert({ ...row, key, scope })
-  }
-  for (const [released, scope] of RELEASED_SCOPES) {
-    const row = db.publicRevisions.scope.find(released)
-    if (!row) continue
-    db.publicRevisions.scope.delete(released)
-    if (!db.publicRevisions.scope.find(scope)) db.publicRevisions.insert({ scope, revision: row.revision })
-  }
-  db.completedMigrations.clear()
 }
 
 function operatorTx<T>(ctx: ProcedureCtx<InferSchema<typeof spacetime>>, run: (tx: Context) => T) {
@@ -2223,8 +2180,6 @@ function onboardingData(ctx: Context, userId: string) {
       friend,
       battle: Boolean(ctx.db.battleUsers.userId.filter(userId).next().value),
       tournament,
-      // The released server requires the fact by its old name.
-      league: tournament,
     },
   }
 }
@@ -2249,8 +2204,7 @@ function safeNumber(value: bigint) {
 
 function productJson(value: unknown) {
   return JSON.stringify(value, (_key, field: unknown) => {
-    // The released server reads commands only by their old names.
-    if (typeof field !== 'bigint') return field === undefined ? null : releasedCommand(field)
+    if (typeof field !== 'bigint') return field === undefined ? null : field
     return safeNumber(field)
   })
 }
