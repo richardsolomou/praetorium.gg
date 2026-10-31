@@ -453,17 +453,19 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
       !claimAutomaticAttempt(attemptedEmptySettlements.current, emptySettlementKey)
     )
       return
+    // Either device may settle an empty turn, so this one's attempt holds only while the screen it was worked out from does.
     send(
       { kind: 'settle-opponent-turn' },
       {
         background: true,
+        onlyAt: view.seq,
         complete: (appended) => {
           if (!appended && automaticAttemptsExhausted(attemptedEmptySettlements.current, emptySettlementKey))
             setExhaustedSettlement(emptySettlementKey)
         },
       },
     )
-  }, [emptySettlementKey, emptySettlementReady, pending, promptMinimized, send])
+  }, [emptySettlementKey, emptySettlementReady, pending, promptMinimized, send, view.seq])
   const prompt = settlementRound !== null ? (owedCards.length ? 'owed' : null) : turnPrompt(0, needsDraw || needsDrawAcknowledgement)
 
   // A phase that ends queues its reminders ahead of the next moment's, so they show in the order they happened.
