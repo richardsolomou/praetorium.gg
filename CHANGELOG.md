@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.208.4 (2026-10-31)
+
+### Patch Changes
+
+- 4546329: Battles on an iPhone no longer reload by themselves partway through a game.
+
 ## 0.208.3 (2026-10-31)
 
 ### Patch Changes
