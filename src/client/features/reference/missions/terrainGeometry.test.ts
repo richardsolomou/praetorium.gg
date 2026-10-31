@@ -334,6 +334,11 @@ describe('placing terrain piece by piece', () => {
     expect(froms).toContainEqual({ x: 6, y: 2 })
   })
 
+  it('places a piece flush with the board edge', () => {
+    const geometry = { board, areas: [{ ...openArea(square(3, 0, 2)), id: 'flush' }] }
+    expect(placementMeasurements(geometry, [], [], { terrain: true })).not.toHaveLength(0)
+  })
+
   it('skips corners whose distances fall between half inches', () => {
     const geometry = {
       board,

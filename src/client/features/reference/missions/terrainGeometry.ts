@@ -204,6 +204,20 @@ function pointToSegmentDistance(point: Point, start: Point, end: Point) {
   return Math.hypot(point.x - nearest.x, point.y - nearest.y)
 }
 
+function segmentDistance(start: Point, end: Point, otherStart: Point, otherEnd: Point) {
+  const side = (from: Point, to: Point, point: Point) =>
+    Math.sign((to.x - from.x) * (point.y - from.y) - (to.y - from.y) * (point.x - from.x))
+  const crosses =
+    side(start, end, otherStart) * side(start, end, otherEnd) < 0 && side(otherStart, otherEnd, start) * side(otherStart, otherEnd, end) < 0
+  if (crosses) return 0
+  return Math.min(
+    pointToSegmentDistance(start, otherStart, otherEnd),
+    pointToSegmentDistance(end, otherStart, otherEnd),
+    pointToSegmentDistance(otherStart, start, end),
+    pointToSegmentDistance(otherEnd, start, end),
+  )
+}
+
 function nearestOnSegment(point: Point, start: Point, end: Point) {
   const dx = end.x - start.x
   const dy = end.y - start.y
@@ -286,27 +300,22 @@ export function placementMeasurements(
     ),
   ]
   type Leg = { from: Point; to: Point; reference: PlacementReference; ruler: boolean }
-  type Obstacle = { points: Point[]; box: Box }
+  type Obstacle = { points: Point[]; edges: (readonly [Point, Point])[]; box: Box }
   const length = (legs: Leg[]) => legs.reduce((sum, leg) => sum + Math.hypot(leg.to.x - leg.from.x, leg.to.y - leg.from.y), 0)
+  /** Clear if no footprint comes within a tenth of an inch, ignoring the ends where the tape meets its corners. */
   const clear = ({ from, to }: { from: Point; to: Point }, obstacles: Obstacle[]) => {
     const span = Math.hypot(to.x - from.x, to.y - from.y)
-    const nearby = obstacles.filter(
-      ({ box }) =>
-        box.min.x - 0.1 <= Math.max(from.x, to.x) &&
-        box.max.x + 0.1 >= Math.min(from.x, to.x) &&
-        box.min.y - 0.1 <= Math.max(from.y, to.y) &&
-        box.max.y + 0.1 >= Math.min(from.y, to.y),
+    if (span <= 0.6) return true
+    const inset = (along: number) => ({ x: from.x + ((to.x - from.x) * along) / span, y: from.y + ((to.y - from.y) * along) / span })
+    const [start, end] = [inset(0.3), inset(span - 0.3)]
+    return !obstacles.some(
+      ({ points, edges, box }) =>
+        box.min.x - 0.1 <= Math.max(start.x, end.x) &&
+        box.max.x + 0.1 >= Math.min(start.x, end.x) &&
+        box.min.y - 0.1 <= Math.max(start.y, end.y) &&
+        box.max.y + 0.1 >= Math.min(start.y, end.y) &&
+        (pointInPolygon(start, points) || edges.some(([edgeStart, edgeEnd]) => segmentDistance(start, end, edgeStart, edgeEnd) < 0.1)),
     )
-    for (let along = 0.3; along < span - 0.3; along += 0.25) {
-      const point = { x: from.x + ((to.x - from.x) * along) / span, y: from.y + ((to.y - from.y) * along) / span }
-      const blocked = nearby.some(
-        (obstacle) =>
-          pointInPolygon(point, obstacle.points) ||
-          polygonEdges(obstacle.points).some(([start, end]) => pointToSegmentDistance(point, start, end) < 0.1),
-      )
-      if (blocked) return false
-    }
-    return true
   }
   const axisLegs = (point: Point, obstacles: Obstacle[]) =>
     [
@@ -329,7 +338,9 @@ export function placementMeasurements(
               })
               .filter((hit) => hit !== null)
               .sort((left, right) => left.distance - right.distance)
-            const nearest = hits[0]!
+            // A corner flush with the board edge has nothing beyond it in that direction.
+            const nearest = hits[0]
+            if (!nearest) return []
             if (clear({ from: nearest.at, to: point }, obstacles))
               return [
                 {
@@ -339,8 +350,8 @@ export function placementMeasurements(
                   ruler: nearest.reference === 'edges' && nearest.distance > longestEdgeArrow,
                 },
               ]
-            const edge = hits.find((hit) => hit.reference === 'edges')!
-            return edge.distance > longestEdgeArrow ? [{ from: edge.at, to: point, reference: 'edges', ruler: true }] : []
+            const edge = hits.find((hit) => hit.reference === 'edges')
+            return edge && edge.distance > longestEdgeArrow ? [{ from: edge.at, to: point, reference: 'edges', ruler: true }] : []
           })
           .sort((left, right) => length([left]) - length([right]))[0]!,
     )
@@ -372,7 +383,8 @@ export function placementMeasurements(
       .find((legs) => legs.every((leg) => clear(leg, obstacles)))
     return corners ?? square
   }
-  const obstaclesOf = (footprints: Point[][]) => footprints.map((points) => ({ points, box: boundingBox(points) }))
+  const obstaclesOf = (footprints: Point[][]) =>
+    footprints.map((points) => ({ points, edges: polygonEdges(points), box: boundingBox(points) }))
 
   const remaining = [...groupBy(geometry.areas, (area) => area.group ?? area.id).values()].map((areas) => ({
     approximate: areas.some((area) => area.measurements.some((measurement) => measurement.approximate)),
