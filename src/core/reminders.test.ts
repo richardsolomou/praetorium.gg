@@ -5,6 +5,7 @@ import {
   abilityRemindersFromRosters,
   chosenReminderAbilities,
   fieldedReminders,
+  groupedReminders,
   reminderTimingCountsByUnit,
   reminderDue,
   detachmentRuleSubject,
@@ -479,4 +480,24 @@ describe('withAbilityReminder', () => {
       setting('datasheet:a', 'opponent-turn'),
     ])
   })
+})
+
+it('merges reminders that read the same and counts the units holding them', () => {
+  const reminder = (key: string, ability: string, unit?: string) => ({
+    key,
+    ability,
+    description: 'Deep strike nearby.',
+    timings: [{ moment: 'phase-end' as const, phase: 'movement' as const, turn: 'your-turn' as const }],
+    ...(unit ? { unit: { index: Number(key.at(-1)), name: unit } } : {}),
+  })
+  const groups = groupedReminders([
+    reminder('a:1', 'Tunnelling Horrors', 'Ophydian Destroyers'),
+    reminder('a:2', 'Tunnelling Horrors', 'Ophydian Destroyers'),
+    reminder('a:3', 'Tunnelling Horrors', 'Canoptek Wraiths'),
+    reminder('b:4', 'Reanimation Protocols'),
+  ])
+  expect(groups.map(({ members, units }) => [members.map((member) => member.key), units])).toEqual([
+    [['a:1', 'a:2', 'a:3'], 'Ophydian Destroyers ×2, Canoptek Wraiths'],
+    [['b:4'], null],
+  ])
 })

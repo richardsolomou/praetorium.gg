@@ -17,7 +17,7 @@ The **Note** box holds up to 500 characters that only you can see. Exports and o
 
 ## Ability alerts
 
-The bell beside an ability, rule or chosen enhancement sets an alert for it. Choose when it appears, such as the start of your Shooting phase; the alert suggests a time from the rule's wording for you to check. An alert belongs to you rather than the roster: it covers every unit with that ability in all your rosters, and each unit holding it gets its own alert in battle. An army or detachment rule alerts once for the whole army. The unit's card counts the alerts it will give. You can keep up to 200 alerts.
+The bell beside an ability, rule or chosen enhancement sets an alert for it. Choose when it appears, such as the start of your Shooting phase; the alert suggests a time from the rule's wording for you to check. An alert belongs to you rather than the roster: it covers every unit with that ability in all your rosters, and in battle one reminder names every unit holding it, such as Ophydian Destroyers ×2. An army or detachment rule alerts once for the whole army. The unit's card counts the alerts it will give. You can keep up to 200 alerts.
 
 Signed in, your account keeps your alerts; otherwise this browser does, and saving your list to an account brings them along. A battle keeps the alerts its armies started with, so changing one later doesn't change a battle already under way. Sealing a list doesn't seal your alerts: a tournament or group battle uses the alerts you have when it starts. An ability whose catalogue entry differs between rules versions may need its alert set again.
 

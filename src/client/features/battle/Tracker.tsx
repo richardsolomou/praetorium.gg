@@ -807,9 +807,9 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
             reminders={reminderPrompt.reminders}
             moment={reminderPrompt.moment}
             confirmLabel={reminderPrompt.confirmLabel}
-            onDismiss={(reminder, scope) => {
-              const last = reminderPrompt.reminders.length === 1
-              rememberReminder(reminder.key, scope, reminderPrompt.context)
+            onDismiss={(reminders, scope) => {
+              const last = reminders.length === reminderPrompt.reminders.length
+              for (const reminder of reminders) rememberReminder(reminder.key, scope, reminderPrompt.context)
               if (last && reminderPrompt.advanceAfterDismissal && sameMoment(reminderPrompt.context, momentOf(view))) advanceNow()
             }}
             onDone={() => {
