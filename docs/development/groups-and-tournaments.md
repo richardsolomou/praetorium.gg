@@ -17,7 +17,7 @@ The navigation files groups and tournaments under "Events"; "community" already 
 
 Players never read "club", "season" or "sealed game", and copy names a tournament or a hidden-list game rather than an event; only the shared engine's refusals in `src/core/sealedEvent.ts` and `src/server/services/sealedEventService.ts` still say "event", since they serve both. `scripts/checkVocabulary.ts` fails CI on those words outside the stored names below.
 
-"League" once meant a standing group of events, and its stored names below still do: `leagueToken`, the `league_command` saved action and the offline `*League` kinds name a sealed event or its host, never a group's league.
+"League" once meant a standing group of events, and its stored names below still do: `leagueToken` and the offline `*League` kinds name a sealed event or its host, never a group's league.
 
 Stored names keep the old words, because renaming them breaks battle logs, queued offline actions, connected browsers or shared links:
 
@@ -26,15 +26,13 @@ Stored names keep the old words, because renaming them breaks battle logs, queue
 - The onboarding task `league` and its fact, achievement ids such as `club-night` and `season-ticket`, and the realtime scopes `clubs` and `leagues` (`src/client/productSignals.ts`), which `product_revisions` stores and open tabs read.
 - `/clubs/…` and `/leagues/…` addresses, which redirect, the roster page's `?league=` and the simulator's `league` roster source, which shared links spell.
 
-The module once held groups, leagues, hidden-list games and sealed event entries in tables named after the old words. Those tables stay as `retired*` accessors in `spacetimedb/src/productSchema.ts`, since SpacetimeDB drops only an empty table, and `moveRetiredRows` empties them into the current tables at the first operator call after a deploy. A server released before the move still calls the module by the old procedure names and JSON fields for the minutes a deploy runs it, so `club_command`, `league_by_token` and the rest stay as shims that translate both ways (`RELEASED_KEYS` and `RELEASED_VALUES` in `spacetimedb/src/index.ts`), and `product_stats` and `achievement_facts_by_user` return both names. Once no released server predates the move, a release removes the shims, the retired tables, `league_command` from the saved actions it no longer replays, and the doubled fields.
-
 ## Sealed events
 
 `src/core/sealedEvent.ts` owns decisions; `src/server/services/sealedEventService.ts` owns operations.
 
 - A sealed event (`sealed_events`) is the shared engine: entries, picks, pairings and battles key on its id. Exactly one host holds it: a tournament (`tournaments`, with its own name, listing, admission, limit and admins) or a hidden-list game (`hidden_list_games`), which has none of those and is run by its group's organizers for its group's members.
 - A host's token is its address and what its battles' `lock-league-rosters` name beside the event's token; a hidden-list game's is its event's. Old logs name a retired league's token, which is now its group's.
-- `leagues`, `league_events` and `league_admins` are retired: only `moveRetiredRows` reads them, and it turns each league into a group and each event into one of its hidden-list games. The tournaments route resolves every old link.
+- Each retired league became a group with the same token, and each of its events one of that group's hidden-list games, so the tournaments route resolves every old league link.
 - Sealing stores a repriced, legality-checked snapshot; saved-list edits never change it. Alerts are the player's, not the list's: sealing leaves them out, and a sealed event's battle fields each player's current alerts onto their snapshot (`withCurrentAlerts`).
 - Before reveal, only `readsSealedRoster` and `readsAlliedSealedEventRoster` grant roster access, organizers included.
 - After the first seal an event's format, size, pairing and duel points total lock; points per army, shared points and allowances may change only while every sealed list still fits (`sealedListsFit` in `spacetimedb/src/index.ts`).

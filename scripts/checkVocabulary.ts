@@ -19,56 +19,17 @@ const EXEMPT = [
 ]
 
 const STORED_NAMES = new Set([
-  // Tables the module empties into the current ones, and their columns.
-  'clubs',
-  'club_battles',
-  'club_games',
-  'club_seasons',
-  'club_season_players',
-  'club_members',
-  'retiredClubs',
-  'retiredClubMembers',
-  'retiredClubSeasons',
-  'retiredClubSeasonPlayers',
-  'retiredClubBattles',
-  'retiredClubGames',
-  'clubId',
-  'seasonId',
-  // Procedures, fields and values servers released before the current names call the module with.
-  'clubToken',
-  'clubBattles',
-  'clubNames',
-  'clubCommand',
-  'clubByToken',
-  'clubsVisibleTo',
-  'battleClubs',
-  'club_command',
-  'club_names',
-  'club_by_token',
-  'clubs_visible_to',
-  'battle_clubs',
-  'migrateLeaguesToClubs',
-  'migrate_leagues_to_clubs',
-  'seasons',
-  'seasonsRun',
-  'season-deadline',
-  'season-delete',
-  'season-draw',
-  'season-join',
-  'season-leave',
-  'season-publish',
-  'create-club-game',
-  'club-game',
   // Battle-log commands.
   'set-battle-club',
+  'clubId',
   // Achievement ids.
   'club-night',
   'club-stalwart',
   'pillar-of-the-club',
   'club-battles',
 ])
-/** The bare words stay legal only where they are data: a quoted id, key or value (the `clubs` realtime scope, a released server's `season` feed) and a legacy `/clubs` address. */
-const STORED_FORMS = /(['"`])(?:clubs?|season)\1|(?<![\w-])clubs(?=: )|\/clubs\b/g
+/** The bare words stay legal only where they are data: a quoted id or key (the `clubs` realtime scope) and a legacy `/clubs` address. */
+const STORED_FORMS = /(['"`])clubs?\1|(?<![\w-])clubs(?=: )|\/clubs\b/g
 /** Words that only look like ours: catalogue names and the Season Ticket achievement. */
 const LOOKALIKES = /trench club|listforge\.club|season[ -]ticket/gi
 /** Preview seed tokens, which preview databases already hold. */
