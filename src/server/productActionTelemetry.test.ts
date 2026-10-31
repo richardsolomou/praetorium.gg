@@ -2,13 +2,13 @@ import { beforeEach, expect, it, vi } from 'vitest'
 import { offlineActionSchemas, type OfflineActionKind } from '../contracts/offlineActions'
 import { saveRosterSchema } from '../contracts/schemas'
 import { encodeSimulatorState } from '../contracts/simulatorState'
-import { leagueRosterFixture } from './leagueRoster.fixtures'
+import { sealedEventRosterFixture } from './sealedEventRoster.fixtures'
 import { offlineActions } from './offlineActions'
 import { productActions } from './productActions'
 import { offlineContext } from './offlineContext'
 
 const mocks = vi.hoisted(() => ({ capture: vi.fn(), service: {} as Record<string, ReturnType<typeof vi.fn>> }))
-const seal = leagueRosterFixture('released')
+const seal = sealedEventRosterFixture('released')
 vi.mock('./app', () => ({
   app: () => ({
     repository: { abilityRemindersByUser: async () => [], ...mocks.service },
@@ -16,7 +16,7 @@ vi.mock('./app', () => ({
       ...mocks.service,
       rosterService: mocks.service,
       socialService: mocks.service,
-      leagueService: mocks.service,
+      sealedEventService: mocks.service,
     },
     telemetry: { capture: mocks.capture },
     catalogueFor: async () => seal.catalogue,
@@ -25,9 +25,9 @@ vi.mock('./app', () => ({
 }))
 
 type Case = { kind: OfflineActionKind; input: unknown; result?: unknown; method?: string; events: [string, Record<string, unknown>?][] }
-const league = {
-  token: 'private-league',
-  name: 'Private league',
+const sealedEvent = {
+  token: 'private-sealed-event',
+  name: 'Private sealed event',
   description: '',
   visibility: 'private',
   admission: 'approval',
@@ -121,83 +121,116 @@ const cases: Case[] = [
   {
     kind: 'createLeague',
     method: 'createTournament',
-    input: { ...league, format: '1v1', rosterLimit: 2000, ownerPlays: true },
+    input: { ...sealedEvent, format: '1v1', rosterLimit: 2000, ownerPlays: true },
     result: { token: 'private-created' },
-    events: [['league_created', { visibility: 'private', admission: 'approval', format: '1v1', roster_limit: 2000, owner_plays: true }]],
+    events: [
+      ['tournament_created', { visibility: 'private', admission: 'approval', format: '1v1', roster_limit: 2000, owner_plays: true }],
+    ],
   },
-  { kind: 'joinLeague', input: { token: league.token }, result: 'pending', events: [['league_joined', { status: 'pending' }]] },
+  {
+    kind: 'joinLeague',
+    method: 'joinSealedEvent',
+    input: { token: sealedEvent.token },
+    result: 'pending',
+    events: [['sealed_event_joined', { status: 'pending' }]],
+  },
   {
     kind: 'addLeagueEntrants',
-    input: { token: league.token, userIds: ['private-person'] },
+    method: 'addSealedEventEntrants',
+    input: { token: sealedEvent.token, userIds: ['private-person'] },
     result: { added: 1 },
-    events: [['league_entrants_added', { count: 1 }]],
+    events: [['sealed_event_entrants_added', { count: 1 }]],
   },
   {
     kind: 'admitLeagueEntries',
-    input: { token: league.token, userIds: ['private-person', 'private-other'] },
+    method: 'admitSealedEventEntries',
+    input: { token: sealedEvent.token, userIds: ['private-person', 'private-other'] },
     result: { admitted: ['private-person'] },
-    events: [['league_entries_admitted', { count: 1 }]],
+    events: [['sealed_event_entries_admitted', { count: 1 }]],
   },
   {
     kind: 'moderateLeagueEntry',
-    input: { token: league.token, userId: 'private-person', status: 'accepted' },
-    events: [['league_entry_moderated', { status: 'accepted' }]],
+    method: 'moderateSealedEventEntry',
+    input: { token: sealedEvent.token, userId: 'private-person', status: 'accepted' },
+    events: [['sealed_event_entry_moderated', { status: 'accepted' }]],
   },
   {
     kind: 'submitLeagueRoster',
+    method: 'submitSealedEventRoster',
     input: {
-      token: league.token,
+      token: sealedEvent.token,
       rosterId: seal.saved.id,
       capturedRoster: saveRosterSchema.parse(seal.saved),
       catalogueRevision: seal.catalogue.index.revision,
     },
     result: { format: '2v2', requiredLimit: 1000 },
-    events: [['league_roster_submitted', { format: '2v2', required_limit: 1000 }]],
+    events: [['sealed_event_roster_submitted', { format: '2v2', required_limit: 1000 }]],
   },
-  { kind: 'setLeagueTeamDisposition', input: { token: league.token, disposition: 'private-disposition' }, events: [] },
-  { kind: 'setLeagueTeamWarlord', input: { token: league.token, userId: 'private-person' }, events: [] },
-  { kind: 'revealLeague', input: { token: league.token }, events: [['league_rosters_revealed']] },
-  { kind: 'unsealLeagueRoster', input: { token: league.token, userId: 'private-person' }, events: [['league_roster_unsealed']] },
+  {
+    kind: 'setLeagueTeamDisposition',
+    method: 'setSealedEventTeamDisposition',
+    input: { token: sealedEvent.token, disposition: 'private-disposition' },
+    events: [],
+  },
+  {
+    kind: 'setLeagueTeamWarlord',
+    method: 'setSealedEventTeamWarlord',
+    input: { token: sealedEvent.token, userId: 'private-person' },
+    events: [],
+  },
+  { kind: 'revealLeague', method: 'revealSealedEvent', input: { token: sealedEvent.token }, events: [['sealed_event_rosters_revealed']] },
+  {
+    kind: 'unsealLeagueRoster',
+    method: 'unsealSealedEventRoster',
+    input: { token: sealedEvent.token, userId: 'private-person' },
+    events: [['sealed_event_roster_unsealed']],
+  },
   {
     kind: 'assignLeagueRosterRequirement',
-    input: { token: league.token, userId: 'private-person', requiredLimit: 1000 },
+    method: 'assignSealedEventRosterRequirement',
+    input: { token: sealedEvent.token, userId: 'private-person', requiredLimit: 1000 },
     result: { requiredLimit: 2000 },
-    events: [['league_roster_requirement_assigned', { required_limit: 2000 }]],
+    events: [['sealed_event_roster_requirement_assigned', { required_limit: 2000 }]],
   },
   {
     kind: 'assignLeagueTeam',
-    input: { token: league.token, userIds: ['private-person'] },
+    method: 'assignSealedEventTeam',
+    input: { token: sealedEvent.token, userIds: ['private-person'] },
     result: { teamSize: 2 },
-    events: [['league_team_assigned', { team_size: 2 }]],
+    events: [['sealed_event_team_assigned', { team_size: 2 }]],
   },
   {
     kind: 'chooseLeagueSide',
-    input: { token: league.token, side: 'pair' },
+    method: 'chooseSealedEventSide',
+    input: { token: sealedEvent.token, side: 'pair' },
     result: { side: 'pair' },
-    events: [['league_side_chosen', { side: 'pair' }]],
+    events: [['sealed_event_side_chosen', { side: 'pair' }]],
   },
   {
     kind: 'updateLeague',
-    input: { ...league, rule: { format: '1v1', rosterLimit: 1000 } },
+    method: 'updateSealedEvent',
+    input: { ...sealedEvent, rule: { format: '1v1', rosterLimit: 1000 } },
     result: { ruleChanged: true },
     events: [
-      ['league_updated', { visibility: 'private', admission: 'approval', player_limit_set: false }],
-      ['league_event_updated', { format: '1v1', roster_limit: 1000 }],
+      ['tournament_updated', { visibility: 'private', admission: 'approval', player_limit_set: false }],
+      ['sealed_event_updated', { format: '1v1', roster_limit: 1000 }],
     ],
   },
   {
     kind: 'updateLeague',
-    input: league,
+    method: 'updateSealedEvent',
+    input: sealedEvent,
     result: { ruleChanged: false },
-    events: [['league_updated', { visibility: 'private', admission: 'approval', player_limit_set: false }]],
+    events: [['tournament_updated', { visibility: 'private', admission: 'approval', player_limit_set: false }]],
   },
   {
     kind: 'updateLeague',
+    method: 'updateSealedEvent',
     input: { token: 'private-game', rule: { format: '1v1', rosterLimit: 1000 } },
     result: { ruleChanged: true },
-    events: [['league_event_updated', { format: '1v1', roster_limit: 1000 }]],
+    events: [['sealed_event_updated', { format: '1v1', roster_limit: 1000 }]],
   },
-  { kind: 'deleteLeague', input: { token: league.token }, events: [['league_deleted']] },
+  { kind: 'deleteLeague', method: 'deleteSealedEvent', input: { token: sealedEvent.token }, events: [['sealed_event_deleted']] },
   {
     kind: 'deleteBattle',
     input: { token: 'private-battle' },
@@ -217,9 +250,10 @@ const cases: Case[] = [
   },
   {
     kind: 'createLeagueBattle',
-    input: { token: league.token, opponentId: 'private-person' },
+    method: 'createSealedEventBattle',
+    input: { token: sealedEvent.token, opponentId: 'private-person' },
     result: { battleId: 'battle-id', token: 'private-battle', format: '1v1', requiredLimit: 2000 },
-    events: [['league_battle_created', { battle_id: 'battle-id', format: '1v1', required_limit: 2000 }]],
+    events: [['sealed_event_battle_created', { battle_id: 'battle-id', format: '1v1', required_limit: 2000 }]],
   },
 ]
 

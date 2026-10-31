@@ -13,7 +13,7 @@ Pins live in `catalogue/composition.json`, `catalogue/sources.json`, and `catalo
 - Parsed sources from `src/server/sharedJson.ts` are shared: copy before changing.
 - Construction reads go in `constructionReads.ts` so the worker and server agree.
 - Points come from the [MFM fork](https://github.com/richardsolomou/wh40k-11e-mfm); never duplicate prices in definitions.
-- `changes/history.json` is immutable; never compare frozen battle or league snapshots with current data.
+- `changes/history.json` is immutable; never compare frozen battle or sealed event snapshots with current data.
 
 ## Rules versions
 

@@ -141,7 +141,7 @@ export function ArmiesStep({ view, sides, send, attachRoster, pending, problem }
                         deciding whether to play this game needs the same fact its owner has. */}
                     <WaiverNote rules={rosterWaivers(army.roster?.built)} className="mt-1" />
                   </div>
-                  {view.leagueToken ? (
+                  {view.sealedEventToken ? (
                     <span className="chip shrink-0 self-start text-achieved sm:self-auto">Sealed roster</span>
                   ) : army.isViewer || (army.automated && !guest) ? (
                     <div className="flex shrink-0 flex-wrap items-center gap-1">

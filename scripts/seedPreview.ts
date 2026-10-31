@@ -2,10 +2,10 @@ import { hash } from 'node:crypto'
 import path from 'node:path'
 import { eq } from 'drizzle-orm'
 import type { Command, Roster } from '../src/core/battle'
-import type { LeagueSide } from '../src/contracts/schemas'
+import type { SealedEventSide } from '../src/contracts/schemas'
 import type { RosterPick } from '../src/core/roster'
 import { rosterSnapshot } from '../src/core/rosterSnapshot'
-import { clubGameOpen } from '../src/core/club'
+import { hiddenListGameOpen } from '../src/core/group'
 import { rosterDiscoveryQuerySchema } from '../src/core/rosterDiscovery'
 import { routeSlug } from '../src/core/slug'
 import { account as authAccount, user } from '../src/db/authSchema'
@@ -17,7 +17,7 @@ import { SpacetimeOperator } from '../src/server/spacetimeOperator'
 import { SpacetimeRepository } from '../src/server/spacetimeRepository'
 import { PraetoriumService } from '../src/server/service'
 import { unitBattleDetailsIn } from '../src/shared/catalogue'
-import { buildLeagueBattle } from '../src/shared/leagueBattle'
+import { buildSealedEventBattle } from '../src/shared/sealedEventBattle'
 import { catalogueBaseUrl, fetchCurrentSnapshot, installedSnapshot } from '../src/server/catalogueSnapshot'
 import { catalogueDirectory } from '../src/server/catalogueIndex'
 import { calculateRosterPrice } from '../src/shared/pricing'
@@ -381,8 +381,8 @@ async function readBack(repository: SpacetimeRepository, product: SpacetimeOpera
   await repository.adminCollectionPhotos({ before: null, limit: 100 })
   await repository.collectionPhotoDeletions(100)
   for (const photoId of await repository.collectionPhotoIds(null, 100)) await repository.collectionPhotoForAdmin(photoId)
-  const leagueTokens = new Set<string>()
-  const clubTokens = new Set<string>()
+  const sealedEventTokens = new Set<string>()
+  const groupTokens = new Set<string>()
   for (const userId of userIds) {
     await repository.relationships(userId)
     await repository.friendInviteByInviter(userId)
@@ -406,7 +406,7 @@ async function readBack(repository: SpacetimeRepository, product: SpacetimeOpera
     for (const entry of await repository.collectionByUser(userId)) await repository.datasheetPhotos(entry.entryId, userId, 100)
     await repository.homeRostersByUser(userId)
     await repository.rostersLentTo(userId)
-    await repository.friendLeagueRosters(userId)
+    await repository.friendSealedEventRosters(userId)
     const rosters = await repository.rosterSummariesByUser(userId)
     await repository.rostersByUser(userId)
     await repository.rostersByIds(
@@ -417,34 +417,34 @@ async function readBack(repository: SpacetimeRepository, product: SpacetimeOpera
       await repository.rosterGroupByUser(userId, roster.baseRosterId ?? roster.id)
       await repository.rosterLoansByRoster(roster.id, userId)
       await repository.usableRoster(roster.id, userId)
-      await repository.outdatedLeagueEntriesForRoster(userId, roster.id)
+      await repository.outdatedSealedEventEntriesForRoster(userId, roster.id)
     }
     const { battles } = await repository.battlesByUser(userId, page)
     await repository.battlesByFriends(userId, page)
     for (const { battle, players } of battles) {
-      await repository.battleClubs(battle.id)
+      await repository.battleGroups(battle.id)
       await service.battleRatingChanges(battle.token)
       await product.battleForOperator(battle.id)
-      await repository.leagueBattleCandidates(
+      await repository.sealedEventBattleCandidates(
         userId,
         players.map((player) => player.id),
       )
     }
-    for (const league of await repository.leaguesVisibleTo(userId)) {
-      leagueTokens.add(league.token)
-      await repository.leagueByToken(league.token, userId)
-      await repository.eventAddress(league.token, league.eventToken)
-      await repository.leagueRoster(league.token, userId, league.eventToken, userId)
-      await repository.leagueRosterSharing(league.token, league.eventToken, userId)
+    for (const sealedEvent of await repository.sealedEventsVisibleTo(userId)) {
+      sealedEventTokens.add(sealedEvent.token)
+      await repository.sealedEventByToken(sealedEvent.token, userId)
+      await repository.eventAddress(sealedEvent.token, sealedEvent.eventToken)
+      await repository.sealedEventRoster(sealedEvent.token, userId, sealedEvent.eventToken, userId)
+      await repository.sealedEventRosterSharing(sealedEvent.token, sealedEvent.eventToken, userId)
     }
-    for (const club of await repository.clubsVisibleTo(userId)) {
-      clubTokens.add(club.token)
-      await repository.clubByToken(club.token)
-      await repository.battlesByClub(club.token, page)
+    for (const group of await repository.groupsVisibleTo(userId)) {
+      groupTokens.add(group.token)
+      await repository.groupByToken(group.token)
+      await repository.battlesByGroup(group.token, page)
     }
   }
-  await repository.leagueNames([...leagueTokens])
-  await repository.clubNames([...clubTokens])
+  await repository.sealedEventNames([...sealedEventTokens])
+  await repository.groupNames([...groupTokens])
 }
 
 async function verifiedSnapshots(): Promise<PreviewSnapshots> {
@@ -768,7 +768,7 @@ async function seedInto(
     })
   }
 
-  await createRevealedLeague({
+  await createRevealedSealedEvent({
     id: 'preview-league-duel',
     token: 'preview-league-duel',
     eventId: 'preview-event-duel',
@@ -801,7 +801,7 @@ async function seedInto(
       ],
     },
   })
-  await createRevealedLeague({
+  await createRevealedSealedEvent({
     id: 'preview-league-solo-pair',
     token: 'preview-league-solo-pair',
     eventId: 'preview-event-solo-pair',
@@ -824,7 +824,7 @@ async function seedInto(
       tail: [{ kind: 'begin-battle', firstPlayerId: allyUserId }],
     },
   })
-  await createRevealedLeague({
+  await createRevealedSealedEvent({
     id: 'preview-league-doubles',
     token: 'preview-league-doubles',
     eventId: 'preview-event-doubles',
@@ -849,10 +849,10 @@ async function seedInto(
       tail: [{ kind: 'set-setup-step', step: 2 }],
     },
   })
-  await createOpenLeague()
+  await createOpenSealedEvent()
   await createSwissTournament()
-  await createClubs()
-  await createClubSeasons()
+  await createGroups()
+  await createGroupLeagues()
   return [...ids.values()]
 
   /**
@@ -862,7 +862,7 @@ async function seedInto(
   async function createSwissTournament() {
     const token = 'preview-league-swiss'
     const eventToken = 'preview-event-swiss'
-    await createRevealedLeague({
+    await createRevealedSealedEvent({
       id: token,
       token,
       eventId: eventToken,
@@ -895,9 +895,9 @@ async function seedInto(
     ]
     for (const [index, tables] of rounds.entries()) {
       const round = index + 1
-      const league = await repository.leagueByToken(token, previewUserId, eventToken)
-      if (!league?.pairings.some((pairing) => pairing.round === round)) {
-        const paired = await repository.pairLeagueRound({
+      const sealedEvent = await repository.sealedEventByToken(token, previewUserId, eventToken)
+      if (!sealedEvent?.pairings.some((pairing) => pairing.round === round)) {
+        const paired = await repository.pairSealedEventRound({
           token,
           eventToken,
           ownerId: previewUserId,
@@ -909,10 +909,10 @@ async function seedInto(
       for (const [table, [aId, bId, tail]] of tables.entries()) {
         const battleToken = `preview-league-swiss-battle-${round}-${table + 1}`
         if (!bId || (await repository.battleByToken(battleToken))) continue
-        await repository.createLeagueBattle(
-          { id: battleToken, token: battleToken, leagueToken: token, eventToken, userId: aId, userIds: [aId, bId], now: now() },
+        await repository.createSealedEventBattle(
+          { id: battleToken, token: battleToken, sealedEventToken: token, eventToken, userId: aId, userIds: [aId, bId], now: now() },
           (setup) => {
-            const built = buildLeagueBattle(setup, aId, bId, null, battleToken)
+            const built = buildSealedEventBattle(setup, aId, bId, null, battleToken)
             return { ...built, initialCommands: [...built.initialCommands, ...tail] }
           },
         )
@@ -930,10 +930,10 @@ async function seedInto(
   }
 
   /**
-   * A published season in the login's club, part played: finished games, one under way, an overdue round, a round still
-   * due and rounds with no deadline; and a draft in Sam's open club, for its owner to review and the login to join.
+   * A published league in the login's group, part played: finished games, one under way, an overdue round, a round still
+   * due and rounds with no deadline; and a draft in Sam's open group, for its owner to review and the login to join.
    */
-  async function createClubSeasons() {
+  async function createGroupLeagues() {
     const day = 86_400_000
     const token = 'preview-club'
     const rosters = new Map([
@@ -944,15 +944,15 @@ async function seedInto(
       [strangerUserId, 'preview-stranger-aeldari'],
     ])
     const entrants = [...rosters.keys()]
-    if (!(await repository.clubByToken(token))?.season) {
-      await repository.drawClubSeason(token, previewUserId, { seasonId: 'preview-club-season', seed: 1, now: now() })
-      for (const userId of entrants) await repository.joinClubSeason(token, userId, now())
-      await repository.publishClubSeason(token, previewUserId, { seed: 1, playerIds: entrants, now: now() })
-      await repository.setClubSeasonDeadline(token, previewUserId, 1, now() - day)
-      await repository.setClubSeasonDeadline(token, previewUserId, 2, now() + 7 * day)
-      const fixtures = (await repository.clubByToken(token))!.season!.fixtures.filter((fixture) => fixture.bId !== null)
+    if (!(await repository.groupByToken(token))?.league) {
+      await repository.drawGroupLeague(token, previewUserId, { id: 'preview-club-season', seed: 1, now: now() })
+      for (const userId of entrants) await repository.joinGroupLeague(token, userId, now())
+      await repository.publishGroupLeague(token, previewUserId, { seed: 1, playerIds: entrants, now: now() })
+      await repository.setGroupLeagueDeadline(token, previewUserId, 1, now() - day)
+      await repository.setGroupLeagueDeadline(token, previewUserId, 2, now() + 7 * day)
+      const fixtures = (await repository.groupByToken(token))!.league!.fixtures.filter((fixture) => fixture.bId !== null)
       // The login's own fixtures stay to play, one of them overdue, and the battle under way leaves out the opponent and
-      // the ally, so their cards show a season game and a list to seal.
+      // the ally, so their cards show a league game and a list to seal.
       const others = fixtures.filter((fixture) => fixture.aId !== previewUserId && fixture.bId !== previewUserId)
       const finishedResults: [number, number][] = [
         [64, 51],
@@ -988,26 +988,26 @@ async function seedInto(
       }
     }
     const open = 'preview-club-open'
-    if (!(await repository.clubByToken(open))?.season) {
-      for (const userId of [opponentUserId, rivalUserId, previewUserId]) await repository.joinClub(open, userId, now())
-      await repository.drawClubSeason(open, wandererUserId, { seasonId: 'preview-club-open-season', seed: 2, now: now() })
+    if (!(await repository.groupByToken(open))?.league) {
+      for (const userId of [opponentUserId, rivalUserId, previewUserId]) await repository.joinGroup(open, userId, now())
+      await repository.drawGroupLeague(open, wandererUserId, { id: 'preview-club-open-season', seed: 2, now: now() })
       for (const userId of [wandererUserId, strangerUserId, opponentUserId, rivalUserId])
-        await repository.joinClubSeason(open, userId, now())
+        await repository.joinGroupLeague(open, userId, now())
     }
   }
 
   /**
-   * A club the preview login runs, with every state its page shows: a join request, an admin, finished, live and
-   * unstarted club battles, more past sealed games than the page lists at first, a doubles game being played, a
-   * solo-vs-pair game still taking seats, and a duel waiting on the login's list. An empty club it has just started and
-   * one with revealed lists for it to play show the other ends of the page; two clubs it is not in show the joining side.
+   * A group the preview login runs, with every state its page shows: a join request, an admin, finished, live and
+   * unstarted group battles, more past hidden-list games than the page lists at first, a doubles game being played, a
+   * solo-vs-pair game still taking seats, and a duel waiting on the login's list. An empty group it has just started and
+   * one with revealed lists for it to play show the other ends of the page; two groups it is not in show the joining side.
    */
-  async function createClubs() {
+  async function createGroups() {
     const token = 'preview-club'
     const day = 86_400_000
     // Each step checks what exists, so a run that stopped partway picks up where it left off.
-    if (!(await repository.clubByToken(token)))
-      await repository.createClub({
+    if (!(await repository.groupByToken(token)))
+      await repository.createGroup({
         id: token,
         token,
         ownerId: previewUserId,
@@ -1018,13 +1018,13 @@ async function seedInto(
         now: now(),
       })
     for (const userId of [allyUserId, opponentUserId, rivalUserId, strangerUserId]) {
-      await repository.joinClub(token, userId, now())
-      await repository.moderateClubMember(token, previewUserId, userId, true)
+      await repository.joinGroup(token, userId, now())
+      await repository.moderateGroupMember(token, previewUserId, userId, true)
     }
-    await repository.setClubAdmins(token, previewUserId, [allyUserId])
-    await repository.joinClub(token, wandererUserId, now())
+    await repository.setGroupAdmins(token, previewUserId, [allyUserId])
+    await repository.joinGroup(token, wandererUserId, now())
 
-    const clubBattles: [string, string, string, string, string, Command[]][] = [
+    const groupBattles: [string, string, string, string, string, Command[]][] = [
       [
         'opponent-rival',
         opponentUserId,
@@ -1075,7 +1075,7 @@ async function seedInto(
         [{ kind: 'begin-battle', firstPlayerId: rivalUserId }],
       ],
     ]
-    for (const [key, creatorId, creatorRoster, opponentId, opponentRoster, tail] of clubBattles) {
+    for (const [key, creatorId, creatorRoster, opponentId, opponentRoster, tail] of groupBattles) {
       await createCasualBattle({
         id: `preview-club-battle-${key}`,
         token: `preview-club-battle-${key}`,
@@ -1090,7 +1090,7 @@ async function seedInto(
       })
     }
 
-    await createClubGame({
+    await createHiddenListGame({
       key: 'duel-september',
       format: '1v1',
       schedule: { playsAt: now() - 35 * day, sealBy: null },
@@ -1103,7 +1103,7 @@ async function seedInto(
         { key: 'ally-stranger', userId: allyUserId, opponentId: strangerUserId, tail: finished(strangerUserId, allyUserId, [59, 57]) },
       ],
     })
-    await createClubGame({
+    await createHiddenListGame({
       key: 'duel-october',
       format: '1v1',
       schedule: { playsAt: now() - 14 * day, sealBy: null },
@@ -1130,7 +1130,7 @@ async function seedInto(
         },
       ],
     })
-    await createClubGame({
+    await createHiddenListGame({
       key: 'duel-past',
       format: '1v1',
       schedule: { playsAt: now() - 7 * day, sealBy: null },
@@ -1150,7 +1150,7 @@ async function seedInto(
         { key: 'opponent-rival', userId: opponentUserId, opponentId: rivalUserId, tail: finished(opponentUserId, rivalUserId, [70, 61]) },
       ],
     })
-    await createClubGame({
+    await createHiddenListGame({
       key: 'doubles',
       format: '2v2',
       schedule: { playsAt: now(), sealBy: null },
@@ -1170,7 +1170,7 @@ async function seedInto(
         },
       ],
     })
-    await createClubGame({
+    await createHiddenListGame({
       key: 'solo-pair',
       format: '2v1',
       schedule: { playsAt: now() + 7 * day, sealBy: now() + 6 * day },
@@ -1181,7 +1181,7 @@ async function seedInto(
       reveal: false,
       battles: [],
     })
-    await createClubGame({
+    await createHiddenListGame({
       key: 'duel-open',
       format: '1v1',
       schedule: { playsAt: now() + 3 * day, sealBy: now() + 2 * day },
@@ -1193,9 +1193,9 @@ async function seedInto(
       battles: [],
     })
 
-    // A club the login has just started, with nothing in it yet, and one where revealed lists wait for it to play them.
-    if (!(await repository.clubByToken('preview-club-new'))) {
-      await repository.createClub({
+    // A group the login has just started, with nothing in it yet, and one where revealed lists wait for it to play them.
+    if (!(await repository.groupByToken('preview-club-new'))) {
+      await repository.createGroup({
         id: 'preview-club-new',
         token: 'preview-club-new',
         ownerId: previewUserId,
@@ -1205,11 +1205,11 @@ async function seedInto(
         admission: 'automatic',
         now: now(),
       })
-      await repository.joinClub('preview-club-new', allyUserId, now())
+      await repository.joinGroup('preview-club-new', allyUserId, now())
     }
     const friday = 'preview-club-friday'
-    if (!(await repository.clubByToken(friday))) {
-      await repository.createClub({
+    if (!(await repository.groupByToken(friday))) {
+      await repository.createGroup({
         id: friday,
         token: friday,
         ownerId: allyUserId,
@@ -1219,11 +1219,11 @@ async function seedInto(
         admission: 'automatic',
         now: now(),
       })
-      for (const userId of [previewUserId, opponentUserId, rivalUserId]) await repository.joinClub(friday, userId, now())
+      for (const userId of [previewUserId, opponentUserId, rivalUserId]) await repository.joinGroup(friday, userId, now())
     }
-    await createClubGame({
+    await createHiddenListGame({
       key: 'friday-duel',
-      club: { token: friday, ownerId: allyUserId },
+      group: { token: friday, ownerId: allyUserId },
       format: '1v1',
       schedule: { playsAt: now(), sealBy: null },
       seats: [
@@ -1242,21 +1242,21 @@ async function seedInto(
       ],
     })
 
-    if (await repository.clubByToken('preview-club-garage')) return
-    await repository.createClub({
+    if (await repository.groupByToken('preview-club-garage')) return
+    await repository.createGroup({
       id: 'preview-club-garage',
       token: 'preview-club-garage',
       ownerId: strangerUserId,
-      name: 'Kieran’s Garage League',
+      name: 'Kieran’s Garage',
       description: 'Invite-only Sunday games in Kieran’s garage. Ask to join and he’ll let you in.',
       visibility: 'public',
       admission: 'approval',
       now: now(),
     })
-    await repository.joinClub('preview-club-garage', wandererUserId, now())
-    await repository.moderateClubMember('preview-club-garage', strangerUserId, wandererUserId, true)
-    await repository.joinClub('preview-club-garage', previewUserId, now())
-    await repository.createClub({
+    await repository.joinGroup('preview-club-garage', wandererUserId, now())
+    await repository.moderateGroupMember('preview-club-garage', strangerUserId, wandererUserId, true)
+    await repository.joinGroup('preview-club-garage', previewUserId, now())
+    await repository.createGroup({
       id: 'preview-club-open',
       token: 'preview-club-open',
       ownerId: wandererUserId,
@@ -1266,67 +1266,67 @@ async function seedInto(
       admission: 'automatic',
       now: now(),
     })
-    await repository.joinClub('preview-club-open', strangerUserId, now())
+    await repository.joinGroup('preview-club-open', strangerUserId, now())
 
-    async function createClubGame(game: {
+    async function createHiddenListGame(game: {
       key: string
-      /** The login's own club unless named. */
-      club?: { token: string; ownerId: string }
+      /** The login's own group unless named. */
+      group?: { token: string; ownerId: string }
       format: '1v1' | '2v1' | '2v2'
       schedule: { playsAt: number | null; sealBy: number | null }
-      seats: { userId: string; rosterId: string; side?: LeagueSide }[]
+      seats: { userId: string; rosterId: string; side?: SealedEventSide }[]
       reveal: boolean
       battles: { key: string; userId: string; opponentId: string; tail: Command[] }[]
     }) {
       const gameToken = `preview-club-game-${game.key}`
-      const { token: clubToken, ownerId } = game.club ?? { token, ownerId: previewUserId }
-      const existing = await repository.leagueByToken(gameToken, ownerId)
-      const current = existing && (await repository.clubByToken(clubToken))?.games.find((candidate) => candidate.token === gameToken)
-      if (current && !clubGameOpen(current, Date.now())) return
+      const { token: groupToken, ownerId } = game.group ?? { token, ownerId: previewUserId }
+      const existing = await repository.sealedEventByToken(gameToken, ownerId)
+      const current = existing && (await repository.groupByToken(groupToken))?.games.find((candidate) => candidate.token === gameToken)
+      if (current && !hiddenListGameOpen(current, Date.now())) return
       if (!existing) {
-        const created = await repository.createClubGame({
+        const created = await repository.createHiddenListGame({
           eventId: gameToken,
           eventToken: gameToken,
-          clubToken,
+          groupToken,
           ownerId,
           format: game.format,
           rosterLimit: 2_000,
           schedule: game.reveal ? { playsAt: null, sealBy: null } : game.schedule,
           now: now(),
         })
-        if (created) throw new Error(`club game ${game.key} could not be created: ${created}`)
+        if (created) throw new Error(`group game ${game.key} could not be created: ${created}`)
       }
-      if (!existing?.revealedAt) await sealClubGame(gameToken, game, ownerId)
+      if (!existing?.revealedAt) await sealHiddenListGame(gameToken, game, ownerId)
       for (const battle of game.battles) {
         const battleToken = `preview-club-game-battle-${battle.key}`
         if (await repository.battleByToken(battleToken)) continue
         const userIds = game.format === '1v1' ? [battle.userId, battle.opponentId] : game.seats.map((seat) => seat.userId)
-        await repository.createLeagueBattle(
-          { id: battleToken, token: battleToken, leagueToken: gameToken, userId: battle.userId, userIds, now: now() },
-          (league) => {
-            const built = buildLeagueBattle(league, battle.userId, battle.opponentId, null, battleToken)
+        await repository.createSealedEventBattle(
+          { id: battleToken, token: battleToken, sealedEventToken: gameToken, userId: battle.userId, userIds, now: now() },
+          (sealedEvent) => {
+            const built = buildSealedEventBattle(sealedEvent, battle.userId, battle.opponentId, null, battleToken)
             return { ...built, initialCommands: [...built.initialCommands, ...battle.tail] }
           },
         )
       }
-      if (!existing && game.reveal) await repository.updateLeague(gameToken, ownerId, { schedule: game.schedule })
+      if (!existing && game.reveal) await repository.updateSealedEvent(gameToken, ownerId, { schedule: game.schedule })
     }
 
     /** Seats every player before anyone seals, since a doubles list only seals once its partner is seated. */
-    async function sealClubGame(
+    async function sealHiddenListGame(
       gameToken: string,
-      game: { key: string; seats: { userId: string; rosterId: string; side?: LeagueSide }[]; reveal: boolean },
+      game: { key: string; seats: { userId: string; rosterId: string; side?: SealedEventSide }[]; reveal: boolean },
       ownerId: string,
     ) {
       for (const seat of game.seats) {
         if (!seat.side) continue
-        const result = await repository.chooseLeagueSide(gameToken, seat.userId, seat.side, now())
-        if (result !== 'updated') throw new Error(`club game ${game.key} could not seat a player: ${result}`)
+        const result = await repository.chooseSealedEventSide(gameToken, seat.userId, seat.side, now())
+        if (result !== 'updated') throw new Error(`group game ${game.key} could not seat a player: ${result}`)
       }
       for (const seat of game.seats) {
         const saved = await repository.roster(seat.rosterId)
         if (!saved) throw new Error(`${seat.rosterId} was not saved`)
-        const result = await repository.submitLeagueRoster({
+        const result = await repository.submitSealedEventRoster({
           token: gameToken,
           userId: seat.userId,
           rosterId: saved.id,
@@ -1336,18 +1336,21 @@ async function seedInto(
           snapshot: JSON.stringify(snapshot(saved.id)),
           now: now(),
         })
-        if (result.outcome !== 'sealed') throw new Error(`club game ${game.key} could not seal ${saved.name}: ${result.outcome}`)
+        if (result.outcome !== 'sealed') throw new Error(`group game ${game.key} could not seal ${saved.name}: ${result.outcome}`)
       }
       if (!game.reveal) return
       for (const seat of game.seats) {
-        const team = (await repository.leagueByToken(gameToken, seat.userId))?.entries.find((entry) => entry.userId === seat.userId)?.team
+        const team = (await repository.sealedEventByToken(gameToken, seat.userId))?.entries.find(
+          (entry) => entry.userId === seat.userId,
+        )?.team
         if (!team) continue
-        if (!team.disposition && team.choices[0]) await repository.setLeagueTeamDisposition(gameToken, seat.userId, team.choices[0], now())
+        if (!team.disposition && team.choices[0])
+          await repository.setSealedEventTeamDisposition(gameToken, seat.userId, team.choices[0], now())
         if (!team.warlord && team.warlordChoices[0])
-          await repository.setLeagueTeamWarlord(gameToken, seat.userId, team.warlordChoices[0], now())
+          await repository.setSealedEventTeamWarlord(gameToken, seat.userId, team.warlordChoices[0], now())
       }
-      const reveal = await repository.revealLeague(gameToken, ownerId, now())
-      if (reveal.outcome !== 'revealed') throw new Error(`club game ${game.key} could not be revealed: ${reveal.outcome}`)
+      const reveal = await repository.revealSealedEvent(gameToken, ownerId, now())
+      if (reveal.outcome !== 'revealed') throw new Error(`group game ${game.key} could not be revealed: ${reveal.outcome}`)
     }
   }
 
@@ -1447,7 +1450,7 @@ async function seedInto(
     )
   }
 
-  async function createRevealedLeague(input: {
+  async function createRevealedSealedEvent(input: {
     id: string
     token: string
     eventId: string
@@ -1469,7 +1472,7 @@ async function seedInto(
       tail: readonly Command[]
     }
   }) {
-    if (!(await repository.leagueByToken(input.token, input.ownerId, input.eventToken))) {
+    if (!(await repository.sealedEventByToken(input.token, input.ownerId, input.eventToken))) {
       await repository.createTournament({
         id: input.id,
         token: input.token,
@@ -1487,13 +1490,19 @@ async function seedInto(
         now: now(),
       })
     }
-    const league = await repository.leagueByToken(input.token, input.ownerId, input.eventToken)
-    if (!league) throw new Error(`${input.name} was not created`)
-    if (league.revealedAt === null) {
-      for (const entry of input.entries) await repository.joinLeague(input.token, entry.userId, now(), 128, input.eventToken)
+    const sealedEvent = await repository.sealedEventByToken(input.token, input.ownerId, input.eventToken)
+    if (!sealedEvent) throw new Error(`${input.name} was not created`)
+    if (sealedEvent.revealedAt === null) {
+      for (const entry of input.entries) await repository.joinSealedEvent(input.token, entry.userId, now(), 128, input.eventToken)
       for (const entry of input.entries) {
         if (entry.requiredLimit) {
-          await repository.assignLeagueRosterRequirement(input.token, input.ownerId, entry.userId, entry.requiredLimit, input.eventToken)
+          await repository.assignSealedEventRosterRequirement(
+            input.token,
+            input.ownerId,
+            entry.userId,
+            entry.requiredLimit,
+            input.eventToken,
+          )
         }
       }
       const teams = new Map<string, typeof input.entries>()
@@ -1504,7 +1513,7 @@ async function seedInto(
         teams.set(entry.teamId, members)
       }
       for (const [teamId, entries] of teams) {
-        await repository.assignLeagueTeam(
+        await repository.assignSealedEventTeam(
           input.token,
           input.ownerId,
           entries.map((entry) => entry.userId),
@@ -1515,7 +1524,7 @@ async function seedInto(
       for (const entry of input.entries) {
         const saved = await repository.roster(entry.rosterId)
         if (!saved) throw new Error(`${entry.rosterId} was not saved`)
-        const result = await repository.submitLeagueRoster({
+        const result = await repository.submitSealedEventRoster({
           token: input.token,
           eventToken: input.eventToken,
           userId: entry.userId,
@@ -1531,26 +1540,32 @@ async function seedInto(
       // A pair whose lists chose different cards settles its one Force Disposition before the reveal.
       for (const entry of input.entries) {
         if (!entry.teamId) continue
-        const team = (await repository.leagueByToken(input.token, entry.userId, input.eventToken))?.entries.find(
+        const team = (await repository.sealedEventByToken(input.token, entry.userId, input.eventToken))?.entries.find(
           (candidate) => candidate.userId === entry.userId,
         )?.team
         if (!team) continue
         if (!team.disposition && team.choices[0]) {
-          const result = await repository.setLeagueTeamDisposition(input.token, entry.userId, team.choices[0], now(), input.eventToken)
+          const result = await repository.setSealedEventTeamDisposition(input.token, entry.userId, team.choices[0], now(), input.eventToken)
           if (result.outcome !== 'chosen') throw new Error(`${input.name} could not settle a Force Disposition: ${result.outcome}`)
         }
         if (!team.warlord && team.warlordChoices[0]) {
-          const result = await repository.setLeagueTeamWarlord(input.token, entry.userId, team.warlordChoices[0], now(), input.eventToken)
+          const result = await repository.setSealedEventTeamWarlord(
+            input.token,
+            entry.userId,
+            team.warlordChoices[0],
+            now(),
+            input.eventToken,
+          )
           if (result.outcome !== 'chosen') throw new Error(`${input.name} could not settle a Warlord: ${result.outcome}`)
         }
       }
-      const reveal = await repository.revealLeague(input.token, input.ownerId, now(), input.eventToken)
+      const reveal = await repository.revealSealedEvent(input.token, input.ownerId, now(), input.eventToken)
       if (reveal.outcome !== 'revealed') throw new Error(`${input.name} could not be revealed: ${reveal.outcome}`)
     }
     if (!input.battle || (await repository.battleByToken(input.battle.token))) return
     const { battle } = input
     const battleRosters = input.entries.map((entry) => [entry.userId, entry.rosterId] as const)
-    const revealedEntries = (await repository.leagueByToken(input.token, input.ownerId, input.eventToken))?.entries ?? []
+    const revealedEntries = (await repository.sealedEventByToken(input.token, input.ownerId, input.eventToken))?.entries ?? []
     const sides = [[battle.creatorId, ...(battle.allyIds ?? [])], battle.opponentIds]
     const dispositions = sides.flatMap((playerIds, side) => {
       const disposition = playerIds.length > 1 ? revealedEntries.find((entry) => entry.userId === playerIds[0])?.team?.disposition : null
@@ -1560,11 +1575,11 @@ async function seedInto(
       const playerId = playerIds.length > 1 ? revealedEntries.find((entry) => entry.userId === playerIds[0])?.team?.warlord : null
       return playerId ? [{ side, playerId }] : []
     })
-    await repository.createLeagueBattle(
+    await repository.createSealedEventBattle(
       {
         id: battle.id,
         token: battle.token,
-        leagueToken: input.token,
+        sealedEventToken: input.token,
         eventToken: input.eventToken,
         userId: battle.creatorId,
         userIds: input.entries.map((entry) => entry.userId),
@@ -1589,18 +1604,18 @@ async function seedInto(
     )
   }
 
-  async function createOpenLeague() {
+  async function createOpenSealedEvent() {
     const token = 'preview-league-registration'
     const eventToken = 'preview-event-registration'
-    if (await repository.leagueByToken(token, allyUserId, eventToken)) return
+    if (await repository.sealedEventByToken(token, allyUserId, eventToken)) return
     await repository.createTournament({
       id: 'preview-league-registration',
       token,
       eventId: 'preview-event-registration',
       eventToken,
       ownerId: allyUserId,
-      name: 'Fresh Recruits League',
-      description: 'An open approval league with pending, accepted, submitted, and rejected entries.',
+      name: 'Fresh Recruits Open',
+      description: 'An open approval tournament with pending, accepted, submitted, and rejected entries.',
       visibility: 'public',
       admission: 'approval',
       playerLimit: 4,
@@ -1608,12 +1623,12 @@ async function seedInto(
       rosterLimit: 1_000,
       now: now(),
     })
-    await repository.joinLeague(token, previewUserId, now(), 128, eventToken)
-    await repository.joinLeague(token, opponentUserId, now(), 128, eventToken)
-    await repository.moderateLeagueEntry(token, allyUserId, opponentUserId, 'accepted', 128, eventToken)
+    await repository.joinSealedEvent(token, previewUserId, now(), 128, eventToken)
+    await repository.joinSealedEvent(token, opponentUserId, now(), 128, eventToken)
+    await repository.moderateSealedEventEntry(token, allyUserId, opponentUserId, 'accepted', 128, eventToken)
     const saved = await repository.roster('preview-opponent-tyranids')
     if (!saved) throw new Error('preview-opponent-tyranids was not saved')
-    const submitted = await repository.submitLeagueRoster({
+    const submitted = await repository.submitSealedEventRoster({
       token,
       eventToken,
       userId: opponentUserId,
@@ -1625,8 +1640,8 @@ async function seedInto(
       now: now(),
     })
     if (submitted.outcome !== 'sealed') throw new Error(`registration roster could not be sealed: ${submitted.outcome}`)
-    await repository.joinLeague(token, rivalUserId, now(), 128, eventToken)
-    await repository.moderateLeagueEntry(token, allyUserId, rivalUserId, 'rejected', 128, eventToken)
+    await repository.joinSealedEvent(token, rivalUserId, now(), 128, eventToken)
+    await repository.moderateSealedEventEntry(token, allyUserId, rivalUserId, 'rejected', 128, eventToken)
   }
 }
 

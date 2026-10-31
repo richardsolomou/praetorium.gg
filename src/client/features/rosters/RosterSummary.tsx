@@ -16,7 +16,7 @@ import { countLabel } from '../../text'
 
 /**
  * What a roster card reads of a list. A saved list carries all of it; a frozen copy, such as a
- * sealed league list, has no visibility or lock of its own to show.
+ * sealed list, has no visibility or lock of its own to show.
  */
 type RosterCardFacts = Pick<
   SavedRoster,

@@ -42,23 +42,29 @@ import { recentMatchupSchema } from '../core/recentMatchups'
 import { simulatorPairing } from './simulatorState'
 import {
   isTeamFormat,
-  LEAGUE_ADMISSIONS,
-  leagueAllowancesSchema,
-  LEAGUE_DESCRIPTION_MAX_LENGTH,
-  LEAGUE_DEFAULT_ROSTER_LIMIT,
-  LEAGUE_ADMIN_MAX,
-  LEAGUE_MEMBER_MAX,
-  LEAGUE_MEMBER_MIN,
-  LEAGUE_NAME_MAX_LENGTH,
-  LEAGUE_TEAM_ROSTER_LIMITS,
-  LEAGUE_VISIBILITIES,
-  leagueArmyPointsError,
-  type LeagueArmyPoints,
-} from '../core/league'
+  SEALED_EVENT_ADMISSIONS,
+  sealedEventAllowancesSchema,
+  SEALED_EVENT_DESCRIPTION_MAX_LENGTH,
+  SEALED_EVENT_DEFAULT_ROSTER_LIMIT,
+  SEALED_EVENT_ADMIN_MAX,
+  SEALED_EVENT_MEMBER_MAX,
+  SEALED_EVENT_MEMBER_MIN,
+  SEALED_EVENT_NAME_MAX_LENGTH,
+  SEALED_EVENT_TEAM_ROSTER_LIMITS,
+  SEALED_EVENT_VISIBILITIES,
+  sealedEventArmyPointsError,
+  type SealedEventArmyPoints,
+} from '../core/sealedEvent'
 import { TABLE_SHAPES, type TableShape } from '../core/tableShape'
-import { CLUB_ADMIN_MAX, CLUB_DESCRIPTION_MAX_LENGTH, CLUB_GAME_SIDES, CLUB_NAME_MAX_LENGTH, clubGameTimeZoneSchema } from '../core/club'
+import {
+  GROUP_ADMIN_MAX,
+  GROUP_DESCRIPTION_MAX_LENGTH,
+  HIDDEN_LIST_GAME_SIDES,
+  GROUP_NAME_MAX_LENGTH,
+  hiddenListGameTimeZoneSchema,
+} from '../core/group'
 import { SWISS_ROUNDS_MAX } from '../core/swiss'
-import { CLUB_SEASON_PLAYERS_MAX, CLUB_SEASON_SEED_MAX } from '../core/clubSeason'
+import { GROUP_LEAGUE_PLAYERS_MAX, GROUP_LEAGUE_SEED_MAX } from '../core/groupLeague'
 import { PASSWORD_MIN_LENGTH, SOCIAL_PROVIDERS } from '../authConfig'
 import { PROFILE_NAME_MAX_LENGTH } from '../core/profileName'
 
@@ -83,16 +89,16 @@ export const tokenSchema = z.object({ token })
 export const battleReplaySchema = z.object({ token, seq: z.number().int().min(1) })
 export const battleReplayBatchSchema = z.object({ token, seqs: z.array(z.number().int().min(1)).min(1).max(REPLAY_BATCH_SIZE) })
 const tournamentFields = {
-  name: z.string().trim().min(1, 'add a name').max(LEAGUE_NAME_MAX_LENGTH),
-  description: z.string().trim().max(LEAGUE_DESCRIPTION_MAX_LENGTH),
-  visibility: z.enum(LEAGUE_VISIBILITIES),
-  admission: z.enum(LEAGUE_ADMISSIONS),
-  playerLimit: z.number().int().min(LEAGUE_MEMBER_MIN).max(LEAGUE_MEMBER_MAX).nullable(),
+  name: z.string().trim().min(1, 'add a name').max(SEALED_EVENT_NAME_MAX_LENGTH),
+  description: z.string().trim().max(SEALED_EVENT_DESCRIPTION_MAX_LENGTH),
+  visibility: z.enum(SEALED_EVENT_VISIBILITIES),
+  admission: z.enum(SEALED_EVENT_ADMISSIONS),
+  playerLimit: z.number().int().min(SEALED_EVENT_MEMBER_MIN).max(SEALED_EVENT_MEMBER_MAX).nullable(),
 }
-const leagueEventRuleFields = {
+const sealedEventRuleFields = {
   format: z.enum(TABLE_SHAPES).default('1v1'),
-  rosterLimit: z.number().int().refine(isGameSize).default(LEAGUE_DEFAULT_ROSTER_LIMIT),
-  allowances: leagueAllowancesSchema.default([]),
+  rosterLimit: z.number().int().refine(isGameSize).default(SEALED_EVENT_DEFAULT_ROSTER_LIMIT),
+  allowances: sealedEventAllowancesSchema.default([]),
   // Absent from an older client: no Swiss rounds or own points total on a new event, and an edit leaves them as they stand.
   rounds: z.number().int().min(1).max(SWISS_ROUNDS_MAX).nullable().optional(),
   pointsBudget,
@@ -101,132 +107,132 @@ const leagueEventRuleFields = {
   sharedPoints: z.boolean().optional(),
 }
 /** When the event is played and the roster deadline, as instants; a deadline after the date would let lists in once play started. */
-const leagueSchedule = z
+const sealedEventSchedule = z
   .object({ playsAt: z.number().int().min(0).nullable(), sealBy: z.number().int().min(0).nullable() })
   .refine(({ playsAt, sealBy }) => playsAt === null || sealBy === null || sealBy <= playsAt, {
     message: 'set the roster deadline before the date it is played',
     path: ['sealBy'],
   })
-function validateLeagueEventRule(
-  value: { format: TableShape; rosterLimit: number; rounds?: number | null } & Partial<LeagueArmyPoints>,
+function validateSealedEventRule(
+  value: { format: TableShape; rosterLimit: number; rounds?: number | null } & Partial<SealedEventArmyPoints>,
   context: z.RefinementCtx,
 ) {
-  const armyPointsProblem = leagueArmyPointsError(value.format, value)
+  const armyPointsProblem = sealedEventArmyPointsError(value.format, value)
   if (armyPointsProblem) context.addIssue({ code: 'custom', path: ['allyPoints'], message: armyPointsProblem })
-  if (isTeamFormat(value.format) && !LEAGUE_TEAM_ROSTER_LIMITS.some((limit) => limit === value.rosterLimit)) {
+  if (isTeamFormat(value.format) && !SEALED_EVENT_TEAM_ROSTER_LIMITS.some((limit) => limit === value.rosterLimit)) {
     context.addIssue({ code: 'custom', path: ['rosterLimit'], message: `choose a supported ${value.format} roster size` })
   }
   if (value.rounds != null && value.format !== '1v1')
     context.addIssue({ code: 'custom', path: ['rounds'], message: 'Swiss rounds pair duels only' })
 }
-export const createLeagueSchema = z
+export const createSealedEventSchema = z
   .object({
     ...tournamentFields,
     description: tournamentFields.description.default(''),
     playerLimit: tournamentFields.playerLimit.default(null),
-    ...leagueEventRuleFields,
+    ...sealedEventRuleFields,
     ownerPlays: z.boolean().default(false),
-    schedule: leagueSchedule.optional(),
+    schedule: sealedEventSchedule.optional(),
   })
-  .superRefine(validateLeagueEventRule)
-/** A club's casual sealed game: no name, visibility, admission or limit of its own, and no Swiss rounds. */
-export const createClubGameSchema = z
+  .superRefine(validateSealedEventRule)
+/** A group's casual hidden-list game: no name, visibility, admission or limit of its own, and no Swiss rounds. */
+export const createHiddenListGameSchema = z
   .object({
-    clubToken: token,
-    timeZone: clubGameTimeZoneSchema.optional(),
-    ...leagueEventRuleFields,
+    groupToken: token,
+    timeZone: hiddenListGameTimeZoneSchema.optional(),
+    ...sealedEventRuleFields,
     rounds: z.null().optional(),
-    schedule: leagueSchedule.optional(),
+    schedule: sealedEventSchedule.optional(),
   })
-  .superRefine(validateLeagueEventRule)
+  .superRefine(validateSealedEventRule)
 const tournamentDetailKeys = Object.keys(tournamentFields) as (keyof typeof tournamentFields)[]
-export const updateLeagueSchema = z
+export const updateSealedEventSchema = z
   .object({
     token,
-    // A tournament's details, all or none; a club game has none, and an edit without them leaves a tournament's standing.
+    // A tournament's details, all or none; a group game has none, and an edit without them leaves a tournament's standing.
     ...z.object(tournamentFields).partial().shape,
     // An older client omits allowances, which must leave the event's house rules as they stand.
     rule: z
-      .object({ ...leagueEventRuleFields, allowances: leagueAllowancesSchema.optional() })
-      .superRefine(validateLeagueEventRule)
+      .object({ ...sealedEventRuleFields, allowances: sealedEventAllowancesSchema.optional() })
+      .superRefine(validateSealedEventRule)
       .optional(),
-    schedule: leagueSchedule.optional(),
+    schedule: sealedEventSchedule.optional(),
   })
   .refine((value) => new Set(tournamentDetailKeys.map((key) => value[key] === undefined)).size === 1, {
     message: 'send every tournament detail or none',
   })
 /**
- * `token` is the event's host: a tournament's token, or a club game's, which is its event's. `eventToken` names the
- * event itself, as a client from before each event had its own host sends it beside its old league's token.
+ * `token` is the event's host: a tournament's token, or a group game's, which is its event's. `eventToken` names the
+ * event itself, as a client from before each event had its own host sends it beside its retired host's token.
  */
-const leagueEvent = { token, eventToken: token.optional() }
-export const leagueEventSchema = z.object(leagueEvent)
-export const pairLeagueRoundSchema = z.object(leagueEvent)
-export const reopenSwissTableSchema = z.object({ ...leagueEvent, battleToken: token })
-export const openLeagueSchema = z.object(leagueEvent)
-export const moderateLeagueEntrySchema = z.object({
-  ...leagueEvent,
+const sealedEvent = { token, eventToken: token.optional() }
+export const sealedEventSchema = z.object(sealedEvent)
+export const pairSealedEventRoundSchema = z.object(sealedEvent)
+export const reopenSwissTableSchema = z.object({ ...sealedEvent, battleToken: token })
+export const openSealedEventSchema = z.object(sealedEvent)
+export const moderateSealedEventEntrySchema = z.object({
+  ...sealedEvent,
   userId: id,
   status: z.enum(['accepted', 'rejected']),
 })
-export const addLeagueEntrantsSchema = z.object({
-  ...leagueEvent,
-  userIds: z.array(id).min(1).max(LEAGUE_MEMBER_MAX),
+export const addSealedEventEntrantsSchema = z.object({
+  ...sealedEvent,
+  userIds: z.array(id).min(1).max(SEALED_EVENT_MEMBER_MAX),
 })
-export const admitLeagueEntriesSchema = z.object({
-  ...leagueEvent,
-  userIds: z.array(id).min(1).max(LEAGUE_MEMBER_MAX),
+export const admitSealedEventEntriesSchema = z.object({
+  ...sealedEvent,
+  userIds: z.array(id).min(1).max(SEALED_EVENT_MEMBER_MAX),
 })
-export const submitLeagueRosterSchema = z.object({ ...leagueEvent, rosterId: id })
-export const setLeagueTeamDispositionSchema = z.object({ ...leagueEvent, disposition: z.string().min(1).max(64) })
-export const setLeagueTeamWarlordSchema = z.object({ ...leagueEvent, userId: id })
-export const assignLeagueRosterRequirementSchema = z.object({
-  ...leagueEvent,
+export const submitSealedEventRosterSchema = z.object({ ...sealedEvent, rosterId: id })
+export const setSealedEventTeamDispositionSchema = z.object({ ...sealedEvent, disposition: z.string().min(1).max(64) })
+export const setSealedEventTeamWarlordSchema = z.object({ ...sealedEvent, userId: id })
+export const assignSealedEventRosterRequirementSchema = z.object({
+  ...sealedEvent,
   userId: id,
   requiredLimit: z.number().int(),
 })
-/** A club game's player takes a seat themselves; `null` steps out before the reveal. */
-export const chooseLeagueSideSchema = z.object({
-  ...leagueEvent,
-  side: z.enum(CLUB_GAME_SIDES).nullable(),
+/** A group game's player takes a seat themselves; `null` steps out before the reveal. */
+export const chooseSealedEventSideSchema = z.object({
+  ...sealedEvent,
+  side: z.enum(HIDDEN_LIST_GAME_SIDES).nullable(),
 })
-export type LeagueSide = NonNullable<z.infer<typeof chooseLeagueSideSchema>['side']>
-export const assignLeagueTeamSchema = z.object({
-  ...leagueEvent,
+export type SealedEventSide = NonNullable<z.infer<typeof chooseSealedEventSideSchema>['side']>
+export const assignSealedEventTeamSchema = z.object({
+  ...sealedEvent,
   userIds: z
     .array(id)
     .min(1)
     .max(2)
     .refine((ids) => new Set(ids).size === ids.length, 'choose different entrants'),
 })
-export const leagueRosterSchema = z.object({ ...leagueEvent, userId: id })
-export const leagueBattlesSchema = z.object({ token, eventToken: token, before: battlesCursor.nullable().default(null) })
-export const leagueResultsSchema = z.object({ token, eventToken: token })
-export const setLeagueAdminsSchema = z.object({ token, userIds: z.array(id).max(LEAGUE_ADMIN_MAX) })
-const clubFields = {
-  name: z.string().trim().min(1, 'name the club').max(CLUB_NAME_MAX_LENGTH),
-  description: z.string().trim().max(CLUB_DESCRIPTION_MAX_LENGTH).default(''),
-  visibility: z.enum(LEAGUE_VISIBILITIES),
-  admission: z.enum(LEAGUE_ADMISSIONS),
+export const sealedEventRosterSchema = z.object({ ...sealedEvent, userId: id })
+export const sealedEventBattlesSchema = z.object({ token, eventToken: token, before: battlesCursor.nullable().default(null) })
+export const sealedEventResultsSchema = z.object({ token, eventToken: token })
+export const setSealedEventAdminsSchema = z.object({ token, userIds: z.array(id).max(SEALED_EVENT_ADMIN_MAX) })
+const groupFields = {
+  name: z.string().trim().min(1, 'name the group').max(GROUP_NAME_MAX_LENGTH),
+  description: z.string().trim().max(GROUP_DESCRIPTION_MAX_LENGTH).default(''),
+  visibility: z.enum(SEALED_EVENT_VISIBILITIES),
+  admission: z.enum(SEALED_EVENT_ADMISSIONS),
 }
-export const createClubSchema = z.object(clubFields)
-export const updateClubSchema = z.object({ token, ...clubFields })
-export const clubMemberSchema = z.object({ token, userId: id })
-export const moderateClubMemberSchema = z.object({ token, userId: id, accept: z.boolean() })
-export const setClubAdminsSchema = z.object({ token, userIds: z.array(id).max(CLUB_ADMIN_MAX) })
+export const createGroupSchema = z.object(groupFields)
+export const updateGroupSchema = z.object({ token, ...groupFields })
+export const groupMemberSchema = z.object({ token, userId: id })
+export const moderateGroupMemberSchema = z.object({ token, userId: id, accept: z.boolean() })
+export const setGroupAdminsSchema = z.object({ token, userIds: z.array(id).max(GROUP_ADMIN_MAX) })
 /** The draw the organizer reviewed, so publishing refuses one that changed meanwhile. */
-export const publishClubSeasonSchema = z.object({
+export const publishGroupLeagueSchema = z.object({
   token,
-  seed: z.number().int().min(0).max(CLUB_SEASON_SEED_MAX),
-  playerIds: z.array(id).max(CLUB_SEASON_PLAYERS_MAX),
+  seed: z.number().int().min(0).max(GROUP_LEAGUE_SEED_MAX),
+  playerIds: z.array(id).max(GROUP_LEAGUE_PLAYERS_MAX),
 })
-export const clubSeasonDeadlineSchema = z.object({
+export const groupLeagueDeadlineSchema = z.object({
   token,
-  round: z.number().int().min(1).max(CLUB_SEASON_PLAYERS_MAX),
+  round: z.number().int().min(1).max(GROUP_LEAGUE_PLAYERS_MAX),
   deadline: z.number().int().nonnegative().nullable(),
 })
-export const createLeagueBattleSchema = z.object({
-  ...leagueEvent,
+export const createSealedEventBattleSchema = z.object({
+  ...sealedEvent,
   opponentId: id,
   allyId: id.optional(),
   secondOpponentId: id.optional(),
@@ -237,7 +243,7 @@ const newBattlePlayers = {
   opponentIds: z.array(id).min(1).max(2).optional(),
   allyId: id.optional(),
 }
-export const leagueBattleOptionsSchema = z.object(newBattlePlayers)
+export const sealedEventBattleOptionsSchema = z.object(newBattlePlayers)
 /** A roster read may name the battle that entitles the reader to it. */
 export const rosterInBattleSchema = z.object({ id, battle: token.optional() })
 const opposingSeats = (value: { opponentId?: string; opponentIds?: string[]; guestNames?: string[] }) =>
@@ -258,10 +264,10 @@ export const createBattleSchema = z
     missionPackId: id.nullable().default(null),
     casual: z.boolean().default(false),
     manual: z.boolean().default(false),
-    clubToken: token.optional(),
+    groupToken: token.optional(),
     fixture: z.string().max(300).optional(),
   })
-  .refine((value) => !value.fixture || value.clubToken, 'a fixture is played from its club')
+  .refine((value) => !value.fixture || value.groupToken, 'a fixture is played from its group')
   .refine((value) => opposingSeats(value) <= 2, 'a side seats two players at most')
   .refine((value) => (value.allyId ? 1 : 0) + opposingSeats(value) <= 3, 'a battle seats four players at most')
   .refine((value) => !value.allyId || opposingSeats(value) > 0, 'an ally needs someone to play against')

@@ -56,13 +56,13 @@ describe('manual tracking', () => {
     expect(commandRefusal(fold(), ALICE, configure(settings))?.code).toBe('manual-tracking')
   })
 
-  it('keeps a league battle on its mission pack', () => {
+  it('keeps a sealed event battle on its mission pack', () => {
     const sealed = fold(
       [ALICE, roster('Ultramarines')],
       [BOB, roster('Death Guard')],
       [ALICE, { kind: 'lock-league-rosters', leagueToken: 'league' }],
     )
-    expect(commandRefusal(sealed, ALICE, configure({ limit: null }))?.code).toBe('league-sealed')
+    expect(commandRefusal(sealed, ALICE, configure({ limit: null }))?.code).toBe('sealed-event-sealed')
   })
 
   it('cannot switch modes once the battle has started', () => {

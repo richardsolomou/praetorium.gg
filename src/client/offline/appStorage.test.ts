@@ -33,15 +33,15 @@ beforeEach(() => {
 
 it.each(['browser', 'native'])('drops event queries saved before hosts from %s storage, keeping the rest unchanged', async (surface) => {
   const kept = [
-    { key: ['league', 'league', 'results', 'event'], data: { rows: [] }, updatedAt: 4 },
-    { key: ['league', 'deleted', 'current'], data: null, updatedAt: 5 },
+    { key: ['sealed-event', 'league', 'results', 'event'], data: { rows: [] }, updatedAt: 4 },
+    { key: ['sealed-event', 'deleted', 'current'], data: null, updatedAt: 5 },
   ]
   const legacy: AppSnapshot = {
     ...snapshot,
     queries: [
       ...snapshot.queries,
-      { key: ['league', 'league', 'current'], data: { token: 'league', entries: [] }, updatedAt: 2 },
-      { key: ['leagues'], data: [{ token: 'league', personal: true }], updatedAt: 3 },
+      { key: ['sealed-event', 'league', 'current'], data: { token: 'league', entries: [] }, updatedAt: 2 },
+      { key: ['sealed-events'], data: [{ token: 'league', personal: true }], updatedAt: 3 },
       ...kept,
     ],
   }

@@ -20,7 +20,7 @@ vi.mock('./publishedTextFiles', () => ({
 }))
 vi.mock('./app', () => ({
   app: () => ({
-    service: { submit, userBattleId, screen, createBattle, leagueService: { ownRoster }, rosterService: { setRosterVisibility } },
+    service: { submit, userBattleId, screen, createBattle, sealedEventService: { ownRoster }, rosterService: { setRosterVisibility } },
     telemetry: { capture },
     catalogueFor: async () => shelf.value,
     rulesFor: async () => null,

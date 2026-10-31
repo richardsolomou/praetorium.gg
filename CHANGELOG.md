@@ -1,5 +1,18 @@
 # praetorium
 
+## 0.207.0 (2026-10-31)
+
+### Minor Changes
+
+- 2a732ad: Clubs are now called groups, and every old club link, invites included, opens the same group.
+- 2a732ad: A group's round robin is now called a league.
+- 2a732ad: New game on a group page can start a solo vs pair or doubles game between members, not just a duel.
+- 2a732ad: Sealed games are now hidden-list games: start one from New game by turning on Hide lists, and find them on the group's Overview instead of a tab of their own.
+
+### Patch Changes
+
+- 2a732ad: A group's past hidden-list games always show their lists instead of folding them away.
+
 ## 0.206.0 (2026-10-30)
 
 ### Minor Changes

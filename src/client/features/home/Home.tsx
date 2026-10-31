@@ -8,7 +8,7 @@ import {
   friendBattlesQuery,
   friendshipsQuery,
   homeRostersQuery,
-  leaguesQuery,
+  sealedEventsQuery,
   meQuery,
   onboardingQuery,
   playerProfileQuery,
@@ -41,7 +41,7 @@ export function Home() {
   const { data: open } = useInfiniteQuery(publicBattlesQuery())
   const { data: homeRosters } = useQuery({ ...homeRostersQuery(), enabled: signedIn })
   const { data: factions } = useQuery({ ...factionIndexQuery(), enabled: signedIn })
-  const { data: leagues = [] } = useQuery({ ...leaguesQuery(), enabled: signedIn })
+  const { data: sealedEvents = [] } = useQuery({ ...sealedEventsQuery(), enabled: signedIn })
   const { data: friendships } = useQuery({ ...friendshipsQuery(), enabled: signedIn })
   const { data: standings } = useQuery({ ...standingsQuery(), enabled: !signedIn })
   const { data: onboarding } = useQuery({ ...onboardingQuery(), enabled: signedIn })
@@ -59,7 +59,9 @@ export function Home() {
     return faction ? [{ faction, ...update }] : []
   })
   // An accepted entry with no list in it, before the reveal that would seal the event without it.
-  const rostersDue = leagues.filter((league) => league.ownEntry?.status === 'accepted' && !league.ownEntry.submitted && !league.revealedAt)
+  const rostersDue = sealedEvents.filter(
+    (sealedEvent) => sealedEvent.ownEntry?.status === 'accepted' && !sealedEvent.ownEntry.submitted && !sealedEvent.revealedAt,
+  )
   const [deleting, setDeleting] = useState<Battle | null>(null)
   return (
     <>

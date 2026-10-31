@@ -24,10 +24,10 @@ import {
   teamArmyProblems,
 } from '../../../../core/battle'
 import { ArmyPoints } from './ArmyPoints'
-import { battleClubsQuery, deploymentsQuery, gameReferencesQuery } from '../../../queries'
+import { battleGroupsQuery, deploymentsQuery, gameReferencesQuery } from '../../../queries'
 import { fixedHandShort, missionCardsReady, type Side, type SideMission, sideName, sideOf, sides as foldSides } from '../../../sides'
 import type { RosterAttachment, SendCommand } from '../useCommand'
-import { ClubChoice } from './ClubChoice'
+import { GroupChoice } from './GroupChoice'
 import { SearchableSelect, type SearchableGroup } from '../../../components/SearchableSelect'
 import { advanceOnboarding } from '../../onboarding/onboarding'
 import { Battlefield } from './Battlefield'
@@ -121,7 +121,7 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
   const yours = table.find((side) => side.isViewer)
   const { data: references } = useQuery(gameReferencesQuery())
   const { data: deployments } = useQuery(deploymentsQuery())
-  const { data: clubs } = useQuery(battleClubsQuery(view.token))
+  const { data: groups } = useQuery(battleGroupsQuery(view.token))
   const nameDisposition = useDispositionNames()
   const attacker = sideOf(table, view.attackerId)
   const defender = attacker ? table.find((side) => side.index !== attacker.index) : undefined
@@ -258,7 +258,7 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
       ...settings,
     })
 
-  const sizeFixed = Boolean(view.leagueToken || (view.settings.sizeFromRosters && format.problem !== 'manual'))
+  const sizeFixed = Boolean(view.sealedEventToken || (view.settings.sizeFromRosters && format.problem !== 'manual'))
   const sizeName =
     view.settings.limit === null
       ? 'Determined by your rosters'
@@ -347,7 +347,7 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
     skipped: skipped(id),
   })
   const deployment = deploymentFor(view.deploymentId, deployments)
-  const club = clubs?.current?.name
+  const group = groups?.current?.name
 
   return (
     <main className="flex w-full flex-col">
@@ -379,7 +379,7 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
                   <span className="text-dim">
                     {' '}
                     · {manual ? 'Manual tracking' : (chosenPack?.name ?? 'Guided')}
-                    {club ? ` · ${club}` : ''}
+                    {group ? ` · ${group}` : ''}
                   </span>
                 </SharedAnswer>
               }
@@ -431,7 +431,7 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
                     </div>
                   </fieldset>
                 ) : null}
-                {team && view.settings.limit !== null && !view.leagueToken ? (
+                {team && view.settings.limit !== null && !view.sealedEventToken ? (
                   <ArmyPoints
                     sides={table}
                     defaults={[0, 1].map((side) => evenArmyPoints(view, side)!)}
@@ -440,7 +440,7 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
                     onChange={(armyPoints) => configure({ armyPoints })}
                   />
                 ) : null}
-                {view.leagueToken ? null : (
+                {view.sealedEventToken ? null : (
                   <div className="sm:col-span-2">
                     <Choice
                       label="Tracking"
@@ -461,9 +461,9 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
                     />
                   </div>
                 )}
-                {view.leagueToken || manual ? null : (
+                {view.sealedEventToken || manual ? null : (
                   <div className="sm:col-span-2">
-                    <ClubChoice view={view} send={send} disabled={busy} />
+                    <GroupChoice view={view} send={send} disabled={busy} />
                   </div>
                 )}
               </div>

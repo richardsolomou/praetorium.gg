@@ -133,7 +133,7 @@ describe('battle size from saved rosters', () => {
     expect(state.settings.limit).toBeNull()
   })
 
-  it('preserves a sealed preset and refuses automatic inference for a league battle', () => {
+  it('preserves a sealed preset and refuses automatic inference for a sealed event battle', () => {
     const state = reduceBattle(
       [ALICE, BOB],
       log(

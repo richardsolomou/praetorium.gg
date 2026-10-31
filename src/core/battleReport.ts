@@ -147,7 +147,7 @@ function describe(
     case 'lock-league-rosters':
       return 'The rosters are sealed for this battle'
     case 'set-battle-club':
-      return command.clubId ? 'The battle counts for a club' : 'The battle no longer counts for a club'
+      return command.clubId ? 'The battle counts for a group' : 'The battle no longer counts for a group'
     case 'set-prep': {
       const parts = [
         command.primary ? `${command.primary.name} as the primary` : null,

@@ -80,7 +80,7 @@ test('the mobile website uses application navigation below 860 pixels', async ({
       '/missions',
       '/rules',
       '/force-dispositions',
-      '/clubs',
+      '/groups',
       '/tournaments',
       '/leaderboard',
       '/whats-new',
@@ -215,7 +215,7 @@ document.addEventListener('DOMContentLoaded', () => { document.documentElement.d
   await expect(page).toHaveURL('/more')
   const morePage = page.getByRole('main')
   await expect(morePage.getByRole('heading', { name: 'More' })).toBeVisible()
-  await expect(morePage.getByRole('link', { name: /^Clubs/ })).toBeVisible()
+  await expect(morePage.getByRole('link', { name: /^Groups/ })).toBeVisible()
   await expect(morePage.getByRole('link', { name: /^Tournaments/ })).toBeVisible()
   await expect(morePage.getByRole('link', { name: /^Leaderboard/ })).toBeVisible()
   await expect(morePage.getByRole('link', { name: /^Rules/ })).toBeVisible()

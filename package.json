@@ -1,6 +1,6 @@
 {
   "name": "praetorium.gg",
-  "version": "0.206.0",
+  "version": "0.207.0",
   "private": true,
   "description": "Build Warhammer 40,000 armies and track games from setup to final score.",
   "license": "AGPL-3.0-only",
@@ -13,7 +13,8 @@
     "format": "ras format .",
     "format:check": "ras format --check .",
     "docs:lint": "markdownlint-cli2 '**/*.md' '#**/node_modules' '#.output' '#data-dev' '#catalogue-data' '#mobile/ios/**' '#mobile/.simulator-derived/**' '#CHANGELOG.md' '#test-results*/**' '#playwright-report/**'",
-    "check": "ras sync --check && pnpm format:check && pnpm lint && pnpm docs:lint && pnpm changesets:check && pnpm auth:db:check && pnpm catalogue:check && pnpm build && pnpm typecheck && pnpm test",
+    "vocabulary:check": "tsx scripts/checkVocabulary.ts",
+    "check": "ras sync --check && pnpm format:check && pnpm lint && pnpm docs:lint && pnpm vocabulary:check && pnpm changesets:check && pnpm auth:db:check && pnpm catalogue:check && pnpm build && pnpm typecheck && pnpm test",
     "test": "ras test && pnpm test:python",
     "test:python": "python3 -B -m unittest discover -s scripts -p 'test_*.py'",
     "test:unit": "ras test --config vitest.unit.config.ts",

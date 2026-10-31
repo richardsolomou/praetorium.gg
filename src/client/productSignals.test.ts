@@ -51,15 +51,17 @@ it('refreshes battle feeds and standings after a shared battle changes without r
   ).toEqual([true, false, false, true, false])
 })
 
-it('refreshes public roster and league readers without touching catalogue assets', async () => {
+it('refreshes public roster and sealed event readers without touching catalogue assets', async () => {
   const client = new QueryClient()
-  for (const key of ['player-rosters', 'shared-roster', 'leagues', 'league', 'faction-index']) client.setQueryData([key], {})
+  for (const key of ['player-rosters', 'shared-roster', 'sealed-events', 'sealed-event', 'faction-index']) client.setQueryData([key], {})
 
   await invalidatePublicProductQueries(client, 'rosters')
   await invalidatePublicProductQueries(client, 'leagues')
 
   expect(
-    ['player-rosters', 'shared-roster', 'leagues', 'league', 'faction-index'].map((key) => client.getQueryState([key])?.isInvalidated),
+    ['player-rosters', 'shared-roster', 'sealed-events', 'sealed-event', 'faction-index'].map(
+      (key) => client.getQueryState([key])?.isInvalidated,
+    ),
   ).toEqual([true, true, true, true, false])
 })
 
@@ -72,9 +74,9 @@ it('takes a roster out of public army discovery when its owner changes who can r
   expect(client.getQueryState(['discovered-rosters', {}])?.isInvalidated).toBe(true)
 })
 
-it.each(['rosters', 'leagues'] as const)('refreshes league roster sharing after a %s change', async (scope) => {
+it.each(['rosters', 'leagues'] as const)('refreshes sealed event roster sharing after a %s change', async (scope) => {
   const client = new QueryClient()
-  const key = ['league-roster-sharing', 'league', 'event', 'owner']
+  const key = ['sealed-event-roster-sharing', 'league', 'event', 'owner']
   client.setQueryData(key, {})
   await invalidateProductQueries(client, scope)
   expect(client.getQueryState(key)?.isInvalidated).toBe(true)
@@ -126,11 +128,11 @@ describe('refreshes after local work syncs', () => {
     return client
   }
 
-  it('refreshes saved rosters and league entries after a roster save without reloading catalogue data, prices or settings', async () => {
+  it('refreshes saved rosters and sealed event entries after a roster save without reloading catalogue data, prices or settings', async () => {
     const keys = [
       ['roster-access', 'roster-1'],
       ['saved-roster-summaries'],
-      ['outdated-league-entries', 'roster-1'],
+      ['outdated-sealed-event-entries', 'roster-1'],
       ['units', 'faction', 2000],
       ['price', 'faction'],
       ['release'],
@@ -174,7 +176,7 @@ describe('refreshes after local work syncs', () => {
   })
 
   it('refreshes every product reader for an unknown saved operation but still not catalogue data', async () => {
-    const keys = [['home-rosters'], ['collection'], ['leagues'], ['faction-index']]
+    const keys = [['home-rosters'], ['collection'], ['sealed-events'], ['faction-index']]
     const client = seeded(keys)
 
     await invalidateSyncedQueries(client, [{ id: crypto.randomUUID(), kind: 'futureAction', resource: 'future:1' }])

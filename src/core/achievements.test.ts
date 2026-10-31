@@ -20,12 +20,12 @@ const facts = (over: Partial<AchievementFacts> = {}): AchievementFacts => ({
   battles: [],
   recruits: [],
   tournaments: [],
-  clubs: [],
+  groups: [],
   photos: [],
-  clubBattles: [],
+  groupBattles: [],
   imports: [],
-  seasons: [],
-  seasonsRun: [],
+  leagues: [],
+  leaguesRun: [],
   seals: [],
   published: [],
   collected: [],
@@ -70,8 +70,8 @@ describe('achievements', () => {
     ).toBeUndefined()
   })
 
-  it('makes a club founder once the club has both its members and its battles', () => {
-    expect(earned({ clubs: [{ members: [1, 2, 3, 40], battles: [5, 6, 7, 8, 9, 10, 11, 12, 13, 14] }] }).founder).toBe(40)
+  it('makes a group founder once the group has both its members and its battles', () => {
+    expect(earned({ groups: [{ members: [1, 2, 3, 40], battles: [5, 6, 7, 8, 9, 10, 11, 12, 13, 14] }] }).founder).toBe(40)
   })
 
   it('refuses a champion of a tournament smaller than 8', () => {

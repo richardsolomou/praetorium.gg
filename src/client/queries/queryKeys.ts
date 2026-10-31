@@ -82,34 +82,34 @@ export const reportKey = (token: string) => ['report', token]
 export const battleReplayKey = (token: string, seq?: number) =>
   seq === undefined ? ['battle-replay', token] : ['battle-replay', token, seq]
 
-export const clubsKey = () => ['clubs']
-export const clubKey = (token: string) => ['club', token]
-export const clubStandingsKey = (token: string) => ['club-standings', token]
-export const clubSeasonKey = (token: string) => ['club-season', token]
-export const battleClubsKey = (token: string) => ['battle-clubs', token]
-export const leaguesKey = () => ['leagues']
-/** Every read under the league, including its results. */
-export const leagueReadsKey = (token: string) => ['league', token]
-export const leagueKey = (token: string, eventToken?: string) => [...leagueReadsKey(token), eventToken ?? 'current']
-export const leagueResultsKey = (token: string, eventToken: string) => [...leagueReadsKey(token), 'results', eventToken]
-export const revealedLeagueRostersKey = (token: string, eventToken: string) => [...leagueReadsKey(token), 'rosters', eventToken]
-export const leagueRosterSharingKey = (token: string, eventToken: string, userId: string) => [
-  'league-roster-sharing',
+export const groupsKey = () => ['groups']
+export const groupKey = (token: string) => ['group', token]
+export const groupStandingsKey = (token: string) => ['group-standings', token]
+export const groupLeagueKey = (token: string) => ['group-league', token]
+export const battleGroupsKey = (token: string) => ['battle-groups', token]
+export const sealedEventsKey = () => ['sealed-events']
+/** Every read under the sealed event, including its results. */
+export const sealedEventReadsKey = (token: string) => ['sealed-event', token]
+export const sealedEventKey = (token: string, eventToken?: string) => [...sealedEventReadsKey(token), eventToken ?? 'current']
+export const sealedEventResultsKey = (token: string, eventToken: string) => [...sealedEventReadsKey(token), 'results', eventToken]
+export const revealedSealedEventRostersKey = (token: string, eventToken: string) => [...sealedEventReadsKey(token), 'rosters', eventToken]
+export const sealedEventRosterSharingKey = (token: string, eventToken: string, userId: string) => [
+  'sealed-event-roster-sharing',
   token,
   eventToken,
   userId,
 ]
-export const leagueRosterKey = (token: string, eventToken: string | undefined, userId: string) => [
-  'league-roster',
+export const sealedEventRosterKey = (token: string, eventToken: string | undefined, userId: string) => [
+  'sealed-event-roster',
   token,
   eventToken,
   userId,
 ]
-export const friendLeagueRostersKey = () => ['friend-league-rosters']
-export const leagueBattlesKey = (token: string, eventToken: string) => ['league-battles', token, eventToken]
+export const friendSealedEventRostersKey = () => ['friend-sealed-event-rosters']
+export const sealedEventBattlesKey = (token: string, eventToken: string) => ['sealed-event-battles', token, eventToken]
 /** Without a roster, every roster's outdated entries. */
-export const outdatedLeagueEntriesKey = (rosterId?: string) =>
-  rosterId === undefined ? ['outdated-league-entries'] : ['outdated-league-entries', rosterId]
+export const outdatedSealedEventEntriesKey = (rosterId?: string) =>
+  rosterId === undefined ? ['outdated-sealed-event-entries'] : ['outdated-sealed-event-entries', rosterId]
 
 export function rosterPriceKey(data: PriceInput) {
   return [

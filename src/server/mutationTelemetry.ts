@@ -1,5 +1,5 @@
 import type { z } from 'zod'
-import type { createBattleSchema, createLeagueSchema } from '../contracts/schemas'
+import type { createBattleSchema, createSealedEventSchema } from '../contracts/schemas'
 import { AsyncLocalStorage } from 'node:async_hooks'
 import { globalSingleton } from 'ras-stack/server'
 import { app } from './app'
@@ -34,8 +34,8 @@ export function captureBattleCreated(
   })
 }
 
-export function captureLeagueCreated(userId: string, data: z.output<typeof createLeagueSchema>) {
-  return captureMutation(userId, 'league_created', {
+export function captureSealedEventCreated(userId: string, data: z.output<typeof createSealedEventSchema>) {
+  return captureMutation(userId, 'tournament_created', {
     visibility: data.visibility,
     admission: data.admission,
     format: data.format,
@@ -44,8 +44,11 @@ export function captureLeagueCreated(userId: string, data: z.output<typeof creat
   })
 }
 
-export function captureLeagueBattleCreated(userId: string, result: { battleId: string; format: string | null; requiredLimit: number }) {
-  return captureMutation(userId, 'league_battle_created', {
+export function captureSealedEventBattleCreated(
+  userId: string,
+  result: { battleId: string; format: string | null; requiredLimit: number },
+) {
+  return captureMutation(userId, 'sealed_event_battle_created', {
     battle_id: result.battleId,
     format: result.format,
     required_limit: result.requiredLimit,

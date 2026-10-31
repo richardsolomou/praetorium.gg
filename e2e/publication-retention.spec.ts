@@ -49,15 +49,15 @@ async function seedCollection(userId: string, entryId: string) {
   return { collection: await product.collectionByUser(userId), favourites: await product.favouriteDatasheetsByUser(userId) }
 }
 
-async function leagueFixture(ownerId: string, members: string[]) {
+async function sealedEventFixture(ownerId: string, members: string[]) {
   const product = await productOperator()
-  const league = { id: crypto.randomUUID(), token: crypto.randomUUID(), eventId: crypto.randomUUID(), eventToken: crypto.randomUUID() }
+  const sealedEvent = { id: crypto.randomUUID(), token: crypto.randomUUID(), eventId: crypto.randomUUID(), eventToken: crypto.randomUUID() }
   await product.leagueCommand(
     {
       op: 'create',
-      ...league,
+      ...sealedEvent,
       ownerId,
-      name: uniqueName('Retention league'),
+      name: uniqueName('Retention tournament'),
       description: '',
       visibility: 'private',
       admission: 'automatic',
@@ -71,16 +71,16 @@ async function leagueFixture(ownerId: string, members: string[]) {
   for (const userId of members) {
     expect(
       await product.leagueCommand(
-        { op: 'join', token: league.token, eventToken: league.eventToken, userId, memberLimit: 128, now: Date.now() },
+        { op: 'join', token: sealedEvent.token, eventToken: sealedEvent.eventToken, userId, memberLimit: 128, now: Date.now() },
         z.string(),
       ),
     ).toBe('accepted')
   }
-  return league
+  return sealedEvent
 }
 
-async function sealThroughPage(page: Page, leagueToken: string, rosterName: string) {
-  await page.goto(`/tournaments/${leagueToken}`)
+async function sealThroughPage(page: Page, sealedEventToken: string, rosterName: string) {
+  await page.goto(`/tournaments/${sealedEventToken}`)
   const chooser = page.getByRole('dialog', { name: 'Seal a roster' })
   await retryUntilVisible(chooser, () => page.getByRole('button', { name: 'Choose a roster', exact: true }).click())
   await chooser.locator(`[data-roster="${rosterName}"]`).click()
@@ -122,10 +122,10 @@ test('saved roster deletion preserves its actual sealed and fielded copies until
   const rosterName = uniqueName('Original frozen roster')
   const rosterId = await sealableRoster(page, rosterName)
   const rosterUrl = page.url()
-  const league = await leagueFixture(userId, [userId])
-  await sealThroughPage(page, league.token, rosterName)
+  const sealedEvent = await sealedEventFixture(userId, [userId])
+  await sealThroughPage(page, sealedEvent.token, rosterName)
   const sealedCopy = () =>
-    productSql`SELECT roster_snapshot FROM league_event_entries WHERE event_id = ${league.eventId} AND user_id = ${userId}`
+    productSql`SELECT roster_snapshot FROM league_event_entries WHERE event_id = ${sealedEvent.eventId} AND user_id = ${userId}`
   const sealedBefore = await sealedCopy()
   expect(sealedBefore).toHaveLength(1)
   expect(z.tuple([z.literal(0), z.string()]).parse(sealedBefore[0]?.roster_snapshot)[1]).toContain('Skorpekh Lord')
@@ -152,9 +152,9 @@ test('saved roster deletion preserves its actual sealed and fielded copies until
   expect(await sealedCopy()).toEqual(sealedBefore)
 
   // Its owner still reads the sealed copy before the reveal, after the saved roster is gone.
-  await page.goto(`/rosters/${userId}?league=${league.token}&event=${league.eventToken}`)
+  await page.goto(`/rosters/${userId}?league=${sealedEvent.token}&event=${sealedEvent.eventToken}`)
   await expect(page.locator('[data-unit="Skorpekh Lord"]')).toBeVisible()
-  await page.goto(`/tournaments/${league.token}`)
+  await page.goto(`/tournaments/${sealedEvent.token}`)
   const viewSealed = page.getByRole('link', { name: `View ${name}’s roster`, exact: true })
   const reveal = page.getByRole('alertdialog', { name: 'Reveal every roster?' })
   await retryUntilVisible(reveal, () =>
@@ -181,14 +181,14 @@ test('saved roster deletion preserves its actual sealed and fielded copies until
       await page.screenshot({ path: test.info().outputPath(`retained-${kind}-${width}.png`) })
     }
   }
-  await page.goto(`/tournaments/${league.token}`)
-  const deleteLeague = page.getByRole('menuitem', { name: 'Delete tournament', exact: true })
-  await retryUntilVisible(deleteLeague, () => page.getByRole('button', { name: /^More for Retention league-/ }).click())
-  await deleteLeague.click()
+  await page.goto(`/tournaments/${sealedEvent.token}`)
+  const deleteSealedEvent = page.getByRole('menuitem', { name: 'Delete tournament', exact: true })
+  await retryUntilVisible(deleteSealedEvent, () => page.getByRole('button', { name: /^More for Retention tournament-/ }).click())
+  await deleteSealedEvent.click()
   await page.getByRole('alertdialog').getByRole('button', { name: 'Delete tournament', exact: true }).click()
-  await expect.poll(() => productSql`SELECT id FROM tournaments WHERE id = ${league.id}`).toEqual([])
-  expect(await productSql`SELECT id FROM sealed_events WHERE id = ${league.eventId}`).toEqual([])
-  expect(await productSql`SELECT user_id FROM league_event_entries WHERE event_id = ${league.eventId}`).toEqual([])
+  await expect.poll(() => productSql`SELECT id FROM tournaments WHERE id = ${sealedEvent.id}`).toEqual([])
+  expect(await productSql`SELECT id FROM sealed_events WHERE id = ${sealedEvent.eventId}`).toEqual([])
+  expect(await productSql`SELECT user_id FROM league_event_entries WHERE event_id = ${sealedEvent.eventId}`).toEqual([])
   expect(await battleCommands(battleId)).toEqual(commandsBefore)
   await page.goto(sealedUrl)
   await expect(page.getByRole('heading', { name: 'Nothing here', exact: true })).toBeVisible()
@@ -252,10 +252,10 @@ test('self-account deletion removes populated shared history and sealed entries 
     await concedeAndSync(owner)
     const otherCreated = await createBattle(opponent, { opponent: ownerName })
     const unrelated = await createBattle(opponent, { practice: true })
-    const ownLeague = await leagueFixture(ownerId, [ownerId])
-    const otherLeague = await leagueFixture(opponentId, [ownerId, opponentId])
-    await sealThroughPage(owner, ownLeague.token, ownerRoster)
-    await sealThroughPage(owner, otherLeague.token, ownerRoster)
+    const ownSealedEvent = await sealedEventFixture(ownerId, [ownerId])
+    const otherSealedEvent = await sealedEventFixture(opponentId, [ownerId, opponentId])
+    await sealThroughPage(owner, ownSealedEvent.token, ownerRoster)
+    await sealThroughPage(owner, otherSealedEvent.token, ownerRoster)
     const finishedId = await battleIdFor(lastPathSegment(finished))
     const otherId = await battleIdFor(lastPathSegment(otherCreated))
     expect(await productSql`SELECT user_id FROM battle_users WHERE user_id = ${ownerId}`).toHaveLength(2)
@@ -304,10 +304,10 @@ test('self-account deletion removes populated shared history and sealed entries 
     expect(await productSql`SELECT id FROM battles WHERE id = ${finishedId} OR id = ${otherId}`).toEqual([])
     expect(await productSql`SELECT seq FROM commands WHERE battle_id = ${finishedId} OR battle_id = ${otherId}`).toEqual([])
     expect(await productSql`SELECT id FROM tournaments WHERE owner_id = ${ownerId}`).toEqual([])
-    expect(await productSql`SELECT id FROM sealed_events WHERE id = ${ownLeague.eventId}`).toEqual([])
+    expect(await productSql`SELECT id FROM sealed_events WHERE id = ${ownSealedEvent.eventId}`).toEqual([])
     expect(await productSql`SELECT user_id FROM league_event_entries WHERE user_id = ${ownerId}`).toEqual([])
     expect(await productSql`SELECT id FROM rosters WHERE id = ${opponentRosterId}`).toEqual([{ id: opponentRosterId }])
-    expect(await productSql`SELECT id FROM tournaments WHERE id = ${otherLeague.id}`).toEqual([{ id: otherLeague.id }])
+    expect(await productSql`SELECT id FROM tournaments WHERE id = ${otherSealedEvent.id}`).toEqual([{ id: otherSealedEvent.id }])
     expect(await productSql`SELECT token FROM battles WHERE token = ${lastPathSegment(unrelated)}`).toEqual([
       { token: lastPathSegment(unrelated) },
     ])

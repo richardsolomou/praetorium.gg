@@ -28,7 +28,7 @@ export type CombatRoster = {
   waivedRules: readonly FormatRuleId[]
   borrowedDetachmentId: string | null
   optionalRules: readonly OptionalRuleId[]
-  /** The saved roster or revealed league list a standalone side came from, so its link and recent simulation can reopen it. */
+  /** The saved roster or revealed sealed event list a standalone side came from, so its link and recent simulation can reopen it. */
   saved?: { source: SimulatorRosterSource; name: string }
   /** Whose list this is, when a comparison fields more than one roster on a side. */
   owner?: RosterOwner

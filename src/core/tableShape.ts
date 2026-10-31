@@ -1,7 +1,7 @@
 /**
  * The three shapes a table can take, named once.
  *
- * A battle seats named people into a shape now; a league event fixes one for entrants
+ * A battle seats named people into a shape now; a sealed event fixes one for entrants
  * who have not arrived yet. Both name the same three things, so the name and the count
  * live here rather than being retyped at each surface.
  *

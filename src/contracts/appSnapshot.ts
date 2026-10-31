@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { predatesEventHosts } from './savedLeagues'
+import { predatesEventHosts } from './savedSealedEvents'
 
 export const MAX_APP_SNAPSHOT_BYTES = 10_000_000
 export const MAX_APP_SNAPSHOT_QUERIES = 500
@@ -33,20 +33,20 @@ export const APP_SNAPSHOT_QUERIES = new Set([
   'price',
   'shared-roster',
   'saved-roster-loadout-datasheets',
-  'outdated-league-entries',
+  'outdated-sealed-event-entries',
   'battles',
   'battle',
   'report',
   'friend-battles',
   'friendships',
-  'clubs',
-  'club',
-  'club-standings',
-  'club-season',
-  'leagues',
-  'league',
-  'league-roster',
-  'league-battles',
+  'groups',
+  'group',
+  'group-standings',
+  'group-league',
+  'sealed-events',
+  'sealed-event',
+  'sealed-event-roster',
+  'sealed-event-battles',
   'collection',
   'collection-counts',
   'fielded-datasheets',
@@ -99,8 +99,8 @@ export function parseAppSnapshot(value: unknown): AppSnapshot | null {
     return null
   snapshot.queries = snapshot.queries.filter(
     (query) =>
-      !(query.key[0] === 'league' && query.key[2] !== 'results' && predatesEventHosts(query.data)) &&
-      !(query.key[0] === 'leagues' && Array.isArray(query.data) && query.data.some(predatesEventHosts)),
+      !(query.key[0] === 'sealed-event' && query.key[2] !== 'results' && predatesEventHosts(query.data)) &&
+      !(query.key[0] === 'sealed-events' && Array.isArray(query.data) && query.data.some(predatesEventHosts)),
   )
   return snapshot
 }

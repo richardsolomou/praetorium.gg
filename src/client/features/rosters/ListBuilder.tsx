@@ -125,8 +125,8 @@ import { RosterRulesNotice } from './RosterRulesNotice'
 import { RosterReadiness } from './RosterReadiness'
 import { convertAsVariantOf } from './rosterLibrary'
 import { currentRulesFor } from '../../../core/currentRules'
-import { OutdatedLeagueRosters } from './OutdatedLeagueRosters'
-import { DueLeagueRosters } from './DueLeagueRosters'
+import { OutdatedSealedEventRosters } from './OutdatedSealedEventRosters'
+import { DueSealedEventRosters } from './DueSealedEventRosters'
 import { draftKey, exportInput, NO_PREP, type RosterDraft, rosterDraftOf, rosterSetupOf, savedDraft } from './rosterDraft'
 import { RosterBuilderFooter } from './RosterBuilderFooter'
 import { type RosterVariant, RosterVariantMenu } from './RosterVariantMenu'
@@ -1905,11 +1905,11 @@ export function ListBuilder({
         waivers={waivers}
         waiversDismissed={dismissedWaivers === waiverKey}
         onDismissWaivers={() => dismissWaivers(waiverKey)}
-        leagueWarning={
+        sealedEventWarning={
           (editable || locked) && savedId && me ? (
             <>
-              <OutdatedLeagueRosters rosterId={savedId} saved={!save.isPending && currentDraftKey === lastApplied.current} />
-              <DueLeagueRosters
+              <OutdatedSealedEventRosters rosterId={savedId} saved={!save.isPending && currentDraftKey === lastApplied.current} />
+              <DueSealedEventRosters
                 limit={limit}
                 pointsBudget={pointsBudget}
                 saved={!save.isPending && currentDraftKey === lastApplied.current}

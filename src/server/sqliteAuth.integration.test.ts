@@ -467,7 +467,7 @@ function productWithRosters(rosters: Map<string, number>) {
       return new Map(
         ids.map((id) => [
           id,
-          { userId: id, rosterCount: rosters.get(id) ?? 0, battleCount: 0, leagueCount: 0, friendCount: 0, practiceOpponent: false },
+          { userId: id, rosterCount: rosters.get(id) ?? 0, battleCount: 0, sealedEventCount: 0, friendCount: 0, practiceOpponent: false },
         ]),
       )
     },

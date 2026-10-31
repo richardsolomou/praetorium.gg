@@ -304,7 +304,7 @@ const tournamentAdmins = table(
   },
 )
 
-/** A club's casual sealed game: the club's organizers run it and only its members play. Its address is its event's token. */
+/** A club's casual hidden-list game: the club's organizers run it and only its members play. Its address is its event's token. */
 const clubGames = table(
   { name: 'club_games' },
   {

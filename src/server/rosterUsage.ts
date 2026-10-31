@@ -11,7 +11,7 @@ import { calculateRosterPrice, savedRosterPriceInput } from '../shared/pricing'
 import { rosterProblems } from '../core/rosterLegality'
 
 /**
- * A battle may field a roster a friend lent; a league entry is sealed from the entrant's own rosters, without alerts,
+ * A battle may field a roster a friend lent; a sealed event entry is sealed from the entrant's own rosters, without alerts,
  * which its battles field as they stand.
  */
 export async function rosterForUse(userId: string, rosterId: string, options: { lent?: boolean; sealing?: boolean } = {}) {

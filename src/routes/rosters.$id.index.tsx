@@ -18,11 +18,12 @@ export const Route = createFileRoute('/rosters/$id/')({
   ): { battle?: string; league?: string; event?: string; print?: boolean; add?: string } => ({
     battle: searchText(search.battle),
     ...requestedDatasheetSearch(search),
+    // `league` names a sealed event's host, as links already shared spell it.
     league: searchText(search.league),
     event: searchText(search.event),
     ...(searchFlag(search.print) ? { print: true } : {}),
   }),
-  loaderDeps: ({ search }) => ({ battle: search.battle, league: search.league, event: search.event }),
+  loaderDeps: ({ search }) => ({ battle: search.battle, sealedEvent: search.league, event: search.event }),
   loader: async ({ context, params, deps, preload }) => ({
     ...(await loadRoster(context.queryClient, params.id, deps, preload)),
     // Read by the server too, so the first frame is already arranged the way the player left it.
@@ -49,8 +50,8 @@ export const Route = createFileRoute('/rosters/$id/')({
 
 function RosterRoute() {
   const { id } = Route.useParams()
-  const { battle, league, event, print, add } = Route.useSearch()
-  const { editable, snapshot, league: leagueSnapshot, onDevice, guestDraft } = Route.useLoaderData()
+  const { battle, league: sealedEvent, event, print, add } = Route.useSearch()
+  const { editable, snapshot, sealedEvent: sealedEventSnapshot, onDevice, guestDraft } = Route.useLoaderData()
   const requested = useRequestedDatasheet(add)
   if (guestDraft) return <GuestDraftRoster print={print} requested={requested} />
   if (onDevice) return <DeviceRoster />
@@ -58,12 +59,12 @@ function RosterRoute() {
     <RosterPage
       id={id}
       battle={battle}
-      league={league}
+      sealedEvent={sealedEvent}
       event={event}
       print={print}
       editable={editable}
       snapshot={snapshot}
-      leagueSnapshot={leagueSnapshot}
+      sealedEventSnapshot={sealedEventSnapshot}
       requested={requested}
     />
   )

@@ -32,8 +32,8 @@ export type AchievementMetric =
   | 'imports'
   | 'published'
   | 'club-battles'
-  | 'seasons'
-  | 'seasons-run'
+  | 'leagues'
+  | 'leagues-run'
   | 'seals'
   | 'collected'
   | 'painted'
@@ -95,31 +95,38 @@ export const ACHIEVEMENTS = [
   { id: 'comrade', name: 'Comrade', tier: 'bronze', metric: 'friends', count: 1, goal: 'Make a friend on Praetorium.' },
   { id: 'warband', name: 'Warband', tier: 'silver', metric: 'friends', count: 5, goal: 'Have 5 friends on Praetorium.' },
   { id: 'brotherhood', name: 'Brotherhood', tier: 'gold', metric: 'friends', count: 10, goal: 'Have 10 friends on Praetorium.' },
-  { id: 'club-night', name: 'Club Night', tier: 'bronze', metric: 'club-battles', count: 1, goal: 'Play a battle for a club.' },
+  { id: 'club-night', name: 'Group Night', tier: 'bronze', metric: 'club-battles', count: 1, goal: 'Play a battle for a group.' },
   {
     id: 'club-stalwart',
-    name: 'Club Stalwart',
+    name: 'Group Stalwart',
     tier: 'silver',
     metric: 'club-battles',
     count: 10,
-    goal: 'Play 10 battles for your clubs.',
+    goal: 'Play 10 battles for your groups.',
   },
   {
     id: 'pillar-of-the-club',
-    name: 'Pillar of the Club',
+    name: 'Pillar of the Group',
     tier: 'gold',
     metric: 'club-battles',
     count: 25,
-    goal: 'Play 25 battles for your clubs.',
+    goal: 'Play 25 battles for your groups.',
   },
-  { id: 'season-ticket', name: 'Season Ticket', tier: 'silver', metric: 'seasons', count: 1, goal: 'Play every fixture of a club season.' },
+  {
+    id: 'season-ticket',
+    name: 'Season Ticket',
+    tier: 'silver',
+    metric: 'leagues',
+    count: 1,
+    goal: 'Play every fixture of a group league.',
+  },
   {
     id: 'commissioner',
     name: 'Commissioner',
     tier: 'gold',
-    metric: 'seasons-run',
+    metric: 'leagues-run',
     count: 1,
-    goal: 'Run a club season until every fixture is played.',
+    goal: 'Run a group league until every fixture is played.',
   },
   {
     id: 'sealed-orders',
@@ -127,7 +134,7 @@ export const ACHIEVEMENTS = [
     tier: 'bronze',
     metric: 'seals',
     count: 1,
-    goal: 'Seal a list for a tournament or club game.',
+    goal: 'Seal a list for a tournament or group game.',
   },
   { id: 'collector', name: 'Collector', tier: 'bronze', metric: 'collected', count: 1, goal: 'Add models to your collection.' },
   { id: 'hoard', name: 'Hoard', tier: 'silver', metric: 'collected', count: 25, goal: 'Add 25 different datasheets to your collection.' },
@@ -454,7 +461,7 @@ export const ACHIEVEMENTS = [
     tier: 'gold',
     metric: 'founded',
     count: 1,
-    goal: 'Own a club with at least 4 members that has played 10 club battles.',
+    goal: 'Own a group with at least 4 members that has played 10 group battles.',
   },
 ] as const satisfies readonly Definition[]
 
@@ -470,15 +477,15 @@ export type AchievementFacts = {
   /** Each guest seat an account claimed in a battle the player started in, and when that account signed up. */
   recruits: readonly { userId: string; startedAt: number; at: number; signedUpAt: number }[]
   tournaments: readonly TournamentFact[]
-  /** Clubs the player owns: when each member joined and when each club battle finished. */
-  clubs: readonly { members: readonly number[]; battles: readonly number[] }[]
+  /** Groups the player owns: when each member joined and when each group battle finished. */
+  groups: readonly { members: readonly number[]; battles: readonly number[] }[]
   /** The player's shown photos, with when each other player liked them. */
   photos: readonly { at: number; likes: readonly number[] }[]
-  clubBattles: readonly number[]
+  groupBattles: readonly number[]
   imports: readonly number[]
-  /** Club seasons the player played every fixture of, and those they helped run to the end. */
-  seasons: readonly number[]
-  seasonsRun: readonly number[]
+  /** Group leagues the player played every fixture of, and those they helped run to the end. */
+  leagues: readonly number[]
+  leaguesRun: readonly number[]
   seals: readonly number[]
   published: readonly number[]
   collected: readonly number[]
@@ -600,9 +607,9 @@ export function achievements(playerId: string, facts: AchievementFacts, exclude:
   const practice = new Set(exclude)
   const tournaments = (test: (tournament: TournamentFact) => boolean) =>
     facts.tournaments.filter(test).map((tournament) => tournament.finishedAt)
-  const founded = facts.clubs.flatMap((club) => {
-    const members = nth(club.members, 4)
-    const played = nth(club.battles, 10)
+  const founded = facts.groups.flatMap((group) => {
+    const members = nth(group.members, 4)
+    const played = nth(group.battles, 10)
     return members === null || played === null ? [] : [Math.max(members, played)]
   })
   const metrics: Record<Exclude<AchievementMetric, 'painted'>, readonly number[]> = {
@@ -618,9 +625,9 @@ export function achievements(playerId: string, facts: AchievementFacts, exclude:
     founded,
     imports: facts.imports,
     published: facts.published,
-    'club-battles': facts.clubBattles,
-    seasons: facts.seasons,
-    'seasons-run': facts.seasonsRun,
+    'club-battles': facts.groupBattles,
+    leagues: facts.leagues,
+    'leagues-run': facts.leaguesRun,
     seals: facts.seals,
     collected: facts.collected,
     wishes: facts.wishes,

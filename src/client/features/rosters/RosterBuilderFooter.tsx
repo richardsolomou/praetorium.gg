@@ -29,7 +29,7 @@ type Props = {
   waivers: ComponentProps<typeof WaiverWarning>['rules']
   waiversDismissed: boolean
   onDismissWaivers: () => void
-  leagueWarning?: ReactNode
+  sealedEventWarning?: ReactNode
 }
 
 export function RosterBuilderFooter({
@@ -53,7 +53,7 @@ export function RosterBuilderFooter({
   waivers,
   waiversDismissed,
   onDismissWaivers,
-  leagueWarning,
+  sealedEventWarning,
 }: Props) {
   return (
     <footer className="sticky bottom-0 z-20 border-t border-edge bg-panel px-3 py-2">
@@ -90,7 +90,7 @@ export function RosterBuilderFooter({
           </span>
         </span>
 
-        {leagueWarning}
+        {sealedEventWarning}
 
         <span className="ml-auto flex items-center gap-2">
           {editable ? (

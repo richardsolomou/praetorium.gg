@@ -52,9 +52,11 @@ it.each(['browser', 'native'])('drops a queued event saved before hosts from %s 
     ...emptyLocalState(owner),
     epoch: 'saved',
     revision: 7,
-    operations: [{ id: crypto.randomUUID(), resource: 'league:league', kind: 'createLeague', input: {}, createdAt: 1, status: 'pending' }],
+    operations: [
+      { id: crypto.randomUUID(), resource: 'league:tournament', kind: 'createLeague', input: {}, createdAt: 1, status: 'pending' },
+    ],
     documents: {
-      'league:league': { data: { token: 'league', entries: [] }, serverVersion: null },
+      'league:tournament': { data: { token: 'tournament', entries: [] }, serverVersion: null },
       'league:deleted': { data: null, serverVersion: null },
       'roster:roster': { data: 'Saved army', serverVersion: 1 },
     },
@@ -66,7 +68,7 @@ it.each(['browser', 'native'])('drops a queued event saved before hosts from %s 
   const storage = localStateStorage(owner)
   await storage.read()
   await storage.change((state) => ({ ...state }))
-  const { 'league:league': _dropped, ...documents } = legacy.documents
+  const { 'league:tournament': _dropped, ...documents } = legacy.documents
   expect(await localStateStorage(owner).read()).toEqual({ ...legacy, revision: 8, documents })
 })
 it('returns the same empty account generation until its first write', async () => {

@@ -255,7 +255,7 @@ for (const width of [1440, 390]) {
     await next(page, 'Name the tournament')
     await next(page, 'Format and points')
     await next(page, 'Everything else can wait')
-    await page.locator('[data-onboarding="league-create"]').click()
+    await page.locator('[data-onboarding="sealed-event-create"]').click()
     await expect(page).toHaveURL(/\/tournaments\/[^/]+$/)
     await next(page, 'Your entrants')
     await next(page, 'Before the reveal')

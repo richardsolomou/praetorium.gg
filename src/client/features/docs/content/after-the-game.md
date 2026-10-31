@@ -13,11 +13,11 @@ When the battle finishes, the guest's device shows **Keep this battle**. They ch
 
 ## Achievements
 
-Every profile has an **Achievements** tab, and its first row is a tour of the app: build and publish a roster, run a simulation, play a guest, join a club, seal a list, add to your collection. Tap or hover a medal to see what earns it and when it was earned. Most medals belong to a series that counts up, such as battles finished, wins, win streaks and different opponents faced, and the medal shows the count it needs. Bronze medals are worth 10 points, silver 25, gold 50 and platinum 100, and the total shows under the player's name. When you earn one, a message says so once, on whichever device you're using, with a link to your achievements.
+Every profile has an **Achievements** tab, and its first row is a tour of the app: build and publish a roster, run a simulation, play a guest, join a group, seal a list, add to your collection. Tap or hover a medal to see what earns it and when it was earned. Most medals belong to a series that counts up, such as battles finished, wins, win streaks and different opponents faced, and the medal shows the count it needs. Bronze medals are worth 10 points, silver 25, gold 50 and platinum 100, and the total shows under the player's name. When you earn one, a message says so once, on whichever device you're using, with a link to your achievements.
 
 - Battle achievements count only battles that count for the leaderboard, so guest and practice battles never earn them. A conceded win is never a close one, and a streak ends at any loss or draw.
 - **Recruiter** goes to the player whose guest created an account to add the battle to their own record. Each guest counts once, and imported battles never count.
-- Club achievements count casual battles played for a club and the club's sealed games.
+- Group achievements count casual battles played for a group and the group's hidden-list games.
 - Tournament achievements need a Swiss tournament played to its last round.
 - **Admired** counts likes from other players on one collection photo.
 - Some medals count things only you can open, such as private rosters, friends, reminders, favourites and simulations. The medal shows that you reached the count, never what you built, who your friends are or what you simulated.

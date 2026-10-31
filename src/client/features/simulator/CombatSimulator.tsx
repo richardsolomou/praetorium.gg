@@ -24,13 +24,13 @@ import {
   type SimulatorRosterSource,
   type SimulatorState,
 } from '../../../contracts/simulatorState'
-import { combatUnitsQuery, factionIndexQuery, leagueRosterQuery, sharedRosterQuery } from '../../queries'
+import { combatUnitsQuery, factionIndexQuery, sealedEventRosterQuery, sharedRosterQuery } from '../../queries'
 import type { LocalRoster } from '../../offline/localRuntime'
 import { rosterTitle } from '../rosters/RosterSummary'
 import { exampleMatchup, useMatchupHistory } from './matchupHistory'
 import { RecentSimulations } from './RecentSimulations'
 import { sealedCombatRoster } from './rosterCombat'
-import { friendLeagueLabel, friendLeagueSource, useRosterOwners, useSimulatorRosters } from './rosterOwners'
+import { friendSealedEventLabel, friendSealedEventSource, useRosterOwners, useSimulatorRosters } from './rosterOwners'
 import type { RecentMatchup } from '../../../core/recentMatchups'
 
 /** A link's roster side with that roster's current contents; null when the roster or its unit is gone. */
@@ -64,7 +64,7 @@ export function CombatSimulator({
   const queryClient = useQueryClient()
   const units = useQuery(combatUnitsQuery())
   const history = useMatchupHistory()
-  const { saved, friendRosters, leagueRosters } = useSimulatorRosters()
+  const { saved, friendRosters, sealedEventRosters } = useSimulatorRosters()
   const factions = useQuery(factionIndexQuery())
   const titled = (roster: Parameters<typeof rosterTitle>[0] & { catalogueId: string }) =>
     rosterTitle(
@@ -76,9 +76,9 @@ export function CombatSimulator({
     if (session.shared !== shared) onShare(session.shared)
   }, [session.shared, shared, onShare])
   const ownerOf = useRosterOwners()
-  const leagueSources = new Map<string, SimulatorRosterSource>(
-    leagueRosters.map((entry) => {
-      const source = friendLeagueSource(entry)
+  const sealedEventSources = new Map<string, SimulatorRosterSource>(
+    sealedEventRosters.map((entry) => {
+      const source = friendSealedEventSource(entry)
       return [rosterSourceKey(source), source]
     }),
   )
@@ -86,17 +86,19 @@ export function CombatSimulator({
   const linked = decodeSimulatorState(session.shared)
   const linkedSources = linked?.sides.flatMap((side) => (side?.roster ? [side.roster] : [])) ?? []
   const linkedIds = [...new Set(linkedSources.flatMap((source) => ('id' in source ? [source.id] : [])))]
-  const linkedLeagues = new Map(linkedSources.flatMap((source) => ('league' in source ? [[rosterSourceKey(source), source.league]] : [])))
+  const linkedSealedEvents = new Map(
+    linkedSources.flatMap((source) => ('league' in source ? [[rosterSourceKey(source), source.league]] : [])),
+  )
   const linkedRosters = useQueries({ queries: linkedIds.map((id) => sharedRosterQuery(id)) })
-  const linkedLeagueRosters = useQueries({
-    queries: [...linkedLeagues.values()].map(({ token, eventToken, userId }) => leagueRosterQuery(token, eventToken, userId)),
+  const linkedSealedEventRosters = useQueries({
+    queries: [...linkedSealedEvents.values()].map(({ token, eventToken, userId }) => sealedEventRosterQuery(token, eventToken, userId)),
   })
   const linkedRoster = (source: SimulatorRosterSource) => {
     if ('id' in source) {
       const roster = linkedRosters[linkedIds.indexOf(source.id)]?.data
       return { roster: savedCombatRoster(roster), name: roster ? titled({ ...roster, unitCount: roster.picks.length }) : '' }
     }
-    const roster = linkedLeagueRosters[[...linkedLeagues.keys()].indexOf(rosterSourceKey(source))]?.data
+    const roster = linkedSealedEventRosters[[...linkedSealedEvents.keys()].indexOf(rosterSourceKey(source))]?.data
     return { roster: sealedCombatRoster(roster), name: roster?.name ?? '' }
   }
   const sides = linked?.sides.map((side) => {
@@ -106,12 +108,16 @@ export function CombatSimulator({
     return { side: combat ? side : null, roster: combat ?? undefined }
   })
   // A linked roster this player does not otherwise list, such as another player's roster they opened.
-  const listed = new Set([...savedRosters.map(({ id }) => id), ...friendRosters.map(({ roster }) => roster.id), ...leagueSources.keys()])
+  const listed = new Set([
+    ...savedRosters.map(({ id }) => id),
+    ...friendRosters.map(({ roster }) => roster.id),
+    ...sealedEventSources.keys(),
+  ])
   const otherRosters = [...new Map(linkedSources.map((source) => [rosterSourceKey(source), source])).entries()].flatMap(([key, source]) => {
     const { roster, name } = linkedRoster(source)
     return listed.has(key) || !roster ? [] : [{ id: key, label: name, catalogueId: roster.catalogueId }]
   })
-  const loadingRoster = [...linkedRosters, ...linkedLeagueRosters].some((query) => query.isPending)
+  const loadingRoster = [...linkedRosters, ...linkedSealedEventRosters].some((query) => query.isPending)
   const missingRoster =
     !loadingRoster && Boolean(sides?.some(({ side, roster }, index) => linked?.sides[index]?.roster && (!side || !roster)))
   // The emptied side leaves the link on its next change, so the notice is kept until another link opens.
@@ -137,14 +143,16 @@ export function CombatSimulator({
     setProblem(null)
   }
   const rosterSource = (key: string): SimulatorRosterSource => {
-    const linkedLeague = linkedLeagues.get(key)
-    return leagueSources.get(key) ?? (linkedLeague ? { league: linkedLeague } : { id: key })
+    const linkedSealedEvent = linkedSealedEvents.get(key)
+    return sealedEventSources.get(key) ?? (linkedSealedEvent ? { league: linkedSealedEvent } : { id: key })
   }
   const loadRoster = (key: string) => {
     const source = rosterSource(key)
     return (
       'league' in source
-        ? queryClient.query(leagueRosterQuery(source.league.token, source.league.eventToken, source.league.userId)).then(sealedCombatRoster)
+        ? queryClient
+            .query(sealedEventRosterQuery(source.league.token, source.league.eventToken, source.league.userId))
+            .then(sealedCombatRoster)
         : queryClient.query(sharedRosterQuery(key)).then(savedCombatRoster)
     ).catch(() => null)
   }
@@ -176,9 +184,9 @@ export function CombatSimulator({
     },
     {
       label: "Friends' sealed rosters",
-      options: leagueRosters.map((entry) => ({
-        id: rosterSourceKey(friendLeagueSource(entry)),
-        label: friendLeagueLabel(entry),
+      options: sealedEventRosters.map((entry) => ({
+        id: rosterSourceKey(friendSealedEventSource(entry)),
+        label: friendSealedEventLabel(entry),
         catalogueId: entry.catalogueId,
       })),
     },

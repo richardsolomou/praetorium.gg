@@ -2,33 +2,36 @@ import { isAdminUserCountSort, type AdminUser, type AdminUserCountSort, type Adm
 import type { BattlesCursor } from '../contracts/battles'
 import { rosterSnapshotOrNull } from '../core/commands'
 import {
-  leagueArmy,
-  leagueTeams,
-  requiredLeagueRosterLimit,
-  type LeagueAdmission,
-  type LeagueAllowance,
-  type LeagueVisibility,
-} from '../core/league'
+  sealedEventArmy,
+  sealedEventTeams,
+  requiredSealedEventRosterLimit,
+  type SealedEventAdmission,
+  type SealedEventAllowance,
+  type SealedEventVisibility,
+} from '../core/sealedEvent'
 import { TABLE_SHAPES, type TableShape } from '../core/tableShape'
-import { CLUB_MEMBER_STATUSES } from '../core/club'
-import { openPairing, type LeagueBattleSetup } from '../shared/leagueBattle'
+import { GROUP_MEMBER_STATUSES } from '../core/group'
+import { openPairing, type SealedEventBattleSetup } from '../shared/sealedEventBattle'
 import type { Command } from '../core/battle'
 import { z } from 'zod'
-import type { LeagueSide } from '../contracts/schemas'
+import type { SealedEventSide } from '../contracts/schemas'
 import { SqliteAccountRepository } from './accountRepository'
 import { SpacetimeOperator } from './spacetimeOperator'
-import { leagueRosterSharingSchema } from '../contracts/leagueRosterSharing'
+import { sealedEventRosterSharingSchema } from '../contracts/sealedEventRosterSharing'
 import { chunks } from '../core/collections'
 
 type Snapshot = NonNullable<Awaited<ReturnType<SpacetimeOperator['battleByToken']>>>
 type BattlePlayer = NonNullable<Awaited<ReturnType<SqliteAccountRepository['profileByUserId']>>> & { side: number; automated: boolean }
 type RosterSummary = Awaited<ReturnType<SpacetimeOperator['rosterSummariesByUser']>>[number]
 /** When an event is played and when its rosters must be sealed by, either unset. */
-export type LeagueSchedule = { playsAt: number | null; sealBy: number | null }
+export type SealedEventSchedule = { playsAt: number | null; sealBy: number | null }
 
 type Tournament = NonNullable<NonNullable<Awaited<ReturnType<SpacetimeOperator['leagueByToken']>>>['tournament']>
 
 /** A tournament's own details; its host fields already address and date it, and each read names its admins its own way. */
+/** The module stores a group under its earlier name, club. */
+const hostKind = (kind: 'tournament' | 'club') => (kind === 'club' ? ('group' as const) : kind)
+
 function tournamentDetails({ token: _token, createdAt: _createdAt, adminIds: _adminIds, ...details }: Tournament) {
   return details
 }
@@ -40,20 +43,26 @@ const ADMIN_USER_COUNT_FIELDS = {
   rosters: 'rosterCount',
   battles: 'battleCount',
   friends: 'friendCount',
-  leagues: 'leagueCount',
+  sealedEvents: 'sealedEventCount',
 } as const satisfies Record<AdminUserCountSort, keyof AdminUser>
+
+type ProductStat = ReturnType<Awaited<ReturnType<SpacetimeOperator['productStats']>>['get']>
+
+/** The module counts sealed event entries under their stored name. */
+function productCounts(stat: ProductStat) {
+  return {
+    rosterCount: stat?.rosterCount ?? 0,
+    battleCount: stat?.battleCount ?? 0,
+    sealedEventCount: stat?.leagueCount ?? 0,
+    friendCount: stat?.friendCount ?? 0,
+  }
+}
 
 function withProductStats<Row extends Omit<AdminUser, (typeof ADMIN_USER_COUNT_FIELDS)[AdminUserCountSort]>>(
   rows: Row[],
   stats: Awaited<ReturnType<SpacetimeOperator['productStats']>>,
 ) {
-  return rows.map((row) => ({
-    ...row,
-    rosterCount: stats.get(row.id)?.rosterCount ?? 0,
-    battleCount: stats.get(row.id)?.battleCount ?? 0,
-    leagueCount: stats.get(row.id)?.leagueCount ?? 0,
-    friendCount: stats.get(row.id)?.friendCount ?? 0,
-  }))
+  return rows.map((row) => ({ ...row, ...productCounts(stats.get(row.id)) }))
 }
 
 function seatPlayer(
@@ -110,7 +119,7 @@ export class SpacetimeRepository {
       (await Promise.all(chunks(ids, 100).map((batch) => this.product.productStats(batch)))).flatMap((batch) => [...batch]),
     )
     const field = ADMIN_USER_COUNT_FIELDS[sort]
-    const count = (id: string) => stats.get(id)?.[field] ?? 0
+    const count = (id: string) => productCounts(stats.get(id))[field]
     // A stable sort keeps tied players newest first.
     const ranked = ids.toSorted((a, b) => ((input.descending ?? true) ? count(b) - count(a) : count(a) - count(b)))
     const pageSize = input.pageSize ?? 25
@@ -283,11 +292,11 @@ export class SpacetimeRepository {
     return this.product.pushTargets(...args)
   }
 
-  leagueNames(...args: Parameters<SpacetimeOperator['leagueNames']>) {
+  sealedEventNames(...args: Parameters<SpacetimeOperator['leagueNames']>) {
     return this.product.leagueNames(...args)
   }
 
-  clubNames(...args: Parameters<SpacetimeOperator['clubNames']>) {
+  groupNames(...args: Parameters<SpacetimeOperator['clubNames']>) {
     return this.product.clubNames(...args)
   }
 
@@ -299,19 +308,19 @@ export class SpacetimeRepository {
     ownerId: string
     name: string
     description: string
-    visibility: LeagueVisibility
-    admission: LeagueAdmission
+    visibility: SealedEventVisibility
+    admission: SealedEventAdmission
     playerLimit: number | null
     format?: TableShape
     rosterLimit?: number
-    allowances?: readonly LeagueAllowance[]
+    allowances?: readonly SealedEventAllowance[]
     ownerPlays?: boolean
     rounds?: number | null
     pointsBudget?: number | null
     soloPoints?: number | null
     allyPoints?: number | null
     sharedPoints?: boolean
-    schedule?: LeagueSchedule
+    schedule?: SealedEventSchedule
     now: number
   }) {
     return this.product.leagueCommand(
@@ -320,51 +329,52 @@ export class SpacetimeRepository {
     )
   }
 
-  createClubGame(input: {
+  createHiddenListGame(input: {
     eventId: string
     eventToken: string
-    clubToken: string
+    groupToken: string
     timeZone?: string
     ownerId: string
     format?: TableShape
     rosterLimit?: number
-    allowances?: readonly LeagueAllowance[]
+    allowances?: readonly SealedEventAllowance[]
     pointsBudget?: number | null
     soloPoints?: number | null
     allyPoints?: number | null
     sharedPoints?: boolean
-    schedule?: LeagueSchedule
+    schedule?: SealedEventSchedule
     now: number
   }) {
+    const { groupToken, ...rest } = input
     return this.product.leagueCommand(
-      { ...input, op: 'create-club-game', format: input.format ?? null, rosterLimit: input.rosterLimit ?? null },
+      { ...rest, clubToken: groupToken, op: 'create-club-game', format: rest.format ?? null, rosterLimit: rest.rosterLimit ?? null },
       z.literal('forbidden').nullable(),
     )
   }
 
   /** Saves what is given: a tournament's details, the event's rule and its schedule, together or not at all. */
-  updateLeague(
+  updateSealedEvent(
     token: string,
     ownerId: string,
     input: {
       details?: {
         name: string
         description: string
-        visibility: LeagueVisibility
-        admission: LeagueAdmission
+        visibility: SealedEventVisibility
+        admission: SealedEventAdmission
         playerLimit: number | null
       }
       rule?: {
         format: TableShape
         rosterLimit: number
-        allowances?: readonly LeagueAllowance[]
+        allowances?: readonly SealedEventAllowance[]
         rounds?: number | null
         pointsBudget?: number | null
         soloPoints?: number | null
         allyPoints?: number | null
         sharedPoints?: boolean
       }
-      schedule?: LeagueSchedule
+      schedule?: SealedEventSchedule
     },
   ) {
     return this.product.leagueCommand(
@@ -376,38 +386,41 @@ export class SpacetimeRepository {
     )
   }
 
-  pairLeagueRound(input: { token: string; eventToken: string; ownerId: string; round: number; pairs: [string, string | null][] }) {
+  pairSealedEventRound(input: { token: string; eventToken: string; ownerId: string; round: number; pairs: [string, string | null][] }) {
     return this.product.leagueCommand({ op: 'pair-round', ...input }, z.enum(['paired', 'not-ready', 'stale', 'missing', 'forbidden']))
   }
 
-  deleteLeague(token: string, ownerId: string) {
+  deleteSealedEvent(token: string, ownerId: string) {
     return this.product.leagueCommand({ op: 'delete', token, ownerId }, z.enum(['deleted', 'missing', 'forbidden']))
   }
 
-  setLeagueAdmins(token: string, ownerId: string, userIds: readonly string[], now: number) {
+  setSealedEventAdmins(token: string, ownerId: string, userIds: readonly string[], now: number) {
     return this.product.leagueCommand(
       { op: 'set-admins', token, ownerId, userIds, now },
       z.union([z.object({ added: z.array(z.string()) }), z.enum(['missing', 'forbidden', 'not-friends'])]),
     )
   }
 
-  eventAddress(...args: Parameters<SpacetimeOperator['eventAddress']>) {
-    return this.product.eventAddress(...args)
+  async eventAddress(...args: Parameters<SpacetimeOperator['eventAddress']>) {
+    const address = await this.product.eventAddress(...args)
+    if (address?.kind === 'club') return { kind: 'group' as const, groupToken: address.clubToken }
+    if (address?.kind === 'club-game') return { kind: 'hidden-list-game' as const, groupToken: address.clubToken, token: address.token }
+    return address
   }
 
-  async leaguesVisibleTo(userId: string | null) {
+  async sealedEventsVisibleTo(userId: string | null) {
     const rows = await this.product.leaguesVisibleTo(userId, 100)
     const owners = await this.accounts.profilesByIds(rows.flatMap((row) => (row.tournament ? [row.tournament.ownerId] : [])))
-    return rows.map(({ kind, token, tournament, club, event, personal, joined, accepted, occupied, ownEntry }) => {
+    return rows.map(({ kind, token, tournament, club: group, event, personal, joined, accepted, occupied, ownEntry }) => {
       const owner = tournament && profileOf(owners, tournament.ownerId, 'Tournament owner')
       return {
-        kind,
+        kind: hostKind(kind),
         token,
         tournament:
           tournament && owner
             ? { ...tournamentDetails(tournament), adminIds: tournament.adminIds, ownerName: owner.name, ownerImage: owner.image }
             : null,
-        club,
+        group,
         personal,
         eventToken: event.token,
         createdAt: event.createdAt,
@@ -428,30 +441,30 @@ export class SpacetimeRepository {
               status: ownEntry.status,
               submitted: ownEntry.rosterSnapshot !== null,
               rosterName: ownEntry.rosterName,
-              requiredLimit: requiredLeagueRosterLimit(event.format, event.rosterLimit, ownEntry.requiredLimit, ownEntry.teamId),
+              requiredLimit: requiredSealedEventRosterLimit(event.format, event.rosterLimit, ownEntry.requiredLimit, ownEntry.teamId),
             }
           : null,
       }
     })
   }
 
-  createClub(input: {
+  createGroup(input: {
     id: string
     token: string
     ownerId: string
     name: string
     description: string
-    visibility: LeagueVisibility
-    admission: LeagueAdmission
+    visibility: SealedEventVisibility
+    admission: SealedEventAdmission
     now: number
   }) {
     return this.product.clubCommand({ ...input, op: 'create' }, z.literal('created'))
   }
 
-  updateClub(
+  updateGroup(
     token: string,
     actorId: string,
-    input: { name: string; description: string; visibility: LeagueVisibility; admission: LeagueAdmission },
+    input: { name: string; description: string; visibility: SealedEventVisibility; admission: SealedEventAdmission },
   ) {
     return this.product.clubCommand(
       { op: 'update', token, actorId, ...input },
@@ -459,81 +472,84 @@ export class SpacetimeRepository {
     )
   }
 
-  deleteClub(token: string, actorId: string) {
+  deleteGroup(token: string, actorId: string) {
     return this.product.clubCommand({ op: 'delete', token, actorId }, z.enum(['deleted', 'missing', 'forbidden']))
   }
 
-  joinClub(token: string, userId: string, now: number) {
+  joinGroup(token: string, userId: string, now: number) {
     return this.product.clubCommand(
       { op: 'join', token, userId, now },
-      z.union([z.object({ status: z.enum(CLUB_MEMBER_STATUSES), organizerIds: z.array(z.string()) }), z.enum(['missing', 'full'])]),
+      z.union([z.object({ status: z.enum(GROUP_MEMBER_STATUSES), organizerIds: z.array(z.string()) }), z.enum(['missing', 'full'])]),
     )
   }
 
-  leaveClub(token: string, userId: string) {
+  leaveGroup(token: string, userId: string) {
     return this.product.clubCommand({ op: 'leave', token, userId }, z.enum(['left', 'missing', 'owner']))
   }
 
-  moderateClubMember(token: string, actorId: string, userId: string, accept: boolean) {
+  moderateGroupMember(token: string, actorId: string, userId: string, accept: boolean) {
     return this.product.clubCommand(
       { op: 'moderate', token, actorId, userId, accept },
       z.enum(['accepted', 'rejected', 'missing', 'forbidden']),
     )
   }
 
-  removeClubMember(token: string, actorId: string, userId: string) {
+  removeGroupMember(token: string, actorId: string, userId: string) {
     return this.product.clubCommand({ op: 'remove', token, actorId, userId }, z.enum(['removed', 'missing', 'forbidden']))
   }
 
-  joinClubSeason(token: string, userId: string, now: number) {
+  joinGroupLeague(token: string, userId: string, now: number) {
     return this.product.clubCommand(
       { op: 'season-join', token, userId, now },
       z.enum(['joined', 'missing', 'published', 'forbidden', 'full']),
     )
   }
 
-  leaveClubSeason(token: string, userId: string) {
+  leaveGroupLeague(token: string, userId: string) {
     return this.product.clubCommand({ op: 'season-leave', token, userId }, z.enum(['left', 'missing']))
   }
 
-  drawClubSeason(token: string, actorId: string, input: { seasonId: string; seed: number; now: number }) {
-    return this.product.clubCommand({ op: 'season-draw', token, actorId, ...input }, z.enum(['drawn', 'missing', 'forbidden', 'published']))
+  drawGroupLeague(token: string, actorId: string, { id, ...input }: { id: string; seed: number; now: number }) {
+    return this.product.clubCommand(
+      { op: 'season-draw', token, actorId, seasonId: id, ...input },
+      z.enum(['drawn', 'missing', 'forbidden', 'published']),
+    )
   }
 
-  publishClubSeason(token: string, actorId: string, input: { seed: number; playerIds: readonly string[]; now: number }) {
+  publishGroupLeague(token: string, actorId: string, input: { seed: number; playerIds: readonly string[]; now: number }) {
     return this.product.clubCommand(
       { op: 'season-publish', token, actorId, ...input },
       z.enum(['published', 'missing', 'forbidden', 'stale', 'too-few']),
     )
   }
 
-  setClubSeasonDeadline(token: string, actorId: string, round: number, deadline: number | null) {
+  setGroupLeagueDeadline(token: string, actorId: string, round: number, deadline: number | null) {
     return this.product.clubCommand({ op: 'season-deadline', token, actorId, round, deadline }, z.enum(['set', 'missing', 'forbidden']))
   }
 
-  deleteClubSeason(token: string, actorId: string) {
+  deleteGroupLeague(token: string, actorId: string) {
     return this.product.clubCommand({ op: 'season-delete', token, actorId }, z.enum(['deleted', 'missing', 'forbidden']))
   }
 
-  setClubAdmins(token: string, actorId: string, userIds: readonly string[]) {
+  setGroupAdmins(token: string, actorId: string, userIds: readonly string[]) {
     return this.product.clubCommand(
       { op: 'set-admins', token, actorId, userIds },
       z.union([z.object({ added: z.array(z.string()) }), z.enum(['missing', 'forbidden', 'not-members'])]),
     )
   }
 
-  async clubByToken(token: string) {
+  async groupByToken(token: string) {
     const record = await this.product.clubByToken(token)
     if (!record) return undefined
     const profiles = await this.accounts.profilesByIds([
       ...record.members.map((member) => member.userId),
       ...(record.season?.players.map((player) => player.userId) ?? []),
     ])
-    const owner = profileOf(profiles, record.club.ownerId, 'Club owner')
+    const owner = profileOf(profiles, record.club.ownerId, 'Group owner')
     return {
       ...record.club,
       games: record.games,
-      season: record.season && {
+      league: record.season && {
         ...record.season,
         players: record.season.players.flatMap((player) => {
           const profile = profiles.get(player.userId)
@@ -549,29 +565,31 @@ export class SpacetimeRepository {
     }
   }
 
-  async clubsVisibleTo(userId: string | null) {
+  async groupsVisibleTo(userId: string | null) {
     const rows = await this.product.clubsVisibleTo(userId, 100)
     const owners = await this.accounts.profilesByIds(rows.map((row) => row.club.ownerId))
-    return rows.map(({ club, adminIds, memberCount, battleCount, lastBattleAt, ownMember }) => {
-      const owner = profileOf(owners, club.ownerId, 'Club owner')
-      return { ...club, ownerName: owner.name, ownerImage: owner.image, adminIds, memberCount, battleCount, lastBattleAt, ownMember }
+    return rows.map(({ club: group, adminIds, memberCount, battleCount, lastBattleAt, ownMember }) => {
+      const owner = profileOf(owners, group.ownerId, 'Group owner')
+      return { ...group, ownerName: owner.name, ownerImage: owner.image, adminIds, memberCount, battleCount, lastBattleAt, ownMember }
     })
   }
 
-  outdatedLeagueEntriesForRoster(userId: string, rosterId: string) {
+  outdatedSealedEventEntriesForRoster(userId: string, rosterId: string) {
     return this.product.outdatedLeagueEntriesForRoster(userId, rosterId)
   }
 
-  async friendLeagueRosters(viewerId: string) {
+  async friendSealedEventRosters(viewerId: string) {
     const rows = await this.product.friendLeagueRosters(viewerId)
     const owners = await this.accounts.profilesByIds(rows.map((row) => row.userId))
-    return rows.flatMap((row) => {
-      const owner = owners.get(row.userId)
-      return owner ? [{ ...row, ownerName: owner.name, ownerImage: owner.image }] : []
+    return rows.flatMap(({ leagueToken, leagueName, ...rest }) => {
+      const owner = owners.get(rest.userId)
+      return owner
+        ? [{ ...rest, sealedEventToken: leagueToken, sealedEventName: leagueName, ownerName: owner.name, ownerImage: owner.image }]
+        : []
     })
   }
 
-  async leagueBattleCandidates(userId: string, participantIds: readonly string[]) {
+  async sealedEventBattleCandidates(userId: string, participantIds: readonly string[]) {
     const rows = await this.product.leagueBattleCandidates(userId, participantIds)
     return rows.map(({ token, name, event, entries }) => ({
       token,
@@ -592,10 +610,10 @@ export class SpacetimeRepository {
     return rosterSnapshotOrNull(snapshot)?.built?.limit ?? null
   }
 
-  async leagueByToken(token: string, viewerId: string | null = null, eventToken?: string) {
+  async sealedEventByToken(token: string, viewerId: string | null = null, eventToken?: string) {
     const record = await this.product.leagueByToken(token, eventToken)
     if (!record) return undefined
-    const { kind, tournament, club, event, organizerIds, entries, teams, teamWarlords, pairings } = record
+    const { kind, tournament, club: group, event, organizerIds, entries, teams, teamWarlords, pairings } = record
     const profiles = await this.accounts.profilesByIds([
       ...(tournament ? [tournament.ownerId, ...tournament.adminIds] : []),
       ...entries.map((entry) => entry.userId),
@@ -606,14 +624,14 @@ export class SpacetimeRepository {
     const rosters = new Map(
       entries.map((entry) => [entry.userId, revealed || entry.teamId ? rosterSnapshotOrNull(entry.rosterSnapshot) : null]),
     )
-    const pairs = leagueTeams(
+    const pairs = sealedEventTeams(
       entries.map((entry) => ({ ...entry, roster: rosters.get(entry.userId) ?? null })),
       new Map(teams.map((team) => [team.teamId, team.disposition])),
       new Map(teamWarlords.map((team) => [team.teamId, team.userId])),
     )
     const owner = tournament && profileOf(profiles, tournament.ownerId, 'Tournament owner')
     return {
-      kind,
+      kind: hostKind(kind),
       token: record.token,
       eventToken: event.token,
       createdAt: event.createdAt,
@@ -629,7 +647,7 @@ export class SpacetimeRepository {
               }),
             }
           : null,
-      club,
+      group,
       organizerIds,
       format: event.format,
       rosterLimit: event.rosterLimit,
@@ -647,7 +665,7 @@ export class SpacetimeRepository {
       pairings,
       occupiedCount: entries.filter((entry) => entry.status !== 'rejected').length,
       entries: entries.map((entry) => {
-        const profile = profileOf(profiles, entry.userId, 'League entrant')
+        const profile = profileOf(profiles, entry.userId, 'Entrant')
         const roster = rosters.get(entry.userId) ?? null
         const pair = pairs.find((candidate) => candidate.userIds.includes(entry.userId))
         return {
@@ -659,10 +677,10 @@ export class SpacetimeRepository {
           submitted: entry.rosterSnapshot !== null,
           dropped: entry.droppedAt != null,
           rosterName: revealed || viewerId === entry.userId ? entry.rosterName : null,
-          army: revealed && roster ? leagueArmy(roster) : null,
+          army: revealed && roster ? sealedEventArmy(roster) : null,
           sealedAt: revealed ? entry.submittedAt : null,
           teamId: entry.teamId,
-          requiredLimit: requiredLeagueRosterLimit(event.format, event.rosterLimit, entry.requiredLimit, entry.teamId),
+          requiredLimit: requiredSealedEventRosterLimit(event.format, event.rosterLimit, entry.requiredLimit, entry.teamId),
           sealedLimit: event.format === null && revealed ? (roster?.built?.limit ?? null) : null,
           dispositionOwed: pair?.owed ?? false,
           warlordOwed: pair?.warlordOwed ?? false,
@@ -676,7 +694,7 @@ export class SpacetimeRepository {
     }
   }
 
-  joinLeague(token: string, userId: string, now: number, memberLimit: number, eventToken?: string) {
+  joinSealedEvent(token: string, userId: string, now: number, memberLimit: number, eventToken?: string) {
     return this.product.leagueCommand(
       { op: 'join', token, userId, now, memberLimit, eventToken: eventToken ?? '', noticeResults: true },
       z.union([
@@ -686,7 +704,7 @@ export class SpacetimeRepository {
     )
   }
 
-  moderateLeagueEntry(
+  moderateSealedEventEntry(
     token: string,
     ownerId: string,
     userId: string,
@@ -703,21 +721,28 @@ export class SpacetimeRepository {
     )
   }
 
-  addLeagueEntrants(token: string, ownerId: string, userIds: readonly string[], memberLimit: number, now: number, eventToken?: string) {
+  addSealedEventEntrants(
+    token: string,
+    ownerId: string,
+    userIds: readonly string[],
+    memberLimit: number,
+    now: number,
+    eventToken?: string,
+  ) {
     return this.product.leagueCommand(
       { op: 'add', token, ownerId, userIds, memberLimit, now, eventToken: eventToken ?? '' },
       z.union([z.object({ added: z.array(z.string()) }), z.enum(['missing', 'forbidden', 'closed', 'not-friends', 'not-members', 'full'])]),
     )
   }
 
-  admitLeagueEntries(token: string, ownerId: string, userIds: readonly string[], eventToken?: string) {
+  admitSealedEventEntries(token: string, ownerId: string, userIds: readonly string[], eventToken?: string) {
     return this.product.leagueCommand(
       { op: 'admit', token, ownerId, userIds, eventToken: eventToken ?? '' },
       z.union([z.object({ admitted: z.array(z.string()) }), z.enum(['missing', 'forbidden', 'closed'])]),
     )
   }
 
-  assignLeagueRosterRequirement(token: string, ownerId: string, userId: string, requiredLimit: number, eventToken?: string) {
+  assignSealedEventRosterRequirement(token: string, ownerId: string, userId: string, requiredLimit: number, eventToken?: string) {
     return this.product.leagueCommand(
       { op: 'assign-limit', token, ownerId, userId, requiredLimit, eventToken: eventToken ?? '', noticeResults: true },
       z.union([
@@ -727,21 +752,21 @@ export class SpacetimeRepository {
     )
   }
 
-  assignLeagueTeam(token: string, ownerId: string, userIds: readonly string[], teamId: string, eventToken?: string) {
+  assignSealedEventTeam(token: string, ownerId: string, userIds: readonly string[], teamId: string, eventToken?: string) {
     return this.product.leagueCommand(
       { op: 'assign-team', token, ownerId, userIds, teamId, eventToken: eventToken ?? '', noticeResults: true },
       z.union([z.object({ resealIds: z.array(z.string()) }), z.enum(['updated', 'missing', 'forbidden', 'closed', 'wrong-format'])]),
     )
   }
 
-  chooseLeagueSide(token: string, ownerId: string, side: LeagueSide | null, now: number, eventToken?: string) {
+  chooseSealedEventSide(token: string, ownerId: string, side: SealedEventSide | null, now: number, eventToken?: string) {
     return this.product.leagueCommand(
       { op: 'set-side', token, ownerId, side, now, eventToken: eventToken ?? '' },
       z.enum(['updated', 'missing', 'forbidden', 'closed', 'wrong-format', 'full', 'members-only']),
     )
   }
 
-  submitLeagueRoster(input: {
+  submitSealedEventRoster(input: {
     token: string
     userId: string
     rosterId: string
@@ -771,21 +796,21 @@ export class SpacetimeRepository {
     )
   }
 
-  setLeagueTeamDisposition(token: string, ownerId: string, disposition: string, now: number, eventToken?: string) {
+  setSealedEventTeamDisposition(token: string, ownerId: string, disposition: string, now: number, eventToken?: string) {
     return this.product.leagueCommand(
       { op: 'set-team-disposition', token, ownerId, disposition, now, eventToken: eventToken ?? '' },
       z.union([z.object({ outcome: z.literal('chosen') }), z.object({ outcome: z.enum(['missing', 'closed', 'not-offered']) })]),
     )
   }
 
-  setLeagueTeamWarlord(token: string, ownerId: string, userId: string, now: number, eventToken?: string) {
+  setSealedEventTeamWarlord(token: string, ownerId: string, userId: string, now: number, eventToken?: string) {
     return this.product.leagueCommand(
       { op: 'set-team-warlord', token, ownerId, userId, now, eventToken: eventToken ?? '' },
       z.union([z.object({ outcome: z.literal('chosen') }), z.object({ outcome: z.enum(['missing', 'closed', 'not-offered']) })]),
     )
   }
 
-  revealLeague(token: string, ownerId: string, now: number, eventToken?: string) {
+  revealSealedEvent(token: string, ownerId: string, now: number, eventToken?: string) {
     return this.product.leagueCommand(
       { op: 'reveal', token, ownerId, now, eventToken: eventToken ?? '' },
       z.union([
@@ -796,7 +821,7 @@ export class SpacetimeRepository {
     )
   }
 
-  remindLeague(token: string, ownerId: string, now: number, eventToken?: string) {
+  remindSealedEvent(token: string, ownerId: string, now: number, eventToken?: string) {
     return this.product.leagueCommand(
       { op: 'remind', token, ownerId, now, eventToken: eventToken ?? '' },
       z.union([
@@ -808,18 +833,18 @@ export class SpacetimeRepository {
     )
   }
 
-  unsealLeagueRoster(token: string, ownerId: string, userId: string, eventToken?: string) {
+  unsealSealedEventRoster(token: string, ownerId: string, userId: string, eventToken?: string) {
     return this.product.leagueCommand(
       { op: 'unseal', token, ownerId, userId, eventToken: eventToken ?? '' },
       z.enum(['unsealed', 'missing', 'forbidden', 'not-revealed']),
     )
   }
 
-  dropLeagueEntrant(input: { token: string; eventToken: string; ownerId: string; userId: string; now: number }) {
+  dropSealedEventEntrant(input: { token: string; eventToken: string; ownerId: string; userId: string; now: number }) {
     return this.product.leagueCommand({ op: 'drop', ...input }, z.enum(['dropped', 'missing', 'forbidden', 'closed']))
   }
 
-  async leagueRoster(token: string, userId: string, eventToken?: string, readerId?: string | null) {
+  async sealedEventRoster(token: string, userId: string, eventToken?: string, readerId?: string | null) {
     const row = await this.product.leagueRosters(token, userId, eventToken, readerId)
     if (!row) return null
     const { event, entry, reader } = row
@@ -842,7 +867,7 @@ export class SpacetimeRepository {
   }
 
   /** Every accepted entrant's sealed list in one read, with whether the event has revealed them. */
-  async sealedLeagueRosters(token: string, eventToken?: string) {
+  async sealedRosters(token: string, eventToken?: string) {
     const record = await this.product.leagueByToken(token, eventToken)
     if (!record) return null
     return {
@@ -853,11 +878,11 @@ export class SpacetimeRepository {
     }
   }
 
-  leagueRosterSharing(token: string, eventToken: string | undefined, userId: string) {
+  sealedEventRosterSharing(token: string, eventToken: string | undefined, userId: string) {
     return this.product.leagueRosterSharing(token, eventToken ?? '', userId)
   }
 
-  updateLeagueRosterSharing(
+  updateSealedEventRosterSharing(
     input: {
       token: string
       eventToken: string | undefined
@@ -866,19 +891,19 @@ export class SpacetimeRepository {
   ) {
     return this.product.leagueCommand(
       { ...input, eventToken: input.eventToken ?? '' },
-      z.union([leagueRosterSharingSchema, z.enum(['missing', 'forbidden', 'unavailable', 'stale'])]),
+      z.union([sealedEventRosterSharingSchema, z.enum(['missing', 'forbidden', 'unavailable', 'stale'])]),
     )
   }
 
-  async createLeagueBattle<T>(
-    input: { id: string; token: string; leagueToken: string; eventToken?: string; userId: string; userIds: string[]; now: number },
+  async createSealedEventBattle<T>(
+    input: { id: string; token: string; sealedEventToken: string; eventToken?: string; userId: string; userIds: string[]; now: number },
     prepare: (
-      league: LeagueBattleSetup,
+      sealedEvent: SealedEventBattleSetup,
     ) =>
       | { allyIds: string[]; opponentIds: string[]; initialCommands: Command[]; result: T }
       | Promise<{ allyIds: string[]; opponentIds: string[]; initialCommands: Command[]; result: T }>,
   ): Promise<T | undefined> {
-    const record = await this.product.leagueByToken(input.leagueToken, input.eventToken)
+    const record = await this.product.leagueByToken(input.sealedEventToken, input.eventToken)
     if (!record) return undefined
     const { event } = record
     const picks = new Map(record.teams.map((team) => [team.teamId, team.disposition]))
@@ -1261,24 +1286,31 @@ export class SpacetimeRepository {
     return this.feed({ scope: 'user', userId, withUserId: page?.withUserId, before: page?.before, limit: page?.limit ?? 500 })
   }
 
-  async battlesByLeagueEvent(
-    leagueToken: string,
+  async battlesBySealedEvent(
+    sealedEventToken: string,
     eventToken: string,
     page: { limit: number; before?: BattlesCursor; viewerId?: string | null },
   ) {
-    return this.feed({ scope: 'league', leagueToken, eventToken, before: page.before, limit: page.limit, viewerId: page.viewerId })
+    return this.feed({
+      scope: 'league',
+      leagueToken: sealedEventToken,
+      eventToken,
+      before: page.before,
+      limit: page.limit,
+      viewerId: page.viewerId,
+    })
   }
 
-  async battlesByClub(clubToken: string, page: { limit: number; before?: BattlesCursor }) {
-    return this.feed({ scope: 'club', clubToken, before: page.before, limit: page.limit })
+  async battlesByGroup(groupToken: string, page: { limit: number; before?: BattlesCursor }) {
+    return this.feed({ scope: 'club', clubToken: groupToken, before: page.before, limit: page.limit })
   }
 
-  /** Every battle a club's season fixtures started, which one page always holds. */
-  async battlesBySeason(clubToken: string) {
-    return (await this.feed({ scope: 'season', clubToken, limit: 500 })).battles
+  /** Every battle a group's league fixtures started, which one page always holds. */
+  async battlesByLeague(groupToken: string) {
+    return (await this.feed({ scope: 'season', clubToken: groupToken, limit: 500 })).battles
   }
 
-  battleClubs(battleId: string) {
+  battleGroups(battleId: string) {
     return this.product.battleClubs(battleId)
   }
 

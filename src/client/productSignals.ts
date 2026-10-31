@@ -3,6 +3,7 @@ import { MAX_LOCAL_OPERATIONS, type LocalOperation } from '../contracts/localSta
 import type { OfflineActionKind } from '../contracts/offlineActions'
 import { adminKey, battleKey, reportKey } from './queries/queryKeys'
 
+/** Keyed by the scopes the module publishes, which keep its stored names: `leagues` for sealed events, `clubs` for groups. */
 const queryFamilies = {
   rosters: [
     'roster-bootstrap',
@@ -19,9 +20,9 @@ const queryFamilies = {
     'discovered-rosters',
     'roster-loans',
     'rosters-lent-to-me',
-    'outdated-league-entries',
+    'outdated-sealed-event-entries',
     'unit-loadouts',
-    'league-roster-sharing',
+    'sealed-event-roster-sharing',
     'achievement-news',
   ],
   collection: [
@@ -49,10 +50,18 @@ const queryFamilies = {
     'played-armies',
     'achievement-news',
   ],
-  leagues: ['leagues', 'league', 'league-roster', 'league-roster-sharing', 'league-battles', 'opponents', 'achievement-news'],
-  clubs: ['clubs', 'club', 'club-standings', 'club-season', 'battle-clubs', 'achievement-news'],
+  leagues: [
+    'sealed-events',
+    'sealed-event',
+    'sealed-event-roster',
+    'sealed-event-roster-sharing',
+    'sealed-event-battles',
+    'opponents',
+    'achievement-news',
+  ],
+  clubs: ['groups', 'group', 'group-standings', 'group-league', 'battle-groups', 'achievement-news'],
   // Standings and rankings change only when a battle finishes, which the public standings signal reports.
-  battles: ['battles', 'public-battles', 'friend-battles', 'player-profile', 'league-battles', 'played-armies', 'battle-clubs'],
+  battles: ['battles', 'public-battles', 'friend-battles', 'player-profile', 'sealed-event-battles', 'played-armies', 'battle-groups'],
   simulator: ['recent-matchups', 'achievement-news'],
   // Medals a player earns in battle, or by someone else's hand, such as a like.
   achievements: ['achievement-news', 'player-achievements'],
@@ -61,11 +70,18 @@ const queryFamilies = {
 const publicQueryFamilies = {
   collection: ['collection-profile', 'datasheet-photos', 'player-achievements'],
   // An open battle follows its own signal, or polls while it has none, so every command elsewhere does not refetch it.
-  battles: ['public-battles', 'friend-battles', 'player-profile', 'league-battles'],
-  standings: ['standings', 'player-rankings', 'player-achievements', 'club-standings', 'club-season'],
+  battles: ['public-battles', 'friend-battles', 'player-profile', 'sealed-event-battles'],
+  standings: ['standings', 'player-rankings', 'player-achievements', 'group-standings', 'group-league'],
   rosters: ['player-rosters', 'shared-roster', 'roster-access', 'discovered-rosters'],
-  leagues: ['leagues', 'league', 'league-roster', 'league-roster-sharing', 'league-battles', 'player-achievements'],
-  clubs: ['clubs', 'club', 'club-standings', 'club-season', 'battle-clubs', 'player-achievements'],
+  leagues: [
+    'sealed-events',
+    'sealed-event',
+    'sealed-event-roster',
+    'sealed-event-roster-sharing',
+    'sealed-event-battles',
+    'player-achievements',
+  ],
+  clubs: ['groups', 'group', 'group-standings', 'group-league', 'battle-groups', 'player-achievements'],
   invites: ['friend-invite'],
   opponents: ['opponents', 'player-search'],
 } as const

@@ -114,11 +114,11 @@ export type BattleView = {
      * Null where two allies brought different cards and have not settled which.
      */
     disposition: string | null
-    /** The cards the side could still choose between, where its allies offered more than one and no league sealed its card. */
+    /** The cards the side could still choose between, where its allies offered more than one and no sealed event sealed its card. */
     dispositionChoices: string[]
     /** The player whose Warlord leads this player's side; null while allies have not chosen. */
     warlord: PlayerId | null
-    /** The allies the side could still choose between, where each list names a Warlord and no league sealed the choice. */
+    /** The allies the side could still choose between, where each list names a Warlord and no sealed event sealed the choice. */
     warlordChoices: PlayerId[]
     cp: number
     cpGained: number
@@ -184,9 +184,9 @@ export type BattleView = {
   /** The conventional ceilings, for display beside a total. */
   guides: { primary: number; secondary: number }
   deploymentId: string | null
-  leagueToken: string | null
-  leagueEventToken: string | null
-  clubId: string | null
+  sealedEventToken: string | null
+  eventToken: string | null
+  groupId: string | null
   advancePrompt: string | null
   secretMissionActionPlayerId: PlayerId | null
   /** The earlier moments a missed action may still be recorded for, oldest first; absent from older servers. */
@@ -349,9 +349,9 @@ export function battleView(
     }),
     guides: { primary: PRIMARY_GUIDE, secondary: SECONDARY_GUIDE },
     deploymentId: state.deploymentId,
-    leagueToken: state.leagueToken,
-    leagueEventToken: state.leagueEventToken,
-    clubId: state.clubId,
+    sealedEventToken: state.sealedEventToken,
+    eventToken: state.eventToken,
+    groupId: state.groupId,
     advancePrompt: advancePrompt(state, viewerId),
     secretMissionActionPlayerId: secretMissionActionPlayerId(state),
     missedMoments: state.settings.manual ? [] : missedMoments(state),

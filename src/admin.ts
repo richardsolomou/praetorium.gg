@@ -13,14 +13,14 @@ export type AdminUser = {
   lastSeenAt: Date | null
   rosterCount: number
   battleCount: number
-  /** Leagues the player organizes, which deleting the account removes. */
-  leagueCount: number
+  /** Sealed events the player organizes, which deleting the account removes. */
+  sealedEventCount: number
   friendCount: number
   signInMethods: { providerId: string; linkedAt: Date }[]
 }
 
 /** Orders that need counts from the product database rather than an account column. */
-const ADMIN_USER_COUNT_SORTS = ['rosters', 'battles', 'friends', 'leagues'] as const
+const ADMIN_USER_COUNT_SORTS = ['rosters', 'battles', 'friends', 'sealedEvents'] as const
 export type AdminUserCountSort = (typeof ADMIN_USER_COUNT_SORTS)[number]
 export const ADMIN_USER_SORTS = ['name', 'email', 'joined', 'seen', ...ADMIN_USER_COUNT_SORTS] as const
 export type AdminUserSort = (typeof ADMIN_USER_SORTS)[number]

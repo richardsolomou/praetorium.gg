@@ -265,14 +265,14 @@ const EMBLEMS: Record<AchievementMetric, ReactNode> = {
       <path d="m26 25 12 12M38 25 26 37" stroke="var(--color-sunken)" strokeWidth="2.4" strokeLinecap="round" />
     </>
   ),
-  seasons: (
+  leagues: (
     <>
       <rect x="20" y="22" width="24" height="21" {...stroke} strokeWidth="2.4" />
       <path d="M20 28h24M26 19v6M38 19v6" {...stroke} strokeWidth="2.4" />
       <path d="M24 32h4v3h-4ZM30 32h4v3h-4ZM36 32h4v3h-4ZM24 37h4v3h-4ZM30 37h4v3h-4Z" />
     </>
   ),
-  'seasons-run': (
+  'leagues-run': (
     <>
       <rect x="20" y="22" width="24" height="21" {...stroke} strokeWidth="2.4" />
       <path d="M20 28h24M26 19v6M38 19v6" {...stroke} strokeWidth="2.4" />

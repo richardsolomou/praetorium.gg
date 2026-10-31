@@ -100,13 +100,13 @@ it('hydrates a battle immediately after its creation commits a receipt', async (
     version: 2,
   })
 })
-vi.mock('../offlineActions', () => ({ offlineActions: { createBattle: mocks.createAction, createLeagueBattle: mocks.createAction } }))
+vi.mock('../offlineActions', () => ({ offlineActions: { createBattle: mocks.createAction, createSealedEventBattle: mocks.createAction } }))
 vi.mock('../rpc', () => ({ rpc: (work: () => unknown) => work(), mutationRpc: (work: () => unknown) => work() }))
 vi.mock('../playerSession', () => ({ requireUser: async () => mocks.user }))
 vi.mock('../app', () => ({
   app: () => ({
     telemetry: { capture: mocks.capture },
-    service: { ...mocks, leagueService: { ownRoster: mocks.ownRoster } },
+    service: { ...mocks, sealedEventService: { ownRoster: mocks.ownRoster } },
     repository: mocks,
     catalogueFor: mocks.catalogueFor,
     catalogue: mocks.catalogue,
