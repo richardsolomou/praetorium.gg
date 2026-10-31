@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.208.1 (2026-10-31)
+
+### Patch Changes
+
+- de7636e: Messages that refuse a group battle say group instead of club.
+
 ## 0.208.0 (2026-10-31)
 
 ### Minor Changes
