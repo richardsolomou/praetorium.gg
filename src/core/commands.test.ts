@@ -178,14 +178,6 @@ describe('command schema', () => {
     })
   })
 
-  it('reads a roster lock by its previous release’s name', () => {
-    expect(commandSchema.parse({ kind: 'lock-league-rosters', leagueToken: 'tournament', eventToken: 'event' })).toEqual({
-      kind: 'lock-sealed-event-rosters',
-      sealedEventToken: 'tournament',
-      eventToken: 'event',
-    })
-  })
-
   it('rejects a setup section outside the wizard', () => {
     // Bound by the constant rather than a number, so adding a section moves both together.
     expect(commandSchema.safeParse({ kind: 'set-setup-step', step: SETUP_STEP_MAX }).success).toBe(true)

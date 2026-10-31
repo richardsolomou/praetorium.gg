@@ -16,17 +16,8 @@ const EXEMPT = [
   /^docs\/development\/groups-and-tournaments\.md$/,
   /^src\/routes\/clubs\./,
   /^scripts\/checkVocabulary\.ts$/,
-  // Translates the previous release's names until the next release drops it.
-  /^src\/core\/releasedNames\.ts$/,
 ]
 
-const STORED_NAMES = new Set([
-  // The previous release's names, which the module rewrites and its tests store.
-  'set-battle-club',
-  'clubId',
-  'club-night',
-  'leagues-to-clubs',
-])
 /** The bare words stay legal only where they are data: a quoted name and the legacy `/clubs` address. */
 const STORED_FORMS = /(['"`])clubs?\1|(?<![\w-])clubs(?=: )|\/clubs\b/g
 /** Words that only look like ours: catalogue names and the Season Ticket achievement. */
@@ -54,9 +45,7 @@ const problems = files.flatMap((file) => {
   }
   return text.split('\n').flatMap((line, at) => {
     const words = [
-      ...(line.replace(LOOKALIKES, '').replace(STORED_FORMS, '').match(WORD) ?? [])
-        .flatMap(segments)
-        .filter((word) => !STORED_NAMES.has(word)),
+      ...(line.replace(LOOKALIKES, '').replace(STORED_FORMS, '').match(WORD) ?? []).flatMap(segments),
       ...(line.match(SEALED_GAME) ?? []),
     ]
     return words.length ? [`${file}:${at + 1}: ${[...new Set(words)].join(', ')}`] : []

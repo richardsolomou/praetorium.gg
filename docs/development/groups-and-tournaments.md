@@ -17,7 +17,7 @@ The navigation files groups and tournaments under "Events"; "community" already 
 
 Players never read "club", "season" or "sealed game", and copy names a tournament or a hidden-list game rather than an event; only the shared engine's refusals in `src/core/sealedEvent.ts` and `src/server/services/sealedEventService.ts` still say "event", since they serve both. `scripts/checkVocabulary.ts` fails CI on those words outside the links below.
 
-The old words survive only where links already shared spell them: `/clubs/…` and `/leagues/…` addresses redirect, and the roster page's `?league=` and the simulator's `league` roster source still read as a sealed event. `src/core/releasedNames.ts` translates the names the previous release stored and sent, and the module rewrites its rows at the first operator call after a deploy; the next release deletes both.
+The old words survive only where links already shared spell them: `/clubs/…` and `/leagues/…` addresses redirect, and the roster page's `?league=` and the simulator's `league` roster source still read as a sealed event.
 
 ## Sealed events
 

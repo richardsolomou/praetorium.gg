@@ -396,15 +396,6 @@ const groupLeaguePlayers = table(
   },
 )
 
-/** Retired: a database that ran the first league migration records it here, and SpacetimeDB refuses to drop a table holding rows. */
-const completedMigrations = table(
-  { name: 'completed_migrations' },
-  {
-    name: t.string().primaryKey(),
-    at: t.u64(),
-  },
-)
-
 /** Which battles count on which group's table: an index of each battle's folded `set-battle-group`, rewritten whenever one could change it. */
 const groupBattles = table(
   { name: 'group_battles' },
@@ -775,7 +766,6 @@ export const productTables = {
   earnedAchievements,
   groupLeagues,
   groupLeaguePlayers,
-  completedMigrations,
   collection,
   collectionWishes,
   collectionStock,
