@@ -328,7 +328,7 @@ export function CombatantCard({
                     )}
                   </span>
                 )}
-                {member.index === pickIndex && !combatant.roster ? (
+                {member.index === pickIndex && pick && !combatant.roster ? (
                   <DetachmentPicker
                     side={side}
                     options={combatant.detachmentOptions ?? []}

@@ -183,7 +183,6 @@ function RosterUnits({
             value: String(index),
             icon: factionIcon(picks[index]?.catalogueId ?? catalogueId),
             label: `${entry.name}${units.filter((candidate) => candidate.entryId === entry.entryId).length > 1 ? ` · ${index + 1}` : ''}`,
-            detail: `${entry.points} pts`,
           },
         ],
   )
