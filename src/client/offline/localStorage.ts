@@ -1,5 +1,5 @@
 import { createStore, get, update } from 'idb-keyval'
-import { emptyLocalState, parseLocalState, type LocalState } from '../../contracts/localState'
+import { emptyLocalState, parseLocalState, withCurrentNames, type LocalState } from '../../contracts/localState'
 import { requestNativeLocalState, supportsNativeLocalState } from '../nativeBridge'
 import type { LocalStateStorage } from './syncEngine'
 import { holdingReload } from '../pendingWrites'
@@ -79,7 +79,7 @@ export function localStateStorage(owner: string): LocalStateStorage {
   const verify = (saved: StoredState) => {
     if (verified?.saved === saved) return verified.state
     if (epoch && epoch !== saved.epoch) throw new Error('The account on this device changed.')
-    const parsed = saved.state ? parseLocalState(saved.state) : null
+    const parsed = saved.state ? parseLocalState(withCurrentNames(saved.state)) : null
     if (saved.state && (!parsed || parsed.owner !== owner)) throw new Error('Saved changes belong to another account.')
     epoch = saved.epoch
     const state = parsed ?? { ...emptyLocalState(owner), epoch: saved.epoch }

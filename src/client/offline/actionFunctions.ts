@@ -85,11 +85,11 @@ export const listSealedEvents = async (): ReturnType<typeof server.listSealedEve
   const state = await localEngine()?.storage.read()
   const byToken = new Map(sealedEvents.map((sealedEvent) => [sealedEvent.token, sealedEvent]))
   for (const operation of state?.operations ?? []) {
-    if (operation.kind === 'deleteLeague') {
-      byToken.delete(operation.resource.slice(7))
+    if (operation.kind === 'deleteSealedEvent') {
+      byToken.delete(operation.resource.slice(13))
       continue
     }
-    if (operation.kind !== 'createLeague') continue
+    if (operation.kind !== 'createSealedEvent') continue
     const draft = state?.documents[operation.resource]?.data as Awaited<ReturnType<typeof server.openSealedEvent>>
     if (!draft) continue
     const accepted = draft.entries.filter((entry) => entry.status === 'accepted').length
@@ -113,11 +113,11 @@ export const listFriendSealedEventRosters = () => cachedRead(friendSealedEventRo
 export const outdatedSealedEventEntriesForRoster = (args: Parameters<typeof server.outdatedSealedEventEntriesForRoster>[0]) =>
   cachedRead(outdatedSealedEventEntriesKey(args.data.rosterId), () => server.outdatedSealedEventEntriesForRoster(args))
 export const openSealedEvent = async (args: Parameters<typeof server.openSealedEvent>[0]): ReturnType<typeof server.openSealedEvent> => {
-  const resource = `league:${args.data.token}`
+  const resource = `sealed-event:${args.data.token}`
   const draft = await localDocument<Awaited<ReturnType<typeof server.openSealedEvent>>>(resource)
   if (
     (await localEngine()?.storage.read())?.operations.some(
-      (operation) => operation.resource === resource && operation.kind === 'deleteLeague',
+      (operation) => operation.resource === resource && operation.kind === 'deleteSealedEvent',
     )
   )
     return null
@@ -344,10 +344,10 @@ export async function cancelFriendInvite(): ReturnType<typeof server.cancelFrien
 export async function createSealedEvent(args: Parameters<typeof server.createSealedEvent>[0]): ReturnType<typeof server.createSealedEvent> {
   const defer = deferredForAccount()
   if (!localEngine()) return server.createSealedEvent(args)
-  const input = offlineActionSchemas.createLeague.parse(args.data)
+  const input = offlineActionSchemas.createSealedEvent.parse(args.data)
   const identifiers = {
-    leagueId: crypto.randomUUID(),
-    leagueToken: crypto.randomUUID(),
+    tournamentId: crypto.randomUUID(),
+    tournamentToken: crypto.randomUUID(),
     eventId: crypto.randomUUID(),
     eventToken: crypto.randomUUID(),
   }
@@ -355,7 +355,7 @@ export async function createSealedEvent(args: Parameters<typeof server.createSea
   const now = Date.now()
   const draft: NonNullable<Awaited<ReturnType<typeof server.openSealedEvent>>> = {
     kind: 'tournament',
-    token: identifiers.leagueToken,
+    token: identifiers.tournamentToken,
     eventToken: identifiers.eventToken,
     createdAt: now,
     tournament: {
@@ -388,8 +388,8 @@ export async function createSealedEvent(args: Parameters<typeof server.createSea
     occupiedCount: 0,
     entries: [],
   }
-  await defer('createLeague', input, `league:${identifiers.leagueToken}`, draft, { identifiers })
-  return { token: identifiers.leagueToken, eventToken: identifiers.eventToken }
+  await defer('createSealedEvent', input, `sealed-event:${identifiers.tournamentToken}`, draft, { identifiers })
+  return { token: identifiers.tournamentToken, eventToken: identifiers.eventToken }
 }
 export const requestFriend = queuedAction(
   () => server.requestFriend,
@@ -428,22 +428,22 @@ export const acceptFriendInvite = queuedAction(
 
 export const joinSealedEvent = queuedAction(
   () => server.joinSealedEvent,
-  'joinLeague',
-  (data) => `league:${data.token}`,
+  'joinSealedEvent',
+  (data) => `sealed-event:${data.token}`,
   'pending',
 )
 
 export const addSealedEventEntrants = queuedAction(
   () => server.addSealedEventEntrants,
-  'addLeagueEntrants',
-  (data) => `league:${data.token}`,
+  'addSealedEventEntrants',
+  (data) => `sealed-event:${data.token}`,
   { added: 0 },
 )
 
 export const admitSealedEventEntries = queuedAction(
   () => server.admitSealedEventEntries,
-  'admitLeagueEntries',
-  (data) => `league:${data.token}`,
+  'admitSealedEventEntries',
+  (data) => `sealed-event:${data.token}`,
   {
     admitted: 0,
   },
@@ -451,8 +451,8 @@ export const admitSealedEventEntries = queuedAction(
 
 export const moderateSealedEventEntry = queuedAction(
   () => server.moderateSealedEventEntry,
-  'moderateLeagueEntry',
-  (data) => `league:${data.token}`,
+  'moderateSealedEventEntry',
+  (data) => `sealed-event:${data.token}`,
   null,
 )
 
@@ -481,9 +481,9 @@ export async function submitSealedEventRoster(
   // The event decides whether a waived Warlord is allowed; the server answers that once the seal syncs.
   if (!waivedWarlordRules(snapshot).length && !sealedEventWarlordValid(snapshot)) throw new Error(sealedEventWarlordRefusal(snapshot))
   await defer(
-    'submitLeagueRoster',
+    'submitSealedEventRoster',
     { ...args.data, capturedRoster: saveRosterSchema.parse(roster), catalogueRevision: construction.catalogue.index.revision },
-    `league:${args.data.token}`,
+    `sealed-event:${args.data.token}`,
     undefined,
     { dependencies: [`roster:${args.data.rosterId}`] },
   )
@@ -492,43 +492,43 @@ export async function submitSealedEventRoster(
 
 export const setSealedEventTeamWarlord = queuedAction(
   () => server.setSealedEventTeamWarlord,
-  'setLeagueTeamWarlord',
-  (data) => `league:${data.token}`,
+  'setSealedEventTeamWarlord',
+  (data) => `sealed-event:${data.token}`,
   null,
 )
 
 export const setSealedEventTeamDisposition = queuedAction(
   () => server.setSealedEventTeamDisposition,
-  'setLeagueTeamDisposition',
-  (data) => `league:${data.token}`,
+  'setSealedEventTeamDisposition',
+  (data) => `sealed-event:${data.token}`,
   null,
 )
 
 export const revealSealedEvent = queuedAction(
   () => server.revealSealedEvent,
-  'revealLeague',
-  (data) => `league:${data.token}`,
+  'revealSealedEvent',
+  (data) => `sealed-event:${data.token}`,
   null,
 )
 
 export const unsealSealedEventRoster = queuedAction(
   () => server.unsealSealedEventRoster,
-  'unsealLeagueRoster',
-  (data) => `league:${data.token}`,
+  'unsealSealedEventRoster',
+  (data) => `sealed-event:${data.token}`,
   null,
 )
 
 export const assignSealedEventRosterRequirement = queuedAction(
   () => server.assignSealedEventRosterRequirement,
-  'assignLeagueRosterRequirement',
-  (data) => `league:${data.token}`,
+  'assignSealedEventRosterRequirement',
+  (data) => `sealed-event:${data.token}`,
   null,
 )
 
 export const chooseSealedEventSide = queuedAction(
   () => server.chooseSealedEventSide,
-  'chooseLeagueSide',
-  (data) => `league:${data.token}`,
+  'chooseSealedEventSide',
+  (data) => `sealed-event:${data.token}`,
   null,
 )
 
@@ -537,21 +537,23 @@ export async function assignSealedEventTeam(
 ): ReturnType<typeof server.assignSealedEventTeam> {
   const defer = deferredForAccount()
   if (!localEngine()) return server.assignSealedEventTeam(args)
-  await defer('assignLeagueTeam', args.data, `league:${args.data.token}`, undefined, { identifiers: { teamId: crypto.randomUUID() } })
+  await defer('assignSealedEventTeam', args.data, `sealed-event:${args.data.token}`, undefined, {
+    identifiers: { teamId: crypto.randomUUID() },
+  })
   return null
 }
 
 export const updateSealedEvent = queuedAction(
   () => server.updateSealedEvent,
-  'updateLeague',
-  (data) => `league:${data.token}`,
+  'updateSealedEvent',
+  (data) => `sealed-event:${data.token}`,
   null,
 )
 
 export const deleteSealedEvent = queuedAction(
   () => server.deleteSealedEvent,
-  'deleteLeague',
-  (data) => `league:${data.token}`,
+  'deleteSealedEvent',
+  (data) => `sealed-event:${data.token}`,
   null,
 )
 
@@ -573,7 +575,7 @@ export async function updateOnboardingProgress(
     roster: current.completedTasks.includes('roster'),
     friend: current.completedTasks.includes('friend'),
     battle: current.completedTasks.includes('battle'),
-    league: current.completedTasks.includes('league'),
+    tournament: current.completedTasks.includes('tournament'),
   }
   const tasks: { task: OnboardingTaskId; state: 'completed' | 'skipped' }[] = [
     ...current.completedTasks.map((task) => ({ task, state: 'completed' as const })),

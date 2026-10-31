@@ -446,10 +446,10 @@ export function projectLocalState(state: LocalState) {
       client.setQueryData(JSON.parse(resource.slice(6)), document.data)
       continue
     }
-    if (resource.startsWith('league:')) {
+    if (resource.startsWith('sealed-event:')) {
       if (navigator.onLine && !state.operations.some((operation) => operation.resource === resource)) continue
       const sealedEvent = document.data as Awaited<ReturnType<typeof server.openSealedEvent>>
-      const keys = [sealedEventKey(resource.slice(7)), sealedEventKey(resource.slice(7), sealedEvent?.eventToken)]
+      const keys = [sealedEventKey(resource.slice(13)), sealedEventKey(resource.slice(13), sealedEvent?.eventToken)]
       client.setQueriesData({ predicate: (query) => keys.some((key) => partialMatchKey(query.queryKey, key)) }, sealedEvent)
       continue
     }

@@ -103,7 +103,7 @@ export function ViewRosterButton({
         <Link
           to="/rosters/$id"
           params={{ id: userId }}
-          search={{ league: token, event: eventToken }}
+          search={{ sealedEvent: token, event: eventToken }}
           aria-label={`View ${label}’s roster`}
           className={buttonClass({ variant: 'ghost', size: 'icon-sm', className: 'text-dim hover:text-info pointer-coarse:size-11' })}
         />

@@ -31,8 +31,8 @@ async function featurePreviewBattle(page: Page, token: string) {
 test('shows the faction icon for an unqualified frozen army', async ({ page }, testInfo) => {
   await signUp(page, uniqueName('Historical faction'))
   // Other tests publish battles meanwhile, so date this one ahead of them to keep it on the shelf.
-  await productSql`UPDATE battles SET created_at = ${Date.now() + 30 * 60 * 1000} WHERE token = 'preview-league-battle-doubles'`
-  const battle = page.locator('[data-battle-shelf="Public games"] a[href="/battles/preview-league-battle-doubles"]')
+  await productSql`UPDATE battles SET created_at = ${Date.now() + 30 * 60 * 1000} WHERE token = 'preview-tournament-battle-doubles'`
+  const battle = page.locator('[data-battle-shelf="Public games"] a[href="/battles/preview-tournament-battle-doubles"]')
   const mark = battle.locator('[data-faction-mark="space-marines"]').first()
   await expect(async () => {
     await page.goto('/')
@@ -211,11 +211,11 @@ test.describe('the featured battle', () => {
   })
 
   test('a finished featured battle omits the repeated result', async ({ page }, testInfo) => {
-    await featurePreviewBattle(page, 'preview-league-battle-duel')
+    await featurePreviewBattle(page, 'preview-tournament-battle-duel')
     const featured = page.locator('[data-home-featured]')
     for (const width of [1440, 390]) {
       await page.setViewportSize({ width, height: 900 })
-      await expect(featured).toHaveAttribute('href', '/battles/preview-league-battle-duel')
+      await expect(featured).toHaveAttribute('href', '/battles/preview-tournament-battle-duel')
       await expect(featured.getByText('35', { exact: true })).toBeVisible()
       await expect(featured).not.toContainText('wins')
       await featured.scrollIntoViewIfNeeded()

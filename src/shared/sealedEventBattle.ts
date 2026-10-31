@@ -209,8 +209,8 @@ export function buildSealedEventBattle(
       .filter((playerId) => playerId !== userId && playerId !== opponentIds[0])
       .map((playerId) => ({ kind: 'attach-roster' as const, playerId, roster: rosters.get(playerId)!, prep: null, painted: true })),
     {
-      kind: 'lock-league-rosters',
-      leagueToken: sealedEvent.token,
+      kind: 'lock-sealed-event-rosters',
+      sealedEventToken: sealedEvent.token,
       eventToken: sealedEvent.eventToken,
       ...sealedDispositions(sealedEvent, [userId, ...allyIds], opponentIds),
       ...sealedWarlords(sealedEvent, [userId, ...allyIds], opponentIds),

@@ -3,7 +3,7 @@ import { MAX_LOCAL_OPERATIONS, type LocalOperation } from '../contracts/localSta
 import type { OfflineActionKind } from '../contracts/offlineActions'
 import { adminKey, battleKey, reportKey } from './queries/queryKeys'
 
-/** Keyed by the scopes the module publishes, which keep its stored names: `leagues` for sealed events, `clubs` for groups. */
+/** Keyed by the scopes the module publishes. */
 const queryFamilies = {
   rosters: [
     'roster-bootstrap',
@@ -50,7 +50,7 @@ const queryFamilies = {
     'played-armies',
     'achievement-news',
   ],
-  leagues: [
+  'sealed-events': [
     'sealed-events',
     'sealed-event',
     'sealed-event-roster',
@@ -59,7 +59,7 @@ const queryFamilies = {
     'opponents',
     'achievement-news',
   ],
-  clubs: ['groups', 'group', 'group-standings', 'group-league', 'battle-groups', 'achievement-news'],
+  groups: ['groups', 'group', 'group-standings', 'group-league', 'battle-groups', 'achievement-news'],
   // Standings and rankings change only when a battle finishes, which the public standings signal reports.
   battles: ['battles', 'public-battles', 'friend-battles', 'player-profile', 'sealed-event-battles', 'played-armies', 'battle-groups'],
   simulator: ['recent-matchups', 'achievement-news'],
@@ -73,7 +73,7 @@ const publicQueryFamilies = {
   battles: ['public-battles', 'friend-battles', 'player-profile', 'sealed-event-battles'],
   standings: ['standings', 'player-rankings', 'player-achievements', 'group-standings', 'group-league'],
   rosters: ['player-rosters', 'shared-roster', 'roster-access', 'discovered-rosters'],
-  leagues: [
+  'sealed-events': [
     'sealed-events',
     'sealed-event',
     'sealed-event-roster',
@@ -81,7 +81,7 @@ const publicQueryFamilies = {
     'sealed-event-battles',
     'player-achievements',
   ],
-  clubs: ['groups', 'group', 'group-standings', 'group-league', 'battle-groups', 'player-achievements'],
+  groups: ['groups', 'group', 'group-standings', 'group-league', 'battle-groups', 'player-achievements'],
   invites: ['friend-invite'],
   opponents: ['opponents', 'player-search'],
 } as const
@@ -118,24 +118,24 @@ const operationScopes = {
   acceptFriendInvite: ['friends', 'invites'],
   createFriendInvite: ['invites'],
   cancelFriendInvite: ['invites'],
-  createLeague: ['leagues'],
-  joinLeague: ['leagues'],
-  addLeagueEntrants: ['leagues'],
-  admitLeagueEntries: ['leagues'],
-  moderateLeagueEntry: ['leagues'],
-  submitLeagueRoster: ['leagues'],
-  setLeagueTeamDisposition: ['leagues'],
-  setLeagueTeamWarlord: ['leagues'],
-  revealLeague: ['leagues'],
-  unsealLeagueRoster: ['leagues'],
-  assignLeagueRosterRequirement: ['leagues'],
-  assignLeagueTeam: ['leagues'],
-  chooseLeagueSide: ['leagues'],
-  updateLeague: ['leagues'],
-  deleteLeague: ['leagues'],
+  createSealedEvent: ['sealed-events'],
+  joinSealedEvent: ['sealed-events'],
+  addSealedEventEntrants: ['sealed-events'],
+  admitSealedEventEntries: ['sealed-events'],
+  moderateSealedEventEntry: ['sealed-events'],
+  submitSealedEventRoster: ['sealed-events'],
+  setSealedEventTeamDisposition: ['sealed-events'],
+  setSealedEventTeamWarlord: ['sealed-events'],
+  revealSealedEvent: ['sealed-events'],
+  unsealSealedEventRoster: ['sealed-events'],
+  assignSealedEventRosterRequirement: ['sealed-events'],
+  assignSealedEventTeam: ['sealed-events'],
+  chooseSealedEventSide: ['sealed-events'],
+  updateSealedEvent: ['sealed-events'],
+  deleteSealedEvent: ['sealed-events'],
   deleteBattle: ['battles'],
   createBattle: ['battles'],
-  createLeagueBattle: ['battles', 'leagues'],
+  createSealedEventBattle: ['battles', 'sealed-events'],
 } as const satisfies Record<OfflineActionKind | 'saveRoster' | 'deleteRoster' | 'battleCommand', readonly ProductScope[]>
 
 /** Matches a query whose key starts with one of these families. */

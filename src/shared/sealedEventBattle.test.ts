@@ -27,7 +27,7 @@ const entrant = (
 })
 
 const trial = (entries: SealedEventBattleSetup['entries']): SealedEventBattleSetup => ({
-  token: 'league',
+  token: 'tournament',
   eventToken: 'event',
   format: '2v1',
   rosterLimit: 2_000,
@@ -49,7 +49,8 @@ const paired = trial([
 ])
 const build = (sealedEvent: SealedEventBattleSetup, userId: string, opponentId: string, allyId?: string, secondOpponentId?: string) =>
   buildSealedEventBattle(sealedEvent, userId, opponentId, null, 'battle', allyId, secondOpponentId)
-const lock = (prepared: ReturnType<typeof build>) => prepared.initialCommands.find((command) => command.kind === 'lock-league-rosters')
+const lock = (prepared: ReturnType<typeof build>) =>
+  prepared.initialCommands.find((command) => command.kind === 'lock-sealed-event-rosters')
 
 describe('2v1 sealed event battles', () => {
   it('seats a solo entrant against the whole pair of the ally they chose', () => {
@@ -121,7 +122,7 @@ describe('2v1 sealed event battles', () => {
 
 describe('doubles sealed event battles', () => {
   const doubles: SealedEventBattleSetup = {
-    token: 'league',
+    token: 'tournament',
     eventToken: 'event',
     format: '2v2',
     rosterLimit: 2_000,

@@ -116,10 +116,10 @@ export function RosterCombatComparison({
       },
     })),
     ...sealedEventRosters.map((entry) => {
-      const { league: sealedEvent } = friendSealedEventSource(entry)
+      const { sealedEvent } = friendSealedEventSource(entry)
       const owner = { name: entry.ownerName, image: entry.ownerImage }
       return {
-        id: rosterSourceKey({ league: sealedEvent }),
+        id: rosterSourceKey({ sealedEvent }),
         catalogueId: entry.catalogueId,
         group: "Friends' sealed rosters",
         owners: [owner],

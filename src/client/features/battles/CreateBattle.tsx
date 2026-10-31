@@ -135,7 +135,7 @@ export function CreateBattle({
       const sealedEventMatch = async () => {
         if (casual || guests.length) return null
         const matches = await sealedEventBattleOptions({ data: playerData })
-        return matches.length ? { kind: 'league' as const, matches } : null
+        return matches.length ? { kind: 'sealed-event' as const, matches } : null
       }
       const offered = await sealedEventMatch()
       if (offered) return offered
@@ -161,7 +161,7 @@ export function CreateBattle({
       return { kind: 'battle' as const, battle }
     },
     onSuccess: async (result) => {
-      if (result.kind === 'league') {
+      if (result.kind === 'sealed-event') {
         setSealedEventMatches(result.matches)
         return
       }

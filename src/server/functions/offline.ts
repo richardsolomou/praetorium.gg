@@ -4,6 +4,7 @@ import { offlineActionSchema, type OfflineActionKind } from '../../contracts/off
 import { offlineActions } from '../offlineActions'
 import { offlineContext } from '../offlineContext'
 import { commandSchema, idSchema } from '../../core/commands'
+import { currentOfflineAction } from '../../core/releasedNames'
 import { rosterSnapshot } from '../../core/rosterSnapshot'
 import { fieldingReminders } from '../../shared/reminderAbilities'
 import { rosterUseError } from '../../core/rosterLegality'
@@ -118,7 +119,7 @@ export const battleWorkspace = createServerFn({ method: 'GET' })
   .handler(({ data }) => rpc(async () => app().service.battleWorkspace(data.token, await requireUserId(), await app().rulesFor())))
 
 export const syncAction = createServerFn({ method: 'POST' })
-  .validator(offlineActionSchema)
+  .validator((data: z.input<typeof offlineActionSchema>) => offlineActionSchema.parse(currentOfflineAction(data)))
   .handler(({ data }) =>
     mutationRpc(async () => {
       const player = await requireOwner(data.owner)
@@ -134,7 +135,7 @@ export const syncAction = createServerFn({ method: 'POST' })
         }
         if (!saved) throw new Error('The saved action did not commit a receipt.')
         if (saved.outcome === 'refused') return unsynced(player.id, data.kind, saved, 'database')
-        if (saved.outcome === 'applied' && (data.kind === 'createBattle' || data.kind === 'createLeagueBattle')) {
+        if (saved.outcome === 'applied' && (data.kind === 'createBattle' || data.kind === 'createSealedEventBattle')) {
           const { workspace } = await app().service.battleWorkspace(data.identifiers.battleToken!, player.id, await app().rulesFor())
           return { ...saved, workspace, version: workspace.serverSeq }
         }

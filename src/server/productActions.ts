@@ -136,67 +136,73 @@ export const productActions = {
     await captureMutation(owner, 'friend_invite_cancelled')
     return null
   }),
-  createLeague: action(schemas.createLeague, async (owner, data) => {
+  createSealedEvent: action(schemas.createSealedEvent, async (owner, data) => {
     const result = await app().service.sealedEventService.createTournament(owner, data)
     await captureSealedEventCreated(owner, data)
     return result
   }),
-  joinLeague: action(schemas.joinLeague, async (owner, data) => {
+  joinSealedEvent: action(schemas.joinSealedEvent, async (owner, data) => {
     const status = await app().service.sealedEventService.joinSealedEvent(data.token, owner, data.eventToken)
     await captureMutation(owner, 'sealed_event_joined', { status })
     return status
   }),
-  addLeagueEntrants: action(schemas.addLeagueEntrants, async (owner, data) => {
+  addSealedEventEntrants: action(schemas.addSealedEventEntrants, async (owner, data) => {
     const result = await app().service.sealedEventService.addSealedEventEntrants(data.token, owner, data.userIds, data.eventToken)
     await captureMutation(owner, 'sealed_event_entrants_added', { count: result.added })
     return result
   }),
-  admitLeagueEntries: action(schemas.admitLeagueEntries, async (owner, data) => {
+  admitSealedEventEntries: action(schemas.admitSealedEventEntries, async (owner, data) => {
     const { admitted } = await app().service.sealedEventService.admitSealedEventEntries(data.token, owner, data.userIds, data.eventToken)
     await captureMutation(owner, 'sealed_event_entries_admitted', { count: admitted.length })
     return { admitted: admitted.length }
   }),
-  moderateLeagueEntry: action(schemas.moderateLeagueEntry, async (owner, data) => {
+  moderateSealedEventEntry: action(schemas.moderateSealedEventEntry, async (owner, data) => {
     await app().service.sealedEventService.moderateSealedEventEntry(data.token, owner, data.userId, data.status, data.eventToken)
     await captureMutation(owner, 'sealed_event_entry_moderated', { status: data.status })
     return null
   }),
-  submitLeagueRoster: action(schemas.submitLeagueRoster.partial({ capturedRoster: true, catalogueRevision: true }), async (owner, data) => {
-    const { saved, snapshot } = await rosterForUse(owner, data.rosterId, { sealing: true })
-    if (
-      data.capturedRoster !== undefined &&
-      (sealedContent(saveRosterSchema.parse(saved)) !== sealedContent(data.capturedRoster) ||
-        (await app().catalogueFor(saved.catalogueId))?.index.revision !== data.catalogueRevision)
-    )
-      throw new Response('This roster or its army data changed after you chose to seal it. Review the saved action before sealing again.', {
-        status: 409,
+  submitSealedEventRoster: action(
+    schemas.submitSealedEventRoster.partial({ capturedRoster: true, catalogueRevision: true }),
+    async (owner, data) => {
+      const { saved, snapshot } = await rosterForUse(owner, data.rosterId, { sealing: true })
+      if (
+        data.capturedRoster !== undefined &&
+        (sealedContent(saveRosterSchema.parse(saved)) !== sealedContent(data.capturedRoster) ||
+          (await app().catalogueFor(saved.catalogueId))?.index.revision !== data.catalogueRevision)
+      )
+        throw new Response(
+          'This roster or its army data changed after you chose to seal it. Review the saved action before sealing again.',
+          {
+            status: 409,
+          },
+        )
+      const result = await app().service.sealedEventService.submitSealedEventRoster(data.token, owner, saved, snapshot, data.eventToken)
+      await captureMutation(owner, 'sealed_event_roster_submitted', {
+        format: result.format,
+        required_limit: result.requiredLimit,
       })
-    const result = await app().service.sealedEventService.submitSealedEventRoster(data.token, owner, saved, snapshot, data.eventToken)
-    await captureMutation(owner, 'sealed_event_roster_submitted', {
-      format: result.format,
-      required_limit: result.requiredLimit,
-    })
-    return null
-  }),
-  setLeagueTeamDisposition: action(schemas.setLeagueTeamDisposition, async (owner, data) => {
+      return null
+    },
+  ),
+  setSealedEventTeamDisposition: action(schemas.setSealedEventTeamDisposition, async (owner, data) => {
     await app().service.sealedEventService.setSealedEventTeamDisposition(data.token, owner, data.disposition, data.eventToken)
     return null
   }),
-  setLeagueTeamWarlord: action(schemas.setLeagueTeamWarlord, async (owner, data) => {
+  setSealedEventTeamWarlord: action(schemas.setSealedEventTeamWarlord, async (owner, data) => {
     await app().service.sealedEventService.setSealedEventTeamWarlord(data.token, owner, data.userId, data.eventToken)
     return null
   }),
-  revealLeague: action(schemas.revealLeague, async (owner, data) => {
+  revealSealedEvent: action(schemas.revealSealedEvent, async (owner, data) => {
     await app().service.sealedEventService.revealSealedEvent(data.token, owner, data.eventToken)
     await captureMutation(owner, 'sealed_event_rosters_revealed')
     return null
   }),
-  unsealLeagueRoster: action(schemas.unsealLeagueRoster, async (owner, data) => {
+  unsealSealedEventRoster: action(schemas.unsealSealedEventRoster, async (owner, data) => {
     await app().service.sealedEventService.unsealSealedEventRoster(data.token, owner, data.userId, data.eventToken)
     await captureMutation(owner, 'sealed_event_roster_unsealed')
     return null
   }),
-  assignLeagueRosterRequirement: action(schemas.assignLeagueRosterRequirement, async (owner, data) => {
+  assignSealedEventRosterRequirement: action(schemas.assignSealedEventRosterRequirement, async (owner, data) => {
     const result = await app().service.sealedEventService.assignSealedEventRosterRequirement(
       data.token,
       owner,
@@ -207,17 +213,17 @@ export const productActions = {
     await captureMutation(owner, 'sealed_event_roster_requirement_assigned', { required_limit: result.requiredLimit })
     return null
   }),
-  assignLeagueTeam: action(schemas.assignLeagueTeam, async (owner, data) => {
+  assignSealedEventTeam: action(schemas.assignSealedEventTeam, async (owner, data) => {
     const result = await app().service.sealedEventService.assignSealedEventTeam(data.token, owner, data.userIds, data.eventToken)
     await captureMutation(owner, 'sealed_event_team_assigned', { team_size: result.teamSize })
     return null
   }),
-  chooseLeagueSide: action(schemas.chooseLeagueSide, async (owner, data) => {
+  chooseSealedEventSide: action(schemas.chooseSealedEventSide, async (owner, data) => {
     const result = await app().service.sealedEventService.chooseSealedEventSide(data.token, owner, data.side, data.eventToken)
     await captureMutation(owner, 'sealed_event_side_chosen', { side: result.side })
     return null
   }),
-  updateLeague: action(schemas.updateLeague, async (owner, { token, rule, schedule, ...details }) => {
+  updateSealedEvent: action(schemas.updateSealedEvent, async (owner, { token, rule, schedule, ...details }) => {
     const tournament = details.name === undefined ? undefined : (details as Required<typeof details>)
     const { ruleChanged } = await app().service.sealedEventService.updateSealedEvent(token, owner, { details: tournament, rule, schedule })
     if (tournament)
@@ -233,7 +239,7 @@ export const productActions = {
       })
     return null
   }),
-  deleteLeague: action(schemas.deleteLeague, async (owner, data) => {
+  deleteSealedEvent: action(schemas.deleteSealedEvent, async (owner, data) => {
     await app().service.sealedEventService.deleteSealedEvent(data.token, owner)
     await captureMutation(owner, 'sealed_event_deleted')
     return null
@@ -248,7 +254,7 @@ export const productActions = {
     await captureBattleCreated(owner, data, result)
     return result
   }),
-  createLeagueBattle: action(schemas.createLeagueBattle, async (owner, data) => {
+  createSealedEventBattle: action(schemas.createSealedEventBattle, async (owner, data) => {
     const result = await app().service.sealedEventService.createSealedEventBattle(
       owner,
       data.token,

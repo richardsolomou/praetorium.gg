@@ -643,11 +643,11 @@ describe('group battles', () => {
   }
 
   it('tags a hidden-list game started between members from the start', () => {
-    expect(setup(['opponent'], [{ kind: 'set-battle-club', clubId: 'group-id' }]).groups().current?.token).toBe('group')
+    expect(setup(['opponent'], [{ kind: 'set-battle-group', groupId: 'group-id' }]).groups().current?.token).toBe('group')
   })
 
   it('refuses to start a hidden-list game with a player outside the group', () => {
-    expect(() => setup([], [{ kind: 'set-battle-club', clubId: 'group-id' }])).toThrow('every player must be a member of the group')
+    expect(() => setup([], [{ kind: 'set-battle-group', groupId: 'group-id' }])).toThrow('every player must be a member of the group')
   })
 
   it('offers a group only when every player is a member', () => {
@@ -655,20 +655,20 @@ describe('group battles', () => {
   })
 
   it('refuses a group the opponent is not a member of', () => {
-    expect(setup([]).submit(0, { kind: 'set-battle-club', clubId: 'group-id' }).result.reason).toBe(
+    expect(setup([]).submit(0, { kind: 'set-battle-group', groupId: 'group-id' }).result.reason).toBe(
       'every player must be a member of the group',
     )
   })
 
   it('counts a tagged battle for its group', () => {
     const battle = setup(['opponent'])
-    battle.submit(0, { kind: 'set-battle-club', clubId: 'group-id' })
+    battle.submit(0, { kind: 'set-battle-group', groupId: 'group-id' })
     expect(battle.groups().current?.token).toBe('group')
   })
 
   it('stops counting a battle whose group choice is undone', () => {
     const battle = setup(['opponent'])
-    battle.submit(0, { kind: 'set-battle-club', clubId: 'group-id' })
+    battle.submit(0, { kind: 'set-battle-group', groupId: 'group-id' })
     battle.submit(1, { kind: 'undo', target: 1 })
     expect(battle.groups().current).toBeNull()
   })
@@ -707,7 +707,7 @@ describe('group leagues', () => {
           userId,
           allyIds: [],
           opponentIds: [opponentId],
-          initialCommands: [{ kind: 'set-battle-club', clubId: 'group-id' }],
+          initialCommands: [{ kind: 'set-battle-group', groupId: 'group-id' }],
           now: NOW,
           fixtureKey,
         }),
@@ -2981,5 +2981,97 @@ describe('derived standings and medals', () => {
       JSON.parse(module.claimStandingsRefresh(h.procedure(h.operator), { holder, results: '1', ratings: '1' })) as { state: string }
     claim('first')
     expect(claim('second').state).toBe('busy')
+  })
+})
+
+describe('rows stored under the previous release’s names', () => {
+  function setup() {
+    const host = harness()
+    host.call(host.operator, (ctx) => {
+      ctx.db.battles.insert({ id: 'battle', token: 'battle', createdAt: 1n })
+      ctx.db.commands.insert({
+        key: JSON.stringify(['battle', 1]),
+        battleId: 'battle',
+        seq: 1,
+        userId: 'player',
+        at: 1n,
+        body: JSON.stringify({ kind: 'set-battle-club', clubId: 'group', $sync: { operationId: 'operation' } }),
+      })
+      ctx.db.earnedAchievements.insert({
+        key: JSON.stringify(['player', 'club-night']),
+        userId: 'player',
+        achievementId: 'club-night',
+        earnedAt: 5n,
+        held: true,
+        seen: true,
+      })
+      ctx.db.userOnboardingTasks.insert({ key: JSON.stringify(['player', 'league']), userId: 'player', task: 'league', state: 'skipped' })
+      ctx.db.productRevisions.insert({ key: JSON.stringify(['player', 'clubs']), userId: 'player', scope: 'clubs', revision: 7n })
+      ctx.db.publicRevisions.insert({ scope: 'leagues', revision: 9n })
+      ctx.db.completedMigrations.insert({ name: 'leagues-to-clubs', at: 1n })
+    })
+    // Any operator call renames them first.
+    module.onboardingByUser(host.procedure(host.operator), { userId: 'player' })
+    return host
+  }
+
+  it('renames a battle-log command and keeps its sync metadata', () => {
+    const host = setup()
+    expect(host.call(host.operator, (ctx) => JSON.parse(ctx.db.commands.key.find(JSON.stringify(['battle', 1]))!.body))).toEqual({
+      kind: 'set-battle-group',
+      groupId: 'group',
+      $sync: { operationId: 'operation' },
+    })
+  })
+
+  it('renames an earned medal without announcing it again', () => {
+    const host = setup()
+    expect(host.call(host.operator, (ctx) => Array.from(ctx.db.earnedAchievements.userId.filter('player')))).toEqual([
+      {
+        key: JSON.stringify(['player', 'group-night']),
+        userId: 'player',
+        achievementId: 'group-night',
+        earnedAt: 5n,
+        held: true,
+        seen: true,
+      },
+    ])
+  })
+
+  it('renames a skipped onboarding task', () => {
+    const host = setup()
+    expect(host.call(host.operator, (ctx) => Array.from(ctx.db.userOnboardingTasks.userId.filter('player'), (row) => row.task))).toEqual([
+      'tournament',
+    ])
+  })
+
+  it('renames a player’s realtime scope with its revision', () => {
+    const host = setup()
+    expect(
+      host.call(host.operator, (ctx) => Array.from(ctx.db.productRevisions.userId.filter('player'), (row) => [row.scope, row.revision])),
+    ).toEqual([['groups', 7n]])
+  })
+
+  it('renames a public realtime scope with its revision', () => {
+    const host = setup()
+    expect(
+      host.call(host.operator, (ctx) => [
+        ctx.db.publicRevisions.scope.find('leagues'),
+        ctx.db.publicRevisions.scope.find('sealed-events')?.revision,
+      ]),
+    ).toEqual([null, 9n])
+  })
+
+  it('empties the finished migrations, so a later release can drop them', () => {
+    const host = setup()
+    expect(host.call(host.operator, (ctx) => ctx.db.completedMigrations.count())).toBe(0n)
+  })
+
+  it('answers the released server with a command by its old name', () => {
+    const host = setup()
+    expect(
+      (JSON.parse(module.battleForOperator(host.procedure(host.operator), { battleId: 'battle' })) as { log: { command: unknown }[] })
+        .log[0]?.command,
+    ).toEqual({ kind: 'set-battle-club', clubId: 'group' })
   })
 })

@@ -25,7 +25,7 @@ export function onboardingFocusStorageKey(userId: string) {
 export const storedOnboardingFocus = (userId: string): OnboardingFocus | undefined =>
   parseStored(onboardingFocusSchema, readSessionValue(onboardingFocusStorageKey(userId))) ?? undefined
 
-type OnboardingPage = 'home' | 'rosters' | 'roster' | 'friends' | 'battles' | 'battle' | 'simulator' | 'leagues' | 'league'
+type OnboardingPage = 'home' | 'rosters' | 'roster' | 'friends' | 'battles' | 'battle' | 'simulator' | 'tournaments' | 'tournament'
 
 export const onboardingStepIds = [
   'simulator-attacker',
@@ -107,7 +107,7 @@ export const FIRST_ONBOARDING_STEP: Record<OnboardingTaskId, OnboardingStepId> =
   roster: 'roster-start',
   friend: 'friend-start',
   battle: 'battle-start',
-  league: 'sealed-event-start',
+  tournament: 'sealed-event-start',
   reference: 'reference-search',
   community: 'community-public',
   simulator: 'simulator-attacker',
@@ -524,9 +524,9 @@ export const ONBOARDING_UI: Record<OnboardingStepId, OnboardingStep> = {
     next: 'battle-setup-size',
   },
   'sealed-event-start': {
-    task: 'league',
+    task: 'tournament',
     target: 'create-sealed-event',
-    page: 'leagues',
+    page: 'tournaments',
     href: '/tournaments',
     title: 'Run a tournament',
     description:
@@ -535,9 +535,9 @@ export const ONBOARDING_UI: Record<OnboardingStepId, OnboardingStep> = {
     next: 'sealed-event-name',
   },
   'sealed-event-name': {
-    task: 'league',
+    task: 'tournament',
     target: 'sealed-event-name',
-    page: 'leagues',
+    page: 'tournaments',
     href: '/tournaments',
     title: 'Name the tournament',
     description: 'Players see this on the tournaments page and on the invite you send them.',
@@ -546,9 +546,9 @@ export const ONBOARDING_UI: Record<OnboardingStepId, OnboardingStep> = {
     nextLabel: 'Next',
   },
   'sealed-event-format': {
-    task: 'league',
+    task: 'tournament',
     target: 'sealed-event-format',
-    page: 'leagues',
+    page: 'tournaments',
     href: '/tournaments',
     title: 'Format and points',
     description: 'The tournament sets its table shape and the points every roster is built to. They lock once the first roster is sealed.',
@@ -557,9 +557,9 @@ export const ONBOARDING_UI: Record<OnboardingStepId, OnboardingStep> = {
     nextLabel: 'Next',
   },
   'sealed-event-options': {
-    task: 'league',
+    task: 'tournament',
     target: 'sealed-event-options',
-    page: 'leagues',
+    page: 'tournaments',
     href: '/tournaments',
     title: 'Everything else can wait',
     description:
@@ -569,9 +569,9 @@ export const ONBOARDING_UI: Record<OnboardingStepId, OnboardingStep> = {
     nextLabel: 'Next',
   },
   'sealed-event-create': {
-    task: 'league',
+    task: 'tournament',
     target: 'sealed-event-create',
-    page: 'leagues',
+    page: 'tournaments',
     href: '/tournaments',
     title: 'Create it',
     description: 'It opens straight away, and you land on its page, where you run the tournament and play in it.',
@@ -579,9 +579,9 @@ export const ONBOARDING_UI: Record<OnboardingStepId, OnboardingStep> = {
     next: 'sealed-event-entrants',
   },
   'sealed-event-entrants': {
-    task: 'league',
+    task: 'tournament',
     target: 'sealed-event-entrants',
-    page: 'league',
+    page: 'tournament',
     href: '/tournaments',
     title: 'Your entrants',
     description: 'Requests to join wait above this list. Accepted players appear here, grouped by side or team when the format has them.',
@@ -590,9 +590,9 @@ export const ONBOARDING_UI: Record<OnboardingStepId, OnboardingStep> = {
     nextLabel: 'Next',
   },
   'sealed-event-rosters': {
-    task: 'league',
+    task: 'tournament',
     target: 'sealed-event-rosters',
-    page: 'league',
+    page: 'tournament',
     href: '/tournaments',
     title: 'Before the reveal',
     description:
@@ -602,9 +602,9 @@ export const ONBOARDING_UI: Record<OnboardingStepId, OnboardingStep> = {
     nextLabel: 'Next',
   },
   'sealed-event-reveal': {
-    task: 'league',
+    task: 'tournament',
     target: 'sealed-event-reveal',
-    page: 'league',
+    page: 'tournament',
     href: '/tournaments',
     title: 'Reveal together',
     description: 'One press opens every sealed roster at once, and entrants can start their battles from then on.',
@@ -614,9 +614,9 @@ export const ONBOARDING_UI: Record<OnboardingStepId, OnboardingStep> = {
     optional: true,
   },
   'sealed-event-status': {
-    task: 'league',
+    task: 'tournament',
     target: 'sealed-event-status',
-    page: 'league',
+    page: 'tournament',
     href: '/tournaments',
     title: 'Your own place',
     description: 'Players see this same page. This card is where you join, seal your roster, and start battles once the rosters are out.',
@@ -759,9 +759,9 @@ export function onboardingPage(pathname: string): OnboardingPage | undefined {
   if (pathname === '/rosters' || pathname === '/rosters/') return 'rosters'
   if (/^\/rosters\/[^/]+\/?$/.test(pathname)) return 'roster'
   if (pathname === '/battles' || pathname === '/battles/') return 'battles'
-  if (pathname === '/tournaments' || pathname === '/tournaments/') return 'leagues'
+  if (pathname === '/tournaments' || pathname === '/tournaments/') return 'tournaments'
   // The sample is not a tournament the tour can run on.
   if (/^\/tournaments\/sample\/?$/.test(pathname)) return undefined
-  if (/^\/tournaments\/[^/]+\/?$/.test(pathname)) return 'league'
+  if (/^\/tournaments\/[^/]+\/?$/.test(pathname)) return 'tournament'
   return undefined
 }

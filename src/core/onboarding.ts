@@ -1,4 +1,13 @@
-export const onboardingTaskIds = ['roster', 'friend', 'battle', 'league', 'reference', 'community', 'simulator', 'roster-tools'] as const
+export const onboardingTaskIds = [
+  'roster',
+  'friend',
+  'battle',
+  'tournament',
+  'reference',
+  'community',
+  'simulator',
+  'roster-tools',
+] as const
 
 export type OnboardingTaskId = (typeof onboardingTaskIds)[number]
 
@@ -9,7 +18,7 @@ export const tourTaskIds = ['reference', 'community', 'simulator', 'roster-tools
 
 type TourTaskId = (typeof tourTaskIds)[number]
 
-const factTaskIds = ['roster', 'friend', 'battle', 'league'] as const
+const factTaskIds = ['roster', 'friend', 'battle', 'tournament'] as const
 
 /** What the rest of the database already says the player has done. */
 export type OnboardingFacts = Record<(typeof factTaskIds)[number], boolean>

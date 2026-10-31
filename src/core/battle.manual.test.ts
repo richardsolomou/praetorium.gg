@@ -60,7 +60,7 @@ describe('manual tracking', () => {
     const sealed = fold(
       [ALICE, roster('Ultramarines')],
       [BOB, roster('Death Guard')],
-      [ALICE, { kind: 'lock-league-rosters', leagueToken: 'league' }],
+      [ALICE, { kind: 'lock-sealed-event-rosters', sealedEventToken: 'tournament' }],
     )
     expect(commandRefusal(sealed, ALICE, configure({ limit: null }))?.code).toBe('sealed-event-sealed')
   })

@@ -40,11 +40,11 @@ export class SealedEventService {
     input: TournamentDetails & EventRuleInput & { ownerPlays: boolean; schedule?: SealedEventSchedule },
   ) {
     const { format, rosterLimit, allowances, rounds, pointsBudget, soloPoints, allyPoints, sharedPoints, ...details } = input
-    const token = offlineIdentifier('leagueToken', randomToken)
+    const token = offlineIdentifier('tournamentToken', randomToken)
     const eventToken = offlineIdentifier('eventToken', randomToken)
     const rule = eventRule({ format, rosterLimit, allowances, rounds, pointsBudget, soloPoints, allyPoints, sharedPoints })
     const result = await this.repository.createTournament({
-      id: offlineIdentifier('leagueId', randomId),
+      id: offlineIdentifier('tournamentId', randomId),
       token,
       eventId: offlineIdentifier('eventId', randomId),
       eventToken,

@@ -252,7 +252,7 @@ test('group team rows keep their actions inside the card at narrow widths', asyn
   const { promise: historyHeld, resolve: releaseHistory } = Promise.withResolvers<void>()
   const isHistory = (url: string) => {
     const decoded = decodeURIComponent(url)
-    return decoded.includes('preview-club-game-doubles') && decoded.includes('"before"')
+    return decoded.includes('preview-group-game-doubles') && decoded.includes('"before"')
   }
   let historyStarted = false
   await page.route('**/_serverFn/**', async (route) => {
@@ -262,8 +262,8 @@ test('group team rows keep their actions inside the card at narrow widths', asyn
     }
     await route.continue()
   })
-  await page.goto('/groups/preview-club')
-  const game = page.locator('[data-hidden-list-game="preview-club-game-doubles"]')
+  await page.goto('/groups/preview-group')
+  const game = page.locator('[data-hidden-list-game="preview-group-game-doubles"]')
   await expect.poll(() => historyStarted).toBe(true)
   // A played game's lists show while its history is still loading.
   const simulation = game.getByRole('button', { name: 'Simulate against Preview Opponent', exact: true })
@@ -271,7 +271,7 @@ test('group team rows keep their actions inside the card at narrow widths', asyn
   const historyLoaded = page.waitForResponse((response) => isHistory(response.url()))
   releaseHistory()
   await historyLoaded
-  await expect(game.locator('a[href="/battles/preview-club-game-battle-doubles"]')).toBeVisible()
+  await expect(game.locator('a[href="/battles/preview-group-game-battle-doubles"]')).toBeVisible()
   await expect(simulation).toBeVisible()
   for (const width of [240, 320, 390, 768, 1280]) {
     await page.setViewportSize({ width, height: 900 })
@@ -293,7 +293,7 @@ test('group team rows keep their actions inside the card at narrow widths', asyn
     'Team 2: Preview Opponent and Preview Rival',
   )
   await simulator.getByRole('button', { name: 'Close', exact: true }).click()
-  const past = page.locator('[data-hidden-list-game="preview-club-game-duel-past"]')
+  const past = page.locator('[data-hidden-list-game="preview-group-game-duel-past"]')
   await expect(past.getByRole('button', { name: 'Simulate against Preview Opponent', exact: true })).toBeVisible()
   await expect(past.getByRole('button', { name: /^Play / })).toHaveCount(0)
   await past.getByRole('button', { name: 'Simulate against Preview Opponent', exact: true }).click()
@@ -332,17 +332,17 @@ test('a new hidden-list game replaces the previous one in another open tab', asy
 
 test('a league fixture starts its battle from the group page and links to it', async ({ page }) => {
   await signInAsPreview(page)
-  await page.goto('/groups/preview-club?tab=league', { waitUntil: 'networkidle' })
+  await page.goto('/groups/preview-group?tab=league', { waitUntil: 'networkidle' })
   await page.locator('[data-group-league]').getByRole('button', { name: 'Start battle', exact: true }).first().click()
   await page.waitForURL(/\/battles\/[^/]+$/)
   const token = lastPathSegment(page.url())
-  await page.goto('/groups/preview-club?tab=league')
+  await page.goto('/groups/preview-group?tab=league')
   await expect(page.locator(`[data-group-league] a[href="/battles/${token}"]`)).toHaveText('Setting up')
 })
 
 test('a group plays doubles with open lists from New game', async ({ page }) => {
   await signInAsPreview(page)
-  await page.goto('/groups/preview-club', { waitUntil: 'networkidle' })
+  await page.goto('/groups/preview-group', { waitUntil: 'networkidle' })
   const dialog = await openNewGame(page)
   await dialog.getByRole('button', { name: /^Doubles/ }).click()
   for (const [seat, name] of [

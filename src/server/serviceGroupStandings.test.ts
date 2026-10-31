@@ -5,11 +5,11 @@ import type { RepositoryPort } from './spacetimeRepository'
 import { PraetoriumService } from './service'
 
 const lock = (sealedEventToken: string, eventToken?: string): Command => ({
-  kind: 'lock-league-rosters',
-  leagueToken: sealedEventToken,
+  kind: 'lock-sealed-event-rosters',
+  sealedEventToken,
   eventToken,
 })
-const tagged: Command = { kind: 'set-battle-club', clubId: 'group-id' }
+const tagged: Command = { kind: 'set-battle-group', groupId: 'group-id' }
 
 function fixture({ members = [ALICE, BOB], visibility = 'private', counted = tagged, finished = true } = {}) {
   const history = {
@@ -66,7 +66,7 @@ it('leaves a player who left the group off its table', async () => {
 })
 
 it('counts only battles whose log still names the group', async () => {
-  expect(await rows(fixture({ counted: { kind: 'set-battle-club', clubId: 'another-group' } }))).toEqual([])
+  expect(await rows(fixture({ counted: { kind: 'set-battle-group', groupId: 'another-group' } }))).toEqual([])
 })
 
 it('hides a private group’s table from a non-member', async () => {

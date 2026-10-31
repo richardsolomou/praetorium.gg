@@ -164,16 +164,24 @@ describe('command schema', () => {
   })
 
   it('accepts a server-created sealed event roster lock', () => {
-    expect(commandSchema.parse({ kind: 'lock-league-rosters', leagueToken: 'league' })).toEqual({
-      kind: 'lock-league-rosters',
-      leagueToken: 'league',
+    expect(commandSchema.parse({ kind: 'lock-sealed-event-rosters', sealedEventToken: 'tournament' })).toEqual({
+      kind: 'lock-sealed-event-rosters',
+      sealedEventToken: 'tournament',
     })
   })
 
   it('accepts the event behind a sealed event roster lock', () => {
-    expect(commandSchema.parse({ kind: 'lock-league-rosters', leagueToken: 'league', eventToken: 'event' })).toEqual({
-      kind: 'lock-league-rosters',
-      leagueToken: 'league',
+    expect(commandSchema.parse({ kind: 'lock-sealed-event-rosters', sealedEventToken: 'tournament', eventToken: 'event' })).toEqual({
+      kind: 'lock-sealed-event-rosters',
+      sealedEventToken: 'tournament',
+      eventToken: 'event',
+    })
+  })
+
+  it('reads a roster lock by its previous release’s name', () => {
+    expect(commandSchema.parse({ kind: 'lock-league-rosters', leagueToken: 'tournament', eventToken: 'event' })).toEqual({
+      kind: 'lock-sealed-event-rosters',
+      sealedEventToken: 'tournament',
       eventToken: 'event',
     })
   })

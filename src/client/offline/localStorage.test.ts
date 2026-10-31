@@ -47,17 +47,51 @@ afterEach(() => {
   native.reads = 0
   vi.unstubAllGlobals()
 })
+it('renames work saved under the previous release’s names', async () => {
+  const id = crypto.randomUUID()
+  disk.set(`work:${owner}`, {
+    epoch: 'generation',
+    state: {
+      ...emptyLocalState(owner),
+      epoch: 'generation',
+      operations: [
+        {
+          id,
+          resource: 'league:tournament',
+          kind: 'createLeague',
+          input: { input: {}, identifiers: { leagueToken: 'token' } },
+          createdAt: 1,
+          status: 'pending',
+        },
+      ],
+      documents: { 'battle:battle': { data: { log: [{ command: { kind: 'set-battle-club', clubId: 'group' } }] }, serverVersion: 1 } },
+    },
+  })
+  expect(await localStateStorage(owner).read()).toMatchObject({
+    operations: [
+      { id, resource: 'sealed-event:tournament', kind: 'createSealedEvent', input: { identifiers: { tournamentToken: 'token' } } },
+    ],
+    documents: { 'battle:battle': { data: { log: [{ command: { kind: 'set-battle-group', groupId: 'group' } }] } } },
+  })
+})
 it.each(['browser', 'native'])('drops a queued event saved before hosts from %s storage, keeping its action', async (surface) => {
   const legacy: LocalState = {
     ...emptyLocalState(owner),
     epoch: 'saved',
     revision: 7,
     operations: [
-      { id: crypto.randomUUID(), resource: 'league:tournament', kind: 'createLeague', input: {}, createdAt: 1, status: 'pending' },
+      {
+        id: crypto.randomUUID(),
+        resource: 'sealed-event:tournament',
+        kind: 'createSealedEvent',
+        input: {},
+        createdAt: 1,
+        status: 'pending',
+      },
     ],
     documents: {
-      'league:tournament': { data: { token: 'tournament', entries: [] }, serverVersion: null },
-      'league:deleted': { data: null, serverVersion: null },
+      'sealed-event:tournament': { data: { token: 'tournament', entries: [] }, serverVersion: null },
+      'sealed-event:deleted': { data: null, serverVersion: null },
       'roster:roster': { data: 'Saved army', serverVersion: 1 },
     },
   }
@@ -68,7 +102,7 @@ it.each(['browser', 'native'])('drops a queued event saved before hosts from %s 
   const storage = localStateStorage(owner)
   await storage.read()
   await storage.change((state) => ({ ...state }))
-  const { 'league:tournament': _dropped, ...documents } = legacy.documents
+  const { 'sealed-event:tournament': _dropped, ...documents } = legacy.documents
   expect(await localStateStorage(owner).read()).toEqual({ ...legacy, revision: 8, documents })
 })
 it('returns the same empty account generation until its first write', async () => {

@@ -159,7 +159,7 @@ describe('sealedEvent creation input', () => {
   })
 
   it('leaves the event rule alone when an update does not name one', () => {
-    expect(updateSealedEventSchema.parse({ ...sealedEvent, token: 'league', description: '', playerLimit: null })).not.toHaveProperty(
+    expect(updateSealedEventSchema.parse({ ...sealedEvent, token: 'tournament', description: '', playerLimit: null })).not.toHaveProperty(
       'rule',
     )
   })
@@ -169,7 +169,7 @@ describe('sealedEvent creation input', () => {
   })
 
   it('refuses an update carrying only some of a tournament’s details', () => {
-    expect(updateSealedEventSchema.safeParse({ token: 'league', name: 'Autumn tournament' }).success).toBe(false)
+    expect(updateSealedEventSchema.safeParse({ token: 'tournament', name: 'Autumn tournament' }).success).toBe(false)
   })
 
   it('refuses Swiss rounds for a group’s hidden-list game', () => {
@@ -177,7 +177,7 @@ describe('sealedEvent creation input', () => {
   })
 
   it('refuses a solo player’s points at a doubles event', () => {
-    const details = { ...sealedEvent, token: 'league', description: '', playerLimit: null }
+    const details = { ...sealedEvent, token: 'tournament', description: '', playerLimit: null }
     expect(updateSealedEventSchema.safeParse({ ...details, rule: { format: '2v2', rosterLimit: 2_000, soloPoints: 1_000 } }).success).toBe(
       false,
     )
@@ -186,7 +186,7 @@ describe('sealedEvent creation input', () => {
   it('accepts all four doubles seats', () => {
     expect(
       createSealedEventBattleSchema.safeParse({
-        token: 'league',
+        token: 'tournament',
         opponentId: 'solo',
         allyId: 'ally',
         secondOpponentId: 'other-ally',
@@ -200,15 +200,17 @@ describe('sealedEvent creation input', () => {
 
   it('requires the sealed event token when editing the same fields', () => {
     expect(updateSealedEventSchema.safeParse({ ...sealedEvent, description: '', playerLimit: null }).success).toBe(false)
-    expect(updateSealedEventSchema.safeParse({ ...sealedEvent, token: 'league', description: '', playerLimit: null }).success).toBe(true)
+    expect(updateSealedEventSchema.safeParse({ ...sealedEvent, token: 'tournament', description: '', playerLimit: null }).success).toBe(
+      true,
+    )
   })
 
   it('requires an explicit description when editing', () => {
-    expect(updateSealedEventSchema.safeParse({ ...sealedEvent, token: 'league', playerLimit: null }).success).toBe(false)
+    expect(updateSealedEventSchema.safeParse({ ...sealedEvent, token: 'tournament', playerLimit: null }).success).toBe(false)
   })
 
   it('requires an explicit player limit when editing', () => {
-    expect(updateSealedEventSchema.safeParse({ ...sealedEvent, token: 'league', description: '' }).success).toBe(false)
+    expect(updateSealedEventSchema.safeParse({ ...sealedEvent, token: 'tournament', description: '' }).success).toBe(false)
   })
 })
 

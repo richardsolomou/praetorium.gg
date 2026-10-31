@@ -1,7 +1,7 @@
 import { expect, test } from './test'
 import { retryUntilVisible } from './account'
 
-for (const token of ['preview-casual-strike-force', 'preview-league-battle-duel']) {
+for (const token of ['preview-casual-strike-force', 'preview-tournament-battle-duel']) {
   test(`spectators inspect army loadouts in ${token}`, async ({ page }) => {
     await page.goto(`/battles/${token}`)
     for (const width of [1440, 390]) {

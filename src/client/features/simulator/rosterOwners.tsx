@@ -17,7 +17,7 @@ type FriendSealedEventRoster = {
 
 /** A friend's sealed list as the simulator links to it. */
 export const friendSealedEventSource = ({ sealedEventToken: token, eventToken, userId }: FriendSealedEventRoster) => ({
-  league: { token, eventToken, userId },
+  sealedEvent: { token, eventToken, userId },
 })
 
 /** A friend's sealed list named by list, player and tournament. */
@@ -37,8 +37,8 @@ type KnownRosters = {
  */
 export function rosterOwner(source: SimulatorRosterSource | undefined, known: KnownRosters): RosterOwner | undefined {
   if (!source) return undefined
-  if ('league' in source) {
-    const friend = known.people.find((candidate) => candidate.id === source.league.userId)
+  if ('sealedEvent' in source) {
+    const friend = known.people.find((candidate) => candidate.id === source.sealedEvent.userId)
     return friend ? { name: friend.name, image: friend.image } : undefined
   }
   if (known.me && known.saved.some((roster) => roster.id === source.id)) return known.me

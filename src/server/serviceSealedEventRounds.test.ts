@@ -19,7 +19,7 @@ async function pairRound(result: string) {
     entries: ['organizer', 'bob', 'carol'].map((userId) => ({ userId, status: 'accepted', submitted: true })),
   } as never)
   vi.spyOn(service, 'sealedEventBattles').mockResolvedValue({ battles: [], nextCursor: null })
-  await service.pairSealedEventRound('league', 'event', 'organizer').catch(() => {})
+  await service.pairSealedEventRound('tournament', 'event', 'organizer').catch(() => {})
   return notify
 }
 
@@ -29,7 +29,7 @@ it('tells every seated player, the bye included, that the round is paired', asyn
       kind: 'sealed-event-round-paired',
       actorId: 'organizer',
       recipientIds: ['organizer', 'bob', 'carol'],
-      sealedEventToken: 'league',
+      sealedEventToken: 'tournament',
       eventToken: 'event',
       round: 1,
     },

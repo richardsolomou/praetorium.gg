@@ -6,12 +6,12 @@ test('the full replay preloads before scrubbing', async ({ page }) => {
   let singleRequests = 0
   page.on('requestfinished', (request) => {
     const payload = new URL(request.url()).searchParams.get('payload')
-    if (payload?.includes('"preview-league-battle-duel"')) {
+    if (payload?.includes('"preview-tournament-battle-duel"')) {
       if (payload.includes('"seqs"')) replayRequests++
       if (payload.includes('"seq"')) singleRequests++
     }
   })
-  await page.goto('/battles/preview-league-battle-duel')
+  await page.goto('/battles/preview-tournament-battle-duel')
 
   await expect.poll(() => replayRequests).toBe(4)
   const timeline = page.getByRole('navigation', { name: 'Battle replay timeline' })
@@ -23,7 +23,7 @@ test('the full replay preloads before scrubbing', async ({ page }) => {
 })
 
 test('a long battle report does not extend the page past its footer', async ({ page }) => {
-  await page.goto('/battles/preview-league-battle-duel')
+  await page.goto('/battles/preview-tournament-battle-duel')
   const report = page.locator('[data-battle-report-scroll]')
   await expect(report).toBeVisible()
 
@@ -58,7 +58,7 @@ test('dragging the replay timeline on a phone changes the event without scrollin
   const context = await browser.newContext({ viewport: PHONE, isMobile: true, hasTouch: true })
   try {
     const page = await context.newPage()
-    await page.goto('/battles/preview-league-battle-duel')
+    await page.goto('/battles/preview-tournament-battle-duel')
     const slider = page.getByRole('slider', { name: 'Replay event' })
     await rewind(slider)
     await slider.press('End')
@@ -107,7 +107,7 @@ test('dragging the replay timeline on a phone changes the event without scrollin
 })
 
 test('a spectator scrubs a finished five-round battle by event', async ({ page }) => {
-  await page.goto('/battles/preview-league-battle-duel')
+  await page.goto('/battles/preview-tournament-battle-duel')
 
   const timeline = page.getByRole('navigation', { name: 'Battle replay timeline' })
   await expect(timeline).toBeVisible()
@@ -138,7 +138,7 @@ test('a spectator scrubs a finished five-round battle by event', async ({ page }
 
 test('the native app keeps the replay timeline above the application tabs', async ({ page }) => {
   await page.setViewportSize(PHONE)
-  await page.goto('/battles/preview-league-battle-duel')
+  await page.goto('/battles/preview-tournament-battle-duel')
   await page.evaluate(() => {
     document.documentElement.dataset.nativeApp = 'true'
   })

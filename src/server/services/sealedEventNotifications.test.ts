@@ -15,15 +15,15 @@ describe('sealedEvent notifications', () => {
       .mockResolvedValueOnce('pending')
     const { sealedEvent, notify } = service({ joinSealedEvent })
 
-    expect(await sealedEvent.joinSealedEvent('league', 'player', 'event')).toBe('pending')
-    await sealedEvent.joinSealedEvent('league', 'player', 'event')
+    expect(await sealedEvent.joinSealedEvent('tournament', 'player', 'event')).toBe('pending')
+    await sealedEvent.joinSealedEvent('tournament', 'player', 'event')
 
     expect(notify).toHaveBeenCalledExactlyOnceWith([
       {
         kind: 'sealed-event-entry-requested',
         actorId: 'player',
         recipientIds: ['owner', 'admin'],
-        sealedEventToken: 'league',
+        sealedEventToken: 'tournament',
         eventToken: 'event',
       },
     ])
@@ -34,18 +34,30 @@ describe('sealedEvent notifications', () => {
       moderateSealedEventEntry: vi.fn().mockResolvedValue({ rejected: true, resealIds: ['teammate'] }),
     })
 
-    await sealedEvent.moderateSealedEventEntry('league', 'owner', 'player', 'rejected', 'event')
+    await sealedEvent.moderateSealedEventEntry('tournament', 'owner', 'player', 'rejected', 'event')
 
     expect(notify).toHaveBeenCalledExactlyOnceWith([
-      { kind: 'sealed-event-entry-rejected', actorId: 'owner', recipientIds: ['player'], sealedEventToken: 'league', eventToken: 'event' },
-      { kind: 'sealed-event-roster-reseal', actorId: 'owner', recipientIds: ['teammate'], sealedEventToken: 'league', eventToken: 'event' },
+      {
+        kind: 'sealed-event-entry-rejected',
+        actorId: 'owner',
+        recipientIds: ['player'],
+        sealedEventToken: 'tournament',
+        eventToken: 'event',
+      },
+      {
+        kind: 'sealed-event-roster-reseal',
+        actorId: 'owner',
+        recipientIds: ['teammate'],
+        sealedEventToken: 'tournament',
+        eventToken: 'event',
+      },
     ])
   })
 
   it('does not repeat a rejection notice', async () => {
     const { sealedEvent, notify } = service({ moderateSealedEventEntry: vi.fn().mockResolvedValue({ rejected: false, resealIds: [] }) })
 
-    await sealedEvent.moderateSealedEventEntry('league', 'owner', 'player', 'rejected', 'event')
+    await sealedEvent.moderateSealedEventEntry('tournament', 'owner', 'player', 'rejected', 'event')
 
     expect(notify).not.toHaveBeenCalled()
   })
@@ -56,8 +68,8 @@ describe('sealedEvent notifications', () => {
       assignSealedEventTeam: vi.fn().mockResolvedValue({ resealIds: ['player', 'former-teammate'] }),
     })
 
-    await sealedEvent.assignSealedEventRosterRequirement('league', 'owner', 'player', 1_000, 'event')
-    await sealedEvent.assignSealedEventTeam('league', 'owner', ['player', 'new-teammate'], 'event')
+    await sealedEvent.assignSealedEventRosterRequirement('tournament', 'owner', 'player', 1_000, 'event')
+    await sealedEvent.assignSealedEventTeam('tournament', 'owner', ['player', 'new-teammate'], 'event')
 
     expect(notify.mock.calls.map(([notices]) => notices[0].recipientIds)).toEqual([['player'], ['player', 'former-teammate']])
   })
@@ -68,8 +80,8 @@ describe('sealedEvent notifications', () => {
       assignSealedEventTeam: vi.fn().mockResolvedValue({ resealIds: [] }),
     })
 
-    await sealedEvent.assignSealedEventRosterRequirement('league', 'owner', 'player', 1_000)
-    await sealedEvent.assignSealedEventTeam('league', 'owner', ['player', 'teammate'])
+    await sealedEvent.assignSealedEventRosterRequirement('tournament', 'owner', 'player', 1_000)
+    await sealedEvent.assignSealedEventTeam('tournament', 'owner', ['player', 'teammate'])
 
     expect(notify).not.toHaveBeenCalled()
   })
@@ -80,8 +92,8 @@ describe('sealedEvent notifications', () => {
       assignSealedEventTeam: vi.fn().mockResolvedValue('updated'),
     })
 
-    expect(await sealedEvent.assignSealedEventRosterRequirement('league', 'owner', 'player', 1_000)).toEqual({ requiredLimit: 1_000 })
-    expect(await sealedEvent.assignSealedEventTeam('league', 'owner', ['player', 'teammate'])).toEqual({ teamSize: 2 })
+    expect(await sealedEvent.assignSealedEventRosterRequirement('tournament', 'owner', 'player', 1_000)).toEqual({ requiredLimit: 1_000 })
+    expect(await sealedEvent.assignSealedEventTeam('tournament', 'owner', ['player', 'teammate'])).toEqual({ teamSize: 2 })
     expect(notify).not.toHaveBeenCalled()
   })
 })

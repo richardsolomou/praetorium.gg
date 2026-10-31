@@ -918,10 +918,10 @@ export type Command =
   | ({ kind: 'attach-roster'; roster: Roster; prep?: BattlePrep | null; painted?: boolean } & OnBehalfOf)
   | ({ kind: 'detach-roster' } & OnBehalfOf)
   /** The group whose table this battle counts on, by internal id since every battle is public and a group's token is its invite. */
-  | { kind: 'set-battle-club'; clubId: string | null }
+  | { kind: 'set-battle-group'; groupId: string | null }
   | {
-      kind: 'lock-league-rosters'
-      leagueToken: string
+      kind: 'lock-sealed-event-rosters'
+      sealedEventToken: string
       eventToken?: string
       /** Each allied side's card, sealed with the event's rosters so it cannot be chosen after seeing the opponent's list. */
       dispositions?: { side: number; disposition: string }[]
@@ -1351,7 +1351,7 @@ export function applyEntry(state: BattleState, entry: LoggedCommand) {
       player.cpByMoment[order] = { fewest, last: player.cp }
     }
   }
-  if (entry.command.kind === 'begin-battle' || entry.command.kind === 'lock-league-rosters') state.undoable = null
+  if (entry.command.kind === 'begin-battle' || entry.command.kind === 'lock-sealed-event-rosters') state.undoable = null
   else if (
     ![
       'settle-opponent-turn',
@@ -1602,15 +1602,15 @@ export function commandRefusal(state: BattleState, by: PlayerId, command: Comman
       if (!player.roster) return refuse('no-roster', 'that seat has no army')
       return null
     }
-    case 'set-battle-club':
+    case 'set-battle-group':
       if (state.status !== 'setup') return refuse('battle-started', 'the battle has started')
-      if (command.clubId === null) return null
+      if (command.groupId === null) return null
       if (state.sealedEventToken) return refuse('group-ineligible', 'this battle already counts for its event')
       if (state.settings.manual) return refuse('group-ineligible', 'a manually tracked battle cannot count for a group')
       if (state.players.some((candidate) => isGuestSeat(candidate.id) || isPracticeSeat(candidate)))
         return refuse('group-ineligible', 'only members playing each other can count for a group')
       return null
-    case 'lock-league-rosters':
+    case 'lock-sealed-event-rosters':
       if (state.status !== 'setup') return refuse('battle-started', 'the battle has started')
       if (state.sealedEventToken) return refuse('sealed-event-sealed', 'the rosters are already sealed')
       if (!state.players.every((candidate) => candidate.roster)) return refuse('missing-roster', 'every player needs a sealed roster')
@@ -2139,11 +2139,11 @@ function apply(state: BattleState, by: PlayerId, command: Command, seq: number) 
       inferBattleSize(state)
       return
     }
-    case 'set-battle-club':
-      state.groupId = command.clubId
+    case 'set-battle-group':
+      state.groupId = command.groupId
       return
-    case 'lock-league-rosters': {
-      state.sealedEventToken = command.leagueToken
+    case 'lock-sealed-event-rosters': {
+      state.sealedEventToken = command.sealedEventToken
       state.eventToken = command.eventToken ?? null
       if (command.dispositions) {
         for (const { side, disposition } of command.dispositions) state.sideDispositions[side] = disposition

@@ -22,5 +22,5 @@ it('refuses to pair a round from a partial read of the event’s battles', async
     () => 10,
     () => 0,
   )
-  await expect(service.pairSealedEventRound('league', 'event', ALICE)).rejects.toMatchObject({ status: 409 })
+  await expect(service.pairSealedEventRound('tournament', 'event', ALICE)).rejects.toMatchObject({ status: 409 })
 })

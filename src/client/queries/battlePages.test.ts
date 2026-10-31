@@ -12,7 +12,7 @@ describe.each([
   { name: 'friend battles', options: friendBattlesQuery, request: 'friendBattles' as const, rows: battlesFrom },
   {
     name: 'sealedEvent battles',
-    options: () => sealedEventBattlesQuery('league', 'event'),
+    options: () => sealedEventBattlesQuery('tournament', 'event'),
     request: 'listSealedEventBattles' as const,
     rows: battlesFrom,
   },

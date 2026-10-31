@@ -54,7 +54,7 @@ it.each(['preview', 'released', 'retired'] as const)('queues a saved %s sealed e
   vi.stubGlobal('navigator', { onLine: false })
   await submitSealedEventRoster({ data: { token: 'tournament', rosterId: saved.id } })
   expect(runtime.queue).toHaveBeenCalledWith(
-    'submitLeagueRoster',
+    'submitSealedEventRoster',
     {
       input: {
         token: 'tournament',
@@ -64,7 +64,7 @@ it.each(['preview', 'released', 'retired'] as const)('queues a saved %s sealed e
       },
       identifiers: {},
     },
-    'league:tournament',
+    'sealed-event:tournament',
     { dependencies: ['roster:roster'], owner: 'alice' },
   )
 })

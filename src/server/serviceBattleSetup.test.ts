@@ -94,7 +94,7 @@ function groupService(memberIds: string[]) {
 it('starts a group game against a member who is not a friend', async () => {
   const { service, createBattle } = groupService(['actor', 'stranger'])
   await service.createBattle('actor', { opponentId: 'stranger', missionPackId: null, groupToken: 'group' })
-  expect(createBattle.mock.calls[0]?.[0]?.initialCommands.at(-1)).toEqual({ kind: 'set-battle-club', clubId: 'group-id' })
+  expect(createBattle.mock.calls[0]?.[0]?.initialCommands.at(-1)).toEqual({ kind: 'set-battle-group', groupId: 'group-id' })
 })
 
 it('refuses a group game against someone outside the group', async () => {

@@ -13,7 +13,7 @@ export function CreateSealedEvent() {
         data-onboarding="create-sealed-event"
         onClick={() => {
           posthog.capture('sealed_event_creation_started')
-          advanceOnboarding('league', 'sealed-event-start', 'sealed-event-name')
+          advanceOnboarding('tournament', 'sealed-event-start', 'sealed-event-name')
           setOpen(true)
         }}
       >

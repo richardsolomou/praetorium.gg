@@ -34,7 +34,7 @@ export function SealedEventIndex() {
         description="One-off tournaments where everyone seals a list in secret, then the lists are revealed together."
         actions={
           <>
-            {me ? <GuideHelp task="league">Tournament guide</GuideHelp> : null}
+            {me ? <GuideHelp task="tournament">Tournament guide</GuideHelp> : null}
             <SampleLink />
             {me ? <CreateSealedEvent /> : null}
           </>

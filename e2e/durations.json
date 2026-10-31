@@ -39,7 +39,7 @@
   "app-cache.spec.ts › sign-out finishes when saved-device storage is unavailable": 7.7,
   "army-loadout.spec.ts › an unavailable loadout leaves the frozen army readable": 9.3,
   "army-loadout.spec.ts › spectators inspect army loadouts in preview-casual-strike-force": 4.1,
-  "army-loadout.spec.ts › spectators inspect army loadouts in preview-league-battle-duel": 4.5,
+  "army-loadout.spec.ts › spectators inspect army loadouts in preview-tournament-battle-duel": 4.5,
   "army-roster.spec.ts › a multi-wound model is tracked in wounds, and losing them all takes the model": 14.8,
   "army-roster.spec.ts › an army is read and its losses recorded without leaving the battle": 32.9,
   "battle-map.spec.ts › players and spectators open the saved battlefield as a full-board map": 27.3,

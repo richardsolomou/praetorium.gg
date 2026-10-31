@@ -90,7 +90,7 @@ export const sealedEventResults = createServerFn({ method: 'GET' })
 
 export const createSealedEvent = createServerFn({ method: 'POST' })
   .validator(createSealedEventSchema)
-  .handler(({ data }) => signedInAction(productActions.createLeague, data))
+  .handler(({ data }) => signedInAction(productActions.createSealedEvent, data))
 
 export const createHiddenListGame = createServerFn({ method: 'POST' })
   .validator(createHiddenListGameSchema)
@@ -108,35 +108,35 @@ export const createHiddenListGame = createServerFn({ method: 'POST' })
 
 export const joinSealedEvent = createServerFn({ method: 'POST' })
   .validator(sealedEventSchema)
-  .handler(({ data }) => signedInAction(productActions.joinLeague, data))
+  .handler(({ data }) => signedInAction(productActions.joinSealedEvent, data))
 
 export const addSealedEventEntrants = createServerFn({ method: 'POST' })
   .validator(addSealedEventEntrantsSchema)
-  .handler(({ data }) => signedInAction(productActions.addLeagueEntrants, data))
+  .handler(({ data }) => signedInAction(productActions.addSealedEventEntrants, data))
 
 export const admitSealedEventEntries = createServerFn({ method: 'POST' })
   .validator(admitSealedEventEntriesSchema)
-  .handler(({ data }) => signedInAction(productActions.admitLeagueEntries, data))
+  .handler(({ data }) => signedInAction(productActions.admitSealedEventEntries, data))
 
 export const moderateSealedEventEntry = createServerFn({ method: 'POST' })
   .validator(moderateSealedEventEntrySchema)
-  .handler(({ data }) => signedInAction(productActions.moderateLeagueEntry, data))
+  .handler(({ data }) => signedInAction(productActions.moderateSealedEventEntry, data))
 
 export const submitSealedEventRoster = createServerFn({ method: 'POST' })
   .validator(submitSealedEventRosterSchema)
-  .handler(({ data }) => signedInAction(productActions.submitLeagueRoster, data))
+  .handler(({ data }) => signedInAction(productActions.submitSealedEventRoster, data))
 
 export const setSealedEventTeamDisposition = createServerFn({ method: 'POST' })
   .validator(setSealedEventTeamDispositionSchema)
-  .handler(({ data }) => signedInAction(productActions.setLeagueTeamDisposition, data))
+  .handler(({ data }) => signedInAction(productActions.setSealedEventTeamDisposition, data))
 
 export const setSealedEventTeamWarlord = createServerFn({ method: 'POST' })
   .validator(setSealedEventTeamWarlordSchema)
-  .handler(({ data }) => signedInAction(productActions.setLeagueTeamWarlord, data))
+  .handler(({ data }) => signedInAction(productActions.setSealedEventTeamWarlord, data))
 
 export const revealSealedEvent = createServerFn({ method: 'POST' })
   .validator(sealedEventSchema)
-  .handler(({ data }) => signedInAction(productActions.revealLeague, data))
+  .handler(({ data }) => signedInAction(productActions.revealSealedEvent, data))
 
 export const remindSealedEventEntrants = createServerFn({ method: 'POST' })
   .validator(sealedEventSchema)
@@ -205,23 +205,23 @@ export const dismissSealedEventRosterSharing = createServerFn({ method: 'POST' }
 
 export const unsealSealedEventRoster = createServerFn({ method: 'POST' })
   .validator(sealedEventRosterSchema)
-  .handler(({ data }) => signedInAction(productActions.unsealLeagueRoster, data))
+  .handler(({ data }) => signedInAction(productActions.unsealSealedEventRoster, data))
 
 export const assignSealedEventRosterRequirement = createServerFn({ method: 'POST' })
   .validator(assignSealedEventRosterRequirementSchema)
-  .handler(({ data }) => signedInAction(productActions.assignLeagueRosterRequirement, data))
+  .handler(({ data }) => signedInAction(productActions.assignSealedEventRosterRequirement, data))
 
 export const assignSealedEventTeam = createServerFn({ method: 'POST' })
   .validator(assignSealedEventTeamSchema)
-  .handler(({ data }) => signedInAction(productActions.assignLeagueTeam, data))
+  .handler(({ data }) => signedInAction(productActions.assignSealedEventTeam, data))
 
 export const chooseSealedEventSide = createServerFn({ method: 'POST' })
   .validator(chooseSealedEventSideSchema)
-  .handler(({ data }) => signedInAction(productActions.chooseLeagueSide, data))
+  .handler(({ data }) => signedInAction(productActions.chooseSealedEventSide, data))
 
 export const updateSealedEvent = createServerFn({ method: 'POST' })
   .validator(updateSealedEventSchema)
-  .handler(({ data }) => signedInAction(productActions.updateLeague, data))
+  .handler(({ data }) => signedInAction(productActions.updateSealedEvent, data))
 
 export const setSealedEventAdmins = createServerFn({ method: 'POST' })
   .validator(setSealedEventAdminsSchema)
@@ -236,11 +236,11 @@ export const setSealedEventAdmins = createServerFn({ method: 'POST' })
 
 export const deleteSealedEvent = createServerFn({ method: 'POST' })
   .validator(tokenSchema)
-  .handler(({ data }) => signedInAction(productActions.deleteLeague, data))
+  .handler(({ data }) => signedInAction(productActions.deleteSealedEvent, data))
 
 export const createSealedEventBattle = createServerFn({ method: 'POST' })
   .validator(createSealedEventBattleSchema)
-  .handler(({ data }) => signedInAction(productActions.createLeagueBattle, data))
+  .handler(({ data }) => signedInAction(productActions.createSealedEventBattle, data))
 
 export const dropSealedEventEntrant = createServerFn({ method: 'POST' })
   .validator(sealedEventRosterSchema)

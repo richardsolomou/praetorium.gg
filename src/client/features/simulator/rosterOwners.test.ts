@@ -18,7 +18,10 @@ describe('whose roster a simulator side comes from', () => {
   })
 
   it('is the friend for their sealed list, whether or not the simulator still lists it', () => {
-    expect(rosterOwner({ league: { token: 'league', eventToken: 'event', userId: 'cy' } }, known)).toEqual({ name: 'Cy', image: null })
+    expect(rosterOwner({ sealedEvent: { token: 'tournament', eventToken: 'event', userId: 'cy' } }, known)).toEqual({
+      name: 'Cy',
+      image: null,
+    })
   })
 
   it('is unknown for a roster opened by link or a catalogue unit', () => {

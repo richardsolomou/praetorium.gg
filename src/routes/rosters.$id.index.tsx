@@ -15,15 +15,15 @@ export const Route = createFileRoute('/rosters/$id/')({
   // A battle token is what lets an entitled battle reader open a list that is otherwise private.
   validateSearch: (
     search: Record<string, unknown>,
-  ): { battle?: string; league?: string; event?: string; print?: boolean; add?: string } => ({
+  ): { battle?: string; sealedEvent?: string; event?: string; print?: boolean; add?: string } => ({
     battle: searchText(search.battle),
     ...requestedDatasheetSearch(search),
-    // `league` names a sealed event's host, as links already shared spell it.
-    league: searchText(search.league),
+    // Links shared before sealed events had their name spell the host `league`.
+    sealedEvent: searchText(search.sealedEvent) ?? searchText(search.league),
     event: searchText(search.event),
     ...(searchFlag(search.print) ? { print: true } : {}),
   }),
-  loaderDeps: ({ search }) => ({ battle: search.battle, sealedEvent: search.league, event: search.event }),
+  loaderDeps: ({ search }) => ({ battle: search.battle, sealedEvent: search.sealedEvent, event: search.event }),
   loader: async ({ context, params, deps, preload }) => ({
     ...(await loadRoster(context.queryClient, params.id, deps, preload)),
     // Read by the server too, so the first frame is already arranged the way the player left it.
@@ -50,7 +50,7 @@ export const Route = createFileRoute('/rosters/$id/')({
 
 function RosterRoute() {
   const { id } = Route.useParams()
-  const { battle, league: sealedEvent, event, print, add } = Route.useSearch()
+  const { battle, sealedEvent, event, print, add } = Route.useSearch()
   const { editable, snapshot, sealedEvent: sealedEventSnapshot, onDevice, guestDraft } = Route.useLoaderData()
   const requested = useRequestedDatasheet(add)
   if (guestDraft) return <GuestDraftRoster print={print} requested={requested} />

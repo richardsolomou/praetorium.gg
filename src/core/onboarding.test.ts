@@ -8,7 +8,7 @@ import {
   type StoredOnboarding,
 } from './onboarding'
 
-const NOTHING_DONE: OnboardingFacts = { roster: false, friend: false, battle: false, league: false }
+const NOTHING_DONE: OnboardingFacts = { roster: false, friend: false, battle: false, tournament: false }
 const NOTHING_STORED: StoredOnboarding = { welcomed: false, tasks: [] }
 
 it('completes a task the player has already done', () => {
@@ -24,9 +24,9 @@ it('stops reporting a skip once the player does the thing anyway', () => {
 })
 
 it('keeps a skip of a task the player has not done', () => {
-  const stored: StoredOnboarding = { welcomed: false, tasks: [{ task: 'league', state: 'skipped' }] }
+  const stored: StoredOnboarding = { welcomed: false, tasks: [{ task: 'tournament', state: 'skipped' }] }
 
-  expect(onboardingProgress(stored, NOTHING_DONE).skippedTasks).toEqual(['league'])
+  expect(onboardingProgress(stored, NOTHING_DONE).skippedTasks).toEqual(['tournament'])
 })
 
 it('completes a tour nothing else records', () => {
@@ -77,7 +77,7 @@ it('keeps onboarding available while the first matchup is unresolved', () => {
   expect(
     onboardingComplete({
       completedTasks: ['roster', 'friend', 'battle'],
-      skippedTasks: ['league', 'reference'],
+      skippedTasks: ['tournament', 'reference'],
       welcomed: true,
     }),
   ).toBe(false)

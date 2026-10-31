@@ -259,7 +259,7 @@ const EMBLEMS: Record<AchievementMetric, ReactNode> = {
       <path d="M38 37h8M42 33l4 4-4 4" {...stroke} strokeWidth="2.2" />
     </>
   ),
-  'club-battles': (
+  'group-battles': (
     <>
       <path d="M21 19h22v11c0 7-4.9 11.6-11 14-6.1-2.4-11-7-11-14Z" />
       <path d="m26 25 12 12M38 25 26 37" stroke="var(--color-sunken)" strokeWidth="2.4" strokeLinecap="round" />
