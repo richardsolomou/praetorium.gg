@@ -48,7 +48,8 @@ export async function readPart(asset: string, limit: number, network: boolean): 
 /** Stores a published part as its compressed response, without decoding it, unless the device already holds it. */
 export async function storePart(asset: string, signal: AbortSignal) {
   const store = await openStore()
-  if (await store.match(asset, { ignoreVary: true })) return
+  // `keys` rather than `match`: WebKit copies a matched response's whole body into the page's process.
+  if ((await store.keys(asset, { ignoreVary: true })).length) return
   const response = await fetch(asset, { credentials: 'omit', signal: withTimeout(signal, 60_000) })
   if (!response.ok) throw new Error('The reference download is unavailable')
   await store.put(asset, response)

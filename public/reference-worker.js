@@ -9,14 +9,16 @@ self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET' || event.request.mode !== 'navigate' || url.origin !== self.location.origin) return
   event.respondWith(
     (async () => {
-      const saved =
-        (await (await caches.open(REFERENCE_CACHE)).match('/offline-reference.html')) ??
-        (await (await caches.open(LEGACY_REFERENCE_CACHE)).match('/offline-reference.html'))
       try {
         return await fetch(event.request, { cache: 'no-store', signal: AbortSignal.timeout(5000) })
       } catch {
+        // Read only once the network fails: WebKit copies a matched response's whole body into memory.
+        const saved =
+          !HOSTED_PATH.test(url.pathname) &&
+          ((await (await caches.open(REFERENCE_CACHE)).match('/offline-reference.html')) ??
+            (await (await caches.open(LEGACY_REFERENCE_CACHE)).match('/offline-reference.html')))
         return (
-          (!HOSTED_PATH.test(url.pathname) && saved) ||
+          saved ||
           new Response('Connect to save the reference before using it offline.', { status: 503, headers: { 'Content-Type': 'text/plain' } })
         )
       }
