@@ -1,9 +1,9 @@
-import { leagueBattleOptions, savedAbilityReminders } from './actionFunctions'
+import { sealedEventBattleOptions, savedAbilityReminders } from './actionFunctions'
 import { OfflineRefusal } from './offlineRefusal'
 import { fieldingReminders } from '../../shared/reminderAbilities'
 import { compactReplayFrames } from '../../core/replayFrames'
 import { REPLAY_BATCH_SIZE } from '../../contracts/battles'
-import { buildLeagueBattle, openPairing } from '../../shared/leagueBattle'
+import { buildSealedEventBattle, openPairing } from '../../shared/sealedEventBattle'
 import { battleSummary } from '../../shared/battleSummary'
 import type * as Server from '../../server/functions'
 import * as server from '../../server/functions'
@@ -347,12 +347,12 @@ export async function replayBattleBatch(args: Parameters<typeof server.replayBat
 
 export async function createBattle(args: Parameters<typeof server.createBattle>[0]): ReturnType<typeof server.createBattle> {
   const owner = localOwner()
-  // A club game needs the server to check its players are members, so it is never started on the device alone.
-  if (!localEngine() || !owner || !localConstruction() || args.data.clubToken) return server.createBattle(args)
+  // A group game needs the server to check its players are members, so it is never started on the device alone.
+  if (!localEngine() || !owner || !localConstruction() || args.data.groupToken) return server.createBattle(args)
   const input = createBattleSchema.parse(args.data)
   const guestNames = input.guestNames ?? []
   if (!input.casual && !guestNames.length) {
-    const matches = await leagueBattleOptions({ data: input })
+    const matches = await sealedEventBattleOptions({ data: input })
     if (matches.length) throw new Error('Start this matchup from its saved tournament, or choose a casual battle.')
   }
   const opponents = await cachedRead(opponentsKey(), () => server.opponents())
@@ -424,26 +424,28 @@ export function projectBattles(state: LocalState) {
     client.setQueryData(battlesKey(), { ...feed, pages: feed.pages.map((page, index) => overlayBattlePage(page, state, index === 0)) })
 }
 
-export async function createLeagueBattle(
-  args: Parameters<typeof server.createLeagueBattle>[0],
-): ReturnType<typeof server.createLeagueBattle> {
+export async function createSealedEventBattle(
+  args: Parameters<typeof server.createSealedEventBattle>[0],
+): ReturnType<typeof server.createSealedEventBattle> {
   const owner = localOwner()
-  if (!owner || !localEngine() || !localConstruction()) return server.createLeagueBattle(args)
-  const { openLeague, openLeagueRoster } = await import('./actionFunctions')
-  const league = await openLeague({ data: { token: args.data.token, eventToken: args.data.eventToken } })
-  if (!league) throw new OfflineRefusal('Open and save this event online before starting an offline battle.')
-  const entries = league.entries.filter((entry) => entry.status === 'accepted' && entry.submitted)
+  if (!owner || !localEngine() || !localConstruction()) return server.createSealedEventBattle(args)
+  const { openSealedEvent, openSealedEventRoster } = await import('./actionFunctions')
+  const sealedEvent = await openSealedEvent({ data: { token: args.data.token, eventToken: args.data.eventToken } })
+  if (!sealedEvent) throw new OfflineRefusal('Open and save this event online before starting an offline battle.')
+  const entries = sealedEvent.entries.filter((entry) => entry.status === 'accepted' && entry.submitted)
   const rosters = await Promise.all(
     entries.map(async (entry) => ({
       ...entry,
-      snapshot: await openLeagueRoster({ data: { token: league.token, eventToken: league.eventToken, userId: entry.userId } }),
+      snapshot: await openSealedEventRoster({
+        data: { token: sealedEvent.token, eventToken: sealedEvent.eventToken, userId: entry.userId },
+      }),
     })),
   )
   const identifiers = { battleId: crypto.randomUUID(), battleToken: crypto.randomUUID() }
-  const prepared = buildLeagueBattle(
+  const prepared = buildSealedEventBattle(
     {
-      ...league,
-      paired: Boolean(openPairing(league.pairings, owner.id, args.data.opponentId)),
+      ...sealedEvent,
+      paired: Boolean(openPairing(sealedEvent.pairings, owner.id, args.data.opponentId)),
       entries: rosters.map((entry) => ({
         ...entry,
         snapshot: entry.snapshot ? JSON.stringify(entry.snapshot) : null,
@@ -473,7 +475,7 @@ export async function createLeagueBattle(
   }
   await queueLocal('createLeagueBattle', { input: args.data, identifiers }, `battle:${identifiers.battleToken}`, {
     data: workspace,
-    dependencies: [`league:${league.token}`],
+    dependencies: [`league:${sealedEvent.token}`],
     owner: owner.id,
   })
   return { token: identifiers.battleToken }

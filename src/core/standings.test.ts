@@ -18,7 +18,7 @@ const duel = (over: Partial<StandingBattle> = {}): StandingBattle => ({
 })
 
 /** Battles between named players, each finishing after the one before it. */
-const season = (...battles: [winner: string, loser: string, over?: Partial<StandingBattle>][]) =>
+const league = (...battles: [winner: string, loser: string, over?: Partial<StandingBattle>][]) =>
   battles.map(([winner, loser, over], index) =>
     duel({ playerIds: [winner, loser], players: [winner, loser], lastActivity: index, ...over }),
   )
@@ -124,7 +124,7 @@ describe('standings', () => {
 })
 
 describe('the listed window', () => {
-  const battles = season(['alice', 'bob'], ['alice', 'carol', { lastActivity: 10 }])
+  const battles = league(['alice', 'bob'], ['alice', 'carol', { lastActivity: 10 }])
 
   it('leaves out a player whose last battle is older than it', () => {
     expect(standings(battles, { activeSince: 5 }).overall.map((row) => row.id)).toEqual(['alice', 'carol'])
@@ -147,13 +147,13 @@ describe('the rating', () => {
   })
 
   it('counts beating a proven player for more than beating a newcomer', () => {
-    const battles = season(['proven', 'a'], ['proven', 'b'], ['proven', 'c'], ['giant', 'proven'], ['minnow', 'd'])
+    const battles = league(['proven', 'a'], ['proven', 'b'], ['proven', 'c'], ['giant', 'proven'], ['minnow', 'd'])
 
     expect(rated(battles, 'giant')).toBeGreaterThan(rated(battles, 'minnow')!)
   })
 
   it('counts beating the same friend again for less than beating somebody new', () => {
-    const battles = season(
+    const battles = league(
       ...Array.from({ length: 5 }, () => ['farmer', 'friend'] as [string, string]),
       ...['p', 'q', 'r', 's', 't'].map((opponent) => ['spread', opponent] as [string, string]),
     )
@@ -164,20 +164,20 @@ describe('the rating', () => {
   it('puts a clean record above more wins bought with losses', () => {
     // Grinder is 3-2 and Steady is 2-0 against the same kind of opposition.
     const rows = overall(
-      season(['grinder', 'a'], ['grinder', 'b'], ['grinder', 'c'], ['d', 'grinder'], ['e', 'grinder'], ['steady', 'f'], ['steady', 'g']),
+      league(['grinder', 'a'], ['grinder', 'b'], ['grinder', 'c'], ['d', 'grinder'], ['e', 'grinder'], ['steady', 'f'], ['steady', 'g']),
     )
 
     expect(place(rows, 'steady')).toBeLessThan(place(rows, 'grinder'))
   })
 
   it('does not put a single lucky win on top of a proven record', () => {
-    const rows = overall(season(['lucky', 'a'], ['proven', 'b'], ['proven', 'c']))
+    const rows = overall(league(['lucky', 'a'], ['proven', 'b'], ['proven', 'c']))
 
     expect(place(rows, 'proven')).toBeLessThan(place(rows, 'lucky'))
   })
 
   it('rates battles in the order they finished, whatever order they arrive in', () => {
-    const battles = season(['proven', 'a'], ['proven', 'b'], ['giant', 'proven'])
+    const battles = league(['proven', 'a'], ['proven', 'b'], ['giant', 'proven'])
 
     expect(overall(battles.toReversed())).toEqual(overall(battles))
   })
@@ -198,20 +198,20 @@ describe('the rating', () => {
   })
 
   it('records how far a battle moved each seat to the rating they see', () => {
-    const battles = season(['alice', 'bob'], ['alice', 'bob'])
+    const battles = league(['alice', 'bob'], ['alice', 'bob'])
     const moved = [...standings(battles).changes.values()].reduce((total, change) => total + change[0]!, 0)
 
     expect(moved).toBe(rated(battles, 'alice')! - 1000)
   })
 
   it('keeps each player’s rating after every battle, ending at the one the table shows', () => {
-    const battles = season(['alice', 'bob'], ['bob', 'alice'], ['alice', 'bob'])
+    const battles = league(['alice', 'bob'], ['bob', 'alice'], ['alice', 'bob'])
 
     expect(standings(battles).history.get('alice')?.at(-1)?.rating).toBe(rated(battles, 'alice'))
   })
 
   it('separates equal ratings by the points a battle behind them', () => {
-    const rows = overall(season(['wide', 'a', { scores: [90, 10] }], ['narrow', 'b', { scores: [51, 50] }]))
+    const rows = overall(league(['wide', 'a', { scores: [90, 10] }], ['narrow', 'b', { scores: [51, 50] }]))
 
     expect(place(rows, 'wide')).toBeLessThan(place(rows, 'narrow'))
   })
@@ -234,7 +234,7 @@ describe('a faction table', () => {
 
   it('rates a player with the faction apart from their overall rating', () => {
     // Alice lost with Tau before she won with Necrons, so her overall rating carries the loss.
-    const battles = season(['bob', 'alice', { factions: [army('orks'), army('tau')] }], ['alice', 'bob'])
+    const battles = league(['bob', 'alice', { factions: [army('orks'), army('tau')] }], ['alice', 'bob'])
 
     expect(table(battles, 'necrons')?.[0]?.rating).toBeGreaterThan(rated(battles, 'alice')!)
   })
@@ -243,7 +243,7 @@ describe('a faction table', () => {
     // Both are one win from one battle with Necrons, but only Zed's came against a
     // player proven with another army; a tie would put Carol first by name.
     const orks = { factions: [army('orks'), army('death-guard')] }
-    const battles = season(['bob', 'a', orks], ['bob', 'b', orks], ['zed', 'bob'], ['carol', 'c'])
+    const battles = league(['bob', 'a', orks], ['bob', 'b', orks], ['zed', 'bob'], ['carol', 'c'])
     const rows = table(battles, 'necrons')!
 
     expect(place(rows, 'zed')).toBeLessThan(place(rows, 'carol'))

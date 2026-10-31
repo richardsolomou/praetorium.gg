@@ -20,7 +20,7 @@ describe('catalogue compiler fingerprint', () => {
       "import { pack } from 'packer'\nimport { limit } from '../core/limits'\nexport const compile = () => pack(limit)",
     )
     write('src/core/limits.ts', 'export const limit = 1\nexport const unused = 2')
-    write('src/server/leagues.ts', 'export const league = 1')
+    write('src/server/sealed-events.ts', 'export const sealed event = 1')
     write('node_modules/packer/package.json', '{"name":"packer","type":"module","main":"index.js"}')
     write('node_modules/packer/index.js', 'export const pack = (value) => [value]')
     write('node_modules/unused/package.json', '{"name":"unused","type":"module","main":"index.js"}')
@@ -37,7 +37,7 @@ describe('catalogue compiler fingerprint', () => {
   }
 
   it('reuses prepared catalogues after an unrelated module changes', async () => {
-    expect(await unchangedAfter(() => write('src/server/leagues.ts', 'export const league = 2'))).toBe(true)
+    expect(await unchangedAfter(() => write('src/server/sealed-events.ts', 'export const sealed event = 2'))).toBe(true)
   })
 
   it('reuses prepared catalogues after a compiler comment changes', async () => {

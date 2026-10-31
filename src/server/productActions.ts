@@ -3,7 +3,7 @@ import { saveRosterSchema } from '../contracts/schemas'
 import { offlineActionSchemas as schemas, type OfflineActionKind } from '../contracts/offlineActions'
 import { app } from './app'
 import { rosterForUse, withCurrentAlerts } from './rosterUsage'
-import { captureMutation, captureBattleCreated, captureLeagueCreated, captureLeagueBattleCreated } from './mutationTelemetry'
+import { captureMutation, captureBattleCreated, captureSealedEventCreated, captureSealedEventBattleCreated } from './mutationTelemetry'
 import { requireUserId } from './playerSession'
 import { mutationRpc } from './rpc'
 
@@ -137,28 +137,28 @@ export const productActions = {
     return null
   }),
   createLeague: action(schemas.createLeague, async (owner, data) => {
-    const result = await app().service.leagueService.createTournament(owner, data)
-    await captureLeagueCreated(owner, data)
+    const result = await app().service.sealedEventService.createTournament(owner, data)
+    await captureSealedEventCreated(owner, data)
     return result
   }),
   joinLeague: action(schemas.joinLeague, async (owner, data) => {
-    const status = await app().service.leagueService.joinLeague(data.token, owner, data.eventToken)
-    await captureMutation(owner, 'league_joined', { status })
+    const status = await app().service.sealedEventService.joinSealedEvent(data.token, owner, data.eventToken)
+    await captureMutation(owner, 'sealed_event_joined', { status })
     return status
   }),
   addLeagueEntrants: action(schemas.addLeagueEntrants, async (owner, data) => {
-    const result = await app().service.leagueService.addLeagueEntrants(data.token, owner, data.userIds, data.eventToken)
-    await captureMutation(owner, 'league_entrants_added', { count: result.added })
+    const result = await app().service.sealedEventService.addSealedEventEntrants(data.token, owner, data.userIds, data.eventToken)
+    await captureMutation(owner, 'sealed_event_entrants_added', { count: result.added })
     return result
   }),
   admitLeagueEntries: action(schemas.admitLeagueEntries, async (owner, data) => {
-    const { admitted } = await app().service.leagueService.admitLeagueEntries(data.token, owner, data.userIds, data.eventToken)
-    await captureMutation(owner, 'league_entries_admitted', { count: admitted.length })
+    const { admitted } = await app().service.sealedEventService.admitSealedEventEntries(data.token, owner, data.userIds, data.eventToken)
+    await captureMutation(owner, 'sealed_event_entries_admitted', { count: admitted.length })
     return { admitted: admitted.length }
   }),
   moderateLeagueEntry: action(schemas.moderateLeagueEntry, async (owner, data) => {
-    await app().service.leagueService.moderateLeagueEntry(data.token, owner, data.userId, data.status, data.eventToken)
-    await captureMutation(owner, 'league_entry_moderated', { status: data.status })
+    await app().service.sealedEventService.moderateSealedEventEntry(data.token, owner, data.userId, data.status, data.eventToken)
+    await captureMutation(owner, 'sealed_event_entry_moderated', { status: data.status })
     return null
   }),
   submitLeagueRoster: action(schemas.submitLeagueRoster.partial({ capturedRoster: true, catalogueRevision: true }), async (owner, data) => {
@@ -171,71 +171,71 @@ export const productActions = {
       throw new Response('This roster or its army data changed after you chose to seal it. Review the saved action before sealing again.', {
         status: 409,
       })
-    const result = await app().service.leagueService.submitLeagueRoster(data.token, owner, saved, snapshot, data.eventToken)
-    await captureMutation(owner, 'league_roster_submitted', {
+    const result = await app().service.sealedEventService.submitSealedEventRoster(data.token, owner, saved, snapshot, data.eventToken)
+    await captureMutation(owner, 'sealed_event_roster_submitted', {
       format: result.format,
       required_limit: result.requiredLimit,
     })
     return null
   }),
   setLeagueTeamDisposition: action(schemas.setLeagueTeamDisposition, async (owner, data) => {
-    await app().service.leagueService.setLeagueTeamDisposition(data.token, owner, data.disposition, data.eventToken)
+    await app().service.sealedEventService.setSealedEventTeamDisposition(data.token, owner, data.disposition, data.eventToken)
     return null
   }),
   setLeagueTeamWarlord: action(schemas.setLeagueTeamWarlord, async (owner, data) => {
-    await app().service.leagueService.setLeagueTeamWarlord(data.token, owner, data.userId, data.eventToken)
+    await app().service.sealedEventService.setSealedEventTeamWarlord(data.token, owner, data.userId, data.eventToken)
     return null
   }),
   revealLeague: action(schemas.revealLeague, async (owner, data) => {
-    await app().service.leagueService.revealLeague(data.token, owner, data.eventToken)
-    await captureMutation(owner, 'league_rosters_revealed')
+    await app().service.sealedEventService.revealSealedEvent(data.token, owner, data.eventToken)
+    await captureMutation(owner, 'sealed_event_rosters_revealed')
     return null
   }),
   unsealLeagueRoster: action(schemas.unsealLeagueRoster, async (owner, data) => {
-    await app().service.leagueService.unsealLeagueRoster(data.token, owner, data.userId, data.eventToken)
-    await captureMutation(owner, 'league_roster_unsealed')
+    await app().service.sealedEventService.unsealSealedEventRoster(data.token, owner, data.userId, data.eventToken)
+    await captureMutation(owner, 'sealed_event_roster_unsealed')
     return null
   }),
   assignLeagueRosterRequirement: action(schemas.assignLeagueRosterRequirement, async (owner, data) => {
-    const result = await app().service.leagueService.assignLeagueRosterRequirement(
+    const result = await app().service.sealedEventService.assignSealedEventRosterRequirement(
       data.token,
       owner,
       data.userId,
       data.requiredLimit,
       data.eventToken,
     )
-    await captureMutation(owner, 'league_roster_requirement_assigned', { required_limit: result.requiredLimit })
+    await captureMutation(owner, 'sealed_event_roster_requirement_assigned', { required_limit: result.requiredLimit })
     return null
   }),
   assignLeagueTeam: action(schemas.assignLeagueTeam, async (owner, data) => {
-    const result = await app().service.leagueService.assignLeagueTeam(data.token, owner, data.userIds, data.eventToken)
-    await captureMutation(owner, 'league_team_assigned', { team_size: result.teamSize })
+    const result = await app().service.sealedEventService.assignSealedEventTeam(data.token, owner, data.userIds, data.eventToken)
+    await captureMutation(owner, 'sealed_event_team_assigned', { team_size: result.teamSize })
     return null
   }),
   chooseLeagueSide: action(schemas.chooseLeagueSide, async (owner, data) => {
-    const result = await app().service.leagueService.chooseLeagueSide(data.token, owner, data.side, data.eventToken)
-    await captureMutation(owner, 'league_side_chosen', { side: result.side })
+    const result = await app().service.sealedEventService.chooseSealedEventSide(data.token, owner, data.side, data.eventToken)
+    await captureMutation(owner, 'sealed_event_side_chosen', { side: result.side })
     return null
   }),
   updateLeague: action(schemas.updateLeague, async (owner, { token, rule, schedule, ...details }) => {
     const tournament = details.name === undefined ? undefined : (details as Required<typeof details>)
-    const { ruleChanged } = await app().service.leagueService.updateLeague(token, owner, { details: tournament, rule, schedule })
+    const { ruleChanged } = await app().service.sealedEventService.updateSealedEvent(token, owner, { details: tournament, rule, schedule })
     if (tournament)
-      await captureMutation(owner, 'league_updated', {
+      await captureMutation(owner, 'tournament_updated', {
         visibility: tournament.visibility,
         admission: tournament.admission,
         player_limit_set: tournament.playerLimit !== null,
       })
     if (ruleChanged && rule)
-      await captureMutation(owner, 'league_event_updated', {
+      await captureMutation(owner, 'sealed_event_updated', {
         format: rule.format,
         roster_limit: rule.rosterLimit,
       })
     return null
   }),
   deleteLeague: action(schemas.deleteLeague, async (owner, data) => {
-    await app().service.leagueService.deleteLeague(data.token, owner)
-    await captureMutation(owner, 'league_deleted')
+    await app().service.sealedEventService.deleteSealedEvent(data.token, owner)
+    await captureMutation(owner, 'sealed_event_deleted')
     return null
   }),
   deleteBattle: action(schemas.deleteBattle, async (owner, data) => {
@@ -249,7 +249,7 @@ export const productActions = {
     return result
   }),
   createLeagueBattle: action(schemas.createLeagueBattle, async (owner, data) => {
-    const result = await app().service.leagueService.createLeagueBattle(
+    const result = await app().service.sealedEventService.createSealedEventBattle(
       owner,
       data.token,
       data.opponentId,
@@ -259,7 +259,7 @@ export const productActions = {
       data.secondOpponentId,
       withCurrentAlerts,
     )
-    await captureLeagueBattleCreated(owner, result)
+    await captureSealedEventBattleCreated(owner, result)
     return { token: result.token }
   }),
 } satisfies Record<OfflineActionKind, (owner: string, input: unknown) => Promise<unknown>>

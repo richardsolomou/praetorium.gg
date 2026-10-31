@@ -1,5 +1,5 @@
 import { Link } from '@tanstack/react-router'
-import { eventFullName, eventLink } from '../leagues/leagueEvent'
+import { eventFullName, eventLink } from '../sealedEvents/sealedEvent'
 import { ChevronRight, ScrollText, UserPlus } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { SectionHeading } from '../../components/SectionHeading'
@@ -18,11 +18,11 @@ export function HomeWaiting({ rostersDue, friendRequests }: { rostersDue: readon
         className="mb-0 border-discarded/40 text-discarded"
       />
       <ul className="divide-y divide-edge border-b border-edge">
-        {rostersDue.map((league) => (
-          <li key={league.token}>
-            <Link {...eventLink(league)} className={ROW}>
+        {rostersDue.map((sealedEvent) => (
+          <li key={sealedEvent.token}>
+            <Link {...eventLink(sealedEvent)} className={ROW}>
               <Row icon={<ScrollText className="size-4 text-parchment" aria-hidden />}>
-                <span className="font-bold uppercase">{eventFullName(league)}</span> needs your roster
+                <span className="font-bold uppercase">{eventFullName(sealedEvent)}</span> needs your roster
               </Row>
             </Link>
           </li>

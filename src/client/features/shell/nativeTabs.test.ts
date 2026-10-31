@@ -22,7 +22,7 @@ describe('native tab memory', () => {
   })
 
   it('keeps the query, which names what the page is showing', () => {
-    expect(tabLocation('/rosters/army-id?league=spring')?.href).toBe('/rosters/army-id?league=spring')
+    expect(tabLocation('/rosters/army-id?sealedEvent=spring')?.href).toBe('/rosters/army-id?sealedEvent=spring')
   })
 
   it('keeps the hash that names an open pane', () => {

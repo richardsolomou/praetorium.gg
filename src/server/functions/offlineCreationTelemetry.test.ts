@@ -8,7 +8,7 @@ const mocks = vi.hoisted(() => ({
   syncReceipt: vi.fn(),
   createBattle: vi.fn(),
   createTournament: vi.fn(),
-  createLeagueBattle: vi.fn(),
+  createSealedEventBattle: vi.fn(),
   battleWorkspace: vi.fn(),
   applied: true,
   player: { id: 'actor', impersonatedBy: null as string | null },
@@ -21,7 +21,7 @@ vi.mock('../rpc', () => ({ rpc: (work: () => unknown) => work(), mutationRpc: (w
 vi.mock('../playerSession', () => ({ requireUser: async () => mocks.player }))
 vi.mock('../app', () => ({
   app: () => ({
-    service: { ...mocks, leagueService: mocks },
+    service: { ...mocks, sealedEventService: mocks },
     repository: mocks,
     telemetry: { capture: mocks.capture },
     rulesFor: async () => null,
@@ -49,17 +49,24 @@ const cases = [
   {
     kind: 'createLeague' as const,
     method: 'createTournament' as const,
-    input: { name: 'Private league', visibility: 'private', admission: 'approval', format: '2v2', rosterLimit: 2000, ownerPlays: true },
-    result: { token: 'private-league', eventToken: 'private-event' },
-    event: 'league_created',
+    input: {
+      name: 'Private sealed event',
+      visibility: 'private',
+      admission: 'approval',
+      format: '2v2',
+      rosterLimit: 2000,
+      ownerPlays: true,
+    },
+    result: { token: 'private-sealed-event', eventToken: 'private-event' },
+    event: 'tournament_created',
     properties: { delivery: 'sync', visibility: 'private', admission: 'approval', format: '2v2', roster_limit: 2000, owner_plays: true },
   },
   {
     kind: 'createLeagueBattle' as const,
-    method: 'createLeagueBattle' as const,
-    input: { token: 'private-league', opponentId: 'private-opponent' },
+    method: 'createSealedEventBattle' as const,
+    input: { token: 'private-sealed-event', opponentId: 'private-opponent' },
     result: { battleId: 'battle-id', token: 'private-battle', format: '1v1', requiredLimit: 2000 },
-    event: 'league_battle_created',
+    event: 'sealed_event_battle_created',
     properties: { delivery: 'sync', battle_id: 'battle-id', format: '1v1', required_limit: 2000 },
   },
 ]

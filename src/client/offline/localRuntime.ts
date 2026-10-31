@@ -129,8 +129,8 @@ async function execute(operation: LocalOperation, state: LocalState): Promise<Sy
     return { outcome: 'applied', data: answer.workspace, serverVersion: answer.version }
   }
   if (operation.resource.startsWith('league:')) {
-    const { openLeague } = await import('../../server/functions')
-    const data = await openLeague({ signal: AbortSignal.timeout(15_000), data: { token: operation.resource.slice(7) } })
+    const { openSealedEvent } = await import('../../server/functions')
+    const data = await openSealedEvent({ signal: AbortSignal.timeout(15_000), data: { token: operation.resource.slice(7) } })
     return { outcome: 'applied', data }
   }
   return { outcome: 'applied', data: state.documents[operation.resource]?.data ?? null }

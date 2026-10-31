@@ -6,7 +6,7 @@ Before changing a domain, read its guide in `docs/development/`:
 
 - `catalogue-data`: points, legality, rules versions, saved lists, imports
 - `battles`: command log, guests, undo, realtime, offline battles
-- `leagues`: sealing, reveal, league battles
+- `groups-and-tournaments`: vocabulary, stored names, sealing, reveal, Swiss, leagues
 - `game-rules`: stratagems, missions, scoring, terrain
 - `combat-simulation`, `agent-reference` (MCP, plugin, crawlers), `telemetry`
 - `interface`: screens, components, copy, saved app data
@@ -22,6 +22,7 @@ Also `docs/deployment.md` (hosting, previews, releases) and `docs/product-design
 - Battle state folds from its command log; never persist a score, phase, round, or mission beside it.
 - Server reads use `rpc()`, mutations `mutationRpc()` with an origin check before state access.
 - `src/components/ui` is vendored shadcn: generate via the CLI and wrap, never edit.
+- Say group, league, hidden-list game, tournament and sealed event as `groups-and-tournaments` defines them; `scripts/checkVocabulary.ts` fails CI on the old words outside stored names.
 - A change players can notice needs a changeset: one plain sentence per fix ([CONTRIBUTING.md](CONTRIBUTING.md#pull-requests-and-releases)).
 - No outreach, acquisition, personal, or private analytics material in the repo. Docs cover the hosted service and local contribution only.
 

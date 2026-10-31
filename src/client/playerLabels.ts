@@ -7,6 +7,6 @@ export function disambiguatedPlayerLabels(players: readonly { id: string; name: 
   )
 }
 
-/** League entrants keyed by user, told apart the same way wherever they are listed. */
+/** Sealed event entrants keyed by user, told apart the same way wherever they are listed. */
 export const entrantLabels = (entries: readonly { userId: string; name: string }[]) =>
   disambiguatedPlayerLabels(entries.map((entry) => ({ id: entry.userId, name: entry.name })))

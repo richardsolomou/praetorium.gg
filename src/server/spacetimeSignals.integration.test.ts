@@ -8,11 +8,11 @@ const url = process.env.SPACETIME_TEST_URL
 const database = process.env.SPACETIME_TEST_DATABASE
 const token = process.env.SPACETIME_TEST_OPERATOR_TOKEN
 
-it.skipIf(!url || !database || !token)('streams league entry removal when an account is deleted', async () => {
+it.skipIf(!url || !database || !token)('streams sealed event entry removal when an account is deleted', async () => {
   const operator = new SpacetimeOperator(url!, database!, token!)
   const ownerId = randomUUID()
   const entrantId = randomUUID()
-  const leagueToken = randomUUID()
+  const sealedEventToken = randomUUID()
   const guest = (await (await fetch(new URL('/v1/identity', url), { method: 'POST' })).json()) as { token: string }
   const changes: bigint[] = []
   let disconnect = () => {}
@@ -34,7 +34,7 @@ it.skipIf(!url || !database || !token)('streams league entry removal when an acc
             applied = true
             resolve([...current.db.publicProductSignals.iter()].find((row) => row.scope === 'leagues')?.revision ?? 0n)
           })
-          .onError((context) => reject(new Error(context.event?.message || 'League subscription failed')))
+          .onError((context) => reject(new Error(context.event?.message || 'SealedEvent subscription failed')))
           .subscribe(tables.publicProductSignals)
       })
       .onConnectError((_current, error) => reject(error))
@@ -46,7 +46,7 @@ it.skipIf(!url || !database || !token)('streams league entry removal when an acc
       {
         op: 'create',
         id: randomUUID(),
-        token: leagueToken,
+        token: sealedEventToken,
         eventId: randomUUID(),
         eventToken: randomUUID(),
         ownerId,
@@ -63,7 +63,7 @@ it.skipIf(!url || !database || !token)('streams league entry removal when an acc
     )
     expect(
       await operator.leagueCommand(
-        { op: 'join', token: leagueToken, eventToken: '', userId: entrantId, memberLimit: 128, now: Date.now() },
+        { op: 'join', token: sealedEventToken, eventToken: '', userId: entrantId, memberLimit: 128, now: Date.now() },
         z.literal('accepted'),
       ),
     ).toBe('accepted')
@@ -71,7 +71,7 @@ it.skipIf(!url || !database || !token)('streams league entry removal when an acc
 
     await operator.deleteUserData(entrantId)
     await vi.waitFor(() => expect(changes.at(-1)).toBe(initial + 3n))
-    expect((await operator.leagueByToken(leagueToken))?.entries).toEqual([])
+    expect((await operator.leagueByToken(sealedEventToken))?.entries).toEqual([])
   } finally {
     disconnect()
     await operator.deleteUserData(ownerId)

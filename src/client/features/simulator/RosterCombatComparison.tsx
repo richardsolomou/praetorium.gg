@@ -3,7 +3,7 @@ import { useEffect, useEffectEvent, useMemo, useRef, useState } from 'react'
 import { ArrowLeftRight, Crosshair } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { combatUnitsQuery, factionIndexQuery } from '../../queries'
-import { openLeagueRoster, sharedRoster } from '../../functions'
+import { openSealedEventRoster, sharedRoster } from '../../functions'
 import { rosterSourceKey } from '../../../contracts/simulatorState'
 import { sealedCombatRoster } from './rosterCombat'
 import { errorMessage } from '../../queryClient'
@@ -22,7 +22,7 @@ import { RosterPicker } from './RosterPicker'
 import { benchmarkRosters, defaultBenchmarkTargets, parseBenchmarkTargets, type BenchmarkTarget } from './benchmarks'
 import { Problem } from '../../components/Problem'
 import { ProgressBar } from '../../components/ProgressBar'
-import { friendLeagueLabel, friendLeagueSource, OwnerAvatars, type RosterOwner, useSimulatorRosters } from './rosterOwners'
+import { friendSealedEventLabel, friendSealedEventSource, OwnerAvatars, type RosterOwner, useSimulatorRosters } from './rosterOwners'
 
 export type RosterCombatSource = {
   id: string
@@ -60,7 +60,7 @@ export function RosterCombatComparison({
   sessionKey?: string
   eventPairing?: boolean
 }) {
-  const { me, saved, friendRosters, leagueRosters } = useSimulatorRosters(!sources)
+  const { me, saved, friendRosters, sealedEventRosters } = useSimulatorRosters(!sources)
   const activeRosters = saved.data?.filter((roster) => !roster.archived) ?? []
   const factions = useQuery(factionIndexQuery())
   const catalogue = useQuery({ ...combatUnitsQuery(), enabled: !sources })
@@ -115,18 +115,21 @@ export function RosterCombatComparison({
         return [{ ...data, pickIndex: 0, owner }]
       },
     })),
-    ...leagueRosters.map((entry) => {
-      const { league } = friendLeagueSource(entry)
+    ...sealedEventRosters.map((entry) => {
+      const { league: sealedEvent } = friendSealedEventSource(entry)
       const owner = { name: entry.ownerName, image: entry.ownerImage }
       return {
-        id: rosterSourceKey({ league }),
+        id: rosterSourceKey({ league: sealedEvent }),
         catalogueId: entry.catalogueId,
         group: "Friends' sealed rosters",
         owners: [owner],
-        label: friendLeagueLabel(entry),
+        label: friendSealedEventLabel(entry),
         load: async (signal: AbortSignal) => {
           const roster = sealedCombatRoster(
-            await openLeagueRoster({ data: { token: league.token, eventToken: league.eventToken, userId: league.userId }, signal }),
+            await openSealedEventRoster({
+              data: { token: sealedEvent.token, eventToken: sealedEvent.eventToken, userId: sealedEvent.userId },
+              signal,
+            }),
           )
           if (!roster) throw new Error('This revealed roster has no saved loadouts available to simulate.')
           return [{ ...roster, owner }]

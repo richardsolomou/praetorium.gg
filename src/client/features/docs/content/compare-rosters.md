@@ -4,7 +4,7 @@ The **Rosters** tab runs every unit in one list against every unit in another. C
 - **Highlight** marks the best target for each attacker, or the best attacker for each target. Each one is judged on its own, not as a plan for the whole turn.
 - Click any cell to open that matchup in full.
 
-Opened from a tournament or club game, the table starts on **Shooting + melee** with the best attacker for each target highlighted.
+Opened from a tournament or hidden-list game, the table starts on **Shooting + melee** with the best attacker for each target highlighted.
 
 ![A Necron roster compared against the benchmark targets.](screenshot:compare-loadouts-rosters 'Show chooses the figure each cell displays')
 

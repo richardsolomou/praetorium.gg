@@ -1,12 +1,12 @@
 import { boundedProgress, withCountsAs, withProgress, withWanted, type CollectionProgress } from '../../core/collection'
 import { withEntry, withMember } from '../../core/collections'
 import { withFavouriteDetachment, type FavouriteDetachment } from '../../core/favouriteDetachments'
-import { leagueTitle, leagueWarlordRefusal, leagueWarlordValid, waivedWarlordRules } from '../../core/league'
+import { sealedEventTitle, sealedEventWarlordRefusal, sealedEventWarlordValid, waivedWarlordRules } from '../../core/sealedEvent'
 import { attemptLocalSync } from './localRuntime'
 import { rosterSnapshot } from '../../core/rosterSnapshot'
 import { calculateRosterPrice, savedRosterPriceInput } from '../../shared/pricing'
 import { unitBattleDetailsIn } from '../../shared/catalogue'
-import { matchingLeagueBattles } from '../../shared/leagueBattleOptions'
+import { matchingSealedEventBattles } from '../../shared/sealedEventBattleOptions'
 import { onboardingProgress as foldOnboarding, type OnboardingTaskId, type StoredOnboarding } from '../../core/onboarding'
 import * as server from '../../server/functions'
 import { offlineActionSchemas, type OfflineActionKind } from '../../contracts/offlineActions'
@@ -29,15 +29,15 @@ import {
   wishlistSuggestionsKey,
   friendInviteKey,
   friendshipsKey,
-  leagueKey,
-  leagueRosterKey,
-  leaguesKey,
+  sealedEventKey,
+  sealedEventRosterKey,
+  sealedEventsKey,
   meKey,
   notificationSettingsKey,
   onboardingKey,
   opponentsKey,
-  friendLeagueRostersKey,
-  outdatedLeagueEntriesKey,
+  friendSealedEventRostersKey,
+  outdatedSealedEventEntriesKey,
   playerDefaultsKey,
   recentMatchupsKey,
   abilityRemindersKey,
@@ -80,17 +80,17 @@ export const onboardingProgress = () => accountRead(onboardingKey(), () => serve
 export const notificationSettings = () => cachedRead(notificationSettingsKey(), () => server.notificationSettings())
 export const friendships = () => cachedRead(friendshipsKey(), () => server.friendships())
 export const opponents = () => cachedRead(opponentsKey(), () => server.opponents())
-export const listLeagues = async (): ReturnType<typeof server.listLeagues> => {
-  const leagues = await cachedRead(leaguesKey(), () => server.listLeagues())
+export const listSealedEvents = async (): ReturnType<typeof server.listSealedEvents> => {
+  const sealedEvents = await cachedRead(sealedEventsKey(), () => server.listSealedEvents())
   const state = await localEngine()?.storage.read()
-  const byToken = new Map(leagues.map((league) => [league.token, league]))
+  const byToken = new Map(sealedEvents.map((sealedEvent) => [sealedEvent.token, sealedEvent]))
   for (const operation of state?.operations ?? []) {
     if (operation.kind === 'deleteLeague') {
       byToken.delete(operation.resource.slice(7))
       continue
     }
     if (operation.kind !== 'createLeague') continue
-    const draft = state?.documents[operation.resource]?.data as Awaited<ReturnType<typeof server.openLeague>>
+    const draft = state?.documents[operation.resource]?.data as Awaited<ReturnType<typeof server.openSealedEvent>>
     if (!draft) continue
     const accepted = draft.entries.filter((entry) => entry.status === 'accepted').length
     byToken.set(draft.token, {
@@ -107,14 +107,14 @@ export const listLeagues = async (): ReturnType<typeof server.listLeagues> => {
 export const activeFriendInvite = () => accountRead(friendInviteKey('active'), () => server.activeFriendInvite())
 export const friendInvite = (args: Parameters<typeof server.friendInvite>[0]) =>
   cachedRead(friendInviteKey(args.data.token), () => server.friendInvite(args))
-export const openLeagueRoster = (args: Parameters<typeof server.openLeagueRoster>[0]) =>
-  cachedRead(leagueRosterKey(args.data.token, args.data.eventToken, args.data.userId), () => server.openLeagueRoster(args))
-export const listFriendLeagueRosters = () => cachedRead(friendLeagueRostersKey(), () => server.listFriendLeagueRosters())
-export const outdatedLeagueEntriesForRoster = (args: Parameters<typeof server.outdatedLeagueEntriesForRoster>[0]) =>
-  cachedRead(outdatedLeagueEntriesKey(args.data.rosterId), () => server.outdatedLeagueEntriesForRoster(args))
-export const openLeague = async (args: Parameters<typeof server.openLeague>[0]): ReturnType<typeof server.openLeague> => {
+export const openSealedEventRoster = (args: Parameters<typeof server.openSealedEventRoster>[0]) =>
+  cachedRead(sealedEventRosterKey(args.data.token, args.data.eventToken, args.data.userId), () => server.openSealedEventRoster(args))
+export const listFriendSealedEventRosters = () => cachedRead(friendSealedEventRostersKey(), () => server.listFriendSealedEventRosters())
+export const outdatedSealedEventEntriesForRoster = (args: Parameters<typeof server.outdatedSealedEventEntriesForRoster>[0]) =>
+  cachedRead(outdatedSealedEventEntriesKey(args.data.rosterId), () => server.outdatedSealedEventEntriesForRoster(args))
+export const openSealedEvent = async (args: Parameters<typeof server.openSealedEvent>[0]): ReturnType<typeof server.openSealedEvent> => {
   const resource = `league:${args.data.token}`
-  const draft = await localDocument<Awaited<ReturnType<typeof server.openLeague>>>(resource)
+  const draft = await localDocument<Awaited<ReturnType<typeof server.openSealedEvent>>>(resource)
   if (
     (await localEngine()?.storage.read())?.operations.some(
       (operation) => operation.resource === resource && operation.kind === 'deleteLeague',
@@ -122,7 +122,7 @@ export const openLeague = async (args: Parameters<typeof server.openLeague>[0]):
   )
     return null
   if (draft && (!args.data.eventToken || args.data.eventToken === draft.eventToken) && (await hasLocalChanges(resource))) return draft
-  return cachedRead(leagueKey(args.data.token, args.data.eventToken), () => server.openLeague(args))
+  return cachedRead(sealedEventKey(args.data.token, args.data.eventToken), () => server.openSealedEvent(args))
 }
 
 function deferredForAccount(waitForSync = true) {
@@ -341,9 +341,9 @@ export async function cancelFriendInvite(): ReturnType<typeof server.cancelFrien
   return null
 }
 
-export async function createLeague(args: Parameters<typeof server.createLeague>[0]): ReturnType<typeof server.createLeague> {
+export async function createSealedEvent(args: Parameters<typeof server.createSealedEvent>[0]): ReturnType<typeof server.createSealedEvent> {
   const defer = deferredForAccount()
-  if (!localEngine()) return server.createLeague(args)
+  if (!localEngine()) return server.createSealedEvent(args)
   const input = offlineActionSchemas.createLeague.parse(args.data)
   const identifiers = {
     leagueId: crypto.randomUUID(),
@@ -353,7 +353,7 @@ export async function createLeague(args: Parameters<typeof server.createLeague>[
   }
   const me = localClient()!.getQueryData<{ id: string; name: string; image: string | null }>(meKey())!
   const now = Date.now()
-  const draft: NonNullable<Awaited<ReturnType<typeof server.openLeague>>> = {
+  const draft: NonNullable<Awaited<ReturnType<typeof server.openSealedEvent>>> = {
     kind: 'tournament',
     token: identifiers.leagueToken,
     eventToken: identifiers.eventToken,
@@ -369,7 +369,7 @@ export async function createLeague(args: Parameters<typeof server.createLeague>[
       ownerImage: me.image,
       admins: [],
     },
-    club: null,
+    group: null,
     organizer: true,
     format: input.format,
     rosterLimit: input.rosterLimit,
@@ -426,22 +426,22 @@ export const acceptFriendInvite = queuedAction(
   null,
 )
 
-export const joinLeague = queuedAction(
-  () => server.joinLeague,
+export const joinSealedEvent = queuedAction(
+  () => server.joinSealedEvent,
   'joinLeague',
   (data) => `league:${data.token}`,
   'pending',
 )
 
-export const addLeagueEntrants = queuedAction(
-  () => server.addLeagueEntrants,
+export const addSealedEventEntrants = queuedAction(
+  () => server.addSealedEventEntrants,
   'addLeagueEntrants',
   (data) => `league:${data.token}`,
   { added: 0 },
 )
 
-export const admitLeagueEntries = queuedAction(
-  () => server.admitLeagueEntries,
+export const admitSealedEventEntries = queuedAction(
+  () => server.admitSealedEventEntries,
   'admitLeagueEntries',
   (data) => `league:${data.token}`,
   {
@@ -449,22 +449,22 @@ export const admitLeagueEntries = queuedAction(
   },
 )
 
-export const moderateLeagueEntry = queuedAction(
-  () => server.moderateLeagueEntry,
+export const moderateSealedEventEntry = queuedAction(
+  () => server.moderateSealedEventEntry,
   'moderateLeagueEntry',
   (data) => `league:${data.token}`,
   null,
 )
 
-export async function submitLeagueRoster(
-  args: Parameters<typeof server.submitLeagueRoster>[0],
-): ReturnType<typeof server.submitLeagueRoster> {
+export async function submitSealedEventRoster(
+  args: Parameters<typeof server.submitSealedEventRoster>[0],
+): ReturnType<typeof server.submitSealedEventRoster> {
   const defer = deferredForAccount()
-  if (!localEngine()) return server.submitLeagueRoster(args)
+  if (!localEngine()) return server.submitSealedEventRoster(args)
   const roster = await localDocument<LocalRoster>(`roster:${args.data.rosterId}`)
   const construction = roster ? localConstruction(roster.catalogueId) : null
   if (!roster || !construction) {
-    if (navigator.onLine) return server.submitLeagueRoster(args)
+    if (navigator.onLine) return server.submitSealedEventRoster(args)
     throw new OfflineRefusal('Save this roster and army data on this device before sealing it offline.')
   }
   const priced = calculateRosterPrice(savedRosterPriceInput(roster), construction.catalogue, construction.rules)
@@ -479,7 +479,7 @@ export async function submitLeagueRoster(
     ),
   )
   // The event decides whether a waived Warlord is allowed; the server answers that once the seal syncs.
-  if (!waivedWarlordRules(snapshot).length && !leagueWarlordValid(snapshot)) throw new Error(leagueWarlordRefusal(snapshot))
+  if (!waivedWarlordRules(snapshot).length && !sealedEventWarlordValid(snapshot)) throw new Error(sealedEventWarlordRefusal(snapshot))
   await defer(
     'submitLeagueRoster',
     { ...args.data, capturedRoster: saveRosterSchema.parse(roster), catalogueRevision: construction.catalogue.index.revision },
@@ -490,64 +490,66 @@ export async function submitLeagueRoster(
   return null
 }
 
-export const setLeagueTeamWarlord = queuedAction(
-  () => server.setLeagueTeamWarlord,
+export const setSealedEventTeamWarlord = queuedAction(
+  () => server.setSealedEventTeamWarlord,
   'setLeagueTeamWarlord',
   (data) => `league:${data.token}`,
   null,
 )
 
-export const setLeagueTeamDisposition = queuedAction(
-  () => server.setLeagueTeamDisposition,
+export const setSealedEventTeamDisposition = queuedAction(
+  () => server.setSealedEventTeamDisposition,
   'setLeagueTeamDisposition',
   (data) => `league:${data.token}`,
   null,
 )
 
-export const revealLeague = queuedAction(
-  () => server.revealLeague,
+export const revealSealedEvent = queuedAction(
+  () => server.revealSealedEvent,
   'revealLeague',
   (data) => `league:${data.token}`,
   null,
 )
 
-export const unsealLeagueRoster = queuedAction(
-  () => server.unsealLeagueRoster,
+export const unsealSealedEventRoster = queuedAction(
+  () => server.unsealSealedEventRoster,
   'unsealLeagueRoster',
   (data) => `league:${data.token}`,
   null,
 )
 
-export const assignLeagueRosterRequirement = queuedAction(
-  () => server.assignLeagueRosterRequirement,
+export const assignSealedEventRosterRequirement = queuedAction(
+  () => server.assignSealedEventRosterRequirement,
   'assignLeagueRosterRequirement',
   (data) => `league:${data.token}`,
   null,
 )
 
-export const chooseLeagueSide = queuedAction(
-  () => server.chooseLeagueSide,
+export const chooseSealedEventSide = queuedAction(
+  () => server.chooseSealedEventSide,
   'chooseLeagueSide',
   (data) => `league:${data.token}`,
   null,
 )
 
-export async function assignLeagueTeam(args: Parameters<typeof server.assignLeagueTeam>[0]): ReturnType<typeof server.assignLeagueTeam> {
+export async function assignSealedEventTeam(
+  args: Parameters<typeof server.assignSealedEventTeam>[0],
+): ReturnType<typeof server.assignSealedEventTeam> {
   const defer = deferredForAccount()
-  if (!localEngine()) return server.assignLeagueTeam(args)
+  if (!localEngine()) return server.assignSealedEventTeam(args)
   await defer('assignLeagueTeam', args.data, `league:${args.data.token}`, undefined, { identifiers: { teamId: crypto.randomUUID() } })
   return null
 }
 
-export const updateLeague = queuedAction(
-  () => server.updateLeague,
+export const updateSealedEvent = queuedAction(
+  () => server.updateSealedEvent,
   'updateLeague',
   (data) => `league:${data.token}`,
   null,
 )
 
-export const deleteLeague = queuedAction(
-  () => server.deleteLeague,
+export const deleteSealedEvent = queuedAction(
+  () => server.deleteSealedEvent,
   'deleteLeague',
   (data) => `league:${data.token}`,
   null,
@@ -594,34 +596,34 @@ export async function updateOnboardingProgress(
   return next
 }
 
-export async function leagueBattleOptions(
-  args: Parameters<typeof server.leagueBattleOptions>[0],
-): ReturnType<typeof server.leagueBattleOptions> {
-  if (!localEngine()) return server.leagueBattleOptions(args)
+export async function sealedEventBattleOptions(
+  args: Parameters<typeof server.sealedEventBattleOptions>[0],
+): ReturnType<typeof server.sealedEventBattleOptions> {
+  if (!localEngine()) return server.sealedEventBattleOptions(args)
   const owner = localOwner()!
-  const leagues = await listLeagues()
+  const sealedEvents = await listSealedEvents()
   const candidates = await Promise.all(
-    leagues
-      .filter((league) => league.personal)
+    sealedEvents
+      .filter((sealedEvent) => sealedEvent.personal)
       .map(async (summary) => {
-        const league = await openLeague({ data: { token: summary.token } })
-        return league?.revealedAt
+        const sealedEvent = await openSealedEvent({ data: { token: summary.token } })
+        return sealedEvent?.revealedAt
           ? {
-              ...league,
-              name: leagueTitle(league),
-              entries: league.entries.filter((entry) => entry.status === 'accepted' && entry.submitted),
+              ...sealedEvent,
+              name: sealedEventTitle(sealedEvent),
+              entries: sealedEvent.entries.filter((entry) => entry.status === 'accepted' && entry.submitted),
             }
           : null
       }),
   )
-  const matching = matchingLeagueBattles(
+  const matching = matchingSealedEventBattles(
     candidates.filter((candidate): candidate is NonNullable<typeof candidate> => candidate !== null),
     owner.id,
     args.data,
   )
   if (isOffline()) return matching
   try {
-    return await server.leagueBattleOptions(args)
+    return await server.sealedEventBattleOptions(args)
   } catch {
     return matching
   }

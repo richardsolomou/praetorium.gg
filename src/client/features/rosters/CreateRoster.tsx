@@ -12,7 +12,7 @@ import { RosterSetupDialog, type RosterSetupFactionOption } from './RosterSetupD
 import type { MissionReference } from './rosterStart'
 
 /**
- * `limit` starts the new list at a size the reader is filtering by, such as the one a league asked for. `blocked`
+ * `limit` starts the new list at a size the reader is filtering by, such as the one a sealed event asked for. `blocked`
  * replaces the setup for a visitor who already keeps their one list on this device. `starting` opens the setup once
  * the page knows whether this device keeps one, and `onStarted` then clears the request.
  */

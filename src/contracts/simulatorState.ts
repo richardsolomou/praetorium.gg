@@ -17,8 +17,8 @@ const matchupSettingsSchema = z.object({
 export type MatchupSettings = z.infer<typeof matchupSettingsSchema>
 
 const savedRosterSource = z.object({ id: idSchema })
-const leagueRosterSource = z.object({ league: z.object({ token: idSchema, eventToken: idSchema, userId: idSchema }) })
-export type SimulatorRosterSource = z.infer<typeof savedRosterSource> | z.infer<typeof leagueRosterSource>
+const sealedEventRosterSource = z.object({ league: z.object({ token: idSchema, eventToken: idSchema, userId: idSchema }) })
+export type SimulatorRosterSource = z.infer<typeof savedRosterSource> | z.infer<typeof sealedEventRosterSource>
 const pickIndexSchema = z.int().min(0).max(500)
 
 const sideSchema = z.object({
@@ -34,9 +34,9 @@ const sideSchema = z.object({
     .optional(),
   /** Detachments whose rules and stratagems the side fields without a roster, as an assistant's matchup names them. */
   detachmentIds: z.array(idSchema).max(4).optional(),
-  /** A unit from a saved roster or a revealed league list, simulated with its detachment, enhancements, and attachments. */
+  /** A unit from a saved roster or a revealed sealed event list, simulated with its detachment, enhancements, and attachments. */
   roster: z
-    .union([savedRosterSource.extend({ pickIndex: pickIndexSchema }), leagueRosterSource.extend({ pickIndex: pickIndexSchema })])
+    .union([savedRosterSource.extend({ pickIndex: pickIndexSchema }), sealedEventRosterSource.extend({ pickIndex: pickIndexSchema })])
     .optional(),
 })
 export type SimulatorSide = z.infer<typeof sideSchema>

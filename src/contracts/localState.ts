@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { idSchema } from '../core/commands'
 import { jsonByteLength } from '../core/json'
-import { predatesEventHosts } from './savedLeagues'
+import { predatesEventHosts } from './savedSealedEvents'
 import { migrateSavedRoster } from '../core/savedRosterMigrations'
 
 export const MAX_LOCAL_STATE_BYTES = 50_000_000

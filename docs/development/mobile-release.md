@@ -66,11 +66,11 @@ Apple, all linked to the user and not used for tracking:
 
 Google Play Data safety: name, email, user IDs, photos, other user-generated content, app interactions, crash logs, diagnostics, and device or other identifiers. Profile pictures optional; account, roster, battle, and session data required. Encrypted in transit, deletable on request, not sold, no advertising; PostHog and hosting and email providers are service providers. The app creates accounts; web deletion resource `https://praetorium.gg/delete-account`.
 
-Content rating: 13 and over; no chat, ads, purchases, gambling, or matchmaking. Public clubs list their members to anyone. Do not understate fantasy-combat violence.
+Content rating: 13 and over; no chat, ads, purchases, gambling, or matchmaking. Public groups list their members to anyone. Do not understate fantasy-combat violence.
 
 ## Review access
 
-1. Create one production review account with verified email/password, two rosters, one active practice battle, one finished battle, and one league registration; two-factor off.
+1. Create one production review account with verified email/password, two rosters, one active practice battle, one finished battle, and one tournament registration; two-factor off.
 2. Give it to both App Store Connect and Play Console App access; test it just before submission and keep it active until reviews and appeals finish.
 3. Review notes: sign in with the review credentials, then open Battles → the active battle to test live tracking alone. Mention the production service URL, native features (verified links, system-browser authentication, sharing, printing, haptics, wake lock, EAS Update), account deletion under Profile → Delete account, no purchases, ads, or chat, data licences at `https://github.com/richardsolomou/praetorium.gg/blob/main/catalogue/sources.json`, and no Games Workshop affiliation.
 
@@ -80,7 +80,7 @@ On the exact TestFlight and Play internal-testing builds, on physical iOS and An
 
 1. Every sign-in provider, email/password and Apple signup, two-factor, link/unlink, password reset, sign-out, account deletion.
 2. A battle between an iPhone and an Android phone, each updating after every command, including after backgrounding and after network loss mid-mutation (no duplicate command).
-3. Battle, roster, league invitation, password-reset, and provider-callback links from cold and warm starts.
+3. Battle, roster, tournament invitation, password-reset, and provider-callback links from cold and warm starts.
 4. Sharing, printing (inspect every page of a saved PDF), profile picture upload, export copy, Android Back, no iOS swipe into an empty WebView document.
 5. Wake lock only in a seated battle; one light haptic per command.
 6. Notifications: Home offer and Not now persist; each notice arrives once, never to the actor, opens its page; nothing after disabling or signing out.

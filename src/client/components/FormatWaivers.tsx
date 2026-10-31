@@ -23,7 +23,7 @@ import { buttonClass } from './buttonClass'
  * A waiver is the owner's decision and a fact about the army their opponent is about
  * to face, so it is drawn the same way in both directions: on the list in the
  * library and the builder, on the row being chosen for a seat or sealed into a
- * league, and on the army once it is attached. One module, so a waived list cannot
+ * sealed event, and on the army once it is attached. One module, so a waived list cannot
  * be loud in the place it is chosen and silent in the place it is faced, and so the
  * four places that name a restriction all name it the same way.
  */
@@ -46,7 +46,7 @@ const switchedOff = (rules: readonly FormatRule[]) =>
  * the army rather than a caveat; spelling the waivers out there made the caveat the
  * loudest thing on the line. The mark holds the place, and the reader asks for the
  * rest. Wherever a list is being decided about — chosen for a seat, sealed into a
- * league, read under its own roster — the full sentence is still written out.
+ * sealed event, read under its own roster — the full sentence is still written out.
  */
 export function WaiverChip({ rules, className = '' }: { rules: readonly FormatRule[]; className?: string }) {
   if (!rules.length) return null

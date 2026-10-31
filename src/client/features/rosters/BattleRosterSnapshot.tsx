@@ -9,7 +9,7 @@ import { RosterBody, RosterHeader, RosterShell, RosterUnits } from './RosterPres
 import { usePrintWhenReady } from './usePrintWhenReady'
 
 /**
- * A list as a battle or a league reveal holds it.
+ * A list as a battle or a sealed event reveal holds it.
  *
  * The roster screen is one screen: a list that still points at a saved row is read
  * through the builder in its read-only state, and one the log froze is read through

@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 import { TABLE_SHAPES, TABLE_SHAPE_LABELS, type TableShape } from '../../../core/tableShape'
 import { PROFILE_NAME_MAX_LENGTH } from '../../../core/profileName'
-import { createBattle, leagueBattleOptions, submit } from '../../functions'
+import { createBattle, sealedEventBattleOptions, submit } from '../../functions'
 import { battleQuery, opponentsQuery } from '../../queries'
 import { useStartBattle } from './useStartBattle'
 import { disambiguatedPlayerLabels } from '../../playerLabels'
@@ -97,7 +97,7 @@ export function CreateBattle({
   const [shape, setShape] = useState<TableShape>('1v1')
   const [soloPairRole, setSoloPairRole] = useState<SoloPairRole>('solo')
   const [tracking, setTracking] = useState<'guided' | 'manual'>('guided')
-  const [leagueMatches, setLeagueMatches] = useState<Awaited<ReturnType<typeof leagueBattleOptions>>>([])
+  const [sealedEventMatches, setSealedEventMatches] = useState<Awaited<ReturnType<typeof sealedEventBattleOptions>>>([])
   const seats = seatsFor(shape, soloPairRole)
   const seatedIn = (seat: Seat) => (seat.side === 'yours' ? allyId : (theirIds[seat.at] ?? null))
   const guestIn = (seat: Seat) => seatedIn(seat) === guestChoice(seat)
@@ -131,13 +131,13 @@ export function CreateBattle({
         ...(players.opponentIds.length ? { opponentIds: players.opponentIds } : {}),
         ...(players.allyId ? { allyId: players.allyId } : {}),
       }
-      // A league seats only its entrants, so a table with a guest at it has no league match to offer.
-      const leagueMatch = async () => {
+      // A sealed event seats only its entrants, so a table with a guest at it has no sealed event match to offer.
+      const sealedEventMatch = async () => {
         if (casual || guests.length) return null
-        const matches = await leagueBattleOptions({ data: playerData })
+        const matches = await sealedEventBattleOptions({ data: playerData })
         return matches.length ? { kind: 'league' as const, matches } : null
       }
-      const offered = await leagueMatch()
+      const offered = await sealedEventMatch()
       if (offered) return offered
       const missionPackId = tracking === 'manual' ? null : await defaultMissionPackId()
       let battle
@@ -153,7 +153,7 @@ export function CreateBattle({
           },
         })
       } catch (error) {
-        const fallback = await leagueMatch()
+        const fallback = await sealedEventMatch()
         if (fallback) return fallback
         throw error
       }
@@ -162,7 +162,7 @@ export function CreateBattle({
     },
     onSuccess: async (result) => {
       if (result.kind === 'league') {
-        setLeagueMatches(result.matches)
+        setSealedEventMatches(result.matches)
         return
       }
       setOpen(false)
@@ -171,7 +171,7 @@ export function CreateBattle({
   })
   const changeIntent = () => {
     create.reset()
-    setLeagueMatches([])
+    setSealedEventMatches([])
   }
   const changeOpen = (next: boolean) => {
     if (create.isPending) return
@@ -182,7 +182,7 @@ export function CreateBattle({
     if (!open) return
     posthog.capture('battle_creation_started', source)
     create.reset()
-    setLeagueMatches([])
+    setSealedEventMatches([])
     if (opponentId) {
       setShape('1v1')
       setTheirIds([opponentId, null])
@@ -203,7 +203,7 @@ export function CreateBattle({
         </DialogTrigger>
       )}
       <DialogContent>
-        {leagueMatches.length ? (
+        {sealedEventMatches.length ? (
           <>
             <DialogHeader>
               <DialogTitle className="text-2xl">You are both in a tournament</DialogTitle>
@@ -213,7 +213,7 @@ export function CreateBattle({
             </DialogHeader>
             <DialogBody>
               <div className="space-y-2">
-                {leagueMatches.map((match) => (
+                {sealedEventMatches.map((match) => (
                   <button
                     key={match.eventToken}
                     type="button"
@@ -238,7 +238,7 @@ export function CreateBattle({
               {create.error ? <Problem error={create.error} /> : null}
             </DialogBody>
             <DialogFooter>
-              <Button variant="outline" disabled={create.isPending} onClick={() => setLeagueMatches([])}>
+              <Button variant="outline" disabled={create.isPending} onClick={() => setSealedEventMatches([])}>
                 Back
               </Button>
               <Button variant="outline" disabled={create.isPending} onClick={() => create.mutate(true)}>

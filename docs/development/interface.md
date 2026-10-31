@@ -24,7 +24,7 @@
 
 ## Data shown to readers
 
-- Frozen battle and league snapshots show their recorded cards, totals, and version, never today's legality or warnings.
+- Frozen battle and sealed event snapshots show their recorded cards, totals, and version, never today's legality or warnings.
 - A copy names its source only while the reader may still open it (`rosterAccess`).
 - Link previews use the signed-out view and ignore the session; inaccessible images return `404` with `no-store`. Battles expose only the spectator view.
 

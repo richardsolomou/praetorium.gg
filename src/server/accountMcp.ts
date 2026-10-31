@@ -92,7 +92,7 @@ export function registerAccountMcpTools(server: AgentTools, userId: string | nul
     },
     ({ id }) =>
       resultOf(async () => {
-        const roster = await app().service.leagueService.ownRoster(owner(), id)
+        const roster = await app().service.sealedEventService.ownRoster(owner(), id)
         if (!roster) throw new Response('You have no saved roster with this id. Use an id from list_my_rosters.', { status: 404 })
         return { summary: await rosterSummary(roster), roster }
       }),

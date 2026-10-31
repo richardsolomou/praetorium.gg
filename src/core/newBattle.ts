@@ -6,9 +6,9 @@ export type CreateBattleInput = NewBattlePlayers & {
   missionPackId: string | null
   casual?: boolean
   manual?: boolean
-  /** The club whose table the battle counts on, when it is started from the club between its members. */
-  clubToken?: string
-  /** The fixture of that club's season this battle plays. */
+  /** The group whose table the battle counts on, when it is started from the group between its members. */
+  groupToken?: string
+  /** The fixture of that group's league this battle plays. */
   fixture?: string
 }
 

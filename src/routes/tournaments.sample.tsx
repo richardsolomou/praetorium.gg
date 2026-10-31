@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { TournamentSample } from '../client/features/leagues/TournamentSample'
-import { SAMPLE_STAGES, type SampleStage } from '../client/features/leagues/sampleTournament'
+import { TournamentSample } from '../client/features/sealedEvents/TournamentSample'
+import { SAMPLE_STAGES, type SampleStage } from '../client/features/sealedEvents/sampleTournament'
 import { pageHead } from '../client/linkPreview'
 
 export const Route = createFileRoute('/tournaments/sample')({

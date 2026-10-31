@@ -73,15 +73,15 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-it('keeps refreshed league seals when unrelated saved work is projected online', () => {
+it('keeps refreshed sealed event seals when unrelated saved work is projected online', () => {
   const fresh = { eventToken: 'event', entries: [{ userId: 'alice', submitted: true }] }
-  client.setQueryData(['league', 'league', 'current'], fresh)
-  state.documents['league:league'] = {
+  client.setQueryData(['sealed-event', 'tournament', 'current'], fresh)
+  state.documents['league:tournament'] = {
     data: { ...fresh, entries: [{ userId: 'alice', submitted: false }] },
     serverVersion: null,
   }
   projectLocalState(state)
-  expect(client.getQueryData(['league', 'league', 'current'])).toEqual(fresh)
+  expect(client.getQueryData(['sealed-event', 'tournament', 'current'])).toEqual(fresh)
 })
 
 it.each([

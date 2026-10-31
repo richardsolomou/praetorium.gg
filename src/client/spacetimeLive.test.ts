@@ -282,7 +282,7 @@ it('refreshes a query both signal lists follow once when a product connection fi
   mount()
   await vi.advanceTimersByTimeAsync(0)
   apply()
-  expect(refreshesOf('leagues')).toBe(1)
+  expect(refreshesOf('sealed-events')).toBe(1)
 })
 
 it('refreshes no account query when a signed-out connection first opens', async () => {

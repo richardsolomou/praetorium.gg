@@ -20,7 +20,7 @@ describe('native application navigation', () => {
 
   it.each([
     ['/tournaments', 'events', 'Tournaments'],
-    ['/clubs', 'events', 'Clubs'],
+    ['/groups', 'events', 'Groups'],
     ['/rules', 'rules', 'Rules'],
     ['/leaderboard', 'leaderboard', 'Leaderboard'],
     ['/missions', 'missions', 'Missions'],
@@ -32,8 +32,8 @@ describe('native application navigation', () => {
   it.each([
     ['/rosters/army-id', { back: '/rosters', section: 'rosters', title: 'Roster' }],
     ['/battles/battle-id', { back: '/battles', section: 'battles', title: 'Battle' }],
-    ['/tournaments/league-id', { back: '/tournaments', section: 'events', title: 'Tournament' }],
-    ['/clubs/club-id/games/game-id', { back: '/clubs/club-id', section: 'events', title: 'Sealed game' }],
+    ['/tournaments/sealed-event-id', { back: '/tournaments', section: 'events', title: 'Tournament' }],
+    ['/groups/group-id/games/game-id', { back: '/groups/group-id', section: 'events', title: 'Hidden-list game' }],
     ['/factions/necrons', { back: '/factions', section: 'factions', title: 'Faction' }],
     [
       '/missions/chapter-approved',
@@ -88,8 +88,8 @@ describe('native application navigation', () => {
 
   it('returns a shared roster to the battle or tournament that opened it', () => {
     expect(nativeNavigation('/rosters/roster-id', { battle: 'battle-token' }).back).toBe('/battles/battle-token')
-    expect(nativeNavigation('/rosters/roster-id', { league: 'league-token', event: 'event-token' }).back).toBe(
-      '/tournaments/league-token?event=event-token',
+    expect(nativeNavigation('/rosters/roster-id', { league: 'sealed-event-token', event: 'event-token' }).back).toBe(
+      '/tournaments/sealed-event-token?event=event-token',
     )
   })
 })

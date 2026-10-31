@@ -11,17 +11,17 @@ web
 ## Users
 
 - Warhammer 40,000 players, most often mid-game on a phone, tracking turns, scoring and casualties or checking a rule between rolls.
-- Away from the table: list building, simulation, rules reading; organizers run clubs and tournaments.
+- Away from the table: list building, simulation, rules reading; organizers run groups and tournaments.
 
 ## Product Purpose
 
-- Free army builder, combat simulator, battle tracker and rules reference that carries a game from list to final score, with 1v1, 2v1 and 2v2 games against friends, guests or a practice opponent, round-robin club seasons, and tournaments with secretly sealed lists.
+- Free army builder, combat simulator, battle tracker and rules reference that carries a game from list to final score, with 1v1, 2v1 and 2v2 games against friends, guests or a practice opponent, round-robin group leagues, and tournaments with secretly sealed lists.
 
 ## Positioning
 
 - Free and AGPL open source; nothing behind payment.
-- One place: builder, simulator, battles, clubs, tournaments and reference share the same rosters and data.
-- Social play: friends, clubs, tournaments, guest seats, spectating, public battles, leaderboard.
+- One place: builder, simulator, battles, groups, tournaments and reference share the same rosters and data.
+- Social play: friends, groups, tournaments, guest seats, spectating, public battles, leaderboard.
 
 ## Operating Context
 
@@ -33,7 +33,7 @@ web
 
 - Publish rule names, numbers, costs and computed results from verified community sources (BSData, Game Datacards), never authored rules prose; rules text loads in the reader's browser only on request.
 - Report missing or unsupported rules; never guess them.
-- Tournaments pair Swiss rounds and clubs run round-robin seasons with round deadlines; out of scope: matchmaking, chat, brackets, game appointments, locations, model positions, battle photos.
+- Tournaments pair Swiss rounds and groups run round-robin leagues with round deadlines; out of scope: matchmaking, chat, brackets, game appointments, locations, model positions, battle photos.
 - No account needed to watch public battles, read the leaderboard or reference, or try the builder.
 - Dark only.
 

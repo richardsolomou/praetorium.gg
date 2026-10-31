@@ -3,7 +3,7 @@ import { notificationUrl } from './notifications'
 
 describe('notificationUrl', () => {
   it('opens a path on the application origin', () => {
-    expect(notificationUrl({ path: '/leagues/abc?event=def' })).toBe('https://praetorium.gg/leagues/abc?event=def')
+    expect(notificationUrl({ path: '/sealed-events/abc?event=def' })).toBe('https://praetorium.gg/sealed-events/abc?event=def')
   })
 
   it.each([

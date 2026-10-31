@@ -2,7 +2,7 @@ import { InfiniteQueryObserver, QueryClient } from '@tanstack/react-query'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import * as functions from '../../server/functions'
 import { battlesFrom, battlesQuery, friendBattlesQuery, publicBattlesQuery } from './battles'
-import { leagueBattlesQuery } from './leagues'
+import { sealedEventBattlesQuery } from './sealedEvents'
 
 afterEach(() => vi.restoreAllMocks())
 
@@ -11,9 +11,9 @@ describe.each([
   { name: 'public battles', options: publicBattlesQuery, request: 'publicBattles' as const, rows: battlesFrom },
   { name: 'friend battles', options: friendBattlesQuery, request: 'friendBattles' as const, rows: battlesFrom },
   {
-    name: 'league battles',
-    options: () => leagueBattlesQuery('league', 'event'),
-    request: 'listLeagueBattles' as const,
+    name: 'sealedEvent battles',
+    options: () => sealedEventBattlesQuery('league', 'event'),
+    request: 'listSealedEventBattles' as const,
     rows: battlesFrom,
   },
 ])('$name pages', ({ options, request, rows }) => {

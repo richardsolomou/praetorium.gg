@@ -30,7 +30,7 @@ export type RosterCombatUnit = {
   error?: string
 }
 
-/** A sealed league list at full strength, starting from its first unit; null when it kept no loadouts. */
+/** A sealed list at full strength, starting from its first unit; null when it kept no loadouts. */
 export function sealedCombatRoster(roster: { built?: Omit<BuiltRoster, 'units'> } | null | undefined): CombatRoster | null {
   const built = roster?.built
   if (!built?.picks?.length) return null

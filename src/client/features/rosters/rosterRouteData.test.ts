@@ -79,10 +79,10 @@ it('opens an invalidated saved roster while disconnected', async () => {
   await expect(load(client)).resolves.toMatchObject({ preview: { title: 'Saved army' } })
 })
 
-it('opens a saved editable roster when its league update check fails', async () => {
+it('opens a saved editable roster when its sealed event update check fails', async () => {
   const client = newClient({ defaultOptions: { queries: { retry: false } } })
   client.setQueryData(rosterBootstrapQuery('army').queryKey, bootstrap('Saved army', 0, true))
-  vi.spyOn(functions, 'outdatedLeagueEntriesForRoster').mockRejectedValue(new TypeError('Load failed'))
+  vi.spyOn(functions, 'outdatedSealedEventEntriesForRoster').mockRejectedValue(new TypeError('Load failed'))
   await expect(load(client)).resolves.toMatchObject({ editable: true, preview: { title: 'Saved army' } })
 })
 
@@ -159,7 +159,7 @@ it.each([
 ])('starts building an editable roster’s picker unless the load is a link preload (preload %s)', async (preload, calls) => {
   const client = newClient()
   client.setQueryData(rosterBootstrapQuery('army').queryKey, bootstrap('Army', 0, true))
-  vi.spyOn(functions, 'outdatedLeagueEntriesForRoster').mockResolvedValue([])
+  vi.spyOn(functions, 'outdatedSealedEventEntriesForRoster').mockResolvedValue([])
   const prepare = vi.spyOn(functions, 'preparePickerUnits').mockResolvedValue(null)
   await loadRoster(client, 'army', {}, preload)
   expect(prepare).toHaveBeenCalledTimes(calls)

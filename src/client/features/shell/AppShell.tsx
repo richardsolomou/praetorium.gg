@@ -64,7 +64,7 @@ const PRIMARY_LINKS = [
 ] as const
 
 const EVENT_LINKS = [
-  { to: '/clubs', label: 'Clubs', Icon: Users },
+  { to: '/groups', label: 'Groups', Icon: Users },
   { to: '/tournaments', label: 'Tournaments', Icon: Trophy },
 ] as const
 

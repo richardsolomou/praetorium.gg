@@ -31,53 +31,53 @@ import { DEFAULT_PLAYER_DEFAULTS, isPlayerDefaults } from '../../src/core/player
 import { matchupPairingSchema, RECENT_MATCHUP_LIMIT, recentMatchupSchema } from '../../src/core/recentMatchups'
 import { onboardingTaskIds, tourTaskIds } from '../../src/core/onboarding'
 import {
-  alliedLeagueRosterLimit,
-  leagueAllowancesSchema,
-  leagueArmyPointsError,
-  leagueEntryPoints,
-  leagueSeatRefusal,
-  leagueSharesPoints,
-  parseLeagueAllowances,
-  leagueAllowanceRefusal,
-  leaguePlacesSeat,
-  leagueWarlordValid,
-  leagueWarlordWaived,
-  leagueRegistrationFull,
-  leagueRevealChecklist,
-  leagueTitle,
-  leagueSealingClosed,
-  leagueTeams,
-  leagueReminderRecipients,
-  mayRemindLeague,
-  mayRevealLeague,
-  LEAGUE_ADMIN_MAX,
-  LEAGUE_ADMISSIONS,
-  LEAGUE_MEMBER_MAX,
-  LEAGUE_MEMBER_MIN,
-  LEAGUE_VISIBILITIES,
-  type LeagueAdmission,
-  type LeagueEntryStatus,
-  matchesSealedLeagueRoster,
-  requiredLeagueRosterLimit,
-} from '../../src/core/league'
+  alliedSealedEventRosterLimit,
+  sealedEventAllowancesSchema,
+  sealedEventArmyPointsError,
+  sealedEventEntryPoints,
+  sealedEventSeatRefusal,
+  sealedEventSharesPoints,
+  parseSealedEventAllowances,
+  sealedEventAllowanceRefusal,
+  sealedEventPlacesSeat,
+  sealedEventWarlordValid,
+  sealedEventWarlordWaived,
+  sealedEventRegistrationFull,
+  sealedEventRevealChecklist,
+  sealedEventTitle,
+  sealedEventSealingClosed,
+  sealedEventTeams,
+  sealedEventReminderRecipients,
+  mayRemindSealedEvent,
+  mayRevealSealedEvent,
+  SEALED_EVENT_ADMIN_MAX,
+  SEALED_EVENT_ADMISSIONS,
+  SEALED_EVENT_MEMBER_MAX,
+  SEALED_EVENT_MEMBER_MIN,
+  SEALED_EVENT_VISIBILITIES,
+  type SealedEventAdmission,
+  type SealedEventEntryStatus,
+  matchesSealedRoster,
+  requiredSealedEventRosterLimit,
+} from '../../src/core/sealedEvent'
 import { commandSchema, parseRosterSnapshot, rosterPickSchema, rosterSnapshotOrNull } from '../../src/core/commands'
 import { SWISS_ROUNDS_MAX, swissResultLocked } from '../../src/core/swiss'
 import { compareStandings } from '../../src/core/standings'
 import type { SyncProductActionName } from '../../src/core/syncProductActions'
 import {
-  clubGameOpen,
-  clubGamePastAt,
-  clubGameTimeZoneSchema,
-  CLUB_ADMIN_MAX,
-  CLUB_DESCRIPTION_MAX_LENGTH,
-  CLUB_GAME_SIDES,
-  CLUB_MEMBER_MAX,
-  CLUB_NAME_MAX_LENGTH,
-  isClubOrganizer,
-  type ClubMemberStatus,
-  type ClubRole,
-} from '../../src/core/club'
-import { CLUB_SEASON_PLAYERS_MAX, CLUB_SEASON_PLAYERS_MIN, CLUB_SEASON_SEED_MAX, seasonDraw } from '../../src/core/clubSeason'
+  hiddenListGameOpen,
+  hiddenListGamePastAt,
+  hiddenListGameTimeZoneSchema,
+  GROUP_ADMIN_MAX,
+  GROUP_DESCRIPTION_MAX_LENGTH,
+  HIDDEN_LIST_GAME_SIDES,
+  GROUP_MEMBER_MAX,
+  GROUP_NAME_MAX_LENGTH,
+  isGroupOrganizer,
+  type GroupMemberStatus,
+  type GroupRole,
+} from '../../src/core/group'
+import { GROUP_LEAGUE_PLAYERS_MAX, GROUP_LEAGUE_PLAYERS_MIN, GROUP_LEAGUE_SEED_MAX, leagueDraw } from '../../src/core/groupLeague'
 import { admitConnection, authConfiguration } from './admission'
 import {
   ABILITY_REMINDERS_MAX,
@@ -416,21 +416,21 @@ function tournamentAdminIds(ctx: Context, tournamentId: string) {
 function hostOrganizerIds(ctx: Context, host: EventHost) {
   if (host.kind === 'tournament') return [host.tournament.ownerId, ...tournamentAdminIds(ctx, host.tournament.id)]
   const members = clubMemberRows(ctx, host.club)
-  return members.filter((member) => isClubOrganizer(host.club, members, member.userId)).map((member) => member.userId)
+  return members.filter((member) => isGroupOrganizer(host.club, members, member.userId)).map((member) => member.userId)
 }
 
 /** A tournament's own entry rules; a club game lets its club's members in outright, with no limit beyond the club's. */
 function hostEntryRules(host: EventHost) {
   return host.kind === 'tournament'
-    ? { admission: host.tournament.admission as LeagueAdmission, playerLimit: host.tournament.playerLimit ?? null }
+    ? { admission: host.tournament.admission as SealedEventAdmission, playerLimit: host.tournament.playerLimit ?? null }
     : { admission: 'automatic' as const, playerLimit: null }
 }
 
-/** What an event is called wherever it is named on its own, as `leagueTitle` reads it. */
+/** What an event is called wherever it is named on its own, as `sealedEventTitle` reads it. */
 function eventTitle(host: EventHost) {
-  return leagueTitle({
+  return sealedEventTitle({
     tournament: host.kind === 'tournament' ? host.tournament : null,
-    club: host.kind === 'club' ? host.club : null,
+    group: host.kind === 'club' ? host.club : null,
     format: (host.event.format ?? null) as TableShape | null,
     rosterLimit: host.event.rosterLimit ?? null,
     pointsBudget: host.event.pointsBudget,
@@ -541,7 +541,7 @@ function clubGameHosts(ctx: Context, club: ClubRow) {
 }
 
 function gamePastAt({ game, event }: Extract<EventHost, { kind: 'club' }>) {
-  return clubGamePastAt({
+  return hiddenListGamePastAt({
     playsAt: event.playsAt === undefined ? null : Number(event.playsAt),
     revealedAt: event.revealedAt === undefined ? null : Number(event.revealedAt),
     supersededAt: game.supersededAt === undefined ? null : Number(game.supersededAt),
@@ -550,7 +550,7 @@ function gamePastAt({ game, event }: Extract<EventHost, { kind: 'club' }>) {
 }
 
 function pastClubGame(ctx: Context, host: EventHost) {
-  return host.kind === 'club' && !clubGameOpen({ pastAt: gamePastAt(host) }, safeNumber(nowMs(ctx)))
+  return host.kind === 'club' && !hiddenListGameOpen({ pastAt: gamePastAt(host) }, safeNumber(nowMs(ctx)))
 }
 
 /** How many battles a club has and when the latest began, for its card. */
@@ -590,7 +590,7 @@ function battleClubIds(ctx: Context, seats: readonly { id: string; automated: bo
 
 /** Rewrites a battle's club index row from its log, so a choice and its undo both land in the index. */
 function indexClubBattle(ctx: Context, battleId: string) {
-  const { clubId } = battleState(ctx, battleId).state
+  const { groupId: clubId } = battleState(ctx, battleId).state
   ctx.db.clubBattles.battleId.delete(battleId)
   if (clubId) ctx.db.clubBattles.insert({ battleId, clubId })
 }
@@ -3675,7 +3675,7 @@ function personalEventIds(ctx: Context, userId: string) {
   for (const entry of ctx.db.leagueEventEntries.userId.filter(userId)) ids.add(entry.eventId)
   for (const member of ctx.db.clubMembers.userId.filter(userId)) {
     const club = ctx.db.clubs.id.find(member.clubId)
-    if (club && isClubOrganizer(club, clubMemberRows(ctx, club), userId))
+    if (club && isGroupOrganizer(club, clubMemberRows(ctx, club), userId))
       for (const game of ctx.db.clubGames.clubId.filter(club.id)) ids.add(game.eventId)
   }
   return ids
@@ -3772,7 +3772,7 @@ export const achievementFactsByUser = spacetime.procedure({ userId: t.string() }
         !player.withdrawn &&
         allFinished(seasonFinishes(tx, season.id, (pairing) => pairing.aId === userId || pairing.bId === userId))
       if (played) seasons.push(played)
-      const ran = isClubOrganizer(club, clubMemberRows(tx, club), userId) && allFinished(seasonFinishes(tx, season.id, () => true))
+      const ran = isGroupOrganizer(club, clubMemberRows(tx, club), userId) && allFinished(seasonFinishes(tx, season.id, () => true))
       if (ran) seasonsRun.push(ran)
     }
     const rosters = Array.from(tx.db.rosters.userId.filter(userId))
@@ -3878,7 +3878,7 @@ export const outdatedLeagueEntriesForRoster = spacetime.procedure(
         const event = tx.db.sealedEvents.id.find(entry.eventId)
         if (!event || event.revealedAt !== undefined) continue
         const sealed = rosterSnapshotOrNull(entry.rosterSnapshot)
-        if (sealed && matchesSealedLeagueRoster(current, sealed)) continue
+        if (sealed && matchesSealedRoster(current, sealed)) continue
         const host = hostOfEvent(tx, event)
         if (host)
           matches.push({ token: hostToken(host), name: eventTitle(host), club: host.kind === 'club' ? { token: host.club.token } : null })
@@ -4048,7 +4048,7 @@ function leagueCommandInput<S extends z.ZodType>(inputSchema: S, value: unknown)
 
 const leagueTimeInput = z.number().int().nonnegative()
 const leagueRosterLimitInput = z.number().int().positive().max(10_000)
-const leagueMemberLimitInput = z.number().int().min(LEAGUE_MEMBER_MIN).max(LEAGUE_MEMBER_MAX)
+const leagueMemberLimitInput = z.number().int().min(SEALED_EVENT_MEMBER_MIN).max(SEALED_EVENT_MEMBER_MAX)
 const leagueFormatInput = z.enum(TABLE_SHAPES)
 const leagueRoundsInput = z.number().int().min(1).max(SWISS_ROUNDS_MAX).nullable()
 const leaguePointsBudgetInput = z.number().int().min(POINTS_BUDGET_MIN).max(POINTS_BUDGET_MAX).nullable()
@@ -4064,7 +4064,7 @@ const leagueArmyPointsInput = z.number().int().min(1).max(POINTS_BUDGET_MAX).nul
 const leagueRuleInput = z.object({
   format: leagueFormatInput,
   rosterLimit: leagueRosterLimitInput,
-  allowances: leagueAllowancesSchema.optional(),
+  allowances: sealedEventAllowancesSchema.optional(),
   // Absent from an older client, which leaves the event's pairing and points as they stand.
   rounds: leagueRoundsInput.optional(),
   pointsBudget: leaguePointsBudgetInput.optional(),
@@ -4087,10 +4087,10 @@ type SealedBuilt = NonNullable<Roster['built']>
 /** Why a sealed list cannot take its team seat; a pair that shares points reads it beside the partner's sealed list. */
 function teamSeatRefusal(event: SealedEventRow, entry: LeagueEntryRow, built: SealedBuilt, partner: SealedBuilt | null) {
   const seat = { requiredLimit: entry.requiredLimit ?? null, teamId: entry.teamId ?? null }
-  const points = leagueEntryPoints(eventPoints(event), seat)
+  const points = sealedEventEntryPoints(eventPoints(event), seat)
   if (points === null) return { refusal: 'wrong-limit' as const, points: null }
-  const pair = leagueSharesPoints(eventPoints(event), seat) ? { partner } : undefined
-  const refusal = leagueSeatRefusal(built, event.rosterLimit!, points, pair)
+  const pair = sealedEventSharesPoints(eventPoints(event), seat) ? { partner } : undefined
+  const refusal = sealedEventSeatRefusal(built, event.rosterLimit!, points, pair)
   // What the list may spend: its seat's points, or what its pair has left beside the partner's list.
   return { refusal, points: pair ? points * 2 - (partner ? pointsSpent(partner) : 0) : points }
 }
@@ -4110,22 +4110,23 @@ function sealedListsFit(event: SealedEventRow, entries: readonly LeagueEntryRow[
   return entries.every((entry) => {
     if (entry.status !== 'accepted' || entry.rosterSnapshot === undefined) return true
     const sealed = rosterSnapshotOrNull(entry.rosterSnapshot)
-    if (!sealed?.built || leagueAllowanceRefusal(sealed, allowances)) return false
-    if (!leagueWarlordWaived(sealed, allowances) && !leagueWarlordValid(sealed)) return false
+    if (!sealed?.built || sealedEventAllowanceRefusal(sealed, allowances)) return false
+    if (!sealedEventWarlordWaived(sealed, allowances) && !sealedEventWarlordValid(sealed)) return false
     const seat = { requiredLimit: entry.requiredLimit ?? null, teamId: entry.teamId ?? null }
-    if (leagueEntryPoints(eventPoints(event), seat) === null) return true
+    if (sealedEventEntryPoints(eventPoints(event), seat) === null) return true
     return teamSeatRefusal(event, entry, sealed.built, partnerBuilt(entries, entry)).refusal === null
   })
 }
 
 /** Null for an event created before allowances were recorded. */
-const leagueEventAllowances = (event: SealedEventRow) => (event.allowances === undefined ? null : parseLeagueAllowances(event.allowances))
+const leagueEventAllowances = (event: SealedEventRow) =>
+  event.allowances === undefined ? null : parseSealedEventAllowances(event.allowances)
 /** A tournament's own details; a club game has none. */
 const leagueDetailsInput = z.object({
   name: z.string().max(100),
   description: z.string().max(2_000),
-  visibility: z.enum(LEAGUE_VISIBILITIES),
-  admission: z.enum(LEAGUE_ADMISSIONS),
+  visibility: z.enum(SEALED_EVENT_VISIBILITIES),
+  admission: z.enum(SEALED_EVENT_ADMISSIONS),
   playerLimit: leagueMemberLimitInput.nullable(),
 })
 
@@ -4135,9 +4136,9 @@ function revealLeagueEvent(tx: Context, event: SealedEventRow, now: number, acto
   const sealBy = event.sealBy === undefined ? null : safeNumber(event.sealBy)
   // Past the roster deadline only those who sealed in time play, so the rest neither hold up the reveal nor join it.
   const entries = all.filter(
-    (entry) => entry.status === 'accepted' && (!leagueSealingClosed({ sealBy }, now) || entry.rosterSnapshot !== undefined),
+    (entry) => entry.status === 'accepted' && (!sealedEventSealingClosed({ sealBy }, now) || entry.rosterSnapshot !== undefined),
   )
-  const checks = leagueRevealChecklist(
+  const checks = sealedEventRevealChecklist(
     { format: (event.format ?? null) as TableShape | null, rosterLimit: event.rosterLimit ?? null, sealBy },
     leagueRevealEntries(tx, event.id, all),
     now,
@@ -4154,14 +4155,14 @@ function revealLeagueEvent(tx: Context, event: SealedEventRow, now: number, acto
   const allowances = leagueEventAllowances(event)
   if (
     event.format !== undefined &&
-    snapshots.some((snapshot) => !leagueWarlordWaived(snapshot, allowances) && !leagueWarlordValid(snapshot, true))
+    snapshots.some((snapshot) => !sealedEventWarlordWaived(snapshot, allowances) && !sealedEventWarlordValid(snapshot, true))
   )
     return { outcome: 'invalid-warlords' as const, format: event.format }
   if (
     event.format !== undefined &&
     entries.some((entry, index) => {
       const format = event.format as TableShape
-      const required = requiredLeagueRosterLimit(format, event.rosterLimit ?? null, entry.requiredLimit ?? null, entry.teamId ?? null)
+      const required = requiredSealedEventRosterLimit(format, event.rosterLimit ?? null, entry.requiredLimit ?? null, entry.teamId ?? null)
       const built = snapshots[index]!.built
       if (required === null || !built) return true
       if (format === '1v1') return built.limit !== required
@@ -4185,7 +4186,7 @@ function leagueRevealEntries(ctx: Context, eventId: string, entries: LeagueEntry
   const leaderless = new Set(teams.flatMap((team) => (team.warlordOwed ? team.userIds : [])))
   return entries.map((entry) => ({
     userId: entry.userId,
-    status: entry.status as LeagueEntryStatus,
+    status: entry.status as SealedEventEntryStatus,
     submitted: entry.rosterSnapshot !== undefined,
     requiredLimit: entry.requiredLimit ?? null,
     teamId: entry.teamId ?? null,
@@ -4198,10 +4199,10 @@ function leagueRevealEntries(ctx: Context, eventId: string, entries: LeagueEntry
 function eventTeams(ctx: Context, eventId: string, entries: LeagueEntryRow[]) {
   const picks = new Map(Array.from(ctx.db.leagueEventTeams.eventId.filter(eventId), (row) => [row.teamId, row.disposition]))
   const warlords = new Map(Array.from(ctx.db.leagueEventTeamWarlords.eventId.filter(eventId), (row) => [row.teamId, row.userId]))
-  return leagueTeams(
+  return sealedEventTeams(
     entries.map((entry) => ({
       userId: entry.userId,
-      status: entry.status as LeagueEntryStatus,
+      status: entry.status as SealedEventEntryStatus,
       teamId: entry.teamId ?? null,
       roster: entry.teamId ? rosterSnapshotOrNull(entry.rosterSnapshot) : null,
     })),
@@ -4236,13 +4237,13 @@ export const leagueCommand = spacetime.procedure({ payload: t.string() }, t.stri
 )
 
 const clubDetailsInput = z.object({
-  name: z.string().min(1).max(CLUB_NAME_MAX_LENGTH),
-  description: z.string().max(CLUB_DESCRIPTION_MAX_LENGTH),
-  visibility: z.enum(LEAGUE_VISIBILITIES),
-  admission: z.enum(LEAGUE_ADMISSIONS),
+  name: z.string().min(1).max(GROUP_NAME_MAX_LENGTH),
+  description: z.string().max(GROUP_DESCRIPTION_MAX_LENGTH),
+  visibility: z.enum(SEALED_EVENT_VISIBILITIES),
+  admission: z.enum(SEALED_EVENT_ADMISSIONS),
 })
 
-const seasonSeed = z.number().int().min(0).max(CLUB_SEASON_SEED_MAX)
+const seasonSeed = z.number().int().min(0).max(GROUP_LEAGUE_SEED_MAX)
 
 const clubCommandInput = z.discriminatedUnion('op', [
   clubDetailsInput.extend({ op: z.literal('create'), id: idInput, token: idInput, ownerId: idInput, now: leagueTimeInput }),
@@ -4252,7 +4253,7 @@ const clubCommandInput = z.discriminatedUnion('op', [
   z.object({ op: z.literal('leave'), token: idInput, userId: idInput }),
   z.object({ op: z.literal('moderate'), token: idInput, actorId: idInput, userId: idInput, accept: z.boolean() }),
   z.object({ op: z.literal('remove'), token: idInput, actorId: idInput, userId: idInput }),
-  z.object({ op: z.literal('set-admins'), token: idInput, actorId: idInput, userIds: z.array(idInput).max(CLUB_ADMIN_MAX) }),
+  z.object({ op: z.literal('set-admins'), token: idInput, actorId: idInput, userIds: z.array(idInput).max(GROUP_ADMIN_MAX) }),
   z.object({ op: z.literal('season-join'), token: idInput, userId: idInput, now: leagueTimeInput }),
   z.object({ op: z.literal('season-leave'), token: idInput, userId: idInput }),
   z.object({ op: z.literal('season-draw'), token: idInput, actorId: idInput, seasonId: idInput, seed: seasonSeed, now: leagueTimeInput }),
@@ -4261,14 +4262,14 @@ const clubCommandInput = z.discriminatedUnion('op', [
     token: idInput,
     actorId: idInput,
     seed: seasonSeed,
-    playerIds: z.array(idInput).max(CLUB_SEASON_PLAYERS_MAX),
+    playerIds: z.array(idInput).max(GROUP_LEAGUE_PLAYERS_MAX),
     now: leagueTimeInput,
   }),
   z.object({
     op: z.literal('season-deadline'),
     token: idInput,
     actorId: idInput,
-    round: z.number().int().min(1).max(CLUB_SEASON_PLAYERS_MAX),
+    round: z.number().int().min(1).max(GROUP_LEAGUE_PLAYERS_MAX),
     deadline: leagueTimeInput.nullable(),
   }),
   z.object({ op: z.literal('season-delete'), token: idInput, actorId: idInput }),
@@ -4281,13 +4282,13 @@ function clubMembersOf(ctx: Context, clubId: string) {
 function clubMemberRows(ctx: Context, club: ClubRow) {
   return clubMembersOf(ctx, club.id).map((row) => ({
     userId: row.userId,
-    status: row.status as ClubMemberStatus,
-    role: row.role as ClubRole,
+    status: row.status as GroupMemberStatus,
+    role: row.role as GroupRole,
     joinedAt: row.joinedAt,
   }))
 }
 
-function insertClubMember(ctx: Context, clubId: string, userId: string, status: ClubMemberStatus, now: number) {
+function insertClubMember(ctx: Context, clubId: string, userId: string, status: GroupMemberStatus, now: number) {
   ctx.db.clubMembers.insert({ key: JSON.stringify([clubId, userId]), clubId, userId, status, role: 'member', joinedAt: BigInt(now) })
 }
 
@@ -4317,12 +4318,12 @@ function clubCommandIn(tx: Context, args: unknown[]) {
   if (input.op === 'join') {
     const existing = tx.db.clubMembers.key.find(memberKey(input.userId))
     if (existing) return productJson({ status: existing.status, organizerIds: [] })
-    if (members.length >= CLUB_MEMBER_MAX) return productJson('full')
+    if (members.length >= GROUP_MEMBER_MAX) return productJson('full')
     const status = club.admission === 'automatic' ? 'accepted' : 'pending'
     insertClubMember(tx, club.id, input.userId, status, input.now)
     touchClub(tx, club.id)
     const organizerIds =
-      status === 'pending' ? members.filter((member) => isClubOrganizer(club, members, member.userId)).map((member) => member.userId) : []
+      status === 'pending' ? members.filter((member) => isGroupOrganizer(club, members, member.userId)).map((member) => member.userId) : []
     return productJson({ status, organizerIds })
   }
   if (input.op === 'leave') {
@@ -4341,7 +4342,7 @@ function clubCommandIn(tx: Context, args: unknown[]) {
     if (!isClubMember(tx, club.id, input.userId)) return productJson('forbidden')
     const key = seasonPlayerKey(season.id, input.userId)
     if (tx.db.clubSeasonPlayers.key.find(key)) return productJson('joined')
-    if (seasonPlayers(tx, season.id).length >= CLUB_SEASON_PLAYERS_MAX) return productJson('full')
+    if (seasonPlayers(tx, season.id).length >= GROUP_LEAGUE_PLAYERS_MAX) return productJson('full')
     tx.db.clubSeasonPlayers.insert({ key, seasonId: season.id, userId: input.userId, joinedAt: BigInt(input.now), withdrawn: false })
     touchClub(tx, club.id)
     return productJson('joined')
@@ -4353,7 +4354,7 @@ function clubCommandIn(tx: Context, args: unknown[]) {
   }
 
   const owner = input.actorId === club.ownerId
-  if (!(input.op === 'delete' || input.op === 'set-admins' ? owner : isClubOrganizer(club, members, input.actorId)))
+  if (!(input.op === 'delete' || input.op === 'set-admins' ? owner : isGroupOrganizer(club, members, input.actorId)))
     return productJson('forbidden')
 
   if (input.op === 'update') {
@@ -4419,8 +4420,8 @@ function clubCommandIn(tx: Context, args: unknown[]) {
     // What is published is the draw the organizer reviewed, not one a later join or redraw changed.
     if (input.seed !== season.seed || JSON.stringify(players.toSorted()) !== JSON.stringify(input.playerIds.toSorted()))
       return productJson('stale')
-    if (players.length < CLUB_SEASON_PLAYERS_MIN) return productJson('too-few')
-    for (const [index, tables] of seasonDraw(players, season.seed).entries())
+    if (players.length < GROUP_LEAGUE_PLAYERS_MIN) return productJson('too-few')
+    for (const [index, tables] of leagueDraw(players, season.seed).entries())
       for (const [at, [aId, bId]] of tables.entries())
         tx.db.leagueRoundPairings.insert({
           key: JSON.stringify([season.id, index + 1, at + 1]),
@@ -4518,9 +4519,9 @@ export const clubByToken = spacetime.procedure({ token: t.string() }, t.string()
 )
 
 /** The seat a side of a club's team game names. */
-function clubGameSeat(format: string | undefined, rosterLimit: number | undefined, side: (typeof CLUB_GAME_SIDES)[number]) {
+function clubGameSeat(format: string | undefined, rosterLimit: number | undefined, side: (typeof HIDDEN_LIST_GAME_SIDES)[number]) {
   if (rosterLimit === undefined) return null
-  const allied = alliedLeagueRosterLimit(rosterLimit)
+  const allied = alliedSealedEventRosterLimit(rosterLimit)
   if (format === '2v1' && side === 'solo') return { teamId: undefined, requiredLimit: rosterLimit, places: 1 }
   if (format === '2v1' && side === 'pair') return { teamId: 'pair', requiredLimit: allied, places: 2 }
   if (format === '2v2' && (side === 'team-1' || side === 'team-2')) return { teamId: side, requiredLimit: allied, places: 2 }
@@ -5033,7 +5034,7 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
         ownerId: idInput,
         format: leagueFormatInput.nullable(),
         rosterLimit: leagueRosterLimitInput.nullable(),
-        allowances: leagueAllowancesSchema.default([]),
+        allowances: sealedEventAllowancesSchema.default([]),
         ownerPlays: z.boolean().default(false),
         rounds: leagueRoundsInput.default(null),
         pointsBudget: leaguePointsBudgetInput.default(null),
@@ -5046,13 +5047,13 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
       value,
     )
     const points = leaguePointsBudget(input.format ?? '1v1', input.rosterLimit, input.pointsBudget)
-    if (!points || (input.rounds !== null && (input.format ?? '1v1') !== '1v1') || leagueArmyPointsError(input.format ?? '1v1', input))
+    if (!points || (input.rounds !== null && (input.format ?? '1v1') !== '1v1') || sealedEventArmyPointsError(input.format ?? '1v1', input))
       return productJson('forbidden')
     const createdAt = BigInt(input.now)
     if (operation === 'create') {
       const tournament = leagueCommandInput(leagueDetailsInput.extend({ id: idInput, token: idInput }), value)
       if (!tournament.name.trim()) return productJson('forbidden')
-      if (!leaguePlacesSeat(input.format, tournament.playerLimit)) return productJson('too-small')
+      if (!sealedEventPlacesSeat(input.format, tournament.playerLimit)) return productJson('too-small')
       tx.db.tournaments.insert({
         id: tournament.id,
         token: tournament.token,
@@ -5068,8 +5069,9 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
     } else {
       const club = tx.db.clubs.token.find(leagueCommandInput(z.object({ clubToken: idInput }), value).clubToken)
       // A club's game is casual, so Swiss rounds are a tournament's alone.
-      if (!club || input.rounds !== null || !isClubOrganizer(club, clubMemberRows(tx, club), input.ownerId)) return productJson('forbidden')
-      const { timeZone } = leagueCommandInput(z.object({ timeZone: clubGameTimeZoneSchema.default('UTC') }), value)
+      if (!club || input.rounds !== null || !isGroupOrganizer(club, clubMemberRows(tx, club), input.ownerId))
+        return productJson('forbidden')
+      const { timeZone } = leagueCommandInput(z.object({ timeZone: hiddenListGameTimeZoneSchema.default('UTC') }), value)
       for (const { game } of clubGameHosts(tx, club))
         if (game.supersededAt === undefined) tx.db.clubGames.eventId.update({ ...game, supersededAt: createdAt })
       tx.db.clubGames.insert({
@@ -5128,7 +5130,7 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
     const entries = leagueEntriesFor(tx, event.id).filter((entry) => entry.status !== 'rejected')
     const accepted = entries.filter((entry) => entry.status === 'accepted').length
     const rules = hostEntryRules(host)
-    if (leagueRegistrationFull(rules, accepted, entries.length, input.memberLimit)) return productJson('full')
+    if (sealedEventRegistrationFull(rules, accepted, entries.length, input.memberLimit)) return productJson('full')
     const organizers = hostOrganizerIds(tx, host)
     const status = rules.admission === 'automatic' || organizers.includes(input.userId) ? 'accepted' : 'pending'
     if (existing) tx.db.leagueEventEntries.key.update({ ...existing, status, joinedAt: BigInt(input.now) })
@@ -5166,7 +5168,7 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
     if (host.kind !== 'tournament') return productJson('forbidden')
     const { tournament } = host
     const input = leagueCommandInput(
-      z.object({ op: z.literal('set-admins'), userIds: z.array(idInput).max(LEAGUE_ADMIN_MAX), now: leagueTimeInput }),
+      z.object({ op: z.literal('set-admins'), userIds: z.array(idInput).max(SEALED_EVENT_ADMIN_MAX), now: leagueTimeInput }),
       value,
     )
     const userIds = [...new Set(input.userIds)]
@@ -5233,7 +5235,7 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
     const format = (rule?.format ?? event.format ?? null) as TableShape | null
     const playerLimit = details ? details.playerLimit : hostEntryRules(host).playerLimit
     if ((rule || playerLimit !== hostEntryRules(host).playerLimit) && event.revealedAt === undefined) {
-      if (!leaguePlacesSeat(format, playerLimit)) return productJson('team-minimum')
+      if (!sealedEventPlacesSeat(format, playerLimit)) return productJson('team-minimum')
       if (playerLimit !== null && playerLimit < accepted) return productJson('below-accepted')
     }
     if (rule) {
@@ -5249,7 +5251,7 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
       const soloPoints = rule.soloPoints === undefined ? (kept ? event.soloPoints : undefined) : (rule.soloPoints ?? undefined)
       const allyPoints = rule.allyPoints === undefined ? (kept ? event.allyPoints : undefined) : (rule.allyPoints ?? undefined)
       const sharedPoints = rule.sharedPoints === undefined ? (kept ? event.sharedPoints : undefined) : rule.sharedPoints || undefined
-      if (!points || leagueArmyPointsError(rule.format, { soloPoints, allyPoints, sharedPoints })) return productJson('forbidden')
+      if (!points || sealedEventArmyPointsError(rule.format, { soloPoints, allyPoints, sharedPoints })) return productJson('forbidden')
       const next = {
         ...event,
         format: rule.format,
@@ -5475,7 +5477,7 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
     )
     if (event.revealedAt !== undefined) return productJson('closed')
     if (event.format !== '2v1') return productJson('wrong-format')
-    if (input.requiredLimit !== event.rosterLimit && input.requiredLimit !== alliedLeagueRosterLimit(event.rosterLimit ?? 0))
+    if (input.requiredLimit !== event.rosterLimit && input.requiredLimit !== alliedSealedEventRosterLimit(event.rosterLimit ?? 0))
       return productJson('wrong-limit')
     const entry = tx.db.leagueEventEntries.key.find(JSON.stringify([event.id, input.userId]))
     if (!entry || entry.status !== 'accepted') return productJson('missing')
@@ -5521,7 +5523,7 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
     clearTeamPicks(tx, event.id, oldTeams)
     if (event.format === '2v1') {
       // Each allied list stands on its own, so pairing keeps it unless the entrant was solo and needs a smaller one.
-      const allied = alliedLeagueRosterLimit(event.rosterLimit)
+      const allied = alliedSealedEventRosterLimit(event.rosterLimit)
       const paired = userIds.length === 2 ? userIds : []
       const resized = affected.filter((entry) => paired.includes(entry.userId) && entry.requiredLimit !== allied)
       for (const entry of affected) {
@@ -5549,7 +5551,7 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
         tx.db.leagueEventEntries.key.update({
           ...entry,
           teamId: input.teamId,
-          requiredLimit: alliedLeagueRosterLimit(event.rosterLimit),
+          requiredLimit: alliedSealedEventRosterLimit(event.rosterLimit),
           ...UNSEALED,
         })
     touchEvent(tx, host)
@@ -5557,7 +5559,7 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
   }
   if (operation === 'set-side') {
     const input = leagueCommandInput(
-      z.object({ op: z.literal('set-side'), side: z.enum(CLUB_GAME_SIDES).nullable(), now: leagueTimeInput }),
+      z.object({ op: z.literal('set-side'), side: z.enum(HIDDEN_LIST_GAME_SIDES).nullable(), now: leagueTimeInput }),
       value,
     )
     // A club's players take their own seats; a tournament's organizer sizes and pairs its entrants.
@@ -5625,7 +5627,7 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
     // The deadline closes sealing until the reveal; a list the organizer unseals afterwards can still be replaced.
     if (event.revealedAt === undefined && event.sealBy !== undefined && BigInt(input.now) > event.sealBy)
       return productJson({ outcome: 'past-deadline' })
-    const requiredLimit = requiredLeagueRosterLimit(
+    const requiredLimit = requiredSealedEventRosterLimit(
       (event.format ?? null) as TableShape | null,
       event.rosterLimit ?? null,
       entry.requiredLimit ?? null,
@@ -5637,9 +5639,9 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
     const submitted = rosterSnapshotOrNull(input.snapshot)
     if (!submitted) return productJson({ outcome: 'missing' })
     const allowances = leagueEventAllowances(event)
-    if (!leagueWarlordWaived(submitted, allowances) && !leagueWarlordValid(submitted))
+    if (!sealedEventWarlordWaived(submitted, allowances) && !sealedEventWarlordValid(submitted))
       return productJson({ outcome: 'invalid-warlords', format: event.format ?? null })
-    const refusal = leagueAllowanceRefusal(submitted, allowances)
+    const refusal = sealedEventAllowanceRefusal(submitted, allowances)
     if (refusal) return productJson({ outcome: 'disallowed', message: refusal })
     if (event.pointsBudget !== undefined && (submitted.built?.pointsBudget ?? submitted.built?.limit) !== event.pointsBudget)
       return productJson({ outcome: 'wrong-budget', pointsBudget: event.pointsBudget })
@@ -5660,7 +5662,7 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
       // Allies bring lists saved to the same points total, so the first to seal sets it for the other, unless they share points.
       if (
         partner &&
-        !leagueSharesPoints(eventPoints(event), { requiredLimit: entry.requiredLimit ?? null }) &&
+        !sealedEventSharesPoints(eventPoints(event), { requiredLimit: entry.requiredLimit ?? null }) &&
         pointsBudgetOf(partner) !== pointsBudgetOf(submitted.built)
       )
         return productJson({ outcome: 'ally-mismatch', pointsBudget: pointsBudgetOf(partner) })
@@ -5712,7 +5714,7 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
     const input = leagueCommandInput(z.object({ op: z.literal('reveal'), now: leagueTimeInput }), value)
     if (event.revealedAt !== undefined) return productJson({ outcome: 'not-ready' })
     const actor = tx.db.leagueEventEntries.key.find(JSON.stringify([event.id, ownerId]))
-    if (!mayRevealLeague(organizer, actor ? { status: actor.status as LeagueEntryStatus } : null))
+    if (!mayRevealSealedEvent(organizer, actor ? { status: actor.status as SealedEventEntryStatus } : null))
       return productJson({ outcome: 'not-ready' })
     const revealed = revealLeagueEvent(tx, event, input.now, ownerId)
     if (revealed.outcome === 'revealed') touchEvent(tx, host)
@@ -5730,15 +5732,15 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
   if (operation === 'remind') {
     const input = leagueCommandInput(z.object({ op: z.literal('remind'), now: leagueTimeInput }), value)
     const remindedAt = event.remindedAt === undefined ? null : safeNumber(event.remindedAt)
-    if (!mayRemindLeague(remindedAt, input.now)) return productJson({ outcome: 'too-soon', remindedAt })
-    const recipientIds = leagueReminderRecipients(
+    if (!mayRemindSealedEvent(remindedAt, input.now)) return productJson({ outcome: 'too-soon', remindedAt })
+    const recipientIds = sealedEventReminderRecipients(
       {
         revealedAt: event.revealedAt === undefined ? null : safeNumber(event.revealedAt),
         sealBy: event.sealBy === undefined ? null : safeNumber(event.sealBy),
       },
       leagueEntriesFor(tx, event.id).map((entry) => ({
         userId: entry.userId,
-        status: entry.status as LeagueEntryStatus,
+        status: entry.status as SealedEventEntryStatus,
         submitted: entry.rosterSnapshot !== undefined,
       })),
       input.now,
