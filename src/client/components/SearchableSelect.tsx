@@ -57,6 +57,8 @@ type Props = {
   disabled?: boolean
   loading?: boolean
   trigger?: ReactNode
+  /** Which edge of the trigger the list lines up with; a custom trigger defaults to its end. */
+  align?: 'start' | 'end'
   onboarding?: OnboardingTarget
   /** Renders only the visible rows, for lists too long to mount at once. */
   virtualized?: boolean
@@ -84,6 +86,7 @@ export function SearchableSelect({
   disabled = false,
   loading = false,
   trigger,
+  align = trigger ? 'end' : 'start',
   onboarding,
   virtualized = false,
   emptyText = 'No matches.',
@@ -127,7 +130,7 @@ export function SearchableSelect({
         title={title}
         aria-busy={loading}
         className={cn(
-          'flex h-8 w-full min-w-0 items-center justify-between gap-2 overflow-hidden rounded-lg border border-input bg-transparent px-2.5 text-sm font-normal text-bone outline-none hover:bg-muted focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 data-popup-open:bg-muted data-placeholder:text-muted-foreground',
+          'flex h-8 w-full min-w-0 items-center justify-between gap-2 overflow-hidden rounded-lg border border-input bg-transparent px-2.5 text-sm font-normal text-bone outline-none hover:bg-muted focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 data-popup-open:bg-muted data-placeholder:text-muted-foreground data-disabled:pointer-events-none data-disabled:opacity-50',
           trigger || loading ? '[&>svg:last-child]:hidden' : undefined,
           className,
         )}
@@ -142,7 +145,7 @@ export function SearchableSelect({
         {loading ? <LoaderCircle className="size-4 shrink-0 animate-spin" aria-hidden /> : null}
       </ComboboxTrigger>
       <ComboboxContent
-        align={trigger ? 'end' : 'start'}
+        align={align}
         className={cn('transition-none', trigger ? 'w-72 min-w-64 max-w-[calc(100vw-2rem)]' : undefined, popupClassName)}
       >
         <ComboboxInput placeholder={searchPlaceholder} showTrigger={false} />

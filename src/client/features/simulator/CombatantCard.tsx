@@ -3,7 +3,6 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useContext, useState, type ReactNode } from 'react'
 import { ChevronDown, Plus, ScrollText, Settings, WandSparkles, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Dialog, DialogBody, DialogContent, DialogHeader, DialogTitle } from '../../components/Dialog'
 import { MAX_COMBAT_MODELS } from '../../../core/combat'
@@ -28,6 +27,7 @@ import { OwnerName } from './rosterOwners'
 import { attachedUnit } from '../../../core/attachedUnits'
 import { rulesVersionLabel } from '../../../core/catalogueEdition'
 import { Problem } from '../../components/Problem'
+import { ControlTooltip } from '../../components/ControlTooltip'
 import { countLabel, formatList } from '../../text'
 
 export function CombatantCard({
@@ -126,6 +126,9 @@ export function CombatantCard({
       }}
     />
   )
+  const unready = !pick ? 'Choose a unit first' : !ready ? 'Loading the unit…' : undefined
+  const busy = optimizer.busy ? 'Wait for the optimization to finish' : unready
+  const unscored = unready ?? (optimizer.enabled ? undefined : 'Choose a defender first')
   const warmLoadout = (index: number) => {
     const memberPick = picks.positioned[index]
     if (ready && memberPick)
@@ -147,28 +150,36 @@ export function CombatantCard({
         <div className="flex shrink-0 items-center gap-2">
           <h2 className="rubric">{side}</h2>
           {!combatant.roster ? (
-            <SearchableSelect
-              ariaLabel={`${side} add attached unit`}
-              placeholder="Add member"
-              searchPlaceholder="Search unit members…"
-              value=""
-              disabled={!ready || optimizer.busy || !combatant.sheets.data?.attachmentOptions.length}
-              title={`Add a member to the ${side.toLowerCase()} unit`}
-              trigger={<Plus className="size-4" aria-hidden />}
-              className="size-7 shrink-0 justify-center p-0 text-primary"
-              onValueChange={combatant.addAttachment}
-              groups={(['bodyguard', 'leader', 'support'] as const).map((kind) => ({
-                label: kind === 'bodyguard' ? 'Squads' : kind === 'leader' ? 'Leaders' : 'Support',
-                items:
-                  combatant.sheets.data?.attachmentOptions
-                    .filter((option) => option.kind === kind)
-                    .map((option) => ({
-                      value: option.entryId,
-                      label: option.name,
-                      icon: factionIcon(option.factionSlug ?? option.catalogueId),
-                    })) ?? [],
-              }))}
-            />
+            <ControlTooltip
+              label={
+                busy ??
+                (combatant.sheets.data?.attachmentOptions.length
+                  ? 'Add a leader, bodyguard squad or support unit'
+                  : `Nothing can lead, join or support ${unit?.name ?? 'this unit'}`)
+              }
+            >
+              <SearchableSelect
+                ariaLabel={`${side} add attached unit`}
+                placeholder="Add member"
+                searchPlaceholder="Search unit members…"
+                value=""
+                disabled={Boolean(busy) || !combatant.sheets.data?.attachmentOptions.length}
+                trigger={<Plus className="size-4" aria-hidden />}
+                className="size-7 shrink-0 justify-center p-0 text-primary"
+                onValueChange={combatant.addAttachment}
+                groups={(['bodyguard', 'leader', 'support'] as const).map((kind) => ({
+                  label: kind === 'bodyguard' ? 'Squads' : kind === 'leader' ? 'Leaders' : 'Support',
+                  items:
+                    combatant.sheets.data?.attachmentOptions
+                      .filter((option) => option.kind === kind)
+                      .map((option) => ({
+                        value: option.entryId,
+                        label: option.name,
+                        icon: factionIcon(option.factionSlug ?? option.catalogueId),
+                      })) ?? [],
+                }))}
+              />
+            </ControlTooltip>
           ) : null}
           {headingAction}
         </div>
@@ -198,44 +209,43 @@ export function CombatantCard({
           )}
           {optimizer.available ? (
             <div className="flex items-center">
-              <Tooltip>
-                <TooltipTrigger
-                  render={
-                    <Button
-                      size="sm"
-                      className="relative h-7 w-12 shrink-0 overflow-hidden rounded-r-none px-1 tabular-nums"
-                      disabled={!optimizer.enabled && !optimizer.busy}
-                      onClick={() => (optimizer.busy ? optimizer.cancel() : void optimizer.optimize())}
-                      aria-label={optimizer.busy ? `Cancel optimization, approximately ${optimizer.progress}% complete` : 'Optimize'}
-                    >
-                      {optimizer.busy ? <span>{optimizer.progress}%</span> : <WandSparkles className="size-4" aria-hidden />}
-                    </Button>
-                  }
-                />
-                <TooltipContent role="tooltip" side="bottom">
-                  {optimizer.busy
+              <ControlTooltip
+                label={
+                  optimizer.busy
                     ? 'Cancel optimization and keep improvements'
-                    : 'Optimize the whole unit’s loadout for the best chance to destroy the defender'}
-                </TooltipContent>
-              </Tooltip>
-              <DropdownMenu>
-                <DropdownMenuTrigger
-                  render={
-                    <Button
-                      size="sm"
-                      className="h-7 w-6 rounded-l-none border-l border-background/30 px-0"
-                      aria-label="Optimization options"
-                      disabled={!optimizer.enabled || optimizer.busy}
-                    />
-                  }
+                    : (unscored ?? 'Optimize the whole unit’s loadout for the best chance to destroy the defender')
+                }
+              >
+                <Button
+                  size="sm"
+                  className="relative h-7 w-12 shrink-0 overflow-hidden rounded-r-none px-1 tabular-nums"
+                  disabled={!optimizer.enabled && !optimizer.busy}
+                  onClick={() => (optimizer.busy ? optimizer.cancel() : void optimizer.optimize())}
+                  aria-label={optimizer.busy ? `Cancel optimization, approximately ${optimizer.progress}% complete` : 'Optimize'}
                 >
-                  <ChevronDown className="size-3" aria-hidden />
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-auto">
-                  <DropdownMenuItem onClick={() => void optimizer.optimize('ranged')}>Optimize for ranged</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => void optimizer.optimize('melee')}>Optimize for melee</DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+                  {optimizer.busy ? <span>{optimizer.progress}%</span> : <WandSparkles className="size-4" aria-hidden />}
+                </Button>
+              </ControlTooltip>
+              <ControlTooltip label={busy ?? unscored ?? 'Optimize for ranged or melee only'}>
+                <DropdownMenu>
+                  <DropdownMenuTrigger
+                    render={
+                      <Button
+                        size="sm"
+                        className="h-7 w-6 rounded-l-none border-l border-background/30 px-0"
+                        aria-label="Optimization options"
+                        disabled={!optimizer.enabled || optimizer.busy}
+                      />
+                    }
+                  >
+                    <ChevronDown className="size-3" aria-hidden />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-auto">
+                    <DropdownMenuItem onClick={() => void optimizer.optimize('ranged')}>Optimize for ranged</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => void optimizer.optimize('melee')}>Optimize for melee</DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </ControlTooltip>
             </div>
           ) : null}
         </div>
@@ -334,22 +344,34 @@ export function CombatantCard({
                     options={combatant.detachmentOptions ?? []}
                     value={combatant.detachmentIds}
                     limit={combatant.limit}
-                    disabled={!ready || optimizer.busy || !combatant.detachmentOptions}
+                    unavailable={
+                      busy ??
+                      (!combatant.detachmentOptions
+                        ? 'Loading detachments…'
+                        : combatant.detachmentOptions.length
+                          ? undefined
+                          : 'This faction has no detachments')
+                    }
                     onChange={combatant.selectDetachments}
                   />
                 ) : null}
-                <Button
-                  variant="outline"
-                  size="icon-sm"
-                  title="Loadout"
-                  disabled={!ready}
-                  onPointerEnter={() => warmLoadout(member.index)}
-                  onFocus={() => warmLoadout(member.index)}
-                  aria-label={member.index === pickIndex ? 'Loadout' : `${side} ${member.name} loadout`}
-                  onClick={() => setLoadoutIndex(member.index)}
+                <ControlTooltip
+                  label={
+                    unready ?? (member.index === pickIndex ? 'Choose weapons and wargear' : `Choose ${member.name}’s weapons and wargear`)
+                  }
                 >
-                  <Settings className="size-4" aria-hidden />
-                </Button>
+                  <Button
+                    variant="outline"
+                    size="icon-sm"
+                    disabled={!ready}
+                    onPointerEnter={() => warmLoadout(member.index)}
+                    onFocus={() => warmLoadout(member.index)}
+                    aria-label={member.index === pickIndex ? 'Loadout' : `${side} ${member.name} loadout`}
+                    onClick={() => setLoadoutIndex(member.index)}
+                  >
+                    <Settings className="size-4" aria-hidden />
+                  </Button>
+                </ControlTooltip>
                 {battleUnit &&
                 (member.index === pickIndex
                   ? models < battleUnit.startingModels
@@ -358,25 +380,34 @@ export function CombatantCard({
                         candidate.pickIndex === member.index &&
                         candidate.models < candidate.original.reduce((total, carrier) => total + carrier.models, 0),
                     )) ? (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    aria-label={member.index === pickIndex ? undefined : `${side} ${member.name} survivors`}
-                    onClick={() => setSurvivorIndex(member.index)}
-                  >
-                    Survivors
-                  </Button>
+                  <ControlTooltip label="Choose which models are still alive">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      aria-label={member.index === pickIndex ? undefined : `${side} ${member.name} survivors`}
+                      onClick={() => setSurvivorIndex(member.index)}
+                    >
+                      Survivors
+                    </Button>
+                  </ControlTooltip>
                 ) : null}
                 {!combatant.roster ? (
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    disabled={members.length < 2 || !ready || optimizer.busy}
-                    aria-label={`Remove ${side.toLowerCase()} ${member.name}`}
-                    onClick={() => combatant.removeMember(member.index)}
+                  <ControlTooltip
+                    label={
+                      busy ??
+                      (members.length < 2 ? 'A unit can’t be empty; choose a different one instead' : `Remove ${member.name} from the unit`)
+                    }
                   >
-                    <X aria-hidden />
-                  </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      disabled={members.length < 2 || !ready || optimizer.busy}
+                      aria-label={`Remove ${side.toLowerCase()} ${member.name}`}
+                      onClick={() => combatant.removeMember(member.index)}
+                    >
+                      <X aria-hidden />
+                    </Button>
+                  </ControlTooltip>
                 ) : null}
               </div>
             </div>
@@ -513,19 +544,20 @@ function RosterCaption({
         </span>
       </span>
       {rosters.owner ? <OwnerName owner={rosters.owner} className="ml-auto shrink-0" /> : null}
-      <Button
-        variant="ghost"
-        size="icon-sm"
-        className={rosters.owner ? 'shrink-0' : 'ml-auto shrink-0'}
-        aria-label={`Use ${side.toLowerCase()} unit without ${name}`}
-        title="Use this unit without the roster"
-        onClick={() => {
-          const { roster: _roster, ...unit } = combatant.shared!
-          rosters.replace({ ...unit, ...(combatant.detachmentIds.length ? { detachmentIds: [...combatant.detachmentIds] } : {}) })
-        }}
-      >
-        <X aria-hidden />
-      </Button>
+      <ControlTooltip label="Use this unit without the roster">
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          className={rosters.owner ? 'shrink-0' : 'ml-auto shrink-0'}
+          aria-label={`Use ${side.toLowerCase()} unit without ${name}`}
+          onClick={() => {
+            const { roster: _roster, ...unit } = combatant.shared!
+            rosters.replace({ ...unit, ...(combatant.detachmentIds.length ? { detachmentIds: [...combatant.detachmentIds] } : {}) })
+          }}
+        >
+          <X aria-hidden />
+        </Button>
+      </ControlTooltip>
     </div>
   )
 }

@@ -45,6 +45,11 @@ it('groups consecutive units by whose list they come from', () => {
   ])
 })
 
+it('names no groups for a side that is one owner’s list', () => {
+  const unit = { rosterIndex: 0, pickIndex: 0, name: 'Squad', snapshot: null, owner: { name: 'Ana' } }
+  expect(ownerRuns([unit, { ...unit, pickIndex: 1 }])).toEqual([])
+})
+
 it('names no groups for a single unlabelled roster', () => {
   expect(ownerRuns([{ rosterIndex: 0, pickIndex: 0, name: 'Squad', snapshot: null }])).toEqual([])
 })

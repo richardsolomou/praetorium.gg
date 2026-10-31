@@ -90,7 +90,7 @@ for (const [width, label] of [
       await reader.goto(`/rosters/${sourceId}`)
       await chooseRosterAction(reader, 'Test targets')
       const simulator = reader.getByRole('dialog', { name: 'Test targets', exact: true })
-      await expect(simulator.getByRole('combobox', { name: 'Attacking roster', exact: true })).toContainText('Current roster')
+      await expect(simulator.getByRole('group', { name: 'Attacking with', exact: true })).toContainText('Current roster')
       await simulator.getByRole('button', { name: 'Close', exact: true }).click()
       expect(await product.roster(sourceId)).toEqual(source)
       await reader.goBack()

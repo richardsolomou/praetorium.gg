@@ -35,7 +35,7 @@ Each hidden-list game has its own format, points and house rules, set as a tourn
 
 Before the reveal, an organizer can press **Remind players** to send a notification to each player in the game who hasn't sealed a list yet, once a day.
 
-After reveal, use **Simulate** beside another player’s list to compare your sealed armies. For team games, the simulator combines each side’s lists.
+After reveal, each list shows its faction and points, split by side or pair as on a tournament page. Use **Simulate** beside another player’s list to compare your sealed armies. In a team game, **Simulate** sits on the other side's heading and sets your side's lists against theirs.
 
 The results go on the group's leaderboard. Starting a new hidden-list game automatically moves the previous one to **Past hidden-list games**, on **Overview**. A scheduled game also moves there after its scheduled day ends; an undated game moves after the day its lists were revealed. Days end at midnight in the timezone of the organizer who created the game. An undated game with unrevealed lists stays open until replaced. A game with a battle still being played stays under **Up next** until that battle ends, though nobody can start another battle from it.
 

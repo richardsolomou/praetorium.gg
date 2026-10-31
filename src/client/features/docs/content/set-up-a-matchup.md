@@ -1,6 +1,6 @@
 The [simulator](/simulator) calculates exact odds for one unit attacking another, so you can see what a wargear swap, a Leader or a buff actually changes. It's free and doesn't need an account; signing in adds your saved rosters and a list of recent simulations.
 
-Open [Simulator](/simulator) and stay on the **Units** tab. **Try an example** loads an editable Intercessors against Necron Warriors matchup if you just want to see how it works.
+Open [Simulator](/simulator); **Attacking with** and **Defending with** both start on **Single unit**. **Try an example** loads an editable Intercessors against Necron Warriors matchup if you just want to see how it works.
 
 1. On the **Attacker** side, use **Choose a unit** and search any faction's datasheets. Do the same on the **Defender** side.
 2. Set the model count with the stepper beside the unit. It stays within the datasheet's legal squad sizes, and the card shows the unit's points.
@@ -14,6 +14,6 @@ You can also start from a datasheet: **Simulate** on any unit's reference page o
 
 ## Use a unit from a roster
 
-When you're signed in, the unit picker starts with **From a roster**. Choose a roster from **Your rosters**, **Friends' rosters** (their public lists) or **Friends' sealed rosters** (sealed lists from a revealed tournament or group hidden-list game you can see that is still on: a hidden-list game until it moves to past games, a Swiss tournament until its last round is played), then one of its units. That side then keeps the roster's detachment, enhancements, attachments and army rules, and a line under the unit names the roster. Reopening the picker lists that roster's units; **Rosters** and **All units** go back up. The **×** on the roster line keeps the unit and its loadout but drops the roster.
+When you're signed in, choose a roster under **Attacking with** or **Defending with**, then one of its units. The unit picker on the card also starts with **From a roster**. Choose a roster from **Your rosters**, **Friends' rosters** (their public lists) or **Friends' sealed rosters** (sealed lists from a revealed tournament or group hidden-list game you can see that is still on: a hidden-list game until it moves to past games, a Swiss tournament until its last round is played), then one of its units. That side then keeps the roster's detachment, enhancements, attachments and army rules, and a line under the unit names the roster. Reopening the picker lists that roster's units; **Rosters** and **All units** go back up. The **×** on the roster line keeps the unit and its loadout but drops the roster.
 
 On a roster side, attachments come from the list itself, so you can't add or remove members there.

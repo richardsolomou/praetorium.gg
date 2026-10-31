@@ -10,10 +10,10 @@ In a 2v1 or doubles tournament the organizer gives you your size and teammate fi
 
 ## After the reveal
 
-Every roster opens at once. Each player's card has **View roster** and **Simulate** for their list. Start a tournament battle from the tournament page against another entrant, and both sealed rosters are added for you. If you and an opponent are both in a tournament, starting a battle anywhere offers to play it in the tournament. Finished battles fill the results table, which counts the tournament's latest 500 battles.
+Every roster opens at once. Each player's row has **View roster** and **Simulate** for their list; in a doubles or 2v1 tournament, **Simulate** sits on the other side's heading. Start a tournament battle from the tournament page against another entrant, and both sealed rosters are added for you. If you and an opponent are both in a tournament, starting a battle anywhere offers to play it in the tournament. Finished battles fill the results table, which counts the tournament's latest 500 battles.
 
 In a tournament with Swiss rounds you don't choose your opponent: when the organizer pairs a round, your table shows on the tournament page with **Start battle**. With notifications on in the app, you hear when each round is paired. Once your battle has started, **Resume battle** on the tournament page takes you back to it. Each battle in the list says which round and table it was. A bye counts as a win. The next round is paired once every table has finished. Results from earlier rounds are locked once the next round is paired. If a result is wrong, ask the organizer to reopen it, then correct the score and finish the battle again.
 
-To leave a Swiss tournament, press the withdraw button on your roster card, then **Withdraw**. You aren't paired again and can't rejoin, and your results stay in the table. If your table in the current round hasn't finished, your opponent takes it as a bye. If your opponent withdraws or the organizer drops them before your table finishes, you get the bye.
+To leave a Swiss tournament, press the withdraw button on your roster row, then **Withdraw**. You aren't paired again and can't rejoin, and your results stay in the table. If your table in the current round hasn't finished, your opponent takes it as a bye. If your opponent withdraws or the organizer drops them before your table finishes, you get the bye.
 
 Once the rosters are out you can also make the original saved roster public with **Share your sealed roster?**, or decline.

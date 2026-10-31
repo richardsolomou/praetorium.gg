@@ -1,10 +1,14 @@
 import { Link } from '@tanstack/react-router'
-import { Eye } from 'lucide-react'
+import { Calculator, Eye } from 'lucide-react'
 import type { ReactElement, ReactNode } from 'react'
 import { buttonClass } from '../../components/buttonClass'
+import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import type { SealedEventEntryView } from '../../../core/sealedEvent'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
+import { formatList } from '../../text'
+import { useDispositionNames } from '../battle/setup/chrome'
+import { entrantGroups, type SealedEvent } from './sealedEvent'
 
 /** One person in an event: who they are, where their entry stands, and whatever the reader may do about it. */
 export function EntrantRow({
@@ -80,6 +84,24 @@ export function EntrantGroup({
   )
 }
 
+/**
+ * The event's entrants split by side or pair, the same before and after the reveal, a pair named with the card it sealed
+ * once the reader may see it: its own members before the reveal, everyone after.
+ */
+export function useEntrantGroups<T extends SealedEventEntryView>(
+  sealedEvent: SealedEvent | undefined,
+  accepted: readonly T[],
+  label: (entry: SealedEventEntryView) => string,
+) {
+  const nameDisposition = useDispositionNames()
+  if (!sealedEvent) return []
+  return entrantGroups(sealedEvent, accepted, (members) => {
+    const card = sealedEvent.entries.find((entry) => entry.userId === members[0]?.userId)?.team?.disposition
+    const named = nameDisposition(card)?.name
+    return [formatList(members.map(label)), named && `plays ${named}`].filter(Boolean).join(' · ')
+  })
+}
+
 export function sealStatus(entry: Pick<SealedEventEntryView, 'submitted'>, revealed: boolean) {
   if (revealed) return entry.submitted ? 'Roster revealed' : 'No roster'
   return entry.submitted ? 'Roster sealed' : 'No roster yet'
@@ -123,5 +145,24 @@ export function IconAction({ tooltip, trigger, children }: { tooltip: string; tr
         {tooltip}
       </TooltipContent>
     </Tooltip>
+  )
+}
+
+export function SimulateButton({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <IconAction
+      tooltip={`Simulate against ${label}`}
+      trigger={
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          className="text-dim hover:text-info pointer-coarse:size-11"
+          aria-label={`Simulate against ${label}`}
+          onClick={onClick}
+        />
+      }
+    >
+      <Calculator aria-hidden />
+    </IconAction>
   )
 }

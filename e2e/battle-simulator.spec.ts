@@ -44,7 +44,7 @@ test('the battle matchup planner uses live survivors, isolates experiments, and 
   }
   await panels[0].getByRole('button', { name: "Simulate Live planner's combat", exact: true }).click()
   const planner = page.getByRole('dialog', { name: 'Combat simulator', exact: true }).first()
-  await planner.getByRole('tab', { name: 'Rosters', exact: true }).click()
+  await chooseOption(page, 'Attacking with', 'Live planner')
   await expect(planner).toContainText('4 / 4 matchups · Complete')
   const table = planner.getByRole('table')
   await expect(table).not.toContainText('Rhino')
@@ -70,7 +70,7 @@ test('the battle matchup planner uses live survivors, isolates experiments, and 
   await panels[0].getByRole('button', { name: "Simulate Live planner's combat", exact: true }).click()
   await expect(await combatDamage(planner, 'Shooting')).toHaveText(/^\d+\.\d+$/)
   const cachedGate = await holdCombatCalculations(page)
-  await planner.getByRole('tab', { name: 'Rosters', exact: true }).click()
+  await chooseOption(page, 'Attacking with', 'Live planner')
   await expect(planner).toContainText('4 / 4 matchups · Complete')
   expect(await page.evaluate(() => window.PraetoriumCombatGate?.pending.length)).toBe(0)
   await cachedGate.release()

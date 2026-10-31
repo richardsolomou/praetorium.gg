@@ -59,19 +59,17 @@ test('a full roster matrix batches projections and uses the server without brows
     if (request.url().includes('/_serverFn/') && request.postData()?.includes('pickIndices')) projections++
     if (isCombatCalculationRequest(request) && response.status() === 200) calculations++
   })
+  const started = Date.now()
   await chooseRosterAction(page, 'Test targets')
   const dialog = page.getByRole('dialog', { name: 'Test targets', exact: true })
-  await expect(dialog.getByRole('button', { name: 'Run all matchups' })).toBeEnabled()
-  projections = 0
-  const started = Date.now()
-  await dialog.getByRole('button', { name: 'Run all matchups' }).click()
   await expect(dialog).toContainText('117 / 117 matchups · Complete', { timeout: 120_000 })
   console.log(`Server 117-pair matrix: ${Date.now() - started} ms; ${projections} projection batches; ${calculations} calculation batches`)
   expect(projections).toBeLessThanOrEqual(10)
   expect(calculations).toBeGreaterThan(0)
   expect(await localCalculations(page)).toBe(0)
   const before = calculations
-  await dialog.getByRole('button', { name: 'Run again' }).click()
+  await dialog.getByRole('button', { name: 'Close', exact: true }).click()
+  await chooseRosterAction(page, 'Test targets')
   await expect(dialog).toContainText('117 / 117 matchups · Complete')
   expect(calculations).toBe(before)
   await page.setViewportSize(PHONE)
@@ -84,8 +82,8 @@ test('a full roster matrix batches projections and uses the server without brows
   await options.click()
   await expect(options).toContainText('Models lost · Best attackers')
   expect(calculations).toBe(before)
-  const attackerSource = (await dialog.getByRole('combobox', { name: 'Attacking roster' }).boundingBox())!
-  const defenderSource = (await dialog.getByRole('combobox', { name: 'Defending roster' }).boundingBox())!
+  const attackerSource = (await dialog.getByRole('group', { name: 'Attacking with' }).boundingBox())!
+  const defenderSource = (await dialog.getByRole('group', { name: 'Defending with' }).boundingBox())!
   expect(Math.abs(attackerSource.y - defenderSource.y)).toBeLessThan(2)
   await page.screenshot({ path: test.info().outputPath('server-roster-matrix-phone.png') })
 })

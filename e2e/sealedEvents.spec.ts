@@ -183,16 +183,17 @@ test('revealed rosters compare every unit using frozen loadouts and preserve sea
   await owner.goto(savedUrl)
   await addUnit(owner, 'Skorpekh Destroyers')
   await owner.goto(sealedEventUrl)
-  // Once revealed, each list is a card that opens in full or sets the reader's own list against it.
+  // Once revealed, each list is a row that opens in full or sets the reader's own list against it.
   const card = owner.locator(`[data-army="${opponentName}"]`)
   await expect(card).toContainText('Comparison attackers')
   await expect(viewRoster(card, opponentName)).toBeVisible()
   await expect(owner.locator(`[data-army="${ownerName}"]`).getByRole('button', { name: /^Simulate against/ })).toHaveCount(0)
   const plan = card.getByRole('button', { name: `Simulate against ${opponentName}`, exact: true })
+  const gate = await holdCombatCalculations(owner)
   await plan.click()
   const dialog = owner.getByRole('dialog', { name: 'Combat simulator', exact: true })
-  await expect(dialog.getByRole('combobox', { name: 'Attacking roster', exact: true })).toContainText(ownerName)
-  await expect(dialog.getByRole('combobox', { name: 'Defending roster', exact: true })).toContainText(opponentName)
+  await expect(dialog.getByRole('group', { name: 'Attacking with', exact: true })).toContainText(ownerName)
+  await expect(dialog.getByRole('group', { name: 'Defending with', exact: true })).toContainText(opponentName)
   const refreshSavedRoster = async (name: string) => {
     await owner.evaluate(() => {
       const table = document.querySelector('[role="dialog"] table')!
@@ -211,14 +212,12 @@ test('revealed rosters compare every unit using frozen loadouts and preserve sea
       await owner.evaluate(() => (window as Window & { comparisonRefreshProbe?: { removed: boolean } }).comparisonRefreshProbe?.removed),
     ).toBe(false)
   }
-  const gate = await holdCombatCalculations(owner)
-  await dialog.getByRole('button', { name: 'Run all matchups' }).click()
   await gate.waitForStart()
   await refreshSavedRoster('Updated saved roster during simulation')
   await dialog.getByRole('button', { name: 'Cancel', exact: true }).click()
   await expect(dialog).toContainText('Cancelled')
   await gate.release()
-  await dialog.getByRole('button', { name: 'Run again' }).click()
+  await dialog.getByRole('button', { name: 'Retry', exact: true }).click()
   await expect(dialog).toContainText('4 / 4 matchups · Complete')
   const table = dialog.getByRole('table')
   await expect(table.getByRole('cell')).toHaveCount(4)
@@ -239,7 +238,8 @@ test('revealed rosters compare every unit using frozen loadouts and preserve sea
   await dialog.getByRole('button', { name: 'Close', exact: true }).click()
   await owner.reload()
   await expect(sealedEventHeader(owner)).toContainText('Rosters revealed')
-  await expect(owner.locator(`[data-army="${ownerName}"]`)).toContainText('sealed')
+  // The sealed list keeps its name after the saved roster is renamed.
+  await expect(owner.locator(`[data-army="${ownerName}"]`)).toContainText('Comparison defenders')
   await owner.goto(savedUrl)
   await expect(owner.locator('[data-unit="Skorpekh Destroyers"]')).toBeVisible()
   await ownerContext.close()
@@ -1053,7 +1053,7 @@ test('the organizer unseals a revealed roster so its entrant can seal a correcte
   await owner.goto(sealedEventUrl.toString())
   // Revealed players show with their lists, which carry the organizer's unseal control; the entrant list is gone.
   const entrantCard = owner.locator(`[data-army="${entrantName}"]`)
-  await expect(entrantCard).toContainText('sealed')
+  await expect(entrantCard).toContainText('Mistaken list')
   await expect(owner.locator(`[data-person="${entrantName}"]`)).toHaveCount(0)
   await owner.setViewportSize(PHONE)
   await expectWithinPage(owner)

@@ -1,6 +1,5 @@
 import type { CombatPhase } from '../../../core/combat'
 import { useState, type ReactNode } from 'react'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Switch } from '@/components/ui/switch'
 import { Toggle as ToggleButton } from '@/components/ui/toggle'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -129,31 +128,6 @@ export function Chip({
     </Tooltip>
   ) : (
     control
-  )
-}
-
-export function SimulationMode({
-  rosters,
-  onChange,
-  units,
-  comparison,
-  className = '',
-}: {
-  rosters: boolean
-  onChange: (rosters: boolean) => void
-  units: ReactNode
-  comparison: ReactNode
-  className?: string
-}) {
-  return (
-    <Tabs value={rosters ? 'rosters' : 'units'} onValueChange={(value) => onChange(value === 'rosters')} className="flex-col gap-4">
-      <TabsList aria-label="Simulation mode" className={cn('h-9', className)}>
-        <TabsTrigger value="units">Units</TabsTrigger>
-        <TabsTrigger value="rosters">Rosters</TabsTrigger>
-      </TabsList>
-      <TabsContent value="units">{units}</TabsContent>
-      <TabsContent value="rosters">{comparison}</TabsContent>
-    </Tabs>
   )
 }
 

@@ -6,7 +6,7 @@ For a first comparison without a saved roster, open [Combat simulator](/simulato
 
 In a battle, **Simulate** on a player's army opens the simulator with each unit's current models and wounds. Destroyed, reserve and embarked units can't be picked. Change the model count or **Wounded model · wounds left** to try a different state. If losses could have come from different models, **Survivors** lets you choose who's left.
 
-In a tournament, once armies are revealed and you've submitted your own list, **Simulate** beside another entrant's army compares the two lists.
+In a tournament, once armies are revealed and you've submitted your own list, **Simulate** beside another entrant's army compares the two lists. In a doubles or 2v1 event, **Simulate** sits on the other pair or side and compares your side's lists against theirs.
 
 ## Offline
 

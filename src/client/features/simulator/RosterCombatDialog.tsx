@@ -1,5 +1,4 @@
 import { useState, type ReactNode } from 'react'
-import { SimulationMode } from './CombatControls'
 import { Dialog, DialogBody, DialogContent, DialogHeader, DialogTitle } from '../../components/Dialog'
 import { BattleDialogContent, BattlePromptDialog } from '../battle/BattlePromptDialog'
 import { CombatSimulatorMatchup } from './CombatSimulator'
@@ -21,12 +20,13 @@ export function RosterCombatDialog({
       {startWithRosters ? (
         <RosterCombatComparison currentRoster={roster} />
       ) : (
-        <SimulationMode
-          rosters={comparingRosters}
-          onChange={setComparingRosters}
-          className="mx-3 mt-3"
-          units={<CombatSimulatorMatchup source="roster" roster={roster} inDialog />}
-          comparison={<RosterCombatComparison currentRoster={roster} />}
+        <RosterCombatComparison
+          currentRoster={roster}
+          units={{
+            active: !comparingRosters,
+            onActiveChange: (active) => setComparingRosters(!active),
+            matchup: <CombatSimulatorMatchup source="roster" roster={roster} inDialog />,
+          }}
         />
       )}
     </CombatDialog>
@@ -50,7 +50,8 @@ export function CombatDialog({
   const Content = battle ? BattleDialogContent : DialogContent
   return (
     <Root open onOpenChange={(open) => !open && onClose()} minimizedLabel="Combat simulator" resumeLabel="Return to simulator">
-      <Content size={wide ? 'lg' : 'md'} fill>
+      {/* Focusing the first control would open its tooltip over the sides as the dialog appears. */}
+      <Content size={wide ? 'lg' : 'md'} fill initialFocus={false}>
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
