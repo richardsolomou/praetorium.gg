@@ -1,5 +1,4 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { Link } from '@tanstack/react-router'
 import { Download } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { posthog } from 'posthog-js'
@@ -7,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { version } from '../../../../package.json'
 import type { SealedEventArmy, SealedEventEntryView } from '../../../core/sealedEvent'
 import { sealedEventRosterBundle, type BundledRoster } from '../../../core/sealedEventRosterBundle'
-import type { FactionPresentation } from '../../components/FactionMark'
+import { FactionMark, type FactionPresentation } from '../../components/FactionMark'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { Problem } from '../../components/Problem'
 import { safeFileName } from '../../downloadFile'
@@ -17,8 +16,7 @@ import { factionIndexQuery, gameReferencesQuery } from '../../queries'
 import { revealedSealedEventRostersKey } from '../../queries/queryKeys'
 import { useExportText } from '../../useCopyText'
 import { dispositionIn } from '../battle/setup/chrome'
-import { RosterSummary } from '../rosters/RosterSummary'
-import { EntrantGroup, SimulateButton, ViewRosterButton } from './SealedEventEntrants'
+import { SimulateButton, ViewRosterButton } from './SealedEventEntrants'
 import { DropEntrant } from './SealedEventDrop'
 import { UnsealRoster } from './SealedEventUnseal'
 
@@ -32,7 +30,7 @@ export type RevealedEntry = SealedEventEntryView & {
 }
 
 /**
- * Every revealed roster as a card: whose it is, what army it fields, and what it leans on.
+ * Every revealed roster as a row: whose it is and what army it fields, with the full roster a tap away.
  *
  * This is what a reveal is for, so it leads the page once the rosters are out. `groups` splits the
  * rosters by 2v1 side or doubles team as the entrant list does, and one untitled group holds a duel's;
@@ -127,176 +125,128 @@ export function SealedEventArmies({
       </div>
       {exported.error ? <Problem className="mb-2" error={exported.error} /> : null}
       {problem ? <Problem className="mb-2">{problem}</Problem> : null}
-      <ArmyGroups
+      <RevealedLists
+        token={token}
+        eventToken={eventToken}
         groups={groups}
         viewerId={viewerId}
+        label={label}
         onSimulate={onSimulate}
-        renderCard={(entry, alone) => (
-          <ArmyCard
-            key={entry.userId}
-            token={token}
-            eventToken={eventToken}
-            entry={entry}
-            label={label(entry)}
-            viewerId={viewerId}
-            onSimulate={alone ? onSimulate : null}
-            canUnseal={canUnseal}
-            dropBy={dropBy}
-            sample={sample}
-          />
-        )}
+        canUnseal={canUnseal}
+        dropBy={dropBy}
+        sample={sample}
       />
     </section>
   )
 }
 
 /**
- * Revealed rosters split by side or team, each titled group simulated as a whole from its heading; a duel's untitled run
- * leaves simulating to each card. `renderCard` draws one roster, told whether it stands alone.
+ * Revealed lists as compact rows, split into side-by-side columns by 2v1 side or doubles team. A titled side is simulated
+ * as a whole from its heading; a duel's untitled run leaves simulating to each row. `bare` drops the outer frame for a
+ * list that sits inside a card, and `actions` adds anything a row offers first, such as playing that opponent.
  */
-export function ArmyGroups({
-  groups,
-  viewerId,
-  onSimulate,
-  renderCard,
-}: {
-  groups: readonly ArmyGroup[]
-  viewerId: string | null
-  onSimulate: ((userId: string) => void) | null
-  renderCard: (entry: RevealedEntry, alone: boolean) => ReactNode
-}) {
-  return (
-    <div className="space-y-4">
-      {groups.map((group) => {
-        const cards = <div className="space-y-2">{group.entries.map((entry) => renderCard(entry, !group.title))}</div>
-        const opponent = group.entries.find((entry) => entry.army)
-        return group.title ? (
-          <EntrantGroup
-            key={group.key}
-            group={group.key}
-            title={group.title}
-            detail={group.detail}
-            action={
-              onSimulate && opponent && !group.entries.some((entry) => entry.userId === viewerId) ? (
-                <SimulateButton label={group.title} onClick={() => onSimulate(opponent.userId)} />
-              ) : null
-            }
-          >
-            {cards}
-          </EntrantGroup>
-        ) : (
-          <div key={group.key}>{cards}</div>
-        )
-      })}
-    </div>
-  )
-}
-
-/** One revealed roster: whose it is, what army it fields and what it leans on, with whatever the reader may do about it. */
-export function ArmyCard({
+export function RevealedLists({
   token,
   eventToken,
-  entry,
-  label: named,
+  groups,
   viewerId,
+  label,
   onSimulate,
   canUnseal = false,
   dropBy = null,
   sample = false,
+  bare = false,
   actions,
 }: {
   token: string
   eventToken: string
-  entry: RevealedEntry
-  label: string
+  groups: readonly ArmyGroup[]
   viewerId: string | null
-  /** Offered on the card when it isn't simulated as part of a side. */
+  label: (entry: SealedEventEntryView) => string
   onSimulate: ((userId: string) => void) | null
+  /** The organizer's: sends a revealed roster back to its player to seal a replacement. */
   canUnseal?: boolean
+  /** In Swiss rounds, who the viewer may take out of later rounds: anyone as an organizer, or only themselves. */
   dropBy?: 'organizer' | 'player' | null
   sample?: boolean
-  /** Shown before the card's own buttons, such as playing this opponent. */
-  actions?: ReactNode
+  bare?: boolean
+  actions?: (entry: RevealedEntry) => ReactNode
 }) {
   const { data: factions } = useQuery(factionIndexQuery())
-  const { data: references } = useQuery(gameReferencesQuery())
-  const army = entry.army
-  // The server names a sealed army even when today's catalogue index no longer lists its catalogue.
-  const presentation = entry.armyFaction ?? (army?.catalogueId ? factionFor(factions, army.catalogueId) : undefined)
-  const faction =
-    presentation && army
-      ? { slug: presentation.slug, displayName: presentation.displayName, icon: presentation.icon, detachments: army.detachments }
-      : undefined
-  const player = (
-    <>
-      <PlayerAvatar name={entry.name} image={entry.image} className="size-6 text-3xs" />
-      <span className="truncate text-sm font-bold uppercase group-hover:text-info group-hover:underline">{named}</span>
-    </>
-  )
-  const summary =
-    army?.limit != null ? (
-      <RosterSummary
-        roster={{
-          name: army.name,
-          detachmentIds: army.detachments.map((detachment) => detachment.id),
-          disposition: army.disposition,
-          limit: army.limit,
-          pointsBudget: army.pointsBudget,
-          unitCount: army.unitCount,
-          updatedAt: entry.sealedAt ?? 0,
-          waivedRules: army.waivedRules,
-        }}
-        faction={faction}
-        points={army.points}
-        dispositionName={dispositionIn(references, army.disposition)?.name}
-        showLock={false}
-        dateLabel="sealed"
-      />
-    ) : null
-  const droppable = !sample && !entry.dropped && (dropBy === 'organizer' || (dropBy === 'player' && entry.userId === viewerId))
-  return (
-    <article key={entry.userId} data-army={entry.name} className="min-w-0 border border-edge bg-panel">
-      <div className="flex min-w-0 items-center gap-2 border-b border-edge py-1.5 pr-1.5 pl-3">
-        {sample ? (
-          <div className="flex min-w-0 items-center gap-2">{player}</div>
-        ) : (
-          <Link to="/users/$userId" params={{ userId: entry.userId }} className="group flex min-w-0 items-center gap-2">
-            {player}
-          </Link>
-        )}
-        {entry.dropped ? <span className="chip shrink-0 text-dim">Dropped</span> : null}
-        <span className="ml-auto flex shrink-0 items-center gap-1">
-          {actions}
+  const row = (entry: RevealedEntry, alone: boolean) => {
+    const army = entry.army
+    const named = label(entry)
+    // The server names a sealed army even when today's catalogue index no longer lists its catalogue.
+    const faction = entry.armyFaction ?? (army?.catalogueId ? factionFor(factions, army.catalogueId) : undefined)
+    const droppable = !sample && !entry.dropped && (dropBy === 'organizer' || (dropBy === 'player' && entry.userId === viewerId))
+    return (
+      <li key={entry.userId} data-army={entry.name} className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5 px-4 py-2">
+        <PlayerAvatar name={entry.name} image={entry.image} className="size-8 text-2xs" />
+        <span className="min-w-0 flex-1 basis-24">
+          <span className="flex min-w-0 items-baseline gap-1.5">
+            <span className="truncate text-sm leading-tight font-bold uppercase">{named}</span>
+            {entry.userId === viewerId ? <span className="eyebrow shrink-0 text-parchment">You</span> : null}
+            {entry.dropped ? <span className="chip shrink-0 text-dim">Dropped</span> : null}
+          </span>
+          <span className="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs text-dim">
+            {army ? (
+              <>
+                {/* The mark stands in for the faction's name, so the line keeps room for the list and its points. */}
+                {faction ? (
+                  <span title={faction.displayName} className="inline-flex shrink-0">
+                    <FactionMark faction={faction} size="sm" />
+                    <span className="sr-only">{faction.displayName}</span>
+                  </span>
+                ) : null}
+                <span className="min-w-0 break-words">
+                  <span className="uppercase">{army.name}</span>
+                  {army.limit == null ? null : ` · ${army.points}/${army.limit}`}
+                </span>
+              </>
+            ) : entry.submitted ? (
+              'This roster can’t be shown.'
+            ) : (
+              'No roster yet. The organizer unsealed it for a replacement.'
+            )}
+          </span>
+        </span>
+        <span className="ml-auto flex shrink-0 flex-wrap items-center justify-end gap-1">
+          {actions?.(entry)}
           {droppable ? (
             <DropEntrant token={token} eventToken={eventToken} userId={entry.userId} label={named} self={entry.userId === viewerId} />
           ) : null}
           {army && canUnseal ? <UnsealRoster token={token} eventToken={eventToken} userId={entry.userId} label={named} /> : null}
-          {army && onSimulate && entry.userId !== viewerId ? (
+          {army && onSimulate && alone && entry.userId !== viewerId ? (
             <SimulateButton label={named} onClick={() => onSimulate(entry.userId)} />
           ) : null}
           {army && !sample ? <ViewRosterButton token={token} eventToken={eventToken} userId={entry.userId} label={named} /> : null}
         </span>
-      </div>
-      {summary && sample ? (
-        <div className="flex min-w-0 p-3">{summary}</div>
-      ) : summary ? (
-        <Link
-          to="/rosters/$id"
-          params={{ id: entry.userId }}
-          search={{ sealedEvent: token, event: eventToken }}
-          tabIndex={-1}
-          aria-hidden
-          className="flex min-w-0 p-3"
-        >
-          {summary}
-        </Link>
-      ) : army ? (
-        <p className="p-3 font-bold uppercase">{army.name}</p>
-      ) : (
-        <p className="p-3 text-sm text-dim">
-          {entry.submitted ? 'This roster can’t be shown.' : 'No roster yet. The organizer unsealed it for a replacement.'}
-        </p>
-      )}
-    </article>
+      </li>
+    )
+  }
+  return (
+    <div
+      className={`grid grid-cols-1 gap-px bg-edge ${groups.length > 1 ? 'sm:grid-cols-2' : ''} ${bare ? 'border-t border-edge' : 'border border-edge'}`}
+    >
+      {groups.map((group) => {
+        const opponent = group.entries.find((entry) => entry.army)
+        return (
+          <section key={group.key} data-group={group.key} aria-label={group.title} className="min-w-0 bg-panel">
+            {group.title ? (
+              <div className="flex min-h-8 items-center gap-2 pt-2 pr-2 pl-4">
+                <div className="min-w-0 flex-1">
+                  <h3 className="eyebrow text-dim">{group.title}</h3>
+                  {group.detail ? <p className="text-xs text-faint">{group.detail}</p> : null}
+                </div>
+                {onSimulate && opponent && !group.entries.some((entry) => entry.userId === viewerId) ? (
+                  <SimulateButton label={group.title} onClick={() => onSimulate(opponent.userId)} />
+                ) : null}
+              </div>
+            ) : null}
+            <ul className="divide-y divide-edge">{group.entries.map((entry) => row(entry, !group.title))}</ul>
+          </section>
+        )
+      })}
+    </div>
   )
 }

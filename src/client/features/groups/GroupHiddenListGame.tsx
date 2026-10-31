@@ -1,6 +1,6 @@
 import { useInfiniteQuery, useMutation, useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { ChevronRight, EllipsisVertical, Eye, FileLock2, LogOut, Pencil, Swords, Trash2, UserPlus } from 'lucide-react'
+import { Check, ChevronRight, EllipsisVertical, Eye, FileLock2, LogOut, Pencil, Swords, Trash2, UserPlus } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
@@ -14,6 +14,7 @@ import {
   requiredSealedEventRosterLimit,
 } from '../../../core/sealedEvent'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
+import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { Problem } from '../../components/Problem'
 import {
   chooseSealedEventSide,
@@ -26,15 +27,15 @@ import { battlesFrom, sealedEventBattlesQuery, sealedEventQuery } from '../../qu
 import { useDateFormatting, useMoment } from '../../dates'
 import { countLabel } from '../../text'
 import { useNow } from '../../useNow'
-import { EntrantGroup, EntrantList, EntrantRow, sealStatus, useEntrantGroups } from '../sealedEvents/SealedEventEntrants'
-import { ArmyCard, ArmyGroups } from '../sealedEvents/SealedEventArmies'
+import { useEntrantGroups } from '../sealedEvents/SealedEventEntrants'
+import { RevealedLists } from '../sealedEvents/SealedEventArmies'
 import { SealedEventCombatDialog } from '../sealedEvents/SealedEventCombatDialog'
 import { RosterChooser } from '../sealedEvents/SealedEventRosterChooser'
-import { SealedEventReadiness } from '../sealedEvents/SealedEventReadiness'
+import { RemindEntrants } from '../sealedEvents/SealedEventReadiness'
 import { SealedEventSettingsDialog } from '../sealedEvents/SealedEventSettingsDialog'
 import { TeamDispositionPanel } from '../sealedEvents/SealedEventTeamDisposition'
 import { TeamWarlordPanel } from '../sealedEvents/SealedEventTeamWarlord'
-import { eventName, namesPhrase, sideGroups, useSealedEventRefresh } from '../sealedEvents/sealedEvent'
+import { eventName, namesPhrase, useSealedEventRefresh } from '../sealedEvents/sealedEvent'
 import { sideLost, viewerStage } from '../../battleStage'
 import { summarySides } from '../../battleSummary'
 import type { Battle } from '../battles/battle'
@@ -182,7 +183,27 @@ export function GroupHiddenListGame({
   }
 
   const when = !revealed && game.sealBy ? `Lists due ${moment(game.sealBy)}` : game.playsAt ? `Played ${moment(game.playsAt)}` : null
+  const waiting = (step: 'lists' | 'dispositions' | 'warlords') => {
+    const check = checks.find((candidate) => candidate.step === step)
+    return check && 'waiting' in check && !check.done ? namesPhrase(check.waiting.map(nameOf)) : ''
+  }
   const openSeats = sides.reduce((count, entry) => count + (entry.side ? Math.max(0, entry.places - entry.players.length) : 0), 0)
+  const hint = closed
+    ? 'The deadline has passed.'
+    : ready
+      ? 'Everyone has sealed. Reveal when you’re ready.'
+      : !team
+        ? 'Lists stay hidden until they’re revealed together.'
+        : openSeats
+          ? `${countLabel(openSeats, 'seat')} still open. Lists stay hidden until they’re revealed together.`
+          : waiting('lists')
+            ? `Waiting on ${waiting('lists')} to seal.`
+            : waiting('dispositions')
+              ? `Waiting on ${waiting('dispositions')} to choose a Force Disposition.`
+              : waiting('warlords')
+                ? `Waiting on ${waiting('warlords')} to choose a Warlord.`
+                : 'Lists stay hidden until they’re revealed together.'
+
   const playAction = (userId: string) =>
     hasPlayed(userId) ? (
       game.playing.includes(userId) && game.playing.includes(viewerId ?? '') ? (
@@ -201,42 +222,45 @@ export function GroupHiddenListGame({
         <Swords /> Play
       </Button>
     )
-  // The revealed lists split by side or pair as a tournament's are, so the same game reads the same in either place.
+  // Revealed lists split by side or pair as a tournament's are, so the same game reads the same in either place.
   const revealedEntries = record?.entries.filter((entry) => sealed.some((player) => player.userId === entry.userId)) ?? []
-  const armyGroups = useEntrantGroups(record ?? undefined, revealedEntries, (entry) => nameOf(entry.userId))
-  const onSimulate = member && own?.sealed ? setSimulating : null
+  const revealedGroups = useEntrantGroups(record ?? undefined, revealedEntries, (entry) => nameOf(entry.userId))
   const revealedLists = (
-    <ArmyGroups
-      groups={armyGroups}
+    <RevealedLists
+      token={game.token}
+      eventToken={game.token}
+      groups={revealedGroups}
       viewerId={viewerId}
-      onSimulate={onSimulate}
-      renderCard={(entry, alone) => (
-        <ArmyCard
-          key={entry.userId}
-          token={game.token}
-          eventToken={game.token}
-          entry={entry}
-          label={nameOf(entry.userId)}
-          viewerId={viewerId}
-          onSimulate={alone ? onSimulate : null}
-          actions={!embedded && !team && own?.sealed && entry.userId !== viewerId ? playAction(entry.userId) : null}
-        />
-      )}
+      label={(entry) => nameOf(entry.userId)}
+      onSimulate={member && own?.sealed ? setSimulating : null}
+      bare
+      actions={(entry) => (!embedded && !team && own?.sealed && entry.userId !== viewerId ? playAction(entry.userId) : null)}
     />
   )
-  // Before the reveal a seat shows who sits in it and whether they've sealed, as a tournament's entrant list does.
-  const seat = (player: Player) => {
+  const row = (player: Player) => {
+    const person = people.get(player.userId)
     const name = nameOf(player.userId)
-    const mine = player.userId === viewerId
+    const list = player.userId === viewerId ? listName(player.userId) : null
     return (
-      <EntrantRow
-        key={player.userId}
-        entry={{ userId: player.userId, name, image: people.get(player.userId)?.image ?? null }}
-        label={name}
-        detail={[mine && 'You', mine && listName(player.userId), sealStatus({ submitted: player.sealed }, false)]
-          .filter(Boolean)
-          .join(' · ')}
-      />
+      <li key={player.userId} data-person={name} className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5 px-4 py-2">
+        <PlayerAvatar name={name} image={person?.image ?? null} className="size-8 text-2xs" />
+        <span className="min-w-0 flex-1 basis-24">
+          <span className="flex min-w-0 items-baseline gap-1.5">
+            <span className="truncate text-sm leading-tight font-bold uppercase">{name}</span>
+            {player.userId === viewerId ? <span className="eyebrow shrink-0 text-parchment">You</span> : null}
+          </span>
+          {list ? <span className="mt-0.5 block truncate text-xs text-dim uppercase">{list}</span> : null}
+        </span>
+        <span className="ml-auto flex shrink-0 flex-wrap items-center justify-end gap-1">
+          {player.sealed ? (
+            <span className="flex shrink-0 items-center gap-1 text-sm text-achieved">
+              <Check className="size-4" aria-hidden /> Sealed
+            </span>
+          ) : (
+            <span className="shrink-0 text-sm text-faint">Choosing</span>
+          )}
+        </span>
+      </li>
     )
   }
 
@@ -260,53 +284,53 @@ export function GroupHiddenListGame({
       </DropdownMenuContent>
     </DropdownMenu>
   ) : null
-  const titles = record && game.format === '2v1' ? sideGroups(record) : null
-  const seating = team ? (
-    <div className="border-t border-edge p-4">
-      <div className={`grid grid-cols-1 gap-4 ${sides.length > 1 ? 'sm:grid-cols-2' : ''}`}>
+  const lists = team ? (
+    <div className="border-t border-edge">
+      <div className={`grid grid-cols-1 gap-px bg-edge ${sides.length > 1 ? 'sm:grid-cols-2' : ''}`}>
         {sides.map((entry) => {
           const seated = entry.players.some((player) => player.userId === viewerId)
-          const named = titles ? titles[entry.side === 'solo' ? 'solo' : 'allied'] : null
           return (
-            <section key={entry.key} data-side={entry.title} aria-label={entry.title} className="min-w-0">
-              <EntrantGroup group={entry.key} title={named?.title ?? entry.title} detail={named?.detail}>
-                <EntrantList>
-                  {entry.players.map(seat)}
-                  {entry.side
-                    ? Array.from({ length: Math.max(0, entry.places - entry.players.length) }, (_, index) => (
-                        <div key={`open-${index}`} className="flex min-w-0 items-center gap-3 p-3">
-                          <span aria-hidden className="size-9 shrink-0 rounded-full border border-dashed border-edge-strong" />
-                          <span className="min-w-0 flex-1 text-sm text-faint">Open seat</span>
-                          {index === 0 && mayTakeSeat && !seated ? (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              aria-label={`Join ${entry.title}`}
-                              disabled={side.isPending}
-                              onClick={() => move(entry.side)}
-                            >
-                              <UserPlus /> Join
-                            </Button>
-                          ) : null}
-                        </div>
-                      ))
-                    : null}
-                </EntrantList>
-              </EntrantGroup>
+            <section key={entry.key} data-side={entry.title} aria-label={entry.title} className="min-w-0 bg-panel">
+              <div className="flex min-h-8 items-center gap-2 pt-2 pr-2 pl-4">
+                <h4 className="eyebrow flex-1 text-dim">{entry.title}</h4>
+              </div>
+              <ul className="divide-y divide-edge">
+                {entry.players.map(row)}
+                {!revealed && entry.side
+                  ? Array.from({ length: Math.max(0, entry.places - entry.players.length) }, (_, index) => (
+                      <li key={`open-${index}`} className="flex min-w-0 items-center gap-3 px-4 py-1.5">
+                        <span aria-hidden className="size-8 shrink-0 rounded-full border border-dashed border-edge-strong" />
+                        <span className="min-w-0 flex-1 text-sm text-faint">Open seat</span>
+                        {index === 0 && mayTakeSeat && !seated ? (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            aria-label={`Join ${entry.title}`}
+                            disabled={side.isPending}
+                            onClick={() => move(entry.side)}
+                          >
+                            <UserPlus /> Join
+                          </Button>
+                        ) : null}
+                      </li>
+                    ))
+                  : null}
+              </ul>
             </section>
           )
         })}
       </div>
       {picking.length ? (
-        <p className="mt-3 text-sm text-dim">
+        <p className="border-t border-edge px-4 py-2.5 text-sm text-dim">
           Picking a side: {namesPhrase(picking.map((player) => (player.userId === viewerId ? 'you' : nameOf(player.userId))))}
         </p>
       ) : null}
     </div>
   ) : (
-    <div className="border-t border-edge p-4">
-      {players.length ? <EntrantList>{players.map(seat)}</EntrantList> : <p className="text-sm text-dim">Nobody has sealed a list yet.</p>}
-    </div>
+    <ul className="divide-y divide-edge border-t border-edge">
+      {players.map(row)}
+      {!players.length ? <li className="px-4 py-2.5 text-sm text-dim">Nobody has sealed a list yet.</li> : null}
+    </ul>
   )
   const gameBattles = battles.length ? (
     <div className={embedded ? '' : 'border-t border-edge'}>
@@ -343,14 +367,10 @@ export function GroupHiddenListGame({
           </div>
           {gameBattles}
           {sealed.length ? (
-            // A game still being played opens on its lists; a past one keeps them folded away.
-            <details open={game.playing.length > 0} className="group/lists border-t border-edge">
-              <summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-2 text-sm text-dim hover:text-bone [&::-webkit-details-marker]:hidden">
-                <ChevronRight aria-hidden className="size-4 shrink-0 transition-transform group-open/lists:rotate-90" />
-                Lists · {countLabel(sealed.length, 'player')}
-              </summary>
-              <div className="px-4 pb-4">{revealedLists}</div>
-            </details>
+            <div className="border-t border-edge">
+              <p className="px-4 py-2 text-sm text-dim">Lists · {countLabel(sealed.length, 'player')}</p>
+              {revealedLists}
+            </div>
           ) : null}
         </>
       ) : (
@@ -363,7 +383,7 @@ export function GroupHiddenListGame({
             </div>
             {menu}
           </div>
-          {revealed ? <div className="border-t border-edge p-4">{revealedLists}</div> : seating}
+          {revealed ? revealedLists : lists}
           {revealed ? (
             team && toPlay.length ? (
               <div className="flex flex-wrap items-center gap-2 border-t border-edge p-4">
@@ -394,19 +414,8 @@ export function GroupHiddenListGame({
                   ) : null}
                 </div>
               ) : null}
-              {closed ? (
-                <p className="text-xs text-dim">The deadline has passed.</p>
-              ) : record ? (
-                <SealedEventReadiness
-                  token={game.token}
-                  sealedEvent={record}
-                  viewerId={viewerId}
-                  isOrganizer={group.organizer}
-                  label={(entry) => nameOf(entry.userId)}
-                  openSeats={openSeats}
-                  inline
-                />
-              ) : null}
+              <p className="text-xs text-dim">{hint}</p>
+              {group.organizer && record ? <RemindEntrants token={game.token} sealedEvent={record} viewerId={viewerId} /> : null}
               {side.error && moving === undefined ? <Problem error={side.error} /> : null}
               {viewerId && ownEntry?.team && ownEntry.team.choices.length > 1 ? (
                 <TeamDispositionPanel token={game.token} eventToken={game.token} team={ownEntry.team} />

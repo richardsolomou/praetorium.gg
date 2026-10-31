@@ -27,7 +27,7 @@ While rosters are still owed, **Remind players** under the reveal countdown send
 
 When everyone is in and sealed, **Reveal all rosters** opens every list at once and closes entry. Anyone playing can reveal, not only the organizer, and the reveal can't be undone. Before then nobody sees another list, the organizer included.
 
-After the reveal, players start their tournament battles from the tournament page, and finished battles fill the results table. If a revealed roster has a mistake, press the unseal button on that player's roster card, then **Unseal roster**, so they can seal a corrected one. Battles already started keep the roster they began with.
+After the reveal, players start their tournament battles from the tournament page, and finished battles fill the results table. If a revealed roster has a mistake, press the unseal button on that player's roster row, then **Unseal roster**, so they can seal a corrected one. Battles already started keep the roster they began with.
 
 Anyone who can see the revealed rosters and results can save them: **Export rosters** writes every list as it was sealed into one text file, and **Export CSV** saves the results table. A saved file can't be recalled later, even if who can see the event changes.
 
@@ -39,7 +39,7 @@ The results rank by match points (3 for a win or bye, 1 for a draw), then total 
 
 Once you pair the next round, the results of earlier rounds are locked. Only you and your admins can then correct one. To correct a wrong result in any round, press the reopen button beside the table's score, then **Reopen result**. You don't need to have played at that table. The battle continues from its last turn, and its players correct the score and finish it again. Until they do, the table has no result in the standings. Rounds that are already paired stay the same.
 
-If a player leaves or doesn't show, press the drop button on their roster card, then **Drop player**. They aren't paired again and can't rejoin, and their results stay in the table, including in their opponents' strength of schedule. If their table in the current round hasn't finished, their opponent takes it as a bye, so the next round can be paired. A battle already started at that table stays in the battle list but no longer counts for the round. Players can withdraw themselves the same way.
+If a player leaves or doesn't show, press the drop button on their roster row, then **Drop player**. They aren't paired again and can't rejoin, and their results stay in the table, including in their opponents' strength of schedule. If their table in the current round hasn't finished, their opponent takes it as a bye, so the next round can be paired. A battle already started at that table stays in the battle list but no longer counts for the round. Players can withdraw themselves the same way.
 
 To play again with new rosters, start a new tournament. A [group](/docs/groups) keeps a standing table across all of them.
 

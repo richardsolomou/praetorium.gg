@@ -292,9 +292,6 @@ test('group team rows keep their actions inside the card at narrow widths', asyn
     for (const player of players) await expect(simulator.getByRole('group', { name: side, exact: true })).toContainText(player)
   await simulator.getByRole('button', { name: 'Close', exact: true }).click()
   const past = page.locator('[data-hidden-list-game="preview-group-game-duel-past"]')
-  // A past game keeps its lists folded away until opened.
-  await expect(past.getByRole('button', { name: 'Simulate against Preview Opponent', exact: true })).toBeHidden()
-  await past.getByText(/^Lists · /).click()
   await expect(past.getByRole('button', { name: 'Simulate against Preview Opponent', exact: true })).toBeVisible()
   await expect(past.getByRole('button', { name: /^Play / })).toHaveCount(0)
   await past.getByRole('button', { name: 'Simulate against Preview Opponent', exact: true }).click()

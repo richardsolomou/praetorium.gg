@@ -30,7 +30,7 @@ The format, battle size, pairing and points total lock once anyone seals a roste
 
 ### Pair the next round doesn't appear
 
-The next Swiss round pairs once every table in the current one has finished its battle. If a player has left or won't show, the organizer can drop them from their roster card: their unfinished table then counts as a bye for their opponent.
+The next Swiss round pairs once every table in the current one has finished its battle. If a player has left or won't show, the organizer can drop them from their roster row: their unfinished table then counts as a bye for their opponent.
 
 ### Reveal all rosters is greyed out
 

@@ -33,13 +33,13 @@ An organizer can press **New game**, turn on **Hide lists until everyone has sea
 
 Each hidden-list game has its own format, points and house rules, set as a tournament's are (see [Run a tournament](/docs/run-a-tournament)). Before the reveal an organizer can change them from **Edit** in the game's ⋯ menu. Once anyone seals a list, the format and battle size lock, but points per army, **Allies split their points** and house rules can still change as long as every sealed list still fits them.
 
-Before the reveal, the game counts the sealed lists and names who still owes one, a Force Disposition or a Warlord, as a tournament does. An organizer can press **Remind players** to send a notification to each player in the game who hasn't sealed a list yet, once a day.
+Before the reveal, an organizer can press **Remind players** to send a notification to each player in the game who hasn't sealed a list yet, once a day.
 
-After reveal, each list shows as its army: faction, detachment, Force Disposition and points, split by side or pair as on a tournament page. Use **Simulate** beside another player’s list to compare your sealed armies. In a team game, **Simulate** sits on the other side's heading and sets your side's lists against theirs.
+After reveal, each list shows its faction and points, split by side or pair as on a tournament page. Use **Simulate** beside another player’s list to compare your sealed armies. In a team game, **Simulate** sits on the other side's heading and sets your side's lists against theirs.
 
 The results go on the group's leaderboard. Starting a new hidden-list game automatically moves the previous one to **Past hidden-list games**, on **Overview**. A scheduled game also moves there after its scheduled day ends; an undated game moves after the day its lists were revealed. Days end at midnight in the timezone of the organizer who created the game. An undated game with unrevealed lists stays open until replaced. A game with a battle still being played stays under **Up next** until that battle ends, though nobody can start another battle from it.
 
-Past games keep their results and any battles already underway, which you can still resume. Open **Lists** to view or simulate their revealed armies. You can’t start another battle or change lists in a past game. **Recent games**, on **Overview**, shows the group's latest battles of every kind.
+Past games keep their results and any battles already underway, which you can still resume. View or simulate revealed armies under **Lists**. You can’t start another battle or change lists in a past game. **Recent games**, on **Overview**, shows the group's latest battles of every kind.
 
 ## Leagues
 

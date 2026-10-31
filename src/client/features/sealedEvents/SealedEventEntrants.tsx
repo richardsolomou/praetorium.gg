@@ -18,7 +18,7 @@ export function EntrantRow({
   sample = false,
   children,
 }: {
-  entry: Pick<SealedEventEntryView, 'userId' | 'name' | 'image'>
+  entry: SealedEventEntryView
   label: string
   detail: ReactNode
   /** A made-up player in the sample tournament, who has no profile to open. */

@@ -1,5 +1,4 @@
 import { useMutation } from '@tanstack/react-query'
-import { useId } from 'react'
 import { useNow } from '../../useNow'
 import { BellRing, Circle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -30,12 +29,10 @@ const ORGANIZER_STEPS: Partial<Record<SealedEventRevealCheck['step'], string>> =
 }
 
 /**
- * The countdown to the reveal: how many rosters are sealed and who is still owed.
+ * The group's countdown to the reveal: how many rosters are sealed and who is still owed.
  *
  * Everyone sees the same panel; the entrant list below says each player's status, so this one counts.
  * Once every check passes, the next-action card offers the reveal to the organizer and anyone playing.
- * In a group's hidden-list game players take their own seats, so the organizer has nothing to arrange and
- * `openSeats` says how many are left; `inline` sits the panel inside the game's card.
  */
 export function SealedEventReadiness({
   token,
@@ -43,16 +40,12 @@ export function SealedEventReadiness({
   viewerId,
   isOrganizer,
   label,
-  openSeats = 0,
-  inline = false,
 }: {
   token: string
   sealedEvent: SealedEvent
   viewerId: string | null
   isOrganizer: boolean
   label: (entry: SealedEventEntryView) => string
-  openSeats?: number
-  inline?: boolean
 }) {
   const accepted = sealedEvent.entries.filter((entry) => entry.status === 'accepted')
   const sealed = accepted.filter((entry) => entry.submitted)
@@ -60,10 +53,7 @@ export function SealedEventReadiness({
   const now = useNow(sealedEvent.sealBy)
   const checks = sealedEventRevealChecklist(sealedEvent, sealedEvent.entries, now)
   const ready = checks.every((check) => check.done)
-  const headingId = useId()
-  const seated = sealedEvent.group !== null
   const organizerSteps = checks.flatMap((check) => {
-    if (seated) return []
     const step = check.step === 'teams' && sealedEvent.format === '2v1' ? 'pair the allies' : ORGANIZER_STEPS[check.step]
     return !check.done && step ? [step] : []
   })
@@ -88,7 +78,6 @@ export function SealedEventReadiness({
   const revealNow = mayReveal ? 'You can open the rosters now' : 'Anyone playing can open the rosters now'
   const readyLine = openPlaces > 0 ? `${openPlaces} of ${playerLimit} places are still open. ${revealNow}.` : `${revealNow}.`
   const detail = [
-    openSeats ? `${countLabel(openSeats, 'seat')} still open.` : null,
     waiting.length ? `Waiting on ${namesPhrase(waiting.map(label))}.` : null,
     owing.length
       ? `${namesPhrase(owing.map(nameOf))} still ${owing.length === 1 ? 'needs' : 'need'} to choose their team’s Force Disposition.`
@@ -104,27 +93,26 @@ export function SealedEventReadiness({
     .filter(Boolean)
     .join(' ')
   // The organizer sees only what still stands in the way, in words; the bar and the entrant list already say who has sealed.
-  const unmet =
-    isOrganizer && !seated
-      ? checks.filter(
-          (check): check is Exclude<SealedEventRevealCheck, { step: 'lists' | 'dispositions' | 'warlords' }> =>
-            check.step !== 'lists' && check.step !== 'dispositions' && check.step !== 'warlords' && !check.done,
-        )
-      : []
+  const unmet = isOrganizer
+    ? checks.filter(
+        (check): check is Exclude<SealedEventRevealCheck, { step: 'lists' | 'dispositions' | 'warlords' }> =>
+          check.step !== 'lists' && check.step !== 'dispositions' && check.step !== 'warlords' && !check.done,
+      )
+    : []
   // Once only more players can help, sizing or pairing the ones already in leads nowhere, so the list stops there.
   const short = unmet.findIndex((check) => 'short' in check && check.short)
   const organizerChecks = short < 0 ? unmet : unmet.slice(0, short + 1)
 
   return (
     <section
-      data-onboarding={inline ? undefined : 'sealed-event-rosters'}
+      data-onboarding="sealed-event-rosters"
       data-sealed-event-readiness
-      aria-labelledby={headingId}
-      className={inline ? 'space-y-3' : `space-y-4 border bg-panel p-4 sm:p-5 ${ready ? 'border-achieved/50' : 'border-edge'}`}
+      aria-labelledby="sealed-event-readiness-heading"
+      className={`space-y-4 border bg-panel p-4 sm:p-5 ${ready ? 'border-achieved/50' : 'border-edge'}`}
     >
       <div>
         <p className="eyebrow text-dim">Before the reveal</p>
-        <h2 id={headingId} className={`mt-1 leading-tight font-bold uppercase ${inline ? 'text-base' : 'text-xl'}`}>
+        <h2 id="sealed-event-readiness-heading" className="mt-1 text-xl leading-tight font-bold uppercase">
           {title}
         </h2>
         <p className="mt-1.5 text-sm text-dim">{detail || 'Rosters stay hidden, even from the organizer.'}</p>

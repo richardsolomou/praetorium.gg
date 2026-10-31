@@ -183,7 +183,7 @@ test('revealed rosters compare every unit using frozen loadouts and preserve sea
   await owner.goto(savedUrl)
   await addUnit(owner, 'Skorpekh Destroyers')
   await owner.goto(sealedEventUrl)
-  // Once revealed, each list is a card that opens in full or sets the reader's own list against it.
+  // Once revealed, each list is a row that opens in full or sets the reader's own list against it.
   const card = owner.locator(`[data-army="${opponentName}"]`)
   await expect(card).toContainText('Comparison attackers')
   await expect(viewRoster(card, opponentName)).toBeVisible()
@@ -238,7 +238,8 @@ test('revealed rosters compare every unit using frozen loadouts and preserve sea
   await dialog.getByRole('button', { name: 'Close', exact: true }).click()
   await owner.reload()
   await expect(sealedEventHeader(owner)).toContainText('Rosters revealed')
-  await expect(owner.locator(`[data-army="${ownerName}"]`)).toContainText('sealed')
+  // The sealed list keeps its name after the saved roster is renamed.
+  await expect(owner.locator(`[data-army="${ownerName}"]`)).toContainText('Comparison defenders')
   await owner.goto(savedUrl)
   await expect(owner.locator('[data-unit="Skorpekh Destroyers"]')).toBeVisible()
   await ownerContext.close()
@@ -1052,7 +1053,7 @@ test('the organizer unseals a revealed roster so its entrant can seal a correcte
   await owner.goto(sealedEventUrl.toString())
   // Revealed players show with their lists, which carry the organizer's unseal control; the entrant list is gone.
   const entrantCard = owner.locator(`[data-army="${entrantName}"]`)
-  await expect(entrantCard).toContainText('sealed')
+  await expect(entrantCard).toContainText('Mistaken list')
   await expect(owner.locator(`[data-person="${entrantName}"]`)).toHaveCount(0)
   await owner.setViewportSize(PHONE)
   await expectWithinPage(owner)
