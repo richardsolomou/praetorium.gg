@@ -25,6 +25,8 @@ export type RosterNavigation = {
   replace: (side: SimulatorSide) => void
 }
 
+const WHOLE = 'whole'
+
 type Level = { kind: 'units' } | { kind: 'rosters' } | { kind: 'roster'; key: string }
 
 /**
@@ -138,20 +140,25 @@ export function SideUnitPicker({
   )
 }
 
-/** One roster's units: this side's own from its loaded state, another's once it is opened and priced. */
-function RosterUnits({
+/**
+ * One roster's units: this side's own from its loaded state, another's once it is opened and priced.
+ * `onWhole` lists the whole roster first, as the alternative to fielding one of its units.
+ */
+export function RosterUnits({
   rosterKey,
   combatant,
   load,
   factionIcon,
   onChoose,
+  onWhole,
   ...props
 }: Omit<Parameters<typeof SearchableSelect>[0], 'groups' | 'value' | 'onValueChange'> & {
   rosterKey: string
   combatant: Combatant | null
   load?: (key: string) => Promise<CombatRoster | null>
   factionIcon: (catalogueId: string | undefined) => ReactNode
-  onChoose: (index: number) => void
+  onChoose: (index: number, name: string) => void
+  onWhole?: () => void
 }) {
   const opened = useQuery({
     queryKey: ['simulator-roster', rosterKey],
@@ -192,15 +199,27 @@ function RosterUnits({
       {...props}
       searchPlaceholder="Search this roster…"
       emptyText={waiting ? 'Loading roster…' : opened.data === null ? 'This roster could not be opened.' : 'No units match.'}
-      value={combatant ? String(combatant.pickIndex) : ''}
-      onValueChange={(value) => onChoose(Number(value))}
-      groups={[{ label: 'Roster units', items }]}
+      value={combatant ? String(combatant.pickIndex) : onWhole ? WHOLE : ''}
+      onValueChange={(value) =>
+        value === WHOLE ? onWhole?.() : onChoose(Number(value), items.find((item) => item.value === value)?.label ?? '')
+      }
+      groups={[
+        ...(onWhole
+          ? [
+              {
+                label: '',
+                items: [{ value: WHOLE, label: 'The whole roster', icon: <ScrollText className="size-4 text-info" aria-hidden /> }],
+              },
+            ]
+          : []),
+        { label: 'Roster units', items },
+      ]}
     />
   )
 }
 
 /** A row above a level's list that opens another level in its place. */
-function LevelLink({ onClick, detail, children }: { onClick: () => void; detail?: string; children: ReactNode }) {
+export function LevelLink({ onClick, detail, children }: { onClick: () => void; detail?: string; children: ReactNode }) {
   return (
     <div className="border-b border-edge p-1">
       <button

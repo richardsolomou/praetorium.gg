@@ -1,6 +1,6 @@
 import { useInfiniteQuery, useMutation, useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { Calculator, Check, ChevronRight, EllipsisVertical, Eye, FileLock2, LogOut, Pencil, Swords, Trash2, UserPlus } from 'lucide-react'
+import { Check, ChevronRight, EllipsisVertical, Eye, FileLock2, LogOut, Pencil, Swords, Trash2, UserPlus } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
@@ -27,7 +27,7 @@ import { battlesFrom, sealedEventBattlesQuery, sealedEventQuery } from '../../qu
 import { useDateFormatting, useMoment } from '../../dates'
 import { countLabel } from '../../text'
 import { useNow } from '../../useNow'
-import { IconAction, ViewRosterButton } from '../sealedEvents/SealedEventEntrants'
+import { SimulateButton, ViewRosterButton } from '../sealedEvents/SealedEventEntrants'
 import { SealedEventCombatDialog } from '../sealedEvents/SealedEventCombatDialog'
 import { RosterChooser } from '../sealedEvents/SealedEventRosterChooser'
 import { RemindEntrants } from '../sealedEvents/SealedEventReadiness'
@@ -203,6 +203,17 @@ export function GroupHiddenListGame({
                 ? `Waiting on ${waiting('warlords')} to choose a Warlord.`
                 : 'Lists stay hidden until they’re revealed together.'
 
+  // A team game is simulated side against side, so the side across from the viewer stands for the opponents.
+  const opposing =
+    team && revealed && member && own?.sealed
+      ? sides.find((entry) => !entry.players.some((player) => player.userId === viewerId) && entry.players.some((player) => player.sealed))
+      : undefined
+  const simulateOpposing = opposing ? (
+    <SimulateButton
+      label={namesPhrase(opposing.players.map((player) => nameOf(player.userId)))}
+      onClick={() => setSimulating(opposing.players.find((player) => player.sealed)!.userId)}
+    />
+  ) : null
   const row = (player: Player) => {
     const person = people.get(player.userId)
     const name = nameOf(player.userId)
@@ -239,21 +250,8 @@ export function GroupHiddenListGame({
                   </Button>
                 )
               ) : null}
-              {member && own?.sealed && player.sealed && player.userId !== viewerId ? (
-                <IconAction
-                  tooltip="Simulate"
-                  trigger={
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      aria-label={`Simulate against ${name}`}
-                      className="text-dim hover:text-info pointer-coarse:size-11"
-                      onClick={() => setSimulating(player.userId)}
-                    />
-                  }
-                >
-                  <Calculator aria-hidden />
-                </IconAction>
+              {!team && member && own?.sealed && player.sealed && player.userId !== viewerId ? (
+                <SimulateButton label={name} onClick={() => setSimulating(player.userId)} />
               ) : null}
               <ViewRosterButton token={game.token} eventToken={game.token} userId={player.userId} label={name} />
             </>
@@ -296,7 +294,10 @@ export function GroupHiddenListGame({
           const seated = entry.players.some((player) => player.userId === viewerId)
           return (
             <section key={entry.key} data-side={entry.title} aria-label={entry.title} className="min-w-0 bg-panel">
-              <h4 className="eyebrow px-4 pt-3 pb-1 text-dim">{entry.title}</h4>
+              <div className="flex min-h-8 items-center gap-2 pt-2 pr-2 pl-4">
+                <h4 className="eyebrow flex-1 text-dim">{entry.title}</h4>
+                {entry === opposing ? simulateOpposing : null}
+              </div>
               <ul className="divide-y divide-edge">
                 {entry.players.map(row)}
                 {!revealed && entry.side
@@ -371,7 +372,10 @@ export function GroupHiddenListGame({
           {gameBattles}
           {sealed.length ? (
             <div className="border-t border-edge">
-              <p className="px-4 py-2 text-sm text-dim">Lists · {countLabel(sealed.length, 'player')}</p>
+              <div className="flex items-center gap-2 py-1 pr-2 pl-4">
+                <p className="flex-1 py-1 text-sm text-dim">Lists · {countLabel(sealed.length, 'player')}</p>
+                {simulateOpposing}
+              </div>
               <ul className="divide-y divide-edge border-t border-edge">{sealed.map(row)}</ul>
             </div>
           ) : null}
@@ -446,13 +450,7 @@ export function GroupHiddenListGame({
           }))}
           teams={sides.flatMap((entry) =>
             entry.players.length > 1 && entry.players.every((player) => player.sealed)
-              ? [
-                  {
-                    id: `team:${entry.key}`,
-                    label: `${entry.title}: ${namesPhrase(entry.players.map((player) => nameOf(player.userId)))}`,
-                    userIds: entry.players.map((player) => player.userId),
-                  },
-                ]
+              ? [entry.players.map((player) => player.userId)]
               : [],
           )}
           onClose={() => setSimulating(null)}

@@ -5,14 +5,15 @@ import { posthog } from 'posthog-js'
 import { ArrowLeftRight } from 'lucide-react'
 import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
+import { ControlTooltip } from '../../components/ControlTooltip'
 import { PageContent, PageHeader } from '../../components/Page'
 import { advanceOnboarding, ONBOARDING_FOCUS_EVENT } from '../onboarding/onboarding'
 import { CombatantCard } from './CombatantCard'
 import { CombatMatchup } from './CombatMatchup'
 import { CombatBuffControls } from './CombatBuffControls'
-import { SimulationMode } from './CombatControls'
 import type { RosterNavigation } from './SideUnitPicker'
 import { RosterCombatComparison } from './RosterCombatComparison'
+import { parseUnitChoice, SINGLE_UNIT, unitChoiceId } from './MatchupSidePicker'
 import { type Combatant, type CombatRoster, useCombatant } from './useCombatant'
 import { attachedUnit } from '../../../core/attachedUnits'
 import {
@@ -156,17 +157,56 @@ export function CombatSimulator({
         : queryClient.query(sharedRosterQuery(key)).then(savedCombatRoster)
     ).catch(() => null)
   }
+  /** A roster's unit as a side, or null when the roster or unit is gone. */
+  const rosterUnitSide = async (key: string, pickIndex: number): Promise<SimulatorSide | null> => {
+    const roster = await loadRoster(key)
+    const chosen = roster?.picks[pickIndex]
+    if (!roster || !chosen) return null
+    const { attachedTo: _attachedTo, note: _note, ...pick } = chosen
+    return { catalogueId: roster.catalogueId, pick, rules: {}, roster: { ...rosterSource(key), pickIndex } }
+  }
   const chooseRosterUnit = async (index: 0 | 1, key: string, pickIndex: number) => {
     const request = ++rosterRequests.current[index]
-    const roster = await loadRoster(key)
+    const side = await rosterUnitSide(key, pickIndex)
     if (request !== rosterRequests.current[index]) return
-    const chosen = roster?.picks[pickIndex]
-    if (!roster || !chosen) {
-      setProblem('That roster could not be opened.')
-      return
+    if (side) setSide(index, side)
+    else setProblem('That roster could not be opened.')
+  }
+  const swapped = linked?.swapped ?? false
+  /** What a side fields in the unit matchup, as the side pickers name it. */
+  const unitChoice = (index: 0 | 1) => {
+    const side = linked?.sides[index]
+    if (!side) return SINGLE_UNIT
+    const catalogueId = side.pick.catalogueId ?? side.catalogueId
+    const name =
+      units.data?.find((book) => book.catalogueId === catalogueId)?.units.find((unit) => unit.id === side.pick.entryId)?.name ?? 'Unit'
+    return side.roster
+      ? unitChoiceId({
+          kind: 'roster',
+          key: rosterSourceKey(side.roster),
+          pickIndex: side.roster.pickIndex,
+          name: `${name} · ${sides?.[index]?.roster?.saved?.name ?? 'Roster'}`,
+        })
+      : unitChoiceId({ kind: 'datasheet', catalogueId: side.catalogueId, entryId: side.pick.entryId, name })
+  }
+  const fieldUnits = async (attacker: string, defender: string) => {
+    const resolve = async (id: string, index: 0 | 1): Promise<SimulatorSide | null | undefined> => {
+      if (id === unitChoice(index)) return linked?.sides[index] ?? null
+      const unit = parseUnitChoice(id)
+      if (!unit) return null
+      if (unit.kind === 'datasheet')
+        return { catalogueId: unit.catalogueId, pick: { entryId: unit.entryId, catalogueId: unit.catalogueId }, rules: {} }
+      return (await rosterUnitSide(unit.key, unit.pickIndex)) ?? undefined
     }
-    const { attachedTo: _attachedTo, note: _note, ...pick } = chosen
-    setSide(index, { catalogueId: roster.catalogueId, pick, rules: {}, roster: { ...rosterSource(key), pickIndex } })
+    const requests = [++rosterRequests.current[0], ++rosterRequests.current[1]]
+    const [first, second] = await Promise.all([resolve(attacker, swapped ? 1 : 0), resolve(defender, swapped ? 0 : 1)])
+    if (requests[0] !== rosterRequests.current[0] || requests[1] !== rosterRequests.current[1]) return
+    setSession((state) => ({
+      key: state.key + 1,
+      shared: encodeSimulatorState({ v: 1, sides: [first ?? null, second ?? null], swapped: false }),
+    }))
+    setComparingRosters(false)
+    setProblem(first === undefined || second === undefined ? 'That roster could not be opened.' : null)
   }
   const rosterGroups = [
     { label: 'Opened rosters', options: otherRosters },
@@ -233,35 +273,38 @@ export function CombatSimulator({
         }
       />
       <PageContent>
-        <SimulationMode
-          rosters={comparingRosters}
-          onChange={setComparingRosters}
-          units={
-            <div className="space-y-6">
-              {problem ? <output className="block text-sm text-dim">{problem}</output> : null}
-              {loadingRoster ? (
-                <p className="border border-edge bg-panel p-4 text-sm text-dim">Loading roster…</p>
-              ) : (
-                <CombatSimulatorMatchup
-                  key={session.key}
-                  roster={sides?.[0]?.roster}
-                  opponentRoster={sides?.[1]?.roster}
-                  firstRosters={rosterNavigation(0)}
-                  secondRosters={rosterNavigation(1)}
-                  initial={linked && sides ? { ...linked, sides: [sides[0]!.side, sides[1]!.side] } : null}
-                  onChange={share}
-                  onRemember={history.remember}
-                  reference={reference}
-                />
-              )}
-              <RecentSimulations surface="simulator" onOpen={restore} />
-            </div>
-          }
-          comparison={
-            <div className="border border-edge bg-panel">
-              <RosterCombatComparison />
-            </div>
-          }
+        <RosterCombatComparison
+          units={{
+            active: !comparingRosters,
+            onActiveChange: (active) => setComparingRosters(!active),
+            fielding: {
+              catalogue: units.data ?? [],
+              loadRoster,
+              sides: swapped ? [unitChoice(1), unitChoice(0)] : [unitChoice(0), unitChoice(1)],
+              field: (attacker, defender) => void fieldUnits(attacker, defender),
+            },
+            matchup: (
+              <div className="space-y-6">
+                {problem ? <output className="block text-sm text-dim">{problem}</output> : null}
+                {loadingRoster ? (
+                  <p className="border border-edge bg-panel p-4 text-sm text-dim">Loading roster…</p>
+                ) : (
+                  <CombatSimulatorMatchup
+                    key={session.key}
+                    roster={sides?.[0]?.roster}
+                    opponentRoster={sides?.[1]?.roster}
+                    firstRosters={rosterNavigation(0)}
+                    secondRosters={rosterNavigation(1)}
+                    initial={linked && sides ? { ...linked, sides: [sides[0]!.side, sides[1]!.side] } : null}
+                    onChange={share}
+                    onRemember={history.remember}
+                    reference={reference}
+                  />
+                )}
+                <RecentSimulations surface="simulator" onOpen={restore} />
+              </div>
+            ),
+          }}
         />
       </PageContent>
     </main>
@@ -421,17 +464,28 @@ export function CombatSimulatorMatchup({
           armyControl={reversed ? secondArmyControl : firstArmyControl}
           rosters={reversed ? secondRosters : firstRosters}
           headingAction={
-            <Button
-              variant="outline"
-              size="icon-sm"
-              className="bg-panel text-dim active:not-aria-[haspopup]:translate-y-0"
-              aria-label="Swap attacker and defender"
-              title="Swap attacker and defender"
-              onClick={() => setReversed((current) => !current)}
-              disabled={!attacker.snapshot || !defender.snapshot || !attacker.ready || !defender.ready || failed}
+            <ControlTooltip
+              label={
+                !attacker.snapshot || !defender.snapshot
+                  ? 'Choose both units first'
+                  : failed
+                    ? 'Unit data could not load'
+                    : !attacker.ready || !defender.ready
+                      ? 'Loading the units…'
+                      : 'Swap attacker and defender'
+              }
             >
-              <ArrowLeftRight aria-hidden />
-            </Button>
+              <Button
+                variant="outline"
+                size="icon-sm"
+                className="bg-panel text-dim active:not-aria-[haspopup]:translate-y-0"
+                aria-label="Swap attacker and defender"
+                onClick={() => setReversed((current) => !current)}
+                disabled={!attacker.snapshot || !defender.snapshot || !attacker.ready || !defender.ready || failed}
+              >
+                <ArrowLeftRight aria-hidden />
+              </Button>
+            </ControlTooltip>
           }
         />
       }

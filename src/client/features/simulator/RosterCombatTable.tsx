@@ -45,7 +45,7 @@ export function matchupShade(value: number | undefined, max: number) {
   return value && max > 0 ? Math.round(4 + (24 * value) / max) : 0
 }
 
-/** Consecutive units that share an owner, so a pair's two lists read as labelled blocks. */
+/** Consecutive units that share an owner, so a pair's two lists read as labelled blocks; one owner's side needs none. */
 export function ownerRuns(units: readonly RosterCombatUnit[]) {
   const runs: { owner: RosterOwner; start: number; count: number }[] = []
   units.forEach((unit, index) => {
@@ -53,7 +53,7 @@ export function ownerRuns(units: readonly RosterCombatUnit[]) {
     if (last && last.owner.name === unit.owner?.name) last.count += 1
     else if (unit.owner) runs.push({ owner: unit.owner, start: index, count: 1 })
   })
-  return runs
+  return runs.length > 1 ? runs : []
 }
 
 export function RosterCombatTable({

@@ -34,7 +34,7 @@ Check **Calculation uses**. If a chip is dimmed, hover it for the reason.
 
 ### The roster comparison stopped partway
 
-It has a five-minute limit and can be cancelled; completed pairings are kept. **Run again** to finish.
+It has a five-minute limit and can be cancelled; completed pairings are kept. **Retry** to finish.
 
 ### "Sign in and save both rosters to compare them here."
 

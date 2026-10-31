@@ -1,6 +1,6 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { Calculator, Download } from 'lucide-react'
+import { Download } from 'lucide-react'
 import { posthog } from 'posthog-js'
 import { Button } from '@/components/ui/button'
 import { version } from '../../../../package.json'
@@ -17,7 +17,7 @@ import { revealedSealedEventRostersKey } from '../../queries/queryKeys'
 import { useExportText } from '../../useCopyText'
 import { dispositionIn } from '../battle/setup/chrome'
 import { RosterSummary } from '../rosters/RosterSummary'
-import { EntrantGroup, IconAction, ViewRosterButton } from './SealedEventEntrants'
+import { EntrantGroup, SimulateButton, ViewRosterButton } from './SealedEventEntrants'
 import { DropEntrant } from './SealedEventDrop'
 import { UnsealRoster } from './SealedEventUnseal'
 
@@ -128,9 +128,20 @@ export function SealedEventArmies({
       {problem ? <Problem className="mb-2">{problem}</Problem> : null}
       <div className="space-y-4">
         {groups.map((group) => {
-          const cards = <div className="space-y-2">{group.entries.map(card)}</div>
+          const cards = <div className="space-y-2">{group.entries.map((entry) => card(entry, !group.title))}</div>
+          const opponent = group.entries.find((entry) => entry.army)
           return group.title ? (
-            <EntrantGroup key={group.key} group={group.key} title={group.title} detail={group.detail}>
+            <EntrantGroup
+              key={group.key}
+              group={group.key}
+              title={group.title}
+              detail={group.detail}
+              action={
+                onSimulate && opponent && !group.entries.some((entry) => entry.userId === viewerId) ? (
+                  <SimulateButton label={group.title} onClick={() => onSimulate(opponent.userId)} />
+                ) : null
+              }
+            >
               {cards}
             </EntrantGroup>
           ) : (
@@ -141,7 +152,8 @@ export function SealedEventArmies({
     </section>
   )
 
-  function card(entry: RevealedEntry) {
+  /** `alone` is false inside a side or team, which is simulated as a whole from its heading. */
+  function card(entry: RevealedEntry, alone: boolean) {
     const army = entry.army
     // The server names a sealed army even when today's catalogue index no longer lists its catalogue.
     const presentation = entry.armyFaction ?? (army?.catalogueId ? factionFor(factions, army.catalogueId) : undefined)
@@ -193,21 +205,8 @@ export function SealedEventArmies({
               <DropEntrant token={token} eventToken={eventToken} userId={entry.userId} label={named} self={entry.userId === viewerId} />
             ) : null}
             {army && canUnseal ? <UnsealRoster token={token} eventToken={eventToken} userId={entry.userId} label={named} /> : null}
-            {army && onSimulate && entry.userId !== viewerId ? (
-              <IconAction
-                tooltip="Simulate"
-                trigger={
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    className="text-dim hover:text-info pointer-coarse:size-11"
-                    aria-label={`Simulate against ${named}`}
-                    onClick={() => onSimulate(entry.userId)}
-                  />
-                }
-              >
-                <Calculator aria-hidden />
-              </IconAction>
+            {army && onSimulate && alone && entry.userId !== viewerId ? (
+              <SimulateButton label={named} onClick={() => onSimulate(entry.userId)} />
             ) : null}
             {army && !sample ? <ViewRosterButton token={token} eventToken={eventToken} userId={entry.userId} label={named} /> : null}
           </span>

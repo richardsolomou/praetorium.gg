@@ -30,6 +30,8 @@ export type CombatRoster = {
   optionalRules: readonly OptionalRuleId[]
   /** The saved roster or revealed sealed event list a standalone side came from, so its link and recent simulation can reopen it. */
   saved?: { source: SimulatorRosterSource; name: string }
+  /** Fields only the unit at `pickIndex`, with what is attached to it, when a comparison would take the whole roster. */
+  only?: boolean
   /** Whose list this is, when a comparison fields more than one roster on a side. */
   owner?: RosterOwner
   battle?: {

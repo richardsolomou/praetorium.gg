@@ -137,9 +137,8 @@ test('a group seals lists for a game night and plays them from the group page', 
   await expect(game).toContainText('Regular army')
   await game.getByRole('button', { name: `Simulate against ${memberName}`, exact: true }).click()
   const simulator = owner.getByRole('dialog', { name: 'Combat simulator', exact: true })
-  await expect(simulator.getByRole('combobox', { name: 'Attacking roster', exact: true })).toContainText(ownerName)
-  await expect(simulator.getByRole('combobox', { name: 'Defending roster', exact: true })).toContainText(memberName)
-  await simulator.getByRole('button', { name: 'Run all matchups' }).click()
+  await expect(simulator.getByRole('group', { name: 'Attacking with', exact: true })).toContainText(ownerName)
+  await expect(simulator.getByRole('group', { name: 'Defending with', exact: true })).toContainText(memberName)
   await expect(simulator).toContainText('1 / 1 matchups · Complete')
   await simulator.getByRole('button', { name: 'Close', exact: true }).click()
   await owner.setViewportSize(PHONE)
@@ -265,8 +264,8 @@ test('group team rows keep their actions inside the card at narrow widths', asyn
   await page.goto('/groups/preview-group')
   const game = page.locator('[data-hidden-list-game="preview-group-game-doubles"]')
   await expect.poll(() => historyStarted).toBe(true)
-  // A played game's lists show while its history is still loading.
-  const simulation = game.getByRole('button', { name: 'Simulate against Preview Opponent', exact: true })
+  // A played game's lists show while its history is still loading, simulated side against side.
+  const simulation = game.getByRole('button', { name: 'Simulate against Preview Opponent and Preview Rival', exact: true })
   await expect(simulation).toBeVisible()
   const historyLoaded = page.waitForResponse((response) => isHistory(response.url()))
   releaseHistory()
@@ -277,7 +276,7 @@ test('group team rows keep their actions inside the card at narrow widths', asyn
     await page.setViewportSize({ width, height: 900 })
     await game.scrollIntoViewIfNeeded()
     await expectNoHorizontalOverflow(game)
-    await expect(game.getByRole('button', { name: /^Simulate against/ })).toHaveCount(3)
+    await expect(game.getByRole('button', { name: /^Simulate against/ })).toHaveCount(1)
     for (const action of await game.getByRole('button', { name: /^Simulate against/ }).all()) {
       const bounds = await action.boundingBox()
       const card = await game.boundingBox()
@@ -286,19 +285,18 @@ test('group team rows keep their actions inside the card at narrow widths', asyn
   }
   await simulation.click()
   const simulator = page.getByRole('dialog', { name: 'Combat simulator', exact: true })
-  await expect(simulator.getByRole('combobox', { name: 'Attacking roster', exact: true })).toContainText(
-    'Team 1: Preview Player and Preview Ally',
-  )
-  await expect(simulator.getByRole('combobox', { name: 'Defending roster', exact: true })).toContainText(
-    'Team 2: Preview Opponent and Preview Rival',
-  )
+  for (const [side, players] of [
+    ['Attacking with', ['Preview Player', 'Preview Ally']],
+    ['Defending with', ['Preview Opponent', 'Preview Rival']],
+  ] as const)
+    for (const player of players) await expect(simulator.getByRole('group', { name: side, exact: true })).toContainText(player)
   await simulator.getByRole('button', { name: 'Close', exact: true }).click()
   const past = page.locator('[data-hidden-list-game="preview-group-game-duel-past"]')
   await expect(past.getByRole('button', { name: 'Simulate against Preview Opponent', exact: true })).toBeVisible()
   await expect(past.getByRole('button', { name: /^Play / })).toHaveCount(0)
   await past.getByRole('button', { name: 'Simulate against Preview Opponent', exact: true }).click()
-  await expect(simulator.getByRole('combobox', { name: 'Attacking roster', exact: true })).toContainText('Preview Player')
-  await expect(simulator.getByRole('combobox', { name: 'Defending roster', exact: true })).toContainText('Preview Opponent')
+  await expect(simulator.getByRole('group', { name: 'Attacking with', exact: true })).toContainText('Preview Player')
+  await expect(simulator.getByRole('group', { name: 'Defending with', exact: true })).toContainText('Preview Opponent')
   await simulator.getByRole('button', { name: 'Close', exact: true }).click()
   await page.setViewportSize(PHONE)
   await game.scrollIntoViewIfNeeded()

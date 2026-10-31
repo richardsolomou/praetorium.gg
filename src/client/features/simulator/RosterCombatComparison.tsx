@@ -1,7 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
-import { useEffect, useEffectEvent, useMemo, useRef, useState } from 'react'
-import { ArrowLeftRight, Crosshair } from 'lucide-react'
+import { useEffect, useEffectEvent, useMemo, useRef, useState, type ReactNode } from 'react'
+import { ArrowLeftRight, Crosshair, Swords } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 import { combatUnitsQuery, factionIndexQuery } from '../../queries'
 import { openSealedEventRoster, sharedRoster } from '../../functions'
 import { rosterSourceKey } from '../../../contracts/simulatorState'
@@ -18,7 +19,8 @@ import { readRosterCombatSelection, writeRosterCombatSelection } from './rosterC
 import type { RosterCombatSummary, RosterCombatUnit } from './rosterCombat'
 import { RosterCombatTable } from './RosterCombatTable'
 import { BenchmarkTargets } from './BenchmarkTargets'
-import { RosterPicker } from './RosterPicker'
+import { MatchupSidePicker, parseUnitChoice, SINGLE_UNIT, type UnitSources } from './MatchupSidePicker'
+import { ControlTooltip } from '../../components/ControlTooltip'
 import { benchmarkRosters, defaultBenchmarkTargets, parseBenchmarkTargets, type BenchmarkTarget } from './benchmarks'
 import { Problem } from '../../components/Problem'
 import { ProgressBar } from '../../components/ProgressBar'
@@ -34,6 +36,11 @@ export type RosterCombatSource = {
   group?: string
   load: (signal: AbortSignal) => Promise<readonly CombatRoster[]>
 }
+const BENCHMARKS = 'benchmarks'
+const NONE: readonly string[] = []
+const single = (id: string) => id === BENCHMARKS || id === SINGLE_UNIT || parseUnitChoice(id) !== null
+const unitOrEmpty = (ids: readonly string[]) => ids.length === 1 && (ids[0] === SINGLE_UNIT || parseUnitChoice(ids[0]!) !== null)
+
 type Comparison = {
   attacker: readonly CombatRoster[]
   defender: readonly CombatRoster[]
@@ -46,19 +53,36 @@ type Comparison = {
 export function RosterCombatComparison({
   sources,
   currentRoster,
-  initialAttacker = '',
-  initialDefender = '',
+  initialAttacker = NONE,
+  initialDefender = NONE,
   liveKey,
   sessionKey = 'simulator',
   eventPairing = false,
+  units,
 }: {
   sources?: RosterCombatSource[]
   currentRoster?: CombatRoster
-  initialAttacker?: string
-  initialDefender?: string
+  initialAttacker?: readonly string[]
+  initialDefender?: readonly string[]
   liveKey?: string
   sessionKey?: string
   eventPairing?: boolean
+  /** A unit-against-unit matchup, shown in place of the table while neither side holds more than one unit. */
+  units?: {
+    matchup: ReactNode
+    active: boolean
+    onActiveChange: (active: boolean) => void
+    /**
+     * Lets either side field one unit on its own, from any datasheet or roster; without it, "Single unit" switches both
+     * sides to the unit matchup at once.
+     */
+    fielding?: UnitSources & {
+      /** The unit each side fields in the unit matchup, or the empty single unit. */
+      sides: readonly [string, string]
+      /** Shows the unit matchup with these units. */
+      field: (attacker: string, defender: string) => void
+    }
+  }
 }) {
   const { me, saved, friendRosters, sealedEventRosters } = useSimulatorRosters(!sources)
   const activeRosters = saved.data?.filter((roster) => !roster.archived) ?? []
@@ -75,7 +99,7 @@ export function RosterCombatComparison({
   const targets = savedTargets ?? defaults.targets
   const options: RosterCombatSource[] = sources ?? [
     {
-      id: 'benchmarks',
+      id: BENCHMARKS,
       label: 'Benchmark targets',
       load: async () => {
         if (!catalogue.data) throw new Error('Benchmark unit data is still loading. Try again.')
@@ -141,12 +165,12 @@ export function RosterCombatComparison({
   const initialSelection = () => {
     const stored = readRosterCombatSelection(selectionKey)
     return {
-      attacker: stored?.attacker ?? (initialAttacker || (currentRoster ? 'current' : '')),
-      defender: stored?.defender ?? (initialDefender || (sources ? '' : 'benchmarks')),
+      attacker: stored?.attacker ?? (initialAttacker.length ? initialAttacker : currentRoster ? ['current'] : []),
+      defender: stored?.defender ?? (initialDefender.length ? initialDefender : sources ? [] : [BENCHMARKS]),
     }
   }
-  const [attackerId, setAttackerId] = useState(() => initialSelection().attacker)
-  const [defenderId, setDefenderId] = useState(() => initialSelection().defender)
+  const [attackerIds, setAttackerIds] = useState(() => initialSelection().attacker)
+  const [defenderIds, setDefenderIds] = useState(() => initialSelection().defender)
   const [comparison, setComparison] = useState<Comparison | null>(null)
   const [running, setRunning] = useState(false)
   const [problem, setProblem] = useState<string | null>(null)
@@ -168,8 +192,8 @@ export function RosterCombatComparison({
   const switchAccount = useEffectEvent(() => {
     stop()
     const initial = initialSelection()
-    setAttackerId(initial.attacker)
-    setDefenderId(initial.defender)
+    setAttackerIds(initial.attacker)
+    setDefenderIds(initial.defender)
   })
   useEffect(() => {
     if (account.current === storageKey) return
@@ -183,21 +207,50 @@ export function RosterCombatComparison({
     },
     [],
   )
-  const change = (side: 'attacker' | 'defender', id: string) => {
+  const select = (attacker: readonly string[], defender: readonly string[]) => {
     stop()
-    if (side === 'attacker') setAttackerId(id)
-    else setDefenderId(id)
-    writeRosterCombatSelection(selectionKey, side === 'attacker' ? id : attackerId, side === 'defender' ? id : defenderId)
+    setAttackerIds(attacker)
+    setDefenderIds(defender)
+    writeRosterCombatSelection(selectionKey, attacker, defender)
   }
-  const editTargets = (next: BenchmarkTarget[] | null) => {
+  const shown = (side: 0 | 1): readonly string[] =>
+    units?.active ? [units.fielding?.sides[side] ?? SINGLE_UNIT] : side ? defenderIds : attackerIds
+  const add = (side: 'attacker' | 'defender', id: string) => {
     stop()
+    if (id === SINGLE_UNIT && !units?.fielding) {
+      units?.onActiveChange(true)
+      return
+    }
+    const current = shown(side === 'attacker' ? 0 : 1)
+    const next = single(id) ? [id] : [...current.filter((candidate) => !single(candidate)), id]
+    let attacker = side === 'attacker' ? next : shown(0)
+    let defender = side === 'defender' ? next : shown(1)
+    if (units?.fielding && unitOrEmpty(attacker) && unitOrEmpty(defender)) {
+      units.fielding.field(attacker[0]!, defender[0]!)
+      return
+    }
+    if (units?.active) {
+      units.onActiveChange(false)
+      // A side left as the single unit keeps the rosters it last held; on the standalone page, where that is an empty
+      // card, the attacker waits for a choice and benchmarks defend.
+      if (attacker[0] === SINGLE_UNIT) attacker = units.fielding ? [] : attackerIds
+      if (defender[0] === SINGLE_UNIT) defender = units.fielding ? [BENCHMARKS] : defenderIds
+    }
+    select(attacker, defender)
+  }
+  const remove = (side: 'attacker' | 'defender', id: string) =>
+    select(
+      side === 'attacker' ? attackerIds.filter((candidate) => candidate !== id) : attackerIds,
+      side === 'defender' ? defenderIds.filter((candidate) => candidate !== id) : defenderIds,
+    )
+  const editTargets = (next: BenchmarkTarget[] | null) => {
     setStorageProblem(
       writeStoredValue(storageKey, next && JSON.stringify(next))
         ? null
         : 'Benchmark changes could not be saved. They will only last for this session.',
     )
   }
-  const execute = async (cachedOnly: boolean) => {
+  const execute = async () => {
     active.current?.abort()
     const controller = new AbortController()
     active.current = controller
@@ -207,18 +260,34 @@ export function RosterCombatComparison({
       ROSTER_COMBAT_TIMEOUT,
     )
     try {
-      const attackSource = options.find((source) => source.id === attackerId)
-      const defenceSource = options.find((source) => source.id === defenderId)
-      if (!attackSource || !defenceSource) throw new Error('Choose an attacking roster and a defending roster.')
-      const attacker = structuredClone(await attackSource.load(controller.signal))
-      controller.signal.throwIfAborted()
-      const defender = structuredClone(await defenceSource.load(controller.signal))
-      controller.signal.throwIfAborted()
+      const loadUnit = async (id: string): Promise<CombatRoster[]> => {
+        const unit = parseUnitChoice(id)!
+        if (unit.kind === 'datasheet') {
+          if (!catalogue.data) throw new Error('Unit data is still loading. Try again.')
+          return benchmarkRosters([{ key: id, catalogueId: unit.catalogueId, entryId: unit.entryId, name: unit.name }], catalogue.data)
+        }
+        const roster = await units?.fielding?.loadRoster(unit.key)
+        if (!roster) throw new Error('This roster is no longer available.')
+        return [{ ...roster, pickIndex: unit.pickIndex, only: true }]
+      }
+      const load = async (ids: readonly string[]) => {
+        if (!ids.length) throw new Error('Choose an attacking roster and a defending roster.')
+        const rosters = structuredClone(
+          (
+            await Promise.all(
+              ids.map((id) => (parseUnitChoice(id) ? loadUnit(id) : options.find((source) => source.id === id)!.load(controller.signal))),
+            )
+          ).flat(),
+        )
+        controller.signal.throwIfAborted()
+        return rosters
+      }
+      const attacker = await load(attackerIds)
+      const defender = await load(defenderIds)
       await runRosterCombat({
         attacker,
         defender,
         signal: controller.signal,
-        cachedOnly,
         onPrepared: (attackers, defenders) => {
           setComparison({ attacker, defender, attackers, defenders, results: {}, completed: 0 })
         },
@@ -240,16 +309,23 @@ export function RosterCombatComparison({
   }
   const run = () => {
     clearComparison(true)
-    void execute(false)
+    void execute()
   }
-  const usingBenchmarks = attackerId === 'benchmarks' || defenderId === 'benchmarks'
+  const usingBenchmarks = attackerIds.includes(BENCHMARKS) || defenderIds.includes(BENCHMARKS)
+  // Benchmark targets and a lone datasheet are both built from the unit index.
+  const usingCatalogue = usingBenchmarks || [...attackerIds, ...defenderIds].some((id) => parseUnitChoice(id)?.kind === 'datasheet')
+  const chosen = (ids: readonly string[]) =>
+    ids.length > 0 && ids.every((id) => parseUnitChoice(id) || options.some((source) => source.id === id))
+  const ready = chosen(attackerIds) && chosen(defenderIds)
   const waitingForAccount = !sources && me.isPending
-  const benchmarkIndex = !sources && usingBenchmarks ? catalogue.data : undefined
+  const benchmarkIndex = !sources && usingCatalogue ? catalogue.data : undefined
   const waitingForBenchmarks = usingBenchmarks && !targetsLoaded
   const savedVersions = sources
     ? undefined
     : JSON.stringify(
-        saved.data?.filter((source) => source.id === attackerId || source.id === defenderId).map((source) => [source.id, source.updatedAt]),
+        saved.data
+          ?.filter((source) => attackerIds.includes(source.id) || defenderIds.includes(source.id))
+          .map((source) => [source.id, source.updatedAt]),
       )
   /*
    * A change to the matchup's inputs shows that matchup again: from the cache while browsing, or computed while a
@@ -258,34 +334,33 @@ export function RosterCombatComparison({
    */
   const restoreInputs = [
     liveKey,
-    attackerId,
-    defenderId,
+    attackerIds.join(),
+    defenderIds.join(),
     storageKey,
     waitingForAccount,
     benchmarkIndex,
     savedVersions,
     waitingForBenchmarks,
+    usingBenchmarks && JSON.stringify(targets),
     currentRoster,
+    units?.active,
   ]
   const [restoredFor, setRestoredFor] = useState<typeof restoreInputs | null>(null)
-  const [restoration, setRestoration] = useState<{ cachedOnly: boolean } | null>(null)
+  const [restoration, setRestoration] = useState(0)
   if (!restoredFor || restoreInputs.some((value, index) => !Object.is(value, restoredFor[index]))) {
     setRestoredFor(restoreInputs)
-    const restorable =
-      !(liveKey === undefined && running) &&
-      !waitingForAccount &&
-      Boolean(attackerId && defenderId) &&
-      !(usingBenchmarks && (!catalogue.data || waitingForBenchmarks)) &&
-      options.some((source) => source.id === attackerId) &&
-      options.some((source) => source.id === defenderId)
+    const restorable = !units?.active && !waitingForAccount && ready && !(usingCatalogue && !catalogue.data) && !waitingForBenchmarks
+    // The last table stays until the new one is prepared, so editing targets or a live battle doesn't blank it.
     if (restorable) {
-      clearComparison(liveKey !== undefined)
-      setRestoration({ cachedOnly: liveKey === undefined })
+      setRunning(true)
+      setProblem(null)
+      setPair(null)
+      setRestoration((count) => count + 1)
     }
   }
-  const restore = useEffectEvent((cachedOnly: boolean) => void execute(cachedOnly))
+  const restore = useEffectEvent(() => void execute())
   useEffect(() => {
-    if (restoration) restore(restoration.cachedOnly)
+    if (restoration) restore()
   }, [restoration])
   const total = comparison ? comparison.attackers.length * comparison.defenders.length : 0
   const selected =
@@ -301,59 +376,81 @@ export function RosterCombatComparison({
           },
         }
       : null
-  const readError = !sources && (saved.error ?? me.error ?? (usingBenchmarks ? catalogue.error : null))
-  return (
-    <section aria-label="Roster comparison" className="min-w-0 space-y-3 p-3 sm:p-4">
-      <div className="border-b border-edge pb-3">
-        <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-end gap-2 sm:gap-3">
-          {(['attacker', 'defender'] as const).map((side, index) => (
-            <div key={side} className={index ? 'col-start-3 row-start-1 min-w-0' : 'min-w-0'}>
-              <p className="eyebrow mb-1">{index ? 'Targets' : 'Attackers'}</p>
-              <RosterPicker
-                ariaLabel={index ? 'Defending roster' : 'Attacking roster'}
-                groups={[undefined, "Friends' rosters", "Friends' sealed rosters"].map((group) => ({
-                  label: group ?? (sources ? 'Revealed rosters' : 'Rosters and targets'),
-                  options: options
-                    .filter((source) => source.group === group)
-                    .map((source) => ({
-                      ...source,
-                      icon:
-                        source.id === 'benchmarks' ? (
-                          <Crosshair className="size-4 text-info" aria-hidden />
-                        ) : source.owners?.length ? (
-                          <OwnerAvatars owners={source.owners} />
-                        ) : undefined,
-                    })),
-                }))}
-                value={index ? defenderId : attackerId}
-                onValueChange={(id) => change(side, id)}
-                disabled={running}
-                loading={!sources && Boolean(me.data) && saved.isPending}
-              />
-            </div>
-          ))}
+  const readError = !sources && (saved.error ?? me.error ?? (usingCatalogue ? catalogue.error : null))
+  const icon = (source: RosterCombatSource) =>
+    source.id === SINGLE_UNIT ? (
+      <Swords className="size-4 text-info" aria-hidden />
+    ) : source.id === BENCHMARKS ? (
+      <Crosshair className="size-4 text-info" aria-hidden />
+    ) : source.owners?.length ? (
+      <OwnerAvatars owners={source.owners} />
+    ) : undefined
+  const choices: RosterCombatSource[] = [...(units ? [{ id: SINGLE_UNIT, label: 'Single unit', load: async () => [] }] : []), ...options]
+  const pickerGroups = [
+    { label: 'Units and targets', options: choices.filter((source) => single(source.id)) },
+    ...[undefined, "Friends' rosters", "Friends' sealed rosters"].map((group) => ({
+      label: group ?? (sources ? 'Revealed rosters' : 'Your rosters'),
+      options: choices.filter((source) => !single(source.id) && source.group === group),
+    })),
+  ].map((group) => ({ ...group, options: group.options.map((source) => ({ ...source, icon: icon(source) })) }))
+  const reversible = attackerIds.length > 0 && defenderIds.length > 0
+  const sides = (
+    <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-start gap-2 sm:gap-3">
+      {(['attacker', 'defender'] as const).map((side, index) => (
+        <fieldset
+          key={side}
+          aria-label={index ? 'Defending with' : 'Attacking with'}
+          className={index ? 'col-start-3 row-start-1 min-w-0' : 'min-w-0'}
+        >
+          <p aria-hidden className="eyebrow mb-1">
+            {index ? 'Defending with' : 'Attacking with'}
+          </p>
+          <MatchupSidePicker
+            ariaLabel={index ? 'Defending with' : 'Attacking with'}
+            groups={pickerGroups}
+            value={shown(index ? 1 : 0)}
+            single={single}
+            unitId={SINGLE_UNIT}
+            units={units?.fielding}
+            onAdd={(id) => add(side, id)}
+            onRemove={(id) => remove(side, id)}
+            loading={!sources && Boolean(me.data) && saved.isPending}
+          />
+        </fieldset>
+      ))}
+      {units?.active ? null : (
+        <ControlTooltip label={reversible ? 'Swap attacker and defender' : 'Choose both sides first'}>
           <Button
             variant="outline"
             size="icon-sm"
             aria-label="Reverse direction"
-            className="col-start-2 row-start-1 mb-1"
-            disabled={running || !attackerId || !defenderId}
-            onClick={() => {
-              stop()
-              setAttackerId(defenderId)
-              setDefenderId(attackerId)
-              writeRosterCombatSelection(selectionKey, defenderId, attackerId)
-            }}
+            className="col-start-2 row-start-1 mt-5"
+            disabled={!reversible}
+            onClick={() => select(defenderIds, attackerIds)}
           >
             <ArrowLeftRight aria-hidden />
           </Button>
-        </div>
+        </ControlTooltip>
+      )}
+    </div>
+  )
+  if (units?.active)
+    return (
+      <div className="space-y-4">
+        <section aria-label="Matchup sides" className="border border-edge bg-panel p-3 sm:p-4">
+          {sides}
+        </section>
+        {units.matchup}
       </div>
+    )
+  return (
+    <section aria-label="Roster comparison" className={cn('min-w-0 space-y-3 p-3 sm:p-4', units && 'border border-edge bg-panel')}>
+      <div className="border-b border-edge pb-3">{sides}</div>
       {storageProblem ? <Problem className="text-xs">{storageProblem}</Problem> : null}
       {!sources && !currentRoster && !me.isPending && !me.data ? (
         <p className="text-sm text-dim">Sign in and save both rosters to compare them here.</p>
       ) : null}
-      {!sources && me.data && saved.isSuccess && !currentRoster && options.every((source) => source.id === 'benchmarks') ? (
+      {!sources && me.data && saved.isSuccess && !currentRoster && options.every((source) => source.id === BENCHMARKS) ? (
         <p className="text-sm text-dim">Save or import two rosters to start comparing targets.</p>
       ) : null}
       {readError ? (
@@ -369,9 +466,11 @@ export function RosterCombatComparison({
         </Problem>
       ) : null}
       <div className="flex flex-wrap items-center gap-3">
-        <Button disabled={running || !attackerId || !defenderId || (usingBenchmarks && (!catalogue.data || !targetsLoaded))} onClick={run}>
-          {comparison ? 'Run again' : 'Run all matchups'}
-        </Button>
+        {!running && ready && (problem || (comparison && comparison.completed < total)) ? (
+          <Button variant="outline" onClick={run}>
+            Retry
+          </Button>
+        ) : null}
         {running ? (
           <Button variant="outline" onClick={() => active.current?.abort(new Error('Cancelled. Completed pairings are retained.'))}>
             Cancel
@@ -395,14 +494,14 @@ export function RosterCombatComparison({
         <BenchmarkTargets
           targets={targets}
           index={catalogue.data ?? []}
-          disabled={running || !catalogue.data || !targetsLoaded}
+          disabled={!catalogue.data || !targetsLoaded}
           onChange={editTargets}
           onReset={() => editTargets(null)}
         />
       ) : null}
-      {!comparison && !running && attackerId && defenderId ? (
+      {!comparison && !running && !ready ? (
         <p className="border border-dashed border-edge p-4 text-center text-sm text-dim">
-          Every attacking unit is matched against every target. Run all matchups to fill in the table.
+          Choose rosters for both sides. Add more than one roster to a side to fight a doubles or 2v1 game together.
         </p>
       ) : null}
       {comparison ? (
@@ -410,7 +509,7 @@ export function RosterCombatComparison({
           attackers={comparison.attackers}
           defenders={comparison.defenders}
           results={comparison.results}
-          benchmarkTargets={defenderId === 'benchmarks'}
+          benchmarkTargets={defenderIds.includes(BENCHMARKS)}
           eventPairing={eventPairing}
           onSelect={(row, column) => setPair({ row, column })}
         />

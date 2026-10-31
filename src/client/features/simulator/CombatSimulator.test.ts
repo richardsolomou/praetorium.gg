@@ -46,8 +46,8 @@ function render(initial?: SimulatorState, source: 'standalone' | 'roster' | 'bat
   return element.props as ComponentProps<typeof CombatMatchup>
 }
 function swap(props: ComponentProps<typeof CombatMatchup>) {
-  const card = props.attackerControl as { props: { headingAction: { props: { onClick: () => void } } } }
-  card.props.headingAction.props.onClick()
+  const card = props.attackerControl as { props: { headingAction: { props: { children: { props: { onClick: () => void } } } } } }
+  card.props.headingAction.props.children.props.onClick()
   render()
   return render()
 }

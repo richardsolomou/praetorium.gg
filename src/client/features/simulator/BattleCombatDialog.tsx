@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, type ComponentProps } from 'react'
 import type { BattleView } from '../../../core/battleView'
-import { Choice, SimulationMode } from './CombatControls'
+import { Choice } from './CombatControls'
 import { CombatSimulatorMatchup } from './CombatSimulator'
 import { CombatDialog } from './RosterCombatDialog'
 import { battleCombatRoster } from './battleCombatRoster'
@@ -13,23 +13,21 @@ export function BattleCombatDialog(props: Props) {
   const [rosters, setRosters] = useState(false)
   return (
     <CombatDialog battle wide={rosters} onClose={props.onClose}>
-      <SimulationMode
-        rosters={rosters}
-        onChange={setRosters}
-        className="mx-3 mt-3"
-        units={<BattleUnitCombatDialog {...props} />}
-        comparison={<BattleMatchupPlanner {...props} />}
+      <BattleMatchupPlanner
+        {...props}
+        units={{ active: !rosters, onActiveChange: (active) => setRosters(!active), matchup: <BattleUnitCombatDialog {...props} /> }}
       />
     </CombatDialog>
   )
 }
 
-function BattleMatchupPlanner({ view, selection }: Props) {
+function BattleMatchupPlanner({ view, selection, units }: Props & Pick<ComponentProps<typeof RosterCombatComparison>, 'units'>) {
   const armies = view.players
     .filter((player) => player.roster?.built?.picks?.length)
     .map((player) => ({ player, roster: battleCombatRoster(player) }))
   const first = armies.find(({ player }) => player.id === selection.playerId)
-  const second = armies.find(({ player, roster }) => player.side !== first?.player.side && roster)
+  const side = (own: boolean) =>
+    armies.flatMap(({ player, roster }) => (roster && (player.side === first?.player.side) === own ? [player.id] : []))
   const sources: RosterCombatSource[] = armies.map(({ player, roster }) => ({
     id: player.id,
     label: player.name,
@@ -43,8 +41,9 @@ function BattleMatchupPlanner({ view, selection }: Props) {
   return (
     <RosterCombatComparison
       sources={sources}
-      initialAttacker={first?.player.id}
-      initialDefender={second?.player.id}
+      initialAttacker={first ? side(true) : []}
+      initialDefender={first ? side(false) : []}
+      units={units}
       liveKey={liveKey}
       sessionKey={`battle:${view.token}:${view.viewerId}:${selection.playerId}`}
     />

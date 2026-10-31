@@ -189,10 +189,11 @@ test('revealed rosters compare every unit using frozen loadouts and preserve sea
   await expect(viewRoster(card, opponentName)).toBeVisible()
   await expect(owner.locator(`[data-army="${ownerName}"]`).getByRole('button', { name: /^Simulate against/ })).toHaveCount(0)
   const plan = card.getByRole('button', { name: `Simulate against ${opponentName}`, exact: true })
+  const gate = await holdCombatCalculations(owner)
   await plan.click()
   const dialog = owner.getByRole('dialog', { name: 'Combat simulator', exact: true })
-  await expect(dialog.getByRole('combobox', { name: 'Attacking roster', exact: true })).toContainText(ownerName)
-  await expect(dialog.getByRole('combobox', { name: 'Defending roster', exact: true })).toContainText(opponentName)
+  await expect(dialog.getByRole('group', { name: 'Attacking with', exact: true })).toContainText(ownerName)
+  await expect(dialog.getByRole('group', { name: 'Defending with', exact: true })).toContainText(opponentName)
   const refreshSavedRoster = async (name: string) => {
     await owner.evaluate(() => {
       const table = document.querySelector('[role="dialog"] table')!
@@ -211,14 +212,12 @@ test('revealed rosters compare every unit using frozen loadouts and preserve sea
       await owner.evaluate(() => (window as Window & { comparisonRefreshProbe?: { removed: boolean } }).comparisonRefreshProbe?.removed),
     ).toBe(false)
   }
-  const gate = await holdCombatCalculations(owner)
-  await dialog.getByRole('button', { name: 'Run all matchups' }).click()
   await gate.waitForStart()
   await refreshSavedRoster('Updated saved roster during simulation')
   await dialog.getByRole('button', { name: 'Cancel', exact: true }).click()
   await expect(dialog).toContainText('Cancelled')
   await gate.release()
-  await dialog.getByRole('button', { name: 'Run again' }).click()
+  await dialog.getByRole('button', { name: 'Retry', exact: true }).click()
   await expect(dialog).toContainText('4 / 4 matchups · Complete')
   const table = dialog.getByRole('table')
   await expect(table.getByRole('cell')).toHaveCount(4)

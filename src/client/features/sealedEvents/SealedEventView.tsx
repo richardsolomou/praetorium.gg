@@ -338,13 +338,7 @@ export function SealedEventView({
           }))}
           teams={groups.flatMap((group) =>
             group.teamId && group.entries.length > 1 && group.entries.every((entry) => sealedEntrants.includes(entry))
-              ? [
-                  {
-                    id: `team:${group.teamId}`,
-                    label: `${group.title}: ${formatList(group.entries.map(label))}`,
-                    userIds: group.entries.map((entry) => entry.userId),
-                  },
-                ]
+              ? [group.entries.map((entry) => entry.userId)]
               : [],
           )}
           onClose={() => setSimulating(null)}

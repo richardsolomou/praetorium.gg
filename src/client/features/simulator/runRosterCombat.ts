@@ -6,7 +6,7 @@ import { errorMessage } from '../../queryClient'
 import { forEachConcurrently } from '../../../shared/forEachConcurrently'
 import type { CombatAnswer, CombatRequest } from '../../../core/combatMatchup'
 import type { CombatRoster } from './useCombatant'
-import { hasRosterCombatCache, readRosterCombatCache, writeRosterCombatCache } from './rosterCombatCache'
+import { readRosterCombatCache, writeRosterCombatCache } from './rosterCombatCache'
 import {
   rosterCombatIndices,
   rosterCombatRequest,
@@ -24,25 +24,24 @@ export async function runRosterCombat({
   attacker,
   defender,
   signal,
-  cachedOnly = false,
   onPrepared,
   onResult,
 }: {
   attacker: CombatRoster | readonly CombatRoster[]
   defender: CombatRoster | readonly CombatRoster[]
   signal: AbortSignal
-  cachedOnly?: boolean
   onPrepared: (attackers: RosterCombatUnit[], defenders: RosterCombatUnit[]) => void
   onResult: (row: number, column: number, result: RosterCombatSummary) => void
 }) {
   signal.throwIfAborted()
-  if (cachedOnly && !hasRosterCombatCache()) return false
   const attackingRosters = 'picks' in attacker ? [attacker] : attacker
   const defendingRosters = 'picks' in defender ? [defender] : defender
   const unitIndices = (rosters: readonly CombatRoster[]) =>
     rosters.flatMap((roster, rosterIndex) =>
       rosterCombatIndices(roster.picks)
-        .filter((pickIndex) => !roster.battle || roster.battle.units[pickIndex]?.available)
+        .filter(
+          (pickIndex) => (!roster.battle || roster.battle.units[pickIndex]?.available) && (!roster.only || pickIndex === roster.pickIndex),
+        )
         .map((pickIndex) => ({ rosterIndex, pickIndex })),
     )
   const rows = unitIndices(attackingRosters)
@@ -120,9 +119,8 @@ export async function runRosterCombat({
       signal.throwIfAborted()
       onResult(Math.floor(index / defenders.length), index % defenders.length, result)
     })
-    return true
+    return
   }
-  if (cachedOnly) return false
   onPrepared(attackers, defenders)
   const pool = new AbortController()
   const abort = () => pool.abort(signal.reason)
@@ -182,5 +180,4 @@ export async function runRosterCombat({
     for (const calculator of calculators) calculator.dispose()
     signal.removeEventListener('abort', abort)
   }
-  return !pending.length
 }

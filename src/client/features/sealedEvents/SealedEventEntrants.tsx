@@ -1,7 +1,8 @@
 import { Link } from '@tanstack/react-router'
-import { Eye } from 'lucide-react'
+import { Calculator, Eye } from 'lucide-react'
 import type { ReactElement, ReactNode } from 'react'
 import { buttonClass } from '../../components/buttonClass'
+import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import type { SealedEventEntryView } from '../../../core/sealedEvent'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
@@ -123,5 +124,24 @@ export function IconAction({ tooltip, trigger, children }: { tooltip: string; tr
         {tooltip}
       </TooltipContent>
     </Tooltip>
+  )
+}
+
+export function SimulateButton({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <IconAction
+      tooltip={`Simulate against ${label}`}
+      trigger={
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          className="text-dim hover:text-info pointer-coarse:size-11"
+          aria-label={`Simulate against ${label}`}
+          onClick={onClick}
+        />
+      }
+    >
+      <Calculator aria-hidden />
+    </IconAction>
   )
 }

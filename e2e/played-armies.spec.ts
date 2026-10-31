@@ -72,8 +72,7 @@ for (const [width, label] of [
       if (width === 1440) {
         await chooseRosterAction(reader, 'Test targets')
         const simulator = reader.getByRole('dialog', { name: 'Test targets', exact: true })
-        await expect(simulator.getByRole('combobox', { name: 'Attacking roster', exact: true })).toContainText('Current roster')
-        await simulator.getByRole('button', { name: 'Run all matchups' }).click()
+        await expect(simulator.getByRole('group', { name: 'Attacking with', exact: true })).toContainText('Current roster')
         await expect(simulator).toContainText(/(\d+) \/ \1 matchups · Complete/, { timeout: 120_000 })
         await shot(simulator, test.info().outputPath(`played-army-simulate-${label}.png`))
         await simulator.getByRole('button', { name: 'Close', exact: true }).click()

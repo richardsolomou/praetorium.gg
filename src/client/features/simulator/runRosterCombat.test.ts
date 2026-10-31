@@ -68,18 +68,13 @@ function cachedComparison(overrides: Partial<Parameters<typeof runRosterCombat>[
   })
 }
 
-it('does not project rosters to restore an empty comparison cache', async () => {
-  await cachedComparison({ cachedOnly: true })
-  expect(mocks.project).not.toHaveBeenCalled()
-})
-
 it('restores a completed comparison after fresh projections without starting scoring workers', async () => {
   const original = vi.fn()
   await cachedComparison({ onResult: original })
   mocks.worker.mockClear()
   mocks.project.mockClear()
   const restored = vi.fn()
-  await cachedComparison({ cachedOnly: true, onResult: restored })
+  await cachedComparison({ onResult: restored })
   expect({ workers: mocks.worker.mock.calls.length, projections: mocks.project.mock.calls.length, results: restored.mock.calls }).toEqual({
     workers: 0,
     projections: 2,
@@ -94,24 +89,16 @@ it('reuses completed pairings when a comparison is run again', async () => {
   expect(mocks.worker).not.toHaveBeenCalled()
 })
 
-it('does not calculate or publish a cache miss while restoring', async () => {
-  const onPrepared = vi.fn()
-  await cachedComparison({ cachedOnly: true, onPrepared })
-  expect({ workers: mocks.worker.mock.calls.length, prepared: onPrepared.mock.calls.length }).toEqual({ workers: 0, prepared: 0 })
-})
-
 it('invalidates cached results when current wounds change', async () => {
   await cachedComparison()
-  const onResult = vi.fn()
+  mocks.worker.mockClear()
   await cachedComparison({
-    cachedOnly: true,
     defender: {
       ...roster,
       battle: { units: [{ key: '0-squad', name: 'Squad', models: 1, startingModels: 1, damage: 1, available: true }] },
     },
-    onResult,
   })
-  expect(onResult).not.toHaveBeenCalled()
+  expect(mocks.worker).toHaveBeenCalled()
 })
 
 it('reuses attacks when changed equipment resolves to the same calculation', async () => {
@@ -149,17 +136,9 @@ it('does not cache comparisons with worker failures', async () => {
     throw new Error('Unavailable')
   })
   await cachedComparison()
-  const onResult = vi.fn()
-  await cachedComparison({ cachedOnly: true, onResult })
-  expect(onResult).not.toHaveBeenCalled()
-})
-
-it('does not restore results after a failed permission or projection read', async () => {
+  mocks.worker.mockClear()
   await cachedComparison()
-  mocks.project.mockRejectedValue(new Error('Access denied'))
-  const onResult = vi.fn()
-  await cachedComparison({ cachedOnly: true, onResult })
-  expect(onResult).not.toHaveBeenCalled()
+  expect(mocks.worker).toHaveBeenCalled()
 })
 
 it('calculates every directional pairing, including repeated entries, with different outcomes', async () => {

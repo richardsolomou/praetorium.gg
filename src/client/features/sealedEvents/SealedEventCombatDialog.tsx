@@ -4,16 +4,13 @@ import { CombatDialog } from '../simulator/RosterCombatDialog'
 import { RosterCombatComparison, type RosterCombatSource } from '../simulator/RosterCombatComparison'
 import type { RosterOwner } from '../simulator/rosterOwners'
 
-/** A fixed doubles pair, compared as both of its sealed lists together. */
-type SealedEventCombatTeam = { id: string; label: string; userIds: string[] }
-
-/** Your team against your opponent's, or single lists when either player has no pair or the opponent is your teammate. */
-export function sealedEventCombatPairing(teams: readonly SealedEventCombatTeam[], viewerId: string, opponentId: string) {
-  const teamOf = (userId: string) => teams.find((team) => team.userIds.includes(userId))
+/** Your pair's lists against your opponent's pair, or single lists when either player has no pair or the opponent is your teammate. */
+export function sealedEventCombatPairing(teams: readonly (readonly string[])[], viewerId: string, opponentId: string) {
+  const teamOf = (userId: string) => teams.find((team) => team.includes(userId))
   const own = teamOf(viewerId)
   const other = teamOf(opponentId)
-  if (own && own === other) return { attacker: viewerId, defender: opponentId }
-  return { attacker: own?.id ?? viewerId, defender: other?.id ?? opponentId }
+  if (own && own === other) return { attacker: [viewerId], defender: [opponentId] }
+  return { attacker: own ?? [viewerId], defender: other ?? [opponentId] }
 }
 
 export function SealedEventCombatDialog({
@@ -28,7 +25,8 @@ export function SealedEventCombatDialog({
   token: string
   eventToken: string
   entries: { userId: string; label: string; owner: RosterOwner }[]
-  teams: SealedEventCombatTeam[]
+  /** The players in each fixed pair, whose lists start out fighting together. */
+  teams: string[][]
   viewerId: string
   opponentId: string
   onClose: () => void
@@ -39,21 +37,12 @@ export function SealedEventCombatDialog({
     return roster
   }
   const ownerOf = (userId: string) => entries.find((entry) => entry.userId === userId)?.owner
-  const sources: RosterCombatSource[] = [
-    ...teams.map((team) => ({
-      id: team.id,
-      label: team.label,
-      owners: team.userIds.flatMap((userId) => ownerOf(userId) ?? []),
-      load: (signal: AbortSignal) =>
-        Promise.all(team.userIds.map(async (userId) => ({ ...(await sealed(userId, signal)), owner: ownerOf(userId) }))),
-    })),
-    ...entries.map((entry) => ({
-      id: entry.userId,
-      label: entry.label,
-      owners: [entry.owner],
-      load: async (signal: AbortSignal) => [await sealed(entry.userId, signal)],
-    })),
-  ]
+  const sources: RosterCombatSource[] = entries.map((entry) => ({
+    id: entry.userId,
+    label: entry.label,
+    owners: [entry.owner],
+    load: async (signal: AbortSignal) => [{ ...(await sealed(entry.userId, signal)), owner: ownerOf(entry.userId) }],
+  }))
   const pairing = sealedEventCombatPairing(teams, viewerId, opponentId)
   return (
     <CombatDialog onClose={onClose} wide>
