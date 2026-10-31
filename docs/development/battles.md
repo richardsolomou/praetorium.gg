@@ -2,7 +2,7 @@
 
 `src/core/battle.ts` owns commands, legality, and the fold; `src/core/battleView.ts` is the only field-visibility decision.
 
-- Submission validates and appends atomically against `expectedSeq`, which covers the whole log. Never automatically resend a `stale` command with a newer sequence.
+- Submission validates and appends atomically against `expectedSeq`, which covers the whole log. Never automatically resend a `stale` command with a newer sequence, and send an automatic write another device may also make against the screen it was worked out from (`onlyAt`), so losing that race answers stale rather than refused.
 - A queued offline command keeps its operation ID, sequence, rules revision, time, and random draw through retries: never rebase, revalidate, or redraw it.
 - Every battle with a seated account is public (`mayWatch`). Practice battles stay out of feeds, standings, and records.
 - Attaching a roster rechecks ownership, price, and legality on the server, then freezes it; later edits never rewrite a battle.

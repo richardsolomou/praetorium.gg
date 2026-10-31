@@ -27,10 +27,22 @@ type SubmittedCommand = Command | RosterAttachment
 export type SendCommand = (
   command: Command,
   /** `blocking: false` leaves other controls enabled while it is in flight, for presses meant to be repeated. */
-  options?: { background?: boolean; blocking?: boolean; complete?: (appended: boolean) => void },
+  options?: {
+    background?: boolean
+    blocking?: boolean
+    /** The sequence of the screen a write was worked out from, when it holds only for that history: a newer one answers stale. */
+    onlyAt?: number
+    complete?: (appended: boolean) => void
+  },
 ) => void
 type RosterDraftInput = z.input<typeof saveRosterSchema>
-type QueuedCommand = { command: SubmittedCommand; basedOn: number; background?: boolean; complete?: (appended: boolean) => void }
+type QueuedCommand = {
+  command: SubmittedCommand
+  basedOn: number
+  background?: boolean
+  onlyAt?: number
+  complete?: (appended: boolean) => void
+}
 type Prediction = NonNullable<ReturnType<typeof predictedBattle>>
 /** The newest screen worked out on this device as the cache holds it, and the service's screen to return to if a command throws. */
 type Projection = { battle: Prediction; shown: unknown; confirmed: unknown }
@@ -104,7 +116,7 @@ async function sendQueued({
       if (!item) break
       seen.current = Math.max(seen.current, item.basedOn)
       try {
-        const { result, screen } = await submit({ data: { token, expectedSeq: seen.current, command: item.command } })
+        const { result, screen } = await submit({ data: { token, expectedSeq: item.onlyAt ?? seen.current, command: item.command } })
         const setup = screen?.kind === 'battle' && screen.view.status === 'setup'
         if (!item.background || result.outcome === 'refused') setProblem(explain(result, setup))
         // A realtime refetch that landed while this command was in flight can hold a newer screen than its answer, and so can
@@ -262,7 +274,13 @@ export function useCommand(token: string, seq: number) {
       // The controls stay enabled until a result shows, so a second tap on them would act on a screen the first already changed.
       const event = lastClick
       if (blocking && unshown.current.size && event !== press.current) return options?.complete?.(false)
-      const item: QueuedCommand = { command, basedOn: seq, background: options?.background, complete: options?.complete }
+      const item: QueuedCommand = {
+        command,
+        basedOn: seq,
+        background: options?.background,
+        onlyAt: options?.onlyAt,
+        complete: options?.complete,
+      }
       queued.current.push(item)
       // Disabling the controls re-renders the screen before the command goes out, so they disable only when its result
       // cannot show ahead of the service.
