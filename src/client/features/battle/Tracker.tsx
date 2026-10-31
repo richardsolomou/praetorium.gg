@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { deleteBattle } from '../../functions'
 import { deploymentFor } from '../../battleSummary'
-import { battleQuery, battlesQuery, deploymentsQuery, detachmentRulesQuery, gameReferencesQuery } from '../../queries'
+import { battleQuery, deploymentsQuery, detachmentRulesQuery, forgetBattle, gameReferencesQuery } from '../../queries'
 import { missionCardsByKey, primaryCards, secondaryCards } from './missionDeck'
 import {
   MISSION_ACTION_REMINDER_PREFIX,
@@ -254,7 +254,7 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
     mutationFn: () => deleteBattle({ data: { token: view.token } }),
     onSuccess: async () => {
       queryClient.removeQueries({ queryKey: battleQuery(view.token).queryKey })
-      await queryClient.invalidateQueries({ queryKey: battlesQuery().queryKey })
+      forgetBattle(queryClient, view.token)
       await navigate({ to: '/battles' })
     },
     onError: (error) => toast.error(errorMessage(error)),

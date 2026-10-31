@@ -602,6 +602,13 @@ export async function sealedEventBattleOptions(
   args: Parameters<typeof server.sealedEventBattleOptions>[0],
 ): ReturnType<typeof server.sealedEventBattleOptions> {
   if (!localEngine()) return server.sealedEventBattleOptions(args)
+  // Matching from saved copies reads every event one by one, so it is only worth doing when the server cannot answer.
+  if (!isOffline())
+    try {
+      return await server.sealedEventBattleOptions(args)
+    } catch {
+      /* Fall back to the saved copies. */
+    }
   const owner = localOwner()!
   const sealedEvents = await listSealedEvents()
   const candidates = await Promise.all(
@@ -618,15 +625,9 @@ export async function sealedEventBattleOptions(
           : null
       }),
   )
-  const matching = matchingSealedEventBattles(
+  return matchingSealedEventBattles(
     candidates.filter((candidate): candidate is NonNullable<typeof candidate> => candidate !== null),
     owner.id,
     args.data,
   )
-  if (isOffline()) return matching
-  try {
-    return await server.sealedEventBattleOptions(args)
-  } catch {
-    return matching
-  }
 }

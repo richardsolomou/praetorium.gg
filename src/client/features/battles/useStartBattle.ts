@@ -9,7 +9,8 @@ export function useStartBattle() {
   return {
     defaultMissionPackId: async () => (await queryClient.query({ ...gameReferencesQuery(), staleTime: 'static' }))?.packs[0]?.id ?? null,
     openBattle: async (token: string) => {
-      await queryClient.invalidateQueries({ queryKey: battlesQuery().queryKey })
+      // The new battle's page does not show the list, so it opens without waiting for the refetch.
+      void queryClient.invalidateQueries({ queryKey: battlesQuery().queryKey })
       await navigate({ to: '/battles/$token', params: { token } })
     },
   }
