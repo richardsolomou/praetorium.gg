@@ -265,7 +265,7 @@ test('group team rows keep their actions inside the card at narrow widths', asyn
   const game = page.locator('[data-hidden-list-game="preview-group-game-doubles"]')
   await expect.poll(() => historyStarted).toBe(true)
   // A played game's lists show while its history is still loading, simulated side against side.
-  const simulation = game.getByRole('button', { name: 'Simulate against Preview Opponent and Preview Rival', exact: true })
+  const simulation = game.getByRole('button', { name: 'Simulate against Team 2', exact: true })
   await expect(simulation).toBeVisible()
   const historyLoaded = page.waitForResponse((response) => isHistory(response.url()))
   releaseHistory()
@@ -292,6 +292,9 @@ test('group team rows keep their actions inside the card at narrow widths', asyn
     for (const player of players) await expect(simulator.getByRole('group', { name: side, exact: true })).toContainText(player)
   await simulator.getByRole('button', { name: 'Close', exact: true }).click()
   const past = page.locator('[data-hidden-list-game="preview-group-game-duel-past"]')
+  // A past game keeps its lists folded away until opened.
+  await expect(past.getByRole('button', { name: 'Simulate against Preview Opponent', exact: true })).toBeHidden()
+  await past.getByText(/^Lists · /).click()
   await expect(past.getByRole('button', { name: 'Simulate against Preview Opponent', exact: true })).toBeVisible()
   await expect(past.getByRole('button', { name: /^Play / })).toHaveCount(0)
   await past.getByRole('button', { name: 'Simulate against Preview Opponent', exact: true }).click()

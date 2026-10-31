@@ -63,7 +63,7 @@ export function doublesTeams<T extends Pick<SealedEventEntryView, 'teamId' | 'st
 }
 
 /** What each side of a 2v1 means at the table, said where the side is named rather than left to be guessed. */
-function sideGroups(
+export function sideGroups(
   sealedEvent: Pick<SealedEvent, 'rosterLimit' | 'soloPoints' | 'allyPoints' | 'sharedPoints'>,
 ): Record<'solo' | 'allied' | 'unsized', { title: string; detail?: string }> {
   const ally = sealedEventSeatPoints(sealedEvent, false) ?? 0

@@ -27,15 +27,13 @@ import { createSealedEventBattle, joinSealedEvent, submitSealedEventRoster } fro
 import { rosterWaivers, WaiverConfirmDialog } from '../../components/FormatWaivers'
 import { entrantLabels } from '../../playerLabels'
 import { battlesFrom, sealedEventBattlesQuery, sealedEventResultsQuery } from '../../queries'
-import { useDispositionNames } from '../battle/setup/chrome'
 import { BattleShelf } from '../battles/BattleShelf'
 import type { SavedRoster } from '../rosters/rosterLibrary'
 import { DoublesBattleChooser, SealedEventBattleChooser, OneOnOneBattleChooser, startBattleLabel } from './SealedEventBattleChoosers'
-import { EntrantGroup, EntrantList, EntrantRow, sealStatus, ViewRosterButton } from './SealedEventEntrants'
+import { EntrantGroup, EntrantList, EntrantRow, sealStatus, useEntrantGroups, ViewRosterButton } from './SealedEventEntrants'
 import { SectionHeading } from '../../components/SectionHeading'
 import {
   doublesTeams,
-  entrantGroups,
   entryProgress,
   entryRules,
   eventName,
@@ -107,7 +105,6 @@ export function SealedEventView({
   const revealed = Boolean(sealedEvent.revealedAt)
   const battleHistory = useInfiniteQuery({ ...sealedEventBattlesQuery(token, sealedEvent.eventToken), enabled: revealed })
   const { data: results } = useQuery({ ...sealedEventResultsQuery(token, sealedEvent.eventToken), enabled: revealed })
-  const nameDisposition = useDispositionNames()
   const moment = useMoment()
   const now = useNow(sealedEvent.sealBy)
   const [choosing, setChoosing] = useState(Boolean(chooseRoster))
@@ -270,14 +267,8 @@ export function SealedEventView({
       {last}
     </EntrantRow>
   )
-  // A pair names the card it sealed once the reader may see it: its own members before the reveal, everyone after.
-  const pairNames = (members: SealedEventEntryView[]) => {
-    const card = sealedEvent.entries.find((entry) => entry.userId === members[0]?.userId)?.team?.disposition
-    const named = nameDisposition(card)?.name
-    return [formatList(members.map(label)), named && `plays ${named}`].filter(Boolean).join(' · ')
-  }
   // The revealed rosters split by side or pair the way the entrant list does, so a pairing reads the same before and after.
-  const groups = entrantGroups(sealedEvent, accepted, pairNames)
+  const groups = useEntrantGroups(sealedEvent, accepted, label)
   // Once the rosters are out, each player shows with their roster, so the entrant list has nothing left to say.
   const entrants = revealed ? null : isOrganizer ? (
     <OrganizerEntrants sealedEvent={sealedEvent} token={token} row={row} />

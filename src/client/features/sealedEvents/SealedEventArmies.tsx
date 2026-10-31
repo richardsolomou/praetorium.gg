@@ -1,6 +1,7 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { Download } from 'lucide-react'
+import type { ReactNode } from 'react'
 import { posthog } from 'posthog-js'
 import { Button } from '@/components/ui/button'
 import { version } from '../../../../package.json'
@@ -22,9 +23,9 @@ import { DropEntrant } from './SealedEventDrop'
 import { UnsealRoster } from './SealedEventUnseal'
 
 /** One titled side or team of rosters, or a duel's single untitled run. */
-type ArmyGroup = { key: string; title?: string; detail?: string; entries: RevealedEntry[] }
+export type ArmyGroup = { key: string; title?: string; detail?: string; entries: RevealedEntry[] }
 
-type RevealedEntry = SealedEventEntryView & {
+export type RevealedEntry = SealedEventEntryView & {
   army: SealedEventArmy | null
   armyFaction: FactionPresentation | null
   sealedAt: number | null
@@ -126,112 +127,176 @@ export function SealedEventArmies({
       </div>
       {exported.error ? <Problem className="mb-2" error={exported.error} /> : null}
       {problem ? <Problem className="mb-2">{problem}</Problem> : null}
-      <div className="space-y-4">
-        {groups.map((group) => {
-          const cards = <div className="space-y-2">{group.entries.map((entry) => card(entry, !group.title))}</div>
-          const opponent = group.entries.find((entry) => entry.army)
-          return group.title ? (
-            <EntrantGroup
-              key={group.key}
-              group={group.key}
-              title={group.title}
-              detail={group.detail}
-              action={
-                onSimulate && opponent && !group.entries.some((entry) => entry.userId === viewerId) ? (
-                  <SimulateButton label={group.title} onClick={() => onSimulate(opponent.userId)} />
-                ) : null
-              }
-            >
-              {cards}
-            </EntrantGroup>
-          ) : (
-            <div key={group.key}>{cards}</div>
-          )
-        })}
-      </div>
+      <ArmyGroups
+        groups={groups}
+        viewerId={viewerId}
+        onSimulate={onSimulate}
+        renderCard={(entry, alone) => (
+          <ArmyCard
+            key={entry.userId}
+            token={token}
+            eventToken={eventToken}
+            entry={entry}
+            label={label(entry)}
+            viewerId={viewerId}
+            onSimulate={alone ? onSimulate : null}
+            canUnseal={canUnseal}
+            dropBy={dropBy}
+            sample={sample}
+          />
+        )}
+      />
     </section>
   )
+}
 
-  /** `alone` is false inside a side or team, which is simulated as a whole from its heading. */
-  function card(entry: RevealedEntry, alone: boolean) {
-    const army = entry.army
-    // The server names a sealed army even when today's catalogue index no longer lists its catalogue.
-    const presentation = entry.armyFaction ?? (army?.catalogueId ? factionFor(factions, army.catalogueId) : undefined)
-    const faction =
-      presentation && army
-        ? { slug: presentation.slug, displayName: presentation.displayName, icon: presentation.icon, detachments: army.detachments }
-        : undefined
-    const named = label(entry)
-    const player = (
-      <>
-        <PlayerAvatar name={entry.name} image={entry.image} className="size-6 text-3xs" />
-        <span className="truncate text-sm font-bold uppercase group-hover:text-info group-hover:underline">{named}</span>
-      </>
-    )
-    const summary =
-      army?.limit != null ? (
-        <RosterSummary
-          roster={{
-            name: army.name,
-            detachmentIds: army.detachments.map((detachment) => detachment.id),
-            disposition: army.disposition,
-            limit: army.limit,
-            pointsBudget: army.pointsBudget,
-            unitCount: army.unitCount,
-            updatedAt: entry.sealedAt ?? 0,
-            waivedRules: army.waivedRules,
-          }}
-          faction={faction}
-          points={army.points}
-          dispositionName={dispositionIn(references, army.disposition)?.name}
-          showLock={false}
-          dateLabel="sealed"
-        />
-      ) : null
-    const droppable = !sample && !entry.dropped && (dropBy === 'organizer' || (dropBy === 'player' && entry.userId === viewerId))
-    return (
-      <article key={entry.userId} data-army={entry.name} className="min-w-0 border border-edge bg-panel">
-        <div className="flex min-w-0 items-center gap-2 border-b border-edge py-1.5 pr-1.5 pl-3">
-          {sample ? (
-            <div className="flex min-w-0 items-center gap-2">{player}</div>
-          ) : (
-            <Link to="/users/$userId" params={{ userId: entry.userId }} className="group flex min-w-0 items-center gap-2">
-              {player}
-            </Link>
-          )}
-          {entry.dropped ? <span className="chip shrink-0 text-dim">Dropped</span> : null}
-          <span className="ml-auto flex shrink-0 items-center gap-1">
-            {droppable ? (
-              <DropEntrant token={token} eventToken={eventToken} userId={entry.userId} label={named} self={entry.userId === viewerId} />
-            ) : null}
-            {army && canUnseal ? <UnsealRoster token={token} eventToken={eventToken} userId={entry.userId} label={named} /> : null}
-            {army && onSimulate && alone && entry.userId !== viewerId ? (
-              <SimulateButton label={named} onClick={() => onSimulate(entry.userId)} />
-            ) : null}
-            {army && !sample ? <ViewRosterButton token={token} eventToken={eventToken} userId={entry.userId} label={named} /> : null}
-          </span>
-        </div>
-        {summary && sample ? (
-          <div className="flex min-w-0 p-3">{summary}</div>
-        ) : summary ? (
-          <Link
-            to="/rosters/$id"
-            params={{ id: entry.userId }}
-            search={{ sealedEvent: token, event: eventToken }}
-            tabIndex={-1}
-            aria-hidden
-            className="flex min-w-0 p-3"
+/**
+ * Revealed rosters split by side or team, each titled group simulated as a whole from its heading; a duel's untitled run
+ * leaves simulating to each card. `renderCard` draws one roster, told whether it stands alone.
+ */
+export function ArmyGroups({
+  groups,
+  viewerId,
+  onSimulate,
+  renderCard,
+}: {
+  groups: readonly ArmyGroup[]
+  viewerId: string | null
+  onSimulate: ((userId: string) => void) | null
+  renderCard: (entry: RevealedEntry, alone: boolean) => ReactNode
+}) {
+  return (
+    <div className="space-y-4">
+      {groups.map((group) => {
+        const cards = <div className="space-y-2">{group.entries.map((entry) => renderCard(entry, !group.title))}</div>
+        const opponent = group.entries.find((entry) => entry.army)
+        return group.title ? (
+          <EntrantGroup
+            key={group.key}
+            group={group.key}
+            title={group.title}
+            detail={group.detail}
+            action={
+              onSimulate && opponent && !group.entries.some((entry) => entry.userId === viewerId) ? (
+                <SimulateButton label={group.title} onClick={() => onSimulate(opponent.userId)} />
+              ) : null
+            }
           >
-            {summary}
-          </Link>
-        ) : army ? (
-          <p className="p-3 font-bold uppercase">{army.name}</p>
+            {cards}
+          </EntrantGroup>
         ) : (
-          <p className="p-3 text-sm text-dim">
-            {entry.submitted ? 'This roster can’t be shown.' : 'No roster yet. The organizer unsealed it for a replacement.'}
-          </p>
+          <div key={group.key}>{cards}</div>
+        )
+      })}
+    </div>
+  )
+}
+
+/** One revealed roster: whose it is, what army it fields and what it leans on, with whatever the reader may do about it. */
+export function ArmyCard({
+  token,
+  eventToken,
+  entry,
+  label: named,
+  viewerId,
+  onSimulate,
+  canUnseal = false,
+  dropBy = null,
+  sample = false,
+  actions,
+}: {
+  token: string
+  eventToken: string
+  entry: RevealedEntry
+  label: string
+  viewerId: string | null
+  /** Offered on the card when it isn't simulated as part of a side. */
+  onSimulate: ((userId: string) => void) | null
+  canUnseal?: boolean
+  dropBy?: 'organizer' | 'player' | null
+  sample?: boolean
+  /** Shown before the card's own buttons, such as playing this opponent. */
+  actions?: ReactNode
+}) {
+  const { data: factions } = useQuery(factionIndexQuery())
+  const { data: references } = useQuery(gameReferencesQuery())
+  const army = entry.army
+  // The server names a sealed army even when today's catalogue index no longer lists its catalogue.
+  const presentation = entry.armyFaction ?? (army?.catalogueId ? factionFor(factions, army.catalogueId) : undefined)
+  const faction =
+    presentation && army
+      ? { slug: presentation.slug, displayName: presentation.displayName, icon: presentation.icon, detachments: army.detachments }
+      : undefined
+  const player = (
+    <>
+      <PlayerAvatar name={entry.name} image={entry.image} className="size-6 text-3xs" />
+      <span className="truncate text-sm font-bold uppercase group-hover:text-info group-hover:underline">{named}</span>
+    </>
+  )
+  const summary =
+    army?.limit != null ? (
+      <RosterSummary
+        roster={{
+          name: army.name,
+          detachmentIds: army.detachments.map((detachment) => detachment.id),
+          disposition: army.disposition,
+          limit: army.limit,
+          pointsBudget: army.pointsBudget,
+          unitCount: army.unitCount,
+          updatedAt: entry.sealedAt ?? 0,
+          waivedRules: army.waivedRules,
+        }}
+        faction={faction}
+        points={army.points}
+        dispositionName={dispositionIn(references, army.disposition)?.name}
+        showLock={false}
+        dateLabel="sealed"
+      />
+    ) : null
+  const droppable = !sample && !entry.dropped && (dropBy === 'organizer' || (dropBy === 'player' && entry.userId === viewerId))
+  return (
+    <article key={entry.userId} data-army={entry.name} className="min-w-0 border border-edge bg-panel">
+      <div className="flex min-w-0 items-center gap-2 border-b border-edge py-1.5 pr-1.5 pl-3">
+        {sample ? (
+          <div className="flex min-w-0 items-center gap-2">{player}</div>
+        ) : (
+          <Link to="/users/$userId" params={{ userId: entry.userId }} className="group flex min-w-0 items-center gap-2">
+            {player}
+          </Link>
         )}
-      </article>
-    )
-  }
+        {entry.dropped ? <span className="chip shrink-0 text-dim">Dropped</span> : null}
+        <span className="ml-auto flex shrink-0 items-center gap-1">
+          {actions}
+          {droppable ? (
+            <DropEntrant token={token} eventToken={eventToken} userId={entry.userId} label={named} self={entry.userId === viewerId} />
+          ) : null}
+          {army && canUnseal ? <UnsealRoster token={token} eventToken={eventToken} userId={entry.userId} label={named} /> : null}
+          {army && onSimulate && entry.userId !== viewerId ? (
+            <SimulateButton label={named} onClick={() => onSimulate(entry.userId)} />
+          ) : null}
+          {army && !sample ? <ViewRosterButton token={token} eventToken={eventToken} userId={entry.userId} label={named} /> : null}
+        </span>
+      </div>
+      {summary && sample ? (
+        <div className="flex min-w-0 p-3">{summary}</div>
+      ) : summary ? (
+        <Link
+          to="/rosters/$id"
+          params={{ id: entry.userId }}
+          search={{ sealedEvent: token, event: eventToken }}
+          tabIndex={-1}
+          aria-hidden
+          className="flex min-w-0 p-3"
+        >
+          {summary}
+        </Link>
+      ) : army ? (
+        <p className="p-3 font-bold uppercase">{army.name}</p>
+      ) : (
+        <p className="p-3 text-sm text-dim">
+          {entry.submitted ? 'This roster can’t be shown.' : 'No roster yet. The organizer unsealed it for a replacement.'}
+        </p>
+      )}
+    </article>
+  )
 }

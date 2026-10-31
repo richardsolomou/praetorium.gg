@@ -6,6 +6,9 @@ import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import type { SealedEventEntryView } from '../../../core/sealedEvent'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
+import { formatList } from '../../text'
+import { useDispositionNames } from '../battle/setup/chrome'
+import { entrantGroups, type SealedEvent } from './sealedEvent'
 
 /** One person in an event: who they are, where their entry stands, and whatever the reader may do about it. */
 export function EntrantRow({
@@ -15,7 +18,7 @@ export function EntrantRow({
   sample = false,
   children,
 }: {
-  entry: SealedEventEntryView
+  entry: Pick<SealedEventEntryView, 'userId' | 'name' | 'image'>
   label: string
   detail: ReactNode
   /** A made-up player in the sample tournament, who has no profile to open. */
@@ -79,6 +82,24 @@ export function EntrantGroup({
       {children}
     </div>
   )
+}
+
+/**
+ * The event's entrants split by side or pair, the same before and after the reveal, a pair named with the card it sealed
+ * once the reader may see it: its own members before the reveal, everyone after.
+ */
+export function useEntrantGroups<T extends SealedEventEntryView>(
+  sealedEvent: SealedEvent | undefined,
+  accepted: readonly T[],
+  label: (entry: SealedEventEntryView) => string,
+) {
+  const nameDisposition = useDispositionNames()
+  if (!sealedEvent) return []
+  return entrantGroups(sealedEvent, accepted, (members) => {
+    const card = sealedEvent.entries.find((entry) => entry.userId === members[0]?.userId)?.team?.disposition
+    const named = nameDisposition(card)?.name
+    return [formatList(members.map(label)), named && `plays ${named}`].filter(Boolean).join(' · ')
+  })
 }
 
 export function sealStatus(entry: Pick<SealedEventEntryView, 'submitted'>, revealed: boolean) {
