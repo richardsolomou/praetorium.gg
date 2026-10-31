@@ -284,7 +284,7 @@ export function CombatSimulator({
               field: (attacker, defender) => void fieldUnits(attacker, defender),
             },
             matchup: (
-              <div className="space-y-6">
+              <div className="mt-4 space-y-6">
                 {problem ? <output className="block text-sm text-dim">{problem}</output> : null}
                 {loadingRoster ? (
                   <p className="border border-edge bg-panel p-4 text-sm text-dim">Loading roster…</p>

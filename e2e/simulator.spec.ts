@@ -561,7 +561,7 @@ test('automatic shooting and melee with stable edits', async ({ page }) => {
     for (const side of ['Attacker', 'Defender']) {
       const panel = page.getByRole('region', { name: side, exact: true })
       const controls = await panel.getByRole('button', { name: 'Loadout', exact: true }).evaluate((element) => {
-        const row = element.parentElement!
+        const row = element.closest('[data-combat-member]')!.lastElementChild!
         const models = row.firstElementChild!
         return {
           actions: element.getBoundingClientRect().toJSON(),
@@ -1655,7 +1655,8 @@ test('imported leaders retain their faction mark and compact loadout control', a
   ).toBeVisible()
   const loadout = captain.getByRole('button', { name: /loadout$/ })
   await expect(loadout).toHaveText('')
-  await expect(loadout).toHaveAttribute('title', 'Loadout')
+  await loadout.hover()
+  await expect(page.getByRole('tooltip')).toContainText('weapons and wargear')
   await atWidths(page, [1440, 390], async (width) => {
     await noOverflow(page)
     await attacker.screenshot({ path: test.info().outputPath(`simulator-member-factions-${width}.png`) })

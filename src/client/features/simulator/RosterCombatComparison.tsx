@@ -436,12 +436,13 @@ export function RosterCombatComparison({
   )
   if (units?.active)
     return (
-      <div className="space-y-4">
+      // Siblings with no spacing of their own: a wrapper or margin here lifts a dialog's results summary off its bottom edge.
+      <>
         <section aria-label="Matchup sides" className="border border-edge bg-panel p-3 sm:p-4">
           {sides}
         </section>
         {units.matchup}
-      </div>
+      </>
     )
   return (
     <section aria-label="Roster comparison" className={cn('min-w-0 space-y-3 p-3 sm:p-4', units && 'border border-edge bg-panel')}>
