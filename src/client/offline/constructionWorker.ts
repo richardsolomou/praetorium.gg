@@ -2,8 +2,7 @@ import type { ConstructionWorkerAnswer, ConstructionWorkerRequest, ConstructionW
 import type { ConstructionReadData, ConstructionReadEvent, ConstructionReadName, ConstructionReadResult } from './constructionReads'
 import { posthog } from 'posthog-js'
 import { catalogueEditionId } from '../../core/catalogueEdition'
-import { currentConstruction, currentReference, offlineData, referenceData, subscribeReference } from './runtime'
-import { packedConstructionOf } from './compressedReference'
+import { currentReference, offlineData, referenceData, subscribeReference } from './runtime'
 
 type Pending = { resolve: (value: unknown) => void; reject: (error: Error) => void }
 type Waiter = { keys: string[]; resolve: () => void; reject: (error: Error) => void }
@@ -15,7 +14,7 @@ export const CONSTRUCTION_WORKER_IDLE_MS = 3 * 60_000
 const UNIT_READS = new Set<ConstructionReadName>(['units', 'booksOffering'])
 
 type Running = {
-  url: string
+  id: string
   /** Loaded on first use, inline so the saved offline application carries it; messages wait in `queue` until then. */
   worker: Worker | null
   queue: ConstructionWorkerRequest[]
@@ -51,9 +50,9 @@ export function retireDeviceConstruction() {
   stop(new Error('A newer release is published'))
 }
 
-function markUnavailable(url: string, reason: 'refused' | 'crashed' | 'load_failed') {
-  if (!unavailable.has(url)) posthog.capture('offline_construction_unavailable', { reason })
-  unavailable.add(url)
+function markUnavailable(id: string, reason: 'refused' | 'crashed' | 'load_failed') {
+  if (!unavailable.has(id)) posthog.capture('offline_construction_unavailable', { reason })
+  unavailable.add(id)
 }
 
 function stop(error: Error) {
@@ -67,19 +66,22 @@ function stop(error: Error) {
 
 /**
  * The construction data the worker may answer from. Connected, it is the download the service still publishes;
- * disconnected, it is whatever the page holds, which the worker can load only from the page's packed copy.
+ * disconnected, it is whatever the page holds.
  */
 function deviceSource(): ConstructionWorkerSource | null {
   if (typeof Worker === 'undefined' || outdated) return null
   const saved = connected() ? currentReference() : referenceData()
-  const bundle = connected() ? currentConstruction() : saved?.constructionBundle
-  if (!saved || !bundle) return null
-  // Absolute, because the inline worker's blob URL cannot resolve a relative path.
-  const url = new URL(bundle, location.href).href
-  if (unavailable.has(url)) return null
-  const packed = packedConstructionOf(saved)
-  if (!connected() && !packed) return null
-  return packed ? { url, packed } : { url }
+  if (!saved || unavailable.has(saved.download.revision)) return null
+  const { catalogue, rules, editions } = saved.download.construction
+  const absolute = (asset: string) => new URL(asset, location.href).href
+  return {
+    id: saved.download.revision,
+    parts: {
+      catalogue: absolute(catalogue),
+      rules: absolute(rules),
+      editions: Object.fromEntries(Object.entries(editions).map(([id, asset]) => [id, absolute(asset)])),
+    },
+  }
 }
 
 /**
@@ -95,13 +97,15 @@ export function deviceConstructionRead<K extends ConstructionReadName>(
   const units = UNIT_READS.has(name)
   const source = deviceSource()
   const keys = preparation(catalogueId, units)
-  const current = source && running?.url === source.url ? running : null
+  const current = source && running?.id === source.id ? running : null
   const ask = () => {
     const id = nextId++
     return call<ConstructionReadResult<K>>(workerFor(source!), id, { kind: 'read', id, name, data, catalogueId })
   }
   if (current && keys.every((key) => current.ready.has(key))) return ask()
-  prepareDeviceConstruction(catalogueId, units)
+  // Connected, only the roster builder's picker starts preparing: a rules version's catalogues cost a phone more
+  // memory than a page such as a battle, which the server answers, should spend on them.
+  if (units || (source && !connected())) prepareDeviceConstruction(catalogueId, units)
   if (!source || connected()) return null
   return prepared(workerFor(source), keys).then(ask)
 }
@@ -223,7 +227,7 @@ function settle(current: Running) {
 
 function answered(current: Running, answer: ConstructionWorkerAnswer) {
   if ('unavailable' in answer) {
-    markUnavailable(current.url, 'refused')
+    markUnavailable(current.id, 'refused')
     if (running === current) stop(new Error(answer.unavailable))
     return
   }
@@ -247,10 +251,10 @@ function answered(current: Running, answer: ConstructionWorkerAnswer) {
 }
 
 function workerFor(source: ConstructionWorkerSource): Running {
-  if (running?.url === source.url) return running
+  if (running?.id === source.id) return running
   stop(new Error('The construction download changed'))
   const current: Running = {
-    url: source.url,
+    id: source.id,
     worker: null,
     queue: [],
     pending: new Map(),
@@ -265,14 +269,14 @@ function workerFor(source: ConstructionWorkerSource): Running {
       const worker = new ConstructionWorker()
       worker.onmessage = ({ data }: MessageEvent<ConstructionWorkerAnswer>) => answered(current, data)
       worker.onerror = () => {
-        markUnavailable(current.url, 'crashed')
+        markUnavailable(current.id, 'crashed')
         if (running === current) stop(new Error('The construction worker failed'))
       }
       current.worker = worker
       for (const message of current.queue.splice(0)) worker.postMessage(message)
     },
     () => {
-      markUnavailable(current.url, 'load_failed')
+      markUnavailable(current.id, 'load_failed')
       if (running === current) stop(new Error('The construction worker could not load'))
     },
   )

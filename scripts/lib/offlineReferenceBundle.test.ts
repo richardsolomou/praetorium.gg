@@ -1,9 +1,10 @@
 import { gunzipSync } from 'node:zlib'
 import { expect, it } from 'vitest'
-import { constructionFilesForEdition, encodeReferenceBundle } from './offlineReferenceBundle'
+import { constructionFilesForEdition, encodeOfflinePart, sharedEdition } from './offlineReferenceBundle'
 import type { CatalogueFile } from '../../src/core/catalogue'
 import { catalogueEditionSchema } from '../../src/core/catalogueEdition'
-import { decodeReferenceBundle, isReferenceBundle } from '../../src/contracts/offlineReference'
+import { decodeReferencePart, isConstructionData } from '../../src/contracts/offlineReference'
+import { constructionSource, loadConstructionData } from '../../src/client/offline/constructionSource'
 import { packRuntimeData } from '../../src/contracts/runtimeData'
 
 const edition = catalogueEditionSchema.parse({
@@ -37,40 +38,34 @@ it('refuses a version whose transitive import is missing', () => {
     ),
   ).toThrow('missing catalogue library')
 })
-const search = { factions: [], datasheets: [], detachments: [], rules: [], missions: [] }
 it('uses the published Unix gzip header on every build platform', () => {
-  const encoded = encodeReferenceBundle({ queries: [], search })
-  expect(encoded.compressed[9]).toBe(3)
+  expect(encodeOfflinePart([]).compressed[9]).toBe(3)
 })
 
-it('refuses an encoded bundle the client cannot read', () => {
-  expect(() => encodeReferenceBundle({ queries: [{ key: ['private-query'], data: [] }], search })).toThrow(
-    'Invalid offline reference bundle',
-  )
-})
-it('versions and compresses reference content independently of application assets', () => {
-  const content = { queries: [{ key: ['rule-section', 'core', 'moving'], data: 'Move six inches' }], search }
-  const first = encodeReferenceBundle(content)
-  expect(encodeReferenceBundle(content)).toEqual(first)
-  expect(JSON.parse(gunzipSync(first.compressed).toString())).toEqual({ version: 1, revision: first.revision, ...content })
-  expect(encodeReferenceBundle({ ...content, queries: [{ ...content.queries[0]!, data: 'Move seven inches' }] }).revision).not.toBe(
-    first.revision,
-  )
-})
-it('rejects a corpus beyond the saved query limit', () => {
-  expect(() =>
-    encodeReferenceBundle({ queries: Array.from({ length: 20_001 }, () => ({ key: ['rule-index'], data: [] })), search }),
-  ).toThrow('too many entries')
+it('refuses a part larger than a device should decode at once', () => {
+  expect(() => encodeOfflinePart('x'.repeat(2_000), 1_000)).toThrow('size limit')
 })
 
-it('downloads shared version data as complete independent construction sources', () => {
+it('names a part by its content', () => {
+  const part = [{ key: ['rule-section', 'core', 'moving'], data: 'Move six inches' }]
+  expect([
+    encodeOfflinePart(part).revision === encodeOfflinePart(part).revision,
+    encodeOfflinePart([]).revision === encodeOfflinePart(part).revision,
+  ]).toEqual([true, false])
+})
+
+/** A part as a device decodes it after download. */
+const published = (value: unknown) => decodeReferencePart(gunzipSync(encodeOfflinePart(value, Infinity).compressed).toString())
+
+it('restores another rules version’s construction data from its own part and the current rules’ parts', async () => {
+  const description = 'Each model in this unit is equipped with a boltgun and close combat weapon. '.repeat(10)
   const base = {
     version: 1 as const,
     revision: 'base',
     files,
     datacards: packRuntimeData(new Map([['army', 'Released']])),
     mfm: null,
-    rules: { common: ['Rule'] },
+    rules: { common: [description] },
   }
   const selected = {
     ...base,
@@ -78,107 +73,32 @@ it('downloads shared version data as complete independent construction sources',
     revision: 'preview',
     edition,
     datacards: packRuntimeData(new Map([['army', 'Preview']])),
+    rules: { common: [description, description] },
   }
-  const content = { queries: [], search, construction: { ...base, editions: [selected] } }
-  const encoded = encodeReferenceBundle(content)
-  const wire = JSON.parse(gunzipSync(encoded.compressed).toString())
-  expect(JSON.stringify(wire)).toContain('$praetoriumBase')
-  expect(isReferenceBundle(wire)).toBe(false)
-  expect(decodeReferenceBundle({ ...wire, version: 2 })).toEqual({ version: 1, revision: encoded.revision, ...content })
-  expect(decodeReferenceBundle(wire)).toEqual({ ...wire, version: 1, construction: { ...wire.construction, shared: true } })
-})
-
-it('roundtrips a named base edition without duplicating construction data', () => {
-  const alias = { base: true as const, version: 1 as const, revision: 'current', edition }
-  const construction = { version: 1 as const, revision: 'base', files, datacards: {}, mfm: null, rules: {}, editions: [alias] }
-  const content = { queries: [], search, construction }
-  const encoded = encodeReferenceBundle(content)
-  expect(decodeReferenceBundle(JSON.parse(gunzipSync(encoded.compressed).toString()))).toEqual({
-    version: 1,
-    revision: encoded.revision,
-    ...content,
-    construction: { ...construction, shared: true },
-  })
-})
-
-it('restores repeated prose in reference queries before saving the offline application', () => {
-  const description = 'Each model in this unit is equipped with a boltgun and close combat weapon. '.repeat(10)
-  const construction = {
-    version: 1 as const,
-    revision: 'base',
-    files,
-    datacards: {},
-    mfm: null,
-    rules: {},
-    editions: [{ base: true as const, version: 1 as const, revision: 'current', edition }],
+  const { rules, ...catalogue } = base
+  const parts: Record<string, unknown> = {
+    catalogue: published({ ...catalogue, editions: [] }),
+    rules: published({ revision: base.revision, rules }),
+    preview: published(sharedEdition(selected, base)),
   }
-  const queries = [
-    { key: ['rule-section', 'core', 'moving'], data: description },
-    { key: ['rule-section', 'core', 'shooting'], data: description },
-  ]
-  const encoded = encodeReferenceBundle({ queries, search, construction })
-  const wire = JSON.parse(gunzipSync(encoded.compressed).toString())
-  expect({ texts: wire.texts, decoded: decodeReferenceBundle(wire) }).toEqual({
-    texts: [description],
-    decoded: {
-      version: 1,
-      revision: encoded.revision,
-      queries,
-      search,
-      construction: { ...construction, shared: true, texts: [description] },
+  const data = await loadConstructionData(
+    { catalogue: 'catalogue', rules: 'rules', editions: { preview: 'preview' } },
+    'preview~army',
+    async (asset) => parts[asset],
+  )
+  expect({ shared: JSON.stringify(parts.preview).includes('$praetoriumBase'), restored: constructionSource(data, 'preview~army') }).toEqual(
+    {
+      shared: true,
+      restored: selected,
     },
-  })
-})
-
-it.each([true, false])('restores shared edition descriptions before validating construction (base: %s)', (base) => {
-  const description =
-    'These rules retain the published Space Marines codex and its original source identifiers for saved armies and offline reference.'
-  const source = { version: 1 as const, revision: 'current', files, datacards: {}, mfm: null, rules: {} }
-  const selected = { ...edition, description }
-  const construction = {
-    ...source,
-    editions: [
-      base ? { base: true as const, version: 1 as const, revision: 'current', edition: selected } : { ...source, edition: selected },
-    ],
-  }
-  const encoded = encodeReferenceBundle({ queries: [{ key: ['rule-section', 'core', 'moving'], data: selected }], search, construction })
-  const wire = JSON.parse(gunzipSync(encoded.compressed).toString())
-  expect((decodeReferenceBundle(wire) as { construction: typeof construction }).construction.editions[0]?.edition).toEqual(selected)
+  )
 })
 
 it.each([null, 1, 'invalid', { base: false }, { base: true, version: 1, revision: 'current', edition: {} }])(
   'refuses a malformed edition %j without throwing',
   (invalid) => {
     expect(
-      isReferenceBundle({
-        version: 1,
-        revision: 'base',
-        queries: [],
-        search,
-        construction: {
-          version: 1,
-          revision: 'base',
-          files,
-          datacards: {},
-          mfm: null,
-          rules: {},
-          editions: [invalid],
-        },
-      }),
+      isConstructionData({ version: 1, revision: 'base', files, datacards: {}, mfm: null, rules: {}, editions: [invalid as never] }),
     ).toBe(false)
   },
 )
-
-it('shares repeated prose in a reference published without construction data', () => {
-  const description = 'Each model in this unit is equipped with a boltgun and close combat weapon. '.repeat(10)
-  const queries = [
-    { key: ['rule-section', 'core', 'moving'], data: description },
-    { key: ['rule-section', 'core', 'shooting'], data: description },
-  ]
-  const encoded = encodeReferenceBundle({ queries, search })
-  const wire = JSON.parse(gunzipSync(encoded.compressed).toString())
-  expect({ texts: wire.texts, decoded: decodeReferenceBundle(wire) }).toEqual({
-    texts: [description],
-    decoded: { version: 1, revision: encoded.revision, queries, search, construction: undefined },
-  })
-})

@@ -1,17 +1,19 @@
 import '../polyfills'
-import { bundleAt } from './download'
-import { unpackConstruction } from './compressedReference'
-import { buildConstruction, constructionSource, runConstructionRead } from './constructionSource'
+import { readPart } from './referenceStore'
+import { buildConstruction, constructionSource, loadConstructionData, runConstructionRead } from './constructionSource'
 import { constructionReadEvents, type ConstructionReadEvent, type ConstructionReadName } from './constructionReads'
-import type { OfflineConstructionData, OfflineConstructionSource } from '../../contracts/offlineReference'
+import type { OfflineConstructionSource, OfflineReferenceVersion } from '../../contracts/offlineReference'
 import { pickerConstruction } from '../../shared/pickerUnits'
 import { combatLoadoutCandidates } from '../../shared/combatLoadouts'
 import { combatLoadoutSchema } from '../../contracts/schemas'
 import type { LoadoutBatch } from '../../core/combatLoadouts'
 import { nextTask } from '../../shared/nextTask'
 
-/** Where the worker loads construction data from: the page's packed copy when it holds one, else the download. */
-export type ConstructionWorkerSource = { url: string; packed?: string }
+/**
+ * The download the worker reads construction data from, by absolute address because an inline worker resolves
+ * relative ones against its `blob:` URL; `id` names the download, so a page starts a new worker when it changes.
+ */
+export type ConstructionWorkerSource = { id: string; parts: OfflineReferenceVersion['construction'] }
 
 export type ConstructionWorkerRequest =
   | { kind: 'read'; id: number; name: ConstructionReadName; data: unknown; catalogueId?: string }
@@ -31,7 +33,7 @@ export type ConstructionWorkerAnswer =
 const PREPARATION_SLICE_MS = 8
 
 let source: ConstructionWorkerSource | undefined
-let download: Promise<OfflineConstructionData> | undefined
+const parts = new Map<string, Promise<unknown>>()
 const built = new WeakMap<OfflineConstructionSource, ReturnType<typeof buildConstruction>>()
 const searches = new Map<number, { batches: ReturnType<typeof combatLoadoutCandidates>; controller: AbortController }>()
 
@@ -39,20 +41,26 @@ class Unavailable extends Error {}
 
 const post = (answer: ConstructionWorkerAnswer) => self.postMessage(answer)
 
+/** Decodes each part once; a part the device has not stored is read from the service while connected. */
+function part(asset: string, limit: number) {
+  let decoded = parts.get(asset)
+  if (!decoded) {
+    parts.set(asset, (decoded = readPart(asset, limit, navigator.onLine)))
+    decoded.catch(() => parts.delete(asset))
+  }
+  return decoded
+}
+
 async function construction(catalogueId?: string) {
   if (!source) throw new Error('The construction data has not been loaded.')
-  const from = source
-  download ??= (
-    from.packed
-      ? unpackConstruction(from.packed)
-      : bundleAt(from.url, new AbortController().signal).then((bundle) => {
-          if (!bundle.construction) throw new Error('The construction bundle is invalid')
-          return bundle.construction
-        })
-  ).catch((error: unknown) => {
-    throw new Unavailable(String(error))
-  })
-  const saved = constructionSource(await download, catalogueId)
+  const { parts: download } = source
+  const data = await loadConstructionData(download, catalogueId, (asset, limit) =>
+    part(asset, limit).catch((error: unknown) => {
+      // Without the current rules nothing can be answered here; another version's part only fails its own reads.
+      throw asset === download.catalogue || asset === download.rules ? new Unavailable(String(error)) : error
+    }),
+  )
+  const saved = constructionSource(data, catalogueId)
   if (!saved) throw new Error('This rules version is not in the download')
   let prepared = built.get(saved)
   if (!prepared) built.set(saved, (prepared = buildConstruction(saved)))

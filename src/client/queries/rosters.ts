@@ -1,4 +1,4 @@
-import { currentReference, offlineDatasheets, referenceData } from '../offline/runtime'
+import { currentReference, loadOfflineDatasheets, offlineDatasheets, referenceData } from '../offline/runtime'
 import { infiniteQueryOptions, keepPreviousData, type QueryClient, queryOptions } from '@tanstack/react-query'
 import type { FormatRuleId, OptionalRuleId } from '../../core/battle'
 import type { RosterPick } from '../../core/roster'
@@ -148,7 +148,7 @@ export const factionDatasheetsQuery = (catalogueId: string, query: string) =>
     initialData: () => offlineDatasheets(catalogueId, query) ?? undefined,
     initialDataUpdatedAt: () => (currentReference() ? Date.now() : (referenceData()?.savedAt ?? 0)),
     queryFn: async ({ client }) => {
-      const saved = offlineDatasheets(catalogueId, query)
+      const saved = await loadOfflineDatasheets(catalogueId, query)
       const current = client.getQueryData<FactionDatasheet[]>(factionDatasheetsKey(catalogueId, query))
       if (typeof window !== 'undefined' && !navigator.onLine && current !== undefined) return current
       if (saved && currentReference()) return saved

@@ -1,13 +1,12 @@
 import path from 'node:path'
 import { textSourceFiles } from '../../src/server/sourceTexts'
 import { hash } from 'node:crypto'
-import { gzipSync, gunzipSync } from 'node:zlib'
+import { gzipSync } from 'node:zlib'
 import { writeFile } from 'node:fs/promises'
 import { readdirSync, readFileSync } from 'node:fs'
 import type { CatalogueFile } from '../../src/core/catalogue'
 import { packRuntimeData, type RuntimeData } from '../../src/contracts/runtimeData'
 import { shareRuntimeData } from '../../src/contracts/sharedRuntimeData'
-import { shareReferenceText } from '../../src/contracts/sharedReferenceText'
 import { referenceCatalogue } from '../../src/server/canonicalCatalogue'
 import { detachmentsOffering } from '../../src/shared/factionReferences'
 import {
@@ -23,17 +22,20 @@ import { readCatalogueComposition } from '../../src/server/catalogueComposition'
 import { editionCatalogueId, type CatalogueEdition } from '../../src/core/catalogueEdition'
 import { catalogueEditionLoaders } from '../../src/server/catalogueEditions'
 import { routeSlug } from '../../src/core/slug'
+import { groupBy } from '../../src/core/collections'
 import { terrainMatchupIds, TERRAIN_GEOMETRY_VERSION } from '../../src/contracts/terrainReference'
 import { loadCatalogueHistory } from '../../src/server/catalogueHistory'
 import { recentReferenceChanges } from '../../src/server/catalogueChangeLog'
 import { loadSnapshotWithRules } from './catalogueSnapshotLoad'
 import {
-  decodeReferenceBundle,
-  isReferenceBundle,
-  MAX_OFFLINE_BYTES,
-  MAX_OFFLINE_QUERIES,
-  type OfflineReferenceBundle,
+  encodeReferencePart,
+  MAX_CONSTRUCTION_PART_BYTES,
+  MAX_REFERENCE_PART_BYTES,
+  referencePart,
+  type OfflineConstructionBase,
+  type OfflineConstructionSource,
   type OfflineReferenceVersion,
+  type ReferenceQuery,
 } from '../../src/contracts/offlineReference'
 import { catalogueDataDirectory } from './catalogueFiles'
 import type { CatalogueRuntime } from '../../src/server/catalogueRuntime'
@@ -51,47 +53,31 @@ export function constructionFilesForEdition(files: CatalogueFile[], edition?: Ca
   return files.filter((file) => required.has((file.catalogue ?? file.gameSystem)!.id))
 }
 
-export function encodeReferenceBundle(content: Pick<OfflineReferenceBundle, 'queries' | 'search' | 'construction'>) {
-  if (content.queries.length > MAX_OFFLINE_QUERIES) throw new Error('Offline reference has too many entries')
-  const base = content.construction
-  const wire = base?.editions?.length
-    ? {
-        ...content,
-        construction: {
-          ...base,
-          editions: base.editions.map((source) => ({
-            ...('base' in source
-              ? source
-              : {
-                  ...source,
-                  files: source.files.map((file) => {
-                    const id = (file.catalogue ?? file.gameSystem)!.id
-                    const index = base.files.findIndex((candidate) => (candidate.catalogue ?? candidate.gameSystem)?.id === id)
-                    return index < 0
-                      ? file
-                      : shareRuntimeData(file as unknown as RuntimeData, base.files[index] as unknown as RuntimeData, [String(index)])
-                  }),
-                  datacards: shareRuntimeData(source.datacards, base.datacards),
-                  mfm: shareRuntimeData(source.mfm, base.mfm),
-                  rules: shareRuntimeData(source.rules, base.rules),
-                }),
-          })),
-        },
-        version: 3,
-      }
-    : { version: 1, ...content }
-  const shared = shareReferenceText(wire)
-  const encoded = shared.texts.length ? { ...(shared.value as typeof wire), version: 3, texts: shared.texts } : wire
-  const revision = hash('sha256', JSON.stringify(encoded))
-  const json = Buffer.from(JSON.stringify({ ...encoded, revision }))
-  if (json.length > MAX_OFFLINE_BYTES) throw new Error('Offline reference is too large')
+/** Gzips one part of the offline download, named by its content, refusing one a device should not decode at once. */
+export function encodeOfflinePart(value: unknown, limit = MAX_REFERENCE_PART_BYTES) {
+  const json = Buffer.from(encodeReferencePart(value))
+  if (json.length > limit) throw new Error(`An offline part exceeds its size limit (${json.length} of ${limit} bytes)`)
   const compressed = gzipSync(json, { level: 9 })
   // Gzip's OS byte varies by build platform; deployed assets use the Unix marker.
   compressed[9] = 3
-  if (compressed.length > 10_000_000) throw new Error(`Compressed reference exceeds the web asset limit (${compressed.length} bytes)`)
-  const decoded = decodeReferenceBundle(JSON.parse(gunzipSync(compressed, { maxOutputLength: MAX_OFFLINE_BYTES }).toString()))
-  if (!isReferenceBundle(decoded)) throw new Error('Invalid offline reference bundle')
-  return { revision, compressed }
+  return { revision: hash('sha256', json), compressed }
+}
+
+/** An edition's construction data with what it shares with the current rules replaced by references to it. */
+export function sharedEdition(source: OfflineConstructionSource, base: OfflineConstructionSource): OfflineConstructionSource {
+  const ids = base.files.map((file) => (file.catalogue ?? file.gameSystem)!.id)
+  return {
+    ...source,
+    files: source.files.map((file) => {
+      const index = ids.indexOf((file.catalogue ?? file.gameSystem)!.id)
+      return (
+        index < 0 ? file : shareRuntimeData(file as unknown as RuntimeData, base.files[index] as unknown as RuntimeData, [String(index)])
+      ) as CatalogueFile
+    }),
+    datacards: shareRuntimeData(source.datacards, base.datacards),
+    mfm: shareRuntimeData(source.mfm, base.mfm),
+    rules: shareRuntimeData(source.rules, base.rules),
+  }
 }
 
 export async function writeReferenceBundle(outDir: string, directory = catalogueDataDirectory(), runtime?: CatalogueRuntime) {
@@ -115,7 +101,7 @@ export async function writeReferenceBundle(outDir: string, directory = catalogue
   const sources = { catalogue: () => catalogue, rules: () => rules, canonicalCatalogue: () => canonical }
   const history = loadCatalogueHistory(directory) ?? []
   const historyCanonical = (slug: string) => versions.pageCanonical(slug, versions.canonicalFor(slug), () => canonical)
-  const queries: OfflineReferenceBundle['queries'] = []
+  const queries: ReferenceQuery[] = []
   const put = (key: readonly unknown[], data: unknown) => {
     if (data == null) throw new Error(`Offline reference is incomplete: ${key.join('/')}`)
     queries.push({ key, data })
@@ -219,37 +205,46 @@ export async function writeReferenceBundle(outDir: string, directory = catalogue
     mfm: packRuntimeData(selectedCatalogue.mfm ?? null),
     rules: packRuntimeData({ ...selectedRules, terrainLayouts: [], terrainTemplates: [] }),
   })
-  const construction = {
-    ...constructionFor(directory, catalogue, rules),
-    editions: (readCatalogueComposition(directory)?.editions ?? []).map(({ edition, base }) => {
-      const id = editionCatalogueId(edition.id, edition.catalogueIds[0]!)
-      const selectedCatalogue = versions.catalogueFor(id)
-      const selectedRules = versions.rulesFor(id)
-      if (!selectedCatalogue || !selectedRules) throw new Error(`Offline construction data is unavailable for ${id}`)
-      if (base) return { base: true as const, version: 1 as const, edition, revision: selectedCatalogue.index.revision }
-      return constructionFor(path.join(directory, 'editions', edition.id), selectedCatalogue, selectedRules)
-    }),
-  }
-  const reference = encodeReferenceBundle({ queries, search: versions.searchIndex()! })
-  const bundle = `/assets/reference-${reference.revision}.bin`
-  await writeFile(path.join(outDir, 'assets', path.basename(bundle)), reference.compressed)
-  const writeConstruction = async (editions: typeof construction.editions) => {
-    const encoded = encodeReferenceBundle({ queries: [], search: EMPTY_SEARCH, construction: { ...construction, editions } })
-    const asset = `/assets/construction-${encoded.revision}.bin`
-    await writeFile(path.join(outDir, 'assets', path.basename(asset)), encoded.compressed)
+  const write = async (kind: 'reference' | 'construction', value: unknown, limit?: number) => {
+    const part = encodeOfflinePart(value, limit)
+    const asset = `/assets/${kind}-${part.revision}.bin`
+    await writeFile(path.join(outDir, 'assets', path.basename(asset)), part.compressed)
     return asset
   }
-  const versionsOffered = construction.editions.filter((source) => !('base' in source))
+  const grouped = groupBy(queries, (query) => referencePart(query.key))
+  const parts: Record<string, string> = {}
+  for (const [name, entries] of grouped) if (name) parts[name] = await write('reference', entries)
+  const reference = {
+    core: await write('reference', grouped.get(null) ?? []),
+    search: await write('reference', versions.searchIndex()!),
+    parts,
+  }
+  const base = constructionFor(directory, catalogue, rules)
+  const { rules: baseRules, ...baseCatalogue } = base
+  const baseEditions: OfflineConstructionBase[] = []
+  const editions: Record<string, string> = {}
+  for (const { edition, base: current } of readCatalogueComposition(directory)?.editions ?? []) {
+    const id = editionCatalogueId(edition.id, edition.catalogueIds[0]!)
+    const selectedCatalogue = versions.catalogueFor(id)
+    const selectedRules = versions.rulesFor(id)
+    if (!selectedCatalogue || !selectedRules) throw new Error(`Offline construction data is unavailable for ${id}`)
+    if (current) baseEditions.push({ base: true, version: 1, edition, revision: selectedCatalogue.index.revision })
+    else
+      editions[edition.id] = await write(
+        'construction',
+        sharedEdition(constructionFor(path.join(directory, 'editions', edition.id), selectedCatalogue, selectedRules), base),
+        MAX_CONSTRUCTION_PART_BYTES,
+      )
+  }
+  const construction = {
+    catalogue: await write('construction', { ...baseCatalogue, editions: baseEditions }, MAX_CONSTRUCTION_PART_BYTES),
+    rules: await write('construction', { revision: base.revision, rules: baseRules }),
+    editions,
+  }
   const manifest: OfflineReferenceVersion = {
-    revision: reference.revision,
-    bundle,
-    construction: {
-      current: await writeConstruction(construction.editions.filter((source) => 'base' in source)),
-      complete: await writeConstruction(construction.editions),
-      versions: versionsOffered.map((source) => source.edition!.id),
-    },
+    revision: hash('sha256', JSON.stringify({ reference, construction })),
+    reference,
+    construction,
   }
   await writeFile(path.join(outDir, 'offline-reference-version.json'), JSON.stringify(manifest))
 }
-
-const EMPTY_SEARCH = { factions: [], detachments: [], datasheets: [], missions: [], rules: [] }

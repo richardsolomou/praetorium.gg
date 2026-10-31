@@ -1,5 +1,5 @@
 import { SyncStatus } from '../../offline/SyncStatus'
-import { offlineData } from '../../offline/runtime'
+import { offlineAssets, offlineData } from '../../offline/runtime'
 import { OfflineReference } from '../../offline/OfflineReference'
 import { WebMcp } from '../agents/WebMcp'
 import { AppPersistence } from '../../offline/AppPersistence'
@@ -134,7 +134,7 @@ function SiteHeader() {
           to="/"
           className="group flex items-center gap-2 font-display text-base leading-none font-bold tracking-label text-bone uppercase [grid-area:logo] hover:text-info"
         >
-          <img src={offlineData()?.logo ?? '/logo.svg'} alt="" className="size-7 transition-transform group-hover:rotate-45" />
+          <img src={offlineAssets()?.logo ?? '/logo.svg'} alt="" className="size-7 transition-transform group-hover:rotate-45" />
           Praetorium
         </Link>
         <div className="mx-auto flex w-full max-w-lg min-w-0 items-center [grid-area:search] @min-[76rem]:mr-0 @min-[76rem]:max-w-56">
@@ -194,7 +194,7 @@ export function AppShell() {
     <html lang="en" suppressHydrationWarning>
       <head>
         <HeadContent />
-        {offlineData() ? <style dangerouslySetInnerHTML={{ __html: offlineData()!.css }} /> : null}
+        {offlineData() ? <style dangerouslySetInnerHTML={{ __html: offlineAssets()?.css ?? '' }} /> : null}
       </head>
       <body className={immersive ? 'h-dvh overflow-hidden' : 'min-h-dvh'}>
         <PostHogIntegration environment={posthog} options={POSTHOG_BROWSER_OPTIONS} service={posthogService}>
@@ -223,7 +223,7 @@ export function AppShell() {
                       className="group flex min-w-0 items-center gap-2 font-display text-[0.9375rem] font-bold tracking-label text-bone uppercase hover:text-info"
                     >
                       <img
-                        src={offlineData()?.logo ?? '/logo.svg'}
+                        src={offlineAssets()?.logo ?? '/logo.svg'}
                         alt=""
                         className="size-7 shrink-0 transition-transform group-hover:rotate-45"
                       />

@@ -1,11 +1,18 @@
 import { QueryClient, QueryObserver } from '@tanstack/react-query'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { referenceQuery } from './shared'
+import { loadPart } from '../offline/runtime'
+import { savedDownload } from '../offline/savedReference.fixtures'
+
+vi.mock('../offline/referenceStore', async () => (await import('../offline/savedReference.fixtures')).storedPartReader)
 
 const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-beforeEach(() => {
-  vi.stubGlobal('window', { PraetoriumReferenceCache: { savedAt: 1, queries: [{ key: ['rule-index'], data: 'Saved rules' }] } })
+beforeEach(async () => {
+  const saved = savedDownload([{ key: ['rule-index'], data: 'Saved rules' }])
+  vi.stubGlobal('window', { PraetoriumReferenceCache: saved })
   vi.stubGlobal('navigator', { onLine: true })
+  // A page has decoded the core it reads once the download is restored.
+  await loadPart(saved.download.reference.core)
 })
 afterEach(() => {
   client.clear()
@@ -23,6 +30,7 @@ it('shows saved rules immediately and replaces them after background revalidatio
   const data: (string | undefined)[] = []
   const unsubscribe = observer.subscribe((result) => data.push(result.data))
   expect(observer.getCurrentResult().data).toBe('Saved rules')
+  await vi.waitFor(() => expect(online).toHaveBeenCalled())
   finish('Current rules')
   await vi.waitFor(() => expect(observer.getCurrentResult().data).toBe('Current rules'))
   expect(data).not.toContain(undefined)

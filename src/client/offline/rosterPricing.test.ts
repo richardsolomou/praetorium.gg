@@ -10,6 +10,7 @@ import { captureAppSnapshot, restoreAppSnapshot } from './appSnapshot'
 import { priceQuery } from '../queries/rosters'
 import { buildIndex } from '../../core/catalogue'
 import type { LocalRoster } from './localRuntime'
+import { savedDownload } from './savedReference.fixtures'
 
 const mocks = vi.hoisted(() => ({
   page: vi.fn(),
@@ -26,6 +27,7 @@ vi.mock('../../server/functions', () => ({
   savedRosterSummaries: mocks.summaries,
 }))
 vi.mock('./runtime', async (actual) => ({ ...(await actual<typeof import('./runtime')>()), referenceData: mocks.reference }))
+vi.mock('./referenceStore', async () => (await import('./savedReference.fixtures')).storedPartReader)
 // These read connected and offline construction; the construction worker answers neither.
 vi.mock('./constructionWorker', () => ({ deviceConstructionRead: () => null, prepareDeviceConstruction: () => {} }))
 vi.mock('../../core/catalogue', async (importOriginal) => {
@@ -91,25 +93,28 @@ beforeEach(() => {
   client.clear()
   client.setQueryData(['me'], { id: 'alice' })
   const catalogue = bookOf({ selectionEntries: [{ id: 'unit', name: 'Unit', type: 'model', costs: points(80) }] })
-  mocks.reference.mockReturnValue({
-    queries: [],
-    construction: {
-      version: 1,
-      revision: 'first',
-      files: [
-        system,
-        { catalogue: { id: 'cat', name: 'Catalogue', selectionEntries: [{ id: 'unit', name: 'Unit', type: 'model', costs: points(80) }] } },
-      ],
-      datacards: packRuntimeData(catalogue.datacards),
-      mfm: packRuntimeData(null),
-      rules: packRuntimeData({
-        factionKeys: new Map(),
-        detachmentReferences: new Map(),
-        detachmentDetails: new Map(),
-        factionRestrictions: new Map(),
-      }),
-    },
-  })
+  mocks.reference.mockReturnValue(
+    savedDownload([], {
+      construction: {
+        version: 1,
+        revision: 'first',
+        files: [
+          system,
+          {
+            catalogue: { id: 'cat', name: 'Catalogue', selectionEntries: [{ id: 'unit', name: 'Unit', type: 'model', costs: points(80) }] },
+          },
+        ],
+        datacards: packRuntimeData(catalogue.datacards),
+        mfm: packRuntimeData(null),
+        rules: packRuntimeData({
+          factionKeys: new Map(),
+          detachmentReferences: new Map(),
+          detachmentDetails: new Map(),
+          factionRestrictions: new Map(),
+        }),
+      },
+    }),
+  )
   mocks.summaries.mockResolvedValue([roster])
   mocks.page.mockResolvedValue([row])
   mocks.home.mockResolvedValue({ count: 1, rosters: [{ roster, ...row }] })

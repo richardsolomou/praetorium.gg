@@ -43,7 +43,6 @@ export function createQueryClient() {
       client.setQueryData(favouriteDatasheetsKey(), [])
       client.setQueryData(recentMatchupsKey(), [])
     }
-    for (const entry of saved.queries) client.setQueryData(entry.key, entry.data)
   }
   configureLocalRuntime(client, projectLocalState)
   return client

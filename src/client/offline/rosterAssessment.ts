@@ -9,7 +9,7 @@ type Assessment = { points: number | null; problem: NonNullable<ReturnType<typeo
 const cache = new RecentlyUsed<string, { version: number; revision: string; data: Assessment }>(500)
 
 export async function localRosterAssessment(roster: LocalRoster, owner: string) {
-  const local = localConstruction(roster.catalogueId)
+  const local = await localConstruction(roster.catalogueId)
   if (!local) return { points: null, problem: null, label: roster.name }
   const key = JSON.stringify([owner, roster.id])
   const cached = cache.get(key)

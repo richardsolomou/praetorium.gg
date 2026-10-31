@@ -5,26 +5,56 @@ import { factionDatasheetsQuery } from '../queries/rosters'
 import { referenceChangesQuery } from '../queries/changes'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import type { OfflineReferenceData } from '../../contracts/offlineReference'
+import type { GlobalSearchIndex } from '../../core/referenceSearch'
 import {
-  offlineDatasheets,
+  decodedPart,
+  loadOfflineDatasheets,
+  loadPart,
+  loadSearch,
+  MAX_DECODED_PARTS,
   offlineSearch,
   referenceRead,
   referenceData,
   searchDownload,
   setPublishedReference,
-  currentConstruction,
 } from './runtime'
-import { compressReference } from './compressedReference'
-const CONSTRUCTION = { current: '/assets/construction-a.bin', complete: '/assets/construction-b.bin', versions: [] }
-const published = (revision: string) => ({ revision, construction: CONSTRUCTION })
-const saved: OfflineReferenceData = {
-  version: 1,
-  savedAt: 1,
-  revision: 'test',
-  css: '',
-  logo: '',
-  queries: [
-    { key: ['rule-section', 'core', 'moving'], data: { title: 'Moving' } },
+
+const mocks = vi.hoisted(() => ({ parts: new Map<string, unknown>() }))
+vi.mock('./referenceStore', () => ({
+  readPart: async (asset: string) => {
+    if (!mocks.parts.has(asset)) throw new Error('This part of the download is unavailable')
+    return structuredClone(mocks.parts.get(asset))
+  },
+}))
+
+const asset = (name: string) => `/assets/reference-${name}.bin`
+const published = (revision: string) => ({ revision })
+const search: GlobalSearchIndex = {
+  factions: [],
+  detachments: [],
+  datasheets: ['Immortals', 'Necron Warriors'].map((name, at) => ({
+    targetId: String(at),
+    allied: false,
+    name,
+    fields: { name, keywords: ['Infantry'], abilities: [], weapons: [], weaponKeywords: [], wargear: [] },
+    result: {
+      id: `datasheet:necrons:${at ? 'warriors' : 'immortals'}`,
+      group: 'Datasheets',
+      label: name,
+      detail: 'Necrons',
+      href: `/factions/necrons/datasheets/${at}`,
+    },
+  })),
+  missions: [],
+  rules: [
+    { search: 'moving 03', result: { id: 'moving', group: 'Rules', label: 'Moving', detail: 'Core rules', href: '/rules/core/moving' } },
+  ],
+}
+const changes = [{ recordedAt: 1, change: { kind: 'datasheet-points', id: 'warriors' } }]
+/** A download whose parts the device stores, named apart for a test that changes one. */
+function download(name = 'test', searchIndex = search): OfflineReferenceData {
+  mocks.parts.set(asset(`${name}-core`), [{ key: ['rule-section', 'core', 'moving'], data: { title: 'Moving' } }])
+  mocks.parts.set(asset(`${name}-necrons`), [
     {
       key: ['faction-datasheets', 'necrons', ''],
       data: [
@@ -32,29 +62,26 @@ const saved: OfflineReferenceData = {
         { id: 'warriors', name: 'Necron Warriors' },
       ],
     },
-  ],
-  search: {
-    factions: [],
-    detachments: [],
-    datasheets: ['Immortals', 'Necron Warriors'].map((name, at) => ({
-      targetId: String(at),
-      allied: false,
-      name,
-      fields: { name, keywords: ['Infantry'], abilities: [], weapons: [], weaponKeywords: [], wargear: [] },
-      result: {
-        id: `datasheet:necrons:${at ? 'warriors' : 'immortals'}`,
-        group: 'Datasheets',
-        label: name,
-        detail: 'Necrons',
-        href: `/factions/necrons/datasheets/${at}`,
+  ])
+  mocks.parts.set(asset(`${name}-changes`), [{ key: ['reference-changes', 'datasheet', 'necrons', 'warriors'], data: changes }])
+  mocks.parts.set(asset(`${name}-search`), searchIndex)
+  return {
+    version: 2,
+    savedAt: 1,
+    appRevision: 'app',
+    editions: [],
+    download: {
+      revision: 'test',
+      reference: {
+        core: asset(`${name}-core`),
+        search: asset(`${name}-search`),
+        parts: { 'faction:necrons': asset(`${name}-necrons`), 'reference-changes': asset(`${name}-changes`) },
       },
-    })),
-    missions: [],
-    rules: [
-      { search: 'moving 03', result: { id: 'moving', group: 'Rules', label: 'Moving', detail: 'Core rules', href: '/rules/core/moving' } },
-    ],
-  },
+      construction: { catalogue: asset('catalogue'), rules: asset('rules'), editions: {} },
+    },
+  }
 }
+const saved = download()
 beforeEach(() => {
   vi.stubGlobal('window', { PraetoriumOffline: saved })
   vi.stubGlobal('navigator', { onLine: false })
@@ -72,23 +99,20 @@ it('reads a downloaded rule without contacting the service', async () => {
   expect(await referenceRead(['rule-section', 'core', 'moving'], online)).toEqual({ title: 'Moving' })
   expect(online).not.toHaveBeenCalled()
 })
-it('restores a compressed offline application once and releases the compressed copy', async () => {
-  vi.stubGlobal('window', { PraetoriumOffline: await compressReference(saved) })
-  const restored = referenceData()
-  expect({ restored, reused: referenceData() === restored, global: window.PraetoriumOffline }).toEqual({
-    restored: saved,
-    reused: true,
-    global: saved,
-  })
-})
-it('leaves a compressed native reference for background decoding', async () => {
-  vi.stubGlobal('window', { PraetoriumReferenceCache: await compressReference(saved) })
-  expect(referenceData()).toBeUndefined()
-})
-it('ignores an unreadable native reference and uses the connected service', async () => {
-  vi.stubGlobal('window', { PraetoriumReferenceCache: { encoding: 'gzip-base64', data: 'broken' } })
+it('ignores the whole download an earlier native shell injects and uses the connected service', async () => {
+  vi.stubGlobal('window', { PraetoriumReferenceCache: { encoding: 'gzip-base64-parts', reference: 'packed' } })
   vi.stubGlobal('navigator', { onLine: true })
-  expect(await referenceRead(['rule-section', 'core', 'moving'], () => Promise.resolve('Live rule'))).toBe('Live rule')
+  expect({
+    held: referenceData(),
+    read: await referenceRead(['rule-section', 'core', 'moving'], () => Promise.resolve('Live rule')),
+  }).toEqual({ held: undefined, read: 'Live rule' })
+})
+
+it('keeps only the parts read last decoded, however many a page reads', async () => {
+  const assets = Array.from({ length: MAX_DECODED_PARTS + 1 }, (_, at) => asset(`bounded-${at}`))
+  for (const part of assets) mocks.parts.set(part, [])
+  for (const part of assets) await loadPart(part)
+  expect(assets.map((part) => decodedPart(part) !== undefined)).toEqual([false, ...assets.slice(1).map(() => true)])
 })
 it('reports missing saved data rather than hanging on a network request', async () => {
   await expect(referenceRead(['rule-section', 'core', 'missing'], () => Promise.resolve('Network'))).rejects.toThrow(
@@ -117,15 +141,16 @@ it('uses the native shell’s saved reference when the hosted read fails', async
     title: 'Moving',
   })
 })
-it('filters downloaded datasheets through the existing search field', () => {
-  expect(offlineDatasheets('necrons', 'Warriors')).toEqual([{ id: 'warriors', name: 'Necron Warriors' }])
+it('filters downloaded datasheets through the existing search field', async () => {
+  expect(await loadOfflineDatasheets('necrons', 'Warriors')).toEqual([{ id: 'warriors', name: 'Necron Warriors' }])
 })
-it('finds rules through the shared public search', () => {
+it('finds rules through the shared public search', async () => {
+  await loadSearch()
   expect(offlineSearch('moving')?.map((result) => result.href)).toEqual(['/rules/core/moving'])
 })
 
-it('finds a downloaded datasheet by keyword with the same match reasons as online', () => {
-  expect(offlineDatasheets('necrons', 'Infantry')?.map((unit) => unit.matchReasons)).toEqual([
+it('finds a downloaded datasheet by keyword with the same match reasons as online', async () => {
+  expect((await loadOfflineDatasheets('necrons', 'Infantry'))?.map((unit) => unit.matchReasons)).toEqual([
     [{ kind: 'keyword', value: 'Infantry' }],
     [{ kind: 'keyword', value: 'Infantry' }],
   ])
@@ -133,11 +158,13 @@ it('finds a downloaded datasheet by keyword with the same match reasons as onlin
 
 it.each(['PraetoriumOffline', 'PraetoriumReferenceCache'])(
   'finds a datasheet by its ability effect in the faction filter with %s',
-  (key) => {
-    const reference = structuredClone(saved)
-    reference.search.datasheets[0]!.fields.abilityDescriptions = [{ name: 'Reanimation', description: 'Each destroyed model returns.' }]
-    vi.stubGlobal('window', { [key]: reference })
-    expect(offlineDatasheets('necrons', 'returns')?.map((unit) => unit.matchReasons)).toEqual([[{ kind: 'ability', value: 'Reanimation' }]])
+  async (key) => {
+    const index = structuredClone(search)
+    index.datasheets[0]!.fields.abilityDescriptions = [{ name: 'Reanimation', description: 'Each destroyed model returns.' }]
+    vi.stubGlobal('window', { [key]: download(`ability-${key}`, index) })
+    expect((await loadOfflineDatasheets('necrons', 'returns'))?.map((unit) => unit.matchReasons)).toEqual([
+      [{ kind: 'ability', value: 'Reanimation' }],
+    ])
   },
 )
 
@@ -187,16 +214,6 @@ it('reads a download the service still publishes without contacting the service'
   setPublishedReference(published('test'))
   expect(await referenceRead(['rule-section', 'core', 'moving'], () => Promise.resolve('Live rule'))).toEqual({ title: 'Moving' })
 })
-it('trusts a current download’s construction data while the service still publishes it', () => {
-  vi.stubGlobal('window', { PraetoriumReferenceCache: { ...saved, constructionBundle: CONSTRUCTION.complete } })
-  setPublishedReference(published('test'))
-  expect(currentConstruction()).toBe(CONSTRUCTION.complete)
-})
-it('does not trust construction data the service no longer publishes, though the reference is current', () => {
-  vi.stubGlobal('window', { PraetoriumReferenceCache: { ...saved, constructionBundle: '/assets/construction-old.bin' } })
-  setPublishedReference(published('test'))
-  expect(currentConstruction()).toBeUndefined()
-})
 it('reads from the service once it publishes another revision', async () => {
   vi.stubGlobal('window', { PraetoriumReferenceCache: saved })
   vi.stubGlobal('navigator', { onLine: true })
@@ -211,19 +228,14 @@ it('filters a current download’s datasheets without contacting the service', a
   expect((await client.query(factionDatasheetsQuery('necrons', 'Warriors'))).map((unit) => unit.name)).toEqual(['Necron Warriors'])
 })
 it('reads a current download’s datasheet changes without contacting the service', async () => {
-  const changes = [{ recordedAt: 1, change: { kind: 'datasheet-points', id: 'warriors' } }]
-  vi.stubGlobal('window', {
-    PraetoriumReferenceCache: {
-      ...saved,
-      queries: [...saved.queries, { key: ['reference-changes', 'datasheet', 'necrons', 'warriors'], data: changes }],
-    },
-  })
+  vi.stubGlobal('window', { PraetoriumReferenceCache: saved })
   vi.stubGlobal('navigator', { onLine: true })
   setPublishedReference(published('test'))
   vi.spyOn(functions, 'referenceChanges').mockResolvedValue([])
   expect(await client.query(referenceChangesQuery({ kind: 'datasheet', faction: 'necrons', slug: 'warriors' }))).toEqual(changes)
 })
-it('searches the download together with the player’s own loaded lists', () => {
+it('searches the download together with the player’s own loaded lists', async () => {
+  await loadSearch()
   expect(
     searchDownload('Warriors', undefined, {
       owner: { id: 'alice' },

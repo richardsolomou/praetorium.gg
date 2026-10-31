@@ -14,7 +14,7 @@ const workspace = {
   serverNow: 10,
 }
 vi.mock('../../server/functions', () => ({ openBattle: mocks.open, replayBattleAt: mocks.replayAt }))
-vi.mock('./construction', () => ({ localConstruction: () => null }))
+vi.mock('./construction', () => ({ localRules: () => null, loadLocalRules: async () => null }))
 vi.mock('./localRuntime', () => ({
   localClient: () => client,
   localOwner: () => ({ id: mocks.owner }),

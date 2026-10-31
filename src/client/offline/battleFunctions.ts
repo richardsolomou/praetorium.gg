@@ -22,6 +22,7 @@ import { battleLogThroughSeq, battleTimeline } from '../../core/battleReplay'
 import { rosterSnapshot } from '../../core/rosterSnapshot'
 import { rosterUseError } from '../../core/rosterLegality'
 import { calculateRosterPrice, savedRosterPriceInput } from '../../shared/pricing'
+import type { LoadedRules } from '../../shared/rules'
 import { unitBattleDetailsIn } from '../../shared/catalogue'
 import {
   hydrateAuthoritativeAwards,
@@ -44,7 +45,7 @@ import {
   attemptLocalSync,
   type LocalRoster,
 } from './localRuntime'
-import { builtLocalConstruction, constructionData, hasLocalConstruction, localConstruction } from './construction'
+import { battleRules, hasLocalConstruction, loadLocalRules, localConstruction, localRules } from './construction'
 import { cachedRead, cachedPage } from './reads'
 import { isFetchNetworkFailure } from '../networkErrors'
 import { battleKey, battlesKey, meKey, opponentsKey, reportKey } from '../queries/queryKeys'
@@ -53,7 +54,7 @@ export function workspaceScreen(
   workspace: BattleWorkspace,
   viewerId: string,
 ): NonNullable<Awaited<ReturnType<typeof Server.openBattle>>> & { kind: 'battle' } {
-  const rules = localConstruction()?.rules
+  const rules = localRules()?.rules
   const state = localBattleState(workspace.players, workspace.log)
   if (rules) hydrateAuthoritativeAwards(state, rules)
   const view = battleView(workspace.battle, workspace.players, state, viewerId)
@@ -97,12 +98,18 @@ export function workspaceScreen(
   }
 }
 
+/** `workspaceScreen` once the rules it shows missions and scores from have loaded. */
+async function screenOf(workspace: BattleWorkspace, viewerId: string) {
+  await loadLocalRules()
+  return workspaceScreen(workspace, viewerId)
+}
+
 export async function openBattle(args: Parameters<typeof server.openBattle>[0]): ReturnType<typeof server.openBattle> {
   const owner = localOwner()
   const resource = `battle:${args.data.token}`
   const workspace = await localDocument<BattleWorkspace | null>(resource)
   if (workspace === null && (await hasLocalChanges(resource))) return { kind: 'unavailable' }
-  if (workspace && owner && (!navigator.onLine || (await hasSyncableChanges(resource)))) return workspaceScreen(workspace, owner.id)
+  if (workspace && owner && (!navigator.onLine || (await hasSyncableChanges(resource)))) return screenOf(workspace, owner.id)
   try {
     const result = await cachedRead(battleKey(args.data.token), async () => {
       // A battle saved on this device is one this account sits in, so its history downloads alongside the screen.
@@ -114,7 +121,7 @@ export async function openBattle(args: Parameters<typeof server.openBattle>[0]):
         await rememberBattle(fresh.workspace, owner?.id)
         if (await hasSyncableChanges(resource)) {
           const current = await localDocument<BattleWorkspace>(resource)
-          if (current && localOwner()?.id === owner?.id) return workspaceScreen(current, owner!.id)
+          if (current && localOwner()?.id === owner?.id) return screenOf(current, owner!.id)
         }
         return fresh.screen
       }
@@ -125,7 +132,7 @@ export async function openBattle(args: Parameters<typeof server.openBattle>[0]):
     args.signal?.throwIfAborted()
     const current = await localDocument<BattleWorkspace | null>(resource)
     args.signal?.throwIfAborted()
-    if (current && owner && localOwner()?.id === owner.id) return workspaceScreen(current, owner.id)
+    if (current && owner && localOwner()?.id === owner.id) return screenOf(current, owner.id)
     throw error
   }
 }
@@ -155,7 +162,7 @@ export async function submit(args: Parameters<typeof server.submit>[0]): ReturnT
     await rememberBattle(fresh, owner.id)
     // A newer acknowledged copy saved meanwhile came with its own screen, which the command queue keeps over this one.
     const current = (await hasSyncableChanges(resource)) && (await localDocument<BattleWorkspace>(resource))
-    return { result: answer.result, screen: current ? workspaceScreen(current, owner.id) : answer.screen }
+    return { result: answer.result, screen: current ? await screenOf(current, owner.id) : answer.screen }
   }
   const workspace = await localDocument<BattleWorkspace>(resource)
   if (!workspace) throw new OfflineRefusal('Open this battle online once before making offline changes.')
@@ -168,16 +175,18 @@ export async function submit(args: Parameters<typeof server.submit>[0]): ReturnT
   const state = localBattleState(workspace.players, workspace.log)
   if (state.seq < args.data.expectedSeq) throw new OfflineRefusal('Reconnect to download the latest battle history before continuing.')
   if (args.data.expectedSeq !== state.seq)
-    return { result: { outcome: 'stale', seq: state.seq }, screen: workspaceScreen(workspace, owner.id) }
+    return { result: { outcome: 'stale', seq: state.seq }, screen: await screenOf(workspace, owner.id) }
   if (workspace.log.length >= 10_000) throw new Error('This battle has reached its saved history limit.')
-  const { rules, revision } = localConstruction()!
+  const local = await battleRules(state)
+  if (!local) throw new OfflineRefusal('Connect to download the rules before playing offline.')
+  const { rules, revision } = local
   let command = submitSchema.parse(args.data).command
   let capturedRoster: LocalRoster | undefined
   if (command.kind === 'attach-saved-roster' || (command.kind === 'attach-roster' && command.roster.built)) {
     const id = command.kind === 'attach-saved-roster' ? command.rosterId : command.roster.id
     capturedRoster = id ? await localDocument<LocalRoster>(`roster:${id}`) : undefined
     if (!capturedRoster) throw new OfflineRefusal('Save this roster on the device before attaching it offline.')
-    const selected = localConstruction(capturedRoster.catalogueId)
+    const selected = await localConstruction(capturedRoster.catalogueId)
     if (!selected) throw new OfflineRefusal('Download this army’s rules before attaching it offline.')
     const { catalogue } = selected
     const priced = calculateRosterPrice(savedRosterPriceInput(capturedRoster), catalogue, selected.rules)
@@ -236,7 +245,7 @@ function appendOnDevice(
   workspace: BattleWorkspace,
   viewerId: string,
   submitted: unknown,
-  rules: NonNullable<ReturnType<typeof localConstruction>>['rules'],
+  rules: LoadedRules,
   recordedAt: number,
   randomIndex: (limit: number) => number,
 ) {
@@ -276,7 +285,7 @@ export async function savedBattleAt(token: string, seq: number) {
  * cards and prices lists, and a command the device would refuse is left for the service to explain, so those give null.
  */
 export function predictedBattle({ workspace, viewerId }: { workspace: BattleWorkspace; viewerId: string }, command: Command) {
-  const rules = builtLocalConstruction()?.rules
+  const rules = localRules()?.rules
   if (!rules || command.kind === 'attach-roster') return null
   try {
     const appended = appendOnDevice(workspace, viewerId, command, rules, Date.now(), () => {
@@ -306,7 +315,7 @@ export async function battleReport(args: Parameters<typeof server.battleReport>[
         workspace.players.map((player) => player.id),
         localOwner()!.id,
         workspace.players.map((player) => player.side),
-        localConstruction()?.rules,
+        (await loadLocalRules())?.rules,
       )
     : cachedRead(reportKey(args.data.token), () => server.battleReport(args))
 }
@@ -314,7 +323,7 @@ export async function replayBattleAt(args: Parameters<typeof server.replayBattle
   const workspace = await unsyncedWorkspace(args.data.token)
   if (!workspace) return server.replayBattleAt(args)
   const prefix = { ...workspace, log: battleLogThroughSeq(workspace.log, args.data.seq) }
-  const screen = workspaceScreen(prefix, localOwner()!.id)
+  const screen = await screenOf(prefix, localOwner()!.id)
   return {
     kind: 'replay',
     view: screen.view,
@@ -326,7 +335,7 @@ export async function replayBattleAt(args: Parameters<typeof server.replayBattle
       prefix.players.map((player) => player.id),
       localOwner()!.id,
       prefix.players.map((player) => player.side),
-      localConstruction()?.rules,
+      localRules()?.rules,
     ),
   }
 }
@@ -348,7 +357,7 @@ export async function replayBattleBatch(args: Parameters<typeof server.replayBat
 export async function createBattle(args: Parameters<typeof server.createBattle>[0]): ReturnType<typeof server.createBattle> {
   const owner = localOwner()
   // A group game needs the server to check its players are members, so it is never started on the device alone.
-  if (!localEngine() || !owner || !localConstruction() || args.data.groupToken) return server.createBattle(args)
+  if (!localEngine() || !owner || !hasLocalConstruction() || args.data.groupToken) return server.createBattle(args)
   const input = createBattleSchema.parse(args.data)
   const guestNames = input.guestNames ?? []
   if (!input.casual && !guestNames.length) {
@@ -405,7 +414,9 @@ export function projectBattles(state: LocalState) {
   for (const [resource, document] of Object.entries(state.documents)) {
     if (!resource.startsWith('battle:')) continue
     if (navigator.onLine && !hasSyncableWork(state, resource)) continue
-    if (!constructionData()) return
+    if (!hasLocalConstruction()) return
+    // Projected screens show missions and scores from the rules, so they wait for them.
+    if (localRules() === undefined) return void loadLocalRules().then(() => projectBattles(state))
     if (!document.data) {
       client.setQueryData(battleKey(resource.slice(7)), { kind: 'unavailable' })
       continue
@@ -428,7 +439,7 @@ export async function createSealedEventBattle(
   args: Parameters<typeof server.createSealedEventBattle>[0],
 ): ReturnType<typeof server.createSealedEventBattle> {
   const owner = localOwner()
-  if (!owner || !localEngine() || !localConstruction()) return server.createSealedEventBattle(args)
+  if (!owner || !localEngine() || !hasLocalConstruction()) return server.createSealedEventBattle(args)
   const { openSealedEvent, openSealedEventRoster } = await import('./actionFunctions')
   const sealedEvent = await openSealedEvent({ data: { token: args.data.token, eventToken: args.data.eventToken } })
   if (!sealedEvent) throw new OfflineRefusal('Open and save this event online before starting an offline battle.')
@@ -484,6 +495,8 @@ export async function createSealedEventBattle(
 export async function myBattles(args: Parameters<typeof server.myBattles>[0]): ReturnType<typeof server.myBattles> {
   const page = await cachedPage(battlesKey(), args.data.before, () => server.myBattles(args))
   const state = await localEngine()?.storage.read()
+  // Unsynced battles are summarised with the rules, which only they need.
+  if (state?.operations.some((operation) => operation.resource.startsWith('battle:'))) await loadLocalRules()
   return overlayBattlePage(page, state, args.data.before == null)
 }
 function overlayBattlePage(page: Awaited<ReturnType<typeof server.myBattles>>, state?: LocalState, first = true) {
@@ -499,7 +512,7 @@ function overlayBattlePage(page: Awaited<ReturnType<typeof server.myBattles>>, s
     if (!first && !battles.has(workspace.battle.token)) continue
     battles.set(
       workspace.battle.token,
-      battleSummary(workspace, localBattleState(workspace.players, workspace.log), state.owner, localConstruction()?.rules, new Map()),
+      battleSummary(workspace, localBattleState(workspace.players, workspace.log), state.owner, localRules()?.rules, new Map()),
     )
   }
   return { ...page, battles: [...battles.values()].sort((left, right) => right.lastActivity - left.lastActivity) }

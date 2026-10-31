@@ -46,7 +46,11 @@ vi.mock('./catalogueOutputs', () => ({
     fs.mkdirSync(path.join(staging, 'runtime'), { recursive: true })
     fs.writeFileSync(path.join(staging, 'runtime/manifest.json'), '{}')
     fs.mkdirSync(path.join(staging, 'public'), { recursive: true })
-    const manifest = { bundle: '/r.bin', construction: { current: '/c.bin', complete: '/d.bin' } }
+    const manifest = {
+      revision: 'a'.repeat(64),
+      reference: { core: '/r.bin', search: '/s.bin', parts: {} },
+      construction: { catalogue: '/c.bin', rules: '/d.bin', editions: {} },
+    }
     fs.writeFileSync(path.join(staging, 'public/offline-reference-version.json'), JSON.stringify(manifest))
     return path.join(staging, 'public')
   },

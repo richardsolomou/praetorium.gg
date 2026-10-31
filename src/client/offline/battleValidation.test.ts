@@ -23,7 +23,13 @@ const mocks = vi.hoisted(() => ({
 }))
 vi.mock('../../server/functions', () => ({ submit: mocks.submit, openBattle: mocks.open }))
 vi.mock('../../server/functions/offline', () => ({ battleWorkspace: mocks.workspace }))
-vi.mock('./construction', () => ({ localConstruction: mocks.construction, hasLocalConstruction: mocks.hasConstruction }))
+vi.mock('./construction', () => ({
+  localConstruction: async () => mocks.construction(),
+  battleRules: async () => mocks.construction(),
+  loadLocalRules: async () => mocks.construction(),
+  localRules: () => mocks.construction(),
+  hasLocalConstruction: mocks.hasConstruction,
+}))
 vi.mock('./localRuntime', () => ({
   localEngine: () => ({ storage: { read: async () => ({ operations: [] }) } }),
   localOwner: () => ({ id: 'alice' }),

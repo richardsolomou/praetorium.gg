@@ -40,7 +40,7 @@ import { summarySides } from '../../battleSummary'
 import type { Battle } from '../battles/battle'
 import { memberNameOf, useGroupRefresh, type Group } from './group'
 import { useStartBattle } from '../battles/useStartBattle'
-import { warmLocalConstruction } from '../../offline/construction'
+import { warmLocalRules } from '../../offline/construction'
 import { afterPaint } from '../../afterPaint'
 
 type Game = Group['games'][number]
@@ -88,7 +88,7 @@ export function GroupHiddenListGame({
 }) {
   const { defaultMissionPackId, openBattle } = useStartBattle()
   // Sealing a roster and starting a battle price lists with the rules on this device, which take a moment to prepare.
-  useEffect(() => warmLocalConstruction(), [])
+  useEffect(() => warmLocalRules(), [])
   const moment = useMoment()
   const { date } = useDateFormatting()
   const now = useNow(game.sealBy)

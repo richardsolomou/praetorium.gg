@@ -22,6 +22,7 @@ import { resolveCatalogueUpstream } from './catalogueUpstream'
 import { prepareCatalogueOutputs } from './catalogueOutputs'
 import { compiledChangeSource } from './catalogueHistoryCompile'
 import { fetchLiveCatalogue } from './liveCatalogueArchive'
+import type { OfflineReferenceVersion } from '../../src/contracts/offlineReference'
 
 /** What a live revision's `sources.json` records: its source key and, after a refresh, the key it was refreshed from. */
 export type LiveRevisionSources = { key: string; from?: string }
@@ -162,10 +163,19 @@ export function prepareLiveRevision(root: string, compiler: string, { bootstrap 
     const manifestFile = path.join(publicDirectory, 'offline-reference-version.json')
     const manifest = JSON.parse(fs.readFileSync(manifestFile, 'utf8'))
     const address = (value: string) => `/catalogue-assets/${path.basename(root)}/${path.basename(value)}`
-    manifest.bundle = address(manifest.bundle)
-    manifest.construction.current = address(manifest.construction.current)
-    manifest.construction.complete = address(manifest.construction.complete)
-    fs.writeFileSync(manifestFile, JSON.stringify(manifest))
+    const addressed = (assets: Record<string, string>) =>
+      Object.fromEntries(Object.entries(assets).map(([name, asset]) => [name, address(asset)]))
+    const { reference, construction } = manifest as OfflineReferenceVersion
+    const published: OfflineReferenceVersion = {
+      ...manifest,
+      reference: { core: address(reference.core), search: address(reference.search), parts: addressed(reference.parts) },
+      construction: {
+        catalogue: address(construction.catalogue),
+        rules: address(construction.rules),
+        editions: addressed(construction.editions),
+      },
+    }
+    fs.writeFileSync(manifestFile, JSON.stringify(published))
     console.log(`Prepared live catalogue ${id}`)
     return id
   }

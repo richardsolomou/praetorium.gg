@@ -3,7 +3,7 @@ import { Link } from '@tanstack/react-router'
 import { ArrowRight, Check, Eye, FileLock2, Play, ShieldCheck, Swords, UserPlus } from 'lucide-react'
 import { posthog } from 'posthog-js'
 import { useEffect, useState, type ReactNode } from 'react'
-import { warmLocalConstruction } from '../../offline/construction'
+import { warmLocalRules } from '../../offline/construction'
 import { afterPaint } from '../../afterPaint'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -103,7 +103,7 @@ export function SealedEventView({
   const { defaultMissionPackId, openBattle } = useStartBattle()
   const refresh = useSealedEventRefresh(token)
   // Sealing a roster and starting a battle price lists with the rules on this device, which take a moment to prepare.
-  useEffect(() => warmLocalConstruction(), [])
+  useEffect(() => warmLocalRules(), [])
   const revealed = Boolean(sealedEvent.revealedAt)
   const battleHistory = useInfiniteQuery({ ...sealedEventBattlesQuery(token, sealedEvent.eventToken), enabled: revealed })
   const { data: results } = useQuery({ ...sealedEventResultsQuery(token, sealedEvent.eventToken), enabled: revealed })

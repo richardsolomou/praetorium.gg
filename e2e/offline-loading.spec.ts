@@ -1,5 +1,6 @@
 import { expect, test } from './test'
 import { createRoster, signUp, uniqueName, PHONE } from './account'
+import { saveOlderMovingRule, waitForOfflineApp } from './offline'
 
 for (const width of [1440, 390]) {
   test(`factions stay visible with an older native download at ${width}px`, async ({ page }) => {
@@ -25,7 +26,8 @@ for (const width of [1440, 390]) {
     })
     await page.goto('/factions')
     await expect(page.locator('[data-faction="Chaos Daemons"]')).toBeVisible()
-    await expect.poll(() => page.evaluate(() => window.PraetoriumReferenceCache?.revision), { timeout: 180_000 }).not.toBe('old-reference')
+    // The page reads only what it saved itself, so the injected download is replaced by a complete one.
+    await expect.poll(() => page.evaluate(() => window.PraetoriumReferenceCache?.version), { timeout: 180_000 }).toBe(2)
     await expect(page.getByRole('textbox', { name: 'Find a faction' })).toBeVisible()
     const visibility = await page.evaluate(() => (window as typeof window & { factionVisibility: boolean[] }).factionVisibility)
     expect(visibility).toContain(true)
@@ -65,20 +67,9 @@ test('a first roster open shows progress until the army is ready', async ({ page
 test('an unopened rule from an older download stays readable throughout hosted revalidation', async ({ page }) => {
   test.setTimeout(240_000)
   await page.goto('/rules/core-rules/moving')
-  await expect.poll(() => page.evaluate(() => Boolean(window.PraetoriumReferenceCache)), { timeout: 180_000 }).toBe(true)
-  const saved = await page.evaluate(() => {
-    const reference = window.PraetoriumReferenceCache!
-    const queries = reference.queries.filter(
-      (entry) => entry.key[0] === 'rule-index' || entry.key.join('/') === 'rule-section/core-rules/moving',
-    )
-    const rule = queries.find((entry) => entry.key[0] === 'rule-section')!.data as { section: { title: string } }
-    rule.section.title = 'Saved Moving'
-    // A download the service still publishes answers without revalidating, so this one predates it.
-    return { ...reference, revision: 'previous-reference', construction: undefined, queries, savedAt: 1 }
-  })
-  await page.addInitScript((reference) => {
-    window.PraetoriumReferenceCache = reference
-  }, saved)
+  await waitForOfflineApp(page)
+  // A download the service still publishes answers without revalidating, so this one predates it.
+  await saveOlderMovingRule(page, 'Saved Moving')
   await page.goto('/')
   const { promise: held, resolve: release } = Promise.withResolvers<void>()
   await page.route('**/_serverFn/**', async (route) => {

@@ -14,7 +14,7 @@ import { battleQuery, battlesQuery } from '../../queries'
 import { confirmedSeq, useCommand } from './useCommand'
 import { useSpacetimeLiveBattle } from '../../spacetimeLive'
 import { setNativeBattleActive } from '../../nativeBridge'
-import { warmLocalConstruction } from '../../offline/construction'
+import { warmLocalRules } from '../../offline/construction'
 import type { openBattle } from '../../functions'
 
 export function BattlePage({ token }: { token: string }) {
@@ -46,7 +46,7 @@ export function BattlePage({ token }: { token: string }) {
 function SeatedBattle({ token, screen }: { token: string; screen: Extract<Awaited<ReturnType<typeof openBattle>>, { kind: 'battle' }> }) {
   useSpacetimeLiveBattle(token, true)
   // Taps are shown from the rules on this device, which take a moment to prepare.
-  useEffect(() => warmLocalConstruction(), [])
+  useEffect(() => warmLocalRules(), [])
   useEffect(() => {
     setNativeBattleActive(true)
     return () => {

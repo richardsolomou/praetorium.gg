@@ -19,13 +19,6 @@ it('leaves hosted hydration data available when the shell has an older reference
   client.clear()
 })
 
-it('seeds public references before routing in a saved application', () => {
-  vi.stubGlobal('window', { PraetoriumOffline: { queries: [{ key: ['faction-index'], data: 'Saved factions' }] } })
-  const client = createQueryClient()
-  expect(client.getQueryData(['faction-index'])).toBe('Saved factions')
-  client.clear()
-})
-
 it('persists refreshed data before a successful mutation finishes', async () => {
   vi.stubGlobal('window', {})
   vi.stubGlobal('navigator', { onLine: true })

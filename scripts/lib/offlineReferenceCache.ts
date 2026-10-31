@@ -9,6 +9,7 @@ import { catalogueDataDirectory } from './catalogueFiles'
 import { downloadArchive, storeHasArchive, storeUrl, uploadArchive } from './catalogueRuntimeDistribution'
 import { writeReferenceBundle } from './offlineReferenceBundle'
 import { errorText } from './errorText'
+import { isOfflineReferenceVersion, referenceAssets } from '../../src/contracts/offlineReference'
 
 const STORE_PATH = 'catalogue/offline-reference/by-key'
 const MANIFEST = 'offline-reference-version.json'
@@ -34,11 +35,9 @@ export function referenceBundleKey(directory: string, runtimeKey: string) {
 }
 
 const manifestFiles = (manifest: Buffer) => {
-  const { bundle, construction } = JSON.parse(manifest.toString('utf8')) as {
-    bundle: string
-    construction: { current: string; complete: string }
-  }
-  return [bundle, construction.current, construction.complete].map((file) => file.replace(/^\//, ''))
+  const version: unknown = JSON.parse(manifest.toString('utf8'))
+  if (!isOfflineReferenceVersion(version)) throw new Error('Offline reference manifest is invalid')
+  return [...new Set(referenceAssets(version))].map((file) => file.replace(/^\//, ''))
 }
 
 function pack(outDir: string) {

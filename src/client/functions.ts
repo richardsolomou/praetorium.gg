@@ -12,7 +12,7 @@ import { datasheetSchema, saveRosterSchema } from '../contracts/schemas'
 import type { RosterPick } from '../core/roster'
 import * as server from '../server/functions'
 import { syncRoster } from '../server/functions/offline'
-import { constructionRead, constructionData, localConstruction } from './offline/construction'
+import { builtConstruction, constructionRead, hasLocalConstruction, localConstruction } from './offline/construction'
 import { deviceLoadoutSearch, prepareDeviceConstruction } from './offline/constructionWorker'
 import type { ConstructionReadData, ConstructionReadName } from './offline/constructionReads'
 import {
@@ -31,7 +31,7 @@ import { matchesImportFaction, importRosterFaction, importRosterCatalogueId } fr
 import { decodeRosterExchange, isRosterExchangeCode } from '../core/rosterExchange'
 import { listUnitCount } from '../core/attachedUnits'
 import { rosterUseProblem } from '../core/rosterLegality'
-import { referenceData, savedQuery } from './offline/runtime'
+import { loadSavedQuery, referenceData, savedQuery } from './offline/runtime'
 import { orderVariantGroup, variantName } from '../core/rosterVariants'
 import type { LocalState } from '../contracts/localState'
 import { playerDefaults } from './offline/actionFunctions'
@@ -128,11 +128,11 @@ export const reminderAbilities = read('reminderAbilities', (args) => server.remi
 export const detachmentRules = read('detachmentRules', (args) => server.detachmentRules(args))
 export const exportRoster = read('exportRoster', (args) => server.exportRoster(args))
 export const importRoster = async (args: Parameters<typeof server.importRoster>[0]) => {
-  const factions = savedQuery<Awaited<ReturnType<typeof server.factionIndex>>>(referenceData(), factionIndexKey())?.factions
+  const factions = (await loadSavedQuery<Awaited<ReturnType<typeof server.factionIndex>>>(referenceData(), factionIndexKey()))?.factions
   if (isRosterExchangeCode(args.data.file)) {
     const exchange = await decodeRosterExchange(args.data.file)
     if (!factions) return server.importRoster(args)
-    const faction = savedFaction(exchange.catalogueId, factions)
+    const faction = await savedFaction(exchange.catalogueId, factions)
     return constructionRead(
       'importExchange',
       { exchange, factionName: faction?.name ?? null },
@@ -145,7 +145,7 @@ export const importRoster = async (args: Parameters<typeof server.importRoster>[
   const stated = importRosterFaction(args.data.file)
   const statedId = importRosterCatalogueId(args.data.file)
   const candidates = statedId
-    ? [savedFaction(statedId, factions)].filter((found) => found !== undefined)
+    ? [await savedFaction(statedId, factions)].filter((found) => found !== undefined)
     : factions.filter((found) => found.isDefault)
   const faction = stated ? candidates.find((candidate) => matchesImportFaction(stated, candidate.name)) : null
   return constructionRead(
@@ -163,13 +163,13 @@ export const importRoster = async (args: Parameters<typeof server.importRoster>[
 }
 
 /** Exact root IDs are absent from the faction index, so a book read for a roster answers first. */
-function savedFaction(id: string, factions: { id: string; name: string }[]) {
-  return factionFor(id) ?? factions.find((candidate) => candidate.id === id)
+async function savedFaction(id: string, factions: { id: string; name: string }[]) {
+  return (await loadFaction(id)) ?? factions.find((candidate) => candidate.id === id)
 }
 
-function factionFor(id: string) {
-  return savedQuery<NonNullable<Awaited<ReturnType<typeof server.rosterBootstrap>>>['faction']>(referenceData(), factionKey(id))
-}
+type SavedFaction = NonNullable<Awaited<ReturnType<typeof server.rosterBootstrap>>>['faction']
+const loadFaction = (id: string) => loadSavedQuery<SavedFaction>(referenceData(), factionKey(id))
+const factionFor = (id: string) => savedQuery<SavedFaction>(referenceData(), factionKey(id))
 
 function accessFor(roster: LocalRoster, state?: LocalState) {
   const cached = localClient()?.getQueryData<Awaited<ReturnType<typeof server.rosterAccess>>>(rosterAccessKey(roster.id))
@@ -183,7 +183,7 @@ function accessFor(roster: LocalRoster, state?: LocalState) {
   ).map(summaryFor)
   const base = members.find((entry) => entry.id === roster.baseRosterId)
   const raw = base ? rosterDifferences(base, roster) : null
-  const catalogue = raw ? localConstruction(roster.catalogueId)?.catalogue : undefined
+  const catalogue = raw ? builtConstruction(roster.catalogueId)?.catalogue : undefined
   const named = (changes: NonNullable<typeof raw>['added']) =>
     changes.map((unit) => ({ count: unit.count, name: catalogue?.index.definitions.get(unit.entryId)?.name ?? unit.entryId }))
   const differences =
@@ -202,6 +202,13 @@ function accessFor(roster: LocalRoster, state?: LocalState) {
   }
 }
 
+/** `accessFor` with its faction decoded and the catalogue its variant differences are named from built first. */
+async function accessOf(roster: LocalRoster, state?: LocalState) {
+  await Promise.all([loadFaction(roster.catalogueId), roster.baseRosterId && localConstruction(roster.catalogueId)])
+  return accessFor(roster, state)
+}
+
+/** The price shown for a roster saved on this device; offline, from construction data already built for it. */
 function pricedRoster(roster: LocalRoster) {
   const input = savedRosterPriceInput(roster)
   const cached =
@@ -209,7 +216,7 @@ function pricedRoster(roster: LocalRoster) {
     localClient()?.getQueryData<Awaited<ReturnType<typeof server.priceRoster>>>(rosterPriceKey({ ...input, includeUnitLimits: true }))
   if (cached !== undefined) return cached
   if (typeof window !== 'undefined' && navigator.onLine) return null
-  const data = localConstruction(roster.catalogueId)
+  const data = builtConstruction(roster.catalogueId)
   return data ? calculateRosterPrice(input, data.catalogue, data.rules) : null
 }
 
@@ -218,7 +225,7 @@ export async function rosterAccess(args: Parameters<typeof server.rosterAccess>[
   const resource = `roster:${args.data.id}`
   const local = !args.data.battle ? await localDocument<LocalRoster | null>(resource) : undefined
   if (local !== undefined && (!navigator.onLine || (await hasLocalChanges(resource))))
-    return local ? accessFor(local, await localEngine()?.storage.read()) : null
+    return local ? accessOf(local, await localEngine()?.storage.read()) : null
   try {
     const result = await cachedRead(rosterAccessKey(args.data.id, args.data.battle), () => server.rosterAccess(args))
     if (result?.editable || (!result && (local !== undefined || (await localDocument(resource)) !== undefined))) {
@@ -231,18 +238,18 @@ export async function rosterAccess(args: Parameters<typeof server.rosterAccess>[
       )
       if (saved && saved.serverVersion !== (result?.roster.updatedAt ?? null)) {
         const current = saved.data as LocalRoster | null
-        const retained = current ? accessFor(current, await localEngine()?.storage.read()) : null
+        const retained = current ? await accessOf(current, await localEngine()?.storage.read()) : null
         localClient()?.setQueryData(rosterAccessKey(args.data.id, args.data.battle), retained)
         return retained
       }
     }
     if (await hasLocalChanges(resource)) {
       const current = await localDocument<LocalRoster | null>(resource)
-      return current ? accessFor(current, await localEngine()?.storage.read()) : null
+      return current ? accessOf(current, await localEngine()?.storage.read()) : null
     }
     return result
   } catch (error) {
-    if (local !== undefined && localOwner()?.id === owner) return local ? accessFor(local, await localEngine()?.storage.read()) : null
+    if (local !== undefined && localOwner()?.id === owner) return local ? accessOf(local, await localEngine()?.storage.read()) : null
     throw error
   }
 }
@@ -264,7 +271,7 @@ export async function rosterBootstrap(args: Parameters<typeof server.rosterBoots
     assertAccount()
     const price = await priceRoster({ data: savedRosterPriceInput(current), signal: args.signal })
     assertAccount()
-    return { ...accessFor(current, state), price, changes }
+    return { ...(await accessOf(current, state)), price, changes }
   }
   if (local !== undefined && (!navigator.onLine || (await hasLocalChanges(resource)))) return fromLocal()
   try {
@@ -366,6 +373,7 @@ export async function saveRoster(
   }
   const refusal = lockedRosterRefusal(previous, roster)
   if (refusal) throw new Error(refusal)
+  if (roster.automaticName && !navigator.onLine) await localConstruction(roster.catalogueId)
   const price = roster.automaticName ? pricedRoster(roster) : null
   if (roster.automaticName) roster.name = price?.label ?? previous?.name ?? ''
   await queueLocal('saveRoster', { ...roster, name: roster.automaticName ? '' : roster.name }, resource, {
@@ -441,6 +449,7 @@ function overlaySummaries(
 export function projectLocalState(state: LocalState) {
   const client = localClient()
   if (!client || localOwner()?.id !== state.owner) return
+  const unbuilt = new Set<string>()
   for (const [resource, document] of Object.entries(state.documents)) {
     if (resource.startsWith('query:')) {
       client.setQueryData(JSON.parse(resource.slice(6)), document.data)
@@ -458,7 +467,17 @@ export function projectLocalState(state: LocalState) {
     const id = resource.slice(7)
     const roster = document.data as LocalRoster | null
     const previous = client.getQueryData<Awaited<ReturnType<typeof server.rosterBootstrap>>>(rosterBootstrapKey(id))
-    if (roster && previous?.roster.updatedAt === roster.updatedAt) continue
+    // Offline, prices and variant names come from construction data built on this thread, which costs a phone a whole
+    // rules version, so only a roster on screen builds it and is projected again once it has.
+    const built = navigator.onLine || !roster || Boolean(builtConstruction(roster.catalogueId))
+    const shown = Boolean(
+      client
+        .getQueryCache()
+        .find({ queryKey: rosterBootstrapKey(id), exact: true })
+        ?.getObserversCount(),
+    )
+    if (roster && !built && shown) unbuilt.add(roster.catalogueId)
+    if (roster && previous?.roster.updatedAt === roster.updatedAt && (previous.price !== null || !built)) continue
     const access = roster ? accessFor(roster, state) : null
     client.setQueryData(rosterAccessKey(id), access)
     client.setQueryData(sharedRosterKey(id), roster)
@@ -471,6 +490,11 @@ export function projectLocalState(state: LocalState) {
   if (summaries !== undefined || state.operations.some((operation) => operation.resource.startsWith('roster:')))
     client.setQueryData(savedRosterSummariesKey(), overlaySummaries(summaries ?? [], state))
   projectBattles(state)
+  for (const catalogueId of unbuilt)
+    void localConstruction(catalogueId).then(async (built) => {
+      const latest = built && (await localEngine()?.storage.read())
+      if (latest) projectLocalState(latest)
+    })
 }
 
 export async function deleteRoster(args: Parameters<typeof server.deleteRoster>[0]): ReturnType<typeof server.deleteRoster> {
@@ -619,7 +643,7 @@ export async function savedRosterLoadoutDatasheets(
         const roster = !args.data.battle
           ? local
           : localClient()?.getQueryData<LocalRoster | null>(sharedRosterKey(args.data.id, args.data.battle))
-        const construction = roster && localConstruction(roster.catalogueId)
+        const construction = roster && (await localConstruction(roster.catalogueId))
         if (!roster || !construction) throw error ?? new Error('Army data is unavailable.')
         return rosterLoadoutDatasheets(construction.catalogue, datasheetSchema.parse(inputFor(roster)), construction.rules)
       },
@@ -697,7 +721,7 @@ export async function savedRosterPage(args: Parameters<typeof server.savedRoster
   const fresh = await calculationRead(
     (signal) => server.savedRosterPage({ ...args, signal }),
     (error) => {
-      if (!constructionData()) throw error ?? new Error('Download army rules before using them offline.')
+      if (!hasLocalConstruction()) throw error ?? new Error('Download army rules before using them offline.')
       return undefined
     },
     args.signal,
@@ -726,7 +750,7 @@ export async function savedRosterPage(args: Parameters<typeof server.savedRoster
         id,
         ...assessment,
         changes: cached?.find((row) => row.id === id)?.changes ?? 0,
-        differences: accessFor(roster, state).differences,
+        differences: (await accessOf(roster, state)).differences,
       })
     }),
   )
@@ -743,7 +767,7 @@ export async function homeRosters(args?: { signal?: AbortSignal }): ReturnType<t
   const fresh = await calculationRead(
     (signal) => server.homeRosters({ signal }),
     (error) => {
-      if (!constructionData()) throw error ?? new Error('Download army rules before using them offline.')
+      if (!hasLocalConstruction()) throw error ?? new Error('Download army rules before using them offline.')
       return undefined
     },
     args?.signal,
@@ -888,9 +912,9 @@ export async function rosterChanges(args: Parameters<typeof server.rosterChanges
 }
 export const savedRosterChangedIds = () => cachedRead(savedRosterChangedIdsKey(), () => server.savedRosterChangedIds())
 
-export const combatUnits = () => {
-  const saved = savedQuery<Awaited<ReturnType<typeof server.combatUnits>>>(referenceData(), combatUnitsKey())
-  return saved ? Promise.resolve(saved) : server.combatUnits()
+export const combatUnits = async () => {
+  const saved = await loadSavedQuery<Awaited<ReturnType<typeof server.combatUnits>>>(referenceData(), combatUnitsKey())
+  return saved ?? server.combatUnits()
 }
 
 export const publicBattles = (args: Parameters<typeof server.publicBattles>[0]) =>

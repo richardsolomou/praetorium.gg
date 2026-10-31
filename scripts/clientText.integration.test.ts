@@ -3,7 +3,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { gunzipSync } from 'node:zlib'
 import { beforeAll, describe, expect, it } from 'vitest'
-import { decodeReferenceBundle } from '../src/contracts/offlineReference'
+import { decodeReferencePart, isReferenceQueries } from '../src/contracts/offlineReference'
 import { compileCanonicalCatalogueFromSnapshot, loadCanonicalCatalogue } from '../src/server/canonicalCatalogue'
 import { loadCatalogue } from '../src/server/catalogueIndex'
 import { compiledGlobalSearchIndex } from '../src/server/globalSearch'
@@ -101,16 +101,10 @@ describe.skipIf(!exists)('what the browser gets from Praetorium', () => {
       fs.mkdirSync(path.join(out, 'assets'))
       await prepareReferenceBundle(out, await checkoutReferenceKey(root), root)
       for (const file of fs.readdirSync(path.join(out, 'assets'))) {
-        const bundle = decodeReferenceBundle(JSON.parse(gunzipSync(fs.readFileSync(path.join(out, 'assets', file))).toString())) as {
-          queries: unknown
-          search: unknown
-          construction?: unknown
-        }
-        published.push({ name: `offline ${file} queries`, value: bundle.queries })
-        construction.push(
-          { name: `offline ${file} search`, value: bundle.search },
-          { name: `offline ${file} construction`, value: bundle.construction },
-        )
+        const part = decodeReferencePart(gunzipSync(fs.readFileSync(path.join(out, 'assets', file))).toString())
+        // Reference queries are published like the service's own responses; search and construction data are not shown as such.
+        if (isReferenceQueries(part)) published.push({ name: `offline ${file} queries`, value: part })
+        else construction.push({ name: `offline ${file}`, value: part })
       }
     } finally {
       fs.rmSync(out, { recursive: true, force: true })

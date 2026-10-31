@@ -1,26 +1,56 @@
-import { afterEach, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { system, bookOf, points, card, withCards } from '../../server/catalogue.fixtures'
 import { packRuntimeData } from '../../contracts/runtimeData'
 import { catalogueEditionSchema } from '../../core/catalogueEdition'
-import type { OfflineConstructionSource } from '../../contracts/offlineReference'
+import type { OfflineConstructionBase, OfflineConstructionSource } from '../../contracts/offlineReference'
 import { calculateRosterAssessment } from '../../shared/pricing'
-import { localConstruction, constructionRead, warmLocalConstruction } from './construction'
-import { compressReference, decompressReference } from './compressedReference'
+import { battleRules, constructionRead, loadLocalRules, localConstruction } from './construction'
 import { buildConstruction } from './constructionSource'
 import { datacardOf } from '../../shared/datasheetJoin'
 import { shareRuntimeData } from '../../contracts/sharedRuntimeData'
 import type { RuntimeData } from '../../contracts/runtimeData'
-import type { TerrainLayout, TerrainTemplate } from '../../contracts/terrain'
+import type { TerrainLayout } from '../../contracts/terrain'
 import { TERRAIN_GEOMETRY_VERSION } from '../../contracts/terrainReference'
+import type { BattleState } from '../../core/battle'
 
-const mocks = vi.hoisted(() => ({ reference: vi.fn(), device: vi.fn() }))
-vi.mock('./runtime', () => ({ referenceData: mocks.reference }))
+const mocks = vi.hoisted(() => ({ reference: vi.fn(), device: vi.fn(), query: vi.fn(), parts: new Map<string, unknown>(), read: vi.fn() }))
+vi.mock('./runtime', () => ({
+  referenceData: mocks.reference,
+  loadSavedQuery: mocks.query,
+  partsReachable: () => false,
+  subscribeReference: () => () => {},
+}))
+vi.mock('./referenceStore', () => ({ readPart: mocks.read }))
 vi.mock('./constructionWorker', () => ({ deviceConstructionRead: mocks.device }))
+beforeEach(() => {
+  mocks.read.mockImplementation(async (asset: string) => {
+    if (!mocks.parts.has(asset)) throw new Error('This part of the download is unavailable')
+    return structuredClone(mocks.parts.get(asset))
+  })
+})
 afterEach(() => {
   vi.unstubAllGlobals()
   vi.useRealTimers()
   mocks.device.mockReset()
+  mocks.read.mockReset()
 })
+
+let downloads = 0
+/** Saves construction data as a download publishes it: the current rules' catalogue and rules apart, other versions on their own. */
+function saveDownload(base: OfflineConstructionSource, editions: (OfflineConstructionSource | OfflineConstructionBase)[] = []) {
+  const { rules, ...catalogue } = base
+  const revision = `download-${++downloads}`
+  mocks.parts.clear()
+  mocks.parts.set(`/${revision}/catalogue`, { ...catalogue, editions: editions.filter((edition) => 'base' in edition) })
+  mocks.parts.set(`/${revision}/rules`, { revision: base.revision, rules })
+  const named: Record<string, string> = {}
+  for (const edition of editions)
+    if (!('base' in edition)) mocks.parts.set((named[edition.edition!.id] = `/${revision}/${edition.edition!.id}`), edition)
+  mocks.reference.mockReturnValue({
+    download: { revision, construction: { catalogue: `/${revision}/catalogue`, rules: `/${revision}/rules`, editions: named } },
+    editions: Object.keys(named),
+  })
+}
 
 function source(cost: number, versioned = false): OfflineConstructionSource {
   const loaded = bookOf({ selectionEntries: [{ id: 'unit', name: 'Unit', type: 'model', costs: points(cost) }] })
@@ -82,90 +112,48 @@ it('keeps archived profile authority after a versioned offline reconstruction', 
   }).toEqual({ archived: null, ordinary: true })
 })
 
-it('uses the selected codex prices and legality without changing the base catalogue', () => {
-  mocks.reference.mockReturnValue({ construction: { ...source(80), editions: [source(1001, true)] } })
-  const selected = localConstruction('codex~cat')!
-  const assessed = calculateRosterAssessment(
+const assessedPoints = (selected: NonNullable<Awaited<ReturnType<typeof localConstruction>>>) =>
+  calculateRosterAssessment(
     { catalogueId: 'codex~cat', detachmentIds: [], disposition: null, units: [{ entryId: 'unit' }], limit: 1000 },
     selected.catalogue,
     selected.rules,
-  )
-  expect({ points: assessed?.points, edition: selected.catalogue.edition?.id, base: localConstruction('cat')?.revision }).toEqual({
+  )?.points
+
+it('uses the selected codex prices and legality without changing the base catalogue', async () => {
+  saveDownload(source(80), [source(1001, true)])
+  const selected = (await localConstruction('codex~cat'))!
+  expect({
+    points: assessedPoints(selected),
+    edition: selected.catalogue.edition?.id,
+    base: (await localConstruction('cat'))?.revision,
+  }).toEqual({
     points: 1001,
     edition: 'codex',
     base: 'base-revision',
   })
 })
 
-it('reuses a selected source and replaces it after a reference refresh', () => {
-  const saved = source(80, true)
-  mocks.reference.mockReturnValue({ construction: { ...source(80), editions: [saved] } })
-  const first = localConstruction('codex~cat')
-  expect(localConstruction('codex~cat')).toBe(first)
-  mocks.reference.mockReturnValue({ construction: { ...source(80), editions: [source(90, true)] } })
-  expect(localConstruction('codex~cat')).not.toBe(first)
+it('reuses a selected source and replaces it after a reference refresh', async () => {
+  saveDownload(source(80), [source(80, true)])
+  const first = await localConstruction('codex~cat')
+  expect(await localConstruction('codex~cat')).toBe(first)
+  saveDownload(source(80), [source(90, true)])
+  expect(await localConstruction('codex~cat')).not.toBe(first)
 })
 
-it('restores battle terrain from shared reference queries without duplicating layouts', () => {
-  const layout: TerrainLayout = {
-    id: 'layout-a',
-    name: 'Layout A',
-    description: null,
-    matchupId: 'purge-vs-purge',
-    variant: 1,
-    deploymentId: 'search-and-destroy',
-    pieces: [],
-    geometry: { board: { width: 60, height: 44 }, areas: [] },
-  }
-  const template: TerrainTemplate = { id: 'ruin', name: 'Ruin', kind: 'ruin', points: [{ x: 0, y: 0 }], features: [] }
-  const terrain = { layouts: [layout], templates: [template] }
-  mocks.reference.mockReturnValue({
-    construction: source(80),
-    queries: [
-      { key: ['terrain-references', TERRAIN_GEOMETRY_VERSION, 'purge-vs-purge'], data: terrain },
-      { key: ['terrain-references', TERRAIN_GEOMETRY_VERSION, 'purge-vs-other'], data: terrain },
-    ],
-  })
-  const { terrainLayouts, terrainTemplates } = localConstruction()!.rules
-  expect({ terrainLayouts, terrainTemplates }).toEqual({ terrainLayouts: [layout], terrainTemplates: [template] })
-})
-
-it('does not restore terrain from unrelated queries or an incompatible geometry version', () => {
-  mocks.reference.mockReturnValue({
-    construction: source(80),
-    queries: [
-      { key: ['terrain-references', TERRAIN_GEOMETRY_VERSION - 1], data: { layouts: [{ id: 'old-layout' }], templates: [] } },
-      { key: ['unrelated', TERRAIN_GEOMETRY_VERSION], data: { layouts: [{ id: 'unrelated-layout' }], templates: [] } },
-    ],
-  })
-  expect(localConstruction()!.rules.terrainLayouts).toEqual([])
-})
-
-it('keeps construction terrain from older downloads without shared terrain queries', () => {
-  const saved = source(80)
-  const layouts = [{ id: 'legacy-layout', geometry: { board: { width: 60, height: 44 }, areas: [] } }]
-  saved.rules = { ...(saved.rules as object), terrainLayouts: packRuntimeData(layouts) }
-  mocks.reference.mockReturnValue({ construction: saved, queries: [] })
-  expect(localConstruction()!.rules.terrainLayouts).toEqual(layouts)
-})
-
-it('reconstructs a named base edition offline with stable caching and current prices', () => {
+it('reconstructs a named base edition offline with stable caching and current prices', async () => {
   const edition = source(80, true).edition!
-  mocks.reference.mockReturnValue({ construction: { ...source(80), editions: [{ base: true, version: 1, revision: 'current', edition }] } })
-  const selected = localConstruction('codex~cat')!
+  saveDownload(source(80), [{ base: true, version: 1, revision: 'current', edition }])
+  const selected = (await localConstruction('codex~cat'))!
   expect({
-    points: calculateRosterAssessment(
-      { catalogueId: 'codex~cat', detachmentIds: [], disposition: null, units: [{ entryId: 'unit' }], limit: 1000 },
-      selected.catalogue,
-      selected.rules,
-    )?.points,
+    points: assessedPoints(selected),
     revision: selected.revision,
     edition: selected.catalogue.edition?.id,
-    cached: localConstruction('codex~cat') === selected,
+    cached: (await localConstruction('codex~cat')) === selected,
   }).toEqual({ points: 80, revision: 'current', edition: 'codex', cached: true })
 })
 
-it('reconstructs shared archived construction only when selected and keeps its own prices', () => {
+it('reconstructs shared archived construction only when selected and keeps its own prices', async () => {
   const base = source(80)
   const archived = source(1001, true)
   const shared = {
@@ -176,42 +164,60 @@ it('reconstructs shared archived construction only when selected and keeps its o
     datacards: shareRuntimeData(archived.datacards, base.datacards),
     mfm: shareRuntimeData(archived.mfm, base.mfm),
     rules: shareRuntimeData(archived.rules, base.rules),
-  }
-  mocks.reference.mockReturnValue({ construction: { ...base, shared: true, editions: [shared] } })
-  const selected = localConstruction('codex~cat')!
-  expect({
-    points: calculateRosterAssessment(
-      { catalogueId: 'codex~cat', detachmentIds: [], disposition: null, units: [{ entryId: 'unit' }], limit: 1000 },
-      selected.catalogue,
-      selected.rules,
-    )?.points,
-    cached: localConstruction('codex~cat') === selected,
-    base: localConstruction('cat')?.revision,
-  }).toEqual({ points: 1001, cached: true, base: 'base-revision' })
-})
-
-it('refuses a shared source whose base reference is missing', () => {
-  const archived = { ...source(80, true), datacards: { $praetoriumBase: ['missing'] } }
-  mocks.reference.mockReturnValue({ construction: { ...source(80), shared: true, editions: [archived] } })
-  expect(() => localConstruction('codex~cat')).toThrow('Missing shared runtime data')
-})
-
-it('restores retained construction prose on demand from the saved text pool', () => {
-  const description = 'Historical rules prose.'
-  const base = source(80)
-  base.rules = { ...(base.rules as object), abilityDescriptions: packRuntimeData(new Map([['unit', { $praetoriumText: 0 }]])) }
-  const edition = source(80, true).edition!
-  mocks.reference.mockReturnValue({
-    construction: { ...base, texts: [description], editions: [{ base: true, version: 1, revision: 'current', edition }] },
+  } as OfflineConstructionSource
+  saveDownload(base, [shared])
+  expect((await localConstruction('cat'))?.revision).toBe('base-revision')
+  expect(mocks.read.mock.calls.map(([asset]) => asset)).not.toContain(mocks.reference().download.construction.editions.codex)
+  const selected = (await localConstruction('codex~cat'))!
+  expect({ points: assessedPoints(selected), cached: (await localConstruction('codex~cat')) === selected }).toEqual({
+    points: 1001,
+    cached: true,
   })
+})
+
+it('builds nothing from a shared source whose base reference is missing', async () => {
+  saveDownload(source(80), [{ ...source(80, true), datacards: { $praetoriumBase: ['missing'] } }])
+  expect(await localConstruction('codex~cat')).toBeNull()
+})
+
+it('validates battles with the rules part alone and the terrain of their own matchup', async () => {
+  saveDownload(source(80))
+  const layout = { id: 'layout-a', matchupId: 'purge-vs-take' } as TerrainLayout
+  mocks.query.mockResolvedValue({ layouts: [layout], templates: [] })
+  const state = {
+    players: [
+      { id: 'one', side: 0, roster: { built: { disposition: 'purge' } } },
+      { id: 'two', side: 1, roster: { built: { disposition: 'take' } } },
+    ],
+    sideDispositions: {},
+    status: 'playing',
+  } as unknown as BattleState
+  const loaded = await battleRules(state)
   expect({
-    base: localConstruction('cat')!.rules.abilityDescriptions.get('unit'),
-    named: localConstruction('codex~cat')!.rules.abilityDescriptions.get('unit'),
-  }).toEqual({ base: description, named: description })
+    read: mocks.read.mock.calls.map(([asset]) => asset),
+    terrain: mocks.query.mock.calls[0]?.[1],
+    layouts: loaded?.rules.terrainLayouts,
+    revision: loaded?.revision,
+  }).toEqual({
+    read: [mocks.reference().download.construction.rules],
+    terrain: ['terrain-references', TERRAIN_GEOMETRY_VERSION, 'purge-vs-take', 'take-vs-purge'],
+    layouts: [layout],
+    revision: 'base-revision',
+  })
+})
+
+it('reads the battle rules again after a failed read instead of refusing every later command', async () => {
+  saveDownload(source(80))
+  const rules = mocks.reference().download.construction.rules
+  const saved = mocks.parts.get(rules)
+  mocks.parts.delete(rules)
+  expect(await loadLocalRules()).toBeNull()
+  mocks.parts.set(rules, saved)
+  expect((await loadLocalRules())?.revision).toBe('base-revision')
 })
 
 it('refuses unavailable codexes offline instead of reading base rules or requesting the server', async () => {
-  mocks.reference.mockReturnValue({ construction: source(80) })
+  saveDownload(source(80))
   vi.stubGlobal('window', {})
   vi.stubGlobal('navigator', { onLine: false })
   const online = vi.fn()
@@ -292,26 +298,4 @@ it('keeps exports on the server, which records them, while the device could answ
   mocks.device.mockReturnValue(Promise.resolve('device'))
   const online = vi.fn().mockResolvedValue('server')
   expect(await constructionRead('exportRoster', {} as never, online, 'cat')).toBe('server')
-})
-
-it('schedules construction data for idle time without decoding it while the page renders', async () => {
-  const restored = decompressReference(
-    await compressReference({
-      version: 1,
-      savedAt: 1,
-      revision: 'saved',
-      queries: [],
-      search: { factions: [], detachments: [], datasheets: [], missions: [], rules: [] },
-      css: '',
-      logo: '',
-      construction: source(80),
-    }),
-  )!
-  mocks.reference.mockReturnValue(restored)
-  const idle = vi.fn()
-  vi.stubGlobal('window', { requestIdleCallback: idle })
-  const parse = vi.spyOn(JSON, 'parse')
-  warmLocalConstruction()
-  expect({ scheduled: idle.mock.calls.length, decoded: parse.mock.calls.length }).toEqual({ scheduled: 1, decoded: 0 })
-  parse.mockRestore()
 })

@@ -1,4 +1,4 @@
-import { savedApplicationDigest, waitForOfflineApp } from './offline'
+import { OLDER_REVISION, REFERENCE_CACHE, saveOlderMovingRule, savedApplicationDigest, savedCore, waitForOfflineApp } from './offline'
 import { expect, test } from './test'
 import { createRoster, scrollSearchResultIntoView, signUp, uniqueName, PHONE } from './account'
 import { add } from './builder.harness'
@@ -9,11 +9,10 @@ test('the home page paints before downloading the offline application and keeps 
   request,
 }) => {
   test.setTimeout(240_000)
-  const bundles: string[] = []
-  // The download runs in a worker, whose requests are missing from the page's resource timing.
+  const parts: string[] = []
   const downloads: number[] = []
   page.on('request', (assetRequest) => {
-    if (/\/assets\/(reference|construction)-[a-f0-9]+\.bin$/.test(assetRequest.url())) bundles.push(assetRequest.url())
+    if (/\/assets\/(reference|construction)-[a-f0-9]+\.bin$/.test(assetRequest.url())) parts.push(new URL(assetRequest.url()).pathname)
     if (/\/assets\/((reference|construction)-[a-f0-9]+\.bin|offline-app-[a-f0-9]+\.js)$/.test(assetRequest.url()))
       downloads.push(Date.now())
   })
@@ -21,28 +20,36 @@ test('the home page paints before downloading the offline application and keeps 
   await expect(page.locator('main h1')).toBeVisible()
   await waitForOfflineApp(page)
   const navigationStart = await page.evaluate(() => performance.timeOrigin)
-  expect(downloads).toHaveLength(3)
   expect(Math.min(...downloads) - navigationStart).toBeGreaterThanOrEqual(10_000)
 
   const manifest = await request.get('/offline-reference-version.json')
   expect(manifest.headers()['cache-control']).toBe('no-store')
-  const reference = await manifest.json()
-  // The reference comes first so pages and search can use it while construction data downloads.
-  expect(bundles).toEqual([
-    `${new URL(page.url()).origin}${reference.bundle}`,
-    `${new URL(page.url()).origin}${reference.construction.current}`,
-  ])
-  const bundle = await request.get(reference.bundle)
-  expect(bundle.headers()['content-type']).toBe('application/octet-stream')
-  expect(bundle.headers()['content-encoding']).toBeUndefined()
-  expect((await bundle.body()).subarray(0, 2).toString('hex')).toBe('1f8b')
+  const { reference, construction } = await manifest.json()
+  // Each part downloads once, the core first; a device without lists on other rules versions skips theirs.
+  const sorted = (assets: string[]) => assets.toSorted((left, right) => left.localeCompare(right))
+  expect({ first: parts[0], parts: sorted(parts) }).toEqual({
+    first: reference.core,
+    parts: sorted([
+      reference.core,
+      reference.search,
+      ...Object.values<string>(reference.parts),
+      construction.catalogue,
+      construction.rules,
+    ]),
+  })
+  const part = await request.get(reference.core)
+  expect(part.headers()['content-type']).toBe('application/octet-stream')
+  expect(part.headers()['content-encoding']).toBeUndefined()
+  expect((await part.body()).subarray(0, 2).toString('hex')).toBe('1f8b')
   const appManifest = await request.get('/offline-app-version.json')
   expect(appManifest.headers()['cache-control']).toBe('no-store')
   const app = await appManifest.json()
   await page.route('**/offline-app-version.json', (route) => route.fulfill({ json: { ...app, revision: 'next-app-version' } }))
+  const downloaded = parts.length
   await page.evaluate(() => window.dispatchEvent(new Event('online')))
   await expect.poll(() => page.evaluate(() => window.PraetoriumReferenceCache?.appRevision), { timeout: 60_000 }).toBe('next-app-version')
-  expect(bundles).toHaveLength(2)
+  // An application update keeps every stored part.
+  expect(parts).toHaveLength(downloaded)
   await expect(page.locator('main h1')).toBeVisible()
 })
 
@@ -54,47 +61,14 @@ test('the complete reference keeps its existing UI after a cold offline launch',
   await page.goto('/rules/core-rules/moving')
   await expect(page.locator('main details').first()).toBeAttached()
   await page.goto('/rules')
-  await expect
-    .poll(() => page.evaluate(async () => Boolean(await (await caches.open('praetorium-reference-v2')).match('/offline-reference.html'))), {
-      timeout: 180_000,
-    })
-    .toBe(true)
+  await waitForOfflineApp(page)
   expect(
-    await page.evaluate(async (name) => {
-      const saved = await (await caches.open('praetorium-reference-v2')).match('/offline-reference.html')
-      return (await saved!.text()).includes(name)
-    }, player),
+    await page.evaluate(
+      async ({ name, text }) => (await (await (await caches.open(name)).match('/offline-reference.html'))!.text()).includes(text),
+      { name: REFERENCE_CACHE, text: player },
+    ),
   ).toBe(false)
-  await page.evaluate(async () => {
-    const cache = await caches.open('praetorium-reference-v2')
-    const html = await (await cache.match('/offline-reference.html'))!.text()
-    const serialized = html.match(/<script>window\.PraetoriumOffline=([^]*?);<\/script>/)![1]
-    const json = serialized.startsWith('JSON.parse(') ? JSON.parse(serialized.slice('JSON.parse('.length, -1)) : serialized
-    const packed = JSON.parse(json)
-    const decode = (base64: string) =>
-      new Response(
-        new Blob([Uint8Array.from(atob(base64), (char) => char.charCodeAt(0))]).stream().pipeThrough(new DecompressionStream('gzip')),
-      ).json()
-    const reference = await decode(packed.reference)
-    const data = {
-      ...reference,
-      queries: reference.queries.map((entry: { key: unknown[]; json: string }) => ({ key: entry.key, data: JSON.parse(entry.json) })),
-      ...(packed.construction ? { construction: await decode(packed.construction) } : {}),
-    }
-    data.revision = 'previous-reference'
-    data.queries.find((entry: { key: string[] }) => entry.key.join('/') === 'rule-section/core-rules/moving').data.section.title =
-      'Saved Moving'
-    const expression = JSON.stringify(data).replaceAll('<', '\\u003c')
-    await cache.put(
-      '/offline-reference.html',
-      new Response(
-        html.replace(serialized, () => expression),
-        {
-          headers: { 'Content-Type': 'text/html; charset=utf-8' },
-        },
-      ),
-    )
-  })
+  await saveOlderMovingRule(page, 'Saved Moving')
   const { promise: delayed, resolve: release } = Promise.withResolvers<void>()
   await page.route('**/offline-reference-version.json', async (route) => {
     await delayed
@@ -114,10 +88,13 @@ test('the complete reference keeps its existing UI after a cold offline launch',
   await expect(page.getByRole('region', { name: 'Offline reference' })).toHaveCount(0)
   await expect
     .poll(() =>
-      page.evaluate(async () => {
-        const saved = await (await caches.open('praetorium-reference-v2')).match('/offline-reference.html')
-        return saved ? (await saved.text()).includes('previous-reference') : true
-      }),
+      page.evaluate(
+        async ({ name, older }) => {
+          const saved = await (await caches.open(name)).match('/offline-reference.html')
+          return saved ? (await saved.text()).includes(older) : true
+        },
+        { name: REFERENCE_CACHE, older: OLDER_REVISION },
+      ),
     )
     .toBe(false)
   const download = await savedApplicationDigest(page)
@@ -171,12 +148,10 @@ test('the complete reference keeps its existing UI after a cold offline launch',
   await expect(offline.locator('[data-datasheet]')).toHaveCount(1)
   await offline.getByRole('link', { name: /^Necron Warriors [0-9]+ pts$/ }).click()
   await expect(offline.getByRole('heading', { name: 'Necron Warriors', exact: true })).toBeVisible()
-  const catalogueId = await offline.evaluate(() => {
-    const index = window.PraetoriumOffline!.queries.find((entry) => entry.key[0] === 'faction-index')!.data as {
-      factions: { id: string; displayName: string }[]
-    }
-    return index.factions.find((faction) => faction.displayName === 'Necrons')!.id
-  })
+  const index = (await savedCore(offline)).find((entry) => entry.key[0] === 'faction-index')!.data as {
+    factions: { id: string; displayName: string }[]
+  }
+  const catalogueId = index.factions.find((faction) => faction.displayName === 'Necrons')!.id
   await offline.goto(`/factions/necrons/rules/${catalogueId}/datasheets/immortals`)
   await expect(offline.getByRole('heading', { name: 'Immortals', exact: true })).toBeVisible()
   await expect(offline).toHaveURL(`/factions/necrons/rules/mfm-1-6/datasheets/immortals`)

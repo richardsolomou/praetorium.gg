@@ -5,24 +5,54 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useRouter } from '@tanstack/react-router'
 import { afterInitialScreen } from './background'
 import { requestNativeOfflineSave, supportsNativeOffline } from '../nativeBridge'
-import { referenceData, setPublishedReference, warmDownloadSearch } from './runtime'
-import { packedConstructionOf, withConstructionOf } from './compressedReference'
+import { offlineData, referenceData, setPublishedReference } from './runtime'
 import { applyReferenceData } from './referenceData'
-import { restoreReferenceInBackground } from './referenceRestoreWorker'
-import { REFERENCE_CACHE, SAVED_APPLICATION } from './referenceRestore'
-import { constructionBundleFor, offlineAppVersion, offlineReferenceVersion } from './download'
-import { partsOf } from './referenceDownload'
-import { downloadInBackground } from './referenceDownloadWorker'
-import { rulesVersionsIn, rulesVersionsInUse } from './rulesVersionsInUse'
+import { saveReference, savedReference, storePart, storesEvery } from './referenceStore'
+import { offlineAppVersion, offlineApplication, offlineReferenceVersion } from './download'
+import { cataloguesIn, cataloguesInUse } from './cataloguesInUse'
 import { PUBLIC_REFERENCE_QUERIES } from '../../contracts/appSnapshot'
-import type { OfflineReferenceVersion } from '../../contracts/offlineReference'
+import type { OfflineReferenceData, OfflineReferenceVersion } from '../../contracts/offlineReference'
+import { catalogueEditionId } from '../../core/catalogueEdition'
 import { withTimeout } from '../abortSignals'
 import { useClientValue } from '../useClientValue'
 
 const RECHECK_MS = 5 * 60_000
+/** Parts are small, so a few download at once to hide a phone's round trips. */
+const PARALLEL_PARTS = 4
 
-const usesOtherVersions = (manifest: OfflineReferenceVersion, inUse: ReadonlySet<string>) =>
-  manifest.construction.versions.some((id) => inUse.has(id))
+/** Rules versions besides the current rules whose construction data the device saves: every one it saved before, and those its account data names. */
+function editionsFor(manifest: OfflineReferenceVersion, kept: readonly string[], catalogues: Iterable<string>) {
+  const named = [...catalogues].map(catalogueEditionId).filter((id) => id !== null)
+  return [...new Set([...kept, ...named])].filter((id) => Object.hasOwn(manifest.construction.editions, id)).toSorted()
+}
+
+/** Every part a download stores, the player's own factions and rules first so they are on the device soonest. */
+function partsInOrder(manifest: OfflineReferenceVersion, editions: string[], catalogues: Iterable<string>) {
+  const { reference, construction } = manifest
+  return new Set([
+    reference.core,
+    ...[...catalogues].flatMap((id) => reference.parts[`faction:${id}`] ?? []),
+    construction.rules,
+    construction.catalogue,
+    ...editions.map((id) => construction.editions[id]!),
+    reference.search,
+    ...Object.values(reference.parts),
+  ])
+}
+
+/** Resolves once the registration's newest worker is active: an earlier release's reads only the download it saved. */
+function activeWorker(registration: ServiceWorkerRegistration) {
+  const incoming = registration.installing ?? registration.waiting
+  if (!incoming) return navigator.serviceWorker.ready
+  return new Promise<void>((resolve) => {
+    const settled = () => {
+      if (incoming.state === 'activated' || incoming.state === 'redundant') resolve()
+    }
+    incoming.addEventListener('statechange', settled)
+    settled()
+  })
+}
+
 export function OfflineReference() {
   const client = useQueryClient()
   const router = useRouter()
@@ -36,13 +66,16 @@ export function OfflineReference() {
     let controller: AbortController | null = null
     let pending = false
     let published: OfflineReferenceVersion | null = null
-    let otherVersions = false
+    const requested = new Set<string>()
     const restore = async () => {
-      if (referenceData() || (supportsNativeOffline() && !window.PraetoriumReferenceCache)) return
-      const data = await restoreReferenceInBackground(window.PraetoriumReferenceCache)
-      if (!data || !active || referenceData()) return
-      applyReferenceData(client, data, true)
-      warmDownloadSearch()
+      if (offlineData()) return
+      // The device's storage is the one record of what it saved. A native shell injects its saved download here, the
+      // whole of it from an earlier release, which stays only until storage answers and never over one applied since.
+      const injected = window.PraetoriumReferenceCache
+      const data = await savedReference()
+      if (!active || window.PraetoriumReferenceCache !== injected) return
+      window.PraetoriumReferenceCache = undefined
+      if (data) await applyReferenceData(client, data, true)
     }
     const refresh = async (force = false): Promise<void> => {
       if (!active || !started || !navigator.onLine) return
@@ -61,57 +94,42 @@ export function OfflineReference() {
         published = manifest
         setPublishedReference(manifest)
         const held = referenceData()
-        // Every rules version stays once needed: account data naming one can leave the query cache.
-        otherVersions ||= held?.allRulesVersions === true || usesOtherVersions(manifest, rulesVersionsInUse(client))
-        const constructionUrl = constructionBundleFor(manifest, otherVersions)
-        if (held?.revision === manifest.revision && held.appRevision === version.revision && held.constructionBundle === constructionUrl)
+        const catalogues = cataloguesInUse(client)
+        // Another tab may have saved rules versions this one never loaded, which must stay saved.
+        const stored = await savedReference()
+        const editions = editionsFor(manifest, [...(held?.editions ?? []), ...(stored?.editions ?? [])], catalogues)
+        if (
+          held?.download.revision === manifest.revision &&
+          held.appRevision === version.revision &&
+          held.editions.join() === editions.join() &&
+          (await storesEvery(held))
+        )
           return
         if (!downloads) {
           // The download pass after the page settles checks again without waiting out the recheck interval.
           lastCheck.current = 0
           return
         }
-        const pack = await downloadInBackground(
-          {
-            manifest,
-            version,
-            constructionUrl,
-            allRulesVersions: otherVersions,
-            held: held
-              ? {
-                  revision: held.revision,
-                  ...(held.revision === manifest.revision ? { parts: partsOf(held) } : {}),
-                  construction: held.constructionBundle === constructionUrl ? (packedConstructionOf(held) ?? held.construction) : undefined,
-                }
-              : null,
-            origin: location.origin,
-          },
-          abort.signal,
-          // Pages and search answer from a new reference while its construction data downloads. The held construction
-          // data stays for offline use meanwhile; the device answers from it only while the service still publishes it.
-          (reference) => {
-            applyReferenceData(
-              client,
-              held ? withConstructionOf({ ...reference, constructionBundle: held.constructionBundle }, held) : reference,
-            )
-            warmDownloadSearch()
-          },
+        // Each part is stored as published, never decoded here, and one already stored is not fetched again.
+        const queue = [...partsInOrder(manifest, editions, catalogues)]
+        await Promise.all(
+          Array.from({ length: PARALLEL_PARTS }, async () => {
+            for (let asset = queue.shift(); asset; asset = queue.shift()) await storePart(asset, abort.signal)
+          }),
         )
+        const data: OfflineReferenceData = { version: 2, savedAt: Date.now(), appRevision: version.revision, download: manifest, editions }
+        const html = await offlineApplication(data, version, abort.signal, location.origin)
         abort.signal.throwIfAborted()
         if (supportsNativeOffline()) {
-          if (!(await requestNativeOfflineSave({ html: pack.html, savedAt: pack.savedAt })))
-            throw new Error('Application bundle could not be saved')
+          if (!(await requestNativeOfflineSave({ html, savedAt: data.savedAt }))) throw new Error('Application bundle could not be saved')
         } else {
-          await navigator.serviceWorker.register('/reference-worker.js')
-          await navigator.serviceWorker.ready
-          await (
-            await caches.open(REFERENCE_CACHE)
-          ).put(SAVED_APPLICATION, new Response(pack.html, { headers: { 'Content-Type': 'text/html; charset=utf-8' } }))
+          await activeWorker(await navigator.serviceWorker.register('/reference-worker.js'))
           // Browsers may evict an unvisited site's storage; an installed app asks to keep it. Only installed, because Firefox prompts.
           if (matchMedia('(display-mode: standalone)').matches) void navigator.storage?.persist?.().catch(() => false)
         }
         abort.signal.throwIfAborted()
-        applyReferenceData(client, pack.data)
+        await saveReference(data, supportsNativeOffline() ? null : html)
+        await applyReferenceData(client, data)
       } catch (error) {
         // A failed background refresh leaves the last complete download in use.
         if (!abort.signal.aborted)
@@ -123,6 +141,8 @@ export function OfflineReference() {
                 : 'error',
           })
       } finally {
+        // Stops the other download loops once one part fails, so a retry never fetches the same parts alongside them.
+        abort.abort()
         controller = null
         if (pending) {
           pending = false
@@ -153,10 +173,12 @@ export function OfflineReference() {
     )
     // Account data loaded later can name another rules version, whose construction data must be saved before going offline.
     const unsubscribe = client.getQueryCache().subscribe((event) => {
-      if (event.type !== 'updated' || event.action.type !== 'success' || !published || otherVersions) return
+      if (event.type !== 'updated' || event.action.type !== 'success' || !published) return
       if (PUBLIC_REFERENCE_QUERIES.has(String(event.query.queryKey[0]))) return
-      if (!usesOtherVersions(published, rulesVersionsIn(event.query.state.data))) return
-      otherVersions = true
+      const held = new Set(referenceData()?.editions)
+      const wanted = editionsFor(published, [], cataloguesIn(event.query.state.data)).filter((id) => !held.has(id) && !requested.has(id))
+      if (!wanted.length) return
+      for (const id of wanted) requested.add(id)
       void refresh(true)
     })
     const interval = setInterval(() => {

@@ -1,78 +1,133 @@
-import { referenceData } from './runtime'
-import { holdsConstruction } from './compressedReference'
+import { loadSavedQuery, partsReachable, referenceData, subscribeReference } from './runtime'
+import { readPart } from './referenceStore'
 import { calculationRead } from './calculationRead'
 import { deviceConstructionRead } from './constructionWorker'
 import { SERVER_READS, type ConstructionReadData, type ConstructionReadName } from './constructionReads'
-import { buildConstruction, constructionSource, runConstructionRead } from './constructionSource'
-import type { OfflineConstructionSource } from '../../contracts/offlineReference'
-import { TERRAIN_GEOMETRY_VERSION } from '../../contracts/terrainReference'
+import { buildConstruction, constructionSource, loadConstructionData, runConstructionRead } from './constructionSource'
+import { MAX_REFERENCE_PART_BYTES, type OfflineConstructionRules, type OfflineReferenceData } from '../../contracts/offlineReference'
+import { unpackRuntimeData } from '../../contracts/runtimeData'
+import { TERRAIN_GEOMETRY_VERSION, terrainMatchupIds } from '../../contracts/terrainReference'
 import type { TerrainLayout, TerrainTemplate } from '../../contracts/terrain'
+import type { LoadedRules } from '../../shared/rules'
+import { sideDisposition, type BattleState } from '../../core/battle'
+import { catalogueEditionId } from '../../core/catalogueEdition'
 
-const cache = new WeakMap<OfflineConstructionSource, ReturnType<typeof buildConstruction>>()
+/** Whether the device holds construction data, which every saved download carries, without decoding any. */
+export const hasLocalConstruction = () => Boolean(referenceData())
 
-export function constructionData(catalogueId?: string) {
-  return constructionSource(referenceData()?.construction, catalogueId)
-}
+type LocalRules = { revision: string; rules: LoadedRules }
+let rules: { download: OfflineReferenceData['download']; value: Promise<LocalRules | null>; loaded?: LocalRules | null } | null = null
 
-/** Whether the device holds construction data, without the full build `localConstruction` runs on first use. */
-export function hasLocalConstruction() {
-  return Boolean(referenceData()?.construction)
-}
-
-/** `localConstruction()` once something has built it, never building or decoding it: the first build takes about a second on a phone. */
-export function builtLocalConstruction() {
+/**
+ * The current rules battles on this device are validated with, decoded from the download's rules part alone: battles
+ * never read catalogues. Without terrain layouts, which `battleRules` adds for one battle.
+ */
+export function loadLocalRules(): Promise<LocalRules | null> {
   const saved = referenceData()
-  return (saved && builtFor.get(saved)) || null
-}
-
-/** Builds `localConstruction()` while the page is idle, so an action needing it does not freeze the page to build it. */
-export function warmLocalConstruction() {
-  const saved = referenceData()
-  if (!saved || !holdsConstruction(saved) || builtLocalConstruction()) return () => {}
-  let cancelled = false
-  let handle = 0
-  const idle = (run: () => void) => {
-    const guarded = () => void (cancelled || run())
-    handle = window.requestIdleCallback ? window.requestIdleCallback(guarded, { timeout: 5_000 }) : window.setTimeout(guarded, 0)
+  if (!saved) return Promise.resolve(null)
+  if (rules?.download !== saved.download) {
+    const loading: NonNullable<typeof rules> = {
+      download: saved.download,
+      value: readPart(saved.download.construction.rules, MAX_REFERENCE_PART_BYTES, partsReachable()).then(
+        (part) => {
+          const { revision, rules: packed } = part as OfflineConstructionRules
+          return { revision, rules: unpackRuntimeData<LoadedRules>(packed) }
+        },
+        () => null,
+      ),
+    }
+    void loading.value.then((value) => {
+      loading.loaded = value
+      // A failed read is tried again by the next command rather than refusing every one.
+      if (!value && rules === loading) rules = null
+    })
+    rules = loading
   }
-  // Two steps of a few hundred milliseconds each on a phone, so a tap between them is not held up by both.
-  idle(() => {
-    constructionData()
-    idle(() => localConstruction())
-  })
+  return rules.value
+}
+
+/** `loadLocalRules()` once settled, never loading it: undefined until then, null when the rules could not be read. */
+export function localRules() {
+  const saved = referenceData()
+  return saved && rules?.download === saved.download ? rules.loaded : undefined
+}
+
+/** Loads the battle rules once the page has a download, so the first command does not wait for them. */
+export function warmLocalRules() {
+  const warm = () => void loadLocalRules()
+  const handle = window.setTimeout(warm, 0)
+  const unsubscribe = subscribeReference(warm)
   return () => {
-    cancelled = true
-    if (window.cancelIdleCallback) window.cancelIdleCallback(handle)
-    else window.clearTimeout(handle)
+    window.clearTimeout(handle)
+    unsubscribe()
   }
 }
 
-const builtFor = new WeakMap<object, ReturnType<typeof buildConstruction>>()
+/** The current rules with the terrain layouts of a battle's matchup, which its setup is validated against. */
+export async function battleRules(state: BattleState): Promise<LocalRules | null> {
+  const loaded = await loadLocalRules()
+  if (!loaded) return null
+  const sides = [...new Set(state.players.map((player) => player.side))].toSorted((left, right) => left - right)
+  const matchups = terrainMatchupIds(sides.flatMap((side) => sideDisposition(state, side) ?? []))
+  const terrain = matchups.length
+    ? await loadSavedQuery<{ layouts: TerrainLayout[]; templates: TerrainTemplate[] }>(referenceData(), [
+        'terrain-references',
+        TERRAIN_GEOMETRY_VERSION,
+        ...matchups,
+      ])
+    : undefined
+  return terrain ? { ...loaded, rules: { ...loaded.rules, terrainLayouts: terrain.layouts, terrainTemplates: terrain.templates } } : loaded
+}
 
-export function localConstruction(catalogueId?: string) {
-  const saved = constructionData(catalogueId)
-  if (!saved) return null
-  const existing = cache.get(saved)
-  if (existing) {
-    if (!catalogueId) builtFor.set(referenceData()!, existing)
-    return existing
+type Built = ReturnType<typeof buildConstruction>
+let local: {
+  download: OfflineReferenceData['download']
+  parts: Map<string, Promise<unknown>>
+  built: Map<string, { value: Promise<Built | null>; loaded?: Built | null }>
+} | null = null
+
+/**
+ * A rules version's catalogues and rules decoded on this thread, for offline work the construction worker has not
+ * prepared. Each version builds once per download, decoding the current rules' catalogues once for all of them.
+ */
+export function localConstruction(catalogueId?: string): Promise<Built | null> {
+  const saved = referenceData()
+  if (!saved) return Promise.resolve(null)
+  if (local?.download !== saved.download) local = { download: saved.download, parts: new Map(), built: new Map() }
+  const { parts, built } = local
+  const key = (catalogueId && catalogueEditionId(catalogueId)) ?? ''
+  const existing = built.get(key)
+  if (existing) return existing.value
+  const read = (asset: string, limit: number) => {
+    let part = parts.get(asset)
+    if (!part) {
+      parts.set(asset, (part = readPart(asset, limit, partsReachable())))
+      part.catch(() => parts.delete(asset))
+    }
+    return part
   }
-  const built = buildConstruction(saved)
-  const terrain =
-    referenceData()
-      ?.queries?.filter(({ key }) => key[0] === 'terrain-references' && key[1] === TERRAIN_GEOMETRY_VERSION)
-      .map(({ data }) => data as { layouts: TerrainLayout[]; templates: TerrainTemplate[] }) ?? []
-  if (terrain.length) {
-    built.rules.terrainLayouts = [
-      ...new Map(terrain.flatMap(({ layouts }) => layouts.map((layout) => [layout.id, layout] as const))).values(),
-    ]
-    built.rules.terrainTemplates = [
-      ...new Map(terrain.flatMap(({ templates }) => templates.map((template) => [template.id, template] as const))).values(),
-    ]
+  const entry: { value: Promise<Built | null>; loaded?: Built | null } = {
+    value: loadConstructionData(saved.download.construction, catalogueId, read)
+      .then((data) => {
+        const source = constructionSource(data, catalogueId)
+        return source ? buildConstruction(source) : null
+      })
+      .catch(() => null),
   }
-  cache.set(saved, built)
-  if (!catalogueId) builtFor.set(referenceData()!, built)
-  return built
+  void entry.value.then((value) => {
+    entry.loaded = value
+    if (!value) built.delete(key)
+  })
+  built.set(key, entry)
+  return entry.value
+}
+
+/** `localConstruction(catalogueId)` once it has built, never building it. */
+export function builtConstruction(catalogueId?: string) {
+  const saved = referenceData()
+  return (
+    (saved && local?.download === saved.download && local.built.get((catalogueId && catalogueEditionId(catalogueId)) ?? '')?.loaded) || null
+  )
 }
 
 /**
@@ -90,8 +145,8 @@ export function constructionRead<K extends ConstructionReadName, T>(
   const remote = () =>
     calculationRead(
       online,
-      (error) => {
-        const construction = localConstruction(catalogueId)
+      async (error) => {
+        const construction = await localConstruction(catalogueId)
         if (construction) return runConstructionRead(name, construction, data) as T
         throw error ?? new Error('Download this army’s rules online before using them offline.')
       },
