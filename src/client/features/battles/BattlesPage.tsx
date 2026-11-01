@@ -48,9 +48,9 @@ export function BattlesPage({ view: asked }: { view: BattlesView }) {
         actions={
           me ? (
             <>
-              <GuideHelp task="battle">Battle guide</GuideHelp>
               {view === 'mine' ? <ImportBattles /> : null}
               {view === 'mine' && !battles.length ? null : <CreateBattle />}
+              <GuideHelp task="battle">Battle guide</GuideHelp>
             </>
           ) : (
             <Link to="/sign-in" search={{ next: '/battles' }} className={buttonClass()}>

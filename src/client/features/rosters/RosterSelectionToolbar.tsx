@@ -25,12 +25,16 @@ export function RosterSelectionToolbar({
   error,
   onChange,
   onDelete,
+  allSelected,
+  onSelectAll,
 }: {
   selected: SavedRoster[]
   pending: boolean
   error: unknown
   onChange: (action: RosterBatchAction, ids: string[]) => void
   onDelete: () => void
+  allSelected: boolean
+  onSelectAll: (all: boolean) => void
 }) {
   const ids = (applies: (roster: SavedRoster) => boolean) => selected.filter(applies).map((roster) => roster.id)
   const choices = (
@@ -55,6 +59,9 @@ export function RosterSelectionToolbar({
       <output className="mr-auto text-sm text-dim">
         {selected.length ? `${countLabel(selected.length, 'roster')} selected` : 'Choose rosters to change together.'}
       </output>
+      <Button size="sm" variant="ghost" disabled={pending} onClick={() => onSelectAll(!allSelected)}>
+        {allSelected ? 'Clear' : 'Select all'}
+      </Button>
       {selected.length ? (
         <>
           <div className="hidden flex-wrap justify-end gap-2 sm:flex">

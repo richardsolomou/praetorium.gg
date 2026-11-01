@@ -116,22 +116,10 @@ export function RosterRow({
             data-roster={title}
             data-variant={layout === 'variant' || undefined}
             data-selected={selection?.checked || undefined}
-            className={`flex items-center gap-2 p-2 ${rosterRowFrame[layout]} data-selected:bg-raised`}
+            className={`relative flex items-center gap-2 p-2 ${rosterRowFrame[layout]} data-selected:bg-raised`}
           />
         }
       >
-        {selection ? (
-          <label className="-my-1 flex size-10 shrink-0 cursor-pointer items-center justify-center has-disabled:cursor-not-allowed">
-            <input
-              type="checkbox"
-              className="size-5 accent-parchment"
-              aria-label={`Select ${title}`}
-              checked={selection.checked}
-              disabled={selection.disabled}
-              onChange={(event) => selection.onCheckedChange(event.target.checked)}
-            />
-          </label>
-        ) : null}
         <Link to="/rosters/$id" params={{ id: roster.id }} className="flex min-w-0 flex-1 flex-wrap items-center gap-2 p-1">
           {layout === 'variant' ? (
             <RosterVariantSummary
@@ -162,7 +150,11 @@ export function RosterRow({
           )}
         </Link>
         <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
-          <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label={`Actions for ${title}`} />}>
+          <DropdownMenuTrigger
+            render={
+              <Button variant="ghost" size="icon-sm" aria-label={`Actions for ${title}`} className={selection ? 'invisible' : undefined} />
+            }
+          >
             <EllipsisVertical />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
@@ -172,6 +164,19 @@ export function RosterRow({
             <RosterActionItems Item={DropdownMenuItem} Separator={DropdownMenuSeparator} showPrivacy {...items} />
           </DropdownMenuContent>
         </DropdownMenu>
+        {selection ? (
+          // Covers the whole row so a tap selects rather than opens it, with the box where the menu sat so nothing moves.
+          <label className="absolute inset-0 flex cursor-pointer items-center justify-end pr-3 has-disabled:cursor-not-allowed">
+            <input
+              type="checkbox"
+              className="size-5 accent-parchment"
+              aria-label={`Select ${title}`}
+              checked={selection.checked}
+              disabled={selection.disabled}
+              onChange={(event) => selection.onCheckedChange(event.target.checked)}
+            />
+          </label>
+        ) : null}
       </ContextMenuTrigger>
       <ContextMenuContent className="w-56">
         <RosterActionItems Item={ContextMenuItem} Separator={ContextMenuSeparator} {...items} />
