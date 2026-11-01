@@ -191,6 +191,18 @@ function cardTurn(value: unknown): NonNullable<Stratagem['turn']> | null {
   if (value === 'either') return 'either'
   return null
 }
+// Some source tags contradict the printed When line, such as a Movement phase card tagged Fight in either turn; a single printed phase wins.
+function stratagemTiming(entry: Record<string, unknown>) {
+  const when = localizedField(entry, 'when')
+  const printed = phaseFromWhen(when)
+  const tagged = cardPhases(entry.phase)
+  const untagged = Array.isArray(entry.phase) && entry.phase.length === 0
+  const phases =
+    tagged === null ? (untagged ? printed : null) : printed && tagged.length && !tagged.includes(printed[0]!) ? printed : tagged
+  const owner = printed && when?.match(/\b(your|opponent['’]s) (?:command|movement|shooting|charge|fight|end) phase\b/i)?.[1]
+  const turn = owner ? (owner.toLowerCase() === 'your' ? 'your-turn' : 'opponent-turn') : cardTurn(entry.turn)
+  return { phases, turn }
+}
 export const enhancementPoints = (datacards: LoadedDatacards, detachment: string, enhancement: string) =>
   datacards.enhancementPoints.get(descriptionKey(detachment, enhancement)) ?? null
 export function factionContent(
@@ -278,10 +290,7 @@ export function factionContent(
     const stratagemName = localizedField(entry, 'name')
     const cp = integerField(entry, 'cost')
     const description = stratagemText(entry, texts)
-    const phases =
-      cardPhases(entry.phase) ??
-      (Array.isArray(entry.phase) && entry.phase.length === 0 ? phaseFromWhen(localizedField(entry, 'when')) : null)
-    const turn = cardTurn(entry.turn)
+    const { phases, turn } = stratagemTiming(entry)
     if (!id || !stratagemName || cp === null || !description) {
       if (stratagemName) cards.set(routeSlug(stratagemName), null)
       if (id) {

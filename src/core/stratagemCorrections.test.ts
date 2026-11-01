@@ -25,6 +25,18 @@ it('leaves corrected source timing unchanged', () => {
   expect(correctStratagemTiming(corrected)).toBe(corrected)
 })
 
+it('moves a saved Will of the Conqueror to the end of its own Movement phase', () => {
+  const stratagem: Stratagem = {
+    key: '67b709ee-a1f7-5fc8-a373-560628694a49',
+    name: 'Will of the Conqueror',
+    cp: 1,
+    limit: 'phase',
+    phases: ['fight'],
+    turn: 'either',
+  }
+  expect(correctStratagemTiming(stratagem)).toEqual({ ...stratagem, phases: ['movement'], turn: 'your-turn' })
+})
+
 it('corrects only the missing battle restriction on the source New Orders card', () => {
   const stratagem: Stratagem = {
     key: '0f9b69bd-a7e0-5e3d-b3fc-d0440c30269c',
