@@ -68,3 +68,26 @@ Witchseeker Squad (55 Points)
 ◦ 4x Gun Stock
 
 Exported with App Version: v2.8.0 (2), Data Version: v981`
+
+/** 40k.app text from the automatic import failure report on 1 November 2026, Praetorium v0.208.8. */
+export const custodesFortyKApp = `Adeptus Custodes · Emperor’s Chosen · Auric Champions
+Adeptus Custodes · Emperor’s Chosen · Auric Champions
+Mission: Purge the Foe
+980/1000 pts
+
+LEADERS & CHARACTERS [215 pts]
+Blade Champion [215 pts] - Warlord
+Attached to Custodian Guard Sodality
+Enhancement: Radiant Mantle (+40 pts)
+Vaultswords
+
+BATTLELINE [240 pts]
+Custodian Guard Sodality [240 pts] (3 models)
+Led by Blade Champion
+3× Guardian Spear
+
+INFANTRY, SWARMS, BEASTS [525 pts]
+Allarus Custodians [270 pts] (3 models)
+3× Balistus Grenade Launcher + Guardian Spear
+Venatari with Kinetic Destroyers [255 pts] (3 models)
+3× Kinetic Destroyer + Tarsus Buckler`

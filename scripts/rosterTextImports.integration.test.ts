@@ -13,14 +13,16 @@ import {
   warmindOfficial,
 } from '../src/core/rosterText.fixtures'
 import type { LoadedCatalogue } from '../src/server/catalogueIndex'
-import { custodesOfficial } from '../src/core/rosterText.custodes.fixture'
+import { custodesFortyKApp, custodesOfficial } from '../src/core/rosterText.custodes.fixture'
 import { astraMilitarumNewRecruit, kriegGermanOfficial } from '../src/core/rosterText.krieg.fixture'
 import { necronsOfficial } from '../src/core/rosterText.necrons.fixture'
 import { blackTemplarsNewRecruit } from '../src/core/rosterText.blackTemplars.fixture'
 import { chaosSpaceMarinesNewRecruit } from '../src/core/rosterText.chaosSpaceMarines.fixture'
 import { bloodAngelsOfficial } from '../src/core/rosterText.bloodAngels.fixture'
 import { salamandersOfficial } from '../src/core/rosterText.salamanders.fixture'
-import { spaceWolvesOfficial } from '../src/core/rosterText.spaceWolves.fixture'
+import { spaceWolvesFortyKApp, spaceWolvesFortyKAppGrouped, spaceWolvesOfficial } from '../src/core/rosterText.spaceWolves.fixture'
+import { agentsFortyKApp } from '../src/core/rosterText.agents.fixture'
+import { spaceMarinesFortyKAppMarkdown } from '../src/core/rosterText.spaceMarines.fixture'
 import { whiteScarsOfficialFlattened } from '../src/core/rosterText.whiteScars.fixture'
 import { nameOf } from '../src/core/catalogue'
 import type { LoadedRules } from '../src/shared/rules'
@@ -263,6 +265,123 @@ Grey Knights Terminator Squad (185 Points)
       mismatches: [],
       points: '2000 for 2000',
     })
+  })
+
+  it.each([
+    ['the reported Custodes', custodesFortyKApp, 'Imperium - Adeptus Custodes', 2, '4 of 4', 1, '980 for 980'],
+    ['Space Wolves with allies', spaceWolvesFortyKApp, 'Imperium - Adeptus Astartes - Space Wolves', 3, '12 of 12', 2, '2565 for 2565'],
+    ['grouped Space Wolves', spaceWolvesFortyKAppGrouped, 'Imperium - Adeptus Astartes - Space Wolves', 3, '12 of 12', 2, '2565 for 2565'],
+    ['Agents of the Imperium', agentsFortyKApp, 'Imperium - Agents of the Imperium', 1, '11 of 11', 2, '3155 for 3155'],
+    [
+      'Space Marines as Markdown',
+      spaceMarinesFortyKAppMarkdown,
+      'Imperium - Adeptus Astartes - Space Marines',
+      1,
+      '10 of 10',
+      0,
+      '3020 for 3020',
+    ],
+  ])('imports 40k.app text of %s without mismatches', (_, file, faction, detachments, units, attached, points) => {
+    expect(summary(file)).toEqual({ format: '40k-app', faction, detachments, units, attached, mismatches: [], points })
+  })
+
+  it("keeps a 40k.app unit's note as its private note", () => {
+    expect(imported(spaceMarinesFortyKAppMarkdown).units.flatMap((unit) => unit.note ?? [])).toEqual(['Move block, then charge'])
+  })
+
+  // Units from lists built on 40k.app on 1 November 2026, each naming a piece the catalogue spells, combines or files differently.
+  const fortyKAppUnit = (army: string, unit: string) => `Units\n${army}\nMission: Purge the Foe\n0/2000 pts\n\nUNITS [0 pts]\n${unit}`
+  it.each([
+    [
+      'combined loadouts',
+      'Adeptus Mechanicus · Cohort Acquisitus',
+      'Kataphron Breachers [290 pts] (6 models)\n  6× Heavy arc rifle / 6× Hydraulic claw',
+    ],
+    [
+      'one model with two heavy weapons',
+      'Asuryani · Windrider Host',
+      'War Walkers A [80 pts]\n  War Walker feet / Scatter laser / Shuriken cannon\nWar Walkers B [80 pts]\n  War Walker feet / 2× Scatter laser',
+    ],
+    [
+      'a weapon the model itself holds',
+      'Asuryani · Windrider Host',
+      'Hemlock Wraithfighter [155 pts]\n  2× Heavy D-scythe + Wraithbone hull',
+    ],
+    [
+      'an ability listed as wargear',
+      'Dark Angels · Wrath of the Rock',
+      "Azrael [150 pts]\n  Lion's Wrath + The Lion Helm + The Sword of Secrets",
+    ],
+    ['hyphens', 'Imperial Fists · Gravis Linebreaker Force', 'Tor Garadon [90 pts]\n  Artificer Grav-gun + Hand of Defiance'],
+    [
+      '"and" for "&"',
+      'Adeptus Mechanicus · Cohort Acquisitus',
+      'Serberys Raiders [75 pts] (3 models)\n  Cavalry sabre and clawed limbs + Mechanicus pistol + Galvanic carbine / 2× Galvanic carbine + Cavalry sabre and clawed limbs',
+    ],
+    [
+      'weapons an option prints',
+      'Necrons · Annihilation Legion',
+      'Triarch Praetorians [160 pts] (10 models)\n  10× Particle caster + Voidblade',
+    ],
+    [
+      'a weapon without its unit in its name',
+      'Adeptus Astartes · Gauntlet Task Force',
+      'Gladiator Lancer [160 pts]\n  Armoured Hull + Defensive Array + Laser Destroyer',
+    ],
+    [
+      'a datasheet named after its faction',
+      'World Eaters · Berzerker Warband',
+      'Chaos Warhound Titan [1100 pts]\n  Warhound feet / 2× Warhound vulcan mega-bolter',
+    ],
+    [
+      'an enhancement the field manual spells differently',
+      'Genestealer Cults · Biosanctic Broodsurge',
+      'Patriarch [105 pts]\n  Enhancement: Biomorph Adaptation (+25 pts)\n  Patriarch’s claws',
+    ],
+    [
+      'an enhancement the catalogue spells "TL-409"',
+      'Adeptus Mechanicus · Lords of the Forge',
+      'Technoarcheologist [75 pts]\n  Enhancement: TL-4ø9 (+30 pts)\n  Mechanicus pistol + Servo-arc claw',
+    ],
+    [
+      'an enhancement the catalogue calls "Sublime Presence"',
+      'Emperor’s Children · Rapid Evisceration',
+      'Lord Exultant [120 pts]\n  Enhancement: Sublime Prescience (+25 pts)\n  Master-crafted power sword / Plasma pistol / Bolt Pistol + Close combat weapon',
+    ],
+    ['default gear only its datacard names', 'Asuryani · Windrider Host', 'Solitaire [105 pts]\n  Flip Belt + Solitaire weapons'],
+    [
+      'a qualifier in brackets',
+      'Orks · War Horde',
+      'Tankbustas [160 pts] (6 models)\n  Rokkit Pistol + Smash Hammer / 5× Gitstikka + Busta Rokkit Launcha / Choppa / Pulsa Rokkit (Once per battle, per unit)',
+    ],
+    [
+      'a retinue it prints no count for',
+      'Adepta Sororitas · Sacred Champions',
+      'Canis Rex [415 pts]\n  Questoris multi-laser + Freedom’s Hand + Las-impulsor',
+    ],
+  ])('places 40k.app wargear given %s', (_, army, unit) => {
+    expect(summary(fortyKAppUnit(army, unit)).mismatches).toEqual([])
+  })
+
+  it('reads a 40k.app detachment spelled with a space', () => {
+    const file = fortyKAppUnit(
+      'Adeptus Mechanicus · Haloscreed Battle Clade',
+      'Kataphron Breachers [290 pts] (6 models)\n  6× Heavy arc rifle / 6× Hydraulic claw',
+    )
+    expect(summary(file)).toMatchObject({ detachments: 1, mismatches: [] })
+  })
+
+  it('keeps a note 40k.app prints where hidden default gear would be', () => {
+    const file = fortyKAppUnit(
+      'Adeptus Mechanicus · Lords of the Forge',
+      'Technoarcheologist [75 pts]\n  Enhancement: TL-4ø9 (+30 pts)\n  Kill priority: anything with a lascannon',
+    )
+    expect(imported(file)).toMatchObject({ unplaced: [], units: [{ note: 'Kill priority: anything with a lascannon' }] })
+  })
+
+  it('reads a 40k.app unit without a model count as one model', () => {
+    const file = fortyKAppUnit('Asuryani · Windrider Host', 'War Walkers [80 pts]\n  War Walker feet / 2× Scatter laser')
+    expect(imported(file).units.map((unit) => unit.models)).toEqual([1])
   })
 
   it('imports the reported official-app Space Wolves roster without mismatches', () => {

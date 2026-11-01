@@ -6,6 +6,10 @@ const ALIASES: readonly (readonly [alias: string, canonical: string])[] = [
   ['Brood Brother Auxilia', 'Brood Brothers Auxilia'],
   // BSData Imperium - Space Marines.json@b8667d4 marks 5eb6-4ed2-6aca-c7f1 unfinished, as lists exported then still do; Game Datacards, MFM and later BSData omit the suffix.
   ['Deathwatch Support (ITS NOT READY)', 'Deathwatch Support'],
+  // 40k.app's list builder, as of 1 November 2026, puts a comma after the Ordo in these three.
+  ['Ordo Hereticus, Purgation Force', 'Ordo Hereticus Purgation Force'],
+  ['Ordo Malleus, Daemon Hunters', 'Ordo Malleus Daemon Hunters'],
+  ['Ordo Xenos, Alien Hunters', 'Ordo Xenos Alien Hunters'],
 ]
 
 export function canonicalDetachmentName(name: string) {

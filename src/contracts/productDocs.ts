@@ -56,7 +56,7 @@ export const PRODUCT_DOCS = [
     slug: 'import-a-list',
     section: 'Imports',
     title: 'Import a list',
-    description: 'Paste a list from New Recruit, ListForge, BattleBase, Warmind or the official app.',
+    description: 'Paste a list from New Recruit, ListForge, BattleBase, Warmind, 40k.app or the official app.',
   },
   {
     slug: 'import-review',

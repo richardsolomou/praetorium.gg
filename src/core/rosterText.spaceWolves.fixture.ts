@@ -149,3 +149,114 @@ Thunderwolf Cavalry (260 points)
       5x Wolf Guard Weapon
 
 Exported with App Version: v2.8.1 (149), Data Version: v995`
+
+/** 40k.app text of a test list built on 1 November 2026, with allies, a leader and a support in one unit, and a unit taken twice. */
+export const spaceWolvesFortyKApp = `Praetorium test Space Wolves
+Space Wolves · Assault Brethren · Champions of Fenris · Deathwatch Support
+Mission: Take and Hold
+2565/2000 pts
+
+Space Wolves [1780 pts]
+
+EPIC HEROES [105 pts]
+  Arjac Rockfist [105 pts]
+    Foehammer
+
+LEADERS & CHARACTERS [210 pts]
+  Ancient [60 pts]
+    Attached to Intercessor Squad
+    Enhancement: Imperium’s Sword (+20 pts)
+    Bolt Pistol + Ceramite Fists / Power Weapon
+  Iron Priest [70 pts] - Warlord
+    Attached to Intercessor Squad
+    Enhancement: Furious Assault (Upgrade) (+10 pts)
+    Helfrost Pistol + Tempest Hammer and Servo-arm
+  Wolf Guard Battle Leader [80 pts]
+    Master-crafted Power Weapon / Plasma Pistol
+
+BATTLELINE [610 pts]
+  Blood Claws A [290 pts] (20 models)
+    19× Bolt Pistol + Chainsword / Plasma Pistol / Power Weapon
+  Blood Claws B [150 pts] (10 models)
+    9× Bolt Pistol + Chainsword / Plasma Pistol / Power Weapon
+  Intercessor Squad [170 pts] (10 models)
+    Led by Iron Priest and supported by Ancient
+    10× Bolt Pistol / 10× Bolt Rifle / 9× Knives and Fists / Thunder Hammer / Grenade Launcher
+
+MOUNTED [230 pts]
+  Invader ATVs [70 pts]
+    Armoured Impact + Bolt Pistol + Twin Bolt Rifle / Multi-melta
+  Outrider Squad [160 pts] (6 models)
+    5× Chainsword / 5× Heavy Bolt Pistol / 6× Twin Bolt Rifle / Power Weapon / Plasma Pistol
+
+INFANTRY, SWARMS, BEASTS [75 pts]
+  Fenrisian Wolves [75 pts] (10 models)
+    10× Teeth and Claws
+
+TITANIC [550 pts]
+  Astraeus [550 pts]
+    2× Plasma Eradicator / Armoured Hull + 2× Ironhail Heavy Stubber + Storm Bolter + Twin Macro-accelerator Cannon / Twin Lascannon
+
+Imperial Knights [785 pts]
+
+TITANIC [785 pts]
+  Acastus Knight Asterius [785 pts]
+    2× Asterius volkite culverin + Karacnos mortar battery + Titanic feet + 2× Twin conversion beam cannon
+
+Exported from 40k.app, view the full list here:
+https://www.40k.app/lists/zFeUTzFtQ5`
+
+/** The same list with 40k.app's "Group attached units" export option on. */
+export const spaceWolvesFortyKAppGrouped = `Praetorium test Space Wolves
+Space Wolves · Assault Brethren · Champions of Fenris · Deathwatch Support
+Mission: Take and Hold
+2565/2000 pts
+
+Space Wolves [1780 pts]
+
+ATTACHED UNIT A [300 pts]
+  Ancient [60 pts]
+    Enhancement: Imperium’s Sword (+20 pts)
+    Bolt Pistol + Ceramite Fists / Power Weapon
+  Iron Priest [70 pts] - Warlord
+    Enhancement: Furious Assault (Upgrade) (+10 pts)
+    Helfrost Pistol + Tempest Hammer and Servo-arm
+  Intercessor Squad [170 pts] (10 models)
+    10× Bolt Pistol / 10× Bolt Rifle / 9× Knives and Fists / Thunder Hammer / Grenade Launcher
+
+EPIC HEROES [105 pts]
+  Arjac Rockfist [105 pts]
+    Foehammer
+
+LEADERS & CHARACTERS [80 pts]
+  Wolf Guard Battle Leader [80 pts]
+    Master-crafted Power Weapon / Plasma Pistol
+
+BATTLELINE [440 pts]
+  Blood Claws A [290 pts] (20 models)
+    19× Bolt Pistol + Chainsword / Plasma Pistol / Power Weapon
+  Blood Claws B [150 pts] (10 models)
+    9× Bolt Pistol + Chainsword / Plasma Pistol / Power Weapon
+
+MOUNTED [230 pts]
+  Invader ATVs [70 pts]
+    Armoured Impact + Bolt Pistol + Twin Bolt Rifle / Multi-melta
+  Outrider Squad [160 pts] (6 models)
+    5× Chainsword / 5× Heavy Bolt Pistol / 6× Twin Bolt Rifle / Power Weapon / Plasma Pistol
+
+INFANTRY, SWARMS, BEASTS [75 pts]
+  Fenrisian Wolves [75 pts] (10 models)
+    10× Teeth and Claws
+
+TITANIC [550 pts]
+  Astraeus [550 pts]
+    2× Plasma Eradicator / Armoured Hull + 2× Ironhail Heavy Stubber + Storm Bolter + Twin Macro-accelerator Cannon / Twin Lascannon
+
+Imperial Knights [785 pts]
+
+TITANIC [785 pts]
+  Acastus Knight Asterius [785 pts]
+    2× Asterius volkite culverin + Karacnos mortar battery + Titanic feet + 2× Twin conversion beam cannon
+
+Exported from 40k.app, view the full list here:
+https://www.40k.app/lists/zFeUTzFtQ5`
