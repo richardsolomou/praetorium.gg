@@ -254,8 +254,7 @@ export function CombatSimulator({
         title="Combat simulator"
         description="Compare shooting and melee between units or whole rosters. Try an editable Intercessors vs Necron Warriors example, or choose your own matchup."
         actions={
-          <div className="space-y-2">
-            <GuideHelp task="simulator">First matchup guide</GuideHelp>
+          <div className="flex flex-wrap items-center gap-2">
             <Button
               variant="outline"
               className="min-h-11"
@@ -268,7 +267,10 @@ export function CombatSimulator({
             >
               Try an example
             </Button>
-            {!units.isPending && !example ? <p className="text-sm text-dim">Example unavailable. Choose your own units below.</p> : null}
+            <GuideHelp task="simulator">First matchup guide</GuideHelp>
+            {!units.isPending && !example ? (
+              <p className="w-full text-sm text-dim">Example unavailable. Choose your own units below.</p>
+            ) : null}
           </div>
         }
       />

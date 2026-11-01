@@ -3,7 +3,10 @@ import { Button } from '@/components/ui/button'
 import type { OnboardingTaskId } from '../../../core/onboarding'
 import { openOnboarding, type OnboardingStepId } from './onboarding'
 
-/** `icon` shows only the icon, naming the guide to assistive technology and on hover, as a dialog's header actions are. */
+/**
+ * `icon` shows only the icon, naming the guide to assistive technology and on hover, as a dialog's header actions are.
+ * Without it, phones still get only the icon so the guide sits beside a row's real actions without crowding them.
+ */
 export function GuideHelp({
   task,
   step,
@@ -29,8 +32,15 @@ export function GuideHelp({
       </Button>
     )
   return (
-    <Button type="button" variant="ghost" size="sm" onClick={() => openOnboarding(task, step)}>
-      <CircleHelp className="size-4" /> {children}
+    <Button
+      type="button"
+      variant="ghost"
+      size="sm"
+      title={children}
+      className="max-sm:w-7 max-sm:px-0"
+      onClick={() => openOnboarding(task, step)}
+    >
+      <CircleHelp className="size-4" /> <span className="max-sm:sr-only">{children}</span>
     </Button>
   )
 }
