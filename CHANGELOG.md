@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.211.8 (2026-11-01)
+
+### Patch Changes
+
+- 2c45fcb: Previewing a unit before you add it shows what your detachment and list give it, such as Assault on weapons in Starshatter Arsenal.
+
 ## 0.211.7 (2026-11-01)
 
 ### Patch Changes
