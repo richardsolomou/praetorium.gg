@@ -1,5 +1,19 @@
 # praetorium
 
+## 0.208.9 (2026-11-01)
+
+### Patch Changes
+
+- 6348e11: Import lists pasted from 40k.app's text or Markdown export, keeping each unit's notes.
+- f06d135: Count gear a datasheet's card lists as standard, such as a Solitaire's flip belt, when importing a list.
+- f06d135: Match imported detachments written with an extra space, such as "Haloscreed Battle Clade".
+- 3a8c808: Match imported datasheets named after their faction, such as a "Chaos Warhound Titan".
+- f06d135: Match imported enhancements spelled as the Munitorum Field Manual spells them, such as "Biomorph Adaptation".
+- 3a8c808: Read imported units whose options pair two weapons, such as Kataphron Breachers.
+- 3a8c808: Match imported wargear spelled with hyphens or "&", without its unit's name, with a bracketed note such as "(Aura)", or listed by an ability's name.
+- 6348e11: Match Legends units in imported lists that leave out the "[Legends]" mark.
+- 3a8c808: Keep both weapons when a model that carries two from one list, such as a War Walker, takes two different ones.
+
 ## 0.208.8 (2026-11-01)
 
 ### Patch Changes
