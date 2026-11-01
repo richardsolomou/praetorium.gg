@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.211.3 (2026-11-01)
+
+### Patch Changes
+
+- 29a420e: The leaderboard lists everyone with a public battle, not only those who played in the last 90 days.
+- 107b8dd: The leaderboard shows each player's own record in every table, instead of their record with one army.
+
 ## 0.211.2 (2026-11-01)
 
 ### Patch Changes
