@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.211.1 (2026-11-01)
+
+### Patch Changes
+
+- fd91b92: Offer stratagems in the phase and turn their When line prints, such as Will of the Conqueror at the end of your Movement phase instead of the Fight phase.
+- bde391f: A quick double tap on a battle control acts only once, even when the service answers before the next screen shows.
+
 ## 0.211.0 (2026-11-01)
 
 ### Minor Changes
