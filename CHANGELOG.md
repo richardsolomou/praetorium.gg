@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.211.7 (2026-11-01)
+
+### Patch Changes
+
+- e72b2b1: You can reorder benchmark targets, which reorders the comparison table's columns.
+- e72b2b1: Benchmark targets show their units under the matchup sides, and clicking a unit edits it.
+
 ## 0.211.6 (2026-11-01)
 
 ### Patch Changes
