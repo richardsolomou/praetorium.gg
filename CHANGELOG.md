@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.211.2 (2026-11-01)
+
+### Patch Changes
+
+- 5da276c: Start and end of phase alerts now show when you return to a battle after the phase passed while you were away.
+
 ## 0.211.1 (2026-11-01)
 
 ### Patch Changes
