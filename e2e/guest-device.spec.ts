@@ -51,6 +51,30 @@ async function buildGuestRoster(page: Page) {
   await expect.poll(() => guestDraft(page)).toContain('"picks":[{')
 }
 
+test('a signed-in player joins and plays a guest seat on their device', async ({ page: host, browser }) => {
+  await host.setViewportSize(desktopContext.viewport)
+  const guest = await (await browser.newContext(desktopContext)).newPage()
+  const hostName = uniqueName('Signed-in guest host')
+  const guestName = uniqueName('Signed-in guest')
+  await signUp(host, hostName)
+  await signUp(guest, uniqueName('Guest account'))
+  const roster = await createRoster(host, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Host army' })
+  await createBattle(host, { guest: guestName })
+  await attachRoster(host, roster)
+  await host.getByRole('button', { name: `Invite ${guestName} to play on their device` }).click()
+  const invite = host.getByRole('dialog', { name: `Invite ${guestName} to play` })
+  await guest.goto((await invite.locator('p.break-all').textContent())!)
+  await guest.getByRole('button', { name: 'Join on this device' }).click()
+  await guest.waitForURL(/\/battles\/[^/]+$/)
+  await setupStep(guest, 'Armies')
+  await guest.getByRole('button', { name: `Remove the battle ready bonus for ${hostName}` }).click()
+  await expect(guest.getByRole('button', { name: `Add the battle ready bonus for ${hostName}` })).toBeVisible()
+  await guest.reload()
+  await setupStep(guest, 'Armies')
+  await expect(guest.getByRole('button', { name: `Add the battle ready bonus for ${hostName}` })).toBeVisible()
+  await shotAtWidths(guest, 'signed-in-guest', { fullPage: true })
+})
+
 test('a guest joins from their own device, plays their side and keeps the game by signing up', async ({ page: host, browser }) => {
   test.setTimeout(420_000)
   await host.setViewportSize(desktopContext.viewport)

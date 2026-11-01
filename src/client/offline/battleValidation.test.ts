@@ -105,6 +105,39 @@ const attach = () => submit({ data: { token: 'battle', expectedSeq: 0, command: 
 beforeEach(() => vi.resetAllMocks())
 afterEach(() => vi.unstubAllGlobals())
 
+it('opens a guest seat while signed in without downloading account history', async () => {
+  vi.stubGlobal('window', {})
+  vi.stubGlobal('navigator', { onLine: true })
+  const screen = { kind: 'battle', view: { viewerId: 'guest:battle:0', seq: 0 } }
+  mocks.open.mockResolvedValue(screen)
+  mocks.workspace.mockRejectedValue(new Error('you are not in this battle'))
+  const answer = await openBattle({ data: { token: 'battle' } })
+  expect({ answer, downloaded: mocks.workspace.mock.calls, saved: mocks.remember.mock.calls }).toEqual({
+    answer: screen,
+    downloaded: [],
+    saved: [],
+  })
+})
+
+it.each([false, true])('keeps a signed-in guest command online-only with returned history=%s', async (withWorkspace) => {
+  prepare(80)
+  mocks.document.mockResolvedValue(undefined)
+  vi.stubGlobal('navigator', { onLine: true })
+  const authoritative = {
+    result: { outcome: 'appended', seq: 1 },
+    screen: { kind: 'battle', view: { viewerId: 'guest:battle:0', seq: 1 } },
+    ...(withWorkspace ? { workspace } : {}),
+  }
+  mocks.submit.mockResolvedValue(authoritative)
+  mocks.workspace.mockRejectedValue(new Error('you are not in this battle'))
+  const answer = await submit({ data: { token: 'battle', expectedSeq: 0, command: { kind: 'set-attacker', attackerId: 'bob' } } })
+  expect({ answer, downloaded: mocks.workspace.mock.calls, saved: mocks.remember.mock.calls }).toEqual({
+    answer: authoritative,
+    downloaded: [],
+    saved: [],
+  })
+})
+
 it('freezes an offline roster from real pricing and records the validation revision before sync', async () => {
   prepare(80)
   await attach()
@@ -178,7 +211,7 @@ it('downloads and saves authoritative automatic settlement before showing its sc
   const input = settlement()
   vi.stubGlobal('navigator', { onLine: true })
   const fresh = { ...workspace, log: log(...started(), ...turns(6, ALICE), [ALICE, input.data.command]), serverSeq: 10 }
-  const screen = { kind: 'battle', view: { seq: 10 } }
+  const screen = { kind: 'battle', view: { viewerId: 'alice', seq: 10 } }
   const result = { outcome: 'appended', seq: 10 }
   mocks.submit.mockResolvedValue({ result, screen })
   mocks.workspace.mockResolvedValue({ workspace: fresh, screen })
@@ -190,7 +223,7 @@ it('saves the history returned with a connected command without downloading it a
   const input = settlement()
   vi.stubGlobal('navigator', { onLine: true })
   const fresh = { ...workspace, log: log(...started(), ...turns(6, ALICE), [ALICE, input.data.command]), serverSeq: 10 }
-  const screen = { kind: 'battle', view: { seq: 10 } }
+  const screen = { kind: 'battle', view: { viewerId: 'alice', seq: 10 } }
   mocks.submit.mockResolvedValue({ result: { outcome: 'appended', seq: 10 }, screen, workspace: fresh })
   await submit(input)
   expect({ downloads: mocks.workspace.mock.calls.length, saved: mocks.remember.mock.calls }).toEqual({
@@ -205,11 +238,11 @@ it('downloads a saved battle’s history while its screen loads', async () => {
   vi.stubGlobal('navigator', { onLine: true })
   let answer = (_screen: unknown) => {}
   mocks.open.mockReturnValue(new Promise((resolve) => (answer = resolve)))
-  mocks.workspace.mockResolvedValue({ workspace, screen: { kind: 'battle', view: { seq: 0 } } })
+  mocks.workspace.mockResolvedValue({ workspace, screen: { kind: 'battle', view: { viewerId: 'alice', seq: 0 } } })
   const opened = openBattle({ data: { token: 'battle' } })
   await vi.waitFor(() => expect(mocks.open).toHaveBeenCalled())
   const downloadedFirst = mocks.workspace.mock.calls.length
-  answer({ kind: 'battle', view: { seq: 0 } })
+  answer({ kind: 'battle', view: { viewerId: 'alice', seq: 0 } })
   await opened
   expect(downloadedFirst).toBe(1)
 })
@@ -217,7 +250,10 @@ it('downloads a saved battle’s history while its screen loads', async () => {
 it('does not show an automatic server advance when its offline history cannot download', async () => {
   const input = settlement()
   vi.stubGlobal('navigator', { onLine: true })
-  mocks.submit.mockResolvedValue({ result: { outcome: 'appended', seq: 10 }, screen: { kind: 'battle' } })
+  mocks.submit.mockResolvedValue({
+    result: { outcome: 'appended', seq: 10 },
+    screen: { kind: 'battle', view: { viewerId: 'alice', seq: 10 } },
+  })
   mocks.workspace.mockRejectedValue(new Error('Disconnected before download'))
   await expect(submit(input)).rejects.toThrow('Disconnected before download')
   expect(mocks.queue).not.toHaveBeenCalled()
@@ -233,8 +269,11 @@ it('preserves a local command saved while an automatic settlement response downl
     log: log(...started(), ...turns(6, ALICE), [ALICE, input.data.command], [ALICE, { kind: 'advance' }]),
   }
   mocks.changes.mockResolvedValueOnce(false).mockResolvedValueOnce(false).mockResolvedValueOnce(true)
-  mocks.submit.mockResolvedValue({ result: { outcome: 'appended', seq: 10 }, screen: { kind: 'battle' } })
-  mocks.workspace.mockResolvedValue({ workspace: fresh, screen: { kind: 'battle', view: { seq: 10 } } })
+  mocks.submit.mockResolvedValue({
+    result: { outcome: 'appended', seq: 10 },
+    screen: { kind: 'battle', view: { viewerId: 'alice', seq: 10 } },
+  })
+  mocks.workspace.mockResolvedValue({ workspace: fresh, screen: { kind: 'battle', view: { viewerId: 'alice', seq: 10 } } })
   mocks.document.mockResolvedValue(current)
   const answer = await submit(input)
   expect(answer.screen?.kind === 'battle' && answer.screen.view.seq).toBe(11)
@@ -350,7 +389,7 @@ it('downloads the winning setup history before displaying a competing defender c
   vi.stubGlobal('navigator', { onLine: true })
   const command = { kind: 'set-attacker' as const, attackerId: 'bob' }
   const fresh = { ...workspace, log: log([ALICE, command]), serverSeq: 1 }
-  const screen = { kind: 'battle', view: { seq: 1 } }
+  const screen = { kind: 'battle', view: { viewerId: 'alice', seq: 1 } }
   const result = { outcome: 'stale', seq: 1 }
   mocks.submit.mockResolvedValue({ result, screen })
   mocks.workspace.mockResolvedValue({ workspace: fresh, screen })

@@ -116,12 +116,12 @@ export async function openBattle(args: Parameters<typeof server.openBattle>[0]):
       const download = workspace && localEngine() ? battleWorkspace(args) : undefined
       download?.catch(() => {})
       const screen = await server.openBattle(args)
-      if (screen?.kind === 'battle' && localEngine()) {
+      if (screen?.kind === 'battle' && owner && screen.view.viewerId === owner.id && localEngine()) {
         const fresh = await (download ?? battleWorkspace(args))
-        await rememberBattle(fresh.workspace, owner?.id)
+        await rememberBattle(fresh.workspace, owner.id)
         if (await hasSyncableChanges(resource)) {
           const current = await localDocument<BattleWorkspace>(resource)
-          if (current && localOwner()?.id === owner?.id) return screenOf(current, owner!.id)
+          if (current && localOwner()?.id === owner.id) return screenOf(current, owner.id)
         }
         return fresh.screen
       }
@@ -157,7 +157,7 @@ export async function submit(args: Parameters<typeof server.submit>[0]): ReturnT
         })
       : null
   if (answer) {
-    if (answer.screen?.kind !== 'battle') return answer
+    if (answer.screen?.kind !== 'battle' || answer.screen.view.viewerId !== owner.id) return answer
     const fresh = answer.workspace ?? (await battleWorkspace({ data: { token: args.data.token } })).workspace
     await rememberBattle(fresh, owner.id)
     // A newer acknowledged copy saved meanwhile came with its own screen, which the command queue keeps over this one.
