@@ -69,8 +69,10 @@ export function withUnitSpread(
       : withSpread(selection, key, counts)
 
   // A group each model takes more than one pick from, such as a Crisis suit's two weapons, fills a model at a time.
-  if (group && (maximumCount(group, index) ?? UNBOUNDED) > 1) {
-    return spreadIndependentRepeatedGroup(selection, path, counts, repeating, group, index, options)
+  // Its cap is read as the unit stands, as a War Walker's heavy weapons group rises from one to two.
+  const picks = group ? (maximumCountAt(selection, path, group, index, options) ?? UNBOUNDED) : 1
+  if (group && picks > 1) {
+    return spreadIndependentRepeatedGroup(selection, path, counts, repeating, group, picks, index, options)
   }
   return spreadRepeatedGroup(selection, path, counts, repeating, index, options)
 }
@@ -405,6 +407,7 @@ function spreadIndependentRepeatedGroup(
   counts: Readonly<Record<string, number>>,
   repeating: { path: string[] },
   group: Definition,
+  picks: number,
   index: CatalogueIndex,
   evaluation: EvaluateOptions,
 ) {
@@ -422,7 +425,6 @@ function spreadIndependentRepeatedGroup(
     })),
   )
   const carriers = variants.reduce((total, model) => total + (model.count ?? 1), 0)
-  const picks = maximumCount(group, index) ?? UNBOUNDED
   const picked = (model: Selection) =>
     (at(model, withinModel)?.selections ?? []).reduce((total, child) => total + (optionIds.has(child.id) ? (child.count ?? 1) : 0), 0)
 
@@ -430,7 +432,7 @@ function spreadIndependentRepeatedGroup(
     // A limit can depend on the unit, as a Gun Drone's does, so it is read where the option would stand.
     const limit =
       selectionCountBoundsAt(selection, [...path, option.id], index, evaluation)?.maximum ?? maximumCount(option.definition, index)
-    const most = Math.max(1, limit ?? 1)
+    const most = Math.max(1, limit ?? picks)
     let remaining = Math.min(Math.max(0, counts[option.id] ?? 0), carriers * most)
     const equipped: Selection[] = []
     for (const model of variants) {

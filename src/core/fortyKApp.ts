@@ -49,7 +49,8 @@ export function fromFortyKAppText(input: string): TextRoster | null {
     if (unit) {
       current = {
         label: unit[1]!,
-        unit: { name: unit[1]!, models: unit[2] ? Number(unit[2]) : null, selections: [], leading: null, warlord: !!unit[3] },
+        // It prints a model count only for two or more.
+        unit: { name: unit[1]!, models: Number(unit[2] ?? 1), selections: [], leading: null, warlord: !!unit[3] },
         notes: [],
       }
       units.push(current)
@@ -70,7 +71,7 @@ export function fromFortyKAppText(input: string): TextRoster | null {
     // A unit's wargear is one line; any after it are the player's own notes.
     else if (current.armed) current.notes.push(trimmed)
     else {
-      current.unit.selections.push(...loadout(trimmed, current.unit.models ?? 1))
+      current.unit.selections.push(...loadout(trimmed, current.unit.models!))
       current.armed = true
     }
   }

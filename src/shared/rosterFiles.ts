@@ -279,11 +279,17 @@ function importTextRoster(parsed: TextRoster, loaded: LoadedCatalogue | null, fa
   })
   // A datasheet another app names in the plural, as BattleBase's "Myphitic Blight-haulers", is still the one datasheet it can be;
   // one it names without the catalogue's "[Legends]" mark, as 40k.app's "Whirlwind", is the Legends datasheet.
-  const datasheetNamed = (name: string) => {
+  // A list can also name it after its faction, as 40k.app's "Chaos Warhound Titan" is a Chaos army's "Warhound Titan".
+  const factionWords = new Set(normalized(faction.name).split(/[\s-]+/))
+  const spelled = (name: string) => name.replaceAll('defence', 'defense')
+  const datasheetNamed = (name: string): string | undefined => {
     const exact =
-      datasheets.find((datasheet) => datasheet.name === name) ?? datasheets.find((datasheet) => datasheet.name === `${name} [legends]`)
+      datasheets.find((datasheet) => spelled(datasheet.name) === spelled(name)) ??
+      datasheets.find((datasheet) => spelled(datasheet.name) === `${spelled(name)} [legends]`)
     const plural = datasheets.filter((datasheet) => nameVariants(datasheet.name).includes(name))
-    return exact?.id ?? (plural.length === 1 ? plural[0]!.id : undefined)
+    const found = exact?.id ?? (plural.length === 1 ? plural[0]!.id : undefined)
+    const [first, ...rest] = name.split(' ')
+    return found ?? (rest.length && factionWords.has(first!) ? datasheetNamed(rest.join(' ')) : undefined)
   }
   const units = parsed.units.flatMap((unit, sourceIndex) => {
     const entryId = datasheetNamed(normalized(unit.name))
@@ -456,7 +462,12 @@ const modelAliases = (name: string) => [
   ...nameVariants(name.replace(modelLoadout, '').replace(/\s+(?:Squad|Sodality)$/i, '')),
 ]
 // BSData prefixes weapons the official app does not, as its "Astartes Chainsword" and "Steed's savage claws" are the app's "Chainsword" and "Savage claws".
-const spellingKey = (name: string) => name.replace(/^(?:astartes|\S+'s) /, '').replaceAll(' ', '')
+// "Exo-armour" and "Exoarmour", "sabre & clawed limbs" and "sabre and clawed limbs", are one piece.
+const spellingKey = (name: string) =>
+  name
+    .replace(/^(?:astartes|\S+'s) /, '')
+    .replaceAll('&', 'and')
+    .replaceAll(/[\s-]/g, '')
 // The official app prints some datasheets' power weapon as the sword or maul the model holds, as Bladeguard Veterans' "Master-crafted Power Sword".
 const powerWeaponKey = (key: string) => key.replace(/power(?:sword|maul)/, 'powerweapon')
 /** The kind of model a counted group fields, as "1 - 2 Gun Servitors" fields a "Gun Servitor", which the official app names it by. */
@@ -556,7 +567,10 @@ function textRosterPick(
       scope.stated = unclaimed
     })
     const statedChoiceCounts = new Map(
-      choices.map((choice, at) => [choice.key, countsForChoice(choice, aliases[at]!, scopes[at]!.stated, scopes[at]!.held)]),
+      choices.map((choice, at) => [
+        choice.key,
+        countsForChoice(choice, aliases[at]!, scopes[at]!.stated, scopes[at]!.held, models, (id) => optionWargear(id, loaded, context)),
+      ]),
     )
     const offeredBy = countBy(
       aliases.flatMap((choice) => [...new Set([...choice.values()].flatMap((names) => [...names.keys()]))]),
@@ -735,9 +749,10 @@ function carriedNames(selection: Selection, index: LoadedCatalogue['index']) {
     const target = resolve(definition, index)
     const profile = target.type === 'model' ? modelProfileOf(definition, index) : undefined
     // A datacard can name the weapons an entry's profiles hold, as Lady Malys's "Melee Weapons" holds a blade and a fan.
+    // A model's own weapons and abilities can be wargear another builder lists, as Azrael's Lion Helm.
     const weapons =
       target.type === 'model'
-        ? []
+        ? (target.profiles ?? []).flatMap((held) => (held.typeName !== 'Unit' && held.name) || [])
         : (target.profiles ?? []).flatMap((held) => held.name?.replace(/^➤\s*/, '').replace(/\s+-\s+.+$/, '') ?? [])
     // A group holds nothing itself, though it is often named after its default, as a Lord Commissar's "Power Weapon" holds a power fist.
     const names =
@@ -798,12 +813,23 @@ function modelNames(entryId: string, index: LoadedCatalogue['index']) {
 /** A datasheet's names keyed by spellingKey, as BSData's "Relic Great Axe" is the app's "Relic Greataxe"; null where two collide. */
 function respelledNames(entryId: string, index: LoadedCatalogue['index']) {
   const names = new Map<string, string | null>()
+  const prefixed: [string, string][] = []
+  const root = index.definitions.get(entryId)
+  const unitWords = new Set(root ? normalized(nameOf(root, index.definitions)).split(' ').flatMap(nameVariants) : [])
   eachDefinition([entryId], index, (definition, target) => {
     for (const name of new Set([nameOf(definition, index.definitions), target.name ?? ''].filter(Boolean).map(normalized))) {
       const key = spellingKey(name)
       names.set(key, names.has(key) && names.get(key) !== name ? null : name)
+      // The catalogue can name a piece after its unit where a list does not, as a Gladiator Lancer's "Lancer laser destroyer".
+      const words = name.split(' ')
+      const at = words.findIndex((word, position) => !unitWords.has(word) || position === words.length - 1)
+      if (at > 0) prefixed.push([spellingKey(words.slice(at).join(' ')), name])
     }
   })
+  // Only where the catalogue's own names leave the key free; two such names for one key mean neither.
+  const unprefixed = new Map<string, string | null>()
+  for (const [key, name] of prefixed) unprefixed.set(key, unprefixed.has(key) && unprefixed.get(key) !== name ? null : name)
+  for (const [key, name] of unprefixed) if (!names.has(key)) names.set(key, name)
   return names
 }
 
@@ -850,6 +876,12 @@ function optionAliases(
           if (target.type === undefined) return
           for (const name of nameVariants(nameOf(definition, loaded.index.definitions))) if (!names.has(name)) names.set(name, 1)
           for (const keyword of grantedKeywords(definition, target, loaded.index)) if (!names.has(keyword)) names.set(keyword, 1)
+          // And to the weapons its profiles print, as "Particle caster and voidblade" holds a particle caster and a voidblade.
+          for (const profile of target.profiles ?? []) {
+            if (!/weapon/i.test(profile.typeName ?? '') || !profile.name) continue
+            const name = normalized(profile.name.replace(/^➤\s*/, '').replace(/\s+-\s+.+$/, ''))
+            if (!names.has(name)) names.set(name, 1)
+          }
         })
       }
       return [option.id, names]
@@ -904,10 +936,12 @@ function singleChoice(
 }
 
 function countsForChoice(
-  { options, room }: { options: readonly { id: string; name: string; count: number }[]; room: number },
+  { options, room }: { options: readonly { id: string; name: string; count: number; min: number; max: number }[]; room: number },
   aliases: ReadonlyMap<string, ReadonlyMap<string, number>>,
   stated: ReadonlyMap<string, number>,
   held: ReadonlyMap<string, number>,
+  models: ReadonlySet<string>,
+  wargearOfOption: (id: string) => ReadonlyMap<string, number>,
 ) {
   const owners = countBy(
     [...aliases.values()].flatMap((names) => [...names.keys()]),
@@ -930,13 +964,15 @@ function countsForChoice(
     )
     if (distinctive.length) distinctiveCounts.set(option.id, Math.min(...distinctive))
   }
-  if (!distinctiveCounts.size)
-    return new Map(
+  if (!distinctiveCounts.size) {
+    const named = new Map(
       options.flatMap((option) => {
         const count = stated.get(normalized(option.name))
         return count === undefined ? [] : [[option.id, count]]
       }),
     )
+    return named.size ? named : (combinedCounts(options, room, models, wargearOfOption, stated, held) ?? named)
+  }
 
   // A name several options share can be left over once the distinctive ones are counted,
   // as a Raider list's meltaguns are when both loadouts holding one also hold a power fist.
@@ -961,6 +997,74 @@ function countsForChoice(
     if (!best || free <= 0) return distinctiveCounts
     distinctiveCounts.set(best.option.id, Math.min(free, ...best.names.map(([name, each]) => Math.floor(leftOver(name) / each))))
   }
+}
+
+/** The wargear an option brings, each piece under its one catalogue name. */
+function optionWargear(id: string, loaded: LoadedCatalogue, context: { primaryCatalogueId: string; roster: readonly Selection[] }) {
+  const counts = new Map<string, number>()
+  const selection = defaultSelection(id, loaded.index, context)
+  for (const piece of selection ? wargearOf(selection, loaded.index) : [])
+    counts.set(normalized(piece.name), (counts.get(normalized(piece.name)) ?? 0) + piece.count)
+  return counts
+}
+
+/**
+ * How many of each option add up to the wargear a list states, where every piece comes in
+ * more than one option, as a Kataphron Breacher's arms do in "Heavy arc rifle & hydraulic
+ * claw" and "Torsion cannon & hydraulic claw". Null unless it accounts for some of what
+ * the list states; a choice that is full stays full.
+ */
+function combinedCounts(
+  options: readonly { id: string; count: number; min: number; max: number }[],
+  room: number,
+  models: ReadonlySet<string>,
+  wargearOfOption: (id: string) => ReadonlyMap<string, number>,
+  stated: ReadonlyMap<string, number>,
+  held: ReadonlyMap<string, number>,
+) {
+  const wargear = options.map((option) => wargearOfOption(option.id))
+  const names = [...new Set(wargear.flatMap((pieces) => [...pieces.keys()]))]
+  const spelled = (counts: ReadonlyMap<string, number>, name: string) =>
+    nameVariants(name)
+      .map((variant) => counts.get(variant))
+      .find((count) => count !== undefined) ?? 0
+  // A piece the unit neither carries nor these options start with, as a heavy weapon
+  // Terminator's cyclone, comes through another choice these counts cannot weigh.
+  const known = new Set([...names, ...held.keys(), ...models].flatMap(nameVariants))
+  if ([...stated.keys()].some((name) => !known.has(name))) return null
+  const inChoice = (name: string) => options.reduce((total, option, at) => total + option.count * (wargear[at]!.get(name) ?? 0), 0)
+  // What the rest of the unit carries is not this choice's to account for.
+  const target = names.map((name) => Math.max(0, spelled(stated, name) - Math.max(0, spelled(held, name) - inChoice(name))))
+  const unexplained = target.reduce((total, count) => total + count, 0)
+  if (!unexplained) return null
+  const full = options.reduce((total, option) => total + option.count, 0) >= room
+  const cost = (counts: readonly number[]) =>
+    names.reduce(
+      (total, name, at) =>
+        total + Math.abs(counts.reduce((sum, count, option) => sum + count * (wargear[option]!.get(name) ?? 0), 0) - target[at]!),
+      0,
+    )
+  const current = options.map((option) => option.count)
+  let best = { cost: cost(current), counts: current }
+  let budget = 100_000
+  const counts = options.map(() => 0)
+  const visit = (at: number, left: number) => {
+    if (--budget < 0) return
+    if (at === options.length) {
+      if (full && left > 0) return
+      const total = cost(counts)
+      if (total < best.cost) best = { cost: total, counts: [...counts] }
+      return
+    }
+    const option = options[at]!
+    for (let count = option.min; count <= Math.min(option.max, left); count++) {
+      counts[at] = count
+      visit(at + 1, left - count)
+    }
+    counts[at] = 0
+  }
+  visit(0, room)
+  return best.cost < unexplained ? new Map(options.map((option, at) => [option.id, best.counts[at]!])) : null
 }
 
 type ExportPrice = {

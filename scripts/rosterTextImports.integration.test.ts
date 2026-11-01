@@ -289,6 +289,59 @@ Grey Knights Terminator Squad (185 Points)
     expect(imported(spaceMarinesFortyKAppMarkdown).units.flatMap((unit) => unit.note ?? [])).toEqual(['Move block, then charge'])
   })
 
+  // Units from lists built on 40k.app on 1 November 2026, each naming a piece the catalogue spells, combines or files differently.
+  const fortyKAppUnit = (army: string, unit: string) => `Units\n${army}\nMission: Purge the Foe\n0/2000 pts\n\nUNITS [0 pts]\n${unit}`
+  it.each([
+    [
+      'combined loadouts',
+      'Adeptus Mechanicus · Cohort Acquisitus',
+      'Kataphron Breachers [290 pts] (6 models)\n  6× Heavy arc rifle / 6× Hydraulic claw',
+    ],
+    [
+      'one model with two heavy weapons',
+      'Asuryani · Windrider Host',
+      'War Walkers A [80 pts]\n  War Walker feet / Scatter laser / Shuriken cannon\nWar Walkers B [80 pts]\n  War Walker feet / 2× Scatter laser',
+    ],
+    [
+      'a weapon the model itself holds',
+      'Asuryani · Windrider Host',
+      'Hemlock Wraithfighter [155 pts]\n  2× Heavy D-scythe + Wraithbone hull',
+    ],
+    [
+      'an ability listed as wargear',
+      'Dark Angels · Wrath of the Rock',
+      "Azrael [150 pts]\n  Lion's Wrath + The Lion Helm + The Sword of Secrets",
+    ],
+    ['hyphens', 'Imperial Fists · Gravis Linebreaker Force', 'Tor Garadon [90 pts]\n  Artificer Grav-gun + Hand of Defiance'],
+    [
+      '"and" for "&"',
+      'Adeptus Mechanicus · Cohort Acquisitus',
+      'Serberys Raiders [75 pts] (3 models)\n  Cavalry sabre and clawed limbs + Mechanicus pistol + Galvanic carbine / 2× Galvanic carbine + Cavalry sabre and clawed limbs',
+    ],
+    [
+      'weapons an option prints',
+      'Necrons · Annihilation Legion',
+      'Triarch Praetorians [160 pts] (10 models)\n  10× Particle caster + Voidblade',
+    ],
+    [
+      'a weapon without its unit in its name',
+      'Adeptus Astartes · Gauntlet Task Force',
+      'Gladiator Lancer [160 pts]\n  Armoured Hull + Defensive Array + Laser Destroyer',
+    ],
+    [
+      'a datasheet named after its faction',
+      'World Eaters · Berzerker Warband',
+      'Chaos Warhound Titan [1100 pts]\n  Warhound feet / 2× Warhound vulcan mega-bolter',
+    ],
+  ])('places 40k.app wargear given %s', (_, army, unit) => {
+    expect(summary(fortyKAppUnit(army, unit)).mismatches).toEqual([])
+  })
+
+  it('reads a 40k.app unit without a model count as one model', () => {
+    const file = fortyKAppUnit('Asuryani · Windrider Host', 'War Walkers [80 pts]\n  War Walker feet / 2× Scatter laser')
+    expect(imported(file).units.map((unit) => unit.models)).toEqual([1])
+  })
+
   it('imports the reported official-app Space Wolves roster without mismatches', () => {
     expect(summary(spaceWolvesOfficial)).toEqual({
       format: 'roster-file',
