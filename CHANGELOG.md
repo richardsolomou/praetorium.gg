@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.211.0 (2026-11-01)
+
+### Minor Changes
+
+- f617848: Cross off pairings in a roster comparison to see the next best target or attacker.
+
 ## 0.210.0 (2026-11-01)
 
 ### Minor Changes
