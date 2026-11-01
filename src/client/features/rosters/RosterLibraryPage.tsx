@@ -166,6 +166,8 @@ export function RosterLibraryPage({
     : pages.byId
   const changedLists = changedIds.size
   const olderLists = available ? saved.filter(olderRules).length : 0
+  const olderNotice = Boolean(olderLists) && search.updates !== 'older'
+  const changedNotice = Boolean(changedLists) && search.updates !== 'changed'
 
   const origin = useOrigin()
   const actions = useRosterActions(
@@ -195,6 +197,8 @@ export function RosterLibraryPage({
     setSelectedIds(new Set())
     actions.batch.reset()
   }
+  // Select all reaches only the rosters on screen, up to what one batch change accepts.
+  const selectable = [...visible, ...archivedVisible].slice(0, ROSTER_BATCH_MAX).map(({ roster }) => roster.id)
   const changeSelected = (action: RosterBatchAction, ids: string[]) => actions.batch.mutate({ ids, action }, { onSuccess: stopSelecting })
   const selectionOf = (roster: SavedRoster) =>
     selecting
@@ -275,7 +279,6 @@ export function RosterLibraryPage({
         description="Build, import, organize, and share your armies, or find one your friends and other players made public."
         actions={
           <>
-            <GuideHelp task="roster">Build guide</GuideHelp>
             <RosterImport onImport={me ? undefined : keepImported} blocked={another} />
             <CreateRoster
               factionOptions={available?.factions ?? []}
@@ -285,6 +288,7 @@ export function RosterLibraryPage({
               reference={reference}
               onStarted={() => void navigate({ to: '/rosters', search, replace: true })}
             />
+            <GuideHelp task="roster">Build guide</GuideHelp>
           </>
         }
       >
@@ -327,24 +331,6 @@ export function RosterLibraryPage({
         <section>
           <div className="rubric flex items-baseline gap-3 border-b border-edge pb-2">
             <h2 className="mr-auto">Rosters</h2>
-            {olderLists && search.updates !== 'older' ? (
-              <Link
-                to="/rosters"
-                search={{ updates: 'older' }}
-                className="text-xs font-semibold tracking-normal text-discarded normal-case hover:text-bone"
-              >
-                {olderLists} {olderLists === 1 ? 'roster uses' : 'rosters use'} older rules
-              </Link>
-            ) : null}
-            {changedLists && search.updates !== 'changed' ? (
-              <Link
-                to="/rosters"
-                search={{ updates: 'changed' }}
-                className="text-xs font-semibold tracking-normal text-discarded normal-case hover:text-bone"
-              >
-                {countLabel(changedLists, 'roster')} changed by a data update
-              </Link>
-            ) : null}
             {libraryPending ? (
               <Skeleton className="h-4 w-5" aria-label="Loading roster count" />
             ) : libraryError ? (
@@ -363,6 +349,20 @@ export function RosterLibraryPage({
               </Button>
             ) : null}
           </div>
+          {olderNotice || changedNotice ? (
+            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs font-semibold text-discarded">
+              {olderNotice ? (
+                <Link to="/rosters" search={{ updates: 'older' }} className="hover:text-bone">
+                  {olderLists} {olderLists === 1 ? 'roster uses' : 'rosters use'} older rules
+                </Link>
+              ) : null}
+              {changedNotice ? (
+                <Link to="/rosters" search={{ updates: 'changed' }} className="hover:text-bone">
+                  {countLabel(changedLists, 'roster')} changed by a data update
+                </Link>
+              ) : null}
+            </div>
+          ) : null}
           {selecting ? (
             <RosterSelectionToolbar
               selected={selected}
@@ -370,6 +370,8 @@ export function RosterLibraryPage({
               error={actions.batch.error}
               onChange={changeSelected}
               onDelete={() => setDeleting({ rosters: selected, together: true })}
+              onSelectAll={(all) => setSelectedIds(new Set(all ? selectable : []))}
+              allSelected={selectable.length > 0 && selectable.every((id) => selectedIds.has(id))}
             />
           ) : null}
           <div className="mt-2 space-y-3">
