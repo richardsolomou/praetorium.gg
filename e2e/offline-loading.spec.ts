@@ -51,14 +51,14 @@ test('a first roster open shows progress until the army is ready', async ({ page
       await route.continue()
     })
     await roster.getByRole('link').first().click()
-    await expect(first.getByRole('status')).toContainText('Loading your roster')
+    await expect(first.getByRole('status', { name: 'Loading', exact: true })).toBeVisible()
     await first.screenshot({ path: test.info().outputPath('first-roster-loading.png') })
     await first.setViewportSize(PHONE)
-    await expect(first.getByRole('status')).toContainText('Loading your roster')
+    await expect(first.getByRole('status', { name: 'Loading', exact: true })).toBeVisible()
     await first.screenshot({ path: test.info().outputPath('first-roster-loading-phone.png') })
     release()
     await expect(first.getByLabel('List name')).toHaveValue(name)
-    await expect(first.getByRole('status').filter({ hasText: 'Loading your roster' })).toHaveCount(0)
+    await expect(first.getByRole('status', { name: 'Loading', exact: true })).toHaveCount(0)
   } finally {
     await opening.close()
   }
