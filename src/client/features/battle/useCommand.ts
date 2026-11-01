@@ -188,8 +188,8 @@ async function sendQueued({
     }
   } finally {
     draining.current = false
-    unshown?.current.clear()
     setPending(false)
+    unshown?.current.clear()
   }
 }
 
@@ -261,7 +261,8 @@ export function useCommand(token: string, seq: number) {
 
   const drain = useCallback(() => {
     const answered = (value: boolean) => {
-      if (!value && awaiting.current) settle()
+      // An answer that lands before a tap's prediction shows is what puts the next screen under the finger.
+      if (!value && (awaiting.current || unshown.current.size)) settle()
       awaiting.current = value && awaiting.current
       setPending(value)
     }
