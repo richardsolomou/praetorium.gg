@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.211.10 (2026-11-01)
+
+### Patch Changes
+
+- 0157a39: Unit prices in the picker turn orange when a unit would take your list over its points limit, and the unit preview says by how much. You can still add it.
+- 234effd: Rosters and battles show a small spinner while they load instead of a large "Loading your roster" panel.
+
 ## 0.211.9 (2026-11-01)
 
 ### Patch Changes
