@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.211.5 (2026-11-01)
+
+### Patch Changes
+
+- ff637d9: Players with fewer than 5 battles in a table are listed as not yet ranked, without a place or rating.
+- ff637d9: A leaderboard rating drifts down while you don't play.
+
 ## 0.211.4 (2026-11-01)
 
 ### Patch Changes
