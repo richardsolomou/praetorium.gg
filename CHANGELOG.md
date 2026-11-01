@@ -1,5 +1,14 @@
 # praetorium
 
+## 0.211.4 (2026-11-01)
+
+### Patch Changes
+
+- 8eac09f: Guide buttons sit after a page's other actions, and on phones they show only their question-mark icon.
+- 39f3d54: The roster library shows its older-rules and data-update notices on their own line below the heading.
+- 39f3d54: Choosing rosters to change together has a Select all button.
+- 39f3d54: While choosing rosters, tapping anywhere on a roster selects it, and its checkbox takes the place of the menu instead of pushing the roster aside.
+
 ## 0.211.3 (2026-11-01)
 
 ### Patch Changes
