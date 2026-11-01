@@ -44,6 +44,8 @@ export function collectionPhotoStore(
   privateObjects: () => PrivateObjects | null,
   clock: () => number = Date.now,
 ) {
+  let failedThumbnails = new Set<string>()
+
   async function deleteObjects(objects: PrivateObjects, photoId: string) {
     await Promise.all([objects.delete(`${PREFIX}${photoId}`), objects.delete(collectionPhotoThumbnailKey(photoId))])
   }
@@ -179,17 +181,26 @@ export function collectionPhotoStore(
       const objects = privateObjects()
       const result = { generated: 0, failed: 0 }
       if (!objects) return result
+      const failing = new Set<string>()
       let after: string | null = null
       while (true) {
         const photoIds = await repository.collectionPhotoIds(after, DELETION_BATCH)
-        if (!photoIds.length) return result
+        if (!photoIds.length) {
+          failedThumbnails = failing
+          return result
+        }
         for (const photoId of photoIds) {
           try {
             if (!(await objects.head(collectionPhotoThumbnailKey(photoId))) && (await generateThumbnail(objects, photoId)))
               result.generated++
           } catch (error) {
             result.failed++
-            reportServerFailure({ event: 'collection_photo_thumbnail_failed', photoId, error })
+            failing.add(photoId)
+            // A failed pass is retried, so only a photo that fails twice running is worth an alert.
+            reportServerFailure(
+              { event: 'collection_photo_thumbnail_failed', photoId, error },
+              failedThumbnails.has(photoId) ? 'error' : 'warn',
+            )
           }
         }
         after = photoIds.at(-1)!

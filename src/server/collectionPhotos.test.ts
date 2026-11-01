@@ -288,14 +288,37 @@ describe('collectionPhotoStore', () => {
       if (args[0].includes(ids[0]!)) throw new Error('storage unavailable')
       await put(...args)
     }
-    const log = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
     try {
       const store = collectionPhotoStore(repository, () => objects)
       expect(await store.backfillThumbnails()).toEqual({ generated: 2, failed: 1 })
       objects.put = put
       expect(await store.backfillThumbnails()).toEqual({ generated: 1, failed: 0 })
     } finally {
-      log.mockRestore()
+      warn.mockRestore()
+    }
+  })
+
+  it('reports a thumbnail failure as an error only when the same photo fails on the next pass', async () => {
+    const { stored, objects } = memoryObjects()
+    const repository = fakeRepository()
+    const photoId = randomUUID()
+    repository.photos.set(photoId, { userId: 'owner', entryId: 'warriors' })
+    stored.set(`collection-photos/${photoId}`, WEBP)
+    repository.collectionPhotoIds = async (after) => (after === null ? [photoId] : [])
+    objects.put = async () => {
+      throw new Error('storage unavailable')
+    }
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    const error = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    try {
+      const store = collectionPhotoStore(repository, () => objects)
+      await store.backfillThumbnails()
+      await store.backfillThumbnails()
+      expect([warn.mock.calls.length, error.mock.calls.length]).toEqual([1, 1])
+    } finally {
+      warn.mockRestore()
+      error.mockRestore()
     }
   })
 
