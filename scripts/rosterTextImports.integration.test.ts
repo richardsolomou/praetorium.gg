@@ -13,14 +13,16 @@ import {
   warmindOfficial,
 } from '../src/core/rosterText.fixtures'
 import type { LoadedCatalogue } from '../src/server/catalogueIndex'
-import { custodesOfficial } from '../src/core/rosterText.custodes.fixture'
+import { custodesFortyKApp, custodesOfficial } from '../src/core/rosterText.custodes.fixture'
 import { astraMilitarumNewRecruit, kriegGermanOfficial } from '../src/core/rosterText.krieg.fixture'
 import { necronsOfficial } from '../src/core/rosterText.necrons.fixture'
 import { blackTemplarsNewRecruit } from '../src/core/rosterText.blackTemplars.fixture'
 import { chaosSpaceMarinesNewRecruit } from '../src/core/rosterText.chaosSpaceMarines.fixture'
 import { bloodAngelsOfficial } from '../src/core/rosterText.bloodAngels.fixture'
 import { salamandersOfficial } from '../src/core/rosterText.salamanders.fixture'
-import { spaceWolvesOfficial } from '../src/core/rosterText.spaceWolves.fixture'
+import { spaceWolvesFortyKApp, spaceWolvesFortyKAppGrouped, spaceWolvesOfficial } from '../src/core/rosterText.spaceWolves.fixture'
+import { agentsFortyKApp } from '../src/core/rosterText.agents.fixture'
+import { spaceMarinesFortyKAppMarkdown } from '../src/core/rosterText.spaceMarines.fixture'
 import { whiteScarsOfficialFlattened } from '../src/core/rosterText.whiteScars.fixture'
 import { nameOf } from '../src/core/catalogue'
 import type { LoadedRules } from '../src/shared/rules'
@@ -263,6 +265,28 @@ Grey Knights Terminator Squad (185 Points)
       mismatches: [],
       points: '2000 for 2000',
     })
+  })
+
+  it.each([
+    ['the reported Custodes', custodesFortyKApp, 'Imperium - Adeptus Custodes', 2, '4 of 4', 1, '980 for 980'],
+    ['Space Wolves with allies', spaceWolvesFortyKApp, 'Imperium - Adeptus Astartes - Space Wolves', 3, '12 of 12', 2, '2565 for 2565'],
+    ['grouped Space Wolves', spaceWolvesFortyKAppGrouped, 'Imperium - Adeptus Astartes - Space Wolves', 3, '12 of 12', 2, '2565 for 2565'],
+    ['Agents of the Imperium', agentsFortyKApp, 'Imperium - Agents of the Imperium', 1, '11 of 11', 2, '3155 for 3155'],
+    [
+      'Space Marines as Markdown',
+      spaceMarinesFortyKAppMarkdown,
+      'Imperium - Adeptus Astartes - Space Marines',
+      1,
+      '10 of 10',
+      0,
+      '3020 for 3020',
+    ],
+  ])('imports 40k.app text of %s without mismatches', (_, file, faction, detachments, units, attached, points) => {
+    expect(summary(file)).toEqual({ format: '40k-app', faction, detachments, units, attached, mismatches: [], points })
+  })
+
+  it("keeps a 40k.app unit's note as its private note", () => {
+    expect(imported(spaceMarinesFortyKAppMarkdown).units.flatMap((unit) => unit.note ?? [])).toEqual(['Move block, then charge'])
   })
 
   it('imports the reported official-app Space Wolves roster without mismatches', () => {

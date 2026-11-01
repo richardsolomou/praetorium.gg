@@ -10,6 +10,7 @@ import type { Selection } from '../core/evaluate'
 import { fromNewRecruitText } from '../core/newRecruit'
 import { normalizedNameVariants } from '../core/name'
 import { fromListForgeText, fromListForgeWtcText } from '../core/listForge'
+import { fromFortyKAppText } from '../core/fortyKApp'
 import { fromWarmindText } from '../core/warmind'
 import { fromWtcText } from '../core/wtcText'
 import type { RosterSource } from '../core/savedRoster'
@@ -54,6 +55,7 @@ export type RosterTextFormat =
   | 'listforge-wtc'
   | 'warmind'
   | 'wtc'
+  | '40k-app'
 
 function parsedImport(file: string): { parsed: TextRoster; format: RosterTextFormat } | null {
   const praetorium = /Exported with Praetorium\.gg/i.test(file)
@@ -69,6 +71,8 @@ function parsedImport(file: string): { parsed: TextRoster; format: RosterTextFor
   if (listForge) return { parsed: listForge, format: 'listforge' }
   const listForgeWtc = fromListForgeWtcText(file)
   if (listForgeWtc) return { parsed: listForgeWtc, format: 'listforge-wtc' }
+  const fortyKApp = fromFortyKAppText(file)
+  if (fortyKApp) return { parsed: fortyKApp, format: '40k-app' }
   const battleBase = fromBattleBaseText(file)
   if (battleBase)
     return {
@@ -273,9 +277,11 @@ function importTextRoster(parsed: TextRoster, loaded: LoadedCatalogue | null, fa
     const definition = loaded.index.definitions.get(id)
     return definition ? [{ id, name: normalized(nameOf(definition, loaded.index.definitions)) }] : []
   })
-  // A datasheet another app names in the plural, as BattleBase's "Myphitic Blight-haulers", is still the one datasheet it can be.
+  // A datasheet another app names in the plural, as BattleBase's "Myphitic Blight-haulers", is still the one datasheet it can be;
+  // one it names without the catalogue's "[Legends]" mark, as 40k.app's "Whirlwind", is the Legends datasheet.
   const datasheetNamed = (name: string) => {
-    const exact = datasheets.find((datasheet) => datasheet.name === name)
+    const exact =
+      datasheets.find((datasheet) => datasheet.name === name) ?? datasheets.find((datasheet) => datasheet.name === `${name} [legends]`)
     const plural = datasheets.filter((datasheet) => nameVariants(datasheet.name).includes(name))
     return exact?.id ?? (plural.length === 1 ? plural[0]!.id : undefined)
   }
@@ -649,6 +655,7 @@ function textRosterPick(
       toggles,
       attachedTo: undefined as number | undefined,
       ...(unit.nickname ? { nickname: unit.nickname } : {}),
+      ...(unit.note ? { note: unit.note } : {}),
     }
     return { pick, placed, fieldedKinds }
   }

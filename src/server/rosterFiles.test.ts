@@ -2258,7 +2258,7 @@ describe('roster exchange import', () => {
   })
 })
 
-describe('ListForge, Warmind, and WTC roster import', () => {
+describe('ListForge, Warmind, WTC, and 40k.app roster import', () => {
   it.each([
     [
       'listforge',
@@ -2335,6 +2335,23 @@ Immortals (70 pts)
 • Attached as: Bodyguard
 • 5x Immortal
 • 5x Tesla carbine`,
+    ],
+    [
+      '40k-app',
+      `Lord
+Necrons · Pantheon of Woe
+Mission: Disruption
+150/2000 pts
+
+CHARACTERS [80 pts]
+Lokhust Lord [80 pts] - Warlord
+Attached to Immortals
+Enhancement: Demanding Leader (+10 pts)
+
+BATTLELINE [70 pts]
+Immortals [70 pts] (5 models)
+Led by Lokhust Lord
+5× Tesla carbine`,
     ],
   ])('imports %s text with its attachment, enhancement, and reported points', (format, file) => {
     const imported = importRosterFile({ file }, loaded)

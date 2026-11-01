@@ -1,4 +1,4 @@
-import { UNIT_NICKNAME_MAX_LENGTH } from './unitNotes'
+import { UNIT_NICKNAME_MAX_LENGTH, UNIT_NOTE_MAX_LENGTH } from './unitNotes'
 
 export type TextRoster = {
   name: string
@@ -23,6 +23,8 @@ export type TextRosterUnit = {
   entry?: number
   attachedToEntry?: number
   nickname?: string
+  /** The player's own note on the unit, kept as its private note. */
+  note?: string
   unread?: string[]
   warlord: boolean
 }
@@ -50,3 +52,11 @@ export const WTC_SECTION =
 
 /** A nickname as one bounded line, whether it is being written into text or read back out. */
 export const textNickname = (value: string) => value.replace(/\s+/g, ' ').trim().slice(0, UNIT_NICKNAME_MAX_LENGTH) || undefined
+
+/** A unit note as one bounded block, with each line trimmed. */
+export const textNote = (lines: readonly string[]) =>
+  lines
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .join('\n')
+    .slice(0, UNIT_NOTE_MAX_LENGTH) || undefined

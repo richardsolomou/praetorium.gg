@@ -8,6 +8,7 @@ Paste a list from another army builder, or an exchange code from another Praetor
 - **BattleBase** text exports
 - **The official Warhammer 40,000 app** text export, including translated exports such as German
 - **Warmind** text, including its ListForge-style, tournament (WTC) and official-app-style texts
+- **40k.app** text and Markdown exports, with attached units grouped or not; your notes on units become your private unit notes. Its list links can't be read, so copy the text instead.
 - Other WTC-style tournament text
 
 `.ros`, `.rosz` and `.regiztry` roster files aren't supported yet. Pasting or dropping one tells you so; use the app's text export instead.
