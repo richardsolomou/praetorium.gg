@@ -430,7 +430,7 @@ type PickerRowProps = {
   limit: number | null
   held: number
   full: boolean
-  /** Points beyond the list's room; shown, never blocking, since players often build over and trim. */
+  /** Points beyond the list's room, marked on the price alone so the row keeps its height; never blocks the add. */
   over: number | null
   favourite: boolean
   favouritePending: boolean
@@ -472,9 +472,6 @@ const PickerRow = memo(function PickerRow({
           {unavailableReason ? (
             <span className="mt-1 block text-2xs font-normal normal-case text-discarded">{unavailableReason}</span>
           ) : null}
-          {over !== null ? (
-            <span className="mt-1 block text-2xs font-normal normal-case text-discarded">{over} pts over the limit</span>
-          ) : null}
           {held ? (
             <span className={`readout block text-2xs ${full ? 'text-discarded' : 'text-faint'}`}>
               {held}
@@ -497,7 +494,7 @@ const PickerRow = memo(function PickerRow({
             <Heart className={`size-3.5 ${favourite ? 'fill-rust text-rust' : 'text-faint hover:text-dim'}`} />
           </Toggle>
         ) : null}
-        <PointsChip points={unit.points} over={over !== null} />
+        <PointsChip points={unit.points} over={over} />
         <Button
           data-onboarding="picker-add"
           size="sm"

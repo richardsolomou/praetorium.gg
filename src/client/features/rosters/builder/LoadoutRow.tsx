@@ -44,9 +44,6 @@ export const LoadoutRow = memo(function LoadoutRow({
         <span className="block text-xs leading-tight font-semibold tracking-wide uppercase">{loadout.name}</span>
         {members ? <span className="mt-0.5 block text-2xs text-dim">{members.join(' · ')}</span> : null}
         {unavailableReason ? <span className="mt-1 block text-2xs font-normal normal-case text-discarded">{unavailableReason}</span> : null}
-        {over !== null ? (
-          <span className="mt-1 block text-2xs font-normal normal-case text-discarded">{over} pts over the limit</span>
-        ) : null}
       </span>
     </span>
   )
@@ -90,7 +87,7 @@ export const LoadoutRow = memo(function LoadoutRow({
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-        <PointsChip points={loadout.points} over={over !== null} />
+        <PointsChip points={loadout.points} over={over} />
         <Button
           size="sm"
           className="shrink-0 px-2"

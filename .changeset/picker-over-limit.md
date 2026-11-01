@@ -2,4 +2,4 @@
 'praetorium.gg': patch
 ---
 
-The unit picker and unit preview show how far over your points limit a unit would take you, and you can still add it.
+Unit prices in the picker turn orange when a unit would take your list over its points limit, and the unit preview says by how much. You can still add it.
