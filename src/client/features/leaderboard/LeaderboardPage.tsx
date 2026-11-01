@@ -30,9 +30,9 @@ export function LeaderboardPage({ faction }: { faction?: string }) {
         <Standings table={table} viewerId={me?.id} />
         {/* Under the table, because it answers "why is my game not here" rather than "what am I reading". */}
         <p className="text-sm text-faint">
-          Everyone starts at 1000, and beating a higher-rated player gains more. A rating counts every public battle. A concession is a
-          loss, and allies share their side's result, rated on their average. Practice, guest, private and manually tracked battles do not
-          count.
+          Everyone starts at 1000, and beating a higher-rated player gains more. A rating counts every public battle and drifts down while
+          you don't play. A concession is a loss, and allies share their side's result, rated on their average. Practice, guest, private and
+          manually tracked battles do not count.
         </p>
       </PageContent>
     </main>

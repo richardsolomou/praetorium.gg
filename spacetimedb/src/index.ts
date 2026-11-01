@@ -62,7 +62,7 @@ import {
 } from '../../src/core/sealedEvent'
 import { commandSchema, parseRosterSnapshot, rosterPickSchema, rosterSnapshotOrNull } from '../../src/core/commands'
 import { SWISS_ROUNDS_MAX, swissResultLocked } from '../../src/core/swiss'
-import { compareStandings } from '../../src/core/standings'
+import { compareStandings, currentRating, isProvisional } from '../../src/core/standings'
 import type { SyncProductActionName } from '../../src/core/syncProductActions'
 import {
   hiddenListGameOpen,
@@ -1532,20 +1532,25 @@ export const finishStandingsRefresh = spacetime.procedure(
     }),
 )
 
-const standingRow = (row: {
-  playerId: string
-  rating: number
-  battles: number
-  won: number
-  lost: number
-  drawn: number
-  points: number
-  finishedAt: bigint
-}) => ({
+/** A stored standing as a table lists it at `now`. */
+const standingRow = (
+  row: {
+    playerId: string
+    mu: number
+    sigma: number
+    battles: number
+    won: number
+    lost: number
+    drawn: number
+    points: number
+    finishedAt: bigint
+  },
+  now: number,
+) => ({
   id: row.playerId,
   name: '',
   image: null,
-  rating: row.rating,
+  rating: currentRating(row, safeNumber(row.finishedAt), now),
   battles: row.battles,
   won: row.won,
   lost: row.lost,
@@ -1558,11 +1563,12 @@ const standingRow = (row: {
 export const leaderboard = spacetime.procedure({ activeSince: t.u64(), limit: t.u32() }, t.string(), (ctx, input) =>
   operatorTx(ctx, (tx) => {
     const tables = new Map<string, { seats: number; rows: ReturnType<typeof standingRow>[] }>()
+    const now = safeNumber(nowMs(tx))
     for (const row of tx.db.standings.iter()) {
       const held = tables.get(row.table) ?? { seats: 0, rows: [] }
       tables.set(row.table, held)
       held.seats += row.battles
-      if (row.finishedAt >= input.activeSince) held.rows.push(standingRow(row))
+      if (row.finishedAt >= input.activeSince) held.rows.push(standingRow(row, now))
     }
     return productJson(
       [...tables].flatMap(([name, { seats, rows }]) =>
@@ -1572,18 +1578,20 @@ export const leaderboard = spacetime.procedure({ activeSince: t.u64(), limit: t.
   }),
 )
 
-/** Where one player sits in each table they played in since `activeSince`, and their overall rating after each counted battle. */
+/** Where one player sits in each table they are ranked in and played in since `activeSince`, and their overall rating after each counted battle. */
 export const playerStandings = spacetime.procedure({ userId: t.string(), activeSince: t.u64() }, t.string(), (ctx, input) =>
   operatorTx(ctx, (tx) => {
+    const now = safeNumber(nowMs(tx))
     const places = Array.from(tx.db.standings.playerId.filter(input.userId)).flatMap((own) => {
-      if (own.finishedAt < input.activeSince) return []
-      const standing = standingRow(own)
+      // A provisional player has no place of their own, and is no place's competition.
+      if (own.finishedAt < input.activeSince || isProvisional(own)) return []
+      const standing = standingRow(own, now)
       let place = 1
       let of = 0
       for (const row of tx.db.standings.table.filter(own.table)) {
-        if (row.finishedAt < input.activeSince) continue
+        if (row.finishedAt < input.activeSince || isProvisional(row)) continue
         of += 1
-        if (row.playerId !== own.playerId && compareStandings(standingRow(row), standing) < 0) place += 1
+        if (row.playerId !== own.playerId && compareStandings(standingRow(row, now), standing) < 0) place += 1
       }
       return [{ table: own.table, place, of, standing }]
     })
