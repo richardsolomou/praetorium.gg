@@ -758,6 +758,20 @@ export function ListBuilder({
     [setPreview, setSelected, setShowing, updateLoadoutHistory, workspacePath],
   )
   const previewUnit = useCallback((entryId: string, unitName: string) => inspect(catalogueId, entryId, unitName), [catalogueId, inspect])
+  // A preview reads as the list's next pick, so it shows what the detachment and the list would give it.
+  // A full list has no room for one more, so its preview goes without.
+  const previewPicks = useMemo(
+    () =>
+      preview && positioned.length < 100
+        ? [
+            ...positioned,
+            preview.catalogueId === catalogueId
+              ? { entryId: preview.entryId }
+              : { entryId: preview.entryId, catalogueId: preview.catalogueId },
+          ]
+        : null,
+    [catalogueId, positioned, preview],
+  )
   const duplicate = useCallback((index: number) => {
     editor.current.duplicate(index)
     reporting.current = { event: 'roster_unit_duplicated' }
@@ -1200,12 +1214,12 @@ export function ListBuilder({
       catalogueId={datasheetCatalogueId}
       entryId={preview?.entryId ?? selectedUnit?.entryId ?? null}
       detachmentIds={detachmentIds}
-      picks={positioned}
-      pickIndex={preview ? null : selected}
+      picks={previewPicks ?? positioned}
+      pickIndex={preview ? (previewPicks ? positioned.length : null) : selected}
       onRelationshipSelect={(entryId, unitName) => inspect(datasheetCatalogueId, entryId, unitName)}
       onReferenceRoute={setReference}
       abilityReminders={building && !preview && selected !== null ? reminderControls : undefined}
-      detachmentRules={preview ? undefined : detachmentRules}
+      detachmentRules={detachmentRules}
     />
   )
 
