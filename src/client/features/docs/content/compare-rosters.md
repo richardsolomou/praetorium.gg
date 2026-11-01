@@ -3,6 +3,7 @@ Choose rosters for **Attacking with** and **Defending with** at the top of the [
 - **Show** switches between wounds lost, models lost, uncapped kills and destruction chance.
 - **Highlight** marks the best target for each attacker, or the best attacker for each target. Each one is judged on its own, not as a plan for the whole turn.
 - Click any cell to open that matchup in full.
+- **✕** in a cell's corner crosses off that pairing, for example when the target is destroyed or that attacker is already busy. The highlight moves to the next best option, so you can keep crossing off to work down the list. **Clear** brings them all back.
 
 ## Doubles and solo against a pair
 

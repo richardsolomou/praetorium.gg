@@ -1,5 +1,6 @@
 import { Fragment, useMemo, useState } from 'react'
-import { ChevronDown } from 'lucide-react'
+import { ChevronDown, RotateCcw, X } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 import { Choice, PHASE_TITLES, PhaseIcon } from './CombatControls'
 import { OwnerName, type RosterOwner } from './rosterOwners'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -56,6 +57,8 @@ export function ownerRuns(units: readonly RosterCombatUnit[]) {
   return runs.length > 1 ? runs : []
 }
 
+const unitKey = (unit: RosterCombatUnit) => `${unit.rosterIndex}:${unit.pickIndex}:${unit.name}`
+
 export function RosterCombatTable({
   attackers,
   defenders,
@@ -76,11 +79,22 @@ export function RosterCombatTable({
   const [metric, setMetric] = useState<CombatMetric>('meanDamage')
   const [highlight, setHighlight] = useState(benchmarkTargets || eventPairing ? 'attackers' : 'targets')
   const [optionsOpen, setOptionsOpen] = useState(false)
+  // Pairings the player has crossed off, keyed by unit rather than position so a recalculation keeps them.
+  const [marked, setMarked] = useState<ReadonlySet<string>>(new Set())
+  const pairKey = (row: number, column: number) => `${unitKey(attackers[row]!)}|${unitKey(defenders[column]!)}`
+  const toggleMark = (key: string) =>
+    setMarked((current) => {
+      const next = new Set(current)
+      if (!next.delete(key)) next.add(key)
+      return next
+    })
+  // A crossed-off pairing reads as no result, so the next best one takes the highlight.
+  const ranked = (row: number, column: number) => (marked.has(pairKey(row, column)) ? {} : results[`${row}:${column}`]?.[phase])
   const attackingHealth = useMemo(() => attackers.map(modelCount), [attackers])
   const defendingHealth = useMemo(() => defenders.map(modelCount), [defenders])
   const bestAttackers = defenders.map((_defender, column) =>
     bestRosterMatches(
-      attackers.map((_attacker, row) => results[`${row}:${column}`]?.[phase]),
+      attackers.map((_attacker, row) => ranked(row, column)),
       metric,
     ),
   )
@@ -134,6 +148,11 @@ export function RosterCombatTable({
           />
         </div>
       </div>
+      {marked.size ? (
+        <Button variant="ghost" size="sm" className="self-start" onClick={() => setMarked(new Set())}>
+          Clear {countLabel(marked.size, 'mark')}
+        </Button>
+      ) : null}
       <p className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-dim">
         <span className="inline-flex items-center gap-1.5">
           Less
@@ -150,6 +169,7 @@ export function RosterCombatTable({
         </span>
         <span className="hidden sm:inline">Select a result to adjust the matchup.</span>
         <span className="sm:hidden">Swipe for more targets; tap a result to adjust.</span>
+        <span>Cross off a result with ✕ to see the next best.</span>
       </p>
       <TabsContent value={phase}>
         <section
@@ -203,7 +223,7 @@ export function RosterCombatTable({
             <tbody>
               {attackers.map((unit, row) => {
                 const best = bestRosterMatches(
-                  defenders.map((_, column) => results[`${row}:${column}`]?.[phase]),
+                  defenders.map((_, column) => ranked(row, column)),
                   metric,
                 )
                 const owner = rowOwners.get(row)
@@ -242,20 +262,27 @@ export function RosterCombatTable({
                           (answer?.result ? 'No uncapped estimate: the target has mixed profiles or too many possible kills.' : undefined)
                         const bestTarget = highlight === 'targets' ? best.includes(column) : bestAttackers[column]!.includes(row)
                         const bestLabel = highlight === 'targets' ? 'Best target' : 'Best attacker'
+                        const out = marked.has(pairKey(row, column))
+                        const shown =
+                          value === undefined
+                            ? answer
+                              ? `Not calculated: ${reason}`
+                              : 'Pending'
+                            : formatCombatValue(answer?.result, metric)
                         return (
                           <td
                             key={`${target.rosterIndex}:${target.pickIndex}`}
                             data-best-matchup={bestTarget || undefined}
-                            className="border-b border-l border-edge bg-panel p-0"
+                            className="relative border-b border-l border-edge bg-panel p-0"
                             style={{ backgroundColor: shadeColor(matchupShade(value, largest)) }}
                           >
                             <button
                               type="button"
                               title={reason}
                               disabled={!answer}
-                              aria-label={`${unit.name} #${row + 1} against ${target.name} #${column + 1}: ${value === undefined ? (answer ? `Not calculated: ${reason}` : 'Pending') : formatCombatValue(answer?.result, metric)}${bestTarget ? `, ${bestLabel.toLowerCase()}` : ''}. Open matchup`}
+                              aria-label={`${unit.name} #${row + 1} against ${target.name} #${column + 1}: ${shown}${out ? ', marked off' : bestTarget ? `, ${bestLabel.toLowerCase()}` : ''}. Open matchup`}
                               onClick={() => onSelect(row, column)}
-                              className={`min-h-14 w-full p-2 text-center outline-none hover:bg-bone/10 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary disabled:text-faint ${bestTarget ? 'shadow-[inset_0_0_0_2px_var(--color-achieved)]' : ''}`}
+                              className={`min-h-14 w-full p-2 text-center outline-none hover:bg-bone/10 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary disabled:text-faint ${bestTarget ? 'shadow-[inset_0_0_0_2px_var(--color-achieved)]' : ''} ${out ? 'line-through opacity-35' : ''}`}
                             >
                               {value !== undefined ? (
                                 <>
@@ -279,6 +306,18 @@ export function RosterCombatTable({
                                 </span>
                               )}
                             </button>
+                            {answer ? (
+                              <button
+                                type="button"
+                                aria-pressed={out}
+                                aria-label={`${out ? 'Bring back' : 'Cross off'} ${unit.name} #${row + 1} against ${target.name} #${column + 1}`}
+                                title={out ? 'Bring back' : 'Cross off'}
+                                onClick={() => toggleMark(pairKey(row, column))}
+                                className="absolute top-0 right-0 p-1 text-faint pointer-coarse:p-2 outline-none hover:text-bone focus-visible:ring-2 focus-visible:ring-primary"
+                              >
+                                {out ? <RotateCcw className="size-3" aria-hidden /> : <X className="size-3" aria-hidden />}
+                              </button>
+                            ) : null}
                           </td>
                         )
                       })}
