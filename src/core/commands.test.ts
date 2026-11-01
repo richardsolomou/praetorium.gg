@@ -114,6 +114,21 @@ describe('command schema', () => {
     expect(commandSchema.parse(legacy)).toEqual(legacy)
     expect(commandSchema.parse({ ...legacy, playerCount: 4 })).toEqual({ ...legacy, playerCount: 4 })
   })
+  it('keeps allies sharing their points on a team battle', () => {
+    const command = {
+      kind: 'configure-battle',
+      limit: 2_000,
+      missionPackId: null,
+      terrainLayoutId: null,
+      twistId: null,
+      teamBattle: true,
+      playerCount: 4,
+      armyPoints: [1_000, 1_000],
+      sharedArmyPoints: true,
+      clockLimitMinutes: null,
+    }
+    expect(commandSchema.parse(command)).toEqual(command)
+  })
   it('keeps frozen roster-card details on an attached roster', () => {
     const command = {
       kind: 'attach-roster' as const,

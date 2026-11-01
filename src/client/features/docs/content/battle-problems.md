@@ -10,7 +10,7 @@ Your lists were built for different sizes or budgets. Pick lists built for the s
 
 ### "an army spends more than its … points"
 
-In a 2v1 or doubles battle each side has its own points per army, shown beside **Battle size**. Change it with **Set points per army**, or bring a list that spends less.
+In a 2v1 or doubles battle each side has its own points per army, shown beside **Battle size**. Change it with **Set points per army**, switch on **Allies split their points** to let allies share their side's total, or bring a list that spends less.
 
 ### "choose lists saved to the same points total"
 
