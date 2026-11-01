@@ -10,32 +10,20 @@ import type { Datasheet } from '../../../../contracts/catalogue'
 import { loadoutDatasheetsQuery } from '../../../queries'
 import type { LoadoutUnit } from './loadoutModel'
 import type { loadoutDatasheets } from '../../../../server/functions'
+import { datasheetFixture } from '../../../../core/datasheet.fixtures'
 
 /** The loadout panel for a unit whose datasheet carries these profiles. */
 function loadoutMarkup(unit: LoadoutUnit | null, profiles: Datasheet['profiles'] = [], loading = false) {
   const queryClient = new QueryClient()
   const picks = [{ entryId: unit?.entryId ?? 'unit' }]
   if (unit) {
-    const sheet: Datasheet = {
+    const sheet: Datasheet = datasheetFixture({
       id: unit.entryId,
       slug: unit.entryId,
-      referenceRoute: null,
       name: unit.name,
       points: unit.points,
-      keywords: [],
       profiles,
-      abilities: [],
-      composition: [],
-      loadout: null,
-      wargearOptions: [],
-      baseSize: null,
-      transport: null,
-      costs: [],
-      attachments: [],
-      leaders: [],
-      supporters: [],
-      keywordRules: [],
-    }
+    })
     const data: NonNullable<Awaited<ReturnType<typeof loadoutDatasheets>>> = {
       selected: { ...sheet, detachments: [], attribution: null },
       available: { ...sheet, detachments: [], attribution: null },

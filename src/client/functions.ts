@@ -122,7 +122,6 @@ export const loadoutDatasheets = read('loadoutDatasheets', (args) => server.load
 export const combatantDatasheet = read('combatantDatasheet', (args) => server.combatantDatasheet(args))
 export const combatantDatasheets = read('combatantDatasheets', (args) => server.combatantDatasheets(args))
 export const combatLoadouts = read('combatLoadouts', (args) => server.combatLoadouts(args))
-export const unitWounds = read('unitWounds', (args) => server.unitWounds(args))
 export const unitBattleDetails = read('unitBattleDetails', (args) => server.unitBattleDetails(args))
 export const reminderAbilities = read('reminderAbilities', (args) => server.reminderAbilities(args))
 export const detachmentRules = read('detachmentRules', (args) => server.detachmentRules(args))
@@ -893,7 +892,6 @@ export {
   setAbilityReminder,
   removeAbilityReminder,
   setPlayerDefaults,
-  setPushNotifications,
   createFriendInvite,
   cancelFriendInvite,
   createSealedEvent,

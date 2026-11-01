@@ -4,7 +4,7 @@ import { readCatalogueComposition } from './catalogueComposition'
 import { catalogueDirectory } from './catalogueIndex'
 import { memoUntilSnapshotChanges } from './snapshotMemo'
 import { recordIdsIn, stringsByHash, textFileId, textFilesFrom, textRecordsIn, textSourcePaths } from './sourceTexts'
-import { remember } from '../core/collections'
+import { RecentlyUsed, remember } from '../core/collections'
 
 const located = () =>
   memoUntilSnapshotChanges('text-locations', null, async () => {
@@ -42,14 +42,8 @@ export const serverWords = () =>
   memoUntilSnapshotChanges('text-words', null, async () => {
     const directory = catalogueDirectory()
     const files = new Map(textSourcePaths(directory, readCatalogueComposition(directory)).map((file) => [textFileId(file.url), file.path]))
-    const held = new Map<string, ReadonlyMap<string, string>>()
-    const stringsIn = (file: string) => {
-      const strings = held.get(file) ?? stringsByHash(file)
-      held.delete(file)
-      held.set(file, strings)
-      if (held.size > HELD_FILES) held.delete(held.keys().next().value!)
-      return strings
-    }
+    const held = new RecentlyUsed<string, ReadonlyMap<string, string>>(HELD_FILES)
+    const stringsIn = (file: string) => remember(held, file, () => stringsByHash(file))
     return (text: string): string | null => {
       let complete = true
       const words = resolvedText(

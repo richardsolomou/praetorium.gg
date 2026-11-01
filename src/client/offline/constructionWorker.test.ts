@@ -79,7 +79,7 @@ afterEach(() => {
 })
 
 const loaded = () => vi.dynamicImportSettled()
-const wounds = () => worker.deviceConstructionRead('unitWounds', { catalogueId: 'cat', entryIds: [] }, 'cat')
+const details = () => worker.deviceConstructionRead('unitBattleDetails', { catalogueId: 'cat', entryIds: [] }, 'cat')
 const units = () => worker.deviceConstructionRead('units', { catalogueId: 'cat', query: '' }, 'cat')
 /** Makes a read only for what it starts; one the worker answers is left to settle unobserved. */
 const start = (read: () => Promise<unknown> | null) => void read()?.catch(() => {})
@@ -95,11 +95,11 @@ const disconnected = () => {
 }
 
 it('leaves a read to the server while the worker has not prepared it', () => {
-  expect(wounds()).toBeNull()
+  expect(details()).toBeNull()
 })
 
 it('leaves other pages’ reads to the server without building construction data for them while connected', async () => {
-  start(wounds)
+  start(details)
   await loaded()
   expect(mocks.workers).toHaveLength(0)
 })
@@ -127,9 +127,9 @@ it('starts preparing an unanswered unit read from the published download’s par
 
 it('answers a prepared read from the worker', async () => {
   await prepared()
-  const answer = wounds()!
-  mocks.workers[0]!.answer({ value: 'wounds' })
-  expect(await answer).toBe('wounds')
+  const answer = details()!
+  mocks.workers[0]!.answer({ value: 'details' })
+  expect(await answer).toBe('details')
 })
 
 const otherUnits = () => worker.deviceConstructionRead('units', { catalogueId: 'other', query: '' }, 'other')
@@ -156,7 +156,7 @@ it('answers unit reads once their faction is prepared', async () => {
 
 it('prepares a rules version apart from the current rules', async () => {
   await prepared()
-  expect(worker.deviceConstructionRead('unitWounds', { catalogueId: 'mfm~cat', entryIds: [] }, 'mfm~cat')).toBeNull()
+  expect(worker.deviceConstructionRead('unitBattleDetails', { catalogueId: 'mfm~cat', entryIds: [] }, 'mfm~cat')).toBeNull()
 })
 
 it('does not ask for a preparation already under way', async () => {
@@ -191,24 +191,24 @@ it('prepares once the service confirms the download asked for earlier is current
 
 it('waits for the worker to prepare a read while disconnected, since nothing else can answer it', async () => {
   disconnected()
-  const answer = wounds()!
+  const answer = details()!
   await loaded()
   mocks.workers[0]!.prepare()
   await vi.waitFor(() => expect(mocks.workers[0]!.of('read')).toHaveLength(1))
-  mocks.workers[0]!.answer({ value: 'wounds' })
-  expect(await answer).toBe('wounds')
+  mocks.workers[0]!.answer({ value: 'details' })
+  expect(await answer).toBe('details')
 })
 
 it('reads the download the page holds while disconnected', async () => {
   disconnected()
-  start(wounds)
+  start(details)
   await loaded()
   expect(mocks.workers[0]!.of('prepare')[0]?.source.id).toBe('a')
 })
 
 it('lets a disconnected read fall back when the worker cannot prepare it', async () => {
   disconnected()
-  const answer = wounds()!
+  const answer = details()!
   await loaded()
   mocks.workers[0]!.message({ unprepared: ['build:'] })
   await expect(answer).rejects.toThrow('could not be prepared')
@@ -233,7 +233,7 @@ it('gives up on a download the worker cannot read', async () => {
 
 it('reports a read the rules cannot answer without stopping the worker', async () => {
   await prepared()
-  const answer = wounds()!
+  const answer = details()!
   mocks.workers[0]!.answer({ error: 'Unknown datasheet' })
   await expect(answer).rejects.toThrow('Unknown datasheet')
   expect(mocks.workers[0]!.terminated).toBe(false)
@@ -258,7 +258,7 @@ it('keeps a worker that is still preparing', async () => {
 it('keeps a worker that is still answering a read', async () => {
   await prepared()
   vi.useFakeTimers()
-  start(wounds)
+  start(details)
   vi.advanceTimersByTime(worker.CONSTRUCTION_WORKER_IDLE_MS)
   expect(mocks.workers[0]!.terminated).toBe(false)
 })
@@ -266,7 +266,7 @@ it('keeps a worker that is still answering a read', async () => {
 it('leaves reads to the server once a newer release is published', async () => {
   await prepared()
   worker.retireDeviceConstruction()
-  expect(wounds()).toBeNull()
+  expect(details()).toBeNull()
 })
 
 it('stops the worker when a newer release is published', async () => {
@@ -277,14 +277,14 @@ it('stops the worker when a newer release is published', async () => {
 
 it('rejects a read in flight when a newer release retires the worker, so the server answers it', async () => {
   await prepared()
-  const answer = wounds()!
+  const answer = details()!
   worker.retireDeviceConstruction()
   await expect(answer).rejects.toThrow('newer release')
 })
 
 it('rejects reads in flight when the worker crashes', async () => {
   await prepared()
-  const answer = wounds()!
+  const answer = details()!
   mocks.workers[0]!.onerror?.()
   await expect(answer).rejects.toThrow('failed')
 })
@@ -292,7 +292,7 @@ it('rejects reads in flight when the worker crashes', async () => {
 it('stops using the device after the worker crashes', async () => {
   await prepared()
   mocks.workers[0]!.onerror?.()
-  expect(wounds()).toBeNull()
+  expect(details()).toBeNull()
 })
 
 const priced = async (event: object) => {

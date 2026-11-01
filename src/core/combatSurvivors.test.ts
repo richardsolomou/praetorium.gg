@@ -1,16 +1,16 @@
 import { describe, expect, it } from 'vitest'
 import { combatAtHealth, combatSurvivors, validCombatSurvivors } from './combatSurvivors'
 import type { Datasheet } from './datasheet'
+import { datasheetFixture } from './datasheet.fixtures'
 
 const squad = [
   { name: 'Sergeant', models: 1, weapons: [{ name: 'Rifle', count: 1 }] },
   { name: 'Troopers', models: 4, weapons: [{ name: 'Rifle', count: 4 }] },
 ]
 describe('combat survivors', () => {
-  const armed: Datasheet = {
+  const armed: Datasheet = datasheetFixture({
     profiles: [{ id: 'rifle', name: 'Rifle', type: 'Ranged Weapons', count: 5, values: [] }],
-    abilities: [],
-  } as unknown as Datasheet
+  })
   it('projects remaining attacks and health without changing frozen equipment', () => {
     const original = { sheet: armed, models: 5, carriers: squad }
     const live = combatAtHealth(original, { models: 3, startingModels: 5, damage: 1 })
@@ -38,7 +38,7 @@ describe('combat survivors', () => {
     ).toBe(true)
   })
   const profiled = (wounds: number): Datasheet =>
-    ({
+    datasheetFixture({
       profiles: [2, wounds].map((value, index) => ({
         id: index ? 'trooper' : 'leader',
         name: index ? 'Trooper' : 'Leader',
@@ -49,8 +49,7 @@ describe('combat survivors', () => {
           { name: 'W', value: String(value) },
         ],
       })),
-      abilities: [],
-    }) as unknown as Datasheet
+    })
   it('infers survivors across different identities when their evaluated defences and weapons are identical', () => {
     expect(
       combatSurvivors(

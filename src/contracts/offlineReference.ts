@@ -1,5 +1,4 @@
 import { PUBLIC_REFERENCE_QUERIES } from './appSnapshot'
-import type { GlobalSearchIndex } from '../core/referenceSearch'
 import type { RuntimeData } from './runtimeData'
 import type { CatalogueFile } from '../core/catalogue'
 import { catalogueEditionSchema, type CatalogueEdition } from '../core/catalogueEdition'
@@ -134,12 +133,6 @@ export function isReferenceQueries(value: unknown): value is ReferenceQuery[] {
     Array.isArray(value) &&
     value.length <= MAX_PART_QUERIES &&
     value.every((entry) => Array.isArray(entry?.key) && PUBLIC_REFERENCE_QUERIES.has(String(entry.key[0])))
-  )
-}
-
-export function isSearchIndex(value: unknown): value is GlobalSearchIndex {
-  return (
-    Boolean(value) && ['factions', 'detachments', 'datasheets', 'missions', 'rules'].every((key) => Array.isArray((value as never)[key]))
   )
 }
 

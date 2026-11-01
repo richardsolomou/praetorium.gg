@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { expect, it } from 'vitest'
 import type { CombatAnswer, CombatantSnapshot } from '../../../core/combatMatchup'
 import { CombatMatchup, combatOutcomeEvent } from './CombatMatchup'
+import { datasheetFixture } from '../../../core/datasheet.fixtures'
 
 it('records a partial estimate as a completion with its available phase', () => {
   const answer = { ranged: { result: {} }, melee: { error: 'unsupported weapon details' } } as CombatAnswer
@@ -29,13 +30,7 @@ const slots = { attackerControl: null, defenderControl: null, attackerBuffs: nul
 const unit: CombatantSnapshot = {
   models: 1,
   carriers: [],
-  sheet: {
-    id: 'unit',
-    slug: 'unit',
-    name: 'Unit',
-    referenceRoute: null,
-    points: null,
-    keywords: [],
+  sheet: datasheetFixture({
     profiles: [
       {
         id: 'model',
@@ -48,18 +43,7 @@ const unit: CombatantSnapshot = {
         ],
       },
     ],
-    abilities: [],
-    composition: [],
-    loadout: null,
-    wargearOptions: [],
-    baseSize: null,
-    transport: null,
-    costs: [],
-    attachments: [],
-    leaders: [],
-    supporters: [],
-    keywordRules: [],
-  },
+  }),
 }
 
 it('calculates zero-attack phases when no weapons are equipped', () => {

@@ -5,14 +5,13 @@ import { combatUnitTarget, combatUnitSequenceError, type CombatMember } from './
 import { combatAttacks } from './combatScenario'
 import { combatRuleChoices, combatRuleHasSharedDefence, type CombatRule } from './combatRules'
 import type { Datasheet } from './datasheet'
+import { datasheetFixture } from './datasheet.fixtures'
 
 function member(name: string, models = 1): CombatMember {
-  const sheet: Datasheet = {
+  const sheet: Datasheet = datasheetFixture({
     id: name,
     name,
     slug: name,
-    referenceRoute: null,
-    points: null,
     keywords: ['Infantry'],
     profiles: [
       {
@@ -32,18 +31,7 @@ function member(name: string, models = 1): CombatMember {
         })),
       },
     ],
-    abilities: [],
-    composition: [],
-    loadout: null,
-    wargearOptions: [],
-    baseSize: null,
-    transport: null,
-    costs: [],
-    attachments: [],
-    leaders: [],
-    supporters: [],
-    keywordRules: [],
-  }
+  })
   return { sheet, models, carriers: [{ name, models, weapons: [{ name: 'Rifle', count: models, profileIds: [`${name}:weapon`] }] }] }
 }
 
