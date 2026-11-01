@@ -1,5 +1,15 @@
 # praetorium
 
+## 0.209.0 (2026-11-01)
+
+### Minor Changes
+
+- 7d6e112: Let allies in any 2v1 or doubles battle split their side's points however they agree, with **Allies split their points** in battle setup.
+
+### Patch Changes
+
+- 4b9bfbd: Let allies in an event that shares points split them any way at battle setup, instead of holding each army to half.
+
 ## 0.208.9 (2026-11-01)
 
 ### Patch Changes
