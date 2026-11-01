@@ -325,18 +325,22 @@ export class PraetoriumService {
     const key = revision
     if (this.standingsHeld?.key === key && this.standingsHeld.until > now) return this.standingsHeld.answer
     const read = async (): Promise<StandingsAnswer> => {
-      const tables = await this.repository.leaderboard(now - STANDINGS_DAYS * DAY_MS, STANDINGS_ROWS)
       const armies = await this.armyTables()
-      const named = await this.namedRows(tables.flatMap((table) => table.rows))
-      const rows = (table: (typeof tables)[number]) => table.rows.map((row) => named.find((one) => one.id === row.id)!)
+      // A player has a row in each table they played in, each with that table's record, so each table is named on its own.
+      const tables = await Promise.all(
+        (await this.repository.leaderboard(now - STANDINGS_DAYS * DAY_MS, STANDINGS_ROWS)).map(async (table) => ({
+          ...table,
+          rows: await this.namedRows(table.rows),
+        })),
+      )
       const overall = tables.find((table) => table.table === OVERALL)
       return {
         days: STANDINGS_DAYS,
-        overall: { faction: null, players: overall?.players ?? 0, rows: overall ? rows(overall) : [] },
+        overall: { faction: null, players: overall?.players ?? 0, rows: overall?.rows ?? [] },
         factions: tables
           .flatMap((table) => {
             const faction = table.table === OVERALL ? undefined : armies.get(table.table)
-            return faction ? [{ faction, seats: table.seats, players: table.players, rows: rows(table) }] : []
+            return faction ? [{ faction, seats: table.seats, players: table.players, rows: table.rows }] : []
           })
           .sort((one, other) => other.seats - one.seats || one.faction.displayName.localeCompare(other.faction.displayName))
           .map(({ seats: _seats, ...table }) => table),
