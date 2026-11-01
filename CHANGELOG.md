@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.211.6 (2026-11-01)
+
+### Patch Changes
+
+- b7db9f5: Finished battles in battle lists mark the winning side with a trophy, including games won by concession.
+
 ## 0.211.5 (2026-11-01)
 
 ### Patch Changes
