@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.208.8 (2026-11-01)
+
+### Patch Changes
+
+- 0d56a6f: Fix opening and playing a guest seat while signed in to an account.
+
 ## 0.208.7 (2026-10-31)
 
 ### Patch Changes
