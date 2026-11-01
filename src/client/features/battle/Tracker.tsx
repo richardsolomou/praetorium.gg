@@ -32,6 +32,7 @@ import {
   type ReminderDismissalContext,
   type ReminderDismissalScope,
 } from './reminderDismissals'
+import { parseSeenMoment, passedMoments, reminderMomentStorageKey, sameSeenMoment, type SeenMoment } from './reminderMoments'
 import { armyRulesRequest } from './sideRules'
 import { formatName, type Side, type SideMission, sides } from '../../sides'
 import { asSecondary, battleSizeText } from '../../../core/battle'
@@ -468,19 +469,62 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
   }, [emptySettlementKey, emptySettlementReady, pending, promptMinimized, send, view.seq])
   const prompt = settlementRound !== null ? (owedCards.length ? 'owed' : null) : turnPrompt(0, needsDraw || needsDrawAcknowledgement)
 
-  // A phase that ends queues its reminders ahead of the next moment's, so they show in the order they happened.
-  const reminderMoment = { ...momentOf(view), turn: reminderTurn }
-  const [previousReminderMoment, setPreviousReminderMoment] = useState(reminderMoment)
-  if (!sameMoment(previousReminderMoment, reminderMoment) || previousReminderMoment.turn !== reminderMoment.turn) {
-    const previous = previousReminderMoment
-    setPreviousReminderMoment(reminderMoment)
-    if (dismissalsReady && !sameMoment(previous, reminderMoment) && previous.phase !== 'end' && previous.turn) {
-      const moment: ReminderTiming = { moment: 'phase-end', phase: previous.phase, turn: previous.turn }
-      const context = momentOf(previous)
-      const reminders = remindersAt([moment], context)
-      if (reminders.length) enqueueReminderPrompt({ reminders, moment: reminderTimingLabel(moment), confirmLabel: 'Dismiss', context })
+  const firstSide = view.players.find((player) => player.id === view.firstPlayerId)?.side
+  // The reminders due as a moment of the turn begins: a round boundary's where it has any, otherwise the phase's.
+  const startPrompt = (moment: ReminderDismissalContext & Pick<SeenMoment, 'turn'>, actionReminders: readonly RosterReminder[]) => {
+    const context = momentOf(moment)
+    const activeSide = view.players.find((player) => player.id === moment.activePlayerId)?.side
+    const roundMoment =
+      firstSide === undefined || activeSide === undefined ? null : roundReminderMoment(moment.phase, activeSide, firstSide)
+    const roundReminders = roundMoment ? remindersAt([roundMoment], context) : []
+    if (roundMoment && roundReminders.length)
+      return { reminders: roundReminders, moment: reminderTimingLabel(roundMoment), confirmLabel: 'Dismiss', context }
+    const moments: ReminderTiming[] =
+      moment.phase === 'end'
+        ? [{ moment: 'turn-end', phase: null, turn: moment.turn }]
+        : [
+            { moment: 'phase-start', phase: moment.phase, turn: moment.turn },
+            ...(moment.phase === 'command' ? ([{ moment: 'turn-start', phase: null, turn: moment.turn }] as const) : []),
+          ]
+    const reminders = [...remindersAt(moments, context), ...actionReminders]
+    if (!reminders.length) return null
+    return {
+      reminders,
+      moment:
+        moment.phase === 'command'
+          ? `${moment.turn === 'your-turn' ? 'Your' : "Opponent's"} turn · Command phase`
+          : reminderTimingLabel(moments[0]!),
+      confirmLabel: 'Dismiss',
+      context,
     }
   }
+
+  // Moments the battle passed through queue their reminders ahead of the current one's, in the order they happened.
+  // The moment this device last showed is kept in storage, so moments passed while the battle is closed still alert.
+  const currentMoment: SeenMoment | null =
+    reminderTurn && active && firstSide !== undefined
+      ? { ...momentOf(view), turn: reminderTurn, order: (view.round - 1) * 2 + (active.index === firstSide ? 0 : 1) }
+      : null
+  const [seenMoment, setSeenMoment] = useState<{ battle: string; moment: SeenMoment } | null>(null)
+  if (dismissalsReady && currentMoment) {
+    const previous =
+      seenMoment?.battle === view.token ? seenMoment.moment : parseSeenMoment(readStoredValue(reminderMomentStorageKey(view.token)))
+    if (seenMoment?.battle !== view.token || !previous || !sameSeenMoment(previous, currentMoment)) {
+      setSeenMoment({ battle: view.token, moment: currentMoment })
+      for (const passed of previous ? passedMoments(previous, currentMoment) : []) {
+        const started = previous && sameSeenMoment(passed, previous) ? null : startPrompt(passed, EMPTY_REMINDERS)
+        if (started) enqueueReminderPrompt(started)
+        if (passed.phase === 'end') continue
+        const moment: ReminderTiming = { moment: 'phase-end', phase: passed.phase, turn: passed.turn }
+        const context = momentOf(passed)
+        const reminders = remindersAt([moment], context)
+        if (reminders.length) enqueueReminderPrompt({ reminders, moment: reminderTimingLabel(moment), confirmLabel: 'Dismiss', context })
+      }
+    }
+  }
+  useEffect(() => {
+    if (seenMoment) writeStoredValue(reminderMomentStorageKey(seenMoment.battle), JSON.stringify(seenMoment.moment))
+  }, [seenMoment])
 
   useEffect(() => {
     if (!dismissalsReady) return
@@ -489,37 +533,14 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
   }, [dismissalStorageKey, dismissalsReady, reminderContext])
 
   // The reminders due at this moment of the turn join the queue once no prompt is showing; each is dismissed when shown.
-  const momentPrompt = ((): ReminderPrompt | null => {
-    if (!reminderTurn) return null
-    const context = momentOf(view)
-    const firstSide = view.players.find((player) => player.id === view.firstPlayerId)?.side
-    const roundMoment = firstSide === undefined || !active ? null : roundReminderMoment(view.phase, active.index, firstSide)
-    const roundReminders = roundMoment ? remindersAt([roundMoment], context) : []
-    if (roundMoment && roundReminders.length)
-      return { reminders: roundReminders, moment: reminderTimingLabel(roundMoment), confirmLabel: 'Dismiss', context }
-    const moments: ReminderTiming[] =
-      view.phase === 'end'
-        ? [{ moment: 'turn-end', phase: null, turn: reminderTurn }]
-        : [
-            { moment: 'phase-start', phase: view.phase, turn: reminderTurn },
-            ...(view.phase === 'command' ? ([{ moment: 'turn-start', phase: null, turn: reminderTurn }] as const) : []),
-          ]
-    const actionReminders =
-      actionRemindersEnabled && view.phase === 'shooting' && reminderTurn === 'your-turn'
-        ? activeMissionActionReminders.filter((reminder) => !reminderDismissed(reminder.key, context))
-        : EMPTY_REMINDERS
-    const reminders = [...remindersAt(moments, context), ...actionReminders]
-    if (!reminders.length) return null
-    return {
-      reminders,
-      moment:
-        view.phase === 'command'
-          ? `${reminderTurn === 'your-turn' ? 'Your' : "Opponent's"} turn · Command phase`
-          : reminderTimingLabel(moments[0]!),
-      confirmLabel: 'Dismiss',
-      context,
-    }
-  })()
+  const momentPrompt = reminderTurn
+    ? startPrompt(
+        { ...momentOf(view), turn: reminderTurn },
+        actionRemindersEnabled && view.phase === 'shooting' && reminderTurn === 'your-turn'
+          ? activeMissionActionReminders.filter((reminder) => !reminderDismissed(reminder.key, momentOf(view)))
+          : EMPTY_REMINDERS,
+      )
+    : null
   const momentSignature = momentPrompt && JSON.stringify([momentPrompt.context, momentPrompt.reminders.map((reminder) => reminder.key)])
   const [queuedMoment, setQueuedMoment] = useState<string | null>(null)
   if (dismissalsReady && !reminderPrompt && momentPrompt && momentSignature !== queuedMoment) {

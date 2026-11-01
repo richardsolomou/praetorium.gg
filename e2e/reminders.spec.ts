@@ -145,7 +145,12 @@ test('roster reminders cover selected rules and advances from another device', a
   await page.setViewportSize(desktopContext.viewport)
   await advance(page, { dismissReminders: false })
   await expect(opponent.getByRole('heading', { name: 'movement phase' })).toBeVisible()
+  // The phase ends while the player is away from the battle, and its alert waits for their return.
+  const battle = page.url()
+  await page.goto('/')
   await advance(opponent, { dismissReminders: false })
+  await expect(opponent.getByRole('heading', { name: 'shooting phase' })).toBeVisible()
+  await page.goto(battle)
 
   const reminder = page.getByRole('dialog', { name: 'Battle reminder' })
   await expect(reminder).toContainText('End of your Movement phase')
@@ -175,7 +180,12 @@ test('roster reminders cover selected rules and advances from another device', a
   await advance(page, { dismissReminders: false })
   await expect(reminder).toBeHidden()
   await advance(page, { dismissReminders: false })
-  await advance(page, { dismissReminders: false })
+  // The opponent's Fight phase starts and ends while the player is away, and its start alert waits for their return.
+  await page.goto('/')
+  await advance(opponent)
+  await advance(opponent)
+  await expect(opponent.getByRole('heading', { name: 'end phase' })).toBeVisible()
+  await page.goto(battle)
   await expect(reminder).toContainText("Start of opponent's Fight phase")
 
   await page.setViewportSize(PHONE)
