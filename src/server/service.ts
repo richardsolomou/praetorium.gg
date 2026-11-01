@@ -346,7 +346,7 @@ export class PraetoriumService {
     return answer
   }
 
-  /** Where one player sits in each table they appear in, read from the same stored ratings the leaderboard pages. */
+  /** Where one player sits in each table they are ranked in, read from the same stored ratings the leaderboard pages. */
   async playerRankings(userId: string): Promise<PlayerRankings> {
     await this.refreshStandings()
     const { places, history } = await this.repository.playerStandings(userId, 0)
@@ -710,7 +710,7 @@ export class PraetoriumService {
       null,
       factions,
     )
-    const tables = standings(counted, { exclude: practice.map((opponent) => opponent.id) })
+    const tables = standings(counted, { exclude: practice.map((opponent) => opponent.id), now: this.clock() })
     const rows = tables.overall.filter((row) => memberIds.has(row.id))
     const recent = counted.filter((battle) => battle.status === 'finished').slice(0, GROUP_RECENT_BATTLES)
     // The reader's own group battles still being set up or played, which is what they most likely came back for.

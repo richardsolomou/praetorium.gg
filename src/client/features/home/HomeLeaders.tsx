@@ -1,6 +1,6 @@
 import { Link } from '@tanstack/react-router'
 import { ShelfLink } from '../../components/ShelfLink'
-import type { Standing } from '../../../core/standings'
+import { isProvisional, type Standing } from '../../../core/standings'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { SectionHeading } from '../../components/SectionHeading'
 
@@ -11,10 +11,11 @@ const TOP = 5
  * The head of the leaderboard, for somebody deciding whether anybody plays here.
  *
  * The same `standings` rows the leaderboard ranks, cut short rather than re-ranked,
- * with the rating the order comes from and the wins behind it. Absent until a
- * public battle has finished, because an empty table is the opposite of the point.
+ * with the rating the order comes from and the wins behind it. Absent until somebody
+ * is ranked, because an empty table is the opposite of the point.
  */
-export function HomeLeaders({ rows }: { rows: readonly Standing[] }) {
+export function HomeLeaders({ rows: all }: { rows: readonly Standing[] }) {
+  const rows = all.filter((row) => !isProvisional(row))
   if (!rows.length) return null
   return (
     <section data-home-leaders>

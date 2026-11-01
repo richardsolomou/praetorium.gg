@@ -70,8 +70,8 @@ test('group members choose their group at battle setup', async ({ browser }, tes
   await owner.goto(`${groupUrl}?tab=leaderboard`)
   const table = owner.locator('[data-standings]')
   // The winner leads the table, and both members are on it.
-  await expect(table.locator('tbody tr')).toHaveCount(2)
-  await expect(table.locator('tbody tr').first()).toContainText(ownerName)
+  await expect(table.locator('[data-standing]')).toHaveCount(2)
+  await expect(table.locator('[data-standing]').first()).toContainText(ownerName)
   await owner.screenshot({ path: testInfo.outputPath('group-page.png'), fullPage: true })
 
   await ownerContext.close()

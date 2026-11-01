@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { guestSeatId } from './newBattle'
-import { averagePoints, standings, type StandingBattle, winRate } from './standings'
+import { averagePoints, PROVISIONAL_BATTLES, standings, type StandingBattle, winRate } from './standings'
 
 const army = (slug: string) => ({ slug, displayName: slug, icon: null })
 
@@ -123,15 +123,23 @@ describe('standings', () => {
   })
 })
 
-describe('the listed window', () => {
-  const battles = league(['alice', 'bob'], ['alice', 'carol', { lastActivity: 10 }])
+describe('a provisional player', () => {
+  it('is listed after every ranked player, even rated above them', () => {
+    const losses = Array.from({ length: PROVISIONAL_BATTLES }, (_, game) => [`winner-${game}`, 'regular'] as [string, string])
+    const rows = overall(league(...losses, ['b', 'newcomer']))
 
-  it('leaves out a player whose last battle is older than it', () => {
-    expect(standings(battles, { activeSince: 5 }).overall.map((row) => row.id)).toEqual(['alice', 'carol'])
+    expect(place(rows, 'regular')).toBeLessThan(place(rows, 'newcomer'))
   })
+})
 
-  it('keeps every battle in the rating of a player still listed', () => {
-    expect(standings(battles, { activeSince: 5 }).overall[0]?.rating).toBe(rated(battles, 'alice'))
+describe('a break from playing', () => {
+  const DAY = 24 * 60 * 60 * 1000
+  const battles = league(['alice', 'bob'], ['alice', 'carol'], ['dave', 'alice'])
+
+  it('lowers the rating a table lists the longer a player has not played', () => {
+    const later = standings(battles, { now: 2 + 90 * DAY }).overall.find((row) => row.id === 'alice')?.rating
+
+    expect(later).toBeLessThan(rated(battles, 'alice')!)
   })
 })
 
@@ -161,13 +169,19 @@ describe('the rating', () => {
     expect(rated(battles, 'spread')).toBeGreaterThan(rated(battles, 'farmer')!)
   })
 
-  it('puts a clean record above more wins bought with losses', () => {
+  it('rates a clean record above more wins bought with losses', () => {
     // Grinder is 3-2 and Steady is 2-0 against the same kind of opposition.
-    const rows = overall(
-      league(['grinder', 'a'], ['grinder', 'b'], ['grinder', 'c'], ['d', 'grinder'], ['e', 'grinder'], ['steady', 'f'], ['steady', 'g']),
+    const battles = league(
+      ['grinder', 'a'],
+      ['grinder', 'b'],
+      ['grinder', 'c'],
+      ['d', 'grinder'],
+      ['e', 'grinder'],
+      ['steady', 'f'],
+      ['steady', 'g'],
     )
 
-    expect(place(rows, 'steady')).toBeLessThan(place(rows, 'grinder'))
+    expect(rated(battles, 'steady')).toBeGreaterThan(rated(battles, 'grinder')!)
   })
 
   it('does not put a single lucky win on top of a proven record', () => {

@@ -1,6 +1,6 @@
 import { Link, useNavigate } from '@tanstack/react-router'
 import type { Standing, StandingFaction } from '../../../core/standings'
-import { averagePoints, winRate } from '../../../core/standings'
+import { averagePoints, isProvisional, PROVISIONAL_BATTLES, winRate } from '../../../core/standings'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { SearchableSelect } from '../../components/SearchableSelect'
 import { percentLabel } from '../../text'
@@ -16,6 +16,9 @@ export type StandingsTable = { faction: StandingFaction | null; players: number;
  * against the row instead of trusting it. The record beside it is the context:
  * what the rating was earned from, and the points a battle the player scores.
  * Every width shows all of them.
+ *
+ * Players without enough battles to rank follow under their own heading, with
+ * neither a place nor a rating: a number there would read as a rank it is not.
  */
 export function Standings({
   table,
@@ -28,6 +31,25 @@ export function Standings({
   title?: string
   empty?: string
 }) {
+  const ranked = table.rows.filter((row) => !isProvisional(row))
+  const unranked = table.rows.filter(isProvisional)
+  const player = (row: Standing) => (
+    <td className="overflow-hidden p-3">
+      <Link to="/users/$userId" params={{ userId: row.id }} className="flex min-w-0 items-center gap-2 hover:text-info">
+        <PlayerAvatar name={row.name} image={row.image} className="size-7 text-3xs" />
+        <span className="truncate font-bold uppercase">{row.name}</span>
+        {row.id === viewerId ? <span className="eyebrow shrink-0 text-parchment">You</span> : null}
+      </Link>
+    </td>
+  )
+  const record = (row: Standing) => (
+    <>
+      <td className="readout p-3 text-right text-dim">{row.won}</td>
+      <td className="readout p-3 text-right text-dim">{row.battles}</td>
+      <td className="readout p-3 text-right text-dim">{percentLabel(winRate(row))}</td>
+      <td className="readout p-3 text-right text-dim">{Math.round(averagePoints(row))}</td>
+    </>
+  )
   return (
     <section data-standings>
       <SectionHeading title={title} count={table.players} />
@@ -67,24 +89,32 @@ export function Standings({
               </tr>
             </thead>
             <tbody>
-              {table.rows.map((row, place) => (
+              {ranked.map((row, place) => (
                 <tr key={row.id} data-standing={row.id} className="border-b border-edge last:border-0">
                   <td className="readout p-3 text-faint">{place + 1}</td>
-                  <td className="overflow-hidden p-3">
-                    <Link to="/users/$userId" params={{ userId: row.id }} className="flex min-w-0 items-center gap-2 hover:text-info">
-                      <PlayerAvatar name={row.name} image={row.image} className="size-7 text-3xs" />
-                      <span className="truncate font-bold uppercase">{row.name}</span>
-                      {row.id === viewerId ? <span className="eyebrow shrink-0 text-parchment">You</span> : null}
-                    </Link>
-                  </td>
+                  {player(row)}
                   <td className="readout p-3 text-right text-info">{row.rating}</td>
-                  <td className="readout p-3 text-right text-dim">{row.won}</td>
-                  <td className="readout p-3 text-right text-dim">{row.battles}</td>
-                  <td className="readout p-3 text-right text-dim">{percentLabel(winRate(row))}</td>
-                  <td className="readout p-3 text-right text-dim">{Math.round(averagePoints(row))}</td>
+                  {record(row)}
                 </tr>
               ))}
             </tbody>
+            {unranked.length ? (
+              <tbody data-unranked>
+                <tr className="border-y border-edge bg-sunken">
+                  <th scope="rowgroup" colSpan={7} className="p-3 text-left text-xs font-normal tracking-wide text-faint uppercase">
+                    Not yet ranked · fewer than {PROVISIONAL_BATTLES} battles
+                  </th>
+                </tr>
+                {unranked.map((row) => (
+                  <tr key={row.id} data-standing={row.id} className="border-b border-edge last:border-0">
+                    <td className="readout p-3 text-faint">—</td>
+                    {player(row)}
+                    <td className="readout p-3 text-right text-faint">—</td>
+                    {record(row)}
+                  </tr>
+                ))}
+              </tbody>
+            ) : null}
           </table>
         </div>
       ) : (

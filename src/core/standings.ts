@@ -107,6 +107,26 @@ const DISPLAY = { alpha: 20, target: 1000 }
  */
 const BETA = 25 / 3
 
+/**
+ * How much a player's uncertainty grows per day since their last battle in a table, from none back to a newcomer's in
+ * two years, so a player who has stopped playing drifts down it. Only the listed rating drifts: battles are rated
+ * without it, since much of the history is imported and its gaps are not time away.
+ */
+const NEWCOMER_SIGMA = rating().sigma
+const IDLE_VARIANCE_PER_DAY = NEWCOMER_SIGMA ** 2 / 730
+const DAY_MS = 24 * 60 * 60 * 1000
+
+/** A player's skill after `idleMs` without a battle, never growing less certain than a newcomer's. */
+function idle(skill: Rating, idleMs: number): Rating {
+  if (idleMs <= 0 || skill.sigma >= NEWCOMER_SIGMA) return skill
+  return { mu: skill.mu, sigma: Math.min(Math.sqrt(skill.sigma ** 2 + (IDLE_VARIANCE_PER_DAY * idleMs) / DAY_MS), NEWCOMER_SIGMA) }
+}
+
+/** Fewer battles than this in a table, and a player is listed apart from the ranked players, without a place. */
+export const PROVISIONAL_BATTLES = 5
+
+export const isProvisional = (row: Pick<Standing, 'battles'>) => row.battles < PROVISIONAL_BATTLES
+
 const mean = (values: readonly number[]) => values.reduce((total, value) => total + value, 0) / values.length
 
 /** The overall table's key. A faction table's key is its army's slug, which every rules version of the army shares. */
@@ -167,14 +187,11 @@ export function rateBattle(battle: StandingBattle, held: (table: string, seat: n
 }
 
 /**
- * Rate every finished battle in the order it finished.
- *
- * Every battle given is rated; `activeSince` only decides who is listed, so a
- * rating does not change because an old battle stopped being shown.
+ * Rate every finished battle in the order it finished, listing each player's rating as it stands at `now`.
  */
 export function standings<B extends StandingBattle>(
   battles: readonly B[],
-  { exclude = [], activeSince = 0 }: { exclude?: readonly string[]; activeSince?: number } = {},
+  { exclude = [], now = 0 }: { exclude?: readonly string[]; now?: number } = {},
 ): StandingsTables<B> {
   const overall = new Map<string, Rated>()
   const changes = new Map<B, number[]>()
@@ -201,10 +218,10 @@ export function standings<B extends StandingBattle>(
     })
   }
   return {
-    overall: ranked(overall, activeSince),
+    overall: ranked(overall, now),
     factions: [...factions.values()]
       .sort((one, other) => other.seats - one.seats || one.faction.displayName.localeCompare(other.faction.displayName))
-      .map(({ faction, entries }) => ({ faction, rows: ranked(entries, activeSince) }))
+      .map(({ faction, entries }) => ({ faction, rows: ranked(entries, now) }))
       .filter((table) => table.rows.length),
     changes,
     history,
@@ -236,16 +253,19 @@ function record(row: Standing, battle: StandingBattle, seat: number) {
 /** The rating a player sees. */
 export const shownRating = (skill: Rating) => Math.round(ordinal(skill, DISPLAY))
 
+/** The rating a table lists at `now` for a player who last played in it at `lastPlayed`; lower the longer they have not played. */
+export const currentRating = (skill: Rating, lastPlayed: number, now: number) => shownRating(idle(skill, now - lastPlayed))
+
 /** Rounded before sorting, so the printed rating is the one the order was taken from. */
-function ranked(entries: ReadonlyMap<string, Rated>, activeSince: number): Standing[] {
+function ranked(entries: ReadonlyMap<string, Rated>, now: number): Standing[] {
   return [...entries.values()]
-    .filter(({ row }) => row.lastPlayed >= activeSince)
-    .map(({ row, skill }) => ({ ...row, rating: shownRating(skill) }))
+    .map(({ row, skill }) => ({ ...row, rating: currentRating(skill, row.lastPlayed, now) }))
     .sort(compareStandings)
 }
 
 export function compareStandings(one: Standing, other: Standing): number {
   return (
+    Number(isProvisional(one)) - Number(isProvisional(other)) ||
     other.rating - one.rating ||
     other.won - one.won ||
     winRate(other) - winRate(one) ||

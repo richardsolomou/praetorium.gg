@@ -8,7 +8,7 @@ import { reduceBattle, type Command } from '../core/battle'
 import { ALICE, BOB, CAROL, builtRoster } from '../core/battle.fixtures'
 import { byId } from '../core/collections'
 import { battleFoldArgs } from '../core/offlineBattle'
-import { standings } from '../core/standings'
+import { PROVISIONAL_BATTLES, standings } from '../core/standings'
 import { battleSummary, type BattleFaction } from '../shared/battleSummary'
 import { MODULE_URL, moduleFetch } from './moduleFetch.fixtures'
 import { PraetoriumService } from './service'
@@ -71,7 +71,7 @@ function product() {
           byId(FACTIONS),
         ),
       ),
-      { exclude, activeSince: NOW - 90 * 24 * 60 * 60 * 1000 },
+      { exclude, now: NOW },
     )
   }
   const tables = (answer: Awaited<ReturnType<typeof service.standings>>) => ({
@@ -108,6 +108,13 @@ it('rates a battle finishing between rated ones the same as a full replay', asyn
   expect(tables(await service.standings())).toEqual(replayed(await replay()))
 })
 
+it('lists the same ratings as a full replay after a break from playing', async () => {
+  const { service, conceded, replay, tables, replayed } = product()
+  await conceded('one', ALICE, BOB, NOW - 200 * 24 * 60 * 60 * 1000)
+  await conceded('two', CAROL, ALICE, NOW - 100 * 24 * 60 * 60 * 1000)
+  expect(tables(await service.standings())).toEqual(replayed(await replay()))
+})
+
 it('lists each table with its own record for a player who fields several armies', async () => {
   const { service, conceded, replay, tables, replayed } = product()
   await conceded('one', ALICE, BOB, NOW - 2_000)
@@ -117,10 +124,18 @@ it('lists each table with its own record for a player who fields several armies'
 
 it('places a player on their profile where the leaderboard lists them', async () => {
   const { service, conceded } = product()
-  await conceded('one', ALICE, BOB, NOW - 2_000)
-  await conceded('two', CAROL, ALICE, NOW - 1_000)
+  for (let game = 0; game < PROVISIONAL_BATTLES; game++) {
+    await conceded(`alice-${game}`, ALICE, BOB, NOW - 4_000 + game)
+    await conceded(`carol-${game}`, CAROL, ALICE, NOW - 2_000 + game)
+  }
   const { overall } = await service.standings()
   expect((await service.playerRankings(ALICE)).overall?.place).toBe(overall.rows.findIndex((row) => row.id === ALICE) + 1)
+})
+
+it('gives a player no place on their profile until they are ranked', async () => {
+  const { service, conceded } = product()
+  await conceded('one', ALICE, BOB, NOW)
+  expect((await service.playerRankings(ALICE)).overall).toBeNull()
 })
 
 it('shows how far a battle moved each rating as a full replay does', async () => {
