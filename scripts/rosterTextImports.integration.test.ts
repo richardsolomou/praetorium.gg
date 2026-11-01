@@ -333,8 +333,50 @@ Grey Knights Terminator Squad (185 Points)
       'World Eaters · Berzerker Warband',
       'Chaos Warhound Titan [1100 pts]\n  Warhound feet / 2× Warhound vulcan mega-bolter',
     ],
+    [
+      'an enhancement the field manual spells differently',
+      'Genestealer Cults · Biosanctic Broodsurge',
+      'Patriarch [105 pts]\n  Enhancement: Biomorph Adaptation (+25 pts)\n  Patriarch’s claws',
+    ],
+    [
+      'an enhancement the catalogue spells "TL-409"',
+      'Adeptus Mechanicus · Lords of the Forge',
+      'Technoarcheologist [75 pts]\n  Enhancement: TL-4ø9 (+30 pts)\n  Mechanicus pistol + Servo-arc claw',
+    ],
+    [
+      'an enhancement the catalogue calls "Sublime Presence"',
+      'Emperor’s Children · Rapid Evisceration',
+      'Lord Exultant [120 pts]\n  Enhancement: Sublime Prescience (+25 pts)\n  Master-crafted power sword / Plasma pistol / Bolt Pistol + Close combat weapon',
+    ],
+    ['default gear only its datacard names', 'Asuryani · Windrider Host', 'Solitaire [105 pts]\n  Flip Belt + Solitaire weapons'],
+    [
+      'a qualifier in brackets',
+      'Orks · War Horde',
+      'Tankbustas [160 pts] (6 models)\n  Rokkit Pistol + Smash Hammer / 5× Gitstikka + Busta Rokkit Launcha / Choppa / Pulsa Rokkit (Once per battle, per unit)',
+    ],
+    [
+      'a retinue it prints no count for',
+      'Adepta Sororitas · Sacred Champions',
+      'Canis Rex [415 pts]\n  Questoris multi-laser + Freedom’s Hand + Las-impulsor',
+    ],
   ])('places 40k.app wargear given %s', (_, army, unit) => {
     expect(summary(fortyKAppUnit(army, unit)).mismatches).toEqual([])
+  })
+
+  it('reads a 40k.app detachment spelled with a space', () => {
+    const file = fortyKAppUnit(
+      'Adeptus Mechanicus · Haloscreed Battle Clade',
+      'Kataphron Breachers [290 pts] (6 models)\n  6× Heavy arc rifle / 6× Hydraulic claw',
+    )
+    expect(summary(file)).toMatchObject({ detachments: 1, mismatches: [] })
+  })
+
+  it('keeps a note 40k.app prints where hidden default gear would be', () => {
+    const file = fortyKAppUnit(
+      'Adeptus Mechanicus · Lords of the Forge',
+      'Technoarcheologist [75 pts]\n  Enhancement: TL-4ø9 (+30 pts)\n  Kill priority: anything with a lascannon',
+    )
+    expect(imported(file)).toMatchObject({ unplaced: [], units: [{ note: 'Kill priority: anything with a lascannon' }] })
   })
 
   it('reads a 40k.app unit without a model count as one model', () => {

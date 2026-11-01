@@ -20,11 +20,15 @@ export type TextRosterUnit = {
   leading: string | null
   leader?: string | null
   models?: number | null
+  /** The list prints no size, which means the datasheet's own rather than one read from its wargear. */
+  defaultSize?: boolean
   entry?: number
   attachedToEntry?: number
   nickname?: string
   /** The player's own note on the unit, kept as its private note. */
   note?: string
+  /** A lone free-text line read as wargear, which is the player's note instead if nothing in the catalogue answers to it. */
+  noteOrWargear?: string
   unread?: string[]
   warlord: boolean
 }

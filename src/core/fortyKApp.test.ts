@@ -57,7 +57,8 @@ Mission: Purge the Foe
   expect(parsed?.units).toEqual([
     {
       name: 'Overlord',
-      models: 1,
+      models: null,
+      defaultSize: true,
       selections: [
         { name: 'Enhancement: Destroyer Ankh', count: 1 },
         { name: 'Staff of light', count: 1 },
@@ -65,6 +66,7 @@ Mission: Purge the Foe
       leading: null,
       warlord: true,
       attachedToEntry: 1,
+      noteOrWargear: 'Staff of light',
     },
     { name: 'Immortals', models: 5, selections: [{ name: 'Tesla carbine', count: 5 }], leading: null, warlord: false, entry: 1 },
   ])

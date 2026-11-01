@@ -19,7 +19,7 @@ import { buildUnit } from '../core/roster'
 import { at as selectionAt } from '../core/selection'
 import { unitChoices, unitToggles } from '../core/unitChoices'
 import { wargearOf } from '../core/wargear'
-import { textNickname, type TextRoster, type TextRosterUnit } from '../core/textRoster'
+import { textNickname, textNote, type TextRoster, type TextRosterUnit } from '../core/textRoster'
 import { gwTextGroup, gwTextVersionLines, toGwText, type GwTextRoster } from '../core/gwText'
 import type { UnitGroup } from '../core/unitGroups'
 import { allowsPointsBudget, customPointsBudget, GAME_SIZES, isGameSize, pointsBudgetError } from '../core/battle'
@@ -38,6 +38,8 @@ import {
   WARLORD_REASON,
 } from './importMismatch'
 import { DISPOSITIONS, type LoadedCatalogue } from './catalogueIndex'
+import { datacardOf } from './datasheetJoin'
+import { isUpgrade, mfmDetachmentFor } from './mfm'
 import { rosterDetachments } from './rosterDetachments'
 import { importRosterSchema, type ExportRosterInput, type ImportRosterInput } from '../contracts/schemas'
 import { calculateRosterPrice } from './pricing'
@@ -438,7 +440,8 @@ function detachmentsNamed<T extends { id: string; name: string }>(combined: stri
   const visit = (remaining: string, available: readonly T[]): T[] | null => {
     for (const candidate of available) {
       for (const name of new Set(detachmentNameVariants(candidate.name).map(normalized))) {
-        if (remaining === name) return [candidate]
+        // "Haloscreed Battle Clade" is the catalogue's "Haloscreed Battleclade".
+        if (remaining === name || remaining.replaceAll(' ', '') === name.replaceAll(' ', '')) return [candidate]
         for (const separator of [', and ', ' and ', ', ']) {
           if (!remaining.startsWith(name + separator)) continue
           const rest = visit(
@@ -501,10 +504,22 @@ function textRosterPick(
     const at = words.findIndex((word, position) => !unitWords.has(word) || position === words.length - 1)
     return at > 0 ? respelled.get(spellingKey(words.slice(at).join(' '))) : undefined
   }
+  const context = { primaryCatalogueId: catalogueId, roster }
+  let manualNames: ReadonlyMap<string, string> | undefined
   for (const selection of unit.selections) {
+    const enhancement = /^(?:Enhancements?|Upgrade):/i.test(selection.name)
     const label = selection.name.replace(/^(?:Enhancements?|Upgrade):\s*(.+)$/i, (_, name: string) => upgradeName(name)).trim()
-    const key = spellingKey(normalized(label))
-    const name = (respelled.has(key) ? respelled.get(key) : (respelled.get(powerWeaponKey(key)) ?? unprefixed(label))) ?? normalized(label)
+    // A list can add a qualifier the catalogue does not, as "Icon of Despair (Aura)" or "Pulsa Rokkit (Once per battle, per unit)".
+    const key =
+      [spellingKey(normalized(label)), spellingKey(normalized(label.replace(/\s*\([^()]*\)$/, '')))].find((candidate) =>
+        respelled.has(candidate),
+      ) ?? spellingKey(normalized(label))
+    const known = respelled.has(key) || respelled.has(powerWeaponKey(key))
+    if (enhancement && !known) manualNames ??= enhancementRespellings(entryId, catalogueId, detachmentIds, loaded, context)
+    const name =
+      (respelled.has(key) ? respelled.get(key) : (respelled.get(powerWeaponKey(key)) ?? unprefixed(label))) ??
+      (enhancement ? manualNames?.get(normalized(label)) : undefined) ??
+      normalized(label)
     stated.set(name, (stated.get(name) ?? 0) + selection.count)
     if (!selection.model) statedLines.set(name, (statedLines.get(name) ?? 0) + selection.count)
     if (!labels.has(name)) labels.set(name, label)
@@ -521,8 +536,8 @@ function textRosterPick(
   const namedForUnit = (name: string) => !respelled.has(spellingKey(name)) && ownNames.some((own) => name.startsWith(`${own} `))
   const statedModels = [...stated].reduce((total, [name, count]) => total + (models.has(name) || namedForUnit(name) ? count : 0), 0)
   // Model lines size the unit; without them, its most numerous wargear stands in.
-  const requestedModels = unit.models ?? (statedModels || Math.max(1, ...unit.selections.map((selection) => selection.count)))
-  const context = { primaryCatalogueId: catalogueId, roster }
+  const requestedModels =
+    unit.models ?? (unit.defaultSize ? undefined : statedModels || Math.max(1, ...unit.selections.map((selection) => selection.count)))
   const built = buildUnit(entryId, loaded.index, requestedModels, {}, context)
   const warlordNames = warlordAliases(entryId, loaded.index)
   const warlord = unit.warlord || [...warlordNames].some((name) => stated.has(name))
@@ -690,6 +705,11 @@ function textRosterPick(
       ? opened
       : buildUnit(entryId, loaded.index, pick.models, pick.choices, { ...context, spreads: pick.spreads })
   const carried = imported ? carriedNames(imported.selection, loaded.index) : new Set<string>()
+  // What the datasheet's card says every model starts with is carried where the catalogue names it nowhere, as a
+  // Solitaire's flip belt; a piece the catalogue does name was placed or lost with its option.
+  for (const group of datacardOf(loaded, catalogueId, entryId)?.details.wargearGroups ?? [])
+    if (/^default wargear$/i.test(group.instruction))
+      for (const option of group.options) if (!respelled.has(spellingKey(normalized(option)))) carried.add(withoutArticle(option))
   const unplaced = [...stated.keys()]
     .filter(
       (name) =>
@@ -704,6 +724,14 @@ function textRosterPick(
       const reason = placed.has(name) ? DROPPED_REASON : unplacedChoiceReason(label, { loaded, catalogueId, detachmentIds })
       return { name: label, reason }
     })
+  // A lone line nothing in the catalogue answers to is the player's note, not wargear the unit lost.
+  const noteAt = unplaced.findIndex(
+    (choice) => normalized(choice.name) === normalized(unit.noteOrWargear ?? '') && choice.reason.startsWith('nothing in'),
+  )
+  if (noteAt >= 0) {
+    unplaced.splice(noteAt, 1)
+    pick.note = textNote([unit.noteOrWargear!, ...(pick.note ? [pick.note] : [])])
+  }
   for (const line of unit.unread ?? []) unplaced.push({ name: line, reason: 'this line is not understood by the text importer' })
   // A crown this datasheet cannot wear, and a squad size it does not field, are both
   // choices the list states and this build could not take. Only a stated size counts:
@@ -997,6 +1025,35 @@ function countsForChoice(
     if (!best || free <= 0) return distinctiveCounts
     distinctiveCounts.set(best.option.id, Math.min(free, ...best.names.map(([name, each]) => Math.floor(leftOver(name) / each))))
   }
+}
+
+/**
+ * The catalogue's name for each enhancement the Munitorum Field Manual spells differently,
+ * as its "Biomorph Adaptation" is BSData's "Biomorph Adaption": the one option this unit is
+ * offered that the manual names nowhere in the list's detachments, at the same points.
+ */
+function enhancementRespellings(
+  entryId: string,
+  catalogueId: string,
+  detachmentIds: readonly string[],
+  loaded: LoadedCatalogue,
+  context: { primaryCatalogueId: string; roster: readonly Selection[] },
+) {
+  const names = new Map<string, string>()
+  const detachments = loaded.detachments.get(catalogueId)?.options.filter((option) => detachmentIds.includes(option.id)) ?? []
+  const manual = detachments.flatMap(
+    (detachment) => mfmDetachmentFor(loaded, catalogueId, detachment.name)?.enhancements?.filter((entry) => !isUpgrade(entry.name)) ?? [],
+  )
+  const built = buildUnit(entryId, loaded.index, undefined, {}, context)
+  if (!manual.length || !built) return names
+  const inManual = (name: string) => manual.some((entry) => normalized(entry.name) === normalized(name))
+  const offered = unitChoices(entryId, built.selection, loaded.index, context).flatMap((choice) => choice.options)
+  for (const entry of manual) {
+    if (offered.some((option) => normalized(option.name) === normalized(entry.name))) continue
+    const unnamed = offered.filter((option) => !inManual(option.name) && option.points === entry.points)
+    if (unnamed.length === 1) names.set(normalized(entry.name), normalized(unnamed[0]!.name))
+  }
+  return names
 }
 
 /** The wargear an option brings, each piece under its one catalogue name. */

@@ -49,8 +49,15 @@ export function fromFortyKAppText(input: string): TextRoster | null {
     if (unit) {
       current = {
         label: unit[1]!,
-        // It prints a model count only for two or more.
-        unit: { name: unit[1]!, models: Number(unit[2] ?? 1), selections: [], leading: null, warlord: !!unit[3] },
+        unit: {
+          name: unit[1]!,
+          models: unit[2] ? Number(unit[2]) : null,
+          // It prints no count for a lone model, nor for a character's fixed retinue, as Canis Rex's Sir Hekhtur.
+          ...(unit[2] ? {} : { defaultSize: true }),
+          selections: [],
+          leading: null,
+          warlord: !!unit[3],
+        },
         notes: [],
       }
       units.push(current)
@@ -71,8 +78,10 @@ export function fromFortyKAppText(input: string): TextRoster | null {
     // A unit's wargear is one line; any after it are the player's own notes.
     else if (current.armed) current.notes.push(trimmed)
     else {
-      current.unit.selections.push(...loadout(trimmed, current.unit.models!))
+      current.unit.selections.push(...loadout(trimmed, current.unit.models ?? 1))
       current.armed = true
+      // With its default gear hidden, a unit carrying only that prints its note where its wargear would be.
+      if (!/ \/ | \+ |×/.test(trimmed)) current.unit.noteOrWargear = trimmed
     }
   }
 
