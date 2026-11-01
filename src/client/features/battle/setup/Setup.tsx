@@ -5,6 +5,7 @@ import { Fragment, useEffect, useState, type ReactNode } from 'react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
 import type { Command } from '../../../../core/battle'
 import type { BattleView } from '../../../../core/battleView'
 import {
@@ -440,6 +441,24 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
                     onChange={(armyPoints) => configure({ armyPoints })}
                   />
                 ) : null}
+                {team && view.settings.limit !== null && !view.sealedEventToken ? (
+                  <label htmlFor="battle-shared-points" className="flex items-start justify-between gap-3 sm:col-span-2">
+                    <span>
+                      <span className="block text-sm font-medium">Allies split their points</span>
+                      <span className="block text-xs text-dim">
+                        Allies spend their side’s points between them however they agree, such as{' '}
+                        {(view.settings.limit / 2 - 100).toLocaleString('en')} and {(view.settings.limit / 2 + 100).toLocaleString('en')} of{' '}
+                        {pointsLabel(view.settings.limit)}.
+                      </span>
+                    </span>
+                    <Switch
+                      id="battle-shared-points"
+                      checked={Boolean(view.settings.sharedArmyPoints)}
+                      disabled={busy}
+                      onCheckedChange={(sharedArmyPoints) => configure({ sharedArmyPoints })}
+                    />
+                  </label>
+                ) : null}
                 {view.sealedEventToken ? null : (
                   <div className="sm:col-span-2">
                     <Choice
@@ -484,9 +503,11 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
                     ? `Waiting for ${formatList(awaited.map((army) => army.playerName))} to choose an army.`
                     : (sizeProblem ??
                       (leaderless.length ? 'Choose whose Warlord leads each allied side.' : null) ??
-                      (team
-                        ? 'The biggest list sets the battle size. Each army spends up to its side’s points per army, and allies bring lists saved to the same total.'
-                        : 'Battle size follows your rosters. Each side brings the same points.'))
+                      (team && view.settings.sharedArmyPoints
+                        ? 'The biggest list sets the battle size. Allies spend their side’s points between them however they agree.'
+                        : team
+                          ? 'The biggest list sets the battle size. Each army spends up to its side’s points per army, and allies bring lists saved to the same total.'
+                          : 'Battle size follows your rosters. Each side brings the same points.'))
               }
             >
               <ArmiesStep view={view} sides={table} send={send} attachRoster={attachRoster} pending={busy} problem={problem} />
