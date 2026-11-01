@@ -97,6 +97,10 @@ export function ruleProfileSections(profiles: readonly Profile[]) {
   return [...sections].map(([title, sectionProfiles]) => ({ title, profiles: sectionProfiles }))
 }
 
+/** A profile printed as a weapon line under its own type, such as a C'tan power. */
+export const weaponShapedProfile = (profile: Profile) =>
+  ['attacks', 'damage'].every((kind) => profile.values.some((value) => datasheetCharacteristicKindOf(value) === kind))
+
 /**
  * The keywords something in the list put on a weapon: the ones the printed profile
  * does not have.

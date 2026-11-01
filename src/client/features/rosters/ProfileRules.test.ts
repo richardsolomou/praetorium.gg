@@ -18,3 +18,16 @@ it('anchors each rendered rule profile', () => {
 
   expect(markup).toContain('id="profile-rule-profile"')
 })
+
+it('lays out a weapon-shaped profile such as a C’tan power as a weapon line', () => {
+  const values = ['Range', 'A', 'BS', 'S', 'AP', 'D'].map((name) => ({ name, value: '1' }))
+  const markup = renderToStaticMarkup(
+    createElement(ProfileRules, {
+      profiles: [{ id: 'cosmic-fire', name: 'Cosmic fire', type: "C'tan Powers", values }],
+      rules: [],
+      compact: true,
+    }),
+  )
+
+  expect(markup).toContain('flex-1 text-center')
+})
