@@ -1,12 +1,12 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { EllipsisVertical, Eye, Trash2 } from 'lucide-react'
+import { EllipsisVertical, Eye, Trash2, Trophy } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from '@/components/ui/context-menu'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { cn } from '@/lib/utils'
 import { pointsLabel } from '../../../core/battle'
-import { BATTLE_ENDINGS, sideLost, viewerStage } from '../../battleStage'
+import { BATTLE_ENDINGS, sideLost, sideWon, viewerStage } from '../../battleStage'
 import { deploymentName, summarySides, type SummarySide } from '../../battleSummary'
 import { deploymentsQuery } from '../../queries'
 import { useDateFormatting } from '../../dates'
@@ -73,6 +73,7 @@ export function BattleShelf({
           const a = ours?.score ?? 0
           const b = theirs?.score ?? 0
           const lost = (side?: SummarySide) => side !== undefined && sideLost(battle, side.index)
+          const won = (side?: SummarySide) => side !== undefined && sideWon(battle, side.index)
           const faded = 'opacity-50'
           return (
             <ContextMenu key={battle.token}>
@@ -93,7 +94,7 @@ export function BattleShelf({
                   className="block min-w-0"
                 >
                   <span className="grid min-w-0 items-center gap-3 px-4 pt-3 pb-2 sm:grid-cols-[minmax(0,1fr)_8.5rem_minmax(0,1fr)] sm:gap-4">
-                    <Side side={ours} viewerId={viewerId} className={cn('order-2 sm:order-none', lost(ours) && faded)} />
+                    <Side side={ours} won={won(ours)} viewerId={viewerId} className={cn('order-2 sm:order-none', lost(ours) && faded)} />
                     <span className="order-1 flex items-center justify-between gap-3 sm:order-none sm:flex-col sm:justify-center sm:gap-1.5">
                       <span data-battle-status={battle.status} className={`chip ${stage.tint}`}>
                         {stage.name}
@@ -118,6 +119,7 @@ export function BattleShelf({
                     </span>
                     <Side
                       side={theirs}
+                      won={won(theirs)}
                       viewerId={viewerId}
                       mirrored
                       className={cn('order-3 max-sm:border-t max-sm:border-edge max-sm:pt-3 sm:order-none', lost(theirs) && faded)}
@@ -173,11 +175,13 @@ export function BattleShelf({
 /** Everyone at one side of the table, each with their army; the far side mirrors so both read towards the score. */
 function Side({
   side,
+  won,
   viewerId,
   mirrored = false,
   className,
 }: {
   side?: SummarySide
+  won: boolean
   viewerId?: string
   mirrored?: boolean
   className: string
@@ -196,6 +200,11 @@ function Side({
               <span className={`flex min-w-0 items-baseline gap-1.5 ${mirrored ? 'sm:flex-row-reverse' : ''}`}>
                 <span className="truncate text-sm leading-tight font-bold uppercase">{player.name}</span>
                 {player.id === viewerId ? <span className="eyebrow shrink-0 text-parchment">You</span> : null}
+                {won ? (
+                  <span className="eyebrow flex shrink-0 items-center gap-1 self-center text-achieved">
+                    <Trophy className="size-3" aria-hidden /> Winner
+                  </span>
+                ) : null}
                 {ratingChange === null ? null : <RatingChange change={ratingChange} />}
               </span>
               <span className={`mt-0.5 flex min-w-0 items-center gap-1.5 text-xs text-dim ${mirrored ? 'sm:flex-row-reverse' : ''}`}>

@@ -32,4 +32,7 @@ export function viewerStage(battle: StandingBattle, viewerId: string | null | un
 /** Whether a side lost a finished battle, which lists fade so the winners stand out; a draw fades neither. */
 export const sideLost = (battle: StandingBattle, side: number) => battle.status === 'finished' && battleOutcome(battle, side) === 'lost'
 
+/** Whether a side won a finished battle, which lists mark by name since a concession can hand it to the lower score. */
+export const sideWon = (battle: StandingBattle, side: number) => battle.status === 'finished' && battleOutcome(battle, side) === 'won'
+
 export const BATTLE_ENDINGS = { 'finished-early': 'Finished early', conceded: 'Conceded' } as const
