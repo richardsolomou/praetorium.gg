@@ -18,6 +18,7 @@ const targetSchema = z.object({
 const targetsSchema = z.array(targetSchema).max(50)
 export type BenchmarkTarget = z.infer<typeof targetSchema>
 
+// The starter set climbs from horde infantry to heavy armour so each common defensive profile has a target.
 const DEFAULT_BENCHMARKS = [
   ['Astra Militarum', 'Cadian Shock Troops'],
   ['Necrons', 'Necron Warriors'],
