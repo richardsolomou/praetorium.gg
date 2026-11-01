@@ -56,7 +56,7 @@ const PARTS: Record<string, unknown> = {
 const prepare = (catalogueId = 'cat') =>
   handle({ kind: 'prepare', source, catalogueId, units: true, keys: ['build:', `units:${catalogueId}`] })
 /** A read after its preparation, which is when the page sends one; answers before it are dropped. */
-const read = async (name: Extract<ConstructionWorkerRequest, { kind: 'read' }>['name'] = 'unitWounds') => {
+const read = async (name: Extract<ConstructionWorkerRequest, { kind: 'read' }>['name'] = 'unitBattleDetails') => {
   await prepare()
   posted = []
   return handle({ kind: 'read', id: 1, name, data: {}, catalogueId: 'cat' })

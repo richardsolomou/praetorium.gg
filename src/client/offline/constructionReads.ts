@@ -10,7 +10,7 @@ import { combatLoadoutSpace } from '../../shared/combatLoadouts'
 import { exportRosterFile, importRosterFile, importRosterExchange, pricedDispositionNames } from '../../shared/rosterFiles'
 import { ROSTER_EXCHANGE_RULES_UNAVAILABLE, type decodeRosterExchange } from '../../core/rosterExchange'
 import { battleDetachmentData, selectedBattleDetachmentData } from '../../shared/battleDetachmentData'
-import { unitBattleDetailsIn, unitWoundsIn } from '../../shared/catalogue'
+import { unitBattleDetailsIn } from '../../shared/catalogue'
 import { rosterCombatantsSchema } from '../../contracts/combatCalculation'
 import { rosterCombatants } from '../../shared/rosterCombatants'
 import type { LoadedCatalogue } from '../../shared/catalogueIndex'
@@ -41,8 +41,6 @@ export const constructionReads = {
     rosterCombatants(catalogue, rules, rosterCombatantsSchema.parse(data)),
   combatLoadouts: ({ catalogue }: Construction, data: Data<typeof server.combatLoadouts>) =>
     combatLoadoutSpace(catalogue, combatLoadoutSchema.parse(data)),
-  unitWounds: ({ catalogue }: Construction, data: Data<typeof server.unitWounds>) =>
-    unitWoundsIn(catalogue, data.catalogueId, data.entryIds),
   reminderAbilities: ({ catalogue, rules }: Construction, data: Data<typeof server.reminderAbilities>) =>
     datasheetReminderAbilities(catalogue, rules, reminderAbilitiesSchema.parse(data)),
   unitBattleDetails: ({ catalogue }: Construction, data: Data<typeof server.unitBattleDetails>) =>
@@ -112,7 +110,6 @@ type ServerAnswers = {
   combatantDatasheet: Awaited<ReturnType<typeof server.combatantDatasheet>>
   combatantDatasheets: Awaited<ReturnType<typeof server.combatantDatasheets>>
   combatLoadouts: Awaited<ReturnType<typeof server.combatLoadouts>>
-  unitWounds: Awaited<ReturnType<typeof server.unitWounds>>
   reminderAbilities: Awaited<ReturnType<typeof server.reminderAbilities>>
   unitBattleDetails: Awaited<ReturnType<typeof server.unitBattleDetails>>
   detachmentRules: Awaited<ReturnType<typeof server.detachmentRules>>

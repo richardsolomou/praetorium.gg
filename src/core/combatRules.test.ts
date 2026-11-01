@@ -16,6 +16,7 @@ import {
   type CombatRuleJudge,
   judgedCombatRule,
 } from './combatRules'
+import { datasheetFixture } from './datasheet.fixtures'
 
 const rule = (description: string, extra: Partial<CombatRule> = {}): CombatRule => ({
   id: 'buff',
@@ -26,41 +27,26 @@ const rule = (description: string, extra: Partial<CombatRule> = {}): CombatRule 
   models: 1,
   ...extra,
 })
-const weapons = (): Datasheet => ({
-  id: 'unit',
-  slug: 'unit',
-  referenceRoute: null,
-  name: 'Unit',
-  points: null,
-  keywords: ['Infantry'],
-  profiles: [
-    {
-      id: 'gun',
-      name: 'Rifle',
-      type: 'Ranged Weapons',
-      count: 1,
-      values: Object.entries({ A: 'D6', BS: '3+', S: '4', AP: '-1', D: '2', Keywords: '' }).map(([name, value]) => ({ name, value })),
-    },
-    {
-      id: 'blade',
-      name: 'Blade',
-      type: 'Melee Weapons',
-      count: 1,
-      values: Object.entries({ A: '3', WS: '3+', S: '4', AP: '-1', D: '2', Keywords: '' }).map(([name, value]) => ({ name, value })),
-    },
-  ],
-  abilities: [],
-  composition: [],
-  loadout: null,
-  wargearOptions: [],
-  baseSize: null,
-  transport: null,
-  costs: [],
-  attachments: [],
-  leaders: [],
-  supporters: [],
-  keywordRules: [],
-})
+const weapons = (): Datasheet =>
+  datasheetFixture({
+    keywords: ['Infantry'],
+    profiles: [
+      {
+        id: 'gun',
+        name: 'Rifle',
+        type: 'Ranged Weapons',
+        count: 1,
+        values: Object.entries({ A: 'D6', BS: '3+', S: '4', AP: '-1', D: '2', Keywords: '' }).map(([name, value]) => ({ name, value })),
+      },
+      {
+        id: 'blade',
+        name: 'Blade',
+        type: 'Melee Weapons',
+        count: 1,
+        values: Object.entries({ A: '3', WS: '3+', S: '4', AP: '-1', D: '2', Keywords: '' }).map(([name, value]) => ({ name, value })),
+      },
+    ],
+  })
 
 describe('combat rule eligibility', () => {
   const target = '**Target:** One **ARMY** unit (excluding **MONSTERS** and **VEHICLES**) from your army.\n\n**Effect:** Attack.'

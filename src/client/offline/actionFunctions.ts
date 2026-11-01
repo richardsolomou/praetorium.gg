@@ -318,15 +318,6 @@ export async function setPlayerDefaults(args: Parameters<typeof server.setPlayer
   await defer('setPlayerDefaults', next, queryResource(playerDefaultsKey()), next)
   return next
 }
-export async function setPushNotifications(
-  args: Parameters<typeof server.setPushNotifications>[0],
-): ReturnType<typeof server.setPushNotifications> {
-  const defer = deferredForAccount()
-  if (!localEngine()) return server.setPushNotifications(args)
-  await defer('setPushNotifications', args.data, 'notifications')
-  return args.data.enabled
-}
-
 export async function createFriendInvite(): ReturnType<typeof server.createFriendInvite> {
   const defer = deferredForAccount()
   if (!localEngine()) return server.createFriendInvite()
@@ -489,20 +480,6 @@ export async function submitSealedEventRoster(
   )
   return null
 }
-
-export const setSealedEventTeamWarlord = queuedAction(
-  () => server.setSealedEventTeamWarlord,
-  'setSealedEventTeamWarlord',
-  (data) => `sealed-event:${data.token}`,
-  null,
-)
-
-export const setSealedEventTeamDisposition = queuedAction(
-  () => server.setSealedEventTeamDisposition,
-  'setSealedEventTeamDisposition',
-  (data) => `sealed-event:${data.token}`,
-  null,
-)
 
 export const revealSealedEvent = queuedAction(
   () => server.revealSealedEvent,

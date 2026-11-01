@@ -4,8 +4,8 @@ import { combatCarriers } from './combatLoadout'
 import { combatPlan } from './combatProfiles'
 import { loadoutSheet, optimizeLoadout, type LoadoutScoring } from './combatLoadouts'
 import { DEFAULT_COMBAT_OPTIONS } from './combat'
-import type { Datasheet } from './datasheet'
 import type { Selection } from './evaluate'
+import { datasheetFixture } from './datasheet.fixtures'
 
 const index = buildIndex(
   [
@@ -188,7 +188,7 @@ describe('exclusive squad weapon choices', () => {
     type: 'Melee Weapons',
     values: profile(name).characteristics.map(({ name: characteristic, $text }) => ({ name: characteristic, value: $text })),
   }))
-  const sheet = { profiles: [], keywords: [], abilities: [], keywordRules: [] } as unknown as Datasheet
+  const sheet = datasheetFixture()
   const attack = (maces: number, swords: number, maximum = 1) => {
     const carriers = combatCarriers(selection(maces, swords), book(maximum))
     return combatPlan(loadoutSheet(sheet, weapons, carriers), carriers, [], 'melee')

@@ -3,45 +3,33 @@ import type { Datasheet } from '../contracts/catalogue'
 import { combatSurvivorSheet } from './combatSurvivors'
 import { combatPlan, combatTarget, combatWeapons } from './combatProfiles'
 import { wargearKey } from './wargear'
+import { datasheetFixture } from './datasheet.fixtures'
 
-const sheet = (keywords = ''): Datasheet => ({
-  id: 'unit',
-  slug: 'unit',
-  referenceRoute: null,
-  name: 'Unit',
-  points: null,
-  keywords: [],
-  profiles: [
-    {
-      id: 'model',
-      name: 'Model',
-      type: 'Unit',
-      values: [
-        { name: 'T', value: '4' },
-        { name: 'Sv', value: '3+' },
-        { name: 'W', value: '2' },
-      ],
-    },
-    {
-      id: 'weapon',
-      name: 'Weapon',
-      type: 'Ranged Weapons',
-      count: 5,
-      values: Object.entries({ A: 'D6', BS: '3+', S: '4', AP: '-1', D: '2', Keywords: keywords }).map(([name, value]) => ({ name, value })),
-    },
-  ],
-  abilities: [],
-  composition: [],
-  loadout: null,
-  wargearOptions: [],
-  baseSize: null,
-  transport: null,
-  costs: [],
-  attachments: [],
-  leaders: [],
-  supporters: [],
-  keywordRules: [],
-})
+const sheet = (keywords = ''): Datasheet =>
+  datasheetFixture({
+    profiles: [
+      {
+        id: 'model',
+        name: 'Model',
+        type: 'Unit',
+        values: [
+          { name: 'T', value: '4' },
+          { name: 'Sv', value: '3+' },
+          { name: 'W', value: '2' },
+        ],
+      },
+      {
+        id: 'weapon',
+        name: 'Weapon',
+        type: 'Ranged Weapons',
+        count: 5,
+        values: Object.entries({ A: 'D6', BS: '3+', S: '4', AP: '-1', D: '2', Keywords: keywords }).map(([name, value]) => ({
+          name,
+          value,
+        })),
+      },
+    ],
+  })
 
 describe('combat profiles', () => {
   it.each(['Sustained Hits D3', 'Rapid Fire D6+3', 'Melta D3'])('parses a variable value for %s', (keyword) => {

@@ -17,6 +17,7 @@ import {
   type LoadoutScoring,
   type LoadoutCandidates,
 } from './combatLoadouts'
+import { datasheetFixture } from './datasheet.fixtures'
 
 const result = (wipe: number, meanKills = 0, meanDamage = 0): CombatResult => ({ kills: [], damage: [], wipe, meanKills, meanDamage })
 const squad = (weapons: Record<string, number>, models = 5): CombatCarrier[] => [
@@ -41,14 +42,10 @@ describe('optimization phase', () => {
         models: 1,
         rules: [],
         carriers: squad({ Gun: 1, Blade: 1 }, 1),
-        sheet: {
-          id: 'unit',
+        sheet: datasheetFixture({
           name: 'Walker',
-          keywords: [],
-          abilities: [],
-          keywordRules: [],
           profiles: [weapon('Gun', 'ranged', ranged), weapon('Blade', 'melee', melee)],
-        } as unknown as Datasheet,
+        }),
       },
     ],
   })
@@ -124,7 +121,10 @@ describe('loadout datasheets', () => {
     ).toEqual(['attached:1:leader-model'])
   })
   const profile = (name: string): Datasheet['profiles'][number] => ({ id: name, name, type: 'Ranged Weapons', values: [] })
-  const sheet = { name: 'Squad', profiles: [{ id: 'unit', name: 'Squad', type: 'Unit', values: [] }], keywords: [] } as unknown as Datasheet
+  const sheet = datasheetFixture({
+    name: 'Squad',
+    profiles: [{ id: 'unit', name: 'Squad', type: 'Unit', values: [] }],
+  })
   it('counts each weapon profile from the models that carry it', () => {
     const counted = loadoutSheet(sheet, [profile('Boltgun'), profile('Plasma gun')], squad({ Boltgun: 4, 'Plasma gun': 1 }))
     expect(counted.profiles.map((entry) => [entry.name, entry.count])).toEqual([
@@ -217,14 +217,10 @@ describe('weapon profile odds', () => {
     ...(carried ? { count: carried } : {}),
     values: Object.entries({ A: '2', BS: '3+', S: '4', AP: '-1', D: '1', Keywords: '-' }).map(([name, value]) => ({ name, value })),
   })
-  const attacker = {
-    id: 'unit',
+  const attacker = datasheetFixture({
     name: 'Squad',
-    keywords: [],
     profiles: [weapon('Boltgun', 5)],
-    abilities: [],
-    keywordRules: [],
-  } as unknown as Datasheet
+  })
   const target = { groups: [{ models: 10, toughness: 4, save: 3, invulnerable: null, wounds: 1 }], feelNoPain: null }
   const odds = loadoutProfileOdds(
     { carriers: squad({ Boltgun: 5 }), choices: [], weapons: [weapon('Boltgun'), weapon('Plasma gun')] },
@@ -297,14 +293,10 @@ describe('loadout odds', () => {
     ...(carried ? { count: carried } : {}),
     values: Object.entries({ A: '2', BS: '3+', S: '4', AP: ap, D: '1', Keywords: '-' }).map(([name, value]) => ({ name, value })),
   })
-  const sheet = {
-    id: 'unit',
+  const sheet = datasheetFixture({
     name: 'Squad',
-    keywords: [],
     profiles: [weapon('Boltgun', 5)],
-    abilities: [],
-    keywordRules: [],
-  } as unknown as Datasheet
+  })
   const target = { groups: [{ models: 10, toughness: 4, save: 3, invulnerable: null, wounds: 1 }], feelNoPain: null }
   const setup = { target, options: DEFAULT_COMBAT_OPTIONS, adjustment: {} }
   const scoring = {
