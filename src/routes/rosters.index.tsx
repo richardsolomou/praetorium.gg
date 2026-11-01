@@ -11,12 +11,12 @@ import { RULES_VERSION_STATUSES } from '../core/rosterDiscovery'
 import { ROSTER_SORTS } from '../core/rosterSort'
 import { discoveredRostersQuery, factionIndexQuery, meQuery, playedArmiesQuery } from '../client/queries'
 import { pageHead } from '../client/linkPreview'
-import { RosterLoading } from '../client/features/rosters/RosterLoading'
+import { PageLoading } from '../client/components/PageState'
 import { searchText } from '../client/searchParams'
 import { rosterStartSearch } from '../client/features/rosters/rosterStart'
 
 export const Route = createFileRoute('/rosters/')({
-  pendingComponent: RosterLoading,
+  pendingComponent: PageLoading,
   validateSearch: (search: Record<string, unknown>): RostersSearch => {
     const limit = Number(search.limit)
     const faction = searchText(search.faction, 128)

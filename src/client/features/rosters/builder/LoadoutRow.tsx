@@ -13,6 +13,8 @@ type Props = {
   /** The datasheet of each unit in an attached unit, which stands as a row of its own rather than under one datasheet. */
   members?: readonly string[]
   addable: boolean
+  /** Points beyond the list's room, shown without blocking the add. */
+  over?: number | null
   unavailableReason: string | null
   onPreview: (entryId: string, name: string) => void
   onApply: (picks: readonly RosterPick[]) => void
@@ -26,6 +28,7 @@ export const LoadoutRow = memo(function LoadoutRow({
   datasheet,
   members,
   addable,
+  over = null,
   unavailableReason,
   onPreview,
   onApply,
@@ -84,7 +87,7 @@ export const LoadoutRow = memo(function LoadoutRow({
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-        <PointsChip points={loadout.points} />
+        <PointsChip points={loadout.points} over={over} />
         <Button
           size="sm"
           className="shrink-0 px-2"

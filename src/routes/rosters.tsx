@@ -1,9 +1,9 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { meQuery } from '../client/queries'
-import { RosterLoading } from '../client/features/rosters/RosterLoading'
+import { PageLoading } from '../client/components/PageState'
 
 /** A shared list opens without an account, so the sign-in gate belongs on the pages that need one. */
 export const Route = createFileRoute('/rosters')({
   loader: ({ context }) => context.queryClient.query({ ...meQuery(), staleTime: 'static' }),
-  pendingComponent: RosterLoading,
+  pendingComponent: PageLoading,
 })
