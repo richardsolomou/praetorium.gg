@@ -35,7 +35,7 @@ export type HomeData = {
   record?: HomeRecordData | null
   onboarding?: OnboardingProgress
   /** The head of the leaderboard, which only a visitor is shown. */
-  leaders: { rows: readonly Standing[]; days: number } | null
+  leaders: { rows: readonly Standing[] } | null
   /** The control that opens a battle, supplied rather than imported: see `Home`. */
   newBattle?: ReactNode
   notifications?: ReactNode
@@ -146,7 +146,7 @@ export function HomeView({
           // A hero holding the only public battle is the shelf; an empty one under it would contradict it.
           // A visitor is shown that games are played here, not the archive of them.
           lead={rest.length || !hero ? <PublicTables battles={rest.slice(0, VISITOR_GAMES)} signedIn={false} /> : null}
-          aside={leaders ? <HomeLeaders rows={leaders.rows} days={leaders.days} /> : null}
+          aside={leaders ? <HomeLeaders rows={leaders.rows} /> : null}
         />
       </div>
       <HomeClosing />

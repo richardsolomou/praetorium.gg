@@ -113,13 +113,12 @@ type BattleScreen = SeatedScreen | SpectatorScreen | { kind: 'unavailable' }
 /** One table of players: everybody, or everybody who has fielded one faction. */
 type StandingsTable = { faction: StandingFaction | null; players: number; rows: Standing[] }
 
-/** The overall table, a table per faction played, and how many days back they reach. */
-type StandingsAnswer = { days: number; overall: StandingsTable; factions: (StandingsTable & { faction: StandingFaction })[] }
+/** The overall table and a table per faction played. */
+type StandingsAnswer = { overall: StandingsTable; factions: (StandingsTable & { faction: StandingFaction })[] }
 
-/** One player's place in each table they appear in, and the window it covers. */
+/** One player's place in each table they appear in. */
 type PlayerRanking<T> = { faction: T; place: number; of: number; standing: Standing }
 type PlayerRankings = {
-  days: number
   overall: PlayerRanking<null> | null
   factions: PlayerRanking<StandingFaction>[]
   /** The player's overall rating after each of their counted battles, oldest first. */
@@ -145,9 +144,6 @@ const PLAYED_ARMY_BATTLES = 12
 const PUBLIC_FEED_HOLD_MS = 5_000
 const PUBLIC_FEED_HELD_PAGES = 200
 
-/** How recently a player must have played to be listed; their rating counts every battle the standings read. */
-const STANDINGS_DAYS = 90
-const DAY_MS = 24 * 60 * 60 * 1000
 /** Pages of 500 battles a group's table reads, newest first, before it rates only those. */
 const STANDINGS_PAGES = 20
 const GROUP_RECENT_BATTLES = 6
@@ -328,14 +324,10 @@ export class PraetoriumService {
       const armies = await this.armyTables()
       // A player has a row in each table they played in, each with that table's record, so each table is named on its own.
       const tables = await Promise.all(
-        (await this.repository.leaderboard(now - STANDINGS_DAYS * DAY_MS, STANDINGS_ROWS)).map(async (table) => ({
-          ...table,
-          rows: await this.namedRows(table.rows),
-        })),
+        (await this.repository.leaderboard(0, STANDINGS_ROWS)).map(async (table) => ({ ...table, rows: await this.namedRows(table.rows) })),
       )
       const overall = tables.find((table) => table.table === OVERALL)
       return {
-        days: STANDINGS_DAYS,
         overall: { faction: null, players: overall?.players ?? 0, rows: overall?.rows ?? [] },
         factions: tables
           .flatMap((table) => {
@@ -357,7 +349,7 @@ export class PraetoriumService {
   /** Where one player sits in each table they appear in, read from the same stored ratings the leaderboard pages. */
   async playerRankings(userId: string): Promise<PlayerRankings> {
     await this.refreshStandings()
-    const { places, history } = await this.repository.playerStandings(userId, this.clock() - STANDINGS_DAYS * DAY_MS)
+    const { places, history } = await this.repository.playerStandings(userId, 0)
     const [named] = await this.namedRows([{ id: userId }])
     const armies = await this.armyTables()
     const ranking = <T>(faction: T, place: (typeof places)[number]) => ({
@@ -368,7 +360,6 @@ export class PraetoriumService {
     })
     const overall = places.find((place) => place.table === OVERALL)
     return {
-      days: STANDINGS_DAYS,
       overall: overall ? ranking(null, overall) : null,
       // Ordered by how much of this player's own record each army accounts for. The
       // leaderboard's order is how much everybody has played it, which on a profile

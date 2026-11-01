@@ -9,7 +9,6 @@ import { SectionHeading } from '../../components/SectionHeading'
 type Ranking<T> = { faction: T; place: number; of: number; standing: Standing }
 
 export type Rankings = {
-  days: number
   overall: Ranking<null> | null
   factions: Ranking<StandingFaction>[]
   history: readonly RatingPoint[]
@@ -22,16 +21,15 @@ export type Rankings = {
  * the rank there. Each one opens the table it came from, because a place is only
  * meaningful next to the players it was measured against.
  *
- * Absent entirely when the player is in none of the tables: the leaderboard lists
- * only players with a recent public battle, so a player who has not played lately
- * or whose games are withheld from it has no place rather than last place.
+ * Absent entirely when the player is in none of the tables: a player whose games are
+ * withheld from the leaderboard has no place rather than last place.
  */
 export function PlayerRankings({ rankings }: { rankings: Rankings }) {
   const rows = [...(rankings.overall ? [rankings.overall] : []), ...rankings.factions]
   if (!rows.length) return null
   return (
     <section data-rankings>
-      <SectionHeading title="Leaderboard" detail={<span className="text-xs text-faint normal-case">Last {rankings.days} days</span>} />
+      <SectionHeading title="Leaderboard" />
       <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
         {rows.map(({ faction, place, of, standing }) => (
           <Link
