@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.211.9 (2026-11-01)
+
+### Patch Changes
+
+- 29565bc: C'tan powers and other weapon-like profiles show their characteristics on one line, like other weapons, instead of a tall list.
+
 ## 0.211.8 (2026-11-01)
 
 ### Patch Changes
