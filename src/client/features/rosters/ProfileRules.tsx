@@ -1,7 +1,8 @@
 import type { Datasheet } from '../../../contracts/catalogue'
-import { ruleProfileSections } from '../../datasheet'
+import { ruleProfileSections, weaponShapedProfile } from '../../datasheet'
 import type { KeywordRule } from '../../components/Keyword'
 import { RuleText } from '../../components/RuleText'
+import { WeaponProfiles } from '../../components/DatasheetProfiles'
 
 type Props = {
   profiles: Datasheet['profiles']
@@ -14,21 +15,27 @@ export function ProfileRules({ profiles, rules, compact = false }: Props) {
     <section key={section.title}>
       <h2 className="rubric">{section.title}</h2>
       <div className={`mt-2 ${compact ? 'space-y-1.5' : 'grid gap-2 md:grid-cols-2'}`}>
-        {section.profiles.map((profile) => (
-          <article
-            id={`profile-${profile.id}`}
-            key={profile.id}
-            className={`border border-edge ${compact ? 'bg-card px-2 py-1.5' : 'bg-panel p-3'}`}
-          >
-            {profile.name !== section.title ? <h3 className={compact ? 'text-xs' : 'text-sm'}>{profile.name}</h3> : null}
-            {profile.values.map((value) => (
-              <div key={value.name}>
-                {profile.values.length > 1 && value.name !== profile.name ? <p className="eyebrow mt-1">{value.name}</p> : null}
-                <RuleText text={value.value} rules={rules} />
-              </div>
-            ))}
-          </article>
-        ))}
+        {section.profiles.map((profile) =>
+          weaponShapedProfile(profile) ? (
+            <article id={`profile-${profile.id}`} key={profile.id} className={`border border-edge ${compact ? 'bg-card' : 'bg-panel'}`}>
+              <WeaponProfiles weapons={[profile]} rules={rules} embedded />
+            </article>
+          ) : (
+            <article
+              id={`profile-${profile.id}`}
+              key={profile.id}
+              className={`border border-edge ${compact ? 'bg-card px-2 py-1.5' : 'bg-panel p-3'}`}
+            >
+              {profile.name !== section.title ? <h3 className={compact ? 'text-xs' : 'text-sm'}>{profile.name}</h3> : null}
+              {profile.values.map((value) => (
+                <div key={value.name}>
+                  {profile.values.length > 1 && value.name !== profile.name ? <p className="eyebrow mt-1">{value.name}</p> : null}
+                  <RuleText text={value.value} rules={rules} />
+                </div>
+              ))}
+            </article>
+          ),
+        )}
       </div>
     </section>
   ))
