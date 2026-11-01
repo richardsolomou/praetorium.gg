@@ -84,7 +84,7 @@ export function Home() {
               : undefined
         }
         onboarding={signedIn ? onboarding : undefined}
-        leaders={standings ? { rows: standings.overall.rows, days: standings.days } : null}
+        leaders={standings ? { rows: standings.overall.rows } : null}
         newBattle={<CreateBattle />}
         notifications={me && !me.impersonatedBy ? <HomeNotifications /> : null}
         recentSimulations={<RecentSimulations surface="home" limit={3} />}

@@ -14,15 +14,11 @@ const TOP = 5
  * with the rating the order comes from and the wins behind it. Absent until a
  * public battle has finished, because an empty table is the opposite of the point.
  */
-export function HomeLeaders({ rows, days }: { rows: readonly Standing[]; days: number }) {
+export function HomeLeaders({ rows }: { rows: readonly Standing[] }) {
   if (!rows.length) return null
   return (
     <section data-home-leaders>
-      <SectionHeading
-        title="Leaderboard"
-        className="mb-0"
-        detail={<span className="text-xs font-normal tracking-normal text-faint normal-case">Last {days} days</span>}
-      />
+      <SectionHeading title="Leaderboard" className="mb-0" />
       <ol className="divide-y divide-edge border-b border-edge">
         {rows.slice(0, TOP).map((row, place) => (
           <li key={row.id}>

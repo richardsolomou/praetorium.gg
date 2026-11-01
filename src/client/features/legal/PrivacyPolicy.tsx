@@ -94,8 +94,8 @@ export function PrivacyPolicy() {
           </li>
           <li>Battles may appear on the home page and in your profile's battle record.</li>
           <li>
-            The leaderboard counts finished games from the last 90 days. Games with a practice opponent, or with a guest who has not claimed
-            the game with an account, do not count.
+            The leaderboard counts finished games. Games with a practice opponent, or with a guest who has not claimed the game with an
+            account, do not count.
           </li>
           <li>
             Sealing a tournament roster makes a separate frozen copy. Before reveal, only its assigned allies who are accepted entrants can

@@ -18,7 +18,10 @@ import type { SqliteAccountRepository } from './accountRepository'
 
 const DAVE = 'dave'
 const NOW = Date.UTC(2026, 9, 1)
-const FACTIONS: BattleFaction[] = [{ id: 'cat', slug: 'death-guard', displayName: 'Death Guard', icon: null }]
+const FACTIONS: BattleFaction[] = [
+  { id: 'cat', slug: 'death-guard', displayName: 'Death Guard', icon: null },
+  { id: 'necrons', slug: 'necrons', displayName: 'Necrons', icon: null },
+]
 
 /** The product module in memory behind the real repository, with accounts named from `names`. */
 function product() {
@@ -40,12 +43,17 @@ function product() {
   const ids: string[] = []
   const send = async (id: string, by: string, expectedSeq: number, command: Command, now: number) =>
     expect((await operator.submit({ battleId: id, userId: by, expectedSeq, command, now })).result.outcome).toBe('appended')
-  /** A battle `loser` concedes to `winner`, its commands at `at`. */
-  const conceded = async (id: string, winner: string, loser: string, at: number) => {
+  /** A battle `loser` concedes to `winner`, its commands at `at`, both fielding `catalogueId`. */
+  const conceded = async (id: string, winner: string, loser: string, at: number, catalogueId = 'cat') => {
+    const roster = (name: string): Command => {
+      const command = builtRoster(name, ['Plague Marines'])
+      if (command.kind !== 'attach-roster') throw new Error('Expected a roster.')
+      return { ...command, roster: { ...command.roster, built: { ...command.roster.built!, catalogueId } } }
+    }
     ids.push(id)
     await operator.createBattle({ id, token: `${id}-token`, userId: winner, opponentIds: [loser], now: at })
-    await send(id, winner, 0, builtRoster('Winner army', ['Plague Marines']), at)
-    await send(id, loser, 1, builtRoster('Loser army', ['Plague Marines']), at)
+    await send(id, winner, 0, roster('Winner army'), at)
+    await send(id, loser, 1, roster('Loser army'), at)
     await send(id, winner, 2, { kind: 'begin-battle', firstPlayerId: winner }, at)
     await send(id, winner, 3, { kind: 'end-battle', reason: 'conceded', concededBy: loser }, at)
   }
@@ -97,6 +105,13 @@ it('rates a battle finishing between rated ones the same as a full replay', asyn
   await conceded('three', DAVE, ALICE, NOW)
   await service.standings()
   await conceded('between', BOB, DAVE, NOW - 1_000)
+  expect(tables(await service.standings())).toEqual(replayed(await replay()))
+})
+
+it('lists each table with its own record for a player who fields several armies', async () => {
+  const { service, conceded, replay, tables, replayed } = product()
+  await conceded('one', ALICE, BOB, NOW - 2_000)
+  await conceded('two', ALICE, CAROL, NOW - 1_000, 'necrons')
   expect(tables(await service.standings())).toEqual(replayed(await replay()))
 })
 
