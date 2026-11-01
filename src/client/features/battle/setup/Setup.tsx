@@ -47,7 +47,7 @@ import {
 import { TwistChoice } from './TwistChoice'
 import { DefenderStep } from './DefenderStep'
 import { FirstTurnStep } from './FirstTurnStep'
-import { prebattleCounts, PrebattleUnits } from './PrebattleUnits'
+import { DeployUnits, prebattleCounts, PrebattleUnits } from './PrebattleUnits'
 import { SideDispositionChoice } from './SideDispositionChoice'
 import { ReservesStep } from './ReservesStep'
 import { SecondariesStep } from './SecondariesStep'
@@ -677,9 +677,7 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
               renderSide={(side) => <PrebattleAnswer side={side} rule="infiltrators" />}
               hint={`Sides alternate setting up one unit at a time${defender ? `, ${sideName(defender)} first` : ''}. Units in strategic reserves stay off the table.`}
             >
-              {youHaveAnArmy ? (
-                <PrebattleUnits sides={table} rule="infiltrators" empty="No unit sets up outside the deployment zone." />
-              ) : null}
+              {youHaveAnArmy ? <DeployUnits sides={table} storageKey={`praetorium.placed.${view.token}`} /> : null}
             </SpineStep>
 
             <SpineStep

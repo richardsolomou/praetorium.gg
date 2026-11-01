@@ -11,7 +11,7 @@ The bar at the bottom counts what's left (for example **2 left · Battlefield ·
 5. **Defender.** Roll off at the table, then record who defends. The defender deploys first.
 6. **Secondaries.** Each side picks **Tactical** (cards drawn during the battle) or **Fixed** (missions selected now and kept all game). Allies share one hand.
 7. **Reserves.** Move units into strategic reserves or deep strike, or embark them in transports. Units your roster [starts embarked](/docs/set-up-a-unit#start-units-embarked) are already inside their transport; a note says so if the frozen army can't fit one, and that unit starts on the battlefield instead. Anything you leave alone starts on the battlefield.
-8. **Deploy.** Set the armies up at the table, then tick the step.
+8. **Deploy.** Set the armies up at the table, tapping each unit as it goes down. **To place** and **Placed** narrow the list to the units still waiting or already set up. The ticks stay on the device you tapped them on. Tick the step when both armies are down.
 9. **First turn.** Roll off and record who goes first.
 10. **Pre-battle rules.** Resolve them at the table, tick the step if you like, then choose **Start battle** to open the first Command phase.
 
