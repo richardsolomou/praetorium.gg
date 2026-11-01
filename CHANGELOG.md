@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.210.0 (2026-11-01)
+
+### Minor Changes
+
+- 068723c: Tap units off as you set them up in the Deploy step, and show only the ones still to place or already placed.
+
 ## 0.209.0 (2026-11-01)
 
 ### Minor Changes
