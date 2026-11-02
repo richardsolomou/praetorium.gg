@@ -1,9 +1,10 @@
-import type { ComponentProps, ReactNode } from 'react'
+import { type ComponentProps, type ReactNode, useEffect, useRef } from 'react'
 import { Check, TriangleAlert } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { WaiverWarning } from '../../components/FormatWaivers'
 import type { UnavailableSelection } from '../../../core/rosterSelections'
+import { requestNativeHaptic } from '../../nativeBridge'
 import { advanceOnboarding } from '../onboarding/onboarding'
 
 type Props = {
@@ -55,6 +56,13 @@ export function RosterBuilderFooter({
   onDismissWaivers,
   sealedEventWarning,
 }: Props) {
+  // Felt as the roster crosses the limit, not on opening one already over it.
+  const wasOver = useRef<boolean | null>(null)
+  useEffect(() => {
+    if (loading) return
+    if (over && wasOver.current === false) requestNativeHaptic('warning')
+    wasOver.current = over
+  }, [loading, over])
   return (
     <footer className="sticky bottom-0 z-20 border-t border-edge bg-void px-3 py-2">
       <div className="flex flex-wrap items-center gap-2">
@@ -81,7 +89,14 @@ export function RosterBuilderFooter({
             data-stat="points"
             className={`figure text-2xl leading-none font-bold sm:text-3xl ${over ? 'text-destructive' : 'text-bone'}`}
           >
-            {loading ? <span aria-label="Loading roster points">…</span> : points}
+            {loading ? (
+              <span aria-label="Loading roster points">…</span>
+            ) : (
+              // Keyed on the value, so each unit added or removed answers with the total rising into place.
+              <span key={points} className="inline-block animate-figure">
+                {points}
+              </span>
+            )}
             <span className="text-base font-normal text-dim sm:text-lg">/{limit}</span>
           </span>
           <span className="flex flex-col leading-tight">

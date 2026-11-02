@@ -9,8 +9,9 @@ import { catalogue, inspectPort, processCoverage, root as stackRoot } from './st
  * Resolves a page load once the app has hydrated, as `AppShell` marks the document,
  * because a click before hydration reaches no handler and the test then waits out its timeout.
  * A load that asks to stop at `commit` or `domcontentloaded` gets the server's frame instead.
+ * A resize resolves once its media queries apply, a frame later, so a measurement reads the new layout.
  */
-function awaitHydration(page: Page) {
+function awaitSettled(page: Page) {
   const hydrated = async (response: Response | null) => {
     if (response?.headers()['content-type']?.includes('text/html'))
       await page.waitForFunction(() => document.documentElement.hasAttribute('data-hydrated'), null, { timeout: 30_000 })
@@ -26,6 +27,11 @@ function awaitHydration(page: Page) {
   page.reload = async (options) => {
     const response = await reload(options)
     return early(options?.waitUntil) ? response : hydrated(response)
+  }
+  const setViewportSize = page.setViewportSize.bind(page)
+  page.setViewportSize = async (size) => {
+    await setViewportSize(size)
+    await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))))
   }
 }
 
@@ -206,8 +212,8 @@ export const test = base.extend<{ closeOpenedContexts: void; recordCoverage: voi
   rulesText: [true, { option: true }],
   context: async ({ context, javaScriptEnabled, rulesText }, use) => {
     // Playwright opens this context through `browser.newContext`, which attaches the wait before this option is known.
-    context.off('page', awaitHydration)
-    if (javaScriptEnabled) context.on('page', awaitHydration)
+    context.off('page', awaitSettled)
+    if (javaScriptEnabled) context.on('page', awaitSettled)
     if (!rulesText) await startUnchosen(context)
     coverNewPages(context, javaScriptEnabled)
     await use(context)
@@ -219,7 +225,7 @@ export const test = base.extend<{ closeOpenedContexts: void; recordCoverage: voi
       const newContext = browser.newContext.bind(browser)
       browser.newContext = async (options) => {
         const context = await newContext(options)
-        if (options?.javaScriptEnabled !== false) context.on('page', awaitHydration)
+        if (options?.javaScriptEnabled !== false) context.on('page', awaitSettled)
         await serveRulesText(context)
         coverNewPages(context, options?.javaScriptEnabled !== false)
         return context

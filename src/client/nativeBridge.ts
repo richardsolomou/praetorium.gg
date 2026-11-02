@@ -2,7 +2,7 @@ import { parseLocalState, type LocalState } from '../contracts/localState'
 import { useSyncExternalStore } from 'react'
 import type { AppSnapshot } from '../contracts/appSnapshot'
 import type { WatchBattle } from '../contracts/watchBattle'
-import { NATIVE_EVENTS, type NativeEvent, type NativePushAnswer } from '../contracts/nativeBridge'
+import { NATIVE_EVENTS, type Haptic, type NativeEvent, type NativePushAnswer } from '../contracts/nativeBridge'
 
 export type { NativePushAnswer }
 
@@ -14,6 +14,7 @@ type NativeCapability =
   | 'back-gesture'
   | 'battle-active'
   | 'haptic'
+  | 'haptic-styles'
   | 'github-auth'
   | 'notifications'
   | 'offline-reference'
@@ -126,8 +127,13 @@ export function setNativeBattleActive(active: boolean) {
   return send('battle-active', { type: 'native-battle-active', active })
 }
 
-export function requestNativeHaptic() {
-  return send('haptic', { type: 'native-haptic' })
+/**
+ * Plays `haptic` on a shell that knows the feels. An older one plays only its single confirmation, so it hears only
+ * the commands that confirmed one before, never a tick or a refusal.
+ */
+export function requestNativeHaptic(haptic: Haptic) {
+  if (supports('haptic-styles')) return send('haptic-styles', { type: 'native-haptic', haptic })
+  return haptic === 'light' || haptic === 'success' ? send('haptic', { type: 'native-haptic' }) : false
 }
 
 /** Whether the shell may take one history step without leaving the current tab. */

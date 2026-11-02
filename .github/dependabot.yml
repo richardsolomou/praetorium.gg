@@ -57,6 +57,7 @@ updates:
       - dependency-name: react # Managed by RAS.
       - dependency-name: react-dom # Managed by RAS.
       - dependency-name: tailwindcss # Managed by RAS.
+      - dependency-name: tw-animate-css # Managed by RAS.
       - dependency-name: typescript # Managed by RAS.
       - dependency-name: vite # Managed by RAS.
       - dependency-name: vitest # Managed by RAS.

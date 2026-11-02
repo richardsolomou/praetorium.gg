@@ -82,7 +82,7 @@ On the exact TestFlight and Play internal-testing builds, on physical iOS and An
 2. A battle between an iPhone and an Android phone, each updating after every command, including after backgrounding and after network loss mid-mutation (no duplicate command).
 3. Battle, roster, tournament invitation, password-reset, and provider-callback links from cold and warm starts.
 4. Sharing, printing (inspect every page of a saved PDF), profile picture upload, export copy, Android Back, no iOS swipe into an empty WebView document.
-5. Wake lock only in a seated battle; one light haptic per command.
+5. Wake lock only in a seated battle; a light haptic per command, a success haptic on scoring and the battle's start and end, a warning on a refused command, and a tick on the tab bar, toggles, tabs and counters.
 6. Notifications: Home offer and Not now persist; each notice arrives once, never to the actor, opens its page; nothing after disabling or signing out.
 7. Safe areas, keyboards, text scaling, VoiceOver, TalkBack, contrast, touch targets.
 8. Current web against the oldest supported shell, and the release shell against deployed web.

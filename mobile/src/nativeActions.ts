@@ -4,7 +4,7 @@ import { MAX_APP_SNAPSHOT_BYTES, parseAppSnapshot, type AppSnapshot } from '../.
 import { scriptJson } from '../../src/contracts/embeddedReference'
 import { MAX_LOCAL_STATE_BYTES, parseLocalState, type LocalState } from '../../src/contracts/localState'
 
-import { NATIVE_EVENTS, type NativeEvent } from '../../src/contracts/nativeBridge'
+import { HAPTICS, NATIVE_EVENTS, type Haptic, type NativeEvent } from '../../src/contracts/nativeBridge'
 import { MAX_WATCH_MESSAGE_BYTES, parseWatchBattle, type WatchBattle } from '../../src/contracts/watchBattle'
 
 /** The id a request carries so its answer can find it, and the local state epoch, which is shaped the same. */
@@ -22,7 +22,7 @@ export type NativeActionRequest =
   | { kind: 'offline-save'; id: string; reference: SavedReference }
   | { kind: 'back-gesture'; enabled: boolean }
   | { kind: 'battle-active'; active: boolean }
-  | { kind: 'haptic' }
+  | { kind: 'haptic'; haptic: Haptic }
   | { kind: 'open-window'; url: string }
   | { kind: 'print'; html: string }
   | { kind: 'push'; id: string; prompt: boolean }
@@ -84,7 +84,11 @@ export function parseNativeActionRequest(message: string): NativeActionRequest |
     if (value.type === 'native-battle-active' && typeof value.active === 'boolean') {
       return { kind: 'battle-active', active: value.active }
     }
-    if (value.type === 'native-haptic') return { kind: 'haptic' }
+    // A page from before the feels sends none, and meant the confirmation it always played.
+    if (value.type === 'native-haptic') {
+      if (value.haptic === undefined) return { kind: 'haptic', haptic: 'success' }
+      return HAPTICS.includes(value.haptic as Haptic) ? { kind: 'haptic', haptic: value.haptic as Haptic } : null
+    }
     if (value.type === 'native-open-window' && typeof value.url === 'string' && value.url.length <= MAX_OPEN_WINDOW_URL_LENGTH) {
       const decision = classifyNavigation(value.url)
       return decision.kind === 'blocked' ? null : { kind: 'open-window', url: decision.url }
@@ -108,7 +112,7 @@ export function parseNativeActionRequest(message: string): NativeActionRequest |
 }
 
 export const NATIVE_BRIDGE_SCRIPT = `(() => {
-  const capabilities = ['app-navigation', 'app-snapshot', 'local-state', 'back-gesture', 'battle-active', 'github-auth', 'haptic', 'notifications', 'offline-reference', 'share'];
+  const capabilities = ['app-navigation', 'app-snapshot', 'local-state', 'back-gesture', 'battle-active', 'github-auth', 'haptic', 'haptic-styles', 'notifications', 'offline-reference', 'share'];
   window.PraetoriumNative = Object.freeze({ bridgeVersion: 3, capabilities });
   const disableZoom = () => {
     const viewport = document.querySelector('meta[name="viewport"]');

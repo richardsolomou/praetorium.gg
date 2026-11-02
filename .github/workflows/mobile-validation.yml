@@ -41,7 +41,9 @@ jobs:
           BASE_REVISION: ${{ github.event.pull_request.base.sha }}
         run: |
           git worktree add --detach "$RUNNER_TEMP/ios-base" "$BASE_REVISION"
-          pnpm --dir "$RUNNER_TEMP/ios-base" install --frozen-lockfile
+          # Installed from inside the base, because ras-stack's package hook reads the RAS config of the working directory, not of `--dir`.
+          cd "$RUNNER_TEMP/ios-base"
+          pnpm install --frozen-lockfile
       - name: Check iOS validation inputs
         id: ios
         env:

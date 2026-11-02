@@ -883,7 +883,7 @@ function SpineStep({
           className={cn(
             'absolute top-13 bottom-1 left-6 -translate-x-1/2 sm:top-15 sm:left-[2.375rem]',
             line === 'done' && 'w-0.5 rounded-full bg-parchment/45',
-            line === 'now' && 'w-1.5 border-x-2 border-parchment',
+            line === 'now' && 'w-1.5 origin-top animate-draw-down border-x-2 border-parchment',
             line === 'todo' && 'w-0.5 bg-[repeating-linear-gradient(180deg,var(--color-runner-hi)_0_5px,transparent_5px_10px)]',
             line === 'locked' && 'w-0.5 bg-[repeating-linear-gradient(180deg,var(--color-runner)_0_5px,transparent_5px_10px)]',
           )}
@@ -1007,7 +1007,7 @@ function StepMark({
         {number}
       </span>
       {settled ? (
-        <span className="absolute -top-1 right-0 grid size-5.5 place-items-center rounded-full bg-parchment text-parchment-ink sm:right-2">
+        <span className="absolute -top-1 right-0 grid size-5.5 animate-in place-items-center rounded-full bg-parchment text-parchment-ink duration-200 ease-settle zoom-in-50 fade-in-0 sm:right-2">
           <Check className="size-3.5" strokeWidth={3} />
         </span>
       ) : checkable ? (

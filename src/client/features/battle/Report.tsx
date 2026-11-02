@@ -4,6 +4,7 @@ import { Fragment, useLayoutEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Skeleton } from '@/components/ui/skeleton'
+import { cn } from '@/lib/utils'
 import type { ReportEntry } from '../../../core/battleReport'
 import { useDateFormatting } from '../../dates'
 import { reportQuery } from '../../queries'
@@ -58,6 +59,10 @@ export function Report({
   useLayoutEffect(() => {
     if (suppliedEntries && scroll.current) scroll.current.scrollTop = scrollTop.current
   }, [suppliedEntries])
+  // Events that arrive while the log is open slide in at the top; the ones it opened with, or reveals later, stay still.
+  const [openedAt, setOpenedAt] = useState<number | null>(null)
+  const latest = entries?.at(-1)?.seq ?? null
+  if (openedAt === null && latest !== null) setOpenedAt(latest)
   const filtered = (filter === 'cp' ? (entries ?? []).filter(isCommandPointEntry) : (entries ?? [])).toReversed()
   const visible = filtered.slice(0, shownCount)
   const hidden = filtered.length - visible.length
@@ -94,7 +99,12 @@ export function Report({
                 {index === 0 || date(visible[index - 1]!.at) !== date(entry.at) ? (
                   <li className="eyebrow border-b border-edge pb-1 text-faint">{date(entry.at)}</li>
                 ) : null}
-                <li className="grid w-full grid-cols-[3.5rem_minmax(0,1fr)] gap-2 text-sm sm:grid-cols-[5rem_minmax(0,1fr)] sm:gap-3">
+                <li
+                  className={cn(
+                    'grid w-full grid-cols-[3.5rem_minmax(0,1fr)] gap-2 text-sm sm:grid-cols-[5rem_minmax(0,1fr)] sm:gap-3',
+                    openedAt !== null && entry.seq > openedAt && 'animate-in duration-300 ease-settle fade-in-0 slide-in-from-top-2',
+                  )}
+                >
                   <span className="readout text-right text-xs text-dim">
                     {time(entry.at)}
                     <span className="block text-3xs text-faint">

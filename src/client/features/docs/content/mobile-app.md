@@ -22,7 +22,7 @@ When notifications are available, Home shows **Get notified about your games**. 
 
 ## During a battle
 
-The screen stays awake while a battle you're seated in is open, and each recorded action gives a light vibration.
+The screen stays awake while a battle you're seated in is open, and the phone answers your touch: a tick as you switch tabs or change a choice or a count, a light tap when an action is recorded, a firmer one when points are scored or the battle begins or ends, and a warning when an action is refused or a roster goes over its points limit.
 
 ## Apple Watch
 

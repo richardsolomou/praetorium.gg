@@ -45,7 +45,12 @@ describe('parseNativeActionRequest', () => {
       kind: 'battle-active',
       active: true,
     })
-    expect(parseNativeActionRequest(JSON.stringify({ version: 3, type: 'native-haptic' }))).toEqual({ kind: 'haptic' })
+    expect(parseNativeActionRequest(JSON.stringify({ version: 3, type: 'native-haptic' }))).toEqual({ kind: 'haptic', haptic: 'success' })
+    expect(parseNativeActionRequest(JSON.stringify({ version: 3, type: 'native-haptic', haptic: 'selection' }))).toEqual({
+      kind: 'haptic',
+      haptic: 'selection',
+    })
+    expect(parseNativeActionRequest(JSON.stringify({ version: 3, type: 'native-haptic', haptic: 'rumble' }))).toBeNull()
     expect(parseNativeActionRequest(JSON.stringify({ version: 3, type: 'native-back-gesture', enabled: true }))).toEqual({
       kind: 'back-gesture',
       enabled: true,

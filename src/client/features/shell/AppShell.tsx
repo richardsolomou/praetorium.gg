@@ -3,6 +3,7 @@ import { offlineAssets, offlineData } from '../../offline/runtime'
 import { OfflineReference } from '../../offline/OfflineReference'
 import { WebMcp } from '../agents/WebMcp'
 import { AppPersistence } from '../../offline/AppPersistence'
+import { SelectionHaptics } from './SelectionHaptics'
 import { version } from '../../../../package.json'
 import { useQuery } from '@tanstack/react-query'
 import { HeadContent, Link, Outlet, Scripts, useLocation } from '@tanstack/react-router'
@@ -306,6 +307,7 @@ export function AppShell() {
                   >
                     <OfflineReference />
                     <AppPersistence />
+                    <SelectionHaptics />
                     <SyncStatus />
                     <WebMcp />
                     <Outlet />

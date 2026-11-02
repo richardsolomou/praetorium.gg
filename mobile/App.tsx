@@ -5,7 +5,6 @@ import { readLocalState, storeLocalState } from './src/localStateStorage'
 import { appSnapshotScript, storeAppSnapshot } from './src/appSnapshotStorage'
 import { APP_URL } from './src/navigation'
 import { StatusBar } from 'expo-status-bar'
-import * as Haptics from 'expo-haptics'
 import * as KeepAwake from 'expo-keep-awake'
 import * as Notifications from 'expo-notifications'
 import * as Print from 'expo-print'
@@ -79,6 +78,7 @@ import { pushAnswer } from './src/pushDevice'
 import { NATIVE_USER_AGENT } from './src/version'
 import { deleteSecureValue, getSecureValue, setSecureValue } from './src/secureStorage'
 import { NATIVE_EVENTS } from '../src/contracts/nativeBridge'
+import { playHaptic } from './src/haptics'
 
 const BACKGROUND = '#0f1113'
 /** The web header's and tab bar's `--color-sunken`, so the safe areas continue them. */
@@ -408,8 +408,7 @@ function AppShell() {
           await setBattleActive(action.active)
           break
         case 'haptic':
-          if (Platform.OS === 'android') await Haptics.performAndroidHapticsAsync(Haptics.AndroidHaptics.Confirm)
-          else await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
+          await playHaptic(action.haptic)
           break
         case 'open-window': {
           const decision = classifyNavigation(action.url)

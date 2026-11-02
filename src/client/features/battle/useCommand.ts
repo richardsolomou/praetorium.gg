@@ -53,6 +53,9 @@ const predictions = new WeakMap<object, number>()
 /** The sequence the service last confirmed for `screen`, which commands are queued against while a prediction shows. */
 export const confirmedSeq = (screen: { view: { seq: number } }) => predictions.get(screen) ?? screen.view.seq
 
+/** Commands that change the result, felt as a success; every other one the player sends is a light tap. */
+const MOMENTS = new Set<string>(['score', 'score-secondary', 'score-settlement', 'acknowledge-scoring', 'begin-battle', 'end-battle'])
+
 function explain(result: SubmitResult, setup: boolean) {
   if (result.outcome === 'appended') return null
   if (result.outcome === 'stale' && setup) return null
@@ -118,7 +121,8 @@ async function sendQueued({
       try {
         const { result, screen } = await submit({ data: { token, expectedSeq: item.onlyAt ?? seen.current, command: item.command } })
         const setup = screen?.kind === 'battle' && screen.view.status === 'setup'
-        if (!item.background || result.outcome === 'refused') setProblem(explain(result, setup))
+        const problem = explain(result, setup)
+        if (!item.background || result.outcome === 'refused') setProblem(problem)
         // A realtime refetch that landed while this command was in flight can hold a newer screen than its answer, and so can
         // the predictions of commands queued behind it, unless this one failed and they are about to be dropped.
         queryClient.setQueryData(battleQuery(token).queryKey, (held) =>
@@ -135,7 +139,10 @@ async function sendQueued({
         item.complete?.(result.outcome === 'appended')
         void queryClient.invalidateQueries({ queryKey: reportKey(token) })
         await writeAppSnapshot(captureAppSnapshot(queryClient)).catch(() => {})
-        if (result.outcome === 'appended' && !item.background) requestNativeHaptic()
+        if (!item.background) {
+          if (result.outcome === 'appended') requestNativeHaptic(MOMENTS.has(item.command.kind) ? 'success' : 'light')
+          else if (problem) requestNativeHaptic('warning')
+        }
         if (result.outcome !== 'appended') {
           const authoritativeSeq = screen?.kind === 'battle' ? screen.view.seq : item.basedOn
           const { kept, dropped } = afterFailedCommand(queued.current, item, authoritativeSeq)
