@@ -320,6 +320,7 @@ export function RosterCombatComparison({
   const waitingForAccount = !sources && me.isPending
   const benchmarkIndex = !sources && usingCatalogue ? catalogue.data : undefined
   const waitingForBenchmarks = usingBenchmarks && !targetsLoaded
+  // The saved list arriving restarts a run only when it holds a chosen roster, so a matchup without one is not computed twice.
   const savedVersions = sources
     ? undefined
     : // Empty rather than undefined before saved rosters load, so their arrival doesn't restart a matchup that uses none of them.
