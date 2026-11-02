@@ -1324,6 +1324,11 @@ test('each application tab returns to where it was left', async ({ browser }) =>
   await sections.getByRole('link', { name: 'Factions' }).click()
   await expect(page).toHaveURL('/factions/dark-angels/rules/mfm-1-6/datasheets/deathwing-terminator-squad')
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(factionScroll)
+  // Going back climbs the reopened tab instead of returning to the tab left.
+  await page.goBack()
+  await expect(page).toHaveURL('/factions/dark-angels/rules/mfm-1-6/datasheets')
+  await page.goForward()
+  await expect(page).toHaveURL('/factions/dark-angels/rules/mfm-1-6/datasheets/deathwing-terminator-squad')
 
   // The section you are already in has one obvious destination left: its top.
   await sections.getByRole('link', { name: 'Factions' }).click()
