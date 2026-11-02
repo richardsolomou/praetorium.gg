@@ -7,12 +7,6 @@ import { captureMutation, captureBattleCreated, captureSealedEventCreated, captu
 import { requireUserId } from './playerSession'
 import { mutationRpc } from './rpc'
 
-const ONBOARDING_TASK_EVENTS = {
-  complete: 'onboarding_task_completed',
-  skip: 'onboarding_task_skipped',
-  restore: 'onboarding_task_restored',
-} as const
-
 function action<S extends z.ZodType, R>(schema: S, work: (owner: string, data: z.output<S>) => Promise<R>) {
   return (owner: string, input: unknown) => work(owner, schema.parse(input))
 }
@@ -97,8 +91,7 @@ export const productActions = {
   }),
   updateOnboardingProgress: action(schemas.updateOnboardingProgress, async (owner, data) => {
     const progress = await app().repository.updateOnboardingProgress(owner, data)
-    if (data.operation === 'welcome') await captureMutation(owner, 'onboarding_welcomed')
-    else await captureMutation(owner, ONBOARDING_TASK_EVENTS[data.operation], { task: data.task })
+    await captureMutation(owner, 'onboarding_task_completed', { task: data.task })
     return progress
   }),
   requestFriend: action(schemas.requestFriend, async (owner, data) => {

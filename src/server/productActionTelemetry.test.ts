@@ -95,21 +95,10 @@ const cases: Case[] = [
     input: { key: 'datasheet:private' },
     events: [['ability_reminder_removed', {}]],
   },
-  { kind: 'updateOnboardingProgress', input: { operation: 'welcome' }, events: [['onboarding_welcomed']] },
   {
     kind: 'updateOnboardingProgress',
     input: { operation: 'complete', task: 'reference' },
     events: [['onboarding_task_completed', { task: 'reference' }]],
-  },
-  {
-    kind: 'updateOnboardingProgress',
-    input: { operation: 'skip', task: 'battle' },
-    events: [['onboarding_task_skipped', { task: 'battle' }]],
-  },
-  {
-    kind: 'updateOnboardingProgress',
-    input: { operation: 'restore', task: 'battle' },
-    events: [['onboarding_task_restored', { task: 'battle' }]],
   },
   { kind: 'requestFriend', input: { userId: 'private-person' }, events: [['friend_request_sent']] },
   { kind: 'acceptFriend', input: { userId: 'private-person' }, events: [['friend_request_accepted']] },

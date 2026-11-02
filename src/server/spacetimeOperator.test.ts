@@ -289,13 +289,12 @@ it('reads product stats carrying a field added after this build', async () => {
 
 it('reads onboarding carrying a fact added after this build', async () => {
   const stored = {
-    welcomed: true,
     tasks: [],
     facts: { roster: true, friend: false, battle: false, tournament: false, factFromALaterRelease: true },
   }
   const request = vi.fn(async () => Response.json(JSON.stringify(stored)))
   const operator = new SpacetimeOperator('https://spacetime.example/', 'preview-42', 'operator-secret', request)
-  expect((await operator.onboardingProgress('user')).welcomed).toBe(true)
+  expect((await operator.onboardingProgress('user')).completedTasks).toEqual(['roster'])
 })
 
 it('reads player defaults carrying a field added after this build', async () => {
