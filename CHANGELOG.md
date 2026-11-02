@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.216.1 (2026-11-02)
+
+### Patch Changes
+
+- 979b2c0: The account menu no longer has Getting started; each page's question-mark button starts its own guide.
+
 ## 0.216.0 (2026-11-02)
 
 ### Minor Changes
