@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.212.2 (2026-11-02)
+
+### Patch Changes
+
+- ac3dbfe: Chaos Daemons Fiends include their Blissbringer, so lists from the official app import without a review note.
+
 ## 0.212.1 (2026-11-02)
 
 ### Patch Changes
