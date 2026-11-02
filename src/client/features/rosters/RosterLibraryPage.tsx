@@ -240,7 +240,7 @@ export function RosterLibraryPage({
       />
     )
     return variants.length ? (
-      <div key={head.roster.id} data-roster-group className="border border-edge bg-panel">
+      <div key={head.roster.id} data-roster-group className="part">
         {row(head, 'base')}
         {variants.map((variant) => row(variant, 'variant'))}
       </div>
@@ -274,7 +274,6 @@ export function RosterLibraryPage({
   return (
     <main className="w-full">
       <PageHeader
-        eyebrow="Your rosters"
         title="Rosters"
         description="Build, import, organize, and share your armies, or find one your friends and other players made public."
         actions={
@@ -297,7 +296,7 @@ export function RosterLibraryPage({
 
       <PageContent className="space-y-6">
         {me ? null : (
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border border-edge bg-sunken px-3 py-2 text-sm text-dim">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border border-edge bg-sunken px-3 py-2 text-sm text-dim">
             <p className="min-w-0 flex-1">Without an account, this device keeps one roster. Sign up free to keep as many as you like.</p>
             <Link to="/sign-in" search={{ next: GUEST_PATH, join: true }} className={buttonClass({ size: 'sm' })}>
               Create an account
@@ -378,7 +377,6 @@ export function RosterLibraryPage({
             {libraryError ? (
               <PageState
                 headingLevel={2}
-                eyebrow="Roster library"
                 title="Could not load rosters"
                 explanation="The roster library could not be loaded. Try again."
                 action={
@@ -392,13 +390,15 @@ export function RosterLibraryPage({
                 }
               />
             ) : libraryPending ? (
-              <div className="space-y-3">
-                <output className="sr-only">Loading your rosters…</output>
+              <div className="runner gap-3 [--gate-x:1rem] [--gate-y:1.5rem] sm:[--gate-x:1.5rem]">
+                <output className="sr-only" data-gate="none">
+                  Loading your rosters…
+                </output>
                 <RosterLibrarySkeleton />
               </div>
             ) : active.length ? (
               <>
-                {groups.map(renderCard)}
+                <div className="runner gap-3 [--gate-x:1rem] [--gate-y:1.5rem] sm:[--gate-x:1.5rem]">{groups.map(renderCard)}</div>
                 {pageResults.some((result) => result.isError) || guestRow.failed ? (
                   <Button
                     variant="outline"
@@ -427,7 +427,6 @@ export function RosterLibraryPage({
             ) : (
               <PageState
                 headingLevel={2}
-                eyebrow="Roster library"
                 title="No rosters yet"
                 explanation="Create one, or import a list from another app."
                 icon={ScrollText}
@@ -453,7 +452,9 @@ export function RosterLibraryPage({
               <ChevronDown className="size-4 self-center transition-transform group-data-panel-open:rotate-180" aria-hidden />
             </CollapsibleTrigger>
             <CollapsibleContent>
-              <div className="mt-2 space-y-3">{archivedGroups.map(renderCard)}</div>
+              <div className="mt-2 runner gap-3 [--gate-x:1rem] [--gate-y:1.5rem] sm:[--gate-x:1.5rem]">
+                {archivedGroups.map(renderCard)}
+              </div>
             </CollapsibleContent>
           </Collapsible>
         ) : null}
@@ -539,7 +540,7 @@ export function RosterLibraryPage({
 
 function RosterLibrarySkeleton() {
   return Array.from({ length: 3 }, (_, index) => (
-    <div key={index} className="flex min-h-[5.25rem] items-center gap-3 border border-edge bg-panel p-3" aria-hidden>
+    <div key={index} className="flex min-h-[5.25rem] items-center gap-3 part p-3" aria-hidden>
       <div className="min-w-0 flex-1 space-y-2">
         <Skeleton className="h-4 w-1/3" />
         <div className="flex gap-2">

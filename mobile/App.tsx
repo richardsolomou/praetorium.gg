@@ -156,7 +156,9 @@ function LoadingView() {
       <View>
         <Image source={require('./assets/splash-icon.png')} style={styles.mark} />
         <View style={styles.progressBlock}>
+          {/* The web's line form: a runner the doubled "current" segment travels along. */}
           <View style={styles.progressTrack}>
+            <View style={styles.progressRunner} />
             <Animated.View style={[styles.progressBar, { transform: [{ translateX }] }]} />
           </View>
           <Text style={styles.loading}>OPENING PRAETORIUM</Text>
@@ -170,7 +172,6 @@ function StateView({ error, retry }: { error?: boolean; retry?: () => void }) {
   if (!error) return <LoadingView />
   return (
     <View style={styles.state}>
-      <Text style={styles.eyebrow}>CONNECTION LOST</Text>
       <Text style={styles.title}>Praetorium could not load</Text>
       <Text style={styles.explanation}>Check your connection and try again.</Text>
       <Pressable accessibilityRole="button" onPress={retry} style={({ pressed }) => [styles.button, pressed && styles.buttonPressed]}>
@@ -809,12 +810,6 @@ const styles = StyleSheet.create({
     padding: 32,
     backgroundColor: BARS,
   },
-  eyebrow: {
-    color: '#9bd0a9',
-    fontSize: 12,
-    fontWeight: '700',
-    letterSpacing: 1.4,
-  },
   title: {
     color: '#e7ece9',
     fontSize: 24,
@@ -841,14 +836,25 @@ const styles = StyleSheet.create({
   },
   progressTrack: {
     width: PROGRESS_WIDTH,
-    height: 2,
+    height: 6,
     overflow: 'hidden',
-    backgroundColor: '#1b2328',
+  },
+  progressRunner: {
+    position: 'absolute',
+    top: 2,
+    left: 0,
+    right: 0,
+    height: 2,
+    borderRadius: 1,
+    backgroundColor: '#3a4650',
   },
   progressBar: {
     width: PROGRESS_WIDTH / 3,
-    height: 2,
-    backgroundColor: '#9bd0a9',
+    height: 6,
+    borderTopWidth: 2,
+    borderBottomWidth: 2,
+    borderColor: '#9bd0a9',
+    backgroundColor: BARS,
   },
   loading: {
     color: '#a6b0ae',
@@ -861,16 +867,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginTop: 8,
     paddingHorizontal: 20,
-    borderWidth: 1,
-    borderColor: '#9bd0a9',
-    backgroundColor: '#1b2328',
+    borderRadius: 9,
+    backgroundColor: '#9bd0a9',
   },
   buttonPressed: {
-    backgroundColor: '#28323a',
+    opacity: 0.8,
   },
   buttonText: {
-    color: '#e7ece9',
+    color: '#0c2014',
     fontSize: 15,
-    fontWeight: '600',
+    fontWeight: '700',
   },
 })

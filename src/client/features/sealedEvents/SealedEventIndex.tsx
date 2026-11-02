@@ -29,7 +29,6 @@ export function SealedEventIndex() {
   return (
     <main className="w-full">
       <PageHeader
-        eyebrow="Events"
         title="Tournaments"
         description="One-off tournaments where everyone seals a list in secret, then the lists are revealed together."
         actions={
@@ -48,7 +47,6 @@ export function SealedEventIndex() {
         {!sealedEvents.length ? (
           <PageState
             headingLevel={2}
-            eyebrow="Sealed rosters"
             title="No tournaments yet"
             explanation={me ? 'Create one and send the link to your group.' : 'Public tournaments will appear here. Sign in to create one.'}
             icon={Users}
@@ -92,11 +90,11 @@ function SealedEventShelf({
           const card = (
             <Link to="/tournaments/$token" params={{ token: sealedEvent.token }} className="flex min-w-0 flex-1 flex-col">
               <div className={`flex-1 p-4 ${organizer ? 'pr-12' : ''}`}>
-                <p className="flex items-center gap-2 text-xs text-dim">
+                <h3 className="truncate text-lg leading-tight font-bold uppercase">{tournament.name}</h3>
+                <p className="mt-1 flex items-center gap-2 text-xs text-dim">
                   <VisibilityIcon visibility={tournament.visibility} labelled />
                   <span className="truncate tracking-label uppercase">{format ?? 'Any format'}</span>
                 </p>
-                <h3 className="mt-1.5 truncate text-lg leading-tight font-bold uppercase">{tournament.name}</h3>
                 <EventSchedule event={sealedEvent} className="mt-1 text-xs" />
                 {tournament.description ? (
                   <p className="mt-1 line-clamp-2 text-sm text-dim">{tournament.description}</p>
@@ -109,7 +107,7 @@ function SealedEventShelf({
               </div>
               <div className="flex min-w-0 items-center gap-3 border-t border-edge bg-sunken/60 px-4 py-2.5 text-sm">
                 <span className={`flex min-w-0 items-center gap-2 font-semibold ${status.tint}`}>
-                  <span aria-hidden className="size-2 shrink-0 rounded-full bg-current" />
+                  <span aria-hidden className="h-0.5 w-4 shrink-0 rounded-full bg-current" />
                   <span className="truncate">{status.label}</span>
                 </span>
                 <span className="ml-auto shrink-0 text-xs text-dim">{sealedEventPlayers(sealedEvent, sealedEvent.entrantCount)}</span>

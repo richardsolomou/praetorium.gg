@@ -44,7 +44,7 @@ describe('roster summary', () => {
     expect(markup).toContain('Necrons')
     expect(markup).toContain('Awakened Dynasty')
     expect(markup).toContain('Strike Force')
-    expect(markup).toContain('1985/2000')
+    expect(markup.replace(/<[^>]+>/g, '')).toContain('1985/2000')
     expect(markup).toContain('Private')
     expect(markup).not.toContain('switched off')
   })
@@ -70,7 +70,10 @@ describe('roster summary', () => {
   it('shows a custom points budget beside the battle size whose limits still apply', () => {
     const markup = renderToStaticMarkup(createElement(RosterSummary, { roster: { ...roster, pointsBudget: 1_500 }, points: 1_485 }))
 
-    expect([markup.includes('1485/1500'), markup.includes('Strike Force · 1,500-point budget')]).toEqual([true, true])
+    expect([markup.replace(/<[^>]+>/g, '').includes('1485/1500'), markup.includes('Strike Force · 1,500-point budget')]).toEqual([
+      true,
+      true,
+    ])
   })
 
   it('shows the selected force disposition beside the detachment', () => {

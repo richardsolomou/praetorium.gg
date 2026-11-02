@@ -38,9 +38,9 @@ export function FavouriteToggle({
       pressed={favourite}
       disabled={pending}
       onPressedChange={onToggle}
-      className={cn('shrink-0 bg-transparent p-0', className)}
+      className={cn('shrink-0 bg-transparent p-0 aria-pressed:bg-transparent hover:bg-transparent', className)}
     >
-      <Heart className={`size-3.5 ${favourite ? 'fill-rust text-rust' : 'text-faint hover:text-dim'}`} />
+      <Heart className={`size-4 ${favourite ? 'fill-rust text-rust' : 'text-faint hover:text-dim'}`} />
     </Toggle>
   )
 }
@@ -56,7 +56,7 @@ function SignInToFavourite({ name, list, className }: { name: string; list: stri
       className={cn('grid shrink-0 place-items-center', className)}
       aria-label={`Sign in to add ${name} to ${list}`}
     >
-      <Heart className="size-3.5 text-faint hover:text-dim" />
+      <Heart className="size-4 text-faint hover:text-dim" />
     </Link>
   )
 }

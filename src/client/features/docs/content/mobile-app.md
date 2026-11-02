@@ -4,7 +4,7 @@ The Praetorium app opens the same site as praetorium.gg, with the same account, 
 
 The sign-in page is the same as on the web. Email and password work inside the app. **Continue with Apple**, **Google**, **Discord** or **GitHub** opens a secure sign-in window from your phone, then returns you to the app on its own. GitHub sign-in needs the latest version of the app.
 
-Your account settings are under **Profile** on the **More** tab, and **Sign out** is in the account menu at the top right.
+Your account settings open from your name at the top of the **More** tab, and **Sign out** is in the account menu at the top right.
 
 ## Use it offline
 

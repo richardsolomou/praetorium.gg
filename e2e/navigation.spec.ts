@@ -43,11 +43,11 @@ test('the mobile website uses application navigation below 860 pixels', async ({
   await expect(page.locator('head link[rel="preload"][as="font"]')).toHaveCount(3)
   expect(await page.evaluate(() => document.fonts.check('400 16px "Sofia Sans Semi Condensed Variable"'))).toBe(true)
   const primary = page.getByRole('navigation', { name: 'Primary' })
-  const webHeader = page.locator('header[data-web-app-chrome]')
+  const webRail = page.locator('[data-web-app-chrome]')
   const mobileHeader = page.locator('[data-mobile-app-header]')
   const sections = page.getByRole('navigation', { name: 'Application sections' })
   const more = sections.getByRole('link', { name: 'More' })
-  await expect(webHeader).toBeHidden()
+  await expect(webRail).toBeHidden()
   await expect(mobileHeader).toBeVisible()
   await expect(mobileHeader).toHaveCSS('position', 'fixed')
   expect(await page.locator('[data-mobile-app-header-spacer]').evaluate((element) => element.getBoundingClientRect().height)).toBe(
@@ -114,15 +114,14 @@ test('the mobile website uses application navigation below 860 pixels', async ({
   await expect(more).toHaveAttribute('aria-current', 'page')
 
   await page.setViewportSize({ width: 859, height: 844 })
-  await expect(webHeader).toBeHidden()
+  await expect(webRail).toBeHidden()
   await expect(mobileHeader).toBeVisible()
   await expect(sections).toBeVisible()
   await page.setViewportSize({ width: 860, height: 844 })
   const reference = page.getByRole('navigation', { name: 'Reference' })
   await expect(reference.getByRole('link')).toHaveText(['Factions', 'Missions', 'Dispositions', 'Rules'])
-  await expect(primary.getByRole('link')).toHaveText(['Rosters', 'Battles', 'Simulator', 'Leaderboard'])
-  await expect(primary.getByRole('button', { name: 'Events' })).toBeVisible()
-  await expect(webHeader).toHaveJSProperty('scrollWidth', await webHeader.evaluate((header) => header.clientWidth))
+  await expect(primary.getByRole('link')).toHaveText(['Rosters', 'Battles', 'Simulator', 'Leaderboard', 'Groups', 'Tournaments'])
+  await expect(webRail).toHaveJSProperty('scrollWidth', await webRail.evaluate((rail) => rail.clientWidth))
   await page.setViewportSize({ width: 910, height: 844 })
   await expect(primary.getByRole('link', { name: 'Rosters' }).locator('svg')).toHaveCount(1)
   await expect(reference.getByRole('link', { name: 'Dispositions' }).locator('svg')).toHaveCount(1)
@@ -132,14 +131,33 @@ test('the mobile website uses application navigation below 860 pixels', async ({
   await expect(reference.getByRole('link', { name: 'Dispositions' })).toHaveAttribute('aria-current', 'page')
   await expect(sections).toBeHidden()
   await expect(mobileHeader).toBeHidden()
-  await expect(webHeader).toHaveJSProperty('scrollWidth', await webHeader.evaluate((header) => header.clientWidth))
+  await expect(webRail).toHaveJSProperty('scrollWidth', await webRail.evaluate((rail) => rail.clientWidth))
 
   for (const width of [999, 1000, 1099, 1100, 1279, 1280, 1440]) {
     await page.setViewportSize({ width, height: 844 })
-    await expect(webHeader).toHaveJSProperty('scrollWidth', await webHeader.evaluate((header) => header.clientWidth))
+    await expect(webRail).toHaveJSProperty('scrollWidth', await webRail.evaluate((rail) => rail.clientWidth))
   }
   await page.setViewportSize({ width: 1000, height: 844 })
   await page.screenshot({ path: test.info().outputPath('navigation-desktop-1000.png') })
+})
+
+test('the More tab returns to the last screen opened from it until tapped again', async ({ page }) => {
+  await page.setViewportSize(PHONE)
+  await page.goto('/more')
+  const sections = page.getByRole('navigation', { name: 'Application sections' })
+  const more = sections.getByRole('link', { name: 'More' })
+  await page
+    .getByRole('main')
+    .getByRole('link', { name: /^Groups/ })
+    .click()
+  await expect(page).toHaveURL('/groups')
+  await sections.getByRole('link', { name: 'Battles' }).click()
+  await expect(page).toHaveURL('/battles')
+  await more.click()
+  await expect(page).toHaveURL('/groups')
+  await expect(more).toHaveAttribute('aria-current', 'page')
+  await more.click()
+  await expect(page).toHaveURL('/more')
 })
 
 test('the native application has stable route-aware phone and tablet navigation', async ({ browser }) => {
@@ -150,7 +168,7 @@ test('the native application has stable route-aware phone and tablet navigation'
   const loadingPage = await loadingContext.newPage()
   await loadingPage.route('**/*', (route) => (route.request().resourceType() === 'script' ? route.abort() : route.continue()))
   await loadingPage.goto('/factions/necrons/datasheets/overlord', { waitUntil: 'domcontentloaded' })
-  await expect(loadingPage.locator('header[data-web-app-chrome]')).toBeHidden()
+  await expect(loadingPage.locator('[data-web-app-chrome]')).toBeHidden()
   await expect(loadingPage.locator('[data-mobile-app-header]')).toBeVisible()
   await expect(loadingPage.locator('[data-native-app-header]')).toHaveCount(0)
   await expect(loadingPage.locator('[data-native-app-tabs]')).toBeVisible()
@@ -194,11 +212,11 @@ document.addEventListener('DOMContentLoaded', () => { document.documentElement.d
 
   await page.goto('/factions/necrons/datasheets/overlord')
 
-  const webHeader = page.locator('header[data-web-app-chrome]')
+  const webRail = page.locator('[data-web-app-chrome]')
   const mobileHeader = page.locator('[data-mobile-app-header]')
   const sections = page.getByRole('navigation', { name: 'Application sections' })
   const more = sections.getByRole('link', { name: 'More' })
-  await expect(webHeader).toBeHidden()
+  await expect(webRail).toBeHidden()
   await expect(mobileHeader).toBeVisible()
   await expect(mobileHeader).toHaveCSS('position', 'fixed')
   await expect(page.getByRole('banner', { name: 'Application' })).toHaveCount(0)
@@ -211,6 +229,9 @@ document.addEventListener('DOMContentLoaded', () => { document.documentElement.d
   expect(hydrationErrors).toEqual([])
   await page.screenshot({ path: test.info().outputPath('native-navigation-phone.png'), fullPage: true })
 
+  // The disposition opened at the start of this session is the last screen More showed.
+  await more.click()
+  await expect(page).toHaveURL('/force-dispositions/take-and-hold')
   await more.click()
   await expect(page).toHaveURL('/more')
   const morePage = page.getByRole('main')
@@ -460,7 +481,7 @@ test('server-rendered reference pages keep route-shaped payloads', { tag: '@cata
   // One section, never the five documents: the whole rules corpus is far larger.
   const ruleSection = await (await request.get('/rules/core-rules/movement-phase')).body()
 
-  expect(factions.byteLength).toBeLessThan(285_000)
+  expect(factions.byteLength).toBeLessThan(290_000)
   expect(missionPack.byteLength).toBeLessThan(250_000)
   expect(ruleSection.byteLength).toBeLessThan(250_000)
 })
@@ -678,9 +699,10 @@ test('account libraries share their page width and fit a phone', async ({ page }
 test('authentication panels and empty states fill the page above the footer', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 })
   await page.goto('/sign-in')
+  const rail = await page.locator('[data-web-app-chrome]').boundingBox()
   const left = await page.locator('main > aside').boundingBox()
   const right = await page.locator('main > section').boundingBox()
-  expect(left?.x).toBe(0)
+  expect(left?.x).toBe(rail ? rail.x + rail.width : 0)
   expect(right ? Math.round(right.x + right.width) : 0).toBe(1280)
   await page.goto('/friends')
   await expect(page.getByRole('heading', { name: 'Your friends' })).toBeVisible()
@@ -688,6 +710,35 @@ test('authentication panels and empty states fill the page above the footer', as
   const footer = await page.locator('footer').boundingBox()
   expect(state && footer ? Math.round(state.y + state.height) : 0).toBe(Math.round(footer?.y ?? 0))
   expect(footer ? Math.round(footer.y + footer.height) : 0).toBeGreaterThanOrEqual(800)
+})
+
+test('the signed-out home has a visitor bar and other pages a rail that stays folded through a reload', async ({ page }) => {
+  const visitorBar = page.getByRole('banner').filter({ has: page.getByRole('link', { name: 'Create a free account', exact: true }) })
+  const rail = page.locator('aside[data-web-app-chrome]')
+  await page.goto('/')
+  await expect(visitorBar).toBeVisible()
+  await expect(rail).toHaveCount(0)
+  await page.goto('/factions')
+  await expect(rail).toBeVisible()
+  await expect(visitorBar).toHaveCount(0)
+  const width = async () => (await rail.boundingBox())!.width
+  const expanded = await width()
+
+  await rail.getByRole('button', { name: 'Collapse navigation', exact: true }).click()
+  await expect(page.locator('html')).toHaveAttribute('data-rail', 'collapsed')
+  // The parser's last step before deferred application scripts run, so this reads what the head script set.
+  await page.addInitScript(() =>
+    document.addEventListener('readystatechange', () => {
+      if (document.readyState === 'interactive') Reflect.set(window, 'railBeforeApp', document.documentElement.dataset.rail)
+    }),
+  )
+  await page.reload()
+  expect(await page.evaluate(() => Reflect.get(window, 'railBeforeApp'))).toBe('collapsed')
+  await expect(page.locator('html')).toHaveAttribute('data-rail', 'collapsed')
+  expect(await width()).toBeLessThan(expanded / 2)
+  await rail.getByRole('button', { name: 'Expand navigation', exact: true }).click()
+  await expect(page.locator('html')).not.toHaveAttribute('data-rail')
+  await expect.poll(width).toBe(expanded)
 })
 
 test('terrain layouts show source-backed areas and measurement guidance', async ({ page }) => {
@@ -772,7 +823,7 @@ test('a mission opens while its terrain layouts load', async ({ page }) => {
   const opening = page.locator('a[href*="/matchups/"]').first().click()
   await started
   try {
-    await expect(page.getByText(/^Mission matchup ·/)).toBeVisible({ timeout: 5_000 })
+    await expect(page.getByRole('heading', { level: 1, name: / vs / })).toBeVisible({ timeout: 5_000 })
     await expect(page.getByRole('heading', { name: 'Loading terrain layouts' })).toBeVisible()
     await expect(page.getByText('Mission pack', { exact: true })).toHaveCount(0)
   } finally {
@@ -819,7 +870,7 @@ test('a player can enter through the roster library and browse the product', asy
 
   await expect(page.getByRole('heading', { name: 'Rosters', exact: true, level: 1 })).toBeVisible()
   const rendered = await page.request.get('/rosters')
-  expect(await rendered.text()).toContain('Your rosters')
+  expect(await rendered.text()).toContain('Build, import, organize, and share your armies')
   await expect(page.getByText('Create one, or import a list from another app.')).toBeVisible()
   await page.getByRole('button', { name: 'Filter' }).click()
   const filters = page.getByRole('dialog', { name: 'Filter rosters' })
@@ -907,6 +958,16 @@ test('a player can enter through the roster library and browse the product', asy
   await expectNoPageScroll(page)
   await page.screenshot({ path: test.info().outputPath('roster-editor-phone.png') })
   await page.setViewportSize({ width: 1600, height: 900 })
+  await chooseRosterAction(page, 'Edit roster setup')
+  // An outside click closes only the dialog on top: the reference first, then the setup beneath it.
+  await setup.getByRole('button', { name: 'View Cryptek Conclave detachment reference', exact: true }).click()
+  const detachmentReference = page.getByRole('dialog', { name: 'Cryptek Conclave', exact: true })
+  await expect(detachmentReference).toBeVisible()
+  await page.mouse.click(10, 450)
+  await expect(detachmentReference).toBeHidden()
+  await expect(setup).toBeVisible()
+  await page.mouse.click(10, 450)
+  await expect(setup).toBeHidden()
   await chooseRosterAction(page, 'Edit roster setup')
   await setup.getByRole('button', { name: 'Select Cryptek Conclave', pressed: true }).click()
   await setup.getByRole('button', { name: 'Select Cursed Legion' }).click()

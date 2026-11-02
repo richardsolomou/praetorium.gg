@@ -50,7 +50,7 @@ export function RosterExportDialog({ exported, onClose }: { exported: RosterText
               the builder before submitting this roster.
             </Problem>
           ) : null}
-          <pre className="whitespace-pre-wrap wrap-anywhere border border-edge bg-sunken p-3 text-xs select-text">{text}</pre>
+          <pre className="whitespace-pre-wrap wrap-anywhere rounded-lg border border-edge bg-sunken p-3 text-xs select-text">{text}</pre>
           {problem ? <Problem className="mt-3">{problem}</Problem> : null}
         </DialogBody>
         <DialogFooter>

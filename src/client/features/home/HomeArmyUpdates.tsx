@@ -29,24 +29,24 @@ export function HomeArmyUpdates({ updates }: { updates: readonly ArmyUpdate[] })
   const newest = updates.toSorted((one, other) => other.recordedAt - one.recordedAt).slice(0, SHOWN)
   return (
     <section data-home-army-updates>
-      <SectionHeading title="Updates for your armies" className="mb-0" />
-      <ul className="divide-y divide-edge border-b border-edge">
+      <SectionHeading title="Updates for your armies" />
+      <ul className="part divide-y divide-edge overflow-hidden">
         {newest.map(({ faction, recordedAt, anchor, changes }) => (
           <li key={faction.slug}>
             <Link
               to="/data-updates/$catalogueId"
               params={{ catalogueId: faction.slug }}
               hash={anchor}
-              className="-mx-3 flex min-w-0 items-center gap-2 px-3 py-3 hover:bg-raised"
+              className="flex min-w-0 items-center gap-2.5 px-4 py-3 transition-colors hover:bg-raised"
             >
               <FactionMark faction={faction} size="sm" />
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-bold uppercase">{faction.displayName}</span>
+                <span className="block truncate text-[0.9375rem] font-bold">{faction.displayName}</span>
                 <span className="block text-xs text-dim">
                   {countLabel(changes, 'change')} · {date(recordedAt)}
                 </span>
               </span>
-              <ChevronRight className="size-4 shrink-0 text-info" aria-hidden />
+              <ChevronRight className="size-4 shrink-0 text-dim" aria-hidden />
             </Link>
           </li>
         ))}

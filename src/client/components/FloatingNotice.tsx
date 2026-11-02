@@ -9,7 +9,7 @@ export function FloatingNotice({ className, ...props }: ComponentProps<'aside'>)
       data-print-hide
       {...props}
       className={cn(
-        'fixed bottom-4 left-1/2 z-40 flex w-max max-w-[calc(100%-1.5rem)] -translate-x-1/2 items-center gap-2 border border-edge-strong bg-panel p-2 text-sm shadow-lg',
+        'fixed bottom-4 left-1/2 z-40 flex w-max max-w-[calc(100%-1.5rem)] -translate-x-1/2 items-center gap-2 part p-2 text-sm shadow-lg',
         className,
       )}
     />

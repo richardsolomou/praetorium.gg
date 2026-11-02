@@ -380,39 +380,9 @@ describe('source-backed mission selections', () => {
     expect(commandRefusal(battle, ALICE, { kind })).toBeNull()
   })
 
-  it('leaves the footer free of unrecorded choices', () => {
-    const battle = state([ALICE, { kind: 'draw-secondaries', secondaries: [guard, target] }], [ALICE, { kind: 'acknowledge-draw' }])
-    expect(battleView({ token: 'test' }, NAMES, battle, ALICE).advancePrompt).toBeNull()
-  })
-
-  it('keeps the draw requirement in the footer', () => {
-    expect(battleView({ token: 'test' }, NAMES, state(), ALICE).advancePrompt).toBe('The active side has secondary missions to draw.')
-  })
-
-  it('keeps previous-turn settlement in the footer', () => {
-    const battle = state([ALICE, condemn], ...turns(6, ALICE), ...turns(6, BOB))
-    expect(battleView({ token: 'test' }, NAMES, battle, ALICE).advancePrompt).toBe('The previous turn is still to be settled.')
-  })
-
   it('offers no nominations while the previous turn is still to be settled', () => {
     const battle = state([ALICE, condemn], ...turns(6, ALICE), ...turns(6, BOB))
     expect(battleView({ token: 'test' }, NAMES, battle, ALICE).missionChoices).toEqual([])
-  })
-
-  it('keeps secret handoff in the footer', () => {
-    const battle = state([ALICE, condemn], [ALICE, { kind: 'select-secret', secondary: beacon }], ...turns(5, ALICE))
-    expect(battleView({ token: 'test' }, NAMES, battle, ALICE).advancePrompt).toBe(
-      'The active side has a secret mission to reveal or discard.',
-    )
-  })
-
-  it('leaves the footer empty for an old prepared card without nomination capability', () => {
-    const entries = history()
-    const prep = entries[2]!.command
-    if (prep.kind !== 'set-prep' || !prep.primary) throw new Error('expected prepared primary')
-    delete prep.primary.selection
-    prep.secondaryMode = 'fixed'
-    expect(battleView({ token: 'test' }, NAMES, reduceBattle(PLAYERS, entries), ALICE).advancePrompt).toBeNull()
   })
 
   it('offers the opposing side its target choice without holding up the turn', () => {
@@ -423,13 +393,7 @@ describe('source-backed mission selections', () => {
       [ALICE, { kind: 'select-mission', cardKey: guard.key, occurrence: 5, selection: { kind: 'guards', guards: [] } }],
     )
     const view = battleView({ token: 'test' }, NAMES, battle, BOB)
-    expect({
-      message: view.advancePrompt,
-      canChoose: view.missionChoices?.find((choice) => choice.kind === 'tempting-target')?.canChoose,
-    }).toEqual({
-      message: null,
-      canChoose: true,
-    })
+    expect(view.missionChoices?.find((choice) => choice.kind === 'tempting-target')?.canChoose).toBe(true)
   })
 
   it('does not offer a hidden mission’s choice to the opponent or spectator', () => {

@@ -50,7 +50,7 @@ for (const [width, label] of [
       { name: RETIRED, catalogueId: destinationRoster!.catalogueId, pick: { entryId: 'datasheet-this-rules-version-lacks' } },
       Date.now(),
     )
-    const savedAs = (name: string) => page.locator(`[data-picker-unit="${UNIT}"] + [data-saved-loadout="${name}"]`)
+    const savedAs = (name: string) => page.locator(`[data-picker-unit="${UNIT}"] + * > [data-saved-loadout="${name}"]`)
     const saved = savedAs(LOADOUT)
     await expect(saved.locator('.chip')).toHaveText(/^\d+ pts$/)
     const search = page.getByLabel('Add a unit')

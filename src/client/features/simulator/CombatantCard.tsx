@@ -187,7 +187,7 @@ export function CombatantCard({
           {unit ? (
             <span className="flex min-h-5 items-center gap-2 whitespace-nowrap text-xs text-dim">
               <span>{countLabel(totalModels, 'model')}</span>
-              <span className="readout text-sm text-info">
+              <span className="readout text-sm font-semibold text-bone">
                 {unit.points +
                   (combatant.sheets.data?.companions ?? []).reduce(
                     (total, member) => total + (combatant.price.data?.units[member.pickIndex]?.points ?? 0),
@@ -204,7 +204,7 @@ export function CombatantCard({
           ) : (
             <span className="flex min-h-5 items-center gap-2 text-xs text-dim">
               <span className="w-14">— models</span>
-              <span className="readout w-12 text-sm text-info">— pts</span>
+              <span className="readout w-12 text-sm text-dim">— pts</span>
             </span>
           )}
           {optimizer.available ? (

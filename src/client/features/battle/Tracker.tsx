@@ -58,6 +58,7 @@ import { SidePanel } from './SidePanel'
 import { TurnControl } from './TurnControl'
 import { TwistName } from './MissionTwist'
 import { Report, reportPlayers } from './Report'
+import { SideTag } from './PlayerName'
 import { BattleMinimizeContext } from './BattlePromptDialog'
 import { advanceOnboarding, ONBOARDING_FOCUS_EVENT, storedOnboardingFocus, type OnboardingFocus } from '../onboarding/onboarding'
 import { Fact } from '../../components/Fact'
@@ -345,6 +346,7 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
   const guidesFor = (side: Side) => guidesBySide.get(side.index) ?? view.guides
   /** Which panel a narrow screen is showing, in the order the columns sit on a wide one. */
   const shown = (side: Side) => (side.isViewer ? 'yours' : 'theirs')
+  const theirs = table.find((side) => !side.isViewer)
   const settlementRound = view.settlementRound
   const turnKey = `${view.round}-${view.activePlayerId ?? ''}`
   const turnDraftKey = JSON.stringify([view.token, turnKey])
@@ -568,9 +570,17 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
           {/* Nobody across the table yet means neither a tab nor a column for them. */}
           <Tabs value={focus} onValueChange={(value) => setFocus(value as Focus)} className="battle-focus-tabs lg:hidden">
             <TabsList className={`grid w-full ${oneSided ? 'grid-cols-2' : 'grid-cols-3'}`}>
-              <TabsTrigger value="yours">Your side</TabsTrigger>
+              <TabsTrigger value="yours">
+                {yours ? <SideTag side={yours} /> : null}
+                Your side
+              </TabsTrigger>
               <TabsTrigger value="battle">Battle</TabsTrigger>
-              {oneSided ? null : <TabsTrigger value="theirs">Opponent</TabsTrigger>}
+              {oneSided ? null : (
+                <TabsTrigger value="theirs">
+                  {theirs ? <SideTag side={theirs} /> : null}
+                  Opponent
+                </TabsTrigger>
+              )}
             </TabsList>
           </Tabs>
         </div>
@@ -613,16 +623,15 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
               pending={pending || promptMinimized}
               onAdvance={advance}
               blockReason={promptMinimized ? 'Finish the open prompt to continue.' : blockReason}
-              note={view.advancePrompt}
               /*
                * `mb-0` because the column spaces its children with a bottom margin, and
                * a margin on a fixed box sits between it and the edge it is pinned to.
                * At `lg` it is an ordinary box in the column again and takes the gap back.
                */
-              className="fixed inset-x-0 bottom-0 z-40 mb-0 border-t border-edge bg-panel/98 px-3 py-2 backdrop-blur lg:static lg:mb-3 lg:rounded-lg lg:border lg:bg-panel lg:p-3 lg:backdrop-filter-none"
+              className="fixed inset-x-0 bottom-0 z-40 mb-0 border-t border-edge bg-panel/98 px-3 py-2 backdrop-blur lg:static lg:mb-3 lg:rounded-xl lg:border lg:bg-panel lg:p-3 lg:shadow-part lg:backdrop-filter-none"
             />
 
-            <section className={`space-y-3 rounded-lg border border-edge bg-panel p-3 ${focus === 'battle' ? '' : 'hidden lg:block'}`}>
+            <section className={`part space-y-3 p-3 ${focus === 'battle' ? '' : 'hidden lg:block'}`}>
               <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
                 {view.settings.manual ? (
                   <Fact label="Tracking" value="Manual" />

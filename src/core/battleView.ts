@@ -187,7 +187,6 @@ export type BattleView = {
   sealedEventToken: string | null
   eventToken: string | null
   groupId: string | null
-  advancePrompt: string | null
   secretMissionActionPlayerId: PlayerId | null
   /** The earlier moments a missed action may still be recorded for, oldest first; absent from older servers. */
   missedMoments?: BattleMoment[]
@@ -352,7 +351,6 @@ export function battleView(
     sealedEventToken: state.sealedEventToken,
     eventToken: state.eventToken,
     groupId: state.groupId,
-    advancePrompt: advancePrompt(state, viewerId),
     secretMissionActionPlayerId: secretMissionActionPlayerId(state),
     missedMoments: state.settings.manual ? [] : missedMoments(state),
     undoable: state.undoable?.seq ?? null,
@@ -388,31 +386,4 @@ function secretMissionActionPlayerId(state: BattleState): PlayerId | null {
   return sideOwes(state, player) === 'secret' || scoringDue(state, player).some((card) => card.key === player.secretSecondary)
     ? player.id
     : null
-}
-
-/**
- * What the active side still has to do before the turn moves on.
- *
- * One sentence, the same on every device. Any seat may draw, discard, score or
- * settle for either side, so this reads as what is outstanding rather than as a
- * rule about whose turn it is to press something. Only the naming is the
- * viewer's: a card held face down is named to its own side and called a secret
- * mission to the other.
- */
-function advancePrompt(state: BattleState, viewerId: PlayerId): string | null {
-  const active = state.activePlayerId ? state.players.find((player) => player.id === state.activePlayerId) : undefined
-  const player = active ? sideCaptain(state, active.side) : undefined
-  if (!player) return null
-  const owed = sideOwes(state, player)
-  if (owed === 'settlement') return 'The previous turn is still to be settled.'
-  if (owed === 'cards') return 'The active side has secondary missions to draw.'
-  if (owed === 'secret') return 'The active side has a secret mission to reveal or discard.'
-  if (state.phase !== 'end') return null
-  const unscored = player.secondaries.filter(
-    (secondary) =>
-      player.secondaryStatus[secondary.key] === 'active' && (player.scoredByRound[secondary.key]?.[state.round - 1] ?? 0) === 0,
-  )
-  if (!unscored.length) return null
-  const names = unscored.map((secondary) => (mayNameCard(state, viewerId, player, secondary.key) ? secondary.name : 'a secret mission'))
-  return `Check ${names.join(' and ')} before passing the turn.`
 }

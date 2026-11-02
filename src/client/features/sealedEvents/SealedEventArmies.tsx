@@ -226,7 +226,7 @@ export function RevealedLists({
   }
   return (
     <div
-      className={`grid grid-cols-1 gap-px bg-edge ${groups.length > 1 ? 'sm:grid-cols-2' : ''} ${bare ? 'border-t border-edge' : 'border border-edge'}`}
+      className={`grid grid-cols-1 gap-px bg-edge ${groups.length > 1 ? 'sm:grid-cols-2' : ''} ${bare ? 'border-t border-edge' : 'overflow-hidden rounded-xl border border-edge shadow-part'}`}
     >
       {groups.map((group) => {
         const opponent = group.entries.find((entry) => entry.army)

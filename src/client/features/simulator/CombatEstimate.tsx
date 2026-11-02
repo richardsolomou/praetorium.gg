@@ -31,7 +31,7 @@ export function CombatEstimate({
         finalFocus={false}
         side="top"
         align="start"
-        className="w-72 max-w-[calc(100vw-2rem)] border border-edge bg-panel p-3 text-bone"
+        className="w-72 max-w-[calc(100vw-2rem)] part p-3 text-bone"
       >
         <PopoverTitle className="text-xs font-semibold text-dim">{label} probabilities</PopoverTitle>
         <CombatHistogram distribution={distribution} />

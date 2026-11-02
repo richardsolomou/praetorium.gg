@@ -19,27 +19,29 @@ export function HomeLeaders({ rows: all }: { rows: readonly Standing[] }) {
   if (!rows.length) return null
   return (
     <section data-home-leaders>
-      <SectionHeading title="Leaderboard" className="mb-0" />
-      <ol className="divide-y divide-edge border-b border-edge">
+      <SectionHeading title="Leaderboard" />
+      <ol className="part divide-y divide-edge overflow-hidden">
         {rows.slice(0, TOP).map((row, place) => (
           <li key={row.id}>
             <Link
               to="/users/$userId"
               params={{ userId: row.id }}
-              className="flex min-w-0 items-center gap-3 -mx-3 px-3 py-3 hover:bg-raised"
+              className="flex min-w-0 items-center gap-3 px-4 py-3 transition-colors hover:bg-raised"
             >
-              <span className="readout w-5 shrink-0 text-faint">{place + 1}</span>
+              <span className="part-tag">{place + 1}</span>
               <PlayerAvatar name={row.name} image={row.image} className="size-7 text-3xs" />
-              <span className="min-w-0 flex-1 truncate font-bold uppercase">{row.name}</span>
-              <span className="shrink-0 text-sm text-dim">
-                <span className="readout">{row.won}</span> {row.won === 1 ? 'win' : 'wins'}
+              <span className="min-w-0 flex-1">
+                <span className="block truncate font-bold">{row.name}</span>
+                <span className="block text-xs text-dim">
+                  <span className="readout">{row.won}</span> {row.won === 1 ? 'win' : 'wins'}
+                </span>
               </span>
-              <span className="readout w-12 shrink-0 text-right text-sm text-bone">{row.rating}</span>
+              <span className="figure w-14 shrink-0 text-right text-base font-bold text-bone">{row.rating}</span>
             </Link>
           </li>
         ))}
       </ol>
-      <ShelfLink to="/leaderboard" search={{ faction: undefined }} className="mt-2">
+      <ShelfLink to="/leaderboard" search={{ faction: undefined }} className="mt-3">
         Full leaderboard
       </ShelfLink>
     </section>

@@ -29,13 +29,7 @@ export function BattlePage({ token }: { token: string }) {
   if (isPending) return <PageLoading />
   if (!screen) return <Navigate to="/battles" replace />
   if (screen.kind === 'unavailable')
-    return (
-      <FullPageState
-        eyebrow="Battle"
-        title="This battle is not open"
-        explanation="Nobody is seated at this battle, so there is nothing to watch."
-      />
-    )
+    return <FullPageState title="This battle is not open" explanation="Nobody is seated at this battle, so there is nothing to watch." />
   if (screen.kind === 'spectator')
     return (
       <Spectator view={screen.view} clock={screen.clock} missions={screen.missions} report={screen.report} timeline={screen.timeline} />

@@ -19,7 +19,6 @@ export const Route = createFileRoute('/join/$invite')({
   component: () => <JoinAsGuest invite={Route.useParams().invite} />,
   notFoundComponent: () => (
     <FullPageState
-      eyebrow="Guest seat"
       title="This link no longer works"
       explanation="The battle was deleted, or its host made a new link. Ask them to share it again."
       icon={UserX}

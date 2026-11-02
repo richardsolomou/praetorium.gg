@@ -40,7 +40,7 @@ export function DropEntrant({
           <Button
             variant="ghost"
             size="icon-sm"
-            className="text-dim hover:text-side-a pointer-coarse:size-11"
+            className="text-dim hover:text-destructive pointer-coarse:size-11"
             aria-label={self ? 'Withdraw from the tournament' : `Drop ${label}`}
             disabled={drop.isPending}
             onClick={() => {

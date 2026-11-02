@@ -545,19 +545,15 @@ export function CombatMatchup({
   ]
   return (
     <>
-      <div className="@container min-w-0 border border-edge bg-panel" aria-label="Combat matchup">
-        <div className="grid @xl:grid-cols-2">
-          <section
-            data-onboarding="simulator-attacker"
-            aria-label="Attacker"
-            className="min-w-0 border-b border-edge @xl:border-r @xl:border-b-0"
-          >
+      <div className="@container min-w-0 space-y-3" aria-label="Combat matchup">
+        <div className="grid gap-3 @xl:grid-cols-2">
+          <section data-onboarding="simulator-attacker" aria-label="Attacker" className="min-w-0 part">
             <LoadoutOddsContext.Provider value={loadoutOdds}>
               <LoadoutOptimizationContext.Provider value={optimizationContext}>{attackerControl}</LoadoutOptimizationContext.Provider>
             </LoadoutOddsContext.Provider>
             <CombatDefences unit={attacker} />
           </section>
-          <section data-onboarding="simulator-defender" aria-label="Defender" className="min-w-0">
+          <section data-onboarding="simulator-defender" aria-label="Defender" className="min-w-0 part">
             {defenderControl}
             <CombatDefences
               unit={defender}
@@ -572,7 +568,7 @@ export function CombatMatchup({
           </section>
         </div>
 
-        <div className="border-t border-edge p-3 sm:p-4">
+        <div className="part p-3 sm:p-4">
           {!pending && !failed && (invalidatedPreferences || invalidatedChoice) ? (
             <output className="mb-3 block text-xs text-dim">
               Some previous weapon choices no longer apply to this equipment. Current profiles are used.
@@ -637,7 +633,11 @@ export function CombatMatchup({
                       {weaponToggleGroups(plan?.used ?? []).map(([key, group]) => {
                         const included = !excludedWeapons[phase].includes(key)
                         return (
-                          <div key={group[0]!.id} data-weapon-card className="relative min-w-0 border border-edge bg-panel [&_h3]:pr-10">
+                          <div
+                            key={group[0]!.id}
+                            data-weapon-card
+                            className="relative min-w-0 rounded-lg border border-edge bg-sunken [&_h3]:pr-10"
+                          >
                             <Switch
                               className="absolute top-2 right-3 z-10 border-edge data-checked:border-primary data-checked:bg-primary data-unchecked:bg-zinc-600 [&_[data-slot=switch-thumb]]:bg-white"
                               aria-label={`Include ${group[0]!.name} in ${title.toLowerCase()} calculation`}
@@ -1037,13 +1037,13 @@ function CombatDefences({
   }
   if (groups.length < 2)
     return (
-      <div className="px-3 pb-3 sm:px-4 sm:pb-4">
+      <div className="px-3 pb-3 sm:px-4 sm:pb-4 [&_[data-characteristic]]:rounded-none [&_[data-characteristic]]:border-0 [&_[data-characteristic]]:bg-transparent [&_[data-characteristic]]:shadow-none [&_[data-characteristic]>p:last-child]:text-xl [&_[data-characteristic]>p:last-child]:font-semibold [&_[data-slot=profile-grid]]:gap-0 [&_[data-slot=profile-grid]]:divide-x [&_[data-slot=profile-grid]]:divide-edge [&_[data-slot=profile-grid]]:rounded-lg [&_[data-slot=profile-grid]]:border [&_[data-slot=profile-grid]]:border-edge [&_[data-slot=profile-grid]]:bg-sunken">
         <ProfileGrid values={values(groups[0])} columns={5} />
       </div>
     )
   return (
     <div className="px-3 pb-3 sm:px-4 sm:pb-4">
-      <table className="w-full table-fixed border border-edge bg-card text-center">
+      <table className="w-full table-fixed rounded-lg border border-edge bg-sunken text-center">
         <thead>
           <tr className="eyebrow">
             <th className="w-1/3 px-2 py-1.5 text-left font-normal">{onAllocateEarlier ? 'Order' : 'Models'}</th>

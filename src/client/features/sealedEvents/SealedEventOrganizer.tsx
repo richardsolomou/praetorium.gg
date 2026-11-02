@@ -433,7 +433,7 @@ export function InvitePanel({ sealedEvent }: { sealedEvent: SealedEvent }) {
   const invite = useInviteShare(eventPath(sealedEvent), eventFullName(sealedEvent), 'sealed_event_invite_shared')
   const shareLabel = shareButtonLabel(invite.feedback, useNativeShare(), 'invite')
   return (
-    <section className="border border-edge bg-panel p-4">
+    <section className="part p-4">
       <SectionHeading title="Invite players" className="mb-0" />
       <p className="mt-1 text-xs text-dim">
         {sealedEvent.group
@@ -446,7 +446,7 @@ export function InvitePanel({ sealedEvent }: { sealedEvent: SealedEvent }) {
         type="button"
         aria-label={shareLabel}
         disabled={!origin}
-        className="group mt-3 block w-full border border-edge-strong bg-sunken text-left hover:border-info disabled:opacity-60"
+        className="group mt-3 block w-full rounded-lg border border-edge-strong bg-sunken text-left hover:border-info disabled:opacity-60"
         onClick={() => void invite.share()}
       >
         <span className="flex items-center gap-2.5 px-3 py-2.5">
@@ -527,7 +527,7 @@ function AddPlayers({ sealedEvent, token }: { sealedEvent: SealedEvent; token: s
           </DialogHeader>
           <DialogBody>
             {!people ? (
-              <ul aria-label={group ? 'Loading members' : 'Loading friends'} className="divide-y divide-edge border border-edge bg-panel">
+              <ul aria-label={group ? 'Loading members' : 'Loading friends'} className="divide-y divide-edge part">
                 {Array.from({ length: 3 }, (_, index) => (
                   <li key={index} className="flex items-center gap-3 p-3" aria-hidden>
                     <Skeleton className="size-5" />
@@ -545,7 +545,7 @@ function AddPlayers({ sealedEvent, token }: { sealedEvent: SealedEvent; token: s
                     : 'Add friends first, then enter them here.'}
               </p>
             ) : (
-              <ul className="divide-y divide-edge border border-edge bg-panel">
+              <ul className="divide-y divide-edge part">
                 {candidates.map((person) => {
                   const checked = picked.includes(person.id)
                   return (

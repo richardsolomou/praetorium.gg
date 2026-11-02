@@ -4,6 +4,9 @@ import { productOperator, lastPathSegment } from './storage'
 import type { RosterPick } from '../src/core/roster'
 import { closePicker } from './builder.harness'
 
+/** A unit card's wargear line; the separator drawn after all but the last is not read aloud. */
+const wargear = (count: number, weapon: string) => new RegExp(`^${count}x ${weapon}(?:\u00a0· )?$`)
+
 for (const width of [1440, 390]) {
   const unit = 'Sanctifiers'
   const model = 'Sanctifier w/ two hand flamers'
@@ -26,19 +29,19 @@ for (const width of [1440, 390]) {
     await loadout.getByLabel(`${weapon} count`, { exact: true }).last().scrollIntoViewIfNeeded()
     await page.screenshot({ path: testInfo.outputPath('doubled-editor.png') })
     if (width === 390) await page.getByRole('button', { name: 'Back to roster', exact: true }).click()
-    await expect(card.getByRole('listitem').filter({ hasText: weapon })).toHaveText(`• 5x ${weapon}`)
+    await expect(card.getByRole('listitem').filter({ hasText: weapon })).toHaveText(wargear(5, weapon))
     await page.reload()
-    await expect(card.getByRole('listitem').filter({ hasText: weapon })).toHaveText(`• 5x ${weapon}`)
+    await expect(card.getByRole('listitem').filter({ hasText: weapon })).toHaveText(wargear(5, weapon))
     await card.getByRole('button', { name: unit, exact: true }).click()
     await expect(loadout.getByLabel(`${weapon} count`, { exact: true }).last()).toHaveText('2')
     await waitForRosterSave(page, () => page.getByRole('button', { name: `Fewer ${model}`, exact: true }).click())
     if (width === 390) await page.getByRole('button', { name: 'Back to roster', exact: true }).click()
-    await expect(card.getByRole('listitem').filter({ hasText: weapon })).toHaveText(`• 4x ${weapon}`)
+    await expect(card.getByRole('listitem').filter({ hasText: weapon })).toHaveText(wargear(4, weapon))
     await card.getByRole('button', { name: unit, exact: true }).click()
     await waitForRosterSave(page, () => page.getByRole('button', { name: `More ${model}`, exact: true }).click())
     if (width === 390) await page.getByRole('button', { name: 'Back to roster', exact: true }).click()
     await page.getByRole('button', { name: 'View', exact: true }).click()
-    await expect(card.getByRole('listitem').filter({ hasText: weapon })).toHaveText(`• 5x ${weapon}`)
+    await expect(card.getByRole('listitem').filter({ hasText: weapon })).toHaveText(wargear(5, weapon))
     await card.getByRole('button', { name: unit, exact: true }).click()
     await expect(loadout.getByLabel(`${weapon} count`, { exact: true }).last()).toHaveText('2')
     await loadout.getByLabel(`${weapon} count`, { exact: true }).last().scrollIntoViewIfNeeded()
@@ -66,7 +69,7 @@ for (const width of [1440, 390]) {
     await operator.saveRoster({ ...roster, picks: JSON.stringify(picks), now: Date.now() })
     await page.reload()
     const card = page.locator('[data-unit="Tankbustas"]')
-    await expect(card.getByRole('listitem').filter({ hasText: 'Busta Rokkit Launcha' })).toHaveText('• 6x Busta Rokkit Launcha')
+    await expect(card.getByRole('listitem').filter({ hasText: 'Busta Rokkit Launcha' })).toHaveText(wargear(6, 'Busta Rokkit Launcha'))
     await card.getByRole('button', { name: 'Tankbustas', exact: true }).click()
     const loadout = page.getByRole('complementary', { name: 'Loadout', exact: true })
     await expect(loadout.getByLabel('Busta Rokkit Launcha count', { exact: true }).last()).toHaveText('2')
@@ -74,7 +77,7 @@ for (const width of [1440, 390]) {
     await page.screenshot({ path: testInfo.outputPath('doubled-editor.png') })
     if (width === 390) await page.getByRole('button', { name: 'Back to roster', exact: true }).click()
     await page.getByRole('button', { name: 'View', exact: true }).click()
-    await expect(card.getByRole('listitem').filter({ hasText: 'Busta Rokkit Launcha' })).toHaveText('• 6x Busta Rokkit Launcha')
+    await expect(card.getByRole('listitem').filter({ hasText: 'Busta Rokkit Launcha' })).toHaveText(wargear(6, 'Busta Rokkit Launcha'))
     await card.getByRole('button', { name: 'Tankbustas', exact: true }).click()
     await expect(loadout.getByLabel('Busta Rokkit Launcha count', { exact: true }).last()).toHaveText('2')
     await loadout.getByLabel('Busta Rokkit Launcha count', { exact: true }).last().scrollIntoViewIfNeeded()

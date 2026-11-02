@@ -130,7 +130,7 @@ export function RosterHeader({
   const knownDisposition = disposition ? factionDisposition(faction, disposition) : undefined
 
   return (
-    <header className="border-b border-edge px-3 py-2">
+    <header className="masthead-bleed relative border-b border-edge bg-void px-3 py-2 [--band:var(--color-void)]">
       {/*
        * A placeholder is not a value: it neither prints nor reads as a title. So the
        * field only holds one where somebody can replace it, and every other reading
@@ -145,10 +145,10 @@ export function RosterHeader({
         aria-label="List name"
         readOnly={!onNameChange}
         data-print-hide={onNameChange && !name ? '' : undefined}
-        className="h-8 border-0 bg-transparent px-0 text-lg font-bold tracking-wide uppercase focus-visible:border-b focus-visible:border-info focus-visible:ring-0 md:text-lg dark:bg-transparent"
+        className="h-9 rounded-none border-0 bg-[transparent] px-0 font-display text-xl font-bold tracking-heading uppercase focus-visible:border-b focus-visible:border-parchment focus-visible:ring-0 md:text-2xl"
       />
       {onNameChange && !name && placeholder ? (
-        <p className="hidden h-8 items-center text-lg font-bold tracking-wide uppercase print:flex">{placeholder}</p>
+        <p className="hidden h-9 items-center font-display text-xl font-bold tracking-heading uppercase print:flex">{placeholder}</p>
       ) : null}
 
       {faction || factionLoading || limit !== undefined ? (
@@ -254,7 +254,7 @@ export function RosterShell({ children, saving, saveError, busy }: RosterShellPr
       data-roster-builder
       data-saving={saving}
       data-save-error={saveError}
-      className="flex w-full min-h-0 min-w-0 max-w-full flex-1 flex-col overflow-hidden border border-edge bg-sunken"
+      className="flex w-full min-h-0 min-w-0 max-w-full flex-1 flex-col overflow-y-clip bg-void"
     >
       {children}
     </div>

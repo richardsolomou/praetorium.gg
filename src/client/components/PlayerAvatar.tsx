@@ -8,7 +8,7 @@ export function PlayerAvatar({ name, image, className = 'size-9' }: { name: stri
   return (
     <span
       className={cn(
-        'inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full border border-edge-strong bg-raised font-bold text-dim uppercase',
+        'inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-raised font-bold text-bone/80 uppercase inset-ring-1 inset-ring-runner',
         className,
       )}
       aria-hidden

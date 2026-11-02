@@ -242,7 +242,7 @@ function PhotoSection({
       <p className="text-sm text-dim">{photos?.length === 0 ? empty : description}</p>
       <ul className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
         {photos?.map((photo) => (
-          <li key={photo.photoId} className="flex min-w-0 flex-col border border-edge bg-sunken">
+          <li key={photo.photoId} className="flex min-w-0 flex-col rounded-lg border border-edge bg-sunken">
             <button
               type="button"
               className="group block"

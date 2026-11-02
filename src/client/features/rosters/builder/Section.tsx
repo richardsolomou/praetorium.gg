@@ -13,6 +13,8 @@ type Props = {
   onOpenChange?: (open: boolean) => void
   /** What the shelf's units cost together, beside its title. */
   points?: number
+  /** Hangs the shelf's parts off a runner, as the roster's own units do. */
+  runner?: boolean
 }
 
 /**
@@ -22,7 +24,7 @@ type Props = {
  * right number of units in each category, not by scrolling to the bottom to find
  * out.
  */
-export function Section({ title, count, children, defaultOpen = true, open, onOpenChange, points }: Props) {
+export function Section({ title, count, children, defaultOpen = true, open, onOpenChange, points, runner = false }: Props) {
   return (
     <Collapsible render={<section />} defaultOpen={defaultOpen} open={open} onOpenChange={onOpenChange}>
       <div className="flex w-full items-center gap-2 py-1.5">
@@ -38,7 +40,7 @@ export function Section({ title, count, children, defaultOpen = true, open, onOp
         </span>
       </div>
       <CollapsibleContent>
-        <div className="space-y-1.5 pb-3">{children}</div>
+        <div className={runner ? 'runner gap-1.5 pb-3 [--gate-x:1.25rem] [--gate-y:1.125rem]' : 'space-y-1.5 pb-3'}>{children}</div>
       </CollapsibleContent>
     </Collapsible>
   )

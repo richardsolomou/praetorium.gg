@@ -21,7 +21,7 @@ export function TurnTimes({ clock, sides }: Props) {
   return (
     <section data-turn-times className="space-y-1">
       <p className="eyebrow">Turn times</p>
-      <table className="w-full table-fixed border-collapse border border-edge bg-sunken text-xs">
+      <table className="w-full table-fixed border-collapse rounded-lg border border-edge bg-sunken text-xs">
         <thead>
           <tr className="border-b border-edge text-left text-2xs tracking-wide text-faint uppercase">
             <th scope="col" className="w-24 px-2 py-1.5 font-normal">

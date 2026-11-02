@@ -17,7 +17,6 @@ export function BattleNotFound({ token }: { token: string }) {
   }, [router, screen])
   return (
     <FullPageState
-      eyebrow="404"
       title="Nothing here"
       explanation="This page does not exist or its current data is unavailable. Check the link and try again."
     />

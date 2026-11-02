@@ -708,7 +708,8 @@ test('simulator first frame reserves its layout', async ({ browser, baseURL }) =
     await noOverflow(page)
     const contentWidth = await page.locator('main > div').evaluate((element) => {
       const padding = getComputedStyle(element)
-      return element.clientWidth - parseFloat(padding.paddingLeft) - parseFloat(padding.paddingRight)
+      // Unrounded, unlike clientWidth: a rail sized in rem can sit on a half pixel.
+      return element.getBoundingClientRect().width - parseFloat(padding.paddingLeft) - parseFloat(padding.paddingRight)
     })
     expect((await page.getByLabel('Combat matchup').boundingBox())?.width).toBe(contentWidth)
     expect((await page.getByLabel('Results summary').boundingBox())?.width).toBe(contentWidth)
@@ -1728,14 +1729,14 @@ function expectBesideOrBelow(picker: { y: number; height: number }, control: { y
 }
 
 test('unit controls sit beside pickers until a name would be cut short', async ({ page }) => {
-  const widths = [1024, 320, 690]
-  await page.setViewportSize({ width: 1024, height: 1000 })
+  const widths = [1280, 320, 690]
+  await page.setViewportSize({ width: 1280, height: 1000 })
   await page.goto('/simulator')
   await atWidths(page, widths, async (width) => {
     for (const side of ['Attacker', 'Defender']) {
       const picker = page.getByRole('combobox', { name: `${side} unit`, exact: true })
       const models = page.getByRole('button', { name: `Fewer ${side.toLowerCase()} models`, exact: true })
-      expectBesideOrBelow((await picker.boundingBox())!, (await models.boundingBox())!, width >= 1024)
+      expectBesideOrBelow((await picker.boundingBox())!, (await models.boundingBox())!, width >= 1280)
     }
   })
   await chooseCombatUnit(page, 'Attacker', 'Necrons', 'Immortals')
@@ -1752,7 +1753,7 @@ test('unit controls sit beside pickers until a name would be cut short', async (
       const actionBounds = await actions.boundingBox()
       const pickerBounds = await card.getByRole('combobox', { name: `${side} unit`, exact: true }).boundingBox()
       expect(actionBounds!.y + actionBounds!.height).toBeLessThanOrEqual(pickerBounds!.y)
-      if (width === 1024) {
+      if (width === 1280) {
         const heading = await actions.getByRole('heading', { name: side, exact: true }).boundingBox()
         const totals = await actions.getByText(/^\d+ models$/).boundingBox()
         expect(Math.abs(heading!.y + heading!.height / 2 - totals!.y - totals!.height / 2)).toBeLessThan(2)
@@ -1762,7 +1763,7 @@ test('unit controls sit beside pickers until a name would be cut short', async (
         const picker = await row.getByRole('combobox', { name: / unit$/ }).boundingBox()
         const loadout = row.getByRole('button', { name: /loadout/i })
         await expect(loadout).toBeEnabled()
-        expectBesideOrBelow(picker!, (await loadout.boundingBox())!, width >= 1024)
+        expectBesideOrBelow(picker!, (await loadout.boundingBox())!, width >= 1280)
       }
     }
     const picker = page.getByRole('combobox', { name: 'Attacker unit', exact: true })
@@ -1871,6 +1872,9 @@ test('Defiler can optimize ranged attacks instead of its stronger combined loado
     await page.screenshot({ path: test.info().outputPath(`simulator-optimize-mode-${width}.png`) })
     await page.keyboard.press('Escape')
     await expect(page.getByRole('menu')).toHaveCount(0)
+    // The click leaves the pointer on the button, and its tooltip would stay where it was through the next resize.
+    await page.mouse.move(0, 0)
+    await expect(page.getByRole('tooltip')).toHaveCount(0)
   })
   await options.click()
   await page.getByRole('menuitem', { name: 'Optimize for melee', exact: true }).click()

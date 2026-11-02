@@ -51,11 +51,10 @@ export function AdminUsers({
   return (
     <main className="ph-no-capture w-full">
       <PageHeader
-        eyebrow="Administrator tools"
         title="Administration"
         description="Change a player’s access, help them sign in, delete their account, or review players’ photos."
         media={
-          <span className="grid size-12 shrink-0 place-items-center border border-edge-strong bg-sunken text-parchment">
+          <span className="grid size-12 shrink-0 place-items-center rounded-lg border border-edge-strong bg-sunken text-parchment">
             <ShieldCheck className="size-5" aria-hidden />
           </span>
         }
@@ -100,7 +99,7 @@ export function AdminUsers({
               }
               onOpen={setOpened}
             />
-            {usersResult.error ? <Problem error={usersResult.error} className="border border-edge bg-panel p-4" /> : null}
+            {usersResult.error ? <Problem error={usersResult.error} className="part p-4" /> : null}
           </TabsContent>
           <TabsContent value="photos" className="mt-4">
             <AdminPhotos />

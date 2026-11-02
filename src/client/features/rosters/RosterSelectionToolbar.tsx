@@ -54,14 +54,11 @@ export function RosterSelectionToolbar({
     <div
       role="toolbar"
       aria-label="Selected rosters"
-      className="sticky top-(--app-header) z-10 mt-2 flex flex-wrap items-center gap-2 border border-edge bg-sunken px-3 py-2"
+      className="sticky top-(--app-header) z-10 mt-2 flex flex-wrap items-center gap-2 rounded-lg border border-edge bg-sunken px-3 py-2"
     >
       <output className="mr-auto text-sm text-dim">
         {selected.length ? `${countLabel(selected.length, 'roster')} selected` : 'Choose rosters to change together.'}
       </output>
-      <Button size="sm" variant="ghost" disabled={pending} onClick={() => onSelectAll(!allSelected)}>
-        {allSelected ? 'Clear' : 'Select all'}
-      </Button>
       {selected.length ? (
         <>
           <div className="hidden flex-wrap justify-end gap-2 sm:flex">
@@ -98,6 +95,9 @@ export function RosterSelectionToolbar({
           </DropdownMenu>
         </>
       ) : null}
+      <Button size="sm" variant="ghost" disabled={pending} onClick={() => onSelectAll(!allSelected)}>
+        {allSelected ? 'Clear' : 'Select all'}
+      </Button>
       {error ? <Problem error={error} className="w-full" /> : null}
     </div>
   )

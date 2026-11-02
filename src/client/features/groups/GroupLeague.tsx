@@ -252,42 +252,52 @@ function Rounds({
   const [editing, setEditing] = useState<number | null>(null)
   const names = new Map(league.players.map((player) => [player.userId, player]))
   const rounds = [...new Set(league.fixtures.map((fixture) => fixture.round))].toSorted((a, b) => a - b)
+  const unsettled = (round: number) =>
+    league.fixtures.some((fixture) => fixture.round === round && (fixture.status === 'open' || fixture.status === 'playing'))
+  // Rounds play in any order, so the earliest with a game still to finish is current and later unfinished ones wait.
+  const current = league.published ? rounds.find(unsettled) : undefined
+  const gate = (round: number) => (!league.published ? 'pending' : round === current ? 'current' : unsettled(round) ? 'pending' : undefined)
   return (
-    <div className={`space-y-4 ${className ?? ''}`}>
+    <div className={`space-y-3 ${className ?? ''}`}>
       {play.error ? <Problem error={play.error} /> : null}
-      {rounds.map((round) => {
-        const deadline = league.deadlines[round - 1] ?? null
-        return (
-          <div key={round} data-league-round={round}>
-            <div className="mb-1.5 flex min-h-6 items-center justify-between gap-3">
-              <p className="eyebrow">Round {round}</p>
-              <div className="flex items-center gap-1 text-xs text-dim">
-                {deadline !== null ? <span>Due {moment(deadline)}</span> : null}
-                {league.organizer && league.published ? (
-                  <Button variant="ghost" size="xs" onClick={() => setEditing(round)} aria-label={`Deadline for round ${round}`}>
-                    <CalendarClock /> {deadline === null ? 'Set deadline' : 'Change'}
-                  </Button>
-                ) : null}
+      <div className="runner gap-3 [--gate-y:1.375rem]">
+        {rounds.map((round) => {
+          const deadline = league.deadlines[round - 1] ?? null
+          return (
+            <div key={round} data-league-round={round} data-gate={gate(round)} className="part">
+              <div className="flex min-h-11 flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-t-xl border-b border-edge bg-sunken/40 px-3 py-1.5">
+                <p className="flex items-center gap-2 text-xs font-semibold tracking-label uppercase">
+                  <span className="part-tag part-tag-ghost">R{round}</span>
+                  <span>Round {round}</span>
+                </p>
+                <div className="flex items-center gap-1 text-xs text-dim">
+                  {deadline !== null ? <span>Due {moment(deadline)}</span> : null}
+                  {league.organizer && league.published ? (
+                    <Button variant="ghost" size="xs" onClick={() => setEditing(round)} aria-label={`Deadline for round ${round}`}>
+                      <CalendarClock /> {deadline === null ? 'Set deadline' : 'Change'}
+                    </Button>
+                  ) : null}
+                </div>
               </div>
+              <ol className="divide-y divide-edge">
+                {league.fixtures
+                  .filter((fixture) => fixture.round === round)
+                  .map((fixture) => (
+                    <FixtureRow
+                      key={fixture.table}
+                      fixture={fixture}
+                      name={(userId) => names.get(userId)?.name ?? 'A player'}
+                      viewerId={viewerId}
+                      overdue={leagueFixtureOverdue(fixture.status, deadline, now)}
+                      pending={play.isPending}
+                      onPlay={(opponentId) => fixture.key && play.mutate({ opponentIds: [opponentId], fixture: fixture.key })}
+                    />
+                  ))}
+              </ol>
             </div>
-            <ol className="divide-y divide-edge border border-edge bg-panel">
-              {league.fixtures
-                .filter((fixture) => fixture.round === round)
-                .map((fixture) => (
-                  <FixtureRow
-                    key={fixture.table}
-                    fixture={fixture}
-                    name={(userId) => names.get(userId)?.name ?? 'A player'}
-                    viewerId={viewerId}
-                    overdue={leagueFixtureOverdue(fixture.status, deadline, now)}
-                    pending={play.isPending}
-                    onPlay={(opponentId) => fixture.key && play.mutate({ opponentIds: [opponentId], fixture: fixture.key })}
-                  />
-                ))}
-            </ol>
-          </div>
-        )
-      })}
+          )
+        })}
+      </div>
       {editing !== null ? (
         <DeadlineDialog group={group} round={editing} deadline={league.deadlines[editing - 1] ?? null} onClose={() => setEditing(null)} />
       ) : null}
@@ -316,7 +326,7 @@ function FixtureRow({
   return (
     <li
       data-fixture={fixture.table}
-      className={`flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2 p-3 ${own ? 'bg-raised' : ''} ${status === 'void' ? 'text-faint' : ''}`}
+      className={`flex min-h-12 min-w-0 flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2 last:rounded-b-xl ${own ? 'bg-parchment/5' : ''} ${status === 'void' ? 'text-faint' : ''}`}
     >
       <span className="min-w-0 flex-1 font-semibold break-words">
         {name(fixture.aId)}
@@ -329,7 +339,11 @@ function FixtureRow({
       ) : status === 'void' ? (
         <span className="chip shrink-0 text-faint">Void</span>
       ) : battle ? (
-        <Link to="/battles/$token" params={{ token: battle.token }} className="readout shrink-0 text-sm text-info hover:text-bone">
+        <Link
+          to="/battles/$token"
+          params={{ token: battle.token }}
+          className="readout shrink-0 text-sm font-semibold text-bone hover:text-parchment"
+        >
           {status === 'finished' ? `${battle.scores[0]} – ${battle.scores[1]}` : battle.status === 'playing' ? 'Playing' : 'Setting up'}
         </Link>
       ) : own && opponent && fixture.key ? (

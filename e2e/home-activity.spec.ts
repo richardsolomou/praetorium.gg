@@ -122,13 +122,13 @@ test('shows active practice battles to their player but not visitors', async ({ 
 test('links each tool a visitor can use without an account as one action', async ({ page }) => {
   await page.goto('/')
 
-  await expect(page.getByRole('link', { name: /Simulate a fight/ })).toHaveAttribute('href', '/simulator')
+  await expect(page.getByRole('link', { name: /Test your matchups/ })).toHaveAttribute('href', '/simulator')
   await expect(page.getByRole('link', { name: /Read the datasheets/ })).toHaveAttribute('href', '/factions')
   await expect(page.getByRole('link', { name: /Choose a mission/ })).toHaveAttribute('href', '/missions')
   await expect(page.getByRole('link', { name: /Look up a rule/ })).toHaveAttribute('href', '/rules')
 })
 
-test('explains supported features before public activity and opens an account-free matchup', async ({ page }) => {
+test('explains how it works before public activity and opens an account-free matchup', async ({ page }) => {
   await page.goto('/')
 
   const features = page.locator('[data-home-features]')
@@ -144,9 +144,10 @@ test('explains supported features before public activity and opens an account-fr
   ]) {
     await expect(features.getByRole('heading', { name, exact: true })).toBeVisible()
   }
+  const steps = page.getByRole('region', { name: 'From list to final score' })
   const activity = page.locator('[data-battle-shelf="Public games"], [data-public-empty]')
-  expect((await features.boundingBox())!.y).toBeLessThan((await activity.boundingBox())!.y)
-  await page.getByRole('link', { name: /Simulate a fight/ }).click()
+  expect((await steps.boundingBox())!.y).toBeLessThan((await activity.boundingBox())!.y)
+  await steps.getByRole('link', { name: /Test your matchups/ }).click()
 
   await expect(page).toHaveURL('/simulator')
   await expect(page.getByRole('heading', { name: 'Combat simulator', exact: true })).toBeVisible()
@@ -154,7 +155,7 @@ test('explains supported features before public activity and opens an account-fr
 
 test("a visitor's first action opens the builder without an account", async ({ page }) => {
   await page.goto('/')
-  await followLink(page.getByRole('link', { name: 'Try the builder', exact: true }), '/rosters')
+  await followLink(page.getByRole('link', { name: 'Build an army', exact: true }), '/rosters')
 
   await expect(page).toHaveURL('/rosters')
 })
@@ -395,7 +396,7 @@ test('a signed-out visitor opens a player profile from the leaderboard', async (
   await page.goto('/leaderboard')
   const first = page.locator('[data-standing] a').first()
   // Scoped to the name span: the avatar draws an initial inside the same link.
-  const name = ((await first.locator('.truncate').textContent()) ?? '').trim()
+  const name = ((await first.locator('.truncate').first().textContent()) ?? '').trim()
   await first.click()
 
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(name, { ignoreCase: true })

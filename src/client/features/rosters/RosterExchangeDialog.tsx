@@ -57,7 +57,7 @@ export function RosterExchangeDialog({ exchange, onClose }: { exchange: RosterEx
           </p>
           <pre
             aria-label="Exchange code"
-            className="max-h-40 overflow-y-auto border border-edge bg-sunken p-3 font-mono text-xs break-all whitespace-pre-wrap select-all"
+            className="max-h-40 overflow-y-auto rounded-lg border border-edge bg-sunken p-3 font-mono text-xs break-all whitespace-pre-wrap select-all"
           >
             {exchange?.code}
           </pre>

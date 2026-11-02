@@ -939,7 +939,7 @@ export function ListBuilder({
   if (army !== 'ready') {
     const retired = army === 'replaced'
     return (
-      <div className="flex min-h-0 flex-1 items-center justify-center border border-edge bg-sunken p-8 text-center">
+      <div className="flex min-h-0 flex-1 items-center justify-center rounded-lg border border-edge bg-sunken p-8 text-center">
         <div>
           <p className="eyebrow">{retired ? 'Army book replaced' : 'Army data unavailable'}</p>
           <p className="mt-2 text-sm text-dim">
@@ -996,6 +996,7 @@ export function ListBuilder({
         joined: NO_JOINED,
         unit,
       }))
+  const shelves = rosterShelves<(typeof cards)[number]>(cards, arrangement)
   const renderCard = ({ unit, index, joined, warlord }: (typeof cards)[number], inUnit = false) => {
     if (frozen)
       return (
@@ -1401,13 +1402,13 @@ export function ListBuilder({
                       >
                         <ToggleGroupItem
                           value="build"
-                          className="border-primary/60 text-primary aria-pressed:bg-primary aria-pressed:text-primary-foreground"
+                          className="border-primary/60 text-primary first:rounded-l-md last:rounded-r-md aria-pressed:bg-primary aria-pressed:text-primary-foreground"
                         >
                           Build
                         </ToggleGroupItem>
                         <ToggleGroupItem
                           value="view"
-                          className="border-primary/60 text-primary aria-pressed:bg-primary aria-pressed:text-primary-foreground"
+                          className="border-primary/60 text-primary first:rounded-l-md last:rounded-r-md aria-pressed:bg-primary aria-pressed:text-primary-foreground"
                         >
                           View
                         </ToggleGroupItem>
@@ -1681,13 +1682,20 @@ export function ListBuilder({
         <RosterUnits onboarding="roster-list">
           {cards.length ? (
             <>
-              {rosterShelves<(typeof cards)[number]>(cards, arrangement).map(({ id, plural, count, entries }) => (
-                <Section key={id} title={plural} count={count} points={entries.flat().reduce((total, card) => total + card.unit.points, 0)}>
+              {shelves.map(({ id, plural, count, entries }) => (
+                <Section
+                  key={id}
+                  title={plural}
+                  count={count}
+                  points={entries.flat().reduce((total, card) => total + card.unit.points, 0)}
+                  runner
+                >
                   {entries.map((members) => {
                     const host = members[0]!
                     return members.length > 1 ? (
                       <AttachedUnitBlock
                         key={host.key}
+                        current={members.some((member) => member.index === selected)}
                         name={host.name}
                         nickname={(frozen ? frozen.units[host.index] : picks[host.index])?.nickname}
                         bodyguard={renderCard(host, true)}

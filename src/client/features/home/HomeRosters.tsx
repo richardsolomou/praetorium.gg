@@ -27,22 +27,24 @@ export type HomeRoster = {
 export function HomeRosters({ rosters, count, changed }: { rosters: readonly HomeRoster[]; count: number; changed: number }) {
   return (
     <section data-home-rosters>
-      <SectionHeading title="Your rosters" count={count} className="mb-0" />
+      <SectionHeading title="Your rosters" count={count} />
       {rosters.length ? (
-        <ul className="divide-y divide-edge border-b border-edge">
+        <ul className="runner gap-2">
           {rosters.map(({ roster, faction, points, label, problem }) => (
             <li key={roster.id}>
               <Link
                 to="/rosters/$id"
                 params={{ id: roster.id }}
-                className="flex min-w-0 items-center gap-2 -mx-3 px-3 py-3 hover:bg-raised"
+                className="part flex min-h-13 min-w-0 items-center gap-2.5 px-4 py-3 transition-colors hover:border-runner-hi hover:bg-raised"
               >
                 {faction ? <FactionMark faction={faction} size="sm" /> : null}
-                <span className="min-w-0 flex-1 truncate text-sm font-bold uppercase">{rosterTitle(roster, faction, label)}</span>
+                <span className="min-w-0 flex-1 truncate text-[0.9375rem] font-bold">{rosterTitle(roster, faction, label)}</span>
                 {problem ? (
-                  <span className="shrink-0 text-xs font-semibold text-destructive">{PROBLEM_LABEL[problem]}</span>
+                  <span className="shrink-0 rounded-md border border-destructive/60 px-1.5 py-px text-xs font-semibold text-destructive">
+                    {PROBLEM_LABEL[problem]}
+                  </span>
                 ) : (
-                  <span className="readout shrink-0 text-sm text-dim">
+                  <span className="readout shrink-0 text-sm font-semibold text-bone">
                     {points ?? '—'}/{pointsBudgetOf(roster)}
                   </span>
                 )}
@@ -51,12 +53,12 @@ export function HomeRosters({ rosters, count, changed }: { rosters: readonly Hom
           ))}
         </ul>
       ) : (
-        <p className="flex items-start gap-3 border-b border-edge py-4 font-rules text-sm text-dim">
+        <p className="part flex items-start gap-3 px-4 py-4 font-rules text-sm text-dim">
           <ScrollText className="size-5 shrink-0 text-parchment" aria-hidden />
           Build a list from the army data, or import one from another app.
         </p>
       )}
-      <p className="mt-2 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+      <p className="mt-3 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
         <ShelfLink to="/rosters">All my rosters</ShelfLink>
         {changed ? (
           <Link to="/rosters" search={{ updates: 'changed' }} className="text-xs font-semibold text-discarded hover:text-bone">

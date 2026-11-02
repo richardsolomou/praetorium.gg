@@ -72,7 +72,7 @@ export function supportReplyEmail({ name, url, subject, replier }: ReplyEmail) {
   const origin = escapeHtml(new URL(url).origin)
   const link = escapeHtml(url)
   const quote = subject
-    ? `<p style="margin:0 0 24px;padding:10px 14px;border-left:2px solid ${EMAIL.edgeStrong};background:${EMAIL.void};font-size:15px;line-height:1.5;color:${EMAIL.bone};">${escapeHtml(subject)}</p>`
+    ? `<p style="margin:0 0 24px;padding:10px 14px;border:1px solid ${EMAIL.edge};border-radius:10px;background:${EMAIL.void};font-size:15px;line-height:1.5;color:${EMAIL.bone};">${escapeHtml(subject)}</p>`
     : ''
   const html = `<!doctype html>
 <html lang="en">
@@ -87,7 +87,7 @@ export function supportReplyEmail({ name, url, subject, replier }: ReplyEmail) {
 <div style="display:none;max-height:0;overflow:hidden;">${escapeHtml(lead)}</div>
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${EMAIL.void};">
 <tr><td align="center" style="padding:32px 16px;">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;background:${EMAIL.panel};border:1px solid ${EMAIL.edge};font-family:${EMAIL.font};">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;background:${EMAIL.panel};border:1px solid ${EMAIL.edge};border-radius:16px;font-family:${EMAIL.font};">
 <tr><td style="padding:20px 28px;border-bottom:1px solid ${EMAIL.edge};">
 <a href="${origin}" style="text-decoration:none;color:${EMAIL.bone};">
 <img src="${origin}/email-logo.png" width="28" height="28" alt="" style="vertical-align:middle;border:0;">
@@ -99,7 +99,7 @@ export function supportReplyEmail({ name, url, subject, replier }: ReplyEmail) {
 <p style="margin:0 0 12px;font-size:15px;line-height:1.6;color:${EMAIL.bone};">${escapeHtml(greeting)}</p>
 <p style="margin:0 0 ${subject ? '12px' : '24px'};font-size:15px;line-height:1.6;color:${EMAIL.dim};">${escapeHtml(lead)}</p>
 ${quote}
-<table role="presentation" cellpadding="0" cellspacing="0"><tr><td style="background:${EMAIL.green};border-radius:4px;">
+<table role="presentation" cellpadding="0" cellspacing="0"><tr><td style="background:${EMAIL.green};border-radius:9px;">
 <a href="${link}" style="display:inline-block;padding:12px 22px;font-size:15px;font-weight:700;color:${EMAIL.greenInk};text-decoration:none;">View reply</a>
 </td></tr></table>
 <p style="margin:24px 0 0;font-size:13px;line-height:1.5;color:${EMAIL.faint};">Or open this link:<br><a href="${link}" style="color:${EMAIL.green};word-break:break-all;">${link}</a></p>

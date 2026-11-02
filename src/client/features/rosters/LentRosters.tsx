@@ -22,7 +22,7 @@ export function LentRosterList({
 }) {
   const { data: factions } = useQuery(factionIndexQuery())
   return (
-    <ul className="space-y-3" data-lent-rosters>
+    <ul className="runner gap-3 [--gate-x:1rem] [--gate-y:1.5rem] sm:[--gate-x:1.5rem]" data-lent-rosters>
       {rosters.map(({ summary, owner, points, problem }) => {
         const content = (
           <RosterSummary
@@ -37,7 +37,11 @@ export function LentRosterList({
         const className = 'flex w-full min-w-0 p-3 text-left'
         const selected = summary.id === selectedId
         return (
-          <li key={summary.id} className={`border bg-panel hover:border-info hover:bg-raised ${selected ? 'border-info' : 'border-edge'}`}>
+          <li
+            key={summary.id}
+            data-gate={selected ? 'current' : undefined}
+            className={`part hover:bg-raised ${selected ? 'border-parchment inset-ring-1 inset-ring-parchment' : 'hover:border-runner-hi'}`}
+          >
             {onChoose ? (
               <button
                 type="button"

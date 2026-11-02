@@ -70,11 +70,11 @@ export function SealedEventResults<Entry extends { userId: string; name: string;
         }
       />
       {problem ? <Problem className="mb-2">{problem}</Problem> : null}
-      <div className="overflow-x-auto border border-edge bg-panel">
+      <div className="overflow-x-auto part">
         <table className="w-full min-w-76 table-fixed border-collapse text-sm">
           <thead>
-            <tr className="border-b border-edge text-left text-xs tracking-wide text-faint uppercase">
-              <th scope="col" className="w-6 px-1 py-3 font-normal sm:w-10 sm:px-3">
+            <tr className="border-b border-edge bg-sunken/40 text-left text-2xs font-semibold tracking-label text-faint uppercase">
+              <th scope="col" className="w-9 px-1 py-3 font-normal sm:w-12 sm:px-3">
                 #
               </th>
               <th scope="col" className="px-2 py-3 font-normal sm:px-3">
@@ -103,10 +103,12 @@ export function SealedEventResults<Entry extends { userId: string; name: string;
               )
               return (
                 <tr key={row.userId} data-result={entry.name} className="border-b border-edge last:border-0">
-                  <td className={`readout px-1 py-3 sm:px-3 ${place === 0 && row.played ? 'font-bold text-parchment' : 'text-faint'}`}>
-                    {place + 1}
+                  <td className="px-1 py-2.5 sm:px-3">
+                    <span className={`part-tag ${!row.played ? 'part-tag-ghost' : place === 0 ? 'bg-parchment text-parchment-ink' : ''}`}>
+                      {place + 1}
+                    </span>
                   </td>
-                  <td className="overflow-hidden px-2 py-3 sm:px-3">
+                  <td className="overflow-hidden px-2 py-2.5 sm:px-3">
                     {sample ? (
                       <div className="flex min-w-0 items-center gap-2">{player}</div>
                     ) : (
@@ -118,7 +120,7 @@ export function SealedEventResults<Entry extends { userId: string; name: string;
                   {columns.map((column) => {
                     const figure = row[column.key] ?? 0
                     return (
-                      <td key={column.key} className={`readout px-1 py-3 text-right sm:px-3 ${figure ? column.tint : 'text-faint'}`}>
+                      <td key={column.key} className={`readout px-1 py-2.5 text-right sm:px-3 ${figure ? column.tint : 'text-faint'}`}>
                         {figure}
                       </td>
                     )

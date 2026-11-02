@@ -183,7 +183,7 @@ function UnitRow({ unit, rule, placed, onToggle }: { unit: Standing; rule: Rule;
       ) : null}
     </>
   )
-  const row = 'flex w-full flex-wrap items-center justify-between gap-2 rounded-sm bg-sunken px-2.5 py-1.5 text-left'
+  const row = 'flex w-full flex-wrap items-center justify-between gap-2 rounded-md bg-sunken px-2.5 py-1.5 text-left'
   return onToggle ? (
     <button type="button" aria-pressed={placed} className={`${row} hover:bg-raised ${placed ? 'opacity-70' : ''}`} onClick={onToggle}>
       {body}

@@ -204,9 +204,9 @@ function Tallies({ label, items }: { label: string; items: readonly TallyItem[] 
   return (
     <div>
       <p className="eyebrow">{label}</p>
-      <dl className="mt-1 flex flex-wrap border-t border-l border-edge bg-panel">
+      <dl className="part mt-1 flex flex-wrap gap-px overflow-hidden bg-edge">
         {items.map((item) => (
-          <div key={item.label} className="min-w-0 grow basis-1/2 border-r border-b border-edge px-3 py-2.5 sm:basis-1/4">
+          <div key={item.label} className="min-w-0 grow basis-[calc(50%-1px)] bg-panel px-3 py-2.5 sm:basis-[calc(25%-1px)]">
             <dt className="eyebrow truncate text-faint">{item.label}</dt>
             <dd className={`figure mt-1 text-xl leading-none font-bold ${item.tint ?? 'text-bone'}`}>{item.value}</dd>
           </div>
@@ -223,10 +223,7 @@ function Tallies({ label, items }: { label: string; items: readonly TallyItem[] 
 function Results({ record }: { record: ServiceRecord }) {
   const share = (count: number) => `${(count / record.battles) * 100}%`
   return (
-    <div
-      data-record-battles={record.battles}
-      className="grid border border-edge bg-panel md:grid-cols-[1.4fr_1fr_1fr] md:divide-x md:divide-edge"
-    >
+    <div data-record-battles={record.battles} className="grid part md:grid-cols-[1.4fr_1fr_1fr] md:divide-x md:divide-edge">
       <div className="p-4">
         <p className="eyebrow text-faint">Results · {countLabel(record.battles, 'battle')}</p>
         <p className="figure mt-2 text-4xl leading-none font-bold">
@@ -451,36 +448,38 @@ function RecordTable<T>({
   return (
     <section data-record-table={label}>
       <p className="eyebrow">{label}</p>
-      <table className="mt-1 w-full table-fixed border-collapse border border-edge bg-panel text-sm">
-        <thead>
-          <tr className="border-b border-edge text-left text-2xs tracking-wide text-faint uppercase">
-            <th scope="col" className="px-2 py-1.5 font-normal">
-              Name
-            </th>
-            {columns.map((column) => (
-              <th
-                key={column.label}
-                scope="col"
-                className={`${column.label.length > 2 ? 'w-12' : 'w-7'} px-1.5 py-1.5 text-right font-normal`}
-              >
-                {column.label}
+      <div className="part mt-1 overflow-hidden">
+        <table className="w-full table-fixed border-collapse text-sm">
+          <thead>
+            <tr className="border-b-2 border-runner text-left text-2xs tracking-eyebrow text-dim uppercase">
+              <th scope="col" className="px-2 py-1.5 font-normal">
+                Name
               </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {shown.map((row) => (
-            <tr key={rowKey(row)} className="border-b border-edge last:border-0">
-              <td className="px-2 py-1.5">{renderName(row)}</td>
               {columns.map((column) => (
-                <td key={column.label} className={`readout px-1.5 py-1.5 text-right ${column.tint ?? 'text-dim'}`}>
-                  {column.cell(row)}
-                </td>
+                <th
+                  key={column.label}
+                  scope="col"
+                  className={`${column.label.length > 2 ? 'w-12' : 'w-7'} px-1.5 py-1.5 text-right font-normal`}
+                >
+                  {column.label}
+                </th>
               ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {shown.map((row) => (
+              <tr key={rowKey(row)} className="border-b border-edge last:border-0">
+                <td className="px-2 py-1.5">{renderName(row)}</td>
+                {columns.map((column) => (
+                  <td key={column.label} className={`readout px-1.5 py-1.5 text-right ${column.tint ?? 'text-dim'}`}>
+                    {column.cell(row)}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
       {rows.length > TABLE_ROWS ? (
         <Button variant="link" size="sm" className="mt-1 px-0 text-info" onClick={() => setAll((open) => !open)}>
           {all ? 'Show fewer' : `Show all ${rows.length}`}
@@ -518,7 +517,7 @@ function StratagemName({ stratagem }: { stratagem: StratagemRecord }) {
 /** The best or worst card or stratagem, which only exist once enough of them have been seen often enough to compare. */
 function Highlight({ label, name, detail }: { label: string; name: ReactNode; detail: string }) {
   return (
-    <div className="min-w-40 flex-1 border border-edge bg-panel p-3">
+    <div className="min-w-40 flex-1 part p-3">
       <p className="eyebrow">{label}</p>
       <p className="mt-1 text-sm">{name}</p>
       <p className="readout mt-1 text-xs text-dim">{detail}</p>

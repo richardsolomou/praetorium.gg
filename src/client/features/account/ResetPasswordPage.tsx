@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label'
 import { PASSWORD_MIN_LENGTH } from '../../../authConfig'
 import { authClient } from '../../authClient'
 import { Problem } from '../../components/Problem'
+import { AuthAside } from './AuthAside'
 
 export function ResetPasswordPage({ token, tokenError, next }: { token?: string; tokenError?: string; next?: string }) {
   const [password, setPassword] = useState('')
@@ -17,24 +18,13 @@ export function ResetPasswordPage({ token, tokenError, next }: { token?: string;
 
   return (
     <main className="grid w-full flex-1 md:grid-cols-2">
-      <aside className="relative hidden overflow-hidden border-r border-edge bg-sunken md:block">
-        <div className="plot-grid" />
-        <div className="relative ml-auto grid h-full w-full max-w-lg content-between p-8">
-          <div>
-            <p className="eyebrow text-parchment">Praetorium account</p>
-            <h2 className="mt-1 text-3xl">Return to the battle.</h2>
-          </div>
-          <img src="/logo.svg" alt="" className="mx-auto size-40" />
-          <p className="text-sm text-dim">Choose a new password for your Praetorium account.</p>
-        </div>
-      </aside>
-      <section className="border-b border-edge bg-panel">
-        <div className="mr-auto h-full w-full max-w-lg p-6 sm:p-8">
-          <p className="eyebrow text-parchment">Account recovery</p>
-          <h1 className="mt-1 text-3xl">Reset password</h1>
+      <AuthAside heading="Return to the battle." caption="Choose a new password for your Praetorium account." />
+      <section className="grid md:items-center">
+        <div className="mr-auto w-full max-w-lg px-5 py-8 sm:p-8 lg:p-12">
+          <h1 className="text-4xl leading-none">Reset password</h1>
           {invalid ? (
             <>
-              <Problem className="mt-6 border border-destructive/40 bg-destructive/10 p-3">
+              <Problem className="mt-6 rounded-lg border border-destructive/40 bg-destructive/10 p-3">
                 This password reset link is invalid or has expired.
               </Problem>
               <Link

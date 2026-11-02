@@ -25,7 +25,7 @@ export const Route = createFileRoute('/mcp-consent')({
     const reason = mcpConsentRefusal(props.error)
     // A refused request cannot be retried from here; only the assistant can start a new one.
     return reason ? (
-      <FullPageState eyebrow="Connected apps" title={refusalTitles[reason]} explanation="Start the connection again from your assistant." />
+      <FullPageState title={refusalTitles[reason]} explanation="Start the connection again from your assistant." />
     ) : (
       <RouteError {...props} />
     )

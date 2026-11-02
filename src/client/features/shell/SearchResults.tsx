@@ -86,7 +86,7 @@ function ResultList({
 
   // oxlint-disable jsx-a11y/prefer-tag-over-role -- Native options cannot contain faction marks and match details.
   return (
-    <div ref={scroller} className="max-h-[min(60vh,30rem)] overflow-y-auto overscroll-contain">
+    <div ref={scroller} className="max-h-[min(60vh,30rem)] min-h-0 flex-1 overflow-y-auto overscroll-contain">
       {before ? <div ref={lead}>{before}</div> : null}
       <div
         id={listId}
@@ -101,11 +101,11 @@ function ResultList({
             row.kind === 'result' ? (
               <>
                 <span className="min-w-0 flex-1">
-                  <span className="block text-sm font-bold uppercase">{row.result.label}</span>
+                  <span className="block text-sm font-semibold text-bone">{row.result.label}</span>
                   <SearchResultDetail result={row.result} />
                   <DatasheetMatchReasons query={query} reasons={row.result.matchReasons} />
                 </span>
-                <ChevronRight className="size-4 shrink-0 text-dim" aria-hidden />
+                <ChevronRight className="size-4 shrink-0 text-faint group-aria-selected:text-parchment" aria-hidden />
               </>
             ) : null
           return (
@@ -117,7 +117,7 @@ function ResultList({
               style={{ transform: `translateY(${item.start - leadHeight}px)` }}
             >
               {row.kind === 'heading' ? (
-                <h2 className="rubric border-b border-edge px-3 py-2">{row.label}</h2>
+                <h2 className="px-3 pt-3 pb-1 text-2xs font-semibold tracking-eyebrow text-faint uppercase">{row.label}</h2>
               ) : onSelect ? (
                 <button
                   type="button"
@@ -128,7 +128,7 @@ function ResultList({
                   aria-setsize={results.length}
                   tabIndex={-1}
                   onClick={() => onSelect(row.result)}
-                  className="flex w-full items-center gap-2 border-l-2 border-transparent px-3 py-3 text-left hover:bg-parchment/10 aria-selected:border-parchment aria-selected:bg-parchment/15"
+                  className="group flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left hover:bg-raised aria-selected:bg-raised aria-selected:inset-ring-1 aria-selected:inset-ring-edge-strong"
                 >
                   {content}
                 </button>
@@ -136,7 +136,7 @@ function ResultList({
                 <Link
                   to={row.result.href}
                   onClick={() => rememberSearch(row.result)}
-                  className="flex min-w-0 items-center gap-2 border border-edge bg-panel px-3 py-3 hover:border-info"
+                  className="flex min-w-0 items-center gap-2 part px-3 py-3 hover:border-info"
                 >
                   {content}
                 </Link>

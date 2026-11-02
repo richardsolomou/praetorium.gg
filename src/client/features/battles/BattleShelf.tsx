@@ -16,6 +16,7 @@ import { RatingChange } from '../../components/RatingChange'
 import type { OnboardingTarget } from '../../onboardingTargets'
 import type { Battle } from './battle'
 import { SectionHeading } from '../../components/SectionHeading'
+import { tint } from '../battle/battleTints'
 
 /**
  * One heading's worth of battles, a short card each: how it stands, who sits on each side
@@ -38,6 +39,7 @@ export function BattleShelf({
   onboarding,
   onDelete,
   label,
+  branched = true,
 }: {
   title?: string
   name?: string
@@ -47,6 +49,8 @@ export function BattleShelf({
   onDelete?: (battle: Battle) => void
   /** What the battle was played for, leading its footer, where a page holds battles of more than one kind. */
   label?: (battle: Battle) => string
+  /** Whether the battles hang off a runner; a shelf of one or two reads better without it. */
+  branched?: boolean
 }) {
   const { date } = useDateFormatting()
   const { data: deployments } = useQuery({ ...deploymentsQuery(), enabled: battles.some((battle) => battle.deploymentId !== null) })
@@ -54,7 +58,8 @@ export function BattleShelf({
   return (
     <section data-onboarding={onboarding} data-battle-shelf={name ?? ''}>
       {title ? <SectionHeading title={title} count={battles.length} /> : null}
-      <div className={`grid gap-4 ${title ? 'mt-3' : ''}`}>
+      {/* Each battle hangs off the runner: a live one by a doubled gate, one still being set up by a dashed one. */}
+      <div className={`${branched ? 'runner [--gate-y:2.125rem]' : 'grid'} gap-3 ${title ? 'mt-3' : ''}`}>
         {battles.map((battle) => {
           const canDelete = Boolean(viewerId && onDelete && battle.playerIds[0] === viewerId)
           const seat = viewerId ? battle.playerIds.indexOf(viewerId) : -1
@@ -79,28 +84,32 @@ export function BattleShelf({
             <ContextMenu key={battle.token}>
               <ContextMenuTrigger
                 render={
-                  <article className="group relative min-w-0 overflow-hidden border border-edge-strong bg-panel shadow-[0_1rem_2rem_-1.25rem_rgba(0,0,0,0.7)] transition-colors hover:border-info hover:bg-raised" />
+                  <article
+                    data-gate={battle.status === 'playing' ? 'current' : battle.status === 'setup' ? 'pending' : undefined}
+                    className="group part @container relative min-w-0 transition-colors hover:border-runner-hi hover:bg-raised"
+                  />
                 }
               >
-                {/* The stage's colour down the edge, so a shelf sorts by eye before any chip is read; faded once the game is over. */}
-                <span
-                  className={`absolute inset-y-0 left-0 w-1 bg-current ${stage.tint} ${battle.status === 'finished' ? 'opacity-40' : ''}`}
-                  aria-hidden
-                />
                 <Link
                   to="/battles/$token"
                   params={{ token: battle.token }}
                   aria-label={`${seat === -1 ? 'Watch' : 'Open'} ${battle.players.join(' versus ')}`}
                   className="block min-w-0"
                 >
-                  <span className="grid min-w-0 items-center gap-3 px-4 pt-3 pb-2 sm:grid-cols-[minmax(0,1fr)_8.5rem_minmax(0,1fr)] sm:gap-4">
-                    <Side side={ours} won={won(ours)} viewerId={viewerId} className={cn('order-2 sm:order-none', lost(ours) && faded)} />
-                    <span className="order-1 flex items-center justify-between gap-3 sm:order-none sm:flex-col sm:justify-center sm:gap-1.5">
-                      <span data-battle-status={battle.status} className={`chip ${stage.tint}`}>
+                  <span className="grid min-w-0 items-center gap-3 px-4 pt-3 pb-2 @2xl:grid-cols-[minmax(0,1fr)_8.5rem_minmax(0,1fr)] @2xl:gap-4">
+                    <Side side={ours} won={won(ours)} viewerId={viewerId} className={cn('order-2 @2xl:order-none', lost(ours) && faded)} />
+                    <span className="order-1 flex items-center justify-between gap-3 @2xl:order-none @2xl:flex-col @2xl:justify-center @2xl:gap-1.5">
+                      {/* The stage in line form, so a shelf sorts by eye before the word is read: setup dashed, live doubled, over solid. */}
+                      <span data-battle-status={battle.status} className={`chip gap-1.5 ${stage.tint}`}>
+                        <span
+                          aria-hidden
+                          className="line-segment w-3.5 [--line-colour:currentColor]"
+                          data-line={battle.status === 'setup' ? 'todo' : battle.status === 'playing' ? 'now' : 'done'}
+                        />
                         {stage.name}
                       </span>
-                      {/* Stacked sides on a phone have nothing between them for "vs" to stand for. */}
-                      <span className={`figure text-3xl leading-none font-bold ${scored ? '' : 'max-sm:hidden'}`}>
+                      {/* Stacked sides in a narrow card have nothing between them for "vs" to stand for. */}
+                      <span className={`figure text-3xl leading-none font-bold whitespace-nowrap ${scored ? '' : '@max-2xl:hidden'}`}>
                         {scored ? (
                           <>
                             <span className={cn('text-side-a', lost(ours) && faded)}>{a}</span>
@@ -122,7 +131,7 @@ export function BattleShelf({
                       won={won(theirs)}
                       viewerId={viewerId}
                       mirrored
-                      className={cn('order-3 max-sm:border-t max-sm:border-edge max-sm:pt-3 sm:order-none', lost(theirs) && faded)}
+                      className={cn('order-3 @max-2xl:border-t @max-2xl:border-edge @max-2xl:pt-3 @2xl:order-none', lost(theirs) && faded)}
                     />
                   </span>
                   <span
@@ -193,12 +202,14 @@ function Side({
         seats.map(({ player, army, faction, detachments, ratingChange }) => (
           <span
             key={player.id || player.name}
-            className={`flex min-w-0 items-center gap-2.5 ${mirrored ? 'sm:flex-row-reverse sm:text-right' : ''}`}
+            className={`flex min-w-0 items-center gap-2.5 ${mirrored ? '@2xl:flex-row-reverse @2xl:text-right' : ''}`}
           >
             <PlayerAvatar name={player.name} image={player.image} className="size-8 shrink-0 text-2xs" />
             <span className="min-w-0">
-              <span className={`flex min-w-0 items-baseline gap-1.5 ${mirrored ? 'sm:flex-row-reverse' : ''}`}>
-                <span className="truncate text-sm leading-tight font-bold uppercase">{player.name}</span>
+              <span className={`flex min-w-0 items-baseline gap-1.5 ${mirrored ? '@2xl:flex-row-reverse' : ''}`}>
+                <span className={cn('truncate font-sans text-[0.9375rem] leading-tight font-bold', side && tint(side.index).text)}>
+                  {player.name}
+                </span>
                 {player.id === viewerId ? <span className="eyebrow shrink-0 text-parchment">You</span> : null}
                 {won ? (
                   <span className="eyebrow flex shrink-0 items-center gap-1 self-center text-achieved">
@@ -207,7 +218,7 @@ function Side({
                 ) : null}
                 {ratingChange === null ? null : <RatingChange change={ratingChange} />}
               </span>
-              <span className={`mt-0.5 flex min-w-0 items-center gap-1.5 text-xs text-dim ${mirrored ? 'sm:flex-row-reverse' : ''}`}>
+              <span className={`mt-0.5 flex min-w-0 items-center gap-1.5 text-xs text-dim ${mirrored ? '@2xl:flex-row-reverse' : ''}`}>
                 {faction ? <FactionMark faction={faction} size="sm" /> : null}
                 <span className="truncate">
                   {faction?.displayName ?? army ?? 'List not attached'}
@@ -218,7 +229,7 @@ function Side({
           </span>
         ))
       ) : (
-        <span className={`block ${mirrored ? 'sm:text-right' : ''}`}>
+        <span className={`block ${mirrored ? '@2xl:text-right' : ''}`}>
           <span className="block text-sm font-bold text-faint uppercase">Open seat</span>
           <span className="block text-xs text-faint">Waiting for an opponent</span>
         </span>

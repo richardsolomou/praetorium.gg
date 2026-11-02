@@ -192,7 +192,7 @@ export function DrawDialog({
                     return (
                       <li
                         key={card.key}
-                        className={`flex items-center justify-between gap-2 rounded-sm px-2.5 py-1.5 ${chosen ? 'bg-parchment/10' : 'bg-sunken'}`}
+                        className={`flex items-center justify-between gap-2 rounded-md px-2.5 py-1.5 ${chosen ? 'bg-parchment/10' : 'bg-sunken'}`}
                       >
                         {cardName(card)}
                         <Button

@@ -132,7 +132,6 @@ export function CollectionPage() {
   return (
     <main className="w-full">
       <PageHeader
-        eyebrow="Your account"
         title="Collection"
         description="The models on your shelf, counted by datasheet. Add them here or from any datasheet’s page."
       />
@@ -168,7 +167,6 @@ export function CollectionPage() {
           <PageState
             headingLevel={2}
             icon={Boxes}
-            eyebrow="Your collection"
             title="Your shelf is empty"
             explanation={
               suggestions.length
@@ -231,7 +229,7 @@ export function CollectionPage() {
               )
             })}
             {retired.length ? (
-              <section aria-label="Retired datasheets" className="border border-edge bg-panel">
+              <section aria-label="Retired datasheets" className="part">
                 <header className="border-b border-edge px-3 py-2.5">
                   <h2 className="rubric">No longer in the rules</h2>
                 </header>

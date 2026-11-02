@@ -27,8 +27,8 @@ export function RecentSearches({ onOpen, onEmptied }: { onOpen?: (result: Global
   if (!recent.length) return null
   return (
     <section aria-labelledby={headingId} className={onOpen ? 'px-1 pb-1' : undefined}>
-      <div className="flex items-center justify-between gap-2 border-b border-edge pl-3">
-        <h2 id={headingId} className="rubric py-2">
+      <div className="flex items-center justify-between gap-2 pl-3">
+        <h2 id={headingId} className="pt-2 text-2xs font-semibold tracking-eyebrow text-faint uppercase">
           Recent
         </h2>
         <Button
@@ -48,7 +48,7 @@ export function RecentSearches({ onOpen, onEmptied }: { onOpen?: (result: Global
           const content = (
             <>
               <span className="min-w-0 flex-1">
-                <span className="block text-sm font-bold uppercase">{result.label}</span>
+                <span className="block text-sm font-semibold text-bone">{result.label}</span>
                 <SearchResultDetail result={result} />
               </span>
               <ChevronRight className="size-4 shrink-0 text-dim" aria-hidden />
@@ -60,7 +60,7 @@ export function RecentSearches({ onOpen, onEmptied }: { onOpen?: (result: Global
                 <button
                   ref={row(result.id)}
                   type="button"
-                  className="flex min-w-0 flex-1 items-center gap-2 border-l-2 border-transparent px-3 py-3 text-left hover:bg-parchment/10"
+                  className="flex min-w-0 flex-1 items-center gap-3 rounded-lg px-3 py-2.5 text-left hover:bg-raised"
                   onClick={() => onOpen(result)}
                 >
                   {content}
@@ -69,7 +69,7 @@ export function RecentSearches({ onOpen, onEmptied }: { onOpen?: (result: Global
                 <Link
                   ref={row(result.id)}
                   to={result.href}
-                  className="flex min-w-0 flex-1 items-center gap-2 border border-edge bg-panel px-3 py-3 hover:border-info"
+                  className="flex min-w-0 flex-1 items-center gap-2 part px-3 py-3 hover:border-info"
                   onClick={() => rememberSearch(result)}
                 >
                   {content}

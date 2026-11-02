@@ -12,7 +12,6 @@ import { FullPageState } from './PageState'
 export function SignInRequired({ title, explanation, next }: { title: string; explanation: string; next?: string }) {
   return (
     <FullPageState
-      eyebrow="Account required"
       title={title}
       explanation={explanation}
       icon={LogIn}

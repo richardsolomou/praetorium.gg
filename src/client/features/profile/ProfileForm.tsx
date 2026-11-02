@@ -116,7 +116,7 @@ export function ProfileForm({
 
 function Fact({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <span className="flex flex-col gap-1.5 border border-edge bg-sunken/60 px-3 py-2">
+    <span className="flex flex-col gap-1.5 rounded-lg border border-edge bg-sunken/60 px-3 py-2">
       <span className="eyebrow text-faint">{label}</span>
       {children}
     </span>

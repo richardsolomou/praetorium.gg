@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
+import { BackLink } from '../BackLink'
 import { useDateFormatting } from '../../../dates'
 import { ruleIndexQuery } from '../../../queries'
 import { PageContent, PageHeader } from '../../../components/Page'
@@ -14,11 +15,6 @@ export function RuleContents({ documentId }: { documentId: string }) {
   return (
     <main className="w-full">
       <PageHeader
-        eyebrow={
-          <Link to="/rules" className="text-info hover:text-bone">
-            Rules
-          </Link>
-        }
         title={document.title}
         description={
           <>
@@ -28,10 +24,11 @@ export function RuleContents({ documentId }: { documentId: string }) {
           </>
         }
       />
-      <PageContent className="space-y-6">
+      <PageContent className="space-y-8">
+        <BackLink to="/rules">Rules</BackLink>
         {document.sections.map((section) => (
           <section key={section.id}>
-            <h2 className="rubric flex items-baseline justify-between gap-3 border-b border-edge pb-2">
+            <h2 className="flex items-baseline justify-between gap-3 border-b border-edge pb-2 text-lg">
               <Link
                 to="/rules/$documentId/$sectionId"
                 params={{ documentId: document.slug, sectionId: section.slug }}
@@ -39,19 +36,19 @@ export function RuleContents({ documentId }: { documentId: string }) {
               >
                 {section.title}
               </Link>
-              <span className="readout">{section.entries.length}</span>
+              <span className="readout text-xs font-normal text-dim">{section.entries.length}</span>
             </h2>
-            <div className="mt-2 grid grid-cols-1 gap-px border border-edge bg-panel sm:grid-cols-2">
+            <div className="mt-1 grid grid-cols-1 gap-x-8 sm:grid-cols-2">
               {section.entries.map((entry) => (
                 <Link
                   key={entry.anchor}
                   to="/rules/$documentId/$sectionId"
                   params={{ documentId: document.slug, sectionId: section.slug }}
                   hash={entry.anchor}
-                  className="flex items-center gap-2 bg-panel px-3 py-2 ring-1 ring-edge hover:bg-raised"
+                  className="flex min-h-10 items-center gap-2 border-b border-edge/60 py-2 hover:text-parchment"
                 >
                   {entry.code ? <span className="readout w-16 shrink-0 text-xs text-faint">{entry.code}</span> : null}
-                  <span className="min-w-0 flex-1 truncate text-sm text-bone">{entry.title}</span>
+                  <span className="min-w-0 flex-1 truncate text-sm">{entry.title}</span>
                 </Link>
               ))}
             </div>

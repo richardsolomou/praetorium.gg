@@ -7,8 +7,8 @@ export function EventSchedule({ event, className }: { event: { playsAt: number |
   const moment = useMoment()
   if (event.playsAt === null && event.sealBy === null) return null
   return (
-    <p className={cn('flex flex-wrap items-center gap-x-1.5 text-sm text-dim', className)}>
-      <CalendarDays className="size-3.5 shrink-0" aria-hidden />
+    <p className={cn('text-sm text-dim', className)}>
+      <CalendarDays className="mr-1.5 inline size-3.5 align-[-0.15em]" aria-hidden />
       {[
         event.playsAt === null ? null : `Played ${moment(event.playsAt)}`,
         event.sealBy === null ? null : `Rosters due ${moment(event.sealBy)}`,

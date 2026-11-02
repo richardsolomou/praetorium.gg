@@ -4,7 +4,6 @@ import { ChevronRight, Info, RotateCcw } from 'lucide-react'
 import { sealedEventFormat, type SealedEventEntryView } from '../../../core/sealedEvent'
 import { buttonClass } from '../../components/buttonClass'
 import { PageContent, PageHeader } from '../../components/Page'
-import { pageLinkTabClass, pageLinkTabsClass } from '../../components/PageTabs'
 import { SectionHeading } from '../../components/SectionHeading'
 import { meQuery } from '../../queries'
 import { countLabel } from '../../text'
@@ -85,7 +84,6 @@ export function TournamentSample({ stage }: { stage: SampleStage }) {
   return (
     <main className="w-full">
       <PageHeader
-        eyebrow="Sample tournament"
         title={sealedEvent.tournament?.name}
         description="A made-up tournament, seen as one of its players. Nothing here is saved, and none of it counts anywhere."
         actions={
@@ -117,20 +115,29 @@ export function TournamentSample({ stage }: { stage: SampleStage }) {
       </PageHeader>
 
       <PageContent className="space-y-6">
-        <nav aria-label="Sample tournament stages" className={pageLinkTabsClass}>
+        <nav aria-label="Sample tournament stages" className="grid grid-cols-4 gap-1.5">
           {SAMPLE_STAGES.map((candidate, position) => (
             <Link
               key={candidate}
               to="/tournaments/sample"
               search={candidate === SAMPLE_STAGES[0] ? {} : { stage: candidate }}
               aria-current={candidate === stage ? 'step' : undefined}
-              className={pageLinkTabClass(candidate === stage)}
+              aria-label={`${position + 1}. ${STAGES[candidate].label}`}
+              className="group grid min-h-11 content-start gap-2 rounded-md pt-2 pb-1 outline-offset-2"
             >
-              {position + 1}. {STAGES[candidate].label}
+              <span aria-hidden data-line={candidate === stage ? 'now' : position < index ? 'done' : 'todo'} className="line-segment" />
+              <span
+                className={`flex items-baseline gap-1.5 text-xs leading-tight font-semibold transition-colors sm:text-sm ${candidate === stage ? 'text-bone' : 'text-dim group-hover:text-bone'}`}
+              >
+                <span aria-hidden className={`figure ${candidate === stage ? 'text-parchment' : ''}`}>
+                  {position + 1}
+                </span>
+                {STAGES[candidate].label}
+              </span>
             </Link>
           ))}
         </nav>
-        <p className="flex max-w-2xl gap-3 border border-l-2 border-info/30 border-l-info bg-info/5 p-4 text-sm text-dim">
+        <p className="flex max-w-2xl gap-3 part border-info/40 p-4 text-sm text-dim">
           <Info className="mt-0.5 size-5 shrink-0 text-info" aria-hidden />
           <span>{STAGES[stage].explanation}</span>
         </p>
@@ -194,7 +201,7 @@ export function TournamentSample({ stage }: { stage: SampleStage }) {
                 <SectionHeading title="Entrants" count={accepted.length} />
                 <EntrantList>
                   {accepted.map((entry) => (
-                    <EntrantRow key={entry.userId} entry={entry} label={label(entry)} detail={sealStatus(entry, revealed)} sample />
+                    <EntrantRow key={entry.userId} entry={entry} label={label(entry)} detail={sealStatus(entry, revealed)} sealing sample />
                   ))}
                 </EntrantList>
               </section>

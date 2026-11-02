@@ -108,21 +108,25 @@ export function GlobalSearchProvider({ children }: { children: ReactNode }) {
     <GlobalSearchContext value={context}>
       {children}
       <Dialog open={open} onOpenChange={(next) => changeOpen(next)}>
-        {/* Fitted so a phone keeps the page in view, and near the top so the keyboard leaves the results showing. */}
+        {/*
+         * Fitted so a phone keeps the page in view, and pinned near the top so the keyboard leaves the results showing.
+         * From `sm` the results area keeps one height, so the field never moves as results come and go.
+         */}
         <DialogContent
           fit
           showCloseButton={false}
-          className="top-[calc(env(safe-area-inset-top)+0.5rem)] translate-y-0 sm:top-1/2 sm:max-w-xl sm:-translate-y-1/2"
+          className="top-[calc(env(safe-area-inset-top)+0.5rem)] translate-y-0 sm:top-[12vh] sm:max-w-2xl"
         >
           <DialogTitle className="sr-only">Search Praetorium</DialogTitle>
           <DialogDescription className="sr-only">
             Search pages, factions, datasheets and their rules, detachments, missions, rosters and battles.
           </DialogDescription>
-          <div className="flex min-h-0 flex-col bg-popover p-1">
-            <div className="flex gap-1">
+          <div className="flex min-h-0 flex-col bg-popover">
+            <div className="flex items-center gap-1 border-b border-edge p-2">
+              <Search aria-hidden className="ml-2 size-5 shrink-0 text-dim" />
               <input
                 ref={inputRef}
-                className="h-9 min-w-0 flex-1 border border-edge bg-sunken px-3 text-base outline-none md:text-sm focus-visible:border-info"
+                className="h-11 min-w-0 flex-1 bg-transparent px-2 text-base outline-none placeholder:text-faint"
                 role="combobox"
                 aria-label="Search Praetorium"
                 aria-expanded={open}
@@ -156,43 +160,45 @@ export function GlobalSearchProvider({ children }: { children: ReactNode }) {
                 }}
                 placeholder="Search everything…"
               />
+              <Kbd aria-hidden className="mr-1 pointer-coarse:hidden">
+                esc
+              </Kbd>
               <DialogClose render={<Button variant="ghost" className="h-9 pointer-fine:hidden" />}>Cancel</DialogClose>
             </div>
-            {trimmed.length >= SEARCH_MIN_LENGTH && isFetching ? <output className="sr-only">Searching</output> : null}
-            {trimmed.length >= SEARCH_MIN_LENGTH && trimmed === settled && !isFetching && !results.length ? (
-              isError ? (
-                <p className="flex items-center justify-center gap-3 py-6 text-sm text-dim">
-                  Search unavailable.
-                  <Button variant="outline" size="sm" onClick={() => void refetch()}>
-                    Retry
-                  </Button>
-                </p>
-              ) : (
-                <p className="py-6 text-center text-sm text-dim">No results found.</p>
-              )
-            ) : null}
-            <SearchResults
-              before={
-                trimmed ? null : <RecentSearches onOpen={(result) => void go(result, true)} onEmptied={() => inputRef.current?.focus()} />
-              }
-              results={results}
-              query={settled}
-              listId={listId}
-              selectedIndex={Math.min(selectedIndex, results.length - 1)}
-              onSelect={(result) => void go(result)}
-            />
+            <div className="flex min-h-0 flex-col p-1 sm:h-[min(60vh,30rem)]">
+              {trimmed.length >= SEARCH_MIN_LENGTH && isFetching ? <output className="sr-only">Searching</output> : null}
+              {trimmed.length >= SEARCH_MIN_LENGTH && trimmed === settled && !isFetching && !results.length ? (
+                isError ? (
+                  <p className="flex items-center justify-center gap-3 py-10 text-sm text-dim">
+                    Search unavailable.
+                    <Button variant="outline" size="sm" onClick={() => void refetch()}>
+                      Retry
+                    </Button>
+                  </p>
+                ) : (
+                  <p className="py-10 text-center text-sm text-dim">No results for “{trimmed}”.</p>
+                )
+              ) : null}
+              <SearchResults
+                before={
+                  trimmed ? null : <RecentSearches onOpen={(result) => void go(result, true)} onEmptied={() => inputRef.current?.focus()} />
+                }
+                results={results}
+                query={settled}
+                listId={listId}
+                selectedIndex={Math.min(selectedIndex, results.length - 1)}
+                onSelect={(result) => void go(result)}
+              />
+            </div>
             <div
-              className="flex items-center justify-end gap-3 border-t border-edge px-3 py-2 text-3xs text-dim pointer-coarse:hidden"
+              className="flex items-center justify-end gap-4 border-t border-edge bg-sunken px-3 py-2 text-3xs text-dim pointer-coarse:hidden"
               aria-hidden
             >
               <span>
-                <Kbd>↑</Kbd> <Kbd>↓</Kbd> navigate
+                <Kbd>↑</Kbd> <Kbd>↓</Kbd> to move
               </span>
               <span>
-                <Kbd>↵</Kbd> open
-              </span>
-              <span>
-                <Kbd>esc</Kbd> close
+                <Kbd>↵</Kbd> to open
               </span>
             </div>
           </div>

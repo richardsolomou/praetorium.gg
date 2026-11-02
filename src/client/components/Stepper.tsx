@@ -39,7 +39,7 @@ export function Stepper({
           {/* The generated trigger always appends a chevron, which leaves no room in the stepper's narrow middle cell. */}
           <SelectPrimitive.Trigger
             aria-label={countLabel}
-            className="readout flex h-6 w-8 items-center justify-center rounded-sm border border-edge-strong text-sm transition-colors outline-none hover:bg-input/50 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+            className="readout flex h-6 w-8 items-center justify-center rounded-md border border-runner text-sm transition-colors outline-none hover:bg-input/50 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
           >
             <SelectValue className="flex-none">{count}</SelectValue>
           </SelectPrimitive.Trigger>

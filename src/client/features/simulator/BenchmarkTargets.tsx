@@ -27,7 +27,7 @@ export function BenchmarkTargets({
 }) {
   const factions = useQuery(factionIndexQuery())
   return (
-    <section aria-label="Benchmark targets" className="flex flex-wrap items-center gap-1.5 border border-edge bg-sunken p-2">
+    <section aria-label="Benchmark targets" className="flex flex-wrap items-center gap-1.5 rounded-lg border border-edge bg-sunken p-2">
       <Crosshair className="mx-1 size-4 shrink-0 text-info" aria-hidden />
       {targets.map((target, position) => {
         const label = `${target.name} #${position + 1} benchmark`
@@ -42,7 +42,7 @@ export function BenchmarkTargets({
             <PopoverTrigger
               disabled={disabled}
               aria-label={`Edit ${label}`}
-              className="flex h-8 max-w-full min-w-0 items-center gap-1.5 border border-edge bg-panel px-2 text-sm hover:border-edge-strong hover:bg-raised focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50 data-popup-open:border-edge-strong data-popup-open:bg-raised"
+              className="flex h-8 max-w-full min-w-0 items-center gap-1.5 part px-2 text-sm hover:border-edge-strong hover:bg-raised focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50 data-popup-open:border-edge-strong data-popup-open:bg-raised"
             >
               {faction ? <FactionMark faction={faction} size="sm" /> : null}
               <span className="truncate">{target.name}</span>

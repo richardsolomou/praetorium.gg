@@ -7,23 +7,21 @@
 @custom-variant dark (&:where(*));
 
 /*
- * The world is a plotting table: a slate map under acetate, marked in
- * grease pencil. Chakra Petch, squared with cut corners like stencilled map
- * labels, sets headings and the wordmark; Sofia Sans Semi Condensed keeps dense rosters and long rules
- * readable; Martian Mono is kept for the figures a player reads across the table.
- */
-/*
+ * The world is a kit sprue and its assembly booklet: parts on slate plastic,
+ * hung off runners by gates. Chakra Petch sets headings and the wordmark; Sofia Sans Semi Condensed
+ * keeps dense rosters and long rules readable; Martian Mono sets the figures a
+ * player reads across the table.
+ *
  * One palette, two vocabularies: the named colours the app writes by hand, and
  * the shadcn tokens its components read. Both point at the same values.
  *
- * Slate surfaces, chalk text, and field green for the primary action and
- * selection. The two side colours follow the overlay convention of hostile red
- * against friendly blue, which stays apart for red-green colour blindness, and
- * a deeper map green marks success.
+ * Slate surfaces, chalk text, and field green for the primary action,
+ * selection and focus. The two side colours follow the overlay convention of
+ * hostile red against friendly blue, which stays apart for red-green colour
+ * blindness, and a deeper map green marks success.
  *
- * The two side colours are not decoration. Every number on screen belongs to one
- * player or the other, and at arm's length across a table the tint is what tells
- * you whose it is before you have read the name.
+ * State is carried by line form as well as colour: a solid line is live, a
+ * doubled line current, a dashed line pending, a struck line discarded.
  */
 @theme {
   --font-sans: 'Sofia Sans Semi Condensed Variable', ui-sans-serif, system-ui, -apple-system, sans-serif;
@@ -32,12 +30,14 @@
   --font-mono: 'Martian Mono Variable', ui-monospace, 'SF Mono', Menlo, monospace;
 
   --color-void: #0f1113;
-  --color-masthead: #0e1316;
+  --color-masthead: #0f1113;
   --color-panel: #141a1e;
   --color-raised: #1b2328;
   --color-sunken: #090d0f;
   --color-edge: #28323a;
   --color-edge-strong: #3a4650;
+  --color-runner: #3a4650;
+  --color-runner-hi: #55636e;
   --color-bone: #e7ece9;
   --color-dim: #a6b0ae;
   --color-faint: #86918f;
@@ -72,6 +72,10 @@
 
   /* Chakra Petch sets wide, so headings run slightly tight, section headings included. */
   --tracking-heading: -0.01em;
+
+  /* A part lifts off the plastic by a soft drop; overlays lift further. */
+  --shadow-part: inset 0 1px 0 rgb(255 255 255 / 0.03), 0 10px 28px -12px rgb(0 0 0 / 0.7);
+  --shadow-lifted: 0 28px 70px -20px rgb(0 0 0 / 0.8), 0 2px 8px rgb(0 0 0 / 0.35);
 
   /* Light crossing a supporter's seal once as the profile opens, and again on hover; two names so hovering restarts it. */
   --animate-supporter-glint: supporter-glint 1100ms cubic-bezier(0.45, 0, 0.2, 1) 300ms both;
@@ -194,6 +198,16 @@ html[data-native-app='true'] [data-native-app-content][data-immersive='true'] {
   height: calc(100dvh - 4rem);
 }
 
+@media (min-width: 860px) {
+  html:not([data-native-app='true']) {
+    --app-header: 0px;
+  }
+
+  html[data-rail='collapsed'] {
+    --app-rail: 4.25rem;
+  }
+}
+
 @media (max-width: 859px) {
   html [data-listed-in-more] {
     display: none;
@@ -207,6 +221,7 @@ html[data-native-app='true'] [data-native-app-content][data-immersive='true'] {
   /* A compact dialog is a screen of its own unless it fits its content; `src/client/components/Dialog.tsx` keeps its header in place. */
   html [data-slot='dialog-content']:not([data-fit]) {
     inset: 0;
+    border-radius: 0;
     width: 100%;
     max-width: none;
     height: 100dvh;
@@ -337,17 +352,26 @@ html[data-native-app='true'] [data-battle-sticky-header] {
     width: 5rem;
     height: 100dvh;
     flex-direction: column;
+    padding: 0.5rem 0.25rem;
     border-top: 0;
     border-right: 1px solid var(--color-edge);
   }
 
   html[data-native-app='true'] [data-native-app-tabs] > a,
   html[data-native-app='true'] [data-native-app-tabs] > button {
-    width: 100%;
+    width: auto;
     min-height: 4.5rem;
     flex: 0 0 auto;
-    border-top: 0;
-    border-left-width: 2px;
+  }
+
+  /* Standing as a column, the open tab is a raised plate instead of a mark along the top edge. */
+  html[data-native-app='true'] [data-native-app-tabs] > a::before {
+    display: none;
+  }
+
+  html[data-native-app='true'] [data-native-app-tabs] > a[aria-current='page'] {
+    border-radius: var(--radius-lg);
+    background: var(--color-raised);
   }
 
   html[data-native-app='true'] [data-native-app-content][data-immersive='true'] {
@@ -506,6 +530,7 @@ html[data-native-app='true'] [data-battle-sticky-header] {
 
   [data-roster-builder] [data-unit] {
     break-inside: avoid;
+    box-shadow: none !important;
   }
 
   [data-native-app-content],
@@ -525,17 +550,27 @@ html[data-native-app='true'] [data-battle-sticky-header] {
 }
 
 :root {
-  /* The sticky header's height, which `AppShell` replaces with the measured one while the desktop header shows. */
+  /* The fixed phone header's height, which sticky bars and anchor targets clear; the desktop rail sits beside the page instead. */
   --app-header: 3rem;
 
-  /* Almost nothing is rounded: 3px on buttons, 4px on cards. */
-  --radius: 0.25rem;
+  /* The construction grid's lines and their pitches, shared by every layer that draws it. */
+  --construction-grid-lines:
+    linear-gradient(to right, color-mix(in srgb, var(--color-bone) 6%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in srgb, var(--color-bone) 6%, transparent) 1px, transparent 1px),
+    linear-gradient(to right, color-mix(in srgb, var(--color-bone) 2.5%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in srgb, var(--color-bone) 2.5%, transparent) 1px, transparent 1px);
+  --construction-grid-sizes: 64px 64px, 64px 64px, 8px 8px, 8px 8px;
+
+  /* The desktop navigation rail's width, which page bands reach back under. */
+  --app-rail: 12.25rem;
+
+  /* Parts are moulded, so corners are soft: 9px on controls, more on panels. */
+  --radius: 0.5rem;
 
   --background: #0f1113;
   --foreground: #e7ece9;
   --card: #141a1e;
   --card-foreground: #e7ece9;
-  /* A menu or dialog is a panel lifted off the page, not a lighter surface. */
   --popover: #141a1e;
   --popover-foreground: #e7ece9;
   --primary: #9bd0a9;
@@ -617,11 +652,7 @@ html[data-native-app='true'] [data-battle-sticky-header] {
     color: var(--color-bone);
   }
 
-  /*
-   * Every heading in this interface is uppercase Chakra Petch like a map's
-   * printed labels, which is most of what makes the thing recognisable across a
-   * table.
-   */
+  /* Every heading is uppercase Chakra Petch, like the step titles of an assembly booklet. */
   h1,
   h2,
   h3 {
@@ -652,7 +683,7 @@ html[data-native-app='true'] [data-battle-sticky-header] {
    * the root font here is 18px.
    */
   * {
-    scrollbar-color: var(--color-edge-strong) transparent;
+    scrollbar-color: var(--color-runner) transparent;
     scrollbar-width: thin;
   }
 
@@ -669,11 +700,11 @@ html[data-native-app='true'] [data-battle-sticky-header] {
   ::-webkit-scrollbar-thumb {
     border: 3px solid transparent;
     border-radius: 9999px;
-    background: var(--color-edge-strong) content-box;
+    background: var(--color-runner) content-box;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    background-color: var(--color-faint);
+    background-color: var(--color-runner-hi);
   }
 }
 
@@ -692,10 +723,10 @@ html[data-native-app='true'] [data-battle-sticky-header] {
 }
 
 /*
- * Overlays are panels: square, one hairline edge, on the panel surface. The
- * generated components ship rounded popovers behind a translucent ring, so this
- * is unlayered to outrank the utilities they set; only the edge's width is
- * stated, so a caller can still tint it for the side a dialog belongs to.
+ * Overlays are parts lifted off the frame: rounded, one hairline edge, a soft
+ * drop. The generated components ship a translucent ring instead, so this is
+ * unlayered to outrank the utilities they set; only the edge's width is stated,
+ * so a caller can still tint it for the side a dialog belongs to.
  */
 [data-slot='dialog-content'],
 [data-slot='alert-dialog-content'],
@@ -708,7 +739,16 @@ html[data-native-app='true'] [data-battle-sticky-header] {
 [data-slot='popover-content'] {
   --tw-ring-shadow: 0 0 #0000;
   border-width: 1px;
-  border-radius: 0;
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lifted);
+}
+
+/*
+ * The invisible layer a modal dialog dismisses on. A nested dialog draws no visible backdrop of its own, so without a
+ * place in the stack this layer sits under the parent dialog and a press outside the nested one never reaches it.
+ */
+[data-base-ui-inert]:has(~ :is([data-slot='dialog-content'], [data-slot='alert-dialog-content'])) {
+  z-index: 50;
 }
 
 /* Layered so a menu's own width utilities still win; enlarged text must not push a menu past the screen. */
@@ -729,14 +769,14 @@ html[data-native-app='true'] [data-battle-sticky-header] {
 /* The footer is the sunken strip a dialog's actions stand on. */
 [data-slot='dialog-footer'],
 [data-slot='alert-dialog-footer'] {
-  border-radius: 0;
+  border-radius: 0 0 var(--radius-xl) var(--radius-xl);
   background-color: var(--color-sunken);
 }
 
-/* A tooltip is a small raised panel, not the inverted pill the component ships. */
+/* A tooltip is a small raised part, not the inverted pill the component ships. */
 [data-slot='tooltip-content'] {
   border: 1px solid var(--color-edge-strong);
-  border-radius: 0;
+  border-radius: var(--radius-md);
   background-color: var(--color-raised);
   color: var(--color-bone);
   box-shadow: 0 12px 32px rgb(0 0 0 / 0.45);
@@ -745,11 +785,6 @@ html[data-native-app='true'] [data-battle-sticky-header] {
   > [data-side] {
     display: none;
   }
-}
-
-/* A placeholder is square like the panel or line it stands in for, unless it stands in for a round avatar. */
-[data-slot='skeleton']:not(.rounded-full) {
-  border-radius: 0;
 }
 
 @media (max-width: 639px) {
@@ -763,9 +798,9 @@ html[data-native-app='true'] [data-battle-sticky-header] {
   [data-slot='alert-dialog-footer'] [data-slot='button'],
   [data-slot='alert-dialog-action'],
   [data-slot='alert-dialog-cancel'] {
-    min-height: 2.75rem;
-    padding-inline: 1rem;
-    font-size: 1rem;
+    min-height: 2.5rem;
+    padding-inline: 0.875rem;
+    font-size: 0.9375rem;
   }
 }
 
@@ -788,27 +823,6 @@ html[data-native-app='true'] [data-battle-sticky-header] {
   @apply text-2xs font-semibold tracking-eyebrow text-dim uppercase;
 }
 
-/**
- * A header section tab, underlined while its section is open. Its icon shows from the width the header's
- * `--nav-tab-icon` names, so a row that runs out of room drops icons before it folds a group into a menu.
- */
-@utility nav-tab {
-  @apply relative flex shrink-0 items-center gap-2 text-xs font-semibold tracking-label whitespace-nowrap uppercase hover:text-info;
-
-  &::after {
-    @apply absolute inset-x-0 bottom-0 h-0.5 bg-parchment opacity-0 content-[''];
-  }
-
-  &[data-status='active'] {
-    @apply text-parchment after:opacity-100;
-  }
-
-  & > svg {
-    @apply size-4 shrink-0 text-info;
-    display: var(--nav-tab-icon, none);
-  }
-}
-
 /** An anchor target's clearance below the sticky header, whose height `AppShell` publishes. */
 @utility scroll-mt-header {
   scroll-margin-top: calc(var(--app-header) + 1rem);
@@ -823,20 +837,45 @@ html[data-native-app='true'] [data-battle-sticky-header] {
   }
 }
 
-/** The map grid printed under a page's opening band, fading out before the content below. */
-@utility plot-grid {
+/** The booklet's construction grid under a page's opening band: 8px cells, 64px majors, fading out before the content below. */
+@utility construction-grid {
   @apply pointer-events-none absolute inset-0;
-  background-image:
-    linear-gradient(to right, color-mix(in srgb, var(--color-bone) 7%, transparent) 1px, transparent 1px),
-    linear-gradient(to bottom, color-mix(in srgb, var(--color-bone) 7%, transparent) 1px, transparent 1px),
-    linear-gradient(to right, color-mix(in srgb, var(--color-bone) 3%, transparent) 1px, transparent 1px),
-    linear-gradient(to bottom, color-mix(in srgb, var(--color-bone) 3%, transparent) 1px, transparent 1px);
-  background-size:
-    6rem 6rem,
-    6rem 6rem,
-    1.5rem 1.5rem,
-    1.5rem 1.5rem;
+  background-image: var(--construction-grid-lines);
+  background-size: var(--construction-grid-sizes);
+  background-position: -1px -1px;
   mask-image: linear-gradient(to bottom, black, transparent);
+}
+
+/**
+ * A page band that reaches back under the desktop rail, so the rail stands on the band instead of beside it. The copy
+ * repeats the band's colour and construction grid; `--band` names its colour, `--band-top` and `--band-bottom` its
+ * border widths, whose colours it inherits.
+ */
+@utility masthead-bleed {
+  @media (min-width: 860px) {
+    html:not([data-native-app='true']) &::before {
+      content: '';
+      position: absolute;
+      top: calc(-1 * var(--band-top, 0px));
+      bottom: calc(-1 * var(--band-bottom, 1px));
+      right: 100%;
+      width: var(--app-rail);
+      transition: width 200ms ease-out;
+      border-style: solid;
+      border-width: var(--band-top, 0px) 0 var(--band-bottom, 1px);
+      border-color: inherit;
+      background-color: var(--band, var(--color-masthead));
+      background-image: linear-gradient(to bottom, transparent, var(--band, var(--color-masthead))), var(--construction-grid-lines);
+      background-size:
+        100% 100%,
+        var(--construction-grid-sizes);
+      background-position: right 1px top -1px;
+    }
+
+    html:not([data-native-app='true']) & {
+      overflow: visible;
+    }
+  }
 }
 
 /** Any number that changes during a game: fixed width, so it does not jitter. */
@@ -853,11 +892,153 @@ html[data-native-app='true'] [data-battle-sticky-header] {
 
 /** The bordered points chip that follows every datasheet name around. */
 @utility chip {
-  @apply inline-flex items-center rounded-sm border border-edge-strong px-1.5 py-px text-2xs font-semibold tracking-label text-dim uppercase tabular-nums;
+  @apply inline-flex items-center rounded-md border border-runner px-1.5 py-px text-2xs font-semibold tracking-label text-dim uppercase tabular-nums;
 
   &[data-battle-status='playing'] {
     @apply border-parchment bg-parchment text-parchment-ink;
   }
+}
+
+/** A part: a raised moulding with soft corners and a soft drop, the one container every list item, panel and card is. */
+@utility part {
+  @apply rounded-xl border border-edge bg-panel shadow-part;
+}
+
+/**
+ * The small lozenge that labels a seat, a rank, a round or a table. Tint it with `part-tag-a`
+ * or `part-tag-b` for a side, or `part-tag-ghost` for one not yet placed.
+ */
+@utility part-tag {
+  @apply inline-grid h-5 min-w-6 shrink-0 place-items-center rounded-full bg-bone px-1.5 font-display text-2xs leading-none font-bold whitespace-nowrap text-void tabular-nums;
+}
+
+@utility part-tag-a {
+  @apply bg-side-a text-[#2b0505];
+}
+
+@utility part-tag-b {
+  @apply bg-side-b text-[#021c27];
+}
+
+@utility part-tag-ghost {
+  @apply bg-transparent text-dim inset-ring-[1.5px] inset-ring-runner-hi;
+}
+
+/**
+ * A runner: the 2px rail a list hangs off, each child joined to it by a gate.
+ * A child's line form says its state: `data-gate='current'` (or the current page) doubles the gate,
+ * `pending` dashes it, `cut` breaks it and fades the part. `--gate-y` places the
+ * gate against the child's first line.
+ */
+@utility runner {
+  --gate-x: 1.5rem;
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  padding-left: var(--gate-x);
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0.375rem;
+    width: 2px;
+    border-radius: 2px;
+    background: var(--color-runner);
+  }
+
+  & > * {
+    position: relative;
+  }
+
+  & > *::before {
+    content: '';
+    position: absolute;
+    top: var(--gate-y, 1.375rem);
+    left: calc(-1 * var(--gate-x) + 0.5rem);
+    width: calc(var(--gate-x) - 0.5rem);
+    height: 2px;
+    background: var(--color-runner);
+  }
+
+  & > *::after {
+    content: '';
+    position: absolute;
+    top: calc(var(--gate-y, 1.375rem) - 3px);
+    left: -5px;
+    width: 6px;
+    height: 8px;
+    border-radius: 2px;
+    background: var(--color-runner);
+  }
+
+  & > :is([data-gate='current'], [aria-current='page'])::before {
+    top: calc(var(--gate-y, 1.375rem) - 2px);
+    height: 6px;
+    border-block: 2px solid var(--color-parchment);
+    background: none;
+  }
+
+  & > :is([data-gate='current'], [aria-current='page'])::after {
+    background: var(--color-parchment);
+  }
+
+  & > [data-gate='pending']::before {
+    background: repeating-linear-gradient(90deg, var(--color-runner-hi) 0 4px, transparent 4px 7px);
+  }
+
+  & > [data-gate='pending']::after {
+    background: transparent;
+    box-shadow: inset 0 0 0 1.5px var(--color-runner-hi);
+  }
+
+  & > [data-gate='cut'] {
+    opacity: 0.62;
+  }
+
+  & > [data-gate='cut']::before {
+    width: calc(var(--gate-x) - 1.25rem);
+  }
+
+  & > [data-gate='none']::before,
+  & > [data-gate='none']::after {
+    display: none;
+  }
+}
+
+/**
+ * A segment of a line-form rail, such as a battle's phases or rounds: `data-line='done'` solid,
+ * `now` doubled, `todo` dashed, `off` struck through.
+ */
+@utility line-segment {
+  display: block;
+  height: 6px;
+  border-radius: 2px;
+
+  &[data-line='done'] {
+    background: var(--line-colour, var(--color-runner-hi));
+  }
+
+  &[data-line='now'] {
+    border-block: 2px solid var(--line-colour, var(--color-parchment));
+  }
+
+  &[data-line='todo'] {
+    background: repeating-linear-gradient(90deg, var(--line-colour, var(--color-runner)) 0 5px, transparent 5px 8px) center / 100% 2px
+      no-repeat;
+  }
+
+  &[data-line='off'] {
+    background: linear-gradient(var(--color-runner), var(--color-runner)) center / 100% 2px no-repeat;
+    opacity: 0.6;
+  }
+}
+
+/** A big wide assembly-step number beside the step it opens. */
+@utility step-number {
+  @apply font-display text-4xl leading-none font-bold text-faint tabular-nums sm:text-5xl;
+  letter-spacing: -0.04em;
 }
 
 @media (max-width: 1023px) {

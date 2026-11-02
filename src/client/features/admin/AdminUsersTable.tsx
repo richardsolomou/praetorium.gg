@@ -209,7 +209,7 @@ export function AdminUsersTable({
         </DropdownMenu>
       </div>
 
-      <div className="min-w-0 border border-edge bg-panel">
+      <div className="min-w-0 part">
         <Table aria-label="Players" aria-busy={pending}>
           <TableHeader>
             {table.getHeaderGroups().map((group) => (

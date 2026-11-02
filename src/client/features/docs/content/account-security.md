@@ -1,4 +1,4 @@
-Everything on this page is in [Account settings](/profile). Open the account menu and choose **Account settings**, or in the app, choose **Profile** on the **More** tab.
+Everything on this page is in [Account settings](/profile). Open the account menu and choose **Account settings**, or in the app, tap your name at the top of the **More** tab.
 
 ## Sign-in methods
 

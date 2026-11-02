@@ -193,8 +193,11 @@ function RosterStanding({
       {pointsLoading ? (
         <Skeleton className={`ml-auto w-20 ${compact ? 'h-4' : 'h-5'}`} />
       ) : (
-        <span className={`readout block font-bold ${compact ? 'text-sm' : 'text-lg'}`}>
-          {points ?? '—'}/{pointsBudgetOf(roster)}
+        <span
+          className={`figure block leading-tight font-bold ${compact ? 'text-sm' : 'text-xl'} ${problem === 'over-limit' ? 'text-destructive' : ''}`}
+        >
+          {points ?? '—'}
+          <span className={`font-normal text-dim ${compact ? 'text-xs' : 'text-sm'}`}>/{pointsBudgetOf(roster)}</span>
         </span>
       )}
       {legal ? <span className="block text-xs whitespace-nowrap text-dim">Legal</span> : null}

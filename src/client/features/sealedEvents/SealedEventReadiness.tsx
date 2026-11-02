@@ -108,22 +108,26 @@ export function SealedEventReadiness({
       data-onboarding="sealed-event-rosters"
       data-sealed-event-readiness
       aria-labelledby="sealed-event-readiness-heading"
-      className={`space-y-4 border bg-panel p-4 sm:p-5 ${ready ? 'border-achieved/50' : 'border-edge'}`}
+      className={`space-y-4 part p-4 sm:p-5 ${ready ? 'border-parchment/50' : ''}`}
     >
       <div>
-        <p className="eyebrow text-dim">Before the reveal</p>
-        <h2 id="sealed-event-readiness-heading" className="mt-1 text-xl leading-tight font-bold uppercase">
+        <h2 id="sealed-event-readiness-heading" className="text-xl leading-tight font-bold uppercase">
           {title}
         </h2>
         <p className="mt-1.5 text-sm text-dim">{detail || 'Rosters stay hidden, even from the organizer.'}</p>
       </div>
       {accepted.length ? (
-        <div aria-hidden className="flex gap-1">
-          {accepted.map((entry) => (
-            <span key={entry.userId} className={`h-1.5 flex-1 rounded-full ${entry.submitted ? 'bg-achieved' : 'bg-edge-strong'}`} />
-          ))}
+        <div>
+          <p className="eyebrow mb-1.5">Before the reveal</p>
+          <div aria-hidden className="flex items-center gap-1 [--line-colour:var(--color-parchment)]">
+            {accepted.map((entry) => (
+              <span key={entry.userId} data-line={entry.submitted ? 'done' : 'todo'} className="line-segment flex-1" />
+            ))}
+          </div>
         </div>
-      ) : null}
+      ) : (
+        <p className="eyebrow">Before the reveal</p>
+      )}
       {organizerChecks.length ? (
         <ul aria-label="Before you can reveal" className="space-y-1.5">
           {organizerChecks.map((check) => (

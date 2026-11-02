@@ -354,10 +354,13 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
     <main className="flex w-full flex-col">
       <SideFocusProvider value={{ side: focusedSide ?? yours?.index ?? 0, show: setFocusedSide }}>
         <div className="mx-auto w-full max-w-5xl px-3 pt-6 sm:px-4">
-          <header className="space-y-5">
-            <div className="space-y-1 text-center">
-              <h1 className="text-lg text-balance sm:text-xl">Set up the battle</h1>
-              <p className="text-sm text-dim">In the order the rules play it. Anyone at the table can answer for either side.</p>
+          <header className="relative space-y-5 pb-2">
+            <div aria-hidden className="construction-grid -inset-x-3 -top-6 sm:-inset-x-4" />
+            <div className="relative space-y-1.5">
+              <h1 className="text-2xl text-balance sm:text-3xl">Set up the battle</h1>
+              <p className="max-w-prose text-sm text-dim sm:text-base">
+                In the order the rules play it. Anyone at the table can answer for either side.
+              </p>
               <GuideHelp task="battle" step="battle-setup-size">
                 Battle setup guide
               </GuideHelp>
@@ -366,7 +369,7 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
             <FaceOff sides={table} />
           </header>
 
-          <ol className="mt-8">
+          <ol className="mt-10">
             <SpineStep
               {...step('format')}
               number={1}
@@ -768,20 +771,20 @@ const NOTHING_OWED = new Set<SectionId>(['reserves', 'deploy', 'pre-battle'])
 /** Who is playing whom, facing each other across the spine every step below hangs from. */
 function FaceOff({ sides }: { sides: Side[] }) {
   return (
-    <div className="grid grid-cols-[minmax(0,1fr)_2.5rem_minmax(0,1fr)] items-stretch">
+    <div className="relative grid grid-cols-[minmax(0,1fr)_2rem_minmax(0,1fr)] items-stretch sm:grid-cols-[minmax(0,1fr)_3rem_minmax(0,1fr)]">
       {sides.map((side, position) => {
         const armies = side.armies.flatMap((army) => (army.roster ? [army.roster.name] : []))
         const points = side.armies.reduce((total, army) => total + (army.roster?.built ? (army.points ?? 0) : 0), 0)
         return (
           <Fragment key={side.index}>
             {position ? (
-              <span aria-hidden className="grid place-items-center font-display text-sm font-bold text-faint">
+              <span aria-hidden className="grid place-items-center font-display text-sm font-bold text-faint sm:text-lg">
                 VS
               </span>
             ) : null}
             <div
               className={cn(
-                'flex min-w-0 flex-col gap-1.5 border-t-[3px] pt-2.5',
+                'part flex min-w-0 flex-col gap-1.5 border-t-2 p-3 sm:p-4',
                 tint(side.index).edge,
                 position && 'items-end text-right',
               )}
@@ -861,6 +864,8 @@ function SpineStep({
 }) {
   if (skipped) return null
   const shown = open && Boolean(children)
+  // The runner down from the step's number says where the table is: settled solid, the step owed now doubled, the rest dashed.
+  const line = settled ? 'done' : current ? 'now' : locked ? 'locked' : 'todo'
   return (
     <li className="list-none">
       <section
@@ -870,119 +875,151 @@ function SpineStep({
         data-complete={complete}
         data-open={shown}
         aria-labelledby={`setup-${id}-title`}
-        className={cn('relative scroll-mt-(--app-header)! pb-10 transition-opacity', locked && 'opacity-40')}
+        className={cn('relative scroll-mt-(--app-header)! pb-8', locked && 'text-faint')}
       >
-        {/* The spine through this step, drawn in once the step is settled. */}
         <span
           aria-hidden
-          className={cn('absolute inset-y-0 left-1/2 w-0.5 -translate-x-1/2', settled ? 'bg-achieved/50' : 'bg-edge-strong')}
+          data-line={line}
+          className={cn(
+            'absolute top-13 bottom-1 left-6 -translate-x-1/2 sm:top-15 sm:left-[2.375rem]',
+            line === 'done' && 'w-0.5 rounded-full bg-parchment/45',
+            line === 'now' && 'w-1.5 border-x-2 border-parchment',
+            line === 'todo' && 'w-0.5 bg-[repeating-linear-gradient(180deg,var(--color-runner-hi)_0_5px,transparent_5px_10px)]',
+            line === 'locked' && 'w-0.5 bg-[repeating-linear-gradient(180deg,var(--color-runner)_0_5px,transparent_5px_10px)]',
+          )}
         />
         {/* Held under the app header while the step's body scrolls past, so its tick stays in reach. */}
-        <div className="sticky top-(--app-header) z-10 flex justify-center bg-void/95 backdrop-blur">
-          <div className="inline-flex items-center px-1">
-            {/* Outside the heading, so the step is still named by its title alone. */}
-            {check ? (
-              <label
-                title={check.checked ? `Mark ${name} not done` : `Mark ${name} done`}
-                className="group/check grid size-11 shrink-0 cursor-pointer place-items-center has-disabled:cursor-not-allowed has-focus-visible:outline-2 has-focus-visible:outline-offset-[-4px] has-focus-visible:outline-primary"
-              >
-                <input
-                  type="checkbox"
-                  className="sr-only"
-                  aria-label={`${name} done`}
-                  checked={check.checked}
-                  disabled={check.disabled}
-                  onChange={check.onCheck}
-                />
-                <StepMark settled={settled} current={current} number={number} checkable={!check.disabled} />
-              </label>
-            ) : (
-              <span aria-hidden className="grid size-11 shrink-0 place-items-center">
-                <StepMark settled={settled} current={current} number={number} checkable={false} />
-              </span>
-            )}
-            <h2 id={`setup-${id}-title`} className="text-base">
-              <button
-                type="button"
-                aria-expanded={shown}
-                aria-controls={`setup-${id}-body`}
-                disabled={!children}
-                className="inline-flex min-h-11 items-center gap-2.5 pr-2 uppercase transition-colors enabled:hover:text-bone disabled:cursor-default"
-                onClick={onToggle}
-              >
-                <span className={current ? 'text-discarded' : undefined}>{name}</span>
-                {children ? (
-                  <ChevronDown aria-hidden className={cn('size-4 text-dim transition-transform duration-200', shown && 'rotate-180')} />
-                ) : null}
-              </button>
-            </h2>
-          </div>
-        </div>
-        {hint ? (
-          <p
-            className={cn(
-              'relative mx-auto mt-1 w-fit max-w-md bg-void px-3 text-center text-sm text-balance',
-              needed ? 'text-discarded' : 'text-dim',
-            )}
-          >
-            {hint}
-          </p>
-        ) : null}
-        <div id={`setup-${id}-body`} className="relative mt-4">
-          {shown ? (
-            <div className="border border-edge bg-panel">
-              {sides && renderSide ? <SideSwitch sides={sides} renderSide={renderSide} /> : null}
-              <div className="space-y-4 p-3 sm:p-4">
-                {children}
-                {sides ? <SideSwitchNext sides={sides} /> : null}
-              </div>
-            </div>
-          ) : sides && renderSide ? (
-            <div className="grid grid-cols-[minmax(0,1fr)_2.5rem_minmax(0,1fr)] items-start">
-              {sides.map((side, position) => (
-                <div
-                  key={side.index}
-                  className={cn(
-                    'min-w-0 border-t-2 pt-2 text-sm',
-                    tint(side.index).edge,
-                    position ? 'col-start-3 text-right' : 'col-start-1',
-                  )}
-                >
-                  {renderSide(side)}
-                </div>
-              ))}
-            </div>
+        <div className="sticky top-(--app-header) z-10 flex items-center gap-3 bg-void/95 py-1 backdrop-blur sm:gap-5">
+          {/* Outside the heading, so the step is still named by its title alone. */}
+          {check ? (
+            <label
+              title={check.checked ? `Mark ${name} not done` : `Mark ${name} done`}
+              className="group/check relative grid h-12 w-12 shrink-0 cursor-pointer place-items-center rounded-lg has-disabled:cursor-not-allowed has-focus-visible:outline-2 has-focus-visible:outline-primary sm:w-19"
+            >
+              <input
+                type="checkbox"
+                className="sr-only"
+                aria-label={`${name} done`}
+                checked={check.checked}
+                disabled={check.disabled}
+                onChange={check.onCheck}
+              />
+              <StepMark settled={settled} current={current} locked={locked} number={number} checkable={!check.disabled} />
+            </label>
           ) : (
-            summary
+            <span aria-hidden className="relative grid h-12 w-12 shrink-0 place-items-center sm:w-19">
+              <StepMark settled={settled} current={current} locked={locked} number={number} checkable={false} />
+            </span>
           )}
+          <h2 id={`setup-${id}-title`} className="min-w-0 flex-1 text-lg sm:text-xl">
+            <button
+              type="button"
+              aria-expanded={shown}
+              aria-controls={`setup-${id}-body`}
+              disabled={!children}
+              className="flex min-h-11 w-full items-center justify-between gap-2.5 text-left transition-colors enabled:hover:text-bone disabled:cursor-default"
+              onClick={onToggle}
+            >
+              <span className={cn('min-w-0', current ? 'text-bone' : locked ? 'text-faint' : undefined)}>{name}</span>
+              {children ? (
+                <ChevronDown
+                  aria-hidden
+                  className={cn('size-4 shrink-0 text-dim transition-transform duration-200', shown && 'rotate-180')}
+                />
+              ) : null}
+            </button>
+          </h2>
+        </div>
+        <div className={cn('pl-15 sm:pl-24', locked && 'opacity-50')}>
+          {hint ? <p className={cn('mt-0.5 max-w-prose text-sm text-balance', needed ? 'text-discarded' : 'text-dim')}>{hint}</p> : null}
+          <div id={`setup-${id}-body`} className="relative mt-3">
+            {shown ? (
+              <div className={cn('relative', current ? 'rounded-2xl border-2 border-runner bg-panel shadow-lifted' : 'part')}>
+                {/* The step being answered is drawn out of the frame, joined back to the runner by its own sprue. */}
+                {current ? (
+                  <>
+                    <span
+                      aria-hidden
+                      className="absolute -top-5 -left-[2.375rem] h-9 w-[2.25rem] rounded-bl-xl border-b-2 border-l-2 border-runner sm:-left-[3.75rem] sm:w-[3.625rem]"
+                    />
+                    <span aria-hidden className="absolute top-2.5 -left-1.5 size-2.5 rounded-full bg-parchment ring-3 ring-void" />
+                  </>
+                ) : null}
+                {sides && renderSide ? <SideSwitch sides={sides} renderSide={renderSide} /> : null}
+                <div className="space-y-4 p-3 sm:p-4">
+                  {children}
+                  {sides ? <SideSwitchNext sides={sides} /> : null}
+                </div>
+              </div>
+            ) : sides && renderSide ? (
+              <div className="grid grid-cols-2 items-stretch gap-2">
+                {sides.map((side, position) => (
+                  <div
+                    key={side.index}
+                    className={cn(
+                      'min-w-0 rounded-lg border border-t-2 border-edge bg-sunken px-3 py-2 text-sm',
+                      tint(side.index).edge,
+                      position ? 'text-right' : '',
+                    )}
+                  >
+                    {renderSide(side)}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              summary
+            )}
+          </div>
         </div>
       </section>
     </li>
   )
 }
 
-/** A step's number on the spine, or its tick once settled; a checkbox's box when the table ticks it. */
-function StepMark({ settled, current, number, checkable }: { settled: boolean; current: boolean; number: number; checkable: boolean }) {
+/** A step's assembly number, with its tick once settled; a checkbox's box when the table ticks it. */
+function StepMark({
+  settled,
+  current,
+  locked,
+  number,
+  checkable,
+}: {
+  settled: boolean
+  current: boolean
+  locked: boolean
+  number: number
+  checkable: boolean
+}) {
   return (
-    <span
-      className={cn(
-        'readout grid size-7 place-items-center border-2 text-xs font-bold transition-colors',
-        settled
-          ? 'border-achieved bg-achieved text-void'
-          : current
-            ? 'border-discarded bg-void text-discarded'
-            : 'border-edge-strong bg-void text-dim',
-        checkable && !settled && 'group-hover/check:border-achieved group-hover/check:text-achieved',
-      )}
-    >
-      {settled ? <Check className="size-4" strokeWidth={3} /> : number}
-    </span>
+    <>
+      <span
+        className={cn(
+          'step-number transition-colors',
+          settled
+            ? 'text-dim'
+            : current
+              ? 'text-bone'
+              : locked
+                ? 'text-transparent [-webkit-text-stroke:1.2px_var(--color-runner-hi)]'
+                : undefined,
+        )}
+      >
+        {number}
+      </span>
+      {settled ? (
+        <span className="absolute -top-1 right-0 grid size-5.5 place-items-center rounded-full bg-parchment text-parchment-ink sm:right-2">
+          <Check className="size-3.5" strokeWidth={3} />
+        </span>
+      ) : checkable ? (
+        <span className="absolute -top-1 right-0 size-5.5 rounded-full border-2 border-runner-hi bg-void transition-colors group-hover/check:border-parchment sm:right-2" />
+      ) : null}
+    </>
   )
 }
 
 /** A choice the table shares, written on the spine. */
 function SharedAnswer({ children }: { children: ReactNode }) {
-  return <p className="mx-auto w-fit max-w-full border border-edge bg-panel px-3 py-2 text-center text-sm text-balance">{children}</p>
+  return <p className="w-fit max-w-full rounded-lg border border-edge bg-sunken px-3 py-2 text-sm text-balance">{children}</p>
 }
 
 /** One side's answer to a step: what it is, then what it means. Inline throughout, since the side switch is a button. */

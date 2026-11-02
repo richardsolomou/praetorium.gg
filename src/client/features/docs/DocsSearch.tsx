@@ -36,7 +36,7 @@ export function DocsSearchResults({ query }: { query: string }) {
     <section aria-label="Search results">
       <p className="rubric">{countLabel(results.length, 'result')}</p>
       {results.length ? (
-        <ul className="mt-3 divide-y divide-edge border border-edge bg-panel">
+        <ul className="part mt-3 divide-y divide-edge overflow-hidden">
           {results.map((entry) => {
             const Icon = entry.hash ? TriangleAlert : AREAS[entry.doc.section].icon
             return (
@@ -47,7 +47,7 @@ export function DocsSearchResults({ query }: { query: string }) {
                   hash={entry.hash}
                   className="group flex items-start gap-3 px-4 py-3 transition-colors hover:bg-raised"
                 >
-                  <Icon className={cn('mt-0.5 size-4 shrink-0', entry.hash ? 'text-discarded' : 'text-info')} aria-hidden />
+                  <Icon className={cn('mt-0.5 size-4 shrink-0', entry.hash ? 'text-discarded' : 'text-dim')} aria-hidden />
                   <span className="min-w-0 flex-1">
                     <span className="block text-bone group-hover:text-parchment">{entry.text}</span>
                     <span className="mt-0.5 block text-sm text-dim">{entry.detail}</span>
@@ -69,17 +69,17 @@ export function DocsSearchResults({ query }: { query: string }) {
 /** Every area's list of fixes, for a reader who arrives with a problem rather than a task. */
 export function TroubleshootingLinks() {
   return (
-    <ul aria-label="Troubleshooting" className="grid border-t border-l border-edge sm:grid-cols-2">
+    <ul aria-label="Troubleshooting" className="grid gap-2 sm:grid-cols-2">
       {PRODUCT_DOCS.filter(troubleshooting).map((doc) => {
         const Icon = AREAS[doc.section].icon
         return (
-          <li key={doc.slug} className="border-r border-b border-edge bg-panel">
+          <li key={doc.slug} className="part">
             <Link
               to="/docs/$docId"
               params={{ docId: doc.slug }}
-              className="group flex h-full items-center gap-3 px-4 py-3 transition-colors hover:bg-raised"
+              className="group flex h-full items-center gap-3 rounded-xl px-4 py-3 transition-colors hover:bg-raised"
             >
-              <Icon className="size-4 shrink-0 text-info" aria-hidden />
+              <Icon className="size-4 shrink-0 text-dim" aria-hidden />
               <span className="min-w-0 flex-1">
                 <span className="block text-bone group-hover:text-parchment">{doc.title}</span>
                 <span className="mt-0.5 block text-sm text-dim">{doc.description}</span>

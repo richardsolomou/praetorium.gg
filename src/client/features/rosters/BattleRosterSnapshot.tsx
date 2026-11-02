@@ -80,9 +80,7 @@ export function BattleRosterSnapshot({
         />
         <RosterBody>
           <RosterUnits>
-            <pre className="my-3 overflow-auto whitespace-pre-wrap border border-edge bg-panel p-3 font-rules text-sm select-text">
-              {roster.text}
-            </pre>
+            <pre className="my-3 overflow-auto whitespace-pre-wrap part p-3 font-rules text-sm select-text">{roster.text}</pre>
           </RosterUnits>
         </RosterBody>
       </RosterShell>

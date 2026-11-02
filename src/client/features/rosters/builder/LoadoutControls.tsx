@@ -42,6 +42,10 @@ const PROSE = 'text-xs'
 
 type Described = { abilities: Datasheet['abilities']; rules: Datasheet['keywordRules']; weapons: readonly WeaponProfileData[] }
 
+/** A loadout answer is a moulded well; the one taken carries a cement hairline. */
+const OPTION = 'overflow-hidden rounded-lg border bg-card'
+const PICKED = 'border-parchment inset-ring-1 inset-ring-parchment'
+
 /**
  * A row's share of the bodies its kind of model has, given and taken one at a time.
  *
@@ -167,10 +171,7 @@ export function WargearRow({
     </span>
   )
   return (
-    <li
-      aria-label={name}
-      className={`border border-l-[5px] bg-panel/40 print:break-inside-avoid ${count && highlightSelection ? 'border-azure/50 border-l-azure' : 'border-edge'}`}
-    >
+    <li aria-label={name} className={`${OPTION} print:break-inside-avoid ${count && highlightSelection ? PICKED : 'border-edge'}`}>
       {instructions?.map((instruction) => (
         <RuleText key={instruction} text={instruction} rules={rules} className="!mt-0 p-2.5 text-xs leading-[1.125rem]" />
       ))}
@@ -234,9 +235,7 @@ function ChoiceOption({
   children: ReactNode
 }) {
   return (
-    <article
-      className={`relative border border-l-[5px] bg-card ${selected && highlightSelection ? 'border-azure/50 border-l-azure' : 'border-edge'}`}
-    >
+    <article className={`relative ${OPTION} ${selected && highlightSelection ? PICKED : 'border-edge'}`}>
       {onSelect ? (
         <button
           type="button"
@@ -287,8 +286,8 @@ function DeclineButton({
       aria-pressed={!chosen}
       disabled={!editable || disabled}
       onClick={onDecline}
-      className={`w-full border border-l-[5px] bg-card px-2.5 py-2 text-left text-xs font-semibold uppercase text-bone ${cursor} ${
-        !chosen && highlightSelection ? 'border-azure/50 border-l-azure' : 'border-edge'
+      className={`w-full ${OPTION} px-2.5 py-2 text-left text-xs font-semibold uppercase text-bone ${cursor} ${
+        !chosen && highlightSelection ? PICKED : 'border-edge'
       }`}
     >
       {label}
@@ -455,10 +454,7 @@ export function SpreadChoice({
       </p>
       <ul className="mt-1.5 space-y-1">
         {(showOptions ? defaultFirst(choice.options) : choice.options.filter((option) => option.count)).map((option) => (
-          <li
-            key={option.id}
-            className={`border border-l-[5px] bg-card ${option.count && showOptions ? 'border-azure/50 border-l-azure' : 'border-edge'}`}
-          >
+          <li key={option.id} className={`${OPTION} ${option.count && showOptions ? PICKED : 'border-edge'}`}>
             <div className="flex items-center gap-2 px-2 py-1.5">
               <span className="min-w-0 flex-1">
                 <span className="block text-xs font-semibold">{option.name}</span>

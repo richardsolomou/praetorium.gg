@@ -29,7 +29,7 @@ export function RatingHistory({ points }: { points: readonly RatingPoint[] }) {
   const point = points[at - 1]!
   const change = point.rating - (points[at - 2]?.rating ?? START)
   return (
-    <figure data-rating-history className="mt-4 border border-edge bg-panel p-3">
+    <figure data-rating-history className="mt-4 part p-3">
       <figcaption className="flex flex-wrap items-baseline justify-between gap-x-3 text-xs">
         <span className="eyebrow">Rating after each battle</span>
         <span className="readout text-dim" aria-live="polite">

@@ -48,40 +48,44 @@ export function CombatResults({
         aria-label="Results summary"
         data-onboarding="simulator-results"
         data-results-summary
-        className={`right-0 left-0 z-40 mx-auto border border-edge bg-sunken shadow-lg ${inDialog ? 'absolute bottom-0' : 'sticky bottom-16 w-full min-[860px]:bottom-0'}`}
+        className={`right-0 left-0 z-40 mx-auto rounded-xl border border-runner bg-sunken shadow-lifted ${inDialog ? 'absolute bottom-0' : 'sticky bottom-16 w-full min-[860px]:bottom-0'}`}
       >
-        <section aria-label="Combined estimate" aria-busy={supported && updating && !failed} className="px-3 pt-2 sm:px-4">
+        <section aria-label="Combined estimate" aria-busy={supported && updating && !failed} className="px-3 pt-2.5 sm:px-4">
           <div className="flex items-baseline justify-between gap-2">
             <h2 className="rubric text-xs text-dim">Shooting + melee</h2>
             {selected && updating && !failed ? <output className="text-xs text-dim">Updating…</output> : null}
           </div>
-          <div data-result-numbers className="mt-1 flex flex-wrap items-center gap-3">
+          <div data-result-numbers className="mt-1.5 flex flex-wrap items-end gap-3">
             <div className="flex-[1.3]">
               <CombatValue
                 result={combined}
                 metric="wipe"
-                className={`block text-3xl font-semibold leading-none ${muted ? 'text-dim' : 'text-primary'}`}
+                className={`figure block text-3xl leading-none font-semibold ${muted ? 'text-dim' : 'text-primary'}`}
               />
               <p className="mt-1 text-xs text-dim">{!selected ? 'Select two units' : !supported ? 'See Breakdown' : 'chance to destroy'}</p>
             </div>
             <div className="flex-1">
-              <CombatValue result={combined} metric="meanDamage" className={`block text-lg ${muted ? 'text-dim' : 'text-bone'}`} />
-              <p className="text-xs text-dim">avg. wounds lost</p>
+              <CombatValue
+                result={combined}
+                metric="meanDamage"
+                className={`figure block text-lg leading-none font-semibold ${muted ? 'text-dim' : 'text-bone'}`}
+              />
+              <p className="mt-1 text-xs text-dim">avg. wounds lost</p>
             </div>
             <div className="flex-1">
               <CombatValue
                 result={combined}
                 metric={uncapped ? 'uncappedKills' : 'meanKills'}
-                className={`block text-lg ${muted ? 'text-dim' : 'text-bone'}`}
+                className={`figure block text-lg leading-none font-semibold ${muted ? 'text-dim' : 'text-bone'}`}
               />
               {uncapped ? (
-                <div className="flex">
+                <div className="mt-1 flex">
                   <HoverTooltip title="Uncapped kills" body={UNCAPPED_KILLS_EXPLANATION} className="text-left text-xs text-dim">
                     uncapped kills
                   </HoverTooltip>
                 </div>
               ) : (
-                <p className="text-xs text-dim">avg. models lost</p>
+                <p className="mt-1 text-xs text-dim">avg. models lost</p>
               )}
             </div>
           </div>
@@ -124,7 +128,7 @@ export function CombatResults({
                   key={title}
                   aria-label={title === 'Combined' ? 'Combined distributions' : `${title} estimate`}
                   aria-busy={updating && !failed}
-                  className="grid min-w-0 grid-cols-[6.5rem_minmax(0,1fr)] items-center gap-2 border border-edge bg-sunken px-2 py-1 @max-[17rem]:grid-cols-1"
+                  className="grid min-w-0 grid-cols-[6.5rem_minmax(0,1fr)] items-center gap-2 rounded-lg border border-edge bg-panel px-2 py-1 @max-[17rem]:grid-cols-1"
                 >
                   <h3 className="text-xs font-semibold">
                     <span className="flex items-center gap-1">

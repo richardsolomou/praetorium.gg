@@ -43,7 +43,7 @@ export function RecentSimulations({
           return (
             <li
               key={entry.shared}
-              className={`group relative border border-edge bg-panel transition-colors hover:border-info hover:bg-raised ${limit ? 'min-w-0' : 'w-64 shrink-0 snap-start'}`}
+              className={`group relative part transition-colors hover:border-info hover:bg-raised ${limit ? 'min-w-0' : 'w-64 shrink-0 snap-start'}`}
             >
               <Link
                 to="/simulator"

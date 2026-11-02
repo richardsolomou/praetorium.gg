@@ -55,7 +55,6 @@ export function FactionDatasheet() {
     <main id="summary" className="w-full">
       <PageHeader
         tint={factionColour(faction.slug, faction.displayName)}
-        eyebrow={`${faction.displayName} · Datasheet`}
         title={sheet.name}
         media={<FactionMark faction={faction} />}
         actions={
@@ -69,7 +68,7 @@ export function FactionDatasheet() {
         {sheet.modelCount || sheet.points !== null ? (
           <div className="flex flex-wrap gap-1">
             {sheet.modelCount ? <span className="chip">{sheet.modelCount}</span> : null}
-            {sheet.points === null ? null : <span className="chip text-info">{sheet.points} pts</span>}
+            {sheet.points === null ? null : <span className="chip text-bone">{sheet.points} pts</span>}
           </div>
         ) : null}
         <UnitKeywords id="keyword-rules" className="mt-2" sheet={sheet} />
@@ -92,7 +91,7 @@ export function FactionDatasheet() {
             <SectionHeading title="Invulnerable save" />
             <div className="flex flex-wrap gap-2">
               {invulnerable.map((profile) => (
-                <div key={profile.name} className="border border-edge bg-panel px-3 py-2">
+                <div key={profile.name} className="part px-3 py-2">
                   <span className="text-sm font-semibold">{profile.name}</span>
                   <span className="readout ml-3 text-dim">{profile.value}</span>
                 </div>
@@ -132,7 +131,7 @@ export function Abilities({
     const cards = (
       <div className="grid gap-2 md:grid-cols-2">
         {found.map((ability) => (
-          <article id={`ability-${ability.id}`} key={ability.id} className="border border-edge bg-panel p-3">
+          <article id={`ability-${ability.id}`} key={ability.id} className="part p-3">
             <h3 className="text-sm">{ability.source ?? ability.name}</h3>
             {ability.source ? <p className="eyebrow mt-1">{ability.name}</p> : null}
             {ability.description ? <RuleText text={ability.description} rules={rules} /> : null}
@@ -180,7 +179,7 @@ function UnitConfiguration({ sheet, rules, onboarding }: { sheet: Datasheet; rul
   return (
     <section data-onboarding={onboarding}>
       <SectionHeading title="Unit configuration" />
-      <div className="overflow-hidden border border-edge bg-panel">
+      <div className="overflow-hidden part">
         <div className="grid md:grid-cols-2 md:divide-x md:divide-edge">
           <div className="space-y-2 p-3">
             <h3 className="eyebrow">Composition</h3>
@@ -204,7 +203,7 @@ function UnitConfiguration({ sheet, rules, onboarding }: { sheet: Datasheet; rul
                         </span>
                       ) : null}
                     </span>
-                    <span className="readout text-info">{cost.cost} pts</span>
+                    <span className="readout font-semibold">{cost.cost} pts</span>
                   </div>
                 ))}
             </div>
@@ -240,13 +239,13 @@ function PointsChanges({ faction, slug }: { faction: { slug: string; displayName
   return (
     <section id="points-changes">
       <SectionHeading title="Points changes" />
-      <ul className="border border-edge bg-panel">
+      <ul className="runner gap-1.5 [--gate-y:1.25rem]">
         {changes.map(({ recordedAt, change }) => (
           <li
             key={`${recordedAt}${JSON.stringify(change)}`}
-            className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 border-b border-edge px-3 py-2 text-sm last:border-b-0"
+            className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 part px-4 py-2 text-sm"
           >
-            <span className="readout text-dim">{date(recordedAt)}</span>
+            <span className="readout font-semibold">{date(recordedAt)}</span>
             <span className="readout text-xs text-bone">{changeDetail(change)}</span>
           </li>
         ))}
@@ -254,7 +253,7 @@ function PointsChanges({ faction, slug }: { faction: { slug: string; displayName
       <Link
         to="/data-updates/$catalogueId"
         params={{ catalogueId: faction.slug }}
-        className="mt-2 inline-block text-sm text-info hover:text-bone"
+        className="mt-2 inline-block text-sm text-dim underline decoration-runner-hi underline-offset-4 hover:text-bone"
       >
         All {faction.displayName} data updates
       </Link>
@@ -277,7 +276,7 @@ export function Relationships({
       <SectionHeading title="Attachments" />
       <div className="grid gap-2 md:grid-cols-2">
         {groups.map(({ title, relationships }) => (
-          <div key={title} className="border border-edge bg-panel p-3">
+          <div key={title} className="part p-3">
             <h3 className="eyebrow mb-2">{title}</h3>
             <div className="flex flex-wrap gap-1">
               {relationships.map(({ name, route }) =>
@@ -320,18 +319,18 @@ function UnitCharacteristics({
   return (
     <section id={`profile-${profile.id}`} data-onboarding={onboarding}>
       <ReferenceAnchors prefix="profile" ids={anchorIds.filter((id) => id !== profile.id)} />
-      <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
+      <div className="grid grid-cols-6 gap-1.5 sm:gap-2">
         {values.map((value) => (
-          <div key={value.name} className="border border-edge bg-panel px-3 py-2 text-center">
+          <div key={value.name} className="min-w-0 part px-1 pt-2 pb-2.5 text-center">
             <p className="eyebrow">{value.name}</p>
-            <p className="readout mt-1 text-lg">{value.value}</p>
+            <p className="figure mt-1 text-2xl leading-none font-semibold sm:text-3xl">{value.value}</p>
           </div>
         ))}
       </div>
       {invulnerable ? (
-        <div className="mt-2 flex items-center justify-between border border-edge bg-panel px-3 py-2">
-          <span className="font-bold uppercase">Invulnerable save</span>
-          <span className="readout text-lg">{invulnerable}</span>
+        <div className="mt-2 flex items-center justify-between part px-4 py-2.5">
+          <span className="rubric text-xs text-bone">Invulnerable save</span>
+          <span className="figure text-2xl leading-none font-semibold">{invulnerable}</span>
         </div>
       ) : null}
     </section>
@@ -376,9 +375,9 @@ export function ProfileTable({
   return (
     <section data-onboarding={onboarding}>
       <SectionHeading title={title} count={groups.length} />
-      <div className="overflow-x-auto border border-edge bg-panel">
+      <div className="overflow-x-auto part">
         <table className="w-full min-w-max text-left text-sm">
-          <thead className="eyebrow border-b border-edge bg-raised">
+          <thead className="eyebrow border-b border-edge">
             <tr>
               <th className="px-3 py-2">Name</th>
               {columns.map(({ key, characteristic }) => (
@@ -396,7 +395,7 @@ export function ProfileTable({
             >
               {group.length > 1 ? (
                 <tr>
-                  <th colSpan={columns.length + 1} className="bg-raised/50 px-3 py-2">
+                  <th colSpan={columns.length + 1} className="px-3 py-2">
                     <span className="font-semibold uppercase">{weaponProfileGroupName(group)}</span>
                     <span className="ml-3 text-xs font-normal text-faint">{group.length} profiles</span>
                   </th>
@@ -405,9 +404,7 @@ export function ProfileTable({
               {group.map((profile) => (
                 <tr id={`profile-${profile.id}`} key={profile.id}>
                   <th
-                    className={
-                      group.length > 1 ? 'border-l-2 border-edge-strong py-2 pr-3 pl-10 font-normal text-dim' : 'px-3 py-2 font-semibold'
-                    }
+                    className={group.length > 1 ? 'border-l border-runner py-2 pr-3 pl-10 font-normal text-dim' : 'px-3 py-2 font-semibold'}
                   >
                     <ReferenceAnchors prefix="profile" ids={(anchorIds.get(profile.id) ?? []).filter((id) => id !== profile.id)} />
                     {group.length > 1 ? weaponProfileMode(profile, group) : profile.name}
@@ -415,7 +412,7 @@ export function ProfileTable({
                   {columns.map((column) => {
                     const value = profileTableValue(profile, column)
                     return (
-                      <td key={column.key} className="readout px-3 py-2 text-center text-dim">
+                      <td key={column.key} className="readout px-3 py-2 text-center text-bone">
                         {datasheetCharacteristicKindOf(column.characteristic) === 'keywords' && value?.value ? (
                           <KeywordList value={value.value} rules={keywordRules} className="text-bone" />
                         ) : (
@@ -453,7 +450,7 @@ export function TransportReference({
     <section>
       {anchors}
       <SectionHeading title="Transport" />
-      <div className="border border-edge bg-panel p-3">
+      <div className="part p-3">
         <RuleText text={shown} rules={rules} className="mt-0" />
       </div>
     </section>

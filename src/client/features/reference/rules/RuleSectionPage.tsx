@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link, useLocation } from '@tanstack/react-router'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
-import { useEffect } from 'react'
+import { useEffect, useSyncExternalStore } from 'react'
 import type { RuleEntry, RuleSection } from '../../../../contracts/rules'
 import { type RuleLinks, ruleLinks } from '../../../ruleLinks'
 import { ruleIndexQuery, ruleSectionQuery } from '../../../queries'
@@ -12,6 +12,7 @@ import { PageContent, PageHeader } from '../../../components/Page'
 import { useRuleText } from '../../../rulesText'
 import { RulesTextNotice } from './RulesTextNotice'
 import { revealHashTarget } from '../../../hashTarget'
+import { BackLink } from '../BackLink'
 
 /**
  * One section of one rules document, which is as much as anybody reads at a time.
@@ -34,6 +35,9 @@ export function RuleSectionPage({ documentId, sectionId }: { documentId: string;
   useEffect(() => {
     if (shown) revealHashTarget(hash)
   }, [hash, shown])
+  // The server never sees the address's hash, so the rule it names is gated once the page is in the browser;
+  // `hash` above re-renders this on in-app navigation, which fires no event.
+  const target = useSyncExternalStore(subscribeToHash, currentHash, noHash)
   if (!data || !index || !shown) return null
 
   const sections = index.documents.find((candidate) => candidate.slug === documentId)?.sections ?? []
@@ -44,33 +48,29 @@ export function RuleSectionPage({ documentId, sectionId }: { documentId: string;
 
   return (
     <main className="w-full">
-      <PageHeader
-        eyebrow={
-          <Link to="/rules/$documentId" params={{ documentId }} className="text-info hover:text-bone">
-            {data.document.title}
-          </Link>
-        }
-        title={shown.title}
-      />
-      <PageContent className="space-y-6">
+      <PageHeader title={shown.title} />
+      <PageContent className="space-y-6 *:max-w-3xl">
+        <BackLink to="/rules/$documentId" params={{ documentId }}>
+          {data.document.title}
+        </BackLink>
         <RulesTextNotice text={data.document.text} state={text} />
-        <div className="space-y-5">
+        <div className="runner gap-2.5 [--gate-y:1.5rem]">
           {shown.entries.map((entry) => (
-            <Rule key={entry.anchor} entry={entry} links={links} missing={missing} />
+            <Rule key={entry.anchor} entry={entry} links={links} missing={missing} current={target === entry.anchor} />
           ))}
         </div>
-        <nav className="flex items-stretch justify-between gap-2 border-t border-edge pt-4">
+        <nav className="flex items-stretch justify-between gap-2">
           {[sections[at - 1], sections[at + 1]].map((section, side) =>
             section ? (
               <Link
                 key={section.id}
                 to="/rules/$documentId/$sectionId"
                 params={{ documentId, sectionId: section.slug }}
-                className={`flex min-w-0 items-center gap-1 text-sm text-info hover:text-bone ${side ? 'ml-auto text-right' : ''}`}
+                className={`flex min-h-11 min-w-0 items-center gap-1 part px-3 py-2 text-sm font-semibold transition-colors hover:border-runner hover:bg-raised ${side ? 'ml-auto text-right' : ''}`}
               >
-                {side ? null : <ChevronLeft className="size-3.5 shrink-0" aria-hidden />}
+                {side ? null : <ChevronLeft className="size-3.5 shrink-0 text-dim" aria-hidden />}
                 <span className="truncate">{section.title}</span>
-                {side ? <ChevronRight className="size-3.5 shrink-0" aria-hidden /> : null}
+                {side ? <ChevronRight className="size-3.5 shrink-0 text-dim" aria-hidden /> : null}
               </Link>
             ) : null,
           )}
@@ -79,6 +79,13 @@ export function RuleSectionPage({ documentId, sectionId }: { documentId: string;
     </main>
   )
 }
+
+const subscribeToHash = (onChange: () => void) => {
+  window.addEventListener('hashchange', onChange)
+  return () => window.removeEventListener('hashchange', onChange)
+}
+const currentHash = () => decodeURIComponent(window.location.hash.slice(1))
+const noHash = () => ''
 
 function withText(outline: RuleSection, loaded: RuleSection): RuleSection {
   const texts = new Map(loaded.entries.map((entry) => [entry.id, entry]))
@@ -91,12 +98,16 @@ function withText(outline: RuleSection, loaded: RuleSection): RuleSection {
   }
 }
 
-function Rule({ entry, links, missing }: { entry: RuleEntry; links: RuleLinks; missing: MissingText }) {
+function Rule({ entry, links, missing, current }: { entry: RuleEntry; links: RuleLinks; missing: MissingText; current: boolean }) {
   return (
-    <article id={entry.anchor} className="scroll-mt-header border border-edge bg-panel p-3 sm:p-4">
-      <div className="flex flex-wrap items-baseline gap-2">
-        {entry.code ? <span className="chip readout">{entry.code}</span> : null}
-        <h2 className="text-xl">{entry.title}</h2>
+    <article
+      id={entry.anchor}
+      data-gate={current ? 'current' : undefined}
+      className={`scroll-mt-header part p-3 sm:p-4 ${current ? 'border-parchment' : ''}`}
+    >
+      <div className="flex flex-wrap items-center gap-2">
+        {entry.code ? <span className={`part-tag ${current ? 'bg-parchment text-parchment-ink' : ''}`}>{entry.code}</span> : null}
+        <h2 className="text-lg sm:text-xl">{entry.title}</h2>
         {entry.cost === null ? null : <span className="chip readout">{entry.cost} CP</span>}
       </div>
       {missing ? <SourceTextPrompt missing={missing} source="game-datacards" className="mt-2" /> : null}
@@ -129,7 +140,7 @@ function Rule({ entry, links, missing }: { entry: RuleEntry; links: RuleLinks; m
             <div
               key={key}
               id={block.anchor ?? undefined}
-              className="mt-3 flex scroll-mt-header items-center gap-2 border border-edge bg-sunken px-3 py-2"
+              className="mt-3 flex scroll-mt-header items-center gap-2 rounded-lg border border-edge bg-sunken px-3 py-2"
             >
               {block.code ? <span className="readout shrink-0 text-xs text-faint">{block.code}</span> : null}
               <span className="min-w-0 flex-1 text-sm font-semibold text-bone">{block.title}</span>
@@ -137,7 +148,7 @@ function Rule({ entry, links, missing }: { entry: RuleEntry; links: RuleLinks; m
           )
         }
         return (
-          <details key={key} id={block.anchor ?? undefined} className="group mt-3 scroll-mt-header border border-edge bg-sunken">
+          <details key={key} id={block.anchor ?? undefined} className="group mt-3 scroll-mt-header rounded-lg border border-edge bg-sunken">
             <summary className="flex cursor-pointer items-center gap-2 px-3 py-2 hover:bg-raised">
               {block.code ? <span className="readout shrink-0 text-xs text-faint">{block.code}</span> : null}
               <span className="min-w-0 flex-1 text-sm font-semibold text-bone">{block.title}</span>

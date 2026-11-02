@@ -101,7 +101,7 @@ export function ReminderEditorDialog({
 
           <DialogBody>
             {draft.description ? (
-              <div className="max-h-40 overflow-y-auto border border-edge bg-sunken p-3 text-xs">
+              <div className="max-h-40 overflow-y-auto rounded-lg border border-edge bg-sunken p-3 text-xs">
                 <RuleText text={draft.description} rules={[]} />
               </div>
             ) : null}
@@ -112,7 +112,7 @@ export function ReminderEditorDialog({
                 const roundTiming = timing.moment === 'round-start' || timing.moment === 'round-end'
                 const prefix = `${id}-${index}`
                 return (
-                  <div key={timing.id} className="border border-edge bg-card p-3">
+                  <div key={timing.id} className="part p-3">
                     <div className="mb-2 flex items-center justify-between">
                       <p className="eyebrow">Trigger {index + 1}</p>
                       {timings.length > 1 ? (

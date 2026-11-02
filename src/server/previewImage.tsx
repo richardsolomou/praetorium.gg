@@ -15,14 +15,37 @@ const RENDERS_AT_ONCE = 2
 const RENDERS_WAITING = 16
 
 const COLOR = {
-  void: '#0e1316',
+  void: '#0f1113',
+  panel: '#141a1e',
   edge: '#28323a',
+  runner: '#3a4650',
   bone: '#e7ece9',
   dim: '#a6b0ae',
   faint: '#86918f',
   parchment: '#9bd0a9',
   sides: ['#f57a7a', '#5fc8ea'],
+  sideInks: ['#2b0505', '#021c27'],
 } as const
+
+/**
+ * The interface's construction grid at its 64px majors, drawn as plain 1px rules: as background gradients the
+ * rasteriser tiles them and a card takes several times longer.
+ */
+const GRID_LINE = 'rgba(231,236,233,0.06)'
+const GRID_LINES = [
+  ...Array.from({ length: Math.floor(PREVIEW_SIZE.width / 64) }, (_, at) => ({
+    left: (at + 1) * 64,
+    top: 0,
+    width: 1,
+    height: PREVIEW_SIZE.height,
+  })),
+  ...Array.from({ length: Math.floor(PREVIEW_SIZE.height / 64) }, (_, at) => ({
+    left: 0,
+    top: (at + 1) * 64,
+    width: PREVIEW_SIZE.width,
+    height: 1,
+  })),
+]
 
 /**
  * Satori draws only static faces, so the card uses the interface fonts' static instances. Fontsource splits a
@@ -139,10 +162,14 @@ function Frame({ card }: { card: PreviewCard }) {
         flexDirection: 'column',
         padding: '52px 64px',
         backgroundColor: COLOR.void,
+        position: 'relative',
         color: COLOR.bone,
         fontFamily: `${FAMILY}, ${EXTENDED}`,
       }}
     >
+      {GRID_LINES.map((line) => (
+        <div key={`${line.left}-${line.top}`} style={{ position: 'absolute', ...line, backgroundColor: GRID_LINE }} />
+      ))}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
           <img src={LOGO} width={56} height={56} alt="" />
@@ -151,13 +178,35 @@ function Frame({ card }: { card: PreviewCard }) {
           </span>
         </div>
         {label ? (
-          <span style={{ fontSize: 26, fontWeight: 700, letterSpacing: 4, textTransform: 'uppercase', color: COLOR.parchment }}>
+          <span
+            style={{
+              fontSize: 24,
+              fontWeight: 700,
+              letterSpacing: 3,
+              textTransform: 'uppercase',
+              color: COLOR.parchment,
+              border: `2px solid ${COLOR.runner}`,
+              borderRadius: 12,
+              padding: '6px 16px',
+            }}
+          >
             {label}
           </span>
         ) : null}
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', flexGrow: 1, justifyContent: 'center' }}>
-        <Body card={card} />
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            padding: '44px 52px',
+            backgroundColor: COLOR.panel,
+            border: `2px solid ${COLOR.edge}`,
+            borderRadius: 32,
+          }}
+        >
+          <Body card={card} />
+        </div>
       </div>
     </div>
   )
@@ -170,8 +219,8 @@ function Body({ card }: { card: PreviewCard }) {
   if (card.kind === 'reference') return <Headline title={card.name} lead={card.faction} detail={null} figure={card.points} />
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 56 }}>
-      <img src={LOGO} width={220} height={220} alt="" />
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 20, width: 700 }}>
+      <img src={LOGO} width={168} height={168} alt="" />
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 20, width: 760 }}>
         <span style={{ display: 'block', lineClamp: 3, fontSize: 64, fontWeight: 700, lineHeight: 1.05 }}>{card.title}</span>
         <span style={{ display: 'block', lineClamp: 3, fontSize: 36, fontWeight: 500, color: COLOR.dim }}>{card.description}</span>
       </div>
@@ -181,7 +230,7 @@ function Body({ card }: { card: PreviewCard }) {
 
 function Headline({ title, lead, detail, figure }: { title: string; lead: string | null; detail: string | null; figure: string | null }) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14, borderLeft: `8px solid ${COLOR.parchment}`, paddingLeft: 36 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       <span style={{ display: 'block', lineClamp: 2, fontSize: 84, fontWeight: 700, lineHeight: 1.05 }}>{title}</span>
       {lead ? <span style={{ ...clip, fontSize: 38, fontWeight: 500 }}>{lead}</span> : null}
       {detail ? <span style={{ ...clip, fontSize: 38, fontWeight: 500, color: COLOR.dim }}>{detail}</span> : null}
@@ -199,10 +248,16 @@ function Battle({ card }: { card: BattleCard }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 34 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <Side side={left} index={0} />
-        <div style={{ display: 'flex', justifyContent: 'center', width: 280 }}>
-          <span style={{ fontSize: scored ? 88 : 60, fontWeight: 700, lineHeight: 1 }}>
-            {scored ? `${left?.score ?? 0}–${right?.score ?? 0}` : 'vs'}
-          </span>
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'baseline', width: 236 }}>
+          {scored ? (
+            <>
+              <span style={{ fontSize: 88, fontWeight: 700, lineHeight: 1, color: COLOR.sides[0] }}>{left?.score ?? 0}</span>
+              <span style={{ fontSize: 60, fontWeight: 700, lineHeight: 1, color: COLOR.faint, padding: '0 10px' }}>–</span>
+              <span style={{ fontSize: 88, fontWeight: 700, lineHeight: 1, color: COLOR.sides[1] }}>{right?.score ?? 0}</span>
+            </>
+          ) : (
+            <span style={{ fontSize: 60, fontWeight: 700, lineHeight: 1, color: COLOR.faint }}>vs</span>
+          )}
         </div>
         <Side side={right} index={1} />
       </div>
@@ -237,19 +292,36 @@ function Side({ side, index }: { side: BattleCard['sides'][number] | undefined; 
         display: 'flex',
         flexDirection: 'column',
         gap: pair ? 18 : 8,
-        width: 396,
+        width: 380,
         boxSizing: 'border-box',
-        [index === 0 ? 'borderLeft' : 'borderRight']: `8px solid ${COLOR.sides[index]}`,
-        padding: '4px 28px',
+        alignItems: index === 0 ? 'flex-start' : 'flex-end',
       }}
     >
+      <span
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          height: 40,
+          minWidth: 56,
+          padding: '0 14px',
+          borderRadius: 20,
+          backgroundColor: COLOR.sides[index],
+          color: COLOR.sideInks[index],
+          fontFamily: WORDMARK,
+          fontSize: 24,
+          fontWeight: 700,
+        }}
+      >
+        {index === 0 ? 'A' : 'B'}
+      </span>
       {armies.map((army) => (
         <div key={army.player} style={{ display: 'flex', flexDirection: 'column', alignItems: index === 0 ? 'flex-start' : 'flex-end' }}>
           {/* A pair shares the height one player has, so each of them keeps to a line. */}
           <span
             style={{
               ...(pair ? clip : { display: 'block', lineClamp: 2, textAlign: align }),
-              maxWidth: 340,
+              maxWidth: 380,
               fontSize: pair ? 40 : 52,
               fontWeight: 700,
               lineHeight: 1.05,
@@ -258,7 +330,7 @@ function Side({ side, index }: { side: BattleCard['sides'][number] | undefined; 
             {army.player}
           </span>
           {army.faction ? (
-            <span style={{ ...clip, maxWidth: 340, fontSize: pair ? 28 : 34, fontWeight: 500, color: COLOR.dim }}>{army.faction}</span>
+            <span style={{ ...clip, maxWidth: 380, fontSize: pair ? 28 : 34, fontWeight: 500, color: COLOR.dim }}>{army.faction}</span>
           ) : null}
         </div>
       ))}

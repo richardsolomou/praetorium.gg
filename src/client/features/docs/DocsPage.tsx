@@ -71,7 +71,7 @@ function Screenshot({ src, alt, caption }: { src: unknown; alt: string; caption?
             <button
               type="button"
               aria-label={`Enlarge screenshot: ${alt}`}
-              className="block w-fit max-w-full cursor-zoom-in border border-edge bg-sunken p-2 transition-colors hover:border-edge-strong"
+              className="block w-fit max-w-full cursor-zoom-in rounded-lg border border-edge bg-sunken p-2 transition-colors hover:border-edge-strong"
             />
           }
         >
@@ -120,10 +120,10 @@ const components: Components = {
     node?.children.length === 1 && node.children[0]?.type === 'element' && node.children[0].tagName === 'img' ? (
       children
     ) : (
-      <p className="my-4 leading-relaxed text-dim">{children}</p>
+      <p className="my-4 leading-[1.65] text-bone/80">{children}</p>
     ),
-  ul: ({ children }) => <ul className="my-4 list-disc space-y-2 pl-5 leading-relaxed text-dim marker:text-faint">{children}</ul>,
-  ol: ({ children }) => <ol className="my-4 list-decimal space-y-2 pl-5 leading-relaxed text-dim marker:text-faint">{children}</ol>,
+  ul: ({ children }) => <ul className="my-4 list-[square] space-y-2 pl-5 leading-[1.65] text-bone/80 marker:text-runner-hi">{children}</ul>,
+  ol: ({ children }) => <ol className="my-4 list-decimal space-y-2 pl-5 leading-[1.65] text-bone/80 marker:text-dim">{children}</ol>,
   li: ({ children }) => <li className="pl-1 [&>ol]:mt-2 [&>ul]:mt-2">{children}</li>,
   strong: ({ children }) => <strong className="font-semibold text-bone">{children}</strong>,
   a: ({ href, children }) =>
@@ -138,12 +138,12 @@ const components: Components = {
     ),
   img: ({ src, alt, title }) => <Screenshot src={src} alt={alt ?? ''} caption={title} />,
   pre: ({ children }) => (
-    <pre className="my-4 overflow-x-auto border border-edge bg-sunken px-4 py-3 text-sm text-bone [&_code]:bg-transparent [&_code]:p-0">
+    <pre className="my-4 overflow-x-auto rounded-lg border border-edge bg-sunken px-4 py-3 text-sm text-bone [&_code]:bg-transparent [&_code]:p-0">
       {children}
     </pre>
   ),
   code: ({ children }) => <code className="rounded-sm bg-raised px-1 py-px text-[0.9em] text-bone">{children}</code>,
-  blockquote: ({ children }) => <blockquote className="my-5 border border-edge bg-panel px-4 py-1 [&_p]:text-bone">{children}</blockquote>,
+  blockquote: ({ children }) => <blockquote className="my-5 part px-4 py-1 [&_p]:text-bone">{children}</blockquote>,
 }
 
 /** Each symptom under Common problems reads as an entry in a list of fixes rather than another topic. */
@@ -171,14 +171,14 @@ export function DocsPage() {
   const [query, setQuery] = useState('')
   return (
     <main className="w-full">
-      <PageHeader eyebrow="Help" title="Docs" description="How Praetorium works, what it checks and where its limits are.">
+      <PageHeader title="Docs" description="How Praetorium works, what it checks and where its limits are.">
         <DocsSearchField value={query} onChange={setQuery} />
       </PageHeader>
       <PageContent className="space-y-6 pt-6">
         {query.trim() ? (
           <DocsSearchResults query={query} />
         ) : (
-          <ul aria-label="Docs" className="grid gap-px border border-edge bg-edge md:grid-cols-2 lg:grid-cols-3">
+          <ul aria-label="Docs" className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
             {bySection().map(({ section, docs }) => (
               <AreaTile key={section} section={section} docs={docs} />
             ))}
@@ -201,27 +201,32 @@ function AreaTile({ section, docs }: { section: (typeof DOC_SECTIONS)[number]; d
   const topics = docs.filter((doc) => !troubleshooting(doc))
   const fixes = docs.find(troubleshooting)
   return (
-    <li className="flex flex-col bg-panel p-5">
-      <h2 className="flex items-center gap-2.5 text-xl">
-        <Icon className="size-5 shrink-0 text-info" aria-hidden />
-        {section}
-      </h2>
-      <p className="mt-2 text-sm leading-relaxed text-dim">{summary}</p>
-      <ol aria-label={`${section} docs`} className="mt-4 border-t border-edge pt-3 text-[0.9375rem]">
-        {topics.map((doc) => (
-          <li key={doc.slug}>
-            <Link
-              to="/docs/$docId"
-              params={{ docId: doc.slug }}
-              className="group flex items-center justify-between gap-3 py-1.5 text-bone transition-colors hover:text-parchment"
-            >
-              {doc.title}
-              <ChevronRight className="size-4 shrink-0 text-faint transition-colors group-hover:text-parchment" aria-hidden />
-            </Link>
-          </li>
-        ))}
-      </ol>
-      <div className="mt-auto flex flex-wrap items-center justify-between gap-x-4 gap-y-2 pt-4">
+    <li className="part flex flex-col overflow-hidden">
+      <div className="flex flex-1 flex-col px-4 pt-4">
+        <h2 className="flex items-center gap-2.5 text-xl">
+          <Icon className="size-5 shrink-0 text-parchment" aria-hidden />
+          {section}
+        </h2>
+        <p className="mt-2 text-sm leading-relaxed text-dim">{summary}</p>
+        <ol aria-label={`${section} docs`} className="mt-3 divide-y divide-edge border-t border-edge pb-3 text-[0.9375rem]">
+          {topics.map((doc, at) => (
+            <li key={doc.slug}>
+              <Link
+                to="/docs/$docId"
+                params={{ docId: doc.slug }}
+                className="group flex min-h-10 items-center gap-3 py-2 text-bone transition-colors hover:text-parchment"
+              >
+                <span className="part-tag part-tag-ghost" aria-hidden>
+                  {at + 1}
+                </span>
+                <span className="min-w-0 flex-1">{doc.title}</span>
+                <ChevronRight className="size-4 shrink-0 text-faint transition-colors group-hover:text-parchment" aria-hidden />
+              </Link>
+            </li>
+          ))}
+        </ol>
+      </div>
+      <div className="flex min-h-12 flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-edge bg-sunken/40 px-4 py-2.5">
         {fixes ? (
           <Link
             to="/docs/$docId"
@@ -233,7 +238,7 @@ function AreaTile({ section, docs }: { section: (typeof DOC_SECTIONS)[number]; d
           </Link>
         ) : null}
         {action ? (
-          <Link to={action.to} className="eyebrow inline-flex items-center gap-1.5 text-info hover:text-parchment">
+          <Link to={action.to} className="ml-auto inline-flex items-center gap-1.5 text-sm font-semibold text-bone hover:text-parchment">
             {action.label}
             <ArrowRight className="size-3.5" aria-hidden />
           </Link>
@@ -251,7 +256,6 @@ export function DocPage({ doc }: { doc: ProductDoc }) {
   return (
     <main className="w-full">
       <PageHeader
-        eyebrow={doc.section}
         title={doc.title}
         description={doc.description}
         actions={
@@ -269,7 +273,7 @@ export function DocPage({ doc }: { doc: ProductDoc }) {
             aria-label="Docs"
             className="sticky top-[calc(var(--app-header)+1.5rem)] max-h-[calc(100dvh-var(--app-header)-3rem)] overflow-y-auto pr-2 text-sm"
           >
-            <Link to="/docs" className="eyebrow text-info hover:text-parchment">
+            <Link to="/docs" className="eyebrow text-bone hover:text-parchment">
               All docs
             </Link>
             {bySection().map(({ section, docs }) => (
@@ -294,7 +298,7 @@ export function DocPage({ doc }: { doc: ProductDoc }) {
           </nav>
         </aside>
         <div className="min-w-0">
-          <Link to="/docs" className="eyebrow mb-6 inline-flex items-center gap-1.5 text-info hover:text-parchment md:hidden">
+          <Link to="/docs" className="eyebrow mb-6 inline-flex items-center gap-1.5 text-bone hover:text-parchment md:hidden">
             <ArrowLeft className="size-3.5" aria-hidden />
             All docs
           </Link>
@@ -337,7 +341,7 @@ function Pager({ doc, label, alignEnd, children }: { doc: ProductDoc; label: str
     <Link
       to="/docs/$docId"
       params={{ docId: doc.slug }}
-      className={`group block border border-edge bg-panel px-4 py-3 transition-colors hover:border-edge-strong ${alignEnd ? 'sm:text-right' : ''}`}
+      className={`group block part px-4 py-3 transition-colors hover:border-runner-hi ${alignEnd ? 'sm:text-right' : ''}`}
     >
       <span className={`eyebrow flex items-center gap-1.5 text-faint ${alignEnd ? 'sm:justify-end' : ''}`}>
         {alignEnd ? null : children}

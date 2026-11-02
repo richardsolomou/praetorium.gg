@@ -36,7 +36,7 @@ export function SealedEventRosterSharing({ token, eventToken, userId }: { token:
     <section
       data-sealed-event-sharing
       aria-label="Roster sharing"
-      className="mb-6 flex flex-col gap-3 border border-info/30 border-l-2 border-l-info bg-info/5 p-4 md:flex-row md:items-center md:gap-6"
+      className="mb-6 flex flex-col gap-3 part border-info/40 p-4 md:flex-row md:items-center md:gap-6"
     >
       <div className="flex min-w-0 flex-1 gap-3">
         <Info className="mt-0.5 size-5 shrink-0 text-info" aria-hidden />

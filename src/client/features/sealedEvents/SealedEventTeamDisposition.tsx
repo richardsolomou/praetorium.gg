@@ -31,7 +31,7 @@ export function TeamDispositionPanel({
   const cards = team.choices.flatMap((id) => nameDisposition(id) ?? [])
   if (!cards.length) return null
   return (
-    <section data-team-disposition aria-labelledby="team-disposition" className="border border-edge bg-panel p-4">
+    <section data-team-disposition aria-labelledby="team-disposition" className="part p-4">
       <SectionHeading id="team-disposition" title="Team Force Disposition" className="mb-0" />
       <p className="mt-1 text-xs text-dim">
         {team.disposition

@@ -20,7 +20,7 @@ export function CollectionCard({
   description?: ReactNode
 }) {
   return (
-    <li {...props} className="@container/card flex flex-col gap-2 border border-edge bg-sunken/60 p-2">
+    <li {...props} className="@container/card flex flex-col gap-2 rounded-lg border border-edge bg-sunken/60 p-2">
       <div className="flex flex-wrap items-center gap-2">
         {photo ??
           (sheet?.presentation ? (

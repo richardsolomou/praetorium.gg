@@ -739,7 +739,6 @@ describe('secondaries', () => {
 
     for (const viewer of [ALICE, BOB]) {
       const view = battleView({ token: 'abc' }, NAMES, state, viewer)
-      expect(view.advancePrompt).toBe('The active side has a secret mission to reveal or discard.')
       expect(view.secretMissionActionPlayerId).toBe(ALICE)
     }
   })
@@ -1099,51 +1098,6 @@ describe('secondaries', () => {
     const player = battleView({ token: 'abc' }, NAMES, state, ALICE).players[0]
     expect(player?.secondary).toBe(5)
     expect(player?.rounds[0]?.secondary).toBe(5)
-  })
-
-  it('prompts before passing a turn with an unresolved active mission', () => {
-    const state = reduceBattle(
-      PLAYERS,
-      log(
-        ...started(),
-        [
-          ALICE,
-          {
-            kind: 'set-prep',
-            stratagems: [],
-            primary: null,
-            secondaryMode: 'tactical',
-            secondaries: [{ key: 'a', name: 'Bring It Down' }],
-          },
-        ],
-        ...turns(5, ALICE),
-      ),
-    )
-    expect(battleView({ token: 'abc' }, NAMES, state, ALICE).advancePrompt).toContain('Bring It Down')
-  })
-
-  it('prompts again when an active mission has not scored this round', () => {
-    const state = reduceBattle(
-      PLAYERS,
-      log(
-        ...started(),
-        [
-          ALICE,
-          {
-            kind: 'set-prep',
-            stratagems: [],
-            primary: null,
-            secondaryMode: 'tactical',
-            secondaries: [{ key: 'a', name: 'Bring It Down' }],
-          },
-        ],
-        [ALICE, { kind: 'score-secondary', key: 'a', delta: 5 }],
-        ...turns(6, ALICE),
-        ...turns(6, BOB),
-        ...turns(5, ALICE),
-      ),
-    )
-    expect(battleView({ token: 'abc' }, NAMES, state, ALICE).advancePrompt).toContain('Bring It Down')
   })
 
   it('take over from the undifferentiated pile once named', () => {

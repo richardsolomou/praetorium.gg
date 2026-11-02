@@ -26,7 +26,7 @@ export function GithubSupporter() {
   if (!status?.available) return null
   const { linked } = status
   return (
-    <div data-github-supporter className="space-y-2 border-l-2 border-info/40 py-1 pl-3">
+    <div data-github-supporter className="space-y-2 rounded-lg border border-edge bg-sunken px-3 py-2.5">
       <div className="flex items-center gap-2">
         {linked ? (
           <Tooltip>

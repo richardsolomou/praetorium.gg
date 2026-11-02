@@ -379,7 +379,6 @@ describe('the turn sequence', () => {
 
     expect(validate(state, BOB, { kind: 'request-advance', playerId: ALICE })).toBe('draw every card owed before ending the command phase')
     expect(validate(state, BOB, { kind: 'advance', playerId: ALICE })).toBe('draw every card owed before ending the command phase')
-    expect(battleView({ token: 'abc' }, NAMES, state, BOB).advancePrompt).toBe('The active side has secondary missions to draw.')
   })
 
   it('holds the command phase until the previous turn is settled', () => {
@@ -387,11 +386,12 @@ describe('the turn sequence', () => {
     const pending = reduceBattle(PLAYERS, history)
 
     expect(validate(pending, ALICE, { kind: 'advance', playerId: BOB })).toBe('settle the previous turn before ending the command phase')
-    expect(battleView({ token: 'abc' }, NAMES, pending, ALICE).advancePrompt).toBe('The previous turn is still to be settled.')
     expect(validate(pending, BOB, { kind: 'settle-opponent-turn' })).toBeNull()
 
     const settled = reduceBattle(PLAYERS, log(...started(), ...turns(6, ALICE), [BOB, { kind: 'settle-opponent-turn' }]))
-    expect(battleView({ token: 'abc' }, NAMES, settled, ALICE).advancePrompt).toBeNull()
+    expect(validate(settled, ALICE, { kind: 'advance', playerId: BOB })).not.toBe(
+      'settle the previous turn before ending the command phase',
+    )
   })
 
   it('shows pending opponent-turn scoring and its owner to every seated player', () => {
@@ -525,7 +525,6 @@ describe('the turn sequence', () => {
 
     expect(validate(state, BOB, { kind: 'request-advance', playerId: ALICE })).toBeNull()
     expect(validate(state, BOB, { kind: 'advance', playerId: ALICE })).toBe('reveal or discard the secret mission before ending the turn')
-    expect(battleView({ token: 'abc' }, NAMES, state, BOB).advancePrompt).toBe('The active side has a secret mission to reveal or discard.')
     expect(battleView({ token: 'abc' }, NAMES, state, BOB).players[0]?.secondaries[0]?.name).toBe('Secret mission')
   })
 

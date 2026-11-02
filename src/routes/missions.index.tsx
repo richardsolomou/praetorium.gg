@@ -25,7 +25,6 @@ function Missions() {
   return (
     <FullPageState
       loading={!data}
-      eyebrow="Missions"
       title={data ? 'No missions available' : 'Loading mission data'}
       explanation={data ? 'No missions are available right now.' : 'Missions, deployments and terrain will be available shortly.'}
     />

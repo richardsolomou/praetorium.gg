@@ -33,7 +33,7 @@ export function ReminderDialog({
 
         <DialogBody className="gap-2">
           {groups.map(({ reminder, members, units }) => (
-            <article key={reminder.key} className="border border-edge bg-card p-3">
+            <article key={reminder.key} className="part p-3">
               <div className="flex items-start justify-between gap-3">
                 <h3 className="text-sm font-semibold text-bone">{reminder.ability}</h3>
                 <DropdownMenu>

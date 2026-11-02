@@ -1,5 +1,5 @@
 import { Link } from '@tanstack/react-router'
-import { Calculator, Eye } from 'lucide-react'
+import { Calculator, Eye, Lock, LockOpen } from 'lucide-react'
 import type { ReactElement, ReactNode } from 'react'
 import { buttonClass } from '../../components/buttonClass'
 import { Button } from '@/components/ui/button'
@@ -15,45 +15,69 @@ export function EntrantRow({
   entry,
   label,
   detail,
+  sealing = false,
   sample = false,
   children,
 }: {
   entry: SealedEventEntryView
   label: string
   detail: ReactNode
+  /** Before the reveal: a sealed roster shows as a sealed part, and a player still owing one hangs off a dashed gate. */
+  sealing?: boolean
   /** A made-up player in the sample tournament, who has no profile to open. */
   sample?: boolean
   children?: ReactNode
 }) {
+  const sealed = sealing && entry.submitted
+  // A seal status is short enough to sit beside the name on a phone.
+  const basis = sealing ? 'basis-28' : 'basis-44'
   const person = (
     <>
       <PlayerAvatar name={entry.name} image={entry.image} className="size-9 text-xs" />
       <span className="min-w-0">
         <span className="block truncate font-bold uppercase group-hover:underline">{label}</span>
-        <span className="block text-xs text-dim">{detail}</span>
+        {sealing ? null : <span className="block text-xs text-dim">{detail}</span>}
       </span>
     </>
   )
+  const status = !sealing ? null : sealed ? (
+    <span className="inline-flex shrink-0 items-center gap-1 rounded-md border border-dashed border-parchment/60 px-1.5 py-px text-xs font-semibold text-parchment">
+      <Lock className="size-3" aria-hidden /> {detail}
+    </span>
+  ) : (
+    <span className="inline-flex shrink-0 items-center gap-1 text-xs text-faint">
+      <LockOpen className="size-3" aria-hidden /> {detail}
+    </span>
+  )
   return (
-    <div data-person={entry.name} className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2 p-3">
+    <div
+      data-person={entry.name}
+      data-gate={entry.status === 'rejected' ? 'cut' : sealing && !entry.submitted ? 'pending' : undefined}
+      className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2 part p-3"
+    >
       {sample ? (
-        <div className="flex min-w-0 flex-1 basis-44 items-center gap-3">{person}</div>
+        <div className={`flex min-w-0 flex-1 items-center gap-3 ${basis}`}>{person}</div>
       ) : (
         <Link
           to="/users/$userId"
           params={{ userId: entry.userId }}
-          className="group flex min-w-0 flex-1 basis-44 items-center gap-3 hover:text-info"
+          className={`group flex min-w-0 flex-1 items-center gap-3 hover:text-info ${basis}`}
         >
           {person}
         </Link>
       )}
-      {children ? <div className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-1.5">{children}</div> : null}
+      {status || children ? (
+        <div className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-1.5">
+          {status}
+          {children}
+        </div>
+      ) : null}
     </div>
   )
 }
 
 export function EntrantList({ children }: { children: ReactNode }) {
-  return <div className="divide-y divide-edge border border-edge bg-panel">{children}</div>
+  return <div className="runner gap-2 [--gate-y:1.875rem]">{children}</div>
 }
 
 /** A labelled run of entrants inside a section, such as one side of a 2v1 or one doubles team. */

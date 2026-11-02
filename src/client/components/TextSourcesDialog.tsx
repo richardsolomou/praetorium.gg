@@ -24,7 +24,7 @@ export function TextSourceRow({
   const id = useId()
   const { name, repository, provides, licence } = TEXT_SOURCE_INFO[source]
   return (
-    <div className="flex items-start justify-between gap-4 border border-edge bg-sunken p-3 font-sans">
+    <div className="flex items-start justify-between gap-4 rounded-lg border border-edge bg-sunken p-3 font-sans">
       <div className="min-w-0">
         <label htmlFor={id} className="block text-sm font-semibold text-bone">
           {name}

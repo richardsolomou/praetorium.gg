@@ -27,7 +27,6 @@ export function CatalogueChangesPage({ before, faction }: { before?: string; fac
     <main className="w-full">
       <PageHeader
         tint={faction ? factionColour(faction.slug, faction.name) : undefined}
-        eyebrow="Updates"
         title={faction ? `${faction.name} data updates` : 'Data updates'}
         description={
           faction
@@ -44,7 +43,7 @@ export function CatalogueChangesPage({ before, faction }: { before?: string; fac
           </Link>
         ) : null}
         {updates?.length ? (
-          <div className="divide-y divide-edge border border-edge bg-panel">
+          <div className="divide-y divide-edge part">
             {updates.map((update) => (
               <Update key={update.anchor} update={update} named={!faction} />
             ))}
@@ -52,7 +51,6 @@ export function CatalogueChangesPage({ before, faction }: { before?: string; fac
         ) : (
           <PageState
             headingLevel={2}
-            eyebrow="Data updates"
             title={updates ? 'No updates yet' : 'Loading updates'}
             loading={!updates}
             icon={History}

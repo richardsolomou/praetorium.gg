@@ -6,9 +6,9 @@ export const pointsOver = (points: number | null | undefined, room: number | nul
 
 /** A price at a fixed width, so a column of them lines up; still loading while `points` is undefined, and nothing when null. */
 export function PointsChip({ points, over = null }: { points?: number | null; over?: number | null }) {
-  if (points === undefined) return <Skeleton className="h-5 w-[4.5rem] shrink-0" />
+  if (points === undefined) return <Skeleton className="h-5 w-16 shrink-0" />
   return points === null ? null : (
-    <span className={`chip w-[4.5rem] shrink-0 justify-center ${over === null ? 'text-info' : 'text-discarded'}`}>
+    <span className={`chip w-16 shrink-0 justify-center ${over === null ? 'text-info' : 'text-discarded'}`}>
       {points} pts
       {over === null ? null : <span className="sr-only">, {over} pts over the limit</span>}
     </span>

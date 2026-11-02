@@ -19,39 +19,38 @@ import { SOURCE } from '../../projectLinks'
  */
 export function HomeHero({ battle }: { battle?: Battle }) {
   return (
-    <section className="relative overflow-hidden border-b border-edge bg-masthead">
-      <div className="plot-grid" />
+    <section className="masthead-bleed relative overflow-hidden border-b border-edge bg-masthead">
+      <div className="construction-grid" />
       <div className="relative mx-auto grid w-full max-w-6xl gap-8 px-5 py-10 sm:px-6 md:py-16 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-center lg:gap-14">
         <div>
-          <p className="eyebrow mb-4 text-dim">Warhammer 40,000 army builder & battle tracker</p>
-          <h1 className="text-4xl leading-[0.9] sm:text-5xl lg:text-6xl">
+          <h1 className="text-[2.5rem] leading-[0.95] sm:text-6xl">
             Build your army.
-            <span className="block text-parchment">Test it. Play it.</span>
+            <span className="block">Track every game.</span>
           </h1>
-          <p className="mt-5 max-w-lg font-rules text-base text-dim sm:text-lg">
-            Build lists, test matchups and track battles with friends.
+          <p className="mt-5 max-w-xl font-rules text-base text-bone/85 sm:text-lg">
+            A free Warhammer 40,000 army builder, combat simulator and battle tracker.
           </p>
           {/*
             The builder leads because it needs no account. Sign in stays here because a
             signed-out player lands on this page, and offering them only sign-up is how
             they end up with a second account.
           */}
-          <div className="mt-6 flex flex-wrap items-center gap-x-3 gap-y-3 sm:mt-8">
-            <Link to="/rosters" className={buttonClass({ size: 'lg' })}>
-              Try the builder
+          <div className="mt-6 grid grid-cols-2 gap-3 sm:mt-8 sm:flex sm:flex-wrap sm:items-center">
+            <Link to="/rosters" className={buttonClass({ size: 'lg', className: 'col-span-2' })}>
+              Build an army
             </Link>
             <Link to="/sign-in" search={{ next: undefined, join: true }} className={buttonClass({ variant: 'outline', size: 'lg' })}>
-              Create an account
+              Create a free account
             </Link>
             <Link to="/sign-in" search={{ next: undefined }} className={buttonClass({ variant: 'ghost', size: 'lg' })}>
               Sign in
             </Link>
           </div>
           <p className="mt-4 text-sm text-faint">
-            Free and{' '}
+            No account needed. Free and{' '}
             <a
               href={SOURCE}
-              className="text-info underline-offset-4 hover:text-parchment hover:underline"
+              className="text-bone underline underline-offset-4 hover:text-parchment"
               rel="noreferrer noopener"
               target="_blank"
             >
@@ -84,7 +83,7 @@ function HeroBattle({ battle }: { battle: Battle }) {
       to="/battles/$token"
       params={{ token: battle.token }}
       data-home-featured
-      className="group relative block w-full max-w-md overflow-hidden border border-edge-strong bg-sunken shadow-[0_1.5rem_3rem_-1rem_rgba(0,0,0,0.6)] transition-colors hover:border-info hover:bg-raised"
+      className="group relative block w-full max-w-md overflow-hidden rounded-xl border border-edge bg-panel shadow-lifted transition-colors hover:border-runner-hi hover:bg-raised"
       aria-label={`Watch ${battle.players.join(' versus ')}`}
     >
       <span className="flex h-1" aria-hidden>
@@ -101,12 +100,12 @@ function HeroBattle({ battle }: { battle: Battle }) {
       </span>
       <HeroSide sideSummary={ours} score={a} side="a" />
       <span className="mx-5 flex items-center gap-3 text-2xs font-semibold tracking-eyebrow text-faint uppercase" aria-hidden>
-        <span className="h-px flex-1 bg-edge" />
+        <span className="h-0.5 flex-1 bg-[repeating-linear-gradient(90deg,var(--color-runner)_0_4px,transparent_4px_7px)]" />
         versus
-        <span className="h-px flex-1 bg-edge" />
+        <span className="h-0.5 flex-1 bg-[repeating-linear-gradient(90deg,var(--color-runner)_0_4px,transparent_4px_7px)]" />
       </span>
       <HeroSide sideSummary={theirs} score={b} side="b" />
-      <span className="flex items-center justify-between border-t border-edge px-5 py-3 text-xs font-semibold tracking-label text-info uppercase group-hover:text-parchment">
+      <span className="flex items-center justify-between border-t border-edge px-5 py-3 text-sm font-semibold text-bone/85 group-hover:text-parchment">
         Watch this battle
         <ChevronRight className="size-4 transition-transform group-hover:translate-x-0.5" aria-hidden />
       </span>
@@ -126,11 +125,11 @@ function HeroSide({ sideSummary, score, side }: { sideSummary?: SummarySide; sco
                 key={player.id || player.name}
                 name={player.name}
                 image={player.image}
-                className="size-8 border-2 border-sunken text-2xs"
+                className="size-8 border-2 border-panel text-2xs"
               />
             ))}
           </span>
-          <span className="min-w-0 text-lg leading-tight font-bold uppercase">
+          <span className="min-w-0 text-lg leading-tight font-bold">
             {seats.length ? (
               seats.map(({ player }) => (
                 <span key={player.id || player.name} className="block break-words">
@@ -160,10 +159,9 @@ function HeroSide({ sideSummary, score, side }: { sideSummary?: SummarySide; sco
 /** The slot when nothing is being played, keeping a wide hero the same height either way. */
 function HeroMark() {
   return (
-    <div className="hidden place-items-center border border-edge-strong bg-sunken p-10 lg:grid" aria-hidden>
-      <div className="relative grid size-40 place-items-center">
-        <div className="absolute inset-0 rotate-45 border border-parchment/25" />
-        <img src="/logo.svg" alt="" className="relative size-24" />
+    <div className="hidden place-items-center rounded-3xl border-2 border-runner p-10 lg:grid" aria-hidden>
+      <div className="grid size-36 place-items-center rounded-full border-2 border-runner-hi bg-panel">
+        <img src="/logo.svg" alt="" className="size-24" />
       </div>
     </div>
   )

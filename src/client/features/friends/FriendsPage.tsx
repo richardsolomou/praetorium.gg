@@ -68,12 +68,7 @@ export function FriendsPage() {
 
   return (
     <main className="w-full">
-      <PageHeader
-        eyebrow="Your account"
-        title="Friends"
-        description="The people you play with."
-        actions={<GuideHelp task="friend">Friend guide</GuideHelp>}
-      />
+      <PageHeader title="Friends" description="The people you play with." actions={<GuideHelp task="friend">Friend guide</GuideHelp>} />
       <PageContent className="space-y-8">
         {request.error || accept.error || reject.error || remove.error ? (
           <Problem
@@ -234,7 +229,7 @@ function FriendCard({
   onRemove: () => void
 }) {
   return (
-    <article data-person={friend.name} className="flex items-center gap-3 border border-edge bg-panel p-3">
+    <article data-person={friend.name} className="flex items-center gap-3 part p-3">
       <Link to="/users/$userId" params={{ userId: friend.id }} className="shrink-0" tabIndex={-1} aria-hidden>
         <PlayerAvatar name={friend.name} image={friend.image} className="size-10 text-xs" />
       </Link>
@@ -361,7 +356,7 @@ function People({
 
 function PersonRowSkeleton() {
   return (
-    <div className="flex items-center justify-between gap-3 border border-edge bg-panel p-3">
+    <div className="flex items-center justify-between gap-3 part p-3">
       <div className="flex min-w-0 items-center gap-3">
         <Skeleton className="size-9 rounded-full" />
         <Skeleton className="h-4 w-32" />
@@ -387,7 +382,7 @@ function PersonRow({
   onSecondaryAction?: () => void
 }) {
   return (
-    <div data-person={person.name} className="flex items-center justify-between gap-3 border border-edge bg-panel p-3">
+    <div data-person={person.name} className="flex items-center justify-between gap-3 part p-3">
       <Link to="/users/$userId" params={{ userId: person.id }} className="flex min-w-0 items-center gap-3 hover:text-info">
         <PlayerAvatar name={person.name} image={person.image} className="size-9 text-xs" />
         <span className="truncate font-bold uppercase">{person.name}</span>

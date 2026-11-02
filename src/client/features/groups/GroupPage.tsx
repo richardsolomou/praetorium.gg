@@ -140,7 +140,6 @@ function GroupScreen({
   return (
     <main className="w-full">
       <PageHeader
-        eyebrow="Group"
         title={group.name}
         actions={
           <>
@@ -411,7 +410,7 @@ function JoinGroup({
       ? 'An organizer accepts each request. Once you’re in, your games against members go on the leaderboard.'
       : 'Once you’re in, your games against members go on the leaderboard.'
   return (
-    <section data-group-status aria-labelledby="group-status" className="border border-edge bg-panel p-4 sm:p-5">
+    <section data-group-status aria-labelledby="group-status" className="part p-4 sm:p-5">
       <h2 id="group-status" className="text-xl leading-tight font-bold uppercase">
         {own ? 'Request sent' : 'Join this group'}
       </h2>
@@ -493,9 +492,14 @@ function CurrentGames({
         <GroupHiddenListGame key={game.token} group={group} game={game} viewerId={viewerId} highlighted={game.token === highlight} />
       ))}
       {live.map((game) => (
-        <div key={game.token} className="border border-edge">
-          <GroupHiddenListGame group={group} game={game} viewerId={viewerId} highlighted={game.token === highlight} embedded />
-        </div>
+        <GroupHiddenListGame
+          key={game.token}
+          group={group}
+          game={game}
+          viewerId={viewerId}
+          highlighted={game.token === highlight}
+          embedded
+        />
       ))}
     </>
   )
@@ -547,13 +551,13 @@ function GroupNext({
     </Button>
   )
 
-  let next: { eyebrow?: string; title: string; detail: string; action?: ReactNode }
+  let next: { context?: string; title: string; detail: string; action?: ReactNode }
   if (battle) {
     const side = battle.sides[battle.playerIds.indexOf(viewerId)]
     const allies = battle.players.filter((_, index) => battle.playerIds[index] !== viewerId && battle.sides[index] === side)
     const opponents = namesPhrase(battle.players.filter((_, index) => battle.sides[index] !== side))
     next = {
-      eyebrow: label(battle),
+      context: label(battle),
       title: 'Your battle is on',
       detail: allies.length ? `With ${namesPhrase(allies)}, against ${opponents}.` : `Against ${opponents}.`,
       action: (
@@ -564,14 +568,14 @@ function GroupNext({
     }
   } else if (toSeal) {
     next = {
-      eyebrow: 'Hidden-list game',
+      context: 'Hidden-list game',
       title: 'Seal your list',
       detail: `${eventName({ ...toSeal, tournament: null, group })}. ${toSeal.sealBy ? `Lists are due ${moment(toSeal.sealBy)}.` : 'The lists are revealed together once everyone has sealed.'}`,
       action: goTo('overview', toSeal.token),
     }
   } else if (toPlay) {
     next = {
-      eyebrow: 'Hidden-list game',
+      context: 'Hidden-list game',
       title: 'The lists are out',
       detail: `Play ${namesPhrase(unplayedOpponents(toPlay, viewerId).map((player) => nameOf(player.userId)))} from ${eventName({ ...toPlay, tournament: null, group })}.`,
       action: goTo('overview', toPlay.token),
@@ -580,7 +584,7 @@ function GroupNext({
     const deadline = league.deadlines[fixture.round - 1] ?? null
     const opponent = fixture.aId === viewerId ? fixture.bId! : fixture.aId
     next = {
-      eyebrow: `League · Round ${fixture.round}`,
+      context: `League · Round ${fixture.round}`,
       title: `Play ${nameOf(opponent)}`,
       detail:
         deadline === null
@@ -600,7 +604,7 @@ function GroupNext({
     }
   } else if (joinable) {
     next = {
-      eyebrow: 'League',
+      context: 'League',
       title: 'Join the league',
       detail: 'Everyone who joins before it’s published plays every other player once.',
       action: goTo('league', undefined, 'See the league'),
@@ -612,14 +616,17 @@ function GroupNext({
     }
   }
   return (
-    <section data-group-next aria-labelledby="group-next" className="border border-edge bg-panel">
+    <section data-group-next aria-labelledby="group-next" className="part">
       <div className="space-y-3 p-4 sm:p-5">
-        <p className="eyebrow text-dim">Up next for you{next.eyebrow ? ` · ${next.eyebrow}` : ''}</p>
         <div className="min-w-0">
           <h2 id="group-next" className="text-xl leading-tight font-bold break-words uppercase">
             {next.title}
           </h2>
-          <p className="mt-1.5 text-sm text-dim">{next.detail}</p>
+          <p className="mt-2 flex flex-wrap gap-1.5">
+            <span className="chip">Up next for you</span>
+            {next.context ? <span className="chip">{next.context}</span> : null}
+          </p>
+          <p className="mt-2 text-sm text-dim">{next.detail}</p>
         </div>
         {next.action}
         {play.error ? <Problem error={play.error} /> : null}
@@ -697,7 +704,7 @@ function PastHiddenListGames({
       <SectionHeading title="Past hidden-list games" count={past.length} />
       <ul className="space-y-3">
         {shown.map((game) => (
-          <li key={game.token} className="border border-edge">
+          <li key={game.token}>
             <GroupHiddenListGame group={group} game={game} viewerId={viewerId} highlighted={game.token === highlight} embedded />
           </li>
         ))}
@@ -725,7 +732,7 @@ function JoinRequests({ group }: { group: Group }) {
   return (
     <section>
       <SectionHeading title="Asking to join" count={pending.length} />
-      <ul className="divide-y divide-edge border border-edge bg-panel">
+      <ul className="divide-y divide-edge part">
         {pending.map((member) => (
           <li key={member.userId} data-person={member.name} className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2 p-3">
             <Link to="/users/$userId" params={{ userId: member.userId }} className="group flex min-w-0 flex-1 items-center gap-2.5">
@@ -786,7 +793,7 @@ function Members({ group, viewerId, isOwner }: { group: Group; viewerId: string 
   return (
     <section>
       <SectionHeading title="Members" count={accepted.length} />
-      <ul className="divide-y divide-edge border border-edge bg-panel">
+      <ul className="divide-y divide-edge part">
         {accepted.map((member) => {
           const role = member.userId === group.ownerId ? 'Owner' : member.role === 'admin' ? 'Admin' : null
           const removable =

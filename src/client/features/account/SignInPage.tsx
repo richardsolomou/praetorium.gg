@@ -13,6 +13,7 @@ import { PASSWORD_MIN_LENGTH, SOCIAL_AUTH_PROVIDER_NAMES } from '../../../authCo
 import { authClient, authRedirectUrl } from '../../authClient'
 import { AuthMethodIcon } from './AuthMethodIcon'
 import { captureAuthFailure } from './authFailureReason'
+import { AuthAside } from './AuthAside'
 import { TwoFactorSignIn } from './TwoFactorSignIn'
 import { requestNativeAuth, useGithubAuthAvailability } from '../../nativeAuth'
 import { signInOptionsQuery } from '../../queries'
@@ -128,20 +129,10 @@ export function SignInPage({
 
   return (
     <main className="grid w-full flex-1 md:grid-cols-2">
-      <aside className="relative hidden overflow-hidden border-r border-edge bg-sunken md:block">
-        <div className="plot-grid" />
-        <div className="relative ml-auto grid h-full w-full max-w-lg grid-rows-[auto_1fr] p-8">
-          <div>
-            <p className="eyebrow text-parchment">Build. Plan. Play.</p>
-            <h2 className="mt-1 text-3xl">Your armies and battles, ready when you are.</h2>
-          </div>
-          <img src="/logo.svg" alt="" className="mx-auto size-40 self-center" />
-        </div>
-      </aside>
-      <section className="border-b border-edge bg-panel">
-        <div className="mr-auto h-full w-full max-w-lg p-6 sm:p-8">
-          <p className="eyebrow text-parchment">{joining ? 'Create account' : 'Sign in'}</p>
-          <h1 className="mt-1 text-3xl">{savingRoster ? 'Save your roster' : joining ? 'Join Praetorium' : 'Welcome back'}</h1>
+      <AuthAside heading="Your armies and battles, ready when you are." caption="Build. Plan. Play." />
+      <section className="grid md:items-center">
+        <div className="mr-auto w-full max-w-lg px-5 py-8 sm:p-8 lg:p-12">
+          <h1 className="text-4xl leading-none">{savingRoster ? 'Save your roster' : joining ? 'Join Praetorium' : 'Welcome back'}</h1>
           {savingRoster || joining ? (
             <p className="mt-3 text-sm text-dim">
               {savingRoster
@@ -159,9 +150,11 @@ export function SignInPage({
               Back to your roster
             </Link>
           ) : null}
-          {callbackError ? <Problem className="mt-6 border border-destructive/40 bg-destructive/10 p-3">{callbackError}</Problem> : null}
+          {callbackError ? (
+            <Problem className="mt-6 rounded-lg border border-destructive/40 bg-destructive/10 p-3">{callbackError}</Problem>
+          ) : null}
           {reset ? (
-            <output className="mt-6 block border border-achieved/40 bg-achieved/10 p-3 text-sm text-achieved">
+            <output className="mt-6 block rounded-lg border border-achieved/40 bg-achieved/10 p-3 text-sm text-achieved">
               Sign in with your new password.
             </output>
           ) : null}
@@ -259,7 +252,7 @@ export function SignInPage({
 
               <Button
                 variant="outline"
-                className="mt-4"
+                className="mt-4 h-11 text-base"
                 onClick={() => {
                   if (savingRoster)
                     posthog.capture('guest_roster_save_gate_interacted', { action: joining ? 'switch_to_sign_in' : 'switch_to_create' })
@@ -272,7 +265,7 @@ export function SignInPage({
               </Button>
 
               {providers.length ? (
-                <div className="mt-6 space-y-2 border-t border-edge pt-6">
+                <div className="mt-6 space-y-2 border-t-2 border-runner pt-6">
                   {providers.map((provider) => (
                     <Button
                       key={provider}

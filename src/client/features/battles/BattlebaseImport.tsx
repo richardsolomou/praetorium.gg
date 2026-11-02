@@ -130,7 +130,7 @@ export function BattlebaseImport({ picker, onBusy, onDone }: { picker: ReactNode
                     To show the BattleBase account is yours, add this code to your BattleBase tagline: open your profile there, choose{' '}
                     <strong>Add tagline</strong> or <strong>Edit</strong>, paste it and save.
                   </p>
-                  <div className="flex items-center gap-2 border border-edge bg-sunken p-3">
+                  <div className="flex items-center gap-2 rounded-lg border border-edge bg-sunken p-3">
                     <code className="min-w-0 flex-1 truncate font-mono text-base">{code.data.code}</code>
                     <Button
                       variant="outline"

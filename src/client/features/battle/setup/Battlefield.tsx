@@ -210,7 +210,7 @@ function LayoutsLoading() {
   return (
     <div className="mt-3 grid gap-3 sm:grid-cols-3" aria-label="Loading battlefield layouts">
       {Array.from({ length: 3 }, (_, index) => (
-        <div key={index} className="flex flex-col border border-edge bg-panel p-3" aria-hidden>
+        <div key={index} className="flex flex-col part p-3" aria-hidden>
           <Skeleton className="h-7 w-2/3" />
           <Skeleton className="mt-2 aspect-[44/60] w-full" />
           <Skeleton className="mt-3 h-9 w-full" />

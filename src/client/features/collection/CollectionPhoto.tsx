@@ -39,7 +39,7 @@ export function CollectionPhoto({
     <>
       <button
         type="button"
-        className="relative grid size-8 shrink-0 place-items-center overflow-hidden border border-edge bg-sunken text-faint hover:border-info hover:text-info"
+        className="relative grid size-8 shrink-0 place-items-center overflow-hidden rounded-lg border border-edge bg-sunken text-faint hover:border-info hover:text-info"
         aria-label={own.length ? `Photos of your ${name}` : `Add photos of your ${name}`}
         onClick={() => setOpen(true)}
       >

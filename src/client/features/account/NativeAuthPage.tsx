@@ -120,9 +120,8 @@ export function NativeAuthPage({ search }: { search: NativeAuthSearch }) {
 
   return (
     <main className="grid place-items-center p-6 text-center">
-      <div className="max-w-sm border border-edge bg-panel p-6">
-        <p className="eyebrow text-parchment">Praetorium account</p>
-        <h1 className="mt-1 text-2xl">{incomplete || failed ? 'Sign-in did not finish' : 'Completing secure sign-in'}</h1>
+      <div className="max-w-sm part p-6">
+        <h1 className="text-2xl">{incomplete || failed ? 'Sign-in did not finish' : 'Completing secure sign-in'}</h1>
         <p className="mt-3 text-sm text-dim">
           {incomplete || failed
             ? 'Close this window, return to Praetorium and try again.'

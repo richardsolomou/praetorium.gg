@@ -21,7 +21,6 @@ export function Support({ conversation }: { conversation?: string }) {
   return (
     <main className="w-full">
       <PageHeader
-        eyebrow="Help"
         title="Support"
         description="Find an answer in the docs, or send us feedback and follow our replies here."
         actions={
