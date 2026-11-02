@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.215.0 (2026-11-02)
+
+### Minor Changes
+
+- 3d0ca63: A variant that turned into a different idea can leave its group with Make its own roster, in the library or the roster's menu.
+
 ## 0.214.0 (2026-11-02)
 
 ### Minor Changes
