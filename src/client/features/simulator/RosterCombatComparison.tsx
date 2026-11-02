@@ -320,11 +320,12 @@ export function RosterCombatComparison({
   const waitingForAccount = !sources && me.isPending
   const benchmarkIndex = !sources && usingCatalogue ? catalogue.data : undefined
   const waitingForBenchmarks = usingBenchmarks && !targetsLoaded
+  // The saved list arriving restarts a run only when it holds a chosen roster, so a matchup without one is not computed twice.
   const savedVersions = sources
     ? undefined
     : JSON.stringify(
-        saved.data
-          ?.filter((source) => attackerIds.includes(source.id) || defenderIds.includes(source.id))
+        (saved.data ?? [])
+          .filter((source) => attackerIds.includes(source.id) || defenderIds.includes(source.id))
           .map((source) => [source.id, source.updatedAt]),
       )
   /*

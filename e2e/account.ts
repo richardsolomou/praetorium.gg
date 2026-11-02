@@ -858,9 +858,16 @@ export async function expectNoPageOverflow(page: Page) {
   expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBe(0)
 }
 
-/** No element the locator matches scrolls sideways, allowing a pixel of subpixel rounding. */
+/**
+ * No rendered element the locator matches scrolls sideways, allowing a pixel of subpixel rounding. A closed details
+ * skips layout, so its content keeps the geometry of whatever width the page last laid it out at.
+ */
 export async function expectNoHorizontalOverflow(scope: Locator) {
-  expect(await scope.evaluateAll((elements) => elements.every((element) => element.scrollWidth <= element.clientWidth + 1))).toBe(true)
+  expect(
+    await scope.evaluateAll((elements) =>
+      elements.every((element) => !element.checkVisibility() || element.scrollWidth <= element.clientWidth + 1),
+    ),
+  ).toBe(true)
 }
 
 /** The smallest Necrons list an event will seal, a Skorpekh Lord as its Warlord, and its roster id. */
