@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.216.2 (2026-11-02)
+
+### Patch Changes
+
+- 928dc82: Faction abilities on a faction page now start collapsed; tap one to read it.
+- 928dc82: In the app, swiping back on a screen a tab reopened now goes up that tab, such as from a detachment to its faction.
+
 ## 0.216.1 (2026-11-02)
 
 ### Patch Changes
