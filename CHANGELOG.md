@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.216.3 (2026-11-02)
+
+### Patch Changes
+
+- 5a1a97c: A unit's Attach unit menu now marks a new unit's points in amber when it costs more than the list has left, as the unit list does.
+- 5a1a97c: A Custodes army can take the Auric Eagle, Celeritous Sentries, Combat Deployment and Anti-Gravitic Mobility upgrades up to three times each, as the core rules allow, instead of once.
+
 ## 0.216.2 (2026-11-02)
 
 ### Patch Changes
