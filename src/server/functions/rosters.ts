@@ -97,18 +97,14 @@ const fieldedEntryIds = (roster: { catalogueId: string; picks: readonly RosterPi
 })
 
 /**
- * Datasheets in the player's most-built armies, counting only unarchived rosters, that none of their rosters use, ranked by how many of other players' recent
- * public rosters field them, followed by other unused datasheets.
+ * Datasheets other players' recent public rosters field in the player's most-built armies, counting only unarchived rosters, that none of
+ * the player's rosters use, ranked by the share of those rosters that field them.
  */
 export const wishlistSuggestions = createServerFn({ method: 'GET' }).handler(() =>
   rpc(() =>
     forSignedIn([], async (viewerId) => {
       const instance = app()
-      const [own, factionIndex, books] = await Promise.all([
-        instance.service.rosterService.savedRosters(viewerId),
-        instance.factionIndexFor(),
-        instance.combatUnitsFor(),
-      ])
+      const [own, factionIndex] = await Promise.all([instance.service.rosterService.savedRosters(viewerId), instance.factionIndexFor()])
       const factions = factionIndex?.factions ?? []
       const indexed = byId(factions)
       const armies = [
@@ -139,10 +135,7 @@ export const wishlistSuggestions = createServerFn({ method: 'GET' }).handler(() 
       )
       return suggestFromRosters(
         own.map(fieldedEntryIds),
-        armies.map((filter, index) => ({
-          rosters: published[index]!,
-          datasheets: books.filter((book) => currentCatalogueFamilyId(book.catalogueId) === filter.faction).flatMap((book) => book.units),
-        })),
+        armies.map((filter, index) => ({ catalogueId: filter.faction, rosters: published[index]! })),
       )
     }),
   ),

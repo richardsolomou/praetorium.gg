@@ -2,7 +2,18 @@ import { hasLocalChanges, stopLocalRuntime } from '../../offline/localRuntime'
 import { clearLocalState } from '../../offline/localStorage'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useLocation, useNavigate } from '@tanstack/react-router'
-import { Boxes, CircleUserRound, LogIn, LogOut, Map, MessageSquareWarning, ShieldCheck, Sparkles, UserRoundPen, Users } from 'lucide-react'
+import {
+  GraduationCap,
+  CircleUserRound,
+  LogIn,
+  LogOut,
+  Map,
+  MessageSquareWarning,
+  ShieldCheck,
+  Sparkles,
+  UserRoundPen,
+  Users,
+} from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { gettingStartedTaskIds, onboardingComplete, resolvedGettingStartedTasks } from '../../../core/onboarding'
@@ -77,7 +88,7 @@ function AccountMenuItems() {
   const unread = unreadReplies(tickets)
   const unseenRelease = useUnseenRelease()
   const help = (
-    <MenuSection label="Help">
+    <MenuSection label="Praetorium">
       {showOnboarding ? (
         <DropdownMenuItem onClick={() => openOnboarding()}>
           <Map />
@@ -90,6 +101,9 @@ function AccountMenuItems() {
           {onboarding && !onboarding.welcomed ? <span className="chip border-discarded/50 bg-discarded/10 text-discarded">New</span> : null}
         </DropdownMenuItem>
       ) : null}
+      <DropdownMenuItem render={<Link to="/docs" />}>
+        <GraduationCap /> Docs
+      </DropdownMenuItem>
       <DropdownMenuItem render={<Link to="/whats-new" />}>
         <Sparkles />
         <span>What's new</span>
@@ -131,16 +145,10 @@ function AccountMenuItems() {
       <DropdownMenuSeparator />
       {me ? (
         <>
-          <MenuSection label="Yours">
-            <DropdownMenuItem render={<Link to="/collection" />}>
-              <Boxes /> Collection
-            </DropdownMenuItem>
+          <DropdownMenuGroup>
             <DropdownMenuItem render={<Link to="/friends" />}>
               <Users /> Friends
             </DropdownMenuItem>
-          </MenuSection>
-          <DropdownMenuSeparator />
-          <MenuSection label="Account">
             <DropdownMenuItem render={<Link to="/profile" />}>
               <UserRoundPen /> Account settings
             </DropdownMenuItem>
@@ -149,7 +157,7 @@ function AccountMenuItems() {
                 <ShieldCheck /> Admin
               </DropdownMenuItem>
             ) : null}
-          </MenuSection>
+          </DropdownMenuGroup>
           <DropdownMenuSeparator />
           {help}
           <DropdownMenuSeparator />

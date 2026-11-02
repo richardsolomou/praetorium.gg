@@ -9,6 +9,7 @@ import { useQuery } from '@tanstack/react-query'
 import { HeadContent, Link, Outlet, Scripts, useLocation } from '@tanstack/react-router'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import {
+  Boxes,
   BookOpen,
   Calculator,
   Gavel,
@@ -66,6 +67,7 @@ const PRIMARY_LINKS = [
   { to: '/leaderboard', label: 'Leaderboard', Icon: Medal },
   { to: '/groups', label: 'Groups', Icon: Users },
   { to: '/tournaments', label: 'Tournaments', Icon: Trophy },
+  { to: '/collection', label: 'Collection', Icon: Boxes },
 ] as const
 
 const REFERENCE_LINKS = [
@@ -228,9 +230,6 @@ function SiteFooter() {
     >
       <p>Praetorium is an unofficial product, and is not in any way affiliated with or endorsed by Games Workshop.</p>
       <p className="flex flex-wrap justify-center gap-x-3">
-        <Link to="/docs" data-listed-in-more className="transition-colors hover:text-bone">
-          Docs
-        </Link>
         <Link to="/support" data-listed-in-more className="transition-colors hover:text-bone">
           Support
         </Link>

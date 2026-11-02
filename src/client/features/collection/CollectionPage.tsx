@@ -1,6 +1,6 @@
 import { boundedProgress, collectionDatasheets, usableDatasheets, type CollectionEntry } from '../../../core/collection'
 import { useQuery } from '@tanstack/react-query'
-import { Boxes, EllipsisVertical, Plus, Shuffle, Swords, Trash2 } from 'lucide-react'
+import { Boxes, EllipsisVertical, Plus, Shuffle, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import {
@@ -11,9 +11,9 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Skeleton } from '@/components/ui/skeleton'
-import { FactionMark } from '../../components/FactionMark'
 import { PageContent, PageHeader } from '../../components/Page'
 import { PageState } from '../../components/PageState'
+import { SectionHeading } from '../../components/SectionHeading'
 import { SignInRequired } from '../../components/SignInRequired'
 import { UnitPicker } from '../../components/UnitPicker'
 import {
@@ -28,6 +28,7 @@ import {
   meQuery,
 } from '../../queries'
 import { useCollectionMutation } from '../../useCollection'
+import { ArmyHeader } from './ArmyHeader'
 import { CollectionCard, CollectionCardGrid } from './CollectionCard'
 import { CollectionEntryCounts } from './CollectionEntryCounts'
 import { CollectionExchange } from './CollectionExchange'
@@ -35,6 +36,7 @@ import { CollectionCountsAs, CountsAsDialog } from './CollectionCountsAs'
 import { CollectionPhoto } from './CollectionPhoto'
 import { CollectionWishlist, type Datasheet } from './CollectionWishlist'
 import { RemoveFromCollection } from './RemoveFromCollection'
+import { ShelfLine } from './ShelfLine'
 import { groupBy } from '../../../core/collections'
 import { countLabel } from '../../text'
 
@@ -81,7 +83,16 @@ export function CollectionPage() {
     const sheet = datasheets.get(entryId)
     return sheet && !usable.has(entryId) ? [{ ...sheet, battles }] : []
   })
-  const models = [...owned].reduce((total, id) => total + countOf(id), 0)
+  const shelved = (entryIds: readonly string[]) =>
+    entryIds.reduce(
+      (total, entryId) => {
+        const ownedModels = countOf(entryId)
+        const { built, painted } = boundedProgress(ownedModels, progress.data?.[entryId] ?? { built: 0, painted: 0 })
+        return { owned: total.owned + ownedModels, built: total.built + built, painted: total.painted + painted }
+      },
+      { owned: 0, built: 0, painted: 0 },
+    )
+  const shelf = shelved([...owned])
   const exchanged = new Map<string, CollectionEntry>()
   for (const id of new Set([...owned, ...Object.keys(wishes.data ?? {})]))
     exchanged.set(id, {
@@ -96,15 +107,10 @@ export function CollectionPage() {
   // Suggestions lead an empty shelf and follow a stocked one, so the collection itself comes first.
   const fieldedShelf = suggestions.length ? (
     <section aria-labelledby="fielded-heading" className="@container/army space-y-3">
-      <h2
-        id="fielded-heading"
-        className="rubric flex flex-col gap-1 border-b border-edge pb-2 sm:flex-row sm:items-baseline sm:justify-between sm:gap-3"
-      >
-        <span className="flex items-center gap-2">
-          <Swords className="size-4 text-info" aria-hidden /> From your battles
-        </span>
-        <span className="text-xs text-dim normal-case">Fielded, not yet in your collection</span>
-      </h2>
+      <div>
+        <SectionHeading id="fielded-heading" title="From your battles" count={suggestions.length} className="mb-0" />
+        <p className="text-xs text-dim">Fielded, not yet in your collection.</p>
+      </div>
       <CollectionCardGrid>
         {(allSuggestions ? suggestions : suggestions.slice(0, SUGGESTIONS_SHOWN)).map((sheet) => (
           <CollectionCard
@@ -133,10 +139,30 @@ export function CollectionPage() {
     <main className="w-full">
       <PageHeader
         title="Collection"
-        description="The models on your shelf, counted by datasheet. Add them here or from any datasheet’s page."
+        description="The models on your shelf, from sprue to painted, counted by datasheet. Add them here or from any datasheet’s page."
+        actions={<CollectionExchange sheets={[...datasheets.values()]} current={exchanged} />}
       />
-      <PageContent className="space-y-6">
-        <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+      <PageContent className="space-y-8">
+        <div className="space-y-4">
+          {owned.size ? (
+            <section aria-label="Your shelf" className="part space-y-3 p-3 sm:p-4">
+              <dl className="grid grid-cols-3 gap-3">
+                <Stage
+                  label="Owned"
+                  value={pending ? null : shelf.owned}
+                  detail={pending ? null : countLabel(owned.size, 'datasheet')}
+                  tally="models"
+                />
+                <Stage label="Built" value={pending || progress.isPending ? null : shelf.built} detail={share(shelf.built, shelf.owned)} />
+                <Stage
+                  label="Painted"
+                  value={pending || progress.isPending ? null : shelf.painted}
+                  detail={share(shelf.painted, shelf.owned)}
+                />
+              </dl>
+              {pending || progress.isPending ? <Skeleton className="h-1.5" /> : <ShelfLine {...shelf} />}
+            </section>
+          ) : null}
           <UnitPicker
             ariaLabel="Add a datasheet to your collection"
             className="w-full sm:w-80"
@@ -147,13 +173,6 @@ export function CollectionPage() {
             onUnitChange={(_, entryId) => add(entryId)}
             index={(units.data ?? []).map((book) => ({ ...book, units: book.units.filter((unit) => !owned.has(unit.id)) }))}
           />
-          <p className="flex flex-wrap items-baseline gap-x-4 gap-y-1 sm:ml-auto">
-            <Tally label="models" value={pending ? null : models} />
-            <Tally label={owned.size === 1 ? 'datasheet' : 'datasheets'} value={pending ? null : owned.size} />
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <CollectionExchange sheets={[...datasheets.values()]} current={exchanged} />
         </div>
 
         {owned.size ? null : fieldedShelf}
@@ -175,59 +194,36 @@ export function CollectionPage() {
             }
           />
         ) : (
-          <div className="space-y-4">
-            {armies.map(({ sheets, first }) => {
-              const totals = sheets.reduce(
-                (total, sheet) => {
-                  const ownedModels = countOf(sheet.id)
-                  const { built, painted } = boundedProgress(ownedModels, progress.data?.[sheet.id] ?? { built: 0, painted: 0 })
-                  return { owned: total.owned + ownedModels, built: total.built + built, painted: total.painted + painted }
-                },
-                { owned: 0, built: 0, painted: 0 },
-              )
-              return (
-                <section key={first.catalogueId} aria-label={first.faction} className="@container/army space-y-3">
-                  <header className="flex flex-wrap items-center gap-3 border-b border-edge pb-2">
-                    <div className="flex min-w-0 flex-1 flex-col items-start gap-3 @[15rem]/army:flex-row @[15rem]/army:items-center">
-                      {first.presentation ? <FactionMark faction={first.presentation} size="md" /> : null}
-                      <div className="min-w-0">
-                        <h2 className="rubric break-words text-bone">{first.faction}</h2>
-                        <p className="mt-1 text-xs text-dim">{countLabel(sheets.length, 'datasheet')}</p>
-                      </div>
-                    </div>
-                    <dl className="flex w-full flex-wrap gap-x-4 gap-y-2 @xl/army:w-auto">
-                      {Object.entries(totals).map(([label, value]) => (
-                        <div key={label} className="flex items-baseline gap-x-1.5">
-                          <dt className="text-xs text-dim capitalize">{label}</dt>
-                          <dd data-collection-total={label} className="figure text-lg text-bone">
-                            {counts.isPending || (label !== 'owned' && progress.isPending) ? (
-                              <Skeleton className="h-6 w-8" aria-label={`Loading ${label}`} />
-                            ) : (
-                              value
-                            )}
-                          </dd>
-                        </div>
-                      ))}
-                    </dl>
-                  </header>
-                  <CollectionCardGrid>
-                    {sheets.map((sheet) => (
-                      <CollectionCard
-                        key={sheet.id}
-                        data-unit={sheet.name}
-                        name={sheet.name}
-                        sheet={sheet}
-                        photo={<CollectionPhoto entryId={sheet.id} name={sheet.name} army={armySheets.get(sheet.catalogueId)} />}
-                        action={<EntryMenu name={sheet.name} onCountsAs={() => setLinking(sheet)} onRemove={() => setRemoving(sheet)} />}
-                      >
-                        <CollectionEntryCounts entryId={sheet.id} name={sheet.name} />
-                        <CollectionCountsAs entryId={sheet.id} candidates={armySheets.get(sheet.catalogueId) ?? []} />
-                      </CollectionCard>
-                    ))}
-                  </CollectionCardGrid>
-                </section>
-              )
-            })}
+          <div className="space-y-8">
+            {armies.map(({ sheets, first }) => (
+              <section key={first.catalogueId} aria-label={first.faction} className="@container/army space-y-3">
+                <ArmyHeader
+                  name={first.faction}
+                  faction={first.presentation}
+                  datasheets={sheets.length}
+                  totals={shelved(sheets.map((sheet) => sheet.id))}
+                  pending={counts.isPending || progress.isPending}
+                />
+                <CollectionCardGrid>
+                  {sheets.map((sheet) => (
+                    <CollectionCard
+                      key={sheet.id}
+                      data-unit={sheet.name}
+                      name={sheet.name}
+                      sheet={sheet}
+                      photo={<CollectionPhoto entryId={sheet.id} name={sheet.name} army={armySheets.get(sheet.catalogueId)} />}
+                      action={<EntryMenu name={sheet.name} onCountsAs={() => setLinking(sheet)} onRemove={() => setRemoving(sheet)} />}
+                    >
+                      {counts.isPending || progress.isPending ? null : (
+                        <ShelfLine owned={countOf(sheet.id)} {...(progress.data?.[sheet.id] ?? { built: 0, painted: 0 })} />
+                      )}
+                      <CollectionEntryCounts entryId={sheet.id} name={sheet.name} />
+                      <CollectionCountsAs entryId={sheet.id} candidates={armySheets.get(sheet.catalogueId) ?? []} />
+                    </CollectionCard>
+                  ))}
+                </CollectionCardGrid>
+              </section>
+            ))}
             {retired.length ? (
               <section aria-label="Retired datasheets" className="part">
                 <header className="border-b border-edge px-3 py-2.5">
@@ -266,16 +262,24 @@ export function CollectionPage() {
   )
 }
 
-function Tally({ label, value }: { label: string; value: number | null }) {
+const share = (part: number, whole: number) => (whole ? `${Math.round((part / whole) * 100)}%` : null)
+
+/** One stage of the shelf, from sprue to painted, with its figure rising into place as it changes. */
+function Stage({ label, value, detail, tally }: { label: string; value: number | null; detail: string | null; tally?: string }) {
   return (
-    <span data-tally={label} className="text-xs text-dim">
-      {value === null ? (
-        <Skeleton className="mr-1 inline-block h-5 w-6 align-middle" aria-label={`Loading ${label}`} />
-      ) : (
-        <span className="figure mr-1 text-2xl text-bone">{value}</span>
-      )}
-      {label}
-    </span>
+    <div className="min-w-0">
+      <dt className="text-2xs font-semibold tracking-label text-dim uppercase">{label}</dt>
+      <dd className="mt-1 flex flex-wrap items-baseline gap-x-2">
+        {value === null ? (
+          <Skeleton className="h-8 w-10" aria-label={`Loading ${label.toLowerCase()}`} />
+        ) : (
+          <span key={value} data-tally={tally} className="figure animate-figure text-3xl leading-none text-bone motion-reduce:animate-none">
+            {value}
+          </span>
+        )}
+        {detail ? <span className="text-xs text-dim">{detail}</span> : null}
+      </dd>
+    </div>
   )
 }
 
