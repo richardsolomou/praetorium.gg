@@ -148,7 +148,7 @@ import { withMember } from '../../../core/collections'
 import { usePrintWhenReady } from './usePrintWhenReady'
 import { hasWarlordToggle } from '../../../core/unitChoices'
 import { factionDisposition } from '../../components/rosterSetup'
-import { PointsChip } from './builder/PointsChip'
+import { PointsChip, pointsOver } from './builder/PointsChip'
 import { remember } from '../../../core/collections'
 
 type Props = {
@@ -758,6 +758,20 @@ export function ListBuilder({
     [setPreview, setSelected, setShowing, updateLoadoutHistory, workspacePath],
   )
   const previewUnit = useCallback((entryId: string, unitName: string) => inspect(catalogueId, entryId, unitName), [catalogueId, inspect])
+  // A preview reads as the list's next pick, so it shows what the detachment and the list would give it.
+  // A full list has no room for one more, so its preview goes without.
+  const previewPicks = useMemo(
+    () =>
+      preview && positioned.length < 100
+        ? [
+            ...positioned,
+            preview.catalogueId === catalogueId
+              ? { entryId: preview.entryId }
+              : { entryId: preview.entryId, catalogueId: preview.catalogueId },
+          ]
+        : null,
+    [catalogueId, positioned, preview],
+  )
   const duplicate = useCallback((index: number) => {
     editor.current.duplicate(index)
     reporting.current = { event: 'roster_unit_duplicated' }
@@ -947,6 +961,7 @@ export function ListBuilder({
 
   const points = frozen ? frozen.points : (priced?.points ?? 0)
   const budget = pointsBudget ?? limit
+  const room = priced && enforces(waivedRules, 'points-limit') ? budget - priced.points : null
   const over = enforces(waivedRules, 'points-limit') && (frozen ? frozen.points > budget : Boolean(priced && priced.points > budget))
   const illegal = Boolean(priced && (priced.errors.length || priced.detachmentError || priced.dispositionError))
   const cards = frozen
@@ -1112,6 +1127,7 @@ export function ListBuilder({
     unit.toggles.some((toggle) => toggle.name === 'Warlord' && toggle.required && toggle.selected),
   )
   const inspectedEntryId = preview?.entryId ?? optimisticUnit?.entryId ?? null
+  const previewOver = preview && building ? pointsOver(attachCandidates?.find((unit) => unit.id === preview.entryId)?.points, room) : null
   const referenceRoute = reference?.entryId === inspectedEntryId ? reference.route : undefined
   const limitFailure = priceFailed ? (
     <div role="alert" className="border-b border-edge px-3 py-2 text-xs text-discarded">
@@ -1136,7 +1152,7 @@ export function ListBuilder({
             onPreview={previewUnit}
             inRoster={held}
             limits={unitLimits}
-            room={priced && enforces(waivedRules, 'points-limit') ? budget - priced.points : null}
+            room={room}
             battleSize={limit}
             pointsBudget={pointsBudget}
             waivedRules={waivedRules}
@@ -1201,12 +1217,12 @@ export function ListBuilder({
       catalogueId={datasheetCatalogueId}
       entryId={preview?.entryId ?? selectedUnit?.entryId ?? null}
       detachmentIds={detachmentIds}
-      picks={positioned}
-      pickIndex={preview ? null : selected}
+      picks={previewPicks ?? positioned}
+      pickIndex={preview ? (previewPicks ? positioned.length : null) : selected}
       onRelationshipSelect={(entryId, unitName) => inspect(datasheetCatalogueId, entryId, unitName)}
       onReferenceRoute={setReference}
       abilityReminders={building && !preview && selected !== null ? reminderControls : undefined}
-      detachmentRules={preview ? undefined : detachmentRules}
+      detachmentRules={detachmentRules}
     />
   )
 
@@ -1871,6 +1887,11 @@ export function ListBuilder({
                 {!priceFailed && unitLimitMessage(preview.entryId, held[preview.entryId] ?? 0, unitLimits) ? (
                   <output className="block border-b border-edge px-3 py-2 text-xs text-discarded">
                     {unitLimitMessage(preview.entryId, held[preview.entryId] ?? 0, unitLimits)}
+                  </output>
+                ) : null}
+                {previewOver !== null ? (
+                  <output className="block border-b border-edge px-3 py-2 text-xs text-discarded">
+                    {previewOver} pts over the points limit.
                   </output>
                 ) : null}
                 {datasheet}

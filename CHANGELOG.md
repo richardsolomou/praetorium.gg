@@ -1,5 +1,31 @@
 # praetorium
 
+## 0.211.10 (2026-11-01)
+
+### Patch Changes
+
+- 0157a39: Unit prices in the picker turn orange when a unit would take your list over its points limit, and the unit preview says by how much. You can still add it.
+- 234effd: Rosters and battles show a small spinner while they load instead of a large "Loading your roster" panel.
+
+## 0.211.9 (2026-11-01)
+
+### Patch Changes
+
+- 29565bc: C'tan powers and other weapon-like profiles show their characteristics on one line, like other weapons, instead of a tall list.
+
+## 0.211.8 (2026-11-01)
+
+### Patch Changes
+
+- 2c45fcb: Previewing a unit before you add it shows what your detachment and list give it, such as Assault on weapons in Starshatter Arsenal.
+
+## 0.211.7 (2026-11-01)
+
+### Patch Changes
+
+- e72b2b1: You can reorder benchmark targets, which reorders the comparison table's columns.
+- e72b2b1: Benchmark targets show their units under the matchup sides, and clicking a unit edits it.
+
 ## 0.211.6 (2026-11-01)
 
 ### Patch Changes

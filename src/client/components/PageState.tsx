@@ -43,6 +43,17 @@ export function PageState({
   )
 }
 
+/** A page still on its way: a quiet spinner, since what it is loading is already in the address and the nav. */
+export function PageLoading() {
+  return (
+    <main className="grid w-full flex-1 place-items-center py-24">
+      <output aria-label="Loading">
+        <LoaderCircle className="size-6 animate-spin text-dim" aria-hidden />
+      </output>
+    </main>
+  )
+}
+
 /** A page whose whole content is one state. */
 export function FullPageState(props: Omit<ComponentProps<typeof PageState>, 'className'>) {
   return (

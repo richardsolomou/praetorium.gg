@@ -3,7 +3,7 @@ import { DeviceRoster, GuestDraftRoster } from '../client/features/rosters/Roste
 import { RosterPage } from '../client/features/rosters/RosterPage'
 import { pageHead, previewImage } from '../client/linkPreview'
 import { loadRoster } from '../client/features/rosters/rosterRouteData'
-import { RosterLoading } from '../client/features/rosters/RosterLoading'
+import { PageLoading } from '../client/components/PageState'
 import { requestedDatasheetSearch, useRequestedDatasheet } from '../client/features/rosters/requestedDatasheet'
 import { searchFlag, searchText } from '../client/searchParams'
 import { keptRosterArrangement } from '../client/features/rosters/rosterArrangement'
@@ -11,7 +11,7 @@ import { ROSTER_ARRANGEMENT_COOKIE } from '../contracts/rosterCookies'
 import { requestCookie } from '../server/requestCookie'
 
 export const Route = createFileRoute('/rosters/$id/')({
-  pendingComponent: RosterLoading,
+  pendingComponent: PageLoading,
   // A battle token is what lets an entitled battle reader open a list that is otherwise private.
   validateSearch: (
     search: Record<string, unknown>,

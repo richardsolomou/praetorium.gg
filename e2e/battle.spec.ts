@@ -163,16 +163,19 @@ test('a double tap on the turn control ends one phase', async ({ page }) => {
   const heading = page.locator('[data-scoreboard] h1')
   await expect(heading).toContainText('command phase')
   const box = (await advanceButton(page).boundingBox())!
-  for (const [gap, phase] of [
-    [30, 'movement phase'],
-    [150, 'shooting phase'],
-  ] as const) {
-    await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2)
-    await page.waitForTimeout(gap)
-    await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2)
-    await expect(advanceButton(page)).toBeEnabled()
-    await expect(heading).toContainText(phase)
-  }
+  const tap = () => page.mouse.click(box.x + box.width / 2, box.y + box.height / 2)
+  // Before the first tap's result shows.
+  await tap()
+  await page.waitForTimeout(30)
+  await tap()
+  await expect(advanceButton(page)).toBeEnabled()
+  await expect(heading).toContainText('movement phase')
+  // Just after it shows; a fixed sleep stretches past the double-tap window on a loaded CI runner.
+  await tap()
+  await expect(heading).toContainText('shooting phase')
+  await tap()
+  await expect(advanceButton(page)).toBeEnabled()
+  await expect(heading).toContainText('shooting phase')
   await page.reload()
   await expect(heading).toContainText('shooting phase')
 })

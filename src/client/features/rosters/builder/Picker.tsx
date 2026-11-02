@@ -38,7 +38,7 @@ import { LoadoutNameDialog } from './LoadoutNameDialog'
 import { LoadoutRow } from './LoadoutRow'
 import { isAttachedUnit, loadoutNoun, type PickerLoadout, pickerRows, shownKind } from './pickerRows'
 import { useUnitLoadouts } from './useUnitLoadouts'
-import { PointsChip } from './PointsChip'
+import { PointsChip, pointsOver } from './PointsChip'
 
 type Props = {
   enabled: boolean
@@ -295,6 +295,7 @@ export const Picker = memo(function Picker({
                             unavailableReason={limits.get(unit.id) === 0 ? unitLimitMessage(unit.id, held, limits) : null}
                             held={held}
                             full={full}
+                            over={pointsOver(unit.points, room)}
                             favourite={favourites.has(unit.id)}
                             favouritePending={favouriting.isPending && favouriting.variables?.entryId === unit.id}
                             query={query}
@@ -311,6 +312,7 @@ export const Picker = memo(function Picker({
                                 loadout={loadout}
                                 datasheet={unit.name}
                                 addable={!full}
+                                over={pointsOver(loadout.points, room)}
                                 unavailableReason={null}
                                 onPreview={onPreview}
                                 onApply={onApplyLoadout}
@@ -328,6 +330,7 @@ export const Picker = memo(function Picker({
                         datasheet={datasheetNames.get(loadout.picks[0].entryId) ?? null}
                         members={loadout.picks.map((pick) => datasheetNames.get(pick.entryId) ?? pick.entryId)}
                         addable={fits(loadout.picks)}
+                        over={pointsOver(loadout.points, room)}
                         unavailableReason={null}
                         onPreview={onPreview}
                         onApply={onApplyLoadout}
@@ -428,6 +431,8 @@ type PickerRowProps = {
   limit: number | null
   held: number
   full: boolean
+  /** Points beyond the list's room, marked on the price alone so the row keeps its height; never blocks the add. */
+  over: number | null
   favourite: boolean
   favouritePending: boolean
   query: string
@@ -442,6 +447,7 @@ const PickerRow = memo(function PickerRow({
   limit,
   held,
   full,
+  over,
   favourite,
   favouritePending,
   query,
@@ -489,7 +495,7 @@ const PickerRow = memo(function PickerRow({
             <Heart className={`size-3.5 ${favourite ? 'fill-rust text-rust' : 'text-faint hover:text-dim'}`} />
           </Toggle>
         ) : null}
-        <PointsChip points={unit.points} />
+        <PointsChip points={unit.points} over={over} />
         <Button
           data-onboarding="picker-add"
           variant="outline"

@@ -446,7 +446,19 @@ export function RosterCombatComparison({
     )
   return (
     <section aria-label="Roster comparison" className={cn('min-w-0 space-y-3 p-3 sm:p-4', units && 'part')}>
-      <div className="border-b border-edge pb-3">{sides}</div>
+      <div className="space-y-2 border-b border-edge pb-3">
+        {sides}
+        {!sources && usingBenchmarks ? (
+          <BenchmarkTargets
+            targets={targets}
+            index={catalogue.data ?? []}
+            customized={savedTargets !== null}
+            disabled={!catalogue.data || !targetsLoaded}
+            onChange={editTargets}
+            onReset={() => editTargets(null)}
+          />
+        ) : null}
+      </div>
       {storageProblem ? <Problem className="text-xs">{storageProblem}</Problem> : null}
       {!sources && !currentRoster && !me.isPending && !me.data ? (
         <p className="text-sm text-dim">Sign in and save both rosters to compare them here.</p>
@@ -491,15 +503,6 @@ export function RosterCombatComparison({
         {liveKey === undefined ? 'Full health' : 'Live models and wounds'} · Default conditions
         <span className="hidden sm:inline">. Supported passive rules apply; cover, range bonuses and conditional buffs stay off.</span>
       </p>
-      {!sources && usingBenchmarks ? (
-        <BenchmarkTargets
-          targets={targets}
-          index={catalogue.data ?? []}
-          disabled={!catalogue.data || !targetsLoaded}
-          onChange={editTargets}
-          onReset={() => editTargets(null)}
-        />
-      ) : null}
       {!comparison && !running && !ready ? (
         <p className="border border-dashed border-edge p-4 text-center text-sm text-dim">
           Choose rosters for both sides. Add more than one roster to a side to fight a doubles or 2v1 game together.

@@ -3,7 +3,7 @@ import { useNavigate, useRouter } from '@tanstack/react-router'
 import { useEffect } from 'react'
 import { meQuery } from '../../queries'
 import { ClaimGuestRoster, GuestRoster, useGuestDraft } from './GuestRoster'
-import { RosterLoading } from './RosterLoading'
+import { PageLoading } from '../../components/PageState'
 import type { useRequestedDatasheet } from './requestedDatasheet'
 
 /** A list the server cannot see because it is still only in this browser's storage, so the browser loads the route again. */
@@ -12,7 +12,7 @@ export function DeviceRoster() {
   useEffect(() => {
     void router.invalidate({ filter: (match) => match.routeId === '/rosters/$id/' })
   }, [router])
-  return <RosterLoading />
+  return <PageLoading />
 }
 
 /** A visitor's one list, built here; once they sign in, it is saved to the account under this same address. */
@@ -24,7 +24,7 @@ export function GuestDraftRoster({ print, requested }: { print?: boolean; reques
   useEffect(() => {
     if (!guest) void navigate({ to: '/rosters', replace: true })
   }, [guest, navigate])
-  if (!guest) return <RosterLoading />
+  if (!guest) return <PageLoading />
   if (me) return <ClaimGuestRoster key={guest.id} guest={guest} onDiscard={() => setGuest(null)} />
   return <GuestRoster key={revision} guest={guest} print={print} requested={requested} onDiscard={() => setGuest(null)} />
 }
