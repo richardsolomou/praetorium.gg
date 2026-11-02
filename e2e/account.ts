@@ -196,8 +196,7 @@ export async function chooseUnit(page: Page, side: string, faction: string, name
   await page.getByRole('option', { name: new RegExp(`^${escaped}, ${faction}(?:, \\d+ pts)?$`) }).click()
 }
 
-/** `beforeAccept` runs while the request is still pending, which is the only moment a test can read that state. */
-export async function befriend(requester: Page, recipient: Page, { beforeAccept }: { beforeAccept?: () => Promise<void> } = {}) {
+export async function befriend(requester: Page, recipient: Page) {
   const accountMenu = (page: Page) => page.locator('[data-web-app-chrome] button[aria-label^="Account menu for "]')
   const requesterName = (await accountMenu(requester).getAttribute('aria-label'))?.replace('Account menu for ', '')
   const recipientName = (await accountMenu(recipient).getAttribute('aria-label'))?.replace('Account menu for ', '')
@@ -214,10 +213,6 @@ export async function befriend(requester: Page, recipient: Page, { beforeAccept 
   await recipient.goto('/friends')
   const request = recipient.locator('section').filter({ hasText: 'Friend requests' }).filter({ hasText: requesterName })
   const accepted = recipient.locator('section').filter({ hasText: 'Friends' }).filter({ hasText: requesterName })
-  if (beforeAccept) {
-    await expect(request).toBeVisible()
-    await beforeAccept()
-  }
   // A press still saving disables Accept, and a click left waiting on it outlasts the retry.
   await retryUntilVisible(accepted, () => request.getByRole('button', { name: 'Accept' }).click({ timeout: 1_000 }))
   await requester.goto('/friends')

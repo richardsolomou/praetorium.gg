@@ -7,7 +7,6 @@ import {
   CircleUserRound,
   LogIn,
   LogOut,
-  Map,
   MessageSquareWarning,
   ShieldCheck,
   Sparkles,
@@ -16,7 +15,6 @@ import {
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { gettingStartedTaskIds, onboardingComplete, resolvedGettingStartedTasks } from '../../../core/onboarding'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,10 +29,9 @@ import { authClient } from '../../authClient'
 import { clearSavedApp } from '../../offline/appStorage'
 import { reconcileAppAccount } from '../../offline/appSnapshot'
 import { setNativeAccountMenuOpen } from '../../nativeBridge'
-import { openOnboarding } from '../onboarding/onboarding'
 import { forgetThisDevice } from '../../pushNotifications'
 import { clearWatchBattle } from '../battle/useWatchBattle'
-import { meQuery, onboardingQuery } from '../../queries'
+import { meQuery } from '../../queries'
 import { MenuSection } from '../../components/MenuSection'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { openConversations, unreadReplies, useSupportTickets } from '../feedback/support'
@@ -45,7 +42,6 @@ import { useUnseenRelease } from './seenRelease'
 
 function useAccountControls() {
   const { data: me } = useQuery(meQuery())
-  const { data: onboarding } = useQuery({ ...onboardingQuery(), enabled: Boolean(me) })
   const queryClient = useQueryClient()
   const navigate = useNavigate()
 
@@ -75,32 +71,18 @@ function useAccountControls() {
     })
   }
 
-  return { me, onboarding, signOut }
+  return { me, signOut }
 }
 
 function AccountMenuItems() {
   const path = useLocation({ select: (location) => location.pathname })
   const href = useLocation({ select: (location) => location.href })
-  const { me, onboarding, signOut } = useAccountControls()
-  const onboardingResolved = onboarding ? resolvedGettingStartedTasks(onboarding).length : 0
-  const showOnboarding = !me || (onboarding && !onboardingComplete(onboarding))
+  const { me, signOut } = useAccountControls()
   const { tickets } = useSupportTickets()
   const unread = unreadReplies(tickets)
   const unseenRelease = useUnseenRelease()
   const help = (
     <MenuSection label="Praetorium">
-      {showOnboarding ? (
-        <DropdownMenuItem onClick={() => openOnboarding()}>
-          <Map />
-          <span>Getting started</span>
-          {me ? (
-            <span className="readout ml-auto text-xs text-dim">
-              {onboardingResolved}/{gettingStartedTaskIds.length}
-            </span>
-          ) : null}
-          {onboarding && !onboarding.welcomed ? <span className="chip border-discarded/50 bg-discarded/10 text-discarded">New</span> : null}
-        </DropdownMenuItem>
-      ) : null}
       <DropdownMenuItem render={<Link to="/docs" />}>
         <GraduationCap /> Docs
       </DropdownMenuItem>
@@ -179,9 +161,8 @@ function AccountMenuItems() {
 }
 
 export function Account({ native = false, className = '' }: { native?: boolean; className?: string }) {
-  const { me, onboarding } = useAccountControls()
+  const { me } = useAccountControls()
   const [nativeOpen, setNativeOpen] = useState(false)
-  const onboardingNew = Boolean(onboarding && !onboarding.welcomed && !onboardingComplete(onboarding))
   const { tickets } = useSupportTickets()
   const unread = unreadReplies(tickets)
 
@@ -216,10 +197,9 @@ export function Account({ native = false, className = '' }: { native?: boolean; 
       >
         <span className="relative">
           {me ? <PlayerAvatar name={me.name} image={me.image} className="size-7 text-xs" /> : <CircleUserRound className="size-5" />}
-          {onboardingNew || unread ? (
+          {unread ? (
             <span
-              data-onboarding-new={onboardingNew || undefined}
-              data-feedback-unread={unread || undefined}
+              data-feedback-unread
               aria-hidden
               className="absolute -top-0.5 -right-0.5 size-2.5 rounded-full border-2 border-panel bg-discarded"
             />

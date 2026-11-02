@@ -1,22 +1,11 @@
 import { z } from 'zod'
 import { parseStored, readSessionValue } from '../../storedValue'
-import { gettingStartedTaskIds, onboardingTaskIds, type OnboardingProgressOperation, type OnboardingTaskId } from '../../../core/onboarding'
+import { onboardingTaskIds, type OnboardingTaskId } from '../../../core/onboarding'
 import type { OnboardingTarget } from '../../onboardingTargets'
 
 export const ONBOARDING_FOCUS_EVENT = 'praetorium:onboarding-focus'
 export const ONBOARDING_EVENT = 'praetorium:onboarding'
 export const ONBOARDING_ADVANCE_EVENT = 'praetorium:onboarding-advance'
-
-export const gettingStartedTasks: Record<(typeof gettingStartedTaskIds)[number], { title: string; description: string }> = {
-  roster: {
-    title: 'Build your first army',
-    description: 'Create a roster, choose its faction and detachment, then add your first unit.',
-  },
-  simulator: {
-    title: 'Try your first matchup',
-    description: 'Choose an attacker and a defender, then read the shooting and melee results.',
-  },
-}
 
 export function onboardingFocusStorageKey(userId: string) {
   return `praetorium:focused-onboarding-step:${userId}`
@@ -685,12 +674,8 @@ const onboardingFocusSchema = z
   .object({ task: z.enum(onboardingTaskIds), step: z.enum(onboardingStepIds) })
   .refine(({ task, step }) => ONBOARDING_UI[step].task === task)
 
-export function openOnboarding(task?: OnboardingTaskId, step?: OnboardingStepId) {
-  window.dispatchEvent(
-    new CustomEvent<OnboardingFocus | undefined>(ONBOARDING_EVENT, {
-      detail: task ? { task, step: step ?? FIRST_ONBOARDING_STEP[task] } : undefined,
-    }),
-  )
+export function openOnboarding(task: OnboardingTaskId, step?: OnboardingStepId) {
+  window.dispatchEvent(new CustomEvent<OnboardingFocus>(ONBOARDING_EVENT, { detail: { task, step: step ?? FIRST_ONBOARDING_STEP[task] } }))
 }
 
 /** Moves the guide on within one page, where a dialog or a selection is the whole transition. */
@@ -745,10 +730,6 @@ export function onboardingStepEntry(step: OnboardingStepId): OnboardingStepId {
     if (current === step) break
   }
   return entry
-}
-
-export function focusAfterOnboardingOperation(focus: OnboardingFocus | undefined, operation: OnboardingProgressOperation) {
-  return operation.operation === 'skip' && operation.task === focus?.task ? undefined : focus
 }
 
 export function onboardingPage(pathname: string): OnboardingPage | undefined {

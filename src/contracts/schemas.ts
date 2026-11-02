@@ -1,7 +1,7 @@
 import { ADMIN_USER_ROLES, ADMIN_USER_SORTS } from '../admin'
 import { z } from 'zod'
 import { REPLAY_BATCH_SIZE } from './battles'
-import { onboardingTaskIds, tourTaskIds } from '../core/onboarding'
+import { tourTaskIds } from '../core/onboarding'
 import { PLAYER_SEARCH_MAX_LENGTH } from '../core/playerSearch'
 import { MAX_COLLECTION_DATASHEETS, MAX_COUNTS_AS } from '../core/collection'
 import { collectionCount, collectionModels } from './collection'
@@ -284,14 +284,8 @@ export const pushTokenOnlySchema = z.object({ token: pushTokenSchema })
 export const userSchema = z.object({ userId: id })
 export const playerSearchSchema = z.object({ query: z.string().trim().max(PLAYER_SEARCH_MAX_LENGTH) })
 export const friendSchema = z.object({ userId: id })
-const onboardingTaskSchema = z.enum(onboardingTaskIds)
 /** Only a tour can be completed by saying so; every other task is folded from what the player did. */
-export const onboardingUpdateSchema = z.discriminatedUnion('operation', [
-  z.object({ operation: z.literal('complete'), task: z.enum(tourTaskIds) }),
-  z.object({ operation: z.literal('skip'), task: onboardingTaskSchema }),
-  z.object({ operation: z.literal('restore'), task: onboardingTaskSchema }),
-  z.object({ operation: z.literal('welcome') }),
-])
+export const onboardingUpdateSchema = z.object({ operation: z.literal('complete'), task: z.enum(tourTaskIds) })
 export const friendInviteSchema = z.object({ token })
 /** A guest seat in a battle; `replace` retires its link and any device that joined through it. */
 export const guestInviteSchema = z.object({ token, playerId: id, replace: z.boolean().default(false) })

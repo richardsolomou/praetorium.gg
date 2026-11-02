@@ -5,7 +5,6 @@ import { onboardingTaskIds } from '../../../core/onboarding'
 import {
   FIRST_ONBOARDING_STEP,
   focusAfterOnboardingNavigation,
-  focusAfterOnboardingOperation,
   nextOnboardingFocus,
   onboardingFocusStorageKey,
   onboardingHrefFor,
@@ -270,14 +269,5 @@ describe('onboarding focus', () => {
   it('leaves a step whose successor shares its page to the control that opens it', () => {
     const focus = { task: 'tournament', step: 'sealed-event-start' } as const
     expect(focusAfterOnboardingNavigation(focus, 'tournaments')).toBe(focus)
-  })
-
-  it('clears a focused task when the player skips it', () => {
-    expect(focusAfterOnboardingOperation({ task: 'roster', step: 'roster-list' }, { operation: 'skip', task: 'roster' })).toBeUndefined()
-  })
-
-  it('preserves focus when the player updates another task', () => {
-    const focus = { task: 'roster', step: 'roster-list' } as const
-    expect(focusAfterOnboardingOperation(focus, { operation: 'skip', task: 'friend' })).toBe(focus)
   })
 })
