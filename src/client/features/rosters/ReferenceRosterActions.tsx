@@ -240,7 +240,7 @@ function RosterChoice({ id, entryId, title, detail }: { id: string; entryId: str
       to="/rosters/$id"
       params={{ id }}
       search={{ add: entryId }}
-      className="flex items-center gap-3 border border-edge bg-panel px-3 py-2 text-left hover:border-primary/60 hover:bg-raised"
+      className="flex items-center gap-3 part px-3 py-2 text-left hover:border-primary/60 hover:bg-raised"
     >
       <span className="min-w-0 flex-1">
         <span className="block truncate text-sm font-semibold">{title}</span>

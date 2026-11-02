@@ -47,18 +47,23 @@ const FEATURES = [
 ]
 
 export function HomeFeatures() {
+  const half = Math.ceil(FEATURES.length / 2)
   return (
-    <section data-home-features className="border border-edge bg-panel/50 p-5 sm:p-6">
-      <h2 className="text-2xl leading-none text-parchment sm:text-3xl">Built for your next battle</h2>
-      <div className="mt-6 grid border-t border-edge md:grid-cols-2 md:gap-x-10">
-        {FEATURES.map(({ icon: Icon, title, text }) => (
-          <article key={title} className="min-w-0 border-b border-edge py-5">
-            <div className="flex items-start gap-3">
-              <Icon className="mt-0.5 size-5 shrink-0 text-parchment" aria-hidden />
-              <h3 className="text-xl leading-tight">{title}</h3>
-            </div>
-            <p className="mt-3 font-rules text-base leading-relaxed text-dim">{text}</p>
-          </article>
+    <section data-home-features>
+      <h2 className="text-2xl leading-none sm:text-3xl">Built for your next battle</h2>
+      <div className="mt-5 grid gap-x-10 md:grid-cols-2">
+        {[FEATURES.slice(0, half), FEATURES.slice(half)].map((column) => (
+          <ul key={column[0]?.title} className="runner [--gate-y:1.5rem]">
+            {column.map(({ icon: Icon, title, text }) => (
+              <li key={title} className="min-w-0 border-b border-edge py-3.5 pl-2 last:border-0">
+                <h3 className="flex items-center gap-2 font-sans text-base leading-tight font-bold normal-case">
+                  <Icon className="size-4 shrink-0 text-dim" aria-hidden />
+                  {title}
+                </h3>
+                <p className="mt-1 text-sm leading-relaxed text-dim">{text}</p>
+              </li>
+            ))}
+          </ul>
         ))}
       </div>
     </section>
@@ -67,10 +72,10 @@ export function HomeFeatures() {
 
 export function HomeIncluded() {
   return (
-    <section data-home-included className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_20rem] lg:gap-x-16">
-      <div className="min-w-0 border-l-2 border-parchment bg-parchment/5 p-5 sm:p-6">
-        <h2 className="text-2xl leading-none text-parchment sm:text-3xl">All free. No subscription.</h2>
-        <p className="mt-4 max-w-2xl font-rules text-dim">
+    <section data-home-included className="grid gap-4 lg:grid-cols-2">
+      <div className="min-w-0 part p-5 sm:p-6">
+        <h2 className="text-2xl leading-none">All free. No subscription.</h2>
+        <p className="mt-4 max-w-2xl font-rules text-bone/80">
           Every feature is free. Save lists and play with an account. Help keep it running:{' '}
           <a
             href={SPONSOR}
@@ -82,18 +87,18 @@ export function HomeIncluded() {
           </a>
           . Sponsors get a badge, not extra features.
         </p>
-        <p className="mt-3 max-w-2xl font-rules text-dim">
+        <p className="mt-3 max-w-2xl font-rules text-bone/80">
           Once a visit has finished downloading, the reference, the simulator and your saved lists keep working offline.
         </p>
       </div>
-      <aside data-home-import className="border border-info/30 bg-info/5 p-5">
+      <aside data-home-import className="part p-5 sm:p-6">
         <ClipboardPaste className="size-6 text-info" aria-hidden />
-        <h2 className="mt-4 text-xl leading-tight text-balance">Bring your existing lists</h2>
+        <h2 className="mt-4 text-2xl leading-none text-balance">Bring your existing lists</h2>
         <p className="mt-2 font-rules text-sm leading-relaxed text-dim">
           Paste a Games Workshop text export from BattleBase or New Recruit, or a Praetorium exchange code. Review any unmatched units or
           options.
         </p>
-        <Link to="/rosters" className={buttonClass({ className: 'mt-5 w-full' })}>
+        <Link to="/rosters" className={buttonClass({ variant: 'outline', className: 'mt-5 w-full' })}>
           Try importing a list
         </Link>
       </aside>
@@ -103,13 +108,13 @@ export function HomeIncluded() {
 
 export function HomeClosing() {
   return (
-    <section className="relative overflow-hidden border-t border-edge bg-panel">
-      <div className="plot-grid" />
+    <section className="masthead-bleed relative overflow-hidden border-t border-edge bg-masthead [--band-bottom:0px] [--band-top:1px]">
+      <div className="construction-grid" />
       <div className="relative mx-auto flex w-full max-w-6xl flex-col gap-6 px-5 py-10 sm:px-6 md:flex-row md:items-end md:justify-between md:py-16">
         <div>
-          <h2 className="text-3xl leading-[0.9] sm:text-4xl">
+          <h2 className="text-4xl leading-[0.9] sm:text-6xl">
             Bring your
-            <span className="block text-parchment">next game.</span>
+            <span className="block">next game.</span>
           </h2>
           <p className="mt-5 max-w-md font-rules text-dim">Free to use, and open source.</p>
         </div>

@@ -83,7 +83,7 @@ export function RosterChoices({
     <div className="space-y-2">
       {variantCards(shown).map(({ head, variants }) =>
         variants.length ? (
-          <div key={head.roster.id} data-roster-group className="border border-edge bg-panel">
+          <div key={head.roster.id} data-roster-group className="part">
             {choice(head, 'base', head.roster.visibility)}
             {variants.map((variant) => choice(variant, 'variant', head.roster.visibility))}
           </div>

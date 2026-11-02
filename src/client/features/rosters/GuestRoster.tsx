@@ -115,7 +115,6 @@ export function GuestRoster({
     return (
       <PageState
         headingLevel={1}
-        eyebrow="Roster builder"
         title="This army is not available"
         explanation="The army data does not have this list's faction right now. Try again shortly, or start a new list."
         action={
@@ -240,7 +239,6 @@ export function ClaimGuestRoster({ guest, onDiscard }: { guest: GuestDraft; onDi
     return (
       <PageState
         headingLevel={1}
-        eyebrow="Roster builder"
         title="Save the roster you started?"
         explanation={`${units ? `You built a roster with ${countLabel(units, 'unit')}` : 'You started a roster'} on this device before signing in. Save it to your rosters, or discard it.`}
         action={
@@ -256,7 +254,6 @@ export function ClaimGuestRoster({ guest, onDiscard }: { guest: GuestDraft; onDi
   return (
     <PageState
       headingLevel={1}
-      eyebrow="Roster builder"
       title="Your roster is not saved yet"
       explanation={`It is still here to try again. ${errorMessage(claim.error)}`}
       action={

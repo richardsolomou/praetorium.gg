@@ -90,7 +90,12 @@ export function SeatMatchup({
   const theirs = seats.filter((seat) => seat.side === 'theirs').map((seat) => labelFor(seat) ?? 'Choose opponent')
 
   return (
-    <div data-onboarding={onboarding} aria-label="Battle matchup" aria-live="polite" className="border border-edge bg-sunken p-3">
+    <div
+      data-onboarding={onboarding}
+      aria-label="Battle matchup"
+      aria-live="polite"
+      className="rounded-lg border border-edge bg-sunken p-3"
+    >
       <p className="eyebrow mb-2">Matchup</p>
       <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-start gap-2 text-sm">
         <div className="min-w-0">

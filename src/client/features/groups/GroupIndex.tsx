@@ -25,7 +25,6 @@ export function GroupIndex() {
   return (
     <main className="w-full">
       <PageHeader
-        eyebrow="Events"
         title="Groups"
         description="Keep a running leaderboard of the games your group plays."
         actions={
@@ -42,7 +41,6 @@ export function GroupIndex() {
         {!groups.length ? (
           <PageState
             headingLevel={2}
-            eyebrow="Play with your group"
             title="No groups yet"
             explanation={me ? 'Start one and send the link to your group.' : 'Public groups show up here. Sign in to start one.'}
             icon={Users}
@@ -65,11 +63,11 @@ function GroupShelf({ title, groups }: { title: string; groups: readonly GroupSu
             <article key={group.id} data-group={group.token} className={SEALED_EVENT_CARD}>
               <Link to="/groups/$token" params={{ token: group.token }} className="flex min-w-0 flex-1 flex-col">
                 <div className="flex-1 p-4">
-                  <p className="flex items-center gap-2 text-xs text-dim">
+                  <h3 className="truncate text-lg leading-tight font-bold uppercase">{group.name}</h3>
+                  <p className="mt-1 flex items-center gap-2 text-xs text-dim">
                     <VisibilityIcon visibility={group.visibility} labelled />
                     <span className="truncate tracking-label uppercase">{admissionLabel(group.admission)}</span>
                   </p>
-                  <h3 className="mt-1.5 truncate text-lg leading-tight font-bold uppercase">{group.name}</h3>
                   {group.description ? (
                     <p className="mt-1 line-clamp-2 text-sm text-dim">{group.description}</p>
                   ) : (

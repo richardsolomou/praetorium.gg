@@ -3,7 +3,7 @@ import { LegalPage, LegalSection, PrivacyEmail } from './LegalPage'
 
 export function DeleteAccount() {
   return (
-    <LegalPage eyebrow="Help" title="Delete account" updated="26 October 2026">
+    <LegalPage title="Delete account" updated="26 October 2026">
       <LegalSection title="Delete from Praetorium">
         <p>
           Sign in, choose Account settings from the account menu, and choose Delete account at the bottom of the page. The confirmation

@@ -76,14 +76,7 @@ export function PlayerProfilePage({ userId, search }: { userId: string; search: 
   // Only fetched when there is a list to name a faction for, since the index is large.
   const factions = useQuery({ ...factionIndexQuery(), enabled: Boolean(published?.rosters.length) })
   if (!profile) {
-    return (
-      <FullPageState
-        eyebrow="Player profile"
-        title="No such player"
-        explanation="This account does not exist, or it has been deleted."
-        icon={UserX}
-      />
-    )
+    return <FullPageState title="No such player" explanation="This account does not exist, or it has been deleted." icon={UserX} />
   }
 
   const yourself = userId === me?.id
@@ -111,14 +104,17 @@ export function PlayerProfilePage({ userId, search }: { userId: string; search: 
   return (
     <main className="w-full">
       <PageHeader
-        eyebrow={
-          <span className="inline-flex items-center gap-2">
-            {yourself ? 'You' : 'Player'}
-            {profile.admin ? <AdminBadge /> : null}
-            {profile.supporter ? <SupporterBadge /> : null}
-          </span>
+        title={
+          profile.admin || profile.supporter ? (
+            <span className="inline-flex flex-wrap items-center gap-x-3 gap-y-1">
+              {profile.name}
+              {profile.admin ? <AdminBadge /> : null}
+              {profile.supporter ? <SupporterBadge /> : null}
+            </span>
+          ) : (
+            profile.name
+          )
         }
-        title={profile.name}
         description={record && (record.battles || !lists.length) ? recordSummary(record) : undefined}
         media={
           <PlayerAvatar

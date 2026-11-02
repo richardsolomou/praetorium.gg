@@ -10,7 +10,7 @@ export type HomeRecordData = {
   rank: { place: number; of: number } | null
 }
 
-const TILES = 'mt-5 grid grid-cols-2 gap-2 sm:grid-cols-[repeat(4,8.5rem)]'
+const TILES = 'mt-6 grid grid-cols-2 gap-2 sm:grid-cols-4'
 
 /**
  * The player's standing at a glance, under the greeting.
@@ -24,7 +24,7 @@ export function HomeRecord({ userId, data }: { userId: string; data: HomeRecordD
     return (
       <div className={TILES} aria-label="Loading your record">
         {[0, 1, 2, 3].map((key) => (
-          <Skeleton key={key} className="h-16" />
+          <Skeleton key={key} className="h-20 rounded-xl" />
         ))}
       </div>
     )
@@ -72,16 +72,19 @@ export function HomeRecord({ userId, data }: { userId: string; data: HomeRecordD
 
 /** The leaderboard opens on its own tile; the other figures open the profile that breaks them down. */
 const TILE =
-  'relative flex h-16 min-w-0 flex-col justify-center overflow-hidden border border-edge bg-sunken/60 px-3 transition-colors hover:border-info hover:bg-raised'
+  'part relative flex h-20 min-w-0 flex-col justify-center overflow-hidden px-4 transition-colors hover:border-runner-hi hover:bg-raised'
 
 function Stat({ label, bar, children }: { label: string; bar?: number; children: ReactNode }) {
   return (
     <>
       <span className="eyebrow text-faint">{label}</span>
-      <span className="figure mt-1 text-xl leading-none font-bold whitespace-nowrap text-bone">{children}</span>
+      <span className="figure mt-1.5 text-2xl leading-none font-bold whitespace-nowrap text-bone">{children}</span>
       {bar === undefined ? null : (
-        <span className="absolute inset-x-0 bottom-0 h-0.5 bg-edge" aria-hidden>
-          <span className="block h-full bg-achieved" style={{ width: `${bar}%` }} />
+        <span
+          className="absolute inset-x-4 bottom-2.5 h-1.5 bg-[linear-gradient(var(--color-runner),var(--color-runner))] bg-[length:100%_2px] bg-center bg-no-repeat"
+          aria-hidden
+        >
+          <span className="block h-full rounded-[2px] bg-achieved" style={{ width: `${bar}%` }} />
         </span>
       )}
     </>

@@ -21,7 +21,11 @@ export function UnitPhoto({ entryId, name }: { entryId: string; name: string }) 
       {!own && shared ? (
         <figure>
           <button type="button" className="block w-full" aria-label={`View the photo of ${name}`} onClick={() => setViewing(true)}>
-            <img src={collectionPhotoPath(shared.photoId)} alt="" className="max-h-56 w-full border border-edge bg-sunken object-cover" />
+            <img
+              src={collectionPhotoPath(shared.photoId)}
+              alt=""
+              className="max-h-56 w-full rounded-lg border border-edge bg-sunken object-cover"
+            />
           </button>
           <figcaption className="mt-1 text-xs text-dim">From {shared.owner.name}’s collection</figcaption>
           <PhotoViewer entryId={entryId} name={name} photo={viewing ? shared : null} onClose={() => setViewing(false)} />

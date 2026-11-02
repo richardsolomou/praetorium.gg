@@ -14,8 +14,6 @@ type Props = {
   pending: boolean
   /** Why the turn cannot move at all. Disables the control. */
   blockReason: string | null
-  /** What the active side still owes. Said, never enforced: anyone at the table may do it. */
-  note: string | null
   /** Opens the scoring prompt when this advance settles a card, and advances when it does not. */
   onAdvance: () => void
   className?: string
@@ -28,7 +26,17 @@ type Props = {
  * panels stay the same shape and their numbers line up across the table whichever
  * side is taking the turn.
  */
-export function TurnControl({ view, clock, send, pending, blockReason, note, onAdvance, className = '' }: Props) {
+/** What fits a sixth of the rail at any width; the full name stays for a screen reader. */
+const SHORT: Record<(typeof PHASES)[number], string> = {
+  command: 'Cmd',
+  movement: 'Move',
+  shooting: 'Shoot',
+  charge: 'Charge',
+  fight: 'Fight',
+  end: 'End',
+}
+
+export function TurnControl({ view, clock, send, pending, blockReason, onAdvance, className = '' }: Props) {
   const active = view.players.find((player) => player.isActive)
   const activeSide = active?.side ?? 0
   const at = PHASES.indexOf(view.phase)
@@ -36,28 +44,31 @@ export function TurnControl({ view, clock, send, pending, blockReason, note, onA
 
   return (
     <section data-onboarding="battle-live-turn" data-turn-control className={cn('space-y-2', className)}>
-      <ol className="flex gap-0.5" aria-label={`${view.phase} phase`}>
+      {/* Phases done solid, the one being played doubled, the rest dashed, in the colour of the side whose turn it is. */}
+      <ol className={cn('grid grid-cols-6 gap-1', tint(activeSide).line)} aria-label={`${view.phase} phase`}>
         {PHASES.map((phase, index) => (
-          <li key={phase} className="min-w-0 flex-auto" aria-current={phase === view.phase ? 'step' : undefined}>
-            <span className={`block h-1 ${index <= at ? tint(activeSide).rail : 'bg-edge-strong'}`} />
+          <li key={phase} className="min-w-0" aria-current={phase === view.phase ? 'step' : undefined}>
+            <span className="line-segment" data-line={index < at ? 'done' : index === at ? 'now' : 'todo'} />
             <span
-              className={`mt-1 block truncate text-center text-3xs font-semibold tracking-label uppercase ${
+              className={`mt-1 block text-center font-display text-3xs font-semibold tracking-label uppercase max-sm:sr-only ${
                 phase === view.phase ? 'text-bone' : 'text-faint'
               }`}
             >
-              {phase}
+              <span aria-hidden>{SHORT[phase]}</span>
+              <span className="sr-only">{phase}</span>
             </span>
             {phase === view.phase && active ? (
               <Elapsed
                 clock={clock}
                 match={{ side: activeSide, round: view.round, phase }}
-                className="block text-center text-3xs text-dim"
+                className="readout block text-center text-3xs text-dim max-sm:hidden"
               />
             ) : null}
           </li>
         ))}
       </ol>
       <div className="flex items-stretch gap-2">
+        <UndoLatest compact className="h-auto min-h-11 shrink-0 rounded-xl px-3.5" undo={view} send={send} pending={pending} />
         {/*
          * Tinted to whichever side is taking the turn, like the phase rail above it.
          * This is the most-pressed control in the game and the one thing on the middle
@@ -66,18 +77,15 @@ export function TurnControl({ view, clock, send, pending, blockReason, note, onA
          */}
         <Button
           variant="default"
-          className={`h-auto min-h-11 min-w-0 flex-1 text-center text-base whitespace-normal ${tint(activeSide).fill}`}
+          className={`h-auto min-h-11 min-w-0 flex-1 rounded-xl text-center font-display text-sm font-bold whitespace-normal ${tint(activeSide).fill}`}
           disabled={pending || Boolean(blockReason)}
           onClick={onAdvance}
         >
           {label}
         </Button>
-        <UndoLatest compact className="h-auto min-h-11 shrink-0 px-3" undo={view} send={send} pending={pending} />
       </div>
       {blockReason ? (
-        <p className="border border-discarded/50 bg-discarded/10 p-2 text-center text-xs text-discarded">{blockReason}</p>
-      ) : note ? (
-        <p className="border border-edge bg-sunken p-2 text-center text-xs text-dim">{note}</p>
+        <p className="rounded-lg border border-discarded/50 bg-discarded/10 p-2 text-center text-xs text-discarded">{blockReason}</p>
       ) : null}
     </section>
   )

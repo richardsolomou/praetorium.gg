@@ -147,7 +147,7 @@ export function Spectator({
         <Scoreboard view={view} clock={clock} sides={table} />
         {/* A finished game is when a reader is most likely to want their own, so it leads there and waits beside the facts while play goes on. */}
         {currentView.status === 'finished' ? (
-          <SpectatorInvite view={currentView} className="mx-auto max-w-7xl rounded-lg border border-primary/40 bg-panel p-3" />
+          <SpectatorInvite view={currentView} className="part mx-auto max-w-7xl border-primary/40 p-3" />
         ) : null}
         {currentView.status === 'finished' && lead ? <div className="mx-auto w-full max-w-7xl">{lead}</div> : null}
 
@@ -163,7 +163,7 @@ export function Spectator({
             />
           ))}
 
-          <section className="min-w-0 space-y-3 rounded-lg border border-edge bg-panel p-3 lg:col-start-2 lg:row-start-1">
+          <section className="part min-w-0 space-y-3 p-3 lg:col-start-2 lg:row-start-1">
             {view.sealedEventToken || view.groupId ? (
               <div className="flex min-w-0 items-center gap-3 text-xs">
                 {view.sealedEventToken ? (
@@ -296,7 +296,7 @@ function ReplayTimeline({
           ))}
           <div
             aria-hidden
-            className="pointer-events-none absolute bottom-0 h-6 w-px bg-primary"
+            className="pointer-events-none absolute bottom-0 h-7 w-1.5 -translate-x-1/2 border-x-2 border-parchment"
             style={{ left: `${(index / Math.max(1, points.length - 1)) * 100}%` }}
           />
           <input
@@ -354,12 +354,12 @@ function SpectatorSide({
   }
 
   return (
-    <section className={cn('min-w-0 space-y-3 rounded-lg border border-edge border-t-2 bg-panel p-3', colours.edge, className)}>
+    <section className={cn('part min-w-0 space-y-3 border-t-2 p-3', colours.edge, className)}>
       <div className="space-y-2">
-        {side.armies.map((army) => (
+        {side.armies.map((army, at) => (
           <div key={army.playerId} className="min-w-0">
             <h2 className={`flex min-w-0 items-baseline gap-2 text-lg leading-tight font-bold uppercase ${colours.text}`}>
-              <PlayerName army={army} />
+              <PlayerName army={army} seat={{ side: side.index, at }} />
               <PlayerRatingChange view={view} playerId={army.playerId} />
             </h2>
             <ArmyIdentity army={army} className="mt-0.5" />

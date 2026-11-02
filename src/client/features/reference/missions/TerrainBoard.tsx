@@ -109,7 +109,7 @@ export function TerrainBoard({
   const svg = (
     <svg
       viewBox={`${-margin} ${-margin / 2} ${board.height + margin * 1.5} ${board.width + margin * 1.5}`}
-      className={cn('border border-edge bg-sunken', className)}
+      className={cn('rounded-lg border border-edge bg-sunken', className)}
       aria-label={ariaLabel ?? layout.name}
     >
       <title>{ariaLabel ?? layout.name}</title>

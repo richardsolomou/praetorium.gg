@@ -482,16 +482,12 @@ export async function chooseBattlefield(page: Page) {
 /** The button that ends the current phase or passes the turn. */
 export const advanceButton = (page: Page) => page.getByRole('button', { name: /^(End the .+ phase|Pass the turn)$/ })
 
-/** Confirms a scoring prompt, first pressing Next card through any card the window has not yet shown. */
+/** Confirms a scoring prompt, first answering every card the test left untouched with nothing scored. */
 export async function confirmScoring(prompt: Locator, name: string | RegExp) {
-  const confirm = prompt.getByRole('button', { name })
-  const next = prompt.getByRole('button', { name: 'Next card', exact: true })
-  await expect(async () => {
-    // Bounded, because the scroll an earlier press started can turn Next card into the confirm before this lands.
-    if (await next.isVisible()) await next.click({ timeout: 1_000 })
-    await expect(confirm).toBeVisible({ timeout: 1_000 })
-  }).toPass({ timeout: 15_000 })
-  await confirm.click()
+  for (const card of await prompt.locator('section[data-due]').all()) {
+    if (!(await card.locator('[aria-pressed="true"]').count())) await card.getByRole('button', { name: / scored nothing$/ }).click()
+  }
+  await prompt.getByRole('button', { name }).click()
 }
 
 /** The hand being dealt: this table's own, or the practice opponent's it is also playing. */

@@ -26,8 +26,7 @@ type ManageableSealedEvent = {
 }
 
 /** One frame for every sealed event card, so a card with organizer actions looks like one without. */
-export const SEALED_EVENT_CARD =
-  'relative flex min-w-0 flex-col border border-edge bg-panel transition-colors hover:border-info hover:bg-raised'
+export const SEALED_EVENT_CARD = 'relative flex min-w-0 flex-col part transition-colors hover:border-info hover:bg-raised'
 
 /** `canDelete` is a tournament owner's alone; an admin runs the tournament but cannot remove it. */
 export function SealedEventCardActions({

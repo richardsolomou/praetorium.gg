@@ -171,7 +171,7 @@ function EntryPhotos({ name, photoIds, onOpen }: { name: string; photoIds: reado
   return (
     <button
       type="button"
-      className="relative grid size-8 shrink-0 place-items-center overflow-hidden border border-edge bg-sunken hover:border-info"
+      className="relative grid size-8 shrink-0 place-items-center overflow-hidden rounded-lg border border-edge bg-sunken hover:border-info"
       aria-label={`Photos of ${name}`}
       onClick={() => onOpen(first)}
     >

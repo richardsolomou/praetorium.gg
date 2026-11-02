@@ -73,12 +73,7 @@ export function FactionDatasheets() {
 
   return (
     <main className="w-full">
-      <PageHeader
-        tint={factionColour(faction.slug, faction.displayName)}
-        eyebrow={faction.displayName}
-        title="Datasheets"
-        media={<FactionMark faction={faction} />}
-      />
+      <PageHeader tint={factionColour(faction.slug, faction.displayName)} title="Datasheets" media={<FactionMark faction={faction} />} />
       <PageContent className="space-y-6">
         <FactionBreadcrumb faction={faction} />
         <SearchField
@@ -145,7 +140,6 @@ export function FactionDatasheets() {
                 headingLevel={2}
                 loading={isPending}
                 icon={FileSearch}
-                eyebrow={query.trim() || filtered ? 'Datasheet search' : faction.displayName}
                 title={isPending ? 'Loading datasheets' : query.trim() || filtered ? 'No datasheets match' : 'No datasheets available'}
                 explanation={
                   isPending
@@ -177,21 +171,21 @@ const FactionDatasheetRow = memo(function FactionDatasheetRow({
   return (
     <div
       data-datasheet={unit.name}
-      className="flex w-full min-w-0 items-center border border-edge bg-panel [contain:layout_style] hover:border-info"
+      className="flex w-full min-w-0 items-center part pr-1 transition-colors [contain:layout_style] hover:border-runner hover:bg-raised"
     >
       <FactionReferenceLink
         to="/factions/$catalogueId/datasheets/$entryId"
         params={{ catalogueId, entryId: unit.slug }}
-        className="flex min-w-0 flex-1 items-center px-3 py-2"
+        className="flex min-h-12 min-w-0 flex-1 items-center py-2.5 pr-1 pl-4"
       >
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm font-bold uppercase">{unit.name}</span>
+          <span className="block truncate font-bold">{unit.name}</span>
           <DatasheetMatchReasons query={query} reasons={unit.matchReasons} fuzzy={unit.fuzzy} />
         </span>
-        {unit.points === null ? null : <span className="chip ml-2 shrink-0 text-info">{unit.points} pts</span>}
-        <ChevronRight className="ml-2 size-4 shrink-0 text-dim" aria-hidden />
+        {unit.points === null ? null : <span className="chip ml-2 shrink-0 text-bone">{unit.points} pts</span>}
+        <ChevronRight className="ml-2 size-4 shrink-0 text-faint" aria-hidden />
       </FactionReferenceLink>
-      <FavouriteDatasheetToggle entryId={unit.id} name={unit.name} className="size-11" />
+      <FavouriteDatasheetToggle entryId={unit.id} name={unit.name} className="size-11 rounded-lg" />
     </div>
   )
 })

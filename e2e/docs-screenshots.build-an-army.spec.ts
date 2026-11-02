@@ -26,7 +26,7 @@ test('build an army screenshots', async ({ page }) => {
   await page.getByLabel('Add a unit').fill('')
   await page.setViewportSize({ width: 1280, height: 620 })
   const pickerPane = page.locator('div[data-onboarding="roster-picker"]')
-  const filters = pickerPane.locator('div.flex-wrap').filter({ has: page.getByRole('button', { name: 'Points fit' }) })
+  const filters = pickerPane.locator('div.overflow-x-auto').filter({ has: page.getByRole('button', { name: 'Points fit' }) })
   await capture('build-an-army-picker', pickerPane, filters)
   await pickerPane.getByRole('button', { name: 'Format restrictions' }).click()
   await capture('build-an-army-format-restrictions', pickerPane, page.getByRole('menuitemcheckbox', { name: /Detachment points/ }))

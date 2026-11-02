@@ -101,6 +101,25 @@ export function SealedEventRounds({
         }
       />
       {pair.error ? <Problem error={pair.error} className="mb-2" /> : null}
+      {progress.rounds ? (
+        <ol aria-hidden className="mb-4 flex gap-1.5">
+          {Array.from({ length: progress.rounds }, (_, index) => {
+            const round = index + 1
+            const line =
+              round < progress.round || (round === progress.round && progress.complete) ? 'done' : round === progress.round ? 'now' : 'todo'
+            return (
+              <li key={round} className="min-w-0 flex-1">
+                <span data-line={line} className="line-segment" />
+                <span
+                  className={`mt-1 block text-2xs font-semibold tracking-label uppercase ${line === 'now' ? 'text-parchment' : line === 'done' ? 'text-dim' : 'text-faint'}`}
+                >
+                  R{round}
+                </span>
+              </li>
+            )
+          })}
+        </ol>
+      ) : null}
       {!rounds.length ? (
         <p className="text-sm text-dim">
           {isOrganizer
@@ -120,40 +139,43 @@ export function SealedEventRounds({
           {rounds.length > 1 ? (
             <p className="text-sm text-dim">Results from earlier rounds are locked once the next round is paired.</p>
           ) : null}
-          {rounds.map((round) => (
-            <div key={round}>
-              {rounds.length > 1 ? (
-                <p className="eyebrow mb-1.5 flex items-center gap-1.5">
-                  <span>Round {round}</span>
-                  {round < progress.round ? (
-                    <span className="flex items-center gap-1 text-faint">
-                      <Lock className="size-3" aria-hidden /> <span>Results locked</span>
-                    </span>
-                  ) : null}
-                </p>
-              ) : null}
-              <ol className="divide-y divide-edge border border-edge bg-panel">
-                {sealedEvent.pairings
-                  .filter((pairing) => pairing.round === round)
-                  .map((pairing) => (
-                    <TableRow
-                      key={pairing.key}
-                      pairing={pairing}
-                      rematch={rematch.has(pairing)}
-                      battle={pairing.battleToken ? byToken.get(pairing.battleToken) : undefined}
-                      name={name}
-                      forfeit={!pairing.battleToken && forfeited(pairing, entries)}
-                      viewerId={viewerId}
-                      current={round === progress.round}
-                      onPlay={onPlay}
-                      playing={playing}
-                      sample={sample}
-                      reopen={isOrganizer && !sample ? { token, eventToken: sealedEvent.eventToken } : undefined}
-                    />
-                  ))}
-              </ol>
-            </div>
-          ))}
+          <div className="runner gap-3 [--gate-y:1.375rem]">
+            {rounds.map((round) => (
+              <div key={round} data-gate={round === progress.round && !progress.complete ? 'current' : undefined} className="part">
+                {rounds.length > 1 ? (
+                  <p className="flex min-h-11 items-center gap-2 rounded-t-xl border-b border-edge bg-sunken/40 px-3 text-xs font-semibold tracking-label uppercase">
+                    <span className="part-tag part-tag-ghost">R{round}</span>
+                    <span>Round {round}</span>
+                    {round < progress.round ? (
+                      <span className="ml-auto flex items-center gap-1 text-faint">
+                        <Lock className="size-3" aria-hidden /> <span>Results locked</span>
+                      </span>
+                    ) : null}
+                  </p>
+                ) : null}
+                <ol className="divide-y divide-edge">
+                  {sealedEvent.pairings
+                    .filter((pairing) => pairing.round === round)
+                    .map((pairing) => (
+                      <TableRow
+                        key={pairing.key}
+                        pairing={pairing}
+                        rematch={rematch.has(pairing)}
+                        battle={pairing.battleToken ? byToken.get(pairing.battleToken) : undefined}
+                        name={name}
+                        forfeit={!pairing.battleToken && forfeited(pairing, entries)}
+                        viewerId={viewerId}
+                        current={round === progress.round}
+                        onPlay={onPlay}
+                        playing={playing}
+                        sample={sample}
+                        reopen={isOrganizer && !sample ? { token, eventToken: sealedEvent.eventToken } : undefined}
+                      />
+                    ))}
+                </ol>
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </section>
@@ -190,9 +212,12 @@ function TableRow({
   const own = pairing.aId === viewerId || pairing.bId === viewerId
   const opponent = pairing.aId === viewerId ? pairing.bId : pairing.aId
   return (
-    <li data-table={pairing.table} className={`flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2 p-3 ${own ? 'bg-raised' : ''}`}>
-      <span className="figure w-6 shrink-0 text-sm text-faint">{pairing.table}</span>
-      <span className="min-w-0 flex-1 truncate font-semibold">
+    <li
+      data-table={pairing.table}
+      className={`flex min-h-12 min-w-0 flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2 last:rounded-b-xl ${own ? 'bg-parchment/5' : ''}`}
+    >
+      <span className="part-tag part-tag-ghost">{pairing.table}</span>
+      <span className="min-w-0 flex-1 font-semibold break-words">
         {name(pairing.aId)}
         {pairing.bId ? <span className="font-normal text-dim"> vs </span> : null}
         {pairing.bId ? name(pairing.bId) : null}
@@ -201,9 +226,13 @@ function TableRow({
       {!pairing.bId || forfeit ? (
         <span className="chip shrink-0 text-dim">Bye</span>
       ) : pairing.battleToken && sample ? (
-        <span className="shrink-0 text-sm text-info">{battleState(battle, pairing.aId, pairing.bId)}</span>
+        <span className="readout shrink-0 text-sm font-semibold text-bone">{battleState(battle, pairing.aId, pairing.bId)}</span>
       ) : pairing.battleToken ? (
-        <Link to="/battles/$token" params={{ token: pairing.battleToken }} className="shrink-0 text-sm text-info hover:text-bone">
+        <Link
+          to="/battles/$token"
+          params={{ token: pairing.battleToken }}
+          className="readout shrink-0 text-sm font-semibold text-bone hover:text-parchment"
+        >
           {battleState(battle, pairing.aId, pairing.bId)}
         </Link>
       ) : own && current && opponent ? (

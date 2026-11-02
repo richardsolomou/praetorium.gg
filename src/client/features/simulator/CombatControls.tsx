@@ -7,7 +7,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { cn } from '@/lib/utils'
 import { Crosshair, Swords } from 'lucide-react'
 
-const selectClass = 'h-9 w-full min-w-0 border border-edge bg-sunken px-2 text-sm text-bone'
+const selectClass = 'h-9 w-full min-w-0 rounded-lg border border-edge bg-sunken px-2 text-sm text-bone'
 
 export function Choice<T extends string | number>({
   label,

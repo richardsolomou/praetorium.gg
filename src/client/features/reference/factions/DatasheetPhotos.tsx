@@ -40,7 +40,7 @@ export function DatasheetPhotos({ entryId, name }: { entryId: string; name: stri
                   src={collectionPhotoPath(photo.photoId, 'thumbnail')}
                   alt=""
                   loading="lazy"
-                  className="aspect-square w-full border border-edge bg-sunken object-cover group-hover:border-info"
+                  className="aspect-square w-full rounded-lg border border-edge bg-sunken object-cover group-hover:border-info"
                 />
               </button>
               <div className="flex items-center justify-between gap-1">

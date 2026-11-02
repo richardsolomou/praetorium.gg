@@ -27,7 +27,9 @@ export async function capture(name: string, frame: Locator, highlight?: Locator,
     path: `${DIRECTORY}/${name}.png`,
     animations: 'disabled',
     caret: 'hide',
-    style: '[data-docs-highlight] { outline: 2px solid var(--color-parchment) !important; outline-offset: 3px !important; }',
+    // Toasts such as a new achievement land over whatever the frame shows.
+    style:
+      '[data-docs-highlight] { outline: 2px solid var(--color-parchment) !important; outline-offset: 3px !important; } [data-sonner-toaster] { display: none !important; }',
   })
   if (highlight) await highlight.evaluate((element) => element.removeAttribute('data-docs-highlight'))
   if (padded) await frame.evaluate((element) => ((element as HTMLElement).style.padding = ''))

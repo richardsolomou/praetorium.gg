@@ -32,7 +32,6 @@ export function FriendInvitePage({ token }: { token: string }) {
   return (
     <main className="w-full">
       <PageHeader
-        eyebrow="Friend invite"
         title={`${invite.inviter.name} invited you`}
         description="Join them on Praetorium to build army lists, track battles and play together."
         media={<PlayerAvatar name={invite.inviter.name} image={invite.inviter.image} className="size-14 text-lg" />}
@@ -41,7 +40,6 @@ export function FriendInvitePage({ token }: { token: string }) {
         {me?.id === invite.inviter.id ? (
           <PageState
             headingLevel={2}
-            eyebrow="Your invite"
             title="Send this link to a friend"
             explanation="When they accept it, you will be connected as friends and can start battles together."
             icon={UserPlus}
@@ -49,7 +47,6 @@ export function FriendInvitePage({ token }: { token: string }) {
         ) : me ? (
           <PageState
             headingLevel={2}
-            eyebrow="From a friend"
             title={`Become friends with ${invite.inviter.name}`}
             explanation="Accepting this one-time invite connects your accounts so either of you can start a battle together."
             icon={UserPlus}
@@ -65,7 +62,6 @@ export function FriendInvitePage({ token }: { token: string }) {
         ) : (
           <PageState
             headingLevel={2}
-            eyebrow="Join Praetorium"
             title="Create an account to accept"
             explanation="Your account keeps your armies and battles together. You choose whether to accept the friendship after signing in."
             icon={UserPlus}

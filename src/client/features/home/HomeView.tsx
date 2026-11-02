@@ -11,6 +11,7 @@ import { type ArmyUpdate, HomeArmyUpdates } from './HomeArmyUpdates'
 import { FriendTables, PublicTables, SHOWN, watchedTables } from './HomeFeed'
 import { HomeHero } from './HomeHero'
 import { HomeIntro } from './HomeIntro'
+import { HomeSteps } from './HomeSteps'
 import { HomeLeaders } from './HomeLeaders'
 import { HomeClosing, HomeFeatures, HomeIncluded } from './HomePitch'
 import { HomeRecord, type HomeRecordData } from './HomeRecord'
@@ -82,15 +83,11 @@ export function HomeView({
   const listsFirst = !going.length && !played.length
   const rosterShelf = <HomeRosters rosters={rosters} count={rosterCount} changed={changedRosters} />
   if (me) {
+    // A player who only builds lists has no record to show, and a strip of dashes would say they are losing.
+    const stats = onboarding?.completedTasks.includes('battle') && record !== null ? <HomeRecord userId={me.id} data={record} /> : null
     return (
       <main className="w-full">
-        <Welcome
-          name={me.name}
-          returning={mine.length > 0 || rosterCount > 0}
-          newBattle={newBattle}
-          // A player who only builds lists has no record to show, and a strip of dashes would say they are losing.
-          stats={onboarding?.completedTasks.includes('battle') ? <HomeRecord userId={me.id} data={record} /> : null}
-        />
+        <Welcome name={me.name} returning={mine.length > 0 || rosterCount > 0} newBattle={newBattle} stats={stats} />
         {notifications}
         <div className="mx-auto w-full max-w-6xl space-y-10 px-5 py-8 sm:px-6">
           <Columns
@@ -99,6 +96,7 @@ export function HomeView({
                 <div>
                   <BattleShelf
                     title={going.length === 1 ? 'Your game' : 'Your games'}
+                    branched={false}
                     battles={going.slice(0, SHOWN)}
                     viewerId={me.id}
                     onDelete={onDelete}
@@ -111,6 +109,8 @@ export function HomeView({
             }
             aside={
               <>
+                {/* A phone reaches its games before the record, so the tiles follow them there instead of sitting in the band. */}
+                {stats ? <div className="-mt-6 sm:hidden">{stats}</div> : null}
                 <HomeWaiting rostersDue={rostersDue} friendRequests={friendRequests} />
                 {listsFirst ? null : rosterShelf}
                 {recentSimulations}
@@ -139,15 +139,16 @@ export function HomeView({
       <HomeHero battle={hero} />
       <div className="mx-auto w-full max-w-6xl space-y-12 px-5 py-10 sm:px-6 md:space-y-16 md:py-16">
         {recentSimulations}
-        <HomeFeatures />
-        <HomeIncluded />
-        <HomeIntro />
+        <HomeSteps />
         <Columns
           // A hero holding the only public battle is the shelf; an empty one under it would contradict it.
           // A visitor is shown that games are played here, not the archive of them.
           lead={rest.length || !hero ? <PublicTables battles={rest.slice(0, VISITOR_GAMES)} signedIn={false} /> : null}
           aside={leaders ? <HomeLeaders rows={leaders.rows} /> : null}
         />
+        <HomeFeatures />
+        <HomeIncluded />
+        <HomeIntro />
       </div>
       <HomeClosing />
     </main>
@@ -174,19 +175,19 @@ function Welcome({ name, returning, newBattle, stats }: { name: string; returnin
   const firstName = name.trim().split(/\s+/)[0]
   const greeting = returning ? 'Welcome back' : 'Welcome'
   return (
-    <section className="relative overflow-hidden border-b border-edge bg-masthead">
-      <div className="plot-grid" />
-      <div className="relative mx-auto flex max-w-6xl flex-wrap items-end justify-between gap-x-6 gap-y-4 px-5 py-6 sm:px-6 sm:py-7">
-        <div className="w-full sm:w-auto">
-          <h1 className="text-2xl leading-none sm:text-3xl">{firstName ? `${greeting}, ${firstName}` : greeting}</h1>
-          {stats}
+    <section className="masthead-bleed relative overflow-hidden border-b border-edge bg-masthead">
+      <div className="construction-grid" />
+      <div className="relative mx-auto max-w-6xl px-5 py-7 sm:px-6 sm:py-10">
+        <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
+          <h1 className="text-3xl leading-none text-balance sm:text-5xl">{firstName ? `${greeting}, ${firstName}` : greeting}</h1>
+          <div className="flex flex-wrap gap-2">
+            {newBattle}
+            <Link to="/rosters/new" className={buttonClass({ variant: 'outline' })}>
+              Build a roster
+            </Link>
+          </div>
         </div>
-        <div className="flex flex-wrap gap-2">
-          {newBattle}
-          <Link to="/rosters/new" className={buttonClass({ variant: 'outline' })}>
-            Build a roster
-          </Link>
-        </div>
+        {stats ? <div className="max-sm:hidden">{stats}</div> : null}
       </div>
     </section>
   )

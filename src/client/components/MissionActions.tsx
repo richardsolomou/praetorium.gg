@@ -24,7 +24,7 @@ export function MissionActions({ actions, className }: { actions: MissionAction[
 function ActionBlock({ action }: { action: MissionAction }) {
   const text = missionActionText(action)
   return (
-    <div className="border border-edge bg-sunken p-3">
+    <div className="rounded-lg border border-edge bg-sunken p-3">
       <div className="flex flex-wrap items-baseline gap-2">
         <span className="chip">Action</span>
         <span className="text-base font-bold text-bone uppercase">{action.name}</span>

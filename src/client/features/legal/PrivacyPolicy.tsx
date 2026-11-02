@@ -3,7 +3,7 @@ import { LegalLinks, LegalPage, LegalSection, PrivacyEmail } from './LegalPage'
 
 export function PrivacyPolicy() {
   return (
-    <LegalPage eyebrow="Legal" title="Privacy policy" updated="29 October 2026">
+    <LegalPage title="Privacy policy" updated="29 October 2026">
       <LegalSection title="Scope">
         <p>
           Praetorium builds Warhammer 40,000 army lists and tracks battles between the players seated at them. This policy covers the

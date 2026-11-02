@@ -212,12 +212,12 @@ export function CreateBattle({
               </DialogDescription>
             </DialogHeader>
             <DialogBody>
-              <div className="space-y-2">
+              <div className="runner gap-2 [--gate-y:50%]">
                 {sealedEventMatches.map((match) => (
                   <button
                     key={match.eventToken}
                     type="button"
-                    className="flex w-full items-center gap-3 border border-edge bg-sunken p-3 text-left hover:border-info hover:bg-raised disabled:cursor-wait disabled:opacity-70"
+                    className="flex w-full items-center gap-3 rounded-lg border border-edge bg-sunken p-3 text-left hover:border-runner-hi hover:bg-raised disabled:cursor-wait disabled:opacity-70"
                     disabled={create.isPending}
                     onClick={() =>
                       navigate({

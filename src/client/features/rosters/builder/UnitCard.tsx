@@ -114,9 +114,11 @@ export function UnitCard({
   alertCount = 0,
   editable = true,
 }: Props) {
-  const cardClassName = `relative min-w-0 max-w-full overflow-hidden border bg-card transition-colors [contain:layout_style] ${
-    selected ? 'border-parchment' : 'border-edge hover:border-info'
+  // Not overflow-hidden: a runner's gate is drawn outside the card, so the last row rounds its own corners instead.
+  const cardClassName = `relative min-w-0 max-w-full rounded-xl border *:last:rounded-b-[inherit] bg-panel shadow-part print:shadow-none transition-colors [contain:layout_style] ${
+    selected ? 'border-parchment inset-ring-1 inset-ring-parchment' : 'border-edge hover:border-runner-hi'
   }`
+  const gate = selected ? 'current' : undefined
   const actions = { onDuplicate, canDuplicate, onSaveLoadout, onSaveAttachedUnit, onDetach, onRemove }
 
   // One target over the whole card, under everything on it. An enhancement, an
@@ -137,7 +139,7 @@ export function UnitCard({
       ) : null}
       <div className="flow-root px-2.5 py-2">
         <span className="pointer-events-none relative z-10 float-right ml-2 flex shrink-0 items-center gap-1.5 [&_button]:pointer-events-auto">
-          <span className="chip text-info">{unit.points} pts</span>
+          <span className="chip">{unit.points} pts</span>
           {editable ? (
             <span data-print-hide>
               <DropdownMenu>
@@ -159,7 +161,7 @@ export function UnitCard({
                   <Crown className="size-3.5 fill-current" aria-label="Warlord" />
                 </span>
               ) : null}
-              {nickname ?? unit.name}
+              <span>{nickname ?? unit.name}</span>
               {alertCount ? <UnitAlertMarker count={alertCount} unitName={unit.name} /> : null}
             </span>
             {nickname ? <span className="mt-0.5 block text-xs text-dim">{unit.name}</span> : null}
@@ -173,11 +175,12 @@ export function UnitCard({
             ) : null}
           </span>
           {unit.wargear.length ? (
-            <ul className="mt-1 w-full min-w-0 space-y-px">
-              {unit.wargear.map((piece) => (
-                <li key={piece.name} className="text-xs text-dim">
-                  <span aria-hidden>• </span>
+            // One run of wargear rather than a line each; a separator is held to the piece before it, so no line starts with a dot.
+            <ul className="mt-1 w-full min-w-0 text-xs text-dim">
+              {unit.wargear.map((piece, at) => (
+                <li key={piece.name} className="inline">
                   <span className="readout">{piece.count}x</span> {piece.name}
+                  {at < unit.wargear.length - 1 ? <span aria-hidden>{'\u00a0· '}</span> : null}
                 </li>
               ))}
             </ul>
@@ -249,7 +252,7 @@ export function UnitCard({
 
   if (!editable) {
     return (
-      <div data-unit={unit.name} className={cardClassName}>
+      <div data-unit={unit.name} data-gate={gate} className={cardClassName}>
         {card}
       </div>
     )
@@ -257,7 +260,7 @@ export function UnitCard({
 
   return (
     <ContextMenu>
-      <ContextMenuTrigger render={<div data-unit={unit.name} className={cardClassName} />}>{card}</ContextMenuTrigger>
+      <ContextMenuTrigger render={<div data-unit={unit.name} data-gate={gate} className={cardClassName} />}>{card}</ContextMenuTrigger>
       <ContextMenuContent className={MENU}>
         <UnitActions parts={CONTEXT_PARTS} {...actions} />
       </ContextMenuContent>
@@ -269,7 +272,7 @@ const noop = () => undefined
 const NONE: never[] = []
 
 /** A line under the unit's name: an enhancement, an upgrade, or who it is standing with. */
-export const ROW = 'flex items-center border-t border-edge bg-raised px-2.5 py-1'
+export const ROW = 'flex items-center border-t border-edge px-2.5 py-1'
 const MENU = 'w-44'
 const ITEM = 'text-xs font-semibold uppercase'
 
@@ -284,7 +287,7 @@ export function JoinedRow({ row, editable }: { row: Joined; editable: boolean })
           data-print-hide
           variant="ghost"
           size="xs"
-          className="shrink-0 text-2xs tracking-label text-azure uppercase"
+          className="shrink-0 text-2xs tracking-label text-dim uppercase hover:text-bone"
           onClick={row.onAct}
         >
           {row.action}
@@ -401,7 +404,7 @@ function CardMenu({ label, ariaLabel, children }: { label: string; ariaLabel: st
             <Button
               variant="ghost"
               size="xs"
-              className="!px-1 text-2xs tracking-label text-azure uppercase hover:bg-transparent hover:text-bone"
+              className="!px-1 text-2xs tracking-label text-dim uppercase hover:bg-transparent hover:text-bone aria-expanded:text-bone"
               aria-label={ariaLabel}
             />
           }

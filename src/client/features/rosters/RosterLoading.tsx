@@ -2,12 +2,11 @@ import { PageState } from '../../components/PageState'
 
 export function RosterLoading() {
   return (
-    <main className="w-full">
-      <output className="block">
+    <main className="flex w-full">
+      <output className="flex flex-1">
         <PageState
-          className="border-x-0 border-t-0"
+          className="flex-1 rounded-none border-0"
           loading
-          eyebrow="Rosters"
           title="Loading your roster"
           explanation="Getting your army and points ready. This can take a moment the first time."
         />

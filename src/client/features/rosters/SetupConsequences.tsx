@@ -14,6 +14,9 @@ import {
 import { countLabel, signedLabel } from '../../text'
 import { factionDisposition } from '../../components/rosterSetup'
 
+/** Each unit's change hangs off a runner; a removed unit's gate is cut. */
+const UNIT_RUNNER = 'runner gap-3 [--gate-x:1.25rem] [--gate-y:0.625rem]'
+
 export function SetupConsequences({ review, guest }: { review: Review; guest: boolean }) {
   const { source, candidate, before, after } = review
   const { data: sourceFaction } = useQuery(factionQuery(source.catalogueId))
@@ -90,7 +93,7 @@ export function SetupConsequences({ review, guest }: { review: Review; guest: bo
     return {
       status,
       row: (
-        <li key={unit?.key ?? `unavailable:${key}`} className={`border-l-2 pl-3 ${tone}`}>
+        <li key={unit?.key ?? `unavailable:${key}`} data-gate={next ? undefined : 'cut'} className={tone}>
           <div className="mb-1">
             <span className="chip text-current">{status}</span>
           </div>
@@ -121,15 +124,16 @@ export function SetupConsequences({ review, guest }: { review: Review; guest: bo
   return (
     <div className="space-y-5 text-sm" aria-label="Roster change preview">
       <div
-        className={`flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border border-edge bg-raised px-3 py-2 ${overBudget ? 'text-destructive' : ''}`}
+        className={`flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 rounded-lg border border-edge bg-raised px-3 py-2 ${overBudget ? 'text-destructive' : ''}`}
       >
-        <span className="readout text-lg">
-          {after.points} / {budget} pts
+        <span className="figure text-2xl font-bold">
+          {after.points}
+          <span className="text-base font-normal text-dim"> / {budget} pts</span>
         </span>
         {before.points !== after.points ? <span className="readout">{signedLabel(after.points - before.points)} pts</span> : null}
       </div>
       {problems.length || warnings.length ? (
-        <section aria-label="Needs attention" className="space-y-3 border border-discarded/40 bg-discarded/5 p-3">
+        <section aria-label="Needs attention" className="space-y-3 rounded-lg border border-discarded/40 bg-discarded/5 p-3">
           <h3 className="rubric text-discarded">Needs attention</h3>
           {problems.length ? (
             <ul className="space-y-1 text-destructive">
@@ -190,7 +194,7 @@ export function SetupConsequences({ review, guest }: { review: Review; guest: bo
       {changedUnits.length ? (
         <section aria-label="Unit changes">
           <h3 className="rubric">Units and choices</h3>
-          <ul className="mt-2 space-y-3">{changedUnits.map((unit) => unit.row)}</ul>
+          <ul className={`mt-2 ${UNIT_RUNNER}`}>{changedUnits.map((unit) => unit.row)}</ul>
         </section>
       ) : null}
       {unchangedUnits.length ? (
@@ -198,7 +202,7 @@ export function SetupConsequences({ review, guest }: { review: Review; guest: bo
           <summary className="min-h-11 cursor-pointer content-center text-dim hover:text-bone">
             {countLabel(unchangedUnits.length, 'unchanged unit')}
           </summary>
-          <ul className="mt-2 space-y-3">{unchangedUnits.map((unit) => unit.row)}</ul>
+          <ul className={`mt-2 ${UNIT_RUNNER}`}>{unchangedUnits.map((unit) => unit.row)}</ul>
         </details>
       ) : null}
       {!source.picks.length ? <p className="text-dim">No units selected.</p> : null}

@@ -71,7 +71,6 @@ export function AccountSecurity({ me, preferences }: { me: AccountIdentity; pref
       <div className="grid gap-6">
         <PageState
           headingLevel={2}
-          eyebrow="Account security"
           title="Could not load sign-in methods"
           explanation="Your security settings could not be loaded. Try again."
           action={
@@ -87,13 +86,13 @@ export function AccountSecurity({ me, preferences }: { me: AccountIdentity; pref
 
   return (
     <div className="ph-no-capture grid gap-6">
-      <section id="sign-in-methods" className="border border-edge bg-panel p-5 md:p-7">
+      <section id="sign-in-methods" className="part p-5 md:p-7">
         <SectionHeading title="Sign-in and security" />
         {methodsPending ? <AccountMethodsSkeleton /> : null}
         {methods ? (
           <div className="mt-4 grid items-start gap-3 lg:grid-cols-2">
             {methods.emailDelivery && !methods.emailVerified ? (
-              <div className="border border-edge bg-sunken p-3 lg:col-span-2">
+              <div className="rounded-lg border border-edge bg-sunken p-3 lg:col-span-2">
                 <div className="flex items-start gap-3">
                   <span className="grid size-8 shrink-0 place-items-center bg-raised text-parchment">
                     <MailCheck className="size-4" aria-hidden />
@@ -233,7 +232,7 @@ export function AccountSecurity({ me, preferences }: { me: AccountIdentity; pref
 
       {preferences}
 
-      <section className="border border-edge bg-panel p-5 md:p-7">
+      <section className="part p-5 md:p-7">
         <SectionHeading title="Connected apps" />
         <p className="text-sm text-dim">
           Apps you have allowed to read or change your rosters and battles.{' '}
@@ -360,7 +359,7 @@ function AccountMethodsSkeleton() {
   return (
     <div className="mt-4 grid gap-3 lg:grid-cols-2" aria-label="Loading sign-in methods">
       {Array.from({ length: 4 }, (_, index) => (
-        <div key={index} className="flex items-center gap-3 border border-edge bg-sunken p-3" aria-hidden>
+        <div key={index} className="flex items-center gap-3 rounded-lg border border-edge bg-sunken p-3" aria-hidden>
           <Skeleton className="size-8 shrink-0" />
           <div className="min-w-0 flex-1 space-y-2">
             <Skeleton className="h-4 w-24" />
@@ -654,7 +653,7 @@ function TwoFactorSetupForm({ onDone }: { onDone: () => void | Promise<void> }) 
       <>
         <DialogBody>
           <p className="text-sm text-dim">Save these one-time recovery codes somewhere secure. Each code can be used once.</p>
-          <div className="grid grid-cols-2 gap-2 border border-edge bg-sunken p-3 font-mono text-sm">
+          <div className="grid grid-cols-2 gap-2 rounded-lg border border-edge bg-sunken p-3 font-mono text-sm">
             {backupCodes.map((backupCode) => (
               <span key={backupCode}>{backupCode}</span>
             ))}

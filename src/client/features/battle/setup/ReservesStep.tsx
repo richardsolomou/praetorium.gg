@@ -174,7 +174,7 @@ function UnitFormationRow({
   const refused = moves.refusalFor(row)
 
   return (
-    <div className="rounded-sm bg-sunken p-2">
+    <div className="rounded-md bg-sunken p-2">
       <div className="flex flex-wrap items-baseline justify-between gap-x-2 px-0.5">
         <span className="min-w-0">
           <span className="block text-sm font-semibold">{host.name}</span>
@@ -296,7 +296,7 @@ function TransportBoarding({
                   }
                   const refusal = formationRefusal(moves.view, command)
                   return (
-                    <div key={unit.host.key} className="flex items-center justify-between gap-2 rounded-sm bg-sunken px-2 py-1.5">
+                    <div key={unit.host.key} className="flex items-center justify-between gap-2 rounded-md bg-sunken px-2 py-1.5">
                       <div className="min-w-0">
                         <p className="text-xs font-semibold text-bone">{reserveUnitLabel(units, unit)}</p>
                         <p className="text-3xs text-dim">{countLabel(models, 'model')}</p>

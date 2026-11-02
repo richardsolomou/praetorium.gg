@@ -131,7 +131,9 @@ export function ArmyRoster({ army, side, actionable, pending, blocked = false, s
     </div>
   ) : (
     /* A list attached before the battle knew how to read one is still the army. */
-    <pre className="overflow-auto border border-edge bg-sunken p-3 font-rules text-sm whitespace-pre-wrap select-text">{roster.text}</pre>
+    <pre className="overflow-auto rounded-lg border border-edge bg-sunken p-3 font-rules text-sm whitespace-pre-wrap select-text">
+      {roster.text}
+    </pre>
   )
 
   return (
@@ -342,9 +344,9 @@ function UnitStatus({ unit, army, actionable, pending, blocked, send, press }: {
       ) : null}
       {actionable ? (
         <Button
-          variant="destructive"
+          variant="ghost"
           size="xs"
-          className="ml-auto shrink-0"
+          className="ml-auto shrink-0 text-dim hover:bg-destructive/10 hover:text-destructive"
           aria-label={`Mark ${unit.name} destroyed`}
           disabled={blocked}
           onClick={() => mark(true)}
@@ -394,7 +396,7 @@ function Counter({
       <span data-count={noun} className="readout text-xs font-semibold">
         {left}/{of}
       </span>
-      <span className="eyebrow">{noun}</span>
+      <span className="text-2xs text-dim">{noun}</span>
       {actionable ? (
         <Button variant="outline" size="icon-xs" disabled={disabled || whole} aria-label={returnLabel} onClick={() => onStep(1)}>
           <Plus aria-hidden />

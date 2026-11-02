@@ -18,6 +18,8 @@ import { useDateFormatting } from '../../../dates'
 import { factionReferenceHref } from '../../../../core/factionReferenceRoute'
 import { StartRoster } from '../../rosters/ReferenceRosterActions'
 import { SectionHeading } from '../../../components/SectionHeading'
+import { RUNNER_COLUMNS } from '../runnerColumns'
+import { BACK_LINK } from '../backLink'
 
 export function FactionPage({ catalogueId }: { catalogueId: string }) {
   const { data: faction } = useQuery(factionQuery(catalogueId))
@@ -51,7 +53,6 @@ export function FactionPage({ catalogueId }: { catalogueId: string }) {
     <main className="w-full">
       <PageHeader
         tint={factionColour(faction.slug, faction.displayName)}
-        eyebrow="Faction"
         title={faction.displayName}
         media={<FactionMark faction={faction} size="lg" />}
         actions={
@@ -88,29 +89,29 @@ export function FactionPage({ catalogueId }: { catalogueId: string }) {
         }
       />
       <PageContent className="space-y-6">
-        <Link to="/factions" className="eyebrow flex items-center gap-1 text-info hover:text-bone">
-          <ChevronLeft className="size-3.5" /> Factions
+        <Link to="/factions" className={BACK_LINK}>
+          <ChevronLeft className="size-3.5" aria-hidden /> Factions
         </Link>
-        <section className="grid grid-cols-1 gap-px border border-edge bg-edge sm:grid-cols-3">
+        <section className="grid grid-cols-1 gap-2 sm:grid-cols-3">
           <FactionReferenceLink
             to="/factions/$catalogueId/datasheets"
             params={{ catalogueId: faction.slug }}
-            className="flex items-center justify-between bg-panel px-3 py-3 hover:bg-raised"
+            className="flex min-h-14 items-center justify-between gap-3 part px-4 py-3 transition-colors hover:border-runner hover:bg-raised"
           >
-            <span className="font-bold uppercase">Datasheets</span>
+            <span className="rubric text-xs text-bone">Datasheets</span>
             <span className="flex items-center gap-3">
-              <span className="readout">{reference?.datasheets ?? 0}</span>
+              <span className="figure text-2xl leading-none font-semibold">{reference?.datasheets ?? 0}</span>
               <ChevronRight className="size-4 text-dim" aria-hidden />
             </span>
           </FactionReferenceLink>
           <Link
             to="/rosters"
             search={{ view: 'public', faction: faction.slug }}
-            className="flex items-center justify-between bg-panel px-3 py-3 hover:bg-raised"
+            className="flex min-h-14 items-center justify-between gap-3 part px-4 py-3 transition-colors hover:border-runner hover:bg-raised"
           >
-            <span className="font-bold uppercase">Public armies</span>
+            <span className="rubric text-xs text-bone">Public armies</span>
             <span className="flex items-center gap-3">
-              {publicArmies === null ? null : <span className="readout">{publicArmies}</span>}
+              {publicArmies === null ? null : <span className="figure text-2xl leading-none font-semibold">{publicArmies}</span>}
               <ChevronRight className="size-4 text-dim" aria-hidden />
             </span>
           </Link>
@@ -118,19 +119,19 @@ export function FactionPage({ catalogueId }: { catalogueId: string }) {
             to="/data-updates/$catalogueId"
             params={{ catalogueId: faction.slug }}
             search={{}}
-            className="flex items-center justify-between bg-panel px-3 py-3 hover:bg-raised"
+            className="flex min-h-14 items-center justify-between gap-3 part px-4 py-3 transition-colors hover:border-runner hover:bg-raised"
           >
-            <span className="font-bold uppercase">Data updates</span>
+            <span className="rubric text-xs text-bone">Data updates</span>
             <ChevronRight className="size-4 text-dim" aria-hidden />
           </Link>
         </section>
         {faction.armyRules.length ? (
           <section>
             <SectionHeading title="Faction abilities" />
-            <div className="divide-y divide-edge border border-edge bg-panel">
+            <div className="grid gap-2">
               {faction.armyRules.map((rule) => (
-                <article key={rule.name} className="p-3">
-                  <h3 className="text-sm">{rule.name}</h3>
+                <article key={rule.name} className="part px-4 py-3">
+                  <h3 className="text-base">{rule.name}</h3>
                   <RuleText text={rule.description} />
                 </article>
               ))}
@@ -139,15 +140,13 @@ export function FactionPage({ catalogueId }: { catalogueId: string }) {
         ) : null}
         <section aria-label="Detachments">
           <SectionHeading title="Detachments" count={detachments.length} />
-          <div className="grid grid-cols-1 gap-px border border-edge bg-panel md:grid-cols-2">
-            {!detachments.length ? (
-              <p className="px-3 py-2 text-sm text-dim md:col-span-2">No detachment rules are available for this faction.</p>
-            ) : null}
+          {!detachments.length ? <p className="py-2 text-sm text-dim">No detachment rules are available for this faction.</p> : null}
+          <div className={`${RUNNER_COLUMNS} [--gate-y:1.75rem] md:columns-2`}>
             {detachments.map((detachment) => {
               const content = (
                 <>
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-bold uppercase">{detachment.name}</span>
+                    <span className="block truncate font-bold">{detachment.name}</span>
                     {detachment.reference ? (
                       <span className="block text-xs text-dim">
                         {[
@@ -162,7 +161,7 @@ export function FactionPage({ catalogueId }: { catalogueId: string }) {
                       <span className="block text-xs text-dim">Reference details unavailable</span>
                     )}
                     {detachment.reference?.dispositions.length || detachment.points !== null ? (
-                      <span className="mt-1.5 flex flex-wrap gap-1">
+                      <span className="mt-2 flex flex-wrap gap-1">
                         {detachment.reference?.dispositions.map((disposition) => (
                           <span key={disposition} className={`chip ${dispositionTone(disposition)}`}>
                             {disposition}
@@ -176,18 +175,18 @@ export function FactionPage({ catalogueId }: { catalogueId: string }) {
                 </>
               )
               return detachment.reference ? (
-                <div key={detachment.id} className="flex items-center bg-panel pr-3 ring-1 ring-edge hover:bg-raised">
+                <div key={detachment.id} className="flex items-center part pr-2 transition-colors hover:border-runner hover:bg-raised">
                   <FactionReferenceLink
                     to="/factions/$catalogueId/detachments/$detachmentId"
                     params={{ catalogueId: faction.slug, detachmentId: detachment.slug }}
-                    className="flex min-w-0 flex-1 items-center gap-3 self-stretch py-2.5 pr-1 pl-3"
+                    className="flex min-w-0 flex-1 items-center gap-3 self-stretch py-3 pr-1 pl-4"
                   >
                     {content}
                   </FactionReferenceLink>
                   <FavouriteDetachmentToggle catalogueId={faction.id} detachmentId={detachment.id} name={detachment.name} />
                 </div>
               ) : (
-                <div key={detachment.id} className="flex items-center gap-1 bg-panel px-3 py-2.5 ring-1 ring-edge">
+                <div key={detachment.id} className="flex items-center gap-1 part py-3 pr-2 pl-4">
                   <div className="flex min-w-0 flex-1 items-center gap-3">{content}</div>
                   <FavouriteDetachmentToggle catalogueId={faction.id} detachmentId={detachment.id} name={detachment.name} />
                 </div>
@@ -196,7 +195,7 @@ export function FactionPage({ catalogueId }: { catalogueId: string }) {
           </div>
         </section>
         {faction.edition ? (
-          <details className="group border border-edge bg-panel px-3 py-2">
+          <details className="group part px-4 py-3">
             <summary className="rubric flex cursor-pointer items-center gap-2 hover:text-bone">
               <ChevronRight className="size-4 shrink-0 transition-transform group-open:rotate-90" aria-hidden />
               Rules history
@@ -204,10 +203,10 @@ export function FactionPage({ catalogueId }: { catalogueId: string }) {
             <p className="mt-2 text-sm text-dim">
               These dates record status changes in Praetorium; publisher release and effective dates can differ.
             </p>
-            <ol className="mt-2 space-y-1 text-sm text-dim">
+            <ol className="mt-3 runner gap-1.5 text-sm text-dim [--gate-y:0.625rem]">
               {faction.edition.releases.map((release) => (
                 <li key={release.at}>
-                  {date(release.at)} ·{' '}
+                  <span className="readout font-semibold text-bone">{date(release.at)}</span> ·{' '}
                   {release.status === 'preview'
                     ? 'Preview recorded'
                     : release.status === 'released'

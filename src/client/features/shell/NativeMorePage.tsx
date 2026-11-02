@@ -56,12 +56,13 @@ const HELP: readonly MoreLink[] = [
   { description: 'Points and datasheet changes', icon: History, label: 'Data updates', to: '/data-updates' },
 ]
 
-const rowClass = 'flex min-h-14 w-full items-center gap-3 px-3 py-2.5 text-left text-bone hover:bg-raised'
+const rowClass =
+  'part flex min-h-14 w-full items-center gap-3 px-3.5 py-2.5 text-left text-bone transition-colors hover:border-runner-hi hover:bg-raised'
 
 function Row({ icon: Icon, label, description, unseen = false }: Omit<MoreLink, 'to'> & { unseen?: boolean }) {
   return (
     <>
-      <Icon className="size-5 shrink-0 text-info" />
+      <Icon className="size-5 shrink-0 text-dim" />
       <span className="min-w-0 flex-1">
         <span className="flex items-center gap-2 font-semibold">
           {label}
@@ -77,10 +78,10 @@ function Row({ icon: Icon, label, description, unseen = false }: Omit<MoreLink, 
 function Group({ id, title, children }: { id: string; title: string; children: ReactNode }) {
   return (
     <section aria-labelledby={id}>
-      <h2 id={id} className="eyebrow mb-2 text-dim">
+      <h2 id={id} className="rubric mb-3 text-bone">
         {title}
       </h2>
-      <div className="divide-y divide-edge border border-edge bg-panel">{children}</div>
+      <div className="runner gap-2 [--gate-y:1.75rem]">{children}</div>
     </section>
   )
 }
@@ -99,10 +100,14 @@ function Tools() {
       <h2 id="more-tools-heading" className="sr-only">
         Tools
       </h2>
-      <div className="grid grid-cols-2 gap-px border border-edge bg-edge sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         {TOOLS.map(({ to, icon: Icon, label, description }) => (
-          <Link key={to} to={to} className="flex min-h-32 flex-col gap-1 bg-panel p-3 text-bone hover:bg-raised">
-            <Icon className="mb-2 size-6 text-info" aria-hidden />
+          <Link
+            key={to}
+            to={to}
+            className="part flex min-h-32 flex-col gap-1 p-4 text-bone transition-colors hover:border-runner-hi hover:bg-raised"
+          >
+            <Icon className="mb-2 size-6 text-parchment" aria-hidden />
             <h3 className="text-lg leading-tight text-balance">{label}</h3>
             <span className="text-xs leading-snug text-dim">{description}</span>
           </Link>
@@ -119,11 +124,11 @@ export function NativeMorePage() {
   const unseenRelease = useUnseenRelease()
 
   return (
-    <main className="w-full bg-sunken">
+    <main className="w-full">
       <h1 className="sr-only">More</h1>
-      <PageContent className="grid content-start gap-6">
+      <PageContent className="grid content-start gap-8">
         <Tools />
-        <div className="grid content-start gap-6 sm:grid-cols-2">
+        <div className="grid content-start gap-8 sm:grid-cols-2">
           <Group id="more-community-heading" title="Community">
             <Links links={me ? [...COMMUNITY, FRIENDS] : COMMUNITY} />
           </Group>

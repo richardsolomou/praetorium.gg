@@ -54,7 +54,7 @@ function ScoringBlock({ awards }: { awards: Award[] }) {
   const round = roundLabel(first.trigger)
   const timing = timingLabel(first.trigger)
   return (
-    <div className="border border-edge bg-sunken p-3">
+    <div className="rounded-lg border border-edge bg-sunken p-3">
       <div className="flex flex-wrap gap-1">
         {first.mode ? <span className="chip">{title(first.mode)}</span> : null}
         {round ? <span className="chip">{round}</span> : null}

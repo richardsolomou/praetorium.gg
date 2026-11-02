@@ -61,7 +61,7 @@ function DraftChoice({ guest, pending, onChoose }: { guest: GuestDraft; pending:
   const { data: index } = useQuery(factionIndexQuery())
   const faction = index?.factions.find((candidate) => candidate.id === guest.draft.catalogueId)
   return (
-    <div data-roster="guest-draft" className="flex flex-col gap-3 border border-edge bg-sunken p-3 sm:flex-row sm:items-center">
+    <div data-roster="guest-draft" className="flex flex-col gap-3 rounded-lg border border-edge bg-sunken p-3 sm:flex-row sm:items-center">
       <div className="min-w-0 flex-1">
         <span className="eyebrow block">On this device</span>
         <span className="block font-bold break-words uppercase">{guest.draft.name || 'Your roster'}</span>

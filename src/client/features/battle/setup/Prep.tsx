@@ -279,7 +279,7 @@ function SecondaryPicker({
           // card is not outlined twice over on a list this short.
           <li
             key={card.key}
-            className={`flex items-center justify-between gap-2 rounded-sm px-2.5 py-1.5 ${held ? 'bg-parchment/10' : 'bg-sunken'}`}
+            className={`flex items-center justify-between gap-2 rounded-md px-2.5 py-1.5 ${held ? 'bg-parchment/10' : 'bg-sunken'}`}
           >
             <MissionName name={card.name} card={card} type="Secondary mission" mode="fixed" />
             <Button

@@ -259,7 +259,7 @@ export function SealedEventView({
   const problem = join.error ?? (duel ? battle.error : null)
   // Before the reveal a row offers only your own or an ally's roster; once the rosters are out, the cards carry every one.
   const row = (entry: SealedEventEntryView, detail: ReactNode = sealStatus(entry, revealed), controls?: ReactNode, last?: ReactNode) => (
-    <EntrantRow key={entry.userId} entry={entry} label={label(entry)} detail={detail}>
+    <EntrantRow key={entry.userId} entry={entry} label={label(entry)} detail={detail} sealing={!revealed && entry.status === 'accepted'}>
       {controls}
       {!revealed && readsRoster(entry) ? (
         <ViewRosterButton token={token} eventToken={sealedEvent.eventToken} userId={entry.userId} label={label(entry)} />
@@ -689,110 +689,128 @@ export function entryStatus({
 
 export function EntryStatusCard({ status, problem, token }: { status: Status; problem: Error | null; token: string }) {
   const { action } = status
-  const current = status.steps?.findIndex((step) => step.state === 'current') ?? -1
   return (
-    <section
-      data-onboarding="sealed-event-status"
-      data-entry-status
-      aria-labelledby="sealed-event-entry-status"
-      className={`border bg-panel ${status.sealed ? 'border-achieved/50' : 'border-edge'}`}
-    >
-      <div className="space-y-3 p-4 sm:p-5">
-        {status.steps && current >= 0 ? (
-          <p className="eyebrow text-dim">
-            Step {current + 1} of {status.steps.length}
-          </p>
-        ) : null}
-        <div className="min-w-0">
-          <h2
-            id="sealed-event-entry-status"
-            className={`flex items-center gap-2 text-xl leading-tight font-bold uppercase ${status.sealed ? 'text-achieved' : ''}`}
-          >
-            {status.sealed ? <ShieldCheck className="size-5 shrink-0" aria-hidden /> : null}
-            <span className="min-w-0 break-words">{status.title}</span>
-          </h2>
-          {status.detail ? <p className="mt-1.5 text-sm text-dim">{status.detail}</p> : null}
-        </div>
-        {action ? (
-          'battle' in action ? (
-            <Link
-              to="/battles/$token"
-              params={{ token: action.battle }}
-              className={buttonClass({ size: 'lg', className: 'w-full pointer-coarse:h-11' })}
+    <div className="space-y-5">
+      <section
+        data-onboarding="sealed-event-status"
+        data-entry-status
+        aria-labelledby="sealed-event-entry-status"
+        className={`part ${status.sealed ? 'border-parchment/50' : ''}`}
+      >
+        <div className="space-y-3 p-4 sm:p-5">
+          <div className="min-w-0">
+            <h2
+              id="sealed-event-entry-status"
+              className={`flex items-center gap-2 text-xl leading-tight font-bold uppercase ${status.sealed ? 'text-parchment' : ''}`}
             >
-              <Play /> {action.label}
-            </Link>
-          ) : 'to' in action ? (
-            <Link
-              {...(action.to === '/sign-in' ? { to: '/sign-in', search: { next: `/tournaments/${token}` } } : { to: '/tournaments' })}
-              className={buttonClass({
-                size: 'lg',
-                variant: action.to === '/tournaments' ? 'outline' : 'default',
-                className: 'w-full pointer-coarse:h-11',
-              })}
-            >
-              {action.label}
-            </Link>
-          ) : (
+              {status.sealed ? <ShieldCheck className="size-5 shrink-0" aria-hidden /> : null}
+              <span className="min-w-0 break-words">{status.title}</span>
+            </h2>
+            {status.detail ? <p className="mt-1.5 text-sm text-dim">{status.detail}</p> : null}
+          </div>
+          {action ? (
+            'battle' in action ? (
+              <Link
+                to="/battles/$token"
+                params={{ token: action.battle }}
+                className={buttonClass({ size: 'lg', className: 'w-full pointer-coarse:h-11' })}
+              >
+                <Play /> {action.label}
+              </Link>
+            ) : 'to' in action ? (
+              <Link
+                {...(action.to === '/sign-in' ? { to: '/sign-in', search: { next: `/tournaments/${token}` } } : { to: '/tournaments' })}
+                className={buttonClass({
+                  size: 'lg',
+                  variant: action.to === '/tournaments' ? 'outline' : 'default',
+                  className: 'w-full pointer-coarse:h-11',
+                })}
+              >
+                {action.label}
+              </Link>
+            ) : (
+              <Button
+                data-onboarding={action.reveal ? 'sealed-event-reveal' : undefined}
+                size="lg"
+                variant={action.variant ?? 'default'}
+                className="w-full pointer-coarse:h-11"
+                disabled={action.pending}
+                onClick={action.onClick}
+              >
+                {action.icon} {action.label}
+              </Button>
+            )
+          ) : null}
+          {status.secondary ? (
             <Button
-              data-onboarding={action.reveal ? 'sealed-event-reveal' : undefined}
-              size="lg"
-              variant={action.variant ?? 'default'}
+              variant="outline"
               className="w-full pointer-coarse:h-11"
-              disabled={action.pending}
-              onClick={action.onClick}
+              disabled={status.secondary.pending}
+              onClick={status.secondary.onClick}
             >
-              {action.icon} {action.label}
+              {status.secondary.icon} {status.secondary.label}
             </Button>
-          )
-        ) : null}
-        {status.secondary ? (
-          <Button
-            variant="outline"
-            className="w-full pointer-coarse:h-11"
-            disabled={status.secondary.pending}
-            onClick={status.secondary.onClick}
-          >
-            {status.secondary.icon} {status.secondary.label}
-          </Button>
-        ) : null}
-        {problem ? <Problem error={problem} /> : null}
-      </div>
+          ) : null}
+          {problem ? <Problem error={problem} /> : null}
+        </div>
+      </section>
       {status.steps ? <EntryProgress steps={status.steps} /> : null}
-    </section>
+    </div>
   )
 }
 
-/** The path through an event as a checklist beneath the card: what is done, what is now, and what is left. */
+/** Where a step's runner leads to the next: solid once done, doubled from the current step, dashed ahead. */
+const STEP_RUNNER: Record<EntryStep['state'], string> = {
+  done: 'w-0.5 bg-runner-hi',
+  current: 'w-1.5 border-x-2 border-parchment',
+  upcoming: 'w-0 border-l-2 border-dashed border-runner',
+}
+
+/** The path through an event as numbered assembly steps: what is done, what is now, and what is left. */
 function EntryProgress({ steps }: { steps: EntryStep[] }) {
+  const current = steps.findIndex((step) => step.state === 'current')
   return (
-    <ol aria-label="Your progress" className="border-t border-edge bg-sunken/60 px-4 py-3 text-sm sm:px-5">
-      {steps.map((step, index) => (
-        <li
-          key={step.label}
-          aria-current={step.state === 'current' ? 'step' : undefined}
-          className={`relative flex min-h-8 items-center gap-3 ${step.state === 'done' ? 'text-dim' : step.state === 'current' ? 'font-semibold text-bone' : 'text-faint'}`}
-        >
-          {index < steps.length - 1 ? (
+    <div className="px-1">
+      <p className="mb-3 flex items-baseline justify-between gap-3">
+        <span className="eyebrow">Your progress</span>
+        {current >= 0 ? (
+          <span className="text-xs text-dim">
+            Step {current + 1} of {steps.length}
+          </span>
+        ) : null}
+      </p>
+      <ol aria-label="Your progress">
+        {steps.map((step, index) => (
+          <li
+            key={step.label}
+            aria-current={step.state === 'current' ? 'step' : undefined}
+            className="relative grid grid-cols-[2.5rem_minmax(0,1fr)] gap-x-3 pb-4 last:pb-0"
+          >
+            {index < steps.length - 1 ? (
+              <span aria-hidden className={`absolute top-9 bottom-1 left-[1.125rem] -translate-x-1/2 ${STEP_RUNNER[step.state]}`} />
+            ) : null}
             <span
               aria-hidden
-              className={`absolute top-[calc(50%+0.5rem)] left-2 h-[calc(100%-1rem)] w-px ${step.state === 'done' ? 'bg-achieved/50' : 'bg-edge'}`}
-            />
-          ) : null}
-          <span
-            aria-hidden
-            className={`relative flex size-4 shrink-0 items-center justify-center rounded-full ${step.state === 'done' ? 'bg-achieved text-panel' : step.state === 'current' ? 'border-2 border-parchment bg-panel' : 'border border-edge-strong bg-panel'}`}
-          >
-            {step.state === 'done' ? <Check className="size-3" /> : null}
-          </span>
-          <span className="min-w-0 flex-1">
-            {step.label}
-            {step.state === 'done' ? <span className="sr-only"> (done)</span> : null}
-          </span>
-          {step.state === 'current' ? <span className="text-2xs font-semibold tracking-label text-parchment uppercase">Now</span> : null}
-        </li>
-      ))}
-    </ol>
+              className={`step-number relative flex h-8 items-center justify-center text-3xl ${step.state === 'current' ? 'text-parchment' : step.state === 'done' ? 'text-dim' : ''}`}
+            >
+              {index + 1}
+              {step.state === 'done' ? (
+                <span className="absolute -top-1 -right-1 grid size-4 place-items-center rounded-full bg-parchment text-parchment-ink">
+                  <Check className="size-3" strokeWidth={3} />
+                </span>
+              ) : null}
+            </span>
+            <span
+              className={`flex min-h-8 min-w-0 flex-wrap items-center gap-2 text-sm font-bold ${step.state === 'upcoming' ? 'text-dim' : 'text-bone'}`}
+            >
+              {step.label}
+              {step.state === 'done' ? <span className="sr-only"> (done)</span> : null}
+              {step.state === 'current' ? <span className="chip border-parchment text-parchment">Now</span> : null}
+            </span>
+          </li>
+        ))}
+      </ol>
+    </div>
   )
 }
 
@@ -826,7 +844,7 @@ function SealedEventBattleSkeleton() {
     <div className="space-y-2" aria-label="Loading battles">
       <Skeleton className="h-4 w-20" />
       {Array.from({ length: 2 }, (_, index) => (
-        <div key={index} className="flex min-h-20 items-center gap-3 border border-edge bg-panel p-3" aria-hidden>
+        <div key={index} className="flex min-h-20 items-center gap-3 part p-3" aria-hidden>
           <Skeleton className="size-10 shrink-0 rounded-full" />
           <div className="flex-1 space-y-2">
             <Skeleton className="h-4 w-1/2" />

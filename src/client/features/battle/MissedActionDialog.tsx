@@ -243,7 +243,7 @@ export function MissedActionDialog({
                       (candidate) => candidate.round === turn.round && candidate.turn === turn.turn && candidate.phase === phase,
                     )
                     const candidate = moments[index]
-                    if (!candidate) return <span key={phase} aria-hidden className="h-8 rounded-sm border border-dashed border-edge/60" />
+                    if (!candidate) return <span key={phase} aria-hidden className="h-8 rounded-md border border-dashed border-edge/60" />
                     const chosen = index === momentAt
                     return (
                       <button
@@ -253,7 +253,7 @@ export function MissedActionDialog({
                         aria-pressed={chosen}
                         disabled={!fits(stratagem, candidate)}
                         onClick={() => setChosenMoment(index)}
-                        className={`h-8 rounded-sm border text-2xs font-bold tracking-wide uppercase transition-colors disabled:cursor-not-allowed disabled:border-edge/60 disabled:bg-transparent disabled:text-dim/50 ${
+                        className={`h-8 rounded-md border text-2xs font-bold tracking-wide uppercase transition-colors disabled:cursor-not-allowed disabled:border-edge/60 disabled:bg-transparent disabled:text-dim/50 ${
                           chosen
                             ? 'border-parchment bg-raised text-bone'
                             : 'border-edge bg-sunken text-dim hover:border-info hover:text-bone'
@@ -268,7 +268,7 @@ export function MissedActionDialog({
             ))}
           </fieldset>
           {summary && moment ? (
-            <p className="rounded-sm border border-edge bg-sunken px-3 py-2 text-sm">
+            <p className="rounded-md border border-edge bg-sunken px-3 py-2 text-sm">
               <span className="font-bold text-bone">{summary}</span>
               <span className="text-dim"> · {label(moment)} phase</span>
             </p>

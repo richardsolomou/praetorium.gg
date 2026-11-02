@@ -32,7 +32,7 @@ export function PlayerRosters({
           <article
             key={roster.id}
             data-roster={roster.name}
-            className="flex items-center gap-2 border border-edge bg-panel p-2 transition-colors hover:border-info hover:bg-raised"
+            className="flex items-center gap-2 part p-2 transition-colors hover:border-info hover:bg-raised"
           >
             <Link to="/rosters/$id" params={{ id: roster.id }} className="flex min-w-0 flex-1 flex-wrap items-center gap-2 p-1">
               <RosterSummary

@@ -171,7 +171,7 @@ function ImportReview({
                     {row.status === 'ambiguous' ? (
                       <select
                         aria-label={`Which ${row.name} row ${row.line} means`}
-                        className="h-8 w-full border border-edge-strong bg-sunken px-2 text-sm sm:w-auto"
+                        className="h-8 w-full rounded-lg border border-edge-strong bg-sunken px-2 text-sm sm:w-auto"
                         value={choices[row.line] ?? ''}
                         onChange={(event) => setChoices((previous) => ({ ...previous, [row.line]: event.target.value }))}
                       >
@@ -193,7 +193,7 @@ function ImportReview({
                 ))}
               </ul>
               {conflicts ? (
-                <label htmlFor={replaceId} className="flex items-start gap-3 border border-edge bg-sunken p-3 text-sm">
+                <label htmlFor={replaceId} className="flex items-start gap-3 rounded-lg border border-edge bg-sunken p-3 text-sm">
                   <input
                     id={replaceId}
                     type="checkbox"

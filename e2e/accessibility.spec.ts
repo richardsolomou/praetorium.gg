@@ -21,9 +21,9 @@ test('opening a battle is operable from the keyboard', async ({ page }) => {
   expect(initialDocument).not.toContain('favourite-detachments')
   await page.reload()
 
-  // Enough tabs to cross the header: the logo, every primary navigation link,
-  // search and the account menu all come before the page's own first control.
-  for (let tabs = 0; tabs < 20; tabs++) {
+  // Enough tabs to cross the rail: the logo, search, every navigation link,
+  // the account menu and community links all come before the page's own first control.
+  for (let tabs = 0; tabs < 30; tabs++) {
     if (await page.getByRole('button', { name: 'New battle' }).evaluate((element) => element === document.activeElement)) break
     await page.keyboard.press('Tab')
   }
@@ -56,20 +56,19 @@ test('rendered controls do not reuse ids', async ({ page }) => {
   expect(duplicates).toEqual([])
 })
 
-test('keeps the header controls on screen at double text size', async ({ page }) => {
+test('keeps the navigation rail controls on screen at double text size', async ({ page }) => {
   await page.goto('/battles')
   await page.waitForLoadState('networkidle')
   await doubleText(page)
-  const header = page.locator('header[data-web-app-chrome]')
-  const outside = await header.evaluate((element) =>
+  const rail = page.locator('[data-web-app-chrome]')
+  const outside = await rail.evaluate((element) =>
     ['nav[aria-label="Primary"]', '[aria-label="Search Praetorium"]', '[aria-label="Account menu"]'].some((selector) => {
       const bounds = element.querySelector(selector)!.getBoundingClientRect()
-      return bounds.width === 0 || bounds.right > innerWidth
+      return bounds.width === 0 || bounds.right > innerWidth || bounds.bottom > innerHeight
     }),
   )
   expect(outside).toBe(false)
-  await page.getByRole('button', { name: 'Reference' }).click()
-  await page.getByRole('menuitem', { name: 'Missions' }).click()
+  await rail.getByRole('navigation', { name: 'Reference' }).getByRole('link', { name: 'Missions' }).click()
   await expect(page).toHaveURL(/\/missions/)
 })
 

@@ -4,7 +4,7 @@ The main button ends the current phase: **End the command phase**, **End the mov
 
 ## Scoring
 
-In a guided battle, ending a phase where a card scores opens a scoring prompt. Press what the board actually paid on each card, or **Did not score (or chose not to)**. The next player's turn waits until the previous turn's scoring is finished. At the end of the fifth round, the final scoring prompt ends with **Finish battle**.
+In a guided battle, ending a phase where a card scores opens a scoring prompt. Press what the board actually paid on each card, or **Did not score (or chose not to)**; the prompt confirms once every card has an answer. The next player's turn waits until the previous turn's scoring is finished. At the end of the fifth round, the final scoring prompt ends with **Finish battle**.
 
 ![The end-of-turn scoring prompt listing the primary and two secondary cards, each with its awards and a Did not score row.](screenshot:track-a-battle-scoring "Did not score (or chose not to), under a card's awards")
 

@@ -29,7 +29,7 @@ export function TeamWarlordPanel({
   })
   const shown = choose.isPending ? choose.variables : team.warlord
   return (
-    <section data-team-warlord aria-labelledby="team-warlord" className="border border-edge bg-panel p-4">
+    <section data-team-warlord aria-labelledby="team-warlord" className="part p-4">
       <SectionHeading id="team-warlord" title="Team Warlord" className="mb-0" />
       <p className="mt-1 text-xs text-dim">
         {team.warlord

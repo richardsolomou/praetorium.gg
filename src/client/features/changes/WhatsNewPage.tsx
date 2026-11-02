@@ -47,11 +47,7 @@ export function WhatsNewPage({ view }: { view: WhatsNewView }) {
   const days = releaseDays(all).filter((day) => !featuresOnly || day.releases.some((release) => release.features.length))
   return (
     <main className="w-full">
-      <PageHeader
-        eyebrow="Updates"
-        title="What's new"
-        description="The latest improvements to army building, battle tracking and the rest of Praetorium."
-      >
+      <PageHeader title="What's new" description="The latest improvements to army building, battle tracking and the rest of Praetorium.">
         <UpdatesNavigation current="app" />
       </PageHeader>
       <PageContent className="space-y-3 sm:pt-6">
@@ -63,7 +59,7 @@ export function WhatsNewPage({ view }: { view: WhatsNewView }) {
               'new feature',
             )}
           </p>
-          <nav aria-label="Show" className="flex border border-edge bg-sunken p-0.5">
+          <nav aria-label="Show" className="flex rounded-lg border border-edge bg-sunken p-0.5">
             {(
               [
                 ['all', 'Everything'],
@@ -82,7 +78,7 @@ export function WhatsNewPage({ view }: { view: WhatsNewView }) {
             ))}
           </nav>
         </div>
-        <div className="divide-y divide-edge border border-edge bg-panel">
+        <div className="divide-y divide-edge part">
           {days.map(({ date, releases }, index) => (
             <Day
               key={date ?? 'earlier'}

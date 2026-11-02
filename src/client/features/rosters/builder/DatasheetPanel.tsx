@@ -104,7 +104,7 @@ export function DatasheetPanel({
       {transport ? (
         <section>
           <h2 className="rubric">Transport</h2>
-          <div className="mt-2 border border-edge bg-card px-2 py-1.5">
+          <div className="mt-2 part px-2 py-1.5">
             <RuleText text={transport} rules={sheet.keywordRules} />
           </div>
         </section>
@@ -246,7 +246,7 @@ function AbilitySummary({
         </h2>
         <div className="mt-2 space-y-1.5">
           {found.map((ability) => (
-            <article key={ability.id} className="relative border border-edge bg-card px-2 py-1.5">
+            <article key={ability.id} className="relative part px-2 py-1.5">
               <div className="flex items-start justify-between gap-2">
                 <h3 className="text-xs">{ability.source ?? ability.name}</h3>
                 {reminders ? <ReminderButton subject={ability} controls={reminders} /> : null}

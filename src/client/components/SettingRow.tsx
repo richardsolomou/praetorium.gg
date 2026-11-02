@@ -16,11 +16,11 @@ export function SettingRow({
   tile?: boolean
 }) {
   return (
-    <div className="flex flex-wrap items-center gap-3 border border-edge bg-sunken p-3">
+    <div className="flex flex-wrap items-center gap-3 rounded-lg border border-edge bg-sunken px-3.5 py-3">
       <div className="flex min-w-[min(100%,10rem)] flex-1 items-center gap-3">
-        <span className={`grid size-8 shrink-0 place-items-center ${tile ? 'bg-raised' : ''}`}>{icon}</span>
+        <span className={`grid size-9 shrink-0 place-items-center ${tile ? 'rounded-md border border-edge bg-raised' : ''}`}>{icon}</span>
         <div className="min-w-0 flex-1">
-          <p className="font-semibold text-bone">{title}</p>
+          <p className="text-sm font-semibold text-bone">{title}</p>
           {detail ? <p className="text-xs text-dim">{detail}</p> : null}
         </div>
       </div>

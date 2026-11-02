@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
+import { ArrowDown, ArrowRight } from 'lucide-react'
 import { buttonClass } from '../../../components/buttonClass'
 import { dispositionTone } from '../../../components/rosterSetup'
 import { gameReferencesQuery } from '../../../queries'
@@ -7,6 +8,7 @@ import { PageContent, PageHeader } from '../../../components/Page'
 import { RuleText } from '../../../components/RuleText'
 import { matchupMission } from './dispositionMatchups'
 import { SectionHeading } from '../../../components/SectionHeading'
+import { RUNNER_COLUMNS } from '../runnerColumns'
 
 export function MissionPackPage({ packId }: { packId: string }) {
   const { data } = useQuery(gameReferencesQuery())
@@ -35,7 +37,6 @@ export function MissionPackPage({ packId }: { packId: string }) {
   return (
     <main className="w-full">
       <PageHeader
-        eyebrow="Mission pack"
         title={pack.name}
         actions={
           <>
@@ -60,14 +61,18 @@ export function MissionPackPage({ packId }: { packId: string }) {
               className="grid min-w-[760px] gap-1.5"
               style={{ gridTemplateColumns: `9rem repeat(${data.dispositions.length}, minmax(7rem, 1fr))` }}
             >
-              <div className="grid min-h-14 place-items-center border border-edge bg-sunken text-center text-xs font-bold text-dim uppercase">
-                Opponent →<br />
-                You ↓
+              <div className="grid min-h-14 content-center justify-items-center gap-0.5 rounded-lg border border-edge bg-sunken text-center text-xs font-bold text-dim uppercase">
+                <span className="flex items-center gap-1">
+                  Opponent <ArrowRight className="size-3" aria-hidden />
+                </span>
+                <span className="flex items-center gap-1">
+                  You <ArrowDown className="size-3" aria-hidden />
+                </span>
               </div>
               {data.dispositions.map((entry) => (
                 <div
                   key={entry.id}
-                  className={`grid min-h-14 place-items-center border px-2 text-center text-xs font-bold uppercase ${dispositionTone(entry.id, true)}`}
+                  className={`grid min-h-14 place-items-center rounded-lg border px-2 text-center text-xs font-bold uppercase ${dispositionTone(entry.id, true)}`}
                 >
                   {entry.name}
                 </div>
@@ -77,7 +82,7 @@ export function MissionPackPage({ packId }: { packId: string }) {
                   <Link
                     to="/force-dispositions/$dispositionId"
                     params={{ dispositionId: you.id }}
-                    className={`grid min-h-16 place-items-center border px-2 text-center text-xs font-bold uppercase hover:underline ${dispositionTone(you.id, true)}`}
+                    className={`grid min-h-16 place-items-center rounded-lg border px-2 text-center text-xs font-bold uppercase hover:underline ${dispositionTone(you.id, true)}`}
                   >
                     {you.name}
                   </Link>
@@ -88,12 +93,15 @@ export function MissionPackPage({ packId }: { packId: string }) {
                         key={opponent.id}
                         to="/missions/$packId/matchups/$you/$opponent"
                         params={{ packId, you: you.id, opponent: opponent.id }}
-                        className="grid min-h-16 place-items-center border border-edge bg-panel px-2 text-center text-sm font-bold text-info uppercase hover:border-info hover:bg-raised"
+                        className="grid min-h-16 place-items-center part px-2 text-center text-sm font-semibold text-balance transition-colors hover:border-runner hover:bg-raised"
                       >
                         {found.name}
                       </Link>
                     ) : (
-                      <div key={opponent.id} className="grid min-h-16 place-items-center border border-edge bg-sunken text-xs text-faint">
+                      <div
+                        key={opponent.id}
+                        className="grid min-h-16 place-items-center rounded-lg border border-edge bg-sunken text-xs text-faint"
+                      >
                         Unavailable
                       </div>
                     )
@@ -106,15 +114,15 @@ export function MissionPackPage({ packId }: { packId: string }) {
 
         <section>
           <SectionHeading title="Secondary missions" count={data.secondaries.length} />
-          <div className="grid gap-px border border-edge bg-panel sm:grid-cols-2">
+          <div className={`${RUNNER_COLUMNS} [--gate-y:1.375rem] sm:columns-2`}>
             {data.secondaries.map((card) => (
               <Link
                 key={card.key}
                 to="/missions/$packId/secondaries/$cardId"
                 params={{ packId, cardId: card.key }}
-                className="flex w-full items-center justify-between bg-panel px-3 py-2 text-left font-bold uppercase ring-1 ring-edge hover:bg-raised hover:text-info"
+                className="flex min-h-11 w-full items-center justify-between gap-2 part px-3 py-2 text-left transition-colors hover:border-runner hover:bg-raised"
               >
-                <span>{card.name}</span>
+                <span className="font-semibold">{card.name}</span>
                 {card.awards.some((award) => award.mode === 'fixed') ? <span className="chip shrink-0">Fixed</span> : null}
               </Link>
             ))}
@@ -126,7 +134,7 @@ export function MissionPackPage({ packId }: { packId: string }) {
             <SectionHeading title="Mission twists" count={pack.twists.length} />
             <div className="mt-3 grid gap-3 md:grid-cols-2">
               {pack.twists.map((twist) => (
-                <article id={`twist-${twist.id}`} key={twist.id} className="scroll-mt-header border border-edge bg-panel p-4">
+                <article id={`twist-${twist.id}`} key={twist.id} className="scroll-mt-header part p-4">
                   <h3 className="text-lg">{twist.name}</h3>
                   {twist.lore ? <RuleText text={twist.lore} /> : null}
                   {twist.rules ? <RuleText text={twist.rules} className="mt-3 text-base text-bone" /> : null}

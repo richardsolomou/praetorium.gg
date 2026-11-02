@@ -48,7 +48,7 @@ export function Stratagems({ side, phase, coreKeys, pending, send, writtenFor, o
        * army that brought them.
        */}
       {pooledDetachments(side.stratagems, coreKeys) > 1 ? (
-        <p className="rounded-sm border border-edge bg-sunken px-2.5 py-1.5 text-2xs text-dim">
+        <p className="rounded-md border border-edge bg-sunken px-2.5 py-1.5 text-2xs text-dim">
           Each detachment’s rules affect the army that brought it and the enemy — not your ally’s units.
         </p>
       ) : null}

@@ -360,7 +360,7 @@ function RosterChooser({
             {loading ? (
               <div className="space-y-2" aria-label="Loading rosters">
                 {Array.from({ length: 3 }, (_, index) => (
-                  <div key={index} className="flex min-h-20 items-center gap-3 border border-edge bg-sunken p-3" aria-hidden>
+                  <div key={index} className="flex min-h-20 items-center gap-3 rounded-lg border border-edge bg-sunken p-3" aria-hidden>
                     <div className="flex-1 space-y-2">
                       <Skeleton className="h-4 w-1/3" />
                       <Skeleton className="h-5 w-28" />
@@ -372,7 +372,7 @@ function RosterChooser({
             ) : rosters.length ? (
               <RosterChoices rosters={rosters} selectedId={selectedId} disabled={pending} onSelect={onChoose} />
             ) : (
-              <div className="space-y-3 border border-edge bg-sunken p-4">
+              <div className="space-y-3 rounded-lg border border-edge bg-sunken p-4">
                 <p className="text-sm text-dim">
                   {savedCount
                     ? `None of your ${savedCount} saved rosters is built for ${pointsLabel(requiredLimit!)}${orSmaller ? ' or fewer' : ''}.`

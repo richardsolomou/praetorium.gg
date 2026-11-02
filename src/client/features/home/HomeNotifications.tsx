@@ -40,8 +40,8 @@ export function HomeNotifications() {
   }
 
   return (
-    <section className="border-b border-edge bg-panel" aria-label="Notifications">
-      <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-5 py-4 sm:px-6">
+    <section className="mx-auto max-w-6xl px-5 pt-6 sm:px-6" aria-label="Notifications">
+      <div className="part flex flex-wrap items-center justify-between gap-3 px-4 py-3.5">
         <div>
           <p className="font-semibold">Get notified about your games</p>
           <p className="text-sm text-dim">Allow notifications for new battles, friend requests, and tournament updates.</p>

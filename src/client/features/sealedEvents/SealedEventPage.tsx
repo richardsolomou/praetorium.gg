@@ -57,11 +57,11 @@ function SealedEventScreen({
   return (
     <main className="w-full">
       <PageHeader
-        eyebrow={sealedEventNoun(sealedEvent).Noun}
         title={eventName(sealedEvent)}
         actions={isOrganizer ? <SealedEventPageActions actions={actions} canDelete={canDelete} /> : null}
       >
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+          <span className="chip">{sealedEventNoun(sealedEvent).Noun}</span>
           <span className={`chip ${phase.tint}`}>{phase.label}</span>
           <span className="flex flex-wrap items-center gap-x-1.5 text-sm text-dim">
             {[

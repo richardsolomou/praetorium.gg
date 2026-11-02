@@ -39,7 +39,7 @@ export function FilterChip({
   unavailable?: string
 }) {
   const [open, setOpen] = useState(false)
-  const chip = 'rounded-sm border px-1.5 py-px text-2xs font-semibold tracking-label uppercase transition-colors'
+  const chip = 'h-6 min-w-6 shrink-0 rounded-md border px-1.25 py-px text-2xs font-semibold transition-colors'
   return (
     <Tooltip open={open} onOpenChange={setOpen}>
       <TooltipTrigger
@@ -51,7 +51,7 @@ export function FilterChip({
               aria-disabled="true"
               aria-label={label}
               onClick={() => setOpen(true)}
-              className={`${chip} inline-flex h-7 min-w-7 cursor-not-allowed items-center justify-center border-edge text-faint`}
+              className={`${chip} inline-flex cursor-not-allowed items-center justify-center border-runner border-dashed text-faint`}
             />
           ) : (
             <Toggle
@@ -61,13 +61,15 @@ export function FilterChip({
               pressed={pressed}
               onPressedChange={onToggle}
               className={`${chip} ${
-                pressed ? 'border-parchment bg-parchment/15 text-parchment' : 'border-edge-strong text-dim hover:border-dim hover:text-bone'
+                pressed
+                  ? 'border-parchment/60 bg-parchment/12 text-parchment'
+                  : 'border-runner text-dim hover:border-runner-hi hover:text-bone'
               }`}
             />
           )
         }
       >
-        {Icon ? <Icon className={`size-3.5 ${pressed && Icon === Heart ? 'fill-current' : ''}`} /> : label}
+        {Icon ? <Icon className={`size-3 ${pressed && Icon === Heart ? 'fill-current' : ''}`} /> : label}
       </TooltipTrigger>
       <TooltipContent role="tooltip" side="bottom" className="max-w-60 text-xs">
         {unavailable ?? hint}

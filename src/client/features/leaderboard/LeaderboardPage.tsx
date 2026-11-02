@@ -21,7 +21,6 @@ export function LeaderboardPage({ faction }: { faction?: string }) {
   return (
     <main className="w-full">
       <PageHeader
-        eyebrow="Who is winning"
         title="Leaderboard"
         description="Everyone with a public battle, ranked by rating."
         actions={<FactionFilter factions={data?.factions.map((entry) => entry.faction) ?? []} selected={chosen?.faction?.slug} />}
@@ -29,7 +28,7 @@ export function LeaderboardPage({ faction }: { faction?: string }) {
       <PageContent className="space-y-6">
         <Standings table={table} viewerId={me?.id} />
         {/* Under the table, because it answers "why is my game not here" rather than "what am I reading". */}
-        <p className="text-sm text-faint">
+        <p className="max-w-3xl text-sm text-dim">
           Everyone starts at 1000, and beating a higher-rated player gains more. A rating counts every public battle and drifts down while
           you don't play. A concession is a loss, and allies share their side's result, rated on their average. Practice, guest, private and
           manually tracked battles do not count.

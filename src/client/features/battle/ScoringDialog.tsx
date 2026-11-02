@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react'
+import { useState } from 'react'
 import { Stepper } from '../../components/Stepper'
 import { Button } from '@/components/ui/button'
 import { DialogBody, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/Dialog'
@@ -24,7 +24,6 @@ import { MissionSelectionRecords } from './MissionSelectionRecord'
 import { BattleDialogContent, BattlePromptDialog } from './BattlePromptDialog'
 import { tint } from './battleTints'
 import { UndoLatest, type UndoTarget } from './UndoLatest'
-import { prefersReducedMotion } from '../../useMediaQuery'
 
 /** Which side a prompt is recording for, in the colours it wears to say so. */
 type Tone = ReturnType<typeof tint>
@@ -80,41 +79,8 @@ export function ScoringDialog({
   onAnswersChange,
 }: Props) {
   const [answers, setAnswers] = useState<ScoringAnswers>(() => initialAnswers ?? {})
-  const body = useRef<HTMLDivElement | null>(null)
-  // Every card has been on screen once the list fits or has been scrolled to its end. Fitting is measured again as rules
-  // text loads in, but reaching the end only counts when the reader scrolls there.
-  const [fits, setFits] = useState(true)
-  const [scrolledThrough, setScrolledThrough] = useState(false)
-  // A ref rather than an effect, because the dialog mounts its body after this component commits; measuring here, before
-  // paint, keeps a prompt that fits from flashing the stepping label.
-  const watchBody = useCallback((scroller: HTMLDivElement | null) => {
-    body.current = scroller
-    if (!scroller) return
-    const measure = () => setFits(scroller.scrollHeight <= scroller.clientHeight + 1)
-    const scrolled = () => {
-      if (scroller.scrollTop + scroller.clientHeight >= scroller.scrollHeight - 1) setScrolledThrough(true)
-    }
-    measure()
-    const resizes = new ResizeObserver(measure)
-    resizes.observe(scroller)
-    for (const child of scroller.children) resizes.observe(child)
-    scroller.addEventListener('scroll', scrolled, { passive: true })
-    return () => {
-      resizes.disconnect()
-      scroller.removeEventListener('scroll', scrolled)
-    }
-  }, [])
-  const unseen = !fits && !scrolledThrough
-  // Brings up the first card that runs past the bottom: its top first, then, for a card taller than the prompt, its end.
-  const showNextCard = () => {
-    const scroller = body.current
-    if (!scroller) return
-    const view = scroller.getBoundingClientRect()
-    const next = [...scroller.querySelectorAll('section[data-due]')].find((card) => card.getBoundingClientRect().bottom > view.bottom + 1)
-    const behavior = prefersReducedMotion() ? 'auto' : 'smooth'
-    if (!next) scroller.scrollTo({ top: scroller.scrollHeight, behavior })
-    else next.scrollIntoView({ behavior, block: next.getBoundingClientRect().top > view.top + 1 ? 'start' : 'end' })
-  }
+  // A card counts once the player has pressed something on it, nothing scored included, so none is settled by default.
+  const unanswered = due.filter((card) => !answers[card.key]).length
   const answerFor = (card: DueCard) => answers[card.key] ?? card.awards.map(() => 0)
   const claimedFor = (card: DueCard) => card.awards.reduce((total, award, at) => total + awardTotal(award, answerFor(card)[at] ?? 0), 0)
   const finalClaimedFor = (card: DueCard) =>
@@ -265,7 +231,7 @@ export function ScoringDialog({
           </DialogTitle>
         </DialogHeader>
 
-        <DialogBody ref={watchBody} className="gap-3">
+        <DialogBody className="gap-3">
           <DialogDescription>Press what the board actually paid on each card.</DialogDescription>
           {finalAwardsDue ? (
             <p className="text-sm text-dim">Final awards: {finalScoring} VP. Round limits do not apply; the battle limit still applies.</p>
@@ -333,7 +299,7 @@ export function ScoringDialog({
                     <span className="min-w-0 flex-1 text-sm text-dim">Did not score (or chose not to)</span>
                     <Chip
                       label="0 VP"
-                      chosen={taken.every((times) => times === 0)}
+                      chosen={Boolean(answers[card.key]) && taken.every((times) => times === 0)}
                       pending={pending}
                       tone={colours}
                       ariaLabel={`${card.name} scored nothing`}
@@ -346,23 +312,19 @@ export function ScoringDialog({
           })}
         </DialogBody>
 
-        <DialogFooter className="flex-col items-stretch sm:flex-row sm:items-center">
-          <div className="flex items-center justify-between gap-3 sm:flex-1">
-            <output className="readout text-sm text-dim">
-              Scoring <span className="font-bold text-bone">{total}</span> VP
-            </output>
-            <UndoLatest compact undo={undo} send={send} pending={pending} />
-          </div>
-          <div className="flex gap-2">
-            {onCancel ? (
-              <Button className="flex-1 sm:flex-none" variant="outline" disabled={pending} onClick={onCancel}>
-                Back
-              </Button>
-            ) : null}
-            <Button className={`flex-1 sm:flex-none ${colours.fill}`} disabled={pending} onClick={unseen ? showNextCard : confirm}>
-              {unseen ? 'Next card' : confirmLabel}
+        <DialogFooter className="flex-row items-center gap-2">
+          <UndoLatest compact undo={undo} send={send} pending={pending} />
+          <output aria-label={`Scoring ${total} VP`} className="readout min-w-0 flex-1 text-center text-sm whitespace-nowrap text-dim">
+            <span className="font-bold text-bone">{total}</span> VP
+          </output>
+          {onCancel ? (
+            <Button variant="outline" disabled={pending} onClick={onCancel}>
+              Back
             </Button>
-          </div>
+          ) : null}
+          <Button className={colours.fill} disabled={pending || unanswered > 0} onClick={confirm}>
+            {unanswered ? `${unanswered} to answer` : confirmLabel}
+          </Button>
         </DialogFooter>
       </BattleDialogContent>
     </BattlePromptDialog>

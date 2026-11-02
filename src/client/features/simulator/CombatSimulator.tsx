@@ -250,7 +250,6 @@ export function CombatSimulator({
   return (
     <main className="w-full">
       <PageHeader
-        eyebrow={null}
         title="Combat simulator"
         description="Compare shooting and melee between units or whole rosters. Try an editable Intercessors vs Necron Warriors example, or choose your own matchup."
         actions={
@@ -289,7 +288,7 @@ export function CombatSimulator({
               <div className="mt-4 space-y-6">
                 {problem ? <output className="block text-sm text-dim">{problem}</output> : null}
                 {loadingRoster ? (
-                  <p className="border border-edge bg-panel p-4 text-sm text-dim">Loading roster…</p>
+                  <p className="part p-4 text-sm text-dim">Loading roster…</p>
                 ) : (
                   <CombatSimulatorMatchup
                     key={session.key}

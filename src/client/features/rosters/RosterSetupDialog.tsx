@@ -6,7 +6,7 @@ import { errorMessage } from '../../queryClient'
 import { RulesVersionLabel } from '../../components/RulesVersionLabel'
 import { prepareFactionUnits } from '../../functions'
 import { Link } from '@tanstack/react-router'
-import { Check, Layers3 } from 'lucide-react'
+import { BookOpen, Check } from 'lucide-react'
 import { type ReactNode, useEffect, useId, useState } from 'react'
 import { Switch } from '@/components/ui/switch'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -471,7 +471,7 @@ export function RosterSetupDialog({
           </span>
         </div>
         {unavailableDetachmentIds.length ? (
-          <Problem className="mt-2 border border-destructive/60 bg-destructive/10 p-3">
+          <Problem className="mt-2 rounded-lg border border-destructive/60 bg-destructive/10 p-3">
             This roster has {unavailableDetachmentIds.length === 1 ? 'a detachment' : 'detachments'} that this faction no longer offers.
             <Button
               variant="ghost"
@@ -507,40 +507,13 @@ export function RosterSetupDialog({
             return (
               <div
                 key={detachment.id}
-                className={`flex min-h-20 items-stretch border ${chosen ? 'border-parchment bg-raised' : 'border-edge bg-sunken'}`}
+                className={`flex items-center gap-1 rounded-lg border pr-1 transition-colors ${chosen ? 'border-parchment bg-parchment/6 inset-ring-1 inset-ring-parchment' : 'border-edge bg-sunken hover:border-runner-hi'}`}
               >
-                <div className="flex w-10 shrink-0 flex-col border-r border-edge">
-                  <button
-                    type="button"
-                    aria-label={`View ${detachment.name} detachment reference`}
-                    className="grid min-h-10 flex-1 place-items-center hover:bg-raised"
-                    onClick={() => {
-                      if (!faction) return
-                      setReference({
-                        catalogueId: faction.id,
-                        detachmentId: detachment.id,
-                        slug: detachment.slug,
-                        name: detachment.name,
-                      })
-                    }}
-                  >
-                    <Layers3 className={`size-4 ${chosen ? 'text-parchment' : 'text-faint'}`} />
-                  </button>
-                  {faction ? (
-                    <FavouriteDetachmentToggle
-                      catalogueId={faction.id}
-                      detachmentId={detachment.id}
-                      name={detachment.name}
-                      className="size-10 border-t border-edge hover:bg-raised"
-                    />
-                  ) : null}
-                </div>
                 {conflict ? (
                   <UnavailableDetachment name={detachment.name} reason={conflict}>
+                    <Choice chosen={false} />
                     <DetachmentSummary detachment={detachment} />
-                    <span className="grid w-20 shrink-0 place-items-center border-l border-edge bg-sunken text-sm font-bold text-faint uppercase">
-                      {detachment.points ?? '—'} DP
-                    </span>
+                    <span className="chip shrink-0 text-faint">{detachment.points ?? '—'} DP</span>
                   </UnavailableDetachment>
                 ) : (
                   <button
@@ -548,16 +521,41 @@ export function RosterSetupDialog({
                     aria-label={`Select ${detachment.name}`}
                     aria-pressed={chosen}
                     onClick={() => toggleDetachment(detachment.id)}
-                    className="group flex min-w-0 flex-1 items-stretch text-left hover:bg-raised"
+                    className="flex min-w-0 flex-1 items-center gap-3 py-2.5 pl-3 text-left"
                   >
+                    <Choice chosen={chosen} />
                     <DetachmentSummary detachment={detachment} />
-                    <span
-                      className={`grid w-20 shrink-0 place-items-center border-l border-edge text-sm font-bold uppercase ${chosen ? 'bg-parchment text-parchment-ink' : 'bg-raised text-azure group-hover:bg-azure/15'}`}
-                    >
+                    <span className={`chip shrink-0 ${chosen ? 'border-parchment/60 text-parchment' : ''}`}>
                       {detachment.points ?? '—'} DP
                     </span>
                   </button>
                 )}
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label={`View ${detachment.name} detachment reference`}
+                  title="Detachment reference"
+                  className="shrink-0 text-faint hover:text-bone"
+                  onClick={() => {
+                    if (!faction) return
+                    setReference({
+                      catalogueId: faction.id,
+                      detachmentId: detachment.id,
+                      slug: detachment.slug,
+                      name: detachment.name,
+                    })
+                  }}
+                >
+                  <BookOpen />
+                </Button>
+                {faction ? (
+                  <FavouriteDetachmentToggle
+                    catalogueId={faction.id}
+                    detachmentId={detachment.id}
+                    name={detachment.name}
+                    className="size-7"
+                  />
+                ) : null}
               </div>
             )
           })}
@@ -575,7 +573,7 @@ export function RosterSetupDialog({
           <button
             type="button"
             onClick={() => setEditingOptionalRules(true)}
-            className="mt-2 flex min-h-12 w-full items-center justify-between gap-3 border border-edge px-3 py-2 text-left hover:border-azure"
+            className="mt-2 flex min-h-12 w-full items-center justify-between gap-3 rounded-lg border border-edge px-3 py-2 text-left hover:border-runner-hi"
           >
             <span className="min-w-0">
               <span className="block font-bold uppercase">
@@ -605,14 +603,11 @@ export function RosterSetupDialog({
                   onClick={() => {
                     if (dispositions.length > 1) changeDraft({ ...draft, disposition: entry.id })
                   }}
-                  className={`flex min-h-12 items-center justify-between border px-3 text-left font-bold uppercase ${dispositionTone(entry.id, chosen)}`}
+                  aria-pressed={chosen}
+                  className={`flex min-h-12 items-center gap-3 rounded-lg border px-3 text-left transition-colors ${chosen ? 'border-parchment bg-parchment/6 inset-ring-1 inset-ring-parchment' : 'border-edge bg-sunken hover:border-runner-hi'}`}
                 >
-                  {entry.name}
-                  <span
-                    className={`grid size-6 place-items-center rounded-full border ${chosen ? 'border-current bg-bone text-void' : 'border-current/60'}`}
-                  >
-                    {chosen ? <Check className="size-4" /> : null}
-                  </span>
+                  <Choice chosen={chosen} />
+                  <span className={`chip ${dispositionTone(entry.id)}`}>{entry.name}</span>
                 </button>
               )
             })}
@@ -774,7 +769,7 @@ export function RosterSetupDialog({
               fields
             )}
           </DialogBody>
-          <DialogFooter>{actions}</DialogFooter>
+          <DialogFooter className="flex-row flex-wrap items-center justify-end">{actions}</DialogFooter>
           {/* Nested so Escape closes the reference first and leaves the setup open beneath it. */}
           <Dialog open={Boolean(reference)} onOpenChange={(next) => !next && setReference(null)}>
             <DialogContent id="detachment-reference-dialog" initialFocus={false} size="lg">
@@ -800,11 +795,23 @@ export function RosterSetupDialog({
   )
 }
 
+/** The round mark a chosen option fills, the same on detachments and dispositions. */
+function Choice({ chosen }: { chosen: boolean }) {
+  return (
+    <span
+      aria-hidden
+      className={`grid size-5 shrink-0 place-items-center rounded-full border ${chosen ? 'border-parchment bg-parchment text-parchment-ink' : 'border-runner-hi'}`}
+    >
+      {chosen ? <Check className="size-3.5" strokeWidth={3} /> : null}
+    </span>
+  )
+}
+
 function DetachmentSummary({ detachment }: { detachment: Detachment }) {
   return (
-    <span className="min-w-0 flex-1 p-3">
-      <span className="block font-bold uppercase">{detachment.name}</span>
-      <span className="mt-2 flex flex-wrap gap-1">
+    <span className="min-w-0 flex-1">
+      <span className="block text-sm leading-tight font-semibold text-bone">{detachment.name}</span>
+      <span className="mt-1.5 flex flex-wrap gap-1">
         {detachment.dispositions.map((entry) => (
           <span key={entry.id} className={`chip ${dispositionTone(entry.id)}`}>
             {entry.name}
@@ -828,7 +835,7 @@ function UnavailableDetachment({ name, reason, children }: { name: string; reaso
             aria-disabled="true"
             aria-label={`Select ${name}, unavailable`}
             onClick={() => setOpen(true)}
-            className="flex min-w-0 flex-1 cursor-not-allowed items-stretch text-left"
+            className="flex min-w-0 flex-1 cursor-not-allowed items-center gap-3 py-2.5 pl-3 text-left opacity-60"
           />
         }
       >

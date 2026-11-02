@@ -12,17 +12,13 @@ export function HomeWaiting({ rostersDue, friendRequests }: { rostersDue: readon
   if (!rostersDue.length && !friendRequests) return null
   return (
     <section data-home-waiting>
-      <SectionHeading
-        title="Needs your attention"
-        count={rostersDue.length + friendRequests}
-        className="mb-0 border-discarded/40 text-discarded"
-      />
-      <ul className="divide-y divide-edge border-b border-edge">
+      <SectionHeading title="Needs your attention" count={rostersDue.length + friendRequests} className="text-discarded" />
+      <ul className="part divide-y divide-edge overflow-hidden">
         {rostersDue.map((sealedEvent) => (
           <li key={sealedEvent.token}>
             <Link {...eventLink(sealedEvent)} className={ROW}>
-              <Row icon={<ScrollText className="size-4 text-parchment" aria-hidden />}>
-                <span className="font-bold uppercase">{eventFullName(sealedEvent)}</span> needs your roster
+              <Row icon={<ScrollText className="size-4 text-discarded" aria-hidden />}>
+                <span className="font-bold text-bone">{eventFullName(sealedEvent)}</span> needs your roster
               </Row>
             </Link>
           </li>
@@ -30,7 +26,7 @@ export function HomeWaiting({ rostersDue, friendRequests }: { rostersDue: readon
         {friendRequests ? (
           <li>
             <Link to="/friends" className={ROW}>
-              <Row icon={<UserPlus className="size-4 text-parchment" aria-hidden />}>
+              <Row icon={<UserPlus className="size-4 text-discarded" aria-hidden />}>
                 {friendRequests === 1 ? 'A player wants to be your friend' : `${friendRequests} players want to be your friend`}
               </Row>
             </Link>
@@ -41,14 +37,14 @@ export function HomeWaiting({ rostersDue, friendRequests }: { rostersDue: readon
   )
 }
 
-const ROW = 'group -mx-3 flex items-center gap-3 px-3 py-3 hover:bg-raised'
+const ROW = 'group flex items-center gap-3 px-4 py-3 transition-colors hover:bg-raised'
 
 function Row({ icon, children }: { icon: ReactNode; children: ReactNode }) {
   return (
     <>
       {icon}
-      <span className="min-w-0 flex-1 text-sm break-words text-dim">{children}</span>
-      <ChevronRight className="size-4 shrink-0 text-info group-hover:text-parchment" aria-hidden />
+      <span className="min-w-0 flex-1 text-sm break-words text-bone/85">{children}</span>
+      <ChevronRight className="size-4 shrink-0 text-dim group-hover:text-parchment" aria-hidden />
     </>
   )
 }

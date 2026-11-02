@@ -109,7 +109,12 @@ test('the roster library counts every saved list and prices more rows on demand'
   await expect(page.locator('[data-roster]')).toHaveCount(20)
   await page.getByRole('button', { name: 'Show more rosters' }).click()
   await expect(page.locator('[data-roster]')).toHaveCount(21)
-  await expect(page.locator('[data-roster]').last().locator('.readout')).toHaveText(/^\d+\/2000$/)
+  await expect(
+    page
+      .locator('[data-roster]')
+      .last()
+      .getByText(/^\d+\/2000$/),
+  ).toBeVisible()
   await expect(page.getByRole('button', { name: 'Show more rosters' })).toHaveCount(0)
   await page.getByRole('button', { name: 'Sort: Recently updated' }).click()
   await page.getByRole('menuitemradio', { name: 'A to Z' }).click()
@@ -393,14 +398,14 @@ test('the roster library reprices a saved list edited in another tab', async ({ 
   const viewer = await page.context().newPage()
   await viewer.goto('/rosters')
   const row = viewer.locator(`[data-roster="${rosterName}"]`)
-  await expect(row.locator('.readout')).toHaveText('0/2000')
+  await expect(row.getByText('0/2000', { exact: true })).toBeVisible()
 
   await waitForRosterSave(page, async () => {
     await page.getByLabel('Add a unit').fill('Immortals')
     await page.getByRole('button', { name: 'Add Immortals', exact: true }).first().click()
   })
 
-  await expect(row.locator('.readout')).toHaveText(/^[1-9]\d*\/2000$/)
+  await expect(row.getByText(/^[1-9]\d*\/2000$/)).toBeVisible()
   await viewer.close()
 })
 
@@ -486,10 +491,11 @@ test('a saved list is reopened, duplicated, shared and published', async ({ brow
   await expect(page.locator('[data-roster="Nurgle 2k"]')).toContainText('220/2000')
   await page.getByRole('link', { name: /Nurgle 2k/ }).click()
   await expect(page).toHaveURL(/\/rosters\/[^/]+$/)
-  const editor = page.getByLabel('Add units').locator('xpath=ancestor::div[contains(@class,"bg-sunken")][1]')
+  const editor = page.locator('[data-roster-builder]')
+  const rail = (await page.locator('[data-web-app-chrome]').boundingBox())!
   const editorBounds = await editor.boundingBox()
-  expect(editorBounds?.x).toBe(0)
-  expect(editorBounds?.width).toBe(1600)
+  expect(editorBounds?.x).toBe(rail.x + rail.width)
+  expect(editorBounds?.width).toBe(1600 - rail.x - rail.width)
   const rosterUnits = page.locator('[data-slot="roster-units"]')
   await expect(rosterUnits.getByText('Characters', { exact: true }).locator('..')).toContainText(/Characters\s*\d+ pts\s*1/)
   await expect(rosterUnits.getByText('Battleline', { exact: true }).locator('..')).toContainText(/Battleline\s*\d+ pts\s*1/)

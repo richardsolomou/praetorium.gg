@@ -73,12 +73,7 @@ export const SidePanel = memo(function SidePanel({
       data-onboarding={side.isViewer ? 'battle-live-side' : undefined}
       data-panel="player"
       data-side={side.index}
-      className={cn(
-        'min-w-0 space-y-3 rounded-lg border border-edge border-t-2 bg-panel p-3',
-        colours.edge,
-        side.isActive ? `ring-1 ${colours.glow}` : '',
-        className,
-      )}
+      className={cn('part min-w-0 space-y-3 border-t-2 p-3', colours.edge, side.isActive ? `ring-1 ${colours.glow}` : '', className)}
     >
       {/*
        * Who is on this side: each player pictured and named, with the army they
@@ -90,10 +85,10 @@ export const SidePanel = memo(function SidePanel({
        * only place the players are written and the scoreboard is left to the score.
        */}
       <div className="space-y-2">
-        {side.armies.map((army) => (
+        {side.armies.map((army, at) => (
           <div key={army.playerId} className="min-w-0">
             <h2 className={`flex min-w-0 items-baseline gap-2 text-lg leading-tight font-bold uppercase ${colours.text}`}>
-              <PlayerName army={army} />
+              <PlayerName army={army} seat={{ side: side.index, at }} />
               <PlayerRatingChange view={view} playerId={army.playerId} />
             </h2>
             <ArmyIdentity army={army} className="mt-0.5" />
@@ -143,9 +138,15 @@ export const SidePanel = memo(function SidePanel({
             </div>
           </div>
 
-          <div className="grid gap-x-4 gap-y-3 md:grid-cols-2 md:items-start lg:grid-cols-1 xl:grid-cols-2">
+          {/* Across the whole panel, or its five round columns get squeezed into half of it. */}
+          <PrimaryMission {...cards} />
+          <div
+            className={cn(
+              'grid gap-x-4 gap-y-3',
+              side.stratagems.length > 0 && 'md:grid-cols-2 md:items-start lg:grid-cols-1 xl:grid-cols-2',
+            )}
+          >
             <div data-missions className="min-w-0 space-y-3">
-              <PrimaryMission {...cards} />
               <SecondaryMissions {...cards} />
             </div>
             {side.stratagems.length ? (

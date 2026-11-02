@@ -12,11 +12,11 @@ export function FactionBreadcrumb({
 }) {
   return (
     <Breadcrumb>
-      <BreadcrumbList className="eyebrow gap-1 text-info">
+      <BreadcrumbList className="gap-1 text-xs text-dim sm:gap-1.5">
         <BreadcrumbItem>
           <BreadcrumbLink render={<Link to="/factions" />}>Factions</BreadcrumbLink>
         </BreadcrumbItem>
-        <BreadcrumbSeparator className="text-dim" />
+        <BreadcrumbSeparator className="text-faint" />
         <BreadcrumbItem>
           <BreadcrumbLink render={<FactionReferenceLink to="/factions/$catalogueId" params={{ catalogueId: faction.slug }} />}>
             {faction.displayName}
@@ -24,7 +24,7 @@ export function FactionBreadcrumb({
         </BreadcrumbItem>
         {datasheets ? (
           <>
-            <BreadcrumbSeparator className="text-dim" />
+            <BreadcrumbSeparator className="text-faint" />
             <BreadcrumbItem>
               <BreadcrumbLink
                 render={<FactionReferenceLink to="/factions/$catalogueId/datasheets" params={{ catalogueId: faction.slug }} />}

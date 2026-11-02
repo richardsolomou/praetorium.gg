@@ -141,70 +141,84 @@ export function SecondaryMissions({ view, side, actionable, pending, send, refer
         />
       </div>
       {visible.length ? null : <p className="text-xs text-dim">No active missions.</p>}
-      {visible.map((secondary) => {
-        const scoredRounds = secondary.rounds.flatMap((points, index) => (points !== 0 ? [{ round: index + 1, points }] : []))
-        const tacticalActive = secondary.status === 'active' && side.secondaryMode === 'tactical'
-        return (
-          <div key={secondary.key} data-secondary={secondary.key} className={`${CARD} space-y-1.5`}>
-            <div className="flex items-baseline justify-between gap-2">
-              <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1">
-                <MissionName name={secondary.name} card={referenceFor(secondary.key)} type="Secondary mission" mode={side.secondaryMode} />
-                {secondary.secret ? <span className="chip text-discarded">{secondary.revealed ? 'revealed' : 'secret'}</span> : null}
-              </div>
-              {tacticalActive ? (
-                <span className="readout shrink-0 text-sm font-bold text-dim">
-                  {secondary.points} <span className="text-3xs font-normal">VP</span>
-                </span>
-              ) : null}
-            </div>
-            <MissionSelectionRecords records={side.captain.missionSelections ?? []} cardKey={secondary.key} />
-            <MissionChoices
-              view={view}
-              side={side}
-              cardKey={secondary.key}
-              pending={pending}
-              send={send}
-              reference={referenceFor(secondary.key)}
-            />
-            {tacticalActive ? (
-              scoredRounds.length ? (
-                <ScoredRounds rounds={scoredRounds} />
-              ) : null
-            ) : secondary.status === 'active' ? (
-              <RoundScores
-                view={view}
-                scores={secondary.rounds}
-                total={secondary.points}
-                cap={side.secondaryMode === 'fixed' ? side.mission?.fixedSecondaryCap : null}
-                labels={false}
-              />
-            ) : (
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="flex flex-wrap items-center gap-2 text-3xs">
-                  <span className={`font-semibold uppercase ${secondary.status === 'achieved' ? 'text-achieved' : 'text-discarded'}`}>
-                    {secondary.status}
-                  </span>
-                  <ScoredRounds rounds={scoredRounds} />
+      {/* Held cards hang off the runner by a doubled gate; a discarded one is cut from it and struck through. */}
+      <ul className={cn('runner gap-1.5 [--gate-x:1.125rem] [--gate-y:1.125rem]', visible.length ? '' : 'hidden')}>
+        {visible.map((secondary) => {
+          const scoredRounds = secondary.rounds.flatMap((points, index) => (points !== 0 ? [{ round: index + 1, points }] : []))
+          const tacticalActive = secondary.status === 'active' && side.secondaryMode === 'tactical'
+          return (
+            <li
+              key={secondary.key}
+              data-secondary={secondary.key}
+              data-gate={secondary.status === 'active' ? 'current' : secondary.status === 'discarded' ? 'cut' : undefined}
+              className={`${CARD} space-y-1.5`}
+            >
+              <div className="flex items-baseline justify-between gap-2">
+                <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1">
+                  <MissionName
+                    name={secondary.name}
+                    card={referenceFor(secondary.key)}
+                    type="Secondary mission"
+                    mode={side.secondaryMode}
+                    className={secondary.status === 'discarded' ? 'text-dim line-through decoration-discarded decoration-2' : undefined}
+                  />
+                  {secondary.secret ? <span className="chip text-discarded">{secondary.revealed ? 'revealed' : 'secret'}</span> : null}
                 </div>
-                <span className={`readout text-sm font-bold ${secondary.status === 'achieved' ? 'text-achieved' : 'text-dim'}`}>
-                  {secondary.points} <span className="text-3xs font-normal">VP</span>
-                </span>
+                {tacticalActive ? (
+                  <span className="readout shrink-0 text-sm font-bold text-dim">
+                    {secondary.points} <span className="text-3xs font-normal">VP</span>
+                  </span>
+                ) : null}
               </div>
-            )}
-            {actionable && secondary.secret && !secondary.revealed ? (
-              <Button
-                variant="ghost"
-                size="xs"
-                className="text-azure"
-                disabled={pending}
-                onClick={() => send({ kind: 'reveal-secret', playerId: side.captain.id })}
-              >
-                Reveal
-              </Button>
-            ) : null}
-          </div>
-        )
-      })}
+              <MissionSelectionRecords records={side.captain.missionSelections ?? []} cardKey={secondary.key} />
+              <MissionChoices
+                view={view}
+                side={side}
+                cardKey={secondary.key}
+                pending={pending}
+                send={send}
+                reference={referenceFor(secondary.key)}
+              />
+              {tacticalActive ? (
+                scoredRounds.length ? (
+                  <ScoredRounds rounds={scoredRounds} />
+                ) : null
+              ) : secondary.status === 'active' ? (
+                <RoundScores
+                  view={view}
+                  scores={secondary.rounds}
+                  total={secondary.points}
+                  cap={side.secondaryMode === 'fixed' ? side.mission?.fixedSecondaryCap : null}
+                  labels={false}
+                />
+              ) : (
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex flex-wrap items-center gap-2 text-3xs">
+                    <span className={`font-semibold uppercase ${secondary.status === 'achieved' ? 'text-achieved' : 'text-discarded'}`}>
+                      {secondary.status}
+                    </span>
+                    <ScoredRounds rounds={scoredRounds} />
+                  </div>
+                  <span className={`readout text-sm font-bold ${secondary.status === 'achieved' ? 'text-achieved' : 'text-dim'}`}>
+                    {secondary.points} <span className="text-3xs font-normal">VP</span>
+                  </span>
+                </div>
+              )}
+              {actionable && secondary.secret && !secondary.revealed ? (
+                <Button
+                  variant="ghost"
+                  size="xs"
+                  className="text-azure"
+                  disabled={pending}
+                  onClick={() => send({ kind: 'reveal-secret', playerId: side.captain.id })}
+                >
+                  Reveal
+                </Button>
+              ) : null}
+            </li>
+          )
+        })}
+      </ul>
       {resolved.length ? (
         <Button variant="ghost" size="xs" className="text-azure" onClick={() => setShowResolved(!showingResolved)}>
           {showingResolved ? 'Hide resolved missions' : `Show ${countLabel(resolved.length, 'resolved mission')}`}
@@ -292,7 +306,7 @@ function RoundScores({
               ) : null}
               <span
                 aria-hidden="true"
-                className={`readout flex h-7 items-center justify-center border-b text-xs ${current ? 'rounded-t-sm border-azure bg-azure/10 font-bold text-bone' : played ? 'border-edge text-dim' : 'border-dashed border-edge/50 text-faint'}`}
+                className={`readout flex h-7 items-center justify-center text-xs ${current ? 'rounded-t-md border-b-[6px] border-double border-parchment bg-parchment/10 font-bold text-bone' : played ? 'border-b-2 border-runner-hi text-dim' : 'border-b-2 border-dashed border-runner text-faint'}`}
               >
                 {played ? points : '–'}
               </span>

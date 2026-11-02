@@ -43,8 +43,8 @@ export function FriendTables({ battles }: { battles: readonly Battle[] }) {
   }
   return (
     <section data-friends-empty>
-      <SectionHeading title="Friends' games" className="mb-0" />
-      <div className="flex flex-col gap-4 border-b border-edge py-5 sm:flex-row sm:items-center sm:justify-between">
+      <SectionHeading title="Friends' games" />
+      <div className="part flex flex-col gap-4 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-dim">Games your friends play without you show here.</p>
         <Link to="/friends" className={buttonClass({ variant: 'outline', className: 'shrink-0' })}>
           <Users /> Your friends
@@ -59,8 +59,8 @@ export function PublicTables({ battles, signedIn }: { battles: readonly Battle[]
   if (!battles.length) {
     return signedIn ? null : (
       <section data-public-empty>
-        <SectionHeading title="Public games" className="mb-0" />
-        <p className="py-2 text-sm text-dim">No public battles yet. Create an account and start the first one.</p>
+        <SectionHeading title="Public games" />
+        <p className="part px-4 py-4 text-sm text-dim">No public battles yet. Create an account and start the first one.</p>
       </section>
     )
   }

@@ -105,9 +105,12 @@ export function NativeAppNavigation({
     })
   }
 
+  // The tabs hang off a runner along the bar's top; only the open one is attached by its gate.
   const tabClass = (selected: boolean) =>
-    `min-w-0 flex-1 flex-col items-center justify-center gap-0.5 border-t-2 text-3xs font-semibold tracking-label uppercase ${
-      selected ? 'border-parchment bg-raised text-parchment' : 'border-transparent text-dim hover:bg-raised hover:text-info'
+    `relative mx-0.5 mb-1.5 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-lg border text-3xs font-semibold tracking-label uppercase ${
+      selected
+        ? 'border-edge bg-panel text-bone shadow-part before:absolute before:-top-2 before:left-1/2 before:h-2 before:w-0.5 before:-translate-x-1/2 before:bg-parchment [&>svg]:text-parchment'
+        : 'border-transparent text-dim hover:bg-raised hover:text-bone'
     }`
 
   return (
@@ -120,7 +123,7 @@ export function NativeAppNavigation({
         data-native-app-tabs
         data-print-hide
         aria-label="Application sections"
-        className="fixed right-0 bottom-0 left-0 z-50 hidden h-16 items-stretch border-t border-edge-strong bg-sunken/95 backdrop-blur"
+        className="fixed right-0 bottom-0 left-0 z-50 hidden h-16 items-stretch border-t border-edge bg-sunken/95 px-1.5 pt-3 backdrop-blur before:absolute before:inset-x-0 before:top-1.5 before:h-0.5 before:bg-runner"
       >
         {PRIMARY_TABS.map(({ icon: Icon, label, section, to }) => (
           <Link

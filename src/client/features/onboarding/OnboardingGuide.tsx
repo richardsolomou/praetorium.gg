@@ -177,9 +177,9 @@ function AccountOnboardingGuide({ userId }: { userId?: string }) {
    * A prompt either points at the control it describes or, where it cannot, sits
    * where the panel sits. Compact screens are the second case: a pane fills them,
    * so a popup beside it has nowhere to go, and `lost` is the control never arriving.
-   * A compact card also waits while a full-screen dialog hides its control.
+   * Either waits while a dialog hides its control, or it would point at nothing and cover the dialog.
    */
-  const placed = target ? (!compact ? 'anchor' : covered ? undefined : 'card') : lost && lost === focus ? 'lost' : undefined
+  const placed = target ? (covered ? undefined : compact ? 'card' : 'anchor') : lost && lost === focus ? 'lost' : undefined
   const prompted = !open && focusedStep ? placed : undefined
   const anchored = prompted === 'anchor' ? target : undefined
 
@@ -423,11 +423,10 @@ function GuidePanel({
       open
       aria-modal="false"
       aria-labelledby="onboarding-guide-title"
-      className="fixed right-4 bottom-[calc(5rem+env(safe-area-inset-bottom))] left-4 z-50 flex max-h-[calc(100dvh-7rem)] w-auto flex-col overflow-hidden border border-edge bg-panel text-sm text-bone shadow-xl min-[860px]:bottom-4 min-[860px]:left-auto min-[860px]:max-h-[calc(100dvh-2rem)] min-[860px]:w-[32rem]"
+      className="fixed right-4 bottom-[calc(5rem+env(safe-area-inset-bottom))] left-4 z-50 flex max-h-[calc(100dvh-7rem)] w-auto flex-col overflow-hidden part text-sm text-bone shadow-xl min-[860px]:bottom-4 min-[860px]:left-auto min-[860px]:max-h-[calc(100dvh-2rem)] min-[860px]:w-[32rem]"
     >
       <div className="relative border-b border-edge bg-sunken p-4 pr-12">
-        <p className="eyebrow text-info">Getting started</p>
-        <h2 id="onboarding-guide-title" ref={heading} tabIndex={-1} className="mt-2 text-xl text-bone outline-none">
+        <h2 id="onboarding-guide-title" ref={heading} tabIndex={-1} className="text-xl text-bone outline-none">
           Your first army and matchup
         </h2>
         <p className="mt-2 text-dim">

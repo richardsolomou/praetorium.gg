@@ -36,7 +36,7 @@ export function PlayerRankings({ rankings }: { rankings: Rankings }) {
             key={faction?.slug ?? 'overall'}
             to="/leaderboard"
             search={{ faction: faction?.slug }}
-            className="flex min-w-0 items-center gap-3 border border-edge bg-panel p-3 transition-colors hover:border-info hover:bg-raised"
+            className="flex min-w-0 items-center gap-3 part p-3 transition-colors hover:border-info hover:bg-raised"
           >
             <span className="figure w-14 shrink-0 text-2xl leading-none font-bold text-bone">
               #{place}

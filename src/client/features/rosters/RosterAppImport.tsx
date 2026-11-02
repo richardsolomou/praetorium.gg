@@ -153,7 +153,7 @@ export function RosterAppImport({
           {rosters.map((found) => {
             if (!matched(found))
               return (
-                <li key={found.key} className="flex items-start gap-2 border border-edge bg-sunken p-3 text-sm text-dim">
+                <li key={found.key} className="flex items-start gap-2 rounded-lg border border-edge bg-sunken p-3 text-sm text-dim">
                   <TriangleAlert className="mt-0.5 size-4 shrink-0 text-discarded" aria-hidden />
                   <span>
                     {found.kind === 'read'
@@ -166,7 +166,7 @@ export function RosterAppImport({
             const whole = complete(imported)
             const id = `import-app-${found.key}`
             return (
-              <li key={found.key} className="flex items-center gap-3 border border-edge bg-sunken p-3">
+              <li key={found.key} className="flex items-center gap-3 rounded-lg border border-edge bg-sunken p-3">
                 {onImport && whole ? (
                   <input
                     id={id}

@@ -160,7 +160,6 @@ export function RosterDiscoveryPage({ view, search }: { view: RosterAudience | '
   return (
     <main className="w-full">
       <PageHeader
-        eyebrow="Your rosters"
         title="Rosters"
         description="Build, import, organize, and share your armies, or find one your friends and other players made public."
         actions={
@@ -226,7 +225,6 @@ export function RosterDiscoveryPage({ view, search }: { view: RosterAudience | '
               {signedOutFriends ? (
                 <PageState
                   headingLevel={2}
-                  eyebrow="Friends' rosters"
                   title="See what your friends are building"
                   explanation="With a free account, your friends' public rosters appear here, ready to open or duplicate."
                   icon={Users}
@@ -244,7 +242,6 @@ export function RosterDiscoveryPage({ view, search }: { view: RosterAudience | '
               ) : result.isError && !shown.length ? (
                 <PageState
                   headingLevel={2}
-                  eyebrow="Rosters"
                   title="Could not load rosters"
                   explanation={`The ${listed} could not be loaded. Try again.`}
                   action={
@@ -261,16 +258,20 @@ export function RosterDiscoveryPage({ view, search }: { view: RosterAudience | '
               ) : shown.length || result.hasNextPage ? (
                 <>
                   {shown.length ? null : <p className="py-2 text-sm text-dim">None of the most recently saved rosters match yet.</p>}
-                  {shown.map((entry) => (
-                    <DiscoveredRoster
-                      key={entry.roster.id}
-                      entry={entry}
-                      faction={factions.find((faction) => faction.id === entry.roster.catalogueId)}
-                      duplicating={duplicate.isPending && duplicate.variables?.roster.id === entry.roster.id}
-                      onDuplicate={another ?? (() => duplicate.mutate(entry))}
-                      disabled={duplicate.isPending}
-                    />
-                  ))}
+                  {shown.length ? (
+                    <div className="runner gap-3 [--gate-x:1rem] [--gate-y:1.5rem] sm:[--gate-x:1.5rem]">
+                      {shown.map((entry) => (
+                        <DiscoveredRoster
+                          key={entry.roster.id}
+                          entry={entry}
+                          faction={factions.find((faction) => faction.id === entry.roster.catalogueId)}
+                          duplicating={duplicate.isPending && duplicate.variables?.roster.id === entry.roster.id}
+                          onDuplicate={another ?? (() => duplicate.mutate(entry))}
+                          disabled={duplicate.isPending}
+                        />
+                      ))}
+                    </div>
+                  ) : null}
                   {result.hasNextPage ? (
                     <Button variant="outline" disabled={result.isFetchingNextPage} onClick={() => void result.fetchNextPage()}>
                       {result.isFetchingNextPage ? 'Loading…' : 'Show more rosters'}
@@ -283,7 +284,6 @@ export function RosterDiscoveryPage({ view, search }: { view: RosterAudience | '
                 <div data-friends-empty>
                   <PageState
                     headingLevel={2}
-                    eyebrow="Friends' rosters"
                     title="No friends' rosters yet."
                     explanation="Rosters your friends make public appear here."
                     icon={Users}
@@ -297,7 +297,6 @@ export function RosterDiscoveryPage({ view, search }: { view: RosterAudience | '
               ) : (
                 <PageState
                   headingLevel={2}
-                  eyebrow="Public rosters"
                   title={me ? 'No other public rosters yet.' : 'No public rosters yet.'}
                   explanation={
                     me
@@ -349,7 +348,6 @@ function PlayedArmies({
         {result.isError && !armies.length ? (
           <PageState
             headingLevel={2}
-            eyebrow="Played armies"
             title="Could not load played armies"
             explanation="The played armies could not be loaded. Try again."
             action={
@@ -366,48 +364,50 @@ function PlayedArmies({
         ) : armies.length || result.hasNextPage ? (
           <>
             {armies.length ? null : <p className="py-2 text-sm text-dim">None of the most recently finished battles match yet.</p>}
-            {armies.map((army) => {
-              const indexed = factions.find((faction) => faction.id === army.catalogueId)
-              // Frozen armies keep the status their rules version had when they were fielded.
-              const faction = indexed && {
-                ...indexed,
-                edition:
-                  indexed.edition && army.edition
-                    ? { ...indexed.edition, name: army.edition.name, status: army.edition.status }
-                    : indexed.edition,
-              }
-              const key = `${army.battle}:${army.player.id}`
-              return (
-                <article key={key} data-played-army={army.name} className="border border-edge bg-panel hover:border-info hover:bg-raised">
-                  <Link to="/rosters/$id" params={{ id: army.player.id }} search={{ battle: army.battle }} className="flex min-w-0 p-3">
-                    <RosterSummary
-                      roster={{ ...army, updatedAt: army.playedAt }}
-                      faction={faction}
-                      points={army.points}
-                      problem={army.problem}
-                      showLock={false}
-                      showLegality
-                      dateLabel="played"
-                    />
-                  </Link>
-                  <PlayedOutcome outcome={army.outcome} token={army.battle} />
-                  <div className="flex flex-wrap items-center justify-between gap-2 border-t border-edge px-3 py-2">
-                    <span className="min-w-0 truncate text-xs text-dim">
-                      By <OwnerLink owner={army.player} />
-                    </span>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={copying !== null}
-                      onClick={() => onCopy(army)}
-                      aria-label={`Duplicate ${army.name}`}
-                    >
-                      <Copy /> {copying && `${copying.battle}:${copying.player.id}` === key ? 'Duplicating…' : 'Duplicate'}
-                    </Button>
-                  </div>
-                </article>
-              )
-            })}
+            <div className="runner gap-3 [--gate-x:1rem] [--gate-y:1.5rem] sm:[--gate-x:1.5rem] empty:hidden">
+              {armies.map((army) => {
+                const indexed = factions.find((faction) => faction.id === army.catalogueId)
+                // Frozen armies keep the status their rules version had when they were fielded.
+                const faction = indexed && {
+                  ...indexed,
+                  edition:
+                    indexed.edition && army.edition
+                      ? { ...indexed.edition, name: army.edition.name, status: army.edition.status }
+                      : indexed.edition,
+                }
+                const key = `${army.battle}:${army.player.id}`
+                return (
+                  <article key={key} data-played-army={army.name} className="part hover:border-runner-hi hover:bg-raised">
+                    <Link to="/rosters/$id" params={{ id: army.player.id }} search={{ battle: army.battle }} className="flex min-w-0 p-3">
+                      <RosterSummary
+                        roster={{ ...army, updatedAt: army.playedAt }}
+                        faction={faction}
+                        points={army.points}
+                        problem={army.problem}
+                        showLock={false}
+                        showLegality
+                        dateLabel="played"
+                      />
+                    </Link>
+                    <PlayedOutcome outcome={army.outcome} token={army.battle} />
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-t border-edge px-3 py-2">
+                      <span className="min-w-0 truncate text-xs text-dim">
+                        By <OwnerLink owner={army.player} />
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={copying !== null}
+                        onClick={() => onCopy(army)}
+                        aria-label={`Duplicate ${army.name}`}
+                      >
+                        <Copy /> {copying && `${copying.battle}:${copying.player.id}` === key ? 'Duplicating…' : 'Duplicate'}
+                      </Button>
+                    </div>
+                  </article>
+                )
+              })}
+            </div>
             {result.hasNextPage ? (
               <Button variant="outline" disabled={result.isFetchingNextPage} onClick={() => void result.fetchNextPage()}>
                 {result.isFetchingNextPage ? 'Loading…' : 'Show more armies'}
@@ -419,7 +419,6 @@ function PlayedArmies({
         ) : (
           <PageState
             headingLevel={2}
-            eyebrow="Played armies"
             title="No played armies yet."
             explanation="Armies appear here once a battle every player keeps public has finished."
             icon={Swords}
@@ -476,7 +475,7 @@ function DiscoveredRoster({
   const { roster, owner } = entry
   const title = rosterTitle(roster, faction)
   return (
-    <article data-discovered-roster={title} className="border border-edge bg-panel hover:border-info hover:bg-raised">
+    <article data-discovered-roster={title} className="part hover:border-runner-hi hover:bg-raised">
       <Link to="/rosters/$id" params={{ id: roster.id }} className="flex min-w-0 p-3">
         <RosterSummary roster={roster} faction={faction} points={entry.points} problem={entry.problem} showLock={false} showLegality />
       </Link>
@@ -494,7 +493,7 @@ function DiscoveredRoster({
 
 function DiscoveredRosterSkeleton() {
   return Array.from({ length: 3 }, (_, index) => (
-    <div key={index} className="border border-edge bg-panel" aria-hidden>
+    <div key={index} className="part" aria-hidden>
       <div className="flex min-h-[5.25rem] items-center gap-3 p-3">
         <div className="min-w-0 flex-1 space-y-2">
           <Skeleton className="h-4 w-1/3" />

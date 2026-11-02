@@ -19,7 +19,6 @@ export const Route = createFileRoute('/invite/$token')({
   component: () => <FriendInvitePage token={Route.useParams().token} />,
   notFoundComponent: () => (
     <FullPageState
-      eyebrow="Friend invite"
       title="This invite link no longer works"
       explanation="It has expired, been used or been cancelled. Ask your friend for a new link."
       icon={UserX}

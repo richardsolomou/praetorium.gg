@@ -56,7 +56,7 @@ export function RosterBuilderFooter({
   sealedEventWarning,
 }: Props) {
   return (
-    <footer className="sticky bottom-0 z-20 border-t border-edge bg-panel px-3 py-2">
+    <footer className="sticky bottom-0 z-20 border-t border-edge bg-void px-3 py-2">
       <div className="flex flex-wrap items-center gap-2">
         <span data-onboarding="roster-points" className="flex items-center gap-1.5 sm:gap-2">
           {loading ? (
@@ -77,8 +77,12 @@ export function RosterBuilderFooter({
                     : 'Within the points limit'}
             </span>
           )}
-          <span data-stat="points" className={`figure text-lg font-bold sm:text-xl ${over ? 'text-destructive' : 'text-info'}`}>
-            {loading ? <span aria-label="Loading roster points">…</span> : points}/{limit}
+          <span
+            data-stat="points"
+            className={`figure text-2xl leading-none font-bold sm:text-3xl ${over ? 'text-destructive' : 'text-bone'}`}
+          >
+            {loading ? <span aria-label="Loading roster points">…</span> : points}
+            <span className="text-base font-normal text-dim sm:text-lg">/{limit}</span>
           </span>
           <span className="flex flex-col leading-tight">
             <span className="eyebrow">points</span>
@@ -123,7 +127,7 @@ export function RosterBuilderFooter({
       {editable && saveFailed ? (
         <div
           role="alert"
-          className="mt-2 flex items-center gap-2 border border-destructive/40 bg-destructive/5 p-2.5 text-xs text-destructive"
+          className="mt-2 flex items-center gap-2 rounded-lg border border-destructive/40 bg-destructive/5 p-2.5 text-xs text-destructive"
         >
           <TriangleAlert className="size-4 shrink-0" aria-hidden />
           <span className="min-w-0 flex-1">Your latest changes have not been saved.</span>
@@ -133,7 +137,7 @@ export function RosterBuilderFooter({
         </div>
       ) : null}
       {!frozen && errors.length ? (
-        <ul className="mt-2 space-y-1 border border-destructive/40 bg-destructive/5 p-2.5 text-xs text-destructive">
+        <ul className="mt-2 space-y-1 rounded-lg border border-destructive/40 bg-destructive/5 p-2.5 text-xs text-destructive">
           {errors.slice(0, 8).map((error) => (
             <li key={`${error.entryId}-${error.message}`} className="flex items-center gap-2">
               <span className="min-w-0 flex-1">
@@ -149,7 +153,7 @@ export function RosterBuilderFooter({
         </ul>
       ) : null}
       {!frozen && unhandled.length ? (
-        <div className="mt-2 border border-discarded/40 bg-discarded/5 p-2.5 text-xs text-discarded">
+        <div className="mt-2 rounded-lg border border-discarded/40 bg-discarded/5 p-2.5 text-xs text-discarded">
           <p className="font-semibold uppercase">Could not check every rule</p>
           <p className="mt-1">
             Check these restrictions in the source rules before playing. A points total does not confirm every choice is legal.

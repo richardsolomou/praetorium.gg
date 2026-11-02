@@ -30,8 +30,7 @@ export function McpConsentPage({
 
   return (
     <main className="mx-auto w-full max-w-lg flex-1 px-6 py-12">
-      <p className="eyebrow">Connected apps</p>
-      <h1 className="mt-2 text-3xl">Connect to Praetorium</h1>
+      <h1 className="text-4xl leading-none">Connect to Praetorium</h1>
       {signedIn ? (
         <>
           <p className="mt-4 text-dim">{client} is asking to access your Praetorium account.</p>

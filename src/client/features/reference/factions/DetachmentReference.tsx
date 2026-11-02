@@ -33,7 +33,6 @@ export function DetachmentReference({
     return (
       <PageState
         loading
-        eyebrow={faction?.displayName ?? 'Detachment'}
         title="Loading detachment"
         explanation="Rules, enhancements, and stratagems will appear when the reference is ready."
       />
@@ -41,7 +40,6 @@ export function DetachmentReference({
   if (!detachment)
     return (
       <PageState
-        eyebrow={faction?.displayName ?? 'Detachment'}
         title="Detachment reference unavailable"
         explanation={
           isError
@@ -55,7 +53,6 @@ export function DetachmentReference({
     <div id="summary">
       <PageHeader
         tint={faction ? factionColour(faction.slug, faction.displayName) : undefined}
-        eyebrow={faction ? `${faction.displayName} · Detachment` : 'Detachment'}
         title={detachment.name}
         media={faction ? <FactionMark faction={faction} /> : undefined}
         actions={
@@ -94,7 +91,7 @@ export function DetachmentReference({
               <SectionHeading title="Detachment rules" count={detachment.rules.length} />
               <div className="grid gap-2">
                 {detachment.rules.map((rule) => (
-                  <article id={`rule-${routeSlug(rule.name)}`} key={rule.name} className="border border-edge bg-panel p-4">
+                  <article id={`rule-${routeSlug(rule.name)}`} key={rule.name} className="part p-4">
                     <h2 className="text-lg">{rule.name}</h2>
                     {rule.description ? <RuleText text={rule.description} rules={detachment.keywordRules} /> : <Unavailable />}
                   </article>
@@ -108,11 +105,7 @@ export function DetachmentReference({
             <div className="grid gap-2 md:grid-cols-2">
               {!detachment.enhancements.length ? <p className="py-2 text-sm text-dim">No enhancement details are available.</p> : null}
               {detachment.enhancements.map((enhancement) => (
-                <article
-                  id={`enhancement-${routeSlug(enhancement.name)}`}
-                  key={enhancement.name}
-                  className="border border-edge bg-panel p-4"
-                >
+                <article id={`enhancement-${routeSlug(enhancement.name)}`} key={enhancement.name} className="part p-4">
                   <div className="flex items-start justify-between gap-3">
                     <h2 className="text-base">{enhancement.name}</h2>
                     {enhancement.points === null ? null : <span className="chip shrink-0 text-info">{enhancement.points} pts</span>}
@@ -128,7 +121,7 @@ export function DetachmentReference({
               <SectionHeading title="Unit upgrades" count={detachment.upgrades.length} />
               <div className="grid gap-2 md:grid-cols-2">
                 {detachment.upgrades.map((upgrade) => (
-                  <article id={`upgrade-${routeSlug(upgrade.name)}`} key={upgrade.name} className="border border-edge bg-panel p-4">
+                  <article id={`upgrade-${routeSlug(upgrade.name)}`} key={upgrade.name} className="part p-4">
                     <div className="flex items-start justify-between gap-3">
                       <h2 className="text-base">{upgrade.name}</h2>
                       {upgrade.points === null ? null : <span className="chip shrink-0 text-info">{upgrade.points} pts</span>}
@@ -148,7 +141,7 @@ export function DetachmentReference({
             <div className="mt-2 grid gap-2 md:grid-cols-2">
               {!detachment.stratagems.length ? <p className="py-2 text-sm text-dim">No stratagem details are available.</p> : null}
               {detachment.stratagems.map((stratagem) => (
-                <article id={`stratagem-${routeSlug(stratagem.name)}`} key={stratagem.id} className="border border-edge bg-panel p-4">
+                <article id={`stratagem-${routeSlug(stratagem.name)}`} key={stratagem.id} className="part p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <h2 className="text-base">{stratagem.name}</h2>

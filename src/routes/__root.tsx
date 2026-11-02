@@ -12,6 +12,7 @@ import { warnIfSlow } from '../client/features/shell/slowLoader'
 import { meQuery } from '../client/queries'
 import { notFoundPage } from '../client/routeErrors'
 import { TEXT_SOURCES_SCRIPT } from '../client/rulesText'
+import { RAIL_SCRIPT } from '../client/features/shell/railState'
 import appCss from '../styles.css?url'
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient; origin: string }>()({
@@ -27,7 +28,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient; orig
       { name: 'theme-color', content: '#0f1113' },
       ...siteMeta(match.context.origin),
     ],
-    scripts: [{ children: TEXT_SOURCES_SCRIPT }],
+    scripts: [{ children: TEXT_SOURCES_SCRIPT }, { children: RAIL_SCRIPT }],
     links: offlineData()
       ? []
       : [
@@ -52,7 +53,6 @@ function NotFound() {
   useEffect(() => notFoundPage(pathname, Object.keys(router.routesByPath)), [pathname, router])
   return (
     <FullPageState
-      eyebrow="404"
       title="Nothing here"
       explanation="This page does not exist or its current data is unavailable. Check the link and try again."
     />

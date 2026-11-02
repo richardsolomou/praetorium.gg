@@ -27,7 +27,7 @@ function TextSourceSwitches() {
 
 export function Sources() {
   return (
-    <LegalPage eyebrow="About the data" title="Data sources" updated="17 October 2026">
+    <LegalPage title="Data sources" updated="17 October 2026">
       <LegalSection title="Rules text">
         <p>
           Rules text is copyrighted material, so Praetorium doesn’t host or serve it. If you choose a source, your browser fetches the text

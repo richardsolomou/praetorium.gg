@@ -10,8 +10,6 @@ import { TooltipProvider } from '@/components/ui/tooltip'
 import {
   BookOpen,
   Calculator,
-  CalendarDays,
-  ChevronDown,
   Gavel,
   Layers3,
   Medal,
@@ -20,12 +18,16 @@ import {
   Trophy,
   Users,
   UsersRound,
+  PanelLeftClose,
+  PanelLeftOpen,
+  type LucideIcon,
 } from 'lucide-react'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
-import { cn } from '@/lib/utils'
 import { postHogEnvironment } from 'ras-stack/posthog'
 import { PostHogBetterAuthIdentity, PostHogIntegration } from 'ras-stack/posthog/react'
-import { useEffect, useLayoutEffect, type ReactNode } from 'react'
+import { useEffect, useLayoutEffect } from 'react'
+import { Button } from '@/components/ui/button'
+import { buttonClass } from '../../components/buttonClass'
+import { followRailState, setRailCollapsed, useRailCollapsed } from './railState'
 import { POSTHOG_BROWSER_OPTIONS, setImpersonating } from '../../../posthog'
 import { authClient } from '../../authClient'
 import { Account } from './Account'
@@ -61,9 +63,6 @@ const PRIMARY_LINKS = [
   { to: '/battles', label: 'Battles', Icon: Swords },
   { to: '/simulator', label: 'Simulator', Icon: Calculator },
   { to: '/leaderboard', label: 'Leaderboard', Icon: Medal },
-] as const
-
-const EVENT_LINKS = [
   { to: '/groups', label: 'Groups', Icon: Users },
   { to: '/tournaments', label: 'Tournaments', Icon: Trophy },
 ] as const
@@ -75,106 +74,164 @@ const REFERENCE_LINKS = [
   { to: '/rules', label: 'Rules', Icon: Gavel },
 ] as const
 
-const within = (path: string, section: string) => path === section || path.startsWith(`${section}/`)
+type RailLink = { to: string; label: string; Icon: LucideIcon }
 
-function Tabs({ links, tone }: { links: typeof PRIMARY_LINKS | typeof REFERENCE_LINKS; tone: string }) {
-  return links.map(({ to, label, Icon }) => (
-    <Link key={to} to={to} search={to === '/leaderboard' ? { faction: undefined } : undefined} className={cn('nav-tab', tone)}>
-      <Icon aria-hidden />
-      {label}
-    </Link>
-  ))
-}
-
-function NavMenu({
-  label,
-  links,
-  className,
-  children,
-}: {
-  label: string
-  links: typeof EVENT_LINKS | typeof REFERENCE_LINKS
-  className: string
-  children?: ReactNode
-}) {
-  const path = useLocation({ select: (location) => location.pathname })
-  const inside = links.some(({ to }) => within(path, to))
+function RailLinks({ links, name }: { links: readonly RailLink[]; name: string }) {
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger openOnHover className={cn('nav-tab', className)} data-status={inside ? 'active' : undefined}>
-        {children}
-        {label} <ChevronDown aria-hidden className="block! size-3.5" />
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="w-auto">
-        {links.map((link) => (
-          <DropdownMenuItem key={link.to} className="whitespace-nowrap" render={<Link to={link.to} />}>
-            <link.Icon aria-hidden className="text-info" />
-            {link.label}
-          </DropdownMenuItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <nav
+      aria-label={name}
+      className="runner gap-0.5 [--gate-y:1.125rem] in-data-[rail=collapsed]:pl-0 in-data-[rail=collapsed]:before:hidden in-data-[rail=collapsed]:*:before:hidden in-data-[rail=collapsed]:*:after:hidden"
+    >
+      {links.map(({ to, label, Icon }) => (
+        <Link
+          key={to}
+          to={to}
+          search={to === '/leaderboard' ? { faction: undefined } : undefined}
+          title={label}
+          className="group flex h-9 items-center gap-2.5 rounded-lg border border-transparent px-2.5 text-sm font-semibold text-dim transition-colors in-data-[rail=collapsed]:justify-center in-data-[rail=collapsed]:px-0 hover:bg-raised/60 hover:text-bone aria-[current=page]:border-edge aria-[current=page]:bg-panel aria-[current=page]:text-bone aria-[current=page]:shadow-part"
+        >
+          <Icon aria-hidden className="size-4.5 shrink-0 text-faint group-aria-[current=page]:text-parchment" />
+          <span className="truncate in-data-[rail=collapsed]:sr-only">{label}</span>
+        </Link>
+      ))}
+    </nav>
   )
 }
 
 /**
- * One bar while every section fits beside the search; narrower, the sections move to a row of their own below it, losing
- * their icons and then folding the reference into a menu. The sections render once and grid areas move them, and rem
- * widths track the reader's text size. The whole header stays pinned; `publishHeaderHeight` tells what sits beneath it.
+ * The desktop navigation is a sprue: a framed rail whose sections hang off a runner by gates, the open one gated in green.
+ * It stays pinned beside the page at the window's full height, so nothing sits above the page and `--app-header` is zero.
+ * Folded, it keeps only the icons; the document's `data-rail` carries that, so the head script can set it before paint.
  */
-function SiteHeader() {
+function SiteRail() {
+  const collapsed = useRailCollapsed()
+  const Toggle = collapsed ? PanelLeftOpen : PanelLeftClose
   return (
-    <header
+    <aside
       data-web-app-chrome
-      ref={publishHeaderHeight}
-      className="@container sticky top-0 z-30 border-b border-edge-strong bg-sunken/95 backdrop-blur"
+      className="sticky top-0 z-30 flex h-dvh w-(--app-rail) shrink-0 flex-col p-3 pr-0 transition-[width] duration-200 ease-out"
     >
-      <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] grid-rows-[3rem_2.75rem] gap-x-4 px-2 [grid-template-areas:'logo_search_account'_'nav_nav_nav'] sm:px-4 @min-[76rem]:grid-cols-[auto_auto_minmax(0,1fr)_auto] @min-[76rem]:grid-rows-[3rem] @min-[76rem]:gap-x-5 @min-[76rem]:[grid-template-areas:'logo_nav_search_account']">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border-2 border-runner bg-void py-3">
         <Link
           to="/"
-          className="group flex items-center gap-2 font-display text-base leading-none font-bold tracking-label text-bone uppercase [grid-area:logo] hover:text-info"
+          className="group mx-3 mb-3 flex items-center gap-2.5 font-display text-base leading-none font-bold tracking-label text-bone uppercase in-data-[rail=collapsed]:justify-center hover:text-parchment"
+        >
+          <img src={offlineAssets()?.logo ?? '/logo.svg'} alt="" className="size-7 transition-transform group-hover:rotate-45" />
+          <span className="in-data-[rail=collapsed]:sr-only">Praetorium</span>
+        </Link>
+        <div className="mx-3 mb-4 in-data-[rail=collapsed]:hidden">
+          <GlobalSearch />
+        </div>
+        <div className="mx-auto mb-3 hidden in-data-[rail=collapsed]:block">
+          <GlobalSearch compact />
+        </div>
+        <div className="no-scrollbar min-h-0 flex-1 space-y-4 overflow-y-auto pr-2.5 pl-2 in-data-[rail=collapsed]:pr-2">
+          <RailLinks links={PRIMARY_LINKS} name="Primary" />
+          <div>
+            <p className="mb-1.5 ml-1 text-2xs font-semibold tracking-eyebrow text-faint uppercase in-data-[rail=collapsed]:sr-only">
+              Reference
+            </p>
+            <RailLinks links={REFERENCE_LINKS} name="Reference" />
+          </div>
+        </div>
+        <div className="mx-2.5 mt-2 flex items-center gap-1 border-t border-edge pt-2 in-data-[rail=collapsed]:flex-col in-data-[rail=collapsed]:[&_nav]:flex-col">
+          <Account className="size-8" />
+          <span className="flex-1" />
+          <CommunityLinks compact />
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label={collapsed ? 'Expand navigation' : 'Collapse navigation'}
+            title={collapsed ? 'Expand navigation' : 'Collapse navigation'}
+            className="size-8 text-dim hover:text-bone"
+            onClick={() => setRailCollapsed(!collapsed)}
+          >
+            <Toggle aria-hidden className="size-4.5" />
+          </Button>
+        </div>
+      </div>
+    </aside>
+  )
+}
+
+/**
+ * The signed-out home is a front door rather than the app, so a visitor meets a slim bar that says where to start
+ * instead of the full rail. Every other page, signed in or not, keeps the rail.
+ */
+function VisitorBar() {
+  return (
+    <header data-web-app-chrome className="sticky top-0 z-30 h-14 w-full border-b border-edge bg-void/95 backdrop-blur">
+      <div className="mx-auto flex h-full max-w-6xl items-center gap-6 px-5 sm:px-6">
+        <Link
+          to="/"
+          className="group flex shrink-0 items-center gap-2.5 font-display text-base leading-none font-bold tracking-label text-bone uppercase hover:text-parchment"
         >
           <img src={offlineAssets()?.logo ?? '/logo.svg'} alt="" className="size-7 transition-transform group-hover:rotate-45" />
           Praetorium
         </Link>
-        <div className="mx-auto flex w-full max-w-lg min-w-0 items-center [grid-area:search] @min-[76rem]:mr-0 @min-[76rem]:max-w-56">
-          <GlobalSearch />
-        </div>
-        <div className="flex items-center gap-1 [grid-area:account]">
-          <CommunityLinks compact />
-          <Account className="size-8" />
-        </div>
-        {/* Spans the padding as its own row, so its hairline crosses the window; in the bar it sits inside it. */}
-        <div className="-mx-2 flex items-stretch gap-4 border-t border-edge px-2 [grid-area:nav] sm:-mx-4 sm:px-4 @min-[62.5rem]:gap-6 @min-[62.5rem]:[--nav-tab-icon:block] @min-[76rem]:mx-0 @min-[76rem]:border-0 @min-[76rem]:px-0 @min-[76rem]:[--nav-tab-icon:none] @min-[90rem]:[--nav-tab-icon:block]">
-          <nav aria-label="Primary" className="flex items-stretch gap-4 @min-[62.5rem]:gap-5">
-            <Tabs links={PRIMARY_LINKS} tone="text-bone" />
-            <NavMenu label="Events" links={EVENT_LINKS} className="text-bone">
-              <CalendarDays aria-hidden />
-            </NavMenu>
-          </nav>
-          <span aria-hidden className="my-3 w-px shrink-0 bg-edge" />
-          <nav aria-label="Reference" className="hidden items-stretch gap-4 @min-[47rem]:flex @min-[62.5rem]:gap-5">
-            <Tabs links={REFERENCE_LINKS} tone="text-dim" />
-          </nav>
-          <NavMenu label="Reference" links={REFERENCE_LINKS} className="text-dim @min-[47rem]:hidden" />
+        <nav aria-label="Primary" className="flex min-w-0 flex-1 items-center gap-5 overflow-hidden text-sm font-semibold text-dim">
+          {VISITOR_LINKS.map(({ to, label }) => (
+            <Link key={to} to={to} className="shrink-0 hover:text-bone">
+              {label}
+            </Link>
+          ))}
+        </nav>
+        <div className="flex shrink-0 items-center gap-2">
+          <GlobalSearch compact />
+          <Link to="/sign-in" search={{ next: undefined }} className={buttonClass({ variant: 'ghost' })}>
+            Sign in
+          </Link>
+          <Link to="/sign-in" search={{ next: undefined, join: true }} className={buttonClass()}>
+            Create a free account
+          </Link>
         </div>
       </div>
     </header>
   )
 }
 
-/** Pins sticky bars and anchor targets below the header at whatever height its layout takes; hidden, it leaves the default. */
-function publishHeaderHeight(header: HTMLElement) {
-  const root = document.documentElement.style
-  const observer = new ResizeObserver(() => {
-    if (header.offsetHeight) root.setProperty('--app-header', `${header.offsetHeight}px`)
-    else root.removeProperty('--app-header')
-  })
-  observer.observe(header)
-  return () => {
-    observer.disconnect()
-    root.removeProperty('--app-header')
-  }
+const VISITOR_LINKS = [
+  { to: '/rosters', label: 'Army builder' },
+  { to: '/simulator', label: 'Simulator' },
+  { to: '/battles', label: 'Battle tracker' },
+  { to: '/factions', label: 'Factions' },
+  { to: '/rules', label: 'Rules' },
+] as const
+
+/*
+ * Said plainly and on every page, because the name is drawn from Games Workshop's setting and nothing about this is
+ * theirs or endorsed by them. The community data is credited on /sources, where readers choose its text.
+ */
+function SiteFooter() {
+  return (
+    <footer
+      data-web-app-footer
+      className="flex flex-col items-center gap-1.5 border-t border-edge px-4 py-4 text-center text-xs text-faint min-[1000px]:flex-row min-[1000px]:justify-between"
+    >
+      <p>Praetorium is an unofficial product, and is not in any way affiliated with or endorsed by Games Workshop.</p>
+      <p className="flex flex-wrap justify-center gap-x-3">
+        <Link to="/docs" data-listed-in-more className="transition-colors hover:text-bone">
+          Docs
+        </Link>
+        <Link to="/support" data-listed-in-more className="transition-colors hover:text-bone">
+          Support
+        </Link>
+        <Link to="/privacy" className="transition-colors hover:text-bone">
+          Privacy policy
+        </Link>
+        <Link to="/terms" className="transition-colors hover:text-bone">
+          Terms of service
+        </Link>
+        <Link to="/sources" className="transition-colors hover:text-bone">
+          Data sources
+        </Link>
+        <Link to="/data-updates" data-listed-in-more className="transition-colors hover:text-bone">
+          Data updates
+        </Link>
+        <WhatsNewLink />
+      </p>
+    </footer>
+  )
 }
 
 export function AppShell() {
@@ -182,12 +239,14 @@ export function AppShell() {
   const path = location.pathname
   const immersive = /^\/rosters\/(?:new|import|(?!discover$)[^/]+(?:\/edit)?)$/.test(path)
   const { data: me } = useQuery(meQuery())
+  const visitorHome = path === '/' && me === null
   const impersonating = Boolean(me?.impersonatedBy)
   // Set while rendering so it holds before any child's effect captures.
   if (typeof window !== 'undefined') setImpersonating(impersonating)
   const realtime = useRealtimeConfig()
   useSpacetimeLiveProduct(realtime, Boolean(me))
   useLayoutEffect(followTextSourceChoice, [])
+  useLayoutEffect(followRailState, [])
   // Browser tests wait for this before interacting: a click before hydration does nothing.
   useEffect(() => document.documentElement.setAttribute('data-hydrated', ''), [])
   return (
@@ -205,48 +264,52 @@ export function AppShell() {
             {posthog && !impersonating && <SupportIdentity />}
             <GlobalSearchProvider>
               {/*
-               * The bar spans the window and the page inside it decides its own width,
+               * The rail sits beside the page and the page decides its own width,
                * because a three-column builder and a sign-in form do not want the same
                * measure. Nothing here is centred on the page's behalf.
                */}
-              <div data-native-app-frame className={`flex flex-col ${immersive ? 'h-dvh' : 'min-h-dvh'}`}>
-                <SiteHeader />
-                {immersive ? null : (
-                  <header
-                    data-mobile-app-header
-                    data-print-hide
-                    className="fixed inset-x-0 top-0 z-30 hidden h-12 items-center border-b border-edge-strong bg-sunken/95 px-2 backdrop-blur"
-                  >
-                    <Link
-                      to="/"
-                      aria-label="Praetorium home"
-                      className="group flex min-w-0 items-center gap-2 font-display text-[0.9375rem] font-bold tracking-label text-bone uppercase hover:text-info"
+              <div data-native-app-frame className={`flex ${immersive ? 'h-dvh' : 'min-h-dvh'}`}>
+                {visitorHome ? null : <SiteRail />}
+                <div className={`flex min-w-0 flex-1 flex-col ${immersive ? 'h-dvh' : 'min-h-dvh'}`}>
+                  {visitorHome ? <VisitorBar /> : null}
+                  {immersive ? null : (
+                    <header
+                      data-mobile-app-header
+                      data-print-hide
+                      className="fixed inset-x-0 top-0 z-30 hidden h-12 items-center border-b border-edge-strong bg-sunken/95 px-2 backdrop-blur"
                     >
-                      <img
-                        src={offlineAssets()?.logo ?? '/logo.svg'}
-                        alt=""
-                        className="size-7 shrink-0 transition-transform group-hover:rotate-45"
-                      />
-                      <span className="truncate">Praetorium</span>
-                    </Link>
-                    <div className="ml-auto flex shrink-0 items-center gap-1">
-                      <GlobalSearch compact />
-                      <CommunityLinks />
-                      <Account className="size-[44px]" />
-                    </div>
-                  </header>
-                )}
-                {immersive ? null : <div data-mobile-app-header-spacer className="hidden h-12 shrink-0" />}
-                <div
-                  data-native-app-content
-                  data-immersive={immersive || undefined}
-                  className={`flex min-h-0 flex-col [&>main]:min-h-0 [&>main]:flex-1 ${immersive ? 'h-[calc(100dvh-var(--app-header))]' : 'flex-1'}`}
-                >
-                  <OfflineReference />
-                  <AppPersistence />
-                  <SyncStatus />
-                  <WebMcp />
-                  <Outlet />
+                      <Link
+                        to="/"
+                        aria-label="Praetorium home"
+                        className="group flex min-w-0 items-center gap-2 font-display text-[0.9375rem] font-bold tracking-label text-bone uppercase hover:text-parchment"
+                      >
+                        <img
+                          src={offlineAssets()?.logo ?? '/logo.svg'}
+                          alt=""
+                          className="size-7 shrink-0 transition-transform group-hover:rotate-45"
+                        />
+                        <span className="truncate">Praetorium</span>
+                      </Link>
+                      <div className="ml-auto flex shrink-0 items-center gap-1">
+                        <GlobalSearch compact />
+                        <CommunityLinks />
+                        <Account className="size-[44px]" />
+                      </div>
+                    </header>
+                  )}
+                  {immersive ? null : <div data-mobile-app-header-spacer className="hidden h-12 shrink-0" />}
+                  <div
+                    data-native-app-content
+                    data-immersive={immersive || undefined}
+                    className={`flex min-h-0 flex-col [&>main]:min-h-0 [&>main]:flex-1 ${immersive ? 'h-[calc(100dvh-var(--app-header))]' : 'flex-1'}`}
+                  >
+                    <OfflineReference />
+                    <AppPersistence />
+                    <SyncStatus />
+                    <WebMcp />
+                    <Outlet />
+                  </div>
+                  {immersive ? null : <SiteFooter />}
                 </div>
                 <NativeAppNavigation
                   accountBridge={<Account native />}
@@ -266,40 +329,6 @@ export function AppShell() {
                 {me && !impersonating && <AchievementToasts userId={me.id} />}
                 {immersive || /^\/battles\/[^/]+/.test(path) ? null : <WhatsNewNotice />}
                 <Toaster theme="dark" position="top-center" containerAriaLabel="Messages" />
-                {/*
-                 * Said plainly and on every page, because the name is drawn from Games
-                 * Workshop's setting and nothing about this is theirs or endorsed by them.
-                 * The community data is credited on /sources, where readers choose its text.
-                 */}
-                {immersive ? null : (
-                  <footer
-                    data-web-app-footer
-                    className="flex flex-col items-center gap-1.5 border-t border-edge px-4 py-4 text-center text-xs text-faint min-[1000px]:flex-row min-[1000px]:justify-between"
-                  >
-                    <p>Praetorium is an unofficial product, and is not in any way affiliated with or endorsed by Games Workshop.</p>
-                    <p className="flex flex-wrap justify-center gap-x-3">
-                      <Link to="/docs" data-listed-in-more className="transition-colors hover:text-bone">
-                        Docs
-                      </Link>
-                      <Link to="/support" data-listed-in-more className="transition-colors hover:text-bone">
-                        Support
-                      </Link>
-                      <Link to="/privacy" className="transition-colors hover:text-bone">
-                        Privacy policy
-                      </Link>
-                      <Link to="/terms" className="transition-colors hover:text-bone">
-                        Terms of service
-                      </Link>
-                      <Link to="/sources" className="transition-colors hover:text-bone">
-                        Data sources
-                      </Link>
-                      <Link to="/data-updates" data-listed-in-more className="transition-colors hover:text-bone">
-                        Data updates
-                      </Link>
-                      <WhatsNewLink />
-                    </p>
-                  </footer>
-                )}
               </div>
             </GlobalSearchProvider>
           </TooltipProvider>

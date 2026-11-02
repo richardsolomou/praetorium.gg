@@ -48,7 +48,7 @@ export function RosterPage({
     return fielded ? <BattleRosterSnapshot roster={fielded} print={print} /> : null
   }
   if (access === null)
-    return <FullPageState eyebrow="404" title="Nothing here" explanation="This roster does not exist or you no longer have access to it." />
+    return <FullPageState title="Nothing here" explanation="This roster does not exist or you no longer have access to it." />
   if (!roster) return null
   return (
     <main className="flex h-full w-full min-w-0 max-w-full flex-col overflow-x-hidden">

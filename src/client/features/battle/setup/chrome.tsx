@@ -60,7 +60,7 @@ export function SideSwitch({ sides, renderSide }: { sides: Side[]; renderSide: (
             className={cn(
               'min-h-12 min-w-0 border-t-[3px] bg-panel px-3 py-2 transition-opacity',
               tint(side.index).edge,
-              position ? 'text-right' : 'text-left',
+              position ? 'rounded-tr-xl text-right' : 'rounded-tl-xl text-left',
               // Faded rather than darkened, since a darker tab reads as the pressed one.
               !shown && 'border-b border-b-edge opacity-50 hover:opacity-80',
             )}
@@ -121,7 +121,7 @@ export function landOn(step: Element | null) {
 
 /** Something the step says in passing: what a rule implies, or who may do this. */
 export function SetupNote({ children, className = '' }: { children: ReactNode; className?: string }) {
-  return <p className={cn('rounded-sm border border-edge bg-sunken px-3 py-2 text-xs text-dim', className)}>{children}</p>
+  return <p className={cn('rounded-md border border-edge bg-sunken px-3 py-2 text-xs text-dim', className)}>{children}</p>
 }
 
 /**

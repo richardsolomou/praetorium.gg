@@ -1,7 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { Fragment } from 'react'
-import { MapPinned, Maximize2 } from 'lucide-react'
+import { ChevronLeft, MapPinned, Maximize2 } from 'lucide-react'
+import { BACK_LINK } from '../backLink'
 import { Dialog, DialogTrigger } from '../../../components/Dialog'
 import { MissionActions } from '../../../components/MissionActions'
 import { MissionCardReference } from '../../../components/MissionCardReference'
@@ -38,14 +39,6 @@ export function MissionMatchupPage({ packId, you, opponent }: { packId: string; 
   return (
     <main className="w-full">
       <PageHeader
-        eyebrow={
-          <>
-            Mission matchup ·{' '}
-            <Link to="/missions/$packId" params={{ packId }} className="text-info hover:text-bone">
-              {pack.name}
-            </Link>
-          </>
-        }
         title={`${yourDisposition.name} vs ${opponentDisposition.name}`}
         actions={
           <Link to="/rosters/new" search={{ reference: 'mission-matchup' }} className={buttonClass()}>
@@ -59,7 +52,7 @@ export function MissionMatchupPage({ packId, you, opponent }: { packId: string; 
               {at ? <span className="grid place-items-center px-1 text-sm font-bold text-dim">VS</span> : null}
               <a
                 href={`#mission-${side.mission.id}`}
-                className={`flex min-h-16 min-w-0 flex-col justify-center border px-3 py-2 transition-colors hover:border-info hover:bg-raised focus-visible:ring-2 focus-visible:ring-info focus-visible:outline-none sm:px-4 ${at ? 'items-end text-right' : 'items-start text-left'} ${dispositionTone(side.disposition.id, true)}`}
+                className={`flex min-h-16 min-w-0 flex-col justify-center rounded-lg border px-3 py-2 transition-colors hover:border-runner-hi hover:bg-raised focus-visible:ring-2 focus-visible:ring-info focus-visible:outline-none sm:px-4 ${at ? 'items-end text-right' : 'items-start text-left'} ${dispositionTone(side.disposition.id, true)}`}
               >
                 <span className="eyebrow text-bone/75">{side.disposition.name}</span>
                 <span className="mt-0.5 font-bold break-words sm:text-lg">{side.mission.name}</span>
@@ -69,6 +62,10 @@ export function MissionMatchupPage({ packId, you, opponent }: { packId: string; 
         </div>
       </PageHeader>
       <PageContent className="space-y-6">
+        <Link to="/missions/$packId" params={{ packId }} className={BACK_LINK}>
+          <ChevronLeft className="size-3.5" aria-hidden />
+          {pack.name}
+        </Link>
         <section>
           <SectionHeading title="Primary missions" />
           <div className="mt-4 grid gap-6 md:grid-cols-2">
@@ -128,7 +125,6 @@ export function MissionMatchupPage({ packId, you, opponent }: { packId: string; 
               className="mt-3 min-h-64"
               headingLevel={2}
               loading
-              eyebrow="Terrain layouts"
               title="Loading terrain layouts"
               explanation="Layouts for this mission will be available shortly."
               icon={MapPinned}
@@ -137,7 +133,6 @@ export function MissionMatchupPage({ packId, you, opponent }: { packId: string; 
             <PageState
               className="mt-3 min-h-64"
               headingLevel={2}
-              eyebrow="Terrain layouts"
               title="Terrain layouts unavailable"
               explanation="The layouts could not be loaded. Try again shortly."
               icon={MapPinned}
@@ -158,7 +153,6 @@ export function MissionMatchupPage({ packId, you, opponent }: { packId: string; 
             <PageState
               className="mt-3"
               headingLevel={2}
-              eyebrow="Terrain layouts"
               title="No layouts available"
               explanation="No terrain layout is available for this matchup."
               icon={MapPinned}
@@ -202,7 +196,7 @@ function TerrainLayout({
           render={
             <button
               type="button"
-              className="group flex h-full w-full flex-col border border-edge bg-panel p-3 text-left transition-colors hover:border-info focus-visible:ring-2 focus-visible:ring-info focus-visible:outline-none"
+              className="group flex h-full w-full flex-col part p-3 text-left transition-colors hover:border-info focus-visible:ring-2 focus-visible:ring-info focus-visible:outline-none"
               aria-label={`Enlarge terrain layout ${label}: ${description}`}
             />
           }

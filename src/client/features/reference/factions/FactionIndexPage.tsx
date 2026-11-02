@@ -8,7 +8,8 @@ import { Toggle } from '@/components/ui/toggle'
 import { currentCatalogueFamilyId } from '../../../../core/retiredCatalogueIds'
 import { factionIndexQuery, meQuery } from '../../../queries'
 import { useFavouriteFactions } from '../../../favouriteFactions'
-import { FactionMark, factionColour, type FactionPresentation } from '../../../components/FactionMark'
+import { FactionMark, type FactionPresentation } from '../../../components/FactionMark'
+import { RUNNER_COLUMNS } from '../runnerColumns'
 import { SearchField } from '../../../components/SearchField'
 import { FullPageState, PageState } from '../../../components/PageState'
 import { PageContent, PageHeader } from '../../../components/Page'
@@ -25,7 +26,6 @@ export function FactionIndexPage() {
     return (
       <FullPageState
         loading
-        eyebrow="Factions"
         title="Getting army data ready"
         explanation="Faction rules, datasheets and points will be available shortly."
       />
@@ -38,7 +38,6 @@ export function FactionIndexPage() {
   return (
     <main className="w-full">
       <PageHeader
-        eyebrow="Army reference"
         title="Factions"
         description="Browse faction rules, detachments, datasheets, loadouts and points."
         actions={<GuideHelp task="reference">Search help</GuideHelp>}
@@ -77,7 +76,6 @@ export function FactionIndexPage() {
           <PageState
             className="mt-6"
             headingLevel={2}
-            eyebrow="Faction search"
             title="No factions match"
             explanation="Try a broader faction name or clear the search."
           />
@@ -113,10 +111,10 @@ function FactionShelf({
   onFavourite?: (id: string) => void
 }) {
   return (
-    <section data-shelf={title} className="mt-6">
+    <section data-shelf={title} className="mt-8">
       <SectionHeading title={title} count={entries.length} />
       {entries.length ? (
-        <div className="grid grid-cols-1 gap-px border border-edge bg-panel md:grid-cols-2 xl:grid-cols-3">
+        <div className={`${RUNNER_COLUMNS} [--gate-y:1.875rem] md:columns-2 xl:columns-3`}>
           {entries.map((entry) => {
             const editions = versions.filter(
               (version) => currentCatalogueFamilyId(version.id) === currentCatalogueFamilyId(entry.id),
@@ -125,17 +123,16 @@ function FactionShelf({
               <div
                 key={entry.id}
                 data-faction={entry.displayName}
-                className="flex items-center border-l-2 bg-panel pr-1 ring-1 ring-edge hover:bg-raised"
-                style={{ borderLeftColor: factionColour(entry.slug, entry.displayName) }}
+                className="flex min-h-15 items-center part pr-2 transition-colors hover:border-runner hover:bg-raised"
               >
                 <FactionReferenceLink
                   to="/factions/$catalogueId"
                   params={{ catalogueId: entry.slug }}
-                  className="flex min-w-0 flex-1 items-center gap-3 self-stretch py-2 pr-1 pl-3"
+                  className="flex min-w-0 flex-1 items-center gap-3 self-stretch py-2.5 pr-1 pl-3"
                 >
                   <FactionMark faction={entry} />
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate font-bold uppercase">{entry.displayName}</span>
+                    <span className="block truncate text-[0.9375rem] font-bold">{entry.displayName}</span>
                     <span className="block text-xs text-dim">
                       {[
                         countLabel(entry.references[0]?.detachments ?? 0, 'detachment'),
@@ -149,7 +146,7 @@ function FactionShelf({
                   <Toggle
                     variant="default"
                     size="sm"
-                    className="size-7 bg-transparent p-0"
+                    className="size-9 bg-transparent p-0 aria-pressed:bg-transparent hover:bg-transparent"
                     aria-label={`${favourites.has(entry.id) ? 'Remove' : 'Add'} ${entry.displayName} ${favourites.has(entry.id) ? 'from' : 'to'} favourites`}
                     pressed={favourites.has(entry.id)}
                     onPressedChange={() => onFavourite(entry.id)}
@@ -160,7 +157,7 @@ function FactionShelf({
                   <Link
                     to="/sign-in"
                     search={{ next: '/factions' }}
-                    className="grid size-7 place-items-center"
+                    className="grid size-9 place-items-center"
                     aria-label={`Sign in to add ${entry.displayName} to favourites`}
                   >
                     <Heart className="size-4 text-dim" />

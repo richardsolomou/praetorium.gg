@@ -40,7 +40,6 @@ export function BattlesPage({ view: asked }: { view: BattlesView }) {
   return (
     <main className="w-full">
       <PageHeader
-        eyebrow={me ? 'Your battles' : 'Community'}
         title={me ? 'Battles' : 'Public battles'}
         description={
           me ? 'Start a game, pick one up, or watch your friends and others play.' : 'Watch a game in progress or review a finished battle.'
@@ -98,7 +97,6 @@ export function BattlesPage({ view: asked }: { view: BattlesView }) {
           ) : (
             <PageState
               headingLevel={2}
-              eyebrow="Your battles"
               title="No battles yet."
               explanation="Practise on your own, or add a friend and start a game together."
               icon={Swords}
@@ -115,7 +113,6 @@ export function BattlesPage({ view: asked }: { view: BattlesView }) {
             <div data-friends-empty>
               <PageState
                 headingLevel={2}
-                eyebrow="Friends' games"
                 title="No friends' games yet."
                 explanation="Games your friends play appear here, apart from the ones you sit in."
                 icon={Users}
@@ -135,7 +132,6 @@ export function BattlesPage({ view: asked }: { view: BattlesView }) {
         ) : (
           <PageState
             headingLevel={2}
-            eyebrow="Public battles"
             title={me ? 'No other public battles yet.' : 'No public battles yet.'}
             explanation={
               me

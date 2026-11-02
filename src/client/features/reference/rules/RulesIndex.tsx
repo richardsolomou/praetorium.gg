@@ -9,6 +9,7 @@ import { PageContent, PageHeader } from '../../../components/Page'
 import { FullPageState, PageState } from '../../../components/PageState'
 import { SearchField } from '../../../components/SearchField'
 import { matchesSearch } from '../../../text'
+import { RUNNER_COLUMNS } from '../runnerColumns'
 
 /**
  * Every rules document the community data carries, and a way into any one rule.
@@ -25,7 +26,6 @@ export function RulesIndex() {
     return (
       <FullPageState
         loading={!data}
-        eyebrow="Rules"
         title={data ? 'No rules available' : 'Getting the rules ready'}
         explanation={
           data ? 'This instance has no rules documents to read yet.' : 'The core rules and the mission documents will be available shortly.'
@@ -38,7 +38,6 @@ export function RulesIndex() {
   return (
     <main className="w-full">
       <PageHeader
-        eyebrow="Reference"
         title="Rules"
         description="Core rules, mission sequence, event and Combat Patrol rules."
         actions={<GuideHelp task="reference">Search help</GuideHelp>}
@@ -79,16 +78,11 @@ function matchingRules(documents: readonly RuleDocumentSummary[], query: string)
 function FoundRules({ matches }: { matches: Found[] }) {
   if (!matches.length) {
     return (
-      <PageState
-        headingLevel={2}
-        eyebrow="Rules"
-        title="No rule found"
-        explanation="Try the name the rulebook uses, or a rule number such as 09.04."
-      />
+      <PageState headingLevel={2} title="No rule found" explanation="Try the name the rulebook uses, or a rule number such as 09.04." />
     )
   }
   return (
-    <div className="border border-edge bg-panel">
+    <div className="part">
       {matches.map((found) => (
         <Link
           key={found.key}
@@ -112,22 +106,22 @@ function FoundRules({ matches }: { matches: Found[] }) {
 function DocumentShelf({ document }: { document: RuleDocumentSummary }) {
   const rules = document.sections.reduce((count, section) => count + section.entries.length, 0)
   return (
-    <section>
+    <section className="pt-2">
       <h2 className="rubric flex items-baseline justify-between gap-3 border-b border-edge pb-2">
         <Link to="/rules/$documentId" params={{ documentId: document.slug }} className="hover:text-bone">
           {document.title}
         </Link>
         <span className="readout">{rules}</span>
       </h2>
-      <div className="mt-2 grid grid-cols-1 gap-px border border-edge bg-panel sm:grid-cols-2 lg:grid-cols-3">
+      <div className={`mt-3 ${RUNNER_COLUMNS} [--gate-y:1.3125rem] sm:columns-2 lg:columns-3`}>
         {document.sections.map((section) => (
           <Link
             key={section.id}
             to="/rules/$documentId/$sectionId"
             params={{ documentId: document.slug, sectionId: section.slug }}
-            className="flex items-center gap-2 bg-panel px-3 py-2 ring-1 ring-edge hover:bg-raised"
+            className="flex min-h-11 items-center gap-2 part px-3 py-2 transition-colors hover:border-runner hover:bg-raised"
           >
-            <span className="min-w-0 flex-1 truncate text-sm text-bone">{section.title}</span>
+            <span className="min-w-0 flex-1 truncate text-sm font-semibold">{section.title}</span>
             <span className="readout text-xs text-faint">{section.entries.length}</span>
           </Link>
         ))}

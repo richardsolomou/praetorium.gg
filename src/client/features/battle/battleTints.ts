@@ -6,8 +6,13 @@
 const SIDE_TINTS = [
   {
     text: 'text-side-a',
+    /** The side's letter on every seat's part tag: A1, A2. */
+    letter: 'A',
+    tag: 'part-tag-a',
     edge: 'border-t-side-a',
     rail: 'bg-side-a',
+    /** The colour a line-form rail draws in for this side. */
+    line: '[--line-colour:var(--color-side-a)]',
     glow: 'ring-side-a/40',
     /** A control that acts for this side, so pressing it already says whose it is. */
     fill: 'bg-side-a text-void hover:bg-side-a/80',
@@ -19,8 +24,11 @@ const SIDE_TINTS = [
   },
   {
     text: 'text-side-b',
+    letter: 'B',
+    tag: 'part-tag-b',
     edge: 'border-t-side-b',
     rail: 'bg-side-b',
+    line: '[--line-colour:var(--color-side-b)]',
     glow: 'ring-side-b/40',
     fill: 'bg-side-b text-void hover:bg-side-b/80',
     border: 'border-side-b/70',
@@ -32,5 +40,5 @@ const SIDE_TINTS = [
 export const tint = (index: number) => SIDE_TINTS[index] ?? SIDE_TINTS[0]
 
 /** A mission or stratagem: a named card you can act on. */
-export const CARD = 'rounded-sm border border-edge bg-sunken px-2.5 py-2'
+export const CARD = 'rounded-lg border border-edge bg-sunken px-2.5 py-2'
 export const CARD_NAME = 'text-sm leading-tight font-bold text-azure uppercase'

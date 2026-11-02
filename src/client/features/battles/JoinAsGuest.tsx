@@ -28,7 +28,6 @@ export function JoinAsGuest({ invite }: { invite: string }) {
     return (
       <FullPageState
         headingLevel={1}
-        eyebrow="Guest seat"
         title={`${invitation.guestName} already joined`}
         explanation={`Another device is playing this seat. If that was you on a different device, ask ${host} to take the seat back and share a new link.`}
         icon={Swords}
@@ -37,7 +36,6 @@ export function JoinAsGuest({ invite }: { invite: string }) {
   return (
     <FullPageState
       headingLevel={1}
-      eyebrow="Guest seat"
       title={`Play as ${invitation.guestName}`}
       explanation={`${host} invited you to their battle. Join on this device to choose your army and play your side. You don’t need an account, and this device keeps your seat for 30 days.`}
       icon={Swords}

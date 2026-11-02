@@ -107,11 +107,10 @@ function ProfileForm({
   return (
     <main className="ph-no-capture w-full">
       <PageHeader
-        eyebrow="Your account"
         title="Account settings"
         description="Your name and picture, sign-in and roster defaults."
         media={
-          <span className="grid size-12 shrink-0 place-items-center border border-edge-strong bg-sunken text-parchment">
+          <span className="grid size-12 shrink-0 place-items-center rounded-lg border border-edge-strong bg-sunken text-parchment">
             <UserRound className="size-5" aria-hidden />
           </span>
         }
@@ -123,7 +122,7 @@ function ProfileForm({
         ) : null}
 
         <form
-          className="grid gap-8 border border-edge bg-panel p-5 md:grid-cols-2 md:p-7"
+          className="grid gap-8 part p-5 md:grid-cols-2 md:p-7"
           onSubmit={(event) => {
             event.preventDefault()
             void save()
@@ -201,7 +200,7 @@ function ProfileForm({
         <AccountSecurity
           me={me}
           preferences={
-            <div className="border border-edge bg-panel p-5 md:p-7">
+            <div className="part p-5 md:p-7">
               <SectionHeading title="Preferences" />
               <div className="mt-4">
                 <PlayerDefaultsSettings />

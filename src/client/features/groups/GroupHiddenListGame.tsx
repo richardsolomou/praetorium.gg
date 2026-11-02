@@ -1,6 +1,6 @@
 import { useInfiniteQuery, useMutation, useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { Check, ChevronRight, EllipsisVertical, Eye, FileLock2, LogOut, Pencil, Swords, Trash2, UserPlus } from 'lucide-react'
+import { ChevronRight, EllipsisVertical, Eye, FileLock2, Lock, LogOut, Pencil, Swords, Trash2, UserPlus } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
@@ -253,8 +253,8 @@ export function GroupHiddenListGame({
         </span>
         <span className="ml-auto flex shrink-0 flex-wrap items-center justify-end gap-1">
           {player.sealed ? (
-            <span className="flex shrink-0 items-center gap-1 text-sm text-achieved">
-              <Check className="size-4" aria-hidden /> Sealed
+            <span className="inline-flex shrink-0 items-center gap-1 rounded-md border border-dashed border-parchment/60 px-1.5 py-px text-xs font-semibold text-parchment">
+              <Lock className="size-3" aria-hidden /> Sealed
             </span>
           ) : (
             <span className="shrink-0 text-sm text-faint">Choosing</span>
@@ -348,7 +348,7 @@ export function GroupHiddenListGame({
       id={`game-${game.token}`}
       data-hidden-list-game={game.token}
       aria-label={`Hidden-list game: ${gameName}`}
-      className={embedded ? 'bg-panel' : `border bg-panel ${highlighted ? 'border-parchment' : 'border-edge'}`}
+      className={`overflow-hidden part ${!embedded && highlighted ? 'border-parchment' : ''}`}
     >
       {embedded ? (
         <>
@@ -377,9 +377,11 @@ export function GroupHiddenListGame({
         <>
           <div className="flex min-w-0 items-start gap-3 p-4 pb-3">
             <div className="min-w-0 flex-1">
-              <p className="eyebrow text-discarded">Hidden-list game</p>
-              <h3 className="mt-1 font-bold break-words uppercase">{gameName}</h3>
-              {when ? <p className="mt-0.5 text-sm text-dim">{when}</p> : null}
+              <h3 className="font-bold break-words uppercase">{gameName}</h3>
+              <p className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-dim">
+                <span className="chip border-discarded/60 text-discarded">Hidden-list game</span>
+                {when ? <span>{when}</span> : null}
+              </p>
             </div>
             {menu}
           </div>

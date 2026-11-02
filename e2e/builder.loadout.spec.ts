@@ -315,7 +315,7 @@ test("attached units are drawn together on their bodyguard's shelf by default", 
   await expect(block.locator('[data-unit="Overlord"]')).toContainText('Leader')
   await expect(block).not.toContainText('Leading')
   // The shelf counts the attached unit once and costs every datasheet in it.
-  const cardPoints = await block.locator('[data-unit] .chip.text-info').allInnerTexts()
+  const cardPoints = await block.locator('[data-unit] .chip').filter({ hasText: / pts$/ }).allInnerTexts()
   const total = cardPoints.reduce((sum, text) => sum + Number.parseInt(text, 10), 0)
   await expect(battleline.locator('.readout')).toHaveText([`${total} pts`, '1'])
 
@@ -1017,7 +1017,7 @@ async function orkLoadoutVariants(page: Page, width: number, opensInView: boolea
   await expect(profiles).toContainText('Range')
   await expect(profiles.locator('[data-equipped]')).toHaveAttribute('data-equipped', 'false')
   const unselectedHeading = await profiles.locator('[data-equipped]').boundingBox()
-  await expect(profiles).toHaveCSS('border-left-width', '5px')
+  await expect(profiles).toHaveCSS('border-color', 'rgb(40, 50, 58)')
   await expect(
     loadout.getByText(
       'For every 5 models in this unit, 1 model can have their Kustom Krumpa and Kustom Shoota replaced with 1 Big Skorcha and 1 Kustom Choppa.',
@@ -1026,7 +1026,7 @@ async function orkLoadoutVariants(page: Page, width: number, opensInView: boolea
   ).toHaveCount(1)
   await waitForRosterSave(page, () => loadout.getByRole('button', { name: `More ${pair}`, exact: true }).click())
   await expect(profiles.locator('[data-equipped]')).toHaveAttribute('data-equipped', 'true')
-  await expect(profiles).toHaveCSS('border-left-color', 'rgb(155, 208, 169)')
+  await expect(profiles).toHaveCSS('border-color', 'rgb(155, 208, 169)')
   const selectedHeading = await profiles.locator('[data-equipped]').boundingBox()
   expect(selectedHeading?.x).toBe(unselectedHeading?.x)
   expect(selectedHeading?.width).toBe(unselectedHeading?.width)

@@ -248,7 +248,8 @@ export const Picker = memo(function Picker({
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
-        <div className="flex flex-wrap items-center gap-1.5">
+        {/* One row that scrolls sideways when the pane is too narrow, so the filters never push the list down. */}
+        <div className="no-scrollbar flex items-center gap-1 overflow-x-auto">
           {FILTERS.filter((filter) => signedIn || !filter.icon).map((filter) => (
             <FilterChip
               key={filter.id}
@@ -407,7 +408,7 @@ function PickerSkeleton() {
     <div className="space-y-2 py-2" aria-label="Loading units">
       <Skeleton className="h-3 w-20" />
       {Array.from({ length: 6 }, (_, index) => (
-        <div key={index} className="flex h-[3.25rem] items-center gap-2 border border-edge bg-card px-2.5" aria-hidden>
+        <div key={index} className="flex h-[3.25rem] items-center gap-2 part px-2.5" aria-hidden>
           <div className="min-w-0 flex-1 space-y-2">
             <Skeleton className="h-4 w-2/3" />
             <Skeleton className="h-3 w-1/3" />
@@ -452,7 +453,7 @@ const PickerRow = memo(function PickerRow({
   return (
     <div
       data-picker-unit={unit.name}
-      className="flex flex-wrap items-center gap-1.5 border border-edge bg-card px-2.5 py-1.5 [contain:layout_style] [contain-intrinsic-size:auto_3.25rem] [content-visibility:auto]"
+      className="flex flex-wrap items-center gap-1.5 part px-2.5 py-1.5 [contain:layout_style] [contain-intrinsic-size:auto_3.25rem] [content-visibility:auto]"
     >
       <button
         type="button"
@@ -461,7 +462,7 @@ const PickerRow = memo(function PickerRow({
         onClick={() => onPreview(unit.id, unit.name)}
       >
         <span className="min-w-0 flex-1">
-          <span className="block text-sm leading-tight font-semibold tracking-wide uppercase">{unit.name}</span>
+          <span className="block text-sm leading-tight font-semibold wrap-break-word">{unit.name}</span>
           <DatasheetMatchReasons query={query} reasons={unit.matchReasons} fuzzy={unit.fuzzy} />
           {unavailableReason ? (
             <span className="mt-1 block text-2xs font-normal normal-case text-discarded">{unavailableReason}</span>
@@ -483,7 +484,7 @@ const PickerRow = memo(function PickerRow({
             pressed={favourite}
             disabled={favouritePending}
             onPressedChange={() => onFavourite(unit.id)}
-            className="size-6 shrink-0 p-0"
+            className="size-6 shrink-0 p-0 aria-pressed:bg-transparent hover:bg-transparent"
           >
             <Heart className={`size-3.5 ${favourite ? 'fill-rust text-rust' : 'text-faint hover:text-dim'}`} />
           </Toggle>
@@ -491,14 +492,15 @@ const PickerRow = memo(function PickerRow({
         <PointsChip points={unit.points} />
         <Button
           data-onboarding="picker-add"
-          size="sm"
-          className="shrink-0 px-2"
+          variant="outline"
+          size="icon-sm"
+          className="shrink-0"
           aria-label={`Add ${unit.name}`}
+          title="Add to roster"
           disabled={full}
           onClick={() => onAdd(unit.id)}
         >
-          <Plus className="size-3" />
-          Add
+          <Plus className="size-3.5" />
         </Button>
       </span>
     </div>

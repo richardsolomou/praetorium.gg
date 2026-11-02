@@ -21,7 +21,7 @@ export function PersonalPerformancePanel({ performance }: { performance: Persona
             {rows.length ? (
               <div className="space-y-1">
                 {rows.map((row) => (
-                  <details key={row.key} className="border border-edge bg-panel p-2 text-sm">
+                  <details key={row.key} className="part p-2 text-sm">
                     <summary className="flex cursor-pointer items-center justify-between gap-2 text-bone">
                       <span className="min-w-0 break-words font-semibold">{row.label}</span>
                       <span className="readout shrink-0">

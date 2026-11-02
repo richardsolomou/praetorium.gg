@@ -102,7 +102,7 @@ export function GuestKeepGame({ view, claimed, onClaimed }: { view: BattleView; 
 
 function Panel({ title, children, ...data }: { title: string; children: React.ReactNode } & Record<`data-${string}`, string>) {
   return (
-    <section aria-label={title} className="flex flex-col gap-3 border border-edge bg-sunken p-4" {...data}>
+    <section aria-label={title} className="flex flex-col gap-3 rounded-lg border border-edge bg-sunken p-4" {...data}>
       <h2 className="rubric">{title}</h2>
       {children}
     </section>

@@ -3,12 +3,11 @@ import { cn } from '@/lib/utils'
 import type { OnboardingTarget } from '../onboardingTargets'
 
 /**
- * The band every top-level page opens with: an eyebrow naming the area, the
- * page's own name, and a line on what it is for, with the page's primary
+ * The band every top-level page opens with, drawn on the booklet's construction
+ * grid: the page's own name and a line on what it is for, with the page's primary
  * actions beside them and a mark such as an avatar before them.
  */
 export function PageHeader({
-  eyebrow,
   title,
   description,
   actions,
@@ -17,7 +16,6 @@ export function PageHeader({
   tint,
   onboarding,
 }: {
-  eyebrow: ReactNode
   title: ReactNode
   description?: ReactNode
   actions?: ReactNode
@@ -31,17 +29,16 @@ export function PageHeader({
   return (
     <header
       data-onboarding={onboarding}
-      className={cn('relative overflow-hidden border-b border-edge bg-masthead', tint && 'border-t-[3px]')}
+      className={cn('masthead-bleed relative overflow-hidden border-b border-edge bg-masthead', tint && 'border-t-[3px] [--band-top:3px]')}
       style={tint ? { borderTopColor: tint } : undefined}
     >
-      <div className="plot-grid" />
-      <div className="relative mx-auto max-w-5xl px-3 py-5 sm:px-4 sm:py-7">
+      <div className="construction-grid" />
+      <div className="relative mx-auto max-w-5xl px-3 pt-7 pb-5 sm:px-4 sm:pt-10 sm:pb-7">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div className="flex min-w-0 flex-wrap items-center gap-4">
             {media}
             <div className="min-w-0">
-              <p className="eyebrow text-parchment">{eyebrow}</p>
-              <h1 className="mt-1 text-3xl break-words">{title}</h1>
+              <h1 className="text-3xl break-words sm:text-4xl">{title}</h1>
               {description ? <p className="mt-2 max-w-2xl text-sm text-dim">{description}</p> : null}
             </div>
           </div>

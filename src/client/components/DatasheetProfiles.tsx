@@ -14,7 +14,7 @@ export function UnitProfile({ profile }: { profile: Profile }) {
     <section data-slot="unit-profile">
       <ProfileGrid values={values} />
       {invulnerable ? (
-        <div className="mt-1.5 flex items-center justify-between border border-edge bg-card px-2 py-1.5">
+        <div className="mt-1.5 flex items-center justify-between part px-2 py-1.5">
           <span className="text-xs font-bold uppercase">Invulnerable save</span>
           <span className="readout text-base">
             <ProfileValue value={invulnerable} />
@@ -29,7 +29,7 @@ export function ProfileGrid({ values, columns = 6 }: { values: readonly DisplayV
   return (
     <div data-slot="profile-grid" className={`grid ${columns === 5 ? 'grid-cols-5' : 'grid-cols-6'} gap-1`}>
       {values.map((value) => (
-        <div key={value.name} data-characteristic={value.name} className="min-w-0 border border-edge bg-card px-2 py-1.5 text-center">
+        <div key={value.name} data-characteristic={value.name} className="min-w-0 part px-2 py-1.5 text-center">
           <p className="eyebrow">{value.name}</p>
           <p className="readout mt-0.5 text-base">
             <ProfileValue value={value} />
@@ -75,12 +75,12 @@ export function WeaponProfiles({
     }
     const name = weaponProfileGroupName(profiles)
     return (
-      <section key={first.id} aria-label={`${name} profiles`} className={embedded ? 'mx-2 my-1.5' : 'border border-edge bg-card p-2'}>
+      <section key={first.id} aria-label={`${name} profiles`} className={embedded ? 'mx-2 my-1.5' : 'part p-2'}>
         <h3 className="flex items-baseline justify-between gap-2 text-xs">
           {showName ? <span>{showCount && first.count && first.count > 1 ? `${first.count}× ${name}` : name}</span> : null}
           <span className="shrink-0 font-rules font-normal normal-case text-faint">{profiles.length} profiles</span>
         </h3>
-        <div className="mt-1 ml-3 border-l-2 border-edge-strong pl-3">
+        <div className="mt-1 ml-3 border-l-2 border-runner pl-3">
           {profiles.map((weapon) => (
             <WeaponProfile
               key={weapon.id}
@@ -119,7 +119,7 @@ function WeaponProfile({
   const keywordText = keywords?.value.trim()
   const note = useContext(WeaponProfileNote)?.(weapon)
   return (
-    <div className={`${embedded ? '' : 'border border-edge bg-card '}px-2 py-1.5`}>
+    <div className={`${embedded ? '' : 'part '}px-2 py-1.5`}>
       {showName ? (
         <h3 className={label ? 'font-rules text-xs font-medium normal-case text-dim' : 'text-xs'}>
           {showCount && weapon.count && weapon.count > 1 ? `${weapon.count}× ${weapon.name}` : (label ?? weapon.name)}

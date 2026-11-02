@@ -1,4 +1,4 @@
-Search finds factions, datasheets, detachments, missions and rules from anywhere on the site. Choose **Search** at the top of the page, or press ⌘K on a Mac or Ctrl+K elsewhere. Once you're signed in, it finds your own rosters and recent battles too.
+Search finds factions, datasheets, detachments, missions and rules from anywhere on the site. Choose **Search** at the top of the side menu (the magnifier at the top on a phone), or press ⌘K on a Mac or Ctrl+K elsewhere. Once you're signed in, it finds your own rosters and recent battles too.
 
 ## What it matches
 

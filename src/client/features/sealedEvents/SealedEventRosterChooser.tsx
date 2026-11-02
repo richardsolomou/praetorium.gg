@@ -116,7 +116,7 @@ function RosterChooserSkeleton() {
   return (
     <div className="space-y-2" aria-label="Loading rosters">
       {Array.from({ length: 3 }, (_, index) => (
-        <div key={index} className="flex min-h-20 items-center gap-3 border border-edge bg-panel p-3" aria-hidden>
+        <div key={index} className="flex min-h-20 items-center gap-3 part p-3" aria-hidden>
           <div className="flex-1 space-y-2">
             <Skeleton className="h-4 w-1/3" />
             <Skeleton className="h-5 w-24" />
