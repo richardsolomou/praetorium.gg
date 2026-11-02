@@ -260,7 +260,7 @@ export function ScoringDialog({
             const { claimed, scoring } = settledFor(card)
             const reference = referenceFor(card.key)
             return (
-              <section key={card.key} data-due={card.key} className="border border-edge">
+              <section key={card.key} data-due={card.key} data-answered={answers[card.key] ? '' : undefined} className="border border-edge">
                 <div className="bg-sunken px-3 py-2">
                   <div className="flex items-baseline justify-between gap-2">
                     <MissionName

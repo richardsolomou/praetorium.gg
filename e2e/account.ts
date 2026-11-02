@@ -484,8 +484,8 @@ export const advanceButton = (page: Page) => page.getByRole('button', { name: /^
 
 /** Confirms a scoring prompt, first answering every card the test left untouched with nothing scored. */
 export async function confirmScoring(prompt: Locator, name: string | RegExp) {
-  for (const card of await prompt.locator('section[data-due]').all()) {
-    if (!(await card.locator('[aria-pressed="true"]').count())) await card.getByRole('button', { name: / scored nothing$/ }).click()
+  for (const card of await prompt.locator('section[data-due]:not([data-answered])').all()) {
+    await card.getByRole('button', { name: / scored nothing$/ }).click()
   }
   await prompt.getByRole('button', { name }).click()
 }

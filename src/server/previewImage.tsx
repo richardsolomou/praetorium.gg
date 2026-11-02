@@ -27,15 +27,13 @@ const COLOR = {
   sideInks: ['#2b0505', '#021c27'],
 } as const
 
-/** The interface's construction grid: 8px cells with a stronger line every 64px. */
+/** The interface's construction grid at its 64px majors; its 8px cells would multiply the rasteriser's work. */
 const GRID = {
   backgroundImage: [
     'linear-gradient(to right, rgba(231,236,233,0.06) 1px, transparent 1px)',
     'linear-gradient(to bottom, rgba(231,236,233,0.06) 1px, transparent 1px)',
-    'linear-gradient(to right, rgba(231,236,233,0.025) 1px, transparent 1px)',
-    'linear-gradient(to bottom, rgba(231,236,233,0.025) 1px, transparent 1px)',
   ].join(', '),
-  backgroundSize: '64px 64px, 64px 64px, 8px 8px, 8px 8px',
+  backgroundSize: '64px 64px, 64px 64px',
 } satisfies CSSProperties
 
 /**
@@ -191,7 +189,6 @@ function Frame({ card }: { card: PreviewCard }) {
             backgroundColor: COLOR.panel,
             border: `2px solid ${COLOR.edge}`,
             borderRadius: 32,
-            boxShadow: '0 28px 60px -24px rgba(0,0,0,0.8)',
           }}
         >
           <Body card={card} />
