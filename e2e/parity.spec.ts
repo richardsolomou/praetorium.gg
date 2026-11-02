@@ -144,7 +144,8 @@ test('a private roster can be shared and made private again', async ({ browser }
   expect(preview.headers()['cache-control']).toBe('no-store')
 
   await page.goto('/rosters')
-  await chooseLibraryAction(page, 'Shareable roster', 'Make private')
+  await chooseLibraryAction(page, 'Shareable roster', 'Visibility: Unlisted')
+  await page.getByRole('menuitemradio', { name: /^Private/ }).click()
   await expect(row.getByText('Private').filter({ visible: true })).toBeVisible()
   await anonymous.reload()
   await expect(anonymous.getByRole('heading', { name: 'Nothing here' })).toBeVisible()

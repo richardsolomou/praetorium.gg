@@ -10,7 +10,8 @@ export const ROSTER_BATCH_CHANGES = {
   unlock: { locked: false },
   private: { visibility: 'private' },
   unlisted: { visibility: 'unlisted' },
+  public: { visibility: 'public' },
 } as const
 
-export const ROSTER_BATCH_ACTIONS = ['archive', 'unarchive', 'lock', 'unlock', 'private', 'unlisted', 'delete'] as const
+export const ROSTER_BATCH_ACTIONS = ['archive', 'unarchive', 'lock', 'unlock', 'private', 'unlisted', 'public', 'delete'] as const
 export type RosterBatchAction = (typeof ROSTER_BATCH_ACTIONS)[number]

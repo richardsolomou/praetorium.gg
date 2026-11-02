@@ -6,7 +6,6 @@ import {
   Download,
   EllipsisVertical,
   Eye,
-  EyeOff,
   GitBranchPlus,
   Link2,
   Lock,
@@ -19,17 +18,35 @@ import {
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { MENU_ITEM } from '../../components/MenuSection'
-import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuTrigger } from '@/components/ui/context-menu'
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuRadioGroup,
+  ContextMenuRadioItem,
+  ContextMenuSeparator,
+  ContextMenuSub,
+  ContextMenuSubContent,
+  ContextMenuSubTrigger,
+  ContextMenuTrigger,
+} from '@/components/ui/context-menu'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { ROSTER_VISIBILITIES, type RosterVisibility } from '../../../core/savedRoster'
 import type { NamedRosterDifferences } from '../../../core/rosterDifferences'
 import { useNativeShare } from '../../nativeBridge'
 import { shareButtonLabel } from '../../useShareLink'
+import { VISIBILITY_ICON, VISIBILITY_NAME, VISIBILITY_REACH } from './visibility'
 import type { RosterActions, SavedRoster } from './rosterLibrary'
 import type { AccountReason } from './AccountPrompt'
 import {
@@ -40,6 +57,26 @@ import {
   RosterVariantSummary,
   rosterTitle,
 } from './RosterSummary'
+
+/** The one menu's parts, so the overflow button and the right-click menu draw the same actions. */
+const DROPDOWN_PARTS = {
+  Item: DropdownMenuItem,
+  Separator: DropdownMenuSeparator,
+  Sub: DropdownMenuSub,
+  SubTrigger: DropdownMenuSubTrigger,
+  SubContent: DropdownMenuSubContent,
+  RadioGroup: DropdownMenuRadioGroup,
+  RadioItem: DropdownMenuRadioItem,
+}
+const CONTEXT_PARTS = {
+  Item: ContextMenuItem,
+  Separator: ContextMenuSeparator,
+  Sub: ContextMenuSub,
+  SubTrigger: ContextMenuSubTrigger,
+  SubContent: ContextMenuSubContent,
+  RadioGroup: ContextMenuRadioGroup,
+  RadioItem: ContextMenuRadioItem,
+}
 
 export type RosterRowLayout = 'card' | 'base' | 'variant'
 
@@ -161,7 +198,7 @@ export function RosterRow({
             <DropdownMenuItem className={MENU_ITEM} render={<Link to="/rosters/$id" params={{ id: roster.id }} target="_blank" />}>
               <Eye /> View
             </DropdownMenuItem>
-            <RosterActionItems Item={DropdownMenuItem} Separator={DropdownMenuSeparator} showPrivacy {...items} />
+            <RosterActionItems parts={DROPDOWN_PARTS} {...items} />
           </DropdownMenuContent>
         </DropdownMenu>
         {selection ? (
@@ -179,7 +216,7 @@ export function RosterRow({
         ) : null}
       </ContextMenuTrigger>
       <ContextMenuContent className="w-56">
-        <RosterActionItems Item={ContextMenuItem} Separator={ContextMenuSeparator} {...items} />
+        <RosterActionItems parts={CONTEXT_PARTS} {...items} />
       </ContextMenuContent>
     </ContextMenu>
   )
@@ -187,8 +224,7 @@ export function RosterRow({
 
 /** The actions themselves, in whichever menu asked for them. */
 function RosterActionItems({
-  Item,
-  Separator,
+  parts: { Item, Separator, Sub, SubTrigger, SubContent, RadioGroup, RadioItem },
   roster,
   title,
   actions,
@@ -196,10 +232,8 @@ function RosterActionItems({
   onEdit,
   onDelete,
   onNeedsAccount,
-  showPrivacy = false,
 }: {
-  Item: typeof DropdownMenuItem | typeof ContextMenuItem
-  Separator: typeof DropdownMenuSeparator | typeof ContextMenuSeparator
+  parts: typeof DROPDOWN_PARTS | typeof CONTEXT_PARTS
   roster: SavedRoster
   /** What the library calls this list, so an export and a share sheet say the same. */
   title: string
@@ -208,12 +242,11 @@ function RosterActionItems({
   onEdit: () => void
   onDelete: () => void
   onNeedsAccount?: (reason: AccountReason) => void
-  /** Only the overflow menu offers making a list private again; the row menu is shorter. */
-  showPrivacy?: boolean
 }) {
   const feedback = actions.shareFeedback?.id === roster.id ? actions.shareFeedback.result : null
   const nativeShare = useNativeShare()
   const orAccount = (reason: AccountReason, action: () => void) => (onNeedsAccount ? () => onNeedsAccount(reason) : action)
+  const VisibleIcon = VISIBILITY_ICON[roster.visibility]
   return (
     <>
       <Item className={MENU_ITEM} disabled={roster.locked} onClick={onEdit}>
@@ -246,15 +279,28 @@ function RosterActionItems({
           <span>{shareButtonLabel(feedback, nativeShare, 'link')}</span>
         )}
       </Item>
-      {showPrivacy && roster.visibility !== 'private' ? (
-        <Item
-          className={MENU_ITEM}
-          disabled={actions.access.isPending}
-          onClick={() => actions.access.mutate({ id: roster.id, visibility: 'private' })}
-        >
-          <EyeOff /> Make private
-        </Item>
-      ) : null}
+      <Sub>
+        <SubTrigger className={MENU_ITEM} disabled={actions.access.isPending}>
+          <VisibleIcon /> Visibility: {VISIBILITY_NAME[roster.visibility]}
+        </SubTrigger>
+        <SubContent className="w-64">
+          <RadioGroup
+            value={roster.visibility}
+            onValueChange={(visibility: RosterVisibility) =>
+              orAccount('share', () => actions.access.mutate({ id: roster.id, visibility }))()
+            }
+          >
+            {ROSTER_VISIBILITIES.map((visibility) => (
+              <RadioItem key={visibility} value={visibility} closeOnClick>
+                <span>
+                  <span className="block">{VISIBILITY_NAME[visibility]}</span>
+                  <span className="block text-xs text-dim">{VISIBILITY_REACH[visibility]}</span>
+                </span>
+              </RadioItem>
+            ))}
+          </RadioGroup>
+        </SubContent>
+      </Sub>
       <Item className={MENU_ITEM} disabled={actions.take.isPending} onClick={() => actions.take.mutate({ roster, title })}>
         <Download /> Export text
       </Item>

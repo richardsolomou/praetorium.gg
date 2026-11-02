@@ -1,3 +1,4 @@
+import { EyeOff, Globe, Link2 } from 'lucide-react'
 import { ROSTER_VISIBILITIES, type RosterVisibility } from '../../../core/savedRoster'
 
 export const VISIBILITY_NAME: Record<RosterVisibility, string> = {
@@ -20,3 +21,5 @@ export const VISIBILITY_DETAIL = Object.fromEntries(
       : `${VISIBILITY_NAME[visibility]} — ${VISIBILITY_REACH[visibility].toLowerCase()}`,
   ]),
 ) as Record<RosterVisibility, string>
+
+export const VISIBILITY_ICON = { private: EyeOff, unlisted: Link2, public: Globe } satisfies Record<RosterVisibility, unknown>

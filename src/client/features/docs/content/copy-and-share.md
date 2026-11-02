@@ -5,11 +5,11 @@
 - **Lock roster** stops edits until you **Unlock** it; you can still share, export, print and take it to battle. Locking and unlocking need a connection.
 - **Lend to a friend** lets a friend view the list and field it in their battles without editing it. Your notes stay yours, and they can **Return it** at any time.
 - **Archive** in the library hides a list; **Delete** removes it for good. Copies in battles and tournaments are kept either way.
-- **Select** in the library lets you tick up to 100 lists and change them together: **Archive** or **Unarchive**, **Lock** or **Unlock**, **Make private** or **Make unlisted**, or **Delete**. Only the actions that change a ticked list are offered, and on a phone they're under **Actions**. Making lists unlisted together doesn't copy any links. Open **Archived** to tick archived lists. Changing several lists at once needs a connection.
+- **Select** in the library lets you tick up to 100 lists and change them together: **Archive** or **Unarchive**, **Lock** or **Unlock**, **Visibility**, where you pick Private, Unlisted or Public, or **Delete**. Only the actions that change a ticked list are offered, and on a phone they're under **Actions**. Changing visibility together doesn't copy any links. Open **Archived** to tick archived lists. Changing several lists at once needs a connection.
 
 ## Share, export and print
 
-- **Copy link** (or **Share link** on a phone) appears once the list is Unlisted or Public. To share a private list, change **Access** in **Edit roster setup**, or use **Make unlisted and copy link** in the library.
+- **Copy link** (or **Share link** on a phone) appears once the list is Unlisted or Public. To share a private list, change **Access** in **Edit roster setup**, pick it under **Visibility** in the library's roster menu, or use **Make unlisted and copy link** there.
 - **Export text** shows readable text to **Copy text** or **Download text**. It includes custom unit names, model counts, equipment, enhancements, Warlord, attachments, setup and rules version, but no notes, waived restrictions or optional rules. [Import a list](/docs/import-a-list) reads it back.
 - **Print** prepares a battle reference pack: the army summary, army and detachment rules, stratagems, and the abilities and weapon rules your units use.
 

@@ -297,7 +297,7 @@ for (const width of [1440, 390]) {
       'Create variant',
       'Duplicate',
       'Copy link',
-      'Make private',
+      'Visibility: Public',
       'Export text',
       'Exchange code',
       'Print',
