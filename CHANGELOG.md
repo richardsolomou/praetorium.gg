@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.216.4 (2026-11-02)
+
+### Patch Changes
+
+- 66da448: Attach menus and the units a character leads now show your nickname for a unit, so two copies of the same datasheet can be told apart.
+
 ## 0.216.3 (2026-11-02)
 
 ### Patch Changes
