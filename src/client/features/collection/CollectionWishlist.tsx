@@ -20,6 +20,7 @@ import { SectionHeading } from '../../components/SectionHeading'
 import { groupBy } from '../../../core/collections'
 import { ArmyHeader } from './ArmyHeader'
 import { CollectionCard, CollectionCardGrid } from './CollectionCard'
+import { WishToCollection } from './WishToCollection'
 
 const SUGGESTIONS_SHOWN = 6
 
@@ -44,6 +45,7 @@ export function CollectionWishlist({ datasheets }: { datasheets: ReadonlyMap<str
     (a, b) => Number(!a[0]!.sheet) - Number(!b[0]!.sheet) || a[0]!.sheet!.faction.localeCompare(b[0]!.sheet!.faction),
   )
   const ownedSheets = new Set(collection.data ?? [])
+  const shelfKnown = collection.isSuccess && counts.isSuccess
   const set = (entryId: string, count: number) => mutation.mutateAsync({ entryId, wanted: count })
   const owned = usableDatasheets(collection.data ?? [], countsAs.data ?? {})
   const suggestions = (suggested.data ?? [])
@@ -94,27 +96,39 @@ export function CollectionWishlist({ datasheets }: { datasheets: ReadonlyMap<str
                     sheet={sheet}
                     className="border-dashed border-runner-hi"
                     action={
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        className="text-faint hover:text-destructive"
-                        aria-label={`Remove ${name} from your wishlist`}
-                        onClick={() => void set(entryId, 0).catch(() => undefined)}
-                      >
-                        <Trash2 />
-                      </Button>
+                      <span className="flex items-center">
+                        <WishToCollection entryId={entryId} name={name} wanted={count} onShelf={shelfKnown ? onShelf : null} />
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          className="text-faint hover:text-destructive"
+                          aria-label={`Remove ${name} from your wishlist`}
+                          onClick={() => void set(entryId, 0).catch(() => undefined)}
+                        >
+                          <Trash2 />
+                        </Button>
+                      </span>
                     }
                   >
-                    <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
-                      <span className="text-xs text-dim">{onShelf ? `${onShelf} already on your shelf` : 'None on your shelf yet'}</span>
-                      <ModelCounter
-                        count={count}
-                        label={`wanted ${name}`}
-                        inputLabel={`${name} models wanted`}
-                        max={MAX_COLLECTION_MODELS}
-                        onChange={(next) => set(entryId, next)}
-                      />
-                    </div>
+                    <span className="@container block">
+                      <span className="grid grid-cols-1 gap-2 @[15rem]:grid-cols-2">
+                        <ModelCounter
+                          count={count}
+                          label={`wanted ${name}`}
+                          inputLabel={`${name} models wanted`}
+                          max={MAX_COLLECTION_MODELS}
+                          compact
+                          caption="Wanted"
+                          onChange={(next) => set(entryId, next)}
+                        />
+                        <span className="flex min-w-0 items-center justify-between gap-2 @[15rem]:flex-col @[15rem]:gap-1">
+                          <span className="h-4 text-xs text-dim">On shelf</span>
+                          <span data-on-shelf className={`readout h-6 text-sm leading-6 ${onShelf ? 'text-bone' : 'text-faint'}`}>
+                            {shelfKnown ? onShelf : '—'}
+                          </span>
+                        </span>
+                      </span>
+                    </span>
                   </CollectionCard>
                 )
               })}
