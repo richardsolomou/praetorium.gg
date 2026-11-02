@@ -156,6 +156,11 @@
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+
+  /* Its own rule: a browser without this pseudo-element would drop the whole list above. */
+  ::details-content {
+    transition-duration: 0.01ms !important;
+  }
 }
 
 [data-onboarding] {
