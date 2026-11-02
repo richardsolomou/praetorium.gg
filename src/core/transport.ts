@@ -4,8 +4,11 @@ import { refuse } from './battlePrimitives'
 import { z } from 'zod'
 import { matchesKeywordSelector } from './keywords'
 
-/** One allowance a transport prints: how many models it holds, of which keywords, and up to what Wounds. */
-type Pool = { capacity: number; carries: string; maxWounds?: number }
+/**
+ * One allowance a transport prints: how many models it holds, of which keywords, and up to what Wounds. `units`
+ * marks an allowance printed in units, such as a Night Scythe's, which counts each passenger unit once whatever its size.
+ */
+type Pool = { capacity: number; carries: string; maxWounds?: number; units?: true }
 
 /**
  * A printed transport rule read into what the embark checks need.
@@ -30,6 +33,9 @@ export type Passenger = {
   ridesAs?: readonly string[]
   /** The space each model takes when an ability fixes it, whatever the transport prints. */
   space?: number
+  key?: string
+  /** A leader riding with the unit it joins, which an allowance in units counts as that one unit. */
+  attachedTo?: string
 }
 
 export type TransportLoad = (Pool & { used: number })[]
@@ -42,6 +48,7 @@ const CAPACITY = new RegExp(
     String.raw`(?:, or (\d+) ${PHRASE} models? with a Wounds characteristic of (\d+) or less)?\.$`,
   'i',
 )
+const UNIT_CAPACITY = /^This model has a transport capacity of (\d+) ((?:(?!\b(?:models?|units?)\b)[^,()])+?) units?\.$/i
 const FROM_UNITS = /^This model has a transport capacity of (\d+) models from the following units: ([^.]+)\.?$/i
 const CONDITIONAL = new RegExp(
   String.raw`^If this model is equipped with (?:a |an |the )?([^,]+), it has a transport capacity of (\d+) ${PHRASE} models?(?: instead)?\.$`,
@@ -84,6 +91,7 @@ const poolSchema = z.object({
   capacity: z.number().int().positive().max(1_000),
   carries: printedText,
   maxWounds: z.number().int().positive().max(1_000).optional(),
+  units: z.literal(true).optional(),
 })
 /** What a battle log may carry of a transport rule, bounded like any other command input. */
 export const printedTransportSchema = z.object({
@@ -124,6 +132,8 @@ export function printedTransport(printed: string | undefined): PrintedTransport 
       if (match[3]) excluded.push({ keywords: list(match[3]) })
       if (match[4]) pools.push({ capacity: Number(match[4]), carries: match[5]! })
       if (match[6]) instead = { capacity: Number(match[6]), carries: match[7]!, maxWounds: Number(match[8]) }
+    } else if (!main && (match = UNIT_CAPACITY.exec(sentence))) {
+      main = { capacity: Number(match[1]), carries: match[2]!, units: true }
     } else if (!main && (match = FROM_UNITS.exec(sentence))) {
       main = { capacity: Number(match[1]), carries: match[2]! }
     } else if ((match = CONDITIONAL.exec(sentence))) {
@@ -170,10 +180,7 @@ export function transportRule(
   )
   if (selected.length > 1) return null
   const first = selected[0] ?? main
-  const loads = [
-    [{ capacity: first.capacity, carries: [first.carries, ...alternatives].join(' or ') }, ...pools],
-    ...(instead ? [[instead]] : []),
-  ]
+  const loads = [[{ ...first, carries: [first.carries, ...alternatives].join(' or ') }, ...pools], ...(instead ? [[instead]] : [])]
   return loads.flat().every((pool) => Number.isSafeInteger(pool.capacity) && pool.capacity > 0) ? { loads, excluded, space } : null
 }
 
@@ -185,6 +192,8 @@ function spelled(keywords: readonly string[]) {
   })
 }
 
+export const countedIn = (pool: Pool) => (pool.units ? 'units' : 'models')
+const capacityOf = (pool: Pool) => (pool.units ? `${pool.capacity} ${pool.capacity === 1 ? 'unit' : 'units'}` : `${pool.capacity} models`)
 const described = (load: readonly Pool[]) =>
   load.map((pool) => `${pool.capacity} ${pool.carries}${pool.maxWounds ? ` (up to ${pool.maxWounds} Wounds)` : ''}`).join(' and ')
 
@@ -195,12 +204,13 @@ const described = (load: readonly Pool[]) =>
  * recorded, is counted one space per model in the first allowance, as it always was.
  */
 export function transportLoad(rule: TransportRule, passengers: readonly Passenger[]): TransportLoad | Refusal {
-  const needs: { need: number; pools: number[] }[][] = rule.loads.map(() => [])
+  const needs: { models: number; units: number; pools: number[] }[][] = rule.loads.map(() => [])
   for (const passenger of passengers) {
     if (passenger.alive <= 0) continue
+    const units = passengers.some((other) => other.key !== undefined && other.key === passenger.attachedTo) ? 0 : 1
     const keywords = passenger.keywords && spelled(passenger.keywords)
     if (!keywords) {
-      needs.forEach((load) => load.push({ need: passenger.alive, pools: [0] }))
+      needs.forEach((load) => load.push({ models: passenger.alive, units, pools: [0] }))
       continue
     }
     const matches = (selector: string) => matchesKeywordSelector(selector, keywords)
@@ -219,7 +229,7 @@ export function transportLoad(rule: TransportRule, passengers: readonly Passenge
       ),
     )
     if (eligible.every((pools) => !pools.length)) return refuse('transport-ineligible', `this transport cannot carry ${passenger.name}`)
-    eligible.forEach((pools, at) => needs[at]!.push({ need: passenger.alive * size, pools }))
+    eligible.forEach((pools, at) => needs[at]!.push({ models: passenger.alive * size, units, pools }))
   }
   for (const [at, load] of rule.loads.entries()) {
     const used = load.map(() => 0)
@@ -228,10 +238,11 @@ export function transportLoad(rule: TransportRule, passengers: readonly Passenge
     const fits = (next: number): boolean =>
       next === loadNeeds.length ||
       loadNeeds[next]!.pools.some((pool) => {
-        if (used[pool]! + loadNeeds[next]!.need > load[pool]!.capacity) return false
-        used[pool]! += loadNeeds[next]!.need
+        const need = load[pool]!.units ? loadNeeds[next]!.units : loadNeeds[next]!.models
+        if (used[pool]! + need > load[pool]!.capacity) return false
+        used[pool]! += need
         if (fits(next + 1)) return true
-        used[pool]! -= loadNeeds[next]!.need
+        used[pool]! -= need
         return false
       })
     if (fits(0)) return load.map((pool, index) => ({ ...pool, used: used[index]! }))
@@ -239,7 +250,7 @@ export function transportLoad(rule: TransportRule, passengers: readonly Passenge
   return refuse(
     'transport-full',
     rule.loads.length === 1 && rule.loads[0]!.length === 1
-      ? `this transport can carry at most ${rule.loads[0]![0]!.capacity} models`
+      ? `this transport can carry at most ${capacityOf(rule.loads[0]![0]!)}`
       : `this transport can carry at most ${rule.loads.map(described).join(', or ')} models`,
   )
 }
