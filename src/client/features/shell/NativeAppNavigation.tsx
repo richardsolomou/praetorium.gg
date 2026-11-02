@@ -3,7 +3,7 @@ import { Link, useNavigate, useRouter, useRouterState } from '@tanstack/react-ro
 import { Ellipsis, House, ScrollText, Swords, UsersRound } from 'lucide-react'
 import { useEffect, useLayoutEffect, type ComponentType, type MouseEvent, type ReactNode } from 'react'
 import { setNativeAccount, setNativeHistoryBack, setNativeNavigation } from '../../nativeBridge'
-import { historyBackStaysInTab, openedByTab } from './nativeHistory'
+import { historyBackStaysInTab, openedByTab, tabParents } from './nativeHistory'
 import { nativeNavigation, type NativeSection } from './nativeNavigation'
 import { meQuery } from '../../queries'
 import { restoreNativeTabScroll } from './nativeTabScroll'
@@ -91,14 +91,28 @@ export function NativeAppNavigation({
     if (!notFound) rememberTab(href, { scrollY: window.scrollY, regions: regionScroll(), state })
   }
 
-  const openTab = (event: MouseEvent, target: string, memory: ReturnType<typeof recallTab>) => {
+  const openTab = async (event: MouseEvent, root: string, target: string, memory: ReturnType<typeof recallTab>) => {
     event.preventDefault()
-    void navigate({
-      href: memory?.href ?? target,
+    const destination = memory?.href ?? target
+    const opened = openedByTab(router.history.location.state)
+    const parents = tabParents(destination, root)
+    for (const parent of parents) {
+      router.history.push(parent, opened)
+      // The browser history writes pushes in a microtask and merges those queued together.
+      await Promise.resolve()
+    }
+    await navigate({
+      href: destination,
       // A tab with no memory opens at its top rather than at the last tab's scroll.
       resetScroll: !memory,
-      state: (current) => openedByTab({ ...current, ...memory?.state }) as typeof current,
+      state: (current) => ({ ...current, ...memory?.state, tabEntry: opened.tabEntry }) as typeof current,
     })
+    // Passing through the parents reset the tab's scroll memory, so the reopened screen restores it here unless it no longer exists.
+    const section = memory && tabLocation(memory.href)?.section
+    if (memory && parents.length && section && recallTab(section)?.href === memory.href) {
+      rememberTab(memory.href, memory)
+      restoreNativeTabScroll(memory.scrollY, memory.regions, SCROLL_REGIONS)
+    }
   }
 
   const openSection = (event: MouseEvent, section: NativeSection, to: string) => {
@@ -108,7 +122,7 @@ export function NativeAppNavigation({
       window.scrollTo(0, 0)
       return
     }
-    openTab(event, to, recallTab(section))
+    void openTab(event, to, to, recallTab(section))
   }
 
   // From another tab, More reopens where it was left; tapped again inside More, it returns to the More screen.
@@ -122,7 +136,7 @@ export function NativeAppNavigation({
     const remembered = (!moreActive && recallMoreTab()) || '/more'
     const location = tabLocation(remembered)
     const memory = location ? recallTab(location.section) : null
-    openTab(event, remembered, memory?.href === remembered ? memory : null)
+    void openTab(event, '/more', remembered, memory?.href === remembered ? memory : null)
   }
 
   // The open tab is marked by a doubled cement segment on the bar's top edge.

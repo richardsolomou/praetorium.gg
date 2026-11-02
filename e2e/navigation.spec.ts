@@ -569,11 +569,13 @@ test('a datasheet shows attachment keywords and lists their targets once', async
   await page.screenshot({ path: test.info().outputPath('datasheet-leader-attachments-phone.png'), fullPage: true })
 })
 
-test('the faction page shows its army rule in full', async ({ page }) => {
+test('the faction page shows its army rule in full when expanded', async ({ page }) => {
   await page.goto('/factions/necrons')
 
-  const armyRule = page.getByRole('heading', { name: 'Reanimation Protocols', exact: true }).locator('..')
-  await expect(armyRule).toContainText('activates its Reanimation Protocols')
+  const armyRule = page.locator('details').filter({ has: page.getByRole('heading', { name: 'Reanimation Protocols', exact: true }) })
+  await expect(armyRule.getByText(/activates its Reanimation Protocols/).first()).toBeHidden()
+  await armyRule.locator('summary').click()
+  await expect(armyRule.getByText(/activates its Reanimation Protocols/).first()).toBeVisible()
   await expect(page.getByRole('button', { name: 'Reanimation Protocols', exact: true })).toHaveCount(0)
   await page.screenshot({ path: test.info().outputPath('faction-army-rule.png'), fullPage: true })
 
@@ -1084,7 +1086,7 @@ test('a player can enter through the roster library and browse the product', asy
   await necrons.getByRole('link').click()
   await expect(page).toHaveURL('/factions/necrons/rules/mfm-1-6')
   await expect(page.getByRole('link', { name: /Datasheets/ })).toBeVisible()
-  const reanimationProtocols = page.getByRole('article').filter({ has: page.getByRole('heading', { name: 'Reanimation Protocols' }) })
+  const reanimationProtocols = page.locator('details').filter({ has: page.getByRole('heading', { name: 'Reanimation Protocols' }) })
   await expect(reanimationProtocols).toContainText('Command phase')
   const cryptek = page.getByText('Cryptek Conclave').locator('../..')
   await expect(cryptek).toContainText('6 stratagems · 4 enhancements')
@@ -1322,6 +1324,11 @@ test('each application tab returns to where it was left', async ({ browser }) =>
   await sections.getByRole('link', { name: 'Factions' }).click()
   await expect(page).toHaveURL('/factions/dark-angels/rules/mfm-1-6/datasheets/deathwing-terminator-squad')
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(factionScroll)
+  // Going back climbs the reopened tab instead of returning to the tab left.
+  await page.goBack()
+  await expect(page).toHaveURL('/factions/dark-angels/rules/mfm-1-6/datasheets')
+  await page.goForward()
+  await expect(page).toHaveURL('/factions/dark-angels/rules/mfm-1-6/datasheets/deathwing-terminator-squad')
 
   // The section you are already in has one obvious destination left: its top.
   await sections.getByRole('link', { name: 'Factions' }).click()
