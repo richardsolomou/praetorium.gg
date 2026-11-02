@@ -2,14 +2,14 @@ import { useQuery } from '@tanstack/react-query'
 import { factionIndexQuery } from '../../queries'
 import { Link } from '@tanstack/react-router'
 import { Star } from 'lucide-react'
-import { cn } from '@/lib/utils'
 import type { CollectionGroup } from '../../../core/collection'
-import { FactionMark } from '../../components/FactionMark'
 import { collectionPhotoPath } from '../../../contracts/collection'
 import { countLabel } from '../../text'
+import { ArmyHeader } from '../collection/ArmyHeader'
 import { CollectionCard, CollectionCardGrid } from '../collection/CollectionCard'
 import { usePhotoSteps } from '../collection/PhotoLightbox'
 import { PhotoViewer, type SharedPhoto } from '../collection/PhotoViewer'
+import { ShelfLine } from '../collection/ShelfLine'
 
 export function PlayerCollection({
   owner,
@@ -82,7 +82,7 @@ function CollectionGroups({
 }) {
   const factions = useQuery(factionIndexQuery())
   return (
-    <div className="space-y-4">
+    <div className="space-y-8">
       {groups.map((group) => {
         const icon = factions.data?.factions.find((entry) => entry.id === group.catalogueId)?.icon ?? null
         const totals =
@@ -98,16 +98,12 @@ function CollectionGroups({
               )
         return (
           <section key={group.catalogueId ?? 'retired'} aria-label={group.name} className="@container/army space-y-3">
-            <header className="flex flex-wrap items-center gap-3 border-b border-edge pb-2">
-              <div className="flex min-w-0 flex-1 items-center gap-3">
-                {group.catalogueId ? <FactionMark faction={{ slug: group.catalogueId, displayName: group.name, icon }} size="md" /> : null}
-                <div className="min-w-0">
-                  <h2 className="rubric break-words text-bone">{group.name}</h2>
-                  <p className="mt-1 text-xs text-dim">{countLabel(group.entries.length, 'datasheet')}</p>
-                </div>
-              </div>
-              <Counts counts={totals} size="lg" className="w-full @xl/army:w-auto" />
-            </header>
+            <ArmyHeader
+              name={group.name}
+              faction={group.catalogueId ? { slug: group.catalogueId, displayName: group.name, icon } : undefined}
+              datasheets={group.entries.length}
+              totals={totals}
+            />
             <CollectionCardGrid>
               {group.entries.map((entry) => (
                 <CollectionCard
@@ -117,6 +113,7 @@ function CollectionGroups({
                   sheet={group.catalogueId && entry.slug ? { catalogueId: group.catalogueId, slug: entry.slug } : undefined}
                   photo={entry.photoIds && onPhoto ? <EntryPhotos name={entry.name} photoIds={entry.photoIds} onOpen={onPhoto} /> : null}
                 >
+                  {unit === 'models' ? <ShelfLine owned={entry.models} built={entry.built ?? 0} painted={entry.painted ?? 0} /> : null}
                   <Counts
                     label={entry.name}
                     counts={
@@ -135,27 +132,14 @@ function CollectionGroups({
   )
 }
 
-/** Read-only counts in the collection page's caption-and-figure style; a card's are named for its datasheet. */
-function Counts({
-  counts,
-  label,
-  size = 'base',
-  className,
-}: {
-  counts: Record<string, number>
-  label?: string
-  size?: 'base' | 'lg'
-  className?: string
-}) {
+/** Read-only counts in the collection page's caption-and-figure style, named for their datasheet. */
+function Counts({ counts, label }: { counts: Record<string, number>; label: string }) {
   return (
-    <dl className={cn('flex flex-wrap gap-x-4 gap-y-1', className)}>
+    <dl className="flex flex-wrap gap-x-4 gap-y-1">
       {Object.entries(counts).map(([caption, value]) => (
         <div key={caption} className="flex items-baseline gap-x-1.5">
           <dt className="text-xs text-dim capitalize">{caption}</dt>
-          <dd
-            className={`figure text-bone ${size === 'lg' ? 'text-lg' : 'text-base'}`}
-            aria-label={label ? `${label}: ${value} ${caption}` : undefined}
-          >
+          <dd className="figure text-base text-bone" aria-label={`${label}: ${value} ${caption}`}>
             {value}
           </dd>
         </div>
