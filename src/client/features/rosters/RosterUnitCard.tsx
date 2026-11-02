@@ -5,6 +5,7 @@ import { attachmentRows } from '../../../core/attachmentRows'
 import type { KeyedPick } from './rosterPicks'
 import { AttachMenu, type AttachChoice, EmbarkMenu, JoinedRow, UnitCard } from './builder/UnitCard'
 import { cardEmbark, type EmbarkCard, embarkRows, NO_EMBARK } from './builder/embarkModel'
+import { pointsOver } from './builder/PointsChip'
 import { unitLimitMessage } from './builder/usePicks'
 
 export type AttachDirection = 'join' | 'host'
@@ -159,6 +160,8 @@ type AttachDiscovery = {
   candidates: readonly PickerUnit[]
   held: Readonly<Record<string, number>>
   limits: ReadonlyMap<string, number | null>
+  /** Points left under the list's limit, or null when none is enforced. */
+  room: number | null
 }
 
 export function useCardRelationships(
@@ -178,6 +181,7 @@ export function useCardRelationships(
           entryId: option.id,
           name: option.name,
           points: option.points,
+          over: pointsOver(option.points, discovery?.room ?? null),
           reason: discovery && unitLimitMessage(option.id, discovery.held[option.id] ?? 0, discovery.limits),
         }))
         .toSorted((left, right) => Number(Boolean(left.reason)) - Number(Boolean(right.reason)) || left.name.localeCompare(right.name))

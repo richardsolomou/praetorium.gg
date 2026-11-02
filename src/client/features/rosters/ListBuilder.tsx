@@ -921,12 +921,14 @@ export function ListBuilder({
     enabled: building && workspaceMeasured && Boolean(catalogueId),
     placeholderData: keepPreviousData,
   })
+  const budget = pointsBudget ?? limit
+  const room = priced && enforces(waivedRules, 'points-limit') ? budget - priced.points : null
   const attachDiscovery = useMemo(
     () =>
       attachCandidates
-        ? { candidates: attachCandidates.filter((unit) => shownKind(unit.nonMatchedPlay, pickerFilters)), held, limits: unitLimits }
+        ? { candidates: attachCandidates.filter((unit) => shownKind(unit.nonMatchedPlay, pickerFilters)), held, limits: unitLimits, room }
         : null,
-    [attachCandidates, pickerFilters, held, unitLimits],
+    [attachCandidates, pickerFilters, held, unitLimits, room],
   )
   const cardRelationships = useCardRelationships(picks, units, attachDiscovery, embarks)
   const openSetup = () => {
@@ -1021,8 +1023,6 @@ export function ListBuilder({
   }
 
   const points = frozen ? frozen.points : (priced?.points ?? 0)
-  const budget = pointsBudget ?? limit
-  const room = priced && enforces(waivedRules, 'points-limit') ? budget - priced.points : null
   const over = enforces(waivedRules, 'points-limit') && (frozen ? frozen.points > budget : Boolean(priced && priced.points > budget))
   const illegal = Boolean(priced && (priced.errors.length || priced.detachmentError || priced.dispositionError))
   const cards = frozen
