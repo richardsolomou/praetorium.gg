@@ -114,8 +114,11 @@ test('players can decline and publish their original sealed event roster across 
   await addUnit(owner, 'Immortals')
   await owner.goto(sealedEventUrl)
   await expect(sharing).toContainText('including changes since sealing and future edits')
-  await sharing.getByRole('button', { name: 'Make public', exact: true }).click()
-  await expect(sharing).toHaveCount(0)
+  // A press that lands before hydration does nothing, so press again until the prompt goes.
+  await expect(async () => {
+    if (await sharing.count()) await sharing.getByRole('button', { name: 'Make public', exact: true }).click()
+    await expect(sharing).toHaveCount(0, { timeout: 5_000 })
+  }).toPass({ timeout: 30_000 })
   const sealedEventToken = lastPathSegment(sealedEventUrl)
   const { event } = (await product.sealedEventByToken(sealedEventToken))!
   const publication = await product.sealedEventRosterSharing(sealedEventToken, event.token, saved.userId)
