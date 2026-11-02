@@ -736,6 +736,8 @@ test('the signed-out home has a visitor bar and other pages a rail that stays fo
   expect(await page.evaluate(() => Reflect.get(window, 'railBeforeApp'))).toBe('collapsed')
   await expect(page.locator('html')).toHaveAttribute('data-rail', 'collapsed')
   expect(await width()).toBeLessThan(expanded / 2)
+  await rail.getByRole('link', { name: 'Battles', exact: true }).hover()
+  await expect(page.locator('[data-slot="tooltip-content"]')).toHaveText('Battles')
   await rail.getByRole('button', { name: 'Expand navigation', exact: true }).click()
   await expect(page.locator('html')).not.toHaveAttribute('data-rail')
   await expect.poll(width).toBe(expanded)

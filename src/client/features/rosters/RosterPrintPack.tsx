@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button'
 import { attachedUnitList } from '../../../core/attachedUnits'
 import { ATTACHMENT_LABELS } from '../../../core/attachmentRows'
 import { rulesVersionLabel } from '../../../core/catalogueEdition'
-import { datasheetProfilesByKind } from '../../../core/datasheetStructure'
 import type { RosterPick } from '../../../core/roster'
 import { stratagemTiming } from '../../../core/reminders'
 import { nicknamedUnit } from '../../../core/unitNotes'
@@ -13,13 +12,14 @@ import { pickedOptionalRules, pointsBudgetOf, waivedFormatRules } from '../../..
 import { factionQuery, detachmentDetailQuery, detachmentRulesQuery, loadoutDatasheetsQuery, priceQuery } from '../../queries'
 import type { priceRoster } from '../../functions'
 import { RuleText } from '../../components/RuleText'
-import { UnitProfile } from '../../components/DatasheetProfiles'
-import { primaryUnitProfile } from '../../datasheet'
-import { Loadout } from './builder/Loadout'
-import { ProfileRules } from './ProfileRules'
+import { openTextSourcesDialog } from '../../components/TextSourcesDialog'
+import { loadedText, retryFailedTextFiles, useSourceTexts } from '../../sourceText'
+import { hasTextTokens } from '../../../shared/sourceText'
+import type { TextSourceChoice } from '../../rulesText'
+import { ruleProfileSections, weaponShapedProfile } from '../../datasheet'
+import { PRINTED_RULE, RosterPrintDatasheet } from './RosterPrintDatasheet'
 import { normalisePicks } from './rosterPicks'
 import { countLabel } from '../../text'
-import { unitKeywordsText } from '../../components/Keyword'
 import { usePrintWhenReady } from './usePrintWhenReady'
 import { chunks } from '../../../core/collections'
 import { hasWarlordToggle } from '../../../core/unitChoices'
@@ -109,7 +109,50 @@ export function RosterPrintPack({ input, onClose }: { input: RosterPrintInput; o
     },
   })
 
-  usePrintWhenReady(Boolean(data))
+  type Pack = NonNullable<typeof data>
+  const referencedRulesOf = (pack: Pack) => {
+    return [
+      ...new Map(
+        [
+          ...pack.groups.flatMap(({ host, joined }) =>
+            [host, ...joined].flatMap((unit) => [
+              ...unit.sheets.selected!.keywordRules,
+              ...unit.sheets.selected!.abilities.flatMap((ability) =>
+                (ability.kind === 'core' || ability.kind === 'faction') && ability.description
+                  ? [{ name: ability.name, description: ability.description }]
+                  : [],
+              ),
+            ]),
+          ),
+          ...pack.cards.keywordRules,
+          ...pack.detachments.flatMap((detachment) => detachment.keywordRules),
+        ].map((rule) => [`${rule.name}\0${rule.description}`, rule]),
+      ).values(),
+    ]
+  }
+  // Every rules text the pack draws, so printing can wait until the device has loaded each one.
+  const printedTexts = (pack: Pack) => [
+    ...pack.groups.flatMap(({ host, joined }) =>
+      [host, ...joined].flatMap(({ sheets }) => [
+        ...sheets.selected!.abilities.flatMap((ability) =>
+          ability.kind !== 'core' && ability.kind !== 'faction' && ability.description ? [ability.description] : [],
+        ),
+        ...ruleProfileSections(sheets.selected!.profiles).flatMap((section) =>
+          section.profiles.flatMap((profile) => (weaponShapedProfile(profile) ? [] : profile.values.map((value) => value.value))),
+        ),
+      ]),
+    ),
+    ...pack.faction.armyRules.map((rule) => rule.description),
+    ...pack.detachments.flatMap((detachment) => detachment.rules.flatMap((rule) => (rule.description ? [rule.description] : []))),
+    ...pack.cards.written.flatMap((card) => (card.description ? [card.description] : [])),
+    ...referencedRulesOf(pack).map((rule) => rule.description),
+  ]
+
+  // A pack goes to paper only with every rule's words in it, so it waits for the rules text this device loads.
+  const texts = data ? printedTexts(data) : []
+  const { choice } = useSourceTexts(texts)
+  const gap = data ? textGap(texts, choice) : null
+  usePrintWhenReady(Boolean(data) && gap === null)
 
   if (!data)
     return (
@@ -131,23 +174,17 @@ export function RosterPrintPack({ input, onClose }: { input: RosterPrintInput; o
     )
 
   const stratagems = [...data.cards.core, ...data.cards.stratagems]
-  const referencedRules = [
-    ...new Map(
-      [
-        ...data.groups.flatMap(({ host, joined }) =>
-          [host, ...joined].flatMap((unit) => [
-            ...unit.sheets.selected!.keywordRules,
-            ...unit.sheets.selected!.abilities.flatMap((ability) =>
-              (ability.kind === 'core' || ability.kind === 'faction') && ability.description
-                ? [{ name: ability.name, description: ability.description }]
-                : [],
-            ),
-          ]),
-        ),
-        ...data.cards.keywordRules,
-        ...data.detachments.flatMap((detachment) => detachment.keywordRules),
-      ].map((rule) => [`${rule.name}\0${rule.description}`, rule]),
-    ).values(),
+  const referencedRules = referencedRulesOf(data)
+  const warnings = [
+    ...(input.draft ? ['Unsaved draft on this device.'] : []),
+    ...(input.price.errors.length ? ['Resolve roster validation messages before playing this list.'] : []),
+    ...(input.price.points > pointsBudgetOf(input) ? ['Over the points limit.'] : []),
+    ...(input.price.unhandled.length ? ['Some restrictions could not be checked. Read the source rules before playing.'] : []),
+    ...waivedFormatRules(input.limit, input.waivedRules, input.pointsBudget).map((rule) => `Waived rule: ${rule.label}`),
+    ...pickedOptionalRules(input.limit, input.optionalRules).map((rule) => `Optional rule: ${rule.label}`),
+    ...(input.price.borrowedDetachment
+      ? [`Borrowed disposition from ${input.price.borrowedDetachment}; its detachment rules are not included.`]
+      : []),
   ]
   return (
     <div className="min-h-0 flex-1 overflow-y-auto" data-roster-print-screen>
@@ -155,203 +192,145 @@ export function RosterPrintPack({ input, onClose }: { input: RosterPrintInput; o
         <Button variant="outline" onClick={onClose}>
           Return to roster
         </Button>
-        <Button onClick={() => window.print()}>Print battle reference pack</Button>
+        <Button disabled={gap !== null} onClick={() => window.print()}>
+          Print battle reference pack
+        </Button>
       </div>
+      {gap ? <TextGapNotice gap={gap} /> : null}
       <div data-battle-reference-pack>
-        <header>
-          <p>Battle reference pack</p>
+        <header className="pack-masthead">
+          <p className="pack-kicker">Battle reference pack</p>
           <h1>{input.name || 'Roster'}</h1>
-          <p>
-            {data.faction.displayName} · {input.price.points}/{pointsBudgetOf(input)} points · {countLabel(data.groups.length, 'unit')} ·{' '}
+          <p className="pack-headline">
+            {data.faction.displayName} ·{' '}
+            {input.price.detachments
+              .map((detachment) => `${detachment.name}${detachment.points === null ? '' : ` (${detachment.points} DP)`}`)
+              .join(' + ')}
+            {input.price.disposition
+              ? ` · ${factionDisposition(data.faction, input.price.disposition)?.name ?? input.price.disposition}`
+              : ''}{' '}
+            · {countLabel(data.groups.length, 'unit')} ·{' '}
             {countLabel(
               input.price.units.reduce((count, unit) => count + unit.size.models, 0),
               'model',
             )}
           </p>
-          <p>Rules version: {rulesVersionLabel({ ...data.faction, edition: input.price.edition ?? data.faction.edition })}</p>
-          <p>
-            Points and selected equipment from catalogue revision: <span className="break-all">{input.price.revision}</span>
-          </p>
-          {data.cards.dataslate ? <p>{data.cards.dataslate}</p> : null}
-          <p>
-            {input.draft ? 'Draft on this device' : 'Roster'}
+          {warnings.length ? (
+            <ul className="pack-warnings">
+              {warnings.map((warning) => (
+                <li key={warning}>{warning}</li>
+              ))}
+            </ul>
+          ) : null}
+          <p className="pack-fineprint">
+            {rulesVersionLabel({ ...data.faction, edition: input.price.edition ?? data.faction.edition })}
+            {data.cards.dataslate ? ` · ${data.cards.dataslate}` : ''} · Catalogue revision{' '}
+            <span className="break-all">{input.price.revision}</span> ·{' '}
             {input.url ? (
               <>
-                {' '}
-                · <a href={input.url}>{input.url}</a>
+                <a href={input.url}>{input.url}</a> (keeps the roster’s access restrictions)
               </>
-            ) : null}
+            ) : (
+              'Draft on this device; save it for a roster link'
+            )}
+            . Records the army at printing time; reference data can change.
           </p>
-          <p>
-            {input.url ? 'The link retains the roster’s existing access restrictions.' : 'Save this draft for a roster link.'} This pack
-            records the army at printing time; reference data can change.
-          </p>
-          {input.price.errors.length ? <p>Resolve roster validation messages before playing this list.</p> : null}
-          {input.price.points > pointsBudgetOf(input) ? <p>Over the points limit.</p> : null}
-          {input.price.unhandled.length ? <p>Some restrictions could not be checked. Read the source rules before playing.</p> : null}
-          {waivedFormatRules(input.limit, input.waivedRules, input.pointsBudget).map((rule) => (
-            <p key={rule.id}>Waived rule: {rule.label}</p>
-          ))}
-          {pickedOptionalRules(input.limit, input.optionalRules).map((rule) => (
-            <p key={rule.id}>Optional rule: {rule.label}</p>
-          ))}
-          {input.price.borrowedDetachment ? (
-            <p>Borrowed disposition from {input.price.borrowedDetachment}; its detachment rules are not included.</p>
-          ) : null}
         </header>
-        <section>
-          <h2>Army summary</h2>
-          <p>
-            {input.price.detachments
-              .map((detachment) => `${detachment.name}${detachment.points === null ? '' : ` (${detachment.points} DP)`}`)
-              .join(' · ')}
-          </p>
-          {input.price.disposition ? (
-            <p>Force disposition: {factionDisposition(data.faction, input.price.disposition)?.name ?? input.price.disposition}</p>
-          ) : null}
-          <ol>
-            {data.groups.map(({ host, joined }, index) => (
-              <li key={host.key}>
-                <a href={`#pack-unit-${host.key}`}>
-                  Unit {index + 1}:{' '}
-                  {[host, ...joined]
-                    .map(
-                      (unit) =>
-                        `${title(unit)} (${countLabel(unit.size.models, 'model')}, ${unit.points} pts)${hasWarlordToggle(unit.toggles) ? ', Warlord' : ''}`,
-                    )
-                    .join(' + ')}
-                </a>
-              </li>
-            ))}
-          </ol>
-        </section>
         {data.groups.map(({ host, joined }, index) => (
           <section className="pack-unit" id={`pack-unit-${host.key}`} key={host.key} data-print-unit={host.name}>
-            <h2>
-              Unit {index + 1}: {title(host)}
-              {joined.length ? ` + ${joined.map(title).join(' + ')}` : ''}
-            </h2>
             {[host, ...joined].map((unit) => (
-              <div key={unit.key} data-print-datasheet={unit.name}>
-                <h3>
-                  {title(unit)} · {countLabel(unit.size.models, 'model')} · {unit.points} pts
-                  {hasWarlordToggle(unit.toggles) ? ' · Warlord' : ''}
-                </h3>
+              <article key={unit.key} className="pack-sheet" data-print-datasheet={unit.name}>
+                <header>
+                  <h2>
+                    <span className="pack-number">{index + 1}</span>
+                    {title(unit)}
+                  </h2>
+                  <p>
+                    {countLabel(unit.size.models, 'model')} · {unit.points} pts
+                    {hasWarlordToggle(unit.toggles) ? ' · Warlord' : ''}
+                    {unit === host ? '' : ` · ${ATTACHMENT_LABELS[unit.attachment?.kind ?? 'support'].joining} ${title(host)}`}
+                  </p>
+                </header>
+                {unit.wargear.length ? (
+                  <p className="pack-wargear">
+                    <span>Wargear</span> {unit.wargear.map((piece) => `${piece.count}× ${piece.name}`).join(', ')}
+                  </p>
+                ) : null}
                 {input.picks[unit.key]?.note ? (
-                  <p className="ph-no-capture whitespace-pre-line" data-print-note>
-                    Note: {input.picks[unit.key]?.note}
+                  <p className="pack-note ph-no-capture whitespace-pre-line" data-print-note>
+                    <span>Note</span> {input.picks[unit.key]?.note}
                   </p>
                 ) : null}
-                {unit !== host ? (
-                  <p>
-                    {ATTACHMENT_LABELS[unit.attachment?.kind ?? 'support'].joining} {title(host)} (Unit {index + 1})
-                  </p>
-                ) : null}
-                <p>
-                  Selected equipment: {unit.wargear.map((piece) => `${piece.count}× ${piece.name}`).join(', ') || 'No equipment recorded.'}
-                </p>
-                <div data-print-loadout>
-                  <Loadout
-                    catalogueId={input.picks[unit.key]?.catalogueId ?? input.catalogueId}
-                    unit={unit}
-                    detachmentIds={input.detachmentIds}
-                    picks={picks}
-                    pickIndex={unit.key}
-                    editable={false}
-                    embedded
-                    showOptions={false}
-                    onChoose={noop}
-                    onSpread={noop}
-                    providedSheets={unit.sheets}
-                  />
-                </div>
-                {datasheetProfilesByKind(unit.sheets.selected!)
-                  .unit.filter((profile) => profile.id !== primaryUnitProfile(unit.sheets.selected!)?.id)
-                  .map((profile) => (
-                    <section className="pack-rule" key={profile.id}>
-                      <h4>{profile.name}</h4>
-                      <UnitProfile profile={profile} />
-                    </section>
-                  ))}
-                {unit.sheets
-                  .selected!.abilities.filter((ability) => ability.kind !== 'core' && ability.kind !== 'faction')
-                  .map((ability) => (
-                    <section className="pack-rule" key={ability.id}>
-                      <h4>
-                        {ability.name}
-                        {ability.source ? ` (${ability.source})` : ''}
-                      </h4>
-                      {ability.description ? <RuleText text={ability.description} /> : <p>No description is available.</p>}
-                    </section>
-                  ))}
-                {unit.sheets.selected!.abilities.some((ability) => ability.kind === 'core' || ability.kind === 'faction') ? (
-                  <p>
-                    Referenced abilities:{' '}
-                    {unit.sheets
-                      .selected!.abilities.filter((ability) => ability.kind === 'core' || ability.kind === 'faction')
-                      .map((ability) => ability.name)
-                      .join(', ')}
-                    . See referenced abilities and weapon rules.
-                  </p>
-                ) : null}
-                <ProfileRules profiles={unit.sheets.selected!.profiles} rules={[]} compact />
-                <p>Keywords: {unitKeywordsText(unit.sheets.selected!)}</p>
-              </div>
+                <RosterPrintDatasheet sheet={unit.sheets.selected!} />
+              </article>
             ))}
           </section>
         ))}
-        <section className="pack-section">
-          <h2>Army rules</h2>
-          {data.faction.armyRules.length ? (
-            data.faction.armyRules.map((rule) => (
-              <section className="pack-rule" key={rule.name}>
+        <div className="pack-appendix">
+          <section className="pack-section">
+            <h2>Army rules</h2>
+            {data.faction.armyRules.length ? (
+              data.faction.armyRules.map((rule) => (
+                <section className="pack-rule" key={rule.name}>
+                  <h3>{rule.name}</h3>
+                  <RuleText text={rule.description} className={PRINTED_RULE} />
+                </section>
+              ))
+            ) : (
+              <p>No army rule description is available.</p>
+            )}
+            {data.detachments.map((detachment) => (
+              <section key={detachment.name}>
+                <h3 className="pack-subhead">{detachment.name}</h3>
+                {detachment.rules.length ? (
+                  detachment.rules.map((rule) => (
+                    <section className="pack-rule" key={rule.name}>
+                      <h3>{rule.name}</h3>
+                      {rule.description ? (
+                        <RuleText text={rule.description} className={PRINTED_RULE} />
+                      ) : (
+                        <p>No description is available.</p>
+                      )}
+                    </section>
+                  ))
+                ) : (
+                  <p>No detachment rule description is available.</p>
+                )}
+              </section>
+            ))}
+          </section>
+          <section className="pack-section">
+            <h2>Stratagems</h2>
+            {stratagems.map((stratagem) => {
+              const written = data.cards.written.find((card) => card.key === stratagem.key)
+              return (
+                <section className="pack-rule pack-stratagem" key={stratagem.key}>
+                  <h3>
+                    <span>{stratagem.name}</span>
+                    <span className="pack-cp">{stratagem.cp} CP</span>
+                  </h3>
+                  <p className="pack-meta">
+                    {[stratagem.detachment, written?.type, ...stratagemTiming(stratagem)].filter(Boolean).join(' · ')}
+                  </p>
+                  {written?.description ? (
+                    <RuleText text={written.description} className={PRINTED_RULE} />
+                  ) : (
+                    <p>No description is available.</p>
+                  )}
+                </section>
+              )
+            })}
+          </section>
+          <section className="pack-section">
+            <h2>Abilities and weapon rules</h2>
+            {referencedRules.map((rule) => (
+              <section className="pack-rule" key={`${rule.name}\0${rule.description}`}>
                 <h3>{rule.name}</h3>
-                <RuleText text={rule.description} />
+                <RuleText text={rule.description} className={PRINTED_RULE} />
               </section>
-            ))
-          ) : (
-            <p>No army rule description is available.</p>
-          )}
-          {data.detachments.map((detachment) => (
-            <section className="pack-rule" key={detachment.name}>
-              <h2>{detachment.name}: detachment rules</h2>
-              {detachment.rules.length ? (
-                detachment.rules.map((rule) => (
-                  <section className="pack-rule" key={rule.name}>
-                    <h3>{rule.name}</h3>
-                    {rule.description ? <RuleText text={rule.description} /> : <p>No description is available.</p>}
-                  </section>
-                ))
-              ) : (
-                <p>No detachment rule description is available.</p>
-              )}
-            </section>
-          ))}
-        </section>
-        <section className="pack-section">
-          <h2>Core and detachment stratagems</h2>
-          {stratagems.map((stratagem) => {
-            const written = data.cards.written.find((card) => card.key === stratagem.key)
-            return (
-              <section className="pack-rule" key={stratagem.key}>
-                <h3>
-                  {stratagem.name} · {stratagem.cp} CP
-                </h3>
-                <p>{[stratagem.detachment, written?.type, ...stratagemTiming(stratagem)].filter(Boolean).join(' · ')}</p>
-                {written?.description ? <RuleText text={written.description} /> : <p>No description is available.</p>}
-              </section>
-            )
-          })}
-        </section>
-        <section className="pack-section">
-          <h2>Referenced abilities and weapon rules</h2>
-          {referencedRules.map((rule) => (
-            <section className="pack-rule" key={`${rule.name}\0${rule.description}`}>
-              <h3>{rule.name}</h3>
-              <RuleText text={rule.description} />
-            </section>
-          ))}
-        </section>
+            ))}
+          </section>
+        </div>
         {/* A printed pack leaves the app and its sources page, so it names where its words and prices came from. */}
         <p>Rules text from BSData and Game Datacards; prices from the BSData Munitorum Field Manual. Data sources: praetorium.gg/sources</p>
       </div>
@@ -359,4 +338,43 @@ export function RosterPrintPack({ input, onClose }: { input: RosterPrintInput; o
   )
 }
 
-const noop = () => {}
+type TextGap = 'unchosen' | 'loading' | 'failed'
+
+/** What still keeps rules text off the page, the most actionable first, or null once every text has loaded. */
+function textGap(texts: readonly string[], choice: TextSourceChoice): TextGap | null {
+  const gaps = new Set(
+    texts.map((text) => {
+      // Text without tokens is BSData's own words, which show only where the reader chose BSData.
+      if (!hasTextTokens(text)) return choice.sources.has('bsdata') ? null : 'unchosen'
+      const missing = loadedText(text, choice).missing
+      return missing === 'unavailable' ? null : missing
+    }),
+  )
+  return (['unchosen', 'failed', 'loading'] as const).find((gap) => gaps.has(gap)) ?? null
+}
+
+function TextGapNotice({ gap }: { gap: TextGap }) {
+  return (
+    <div className="mx-3 mb-3 flex flex-wrap items-center gap-3 rounded-lg border border-edge bg-sunken p-3 text-sm" data-print-hide>
+      {gap === 'unchosen' ? (
+        <>
+          <p className="min-w-0 flex-1">Printing needs the rules text, which loads on this device from the community sources you choose.</p>
+          <Button size="sm" onClick={openTextSourcesDialog}>
+            Choose sources
+          </Button>
+        </>
+      ) : gap === 'failed' ? (
+        <>
+          <p role="alert" className="min-w-0 flex-1">
+            Some rules text could not be loaded, so the pack is not ready to print.
+          </p>
+          <Button size="sm" variant="outline" onClick={() => void retryFailedTextFiles()}>
+            Retry
+          </Button>
+        </>
+      ) : (
+        <output>Loading rules text…</output>
+      )}
+    </div>
+  )
+}

@@ -85,9 +85,9 @@ for (const [size, label] of [
     })
     await chooseRosterAction(owner, 'Print')
     const pack = owner.locator('[data-battle-reference-pack]')
-    await expect(pack.getByRole('heading', { name: `Rot Alpha · ${SQUAD} ·`, exact: false })).toBeVisible()
-    await expect(pack).toContainText(`Note: ${ALPHA_NOTE}`)
-    await expect(pack).toContainText(`Note: ${BRAVO_NOTE}`)
+    await expect(pack.getByRole('heading', { name: `Rot Alpha · ${SQUAD}`, exact: false })).toBeVisible()
+    await expect(pack).toContainText(`Note ${ALPHA_NOTE}`)
+    await expect(pack).toContainText(`Note ${BRAVO_NOTE}`)
     await shot(pack.locator('.pack-unit').first(), test.info().outputPath(`unit-note-print-${label}.png`))
     await owner.getByRole('button', { name: 'Return to roster' }).click()
 
