@@ -323,8 +323,7 @@ export function RosterCombatComparison({
   // The saved list arriving restarts a run only when it holds a chosen roster, so a matchup without one is not computed twice.
   const savedVersions = sources
     ? undefined
-    : // Empty rather than undefined before saved rosters load, so their arrival doesn't restart a matchup that uses none of them.
-      JSON.stringify(
+    : JSON.stringify(
         (saved.data ?? [])
           .filter((source) => attackerIds.includes(source.id) || defenderIds.includes(source.id))
           .map((source) => [source.id, source.updatedAt]),
