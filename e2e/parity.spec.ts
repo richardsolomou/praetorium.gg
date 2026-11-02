@@ -1,9 +1,7 @@
 import { expect, test, type Page } from './test'
 import {
-  chooseRosterAction,
   chooseRosterDefault,
   createRoster,
-  retryUntilVisible,
   signUp,
   uniqueName,
   expectNoPageOverflow,
@@ -12,6 +10,8 @@ import {
   visitorSetup,
   recordSaves,
   chooseLibraryAction,
+  openLibraryShare,
+  openRosterShare,
   PHONE,
 } from './account'
 import { savedWork } from './storage'
@@ -98,23 +98,22 @@ test('a private roster can be shared and made private again', async ({ browser }
   await librarySetup.locator('#setup-visibility-reach').scrollIntoViewIfNeeded()
   await expect(librarySetup.locator('#setup-visibility-reach')).toBeInViewport()
   await librarySetup.getByRole('button', { name: 'Cancel', exact: true }).click()
+  // Both the right-click and overflow menus reach the same share dialog, which fits a phone.
   for (const menu of ['context', 'overflow']) {
     if (menu === 'context') await row.click({ button: 'right' })
     else await page.getByRole('button', { name: 'Actions for Shareable roster' }).click()
-    const sharing = page.getByRole('menuitem', { name: /^Make unlisted and copy link/ })
-    await expect(sharing).toContainText('Anyone with the link can read this roster.')
-    await expect(row.getByText('Private').filter({ visible: true })).toBeVisible()
-    expect(
-      await sharing.evaluate((element) => {
-        const bounds = element.getBoundingClientRect()
-        return bounds.left >= 0 && bounds.right <= innerWidth && bounds.top >= 0 && bounds.bottom <= innerHeight
-      }),
-    ).toBe(true)
+    await page.getByRole('menuitem', { name: /^Share…/ }).click()
+    const dialog = page.getByRole('dialog', { name: 'Share Shareable roster' })
+    await expect(dialog.getByRole('radio', { name: /^Private/ })).toBeChecked()
+    await expect(dialog).toContainText('Copying it makes the roster unlisted.')
+    await expect(dialog.getByRole('button', { name: 'Make unlisted and copy', exact: true })).toBeInViewport()
     await page.keyboard.press('Escape')
-    await expect(sharing).toBeHidden()
+    await expect(dialog).toBeHidden()
   }
   await page.setViewportSize({ width: 1440, height: 900 })
-  await chooseLibraryAction(page, 'Shareable roster', /^Make unlisted and copy link/)
+  const share = await openLibraryShare(page, 'Shareable roster')
+  await share.getByRole('button', { name: 'Make unlisted and copy', exact: true }).click()
+  await expect(share.getByRole('radio', { name: /^Unlisted/ })).toBeChecked()
   await expect(row.getByText('Unlisted').filter({ visible: true })).toBeVisible()
   // Polled, because the link is copied only once the visibility change comes back.
   await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toMatch(/\/rosters\/[^/]+$/)
@@ -122,13 +121,10 @@ test('a private roster can be shared and made private again', async ({ browser }
 
   await page.setViewportSize(PHONE)
   await page.goto(sharedUrl)
-  await retryUntilVisible(page.getByRole('menuitem', { name: 'Copy link' }), () =>
-    page.getByRole('button', { name: 'Roster actions', exact: true }).click(),
-  )
+  await expect((await openRosterShare(page)).getByRole('button', { name: 'Copy link', exact: true })).toBeVisible()
   await page.keyboard.press('Escape')
   await offerNativeShare(page)
-  await page.getByRole('button', { name: 'Roster actions' }).click()
-  const rosterShare = page.getByRole('menuitem', { name: 'Share link' })
+  const rosterShare = (await openRosterShare(page)).getByRole('button', { name: 'Share link', exact: true })
   await expect(rosterShare).toBeEnabled()
   await rosterShare.click()
   await expect
@@ -144,8 +140,9 @@ test('a private roster can be shared and made private again', async ({ browser }
   expect(preview.headers()['cache-control']).toBe('no-store')
 
   await page.goto('/rosters')
-  await chooseLibraryAction(page, 'Shareable roster', 'Visibility: Unlisted')
-  await page.getByRole('menuitemradio', { name: /^Private/ }).click()
+  const unshare = await openLibraryShare(page, 'Shareable roster')
+  await unshare.getByText('Private', { exact: true }).click()
+  await expect(unshare.getByRole('radio', { name: /^Private/ })).toBeChecked()
   await expect(row.getByText('Private').filter({ visible: true })).toBeVisible()
   await anonymous.reload()
   await expect(anonymous.getByRole('heading', { name: 'Nothing here' })).toBeVisible()
@@ -192,7 +189,7 @@ test('editable detail waits for public access to save before sharing', async ({ 
     releaseSave()
   }
   await expect(review).toBeHidden()
-  await chooseRosterAction(page, 'Share link')
+  await (await openRosterShare(page)).getByRole('button', { name: 'Share link', exact: true }).click()
   await expect.poll(() => page.locator('html').getAttribute('data-native-message')).toContain('"type":"native-share"')
 
   await anonymous.goto(sharedUrl)
@@ -221,13 +218,15 @@ test('copying a saved roster link reports progress beside the header and copies 
     })
   })
 
-  await chooseRosterAction(page, 'Copy link')
-  await expect(page.getByRole('status').filter({ hasText: 'Copying link…' })).toBeVisible()
-  await page.getByRole('button', { name: 'Roster actions' }).click()
-  await expect(page.getByRole('menuitem', { name: 'Copy link' })).toHaveAttribute('aria-disabled', 'true')
-  await page.keyboard.press('Escape')
+  const dialog = await openRosterShare(page)
+  const copy = dialog.getByRole('button', { name: 'Copy link', exact: true })
+  await copy.click()
+  // A second press while the first copy is held must not copy again.
+  await expect(copy).toBeDisabled()
   await page.evaluate(() => (window as unknown as { releaseCopy: () => void }).releaseCopy())
 
+  await expect(dialog.getByRole('button', { name: 'Link copied', exact: true })).toBeVisible()
+  await page.keyboard.press('Escape')
   await expect(page.getByRole('status').filter({ hasText: 'Link copied.' })).toBeVisible()
   const { origin, pathname } = new URL(page.url())
   expect(await page.evaluate(() => (window as unknown as { copies: string[] }).copies)).toEqual([`${origin}${pathname}`])

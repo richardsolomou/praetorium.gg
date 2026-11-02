@@ -130,11 +130,30 @@ export async function visitorSetup(page: Page) {
   return setup
 }
 
-/** Chooses an item from a roster's Roster actions menu, reopening the menu until the item shows: a press before hydration opens nothing. */
+/** The roster page's share dialog holds these, so choosing one goes through Share… first. */
+const SHARED_ROSTER_ACTIONS = new Set(['Export text', 'Exchange code', 'Print'])
+
+/**
+ * Chooses an item from a roster's Roster actions menu, reopening the menu until the item shows: a press before
+ * hydration opens nothing. Export, exchange code and print are chosen from the share dialog the menu opens.
+ */
 export async function chooseRosterAction(page: Page, item: string) {
+  if (SHARED_ROSTER_ACTIONS.has(item)) {
+    const dialog = await openRosterShare(page)
+    await dialog.getByRole('button', { name: new RegExp(`^${item}`) }).click()
+    return
+  }
   const choice = page.getByRole('menuitem', { name: item, exact: true })
   await retryUntilVisible(choice, () => page.getByRole('button', { name: 'Roster actions', exact: true }).click())
   await choice.click()
+}
+
+/** Opens the roster page's share dialog from its Roster actions menu. */
+export async function openRosterShare(page: Page) {
+  await chooseRosterAction(page, 'Share…')
+  const dialog = page.getByRole('dialog', { name: /^Share / })
+  await expect(dialog).toBeVisible()
+  return dialog
 }
 
 /** Opens the import dialog from the rosters page once its text box answers. */
@@ -150,6 +169,14 @@ export async function chooseLibraryAction(page: Page, roster: string, item: stri
   const choice = page.getByRole('menuitem', { name: item, exact: true })
   await retryUntilVisible(choice, () => page.getByRole('button', { name: `Actions for ${roster}`, exact: true }).click())
   await choice.click()
+}
+
+/** Opens a library row's share dialog, which holds its visibility, link, export, exchange code and print. */
+export async function openLibraryShare(page: Page, roster: string) {
+  await chooseLibraryAction(page, roster, /^Share…/)
+  const dialog = page.getByRole('dialog', { name: `Share ${roster}` })
+  await expect(dialog).toBeVisible()
+  return dialog
 }
 
 /** Follows a link until the address changes: the router's hydration cancels a navigation that started before it. */

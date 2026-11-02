@@ -1,52 +1,18 @@
 import { Link } from '@tanstack/react-router'
-import {
-  Archive,
-  ArchiveRestore,
-  Copy,
-  Download,
-  EllipsisVertical,
-  Eye,
-  GitBranchPlus,
-  Link2,
-  Lock,
-  LockOpen,
-  Pencil,
-  Printer,
-  QrCode,
-  Trash2,
-} from 'lucide-react'
+import { Archive, ArchiveRestore, Copy, EllipsisVertical, Eye, GitBranchPlus, Lock, LockOpen, Pencil, Share2, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { MENU_ITEM } from '../../components/MenuSection'
-import {
-  ContextMenu,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuRadioGroup,
-  ContextMenuRadioItem,
-  ContextMenuSeparator,
-  ContextMenuSub,
-  ContextMenuSubContent,
-  ContextMenuSubTrigger,
-  ContextMenuTrigger,
-} from '@/components/ui/context-menu'
+import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuTrigger } from '@/components/ui/context-menu'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
   DropdownMenuSeparator,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { ROSTER_VISIBILITIES, type RosterVisibility } from '../../../core/savedRoster'
 import type { NamedRosterDifferences } from '../../../core/rosterDifferences'
-import { useNativeShare } from '../../nativeBridge'
-import { shareButtonLabel } from '../../useShareLink'
-import { VISIBILITY_ICON, VISIBILITY_NAME, VISIBILITY_REACH } from './visibility'
+import { VISIBILITY_ICON, VISIBILITY_NAME } from './visibility'
 import type { RosterActions, SavedRoster } from './rosterLibrary'
 import type { AccountReason } from './AccountPrompt'
 import {
@@ -57,26 +23,6 @@ import {
   RosterVariantSummary,
   rosterTitle,
 } from './RosterSummary'
-
-/** The one menu's parts, so the overflow button and the right-click menu draw the same actions. */
-const DROPDOWN_PARTS = {
-  Item: DropdownMenuItem,
-  Separator: DropdownMenuSeparator,
-  Sub: DropdownMenuSub,
-  SubTrigger: DropdownMenuSubTrigger,
-  SubContent: DropdownMenuSubContent,
-  RadioGroup: DropdownMenuRadioGroup,
-  RadioItem: DropdownMenuRadioItem,
-}
-const CONTEXT_PARTS = {
-  Item: ContextMenuItem,
-  Separator: ContextMenuSeparator,
-  Sub: ContextMenuSub,
-  SubTrigger: ContextMenuSubTrigger,
-  SubContent: ContextMenuSubContent,
-  RadioGroup: ContextMenuRadioGroup,
-  RadioItem: ContextMenuRadioItem,
-}
 
 export type RosterRowLayout = 'card' | 'base' | 'variant'
 
@@ -101,8 +47,8 @@ export function RosterRow({
   layout = 'card',
   faction,
   actions,
-  origin,
   onEdit,
+  onShare,
   onDelete,
   points,
   label,
@@ -124,8 +70,8 @@ export function RosterRow({
   showVisibility?: boolean
   faction?: RosterSummaryFaction
   actions: RosterActions
-  origin: string
   onEdit: () => void
+  onShare: () => void
   onDelete: () => void
   /** Priced with every other list in the library, so a row asks for nothing of its own. */
   points?: number | null
@@ -143,7 +89,7 @@ export function RosterRow({
 }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const title = rosterTitle(roster, faction, label)
-  const items = { roster, title, actions, origin, onEdit, onDelete, onNeedsAccount }
+  const items = { roster, actions, onEdit, onShare, onDelete, onNeedsAccount }
 
   return (
     <ContextMenu>
@@ -194,11 +140,11 @@ export function RosterRow({
           >
             <EllipsisVertical />
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56">
+          <DropdownMenuContent align="end" className="w-max">
             <DropdownMenuItem className={MENU_ITEM} render={<Link to="/rosters/$id" params={{ id: roster.id }} target="_blank" />}>
               <Eye /> View
             </DropdownMenuItem>
-            <RosterActionItems parts={DROPDOWN_PARTS} {...items} />
+            <RosterActionItems Item={DropdownMenuItem} Separator={DropdownMenuSeparator} {...items} />
           </DropdownMenuContent>
         </DropdownMenu>
         {selection ? (
@@ -215,8 +161,8 @@ export function RosterRow({
           </label>
         ) : null}
       </ContextMenuTrigger>
-      <ContextMenuContent className="w-56">
-        <RosterActionItems parts={CONTEXT_PARTS} {...items} />
+      <ContextMenuContent className="w-max">
+        <RosterActionItems Item={ContextMenuItem} Separator={ContextMenuSeparator} {...items} />
       </ContextMenuContent>
     </ContextMenu>
   )
@@ -224,27 +170,24 @@ export function RosterRow({
 
 /** The actions themselves, in whichever menu asked for them. */
 function RosterActionItems({
-  parts: { Item, Separator, Sub, SubTrigger, SubContent, RadioGroup, RadioItem },
+  Item,
+  Separator,
   roster,
-  title,
   actions,
-  origin,
   onEdit,
+  onShare,
   onDelete,
   onNeedsAccount,
 }: {
-  parts: typeof DROPDOWN_PARTS | typeof CONTEXT_PARTS
+  Item: typeof DropdownMenuItem | typeof ContextMenuItem
+  Separator: typeof DropdownMenuSeparator | typeof ContextMenuSeparator
   roster: SavedRoster
-  /** What the library calls this list, so an export and a share sheet say the same. */
-  title: string
   actions: RosterActions
-  origin: string
   onEdit: () => void
+  onShare: () => void
   onDelete: () => void
   onNeedsAccount?: (reason: AccountReason) => void
 }) {
-  const feedback = actions.shareFeedback?.id === roster.id ? actions.shareFeedback.result : null
-  const nativeShare = useNativeShare()
   const orAccount = (reason: AccountReason, action: () => void) => (onNeedsAccount ? () => onNeedsAccount(reason) : action)
   const VisibleIcon = VISIBILITY_ICON[roster.visibility]
   return (
@@ -264,51 +207,11 @@ function RosterActionItems({
         <Copy /> Duplicate
       </Item>
       <Separator />
-      <Item
-        className={MENU_ITEM}
-        disabled={!origin || actions.access.isPending}
-        onClick={orAccount('share', () => void actions.share(roster, title))}
-      >
-        <Link2 />
-        {roster.visibility === 'private' ? (
-          <span>
-            <span className="block">{nativeShare ? 'Make unlisted and share' : 'Make unlisted and copy link'}</span>
-            <span className="block text-xs text-dim">Anyone with the link can read this roster.</span>
-          </span>
-        ) : (
-          <span>{shareButtonLabel(feedback, nativeShare, 'link')}</span>
-        )}
-      </Item>
-      <Sub>
-        <SubTrigger className={MENU_ITEM} disabled={actions.access.isPending}>
-          <VisibleIcon /> Visibility: {VISIBILITY_NAME[roster.visibility]}
-        </SubTrigger>
-        <SubContent className="w-64">
-          <RadioGroup
-            value={roster.visibility}
-            onValueChange={(visibility: RosterVisibility) =>
-              orAccount('share', () => actions.access.mutate({ id: roster.id, visibility }))()
-            }
-          >
-            {ROSTER_VISIBILITIES.map((visibility) => (
-              <RadioItem key={visibility} value={visibility} closeOnClick>
-                <span>
-                  <span className="block">{VISIBILITY_NAME[visibility]}</span>
-                  <span className="block text-xs text-dim">{VISIBILITY_REACH[visibility]}</span>
-                </span>
-              </RadioItem>
-            ))}
-          </RadioGroup>
-        </SubContent>
-      </Sub>
-      <Item className={MENU_ITEM} disabled={actions.take.isPending} onClick={() => actions.take.mutate({ roster, title })}>
-        <Download /> Export text
-      </Item>
-      <Item className={MENU_ITEM} disabled={actions.exchange.isPending} onClick={() => actions.exchange.mutate({ roster, title })}>
-        <QrCode /> Exchange code
-      </Item>
-      <Item className={MENU_ITEM} onClick={() => actions.print(roster.id)}>
-        <Printer /> Print
+      <Item className={MENU_ITEM} onClick={onShare}>
+        <Share2 /> Share…
+        <span className="ml-auto flex items-center gap-1 pl-4 text-2xs text-faint normal-case">
+          <VisibleIcon className="size-3" /> {VISIBILITY_NAME[roster.visibility]}
+        </span>
       </Item>
       <Separator />
       <Item

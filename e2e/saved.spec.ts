@@ -16,6 +16,7 @@ import {
   visitorSetup,
   recordSaves,
   chooseLibraryAction,
+  openLibraryShare,
   PHONE,
 } from './account'
 import { productOperator, productSql, userIdFor, lastPathSegment, seedRoster } from './storage'
@@ -550,7 +551,7 @@ test('a saved list is reopened, duplicated, shared and published', async ({ brow
     window.print = () => document.documentElement.setAttribute('data-print-called', 'true')
   })
   const print = page.waitForEvent('popup')
-  await chooseLibraryAction(page, 'Copy of Nurgle 2k', 'Print')
+  await (await openLibraryShare(page, 'Copy of Nurgle 2k')).getByRole('button', { name: /^Print/ }).click()
   const printedRoster = await print
   await expect(printedRoster.locator('html')).toHaveAttribute('data-print-called', 'true')
   await printedRoster.close()
@@ -609,8 +610,12 @@ test('a saved list is reopened, duplicated, shared and published', async ({ brow
   await expect(guest.getByLabel('List name')).toHaveAttribute('readonly', '')
   const duplicateHere = guest.getByRole('menuitem', { name: 'Duplicate to this device' })
   await retryUntilVisible(duplicateHere, () => guest.getByRole('button', { name: 'Roster actions' }).click())
-  await expect(guest.getByRole('menuitem', { name: 'Export text' })).toBeVisible()
-  await expect(guest.getByRole('menuitem', { name: 'Print' })).toBeVisible()
+  await guest.getByRole('menuitem', { name: 'Share…' }).click()
+  const guestShare = guest.getByRole('dialog', { name: /^Share / })
+  await expect(guestShare.getByRole('button', { name: /^Export text/ })).toBeVisible()
+  await expect(guestShare.getByRole('button', { name: /^Print/ })).toBeVisible()
+  // A reader sees who can open the list but cannot change it.
+  await expect(guestShare.getByRole('radio')).toHaveCount(0)
   await guest.screenshot({ path: test.info().outputPath('shared-roster-actions.png'), fullPage: true })
   await guest.keyboard.press('Escape')
   await expect(guest.getByLabel('Add units')).toHaveCount(0)

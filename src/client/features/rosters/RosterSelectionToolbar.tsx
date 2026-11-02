@@ -101,7 +101,7 @@ export function RosterSelectionToolbar({
               <DropdownMenuTrigger render={<Button size="sm" variant="outline" disabled={pending} />}>
                 <Eye /> Visibility <ChevronDown />
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-72">
+              <DropdownMenuContent align="end" className="w-max max-w-xs">
                 {visibilityItems}
               </DropdownMenuContent>
             </DropdownMenu>
@@ -113,7 +113,7 @@ export function RosterSelectionToolbar({
             <DropdownMenuTrigger render={<Button size="sm" variant="outline" className="sm:hidden" disabled={pending} />}>
               <EllipsisVertical /> Actions
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuContent align="end" className="w-max">
               {choices.map((choice) => (
                 <DropdownMenuItem key={choice.action} className={MENU_ITEM} onClick={() => onChange(choice.action, choice.ids)}>
                   <choice.icon /> {label(choice)}
@@ -123,7 +123,7 @@ export function RosterSelectionToolbar({
                 <DropdownMenuSubTrigger className={MENU_ITEM}>
                   <Eye /> Visibility
                 </DropdownMenuSubTrigger>
-                <DropdownMenuSubContent className="w-72">{visibilityItems}</DropdownMenuSubContent>
+                <DropdownMenuSubContent className="w-max max-w-xs">{visibilityItems}</DropdownMenuSubContent>
               </DropdownMenuSub>
               <DropdownMenuSeparator />
               <DropdownMenuItem className={MENU_ITEM} variant="destructive" onClick={onDelete}>

@@ -6,7 +6,7 @@ import {
   signUp,
   waitForRosterSave,
   makeWarlord,
-  chooseLibraryAction,
+  openLibraryShare,
   openImport,
   PHONE,
 } from './account'
@@ -99,7 +99,7 @@ test('an exchange code carries a roster to another account and to a visitor', as
   await sender.setViewportSize(desktopContext.viewport)
   await sender.goto('/rosters')
   await expect(sender.locator('[data-roster]')).toHaveCount(1)
-  await chooseLibraryAction(sender, name, 'Exchange code')
+  await (await openLibraryShare(sender, name)).getByRole('button', { name: /^Exchange code/ }).click()
   await expect(sender.getByRole('dialog', { name: 'Exchange code' }).getByLabel('Exchange code')).toHaveText(code)
 
   // A visitor opens the same link and gets a local draft, no account involved.
@@ -187,7 +187,7 @@ test('a roster too long for a QR code still offers its exchange code', async ({ 
   await page.waitForURL(/\/rosters\/[^/]+$/)
 
   await page.goto('/rosters')
-  await chooseLibraryAction(page, 'Long army', 'Exchange code')
+  await (await openLibraryShare(page, 'Long army')).getByRole('button', { name: /^Exchange code/ }).click()
   const exchange = page.getByRole('dialog', { name: 'Exchange code' })
   await expect(exchange).toContainText('too long for a reliable QR code')
   await expect(exchange.getByRole('img')).toHaveCount(0)
