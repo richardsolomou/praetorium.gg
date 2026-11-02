@@ -1,5 +1,17 @@
 # praetorium
 
+## 0.214.0 (2026-11-02)
+
+### Minor Changes
+
+- 8d02f42: The printed battle reference pack is a compact table per datasheet with units sharing pages and rules in two columns, so a full army takes a third of the paper.
+- 8d02f42: Selected rosters can now be made public together, from a Visibility menu that offers private, unlisted and public every time.
+- 8d02f42: Share in a roster's menu opens one dialog to choose who can open it, copy its link, export its text, make an exchange code or print it.
+
+### Patch Changes
+
+- 8d02f42: With the navigation folded on a desktop, hovering an icon names it beside the rail.
+
 ## 0.213.0 (2026-11-02)
 
 ### Minor Changes
