@@ -905,19 +905,10 @@ html[data-native-app='true'] [data-battle-sticky-header] {
 }
 
 /**
- * The small lozenge that labels a seat, a rank, a round or a table. Tint it with `part-tag-a`
- * or `part-tag-b` for a side, or `part-tag-ghost` for one not yet placed.
+ * The small lozenge that labels a rank, a round or a table; `part-tag-ghost` for one not yet placed.
  */
 @utility part-tag {
   @apply inline-grid h-5 min-w-6 shrink-0 place-items-center rounded-full bg-bone px-1.5 font-display text-2xs leading-none font-bold whitespace-nowrap text-void tabular-nums;
-}
-
-@utility part-tag-a {
-  @apply bg-side-a text-[#2b0505];
-}
-
-@utility part-tag-b {
-  @apply bg-side-b text-[#021c27];
 }
 
 @utility part-tag-ghost {

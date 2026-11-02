@@ -85,10 +85,10 @@ export const SidePanel = memo(function SidePanel({
        * only place the players are written and the scoreboard is left to the score.
        */}
       <div className="space-y-2">
-        {side.armies.map((army, at) => (
+        {side.armies.map((army) => (
           <div key={army.playerId} className="min-w-0">
             <h2 className={`flex min-w-0 items-baseline gap-2 text-lg leading-tight font-bold uppercase ${colours.text}`}>
-              <PlayerName army={army} seat={{ side: side.index, at }} />
+              <PlayerName army={army} />
               <PlayerRatingChange view={view} playerId={army.playerId} />
             </h2>
             <ArmyIdentity army={army} className="mt-0.5" />

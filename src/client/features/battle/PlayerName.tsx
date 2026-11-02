@@ -5,20 +5,9 @@ import type { Army, Side } from '../../sides'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { tint } from './battleTints'
 
-/** A seat's part tag, the side's letter and the seat's place on it, which the seat keeps all game; the letter alone for a whole side. */
-export function SeatTag({ side, seat, className = '' }: { side: number; seat?: number; className?: string }) {
-  const colours = tint(side)
-  return (
-    <span aria-hidden className={cn('part-tag', colours.tag, className)}>
-      {colours.letter}
-      {seat === undefined ? null : seat + 1}
-    </span>
-  )
-}
-
-/** A side's tag: its one seat's, or the side's letter when it seats more than one. */
-export function SideTag({ side, className = '' }: { side: Side; className?: string }) {
-  return <SeatTag side={side.index} seat={side.armies.length > 1 ? undefined : 0} className={className} />
+/** A side's colour, where its name is not on screen to carry it. */
+export function SideDot({ side }: { side: number }) {
+  return <span aria-hidden className={`size-2 shrink-0 rounded-full ${tint(side).rail}`} />
 }
 
 /**
@@ -29,23 +18,11 @@ export function SideTag({ side, className = '' }: { side: Side; className?: stri
  * screen of a game to the last. A guest has no profile to go to, so their name says
  * what they are instead.
  */
-export function PlayerName({
-  army,
-  linked = true,
-  seat,
-  className = '',
-}: {
-  army: Army
-  linked?: boolean
-  /** The side and place on it, for the seat's part tag. */
-  seat?: { side: number; at: number }
-  className?: string
-}) {
+export function PlayerName({ army, linked = true, className = '' }: { army: Army; linked?: boolean; className?: string }) {
   const guest = isGuestSeat(army.playerId)
   if (guest) linked = false
   const inner = (
     <>
-      {seat ? <SeatTag side={seat.side} seat={seat.at} /> : null}
       <PlayerAvatar name={army.playerName} image={army.playerImage} className="size-6 text-xs" />
       <span className={`break-words ${linked ? 'group-hover:underline' : ''}`}>
         {army.playerName}
@@ -84,7 +61,7 @@ export function SidePlayers({ side, linked = true, className = '' }: { side: Sid
       {side.armies.map((army, at) => (
         <span key={army.playerId} className="inline-flex min-w-0 items-center gap-x-2">
           {at ? <span className="text-dim">&amp;</span> : null}
-          <PlayerName army={army} linked={linked} seat={{ side: side.index, at }} />
+          <PlayerName army={army} linked={linked} />
         </span>
       ))}
     </p>

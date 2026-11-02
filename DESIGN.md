@@ -97,12 +97,6 @@ components:
     rounded: '{rounded.full}'
     height: '1.25rem'
     typography: '{typography.label}'
-  part-tag-a:
-    backgroundColor: '{colors.side-a-red}'
-    textColor: '{colors.side-a-ink}'
-  part-tag-b:
-    backgroundColor: '{colors.side-b-blue}'
-    textColor: '{colors.side-b-ink}'
   chip:
     textColor: '{colors.dim}'
     rounded: '{rounded.md}'
@@ -196,7 +190,7 @@ components:
 - **Parts:** the one container every list item, panel and card is: Part fill, Edge hairline, `xl` corners, part shadow.
 - **Runners:** a 2px rail a list hangs off, each child joined by a gate nub; the child's gate says its state: `current` doubled in Field Green, `pending` dashed, `cut` shortened with the part faded, `none` detached.
 - **Line segments:** rails of phases, rounds and readiness: `done` solid, `now` doubled, `todo` dashed, `off` struck; `--line-colour` tints them for a side.
-- **Part tags:** a small bone lozenge for a seat (A1, B2), a rank, a round or a table, tinted Side A or B for seats, ghost-ringed when not yet placed.
+- **Part tags:** a small bone lozenge for a rank, a round or a table, ghost-ringed when not yet placed. Seats carry no tag; their side's colour says whose they are.
 - **Chips:** every datasheet name is followed by its points chip: Runner border, Dim label; a game in play is a filled Field Green chip.
 - **Inputs:** Runner border; Field Green ring on focus; errors take a Side A Red border plus a message naming the problem and fix.
 - **Dialogs:** a lifted part with a Sunken action strip; may tint its edge for the side it belongs to.
