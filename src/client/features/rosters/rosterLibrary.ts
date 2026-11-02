@@ -18,6 +18,7 @@ import {
   setRosterLocked,
   setRosterVisibility,
   sharedRoster,
+  splitRosterVariant,
 } from '../../functions'
 import { invalidateSavedRosters, type QueryData, savedRosterSummariesQuery } from '../../queries'
 import { errorMessage } from '../../queryClient'
@@ -89,6 +90,11 @@ export function useRosterActions(origin: string, device?: DeviceRoster | null) {
 
   const archive = useMutation({
     mutationFn: ({ id, archived }: { id: string; archived: boolean }) => setRosterArchived({ data: { id, archived } }),
+    onSuccess: refresh,
+  })
+
+  const split = useMutation({
+    mutationFn: (id: string) => splitRosterVariant({ data: { id } }),
     onSuccess: refresh,
   })
 
@@ -171,6 +177,7 @@ export function useRosterActions(origin: string, device?: DeviceRoster | null) {
     access,
     lock,
     archive,
+    split,
     batch,
     take,
     exchange,

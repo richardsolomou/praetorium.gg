@@ -201,6 +201,13 @@ export class RosterService {
     return { updatedAt: await this.storedUpdatedAt(id, userId) }
   }
 
+  /** Takes a list out of its variant group, so it stands on its own in the library. */
+  async splitRosterVariant(userId: string, id: string) {
+    if (!(await this.repository.splitRosterVariant(id, userId, this.clock())))
+      throw new Response('you do not own this roster', { status: 403 })
+    return { updatedAt: await this.storedUpdatedAt(id, userId) }
+  }
+
   async changeRosters(userId: string, ids: readonly string[], action: RosterBatchAction) {
     const saved = await this.repository.changeRosters(ids, userId, action, this.clock())
     if (!saved) throw new Response('you do not own every one of these rosters', { status: 403 })

@@ -17,6 +17,7 @@ import {
   SlidersHorizontal,
   Swords,
   TriangleAlert,
+  Unlink,
 } from 'lucide-react'
 import { posthog } from 'posthog-js'
 import { toast } from 'sonner'
@@ -55,7 +56,15 @@ import type { RosterSource, RosterVisibility } from '../../../core/savedRoster'
 import { modelCountChoices } from '../../../core/unitSize'
 import type { Datasheet } from '../../../contracts/catalogue'
 import { rosterMatchup, type SimulatorRosterSource } from '../../../contracts/simulatorState'
-import { copyRoster, endRosterLoan, exportRoster, saveRoster, setRosterLocked, setRosterVisibility } from '../../functions'
+import {
+  copyRoster,
+  endRosterLoan,
+  exportRoster,
+  saveRoster,
+  setRosterLocked,
+  setRosterVisibility,
+  splitRosterVariant,
+} from '../../functions'
 import { shareLink, useNativeShare } from '../../nativeBridge'
 import {
   factionIndexQuery,
@@ -475,6 +484,18 @@ export function ListBuilder({
   })
 
   // Queued behind the autosave, so the variant copies the row the page last sent.
+  // The list leaves its variant group but stays open here, so only the group menu changes.
+  const splitVariant = useMutation({
+    scope: { id: 'roster-autosave' },
+    mutationFn: (id: string) => splitRosterVariant({ data: { id } }),
+    onSuccess: () => invalidateSavedRosters(queryClient),
+  })
+  const splitItem =
+    savedId && variants.length > 1 ? (
+      <DropdownMenuItem className={MENU_ITEM} disabled={splitVariant.isPending} onClick={() => splitVariant.mutate(savedId)}>
+        <Unlink /> Make its own roster
+      </DropdownMenuItem>
+    ) : null
   const createVariant = useMutation({
     scope: { id: 'roster-autosave' },
     mutationFn: (id: string) => copyRoster({ data: { id, variant: true } }),
@@ -1378,6 +1399,7 @@ export function ListBuilder({
                             >
                               <GitBranchPlus /> Create variant
                             </DropdownMenuItem>
+                            {splitItem}
                             <DropdownMenuItem className={MENU_ITEM} onClick={() => setLending(true)}>
                               <HandHelping /> Lend to a friend
                             </DropdownMenuItem>
@@ -1395,6 +1417,7 @@ export function ListBuilder({
                             <DropdownMenuItem className={MENU_ITEM} onClick={() => account.ask('variant')}>
                               <GitBranchPlus /> Create variant
                             </DropdownMenuItem>
+                            {splitItem}
                             <DropdownMenuItem className={MENU_ITEM} onClick={() => account.ask('lend')}>
                               <HandHelping /> Lend to a friend
                             </DropdownMenuItem>
@@ -1478,6 +1501,7 @@ export function ListBuilder({
                         >
                           <GitBranchPlus /> Create variant
                         </DropdownMenuItem>
+                        {splitItem}
                         <DropdownMenuItem
                           className={MENU_ITEM}
                           disabled={duplicateRoster.isPending}
@@ -1536,6 +1560,7 @@ export function ListBuilder({
           <Problem className="mt-1 text-xs">That roster could not be duplicated. Try again.</Problem>
         ) : null}
         {createVariant.isError ? <Problem className="mt-1 text-xs">The variant could not be created. Try again.</Problem> : null}
+        {splitVariant.isError ? <Problem error={splitVariant.error} className="mt-1 text-xs" /> : null}
         {share.isError ? (
           <Problem className="mt-1 text-xs">Could not share the link: {errorMessage(share.error)}</Problem>
         ) : (

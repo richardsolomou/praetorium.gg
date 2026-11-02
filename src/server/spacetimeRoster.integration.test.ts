@@ -140,6 +140,46 @@ it.skipIf(!url || !database || !token)('keeps roster variants in one flat group 
   }
 })
 
+it.skipIf(!url || !database || !token)('hands a variant group to its oldest remaining list when its base splits off', async () => {
+  const store = new SpacetimeOperator(url!, database!, token!)
+  const userId = randomUUID()
+  const [base, first, second] = [randomUUID(), randomUUID(), randomUUID()]
+  const now = Date.now()
+  const input = (id: string, baseRosterId: string | null, at: number) => ({
+    id,
+    userId,
+    name: 'Split roster',
+    catalogueId: 'catalogue-proof',
+    detachmentId: null,
+    disposition: null,
+    limit: 1_000,
+    picks: '[]',
+    prep: null,
+    tags: '[]',
+    waivedRules: '[]',
+    optionalRules: '[]',
+    borrowedDetachmentId: null,
+    baseRosterId,
+    visibility: 'private' as const,
+    source: 'editable' as const,
+    now: now + at,
+  })
+  try {
+    await store.saveRoster(input(base, null, 1))
+    await store.saveRoster(input(first, base, 2))
+    await store.saveRoster(input(second, base, 3))
+    expect(await store.splitRosterVariant(base, 'other', now + 4)).toBe(false)
+    expect(await store.splitRosterVariant(base, userId, now + 4)).toBe(true)
+    expect((await store.rosterGroupByUser(userId, base)).map((row) => row.id)).toEqual([base])
+    expect((await store.rosterGroupByUser(userId, first)).map((row) => row.id)).toEqual([first, second])
+    expect(await store.splitRosterVariant(second, userId, now + 5)).toBe(true)
+    expect((await store.roster(second))?.baseRosterId).toBeUndefined()
+    expect((await store.rosterGroupByUser(userId, first)).map((row) => row.id)).toEqual([first])
+  } finally {
+    for (const id of [base, first, second]) await store.deleteRoster(id, userId)
+  }
+})
+
 it.skipIf(!url || !database || !token)('keeps a variant group open to its owner after its base is deleted', async () => {
   const store = new SpacetimeOperator(url!, database!, token!)
   const userId = randomUUID()

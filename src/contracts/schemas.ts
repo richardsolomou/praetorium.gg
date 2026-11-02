@@ -502,6 +502,7 @@ export const rosterDiscoverySchema = rosterDiscoveryFilterSchema.extend({
 export const rosterVisibilitySchema = z.object({ id, visibility: z.enum(ROSTER_VISIBILITIES) })
 export const rosterLockSchema = z.object({ id, locked: z.boolean() })
 export const rosterArchiveSchema = z.object({ id, archived: z.boolean() })
+export const rosterSplitSchema = z.object({ id })
 export const rosterBatchSchema = z.object({
   ids: z
     .array(id)

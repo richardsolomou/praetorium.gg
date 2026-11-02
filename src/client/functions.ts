@@ -587,6 +587,23 @@ export async function setRosterArchived(args: Parameters<typeof server.setRoster
   return saved
 }
 
+/** Splitting a variant off is accepted by the server, after this device has sent the roster's saved changes. */
+export async function splitRosterVariant(
+  args: Parameters<typeof server.splitRosterVariant>[0],
+): ReturnType<typeof server.splitRosterVariant> {
+  const owner = localOwner()?.id
+  const resource = `roster:${args.data.id}`
+  if (localEngine()) {
+    if (!navigator.onLine) throw new Error('Connect to the internet to make this variant its own roster.')
+    if (await hasLocalChanges(resource)) await syncLocalWork()
+    if (await hasLocalChanges(resource)) throw new Error('This roster has changes waiting to sync. Sync or review them first.')
+  }
+  const saved = await server.splitRosterVariant(args)
+  const local = await localDocument<LocalRoster | null>(resource)
+  if (local) await rememberDocument(resource, { ...local, baseRosterId: null, updatedAt: saved.updatedAt }, saved.updatedAt, owner)
+  return saved
+}
+
 /**
  * A library action on several rosters is accepted by the server all together, after this device has sent their saved
  * changes, so unlike most single actions it needs a connection.

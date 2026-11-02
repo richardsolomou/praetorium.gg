@@ -35,6 +35,7 @@ import {
   rosterIdsSchema,
   rosterInBattleSchema,
   rosterArchiveSchema,
+  rosterSplitSchema,
   rosterBatchSchema,
   rosterLockSchema,
   renameUnitLoadoutSchema,
@@ -528,6 +529,17 @@ export const setRosterArchived = createServerFn({ method: 'POST' })
       const userId = await requireUserId()
       const saved = await app().service.rosterService.setRosterArchived(userId, data.id, data.archived)
       await captureMutation(userId, 'roster_archive_updated', { archived: data.archived })
+      return saved
+    }),
+  )
+
+export const splitRosterVariant = createServerFn({ method: 'POST' })
+  .validator(rosterSplitSchema)
+  .handler(({ data }) =>
+    mutationRpc(async () => {
+      const userId = await requireUserId()
+      const saved = await app().service.rosterService.splitRosterVariant(userId, data.id)
+      await captureMutation(userId, 'roster_variant_split')
       return saved
     }),
   )

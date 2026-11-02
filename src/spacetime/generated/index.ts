@@ -174,6 +174,7 @@ import * as SetRosterArchivedProcedure from './set_roster_archived_procedure'
 import * as SetRosterLockedProcedure from './set_roster_locked_procedure'
 import * as SetRosterVisibilityProcedure from './set_roster_visibility_procedure'
 import * as ShareBattleProcedure from './share_battle_procedure'
+import * as SplitRosterVariantProcedure from './split_roster_variant_procedure'
 import * as SubmitBattleProcedure from './submit_battle_procedure'
 import * as SyncAchievementDefinitionsProcedure from './sync_achievement_definitions_procedure'
 import * as SyncProductProcedure from './sync_product_procedure'
@@ -405,6 +406,7 @@ const proceduresSchema = __procedures(
   __procedureSchema('set_roster_locked', SetRosterLockedProcedure.params, SetRosterLockedProcedure.returnType),
   __procedureSchema('set_roster_visibility', SetRosterVisibilityProcedure.params, SetRosterVisibilityProcedure.returnType),
   __procedureSchema('share_battle', ShareBattleProcedure.params, ShareBattleProcedure.returnType),
+  __procedureSchema('split_roster_variant', SplitRosterVariantProcedure.params, SplitRosterVariantProcedure.returnType),
   __procedureSchema('submit_battle', SubmitBattleProcedure.params, SubmitBattleProcedure.returnType),
   __procedureSchema(
     'sync_achievement_definitions',
