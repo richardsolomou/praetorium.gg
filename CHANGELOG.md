@@ -1,5 +1,17 @@
 # praetorium
 
+## 0.213.0 (2026-11-02)
+
+### Minor Changes
+
+- 4a1d526: In the phone app, the tab bar, choices and counters tick under your finger, scoring feels firmer than a routine action, and a refused action or a roster over its limit gives a warning.
+- 4a1d526: Pages cross over smoothly, the current phase, setup step and navigation item draw their line in, and a changed score or roster total rises into place.
+
+### Patch Changes
+
+- 4a1d526: New battle events slide into the log as they happen, a discarded mission's strike inks in, and a newly earned medal catches the light.
+- 4a1d526: Dialogs, menus, popovers and tooltips fade in and out instead of appearing abruptly.
+
 ## 0.212.2 (2026-11-02)
 
 ### Patch Changes
