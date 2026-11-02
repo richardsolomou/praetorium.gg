@@ -7,7 +7,7 @@ import { historyBackStaysInTab, openedByTab } from './nativeHistory'
 import { nativeNavigation, type NativeSection } from './nativeNavigation'
 import { meQuery } from '../../queries'
 import { restoreNativeTabScroll } from './nativeTabScroll'
-import { forgetTab, recallTab, rememberTab, tabLocation } from './nativeTabs'
+import { forgetTab, recallMoreTab, recallTab, rememberMoreTab, rememberTab, tabLocation } from './nativeTabs'
 import { compactChrome } from './useCompactChrome'
 import { withoutRecoveryKeys } from '../../routeErrors'
 
@@ -74,18 +74,31 @@ export function NativeAppNavigation({
     if (!compactChrome()) return
     if (notFound) {
       forgetTab(href)
+      if (recallMoreTab() === href) rememberMoreTab(null)
       return
     }
+    // More returns to the last screen opened from it; sign-in and other screens with no way back are not part of it.
+    if (moreActive && (path === '/more' || navigation.back)) rememberMoreTab(href)
     const memory = active ? recallTab(active) : null
     const followsHash = href.includes('#') && memory?.href !== href
     rememberTab(href, { state })
     if (followsHash) return
     if (!memory || memory.href !== href) return
     return restoreNativeTabScroll(memory.scrollY, memory.regions, SCROLL_REGIONS)
-  }, [active, href, notFound, state])
+  }, [active, href, moreActive, navigation.back, notFound, path, state])
 
   const rememberCurrentTab = () => {
     if (!notFound) rememberTab(href, { scrollY: window.scrollY, regions: regionScroll(), state })
+  }
+
+  const openTab = (event: MouseEvent, target: string, memory: ReturnType<typeof recallTab>) => {
+    event.preventDefault()
+    void navigate({
+      href: memory?.href ?? target,
+      // A tab with no memory opens at its top rather than at the last tab's scroll.
+      resetScroll: !memory,
+      state: (current) => openedByTab({ ...current, ...memory?.state }) as typeof current,
+    })
   }
 
   const openSection = (event: MouseEvent, section: NativeSection, to: string) => {
@@ -95,22 +108,29 @@ export function NativeAppNavigation({
       window.scrollTo(0, 0)
       return
     }
-    const remembered = recallTab(section)
-    event.preventDefault()
-    void navigate({
-      href: remembered?.href ?? to,
-      // A tab with no memory opens at its top rather than at the last tab's scroll.
-      resetScroll: !remembered,
-      state: (current) => openedByTab({ ...current, ...remembered?.state }) as typeof current,
-    })
+    openTab(event, to, recallTab(section))
   }
 
-  // The tabs hang off a runner along the bar's top; only the open one is attached by its gate.
+  // From another tab, More reopens where it was left; tapped again inside More, it returns to the More screen.
+  const openMore = (event: MouseEvent) => {
+    if (event.defaultPrevented) return
+    rememberCurrentTab()
+    if (path === '/more') {
+      window.scrollTo(0, 0)
+      return
+    }
+    const remembered = (!moreActive && recallMoreTab()) || '/more'
+    const location = tabLocation(remembered)
+    const memory = location ? recallTab(location.section) : null
+    openTab(event, remembered, memory?.href === remembered ? memory : null)
+  }
+
+  // The open tab is marked by a doubled cement segment on the bar's top edge.
   const tabClass = (selected: boolean) =>
-    `relative mx-0.5 mb-1.5 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-lg border text-3xs font-semibold tracking-label uppercase ${
+    `relative min-w-0 flex-1 flex-col items-center justify-center gap-1 text-3xs font-semibold tracking-label uppercase transition-colors ${
       selected
-        ? 'border-edge bg-panel text-bone shadow-part before:absolute before:-top-2 before:left-1/2 before:h-2 before:w-0.5 before:-translate-x-1/2 before:bg-parchment [&>svg]:text-parchment'
-        : 'border-transparent text-dim hover:bg-raised hover:text-bone'
+        ? 'text-bone before:absolute before:inset-x-3 before:-top-px before:h-1 before:border-y before:border-parchment [&>svg]:text-parchment'
+        : 'text-dim hover:text-bone'
     }`
 
   return (
@@ -123,7 +143,7 @@ export function NativeAppNavigation({
         data-native-app-tabs
         data-print-hide
         aria-label="Application sections"
-        className="fixed right-0 bottom-0 left-0 z-50 hidden h-16 items-stretch border-t border-edge bg-sunken/95 px-1.5 pt-3 backdrop-blur before:absolute before:inset-x-0 before:top-1.5 before:h-0.5 before:bg-runner"
+        className="fixed right-0 bottom-0 left-0 z-50 hidden h-16 items-stretch border-t border-runner bg-sunken px-1"
       >
         {PRIMARY_TABS.map(({ icon: Icon, label, section, to }) => (
           <Link
@@ -137,16 +157,7 @@ export function NativeAppNavigation({
             <span className="max-w-full truncate">{label}</span>
           </Link>
         ))}
-        <Link
-          to="/more"
-          className={`flex ${tabClass(moreActive)}`}
-          aria-current={moreActive ? 'page' : undefined}
-          onClick={(event) => {
-            if (event.defaultPrevented) return
-            rememberCurrentTab()
-            if (path === '/more') window.scrollTo(0, 0)
-          }}
-        >
+        <Link to="/more" className={`flex ${tabClass(moreActive)}`} aria-current={moreActive ? 'page' : undefined} onClick={openMore}>
           <Ellipsis className="size-5" />
           <span className="max-w-full truncate">More</span>
         </Link>

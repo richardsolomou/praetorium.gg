@@ -109,6 +109,7 @@ function SiteRail() {
   return (
     <aside
       data-web-app-chrome
+      data-print-hide
       className="sticky top-0 z-30 flex h-dvh w-(--app-rail) shrink-0 flex-col p-3 pr-0 transition-[width] duration-200 ease-out"
     >
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border-2 border-runner bg-void py-3">
@@ -160,7 +161,7 @@ function SiteRail() {
  */
 function VisitorBar() {
   return (
-    <header data-web-app-chrome className="sticky top-0 z-30 h-14 w-full border-b border-edge bg-void/95 backdrop-blur">
+    <header data-web-app-chrome data-print-hide className="sticky top-0 z-30 h-14 w-full border-b border-edge bg-void/95 backdrop-blur">
       <div className="mx-auto flex h-full max-w-6xl items-center gap-6 px-5 sm:px-6">
         <Link
           to="/"

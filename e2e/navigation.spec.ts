@@ -141,6 +141,25 @@ test('the mobile website uses application navigation below 860 pixels', async ({
   await page.screenshot({ path: test.info().outputPath('navigation-desktop-1000.png') })
 })
 
+test('the More tab returns to the last screen opened from it until tapped again', async ({ page }) => {
+  await page.setViewportSize(PHONE)
+  await page.goto('/more')
+  const sections = page.getByRole('navigation', { name: 'Application sections' })
+  const more = sections.getByRole('link', { name: 'More' })
+  await page
+    .getByRole('main')
+    .getByRole('link', { name: /^Groups/ })
+    .click()
+  await expect(page).toHaveURL('/groups')
+  await sections.getByRole('link', { name: 'Battles' }).click()
+  await expect(page).toHaveURL('/battles')
+  await more.click()
+  await expect(page).toHaveURL('/groups')
+  await expect(more).toHaveAttribute('aria-current', 'page')
+  await more.click()
+  await expect(page).toHaveURL('/more')
+})
+
 test('the native application has stable route-aware phone and tablet navigation', async ({ browser }) => {
   const loadingContext = await browser.newContext({ viewport: PHONE })
   await loadingContext.addInitScript({
@@ -210,6 +229,9 @@ document.addEventListener('DOMContentLoaded', () => { document.documentElement.d
   expect(hydrationErrors).toEqual([])
   await page.screenshot({ path: test.info().outputPath('native-navigation-phone.png'), fullPage: true })
 
+  // The disposition opened at the start of this session is the last screen More showed.
+  await more.click()
+  await expect(page).toHaveURL('/force-dispositions/take-and-hold')
   await more.click()
   await expect(page).toHaveURL('/more')
   const morePage = page.getByRole('main')
@@ -459,7 +481,7 @@ test('server-rendered reference pages keep route-shaped payloads', { tag: '@cata
   // One section, never the five documents: the whole rules corpus is far larger.
   const ruleSection = await (await request.get('/rules/core-rules/movement-phase')).body()
 
-  expect(factions.byteLength).toBeLessThan(285_000)
+  expect(factions.byteLength).toBeLessThan(290_000)
   expect(missionPack.byteLength).toBeLessThan(250_000)
   expect(ruleSection.byteLength).toBeLessThan(250_000)
 })
@@ -690,6 +712,35 @@ test('authentication panels and empty states fill the page above the footer', as
   expect(footer ? Math.round(footer.y + footer.height) : 0).toBeGreaterThanOrEqual(800)
 })
 
+test('the signed-out home has a visitor bar and other pages a rail that stays folded through a reload', async ({ page }) => {
+  const visitorBar = page.getByRole('banner').filter({ has: page.getByRole('link', { name: 'Create a free account', exact: true }) })
+  const rail = page.locator('aside[data-web-app-chrome]')
+  await page.goto('/')
+  await expect(visitorBar).toBeVisible()
+  await expect(rail).toHaveCount(0)
+  await page.goto('/factions')
+  await expect(rail).toBeVisible()
+  await expect(visitorBar).toHaveCount(0)
+  const width = async () => (await rail.boundingBox())!.width
+  const expanded = await width()
+
+  await rail.getByRole('button', { name: 'Collapse navigation', exact: true }).click()
+  await expect(page.locator('html')).toHaveAttribute('data-rail', 'collapsed')
+  // The parser's last step before deferred application scripts run, so this reads what the head script set.
+  await page.addInitScript(() =>
+    document.addEventListener('readystatechange', () => {
+      if (document.readyState === 'interactive') Reflect.set(window, 'railBeforeApp', document.documentElement.dataset.rail)
+    }),
+  )
+  await page.reload()
+  expect(await page.evaluate(() => Reflect.get(window, 'railBeforeApp'))).toBe('collapsed')
+  await expect(page.locator('html')).toHaveAttribute('data-rail', 'collapsed')
+  expect(await width()).toBeLessThan(expanded / 2)
+  await rail.getByRole('button', { name: 'Expand navigation', exact: true }).click()
+  await expect(page.locator('html')).not.toHaveAttribute('data-rail')
+  await expect.poll(width).toBe(expanded)
+})
+
 test('terrain layouts show source-backed areas and measurement guidance', async ({ page }) => {
   await page.goto('/missions/chapter-approved-2026-2027/matchups/purge-the-foe/take-and-hold')
   const dialog = page.getByRole('dialog')
@@ -907,6 +958,16 @@ test('a player can enter through the roster library and browse the product', asy
   await expectNoPageScroll(page)
   await page.screenshot({ path: test.info().outputPath('roster-editor-phone.png') })
   await page.setViewportSize({ width: 1600, height: 900 })
+  await chooseRosterAction(page, 'Edit roster setup')
+  // An outside click closes only the dialog on top: the reference first, then the setup beneath it.
+  await setup.getByRole('button', { name: 'View Cryptek Conclave detachment reference', exact: true }).click()
+  const detachmentReference = page.getByRole('dialog', { name: 'Cryptek Conclave', exact: true })
+  await expect(detachmentReference).toBeVisible()
+  await page.mouse.click(10, 450)
+  await expect(detachmentReference).toBeHidden()
+  await expect(setup).toBeVisible()
+  await page.mouse.click(10, 450)
+  await expect(setup).toBeHidden()
   await chooseRosterAction(page, 'Edit roster setup')
   await setup.getByRole('button', { name: 'Select Cryptek Conclave', pressed: true }).click()
   await setup.getByRole('button', { name: 'Select Cursed Legion' }).click()

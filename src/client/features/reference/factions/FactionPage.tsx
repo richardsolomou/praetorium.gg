@@ -2,7 +2,7 @@ import { RulesVersionLabel } from '../../../components/RulesVersionLabel'
 import { FactionReferenceLink } from '../../../components/FactionReferenceLink'
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { Link, useNavigate } from '@tanstack/react-router'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronRight } from 'lucide-react'
 import { favouriteDetachmentsFirst, useFavouriteDetachments } from '../../../favouriteDetachments'
 import { discoveredRostersQuery, factionIndexQuery, factionQuery } from '../../../queries'
 import { FavouriteDetachmentToggle } from './FavouriteDetachmentToggle'
@@ -19,7 +19,7 @@ import { factionReferenceHref } from '../../../../core/factionReferenceRoute'
 import { StartRoster } from '../../rosters/ReferenceRosterActions'
 import { SectionHeading } from '../../../components/SectionHeading'
 import { RUNNER_COLUMNS } from '../runnerColumns'
-import { BACK_LINK } from '../backLink'
+import { BackLink } from '../BackLink'
 
 export function FactionPage({ catalogueId }: { catalogueId: string }) {
   const { data: faction } = useQuery(factionQuery(catalogueId))
@@ -89,9 +89,7 @@ export function FactionPage({ catalogueId }: { catalogueId: string }) {
         }
       />
       <PageContent className="space-y-6">
-        <Link to="/factions" className={BACK_LINK}>
-          <ChevronLeft className="size-3.5" aria-hidden /> Factions
-        </Link>
+        <BackLink to="/factions">Factions</BackLink>
         <section className="grid grid-cols-1 gap-2 sm:grid-cols-3">
           <FactionReferenceLink
             to="/factions/$catalogueId/datasheets"

@@ -1,7 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { Link } from '@tanstack/react-router'
-import { ChevronLeft } from 'lucide-react'
-import { BACK_LINK } from '../backLink'
+import { BackLink } from '../BackLink'
 import { MissionActions } from '../../../components/MissionActions'
 import { MissionCardReference } from '../../../components/MissionCardReference'
 import { PageContent, PageHeader } from '../../../components/Page'
@@ -17,10 +15,9 @@ export function SecondaryMissionPage({ packId, cardId }: { packId: string; cardI
     <main className="w-full">
       <PageHeader title={card.name} />
       <PageContent className="space-y-6 *:max-w-3xl">
-        <Link to="/missions/$packId" params={{ packId }} className={BACK_LINK}>
-          <ChevronLeft className="size-3.5" aria-hidden />
+        <BackLink to="/missions/$packId" params={{ packId }}>
           {pack.name}
-        </Link>
+        </BackLink>
         <section id={`secondary-${card.key}`} className="scroll-mt-header">
           <MissionCardReference card={card} />
           <MissionActions actions={card.actions} className="mt-4" />

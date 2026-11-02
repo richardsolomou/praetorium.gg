@@ -86,12 +86,22 @@ export function Stratagems({ side, phase, coreKeys, pending, send, writtenFor, o
         )
       })}
       {hidden && !showAll ? (
-        <Button variant="ghost" size="xs" className="text-azure" onClick={() => setShowAll(true)}>
+        <Button
+          variant="ghost"
+          size="xs"
+          className="h-auto min-h-6 max-w-full py-1 text-left whitespace-normal text-azure"
+          onClick={() => setShowAll(true)}
+        >
           Show {hidden} not playable now
         </Button>
       ) : null}
       {showAll && hidden ? (
-        <Button variant="ghost" size="xs" className="text-azure" onClick={() => setShowAll(false)}>
+        <Button
+          variant="ghost"
+          size="xs"
+          className="h-auto min-h-6 max-w-full py-1 text-left whitespace-normal text-azure"
+          onClick={() => setShowAll(false)}
+        >
           Only playable now
         </Button>
       ) : null}

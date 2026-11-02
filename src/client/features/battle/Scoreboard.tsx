@@ -38,7 +38,7 @@ export function Scoreboard({ view, clock, sides }: Props) {
        * scrubbing from a round to the result does not move the strip.
        */}
       <div
-        className={`mx-auto grid w-full items-center gap-x-3 gap-y-2 sm:min-h-14 sm:gap-x-6 max-sm:min-h-20 ${finished ? 'max-sm:grid-cols-1' : ''} ${
+        className={`mx-auto grid w-full items-center gap-x-3 gap-y-2 sm:min-h-14 sm:gap-x-6 max-sm:min-h-24 ${finished ? 'max-sm:grid-cols-1' : ''} ${
           sides.length > 1
             ? 'max-w-7xl grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] @max-[16rem]:grid-cols-2'
             : 'max-w-3xl grid-cols-[minmax(0,1fr)_auto] @max-[16rem]:grid-cols-1'
@@ -135,7 +135,6 @@ function SideScore({
   const end = align === 'end'
   const turnRound = clock && latestTurnRound(clock, side.index)
   const paused = clock?.paused && side.isActive
-  const crowded = side.armies.length > 1
   return (
     <div data-side-score={side.index} className={cn('min-w-0', end ? 'order-3' : 'order-1', className)}>
       {/* Capped, or the round rail stretches across a wide column and stops reading as five rounds. */}
@@ -145,18 +144,18 @@ function SideScore({
          * From `lg` up both panels sit under this strip with their players pictured
          * and named at the top of each, so this strip leaves them out there.
          *
-         * A side of two seats on a phone keeps its names behind the tags and pictures
-         * for a screen reader, or they wrap over four lines and push the score off the screen.
+         * A phone reads them to a screen reader without drawing them, so the strip stays one row;
+         * the tabs beneath it name each side.
          */}
         <p
-          className={`flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 text-sm leading-tight font-bold max-sm:hidden lg:hidden ${end ? 'justify-end' : ''} ${colours.text}`}
+          className={`flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 text-sm leading-tight font-bold max-sm:sr-only lg:hidden ${end ? 'justify-end' : ''} ${colours.text}`}
         >
           {side.armies.map((army, at) => {
             const name = (
               <>
                 <SeatTag side={side.index} seat={at} />
                 <PlayerAvatar name={army.playerName} image={army.playerImage} className="size-5 text-3xs" />
-                <span className={cn('min-w-0 truncate', crowded ? 'sr-only sm:not-sr-only' : '')}>{army.playerName}</span>
+                <span className="min-w-0 truncate">{army.playerName}</span>
               </>
             )
             return (

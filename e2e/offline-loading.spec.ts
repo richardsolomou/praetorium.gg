@@ -76,7 +76,7 @@ test('an unopened rule from an older download stays readable throughout hosted r
     await held
     await route.continue()
   })
-  await page.getByRole('navigation', { name: 'Reference' }).getByRole('link', { name: 'Rules', exact: true }).click()
+  await page.getByRole('navigation', { name: 'Primary' }).getByRole('link', { name: 'Rules', exact: true }).click()
   await page.locator('a[href="/rules/core-rules/moving"]').first().click()
   await expect(page.getByRole('heading', { name: 'Saved Moving', exact: true })).toBeVisible()
   await page.locator('main details summary').first().click()

@@ -1,8 +1,7 @@
 import { FactionReferenceLink } from '../../../components/FactionReferenceLink'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { ChevronLeft } from 'lucide-react'
-import { BACK_LINK } from '../backLink'
+import { BackLink } from '../BackLink'
 import { Skeleton } from '@/components/ui/skeleton'
 import { dispositionTone } from '../../../components/rosterSetup'
 import { dispositionDetachmentsQuery, gameReferencesQuery } from '../../../queries'
@@ -23,10 +22,7 @@ export function ForceDispositionPage({ dispositionId }: { dispositionId: string 
     <main className="w-full">
       <PageHeader title={disposition.name} description={disposition.text} />
       <PageContent className="space-y-8">
-        <Link to="/force-dispositions" className={BACK_LINK}>
-          <ChevronLeft className="size-3.5" aria-hidden />
-          Force dispositions
-        </Link>
+        <BackLink to="/force-dispositions">Force dispositions</BackLink>
         {packs.map(({ pack, matchups }) => (
           <section key={pack.id}>
             <SectionHeading

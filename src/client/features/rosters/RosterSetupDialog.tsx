@@ -511,7 +511,7 @@ export function RosterSetupDialog({
               >
                 {conflict ? (
                   <UnavailableDetachment name={detachment.name} reason={conflict}>
-                    <Choice chosen={false} />
+                    <ChoiceMark chosen={false} />
                     <DetachmentSummary detachment={detachment} />
                     <span className="chip shrink-0 text-faint">{detachment.points ?? '—'} DP</span>
                   </UnavailableDetachment>
@@ -523,7 +523,7 @@ export function RosterSetupDialog({
                     onClick={() => toggleDetachment(detachment.id)}
                     className="flex min-w-0 flex-1 items-center gap-3 py-2.5 pl-3 text-left"
                   >
-                    <Choice chosen={chosen} />
+                    <ChoiceMark chosen={chosen} />
                     <DetachmentSummary detachment={detachment} />
                     <span className={`chip shrink-0 ${chosen ? 'border-parchment/60 text-parchment' : ''}`}>
                       {detachment.points ?? '—'} DP
@@ -606,7 +606,7 @@ export function RosterSetupDialog({
                   aria-pressed={chosen}
                   className={`flex min-h-12 items-center gap-3 rounded-lg border px-3 text-left transition-colors ${chosen ? 'border-parchment bg-parchment/6 inset-ring-1 inset-ring-parchment' : 'border-edge bg-sunken hover:border-runner-hi'}`}
                 >
-                  <Choice chosen={chosen} />
+                  <ChoiceMark chosen={chosen} />
                   <span className={`chip ${dispositionTone(entry.id)}`}>{entry.name}</span>
                 </button>
               )
@@ -796,7 +796,7 @@ export function RosterSetupDialog({
 }
 
 /** The round mark a chosen option fills, the same on detachments and dispositions. */
-function Choice({ chosen }: { chosen: boolean }) {
+function ChoiceMark({ chosen }: { chosen: boolean }) {
   return (
     <span
       aria-hidden

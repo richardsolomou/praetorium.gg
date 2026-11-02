@@ -1,6 +1,17 @@
 import { waitForOfflineApp } from './offline'
 import { expect, test } from './test'
-import { advance, advanceButton, createRoster, desktopContext, setupBattle, signUp, takeTheTurn, uniqueName, playerPanel } from './account'
+import {
+  advance,
+  advanceButton,
+  confirmScoring,
+  createRoster,
+  desktopContext,
+  setupBattle,
+  signUp,
+  takeTheTurn,
+  uniqueName,
+  playerPanel,
+} from './account'
 import { battleCommands, battleLog, lastPathSegment, battleIdFor } from './storage'
 import type { Command } from '../src/core/battle'
 
@@ -63,7 +74,7 @@ test('New Orders, discard CP and carried cards survive a complete two-player rou
   for (let phase = 0; phase < 5; phase += 1) await advance(page)
   await page.getByRole('button', { name: 'Pass the turn', exact: true }).click()
   const scoring = page.getByRole('dialog', { name: /^Scoring end of turn points/ })
-  await scoring.getByRole('button', { name: 'Pass the turn', exact: true }).click()
+  await confirmScoring(scoring, 'Pass the turn')
   const discard = page.getByRole('dialog', { name: 'Discard tactical secondaries?' })
   const replacement = discard.locator('button[aria-pressed]').filter({ hasNotText: 'Plunder' }).first()
   await replacement.click()
@@ -126,7 +137,7 @@ test('both sides settle source final awards beyond round caps through cold offli
     .getByRole('button', { name: /plus 5$/ })
     .nth(1)
     .click()
-  await expect(finalTurn.locator('output').filter({ hasText: 'VP' })).toContainText('Scoring 10 VP')
+  await expect(finalTurn.locator('[data-slot="dialog-footer"] output')).toHaveAccessibleName('Scoring 10 VP')
   await expect(finalTurn).toContainText('Primary mission 15/15 this round')
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 900 })
@@ -140,7 +151,7 @@ test('both sides settle source final awards beyond round caps through cold offli
       .toBe(true)
   }
   await page.reload()
-  await expect(finalTurn.locator('output').filter({ hasText: 'VP' })).toContainText('Scoring 0 VP')
+  await expect(finalTurn.locator('[data-slot="dialog-footer"] output')).toHaveAccessibleName('Scoring 0 VP')
   await primary.getByRole('button', { name: 'Gather Intel plus 4', exact: true }).click()
   await primary
     .getByRole('button', { name: /plus 5$/ })
@@ -150,11 +161,11 @@ test('both sides settle source final awards beyond round caps through cold offli
     .getByRole('button', { name: /plus 5$/ })
     .nth(1)
     .click()
-  await expect(finalTurn.locator('output').filter({ hasText: 'VP' })).toContainText('Scoring 10 VP')
+  await expect(finalTurn.locator('[data-slot="dialog-footer"] output')).toHaveAccessibleName('Scoring 10 VP')
   await waitForOfflineApp(page)
   const url = page.url()
   await context.setOffline(true)
-  await finalTurn.getByRole('button', { name: 'Pass the turn', exact: true }).click()
+  await confirmScoring(finalTurn, 'Pass the turn')
   await expect(page.getByRole('dialog', { name: /^Scoring end of battle points/ })).toBeVisible()
   await page.close()
   page = await context.newPage()
@@ -170,8 +181,8 @@ test('both sides settle source final awards beyond round caps through cold offli
     .getByRole('button', { name: /plus 5$/ })
     .nth(1)
     .click()
-  await expect(firstFinal.locator('output').filter({ hasText: 'VP' })).toContainText('Scoring 10 VP')
-  await firstFinal.getByRole('button', { name: 'Finish battle', exact: true }).click()
+  await expect(firstFinal.locator('[data-slot="dialog-footer"] output')).toHaveAccessibleName('Scoring 10 VP')
+  await confirmScoring(firstFinal, 'Finish battle')
   await expect(page.locator('[data-scoreboard] h1')).toHaveText('Drawn at 35')
   expect((await loggedCommands(battleId)).filter(isFinalSettlement)).toHaveLength(0)
   await context.setOffline(false)

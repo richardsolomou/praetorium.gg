@@ -252,7 +252,7 @@ export function SignInPage({
 
               <Button
                 variant="outline"
-                className="mt-4 h-11 w-full text-base"
+                className="mt-4 h-11 text-base"
                 onClick={() => {
                   if (savingRoster)
                     posthog.capture('guest_roster_save_gate_interacted', { action: joining ? 'switch_to_sign_in' : 'switch_to_create' })

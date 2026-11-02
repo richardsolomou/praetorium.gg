@@ -20,8 +20,8 @@ test('two phones finish a five-round battle in step', async ({ browser }) => {
   const playRound = async (round: number) => {
     await expect(scoreboard(alice).getByText(`${aliceName}’s turn`, { exact: true })).toBeVisible()
     await playTurn(alice)
-    await expect(alice.locator('[data-side-score="0"] .bg-side-a')).toHaveCount(round)
-    await expect(alice.locator('[data-side-score="1"] .bg-side-b')).toHaveCount(round - 1)
+    await expect(alice.locator('[data-side-score="0"] [data-line="done"]')).toHaveCount(round)
+    await expect(alice.locator('[data-side-score="1"] [data-line="done"]')).toHaveCount(round - 1)
     await expect(scoreboard(bob).getByText(`${bobName}’s turn`, { exact: true })).toBeVisible()
     await playTurn(bob)
   }

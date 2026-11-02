@@ -148,11 +148,6 @@ export function RosterCombatTable({
           />
         </div>
       </div>
-      {marked.size ? (
-        <Button variant="ghost" size="sm" className="self-start" onClick={() => setMarked(new Set())}>
-          Clear {countLabel(marked.size, 'mark')}
-        </Button>
-      ) : null}
       <p className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-dim">
         <span className="inline-flex items-center gap-1.5">
           Less
@@ -169,7 +164,13 @@ export function RosterCombatTable({
         </span>
         <span className="hidden sm:inline">Select a result to adjust the matchup.</span>
         <span className="sm:hidden">Swipe for more targets; tap a result to adjust.</span>
-        <span>Cross off a result with ✕ to see the next best.</span>
+        {marked.size ? (
+          <Button variant="ghost" size="xs" className="-my-1" onClick={() => setMarked(new Set())}>
+            Clear {countLabel(marked.size, 'mark')}
+          </Button>
+        ) : (
+          <span>Cross off a result with ✕ to see the next best.</span>
+        )}
       </p>
       <TabsContent value={phase}>
         <section

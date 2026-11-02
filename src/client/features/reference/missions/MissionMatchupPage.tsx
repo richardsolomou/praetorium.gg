@@ -1,8 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { Fragment } from 'react'
-import { ChevronLeft, MapPinned, Maximize2 } from 'lucide-react'
-import { BACK_LINK } from '../backLink'
+import { MapPinned, Maximize2 } from 'lucide-react'
+import { BackLink } from '../BackLink'
 import { Dialog, DialogTrigger } from '../../../components/Dialog'
 import { MissionActions } from '../../../components/MissionActions'
 import { MissionCardReference } from '../../../components/MissionCardReference'
@@ -62,10 +62,9 @@ export function MissionMatchupPage({ packId, you, opponent }: { packId: string; 
         </div>
       </PageHeader>
       <PageContent className="space-y-6">
-        <Link to="/missions/$packId" params={{ packId }} className={BACK_LINK}>
-          <ChevronLeft className="size-3.5" aria-hidden />
+        <BackLink to="/missions/$packId" params={{ packId }}>
           {pack.name}
-        </Link>
+        </BackLink>
         <section>
           <SectionHeading title="Primary missions" />
           <div className="mt-4 grid gap-6 md:grid-cols-2">

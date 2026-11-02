@@ -27,14 +27,25 @@ const COLOR = {
   sideInks: ['#2b0505', '#021c27'],
 } as const
 
-/** The interface's construction grid at its 64px majors; its 8px cells would multiply the rasteriser's work. */
-const GRID = {
-  backgroundImage: [
-    'linear-gradient(to right, rgba(231,236,233,0.06) 1px, transparent 1px)',
-    'linear-gradient(to bottom, rgba(231,236,233,0.06) 1px, transparent 1px)',
-  ].join(', '),
-  backgroundSize: '64px 64px, 64px 64px',
-} satisfies CSSProperties
+/**
+ * The interface's construction grid at its 64px majors, drawn as plain 1px rules: as background gradients the
+ * rasteriser tiles them and a card takes several times longer.
+ */
+const GRID_LINE = 'rgba(231,236,233,0.06)'
+const GRID_LINES = [
+  ...Array.from({ length: Math.floor(PREVIEW_SIZE.width / 64) }, (_, at) => ({
+    left: (at + 1) * 64,
+    top: 0,
+    width: 1,
+    height: PREVIEW_SIZE.height,
+  })),
+  ...Array.from({ length: Math.floor(PREVIEW_SIZE.height / 64) }, (_, at) => ({
+    left: 0,
+    top: (at + 1) * 64,
+    width: PREVIEW_SIZE.width,
+    height: 1,
+  })),
+]
 
 /**
  * Satori draws only static faces, so the card uses the interface fonts' static instances. Fontsource splits a
@@ -151,11 +162,14 @@ function Frame({ card }: { card: PreviewCard }) {
         flexDirection: 'column',
         padding: '52px 64px',
         backgroundColor: COLOR.void,
-        ...GRID,
+        position: 'relative',
         color: COLOR.bone,
         fontFamily: `${FAMILY}, ${EXTENDED}`,
       }}
     >
+      {GRID_LINES.map((line) => (
+        <div key={`${line.left}-${line.top}`} style={{ position: 'absolute', ...line, backgroundColor: GRID_LINE }} />
+      ))}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
           <img src={LOGO} width={56} height={56} alt="" />

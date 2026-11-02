@@ -708,7 +708,8 @@ test('simulator first frame reserves its layout', async ({ browser, baseURL }) =
     await noOverflow(page)
     const contentWidth = await page.locator('main > div').evaluate((element) => {
       const padding = getComputedStyle(element)
-      return element.clientWidth - parseFloat(padding.paddingLeft) - parseFloat(padding.paddingRight)
+      // Unrounded, unlike clientWidth: a rail sized in rem can sit on a half pixel.
+      return element.getBoundingClientRect().width - parseFloat(padding.paddingLeft) - parseFloat(padding.paddingRight)
     })
     expect((await page.getByLabel('Combat matchup').boundingBox())?.width).toBe(contentWidth)
     expect((await page.getByLabel('Results summary').boundingBox())?.width).toBe(contentWidth)
@@ -1871,6 +1872,9 @@ test('Defiler can optimize ranged attacks instead of its stronger combined loado
     await page.screenshot({ path: test.info().outputPath(`simulator-optimize-mode-${width}.png`) })
     await page.keyboard.press('Escape')
     await expect(page.getByRole('menu')).toHaveCount(0)
+    // The click leaves the pointer on the button, and its tooltip would stay where it was through the next resize.
+    await page.mouse.move(0, 0)
+    await expect(page.getByRole('tooltip')).toHaveCount(0)
   })
   await options.click()
   await page.getByRole('menuitem', { name: 'Optimize for melee', exact: true }).click()

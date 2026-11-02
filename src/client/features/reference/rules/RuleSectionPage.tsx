@@ -12,7 +12,7 @@ import { PageContent, PageHeader } from '../../../components/Page'
 import { useRuleText } from '../../../rulesText'
 import { RulesTextNotice } from './RulesTextNotice'
 import { revealHashTarget } from '../../../hashTarget'
-import { BACK_LINK } from '../backLink'
+import { BackLink } from '../BackLink'
 
 /**
  * One section of one rules document, which is as much as anybody reads at a time.
@@ -50,10 +50,9 @@ export function RuleSectionPage({ documentId, sectionId }: { documentId: string;
     <main className="w-full">
       <PageHeader title={shown.title} />
       <PageContent className="space-y-6 *:max-w-3xl">
-        <Link to="/rules/$documentId" params={{ documentId }} className={BACK_LINK}>
-          <ChevronLeft className="size-3.5" aria-hidden />
+        <BackLink to="/rules/$documentId" params={{ documentId }}>
           {data.document.title}
-        </Link>
+        </BackLink>
         <RulesTextNotice text={data.document.text} state={text} />
         <div className="runner gap-2.5 [--gate-y:1.5rem]">
           {shown.entries.map((entry) => (

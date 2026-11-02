@@ -1,7 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { ChevronLeft } from 'lucide-react'
-import { BACK_LINK } from '../backLink'
+import { BackLink } from '../BackLink'
 import { useDateFormatting } from '../../../dates'
 import { ruleIndexQuery } from '../../../queries'
 import { PageContent, PageHeader } from '../../../components/Page'
@@ -26,10 +25,7 @@ export function RuleContents({ documentId }: { documentId: string }) {
         }
       />
       <PageContent className="space-y-8">
-        <Link to="/rules" className={BACK_LINK}>
-          <ChevronLeft className="size-3.5" aria-hidden />
-          Rules
-        </Link>
+        <BackLink to="/rules">Rules</BackLink>
         {document.sections.map((section) => (
           <section key={section.id}>
             <h2 className="flex items-baseline justify-between gap-3 border-b border-edge pb-2 text-lg">

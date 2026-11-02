@@ -24,7 +24,7 @@ test('a connected launch loads the current application instead of the saved appl
   })
   await expect.poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller))).toBe(true)
   await page.reload()
-  await expect(page.getByRole('link', { name: 'Rosters', exact: true }).first()).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Army builder', exact: true })).toBeVisible()
   await expect(page.getByRole('complementary', { name: 'Release update' })).toHaveCount(0)
   await page.screenshot({ path: test.info().outputPath('current-release-launch.png') })
 })
@@ -56,7 +56,7 @@ test('release notice waits for a new version and refreshes only on request', asy
   await expect(notice).toBeVisible()
   served = version
   await notice.getByRole('button', { name: 'Refresh', exact: true }).click()
-  await expect(page.getByRole('link', { name: 'Rosters', exact: true }).first()).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Army builder', exact: true })).toBeVisible()
   await expect(notice).toHaveCount(0)
 })
 
@@ -64,7 +64,7 @@ test('failed release checks leave the page usable without an update notice', asy
   await page.route('**/api/release', (route) => route.fulfill({ status: 502 }))
   await page.goto('/')
   await expect(page.getByRole('complementary', { name: 'Release update' })).toHaveCount(0)
-  await expect(page.getByRole('link', { name: 'Rosters', exact: true }).first()).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Army builder', exact: true })).toBeVisible()
 })
 
 test("what's new waits a week after the last look, then says what changed once", async ({ page }) => {
@@ -111,7 +111,7 @@ test('a page built before the deployed release loads its next route from the new
   await page.goto('/')
   await expect(page.getByRole('complementary', { name: 'Release update' })).toBeVisible()
   await page.evaluate(() => Object.assign(window, { previousDocument: true }))
-  await page.getByRole('link', { name: 'Rosters', exact: true }).first().click()
+  await page.getByRole('link', { name: 'Army builder', exact: true }).click()
   await expect(page).toHaveURL(staleBuildMarker)
   await expect(page.getByRole('heading', { name: 'Rosters', exact: true }).first()).toBeVisible()
   expect(await page.evaluate(() => 'previousDocument' in window)).toBe(false)
@@ -149,7 +149,7 @@ test('a route error in a page built before the deployed release reloads into the
   let served = version
   await serveRelease(page, () => served)
   await page.goto('/')
-  await expect(page.getByRole('link', { name: 'Rosters', exact: true }).first()).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Army builder', exact: true })).toBeVisible()
   await failFactionsModule(page, (document) => !document.searchParams.has('__build_retry'))
   // The release changes between checks, so only the error page's own check can notice it.
   served = '99.0.0'

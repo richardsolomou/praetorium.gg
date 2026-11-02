@@ -42,8 +42,9 @@ export function DialogContent({
       {...props}
       data-fit={fit || undefined}
       showCloseButton={false}
+      // Clipped rather than hidden: a hidden box still scrolls when focus or scrollIntoView reaches past it, shifting the header and footer.
       className={cn(
-        'flex flex-col gap-0 overflow-hidden p-0 sm:max-h-[calc(100dvh-4rem)]',
+        'flex flex-col gap-0 overflow-clip p-0 sm:max-h-[calc(100dvh-4rem)]',
         fill && 'sm:h-[calc(100dvh-4rem)]',
         SIZES[size],
         ACTIONS_INSET[Number(Boolean(actions)) + Number(showCloseButton)],

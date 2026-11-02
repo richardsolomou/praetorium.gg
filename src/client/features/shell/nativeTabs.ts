@@ -71,3 +71,14 @@ export function forgetTab(href: string) {
 export function recallTab(section: NativeSection) {
   return stored(section)
 }
+
+const MORE_TAB = `${TAB_PREFIX}more`
+
+/** Remembers the last screen opened from More, which spans several sections and screens that have none. */
+export function rememberMoreTab(href: string | null) {
+  writeSessionValue(MORE_TAB, href)
+}
+
+export function recallMoreTab() {
+  return readSessionValue(MORE_TAB)
+}

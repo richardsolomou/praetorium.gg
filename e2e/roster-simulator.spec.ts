@@ -43,11 +43,11 @@ test('Invasion Fleet hides unsupported rules in both roles while retaining calcu
     await expect
       .poll(() =>
         simulator.getByLabel('Results summary').evaluate((element) => {
-          const dialog = element.closest('[role=dialog]')
-          return Boolean(dialog && Math.abs(element.getBoundingClientRect().bottom - dialog.getBoundingClientRect().bottom) <= 1)
+          const dialog = element.closest('[role=dialog]')!
+          return Math.abs(element.getBoundingClientRect().bottom - dialog.getBoundingClientRect().bottom)
         }),
       )
-      .toBe(true)
+      .toBeLessThanOrEqual(1)
     await closeCombatBreakdown(simulator)
     if (width === 390)
       expect(await simulator.getByLabel('Results summary').evaluate((element) => element.getBoundingClientRect().height)).toBeLessThan(160)

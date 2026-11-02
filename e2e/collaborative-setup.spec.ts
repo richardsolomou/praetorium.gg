@@ -41,7 +41,7 @@ test('battle setup stays shared and does not wait for the other device', async (
   await alice.reload()
 
   for (const name of ['Mission', 'Battlefield', 'Defender', 'Secondaries', 'Reserves', 'Deploy', 'First turn', 'Pre-battle rules']) {
-    await expect(alice.getByRole('region', { name, exact: true })).toHaveCSS('opacity', '0.4')
+    await expect(alice.getByRole('region', { name, exact: true })).toHaveAttribute('data-locked', 'true')
   }
   await expect(alice.getByText('Determined by your rosters')).toBeVisible()
   await expect(alice.locator('[data-setup-bar]')).toContainText('Your army')
@@ -71,7 +71,7 @@ test('battle setup stays shared and does not wait for the other device', async (
   await expect(alice.getByText('Strike Force · 2,000 points', { exact: true })).toBeVisible()
   await expect(bob.getByText('Strike Force · 2,000 points', { exact: true })).toBeVisible()
   await expect(alice.locator('#setup-armies')).toHaveAttribute('data-complete', 'true')
-  await expect(alice.getByRole('region', { name: 'Defender', exact: true })).toHaveCSS('opacity', '1')
+  await expect(alice.getByRole('region', { name: 'Defender', exact: true })).toHaveAttribute('data-locked', 'false')
   for (const name of ['Deploy', 'Pre-battle rules']) {
     await setupStep(alice, name)
     const section = alice.getByRole('region', { name, exact: true })
@@ -109,7 +109,7 @@ test('battle setup stays shared and does not wait for the other device', async (
   await alice.keyboard.press('Escape')
 
   await chooseBattlefield(alice)
-  await expect(alice.getByRole('region', { name: 'Deploy', exact: true })).toHaveCSS('opacity', '0.4')
+  await expect(alice.getByRole('region', { name: 'Deploy', exact: true })).toHaveAttribute('data-locked', 'true')
   await expect(bob.locator('#setup-battlefield')).toHaveAttribute('data-complete', 'true')
   // The board itself is what opens the board, rather than a button beside it.
   await setupStep(alice, 'Battlefield')
@@ -137,7 +137,7 @@ test('battle setup stays shared and does not wait for the other device', async (
   await Promise.all([defender.click(), aliceDefender.click()])
   await expect(alice.getByText('Your opponent got there first. Try that again.')).toBeHidden()
   await expect(bob.getByText('Your opponent got there first. Try that again.')).toBeHidden()
-  await expect(alice.getByRole('region', { name: 'Deploy', exact: true })).toHaveCSS('opacity', '1')
+  await expect(alice.getByRole('region', { name: 'Deploy', exact: true })).toHaveAttribute('data-locked', 'false')
   // Settled, the step folds to its answer; open it again to read both roles.
   await expect(bob.locator('#setup-defender')).toHaveAttribute('data-complete', 'true')
   await setupStep(bob, 'Defender')
@@ -181,9 +181,9 @@ test('battle setup stays shared and does not wait for the other device', async (
   await expectNoPageOverflow(alice)
   await alice.screenshot({ path: test.info().outputPath('setup-reserves-phone.png'), fullPage: true })
   await expect(alice.locator('[data-setup-bar]').getByRole('button', { name: 'Start battle', exact: true })).toBeDisabled()
-  await expect(alice.getByRole('region', { name: 'Pre-battle rules', exact: true })).toHaveCSS('opacity', '0.4')
+  await expect(alice.getByRole('region', { name: 'Pre-battle rules', exact: true })).toHaveAttribute('data-locked', 'true')
   await recordFirstTurn(alice)
-  await expect(alice.getByRole('region', { name: 'Pre-battle rules', exact: true })).toHaveCSS('opacity', '1')
+  await expect(alice.getByRole('region', { name: 'Pre-battle rules', exact: true })).toHaveAttribute('data-locked', 'false')
 })
 
 test('both devices settle mandatory tactical cards without racing', async ({ browser }) => {

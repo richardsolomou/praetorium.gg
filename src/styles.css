@@ -8,8 +8,7 @@
 
 /*
  * The world is a kit sprue and its assembly booklet: parts on slate plastic,
- * hung off runners by gates, each carrying the number it keeps everywhere it
- * appears. Chakra Petch sets headings and the wordmark; Sofia Sans Semi Condensed
+ * hung off runners by gates. Chakra Petch sets headings and the wordmark; Sofia Sans Semi Condensed
  * keeps dense rosters and long rules readable; Martian Mono sets the figures a
  * player reads across the table.
  *
@@ -365,10 +364,14 @@ html[data-native-app='true'] [data-battle-sticky-header] {
     flex: 0 0 auto;
   }
 
-  /* Standing as a column, the bar's runner and gates would cross the tabs. */
-  html[data-native-app='true'] [data-native-app-tabs]::before,
+  /* Standing as a column, the open tab is a raised plate instead of a mark along the top edge. */
   html[data-native-app='true'] [data-native-app-tabs] > a::before {
     display: none;
+  }
+
+  html[data-native-app='true'] [data-native-app-tabs] > a[aria-current='page'] {
+    border-radius: var(--radius-lg);
+    background: var(--color-raised);
   }
 
   html[data-native-app='true'] [data-native-app-content][data-immersive='true'] {
@@ -549,6 +552,14 @@ html[data-native-app='true'] [data-battle-sticky-header] {
 :root {
   /* The fixed phone header's height, which sticky bars and anchor targets clear; the desktop rail sits beside the page instead. */
   --app-header: 3rem;
+
+  /* The construction grid's lines and their pitches, shared by every layer that draws it. */
+  --construction-grid-lines:
+    linear-gradient(to right, color-mix(in srgb, var(--color-bone) 6%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in srgb, var(--color-bone) 6%, transparent) 1px, transparent 1px),
+    linear-gradient(to right, color-mix(in srgb, var(--color-bone) 2.5%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in srgb, var(--color-bone) 2.5%, transparent) 1px, transparent 1px);
+  --construction-grid-sizes: 64px 64px, 64px 64px, 8px 8px, 8px 8px;
 
   /* The desktop navigation rail's width, which page bands reach back under. */
   --app-rail: 12.25rem;
@@ -829,16 +840,8 @@ html[data-native-app='true'] [data-battle-sticky-header] {
 /** The booklet's construction grid under a page's opening band: 8px cells, 64px majors, fading out before the content below. */
 @utility construction-grid {
   @apply pointer-events-none absolute inset-0;
-  background-image:
-    linear-gradient(to right, color-mix(in srgb, var(--color-bone) 6%, transparent) 1px, transparent 1px),
-    linear-gradient(to bottom, color-mix(in srgb, var(--color-bone) 6%, transparent) 1px, transparent 1px),
-    linear-gradient(to right, color-mix(in srgb, var(--color-bone) 2.5%, transparent) 1px, transparent 1px),
-    linear-gradient(to bottom, color-mix(in srgb, var(--color-bone) 2.5%, transparent) 1px, transparent 1px);
-  background-size:
-    64px 64px,
-    64px 64px,
-    8px 8px,
-    8px 8px;
+  background-image: var(--construction-grid-lines);
+  background-size: var(--construction-grid-sizes);
   background-position: -1px -1px;
   mask-image: linear-gradient(to bottom, black, transparent);
 }
@@ -861,15 +864,12 @@ html[data-native-app='true'] [data-battle-sticky-header] {
       border-style: solid;
       border-width: var(--band-top, 0px) 0 var(--band-bottom, 1px);
       border-color: inherit;
-      background:
-        linear-gradient(to bottom, transparent, var(--band, var(--color-masthead))),
-        linear-gradient(to right, color-mix(in srgb, var(--color-bone) 6%, transparent) 1px, transparent 1px) right 1px top -1px / 64px 64px,
-        linear-gradient(to bottom, color-mix(in srgb, var(--color-bone) 6%, transparent) 1px, transparent 1px) right 1px top -1px / 64px
-          64px,
-        linear-gradient(to right, color-mix(in srgb, var(--color-bone) 2.5%, transparent) 1px, transparent 1px) right 1px top -1px / 8px 8px,
-        linear-gradient(to bottom, color-mix(in srgb, var(--color-bone) 2.5%, transparent) 1px, transparent 1px) right 1px top -1px / 8px
-          8px,
-        var(--band, var(--color-masthead));
+      background-color: var(--band, var(--color-masthead));
+      background-image: linear-gradient(to bottom, transparent, var(--band, var(--color-masthead))), var(--construction-grid-lines);
+      background-size:
+        100% 100%,
+        var(--construction-grid-sizes);
+      background-position: right 1px top -1px;
     }
 
     html:not([data-native-app='true']) & {
@@ -905,9 +905,8 @@ html[data-native-app='true'] [data-battle-sticky-header] {
 }
 
 /**
- * The numbered lozenge a part carries everywhere it appears, so roster entry 4 is
- * entry 4 in the simulator and the battle too. Tint it with `part-tag-a` or `part-tag-b`
- * for a side, or `part-tag-ghost` for one not yet placed.
+ * The small lozenge that labels a seat, a rank, a round or a table. Tint it with `part-tag-a`
+ * or `part-tag-b` for a side, or `part-tag-ghost` for one not yet placed.
  */
 @utility part-tag {
   @apply inline-grid h-5 min-w-6 shrink-0 place-items-center rounded-full bg-bone px-1.5 font-display text-2xs leading-none font-bold whitespace-nowrap text-void tabular-nums;

@@ -170,7 +170,7 @@ components:
 ## Layout
 
 - Desktop from 860px: a sticky runner rail (12.25rem) on the left, nav items hung on gates inside a rounded 2px Runner frame, the current item gated in Field Green; content in one centred column (64rem max, 0.75rem gutter, 1rem from `sm`).
-- Below 860px: a compact 3rem header and a 4rem bottom tab bar drawn as a horizontal runner, where only the active tab is attached by a Field Green gate; dialogs go full screen unless they fit their content.
+- Below 860px: a compact 3rem header and a solid 4rem bottom tab bar (Home, Rosters, Battles, Factions, More) whose top edge is the runner, with the open tab marked by a doubled Field Green segment; dialogs go full screen unless they fit their content.
 - The native app stands its tabs as a 5rem column from 1024px, dropping the runner and gates.
 - Every top-level page opens with a Masthead band on the construction grid (8px cells, 64px majors, fading downward).
 - Wide data scrolls sideways in its own region, first column and header sticky.

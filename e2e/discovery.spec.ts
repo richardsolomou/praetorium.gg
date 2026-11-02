@@ -33,7 +33,7 @@ test('Terms account requirements match public guest tools', async ({ page }, tes
   })
 
   await page.goto('/')
-  const tryBuilder = page.getByRole('link', { name: 'Try the builder', exact: true })
+  const tryBuilder = page.getByRole('link', { name: 'Build an army', exact: true })
   await atEachWidth(() => expect(tryBuilder).toBeVisible())
   await tryBuilder.click()
   await expect(page).toHaveURL('/rosters')

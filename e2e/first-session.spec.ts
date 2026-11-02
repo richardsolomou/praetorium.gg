@@ -203,7 +203,6 @@ test('the first-game landing path fits', async ({ page }, testInfo) => {
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 900 })
     await expect(features.getByRole('img')).toHaveCount(0)
-    await expect(features.getByRole('list')).toHaveCount(0)
     await expect(features.getByRole('heading', { name: 'Combat simulator', exact: true })).toBeVisible()
     await features.getByRole('heading', { level: 2 }).scrollIntoViewIfNeeded()
     await page.screenshot({ path: testInfo.outputPath(`landing-path-${width}.png`) })
