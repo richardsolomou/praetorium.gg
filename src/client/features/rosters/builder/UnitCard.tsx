@@ -34,7 +34,7 @@ type BuiltUnit = {
 /** A unit already in the roster to attach, or a datasheet to add as a new unit and attach in the same edit. */
 export type AttachChoice =
   | { kind: 'roster'; key: number; name: string }
-  | { kind: 'new'; entryId: string; name: string; points: number | null; reason: string | null }
+  | { kind: 'new'; entryId: string; name: string; points: number | null; over: number | null; reason: string | null }
 
 /** Who this unit is joined to or riding with, in whichever direction the card is showing. */
 export type Joined = { label: string; name: string; action?: string; onAct?: () => void }
@@ -349,7 +349,7 @@ export function AttachMenu({
                   </span>
                 ) : null}
               </span>
-              <PointsChip points={choice.points} />
+              <PointsChip points={choice.points} over={choice.over} />
             </DropdownMenuItem>
           ))}
         </DropdownMenuGroup>
