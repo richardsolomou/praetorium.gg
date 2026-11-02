@@ -109,6 +109,7 @@ import * as SetRosterArchivedProcedure from '../set_roster_archived_procedure'
 import * as SetRosterLockedProcedure from '../set_roster_locked_procedure'
 import * as SetRosterVisibilityProcedure from '../set_roster_visibility_procedure'
 import * as ShareBattleProcedure from '../share_battle_procedure'
+import * as SplitRosterVariantProcedure from '../split_roster_variant_procedure'
 import * as SubmitBattleProcedure from '../submit_battle_procedure'
 import * as SyncAchievementDefinitionsProcedure from '../sync_achievement_definitions_procedure'
 import * as SyncProductProcedure from '../sync_product_procedure'
@@ -324,6 +325,8 @@ export type SetRosterVisibilityArgs = __Infer<typeof SetRosterVisibilityProcedur
 export type SetRosterVisibilityResult = __Infer<typeof SetRosterVisibilityProcedure.returnType>
 export type ShareBattleArgs = __Infer<typeof ShareBattleProcedure.params>
 export type ShareBattleResult = __Infer<typeof ShareBattleProcedure.returnType>
+export type SplitRosterVariantArgs = __Infer<typeof SplitRosterVariantProcedure.params>
+export type SplitRosterVariantResult = __Infer<typeof SplitRosterVariantProcedure.returnType>
 export type SubmitBattleArgs = __Infer<typeof SubmitBattleProcedure.params>
 export type SubmitBattleResult = __Infer<typeof SubmitBattleProcedure.returnType>
 export type SyncAchievementDefinitionsArgs = __Infer<typeof SyncAchievementDefinitionsProcedure.params>

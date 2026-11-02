@@ -1,5 +1,18 @@
 import { Link } from '@tanstack/react-router'
-import { Archive, ArchiveRestore, Copy, EllipsisVertical, Eye, GitBranchPlus, Lock, LockOpen, Pencil, Share2, Trash2 } from 'lucide-react'
+import {
+  Archive,
+  ArchiveRestore,
+  Copy,
+  EllipsisVertical,
+  Eye,
+  GitBranchPlus,
+  Lock,
+  LockOpen,
+  Pencil,
+  Share2,
+  Trash2,
+  Unlink,
+} from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { MENU_ITEM } from '../../components/MenuSection'
@@ -89,7 +102,7 @@ export function RosterRow({
 }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const title = rosterTitle(roster, faction, label)
-  const items = { roster, actions, onEdit, onShare, onDelete, onNeedsAccount }
+  const items = { roster, grouped: layout !== 'card', actions, onEdit, onShare, onDelete, onNeedsAccount }
 
   return (
     <ContextMenu>
@@ -173,6 +186,7 @@ function RosterActionItems({
   Item,
   Separator,
   roster,
+  grouped,
   actions,
   onEdit,
   onShare,
@@ -182,6 +196,8 @@ function RosterActionItems({
   Item: typeof DropdownMenuItem | typeof ContextMenuItem
   Separator: typeof DropdownMenuSeparator | typeof ContextMenuSeparator
   roster: SavedRoster
+  /** Whether the list shares a card with its variants, so it can be taken out to stand on its own. */
+  grouped: boolean
   actions: RosterActions
   onEdit: () => void
   onShare: () => void
@@ -206,6 +222,11 @@ function RosterActionItems({
       >
         <Copy /> Duplicate
       </Item>
+      {grouped ? (
+        <Item className={MENU_ITEM} disabled={actions.split.isPending} onClick={() => actions.split.mutate(roster.id)}>
+          <Unlink /> Make its own roster
+        </Item>
+      ) : null}
       <Separator />
       <Item className={MENU_ITEM} onClick={onShare}>
         <Share2 /> Share…

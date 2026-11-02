@@ -838,6 +838,10 @@ export class SpacetimeOperator {
     return this.reply('set_roster_archived', [id, userId, archived, now], z.boolean())
   }
 
+  async splitRosterVariant(id: string, userId: string, now: number) {
+    return this.reply('split_roster_variant', [id, userId, now], z.boolean())
+  }
+
   /** Each roster's new version, or null when one is not the player's and none changed. */
   async changeRosters(ids: readonly string[], userId: string, action: RosterBatchAction, now: number) {
     return this.read(

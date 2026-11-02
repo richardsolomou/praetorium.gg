@@ -352,6 +352,7 @@ export function RosterLibraryPage({
           }}
         />
         {actions.lock.isError ? <Problem error={actions.lock.error} /> : null}
+        {actions.split.isError ? <Problem error={actions.split.error} /> : null}
         {actions.exchange.isError ? <Problem>Could not make an exchange code: {errorMessage(actions.exchange.error)}</Problem> : null}
 
         <section>
