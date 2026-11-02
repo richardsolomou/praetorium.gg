@@ -24,7 +24,6 @@ import {
   PHONE,
   uploadAvatar,
   playerPanel,
-  nextFrames,
 } from './account'
 import { battleCommands, battleLog, productSql, lastPathSegment, battleIdFor } from './storage'
 import { expectNoHorizontalOverflow } from './builder.harness'
@@ -198,8 +197,6 @@ test('native battle controls leave the application tabs reachable', async ({ pag
   await page.evaluate(() => {
     document.documentElement.dataset.nativeApp = 'true'
   })
-  // The resized window's media queries apply at its next frame; measured before then, the controls sit where the desktop puts them.
-  await nextFrames(page)
 
   const turnControl = page.locator('[data-turn-control]')
   const applicationTabs = page.getByRole('navigation', { name: 'Application sections' })
