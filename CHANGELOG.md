@@ -1,5 +1,16 @@
 # praetorium
 
+## 0.216.0 (2026-11-02)
+
+### Minor Changes
+
+- c4f0b4c: Collection now sits in the side menu, and shows how much of your shelf is built and painted, for the whole collection, each army and each datasheet.
+
+### Patch Changes
+
+- c4f0b4c: The account menu now keeps Friends and Account settings together and links to the docs.
+- c4f0b4c: Wishlist suggestions now only list units other players field in your armies, under the army they were suggested for, instead of unrelated armies' fortifications.
+
 ## 0.215.2 (2026-11-02)
 
 ### Patch Changes
