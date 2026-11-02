@@ -1,12 +1,1 @@
-[
-  {
-    "reason": "A lone Broadside Shas'vre now resizes to 3 with the size stepper instead of an add-a-model choice, so at 1 model the roster lists only the Shas'vre it fields; at 3 models both model kinds, their choices and wargear return.",
-    "entries": [
-      "tau-empire / Broadside Battlesuits search: wargear:Broadside Shas’ui",
-      "tau-empire / Broadside Battlesuits search: wargear:Broadside Shas’ui (0-2)",
-      "tau-empire / Broadside Battlesuits roster choices: Broadside Shas’ui (0-2): Broadside Shas’ui",
-      "tau-empire / Broadside Battlesuits roster models: Broadside Shas’ui (10 rows, 1 fixed)",
-      "tau-empire / Broadside Battlesuits roster models: Broadside Shas’vre (10 rows, 1 fixed)"
-    ]
-  }
-]
+[]
