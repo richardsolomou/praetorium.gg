@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.212.1 (2026-11-02)
+
+### Patch Changes
+
+- 139e2e8: The leaderboard on a phone shows every column and scrolls sideways.
+- 139e2e8: Battle sides are told apart by colour alone, without the A1 and B1 tags.
+
 ## 0.212.0 (2026-11-02)
 
 ### Minor Changes
