@@ -1,0 +1,39 @@
+diff --git a/definitions/Imperium - Adeptus Custodes.json b/definitions/Imperium - Adeptus Custodes.json
+--- a/definitions/Imperium - Adeptus Custodes.json
++++ b/definitions/Imperium - Adeptus Custodes.json
+@@ -1297,7 +1297,7 @@
+           {
+             "id": "pc-f9fff9117fc7ad5090b01643",
+             "type": "max",
+-            "value": 1,
++            "value": 3,
+             "field": "selections",
+             "scope": "roster",
+             "shared": true,
+@@ -2309,7 +2309,7 @@
+           {
+             "id": "pc-6c016cb805bd189f622a3b10",
+             "type": "max",
+-            "value": 1,
++            "value": 3,
+             "field": "selections",
+             "scope": "roster",
+             "shared": true,
+@@ -2692,7 +2692,7 @@
+           {
+             "id": "pc-102159cff7ed1ea558f4f4bc",
+             "type": "max",
+-            "value": 1,
++            "value": 3,
+             "field": "selections",
+             "scope": "roster",
+             "shared": true,
+@@ -2763,7 +2763,7 @@
+           {
+             "id": "pc-211f252eeccbd9879752ecbd",
+             "type": "max",
+-            "value": 1,
++            "value": 3,
+             "field": "selections",
+             "scope": "roster",
+             "shared": true,
