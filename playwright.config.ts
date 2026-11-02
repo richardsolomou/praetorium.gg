@@ -21,7 +21,13 @@ export default defineConfig({
   // Live updates include a SpacetimeDB subscription and a refetch.
   expect: { timeout: 15_000 },
   reporter: process.env.CI ? 'github' : 'list',
-  use: { baseURL, trace: process.env.PLAYWRIGHT_TRACE ? 'on' : 'retain-on-failure', screenshot: 'only-on-failure' },
+  // Geometry is measured at rest: overlays and pages would otherwise still be moving when a check reads them.
+  use: {
+    baseURL,
+    reducedMotion: 'reduce',
+    trace: process.env.PLAYWRIGHT_TRACE ? 'on' : 'retain-on-failure',
+    screenshot: 'only-on-failure',
+  },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 } } }],
   // The runner starts Node with isolated local SQLite, object, and SpacetimeDB data.
   webServer: {
