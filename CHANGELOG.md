@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.217.0 (2026-11-02)
+
+### Minor Changes
+
+- 64211ae: Each wishlist card has a Move to collection button that puts the models you now have on your shelf, asking how many when you want more than one.
+
 ## 0.216.4 (2026-11-02)
 
 ### Patch Changes
