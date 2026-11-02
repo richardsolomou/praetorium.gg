@@ -9,7 +9,6 @@ import { completedSideRound } from './battleProgress'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { sideName, type Side } from '../../sides'
 import { tint } from './battleTints'
-import { SeatTag } from './PlayerName'
 import { Elapsed } from './Elapsed'
 
 type Props = { view: BattleView; clock: BattleClock; sides: Side[] }
@@ -150,10 +149,9 @@ function SideScore({
         <p
           className={`flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 text-sm leading-tight font-bold max-sm:sr-only lg:hidden ${end ? 'justify-end' : ''} ${colours.text}`}
         >
-          {side.armies.map((army, at) => {
+          {side.armies.map((army) => {
             const name = (
               <>
-                <SeatTag side={side.index} seat={at} />
                 <PlayerAvatar name={army.playerName} image={army.playerImage} className="size-5 text-3xs" />
                 <span className="min-w-0 truncate">{army.playerName}</span>
               </>

@@ -6,9 +6,6 @@
 const SIDE_TINTS = [
   {
     text: 'text-side-a',
-    /** The side's letter on every seat's part tag: A1, A2. */
-    letter: 'A',
-    tag: 'part-tag-a',
     edge: 'border-t-side-a',
     rail: 'bg-side-a',
     /** The colour a line-form rail draws in for this side. */
@@ -24,8 +21,6 @@ const SIDE_TINTS = [
   },
   {
     text: 'text-side-b',
-    letter: 'B',
-    tag: 'part-tag-b',
     edge: 'border-t-side-b',
     rail: 'bg-side-b',
     line: '[--line-colour:var(--color-side-b)]',

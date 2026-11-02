@@ -58,7 +58,7 @@ import { SidePanel } from './SidePanel'
 import { TurnControl } from './TurnControl'
 import { TwistName } from './MissionTwist'
 import { Report, reportPlayers } from './Report'
-import { SideTag } from './PlayerName'
+import { SideDot } from './PlayerName'
 import { BattleMinimizeContext } from './BattlePromptDialog'
 import { advanceOnboarding, ONBOARDING_FOCUS_EVENT, storedOnboardingFocus, type OnboardingFocus } from '../onboarding/onboarding'
 import { Fact } from '../../components/Fact'
@@ -571,13 +571,13 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
           <Tabs value={focus} onValueChange={(value) => setFocus(value as Focus)} className="battle-focus-tabs lg:hidden">
             <TabsList className={`grid w-full ${oneSided ? 'grid-cols-2' : 'grid-cols-3'}`}>
               <TabsTrigger value="yours">
-                {yours ? <SideTag side={yours} /> : null}
+                {yours ? <SideDot side={yours.index} /> : null}
                 Your side
               </TabsTrigger>
               <TabsTrigger value="battle">Battle</TabsTrigger>
               {oneSided ? null : (
                 <TabsTrigger value="theirs">
-                  {theirs ? <SideTag side={theirs} /> : null}
+                  {theirs ? <SideDot side={theirs.index} /> : null}
                   Opponent
                 </TabsTrigger>
               )}
