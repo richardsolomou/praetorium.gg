@@ -8,6 +8,7 @@
 - Shared modules must run in Hermes; Node or browser support proves nothing.
 - Web features check the specific capability in `src/client/nativeBridge.ts`, not `bridgeVersion`, and keep older installed shells usable.
 - Do not add native battle state or a separate fetch path; refetch through the web handlers.
+- Haptics come from the four feels in `src/contracts/nativeBridge.ts`, each with one job; a shell without `haptic-styles` gets only the old confirmation, for `light` and `success`. Links other than the tab bar, menus and dialogs stay silent.
 
 ## Authentication
 

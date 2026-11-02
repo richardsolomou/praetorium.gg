@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Select as SelectPrimitive } from '@base-ui/react/select'
 import { Select, SelectContent, SelectItem, SelectValue } from '@/components/ui/select'
 import type { OnboardingTarget } from '../onboardingTargets'
+import { requestNativeHaptic } from '../nativeBridge'
 import { holdPress } from './holdRepeat'
 
 /** Minus, the number, plus, each held to repeat; given choices, the number also picks a count directly. */
@@ -85,8 +86,10 @@ export function CountButton({
     if (repeat && event.button === 0)
       press.press(event.pointerId, window, () => {
         const step = latest.current
-        step?.()
-        return Boolean(step)
+        if (!step) return false
+        step()
+        requestNativeHaptic('selection')
+        return true
       })
   }
   const color = decrease
@@ -103,7 +106,11 @@ export function CountButton({
       onPointerDown={hold}
       onPointerLeave={press.release}
       onContextMenu={repeat ? (event) => event.preventDefault() : undefined}
-      onClick={(event) => press.click(event.detail) && onClick?.()}
+      onClick={(event) => {
+        if (!press.click(event.detail) || !onClick) return
+        onClick()
+        requestNativeHaptic('selection')
+      }}
     >
       {decrease ? <Minus strokeWidth={2.5} /> : <Plus strokeWidth={2.5} />}
     </Button>

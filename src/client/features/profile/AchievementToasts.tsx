@@ -4,6 +4,7 @@ import { useEffect } from 'react'
 import { toast } from 'sonner'
 import { ACHIEVEMENTS } from '../../../core/achievements'
 import { markAchievementsSeen } from '../../functions'
+import { requestNativeHaptic } from '../../nativeBridge'
 import { newAchievementsQuery } from '../../queries'
 import { AchievementBadge } from './AchievementBadge'
 
@@ -17,6 +18,7 @@ export function AchievementToasts({ userId }: { userId: string }) {
   useEffect(() => {
     if (!data?.length) return
     const fresh = new Set(data.map((achievement) => achievement.id))
+    requestNativeHaptic('success')
     for (const achievement of ACHIEVEMENTS.filter((one) => fresh.has(one.id)))
       toast(`Achievement earned: ${achievement.name}`, {
         id: `achievement-${achievement.id}`,

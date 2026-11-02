@@ -18,3 +18,11 @@ export type NativeEvent = (typeof NATIVE_EVENTS)[keyof typeof NATIVE_EVENTS]
 export type NativePushAnswer =
   | { status: 'granted'; token: string; platform: PushPlatform }
   | { status: 'denied' | 'undetermined' | 'unavailable' }
+
+/**
+ * The feels a shell plays, one job each: `selection` a choice changing, `light` a routine command taking, `success` a
+ * moment that counts, `warning` something refused.
+ */
+export const HAPTICS = ['selection', 'light', 'success', 'warning'] as const
+
+export type Haptic = (typeof HAPTICS)[number]

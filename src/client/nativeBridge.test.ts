@@ -30,7 +30,7 @@ describe('native application actions', () => {
     expect(setNativeAccountMenuOpen(true)).toBe(true)
     expect(setNativeNavigation('Roster', '/rosters', true)).toBe(true)
     expect(setNativeHistoryBack(true)).toBe(true)
-    expect(requestNativeHaptic()).toBe(true)
+    expect(requestNativeHaptic('success')).toBe(true)
     await expect(shareLink('https://praetorium.gg/battles/abc', 'Battle')).resolves.toBe('shared')
     expect(postMessage.mock.calls.map(([message]) => JSON.parse(message))).toEqual([
       { version: 3, type: 'native-battle-active', active: true },
@@ -41,6 +41,25 @@ describe('native application actions', () => {
       { version: 3, type: 'native-haptic' },
       { version: 3, type: 'native-share', url: 'https://praetorium.gg/battles/abc', title: 'Battle' },
     ])
+  })
+
+  it('plays each feel on a shell that knows them', () => {
+    const postMessage = vi.fn()
+    vi.stubGlobal('window', {
+      PraetoriumNative: { bridgeVersion: 3, capabilities: ['haptic', 'haptic-styles'] },
+      ReactNativeWebView: { postMessage },
+    })
+
+    expect(requestNativeHaptic('selection')).toBe(true)
+    expect(JSON.parse(postMessage.mock.calls[0]![0])).toEqual({ version: 3, type: 'native-haptic', haptic: 'selection' })
+  })
+
+  it('sends an older shell only the confirmations it already played', () => {
+    const postMessage = vi.fn()
+    vi.stubGlobal('window', { PraetoriumNative: { bridgeVersion: 3, capabilities: ['haptic'] }, ReactNativeWebView: { postMessage } })
+
+    const sent = (['selection', 'light', 'success', 'warning'] as const).filter((haptic) => requestNativeHaptic(haptic))
+    expect(sent).toEqual(['light', 'success'])
   })
 
   it('falls back to the clipboard outside a compatible shell', async () => {
