@@ -1,5 +1,5 @@
 import { expect, test } from './test'
-import { retryUntilVisible, signUp, chooseFaction } from './account'
+import { chooseBattleSize, chooseFaction, retryUntilVisible, signUp } from './account'
 
 for (const width of [390, 1280]) {
   test(`roster setup explains a detachment that shares a one-per-army limit at ${width}px`, async ({ page }) => {
@@ -9,8 +9,7 @@ for (const width of [390, 1280]) {
     const dialog = page.getByRole('dialog', { name: 'Create roster' })
     await retryUntilVisible(dialog, () => page.getByRole('button', { name: 'New roster', exact: true }).first().click())
     await chooseFaction(dialog, 'Necrons')
-    await dialog.getByRole('combobox', { name: 'Battle size' }).click()
-    await page.getByRole('option', { name: 'Onslaught · 3,000 points' }).click()
+    await chooseBattleSize(dialog, /^Onslaught · 3,000 points/)
     await dialog.getByRole('button', { name: 'Select Awakened Dynasty', exact: true }).click()
 
     const unavailable = dialog.getByRole('button', { name: 'Select Hand of the Dynasty, unavailable' })

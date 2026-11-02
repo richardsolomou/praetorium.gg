@@ -287,6 +287,19 @@ export async function chooseFaction(setup: Locator, faction: string) {
   await setup.page().getByRole('option', { name: faction, exact: true }).click()
 }
 
+/** Picks a battle size, choosing again when a click lands before the menu takes it. */
+export async function chooseBattleSize(setup: Locator, size: RegExp) {
+  const box = setup.getByRole('combobox', { name: 'Battle size' })
+  // Each standard size lists before the custom size that keeps its limits.
+  const option = setup.page().getByRole('option', { name: size }).first()
+  await expect(async () => {
+    await box.click()
+    const label = (await option.innerText({ timeout: 5_000 })).trim()
+    await option.click({ timeout: 5_000 })
+    await expect(box).toContainText(label, { timeout: 5_000 })
+  }).toPass({ timeout: 30_000 })
+}
+
 export async function createRoster(
   page: Page,
   { faction, detachment, name, size, rules }: { faction: string; detachment: RegExp; name?: string; size?: RegExp; rules?: string },
@@ -300,11 +313,7 @@ export async function createRoster(
     await page.getByRole('option', { name: rules, exact: true }).click()
   }
   // A 2v1 ally brings half the battle size, so the size is a choice rather than the default.
-  if (size) {
-    await dialog.getByRole('combobox', { name: 'Battle size' }).click()
-    // Each standard size lists before the custom size that keeps its limits.
-    await page.getByRole('option', { name: size }).first().click()
-  }
+  if (size) await chooseBattleSize(dialog, size)
   await dialog.getByRole('button', { name: new RegExp(`^Select (?:${detachment.source})$`, detachment.flags) }).click()
   const dispositions = dialog.getByRole('group', { name: 'Force disposition' }).getByRole('button')
   if ((await dispositions.count()) > 1) await dispositions.first().click()

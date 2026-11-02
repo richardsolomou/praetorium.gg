@@ -20,6 +20,7 @@ import { at as selectionAt } from '../core/selection'
 import { unitChoices, unitToggles } from '../core/unitChoices'
 import { wargearOf } from '../core/wargear'
 import { textNickname, textNote, type TextRoster, type TextRosterUnit } from '../core/textRoster'
+import { nicknamedUnit } from '../core/unitNotes'
 import { gwTextGroup, gwTextVersionLines, toGwText, type GwTextRoster } from '../core/gwText'
 import type { UnitGroup } from '../core/unitGroups'
 import { allowsPointsBudget, customPointsBudget, GAME_SIZES, isGameSize, pointsBudgetError } from '../core/battle'
@@ -1159,7 +1160,10 @@ export function exportRosterFile(data: ExportRosterInput, loaded: LoadedCatalogu
 export function readableRoster(data: ExportRosterInput, loaded: LoadedCatalogue, priced: ExportPrice, dispositionNames: string[]) {
   const faction = loaded.index.catalogues.get(data.catalogueId)?.name ?? data.catalogueId
   const keyedPicks = data.units.map((pick, key) => ({ ...pick, key }))
-  const unitsByPick = data.units.map((_, index) => priced.units.find((unit) => unit.key === index))
+  const unitsByPick = data.units.map((pick, index) => {
+    const unit = priced.units.find((candidate) => candidate.key === index)
+    return unit && { ...unit, name: nicknamedUnit(unit.name, textNickname(pick.nickname ?? '')) }
+  })
   return {
     name: data.name,
     faction: factionDisplayName(faction),
