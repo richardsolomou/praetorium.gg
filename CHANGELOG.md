@@ -1,5 +1,23 @@
 # praetorium
 
+## 0.212.0 (2026-11-02)
+
+### Minor Changes
+
+- 90cfe93: The battle tracker's score and turn controls take less of a phone screen, and show rounds and phases as lines: solid for done, doubled for now, dashed for still to come.
+- 90cfe93: Praetorium has a new look, with rounded panels and lists drawn as parts on a frame.
+- 90cfe93: The scoring prompt asks for an answer on every card before you pass the turn, so nothing is scored as zero by accident.
+- 90cfe93: On larger screens the menu sits down the left side, and you can collapse it to icons.
+- 90cfe93: The home page explains what Praetorium is to new visitors and shows where to start.
+
+### Patch Changes
+
+- 82a1768: The More tab reopens the last page you visited from it; tap it again to get back to More.
+- 90cfe93: Clicking outside a dialog opened from another dialog now closes it.
+- 82a1768: The phone tab bar and More page are simpler and shorter, with your profile at the top of More.
+- 90cfe93: Search stays in one place as results come and go.
+- 82a1768: Crossing off a matchup result no longer pushes the comparison table down.
+
 ## 0.211.10 (2026-11-01)
 
 ### Patch Changes
