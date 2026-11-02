@@ -1089,8 +1089,21 @@ details[open]::details-content {
   animation: none;
 }
 
-/* One duration and curve for both sides, so their opacities always sum to one and unchanged chrome never dims. */
+/*
+ * One duration and curve for both sides, so their opacities always sum to one. Chrome applies plus-lighter through
+ * its own crossfade animation, which these replace; without it two half-transparent snapshots show the black
+ * backdrop and unchanged chrome dims mid-fade.
+ */
 html:active-view-transition-type(page) {
+  &::view-transition-image-pair(root) {
+    isolation: isolate;
+  }
+
+  &::view-transition-old(root),
+  &::view-transition-new(root) {
+    mix-blend-mode: plus-lighter;
+  }
+
   &::view-transition-old(root) {
     animation: 180ms var(--ease-settle) both page-out;
   }
