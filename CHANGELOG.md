@@ -1,5 +1,13 @@
 # praetorium
 
+## 0.215.2 (2026-11-02)
+
+### Patch Changes
+
+- 7d4751d: Moving between pages no longer dims the screen for a moment, so the sidebar and background stay steady while the page crossfades.
+- 7d4751d: With reduced motion on, collapsible sections open and close at once instead of fading.
+- 7d4751d: Testing a roster against targets no longer starts over when your saved rosters finish loading, so the table fills in sooner.
+
 ## 0.215.1 (2026-11-02)
 
 ### Patch Changes
