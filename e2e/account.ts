@@ -285,6 +285,8 @@ export async function chooseFaction(setup: Locator, faction: string) {
   await retryUntilVisible(search, () => setup.getByRole('combobox', { name: 'Faction' }).click())
   await search.fill(faction)
   await setup.page().getByRole('option', { name: faction, exact: true }).click()
+  // A closing list still shows its search, which would make the next pick type into it instead of reopening the list.
+  await expect(search).toBeHidden()
 }
 
 export async function createRoster(
