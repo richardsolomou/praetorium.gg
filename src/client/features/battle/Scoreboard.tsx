@@ -177,15 +177,23 @@ function SideScore({
           {/* Whose turn it is, at a glance: the side taking it has its score underlined in the current form. */}
           <span
             className={cn(
-              'flex items-baseline gap-1 border-b-[6px] border-double pb-0.5',
+              'flex items-baseline gap-1 border-b-[6px] border-double pb-0.5 transition-colors duration-300',
               playing && side.isActive ? 'border-parchment' : 'border-transparent',
             )}
           >
-            <span className={`figure text-3xl leading-none font-bold sm:text-5xl lg:text-4xl ${colours.text}`}>{side.total}</span>
+            {/* Keyed on the value, so a new score rises into place and draws the eye across the table. */}
+            <span
+              key={side.total}
+              className={`figure animate-figure text-3xl leading-none font-bold sm:text-5xl lg:text-4xl ${colours.text}`}
+            >
+              {side.total}
+            </span>
             <span className="font-display text-2xs font-semibold text-dim uppercase">vp</span>
           </span>
           <span className="flex items-baseline gap-1">
-            <span className={`figure text-lg leading-none font-bold ${colours.text}`}>{side.cp}</span>
+            <span key={side.cp} className={`figure animate-figure text-lg leading-none font-bold ${colours.text}`}>
+              {side.cp}
+            </span>
             <span className="font-display text-2xs font-semibold text-dim uppercase">cp</span>
           </span>
         </p>

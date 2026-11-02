@@ -21,7 +21,9 @@ export function AchievementToasts({ userId }: { userId: string }) {
       toast(`Achievement earned: ${achievement.name}`, {
         id: `achievement-${achievement.id}`,
         description: achievement.goal,
-        icon: <AchievementBadge metric={achievement.metric} count={achievement.count} tier={achievement.tier} earned className="size-8" />,
+        icon: (
+          <AchievementBadge metric={achievement.metric} count={achievement.count} tier={achievement.tier} earned glint className="size-8" />
+        ),
         // Sonner sizes its icon slot for a 16px glyph; the medal needs room to read.
         classNames: { icon: 'size-8! mr-1!' },
         action: {

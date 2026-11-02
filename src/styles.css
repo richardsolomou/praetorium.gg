@@ -77,6 +77,53 @@
   --shadow-part: inset 0 1px 0 rgb(255 255 255 / 0.03), 0 10px 28px -12px rgb(0 0 0 / 0.7);
   --shadow-lifted: 0 28px 70px -20px rgb(0 0 0 / 0.8), 0 2px 8px rgb(0 0 0 / 0.35);
 
+  /*
+   * Motion settles like a part pressed onto its gate: fast in, no overshoot. A line that becomes current draws out
+   * from where it joins, a strike inks in across what is cut, and a figure that changes rises into place.
+   */
+  --ease-settle: cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-draw: draw 280ms var(--ease-settle);
+  --animate-draw-down: draw-down 420ms var(--ease-settle);
+  --animate-strike: strike 320ms var(--ease-settle);
+  --animate-figure: figure 260ms var(--ease-settle);
+
+  @keyframes draw {
+    from {
+      scale: 0 1;
+    }
+  }
+
+  @keyframes draw-down {
+    from {
+      scale: 1 0;
+    }
+  }
+
+  @keyframes strike {
+    from {
+      text-decoration-color: transparent;
+    }
+  }
+
+  @keyframes figure {
+    from {
+      opacity: 0;
+      translate: 0 0.35em;
+    }
+  }
+
+  /* Light crossing a newly earned medal once, after its message has arrived; in the medal's own 64-unit drawing. */
+  --animate-medal-glint: medal-glint 1100ms cubic-bezier(0.45, 0, 0.2, 1) 400ms both;
+
+  @keyframes medal-glint {
+    from {
+      translate: -64px 0;
+    }
+    to {
+      translate: 64px 0;
+    }
+  }
+
   /* Light crossing a supporter's seal once as the profile opens, and again on hover; two names so hovering restarts it. */
   --animate-supporter-glint: supporter-glint 1100ms cubic-bezier(0.45, 0, 0.2, 1) 300ms both;
   --animate-supporter-glint-again: supporter-glint-again 800ms cubic-bezier(0.45, 0, 0.2, 1) both;
@@ -787,6 +834,110 @@ html[data-native-app='true'] [data-battle-sticky-header] {
   }
 }
 
+/*
+ * Overlays arrive on the settle curve and leave faster than they came. A dialog lifts less than the components'
+ * zoom; a compact dialog, being a screen of its own, rises from below instead.
+ */
+:is(
+  [data-slot='dialog-content'],
+  [data-slot='alert-dialog-content'],
+  [data-slot='dialog-overlay'],
+  [data-slot='alert-dialog-overlay'],
+  [data-slot='dropdown-menu-content'],
+  [data-slot='dropdown-menu-sub-content'],
+  [data-slot='context-menu-content'],
+  [data-slot='context-menu-sub-content'],
+  [data-slot='select-content'],
+  [data-slot='combobox-content'],
+  [data-slot='popover-content'],
+  [data-slot='tooltip-content']
+) {
+  --tw-ease: var(--ease-settle);
+  --tw-duration: 160ms;
+
+  &[data-closed] {
+    --tw-ease: ease-in;
+    --tw-duration: 100ms;
+  }
+}
+
+:is([data-slot='dialog-content'], [data-slot='alert-dialog-content'], [data-slot='dialog-overlay'], [data-slot='alert-dialog-overlay']) {
+  --tw-duration: 220ms;
+}
+
+:is([data-slot='dialog-content'], [data-slot='alert-dialog-content']) {
+  --tw-enter-scale: 0.97;
+  --tw-enter-translate-y: 0.5rem;
+  --tw-exit-scale: 0.98;
+}
+
+@media (max-width: 859px) {
+  [data-slot='dialog-content']:not([data-fit]) {
+    --tw-enter-scale: 1;
+    --tw-enter-translate-y: 1.5rem;
+    --tw-exit-scale: 1;
+    --tw-exit-translate-y: 1rem;
+  }
+}
+
+[data-slot='collapsible-content'] {
+  transition: opacity 160ms var(--ease-settle);
+
+  &[data-starting-style] {
+    opacity: 0;
+  }
+}
+
+details::details-content {
+  transition:
+    opacity 160ms var(--ease-settle),
+    content-visibility 160ms allow-discrete;
+  opacity: 0;
+}
+
+details[open]::details-content {
+  opacity: 1;
+}
+
+@starting-style {
+  details[open]::details-content {
+    opacity: 0;
+  }
+}
+
+/*
+ * Moving to another page crosses over quickly instead of cutting, so what stayed in place reads as staying. Only
+ * the router names this transition, and only for a new path, so a filter or search that rewrites the address
+ * swaps in place.
+ */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+}
+
+/* One duration and curve for both sides, so their opacities always sum to one and unchanged chrome never dims. */
+html:active-view-transition-type(page) {
+  &::view-transition-old(root) {
+    animation: 180ms var(--ease-settle) both page-out;
+  }
+
+  &::view-transition-new(root) {
+    animation: 180ms var(--ease-settle) both page-in;
+  }
+}
+
+@keyframes page-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes page-in {
+  from {
+    opacity: 0;
+  }
+}
+
 @media (max-width: 639px) {
   [data-slot='dialog-footer'],
   [data-slot='alert-dialog-footer'] {
@@ -969,6 +1120,8 @@ html[data-native-app='true'] [data-battle-sticky-header] {
     height: 6px;
     border-block: 2px solid var(--color-parchment);
     background: none;
+    transform-origin: left;
+    animation: var(--animate-draw);
   }
 
   & > :is([data-gate='current'], [aria-current='page'])::after {
@@ -1013,6 +1166,7 @@ html[data-native-app='true'] [data-battle-sticky-header] {
 
   &[data-line='now'] {
     border-block: 2px solid var(--line-colour, var(--color-parchment));
+    animation: var(--animate-draw);
   }
 
   &[data-line='todo'] {

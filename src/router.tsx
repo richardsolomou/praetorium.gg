@@ -15,6 +15,10 @@ export function getRouter() {
     // Read once per request on the server, so every page's metadata can print absolute links.
     context: { queryClient, origin: siteOrigin() },
     defaultPreload: 'intent',
+    // A transition holds input until it ends, so it runs only between pages: never for a filter rewriting the address.
+    defaultViewTransition: {
+      types: ({ pathChanged }) => (pathChanged && !matchMedia('(prefers-reduced-motion: reduce)').matches ? ['page'] : false),
+    },
     defaultErrorComponent: RouteError,
     defaultOnCatch: reportRouteError,
   })

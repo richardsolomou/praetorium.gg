@@ -311,19 +311,21 @@ const EMBLEMS: Record<AchievementMetric, ReactNode> = {
 /**
  * One achievement's medal: its series' emblem struck in its tier's metal, with the count it needs on a
  * ribbon when that is more than one. Not yet earned, it is the same medal in grey, so a player can see
- * what there is to win.
+ * what there is to win. `glint` sweeps light across it once, for the moment it is earned.
  */
 export function AchievementBadge({
   metric,
   count,
   tier,
   earned,
+  glint = false,
   className = '',
 }: {
   metric: AchievementMetric
   count: number
   tier: AchievementTier
   earned: boolean
+  glint?: boolean
   className?: string
 }) {
   const key = useId()
@@ -341,6 +343,12 @@ export function AchievementBadge({
           <stop offset="0" stopColor={light} />
           <stop offset="1" stopColor={middle} />
         </linearGradient>
+        <linearGradient id={`${key}-glint`} x1="0" y1="0" x2="1" y2="0.35">
+          <stop offset="0.38" stopColor="white" stopOpacity="0" />
+          <stop offset="0.5" stopColor="white" stopOpacity="0.55" />
+          <stop offset="0.62" stopColor="white" stopOpacity="0" />
+        </linearGradient>
+        <clipPath id={`${key}-frame`}>{frame.outer}</clipPath>
         <radialGradient id={`${key}-field`} cx="0.5" cy="0.38" r="0.7">
           <stop offset="0" stopColor="var(--color-raised)" />
           <stop offset="1" stopColor="var(--color-sunken)" />
@@ -369,6 +377,11 @@ export function AchievementBadge({
           <text x="32" y="57.6" textAnchor="middle" fontFamily="var(--font-mono)" fontSize="7.5" fontWeight="700" fill={light}>
             {count}
           </text>
+        </g>
+      ) : null}
+      {glint ? (
+        <g clipPath={`url(#${key}-frame)`}>
+          <rect width="64" height="64" fill={`url(#${key}-glint)`} className="animate-medal-glint" />
         </g>
       ) : null}
     </svg>

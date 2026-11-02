@@ -184,6 +184,18 @@ components:
 - Round shapes are reserved: part tags, avatars, status dots.
 - Full-screen phone dialogs are square.
 
+## Motion
+
+- Motion settles like a part pressed onto its gate: `--ease-settle`, fast in, no overshoot, exits faster than entrances.
+- A line that becomes current (a runner gate, a `now` line segment, a tab's underline) draws out from where it joins, 280ms; a setup step's runner draws down, and its tick presses in once settled.
+- A discarded mission card's strike inks in.
+- A score, command point or roster points figure that changes rises into place, 260ms, keyed on its value.
+- Battle events that arrive while the log is open slide in at its top; the ones it opened with stay still.
+- A medal, in the message that it was earned, is crossed once by light, clipped to its frame.
+- Overlays fade and lift 160ms, dialogs 220ms; a full-screen phone dialog rises from below instead of scaling.
+- A new page crossfades 180ms; a filter or search that rewrites the address swaps in place.
+- No loops, no load choreography, no bounce. Reduced motion removes all of it.
+
 ## Components
 
 - **Buttons:** one Field Green primary per surface; disabled primary drops to Raised and Faint, never faded field green. Focus is a 2px Field Green outline offset 2px.

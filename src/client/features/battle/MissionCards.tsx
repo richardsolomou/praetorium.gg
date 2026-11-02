@@ -160,7 +160,11 @@ export function SecondaryMissions({ view, side, actionable, pending, send, refer
                     card={referenceFor(secondary.key)}
                     type="Secondary mission"
                     mode={side.secondaryMode}
-                    className={secondary.status === 'discarded' ? 'text-dim line-through decoration-discarded decoration-2' : undefined}
+                    className={
+                      secondary.status === 'discarded'
+                        ? 'animate-strike text-dim line-through decoration-discarded decoration-2'
+                        : undefined
+                    }
                   />
                   {secondary.secret ? <span className="chip text-discarded">{secondary.revealed ? 'revealed' : 'secret'}</span> : null}
                 </div>

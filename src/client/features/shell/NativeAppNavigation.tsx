@@ -129,7 +129,7 @@ export function NativeAppNavigation({
   const tabClass = (selected: boolean) =>
     `relative min-w-0 flex-1 flex-col items-center justify-center gap-1 text-3xs font-semibold tracking-label uppercase transition-colors ${
       selected
-        ? 'text-bone before:absolute before:inset-x-3 before:-top-px before:h-1 before:border-y before:border-parchment [&>svg]:text-parchment'
+        ? 'text-bone before:absolute before:inset-x-3 before:-top-px before:h-1 before:animate-draw before:border-y before:border-parchment [&>svg]:text-parchment'
         : 'text-dim hover:text-bone'
     }`
 

@@ -81,7 +81,14 @@ export function RosterBuilderFooter({
             data-stat="points"
             className={`figure text-2xl leading-none font-bold sm:text-3xl ${over ? 'text-destructive' : 'text-bone'}`}
           >
-            {loading ? <span aria-label="Loading roster points">…</span> : points}
+            {loading ? (
+              <span aria-label="Loading roster points">…</span>
+            ) : (
+              // Keyed on the value, so each unit added or removed answers with the total rising into place.
+              <span key={points} className="inline-block animate-figure">
+                {points}
+              </span>
+            )}
             <span className="text-base font-normal text-dim sm:text-lg">/{limit}</span>
           </span>
           <span className="flex flex-col leading-tight">
