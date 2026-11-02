@@ -236,34 +236,6 @@ export function RosterPrintPack({ input, onClose }: { input: RosterPrintInput; o
             . Records the army at printing time; reference data can change.
           </p>
         </header>
-        <table className="pack-summary">
-          <thead>
-            <tr>
-              <th scope="col">#</th>
-              <th scope="col">Unit</th>
-              <th scope="col">Models</th>
-              <th scope="col">Pts</th>
-            </tr>
-          </thead>
-          <tbody>
-            {data.groups.flatMap(({ host, joined }, index) =>
-              [host, ...joined].map((unit) => (
-                <tr key={unit.key} className={unit === host ? undefined : 'pack-joined'}>
-                  <td>{unit === host ? index + 1 : ''}</td>
-                  <th scope="row">
-                    <a href={`#pack-unit-${host.key}`}>
-                      {unit === host ? '' : '+ '}
-                      {title(unit)}
-                    </a>
-                    {hasWarlordToggle(unit.toggles) ? <span className="pack-tag">Warlord</span> : null}
-                  </th>
-                  <td>{unit.size.models}</td>
-                  <td>{unit.points}</td>
-                </tr>
-              )),
-            )}
-          </tbody>
-        </table>
         {data.groups.map(({ host, joined }, index) => (
           <section className="pack-unit" id={`pack-unit-${host.key}`} key={host.key} data-print-unit={host.name}>
             {[host, ...joined].map((unit) => (

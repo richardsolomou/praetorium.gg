@@ -13,7 +13,7 @@ In the library, **Share…** in a roster's menu opens one dialog for all of thes
 
 - **Copy link** (or **Share link** on a phone) copies the list's address. On a private list the button reads **Make unlisted and copy**, and makes it Unlisted first. You can also change **Access** in **Edit roster setup**.
 - **Export text** shows readable text to **Copy text** or **Download text**. It includes custom unit names, model counts, equipment, enhancements, Warlord, attachments, setup and rules version, but no notes, waived restrictions or optional rules. [Import a list](/docs/import-a-list) reads it back.
-- **Print** prepares a compact battle reference pack: the army summary, one datasheet per unit with its statlines, a single weapons table and its own abilities, then army and detachment rules, stratagems, and the abilities and weapon rules your units use, set in two columns.
+- **Print** prepares a compact battle reference pack: one datasheet per unit with its statlines, a single weapons table and its own abilities, then army and detachment rules, stratagems, and the abilities and weapon rules your units use, set in two columns.
 
 The **Build**/**View** switch in the header hides editing controls for reading at the table. **Start a battle** takes the list into a [battle](/docs/start-a-battle).
 

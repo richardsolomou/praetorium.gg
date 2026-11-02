@@ -513,36 +513,6 @@ html[data-native-app='true'] [data-battle-sticky-header] {
     color: #444 !important;
   }
 
-  .pack-summary {
-    margin-bottom: 4mm;
-    th[scope='row'] {
-      text-align: left;
-      font-weight: 600;
-    }
-    tbody tr {
-      border-bottom: 0.3pt solid #ddd !important;
-    }
-    .pack-joined th {
-      padding-left: 4mm;
-      font-weight: 400;
-    }
-    td:first-child,
-    thead th:first-child {
-      width: 6mm;
-    }
-    td:nth-child(n + 3) {
-      width: 14mm;
-    }
-  }
-  .pack-tag {
-    margin-left: 1.5mm;
-    padding: 0 1mm;
-    border: 0.6pt solid #000 !important;
-    font-size: 6pt;
-    font-weight: 700;
-    text-transform: uppercase;
-  }
-
   .pack-sheet {
     margin-bottom: 3mm;
     padding: 2mm 2.5mm;
