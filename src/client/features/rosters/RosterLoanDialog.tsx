@@ -10,7 +10,7 @@ import { friendshipsQuery, rosterLoansQuery, rostersLentToMeQuery } from '../../
 import { errorMessage } from '../../queryClient'
 import { Problem } from '../../components/Problem'
 
-/** The owner chooses which friends may view a roster and field it in their own battles. */
+/** The owner chooses which friends may view a roster, field it in their own battles, and seal it for an event. */
 export function RosterLoanDialog({ rosterId, open, onClose }: { rosterId: string; open: boolean; onClose: () => void }) {
   const queryClient = useQueryClient()
   const friends = useQuery({ ...friendshipsQuery(), enabled: open })
@@ -36,7 +36,8 @@ export function RosterLoanDialog({ rosterId, open, onClose }: { rosterId: string
         <DialogHeader>
           <DialogTitle>Lend to a friend</DialogTitle>
           <DialogDescription>
-            A friend can view this roster and field it in their battles, but not edit it. Your unit notes and battle preparation stay yours.
+            A friend can view this roster, field it in their battles and seal it for an event, but not edit it. Your unit notes and battle
+            preparation stay yours.
           </DialogDescription>
         </DialogHeader>
         <DialogBody>

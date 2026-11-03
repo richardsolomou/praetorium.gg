@@ -34,6 +34,8 @@ import { rosterSetupOf } from './rosterDraft'
 import { factionSelectGroups } from './builder/factions'
 import { NoFilterMatches, RosterFilters, type RosterUpdateFilter } from './RosterFilters'
 import { RosterRow } from './RosterRow'
+import { RosterLoanDialog } from './RosterLoanDialog'
+import { CreateBattle } from '../battles/CreateBattle'
 import { type RosterShareChoices, RosterShareDialog } from './RosterShareDialog'
 import { rosterTitle } from './RosterSummary'
 import { RosterSelectionToolbar } from './RosterSelectionToolbar'
@@ -191,6 +193,8 @@ export function RosterLibraryPage({
   // Held by id, so the dialog reads each visibility change back from the library rather than a stale copy.
   const [sharingId, setSharingId] = useState<string | null>(null)
   const sharing = saved.find((roster) => roster.id === sharingId) ?? null
+  const [lendingId, setLendingId] = useState<string | null>(null)
+  const [battleRosterId, setBattleRosterId] = useState<string | null>(null)
   const [session, setEditing] = useWorkspaceState<EditingSession>(WORKSPACE_PATH, SETUP_STATE)
   const editing = saved.find((roster) => roster.id === session?.rosterId) ?? null
   // Only a signed-in player's own rosters can be changed together; rosters a filter hides stay out of the action.
@@ -262,6 +266,8 @@ export function RosterLibraryPage({
         actions={actions}
         onEdit={() => setEditing({ rosterId: roster.id, draft: rosterSetupOf(roster) })}
         onShare={() => setSharingId(roster.id)}
+        onLend={() => setLendingId(roster.id)}
+        onStartBattle={() => setBattleRosterId(roster.id)}
         onDelete={() => setDeleting({ rosters: [roster], together: false })}
         onNeedsAccount={guest ? account.ask : undefined}
         selection={selectionOf(roster)}
@@ -574,6 +580,8 @@ export function RosterLibraryPage({
           )}
         />
       ) : null}
+      {lendingId ? <RosterLoanDialog rosterId={lendingId} open onClose={() => setLendingId(null)} /> : null}
+      {battleRosterId ? <CreateBattle rosterId={battleRosterId} open onOpenChange={(open) => !open && setBattleRosterId(null)} /> : null}
       <RosterExportDialog exported={actions.exportText} onClose={actions.clearExport} />
       <RosterExchangeDialog exchange={actions.exchangeCode} onClose={actions.clearExchange} />
     </main>

@@ -2,10 +2,10 @@
 
 - **Create variant** makes a copy grouped with this list. The variants icon in the header shows **Changes from** the base list and switches between variants.
 - **Make its own roster** takes a list out of its variant group when it has turned into a different idea. The rest stay grouped; if the base leaves, the oldest remaining variant becomes the base. It needs a connection.
-- **Duplicate** in the library makes an independent copy. On someone else's list it's **Duplicate to my rosters**, and the copy notes where it came from.
+- **Duplicate** makes an independent copy. On someone else's list it's **Duplicate to my rosters**, and the copy notes where it came from.
 - **Lock roster** stops edits until you **Unlock** it; you can still share, export, print and take it to battle. Locking and unlocking need a connection.
-- **Lend to a friend** lets a friend view the list and field it in their battles without editing it. Your notes stay yours, and they can **Return it** at any time.
-- **Archive** in the library hides a list; **Delete** removes it for good. Copies in battles and tournaments are kept either way.
+- **Lend to a friend** lets a friend view the list, field it in their battles and seal it for a tournament or hidden-list game, without editing it. Your notes stay yours, and they can **Return it** at any time.
+- **Archive** hides a list; **Delete** removes it for good. Copies in battles and tournaments are kept either way.
 - **Select** in the library lets you tick up to 100 lists and change them together: **Archive** or **Unarchive**, **Lock** or **Unlock**, **Visibility**, where you pick Private, Unlisted or Public, or **Delete**. Only the actions that change a ticked list are offered, and on a phone they're under **Actions**. Changing visibility together doesn't copy any links. Open **Archived** to tick archived lists. Changing several lists at once needs a connection.
 
 ## Share, export and print

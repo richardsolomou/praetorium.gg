@@ -157,7 +157,7 @@ export const productActions = {
   submitSealedEventRoster: action(
     schemas.submitSealedEventRoster.partial({ capturedRoster: true, catalogueRevision: true }),
     async (owner, data) => {
-      const { saved, snapshot } = await rosterForUse(owner, data.rosterId, { sealing: true })
+      const { saved, snapshot } = await rosterForUse(owner, data.rosterId, { lent: true, sealing: true })
       if (
         data.capturedRoster !== undefined &&
         (sealedContent(saveRosterSchema.parse(saved)) !== sealedContent(data.capturedRoster) ||

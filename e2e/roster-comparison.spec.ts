@@ -276,35 +276,40 @@ for (const width of [1440, 390]) {
       'Test targets',
       'Edit roster setup',
       'Create variant',
+      'Duplicate',
       'Lend to a friend',
       'Lock roster',
       'Share…',
+      'Archive',
+      'Delete',
     ])
     await expect(menu.getByRole('menuitem', { name: 'Test targets', exact: true })).toHaveAttribute('aria-disabled', 'true')
     // Grouped under headings; a list with no attached unit has nothing to display differently.
     await expect(menu.getByRole('group')).toHaveText([/^Play/, /^Setup/, /^Copies and access/])
-    await expect(menu.getByRole('separator')).toHaveCount(3)
+    await expect(menu.getByRole('separator')).toHaveCount(4)
     await page.screenshot({ path: test.info().outputPath(`builder-menu-${width}.png`) })
     await page.keyboard.press('Escape')
     await page.goto('/rosters')
     await page.getByRole('button', { name: 'Actions for Menu roster', exact: true }).click()
     await expect(menu.getByRole('menuitem')).toHaveText([
       'View',
+      'Start a battle',
       'Edit roster setup',
       'Create variant',
       'Duplicate',
       /Share…\s*Public/,
+      'Lend to a friend',
       'Lock roster',
       'Archive',
       'Delete',
     ])
-    await expect(menu.getByRole('separator')).toHaveCount(4)
+    await expect(menu.getByRole('separator')).toHaveCount(5)
     await page.screenshot({ path: test.info().outputPath(`library-menu-${width}.png`) })
     await page.keyboard.press('Escape')
     await page.getByRole('link', { name: /Menu roster/ }).click({ button: 'right' })
-    await expect(menu.getByRole('menuitem').first()).toHaveText('Edit roster setup')
+    await expect(menu.getByRole('menuitem').first()).toHaveText('Start a battle')
     await expect(menu.getByRole('menuitem').last()).toHaveText('Delete')
-    await expect(menu.getByRole('separator')).toHaveCount(4)
+    await expect(menu.getByRole('separator')).toHaveCount(5)
   })
 }
 

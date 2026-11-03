@@ -6,10 +6,12 @@ import {
   EllipsisVertical,
   Eye,
   GitBranchPlus,
+  HandHelping,
   Lock,
   LockOpen,
   Pencil,
   Share2,
+  Swords,
   Trash2,
   Unlink,
 } from 'lucide-react'
@@ -62,6 +64,8 @@ export function RosterRow({
   actions,
   onEdit,
   onShare,
+  onLend,
+  onStartBattle,
   onDelete,
   points,
   label,
@@ -85,6 +89,8 @@ export function RosterRow({
   actions: RosterActions
   onEdit: () => void
   onShare: () => void
+  onLend: () => void
+  onStartBattle: () => void
   onDelete: () => void
   /** Priced with every other list in the library, so a row asks for nothing of its own. */
   points?: number | null
@@ -102,7 +108,7 @@ export function RosterRow({
 }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const title = rosterTitle(roster, faction, label)
-  const items = { roster, grouped: layout !== 'card', actions, onEdit, onShare, onDelete, onNeedsAccount }
+  const items = { roster, grouped: layout !== 'card', actions, onEdit, onShare, onLend, onStartBattle, onDelete, onNeedsAccount }
 
   return (
     <ContextMenu>
@@ -190,6 +196,8 @@ function RosterActionItems({
   actions,
   onEdit,
   onShare,
+  onLend,
+  onStartBattle,
   onDelete,
   onNeedsAccount,
 }: {
@@ -201,6 +209,8 @@ function RosterActionItems({
   actions: RosterActions
   onEdit: () => void
   onShare: () => void
+  onLend: () => void
+  onStartBattle: () => void
   onDelete: () => void
   onNeedsAccount?: (reason: AccountReason) => void
 }) {
@@ -208,6 +218,10 @@ function RosterActionItems({
   const VisibleIcon = VISIBILITY_ICON[roster.visibility]
   return (
     <>
+      <Item className={MENU_ITEM} disabled={!roster.unitCount} onClick={orAccount('battle', onStartBattle)}>
+        <Swords /> Start a battle
+      </Item>
+      <Separator />
       <Item className={MENU_ITEM} disabled={roster.locked} onClick={onEdit}>
         <Pencil /> Edit roster setup
       </Item>
@@ -233,6 +247,9 @@ function RosterActionItems({
         <span className="ml-auto flex items-center gap-1 pl-4 text-2xs text-faint normal-case">
           <VisibleIcon className="size-3" /> {VISIBILITY_NAME[roster.visibility]}
         </span>
+      </Item>
+      <Item className={MENU_ITEM} onClick={orAccount('lend', onLend)}>
+        <HandHelping /> Lend to a friend
       </Item>
       <Separator />
       <Item

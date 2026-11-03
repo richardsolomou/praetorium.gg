@@ -6,8 +6,10 @@ import { Button } from '@/components/ui/button'
 import { buttonClass } from '../../components/buttonClass'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/Dialog'
-import { savedRosterSummariesQuery } from '../../queries'
+import { rostersLentToMeQuery, savedRosterSummariesQuery } from '../../queries'
+import { LentRosterList } from '../rosters/LentRosters'
 import { RosterChoices } from '../rosters/RosterChoices'
+import { SectionHeading } from '../../components/SectionHeading'
 import type { SavedRoster } from '../rosters/rosterLibrary'
 import { Problem } from '../../components/Problem'
 import { battleSizeName, fitsBattleSize, pointsLabel, pointsSize } from '../../../core/battle'
@@ -44,7 +46,10 @@ export function RosterChooser({
     (seatPoints === null
       ? (roster.pointsBudget ?? null) === pointsBudget && roster.limit === requiredLimit
       : fitsBattleSize({ limit: requiredLimit, teamBattle: true }, roster))
+  const lentQuery = useQuery({ ...rostersLentToMeQuery(), enabled: open })
   const rosters = (rosterQuery.data ?? []).filter((roster) => !roster.archived && fits(roster))
+  const lent = (lentQuery.data ?? []).filter(({ summary }) => fits(summary))
+  const choosable = [...rosters, ...lent.map(({ summary }) => summary)]
   const size =
     requiredLimit === null
       ? null
@@ -56,7 +61,7 @@ export function RosterChooser({
   // Picking a roster and sealing it are two presses, because a seal is what every opponent reads at reveal.
   const [selectedId, setSelectedId] = useState<string | null>(null)
   if (!open && selectedId !== null) setSelectedId(null)
-  const selected = rosters.find((roster) => roster.id === selectedId)
+  const selected = choosable.find((roster) => roster.id === selectedId)
   const failed = error ? rosters.find((roster) => roster.id === failedRosterId) : undefined
 
   return (
@@ -85,8 +90,28 @@ export function RosterChooser({
           ) : null}
           {rosterQuery.isPending ? (
             <RosterChooserSkeleton />
-          ) : rosters.length ? (
-            <RosterChoices rosters={rosters} selectedId={selectedId} disabled={pending} onSelect={(roster) => setSelectedId(roster.id)} />
+          ) : choosable.length ? (
+            <>
+              {rosters.length ? (
+                <RosterChoices
+                  rosters={rosters}
+                  selectedId={selectedId}
+                  disabled={pending}
+                  onSelect={(roster) => setSelectedId(roster.id)}
+                />
+              ) : null}
+              {lent.length ? (
+                <>
+                  <SectionHeading title="Lent by friends" count={lent.length} className="mb-0" />
+                  <LentRosterList
+                    rosters={lent}
+                    selectedId={selectedId}
+                    disabled={pending}
+                    onChoose={(roster) => setSelectedId(roster.id)}
+                  />
+                </>
+              ) : null}
+            </>
           ) : (
             <div className="space-y-3">
               <p className="py-2 text-sm text-dim">{size === null ? 'No rosters to seal yet.' : `No ${size} rosters to seal yet.`}</p>
@@ -96,7 +121,7 @@ export function RosterChooser({
             </div>
           )}
         </DialogBody>
-        {rosters.length ? (
+        {choosable.length ? (
           <DialogFooter>
             <Button variant="outline" disabled={pending} onClick={onClose}>
               Cancel

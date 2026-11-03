@@ -5655,7 +5655,7 @@ function sealedEventCommandIn(tx: Context, args: unknown[]) {
     const saved = tx.db.rosters.id.find(input.rosterId)
     if (
       !saved ||
-      saved.userId !== input.userId ||
+      (saved.userId !== input.userId && !activeLoan(tx, saved.id, input.userId)) ||
       saved.updatedAt !== BigInt(input.rosterUpdatedAt) ||
       (requiredLimit !== null && saved.limit !== (team ? submitted.built?.limit : requiredLimit))
     )
