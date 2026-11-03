@@ -104,7 +104,7 @@ test('a borrower hands a lent roster back', async ({ browser }) => {
   await expect(owner.getByRole('switch', { name: `Lend to ${borrowerName}` })).not.toBeChecked()
 })
 
-test('a borrower seals a lent roster for a tournament', async ({ browser }) => {
+test('a borrower seals and simulates a lent roster', async ({ browser }) => {
   const owner = await (await browser.newContext()).newPage()
   const borrower = await (await browser.newContext()).newPage()
   const ownerName = uniqueName('Lender')
@@ -136,4 +136,15 @@ test('a borrower seals a lent roster for a tournament', async ({ browser }) => {
   await chooser.getByRole('button', { name: 'Seal Sealed loan' }).click()
   await expect(chooser).toBeHidden()
   await expect(borrower.getByRole('button', { name: 'Swap roster' })).toBeVisible()
+
+  await borrower.goto('/simulator')
+  await borrower.waitForLoadState('networkidle')
+  const lentChoice = borrower.getByRole('option', { name: new RegExp(`^Sealed loan · ${ownerName}$`) })
+  await retryUntilVisible(lentChoice, () => borrower.getByRole('combobox', { name: 'Attacking with', exact: true }).click())
+  await borrower.screenshot({ path: test.info().outputPath('roster-lending-simulator.png') })
+  await lentChoice.click()
+  await borrower.getByRole('option', { name: 'The whole roster', exact: true }).click()
+  await expect(
+    borrower.getByRole('region', { name: 'Roster comparison' }).getByRole('group', { name: 'Attacking with', exact: true }),
+  ).toContainText('Sealed loan')
 })

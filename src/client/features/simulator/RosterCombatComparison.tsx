@@ -84,7 +84,7 @@ export function RosterCombatComparison({
     }
   }
 }) {
-  const { me, saved, friendRosters, sealedEventRosters } = useSimulatorRosters(!sources)
+  const { me, saved, friendRosters, lentRosters, sealedEventRosters } = useSimulatorRosters(!sources)
   const activeRosters = saved.data?.filter((roster) => !roster.archived) ?? []
   const factions = useQuery(factionIndexQuery())
   const catalogue = useQuery({ ...combatUnitsQuery(), enabled: !sources })
@@ -124,10 +124,13 @@ export function RosterCombatComparison({
         return [{ ...data, pickIndex: 0 }]
       },
     })),
-    ...friendRosters.map(({ roster, owner }) => ({
+    ...[
+      ...friendRosters.map((entry) => ({ ...entry, group: "Friends' rosters" })),
+      ...lentRosters.map((entry) => ({ ...entry, group: 'Lent by friends' })),
+    ].map(({ roster, owner, group }) => ({
       id: roster.id,
       catalogueId: roster.catalogueId,
-      group: "Friends' rosters",
+      group,
       owners: [owner],
       label: `${rosterTitle(
         roster,
@@ -389,7 +392,7 @@ export function RosterCombatComparison({
   const choices: RosterCombatSource[] = [...(units ? [{ id: SINGLE_UNIT, label: 'Single unit', load: async () => [] }] : []), ...options]
   const pickerGroups = [
     { label: 'Units and targets', options: choices.filter((source) => single(source.id)) },
-    ...[undefined, "Friends' rosters", "Friends' sealed rosters"].map((group) => ({
+    ...[undefined, "Friends' rosters", 'Lent by friends', "Friends' sealed rosters"].map((group) => ({
       label: group ?? (sources ? 'Revealed rosters' : 'Your rosters'),
       options: choices.filter((source) => !single(source.id) && source.group === group),
     })),
