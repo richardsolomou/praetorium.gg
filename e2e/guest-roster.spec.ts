@@ -12,7 +12,7 @@ import {
   recordSaves,
   PHONE,
 } from './account'
-import { add } from './builder.harness'
+import { add, ROSTER_WIDE } from './builder.harness'
 import { SIGN_IN_REQUIRED } from '../src/core/session'
 import { lastPathSegment, guestDraft } from './storage'
 
@@ -275,7 +275,7 @@ for (const width of [1440, 390]) {
     await setup.getByRole('button', { name: 'Select Infernal Lance' }).click()
     await setup.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Priority Assets' }).click()
     await setup.getByRole('button', { name: 'Create roster' }).click()
-    if (width < 1300) await page.getByRole('button', { name: 'Add units', exact: true }).click()
+    if (width < ROSTER_WIDE) await page.getByRole('button', { name: 'Add units', exact: true }).click()
     await page.getByLabel('Add a unit').fill('Beasts of Nurgle')
     await page.getByRole('button', { name: 'Toggle Daemons Library' }).click()
     await expect(page.getByRole('button', { name: 'Add Beasts of Nurgle', exact: true })).toBeDisabled()
@@ -288,7 +288,7 @@ for (const width of [1440, 390]) {
     await page.getByRole('button', { name: 'View Beasts of Nurgle datasheet', exact: true }).click()
     await page.getByRole('button', { name: 'Add to list', exact: true }).click()
     await expect(page.locator('[data-unit="Beasts of Nurgle"]')).toBeVisible()
-    if (width < 1300) {
+    if (width < ROSTER_WIDE) {
       await page.getByRole('button', { name: 'Back to units', exact: true }).click()
       await page.getByRole('button', { name: 'Toggle Daemons Library' }).click()
     }
@@ -298,7 +298,7 @@ for (const width of [1440, 390]) {
     await expect(page.locator('[data-picker-unit="Beasts of Nurgle"]')).toContainText('1/1 in roster')
     await expect(page.locator('[data-picker-unit="Beasts of Nurgle"]')).not.toContainText('construction rules')
     await page.screenshot({ path: test.info().outputPath(`allied-limits-${width}.png`) })
-    if (width < 1300) await page.getByRole('button', { name: 'Close', exact: true }).click()
+    if (width < ROSTER_WIDE) await page.getByRole('button', { name: 'Close', exact: true }).click()
     await page.getByRole('button', { name: 'Save roster', exact: true }).click()
     await expect(page.getByRole('heading', { name: 'Save your roster' })).toBeVisible()
     await page.screenshot({ path: test.info().outputPath(`guest-save-${width}.png`), fullPage: true })
@@ -387,7 +387,7 @@ for (const width of [1440, 390]) {
     try {
       await more.click()
       await expect.poll(() => intercepted).toBe(true)
-      if (width < 1300) {
+      if (width < ROSTER_WIDE) {
         await page.getByRole('button', { name: 'Back to roster', exact: true }).click()
         await page.getByRole('button', { name: 'Add units', exact: true }).click()
       }

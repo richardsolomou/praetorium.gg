@@ -1,6 +1,6 @@
 import { expect, test } from './test'
 import { visitorSetup, chooseRosterAction, expectNoPageOverflow, chooseFaction } from './account'
-import { add, expectNoHorizontalOverflow } from './builder.harness'
+import { add, expectNoHorizontalOverflow, ROSTER_WIDE } from './builder.harness'
 import { guestDraft } from './storage'
 
 for (const width of [1440, 390]) {
@@ -11,9 +11,9 @@ for (const width of [1440, 390]) {
     await setup.getByRole('button', { name: 'Select Aquilan Shield', exact: true }).click()
     await setup.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Take and Hold' }).click()
     await setup.getByRole('button', { name: 'Create roster' }).click()
-    if (width < 1300) await page.getByRole('button', { name: 'Add units', exact: true }).click()
+    if (width < ROSTER_WIDE) await page.getByRole('button', { name: 'Add units', exact: true }).click()
     await add(page, 'Telemon Heavy Dreadnought')
-    if (width < 1300) await page.getByRole('button', { name: 'Close', exact: true }).click()
+    if (width < ROSTER_WIDE) await page.getByRole('button', { name: 'Close', exact: true }).click()
 
     const card = page.locator('[data-unit="Telemon Heavy Dreadnought"]')
     await card.getByRole('button', { name: 'Telemon Heavy Dreadnought', exact: true }).click()
@@ -55,19 +55,19 @@ for (const width of [1440, 390]) {
     await page.screenshot({ path: test.info().outputPath(`telemon-gun-${width}.png`) })
     await page.reload()
     await expect(card).toContainText('1x Iliastus Accelerator Culverin')
-    if (width >= 1300 || !(await loadout.getByRole('button', { name: 'Back to roster', exact: true }).isVisible())) {
+    if (width >= ROSTER_WIDE || !(await loadout.getByRole('button', { name: 'Back to roster', exact: true }).isVisible())) {
       await card.getByRole('button', { name: 'Telemon Heavy Dreadnought', exact: true }).click()
     }
     await expect(weapons.getByRole('heading', { name: 'Iliastus Accelerator Culverin', exact: true })).toHaveCount(1)
     await weapons.getByRole('button', { name: `Select ${dual}`, exact: true }).click()
     await expect(card).toContainText('2x Twin Neutronium Cascade Projectors')
     await expect(dualOption.getByRole('heading', { name: 'Caestus Fist', exact: true })).toHaveCount(0)
-    if (width < 1300) await loadout.getByRole('button', { name: 'Back to roster', exact: true }).click()
+    if (width < ROSTER_WIDE) await loadout.getByRole('button', { name: 'Back to roster', exact: true }).click()
     await page.getByRole('button', { name: 'View', exact: true }).click()
-    if (width < 1300) await card.getByRole('button', { name: 'Telemon Heavy Dreadnought', exact: true }).click()
+    if (width < ROSTER_WIDE) await card.getByRole('button', { name: 'Telemon Heavy Dreadnought', exact: true }).click()
     await expect(equipped.getByRole('heading', { name: '2× Twin Neutronium Cascade Projectors', exact: true })).toHaveCount(1)
     await expect(weapons.getByRole('button', { name: /^Select / })).toHaveCount(0)
-    if (width < 1300) await loadout.getByRole('button', { name: 'Back to roster', exact: true }).click()
+    if (width < ROSTER_WIDE) await loadout.getByRole('button', { name: 'Back to roster', exact: true }).click()
     await chooseRosterAction(page, 'Export text')
     const exported = page.getByRole('dialog', { name: 'Export roster' }).locator('pre')
     await expect(exported).toContainText('2x Twin Neutronium Cascade Projectors')
