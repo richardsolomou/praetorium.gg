@@ -46,7 +46,7 @@ export function TerrainLayoutDialogContent({ title, description, layout, deploym
   const objectiveMarkers = deploymentObjectives.some((objective) => objective.kind !== 'terrain')
   const measurements = layout.geometry?.areas.flatMap((area) => area.measurements) ?? []
   const joinedFootprints = layout.geometry ? terrainAreaJoins(layout.geometry).length > 0 : false
-  const [show, setShow] = useState<MeasurementSource[]>(layout.geometry ? ['terrain'] : ['published'])
+  const [show, setShow] = useState<MeasurementSource[]>(['published'])
   const placing = show.includes('terrain') || show.includes('lines')
   return (
     <DialogContent size="lg">

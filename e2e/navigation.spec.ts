@@ -7,7 +7,6 @@ import {
   createRoster,
   followLink,
   retryUntilVisible,
-  showOnlyPublishedDistances,
   signUp,
   visitorSetup,
   expectNoPageOverflow,
@@ -759,7 +758,6 @@ test('terrain layouts show source-backed areas and measurement guidance', async 
   await retryUntilVisible(dialog, () => page.getByRole('button', { name: 'Enlarge terrain layout A: Sweeping Engagement' }).click())
   const board = dialog.locator('svg[aria-label]').first()
   await expect(board).toBeVisible()
-  await showOnlyPublishedDistances(dialog)
   expect(
     await board
       .locator('title')
@@ -850,7 +848,6 @@ test('terrain layout preserves structural corners and source distances', async (
   const dialog = page.getByRole('dialog')
   await retryUntilVisible(dialog, () => page.getByRole('button', { name: 'Enlarge terrain layout C: Dawn of War' }).click())
   const board = dialog.locator('svg[aria-label]').first()
-  await showOnlyPublishedDistances(dialog)
   await expect(board.locator('polyline[stroke-linejoin="miter"]').first()).toBeAttached()
   await expect(board.locator('text').filter({ hasText: /^AB$/ }).first()).toBeVisible()
   await expect(board.locator('line[marker-end]')).toHaveCount(44)
