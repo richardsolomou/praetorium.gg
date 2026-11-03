@@ -36,7 +36,12 @@ for (const [size, label] of SIZES) {
       await cards(page)
     }
     await page.locator('[data-unit="Captain"]').getByRole('button', { name: 'Attach Captain to unit', exact: true }).click()
-    await waitForRosterSave(page, () => page.getByRole('menu').getByRole('menuitem', { name: SQUAD, exact: true }).first().click())
+    await waitForRosterSave(page, () =>
+      page
+        .getByRole('menu')
+        .getByRole('menuitem', { name: `Alpha · ${SQUAD}`, exact: true })
+        .click(),
+    )
     const carry = rhino.getByRole('button', { name: 'Embark a unit in Rhino', exact: true })
     await carry.click()
     const alpha = page.getByRole('menuitem', { name: `Embark Alpha · ${SQUAD} #1 in Rhino`, exact: true })

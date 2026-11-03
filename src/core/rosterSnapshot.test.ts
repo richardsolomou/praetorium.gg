@@ -162,6 +162,27 @@ it('freezes the unit a character joined into a roster snapshot', () => {
   expect(roster.built?.units[1]?.attachedTo).toBe(roster.built?.units[0]?.key)
 })
 
+it('names the unit a character joined by the player’s nickname for it', () => {
+  const roster = rosterSnapshot(
+    saved({
+      picks: [
+        { entryId: 'marines', nickname: 'Rotguard' },
+        { entryId: 'lord', attachedTo: 0 },
+      ],
+    }),
+    priced({
+      points: 160,
+      units: [
+        unit({ key: 0, entryId: 'marines', name: 'Plague Marines', group: 'battleline' }),
+        unit({ key: 1, entryId: 'lord', name: 'Lord of Contagion', group: 'character' }),
+      ],
+    }),
+    [],
+  )
+
+  expect(roster.built?.units[1]?.joined?.[0]?.name).toBe('Rotguard · Plague Marines')
+})
+
 it('leaves a character the list joined to nothing unattached', () => {
   const roster = rosterSnapshot(
     saved({ picks: [{ entryId: 'lord' }] }),

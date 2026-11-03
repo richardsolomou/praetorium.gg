@@ -1,4 +1,5 @@
 import type { ComponentProps, ReactNode } from 'react'
+import { cn } from '@/lib/utils'
 import { FactionMark, type FactionPresentation } from '../../components/FactionMark'
 import { FactionReferenceLink } from '../../components/FactionReferenceLink'
 
@@ -10,6 +11,7 @@ export function CollectionCard({
   controls,
   description,
   children,
+  className,
   ...props
 }: ComponentProps<'li'> & {
   name: string
@@ -20,7 +22,7 @@ export function CollectionCard({
   description?: ReactNode
 }) {
   return (
-    <li {...props} className="@container/card flex flex-col gap-2 rounded-lg border border-edge bg-sunken/60 p-2">
+    <li {...props} className={cn('@container/card part flex flex-col gap-2.5 p-2.5', className)}>
       <div className="flex flex-wrap items-center gap-2">
         {photo ??
           (sheet?.presentation ? (

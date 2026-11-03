@@ -2,8 +2,8 @@ import { useQuery } from '@tanstack/react-query'
 import { Link, useNavigate, useRouter, useRouterState } from '@tanstack/react-router'
 import { Ellipsis, House, ScrollText, Swords, UsersRound } from 'lucide-react'
 import { useEffect, useLayoutEffect, type ComponentType, type MouseEvent, type ReactNode } from 'react'
-import { setNativeAccount, setNativeHistoryBack, setNativeNavigation } from '../../nativeBridge'
-import { historyBackStaysInTab, openedByTab } from './nativeHistory'
+import { setNativeAccount, setNativeHistoryBack, setNativeNavigation, setNativeScreenCover } from '../../nativeBridge'
+import { historyBackStaysInTab, openedByTab, tabParents } from './nativeHistory'
 import { nativeNavigation, type NativeSection } from './nativeNavigation'
 import { meQuery } from '../../queries'
 import { restoreNativeTabScroll } from './nativeTabScroll'
@@ -20,11 +20,23 @@ const PRIMARY_TABS: readonly Tab[] = [
   { icon: UsersRound, label: 'Factions', section: 'factions', to: '/factions' },
 ]
 
+/** How often a reopened tab checks whether a parent has drawn. */
+const PARENT_CHECK_MS = 40
+/** How long a rendered parent stays up before the next opens: shorter, and iOS can keep the screen before it as its preview. */
+const PARENT_PAINT_MS = 120
+/** Within the second WebKit keeps a tap's activation, after which a parent still loading is passed over as it is. */
+const PARENT_BUDGET_MS = 900
+
 const SCROLL_REGIONS = {
   roster: '[data-slot="roster-units"]',
   picker: '[data-pane="picker"] [data-slot="scroll-area-viewport"]',
   loadout: '[data-pane="loadout"] [data-slot="scroll-area-viewport"]',
 } as const
+
+/** The tab a section's screens belong to: its own, or More for the sections the bar has no tab for. */
+function tabOf(section: NativeSection) {
+  return PRIMARY_TABS.some((tab) => tab.section === section) ? section : 'more'
+}
 
 function regionScroll() {
   return Object.fromEntries(
@@ -91,14 +103,61 @@ export function NativeAppNavigation({
     if (!notFound) rememberTab(href, { scrollY: window.scrollY, regions: regionScroll(), state })
   }
 
-  const openTab = (event: MouseEvent, target: string, memory: ReturnType<typeof recallTab>) => {
+  const openTab = async (event: { preventDefault(): void }, root: string, target: string, memory: ReturnType<typeof recallTab>) => {
     event.preventDefault()
-    void navigate({
-      href: memory?.href ?? target,
+    const destination = memory?.href ?? target
+    const opened = openedByTab(router.history.location.state)
+    const parents = tabParents(destination, root)
+    const covered = parents.length > 0 && setNativeScreenCover(true)
+    // Drawing each parent, under the cover where the app has one, lets iOS snapshot it for the back swipe's preview,
+    // and timers chained from the tap keep its user activation, without which WebKit skips the parents going back.
+    for (const parent of parents)
+      void router.preloadRoute({ to: parent } as Parameters<typeof router.preloadRoute>[0]).catch(() => undefined)
+    if (parents.length)
+      await new Promise<void>((resolve) => {
+        const deadline = performance.now() + PARENT_BUDGET_MS
+        let renderedPath = ''
+        let renderedAt = 0
+        const stop = router.subscribe('onRendered', ({ toLocation }) => {
+          renderedPath = toLocation.pathname
+          renderedAt = performance.now()
+        })
+        let next = 0
+        const step = () => {
+          const drawn = renderedPath === parents[next - 1] && performance.now() - renderedAt >= PARENT_PAINT_MS
+          if (next > 0 && !drawn && performance.now() < deadline) return void setTimeout(step, PARENT_CHECK_MS)
+          if (next === parents.length) {
+            stop()
+            return resolve()
+          }
+          void navigate({
+            href: parents[next++],
+            resetScroll: true,
+            viewTransition: false,
+            state: (current) => ({ ...current, tabEntry: opened.tabEntry }) as typeof current,
+          })
+          setTimeout(step, PARENT_CHECK_MS)
+        }
+        step()
+      })
+    await navigate({
+      href: destination,
       // A tab with no memory opens at its top rather than at the last tab's scroll.
       resetScroll: !memory,
-      state: (current) => openedByTab({ ...current, ...memory?.state }) as typeof current,
+      // Like a native tab bar, switching tabs cuts rather than fading through the screens on the way.
+      viewTransition: false,
+      state: (current) => ({ ...current, ...memory?.state, tabEntry: opened.tabEntry }) as typeof current,
     })
+    // Passing through the parents reset the tab's scroll memory, so the reopened screen restores it here unless it no longer exists.
+    const section = memory && tabLocation(memory.href)?.section
+    if (memory && parents.length && section && recallTab(section)?.href === memory.href) {
+      rememberTab(memory.href, memory)
+      restoreNativeTabScroll(memory.scrollY, memory.regions, SCROLL_REGIONS)
+    }
+    if (covered) {
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+      setNativeScreenCover(false)
+    }
   }
 
   const openSection = (event: MouseEvent, section: NativeSection, to: string) => {
@@ -108,8 +167,34 @@ export function NativeAppNavigation({
       window.scrollTo(0, 0)
       return
     }
-    openTab(event, to, recallTab(section))
+    void openTab(event, to, to, recallTab(section))
   }
+
+  // A link into another tab opens its screen in that tab, above that tab's parents, so going back never crosses tabs.
+  useEffect(() => {
+    if (!compactChrome()) return
+    const crossTab = (event: globalThis.MouseEvent) => {
+      if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
+      const link = event.target instanceof Element ? event.target.closest<HTMLAnchorElement>('a[href]') : null
+      if (!link || link.closest('[data-native-app-chrome]') || (link.target && link.target !== '_self') || link.hasAttribute('download'))
+        return
+      const url = new URL(link.href)
+      if (url.origin !== window.location.origin) return
+      const destination = tabLocation(url.pathname)?.section
+      // A screen in no tab, such as search, goes back to whatever opened it.
+      if (!destination || !active || tabOf(destination) === tabOf(active)) return
+      rememberCurrentTab()
+      void openTab(
+        event,
+        PRIMARY_TABS.find(({ section }) => section === destination)?.to ?? '/more',
+        url.pathname + url.search + url.hash,
+        null,
+      )
+    }
+    // Capturing runs before the router's link handler, which then sees the click as handled.
+    document.addEventListener('click', crossTab, true)
+    return () => document.removeEventListener('click', crossTab, true)
+  })
 
   // From another tab, More reopens where it was left; tapped again inside More, it returns to the More screen.
   const openMore = (event: MouseEvent) => {
@@ -122,7 +207,7 @@ export function NativeAppNavigation({
     const remembered = (!moreActive && recallMoreTab()) || '/more'
     const location = tabLocation(remembered)
     const memory = location ? recallTab(location.section) : null
-    openTab(event, remembered, memory?.href === remembered ? memory : null)
+    void openTab(event, '/more', remembered, memory?.href === remembered ? memory : null)
   }
 
   // The open tab is marked by a doubled cement segment on the bar's top edge.

@@ -3,18 +3,15 @@ import {
   Archive,
   ArchiveRestore,
   Copy,
-  Download,
   EllipsisVertical,
   Eye,
-  EyeOff,
   GitBranchPlus,
-  Link2,
   Lock,
   LockOpen,
   Pencil,
-  Printer,
-  QrCode,
+  Share2,
   Trash2,
+  Unlink,
 } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
@@ -28,8 +25,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import type { NamedRosterDifferences } from '../../../core/rosterDifferences'
-import { useNativeShare } from '../../nativeBridge'
-import { shareButtonLabel } from '../../useShareLink'
+import { VISIBILITY_ICON, VISIBILITY_NAME } from './visibility'
 import type { RosterActions, SavedRoster } from './rosterLibrary'
 import type { AccountReason } from './AccountPrompt'
 import {
@@ -64,8 +60,8 @@ export function RosterRow({
   layout = 'card',
   faction,
   actions,
-  origin,
   onEdit,
+  onShare,
   onDelete,
   points,
   label,
@@ -87,8 +83,8 @@ export function RosterRow({
   showVisibility?: boolean
   faction?: RosterSummaryFaction
   actions: RosterActions
-  origin: string
   onEdit: () => void
+  onShare: () => void
   onDelete: () => void
   /** Priced with every other list in the library, so a row asks for nothing of its own. */
   points?: number | null
@@ -106,7 +102,7 @@ export function RosterRow({
 }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const title = rosterTitle(roster, faction, label)
-  const items = { roster, title, actions, origin, onEdit, onDelete, onNeedsAccount }
+  const items = { roster, grouped: layout !== 'card', actions, onEdit, onShare, onDelete, onNeedsAccount }
 
   return (
     <ContextMenu>
@@ -157,11 +153,11 @@ export function RosterRow({
           >
             <EllipsisVertical />
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56">
+          <DropdownMenuContent align="end" className="w-max">
             <DropdownMenuItem className={MENU_ITEM} render={<Link to="/rosters/$id" params={{ id: roster.id }} target="_blank" />}>
               <Eye /> View
             </DropdownMenuItem>
-            <RosterActionItems Item={DropdownMenuItem} Separator={DropdownMenuSeparator} showPrivacy {...items} />
+            <RosterActionItems Item={DropdownMenuItem} Separator={DropdownMenuSeparator} {...items} />
           </DropdownMenuContent>
         </DropdownMenu>
         {selection ? (
@@ -178,7 +174,7 @@ export function RosterRow({
           </label>
         ) : null}
       </ContextMenuTrigger>
-      <ContextMenuContent className="w-56">
+      <ContextMenuContent className="w-max">
         <RosterActionItems Item={ContextMenuItem} Separator={ContextMenuSeparator} {...items} />
       </ContextMenuContent>
     </ContextMenu>
@@ -190,30 +186,26 @@ function RosterActionItems({
   Item,
   Separator,
   roster,
-  title,
+  grouped,
   actions,
-  origin,
   onEdit,
+  onShare,
   onDelete,
   onNeedsAccount,
-  showPrivacy = false,
 }: {
   Item: typeof DropdownMenuItem | typeof ContextMenuItem
   Separator: typeof DropdownMenuSeparator | typeof ContextMenuSeparator
   roster: SavedRoster
-  /** What the library calls this list, so an export and a share sheet say the same. */
-  title: string
+  /** Whether the list shares a card with its variants, so it can be taken out to stand on its own. */
+  grouped: boolean
   actions: RosterActions
-  origin: string
   onEdit: () => void
+  onShare: () => void
   onDelete: () => void
   onNeedsAccount?: (reason: AccountReason) => void
-  /** Only the overflow menu offers making a list private again; the row menu is shorter. */
-  showPrivacy?: boolean
 }) {
-  const feedback = actions.shareFeedback?.id === roster.id ? actions.shareFeedback.result : null
-  const nativeShare = useNativeShare()
   const orAccount = (reason: AccountReason, action: () => void) => (onNeedsAccount ? () => onNeedsAccount(reason) : action)
+  const VisibleIcon = VISIBILITY_ICON[roster.visibility]
   return (
     <>
       <Item className={MENU_ITEM} disabled={roster.locked} onClick={onEdit}>
@@ -230,39 +222,17 @@ function RosterActionItems({
       >
         <Copy /> Duplicate
       </Item>
-      <Separator />
-      <Item
-        className={MENU_ITEM}
-        disabled={!origin || actions.access.isPending}
-        onClick={orAccount('share', () => void actions.share(roster, title))}
-      >
-        <Link2 />
-        {roster.visibility === 'private' ? (
-          <span>
-            <span className="block">{nativeShare ? 'Make unlisted and share' : 'Make unlisted and copy link'}</span>
-            <span className="block text-xs text-dim">Anyone with the link can read this roster.</span>
-          </span>
-        ) : (
-          <span>{shareButtonLabel(feedback, nativeShare, 'link')}</span>
-        )}
-      </Item>
-      {showPrivacy && roster.visibility !== 'private' ? (
-        <Item
-          className={MENU_ITEM}
-          disabled={actions.access.isPending}
-          onClick={() => actions.access.mutate({ id: roster.id, visibility: 'private' })}
-        >
-          <EyeOff /> Make private
+      {grouped ? (
+        <Item className={MENU_ITEM} disabled={actions.split.isPending} onClick={() => actions.split.mutate(roster.id)}>
+          <Unlink /> Make its own roster
         </Item>
       ) : null}
-      <Item className={MENU_ITEM} disabled={actions.take.isPending} onClick={() => actions.take.mutate({ roster, title })}>
-        <Download /> Export text
-      </Item>
-      <Item className={MENU_ITEM} disabled={actions.exchange.isPending} onClick={() => actions.exchange.mutate({ roster, title })}>
-        <QrCode /> Exchange code
-      </Item>
-      <Item className={MENU_ITEM} onClick={() => actions.print(roster.id)}>
-        <Printer /> Print
+      <Separator />
+      <Item className={MENU_ITEM} onClick={onShare}>
+        <Share2 /> Share…
+        <span className="ml-auto flex items-center gap-1 pl-4 text-2xs text-faint normal-case">
+          <VisibleIcon className="size-3" /> {VISIBILITY_NAME[roster.visibility]}
+        </span>
       </Item>
       <Separator />
       <Item

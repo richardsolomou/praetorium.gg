@@ -6,20 +6,18 @@ import {
   Copy,
   Crown,
   HandHelping,
-  Download,
   EllipsisVertical,
   GitBranchPlus,
   Group,
-  Link2,
   Lock,
   LockOpen,
   Pencil,
   Plus,
-  Printer,
-  QrCode,
+  Share2,
   SlidersHorizontal,
   Swords,
   TriangleAlert,
+  Unlink,
 } from 'lucide-react'
 import { posthog } from 'posthog-js'
 import { toast } from 'sonner'
@@ -58,7 +56,15 @@ import type { RosterSource, RosterVisibility } from '../../../core/savedRoster'
 import { modelCountChoices } from '../../../core/unitSize'
 import type { Datasheet } from '../../../contracts/catalogue'
 import { rosterMatchup, type SimulatorRosterSource } from '../../../contracts/simulatorState'
-import { copyRoster, endRosterLoan, exportRoster, saveRoster, setRosterLocked } from '../../functions'
+import {
+  copyRoster,
+  endRosterLoan,
+  exportRoster,
+  saveRoster,
+  setRosterLocked,
+  setRosterVisibility,
+  splitRosterVariant,
+} from '../../functions'
 import { shareLink, useNativeShare } from '../../nativeBridge'
 import {
   factionIndexQuery,
@@ -111,6 +117,8 @@ import {
 import { RosterSetupDialog, type RosterSetup, type RosterSetupFaction } from './RosterSetupDialog'
 import { RosterExportDialog, type RosterTextExport } from './RosterExportDialog'
 import { RosterExchangeDialog, type RosterExchangeCode } from './RosterExchangeDialog'
+import { type RosterShareChoices, RosterShareDialog } from './RosterShareDialog'
+import { useOrigin } from '../../useOrigin'
 import { RosterLoanDialog } from './RosterLoanDialog'
 import { encodeRosterExchange } from '../../../core/rosterExchange'
 import { RosterBody, RosterHeader, RosterOutline, RosterShell, RosterUnits } from './RosterPresentation'
@@ -476,6 +484,18 @@ export function ListBuilder({
   })
 
   // Queued behind the autosave, so the variant copies the row the page last sent.
+  // The list leaves its variant group but stays open here, so only the group menu changes.
+  const splitVariant = useMutation({
+    scope: { id: 'roster-autosave' },
+    mutationFn: (id: string) => splitRosterVariant({ data: { id } }),
+    onSuccess: () => invalidateSavedRosters(queryClient),
+  })
+  const splitItem =
+    savedId && variants.length > 1 ? (
+      <DropdownMenuItem className={MENU_ITEM} disabled={splitVariant.isPending} onClick={() => splitVariant.mutate(savedId)}>
+        <Unlink /> Make its own roster
+      </DropdownMenuItem>
+    ) : null
   const createVariant = useMutation({
     scope: { id: 'roster-autosave' },
     mutationFn: (id: string) => copyRoster({ data: { id, variant: true } }),
@@ -582,12 +602,13 @@ export function ListBuilder({
   }, [frozenReference, preparePrint, printReady])
   usePrintWhenReady(printReady && frozenReference)
   const share = useMutation({
-    mutationFn: async () => {
-      // The link opens the saved roster, so unsaved edits land before it is handed out.
+    // Unsaved edits land first, while the list is still private, so a save of the older setup cannot undo the promotion.
+    mutationFn: async (promote: boolean) => {
       if (editable && currentDraftKey !== lastApplied.current) await save.mutateAsync()
+      if (promote) await access.mutateAsync('unlisted')
       return shareLink(`${window.location.origin}${workspacePath}`, shownName || 'Roster')
     },
-    onSuccess: () => posthog.capture('roster_shared', { visibility_changed: false }),
+    onSuccess: (_, promote) => posthog.capture('roster_shared', { visibility_changed: promote }),
     onError: (error) => posthog.captureException(error, { operation: 'roster_share' }),
   })
   const { reset: resetShare } = share
@@ -596,10 +617,50 @@ export function ListBuilder({
     const timer = setTimeout(resetShare, 4000)
     return () => clearTimeout(timer)
   }, [resetShare, share.isSuccess])
+  // Set on the server, then on this page's setup, so the next autosave writes the same visibility rather than the old one.
+  const access = useMutation({
+    mutationFn: async (next: RosterVisibility) => {
+      await setRosterVisibility({ data: { id: savedId, visibility: next } })
+      return next
+    },
+    onSuccess: async (next) => {
+      setSetup((current) => ({ ...current, visibility: next }))
+      await invalidateSavedRosters(queryClient)
+    },
+  })
   const nativeShare = useNativeShare()
+  const [sharing, setSharing] = useState(false)
+  const origin = useOrigin()
+  // An owner can change who opens a saved list, locked or not; a visitor is asked to sign up first.
+  const ownsSaved = Boolean(savedId) && !battle && ((editable && !guest) || locked)
+  const rosterShare: RosterShareChoices = {
+    title: shownName || 'Roster',
+    visibility,
+    onVisibility: guest
+      ? () => account.ask('share')
+      : ownsSaved
+        ? (next) => {
+            if (next !== visibility) access.mutate(next)
+          }
+        : undefined,
+    choosing: access.isPending ? access.variables : null,
+    visibilityNote: guest ? 'Sign in to share it by link or publicly.' : undefined,
+    visibilityError: access.isError ? access.error : undefined,
+    link: savedId && !battle && origin ? `${origin}${workspacePath}` : null,
+    onCopy: () => share.mutate(visibility === 'private'),
+    copied: share.data ?? null,
+    copying: share.isPending,
+    copyProblem: share.isError ? `Could not share the link: ${errorMessage(share.error)}` : undefined,
+    onExport: () => take.mutate(),
+    exporting: take.isPending || !positioned.length,
+    onExchange: () => exchange.mutate(),
+    exchanging: exchange.isPending || !positioned.length,
+    onPrint: frozenReference ? () => window.print() : preparePrint,
+    printDisabled: !frozenReference && (!priced || pricePending || priceLoading),
+  }
   const shareItem = (
-    <DropdownMenuItem className={MENU_ITEM} disabled={share.isPending} onClick={() => share.mutate()}>
-      <Link2 /> {nativeShare ? 'Share link' : 'Copy link'}
+    <DropdownMenuItem className={MENU_ITEM} onClick={() => setSharing(true)}>
+      <Share2 /> Share…
     </DropdownMenuItem>
   )
   const rosterLoading = !frozen && priceLoading && picks.length > 0
@@ -860,12 +921,14 @@ export function ListBuilder({
     enabled: building && workspaceMeasured && Boolean(catalogueId),
     placeholderData: keepPreviousData,
   })
+  const budget = pointsBudget ?? limit
+  const room = priced && enforces(waivedRules, 'points-limit') ? budget - priced.points : null
   const attachDiscovery = useMemo(
     () =>
       attachCandidates
-        ? { candidates: attachCandidates.filter((unit) => shownKind(unit.nonMatchedPlay, pickerFilters)), held, limits: unitLimits }
+        ? { candidates: attachCandidates.filter((unit) => shownKind(unit.nonMatchedPlay, pickerFilters)), held, limits: unitLimits, room }
         : null,
-    [attachCandidates, pickerFilters, held, unitLimits],
+    [attachCandidates, pickerFilters, held, unitLimits, room],
   )
   const cardRelationships = useCardRelationships(picks, units, attachDiscovery, embarks)
   const openSetup = () => {
@@ -960,8 +1023,6 @@ export function ListBuilder({
   }
 
   const points = frozen ? frozen.points : (priced?.points ?? 0)
-  const budget = pointsBudget ?? limit
-  const room = priced && enforces(waivedRules, 'points-limit') ? budget - priced.points : null
   const over = enforces(waivedRules, 'points-limit') && (frozen ? frozen.points > budget : Boolean(priced && priced.points > budget))
   const illegal = Boolean(priced && (priced.errors.length || priced.detachmentError || priced.dispositionError))
   const cards = frozen
@@ -1302,7 +1363,7 @@ export function ListBuilder({
                 <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label="Roster actions" />}>
                   <EllipsisVertical />
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="min-w-52">
+                <DropdownMenuContent align="end" className="w-max">
                   <MenuSection label="Play">
                     {savedId && !guest ? (
                       <DropdownMenuItem
@@ -1338,6 +1399,7 @@ export function ListBuilder({
                             >
                               <GitBranchPlus /> Create variant
                             </DropdownMenuItem>
+                            {splitItem}
                             <DropdownMenuItem className={MENU_ITEM} onClick={() => setLending(true)}>
                               <HandHelping /> Lend to a friend
                             </DropdownMenuItem>
@@ -1355,6 +1417,7 @@ export function ListBuilder({
                             <DropdownMenuItem className={MENU_ITEM} onClick={() => account.ask('variant')}>
                               <GitBranchPlus /> Create variant
                             </DropdownMenuItem>
+                            {splitItem}
                             <DropdownMenuItem className={MENU_ITEM} onClick={() => account.ask('lend')}>
                               <HandHelping /> Lend to a friend
                             </DropdownMenuItem>
@@ -1367,22 +1430,7 @@ export function ListBuilder({
                     </>
                   ) : null}
                   <DropdownMenuSeparator />
-                  <MenuSection label="Share">
-                    {visibility !== 'private' ? shareItem : null}
-                    <DropdownMenuItem className={MENU_ITEM} disabled={take.isPending || !positioned.length} onClick={() => take.mutate()}>
-                      <Download /> Export text
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      className={MENU_ITEM}
-                      disabled={exchange.isPending || !positioned.length}
-                      onClick={() => exchange.mutate()}
-                    >
-                      <QrCode /> Exchange code
-                    </DropdownMenuItem>
-                    <DropdownMenuItem className={MENU_ITEM} disabled={!priced || pricePending || priceLoading} onClick={preparePrint}>
-                      <Printer /> Print
-                    </DropdownMenuItem>
-                  </MenuSection>
+                  {shareItem}
                   {displaySection}
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -1426,7 +1474,7 @@ export function ListBuilder({
                 <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label="Roster actions" />}>
                   <EllipsisVertical />
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="min-w-52">
+                <DropdownMenuContent align="end" className="w-max">
                   {locked || testTargets ? (
                     <>
                       <MenuSection label="Play">
@@ -1453,6 +1501,7 @@ export function ListBuilder({
                         >
                           <GitBranchPlus /> Create variant
                         </DropdownMenuItem>
+                        {splitItem}
                         <DropdownMenuItem
                           className={MENU_ITEM}
                           disabled={duplicateRoster.isPending}
@@ -1483,26 +1532,7 @@ export function ListBuilder({
                     )}
                   </MenuSection>
                   <DropdownMenuSeparator />
-                  <MenuSection label="Share">
-                    {visibility !== 'private' && !battle ? shareItem : null}
-                    <DropdownMenuItem className={MENU_ITEM} disabled={take.isPending || !positioned.length} onClick={() => take.mutate()}>
-                      <Download /> Export text
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      className={MENU_ITEM}
-                      disabled={exchange.isPending || !positioned.length}
-                      onClick={() => exchange.mutate()}
-                    >
-                      <QrCode /> Exchange code
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      className={MENU_ITEM}
-                      disabled={!frozenReference && (!priced || pricePending || priceLoading)}
-                      onClick={frozenReference ? () => window.print() : preparePrint}
-                    >
-                      <Printer /> Print
-                    </DropdownMenuItem>
-                  </MenuSection>
+                  {shareItem}
                   {displaySection}
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -1530,6 +1560,7 @@ export function ListBuilder({
           <Problem className="mt-1 text-xs">That roster could not be duplicated. Try again.</Problem>
         ) : null}
         {createVariant.isError ? <Problem className="mt-1 text-xs">The variant could not be created. Try again.</Problem> : null}
+        {splitVariant.isError ? <Problem error={splitVariant.error} className="mt-1 text-xs" /> : null}
         {share.isError ? (
           <Problem className="mt-1 text-xs">Could not share the link: {errorMessage(share.error)}</Problem>
         ) : (
@@ -1947,6 +1978,7 @@ export function ListBuilder({
           ) : null
         }
       />
+      <RosterShareDialog open={sharing} onClose={() => setSharing(false)} {...rosterShare} />
       <RosterExportDialog exported={exportText} onClose={() => setExportText(null)} />
       <RosterExchangeDialog exchange={exchangeCode} onClose={() => setExchangeCode(null)} />
       {account.prompt}

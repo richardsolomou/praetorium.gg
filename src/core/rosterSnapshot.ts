@@ -133,9 +133,12 @@ export function frozenReminders(reminders: readonly RosterReminder[], units: rea
  */
 export function frozenUnits(picks: readonly RosterPick[], units: PricedRoster['units'], details: UnitDetails): SubmittedUnit[] {
   const keyedPicks = picks.map((pick, key) => ({ ...pick, key }))
-  // Both spaces of the same army: what each pick was priced into, and what the
+  // Both spaces of the same army: what each pick was priced into, under the player's name for it, and what the
   // snapshot calls it. A pick the catalogue could not build has neither.
-  const unitsByPick = picks.map((_, at) => units.find((unit) => unit.key === at))
+  const unitsByPick = picks.map((pick, at) => {
+    const unit = units.find((candidate) => candidate.key === at)
+    return unit && { ...unit, name: nicknamedUnit(unit.name, pick.nickname) }
+  })
   const keysByPick = new Map(units.map((unit, index) => [unit.key, `${index}-${unit.entryId}`]))
   // What a character joined, in the keys the snapshot names units by.
   const hostsByPick = new Map(

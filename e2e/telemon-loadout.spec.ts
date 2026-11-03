@@ -45,7 +45,7 @@ for (const width of [1440, 390]) {
       await gunOption.getByRole('button', { name: `Select ${label}`, exact: true }).click()
       await expect(card).toContainText(`1x ${gun}`)
       await expect(card).toContainText('1x Twin Neutronium Cascade Projectors')
-      await expect(loadout.getByRole('heading', { name: gun, exact: true })).toHaveCount(1)
+      await expect(equipped.getByRole('heading', { name: gun, exact: true })).toHaveCount(1)
       await expect(gunOption.getByRole('heading', { name: 'Caestus Fist', exact: true })).toHaveCount(1)
       await expect(gunOption.getByRole('heading', { name: 'Dual Caestus Fists', exact: true })).toHaveCount(0)
       await expect(gunOption.getByRole('heading', { name: 'Twin Neutronium Cascade Projectors', exact: true })).toHaveCount(1)

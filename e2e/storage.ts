@@ -166,10 +166,18 @@ export async function battleCommands(battleId: string) {
 }
 
 /** Appends a command after whatever the log ends on now: an open battle page can still be writing its own. */
+// The open battle pages can append a command between reading the last seq and inserting the next, so a taken seq is read again.
 export async function appendCommand(battleId: string, by: string, body: object) {
-  const seq =
-    Math.max(...(await productSql<{ seq: number }>`SELECT seq FROM commands WHERE battle_id = ${battleId}`).map((row) => row.seq)) + 1
-  await productSql`INSERT INTO commands (key, battle_id, seq, user_id, at, body) VALUES (${JSON.stringify([battleId, seq])}, ${battleId}, ${seq}, ${by}, ${Date.now() + seq}, ${JSON.stringify(body)})`
+  for (let attempt = 1; ; attempt += 1) {
+    const seq =
+      Math.max(...(await productSql<{ seq: number }>`SELECT seq FROM commands WHERE battle_id = ${battleId}`).map((row) => row.seq)) + 1
+    try {
+      await productSql`INSERT INTO commands (key, battle_id, seq, user_id, at, body) VALUES (${JSON.stringify([battleId, seq])}, ${battleId}, ${seq}, ${by}, ${Date.now() + seq}, ${JSON.stringify(body)})`
+      return
+    } catch (error) {
+      if (attempt >= 5 || !String(error).includes('Unique constraint violation')) throw error
+    }
+  }
 }
 
 /** Appends commands to the open battle's log, for journeys that only need to reach a later state. */

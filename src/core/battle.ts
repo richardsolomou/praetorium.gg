@@ -21,7 +21,7 @@ import type { RosterReminder } from './reminders'
 import { correctStratagemTiming } from './stratagemCorrections'
 import { teamDisposition, teamDispositionChoices } from './teamDisposition'
 import { teamWarlord, teamWarlordChoices } from './teamWarlord'
-import { type Passenger, type PrintedTransport, type TransportLoad, transportLoad, transportRule } from './transport'
+import { countedIn, type Passenger, type PrintedTransport, type TransportLoad, transportLoad, transportRule } from './transport'
 import type { CatalogueEdition } from './catalogueEdition'
 import type { MissionSelection, MissionSelectionKind } from './missionSelections'
 import { applyMissionSelection, missionSelectionRefusal, recordBeaconDestruction, type SavedMissionSelection } from './missionSelections'
@@ -243,7 +243,10 @@ export function transportAboard(
 ): string | null {
   const load = transportLoadOf(transport, passengers)
   if (!Array.isArray(load)) return null
-  return `${load.map((pool) => (load.length === 1 ? `${pool.used}/${pool.capacity}` : `${pool.used}/${pool.capacity} ${pool.carries}`)).join(', ')} models`
+  if (load.length === 1) return `${load[0]!.used}/${load[0]!.capacity} ${countedIn(load[0]!)}`
+  if (load.some((pool) => pool.units))
+    return load.map((pool) => `${pool.used}/${pool.capacity} ${pool.carries} ${countedIn(pool)}`).join(', ')
+  return `${load.map((pool) => `${pool.used}/${pool.capacity} ${pool.carries}`).join(', ')} models`
 }
 
 const loadRefusal = (load: TransportLoad | Refusal): Refusal | null => (Array.isArray(load) ? null : load)

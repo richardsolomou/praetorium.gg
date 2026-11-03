@@ -17,15 +17,6 @@ import {
   PHONE,
 } from './account'
 
-async function expectOnboardingProgress(page: Parameters<typeof signUp>[0], resolved: number) {
-  await page
-    .locator('[data-web-app-chrome]')
-    .getByRole('button', { name: /Account menu for/ })
-    .click()
-  await expect(page.getByRole('menuitem', { name: /Getting started/ })).toContainText(`${resolved}/2`)
-  await page.keyboard.press('Escape')
-}
-
 /**
  * An account is who you are here, so this covers both halves of that: nothing is
  * reachable without one, and everything saved under one is still there on a
@@ -321,15 +312,7 @@ test('friends use the profile picture shown elsewhere', async ({ browser }) => {
   await alice.getByRole('button', { name: 'Save profile' }).click()
   await expect(alice.getByText('Profile saved.')).toBeVisible()
   await signUp(bob, uniqueName('Bob'))
-  // A sent request is not a friendship, so the folded task only resolves once it is accepted.
-  await befriend(alice, bob, {
-    beforeAccept: async () => {
-      await alice.reload()
-      await expectOnboardingProgress(alice, 0)
-    },
-  })
-  await alice.reload()
-  await expectOnboardingProgress(alice, 0)
+  await befriend(alice, bob)
 
   const friend = bob.locator(`[data-person="${aliceName}"]`)
   await expect(friend.locator('img')).toHaveAttribute('src', /\/avatars\/[0-9a-f]+\.jpg$/)
@@ -462,56 +445,24 @@ test('a player can reject an incoming friend request', async ({ browser }) => {
   }
 })
 
-test('onboarding waits in the profile menu and disappears when complete', async ({ page }) => {
+test('the account menu opens from the rail and the phone header', async ({ page }) => {
   const name = uniqueName('Feedback')
   await signUp(page, name)
 
-  await expect(page.getByRole('heading', { name: 'Your first army and matchup' })).toBeHidden()
-  await expect(page.getByRole('button', { name: /Getting started/ })).toHaveCount(0)
   const account = page.locator('[data-web-app-chrome]').getByRole('button', { name: `Account menu for ${name}` })
-  await expect(account.locator('[data-onboarding-new]')).toBeVisible()
   await account.click()
-
-  const gettingStarted = page.getByRole('menuitem', { name: /Getting started/ })
-  await expect(gettingStarted).toContainText('0/2')
-  await expect(gettingStarted).toContainText('New')
-  await page.screenshot({ path: test.info().outputPath('account-menu-onboarding.png'), fullPage: true })
-  await gettingStarted.click()
-  await expect(page.getByRole('heading', { name: 'Your first army and matchup' })).toBeVisible()
-  await page.screenshot({ path: test.info().outputPath('getting-started-desktop.png') })
-
-  const welcomed = page.waitForResponse(
-    (response) => response.ok() && response.request().method() === 'POST' && Boolean(response.request().postData()?.includes('"welcome"')),
-  )
-  await page.getByRole('button', { name: 'Close getting started' }).click()
-  await welcomed
-  await account.click()
-
   await expect(page.getByRole('menuitem', { name: 'My profile' })).toContainText(name)
-  await expect(gettingStarted).toContainText('0/2')
-  await expect(gettingStarted).not.toContainText('New')
   await expect(page.getByRole('menuitem', { name: 'Feedback' })).toBeVisible()
   await page.screenshot({ path: test.info().outputPath('account-menu-desktop.png'), fullPage: true })
 
   await account.click()
-  await expect(gettingStarted).toBeHidden()
   await page.setViewportSize(PHONE)
-  const mobileHeader = page.locator('[data-mobile-app-header]')
-  await mobileHeader.getByRole('button', { name: `Account menu for ${name}` }).click()
+  await page
+    .locator('[data-mobile-app-header]')
+    .getByRole('button', { name: `Account menu for ${name}` })
+    .click()
   await expect(page.getByRole('menuitem', { name: 'My profile' })).toBeVisible()
   await page.screenshot({ path: test.info().outputPath('account-menu-phone.png'), fullPage: true })
-
-  await gettingStarted.click()
-  await page.screenshot({ path: test.info().outputPath('getting-started-phone.png') })
-  for (const task of ['Build your first army', 'Try your first matchup']) {
-    const skip = page.getByRole('button', { name: `Skip ${task}` })
-    await skip.click()
-    await expect(skip).toBeHidden()
-  }
-  await page.getByRole('button', { name: 'Close getting started' }).click()
-  await mobileHeader.getByRole('button', { name: `Account menu for ${name}` }).click()
-  await expect(gettingStarted).toHaveCount(0)
-  await expect(mobileHeader.locator('[data-onboarding-new]')).toHaveCount(0)
 })
 
 test('a list saved under an account is there on another device', async ({ browser }) => {
@@ -520,13 +471,8 @@ test('a list saved under an account is there on another device', async ({ browse
   const { email, password } = await signUp(page, 'Alice')
   await expect(page.getByRole('button', { name: 'Account menu for Alice' })).toBeVisible()
 
-  await expectOnboardingProgress(page, 0)
   await createRoster(page, { faction: 'Death Guard', detachment: /Shamblerot Vectorium/, name: 'Kept list' })
   await addUnit(page, 'Plague Marines')
-
-  // Nothing recorded that the task was done: a reload folds it from the list this account now owns.
-  await page.reload()
-  await expectOnboardingProgress(page, 1)
 
   // A different browser entirely: no cookie, no storage, nothing but the account.
   const second = await browser.newContext()

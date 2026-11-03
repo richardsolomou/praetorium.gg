@@ -1,5 +1,107 @@
 # praetorium
 
+## 0.218.2 (2026-11-03)
+
+### Patch Changes
+
+- 9b83d62: Mission cards in battles, setup and the mission reference show each scoring window and action as its own part, with the victory points set as large figures and each matchup's actions under the mission that asks for them.
+- 68bbba9: An opened terrain layout shows its published distances first, in battle setup and on mission matchup pages.
+
+## 0.218.1 (2026-11-03)
+
+### Patch Changes
+
+- 0502ae7: A roster's detachment borrowed from another army, such as a Titanicus Traitoris roster's Blood Legion, now links to its detachment page.
+- 0502ae7: In the app, a link to a screen in another tab opens it in that tab, so swiping back goes up that tab, such as from a roster's detachment to its faction.
+- 0502ae7: In the app, swiping back no longer briefly flashes the screen you just left.
+- 0502ae7: In the app, swiping back on a screen a tab reopened now shows the screen you're going back to, and tapping the tab no longer flickers through the screens before it.
+
+## 0.218.0 (2026-11-03)
+
+### Minor Changes
+
+- 5c8953b: Groups and Collection have their own guides, and Missions and Force dispositions offer search help.
+
+### Patch Changes
+
+- 5c8953b: Guide buttons are now a small question mark in the top corner of pages, dialogs and the battle panel instead of a labelled button on its own line.
+- 5c8953b: The battle and tournament guides skip steps that only repeated what the screen already shows.
+
+## 0.217.0 (2026-11-02)
+
+### Minor Changes
+
+- 64211ae: Each wishlist card has a Move to collection button that puts the models you now have on your shelf, asking how many when you want more than one.
+
+## 0.216.4 (2026-11-02)
+
+### Patch Changes
+
+- 66da448: Attach menus and the units a character leads now show your nickname for a unit, so two copies of the same datasheet can be told apart.
+
+## 0.216.3 (2026-11-02)
+
+### Patch Changes
+
+- 5a1a97c: A unit's Attach unit menu now marks a new unit's points in amber when it costs more than the list has left, as the unit list does.
+- 5a1a97c: A Custodes army can take the Auric Eagle, Celeritous Sentries, Combat Deployment and Anti-Gravitic Mobility upgrades up to three times each, as the core rules allow, instead of once.
+
+## 0.216.2 (2026-11-02)
+
+### Patch Changes
+
+- 928dc82: Faction abilities on a faction page now start collapsed; tap one to read it.
+- 928dc82: In the app, swiping back on a screen a tab reopened now goes up that tab, such as from a detachment to its faction.
+
+## 0.216.1 (2026-11-02)
+
+### Patch Changes
+
+- 979b2c0: The account menu no longer has Getting started; each page's question-mark button starts its own guide.
+
+## 0.216.0 (2026-11-02)
+
+### Minor Changes
+
+- c4f0b4c: Collection now sits in the side menu, and shows how much of your shelf is built and painted, for the whole collection, each army and each datasheet.
+
+### Patch Changes
+
+- c4f0b4c: The account menu now keeps Friends and Account settings together and links to the docs.
+- c4f0b4c: Wishlist suggestions now only list units other players field in your armies, under the army they were suggested for, instead of unrelated armies' fortifications.
+
+## 0.215.2 (2026-11-02)
+
+### Patch Changes
+
+- 7d4751d: Moving between pages no longer dims the screen for a moment, so the sidebar and background stay steady while the page crossfades.
+- 7d4751d: With reduced motion on, collapsible sections open and close at once instead of fading.
+- 7d4751d: Testing a roster against targets no longer starts over when your saved rosters finish loading, so the table fills in sooner.
+
+## 0.215.1 (2026-11-02)
+
+### Patch Changes
+
+- 4966ce0: Transports whose capacity counts units, such as the Night Scythe, can now carry a unit when you embark it instead of saying their capacity is unknown.
+
+## 0.215.0 (2026-11-02)
+
+### Minor Changes
+
+- 3d0ca63: A variant that turned into a different idea can leave its group with Make its own roster, in the library or the roster's menu.
+
+## 0.214.0 (2026-11-02)
+
+### Minor Changes
+
+- 8d02f42: The printed battle reference pack is a compact table per datasheet with units sharing pages and rules in two columns, so a full army takes a third of the paper.
+- 8d02f42: Selected rosters can now be made public together, from a Visibility menu that offers private, unlisted and public every time.
+- 8d02f42: Share in a roster's menu opens one dialog to choose who can open it, copy its link, export its text, make an exchange code or print it.
+
+### Patch Changes
+
+- 8d02f42: With the navigation folded on a desktop, hovering an icon names it beside the rail.
+
 ## 0.213.0 (2026-11-02)
 
 ### Minor Changes

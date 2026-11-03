@@ -2,13 +2,14 @@ import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { ArrowDown, ArrowRight } from 'lucide-react'
 import { buttonClass } from '../../../components/buttonClass'
-import { dispositionTone } from '../../../components/rosterSetup'
+import { DispositionChip } from '../../battle/setup/chrome'
 import { gameReferencesQuery } from '../../../queries'
 import { PageContent, PageHeader } from '../../../components/Page'
 import { RuleText } from '../../../components/RuleText'
 import { matchupMission } from './dispositionMatchups'
 import { SectionHeading } from '../../../components/SectionHeading'
 import { RUNNER_COLUMNS } from '../runnerColumns'
+import { GuideHelp } from '../../onboarding/GuideHelp'
 
 export function MissionPackPage({ packId }: { packId: string }) {
   const { data } = useQuery(gameReferencesQuery())
@@ -38,6 +39,7 @@ export function MissionPackPage({ packId }: { packId: string }) {
     <main className="w-full">
       <PageHeader
         title={pack.name}
+        help={<GuideHelp task="reference">Search help</GuideHelp>}
         actions={
           <>
             <Link to="/rosters/new" search={{ reference: 'mission-pack' }} className={buttonClass()}>
@@ -61,7 +63,7 @@ export function MissionPackPage({ packId }: { packId: string }) {
               className="grid min-w-[760px] gap-1.5"
               style={{ gridTemplateColumns: `9rem repeat(${data.dispositions.length}, minmax(7rem, 1fr))` }}
             >
-              <div className="grid min-h-14 content-center justify-items-center gap-0.5 rounded-lg border border-edge bg-sunken text-center text-xs font-bold text-dim uppercase">
+              <div className="grid min-h-12 content-end gap-0.5 px-1 pb-1.5 text-2xs font-semibold tracking-label text-faint uppercase">
                 <span className="flex items-center gap-1">
                   Opponent <ArrowRight className="size-3" aria-hidden />
                 </span>
@@ -70,11 +72,8 @@ export function MissionPackPage({ packId }: { packId: string }) {
                 </span>
               </div>
               {data.dispositions.map((entry) => (
-                <div
-                  key={entry.id}
-                  className={`grid min-h-14 place-items-center rounded-lg border px-2 text-center text-xs font-bold uppercase ${dispositionTone(entry.id, true)}`}
-                >
-                  {entry.name}
+                <div key={entry.id} className="grid min-h-12 place-items-end justify-items-center pb-1.5">
+                  <DispositionChip disposition={entry} />
                 </div>
               ))}
               {data.dispositions.map((you) => (
@@ -82,9 +81,9 @@ export function MissionPackPage({ packId }: { packId: string }) {
                   <Link
                     to="/force-dispositions/$dispositionId"
                     params={{ dispositionId: you.id }}
-                    className={`grid min-h-16 place-items-center rounded-lg border px-2 text-center text-xs font-bold uppercase hover:underline ${dispositionTone(you.id, true)}`}
+                    className="flex min-h-16 items-center justify-start px-1"
                   >
-                    {you.name}
+                    <DispositionChip disposition={you} className="transition-colors hover:border-runner-hi" />
                   </Link>
                   {data.dispositions.map((opponent) => {
                     const found = matchupMission(pack, you.id, opponent.id)
@@ -93,14 +92,14 @@ export function MissionPackPage({ packId }: { packId: string }) {
                         key={opponent.id}
                         to="/missions/$packId/matchups/$you/$opponent"
                         params={{ packId, you: you.id, opponent: opponent.id }}
-                        className="grid min-h-16 place-items-center part px-2 text-center text-sm font-semibold text-balance transition-colors hover:border-runner hover:bg-raised"
+                        className="grid min-h-16 place-items-center part px-2 text-center text-sm font-semibold text-balance transition-colors hover:border-runner-hi hover:bg-raised"
                       >
                         {found.name}
                       </Link>
                     ) : (
                       <div
                         key={opponent.id}
-                        className="grid min-h-16 place-items-center rounded-lg border border-edge bg-sunken text-xs text-faint"
+                        className="grid min-h-16 place-items-center rounded-xl border border-dashed border-runner text-2xs font-semibold tracking-label text-faint uppercase"
                       >
                         Unavailable
                       </div>

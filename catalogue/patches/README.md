@@ -17,3 +17,4 @@
 - `terrain-labels`, `terrain-areas`: diagrams linked from [GDC layouts](https://github.com/game-datacards/datasources/blob/9c0762c8311db122c0faa9a3a09ef891c3c2d782/11th/gdc/layouts/layouts.json) and 40kdc `link_group`.
 - `kotc-2`: publisher links inside the patch.
 - `daemons-fiends-blissbringer`: composition "1 Blissbringer, 2-5 Fiends" in [GDC Chaos Daemons](https://github.com/game-datacards/datasources/blob/ebcd0cbedb197fd8246b7cff580fde3625c6f3f1/11th/gdc/chaosdaemons.json) and the official app's exports; mirrors BSData's Emperor's Children Fiends.
+- `custodes-upgrades-up-to-three`: core rules 25.04 Upgrades ("up to three of the same Upgrade") in [GDC core rules](https://github.com/game-datacards/datasources/blob/9c0762c8311db122c0faa9a3a09ef891c3c2d782/11th/gdc/core/core_rules.json); Memento Moritoi and Augury Uplink stay at one, as the official app marks them one per army.

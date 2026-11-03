@@ -9,15 +9,15 @@ public class PraetoriumWebSwipeModule: Module {
     AsyncFunction("setBackSwipe") { (enabled: Bool) -> Bool in
       gateBackSwipe(enabled)
     }.runOnQueue(.main)
+    AsyncFunction("setCover") { (covered: Bool) in
+      setCover(covered)
+    }.runOnQueue(.main)
   }
 }
 
 /// Returns false when a swiping web view has no back-edge recognizer to gate.
 private func gateBackSwipe(_ enabled: Bool) -> Bool {
-  let webViews = UIApplication.shared.connectedScenes
-    .compactMap { $0 as? UIWindowScene }
-    .flatMap(\.windows)
-    .flatMap { swipingWebViews(in: $0) }
+  let webViews = allWebViews()
   var gated = true
   for webView in webViews {
     let recognizers = webView.gestureRecognizers?.compactMap { $0 as? UIScreenEdgePanGestureRecognizer } ?? []
@@ -30,6 +30,36 @@ private func gateBackSwipe(_ enabled: Bool) -> Bool {
     recognizers.filter { $0.edges == .right }.forEach { $0.isEnabled = false }
   }
   return gated
+}
+
+private var covers: [UIView] = []
+private var coverGeneration = 0
+
+/// Freezes what the web views show under a still picture of it, so a page can draw screens it passes through
+/// without them showing. WebKit snapshots only the web view's own layers, so its swipe previews still see them.
+private func setCover(_ covered: Bool) {
+  covers.forEach { $0.removeFromSuperview() }
+  covers = []
+  coverGeneration += 1
+  guard covered else { return }
+  for webView in allWebViews() {
+    guard let superview = webView.superview, let cover = webView.snapshotView(afterScreenUpdates: false) else { continue }
+    cover.frame = webView.frame
+    superview.insertSubview(cover, aboveSubview: webView)
+    covers.append(cover)
+  }
+  // A page that never lifts the cover must not freeze the app.
+  let generation = coverGeneration
+  DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+    if generation == coverGeneration { setCover(false) }
+  }
+}
+
+private func allWebViews() -> [WKWebView] {
+  UIApplication.shared.connectedScenes
+    .compactMap { $0 as? UIWindowScene }
+    .flatMap(\.windows)
+    .flatMap { swipingWebViews(in: $0) }
 }
 
 private func swipingWebViews(in view: UIView) -> [WKWebView] {

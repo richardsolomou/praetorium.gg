@@ -1,7 +1,18 @@
 import { useNavigate } from '@tanstack/react-router'
 import { Search } from 'lucide-react'
 import { posthog } from 'posthog-js'
-import { createContext, type ReactNode, useCallback, useContext, useEffect, useId, useMemo, useRef, useState } from 'react'
+import {
+  type ComponentProps,
+  createContext,
+  type ReactNode,
+  useCallback,
+  useContext,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 import { Button } from '@/components/ui/button'
 import { Kbd, KbdGroup } from '@/components/ui/kbd'
 import type { GlobalSearchResult } from '../../functions'
@@ -208,7 +219,7 @@ export function GlobalSearchProvider({ children }: { children: ReactNode }) {
   )
 }
 
-export function GlobalSearch({ compact = false }: { compact?: boolean }) {
+export function GlobalSearch({ compact = false, ...props }: { compact?: boolean } & ComponentProps<typeof Button>) {
   const search = useContext(GlobalSearchContext)
   if (!search) throw new Error('GlobalSearch must be rendered inside GlobalSearchProvider.')
 
@@ -224,6 +235,7 @@ export function GlobalSearch({ compact = false }: { compact?: boolean }) {
       }
       aria-label="Search Praetorium"
       onClick={search.open}
+      {...props}
     >
       <Search className="size-4" />
       {compact ? null : <span className="flex-1 text-left text-xs">Search</span>}

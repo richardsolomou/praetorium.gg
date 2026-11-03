@@ -18,6 +18,7 @@ const YNNARI_VENOM =
   'This model has a transport capacity of 6 models from the following units: **THE VISARCH**, **YNNARI ARCHON**, **YNNARI INCUBI**, **YNNARI KABALITE WARRIORS**, **YNNARI SUCCUBUS**, **YNNARI WYCHES**, **YVRAINE**'
 const CHIMERA =
   'This model has a transport capacity of 12 **ASTRA MILITARUM INFANTRY** models. Each **OGRYN** model takes up the space of 3 models. It cannot transport **ARTILLERY** models.'
+const NIGHT_SCYTHE = 'This model has a transport capacity of 1 **NECRONS INFANTRY** unit.'
 const BATTLEWAGON =
   'This model has a transport capacity of 20 **ORKS INFANTRY** models. If this model is equipped with a supa-kannon, it has a transport capacity of 15 **ORKS INFANTRY** models.'
 
@@ -42,7 +43,6 @@ describe('transport rules', () => {
   })
 
   it.each([
-    ['a capacity in units', 'This model has a transport capacity of 1 NECRONS INFANTRY unit.'],
     [
       'a capacity that changes in play',
       'This model has a transport capacity of 12 INFANTRY models. While carrying a DREADNOUGHT, its transport capacity is reduced to 6 INFANTRY models.',
@@ -109,6 +109,29 @@ describe('transport loads', () => {
     expect(used(loadIn(STORMRAVEN, [dreadnoughts]))).toBe(
       'this transport can carry at most 12 Adeptus Astartes Infantry and 1 Dreadnought models',
     )
+  })
+
+  it('counts a capacity in units by unit, whatever its size', () => {
+    const warriors = { name: 'Necron Warriors', alive: 20, keywords: ['Faction: Necrons', 'Infantry', 'Necron Warriors'] }
+    expect(used(loadIn(NIGHT_SCYTHE, [warriors]))).toEqual([1])
+  })
+
+  it('counts a leader and the unit it joins as one unit', () => {
+    const warriors = { key: 'warriors', name: 'Necron Warriors', alive: 10, keywords: ['Faction: Necrons', 'Infantry'] }
+    const overlord = {
+      key: 'overlord',
+      attachedTo: 'warriors',
+      name: 'Overlord',
+      alive: 1,
+      keywords: ['Faction: Necrons', 'Infantry', 'Character'],
+    }
+    expect(used(loadIn(NIGHT_SCYTHE, [warriors, overlord]))).toEqual([1])
+  })
+
+  it('refuses a second unit beyond a capacity in units', () => {
+    const warriors = { name: 'Necron Warriors', alive: 10, keywords: ['Faction: Necrons', 'Infantry'] }
+    const immortals = { name: 'Immortals', alive: 5, keywords: ['Faction: Necrons', 'Infantry'] }
+    expect(used(loadIn(NIGHT_SCYTHE, [warriors, immortals]))).toBe('this transport can carry at most 1 unit')
   })
 
   it('carries a character in its own allowance', () => {

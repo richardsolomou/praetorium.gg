@@ -10,6 +10,7 @@ import {
   chooseRosterAction,
   openRosterSetup,
   chooseOption,
+  chooseBattleSize,
   PHONE,
 } from './account'
 import { expectWorkSynced } from './storage'
@@ -184,8 +185,7 @@ test('the filters narrow the book to what is worth taking', async ({ browser, pa
   await page.getByRole('button', { name: 'Unit limit' }).click()
   const playAt = async (size: RegExp) => {
     const setup = await openRosterSetup(page)
-    await setup.getByRole('combobox', { name: 'Battle size' }).click()
-    await page.getByRole('option', { name: size }).click()
+    await chooseBattleSize(setup, size)
     await setup.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Take and Hold' }).click()
     await confirmRosterSetup(setup)
   }
