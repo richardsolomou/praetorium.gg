@@ -47,7 +47,7 @@ export function CollectionExchange({ sheets, current }: { sheets: readonly Sheet
   }
   const input = useRef<HTMLInputElement>(null)
   return (
-    <>
+    <div data-onboarding="collection-exchange" className="flex flex-wrap gap-2">
       <Button variant="outline" size="sm" disabled={!current.size} onClick={() => void exportFile()}>
         <Download /> {native ? (copied ? 'Copied CSV' : 'Copy CSV') : 'Export CSV'}
       </Button>
@@ -74,7 +74,7 @@ export function CollectionExchange({ sheets, current }: { sheets: readonly Sheet
         }}
       />
       <ImportReview reading={reading} current={current} onClose={() => setReading(null)} />
-    </>
+    </div>
   )
 }
 

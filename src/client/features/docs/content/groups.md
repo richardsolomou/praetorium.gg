@@ -1,4 +1,4 @@
-A group keeps a running leaderboard of the games you play together. There's no end date: play each other whenever you like, and every game you play for the group goes on its leaderboard. Start one with **New group** on [Groups](/groups).
+A group keeps a running leaderboard of the games you play together. There's no end date: play each other whenever you like, and every game you play for the group goes on its leaderboard. Start one with **New group** on [Groups](/groups); **Group guide**, the question mark in the page's top corner, walks you through it.
 
 ## The group page
 

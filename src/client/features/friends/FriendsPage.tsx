@@ -68,7 +68,7 @@ export function FriendsPage() {
 
   return (
     <main className="w-full">
-      <PageHeader title="Friends" description="The people you play with." actions={<GuideHelp task="friend">Friend guide</GuideHelp>} />
+      <PageHeader title="Friends" description="The people you play with." help={<GuideHelp task="friend">Friend guide</GuideHelp>} />
       <PageContent className="space-y-8">
         {request.error || accept.error || reject.error || remove.error ? (
           <Problem

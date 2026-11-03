@@ -632,37 +632,39 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
             />
 
             <section className={`part space-y-3 p-3 ${focus === 'battle' ? '' : 'hidden lg:block'}`}>
-              <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
-                {view.settings.manual ? (
-                  <Fact label="Tracking" value="Manual" />
-                ) : (
-                  <>
-                    <Fact label="Mission" value={yours?.mission?.name ?? 'Matched play'} />
-                    <Fact label="Mission pack" value={missionPack?.name ?? 'Not chosen'} />
-                    <BattlefieldFact view={view} deployment={deployment} objectives />
-                    <Fact label="Attacker" value={view.players.find((player) => player.id === view.attackerId)?.name ?? 'Not chosen'} />
-                  </>
-                )}
-                <Fact label="Battle size" value={battleSizeText(view) ?? 'Not set'} />
-                <Fact label="Format" value={formatName(table)} />
-                {/*
-                 * A twist changes one rule for the whole battle, so it is not enough to
-                 * name it: the sentence it changes has to be readable from the table
-                 * without leaving the game to go and find the pack.
-                 */}
-                {twist ? (
-                  <div className="min-w-0">
-                    <dt className="eyebrow">Twist</dt>
-                    <dd>
-                      <TwistName twist={twist} />
-                    </dd>
-                  </div>
-                ) : null}
-              </dl>
+              <div className="flex items-start gap-2">
+                <dl className="grid flex-1 grid-cols-2 gap-x-3 gap-y-2 text-xs">
+                  {view.settings.manual ? (
+                    <Fact label="Tracking" value="Manual" />
+                  ) : (
+                    <>
+                      <Fact label="Mission" value={yours?.mission?.name ?? 'Matched play'} />
+                      <Fact label="Mission pack" value={missionPack?.name ?? 'Not chosen'} />
+                      <BattlefieldFact view={view} deployment={deployment} objectives />
+                      <Fact label="Attacker" value={view.players.find((player) => player.id === view.attackerId)?.name ?? 'Not chosen'} />
+                    </>
+                  )}
+                  <Fact label="Battle size" value={battleSizeText(view) ?? 'Not set'} />
+                  <Fact label="Format" value={formatName(table)} />
+                  {/*
+                   * A twist changes one rule for the whole battle, so it is not enough to
+                   * name it: the sentence it changes has to be readable from the table
+                   * without leaving the game to go and find the pack.
+                   */}
+                  {twist ? (
+                    <div className="min-w-0">
+                      <dt className="eyebrow">Twist</dt>
+                      <dd>
+                        <TwistName twist={twist} />
+                      </dd>
+                    </div>
+                  ) : null}
+                </dl>
+                <GuideHelp task="battle" step="battle-live-score">
+                  Playing guide
+                </GuideHelp>
+              </div>
               {view.settings.manual ? <p className="text-xs text-dim">{MANUAL_TRACKING_LIMITS}</p> : null}
-              <GuideHelp task="battle" step="battle-live-score">
-                Playing guide
-              </GuideHelp>
 
               <div data-onboarding="battle-live-report" className="border-t border-edge pt-3">
                 <div className="flex flex-wrap items-center justify-end gap-2">

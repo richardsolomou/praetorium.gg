@@ -35,6 +35,9 @@ const PAGE_ADDRESSES = [
   ['/tournaments', 'tournaments'],
   ['/tournaments/', 'tournaments'],
   ['/tournaments/a-sealed-event', 'tournament'],
+  ['/groups', 'groups'],
+  ['/groups/a-group', 'group'],
+  ['/collection', 'collection'],
 ] as const
 
 describe('onboarding page', () => {
