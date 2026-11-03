@@ -25,6 +25,7 @@ updates:
         update-types:
           - minor
     ignore:
+      - dependency-name: '@better-auth/*' # Plugins must match the better-auth version RAS pins.
       - dependency-name: ras-stack # Managed by RAS.
       - dependency-name: '@libsql/client' # Managed by RAS.
       - dependency-name: '@opentelemetry/api-logs' # Managed by RAS.
