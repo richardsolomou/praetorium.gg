@@ -1,5 +1,16 @@
 # praetorium
 
+## 0.218.0 (2026-11-03)
+
+### Minor Changes
+
+- 5c8953b: Groups and Collection have their own guides, and Missions and Force dispositions offer search help.
+
+### Patch Changes
+
+- 5c8953b: Guide buttons are now a small question mark in the top corner of pages, dialogs and the battle panel instead of a labelled button on its own line.
+- 5c8953b: The battle and tournament guides skip steps that only repeated what the screen already shows.
+
 ## 0.217.0 (2026-11-02)
 
 ### Minor Changes
