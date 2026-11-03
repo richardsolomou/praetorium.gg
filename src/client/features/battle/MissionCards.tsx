@@ -6,9 +6,8 @@ import { BattleDialogContent, BattlePromptDialog } from './BattlePromptDialog'
 import type { Command } from '../../../core/battle'
 import type { BattleView } from '../../../core/battleView'
 import type { Side } from '../../sides'
-import { MissionActions } from '../../components/MissionActions'
 import { MissionCardReference } from '../../components/MissionCardReference'
-import { CARD, CARD_NAME } from './battleTints'
+import { CARD, CARD_NAME, CARD_NAME_LINK } from './battleTints'
 import { DispositionChip, useDispositionNames } from './setup/chrome'
 import { MissionSelectionRecords } from './MissionSelectionRecord'
 import { MissionSelectionDialog } from './MissionSelectionDialog'
@@ -350,7 +349,7 @@ export function MissionName({
     <button
       type="button"
       aria-label={`Read ${name}`}
-      className={cn(CARD_NAME, 'text-left hover:underline', className)}
+      className={cn(CARD_NAME, CARD_NAME_LINK, 'text-left', className)}
       onClick={onRead ? () => onRead({ name, card, type, mode }) : undefined}
     >
       {name}
@@ -382,7 +381,6 @@ function MissionDetailsContent({ details }: { details: MissionDetails }) {
       </DialogHeader>
       <DialogBody>
         <MissionCardReference card={details.card} type={details.type} mode={details.mode} />
-        <MissionActions actions={details.card.actions} />
       </DialogBody>
     </BattleDialogContent>
   )

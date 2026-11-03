@@ -34,6 +34,8 @@ const SIDE_TINTS = [
 
 export const tint = (index: number) => SIDE_TINTS[index] ?? SIDE_TINTS[0]
 
-/** A mission or stratagem: a named card you can act on. */
-export const CARD = 'rounded-lg border border-edge bg-sunken px-2.5 py-2'
-export const CARD_NAME = 'text-sm leading-tight font-bold text-azure uppercase'
+/** A mission or stratagem: a named card you can act on, as a part. */
+export const CARD = 'part px-3 py-2.5'
+/** A card's name, underlined dotted where pressing it opens the card. */
+export const CARD_NAME = 'font-display text-sm leading-tight font-bold tracking-heading text-bone uppercase'
+export const CARD_NAME_LINK = 'underline decoration-runner-hi decoration-dotted decoration-2 underline-offset-4 hover:decoration-parchment'
