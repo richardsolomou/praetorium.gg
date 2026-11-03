@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.218.4 (2026-11-03)
+
+### Patch Changes
+
+- 7289ab5: The roster library's menu now offers Start a battle and Lend to a friend, and the roster page's menu now offers Duplicate, Archive and Delete.
+- 25c1788: A roster a friend has lent you can now be sealed for a tournament or hidden-list game.
+
 ## 0.218.3 (2026-11-03)
 
 ### Patch Changes
