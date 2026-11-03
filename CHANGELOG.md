@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.218.2 (2026-11-03)
+
+### Patch Changes
+
+- 9b83d62: Mission cards in battles, setup and the mission reference show each scoring window and action as its own part, with the victory points set as large figures and each matchup's actions under the mission that asks for them.
+- 68bbba9: An opened terrain layout shows its published distances first, in battle setup and on mission matchup pages.
+
 ## 0.218.1 (2026-11-03)
 
 ### Patch Changes
