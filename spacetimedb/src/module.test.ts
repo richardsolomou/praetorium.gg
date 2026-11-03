@@ -327,20 +327,22 @@ describe('what a sealed event allows', () => {
           payload: JSON.stringify({ token: 'sealed-event', eventToken: 'event', ...payload }),
         }),
       ) as unknown
-    /** Seals `userId`'s list built at `limit`, with an optional points total, whose one unit costs `points`. */
+    /** Seals, as `userId`, a list `ownerId` saved (and `lent` them) built at `limit`, with an optional points total, whose one unit costs `points`. */
     const seal = (
       waivedRules: string[],
       {
         userId = 'entrant',
+        ownerId = userId,
+        lent = false,
         limit = 2000,
         pointsBudget,
         points = 80,
-      }: { userId?: string; limit?: number; pointsBudget?: number; points?: number } = {},
+      }: { userId?: string; ownerId?: string; lent?: boolean; limit?: number; pointsBudget?: number; points?: number } = {},
     ) => {
       module.saveRoster(host.procedure(host.operator), {
         payload: JSON.stringify({
-          id: `saved-${userId}`,
-          userId,
+          id: `saved-${ownerId}`,
+          userId: ownerId,
           name: 'Sealed event army',
           automaticName: false,
           catalogueId: 'catalogue',
@@ -359,12 +361,18 @@ describe('what a sealed event allows', () => {
           now: NOW,
         }),
       })
+      if (lent) {
+        const procedure = host.procedure(host.operator)
+        module.requestFriend(procedure, { requesterId: ownerId, addresseeId: userId, now: BigInt(NOW) })
+        module.acceptFriend(procedure, { requesterId: ownerId, addresseeId: userId, now: BigInt(NOW) })
+        module.lendRoster(procedure, { rosterId: `saved-${ownerId}`, ownerId, borrowerId: userId, now: BigInt(NOW) })
+      }
       const captain = { key: 'captain', entryId: 'captain', name: 'Captain', models: 1, points, warlord: true, group: 'character' }
       return command({
         op: 'submit',
         ownerId: userId,
         userId,
-        rosterId: `saved-${userId}`,
+        rosterId: `saved-${ownerId}`,
         rosterName: 'Sealed event army',
         rosterLimit: limit,
         rosterUpdatedAt: NOW,
@@ -395,6 +403,16 @@ describe('what a sealed event allows', () => {
     const remind = (now: number, ownerId = 'organizer') => command({ op: 'remind', ownerId, now })
     return { seal, update, event, entry, set, reveal, remind }
   }
+
+  it('seals a list a friend has lent the entrant', () => {
+    const sealedEvent = setup('[]')
+    expect(sealedEvent.seal([], { ownerId: 'friend', lent: true })).toMatchObject({ outcome: 'sealed' })
+  })
+
+  it('refuses a list another player has not lent the entrant', () => {
+    const sealedEvent = setup('[]')
+    expect(sealedEvent.seal([], { ownerId: 'friend' })).toEqual({ outcome: 'missing' })
+  })
 
   it('refuses a seal reminder from someone who does not run the event', () => {
     const sealedEvent = setup('[]')

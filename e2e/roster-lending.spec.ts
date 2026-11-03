@@ -12,6 +12,7 @@ import {
   uniqueName,
   expectNoPageOverflow,
   PHONE,
+  sealableRoster,
   setupStep,
 } from './account'
 import type { Page } from '@playwright/test'
@@ -101,4 +102,38 @@ test('a borrower hands a lent roster back', async ({ browser }) => {
   await owner.goto(rosterUrl)
   await chooseRosterAction(owner, 'Lend to a friend')
   await expect(owner.getByRole('switch', { name: `Lend to ${borrowerName}` })).not.toBeChecked()
+})
+
+test('a borrower seals a lent roster for a tournament', async ({ browser }) => {
+  const owner = await (await browser.newContext()).newPage()
+  const borrower = await (await browser.newContext()).newPage()
+  const ownerName = uniqueName('Lender')
+  const borrowerName = uniqueName('Borrower')
+
+  await signUp(owner, ownerName)
+  await chooseRosterDefault(owner, 'Private')
+  await sealableRoster(owner, 'Sealed loan')
+  const rosterUrl = owner.url()
+  await signUp(borrower, borrowerName)
+  await befriend(owner, borrower)
+  await setLoan(owner, rosterUrl, borrowerName, true)
+
+  await borrower.goto('/tournaments')
+  const create = borrower.getByRole('dialog', { name: 'New tournament' })
+  await retryUntilVisible(create, () => borrower.getByRole('button', { name: 'New tournament' }).click({ timeout: 1_000 }))
+  const plays = create.getByRole('switch', { name: /I’m playing too/ })
+  if (!(await plays.isChecked())) await plays.click()
+  await create.getByLabel('Name').fill(uniqueName('Loan cup'))
+  await create.getByRole('button', { name: 'Create tournament' }).click()
+  await expect(borrower).toHaveURL(/\/tournaments\/[^/?]+/)
+
+  const chooser = borrower.getByRole('dialog', { name: 'Seal a roster' })
+  await retryUntilVisible(chooser, () => borrower.getByRole('button', { name: 'Choose a roster' }).click({ timeout: 1_000 }))
+  const lent = chooser.locator('[data-lent-rosters]')
+  await expect(lent.getByText(`Lent by ${ownerName}`)).toBeVisible()
+  await lent.getByRole('button').first().click()
+  await chooser.screenshot({ path: test.info().outputPath('roster-lending-seal-chooser.png') })
+  await chooser.getByRole('button', { name: 'Seal Sealed loan' }).click()
+  await expect(chooser).toBeHidden()
+  await expect(borrower.getByRole('button', { name: 'Swap roster' })).toBeVisible()
 })
