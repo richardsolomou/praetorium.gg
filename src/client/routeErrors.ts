@@ -61,7 +61,7 @@ async function refreshPageScripts(urls: string[]) {
     urls.map(async (url) => {
       const response = await fetch(url, { cache: 'reload', signal })
       if (!response.ok) throw new Error(String(response.status))
-      await response.arrayBuffer()
+      await response.blob()
     }),
   )
   return results.filter((result) => result.status === 'rejected').length
