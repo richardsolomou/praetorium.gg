@@ -262,6 +262,7 @@ html[data-native-app='true'] [data-native-app-content][data-immersive='true'] {
 @media (min-width: 860px) {
   html:not([data-native-app='true']) {
     --app-header: 0px;
+    --app-chrome-left: var(--app-rail);
   }
 
   html[data-rail='collapsed'] {
@@ -398,13 +399,17 @@ html[data-native-app='true'] [data-battle-sticky-header] {
 }
 
 @media (min-width: 1024px) {
+  html[data-native-app='true'] {
+    --app-chrome-left: 5rem;
+  }
+
   html[data-native-app='true'] [data-mobile-app-header] {
-    left: 5rem;
+    left: var(--app-chrome-left);
   }
 
   html[data-native-app='true'] [data-native-app-frame] {
     padding-bottom: 0;
-    padding-left: 5rem;
+    padding-left: var(--app-chrome-left);
   }
 
   html[data-native-app='true'] [data-native-app-tabs] {
@@ -798,6 +803,8 @@ html[data-native-app='true'] [data-battle-sticky-header] {
 
   /* The desktop navigation rail's width, which page bands reach back under. */
   --app-rail: 12.25rem;
+  /* Where the page starts beside whichever side navigation is on screen, for bars fixed across it. */
+  --app-chrome-left: 0px;
 
   /* Parts are moulded, so corners are soft: 9px on controls, more on panels. */
   --radius: 0.5rem;

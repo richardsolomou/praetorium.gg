@@ -256,7 +256,7 @@ function ReplayTimeline({
     <nav
       data-replay-timeline
       aria-label="Battle replay timeline"
-      className="fixed inset-x-0 bottom-0 z-40 border-t border-edge bg-panel/95 px-3 py-1.5 shadow-xl backdrop-blur"
+      className="fixed right-0 bottom-0 left-(--app-chrome-left) z-40 border-t border-edge bg-panel/95 px-3 py-1.5 shadow-xl backdrop-blur"
     >
       <div className="mx-auto max-w-3xl space-y-1">
         <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">

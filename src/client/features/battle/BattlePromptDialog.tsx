@@ -60,7 +60,7 @@ export function BattlePromptDialog({ children, open, onOpenChange, minimizedLabe
         <div
           data-minimized-battle-prompt
           style={{ marginBottom: `${stackIndex * 4.5}rem` }}
-          className="fixed inset-x-3 z-50 flex items-center justify-between gap-3 rounded-lg border border-edge-strong bg-panel p-2 shadow-xl lg:inset-x-auto lg:right-4 lg:bottom-4"
+          className="fixed right-3 left-[calc(var(--app-chrome-left)+0.75rem)] z-50 flex items-center justify-between gap-3 rounded-lg border border-edge-strong bg-panel p-2 shadow-xl lg:inset-x-auto lg:right-4 lg:bottom-4"
         >
           <div className="min-w-0 pl-1">
             <p className="truncate text-sm font-semibold">{minimizedLabel ?? 'Battle dialog'}</p>
