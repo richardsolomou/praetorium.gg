@@ -7,7 +7,6 @@ import {
   createRoster,
   followLink,
   retryUntilVisible,
-  showOnlyPublishedDistances,
   signUp,
   visitorSetup,
   expectNoPageOverflow,
@@ -759,7 +758,6 @@ test('terrain layouts show source-backed areas and measurement guidance', async 
   await retryUntilVisible(dialog, () => page.getByRole('button', { name: 'Enlarge terrain layout A: Sweeping Engagement' }).click())
   const board = dialog.locator('svg[aria-label]').first()
   await expect(board).toBeVisible()
-  await showOnlyPublishedDistances(dialog)
   expect(
     await board
       .locator('title')
@@ -850,7 +848,6 @@ test('terrain layout preserves structural corners and source distances', async (
   const dialog = page.getByRole('dialog')
   await retryUntilVisible(dialog, () => page.getByRole('button', { name: 'Enlarge terrain layout C: Dawn of War' }).click())
   const board = dialog.locator('svg[aria-label]').first()
-  await showOnlyPublishedDistances(dialog)
   await expect(board.locator('polyline[stroke-linejoin="miter"]').first()).toBeAttached()
   await expect(board.locator('text').filter({ hasText: /^AB$/ }).first()).toBeVisible()
   await expect(board.locator('line[marker-end]')).toHaveCount(44)
@@ -866,9 +863,9 @@ test('a matchup keeps each action in the column of the side whose mission asks f
   // Priority Assets asks for the action here, and it is the side drawn second, so an
   // action packed into the first free column would read as the other side's.
   await page.goto('/missions/chapter-approved-2026-2027/matchups/take-and-hold/priority-assets')
-  const columns = page.getByRole('region', { name: 'Actions', exact: true }).locator(':scope > div > div')
-  await expect(columns.nth(0)).toContainText('Inescapable Dominion asks for no action.')
-  await expect(columns.nth(1)).toContainText('SECURE ASSET')
+  const column = (name: string) => page.getByRole('heading', { name, exact: true }).locator('..')
+  await expect(column('Inescapable Dominion')).not.toContainText('SECURE ASSET')
+  await expect(column('Secure Asset')).toContainText('SECURE ASSET')
 })
 
 test('a player can enter through the roster library and browse the product', async ({ page }) => {

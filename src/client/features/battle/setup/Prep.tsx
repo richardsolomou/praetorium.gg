@@ -271,15 +271,16 @@ function SecondaryPicker({
   onToggle: (card: { key: string; name: string }) => void
 }) {
   return (
-    <ul className="space-y-1.5">
+    // A taken card hangs off the runner by a doubled gate and one still open by a dashed one,
+    // so the hand reads by line form before any button does.
+    <ul className="runner gap-1.5 [--gate-x:1.125rem] [--gate-y:1.3125rem]">
       {cards.map((card) => {
         const held = chosen.some((entry) => entry.key === card.key)
         return (
-          // Only the toggle is drawn as a control. The row is a surface, so a taken
-          // card is not outlined twice over on a list this short.
           <li
             key={card.key}
-            className={`flex items-center justify-between gap-2 rounded-md px-2.5 py-1.5 ${held ? 'bg-parchment/10' : 'bg-sunken'}`}
+            data-gate={held ? 'current' : 'pending'}
+            className="flex min-h-11 items-center justify-between gap-2 part px-3 py-1.5"
           >
             <MissionName name={card.name} card={card} type="Secondary mission" mode="fixed" />
             <Button

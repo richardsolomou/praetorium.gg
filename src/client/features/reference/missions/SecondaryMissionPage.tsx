@@ -1,6 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
 import { BackLink } from '../BackLink'
-import { MissionActions } from '../../../components/MissionActions'
 import { MissionCardReference } from '../../../components/MissionCardReference'
 import { PageContent, PageHeader } from '../../../components/Page'
 import { gameReferencesQuery } from '../../../queries'
@@ -20,7 +19,6 @@ export function SecondaryMissionPage({ packId, cardId }: { packId: string; cardI
         </BackLink>
         <section id={`secondary-${card.key}`} className="scroll-mt-header">
           <MissionCardReference card={card} />
-          <MissionActions actions={card.actions} className="mt-4" />
         </section>
       </PageContent>
     </main>

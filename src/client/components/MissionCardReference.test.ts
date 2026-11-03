@@ -72,7 +72,7 @@ describe('mission card reference', () => {
     expect(markup).toContain('aria-label="Additional objective"')
     expect(markup).toContain('>plus</span>')
     expect(markup).not.toContain('+2 VP')
-    expect(markup).toContain('>2 VP</span>')
+    expect(markup).toContain('>2<span')
   })
 
   it('shows an end-of-battle payout without battle-round or turn qualifiers', () => {
@@ -92,8 +92,33 @@ describe('mission card reference', () => {
       }),
     )
 
-    expect(markup).toContain('When:</span> End of battle')
+    expect(markup).toContain('When</span>End of battle')
     expect(markup).not.toContain('Any battle round')
     expect(markup).not.toContain('Your turn')
+  })
+
+  const action = {
+    name: 'SECURE ASSET',
+    starts: 'Your Shooting phase.',
+    completes: 'End of your turn, if your unit controls that **objective**.',
+    effect: 'Your unit **secures the asset**.',
+    units: 'One friendly unit within range of one **objective**.',
+    useLimit: 'Once per turn.',
+    restriction: null,
+  }
+  const withAction = () =>
+    renderToStaticMarkup(createElement(MissionCardReference, { card: { name: 'Secure Asset', text: null, awards: [], actions: [action] } }))
+
+  it('prints every line the pack states for an action the card names', () => {
+    const markup = withAction()
+
+    expect(markup).toContain('SECURE ASSET')
+    expect(markup).toContain('Effect:')
+    expect(markup).toContain('secures the asset')
+    expect(markup).toContain('Once per turn.')
+  })
+
+  it('leaves out an action line the pack does not state', () => {
+    expect(withAction()).not.toContain('Restriction:')
   })
 })

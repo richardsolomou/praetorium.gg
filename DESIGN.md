@@ -207,6 +207,7 @@ components:
 - **Inputs:** Runner border; Field Green ring on focus; errors take a Side A Red border plus a message naming the problem and fix.
 - **Dialogs:** a lifted part with a Sunken action strip; may tint its edge for the side it belongs to.
 - **Page header:** Masthead band on the construction grid, title and description with actions beside them; a faction page may carry its colour as a 3px top edge.
+- **Mission cards:** each scoring window and each action is a part hung off one runner, timing as the heading, VP as a figure with no box; battle and setup reuse the same card.
 - **Assembly steps:** multi-step flows number each step with a step number and join steps with runner lines.
 - **Matchup table:** best cells get a 2px Achieved Green inset outline.
 

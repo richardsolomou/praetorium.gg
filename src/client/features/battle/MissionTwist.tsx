@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { DialogBody, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../../components/Dialog'
 import { BattleDialogContent, BattlePromptDialog } from './BattlePromptDialog'
-import { CARD_NAME } from './battleTints'
+import { CARD_NAME, CARD_NAME_LINK } from './battleTints'
 import { RuleText } from '../../components/RuleText'
 
 /** An optional twist a mission pack prints, which changes one rule for the whole battle. */
@@ -43,7 +43,7 @@ export function TwistName({ twist, className = '' }: { twist: Twist; className?:
   return (
     <TwistDialog
       twist={twist}
-      trigger={<button type="button" aria-label={`Read ${twist.name}`} className={cn(CARD_NAME, 'text-left hover:underline', className)} />}
+      trigger={<button type="button" aria-label={`Read ${twist.name}`} className={cn(CARD_NAME, CARD_NAME_LINK, 'text-left', className)} />}
     >
       {twist.name}
     </TwistDialog>
