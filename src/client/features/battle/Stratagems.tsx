@@ -17,7 +17,7 @@ import type { Side } from '../../sides'
 import { hiddenNow, stratagemVisibleNow } from './stratagemVisibility'
 import { RuleText } from '../../components/RuleText'
 import type { StratagemText } from './MissionCards'
-import { CARD, CARD_NAME } from './battleTints'
+import { CARD, CARD_NAME, CARD_NAME_LINK } from './battleTints'
 import { asSentence } from '../../text'
 
 type ViewStratagem = BattleView['players'][number]['stratagems'][number]
@@ -156,7 +156,7 @@ function StratagemCard({
             <button
               type="button"
               aria-label={`About ${stratagem.name}`}
-              className={`min-w-0 flex-1 text-left ${CARD_NAME} hover:underline`}
+              className={`min-w-0 flex-1 text-left ${CARD_NAME} ${CARD_NAME_LINK}`}
             />
           }
         >

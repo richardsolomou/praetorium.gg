@@ -50,11 +50,7 @@ describe('home greeting', () => {
   })
 })
 
-const progress = (completedTasks: OnboardingTaskId[], skippedTasks: OnboardingTaskId[] = []) => ({
-  ...EMPTY_ONBOARDING_PROGRESS,
-  completedTasks,
-  skippedTasks,
-})
+const progress = (completedTasks: OnboardingTaskId[]) => ({ ...EMPTY_ONBOARDING_PROGRESS, completedTasks })
 
 describe('home record', () => {
   const record = (rank: HomeRecordData['rank']): HomeRecordData => ({

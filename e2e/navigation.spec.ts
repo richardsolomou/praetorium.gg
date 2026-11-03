@@ -7,7 +7,6 @@ import {
   createRoster,
   followLink,
   retryUntilVisible,
-  showOnlyPublishedDistances,
   signUp,
   visitorSetup,
   expectNoPageOverflow,
@@ -120,7 +119,15 @@ test('the mobile website uses application navigation below 860 pixels', async ({
   await page.setViewportSize({ width: 860, height: 844 })
   const reference = page.getByRole('navigation', { name: 'Reference' })
   await expect(reference.getByRole('link')).toHaveText(['Factions', 'Missions', 'Dispositions', 'Rules'])
-  await expect(primary.getByRole('link')).toHaveText(['Rosters', 'Battles', 'Simulator', 'Leaderboard', 'Groups', 'Tournaments'])
+  await expect(primary.getByRole('link')).toHaveText([
+    'Rosters',
+    'Battles',
+    'Simulator',
+    'Leaderboard',
+    'Groups',
+    'Tournaments',
+    'Collection',
+  ])
   await expect(webRail).toHaveJSProperty('scrollWidth', await webRail.evaluate((rail) => rail.clientWidth))
   await page.setViewportSize({ width: 910, height: 844 })
   await expect(primary.getByRole('link', { name: 'Rosters' }).locator('svg')).toHaveCount(1)
@@ -561,11 +568,13 @@ test('a datasheet shows attachment keywords and lists their targets once', async
   await page.screenshot({ path: test.info().outputPath('datasheet-leader-attachments-phone.png'), fullPage: true })
 })
 
-test('the faction page shows its army rule in full', async ({ page }) => {
+test('the faction page shows its army rule in full when expanded', async ({ page }) => {
   await page.goto('/factions/necrons')
 
-  const armyRule = page.getByRole('heading', { name: 'Reanimation Protocols', exact: true }).locator('..')
-  await expect(armyRule).toContainText('activates its Reanimation Protocols')
+  const armyRule = page.locator('details').filter({ has: page.getByRole('heading', { name: 'Reanimation Protocols', exact: true }) })
+  await expect(armyRule.getByText(/activates its Reanimation Protocols/).first()).toBeHidden()
+  await armyRule.locator('summary').click()
+  await expect(armyRule.getByText(/activates its Reanimation Protocols/).first()).toBeVisible()
   await expect(page.getByRole('button', { name: 'Reanimation Protocols', exact: true })).toHaveCount(0)
   await page.screenshot({ path: test.info().outputPath('faction-army-rule.png'), fullPage: true })
 
@@ -736,6 +745,8 @@ test('the signed-out home has a visitor bar and other pages a rail that stays fo
   expect(await page.evaluate(() => Reflect.get(window, 'railBeforeApp'))).toBe('collapsed')
   await expect(page.locator('html')).toHaveAttribute('data-rail', 'collapsed')
   expect(await width()).toBeLessThan(expanded / 2)
+  await rail.getByRole('link', { name: 'Battles', exact: true }).hover()
+  await expect(page.locator('[data-slot="tooltip-content"]')).toHaveText('Battles')
   await rail.getByRole('button', { name: 'Expand navigation', exact: true }).click()
   await expect(page.locator('html')).not.toHaveAttribute('data-rail')
   await expect.poll(width).toBe(expanded)
@@ -747,7 +758,6 @@ test('terrain layouts show source-backed areas and measurement guidance', async 
   await retryUntilVisible(dialog, () => page.getByRole('button', { name: 'Enlarge terrain layout A: Sweeping Engagement' }).click())
   const board = dialog.locator('svg[aria-label]').first()
   await expect(board).toBeVisible()
-  await showOnlyPublishedDistances(dialog)
   expect(
     await board
       .locator('title')
@@ -838,7 +848,6 @@ test('terrain layout preserves structural corners and source distances', async (
   const dialog = page.getByRole('dialog')
   await retryUntilVisible(dialog, () => page.getByRole('button', { name: 'Enlarge terrain layout C: Dawn of War' }).click())
   const board = dialog.locator('svg[aria-label]').first()
-  await showOnlyPublishedDistances(dialog)
   await expect(board.locator('polyline[stroke-linejoin="miter"]').first()).toBeAttached()
   await expect(board.locator('text').filter({ hasText: /^AB$/ }).first()).toBeVisible()
   await expect(board.locator('line[marker-end]')).toHaveCount(44)
@@ -854,9 +863,9 @@ test('a matchup keeps each action in the column of the side whose mission asks f
   // Priority Assets asks for the action here, and it is the side drawn second, so an
   // action packed into the first free column would read as the other side's.
   await page.goto('/missions/chapter-approved-2026-2027/matchups/take-and-hold/priority-assets')
-  const columns = page.getByRole('region', { name: 'Actions', exact: true }).locator(':scope > div > div')
-  await expect(columns.nth(0)).toContainText('Inescapable Dominion asks for no action.')
-  await expect(columns.nth(1)).toContainText('SECURE ASSET')
+  const column = (name: string) => page.getByRole('heading', { name, exact: true }).locator('..')
+  await expect(column('Inescapable Dominion')).not.toContainText('SECURE ASSET')
+  await expect(column('Secure Asset')).toContainText('SECURE ASSET')
 })
 
 test('a player can enter through the roster library and browse the product', async ({ page }) => {
@@ -1074,7 +1083,7 @@ test('a player can enter through the roster library and browse the product', asy
   await necrons.getByRole('link').click()
   await expect(page).toHaveURL('/factions/necrons/rules/mfm-1-6')
   await expect(page.getByRole('link', { name: /Datasheets/ })).toBeVisible()
-  const reanimationProtocols = page.getByRole('article').filter({ has: page.getByRole('heading', { name: 'Reanimation Protocols' }) })
+  const reanimationProtocols = page.locator('details').filter({ has: page.getByRole('heading', { name: 'Reanimation Protocols' }) })
   await expect(reanimationProtocols).toContainText('Command phase')
   const cryptek = page.getByText('Cryptek Conclave').locator('../..')
   await expect(cryptek).toContainText('6 stratagems · 4 enhancements')
@@ -1312,6 +1321,11 @@ test('each application tab returns to where it was left', async ({ browser }) =>
   await sections.getByRole('link', { name: 'Factions' }).click()
   await expect(page).toHaveURL('/factions/dark-angels/rules/mfm-1-6/datasheets/deathwing-terminator-squad')
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(factionScroll)
+  // Going back climbs the reopened tab instead of returning to the tab left.
+  await page.goBack()
+  await expect(page).toHaveURL('/factions/dark-angels/rules/mfm-1-6/datasheets')
+  await page.goForward()
+  await expect(page).toHaveURL('/factions/dark-angels/rules/mfm-1-6/datasheets/deathwing-terminator-squad')
 
   // The section you are already in has one obvious destination left: its top.
   await sections.getByRole('link', { name: 'Factions' }).click()
@@ -1322,6 +1336,18 @@ test('each application tab returns to where it was left', async ({ browser }) =>
   await expect(page).toHaveURL('/factions')
 
   await context.close()
+})
+
+test('a link into another tab goes back up that tab', async ({ page }) => {
+  await page.setViewportSize(PHONE)
+  await page.goto('/')
+  const battle = page.getByRole('link', { name: /^Watch / }).first()
+  const href = (await battle.getAttribute('href'))!
+  await battle.click()
+  await expect(page).toHaveURL(href)
+
+  await page.goBack()
+  await expect(page).toHaveURL('/battles')
 })
 
 test.describe('data update anchors', () => {

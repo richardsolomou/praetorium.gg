@@ -128,10 +128,13 @@ export function FactionPage({ catalogueId }: { catalogueId: string }) {
             <SectionHeading title="Faction abilities" />
             <div className="grid gap-2">
               {faction.armyRules.map((rule) => (
-                <article key={rule.name} className="part px-4 py-3">
-                  <h3 className="text-base">{rule.name}</h3>
-                  <RuleText text={rule.description} />
-                </article>
+                <details key={rule.name} className="group overflow-hidden part">
+                  <summary className="flex cursor-pointer items-center gap-2 px-4 py-3 hover:bg-raised">
+                    <h3 className="min-w-0 flex-1 text-base">{rule.name}</h3>
+                    <ChevronRight className="size-4 shrink-0 text-dim transition-transform group-open:rotate-90" aria-hidden />
+                  </summary>
+                  <RuleText text={rule.description} className="px-4 pb-3" />
+                </details>
               ))}
             </div>
           </section>

@@ -18,6 +18,7 @@ type NativeCapability =
   | 'github-auth'
   | 'notifications'
   | 'offline-reference'
+  | 'screen-cover'
   | 'share'
   | 'watch-battle'
 
@@ -139,6 +140,11 @@ export function requestNativeHaptic(haptic: Haptic) {
 /** Whether the shell may take one history step without leaving the current tab. */
 export function setNativeHistoryBack(enabled: boolean) {
   return send('back-gesture', { type: 'native-back-gesture', enabled })
+}
+
+/** Freezes the screen under a still picture of it while `covered`, so screens the page passes through stay unseen. */
+export function setNativeScreenCover(covered: boolean) {
+  return send('screen-cover', { type: 'native-screen-cover', covered })
 }
 
 export function setNativeNavigation(title: string, backUrl?: string, preferHistory = false) {

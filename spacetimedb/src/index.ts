@@ -2616,6 +2616,32 @@ export const setRosterArchived = spacetime.procedure(
 )
 
 /**
+ * Takes a roster out of its variant group so it stands on its own. A base that leaves hands the group to its oldest
+ * remaining member, which every other variant then points at, since the group is keyed by the base's id.
+ */
+export const splitRosterVariant = spacetime.procedure(
+  { id: t.string(), userId: t.string(), now: t.u64() },
+  t.bool(),
+  (ctx, { id, userId, now }) =>
+    operatorTx(ctx, (tx) => {
+      const roster = ownedRoster(tx, id, userId)
+      if (!roster) return false
+      const group = roster.baseRosterId ?? roster.id
+      const others = orderVariantGroup(
+        Array.from(tx.db.rosters.userId.filter(userId)).filter((row) => row.id !== id && (row.baseRosterId ?? row.id) === group),
+        group,
+      )
+      if (!others.length) return true
+      const moved = roster.baseRosterId ? [] : others.map((row, at) => ({ ...row, baseRosterId: at ? others[0]!.id : undefined }))
+      for (const row of [...moved, { ...roster, baseRosterId: undefined }])
+        tx.db.rosters.id.update({ ...row, updatedAt: nextVersion(tx.db.rosters.id.find(row.id) ?? null, now) })
+      touchProduct(tx, userId, 'rosters')
+      if ([roster, ...others].some((row) => row.visibility !== 'private')) touchPublic(tx, 'rosters')
+      return true
+    }),
+)
+
+/**
  * Applies one library action to every roster in the batch, or to none when one is not the player's. Each roster goes
  * through the same write as its single action; the answer is each roster's new version.
  */

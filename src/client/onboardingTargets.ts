@@ -39,10 +39,8 @@ export const onboardingTargets = [
   'create-battle',
   'battle-format',
   'battle-seats',
-  'battle-sides',
   'battle-create',
   'create-sealed-event',
-  'sealed-event-name',
   'sealed-event-options',
   'sealed-event-create',
   'sealed-event-entrants',
@@ -51,6 +49,17 @@ export const onboardingTargets = [
   'sealed-event-reveal',
   'sealed-event-status',
   'home-public',
+  'create-group',
+  'group-access',
+  'group-create',
+  'group-invite',
+  'group-new-game',
+  'group-tabs',
+  'collection-add',
+  'collection-counts',
+  'collection-menu',
+  'collection-wishlist',
+  'collection-exchange',
 ] as const
 
 export type OnboardingTarget = (typeof onboardingTargets)[number]

@@ -21,6 +21,7 @@ export type NativeActionRequest =
   | { kind: 'app-snapshot'; id: string; snapshot: AppSnapshot | null }
   | { kind: 'offline-save'; id: string; reference: SavedReference }
   | { kind: 'back-gesture'; enabled: boolean }
+  | { kind: 'screen-cover'; covered: boolean }
   | { kind: 'battle-active'; active: boolean }
   | { kind: 'haptic'; haptic: Haptic }
   | { kind: 'open-window'; url: string }
@@ -80,6 +81,9 @@ export function parseNativeActionRequest(message: string): NativeActionRequest |
     }
     if (value.type === 'native-back-gesture' && typeof value.enabled === 'boolean') {
       return { kind: 'back-gesture', enabled: value.enabled }
+    }
+    if (value.type === 'native-screen-cover' && typeof value.covered === 'boolean') {
+      return { kind: 'screen-cover', covered: value.covered }
     }
     if (value.type === 'native-battle-active' && typeof value.active === 'boolean') {
       return { kind: 'battle-active', active: value.active }
@@ -169,11 +173,12 @@ export const NATIVE_BRIDGE_SCRIPT = `(() => {
   };
 })(); true;`
 
-export function nativeWatchCapabilityScript(enabled: boolean) {
+/** Adds or removes a capability that depends on what this device or build has, such as a paired watch. */
+export function nativeCapabilityScript(capability: 'screen-cover' | 'watch-battle', enabled: boolean) {
   return `(() => {
     if (!window.PraetoriumNative) return;
-    const capabilities = window.PraetoriumNative.capabilities.filter(value => value !== 'watch-battle');
-    ${enabled ? "capabilities.push('watch-battle');" : ''}
+    const capabilities = window.PraetoriumNative.capabilities.filter(value => value !== '${capability}');
+    ${enabled ? `capabilities.push('${capability}');` : ''}
     window.PraetoriumNative = Object.freeze({ ...window.PraetoriumNative, capabilities });
     window.dispatchEvent(new CustomEvent('${NATIVE_EVENTS.capabilities}'));
   })(); true;`

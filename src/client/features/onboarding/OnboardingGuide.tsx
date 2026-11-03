@@ -1,20 +1,12 @@
 import { usePostHog } from '@posthog/react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useLocation, useNavigate } from '@tanstack/react-router'
-import { Check, ChevronRight, Circle, Flag, RotateCcw, X } from 'lucide-react'
+import { Check, ChevronRight, X } from 'lucide-react'
 import { useCallback, useEffect, useEffectEvent, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent } from '@/components/ui/popover'
-import {
-  EMPTY_ONBOARDING_PROGRESS,
-  gettingStartedTaskIds,
-  isTourTask,
-  resolvedGettingStartedTasks,
-  type OnboardingProgress,
-  type OnboardingProgressOperation,
-  type OnboardingTaskId,
-} from '../../../core/onboarding'
+import { EMPTY_ONBOARDING_PROGRESS, isTourTask, type OnboardingProgressOperation, type OnboardingTaskId } from '../../../core/onboarding'
 import { updateOnboardingProgress } from '../../functions'
 import { meQuery, onboardingQuery } from '../../queries'
 import { writeSessionValue } from '../../storedValue'
@@ -26,7 +18,6 @@ import {
   ONBOARDING_FOCUS_EVENT,
   ONBOARDING_UI,
   focusAfterOnboardingNavigation,
-  focusAfterOnboardingOperation,
   nextOnboardingFocus,
   onboardingFocusStorageKey,
   onboardingHrefFor,
@@ -34,7 +25,6 @@ import {
   onboardingPromptAtTop,
   onboardingStepEntry,
   onboardingStepPastAbsentTarget,
-  gettingStartedTasks,
   storedOnboardingFocus,
   type OnboardingAdvanceEvent,
   type OnboardingFocus,
@@ -71,14 +61,7 @@ function AccountOnboardingGuide({ userId }: { userId?: string }) {
     mutationFn: (operation: OnboardingProgressOperation) => updateOnboardingProgress({ data: operation }),
     onSuccess: (saved) => queryClient.setQueryData(onboardingQuery().queryKey, saved),
   })
-  const updateProgress = useCallback(
-    (operation: OnboardingProgressOperation) => {
-      if (userId) mutation.mutate(operation)
-    },
-    [mutation, userId],
-  )
   const storageKey = onboardingFocusStorageKey(userId ?? 'visitor')
-  const [open, setOpen] = useState(false)
   const [focus, setFocus] = useState<OnboardingFocus | undefined>(() => storedOnboardingFocus(userId ?? 'visitor'))
   const currentFocus = useRef(focus)
   // Kept with its step, so a step that has just moved on never points at the last step's control.
@@ -180,7 +163,7 @@ function AccountOnboardingGuide({ userId }: { userId?: string }) {
    * Either waits while a dialog hides its control, or it would point at nothing and cover the dialog.
    */
   const placed = target ? (covered ? undefined : compact ? 'card' : 'anchor') : lost && lost === focus ? 'lost' : undefined
-  const prompted = !open && focusedStep ? placed : undefined
+  const prompted = focusedStep ? placed : undefined
   const anchored = prompted === 'anchor' ? target : undefined
 
   useEffect(() => {
@@ -206,20 +189,7 @@ function AccountOnboardingGuide({ userId }: { userId?: string }) {
     return () => document.removeEventListener('keydown', escape)
   }, [dismiss, prompted])
 
-  const changeOpen = (next: boolean) => {
-    setOpen(next)
-    if (!next && data && !data.welcomed) updateProgress({ operation: 'welcome' })
-  }
-
-  const updateTask = (operation: OnboardingProgressOperation) => {
-    const next = focusAfterOnboardingOperation(focus, operation)
-    if (next !== focus) rememberFocus(next)
-    updateProgress(operation)
-  }
-
   const launch = async (task: OnboardingTaskId, step?: OnboardingStepId) => {
-    if (!data?.welcomed) updateProgress({ operation: 'welcome' })
-    setOpen(false)
     posthog.capture('onboarding_task_started', { task })
     const guest = !userId && task === 'roster' && (!step || step === 'roster-start') ? peekGuestDraft() : null
     if (guest) {
@@ -232,19 +202,14 @@ function AccountOnboardingGuide({ userId }: { userId?: string }) {
   }
 
   const openGuide = useEffectEvent((event: Event) => {
-    const requested = (event as CustomEvent<OnboardingFocus | undefined>).detail
-    if (requested) void launch(requested.task, requested.step)
-    else setOpen(true)
+    const requested = (event as CustomEvent<OnboardingFocus>).detail
+    void launch(requested.task, requested.step)
   })
   useEffect(() => {
     const show = (event: Event) => openGuide(event)
     window.addEventListener(ONBOARDING_EVENT, show)
     return () => window.removeEventListener(ONBOARDING_EVENT, show)
   }, [])
-
-  useEffect(() => {
-    if (open) posthog.capture('onboarding_guide_opened', { signed_in: Boolean(userId) })
-  }, [open, posthog, userId])
 
   const finish = () => {
     if (!focus) return
@@ -286,15 +251,6 @@ function AccountOnboardingGuide({ userId }: { userId?: string }) {
 
   return (
     <>
-      <GuidePanel
-        data={data}
-        signedIn={Boolean(userId)}
-        open={open}
-        busy={mutation.isPending}
-        onClose={() => changeOpen(false)}
-        onLaunch={launch}
-        onUpdate={updateTask}
-      />
       {anchored ? (
         <Popover open modal={false}>
           <PopoverContent
@@ -392,132 +348,5 @@ function GuidePrompt({
       ) : null}
       {problem && <Problem className="mt-2 text-xs">{problem}</Problem>}
     </section>
-  )
-}
-
-function GuidePanel({
-  data,
-  signedIn,
-  open,
-  busy,
-  onClose,
-  onLaunch,
-  onUpdate,
-}: {
-  data: OnboardingProgress
-  signedIn: boolean
-  open: boolean
-  busy: boolean
-  onClose: () => void
-  onLaunch: (task: OnboardingTaskId) => void
-  onUpdate: (operation: OnboardingProgressOperation) => void
-}) {
-  const heading = useRef<HTMLHeadingElement>(null)
-  useEffect(() => {
-    if (open) heading.current?.focus()
-  }, [open])
-  if (!open) return null
-  const resolved = resolvedGettingStartedTasks(data)
-  return (
-    <dialog
-      open
-      aria-modal="false"
-      aria-labelledby="onboarding-guide-title"
-      className="fixed right-4 bottom-[calc(5rem+env(safe-area-inset-bottom))] left-4 z-50 flex max-h-[calc(100dvh-7rem)] w-auto flex-col overflow-hidden part text-sm text-bone shadow-xl min-[860px]:bottom-4 min-[860px]:left-auto min-[860px]:max-h-[calc(100dvh-2rem)] min-[860px]:w-[32rem]"
-    >
-      <div className="relative border-b border-edge bg-sunken p-4 pr-12">
-        <h2 id="onboarding-guide-title" ref={heading} tabIndex={-1} className="text-xl text-bone outline-none">
-          Your first army and matchup
-        </h2>
-        <p className="mt-2 text-dim">
-          {signedIn
-            ? 'Build or import an army, then try a matchup. Your progress follows your account.'
-            : 'Build or import an army, then try a matchup. No account needed; this device keeps your army until you sign in to save it.'}
-        </p>
-        {signedIn ? (
-          <p className="mt-2 text-xs text-dim">
-            {resolved.length} of {gettingStartedTaskIds.length} complete or skipped
-          </p>
-        ) : null}
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-sm"
-          className="absolute top-2 right-2"
-          aria-label="Close getting started"
-          onClick={onClose}
-        >
-          <X />
-        </Button>
-      </div>
-      <div className="grid min-h-0 gap-2 overflow-y-auto p-3">
-        {gettingStartedTaskIds.map((id) => {
-          const task = gettingStartedTasks[id]
-          const completed = data.completedTasks.includes(id)
-          const skipped = data.skippedTasks.includes(id)
-          return (
-            <section key={id} className="border border-edge p-3" aria-label={id === 'roster' ? 'Build or import an army' : task.title}>
-              <div className="flex items-start gap-2">
-                {completed ? (
-                  <Check className="mt-0.5 size-4 shrink-0 text-info" />
-                ) : skipped ? (
-                  <Circle className="mt-0.5 size-4 shrink-0 text-faint" />
-                ) : (
-                  <Flag className="mt-0.5 size-4 shrink-0 text-info" />
-                )}
-                <div className="min-w-0 flex-1">
-                  <h3 className="font-semibold">{id === 'roster' ? 'Build or import an army' : task.title}</h3>
-                  <p className="mt-1 text-xs text-dim">
-                    {completed
-                      ? 'Complete · Reopen the guide whenever you need it.'
-                      : skipped
-                        ? 'Skipped · Try it whenever you are ready.'
-                        : id === 'roster'
-                          ? 'Start from scratch, or bring a list from your army builder.'
-                          : task.description}
-                  </p>
-                </div>
-                {signedIn && !completed ? (
-                  skipped ? (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-sm"
-                      disabled={busy}
-                      aria-label={'Restore ' + task.title}
-                      onClick={() => onUpdate({ operation: 'restore', task: id })}
-                    >
-                      <RotateCcw />
-                    </Button>
-                  ) : (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      disabled={busy}
-                      aria-label={'Skip ' + task.title}
-                      onClick={() => onUpdate({ operation: 'skip', task: id })}
-                    >
-                      Skip
-                    </Button>
-                  )
-                ) : null}
-              </div>
-              <div className="mt-3 flex flex-wrap gap-2">
-                <Button type="button" variant="outline" size="sm" onClick={() => onLaunch(id)}>
-                  {task.title}
-                </Button>
-                {id === 'roster' ? (
-                  <Button type="button" variant="ghost" size="sm" onClick={() => onLaunch('roster-tools')}>
-                    Import an existing army
-                  </Button>
-                ) : null}
-              </div>
-            </section>
-          )
-        })}
-        <p className="text-xs text-dim">Battle, friend, and tournament guides are available on their own pages.</p>
-      </div>
-    </dialog>
   )
 }

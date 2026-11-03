@@ -130,11 +130,30 @@ export async function visitorSetup(page: Page) {
   return setup
 }
 
-/** Chooses an item from a roster's Roster actions menu, reopening the menu until the item shows: a press before hydration opens nothing. */
+/** The roster page's share dialog holds these, so choosing one goes through Share… first. */
+const SHARED_ROSTER_ACTIONS = new Set(['Export text', 'Exchange code', 'Print'])
+
+/**
+ * Chooses an item from a roster's Roster actions menu, reopening the menu until the item shows: a press before
+ * hydration opens nothing. Export, exchange code and print are chosen from the share dialog the menu opens.
+ */
 export async function chooseRosterAction(page: Page, item: string) {
+  if (SHARED_ROSTER_ACTIONS.has(item)) {
+    const dialog = await openRosterShare(page)
+    await dialog.getByRole('button', { name: new RegExp(`^${item}`) }).click()
+    return
+  }
   const choice = page.getByRole('menuitem', { name: item, exact: true })
   await retryUntilVisible(choice, () => page.getByRole('button', { name: 'Roster actions', exact: true }).click())
   await choice.click()
+}
+
+/** Opens the roster page's share dialog from its Roster actions menu. */
+export async function openRosterShare(page: Page) {
+  await chooseRosterAction(page, 'Share…')
+  const dialog = page.getByRole('dialog', { name: /^Share / })
+  await expect(dialog).toBeVisible()
+  return dialog
 }
 
 /** Opens the import dialog from the rosters page once its text box answers. */
@@ -150,6 +169,14 @@ export async function chooseLibraryAction(page: Page, roster: string, item: stri
   const choice = page.getByRole('menuitem', { name: item, exact: true })
   await retryUntilVisible(choice, () => page.getByRole('button', { name: `Actions for ${roster}`, exact: true }).click())
   await choice.click()
+}
+
+/** Opens a library row's share dialog, which holds its visibility, link, export, exchange code and print. */
+export async function openLibraryShare(page: Page, roster: string) {
+  await chooseLibraryAction(page, roster, /^Share…/)
+  const dialog = page.getByRole('dialog', { name: `Share ${roster}` })
+  await expect(dialog).toBeVisible()
+  return dialog
 }
 
 /** Follows a link until the address changes: the router's hydration cancels a navigation that started before it. */
@@ -169,8 +196,7 @@ export async function chooseUnit(page: Page, side: string, faction: string, name
   await page.getByRole('option', { name: new RegExp(`^${escaped}, ${faction}(?:, \\d+ pts)?$`) }).click()
 }
 
-/** `beforeAccept` runs while the request is still pending, which is the only moment a test can read that state. */
-export async function befriend(requester: Page, recipient: Page, { beforeAccept }: { beforeAccept?: () => Promise<void> } = {}) {
+export async function befriend(requester: Page, recipient: Page) {
   const accountMenu = (page: Page) => page.locator('[data-web-app-chrome] button[aria-label^="Account menu for "]')
   const requesterName = (await accountMenu(requester).getAttribute('aria-label'))?.replace('Account menu for ', '')
   const recipientName = (await accountMenu(recipient).getAttribute('aria-label'))?.replace('Account menu for ', '')
@@ -187,10 +213,6 @@ export async function befriend(requester: Page, recipient: Page, { beforeAccept 
   await recipient.goto('/friends')
   const request = recipient.locator('section').filter({ hasText: 'Friend requests' }).filter({ hasText: requesterName })
   const accepted = recipient.locator('section').filter({ hasText: 'Friends' }).filter({ hasText: requesterName })
-  if (beforeAccept) {
-    await expect(request).toBeVisible()
-    await beforeAccept()
-  }
   // A press still saving disables Accept, and a click left waiting on it outlasts the retry.
   await retryUntilVisible(accepted, () => request.getByRole('button', { name: 'Accept' }).click({ timeout: 1_000 }))
   await requester.goto('/friends')
@@ -263,6 +285,21 @@ export async function chooseFaction(setup: Locator, faction: string) {
   await retryUntilVisible(search, () => setup.getByRole('combobox', { name: 'Faction' }).click())
   await search.fill(faction)
   await setup.page().getByRole('option', { name: faction, exact: true }).click()
+  // A closing list still shows its search, which would make the next pick type into it instead of reopening the list.
+  await expect(search).toBeHidden()
+}
+
+/** Picks a battle size, choosing again when a click lands before the menu takes it. */
+export async function chooseBattleSize(setup: Locator, size: RegExp) {
+  const box = setup.getByRole('combobox', { name: 'Battle size' })
+  // Each standard size lists before the custom size that keeps its limits.
+  const option = setup.page().getByRole('option', { name: size }).first()
+  await expect(async () => {
+    await box.click()
+    const label = (await option.innerText({ timeout: 5_000 })).trim()
+    await option.click({ timeout: 5_000 })
+    await expect(box).toContainText(label, { timeout: 5_000 })
+  }).toPass({ timeout: 30_000 })
 }
 
 export async function createRoster(
@@ -278,11 +315,7 @@ export async function createRoster(
     await page.getByRole('option', { name: rules, exact: true }).click()
   }
   // A 2v1 ally brings half the battle size, so the size is a choice rather than the default.
-  if (size) {
-    await dialog.getByRole('combobox', { name: 'Battle size' }).click()
-    // Each standard size lists before the custom size that keeps its limits.
-    await page.getByRole('option', { name: size }).first().click()
-  }
+  if (size) await chooseBattleSize(dialog, size)
   await dialog.getByRole('button', { name: new RegExp(`^Select (?:${detachment.source})$`, detachment.flags) }).click()
   const dispositions = dialog.getByRole('group', { name: 'Force disposition' }).getByRole('button')
   if ((await dispositions.count()) > 1) await dispositions.first().click()
@@ -831,9 +864,16 @@ export async function expectNoPageOverflow(page: Page) {
   expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBe(0)
 }
 
-/** No element the locator matches scrolls sideways, allowing a pixel of subpixel rounding. */
+/**
+ * No rendered element the locator matches scrolls sideways, allowing a pixel of subpixel rounding. A closed details
+ * skips layout, so its content keeps the geometry of whatever width the page last laid it out at.
+ */
 export async function expectNoHorizontalOverflow(scope: Locator) {
-  expect(await scope.evaluateAll((elements) => elements.every((element) => element.scrollWidth <= element.clientWidth + 1))).toBe(true)
+  expect(
+    await scope.evaluateAll((elements) =>
+      elements.every((element) => !element.checkVisibility() || element.scrollWidth <= element.clientWidth + 1),
+    ),
+  ).toBe(true)
 }
 
 /** The smallest Necrons list an event will seal, a Skorpekh Lord as its Warlord, and its roster id. */
@@ -905,10 +945,3 @@ export function currentTotp(uri: string) {
 }
 
 /** Leaves only the layout's published distances on, the ones these counts were taken from. */
-export async function showOnlyPublishedDistances(dialog: Locator) {
-  for (const name of ['Other terrain', 'Deployment lines']) {
-    const toggle = dialog.getByRole('button', { name, exact: true })
-    if ((await toggle.count()) && (await toggle.getAttribute('aria-pressed')) === 'true') await toggle.click()
-  }
-  await dialog.getByRole('button', { name: 'Published distances', exact: true }).click()
-}

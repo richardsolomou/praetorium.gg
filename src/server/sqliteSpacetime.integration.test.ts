@@ -183,7 +183,7 @@ it.skipIf(!spacetimeUrl || !operatorToken)(
       await operator.setPushEnabled(input.userId, false, Date.now())
       await vi.waitFor(() => expect(scopes.get('settings')).toBe(1n))
       const onboardingBefore = scopes.get('onboarding') ?? 0n
-      await operator.updateOnboardingProgress(input.userId, { operation: 'welcome' })
+      await operator.updateOnboardingProgress(input.userId, { operation: 'complete', task: 'reference' })
       await vi.waitFor(() => expect(scopes.get('onboarding')).toBe(onboardingBefore + 1n))
 
       const outsider = await auth.api.signUpEmail({

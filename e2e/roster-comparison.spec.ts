@@ -278,14 +278,11 @@ for (const width of [1440, 390]) {
       'Create variant',
       'Lend to a friend',
       'Lock roster',
-      'Copy link',
-      'Export text',
-      'Exchange code',
-      'Print',
+      'Share…',
     ])
     await expect(menu.getByRole('menuitem', { name: 'Test targets', exact: true })).toHaveAttribute('aria-disabled', 'true')
     // Grouped under headings; a list with no attached unit has nothing to display differently.
-    await expect(menu.getByRole('group')).toHaveText([/^Play/, /^Setup/, /^Copies and access/, /^Share/])
+    await expect(menu.getByRole('group')).toHaveText([/^Play/, /^Setup/, /^Copies and access/])
     await expect(menu.getByRole('separator')).toHaveCount(3)
     await page.screenshot({ path: test.info().outputPath(`builder-menu-${width}.png`) })
     await page.keyboard.press('Escape')
@@ -296,11 +293,7 @@ for (const width of [1440, 390]) {
       'Edit roster setup',
       'Create variant',
       'Duplicate',
-      'Copy link',
-      'Make private',
-      'Export text',
-      'Exchange code',
-      'Print',
+      /Share…\s*Public/,
       'Lock roster',
       'Archive',
       'Delete',

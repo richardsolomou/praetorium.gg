@@ -554,21 +554,8 @@ export async function updateOnboardingProgress(
     battle: current.completedTasks.includes('battle'),
     tournament: current.completedTasks.includes('tournament'),
   }
-  const tasks: { task: OnboardingTaskId; state: 'completed' | 'skipped' }[] = [
-    ...current.completedTasks.map((task) => ({ task, state: 'completed' as const })),
-    ...current.skippedTasks.map((task) => ({ task, state: 'skipped' as const })),
-  ]
   const stored: StoredOnboarding = {
-    welcomed: current.welcomed || input.operation === 'welcome',
-    tasks:
-      input.operation === 'welcome'
-        ? tasks
-        : [
-            ...tasks.filter((task) => task.task !== input.task),
-            ...(input.operation === 'restore'
-              ? []
-              : [{ task: input.task, state: input.operation === 'skip' ? ('skipped' as const) : ('completed' as const) }]),
-          ],
+    tasks: [...new Set<OnboardingTaskId>([...current.completedTasks, input.task])].map((task) => ({ task, state: 'completed' as const })),
   }
   const next = foldOnboarding(stored, facts)
   await defer('updateOnboardingProgress', input, queryResource(onboardingKey()), next)

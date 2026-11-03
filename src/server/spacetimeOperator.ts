@@ -144,7 +144,6 @@ const productStat = z.object({
 const invite = z.object({ token: z.string(), inviterId: z.string() })
 const acceptedInvite = z.union([z.enum(['missing', 'self', 'already-friends']), z.object({ inviterId: z.string() })])
 const onboarding = z.object({
-  welcomed: z.boolean(),
   tasks: z.array(z.object({ task: z.string(), state: z.enum(['completed', 'skipped']) })),
   facts: z.object({ roster: z.boolean(), friend: z.boolean(), battle: z.boolean(), tournament: z.boolean() }),
 })
@@ -737,11 +736,7 @@ export class SpacetimeOperator {
   }
 
   async updateOnboardingProgress(userId: string, operation: OnboardingProgressOperation) {
-    const stored = await this.read(
-      'update_onboarding',
-      [userId, operation.operation, 'task' in operation ? operation.task : ''],
-      onboarding,
-    )
+    const stored = await this.read('update_onboarding', [userId, operation.operation, operation.task], onboarding)
     return foldOnboardingProgress(stored, stored.facts)
   }
 
@@ -836,6 +831,10 @@ export class SpacetimeOperator {
 
   async setRosterArchived(id: string, userId: string, archived: boolean, now: number) {
     return this.reply('set_roster_archived', [id, userId, archived, now], z.boolean())
+  }
+
+  async splitRosterVariant(id: string, userId: string, now: number) {
+    return this.reply('split_roster_variant', [id, userId, now], z.boolean())
   }
 
   /** Each roster's new version, or null when one is not the player's and none changed. */

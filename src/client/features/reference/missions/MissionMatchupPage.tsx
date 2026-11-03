@@ -4,13 +4,12 @@ import { Fragment } from 'react'
 import { MapPinned, Maximize2 } from 'lucide-react'
 import { BackLink } from '../BackLink'
 import { Dialog, DialogTrigger } from '../../../components/Dialog'
-import { MissionActions } from '../../../components/MissionActions'
 import { MissionCardReference } from '../../../components/MissionCardReference'
 import { TerrainBoard } from './TerrainBoard'
 import { TerrainLayoutDialogContent } from './TerrainLayoutDialogContent'
 import { PageState } from '../../../components/PageState'
 import { type TerrainGeometry, type TerrainPiece, type TerrainTemplate } from './terrainGeometry'
-import { dispositionAccent, dispositionTone } from '../../../components/rosterSetup'
+import { DispositionChip } from '../../battle/setup/chrome'
 import { gameReferencesQuery, terrainMatchupIds, terrainReferencesQuery } from '../../../queries'
 import { PageContent, PageHeader } from '../../../components/Page'
 import { buttonClass } from '../../../components/buttonClass'
@@ -28,13 +27,10 @@ export function MissionMatchupPage({ packId, you, opponent }: { packId: string; 
   const opponentDisposition = data?.dispositions.find((entry) => entry.id === opponent)
   const layouts = terrain?.layouts ?? []
   if (!data || !pack || !yours || !theirs || !yourDisposition || !opponentDisposition) return null
-  // Each side keeps its own column, in the order the two missions are drawn above:
-  // a matchup's two missions can ask for the same action, and an action shown under
-  // the wrong side is worse than one a player has to look across the page for.
   const sides = [
     { seat: 'yours', mission: yours, disposition: yourDisposition },
     { seat: 'theirs', mission: theirs, disposition: opponentDisposition },
-  ].map((side) => ({ ...side, actions: side.mission.card?.actions ?? [] }))
+  ]
 
   return (
     <main className="w-full">
@@ -46,16 +42,18 @@ export function MissionMatchupPage({ packId, you, opponent }: { packId: string; 
           </Link>
         }
       >
-        <div className="grid grid-cols-[1fr_auto_1fr] items-stretch gap-2">
+        <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-stretch gap-2">
           {sides.map((side, at) => (
             <Fragment key={side.seat}>
-              {at ? <span className="grid place-items-center px-1 text-sm font-bold text-dim">VS</span> : null}
+              {at ? <span className="grid place-items-center font-display text-sm font-bold text-faint">VS</span> : null}
               <a
                 href={`#mission-${side.mission.id}`}
-                className={`flex min-h-16 min-w-0 flex-col justify-center rounded-lg border px-3 py-2 transition-colors hover:border-runner-hi hover:bg-raised focus-visible:ring-2 focus-visible:ring-info focus-visible:outline-none sm:px-4 ${at ? 'items-end text-right' : 'items-start text-left'} ${dispositionTone(side.disposition.id, true)}`}
+                className={`flex min-h-16 min-w-0 flex-col justify-center gap-1.5 part px-3 py-2 transition-colors hover:border-runner-hi hover:bg-raised sm:px-4 ${at ? 'items-end text-right' : 'items-start text-left'}`}
               >
-                <span className="eyebrow text-bone/75">{side.disposition.name}</span>
-                <span className="mt-0.5 font-bold break-words sm:text-lg">{side.mission.name}</span>
+                <DispositionChip disposition={side.disposition} />
+                <span className="font-display leading-tight font-bold tracking-heading break-words uppercase sm:text-lg">
+                  {side.mission.name}
+                </span>
               </a>
             </Fragment>
           ))}
@@ -65,50 +63,20 @@ export function MissionMatchupPage({ packId, you, opponent }: { packId: string; 
         <BackLink to="/missions/$packId" params={{ packId }}>
           {pack.name}
         </BackLink>
-        <section>
-          <SectionHeading title="Primary missions" />
-          <div className="mt-4 grid gap-6 md:grid-cols-2">
-            {sides.map((side) => (
-              <div
-                key={side.seat}
-                id={`mission-${side.mission.id}`}
-                className={`scroll-mt-header border-t-[3px] pt-3 ${dispositionAccent(side.disposition.id)}`}
-              >
-                <h3 className="text-xl">{side.mission.name}</h3>
-                {side.mission.card ? (
-                  <div className="mt-3">
-                    <MissionCardReference card={side.mission.card} />
-                  </div>
-                ) : null}
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {sides.some((side) => side.actions.length) ? (
-          <section aria-label="Actions">
-            <SectionHeading title="Actions" count={sides.reduce((total, side) => total + side.actions.length, 0)} />
-            <div className="mt-4 grid items-start gap-6 md:grid-cols-2">
-              {sides.map((side) => (
-                <div
-                  key={side.seat}
-                  className={
-                    side.actions.length
-                      ? `border-t-[3px] pt-3 ${dispositionAccent(side.disposition.id)}`
-                      : 'border-t-[3px] border-transparent pt-3'
-                  }
-                >
-                  <span className={`chip ${dispositionTone(side.disposition.id)}`}>{side.disposition.name}</span>
-                  {side.actions.length ? (
-                    <MissionActions actions={side.actions} className="mt-4" />
-                  ) : (
-                    <p className="mt-3 text-sm text-dim">{side.mission.name} asks for no action.</p>
-                  )}
-                </div>
-              ))}
-            </div>
-          </section>
-        ) : null}
+        {/*
+         * Each side's actions sit in its own column under its own scoring: a matchup's two
+         * missions can ask for the same action, and an action shown under the wrong side is
+         * worse than one a player has to look across the page for.
+         */}
+        <div className="grid items-start gap-6 md:grid-cols-2">
+          {sides.map((side) => (
+            <section key={side.seat} id={`mission-${side.mission.id}`} className="scroll-mt-header space-y-3">
+              <DispositionChip disposition={side.disposition} />
+              <h2 className="text-xl sm:text-2xl">{side.mission.name}</h2>
+              {side.mission.card ? <MissionCardReference card={side.mission.card} /> : null}
+            </section>
+          ))}
+        </div>
 
         <section>
           <SectionHeading

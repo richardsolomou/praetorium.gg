@@ -119,28 +119,30 @@ function SettingsForm({ group, isOwner, onClose }: { group: Group | null; isOwne
               onChange={(event) => setValue({ ...value, description: event.target.value })}
             />
           </div>
-          <Choice
-            label="Who can find it"
-            value={value.visibility}
-            columns={2}
-            options={[
-              { value: 'public', name: 'Public', detail: 'Listed on the groups page.' },
-              { value: 'private', name: 'Private link', detail: 'Only people you send it to.' },
-            ]}
-            disabled={disabled}
-            onChange={(visibility) => setValue({ ...value, visibility })}
-          />
-          <Choice
-            label="Who gets in"
-            value={value.admission}
-            columns={2}
-            options={[
-              { value: 'automatic', name: 'Anyone who joins' },
-              { value: 'approval', name: 'You approve' },
-            ]}
-            disabled={disabled}
-            onChange={(admission) => setValue({ ...value, admission })}
-          />
+          <div data-onboarding="group-access" className="grid gap-4">
+            <Choice
+              label="Who can find it"
+              value={value.visibility}
+              columns={2}
+              options={[
+                { value: 'public', name: 'Public', detail: 'Listed on the groups page.' },
+                { value: 'private', name: 'Private link', detail: 'Only people you send it to.' },
+              ]}
+              disabled={disabled}
+              onChange={(visibility) => setValue({ ...value, visibility })}
+            />
+            <Choice
+              label="Who gets in"
+              value={value.admission}
+              columns={2}
+              options={[
+                { value: 'automatic', name: 'Anyone who joins' },
+                { value: 'approval', name: 'You approve' },
+              ]}
+              disabled={disabled}
+              onChange={(admission) => setValue({ ...value, admission })}
+            />
+          </div>
           {group && isOwner ? (
             <AdminsField
               id="group-admin"
@@ -165,7 +167,7 @@ function SettingsForm({ group, isOwner, onClose }: { group: Group | null; isOwne
           <Button type="button" variant="outline" disabled={disabled} onClick={onClose}>
             Cancel
           </Button>
-          <Button type="submit" disabled={disabled || !value.name.trim()}>
+          <Button data-onboarding="group-create" type="submit" disabled={disabled || !value.name.trim()}>
             {submit}
           </Button>
         </DialogFooter>

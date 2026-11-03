@@ -1,22 +1,11 @@
 import { z } from 'zod'
 import { parseStored, readSessionValue } from '../../storedValue'
-import { gettingStartedTaskIds, onboardingTaskIds, type OnboardingProgressOperation, type OnboardingTaskId } from '../../../core/onboarding'
+import { onboardingTaskIds, type OnboardingTaskId } from '../../../core/onboarding'
 import type { OnboardingTarget } from '../../onboardingTargets'
 
 export const ONBOARDING_FOCUS_EVENT = 'praetorium:onboarding-focus'
 export const ONBOARDING_EVENT = 'praetorium:onboarding'
 export const ONBOARDING_ADVANCE_EVENT = 'praetorium:onboarding-advance'
-
-export const gettingStartedTasks: Record<(typeof gettingStartedTaskIds)[number], { title: string; description: string }> = {
-  roster: {
-    title: 'Build your first army',
-    description: 'Create a roster, choose its faction and detachment, then add your first unit.',
-  },
-  simulator: {
-    title: 'Try your first matchup',
-    description: 'Choose an attacker and a defender, then read the shooting and melee results.',
-  },
-}
 
 export function onboardingFocusStorageKey(userId: string) {
   return `praetorium:focused-onboarding-step:${userId}`
@@ -25,7 +14,19 @@ export function onboardingFocusStorageKey(userId: string) {
 export const storedOnboardingFocus = (userId: string): OnboardingFocus | undefined =>
   parseStored(onboardingFocusSchema, readSessionValue(onboardingFocusStorageKey(userId))) ?? undefined
 
-type OnboardingPage = 'home' | 'rosters' | 'roster' | 'friends' | 'battles' | 'battle' | 'simulator' | 'tournaments' | 'tournament'
+type OnboardingPage =
+  | 'home'
+  | 'rosters'
+  | 'roster'
+  | 'friends'
+  | 'battles'
+  | 'battle'
+  | 'simulator'
+  | 'tournaments'
+  | 'tournament'
+  | 'groups'
+  | 'group'
+  | 'collection'
 
 export const onboardingStepIds = [
   'simulator-attacker',
@@ -66,10 +67,8 @@ export const onboardingStepIds = [
   'battle-start',
   'battle-format',
   'battle-seats',
-  'battle-sides',
   'battle-create',
   'sealed-event-start',
-  'sealed-event-name',
   'sealed-event-format',
   'sealed-event-options',
   'sealed-event-create',
@@ -79,6 +78,17 @@ export const onboardingStepIds = [
   'sealed-event-status',
   'reference-search',
   'community-public',
+  'group-start',
+  'group-access',
+  'group-create',
+  'group-invite',
+  'group-new-game',
+  'group-tabs',
+  'collection-add',
+  'collection-counts',
+  'collection-menu',
+  'collection-wishlist',
+  'collection-exchange',
 ] as const
 
 export type OnboardingStepId = (typeof onboardingStepIds)[number]
@@ -112,6 +122,8 @@ export const FIRST_ONBOARDING_STEP: Record<OnboardingTaskId, OnboardingStepId> =
   community: 'community-public',
   simulator: 'simulator-attacker',
   'roster-tools': 'tools-import',
+  group: 'group-start',
+  collection: 'collection-add',
 }
 
 export const ONBOARDING_UI: Record<OnboardingStepId, OnboardingStep> = {
@@ -162,9 +174,9 @@ export const ONBOARDING_UI: Record<OnboardingStepId, OnboardingStep> = {
     target: 'battle-setup-size',
     page: 'battle',
     href: '/battles',
-    title: 'Find the table format',
+    title: 'Battle size and mission pack',
     description:
-      'Choose your armies to find the battle format from their saved sizes. Both sides must match; allies split the points evenly. Tournament battles use their preset size. Choose the mission pack here too.',
+      'The battle size follows the armies’ saved sizes: both sides must match, and allies split the points evenly. A tournament battle uses the tournament’s size. Choose the mission pack here too.',
     placement: 'bottom',
     next: 'battle-setup-armies',
     nextLabel: 'Next',
@@ -497,18 +509,6 @@ export const ONBOARDING_UI: Record<OnboardingStepId, OnboardingStep> = {
     title: 'Fill every seat',
     description: 'Each seat takes a confirmed friend, a guest you name, or a practice opponent, and nobody can sit in two of them.',
     placement: 'left',
-    next: 'battle-sides',
-    nextLabel: 'Next',
-    optional: true,
-  },
-  'battle-sides': {
-    task: 'battle',
-    target: 'battle-sides',
-    page: 'battles',
-    href: '/battles',
-    title: 'Check the sides',
-    description: 'The matchup shows the two sides as they will be played, before you commit to them.',
-    placement: 'left',
     next: 'battle-create',
     nextLabel: 'Next',
     optional: true,
@@ -532,18 +532,7 @@ export const ONBOARDING_UI: Record<OnboardingStepId, OnboardingStep> = {
     description:
       'Everyone seals a roster in secret, the rosters open together, then you play each other and the results build up. A public tournament below can be joined instead.',
     placement: 'bottom-end',
-    next: 'sealed-event-name',
-  },
-  'sealed-event-name': {
-    task: 'tournament',
-    target: 'sealed-event-name',
-    page: 'tournaments',
-    href: '/tournaments',
-    title: 'Name the tournament',
-    description: 'Players see this on the tournaments page and on the invite you send them.',
-    placement: 'right',
     next: 'sealed-event-format',
-    nextLabel: 'Next',
   },
   'sealed-event-format': {
     task: 'tournament',
@@ -679,18 +668,141 @@ export const ONBOARDING_UI: Record<OnboardingStepId, OnboardingStep> = {
     placement: 'top',
     final: true,
   },
+  'group-start': {
+    task: 'group',
+    target: 'create-group',
+    page: 'groups',
+    href: '/groups',
+    title: 'Start a group',
+    description: 'A group keeps one leaderboard for the people you play with, from a few friends to a shop’s open night.',
+    placement: 'bottom-end',
+    next: 'group-access',
+  },
+  'group-access': {
+    task: 'group',
+    target: 'group-access',
+    page: 'groups',
+    href: '/groups',
+    title: 'Who finds it, who gets in',
+    description:
+      'A public group is listed on the Groups page; a private one is found only through its link. Choose You approve to check each request first. Both can change later.',
+    placement: 'right',
+    next: 'group-create',
+    nextLabel: 'Next',
+  },
+  'group-create': {
+    task: 'group',
+    target: 'group-create',
+    page: 'groups',
+    href: '/groups',
+    title: 'Create it',
+    description: 'You land on the group’s own page, where you invite players and start games.',
+    placement: 'top',
+    next: 'group-invite',
+  },
+  'group-invite': {
+    task: 'group',
+    target: 'group-invite',
+    page: 'group',
+    href: '/groups',
+    title: 'Invite your players',
+    description:
+      'The group’s link is its invite. Send it to the people you play with; requests to join wait on this page when you approve each player.',
+    placement: 'bottom-end',
+    next: 'group-new-game',
+    nextLabel: 'Next',
+  },
+  'group-new-game': {
+    task: 'group',
+    target: 'group-new-game',
+    page: 'group',
+    href: '/groups',
+    title: 'Play for the group',
+    description:
+      'New game seats other members, and the battle counts for the group. A battle started from Battles counts too when its players choose the group at setup.',
+    placement: 'bottom-end',
+    next: 'group-tabs',
+    nextLabel: 'Next',
+  },
+  'group-tabs': {
+    task: 'group',
+    target: 'group-tabs',
+    page: 'group',
+    href: '/groups',
+    title: 'Follow the standings',
+    description:
+      'The leaderboard ranks members by their finished group games. An organizer can also run a league, a round robin with its own fixtures, from the League tab.',
+    placement: 'bottom',
+    final: true,
+  },
+  'collection-add': {
+    task: 'collection',
+    target: 'collection-add',
+    page: 'collection',
+    href: '/collection',
+    title: 'Add what you own',
+    description: 'Search for a datasheet you have models for. A datasheet’s own page can add it too, from its Add menu.',
+    placement: 'bottom',
+    next: 'collection-counts',
+    nextLabel: 'Next',
+  },
+  'collection-counts': {
+    task: 'collection',
+    target: 'collection-counts',
+    page: 'collection',
+    href: '/collection',
+    title: 'Owned, built, painted',
+    description:
+      'Set how many models you own, then how many of those are built and painted. Each army, and the shelf at the top, totals them.',
+    placement: 'bottom',
+    optional: true,
+    next: 'collection-menu',
+    nextLabel: 'Next',
+  },
+  'collection-menu': {
+    task: 'collection',
+    target: 'collection-menu',
+    page: 'collection',
+    href: '/collection',
+    title: 'One kit, several datasheets',
+    description:
+      'Can also be… in this menu lets the same models stand in for another datasheet, such as a magnetised kit’s other builds. Your rosters still count each model once.',
+    placement: 'bottom-end',
+    optional: true,
+    next: 'collection-wishlist',
+    nextLabel: 'Next',
+  },
+  'collection-wishlist': {
+    task: 'collection',
+    target: 'collection-wishlist',
+    page: 'collection',
+    href: '/collection',
+    title: 'Plan what to buy',
+    description:
+      'The wishlist keeps models you mean to buy apart from those you own. When they arrive, Move to collection puts them on your shelf.',
+    placement: 'top',
+    next: 'collection-exchange',
+    nextLabel: 'Next',
+  },
+  'collection-exchange': {
+    task: 'collection',
+    target: 'collection-exchange',
+    page: 'collection',
+    href: '/collection',
+    title: 'Use a spreadsheet',
+    description:
+      'Export CSV saves your shelf and wishlist as a spreadsheet. Import CSV shows what a file will change before it adds anything.',
+    placement: 'bottom-end',
+    final: true,
+  },
 }
 
 const onboardingFocusSchema = z
   .object({ task: z.enum(onboardingTaskIds), step: z.enum(onboardingStepIds) })
   .refine(({ task, step }) => ONBOARDING_UI[step].task === task)
 
-export function openOnboarding(task?: OnboardingTaskId, step?: OnboardingStepId) {
-  window.dispatchEvent(
-    new CustomEvent<OnboardingFocus | undefined>(ONBOARDING_EVENT, {
-      detail: task ? { task, step: step ?? FIRST_ONBOARDING_STEP[task] } : undefined,
-    }),
-  )
+export function openOnboarding(task: OnboardingTaskId, step?: OnboardingStepId) {
+  window.dispatchEvent(new CustomEvent<OnboardingFocus>(ONBOARDING_EVENT, { detail: { task, step: step ?? FIRST_ONBOARDING_STEP[task] } }))
 }
 
 /** Moves the guide on within one page, where a dialog or a selection is the whole transition. */
@@ -747,10 +859,6 @@ export function onboardingStepEntry(step: OnboardingStepId): OnboardingStepId {
   return entry
 }
 
-export function focusAfterOnboardingOperation(focus: OnboardingFocus | undefined, operation: OnboardingProgressOperation) {
-  return operation.operation === 'skip' && operation.task === focus?.task ? undefined : focus
-}
-
 export function onboardingPage(pathname: string): OnboardingPage | undefined {
   if (pathname === '/') return 'home'
   if (pathname === '/simulator' || pathname === '/simulator/') return 'simulator'
@@ -763,5 +871,8 @@ export function onboardingPage(pathname: string): OnboardingPage | undefined {
   // The sample is not a tournament the tour can run on.
   if (/^\/tournaments\/sample\/?$/.test(pathname)) return undefined
   if (/^\/tournaments\/[^/]+\/?$/.test(pathname)) return 'tournament'
+  if (pathname === '/groups' || pathname === '/groups/') return 'groups'
+  if (/^\/groups\/[^/]+\/?$/.test(pathname)) return 'group'
+  if (pathname === '/collection' || pathname === '/collection/') return 'collection'
   return undefined
 }

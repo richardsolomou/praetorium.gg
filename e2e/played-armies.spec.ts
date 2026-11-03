@@ -55,7 +55,11 @@ for (const [width, label] of [
 
       await outcome.getByRole('link', { name: 'Open battle' }).click()
       await expect(reader).toHaveURL(new RegExp(`/battles/${token}$`))
-      await reader.goBack()
+      // On a phone the battle opens in the Battles tab, so the Rosters tab, not going back, returns to the list.
+      if (width === 390)
+        await reader.getByRole('navigation', { name: 'Application sections' }).getByRole('link', { name: 'Rosters' }).click()
+      else await reader.goBack()
+      await expect(reader).toHaveURL(/\/rosters\?view=played$/)
 
       await card.getByRole('link', { name: new RegExp(ARMY, 'i') }).click()
       await expect(reader).toHaveURL(new RegExp(`battle=${token}`))

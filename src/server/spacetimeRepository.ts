@@ -1018,6 +1018,10 @@ export class SpacetimeRepository {
     return this.product.setRosterArchived(...args)
   }
 
+  splitRosterVariant(...args: Parameters<SpacetimeOperator['splitRosterVariant']>) {
+    return this.product.splitRosterVariant(...args)
+  }
+
   changeRosters(...args: Parameters<SpacetimeOperator['changeRosters']>) {
     return this.product.changeRosters(...args)
   }

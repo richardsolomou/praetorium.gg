@@ -357,13 +357,15 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
           <header className="relative space-y-5 pb-2">
             <div aria-hidden className="construction-grid -inset-x-3 -top-6 sm:-inset-x-4" />
             <div className="relative space-y-1.5">
-              <h1 className="text-2xl text-balance sm:text-3xl">Set up the battle</h1>
+              <div className="flex items-start justify-between gap-2">
+                <h1 className="text-2xl text-balance sm:text-3xl">Set up the battle</h1>
+                <GuideHelp task="battle" step="battle-setup-size">
+                  Battle setup guide
+                </GuideHelp>
+              </div>
               <p className="max-w-prose text-sm text-dim sm:text-base">
                 In the order the rules play it. Anyone at the table can answer for either side.
               </p>
-              <GuideHelp task="battle" step="battle-setup-size">
-                Battle setup guide
-              </GuideHelp>
               {manual ? <p className="text-sm text-discarded">Manual tracking. {MANUAL_TRACKING_LIMITS}</p> : null}
             </div>
             <FaceOff sides={table} />

@@ -7,14 +7,14 @@ export const onboardingTaskIds = [
   'community',
   'simulator',
   'roster-tools',
+  'group',
+  'collection',
 ] as const
 
 export type OnboardingTaskId = (typeof onboardingTaskIds)[number]
 
-export const gettingStartedTaskIds = ['roster', 'simulator'] as const
-
 /** Tours that only a finished walkthrough can complete; every other task is folded from what the player has actually done. */
-export const tourTaskIds = ['reference', 'community', 'simulator', 'roster-tools'] as const
+export const tourTaskIds = ['reference', 'community', 'simulator', 'roster-tools', 'group', 'collection'] as const
 
 type TourTaskId = (typeof tourTaskIds)[number]
 
@@ -23,17 +23,14 @@ const factTaskIds = ['roster', 'friend', 'battle', 'tournament'] as const
 /** What the rest of the database already says the player has done. */
 export type OnboardingFacts = Record<(typeof factTaskIds)[number], boolean>
 
-/** The only onboarding state worth keeping: a welcome, a finished tour, and a task the player waved away. */
-export type StoredOnboarding = { welcomed: boolean; tasks: readonly { task: string; state: 'completed' | 'skipped' }[] }
+/** The only onboarding state worth keeping: a finished tour. Storage also holds `skipped` rows, which count for nothing. */
+export type StoredOnboarding = { tasks: readonly { task: string; state: 'completed' | 'skipped' }[] }
 
-export type OnboardingProgress = { completedTasks: OnboardingTaskId[]; skippedTasks: OnboardingTaskId[]; welcomed: boolean }
+export type OnboardingProgress = { completedTasks: OnboardingTaskId[] }
 
-export const EMPTY_ONBOARDING_PROGRESS: OnboardingProgress = { completedTasks: [], skippedTasks: [], welcomed: false }
+export const EMPTY_ONBOARDING_PROGRESS: OnboardingProgress = { completedTasks: [] }
 
-export type OnboardingProgressOperation =
-  | { operation: 'complete'; task: TourTaskId }
-  | { operation: 'skip' | 'restore'; task: OnboardingTaskId }
-  | { operation: 'welcome' }
+export type OnboardingProgressOperation = { operation: 'complete'; task: TourTaskId }
 
 export function isTourTask(task: OnboardingTaskId): task is TourTaskId {
   return (tourTaskIds as readonly string[]).includes(task)
@@ -46,25 +43,9 @@ export function isTourTask(task: OnboardingTaskId): task is TourTaskId {
  */
 export function onboardingProgress(stored: StoredOnboarding, facts: OnboardingFacts): OnboardingProgress {
   const completed = new Set<OnboardingTaskId>(factTaskIds.filter((task) => facts[task]))
-  const skipped = new Set<OnboardingTaskId>()
   for (const row of stored.tasks) {
     const task = onboardingTaskIds.find((known) => known === row.task)
-    if (!task) continue
-    if (row.state === 'skipped') skipped.add(task)
-    else if (isTourTask(task)) completed.add(task)
+    if (task && row.state === 'completed' && isTourTask(task)) completed.add(task)
   }
-  return {
-    completedTasks: onboardingTaskIds.filter((task) => completed.has(task)),
-    skippedTasks: onboardingTaskIds.filter((task) => skipped.has(task) && !completed.has(task)),
-    welcomed: stored.welcomed,
-  }
-}
-
-export function onboardingComplete(progress: OnboardingProgress): boolean {
-  return resolvedGettingStartedTasks(progress).length === gettingStartedTaskIds.length
-}
-
-export function resolvedGettingStartedTasks(progress: OnboardingProgress) {
-  const resolved = new Set([...progress.completedTasks, ...progress.skippedTasks])
-  return gettingStartedTaskIds.filter((task) => resolved.has(task))
+  return { completedTasks: onboardingTaskIds.filter((task) => completed.has(task)) }
 }

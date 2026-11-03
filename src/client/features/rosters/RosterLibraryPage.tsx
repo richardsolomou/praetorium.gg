@@ -34,6 +34,8 @@ import { rosterSetupOf } from './rosterDraft'
 import { factionSelectGroups } from './builder/factions'
 import { NoFilterMatches, RosterFilters, type RosterUpdateFilter } from './RosterFilters'
 import { RosterRow } from './RosterRow'
+import { type RosterShareChoices, RosterShareDialog } from './RosterShareDialog'
+import { rosterTitle } from './RosterSummary'
 import { RosterSelectionToolbar } from './RosterSelectionToolbar'
 import { type SavedRoster, useRosterActions } from './rosterLibrary'
 import { keepRosterSort } from './rosterSort'
@@ -186,6 +188,9 @@ export function RosterLibraryPage({
   const { keepImported, saveError: importError } = useNewRoster()
   // Rosters chosen together are deleted in one action; a row's own Delete goes through the single path.
   const [deleting, setDeleting] = useState<{ rosters: SavedRoster[]; together: boolean } | null>(null)
+  // Held by id, so the dialog reads each visibility change back from the library rather than a stale copy.
+  const [sharingId, setSharingId] = useState<string | null>(null)
+  const sharing = saved.find((roster) => roster.id === sharingId) ?? null
   const [session, setEditing] = useWorkspaceState<EditingSession>(WORKSPACE_PATH, SETUP_STATE)
   const editing = saved.find((roster) => roster.id === session?.rosterId) ?? null
   // Only a signed-in player's own rosters can be changed together; rosters a filter hides stay out of the action.
@@ -215,6 +220,29 @@ export function RosterLibraryPage({
         }
       : undefined
 
+  // A visitor's list lives on this device, so choosing who can open it asks them to sign up first.
+  const libraryShare = (roster: SavedRoster, title: string): RosterShareChoices => ({
+    title,
+    visibility: roster.visibility,
+    onVisibility: (visibility) => {
+      if (guest) account.ask('share')
+      else if (visibility !== roster.visibility) actions.access.mutate({ id: roster.id, visibility })
+    },
+    choosing: actions.access.isPending && actions.access.variables?.id === roster.id ? actions.access.variables.visibility : null,
+    visibilityNote: guest ? 'Sign in to share it by link or publicly.' : undefined,
+    visibilityError: actions.access.isError ? actions.access.error : undefined,
+    link: origin ? `${origin}/rosters/${roster.id}` : '',
+    onCopy: guest ? () => account.ask('share') : () => void actions.share(roster, title),
+    copied: actions.shareFeedback?.id === roster.id ? actions.shareFeedback.result : null,
+    copying: false,
+    copyProblem: actions.shareProblem ? `Could not copy the link: ${actions.shareProblem}` : undefined,
+    onExport: () => actions.take.mutate({ roster, title }),
+    exporting: actions.take.isPending,
+    onExchange: () => actions.exchange.mutate({ roster, title }),
+    exchanging: actions.exchange.isPending,
+    onPrint: () => actions.print(roster.id),
+  })
+
   const renderCard = ({ head, variants }: (typeof cards)[number]) => {
     const row = ({ roster, index }: typeof head, layout: 'card' | 'base' | 'variant') => (
       <RosterRow
@@ -232,8 +260,8 @@ export function RosterLibraryPage({
         updates={{ olderRules: olderRules(roster), changes: pageById.get(roster.id)?.changes ?? 0 }}
         showVisibility={roster.visibility !== head.roster.visibility}
         actions={actions}
-        origin={origin}
         onEdit={() => setEditing({ rosterId: roster.id, draft: rosterSetupOf(roster) })}
+        onShare={() => setSharingId(roster.id)}
         onDelete={() => setDeleting({ rosters: [roster], together: false })}
         onNeedsAccount={guest ? account.ask : undefined}
         selection={selectionOf(roster)}
@@ -287,9 +315,9 @@ export function RosterLibraryPage({
               reference={reference}
               onStarted={() => void navigate({ to: '/rosters', search, replace: true })}
             />
-            <GuideHelp task="roster">Build guide</GuideHelp>
           </>
         }
+        help={<GuideHelp task="roster">Build guide</GuideHelp>}
       >
         <RosterViews view="mine" />
       </PageHeader>
@@ -323,8 +351,8 @@ export function RosterLibraryPage({
               void navigate({ to: '/rosters', search: filters })
           }}
         />
-        {actions.shareProblem ? <Problem>Could not copy the link: {actions.shareProblem}</Problem> : null}
         {actions.lock.isError ? <Problem error={actions.lock.error} /> : null}
+        {actions.split.isError ? <Problem error={actions.split.error} /> : null}
         {actions.exchange.isError ? <Problem>Could not make an exchange code: {errorMessage(actions.exchange.error)}</Problem> : null}
 
         <section>
@@ -532,6 +560,20 @@ export function RosterLibraryPage({
         />
       ) : null}
       {account.prompt}
+      {sharing ? (
+        <RosterShareDialog
+          open
+          onClose={() => setSharingId(null)}
+          {...libraryShare(
+            sharing,
+            rosterTitle(
+              sharing,
+              available?.factions.find((entry) => entry.id === sharing.catalogueId),
+              pageById.get(sharing.id)?.label,
+            ),
+          )}
+        />
+      ) : null}
       <RosterExportDialog exported={actions.exportText} onClose={actions.clearExport} />
       <RosterExchangeDialog exchange={actions.exchangeCode} onClose={actions.clearExchange} />
     </main>

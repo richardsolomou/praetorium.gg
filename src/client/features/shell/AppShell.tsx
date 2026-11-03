@@ -7,8 +7,9 @@ import { SelectionHaptics } from './SelectionHaptics'
 import { version } from '../../../../package.json'
 import { useQuery } from '@tanstack/react-query'
 import { HeadContent, Link, Outlet, Scripts, useLocation } from '@tanstack/react-router'
-import { TooltipProvider } from '@/components/ui/tooltip'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import {
+  Boxes,
   BookOpen,
   Calculator,
   Gavel,
@@ -25,7 +26,7 @@ import {
 } from 'lucide-react'
 import { postHogEnvironment } from 'ras-stack/posthog'
 import { PostHogBetterAuthIdentity, PostHogIntegration } from 'ras-stack/posthog/react'
-import { useEffect, useLayoutEffect } from 'react'
+import { type ReactElement, useEffect, useLayoutEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { buttonClass } from '../../components/buttonClass'
 import { followRailState, setRailCollapsed, useRailCollapsed } from './railState'
@@ -66,6 +67,7 @@ const PRIMARY_LINKS = [
   { to: '/leaderboard', label: 'Leaderboard', Icon: Medal },
   { to: '/groups', label: 'Groups', Icon: Users },
   { to: '/tournaments', label: 'Tournaments', Icon: Trophy },
+  { to: '/collection', label: 'Collection', Icon: Boxes },
 ] as const
 
 const REFERENCE_LINKS = [
@@ -77,23 +79,35 @@ const REFERENCE_LINKS = [
 
 type RailLink = { to: string; label: string; Icon: LucideIcon }
 
-function RailLinks({ links, name }: { links: readonly RailLink[]; name: string }) {
+/** Names an icon beside the folded rail, where its label is hidden; the open rail shows the label instead. */
+function RailTooltip({ label, collapsed, children }: { label: string; collapsed: boolean; children: ReactElement }) {
+  return (
+    <Tooltip disabled={!collapsed}>
+      <TooltipTrigger render={children} />
+      <TooltipContent side="right" sideOffset={8}>
+        {label}
+      </TooltipContent>
+    </Tooltip>
+  )
+}
+
+function RailLinks({ links, name, collapsed }: { links: readonly RailLink[]; name: string; collapsed: boolean }) {
   return (
     <nav
       aria-label={name}
       className="runner gap-0.5 [--gate-y:1.125rem] in-data-[rail=collapsed]:pl-0 in-data-[rail=collapsed]:before:hidden in-data-[rail=collapsed]:*:before:hidden in-data-[rail=collapsed]:*:after:hidden"
     >
       {links.map(({ to, label, Icon }) => (
-        <Link
-          key={to}
-          to={to}
-          search={to === '/leaderboard' ? { faction: undefined } : undefined}
-          title={label}
-          className="group flex h-9 items-center gap-2.5 rounded-lg border border-transparent px-2.5 text-sm font-semibold text-dim transition-colors in-data-[rail=collapsed]:justify-center in-data-[rail=collapsed]:px-0 hover:bg-raised/60 hover:text-bone aria-[current=page]:border-edge aria-[current=page]:bg-panel aria-[current=page]:text-bone aria-[current=page]:shadow-part"
-        >
-          <Icon aria-hidden className="size-4.5 shrink-0 text-faint group-aria-[current=page]:text-parchment" />
-          <span className="truncate in-data-[rail=collapsed]:sr-only">{label}</span>
-        </Link>
+        <RailTooltip key={to} label={label} collapsed={collapsed}>
+          <Link
+            to={to}
+            search={to === '/leaderboard' ? { faction: undefined } : undefined}
+            className="group flex h-9 items-center gap-2.5 rounded-lg border border-transparent px-2.5 text-sm font-semibold text-dim transition-colors in-data-[rail=collapsed]:justify-center in-data-[rail=collapsed]:px-0 hover:bg-raised/60 hover:text-bone aria-[current=page]:border-edge aria-[current=page]:bg-panel aria-[current=page]:text-bone aria-[current=page]:shadow-part"
+          >
+            <Icon aria-hidden className="size-4.5 shrink-0 text-faint group-aria-[current=page]:text-parchment" />
+            <span className="truncate in-data-[rail=collapsed]:sr-only">{label}</span>
+          </Link>
+        </RailTooltip>
       ))}
     </nav>
   )
@@ -125,31 +139,35 @@ function SiteRail() {
           <GlobalSearch />
         </div>
         <div className="mx-auto mb-3 hidden in-data-[rail=collapsed]:block">
-          <GlobalSearch compact />
+          <RailTooltip label="Search" collapsed={collapsed}>
+            <GlobalSearch compact />
+          </RailTooltip>
         </div>
         <div className="no-scrollbar min-h-0 flex-1 space-y-4 overflow-y-auto pr-2.5 pl-2 in-data-[rail=collapsed]:pr-2">
-          <RailLinks links={PRIMARY_LINKS} name="Primary" />
+          <RailLinks links={PRIMARY_LINKS} name="Primary" collapsed={collapsed} />
           <div>
             <p className="mb-1.5 ml-1 text-2xs font-semibold tracking-eyebrow text-faint uppercase in-data-[rail=collapsed]:sr-only">
               Reference
             </p>
-            <RailLinks links={REFERENCE_LINKS} name="Reference" />
+            <RailLinks links={REFERENCE_LINKS} name="Reference" collapsed={collapsed} />
           </div>
         </div>
         <div className="mx-2.5 mt-2 flex items-center gap-1 border-t border-edge pt-2 in-data-[rail=collapsed]:flex-col in-data-[rail=collapsed]:[&_nav]:flex-col">
           <Account className="size-8" />
           <span className="flex-1" />
           <CommunityLinks compact />
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label={collapsed ? 'Expand navigation' : 'Collapse navigation'}
-            title={collapsed ? 'Expand navigation' : 'Collapse navigation'}
-            className="size-8 text-dim hover:text-bone"
-            onClick={() => setRailCollapsed(!collapsed)}
-          >
-            <Toggle aria-hidden className="size-4.5" />
-          </Button>
+          <RailTooltip label="Expand navigation" collapsed={collapsed}>
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label={collapsed ? 'Expand navigation' : 'Collapse navigation'}
+              title={collapsed ? undefined : 'Collapse navigation'}
+              className="size-8 text-dim hover:text-bone"
+              onClick={() => setRailCollapsed(!collapsed)}
+            >
+              <Toggle aria-hidden className="size-4.5" />
+            </Button>
+          </RailTooltip>
         </div>
       </div>
     </aside>
@@ -212,9 +230,6 @@ function SiteFooter() {
     >
       <p>Praetorium is an unofficial product, and is not in any way affiliated with or endorsed by Games Workshop.</p>
       <p className="flex flex-wrap justify-center gap-x-3">
-        <Link to="/docs" data-listed-in-more className="transition-colors hover:text-bone">
-          Docs
-        </Link>
         <Link to="/support" data-listed-in-more className="transition-colors hover:text-bone">
           Support
         </Link>

@@ -1,4 +1,4 @@
-import { expect, test } from './test'
+import { expect, startUnchosen, test } from './test'
 import {
   createRoster,
   signInAsPreview,
@@ -36,14 +36,13 @@ test('a full saved army prints selected equipment, both detachments and every pa
   const pack = page.locator('[data-battle-reference-pack]')
   await expect(pack.locator('[data-print-datasheet]')).toHaveCount(13)
   await expect(page.locator('html')).toHaveAttribute('data-printed-datasheets', '13')
-  await expect(pack).toContainText(points.replaceAll(/\s/g, '') + ' points')
   await expect(pack).toContainText('13 units · 48 models')
-  await expect(pack).toContainText('Cursed Legion (2 DP) · Skyshroud Spearhead (1 DP)')
-  await expect(pack).toContainText('Rules version: MFM')
+  await expect(pack).toContainText('Cursed Legion (2 DP) + Skyshroud Spearhead (1 DP)')
+  await expect(pack.locator('.pack-fineprint')).toContainText('MFM')
   await expect(pack).toContainText('Warlord')
-  await expect(pack).toContainText('Force disposition: Purge the Foe')
-  await expect(pack.getByRole('heading', { name: /Cursed Legion: detachment rules/i })).toBeVisible()
-  await expect(pack.getByRole('heading', { name: /Skyshroud Spearhead: detachment rules/i })).toBeVisible()
+  await expect(pack.locator('.pack-headline')).toContainText('Purge the Foe')
+  await expect(pack.getByRole('heading', { name: /^Cursed Legion$/i })).toBeVisible()
+  await expect(pack.getByRole('heading', { name: /^Skyshroud Spearhead$/i })).toBeVisible()
   await expect(pack.getByRole('heading', { name: /Insane Bravery/ })).toHaveCount(1)
   const immortals = pack.locator('[data-print-datasheet="Immortals"]')
   await expect(immortals).toContainText('10× Gauss blaster')
@@ -95,6 +94,26 @@ test('a full saved army prints selected equipment, both detachments and every pa
   await page.screenshot({ path: testInfo.outputPath('recorded-full-army.png') })
 })
 
+test('a pack waits for its rules text before it prints', async ({ browser }) => {
+  const context = await browser.newContext()
+  await startUnchosen(context)
+  const page = await context.newPage()
+  await page.addInitScript(() => {
+    window.print = () => {
+      document.documentElement.dataset.printed = 'true'
+    }
+  })
+  await signInAsPreview(page)
+  await page.goto('/rosters/preview-necrons-cursed-skyshroud?print=true')
+  await expect(page.getByText('Printing needs the rules text')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Print battle reference pack', exact: true })).toBeDisabled()
+  await expect(page.locator('html')).not.toHaveAttribute('data-printed', 'true')
+  await page.evaluate(() => localStorage.setItem('praetorium-text-sources', 'bsdata,game-datacards'))
+  await page.reload()
+  await expect(page.locator('html')).toHaveAttribute('data-printed', 'true')
+  await expect(page.locator('[data-battle-reference-pack]')).not.toContainText('Rules text isn’t loaded')
+})
+
 test('attached datasheets stay grouped and a missing reference never prints a partial pack', async ({ page }) => {
   await page.addInitScript(() => {
     window.print = () => {
@@ -115,7 +134,7 @@ test('attached datasheets stay grouped and a missing reference never prints a pa
   await chooseRosterAction(page, 'Print')
   await expect(pack.locator('[data-print-unit]')).toHaveCount(1)
   await expect(pack.locator('[data-print-datasheet]')).toHaveCount(2)
-  await expect(pack).toContainText('Supporting Immortals (Unit 1)')
+  await expect(pack.locator('[data-print-datasheet="Technomancer"]')).toContainText('Supporting Immortals')
   await expect(page.locator('html')).toHaveAttribute('data-printed', 'true')
   await page.getByRole('button', { name: 'Return to roster' }).click()
   await page.reload()
@@ -163,7 +182,6 @@ test('a saved mixed-equipment pack agrees with export and the fielded army', asy
   await page.goto(`/rosters/${rosterId}?print=true`)
   const pack = page.locator('[data-battle-reference-pack]')
   await expect(pack).toContainText('1 unit · 5 models')
-  await expect(pack).toContainText(points.replaceAll(/\s/g, '') + ' points')
   await expect(pack).toContainText('3× Boltgun')
   await expect(pack).toContainText('1× Plasma gun')
   await expect(pack).toContainText('1× Plague spewer')

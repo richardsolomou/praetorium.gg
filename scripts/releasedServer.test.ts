@@ -58,6 +58,7 @@ const UNREACHED = new Set([
   'set_roster_locked',
   'set_roster_visibility',
   'share_battle',
+  'split_roster_variant',
   'submit_battle',
   'sync_product',
   'sync_receipt',
