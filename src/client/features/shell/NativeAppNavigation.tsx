@@ -108,12 +108,28 @@ export function NativeAppNavigation({
     const destination = memory?.href ?? target
     const opened = openedByTab(router.history.location.state)
     const parents = tabParents(destination, root)
+    const openParent = (parent: string) =>
+      void navigate({
+        href: parent,
+        resetScroll: true,
+        viewTransition: false,
+        // The stale-build check waits a tick before pushing; the destination still runs it.
+        ignoreBlocker: true,
+        state: (current) => ({ ...current, tabEntry: opened.tabEntry }) as typeof current,
+      })
     const covered = parents.length > 0 && setNativeScreenCover(true)
-    // Drawing each parent, under the cover where the app has one, lets iOS snapshot it for the back swipe's preview,
-    // and timers chained from the tap keep its user activation, without which WebKit skips the parents going back.
-    for (const parent of parents)
-      void router.preloadRoute({ to: parent } as Parameters<typeof router.preloadRoute>[0]).catch(() => undefined)
-    if (parents.length)
+    // Without a cover, the parents join history within the tap without drawing, so none of them flashes past;
+    // flushing each stops the router's history merging pushes from one tick into one entry.
+    if (!covered)
+      for (const parent of parents) {
+        openParent(parent)
+        router.history.flush()
+      }
+    // Under the cover, drawing each parent lets iOS snapshot it for the back swipe's preview, and timers chained
+    // from the tap keep its user activation, without which WebKit skips the parents going back.
+    else {
+      for (const parent of parents)
+        void router.preloadRoute({ to: parent } as Parameters<typeof router.preloadRoute>[0]).catch(() => undefined)
       await new Promise<void>((resolve) => {
         const deadline = performance.now() + PARENT_BUDGET_MS
         let renderedPath = ''
@@ -130,16 +146,12 @@ export function NativeAppNavigation({
             stop()
             return resolve()
           }
-          void navigate({
-            href: parents[next++],
-            resetScroll: true,
-            viewTransition: false,
-            state: (current) => ({ ...current, tabEntry: opened.tabEntry }) as typeof current,
-          })
+          openParent(parents[next++]!)
           setTimeout(step, PARENT_CHECK_MS)
         }
         step()
       })
+    }
     await navigate({
       href: destination,
       // A tab with no memory opens at its top rather than at the last tab's scroll.
