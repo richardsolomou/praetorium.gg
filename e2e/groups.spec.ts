@@ -1,3 +1,4 @@
+import { recordEvents } from './telemetry.harness'
 import { expect, test, type Locator, type Page } from './test'
 import { befriend, createBattle, retryUntilVisible, setupStep, signInAsPreview, signUp, uniqueName, sealableRoster, PHONE } from './account'
 import { productSql, lastPathSegment, battleIdFor, seatsBySide, appendCommand } from './storage'
@@ -150,8 +151,13 @@ test('a group seals lists for a game night and plays them from the group page', 
   await owner.setViewportSize({ width: 1440, height: 1000 })
   await game.scrollIntoViewIfNeeded()
   await owner.screenshot({ path: testInfo.outputPath('group-up-next-desktop.png') })
+  const events = await recordEvents(owner)
   await game.getByRole('button', { name: `Play ${memberName}` }).click()
   await owner.waitForURL(/\/battles\/[^/]+$/)
+  expect(events.filter((event) => event.properties.source === 'hidden-list-game')).toEqual([
+    { name: 'battle_creation_started', properties: { source: 'hidden-list-game' } },
+    { name: 'battle_creation_submitted', properties: { format: '1v1', source: 'hidden-list-game' } },
+  ])
   await expect(owner.getByText('Host army').first()).toBeVisible()
   const battlePath = new URL(owner.url()).pathname
 
