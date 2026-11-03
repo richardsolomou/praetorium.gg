@@ -49,7 +49,6 @@ export function BattlesPage({ view: asked }: { view: BattlesView }) {
             <>
               {view === 'mine' ? <ImportBattles /> : null}
               {view === 'mine' && !battles.length ? null : <CreateBattle />}
-              <GuideHelp task="battle">Battle guide</GuideHelp>
             </>
           ) : (
             <Link to="/sign-in" search={{ next: '/battles' }} className={buttonClass()}>
@@ -57,6 +56,7 @@ export function BattlesPage({ view: asked }: { view: BattlesView }) {
             </Link>
           )
         }
+        help={me ? <GuideHelp task="battle">Battle guide</GuideHelp> : null}
       >
         {me ? (
           <nav aria-label="Battles" className={pageLinkTabsClass}>

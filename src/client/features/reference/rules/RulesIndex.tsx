@@ -40,7 +40,7 @@ export function RulesIndex() {
       <PageHeader
         title="Rules"
         description="Core rules, mission sequence, event and Combat Patrol rules."
-        actions={<GuideHelp task="reference">Search help</GuideHelp>}
+        help={<GuideHelp task="reference">Search help</GuideHelp>}
       />
       <PageContent className="space-y-6">
         <SearchField value={wanted} onChange={setWanted} placeholder="Find a rule" label="Find a rule" clearLabel="Empty the rule filter" />

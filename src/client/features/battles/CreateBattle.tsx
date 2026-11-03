@@ -202,7 +202,15 @@ export function CreateBattle({
           <Plus /> New battle
         </DialogTrigger>
       )}
-      <DialogContent>
+      <DialogContent
+        actions={
+          sealedEventMatches.length ? null : (
+            <GuideHelp task="battle" step="battle-format">
+              Battle setup guide
+            </GuideHelp>
+          )
+        }
+      >
         {sealedEventMatches.length ? (
           <>
             <DialogHeader>
@@ -250,9 +258,6 @@ export function CreateBattle({
           <>
             <DialogHeader>
               <DialogTitle className="text-2xl">Start a battle</DialogTitle>
-              <GuideHelp task="battle" step="battle-format">
-                Battle setup guide
-              </GuideHelp>
               <DialogDescription>
                 Choose who is playing. A guest is an opponent without an account; a practice opponent lets you play both sides alone.
                 {rosterId ? ' You bring this roster.' : null}
@@ -329,7 +334,7 @@ export function CreateBattle({
                   {opponents.some((opponent) => !opponent.automated) ? null : <InviteOpponent />}
                 </>
               )}
-              <SeatMatchup onboarding="battle-sides" seats={seats} labelFor={labelFor} />
+              <SeatMatchup seats={seats} labelFor={labelFor} />
               <div>
                 <Choice
                   label="Tracking"

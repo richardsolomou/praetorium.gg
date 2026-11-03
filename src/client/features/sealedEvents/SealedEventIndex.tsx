@@ -35,9 +35,9 @@ export function SealedEventIndex() {
           <>
             <SampleLink />
             {me ? <CreateSealedEvent /> : null}
-            {me ? <GuideHelp task="tournament">Tournament guide</GuideHelp> : null}
           </>
         }
+        help={me ? <GuideHelp task="tournament">Tournament guide</GuideHelp> : null}
       />
       <PageContent className="space-y-6">
         {mine.length ? <SealedEventShelf title="Your tournaments" sealedEvents={mine} viewerId={me?.id ?? null} /> : null}

@@ -13,6 +13,8 @@ import { groupsQuery, meQuery, type QueryData } from '../../queries'
 import { SEALED_EVENT_CARD } from '../sealedEvents/SealedEventActions'
 import { GroupSettingsDialog } from './GroupSettingsDialog'
 import { countLabel } from '../../text'
+import { GuideHelp } from '../onboarding/GuideHelp'
+import { advanceOnboarding } from '../onboarding/onboarding'
 
 type GroupSummary = QueryData<typeof groupsQuery>[number]
 
@@ -29,11 +31,18 @@ export function GroupIndex() {
         description="Keep a running leaderboard of the games your group plays."
         actions={
           me ? (
-            <Button onClick={() => setCreating(true)}>
+            <Button
+              data-onboarding="create-group"
+              onClick={() => {
+                advanceOnboarding('group', 'group-start', 'group-access')
+                setCreating(true)
+              }}
+            >
               <Plus /> New group
             </Button>
           ) : null
         }
+        help={me ? <GuideHelp task="group">Group guide</GuideHelp> : null}
       />
       <PageContent className="space-y-6">
         {mine.length ? <GroupShelf title="Your groups" groups={mine} /> : null}

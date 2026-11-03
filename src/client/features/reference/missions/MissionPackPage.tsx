@@ -9,6 +9,7 @@ import { RuleText } from '../../../components/RuleText'
 import { matchupMission } from './dispositionMatchups'
 import { SectionHeading } from '../../../components/SectionHeading'
 import { RUNNER_COLUMNS } from '../runnerColumns'
+import { GuideHelp } from '../../onboarding/GuideHelp'
 
 export function MissionPackPage({ packId }: { packId: string }) {
   const { data } = useQuery(gameReferencesQuery())
@@ -38,6 +39,7 @@ export function MissionPackPage({ packId }: { packId: string }) {
     <main className="w-full">
       <PageHeader
         title={pack.name}
+        help={<GuideHelp task="reference">Search help</GuideHelp>}
         actions={
           <>
             <Link to="/rosters/new" search={{ reference: 'mission-pack' }} className={buttonClass()}>
