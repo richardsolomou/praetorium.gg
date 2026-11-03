@@ -250,6 +250,8 @@ export function useCommand(token: string, seq: number) {
   /** The click that queued `unshown`, since one press may send several commands. */
   const press = useRef<Event | undefined>(undefined)
   const settled = useRef<number>(undefined)
+  /** Until when a new tap is ignored; read on the tap itself, since the disabled controls only follow on the next render. */
+  const settledUntil = useRef(0)
   /** Whether the controls are disabled until the service answers, because the result could not show ahead of it. */
   const awaiting = useRef(false)
 
@@ -262,6 +264,7 @@ export function useCommand(token: string, seq: number) {
   const settle = useCallback(() => {
     // The next screen puts a control under the same finger, so a double tap would act twice.
     setSettling(true)
+    settledUntil.current = performance.now() + DOUBLE_TAP_MS
     window.clearTimeout(settled.current)
     settled.current = window.setTimeout(() => setSettling(false), DOUBLE_TAP_MS)
   }, [])
@@ -281,7 +284,8 @@ export function useCommand(token: string, seq: number) {
       const blocking = !options?.background && options?.blocking !== false
       // The controls stay enabled until a result shows, so a second tap on them would act on a screen the first already changed.
       const event = lastClick
-      if (blocking && unshown.current.size && event !== press.current) return options?.complete?.(false)
+      if (blocking && event !== press.current && (unshown.current.size || performance.now() < settledUntil.current))
+        return options?.complete?.(false)
       const item: QueuedCommand = {
         command,
         basedOn: seq,

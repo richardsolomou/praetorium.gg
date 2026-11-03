@@ -170,6 +170,8 @@ test('a double tap on the turn control ends one phase', async ({ page }) => {
   await expect.poll(() => page.evaluate(() => window.PraetoriumReferenceCache?.version), { timeout: 60_000 }).toBe(2)
   const heading = page.locator('[data-scoreboard] h1')
   await expect(heading).toContainText('command phase')
+  // Taking the turn holds the controls for the double-tap window too.
+  await expect(advanceButton(page)).toBeEnabled()
   const box = (await advanceButton(page).boundingBox())!
   const tap = () => page.mouse.click(box.x + box.width / 2, box.y + box.height / 2)
   // Before the first tap's result shows.
