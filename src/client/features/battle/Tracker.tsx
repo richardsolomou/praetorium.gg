@@ -628,7 +628,7 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
                * a margin on a fixed box sits between it and the edge it is pinned to.
                * At `lg` it is an ordinary box in the column again and takes the gap back.
                */
-              className="fixed inset-x-0 bottom-0 z-40 mb-0 border-t border-edge bg-panel/98 px-3 py-2 backdrop-blur lg:static lg:mb-3 lg:rounded-xl lg:border lg:bg-panel lg:p-3 lg:shadow-part lg:backdrop-filter-none"
+              className="fixed right-0 bottom-0 left-(--app-chrome-left) z-40 mb-0 border-t border-edge bg-panel/98 px-3 py-2 backdrop-blur lg:static lg:mb-3 lg:rounded-xl lg:border lg:bg-panel lg:p-3 lg:shadow-part lg:backdrop-filter-none"
             />
 
             <section className={`part space-y-3 p-3 ${focus === 'battle' ? '' : 'hidden lg:block'}`}>
