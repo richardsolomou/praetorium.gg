@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.218.3 (2026-11-03)
+
+### Patch Changes
+
+- 6f83e54: The assistant guide now links to Praetorium in ChatGPT's plugin directory.
+
 ## 0.218.2 (2026-11-03)
 
 ### Patch Changes
