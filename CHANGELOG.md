@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.218.6 (2026-11-03)
+
+### Patch Changes
+
+- 9ba15a8: The combat simulator's roster pickers now list rosters friends have lent you.
+
 ## 0.218.5 (2026-11-03)
 
 ### Patch Changes
