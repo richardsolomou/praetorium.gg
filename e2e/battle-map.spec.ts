@@ -8,6 +8,8 @@ async function inspectMap(page: Page) {
   const map = dialog.locator('svg[aria-label$="battlefield map"]')
   await expect(map).toBeVisible()
   await expect.poll(() => map.locator('polygon').count()).toBeGreaterThan(2)
+  // The phone sheet slides in, so its bounds only hold once it has arrived.
+  await dialog.evaluate((element) => Promise.all(element.getAnimations({ subtree: true }).map((animation) => animation.finished)))
   await expect(map.locator('[marker-end]')).toHaveCount(0)
   expect(
     await map.evaluate((element) => {
