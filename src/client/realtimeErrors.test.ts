@@ -19,6 +19,7 @@ it.each([
   new TypeError('fetch failed'),
   new IdentityChangedError(),
   new UnknownCallResultError(),
+  new DOMException("Failed to construct 'WebSocket': Failed to create a WebSocket: the provided URL is invalid.", 'SyntaxError'),
   ...[401, 408, 429, 500, 502, 503, 504].map((status) => new RealtimeHttpError('Spacetime token', status)),
 ])('treats %s as a recoverable realtime failure', (error) => {
   expect(isExpectedRealtimeDisconnect(error)).toBe(true)
@@ -32,6 +33,7 @@ it.each([
   null,
   new Event('message'),
   new Error('WebSocket error', { cause: new Event('message') }),
+  new DOMException("Failed to construct 'WebSocket': The URL 'wss://' is invalid.", 'SyntaxError'),
   ...[400, 403, 404].map((status) => new RealtimeHttpError('Spacetime token', status)),
 ])('reports %s as an unexpected realtime failure', (error) => {
   expect(isExpectedRealtimeDisconnect(error)).toBe(false)
