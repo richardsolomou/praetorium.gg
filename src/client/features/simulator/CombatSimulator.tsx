@@ -65,7 +65,7 @@ export function CombatSimulator({
   const queryClient = useQueryClient()
   const units = useQuery(combatUnitsQuery())
   const history = useMatchupHistory()
-  const { saved, friendRosters, sealedEventRosters } = useSimulatorRosters()
+  const { saved, friendRosters, lentRosters, sealedEventRosters } = useSimulatorRosters()
   const factions = useQuery(factionIndexQuery())
   const titled = (roster: Parameters<typeof rosterTitle>[0] & { catalogueId: string }) =>
     rosterTitle(
@@ -112,6 +112,7 @@ export function CombatSimulator({
   const listed = new Set([
     ...savedRosters.map(({ id }) => id),
     ...friendRosters.map(({ roster }) => roster.id),
+    ...lentRosters.map(({ roster }) => roster.id),
     ...sealedEventSources.keys(),
   ])
   const otherRosters = [...new Map(linkedSources.map((source) => [rosterSourceKey(source), source])).entries()].flatMap(([key, source]) => {
@@ -217,6 +218,14 @@ export function CombatSimulator({
     {
       label: "Friends' rosters",
       options: friendRosters.map(({ roster, owner }) => ({
+        id: roster.id,
+        label: `${titled(roster)} · ${owner.name}`,
+        catalogueId: roster.catalogueId,
+      })),
+    },
+    {
+      label: 'Lent by friends',
+      options: lentRosters.map(({ roster, owner }) => ({
         id: roster.id,
         label: `${titled(roster)} · ${owner.name}`,
         catalogueId: roster.catalogueId,

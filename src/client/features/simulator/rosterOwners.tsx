@@ -1,7 +1,14 @@
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
 import type { SimulatorRosterSource } from '../../../contracts/simulatorState'
-import { discoveredRostersQuery, friendSealedEventRostersQuery, friendshipsQuery, meQuery, savedRosterSummariesQuery } from '../../queries'
+import {
+  discoveredRostersQuery,
+  friendSealedEventRostersQuery,
+  friendshipsQuery,
+  meQuery,
+  rostersLentToMeQuery,
+  savedRosterSummariesQuery,
+} from '../../queries'
 
 export type RosterOwner = { name: string; image?: string | null }
 
@@ -32,7 +39,7 @@ type KnownRosters = {
 }
 
 /**
- * Whose roster a simulator side comes from: the player's own, a friend's listed roster, or a friend's sealed list,
+ * Whose roster a simulator side comes from: the player's own, a friend's listed or lent roster, or a friend's sealed list,
  * whether or not its event is still on. A roster opened by someone else's link is unknown.
  */
 export function rosterOwner(source: SimulatorRosterSource | undefined, known: KnownRosters): RosterOwner | undefined {
@@ -48,7 +55,7 @@ export function rosterOwner(source: SimulatorRosterSource | undefined, known: Kn
 /**
  * The rosters a simulator offers to pick from: the player's own, including archived ones,
  * the newest page of friends' public rosters as the roster library's Friends tab lists
- * them, and friends' revealed sealed lists from events still on.
+ * them, rosters friends have lent the player, and friends' revealed sealed lists from events still on.
  */
 export function useSimulatorRosters(enabled = true) {
   const me = useQuery({ ...meQuery(), enabled })
@@ -56,14 +63,24 @@ export function useSimulatorRosters(enabled = true) {
   const saved = useQuery({ ...savedRosterSummariesQuery(), enabled: signedIn })
   const friends = useInfiniteQuery({ ...discoveredRostersQuery({}, 'friends', 'updated-desc'), enabled: signedIn })
   const sealedEvents = useQuery({ ...friendSealedEventRostersQuery(), enabled: signedIn })
-  return { me, saved, friendRosters: friends.data?.pages[0]?.rosters ?? [], sealedEventRosters: sealedEvents.data ?? [] }
+  const lent = useQuery({ ...rostersLentToMeQuery(), enabled: signedIn })
+  const lentRosters = (lent.data ?? []).map(({ summary, owner }) => ({ roster: summary, owner }))
+  // A lent roster that is also public is listed once, as lent.
+  const lentIds = new Set(lentRosters.map(({ roster }) => roster.id))
+  const friendRosters = (friends.data?.pages[0]?.rosters ?? []).filter(({ roster }) => !lentIds.has(roster.id))
+  return { me, saved, friendRosters, lentRosters, sealedEventRosters: sealedEvents.data ?? [] }
 }
 
 /** `rosterOwner` over the simulator's roster picker reads and the player's friends. */
 export function useRosterOwners() {
-  const { me, saved, friendRosters } = useSimulatorRosters()
+  const { me, saved, friendRosters, lentRosters } = useSimulatorRosters()
   const people = useQuery({ ...friendshipsQuery(), enabled: Boolean(me.data) })
-  const known: KnownRosters = { me: me.data, saved: saved.data ?? [], friends: friendRosters, people: people.data?.friends ?? [] }
+  const known: KnownRosters = {
+    me: me.data,
+    saved: saved.data ?? [],
+    friends: [...friendRosters, ...lentRosters],
+    people: people.data?.friends ?? [],
+  }
   return (source: SimulatorRosterSource | undefined) => rosterOwner(source, known)
 }
 
