@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.219.1 (2026-11-03)
+
+### Patch Changes
+
+- 584cdba: The battle timeline and turn controls no longer cover the bottom of the navigation rail.
+
 ## 0.219.0 (2026-11-03)
 
 ### Minor Changes
