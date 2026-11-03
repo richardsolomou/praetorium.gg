@@ -109,6 +109,55 @@ describe('judging a rule in its place in a roster', () => {
     ).toBeNull())
 })
 
+describe('orders', () => {
+  const orders = rule(
+    'If your Army Faction is **ARMY**, **OFFICER** with this ability can issue Orders. Only **ARMY** models gain the benefit of an Order issued to their unit.\n\n### TAKE AIM!\nImprove the Ballistic Skill characteristic of ranged weapons equipped by models in this unit by 1.',
+  )
+  const troops: CombatRuleJudge = {
+    origin: 'army',
+    keywords: ['Army', 'Infantry'],
+    unitKeywords: ['Army', 'Infantry'],
+    supportKeywords: [],
+  }
+  it('reach a unit without an officer from its army rule', () => expect(judgedCombatRule(orders, troops)).not.toBeNull())
+  it('reach no unit outside the army rule’s keyword', () =>
+    expect(judgedCombatRule(orders, { ...troops, keywords: ['Agents'] })).toBeNull())
+  it('leave an officer’s own copy to the army rule', () => expect(judgedCombatRule(orders, { ...troops, origin: 'own' })).toBeNull())
+  it('improve the Attacks of Rapid Fire weapons alone', () => {
+    const sheet = datasheetFixture({
+      profiles: ['Rapid Fire 1', 'Pistol'].map((keywords) => ({
+        id: keywords,
+        name: keywords,
+        type: 'Ranged Weapons',
+        count: 1,
+        values: Object.entries({ A: '1', BS: '4+', Keywords: keywords }).map(([name, value]) => ({ name, value })),
+      })),
+    })
+    const active = [
+      {
+        name: 'Order',
+        effects: combatRuleChoices(
+          rule('Improve the Attacks characteristic of Rapid Fire weapons equipped by models in this unit by 1.'),
+        )[0]!.effects,
+      },
+    ]
+    expect(combatRuleProfiles(sheet, active, 'attacker').profiles.map((profile) => profile.values[0]!.value)).toEqual(['2', '1'])
+  })
+  it.each([
+    [5, 4],
+    [3, 3],
+    [2, 2],
+  ])('improve a %i+ Save to %i+ but never past 3+', (save, improved) => {
+    const target = { groups: [{ models: 1, toughness: 3, save, invulnerable: null, wounds: 1 }], feelNoPain: null }
+    const cover = rule(
+      "Improve the Save characteristic of models in this unit by 1 (this cannot improve a model's Save to better than 3+).",
+    )
+    expect(combatRuleDefences(target, [{ name: 'Order', effects: combatRuleChoices(cover)[0]!.effects }], 'ranged').groups[0]!.save).toBe(
+      improved,
+    )
+  })
+})
+
 describe('combat rule effects', () => {
   it('applies an incoming damage replacement to the attacking weapons', () => {
     const defensive = {
