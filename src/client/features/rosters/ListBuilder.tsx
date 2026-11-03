@@ -1734,7 +1734,7 @@ export function ListBuilder({
 
       <RosterBody threeColumn={editable}>
         {editable ? (
-          <div className="contents min-[1300px]:flex min-[1300px]:min-h-0 min-[1300px]:min-w-0">
+          <div className="contents roster-wide:flex roster-wide:min-h-0 roster-wide:min-w-0">
             <Pane
               variant="picker"
               open={pickerOpen}
@@ -1832,7 +1832,7 @@ export function ListBuilder({
                 <p className="max-w-sm text-sm text-dim">
                   Search for a unit you own or want to field. Then choose its model count and equipment in Loadout.
                 </p>
-                <Button variant="outline" className="min-[1300px]:hidden" onClick={openPicker}>
+                <Button variant="outline" className="roster-wide:hidden" onClick={openPicker}>
                   Choose a unit
                 </Button>
               </div>

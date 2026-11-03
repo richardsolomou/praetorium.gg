@@ -267,9 +267,9 @@ export function RosterOutline() {
     <RosterShell busy>
       <div className="h-24 border-b border-edge bg-panel" />
       <RosterBody threeColumn>
-        <div className="hidden border-r border-edge min-[1300px]:block" />
+        <div className="hidden border-r border-edge roster-wide:block" />
         <div className="flex-1" />
-        <div className="hidden border-l border-edge min-[1300px]:block" />
+        <div className="hidden border-l border-edge roster-wide:block" />
       </RosterBody>
       <div className="h-14 border-t border-edge bg-panel" />
     </RosterShell>
@@ -280,7 +280,7 @@ export function RosterBody({ children, threeColumn = false }: { children: ReactN
   return (
     <div
       className={`flex min-h-0 min-w-0 max-w-full flex-1 overflow-hidden ${
-        threeColumn ? 'min-[1300px]:grid min-[1300px]:grid-cols-[minmax(0,1.1fr)_minmax(0,1.45fr)_minmax(0,1.45fr)]' : ''
+        threeColumn ? 'roster-wide:grid roster-wide:grid-cols-[minmax(0,1.1fr)_minmax(0,1.45fr)_minmax(0,1.45fr)]' : ''
       }`}
     >
       {children}

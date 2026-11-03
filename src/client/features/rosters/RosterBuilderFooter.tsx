@@ -117,7 +117,7 @@ export function RosterBuilderFooter({
               data-onboarding="roster-picker"
               variant="outline"
               size="sm"
-              className="max-sm:min-h-11 min-[1300px]:hidden"
+              className="max-sm:min-h-11 roster-wide:hidden"
               onClick={() => {
                 advanceOnboarding('roster', 'roster-picker', 'roster-search')
                 onAddUnits()

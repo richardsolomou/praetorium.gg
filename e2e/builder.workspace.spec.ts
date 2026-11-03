@@ -398,15 +398,10 @@ test('portrait tablets keep roster details as a full-screen view', async ({ page
   expect(await loadout.evaluate((pane) => Math.round(pane.getBoundingClientRect().bottom))).toBe(
     await sections.evaluate((tabs) => Math.round(tabs.getBoundingClientRect().top)),
   )
-  await page.setViewportSize({ width: 900, height: 1180 })
-  await expect(loadout).toHaveAttribute('aria-modal', 'true')
-  await expect(sections).toBeHidden()
-  await expect(loadout.getByRole('button', { name: 'Back to roster' })).toBeVisible()
+  await page.setViewportSize({ width: 860, height: 1180 })
+  await expect(loadout).toHaveCSS('position', 'static')
   await expectNoPageOverflow(page)
   await expectNoHorizontalOverflow(loadout)
-
-  await page.setViewportSize({ width: 1024, height: 768 })
-  await expect(loadout).toHaveCSS('position', 'static')
   await expect(lychguardButton).toBeFocused()
   await expect(page).toHaveURL(rosterUrl)
 })
@@ -495,7 +490,7 @@ test('the roster workspace preserves picker and read-only state', async ({ page 
 
   await page.getByLabel('Add a unit').fill('Immortals')
   await page.getByRole('button', { name: 'Points fit', exact: true }).click()
-  await page.setViewportSize({ width: 1200, height: 800 })
+  await page.setViewportSize({ width: 1100, height: 800 })
   await expect(page.getByLabel('Add a unit')).toHaveCount(0)
   await page.getByRole('button', { name: 'Add units', exact: true }).click()
   await expect(page.getByLabel('Add a unit')).toHaveValue('Immortals')
@@ -757,4 +752,28 @@ test('a waived format restriction cannot widen the mobile roster', async ({ page
 
   await loadout.getByRole('button', { name: 'Back to roster' }).click()
   await expectNoPageOverflow(page)
+})
+
+test('the rail folds automatically in the roster workspace until a choice that differs is made', async ({ page }) => {
+  await openBuilder(page)
+  const html = page.locator('html')
+  const rail = page.locator('aside[data-web-app-chrome]')
+  const toggle = (name: 'Expand' | 'Collapse') => rail.getByRole('button', { name: `${name} navigation`, exact: true }).click()
+  const factions = () => rail.getByRole('link', { name: 'Factions', exact: true }).click()
+  await expect(html).toHaveAttribute('data-rail', 'collapsed')
+
+  // Opened in the workspace, it stays open through a reload; folded again, it is automatic and opens elsewhere.
+  await toggle('Expand')
+  await page.reload()
+  await expect(html).not.toHaveAttribute('data-rail')
+  await toggle('Collapse')
+  await factions()
+  await expect(html).not.toHaveAttribute('data-rail')
+
+  // Folded where it would be open, it stays folded leaving the workspace too.
+  await toggle('Collapse')
+  await page.goBack()
+  await expect(html).toHaveAttribute('data-rail', 'collapsed')
+  await factions()
+  await expect(html).toHaveAttribute('data-rail', 'collapsed')
 })

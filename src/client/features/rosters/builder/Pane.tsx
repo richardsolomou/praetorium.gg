@@ -24,16 +24,18 @@ type Props = {
 const VARIANTS = {
   // Written out rather than composed: Tailwind only sees class names it can read.
   picker:
-    'min-[1300px]:static min-[1300px]:z-auto min-[1300px]:inset-auto min-[1300px]:flex min-[1300px]:min-w-0 min-[1300px]:!w-full min-[1300px]:shrink-0 min-[1300px]:border-r min-[1300px]:border-l-0',
-  loadout: 'lg:static lg:z-auto lg:inset-auto lg:flex lg:min-w-0 lg:w-1/2 lg:shrink-0 lg:border-l min-[1300px]:!w-full',
+    'roster-wide:static roster-wide:z-auto roster-wide:inset-auto roster-wide:flex roster-wide:min-w-0 roster-wide:!w-full roster-wide:shrink-0 roster-wide:border-r roster-wide:border-l-0',
+  loadout:
+    'roster-split:static roster-split:z-auto roster-split:inset-auto roster-split:flex roster-split:min-w-0 roster-split:w-1/2 roster-split:shrink-0 roster-split:border-l roster-wide:!w-full',
 } as const
 
 const TWO_COLUMN_VARIANTS = {
   ...VARIANTS,
-  loadout: 'lg:static lg:z-auto lg:inset-auto lg:flex lg:min-w-0 lg:w-1/2 lg:shrink-0 lg:border-l',
+  loadout:
+    'roster-split:static roster-split:z-auto roster-split:inset-auto roster-split:flex roster-split:min-w-0 roster-split:w-1/2 roster-split:shrink-0 roster-split:border-l',
 } as const
 
-const CLOSERS = { picker: 'min-[1300px]:hidden', loadout: '' } as const
+const CLOSERS = { picker: 'roster-wide:hidden', loadout: '' } as const
 const MOBILE_LAYOUT = {
   picker: 'inset-y-0 left-0 w-[min(24rem,calc(100vw-2.5rem))] shadow-2xl',
   loadout: 'inset-0',
@@ -132,7 +134,7 @@ export function Pane({
     <>
       <div
         className={`relative flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-edge px-3 py-2 ${
-          variant === 'loadout' ? 'pl-12 lg:pl-3' : 'pr-12'
+          variant === 'loadout' ? 'pl-12 roster-split:pl-3' : 'pr-12'
         } ${CLOSERS[variant]}`}
       >
         {drawer ? (
@@ -150,7 +152,7 @@ export function Pane({
           variant="ghost"
           size="icon"
           aria-label={variant === 'loadout' ? (backLabel ?? 'Back to roster') : 'Close'}
-          className={`absolute top-0.5 ${variant === 'loadout' ? 'left-0 size-11 lg:hidden' : 'right-2'}`}
+          className={`absolute top-0.5 ${variant === 'loadout' ? 'left-0 size-11 roster-split:hidden' : 'right-2'}`}
           onClick={onClose}
         >
           {variant === 'loadout' ? <ChevronLeft className="size-5" /> : <X />}
