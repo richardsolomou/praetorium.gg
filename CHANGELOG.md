@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.219.0 (2026-11-03)
+
+### Minor Changes
+
+- 7ed5cd7: The simulator lets an Astra Militarum unit take Fix Bayonets!, Take Aim!, First Rank, Fire! Second Rank, Fire! or Take Cover! from Voice of Command.
+
 ## 0.218.7 (2026-11-03)
 
 ### Patch Changes
