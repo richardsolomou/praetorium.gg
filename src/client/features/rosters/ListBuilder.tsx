@@ -2,6 +2,8 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tansta
 import { loadedWords } from '../../sourceText'
 import { Link, useMatch, useNavigate, useRouterState } from '@tanstack/react-router'
 import {
+  Archive,
+  ArchiveRestore,
   Calculator,
   Copy,
   Crown,
@@ -16,6 +18,7 @@ import {
   Share2,
   SlidersHorizontal,
   Swords,
+  Trash2,
   TriangleAlert,
   Unlink,
 } from 'lucide-react'
@@ -58,9 +61,11 @@ import type { Datasheet } from '../../../contracts/catalogue'
 import { rosterMatchup, type SimulatorRosterSource } from '../../../contracts/simulatorState'
 import {
   copyRoster,
+  deleteRoster,
   endRosterLoan,
   exportRoster,
   saveRoster,
+  setRosterArchived,
   setRosterLocked,
   setRosterVisibility,
   splitRosterVariant,
@@ -179,6 +184,7 @@ type Props = {
     source: RosterSource
     /** When the server wrote this copy; a list nobody has saved has none. */
     updatedAt?: number
+    archived?: boolean
   }
   initialFaction?: RosterSetupFaction | null
   snapshotEdition?: Pick<CatalogueEdition, 'id' | 'name' | 'status'> | null
@@ -296,6 +302,7 @@ export function ListBuilder({
   const [lending, setLending] = useState(false)
   const [returning, setReturning] = useState(false)
   const [startingBattle, setStartingBattle] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const [printInput, setPrintInput] = useState<RosterPrintInput | null>(null)
   const automaticPrint = useRef(false)
   // A frozen list has no saved row to be keyed by, so it is keyed by where it is read.
@@ -459,6 +466,7 @@ export function ListBuilder({
   // A saved list is copied on the server, which records where the copy came from; a fielded army is copied as shown,
   // and a visitor's copy becomes the one list their device keeps.
   const duplicateRoster = useMutation({
+    scope: { id: 'roster-autosave' },
     mutationFn: async () => {
       if (savedId && !battle && me) return copyRoster({ data: { id: savedId, variant: false } })
       const copy = {
@@ -510,6 +518,20 @@ export function ListBuilder({
     scope: { id: 'roster-autosave' },
     mutationFn: (next: boolean) => setRosterLocked({ data: { id: savedId, locked: next } }),
     onSuccess: () => invalidateSavedRosters(queryClient),
+  })
+  const archiveRoster = useMutation({
+    scope: { id: 'roster-autosave' },
+    mutationFn: (next: boolean) => setRosterArchived({ data: { id: savedId, archived: next } }),
+    onSuccess: () => invalidateSavedRosters(queryClient),
+  })
+  // Leaves before refreshing, so this page never asks again for the list it just deleted.
+  const removeRoster = useMutation({
+    scope: { id: 'roster-autosave' },
+    mutationFn: () => deleteRoster({ data: { id: savedId } }),
+    onSuccess: async () => {
+      await navigate({ to: '/rosters' })
+      await invalidateSavedRosters(queryClient)
+    },
   })
   // Between an edit settling and its save starting, nothing is pending yet, so an
   // unconfirmed draft counts as saving too; otherwise the page reads saved for a render.
@@ -1140,6 +1162,26 @@ export function ListBuilder({
     </>
   ) : null
 
+  const manageSection = ownsSaved ? (
+    <>
+      <DropdownMenuSeparator />
+      <DropdownMenuItem className={MENU_ITEM} disabled={archiveRoster.isPending} onClick={() => archiveRoster.mutate(!initial.archived)}>
+        {initial.archived ? (
+          <>
+            <ArchiveRestore /> Unarchive
+          </>
+        ) : (
+          <>
+            <Archive /> Archive
+          </>
+        )}
+      </DropdownMenuItem>
+      <DropdownMenuItem className={MENU_ITEM} variant="destructive" onClick={() => setDeleting(true)}>
+        <Trash2 /> Delete
+      </DropdownMenuItem>
+    </>
+  ) : null
+
   // The shelves draw a card per datasheet; the header says how many units the list
   // brings, which is the same fold the library and the battle count it by.
   const fieldedUnitCount = frozen ? attachedUnitCount(frozen.units) : attachedUnitCount(picks)
@@ -1400,6 +1442,13 @@ export function ListBuilder({
                               <GitBranchPlus /> Create variant
                             </DropdownMenuItem>
                             {splitItem}
+                            <DropdownMenuItem
+                              className={MENU_ITEM}
+                              disabled={saving || duplicateRoster.isPending}
+                              onClick={() => duplicateRoster.mutate()}
+                            >
+                              <Copy /> Duplicate
+                            </DropdownMenuItem>
                             <DropdownMenuItem className={MENU_ITEM} onClick={() => setLending(true)}>
                               <HandHelping /> Lend to a friend
                             </DropdownMenuItem>
@@ -1418,6 +1467,9 @@ export function ListBuilder({
                               <GitBranchPlus /> Create variant
                             </DropdownMenuItem>
                             {splitItem}
+                            <DropdownMenuItem className={MENU_ITEM} onClick={() => account.ask('another-roster')}>
+                              <Copy /> Duplicate
+                            </DropdownMenuItem>
                             <DropdownMenuItem className={MENU_ITEM} onClick={() => account.ask('lend')}>
                               <HandHelping /> Lend to a friend
                             </DropdownMenuItem>
@@ -1432,6 +1484,7 @@ export function ListBuilder({
                   <DropdownMenuSeparator />
                   {shareItem}
                   {displaySection}
+                  {manageSection}
                 </DropdownMenuContent>
               </DropdownMenu>
               <Tooltip>
@@ -1534,6 +1587,7 @@ export function ListBuilder({
                   <DropdownMenuSeparator />
                   {shareItem}
                   {displaySection}
+                  {manageSection}
                 </DropdownMenuContent>
               </DropdownMenu>
             </>
@@ -1987,6 +2041,21 @@ export function ListBuilder({
           <RosterLoanDialog rosterId={savedId} open={lending} onClose={() => setLending(false)} />
           <CreateBattle rosterId={savedId} open={startingBattle} onOpenChange={setStartingBattle} />
         </>
+      ) : null}
+      {ownsSaved ? (
+        <ConfirmDialog
+          open={deleting}
+          title={`Delete ${shownName || 'this roster'}?`}
+          description="This removes the saved roster for good. Frozen copies in battles and tournaments are kept."
+          cancel="Keep roster"
+          confirm="Delete roster"
+          pendingLabel="Deleting…"
+          destructive
+          pending={removeRoster.isPending}
+          error={removeRoster.error}
+          onClose={() => setDeleting(false)}
+          onConfirm={() => removeRoster.mutate()}
+        />
       ) : null}
       {savingLoadout !== null && picks[savingLoadout.index] ? (
         <SaveLoadoutDialog
