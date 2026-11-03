@@ -11,6 +11,7 @@ export function PageHeader({
   title,
   description,
   actions,
+  help,
   media,
   children,
   tint,
@@ -19,6 +20,8 @@ export function PageHeader({
   title: ReactNode
   description?: ReactNode
   actions?: ReactNode
+  /** The page's guide, kept out of the way in the band's top corner as a dialog's is. */
+  help?: ReactNode
   media?: ReactNode
   /** Anything else the band carries, such as chips or a keyword row, drawn under the title row. */
   children?: ReactNode
@@ -34,6 +37,7 @@ export function PageHeader({
     >
       <div className="construction-grid" />
       <div className="relative mx-auto max-w-5xl px-3 pt-7 pb-5 sm:px-4 sm:pt-10 sm:pb-7">
+        {help ? <div className="absolute top-1 right-1.5 sm:top-2.5 sm:right-2.5">{help}</div> : null}
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div className="flex min-w-0 flex-wrap items-center gap-4">
             {media}

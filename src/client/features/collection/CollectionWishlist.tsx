@@ -58,7 +58,7 @@ export function CollectionWishlist({ datasheets }: { datasheets: ReadonlyMap<str
     })
     .slice(0, SUGGESTIONS_SHOWN)
   return (
-    <section aria-labelledby="wishlist-heading" className="@container/army space-y-4">
+    <section data-onboarding="collection-wishlist" aria-labelledby="wishlist-heading" className="@container/army space-y-4">
       <div>
         <SectionHeading id="wishlist-heading" title="Wishlist" count={total} className="mb-0" />
         <p className="text-xs text-dim">Models you plan to buy, apart from those you own.</p>

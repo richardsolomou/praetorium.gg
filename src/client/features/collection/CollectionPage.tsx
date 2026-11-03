@@ -39,6 +39,8 @@ import { RemoveFromCollection } from './RemoveFromCollection'
 import { ShelfLine } from './ShelfLine'
 import { groupBy } from '../../../core/collections'
 import { countLabel } from '../../text'
+import { GuideHelp } from '../onboarding/GuideHelp'
+import { advanceOnboarding } from '../onboarding/onboarding'
 
 const SUGGESTIONS_SHOWN = 6
 
@@ -103,7 +105,10 @@ export function CollectionPage() {
       countsAs: countsAs.data?.[id],
     })
   const pending = collection.isPending || units.isPending
-  const add = (entryId: string) => setOwned({ entryId, owned: true })
+  const add = (entryId: string) => {
+    setOwned({ entryId, owned: true })
+    advanceOnboarding('collection', 'collection-add', 'collection-counts')
+  }
   // Suggestions lead an empty shelf and follow a stocked one, so the collection itself comes first.
   const fieldedShelf = suggestions.length ? (
     <section aria-labelledby="fielded-heading" className="@container/army space-y-3">
@@ -141,6 +146,7 @@ export function CollectionPage() {
         title="Collection"
         description="The models on your shelf, from sprue to painted, counted by datasheet. Add them here or from any datasheet’s page."
         actions={<CollectionExchange sheets={[...datasheets.values()]} current={exchanged} />}
+        help={<GuideHelp task="collection">Collection guide</GuideHelp>}
       />
       <PageContent className="space-y-8">
         <div className="space-y-4">
@@ -163,16 +169,18 @@ export function CollectionPage() {
               {pending || progress.isPending ? <Skeleton className="h-1.5" /> : <ShelfLine {...shelf} />}
             </section>
           ) : null}
-          <UnitPicker
-            ariaLabel="Add a datasheet to your collection"
-            className="w-full sm:w-80"
-            popupClassName="min-w-[min(22rem,var(--available-width))]"
-            placeholder="Add a datasheet…"
-            searchPlaceholder="Search datasheets…"
-            loading={units.isPending}
-            onUnitChange={(_, entryId) => add(entryId)}
-            index={(units.data ?? []).map((book) => ({ ...book, units: book.units.filter((unit) => !owned.has(unit.id)) }))}
-          />
+          <div data-onboarding="collection-add" className="w-full sm:w-80">
+            <UnitPicker
+              ariaLabel="Add a datasheet to your collection"
+              className="w-full"
+              popupClassName="min-w-[min(22rem,var(--available-width))]"
+              placeholder="Add a datasheet…"
+              searchPlaceholder="Search datasheets…"
+              loading={units.isPending}
+              onUnitChange={(_, entryId) => add(entryId)}
+              index={(units.data ?? []).map((book) => ({ ...book, units: book.units.filter((unit) => !owned.has(unit.id)) }))}
+            />
+          </div>
         </div>
 
         {owned.size ? null : fieldedShelf}
@@ -217,7 +225,7 @@ export function CollectionPage() {
                       {counts.isPending || progress.isPending ? null : (
                         <ShelfLine owned={countOf(sheet.id)} {...(progress.data?.[sheet.id] ?? { built: 0, painted: 0 })} />
                       )}
-                      <CollectionEntryCounts entryId={sheet.id} name={sheet.name} />
+                      <CollectionEntryCounts onboarding="collection-counts" entryId={sheet.id} name={sheet.name} />
                       <CollectionCountsAs entryId={sheet.id} candidates={armySheets.get(sheet.catalogueId) ?? []} />
                     </CollectionCard>
                   ))}
@@ -286,7 +294,17 @@ function Stage({ label, value, detail, tally }: { label: string; value: number |
 function EntryMenu({ name, onCountsAs, onRemove }: { name: string; onCountsAs: () => void; onRemove: () => void }) {
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" className="text-faint" aria-label={`Actions for ${name}`} />}>
+      <DropdownMenuTrigger
+        render={
+          <Button
+            data-onboarding="collection-menu"
+            variant="ghost"
+            size="icon-sm"
+            className="text-faint"
+            aria-label={`Actions for ${name}`}
+          />
+        }
+      >
         <EllipsisVertical />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-48">

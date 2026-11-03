@@ -101,7 +101,7 @@ export function SealedEventFormFields({
     <>
       {/* A group's hidden-list game is labelled from what is played, so only a tournament is named. */}
       {tournament ? (
-        <div data-onboarding="sealed-event-name" className="space-y-1.5">
+        <div className="space-y-1.5">
           <Label htmlFor={`${idPrefix}-name`}>Name</Label>
           <Input
             id={`${idPrefix}-name`}

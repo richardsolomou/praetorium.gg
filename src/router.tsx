@@ -16,8 +16,14 @@ export function getRouter() {
     context: { queryClient, origin: siteOrigin() },
     defaultPreload: 'intent',
     // A transition holds input until it ends, so it runs only between pages: never for a filter rewriting the address.
+    // Nor going back, which a back swipe has already animated; fading after it flashes the page being left.
     defaultViewTransition: {
-      types: ({ pathChanged }) => (pathChanged && !matchMedia('(prefers-reduced-motion: reduce)').matches ? ['page'] : false),
+      types: ({ pathChanged, fromLocation, toLocation }) =>
+        pathChanged &&
+        !(fromLocation && toLocation.state.__TSR_index < fromLocation.state.__TSR_index) &&
+        !matchMedia('(prefers-reduced-motion: reduce)').matches
+          ? ['page']
+          : false,
     },
     defaultErrorComponent: RouteError,
     defaultOnCatch: reportRouteError,

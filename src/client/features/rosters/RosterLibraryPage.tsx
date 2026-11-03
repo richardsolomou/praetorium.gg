@@ -315,9 +315,9 @@ export function RosterLibraryPage({
               reference={reference}
               onStarted={() => void navigate({ to: '/rosters', search, replace: true })}
             />
-            <GuideHelp task="roster">Build guide</GuideHelp>
           </>
         }
+        help={<GuideHelp task="roster">Build guide</GuideHelp>}
       >
         <RosterViews view="mine" />
       </PageHeader>

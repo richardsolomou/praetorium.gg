@@ -40,7 +40,7 @@ export function FactionIndexPage() {
       <PageHeader
         title="Factions"
         description="Browse faction rules, detachments, datasheets, loadouts and points."
-        actions={<GuideHelp task="reference">Search help</GuideHelp>}
+        help={<GuideHelp task="reference">Search help</GuideHelp>}
       />
       <PageContent>
         <SearchField

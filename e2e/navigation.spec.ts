@@ -1338,6 +1338,18 @@ test('each application tab returns to where it was left', async ({ browser }) =>
   await context.close()
 })
 
+test('a link into another tab goes back up that tab', async ({ page }) => {
+  await page.setViewportSize(PHONE)
+  await page.goto('/')
+  const battle = page.getByRole('link', { name: /^Watch / }).first()
+  const href = (await battle.getAttribute('href'))!
+  await battle.click()
+  await expect(page).toHaveURL(href)
+
+  await page.goBack()
+  await expect(page).toHaveURL('/battles')
+})
+
 test.describe('data update anchors', () => {
   // The rows only exist for a catalogue that carries a history; the release pin may predate it.
   test.skip(!fs.existsSync(join(catalogue, 'changes', 'history.json')), 'the catalogue under test carries no data-update history')

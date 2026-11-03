@@ -6,6 +6,7 @@ import { FullPageState, PageState } from '../../../components/PageState'
 import { dispositionAccent, dispositionTone } from '../../../components/rosterSetup'
 import { dispositionDetachmentsQuery, gameReferencesQuery } from '../../../queries'
 import { dispositionMatchups } from './dispositionMatchups'
+import { GuideHelp } from '../../onboarding/GuideHelp'
 
 export function ForceDispositionIndexPage() {
   const { data } = useQuery(gameReferencesQuery())
@@ -16,7 +17,11 @@ export function ForceDispositionIndexPage() {
 
   return (
     <main className="w-full">
-      <PageHeader title="Force dispositions" description="Your force disposition and your opponent’s set your primary mission." />
+      <PageHeader
+        title="Force dispositions"
+        description="Your force disposition and your opponent’s set your primary mission."
+        help={<GuideHelp task="reference">Search help</GuideHelp>}
+      />
       <PageContent className="space-y-6">
         {data.dispositions.length ? (
           <div className="grid gap-3 md:grid-cols-2">

@@ -267,7 +267,7 @@ export function RosterImport({ onImport, blocked }: { onImport?: (imported: Matc
         <DialogContent
           size="md"
           actions={
-            <GuideHelp icon task="roster-tools" step={review ? 'tools-review' : 'tools-input'}>
+            <GuideHelp task="roster-tools" step={review ? 'tools-review' : 'tools-input'}>
               Import guide
             </GuideHelp>
           }

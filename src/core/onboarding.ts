@@ -7,12 +7,14 @@ export const onboardingTaskIds = [
   'community',
   'simulator',
   'roster-tools',
+  'group',
+  'collection',
 ] as const
 
 export type OnboardingTaskId = (typeof onboardingTaskIds)[number]
 
 /** Tours that only a finished walkthrough can complete; every other task is folded from what the player has actually done. */
-export const tourTaskIds = ['reference', 'community', 'simulator', 'roster-tools'] as const
+export const tourTaskIds = ['reference', 'community', 'simulator', 'roster-tools', 'group', 'collection'] as const
 
 type TourTaskId = (typeof tourTaskIds)[number]
 

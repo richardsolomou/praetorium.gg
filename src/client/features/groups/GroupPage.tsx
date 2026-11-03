@@ -55,6 +55,7 @@ import { leagueFixtureOverdue } from '../../../core/groupLeague'
 import { sealedEventSealingClosed } from '../../../core/sealedEvent'
 import { useNow } from '../../useNow'
 import { countLabel } from '../../text'
+import { GuideHelp } from '../onboarding/GuideHelp'
 
 type Member = Group['members'][number]
 type GroupTable = NonNullable<QueryData<typeof groupStandingsQuery>>
@@ -145,7 +146,7 @@ function GroupScreen({
           <>
             {member && viewerId ? <NewGame group={group} viewerId={viewerId} /> : null}
             {member ? (
-              <Button variant="outline" onClick={invite.share}>
+              <Button data-onboarding="group-invite" variant="outline" onClick={invite.share}>
                 {invite.feedback === 'shared' ? <Share2 /> : invite.feedback === 'copied' ? <Check /> : <Clipboard />} {shareLabel}
               </Button>
             ) : null}
@@ -173,6 +174,13 @@ function GroupScreen({
               </DropdownMenu>
             ) : null}
           </>
+        }
+        help={
+          member ? (
+            <GuideHelp task="group" step="group-invite">
+              Group guide
+            </GuideHelp>
+          ) : null
         }
       >
         <p className="flex flex-wrap items-center gap-x-1.5 text-sm text-dim">
@@ -217,7 +225,7 @@ function GroupScreen({
             <JoinRequests group={group} />
             {/* The primitive's root is a flex row by default, which would sit the panel beside the tab bar. */}
             <Tabs value={current} className="flex-col gap-0" onValueChange={(value) => showTab(value as GroupTab)}>
-              <PageTabsList tabs={tabs} />
+              <PageTabsList data-onboarding="group-tabs" tabs={tabs} />
               <TabsContent value="overview" className="mt-6 space-y-8">
                 <UpNext group={group} open={open} live={live} table={table} viewerId={viewerId} highlight={highlight} label={label} />
                 <RecentGames table={table} viewerId={viewerId} member={member} quiet={!open.length && !live.length} label={label} />
@@ -293,7 +301,7 @@ function NewGame({ group, viewerId }: { group: Group; viewerId: string }) {
   const labels = disambiguatedPlayerLabels(opponents.map((member) => ({ id: member.userId, name: member.name })))
   return (
     <>
-      <Button onClick={() => (play.reset(), setHidden(false), setCreating('battle'))}>
+      <Button data-onboarding="group-new-game" onClick={() => (play.reset(), setHidden(false), setCreating('battle'))}>
         <Plus /> New game
       </Button>
       <BattleChooserDialog
