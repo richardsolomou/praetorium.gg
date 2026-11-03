@@ -71,6 +71,22 @@ function parseCombatKeyword(text: string): CombatKeyword | null {
   return null
 }
 
+/** The kind of weapon keyword a phrase names with or without its amount, as "Rapid Fire weapons" does. */
+export const combatKeywordKind = (text: string) => (combatKeyword(text) ?? combatKeyword(`${text} 1`))?.kind
+
+/** Weapon keywords only ranged weapons carry, so a rule scoped to them never touches melee. */
+export const rangedKeywordKinds: ReadonlySet<KeywordKind | undefined> = new Set<KeywordKind>([
+  'rapid fire',
+  'heavy',
+  'assault',
+  'blast',
+  'indirect fire',
+  'torrent',
+  'melta',
+  'close-quarters',
+  'one shot',
+])
+
 export function combatKeywordApplies(keyword: CombatKeyword, targetKeywords: readonly string[]) {
   if (!keyword.target) return true
   const held = new Set(targetKeywords.map(normalizeCombatKeyword))

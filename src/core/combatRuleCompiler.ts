@@ -5,7 +5,7 @@ import { withoutFactionPrefix } from './name'
 import type { DatasheetCharacteristicKind } from './datasheet'
 import type { CombatRule, CombatRuleChoice, CombatRuleEffect } from './combatRules'
 import { compileMortalRule } from './combatMortalRules'
-import { combatKeyword, combatKeywordPhraseMatches } from './combatKeywords'
+import { combatKeyword, combatKeywordKind, combatKeywordPhraseMatches, rangedKeywordKinds } from './combatKeywords'
 import { printedPhrasing } from './combatPhrasing'
 import { combatRuleRoles } from './combatRules'
 
@@ -93,6 +93,14 @@ function namedSections(description: string) {
   }
 }
 
+/** An army rule whose officers issue one of its named Orders to a unit, which then gains that Order's effect. */
+export const isOrdersRule = (description: string) =>
+  /^If your Army Faction is [^,]+, OFFICER (?:models )?with this ability can issue Orders\./i.test(normalizeCombatText(description))
+
+/** The models an Order benefits, as its army rule limits them. */
+export const ordersRecipient = (description: string) =>
+  /Only ([^.]+?) models gain the benefit of an Order/i.exec(normalizeCombatText(description))?.[1]
+
 /** Complete clauses compile together; board conditions become choices, dice conditions stay in the engine. */
 export function compileCombatRule(rule: CombatRule): { choices: CombatRuleChoice[]; defaultChoice: number } | null {
   return compileRule(rule)
@@ -173,6 +181,15 @@ function compileRule(rule: CombatRule, enemy = false): { choices: CombatRuleChoi
       (option) => compileRule(option, Boolean(status)),
     )
   }
+  if (isOrdersRule(rule.description)) {
+    if (!named.sections.length || named.sections.length > 12) return null
+    // The source prints Order names in capitals, which read as shouting in a list of choices.
+    const name = (printed: string) =>
+      printed === printed.toUpperCase()
+        ? printed.toLowerCase().replaceAll(/(^|[\s,])(\p{L})/gu, (_, gap, letter) => gap + letter.toUpperCase())
+        : printed
+    return optionChoices(named.sections.map((section) => [name(section.name), { ...rule, description: section.description }]))
+  }
   const stances =
     /^(?:Each time a unit with this ability is selected to (shoot|fight), select one of the .+? below\. Until that unit has finished making its attacks, the selected .+? is active for it and it gains the relevant ability\.|At the start of the battle round, you can select one of the .+? below\. Until the end of the battle round, that .+? is active for your army, and all units from your army that have the .+? ability gain the relevant abilities shown below\.)\s*\n([\s\S]+)$/i.exec(
       rule.description,
@@ -233,6 +250,7 @@ function compileRule(rule: CombatRule, enemy = false): { choices: CombatRuleChoi
         'psychicFeelNoPain',
         'mortalFeelNoPain',
         'save',
+        'improveSave',
         'invulnerable',
         'toughness',
         'targetToughness',
@@ -243,7 +261,11 @@ function compileRule(rule: CombatRule, enemy = false): { choices: CombatRuleChoi
     )
       return null
     if (context.condition === 'critical-wound' && fields.characteristic?.kind !== 'armour-penetration') return null
-    if (context.requiresWeaponKeyword && (fields.criticalHit === undefined || Object.keys(fields).length !== 1)) return null
+    if (
+      context.requiresWeaponKeyword &&
+      (Object.keys(fields).length !== 1 || (fields.criticalHit === undefined && fields.characteristic === undefined))
+    )
+      return null
     if (
       (context.condition === 'stronger' || context.condition === 'not-stronger' || context.condition === 'double-strength') &&
       (fields.options?.woundModifier === undefined || Object.keys(fields).length !== 1)
@@ -940,6 +962,12 @@ function compileRule(rule: CombatRule, enemy = false): { choices: CombatRuleChoi
       const negative = targetStat[1] ? /^subtract$/i.test(targetStat[1]) : save ? /^improve/i.test(written) : /^worsen/i.test(written)
       return effect({ ...context, role: 'attacker' }, { [save ? 'targetSaveModifier' : 'targetToughness']: amount * (negative ? -1 : 1) })
     }
+    const ownSave =
+      /^improve the Save characteristic of models in (?:this|your) unit by ([1-9])(?: \(this cannot improve a model's Save to better than ([2-6])\+\))?$/i.exec(
+        written,
+      )
+    if (ownSave && !context.enemy)
+      return effect({ ...context, role: 'defender' }, { improveSave: { by: Number(ownSave[1]), best: Number(ownSave[2] ?? 2) } })
     written = written.replace(/ \(this rule can only worsen a model's Objective Control characteristic to a minimum of 1\)$/i, '')
     written = written.replace(
       /^(worsen the Armour Penetration) of that attack by ([1-9])(?: \(to a minimum of 0\))?$/i,
@@ -956,14 +984,24 @@ function compileRule(rule: CombatRule, enemy = false): { choices: CombatRuleChoi
       if (names.every((name) => nonCombatStat.test(name))) return []
       if (nonCumulative && (context.condition || names.some((name) => characteristic[combatTextKey(name)] !== 'armour-penetration')))
         return null
-      const weapon = /^(ranged |melee )?weapons equipped by (.+)$/i.exec(stat[4]!)
-      const scoped = weapon
+      const weapon = /^(ranged |melee |.+? )?weapons equipped by (.+)$/i.exec(stat[4]!)
+      const weaponKeyword = weapon?.[1] && !/^(?:ranged|melee) $/i.test(weapon[1]) ? weapon[1].trim() : undefined
+      if (weaponKeyword && !combatKeywordKind(weaponKeyword)) return null
+      const reached = weapon
         ? recipient(weapon[2]!, context)
         : /^(?:that attack|such weapons|those weapons|the bearer's melee weapons|models in (?:this|that|the bearer's) unit)$/i.test(
               stat[4]!,
             )
           ? context
           : null
+      const scoped =
+        reached && weaponKeyword
+          ? {
+              ...reached,
+              requiresWeaponKeyword: weaponKeyword,
+              ...(rangedKeywordKinds.has(combatKeywordKind(weaponKeyword)) ? { phases: ['ranged' as const] } : {}),
+            }
+          : reached
       if (!scoped) return scoped === false ? [] : null
       if (
         context.condition &&
@@ -977,7 +1015,7 @@ function compileRule(rule: CombatRule, enemy = false): { choices: CombatRuleChoi
         const subtract = /^(?:subtract|worsen)/i.test(written)
         return (
           effect(
-            { ...scoped, phases: phasesOf(weapon?.[1] ?? /\b(ranged|melee) weapons$/i.exec(stat[4]!)?.[1], context.phases) },
+            { ...scoped, phases: phasesOf(weapon?.[1] ?? /\b(ranged|melee) weapons$/i.exec(stat[4]!)?.[1], scoped.phases) },
             {
               characteristic: {
                 kind,

@@ -146,6 +146,7 @@ const characterRules = {
   abilityDescriptions: new Map(),
   factionKeys: new Map(),
   byDetachment: new Map(),
+  factionRules: new Map(),
   detachmentDetails: new Map(),
   core: [{ key: 'precision', name: 'Accuracy', cp: 1, limit: 'phase' }],
   coreDetails: [

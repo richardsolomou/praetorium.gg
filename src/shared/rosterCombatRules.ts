@@ -313,6 +313,12 @@ function rosterCombatRules(
       const detail = rules.coreDetails.find((card) => card.id === stratagem.key)
       return detail ? [{ ...detail, name: stratagem.name, cp: stratagem.cp, phases: stratagem.phases ?? [] }] : []
     })
+    const army = rules.factionRules.get(factionKey)
+    if (army)
+      add(
+        { id: `army:${routeSlug(army.name)}`, name: army.name, source: 'Army rule', description: army.description, scope: 'unit' },
+        { origin: 'army' },
+      )
     for (const stratagem of [...selected.written, ...core]) {
       if (!stratagem.description) continue
       const phases: CombatRule['phases'] = []

@@ -58,6 +58,34 @@ You can re-roll the Charge roll.`
       ],
     })
   })
+  it('offers each Order that changes an attack or a save as a choice', () => {
+    const description = `If your Army Faction is **ARMY**, **OFFICER** with this ability can issue Orders. Each time one does, select one of the Orders below.
+
+### MOVE! MOVE! MOVE!
+Add 3" to the Move characteristic of models in this unit.
+
+### TAKE AIM!
+Improve the Ballistic Skill characteristic of ranged weapons equipped by models in this unit by 1.
+
+### FIRST RANK, FIRE! SECOND RANK, FIRE!
+Add 1 to the Attacks characteristic of Rapid Fire weapons equipped by models in this unit.
+
+### TAKE COVER!
+Improve the Save characteristic of models in this unit by 1 (this cannot improve a model’s Save to better than 3+).`
+    expect(compileCombatRule(rule(description))).toEqual({
+      defaultChoice: 0,
+      choices: [
+        { label: 'Take Aim!', effects: [{ role: 'attacker', phases: ['ranged'], characteristic: { kind: 'ballistic-skill', add: -1 } }] },
+        {
+          label: 'First Rank, Fire! Second Rank, Fire!',
+          effects: [
+            { role: 'attacker', phases: ['ranged'], requiresWeaponKeyword: 'Rapid Fire', characteristic: { kind: 'attacks', add: 1 } },
+          ],
+        },
+        { label: 'Take Cover!', effects: [{ role: 'defender', phases: ['ranged', 'melee'], improveSave: { by: 1, best: 3 } }] },
+      ],
+    })
+  })
   it('refuses an unknown combat clause in a named choice', () => {
     expect(
       compileCombatRule(

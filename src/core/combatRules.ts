@@ -9,9 +9,17 @@ import {
   type CombatWeapon,
   type CombatPhase,
 } from './combat'
-import { combatTextKey, compileCombatRule, labelledChoice, normalizeCombatText, ruleSection } from './combatRuleCompiler'
+import {
+  combatTextKey,
+  compileCombatRule,
+  isOrdersRule,
+  labelledChoice,
+  normalizeCombatText,
+  ordersRecipient,
+  ruleSection,
+} from './combatRuleCompiler'
 import { datasheetCharacteristicKind, weaponPhase } from './datasheetStructure'
-import { combatKeyword, combatKeywordApplies, combatKeywordPhraseMatches } from './combatKeywords'
+import { combatKeyword, combatKeywordApplies, combatKeywordKind, combatKeywordPhraseMatches } from './combatKeywords'
 
 export type CombatRule = {
   id: string
@@ -29,8 +37,8 @@ export type CombatRule = {
 }
 /** A rule's place in a roster that its words decide whether and how it applies within. */
 export type CombatRuleJudge = {
-  /** The unit's own datasheet ability, another unit's ability, or a stratagem or detachment rule. */
-  origin: 'own' | 'support' | 'listed'
+  /** The unit's own datasheet ability, another unit's ability, a stratagem or detachment rule, or its faction's army rule. */
+  origin: 'own' | 'support' | 'listed' | 'army'
   /** Whether this unit is led by an attached unit, or, for another unit's ability, whether that unit is attached. */
   attached?: boolean
   keywords: readonly string[]
@@ -62,6 +70,8 @@ export type CombatRuleEffect = {
   allHitsCritical?: boolean
   invulnerable?: number
   save?: number
+  /** Improves the Save characteristic, never past `best`. */
+  improveSave?: { by: number; best: number }
   toughness?: number
   targetToughness?: number
   targetSaveModifier?: number
@@ -143,7 +153,10 @@ export function combatRuleChoices(rule: CombatRule): CombatRuleChoice[] {
       ...choice,
       effects: choice.effects.flatMap((effect) => {
         const next = { ...effect }
-        if (rule.appliedDefences?.includes('save')) delete next.save
+        if (rule.appliedDefences?.includes('save')) {
+          delete next.save
+          delete next.improveSave
+        }
         if (rule.appliedDefences?.includes('invulnerable-save')) delete next.invulnerable
         if (rule.appliedDefences?.includes('toughness')) delete next.toughness
         return Object.keys(next).some(
@@ -255,6 +268,14 @@ export function combatRuleRoles(description: string): CombatRuleEffect['role'][]
 export function judgedCombatRule(rule: CombatRule, judge: CombatRuleJudge): CombatRule | null {
   const { description } = rule
   let scope = rule.scope
+  // Orders reach any unit an officer chooses, so every unit fields the army rule and officers' own copies step aside.
+  if (isOrdersRule(description)) {
+    const recipient = ordersRecipient(description)
+    return judge.origin === 'army' && (!recipient || combatRuleEligible(description, judge.keywords, recipient))
+      ? { ...rule, keywords: judge.keywords }
+      : null
+  }
+  if (judge.origin === 'army') return null
   if (judge.origin === 'own') {
     if (/select (?:one|a) other friendly/i.test(description)) return null
     scope = judge.attached && /^While this model is leading a unit,/i.test(description) ? 'attached' : 'unit'
@@ -333,6 +354,11 @@ export function combatRuleProfiles(
       const phase = weaponPhase(profile.type)
       if (!phase) return profile
       let values = profile.values
+      const weaponKinds = new Set(
+        (profile.values.find((value) => datasheetCharacteristicKind(value.name) === 'keywords')?.value.split(/[,;]/) ?? []).map(
+          (keyword) => combatKeyword(keyword)?.kind,
+        ),
+      )
       const adjustments = new Map<
         DatasheetCharacteristicKind,
         { positive: number; negative: number; exclusive: number; set?: number; sources: string[] }
@@ -343,7 +369,7 @@ export function combatRuleProfiles(
             effect.role !== effectRole ||
             !effect.phases.includes(phase) ||
             effect.condition ||
-            effect.requiresWeaponKeyword ||
+            (effect.requiresWeaponKeyword && !weaponKinds.has(combatKeywordKind(effect.requiresWeaponKeyword))) ||
             !matchesEffectTarget(effect, keywords) ||
             (effect.weapon && weaponKey(effect.weapon) !== weaponKey(profile.name))
           )
@@ -482,8 +508,10 @@ export function combatRuleDefences(
         2,
         Math.min(
           7,
-          effects.reduce((roll, effect) => (effect.save === undefined ? roll : Math.min(roll, effect.save)), group.save) +
-            attacks.reduce((total, effect) => total + (effect.targetSaveModifier ?? 0), 0),
+          effects.reduce(
+            (roll, effect) => (effect.improveSave ? Math.min(roll, Math.max(effect.improveSave.best, roll - effect.improveSave.by)) : roll),
+            effects.reduce((roll, effect) => (effect.save === undefined ? roll : Math.min(roll, effect.save)), group.save),
+          ) + attacks.reduce((total, effect) => total + (effect.targetSaveModifier ?? 0), 0),
         ),
       ),
       toughness: Math.max(
