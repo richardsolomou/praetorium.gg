@@ -181,7 +181,8 @@ export function NativeAppNavigation({
       const url = new URL(link.href)
       if (url.origin !== window.location.origin) return
       const destination = tabLocation(url.pathname)?.section
-      if (!destination || tabOf(destination) === (active && tabOf(active))) return
+      // A screen in no tab, such as search, goes back to whatever opened it.
+      if (!destination || !active || tabOf(destination) === tabOf(active)) return
       rememberCurrentTab()
       void openTab(
         event,
