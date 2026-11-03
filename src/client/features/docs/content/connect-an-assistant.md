@@ -22,7 +22,7 @@ claude mcp add --transport http praetorium https://praetorium.gg/mcp
 
 ### ChatGPT
 
-Praetorium isn't in ChatGPT's plugin directory yet, so add it as a custom server. On chatgpt.com, open **Plugins**, choose **Add**, then **Add custom MCP server**. Enter the address above, set **Authentication** to **OAuth or no authentication**, accept the risk notice and choose **Create as a plugin**.
+Praetorium is listed in [ChatGPT's plugin directory](https://chatgpt.com/plugins/plugin_asdk_app_6adb29330cd08191b5833c45b0fffc79). Open it and choose **Install plugin**.
 
 ### Gemini
 
