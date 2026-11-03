@@ -10,5 +10,5 @@ runs:
     - uses: richardsolomou/ras-stack/actions/setup-spacetime@v1
       id: spacetime
       with:
-        version: '2.12.0'
-        sha256: 154853dd882abe1e6f8b96e169f9ca43a075df006dd33116b85d03c59a912f89
+        version: '2.13.0'
+        sha256: 034fe43ebb42e8d291c6ba18b6b3a6ac9a3bb4aa548d37743340362cb021165e
