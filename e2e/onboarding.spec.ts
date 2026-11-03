@@ -1,5 +1,6 @@
 import { necronsOfficial } from '../src/core/rosterText.necrons.fixture'
 import { expect, test, type Page } from './test'
+import { ROSTER_WIDE } from './builder.harness'
 import {
   attachRoster,
   chooseBattlefield,
@@ -172,7 +173,7 @@ test('the first-army guide stops after adding a unit', async ({ page }) => {
   await dialog.getByRole('button', { name: /^Select Gladius Task Force$/ }).click()
   const dispositions = dialog.getByRole('group', { name: 'Force disposition' }).getByRole('button')
   if ((await dispositions.count()) > 1) await dispositions.first().click()
-  for (const width of [1440, 1300]) {
+  for (const width of [1440, ROSTER_WIDE]) {
     await page.setViewportSize({ width, height: 900 })
     await expect(prompt(page)).toContainText('Name it, or leave it')
   }
@@ -191,13 +192,13 @@ test('the first-army guide stops after adding a unit', async ({ page }) => {
       const { x, y, width: buttonWidth, height } = button.getBoundingClientRect()
       return button.contains(document.elementFromPoint(x + buttonWidth / 2, y + height / 2))
     })
-  for (const width of [1300, 1440]) {
+  for (const width of [ROSTER_WIDE, 1440]) {
     await page.setViewportSize({ width, height: 900 })
     await expect(addBodyguard).toBeEnabled()
     await expect.poll(bodyguardReceivesPointer).toBe(true)
   }
   await waitForRosterSave(page, () => addBodyguard.click())
-  await page.setViewportSize({ width: 1280, height: 900 })
+  await page.setViewportSize({ width: 1100, height: 900 })
   await page.getByRole('button', { name: 'Add units', exact: true }).click()
   await page.getByLabel('Add a unit').fill('Intercessor Squad')
   const drawer = page.getByRole('dialog', { name: 'Add units', exact: true })
@@ -209,7 +210,7 @@ test('the first-army guide stops after adding a unit', async ({ page }) => {
       const box = await pickerRow.boundingBox()
       return box ? box.x + box.width : Infinity
     })
-    .toBeLessThanOrEqual(1280)
+    .toBeLessThanOrEqual(1100)
   await expect(addBodyguard).toBeEnabled()
   await expect.poll(bodyguardReceivesPointer).toBe(true)
   await addBodyguard.click({ trial: true })

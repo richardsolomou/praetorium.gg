@@ -15,8 +15,8 @@ type RosterLocationState = { rosterPane?: RosterPaneHistory }
 
 const ROSTER_PANE_HASH = 'roster-pane'
 
-/** The width from which the loadout sits beside the roster instead of over it. */
-export const LOADOUT_INLINE = '(min-width: 1024px)'
+/** The width from which the loadout sits beside the roster instead of over it: `roster-split` in styles.css. */
+export const LOADOUT_INLINE = '(min-width: 860px)'
 
 export function useRosterPanes({ path, workspacePath, picks }: { path: string; workspacePath: string; picks: readonly KeyedPick[] }) {
   const navigate = useNavigate()
@@ -25,7 +25,8 @@ export function useRosterPanes({ path, workspacePath, picks }: { path: string; w
   const [preview, setPreview] = useState<{ catalogueId: string; entryId: string; name: string } | null>(null)
   const [showing, setShowing] = useState<'picker' | 'loadout' | null>(null)
   // The server draws the desktop workspace; the browser corrects it before the first paint.
-  const wideWorkspace = useMediaQuery('(min-width: 1300px)', true)
+  // `roster-wide` in styles.css, from which the picker joins as a third column.
+  const wideWorkspace = useMediaQuery('(min-width: 1172px)', true)
   const loadoutInline = useMediaQuery(LOADOUT_INLINE, true)
   const workspaceMeasured = useHydrated()
   const paneHistory = useRouterState({

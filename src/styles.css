@@ -29,6 +29,15 @@
   --font-rules: 'Sofia Sans Semi Condensed Variable', ui-sans-serif, system-ui, -apple-system, sans-serif;
   --font-mono: 'Martian Mono Variable', ui-monospace, 'SF Mono', Menlo, monospace;
 
+  /*
+   * The roster workspace keeps the rail folded, so its loadout sits beside the roster
+   * wherever the rail shows and the picker joins at the width the folded rail leaves
+   * three columns. Pixels, like the rail's own 860px, so a larger browser font does not
+   * push them out. useRosterPanes repeats both.
+   */
+  --breakpoint-roster-split: 860px;
+  --breakpoint-roster-wide: 1172px;
+
   --color-void: #0f1113;
   --color-masthead: #0f1113;
   --color-panel: #141a1e;

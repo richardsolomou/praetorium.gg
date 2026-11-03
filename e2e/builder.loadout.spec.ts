@@ -536,7 +536,7 @@ test('a smaller desktop moves the picker into a drawer without losing unit detai
 })
 
 test('attachment relationships stay inside the two-column unit pane', async ({ page }) => {
-  await page.setViewportSize({ width: 1024, height: 768 })
+  await page.setViewportSize({ width: 860, height: 768 })
   await openBuilder(page, 'Space Marines', /Gladius Task Force/)
 
   const picker = page.getByRole('dialog', { name: 'Add units' })

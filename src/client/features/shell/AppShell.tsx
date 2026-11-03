@@ -29,7 +29,7 @@ import { PostHogBetterAuthIdentity, PostHogIntegration } from 'ras-stack/posthog
 import { type ReactElement, useEffect, useLayoutEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { buttonClass } from '../../components/buttonClass'
-import { followRailState, setRailCollapsed, useRailCollapsed } from './railState'
+import { ROSTER_WORKSPACE, followRailState, setRailCollapsed, useRailCollapsed } from './railState'
 import { POSTHOG_BROWSER_OPTIONS, setImpersonating } from '../../../posthog'
 import { authClient } from '../../authClient'
 import { Account } from './Account'
@@ -117,9 +117,10 @@ function RailLinks({ links, name, collapsed }: { links: readonly RailLink[]; nam
  * The desktop navigation is a sprue: a framed rail whose sections hang off a runner by gates, the open one gated in green.
  * It stays pinned beside the page at the window's full height, so nothing sits above the page and `--app-header` is zero.
  * Folded, it keeps only the icons; the document's `data-rail` carries that, so the head script can set it before paint.
+ * The roster workspace keeps its own choice, folded until opened there.
  */
-function SiteRail() {
-  const collapsed = useRailCollapsed()
+function SiteRail({ workspace }: { workspace: boolean }) {
+  const collapsed = useRailCollapsed(workspace)
   const Toggle = collapsed ? PanelLeftOpen : PanelLeftClose
   return (
     <aside
@@ -127,47 +128,57 @@ function SiteRail() {
       data-print-hide
       className="sticky top-0 z-30 flex h-dvh w-(--app-rail) shrink-0 flex-col p-3 pr-0 transition-[width] duration-200 ease-out"
     >
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border-2 border-runner bg-void py-3">
-        <Link
-          to="/"
-          className="group mx-3 mb-3 flex items-center gap-2.5 font-display text-base leading-none font-bold tracking-label text-bone uppercase in-data-[rail=collapsed]:justify-center hover:text-parchment"
-        >
-          <img src={offlineAssets()?.logo ?? '/logo.svg'} alt="" className="size-7 transition-transform group-hover:rotate-45" />
-          <span className="in-data-[rail=collapsed]:sr-only">Praetorium</span>
-        </Link>
-        <div className="mx-3 mb-4 in-data-[rail=collapsed]:hidden">
-          <GlobalSearch />
-        </div>
-        <div className="mx-auto mb-3 hidden in-data-[rail=collapsed]:block">
-          <RailTooltip label="Search" collapsed={collapsed}>
-            <GlobalSearch compact />
-          </RailTooltip>
-        </div>
-        <div className="no-scrollbar min-h-0 flex-1 space-y-4 overflow-y-auto pr-2.5 pl-2 in-data-[rail=collapsed]:pr-2">
-          <RailLinks links={PRIMARY_LINKS} name="Primary" collapsed={collapsed} />
-          <div>
-            <p className="mb-1.5 ml-1 text-2xs font-semibold tracking-eyebrow text-faint uppercase in-data-[rail=collapsed]:sr-only">
-              Reference
-            </p>
-            <RailLinks links={REFERENCE_LINKS} name="Reference" collapsed={collapsed} />
+      <div className="flex min-h-0 flex-1 overflow-hidden rounded-2xl border-2 border-runner bg-void">
+        {/*
+         * Laid out at the rail's target width at once, less the frame's padding and border,
+         * so the frame animates around contents that stay put instead of sliding with its edge.
+         */}
+        <div className="flex min-h-0 w-[calc(var(--app-rail)-0.75rem-4px)] shrink-0 flex-col py-3">
+          <Link
+            to="/"
+            className="group mx-3 mb-3 flex items-center gap-2.5 font-display text-base leading-none font-bold tracking-label text-bone uppercase in-data-[rail=collapsed]:justify-center hover:text-parchment"
+          >
+            <img src={offlineAssets()?.logo ?? '/logo.svg'} alt="" className="size-7 transition-transform group-hover:rotate-45" />
+            <span className="in-data-[rail=collapsed]:sr-only">Praetorium</span>
+          </Link>
+          <div className="mx-3 mb-4 in-data-[rail=collapsed]:hidden">
+            <GlobalSearch />
           </div>
-        </div>
-        <div className="mx-2.5 mt-2 flex items-center gap-1 border-t border-edge pt-2 in-data-[rail=collapsed]:flex-col in-data-[rail=collapsed]:[&_nav]:flex-col">
-          <Account className="size-8" />
-          <span className="flex-1" />
-          <CommunityLinks compact />
-          <RailTooltip label="Expand navigation" collapsed={collapsed}>
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label={collapsed ? 'Expand navigation' : 'Collapse navigation'}
-              title={collapsed ? undefined : 'Collapse navigation'}
-              className="size-8 text-dim hover:text-bone"
-              onClick={() => setRailCollapsed(!collapsed)}
-            >
-              <Toggle aria-hidden className="size-4.5" />
-            </Button>
-          </RailTooltip>
+          <div className="mx-auto mb-3 hidden in-data-[rail=collapsed]:block">
+            <RailTooltip label="Search" collapsed={collapsed}>
+              <GlobalSearch compact />
+            </RailTooltip>
+          </div>
+          <div className="no-scrollbar min-h-0 flex-1 space-y-4 overflow-y-auto pr-2.5 pl-2 in-data-[rail=collapsed]:pr-2">
+            <RailLinks links={PRIMARY_LINKS} name="Primary" collapsed={collapsed} />
+            <div>
+              <p className="mb-1.5 ml-1 text-2xs font-semibold tracking-eyebrow text-faint uppercase in-data-[rail=collapsed]:sr-only">
+                Reference
+              </p>
+              <RailLinks links={REFERENCE_LINKS} name="Reference" collapsed={collapsed} />
+            </div>
+          </div>
+          {/*
+           * Folded, the column is the open row reversed: the toggle keeps the corner under the pointer
+           * so the rail opens again without moving, and the account stays next to it.
+           */}
+          <div className="mx-2.5 mt-2 flex items-center gap-1 border-t border-edge pt-2 in-data-[rail=collapsed]:flex-col-reverse in-data-[rail=collapsed]:[&_nav]:flex-col">
+            <RailTooltip label="Expand navigation" collapsed={collapsed}>
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label={collapsed ? 'Expand navigation' : 'Collapse navigation'}
+                title={collapsed ? undefined : 'Collapse navigation'}
+                className="size-8 text-dim hover:text-bone"
+                onClick={() => setRailCollapsed(workspace, !collapsed)}
+              >
+                <Toggle aria-hidden className="size-4.5" />
+              </Button>
+            </RailTooltip>
+            <Account className="size-8" />
+            <span className="flex-1" />
+            <CommunityLinks compact />
+          </div>
         </div>
       </div>
     </aside>
@@ -254,7 +265,7 @@ function SiteFooter() {
 export function AppShell() {
   const location = useLocation()
   const path = location.pathname
-  const immersive = /^\/rosters\/(?:new|import|(?!discover$)[^/]+(?:\/edit)?)$/.test(path)
+  const immersive = ROSTER_WORKSPACE.test(path)
   const { data: me } = useQuery(meQuery())
   const visitorHome = path === '/' && me === null
   const impersonating = Boolean(me?.impersonatedBy)
@@ -263,7 +274,7 @@ export function AppShell() {
   const realtime = useRealtimeConfig()
   useSpacetimeLiveProduct(realtime, Boolean(me))
   useLayoutEffect(followTextSourceChoice, [])
-  useLayoutEffect(followRailState, [])
+  useLayoutEffect(() => followRailState(immersive), [immersive])
   // Browser tests wait for this before interacting: a click before hydration does nothing.
   useEffect(() => document.documentElement.setAttribute('data-hydrated', ''), [])
   return (
@@ -286,7 +297,7 @@ export function AppShell() {
                * measure. Nothing here is centred on the page's behalf.
                */}
               <div data-native-app-frame className={`flex ${immersive ? 'h-dvh' : 'min-h-dvh'}`}>
-                {visitorHome ? null : <SiteRail />}
+                {visitorHome ? null : <SiteRail workspace={immersive} />}
                 <div className={`flex min-w-0 flex-1 flex-col ${immersive ? 'h-dvh' : 'min-h-dvh'}`}>
                   {visitorHome ? <VisitorBar /> : null}
                   {immersive ? null : (

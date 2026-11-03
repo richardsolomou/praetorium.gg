@@ -31,8 +31,6 @@ test('build an army screenshots', async ({ page }) => {
   await pickerPane.getByRole('button', { name: 'Format restrictions' }).click()
   await capture('build-an-army-format-restrictions', pickerPane, page.getByRole('menuitemcheckbox', { name: /Detachment points/ }))
   await page.keyboard.press('Escape')
-  await page.keyboard.press('Escape')
-  await expect(pickerPane).toBeHidden()
   await page.setViewportSize({ width: 1280, height: 900 })
 
   const loadout = page.locator('aside[data-pane="loadout"]')

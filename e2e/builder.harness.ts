@@ -2,6 +2,11 @@ import { expect, type Locator, type Page } from '@playwright/test'
 import { createRoster, signUp } from './account'
 import { baseURL } from './stackEnv'
 
+/** The narrowest window that opens a unit beside the roster rather than over it: `roster-split` in styles.css. */
+export const ROSTER_SPLIT = 860
+/** The narrowest window that shows the roster builder's picker as a third column: `roster-wide` in styles.css. */
+export const ROSTER_WIDE = 1172
+
 /**
  * A picture of one element, taken again if the page moved under it.
  *

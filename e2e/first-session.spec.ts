@@ -1,4 +1,5 @@
 import { expect, test } from './test'
+import { ROSTER_WIDE } from './builder.harness'
 import {
   advance,
   attachRoster,
@@ -49,9 +50,9 @@ test('a guest reviews, imports and saves their first list', async ({ page }, tes
   await page.reload()
   await expect(page.locator('[data-unit="Immortals"]')).toHaveCount(1)
   const save = page.getByRole('button', { name: 'Save roster', exact: true })
-  for (const width of [1440, 1280, 390]) {
+  for (const width of [1440, 1100, 390]) {
     await page.setViewportSize({ width, height: 900 })
-    if (width < 1300) {
+    if (width < ROSTER_WIDE) {
       const add = page.getByRole('button', { name: 'Add units', exact: true })
       expect((await save.boundingBox())!.height).toBe((await add.boundingBox())!.height)
     } else {
@@ -100,7 +101,7 @@ test('the first roster names each missing setup choice', async ({ page }, testIn
   await expect(choose).toBeHidden()
   await expect(search).toBeVisible()
   await page.screenshot({ path: testInfo.outputPath('first-unit-1440.png') })
-  for (const width of [1280, 390]) {
+  for (const width of [1100, 390]) {
     await page.setViewportSize({ width, height: 900 })
     await expect(search).toBeHidden()
     await choose.click()

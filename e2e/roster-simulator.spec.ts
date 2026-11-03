@@ -1,5 +1,6 @@
 import { chooseCombatUnit, combatEstimate, closeCombatBreakdown, openCombatControls, holdCombatCalculations, combatDamage } from './combat'
 import { expect, test, type Page } from './test'
+import { ROSTER_SPLIT } from './builder.harness'
 import { addUnit, createRoster, signUp, waitForRosterSave, expectNoHorizontalOverflow, expectNoPageOverflow, chooseOption } from './account'
 
 async function choose(page: Page, control: string, name: string) {
@@ -222,7 +223,7 @@ test('roster simulations preserve the saved loadout', async ({ browser, page }) 
       await noOverflow(page)
       await loadout.getByRole('button', { name: 'Close', exact: true }).click()
       await simulator.getByRole('button', { name: 'Close', exact: true }).click()
-      await pane.getByRole('button', { name: 'Back to roster', exact: true }).click()
+      if (width < ROSTER_SPLIT) await pane.getByRole('button', { name: 'Back to roster', exact: true }).click()
       continue
     }
     await expect(shooting).toContainText('5× ➤ Bolt Rifle - Focused Fire')
