@@ -1,7 +1,7 @@
 import demo from '../../mobile/watch/demo-battle.json'
 import { describe, expect, it, vi } from 'vitest'
 import { NATIVE_EVENTS } from '../../src/contracts/nativeBridge'
-import { NATIVE_BRIDGE_SCRIPT, nativeAnswerScript, nativeWatchCapabilityScript, parseNativeActionRequest } from './nativeActions'
+import { NATIVE_BRIDGE_SCRIPT, nativeAnswerScript, nativeCapabilityScript, parseNativeActionRequest } from './nativeActions'
 
 describe('parseNativeActionRequest', () => {
   it('accepts an account snapshot and its explicit removal', () => {
@@ -56,6 +56,10 @@ describe('parseNativeActionRequest', () => {
       enabled: true,
     })
     expect(parseNativeActionRequest(JSON.stringify({ version: 3, type: 'native-back-gesture' }))).toBeNull()
+    expect(parseNativeActionRequest(JSON.stringify({ version: 3, type: 'native-screen-cover', covered: false }))).toEqual({
+      kind: 'screen-cover',
+      covered: false,
+    })
     expect(parseNativeActionRequest(JSON.stringify({ version: 3, type: 'native-print', html: '<html></html>' }))).toEqual({
       kind: 'print',
       html: '<html></html>',
@@ -212,7 +216,7 @@ describe('watch bridge', () => {
     }
     for (const enabled of [true, false]) {
       // oxlint-disable-next-line typescript/no-implied-eval -- Execute the fixed capability update as the WebView does.
-      new Function('window', 'CustomEvent', nativeWatchCapabilityScript(enabled))(
+      new Function('window', 'CustomEvent', nativeCapabilityScript('watch-battle', enabled))(
         window,
         class {
           constructor(readonly type: string) {}
