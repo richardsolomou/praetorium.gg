@@ -64,19 +64,26 @@ function referenceDetachmentRoute(
   }
   const ownerId = loaded.index.catalogueOf.get(detachment.id)
   const owner = loaded.factions.find((candidate) => candidate.id === ownerId)
-  if (!owner) return null
   const definition = loaded.index.definitions.get(detachment.id)
   const targetId = definition ? targetOf(definition, loaded.index.definitions).id : detachment.id
-  const ownerOptions = loaded.detachments.get(owner.id)?.options.filter((option) => {
-    const entry = loaded.index.definitions.get(option.id)
-    return (
-      (entry ? targetOf(entry, loaded.index.definitions).id : option.id) === targetId && isReferenceDetachment(loaded, rules, owner, option)
-    )
-  })
-  if (ownerOptions?.length !== 1) return null
+  // A detachment defined in a library rather than a faction, such as Titanicus Traitoris's Blood Legion from the
+  // Daemons library, is published by whichever faction offers the same entry with a reference page.
+  const published = (owner ? [owner] : loaded.factions).flatMap((publisher) =>
+    (loaded.detachments.get(publisher.id)?.options ?? [])
+      .filter((option) => {
+        const entry = loaded.index.definitions.get(option.id)
+        return (
+          (entry ? targetOf(entry, loaded.index.definitions).id : option.id) === targetId &&
+          isReferenceDetachment(loaded, rules, publisher, option)
+        )
+      })
+      .map((option) => ({ publisher, option })),
+  )
+  if (published.length !== 1) return null
+  const [{ publisher, option }] = published as [(typeof published)[number]]
   return {
-    catalogueId: loaded.edition ? owner.id : routeSlug(factionDisplayName(owner.name, rules?.factionNames)),
-    slug: routeSlug(ownerOptions[0]!.name),
+    catalogueId: loaded.edition ? publisher.id : routeSlug(factionDisplayName(publisher.name, rules?.factionNames)),
+    slug: routeSlug(option.name),
   }
 }
 
