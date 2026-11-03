@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.218.5 (2026-11-03)
+
+### Patch Changes
+
+- 86c44d6: On a phone browser, opening another tab or a link into it no longer flashes the screens above it on the way.
+
 ## 0.218.4 (2026-11-03)
 
 ### Patch Changes
