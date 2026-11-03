@@ -1,5 +1,14 @@
 # praetorium
 
+## 0.218.7 (2026-11-03)
+
+### Patch Changes
+
+- 4864561: The search button on the folded navigation rail opens search again.
+- df2fd1a: Folding and opening the navigation rail no longer slides its icons across while it animates.
+- df2fd1a: The navigation rail's fold button stays in the same corner when folded, so it can be clicked again without moving the pointer.
+- df2fd1a: The roster editor folds the navigation rail by default, so unit details open beside the roster on smaller screens.
+
 ## 0.218.6 (2026-11-03)
 
 ### Patch Changes
