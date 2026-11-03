@@ -1,5 +1,14 @@
 # praetorium
 
+## 0.218.1 (2026-11-03)
+
+### Patch Changes
+
+- 0502ae7: A roster's detachment borrowed from another army, such as a Titanicus Traitoris roster's Blood Legion, now links to its detachment page.
+- 0502ae7: In the app, a link to a screen in another tab opens it in that tab, so swiping back goes up that tab, such as from a roster's detachment to its faction.
+- 0502ae7: In the app, swiping back no longer briefly flashes the screen you just left.
+- 0502ae7: In the app, swiping back on a screen a tab reopened now shows the screen you're going back to, and tapping the tab no longer flickers through the screens before it.
+
 ## 0.218.0 (2026-11-03)
 
 ### Minor Changes
