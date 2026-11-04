@@ -481,10 +481,11 @@ function collectUnitChoices(
       // What is inside an entry is held by however many of it the selection holds, across every
       // selection a spread has divided a model into, as Death Company Marines given different pistols are.
       if (inner.type !== 'upgrade' || allAt(selection, here).some((selected) => (selected.count ?? 1) > 0)) {
+        // An upgrade each of several models holds, as the plasma cannon three heavy weapon Terminators carry, is held once by each.
         const held =
           inner.type === 'model'
             ? allAt(selection, here).reduce((total, selected) => total + (selected.count ?? 1), 0) || 1
-            : (at(selection, here)?.count ?? 1)
+            : (at(selection, here)?.count ?? 1) * carriers
         walk(child.definition, here, left - 1, visited, inner.type === undefined ? carriers : held, enclosing)
       }
     }
