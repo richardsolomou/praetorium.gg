@@ -147,10 +147,10 @@ describe('BattleBase text import', () => {
     expect(fromBattleBaseText(exportText.replace('Incursion (1,000 Points)', 'Incursion (1,000 Point)'))?.limit).toBe(1000)
   })
 
-  it('reads a unit marked for a keyword footnote, without the keyword it gains as a choice', () => {
+  it('reads a unit marked for a keyword footnote', () => {
     const parsed = fromBattleBaseText(
       exportText
-        .replace('Lokhust Lord (70 Points)\n', 'Lokhust Lord (70 Points)*\n    • Cursed Legion Keyword: Battleline\n')
+        .replace('Lokhust Lord (70 Points)\n', 'Lokhust Lord (70 Points)*\n')
         .replace('Resurrection Orb\n', 'Resurrection Orb\n\n* This Datasheet also has the Battleline keyword\n'),
     )
     expect(parsed?.units.map((unit) => [unit.name, unit.selections.length])).toEqual([

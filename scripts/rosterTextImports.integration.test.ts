@@ -139,6 +139,12 @@ describe.skipIf(!fs.existsSync(source))('genuine exports from other army builder
       'Subterranean Assault',
       'Trygon (155 points)\n  • Subterranean Assault Keywords: Character\n  • 1x Bio-electric pulse\n    1x Trygon scything talons\n  • Enhancement: Trygon Prime',
     ],
+    [
+      'the keyword its detachment grants',
+      'Chaos Knights',
+      'Houndpack Lance',
+      "War Dog Karnivore (175 points)\n  • Warlord\n  • Houndpack Lance Keyword: Character\n  • 1x Havoc multi-launcher\n    1x Reaper chaintalon\n    1x Slaughterclaw\n  • Enhancement: Preyslayer's Mantle",
+    ],
   ])('reads an official-app model named by %s', (_shape, faction, detachment, unit) => {
     expect(summary(official(faction, detachment, unit)).mismatches).toEqual([])
   })

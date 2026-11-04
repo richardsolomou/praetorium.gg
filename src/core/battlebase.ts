@@ -193,8 +193,6 @@ export function fromBattleBaseText(input: string): TextRoster | null {
       current[field[numeric[1]!.toLowerCase() as keyof typeof field]] = Number(numeric[2])
     } else if (/^(?:Custom name|Nickname):/i.test(name)) current.nickname = textNickname(name.replace(/^(?:Custom name|Nickname):\s*/i, ''))
     else if (/^Warlord$/i.test(name)) current.warlord = true
-    // A keyword the detachment gives the unit, as "Houndpack Lance Keyword: Character", is not a choice.
-    else if (/ Keyword:/i.test(name)) continue
     else if (/^(?:Leading|Supporting):/i.test(name)) current.leading = name.replace(/^(?:Leading|Supporting):\s*/i, '').trim()
     else if (/^(?:Leader|Support):/i.test(name)) current.leader = name.replace(/^(?:Leader|Support):\s*/i, '').trim()
     else {
