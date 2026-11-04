@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.219.3 (2026-11-04)
+
+### Patch Changes
+
+- ca15d53: Password reset and email verification emails now match the rest of Praetorium, with a button to follow the link.
+
 ## 0.219.2 (2026-11-04)
 
 ### Patch Changes
