@@ -1086,8 +1086,9 @@ function carriedNames(selection: Selection, index: LoadedCatalogue['index']) {
       if (loadout) found.add(withoutArticle(loadout))
       if (target.type === 'model') for (const alias of modelAliases(name)) found.add(withoutArticle(alias))
       else for (const alias of nameVariants(name)) found.add(withoutArticle(alias))
-      // A piece the catalogue names for two weapons carries each, as a Techmarine's "Omnissian Power Axe and Servo-arm".
-      const parts = name.split(/\s+and\s+/i)
+      // A piece the catalogue names for two weapons carries each, as a Techmarine's "Omnissian Power Axe and Servo-arm"
+      // or a Captain in Gravis Armour's "Boltstorm Gauntlet, Powerfist, and Relic weapon".
+      const parts = name.split(/\s*,\s*(?:and\s+)?|\s+and\s+/i)
       if (target.type !== 'model' && parts.length > 1) for (const part of parts) found.add(withoutArticle(part))
     }
     node.selections?.forEach(walk)
@@ -1136,10 +1137,12 @@ function grantedKeywords(definition: Definition, target: Definition, index: Load
 
 const withoutArticle = (name: string) => normalized(name).replace(/^the /, '')
 
-/** Whether a built unit holds a stated name, including Warmind's "Splinter Pistol and 1 Razorflail" for a loadout that holds both. */
+/** Whether a built unit holds a stated name, however spelled, including Warmind's "Splinter Pistol and 1 Razorflail" for a loadout that holds both. */
 function isCarried(name: string, carried: ReadonlySet<string>) {
+  const keys = new Set([...carried].map(spellingKey))
+  const has = (piece: string) => keys.has(spellingKey(withoutArticle(piece)))
   const parts = name.split(/\s+and\s+(?:\d+\s+)?/)
-  return carried.has(withoutArticle(name)) || (parts.length > 1 && parts.every((part) => carried.has(withoutArticle(part))))
+  return has(name) || (parts.length > 1 && parts.every(has))
 }
 
 /**

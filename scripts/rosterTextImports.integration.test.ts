@@ -650,6 +650,17 @@ Exported with App Version: v2.8.1 (1), Data Version: v995`
     expect(imported(file).unplaced).toEqual([])
   })
 
+  it("reads the power fist a Captain in Gravis Armour's loadout names", () => {
+    const file = officialApp(
+      'Space Marines',
+      `Captain in Gravis Armour (90 Points)
+  • 1x Boltstorm gauntlet
+  • 1x Power fist
+  • 1x Relic blade`,
+    )
+    expect(imported(file).unplaced).toEqual([])
+  })
+
   it('reads a Grey Knights Ancient as the model carrying the banner', () => {
     const file = officialApp(
       'Grey Knights',
