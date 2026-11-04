@@ -189,6 +189,15 @@ describe.skipIf(!fs.existsSync(source))('genuine exports from other army builder
     return held.map((piece) => `${piece.count}x ${piece.name.toLowerCase()}`)
   }
 
+  it("keeps a sergeant's wargear with the sergeant when the list names him differently", () => {
+    const file = official(
+      'Space Marines',
+      'Gladius Task Force',
+      'Terminator Assault Squad (380 points)\n  • 1x Terminator Sergeant\n    • 1x Storm Shield\n      1x Thunder Hammer\n  • 9x Terminator\n    • 5x Storm Shield\n      5x Thunder Hammer\n      4x Twin Lightning Claws',
+    )
+    expect(wargear(file, 'Terminator Assault Squad')).toEqual(['6x storm shield', '6x thunder hammer', '4x twin lightning claws'])
+  })
+
   it("keeps a Hekatrix's stated pistol", () => {
     expect(wargear(listForgeDetailed, 'Wyches')).toContain('1x blast pistol')
   })

@@ -616,6 +616,7 @@ function textRosterPick(
   }
   const context = { primaryCatalogueId: catalogueId, roster }
   let manualNames: ReadonlyMap<string, string> | undefined
+  const modelFor = new Map<string, string>()
   const defaultMelee = new Map<string, string | null>()
   for (const selection of unit.selections) {
     const enhancement = /^(?:Enhancements?|Upgrade):/i.test(selection.name)
@@ -636,8 +637,13 @@ function textRosterPick(
     stated.set(name, (stated.get(name) ?? 0) + selection.count)
     if (!selection.model) statedLines.set(name, (statedLines.get(name) ?? 0) + selection.count)
     if (!labels.has(name)) labels.set(name, label)
-    if (!selection.model) continue
-    const model = normalized(selection.model)
+    // A model's lines are kept under the name its line resolved to where that is one model's, so they scope it:
+    // a stat line several models share, as Cthonian Beserks' "Beserk", says no more than the list did.
+    if (!selection.model) {
+      if (loadouts.filter((model) => model.name === name || model.profile === name).length === 1) modelFor.set(normalized(label), name)
+      continue
+    }
+    const model = modelFor.get(normalized(selection.model)) ?? normalized(selection.model)
     const under = statedUnder.get(model) ?? new Map<string, number>()
     under.set(name, (under.get(name) ?? 0) + selection.count)
     statedUnder.set(model, under)
@@ -1092,9 +1098,9 @@ function modelNames(entryId: string, index: LoadedCatalogue['index']) {
   return names
 }
 
-/** Each model a datasheet fields, by its name and kinds, and the wargear it can carry keyed by spellingKey. */
+/** Each model a datasheet fields, by its name, stat line and kinds, and the wargear it can carry keyed by spellingKey. */
 function modelLoadouts(entryId: string, index: LoadedCatalogue['index']) {
-  const found: { name: string; kinds: string[]; pieces: Set<string> }[] = []
+  const found: { name: string; profile: string; kinds: string[]; pieces: Set<string> }[] = []
   eachDefinition([entryId], index, (definition, target) => {
     if (target.type !== 'model') return
     const pieces = new Set<string>()
@@ -1102,7 +1108,7 @@ function modelLoadouts(entryId: string, index: LoadedCatalogue['index']) {
       if (heldTarget.type === 'upgrade') for (const name of nameVariants(nameOf(held, index.definitions))) pieces.add(spellingKey(name))
     })
     const name = normalized(nameOf(definition, index.definitions))
-    found.push({ name, kinds: modelAliases(name), pieces })
+    found.push({ name, profile: normalized(modelProfileOf(definition, index) ?? ''), kinds: modelAliases(name), pieces })
   })
   return found
 }
