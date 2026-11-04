@@ -92,7 +92,7 @@ function rosterForces(
   })
   const forceSelections = new Map<string, Selection[]>([[data.catalogueId, [...roster]]])
   for (const unit of picked) {
-    const owner = unitCatalogueId(loaded, data, unit)
+    const owner = unitCatalogueId(data, unit)
     const force = forceSelections.get(owner) ?? [...configuration]
     force.push(unit.selection)
     forceSelections.set(owner, force)
@@ -217,8 +217,9 @@ function labelUnitsOf(
 type PickedUnit = { key: number; entryId: string }
 
 /** The book a picked unit is drawn from: the one the pick names, else the one defining it, else the roster's own. */
-const unitCatalogueId = (loaded: LoadedCatalogue, data: PriceInput, unit: PickedUnit) =>
-  data.units[unit.key]?.catalogueId ?? loaded.index.catalogueOf.get(unit.entryId) ?? data.catalogueId
+// A pick that names no book belongs to the army, as the builder's own picks do: the
+// book defining the entry is often one the army imports, such as a chapter's Space Marines.
+const unitCatalogueId = (data: PriceInput, unit: PickedUnit) => data.units[unit.key]?.catalogueId ?? data.catalogueId
 
 const pickedMfmUnit = (loaded: LoadedCatalogue, data: PriceInput, unit: PickedUnit) =>
   mfmUnitFor(loaded, data.units[unit.key]?.catalogueId ?? data.catalogueId, unit.entryId)
@@ -241,7 +242,7 @@ function adjustUnitPoints(
     (option) => mfmDetachmentFor(loaded, data.catalogueId, option.name) ?? [],
   )
   for (const unit of picked) {
-    const catalogueId = unitCatalogueId(loaded, data, unit)
+    const catalogueId = unitCatalogueId(data, unit)
     const definition = loaded.index.definitions.get(unit.entryId)
     const sheetId = definition ? targetOf(definition, loaded.index.definitions).id : unit.entryId
     const copy = (copies.get(sheetId) ?? 0) + 1
@@ -506,7 +507,7 @@ function calculateRoster(
     remember(keywordsByCatalogue, catalogueId, () => keywordsBySelection(selections, loaded.index, { primaryCatalogueId: catalogueId }))
   const keywordMatrixFor = (catalogueId: string) => rosterKeywordsFor(catalogueId).map(({ keywords }) => keywords)
   const keywordsFor = (catalogueId: string, at: number) => rosterKeywordsFor(catalogueId)[at]?.keywords ?? []
-  const catalogueOfUnit = (unit: (typeof picked)[number]) => unitCatalogueId(loaded, data, unit)
+  const catalogueOfUnit = (unit: (typeof picked)[number]) => unitCatalogueId(data, unit)
   const keywordNamesOf = (unit: (typeof picked)[number]) => {
     const at = selectionIndex.get(unit.selection)
     return keywordNames(at === undefined ? [] : keywordsFor(catalogueOfUnit(unit), at), loaded.index)
