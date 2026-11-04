@@ -141,18 +141,18 @@ export async function submit(args: Parameters<typeof server.submit>[0]): ReturnT
   const engine = localEngine()
   const owner = localOwner()
   const resource = `battle:${args.data.token}`
-  if (!engine || !owner || !hasLocalConstruction()) {
-    // Commands this battle saved on the device go first, or this one overtakes them.
-    if (engine && navigator.onLine && (await hasSyncableChanges(resource))) await attemptLocalSync()
-    return server.submit(args)
-  }
-  if (navigator.onLine && (await hasSyncableChanges(resource))) await attemptLocalSync()
+  // Commands this battle saved on the device go first, or this one overtakes them.
+  if (engine && navigator.onLine && (await hasSyncableChanges(resource))) await attemptLocalSync()
+  if (!engine || !owner) return server.submit(args)
+  // Without its rules the device cannot record a command, but the saved history still follows the service's so play
+  // can continue offline once they download.
+  const playable = hasLocalConstruction()
   // A service that never answers is treated like no connection, so the command is saved and synced later. If
   // it had landed after all, its expected sequence turns the replay into a conflict to review, never a second copy.
   const answer =
-    navigator.onLine && !(await hasSyncableChanges(resource))
+    !playable || (navigator.onLine && !(await hasSyncableChanges(resource)))
       ? await server.submit({ ...args, data: { ...args.data, workspace: true } }).catch((error: unknown) => {
-          if (isFetchNetworkFailure(error)) return null
+          if (playable && isFetchNetworkFailure(error)) return null
           throw error
         })
       : null
