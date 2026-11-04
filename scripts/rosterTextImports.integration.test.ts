@@ -97,6 +97,12 @@ describe.skipIf(!fs.existsSync(source))('genuine exports from other army builder
       'Gauntlet Task Force',
       'Company Heroes (125 points)\n  • 1x Company Champion\n    • 1x Master-crafted Bolt Pistol\n      1x Master-crafted Power Weapon\n  • 1x Company veteran with bolt rifle\n    • 1x Combat Knife\n      1x Master-crafted Bolt Pistol\n      1x Master-crafted Bolt Rifle\n  • 1x Ancient\n    • 1x Combat Knife\n      1x Master-crafted Bolt Pistol\n      1x Master-crafted Bolt Rifle\n  • 1x Company Veteran with heavy bolter\n    • 1x Combat Knife\n      1x Master-crafted Bolt Pistol\n      1x Master-crafted Heavy Bolter',
     ],
+    [
+      'a stat line',
+      'Deathwatch',
+      'Black Spear Task Force',
+      'Talonstrike Kill Team (265 points)\n  • 1x Kill Team Sergeant with Jump Pack\n    • 1x Plasma pistol\n      1x Power fist\n  • 4x Kill Team Intercessor with Jump Pack\n    • 4x Astartes chainsword\n      2x Heavy bolt pistol\n      2x Plasma pistol\n  • 5x Kill Team Heavy Intercessor with Jump Pack\n    • 5x Assault bolters',
+    ],
   ])('reads an official-app model named by %s', (_shape, faction, detachment, unit) => {
     expect(summary(official(faction, detachment, unit)).mismatches).toEqual([])
   })

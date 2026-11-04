@@ -924,7 +924,9 @@ function respelledNames(entryId: string, index: LoadedCatalogue['index']) {
   const root = index.definitions.get(entryId)
   const unitWords = new Set(root ? normalized(nameOf(root, index.definitions)).split(' ').flatMap(nameVariants) : [])
   eachDefinition([entryId], index, (definition, target) => {
-    for (const name of new Set([nameOf(definition, index.definitions), target.name ?? ''].filter(Boolean).map(normalized))) {
+    // A model also goes by its stat line's name, as a Talonstrike Kill Team's "Kill Team Intercessor w/ Jump Pack".
+    const profile = target.type === 'model' ? modelProfileOf(definition, index) : null
+    for (const name of new Set([nameOf(definition, index.definitions), target.name ?? '', profile ?? ''].filter(Boolean).map(normalized))) {
       const key = spellingKey(name)
       names.set(key, names.has(key) && names.get(key) !== name ? null : name)
       // The catalogue can name a piece after its unit where a list does not, as a Gladiator Lancer's "Lancer laser destroyer".
