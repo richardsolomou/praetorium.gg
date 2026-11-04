@@ -6,6 +6,7 @@
 
 - `mobile/ios` and `mobile/android` are disposable prebuild output; configure in `mobile/app.json` and `mobile/app.config.js`.
 - Shared modules must run in Hermes; Node or browser support proves nothing.
+- EAS links Expo modules precompiled against their own release's `expo-modules-core`, so move every `expo-*` package with `expo` to the versions that release bundles; a newer module crashes at launch. iOS delivery runs `scripts/checkExpoPrecompiledLinks.sh` before building.
 - Web features check the specific capability in `src/client/nativeBridge.ts`, not `bridgeVersion`, and keep older installed shells usable.
 - Do not add native battle state or a separate fetch path; refetch through the web handlers.
 - On iOS, a back swipe previews the screen as it was drawn when its history entry was left, and WebKit skips entries a script added without a recent tap. Each tab keeps its own back stack: a reopened tab or a link into another tab pushes that tab's parents, and history pushed this way draws each screen from timers started during the tap only behind the `screen-cover` freeze; without it, the parents join history undrawn so they never flash past, at the cost of their swipe previews.
