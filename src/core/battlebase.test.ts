@@ -129,6 +129,12 @@ describe('BattleBase text import', () => {
     ).toMatchObject({ name: 'CL 1K', reportedPoints: 990, faction: 'Necrons', detachment: 'Cursed Legion' })
   })
 
+  it('reads a title that opens with a number', () => {
+    expect(
+      fromBattleBaseText(exportText.replace('CL 1K - Ammentar', '1 - Ammentar').replace('Exported with BattleBase', ''))?.reportedPoints,
+    ).toBe(990)
+  })
+
   it('reads a title without points', () => {
     expect(fromBattleBaseText(exportText.replace(' (990 Points)', '').replace('Exported with BattleBase', ''))).toMatchObject({
       name: 'CL 1K - Ammentar Destroyer Spearhead',

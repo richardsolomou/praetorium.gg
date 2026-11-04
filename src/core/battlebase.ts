@@ -78,8 +78,9 @@ export function fromBattleBaseText(input: string): TextRoster | null {
   }
   // The title is the last line priced in points above the faction, or the line above it when the title's points wrapped
   // onto a line of their own. Without one, the first line names the list.
-  const titleAt = lines.slice(0, Math.max(0, factionAt)).findLastIndex((_, at) => inPoints(at))
-  const titlePrice = titleAt >= 0 ? prices[titleAt]! : null
+  // No wargear comes above the setup, so a title can open with a number, as "1 - Imperialis Fleet (2000 points)".
+  const titleAt = lines.slice(0, Math.max(0, factionAt)).findLastIndex((line) => price(line)?.unit === pointsWord)
+  const titlePrice = titleAt >= 0 ? price(lines[titleAt]!) : null
   const title =
     titlePrice?.name ||
     lines.slice(0, Math.max(0, titleAt)).findLast(Boolean) ||
