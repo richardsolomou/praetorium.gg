@@ -3,7 +3,7 @@ import { version } from '../../package.json'
 import type { Attachment } from '../core/attach'
 import { attachmentRows } from '../core/attachmentRows'
 import { fromBattleBaseText } from '../core/battlebase'
-import { type Definition, nameOf, resolve } from '../core/catalogue'
+import { type Definition, type Modifier, nameOf, resolve } from '../core/catalogue'
 import { childrenOf, eachDefinition, isRosterToggle, modelProfileOf } from '../core/definitions'
 import { detachmentNameVariants } from '../core/detachmentName'
 import type { Selection } from '../core/evaluate'
@@ -954,6 +954,17 @@ function respelledNames(entryId: string, index: LoadedCatalogue['index']) {
         for (let end = words.length - 1; end > 0 && unitWords.has(words[end]!); end--)
           prefixed.push([spellingKey(words.slice(0, end).join(' ')), name])
     }
+    if (target.type !== 'model') return
+    // BSData can rename a model's stat line and keep an older spelling on its entry, as Hellions' "Heliarch" prints as "Helliarch".
+    const statLines = [
+      ...(target.profiles ?? []).filter((held) => held.typeName === 'Unit'),
+      ...(target.infoLinks ?? []).filter((link) => {
+        const linked = link.type === 'profile' ? index.shared.get(link.targetId) : undefined
+        return linked && 'typeName' in linked && linked.typeName === 'Unit'
+      }),
+    ]
+    for (const renamed of statLines.flatMap((line) => line.modifiers ?? []).flatMap(nameSetBy))
+      prefixed.push([spellingKey(normalized(renamed)), normalized(nameOf(definition, index.definitions))])
   })
   // Only where the catalogue's own names leave the key free; two such names for one key mean neither.
   const unprefixed = new Map<string, string | null>()
@@ -976,6 +987,16 @@ function bearerNames(entryId: string, index: LoadedCatalogue['index']) {
   return names
 }
 
+/** The name a modifier always gives what it modifies. */
+const nameSetBy = (modifier: Modifier) =>
+  modifier.field === 'name' &&
+  modifier.type === 'set' &&
+  !modifier.conditions?.length &&
+  !modifier.conditionGroups?.length &&
+  typeof modifier.value === 'string'
+    ? [modifier.value]
+    : []
+
 /** What a datasheet's Warlord entries are renamed to, such as "Militarum Tempestus Warlord", which exporters list as wargear. */
 function warlordAliases(entryId: string, index: LoadedCatalogue['index']) {
   const names = new Set<string>()
@@ -986,12 +1007,7 @@ function warlordAliases(entryId: string, index: LoadedCatalogue['index']) {
     const target = resolve(definition, index)
     const warlord = inWarlord || isRosterToggle(target.name ?? definition.name)
     if (warlord) {
-      for (const modifier of definition.modifiers ?? []) {
-        const unconditional = !modifier.conditions?.length && !modifier.conditionGroups?.length
-        if (modifier.field === 'name' && modifier.type === 'set' && unconditional && typeof modifier.value === 'string') {
-          names.add(normalized(modifier.value))
-        }
-      }
+      for (const name of (definition.modifiers ?? []).flatMap(nameSetBy)) names.add(normalized(name))
     }
     for (const child of childrenOf(target, index)) walk(child.definition, warlord)
   }

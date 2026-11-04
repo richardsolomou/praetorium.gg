@@ -127,6 +127,12 @@ describe.skipIf(!fs.existsSync(source))('genuine exports from other army builder
       'Grizzled Company',
       "Gaunt's Ghosts (95 points)\n  • 1x Ibram Gaunt\n    • 1x Bolt Pistol\n      1x Gaunt's chainsword\n  • 1x Colm Corbec\n    • 1x Corbec's hot-shot lascarbine\n      1x Straight silver knife\n  • 1x Elim Rawne\n    • 1x Rawne's lascarbine\n      1x Straight silver knife\n  • 1x Hlaine Larkin\n    • 1x Larkin's long-las\n      1x Straight silver knife\n  • 1x 'Try Again' Bragg\n    • 1x Bragg's autocannon\n      1x Straight silver knife\n  • 1x Oan Mkoll\n    • 1x Lascarbine\n      1x Mkoll's straight silver knife",
     ],
+    [
+      'its renamed stat line',
+      'Drukhari',
+      'Spectacle of Spite',
+      'Hellions (90 points)\n  • 1x Helliarch\n    • 1x Hellglaive\n      1x Splinter pods\n  • 4x Hellion\n    • 4x Hellglaive\n      4x Splinter pods',
+    ],
   ])('reads an official-app model named by %s', (_shape, faction, detachment, unit) => {
     expect(summary(official(faction, detachment, unit)).mismatches).toEqual([])
   })
