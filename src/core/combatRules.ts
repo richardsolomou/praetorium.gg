@@ -82,7 +82,7 @@ export type CombatRuleEffect = {
   mortalFeelNoPain?: number
   /** Sacrifice is how many of the attacker's own models the ability destroys before it attacks. */
   mortalWounds?: NonNullable<CombatInput['mortalWounds']>[number] & { perModel?: boolean; sacrifice?: number }
-  damageReroll?: 'ones'
+  damageReroll?: 'ones' | 'any'
   damageReduction?: number
 }
 export type CombatRuleChoice = { label: string; effects: CombatRuleEffect[] }
@@ -619,7 +619,7 @@ export function combatRuleWeapons(
           )
           if (!keywords.some(matches) && !otherGrant) continue
         }
-        if (effect.damageReroll) next.damageReroll = effect.damageReroll
+        if (effect.damageReroll && next.damageReroll !== 'any') next.damageReroll = effect.damageReroll
         for (const field of ['criticalHit', 'criticalWound'] as const) {
           const threshold = effect[field]
           const requires = field === 'criticalHit' ? 'criticalHitRequiresSuccess' : 'criticalWoundRequiresSuccess'

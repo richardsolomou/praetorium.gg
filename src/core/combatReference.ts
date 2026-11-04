@@ -3,6 +3,7 @@ import {
   bestReroll,
   combatSchema,
   combatGroupProtection,
+  rerollsDamage,
   rollSucceeds,
   saveSucceeds,
   targetModels,
@@ -124,13 +125,13 @@ export function attackSequence({ target, weapons, options, mortalWounds = [] }: 
       const feelNoPain = weapon.psychic
         ? Math.min(protection.feelNoPain ?? 7, protection.psychicFeelNoPain ?? 7)
         : (protection.feelNoPain ?? 7)
+      const prevention = mortal ? Math.min(feelNoPain, protection.mortalFeelNoPain ?? 7) : feelNoPain
       let rolledDamage = roll(weapon.damage, random)
-      if (weapon.damageReroll === 'ones' && rolledDamage === 1) rolledDamage = roll(weapon.damage, random)
+      if (rerollsDamage(weapon, protection, prevention, halfRange)(rolledDamage, remaining)) rolledDamage = roll(weapon.damage, random)
       const baseDamage = rolledDamage + (halfRange ? roll(weapon.melta, random) : 0)
       const rolled =
         baseDamage === 0 ? 0 : Math.max(1, Math.ceil(baseDamage / (protection.damageDivisor ?? 1) - (protection.damageReduction ?? 0)))
       let lost = rolled
-      const prevention = mortal ? Math.min(feelNoPain, protection.mortalFeelNoPain ?? 7) : feelNoPain
       if (prevention < 7) {
         lost = 0
         for (let i = 0; i < rolled; i++) if (d6(random) < prevention) lost++

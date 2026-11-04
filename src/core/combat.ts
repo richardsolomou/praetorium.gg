@@ -76,7 +76,7 @@ export const combatSchema = z.object({
         strength: z.int().min(1).max(100),
         ap: z.int().min(-10).max(0),
         damage: diceSchema,
-        damageReroll: z.literal('ones').optional(),
+        damageReroll: z.enum(['ones', 'any']).optional(),
         torrent: z.boolean(),
         lethal: z.boolean(),
         sustained: amountSchema,
@@ -451,14 +451,13 @@ function addInto(target: State, source: State, weight = 1) {
 
 const tailsOf = new WeakMap<Weights, Weights>()
 
+/** Wounds one unsaved attack takes, for each target group and each number of wounds its current model has left. */
+type Losses = readonly (readonly Weights[])[]
+
 /** One unsaved attack's damage, discarding whatever exceeds the current model's wounds. */
-function inflict(state: State, lost: Weights | readonly Weights[], layout: Allocation, applies?: (at: number) => boolean) {
+function inflict(state: State, lost: Losses, layout: Allocation, applies?: (at: number) => boolean) {
   const result = new Float64Array(state.length)
   result[layout.total] = state[layout.total]!
-  const distributions: readonly Weights[] = typeof lost[0] === 'number' ? [lost as Weights] : (lost as readonly Weights[])
-  const tails = distributions.map((points) =>
-    remember(tailsOf, points, () => points.map((_, from) => points.slice(from).reduce((total, weight) => total + weight, 0))),
-  )
   for (let at = 0; at < layout.total; at++) {
     const weight = state[at]!
     if (!weight) continue
@@ -466,11 +465,11 @@ function inflict(state: State, lost: Weights | readonly Weights[], layout: Alloc
       result[at]! += weight
       continue
     }
-    const group = distributions.length === 1 ? 0 : layout.group[at]!
-    const points = distributions[group]!
     const room = layout.remaining[at]!
+    const points = lost[layout.group[at]!]![room]!
+    const tails = remember(tailsOf, points, () => points.map((_, from) => points.slice(from).reduce((total, chance) => total + chance, 0)))
     for (let wounds = 0; wounds < Math.min(room, points.length); wounds++) result[at + wounds]! += weight * points[wounds]!
-    if (room < points.length) result[at + room]! += weight * tails[group]![room]!
+    if (room < points.length) result[at + room]! += weight * tails[room]!
   }
   return result
 }
@@ -508,16 +507,57 @@ export function combatGroupProtection(target: CombatInput['target'], group: Comb
   }
 }
 
-function packetLosses(weapon: CombatWeapon, target: CombatInput['target'], prevention: number, halfRange: boolean) {
-  const rolled = diceWeights(weapon.damage)
-  const once = weapon.damageReroll === 'ones' ? rolled.map((weight, value) => (value === 1 ? 0 : weight) + rolled[1]! * weight) : rolled
-  const base = halfRange ? convolve(once, diceWeights(weapon.melta)) : once
-  const reduced: Weights = Array.from({ length: base.length }, () => 0)
-  base.forEach((weight, value) => {
-    const after = value === 0 ? 0 : Math.max(1, Math.ceil(value / (target.damageDivisor ?? 1) - (target.damageReduction ?? 0)))
-    reduced[after]! += weight
+/** Wounds one unsaved attack takes for each Damage roll, after Melta, damage reduction and Feel No Pain. */
+function lossesByRoll(weapon: CombatWeapon, target: CombatInput['target'], prevention: number, halfRange: boolean) {
+  const melta = halfRange ? diceWeights(weapon.melta) : [1]
+  return diceWeights(weapon.damage).map((chance, value) => {
+    if (!chance) return []
+    const base = convolve(diceWeights(value), melta)
+    const reduced: Weights = Array.from({ length: base.length }, () => 0)
+    base.forEach((weight, total) => {
+      const after = total === 0 ? 0 : Math.max(1, Math.ceil(total / (target.damageDivisor ?? 1) - (target.damageReduction ?? 0)))
+      reduced[after]! += weight
+    })
+    return thinned(reduced, keptBy(prevention))
   })
-  return thinned(reduced, keptBy(prevention))
+}
+
+function mixed(parts: readonly (readonly [Weights, number])[]) {
+  const result: Weights = Array.from({ length: Math.max(...parts.map(([points]) => points.length)) }, () => 0)
+  for (const [points, weight] of parts) points.forEach((chance, wounds) => (result[wounds]! += chance * weight))
+  return result
+}
+
+const expectedWounds = (points: Weights, room: number) =>
+  points.reduce((total, chance, wounds) => total + chance * Math.min(wounds, room), 0)
+
+/**
+ * Whether a Damage roll of `value` is re-rolled against a model with `room` wounds left.
+ *
+ * A free re-roll of any Damage roll is taken when a fresh roll is expected to take more wounds off that model.
+ */
+export function rerollsDamage(
+  weapon: CombatWeapon,
+  target: CombatInput['target'],
+  prevention: number,
+  halfRange: boolean,
+): (value: number, room: number) => boolean {
+  if (weapon.damageReroll === 'ones') return (value) => value === 1
+  if (weapon.damageReroll !== 'any') return () => false
+  const byRoll = lossesByRoll(weapon, target, prevention, halfRange)
+  const fresh = mixed(diceWeights(weapon.damage).map((chance, value) => [byRoll[value]!, chance]))
+  return (value, room) => expectedWounds(fresh, room) - expectedWounds(byRoll[value]!, room) > 1e-12
+}
+
+function packetLosses(weapon: CombatWeapon, target: CombatInput['target'], prevention: number, halfRange: boolean, wounds: number) {
+  const rolled = diceWeights(weapon.damage)
+  const byRoll = lossesByRoll(weapon, target, prevention, halfRange)
+  const fresh = mixed(rolled.map((chance, value) => [byRoll[value]!, chance]))
+  const rerolls = rerollsDamage(weapon, target, prevention, halfRange)
+  const byRoom = (room: number) => mixed(rolled.map((chance, value) => [rerolls(value, room) ? fresh : byRoll[value]!, chance]))
+  if (weapon.damageReroll === 'any') return Array.from({ length: wounds + 1 }, (_, room) => byRoom(room))
+  const points = byRoom(1)
+  return Array.from({ length: wounds + 1 }, () => points)
 }
 
 type Polynomial = Map<number, number>
@@ -805,7 +845,7 @@ function allocateSaves(
   input: CombatInput,
   layout: Allocation,
   faces: readonly [Weights, Weights],
-  lost: Weights | readonly Weights[],
+  lost: Losses,
   events: number,
 ) {
   let states = start
@@ -853,7 +893,7 @@ function resolvePool(
         weapon.psychic ? (protection.psychicFeelNoPain ?? 7) : 7,
         mortal ? (protection.mortalFeelNoPain ?? 7) : 7,
       )
-      return packetLosses(weapon, protection, prevention, plan.halfRange)
+      return packetLosses(weapon, protection, prevention, plan.halfRange, group.wounds)
     })
   const ordinaryLost = losses(false)
   const devastatingLost = losses(true)
