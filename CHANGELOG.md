@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.219.2 (2026-11-04)
+
+### Patch Changes
+
+- 0ea5c2b: Lists with allied or chapter units saved outside the roster builder, such as through the MCP tools, no longer warn that allied-force eligibility could not be checked.
+- 9c95fba: When part of a page could not load, **Reload** now downloads that part again instead of reusing the copy that failed.
+
 ## 0.219.1 (2026-11-03)
 
 ### Patch Changes
