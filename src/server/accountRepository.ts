@@ -58,9 +58,8 @@ export class SqliteAccountRepository {
     return row
   }
 
-  async adminEmails() {
-    const rows = await this.database.select({ email: user.email }).from(user).where(eq(user.role, 'admin'))
-    return rows.map((row) => row.email)
+  admins() {
+    return this.database.select({ id: user.id, email: user.email }).from(user).where(eq(user.role, 'admin'))
   }
 
   async isAdmin(id: string) {

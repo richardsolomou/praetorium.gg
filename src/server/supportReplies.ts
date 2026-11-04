@@ -1,8 +1,8 @@
 import { createHash, timingSafeEqual } from 'node:crypto'
 import { z } from 'zod'
+import type { EmailMessage } from '../adapters/email'
 import type { SupportTicket, SupportTicketMessage } from '../adapters/posthogSupport'
 import { ticketSubject } from '../contracts/feedback'
-import { escapeHtml } from './escapeHtml'
 
 /** What a PostHog Workflow posts for each public reply we send on a Support ticket. */
 const replySchema = z.object({ ticket_id: z.string().min(1).max(100) })
@@ -14,7 +14,7 @@ export type SupportReplyDeps = {
   secret: string | undefined
   readTicket: (ticketId: string) => Promise<{ ticket: SupportTicket; messages: SupportTicketMessage[] } | null>
   account: (id: string) => Promise<Recipient | null | undefined>
-  send: (email: { to: string; subject: string; text: string; html: string }) => Promise<unknown>
+  send: (email: EmailMessage) => Promise<unknown>
   appUrl: string
 }
 
@@ -39,20 +39,6 @@ async function recipientFor(ticket: SupportTicket, account: SupportReplyDeps['ac
   return email.success ? { name: ticket.anonymous_traits?.name ?? '', email: email.data } : null
 }
 
-/** Praetorium's slate and chalk, inlined because mail clients ignore stylesheets. */
-const EMAIL = {
-  void: '#0e1316',
-  panel: '#141a1e',
-  edge: '#28323a',
-  edgeStrong: '#3a4650',
-  bone: '#e7ece9',
-  dim: '#a6b0ae',
-  faint: '#86918f',
-  green: '#9bd0a9',
-  greenInk: '#0c2014',
-  font: "'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
-}
-
 type ReplyEmail = {
   name: string
   url: string
@@ -64,55 +50,11 @@ type ReplyEmail = {
 
 /** Shows the player's own words and who replied, never the reply itself, so the conversation stays in the app. */
 export function supportReplyEmail({ name, url, subject, replier }: ReplyEmail) {
-  const who = replier || 'Praetorium'
-  const greeting = name ? `Hi ${name},` : 'Hi,'
-  const lead = subject ? `${who} replied to your message:` : `${who} replied to your message.`
-  const footer = "You're getting this because you contacted Praetorium. Replies to this email aren't read, so answer in Praetorium instead."
-  const text = [greeting, '', lead, ...(subject ? [`"${subject}"`] : []), '', `View the reply: ${url}`, '', footer].join('\n')
-  const origin = escapeHtml(new URL(url).origin)
-  const link = escapeHtml(url)
-  const quote = subject
-    ? `<p style="margin:0 0 24px;padding:10px 14px;border:1px solid ${EMAIL.edge};border-radius:10px;background:${EMAIL.void};font-size:15px;line-height:1.5;color:${EMAIL.bone};">${escapeHtml(subject)}</p>`
-    : ''
-  const html = `<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="color-scheme" content="dark">
-<meta name="supported-color-schemes" content="dark">
-<title>You have a reply</title>
-</head>
-<body style="margin:0;padding:0;background:${EMAIL.void};">
-<div style="display:none;max-height:0;overflow:hidden;">${escapeHtml(lead)}</div>
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${EMAIL.void};">
-<tr><td align="center" style="padding:32px 16px;">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;background:${EMAIL.panel};border:1px solid ${EMAIL.edge};border-radius:16px;font-family:${EMAIL.font};">
-<tr><td style="padding:20px 28px;border-bottom:1px solid ${EMAIL.edge};">
-<a href="${origin}" style="text-decoration:none;color:${EMAIL.bone};">
-<img src="${origin}/email-logo.png" width="28" height="28" alt="" style="vertical-align:middle;border:0;">
-<span style="vertical-align:middle;margin-left:10px;font-size:15px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:${EMAIL.bone};">Praetorium</span>
-</a>
-</td></tr>
-<tr><td style="padding:28px 28px 8px;">
-<h1 style="margin:0 0 16px;font-size:20px;line-height:1.3;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;color:${EMAIL.bone};">You have a reply</h1>
-<p style="margin:0 0 12px;font-size:15px;line-height:1.6;color:${EMAIL.bone};">${escapeHtml(greeting)}</p>
-<p style="margin:0 0 ${subject ? '12px' : '24px'};font-size:15px;line-height:1.6;color:${EMAIL.dim};">${escapeHtml(lead)}</p>
-${quote}
-<table role="presentation" cellpadding="0" cellspacing="0"><tr><td style="background:${EMAIL.green};border-radius:9px;">
-<a href="${link}" style="display:inline-block;padding:12px 22px;font-size:15px;font-weight:700;color:${EMAIL.greenInk};text-decoration:none;">View reply</a>
-</td></tr></table>
-<p style="margin:24px 0 0;font-size:13px;line-height:1.5;color:${EMAIL.faint};">Or open this link:<br><a href="${link}" style="color:${EMAIL.green};word-break:break-all;">${link}</a></p>
-</td></tr>
-<tr><td style="padding:24px 28px;">
-<p style="margin:0;padding-top:16px;border-top:1px solid ${EMAIL.edge};font-size:12px;line-height:1.5;color:${EMAIL.faint};">${escapeHtml(footer)}</p>
-</td></tr>
-</table>
-</td></tr>
-</table>
-</body>
-</html>`
-  return { subject: subject ? `Re: ${subject}` : 'New reply from Praetorium', text, html }
+  return {
+    template: 'supportReply' as const,
+    // Liquid treats an empty string as true, so a missing value is left out rather than sent empty.
+    data: { url, ...(name ? { name } : {}), ...(subject ? { subject } : {}), ...(replier ? { replier } : {}) },
+  }
 }
 
 /** The conversation's subject and who signed the reply that prompted this email. */
@@ -122,6 +64,7 @@ function aboutReply(messages: readonly SupportTicketMessage[]) {
   return {
     subject: opening ? ticketSubject(opening) || undefined : undefined,
     replier: reply?.author_name?.trim().split(/\s+/)[0] || undefined,
+    replyAt: reply?.created_at,
   }
 }
 
@@ -139,6 +82,13 @@ export async function supportReplyResponse(request: Request, deps: SupportReplyD
   const url = new URL('/support', deps.appUrl)
   url.searchParams.set('conversation', reply.data.ticket_id)
   const ordered = [...found.messages].sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at))
-  await deps.send({ to: recipient.email, ...supportReplyEmail({ name: recipient.name, url: url.href, ...aboutReply(ordered) }) })
+  const { replyAt, ...about } = aboutReply(ordered)
+  await deps.send({
+    to: recipient.email,
+    ...(found.ticket.distinct_id ? { distinctId: found.ticket.distinct_id } : {}),
+    ...supportReplyEmail({ name: recipient.name, url: url.href, ...about }),
+    // A redelivered webhook for the same reply then sends nothing more.
+    idempotencyKey: `supportReply:${reply.data.ticket_id}:${replyAt}`,
+  })
   return new Response(null, { status: 204 })
 }

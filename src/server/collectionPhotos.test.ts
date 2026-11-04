@@ -449,11 +449,12 @@ it('reports a photo to administrators with links to it and its owner', () => {
     { name: 'Reader', email: 'reader@example.com' },
     'https://praetorium.gg',
   )
-  expect(email.text.split('\n').slice(0, 5)).toEqual([
-    'Reported by: Reader <reader@example.com>',
-    'Photo: https://praetorium.gg/api/collection-photos/0b7c6d1e-3f2a-4c5b-8d9e-0a1b2c3d4e5f',
-    'Owner: https://praetorium.gg/users/owner?tab=collection',
-    '',
-    'Not a model',
-  ])
+  expect(email.data).toEqual({
+    reporter_name: 'Reader',
+    reporter_email: 'reader@example.com',
+    photo_url: 'https://praetorium.gg/api/collection-photos/0b7c6d1e-3f2a-4c5b-8d9e-0a1b2c3d4e5f',
+    owner_url: 'https://praetorium.gg/users/owner?tab=collection',
+    reason: 'Not a model',
+    review_url: 'https://praetorium.gg/admin?tab=photos',
+  })
 })

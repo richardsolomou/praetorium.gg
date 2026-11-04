@@ -30,32 +30,17 @@ describe('firstReplySincePlayer', () => {
 describe('supportReplyEmail', () => {
   const url = 'https://praetorium.gg/support?conversation=t-1'
 
-  it('says who replied to which message and links the conversation, keeping the reply itself out', () => {
-    expect(supportReplyEmail({ name: 'Tronic', url, subject: 'The picker will not scroll', replier: 'Richard' }).text).toBe(
-      'Hi Tronic,\n\nRichard replied to your message:\n"The picker will not scroll"\n\nView the reply: https://praetorium.gg/support?conversation=t-1\n\nYou\'re getting this because you contacted Praetorium. Replies to this email aren\'t read, so answer in Praetorium instead.',
-    )
+  it('fills the template with who replied to which message', () => {
+    expect(supportReplyEmail({ name: 'Tronic', url, subject: 'The picker will not scroll', replier: 'Richard' }).data).toEqual({
+      url,
+      name: 'Tronic',
+      subject: 'The picker will not scroll',
+      replier: 'Richard',
+    })
   })
 
-  it('threads under the player’s own words', () => {
-    expect(supportReplyEmail({ name: 'Tronic', url, subject: 'The picker will not scroll' }).subject).toBe('Re: The picker will not scroll')
-  })
-
-  it('falls back to a plain subject for a conversation without one', () => {
-    expect(supportReplyEmail({ name: 'Tronic', url }).subject).toBe('New reply from Praetorium')
-  })
-
-  it('signs as Praetorium when the reply has no name', () => {
-    expect(supportReplyEmail({ name: 'Tronic', url }).text).toContain('Praetorium replied to your message.')
-  })
-
-  it('points its button at the conversation', () => {
-    expect(supportReplyEmail({ name: 'Tronic', url }).html).toMatch(
-      /<a href="https:\/\/praetorium\.gg\/support\?conversation=t-1"[^>]*>View reply<\/a>/,
-    )
-  })
-
-  it('escapes what the player wrote in the HTML part', () => {
-    expect(supportReplyEmail({ name: 'Tronic', url, subject: '<b>bold</b>' }).html).toContain('&lt;b&gt;bold&lt;/b&gt;')
+  it('leaves out a missing name, which the template would otherwise greet as present', () => {
+    expect(supportReplyEmail({ name: '', url }).data).toEqual({ url })
   })
 })
 
@@ -84,7 +69,8 @@ describe('supportReplyResponse', () => {
     expect(send).toHaveBeenCalledExactlyOnceWith(
       expect.objectContaining({
         to: 'tronic@example.com',
-        text: expect.stringContaining('https://praetorium.gg/support?conversation=t-1'),
+        distinctId: 'user-1',
+        data: expect.objectContaining({ url: 'https://praetorium.gg/support?conversation=t-1' }),
       }),
     )
   })
@@ -100,8 +86,14 @@ describe('supportReplyResponse', () => {
     })
     await supportReplyResponse(post({ ticket_id: 't-1' }), deps({ send, readTicket }))
     expect(send).toHaveBeenCalledWith(
-      expect.objectContaining({ subject: 'Re: Picker will not scroll', text: expect.stringContaining('Richard replied to your message:') }),
+      expect.objectContaining({ data: expect.objectContaining({ subject: 'Picker will not scroll', replier: 'Richard' }) }),
     )
+  })
+
+  it('keys the email by the reply, so a redelivered webhook sends it once', async () => {
+    const send = vi.fn(async () => undefined)
+    await supportReplyResponse(post({ ticket_id: 't-1' }), deps({ send }))
+    expect(send).toHaveBeenCalledWith(expect.objectContaining({ idempotencyKey: `supportReply:t-1:${at(1)}` }))
   })
 
   it('emails a guest at the address they left', async () => {

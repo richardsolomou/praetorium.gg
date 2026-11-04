@@ -4,7 +4,7 @@ import { emailFeedback, supportIdentity } from './feedback'
 
 const mocks = vi.hoisted(() => ({
   send: vi.fn(),
-  adminEmails: vi.fn(),
+  admins: vi.fn(),
   email: true,
   originAllowed: true,
   address: '203.0.113.1',
@@ -25,7 +25,7 @@ vi.mock('../rpc', () => ({
   },
 }))
 vi.mock('../app', () => ({
-  app: () => ({ email: mocks.email ? { send: mocks.send } : undefined, repository: { adminEmails: mocks.adminEmails } }),
+  app: () => ({ email: mocks.email ? { send: mocks.send } : undefined, repository: { admins: mocks.admins } }),
 }))
 vi.mock('../playerSession', () => ({
   currentUser: async () => null,
@@ -45,14 +45,20 @@ beforeEach(() => {
   delete process.env.POSTHOG_SUPPORT_IDENTITY_SECRET
   // Each test gets its own address, so the per-address limit starts empty.
   mocks.address = `203.0.113.${++address}`
-  mocks.adminEmails.mockResolvedValue(['one@example.com', 'two@example.com'])
+  mocks.admins.mockResolvedValue([
+    { id: 'admin-1', email: 'one@example.com' },
+    { id: 'admin-2', email: 'two@example.com' },
+  ])
   mocks.send.mockResolvedValue(undefined)
 })
 
 describe('emailFeedback', () => {
   it('emails every administrator', async () => {
     await send({ data: input })
-    expect(mocks.send.mock.calls.map(([message]) => message.to)).toEqual(['one@example.com', 'two@example.com'])
+    expect(mocks.send.mock.calls.map(([message]) => [message.to, message.distinctId])).toEqual([
+      ['one@example.com', 'admin-1'],
+      ['two@example.com', 'admin-2'],
+    ])
   })
 
   it('sends nothing for a request from another origin', async () => {
@@ -63,7 +69,7 @@ describe('emailFeedback', () => {
 
   it('does nothing where this instance sends no email', async () => {
     mocks.email = false
-    expect([await send({ data: input }), mocks.adminEmails.mock.calls.length]).toEqual([null, 0])
+    expect([await send({ data: input }), mocks.admins.mock.calls.length]).toEqual([null, 0])
   })
 
   it('refuses a sixth email from one address within a minute', async () => {
@@ -72,8 +78,8 @@ describe('emailFeedback', () => {
   })
 
   it('reports a failed delivery to the caller, which the server logs', async () => {
-    mocks.send.mockRejectedValue(new Error('SMTP refused'))
-    await expect(send({ data: input })).rejects.toThrow('SMTP refused')
+    mocks.send.mockRejectedValue(new Error('PostHog email answered 503 delivery_unavailable'))
+    await expect(send({ data: input })).rejects.toThrow('delivery_unavailable')
   })
 })
 

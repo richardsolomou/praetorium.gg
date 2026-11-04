@@ -8,7 +8,7 @@ Android delivery stays disabled until the [physical-device gate](#physical-devic
 2. Register iOS app `gg.praetorium` in Certificates, Identifiers & Profiles and App Store Connect, with Associated Domains enabled.
 3. Create Sign in with Apple Services ID `gg.praetorium.web` with domain `praetorium.gg` and return URL `https://praetorium.gg/api/auth/callback/apple`, grouped with the primary App ID.
 4. Create a Sign in with Apple key; set `APPLE_CLIENT_ID=gg.praetorium.web`, `APPLE_TEAM_ID`, `APPLE_KEY_ID`, and `APPLE_PRIVATE_KEY` in production. Back up the `.p8` outside the repository.
-5. Register `https://praetorium.gg/api/apple-notifications` as the App ID's server-to-server notification endpoint. Register the SMTP sending domain and addresses with Apple's private email relay.
+5. Register `https://praetorium.gg/api/apple-notifications` as the App ID's server-to-server notification endpoint. Register the sending domain and address of PostHog's transactional email sender with Apple's private email relay.
 6. Create Android app `gg.praetorium` with Play App Signing; record the app-signing (not upload-key) SHA-256 fingerprint.
 7. From `mobile/`, run `pnpm dlx eas-cli@23.2.0 init`. Never commit generated credentials or a review-account password.
 8. Create an App Store Connect team API key with Admin access and Certificates, Identifiers & Profiles access.

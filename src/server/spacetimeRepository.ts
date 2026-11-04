@@ -92,8 +92,8 @@ export class SpacetimeRepository {
     return this.accounts.userById(id)
   }
 
-  adminEmails() {
-    return this.accounts.adminEmails()
+  admins() {
+    return this.accounts.admins()
   }
 
   onboardingProgress(userId: string) {

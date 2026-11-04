@@ -311,8 +311,8 @@ export const reportCollectionPhoto = createServerFn({ method: 'POST' })
       const delivery = app().email
       if (delivery && process.env.APP_URL) {
         const email = collectionPhotoReportEmail({ ...data, ownerId: photo.userId }, reporter, process.env.APP_URL)
-        const recipients = await app().repository.adminEmails()
-        await Promise.all(recipients.map((to) => delivery.send({ to, ...email })))
+        const admins = await app().repository.admins()
+        await Promise.all(admins.map(({ id, email: to }) => delivery.send({ to, distinctId: id, ...email })))
       }
       await captureMutation(reporter.id, 'collection_photo_reported')
       return null
