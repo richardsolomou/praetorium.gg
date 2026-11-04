@@ -1043,6 +1043,9 @@ function carriedNames(selection: Selection, index: LoadedCatalogue['index']) {
         ? (target.profiles ?? []).flatMap((held) => (held.typeName !== 'Unit' && held.name) || [])
         : (target.profiles ?? []).flatMap((held) => held.name?.replace(/^➤\s*/, '').replace(/\s+-\s+.+$/, '') ?? [])
     // A group holds nothing itself, though it is often named after its default, as a Lord Commissar's "Power Weapon" holds a power fist.
+    // It does field the kind of model it counts, as "9 Traitor Guardsmen" fields Traitor Guardsmen.
+    const kind = target.type === undefined ? groupKind(nameOf(definition, index.definitions)) : undefined
+    if (kind && node.selections?.some((child) => (child.count ?? 1) > 0)) found.add(kind)
     const names =
       target.type === undefined
         ? []

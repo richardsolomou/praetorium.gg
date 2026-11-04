@@ -596,6 +596,23 @@ Exported with App Version: v2.8.1 (1), Data Version: v995`
     expect(imported(file).unplaced).toEqual([])
   })
 
+  it('reads Traitor Guardsmen by the kind their group fields', () => {
+    const file = officialApp(
+      'Chaos Space Marines',
+      `Traitor Guardsmen Squad (65 points)
+  • 1x Traitor Sergeant
+    • 1x Boltgun
+      1x Power weapon
+  • 9x Traitor Guardsmen
+    • 9x Close combat weapon
+      1x Cultist grenade launcher
+      6x Lasgun
+      1x Meltagun
+      1x Plasma gun`,
+    )
+    expect(imported(file).unplaced).toEqual([])
+  })
+
   it('reads a Grey Knights Ancient as the model carrying the banner', () => {
     const file = officialApp(
       'Grey Knights',
