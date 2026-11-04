@@ -2,23 +2,26 @@ import { attachGroups, type TextRoster, type TextRosterUnit } from './textRoster
 import { printedNumber } from './text'
 
 const rule = /^─{10,}$/
-const unitLine = /^(?:└\s*(?:Leads|Supports):\s*)?(.+?)(?:\s+×(\d+))?(?:\s+\((\d[\d,]*) pts\))?((?:\s+·\s+[^·]+)*)$/
+const unitLine = /^(?:└\s*(?:Leads|Supports):\s*)?(.+?)(?:\s+×(\d+))?(?:\s+(?:\((\d[\d,]*) pts\)|—\s+\d[\d,]* pts))?((?:\s+·\s+[^·]+)*)$/
 
 /**
  * Warmind's own text export, in English.
  *
  * The setup sits between the list name and a rule line; each unit names its model count as
  * "×5", and its wargear on one "·" line. An attached unit's leaders come first, followed by
- * its bodyguard on an indented "└ Leads:" line.
+ * its bodyguard on an indented "└ Leads:" line. Newer versions leave out the blank lines and the closing
+ * "Built with Warmind" line, and price a unit as "— 90 pts".
  */
 export function fromWarmindText(input: string): TextRoster | null {
-  if (!/^(?:Built with Warmind|Exported with Praetorium\.gg)\b/m.test(input)) return null
+  if (!/^(?:Built with Warmind|Exported with Praetorium\.gg)\b|^Total: \d[\d,]* \/ \d[\d,]* pts · /m.test(input)) return null
   const lines = input.replaceAll('\r', '').split('\n')
   const opening = lines.findIndex((line) => rule.test(line.trim()))
   if (opening < 0) return null
   const closing = lines.findIndex((line, at) => at > opening && rule.test(line.trim()))
-  const blank = lines.findIndex((line, at) => at > opening && !line.trim())
-  const setupEnd = blank < 0 ? lines.length : blank
+  const fieldsEnd = lines.findIndex((line, at) => at > opening && !/^(?:[A-Z][A-Za-z ]*:\s|Battle Ready$)/.test(line.trim()))
+  const setupEnd = fieldsEnd < 0 ? lines.length : fieldsEnd
+  // Without blank lines between groups, only the unit just above a bodyguard leads it.
+  const spaced = lines.slice(setupEnd, closing < 0 ? undefined : closing).some((line) => !line.trim())
   const setup = lines.slice(opening + 1, setupEnd).map((line) => line.trim())
   const field = (name: string) =>
     setup
@@ -73,7 +76,8 @@ export function fromWarmindText(input: string): TextRoster | null {
     if (trimmed.startsWith('└')) {
       groups.push({ leaders, bodyguard: current })
       leaders = []
-    } else leaders.push(current)
+    } else if (spaced) leaders.push(current)
+    else leaders = [current]
   }
   attachGroups(units, groups)
 
