@@ -283,6 +283,11 @@ test('a battle conflict awaiting review does not stop connected play', async ({ 
   await startBattle(page)
   await waitForOfflineApp(page)
   const otherDevice = await battleLog(page)
+  // Offline play refuses to continue from a saved history older than the screen, so it must catch up first.
+  const served = (await operator.battleByToken(token))!.log.length
+  await expect
+    .poll(async () => ((await savedWork(page))?.documents[`battle:${token}`]?.data as { log: unknown[] } | undefined)?.log.length)
+    .toBe(served)
   await context.setOffline(true)
   await advance(page)
   await expect

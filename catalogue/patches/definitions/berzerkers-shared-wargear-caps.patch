@@ -1,0 +1,51 @@
+diff --git a/definitions/Chaos - World Eaters.json b/definitions/Chaos - World Eaters.json
+--- a/definitions/Chaos - World Eaters.json
++++ b/definitions/Chaos - World Eaters.json
+@@ -8316,9 +8316,13 @@
+                         "scope": "parent",
+                         "shared": true,
+                         "type": "max",
+-                        "value": 4
++                        "value": 0
+                       }
+                     ],
++                    "modifiers": [
++                      {"field": "65fd-2940-1b8b-c346", "type": "increment", "value": 1, "repeats": [{"childId": "model", "field": "selections", "includeChildSelections": true, "repeats": 1, "roundUp": false, "scope": "f909-00c7-8ba4-018a", "shared": true, "value": 5}]},
++                      {"field": "65fd-2940-1b8b-c346", "type": "decrement", "value": 1, "repeats": [{"childId": "8cbb-0e54-096a-e053", "field": "selections", "includeChildSelections": true, "repeats": 1, "roundUp": false, "scope": "f909-00c7-8ba4-018a", "shared": true, "value": 1}]}
++                    ],
+                     "costs": [{"name": "pts", "typeId": "51b2-306e-1021-d207", "value": 0}],
+                     "entryLinks": [
+                       {
+@@ -8372,8 +8376,15 @@
+                         "scope": "parent",
+                         "shared": true,
+                         "type": "max",
+-                        "value": 4
+-                      }
++                        "value": 0
++                      },
++                      {"id": "957e-fcad-2d3d-6bda", "field": "selections", "includeChildForces": false, "includeChildSelections": false, "percentValue": false, "scope": "parent", "shared": true, "type": "max", "value": 0}
++                    ],
++                    "modifiers": [
++                      {"field": "957e-fcad-2d3d-6bd9", "type": "increment", "value": 1, "repeats": [{"childId": "model", "field": "selections", "includeChildSelections": true, "repeats": 1, "roundUp": false, "scope": "f909-00c7-8ba4-018a", "shared": true, "value": 5}]},
++                      {"field": "957e-fcad-2d3d-6bd9", "type": "decrement", "value": 1, "repeats": [{"childId": "c3d0-463f-fcce-7c70", "field": "selections", "includeChildSelections": true, "repeats": 1, "roundUp": false, "scope": "f909-00c7-8ba4-018a", "shared": true, "value": 1}]},
++                      {"field": "957e-fcad-2d3d-6bda", "type": "increment", "value": 1, "repeats": [{"childId": "model", "field": "selections", "includeChildSelections": true, "repeats": 1, "roundUp": false, "scope": "f909-00c7-8ba4-018a", "shared": true, "value": 5}]},
++                      {"field": "957e-fcad-2d3d-6bda", "type": "decrement", "value": 1, "repeats": [{"childId": "8af8-2e66-6a49-95b1", "field": "selections", "includeChildSelections": true, "repeats": 1, "roundUp": false, "scope": "f909-00c7-8ba4-018a", "shared": true, "value": 1}]}
+                     ],
+                     "costs": [{"name": "pts", "typeId": "51b2-306e-1021-d207", "value": 0}],
+                     "entryLinks": [
+@@ -8419,9 +8430,13 @@
+                         "scope": "parent",
+                         "shared": true,
+                         "type": "max",
+-                        "value": 4
++                        "value": 0
+                       }
+                     ],
++                    "modifiers": [
++                      {"field": "5e4f-9bb4-d938-6f25", "type": "increment", "value": 1, "repeats": [{"childId": "model", "field": "selections", "includeChildSelections": true, "repeats": 1, "roundUp": false, "scope": "f909-00c7-8ba4-018a", "shared": true, "value": 5}]},
++                      {"field": "5e4f-9bb4-d938-6f25", "type": "decrement", "value": 1, "repeats": [{"childId": "8cbb-0e54-096a-e053", "field": "selections", "includeChildSelections": true, "repeats": 1, "roundUp": false, "scope": "f909-00c7-8ba4-018a", "shared": true, "value": 1}]}
++                    ],
+                     "costs": [{"name": "pts", "typeId": "51b2-306e-1021-d207", "value": 0}],
+                     "entryLinks": [
+                       {
