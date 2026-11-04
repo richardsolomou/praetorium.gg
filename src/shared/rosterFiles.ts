@@ -1342,7 +1342,10 @@ function singleChoice(
 }
 
 function countsForChoice(
-  { options, room }: { options: readonly { id: string; name: string; count: number; min: number; max: number }[]; room: number },
+  {
+    options,
+    room,
+  }: { options: readonly { id: string; name: string; count: number; min: number; max: number; default?: boolean }[]; room: number },
   aliases: ReadonlyMap<string, ReadonlyMap<string, number>>,
   stated: ReadonlyMap<string, number>,
   held: ReadonlyMap<string, number>,
@@ -1408,8 +1411,13 @@ function countsForChoice(
     const forced = (option: (typeof options)[number]) => distinctiveCounts.get(option.id)! - elsewhere(option)
     const placed = new Map<string, number>()
     const fitting = placing.reduce((total, option) => total + distinctiveCounts.get(option.id)! - elsewhere(option), 0) <= free
-    for (const share of [fitting ? forced : () => 0, (option: (typeof options)[number]) => distinctiveCounts.get(option.id)!])
-      for (const option of placing) {
+    // Where the rest could go either way, the datasheet's default stays here, as a cyclone Terminator's power fist.
+    const settling = fitting ? placing.toSorted((left, right) => Number(!left.default) - Number(!right.default)) : placing
+    for (const [share, order] of [
+      [fitting ? forced : () => 0, placing],
+      [(option: (typeof options)[number]) => distinctiveCounts.get(option.id)!, settling],
+    ] as const)
+      for (const option of order) {
         const before = placed.get(option.id) ?? 0
         const fits = Math.max(0, Math.min(share(option), option.max, before + free) - before)
         placed.set(option.id, before + fits)

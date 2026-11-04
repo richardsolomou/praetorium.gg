@@ -584,6 +584,31 @@ Exported with App Version: v2.8.1 (1), Data Version: v995`
     for (const piece of pieces) expect(held).toContain(piece)
   })
 
+  it('arms cyclone Terminators with their default fists, leaving the hammer to the plain Terminator', () => {
+    const { definitions } = catalogue.index
+    const unit = imported(
+      officialApp(
+        'Space Marines',
+        `Deathwatch Terminator Squad (190 points)
+  • 1x Deathwatch Terminator Sergeant
+    • 1x Storm Shield
+      1x Thunder hammer
+  • 4x Deathwatch Terminator
+    • 3x Cyclone missile launcher
+      3x Power fist
+      1x Storm Shield
+      3x Storm bolter
+      1x Thunder hammer`,
+      ),
+    ).units[0]!
+    const fists = Object.values(unit.spreads).flatMap((spread) =>
+      Object.entries(spread).flatMap(([id, count]) =>
+        nameOf(definitions.get(id)!, definitions) === 'Power Fist & Storm Bolter' ? [count] : [],
+      ),
+    )
+    expect(fists).toEqual([3])
+  })
+
   it("arms a Techmarine with the catalogue's one axe-and-servo-arm piece", () => {
     const file = officialApp(
       'Space Marines',
