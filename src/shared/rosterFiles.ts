@@ -623,30 +623,37 @@ function textRosterPick(
     // Lines a scoped model claims are not also the rest of the unit's to choose from, as a Scout Sergeant's shotgun is not a Scout's.
     // A choice offering that model still reads them, as the master vox under "4x Tempestus Scion" says which Scion carries it,
     // unless the list names its models apart, where each named model's lines already place its own wargear.
-    const claims = scopes.flatMap((scope, at) => (scope.scoped ? [{ key: choices[at]!.key, stated: scope.stated }] : []))
+    // What the claiming model holds leaves with its lines, so a Champion's plasma pistol is not one a squadmate already has.
+    const claims = scopes.flatMap((scope, at) => (scope.scoped ? [{ key: choices[at]!.key, stated: scope.stated, held: scope.held }] : []))
+    const without = (from: ReadonlyMap<string, number>, taken: ReadonlyMap<string, number>) => {
+      const left = new Map(from)
+      for (const [name, count] of taken) {
+        const rest = (left.get(name) ?? 0) - count
+        if (rest > 0) left.set(name, rest)
+        else left.delete(name)
+      }
+      return left
+    }
     scopes.forEach((scope, at) => {
       if (scope.scoped) return
       const { key, options } = choices[at]!
       const namedApart = options.filter((option) => stated.has(normalized(option.name))).length > 1
       const offered = (claim: { key: string }) => !namedApart && options.some((option) => claim.key.startsWith(`${key}/${option.id}/`))
-      const unclaimed = new Map(stated)
-      for (const under of new Set(claims.filter((claim) => !offered(claim)).map((claim) => claim.stated)))
-        for (const [name, count] of under) {
-          const left = (unclaimed.get(name) ?? 0) - count
-          if (left > 0) unclaimed.set(name, left)
-          else unclaimed.delete(name)
-        }
-      scope.stated = unclaimed
+      const claimed = new Map(claims.filter((claim) => !offered(claim)).map((claim) => [claim.stated, claim.held]))
+      scope.stated = [...claimed.keys()].reduce(without, stated)
+      scope.held = [...claimed.values()].reduce(without, held)
     })
-    const statedChoiceCounts = new Map(
-      choices.map((choice, at) => [
-        choice.key,
-        countsForChoice(choice, aliases[at]!, scopes[at]!.stated, scopes[at]!.held, models, (id) => optionWargear(id, loaded, context)),
-      ]),
-    )
     const offeredBy = countBy(
       aliases.flatMap((choice) => [...new Set([...choice.values()].flatMap((names) => [...names.keys()]))]),
       (name) => name,
+    )
+    const statedChoiceCounts = new Map(
+      choices.map((choice, at) => [
+        choice.key,
+        countsForChoice(choice, aliases[at]!, scopes[at]!.stated, scopes[at]!.held, models, offeredBy, (id) =>
+          optionWargear(id, loaded, context),
+        ),
+      ]),
     )
     // Models are counted even where only one may join, since choosing one would not place its body.
     const counted = (choice: (typeof choices)[number]) =>
@@ -1026,6 +1033,7 @@ function countsForChoice(
   stated: ReadonlyMap<string, number>,
   held: ReadonlyMap<string, number>,
   models: ReadonlySet<string>,
+  offeredBy: ReadonlyMap<string, number>,
   wargearOfOption: (id: string) => ReadonlyMap<string, number>,
 ) {
   const owners = countBy(
@@ -1039,6 +1047,11 @@ function countsForChoice(
   // vox-casters; a name nobody else carries says it best.
   const inChoice = (name: string) => options.reduce((total, option) => total + option.count * (aliases.get(option.id)?.get(name) ?? 0), 0)
   const distinctiveCounts = new Map<string, number>()
+  // A model replacing a squadmate keeps what that squadmate carried, so a bolt pistol the
+  // rest of the unit also holds cannot rule out the Berzerker who swapped his chainblade.
+  // Such a model takes only what no other choice could hold instead: a plasma pistol may
+  // be the Champion's, an eviscerator only a Berzerker's.
+  const undecided = new Set<string>()
   for (const option of options) {
     const owned = [...(aliases.get(option.id) ?? [])]
       .filter(([name]) => owners.get(name) === 1 && stated.has(name))
@@ -1047,7 +1060,9 @@ function countsForChoice(
     const distinctive = (alone.length ? alone : owned).map(({ elsewhere, stated: count, each }) =>
       Math.ceil(Math.max(0, count - elsewhere) / Math.max(1, each)),
     )
-    if (distinctive.length) distinctiveCounts.set(option.id, Math.min(...distinctive))
+    if (!distinctive.length) continue
+    distinctiveCounts.set(option.id, Math.min(...distinctive))
+    if (!alone.length && !distinctiveCounts.get(option.id) && models.has(normalized(option.name))) undecided.add(option.id)
   }
   if (!distinctiveCounts.size) {
     const named = new Map(
@@ -1070,16 +1085,19 @@ function countsForChoice(
     [...distinctiveCounts].reduce((total, [id, count]) => total + count * (aliases.get(id)?.get(name) ?? 0), 0)
   for (;;) {
     const [best] = options
-      .filter((option) => !distinctiveCounts.has(option.id))
+      .filter((option) => !distinctiveCounts.has(option.id) || undecided.has(option.id))
       .filter((option) => [...(aliases.get(option.id)?.keys() ?? [])].every((name) => owners.get(name) === 1 || isStated(name)))
       .map((option) => ({
         option,
-        names: [...(aliases.get(option.id) ?? [])].filter(([name]) => owners.get(name)! > 1 && leftOver(name) > 0),
+        names: [...(aliases.get(option.id) ?? [])].filter(
+          ([name]) => owners.get(name)! > 1 && leftOver(name) > 0 && (!undecided.has(option.id) || offeredBy.get(name) === 1),
+        ),
       }))
       .filter(({ names }) => names.length)
       .sort((left, right) => right.names.length - left.names.length)
     const free = room - [...distinctiveCounts.values()].reduce((total, count) => total + count, 0)
     if (!best || free <= 0) return distinctiveCounts
+    undecided.delete(best.option.id)
     distinctiveCounts.set(best.option.id, Math.min(free, ...best.names.map(([name, each]) => Math.floor(leftOver(name) / each))))
   }
 }

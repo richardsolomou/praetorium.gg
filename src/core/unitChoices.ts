@@ -394,9 +394,18 @@ function collectUnitChoices(
         // models that size counts, so their bodies above their own minimum are room too.
         // A unit of fixed size makes room the same way when taking a specialist lowers a
         // required model's minimum, as a Pathfinder Team's grenade launcher does.
+        // Models in an uncapped group nested within that one replace its sized model just
+        // the same, as Khorne Berzerkers with alternate weapons replace a Berzerker.
+        const nestedInSizing =
+          capacity === null &&
+          resizingGroup.length + 1 === here.length &&
+          resizingGroup.every((step, position) => step === here[position]) &&
+          choosable.every((option) => resolve(option.definition, index).type === 'model')
         const sizedBody = resizesUnit
           ? choosable.find((option) => option.id === resizingPath.at(-1) && !adjustable.includes(option))
-          : undefined
+          : nestedInSizing
+            ? childrenOf(target, index).find((option) => option.id === resizingPath.at(-1))
+            : undefined
         const sized =
           sizedBody ??
           (!isResizable(unitSize) && capacity !== null && fixed
@@ -407,7 +416,7 @@ function collectUnitChoices(
           ? 0
           : hasMutableMinimum(sized.definition, index, options.modifierCache)
             ? mutableSpare(selection, here, sized, adjustable, countOf, sizePath, index, options)
-            : Math.max(0, countOf(sized.id) - minimum(sized.definition) * scale)
+            : Math.max(0, (resizesUnit ? countOf(sized.id) : countAt(selection, sizePath)) - minimum(sized.definition) * scale)
         const adjustableRoom = separate
           ? sum(adjustable.map(roomFor))
           : resizesUnit || sized

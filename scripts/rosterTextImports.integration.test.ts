@@ -255,6 +255,58 @@ Grey Knights Terminator Squad (185 Points)
     expect(fielded).toContain('1x Terminator')
   })
 
+  // The datasheet opens its eviscerator models one per five Berzerkers, each taking a Berzerker's place.
+  it.each([
+    [
+      'the official app',
+      `Berzerkers (170 Points)
+
+World Eaters
+Berzerker Warband (1 Detachment Points)
+Purge the Foe
+Strike Force (2,000 Points)
+
+OTHER DATASHEETS
+
+Khorne Berzerkers (170 Points)
+  • 1x Khorne Berzerker Champion
+     ◦ 1x Chainblade
+     ◦ 1x Plasma pistol
+  • 9x Khorne Berzerker
+     ◦ 7x Bolt pistol
+     ◦ 7x Chainblade
+     ◦ 1x Icon of Khorne
+     ◦ 2x Khornate eviscerator
+     ◦ 2x Plasma pistol
+
+Exported with App Version: v2.8.1 (1), Data Version: v995`,
+    ],
+    [
+      'New Recruit',
+      `+++++++++++++++++++++++++++++++++++++++++++++++
++ FACTION KEYWORD: Chaos - World Eaters
++ DETACHMENT: Berzerker Warband
++ TOTAL ARMY POINTS: 170pts
++++++++++++++++++++++++++++++++++++++++++++++++
+
+10x Khorne Berzerkers (170 pts)
+• 9x Khorne Berzerker
+    7 with Bolt pistol, Chainblade
+    1 with Khornate eviscerator, Plasma pistol
+    1 with Icon of Khorne, Khornate eviscerator, Plasma pistol
+• 1x Khorne Berzerker Champion: Chainblade, Plasma pistol
+
+Created with newrecruit.eu v36.47`,
+    ],
+  ])('fields Khorne Berzerkers with eviscerators and plasma pistols from %s', (_source, file) => {
+    const { definitions } = catalogue.index
+    const unit = imported(file).units[0]!
+    const fielded = Object.values(unit.spreads).flatMap((spread) =>
+      Object.entries(spread).flatMap(([id, count]) => (count > 0 ? [`${count}x ${nameOf(definitions.get(id)!, definitions)}`] : [])),
+    )
+    expect(fielded).toEqual(['2x Khorne Berzerker w/ eviscerator and plasma pistol'])
+  })
+
   it('imports the reported official-app Custodes roster without mismatches', () => {
     expect(summary(custodesOfficial)).toEqual({
       format: 'roster-file',
