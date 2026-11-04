@@ -911,12 +911,12 @@ function textRosterPick(
                 : [],
             ),
           )
-          const loadouts = choices[enclosing]!.options.filter(
+          const marked = choices[enclosing]!.options.filter(
             (option) =>
               !statedLines.has(normalized(option.name)) &&
               [...(aliases[enclosing]!.get(option.id)?.keys() ?? [])].some((name) => stated.has(name) && !nested.has(name)),
           )
-          let over = total(asked.values()) - (modelCountOf(squad, loaded.index) - total(loadouts.map((option) => around[option.id] ?? 0)))
+          let over = total(asked.values()) - (modelCountOf(squad, loaded.index) - total(marked.map((option) => around[option.id] ?? 0)))
           asked = new Map(asked)
           for (const [id, count] of [...asked].toSorted((left, right) => right[1] - left[1])) {
             const cut = Math.max(0, Math.min(count, over))
