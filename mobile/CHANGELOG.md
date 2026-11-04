@@ -1,5 +1,11 @@
 # @praetorium/mobile
 
+## 1.4.2
+
+### Patch Changes
+
+- f4f9e11: Fix the iOS app closing as soon as it opens.
+
 ## 1.4.1
 
 ### Patch Changes

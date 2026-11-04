@@ -1,5 +1,13 @@
 # praetorium
 
+## 0.219.4 (2026-11-04)
+
+### Patch Changes
+
+- 57c9065: A list whose faction name isn't recognised now imports as the one faction its units belong to, when they clearly belong to one.
+- 57c9065: Official-app exports in Spanish and other languages now import their faction, detachments and force disposition.
+- 95b42b5: Official-app exports that count wargear without an "x", as the Spanish app does, now import their wargear.
+
 ## 0.219.3 (2026-11-04)
 
 ### Patch Changes
