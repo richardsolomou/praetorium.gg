@@ -65,6 +65,9 @@ jobs:
           POSTHOG_CLI_DRY_RUN: 'false'
         working-directory: mobile
         run: pnpm dlx eas-cli@23.2.0 env:exec production 'pnpm --dir .. exec tsx scripts/iosDeliveryPlan.ts plan stable' --non-interactive
+      - name: Check the precompiled Expo modules link
+        if: steps.canary.outputs.build == 'true' || steps.stable.outputs.build == 'true'
+        run: bash scripts/checkExpoPrecompiledLinks.sh
       - uses: ruby/setup-ruby@v1
         if: steps.canary.outputs.build == 'true' || steps.stable.outputs.build == 'true'
         with:
