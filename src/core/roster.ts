@@ -5,7 +5,7 @@ import { isCollective, storesUnitTotal } from './collective'
 import { childrenOf, MAX_DEPTH, maximumCount, type Option, pointsOf, requiredCount } from './definitions'
 import { evaluate, type EvaluateOptions, type Selection } from './evaluate'
 import { defaultSelection, expand, withChoice } from './expand'
-import { at as selectionAt, countAt, updateSelection, withCounts } from './selection'
+import { allAt, at as selectionAt, countAt, updateSelection, withCounts } from './selection'
 import { type ChoiceOptions, isUnitCompositionChoice, type UnitChoice, unitChoices, type UnitToggle, unitToggles } from './unitChoices'
 import { boundedGroups, modelCountOf, sizeOf, type UnitSize } from './unitSize'
 import { withUnitChoice, withUnitSpread } from './unitSpread'
@@ -182,7 +182,13 @@ function assemble(
   const current = countAt(toggled, size.path)
   const resized = withCounts(toggled, [{ path: size.path, count: Math.max(0, current + (wanted - size.models)) }])
   const resizedModel = `${size.path.join('/')}/`
-  const restored = requests.filter(([key]) => key.startsWith(resizedModel) && !modelGroup(key)).reduce(applySpread, resized)
+  // A spread the smaller squad could not hold is asked again at the size requested, since a limit can depend on it,
+  // as a Neophyte squad arms its second pair of heavy weapons only at twenty models.
+  const carried = (key: string) => allAt(resized, key.split('/').slice(0, -1)).reduce((total, model) => total + (model.count ?? 1), 0)
+  const asked = (counts: Record<string, number>) => Object.values(counts).reduce((total, count) => total + count, 0)
+  const restored = requests
+    .filter(([key, counts]) => !modelGroup(key) && (key.startsWith(resizedModel) || carried(key) < asked(counts)))
+    .reduce(applySpread, resized)
   const selection = refit(restored, index, 1, context)
   return finishUnit(entryId, settleProfileWeaponSwaps(selection, index, context), { ...size, models: wanted }, index, fittedContext)
 }
