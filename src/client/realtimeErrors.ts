@@ -43,6 +43,8 @@ export function isExpectedRealtimeDisconnect(error: unknown): boolean {
     message.includes('connection closed') ||
     message.startsWith('WebSocket closed') ||
     message === 'Session busy' ||
-    message.startsWith('Failed to verify token')
+    message.startsWith('Failed to verify token') ||
+    // A scraper's stubbed WebSocket refuses every address with this text; Chrome's own refusal names the address.
+    message.endsWith('Failed to create a WebSocket: the provided URL is invalid.')
   )
 }
