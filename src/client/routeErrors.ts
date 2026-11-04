@@ -50,9 +50,39 @@ export function moduleRecoveryUrl(href: string, now = Date.now()) {
   return url.href
 }
 
-export function reloadModuleRoute() {
+/**
+ * Scripts are cached as immutable, so Safari reuses its stored copy on every reload and a bad copy fails the same import
+ * each time. Fetching each script the page lists with `cache: 'reload'` replaces the stored copy before the reload.
+ * Returns how many of them could not be fetched.
+ */
+async function refreshPageScripts(urls: string[]) {
+  const signal = AbortSignal.timeout(10_000)
+  const results = await Promise.allSettled(
+    urls.map(async (url) => {
+      const response = await fetch(url, { cache: 'reload', signal })
+      if (!response.ok) throw new Error(String(response.status))
+      await response.blob()
+    }),
+  )
+  return results.filter((result) => result.status === 'rejected').length
+}
+
+export async function reloadModuleRoute() {
   const url = moduleRecoveryUrl(window.location.href)
-  posthog.capture('route_recovery_started', { failure_kind: 'module_load', recovery_attempt: moduleRecoveryAttempt(url) })
+  const scripts = [
+    ...new Set([
+      ...Array.from(document.querySelectorAll<HTMLLinkElement>('link[rel="modulepreload"]'), (link) => link.href),
+      ...Array.from(document.querySelectorAll<HTMLScriptElement>('script[type="module"][src]'), (script) => script.src),
+    ]),
+  ]
+  // Safari before 16 has no AbortSignal.timeout; the refresh must never keep the page from reloading.
+  const failures = await refreshPageScripts(scripts).catch(() => scripts.length)
+  posthog.capture('route_recovery_started', {
+    failure_kind: 'module_load',
+    recovery_attempt: moduleRecoveryAttempt(url),
+    scripts_refreshed: scripts.length,
+    script_refresh_failures: failures,
+  })
   window.location.replace(url)
 }
 

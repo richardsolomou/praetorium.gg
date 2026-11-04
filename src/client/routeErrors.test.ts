@@ -13,6 +13,7 @@ import {
   completedRouteRecovery,
   mayReloadCancelledLoad,
   moduleRecoveryUrl,
+  reloadModuleRoute,
   reloadStaleBuild,
   notFoundPage,
   reportRouteError,
@@ -102,6 +103,29 @@ it('replaces an earlier recovery key while bounding the reported attempt', () =>
   expect(moduleRecoveryUrl('https://praetorium.gg/factions?__route_retry=1234.3', 5678)).toBe(
     'https://praetorium.gg/factions?__route_retry=5678.3',
   )
+})
+
+it('fetches the page scripts again past the browser cache before reloading a failed import', async () => {
+  vi.stubGlobal('document', {
+    querySelectorAll: (selector: string) =>
+      selector.includes('modulepreload')
+        ? [{ href: 'https://praetorium.gg/assets/index.js' }, { href: 'https://praetorium.gg/assets/simulator.js' }]
+        : [{ src: 'https://praetorium.gg/assets/index.js' }],
+  })
+  const fetched: [string, RequestCache | undefined, number][] = []
+  vi.stubGlobal('fetch', async (url: string, init: RequestInit) => {
+    fetched.push([url, init.cache, replace.mock.calls.length])
+    return new Response('', { status: url.endsWith('simulator.js') ? 404 : 200 })
+  })
+  await reloadModuleRoute()
+  expect([fetched, capture.mock.calls, replace.mock.calls.length]).toEqual([
+    [
+      ['https://praetorium.gg/assets/index.js', 'reload', 0],
+      ['https://praetorium.gg/assets/simulator.js', 'reload', 0],
+    ],
+    [['route_recovery_started', { failure_kind: 'module_load', recovery_attempt: 1, scripts_refreshed: 2, script_refresh_failures: 1 }]],
+    1,
+  ])
 })
 
 it('removes only the recovery key after the destination resolves', () => {
@@ -254,4 +278,11 @@ it('holds a not-found report made before the SDK loads until it loads', () => {
   expect(capture).not.toHaveBeenCalled()
   POSTHOG_BROWSER_OPTIONS.loaded(client as unknown as PostHog)
   expect(capture).toHaveBeenCalledWith('page_not_found', { path: '/:id' })
+})
+
+it('reloads a failed import on a browser that cannot time out the script refresh', async () => {
+  vi.stubGlobal('document', { querySelectorAll: () => [{ href: 'https://praetorium.gg/assets/index.js' }] })
+  vi.stubGlobal('AbortSignal', {})
+  await reloadModuleRoute()
+  expect(replace.mock.calls.length).toBe(1)
 })

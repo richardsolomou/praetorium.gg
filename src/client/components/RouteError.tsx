@@ -16,6 +16,7 @@ import { FullPageState } from './PageState'
 export function RouteError({ error }: ErrorComponentProps) {
   const router = useRouter()
   const [reload] = useState(() => error instanceof CancelledError && mayReloadCancelledLoad())
+  const [reloadingModules, setReloadingModules] = useState(false)
   useEffect(() => {
     if (reload) {
       void router.invalidate()
@@ -37,7 +38,14 @@ export function RouteError({ error }: ErrorComponentProps) {
       explanation={routeErrorExplanation(error)}
       action={
         isModuleLoadFailure(error) ? (
-          <Button data-route-error onClick={reloadModuleRoute}>
+          <Button
+            data-route-error
+            disabled={reloadingModules}
+            onClick={() => {
+              setReloadingModules(true)
+              void reloadModuleRoute()
+            }}
+          >
             Reload
           </Button>
         ) : (
