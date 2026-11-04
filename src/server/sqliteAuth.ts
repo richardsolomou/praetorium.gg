@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import type { Account, GenericEndpointContext } from 'better-auth'
 import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
@@ -18,8 +19,8 @@ import {
   standardSessionOptions,
   trustedOrigins,
 } from 'ras-stack/auth'
-import { standardAuthEmails, type EmailDelivery } from 'ras-stack/email'
 import { errorHasCode } from 'ras-stack/server'
+import type { EmailDelivery, EmailTemplate } from '../adapters/email'
 import { PASSWORD_MIN_LENGTH, SOCIAL_PROVIDERS, type SocialAuthProvider } from '../authConfig'
 import { account, schema, session as sessionTable, user } from '../db/authSchema'
 import { oauthAccessToken, oauthClient, oauthConsent, oauthRefreshToken, oauthSchema } from '../db/oauthSchema'
@@ -31,6 +32,21 @@ import { isNativeOAuthState } from './nativeOAuthState'
 import { guestDeviceSubject } from '../core/guestSession'
 
 type Environment = NodeJS.ProcessEnv
+
+/** The token is a secret, so the idempotency key PostHog keeps carries only its digest. */
+function accountEmails(email: EmailDelivery) {
+  const send =
+    (template: EmailTemplate) =>
+    ({ user: recipient, url, token }: { user: { id: string; email: string }; url: string; token: string }) =>
+      email.send({
+        template,
+        to: recipient.email,
+        distinctId: recipient.id,
+        data: { url },
+        idempotencyKey: `${template}:${createHash('sha256').update(token).digest('hex')}`,
+      })
+  return { sendResetPassword: send('resetPassword'), sendVerificationEmail: send('verifyEmail') }
+}
 
 type AuthOptions = {
   environment: Environment
@@ -77,7 +93,7 @@ export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret
   const audience = environment.SPACETIME_AUDIENCE
   if (!/^[a-z0-9][a-z0-9-]{0,127}$/.test(audience ?? '')) throw new Error('SPACETIME_AUDIENCE is required')
   const configuredApple = appleCredentials(environment)
-  const authEmails = options.email ? standardAuthEmails(options.email, { productName: 'Praetorium' }) : undefined
+  const authEmails = options.email ? accountEmails(options.email) : undefined
   const deploymentOrigins = trustedOrigins({
     trustForwardedHeaders: true,
     configured: [environment.APP_URL, ...(configuredAuthProviders(environment).includes('apple') ? [APPLE_AUTH_ORIGIN] : [])],

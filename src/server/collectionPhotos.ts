@@ -233,15 +233,14 @@ export function collectionPhotoReportEmail(
   appUrl: string,
 ) {
   return {
-    subject: 'Praetorium photo report',
-    text: [
-      `Reported by: ${reporter.name} <${reporter.email}>`,
-      `Photo: ${new URL(collectionPhotoPath(report.photoId), appUrl).href}`,
-      `Owner: ${new URL(`/users/${report.ownerId}?tab=collection`, appUrl).href}`,
-      '',
-      report.reason || 'No reason given.',
-      '',
-      `Review it at ${new URL('/admin?tab=photos', appUrl).href}. It stays hidden until you keep or remove it, unless an administrator kept it before.`,
-    ].join('\n'),
+    template: 'photoReport' as const,
+    data: {
+      reporter_name: reporter.name,
+      reporter_email: reporter.email,
+      photo_url: new URL(collectionPhotoPath(report.photoId), appUrl).href,
+      owner_url: new URL(`/users/${report.ownerId}?tab=collection`, appUrl).href,
+      reason: report.reason || 'No reason given.',
+      review_url: new URL('/admin?tab=photos', appUrl).href,
+    },
   }
 }
