@@ -145,6 +145,12 @@ describe.skipIf(!fs.existsSync(source))('genuine exports from other army builder
       'Houndpack Lance',
       "War Dog Karnivore (175 points)\n  • Warlord\n  • Houndpack Lance Keyword: Character\n  • 1x Havoc multi-launcher\n    1x Reaper chaintalon\n    1x Slaughterclaw\n  • Enhancement: Preyslayer's Mantle",
     ],
+    [
+      'its kind without the bracketed loadout',
+      'Adeptus Mechanicus',
+      'Haloscreed Battle Clade',
+      'Sicarian Infiltrators (75 points)\n  • 1x Sicarian Infiltrator Princeps\n    • 1x Flechette blaster\n      1x Taser goad\n  • 4x Sicarian Infiltrator\n    • 4x Flechette blaster\n      4x Taser goad',
+    ],
   ])('reads an official-app model named by %s', (_shape, faction, detachment, unit) => {
     expect(summary(official(faction, detachment, unit)).mismatches).toEqual([])
   })

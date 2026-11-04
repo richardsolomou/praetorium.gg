@@ -531,8 +531,12 @@ function detachmentsNamed<T extends { id: string; name: string }>(
 const upgradeName = (name: string) => name.replace(/(?:\s+\((?:one per army|Upgrade)\))+$/i, '')
 const nameVariants = (name: string) => normalizedNameVariants(normalized(name))
 const modelLoadout = /\s+w\/\s*(.+)$/i
+// BSData can also bracket the loadout, as a "Sicarian Infiltrator Princeps (Taser goad & flechette blaster)".
 const modelAliases = (name: string) => {
-  const kind = name.replace(modelLoadout, '').replace(/\s+(?:Squad|Sodality)$/i, '')
+  const kind = name
+    .replace(modelLoadout, '')
+    .replace(/\s+\([^()]+\)$/, '')
+    .replace(/\s+(?:Squad|Sodality)$/i, '')
   // Ork plurals end in z, as BSData's "Flash Gitz" model is the official app's "Flash Git".
   return [normalized(name), ...nameVariants(kind), ...(/[^z]z$/i.test(kind) ? [normalized(kind.slice(0, -1))] : [])]
 }
