@@ -5,7 +5,7 @@ import path from 'node:path'
 import { buildIndex, type CatalogueFile } from '../core/catalogue'
 import { editionCatalogueFiles, type CatalogueEdition } from '../core/catalogueEdition'
 import { catalogueReferencePolicySchema, datacardExclusions } from '../core/catalogueReferencePolicy'
-import { loadDatacardsSteps } from './datacards'
+import { loadDatacardsSteps, paragraphsOf } from './datacards'
 import { catalogueSections } from './catalogueSections'
 import { loadMfmSteps } from './mfm'
 import { readSharedJson } from './sharedJson'
@@ -77,7 +77,12 @@ function definitionTexts(paths: ReadonlyMap<CatalogueFile, string>) {
         const texts = publishedTexts(location)
         const visit = (value: unknown, key?: string) => {
           if (typeof value === 'string') {
-            if ((key === '$text' || key === 'description') && value.trim() && !tokens!.has(value)) tokens!.set(value, texts(value, 'plain'))
+            if ((key === '$text' || key === 'description') && value.trim() && !tokens!.has(value)) {
+              tokens!.set(value, texts(value, 'plain'))
+              // A card that prints a table as an image quotes the catalogue's paragraphs for it.
+              for (const [at, paragraph] of paragraphsOf(value).entries())
+                if (paragraph !== value && !tokens!.has(paragraph)) tokens!.set(paragraph, texts(value, `para${at}`))
+            }
           } else if (Array.isArray(value)) for (const entry of value) visit(entry)
           else if (value && typeof value === 'object') for (const [field, entry] of Object.entries(value)) visit(entry, field)
         }

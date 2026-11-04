@@ -9,15 +9,10 @@ export function catalogueSections(index: CatalogueIndex): SectionProse {
     const found = new Map<string, string>()
     if (!titles.length) return found
     const books = booksOf(index, faction)
-    const named = joinKey(entry)
     const keys = titles.map(joinKey)
-    const covering = [...index.definitions.values()]
-      .filter(
-        (definition) =>
-          definition.profiles?.length && joinKey(definition.name ?? '') === named && books.has(index.catalogueOf.get(definition.id) ?? ''),
-      )
-      .map(sectionProse)
-      .filter((prose) => keys.every((key) => prose.has(key)))
+    const covering = (entry === null ? [armyRuleProse(index, books)] : entryProse(index, books, joinKey(entry))).filter((prose) =>
+      keys.every((key) => prose.has(key)),
+    )
     for (const [at, title] of titles.entries()) {
       const said = new Set(covering.map((prose) => prose.get(keys[at]!)!))
       if (said.size === 1) found.set(title, said.values().next().value!)
@@ -44,13 +39,39 @@ function booksOf(index: CatalogueIndex, faction: string) {
   )
 }
 
-/** What one entry says about each of the profiles it names. */
+const entryProse = (index: CatalogueIndex, books: ReadonlySet<string>, named: string) =>
+  [...index.definitions.values()]
+    .filter(
+      (definition) =>
+        (definition.profiles?.length || definition.rules?.length) &&
+        joinKey(definition.name ?? '') === named &&
+        books.has(index.catalogueOf.get(definition.id) ?? ''),
+    )
+    .map(sectionProse)
+
+/** The faction's own rules, unless two of its books word one differently. */
+function armyRuleProse(index: CatalogueIndex, books: ReadonlySet<string>) {
+  const found = new Map<string, string>()
+  const conflicting = new Set<string>()
+  for (const rule of index.rules.values()) {
+    if (!rule.name || rule.hidden || !rule.description || !books.has(index.ruleCatalogueOf.get(rule.id) ?? '')) continue
+    const key = joinKey(rule.name)
+    if ((found.get(key) ?? rule.description) !== rule.description) conflicting.add(key)
+    found.set(key, rule.description)
+  }
+  for (const key of conflicting) found.delete(key)
+  return found
+}
+
+/** What one entry says about each of the profiles and rules it names. */
 function sectionProse(definition: Definition) {
   const found = new Map<string, string>()
   for (const profile of definition.profiles ?? []) {
     const description = profileDescription(profile)
     if (profile.name && !profile.hidden && description) found.set(joinKey(profile.name), description)
   }
+  for (const rule of definition.rules ?? [])
+    if (rule.name && !rule.hidden && rule.description) found.set(joinKey(rule.name), rule.description)
   return found
 }
 
