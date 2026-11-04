@@ -133,6 +133,12 @@ describe.skipIf(!fs.existsSync(source))('genuine exports from other army builder
       'Spectacle of Spite',
       'Hellions (90 points)\n  • 1x Helliarch\n    • 1x Hellglaive\n      1x Splinter pods\n  • 4x Hellion\n    • 4x Hellglaive\n      4x Splinter pods',
     ],
+    [
+      'the keyword its upgrade grants',
+      'Tyranids',
+      'Subterranean Assault',
+      'Trygon (155 points)\n  • Subterranean Assault Keywords: Character\n  • 1x Bio-electric pulse\n    1x Trygon scything talons\n  • Enhancement: Trygon Prime',
+    ],
   ])('reads an official-app model named by %s', (_shape, faction, detachment, unit) => {
     expect(summary(official(faction, detachment, unit)).mismatches).toEqual([])
   })

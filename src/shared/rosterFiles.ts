@@ -900,7 +900,12 @@ function carriedNames(selection: Selection, index: LoadedCatalogue['index']) {
 
 /** The keywords an upgrade gives its unit, which the official app prints in place of the upgrade, as Steel Hammer's "Keywords: Character". */
 function grantedKeywords(definition: Definition, target: Definition, index: LoadedCatalogue['index']) {
-  return [...(definition.modifiers ?? []), ...(target.modifiers ?? [])].flatMap((modifier) => {
+  // A Trygon's Character upgrade grants it in a group that also makes it the primary keyword.
+  const modifiers = [definition, target].flatMap((source) => [
+    ...(source.modifiers ?? []),
+    ...(source.modifierGroups ?? []).flatMap((group) => group.modifiers ?? []),
+  ])
+  return modifiers.flatMap((modifier) => {
     if (modifier.field !== 'category' || modifier.type !== 'add' || typeof modifier.value !== 'string') return []
     const keyword = index.categories.get(modifier.value)?.name
     return keyword ? [normalized(keyword)] : []
