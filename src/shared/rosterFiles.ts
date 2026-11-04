@@ -1,4 +1,4 @@
-import { countBy } from '../core/collections'
+import { countBy, remember } from '../core/collections'
 import { version } from '../../package.json'
 import type { Attachment } from '../core/attach'
 import { attachmentRows } from '../core/attachmentRows'
@@ -546,6 +546,8 @@ const spellingKey = (name: string) =>
     .replaceAll(/[\s-]/g, '')
 // The official app prints some datasheets' power weapon as the sword or maul the model holds, as Bladeguard Veterans' "Master-crafted Power Sword".
 const powerWeaponKey = (key: string) => key.replace(/power(?:sword|maul)/, 'powerweapon')
+// The official app names a datasheet's plain melee profile "Close combat weapon" where the catalogue names it for what it is, as a Prosecutor's "Gun Stock".
+const GENERIC_MELEE = spellingKey('close combat weapon')
 /** The kind of model a counted group fields, as "1 - 2 Gun Servitors" fields a "Gun Servitor", which the official app names it by. */
 const groupKind = (name: string) => normalized(name).match(/^\d+(?:\s*-\s*\d+)?\s+(.+?)s?$/)?.[1]
 
@@ -595,6 +597,7 @@ function textRosterPick(
   }
   const context = { primaryCatalogueId: catalogueId, roster }
   let manualNames: ReadonlyMap<string, string> | undefined
+  const defaultMelee = new Map<string, string | null>()
   for (const selection of unit.selections) {
     const enhancement = /^(?:Enhancements?|Upgrade):/i.test(selection.name)
     const label = selection.name.replace(/^(?:Enhancements?|Upgrade):\s*(.+)$/i, (_, name: string) => upgradeName(name)).trim()
@@ -608,6 +611,7 @@ function textRosterPick(
     const name =
       (respelled.has(key) ? respelled.get(key) : (respelled.get(powerWeaponKey(key)) ?? unprefixed(label) ?? bearer(label))) ??
       (enhancement ? manualNames?.get(normalized(label)) : undefined) ??
+      (key === GENERIC_MELEE ? remember(defaultMelee, key, () => soleDefaultMelee(entryId, loaded.index, context)) : null) ??
       normalized(label)
     stated.set(name, (stated.get(name) ?? 0) + selection.count)
     if (!selection.model) statedLines.set(name, (statedLines.get(name) ?? 0) + selection.count)
@@ -1002,6 +1006,30 @@ function carriedNames(selection: Selection, index: LoadedCatalogue['index']) {
   }
   walk(selection)
   return found
+}
+
+/** The one melee weapon every model of a datasheet starts with, or null where they start with several or none. */
+function soleDefaultMelee(
+  entryId: string,
+  index: LoadedCatalogue['index'],
+  context: { primaryCatalogueId: string; roster: readonly Selection[] },
+) {
+  const names = new Set<string>()
+  const walk = (node: Selection) => {
+    const definition = index.definitions.get(node.id)
+    const target = definition && resolve(definition, index)
+    const linked = (target?.infoLinks ?? []).flatMap((link) => (link.type === 'profile' ? [index.shared.get(link.targetId)] : []))
+    if (
+      definition &&
+      target?.type === 'upgrade' &&
+      [...(target.profiles ?? []), ...linked].some((held) => held && 'typeName' in held && held.typeName === 'Melee Weapons')
+    )
+      names.add(normalized(nameOf(definition, index.definitions)))
+    node.selections?.forEach(walk)
+  }
+  const built = buildUnit(entryId, index, undefined, {}, context)
+  if (built) walk(built.selection)
+  return names.size === 1 ? [...names][0]! : null
 }
 
 /** The keywords an upgrade gives its unit, which the official app prints in place of the upgrade, as Steel Hammer's "Keywords: Character". */

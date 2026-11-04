@@ -149,6 +149,15 @@ describe.skipIf(!fs.existsSync(source))('genuine exports from other army builder
     expect(summary(official(faction, detachment, unit)).mismatches).toEqual([])
   })
 
+  it("reads the official app's close combat weapon as the one melee weapon a datasheet starts with", () => {
+    const file = official(
+      'Adeptus Custodes',
+      'Lions of the Emperor',
+      'Prosecutors (55 points)\n  • 1x Prosecutor Sister Superior\n    • 1x Boltgun\n      1x Close combat weapon\n  • 4x Prosecutor\n    • 4x Boltgun\n      4x Close combat weapon',
+    )
+    expect(summary(file).mismatches).toEqual([])
+  })
+
   const priced = (file: string) => {
     const result = imported(file)
     return calculateRosterPrice(
