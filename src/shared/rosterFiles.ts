@@ -333,7 +333,9 @@ function importTextRoster(
       datasheets.find((datasheet) => spelled(datasheet.name) === spelled(name)) ??
       datasheets.find((datasheet) => spelled(datasheet.name) === `${spelled(name)} [legends]`)
     const plural = datasheets.filter((datasheet) => nameVariants(datasheet.name).includes(name))
-    const found = exact?.id ?? (plural.length === 1 ? plural[0]!.id : undefined)
+    // Older official-app data names a squad by its models, as "Witchseekers" for "Witchseeker Squad".
+    const squad = datasheets.filter((datasheet) => nameVariants(datasheet.name.replace(/ (?:squad|sodality)$/, '')).includes(name))
+    const found = exact?.id ?? [plural, squad].find((matches) => matches.length === 1)?.[0]!.id
     const [first, ...rest] = name.split(' ')
     return found ?? (rest.length && factionWords.has(first!) ? datasheetNamed(rest.join(' ')) : undefined)
   }

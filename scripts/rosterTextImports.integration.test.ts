@@ -319,6 +319,13 @@ Created with newrecruit.eu v36.47`,
     })
   })
 
+  it('matches a squad that older official-app data names by its models', () => {
+    expect(summary(custodesOfficial.replaceAll('Witchseeker Squad (', 'Witchseekers ('))).toMatchObject({
+      units: '10 of 10',
+      mismatches: [],
+    })
+  })
+
   it.each([
     ['the reported Custodes', custodesFortyKApp, 'Imperium - Adeptus Custodes', 2, '4 of 4', 1, '980 for 980'],
     ['Space Wolves with allies', spaceWolvesFortyKApp, 'Imperium - Adeptus Astartes - Space Wolves', 3, '12 of 12', 2, '2565 for 2565'],
