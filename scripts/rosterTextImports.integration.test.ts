@@ -370,6 +370,36 @@ Created with newrecruit.eu v36.47`,
     expect(fielded).toEqual(['2x Khorne Berzerker w/ eviscerator and plasma pistol'])
   })
 
+  const officialApp = (faction: string, unit: string) => `Imported (2,000 Points)
+
+${faction}
+Strike Force (2,000 Points)
+
+OTHER DATASHEETS
+
+${unit}
+
+Exported with App Version: v2.8.1 (1), Data Version: v995`
+
+  // Lists that placed at tournaments, each placing wargear where the catalogue nests or shares it.
+  it.each([
+    [
+      'storm bolter and hunter-killer missile in one uncapped group',
+      'Adepta Sororitas',
+      'Castigator',
+      `Castigator (165 points)
+  • 1x Armoured tracks
+    1x Castigator autocannons
+    3x Heavy bolter
+    1x Hunter-killer missile
+    1x Storm bolter`,
+      ['1x hunter-killer missile', '1x storm bolter'],
+    ],
+  ])('places %s', (_case, faction, unit, text, pieces) => {
+    const held = wargear(officialApp(faction, text), unit)
+    for (const piece of pieces) expect(held).toContain(piece)
+  })
+
   it('imports the reported official-app Custodes roster without mismatches', () => {
     expect(summary(custodesOfficial)).toEqual({
       format: 'roster-file',

@@ -335,15 +335,18 @@ function collectUnitChoices(
           : scaleOf(child.definition, definition, index, carriers)
         const capacity = maximumCountAt(selection, here, child.definition, index, options)
         const fixed = choosable.some((option) => minimum(option.definition) > 0)
-        // Wargear in a group with no cap, hanging straight off an entry, shares no room: a
-        // Ratlings squad may take its Battlemutt and its demolition gear together. Models
-        // still compete for the squad's bodies, and an enclosing group's cap still counts
-        // what its nested groups hold. Specialists that each take a squadmate's place, as
-        // a Skitarii Rangers' options do, compete for no shared room either.
+        // Wargear in a group with no cap, hanging off an entry or only uncapped groups, shares
+        // no room: a Ratlings squad may take its Battlemutt and its demolition gear together,
+        // and a Castigator its storm bolter and hunter-killer missile. Models still compete
+        // for the squad's bodies, and an enclosing group's cap still counts what its nested
+        // groups hold. Specialists that each take a squadmate's place, as a Skitarii Rangers'
+        // options do, compete for no shared room either.
         const independent =
           capacity === null &&
           choosable.length > 1 &&
-          ((!fixed && target.type !== undefined && choosable.every((option) => resolve(option.definition, index).type === 'upgrade')) ||
+          ((!fixed &&
+            uncappedFromEntry(selection, trail, enclosing, index, options) &&
+            choosable.every((option) => resolve(option.definition, index).type === 'upgrade')) ||
             choosable.every((option) => /^This model can be equipped with 1 .+\.$/i.test(resolve(option.definition, index).name ?? '')) ||
             replacesSquadmate(child.definition, childrenOf(target, index), index, options.modifierCache))
         const roomFor = (option: Option) => scaled(maximumCount(option.definition, index), scale)
@@ -673,6 +676,19 @@ function mutableSpare(
     if (fits) return count
   }
   return 0
+}
+
+/** Whether every group between the entry and `trail` leaves its contents uncapped; `enclosing[depth]` sits at `trail.slice(0, depth)`. */
+function uncappedFromEntry(
+  selection: Selection,
+  trail: readonly string[],
+  enclosing: readonly Definition[],
+  index: CatalogueIndex,
+  options: EvaluateOptions,
+) {
+  for (let depth = trail.length; depth > 0 && resolve(enclosing[depth]!, index).type === undefined; depth--)
+    if (maximumCountAt(selection, trail.slice(0, depth), enclosing[depth]!, index, options) !== null) return false
+  return true
 }
 
 const occupantRoom = (choosable: Option[], index: CatalogueIndex) =>
