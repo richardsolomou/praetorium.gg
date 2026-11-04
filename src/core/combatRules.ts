@@ -68,6 +68,10 @@ export type CombatRuleEffect = {
   criticalWound?: number
   criticalWoundRequiresSuccess?: boolean
   allHitsCritical?: boolean
+  /** Spends the phase's one change of a failed Hit or Wound roll to an unmodified 6. */
+  unmodifiedSix?: 'hit' | 'wound'
+  /** Models with any of these keywords make their attacks without the effect. */
+  excludedModelKeywords?: string[]
   invulnerable?: number
   save?: number
   /** Improves the Save characteristic, never past `best`. */
@@ -205,6 +209,20 @@ export function combatRuleChoices(rule: CombatRule): CombatRuleChoice[] {
     ]
   }
 
+  const tokens =
+    /^Once per battle for each .+? token this unit has, you can change the result of one Hit roll or one Wound roll made for a model in this unit(?: \(excluding (.+?) models\))? to an unmodified 6\.(?: Designer's Note: .*)?$/i.exec(
+      text,
+    )
+  if (tokens) {
+    const excluded = tokens[1] ? { excludedModelKeywords: tokens[1].split(/,\s*|\s+or\s+/i) } : {}
+    return (['ranged', 'melee'] as const).flatMap((phase) =>
+      (['hit', 'wound'] as const).map((roll) => ({
+        label: `${phase === 'ranged' ? 'Shooting' : 'Melee'} ${roll} roll`,
+        effects: [attack({ unmodifiedSix: roll, ...excluded }, [phase])],
+      })),
+    )
+  }
+
   const markedTarget =
     /^If your Army Faction is .+?, at the start of your Command phase, select one unit from your opponent's army\. Until the start of your next Command phase, that enemy unit is your (.+?) target\. Each time a model with this ability makes an attack that targets your \1 target: ■ You can re-roll the Hit roll\.? ■ If (.+), add 1 to the Wound roll as well\.?$/i.exec(
       text,
@@ -250,7 +268,7 @@ export function combatRuleRoles(description: string): CombatRuleEffect['role'][]
   const offensiveTarget = /select [^.]*enemy|enemy unit hit by|that targets (?:a|an|the closest|your .+? target)/i.test(text)
   const attackingText = text.replace(/(?:until|after|just after) (?:an enemy|the attacking) unit [^.]*?(?:attacks|fought|shot), /gi, '')
   const attacking =
-    /(?:a model (?:in|with)|this model|the bearer|this unit)[^.;]*?makes? (?:a ranged |a melee |a |an )attack|weapons? equipped|(?:this|that|your) unit(?:'s)?[^.;]*?(?:attacks?[^.;]*?have|weapons? have)|this unit['’]s (?:ranged |melee )?attacks|re-roll (?:one |the )?(?:hit|wound|damage) rolls?|critical hit|lethal hits|sustained hits|devastating wounds|ignores cover|twin-linked|\+[1-9]\s*A\b/i.test(
+    /(?:a model (?:in|with)|this model|the bearer|this unit)[^.;]*?makes? (?:a ranged |a melee |a |an )attack|weapons? equipped|(?:this|that|your) unit(?:'s)?[^.;]*?(?:attacks?[^.;]*?have|weapons? have)|this unit['’]s (?:ranged |melee )?attacks|re-roll (?:one |the )?(?:hit|wound|damage) rolls?|change the result of one (?:hit|wound) roll|critical hit|lethal hits|sustained hits|devastating wounds|ignores cover|twin-linked|\+[1-9]\s*A\b/i.test(
       attackingText,
     )
   const incoming = text.replace(/(?:a model|this model|the bearer|this unit)[^.;]*?makes? (?:a ranged |a melee |a |an )attack[^,.;]*/gi, '')
@@ -630,6 +648,13 @@ export function combatRuleWeapons(
         for (const field of ['ignoreHitModifiers', 'ignoreWoundModifiers', 'ignoreSkillModifiers'] as const)
           if (effect[field]) next[field] = true
         if (effect.allHitsCritical) next.allHitsCritical = true
+        if (
+          effect.unmodifiedSix &&
+          !effect.excludedModelKeywords?.some((excluded) =>
+            source.keywords.some((keyword) => combatTextKey(keyword) === combatTextKey(excluded)),
+          )
+        )
+          next.unmodifiedSix = effect.unmodifiedSix
         if (effect.condition === 'critical-wound' && effect.characteristic?.kind === 'armour-penetration')
           next.criticalAp = (next.criticalAp ?? 0) + (effect.characteristic.add ?? 0)
         if (effect.condition === 'stronger')

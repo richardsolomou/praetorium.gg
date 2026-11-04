@@ -116,6 +116,8 @@ export function attackSequence({ target, weapons, options, mortalWounds = [] }: 
   const ranged = options.phase === 'ranged'
   // Each single-die re-roll goes to the first roll of its kind that qualifies.
   const left = singleRerollCounts(options)
+  // Likewise the phase's one change of a failed roll to an unmodified 6.
+  let six = true
   for (const weapon of weapons) {
     if (killed === models) return { damage, killed }
     const defending = toughness()
@@ -141,18 +143,26 @@ export function attackSequence({ target, weapons, options, mortalWounds = [] }: 
       remaining -= lost
       if (remaining <= 0) destroyOne()
     }
+    const changed = (result: ReturnType<typeof check>, kind: 'hit' | 'wound') => {
+      if (result.success || !six || weapon.unmodifiedSix !== kind) return result
+      six = false
+      return { success: true, critical: true, value: 6, spent: false }
+    }
     const saves: boolean[] = []
     const resolveHit = (automatic: boolean) => {
       const result = automatic
         ? { success: true, critical: false, value: 0, spent: false }
-        : check(
-            wound,
-            woundBonus,
-            weapon.criticalWound,
-            weapon.twinLinked ? 'failed' : bestReroll(options.woundReroll, weapon.woundReroll),
-            random,
-            2,
-            left.wound > 0,
+        : changed(
+            check(
+              wound,
+              woundBonus,
+              weapon.criticalWound,
+              weapon.twinLinked ? 'failed' : bestReroll(options.woundReroll, weapon.woundReroll),
+              random,
+              2,
+              left.wound > 0,
+            ),
+            'wound',
           )
       if (result.spent) left.wound--
       if (!result.success) return
@@ -172,14 +182,17 @@ export function attackSequence({ target, weapons, options, mortalWounds = [] }: 
         if (killed === models) break
         const hit = weapon.torrent
           ? { success: true, critical: false, value: 0, spent: false }
-          : check(
-              skill,
-              hitBonus,
-              weapon.criticalHit ?? 6,
-              indirect ? 'none' : bestReroll(options.hitReroll, weapon.hitReroll),
-              random,
-              hitMinimum,
-              left.hit > 0 && !indirect,
+          : changed(
+              check(
+                skill,
+                hitBonus,
+                weapon.criticalHit ?? 6,
+                indirect ? 'none' : bestReroll(options.hitReroll, weapon.hitReroll),
+                random,
+                hitMinimum,
+                left.hit > 0 && !indirect,
+              ),
+              'hit',
             )
         if (hit.spent) left.hit--
         if (!hit.success) continue
