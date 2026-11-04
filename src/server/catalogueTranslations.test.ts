@@ -6,12 +6,15 @@ import { loadCatalogueTranslations } from './catalogueTranslations'
 
 it('names a faction in each language its faction keyword is translated into', () => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-translations-'))
-  fs.mkdirSync(path.join(directory, 'translations'))
+  fs.mkdirSync(path.join(directory, 'translations', 'data'), { recursive: true })
   fs.writeFileSync(
-    path.join(directory, 'translations', 'es.json'),
+    path.join(directory, 'translations', 'data', 'es.json'),
     JSON.stringify({ 'Faction: Space Wolves': 'Facción: Lobos espaciales' }),
   )
-  fs.writeFileSync(path.join(directory, 'translations', 'fr.json'), JSON.stringify({ 'Faction: Space Wolves': 'Faction : Space Wolves' }))
+  fs.writeFileSync(
+    path.join(directory, 'translations', 'data', 'fr.json'),
+    JSON.stringify({ 'Faction: Space Wolves': 'Faction : Space Wolves' }),
+  )
 
   expect(loadCatalogueTranslations(directory).get('Space Wolves')).toEqual(['Lobos espaciales'])
   fs.rmSync(directory, { recursive: true })

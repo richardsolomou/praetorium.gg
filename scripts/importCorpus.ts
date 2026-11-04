@@ -12,6 +12,7 @@
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import { loadCatalogueTranslations } from '../src/server/catalogueTranslations'
 import { importRosterFile } from '../src/shared/rosterFiles'
 import { loadSnapshot } from './lib/catalogueSnapshotLoad'
 
@@ -62,11 +63,19 @@ function run(directory: string, since: string | undefined, out: string | undefin
     .filter((name) => name.endsWith('.txt'))
     .map((name) => name.slice(0, -4))
     .filter((id) => !since || (byId.get(id)?.date ?? '') >= since)
-  const { catalogue, rules } = loadSnapshot(process.env.CATALOGUE_DIR ?? 'catalogue-data')
+  const catalogueDirectory = process.env.CATALOGUE_DIR ?? 'catalogue-data'
+  const { catalogue, rules } = loadSnapshot(catalogueDirectory)
+  const translations = loadCatalogueTranslations(catalogueDirectory)
 
   const results = ids.map((id) => {
     const listing = byId.get(id) ?? { list: id }
-    const imported = importRosterFile({ file: fs.readFileSync(path.join(directory, `${id}.txt`), 'utf8') }, catalogue, undefined, rules)
+    const imported = importRosterFile(
+      { file: fs.readFileSync(path.join(directory, `${id}.txt`), 'utf8') },
+      catalogue,
+      undefined,
+      rules,
+      translations,
+    )
     return {
       ...listing,
       format: imported.format,
