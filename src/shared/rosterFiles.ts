@@ -724,12 +724,38 @@ function textRosterPick(
     // Any line with wargear printed beneath it is a model's, as a "Canoptek Wraith" the official app names after its
     // datasheet, carrying the particle caster that marks its loadout.
     const modelLines = new Set([...models, ...statedUnder.keys()])
+    // How many of a piece the unit's other choices could take, so a Crisis Shas'ui pair takes the two gun drones their
+    // Shas'vre, who may carry one, leaves them. A choice enclosing this one, as a unit's size, offers nothing besides it.
+    const roomBesides = (at: number) => (name: string) =>
+      choices.reduce(
+        (total, other, inner) =>
+          inner === at || choices[at]!.key.startsWith(`${other.key}/`)
+            ? total
+            : total +
+              Math.max(
+                0,
+                ...other.options
+                  .filter((option) => aliases[inner]!.get(option.id)?.has(name))
+                  .map((option) => Math.min(option.max, other.room)),
+              ),
+        0,
+      )
     const countsAt = (
       choice: (typeof choices)[number],
       at: number,
       from: ReadonlyMap<string, ReadonlyMap<string, number>>,
       lines: ReadonlyMap<string, number>,
-    ) => countsForChoice(choice, from, lines, scopes[at]!.held, modelLines, offeredBy, (id) => optionWargear(id, loaded, context))
+    ) =>
+      countsForChoice(
+        choice,
+        from,
+        lines,
+        scopes[at]!.held,
+        modelLines,
+        offeredBy,
+        (id) => optionWargear(id, loaded, context),
+        roomBesides(at),
+      )
     // The choices whose own lines field the models carrying them.
     const fielding = new Set<string>()
     // A model only a choice nested on it can arm, as the heavy weapon Terminator a reaper autocannon marks, is fielded by
@@ -830,6 +856,7 @@ function textRosterPick(
             modelLines,
             offeredBy,
             (id) => optionWargear(id, loaded, context),
+            roomBesides(at),
           )
         : (statedChoiceCounts.get(choice.key) ?? new Map<string, number>())
       const explicit = counts.size > 0
@@ -1322,6 +1349,7 @@ function countsForChoice(
   models: ReadonlySet<string>,
   offeredBy: ReadonlyMap<string, number>,
   wargearOfOption: (id: string) => ReadonlyMap<string, number>,
+  besides: (name: string) => number,
 ) {
   const owners = countBy(
     [...aliases.values()].flatMap((names) => [...names.keys()]),
@@ -1370,11 +1398,24 @@ function countsForChoice(
     const placing = wargear.toSorted(
       (left, right) => shared(left) - shared(right) || distinctiveCounts.get(left.id)! - distinctiveCounts.get(right.id)!,
     )
-    for (const option of placing) {
-      const fits = Math.max(0, Math.min(distinctiveCounts.get(option.id)!, option.max, free))
-      distinctiveCounts.set(option.id, fits)
-      free -= fits
-    }
+    // What no other choice has room for is placed here first, when the others can hold the rest; a list stating more
+    // than the unit holds keeps the order above.
+    const elsewhere = (option: (typeof options)[number]) =>
+      Math.min(
+        distinctiveCounts.get(option.id)!,
+        Math.max(0, ...[...(aliases.get(option.id) ?? [])].filter(([name]) => stated.has(name)).map(([name]) => besides(name))),
+      )
+    const forced = (option: (typeof options)[number]) => distinctiveCounts.get(option.id)! - elsewhere(option)
+    const placed = new Map<string, number>()
+    const fitting = placing.reduce((total, option) => total + distinctiveCounts.get(option.id)! - elsewhere(option), 0) <= free
+    for (const share of [fitting ? forced : () => 0, (option: (typeof options)[number]) => distinctiveCounts.get(option.id)!])
+      for (const option of placing) {
+        const before = placed.get(option.id) ?? 0
+        const fits = Math.max(0, Math.min(share(option), option.max, before + free) - before)
+        placed.set(option.id, before + fits)
+        free -= fits
+      }
+    for (const [id, count] of placed) distinctiveCounts.set(id, count)
   }
   if (!distinctiveCounts.size) {
     const named = new Map(

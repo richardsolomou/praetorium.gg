@@ -685,6 +685,19 @@ Created with newrecruit.eu v36.47`
     expect(imported(file).unplaced).toEqual([])
   })
 
+  it('fields every drone a Crisis squad lists without saying who carries it', () => {
+    const file = newRecruit(
+      "Xenos - T'au Empire",
+      `3x Crisis Starscythe Battlesuits (130 pts)
+• 2x Crisis Starscythe Shas'ui
+    2 with Gun Drone, Shield Drone, 2x Burst cannon, Battlesuit fists
+• 1x Crisis Starscythe Shas'vre: Gun Drone, Marker Drone, 2x Burst cannon, Battlesuit fists`,
+    )
+    expect(wargear(file, 'Crisis Starscythe Battlesuits')).toEqual(
+      expect.arrayContaining(['3x twin pulse carbine', '2x shield drone', '1x marker drone']),
+    )
+  })
+
   it('gives each Harlequin Player only their own weapons', () => {
     const file = newRecruit(
       'Xenos - Aeldari',
