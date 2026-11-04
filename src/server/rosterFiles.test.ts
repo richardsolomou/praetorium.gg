@@ -2586,6 +2586,7 @@ describe('import faction names', () => {
     ['Adeptus Astartes', 'Imperium - Space Marines'],
     ['Legiones Daemonica', 'Chaos - Chaos Daemons'],
     ['Heretic Astartes', 'Chaos - Chaos Space Marines'],
+    ['Imperial Agents', 'Imperium - Agents of the Imperium'],
   ])('reads the faction keyword %s as %s', (keyword, catalogue) => {
     expect(matchesImportFaction(keyword, catalogue)).toBe(true)
   })
