@@ -257,17 +257,16 @@ function metadata(lines: readonly string[], name: string) {
 
 const relationName = (value: string) => value.trim().replace(/\[\d+\]$/, '')
 
+/** A unit's details, where "N with" counts what follows it for N models, as in "Plasmacyte, 3 with Skorpekh hyperphase weapons". */
 function addDetails(unit: TextRosterUnit, details: string, defaultMultiplier: number) {
-  let rest = details.trim()
   let multiplier = defaultMultiplier
-  const grouped = rest.match(/^(\d+)\s+with\s+(.+)$/i)
-  if (grouped) {
-    multiplier = Number(grouped[1]!)
-    rest = grouped[2]!
-  }
-
-  for (const raw of rest.split(',')) {
-    const item = raw.trim().replace(/\s+\([+-]?\d+\s*pts?\)\s*$/i, '')
+  for (const raw of details.split(',')) {
+    let item = raw.trim().replace(/\s+\([+-]?\d+\s*pts?\)\s*$/i, '')
+    const grouped = item.match(/^(\d+)\s+with\s+(.+)$/i)
+    if (grouped) {
+      multiplier = Number(grouped[1]!)
+      item = grouped[2]!
+    }
     if (!item) continue
     if (/^Warlord$/i.test(item)) {
       unit.warlord = true

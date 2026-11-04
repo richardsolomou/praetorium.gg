@@ -148,6 +148,24 @@ Created with newrecruit.eu v35.46`)
     })
   })
 
+  const compact = (units: string) =>
+    fromNewRecruitText(`+++++++++++++++++++++++++++++++++++++++++++++++
++ FACTION KEYWORD: Xenos - Necrons
++ TOTAL ARMY POINTS: 2000pts
++++++++++++++++++++++++++++++++++++++++++++++++
+
+${units}
+
+Created with newrecruit.eu v36.17`)
+
+  it('counts what a model group holds after a choice the whole unit takes', () => {
+    const parsed = compact('3x Skorpekh Destroyers (85 pts): Plasmacyte, 3 with Skorpekh hyperphase weapons')
+    expect(parsed?.units[0]?.selections).toEqual([
+      { name: 'Plasmacyte', count: 1 },
+      { name: 'Skorpekh hyperphase weapons', count: 3 },
+    ])
+  })
+
   it('reads a Praetorium compact export whose footer was removed', () => {
     const parsed = fromNewRecruitText(`+++++++++++++++++++++++++++++++++++++++++++++++
 + ROSTER NAME: Test list
