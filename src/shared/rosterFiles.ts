@@ -293,11 +293,22 @@ function importTextRoster(
   const detachmentName = parsed.detachment
   const offered = loaded.detachments.get(faction.id)?.options ?? []
   const whole = detachmentName ? detachmentsNamed(detachmentName, offered, translations) : []
-  // Where one of several detachments is unknown, the others still count, so their enhancements stay.
-  const parts = whole.length || !detachmentName ? [] : detachmentName.split(/,\s+/)
+  // Where one of several detachments is unknown, the others still count, so their enhancements stay. The last two are
+  // joined by a word, "and" or a translation of it, that a detachment's own name can also hold, so a part splits at the
+  // word only where one side is a known detachment.
+  const known = (name: string) => detachmentsNamed(name, offered, translations).length > 0
+  const joined = (part: string) => {
+    const words = part.split(' ')
+    for (let at = 1; at < words.length - 1; at++) {
+      const sides = [words.slice(0, at).join(' '), words.slice(at + 1).join(' ')]
+      if (sides.some(known)) return sides
+    }
+    return [part]
+  }
+  const parts = whole.length || !detachmentName ? [] : detachmentName.split(/,\s+/).flatMap((part) => (known(part) ? [part] : joined(part)))
   const detachments = whole.length ? whole : parts.flatMap((part) => detachmentsNamed(part, offered, translations))
   const unknown: UnmatchedName[] = parts
-    .filter((part) => !detachmentsNamed(part, offered, translations).length)
+    .filter((part) => !known(part))
     .map((part) => ({ name: part, reason: unmatchedDetachmentReason(part, faction.id, loaded) }))
   for (const line of parsed.unread ?? []) unknown.push({ name: line, reason: 'this line is not understood by the text importer' })
   const detachmentIds = detachments.map((detachment) => detachment.id)

@@ -531,6 +531,11 @@ Created with newrecruit.eu v36.47`,
     )
   })
 
+  it('keeps the known detachment joined by "and" to one the catalogue does not offer', () => {
+    const result = imported(salamandersOfficial.replace('Deathwatch Support and', 'Unknown Conclave and'))
+    expect([result.detachmentIds, result.unknown.map((unknown) => unknown.name)]).toEqual([['e073-8fe8-5b59-48f0'], ['Unknown Conclave']])
+  })
+
   it('prices both Salamanders detachments against their source names', () => {
     expect(priced(salamandersOfficial)?.detachments).toEqual([
       { name: 'Deathwatch Support', points: 1 },
