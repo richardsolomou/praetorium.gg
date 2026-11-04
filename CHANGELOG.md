@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.220.1 (2026-11-04)
+
+### Patch Changes
+
+- a5a2378: The combat simulator can spend an Aeldari Aspect Shrine token to change a failed hit or wound roll to an unmodified 6.
+
 ## 0.220.0 (2026-11-04)
 
 ### Minor Changes
