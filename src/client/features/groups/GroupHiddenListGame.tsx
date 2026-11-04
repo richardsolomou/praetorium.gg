@@ -1,6 +1,7 @@
 import { useInfiniteQuery, useMutation, useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { ChevronRight, EllipsisVertical, Eye, FileLock2, Lock, LogOut, Pencil, Swords, Trash2, UserPlus } from 'lucide-react'
+import { posthog } from 'posthog-js'
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
@@ -11,6 +12,7 @@ import {
   sealedEventRevealChecklist,
   sealedEventSharesPoints,
   sealedEventSealingClosed,
+  sealedEventTableShape,
   requiredSealedEventRosterLimit,
 } from '../../../core/sealedEvent'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
@@ -164,7 +166,14 @@ export function GroupHiddenListGame({
       await refresh()
     },
   })
+  const battleFormat = sealedEventTableShape(game.format)
   const play = useMutation({
+    // One press both opens and submits the start, as no chooser comes between them.
+    onMutate: () => {
+      posthog.capture('battle_creation_started', { source: 'hidden-list-game' })
+      posthog.capture('battle_creation_submitted', { format: battleFormat, source: 'hidden-list-game' })
+    },
+    onError: () => posthog.capture('battle_creation_failed', { format: battleFormat, reason: 'request', source: 'hidden-list-game' }),
     mutationFn: async (opponentId: string) =>
       createSealedEventBattle({ data: { token: game.token, opponentId, missionPackId: await defaultMissionPackId() } }),
     onSuccess: ({ token: battleToken }) => openBattle(battleToken),

@@ -9,7 +9,8 @@ export async function recordEvents(page: Page) {
     events.push({ name, properties }),
   )
   await page.evaluate(async () => {
-    const url = performance.getEntriesByType('resource').find((entry) => /\/assets\/telemetry-[^/]+\.js/.test(entry.name))?.name
+    // The page's preload links, unlike resource timings, survive a test's fake clock.
+    const url = document.querySelector<HTMLLinkElement>('link[rel="modulepreload"][href*="/assets/telemetry-"]')?.href
     if (!url) throw new Error('The production telemetry chunk did not load')
     const exports = await import(url)
     const client = Object.values(exports).find(
@@ -57,7 +58,7 @@ type SupportTicket = { id: string; status: string; messages: SupportMessage[]; u
  */
 export async function stubSupport(page: Page, earlier = 0) {
   await page.evaluate(async (initial) => {
-    const url = performance.getEntriesByType('resource').find((entry) => /\/assets\/telemetry-[^/]+\.js/.test(entry.name))?.name
+    const url = document.querySelector<HTMLLinkElement>('link[rel="modulepreload"][href*="/assets/telemetry-"]')?.href
     if (!url) throw new Error('The production telemetry chunk did not load')
     const exports = await import(url)
     const client = Object.values(exports).find(
