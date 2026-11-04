@@ -1526,13 +1526,15 @@ function combinedCounts(
   const known = new Set([...names, ...held.keys(), ...models].flatMap(nameVariants))
   if ([...stated.keys()].some((name) => !known.has(name))) return null
   const inChoice = (name: string) => options.reduce((total, option, at) => total + option.count * (wargear[at]!.get(name) ?? 0), 0)
-  // What the rest of the unit carries is not this choice's to account for.
-  const target = names.map((name) => Math.max(0, spelled(stated, name) - Math.max(0, spelled(held, name) - inChoice(name))))
+  // What the rest of the unit carries is not this choice's to account for, and a piece the list prints none of, as the
+  // autopistols the official app leaves off Jakhals, says nothing about which loadout was taken.
+  const weighed = names.filter((name) => spelled(stated, name) > 0)
+  const target = weighed.map((name) => Math.max(0, spelled(stated, name) - Math.max(0, spelled(held, name) - inChoice(name))))
   const unexplained = target.reduce((total, count) => total + count, 0)
   if (!unexplained) return null
   const full = options.reduce((total, option) => total + option.count, 0) >= room
   const cost = (counts: readonly number[]) =>
-    names.reduce(
+    weighed.reduce(
       (total, name, at) =>
         total + Math.abs(counts.reduce((sum, count, option) => sum + count * (wargear[option]!.get(name) ?? 0), 0) - target[at]!),
       0,

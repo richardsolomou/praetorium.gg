@@ -579,6 +579,18 @@ Exported with App Version: v2.8.1 (1), Data Version: v995`
       4x Close combat weapon`,
       ['1x grenade launcher', '1x power fist'],
     ],
+    [
+      'a Jakhal mauler chainblade, without the autopistols the app leaves off',
+      'World Eaters',
+      'Jakhals',
+      `Jakhals (65 Points)
+  • 1x Jakhal Pack Leader
+  • 1x Dishonoured
+  • 8x Jakhal
+     ◦ 7x Chainblades
+     ◦ 1x Mauler chainblade`,
+      ['1x mauler chainblade'],
+    ],
   ])('places %s', (_case, faction, unit, text, pieces) => {
     const held = wargear(officialApp(faction, text), unit)
     for (const piece of pieces) expect(held).toContain(piece)
