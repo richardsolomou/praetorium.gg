@@ -166,6 +166,11 @@ Created with newrecruit.eu v36.17`)
     ])
   })
 
+  it('reads the unit a character supports as the one it joins', () => {
+    const parsed = compact('Char1: 1x Technomancer (80 pts): Staff of light\nSupporting Canoptek Wraiths[2]')
+    expect(parsed?.units[0]?.leading).toBe('Canoptek Wraiths')
+  })
+
   it('reads a Praetorium compact export whose footer was removed', () => {
     const parsed = fromNewRecruitText(`+++++++++++++++++++++++++++++++++++++++++++++++
 + ROSTER NAME: Test list

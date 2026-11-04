@@ -215,7 +215,7 @@ export function newRecruitUnits(lines: readonly string[], native = false) {
       continue
     }
 
-    const leading = trimmed.match(/^Leading\s+(.+)$/i)
+    const leading = trimmed.match(/^(?:Leading|Supporting)\s+(.+)$/i)
     if (leading) {
       current.leading = relationName(leading[1]!)
       continue
