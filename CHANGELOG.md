@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.219.5 (2026-11-04)
+
+### Patch Changes
+
+- 816a1f7: The simulator now calculates rules that let you re-roll any Damage roll, such as Fire Dragons' Assured Destruction, instead of leaving them out.
+
 ## 0.219.4 (2026-11-04)
 
 ### Patch Changes
