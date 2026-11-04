@@ -1,5 +1,16 @@
 # praetorium
 
+## 0.220.0 (2026-11-04)
+
+### Minor Changes
+
+- 14a3b0b: The simulator now offers the Emperor's Chosen **Magna Imperator** rule, re-rolling one hit roll and one wound roll each phase for Adeptus Custodes units.
+
+### Patch Changes
+
+- fcafe50: Khorne Berzerkers can now take only one Khornate eviscerator and one plasma pistol for every 5 models, whichever weapons each model carries.
+- ca11cad: Rules that print a table as a picture, such as the Pact point bonuses of Coterie of the Conceited or Death Guard's Contagion Range, now show that table.
+
 ## 0.219.5 (2026-11-04)
 
 ### Patch Changes
