@@ -1,10 +1,11 @@
+import { fromBattleBaseText } from './battlebase'
 import { newRecruitUnits } from './newRecruit'
 import { plainQuotes, printedNumber } from './text'
 import { attachGroups, type TextRoster, type TextRosterUnit, WTC_SECTION } from './textRoster'
 
 const compactHeader = /^(?:Char\d+:\s*)?\d+x\s+.+\(\d[\d,]*\s*pts?\)/i
 const unitHeader = /^(.+?)\s+\((\d[\d,]*)\s*(?:pts?|points?)\)$/i
-const attachedHeading = /^Attached unit \d+$/i
+const attachedHeading = /^Attached unit \d+:?$/i
 
 /**
  * The de facto WTC submission text: a "+ FACTION KEYWORD:" header, then units in either the
@@ -24,7 +25,13 @@ export function fromWtcText(input: string): TextRoster | null {
 
   const headerEnd = lines.findLastIndex((line) => /^\s*[+&]/.test(line))
   const body = lines.slice(headerEnd + 1)
-  const read = body.some((line) => compactHeader.test(line.trim())) ? { units: newRecruitUnits(body), unread: [] } : officialUnits(body)
+  // A whole official-app export can follow the header, setup and all.
+  const official = fromBattleBaseText(body.join('\n'))
+  const read = body.some((line) => compactHeader.test(line.trim()))
+    ? { units: newRecruitUnits(body), unread: [] }
+    : official
+      ? { units: official.units, unread: official.unread ?? [] }
+      : officialUnits(body)
   const warlord = field('WARLORD')?.replace(/^Char\d+:\s*/i, '')
   if (warlord && !read.units.some((unit) => unit.warlord)) {
     const named = read.units.find((unit) => plainQuotes(unit.name.toLocaleLowerCase()) === plainQuotes(warlord.toLocaleLowerCase()))

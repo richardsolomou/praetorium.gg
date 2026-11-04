@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
+import { fromBattleBaseText } from './battlebase'
 import { fromWtcText } from './wtcText'
 import { warmindWtc } from './rosterText.fixtures'
+import { necronsOfficial } from './rosterText.necrons.fixture'
 
 // Shortened from a published event list, with the player and team removed.
 const officialLayout = `+++++++++++++++++++++++++++++++++++++++++++++++
@@ -93,6 +95,12 @@ describe('WTC text import', () => {
       ['Venom', 1, false, undefined],
     ])
     expect(parsed?.units[0]?.selections).toContainEqual({ name: 'Enhancement: Informant Network', count: 1 })
+  })
+
+  it('reads a whole official-app export pasted under the header, setup and all', () => {
+    const header = officialLayout.slice(0, officialLayout.indexOf('\n\nAttached Units'))
+    const parsed = fromWtcText(`${header}\n\n${necronsOfficial}`)
+    expect([parsed?.unread, parsed?.units.length]).toEqual([undefined, fromBattleBaseText(necronsOfficial)?.units.length])
   })
 
   it('needs a faction keyword', () => {
