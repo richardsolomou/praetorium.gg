@@ -87,7 +87,7 @@ export function adjustCombatWeapon(weapon: CombatWeapon, adjustment: WeaponAdjus
     sustained: adjustment.sustained && average(adjustment.sustained) > average(weapon.sustained) ? adjustment.sustained : weapon.sustained,
     lethal: weapon.lethal || Boolean(adjustment.lethal),
     devastating: weapon.devastating || Boolean(adjustment.devastating),
-    ...(adjustment.damageReroll || weapon.damageReroll ? { damageReroll: 'ones' as const } : {}),
+    ...(weapon.damageReroll || adjustment.damageReroll ? { damageReroll: weapon.damageReroll ?? 'ones' } : {}),
   }
 }
 

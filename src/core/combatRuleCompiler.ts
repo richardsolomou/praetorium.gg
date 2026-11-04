@@ -782,7 +782,7 @@ function compileRule(rule: CombatRule, enemy = false): { choices: CombatRuleChoi
       return result
     }
     const conjunction =
-      /^(.+?)(?:,? and,? |; )((?:if |at the start of |re-roll |you can re-roll |add |subtract |improve |worsen |each time |those weapons |the bearer |the bearer's |it has |models in |that unit |this unit ).+)$/i.exec(
+      /^(.+?)(?:,? and,? |; |, (?=you can re-roll ))((?:if |at the start of |re-roll |you can re-roll |add |subtract |improve |worsen |each time |those weapons |the bearer |the bearer's |it has |models in |that unit |this unit ).+)$/i.exec(
         written,
       )
     if (conjunction) {
@@ -848,7 +848,8 @@ function compileRule(rule: CombatRule, enemy = false): { choices: CombatRuleChoi
       const checked = condition(`Target is ${targetedAttacks[2]}`, { ...context, phases: phasesOf(targetedAttacks[1], context.phases) })
       return checked ? again(targetedAttacks[3]!, checked) : checked === false ? [] : null
     }
-    if (/^(?:you can )?re-roll (?:a|the) Damage roll of 1$/i.test(written)) return effect(context, { damageReroll: 'ones' })
+    const damageReroll = /^(?:you can )?re-roll (?:a|the) Damage roll( of 1)?$/i.exec(written)
+    if (damageReroll) return effect(context, { damageReroll: damageReroll[1] ? 'ones' : 'any' })
     const roll = /^(add|subtract) ([1-6]) (?:to|from) (?:the|that attack's) (Hit|Wound) roll$/i.exec(written)
     if (roll)
       return effect(context, {

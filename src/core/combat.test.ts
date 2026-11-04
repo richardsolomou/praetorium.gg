@@ -166,6 +166,17 @@ describe('combat', () => {
     scenario.weapons[0]!.damageReroll = 'ones'
     expect(attackSequence(scenario, rolls(3, 4, 1, 1, 1))).toEqual({ damage: 1, killed: 0 })
   })
+  const freeDamageReroll = () => {
+    const scenario = input()
+    scenario.weapons[0]!.damage = { dice: 1, sides: 6, bonus: 0 }
+    scenario.weapons[0]!.damageReroll = 'any'
+    scenario.target.groups[0]!.wounds = 3
+    return scenario
+  }
+  it('keeps a free damage roll that destroys the model', () =>
+    expect(attackSequence(freeDamageReroll(), rolls(3, 4, 1, 3))).toEqual({ damage: 3, killed: 1 }))
+  it('re-rolls a free damage roll below what a fresh roll takes off the model', () =>
+    expect(attackSequence(freeDamageReroll(), rolls(3, 4, 1, 2, 5))).toEqual({ damage: 3, killed: 1 }))
   it('spills separate mortal wounds across models before ordinary attacks', () => {
     const scenario = input()
     scenario.mortalWounds = [{ timing: 'before', rolls: 1, outcomes: [{ min: 2, max: 6, damage: { dice: 0, sides: 6, bonus: 3 } }] }]
@@ -903,6 +914,14 @@ describe('exact calculation against every roll sequence', () => {
         scenario.target.saveReroll = 'ones'
         scenario.options.commandReroll = 'save'
         scenario.weapons = [torrent({ attacks: attacks(2) })]
+      },
+    ],
+    [
+      'a free damage re-roll judged by the wounds the current model has left',
+      (scenario: CombatInput) => {
+        scenario.target.groups = [group({ models: 2, wounds: 4 })]
+        scenario.target.damage = 2
+        scenario.weapons = [torrent({ damage: { dice: 1, sides: 6, bonus: 0 }, damageReroll: 'any' })]
       },
     ],
     [

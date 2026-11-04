@@ -265,6 +265,20 @@ Worsen the Move, Leadership and Objective Control characteristics of models in t
       effects('Each time this model makes a ranged attack that targets a MONSTER or VEHICLE unit, re-roll a Damage roll of 1.'),
     ).toEqual([[{ role: 'attacker', phases: ['ranged'], targetKeywords: ['MONSTER', 'VEHICLE'], damageReroll: 'ones' }]])
   })
+  it('compiles a listed hit, wound and damage re-roll', () => {
+    const target = { role: 'attacker', phases: ['ranged'], targetKeywords: ['MONSTER', 'VEHICLE'] } as const
+    expect(
+      effects(
+        'In your Shooting phase, each time a model in this unit makes a ranged attack that targets a MONSTER or VEHICLE unit, you can re-roll the Hit roll, you can re-roll the Wound roll and you can re-roll the Damage roll.',
+      ),
+    ).toEqual([
+      [
+        { ...target, options: { hitReroll: 'failed' } },
+        { ...target, options: { woundReroll: 'failed' } },
+        { ...target, damageReroll: 'any' },
+      ],
+    ])
+  })
   it('preserves the enclosing condition across all bullets', () => {
     const buff = rule(
       "While a PILOT model is embarked within this unit:\n- This unit's ranged attacks have [Ignores Cover].\n- If this unit is empowered, this unit's ranged attacks have [Sustained Hits 1].",
