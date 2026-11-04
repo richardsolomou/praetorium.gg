@@ -593,12 +593,9 @@ function textRosterPick(
     }
     return undefined
   }
-  // A named model answers to its full name; a role such as a Brotherhood Terminator Squad's "Ancient" is left to the wargear it lists.
+  // A model answers to whose wargear it carries, as a Brotherhood Terminator Squad's "Ancient" or a "Paladin Ancient".
   const bearers = bearerNames(entryId, loaded.index)
-  const bearer = (label: string) => {
-    const words = normalized(label).split(' ')
-    return words.length > 1 && !unitWords.has(words[0]!) ? bearers.get(spellingKey(words.at(-1)!)) : undefined
-  }
+  const bearer = (label: string) => bearers.get(spellingKey(normalized(label).split(' ').at(-1)!))
   // The official app can name a model for its whole loadout, as a "Kill Team Heavy Intercessor with Melta Rifle, Bolt Pistol and Ceramite Fists":
   // the one model of that kind carrying each piece listed beneath it, or else each piece the name lists, since the app can title
   // models by a squadmate's loadout.
@@ -618,9 +615,7 @@ function textRosterPick(
   let manualNames: ReadonlyMap<string, string> | undefined
   const modelFor = new Map<string, string>()
   const defaultMelee = new Map<string, string | null>()
-  for (const selection of unit.selections) {
-    const enhancement = /^(?:Enhancements?|Upgrade):/i.test(selection.name)
-    const label = selection.name.replace(/^(?:Enhancements?|Upgrade):\s*(.+)$/i, (_, name: string) => upgradeName(name)).trim()
+  const nameFor = (label: string, enhancement = false) => {
     // A list can add a qualifier the catalogue does not, as "Icon of Despair (Aura)" or "Pulsa Rokkit (Once per battle, per unit)".
     const key =
       [spellingKey(normalized(label)), spellingKey(normalized(label.replace(/\s*\([^()]*\)$/, '')))].find((candidate) =>
@@ -628,12 +623,18 @@ function textRosterPick(
       ) ?? spellingKey(normalized(label))
     const known = respelled.has(key) || respelled.has(powerWeaponKey(key))
     if (enhancement && !known) manualNames ??= enhancementRespellings(entryId, catalogueId, detachmentIds, loaded, context)
-    const name =
+    return (
       (respelled.has(key) ? respelled.get(key) : (respelled.get(powerWeaponKey(key)) ?? unprefixed(label) ?? bearer(label))) ??
       (enhancement ? manualNames?.get(normalized(label)) : undefined) ??
       (key === GENERIC_MELEE ? remember(defaultMelee, key, () => soleDefaultMelee(entryId, loaded.index, context)) : null) ??
       loadoutModel(label) ??
       normalized(label)
+    )
+  }
+  for (const selection of unit.selections) {
+    const enhancement = /^(?:Enhancements?|Upgrade):/i.test(selection.name)
+    const label = selection.name.replace(/^(?:Enhancements?|Upgrade):\s*(.+)$/i, (_, name: string) => upgradeName(name)).trim()
+    const name = nameFor(label, enhancement)
     stated.set(name, (stated.get(name) ?? 0) + selection.count)
     if (!selection.model) statedLines.set(name, (statedLines.get(name) ?? 0) + selection.count)
     if (!labels.has(name)) labels.set(name, label)

@@ -596,6 +596,38 @@ Exported with App Version: v2.8.1 (1), Data Version: v995`
     expect(imported(file).unplaced).toEqual([])
   })
 
+  it('reads a Grey Knights Ancient as the model carrying the banner', () => {
+    const file = officialApp(
+      'Grey Knights',
+      `Brotherhood Terminator Squad (140 Points)
+  • 1x Justicar
+     ◦ 1x Nemesis force weapon
+     ◦ 1x Storm bolter
+  • 2x Terminator
+     ◦ 1x Apothecary's Narthecium
+     ◦ 2x Nemesis force weapon
+     ◦ 1x Storm bolter
+  • 1x Ancient
+     ◦ 1x Ancient's Banner
+     ◦ 1x Nemesis force weapon
+     ◦ 1x Storm bolter
+
+Paladin Squad (215 Points)
+  • 1x Paragon
+     ◦ 1x Nemesis force weapon
+     ◦ 1x Storm bolter
+  • 1x Paladin Ancient
+     ◦ 1x Ancient's Banner
+     ◦ 1x Incinerator
+     ◦ 1x Nemesis force weapon
+  • 3x Paladin
+     ◦ 1x Apothecary's Narthecium
+     ◦ 2x Incinerator
+     ◦ 3x Nemesis force weapon`,
+    )
+    expect(imported(file).unplaced).toEqual([])
+  })
+
   const newRecruit = (faction: string, units: string) => `+++++++++++++++++++++++++++++++++++++++++++++++
 + FACTION KEYWORD: ${faction}
 + TOTAL ARMY POINTS: 2000pts
