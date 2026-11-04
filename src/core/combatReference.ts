@@ -6,6 +6,7 @@ import {
   rerollsDamage,
   rollSucceeds,
   saveSucceeds,
+  singleRerollCounts,
   targetModels,
   targetWounds,
   type CombatInput,
@@ -29,7 +30,7 @@ function roll(expression: DiceExpression | number, random: () => number) {
   return result
 }
 
-/** `command` re-rolls a failure no other rule re-rolled, and reports whether it did. */
+/** `single` re-rolls a failure no other rule re-rolled, and reports whether it did. */
 function check(
   target: number,
   bonus: number,
@@ -37,17 +38,17 @@ function check(
   rerolls: CombatOptions['hitReroll'],
   random: () => number,
   minimum = 2,
-  command = false,
+  single = false,
 ) {
   const succeeds = (value: number) => rollSucceeds(value, target, bonus, critical, minimum)
   let value = d6(random)
-  let commanded = false
+  let spent = false
   if ((rerolls === 'ones' && value === 1) || (rerolls === 'failed' && !succeeds(value))) value = d6(random)
-  else if (command && !succeeds(value)) {
+  else if (single && !succeeds(value)) {
     value = d6(random)
-    commanded = true
+    spent = true
   }
-  return { success: succeeds(value), critical: value !== 1 && value >= critical, value, commanded }
+  return { success: succeeds(value), critical: value !== 1 && value >= critical, value, spent }
 }
 
 export function attackSequence({ target, weapons, options, mortalWounds = [] }: CombatInput, random: () => number) {
@@ -113,8 +114,8 @@ export function attackSequence({ target, weapons, options, mortalWounds = [] }: 
   inflictMortals('before')
   if (killed === models) return { damage, killed }
   const ranged = options.phase === 'ranged'
-  // The phase's one Command Re-roll goes to the first roll of its kind that qualifies.
-  let command = options.commandReroll
+  // Each single-die re-roll goes to the first roll of its kind that qualifies.
+  const left = singleRerollCounts(options)
   for (const weapon of weapons) {
     if (killed === models) return { damage, killed }
     const defending = toughness()
@@ -143,7 +144,7 @@ export function attackSequence({ target, weapons, options, mortalWounds = [] }: 
     const saves: boolean[] = []
     const resolveHit = (automatic: boolean) => {
       const result = automatic
-        ? { success: true, critical: false, value: 0, commanded: false }
+        ? { success: true, critical: false, value: 0, spent: false }
         : check(
             wound,
             woundBonus,
@@ -151,9 +152,9 @@ export function attackSequence({ target, weapons, options, mortalWounds = [] }: 
             weapon.twinLinked ? 'failed' : bestReroll(options.woundReroll, weapon.woundReroll),
             random,
             2,
-            command === 'wound',
+            left.wound > 0,
           )
-      if (result.commanded) command = undefined
+      if (result.spent) left.wound--
       if (!result.success) return
       if (weapon.successfulCriticalWound && result.value >= weapon.successfulCriticalWound) result.critical = true
       if (weapon.devastating && result.critical) inflict(true)
@@ -161,16 +162,16 @@ export function attackSequence({ target, weapons, options, mortalWounds = [] }: 
     }
     for (let carrier = 0; carrier < weapon.count; carrier++) {
       let rolled = roll(weapon.attacks, random)
-      if (command === 'attacks' && weapon.attacks.dice && (rolled - weapon.attacks.bonus) * 2 < weapon.attacks.sides + 1) {
+      if (left.attacks && weapon.attacks.dice && (rolled - weapon.attacks.bonus) * 2 < weapon.attacks.sides + 1) {
         rolled = roll(weapon.attacks, random)
-        command = undefined
+        left.attacks--
       }
       const attacks =
         rolled + (weapon.blast + (weapon.cleave ?? 0)) * Math.floor(models / 5) + (halfRange ? roll(weapon.rapidFire, random) : 0)
       for (let attack = 0; attack < attacks; attack++) {
         if (killed === models) break
         const hit = weapon.torrent
-          ? { success: true, critical: false, value: 0, commanded: false }
+          ? { success: true, critical: false, value: 0, spent: false }
           : check(
               skill,
               hitBonus,
@@ -178,9 +179,9 @@ export function attackSequence({ target, weapons, options, mortalWounds = [] }: 
               indirect ? 'none' : bestReroll(options.hitReroll, weapon.hitReroll),
               random,
               hitMinimum,
-              command === 'hit' && !indirect,
+              left.hit > 0 && !indirect,
             )
-        if (hit.commanded) command = undefined
+        if (hit.spent) left.hit--
         if (!hit.success) continue
         if (weapon.successfulCriticalHit && hit.value >= weapon.successfulCriticalHit) hit.critical = true
         if (weapon.allHitsCritical && !weapon.torrent) hit.critical = true
@@ -201,8 +202,8 @@ export function attackSequence({ target, weapons, options, mortalWounds = [] }: 
         const value = d6(random)
         const again =
           target.saveReroll === 'failed' ? !saveSucceeds(value, critical, rolling, weapon) : target.saveReroll === 'ones' && value === 1
-        if (!again && command === 'save' && !saveSucceeds(value, critical, rolling, weapon)) {
-          command = undefined
+        if (!again && left.save && !saveSucceeds(value, critical, rolling, weapon)) {
+          left.save--
           return { value: d6(random), critical }
         }
         return { value: again ? d6(random) : value, critical }

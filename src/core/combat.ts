@@ -131,6 +131,11 @@ export const combatSchema = z.object({
     woundReroll: reroll,
     lethal: z.boolean(),
     commandReroll: z.enum(['attacks', 'hit', 'wound', 'save', 'damage']).optional(),
+    /** One hit or wound roll each that the attacker's rules let it re-roll this phase, spent like the Command Re-roll. */
+    singleRerolls: z
+      .array(z.enum(['hit', 'wound']))
+      .max(4)
+      .optional(),
   }),
 })
 
@@ -376,6 +381,41 @@ function tally(faces: Weights, kind: (value: number) => number, kinds: number) {
 const unrerolledFailures = (again: (value: number) => boolean, succeeds: (value: number) => boolean) =>
   [1, 2, 3, 4, 5, 6].filter((value) => !again(value) && !succeeds(value)).length / 6
 
+const REROLL_KINDS = ['attacks', 'hit', 'wound', 'save'] as const
+type RerollKind = (typeof REROLL_KINDS)[number]
+
+/** How many single-die re-rolls of each kind a phase holds: its Command Re-roll and those the attacker's rules grant. */
+export function singleRerollCounts(options: CombatOptions) {
+  const counts: Record<RerollKind, number> = { attacks: 0, hit: 0, wound: 0, save: 0 }
+  for (const kind of options.singleRerolls ?? []) counts[kind]++
+  if (options.commandReroll && options.commandReroll !== 'damage') counts[options.commandReroll]++
+  return counts
+}
+
+/**
+ * Every combination of single-die re-rolls still unspent, numbered so that spending one only lowers the number;
+ * `start` holds them all.
+ */
+function rerollSpace(options: CombatOptions) {
+  const counts = singleRerollCounts(options)
+  const strides = {} as Record<RerollKind, number>
+  let size = 1
+  for (const kind of REROLL_KINDS) {
+    strides[kind] = size
+    size *= counts[kind] + 1
+  }
+  return {
+    size,
+    start: size - 1,
+    counts,
+    left: (state: number, kind: RerollKind) => Math.floor(state / strides[kind]) % (counts[kind] + 1),
+    spend: (state: number, kind: RerollKind) => state - strides[kind],
+    /** How many pools a weapon resolves: one for each pair of a state it starts in and a state it can end in. */
+    pairs: REROLL_KINDS.reduce((total, kind) => (total * (counts[kind] + 1) * (counts[kind] + 2)) / 2, 1),
+  }
+}
+type RerollSpace = ReturnType<typeof rerollSpace>
+
 const SAVE_COMMAND_REROLL_REFUSAL =
   'A Command Re-roll on a save roll is not calculated when failed saves differ in what they need, since which one to re-roll is a choice.'
 
@@ -586,7 +626,7 @@ function weaponPlan(weapon: CombatWeapon, input: CombatInput, toughness: number,
   const { target, options } = input
   const halfRange = options.phase === 'ranged' && options.halfRange
   const { indirect, skill, hitBonus, hitMinimum, woundBonus, wound } = attackRolls(weapon, options, toughness)
-  const command = options.commandReroll
+  const single = singleRerollCounts(options)
   let [miss, hit, criticalHit] = [0, weapon.torrent ? 1 : 0, 0]
   let freshHits = [0, 0, 0]
   let rerolledMisses = 0
@@ -603,8 +643,8 @@ function weaponPlan(weapon: CombatWeapon, input: CombatInput, toughness: number,
           ? 2
           : 1
     ;[miss, hit, criticalHit] = tally(rerolledFaces(again), kind, 3) as [number, number, number]
-    // Indirect fire forbids re-rolling hit rolls, the Command Re-roll included.
-    if (command === 'hit' && !indirect) {
+    // Indirect fire forbids re-rolling hit rolls, single-die re-rolls included.
+    if (single.hit && !indirect) {
       freshHits = tally(singleFaces, kind, 3)
       rerolledMisses = unrerolledFailures(again, succeeds)
     }
@@ -619,8 +659,8 @@ function weaponPlan(weapon: CombatWeapon, input: CombatInput, toughness: number,
     return weapon.devastating && critical ? 1 : 2 + Number(critical)
   }
   const [failed, devastating, ...saves] = tally(rerolledFaces(woundAgain), woundKind, 4) as [number, number, number, number]
-  const freshWounds = command === 'wound' ? tally(singleFaces, woundKind, 4) : [0, 0, 0, 0]
-  const rerolledWoundFailures = command === 'wound' ? unrerolledFailures(woundAgain, woundSucceeds) : 0
+  const freshWounds = single.wound ? tally(singleFaces, woundKind, 4) : [0, 0, 0, 0]
+  const rerolledWoundFailures = single.wound ? unrerolledFailures(woundAgain, woundSucceeds) : 0
   const groups = target.groups
   const saveFaces = (critical: boolean, rolling: CombatTargetGroup) =>
     rerolledFaces((value) =>
@@ -639,7 +679,7 @@ function weaponPlan(weapon: CombatWeapon, input: CombatInput, toughness: number,
     )
   const separateCritical = !sharedSaves && criticalSaveDiffers
   let saveRerolls: { unrerolled: number; fresh: number }[] = []
-  if (command === 'save') {
+  if (single.save) {
     if (!sharedSaves || criticalSaveDiffers) throw new Error(SAVE_COMMAND_REROLL_REFUSAL)
     saveRerolls = [false, true].map((critical) => {
       const succeeds = (value: number) => saveSucceeds(value, critical, groups[0]!, weapon)
@@ -681,28 +721,41 @@ function weaponPlan(weapon: CombatWeapon, input: CombatInput, toughness: number,
 }
 
 /**
- * One attack's outcomes while a Command Re-roll waits for its roll: `unused` leaves it waiting, `using` spends it
- * within this attack, and `used` is the attack once it is spent elsewhere.
+ * One attack's outcomes from each combination of single-die re-rolls left unspent, indexed as `rerollSpace` numbers
+ * them, keyed by the combination still unspent once the attack resolves.
  */
-type Branches = { unused: Polynomial; using: Polynomial; used: Polynomial }
-const fixed = (polynomial: Polynomial): Branches => ({ unused: polynomial, using: new Map(), used: polynomial })
-/** A failed roll the Command Re-roll replaces with a fresh `retry`, or that stays `failure` once it is spent. */
-const rerollable = (retry: Polynomial, failure: Polynomial): Branches => ({ unused: new Map(), using: retry, used: failure })
-const both = (first: Branches, second: Branches): Branches => ({
-  unused: multiply(first.unused, second.unused),
-  using: sum([multiply(first.using, second.used), 1], [multiply(first.unused, second.using), 1]),
-  used: multiply(first.used, second.used),
-})
-const either = (...terms: [Branches, number][]): Branches => ({
-  unused: sum(...terms.map(([branches, weight]): [Polynomial, number] => [branches.unused, weight])),
-  using: sum(...terms.map(([branches, weight]): [Polynomial, number] => [branches.using, weight])),
-  used: sum(...terms.map(([branches, weight]): [Polynomial, number] => [branches.used, weight])),
-})
+type Branches = Map<number, Polynomial>[]
 
-/** One attack's joint count of devastating wounds and saves (or failed saves), split by a Command Re-roll on its hit, wound, or save rolls. */
-function attackOutcomes(weapon: CombatWeapon, input: CombatInput, plan: ReturnType<typeof weaponPlan>) {
+function addBranch(into: Map<number, Polynomial>, state: number, polynomial: Polynomial, weight = 1) {
+  if (!weight || !polynomial.size) return
+  const existing = into.get(state)
+  into.set(state, existing ? sum([existing, 1], [polynomial, weight]) : weight === 1 ? polynomial : sum([polynomial, weight]))
+}
+/** An outcome that spends no re-roll. */
+const fixed = (space: RerollSpace, polynomial: Polynomial): Branches =>
+  Array.from({ length: space.size }, (_, state) => new Map([[state, polynomial]]))
+/** A failed roll that a re-roll of `kind`, while one is left, replaces with a fresh `retry`, or that stays `failure`. */
+const rerollable = (space: RerollSpace, kind: RerollKind, retry: Branches, failure: Branches): Branches =>
+  failure.map((stays, state) => (space.left(state, kind) ? retry[space.spend(state, kind)]! : stays))
+/** `first` and then `second`, which starts with whatever re-rolls `first` left. */
+const both = (first: Branches, second: Branches): Branches =>
+  first.map((ends) => {
+    const result = new Map<number, Polynomial>()
+    for (const [middle, left] of ends) for (const [end, right] of second[middle]!) addBranch(result, end, multiply(left, right))
+    return result
+  })
+const either = (...terms: [Branches, number][]): Branches =>
+  terms[0]![0].map((_, state) => {
+    const result = new Map<number, Polynomial>()
+    for (const [branches, weight] of terms) for (const [end, polynomial] of branches[state]!) addBranch(result, end, polynomial, weight)
+    return result
+  })
+
+/** One attack's joint count of devastating wounds and saves (or failed saves), split by the single-die re-rolls its hit, wound, or save rolls spend. */
+function attackOutcomes(weapon: CombatWeapon, input: CombatInput, plan: ReturnType<typeof weaponPlan>, space: RerollSpace) {
   const { stride, saves } = plan
   const none = new Map([[0, 1]])
+  const just = (polynomial: Polynomial) => fixed(space, polynomial)
   const save = (critical: boolean): Branches => {
     if (plan.failChances) {
       const chance = plan.failChances[Number(critical)]!
@@ -712,71 +765,71 @@ function attackOutcomes(weapon: CombatWeapon, input: CombatInput, plan: ReturnTy
         [0, 1 - fresh],
         [stride('failed'), fresh],
       ])
-      return either([fixed(none), 1 - chance], [fixed(failure), chance - unrerolled], [rerollable(retry, failure), unrerolled])
+      return either(
+        [just(none), 1 - chance],
+        [just(failure), chance - unrerolled],
+        [rerollable(space, 'save', just(retry), just(failure)), unrerolled],
+      )
     }
-    return fixed(new Map([[critical && plan.separateCritical ? stride('critical') : stride('ordinary'), 1]]))
+    return just(new Map([[critical && plan.separateCritical ? stride('critical') : stride('ordinary'), 1]]))
   }
   const woundRoll = (shares: readonly number[]) =>
     either(
-      [fixed(none), shares[0]!],
-      [fixed(new Map([[stride('devastating'), 1]])), shares[1]!],
+      [just(none), shares[0]!],
+      [just(new Map([[stride('devastating'), 1]])), shares[1]!],
       [save(false), shares[2]!],
       [save(true), shares[3]!],
     )
   const wound = either(
     [woundRoll([plan.failed - plan.rerolledWoundFailures, plan.devastating, ...saves]), 1],
-    [rerollable(woundRoll(plan.freshWounds).used, none), plan.rerolledWoundFailures],
+    [rerollable(space, 'wound', woundRoll(plan.freshWounds), just(none)), plan.rerolledWoundFailures],
   )
   const critical = weapon.lethal && input.options.lethal ? save(false) : wound
-  let extra = fixed(new Map())
-  let power = fixed(none)
+  let extra = just(new Map())
+  let power = just(none)
   plan.sustained.forEach((weight, count) => {
     if (count) power = both(power, wound)
     if (weight) extra = either([extra, 1], [power, weight])
   })
   const hitRoll = ([miss, hit, criticalHit]: readonly number[]) =>
-    either([fixed(none), miss!], [wound, hit!], [both(critical, extra), criticalHit!])
+    either([just(none), miss!], [wound, hit!], [both(critical, extra), criticalHit!])
   return either(
     [hitRoll([plan.miss - plan.rerolledMisses, plan.hit, plan.criticalHit]), 1],
-    [rerollable(hitRoll(plan.freshHits).used, none), plan.rerolledMisses],
+    [rerollable(space, 'hit', hitRoll(plan.freshHits), just(none)), plan.rerolledMisses],
   )
 }
 
-/**
- * The joint count the whole attack pool produces for each number of attacks in `counts`. With `once`, `unused`
- * is the pool that leaves the Command Re-roll unspent and `using` the pool that spends it.
- */
-function attackPool(plan: ReturnType<typeof weaponPlan>, counts: Weights, attack: Polynomial, once?: Omit<Branches, 'used'>) {
+/** The joint count the whole attack pool produces for each number of attacks in `counts`, by the re-rolls it leaves unspent. */
+function attackPool(plan: ReturnType<typeof weaponPlan>, counts: Weights, attack: Branches, start: number) {
   const size = plan.events ** plan.dimensions.length
-  const unused = new Float64Array(size)
-  const using = once ? new Float64Array(size) : null
-  let current = new Float64Array(size)
-  current[0] = 1
-  let spent = once ? new Float64Array(size) : null
+  const pools = new Map<number, Float64Array>()
+  const first = new Float64Array(size)
+  first[0] = 1
+  let current = new Map<number, Float64Array>([[start, first]])
   let reach = 0
-  const furthest = Math.max(...attack.keys(), ...(once?.unused.keys() ?? []), ...(once?.using.keys() ?? []))
+  const furthest = Math.max(0, ...attack.flatMap((ends) => [...ends.values()].flatMap((polynomial) => [...polynomial.keys()])))
   counts.forEach((weight, count) => {
     if (weight)
-      for (let at = 0; at <= reach; at++) {
-        unused[at]! += weight * current[at]!
-        if (using) using[at]! += weight * spent![at]!
+      for (const [state, values] of current) {
+        const into = pools.get(state) ?? new Float64Array(size)
+        for (let at = 0; at <= reach; at++) into[at]! += weight * values[at]!
+        pools.set(state, into)
       }
     if (count === counts.length - 1) return
-    const next = new Float64Array(size)
-    const nextSpent = once ? new Float64Array(size) : null
-    for (let at = 0; at <= reach; at++) {
-      const value = current[at]!
-      if (value) for (const [offset, share] of once?.unused ?? attack) next[at + offset]! += value * share
-      if (!nextSpent) continue
-      if (value) for (const [offset, share] of once!.using) nextSpent[at + offset]! += value * share
-      const already = spent![at]!
-      if (already) for (const [offset, share] of attack) nextSpent[at + offset]! += already * share
-    }
+    const next = new Map<number, Float64Array>()
+    for (const [state, values] of current)
+      for (const [end, polynomial] of attack[state]!) {
+        const into = next.get(end) ?? new Float64Array(size)
+        for (let at = 0; at <= reach; at++) {
+          const value = values[at]!
+          if (value) for (const [offset, share] of polynomial) into[at + offset]! += value * share
+        }
+        next.set(end, into)
+      }
     current = next
-    spent = nextSpent
     reach = Math.min(size - 1, reach + furthest)
   })
-  return { unused, using }
+  return pools
 }
 
 /** Attack totals split by whether a Command Re-roll replaced the first Attacks roll below its average. */
@@ -813,24 +866,22 @@ function rerolledAttackCounts(weapon: CombatWeapon, models: number, halfRange: b
 const added = (left: Weights, right: Weights) =>
   Array.from({ length: Math.max(left.length, right.length) }, (_, at) => (left[at] ?? 0) + (right[at] ?? 0))
 
-/**
- * Each pool a weapon can roll against one Toughness: `normal` once a Command Re-roll is spent or absent, `unused` if it
- * stays unspent through this weapon, and `using` if this weapon spends it.
- */
-function attackPools(weapon: CombatWeapon, input: CombatInput, plan: ReturnType<typeof weaponPlan>, models: number) {
-  const attack = attackOutcomes(weapon, input, plan)
-  const normal = attackPool(plan, plan.attacks, attack.used).unused
-  if (input.options.commandReroll === 'attacks' && weapon.attacks.dice) {
-    const counts = rerolledAttackCounts(weapon, models, plan.halfRange)
-    return {
-      normal,
-      unused: attackPool(plan, counts.unused, attack.used).unused,
-      using: attackPool(plan, counts.using, attack.used).unused,
-    }
-  }
-  if (!attack.using.size) return { normal, unused: normal, using: null }
-  const split = attackPool(plan, plan.attacks, attack.used, attack)
-  return { normal, unused: split.unused, using: split.using }
+/** Each pool a weapon can roll against one Toughness from the re-rolls left at `start`, keyed by the re-rolls it leaves. */
+function attackPools(
+  weapon: CombatWeapon,
+  plan: ReturnType<typeof weaponPlan>,
+  models: number,
+  space: RerollSpace,
+  attack: Branches,
+  start: number,
+) {
+  if (!space.left(start, 'attacks') || !weapon.attacks.dice) return attackPool(plan, plan.attacks, attack, start)
+  const counts = rerolledAttackCounts(weapon, models, plan.halfRange)
+  // Keeping the re-roll and spending it on the Attacks roll leave different states, so the two pools never share one.
+  return new Map([
+    ...attackPool(plan, counts.unused, attack, start),
+    ...attackPool(plan, counts.using, attack, space.spend(start, 'attacks')),
+  ])
 }
 
 /**
@@ -960,9 +1011,12 @@ function workOf(input: CombatInput, layout: Allocation) {
     const build = plan.attacks.length * size * (plan.sustained.length + 1)
     const combine = (plan.devastating ? plan.events : 1) * (states + saveCells * (layout.total + 1))
     const saving = plan.failChances ? plan.events * states : (plan.separateCritical ? 12 : 6) * saveCells * plan.events * states
-    // A Command Re-roll resolves each weapon up to three times: before, while, and after it is spent.
-    const branches = input.options.commandReroll ? 3 : 1
-    return total + branches * toughnesses * (build + combine + saving * (input.target.saveReroll ? input.target.groups.length : 1))
+    return (
+      total +
+      rerollSpace(input.options).pairs *
+        toughnesses *
+        (build + combine + saving * (input.target.saveReroll ? input.target.groups.length : 1))
+    )
   }, mortalWork)
 }
 
@@ -1019,9 +1073,9 @@ function resolveCombat(input: CombatInput, layout: Allocation, initial: State, m
     }
   }
   mortals('before')
-  // `unused` holds the outcomes where the phase's Command Re-roll is still unspent; weapons resolve in order, so it goes to the first that can use it.
-  let unused = state
-  let used = new Float64Array(state.length)
+  // Outcomes by the single-die re-rolls still unspent; weapons resolve in order, so each goes to the first that can use it.
+  const space = rerollSpace(input.options)
+  let held = new Map([[space.start, state]])
   const byToughness = (from: State) => {
     const parts = new Map<number, State>()
     for (let at = 0; at < layout.total; at++) {
@@ -1034,26 +1088,33 @@ function resolveCombat(input: CombatInput, layout: Allocation, initial: State, m
     return parts
   }
   for (const weapon of input.weapons) {
-    const nextUnused = new Float64Array(state.length)
-    const nextUsed = new Float64Array(state.length)
-    nextUnused[layout.total] = unused[layout.total]!
-    nextUsed[layout.total] = used[layout.total]!
-    const waiting = byToughness(unused)
-    const spent = byToughness(used)
-    for (const toughness of new Set([...waiting.keys(), ...spent.keys()])) {
-      const plan = weaponPlan(weapon, input, toughness, models)
-      const pools = attackPools(weapon, input, plan, models)
-      const before = waiting.get(toughness)
-      const after = spent.get(toughness)
-      if (before) addInto(nextUnused, resolvePool(before, weapon, input, layout, plan, pools.unused))
-      if (before && pools.using) addInto(nextUsed, resolvePool(before, weapon, input, layout, plan, pools.using))
-      if (after) addInto(nextUsed, resolvePool(after, weapon, input, layout, plan, pools.normal))
+    const next = new Map<number, State>()
+    const into = (end: number) => {
+      const existing = next.get(end)
+      if (existing) return existing
+      const created = new Float64Array(state.length)
+      next.set(end, created)
+      return created
     }
-    unused = nextUnused
-    used = nextUsed
+    const parts = new Map<number, Map<number, State>>()
+    for (const [start, from] of held) {
+      into(start)[layout.total]! += from[layout.total]!
+      parts.set(start, byToughness(from))
+    }
+    for (const toughness of new Set([...parts.values()].flatMap((part) => [...part.keys()]))) {
+      const plan = weaponPlan(weapon, input, toughness, models)
+      const attack = attackOutcomes(weapon, input, plan, space)
+      for (const [start, part] of parts) {
+        const before = part.get(toughness)
+        if (!before) continue
+        for (const [end, pool] of attackPools(weapon, plan, models, space, attack, start))
+          addInto(into(end), resolvePool(before, weapon, input, layout, plan, pool))
+      }
+    }
+    held = next
   }
-  state = unused
-  addInto(state, used)
+  state = new Float64Array(state.length)
+  for (const part of held.values()) addInto(state, part)
   mortals('after')
   return state
 }

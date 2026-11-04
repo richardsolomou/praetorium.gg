@@ -76,7 +76,7 @@ export type CombatRuleEffect = {
   targetToughness?: number
   targetSaveModifier?: number
   damageDivisor?: number
-  options?: Partial<Pick<CombatOptions, 'hitModifier' | 'woundModifier' | 'hitReroll' | 'woundReroll' | 'cover'>>
+  options?: Partial<Pick<CombatOptions, 'hitModifier' | 'woundModifier' | 'hitReroll' | 'woundReroll' | 'cover' | 'singleRerolls'>>
   feelNoPain?: number
   psychicFeelNoPain?: number
   mortalFeelNoPain?: number
@@ -482,6 +482,7 @@ export function combatRuleOptions(
         const next = effect.options[field]
         if (next && rerollRank[next] > rerollRank[result[field] ?? 'none']) result[field] = next
       }
+      if (effect.options.singleRerolls) result.singleRerolls = [...(result.singleRerolls ?? []), ...effect.options.singleRerolls]
     }
   return result
 }

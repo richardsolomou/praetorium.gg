@@ -8,6 +8,7 @@ import {
   type CombatResult,
   type CombatPhase,
 } from './combat'
+import { uniqueBy } from './collections'
 import { adjustCombatTarget, combineAttackAdjustments, combineWeaponAdjustments, type CombatAdjustments } from './combatAdjustments'
 import { combatRuleDefences, combatRuleOptions } from './combatRules'
 import { combatAttackInput, combatAttacks } from './combatScenario'
@@ -79,10 +80,17 @@ export function combatMatchup(
       })),
     }
   }
-  const attackOptions = {
-    ranged: combatRuleOptions(attacker?.companions?.length ? [] : attackRules, 'attacker', 'ranged'),
-    melee: combatRuleOptions(attacker?.companions?.length ? [] : attackRules, 'attacker', 'melee'),
+  // Attached members scope their options to their own weapons, except single-die re-rolls, which the whole unit shares.
+  const unitAttackOptions = (phase: CombatPhase): Partial<CombatOptions> => {
+    if (!attacker?.companions?.length) return combatRuleOptions(attackRules, 'attacker', phase)
+    const memberRules = uniqueBy(
+      [attacker, ...attacker.companions].flatMap((member) => member.rules ?? []),
+      (rule) => rule.name,
+    )
+    const { singleRerolls } = combatRuleOptions(memberRules, 'attacker', phase)
+    return singleRerolls ? { singleRerolls } : {}
   }
+  const attackOptions = { ranged: unitAttackOptions('ranged'), melee: unitAttackOptions('melee') }
   const defenceOptions = {
     ranged: combatRuleOptions(defenceRules, 'defender', 'ranged'),
     melee: combatRuleOptions(defenceRules, 'defender', 'melee'),

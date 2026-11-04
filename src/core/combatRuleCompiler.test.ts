@@ -17,6 +17,18 @@ const selectedPair =
   'Once per turn, in your Movement phase, when this model starts or ends a move, select one friendly Army Construct unit within 6" of this model (excluding Titanic units) and one enemy unit visible to this model. Until the start of your next Movement phase, weapons equipped by models in that friendly unit have the [Sustained Hits 1] ability while targeting that enemy unit.'
 
 describe('composed combat rules', () => {
+  const magnaImperator =
+    'When a friendly ADEPTUS CUSTODES unit is selected to attack, its attacks can re-roll one hit roll and one wound roll.'
+  it('offers one hit and one wound re-roll in both phases to an eligible unit, on by default for a detachment', () => {
+    const detachment = rule(magnaImperator, { scope: 'detachment', keywords: ['Adeptus Custodes'] })
+    expect([combatRuleChoices(detachment), combatRuleDefault(detachment)]).toEqual([
+      [{ label: 'Active', effects: [{ role: 'attacker', phases: ['ranged', 'melee'], options: { singleRerolls: ['hit', 'wound'] } }] }],
+      1,
+    ])
+  })
+  it('gives single-die re-rolls to no unit without the named keyword', () => {
+    expect(effects(magnaImperator, { scope: 'detachment', keywords: ['Imperium'] })).toEqual([])
+  })
   it('does not discard italicized combat instructions as flavour', () => {
     expect(
       compileCombatRule(
