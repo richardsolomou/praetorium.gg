@@ -21,7 +21,7 @@ const reads = vi.hoisted(() => ({ factionIndexFor: vi.fn(), catalogueFor: vi.fn(
 vi.mock('../../src/server/app', () => ({ app: () => reads }))
 
 let root: string
-const disabled = new Set(['icons', 'battlemaster'] as const)
+const disabled = new Set(['icons', 'battlemaster', 'translations'] as const)
 const pin = 'a'.repeat(40)
 const book = (name: string, cost: number, detachment: string) =>
   JSON.stringify({
@@ -151,11 +151,14 @@ async function retainedSnapshot() {
   manifest.editions = []
   const directory = await materialize(manifest)
   const revisions = JSON.parse(fs.readFileSync(path.join(directory, 'revision.json'), 'utf8'))
-  for (const name of ['battlemaster', 'icons'] as const) {
-    revisions[name] = catalogueSources[name].revision
-    const file = path.join(directory, name, name === 'battlemaster' ? 'layouts/test.json' : 'test.svg')
-    fs.mkdirSync(path.dirname(file), { recursive: true })
-    fs.writeFileSync(file, name === 'battlemaster' ? '{}' : '<svg/>')
+  for (const [name, file, content] of [
+    ['battlemaster', 'layouts/test.json', '{}'],
+    ['icons', 'test.svg', '<svg/>'],
+    ['translations', 'es.json', '{}'],
+  ] as const) {
+    revisions[name] = catalogueSources[name]!.revision
+    fs.mkdirSync(path.dirname(path.join(directory, name, file)), { recursive: true })
+    fs.writeFileSync(path.join(directory, name, file), content)
   }
   fs.writeFileSync(path.join(directory, 'revision.json'), JSON.stringify(revisions))
   const archiveFile = path.join(root, 'historical.zip')
@@ -454,11 +457,14 @@ it('rejects broken imported-book dependencies before activation', async () => {
 it('records authored source pins inside the immutable snapshot', async () => {
   const directory = await materialize()
   const revisions = JSON.parse(fs.readFileSync(path.join(directory, 'revision.json'), 'utf8'))
-  for (const name of ['battlemaster', 'icons'] as const) {
-    revisions[name] = catalogueSources[name].revision
-    const file = path.join(directory, name, name === 'battlemaster' ? 'layouts/test.json' : 'test.svg')
-    fs.mkdirSync(path.dirname(file), { recursive: true })
-    fs.writeFileSync(file, name === 'battlemaster' ? '{}' : '<svg/>')
+  for (const [name, file, content] of [
+    ['battlemaster', 'layouts/test.json', '{}'],
+    ['icons', 'test.svg', '<svg/>'],
+    ['translations', 'es.json', '{}'],
+  ] as const) {
+    revisions[name] = catalogueSources[name]!.revision
+    fs.mkdirSync(path.dirname(path.join(directory, name, file)), { recursive: true })
+    fs.writeFileSync(path.join(directory, name, file), content)
   }
   fs.writeFileSync(path.join(directory, 'revision.json'), JSON.stringify(revisions))
   const archiveFile = path.join(root, 'snapshot.zip')

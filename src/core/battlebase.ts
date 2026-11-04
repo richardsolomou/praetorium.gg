@@ -2,12 +2,14 @@ import { attachGroups, textNickname, type TextRoster, type TextRosterUnit } from
 
 /**
  * A points figure grouped in any locale's style, read as "(1 995 Punkte)", "(1'995 Punkte)" or "(2 Detachment Points)":
- * the name before it, the number, and the first word of its unit. Text pasted through some apps loses the brackets and
+ * the name before it, the number, and its unit, whole because Spanish prices both in "puntos" and a detachment in
+ * "puntos de destacamento". Text pasted through some apps loses the brackets and
  * the space before a unit's price, as in "Rhino70 points".
  */
-const pricePattern = /^(.+?)\s*(?:\((\d{1,3}(?:[\s.,'’]\d{3})+|\d+)\s+([^\s;)]+)[^)]*\)|(\d{1,3}(?:[\s.,'’]\d{3})+|\d+)\s+(\S+))$/
+const pricePattern = /^(.+?)\s*(?:\((\d{1,3}(?:[\s.,'’]\d{3})+|\d+)\s+([^;)]*[^\s;)])[^)]*\)|(\d{1,3}(?:[\s.,'’]\d{3})+|\d+)\s+(\S+))$/
 // The app lists each further piece of a model's wargear under the same bullet, on an unbulleted counted line.
-const selection = /^(?=[•◦]|\d+x\s)(?:[•◦]\s*)?(?:(\d+)x\s+)?(.+?)$/
+// Some of its translations write the count without the "x", as the Spanish "1 Mass gauntlet".
+const selection = /^(?=[•◦]|\d+x?\s)(?:[•◦]\s*)?(?:(\d+)x?\s+)?(.+?)$/
 const labelled = /^([^:]+):\s*(.+)$/
 const appVersion = /\bv\d+(?:\.\d+)+\s+\(\d+\)/
 
@@ -90,7 +92,7 @@ export function fromBattleBaseText(input: string): TextRoster | null {
     const following = body[after] ?? ''
     if (following.startsWith('◦')) return true
     if (!following.startsWith('•')) return false
-    return nesting ? indentOf(after) > indentOf(at) : /^•\s*\d+x\s/.test(following)
+    return nesting ? indentOf(after) > indentOf(at) : /^•\s*\d+x?\s/.test(following)
   }
   const isUnitAt = (at: number) => at >= 0 && isUnit(body[at]!)
   const isGroupHeadingAt = (at: number) => at >= 0 && /\s\d+$/.test(body[at]!) && isUnitAt(next(at))
@@ -125,6 +127,11 @@ export function fromBattleBaseText(input: string): TextRoster | null {
       unread.push(line)
       continue
     }
+    const modelCount = line.match(/^[•◦]?\s*(\d+) models?$/i)
+    if (modelCount) {
+      current.models = Number(modelCount[1])
+      continue
+    }
     const name = picked[2]!
     if (line.startsWith('•')) {
       if (picked[1] && headsModel(at)) {
@@ -134,10 +141,8 @@ export function fromBattleBaseText(input: string): TextRoster | null {
       else model = modelLine?.name
     } else if (line.startsWith('◦')) model = modelLine?.name
     const numeric = name.match(/^(Models|Roster entry|Attached to entry):\s*(\d+)$/i)
-    const modelCount = name.match(/^(\d+) models?$/i)
     const label = picked[1] ? null : name.match(labelled)
-    if (modelCount) current.models = Number(modelCount[1])
-    else if (numeric) {
+    if (numeric) {
       const field = { models: 'models', 'roster entry': 'entry', 'attached to entry': 'attachedToEntry' } as const
       current[field[numeric[1]!.toLowerCase() as keyof typeof field]] = Number(numeric[2])
     } else if (/^(?:Custom name|Nickname):/i.test(name)) current.nickname = textNickname(name.replace(/^(?:Custom name|Nickname):\s*/i, ''))

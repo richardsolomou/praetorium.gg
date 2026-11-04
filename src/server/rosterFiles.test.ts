@@ -1588,7 +1588,7 @@ Strike Force (2,000 Points)
 
 OTHER DATASHEETS
 
-Tomb Blades (70 Points)
+Doom Blades (70 Points)
 
 Exported with BattleBase, Data Version: v20260812`,
       },
@@ -1596,6 +1596,74 @@ Exported with BattleBase, Data Version: v20260812`,
     )
 
     expect(imported.unknown).toEqual([{ name: 'Necron', reason: 'no faction is called that; the closest is "Necrons"' }])
+  })
+
+  describe('an official-app export in another language', () => {
+    const imported = importRosterFile(
+      {
+        file: `Cuchillas (70 puntos)
+
+Necrones
+Panteón de la Aflicción y Skyshroud Spearhead (3 puntos de destacamento)
+Ocupar y mantener
+Fuerza de Choque (2000 puntos)
+
+OTRAS HOJAS DE DATOS
+
+Tomb Blades (70 puntos)
+  • 3 Tomb Blade
+
+Doom Blades (70 puntos)
+  • 3 Doom Blade
+
+Exportada con la versión de la app: v2.4.0 (139), versión de los datos v925`,
+      },
+      loaded,
+      undefined,
+      null,
+      new Map([
+        ['Necrons', ['Nécrons', 'Necrones']],
+        ['Pantheon of Woe', ['Panteón de la Aflicción']],
+        ['Take and Hold', ['Ocupar y mantener']],
+      ]),
+    )
+
+    it('reads the translated faction', () => {
+      expect(imported.catalogueId).toBe('necrons')
+    })
+
+    it('reads each detachment across the translated "and"', () => {
+      expect(imported.detachmentIds).toEqual(['pantheon', 'skyshroud'])
+    })
+
+    it('reads the translated force disposition', () => {
+      expect('disposition' in imported && imported.disposition).toBe('take-and-hold')
+    })
+  })
+
+  it('reads the faction from its datasheets where the official app translated its name', () => {
+    const imported = importRosterFile(
+      {
+        file: `Cuchillas (140 puntos)
+
+Necrones
+Pantheon of Woe (2 puntos de destacamento)
+Fuerza de Choque (2000 puntos)
+
+OTRAS HOJAS DE DATOS
+
+Tomb Blades (70 puntos)
+  • 3 Tomb Blade
+
+Tomb Blades (70 puntos)
+  • 3 Tomb Blade
+
+Exportada con la versión de la app: v2.4.0 (139), versión de los datos v925`,
+      },
+      loaded,
+    )
+
+    expect(imported.catalogueId).toBe('necrons')
   })
 
   it('names the closest detachment to one it cannot find', () => {

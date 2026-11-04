@@ -56,7 +56,7 @@ export async function materializeCatalogue(directory: string, sources = catalogu
   const work = fs.mkdtempSync(path.join(parent, '.materialize-'))
   const staged = path.join(work, 'data')
   fs.mkdirSync(staged)
-  const selected = options.source ? [options.source] : SNAPSHOT_SOURCE_NAMES.filter((name) => !disabled.has(name))
+  const selected = options.source ? [options.source] : SNAPSHOT_SOURCE_NAMES.filter((name) => !disabled.has(name) && sources[name])
   const patches = options.patchesDirectory ?? path.join(root, 'catalogue', 'patches')
   try {
     // Isolate git apply from the application checkout that contains the staging directory.
@@ -64,10 +64,11 @@ export async function materializeCatalogue(directory: string, sources = catalogu
     const revisions: Partial<Record<SnapshotSourceName, string>> = {}
     for (const name of selected) {
       const source = sources[name]
+      if (!source) throw new Error(`${name} is not configured`)
       const target = path.join(staged, name)
       if (name === 'battlemaster') await fetchBattlemasterInto(sources.battlemaster, target)
       else {
-        const repository = sources[name]
+        const repository = source as Exclude<typeof source, CatalogueSourceConfig['battlemaster']>
         await fetchInto(repository.repository, repository.revision, target, repository.path)
         if (name === 'icons') selectIcons(staged, sources.icons)
       }

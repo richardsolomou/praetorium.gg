@@ -13,6 +13,7 @@ Pins live in `catalogue/composition.json`, `catalogue/sources.json`, and `catalo
 - Parsed sources from `src/server/sharedJson.ts` are shared: copy before changing.
 - Construction reads go in `constructionReads.ts` so the worker and server agree.
 - Points come from the [MFM fork](https://github.com/richardsolomou/wh40k-11e-mfm); never duplicate prices in definitions.
+- Translated names come from [wh40k-11e-translations](https://github.com/richardsolomou/wh40k-11e-translations), a pinnable copy of nrdata.org, which serves only its live state; refresh it there with `bin/update` and a commit, never by fetching nrdata.org at build time.
 - `changes/history.json` is immutable; never compare frozen battle or sealed event snapshots with current data.
 
 ## Rules versions
