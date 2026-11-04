@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.220.2 (2026-11-04)
+
+### Patch Changes
+
+- e7621bc: A battle played before the offline download finished now carries on offline instead of asking you to reconnect for its latest history.
+
 ## 0.220.1 (2026-11-04)
 
 ### Patch Changes
