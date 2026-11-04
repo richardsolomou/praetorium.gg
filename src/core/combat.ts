@@ -86,6 +86,8 @@ export const combatSchema = z.object({
         successfulCriticalHit: rollTarget.optional(),
         successfulCriticalWound: rollTarget.optional(),
         allHitsCritical: z.boolean().optional(),
+        /** The phase's one change of a failed Hit or Wound roll to an unmodified 6, which this weapon's attacks can take. */
+        unmodifiedSix: z.enum(['hit', 'wound']).optional(),
         criticalAp: z.int().min(-10).max(10).optional(),
         ignoreHitModifiers: z.boolean().optional(),
         ignoreWoundModifiers: z.boolean().optional(),
@@ -378,6 +380,9 @@ function tally(faces: Weights, kind: (value: number) => number, kinds: number) {
 }
 
 /** The chance a die ends failed without having been re-rolled, so a Command Re-roll may still re-roll it. */
+/** The outcome shares of a roll changed to an unmodified 6. */
+const sixFace = (kind: (value: number) => number, kinds: number) => tally([0, 0, 0, 0, 0, 0, 1], kind, kinds)
+
 const unrerolledFailures = (again: (value: number) => boolean, succeeds: (value: number) => boolean) =>
   [1, 2, 3, 4, 5, 6].filter((value) => !again(value) && !succeeds(value)).length / 6
 
@@ -396,8 +401,10 @@ export function singleRerollCounts(options: CombatOptions) {
  * Every combination of single-die re-rolls still unspent, numbered so that spending one only lowers the number;
  * `start` holds them all.
  */
-function rerollSpace(options: CombatOptions) {
+function rerollSpace({ options, weapons }: Pick<CombatInput, 'options' | 'weapons'>) {
   const counts = singleRerollCounts(options)
+  // A roll changed to an unmodified 6 is never held beside a re-roll, so it takes the slot one of its kind would.
+  for (const kind of ['hit', 'wound'] as const) if (weapons.some((weapon) => weapon.unmodifiedSix === kind)) counts[kind] = 1
   const strides = {} as Record<RerollKind, number>
   let size = 1
   for (const kind of REROLL_KINDS) {
@@ -627,6 +634,7 @@ function weaponPlan(weapon: CombatWeapon, input: CombatInput, toughness: number,
   const halfRange = options.phase === 'ranged' && options.halfRange
   const { indirect, skill, hitBonus, hitMinimum, woundBonus, wound } = attackRolls(weapon, options, toughness)
   const single = singleRerollCounts(options)
+  const six = weapon.unmodifiedSix
   let [miss, hit, criticalHit] = [0, weapon.torrent ? 1 : 0, 0]
   let freshHits = [0, 0, 0]
   let rerolledMisses = 0
@@ -647,6 +655,10 @@ function weaponPlan(weapon: CombatWeapon, input: CombatInput, toughness: number,
     if (single.hit && !indirect) {
       freshHits = tally(singleFaces, kind, 3)
       rerolledMisses = unrerolledFailures(again, succeeds)
+    } else if (six === 'hit') {
+      // Changing a result is not a re-roll, so it also takes a re-rolled or indirect miss.
+      freshHits = sixFace(kind, 3)
+      rerolledMisses = miss
     }
   }
   const woundSucceeds = (value: number) => rollSucceeds(value, wound, woundBonus, weapon.criticalWound, 2)
@@ -659,8 +671,8 @@ function weaponPlan(weapon: CombatWeapon, input: CombatInput, toughness: number,
     return weapon.devastating && critical ? 1 : 2 + Number(critical)
   }
   const [failed, devastating, ...saves] = tally(rerolledFaces(woundAgain), woundKind, 4) as [number, number, number, number]
-  const freshWounds = single.wound ? tally(singleFaces, woundKind, 4) : [0, 0, 0, 0]
-  const rerolledWoundFailures = single.wound ? unrerolledFailures(woundAgain, woundSucceeds) : 0
+  const freshWounds = single.wound ? tally(singleFaces, woundKind, 4) : six === 'wound' ? sixFace(woundKind, 4) : [0, 0, 0, 0]
+  const rerolledWoundFailures = single.wound ? unrerolledFailures(woundAgain, woundSucceeds) : six === 'wound' ? failed : 0
   const groups = target.groups
   const saveFaces = (critical: boolean, rolling: CombatTargetGroup) =>
     rerolledFaces((value) =>
@@ -1013,9 +1025,7 @@ function workOf(input: CombatInput, layout: Allocation) {
     const saving = plan.failChances ? plan.events * states : (plan.separateCritical ? 12 : 6) * saveCells * plan.events * states
     return (
       total +
-      rerollSpace(input.options).pairs *
-        toughnesses *
-        (build + combine + saving * (input.target.saveReroll ? input.target.groups.length : 1))
+      rerollSpace(input).pairs * toughnesses * (build + combine + saving * (input.target.saveReroll ? input.target.groups.length : 1))
     )
   }, mortalWork)
 }
@@ -1032,6 +1042,10 @@ function checkedCombat(scenario: CombatInput) {
     throw new Error('Shared Feel No Pain source changes during separate mortal-wound abilities are not yet supported.')
   if (input.target.groups.some((group, index) => (group.damage ?? 0) + (index === 0 ? (input.target.damage ?? 0) : 0) >= group.wounds))
     throw new Error('The wounded model must have at least one wound remaining.')
+  if ((input.options.commandReroll || input.options.singleRerolls?.length) && input.weapons.some((weapon) => weapon.unmodifiedSix))
+    throw new Error(
+      'A re-roll and a roll changed to an unmodified 6 in the same phase are not calculated together, since which roll each takes is a choice.',
+    )
   if (input.options.commandReroll === 'damage')
     throw new Error(
       'A Command Re-roll on a damage roll is not calculated, since which damage roll is worth re-rolling depends on how damage is allocated.',
@@ -1074,7 +1088,7 @@ function resolveCombat(input: CombatInput, layout: Allocation, initial: State, m
   }
   mortals('before')
   // Outcomes by the single-die re-rolls still unspent; weapons resolve in order, so each goes to the first that can use it.
-  const space = rerollSpace(input.options)
+  const space = rerollSpace(input)
   let held = new Map([[space.start, state]])
   const byToughness = (from: State) => {
     const parts = new Map<number, State>()

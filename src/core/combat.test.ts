@@ -925,6 +925,30 @@ describe('exact calculation against every roll sequence', () => {
       },
     ],
     [
+      'a hit roll changed to an unmodified 6 by the first weapon to miss, with Lethal and Sustained Hits',
+      (scenario: CombatInput) => {
+        scenario.target.groups = [group({ wounds: 3, save: 5 })]
+        const weapon = scenario.weapons[0]!
+        scenario.weapons = [
+          { ...weapon, skill: 4, lethal: true, sustained: 1, damage: attacks(1), unmodifiedSix: 'hit' },
+          { ...weapon, skill: 2, damage: attacks(2), unmodifiedSix: 'hit' },
+        ]
+      },
+    ],
+    [
+      'a wound roll changed to an unmodified 6 with Devastating Wounds',
+      (scenario: CombatInput) => {
+        scenario.target.groups = [group({ wounds: 3, save: 3 })]
+        Object.assign(scenario.weapons[0]!, {
+          torrent: true,
+          attacks: attacks(2),
+          devastating: true,
+          damage: attacks(2),
+          unmodifiedSix: 'wound',
+        })
+      },
+    ],
+    [
       'a Command Re-roll on an Attacks roll below its average',
       (scenario: CombatInput) => {
         scenario.target.groups = [group({ models: 3 })]
@@ -966,6 +990,48 @@ describe('exact calculation against every roll sequence', () => {
     const exact = calculateCombat(scenario).damage
     // Summing thousands of sequence weights drifts by about 1e-12; a missed or doubled sequence weighs far more.
     expect(Math.max(...exact.map((weight, lost) => Math.abs(weight - (expected.get(lost) ?? 0))))).toBeLessThan(1e-10)
+  })
+})
+
+describe('a roll changed to an unmodified 6', () => {
+  const pair = (unmodifiedSix: 'hit' | 'wound' | undefined, weapon: Partial<CombatInput['weapons'][number]> = {}) => {
+    const scenario = input()
+    scenario.target.groups[0]!.wounds = 1
+    Object.assign(scenario.weapons[0]!, {
+      attacks: { dice: 0, sides: 6, bonus: 2 },
+      damage: { dice: 0, sides: 6, bonus: 1 },
+      unmodifiedSix,
+      ...weapon,
+    })
+    return scenario
+  }
+  const distribution = (scenario: CombatInput) => calculateCombat(scenario).damage.slice(0, 3)
+
+  it('turns one failed hit roll into a hit', () => {
+    // Two hits 8/9 of the time (a lone miss is changed), one hit otherwise; each hit then wounds on a 4+.
+    expect(distribution(pair('hit'))).toEqual([expect.closeTo(5 / 18), expect.closeTo(1 / 2), expect.closeTo(2 / 9)])
+  })
+
+  it('turns one failed wound roll into a wound', () => {
+    // Two 4+ wound rolls: only both failing leaves one unwounded.
+    expect(distribution(pair('wound', { torrent: true }))).toEqual([expect.closeTo(0), expect.closeTo(1 / 4), expect.closeTo(3 / 4)])
+  })
+
+  it('takes a hit roll that a re-roll already failed', () => {
+    // Re-rolling failed hits misses each attack 1/9; with two attacks, the change leaves a miss only when both fail.
+    expect(calculateCombat(pair('hit', { hitReroll: 'failed', strength: 8 })).meanDamage).toBeCloseTo((2 - 1 / 81) * (5 / 6))
+  })
+
+  it('makes the changed hit roll a Critical Hit', () => {
+    // Hitting and wounding only on 6s, the changed miss wounds automatically through Lethal Hits whenever either attack misses.
+    const scenario = pair('hit', { lethal: true, strength: 1, skill: 6 })
+    expect(calculateCombat(scenario).meanDamage).toBeCloseTo(2 / 6 + 35 / 36)
+  })
+
+  it('is refused alongside a Command Re-roll', () => {
+    const scenario = pair('hit')
+    scenario.options.commandReroll = 'wound'
+    expect(() => calculateCombat(scenario)).toThrow('not calculated together')
   })
 })
 

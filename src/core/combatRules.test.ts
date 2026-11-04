@@ -700,3 +700,36 @@ it('keeps a passive reroll and its objective-dependent upgrade separate', () => 
     ['ones', 'failed'],
   ])
 })
+
+describe('Aspect Shrine tokens', () => {
+  const tokens = rule(
+    "Once per battle for each Aspect Shrine token this unit has, you can change the result of one Hit roll or one Wound roll made for a model in this unit (excluding **CHARACTER** models) to an unmodified 6.\n\n**Designer's Note:** Place an Aspect Shrine token next to the unit for each Aspect Shrine token it has, removing one each time this ability is used.",
+    { models: 5 },
+  )
+  const spent = (sheet: Datasheet, choice: number, phase: 'ranged' | 'melee' = 'ranged') => {
+    const active = [{ name: 'Buff', effects: combatRuleChoices(tokens)[choice]!.effects }]
+    const used = combatWeapons(sheet, [], phase).map((entry) => ({ ...entry, count: 1 }))
+    return combatRuleWeapons(sheet, used, active, 'attacker', phase, [])[0]?.unmodifiedSix
+  }
+
+  it('offers a hit or wound roll in each phase', () => {
+    expect(combatRuleChoices(tokens).map((choice) => choice.label)).toEqual([
+      'Shooting hit roll',
+      'Shooting wound roll',
+      'Melee hit roll',
+      'Melee wound roll',
+    ])
+  })
+
+  it('stays off until chosen', () => {
+    expect(combatRuleDefault(tokens)).toBe(0)
+  })
+
+  it('changes the chosen roll in its phase', () => {
+    expect(spent(weapons(), 1)).toBe('wound')
+  })
+
+  it('leaves CHARACTER models out', () => {
+    expect(spent({ ...weapons(), keywords: ['Infantry', 'Character'] }, 0)).toBeUndefined()
+  })
+})
