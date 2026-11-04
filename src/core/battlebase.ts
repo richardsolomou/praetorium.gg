@@ -1,4 +1,4 @@
-import { attachGroups, textNickname, type TextRoster, type TextRosterUnit } from './textRoster'
+import { attachGroups, textNickname, WTC_SECTION, type TextRoster, type TextRosterUnit } from './textRoster'
 
 /**
  * A points figure grouped in any locale's style, read as "(1 995 Punkte)", "(1'995 Punkte)" or "(2 Detachment Points)":
@@ -6,25 +6,32 @@ import { attachGroups, textNickname, type TextRoster, type TextRosterUnit } from
  * "puntos de destacamento". Text pasted through some apps loses the brackets and
  * the space before a unit's price, as in "Rhino70 points".
  */
-const pricePattern = /^(.+?)\s*(?:\((\d{1,3}(?:[\s.,'’]\d{3})+|\d+)\s+([^;)]*[^\s;)])[^)]*\)|(\d{1,3}(?:[\s.,'’]\d{3})+|\d+)\s+(\S+))$/
+const pricePattern =
+  /^(.*?)\s*(?:\((\d{1,3}(?:[\s.,'’]\d{3})+|\d+)\s+([^;)]*[^\s;)])[^)]*\)|(?<=.)(\d{1,3}(?:[\s.,'’]\d{3})+|\d+)\s+(\S+))$/
 // The app lists each further piece of a model's wargear under the same bullet, on an unbulleted counted line.
 // Some of its translations write the count without the "x", as the Spanish "1 Mass gauntlet".
 const selection = /^(?=[•◦]|\d+x?\s)(?:[•◦]\s*)?(?:(\d+)x?\s+)?(.+?)$/
 const labelled = /^([^:]+):\s*(.+)$/
+const game = /^Warhammer 40,?000$/i
 const appVersion = /\bv\d+(?:\.\d+)+\s+\(\d+\)/
 
 function price(line: string) {
   const match = line.match(pricePattern)
   return match
-    ? { name: match[1]!, points: Number((match[2] ?? match[4])!.replaceAll(/\D/g, '')), unit: (match[3] ?? match[5])!.toLowerCase() }
+    ? {
+        name: match[1]!,
+        points: Number((match[2] ?? match[4])!.replaceAll(/\D/g, '')),
+        unit: (match[3] ?? match[5])!.toLowerCase().replace(/s$/, ''),
+        bracketed: match[3] !== undefined,
+      }
     : null
 }
 
 /**
  * The official app's layout, which BattleBase, New Recruit, Warmind and Praetorium also write.
  *
- * The app translates its labels, so the layout is read by structure: the title's points word prices the battle size and
- * each unit, the setup paragraph under the title names the faction and detachments, a line ending in a number heads an
+ * The app translates its labels, so the layout is read by structure: the commonest points word prices the title, the
+ * battle size and each unit, the setup paragraph holding the detachments names the faction, a line ending in a number heads an
  * attached group whose last unit is the bodyguard, and any other line over a unit or alone in its paragraph is a section
  * heading. The labels of other tools, which write only English, are still read by name.
  */
@@ -38,37 +45,67 @@ export function fromBattleBaseText(input: string): TextRoster | null {
       return joined ? [`${joined[1]}${joined[2]}`, `${joined[1]}  ${joined[3]}`] : [line]
     })
   const lines = raw.map((line) => line.trim())
-  const firstAt = lines.findIndex(Boolean)
-  let firstEnd = firstAt
-  while (firstEnd < lines.length && lines[firstEnd]) firstEnd++
-  // A paste copied from below the title opens with the setup, whose detachments and battle size are priced in different words.
-  const firstPrices = lines.slice(firstAt, firstEnd).flatMap((line) => price(line) ?? [])
-  const untitled = new Set(firstPrices.map(({ unit }) => unit)).size > 1
-  const title = untitled ? 'Imported list' : (lines[firstAt] ?? 'Imported list')
-  const titlePrice = untitled ? null : price(title)
-  const pointsWord = (untitled ? firstPrices.at(-1)?.unit : titlePrice?.unit) ?? 'points'
-  let setupEnd = untitled ? firstAt : firstAt + 1
-  while (setupEnd < lines.length && !lines[setupEnd]) setupEnd++
-  const setupStart = setupEnd
-  while (setupEnd < lines.length && lines[setupEnd]) setupEnd++
-  // A paste that lost its blank lines runs on into the units, so its setup ends at the battle size.
-  const pricedInSetup = lines.slice(setupStart, setupEnd).flatMap((line, at) => (price(line)?.unit === pointsWord ? [at] : []))
-  if (pricedInSetup.length > 1) setupEnd = setupStart + pricedInSetup[0]! + 1
-  const setup = lines.slice(setupStart, setupEnd).filter((line) => !/^Warhammer 40,?000$/i.test(line))
-  const body = lines.slice(setupEnd)
+  const prices = lines.map((line) => (selection.test(line) ? null : price(line)))
+  // Units outnumber the title, the battle size and the detachments, so the commonest points word is the one they share.
+  const tally = new Map<string, number>()
+  for (const priced of prices) if (priced) tally.set(priced.unit, (tally.get(priced.unit) ?? 0) + 1)
+  const pointsWord = [...tally].reduce((best, next) => (next[1] > best[1] ? next : best), ['points', 0])[0]
+  const inPoints = (at: number) => prices[at]?.unit === pointsWord
   const isUnit = (line: string) => !selection.test(line) && price(line)?.unit === pointsWord
-
-  // Chapter exports put the parent faction before the army immediately above the priced detachments.
-  const detachmentAt = setup.findIndex((line) => {
-    const priced = price(line)
-    return priced && priced.unit !== pointsWord
-  })
-  const factionAt = Math.max(0, detachmentAt - 1)
-  const faction = setup[factionAt] ?? ''
-  const armySetup = setup.slice(factionAt + 1)
-  const sizeLine = armySetup.find((line) => price(line)?.unit === pointsWord)
+  const nextAt = (from: number) => lines.findIndex((line, at) => at > from && line)
+  const paragraphEnd = (at: number) => {
+    while (at < lines.length && lines[at]) at++
+    return at
+  }
+  const firstAt = lines.findIndex(Boolean)
+  const firstUnitAt = prices.findIndex((_, at) => inPoints(at) && selection.test(lines[nextAt(at)] ?? ''))
+  // Detachments are priced in brackets in their own points, so the last such line above the first unit anchors the setup
+  // wherever the title and any note above it end. The faction is the line above the detachments and any battle size printed between
+  // them, after a chapter's parent faction. Older layouts price no detachment and put the setup in the paragraph under the title.
+  const detachmentAt = prices
+    .slice(0, firstUnitAt < 0 ? lines.length : firstUnitAt)
+    .findLastIndex((priced) => priced?.bracketed && priced.unit !== pointsWord)
+  let factionAt = detachmentAt
+  let setupStart: number
+  if (detachmentAt >= 0) {
+    while (factionAt >= 0 && prices[factionAt]) factionAt--
+    setupStart = Math.max(0, factionAt)
+    while (setupStart > 0 && lines[setupStart - 1]) setupStart--
+  } else {
+    setupStart = firstAt + 1
+    while (setupStart < lines.length && (!lines[setupStart] || game.test(lines[setupStart]!))) setupStart++
+    factionAt = setupStart
+  }
+  // The title is the last line priced in points above the faction, or the line above it when the title's points wrapped
+  // onto a line of their own. Without one, the first line names the list.
+  const titleAt = lines.slice(0, Math.max(0, factionAt)).findLastIndex((_, at) => inPoints(at))
+  const titlePrice = titleAt >= 0 ? prices[titleAt]! : null
+  const title =
+    titlePrice?.name ||
+    lines.slice(0, Math.max(0, titleAt)).findLast(Boolean) ||
+    (firstAt < setupStart ? lines[firstAt] : '') ||
+    'Imported list'
+  setupStart = Math.max(setupStart, titleAt + 1)
+  let setupEnd = paragraphEnd(Math.max(setupStart, detachmentAt))
+  const headingAt = lines.slice(factionAt + 1, setupEnd).findIndex((line) => WTC_SECTION.test(line))
+  if (headingAt >= 0) setupEnd = factionAt + 1 + headingAt
+  // A paste that lost its blank lines runs on into the units, so its setup ends at the battle size, or before the first
+  // unit where the battle size comes first.
+  const pricedInSetup = lines.slice(factionAt + 1, setupEnd).flatMap((_, at) => (inPoints(factionAt + 1 + at) ? [factionAt + 1 + at] : []))
+  if (pricedInSetup.length > 1)
+    setupEnd = pricedInSetup[0]! > detachmentAt ? pricedInSetup[0]! + 1 : (pricedInSetup.find((at) => at > detachmentAt) ?? setupEnd)
+  const faction = lines[factionAt] ?? ''
+  const armySetup = lines.slice(factionAt + 1, setupEnd).filter((line) => line && !game.test(line))
+  let sizeLine = armySetup.find((line) => price(line)?.unit === pointsWord)
+  // A battle size can sit alone in the paragraph after the detachments.
+  const afterSetup = nextAt(setupEnd - 1)
+  if (!sizeLine && detachmentAt >= 0 && afterSetup >= 0 && inPoints(afterSetup) && !lines[afterSetup + 1]) {
+    sizeLine = lines[afterSetup]
+    setupEnd = afterSetup + 1
+  }
+  const body = lines.slice(setupEnd)
   const exportedBy = /Exported with (?:BattleBase|Praetorium\.gg)/i.test(input)
-  if (!exportedBy && ((!titlePrice && !untitled) || !faction || !sizeLine || !body.some(isUnit))) return null
+  if (!exportedBy && ((detachmentAt < 0 && (!titlePrice || !faction || !sizeLine)) || !body.some(isUnit))) return null
   const size = sizeLine ? price(sizeLine) : null
   // Detachments are priced in their own points; Warmind gives each one a line.
   const pricedDetachments = armySetup.filter((line) => line !== sizeLine && price(line))
@@ -191,7 +228,7 @@ export function fromBattleBaseText(input: string): TextRoster | null {
   )
 
   return {
-    name: titlePrice?.name ?? title,
+    name: title,
     ...(titlePrice ? { reportedPoints: titlePrice.points } : {}),
     faction,
     detachment: detachment && detachment !== 'No detachment' ? detachment : null,

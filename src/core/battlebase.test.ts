@@ -112,6 +112,35 @@ describe('BattleBase text import', () => {
     expect(fromBattleBaseText('Necrons\nLokhust Lord')).toBeNull()
   })
 
+  it('reads the battle size printed above the detachments', () => {
+    expect(
+      fromBattleBaseText(
+        exportText.replace(
+          'Cursed Legion (2 Detachment Points)\nForce Dispositions: Purge the Foe\nIncursion (1,000 Points)',
+          'Incursion (1,000 Points)\nCursed Legion (2 Detachment Points)\nForce Dispositions: Purge the Foe',
+        ),
+      ),
+    ).toMatchObject({ faction: 'Necrons', detachment: 'Cursed Legion', disposition: 'Purge the Foe', limit: 1000 })
+  })
+
+  it("reads a title whose points wrapped onto their own line, under the player's note", () => {
+    expect(
+      fromBattleBaseText(exportText.replace('CL 1K - Ammentar Destroyer Spearhead (990 Points)', 'A note\n\nCL 1K\n\n(990 Points)')),
+    ).toMatchObject({ name: 'CL 1K', reportedPoints: 990, faction: 'Necrons', detachment: 'Cursed Legion' })
+  })
+
+  it('reads a title without points', () => {
+    expect(fromBattleBaseText(exportText.replace(' (990 Points)', '').replace('Exported with BattleBase', ''))).toMatchObject({
+      name: 'CL 1K - Ammentar Destroyer Spearhead',
+      faction: 'Necrons',
+      limit: 1000,
+    })
+  })
+
+  it('reads a battle size priced in the singular', () => {
+    expect(fromBattleBaseText(exportText.replace('Incursion (1,000 Points)', 'Incursion (1,000 Point)'))?.limit).toBe(1000)
+  })
+
   it('does not read a named game format as a unit', () => {
     expect(fromBattleBaseText(kingOfTheColosseumExport)?.units.map((unit) => unit.name)).toEqual(['Lokhust Lord', 'Immortals'])
   })
