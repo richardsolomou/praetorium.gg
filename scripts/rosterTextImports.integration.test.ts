@@ -121,6 +121,12 @@ describe.skipIf(!fs.existsSync(source))('genuine exports from other army builder
       'Black Spear Task Force',
       'Talonstrike Kill Team (265 points)\n  • 1x Kill Team Sergeant with Jump Pack\n    • 1x Plasma pistol\n      1x Power fist\n  • 4x Kill Team Intercessor with Jump Pack\n    • 4x Astartes chainsword\n      2x Heavy bolt pistol\n      2x Plasma pistol\n  • 5x Kill Team Heavy Intercessor with Jump Pack\n    • 5x Assault bolters',
     ],
+    [
+      'the owner of its wargear',
+      'Astra Militarum',
+      'Grizzled Company',
+      "Gaunt's Ghosts (95 points)\n  • 1x Ibram Gaunt\n    • 1x Bolt Pistol\n      1x Gaunt's chainsword\n  • 1x Colm Corbec\n    • 1x Corbec's hot-shot lascarbine\n      1x Straight silver knife\n  • 1x Elim Rawne\n    • 1x Rawne's lascarbine\n      1x Straight silver knife\n  • 1x Hlaine Larkin\n    • 1x Larkin's long-las\n      1x Straight silver knife\n  • 1x 'Try Again' Bragg\n    • 1x Bragg's autocannon\n      1x Straight silver knife\n  • 1x Oan Mkoll\n    • 1x Lascarbine\n      1x Mkoll's straight silver knife",
+    ],
   ])('reads an official-app model named by %s', (_shape, faction, detachment, unit) => {
     expect(summary(official(faction, detachment, unit)).mismatches).toEqual([])
   })

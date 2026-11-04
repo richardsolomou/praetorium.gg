@@ -587,6 +587,12 @@ function textRosterPick(
     }
     return undefined
   }
+  // A named model answers to its full name; a role such as a Brotherhood Terminator Squad's "Ancient" is left to the wargear it lists.
+  const bearers = bearerNames(entryId, loaded.index)
+  const bearer = (label: string) => {
+    const words = normalized(label).split(' ')
+    return words.length > 1 && !unitWords.has(words[0]!) ? bearers.get(spellingKey(words.at(-1)!)) : undefined
+  }
   const context = { primaryCatalogueId: catalogueId, roster }
   let manualNames: ReadonlyMap<string, string> | undefined
   for (const selection of unit.selections) {
@@ -600,7 +606,7 @@ function textRosterPick(
     const known = respelled.has(key) || respelled.has(powerWeaponKey(key))
     if (enhancement && !known) manualNames ??= enhancementRespellings(entryId, catalogueId, detachmentIds, loaded, context)
     const name =
-      (respelled.has(key) ? respelled.get(key) : (respelled.get(powerWeaponKey(key)) ?? unprefixed(label))) ??
+      (respelled.has(key) ? respelled.get(key) : (respelled.get(powerWeaponKey(key)) ?? unprefixed(label) ?? bearer(label))) ??
       (enhancement ? manualNames?.get(normalized(label)) : undefined) ??
       normalized(label)
     stated.set(name, (stated.get(name) ?? 0) + selection.count)
@@ -953,6 +959,20 @@ function respelledNames(entryId: string, index: LoadedCatalogue['index']) {
   const unprefixed = new Map<string, string | null>()
   for (const [key, name] of prefixed) unprefixed.set(key, unprefixed.has(key) && unprefixed.get(key) !== name ? null : name)
   for (const [key, name] of unprefixed) if (!names.has(key)) names.set(key, name)
+  return names
+}
+
+/** Models the catalogue names for wargear only they carry, keyed by whose it is, as Gaunt's Ghosts' "Colm Corbec" is a "Tanith Ghost w/ Corbec's hot-shot lascarbine". */
+function bearerNames(entryId: string, index: LoadedCatalogue['index']) {
+  const names = new Map<string, string | null>()
+  eachDefinition([entryId], index, (definition, target) => {
+    if (target.type !== 'model') return
+    const name = normalized(nameOf(definition, index.definitions))
+    const owner = name.match(/\s(?:w\/|with)\s*(.+?)'s\s/)?.[1]
+    if (!owner) return
+    const key = spellingKey(owner)
+    names.set(key, names.has(key) && names.get(key) !== name ? null : name)
+  })
   return names
 }
 
