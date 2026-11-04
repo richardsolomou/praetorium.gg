@@ -1127,6 +1127,11 @@ function respelledNames(entryId: string, index: LoadedCatalogue['index']) {
       if (target.type === 'model')
         for (let end = words.length - 1; end > 0 && unitWords.has(words[end]!); end--)
           prefixed.push([spellingKey(words.slice(0, end).join(' ')), name])
+      // And by its kind without the unit's first words, as a Terminator Assault Squad's "Assault Terminator w/ Twin Lightning Claws" is a "Terminator".
+      const kind = name.replace(modelLoadout, '').split(' ')
+      const from = kind.findIndex((word, position) => !unitWords.has(word) || position === kind.length - 1)
+      if (target.type === 'model' && from > 0 && kind.length < words.length)
+        prefixed.push([spellingKey(kind.slice(from).join(' ')), kind.join(' ')])
     }
     if (target.type !== 'model') return
     // BSData can rename a model's stat line and keep an older spelling on its entry, as Hellions' "Heliarch" prints as "Helliarch".

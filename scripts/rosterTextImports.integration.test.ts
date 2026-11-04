@@ -152,6 +152,12 @@ describe.skipIf(!fs.existsSync(source))('genuine exports from other army builder
       'Sicarian Infiltrators (75 points)\n  • 1x Sicarian Infiltrator Princeps\n    • 1x Flechette blaster\n      1x Taser goad\n  • 4x Sicarian Infiltrator\n    • 4x Flechette blaster\n      4x Taser goad',
     ],
     [
+      "its kind without the unit's first words",
+      'Space Marines',
+      'Gladius Task Force',
+      'Terminator Assault Squad (380 points)\n  • 1x Terminator Sergeant\n    • 1x Storm Shield\n      1x Thunder Hammer\n  • 9x Terminator\n    • 5x Storm Shield\n      5x Thunder Hammer\n      4x Twin Lightning Claws',
+    ],
+    [
       'its loadout',
       'Deathwatch',
       'Black Spear Task Force',
