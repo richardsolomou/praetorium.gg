@@ -1,3 +1,5 @@
+import { PostHog } from 'posthog-node'
+
 /** The PostHog transactional email templates this build sends; each one's description lists the variables it reads. */
 export const EMAIL_TEMPLATES = {
   resetPassword: '01a1a6ef-23a5-0000-71ad-ab4ecf440259',
@@ -23,26 +25,22 @@ export type EmailDelivery = { send(message: EmailMessage): Promise<void> }
 
 /** Sends through PostHog transactional email with a key scoped to sending email; undefined where none is configured. */
 export function emailDelivery(environment: NodeJS.ProcessEnv = process.env): EmailDelivery | undefined {
-  const key = environment.POSTHOG_EMAIL_API_KEY
-  const host = environment.POSTHOG_HOST
-  if (!key || !host) return undefined
-  const url = new URL('/api/projects/@current/messaging/send/email/', host)
+  const secretKey = environment.POSTHOG_EMAIL_API_KEY
+  const projectToken = environment.VITE_POSTHOG_PROJECT_TOKEN
+  if (!secretKey || !projectToken) return undefined
+  // A key that may only send email cannot poll flag definitions, which local evaluation would try at startup.
+  const posthog = new PostHog(projectToken, { host: environment.VITE_POSTHOG_HOST, secretKey, enableLocalEvaluation: false })
 
   return {
     async send({ template, to, distinctId, data, idempotencyKey }) {
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${key}`,
-          'Content-Type': 'application/json',
-          ...(idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {}),
-        },
-        body: JSON.stringify({ template_id: EMAIL_TEMPLATES[template], to, distinct_id: distinctId, message_data: data }),
-        signal: AbortSignal.timeout(15_000),
+      const { error } = await posthog.emails.send({
+        templateId: EMAIL_TEMPLATES[template],
+        to,
+        distinctId,
+        templateData: data,
+        idempotencyKey,
       })
-      if (response.status === 202) return
-      const { code } = (await response.json().catch(() => ({}))) as { code?: string }
-      throw new Error(`PostHog email answered ${response.status}${code ? ` ${code}` : ''}`)
+      if (error) throw error
     },
   }
 }
