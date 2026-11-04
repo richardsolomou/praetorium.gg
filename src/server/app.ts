@@ -36,6 +36,8 @@ import type { CanonicalCatalogue } from '../contracts/catalogue'
 import type { CatalogueHistoryEntry } from '../core/catalogueHistory'
 import { combatUnitsFor } from '../shared/combatUnits'
 import { publishedFaction } from './referenceCatalogue'
+import type { CatalogueTranslations } from '../shared/catalogueTranslations'
+import { loadCatalogueTranslations } from './catalogueTranslations'
 import { factionIndexFor, factionsFor } from '../shared/factionReferences'
 import { battleDetachmentData, type BattleDetachmentData } from '../shared/battleDetachmentData'
 import { githubSponsorRefresh, type GithubSponsorRefresh } from './githubSponsors'
@@ -60,6 +62,8 @@ type App = {
   /** The validated, source-independent reference data compiled into the snapshot. */
   canonicalCatalogue: () => CanonicalCatalogue | null
   canonicalCatalogueFor: (catalogueId?: string) => Promise<CanonicalCatalogue | null>
+  /** Catalogue names in other languages, which read a list exported in another language. */
+  catalogueTranslations: () => CatalogueTranslations
   /** Stratagems and mission cards, null when that source has not been synced. */
   rules: () => LoadedRules | null
   rulesFor: (catalogueId?: string) => Promise<LoadedRules | null>
@@ -249,6 +253,7 @@ function catalogueLoaders(directory: string) {
     canonical: memoize(() => editions.canonicalCatalogue(runtime ? null : referenceCatalogue(directory, catalogue, rules))),
     rules,
     history: memoize(() => loadCatalogueHistory(directory)),
+    translations: memoize(() => loadCatalogueTranslations(directory)),
     combatUnits: memoize(() => editions.combatUnits()),
     searchIndex: memoize(() => editions.searchIndex()),
   }
@@ -301,6 +306,7 @@ const catalogueFields = (getInstance: () => App, loaded: ReturnType<typeof catal
   canonicalCatalogue: loaded.canonical,
   rules: loaded.rules,
   catalogueHistory: loaded.history,
+  catalogueTranslations: loaded.translations,
   combatUnits: loaded.combatUnits,
   construction: loaded.construction,
   ...catalogueReads(getInstance, loaded),

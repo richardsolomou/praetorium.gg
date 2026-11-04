@@ -36,11 +36,13 @@ export const catalogueSourcesSchema = z.object({
       .refine((icons) => Object.keys(icons).length > 0, 'icon selection is empty'),
   }),
   battlemaster: battlemasterSourceSchema,
+  // Optional because snapshots published before it record their sources without it.
+  translations: repositorySourceSchema.optional(),
 })
 
 const SOURCE_NAMES = ['definitions', 'points', 'datacards'] as const
 export type SourceName = (typeof SOURCE_NAMES)[number]
-export const SNAPSHOT_SOURCE_NAMES = [...SOURCE_NAMES, 'battlemaster', 'icons'] as const
+export const SNAPSHOT_SOURCE_NAMES = [...SOURCE_NAMES, 'battlemaster', 'icons', 'translations'] as const
 /** Sources earlier published snapshots carry; they are read as history and never materialized again. */
 const RETIRED_SOURCE_NAMES = ['rules', 'marineCodex'] as const
 export type SnapshotSourceName = (typeof SNAPSHOT_SOURCE_NAMES)[number] | (typeof RETIRED_SOURCE_NAMES)[number]

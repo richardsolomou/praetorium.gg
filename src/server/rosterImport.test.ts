@@ -8,6 +8,7 @@ vi.mock('./app', () => ({
     factionFor: async (id: string) => (id === 'necrons-root' ? { id, name: 'Necrons' } : null),
     catalogueFor: mocks.catalogueFor,
     rulesFor: async () => null,
+    catalogueTranslations: () => new Map(),
   }),
 }))
 vi.mock('../core/rosterExchange', async (actual) => ({

@@ -27,7 +27,7 @@ function TextSourceSwitches() {
 
 export function Sources() {
   return (
-    <LegalPage title="Data sources" updated="17 October 2026">
+    <LegalPage title="Data sources" updated="4 November 2026">
       <LegalSection title="Rules text">
         <p>
           Rules text is copyrighted material, so Praetorium doesn’t host or serve it. If you choose a source, your browser fetches the text
@@ -73,6 +73,13 @@ export function Sources() {
               Certseeds/wh40k-icon
             </a>
             , licensed under AGPL-3.0.
+          </li>
+          <li>
+            Translated faction, detachment, and force disposition names, used to read lists exported in another language, from{' '}
+            <a href="https://nrdata.org" className={linkClass}>
+              New Recruit’s community translations
+            </a>
+            .
           </li>
           <li>
             King of the Colosseum battlefield diagrams from{' '}

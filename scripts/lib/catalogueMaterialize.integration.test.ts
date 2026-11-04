@@ -51,6 +51,8 @@ function downloads() {
         }),
       )
     }
+    if (target.includes(`/${catalogueSources.translations!.repository}/zip/`))
+      return new Response(archive({ 'data/es.json': '{"Necrons":"Necrones"}\n' }))
     if (target.includes('/v1.1/public/tts/layouts')) {
       return Response.json({ catalogKey, layouts: [{ id, owner, layoutKey: 'layout-key' }] })
     }
@@ -87,8 +89,8 @@ it('builds from the committed pins', async () => {
       .mock.calls.map(([url]) => (typeof url === 'string' ? url : url instanceof URL ? url.href : url.url))
       .filter((url) => url.includes('codeload.github.com')),
   ).toEqual(
-    ['definitions', 'points', 'datacards', 'icons'].map((name) => {
-      const source = config[name as keyof typeof config]
+    ['definitions', 'points', 'datacards', 'icons', 'translations'].map((name) => {
+      const source = config[name as keyof typeof config]!
       return `https://codeload.github.com/${'repository' in source ? source.repository : ''}/zip/${source.revision}`
     }),
   )
@@ -107,7 +109,7 @@ it('omits disabled sources without fetching or retaining old files', async () =>
   const download = vi.fn()
   vi.stubGlobal('fetch', download)
   await materializeCatalogue(directory, sources(), {
-    disabled: new Set(['definitions', 'points', 'datacards', 'battlemaster', 'icons']),
+    disabled: new Set(['definitions', 'points', 'datacards', 'battlemaster', 'icons', 'translations']),
     patchesDirectory: path.join(root, 'patches'),
   })
 
