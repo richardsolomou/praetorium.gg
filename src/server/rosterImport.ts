@@ -6,9 +6,11 @@ import {
   importRosterExchange,
   importRosterFaction,
   importRosterFile,
+  importRosterUnitFaction,
   matchesImportFaction,
   type RosterTextFormat,
 } from '../shared/rosterFiles'
+import type { CatalogueTranslations } from '../shared/catalogueTranslations'
 import { app } from './app'
 
 export type Factions = NonNullable<Awaited<ReturnType<ReturnType<typeof app>['factionsFor']>>>['factions']
@@ -22,7 +24,8 @@ export async function importRosterInput(file: string) {
 /** A list another app already read into army text, matched against the current rules for its faction as pasted text is. */
 export async function importParsedList(parsed: TextRoster, format: RosterTextFormat, factions: Factions) {
   const instance = app()
-  const faction = await importedFaction(parsed.faction, null, factions)
+  const translations = instance.catalogueTranslations()
+  const faction = await importedFaction(parsed.faction, null, factions, translations)
   const loaded = faction ? await instance.catalogueFor(faction.id) : null
   if (faction && !loaded) throw new Response('army data is not available', { status: 409 })
   const rules = await instance.rulesFor(faction?.id)
@@ -32,6 +35,7 @@ export async function importParsedList(parsed: TextRoster, format: RosterTextFor
     loaded,
     factions.map((candidate) => candidate.name),
     rules,
+    translations,
   )
 }
 
@@ -41,18 +45,28 @@ async function factionById(catalogueId: string) {
   return faction?.id === catalogueId ? faction : null
 }
 
-async function importedFaction(name: string | null, statedCatalogueId: string | null, factions: Factions) {
+async function importedFaction(
+  name: string | null,
+  statedCatalogueId: string | null,
+  factions: Factions,
+  translations: CatalogueTranslations,
+) {
   if (!name) return null
-  if (!statedCatalogueId) return factions.find((candidate) => matchesImportFaction(name, candidate.name) && candidate.isDefault) ?? null
+  if (!statedCatalogueId)
+    return factions.find((candidate) => matchesImportFaction(name, candidate.name, translations) && candidate.isDefault) ?? null
   const stated = await factionById(statedCatalogueId)
-  return stated && matchesImportFaction(name, stated.name) ? stated : null
+  return stated && matchesImportFaction(name, stated.name, translations) ? stated : null
 }
 
 async function importText(file: string, factions: Factions) {
   const instance = app()
+  const translations = instance.catalogueTranslations()
   const factionName = importRosterFaction(file)
   const statedCatalogueId = importRosterCatalogueId(file)
-  const faction = await importedFaction(factionName, statedCatalogueId, factions)
+  const named = await importedFaction(factionName, statedCatalogueId, factions, translations)
+  const base = named || statedCatalogueId ? null : instance.catalogue()
+  const byUnits = base ? importRosterUnitFaction(file, base) : null
+  const faction = named ?? (byUnits ? await importedFaction(byUnits.name, null, factions, translations) : null)
   if (statedCatalogueId && !faction) throw new Response('the exported codex version is not available', { status: 409 })
   const loaded = faction ? await instance.catalogueFor(faction.id) : null
   if (faction && !loaded) throw new Response('army data is not available', { status: 409 })
@@ -62,6 +76,7 @@ async function importText(file: string, factions: Factions) {
     loaded,
     factions.map((candidate) => candidate.name),
     rules,
+    translations,
   )
   return { result, loaded, rules }
 }

@@ -202,8 +202,9 @@ function provenance(
     policySha256: sha256(encoded(rawRevocations)),
     modifications:
       'Praetorium selects the source paths its product and verification checks consume, packages the materialized sources including any pinned corrections, and compiles a canonical catalogue with field provenance.',
-    sources: sources.map((name) => {
+    sources: sources.flatMap((name) => {
       const source = configuration[name]
+      if (!source) return []
       return {
         name,
         revision: revisions[name],

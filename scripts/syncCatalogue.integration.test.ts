@@ -85,7 +85,7 @@ function prepare(environment: NodeJS.ProcessEnv = {}) {
         CATALOGUE_BASE_URL: '',
         CATALOGUE_CACHE_DIR: path.join(root, 'empty-cache'),
         CATALOGUE_DIR: path.join(root, 'catalogue-data'),
-        CATALOGUE_DISABLED_SOURCES: 'points,datacards,battlemaster,icons',
+        CATALOGUE_DISABLED_SOURCES: 'points,datacards,battlemaster,icons,translations',
         NODE_OPTIONS: `--import=${path.join(root, 'public-source.mjs')}`,
         ...environment,
       },

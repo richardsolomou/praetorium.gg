@@ -75,6 +75,15 @@
       "world-eaters": "chaos/legions/world-eaters-1.svg"
     }
   },
+  "translations": {
+    "repository": "richardsolomou/wh40k-11e-translations",
+    "branch": "main",
+    "path": "data",
+    "license": null,
+    "attribution": "Translations from New Recruit's community translation project",
+    "description": "Catalogue names in other languages, which read army text exported in another language back to the catalogue's own names.",
+    "revision": "4dd982ca14a0ed9e7b99ce42ae03a569ab171ecb"
+  },
   "battlemaster": {
     "baseUrl": "https://battlemaster.online",
     "owner": "superwutz",

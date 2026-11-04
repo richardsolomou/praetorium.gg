@@ -163,6 +163,22 @@ function datasheetFactions(loaded: LoadedCatalogue): ReadonlyMap<string, readonl
   })
 }
 
+/**
+ * The one faction offering more of these datasheets than any other, and more than half of them.
+ *
+ * The official app translates the faction's name but prints datasheets in English, so a
+ * list whose faction is named in another language still says which army it is.
+ */
+export function factionOfDatasheets(names: readonly string[], loaded: LoadedCatalogue): string | null {
+  const factions = new Set(loaded.factions.map((faction) => faction.id))
+  const counts = new Map<string, number>()
+  for (const name of names)
+    for (const id of datasheetFactions(loaded).get(normalized(name)) ?? []) if (factions.has(id)) counts.set(id, (counts.get(id) ?? 0) + 1)
+  const most = Math.max(0, ...counts.values())
+  const leaders = [...counts].filter(([, count]) => count === most)
+  return leaders.length === 1 && most * 2 > names.length ? leaders[0]![0] : null
+}
+
 function datasheetNames(loaded: LoadedCatalogue, catalogueId: string): string[] {
   return [...(loaded.index.datasheets.get(catalogueId) ?? [])].flatMap((id) => {
     const definition = loaded.index.definitions.get(id)

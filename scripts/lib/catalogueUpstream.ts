@@ -43,6 +43,7 @@ export async function resolveCatalogueUpstream(
   }
   const nextSources = catalogueSourcesSchema.parse({
     ...Object.fromEntries([...names, 'icons' as const].map((name) => [name, resolve(sources[name], name)])),
+    ...(sources.translations ? { translations: resolve(sources.translations, 'translations') } : {}),
     battlemaster: {
       ...sources.battlemaster,
       revision: revision('battlemaster', sources.battlemaster.revision, (await battlemasterCatalogue(sources.battlemaster)).revision),

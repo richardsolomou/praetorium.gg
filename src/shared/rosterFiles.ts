@@ -25,6 +25,7 @@ import { gwTextGroup, gwTextVersionLines, toGwText, type GwTextRoster } from '..
 import type { UnitGroup } from '../core/unitGroups'
 import { allowsPointsBudget, customPointsBudget, GAME_SIZES, isGameSize, pointsBudgetError } from '../core/battle'
 import { catalogueFactionName, factionDisplayName } from './factionNames'
+import { englishNames, NO_TRANSLATIONS, translationsOf, type CatalogueTranslations } from './catalogueTranslations'
 import {
   attachmentReason,
   normalized,
@@ -37,6 +38,7 @@ import {
   squadSizeReason,
   DROPPED_REASON,
   WARLORD_REASON,
+  factionOfDatasheets,
 } from './importMismatch'
 import { DISPOSITIONS, type LoadedCatalogue } from './catalogueIndex'
 import { datacardOf } from './datasheetJoin'
@@ -98,25 +100,46 @@ export function importRosterFaction(file: string) {
   return parsedImport(file)?.parsed.faction ?? null
 }
 
+/** The faction a text's units belong to, for a text whose stated faction no book answers to, as one translated by the official app. */
+export function importRosterUnitFaction(file: string, loaded: LoadedCatalogue) {
+  const parsed = parsedImport(file)?.parsed
+  return parsed ? unitFaction(parsed, loaded) : null
+}
+
+const unitFaction = (parsed: TextRoster, loaded: LoadedCatalogue) => {
+  const id = factionOfDatasheets(
+    parsed.units.map((unit) => unit.name),
+    loaded,
+  )
+  return loaded.factions.find((faction) => faction.id === id) ?? null
+}
+
 export function importRosterCatalogueId(file: string) {
   return /^Ruleset: ((?:[a-z0-9-]{1,20}~)?[^\s~]{1,40})$/m.exec(file.replaceAll('\r', ''))?.[1] ?? null
 }
 
-/** Whether a text's faction names this book, by its own name or a faction keyword such as "Heretic Astartes". */
-export function matchesImportFaction(stated: string, name: string) {
-  const wanted = new Set([stated, catalogueFactionName(stated)].map(normalized))
-  return [name, name.split(' - ').at(-1) ?? ''].some((candidate) => wanted.has(normalized(candidate)))
+/** Whether a text's faction names this book, by its own name, a faction keyword such as "Heretic Astartes", or a translation of either. */
+export function matchesImportFaction(stated: string, name: string, translations: CatalogueTranslations = NO_TRANSLATIONS) {
+  const wanted = new Set([stated, catalogueFactionName(stated)].map(unaccented))
+  const leaf = name.split(' - ').at(-1) ?? ''
+  return [...translationsOf(name, translations), ...translationsOf(leaf, translations)].some((candidate) =>
+    [candidate, candidate.split(' - ').at(-1) ?? ''].some((part) => wanted.has(unaccented(part))),
+  )
 }
+
+/** Translations spell names with and without accents, as "Tiranidos" for "Tiránidos". */
+const unaccented = (value: string) => normalized(value).normalize('NFD').replace(/\p{M}/gu, '')
 
 export function importRosterFile(
   data: ImportRosterInput,
   loaded: LoadedCatalogue | null,
   factionNames = loaded?.factions.map((faction) => faction.name) ?? [],
   rules: LoadedRules | null = null,
+  translations: CatalogueTranslations = NO_TRANSLATIONS,
 ) {
   importRosterSchema.parse(data)
   const found = parsedImport(data.file)
-  if (found) return importParsedRoster(found.parsed, found.format, loaded, factionNames, rules)
+  if (found) return importParsedRoster(found.parsed, found.format, loaded, factionNames, rules, translations)
   return {
     name: 'Imported list',
     catalogueId: null,
@@ -138,9 +161,10 @@ export function matchParsedRoster(
   parsed: TextRoster,
   loaded: LoadedCatalogue | null,
   factionNames = loaded?.factions.map((faction) => faction.name) ?? [],
+  translations: CatalogueTranslations = NO_TRANSLATIONS,
 ) {
   if (parsed.units.length > 100) throw new Error('An imported roster can contain at most 100 entries.')
-  return importTextRoster(parsed, loaded, factionNames)
+  return importTextRoster(parsed, loaded, factionNames, translations)
 }
 
 /** A list already read into army text, from a pasted export or another app's own format, matched and priced. */
@@ -150,8 +174,9 @@ export function importParsedRoster(
   loaded: LoadedCatalogue | null,
   factionNames = loaded?.factions.map((faction) => faction.name) ?? [],
   rules: LoadedRules | null = null,
+  translations: CatalogueTranslations = NO_TRANSLATIONS,
 ) {
-  const result = matchParsedRoster(parsed, loaded, factionNames)
+  const result = matchParsedRoster(parsed, loaded, factionNames, translations)
   const currentPoints = result.catalogueId
     ? (calculateRosterPrice(
         {
@@ -244,8 +269,15 @@ const slug = (value: string) =>
     .replaceAll(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '')
 
-function importTextRoster(parsed: TextRoster, loaded: LoadedCatalogue | null, factionNames: readonly string[]) {
-  const faction = loaded?.factions.find((candidate) => matchesImportFaction(parsed.faction, candidate.name))
+function importTextRoster(
+  parsed: TextRoster,
+  loaded: LoadedCatalogue | null,
+  factionNames: readonly string[],
+  translations: CatalogueTranslations,
+) {
+  const faction =
+    loaded &&
+    (loaded.factions.find((candidate) => matchesImportFaction(parsed.faction, candidate.name, translations)) ?? unitFaction(parsed, loaded))
   if (!loaded || !faction) {
     return {
       name: parsed.name,
@@ -260,12 +292,12 @@ function importTextRoster(parsed: TextRoster, loaded: LoadedCatalogue | null, fa
 
   const detachmentName = parsed.detachment
   const offered = loaded.detachments.get(faction.id)?.options ?? []
-  const whole = detachmentName ? detachmentsNamed(detachmentName, offered) : []
+  const whole = detachmentName ? detachmentsNamed(detachmentName, offered, translations) : []
   // Where one of several detachments is unknown, the others still count, so their enhancements stay.
   const parts = whole.length || !detachmentName ? [] : detachmentName.split(/,\s+/)
-  const detachments = whole.length ? whole : parts.flatMap((part) => detachmentsNamed(part, offered))
+  const detachments = whole.length ? whole : parts.flatMap((part) => detachmentsNamed(part, offered, translations))
   const unknown: UnmatchedName[] = parts
-    .filter((part) => !detachmentsNamed(part, offered).length)
+    .filter((part) => !detachmentsNamed(part, offered, translations).length)
     .map((part) => ({ name: part, reason: unmatchedDetachmentReason(part, faction.id, loaded) }))
   for (const line of parsed.unread ?? []) unknown.push({ name: line, reason: 'this line is not understood by the text importer' })
   const detachmentIds = detachments.map((detachment) => detachment.id)
@@ -325,7 +357,7 @@ function importTextRoster(parsed: TextRoster, loaded: LoadedCatalogue | null, fa
   }
 
   const { limit, pointsBudget } = importedBattleSize(parsed, unknown)
-  const disposition = importedDisposition(parsed.disposition, detachments, unknown)
+  const disposition = importedDisposition(parsed.disposition, detachments, unknown, translations)
 
   return {
     name: parsed.name,
@@ -345,13 +377,19 @@ function importTextRoster(parsed: TextRoster, loaded: LoadedCatalogue | null, fa
 }
 
 /** The stated force disposition, or its detachments' own when the text names it in another language. */
-function importedDisposition(stated: string | null, detachments: readonly { disposition: string | null }[], unknown: UnmatchedName[]) {
+function importedDisposition(
+  stated: string | null,
+  detachments: readonly { disposition: string | null }[],
+  unknown: UnmatchedName[],
+  translations: CatalogueTranslations,
+) {
   if (!stated) return null
   if (stated.includes(',')) {
     unknown.push({ name: stated, reason: 'more than one force disposition was stated; choose one in setup' })
     return null
   }
-  if (DISPOSITIONS.has(slug(stated))) return slug(stated)
+  const named = [stated, ...englishNames(stated, translations)].map(slug).find((name) => DISPOSITIONS.has(name))
+  if (named) return named
   const own = new Set(detachments.map((detachment) => detachment.disposition))
   const [only] = own
   if (own.size === 1 && only) return only
@@ -436,17 +474,35 @@ function attachTextUnits(units: readonly TextRosterUnit[], picks: { attachedTo?:
   }
 }
 
-function detachmentsNamed<T extends { id: string; name: string }>(combined: string, options: readonly T[]): T[] {
+function detachmentsNamed<T extends { id: string; name: string }>(
+  combined: string,
+  options: readonly T[],
+  translations: CatalogueTranslations = NO_TRANSLATIONS,
+): T[] {
+  const names = new Map(
+    options.map((option) => [
+      option,
+      [
+        ...new Set(
+          detachmentNameVariants(option.name)
+            .flatMap((name) => translationsOf(name, translations))
+            .map(normalized),
+        ),
+      ],
+    ]),
+  )
   const candidates = options.toSorted((left, right) => normalized(right.name).length - normalized(left.name).length)
   const visit = (remaining: string, available: readonly T[]): T[] | null => {
     for (const candidate of available) {
-      for (const name of new Set(detachmentNameVariants(candidate.name).map(normalized))) {
+      for (const name of names.get(candidate)!) {
         // "Haloscreed Battle Clade" is the catalogue's "Haloscreed Battleclade".
         if (remaining === name || remaining.replaceAll(' ', '') === name.replaceAll(' ', '')) return [candidate]
-        for (const separator of [', and ', ' and ', ', ']) {
-          if (!remaining.startsWith(name + separator)) continue
+        if (!remaining.startsWith(name)) continue
+        const after = remaining.slice(name.length)
+        // The official app joins the last two with its own language's "and", as the Spanish "y".
+        for (const separator of [/^,\s+/, /^,?\s+\S+\s+/].flatMap((pattern) => pattern.exec(after)?.[0] ?? [])) {
           const rest = visit(
-            remaining.slice(name.length + separator.length),
+            after.slice(separator.length),
             available.filter((option) => option.id !== candidate.id),
           )
           if (rest) return [candidate, ...rest]
