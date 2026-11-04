@@ -29,7 +29,14 @@ function price(line: string) {
  * heading. The labels of other tools, which write only English, are still read by name.
  */
 export function fromBattleBaseText(input: string): TextRoster | null {
-  const raw = input.replaceAll('\r', '').split('\n')
+  // The app can print a model's first piece of wargear on the model's own line, as "• 4x Prosecutors     • 4x Boltgun".
+  const raw = input
+    .replaceAll('\r', '')
+    .split('\n')
+    .flatMap((line) => {
+      const joined = line.match(/^(\s*)(•\s*\d+x?\s.*?\S)\s{2,}(•\s*.+)$/)
+      return joined ? [`${joined[1]}${joined[2]}`, `${joined[1]}  ${joined[3]}`] : [line]
+    })
   const lines = raw.map((line) => line.trim())
   const firstAt = lines.findIndex(Boolean)
   let firstEnd = firstAt
@@ -81,7 +88,7 @@ export function fromBattleBaseText(input: string): TextRoster | null {
   let group: TextRosterUnit[] | null = null
   let current: TextRosterUnit | null = null
   // A model's wargear sits under its line on "◦" or more deeply indented bullets, with further pieces on unbulleted lines.
-  const nesting = /^\s*◦|^\s+•/m.test(input)
+  const nesting = raw.some((line) => /^\s*◦|^\s+•/.test(line))
   const indentOf = (at: number) => raw[setupEnd + at]!.search(/\S/)
   let modelLine: { name: string; indent: number } | undefined
   let model: string | undefined

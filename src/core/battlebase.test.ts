@@ -127,6 +127,17 @@ describe('BattleBase text import', () => {
     ])
   })
 
+  it("reads a model's first piece of wargear printed on the model's own line", () => {
+    const parsed = fromBattleBaseText(
+      exportText.replace('    • 6x Close combat weapon\n    • 6x Gauss cannon', '    • 6x Lokhust Destroyer     • 6x Gauss cannon'),
+    )
+
+    expect(parsed?.units[1]?.selections).toEqual([
+      { name: 'Lokhust Destroyer', count: 6 },
+      { name: 'Gauss cannon', count: 6, model: 'Lokhust Destroyer' },
+    ])
+  })
+
   it('reads support attachments', () => {
     const parsed = fromBattleBaseText(
       exportText
