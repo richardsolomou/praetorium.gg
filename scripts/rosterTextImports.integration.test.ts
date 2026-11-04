@@ -151,6 +151,12 @@ describe.skipIf(!fs.existsSync(source))('genuine exports from other army builder
       'Haloscreed Battle Clade',
       'Sicarian Infiltrators (75 points)\n  • 1x Sicarian Infiltrator Princeps\n    • 1x Flechette blaster\n      1x Taser goad\n  • 4x Sicarian Infiltrator\n    • 4x Flechette blaster\n      4x Taser goad',
     ],
+    [
+      'its loadout',
+      'Deathwatch',
+      'Black Spear Task Force',
+      'Indomitor Kill Team (280 points)\n  • 4x Kill Team Heavy Intercessor with Deathwatch Heavy Bolt Rifle and Ceramite Fists.\n     ◦ 4x Ceramite Fists\n     ◦ 2x Deathwatch Heavy Bolt Rifle\n     ◦ 2x Deathwatch Heavy Bolter\n  • 3x Kill Team Heavy Intercessor with Flamestorm Gauntlets and Twin Power Fists\n     ◦ 3x Auto boltstorm gauntlets\n     ◦ 3x Fragstorm grenade launcher\n     ◦ 3x Twin power fists\n  • 3x Kill Team Heavy Intercessor with Melta Rifle, Bolt Pistol and Ceramite Fists\n     ◦ 3x Bolt Pistol\n     ◦ 3x Ceramite Fists\n     ◦ 3x Melta Rifle',
+    ],
   ])('reads an official-app model named by %s', (_shape, faction, detachment, unit) => {
     expect(summary(official(faction, detachment, unit)).mismatches).toEqual([])
   })

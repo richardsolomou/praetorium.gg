@@ -599,6 +599,21 @@ function textRosterPick(
     const words = normalized(label).split(' ')
     return words.length > 1 && !unitWords.has(words[0]!) ? bearers.get(spellingKey(words.at(-1)!)) : undefined
   }
+  // The official app can name a model for its whole loadout, as a "Kill Team Heavy Intercessor with Melta Rifle, Bolt Pistol and Ceramite Fists":
+  // the one model of that kind carrying each piece listed beneath it, or else each piece the name lists, since the app can title
+  // models by a squadmate's loadout.
+  const loadouts = modelLoadouts(entryId, loaded.index)
+  const loadoutModel = (label: string) => {
+    const [, kind, loadout] = normalized(label).match(/^(.+?)\s+(?:with|w\/)\s*(.+?)\.?$/) ?? []
+    if (!kind || !loadout) return undefined
+    const beneath = unit.selections.filter((selection) => selection.model === label).map((selection) => normalized(selection.name))
+    const candidates = loadouts.filter((model) => model.kinds.includes(kind))
+    for (const pieces of [beneath, loadout.split(/,\s*|\s+(?:and|&)\s+/)]) {
+      const holding = candidates.filter((model) => pieces.length > 0 && pieces.every((piece) => model.pieces.has(spellingKey(piece))))
+      if (holding.length === 1) return holding[0]!.name
+    }
+    return undefined
+  }
   const context = { primaryCatalogueId: catalogueId, roster }
   let manualNames: ReadonlyMap<string, string> | undefined
   const defaultMelee = new Map<string, string | null>()
@@ -616,6 +631,7 @@ function textRosterPick(
       (respelled.has(key) ? respelled.get(key) : (respelled.get(powerWeaponKey(key)) ?? unprefixed(label) ?? bearer(label))) ??
       (enhancement ? manualNames?.get(normalized(label)) : undefined) ??
       (key === GENERIC_MELEE ? remember(defaultMelee, key, () => soleDefaultMelee(entryId, loaded.index, context)) : null) ??
+      loadoutModel(label) ??
       normalized(label)
     stated.set(name, (stated.get(name) ?? 0) + selection.count)
     if (!selection.model) statedLines.set(name, (statedLines.get(name) ?? 0) + selection.count)
@@ -1074,6 +1090,21 @@ function modelNames(entryId: string, index: LoadedCatalogue['index']) {
     }
   })
   return names
+}
+
+/** Each model a datasheet fields, by its name and kinds, and the wargear it can carry keyed by spellingKey. */
+function modelLoadouts(entryId: string, index: LoadedCatalogue['index']) {
+  const found: { name: string; kinds: string[]; pieces: Set<string> }[] = []
+  eachDefinition([entryId], index, (definition, target) => {
+    if (target.type !== 'model') return
+    const pieces = new Set<string>()
+    eachDefinition([definition.id], index, (held, heldTarget) => {
+      if (heldTarget.type === 'upgrade') for (const name of nameVariants(nameOf(held, index.definitions))) pieces.add(spellingKey(name))
+    })
+    const name = normalized(nameOf(definition, index.definitions))
+    found.push({ name, kinds: modelAliases(name), pieces })
+  })
+  return found
 }
 
 /** A datasheet's names keyed by spellingKey, as BSData's "Relic Great Axe" is the app's "Relic Greataxe"; null where two collide. */
