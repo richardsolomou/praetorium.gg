@@ -943,6 +943,10 @@ function respelledNames(entryId: string, index: LoadedCatalogue['index']) {
       const words = name.split(' ')
       const at = words.findIndex((word, position) => !unitWords.has(word) || position === words.length - 1)
       if (at > 0) prefixed.push([spellingKey(words.slice(at).join(' ')), name])
+      // The official app can name a model without its unit's last words, as a Paragon Warsuit is a "Paragon".
+      if (target.type === 'model')
+        for (let end = words.length - 1; end > 0 && unitWords.has(words[end]!); end--)
+          prefixed.push([spellingKey(words.slice(0, end).join(' ')), name])
     }
   })
   // Only where the catalogue's own names leave the key free; two such names for one key mean neither.

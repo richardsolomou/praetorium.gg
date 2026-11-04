@@ -104,6 +104,12 @@ describe.skipIf(!fs.existsSync(source))('genuine exports from other army builder
       'Chaos Terminators (170 points)\n  • 1x World Eaters Terminator Champion\n    • 1x Paired accursed weapons\n  • 4x World Eaters Terminator\n    • 4x Combi-bolter\n      4x Power fist',
     ],
     [
+      "the unit's last word left off",
+      'Adepta Sororitas',
+      'Hallowed Martyrs',
+      'Paragon Warsuits (180 points)\n  • 1x Paragon Superior\n    • 1x Bolt pistol\n      1x Heavy bolter\n      1x Paragon storm bolters\n      1x Paragon war blade\n  • 2x Paragon\n    • 2x Bolt pistol\n      2x Heavy bolter\n      2x Paragon storm bolters\n      2x Paragon war blade',
+    ],
+    [
       '"with" for "w/"',
       'Dark Angels',
       'Gauntlet Task Force',
