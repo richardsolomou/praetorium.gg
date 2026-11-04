@@ -91,6 +91,12 @@ describe.skipIf(!fs.existsSync(source))('genuine exports from other army builder
       'War Horde',
       'Flash Gitz (150 points)\n  • 9x Flash Git\n    • 9x Choppa\n      9x Snazzgun\n  • 1x Kaptin\n    • 1x Choppa\n      1x Snazzgun',
     ],
+    [
+      '"with" for "w/"',
+      'Dark Angels',
+      'Gauntlet Task Force',
+      'Company Heroes (125 points)\n  • 1x Company Champion\n    • 1x Master-crafted Bolt Pistol\n      1x Master-crafted Power Weapon\n  • 1x Company veteran with bolt rifle\n    • 1x Combat Knife\n      1x Master-crafted Bolt Pistol\n      1x Master-crafted Bolt Rifle\n  • 1x Ancient\n    • 1x Combat Knife\n      1x Master-crafted Bolt Pistol\n      1x Master-crafted Bolt Rifle\n  • 1x Company Veteran with heavy bolter\n    • 1x Combat Knife\n      1x Master-crafted Bolt Pistol\n      1x Master-crafted Heavy Bolter',
+    ],
   ])('reads an official-app model named by %s', (_shape, faction, detachment, unit) => {
     expect(summary(official(faction, detachment, unit)).mismatches).toEqual([])
   })

@@ -536,11 +536,12 @@ const modelAliases = (name: string) => {
   return [normalized(name), ...nameVariants(kind), ...(/[^z]z$/i.test(kind) ? [normalized(kind.slice(0, -1))] : [])]
 }
 // BSData prefixes weapons the official app does not, as its "Astartes Chainsword" and "Steed's savage claws" are the app's "Chainsword" and "Savage claws".
-// "Exo-armour" and "Exoarmour", "sabre & clawed limbs" and "sabre and clawed limbs", are one piece.
+// "Exo-armour" and "Exoarmour", "sabre & clawed limbs" and "sabre and clawed limbs", "Company Veteran w/ Bolt Rifle" and "with bolt rifle", are one piece.
 const spellingKey = (name: string) =>
   name
     .replace(/^(?:astartes|\S+'s) /, '')
     .replaceAll('&', 'and')
+    .replaceAll(/\s+with\s+/g, 'w/')
     .replaceAll(/[\s-]/g, '')
 // The official app prints some datasheets' power weapon as the sword or maul the model holds, as Bladeguard Veterans' "Master-crafted Power Sword".
 const powerWeaponKey = (key: string) => key.replace(/power(?:sword|maul)/, 'powerweapon')
