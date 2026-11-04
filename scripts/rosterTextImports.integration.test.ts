@@ -395,9 +395,234 @@ Exported with App Version: v2.8.1 (1), Data Version: v995`
     1x Storm bolter`,
       ['1x hunter-killer missile', '1x storm bolter'],
     ],
+    [
+      'Wraiths named after their datasheet',
+      'Necrons',
+      'Canoptek Wraiths',
+      `Canoptek Wraiths (95 points)
+  • 3x Canoptek Wraith
+    • 3x Particle caster
+      3x Vicious claws`,
+      ['3x particle caster'],
+    ],
+    [
+      'the reported Chaos Terminators, whose heavy weapons only some models carry',
+      'Chaos Space Marines',
+      'Chaos Terminator Squad',
+      `Chaos Terminator Squad (370 Points)
+  • 1x Terminator Champion
+     ◦ 1x Chainfist
+     ◦ 1x Combi-bolter
+  • 9x Chaos Terminator
+     ◦ 2x Accursed weapon
+     ◦ 1x Chainfist
+     ◦ 7x Combi-bolter
+     ◦ 6x Power fist
+     ◦ 2x Reaper autocannon`,
+      ['2x reaper autocannon', '6x power fist', '2x accursed weapon'],
+    ],
+    [
+      'a unit-wide icon printed under the Champion',
+      'Chaos Space Marines',
+      'Chaos Bikers',
+      `Chaos Bikers (70 Points)
+  • 1x Biker Champion
+     ◦ 1x Chaos Icon
+     ◦ 1x Close combat weapon
+     ◦ 1x Combi-bolter
+     ◦ 1x Power fist
+  • 2x Chaos Biker
+     ◦ 2x Astartes chainsword
+     ◦ 2x Close combat weapon
+     ◦ 2x Combi-bolter
+     ◦ 2x Plasma gun`,
+      ['1x chaos icon', '2x plasma gun', '2x astartes chainsword'],
+    ],
+    [
+      'the reported Allarus Custodians with a Vexilla',
+      'Adeptus Custodes',
+      'Allarus Custodians',
+      `Allarus Custodians (195 Points)
+  • 3x Allarus Custodians
+     • 3x Balistus Grenade Launcher
+     • 3x Castellan Axe
+     • 1x Vexilla`,
+      ['1x vexilla', '3x castellan axe'],
+    ],
+    [
+      'heavy weapon Terminators, each with a melee weapon',
+      'Space Marines',
+      'Deathwatch Terminator Squad',
+      `Deathwatch Terminator Squad (200 points)
+  • 1x Deathwatch Terminator Sergeant
+    • 1x Storm Shield
+      1x Thunder Hammer
+  • 4x Deathwatch Terminator
+    • 3x Chainfist
+      3x Plasma Cannon
+      1x Storm Shield
+      1x Thunder Hammer`,
+      ['3x chainfist', '3x plasma cannon'],
+    ],
+    [
+      'Neophytes whose second pair of heavy weapons needs twenty models',
+      'Genestealer Cults',
+      'Neophyte Hybrids',
+      `Neophyte Hybrids (135 Points)
+  • 1x Neophyte Leader
+     ◦ 1x Anointed pistol
+     ◦ 1x Autopistol
+     ◦ 1x Power weapon
+  • 19x Neophyte Hybrid
+     ◦ 19x Autopistol
+     ◦ 19x Close combat weapon
+     ◦ 1x Cult Icon
+     ◦ 2x Grenade launcher
+     ◦ 11x Hybrid firearm
+     ◦ 2x Mining laser
+     ◦ 2x Seismic cannon
+     ◦ 2x Webber`,
+      ['2x mining laser', '2x seismic cannon', '2x webber', '11x hybrid firearm'],
+    ],
+    [
+      'a Talos whose arms both offer the macro-scalpel',
+      'Drukhari',
+      'Talos',
+      `Talos (150 Points)
+  • 2x Talos
+     ◦ 2x Macro-scalpel
+     ◦ 2x Twin heat lance
+     ◦ 2x Twin liquifier gun`,
+      ['2x twin liquifier gun', '2x macro-scalpel'],
+    ],
+    [
+      'a Rhino with its own combi-bolter beside the optional one',
+      'Death Guard',
+      'Chaos Rhino',
+      `Chaos Rhino (75 points)
+  • 1x Armoured tracks
+    2x Combi-bolter
+    1x Havoc launcher`,
+      ['2x combi-bolter', '1x havoc launcher'],
+    ],
+    [
+      'cyclone Terminators, not counted by the thunder hammer they could take instead',
+      'Space Marines',
+      'Deathwatch Terminator Squad',
+      `Deathwatch Terminator Squad (190 points)
+  • 1x Deathwatch Terminator Sergeant
+    • 1x Storm Shield
+      1x Thunder hammer
+  • 4x Deathwatch Terminator
+    • 3x Cyclone missile launcher
+      3x Power fist
+      1x Storm Shield
+      3x Storm bolter
+      1x Thunder hammer`,
+      ['3x cyclone missile launcher'],
+    ],
   ])('places %s', (_case, faction, unit, text, pieces) => {
     const held = wargear(officialApp(faction, text), unit)
     for (const piece of pieces) expect(held).toContain(piece)
+  })
+
+  it("arms a Techmarine with the catalogue's one axe-and-servo-arm piece", () => {
+    const file = officialApp(
+      'Space Marines',
+      `Techmarine (55 Points)
+  • 1x Forge bolter
+  • 1x Grav-pistol
+  • 1x Omnissian power axe
+  • 1x Servo-arm`,
+    )
+    expect(imported(file).unplaced).toEqual([])
+  })
+
+  const newRecruit = (faction: string, units: string) => `+++++++++++++++++++++++++++++++++++++++++++++++
++ FACTION KEYWORD: ${faction}
++ TOTAL ARMY POINTS: 2000pts
++++++++++++++++++++++++++++++++++++++++++++++++
+
+${units}
+
+Created with newrecruit.eu v36.47`
+
+  it('places the reported Crisis Battlesuit drones New Recruit lists by model', () => {
+    const file = newRecruit(
+      "Xenos - T'au Empire",
+      `3x Crisis Fireknife Battlesuits (130 pts)
+• 2x Crisis Fireknife Shas'ui
+    1 with Gun Drone, Shield Drone, Battlesuit fists, 2x Missile pod
+    1 with Marker Drone, Shield Drone, Battlesuit fists, 2x Missile pod
+• 1x Crisis Fireknife Shas'vre: Gun Drone, Shield Drone, 2x Missile pod, Battlesuit fists
+
+3x Crisis Starscythe Battlesuits (130 pts)
+• 2x Crisis Starscythe Shas'ui
+    2 with Gun Drone, Shield Drone, 2x Burst cannon, Battlesuit fists
+• 1x Crisis Starscythe Shas'vre: Gun Drone, Marker Drone, 2x Burst cannon, Battlesuit fists`,
+    )
+    expect(imported(file).unplaced).toEqual([])
+  })
+
+  it('gives each Harlequin Player only their own weapons', () => {
+    const file = newRecruit(
+      'Xenos - Aeldari',
+      `5x Troupe (85 pts)
+• 1x Lead Player: Power sword, Fusion Pistol
+• 1x Player with Harlequin's Special Weapon: Harlequin's Special Weapon, Shuriken Pistol
+• 2x Player with Neuro Disruptor: 2 with Neuro Disruptor, Harlequin's Special Weapon
+• 1x Player with Fusion Pistol: Fusion Pistol, Harlequin's Special Weapon`,
+    )
+    expect(wargear(file, 'Troupe')).toContain('2x neuro disruptor')
+  })
+
+  it('arms Harlequin Players the official app lists together', () => {
+    const file = officialApp(
+      'Aeldari',
+      `Troupe (85 Points)
+  • 1x Lead Player
+     ◦ 1x Flip Belt
+     ◦ 1x Fusion pistol
+     ◦ 1x Power sword
+  • 4x Player
+     ◦ 4x Flip Belt
+     ◦ 1x Fusion pistol
+     ◦ 4x Harlequin's special weapon
+     ◦ 2x Neuro disruptor
+     ◦ 1x Shuriken pistol`,
+    )
+    expect(wargear(file, 'Troupe')).toContain('2x neuro disruptor')
+  })
+
+  it('keeps the Servitors whose multi-meltas fill an Inquisitorial Agents squad', () => {
+    const file = newRecruit(
+      'Imperium - Agents of the Imperium',
+      `12x Inquisitorial Agents (100 pts):
+ 2x Tome-skull
+• 10x Agent
+    4 with Agent firearm, Agent melee weapon
+    2 with Agent firearm, Agent melee weapon, Eviscerator
+    2 with Agent firearm, Agent melee weapon, Mystic stave
+    2 with Agent firearm, Agent melee weapon, Plasma pistol
+• 2x Servitor: 2 with Agent melee weapon, Multi-melta`,
+    )
+    expect(wargear(file, 'Inquisitorial Agents')).toContain('2x multi-melta')
+  })
+
+  // 40k.app prints a squad's loadouts on one line, leaving the heavy weapon Terminators' fists to their default.
+  it('keeps the default fists of heavy weapon Terminators a 40k.app line does not name', () => {
+    const file = `Terminators
+Ultramarines · Deathwatch Support
+2000/2000 pts
+
+Ultramarines [200 pts]
+
+OTHER DATASHEETS [200 pts]
+  Deathwatch Terminator Squad [200 pts] (5 models)
+    Power Fist + Storm Bolter / Storm Shield + Thunder Hammer / 3× Plasma Cannon
+
+Exported from 40k.app, view the full list here:`
+    expect(wargear(file, 'Deathwatch Terminator Squad')).toContain('3x power fist')
   })
 
   it('imports the reported official-app Custodes roster without mismatches', () => {

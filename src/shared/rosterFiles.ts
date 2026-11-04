@@ -4,7 +4,7 @@ import type { Attachment } from '../core/attach'
 import { attachmentRows } from '../core/attachmentRows'
 import { fromBattleBaseText } from '../core/battlebase'
 import { type Definition, type Modifier, nameOf, resolve } from '../core/catalogue'
-import { childrenOf, eachDefinition, isRosterToggle, modelProfileOf } from '../core/definitions'
+import { childrenOf, eachDefinition, isRosterToggle, maximumCount, modelProfileOf } from '../core/definitions'
 import { detachmentNameVariants } from '../core/detachmentName'
 import type { Selection } from '../core/evaluate'
 import { fromNewRecruitText } from '../core/newRecruit'
@@ -665,34 +665,142 @@ function textRosterPick(
       }
       return left
     }
+    // Wargear the unit rather than any model takes, as a Chosen's Chaos icon, is still the unit's when the list prints it
+    // under its Champion, who could hold it no other way.
+    const holdable = (claimed: ReadonlyMap<string, number>, own: ReadonlyMap<string, number>) => {
+      const names = new Set([
+        ...own.keys(),
+        ...choices.flatMap((_, at) =>
+          scopes[at]!.stated === claimed ? [...aliases[at]!.values()].flatMap((offered) => [...offered.keys()]) : [],
+        ),
+      ])
+      return new Map([...claimed].filter(([name]) => names.has(name)))
+    }
     scopes.forEach((scope, at) => {
       if (scope.scoped) return
       const { key, options } = choices[at]!
       const namedApart = options.filter((option) => stated.has(normalized(option.name))).length > 1
       const offered = (claim: { key: string }) => !namedApart && options.some((option) => claim.key.startsWith(`${key}/${option.id}/`))
       const claimed = new Map(claims.filter((claim) => !offered(claim)).map((claim) => [claim.stated, claim.held]))
-      scope.stated = [...claimed.keys()].reduce(without, stated)
+      const unitWide = [...key.split('/'), ...options.map((option) => option.id)].every((id) => !isModel(id, loaded.index))
+      scope.stated = [...claimed].map(([lines, own]) => (unitWide ? holdable(lines, own) : lines)).reduce(without, stated)
       scope.held = [...claimed.values()].reduce(without, held)
     })
     const offeredBy = countBy(
       aliases.flatMap((choice) => [...new Set([...choice.values()].flatMap((names) => [...names.keys()]))]),
       (name) => name,
     )
+    // Any line with wargear printed beneath it is a model's, as a "Canoptek Wraith" the official app names after its
+    // datasheet, carrying the particle caster that marks its loadout.
+    const modelLines = new Set([...models, ...statedUnder.keys()])
+    const countsAt = (
+      choice: (typeof choices)[number],
+      at: number,
+      from: ReadonlyMap<string, ReadonlyMap<string, number>>,
+      lines: ReadonlyMap<string, number>,
+    ) => countsForChoice(choice, from, lines, scopes[at]!.held, modelLines, offeredBy, (id) => optionWargear(id, loaded, context))
+    // The choices whose own lines field the models carrying them.
+    const fielding = new Set<string>()
+    // A model only a choice nested on it can arm, as the heavy weapon Terminator a reaper autocannon marks, is fielded by
+    // what that choice states, as are the models of a group nested in this one, as Chaos Bikers with plasma guns; the
+    // rest of the group divides what is left.
+    const nestedBodies = (at: number) => {
+      const { key, options } = choices[at]!
+      const lines = scopes[at]!.stated
+      const bodies = new Map<string, number>()
+      const taken = new Map<string, number>()
+      let besides = 0
+      choices.forEach((nested, inner) => {
+        if (!nested.key.startsWith(`${key}/`)) return
+        const carrier = options.find((option) => nested.key.startsWith(`${key}/${option.id}/`))
+        const grouped = !carrier && nested.options.every((option) => isModel(option.id, loaded.index))
+        if (carrier ? !isModel(carrier.id, loaded.index) : !grouped || nested.key.slice(key.length + 1).includes('/')) return
+        const elsewhere = new Set(
+          aliases.flatMap((offered, other) =>
+            other === inner ? [] : [...offered].flatMap(([id, names]) => (other === at && id === carrier?.id ? [] : [...names.keys()])),
+          ),
+        )
+        let fielded = 0
+        for (const names of aliases[inner]!.values()) {
+          const marks = [...names].filter(([name]) => !elsewhere.has(name) && lines.has(name))
+          if (!marks.length) continue
+          const count = Math.min(...marks.map(([name, each]) => Math.floor(lines.get(name)! / each)))
+          fielded += count
+          for (const [name, each] of marks) taken.set(name, (taken.get(name) ?? 0) + count * each)
+        }
+        // The group's room already leaves out the nested models the unit fields.
+        if (!carrier) {
+          besides += Math.max(0, Math.min(nested.room, fielded) - nested.options.reduce((total, option) => total + option.count, 0))
+          return
+        }
+        // No more of the model than it or the nested choice allows, so a second heavy weapon is reported rather than fielded.
+        const most = Math.min(choices[at]!.room, Math.max(carrier.max, nested.room))
+        if (!fielded) return
+        bodies.set(carrier.id, Math.min(most, Math.max(bodies.get(carrier.id) ?? 0, fielded)))
+        fielding.add(nested.key)
+      })
+      return { bodies, taken, besides }
+    }
     const statedChoiceCounts = new Map(
-      choices.map((choice, at) => [
-        choice.key,
-        countsForChoice(choice, aliases[at]!, scopes[at]!.stated, scopes[at]!.held, models, offeredBy, (id) =>
-          optionWargear(id, loaded, context),
-        ),
-      ]),
+      choices.map((choice, at) => {
+        const { bodies, taken, besides } = nestedBodies(at)
+        if (!bodies.size && !besides) return [choice.key, countsAt(choice, at, aliases[at]!, scopes[at]!.stated)]
+        const room = choice.room - besides - [...bodies.values()].reduce((total, count) => total + count, 0)
+        const rest = { ...choice, room, options: choice.options.filter((option) => !bodies.has(option.id)) }
+        const others = new Map([...aliases[at]!].filter(([id]) => !bodies.has(id)))
+        return [choice.key, new Map([...bodies, ...(room > 0 ? countsAt(rest, at, others, without(scopes[at]!.stated, taken)) : [])])]
+      }),
     )
     // Models are counted even where only one may join, since choosing one would not place its body.
     const counted = (choice: (typeof choices)[number]) =>
       choice.room > 1 || choice.options.some((option) => isModel(option.id, loaded.index))
     const placed = new Set([...placeableNames(selection, aliases, models, unit.name, loaded), ...warlordNames])
     const fieldedKinds = new Set<string>()
-    const spreadEntries = choices.filter(counted).flatMap((choice): [string, Record<string, number>][] => {
-      const counts = statedChoiceCounts.get(choice.key) ?? new Map<string, number>()
+    const spreadEntries: [string, Record<string, number>][] = []
+    // A piece the counted choices already place is not also another choice's to take,
+    // except the default of a choice on the placed model itself, as a heavy weapon
+    // Terminator's accursed weapon is the one its melee choice decides.
+    const spreadPlaced = (within: string) => {
+      const pieces = new Map<string, number>()
+      for (const [key, counts] of spreadEntries) {
+        const names = aliases[choices.findIndex((choice) => choice.key === key)]
+        for (const [id, count] of Object.entries(counts)) {
+          if (within.startsWith(`${key}/${id}/`)) continue
+          for (const [name, each] of names?.get(id) ?? []) pieces.set(name, (pieces.get(name) ?? 0) + count * each)
+        }
+      }
+      return pieces
+    }
+    const spreadFor = (choice: (typeof choices)[number]): [string, Record<string, number>][] => {
+      const at = choices.indexOf(choice)
+      // A choice on a model another choice fields holds only as many as are fielded, as one Harlequin Player
+      // with a special weapon holds one.
+      const carrier = spreadEntries
+        .flatMap(([key, counts]) =>
+          choices
+            .find((other) => other.key === key)!
+            .options.filter((option) => choice.key.startsWith(`${key}/${option.id}/`))
+            .map((option) => counts[option.id] ?? option.count),
+        )
+        .at(-1)
+      const group = loaded.index.definitions.get(choice.key.split('/').at(-1)!)
+      const each = group ? maximumCount(group, loaded.index) : null
+      const room = carrier === undefined ? choice.room : Math.min(choice.room, carrier * (each ?? choice.room))
+      // Wargear the list does not say who carries is read after the counted choices before it, so a Crisis
+      // Shas'vre's drones are the ones its Shas'ui do not take.
+      const follows = !scopes[at]!.scoped && spreadEntries.length > 0 && !choice.options.some((option) => isModel(option.id, loaded.index))
+      const placedBefore = follows ? spreadPlaced(choice.key) : new Map<string, number>()
+      const counts = follows
+        ? countsForChoice(
+            { ...choice, room },
+            aliases[at]!,
+            without(scopes[at]!.stated, placedBefore),
+            without(scopes[at]!.held, placedBefore),
+            modelLines,
+            offeredBy,
+            (id) => optionWargear(id, loaded, context),
+          )
+        : (statedChoiceCounts.get(choice.key) ?? new Map<string, number>())
       const explicit = counts.size > 0
       // A model the list does not count keeps the body a choice gave it: the cyclone
       // missile launcher brings its Terminator, and counting none would take it away.
@@ -726,35 +834,30 @@ function textRosterPick(
           asked!.set(base.id, asked!.get(base.id)! - moved)
           asked!.set(variant.id, moved)
         }
-        return asked?.size ? [[choice.key, Object.fromEntries([...asked].map(([id, count]) => [id, Math.min(choice.room, count)]))]] : []
+        if (!asked?.size) return []
+        // Bodies that fill the group leave none for the model the unit is sized by.
+        const full = [...asked.values()].reduce((total, count) => total + count, 0) >= choice.room
+        const fielded = full ? choice.options.map((option) => [option.id, asked.get(option.id) ?? 0] as const) : [...asked]
+        return [[choice.key, Object.fromEntries(fielded.map(([id, count]) => [id, Math.min(choice.room, count)]))]]
       }
-      return [
-        [
-          choice.key,
-          Object.fromEntries(
-            choice.options.map((option) => [option.id, Math.min(choice.room, counts.get(option.id) ?? (explicit ? 0 : option.count))]),
-          ),
-        ],
-      ]
-    })
+      const spread = new Map(
+        choice.options.map((option) => [option.id, Math.min(room, counts.get(option.id) ?? (explicit ? 0 : option.count))]),
+      )
+      // Every carrier of a required choice holds one, so those the list leaves unsaid keep the default, as heavy weapon
+      // Terminators whose fists a list does not name. Carriers this choice's own lines field are not unsaid: a cyclone
+      // the squad cannot take is reported, not swapped for another weapon.
+      const unsaid =
+        choice.least === undefined || fielding.has(choice.key) ? 0 : room - [...spread.values()].reduce((total, count) => total + count, 0)
+      const fallback =
+        choice.options.find((option) => option.default) ?? choice.options.toSorted((left, right) => right.count - left.count)[0]
+      if (unsaid > 0 && fallback) spread.set(fallback.id, spread.get(fallback.id)! + unsaid)
+      return [[choice.key, Object.fromEntries(spread)]]
+    }
+    for (const choice of choices.filter(counted)) spreadEntries.push(...spreadFor(choice))
     // A weapon spread under a model the list leaves out would only bring that model back.
     const absent = spreadEntries.flatMap(([key, counts]) =>
       Object.entries(counts).flatMap(([id, count]) => (count === 0 && isModel(id, loaded.index) ? [`${key}/${id}/`] : [])),
     )
-    // A piece the counted choices already place is not also another choice's to take,
-    // except the default of a choice on the placed model itself, as a heavy weapon
-    // Terminator's accursed weapon is the one its melee choice decides.
-    const spreadPlaced = (within: string) => {
-      const pieces = new Map<string, number>()
-      for (const [key, counts] of spreadEntries) {
-        const names = aliases[choices.findIndex((choice) => choice.key === key)]
-        for (const [id, count] of Object.entries(counts)) {
-          if (within.startsWith(`${key}/${id}/`)) continue
-          for (const [name, each] of names?.get(id) ?? []) pieces.set(name, (pieces.get(name) ?? 0) + count * each)
-        }
-      }
-      return pieces
-    }
     // A line stated under its model is that model's alone, as a heavy weapon Terminator's power fist is not a squadmate's.
     const leftFor = (at: number, id: string) => {
       const pieces = scopes[at]!.scoped ? new Map<string, number>() : spreadPlaced(choices[at]!.key)
@@ -891,6 +994,9 @@ function carriedNames(selection: Selection, index: LoadedCatalogue['index']) {
       if (loadout) found.add(withoutArticle(loadout))
       if (target.type === 'model') for (const alias of modelAliases(name)) found.add(withoutArticle(alias))
       else for (const alias of nameVariants(name)) found.add(withoutArticle(alias))
+      // A piece the catalogue names for two weapons carries each, as a Techmarine's "Omnissian Power Axe and Servo-arm".
+      const parts = name.split(/\s+and\s+/i)
+      if (target.type !== 'model' && parts.length > 1) for (const part of parts) found.add(withoutArticle(part))
     }
     node.selections?.forEach(walk)
   }
@@ -1127,14 +1233,39 @@ function countsForChoice(
   for (const option of options) {
     const owned = [...(aliases.get(option.id) ?? [])]
       .filter(([name]) => owners.get(name) === 1 && stated.has(name))
-      .map(([name, each]) => ({ elsewhere: Math.max(0, (held.get(name) ?? 0) - inChoice(name)), stated: stated.get(name)!, each }))
-    const alone = owned.filter((name) => name.elsewhere === 0)
-    const distinctive = (alone.length ? alone : owned).map(({ elsewhere, stated: count, each }) =>
+      .map(([name, each]) => ({ name, elsewhere: Math.max(0, (held.get(name) ?? 0) - inChoice(name)), stated: stated.get(name)!, each }))
+    // What the option is and holds says how many took it better than a swap it merely allows, as a cyclone
+    // Terminator's launchers count him where the thunder hammer he could take instead does not.
+    const pieces = wargearOfOption(option.id)
+    const labels = new Set([option.name, upgradeName(option.name), option.name.match(modelLoadout)?.[1] ?? ''].map(normalized))
+    const holds = owned.filter((name) => pieces.has(name.name) || labels.has(name.name))
+    const marks = holds.length ? holds : owned
+    const alone = marks.filter((name) => name.elsewhere === 0)
+    const distinctive = (alone.length ? alone : marks).map(({ elsewhere, stated: count, each }) =>
       Math.ceil(Math.max(0, count - elsewhere) / Math.max(1, each)),
     )
     if (!distinctive.length) continue
     distinctiveCounts.set(option.id, Math.min(...distinctive))
     if (!alone.length && !distinctiveCounts.get(option.id) && models.has(normalized(option.name))) undecided.add(option.id)
+  }
+  // Wargear a choice of several has no room for is left to another, as a Crisis Shas'vre takes the drones its Shas'ui
+  // cannot, and a Rhino's second combi-bolter is its own rather than one its wargear adds. What no other choice offers
+  // goes first, as a Talos's liquifier guns before the macro-scalpels its other arm can take, then the fewest, so a
+  // squad's one axe stays beside the spears that overflow it.
+  if (room > 1) {
+    const wargear = options.filter((option) => distinctiveCounts.has(option.id) && !models.has(normalized(option.name)))
+    const shared = (option: { id: string }) =>
+      Math.min(...[...(aliases.get(option.id)?.keys() ?? [])].filter((name) => stated.has(name)).map((name) => offeredBy.get(name) ?? 1))
+    let free =
+      room - [...distinctiveCounts].reduce((total, [id, count]) => total + (wargear.some((option) => option.id === id) ? 0 : count), 0)
+    const placing = wargear.toSorted(
+      (left, right) => shared(left) - shared(right) || distinctiveCounts.get(left.id)! - distinctiveCounts.get(right.id)!,
+    )
+    for (const option of placing) {
+      const fits = Math.max(0, Math.min(distinctiveCounts.get(option.id)!, option.max, free))
+      distinctiveCounts.set(option.id, fits)
+      free -= fits
+    }
   }
   if (!distinctiveCounts.size) {
     const named = new Map(
