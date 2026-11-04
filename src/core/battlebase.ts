@@ -4,10 +4,10 @@ import { attachGroups, textNickname, WTC_SECTION, type TextRoster, type TextRost
  * A points figure grouped in any locale's style, read as "(1 995 Punkte)", "(1'995 Punkte)" or "(2 Detachment Points)":
  * the name before it, the number, and its unit, whole because Spanish prices both in "puntos" and a detachment in
  * "puntos de destacamento". Text pasted through some apps loses the brackets and
- * the space before a unit's price, as in "Rhino70 points".
+ * the space before a unit's price, as in "Rhino70 points". A unit's "*" refers to a footnote naming a keyword it gains.
  */
 const pricePattern =
-  /^(.*?)\s*(?:\((\d{1,3}(?:[\s.,'’]\d{3})+|\d+)\s+([^;)]*[^\s;)])[^)]*\)|(?<=.)(\d{1,3}(?:[\s.,'’]\d{3})+|\d+)\s+(\S+))$/
+  /^(.*?)\s*(?:\((\d{1,3}(?:[\s.,'’]\d{3})+|\d+)\s+([^;)]*[^\s;)])[^)]*\)\*?|(?<=.)(\d{1,3}(?:[\s.,'’]\d{3})+|\d+)\s+(\S+))$/
 // The app lists each further piece of a model's wargear under the same bullet, on an unbulleted counted line.
 // Some of its translations write the count without the "x", as the Spanish "1 Mass gauntlet".
 const selection = /^(?=[•◦]|\d+x?\s)(?:[•◦]\s*)?(?:(\d+)x?\s+)?(.+?)$/
@@ -139,7 +139,8 @@ export function fromBattleBaseText(input: string): TextRoster | null {
     return nesting ? indentOf(after) > indentOf(at) : /^•\s*\d+x?\s/.test(following)
   }
   const isUnitAt = (at: number) => at >= 0 && isUnit(body[at]!)
-  const isGroupHeadingAt = (at: number) => at >= 0 && /\s\d+$/.test(body[at]!) && isUnitAt(next(at))
+  // French puts the number before a last word, as "Unité 1 Attachée".
+  const isGroupHeadingAt = (at: number) => at >= 0 && /\s\d+(?:\s\S+)?$/.test(body[at]!) && isUnitAt(next(at))
 
   for (const [at, line] of body.entries()) {
     if (!line) continue
@@ -160,7 +161,7 @@ export function fromBattleBaseText(input: string): TextRoster | null {
         group = []
         groups.push(group)
         current = null
-      } else if (isUnitAt(next(at)) || isGroupHeadingAt(next(at)) || (!body[at - 1] && !body[at + 1])) {
+      } else if (WTC_SECTION.test(line) || isUnitAt(next(at)) || isGroupHeadingAt(next(at)) || (!body[at - 1] && !body[at + 1])) {
         group = null
         current = null
       } else if (current) (current.unread ??= []).push(line)
@@ -191,6 +192,8 @@ export function fromBattleBaseText(input: string): TextRoster | null {
       current[field[numeric[1]!.toLowerCase() as keyof typeof field]] = Number(numeric[2])
     } else if (/^(?:Custom name|Nickname):/i.test(name)) current.nickname = textNickname(name.replace(/^(?:Custom name|Nickname):\s*/i, ''))
     else if (/^Warlord$/i.test(name)) current.warlord = true
+    // A keyword the detachment gives the unit, as "Houndpack Lance Keyword: Character", is not a choice.
+    else if (/ Keyword:/i.test(name)) continue
     else if (/^(?:Leading|Supporting):/i.test(name)) current.leading = name.replace(/^(?:Leading|Supporting):\s*/i, '').trim()
     else if (/^(?:Leader|Support):/i.test(name)) current.leader = name.replace(/^(?:Leader|Support):\s*/i, '').trim()
     else {

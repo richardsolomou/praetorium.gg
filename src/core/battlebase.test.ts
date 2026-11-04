@@ -141,6 +141,25 @@ describe('BattleBase text import', () => {
     expect(fromBattleBaseText(exportText.replace('Incursion (1,000 Points)', 'Incursion (1,000 Point)'))?.limit).toBe(1000)
   })
 
+  it('reads a unit marked for a keyword footnote, without the keyword it gains as a choice', () => {
+    const parsed = fromBattleBaseText(
+      exportText
+        .replace('Lokhust Lord (70 Points)\n', 'Lokhust Lord (70 Points)*\n    • Cursed Legion Keyword: Battleline\n')
+        .replace('Resurrection Orb\n', 'Resurrection Orb\n\n* This Datasheet also has the Battleline keyword\n'),
+    )
+    expect(parsed?.units.map((unit) => [unit.name, unit.selections.length])).toEqual([
+      ['Lokhust Lord', 2],
+      ['Lokhust Destroyers', 2],
+    ])
+  })
+
+  it('reads a French attached group, whose heading numbers it before a last word', () => {
+    const parsed = fromBattleBaseText(
+      necronsOfficial.replace('ATTACHED UNITS\n\nAttached Unit 1', 'Unités Attachées\nUnité 1 Attachée').replace('Exported with', ''),
+    )
+    expect([parsed?.unread, parsed?.units[0]?.attachedToEntry]).toEqual([undefined, 1])
+  })
+
   it('does not read a named game format as a unit', () => {
     expect(fromBattleBaseText(kingOfTheColosseumExport)?.units.map((unit) => unit.name)).toEqual(['Lokhust Lord', 'Immortals'])
   })
