@@ -695,8 +695,8 @@ function textRosterPick(
       }
       return left
     }
-    // Wargear the unit rather than any model takes, as a Chosen's Chaos icon, is still the unit's when the list prints it
-    // under its Champion, who could hold it no other way.
+    // A model claims only the lines it or its own choices could hold: a Chosen's Chaos icon, or an Intercessor squad's
+    // grenade launcher, is still the squad's to place when the list prints it under the Champion or Sergeant.
     const holdable = (claimed: ReadonlyMap<string, number>, own: ReadonlyMap<string, number>) => {
       const names = new Set([
         ...own.keys(),
@@ -712,8 +712,7 @@ function textRosterPick(
       const namedApart = options.filter((option) => stated.has(normalized(option.name))).length > 1
       const offered = (claim: { key: string }) => !namedApart && options.some((option) => claim.key.startsWith(`${key}/${option.id}/`))
       const claimed = new Map(claims.filter((claim) => !offered(claim)).map((claim) => [claim.stated, claim.held]))
-      const unitWide = [...key.split('/'), ...options.map((option) => option.id)].every((id) => !isModel(id, loaded.index))
-      scope.stated = [...claimed].map(([lines, own]) => (unitWide ? holdable(lines, own) : lines)).reduce(without, stated)
+      scope.stated = [...claimed].map(([lines, own]) => holdable(lines, own)).reduce(without, stated)
       scope.held = [...claimed.values()].reduce(without, held)
     })
     const offeredBy = countBy(

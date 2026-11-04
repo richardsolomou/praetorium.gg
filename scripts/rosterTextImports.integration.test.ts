@@ -563,6 +563,22 @@ Exported with App Version: v2.8.1 (1), Data Version: v995`
       1x Thunder hammer`,
       ['3x cyclone missile launcher'],
     ],
+    [
+      'a squad grenade launcher printed under the Sergeant',
+      'Space Marines',
+      'Intercessor Squad',
+      `Intercessor Squad (80 points)
+  • 1x Intercessor Sergeant
+    • 1x Astartes grenade launcher
+      1x Bolt pistol
+      1x Bolt rifle
+      1x Power fist
+  • 4x Intercessor
+    • 4x Bolt pistol
+      4x Bolt rifle
+      4x Close combat weapon`,
+      ['1x grenade launcher', '1x power fist'],
+    ],
   ])('places %s', (_case, faction, unit, text, pieces) => {
     const held = wargear(officialApp(faction, text), unit)
     for (const piece of pieces) expect(held).toContain(piece)
