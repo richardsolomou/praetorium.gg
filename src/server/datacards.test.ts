@@ -436,7 +436,7 @@ it('names a section the card leaves empty, and takes its words from the catalogu
   )
 
   const asked: string[] = []
-  const sections = ({ faction, entry, titles }: { faction: string; entry: string; titles: readonly string[] }) => {
+  const sections: SectionProse = ({ faction, entry, titles }) => {
     asked.push(`${faction} / ${entry}`)
     return new Map(titles.flatMap((title) => (title === 'Fade Back' ? [] : [[title, 'Add 2" to Move.']])))
   }
@@ -451,6 +451,51 @@ it('names a section the card leaves empty, and takes its words from the catalogu
         'Spend a token to perform an Agile Manoeuvre.\n\n### Agile Manoeuvres\n\n### Swift as the Wind\n\nAdd 2" to Move.\n\n### Fade Back',
     },
   ])
+})
+
+describe('a card that prints a table as an image', () => {
+  const pledge = 'Gain a bonus depending on how many Pact points you have gained, as shown below (these are all cumulative).'
+  const write = (rules: unknown[]) => {
+    directory = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-datacards-'))
+    fs.writeFileSync(
+      path.join(directory, 'emperors-children.json'),
+      JSON.stringify({
+        name: "Emperor's Children",
+        datasheets: [],
+        detachments: [],
+        rules: { detachment: [{ detachment: 'Coterie of the Conceited', rules: [{ name: { en: 'Pledges to the Dark Prince' }, rules }] }] },
+      }),
+    )
+  }
+  // Answers only for the detachment the card sits in, as the catalogue holds the rule on that entry.
+  const catalogue =
+    (whole: string): SectionProse =>
+    ({ entry }) =>
+      new Map(entry === 'Coterie of the Conceited' ? [['Pledges to the Dark Prince', whole]] : [])
+  const description = (sections: SectionProse) =>
+    loadWords(directory!, sections).factions.get('emperors-children')?.detachmentRules.get(joinKey('Coterie of the Conceited'))?.[0]
+      ?.description
+
+  it('reads the table from the catalogue rule of that name in its detachment', () => {
+    write([
+      { order: 1, type: 'text', text: { en: pledge } },
+      { order: 2, type: 'image', text: { en: '-' } },
+    ])
+    expect(
+      description(catalogue(`${pledge.replace('Pact', '**^^Pact^^**')}\n\n1+: Re-roll a Hit roll of 1.\n3+: Re-roll a Wound roll of 1.`)),
+    ).toBe(`${pledge}\n\n1+: Re-roll a Hit roll of 1.\n3+: Re-roll a Wound roll of 1.`)
+  })
+
+  it('leaves out an image between headings, which anchors nothing', () => {
+    write([
+      { order: 1, type: 'header', text: { en: 'Warp Blades' } },
+      { order: 2, type: 'image', text: { en: '-' } },
+      { order: 3, type: 'text', text: { en: 'Melee weapons have the [LETHAL HITS] ability.' } },
+    ])
+    expect(
+      description(catalogue('First they use two 6s to activate Warp Blades, then the 2s. Melee weapons have the [LETHAL HITS] ability.')),
+    ).toBe('### Warp Blades\n\nMelee weapons have the [LETHAL HITS] ability.')
+  })
 })
 
 it('reads army-construction numbers without trusting malformed alternatives', () => {

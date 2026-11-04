@@ -104,3 +104,28 @@ describe('a section the cards name and do not describe', () => {
     expect(ask(sections, ['Swift as the Wind', 'Star Engines'])).toEqual([['Star Engines', 'Weapons gain [ASSAULT].']])
   })
 })
+
+describe('a card that asks for its own wording', () => {
+  const pledges = { id: 'pledges', name: 'Pledges to the Dark Prince', description: '1+: Re-roll a Hit roll of 1.' }
+
+  it('reads a detachment rule from the entry it sits on', () => {
+    const sections = sectionsOf({
+      sharedSelectionEntries: [{ id: 'coterie', name: 'Coterie of the Conceited', type: 'upgrade', rules: [pledges] }],
+    })
+    expect(ask(sections, ['Pledges to the Dark Prince'], 'Coterie of the Conceited')).toEqual([
+      ['Pledges to the Dark Prince', '1+: Re-roll a Hit roll of 1.'],
+    ])
+  })
+
+  it('reads an army rule from the faction’s own rules when it names no entry', () => {
+    const sections = sectionsOf({ rules: [pledges] })
+    expect([...sections({ faction: 'Aeldari', entry: null, titles: ['Pledges to the Dark Prince'] })]).toEqual([
+      ['Pledges to the Dark Prince', '1+: Re-roll a Hit roll of 1.'],
+    ])
+  })
+
+  it('answers nothing when two books word the army rule differently', () => {
+    const sections = sectionsOf({ rules: [pledges] }, { rules: [{ ...pledges, id: 'pledges-2', description: '2+: Re-roll.' }] })
+    expect([...sections({ faction: 'Aeldari', entry: null, titles: ['Pledges to the Dark Prince'] })]).toEqual([])
+  })
+})

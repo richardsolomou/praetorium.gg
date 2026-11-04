@@ -43,10 +43,12 @@ export type RuleCard = { name: string; description: string }
  * the card is asking for prose it does not carry. `entry` is the name the section is
  * asking under — the card and the section it headed, as the catalogue names the entry
  * holding them — and a title nothing answers for keeps its heading and nothing beneath
- * it. `catalogueSections` is the only thing that can answer, because those words are in
- * the community catalogue rather than here.
+ * it. A card that prints part of itself as an image asks for its own name under the
+ * detachment holding it, or under no entry for an army rule. `catalogueSections` is the
+ * only thing that can answer, because those words are in the community catalogue rather
+ * than here.
  */
-export type SectionProse = (section: { faction: string; entry: string; titles: readonly string[] }) => ReadonlyMap<string, string>
+export type SectionProse = (section: { faction: string; entry: string | null; titles: readonly string[] }) => ReadonlyMap<string, string>
 export type ConstructionDetachment = {
   name: string
   faction: string
@@ -335,7 +337,7 @@ export function factionContent(
   }
   // Read from the words themselves: the published army rules carry tokens, and a refusal must not depend on them.
   const worded = records(parsed.rules, 'army').flatMap((card) => {
-    const description = ruleText(card, name, sectionsOnce, transformed)
+    const description = ruleText(card, name, null, sectionsOnce, transformed)
     return description ? [description] : []
   })
   const sentences = restrictionSentences(name, worded)
@@ -383,7 +385,7 @@ export function factionContent(
     ),
     armyRules: records(parsed.rules, 'army').flatMap((card) => {
       const title = localizedField(card, 'name')
-      const description = ruleText(card, name, sectionsOnce, texts)
+      const description = ruleText(card, name, null, sectionsOnce, texts)
       return title && description ? [{ name: title, description }] : []
     }),
     restrictions: restrictionsIn(sentences),
@@ -400,7 +402,7 @@ export function factionContent(
  * it for the card and the section together, `Battle Focus - Agile Manoeuvres`. A title
  * under no heading is named and left at that.
  */
-function ruleText(card: Record<string, unknown>, faction: string, sections: SectionProse, texts: SourceTexts) {
+function ruleText(card: Record<string, unknown>, faction: string, entry: string | null, sections: SectionProse, texts: SourceTexts) {
   const name = localizedField(card, 'name')
   const blocks = records(card, 'rules').toSorted((left, right) => Number(left.order ?? 0) - Number(right.order ?? 0))
   const titles = new Map<string, string[]>()
@@ -414,9 +416,18 @@ function ruleText(card: Record<string, unknown>, faction: string, sections: Sect
   const described = new Map(
     name ? [...titles].flatMap(([section, named]) => [...sections({ faction, entry: `${name} - ${section}`, titles: named })]) : [],
   )
+  const worded = (rule: Record<string, unknown>) =>
+    (rule.type !== 'image' && (localizedField(rule, 'text') ?? localizedField(rule, 'title'))) || null
+  const whole = name && blocks.some((rule) => rule.type === 'image') ? sections({ faction, entry, titles: [name] }).get(name) : undefined
   return blocks
-    .flatMap((rule) => {
-      if (rule.type === 'image') return []
+    .flatMap((rule, at) => {
+      if (rule.type === 'image') {
+        if (!whole || blocks[at - 1]?.type === 'image') return []
+        const before = blocks.slice(0, at).findLast(worded)
+        const after = blocks.slice(at + 1).find(worded)
+        const missing = imaged(whole, before ? worded(before) : null, after ? worded(after) : null)
+        return missing ? [missing] : []
+      }
       const text = localizedField(rule, 'text')
       const title = localizedField(rule, 'title')
       if (!text) {
@@ -427,6 +438,41 @@ function ruleText(card: Record<string, unknown>, faction: string, sections: Sect
       return rule.type === 'header' || title ? [`### ${title ?? text}`, ...(title ? [texts(text, 'prose')] : [])] : [texts(text, 'prose')]
     })
     .join('\n\n')
+}
+/** A text's paragraphs as `para` tokens number them. */
+export const paragraphsOf = (text: string) =>
+  text
+    .split(/\n\s*\n/)
+    .map((paragraph) => paragraph.trim())
+    .filter(Boolean)
+
+/**
+ * The paragraphs of the catalogue's whole wording of a card that stand where the card prints
+ * an image, so a table the card draws reads as the catalogue writes it. Each is one of the
+ * catalogue's own paragraphs, which publishing swaps for its token.
+ *
+ * The card's words either side of the image are matched on letters and digits alone, since
+ * the two sources mark keywords and quotes differently, and must end or start a paragraph.
+ * An anchor must be a sentence, not a heading, and occur once, so it cannot point at a
+ * passing mention or the wrong repetition. When only one side is echoed, the gap is the
+ * paragraph beside it; when neither is, the image is left out, as most of them are dice or
+ * arrows rather than words.
+ */
+function imaged(whole: string, before: string | null, after: string | null) {
+  const key = (text: string) => [...text.matchAll(/[\p{L}\p{N}]/gu)].map((match) => match[0].toLowerCase()).join('')
+  const paragraphs = paragraphsOf(whole)
+  const keys = paragraphs.map(key)
+  const keyed = keys.join('')
+  const once = (anchor: string) => keyed.indexOf(anchor) >= 0 && keyed.indexOf(anchor) === keyed.lastIndexOf(anchor)
+  const sentence = (text: string | null) => (text && key(text).length >= 20 ? key(text) : null)
+  const tail = [40, 120, Infinity].map((length) => sentence(before)?.slice(-length)).find((anchor) => anchor && once(anchor))
+  const head = sentence(after)?.slice(0, 40)
+  const ended = tail ? keys.findIndex((paragraph) => paragraph.endsWith(tail)) : -1
+  const started = head && once(head) ? keys.findIndex((paragraph) => paragraph.startsWith(head)) : -1
+  if (ended < 0 && started < 0) return null
+  const first = ended >= 0 ? ended + 1 : before === null ? 0 : started - 1
+  const last = started >= 0 ? started - 1 : after === null ? paragraphs.length - 1 : first
+  return first >= 0 && first <= last ? paragraphs.slice(first, last + 1).join('\n\n') : null
 }
 export function detachmentRuleCards(
   rules: unknown,
@@ -439,7 +485,7 @@ export function detachmentRuleCards(
     if (!detachment) return []
     const cards = records(entry, 'rules').flatMap((card) => {
       const name = localizedField(card, 'name')
-      const description = ruleText(card, faction, sections, texts)
+      const description = ruleText(card, faction, detachment, sections, texts)
       return name && description ? [{ name, description }] : []
     })
     return cards.length ? [{ detachment, rules: cards }] : []
@@ -479,6 +525,8 @@ export function transformed(raw: string, transform: TextTransform) {
   if (transform === 'rest') return prose(raw.replaceAll(LIST_ITEM, '').replaceAll(/<\/?ul>/g, ''))
   if (transform.startsWith('item')) return prose([...raw.matchAll(LIST_ITEM)][Number(transform.slice(4))]?.[1] ?? '')
   if (transform === 'condition') return whenDrawnCondition(raw) ?? ''
+  // The catalogue writes a table as one row per line, which Markdown would run together.
+  if (transform.startsWith('para')) return (paragraphsOf(raw)[Number(transform.slice(4))] ?? '').replaceAll('\n', '  \n')
   return raw
 }
 

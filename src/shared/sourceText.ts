@@ -8,11 +8,12 @@
  */
 /**
  * How a string is shown, applied to the whole source string a token names: `item3` is the
- * fourth bullet of a source's own HTML list, `rest` what that list leaves around it, and
- * `condition` what a secondary card's when-drawn rule says must hold to discard it.
+ * fourth bullet of a source's own HTML list, `rest` what that list leaves around it,
+ * `condition` what a secondary card's when-drawn rule says must hold to discard it, and
+ * `para2` the third paragraph of a catalogue text another source quotes only in part.
  */
-export type TextTransform = 'prose' | 'plain' | 'trim' | 'rest' | 'condition' | `item${number}`
-const TRANSFORM = String.raw`prose|plain|trim|rest|condition|item\d{1,3}`
+export type TextTransform = 'prose' | 'plain' | 'trim' | 'rest' | 'condition' | `item${number}` | `para${number}`
+const TRANSFORM = String.raw`prose|plain|trim|rest|condition|item\d{1,3}|para\d{1,3}`
 
 /** The hash is truncated: it identifies one string within one file, it does not have to resist a search of all strings. */
 export const TEXT_HASH_LENGTH = 16
