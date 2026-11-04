@@ -279,3 +279,10 @@ it('holds a not-found report made before the SDK loads until it loads', () => {
   POSTHOG_BROWSER_OPTIONS.loaded(client as unknown as PostHog)
   expect(capture).toHaveBeenCalledWith('page_not_found', { path: '/:id' })
 })
+
+it('reloads a failed import on a browser that cannot time out the script refresh', async () => {
+  vi.stubGlobal('document', { querySelectorAll: () => [{ href: 'https://praetorium.gg/assets/index.js' }] })
+  vi.stubGlobal('AbortSignal', {})
+  await reloadModuleRoute()
+  expect(replace.mock.calls.length).toBe(1)
+})

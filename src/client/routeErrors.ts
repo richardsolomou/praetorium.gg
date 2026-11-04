@@ -75,7 +75,8 @@ export async function reloadModuleRoute() {
       ...Array.from(document.querySelectorAll<HTMLScriptElement>('script[type="module"][src]'), (script) => script.src),
     ]),
   ]
-  const failures = await refreshPageScripts(scripts)
+  // Safari before 16 has no AbortSignal.timeout; the refresh must never keep the page from reloading.
+  const failures = await refreshPageScripts(scripts).catch(() => scripts.length)
   posthog.capture('route_recovery_started', {
     failure_kind: 'module_load',
     recovery_attempt: moduleRecoveryAttempt(url),
