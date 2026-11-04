@@ -119,6 +119,27 @@ it('separates sourced re-rolls from explicit manual adjustments in the calculati
   )
 })
 
+it('gives an attached unit one set of single-die re-rolls however many members field the rule', () => {
+  const rules = [
+    {
+      name: 'Magna Imperator',
+      effects: [{ role: 'attacker' as const, phases: ['ranged' as const], options: { singleRerolls: ['hit' as const, 'wound' as const] } }],
+    },
+  ]
+  const markup = renderToStaticMarkup(
+    createElement(CombatMatchup, {
+      attacker: { ...unit, rules, companions: [{ ...unit, rules }] },
+      defender: unit,
+      preferences: {},
+      onPreferencesChange: () => {},
+      ...slots,
+    }),
+  )
+  expect(markup.slice(markup.indexOf('aria-label="Applied modifiers"'))).toContain(
+    '<li>Re-roll one hit roll and one wound roll from rules</li>',
+  )
+})
+
 it('explains when equipment invalidates a previously selected weapon profile', () => {
   const markup = renderToStaticMarkup(
     createElement(CombatMatchup, {

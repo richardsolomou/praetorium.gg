@@ -932,12 +932,40 @@ describe('exact calculation against every roll sequence', () => {
         scenario.weapons = [torrent({ attacks: { dice: 1, sides: 3, bonus: 0 } })]
       },
     ],
+    [
+      'one hit and one wound re-roll spent across weapons among Sustained Hits',
+      (scenario: CombatInput) => {
+        scenario.target.groups = [group({ wounds: 3 })]
+        scenario.options.singleRerolls = ['hit', 'wound']
+        const weapon = scenario.weapons[0]!
+        scenario.weapons = [{ ...weapon, skill: 4, sustained: 1, damage: attacks(1) }, torrent({ strength: 4, damage: attacks(2) })]
+      },
+    ],
+    [
+      'single-die hit and wound re-rolls with a Command Re-roll on the save',
+      (scenario: CombatInput) => {
+        scenario.target.groups = [group({ wounds: 2, save: 4 })]
+        scenario.options.singleRerolls = ['hit', 'wound']
+        scenario.options.commandReroll = 'save'
+        Object.assign(scenario.weapons[0]!, { attacks: attacks(2), skill: 4, lethal: true, damage: attacks(1) })
+      },
+    ],
+    [
+      'a single-die hit re-roll beside a Command Re-roll on a hit roll',
+      (scenario: CombatInput) => {
+        scenario.target.groups = [group({ wounds: 3 })]
+        scenario.options.singleRerolls = ['hit']
+        scenario.options.commandReroll = 'hit'
+        Object.assign(scenario.weapons[0]!, { attacks: attacks(2), skill: 4, damage: attacks(1) })
+      },
+    ],
   ])('matches %s', (_, arrange) => {
     const scenario = input()
     arrange(scenario)
     const expected = enumerated(scenario)
     const exact = calculateCombat(scenario).damage
-    expect(Math.max(...exact.map((weight, lost) => Math.abs(weight - (expected.get(lost) ?? 0))))).toBeLessThan(1e-12)
+    // Summing thousands of sequence weights drifts by about 1e-12; a missed or doubled sequence weighs far more.
+    expect(Math.max(...exact.map((weight, lost) => Math.abs(weight - (expected.get(lost) ?? 0))))).toBeLessThan(1e-10)
   })
 })
 

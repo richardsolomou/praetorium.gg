@@ -34,7 +34,7 @@ import type { MatchupSettings } from '../../../contracts/simulatorState'
 import type { LoadoutSpace } from '../../../core/combatLoadouts'
 import { groupBy } from '../../../core/collections'
 import { Problem } from '../../components/Problem'
-import { signedLabel } from '../../text'
+import { formatList, signedLabel } from '../../text'
 import { useStableValue } from '../../useStableValue'
 import { calculationInputs } from './calculationInputs'
 
@@ -432,6 +432,8 @@ export function CombatMatchup({
       sourced.push(`${sourceOptions.hitReroll === 'ones' ? 'Re-roll hit 1s' : 'Re-roll hits'} from rules`)
     if (sourceOptions.woundReroll !== 'none' && resolved.woundReroll === sourceOptions.woundReroll)
       sourced.push(`${sourceOptions.woundReroll === 'ones' ? 'Re-roll wound 1s' : 'Re-roll wounds'} from rules`)
+    if (sourceOptions.singleRerolls?.length)
+      sourced.push(`Re-roll ${formatList(sourceOptions.singleRerolls.map((kind) => `one ${kind} roll`))} from rules`)
     for (const scope of ['all', phase] as const) {
       const name = scope === 'all' ? 'All' : PHASE_TITLES[phase]
       const attack = adjustments[scope] ?? {}

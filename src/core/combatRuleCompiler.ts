@@ -49,7 +49,7 @@ const stripEnd = (text: string) => text.replace(/[.;, ]+$/, '').trim()
 const phasesOf = (word: string | undefined, fallback: CombatPhase[]): CombatPhase[] =>
   /ranged/i.test(word ?? '') ? ['ranged'] : /melee/i.test(word ?? '') ? ['melee'] : fallback
 const actionPhases = (action: string): CombatPhase[] =>
-  /shoot.*fight|fight.*shoot/i.test(action) ? ['ranged', 'melee'] : /shoot/i.test(action) ? ['ranged'] : ['melee']
+  /^attack$|shoot.*fight|fight.*shoot/i.test(action) ? ['ranged', 'melee'] : /shoot/i.test(action) ? ['ranged'] : ['melee']
 const characteristic: Record<string, DatasheetCharacteristicKind> = {
   attacks: 'attacks',
   a: 'attacks',
@@ -589,7 +589,7 @@ function compileRule(rule: CombatRule, enemy = false): { choices: CombatRuleChoi
       })
     }
     const selectedToAttack =
-      /^(?:In your (?:Shooting|Fight) phase, )?(?:when|each time) (?:this unit|this model|the bearer|the bearer's unit|this model's unit|an? (?:friendly )?([^.;]+?) unit(?: from your army)?) is selected to (shoot or fight|shoot|fight), (.+)$/i.exec(
+      /^(?:In your (?:Shooting|Fight) phase, )?(?:when|each time) (?:this unit|this model|the bearer|the bearer's unit|this model's unit|an? (?:friendly )?([^.;]+?) unit(?: from your army)?) is selected to (shoot or fight|shoot|fight|attack), (.+)$/i.exec(
         written,
       )
     if (selectedToAttack) {
@@ -841,6 +841,23 @@ function compileRule(rule: CombatRule, enemy = false): { choices: CombatRuleChoi
       return effect(
         { ...context, phases: phasesOf(attacksReroll[3], context.phases) },
         { options: { [/hit/i.test(attacksReroll[4]!) ? 'hitReroll' : 'woundReroll']: attacksReroll[5] ? 'ones' : 'failed' } },
+      )
+    }
+    const singleRerolls =
+      /^(?:its|(?:this|your|that) unit's) (ranged |melee )?attacks can re-roll one (hit|wound) roll(?: and one (hit|wound) roll)?$/i.exec(
+        written,
+      )
+    if (singleRerolls) {
+      // One die for the whole unit cannot be split between weapons or targets.
+      if (context.weapon || context.requiresWeaponKeyword || context.targetKeywords || context.excludedTargetKeywords || context.condition)
+        return null
+      return effect(
+        { ...context, phases: phasesOf(singleRerolls[1], context.phases) },
+        {
+          options: {
+            singleRerolls: [singleRerolls[2]!, singleRerolls[3]].flatMap((kind) => (kind ? [kind.toLowerCase() as 'hit' | 'wound'] : [])),
+          },
+        },
       )
     }
     const targetedAttacks = /^When this unit's (ranged |melee )?attacks target (.+?), (those attacks .+)$/i.exec(written)
