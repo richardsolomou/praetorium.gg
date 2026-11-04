@@ -92,6 +92,18 @@ describe.skipIf(!fs.existsSync(source))('genuine exports from other army builder
       'Flash Gitz (150 points)\n  • 9x Flash Git\n    • 9x Choppa\n      9x Snazzgun\n  • 1x Kaptin\n    • 1x Choppa\n      1x Snazzgun',
     ],
     [
+      'a keyword prefix',
+      'Chaos Space Marines',
+      'Veterans of the Long War',
+      'Cultist Mob (50 points)\n  • 1x Cultist Champion\n    • 1x Autopistol\n      1x Brutal assault weapon\n  • 9x Chaos Cultist\n    • 9x Autopistol\n      9x Brutal assault weapon',
+    ],
+    [
+      'a faction prefix',
+      'World Eaters',
+      'Berzerker Warband',
+      'Chaos Terminators (170 points)\n  • 1x World Eaters Terminator Champion\n    • 1x Paired accursed weapons\n  • 4x World Eaters Terminator\n    • 4x Combi-bolter\n      4x Power fist',
+    ],
+    [
       '"with" for "w/"',
       'Dark Angels',
       'Gauntlet Task Force',

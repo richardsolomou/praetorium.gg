@@ -8,7 +8,7 @@ import { childrenOf, eachDefinition, isRosterToggle, modelProfileOf } from '../c
 import { detachmentNameVariants } from '../core/detachmentName'
 import type { Selection } from '../core/evaluate'
 import { fromNewRecruitText } from '../core/newRecruit'
-import { normalizedNameVariants } from '../core/name'
+import { normalizedNameVariants, withoutFactionPrefix } from '../core/name'
 import { fromListForgeText, fromListForgeWtcText } from '../core/listForge'
 import { fromFortyKAppText } from '../core/fortyKApp'
 import { fromWarmindText } from '../core/warmind'
@@ -42,6 +42,7 @@ import {
 } from './importMismatch'
 import { DISPOSITIONS, type LoadedCatalogue } from './catalogueIndex'
 import { datacardOf } from './datasheetJoin'
+import { keywordsIn } from './catalogue'
 import { isUpgrade, mfmDetachmentFor } from './mfm'
 import { rosterDetachments } from './rosterDetachments'
 import { importRosterSchema, type ExportRosterInput, type ImportRosterInput } from '../contracts/schemas'
@@ -569,12 +570,22 @@ function textRosterPick(
   // Lines no model holds, which are the only ones that can name a body: a Terminator Champion's "Paired accursed weapons" is not a Terminator.
   const statedLines = new Map<string, number>()
   const respelled = respelledNames(entryId, loaded.index)
-  // Some exporters prefix wargear with the unit it belongs to, as BattleBase's "Scout sniper rifle" is a Scout Squad's "Sniper Rifle".
-  const unitWords = new Set(normalized(unit.name).split(' ').flatMap(nameVariants))
+  const models = modelNames(entryId, loaded.index)
+  // Some exporters prefix wargear with the unit it belongs to, as BattleBase's "Scout sniper rifle" is a Scout Squad's "Sniper Rifle",
+  // and the official app prefixes a model with a keyword of its unit, as a Cultist Mob's "Chaos Cultist" or a "World Eaters Terminator Champion".
+  const unitWords = new Set(
+    [unit.name, ...keywordsIn(loaded, catalogueId, entryId).map(withoutFactionPrefix)].flatMap((name) =>
+      normalized(name).split(' ').flatMap(nameVariants),
+    ),
+  )
   const unprefixed = (label: string) => {
     const words = normalized(label).split(' ')
-    const at = words.findIndex((word, position) => !unitWords.has(word) || position === words.length - 1)
-    return at > 0 ? respelled.get(spellingKey(words.slice(at).join(' '))) : undefined
+    for (let at = 1; at < words.length && unitWords.has(words[at - 1]!); at++) {
+      const rest = words.slice(at).join(' ')
+      const found = respelled.get(spellingKey(rest)) ?? (models.has(rest) ? rest : undefined)
+      if (found) return found
+    }
+    return undefined
   }
   const context = { primaryCatalogueId: catalogueId, roster }
   let manualNames: ReadonlyMap<string, string> | undefined
@@ -601,7 +612,6 @@ function textRosterPick(
     under.set(name, (under.get(name) ?? 0) + selection.count)
     statedUnder.set(model, under)
   }
-  const models = modelNames(entryId, loaded.index)
   // The official app titles a model after its datasheet, as a "Thunderwolf Cavalry Pack Leader" the catalogue does not name;
   // a name the datasheet holds, as a "Piranha fusion blaster", is not one.
   const ownNames = nameVariants(unit.name)
