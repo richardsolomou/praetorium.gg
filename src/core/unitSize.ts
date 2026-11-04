@@ -131,7 +131,7 @@ function survey(selection: Selection, index: CatalogueIndex, trail: string[]): {
     const target = resolve(option.definition, index)
     if (taken.has(option.id) || target.type !== undefined || requiredCount(option.definition, index) > 0) continue
     if (replacesSquadmate(option.definition, squadmates, index)) continue
-    const occupants = childrenOf(target, index)
+    const occupants = childrenOf(option.definition, index)
     if (!occupants.length || occupants.some((occupant) => resolve(occupant.definition, index).type !== 'model')) continue
     const widestOccupant = occupants
       .map((occupant) => ({ id: occupant.id, max: maximumCount(occupant.definition, index) ?? UNBOUNDED }))
@@ -170,7 +170,7 @@ function occupantBounds(group: Selection, index: CatalogueIndex): { min: number;
 /** What a unit or group offers, for asking which of its models take another's place. */
 function squadmatesIn(selection: Selection, index: CatalogueIndex) {
   const definition = index.definitions.get(selection.id)
-  return definition ? childrenOf(resolve(definition, index), index) : []
+  return definition ? childrenOf(definition, index) : []
 }
 
 /** Which occupant of a group to grow: the one the data lets take the most. */

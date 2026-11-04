@@ -117,7 +117,7 @@ function assemble(
   }
   const modelGroup = (key: string) => {
     const definition = index.definitions.get(key.split('/').at(-1) ?? '')
-    return definition && childrenOf(resolve(definition, index), index).some((option) => modelOption(option.id))
+    return definition && childrenOf(definition, index).some((option) => modelOption(option.id))
   }
   const compositionChoices = fixedSizes.length && context?.spreads ? unitChoices(entryId, composed, index, context) : []
   // Expand loadouts before their nested weapons; settle model allocations afterwards,
@@ -199,8 +199,8 @@ function settleProfileWeaponSwaps(selection: Selection, index: CatalogueIndex, c
   const walk = (node: Selection, path: string[]) => {
     const definition = index.definitions.get(node.id)
     const target = definition && resolve(definition, index)
-    if (target && (target.type === 'model' || path.length === 0)) {
-      for (const child of childrenOf(target, index)) {
+    if (definition && target && (target.type === 'model' || path.length === 0)) {
+      for (const child of childrenOf(definition, index)) {
         if (
           !child.definition.modifiers?.some(
             (modifier) =>
@@ -265,7 +265,7 @@ function compositionRequest(
     if (at === ids.length) return { path, parent }
     const id = ids[at]!
     const target = resolve(parent, index)
-    const options = childrenOf(target, index)
+    const options = childrenOf(parent, index)
     const composition =
       target.type === undefined &&
       isUnitCompositionChoice({
@@ -293,8 +293,8 @@ function compositionRequest(
   const { path, parent } = found
   const original = index.definitions.get(key.split('/').at(-1) ?? '')
   if (!original) return null
-  const destination = childrenOf(resolve(parent, index), index)
-  const options = childrenOf(resolve(original, index), index).flatMap((option) => {
+  const destination = childrenOf(parent, index)
+  const options = childrenOf(original, index).flatMap((option) => {
     const replacement = equivalent(option.id, destination)
     return replacement ? [[option.id, replacement.id] as const] : []
   })
@@ -441,7 +441,7 @@ function optionalModelSlots(selection: Selection, index: CatalogueIndex): ModelS
     const visited = new Set(seen).add(target.id)
     const present = new Map((node.selections ?? []).map((child) => [child.id, child]))
 
-    for (const child of childrenOf(target, index)) {
+    for (const child of childrenOf(definition, index)) {
       const inner = resolve(child.definition, index)
       const here = [...trail, child.id]
       const held = present.get(child.id)
@@ -453,7 +453,7 @@ function optionalModelSlots(selection: Selection, index: CatalogueIndex): ModelS
         continue
       }
       if (inner.type === undefined && !held) {
-        const models = childrenOf(inner, index).filter((option) => resolve(option.definition, index).type === 'model')
+        const models = childrenOf(child.definition, index).filter((option) => resolve(option.definition, index).type === 'model')
         if (models.length === 1) {
           const [model] = models
           if (!model) continue
@@ -494,7 +494,7 @@ function refit(selection: Selection, index: CatalogueIndex, carriers: number, op
     // Only wargear — a group of models is what the squad's own size means, and
     // filling that would overrule the number of models asked for.
     if (inner?.type === undefined && (child.selections ?? []).length) {
-      const groupOptions = childDefinition ? childrenOf(inner ?? { id: child.id }, index) : []
+      const groupOptions = childDefinition ? childrenOf(childDefinition, index) : []
       const wargear = groupOptions.filter(
         (option) => isCollective(option.definition, index) && resolve(option.definition, index).type === 'upgrade',
       )

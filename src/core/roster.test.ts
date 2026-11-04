@@ -2824,3 +2824,35 @@ describe('specialists joining the models a unit is sized by', () => {
     expect(choice?.options.find((option) => option.id === 'gauntlets')?.max).toBe(2)
   })
 })
+
+describe('entries a link declares', () => {
+  it('offers an option declared on the link beside its target group’s', () => {
+    const index = indexOf({
+      sharedSelectionEntryGroups: [
+        {
+          id: 'enhancements',
+          name: 'Enhancements',
+          constraints: [{ id: 'enhancements-max', type: 'max', value: 1, field: 'selections', scope: 'parent' }],
+          selectionEntries: [{ id: 'shared-relic', name: 'Shared Relic', type: 'upgrade' }],
+        },
+      ],
+      sharedSelectionEntries: [
+        {
+          id: 'knight',
+          name: 'Knight',
+          type: 'model',
+          entryLinks: [
+            {
+              id: 'knight-enhancements',
+              targetId: 'enhancements',
+              type: 'selectionEntryGroup',
+              selectionEntries: [{ id: 'own-relic', name: 'Own Relic', type: 'upgrade' }],
+            },
+          ],
+        },
+      ],
+    })
+    const options = buildUnit('knight', index)!.choices.flatMap((choice) => choice.options.map((option) => option.name))
+    expect(options).toEqual(['Shared Relic', 'Own Relic'])
+  })
+})

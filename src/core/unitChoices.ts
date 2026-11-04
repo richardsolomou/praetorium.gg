@@ -157,7 +157,7 @@ function exclusiveSetsIn(entry: Definition, depth: number, index: CatalogueIndex
     if (left <= 0 || seen.has(target.id)) return
     const visited = new Set(seen).add(target.id)
     forbidden.push(...definitionAndTarget(definition, index).flatMap(exclusiveSets))
-    for (const child of childrenOf(target, index)) gather(child.definition, left - 1, visited)
+    for (const child of childrenOf(definition, index)) gather(child.definition, left - 1, visited)
   }
   gather(entry, depth, new Set())
   return forbidden
@@ -230,7 +230,7 @@ function collectUnitChoices(
     const visited = new Set(seen).add(target.id)
     const enclosing = [...lineage, definition]
 
-    for (const child of childrenOf(target, index)) {
+    for (const child of childrenOf(definition, index)) {
       const here = [...trail, child.id]
       if (!visible(child.definition, enclosing, here)) continue
       const inner = resolve(child.definition, index)
@@ -294,7 +294,7 @@ function collectUnitChoices(
         inner.type === 'model' &&
         target.type !== undefined &&
         lower === 0 &&
-        replacesSquadmate(child.definition, childrenOf(target, index), index, options.modifierCache)
+        replacesSquadmate(child.definition, childrenOf(definition, index), index, options.modifierCache)
       ) {
         const count = countAt(selection, here)
         const most = maximumCountAt(selection, here, child.definition, index, options) ?? maximumCount(child.definition, index)
@@ -324,7 +324,7 @@ function collectUnitChoices(
       }
 
       if (inner.type === undefined) {
-        const choosable = childrenOf(inner, index).filter(
+        const choosable = childrenOf(child.definition, index).filter(
           (option) =>
             visible(option.definition, [...enclosing, child.definition], [...here, option.id]) &&
             resolve(option.definition, index).type !== undefined,
@@ -348,7 +348,7 @@ function collectUnitChoices(
             uncappedFromEntry(selection, trail, enclosing, index, options) &&
             choosable.every((option) => resolve(option.definition, index).type === 'upgrade')) ||
             choosable.every((option) => /^This model can be equipped with 1 .+\.$/i.test(resolve(option.definition, index).name ?? '')) ||
-            replacesSquadmate(child.definition, childrenOf(target, index), index, options.modifierCache))
+            replacesSquadmate(child.definition, childrenOf(definition, index), index, options.modifierCache))
         const roomFor = (option: Option) => scaled(maximumCount(option.definition, index), scale)
         // An option's own cap as the unit stands, since a squad size can open or close it.
         // The group keeps its full room, so the datasheet still names what a closed option is.
@@ -407,7 +407,7 @@ function collectUnitChoices(
         const sizedBody = resizesUnit
           ? choosable.find((option) => option.id === resizingPath.at(-1) && !adjustable.includes(option))
           : nestedInSizing
-            ? childrenOf(target, index).find((option) => option.id === resizingPath.at(-1))
+            ? childrenOf(definition, index).find((option) => option.id === resizingPath.at(-1))
             : undefined
         const sized =
           sizedBody ??
@@ -518,7 +518,7 @@ export function unitToggles(entryId: string, selection: Selection, index: Catalo
     if (seen.has(target.id)) return
     const visited = new Set(seen).add(target.id)
     const enclosing = [...lineage, definition]
-    for (const child of childrenOf(target, index)) {
+    for (const child of childrenOf(definition, index)) {
       const here = [...trail, child.id]
       if (!offered(child.definition, selection, here, enclosing, index, options)) continue
       const inner = resolve(child.definition, index)

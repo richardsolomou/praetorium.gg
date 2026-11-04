@@ -1208,7 +1208,7 @@ function modelNames(entryId: string, index: LoadedCatalogue['index']) {
   const names = new Set<string>()
   eachDefinition([entryId], index, (definition, target) => {
     const kind = groupKind(nameOf(definition, index.definitions))
-    if (kind && childrenOf(target, index).some((child) => resolve(child.definition, index).type === 'model')) names.add(kind)
+    if (kind && childrenOf(definition, index).some((child) => resolve(child.definition, index).type === 'model')) names.add(kind)
     if (target.type !== 'model') return
     for (const name of [nameOf(definition, index.definitions), modelProfileOf(definition, index)]) {
       if (!name) continue
@@ -1314,7 +1314,7 @@ function warlordAliases(entryId: string, index: LoadedCatalogue['index']) {
     if (warlord) {
       for (const name of (definition.modifiers ?? []).flatMap(nameSetBy)) names.add(normalized(name))
     }
-    for (const child of childrenOf(target, index)) walk(child.definition, warlord)
+    for (const child of childrenOf(definition, index)) walk(child.definition, warlord)
   }
   const root = index.definitions.get(entryId)
   if (root) walk(root, false)

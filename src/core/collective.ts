@@ -9,7 +9,7 @@
  * choices offering room, the wargear list adding up pieces — asks this one question here.
  */
 
-import { type CatalogueIndex, type Definition, resolve } from './catalogue'
+import { type CatalogueIndex, type Definition, definitionAndTarget, resolve } from './catalogue'
 import { remember } from './collections'
 
 // Every count the evaluator reads asks these of a definition, and a loaded catalogue's definitions never change.
@@ -36,11 +36,11 @@ export function isCollectiveGroup(definition: Definition, index: CatalogueIndex)
     () => {
       const target = resolve(definition, index)
       if (target.type !== undefined) return false
-      const children = [
-        ...(target.selectionEntries ?? []),
-        ...(target.selectionEntryGroups ?? []),
-        ...(target.entryLinks ?? []).filter((link) => index.definitions.has(link.targetId)),
-      ]
+      const children = definitionAndTarget(definition, index).flatMap((holder) => [
+        ...(holder.selectionEntries ?? []),
+        ...(holder.selectionEntryGroups ?? []),
+        ...(holder.entryLinks ?? []).filter((link) => index.definitions.has(link.targetId)),
+      ])
       return children.some((child) => isCollective(child, index))
     },
   )

@@ -242,7 +242,8 @@ function modelCategoriesOf(unit: Definition, index: CatalogueIndex): ReadonlySet
           const target = targetOf(entry, index.definitions)
           if (target.type === 'model') {
             for (const source of [entry, target]) for (const category of source.categoryLinks ?? []) found.add(category.targetId)
-          } else if (target.type !== 'upgrade' && target.type !== 'unit') visit(childrenOf(target))
+          } else if (target.type !== 'upgrade' && target.type !== 'unit')
+            visit((entry === target ? [entry] : [entry, target]).flatMap(childrenOf))
         }
       }
       if (unit.type === 'unit') visit(childrenOf(unit))

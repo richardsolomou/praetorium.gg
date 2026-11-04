@@ -347,7 +347,7 @@ function standingModels(
     const target = resolve(definition, index)
     if (left <= 0 || seen.has(target.id)) return
     const visited = new Set(seen).add(target.id)
-    for (const child of childrenOf(target, index)) {
+    for (const child of childrenOf(definition, index)) {
       if (hiddenByRules(child.definition, index, { ...options, roster })) continue
       const inner = resolve(child.definition, index)
       const here = [...trail, child.id]

@@ -34,7 +34,7 @@ export function expand(
   if (depth <= 0 || seen.has(target.id)) return { id, count }
 
   const visited = new Set(seen).add(target.id)
-  const available = childrenOf(target, index).filter((child) => !hiddenByRules(child.definition, index, options))
+  const available = childrenOf(definition, index).filter((child) => !hiddenByRules(child.definition, index, options))
 
   // A group holds no count of its own: "at least four selections of this group"
   // is satisfied by what goes inside it, so the requirement passes to a child.
@@ -112,7 +112,7 @@ function insistedOn(
   const own = requiredCount(option.definition, index, options) * scaleOf(option.definition, holder, index, carriers)
   const target = resolve(option.definition, index)
   if (own > 0 || target.type !== undefined || depth <= 0) return own
-  return childrenOf(target, index)
+  return childrenOf(option.definition, index)
     .filter((child) => !hiddenByRules(child.definition, index, options))
     .reduce((total, child) => total + insistedOn(child, option.definition, index, depth - 1, carriers, options), 0)
 }
@@ -189,7 +189,7 @@ export function withChoice(
   // inside a copy of itself and charge for it twice.
   if (resolve(group, index).type !== undefined) return withCounts(selection, [{ path, count: optionId ? 1 : 0 }])
 
-  const occupants = childrenOf(resolve(group, index), index)
+  const occupants = childrenOf(group, index)
   const roster = [...(context.roster ?? []), selection]
   const options = new Set(
     occupants.filter((option) => requiredCount(option.definition, index, { ...context, roster }) === 0).map((option) => option.id),
