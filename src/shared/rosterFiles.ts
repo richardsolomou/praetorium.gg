@@ -530,10 +530,11 @@ function detachmentsNamed<T extends { id: string; name: string }>(
 const upgradeName = (name: string) => name.replace(/(?:\s+\((?:one per army|Upgrade)\))+$/i, '')
 const nameVariants = (name: string) => normalizedNameVariants(normalized(name))
 const modelLoadout = /\s+w\/\s*(.+)$/i
-const modelAliases = (name: string) => [
-  normalized(name),
-  ...nameVariants(name.replace(modelLoadout, '').replace(/\s+(?:Squad|Sodality)$/i, '')),
-]
+const modelAliases = (name: string) => {
+  const kind = name.replace(modelLoadout, '').replace(/\s+(?:Squad|Sodality)$/i, '')
+  // Ork plurals end in z, as BSData's "Flash Gitz" model is the official app's "Flash Git".
+  return [normalized(name), ...nameVariants(kind), ...(/[^z]z$/i.test(kind) ? [normalized(kind.slice(0, -1))] : [])]
+}
 // BSData prefixes weapons the official app does not, as its "Astartes Chainsword" and "Steed's savage claws" are the app's "Chainsword" and "Savage claws".
 // "Exo-armour" and "Exoarmour", "sabre & clawed limbs" and "sabre and clawed limbs", are one piece.
 const spellingKey = (name: string) =>

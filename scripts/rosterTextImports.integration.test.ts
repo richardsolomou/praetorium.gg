@@ -80,6 +80,21 @@ describe.skipIf(!fs.existsSync(source))('genuine exports from other army builder
     },
   )
 
+  const official = (faction: string, detachment: string, unit: string) =>
+    `List (2000 points)\n\n${faction}\n${detachment} (3 Detachment Points)\nPurge the Foe\nStrike Force (2000 points)\n\nOTHER DATASHEETS\n\n${unit}\n`
+
+  // The official app names models its own way: these are the shapes of real tournament lists.
+  it.each([
+    [
+      'an Ork plural',
+      'Orks',
+      'War Horde',
+      'Flash Gitz (150 points)\n  • 9x Flash Git\n    • 9x Choppa\n      9x Snazzgun\n  • 1x Kaptin\n    • 1x Choppa\n      1x Snazzgun',
+    ],
+  ])('reads an official-app model named by %s', (_shape, faction, detachment, unit) => {
+    expect(summary(official(faction, detachment, unit)).mismatches).toEqual([])
+  })
+
   const priced = (file: string) => {
     const result = imported(file)
     return calculateRosterPrice(
