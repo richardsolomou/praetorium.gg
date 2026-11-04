@@ -637,6 +637,20 @@ ${units}
 
 Created with newrecruit.eu v36.47`
 
+  it('gives a Plague Champion the plasma gun his squad has no body left for', () => {
+    const file = newRecruit(
+      'Chaos - Death Guard',
+      `5x Plague Marines (90 pts)
+• 4x Plague Marine
+    1 with Plague knives, Plague spewer
+    1 with Blight launcher, Plague knives
+    1 with Heavy plague weapon, Plague knives
+    1 with Plague knives, Plasma gun
+• 1x Plague Champion: Plasma gun, Plague knives`,
+    )
+    expect(wargear(file, 'Plague Marines')).toEqual(expect.arrayContaining(['1x heavy plague weapon', '2x plasma gun']))
+  })
+
   it('places the reported Crisis Battlesuit drones New Recruit lists by model', () => {
     const file = newRecruit(
       "Xenos - T'au Empire",

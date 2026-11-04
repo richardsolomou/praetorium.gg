@@ -16,6 +16,7 @@ import { fromWtcText } from '../core/wtcText'
 import type { RosterSource } from '../core/savedRoster'
 import { defaultSelection } from '../core/expand'
 import { buildUnit } from '../core/roster'
+import { modelCountOf } from '../core/unitSize'
 import { at as selectionAt } from '../core/selection'
 import { unitChoices, unitToggles } from '../core/unitChoices'
 import { wargearOf } from '../core/wargear'
@@ -846,7 +847,7 @@ function textRosterPick(
           .reduce((total, option) => total + named(option), 0)
         const groupNamed = groupKind(choice.name)
         const kindBodies = !bodies && groupNamed ? (stated.get(groupNamed) ?? 0) : 0
-        const asked =
+        let asked =
           bodies >= choice.room
             ? new Map(choice.options.map((option) => [option.id, named(option)]))
             : kindBodies
@@ -865,6 +866,37 @@ function textRosterPick(
           asked!.set(variant.id, moved)
         }
         if (!asked?.size) return []
+        // A group nested in another fields only the bodies its squadmates' loadouts leave, so a Plague Marine
+        // squad's second plasma gun, with no body left to take it, is its Champion's. Only a loadout marked by
+        // wargear no nested model holds counts, as a heavy plague weapon does and a Chaos Biker's chainsword,
+        // which his meltagun squadmates also carry, does not; nor does a model the list counts by its own line.
+        const enclosing = choices.findIndex(
+          (other) => choice.key.startsWith(`${other.key}/`) && !choice.key.slice(other.key.length + 1).includes('/'),
+        )
+        const around = spreadEntries.find(([key]) => key === choices[enclosing]?.key)?.[1]
+        const squad = around && selectionAt(selection, choices[enclosing]!.key.split('/'))
+        if (squad) {
+          const total = (values: Iterable<number>) => [...values].reduce((sum, value) => sum + value, 0)
+          const nested = new Set(
+            choices.flatMap((other, inner) =>
+              other.key === choice.key || other.key.startsWith(`${choice.key}/`)
+                ? [...aliases[inner]!.values()].flatMap((names) => [...names.keys()])
+                : [],
+            ),
+          )
+          const loadouts = choices[enclosing]!.options.filter(
+            (option) =>
+              !statedLines.has(normalized(option.name)) &&
+              [...(aliases[enclosing]!.get(option.id)?.keys() ?? [])].some((name) => stated.has(name) && !nested.has(name)),
+          )
+          let over = total(asked.values()) - (modelCountOf(squad, loaded.index) - total(loadouts.map((option) => around[option.id] ?? 0)))
+          asked = new Map(asked)
+          for (const [id, count] of [...asked].toSorted((left, right) => right[1] - left[1])) {
+            const cut = Math.max(0, Math.min(count, over))
+            asked.set(id, count - cut)
+            over -= cut
+          }
+        }
         // Bodies that fill the group leave none for the model the unit is sized by.
         const full = [...asked.values()].reduce((total, count) => total + count, 0) >= choice.room
         const fielded = full ? choice.options.map((option) => [option.id, asked.get(option.id) ?? 0] as const) : [...asked]
