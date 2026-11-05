@@ -687,6 +687,7 @@ function textRosterPick(
       normalized(label)
     )
   }
+  const unitEnhancements = new Map<string, number>()
   for (const selection of unit.selections) {
     const enhancement = /^(?:Enhancements?|Upgrade):/i.test(selection.name)
     const label = selection.name.replace(/^(?:Enhancements?|Upgrade):\s*(.+)$/i, (_, name: string) => upgradeName(name)).trim()
@@ -697,6 +698,7 @@ function textRosterPick(
     // A model's lines are kept under the name its line resolved to where that is one model's, so they scope it:
     // a stat line several models share, as Cthonian Beserks' "Beserk", says no more than the list did.
     if (!selection.model) {
+      if (enhancement) unitEnhancements.set(name, (unitEnhancements.get(name) ?? 0) + selection.count)
       if (loadouts.filter((model) => model.name === name || model.profile === name).length === 1) modelFor.set(normalized(label), name)
       continue
     }
@@ -705,6 +707,9 @@ function textRosterPick(
     under.set(name, (under.get(name) ?? 0) + selection.count)
     statedUnder.set(model, under)
   }
+  // An enhancement the official app prints for the whole unit is still its character's, as a Rogue Trader's Fleetmaster
+  // in an Entourage whose models the list names.
+  for (const under of statedUnder.values()) for (const [name, count] of unitEnhancements) under.set(name, (under.get(name) ?? 0) + count)
   // The official app titles a model after its datasheet, as a "Thunderwolf Cavalry Pack Leader" the catalogue does not name;
   // a name the datasheet holds, as a "Piranha fusion blaster", is not one.
   const ownNames = nameVariants(unit.name)

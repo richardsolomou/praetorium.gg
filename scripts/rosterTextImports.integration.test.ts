@@ -692,6 +692,29 @@ Exported with App Version: v2.8.1 (1), Data Version: v995`
     expect(imported(file).unplaced).toEqual([])
   })
 
+  it('gives the character an enhancement the official app prints for a unit whose models it names', () => {
+    const file = official(
+      'Imperial Agents',
+      'Imperialis Fleet',
+      `Rogue Trader Entourage (95 points)
+  • 1x Rogue Trader
+    • 1x Household Pistol
+    • 1x Monomolecular Cane-rapier
+  • 1x Death Cult Assassin
+    • 1x Dartmask
+    • 1x Death Cult Power Blade
+  • 1x Lectro-Maester
+    • 1x Voltaic Pistol
+    • 1x Close Combat Weapon
+  • 1x Rejuvenant Adept
+    • 1x Laspistol
+    • 1x Close Combat Weapon
+    • 1x Healing Serum
+  • Enhancements: Fleetmaster`,
+    )
+    expect(imported(file).unplaced).toEqual([])
+  })
+
   it("reads the power fist a Captain in Gravis Armour's loadout names", () => {
     const file = officialApp(
       'Space Marines',
