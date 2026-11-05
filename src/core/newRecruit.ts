@@ -245,6 +245,8 @@ export function newRecruitUnits(lines: readonly string[], native = false) {
     }
     const nested = trimmed.match(/^(\d+)\s+with\s+(.+)$/i)
     if (nested) addDetails(current, nested[2]!, Number(nested[1]!))
+    // A unit's own wargear can wrap onto the line under its header, as "2x Tome-skull".
+    else if (/^\d+x\s/.test(trimmed)) addDetails(current, trimmed, 1)
     else if (trimmed) (current.unread ??= []).push(trimmed)
   }
   return units

@@ -166,6 +166,11 @@ Created with newrecruit.eu v36.17`)
     ])
   })
 
+  it("reads a unit's wargear wrapped onto the line under its header", () => {
+    const parsed = compact('12x Inquisitorial Agents (100 pts):\n2x Tome-skull\n• 10x Agent: 10 with Agent firearm')
+    expect(parsed?.units[0]?.selections[0]).toEqual({ name: 'Tome-skull', count: 2 })
+  })
+
   it('reads the unit a character supports as the one it joins', () => {
     const parsed = compact('Char1: 1x Technomancer (80 pts): Staff of light\nSupporting Canoptek Wraiths[2]')
     expect(parsed?.units[0]?.leading).toBe('Canoptek Wraiths')
