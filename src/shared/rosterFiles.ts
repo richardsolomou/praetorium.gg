@@ -707,9 +707,6 @@ function textRosterPick(
     under.set(name, (under.get(name) ?? 0) + selection.count)
     statedUnder.set(model, under)
   }
-  // An enhancement the official app prints for the whole unit is still its character's, as a Rogue Trader's Fleetmaster
-  // in an Entourage whose models the list names.
-  for (const under of statedUnder.values()) for (const [name, count] of unitEnhancements) under.set(name, (under.get(name) ?? 0) + count)
   // The official app titles a model after its datasheet, as a "Thunderwolf Cavalry Pack Leader" the catalogue does not name;
   // a name the datasheet holds, as a "Piranha fusion blaster", is not one.
   const ownNames = nameVariants(unit.name)
@@ -737,6 +734,10 @@ function textRosterPick(
         const names = [nameOf(definition, loaded.index.definitions), modelProfileOf(definition, loaded.index)]
         const under = names.flatMap((name) => statedUnder.get(normalized(name ?? '')) ?? [])[0]
         if (!under) break
+        // An enhancement the official app prints for the whole unit is still its character's, as a Rogue Trader's
+        // Fleetmaster in an Entourage whose models the list names; it joins only the lines of a model offered it.
+        for (const [name, count] of unitEnhancements)
+          if (choice.options.some((option) => normalized(option.name) === name)) under.set(name, count)
         const model = selectionAt(selection, path.slice(0, depth + 1))
         const own = model ? wargearCounts(model, loaded.index) : new Map<string, number>()
         return { stated: under, held: own, scoped: true }
