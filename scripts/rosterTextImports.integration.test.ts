@@ -620,6 +620,19 @@ Exported with App Version: v2.8.1 (1), Data Version: v995`
     1x Master-crafted power weapon`,
       ['1x ceramite fists', '1x master-crafted power weapon'],
     ],
+    [
+      'the crushing claws a Carnifex’s second arm takes beside its first arm’s deathspitters',
+      'Tyranids',
+      'Carnifexes',
+      `Carnifexes (180 points)
+  • 2x Carnifex
+    • 2x Bio-plasma
+      2x Carnifex crushing claws
+      2x Chitinous claws and teeth
+      2x Deathspitters with slimer maggots
+      2x Spine banks`,
+      ['2x carnifex crushing claws', '2x deathspitters with slimer maggots'],
+    ],
   ])('places %s', (_case, faction, unit, text, pieces) => {
     const held = wargear(officialApp(faction, text), unit)
     for (const piece of pieces) expect(held).toContain(piece)

@@ -872,10 +872,12 @@ function textRosterPick(
     // A piece the counted choices already place is not also another choice's to take,
     // except the default of a choice on the placed model itself, as a heavy weapon
     // Terminator's accursed weapon is the one its melee choice decides.
-    const spreadPlaced = (within: string) => {
+    const spreadPlaced = (within: string, lines?: ReadonlyMap<string, number>) => {
       const pieces = new Map<string, number>()
       for (const [key, counts] of spreadEntries) {
-        const names = aliases[choices.findIndex((choice) => choice.key === key)]
+        const at = choices.findIndex((choice) => choice.key === key)
+        if (lines && scopes[at]!.stated !== lines) continue
+        const names = aliases[at]
         for (const [id, count] of Object.entries(counts)) {
           if (within.startsWith(`${key}/${id}/`)) continue
           for (const [name, each] of names?.get(id) ?? []) pieces.set(name, (pieces.get(name) ?? 0) + count * each)
@@ -900,8 +902,12 @@ function textRosterPick(
       const room = carrier === undefined ? choice.room : Math.min(choice.room, carrier * (each ?? choice.room))
       // Wargear the list does not say who carries is read after the counted choices before it, so a Crisis
       // Shas'vre's drones are the ones its Shas'ui do not take.
-      const follows = !scopes[at]!.scoped && spreadEntries.length > 0 && !choice.options.some((option) => isModel(option.id, loaded.index))
-      const placedBefore = follows ? spreadPlaced(choice.key) : new Map<string, number>()
+      // A model the list names reads only what the choices before it placed from its own lines, as a Carnifex's second arm
+      // takes the crushing claws its first arm leaves.
+      const follows = spreadEntries.length > 0 && !choice.options.some((option) => isModel(option.id, loaded.index))
+      const placedBefore = follows
+        ? spreadPlaced(choice.key, scopes[at]!.scoped ? scopes[at]!.stated : undefined)
+        : new Map<string, number>()
       const counts = follows
         ? countsForChoice(
             { ...choice, room },
