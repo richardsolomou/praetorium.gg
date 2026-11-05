@@ -968,6 +968,50 @@ Exported with App Version: v2.8.1 (149), Data Version: v995`).units[0]!
     expect(fielded).toEqual(['2x Storm Guardian with Flamer', '2x Storm Guardian with Fusion Gun & Power Sword'])
   })
 
+  it('reads an option named with a comma that ListForge short text lists among the items, as "1 mauler chainblade, 7 chainblades"', () => {
+    expect(
+      summary(`Pack - World Eaters - Take and Hold - Berzerker Warband (130 Points)
+
+Jakhals: Jakhal Pack Leader, Dishonoured w/ skullsmasher and mangler, 1 mauler chainblade, 7 chainblades, Icon of Khorne (130 pts)`)
+        .mismatches,
+    ).toEqual([])
+  })
+
+  it('reads an option whose name ends in brackets that ListForge short text gives a counted model, as "4x Drakolithe (Once per battle, per token)"', () => {
+    expect(
+      summary(`Knights - Aeldari - Take and Hold - Warhost (250 Points)
+
+Clanblade: Moonblades, Drakesteed Fangs and Talons, Solar Carbine + Dragon Knights: Dragon Knight Leader, 4x Drakolithe (Once per battle, per token), 5x Dragon Knight (250 pts)`)
+        .mismatches,
+    ).toEqual([])
+  })
+
+  it('keeps apart wargear the datasheet also offers joined as one option, as a Terminator\'s "Combi-bolter" and "Power fist"', () => {
+    expect(
+      summary(`Terminators (195 points)
+
+World Eaters
+Berzerker Warband and Butchers of Khorne (3 Detachment Points)
+Purge the Foe
+Strike Force (2000 points)
+
+OTHER DATASHEETS
+
+Chaos Terminators (195 points)
+• Enhancement: Gore-stained Veterans (Upgrade)
+• 1x World Eaters Terminator Champion
+• 1x Accursed weapon
+1x Combi-bolter
+• 4x World Eaters Terminator
+• 1x Chainfist
+3x Combi-bolter
+3x Power fist
+1x Reaper autocannon
+
+Exported with App Version: v2.8.1 (149), Data Version: v995`).points,
+    ).toBe('195 for 195')
+  })
+
   it('reads a sergeant the official app names after his squadmates, as a "Purgator Justicar"', () => {
     expect(
       summary(`Purgators (115 Points)
