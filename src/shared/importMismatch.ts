@@ -17,6 +17,35 @@ import type { UnitSize } from '../core/unitSize'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { descriptionKey } from './datacards'
 import { factionDisplayName } from './factionNames'
+import type { CatalogueHistoryEntry } from '../core/catalogueHistory'
+
+/** What each faction's data updates removed and never brought back, by name: an older list can still name it. */
+export type RemovedNames = ReadonlyMap<string, ReadonlyMap<string, { kind: 'datasheet' | 'detachment' | 'enhancement'; at: number }>>
+
+export const NO_REMOVALS: RemovedNames = new Map()
+
+export function removedNamesOf(history: readonly Pick<CatalogueHistoryEntry, 'recordedAt' | 'changes'>[]): RemovedNames {
+  const removed = new Map<string, Map<string, { kind: 'datasheet' | 'detachment' | 'enhancement'; at: number }>>()
+  for (const entry of history.toSorted((left, right) => left.recordedAt - right.recordedAt))
+    for (const faction of entry.changes.factions) {
+      const names = remember(removed, faction.catalogueId, () => new Map())
+      for (const change of faction.changes) {
+        const [kind, outcome] = change.kind.split('-') as [string, string]
+        if (kind !== 'datasheet' && kind !== 'detachment' && kind !== 'enhancement') continue
+        if (outcome === 'removed') names.set(normalized(change.name), { kind, at: entry.recordedAt })
+        else if (outcome === 'added') names.delete(normalized(change.name))
+      }
+    }
+  return removed
+}
+
+const updateDate = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
+
+/** Why a name a list states is gone, where a data update removed something of that kind by that name. */
+function removedReason(stated: string, kind: 'datasheet' | 'detachment' | 'enhancement', catalogueId: string, removed: RemovedNames) {
+  const found = removed.get(catalogueId)?.get(normalized(stated))
+  return found?.kind === kind ? `removed in the ${updateDate.format(found.at)} data update` : null
+}
 
 /** A name an import could not resolve at all, and what was wrong with it. */
 export type UnmatchedName = { name: string; reason: string }
@@ -47,17 +76,31 @@ export function unmatchedFactionReason(stated: string, availableNames: readonly 
  * A name another faction holds is the common half of it — a list pasted against the
  * wrong book, or an exporter that writes the subfaction a unit was bought from.
  */
-export function unmatchedDatasheetReason(stated: string, catalogueId: string, loaded: LoadedCatalogue): string {
+export function unmatchedDatasheetReason(
+  stated: string,
+  catalogueId: string,
+  loaded: LoadedCatalogue,
+  removed: RemovedNames = NO_REMOVALS,
+): string {
   const faction = factionOf(loaded, catalogueId)
   const other = otherFaction(stated, catalogueId, loaded)
   if (other) return `a ${other} datasheet, not ${faction}`
+  const gone = removedReason(stated, 'datasheet', catalogueId, removed)
+  if (gone) return gone
   const near = closestName(stated, datasheetNames(loaded, catalogueId))
   if (near) return `no ${faction} datasheet is called that; the closest is "${near}"`
   if (factionNames(loaded, catalogueId).has(normalized(stated))) return `${faction} has this, but not as a datasheet`
   return `no ${faction} datasheet is called that`
 }
 
-export function unmatchedDetachmentReason(stated: string, catalogueId: string, loaded: LoadedCatalogue): string {
+export function unmatchedDetachmentReason(
+  stated: string,
+  catalogueId: string,
+  loaded: LoadedCatalogue,
+  removed: RemovedNames = NO_REMOVALS,
+): string {
+  const gone = removedReason(stated, 'detachment', catalogueId, removed)
+  if (gone) return gone
   const options = loaded.detachments.get(catalogueId)?.options ?? []
   const near = closestName(
     stated,
@@ -75,9 +118,9 @@ export function unmatchedDetachmentReason(stated: string, catalogueId: string, l
  */
 export function unplacedChoiceReason(
   stated: string,
-  where: { loaded: LoadedCatalogue; catalogueId: string; detachmentIds: readonly string[] },
+  where: { loaded: LoadedCatalogue; catalogueId: string; detachmentIds: readonly string[]; removed?: RemovedNames },
 ): string {
-  const { loaded, catalogueId, detachmentIds } = where
+  const { loaded, catalogueId, detachmentIds, removed = NO_REMOVALS } = where
   const detachment = enhancementDetachment(stated, loaded, catalogueId)
   if (detachment) {
     return detachmentIds.includes(detachment.id)
@@ -85,7 +128,10 @@ export function unplacedChoiceReason(
       : `an enhancement of the ${detachment.name} detachment`
   }
   if (factionNames(loaded, catalogueId).has(normalized(stated))) return 'this datasheet does not offer it'
-  return `nothing in the ${factionOf(loaded, catalogueId)} catalogue is called that`
+  return (
+    removedReason(stated, 'enhancement', catalogueId, removed) ??
+    `nothing in the ${factionOf(loaded, catalogueId)} catalogue is called that`
+  )
 }
 
 export const WARLORD_REASON = 'this datasheet has no Warlord option'

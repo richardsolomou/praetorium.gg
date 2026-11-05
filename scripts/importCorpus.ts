@@ -12,6 +12,8 @@
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import { loadCatalogueHistory } from '../src/server/catalogueHistory'
+import { removedNamesOf } from '../src/shared/importMismatch'
 import { loadCatalogueTranslations } from '../src/server/catalogueTranslations'
 import { importRosterFile } from '../src/shared/rosterFiles'
 import { loadSnapshot } from './lib/catalogueSnapshotLoad'
@@ -66,6 +68,7 @@ function run(directory: string, since: string | undefined, out: string | undefin
   const catalogueDirectory = process.env.CATALOGUE_DIR ?? 'catalogue-data'
   const { catalogue, rules } = loadSnapshot(catalogueDirectory)
   const translations = loadCatalogueTranslations(catalogueDirectory)
+  const removed = removedNamesOf(loadCatalogueHistory(catalogueDirectory) ?? [])
 
   const results = ids.map((id) => {
     const listing = byId.get(id) ?? { list: id }
@@ -75,6 +78,7 @@ function run(directory: string, since: string | undefined, out: string | undefin
       undefined,
       rules,
       translations,
+      removed,
     )
     return {
       ...listing,

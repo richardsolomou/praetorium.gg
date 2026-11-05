@@ -1,3 +1,4 @@
+import { removedNamesOf } from '../shared/importMismatch'
 import { describe, expect, it } from 'vitest'
 import { buildIndex, type CatalogueFile } from '../core/catalogue'
 import { buildUnit } from '../core/roster'
@@ -1717,6 +1718,34 @@ Exported with BattleBase, Data Version: v20260812`,
     expect(imported.unknown).toEqual([
       { name: 'Pantheon of Doom', reason: 'no Necrons detachment is called that; the closest is "Pantheon of Woe"' },
     ])
+  })
+
+  it('names the data update that removed a detachment the list still takes', () => {
+    const update = (recordedAt: number, kind: 'detachment-removed' | 'detachment-added') => ({
+      recordedAt,
+      changes: {
+        factions: [{ catalogueId: 'necrons', faction: 'Necrons', changes: [{ kind, id: 'doom', name: 'Pantheon of Doom' }] }],
+        omitted: 0,
+      },
+    })
+    const file = `Blades (70 Points)
+
+Necrons
+Pantheon of Doom (2 Detachment Points)
+Strike Force (2,000 Points)
+
+OTHER DATASHEETS
+
+Tomb Blades (70 Points)
+
+Exported with BattleBase, Data Version: v20260812`
+    const reasons = (history: ReturnType<typeof update>[]) =>
+      importRosterFile({ file }, loaded, undefined, null, undefined, removedNamesOf(history)).unknown.map((entry) => entry.reason)
+
+    expect([
+      reasons([update(Date.UTC(2026, 8, 30), 'detachment-removed')]),
+      reasons([update(Date.UTC(2026, 8, 2), 'detachment-removed'), update(Date.UTC(2026, 8, 30), 'detachment-added')]),
+    ]).toEqual([['removed in the 30 Sept 2026 data update'], ['no Necrons detachment is called that; the closest is "Pantheon of Woe"']])
   })
 
   it('separates an attachment target this list holds from one it does not', () => {

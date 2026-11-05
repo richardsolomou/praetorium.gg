@@ -9,6 +9,7 @@ vi.mock('./app', () => ({
     catalogueFor: mocks.catalogueFor,
     rulesFor: async () => null,
     catalogueTranslations: () => new Map(),
+    catalogueRemovals: () => new Map(),
   }),
 }))
 vi.mock('../core/rosterExchange', async (actual) => ({

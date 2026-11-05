@@ -16,6 +16,7 @@ These are whole things the import left out, each with the reason. You'll see:
 
 - A unit with no matching datasheet. The reason says whether the closest datasheet has a similar name ("the closest is …"), whether it's another faction's datasheet ("a Drukhari datasheet, not …"), or whether your faction has that name but not as a datasheet.
 - A detachment that doesn't exist for the faction, again with the closest name if there is one.
+- A datasheet, detachment or enhancement a data update removed, with the date of that update ("removed in the 30 Sept 2026 data update"). The list was built before the change, so it can't come across.
 - A line the importer didn't understand.
 - A battle size Praetorium doesn't support, or a custom points budget it can't accept.
 - A force disposition that wasn't recognised, or more than one stated at once. Choose one in setup afterwards.
