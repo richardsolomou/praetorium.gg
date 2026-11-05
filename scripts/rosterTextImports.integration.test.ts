@@ -872,6 +872,64 @@ Exported from 40k.app, view the full list here:`
     expect(wargear(file, 'Deathwatch Terminator Squad')).toContain('4x power fist')
   })
 
+  // The app prints its datasheet cards' names, as "Dainal Komelius" for the catalogue's "Dainal Kornelius" and the French "Frimeurs".
+  it.each([
+    [
+      'a model the card spells differently',
+      `Wardens (115 Points)
+
+Space Marines
+Ultramarines
+Assault Brethren (1 Detachment Points)
+Take and Hold
+Strike Force (2,000 Points)
+
+OTHER DATASHEETS
+
+Wardens of Ultramar (115 Points)
+  • 1x Veteran Sergeant Metaurus
+     ◦ 1x Heavy Bolt Pistol
+     ◦ 1x Master-crafted Power Weapon
+  • 1x Ancient Gadriel
+     ◦ 1x Bolt Rifle
+     ◦ 1x Ceramite Fists
+  • 1x Gaius Silva
+     ◦ 1x Archeotech Laspistol
+     ◦ 1x Power Weapon
+  • 1x Dainal Komelius
+     ◦ 1x Astropathic Blast
+     ◦ 1x Force Stave
+  • 1x Aemelia Minervas
+     ◦ 1x Archeotech Laspistol
+     ◦ 1x Power Weapon
+  • 1x Lucia Vestha
+     ◦ 1x Archeotech Laspistol
+     ◦ 1x Ultramarian Combat Weapons
+
+Exported with App Version: v2.8.1 (1), Data Version: v995`,
+      'Wardens of Ultramar',
+    ],
+    [
+      'a datasheet the card names in French',
+      `Test (230 Points)
+
+Orks
+War Horde (1 Points de Détachement)
+Force de Frappe (2 000 Points)
+
+AUTRES FICHES TECHNIQUES
+
+Frimeurs (230 Points)
+
+Exported with App Version: v2.8.1 (1), Data Version: v995`,
+      'Flash Gitz',
+    ],
+  ])('reads %s', (_case, file, datasheet) => {
+    const result = imported(file)
+    const { definitions } = catalogue.index
+    expect([result.units.map((unit) => nameOf(definitions.get(unit.entryId)!, definitions)), result.unplaced]).toEqual([[datasheet], []])
+  })
+
   it('imports the reported official-app Custodes roster without mismatches', () => {
     expect(summary(custodesOfficial)).toEqual({
       format: 'roster-file',
