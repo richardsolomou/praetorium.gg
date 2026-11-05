@@ -1,5 +1,6 @@
 import { GuideHelp } from '../../onboarding/GuideHelp'
 import { useQuery } from '@tanstack/react-query'
+import { Link } from '@tanstack/react-router'
 import { Check, ChevronDown } from 'lucide-react'
 import { Fragment, useEffect, useState, type ReactNode } from 'react'
 import { cn } from '@/lib/utils'
@@ -368,7 +369,7 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
               </p>
               {manual ? <p className="text-sm text-discarded">Manual tracking. {MANUAL_TRACKING_LIMITS}</p> : null}
             </div>
-            <FaceOff sides={table} />
+            <FaceOff sides={table} battle={view.token} />
           </header>
 
           <ol className="mt-10">
@@ -770,12 +771,15 @@ const MANUAL_SKIPS = new Set<SectionId>(['mission', 'battlefield', 'defender', '
 /** Steps that record nothing the battle needs before it can begin. */
 const NOTHING_OWED = new Set<SectionId>(['reserves', 'deploy', 'pre-battle'])
 
-/** Who is playing whom, facing each other across the spine every step below hangs from. */
-function FaceOff({ sides }: { sides: Side[] }) {
+/**
+ * Who is playing whom, facing each other across the spine every step below hangs from.
+ * Each army's name links to its list, so the table can read what it faces before the battle begins.
+ */
+function FaceOff({ sides, battle }: { sides: Side[]; battle: string }) {
   return (
     <div className="relative grid grid-cols-[minmax(0,1fr)_2rem_minmax(0,1fr)] items-stretch sm:grid-cols-[minmax(0,1fr)_3rem_minmax(0,1fr)]">
       {sides.map((side, position) => {
-        const armies = side.armies.flatMap((army) => (army.roster ? [army.roster.name] : []))
+        const armies = side.armies.filter((army) => army.roster)
         const points = side.armies.reduce((total, army) => total + (army.roster?.built ? (army.points ?? 0) : 0), 0)
         return (
           <Fragment key={side.index}>
@@ -798,7 +802,22 @@ function FaceOff({ sides }: { sides: Side[] }) {
                   !armies.length && 'text-dim',
                 )}
               >
-                {armies.length ? armies.join(' & ') : 'No army yet'}
+                {armies.length
+                  ? armies.map((army, at) => (
+                      <Fragment key={army.playerId}>
+                        {at ? ' & ' : null}
+                        {/* The list as fielded, which the battle lets either side read even where the saved roster is private. */}
+                        <Link
+                          to="/rosters/$id"
+                          params={{ id: army.playerId }}
+                          search={{ battle }}
+                          className="underline decoration-faint decoration-2 underline-offset-4 hover:decoration-current"
+                        >
+                          {army.roster!.name}
+                        </Link>
+                      </Fragment>
+                    ))
+                  : 'No army yet'}
               </span>
               {points ? <span className="figure text-xs text-dim">{points.toLocaleString('en')} pts</span> : null}
             </div>
