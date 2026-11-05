@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "572069098110",
+    "project_id": "praetorium-d8216",
+    "storage_bucket": "praetorium-d8216.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:572069098110:android:28529277758f7696315e2f",
+        "android_client_info": {
+          "package_name": "gg.praetorium"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAJpxKVNR1WW0aqWXufvoLpf4UUO2arONE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
