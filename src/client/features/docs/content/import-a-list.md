@@ -9,6 +9,7 @@ Paste a list from another army builder, or an exchange code from another Praetor
 - **The official Warhammer 40,000 app** text export, including exports in other languages such as Spanish or German
 - **Warmind** text, including its ListForge-style, tournament (WTC) and official-app-style texts
 - **WarOrgan** text
+- **Ironbuilt** text
 - **40k.app** text and Markdown exports, with attached units grouped or not; your notes on units become your private unit notes. Its list links can't be read, so copy the text instead.
 - Other WTC-style tournament text
 

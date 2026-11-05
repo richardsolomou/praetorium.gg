@@ -13,6 +13,7 @@ import { fromListForgeText, fromListForgeShortText, fromListForgeWtcText } from 
 import { fromFortyKAppText } from '../core/fortyKApp'
 import { fromWarmindText } from '../core/warmind'
 import { fromWarOrganText } from '../core/warOrgan'
+import { fromIronbuiltText } from '../core/ironbuilt'
 import { fromNewRecruitMarkdown } from '../core/newRecruitMarkdown'
 import { fromWtcText } from '../core/wtcText'
 import type { RosterSource } from '../core/savedRoster'
@@ -67,6 +68,7 @@ export type RosterTextFormat =
   | 'listforge-wtc'
   | 'warorgan'
   | 'warmind'
+  | 'ironbuilt'
   | 'wtc'
   | '40k-app'
 
@@ -87,6 +89,8 @@ function parsedImport(file: string): { parsed: TextRoster; format: RosterTextFor
   if (listForgeShort) return { parsed: listForgeShort, format: 'listforge' }
   const listForge = fromListForgeText(file)
   if (listForge) return { parsed: listForge, format: 'listforge' }
+  const ironbuilt = fromIronbuiltText(file)
+  if (ironbuilt) return { parsed: ironbuilt, format: 'ironbuilt' }
   const listForgeWtc = fromListForgeWtcText(file)
   if (listForgeWtc) return { parsed: listForgeWtc, format: 'listforge-wtc' }
   const warOrgan = fromWarOrganText(file)
