@@ -1,5 +1,13 @@
 # praetorium
 
+## 0.220.5 (2026-11-05)
+
+### Patch Changes
+
+- 2764a7d: Recording casualties during a battle no longer counts a model twice while the app waits for the service.
+- 974af93: Importing from the official app reads the names its datasheet cards print, as "Dainal Komelius" or the French "Frimeurs".
+- 68e666f: Imported lists read a model named in the plural with "-men", as "Navis Armsmen".
+
 ## 0.220.4 (2026-11-05)
 
 ### Patch Changes
