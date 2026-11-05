@@ -229,6 +229,22 @@ it('removes the stale-build key once the page runs the release it reloaded for',
   )
 })
 
+it('reports stale-build recovery once the reloaded tab renders a route the address no longer marks', () => {
+  const stored = new Map<string, string>()
+  vi.stubGlobal('sessionStorage', {
+    getItem: (key: string) => stored.get(key) ?? null,
+    setItem: (key: string, value: string) => stored.set(key, value),
+    removeItem: (key: string) => stored.delete(key),
+  })
+  reloadStaleBuild('0.177.0', 'navigation', { href: 'https://praetorium.gg/battles' })
+  capture.mockClear()
+  // A redirect or an early tap leaves the reloaded tab on an address without the key.
+  expect(completedRouteRecovery('https://praetorium.gg/factions', '0.176.0')).toBeNull()
+  expect(completedRouteRecovery('https://praetorium.gg/factions', '0.177.0')).toBeNull()
+  completedRouteRecovery('https://praetorium.gg/rosters', '0.177.0')
+  expect(capture.mock.calls).toEqual([['route_recovery_completed', { failure_kind: 'stale_build', recovery_attempt: 1 }]])
+})
+
 it('keeps the stale-build key while the page still runs an older build, so the reload cap holds', () => {
   expect(completedRouteRecovery('https://praetorium.gg/rosters/1?__build_retry=1234.2.0.177.0', '0.176.0')).toBeNull()
 })
