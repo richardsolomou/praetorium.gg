@@ -2463,6 +2463,27 @@ Lokhust Lord (80 pts) · Warlord
 Built with Warmind · https://warmind.online`,
     ],
     [
+      'ironbuilt',
+      `+==========================================
+Lord — Necrons
+Pantheon of Woe (1DP)
+Force Disposition: Disruption
+150 / 2000 pts · 2 units
++==========================================
+
+── ATTACHED CHARACTERS ─────────
+----Attached Unit A [150 pts]---------------------
+Lokhust Lord [WARLORD] [80 pts]
+Enhancement: Demanding Leader (+10)
+↳ Attached to:
+
+Immortals [70 pts]
+5x Immortal
+Weapons: Tesla carbine x5
+
+Total: 150 pts`,
+    ],
+    [
       'wtc',
       `+++++++++++++++++++++++++++++++++++++++++++++++
 + FACTION KEYWORD: Xenos - Necrons
