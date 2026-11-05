@@ -36,6 +36,7 @@ export async function importParsedList(parsed: TextRoster, format: RosterTextFor
     factions.map((candidate) => candidate.name),
     rules,
     translations,
+    instance.catalogueRemovals(),
   )
 }
 
@@ -77,6 +78,7 @@ async function importText(file: string, factions: Factions) {
     factions.map((candidate) => candidate.name),
     rules,
     translations,
+    instance.catalogueRemovals(),
   )
   return { result, loaded, rules }
 }

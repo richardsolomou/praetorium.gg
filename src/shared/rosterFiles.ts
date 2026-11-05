@@ -34,6 +34,8 @@ import {
   type UnmatchedName,
   unmatchedDatasheetReason,
   unmatchedDetachmentReason,
+  NO_REMOVALS,
+  type RemovedNames,
   unmatchedFactionReason,
   type UnplacedChoice,
   unplacedChoiceReason,
@@ -143,10 +145,11 @@ export function importRosterFile(
   factionNames = loaded?.factions.map((faction) => faction.name) ?? [],
   rules: LoadedRules | null = null,
   translations: CatalogueTranslations = NO_TRANSLATIONS,
+  removed: RemovedNames = NO_REMOVALS,
 ) {
   importRosterSchema.parse(data)
   const found = parsedImport(data.file)
-  if (found) return importParsedRoster(found.parsed, found.format, loaded, factionNames, rules, translations)
+  if (found) return importParsedRoster(found.parsed, found.format, loaded, factionNames, rules, translations, removed)
   return {
     name: 'Imported list',
     catalogueId: null,
@@ -169,9 +172,10 @@ export function matchParsedRoster(
   loaded: LoadedCatalogue | null,
   factionNames = loaded?.factions.map((faction) => faction.name) ?? [],
   translations: CatalogueTranslations = NO_TRANSLATIONS,
+  removed: RemovedNames = NO_REMOVALS,
 ) {
   if (parsed.units.length > 100) throw new Error('An imported roster can contain at most 100 entries.')
-  return importTextRoster(parsed, loaded, factionNames, translations)
+  return importTextRoster(parsed, loaded, factionNames, translations, removed)
 }
 
 /** A list already read into army text, from a pasted export or another app's own format, matched and priced. */
@@ -182,8 +186,9 @@ export function importParsedRoster(
   factionNames = loaded?.factions.map((faction) => faction.name) ?? [],
   rules: LoadedRules | null = null,
   translations: CatalogueTranslations = NO_TRANSLATIONS,
+  removed: RemovedNames = NO_REMOVALS,
 ) {
-  const result = matchParsedRoster(parsed, loaded, factionNames, translations)
+  const result = matchParsedRoster(parsed, loaded, factionNames, translations, removed)
   const currentPoints = result.catalogueId
     ? (calculateRosterPrice(
         {
@@ -281,6 +286,7 @@ function importTextRoster(
   loaded: LoadedCatalogue | null,
   factionNames: readonly string[],
   translations: CatalogueTranslations,
+  removed: RemovedNames,
 ) {
   const stated = loaded?.factions.find((candidate) => matchesImportFaction(parsed.faction, candidate.name, translations))
   // A list can state a chapter's parent faction, whose units then name the chapter.
@@ -318,7 +324,7 @@ function importTextRoster(
   const detachments = whole.length ? whole : parts.flatMap((part) => detachmentsNamed(part, offered, translations))
   const unknown: UnmatchedName[] = parts
     .filter((part) => !known(part))
-    .map((part) => ({ name: part, reason: unmatchedDetachmentReason(part, faction.id, loaded) }))
+    .map((part) => ({ name: part, reason: unmatchedDetachmentReason(part, faction.id, loaded, removed) }))
   for (const line of parsed.unread ?? []) unknown.push({ name: line, reason: 'this line is not understood by the text importer' })
   const detachmentIds = detachments.map((detachment) => detachment.id)
   const detachmentSelections = rosterDetachments(loaded, faction.id, detachmentIds).selections
@@ -384,7 +390,7 @@ function importTextRoster(
         ? variants[0]!
         : { entryId: null, unit: listed }
     if (!entryId) {
-      unknown.push({ name: label(unit, sourceIndex), reason: unmatchedDatasheetReason(unit.name, faction.id, loaded) })
+      unknown.push({ name: label(unit, sourceIndex), reason: unmatchedDatasheetReason(unit.name, faction.id, loaded, removed) })
       return []
     }
     sourceToImported.set(sourceIndex, sourceToImported.size)
@@ -396,6 +402,7 @@ function importTextRoster(
       detachmentSelections,
       loaded,
       translations,
+      removed,
     )
     if (read.unplaced.length) note(unplaced, sourceIndex, read.unplaced)
     return [read.pick]
@@ -662,6 +669,7 @@ function textRosterPick(
   roster: readonly Selection[],
   loaded: LoadedCatalogue,
   translations: CatalogueTranslations,
+  removed: RemovedNames,
 ) {
   const stated = new Map<string, number>()
   const labels = new Map<string, string>()
@@ -1167,7 +1175,7 @@ function textRosterPick(
     )
     .map((name) => {
       const label = labels.get(name) ?? name
-      const reason = placed.has(name) ? DROPPED_REASON : unplacedChoiceReason(label, { loaded, catalogueId, detachmentIds })
+      const reason = placed.has(name) ? DROPPED_REASON : unplacedChoiceReason(label, { loaded, catalogueId, detachmentIds, removed })
       return { name: label, reason }
     })
   // A lone line nothing in the catalogue answers to is the player's note, not wargear the unit lost.

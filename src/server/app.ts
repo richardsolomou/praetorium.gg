@@ -38,6 +38,7 @@ import { combatUnitsFor } from '../shared/combatUnits'
 import { publishedFaction } from './referenceCatalogue'
 import type { CatalogueTranslations } from '../shared/catalogueTranslations'
 import { loadCatalogueTranslations } from './catalogueTranslations'
+import { removedNamesOf, type RemovedNames } from '../shared/importMismatch'
 import { factionIndexFor, factionsFor } from '../shared/factionReferences'
 import { battleDetachmentData, type BattleDetachmentData } from '../shared/battleDetachmentData'
 import { githubSponsorRefresh, type GithubSponsorRefresh } from './githubSponsors'
@@ -72,6 +73,8 @@ type App = {
   /** What each army-data update changed, as the snapshot carries it; null when it carries none. */
   catalogueHistory: () => CatalogueHistoryEntry[] | null
   catalogueHistoryFor: () => Promise<CatalogueHistoryEntry[] | null>
+  /** What each faction's updates removed and never brought back, which names why an older list no longer matches. */
+  catalogueRemovals: () => RemovedNames
   /** The simulator's all-factions picker, prepared once for the active snapshot. */
   combatUnits: () => ReturnType<typeof combatUnitsFor>
   combatUnitsFor: () => Promise<ReturnType<typeof combatUnitsFor>>
@@ -253,6 +256,7 @@ function catalogueLoaders(directory: string) {
     canonical: memoize(() => editions.canonicalCatalogue(runtime ? null : referenceCatalogue(directory, catalogue, rules))),
     rules,
     history: memoize(() => loadCatalogueHistory(directory)),
+    removals: memoize(() => removedNamesOf(loadCatalogueHistory(directory) ?? [])),
     translations: memoize(() => loadCatalogueTranslations(directory)),
     combatUnits: memoize(() => editions.combatUnits()),
     searchIndex: memoize(() => editions.searchIndex()),
@@ -306,6 +310,7 @@ const catalogueFields = (getInstance: () => App, loaded: ReturnType<typeof catal
   canonicalCatalogue: loaded.canonical,
   rules: loaded.rules,
   catalogueHistory: loaded.history,
+  catalogueRemovals: loaded.removals,
   catalogueTranslations: loaded.translations,
   combatUnits: loaded.combatUnits,
   construction: loaded.construction,
