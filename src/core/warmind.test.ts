@@ -38,7 +38,22 @@ describe('Warmind text import', () => {
     ])
   })
 
-  it('needs the Warmind footer', () => {
-    expect(fromWarmindText(warmind.replace(/Built with Warmind.*$/, ''))).toBeNull()
+  it('needs the Warmind footer or its total line', () => {
+    expect(fromWarmindText(warmind.replace(/Built with Warmind.*$/, '').replace(/^Total: .*$/m, ''))).toBeNull()
+  })
+
+  it('reads the newer layout without blank lines or the footer, pricing units after a dash', () => {
+    const newer = warmind
+      .replace(/Built with Warmind.*$/, '')
+      .replaceAll(/\n\n+/g, '\n')
+      .replaceAll(/ \((\d+) pts\)/g, ' — $1 pts')
+    expect(fromWarmindText(newer)?.units.map((unit) => [unit.name, unit.models, unit.entry, unit.attachedToEntry])).toEqual([
+      ['Archon', 1, undefined, 1],
+      ['Kabalite Warriors', 10, 1, undefined],
+      ['Succubus', 1, undefined, 2],
+      ['Wyches', 10, 2, undefined],
+      ['Venom', 1, undefined, undefined],
+      ['Venom', 1, undefined, undefined],
+    ])
   })
 })

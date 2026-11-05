@@ -71,7 +71,7 @@ export function wargearOf(selection: Selection, index: CatalogueIndex, carriers 
               sameWargear(name, weapon.name ?? ''),
           )
         })
-      if (!weaponChild && kind === 'upgrade' && (described || (target && childrenOf(target, index).length === 0)) && count > 0) {
+      if (!weaponChild && kind === 'upgrade' && (described || (definition && childrenOf(definition, index).length === 0)) && count > 0) {
         if (name && !isRosterToggle(name)) found.set(name, (found.get(name) ?? 0) + count)
       }
       walk(child, count)

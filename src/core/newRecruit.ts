@@ -215,7 +215,7 @@ export function newRecruitUnits(lines: readonly string[], native = false) {
       continue
     }
 
-    const leading = trimmed.match(/^Leading\s+(.+)$/i)
+    const leading = trimmed.match(/^(?:Leading|Supporting)\s+(.+)$/i)
     if (leading) {
       current.leading = relationName(leading[1]!)
       continue
@@ -245,6 +245,8 @@ export function newRecruitUnits(lines: readonly string[], native = false) {
     }
     const nested = trimmed.match(/^(\d+)\s+with\s+(.+)$/i)
     if (nested) addDetails(current, nested[2]!, Number(nested[1]!))
+    // A unit's own wargear can wrap onto the line under its header, as "2x Tome-skull".
+    else if (/^\d+x\s/.test(trimmed)) addDetails(current, trimmed, 1)
     else if (trimmed) (current.unread ??= []).push(trimmed)
   }
   return units
@@ -257,17 +259,16 @@ function metadata(lines: readonly string[], name: string) {
 
 const relationName = (value: string) => value.trim().replace(/\[\d+\]$/, '')
 
+/** A unit's details, where "N with" counts what follows it for N models, as in "Plasmacyte, 3 with Skorpekh hyperphase weapons". */
 function addDetails(unit: TextRosterUnit, details: string, defaultMultiplier: number) {
-  let rest = details.trim()
   let multiplier = defaultMultiplier
-  const grouped = rest.match(/^(\d+)\s+with\s+(.+)$/i)
-  if (grouped) {
-    multiplier = Number(grouped[1]!)
-    rest = grouped[2]!
-  }
-
-  for (const raw of rest.split(',')) {
-    const item = raw.trim().replace(/\s+\([+-]?\d+\s*pts?\)\s*$/i, '')
+  for (const raw of details.split(',')) {
+    let item = raw.trim().replace(/\s+\([+-]?\d+\s*pts?\)\s*$/i, '')
+    const grouped = item.match(/^(\d+)\s+with\s+(.+)$/i)
+    if (grouped) {
+      multiplier = Number(grouped[1]!)
+      item = grouped[2]!
+    }
     if (!item) continue
     if (/^Warlord$/i.test(item)) {
       unit.warlord = true

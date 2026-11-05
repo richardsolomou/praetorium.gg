@@ -112,6 +112,60 @@ describe('BattleBase text import', () => {
     expect(fromBattleBaseText('Necrons\nLokhust Lord')).toBeNull()
   })
 
+  it('reads the battle size printed above the detachments', () => {
+    expect(
+      fromBattleBaseText(
+        exportText.replace(
+          'Cursed Legion (2 Detachment Points)\nForce Dispositions: Purge the Foe\nIncursion (1,000 Points)',
+          'Incursion (1,000 Points)\nCursed Legion (2 Detachment Points)\nForce Dispositions: Purge the Foe',
+        ),
+      ),
+    ).toMatchObject({ faction: 'Necrons', detachment: 'Cursed Legion', disposition: 'Purge the Foe', limit: 1000 })
+  })
+
+  it("reads a title whose points wrapped onto their own line, under the player's note", () => {
+    expect(
+      fromBattleBaseText(exportText.replace('CL 1K - Ammentar Destroyer Spearhead (990 Points)', 'A note\n\nCL 1K\n\n(990 Points)')),
+    ).toMatchObject({ name: 'CL 1K', reportedPoints: 990, faction: 'Necrons', detachment: 'Cursed Legion' })
+  })
+
+  it('reads a title that opens with a number', () => {
+    expect(
+      fromBattleBaseText(exportText.replace('CL 1K - Ammentar', '1 - Ammentar').replace('Exported with BattleBase', ''))?.reportedPoints,
+    ).toBe(990)
+  })
+
+  it('reads a title without points', () => {
+    expect(fromBattleBaseText(exportText.replace(' (990 Points)', '').replace('Exported with BattleBase', ''))).toMatchObject({
+      name: 'CL 1K - Ammentar Destroyer Spearhead',
+      faction: 'Necrons',
+      limit: 1000,
+    })
+  })
+
+  it('reads a battle size priced in the singular', () => {
+    expect(fromBattleBaseText(exportText.replace('Incursion (1,000 Points)', 'Incursion (1,000 Point)'))?.limit).toBe(1000)
+  })
+
+  it('reads a unit marked for a keyword footnote', () => {
+    const parsed = fromBattleBaseText(
+      exportText
+        .replace('Lokhust Lord (70 Points)\n', 'Lokhust Lord (70 Points)*\n')
+        .replace('Resurrection Orb\n', 'Resurrection Orb\n\n* This Datasheet also has the Battleline keyword\n'),
+    )
+    expect(parsed?.units.map((unit) => [unit.name, unit.selections.length])).toEqual([
+      ['Lokhust Lord', 2],
+      ['Lokhust Destroyers', 2],
+    ])
+  })
+
+  it('reads a French attached group, whose heading numbers it before a last word', () => {
+    const parsed = fromBattleBaseText(
+      necronsOfficial.replace('ATTACHED UNITS\n\nAttached Unit 1', 'Unités Attachées\nUnité 1 Attachée').replace('Exported with', ''),
+    )
+    expect([parsed?.unread, parsed?.units[0]?.attachedToEntry]).toEqual([undefined, 1])
+  })
+
   it('does not read a named game format as a unit', () => {
     expect(fromBattleBaseText(kingOfTheColosseumExport)?.units.map((unit) => unit.name)).toEqual(['Lokhust Lord', 'Immortals'])
   })
@@ -119,6 +173,17 @@ describe('BattleBase text import', () => {
   it('reads equipment nested under a model line', () => {
     const parsed = fromBattleBaseText(
       exportText.replace('    • 6x Close combat weapon\n    • 6x Gauss cannon', '    • 6x Lokhust Destroyer\n        ◦ 6x Gauss cannon'),
+    )
+
+    expect(parsed?.units[1]?.selections).toEqual([
+      { name: 'Lokhust Destroyer', count: 6 },
+      { name: 'Gauss cannon', count: 6, model: 'Lokhust Destroyer' },
+    ])
+  })
+
+  it("reads a model's first piece of wargear printed on the model's own line", () => {
+    const parsed = fromBattleBaseText(
+      exportText.replace('    • 6x Close combat weapon\n    • 6x Gauss cannon', '    • 6x Lokhust Destroyer     • 6x Gauss cannon'),
     )
 
     expect(parsed?.units[1]?.selections).toEqual([
@@ -146,6 +211,28 @@ describe('BattleBase text import', () => {
       ['Skorpekh Lord', 3],
       ['Skorpekh Destroyers', undefined],
       ['Nekrosor Ammentar', undefined],
+    ])
+  })
+
+  it('reads an attachment the app marks with an asterisk', () => {
+    const parsed = fromBattleBaseText(necronsOfficial.replaceAll('• Attached as:', '* Attached as:'))
+    expect([parsed?.units.flatMap((unit) => unit.unread ?? []), parsed?.units[0]?.attachedToEntry]).toEqual([[], 1])
+  })
+
+  it('reads a group the player named under the attached units heading', () => {
+    const parsed = fromBattleBaseText(necronsOfficial.replace('Attached Unit 2', 'Destroyer cult'))
+    expect(parsed?.units.find((unit) => unit.name === 'Lokhust Lord')?.attachedToEntry).toBeDefined()
+  })
+
+  it("reads the attachment of a bodyguard whose first label is an enhancement's", () => {
+    const parsed = fromBattleBaseText(
+      necronsOfficial.replace('• Attached as: Bodyguard\n  • 6x', '• Enhancements: Dread Majesty\n• Attached as: Bodyguard\n  • 6x'),
+    )
+    expect(parsed?.units[3]?.selections.map((selection) => selection.name)).toEqual([
+      'Enhancements: Dread Majesty',
+      'Lokhust Destroyer',
+      'Close combat weapon',
+      'Gauss cannon',
     ])
   })
 

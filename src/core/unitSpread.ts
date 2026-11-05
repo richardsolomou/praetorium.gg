@@ -37,7 +37,7 @@ export function withUnitSpread(
   const path = key.split('/')
   const groupId = path.at(-1)
   const group = groupId ? index.definitions.get(groupId) : undefined
-  const occupants = group ? childrenOf(resolve(group, index), index) : []
+  const occupants = group ? childrenOf(group, index) : []
   if (group && occupants.some((option) => resolve(option.definition, index).type === 'model')) {
     const kept = keepingTheSquad(selection, withModelOccupants(selection, path, counts, group, occupants, index, options), path, index)
     return keepingReplacedSquadmates(selection, kept, path, index)
@@ -118,7 +118,7 @@ function spreadOptions(
   index: CatalogueIndex,
 ): Selection {
   const requested = new Set(Object.keys(counts))
-  const occupants = childrenOf(resolve(group, index), index)
+  const occupants = childrenOf(group, index)
   const byId = new Map(occupants.map((option) => [option.id, option]))
   const asking = Object.values(counts).some((count) => count > 0)
   const carrier = asking ? withExpandedCarrier(selection, path, index) : selection
@@ -414,7 +414,7 @@ function spreadIndependentRepeatedGroup(
   const modelId = repeating.path.at(-1)
   if (!modelId) return selection
   const withinModel = path.slice(repeating.path.length)
-  const options = childrenOf(resolve(group, index), index).filter(
+  const options = childrenOf(group, index).filter(
     (option) => requiredCount(option.definition, index) === 0 || hasMutableMinimum(option.definition, index),
   )
   const optionIds = new Set(options.map((option) => option.id))
@@ -550,7 +550,7 @@ function keepingReplacedSquadmates(before: Selection, after: Selection, path: re
 function replacedSquadmatesPath(before: Selection, after: Selection, path: readonly string[], index: CatalogueIndex) {
   const holder = index.definitions.get(at(after, path)?.id ?? '')
   if (!holder) return null
-  const offered = childrenOf(resolve(holder, index), index)
+  const offered = childrenOf(holder, index)
   const replacing = offered.some(
     (option) =>
       countAt(before, [...path, option.id]) !== countAt(after, [...path, option.id]) &&
@@ -561,7 +561,7 @@ function replacedSquadmatesPath(before: Selection, after: Selection, path: reado
     const group = index.definitions.get(path[depth]!)
     const parent = index.definitions.get(at(after, path.slice(0, depth))?.id ?? '')
     if (!group || !parent || resolve(group, index).type !== undefined) return null
-    if (replacesSquadmate(group, childrenOf(resolve(parent, index), index), index)) return path.slice(0, depth)
+    if (replacesSquadmate(group, childrenOf(parent, index), index)) return path.slice(0, depth)
   }
   return null
 }

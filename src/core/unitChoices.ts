@@ -157,7 +157,7 @@ function exclusiveSetsIn(entry: Definition, depth: number, index: CatalogueIndex
     if (left <= 0 || seen.has(target.id)) return
     const visited = new Set(seen).add(target.id)
     forbidden.push(...definitionAndTarget(definition, index).flatMap(exclusiveSets))
-    for (const child of childrenOf(target, index)) gather(child.definition, left - 1, visited)
+    for (const child of childrenOf(definition, index)) gather(child.definition, left - 1, visited)
   }
   gather(entry, depth, new Set())
   return forbidden
@@ -230,7 +230,7 @@ function collectUnitChoices(
     const visited = new Set(seen).add(target.id)
     const enclosing = [...lineage, definition]
 
-    for (const child of childrenOf(target, index)) {
+    for (const child of childrenOf(definition, index)) {
       const here = [...trail, child.id]
       if (!visible(child.definition, enclosing, here)) continue
       const inner = resolve(child.definition, index)
@@ -294,7 +294,7 @@ function collectUnitChoices(
         inner.type === 'model' &&
         target.type !== undefined &&
         lower === 0 &&
-        replacesSquadmate(child.definition, childrenOf(target, index), index, options.modifierCache)
+        replacesSquadmate(child.definition, childrenOf(definition, index), index, options.modifierCache)
       ) {
         const count = countAt(selection, here)
         const most = maximumCountAt(selection, here, child.definition, index, options) ?? maximumCount(child.definition, index)
@@ -324,7 +324,7 @@ function collectUnitChoices(
       }
 
       if (inner.type === undefined) {
-        const choosable = childrenOf(inner, index).filter(
+        const choosable = childrenOf(child.definition, index).filter(
           (option) =>
             visible(option.definition, [...enclosing, child.definition], [...here, option.id]) &&
             resolve(option.definition, index).type !== undefined,
@@ -335,17 +335,20 @@ function collectUnitChoices(
           : scaleOf(child.definition, definition, index, carriers)
         const capacity = maximumCountAt(selection, here, child.definition, index, options)
         const fixed = choosable.some((option) => minimum(option.definition) > 0)
-        // Wargear in a group with no cap, hanging straight off an entry, shares no room: a
-        // Ratlings squad may take its Battlemutt and its demolition gear together. Models
-        // still compete for the squad's bodies, and an enclosing group's cap still counts
-        // what its nested groups hold. Specialists that each take a squadmate's place, as
-        // a Skitarii Rangers' options do, compete for no shared room either.
+        // Wargear in a group with no cap, hanging off an entry or only uncapped groups, shares
+        // no room: a Ratlings squad may take its Battlemutt and its demolition gear together,
+        // and a Castigator its storm bolter and hunter-killer missile. Models still compete
+        // for the squad's bodies, and an enclosing group's cap still counts what its nested
+        // groups hold. Specialists that each take a squadmate's place, as a Skitarii Rangers'
+        // options do, compete for no shared room either.
         const independent =
           capacity === null &&
           choosable.length > 1 &&
-          ((!fixed && target.type !== undefined && choosable.every((option) => resolve(option.definition, index).type === 'upgrade')) ||
+          ((!fixed &&
+            uncappedFromEntry(selection, trail, enclosing, index, options) &&
+            choosable.every((option) => resolve(option.definition, index).type === 'upgrade')) ||
             choosable.every((option) => /^This model can be equipped with 1 .+\.$/i.test(resolve(option.definition, index).name ?? '')) ||
-            replacesSquadmate(child.definition, childrenOf(target, index), index, options.modifierCache))
+            replacesSquadmate(child.definition, childrenOf(definition, index), index, options.modifierCache))
         const roomFor = (option: Option) => scaled(maximumCount(option.definition, index), scale)
         // An option's own cap as the unit stands, since a squad size can open or close it.
         // The group keeps its full room, so the datasheet still names what a closed option is.
@@ -394,9 +397,18 @@ function collectUnitChoices(
         // models that size counts, so their bodies above their own minimum are room too.
         // A unit of fixed size makes room the same way when taking a specialist lowers a
         // required model's minimum, as a Pathfinder Team's grenade launcher does.
+        // Models in an uncapped group nested within that one replace its sized model just
+        // the same, as Khorne Berzerkers with alternate weapons replace a Berzerker.
+        const nestedInSizing =
+          capacity === null &&
+          resizingGroup.length + 1 === here.length &&
+          resizingGroup.every((step, position) => step === here[position]) &&
+          choosable.every((option) => resolve(option.definition, index).type === 'model')
         const sizedBody = resizesUnit
           ? choosable.find((option) => option.id === resizingPath.at(-1) && !adjustable.includes(option))
-          : undefined
+          : nestedInSizing
+            ? childrenOf(definition, index).find((option) => option.id === resizingPath.at(-1))
+            : undefined
         const sized =
           sizedBody ??
           (!isResizable(unitSize) && capacity !== null && fixed
@@ -407,7 +419,7 @@ function collectUnitChoices(
           ? 0
           : hasMutableMinimum(sized.definition, index, options.modifierCache)
             ? mutableSpare(selection, here, sized, adjustable, countOf, sizePath, index, options)
-            : Math.max(0, countOf(sized.id) - minimum(sized.definition) * scale)
+            : Math.max(0, (resizesUnit ? countOf(sized.id) : countAt(selection, sizePath)) - minimum(sized.definition) * scale)
         const adjustableRoom = separate
           ? sum(adjustable.map(roomFor))
           : resizesUnit || sized
@@ -469,10 +481,11 @@ function collectUnitChoices(
       // What is inside an entry is held by however many of it the selection holds, across every
       // selection a spread has divided a model into, as Death Company Marines given different pistols are.
       if (inner.type !== 'upgrade' || allAt(selection, here).some((selected) => (selected.count ?? 1) > 0)) {
+        // An upgrade each of several models holds, as the plasma cannon three heavy weapon Terminators carry, is held once by each.
         const held =
           inner.type === 'model'
             ? allAt(selection, here).reduce((total, selected) => total + (selected.count ?? 1), 0) || 1
-            : (at(selection, here)?.count ?? 1)
+            : (at(selection, here)?.count ?? 1) * carriers
         walk(child.definition, here, left - 1, visited, inner.type === undefined ? carriers : held, enclosing)
       }
     }
@@ -505,7 +518,7 @@ export function unitToggles(entryId: string, selection: Selection, index: Catalo
     if (seen.has(target.id)) return
     const visited = new Set(seen).add(target.id)
     const enclosing = [...lineage, definition]
-    for (const child of childrenOf(target, index)) {
+    for (const child of childrenOf(definition, index)) {
       const here = [...trail, child.id]
       if (!offered(child.definition, selection, here, enclosing, index, options)) continue
       const inner = resolve(child.definition, index)
@@ -664,6 +677,19 @@ function mutableSpare(
     if (fits) return count
   }
   return 0
+}
+
+/** Whether every group between the entry and `trail` leaves its contents uncapped; `enclosing[depth]` sits at `trail.slice(0, depth)`. */
+function uncappedFromEntry(
+  selection: Selection,
+  trail: readonly string[],
+  enclosing: readonly Definition[],
+  index: CatalogueIndex,
+  options: EvaluateOptions,
+) {
+  for (let depth = trail.length; depth > 0 && resolve(enclosing[depth]!, index).type === undefined; depth--)
+    if (maximumCountAt(selection, trail.slice(0, depth), enclosing[depth]!, index, options) !== null) return false
+  return true
 }
 
 const occupantRoom = (choosable: Option[], index: CatalogueIndex) =>

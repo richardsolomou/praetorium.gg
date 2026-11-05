@@ -9,7 +9,7 @@ const NAME_MAX_LENGTH = 200
 
 /** Every language's translations a catalogue directory holds, or none for a snapshot published without them. */
 export function loadCatalogueTranslations(directory: string): CatalogueTranslations {
-  const folder = path.join(directory, 'translations')
+  const folder = path.join(directory, 'translations', 'data')
   if (!fs.existsSync(folder)) return NO_TRANSLATIONS
   const translations = new Map<string, string[]>()
   const add = (english: string, translated: string) => {

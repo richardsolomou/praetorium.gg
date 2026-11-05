@@ -46,7 +46,14 @@ export const UNBOUNDED = Number.MAX_SAFE_INTEGER
 /** One entry a group offers, reached by the id the path holds rather than the one it resolves to. */
 export type Option = { id: string; definition: Definition }
 
+/** What an entry holds. A link may declare entries of its own, which join its target's, as BattleScribe reads them. */
 export function childrenOf(definition: Definition, index: CatalogueIndex): Option[] {
+  return definitionAndTarget(definition, index)
+    .toReversed()
+    .flatMap((holder) => entriesIn(holder, index))
+}
+
+function entriesIn(definition: Definition, index: CatalogueIndex): Option[] {
   const found: Option[] = []
   for (const entry of definition.selectionEntries ?? []) found.push({ id: entry.id, definition: entry })
   for (const group of definition.selectionEntryGroups ?? []) found.push({ id: group.id, definition: group })
@@ -65,10 +72,13 @@ export function eachDefinition(
   const seen = new Set<string>()
   const walk = (definition: Definition) => {
     const target = resolve(definition, index)
-    if (seen.has(target.id)) return
-    seen.add(target.id)
-    visit(definition, target)
-    for (const child of childrenOf(target, index)) walk(child.definition)
+    if (!seen.has(target.id)) {
+      seen.add(target.id)
+      visit(definition, target)
+      for (const child of entriesIn(target, index)) walk(child.definition)
+    }
+    // What a link declares is its own, so a target already read through another link still has these to read.
+    if (target !== definition) for (const child of entriesIn(definition, index)) walk(child.definition)
   }
   for (const id of rootIds) {
     const root = index.definitions.get(id)
@@ -85,7 +95,7 @@ export function pointsOf(option: Option, index: CatalogueIndex, visited = new Se
     0
   if (visited.has(target.id)) return own
   const seen = new Set([...visited, target.id])
-  return childrenOf(target, index)
+  return childrenOf(option.definition, index)
     .filter((child) => resolve(child.definition, index).type !== undefined)
     .reduce((total, child) => total + requiredCount(child.definition, index) * pointsOf(child, index, seen), own)
 }

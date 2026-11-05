@@ -29,6 +29,7 @@ const CATALOGUE_FACTION_NAMES = new Map([
   ['asuryani', 'Aeldari'],
   ['harlequins', 'Aeldari'],
   ['legiones daemonica', 'Chaos Daemons'],
+  ['imperial agents', 'Agents of the Imperium'],
 ])
 
 export const catalogueFactionName = (name: string) => CATALOGUE_FACTION_NAMES.get(name.trim().toLowerCase()) ?? name

@@ -4,9 +4,13 @@ When the text states a unit's models, those are used. When it doesn't, the count
 
 ## Characters and attachments
 
-Leaders come across attached when the text says which unit they join. Praetorium's own text names it on a **Leading:** line; the official app and New Recruit group them under attached units, and each leader and support character joins the bodyguard in its group.
+Leaders come across attached when the text says which unit they join. Praetorium's own text names it on a **Leading:** line; the official app and New Recruit group them under attached units, and each leader and support character joins the bodyguard in its group. WarOrgan lists a group without saying which unit is the bodyguard, so its characters join the one unit of the group they can lead.
 
 If an attachment can't be made, the unit still imports but the review says why: "this list has no …" when the bodyguard unit isn't in the list, or "every … in this list is already led" when each unit of that name already has a leader. Attach it yourself in the builder. Praetorium's own rules then check that the attachment is allowed.
+
+## Space Marine chapters
+
+A list that names only Space Marines but fields a chapter's own units, such as Marneus Calgar, imports as that chapter, as long as its units belong to just one.
 
 ## Official-app exports in other languages
 

@@ -1,10 +1,11 @@
+import { fromBattleBaseText } from './battlebase'
 import { newRecruitUnits } from './newRecruit'
 import { plainQuotes, printedNumber } from './text'
-import { attachGroups, type TextRoster, type TextRosterUnit, WTC_SECTION } from './textRoster'
+import { attachGroups, starredLabel, type TextRoster, type TextRosterUnit, WTC_SECTION } from './textRoster'
 
 const compactHeader = /^(?:Char\d+:\s*)?\d+x\s+.+\(\d[\d,]*\s*pts?\)/i
 const unitHeader = /^(.+?)\s+\((\d[\d,]*)\s*(?:pts?|points?)\)$/i
-const attachedHeading = /^Attached unit \d+$/i
+const attachedHeading = /^Attached unit \d+:?$/i
 
 /**
  * The de facto WTC submission text: a "+ FACTION KEYWORD:" header, then units in either the
@@ -24,7 +25,13 @@ export function fromWtcText(input: string): TextRoster | null {
 
   const headerEnd = lines.findLastIndex((line) => /^\s*[+&]/.test(line))
   const body = lines.slice(headerEnd + 1)
-  const read = body.some((line) => compactHeader.test(line.trim())) ? { units: newRecruitUnits(body), unread: [] } : officialUnits(body)
+  // A whole official-app export can follow the header, setup and all.
+  const official = fromBattleBaseText(body.join('\n'))
+  const read = body.some((line) => compactHeader.test(line.trim()))
+    ? { units: newRecruitUnits(body), unread: [] }
+    : official
+      ? { units: official.units, unread: official.unread ?? [] }
+      : officialUnits(body)
   const warlord = field('WARLORD')?.replace(/^Char\d+:\s*/i, '')
   if (warlord && !read.units.some((unit) => unit.warlord)) {
     const named = read.units.find((unit) => plainQuotes(unit.name.toLocaleLowerCase()) === plainQuotes(warlord.toLocaleLowerCase()))
@@ -78,7 +85,7 @@ function officialUnits(lines: readonly string[]) {
   }
 
   for (const line of lines) {
-    const trimmed = line.trim()
+    const trimmed = starredLabel(line.trim())
     if (!trimmed || /^(?:Created with|Exported (?:with|from)) /i.test(trimmed)) continue
     if (attachedHeading.test(trimmed) || WTC_SECTION.test(trimmed)) {
       close()
@@ -86,12 +93,13 @@ function officialUnits(lines: readonly string[]) {
       current = null
       continue
     }
-    const item = trimmed.match(/^[•◦]\s*(.+)$/)
+    // Further pieces of a model's wargear follow its bullet on unbulleted counted lines.
+    const item = (trimmed.match(/^[•◦]\s*(.+)$/) ?? trimmed.match(/^(\d+x\s.+)$/))?.[1]
     if (item && current) {
-      if (/^Attached as:\s*Bodyguard\b/i.test(item[1]!)) {
+      if (/^Attached as:\s*Bodyguard\b/i.test(item)) {
         if (group) group.bodyguard = current
-      } else if (/^Warlord$/i.test(item[1]!)) current.warlord = true
-      else if (!/^Attached as:/i.test(item[1]!)) addItems(current, item[1]!)
+      } else if (/^Warlord$/i.test(item)) current.warlord = true
+      else if (!/^Attached as:/i.test(item)) addItems(current, item)
       continue
     }
     const header = item ? null : trimmed.match(unitHeader)

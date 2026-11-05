@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
+import { fromBattleBaseText } from './battlebase'
 import { fromWtcText } from './wtcText'
 import { warmindWtc } from './rosterText.fixtures'
+import { necronsOfficial } from './rosterText.necrons.fixture'
 
 // Shortened from a published event list, with the player and team removed.
 const officialLayout = `+++++++++++++++++++++++++++++++++++++++++++++++
@@ -37,6 +39,21 @@ Commander in Enforcer Battlesuit (100 pts)
 Created with newrecruit.eu v35.79`
 
 describe('WTC text import', () => {
+  it('reads asterisked attachments and wargear continued on unbulleted lines', () => {
+    const parsed = fromWtcText(
+      officialLayout.replaceAll('• Attached as:', '* Attached as:').replace('• 1x Dawn Blade\n', '• 1x Dawn Blade\n  1x Plasma rifle\n'),
+    )
+    expect([parsed?.unread, parsed?.units[0]?.unread, parsed?.units[0]?.selections, parsed?.units[0]?.attachedToEntry]).toEqual([
+      undefined,
+      undefined,
+      [
+        { name: 'Dawn Blade', count: 1 },
+        { name: 'Plasma rifle', count: 1 },
+      ],
+      1,
+    ])
+  })
+
   it('reads the official app layout under a WTC header', () => {
     expect(fromWtcText(officialLayout)).toEqual({
       name: "T'au Empire 2000pts",
@@ -93,6 +110,12 @@ describe('WTC text import', () => {
       ['Venom', 1, false, undefined],
     ])
     expect(parsed?.units[0]?.selections).toContainEqual({ name: 'Enhancement: Informant Network', count: 1 })
+  })
+
+  it('reads a whole official-app export pasted under the header, setup and all', () => {
+    const header = officialLayout.slice(0, officialLayout.indexOf('\n\nAttached Units'))
+    const parsed = fromWtcText(`${header}\n\n${necronsOfficial}`)
+    expect([parsed?.unread, parsed?.units.length]).toEqual([undefined, fromBattleBaseText(necronsOfficial)?.units.length])
   })
 
   it('needs a faction keyword', () => {

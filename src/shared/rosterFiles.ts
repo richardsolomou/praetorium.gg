@@ -1,21 +1,23 @@
-import { countBy } from '../core/collections'
+import { countBy, groupBy, remember } from '../core/collections'
 import { version } from '../../package.json'
-import type { Attachment } from '../core/attach'
+import { admitsHost, referenceAttachmentOf, type Attachment } from '../core/attach'
 import { attachmentRows } from '../core/attachmentRows'
 import { fromBattleBaseText } from '../core/battlebase'
-import { type Definition, nameOf, resolve } from '../core/catalogue'
-import { childrenOf, eachDefinition, isRosterToggle, modelProfileOf } from '../core/definitions'
+import { type Definition, type Modifier, nameOf, resolve } from '../core/catalogue'
+import { childrenOf, eachDefinition, isRosterToggle, maximumCount, modelProfileOf } from '../core/definitions'
 import { detachmentNameVariants } from '../core/detachmentName'
 import type { Selection } from '../core/evaluate'
 import { fromNewRecruitText } from '../core/newRecruit'
-import { normalizedNameVariants } from '../core/name'
+import { normalizedNameVariants, withoutFactionPrefix } from '../core/name'
 import { fromListForgeText, fromListForgeWtcText } from '../core/listForge'
 import { fromFortyKAppText } from '../core/fortyKApp'
 import { fromWarmindText } from '../core/warmind'
+import { fromWarOrganText } from '../core/warOrgan'
 import { fromWtcText } from '../core/wtcText'
 import type { RosterSource } from '../core/savedRoster'
 import { defaultSelection } from '../core/expand'
 import { buildUnit } from '../core/roster'
+import { modelCountOf } from '../core/unitSize'
 import { at as selectionAt } from '../core/selection'
 import { unitChoices, unitToggles } from '../core/unitChoices'
 import { wargearOf } from '../core/wargear'
@@ -39,9 +41,11 @@ import {
   DROPPED_REASON,
   WARLORD_REASON,
   factionOfDatasheets,
+  chapterOfDatasheets,
 } from './importMismatch'
 import { DISPOSITIONS, type LoadedCatalogue } from './catalogueIndex'
 import { datacardOf } from './datasheetJoin'
+import { keywordsIn } from './catalogue'
 import { isUpgrade, mfmDetachmentFor } from './mfm'
 import { rosterDetachments } from './rosterDetachments'
 import { importRosterSchema, type ExportRosterInput, type ImportRosterInput } from '../contracts/schemas'
@@ -58,6 +62,7 @@ export type RosterTextFormat =
   | 'roster-file'
   | 'listforge'
   | 'listforge-wtc'
+  | 'warorgan'
   | 'warmind'
   | 'wtc'
   | '40k-app'
@@ -76,6 +81,8 @@ function parsedImport(file: string): { parsed: TextRoster; format: RosterTextFor
   if (listForge) return { parsed: listForge, format: 'listforge' }
   const listForgeWtc = fromListForgeWtcText(file)
   if (listForgeWtc) return { parsed: listForgeWtc, format: 'listforge-wtc' }
+  const warOrgan = fromWarOrganText(file)
+  if (warOrgan) return { parsed: warOrgan, format: 'warorgan' }
   const fortyKApp = fromFortyKAppText(file)
   if (fortyKApp) return { parsed: fortyKApp, format: '40k-app' }
   const battleBase = fromBattleBaseText(file)
@@ -275,9 +282,11 @@ function importTextRoster(
   factionNames: readonly string[],
   translations: CatalogueTranslations,
 ) {
-  const faction =
-    loaded &&
-    (loaded.factions.find((candidate) => matchesImportFaction(parsed.faction, candidate.name, translations)) ?? unitFaction(parsed, loaded))
+  const stated = loaded?.factions.find((candidate) => matchesImportFaction(parsed.faction, candidate.name, translations))
+  // A list can state a chapter's parent faction, whose units then name the chapter.
+  const names = parsed.units.map((unit) => unit.name)
+  const chapterId = loaded && stated ? chapterOfDatasheets(names, stated.id, loaded) : null
+  const faction = loaded && (loaded.factions.find((candidate) => candidate.id === chapterId) ?? stated ?? unitFaction(parsed, loaded))
   if (!loaded || !faction) {
     return {
       name: parsed.name,
@@ -293,11 +302,22 @@ function importTextRoster(
   const detachmentName = parsed.detachment
   const offered = loaded.detachments.get(faction.id)?.options ?? []
   const whole = detachmentName ? detachmentsNamed(detachmentName, offered, translations) : []
-  // Where one of several detachments is unknown, the others still count, so their enhancements stay.
-  const parts = whole.length || !detachmentName ? [] : detachmentName.split(/,\s+/)
+  // Where one of several detachments is unknown, the others still count, so their enhancements stay. The last two are
+  // joined by a word, "and" or a translation of it, that a detachment's own name can also hold, so a part splits at the
+  // word only where one side is a known detachment.
+  const known = (name: string) => detachmentsNamed(name, offered, translations).length > 0
+  const joined = (part: string) => {
+    const words = part.split(' ')
+    for (let at = 1; at < words.length - 1; at++) {
+      const sides = [words.slice(0, at).join(' '), words.slice(at + 1).join(' ')]
+      if (sides.some(known)) return sides
+    }
+    return [part]
+  }
+  const parts = whole.length || !detachmentName ? [] : detachmentName.split(/,\s+/).flatMap((part) => (known(part) ? [part] : joined(part)))
   const detachments = whole.length ? whole : parts.flatMap((part) => detachmentsNamed(part, offered, translations))
   const unknown: UnmatchedName[] = parts
-    .filter((part) => !detachmentsNamed(part, offered, translations).length)
+    .filter((part) => !known(part))
     .map((part) => ({ name: part, reason: unmatchedDetachmentReason(part, faction.id, loaded) }))
   for (const line of parsed.unread ?? []) unknown.push({ name: line, reason: 'this line is not understood by the text importer' })
   const detachmentIds = detachments.map((detachment) => detachment.id)
@@ -322,23 +342,56 @@ function importTextRoster(
       datasheets.find((datasheet) => spelled(datasheet.name) === spelled(name)) ??
       datasheets.find((datasheet) => spelled(datasheet.name) === `${spelled(name)} [legends]`)
     const plural = datasheets.filter((datasheet) => nameVariants(datasheet.name).includes(name))
-    const found = exact?.id ?? (plural.length === 1 ? plural[0]!.id : undefined)
+    // Older official-app data names a squad by its models, as "Witchseekers" for "Witchseeker Squad".
+    const squad = datasheets.filter((datasheet) => nameVariants(datasheet.name.replace(/ (?:squad|sodality)$/, '')).includes(name))
+    const found = exact?.id ?? [plural, squad].find((matches) => matches.length === 1)?.[0]!.id
     const [first, ...rest] = name.split(' ')
     return found ?? (rest.length && factionWords.has(first!) ? datasheetNamed(rest.join(' ')) : undefined)
   }
-  const units = parsed.units.flatMap((unit, sourceIndex) => {
-    const entryId = datasheetNamed(normalized(unit.name))
+  // BSData splits a datasheet the official app offers a choice for, as the app's "Soul Grinder" with "Daemonic Allegiance:
+  // Tzeentch" is the "Tzeentch Soul Grinder"; the line that chose it is then no wargear.
+  const variantNamed = (unit: TextRosterUnit) =>
+    unit.selections.flatMap((selection) => {
+      const entryId = datasheetNamed(normalized(`${selection.name.replace(/^(?:Enhancements?|Upgrade):\s*/i, '')} ${unit.name}`))
+      return entryId ? [{ entryId, unit: { ...unit, selections: unit.selections.filter((other) => other !== selection) } }] : []
+    })
+  const units = parsed.units.flatMap((listed, sourceIndex) => {
+    const named = datasheetNamed(normalized(listed.name))
+    const variants = named ? [] : variantNamed(listed)
+    const { entryId, unit } = named
+      ? { entryId: named, unit: listed }
+      : variants.length === 1
+        ? variants[0]!
+        : { entryId: null, unit: listed }
     if (!entryId) {
       unknown.push({ name: label(unit, sourceIndex), reason: unmatchedDatasheetReason(unit.name, faction.id, loaded) })
       return []
     }
     sourceToImported.set(sourceIndex, sourceToImported.size)
-    const read = textRosterPick(unit, entryId, faction.id, detachmentIds, detachmentSelections, loaded)
+    const read = textRosterPick(joinedSplit(unit, entryId, loaded.index), entryId, faction.id, detachmentIds, detachmentSelections, loaded)
     if (read.unplaced.length) note(unplaced, sourceIndex, read.unplaced)
     return [read.pick]
   })
 
   attachTextUnits(parsed.units, units, sourceToImported)
+  // A group that does not say which unit is its bodyguard joins the one unit of it another can join; legality then judges the rest.
+  const joins = (member: { entryId: string }, host: { entryId: string }) => {
+    const leader = loaded.index.definitions.get(member.entryId)
+    const bodyguard = loaded.index.definitions.get(host.entryId)
+    const attachment = leader && referenceAttachmentOf(leader, loaded.index)
+    return Boolean(
+      attachment &&
+      bodyguard &&
+      admitsHost(attachment, nameOf(bodyguard, loaded.index.definitions), keywordsIn(loaded, faction.id, host.entryId)),
+    )
+  }
+  const grouped = [...sourceToImported].filter(([source]) => parsed.units[source]!.group !== undefined)
+  for (const members of groupBy(grouped, ([source]) => parsed.units[source]!.group).values()) {
+    const picks = members.map(([, imported]) => units[imported]!)
+    const hosts = picks.filter((host) => picks.some((member) => member !== host && joins(member, host)))
+    if (hosts.length !== 1) continue
+    for (const member of picks) if (member !== hosts[0] && member.attachedTo === undefined) member.attachedTo = units.indexOf(hosts[0]!)
+  }
   // Omitted units shift saved positions, so attachments are resolved after matching.
   const importedNames = new Set([...sourceToImported.keys()].map((source) => normalized(parsed.units[source]!.name)))
   for (const [source, imported] of sourceToImported) {
@@ -517,21 +570,46 @@ function detachmentsNamed<T extends { id: string; name: string }>(
 const upgradeName = (name: string) => name.replace(/(?:\s+\((?:one per army|Upgrade)\))+$/i, '')
 const nameVariants = (name: string) => normalizedNameVariants(normalized(name))
 const modelLoadout = /\s+w\/\s*(.+)$/i
-const modelAliases = (name: string) => [
-  normalized(name),
-  ...nameVariants(name.replace(modelLoadout, '').replace(/\s+(?:Squad|Sodality)$/i, '')),
-]
+// BSData can also bracket the loadout, as a "Sicarian Infiltrator Princeps (Taser goad & flechette blaster)".
+const modelAliases = (name: string) => {
+  const kind = name
+    .replace(modelLoadout, '')
+    .replace(/\s+\([^()]+\)$/, '')
+    .replace(/\s+(?:Squad|Sodality)$/i, '')
+  // Ork plurals end in z, as BSData's "Flash Gitz" model is the official app's "Flash Git".
+  return [normalized(name), ...nameVariants(kind), ...(/[^z]z$/i.test(kind) ? [normalized(kind.slice(0, -1))] : [])]
+}
 // BSData prefixes weapons the official app does not, as its "Astartes Chainsword" and "Steed's savage claws" are the app's "Chainsword" and "Savage claws".
-// "Exo-armour" and "Exoarmour", "sabre & clawed limbs" and "sabre and clawed limbs", are one piece.
+// "Exo-armour" and "Exoarmour", "sabre & clawed limbs" and "sabre and clawed limbs", "Company Veteran w/ Bolt Rifle" and "with bolt rifle", are one piece.
 const spellingKey = (name: string) =>
   name
     .replace(/^(?:astartes|\S+'s) /, '')
     .replaceAll('&', 'and')
+    .replaceAll(/\s+with\s+/g, 'w/')
     .replaceAll(/[\s-]/g, '')
 // The official app prints some datasheets' power weapon as the sword or maul the model holds, as Bladeguard Veterans' "Master-crafted Power Sword".
 const powerWeaponKey = (key: string) => key.replace(/power(?:sword|maul)/, 'powerweapon')
+// The official app names a datasheet's plain melee profile "Close combat weapon" where the catalogue names it for what it is, as a Prosecutor's "Gun Stock".
+const GENERIC_MELEE = spellingKey('close combat weapon')
 /** The kind of model a counted group fields, as "1 - 2 Gun Servitors" fields a "Gun Servitor", which the official app names it by. */
 const groupKind = (name: string) => normalized(name).match(/^\d+(?:\s*-\s*\d+)?\s+(.+?)s?$/)?.[1]
+
+/**
+ * A unit whose lines join several pieces with commas and "and", as an "Agent Firearm and Mystic Stave", read as each piece,
+ * only where every piece is a name the datasheet knows, since "and" also falls inside a name, as a "Lacerator and daemonic claw".
+ */
+function joinedSplit(unit: TextRosterUnit, entryId: string, index: LoadedCatalogue['index']): TextRosterUnit {
+  const respelled = respelledNames(entryId, index)
+  const known = (name: string) => {
+    const key = spellingKey(normalized(name))
+    return respelled.has(key) || respelled.has(powerWeaponKey(key)) || key === GENERIC_MELEE
+  }
+  const selections = unit.selections.flatMap((selection) => {
+    const pieces = selection.name.split(/,\s+|\s+and\s+/i)
+    return pieces.length > 1 && !known(selection.name) && pieces.every(known) ? pieces.map((name) => ({ ...selection, name })) : [selection]
+  })
+  return { ...unit, selections }
+}
 
 function wargearCounts(selection: Selection, index: LoadedCatalogue['index']) {
   const counts = new Map<string, number>()
@@ -554,18 +632,46 @@ function textRosterPick(
   // Lines no model holds, which are the only ones that can name a body: a Terminator Champion's "Paired accursed weapons" is not a Terminator.
   const statedLines = new Map<string, number>()
   const respelled = respelledNames(entryId, loaded.index)
-  // Some exporters prefix wargear with the unit it belongs to, as BattleBase's "Scout sniper rifle" is a Scout Squad's "Sniper Rifle".
-  const unitWords = new Set(normalized(unit.name).split(' ').flatMap(nameVariants))
+  const models = modelNames(entryId, loaded.index)
+  // Some exporters prefix wargear with the unit it belongs to, as BattleBase's "Scout sniper rifle" is a Scout Squad's "Sniper Rifle",
+  // and the official app prefixes a model with a keyword of its unit, as a Cultist Mob's "Chaos Cultist" or a "World Eaters Terminator Champion".
+  const unitWords = new Set(
+    [unit.name, ...keywordsIn(loaded, catalogueId, entryId).map(withoutFactionPrefix)].flatMap((name) =>
+      normalized(name).split(' ').flatMap(nameVariants),
+    ),
+  )
   const unprefixed = (label: string) => {
     const words = normalized(label).split(' ')
-    const at = words.findIndex((word, position) => !unitWords.has(word) || position === words.length - 1)
-    return at > 0 ? respelled.get(spellingKey(words.slice(at).join(' '))) : undefined
+    for (let at = 1; at < words.length && unitWords.has(words[at - 1]!); at++) {
+      const rest = words.slice(at).join(' ')
+      const found = respelled.get(spellingKey(rest)) ?? (models.has(rest) ? rest : undefined)
+      if (found) return found
+    }
+    return undefined
+  }
+  // A model answers to whose wargear it carries, as a Brotherhood Terminator Squad's "Ancient" or a "Paladin Ancient".
+  const bearers = bearerNames(entryId, loaded.index)
+  const bearer = (label: string) => bearers.get(spellingKey(normalized(label).split(' ').at(-1)!))
+  // The official app can name a model for its whole loadout, as a "Kill Team Heavy Intercessor with Melta Rifle, Bolt Pistol and Ceramite Fists":
+  // the one model of that kind carrying each piece listed beneath it, or else each piece the name lists, since the app can title
+  // models by a squadmate's loadout.
+  const loadouts = modelLoadouts(entryId, loaded.index)
+  const loadoutModel = (label: string) => {
+    const [, kind, loadout] = normalized(label).match(/^(.+?)\s+(?:with|w\/)\s*(.+?)\.?$/) ?? []
+    if (!kind || !loadout) return undefined
+    const beneath = unit.selections.filter((selection) => selection.model === label).map((selection) => normalized(selection.name))
+    const candidates = loadouts.filter((model) => model.kinds.includes(kind))
+    for (const pieces of [beneath, loadout.split(/,\s*|\s+(?:and|&)\s+/)]) {
+      const holding = candidates.filter((model) => pieces.length > 0 && pieces.every((piece) => model.pieces.has(spellingKey(piece))))
+      if (holding.length === 1) return holding[0]!.name
+    }
+    return undefined
   }
   const context = { primaryCatalogueId: catalogueId, roster }
   let manualNames: ReadonlyMap<string, string> | undefined
-  for (const selection of unit.selections) {
-    const enhancement = /^(?:Enhancements?|Upgrade):/i.test(selection.name)
-    const label = selection.name.replace(/^(?:Enhancements?|Upgrade):\s*(.+)$/i, (_, name: string) => upgradeName(name)).trim()
+  const modelFor = new Map<string, string>()
+  const defaultMelee = new Map<string, string | null>()
+  const nameFor = (label: string, enhancement = false) => {
     // A list can add a qualifier the catalogue does not, as "Icon of Despair (Aura)" or "Pulsa Rokkit (Once per battle, per unit)".
     const key =
       [spellingKey(normalized(label)), spellingKey(normalized(label.replace(/\s*\([^()]*\)$/, '')))].find((candidate) =>
@@ -573,20 +679,34 @@ function textRosterPick(
       ) ?? spellingKey(normalized(label))
     const known = respelled.has(key) || respelled.has(powerWeaponKey(key))
     if (enhancement && !known) manualNames ??= enhancementRespellings(entryId, catalogueId, detachmentIds, loaded, context)
-    const name =
-      (respelled.has(key) ? respelled.get(key) : (respelled.get(powerWeaponKey(key)) ?? unprefixed(label))) ??
+    return (
+      (respelled.has(key) ? respelled.get(key) : (respelled.get(powerWeaponKey(key)) ?? unprefixed(label) ?? bearer(label))) ??
       (enhancement ? manualNames?.get(normalized(label)) : undefined) ??
+      (key === GENERIC_MELEE ? remember(defaultMelee, key, () => soleDefaultMelee(entryId, loaded.index, context)) : null) ??
+      loadoutModel(label) ??
       normalized(label)
+    )
+  }
+  const unitEnhancements = new Map<string, number>()
+  for (const selection of unit.selections) {
+    const enhancement = /^(?:Enhancements?|Upgrade):/i.test(selection.name)
+    const label = selection.name.replace(/^(?:Enhancements?|Upgrade):\s*(.+)$/i, (_, name: string) => upgradeName(name)).trim()
+    const name = nameFor(label, enhancement)
     stated.set(name, (stated.get(name) ?? 0) + selection.count)
     if (!selection.model) statedLines.set(name, (statedLines.get(name) ?? 0) + selection.count)
     if (!labels.has(name)) labels.set(name, label)
-    if (!selection.model) continue
-    const model = normalized(selection.model)
+    // A model's lines are kept under the name its line resolved to where that is one model's, so they scope it:
+    // a stat line several models share, as Cthonian Beserks' "Beserk", says no more than the list did.
+    if (!selection.model) {
+      if (enhancement) unitEnhancements.set(name, (unitEnhancements.get(name) ?? 0) + selection.count)
+      if (loadouts.filter((model) => model.name === name || model.profile === name).length === 1) modelFor.set(normalized(label), name)
+      continue
+    }
+    const model = modelFor.get(normalized(selection.model)) ?? normalized(selection.model)
     const under = statedUnder.get(model) ?? new Map<string, number>()
     under.set(name, (under.get(name) ?? 0) + selection.count)
     statedUnder.set(model, under)
   }
-  const models = modelNames(entryId, loaded.index)
   // The official app titles a model after its datasheet, as a "Thunderwolf Cavalry Pack Leader" the catalogue does not name;
   // a name the datasheet holds, as a "Piranha fusion blaster", is not one.
   const ownNames = nameVariants(unit.name)
@@ -614,6 +734,10 @@ function textRosterPick(
         const names = [nameOf(definition, loaded.index.definitions), modelProfileOf(definition, loaded.index)]
         const under = names.flatMap((name) => statedUnder.get(normalized(name ?? '')) ?? [])[0]
         if (!under) break
+        // An enhancement the official app prints for the whole unit is still its character's, as a Rogue Trader's
+        // Fleetmaster in an Entourage whose models the list names; it joins only the lines of a model offered it.
+        for (const [name, count] of unitEnhancements)
+          if (choice.options.some((option) => normalized(option.name) === name)) under.set(name, count)
         const model = selectionAt(selection, path.slice(0, depth + 1))
         const own = model ? wargearCounts(model, loaded.index) : new Map<string, number>()
         return { stated: under, held: own, scoped: true }
@@ -623,38 +747,185 @@ function textRosterPick(
     // Lines a scoped model claims are not also the rest of the unit's to choose from, as a Scout Sergeant's shotgun is not a Scout's.
     // A choice offering that model still reads them, as the master vox under "4x Tempestus Scion" says which Scion carries it,
     // unless the list names its models apart, where each named model's lines already place its own wargear.
-    const claims = scopes.flatMap((scope, at) => (scope.scoped ? [{ key: choices[at]!.key, stated: scope.stated }] : []))
+    // What the claiming model holds leaves with its lines, so a Champion's plasma pistol is not one a squadmate already has.
+    const claims = scopes.flatMap((scope, at) => (scope.scoped ? [{ key: choices[at]!.key, stated: scope.stated, held: scope.held }] : []))
+    const without = (from: ReadonlyMap<string, number>, taken: ReadonlyMap<string, number>) => {
+      const left = new Map(from)
+      for (const [name, count] of taken) {
+        const rest = (left.get(name) ?? 0) - count
+        if (rest > 0) left.set(name, rest)
+        else left.delete(name)
+      }
+      return left
+    }
+    // A model claims only the lines it or its own choices could hold: a Chosen's Chaos icon, or an Intercessor squad's
+    // grenade launcher, is still the squad's to place when the list prints it under the Champion or Sergeant.
+    const holdable = (claimed: ReadonlyMap<string, number>, own: ReadonlyMap<string, number>) => {
+      const names = new Set([
+        ...own.keys(),
+        ...choices.flatMap((_, at) =>
+          scopes[at]!.stated === claimed ? [...aliases[at]!.values()].flatMap((offered) => [...offered.keys()]) : [],
+        ),
+      ])
+      return new Map([...claimed].filter(([name]) => names.has(name)))
+    }
     scopes.forEach((scope, at) => {
       if (scope.scoped) return
       const { key, options } = choices[at]!
       const namedApart = options.filter((option) => stated.has(normalized(option.name))).length > 1
       const offered = (claim: { key: string }) => !namedApart && options.some((option) => claim.key.startsWith(`${key}/${option.id}/`))
-      const unclaimed = new Map(stated)
-      for (const under of new Set(claims.filter((claim) => !offered(claim)).map((claim) => claim.stated)))
-        for (const [name, count] of under) {
-          const left = (unclaimed.get(name) ?? 0) - count
-          if (left > 0) unclaimed.set(name, left)
-          else unclaimed.delete(name)
-        }
-      scope.stated = unclaimed
+      const claimed = new Map(claims.filter((claim) => !offered(claim)).map((claim) => [claim.stated, claim.held]))
+      scope.stated = [...claimed].map(([lines, own]) => holdable(lines, own)).reduce(without, stated)
+      scope.held = [...claimed.values()].reduce(without, held)
     })
-    const statedChoiceCounts = new Map(
-      choices.map((choice, at) => [
-        choice.key,
-        countsForChoice(choice, aliases[at]!, scopes[at]!.stated, scopes[at]!.held, models, (id) => optionWargear(id, loaded, context)),
-      ]),
-    )
     const offeredBy = countBy(
       aliases.flatMap((choice) => [...new Set([...choice.values()].flatMap((names) => [...names.keys()]))]),
       (name) => name,
+    )
+    // Any line with wargear printed beneath it is a model's, as a "Canoptek Wraith" the official app names after its
+    // datasheet, carrying the particle caster that marks its loadout.
+    const modelLines = new Set([...models, ...statedUnder.keys()])
+    // How many of a piece the unit's other choices could take, so a Crisis Shas'ui pair takes the two gun drones their
+    // Shas'vre, who may carry one, leaves them. A choice enclosing this one, as a unit's size, offers nothing besides it.
+    const roomBesides = (at: number) => (name: string) =>
+      choices.reduce(
+        (total, other, inner) =>
+          inner === at || choices[at]!.key.startsWith(`${other.key}/`)
+            ? total
+            : total +
+              Math.max(
+                0,
+                ...other.options
+                  .filter((option) => aliases[inner]!.get(option.id)?.has(name))
+                  .map((option) => Math.min(option.max, other.room)),
+              ),
+        0,
+      )
+    const countsAt = (
+      choice: (typeof choices)[number],
+      at: number,
+      from: ReadonlyMap<string, ReadonlyMap<string, number>>,
+      lines: ReadonlyMap<string, number>,
+    ) =>
+      countsForChoice(
+        choice,
+        from,
+        lines,
+        scopes[at]!.held,
+        modelLines,
+        offeredBy,
+        (id) => optionWargear(id, loaded, context),
+        roomBesides(at),
+      )
+    // The choices whose own lines field the models carrying them.
+    const fielding = new Set<string>()
+    // A model only a choice nested on it can arm, as the heavy weapon Terminator a reaper autocannon marks, is fielded by
+    // what that choice states, as are the models of a group nested in this one, as Chaos Bikers with plasma guns; the
+    // rest of the group divides what is left.
+    const nestedBodies = (at: number) => {
+      const { key, options } = choices[at]!
+      const lines = scopes[at]!.stated
+      const bodies = new Map<string, number>()
+      const taken = new Map<string, number>()
+      let besides = 0
+      choices.forEach((nested, inner) => {
+        if (!nested.key.startsWith(`${key}/`)) return
+        const carrier = options.find((option) => nested.key.startsWith(`${key}/${option.id}/`))
+        const grouped = !carrier && nested.options.every((option) => isModel(option.id, loaded.index))
+        if (carrier ? !isModel(carrier.id, loaded.index) : !grouped || nested.key.slice(key.length + 1).includes('/')) return
+        const elsewhere = new Set(
+          aliases.flatMap((offered, other) =>
+            other === inner ? [] : [...offered].flatMap(([id, names]) => (other === at && id === carrier?.id ? [] : [...names.keys()])),
+          ),
+        )
+        let fielded = 0
+        for (const names of aliases[inner]!.values()) {
+          const marks = [...names].filter(([name]) => !elsewhere.has(name) && lines.has(name))
+          if (!marks.length) continue
+          const count = Math.min(...marks.map(([name, each]) => Math.floor(lines.get(name)! / each)))
+          fielded += count
+          for (const [name, each] of marks) taken.set(name, (taken.get(name) ?? 0) + count * each)
+        }
+        // The group's room already leaves out the nested models the unit fields.
+        if (!carrier) {
+          besides += Math.max(0, Math.min(nested.room, fielded) - nested.options.reduce((total, option) => total + option.count, 0))
+          return
+        }
+        // No more of the model than it or the nested choice allows, so a second heavy weapon is reported rather than fielded.
+        const most = Math.min(choices[at]!.room, Math.max(carrier.max, nested.room))
+        if (!fielded) return
+        bodies.set(carrier.id, Math.min(most, Math.max(bodies.get(carrier.id) ?? 0, fielded)))
+        fielding.add(nested.key)
+      })
+      return { bodies, taken, besides }
+    }
+    const statedChoiceCounts = new Map(
+      choices.map((choice, at) => {
+        const { bodies, taken, besides } = nestedBodies(at)
+        if (!bodies.size && !besides) return [choice.key, countsAt(choice, at, aliases[at]!, scopes[at]!.stated)]
+        const room = choice.room - besides - [...bodies.values()].reduce((total, count) => total + count, 0)
+        const rest = { ...choice, room, options: choice.options.filter((option) => !bodies.has(option.id)) }
+        const others = new Map([...aliases[at]!].filter(([id]) => !bodies.has(id)))
+        return [choice.key, new Map([...bodies, ...(room > 0 ? countsAt(rest, at, others, without(scopes[at]!.stated, taken)) : [])])]
+      }),
     )
     // Models are counted even where only one may join, since choosing one would not place its body.
     const counted = (choice: (typeof choices)[number]) =>
       choice.room > 1 || choice.options.some((option) => isModel(option.id, loaded.index))
     const placed = new Set([...placeableNames(selection, aliases, models, unit.name, loaded), ...warlordNames])
     const fieldedKinds = new Set<string>()
-    const spreadEntries = choices.filter(counted).flatMap((choice): [string, Record<string, number>][] => {
-      const counts = statedChoiceCounts.get(choice.key) ?? new Map<string, number>()
+    const spreadEntries: [string, Record<string, number>][] = []
+    // A piece the counted choices already place is not also another choice's to take,
+    // except the default of a choice on the placed model itself, as a heavy weapon
+    // Terminator's accursed weapon is the one its melee choice decides.
+    const spreadPlaced = (within: string, lines?: ReadonlyMap<string, number>) => {
+      const pieces = new Map<string, number>()
+      for (const [key, counts] of spreadEntries) {
+        const at = choices.findIndex((choice) => choice.key === key)
+        if (lines && scopes[at]!.stated !== lines) continue
+        const names = aliases[at]
+        for (const [id, count] of Object.entries(counts)) {
+          if (within.startsWith(`${key}/${id}/`)) continue
+          for (const [name, each] of names?.get(id) ?? []) pieces.set(name, (pieces.get(name) ?? 0) + count * each)
+        }
+      }
+      return pieces
+    }
+    const spreadFor = (choice: (typeof choices)[number]): [string, Record<string, number>][] => {
+      const at = choices.indexOf(choice)
+      // A choice on a model another choice fields holds only as many as are fielded, as one Harlequin Player
+      // with a special weapon holds one.
+      const carrier = spreadEntries
+        .flatMap(([key, counts]) =>
+          choices
+            .find((other) => other.key === key)!
+            .options.filter((option) => choice.key.startsWith(`${key}/${option.id}/`))
+            .map((option) => counts[option.id] ?? option.count),
+        )
+        .at(-1)
+      const group = loaded.index.definitions.get(choice.key.split('/').at(-1)!)
+      const each = group ? maximumCount(group, loaded.index) : null
+      const room = carrier === undefined ? choice.room : Math.min(choice.room, carrier * (each ?? choice.room))
+      // Wargear the list does not say who carries is read after the counted choices before it, so a Crisis
+      // Shas'vre's drones are the ones its Shas'ui do not take.
+      // A model the list names reads only what the choices before it placed from its own lines, as a Carnifex's second arm
+      // takes the crushing claws its first arm leaves.
+      const follows = spreadEntries.length > 0 && !choice.options.some((option) => isModel(option.id, loaded.index))
+      const placedBefore = follows
+        ? spreadPlaced(choice.key, scopes[at]!.scoped ? scopes[at]!.stated : undefined)
+        : new Map<string, number>()
+      const counts = follows
+        ? countsForChoice(
+            { ...choice, room },
+            aliases[at]!,
+            without(scopes[at]!.stated, placedBefore),
+            without(scopes[at]!.held, placedBefore),
+            modelLines,
+            offeredBy,
+            (id) => optionWargear(id, loaded, context),
+            roomBesides(at),
+          )
+        : (statedChoiceCounts.get(choice.key) ?? new Map<string, number>())
       const explicit = counts.size > 0
       // A model the list does not count keeps the body a choice gave it: the cyclone
       // missile launcher brings its Terminator, and counting none would take it away.
@@ -670,7 +941,7 @@ function textRosterPick(
           .reduce((total, option) => total + named(option), 0)
         const groupNamed = groupKind(choice.name)
         const kindBodies = !bodies && groupNamed ? (stated.get(groupNamed) ?? 0) : 0
-        const asked =
+        let asked =
           bodies >= choice.room
             ? new Map(choice.options.map((option) => [option.id, named(option)]))
             : kindBodies
@@ -688,54 +959,121 @@ function textRosterPick(
           asked!.set(base.id, asked!.get(base.id)! - moved)
           asked!.set(variant.id, moved)
         }
-        return asked?.size ? [[choice.key, Object.fromEntries([...asked].map(([id, count]) => [id, Math.min(choice.room, count)]))]] : []
+        if (!asked?.size) return []
+        // A group nested in another fields only the bodies its squadmates' loadouts leave, so a Plague Marine
+        // squad's second plasma gun, with no body left to take it, is its Champion's. Only a loadout marked by
+        // wargear no nested model holds counts, as a heavy plague weapon does and a Chaos Biker's chainsword,
+        // which his meltagun squadmates also carry, does not; nor does a model the list counts by its own line.
+        const enclosing = choices.findIndex(
+          (other) => choice.key.startsWith(`${other.key}/`) && !choice.key.slice(other.key.length + 1).includes('/'),
+        )
+        const around = spreadEntries.find(([key]) => key === choices[enclosing]?.key)?.[1]
+        const squad = around && selectionAt(selection, choices[enclosing]!.key.split('/'))
+        if (squad) {
+          const total = (values: Iterable<number>) => [...values].reduce((sum, value) => sum + value, 0)
+          const nested = new Set(
+            choices.flatMap((other, inner) =>
+              other.key === choice.key || other.key.startsWith(`${choice.key}/`)
+                ? [...aliases[inner]!.values()].flatMap((names) => [...names.keys()])
+                : [],
+            ),
+          )
+          const marked = choices[enclosing]!.options.filter(
+            (option) =>
+              !statedLines.has(normalized(option.name)) &&
+              [...(aliases[enclosing]!.get(option.id)?.keys() ?? [])].some((name) => stated.has(name) && !nested.has(name)),
+          )
+          let over = total(asked.values()) - (modelCountOf(squad, loaded.index) - total(marked.map((option) => around[option.id] ?? 0)))
+          asked = new Map(asked)
+          for (const [id, count] of [...asked].toSorted((left, right) => right[1] - left[1])) {
+            const cut = Math.max(0, Math.min(count, over))
+            asked.set(id, count - cut)
+            over -= cut
+          }
+        }
+        // Bodies that fill the group leave none for the model the unit is sized by.
+        const full = [...asked.values()].reduce((total, count) => total + count, 0) >= choice.room
+        const fielded = full ? choice.options.map((option) => [option.id, asked.get(option.id) ?? 0] as const) : [...asked]
+        return [[choice.key, Object.fromEntries(fielded.map(([id, count]) => [id, Math.min(choice.room, count)]))]]
       }
-      return [
-        [
-          choice.key,
-          Object.fromEntries(
-            choice.options.map((option) => [option.id, Math.min(choice.room, counts.get(option.id) ?? (explicit ? 0 : option.count))]),
-          ),
-        ],
-      ]
-    })
+      const spread = new Map(
+        choice.options.map((option) => [option.id, Math.min(room, counts.get(option.id) ?? (explicit ? 0 : option.count))]),
+      )
+      // Every carrier of a required choice holds one, so those the list leaves unsaid keep the default, as heavy weapon
+      // Terminators whose fists a list does not name. Carriers this choice's own lines field are not unsaid: a cyclone
+      // the squad cannot take is reported, not swapped for another weapon.
+      const unsaid =
+        choice.least === undefined || fielding.has(choice.key) ? 0 : room - [...spread.values()].reduce((total, count) => total + count, 0)
+      const fallback =
+        choice.options.find((option) => option.default) ?? choice.options.toSorted((left, right) => right.count - left.count)[0]
+      if (unsaid > 0 && fallback) spread.set(fallback.id, spread.get(fallback.id)! + unsaid)
+      return [[choice.key, Object.fromEntries(spread)]]
+    }
+    for (const choice of choices.filter(counted)) spreadEntries.push(...spreadFor(choice))
     // A weapon spread under a model the list leaves out would only bring that model back.
     const absent = spreadEntries.flatMap(([key, counts]) =>
       Object.entries(counts).flatMap(([id, count]) => (count === 0 && isModel(id, loaded.index) ? [`${key}/${id}/`] : [])),
     )
-    // A piece the counted choices already place is not also another choice's to take,
-    // except the default of a choice on the placed model itself, as a heavy weapon
-    // Terminator's accursed weapon is the one its melee choice decides.
-    const spreadPlaced = (within: string) => {
-      const pieces = new Map<string, number>()
-      for (const [key, counts] of spreadEntries) {
-        const names = aliases[choices.findIndex((choice) => choice.key === key)]
-        for (const [id, count] of Object.entries(counts)) {
-          if (within.startsWith(`${key}/${id}/`)) continue
-          for (const [name, each] of names?.get(id) ?? []) pieces.set(name, (pieces.get(name) ?? 0) + count * each)
-        }
-      }
-      return pieces
-    }
     // A line stated under its model is that model's alone, as a heavy weapon Terminator's power fist is not a squadmate's.
+    // A piece another one-pick choice took is not also this one's, so a Battle Sisters Squad's one meltagun is the
+    // special weapon Sister's, who must take one, and the Sister who may take a heavy weapon takes the multi-melta.
+    // A choice nested in another decides what that one holds, so the two spend nothing against each other.
+    const taken: { at: number; pieces: Map<string, number> }[] = []
+    const spentBesides = (at: number) => {
+      const spent = new Map<string, number>()
+      const { key } = choices[at]!
+      for (const { at: other, pieces } of taken) {
+        const otherKey = choices[other]!.key
+        if (scopes[other]!.stated !== scopes[at]!.stated || key.startsWith(`${otherKey}/`) || otherKey.startsWith(`${key}/`)) continue
+        for (const [name, count] of pieces) spent.set(name, (spent.get(name) ?? 0) + count)
+      }
+      return spent
+    }
     const leftFor = (at: number, id: string) => {
       const pieces = scopes[at]!.scoped ? new Map<string, number>() : spreadPlaced(choices[at]!.key)
-      return [...(aliases[at]!.get(id) ?? [])].some(([name]) => (scopes[at]!.stated.get(name) ?? 0) > (pieces.get(name) ?? 0))
+      const spent = spentBesides(at)
+      return [...(aliases[at]!.get(id) ?? [])].some(
+        ([name]) => (scopes[at]!.stated.get(name) ?? 0) > (pieces.get(name) ?? 0) + (spent.get(name) ?? 0),
+      )
+    }
+    const singlePicks = new Map<string, string>()
+    for (const at of [...choices.keys()].toSorted((left, right) => Number(choices[left]!.optional) - Number(choices[right]!.optional))) {
+      const choice = choices[at]!
+      if (counted(choice)) continue
+      // An optional choice takes nothing the list gives it no count for.
+      const counts = [...(statedChoiceCounts.get(choice.key) ?? [])].filter(
+        ([id, count]) => (!choice.optional || count > 0) && (count === 0 || leftFor(at, id)),
+      )
+      // A choice enclosing this one offers its options only through it, so a Lieutenant's ceramite fists are his melee
+      // choice's, and the master-crafted power weapon he lists takes his bolter's place.
+      const apart = countBy(
+        aliases.flatMap((offered, inner) =>
+          inner !== at && (choices[inner]!.key.startsWith(`${choice.key}/`) || choice.key.startsWith(`${choices[inner]!.key}/`))
+            ? []
+            : [...new Set([...offered.values()].flatMap((names) => [...names.keys()]))],
+        ),
+        (name) => name,
+      )
+      const found = singleChoice(choice.options, aliases[at]!, new Map(counts), scopes[at]!.stated, offeredBy, apart)
+      if (found) {
+        // A model the list leaves out carries nothing, so its choices take no piece from a squadmate's.
+        const pieces = new Map([...(aliases[at]!.get(found) ?? [])].filter(([name]) => scopes[at]!.stated.has(name)))
+        if (!absent.some((prefix) => choice.key.startsWith(prefix))) taken.push({ at, pieces })
+        singlePicks.set(choice.key, found)
+        continue
+      }
+      // An optional default whose pieces another choice took is let go, so the group beside it can hold what the list states.
+      const spent = spentBesides(at)
+      const given = choice.chosen && [...(aliases[at]!.get(choice.chosen)?.keys() ?? [])].some((name) => spent.has(name))
+      if (choice.optional && given && !leftFor(at, choice.chosen)) singlePicks.set(choice.key, '')
+      else if (choice.chosen) singlePicks.set(choice.key, choice.chosen)
     }
     const pick = {
       entryId,
       catalogueId,
       models: built?.size.models ?? 1,
       choices: Object.fromEntries(
-        choices.flatMap((choice, at) => {
-          if (counted(choice)) return []
-          // An optional choice takes nothing the list gives it no count for.
-          const counts = [...(statedChoiceCounts.get(choice.key) ?? [])].filter(
-            ([id, count]) => (!choice.optional || count > 0) && (count === 0 || leftFor(at, id)),
-          )
-          const chosen = singleChoice(choice.options, aliases[at]!, new Map(counts), scopes[at]!.stated, offeredBy) ?? choice.chosen
-          return chosen ? [[choice.key, chosen]] : []
-        }),
+        choices.flatMap((choice) => (singlePicks.has(choice.key) ? [[choice.key, singlePicks.get(choice.key)!]] : [])),
       ),
       spreads: Object.fromEntries(spreadEntries.filter(([key]) => !absent.some((prefix) => key.startsWith(prefix)))),
       toggles,
@@ -840,6 +1178,9 @@ function carriedNames(selection: Selection, index: LoadedCatalogue['index']) {
         ? (target.profiles ?? []).flatMap((held) => (held.typeName !== 'Unit' && held.name) || [])
         : (target.profiles ?? []).flatMap((held) => held.name?.replace(/^➤\s*/, '').replace(/\s+-\s+.+$/, '') ?? [])
     // A group holds nothing itself, though it is often named after its default, as a Lord Commissar's "Power Weapon" holds a power fist.
+    // It does field the kind of model it counts, as "9 Traitor Guardsmen" fields Traitor Guardsmen.
+    const kind = target.type === undefined ? groupKind(nameOf(definition, index.definitions)) : undefined
+    if (kind && node.selections?.some((child) => (child.count ?? 1) > 0)) found.add(kind)
     const names =
       target.type === undefined
         ? []
@@ -853,6 +1194,10 @@ function carriedNames(selection: Selection, index: LoadedCatalogue['index']) {
       if (loadout) found.add(withoutArticle(loadout))
       if (target.type === 'model') for (const alias of modelAliases(name)) found.add(withoutArticle(alias))
       else for (const alias of nameVariants(name)) found.add(withoutArticle(alias))
+      // A piece the catalogue names for two weapons carries each, as a Techmarine's "Omnissian Power Axe and Servo-arm"
+      // or a Captain in Gravis Armour's "Boltstorm Gauntlet, Powerfist, and Relic weapon".
+      const parts = name.split(/\s*,\s*(?:and\s+)?|\s+and\s+/i)
+      if (target.type !== 'model' && parts.length > 1) for (const part of parts) found.add(withoutArticle(part))
     }
     node.selections?.forEach(walk)
   }
@@ -860,9 +1205,38 @@ function carriedNames(selection: Selection, index: LoadedCatalogue['index']) {
   return found
 }
 
+/** The one melee weapon every model of a datasheet starts with, or null where they start with several or none. */
+function soleDefaultMelee(
+  entryId: string,
+  index: LoadedCatalogue['index'],
+  context: { primaryCatalogueId: string; roster: readonly Selection[] },
+) {
+  const names = new Set<string>()
+  const walk = (node: Selection) => {
+    const definition = index.definitions.get(node.id)
+    const target = definition && resolve(definition, index)
+    const linked = (target?.infoLinks ?? []).flatMap((link) => (link.type === 'profile' ? [index.shared.get(link.targetId)] : []))
+    if (
+      definition &&
+      target?.type === 'upgrade' &&
+      [...(target.profiles ?? []), ...linked].some((held) => held && 'typeName' in held && held.typeName === 'Melee Weapons')
+    )
+      names.add(normalized(nameOf(definition, index.definitions)))
+    node.selections?.forEach(walk)
+  }
+  const built = buildUnit(entryId, index, undefined, {}, context)
+  if (built) walk(built.selection)
+  return names.size === 1 ? [...names][0]! : null
+}
+
 /** The keywords an upgrade gives its unit, which the official app prints in place of the upgrade, as Steel Hammer's "Keywords: Character". */
 function grantedKeywords(definition: Definition, target: Definition, index: LoadedCatalogue['index']) {
-  return [...(definition.modifiers ?? []), ...(target.modifiers ?? [])].flatMap((modifier) => {
+  // A Trygon's Character upgrade grants it in a group that also makes it the primary keyword.
+  const modifiers = [definition, target].flatMap((source) => [
+    ...(source.modifiers ?? []),
+    ...(source.modifierGroups ?? []).flatMap((group) => group.modifiers ?? []),
+  ])
+  return modifiers.flatMap((modifier) => {
     if (modifier.field !== 'category' || modifier.type !== 'add' || typeof modifier.value !== 'string') return []
     const keyword = index.categories.get(modifier.value)?.name
     return keyword ? [normalized(keyword)] : []
@@ -871,10 +1245,12 @@ function grantedKeywords(definition: Definition, target: Definition, index: Load
 
 const withoutArticle = (name: string) => normalized(name).replace(/^the /, '')
 
-/** Whether a built unit holds a stated name, including Warmind's "Splinter Pistol and 1 Razorflail" for a loadout that holds both. */
+/** Whether a built unit holds a stated name, however spelled, including Warmind's "Splinter Pistol and 1 Razorflail" for a loadout that holds both. */
 function isCarried(name: string, carried: ReadonlySet<string>) {
+  const keys = new Set([...carried].map(spellingKey))
+  const has = (piece: string) => keys.has(spellingKey(withoutArticle(piece)))
   const parts = name.split(/\s+and\s+(?:\d+\s+)?/)
-  return carried.has(withoutArticle(name)) || (parts.length > 1 && parts.every((part) => carried.has(withoutArticle(part))))
+  return has(name) || (parts.length > 1 && parts.every(has))
 }
 
 /**
@@ -885,7 +1261,7 @@ function modelNames(entryId: string, index: LoadedCatalogue['index']) {
   const names = new Set<string>()
   eachDefinition([entryId], index, (definition, target) => {
     const kind = groupKind(nameOf(definition, index.definitions))
-    if (kind && childrenOf(target, index).some((child) => resolve(child.definition, index).type === 'model')) names.add(kind)
+    if (kind && childrenOf(definition, index).some((child) => resolve(child.definition, index).type === 'model')) names.add(kind)
     if (target.type !== 'model') return
     for (const name of [nameOf(definition, index.definitions), modelProfileOf(definition, index)]) {
       if (!name) continue
@@ -895,6 +1271,21 @@ function modelNames(entryId: string, index: LoadedCatalogue['index']) {
   return names
 }
 
+/** Each model a datasheet fields, by its name, stat line and kinds, and the wargear it can carry keyed by spellingKey. */
+function modelLoadouts(entryId: string, index: LoadedCatalogue['index']) {
+  const found: { name: string; profile: string; kinds: string[]; pieces: Set<string> }[] = []
+  eachDefinition([entryId], index, (definition, target) => {
+    if (target.type !== 'model') return
+    const pieces = new Set<string>()
+    eachDefinition([definition.id], index, (held, heldTarget) => {
+      if (heldTarget.type === 'upgrade') for (const name of nameVariants(nameOf(held, index.definitions))) pieces.add(spellingKey(name))
+    })
+    const name = normalized(nameOf(definition, index.definitions))
+    found.push({ name, profile: normalized(modelProfileOf(definition, index) ?? ''), kinds: modelAliases(name), pieces })
+  })
+  return found
+}
+
 /** A datasheet's names keyed by spellingKey, as BSData's "Relic Great Axe" is the app's "Relic Greataxe"; null where two collide. */
 function respelledNames(entryId: string, index: LoadedCatalogue['index']) {
   const names = new Map<string, string | null>()
@@ -902,14 +1293,36 @@ function respelledNames(entryId: string, index: LoadedCatalogue['index']) {
   const root = index.definitions.get(entryId)
   const unitWords = new Set(root ? normalized(nameOf(root, index.definitions)).split(' ').flatMap(nameVariants) : [])
   eachDefinition([entryId], index, (definition, target) => {
-    for (const name of new Set([nameOf(definition, index.definitions), target.name ?? ''].filter(Boolean).map(normalized))) {
+    // A model also goes by its stat line's name, as a Talonstrike Kill Team's "Kill Team Intercessor w/ Jump Pack".
+    const profile = target.type === 'model' ? modelProfileOf(definition, index) : null
+    for (const name of new Set([nameOf(definition, index.definitions), target.name ?? '', profile ?? ''].filter(Boolean).map(normalized))) {
       const key = spellingKey(name)
       names.set(key, names.has(key) && names.get(key) !== name ? null : name)
       // The catalogue can name a piece after its unit where a list does not, as a Gladiator Lancer's "Lancer laser destroyer".
       const words = name.split(' ')
       const at = words.findIndex((word, position) => !unitWords.has(word) || position === words.length - 1)
       if (at > 0) prefixed.push([spellingKey(words.slice(at).join(' ')), name])
+      // The official app can name a model without its unit's last words, as a Paragon Warsuit is a "Paragon".
+      if (target.type === 'model')
+        for (let end = words.length - 1; end > 0 && unitWords.has(words[end]!); end--)
+          prefixed.push([spellingKey(words.slice(0, end).join(' ')), name])
+      // And by its kind without the unit's first words, as a Terminator Assault Squad's "Assault Terminator w/ Twin Lightning Claws" is a "Terminator".
+      const kind = name.replace(modelLoadout, '').split(' ')
+      const from = kind.findIndex((word, position) => !unitWords.has(word) || position === kind.length - 1)
+      if (target.type === 'model' && from > 0 && kind.length < words.length)
+        prefixed.push([spellingKey(kind.slice(from).join(' ')), kind.join(' ')])
     }
+    if (target.type !== 'model') return
+    // BSData can rename a model's stat line and keep an older spelling on its entry, as Hellions' "Heliarch" prints as "Helliarch".
+    const statLines = [
+      ...(target.profiles ?? []).filter((held) => held.typeName === 'Unit'),
+      ...(target.infoLinks ?? []).filter((link) => {
+        const linked = link.type === 'profile' ? index.shared.get(link.targetId) : undefined
+        return linked && 'typeName' in linked && linked.typeName === 'Unit'
+      }),
+    ]
+    for (const renamed of statLines.flatMap((line) => line.modifiers ?? []).flatMap(nameSetBy))
+      prefixed.push([spellingKey(normalized(renamed)), normalized(nameOf(definition, index.definitions))])
   })
   // Only where the catalogue's own names leave the key free; two such names for one key mean neither.
   const unprefixed = new Map<string, string | null>()
@@ -917,6 +1330,30 @@ function respelledNames(entryId: string, index: LoadedCatalogue['index']) {
   for (const [key, name] of unprefixed) if (!names.has(key)) names.set(key, name)
   return names
 }
+
+/** Models the catalogue names for wargear only they carry, keyed by whose it is, as Gaunt's Ghosts' "Colm Corbec" is a "Tanith Ghost w/ Corbec's hot-shot lascarbine". */
+function bearerNames(entryId: string, index: LoadedCatalogue['index']) {
+  const names = new Map<string, string | null>()
+  eachDefinition([entryId], index, (definition, target) => {
+    if (target.type !== 'model') return
+    const name = normalized(nameOf(definition, index.definitions))
+    const owner = name.match(/\s(?:w\/|with)\s*(.+?)'s\s/)?.[1]
+    if (!owner) return
+    const key = spellingKey(owner)
+    names.set(key, names.has(key) && names.get(key) !== name ? null : name)
+  })
+  return names
+}
+
+/** The name a modifier always gives what it modifies. */
+const nameSetBy = (modifier: Modifier) =>
+  modifier.field === 'name' &&
+  modifier.type === 'set' &&
+  !modifier.conditions?.length &&
+  !modifier.conditionGroups?.length &&
+  typeof modifier.value === 'string'
+    ? [modifier.value]
+    : []
 
 /** What a datasheet's Warlord entries are renamed to, such as "Militarum Tempestus Warlord", which exporters list as wargear. */
 function warlordAliases(entryId: string, index: LoadedCatalogue['index']) {
@@ -928,14 +1365,9 @@ function warlordAliases(entryId: string, index: LoadedCatalogue['index']) {
     const target = resolve(definition, index)
     const warlord = inWarlord || isRosterToggle(target.name ?? definition.name)
     if (warlord) {
-      for (const modifier of definition.modifiers ?? []) {
-        const unconditional = !modifier.conditions?.length && !modifier.conditionGroups?.length
-        if (modifier.field === 'name' && modifier.type === 'set' && unconditional && typeof modifier.value === 'string') {
-          names.add(normalized(modifier.value))
-        }
-      }
+      for (const name of (definition.modifiers ?? []).flatMap(nameSetBy)) names.add(normalized(name))
     }
-    for (const child of childrenOf(target, index)) walk(child.definition, warlord)
+    for (const child of childrenOf(definition, index)) walk(child.definition, warlord)
   }
   const root = index.definitions.get(entryId)
   if (root) walk(root, false)
@@ -1002,7 +1434,8 @@ function placeableNames(
 
 /**
  * The option a one-pick choice takes. A name no other choice offers decides it, so a
- * hull lascannon is not read as one of the heavy bolters the sponsons account for.
+ * hull lascannon is not read as one of the heavy bolters the sponsons account for;
+ * failing that, a name only the choices enclosing or nested in this one also offer.
  */
 function singleChoice(
   options: readonly { id: string }[],
@@ -1010,23 +1443,28 @@ function singleChoice(
   counts: ReadonlyMap<string, number> | undefined,
   stated: ReadonlyMap<string, number>,
   offeredBy: ReadonlyMap<string, number>,
+  offeredApart: ReadonlyMap<string, number> = offeredBy,
 ) {
   // A zero says the rest of the unit accounts for every one stated, as the squad's
   // splinter pistols do when only the leader's blast pistol is hers.
   const candidates = options.filter((option) => (counts?.get(option.id) ?? 0) > 0)
-  const exclusive = candidates.find((option) =>
-    [...(aliases.get(option.id)?.keys() ?? [])].some((name) => offeredBy.get(name) === 1 && stated.has(name)),
-  )
-  return (exclusive ?? candidates[0])?.id
+  const exclusive = (offers: ReadonlyMap<string, number>) =>
+    candidates.find((option) => [...(aliases.get(option.id)?.keys() ?? [])].some((name) => offers.get(name) === 1 && stated.has(name)))
+  return (exclusive(offeredBy) ?? exclusive(offeredApart) ?? candidates[0])?.id
 }
 
 function countsForChoice(
-  { options, room }: { options: readonly { id: string; name: string; count: number; min: number; max: number }[]; room: number },
+  {
+    options,
+    room,
+  }: { options: readonly { id: string; name: string; count: number; min: number; max: number; default?: boolean }[]; room: number },
   aliases: ReadonlyMap<string, ReadonlyMap<string, number>>,
   stated: ReadonlyMap<string, number>,
   held: ReadonlyMap<string, number>,
   models: ReadonlySet<string>,
+  offeredBy: ReadonlyMap<string, number>,
   wargearOfOption: (id: string) => ReadonlyMap<string, number>,
+  besides: (name: string) => number,
 ) {
   const owners = countBy(
     [...aliases.values()].flatMap((names) => [...names.keys()]),
@@ -1039,15 +1477,65 @@ function countsForChoice(
   // vox-casters; a name nobody else carries says it best.
   const inChoice = (name: string) => options.reduce((total, option) => total + option.count * (aliases.get(option.id)?.get(name) ?? 0), 0)
   const distinctiveCounts = new Map<string, number>()
+  // A model replacing a squadmate keeps what that squadmate carried, so a bolt pistol the
+  // rest of the unit also holds cannot rule out the Berzerker who swapped his chainblade.
+  // Such a model takes only what no other choice could hold instead: a plasma pistol may
+  // be the Champion's, an eviscerator only a Berzerker's.
+  const undecided = new Set<string>()
   for (const option of options) {
     const owned = [...(aliases.get(option.id) ?? [])]
       .filter(([name]) => owners.get(name) === 1 && stated.has(name))
-      .map(([name, each]) => ({ elsewhere: Math.max(0, (held.get(name) ?? 0) - inChoice(name)), stated: stated.get(name)!, each }))
-    const alone = owned.filter((name) => name.elsewhere === 0)
-    const distinctive = (alone.length ? alone : owned).map(({ elsewhere, stated: count, each }) =>
+      .map(([name, each]) => ({ name, elsewhere: Math.max(0, (held.get(name) ?? 0) - inChoice(name)), stated: stated.get(name)!, each }))
+    // What the option is and holds says how many took it better than a swap it merely allows, as a cyclone
+    // Terminator's launchers count him where the thunder hammer he could take instead does not.
+    const pieces = wargearOfOption(option.id)
+    const labels = new Set([option.name, upgradeName(option.name), option.name.match(modelLoadout)?.[1] ?? ''].map(normalized))
+    const holds = owned.filter((name) => pieces.has(name.name) || labels.has(name.name))
+    const marks = holds.length ? holds : owned
+    const alone = marks.filter((name) => name.elsewhere === 0)
+    const distinctive = (alone.length ? alone : marks).map(({ elsewhere, stated: count, each }) =>
       Math.ceil(Math.max(0, count - elsewhere) / Math.max(1, each)),
     )
-    if (distinctive.length) distinctiveCounts.set(option.id, Math.min(...distinctive))
+    if (!distinctive.length) continue
+    distinctiveCounts.set(option.id, Math.min(...distinctive))
+    if (!alone.length && !distinctiveCounts.get(option.id) && models.has(normalized(option.name))) undecided.add(option.id)
+  }
+  // Wargear a choice of several has no room for is left to another, as a Crisis Shas'vre takes the drones its Shas'ui
+  // cannot, and a Rhino's second combi-bolter is its own rather than one its wargear adds. What no other choice offers
+  // goes first, as a Talos's liquifier guns before the macro-scalpels its other arm can take, then the fewest, so a
+  // squad's one axe stays beside the spears that overflow it.
+  if (room > 1) {
+    const wargear = options.filter((option) => distinctiveCounts.has(option.id) && !models.has(normalized(option.name)))
+    const shared = (option: { id: string }) =>
+      Math.min(...[...(aliases.get(option.id)?.keys() ?? [])].filter((name) => stated.has(name)).map((name) => offeredBy.get(name) ?? 1))
+    let free =
+      room - [...distinctiveCounts].reduce((total, [id, count]) => total + (wargear.some((option) => option.id === id) ? 0 : count), 0)
+    const placing = wargear.toSorted(
+      (left, right) => shared(left) - shared(right) || distinctiveCounts.get(left.id)! - distinctiveCounts.get(right.id)!,
+    )
+    // What no other choice has room for is placed here first, when the others can hold the rest; a list stating more
+    // than the unit holds keeps the order above.
+    const elsewhere = (option: (typeof options)[number]) =>
+      Math.min(
+        distinctiveCounts.get(option.id)!,
+        Math.max(0, ...[...(aliases.get(option.id) ?? [])].filter(([name]) => stated.has(name)).map(([name]) => besides(name))),
+      )
+    const forced = (option: (typeof options)[number]) => distinctiveCounts.get(option.id)! - elsewhere(option)
+    const placed = new Map<string, number>()
+    const fitting = placing.reduce((total, option) => total + distinctiveCounts.get(option.id)! - elsewhere(option), 0) <= free
+    // Where the rest could go either way, the datasheet's default stays here, as a cyclone Terminator's power fist.
+    const settling = fitting ? placing.toSorted((left, right) => Number(!left.default) - Number(!right.default)) : placing
+    for (const [share, order] of [
+      [fitting ? forced : () => 0, placing],
+      [(option: (typeof options)[number]) => distinctiveCounts.get(option.id)!, settling],
+    ] as const)
+      for (const option of order) {
+        const before = placed.get(option.id) ?? 0
+        const fits = Math.max(0, Math.min(share(option), option.max, before + free) - before)
+        placed.set(option.id, before + fits)
+        free -= fits
+      }
+    for (const [id, count] of placed) distinctiveCounts.set(id, count)
   }
   if (!distinctiveCounts.size) {
     const named = new Map(
@@ -1070,16 +1558,19 @@ function countsForChoice(
     [...distinctiveCounts].reduce((total, [id, count]) => total + count * (aliases.get(id)?.get(name) ?? 0), 0)
   for (;;) {
     const [best] = options
-      .filter((option) => !distinctiveCounts.has(option.id))
+      .filter((option) => !distinctiveCounts.has(option.id) || undecided.has(option.id))
       .filter((option) => [...(aliases.get(option.id)?.keys() ?? [])].every((name) => owners.get(name) === 1 || isStated(name)))
       .map((option) => ({
         option,
-        names: [...(aliases.get(option.id) ?? [])].filter(([name]) => owners.get(name)! > 1 && leftOver(name) > 0),
+        names: [...(aliases.get(option.id) ?? [])].filter(
+          ([name]) => owners.get(name)! > 1 && leftOver(name) > 0 && (!undecided.has(option.id) || offeredBy.get(name) === 1),
+        ),
       }))
       .filter(({ names }) => names.length)
       .sort((left, right) => right.names.length - left.names.length)
     const free = room - [...distinctiveCounts.values()].reduce((total, count) => total + count, 0)
     if (!best || free <= 0) return distinctiveCounts
+    undecided.delete(best.option.id)
     distinctiveCounts.set(best.option.id, Math.min(free, ...best.names.map(([name, each]) => Math.floor(leftOver(name) / each))))
   }
 }
@@ -1147,13 +1638,15 @@ function combinedCounts(
   const known = new Set([...names, ...held.keys(), ...models].flatMap(nameVariants))
   if ([...stated.keys()].some((name) => !known.has(name))) return null
   const inChoice = (name: string) => options.reduce((total, option, at) => total + option.count * (wargear[at]!.get(name) ?? 0), 0)
-  // What the rest of the unit carries is not this choice's to account for.
-  const target = names.map((name) => Math.max(0, spelled(stated, name) - Math.max(0, spelled(held, name) - inChoice(name))))
+  // What the rest of the unit carries is not this choice's to account for, and a piece the list prints none of, as the
+  // autopistols the official app leaves off Jakhals, says nothing about which loadout was taken.
+  const weighed = names.filter((name) => spelled(stated, name) > 0)
+  const target = weighed.map((name) => Math.max(0, spelled(stated, name) - Math.max(0, spelled(held, name) - inChoice(name))))
   const unexplained = target.reduce((total, count) => total + count, 0)
   if (!unexplained) return null
   const full = options.reduce((total, option) => total + option.count, 0) >= room
   const cost = (counts: readonly number[]) =>
-    names.reduce(
+    weighed.reduce(
       (total, name, at) =>
         total + Math.abs(counts.reduce((sum, count, option) => sum + count * (wargear[option]!.get(name) ?? 0), 0) - target[at]!),
       0,

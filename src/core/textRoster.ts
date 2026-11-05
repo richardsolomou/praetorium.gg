@@ -24,6 +24,8 @@ export type TextRosterUnit = {
   defaultSize?: boolean
   entry?: number
   attachedToEntry?: number
+  /** Units sharing a number are listed together as an attached group without saying which is the bodyguard. */
+  group?: number
   nickname?: string
   /** The player's own note on the unit, kept as its private note. */
   note?: string
@@ -53,6 +55,12 @@ export function attachGroups(
 /** A section heading in the unit lists of WTC-style text. */
 export const WTC_SECTION =
   /^(?:ATTACHED UNITS?|CHARACTERS?|EPIC HER(?:O|OES)|BATTLELINE|DEDICATED TRANSPORTS?|OTHER DATASHEETS|ALLIED UNITS)$/i
+
+/**
+ * A labelled line the official app marks with an asterisk, as "* Attached as: Leader (Character)", as the bullet it stands for.
+ * The app's footnotes, as "* This Datasheet also has the Battleline keyword", carry no label.
+ */
+export const starredLabel = (line: string) => line.replace(/^(\s*)\*\s*(?=[^:*]+:\s*\S)/, '$1• ')
 
 /** A nickname as one bounded line, whether it is being written into text or read back out. */
 export const textNickname = (value: string) => value.replace(/\s+/g, ' ').trim().slice(0, UNIT_NICKNAME_MAX_LENGTH) || undefined

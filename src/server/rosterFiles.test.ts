@@ -2586,6 +2586,7 @@ describe('import faction names', () => {
     ['Adeptus Astartes', 'Imperium - Space Marines'],
     ['Legiones Daemonica', 'Chaos - Chaos Daemons'],
     ['Heretic Astartes', 'Chaos - Chaos Space Marines'],
+    ['Imperial Agents', 'Imperium - Agents of the Imperium'],
   ])('reads the faction keyword %s as %s', (keyword, catalogue) => {
     expect(matchesImportFaction(keyword, catalogue)).toBe(true)
   })
@@ -2769,4 +2770,149 @@ describe('a squad whose models are named for their loadouts', () => {
       { name: 'Reaper autocannon', count: 1 },
     ])
   })
+})
+
+describe('names a list joins or splits differently from the catalogue', () => {
+  const books: LoadedCatalogue = {
+    ...loaded,
+    index: buildIndex(
+      [
+        system,
+        allies,
+        {
+          catalogue: {
+            id: 'ultramarines',
+            name: 'Imperium - Ultramarines',
+            selectionEntries: [
+              { id: 'ultramarine-terminators', name: 'Terminator Squad', type: 'unit' },
+              {
+                id: 'inquisitor',
+                name: 'Inquisitor',
+                type: 'unit',
+                selectionEntries: [
+                  {
+                    id: 'combi-weapon',
+                    name: 'Combi-weapon',
+                    type: 'upgrade',
+                    constraints: [{ id: 'combi-weapon-min', type: 'min', value: 1, field: 'selections', scope: 'parent' }],
+                  },
+                ],
+                selectionEntryGroups: [
+                  {
+                    id: 'melee',
+                    name: 'Melee',
+                    defaultSelectionEntryId: 'power-weapon',
+                    constraints: [
+                      { id: 'melee-min', type: 'min', value: 1, field: 'selections', scope: 'parent' },
+                      { id: 'melee-max', type: 'max', value: 1, field: 'selections', scope: 'parent' },
+                    ],
+                    selectionEntries: [
+                      { id: 'power-weapon', name: 'Power weapon', type: 'upgrade' },
+                      { id: 'mystic-stave', name: 'Mystic stave', type: 'upgrade' },
+                    ],
+                  },
+                ],
+              },
+              { id: 'tzeentch-grinder', name: 'Tzeentch Soul Grinder', type: 'unit' },
+              { id: 'khorne-grinder', name: 'Khorne Soul Grinder', type: 'unit' },
+            ],
+          },
+        },
+      ],
+      'test-revision',
+    ),
+    factions: [
+      { id: 'marines', name: 'Imperium - Space Marines', references: [] },
+      { id: 'ultramarines', name: 'Imperium - Ultramarines', references: [] },
+    ],
+    detachments: new Map(),
+  }
+  const list = (stated: string, units: string) => ({
+    file: `Joined (200 Points)
+
+${stated}
+Strike Force (2,000 Points)
+
+OTHER DATASHEETS
+
+${units}
+
+Exported with BattleBase`,
+  })
+
+  it('reads the chapter its units name where the list states only their parent faction', () => {
+    const imported = importRosterFile(list('Space Marines', 'Terminator Squad (100 Points)\n\nInquisitor (50 Points)'), books)
+    expect(imported.catalogueId).toBe('ultramarines')
+  })
+
+  it('reads each piece of a line joining wargear the datasheet knows by name', () => {
+    const imported = importRosterFile(list('Ultramarines', 'Inquisitor (50 Points)\n  • 1x Combi-weapon and Mystic stave'), books)
+    expect(imported.unplaced).toEqual([])
+  })
+
+  it('reads the datasheet BSData splits out by the choice the official app lists', () => {
+    const imported = importRosterFile(list('Ultramarines', 'Soul Grinder (180 Points)\n  • Daemonic Allegiance: Tzeentch'), books)
+    expect([imported.units.map((unit) => unit.entryId), imported.unknown, imported.unplaced]).toEqual([['tzeentch-grinder'], [], []])
+  })
+})
+
+it('attaches a group listed without its bodyguard to the one unit its others can join', () => {
+  const necrons: LoadedCatalogue = {
+    ...loaded,
+    index: buildIndex(
+      [
+        system,
+        {
+          catalogue: {
+            id: 'necrons',
+            name: 'Xenos - Necrons',
+            selectionEntries: [
+              { id: 'immortals', name: 'Immortals', type: 'unit' },
+              {
+                id: 'overlord',
+                name: 'Overlord',
+                type: 'unit',
+                profiles: [
+                  {
+                    id: 'leader',
+                    name: 'Leader',
+                    characteristics: [{ name: 'Description', $text: 'This model can be attached to the following unit:\n■ IMMORTALS' }],
+                  },
+                ],
+              },
+            ],
+          },
+        },
+      ],
+      'test-revision',
+    ),
+    factions: [{ id: 'necrons', name: 'Xenos - Necrons', references: [] }],
+    detachments: new Map(),
+  }
+  const imported = importRosterFile(
+    {
+      file: `Grouped [200 points]
+Necrons
+Battle Size: Strike Force (2000 point limit)
+
+Detachments: Awakened Dynasty (1/3 Detachment Points)
+
+Attached Unit
+
+  Immortals (70 points)
+    • 5 Immortals with Gauss blaster
+
+  Overlord (85 points)
+    • Warlord
+
+Battleline
+
+  Immortals (70 points)
+    • 5 Immortals with Gauss blaster
+
+Created with WarOrgan ()`,
+    },
+    necrons,
+  )
+  expect(imported.units.map((unit) => unit.attachedTo)).toEqual([undefined, 0, undefined])
 })
