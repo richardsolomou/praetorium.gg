@@ -45,6 +45,57 @@ export function fromListForgeText(input: string): TextRoster | null {
   }
 }
 
+/**
+ * ListForge's short text export: the detailed export's title, then one line for each unit or attached group, as
+ * "Leader: gear, E: Enhancement + Bodyguard: 4x Model (340 pts)". The models a unit fields are among its items, and
+ * "2x Unit:" is two of that unit.
+ */
+export function fromListForgeShortText(input: string): TextRoster | null {
+  const lines = input
+    .replaceAll('\r', '')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+  const titled = lines[0]?.match(title)
+  const parts = titled ? titled[1]!.split(' - ') : []
+  // Some versions group the lines under headings, as "Attached Units:".
+  const body = lines.slice(1).filter((line) => !heading.test(line))
+  if (!titled || parts.length < 3 || !body.length || !body.every((line) => unitHeader.test(line) && /^[^:(]+: /.test(line))) return null
+  const disposed = parts.length > 3
+  const units: TextRosterUnit[] = []
+  const groups: { leaders: TextRosterUnit[]; bodyguard: TextRosterUnit }[] = []
+  for (const line of body) {
+    const members = line
+      .match(unitHeader)![1]!
+      .split(' + ')
+      .map((member) => {
+        const [, copies, name, items] = member.match(/^(?:(\d+)x\s+)?([^:]+?)(?::\s*(.*))?$/)!
+        const unit: TextRosterUnit = { name: name!.trim(), selections: [], leading: null, warlord: false }
+        // A comma inside brackets is part of the item, as "Drakolithe (Once per battle, per token)".
+        for (const item of items?.split(/,\s+(?![^()]*\))/) ?? []) {
+          // A counted model's own wargear can follow it in brackets, as "6x Kataphron Destroyer (Kataphron plasma culverin &
+          // Cognis flamer)"; other brackets qualify the item, as "Furious Assault (Upgrade)".
+          const [, count, piece, carried] = item.match(/^(\d+)x\s+(.+?)\s+\(([^()]+)\)$/) ?? item.match(/^(?:(\d+)x\s+)?(.+)$/)!
+          addItem(unit, piece!, Number(count ?? 1))
+          for (const held of carried?.split(/\s+&\s+/) ?? []) addItem(unit, held, Number(count ?? 1), piece)
+        }
+        return { unit, copies: Number(copies ?? 1) }
+      })
+    for (const { unit, copies } of members) for (let copy = 0; copy < copies; copy++) units.push(copy ? structuredClone(unit) : unit)
+    if (members.length > 1) groups.push({ leaders: members.slice(0, -1).map(({ unit }) => unit), bodyguard: members.at(-1)!.unit })
+  }
+  attachGroups(units, groups)
+  return {
+    name: parts.slice(0, disposed ? -3 : -2).join(' - '),
+    reportedPoints: printedNumber(titled[2]!),
+    faction: parts.at(disposed ? -3 : -2)!,
+    detachment: !parts.at(-1)!.trim() || /^no detachment$/i.test(parts.at(-1)!) ? null : parts.at(-1)!,
+    disposition: disposed ? parts.at(-2)! : null,
+    limit: null,
+    units,
+  }
+}
+
 /** ListForge's WTC text export, which states the list's setup between two lines of plus signs. */
 export function fromListForgeWtcText(input: string): TextRoster | null {
   const lines = input.replaceAll('\r', '').split('\n')
@@ -74,8 +125,9 @@ export function fromListForgeWtcText(input: string): TextRoster | null {
  * The unit sections both layouts share: a heading ending in a colon, a unit's name and
  * points, and its models and wargear as bullets nested by indentation.
  *
- * An attached unit is a "Leader + Bodyguard (pts)" line over its members, indented, with
- * the bodyguard last.
+ * An attached unit is a "Leader + Bodyguard (pts)" line over its members, with the bodyguard
+ * last. The members are usually indented, but a paste can lose that, so the group's line is
+ * the one naming its units with " + ".
  */
 function readBody(lines: readonly string[]): Pick<TextRoster, 'units' | 'unread'> | null {
   const units: TextRosterUnit[] = []
@@ -114,7 +166,7 @@ function readBody(lines: readonly string[]): Pick<TextRoster, 'units' | 'unread'
       continue
     }
     const header = trimmed.match(unitHeader)
-    if (header && attached && !indented) {
+    if (header && attached && / \+ /.test(header[1]!)) {
       close()
       members = []
       current = null

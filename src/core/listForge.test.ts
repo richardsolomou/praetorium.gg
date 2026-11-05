@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { fromListForgeText, fromListForgeWtcText } from './listForge'
+import { fromListForgeShortText, fromListForgeText, fromListForgeWtcText } from './listForge'
 import { listForgeAllies, listForgeDetailed, listForgeWtc, warmindListForge } from './rosterText.fixtures'
 
 const outline = (units: NonNullable<ReturnType<typeof fromListForgeText>>['units']) =>
@@ -59,6 +59,41 @@ describe('ListForge text import', () => {
     })
     expect(outline(parsed!.units)).toEqual(outline(fromListForgeText(listForgeDetailed)!.units))
     expect(parsed?.units[2]?.selections).toContainEqual({ name: 'Enhancement: Periapt of Torments', count: 1 })
+  })
+
+  it('reads attached groups from a paste that lost its indentation', () => {
+    const flat = listForgeWtc.replaceAll(/^[ \t]+/gm, '')
+    expect(outline(fromListForgeWtcText(flat)!.units)).toEqual(outline(fromListForgeWtcText(listForgeWtc)!.units))
+  })
+
+  it('reads the short layout, its attached groups, copies, and models', () => {
+    const parsed = fromListForgeShortText(`Admech - Adeptus Mechanicus - Take and Hold - Cohort Cybernetica (515 Points)
+
+Tech-Priest Dominus: Eradication ray, Omnissian axe, E: Autoclavic Denounciation + Kataphron Destroyers: 6x Kataphron Destroyer (Kataphron plasma culverin & Cognis flamer) (275 pts)
+Belisarius Cawl: Arc scourge, Warlord (220 pts)
+2x Skitarii Vanguard: Skitarii Vanguard Alpha, 9x Skitarii Vanguard w/ radium carbine (170 pts)`)
+
+    expect({
+      setup: [parsed?.faction, parsed?.disposition, parsed?.detachment, parsed?.reportedPoints],
+      units: outline(parsed!.units),
+      kataphrons: parsed?.units[1]?.selections,
+      dominus: parsed?.units[0]?.selections.at(-1),
+    }).toEqual({
+      setup: ['Adeptus Mechanicus', 'Take and Hold', 'Cohort Cybernetica', 515],
+      units: [
+        ['Tech-Priest Dominus', undefined, 1, false],
+        ['Kataphron Destroyers', 1, undefined, false],
+        ['Belisarius Cawl', undefined, undefined, true],
+        ['Skitarii Vanguard', undefined, undefined, false],
+        ['Skitarii Vanguard', undefined, undefined, false],
+      ],
+      kataphrons: [
+        { name: 'Kataphron Destroyer', count: 6 },
+        { name: 'Kataphron plasma culverin', count: 6, model: 'Kataphron Destroyer' },
+        { name: 'Cognis flamer', count: 6, model: 'Kataphron Destroyer' },
+      ],
+      dominus: { name: 'Enhancement: Autoclavic Denounciation', count: 1 },
+    })
   })
 
   it('reads allied units under their faction heading', () => {
