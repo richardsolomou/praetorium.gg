@@ -1003,24 +1003,65 @@ function textRosterPick(
       Object.entries(counts).flatMap(([id, count]) => (count === 0 && isModel(id, loaded.index) ? [`${key}/${id}/`] : [])),
     )
     // A line stated under its model is that model's alone, as a heavy weapon Terminator's power fist is not a squadmate's.
+    // A piece another one-pick choice took is not also this one's, so a Battle Sisters Squad's one meltagun is the
+    // special weapon Sister's, who must take one, and the Sister who may take a heavy weapon takes the multi-melta.
+    // A choice nested in another decides what that one holds, so the two spend nothing against each other.
+    const taken: { at: number; pieces: Map<string, number> }[] = []
+    const spentBesides = (at: number) => {
+      const spent = new Map<string, number>()
+      const { key } = choices[at]!
+      for (const { at: other, pieces } of taken) {
+        const otherKey = choices[other]!.key
+        if (scopes[other]!.stated !== scopes[at]!.stated || key.startsWith(`${otherKey}/`) || otherKey.startsWith(`${key}/`)) continue
+        for (const [name, count] of pieces) spent.set(name, (spent.get(name) ?? 0) + count)
+      }
+      return spent
+    }
     const leftFor = (at: number, id: string) => {
       const pieces = scopes[at]!.scoped ? new Map<string, number>() : spreadPlaced(choices[at]!.key)
-      return [...(aliases[at]!.get(id) ?? [])].some(([name]) => (scopes[at]!.stated.get(name) ?? 0) > (pieces.get(name) ?? 0))
+      const spent = spentBesides(at)
+      return [...(aliases[at]!.get(id) ?? [])].some(
+        ([name]) => (scopes[at]!.stated.get(name) ?? 0) > (pieces.get(name) ?? 0) + (spent.get(name) ?? 0),
+      )
+    }
+    const singlePicks = new Map<string, string>()
+    for (const at of [...choices.keys()].toSorted((left, right) => Number(choices[left]!.optional) - Number(choices[right]!.optional))) {
+      const choice = choices[at]!
+      if (counted(choice)) continue
+      // An optional choice takes nothing the list gives it no count for.
+      const counts = [...(statedChoiceCounts.get(choice.key) ?? [])].filter(
+        ([id, count]) => (!choice.optional || count > 0) && (count === 0 || leftFor(at, id)),
+      )
+      // A choice enclosing this one offers its options only through it, so a Lieutenant's ceramite fists are his melee
+      // choice's, and the master-crafted power weapon he lists takes his bolter's place.
+      const apart = countBy(
+        aliases.flatMap((offered, inner) =>
+          inner !== at && (choices[inner]!.key.startsWith(`${choice.key}/`) || choice.key.startsWith(`${choices[inner]!.key}/`))
+            ? []
+            : [...new Set([...offered.values()].flatMap((names) => [...names.keys()]))],
+        ),
+        (name) => name,
+      )
+      const found = singleChoice(choice.options, aliases[at]!, new Map(counts), scopes[at]!.stated, offeredBy, apart)
+      if (found) {
+        // A model the list leaves out carries nothing, so its choices take no piece from a squadmate's.
+        const pieces = new Map([...(aliases[at]!.get(found) ?? [])].filter(([name]) => scopes[at]!.stated.has(name)))
+        if (!absent.some((prefix) => choice.key.startsWith(prefix))) taken.push({ at, pieces })
+        singlePicks.set(choice.key, found)
+        continue
+      }
+      // An optional default whose pieces another choice took is let go, so the group beside it can hold what the list states.
+      const spent = spentBesides(at)
+      const given = choice.chosen && [...(aliases[at]!.get(choice.chosen)?.keys() ?? [])].some((name) => spent.has(name))
+      if (choice.optional && given && !leftFor(at, choice.chosen)) singlePicks.set(choice.key, '')
+      else if (choice.chosen) singlePicks.set(choice.key, choice.chosen)
     }
     const pick = {
       entryId,
       catalogueId,
       models: built?.size.models ?? 1,
       choices: Object.fromEntries(
-        choices.flatMap((choice, at) => {
-          if (counted(choice)) return []
-          // An optional choice takes nothing the list gives it no count for.
-          const counts = [...(statedChoiceCounts.get(choice.key) ?? [])].filter(
-            ([id, count]) => (!choice.optional || count > 0) && (count === 0 || leftFor(at, id)),
-          )
-          const chosen = singleChoice(choice.options, aliases[at]!, new Map(counts), scopes[at]!.stated, offeredBy) ?? choice.chosen
-          return chosen ? [[choice.key, chosen]] : []
-        }),
+        choices.flatMap((choice) => (singlePicks.has(choice.key) ? [[choice.key, singlePicks.get(choice.key)!]] : [])),
       ),
       spreads: Object.fromEntries(spreadEntries.filter(([key]) => !absent.some((prefix) => key.startsWith(prefix)))),
       toggles,
@@ -1381,7 +1422,8 @@ function placeableNames(
 
 /**
  * The option a one-pick choice takes. A name no other choice offers decides it, so a
- * hull lascannon is not read as one of the heavy bolters the sponsons account for.
+ * hull lascannon is not read as one of the heavy bolters the sponsons account for;
+ * failing that, a name only the choices enclosing or nested in this one also offer.
  */
 function singleChoice(
   options: readonly { id: string }[],
@@ -1389,14 +1431,14 @@ function singleChoice(
   counts: ReadonlyMap<string, number> | undefined,
   stated: ReadonlyMap<string, number>,
   offeredBy: ReadonlyMap<string, number>,
+  offeredApart: ReadonlyMap<string, number> = offeredBy,
 ) {
   // A zero says the rest of the unit accounts for every one stated, as the squad's
   // splinter pistols do when only the leader's blast pistol is hers.
   const candidates = options.filter((option) => (counts?.get(option.id) ?? 0) > 0)
-  const exclusive = candidates.find((option) =>
-    [...(aliases.get(option.id)?.keys() ?? [])].some((name) => offeredBy.get(name) === 1 && stated.has(name)),
-  )
-  return (exclusive ?? candidates[0])?.id
+  const exclusive = (offers: ReadonlyMap<string, number>) =>
+    candidates.find((option) => [...(aliases.get(option.id)?.keys() ?? [])].some((name) => offers.get(name) === 1 && stated.has(name)))
+  return (exclusive(offeredBy) ?? exclusive(offeredApart) ?? candidates[0])?.id
 }
 
 function countsForChoice(

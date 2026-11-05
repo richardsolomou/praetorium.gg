@@ -591,6 +591,35 @@ Exported with App Version: v2.8.1 (1), Data Version: v995`
      ◦ 1x Mauler chainblade`,
       ['1x mauler chainblade'],
     ],
+    [
+      'a multi-melta beside the meltagun the special weapon Sister must take',
+      'Adepta Sororitas',
+      'Battle Sisters Squad',
+      `Battle Sisters Squad (100 points)
+  • 1x Sister Superior
+    • 1x Bolt pistol
+      1x Close combat weapon
+      1x Inferno pistol
+      1x Power weapon
+  • 9x Battle Sister
+    • 9x Bolt pistol
+      7x Boltgun
+      9x Close combat weapon
+      1x Meltagun
+      1x Multi-melta
+      1x Simulacrum Imperialis`,
+      ['1x multi-melta', '1x meltagun'],
+    ],
+    [
+      'a Lieutenant power weapon in his bolter’s place, beside the fists his melee choice alone offers',
+      'Black Templars',
+      'Lieutenant',
+      `Lieutenant (45 points)
+  • 1x Bolt Pistol
+    1x Close combat weapon
+    1x Master-crafted power weapon`,
+      ['1x ceramite fists', '1x master-crafted power weapon'],
+    ],
   ])('places %s', (_case, faction, unit, text, pieces) => {
     const held = wargear(officialApp(faction, text), unit)
     for (const piece of pieces) expect(held).toContain(piece)
@@ -804,7 +833,7 @@ OTHER DATASHEETS [200 pts]
     Power Fist + Storm Bolter / Storm Shield + Thunder Hammer / 3× Plasma Cannon
 
 Exported from 40k.app, view the full list here:`
-    expect(wargear(file, 'Deathwatch Terminator Squad')).toContain('3x power fist')
+    expect(wargear(file, 'Deathwatch Terminator Squad')).toContain('4x power fist')
   })
 
   it('imports the reported official-app Custodes roster without mismatches', () => {
