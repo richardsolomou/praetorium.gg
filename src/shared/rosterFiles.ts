@@ -348,9 +348,23 @@ function importTextRoster(
     const [first, ...rest] = name.split(' ')
     return found ?? (rest.length && factionWords.has(first!) ? datasheetNamed(rest.join(' ')) : undefined)
   }
-  // A list exported in another language names its units in it, as the French "Mékadakka de Gros Mek".
+  // A list exported in another language names its units in it, as the French "Mékadakka de Gros Mek", in the words its
+  // datasheet's card prints or the community translations give.
+  let printedDatasheets: Map<string, Set<string>> | undefined
+  const printedDatasheet = (name: string) => {
+    printedDatasheets ??= new Map(
+      datasheets
+        .flatMap(({ id }) =>
+          (datacardOf(loaded, faction.id, id)?.details.printedName ?? []).map((printed) => [normalized(printed), id] as const),
+        )
+        .reduce((found, [printed, id]) => found.set(printed, (found.get(printed) ?? new Set()).add(id)), new Map<string, Set<string>>()),
+    )
+    const ids = printedDatasheets.get(name)
+    return ids?.size === 1 ? [...ids][0] : undefined
+  }
   const namedInAnyLanguage = (name: string) =>
     datasheetNamed(name) ??
+    printedDatasheet(name) ??
     englishNames(name, translations)
       .map((english) => datasheetNamed(normalized(english)))
       .find(Boolean)
@@ -709,8 +723,16 @@ function textRosterPick(
       .flatMap((name) => englishNames(name, translations))
       .map((english) => resolved(english, enhancement))
       .find(Boolean)
+  // The official app prints its datasheet card's names, which can be another spelling of the catalogue's in any language.
+  const printedGroups = datacardOf(loaded, catalogueId, entryId)?.details.printedPieces ?? []
+  const printed = (label: string, enhancement: boolean) =>
+    printedGroups
+      .filter((names) => names.some((name) => normalized(name) === normalized(label)))
+      .flatMap((names) => names.filter((name) => normalized(name) !== normalized(label)))
+      .map((name) => resolved(name, enhancement))
+      .find(Boolean)
   const nameFor = (label: string, enhancement = false) =>
-    resolved(label, enhancement) ?? translated(label, enhancement) ?? normalized(label)
+    resolved(label, enhancement) ?? translated(label, enhancement) ?? printed(label, enhancement) ?? normalized(label)
   const unitEnhancements = new Map<string, number>()
   for (const selection of unit.selections) {
     const enhancement = /^(?:Enhancements?|Upgrade):/i.test(selection.name)

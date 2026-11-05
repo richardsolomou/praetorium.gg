@@ -32,6 +32,8 @@ export type SendCommand = (
     blocking?: boolean
     /** The sequence of the screen a write was worked out from, when it holds only for that history: a newer one answers stale. */
     onlyAt?: number
+    /** The screen worked out on this device now shows the command, ahead of the service's answer. */
+    shown?: () => void
     complete?: (appended: boolean) => void
   },
 ) => void
@@ -301,6 +303,7 @@ export function useCommand(token: string, seq: number) {
           .then(() => showPrediction({ token, queryClient, projection }, command))
           .catch(() => false)
           .then((shown) => {
+            if (shown) options?.shown?.()
             if (!shown) {
               // Disabled controls take over from here; controls that ignore `pending` queue their presses as before.
               if (!unshown.current.delete(item)) return

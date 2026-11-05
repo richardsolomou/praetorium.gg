@@ -34,6 +34,16 @@ export type DatasheetDetails = {
   attachesTo: { kind: 'leader' | 'support'; name: string }[]
   leaders: string[]
   supporters: string[]
+  /**
+   * The datasheet's name in every spelling the card prints it, where it prints more than one. The official app exports
+   * these, so a list in another language names the datasheet as its card does.
+   */
+  printedName?: string[]
+  /**
+   * Each model and piece of wargear the card prints in more than one spelling, every spelling together: the app's
+   * "Dainal Komelius" is the catalogue's "Dainal Kornelius", the name the card prints in German.
+   */
+  printedPieces?: string[][]
 }
 export type RuleCard = { name: string; description: string }
 /**
@@ -810,6 +820,30 @@ export function english(value: unknown): string | null {
   return typeof translated === 'string' ? translated.trim() || null : null
 }
 
+/** Every language a name is printed in, the English first. */
+function printedIn(value: unknown): string[] {
+  if (typeof value === 'string') return value.trim() ? [value.trim()] : []
+  if (!value || typeof value !== 'object') return []
+  const names = Object.entries(value as Record<string, unknown>)
+    .toSorted(([left], [right]) => Number(right === 'en') - Number(left === 'en'))
+    .flatMap(([, name]) => (typeof name === 'string' && name.trim() ? [name.trim()] : []))
+  return [...new Set(names)]
+}
+
+/** The names a datasheet's card prints in more than one spelling: its own, and each model's and piece of wargear's. */
+function printedNamesOf(value: unknown): Pick<DatasheetDetails, 'printedName' | 'printedPieces'> {
+  const weapons = [...records(value, 'rangedWeapons'), ...records(value, 'meleeWeapons')].flatMap((weapon) => records(weapon, 'profiles'))
+  const name = printedIn((value as Record<string, unknown>).name)
+  const pieces = [
+    ...records(value, 'modelKeywords').map((model) => printedIn(model.name)),
+    ...weapons.map((profile) => printedIn(profile.name)),
+    ...records(value, 'wargearOptions')
+      .flatMap((group) => records(group, 'options'))
+      .map((option) => printedIn(option.name)),
+  ].filter((names) => names.length > 1)
+  return { ...(name.length > 1 ? { printedName: name } : {}), ...(pieces.length ? { printedPieces: pieces } : {}) }
+}
+
 export function localizedField(value: unknown, field: string): string | null {
   if (!value || typeof value !== 'object') return null
   const localized: unknown = (value as Record<string, unknown>)[field]
@@ -939,6 +973,7 @@ function datasheetDetails(value: unknown, texts: SourceTexts): DatasheetDetails 
     }),
     leaders: [],
     supporters: [],
+    ...printedNamesOf(value),
   }
 }
 function displayBaseSize(baseSize: string | null): string | null {

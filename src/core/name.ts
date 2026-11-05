@@ -5,13 +5,18 @@ export const withoutFactionPrefix = (keyword: string) => keyword.replace(/^facti
 
 export function normalizedNameVariants(name: string): string[] {
   const normalized = normalizedName(name)
-  const alternate = normalized.endsWith('ies')
-    ? `${normalized.slice(0, -3)}y`
-    : normalized.endsWith('s')
-      ? normalized.slice(0, -1)
-      : normalized.endsWith('y') && !/[aeiou]y$/.test(normalized)
-        ? `${normalized.slice(0, -1)}ies`
-        : `${normalized}s`
+  // "Navis Armsmen" are each a "Navis Armsman".
+  const alternate = normalized.endsWith('men')
+    ? `${normalized.slice(0, -3)}man`
+    : normalized.endsWith('man')
+      ? `${normalized.slice(0, -3)}men`
+      : normalized.endsWith('ies')
+        ? `${normalized.slice(0, -3)}y`
+        : normalized.endsWith('s')
+          ? normalized.slice(0, -1)
+          : normalized.endsWith('y') && !/[aeiou]y$/.test(normalized)
+            ? `${normalized.slice(0, -1)}ies`
+            : `${normalized}s`
   return [normalized, alternate]
 }
 

@@ -46,7 +46,8 @@ type UnitControls = {
 /**
  * Casualty presses shown before the service answers, so a squad can be counted down
  * tap after tap. Each press is still its own queued command; one the service refuses
- * leaves the overlay and the count falls back to the authoritative screen.
+ * leaves the overlay and the count falls back to the authoritative screen. A press the
+ * screen worked out on this device already shows leaves it too, or it would count twice.
  */
 function usePendingCasualties(units: readonly UnitState[], send: SendCommand) {
   const [presses, setPresses] = useState<{ id: number; command: CasualtyCommand }[]>([])
@@ -55,7 +56,8 @@ function usePendingCasualties(units: readonly UnitState[], send: SendCommand) {
     (command) => {
       const id = nextId.current++
       setPresses((current) => [...current, { id, command }])
-      send(command, { blocking: false, complete: () => setPresses((current) => current.filter((candidate) => candidate.id !== id)) })
+      const settled = () => setPresses((current) => current.filter((candidate) => candidate.id !== id))
+      send(command, { blocking: false, shown: settled, complete: settled })
     },
     [send],
   )
