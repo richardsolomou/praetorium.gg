@@ -39,7 +39,7 @@ import {
   units,
 } from '../functions'
 import { inFamilies, savedRosterFamilies } from '../productSignals'
-import { referenceStaleTime, SSR_STALE_TIME } from './shared'
+import { referenceStaleTime, requirePage, SSR_STALE_TIME } from './shared'
 import {
   collectionCountsKey,
   collectionKey,
@@ -68,7 +68,7 @@ export const unitLoadoutsQuery = () =>
 export const playedArmiesQuery = (filter: RosterDiscoveryFilter) =>
   infiniteQueryOptions({
     queryKey: ['played-armies', filter],
-    queryFn: ({ pageParam }) => discoverPlayedArmies({ data: { ...filter, before: pageParam } }),
+    queryFn: ({ pageParam }) => discoverPlayedArmies({ data: { ...filter, before: pageParam } }).then(requirePage('played armies read')),
     initialPageParam: null as BattlesCursor | null,
     getNextPageParam: (page) => page.nextCursor ?? undefined,
     staleTime: SSR_STALE_TIME,
@@ -78,7 +78,8 @@ export const playedArmiesQuery = (filter: RosterDiscoveryFilter) =>
 export const discoveredRostersQuery = (filter: RosterDiscoveryFilter, audience: RosterAudience, sort: RosterSort) =>
   infiniteQueryOptions({
     queryKey: ['discovered-rosters', audience, sort, filter],
-    queryFn: ({ pageParam }) => discoverRosters({ data: { ...filter, audience, sort, before: pageParam } }),
+    queryFn: ({ pageParam }) =>
+      discoverRosters({ data: { ...filter, audience, sort, before: pageParam } }).then(requirePage('roster discovery read')),
     initialPageParam: null as RosterDiscoveryCursor | null,
     getNextPageParam: (page) => page.nextCursor ?? undefined,
     staleTime: SSR_STALE_TIME,

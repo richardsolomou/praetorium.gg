@@ -28,7 +28,7 @@ import {
 } from '../functions'
 import { PLAYER_SEARCH_MAX_LENGTH, PLAYER_SEARCH_MIN_LENGTH } from '../../core/playerSearch'
 import type { BattlesCursor } from '../../contracts/battles'
-import { SSR_STALE_TIME } from './shared'
+import { requirePage, SSR_STALE_TIME } from './shared'
 import { liveProductRefresh } from '../liveProductRefresh'
 import { uniqueBy } from '../../core/collections'
 import {
@@ -62,7 +62,7 @@ export function battleFeedQuery<Page extends { nextCursor: BattlesCursor | null 
 ) {
   return infiniteQueryOptions({
     queryKey,
-    queryFn: ({ pageParam }) => read(pageParam).then(requireBattlePage),
+    queryFn: ({ pageParam }) => read(pageParam).then(requirePage<Page>('battle feed')),
     initialPageParam: null as BattlesCursor | null,
     // A cached feed can hold a missing page.
     getNextPageParam: (page) => (page as Page | undefined)?.nextCursor ?? undefined,
@@ -91,11 +91,6 @@ export function battlesFrom(data: { pages: ({ battles: unknown[] } | undefined)[
     (data?.pages.flatMap((page) => page?.battles ?? []) ?? []) as Awaited<ReturnType<typeof myBattles>>['battles'],
     (battle) => (typeof battle.token === 'string' ? battle.token : battle),
   )
-}
-
-function requireBattlePage<T>(page: T | null | undefined): T {
-  if (page == null) throw new Error('The battle feed returned no page.')
-  return page
 }
 
 const FEED_POLL_MS = 20_000
