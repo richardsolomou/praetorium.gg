@@ -5,6 +5,7 @@ import { captureWhenLoaded } from '../posthog'
 import { isFetchNetworkFailure, isModuleLoadFailure } from './networkErrors'
 import { OfflineRefusal } from './offline/offlineRefusal'
 import { newerRelease } from './releaseUpdate'
+import { readSessionValue, writeSessionValue } from './storedValue'
 
 /** React passes errors caught by a route's error page only to console.error, so report them here. */
 export function reportRouteError(error: unknown) {
@@ -87,11 +88,18 @@ export async function reloadModuleRoute() {
 }
 
 const STALE_BUILD_PARAM = '__build_retry'
+/**
+ * The tab's last stale-build key. A redirect, a tap before the page hydrates, or a navigation before the route settles
+ * drops the key from the address, yet the reload still reached the new release.
+ */
+const STALE_BUILD_SESSION_KEY = 'praetorium.stale-build-recovery'
 
-function staleBuildMarker(href: string) {
-  const match = new URL(href).searchParams.get(STALE_BUILD_PARAM)?.match(/^\d+\.([1-3])\.(\d+\.\d+\.\d+)$/)
+function parseStaleBuildMarker(value: string | null) {
+  const match = value?.match(/^\d+\.([1-3])\.(\d+\.\d+\.\d+)$/)
   return match ? { attempt: Number(match[1]), release: match[2]! } : null
 }
+
+const staleBuildMarker = (href: string) => parseStaleBuildMarker(new URL(href).searchParams.get(STALE_BUILD_PARAM))
 
 const staleBuildAttempt = (href: string, release: string) => {
   const marker = staleBuildMarker(href)
@@ -126,6 +134,7 @@ export function reloadStaleBuild(
     return false
   }
   const url = staleBuildRecoveryUrl(href, release)
+  writeSessionValue(STALE_BUILD_SESSION_KEY, new URL(url).searchParams.get(STALE_BUILD_PARAM))
   posthog.capture('route_recovery_started', { failure_kind: 'stale_build', recovery_attempt: staleBuildAttempt(url, release), trigger })
   if (window.ReactNativeWebView && window.PraetoriumOfflineStart !== undefined) {
     const { pathname, search, hash } = new URL(url)
@@ -145,7 +154,10 @@ export function withoutRecoveryKeys(href: string) {
   return url.pathname + url.search + url.hash
 }
 
-export const routeRecoveryPending = (href: string) => moduleRecoveryAttempt(href) > 0 || staleBuildMarker(href) !== null
+const storedStaleBuildMarker = () => parseStaleBuildMarker(readSessionValue(STALE_BUILD_SESSION_KEY))
+
+export const routeRecoveryPending = (href: string) =>
+  moduleRecoveryAttempt(href) > 0 || staleBuildMarker(href) !== null || storedStaleBuildMarker() !== null
 
 /** Removes the recovery keys a rendered route resolves; a reload that still runs an older build keeps its key, so the cap holds. */
 export function completedRouteRecovery(href: string, current = version) {
@@ -155,13 +167,15 @@ export function completedRouteRecovery(href: string, current = version) {
     url.searchParams.delete(RECOVERY_PARAM)
     captureWhenLoaded('route_recovery_completed', { failure_kind: 'module_load', recovery_attempt: moduleAttempt })
   }
-  const stale = staleBuildMarker(href)
+  const inAddress = staleBuildMarker(href)
+  const stale = inAddress ?? storedStaleBuildMarker()
   const staleResolved = stale !== null && !newerRelease(current, stale.release)
   if (staleResolved) {
     url.searchParams.delete(STALE_BUILD_PARAM)
+    writeSessionValue(STALE_BUILD_SESSION_KEY, null)
     captureWhenLoaded('route_recovery_completed', { failure_kind: 'stale_build', recovery_attempt: stale.attempt })
   }
-  return moduleAttempt || staleResolved ? url.pathname + url.search + url.hash : null
+  return moduleAttempt || (staleResolved && inAddress) ? url.pathname + url.search + url.hash : null
 }
 
 /**
