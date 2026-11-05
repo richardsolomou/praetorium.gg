@@ -938,6 +938,59 @@ Exported with App Version: v2.8.1 (1), Data Version: v995`,
     expect('olderData' in result ? result.olderData : undefined).toEqual(olderData)
   })
 
+  // A second read over the unit as first picked must not keep the first read's loadouts as defaults beside its own.
+  it('fields Storm Guardians whose special weapons several loadouts share', () => {
+    const { definitions } = catalogue.index
+    const unit = imported(`Guardians (100 points)
+
+Aeldari
+Warhost (1 Detachment Points)
+Purge the Foe
+Strike Force (2000 points)
+
+OTHER DATASHEETS
+
+Storm Guardians (100 points)
+• 10x Storm Guardian
+• 8x Close combat weapon
+2x Flamer
+2x Fusion gun
+2x Power sword
+6x Shuriken pistol
+• 1x Serpent’s Scale Platform
+• 1x Close combat weapon
+1x Serpent shield
+
+Exported with App Version: v2.8.1 (149), Data Version: v995`).units[0]!
+    const fielded = Object.values(unit.spreads).flatMap((spread) =>
+      Object.entries(spread).flatMap(([id, count]) => (count > 0 ? [`${count}x ${nameOf(definitions.get(id)!, definitions)}`] : [])),
+    )
+    expect(fielded).toEqual(['2x Storm Guardian with Flamer', '2x Storm Guardian with Fusion Gun & Power Sword'])
+  })
+
+  it('reads a sergeant the official app names after his squadmates, as a "Purgator Justicar"', () => {
+    expect(
+      summary(`Purgators (115 Points)
+
+Grey Knights
+Warpbane Task Force (1 Detachment Points)
+Purge the Foe
+Strike Force (2,000 Points)
+
+OTHER DATASHEETS
+
+Purgation Squad (115 Points)
+• 1x Purgator Justicar
+◦ 1x Nemesis force weapon
+◦ 1x Storm Bolter
+• 4x Purgator
+◦ 4x Close Combat Weapon
+◦ 4x Incinerator
+
+Exported with App Version: v2.8.0 (2), Data Version: v981`).mismatches,
+    ).toEqual([])
+  })
+
   it('imports the reported official-app Custodes roster without mismatches', () => {
     expect(summary(custodesOfficial)).toEqual({
       format: 'roster-file',
