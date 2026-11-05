@@ -17,3 +17,10 @@
 - A server failure no request waits on, such as a scheduled refresh or a push delivery, goes through `reportServerFailure`, which keeps the detail in the server log and sends PostHog only its event name and error class. Server-only modules the warm plugin bundles stay off it, since they cannot import the telemetry adapter.
 - A state only the player can resolve on their device, such as reconnecting or reviewing a sync conflict, throws `OfflineRefusal`, which exception capture skips.
 - Verify with `e2e/telemetry.spec.ts`; after deployment, inspect real events, since arrival alone proves neither privacy nor identity linkage.
+
+## Campaign links
+
+- A link to praetorium.gg that is posted outside the app carries `utm_source` (the site that shows it, such as `github` or `discord`), `utm_medium` (the kind of placement, such as `profile` or `community`), and `utm_campaign` (one placement, such as `readme` or `release-0-221-7`). The README links and `scripts/announceDiscord.ts` follow this.
+- Values use lowercase letters, digits, and hyphens, and never carry a name, handle, or email. Use plain links, not a tracking shortener.
+- Do not tag links inside the app or links to other sites: no Praetorium page reads them.
+- The browser SDK puts the tags on the landing `$pageview`, adds `$session_entry_utm_*` to each event of that session, and sets `$initial_utm_*` on the person at sign-in. Server events such as `account_created` and `roster_created` carry no tags, so break them down by the person's `$initial_utm_source` and `$initial_utm_campaign`. A funnel that starts with a browser event can break down by `$session_entry_utm_source` with first-touch attribution, which also counts visitors who never sign up.
