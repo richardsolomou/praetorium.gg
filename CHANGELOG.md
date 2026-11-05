@@ -1,5 +1,13 @@
 # praetorium
 
+## 0.221.4 (2026-11-05)
+
+### Patch Changes
+
+- af63688: Imported wargear joined by "and" keeps a count stated on one of its pieces, as "2x Twin Neutronium Cascade Projectors".
+- af63688: Importing ListForge text keeps attached units when the paste lost its indentation.
+- af63688: Importing reads ListForge's short text export.
+
 ## 0.221.3 (2026-11-05)
 
 ### Patch Changes
