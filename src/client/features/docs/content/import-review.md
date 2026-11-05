@@ -32,6 +32,10 @@ These units imported, but some of their choices didn't. The unit keeps its datas
 - A model count such as "4 models" with "this datasheet fields 5 to 10 models".
 - An attachment that couldn't be made (see [Characters and attachments](/docs/import-matching#characters-and-attachments)).
 
+### Exported from older app data
+
+The official app prints the version of its data at the bottom of an export. When that's older than the data Praetorium reads and something didn't match, the review says so. Units and wargear the app has renamed or removed since then won't match. Export the list again from the app to bring it up to date.
+
 ### Accepting
 
 The main button changes with the result:

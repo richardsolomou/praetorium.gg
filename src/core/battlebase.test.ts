@@ -170,6 +170,13 @@ describe('BattleBase text import', () => {
     expect(fromBattleBaseText(kingOfTheColosseumExport)?.units.map((unit) => unit.name)).toEqual(['Lokhust Lord', 'Immortals'])
   })
 
+  it.each([
+    ['Exported with App Version: v2.8.1 (149), Data Version: v946', 946],
+    ['Exportada con la versión de la app: v2.4.0 (139), versión de los datos v925', 925],
+  ])('reads the data version from "%s"', (footer, version) => {
+    expect(fromBattleBaseText(exportText.replace('Exported with BattleBase, Data Version: v20260812', footer))?.dataVersion).toBe(version)
+  })
+
   it('reads equipment nested under a model line', () => {
     const parsed = fromBattleBaseText(
       exportText.replace('    • 6x Close combat weapon\n    • 6x Gauss cannon', '    • 6x Lokhust Destroyer\n        ◦ 6x Gauss cannon'),

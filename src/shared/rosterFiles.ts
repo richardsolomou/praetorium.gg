@@ -439,6 +439,10 @@ function importTextRoster(
 
   const { limit, pointsBudget } = importedBattleSize(parsed, unknown)
   const disposition = importedDisposition(parsed.disposition, detachments, unknown, translations)
+  // An export from older app data can name what a later update renamed or removed, which explains what did not match.
+  // The app has one data version for every army, and not every faction's file says which it was written for.
+  const current = Math.max(0, ...[...loaded.factionContents.values()].flatMap((content) => content.dataVersion ?? []))
+  const olderData = parsed.dataVersion && parsed.dataVersion < current ? { exported: parsed.dataVersion, current } : null
 
   return {
     name: parsed.name,
@@ -454,6 +458,7 @@ function importTextRoster(
       unit: label(parsed.units[at]!, at),
       choices: [...choices].map(([name, reason]) => ({ name, reason })),
     })),
+    olderData,
   }
 }
 

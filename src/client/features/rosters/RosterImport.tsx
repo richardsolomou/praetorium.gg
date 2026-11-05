@@ -203,6 +203,7 @@ export function RosterImport({ onImport, blocked }: { onImport?: (imported: Matc
           inputKind: inputOf(file),
           unknown: imported.unknown,
           unplaced: imported.unplaced,
+          olderData: 'olderData' in imported ? imported.olderData : null,
           input: file,
         })
       }
@@ -307,6 +308,13 @@ export function RosterImport({ onImport, blocked }: { onImport?: (imported: Matc
                 {review.unknown.length || review.unplaced.length ? (
                   <p className="text-xs text-dim">
                     Missing units will be left out. Unmatched equipment uses the datasheet defaults; check it in the builder.
+                  </p>
+                ) : null}
+                {'olderData' in review && review.olderData && (review.unknown.length || review.unplaced.length) ? (
+                  <p data-import-older-data className="text-xs text-dim">
+                    This list was exported from the official app's data v{review.olderData.exported}, and Praetorium reads v
+                    {review.olderData.current}. Units and wargear the app has renamed or removed since then won't match; export it again
+                    from the app to bring it up to date.
                   </p>
                 ) : null}
                 <Shortfall

@@ -47,16 +47,19 @@ export function importFailureReport({
   inputKind,
   unknown,
   unplaced,
+  olderData,
   input,
 }: {
   reason: keyof typeof IMPORT_FAILURES
   inputKind: keyof typeof INPUT_KINDS
   unknown: readonly { name: string; reason: string }[]
   unplaced: readonly { unit: string; choices: readonly { name: string; reason: string }[] }[]
+  olderData?: { exported: number; current: number } | null
   input: string
 }) {
   const header = [
     `Automatic report: ${IMPORT_FAILURES[reason]} from ${INPUT_KINDS[inputKind]}.`,
+    ...(olderData ? [`Exported from app data v${olderData.exported}; Praetorium reads v${olderData.current}.`] : []),
     `Unmatched: ${unknown.length}. Units with unplaced choices: ${unplaced.length}.`,
     ...unknown.map(({ name, reason: why }) => `- Could not match ${name}: ${why}`),
     ...unplaced.flatMap(({ unit, choices }) => choices.map(({ name, reason: why }) => `- ${unit}: could not place ${name}: ${why}`)),

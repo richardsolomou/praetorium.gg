@@ -240,9 +240,12 @@ export function fromBattleBaseText(input: string): TextRoster | null {
     groups.filter((members) => members.length > 1).map((members) => ({ leaders: members.slice(0, -1), bodyguard: members.at(-1)! })),
   )
 
+  // The footer names the app's data version last, in the export's language: "Data Version: v995", "versión de los datos v925".
+  const dataVersion = Number(lines.find((line) => appVersion.test(line))?.match(/\bv(\d+)\s*$/)?.[1])
   return {
     name: title,
     ...(titlePrice ? { reportedPoints: titlePrice.points } : {}),
+    ...(dataVersion ? { dataVersion } : {}),
     faction,
     detachment: detachment && detachment !== 'No detachment' ? detachment : null,
     disposition: dispositionLine?.match(labelled)?.[2] ?? dispositionLine ?? null,
