@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.221.2 (2026-11-05)
+
+### Patch Changes
+
+- 7204251: The import review names the data update that removed a datasheet, detachment or enhancement an older list still takes.
+
 ## 0.221.1 (2026-11-05)
 
 ### Patch Changes
