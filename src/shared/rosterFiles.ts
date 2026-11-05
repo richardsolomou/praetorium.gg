@@ -647,6 +647,9 @@ const groupKind = (name: string) => normalized(name).match(/^\d+(?:\s*-\s*\d+)?\
 /**
  * A unit whose lines join several pieces with commas and "and", as an "Agent Firearm and Mystic Stave", read as each piece,
  * only where every piece is a name the datasheet knows, since "and" also falls inside a name, as a "Lacerator and daemonic claw".
+ * A comma falls inside a name too, as a Jakhals' "1 mauler chainblade, 7 chainblades", which a layout listing items with
+ * commas cuts in two, so neighbouring lines that join into a name the datasheet knows are read as that one. ListForge's
+ * short text likewise reads a bracketed qualifier as what a counted model carries, as "4x Drakolithe (Once per battle, per token)".
  */
 function joinedSplit(unit: TextRosterUnit, entryId: string, index: LoadedCatalogue['index']): TextRosterUnit {
   const respelled = respelledNames(entryId, index)
@@ -661,7 +664,21 @@ function joinedSplit(unit: TextRosterUnit, entryId: string, index: LoadedCatalog
       ? pieces.map((piece) => ({ ...selection, name: piece[2]!, count: selection.count * Number(piece[1] ?? 1) }))
       : [selection]
   })
-  return { ...unit, selections }
+  const joined: typeof selections = []
+  for (const selection of selections) {
+    const before = joined.at(-1)
+    const qualified = before && selection.model === before.name && `${before.name} (${selection.name})`
+    const listed = before && selection.model === before.model && `${before.name}, ${selection.name}`
+    // Only a line the datasheet does not know is a cut piece: a Terminator's "Power fist" stays apart from the "Combi-bolter" before it
+    // although it offers a "Combi-bolter, Power fist", and a Sicarian Ruststalker's "Transonic razor and chordclaw" is what it carries.
+    const name =
+      before?.count === selection.count && !known(selection.name)
+        ? [qualified, listed].find((candidate) => candidate && known(candidate))
+        : undefined
+    if (before && name) before.name = name
+    else joined.push({ ...selection })
+  }
+  return { ...unit, selections: joined }
 }
 
 function wargearCounts(selection: Selection, index: LoadedCatalogue['index']) {
