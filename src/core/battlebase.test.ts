@@ -181,6 +181,17 @@ describe('BattleBase text import', () => {
     ])
   })
 
+  it('reads a detachment name the app wrapped onto a second line', () => {
+    const parsed = fromBattleBaseText(
+      exportText.replace(
+        'Cursed Legion (2 Detachment Points)',
+        'Hypercrypt Legion y Punta de lanza\ndel Sudario celestial (3 Detachment Points)',
+      ),
+    )
+
+    expect(parsed?.detachment).toBe('Hypercrypt Legion y Punta de lanza del Sudario celestial')
+  })
+
   it("reads a model's first piece of wargear printed on the model's own line", () => {
     const parsed = fromBattleBaseText(
       exportText.replace('    • 6x Close combat weapon\n    • 6x Gauss cannon', '    • 6x Lokhust Destroyer     • 6x Gauss cannon'),

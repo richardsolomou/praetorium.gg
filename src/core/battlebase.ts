@@ -45,6 +45,14 @@ export function fromBattleBaseText(input: string): TextRoster | null {
       const joined = line.match(/^(\s*)(•\s*\d+x?\s.*?\S)\s{2,}(•\s*.+)$/)
       return joined ? [`${joined[1]}${joined[2]}`, `${joined[1]}  ${joined[3]}`] : [line]
     })
+  // A long detachment name can wrap above the units, as the German "Eine Legende, / die der Skalden würdig ist und … (3 Kontingentspunkte)":
+  // its second line opens in lower case under a line of its own that names no price.
+  const firstBullet = raw.findIndex((line) => /^\s*[•◦]/.test(line))
+  for (let at = (firstBullet < 0 ? raw.length : firstBullet) - 1; at > 0; at--) {
+    const above = raw[at - 1]!.trim()
+    if (/^\p{Ll}/u.test(raw[at]!.trim()) && price(raw[at]!.trim())?.bracketed && above && !price(above))
+      raw.splice(at - 1, 2, `${above} ${raw[at]!.trim()}`)
+  }
   const lines = raw.map((line) => line.trim())
   const prices = lines.map((line) => (selection.test(line) ? null : price(line)))
   // Units outnumber the title, the battle size and the detachments, so the commonest points word is the one they share.
