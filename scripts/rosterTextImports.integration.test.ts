@@ -930,6 +930,14 @@ Exported with App Version: v2.8.1 (1), Data Version: v995`,
     expect([result.units.map((unit) => nameOf(definitions.get(unit.entryId)!, definitions)), result.unplaced]).toEqual([[datasheet], []])
   })
 
+  it.each([
+    ['an export from older app data', custodesOfficial, { exported: 981, current: 995 }],
+    ['an export from current app data', necronsOfficial, null],
+  ])('compares %s with the data Praetorium reads', (_case, file, olderData) => {
+    const result = imported(file)
+    expect('olderData' in result ? result.olderData : undefined).toEqual(olderData)
+  })
+
   it('imports the reported official-app Custodes roster without mismatches', () => {
     expect(summary(custodesOfficial)).toEqual({
       format: 'roster-file',

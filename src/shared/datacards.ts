@@ -90,6 +90,8 @@ export type FactionContent = {
   name: string
   attribution?: string
   parentName?: string | null
+  /** The official app's data version the file was written for, which its exports print as "Data Version: v995". */
+  dataVersion?: number
   datasheets: Set<string>
   datasheetDetails: Map<string, DatasheetDetails>
   datasheetIds: ReadonlyMap<string, DatasheetDetails>
@@ -148,6 +150,7 @@ export type DatacardsFaction = {
   rules?: unknown
   enhancements?: unknown
   stratagems?: unknown
+  compatibleDataVersion?: unknown
 }
 /** A card's name as every source spells it: `(Aura)` and `(Upgrade)` are printed by some and not others. */
 export const cardName = (name: string) => routeSlug(name).replaceAll(/-(?:aura|upgrade)(?=-|$)/g, '')
@@ -357,6 +360,7 @@ export function factionContent(
       ? { attribution: parsed.attribution.trim().slice(0, 500) }
       : {}),
     ...(typeof parsed.parent_name === 'string' ? { parentName: parsed.parent_name } : {}),
+    ...(Number.isInteger(parsed.compatibleDataVersion) ? { dataVersion: parsed.compatibleDataVersion as number } : {}),
     datasheets: new Set(datasheets.map(({ name: datasheetName }) => datasheetName)),
     datasheetDetails: datasheetDetailsByName,
     datasheetIds: new Map(

@@ -9,6 +9,8 @@ export type TextRoster = {
   /** The battle size the text names beside its points, when it names one. */
   sizeName?: string
   reportedPoints?: number
+  /** The official app's data version the export was made from, as its footer's "Data Version: v995". */
+  dataVersion?: number
   unread?: string[]
   units: TextRosterUnit[]
 }
