@@ -4,6 +4,8 @@ import { printedNumber } from './text'
 const rule = /^─{10,}$/
 const unitLine = /^(?:└\s*(?:Leads|Supports):\s*)?(.+?)(?:\s+×(\d+))?(?:\s+(?:\((\d[\d,]*) pts\)|—\s+\d[\d,]* pts))?((?:\s+·\s+[^·]+)*)$/
 
+const codex = /\s*\(Codex\)(?=,|$)/gi
+
 /**
  * Warmind's own text export, in English.
  *
@@ -13,7 +15,11 @@ const unitLine = /^(?:└\s*(?:Leads|Supports):\s*)?(.+?)(?:\s+×(\d+))?(?:\s+(?
  * "Built with Warmind" line, and price a unit as "— 90 pts".
  */
 export function fromWarmindText(input: string): TextRoster | null {
-  if (!/^(?:Built with Warmind|Exported with Praetorium\.gg)\b|^Total: \d[\d,]* \/ \d[\d,]* pts · /m.test(input)) return null
+  // A paste can lose the footer, and Warmind ends the total there when it has nothing to add.
+  if (
+    !/^(?:Built with Warmind|Exported with Praetorium\.gg)\b|^Total: \d[\d,]* \/ \d[\d,]* pts(?: · |$)|^─{3,}\s*\n\s*Faction: /m.test(input)
+  )
+    return null
   const lines = input.replaceAll('\r', '').split('\n')
   const opening = lines.findIndex((line) => rule.test(line.trim()))
   if (opening < 0) return null
@@ -54,10 +60,7 @@ export function fromWarmindText(input: string): TextRoster | null {
       current = null
       continue
     }
-    if (added) {
-      unread.push(trimmed)
-      continue
-    }
+    if (added) continue
     const loadout = trimmed.match(/^·\s*(.+)$/)
     if (loadout) {
       if (current) addLoadout(current, loadout[1]!)
@@ -66,7 +69,8 @@ export function fromWarmindText(input: string): TextRoster | null {
     }
     const unit = trimmed.match(unitLine)!
     current = {
-      name: unit[1]!.trim(),
+      // Warmind marks a codex datasheet, as "Trajann Valoris (Codex)".
+      name: unit[1]!.trim().replace(codex, ''),
       models: Number(unit[2] ?? 1),
       selections: [],
       leading: null,
@@ -85,7 +89,7 @@ export function fromWarmindText(input: string): TextRoster | null {
     name: lines.find((line) => line.trim())!.trim(),
     ...(total ? { reportedPoints: printedNumber(total) } : {}),
     faction,
-    detachment: field('Detachment'),
+    detachment: field('Detachment')?.replaceAll(codex, '') ?? null,
     disposition: field('Disposition'),
     limit: size ? printedNumber(size[2]!) : null,
     ...(size ? { sizeName: size[1]! } : {}),
