@@ -24,6 +24,8 @@ export type TextRosterUnit = {
   defaultSize?: boolean
   entry?: number
   attachedToEntry?: number
+  /** Units sharing a number are listed together as an attached group without saying which is the bodyguard. */
+  group?: number
   nickname?: string
   /** The player's own note on the unit, kept as its private note. */
   note?: string

@@ -1,6 +1,6 @@
-import { countBy, remember } from '../core/collections'
+import { countBy, groupBy, remember } from '../core/collections'
 import { version } from '../../package.json'
-import type { Attachment } from '../core/attach'
+import { admitsHost, referenceAttachmentOf, type Attachment } from '../core/attach'
 import { attachmentRows } from '../core/attachmentRows'
 import { fromBattleBaseText } from '../core/battlebase'
 import { type Definition, type Modifier, nameOf, resolve } from '../core/catalogue'
@@ -12,6 +12,7 @@ import { normalizedNameVariants, withoutFactionPrefix } from '../core/name'
 import { fromListForgeText, fromListForgeWtcText } from '../core/listForge'
 import { fromFortyKAppText } from '../core/fortyKApp'
 import { fromWarmindText } from '../core/warmind'
+import { fromWarOrganText } from '../core/warOrgan'
 import { fromWtcText } from '../core/wtcText'
 import type { RosterSource } from '../core/savedRoster'
 import { defaultSelection } from '../core/expand'
@@ -61,6 +62,7 @@ export type RosterTextFormat =
   | 'roster-file'
   | 'listforge'
   | 'listforge-wtc'
+  | 'warorgan'
   | 'warmind'
   | 'wtc'
   | '40k-app'
@@ -79,6 +81,8 @@ function parsedImport(file: string): { parsed: TextRoster; format: RosterTextFor
   if (listForge) return { parsed: listForge, format: 'listforge' }
   const listForgeWtc = fromListForgeWtcText(file)
   if (listForgeWtc) return { parsed: listForgeWtc, format: 'listforge-wtc' }
+  const warOrgan = fromWarOrganText(file)
+  if (warOrgan) return { parsed: warOrgan, format: 'warorgan' }
   const fortyKApp = fromFortyKAppText(file)
   if (fortyKApp) return { parsed: fortyKApp, format: '40k-app' }
   const battleBase = fromBattleBaseText(file)
@@ -370,6 +374,24 @@ function importTextRoster(
   })
 
   attachTextUnits(parsed.units, units, sourceToImported)
+  // A group that does not say which unit is its bodyguard joins the one unit of it another can join; legality then judges the rest.
+  const joins = (member: { entryId: string }, host: { entryId: string }) => {
+    const leader = loaded.index.definitions.get(member.entryId)
+    const bodyguard = loaded.index.definitions.get(host.entryId)
+    const attachment = leader && referenceAttachmentOf(leader, loaded.index)
+    return Boolean(
+      attachment &&
+      bodyguard &&
+      admitsHost(attachment, nameOf(bodyguard, loaded.index.definitions), keywordsIn(loaded, faction.id, host.entryId)),
+    )
+  }
+  const grouped = [...sourceToImported].filter(([source]) => parsed.units[source]!.group !== undefined)
+  for (const members of groupBy(grouped, ([source]) => parsed.units[source]!.group).values()) {
+    const picks = members.map(([, imported]) => units[imported]!)
+    const hosts = picks.filter((host) => picks.some((member) => member !== host && joins(member, host)))
+    if (hosts.length !== 1) continue
+    for (const member of picks) if (member !== hosts[0] && member.attachedTo === undefined) member.attachedTo = units.indexOf(hosts[0]!)
+  }
   // Omitted units shift saved positions, so attachments are resolved after matching.
   const importedNames = new Set([...sourceToImported.keys()].map((source) => normalized(parsed.units[source]!.name)))
   for (const [source, imported] of sourceToImported) {

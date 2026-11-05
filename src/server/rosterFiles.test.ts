@@ -2855,3 +2855,64 @@ Exported with BattleBase`,
     expect([imported.units.map((unit) => unit.entryId), imported.unknown, imported.unplaced]).toEqual([['tzeentch-grinder'], [], []])
   })
 })
+
+it('attaches a group listed without its bodyguard to the one unit its others can join', () => {
+  const necrons: LoadedCatalogue = {
+    ...loaded,
+    index: buildIndex(
+      [
+        system,
+        {
+          catalogue: {
+            id: 'necrons',
+            name: 'Xenos - Necrons',
+            selectionEntries: [
+              { id: 'immortals', name: 'Immortals', type: 'unit' },
+              {
+                id: 'overlord',
+                name: 'Overlord',
+                type: 'unit',
+                profiles: [
+                  {
+                    id: 'leader',
+                    name: 'Leader',
+                    characteristics: [{ name: 'Description', $text: 'This model can be attached to the following unit:\n■ IMMORTALS' }],
+                  },
+                ],
+              },
+            ],
+          },
+        },
+      ],
+      'test-revision',
+    ),
+    factions: [{ id: 'necrons', name: 'Xenos - Necrons', references: [] }],
+    detachments: new Map(),
+  }
+  const imported = importRosterFile(
+    {
+      file: `Grouped [200 points]
+Necrons
+Battle Size: Strike Force (2000 point limit)
+
+Detachments: Awakened Dynasty (1/3 Detachment Points)
+
+Attached Unit
+
+  Immortals (70 points)
+    • 5 Immortals with Gauss blaster
+
+  Overlord (85 points)
+    • Warlord
+
+Battleline
+
+  Immortals (70 points)
+    • 5 Immortals with Gauss blaster
+
+Created with WarOrgan ()`,
+    },
+    necrons,
+  )
+  expect(imported.units.map((unit) => unit.attachedTo)).toEqual([undefined, 0, undefined])
+})
