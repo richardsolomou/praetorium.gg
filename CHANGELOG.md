@@ -1,5 +1,13 @@
 # praetorium
 
+## 0.220.4 (2026-11-05)
+
+### Patch Changes
+
+- 33d4918: A list exported in another language keeps its translated unit, wargear and enhancement names, as the Spanish "Talismán del tormento".
+- 8ed71a3: Importing from the official app reads a long detachment name it wrapped onto two lines.
+- f38ca4c: Army text in another language imports offline as it does online.
+
 ## 0.220.3 (2026-11-05)
 
 ### Patch Changes
