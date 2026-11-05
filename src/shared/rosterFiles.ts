@@ -13,6 +13,7 @@ import { fromListForgeText, fromListForgeShortText, fromListForgeWtcText } from 
 import { fromFortyKAppText } from '../core/fortyKApp'
 import { fromWarmindText } from '../core/warmind'
 import { fromWarOrganText } from '../core/warOrgan'
+import { fromNewRecruitMarkdown } from '../core/newRecruitMarkdown'
 import { fromWtcText } from '../core/wtcText'
 import type { RosterSource } from '../core/savedRoster'
 import { defaultSelection } from '../core/expand'
@@ -73,6 +74,8 @@ function parsedImport(file: string): { parsed: TextRoster; format: RosterTextFor
   const praetorium = /Exported with Praetorium\.gg/i.test(file)
   const newRecruit = fromNewRecruitText(file)
   if (newRecruit && (newRecruit.units.length || praetorium)) return { parsed: newRecruit, format: praetorium ? 'praetorium' : 'newrecruit' }
+  const markdown = fromNewRecruitMarkdown(file)
+  if (markdown) return { parsed: markdown, format: 'newrecruit' }
   // New Recruit also writes the WTC header over the official app's unit layout.
   const wtc = fromWtcText(file)
   if (wtc) return { parsed: wtc, format: newRecruit ? 'newrecruit' : 'wtc' }
