@@ -8,21 +8,33 @@
  * each list's faction and date.
  *
  *   pnpm exec tsx scripts/importCorpus.ts fetch [40kstats | lexmechanic | listforge | all]
- *   pnpm exec tsx scripts/importCorpus.ts run [directory] [--source 40kstats] [--since 2026-06-20] [--out results.json]
+ *   pnpm exec tsx scripts/importCorpus.ts run [directory] [--source 40kstats] [--since 2026-06-20] [--out results.json] [--live]
+ *
+ * `--live` imports against the catalogue a release would serve: production follows upstream sources past the pinned
+ * snapshot, so a list can fail against the pin and import cleanly there. It follows them from the pin into a cache
+ * beside the corpus, which takes a few minutes the first time and whenever upstream has moved.
  */
 import fs from 'node:fs'
 import path from 'node:path'
+import { liveCatalogueRevision } from '../src/server/liveCatalogue'
 import { loadCatalogueHistory } from '../src/server/catalogueHistory'
 import { removedNamesOf } from '../src/shared/importMismatch'
 import { loadCatalogueTranslations } from '../src/server/catalogueTranslations'
 import { importRosterFile } from '../src/shared/rosterFiles'
 import { loadSnapshot } from './lib/catalogueSnapshotLoad'
 import { CORPUS_ROOT, fetchSource, SOURCES, type Listing } from './lib/importCorpusSources'
+import { compilerFingerprint } from './lib/compilerSources'
+import { refreshLiveCatalogue } from './lib/liveCatalogue'
+import { prepareLiveRevision } from './lib/liveCatalogueRefresh'
 
 const [command = 'run', ...rest] = process.argv.slice(2)
 const flag = (name: string) => {
   const at = rest.indexOf(`--${name}`)
   return at >= 0 ? rest.splice(at, 2)[1] : undefined
+}
+const toggle = (name: string) => {
+  const at = rest.indexOf(`--${name}`)
+  return at >= 0 && Boolean(rest.splice(at, 1))
 }
 
 if (command === 'fetch') {
@@ -35,10 +47,24 @@ if (command === 'fetch') {
   const since = flag('since')
   const out = flag('out')
   const source = flag('source') ?? '40kstats'
-  run(rest[0] ?? path.join(CORPUS_ROOT, source), since, out)
+  const pinned = path.resolve(process.env.CATALOGUE_DIR ?? 'catalogue-data')
+  const catalogueDirectory = toggle('live') ? await liveCatalogue(pinned) : pinned
+  run(rest[0] ?? path.join(CORPUS_ROOT, source), since, out, catalogueDirectory)
 } else throw new Error(`Unknown command ${command}: use fetch or run`)
 
-function run(directory: string, since: string | undefined, out: string | undefined) {
+async function liveCatalogue(pinned: string) {
+  const compiler = await compilerFingerprint()
+  const root = path.join(CORPUS_ROOT, 'live', compiler)
+  // The first revision is a copy of the pin, which the bootstrap reads from CATALOGUE_DIR.
+  process.env.CATALOGUE_DIR = pinned
+  if (!liveCatalogueRevision(root)) await refreshLiveCatalogue(root, prepareLiveRevision(root, compiler, { bootstrap: true }))
+  await refreshLiveCatalogue(root, prepareLiveRevision(root, compiler))
+  const live = liveCatalogueRevision(root)
+  if (!live) throw new Error('No live catalogue was prepared')
+  return path.join(live.directory, 'catalogue')
+}
+
+function run(directory: string, since: string | undefined, out: string | undefined, catalogueDirectory: string) {
   const indexFile = path.join(directory, 'index.json')
   const listed: Listing[] = fs.existsSync(indexFile) ? JSON.parse(fs.readFileSync(indexFile, 'utf8')) : []
   const byId = new Map(listed.map((listing) => [listing.list, listing]))
@@ -47,7 +73,6 @@ function run(directory: string, since: string | undefined, out: string | undefin
     .filter((name) => name.endsWith('.txt'))
     .map((name) => name.slice(0, -4))
     .filter((id) => !since || (byId.get(id)?.date ?? '') >= since)
-  const catalogueDirectory = process.env.CATALOGUE_DIR ?? 'catalogue-data'
   const { catalogue, rules } = loadSnapshot(catalogueDirectory)
   const translations = loadCatalogueTranslations(catalogueDirectory)
   const removed = removedNamesOf(loadCatalogueHistory(catalogueDirectory) ?? [])
