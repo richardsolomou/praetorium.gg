@@ -59,7 +59,7 @@ export const MAX_CONSTRUCTION_PART_BYTES = 48_000_000
 const MAX_PARTS = 2_000
 const MAX_PART_QUERIES = 20_000
 
-const OWN_PARTS = new Set(['faction', 'combat-units', 'reference-changes'])
+const OWN_PARTS = new Set(['faction', 'combat-units', 'reference-changes', 'import-translations'])
 
 /** The part holding a reference query, or null for the core most pages read. */
 export function referencePart(key: readonly unknown[]): string | null {

@@ -348,6 +348,12 @@ function importTextRoster(
     const [first, ...rest] = name.split(' ')
     return found ?? (rest.length && factionWords.has(first!) ? datasheetNamed(rest.join(' ')) : undefined)
   }
+  // A list exported in another language names its units in it, as the French "Mékadakka de Gros Mek".
+  const namedInAnyLanguage = (name: string) =>
+    datasheetNamed(name) ??
+    englishNames(name, translations)
+      .map((english) => datasheetNamed(normalized(english)))
+      .find(Boolean)
   // BSData splits a datasheet the official app offers a choice for, as the app's "Soul Grinder" with "Daemonic Allegiance:
   // Tzeentch" is the "Tzeentch Soul Grinder"; the line that chose it is then no wargear.
   const variantNamed = (unit: TextRosterUnit) =>
@@ -356,7 +362,7 @@ function importTextRoster(
       return entryId ? [{ entryId, unit: { ...unit, selections: unit.selections.filter((other) => other !== selection) } }] : []
     })
   const units = parsed.units.flatMap((listed, sourceIndex) => {
-    const named = datasheetNamed(normalized(listed.name))
+    const named = namedInAnyLanguage(normalized(listed.name))
     const variants = named ? [] : variantNamed(listed)
     const { entryId, unit } = named
       ? { entryId: named, unit: listed }
@@ -368,7 +374,15 @@ function importTextRoster(
       return []
     }
     sourceToImported.set(sourceIndex, sourceToImported.size)
-    const read = textRosterPick(joinedSplit(unit, entryId, loaded.index), entryId, faction.id, detachmentIds, detachmentSelections, loaded)
+    const read = textRosterPick(
+      joinedSplit(unit, entryId, loaded.index),
+      entryId,
+      faction.id,
+      detachmentIds,
+      detachmentSelections,
+      loaded,
+      translations,
+    )
     if (read.unplaced.length) note(unplaced, sourceIndex, read.unplaced)
     return [read.pick]
   })
@@ -618,6 +632,9 @@ function wargearCounts(selection: Selection, index: LoadedCatalogue['index']) {
   return counts
 }
 
+/** A name without the bracketed qualifier a list can add, as "(Aura)". */
+const withoutQualifier = (name: string) => name.replace(/\s*\([^()]*\)$/, '')
+
 function textRosterPick(
   unit: TextRosterUnit,
   entryId: string,
@@ -625,6 +642,7 @@ function textRosterPick(
   detachmentIds: readonly string[],
   roster: readonly Selection[],
   loaded: LoadedCatalogue,
+  translations: CatalogueTranslations,
 ) {
   const stated = new Map<string, number>()
   const labels = new Map<string, string>()
@@ -671,22 +689,28 @@ function textRosterPick(
   let manualNames: ReadonlyMap<string, string> | undefined
   const modelFor = new Map<string, string>()
   const defaultMelee = new Map<string, string | null>()
-  const nameFor = (label: string, enhancement = false) => {
+  const resolved = (label: string, enhancement: boolean) => {
     // A list can add a qualifier the catalogue does not, as "Icon of Despair (Aura)" or "Pulsa Rokkit (Once per battle, per unit)".
     const key =
-      [spellingKey(normalized(label)), spellingKey(normalized(label.replace(/\s*\([^()]*\)$/, '')))].find((candidate) =>
-        respelled.has(candidate),
-      ) ?? spellingKey(normalized(label))
+      [spellingKey(normalized(label)), spellingKey(normalized(withoutQualifier(label)))].find((candidate) => respelled.has(candidate)) ??
+      spellingKey(normalized(label))
     const known = respelled.has(key) || respelled.has(powerWeaponKey(key))
     if (enhancement && !known) manualNames ??= enhancementRespellings(entryId, catalogueId, detachmentIds, loaded, context)
     return (
       (respelled.has(key) ? respelled.get(key) : (respelled.get(powerWeaponKey(key)) ?? unprefixed(label) ?? bearer(label))) ??
       (enhancement ? manualNames?.get(normalized(label)) : undefined) ??
       (key === GENERIC_MELEE ? remember(defaultMelee, key, () => soleDefaultMelee(entryId, loaded.index, context)) : null) ??
-      loadoutModel(label) ??
-      normalized(label)
+      loadoutModel(label)
     )
   }
+  // A list exported in another language names its wargear and enhancements in it, as the Spanish "Talismán del tormento".
+  const translated = (label: string, enhancement: boolean) =>
+    [...new Set([label, withoutQualifier(label)])]
+      .flatMap((name) => englishNames(name, translations))
+      .map((english) => resolved(english, enhancement))
+      .find(Boolean)
+  const nameFor = (label: string, enhancement = false) =>
+    resolved(label, enhancement) ?? translated(label, enhancement) ?? normalized(label)
   const unitEnhancements = new Map<string, number>()
   for (const selection of unit.selections) {
     const enhancement = /^(?:Enhancements?|Upgrade):/i.test(selection.name)

@@ -63,10 +63,16 @@ export const constructionReads = {
   },
   importFile: (
     { catalogue, rules }: Construction,
-    data: { file: Data<typeof server.importRoster>; matched: boolean; statedMissing: boolean; factionNames: string[] },
+    data: {
+      file: Data<typeof server.importRoster>
+      matched: boolean
+      statedMissing: boolean
+      factionNames: string[]
+      translations: [string, string[]][]
+    },
   ) => {
     if (data.statedMissing) throw new Error('The exported codex version is not available.')
-    return importRosterFile(data.file, data.matched ? catalogue : null, data.factionNames, rules)
+    return importRosterFile(data.file, data.matched ? catalogue : null, data.factionNames, rules, new Map(data.translations))
   },
 }
 
