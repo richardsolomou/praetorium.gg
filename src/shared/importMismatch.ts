@@ -18,6 +18,7 @@ import type { LoadedCatalogue } from './catalogueIndex'
 import { descriptionKey } from './datacards'
 import { factionDisplayName } from './factionNames'
 import type { CatalogueHistoryEntry } from '../core/catalogueHistory'
+import { editionFamilyId } from '../core/catalogueEdition'
 
 /** What each faction's data updates removed and never brought back, by name: an older list can still name it. */
 export type RemovedNames = ReadonlyMap<string, ReadonlyMap<string, { kind: 'datasheet' | 'detachment' | 'enhancement'; at: number }>>
@@ -43,7 +44,8 @@ const updateDate = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'sh
 
 /** Why a name a list states is gone, where a data update removed something of that kind by that name. */
 function removedReason(stated: string, kind: 'datasheet' | 'detachment' | 'enhancement', catalogueId: string, removed: RemovedNames) {
-  const found = removed.get(catalogueId)?.get(normalized(stated))
+  // A rules version names its books `<version>~<book>`, and the history records the book.
+  const found = removed.get(editionFamilyId(catalogueId))?.get(normalized(stated))
   return found?.kind === kind ? `removed in the ${updateDate.format(found.at)} data update` : null
 }
 
