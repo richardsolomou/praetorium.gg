@@ -94,7 +94,7 @@ const STALE_BUILD_PARAM = '__build_retry'
  */
 const STALE_BUILD_SESSION_KEY = 'praetorium.stale-build-recovery'
 
-function parseStaleBuildMarker(value: string | null | undefined) {
+function parseStaleBuildMarker(value: string | null) {
   const match = value?.match(/^\d+\.([1-3])\.(\d+\.\d+\.\d+)$/)
   return match ? { attempt: Number(match[1]), release: match[2]! } : null
 }
