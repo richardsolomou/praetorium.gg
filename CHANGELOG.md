@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.221.0 (2026-11-05)
+
+### Minor Changes
+
+- 109400b: Army names at the top of battle setup now open each side's roster.
+
 ## 0.220.5 (2026-11-05)
 
 ### Patch Changes
