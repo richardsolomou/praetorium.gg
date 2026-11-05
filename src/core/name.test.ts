@@ -10,6 +10,7 @@ describe('normalized name', () => {
     ['Storm Guardians', ['storm guardians', 'storm guardian']],
     ['Weapon Battery', ['weapon battery', 'weapon batteries']],
     ['Weapon Batteries', ['weapon batteries', 'weapon battery']],
+    ['Navis Armsmen', ['navis armsmen', 'navis armsman']],
   ])('offers the trailing plural variant of %s', (name, variants) => {
     expect(normalizedNameVariants(name)).toEqual(variants)
   })
