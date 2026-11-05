@@ -43,6 +43,7 @@ import {
   catalogueChangesKey,
   combatUnitsKey,
   factionIndexKey,
+  importTranslationsKey,
   factionKey,
   friendBattlesKey,
   homeRostersKey,
@@ -141,12 +142,13 @@ export const importRoster = async (args: Parameters<typeof server.importRoster>[
     )
   }
   if (!factions) return server.importRoster(args)
+  const translations = (await loadSavedQuery<[string, string[]][]>(referenceData(), importTranslationsKey())) ?? []
   const stated = importRosterFaction(args.data.file)
   const statedId = importRosterCatalogueId(args.data.file)
   const candidates = statedId
     ? [await savedFaction(statedId, factions)].filter((found) => found !== undefined)
     : factions.filter((found) => found.isDefault)
-  const faction = stated ? candidates.find((candidate) => matchesImportFaction(stated, candidate.name)) : null
+  const faction = stated ? candidates.find((candidate) => matchesImportFaction(stated, candidate.name, new Map(translations))) : null
   return constructionRead(
     'importFile',
     {
@@ -154,6 +156,7 @@ export const importRoster = async (args: Parameters<typeof server.importRoster>[
       matched: Boolean(faction),
       statedMissing: Boolean(statedId && !faction),
       factionNames: factions.map((candidate) => candidate.name),
+      translations,
     },
     (signal) => server.importRoster({ ...args, signal }),
     faction?.id,

@@ -38,6 +38,7 @@ import {
   type ReferenceQuery,
 } from '../../src/contracts/offlineReference'
 import { catalogueDataDirectory } from './catalogueFiles'
+import { loadCatalogueTranslations } from '../../src/server/catalogueTranslations'
 import type { CatalogueRuntime } from '../../src/server/catalogueRuntime'
 
 export function constructionFilesForEdition(files: CatalogueFile[], edition?: CatalogueEdition): CatalogueFile[] {
@@ -159,6 +160,20 @@ export async function writeReferenceBundle(outDir: string, directory = catalogue
     }
   }
   put(['text-sources'], textSourceFiles(directory, readCatalogueComposition(directory)))
+  // Pasted army text in another language is read on the device too, so the names it may state travel with the download;
+  // translated descriptions stay behind, as do entries BSData names with a notice of several sentences.
+  const stateable = new Set([
+    ...[...catalogue.index.definitions.values()].flatMap((definition) =>
+      definition.name && !/[.!?]\s/.test(definition.name) ? [definition.name] : [],
+    ),
+    ...catalogue.factions.map((faction) => faction.name.split(' - ').at(-1)!),
+    ...[...catalogue.detachments.values()].flatMap((detachments) => detachments.options.map((option) => option.name)),
+    ...(rules.dispositions?.values() ?? []),
+  ])
+  put(
+    ['import-translations'],
+    [...loadCatalogueTranslations(directory)].filter(([english]) => stateable.has(english)),
+  )
   const ruleIndex = referenceRuleIndex(sources)
   put(['rule-index'], ruleIndex)
   for (const document of ruleIndex!.documents)
