@@ -179,6 +179,22 @@ export function factionOfDatasheets(names: readonly string[], loaded: LoadedCata
   return leaders.length === 1 && most * 2 > names.length ? leaders[0]![0] : null
 }
 
+/**
+ * The one other faction offering every one of these datasheets some faction offers, where the stated one offers some but
+ * not all, as the Ultramarines for a list stated as Space Marines that fields Marneus Calgar. A list sharing no datasheet
+ * with the faction it states is pasted against the wrong one, not a chapter of it.
+ */
+export function chapterOfDatasheets(names: readonly string[], catalogueId: string, loaded: LoadedCatalogue): string | null {
+  const offering = names.flatMap((name) => {
+    const ids = datasheetFactions(loaded).get(normalized(name))
+    return ids?.length ? [ids] : []
+  })
+  const own = offering.filter((ids) => ids.includes(catalogueId)).length
+  if (!own || own === offering.length) return null
+  const candidates = loaded.factions.filter((faction) => faction.id !== catalogueId && offering.every((ids) => ids.includes(faction.id)))
+  return candidates.length === 1 ? candidates[0]!.id : null
+}
+
 function datasheetNames(loaded: LoadedCatalogue, catalogueId: string): string[] {
   return [...(loaded.index.datasheets.get(catalogueId) ?? [])].flatMap((id) => {
     const definition = loaded.index.definitions.get(id)

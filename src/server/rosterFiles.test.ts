@@ -2840,6 +2840,11 @@ ${units}
 Exported with BattleBase`,
   })
 
+  it('reads the chapter its units name where the list states only their parent faction', () => {
+    const imported = importRosterFile(list('Space Marines', 'Terminator Squad (100 Points)\n\nInquisitor (50 Points)'), books)
+    expect(imported.catalogueId).toBe('ultramarines')
+  })
+
   it('reads each piece of a line joining wargear the datasheet knows by name', () => {
     const imported = importRosterFile(list('Ultramarines', 'Inquisitor (50 Points)\n  • 1x Combi-weapon and Mystic stave'), books)
     expect(imported.unplaced).toEqual([])

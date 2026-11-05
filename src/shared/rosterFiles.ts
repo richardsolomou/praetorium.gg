@@ -40,6 +40,7 @@ import {
   DROPPED_REASON,
   WARLORD_REASON,
   factionOfDatasheets,
+  chapterOfDatasheets,
 } from './importMismatch'
 import { DISPOSITIONS, type LoadedCatalogue } from './catalogueIndex'
 import { datacardOf } from './datasheetJoin'
@@ -277,9 +278,11 @@ function importTextRoster(
   factionNames: readonly string[],
   translations: CatalogueTranslations,
 ) {
-  const faction =
-    loaded &&
-    (loaded.factions.find((candidate) => matchesImportFaction(parsed.faction, candidate.name, translations)) ?? unitFaction(parsed, loaded))
+  const stated = loaded?.factions.find((candidate) => matchesImportFaction(parsed.faction, candidate.name, translations))
+  // A list can state a chapter's parent faction, whose units then name the chapter.
+  const names = parsed.units.map((unit) => unit.name)
+  const chapterId = loaded && stated ? chapterOfDatasheets(names, stated.id, loaded) : null
+  const faction = loaded && (loaded.factions.find((candidate) => candidate.id === chapterId) ?? stated ?? unitFaction(parsed, loaded))
   if (!loaded || !faction) {
     return {
       name: parsed.name,

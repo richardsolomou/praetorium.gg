@@ -8,6 +8,10 @@ Leaders come across attached when the text says which unit they join. Praetorium
 
 If an attachment can't be made, the unit still imports but the review says why: "this list has no …" when the bodyguard unit isn't in the list, or "every … in this list is already led" when each unit of that name already has a leader. Attach it yourself in the builder. Praetorium's own rules then check that the attachment is allowed.
 
+## Space Marine chapters
+
+A list that names only Space Marines but fields a chapter's own units, such as Marneus Calgar, imports as that chapter, as long as its units belong to just one.
+
 ## Official-app exports in other languages
 
 Translated official-app exports are read by their layout rather than their English words: the points in the title, the battle size, the attached-unit groups and the Warlord. Faction, detachment and force disposition names are matched through [New Recruit's community translations](https://nrdata.org), which cover French, German, Spanish, Italian, Portuguese, Russian, Chinese, Korean and Japanese to varying degrees. The app prints unit and wargear names in English, so those match as usual.
