@@ -219,6 +219,11 @@ describe('BattleBase text import', () => {
     expect([parsed?.units.flatMap((unit) => unit.unread ?? []), parsed?.units[0]?.attachedToEntry]).toEqual([[], 1])
   })
 
+  it('reads a group the player named under the attached units heading', () => {
+    const parsed = fromBattleBaseText(necronsOfficial.replace('Attached Unit 2', 'Destroyer cult'))
+    expect(parsed?.units.find((unit) => unit.name === 'Lokhust Lord')?.attachedToEntry).toBeDefined()
+  })
+
   it('keeps an official support marker out of equipment selections', () => {
     expect(fromBattleBaseText(necronsOfficial)?.units[0]?.selections).toEqual([
       { name: 'Chronomancer’s stave', count: 1 },

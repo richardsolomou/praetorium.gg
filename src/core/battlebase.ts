@@ -141,8 +141,10 @@ export function fromBattleBaseText(input: string): TextRoster | null {
     return nesting ? indentOf(after) > indentOf(at) : /^•\s*\d+x?\s/.test(following)
   }
   const isUnitAt = (at: number) => at >= 0 && isUnit(body[at]!)
-  // French puts the number before a last word, as "Unité 1 Attachée".
-  const isGroupHeadingAt = (at: number) => at >= 0 && /\s\d+(?:\s\S+)?$/.test(body[at]!) && isUnitAt(next(at))
+  // French puts the number before a last word, as "Unité 1 Attachée". Under the "ATTACHED UNITS" heading, a player can name a group.
+  let attachedSection = false
+  const isGroupHeadingAt = (at: number) =>
+    at >= 0 && !WTC_SECTION.test(body[at]!) && (attachedSection || /\s\d+(?:\s\S+)?$/.test(body[at]!)) && isUnitAt(next(at))
 
   for (const [at, line] of body.entries()) {
     if (!line) continue
@@ -158,6 +160,7 @@ export function fromBattleBaseText(input: string): TextRoster | null {
       continue
     }
     const picked = line.match(selection)
+    if (WTC_SECTION.test(line)) attachedSection = /^ATTACHED UNITS?$/i.test(line)
     if (!picked) {
       if (isGroupHeadingAt(at)) {
         group = []
