@@ -1641,6 +1641,36 @@ Exportada con la versión de la app: v2.4.0 (139), versión de los datos v925`,
     })
   })
 
+  it('reads a translated datasheet and its translated wargear', () => {
+    const imported = importRosterFile(
+      {
+        file: `Cuchillas (70 puntos)
+
+Necrones
+Pantheon of Woe (2 puntos de destacamento)
+Fuerza de Choque (2000 puntos)
+
+OTRAS HOJAS DE DATOS
+
+Cuchillas sepulcrales (70 puntos)
+  • 3 Tomb Blade
+     ◦ 3 Haz de partículas
+
+Exportada con la versión de la app: v2.4.0 (139), versión de los datos v925`,
+      },
+      loaded,
+      undefined,
+      null,
+      new Map([
+        ['Necrons', ['Necrones']],
+        ['Tomb Blades', ['Cuchillas sepulcrales']],
+        ['Particle beamer', ['Haz de partículas']],
+      ]),
+    )
+
+    expect([imported.units.map((unit) => unit.entryId), imported.unknown, imported.unplaced]).toEqual([['tomb-blades'], [], []])
+  })
+
   it('reads the faction from its datasheets where the official app translated its name', () => {
     const imported = importRosterFile(
       {
