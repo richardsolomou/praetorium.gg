@@ -224,6 +224,18 @@ describe('BattleBase text import', () => {
     expect(parsed?.units.find((unit) => unit.name === 'Lokhust Lord')?.attachedToEntry).toBeDefined()
   })
 
+  it("reads the attachment of a bodyguard whose first label is an enhancement's", () => {
+    const parsed = fromBattleBaseText(
+      necronsOfficial.replace('• Attached as: Bodyguard\n  • 6x', '• Enhancements: Dread Majesty\n• Attached as: Bodyguard\n  • 6x'),
+    )
+    expect(parsed?.units[3]?.selections.map((selection) => selection.name)).toEqual([
+      'Enhancements: Dread Majesty',
+      'Lokhust Destroyer',
+      'Close combat weapon',
+      'Gauss cannon',
+    ])
+  })
+
   it('keeps an official support marker out of equipment selections', () => {
     expect(fromBattleBaseText(necronsOfficial)?.units[0]?.selections).toEqual([
       { name: 'Chronomancer’s stave', count: 1 },

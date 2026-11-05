@@ -207,15 +207,14 @@ export function fromBattleBaseText(input: string): TextRoster | null {
     }
   }
 
-  // The bodyguard's first label says how each unit of its group is attached; every other label names an enhancement.
+  // The bodyguard's first label that every unit of its group carries says how each is attached; every other label names
+  // an enhancement, even one listed above it.
   const attachmentLabels = new Set(
-    groups.flatMap(
-      (members) =>
-        labels
-          .get(members.at(-1)!)
-          ?.slice(0, 1)
-          .map(({ label }) => label) ?? [],
-    ),
+    groups.flatMap((members) => {
+      const carried = members.map((member) => new Set(labels.get(member)?.map(({ label }) => label)))
+      const first = labels.get(members.at(-1)!)?.find(({ label }) => carried.every((held) => held.has(label)))
+      return first ? [first.label] : []
+    }),
   )
   for (const [unit, stated] of labels)
     for (const { label, selection: chosen } of stated) {
