@@ -1,5 +1,14 @@
 # praetorium
 
+## 0.221.5 (2026-11-05)
+
+### Patch Changes
+
+- c7b0952: Importing War Organ text keeps its attached units when the paste lost its indentation, and reads a faction followed by its other name in brackets.
+- 700d4c8: Imported Storm Guardians and similar squads no longer double the special weapons several loadouts share.
+- 700d4c8: Importing reads a sergeant the official app names after his squad, as a "Purgator Justicar".
+- c7b0952: Importing Warmind text reads datasheets and detachments marked "(Codex)" and pastes that kept only the rule over the faction, and leaves out units added during a battle without warning about them.
+
 ## 0.221.4 (2026-11-05)
 
 ### Patch Changes
