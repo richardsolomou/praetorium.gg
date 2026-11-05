@@ -3,7 +3,7 @@ Paste a list from another army builder, or an exchange code from another Praetor
 ## What you can import
 
 - **Praetorium** text exports and exchange codes (including QR links)
-- **New Recruit** text exports, including its WTC-style layout, and share links
+- **New Recruit** text exports, including its WTC-style and Markdown layouts, and share links
 - **ListForge** detailed text and WTC text
 - **BattleBase** text exports
 - **The official Warhammer 40,000 app** text export, including exports in other languages such as Spanish or German
