@@ -214,6 +214,11 @@ describe('BattleBase text import', () => {
     ])
   })
 
+  it('reads an attachment the app marks with an asterisk', () => {
+    const parsed = fromBattleBaseText(necronsOfficial.replaceAll('• Attached as:', '* Attached as:'))
+    expect([parsed?.units.flatMap((unit) => unit.unread ?? []), parsed?.units[0]?.attachedToEntry]).toEqual([[], 1])
+  })
+
   it('keeps an official support marker out of equipment selections', () => {
     expect(fromBattleBaseText(necronsOfficial)?.units[0]?.selections).toEqual([
       { name: 'Chronomancer’s stave', count: 1 },

@@ -39,6 +39,21 @@ Commander in Enforcer Battlesuit (100 pts)
 Created with newrecruit.eu v35.79`
 
 describe('WTC text import', () => {
+  it('reads asterisked attachments and wargear continued on unbulleted lines', () => {
+    const parsed = fromWtcText(
+      officialLayout.replaceAll('• Attached as:', '* Attached as:').replace('• 1x Dawn Blade\n', '• 1x Dawn Blade\n  1x Plasma rifle\n'),
+    )
+    expect([parsed?.unread, parsed?.units[0]?.unread, parsed?.units[0]?.selections, parsed?.units[0]?.attachedToEntry]).toEqual([
+      undefined,
+      undefined,
+      [
+        { name: 'Dawn Blade', count: 1 },
+        { name: 'Plasma rifle', count: 1 },
+      ],
+      1,
+    ])
+  })
+
   it('reads the official app layout under a WTC header', () => {
     expect(fromWtcText(officialLayout)).toEqual({
       name: "T'au Empire 2000pts",
