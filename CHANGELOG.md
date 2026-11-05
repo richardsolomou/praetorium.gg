@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.221.1 (2026-11-05)
+
+### Patch Changes
+
+- c4f23dc: The import review says when a list was exported from older official-app data, which explains names it can no longer match.
+
 ## 0.221.0 (2026-11-05)
 
 ### Minor Changes
