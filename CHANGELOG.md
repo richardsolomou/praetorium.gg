@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.221.3 (2026-11-05)
+
+### Patch Changes
+
+- 0167d59: Importing reads New Recruit's Markdown export.
+- 548a739: The import review names the data update that removed a detachment, datasheet or enhancement for armies on the current rules version too.
+
 ## 0.221.2 (2026-11-05)
 
 ### Patch Changes
