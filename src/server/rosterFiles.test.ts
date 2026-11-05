@@ -2849,4 +2849,9 @@ Exported with BattleBase`,
     const imported = importRosterFile(list('Ultramarines', 'Inquisitor (50 Points)\n  • 1x Combi-weapon and Mystic stave'), books)
     expect(imported.unplaced).toEqual([])
   })
+
+  it('reads the datasheet BSData splits out by the choice the official app lists', () => {
+    const imported = importRosterFile(list('Ultramarines', 'Soul Grinder (180 Points)\n  • Daemonic Allegiance: Tzeentch'), books)
+    expect([imported.units.map((unit) => unit.entryId), imported.unknown, imported.unplaced]).toEqual([['tzeentch-grinder'], [], []])
+  })
 })

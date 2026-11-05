@@ -344,8 +344,21 @@ function importTextRoster(
     const [first, ...rest] = name.split(' ')
     return found ?? (rest.length && factionWords.has(first!) ? datasheetNamed(rest.join(' ')) : undefined)
   }
-  const units = parsed.units.flatMap((unit, sourceIndex) => {
-    const entryId = datasheetNamed(normalized(unit.name))
+  // BSData splits a datasheet the official app offers a choice for, as the app's "Soul Grinder" with "Daemonic Allegiance:
+  // Tzeentch" is the "Tzeentch Soul Grinder"; the line that chose it is then no wargear.
+  const variantNamed = (unit: TextRosterUnit) =>
+    unit.selections.flatMap((selection) => {
+      const entryId = datasheetNamed(normalized(`${selection.name.replace(/^(?:Enhancements?|Upgrade):\s*/i, '')} ${unit.name}`))
+      return entryId ? [{ entryId, unit: { ...unit, selections: unit.selections.filter((other) => other !== selection) } }] : []
+    })
+  const units = parsed.units.flatMap((listed, sourceIndex) => {
+    const named = datasheetNamed(normalized(listed.name))
+    const variants = named ? [] : variantNamed(listed)
+    const { entryId, unit } = named
+      ? { entryId: named, unit: listed }
+      : variants.length === 1
+        ? variants[0]!
+        : { entryId: null, unit: listed }
     if (!entryId) {
       unknown.push({ name: label(unit, sourceIndex), reason: unmatchedDatasheetReason(unit.name, faction.id, loaded) })
       return []
