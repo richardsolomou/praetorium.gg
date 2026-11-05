@@ -53,6 +53,11 @@ describe('WarOrgan text import', () => {
     ])
   })
 
+  it('reads the same units and groups from a paste that lost its indentation', () => {
+    const flat = fromWarOrganText(exported.replaceAll(/^[ \t]+/gm, ''))
+    expect(flat?.units.map(({ name, group }) => [name, group])).toEqual(parsed?.units.map(({ name, group }) => [name, group]))
+  })
+
   it('reads each piece a line joins, with its enhancement, counts and models', () => {
     expect(parsed?.units.map((unit) => unit.selections)).toEqual([
       [

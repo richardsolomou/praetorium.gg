@@ -701,6 +701,11 @@ function textRosterPick(
       const found = respelled.get(spellingKey(rest)) ?? (models.has(rest) ? rest : undefined)
       if (found) return found
     }
+    // It can also prefix one with its squadmates' whole name, as a Purgation Squad's "Purgator Justicar".
+    for (let at = 1; at < words.length; at++) {
+      const [kind, rest] = [words.slice(0, at).join(' '), words.slice(at).join(' ')]
+      if (models.has(kind) && models.has(rest)) return rest
+    }
     return undefined
   }
   // A model answers to whose wargear it carries, as a Brotherhood Terminator Squad's "Ancient" or a "Paladin Ancient".
@@ -786,7 +791,7 @@ function textRosterPick(
   const built = buildUnit(entryId, loaded.index, requestedModels, {}, context)
   const warlordNames = warlordAliases(entryId, loaded.index)
   const warlord = unit.warlord || [...warlordNames].some((name) => stated.has(name))
-  const pickFrom = (selection: Selection) => {
+  const pickFrom = (selection: Selection, earlier: RosterPick['spreads'] = {}) => {
     const choices = unitChoices(entryId, selection, loaded.index, context)
     const toggles = Object.fromEntries(
       unitToggles(entryId, selection, loaded.index, context).map((toggle) => [toggle.key, warlord ? 1 : 0]),
@@ -1013,7 +1018,12 @@ function textRosterPick(
           bodies >= choice.room
             ? new Map(choice.options.map((option) => [option.id, named(option)]))
             : kindBodies
-              ? kindCounts(choice.options, counts, kindBodies)
+              ? kindCounts(
+                  // What a first read fielded is its choice, not a default the second must keep.
+                  choice.options.map((option) => (earlier[choice.key]?.[option.id] === undefined ? option : { ...option, count: 0 })),
+                  counts,
+                  kindBodies,
+                )
               : explicit
                 ? counts
                 : null
@@ -1158,7 +1168,7 @@ function textRosterPick(
   // Building is most of an import's time, so a read or build that would repeat the last one is skipped.
   const opened = buildUnit(entryId, loaded.index, first.pick.models, first.pick.choices, { ...context, spreads: first.pick.spreads })
   const reopened = opened && JSON.stringify(opened.selection) !== JSON.stringify(built?.selection)
-  const { pick, placed, fieldedKinds } = opened && reopened ? pickFrom(opened.selection) : first
+  const { pick, placed, fieldedKinds } = opened && reopened ? pickFrom(opened.selection, first.pick.spreads) : first
   const toggles = pick.toggles
 
   // Only the unit the pick builds says what was kept: an option the datasheet offers can

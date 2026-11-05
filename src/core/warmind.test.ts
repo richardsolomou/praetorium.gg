@@ -38,8 +38,21 @@ describe('Warmind text import', () => {
     ])
   })
 
-  it('needs the Warmind footer or its total line', () => {
-    expect(fromWarmindText(warmind.replace(/Built with Warmind.*$/, '').replace(/^Total: .*$/m, ''))).toBeNull()
+  it('needs the Warmind footer, its total line, or its rule over the faction', () => {
+    const unmarked = warmind
+      .replace(/Built with Warmind.*$/, '')
+      .replace(/^Total: .*$/m, '')
+      .replace(/^─+\n(?=\s*Faction:)/m, '')
+    expect(fromWarmindText(unmarked)).toBeNull()
+  })
+
+  it('reads a codex datasheet and detachment without the "(Codex)" Warmind marks them with', () => {
+    const marked = fromWarmindText(warmind.replace('Archon (', 'Archon (Codex) (').replace(/^(Detachment: .+)$/m, '$1 (Codex)'))
+    expect([marked?.units[0]?.name, marked?.detachment]).toEqual(['Archon', fromWarmindText(warmind)?.detachment])
+  })
+
+  it('reads a paste that kept only the rule over the faction', () => {
+    expect(fromWarmindText(warmind.replace(/Built with Warmind.*$/, '').replace(/^Total: .*$/m, ''))?.faction).toBe('Drukhari')
   })
 
   it('reads the newer layout without blank lines or the footer, pricing units after a dash', () => {

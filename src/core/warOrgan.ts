@@ -23,7 +23,8 @@ export function fromWarOrganText(input: string): TextRoster | null {
   const detachmentLine = lines.find((line) => detachments.test(line.trim()))
   if (sizeAt < 1 || !detachmentLine) return null
   const size = lines[sizeAt]!.trim().match(battleSize)!
-  const faction = lines[sizeAt - 1]!.trim()
+  // The faction can carry its keyword, as "Chaos Space Marines (Heretic Astartes)".
+  const faction = lines[sizeAt - 1]!.trim().replace(/\s*\([^()]*\)$/, '')
   const named = lines
     .slice(0, sizeAt - 1)
     .find((line) => line.trim())
@@ -38,7 +39,8 @@ export function fromWarOrganText(input: string): TextRoster | null {
   for (const line of lines.slice(Math.max(setupEnd, lines.indexOf(detachmentLine)) + 1)) {
     const trimmed = line.trim()
     if (!trimmed || /^Created with /i.test(trimmed)) continue
-    if (!/^\s/.test(line)) {
+    // A heading starts a line; its units are usually indented, but a paste can lose that.
+    if (!/^\s/.test(line) && !unitLine.test(trimmed) && !trimmed.startsWith('•')) {
       group++
       current = null
       continue
