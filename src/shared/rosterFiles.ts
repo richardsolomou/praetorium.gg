@@ -9,7 +9,7 @@ import { detachmentNameVariants } from '../core/detachmentName'
 import type { Selection } from '../core/evaluate'
 import { fromNewRecruitText } from '../core/newRecruit'
 import { normalizedNameVariants, withoutFactionPrefix } from '../core/name'
-import { fromListForgeText, fromListForgeWtcText } from '../core/listForge'
+import { fromListForgeText, fromListForgeShortText, fromListForgeWtcText } from '../core/listForge'
 import { fromFortyKAppText } from '../core/fortyKApp'
 import { fromWarmindText } from '../core/warmind'
 import { fromWarOrganText } from '../core/warOrgan'
@@ -79,6 +79,9 @@ function parsedImport(file: string): { parsed: TextRoster; format: RosterTextFor
   if (newRecruit) return { parsed: newRecruit, format: 'newrecruit' }
   const warmind = fromWarmindText(file)
   if (warmind) return { parsed: warmind, format: 'warmind' }
+  // Short text has no bullets, so it is read before the detailed export, which would take its lines for unit names.
+  const listForgeShort = fromListForgeShortText(file)
+  if (listForgeShort) return { parsed: listForgeShort, format: 'listforge' }
   const listForge = fromListForgeText(file)
   if (listForge) return { parsed: listForge, format: 'listforge' }
   const listForgeWtc = fromListForgeWtcText(file)
@@ -645,8 +648,11 @@ function joinedSplit(unit: TextRosterUnit, entryId: string, index: LoadedCatalog
     return respelled.has(key) || respelled.has(powerWeaponKey(key)) || key === GENERIC_MELEE
   }
   const selections = unit.selections.flatMap((selection) => {
-    const pieces = selection.name.split(/,\s+|\s+and\s+/i)
-    return pieces.length > 1 && !known(selection.name) && pieces.every(known) ? pieces.map((name) => ({ ...selection, name })) : [selection]
+    // A piece can carry its own count, as "Dual Caestus Fists and 2x Twin Neutronium Cascade Projectors".
+    const pieces = selection.name.split(/,\s+|\s+and\s+/i).map((piece) => piece.match(/^(?:(\d+)x\s+)?(.+)$/)!)
+    return pieces.length > 1 && !known(selection.name) && pieces.every((piece) => known(piece[2]!))
+      ? pieces.map((piece) => ({ ...selection, name: piece[2]!, count: selection.count * Number(piece[1] ?? 1) }))
+      : [selection]
   })
   return { ...unit, selections }
 }
