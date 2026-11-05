@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.221.6 (2026-11-05)
+
+### Patch Changes
+
+- a560863: Importing reads Ironbuilt's text export.
+
 ## 0.221.5 (2026-11-05)
 
 ### Patch Changes
