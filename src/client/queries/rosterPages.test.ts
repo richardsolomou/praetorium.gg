@@ -1,4 +1,4 @@
-import { InfiniteQueryObserver, QueryClient, type InfiniteData } from '@tanstack/react-query'
+import { InfiniteQueryObserver, QueryClient } from '@tanstack/react-query'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import * as functions from '../../server/functions'
 import { discoveredRostersQuery, playedArmiesQuery } from './rosters'
@@ -32,7 +32,7 @@ function rejectsMissingPages(
         .mockResolvedValueOnce(page({ at: 1, id: 'last' }) as never)
         .mockResolvedValue(undefined as never)
       try {
-        const previous: InfiniteData<unknown> = await client.infiniteQuery(options() as never)
+        const previous = await client.infiniteQuery(options() as never)
         await expect(client.infiniteQuery({ ...options(), staleTime: 0 } as never)).rejects.toThrow('returned no page.')
         const observer = new InfiniteQueryObserver(client, options() as never)
         await expect(observer.fetchNextPage({ throwOnError: true })).rejects.toThrow('returned no page.')
