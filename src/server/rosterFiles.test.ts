@@ -2771,3 +2771,77 @@ describe('a squad whose models are named for their loadouts', () => {
     ])
   })
 })
+
+describe('names a list joins or splits differently from the catalogue', () => {
+  const books: LoadedCatalogue = {
+    ...loaded,
+    index: buildIndex(
+      [
+        system,
+        allies,
+        {
+          catalogue: {
+            id: 'ultramarines',
+            name: 'Imperium - Ultramarines',
+            selectionEntries: [
+              { id: 'ultramarine-terminators', name: 'Terminator Squad', type: 'unit' },
+              {
+                id: 'inquisitor',
+                name: 'Inquisitor',
+                type: 'unit',
+                selectionEntries: [
+                  {
+                    id: 'combi-weapon',
+                    name: 'Combi-weapon',
+                    type: 'upgrade',
+                    constraints: [{ id: 'combi-weapon-min', type: 'min', value: 1, field: 'selections', scope: 'parent' }],
+                  },
+                ],
+                selectionEntryGroups: [
+                  {
+                    id: 'melee',
+                    name: 'Melee',
+                    defaultSelectionEntryId: 'power-weapon',
+                    constraints: [
+                      { id: 'melee-min', type: 'min', value: 1, field: 'selections', scope: 'parent' },
+                      { id: 'melee-max', type: 'max', value: 1, field: 'selections', scope: 'parent' },
+                    ],
+                    selectionEntries: [
+                      { id: 'power-weapon', name: 'Power weapon', type: 'upgrade' },
+                      { id: 'mystic-stave', name: 'Mystic stave', type: 'upgrade' },
+                    ],
+                  },
+                ],
+              },
+              { id: 'tzeentch-grinder', name: 'Tzeentch Soul Grinder', type: 'unit' },
+              { id: 'khorne-grinder', name: 'Khorne Soul Grinder', type: 'unit' },
+            ],
+          },
+        },
+      ],
+      'test-revision',
+    ),
+    factions: [
+      { id: 'marines', name: 'Imperium - Space Marines', references: [] },
+      { id: 'ultramarines', name: 'Imperium - Ultramarines', references: [] },
+    ],
+    detachments: new Map(),
+  }
+  const list = (stated: string, units: string) => ({
+    file: `Joined (200 Points)
+
+${stated}
+Strike Force (2,000 Points)
+
+OTHER DATASHEETS
+
+${units}
+
+Exported with BattleBase`,
+  })
+
+  it('reads each piece of a line joining wargear the datasheet knows by name', () => {
+    const imported = importRosterFile(list('Ultramarines', 'Inquisitor (50 Points)\n  • 1x Combi-weapon and Mystic stave'), books)
+    expect(imported.unplaced).toEqual([])
+  })
+})

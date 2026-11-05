@@ -348,7 +348,7 @@ function importTextRoster(
       return []
     }
     sourceToImported.set(sourceIndex, sourceToImported.size)
-    const read = textRosterPick(unit, entryId, faction.id, detachmentIds, detachmentSelections, loaded)
+    const read = textRosterPick(joinedSplit(unit, entryId, loaded.index), entryId, faction.id, detachmentIds, detachmentSelections, loaded)
     if (read.unplaced.length) note(unplaced, sourceIndex, read.unplaced)
     return [read.pick]
   })
@@ -555,6 +555,23 @@ const powerWeaponKey = (key: string) => key.replace(/power(?:sword|maul)/, 'powe
 const GENERIC_MELEE = spellingKey('close combat weapon')
 /** The kind of model a counted group fields, as "1 - 2 Gun Servitors" fields a "Gun Servitor", which the official app names it by. */
 const groupKind = (name: string) => normalized(name).match(/^\d+(?:\s*-\s*\d+)?\s+(.+?)s?$/)?.[1]
+
+/**
+ * A unit whose lines join several pieces with commas and "and", as an "Agent Firearm and Mystic Stave", read as each piece,
+ * only where every piece is a name the datasheet knows, since "and" also falls inside a name, as a "Lacerator and daemonic claw".
+ */
+function joinedSplit(unit: TextRosterUnit, entryId: string, index: LoadedCatalogue['index']): TextRosterUnit {
+  const respelled = respelledNames(entryId, index)
+  const known = (name: string) => {
+    const key = spellingKey(normalized(name))
+    return respelled.has(key) || respelled.has(powerWeaponKey(key)) || key === GENERIC_MELEE
+  }
+  const selections = unit.selections.flatMap((selection) => {
+    const pieces = selection.name.split(/,\s+|\s+and\s+/i)
+    return pieces.length > 1 && !known(selection.name) && pieces.every(known) ? pieces.map((name) => ({ ...selection, name })) : [selection]
+  })
+  return { ...unit, selections }
+}
 
 function wargearCounts(selection: Selection, index: LoadedCatalogue['index']) {
   const counts = new Map<string, number>()
