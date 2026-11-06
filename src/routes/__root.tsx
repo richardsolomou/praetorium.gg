@@ -14,6 +14,7 @@ import { notFoundPage } from '../client/routeErrors'
 import { TEXT_SOURCES_SCRIPT } from '../client/rulesText'
 import { RAIL_SCRIPT } from '../client/features/shell/railState'
 import { APP_STORE_ID } from '../client/projectLinks'
+import { APPS_SCRIPT } from '../client/features/home/HomeApps'
 import appCss from '../styles.css?url'
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient; origin: string }>()({
@@ -31,7 +32,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient; orig
       { name: 'apple-itunes-app', content: `app-id=${APP_STORE_ID}` },
       ...siteMeta(match.context.origin),
     ],
-    scripts: [{ children: TEXT_SOURCES_SCRIPT }, { children: RAIL_SCRIPT }],
+    scripts: [{ children: TEXT_SOURCES_SCRIPT }, { children: RAIL_SCRIPT }, { children: APPS_SCRIPT }],
     links: offlineData()
       ? []
       : [

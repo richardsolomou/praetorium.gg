@@ -7,7 +7,7 @@ import type { Battle } from '../battles/battle'
 import { BattleShelf } from '../battles/BattleShelf'
 import type { OnboardingProgress } from '../../../core/onboarding'
 import type { Standing } from '../../../core/standings'
-import { HomeApps } from './HomeApps'
+import { HomeAppCredits, HomeApps } from './HomeApps'
 import { type ArmyUpdate, HomeArmyUpdates } from './HomeArmyUpdates'
 import { FriendTables, PublicTables, SHOWN, watchedTables } from './HomeFeed'
 import { HomeHero } from './HomeHero'
@@ -133,6 +133,7 @@ export function HomeView({
             }
           />
         </div>
+        <HomeAppCredits />
       </main>
     )
   }
@@ -154,6 +155,7 @@ export function HomeView({
         <HomeIntro />
       </div>
       <HomeClosing />
+      <HomeAppCredits />
     </main>
   )
 }
