@@ -103,6 +103,16 @@ it('passes the photo screening key to production only', () => {
   ).toEqual([true, false])
 })
 
+it('passes the Android app-signing fingerprints to production only, the domain the app verifies', () => {
+  const fingerprints = Array(32).fill('AB').join(':')
+  expect(
+    [
+      nodeEnvironment({ ...environment, ...apple, ANDROID_APP_CERTIFICATE_SHA256_FINGERPRINTS: fingerprints }, 'production'),
+      nodeEnvironment({ ...environment, ANDROID_APP_CERTIFICATE_SHA256_FINGERPRINTS: fingerprints }, 'staging'),
+    ].map((config) => config.includes(`ANDROID_APP_CERTIFICATE_SHA256_FINGERPRINTS=${fingerprints}`)),
+  ).toEqual([true, false])
+})
+
 it.each(['POSTHOG_SUPPORT_IDENTITY_SECRET', 'POSTHOG_SUPPORT_API_KEY', 'SUPPORT_REPLY_WEBHOOK_SECRET'])(
   'passes %s to production only, so previews never reach the Support inbox or its players',
   (name) => {
