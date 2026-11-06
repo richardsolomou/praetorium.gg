@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.222.1 (2026-11-06)
+
+### Patch Changes
+
+- 185d42e: The app store badges sit in a slim strip under Home's opening band, showing only Google Play on an Android phone, and the Android beta links each of its three steps directly.
+- af93d1c: The sign-in and password reset pages use the slim top bar instead of the side navigation.
+
 ## 0.222.0 (2026-11-06)
 
 ### Minor Changes
