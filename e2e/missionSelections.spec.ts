@@ -238,12 +238,21 @@ async function inspectDialog(page: Page, dialog: Locator) {
   await page.setViewportSize({ width: 1440, height: 900 })
 }
 
+/**
+ * After a reload each card's choices render as its battle loads, and a click before hydration is lost, so this waits
+ * for a settled page and re-checks until every disclosure has stayed open.
+ */
 async function openChoices(page: Page) {
-  for (const summary of await page
-    .locator('summary')
-    .filter({ hasText: /^Choices$/ })
-    .all())
-    if ((await summary.locator('..').getAttribute('open')) === null) await summary.click()
+  await page.locator('html[data-hydrated]').waitFor({ state: 'attached' })
+  await page.waitForLoadState('networkidle')
+  await expect(async () => {
+    const summaries = await page
+      .locator('summary')
+      .filter({ hasText: /^Choices$/ })
+      .all()
+    for (const summary of summaries) if ((await summary.locator('..').getAttribute('open')) === null) await summary.click()
+    for (const summary of summaries) await expect(summary.locator('..')).toHaveAttribute('open', '', { timeout: 1_000 })
+  }).toPass()
 }
 
 const primaryCard = (page: Page, side: 0 | 1) =>

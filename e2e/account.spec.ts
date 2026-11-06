@@ -159,9 +159,11 @@ test('password reset refreshes revoked auth state and preserves the destination'
     (url) => url.pathname === '/sign-in' && url.searchParams.get('reset') === 'true' && url.searchParams.get('next') === '/battles/123',
   )
   await expect(page.getByText('Sign in with your new password.')).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Account menu', exact: true })).toBeVisible()
   await page.goBack()
   await expect(page).toHaveURL('/')
+  // Home greets a visitor with its bar only when the cached account is gone, so a stale sign-in would show the rail.
+  await expect(page.getByRole('banner').getByRole('link', { name: 'Create a free account', exact: true })).toBeVisible()
+  await expect(page.locator('aside[data-web-app-chrome]')).toHaveCount(0)
 })
 
 test('password reset failures are announced', async ({ page }) => {

@@ -228,6 +228,14 @@ html[data-apps-dismissed='true'] [data-home-apps] {
   display: none;
 }
 
+/* Safari offers the app in its own banner, and an Android phone has only one store to choose. */
+html[data-platform='ios'] [data-app-band],
+html[data-platform='android'] [data-store-apple],
+html[data-platform='android'] [data-platform-text='other'],
+html:not([data-platform='android']) [data-platform-text='android'] {
+  display: none;
+}
+
 @media (max-width: 1023px) {
   html[data-native-app='true'] [data-release-update],
   html[data-native-app='true'] [data-whats-new] {
