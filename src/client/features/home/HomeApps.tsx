@@ -68,9 +68,14 @@ export function AppBand({ dismissable }: { dismissable: boolean }) {
 function AndroidBeta({ beta }: { beta: { group: string; optIn: string } }) {
   const [done, setDone] = useState(0)
   const steps = [
-    { title: 'Join the testers’ group', text: 'Anyone can join; you won’t get email from it.', href: beta.group, action: 'Join group' },
+    { title: 'Join the testers’ group', text: 'Sign in to Google first, then tap Join group.', href: beta.group, action: 'Open group' },
     { title: 'Become a tester', text: 'Opt in to the beta on Google Play.', href: beta.optIn, action: 'Opt in' },
-    { title: 'Install Praetorium', text: 'From Google Play, on your Android phone.', href: GOOGLE_PLAY, action: 'Install' },
+    {
+      title: 'Install Praetorium',
+      text: 'From Google Play, signed in with the same Google account.',
+      href: GOOGLE_PLAY,
+      action: 'Install',
+    },
   ]
   return (
     <Dialog onOpenChange={(open) => open || setDone(0)}>

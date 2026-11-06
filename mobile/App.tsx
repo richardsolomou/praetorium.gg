@@ -107,6 +107,8 @@ const POSTHOG_OPTIONS = {
     autocapture: { uncaughtExceptions: true, unhandledRejections: true },
   },
 } satisfies PostHogOptions
+// Only iOS turns 'normal' into a number; Android's WebView declares the prop numeric and crashes on launch given the word.
+const WEB_DECELERATION = Platform.OS === 'ios' ? 'normal' : undefined
 const posthogApiKey = __DEV__ ? undefined : process.env.EXPO_PUBLIC_POSTHOG_API_KEY
 const posthog = posthogApiKey ? new PostHog(posthogApiKey, POSTHOG_OPTIONS) : null
 
@@ -642,7 +644,7 @@ function AppShell() {
           thirdPartyCookiesEnabled={false}
           allowsBackForwardNavigationGestures={false}
           allowsLinkPreview={false}
-          decelerationRate="normal"
+          decelerationRate={WEB_DECELERATION}
           setBuiltInZoomControls={false}
           setSupportMultipleWindows
           injectedJavaScriptBeforeContentLoaded={`${mountedSnapshot.script}\nwindow.PraetoriumOfflineStart=${JSON.stringify(offlineView.path)};\n${NATIVE_BRIDGE_SCRIPT}\n${nativeCapabilityScript('watch-battle', watchAvailable)}\n${nativeCapabilityScript('screen-cover', canCoverScreen)}`}
@@ -684,7 +686,7 @@ function AppShell() {
           thirdPartyCookiesEnabled={false}
           allowsBackForwardNavigationGestures={backSwipeGated || historyBack}
           allowsLinkPreview={false}
-          decelerationRate="normal"
+          decelerationRate={WEB_DECELERATION}
           setBuiltInZoomControls={false}
           setSupportMultipleWindows
           startInLoadingState
