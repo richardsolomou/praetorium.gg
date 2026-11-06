@@ -91,7 +91,6 @@ export function HomeView({
         <Welcome name={me.name} returning={mine.length > 0 || rosterCount > 0} newBattle={newBattle} stats={stats} />
         {notifications}
         <div className="mx-auto w-full max-w-6xl space-y-10 px-5 py-8 sm:px-6">
-          <HomeApps />
           <Columns
             lead={
               going.length ? (
@@ -114,6 +113,7 @@ export function HomeView({
                 {/* A phone reaches its games before the record, so the tiles follow them there instead of sitting in the band. */}
                 {stats ? <div className="-mt-6 sm:hidden">{stats}</div> : null}
                 <HomeWaiting rostersDue={rostersDue} friendRequests={friendRequests} />
+                <HomeApps />
                 {listsFirst ? null : rosterShelf}
                 {recentSimulations}
                 <HomeArmyUpdates updates={armyUpdates} />
@@ -133,7 +133,7 @@ export function HomeView({
             }
           />
         </div>
-        <HomeAppCredits />
+        <HomeAppCredits dismissable />
       </main>
     )
   }
@@ -141,7 +141,6 @@ export function HomeView({
     <main className="w-full">
       <HomeHero battle={hero} />
       <div className="mx-auto w-full max-w-6xl space-y-12 px-5 py-10 sm:px-6 md:space-y-16 md:py-16">
-        <HomeApps />
         {recentSimulations}
         <HomeSteps />
         <Columns
@@ -155,7 +154,7 @@ export function HomeView({
         <HomeIntro />
       </div>
       <HomeClosing />
-      <HomeAppCredits />
+      <HomeAppCredits dismissable={false} />
     </main>
   )
 }

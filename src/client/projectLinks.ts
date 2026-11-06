@@ -14,8 +14,13 @@ export const APP_STORE_ID = '6806875244'
 /** Without a country code, so the App Store opens in the visitor's own storefront. */
 export const APP_STORE = `https://apps.apple.com/app/praetorium-gg/id${APP_STORE_ID}`
 
+export const GOOGLE_PLAY = 'https://play.google.com/store/apps/details?id=gg.praetorium'
+
 /**
- * The Google Group whose members may opt in to the Android closed test; its page links to the opt-in. Unset it to
- * hide the Google Play badge.
+ * The Android closed test: Play lets only members of its testers' group opt in, so the steps run group, opt-in, install.
+ * Unset it to hide the Google Play badge.
  */
-export const ANDROID_BETA: string | undefined = 'https://groups.google.com/g/praetorium-android-beta'
+export const ANDROID_BETA: { group: string; optIn: string } | undefined = {
+  group: 'https://groups.google.com/g/praetorium-android-beta',
+  optIn: 'https://play.google.com/apps/testing/gg.praetorium',
+}
