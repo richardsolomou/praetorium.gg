@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.222.0 (2026-11-06)
+
+### Minor Changes
+
+- 8795f57: Android players can join the app's beta from Home, and the mobile app guide explains how.
+- 8795f57: Home shows where to get the iPhone and iPad app from the App Store, and Safari on an iPhone offers it in a banner.
+
 ## 0.221.8 (2026-11-06)
 
 ### Patch Changes
