@@ -21,6 +21,7 @@ export const GOOGLE_PLAY = 'https://play.google.com/store/apps/details?id=gg.pra
  * Unset it to hide the Google Play badge.
  */
 export const ANDROID_BETA: { group: string; optIn: string } | undefined = {
-  group: 'https://groups.google.com/g/praetorium-android-beta',
+  // About, not the group's front page: signed out, the front page reads "You don't have permission" and offers no way in.
+  group: 'https://groups.google.com/g/praetorium-android-beta/about',
   optIn: 'https://play.google.com/apps/testing/gg.praetorium',
 }
