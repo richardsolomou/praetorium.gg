@@ -7,6 +7,7 @@ import type { Battle } from '../battles/battle'
 import { BattleShelf } from '../battles/BattleShelf'
 import type { OnboardingProgress } from '../../../core/onboarding'
 import type { Standing } from '../../../core/standings'
+import { HomeAppCredits, HomeApps } from './HomeApps'
 import { type ArmyUpdate, HomeArmyUpdates } from './HomeArmyUpdates'
 import { FriendTables, PublicTables, SHOWN, watchedTables } from './HomeFeed'
 import { HomeHero } from './HomeHero'
@@ -90,6 +91,7 @@ export function HomeView({
         <Welcome name={me.name} returning={mine.length > 0 || rosterCount > 0} newBattle={newBattle} stats={stats} />
         {notifications}
         <div className="mx-auto w-full max-w-6xl space-y-10 px-5 py-8 sm:px-6">
+          <HomeApps />
           <Columns
             lead={
               going.length ? (
@@ -131,6 +133,7 @@ export function HomeView({
             }
           />
         </div>
+        <HomeAppCredits />
       </main>
     )
   }
@@ -138,6 +141,7 @@ export function HomeView({
     <main className="w-full">
       <HomeHero battle={hero} />
       <div className="mx-auto w-full max-w-6xl space-y-12 px-5 py-10 sm:px-6 md:space-y-16 md:py-16">
+        <HomeApps />
         {recentSimulations}
         <HomeSteps />
         <Columns
@@ -151,6 +155,7 @@ export function HomeView({
         <HomeIntro />
       </div>
       <HomeClosing />
+      <HomeAppCredits />
     </main>
   )
 }
