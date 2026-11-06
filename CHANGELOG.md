@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.221.8 (2026-11-06)
+
+### Patch Changes
+
+- c0962ff: Keep recent simulations and roster lists on screen when a list fails to load during a short outage.
+
 ## 0.221.7 (2026-11-05)
 
 ### Patch Changes
