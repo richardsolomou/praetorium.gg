@@ -185,11 +185,15 @@ function SiteRail({ workspace }: { workspace: boolean }) {
   )
 }
 
+/** Pages someone reaches before they are in the app, so they keep the front door's bar rather than the rail. */
+const AUTH_PAGES = new Set(['/sign-in', '/reset-password', '/native-auth'])
+
 /**
- * The signed-out home is a front door rather than the app, so a visitor meets a slim bar that says where to start
- * instead of the full rail. Every other page, signed in or not, keeps the rail.
+ * The signed-out home and the sign-in pages are a front door rather than the app, so a visitor meets a slim bar that
+ * says where to start instead of the full rail. Every other page, signed in or not, keeps the rail. A sign-in page
+ * leaves out the bar's own sign-in links, since its form is the thing they point to.
  */
-function VisitorBar() {
+function VisitorBar({ signingIn }: { signingIn: boolean }) {
   return (
     <header data-web-app-chrome data-print-hide className="sticky top-0 z-30 h-14 w-full border-b border-edge bg-void/95 backdrop-blur">
       <div className="mx-auto flex h-full max-w-6xl items-center gap-6 px-5 sm:px-6">
@@ -209,12 +213,16 @@ function VisitorBar() {
         </nav>
         <div className="flex shrink-0 items-center gap-2">
           <GlobalSearch compact />
-          <Link to="/sign-in" search={{ next: undefined }} className={buttonClass({ variant: 'ghost' })}>
-            Sign in
-          </Link>
-          <Link to="/sign-in" search={{ next: undefined, join: true }} className={buttonClass()}>
-            Create a free account
-          </Link>
+          {signingIn ? null : (
+            <>
+              <Link to="/sign-in" search={{ next: undefined }} className={buttonClass({ variant: 'ghost' })}>
+                Sign in
+              </Link>
+              <Link to="/sign-in" search={{ next: undefined, join: true }} className={buttonClass()}>
+                Create a free account
+              </Link>
+            </>
+          )}
         </div>
       </div>
     </header>
@@ -267,7 +275,8 @@ export function AppShell() {
   const path = location.pathname
   const immersive = ROSTER_WORKSPACE.test(path)
   const { data: me } = useQuery(meQuery())
-  const visitorHome = path === '/' && me === null
+  const signingIn = AUTH_PAGES.has(path)
+  const frontDoor = signingIn || (path === '/' && me === null)
   const impersonating = Boolean(me?.impersonatedBy)
   // Set while rendering so it holds before any child's effect captures.
   if (typeof window !== 'undefined') setImpersonating(impersonating)
@@ -297,9 +306,9 @@ export function AppShell() {
                * measure. Nothing here is centred on the page's behalf.
                */}
               <div data-native-app-frame className={`flex ${immersive ? 'h-dvh' : 'min-h-dvh'}`}>
-                {visitorHome ? null : <SiteRail workspace={immersive} />}
+                {frontDoor ? null : <SiteRail workspace={immersive} />}
                 <div className={`flex min-w-0 flex-1 flex-col ${immersive ? 'h-dvh' : 'min-h-dvh'}`}>
-                  {visitorHome ? <VisitorBar /> : null}
+                  {frontDoor ? <VisitorBar signingIn={signingIn} /> : null}
                   {immersive ? null : (
                     <header
                       data-mobile-app-header

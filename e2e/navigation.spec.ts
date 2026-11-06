@@ -708,10 +708,10 @@ test('account libraries share their page width and fit a phone', async ({ page }
 test('authentication panels and empty states fill the page above the footer', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 })
   await page.goto('/sign-in')
-  const rail = await page.locator('[data-web-app-chrome]').boundingBox()
+  await expect(page.locator('aside[data-web-app-chrome]')).toHaveCount(0)
   const left = await page.locator('main > aside').boundingBox()
   const right = await page.locator('main > section').boundingBox()
-  expect(left?.x).toBe(rail ? rail.x + rail.width : 0)
+  expect(left?.x).toBe(0)
   expect(right ? Math.round(right.x + right.width) : 0).toBe(1280)
   await page.goto('/friends')
   await expect(page.getByRole('heading', { name: 'Your friends' })).toBeVisible()
