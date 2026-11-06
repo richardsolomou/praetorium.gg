@@ -64,6 +64,9 @@ export function nodeEnvironment(environment: NodeJS.ProcessEnv, target: 'staging
     for (const name of ['GITHUB_CLIENT_ID', 'GITHUB_CLIENT_SECRET', 'GITHUB_SPONSORS_TOKEN']) {
       if (environment[name]) entries[name] = requiredEnv(name, environment)
     }
+    // Android verifies app links only on production's domain.
+    if (environment.ANDROID_APP_CERTIFICATE_SHA256_FINGERPRINTS)
+      entries.ANDROID_APP_CERTIFICATE_SHA256_FINGERPRINTS = requiredEnv('ANDROID_APP_CERTIFICATE_SHA256_FINGERPRINTS', environment)
     // Only production's pages belong in search results.
     if (environment.INDEXNOW_KEY) entries.INDEXNOW_KEY = requiredEnv('INDEXNOW_KEY', environment)
     // Only real uploads are worth screening.
