@@ -1,8 +1,7 @@
-import { Check, ExternalLink } from 'lucide-react'
+import { Check, ExternalLink, X } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { buttonClass } from '../../components/buttonClass'
-import { SectionHeading } from '../../components/SectionHeading'
 import { Dialog, DialogBody, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../../components/Dialog'
 import { ANDROID_BETA, APP_STORE, GOOGLE_PLAY } from '../../projectLinks'
 import { useStoredValue, writeStoredValue } from '../../storedValue'
@@ -11,20 +10,24 @@ import googlePlayBadge from './google-play-badge.png?no-inline'
 
 const DISMISSED_KEY = 'praetorium-apps-dismissed'
 
-/** Runs in the document head before the first paint, so a strip already dismissed is never drawn while the page hydrates. */
-export const APPS_SCRIPT = `try{if(localStorage.getItem(${JSON.stringify(DISMISSED_KEY)})==='true')document.documentElement.dataset.appsDismissed='true'}catch(e){}`
+/**
+ * Runs in the document head before the first paint: a band already dismissed is never drawn while the page hydrates,
+ * and a phone's platform is known before the band picks which store to show.
+ */
+export const APPS_SCRIPT = `try{var d=document.documentElement;if(localStorage.getItem(${JSON.stringify(DISMISSED_KEY)})==='true')d.dataset.appsDismissed='true';var u=navigator.userAgent;d.dataset.platform=/iPhone|iPad|iPod/.test(u)?'ios':/Android/.test(u)?'android':''}catch(e){}`
 
 const useDismissed = () => useStoredValue(DISMISSED_KEY) === 'true'
 
 /*
  * The stores' own badges, unaltered: Apple's from its marketing tools, Google's with only its transparent margin
  * trimmed. Apple asks for its badge first, at least 40px tall, and Google for one at least as tall; both need a quarter
- * of their height clear around them.
+ * of their height clear around them. An Android phone sees only Google's; an iPhone never sees the band at all, because
+ * Safari's own App Store banner already offers the app there.
  */
 function StoreBadges() {
   return (
-    <div className="flex flex-wrap items-center gap-3">
-      <a href={APP_STORE} rel="noreferrer noopener" target="_blank" className="block">
+    <div className="flex shrink-0 items-center gap-3">
+      <a data-store-apple href={APP_STORE} rel="noreferrer noopener" target="_blank" className="block">
         <img src={appStoreBadge} alt="Download on the App Store" width={120} height={40} className="h-10 w-auto" />
       </a>
       {ANDROID_BETA ? <AndroidBeta beta={ANDROID_BETA} /> : null}
@@ -32,34 +35,29 @@ function StoreBadges() {
   )
 }
 
-/** A visitor meets the apps in the hero, beside the other ways in; the hero only ever greets someone signed out. */
-export function HeroApps() {
+/**
+ * A strip along the bottom edge of Home's opening band, the hero for a visitor and the welcome for a player. A player
+ * comes back daily, so theirs can be dismissed; a visitor's cannot. Hidden inside the app by `[data-store-link]`.
+ */
+export function AppBand({ dismissable }: { dismissable: boolean }) {
+  const dismissed = useDismissed()
+  if (dismissable && dismissed) return null
   return (
-    <div data-store-link className="mt-4">
-      <StoreBadges />
-    </div>
-  )
-}
-
-/** A player's copy sits with the other short lists beside their games, until they say not now. Hidden inside the app by `[data-store-link]`. */
-export function HomeApps() {
-  if (useDismissed()) return null
-  return (
-    <section data-store-link data-home-apps aria-labelledby="home-apps">
-      <SectionHeading
-        id="home-apps"
-        title="Get the app"
-        action={
-          <Button size="sm" variant="ghost" onClick={() => writeStoredValue(DISMISSED_KEY, 'true')}>
-            Not now
-          </Button>
-        }
-      />
-      <div className="part space-y-3 p-4">
-        <p className="text-sm text-dim">Your lists and games on your phone, with notifications and the screen kept awake at the table.</p>
+    <div data-store-link data-app-band data-home-apps={dismissable || undefined} className="relative border-t border-edge">
+      <div className="mx-auto flex max-w-6xl items-center gap-3 px-5 py-3 sm:gap-4 sm:px-6">
+        <p className="min-w-0 flex-1 text-sm leading-snug text-dim">
+          <span data-platform-text="other">Take it to the table: Praetorium is on iPhone and Android.</span>
+          <span data-platform-text="android">Praetorium for Android is in beta.</span>
+        </p>
         <StoreBadges />
+        {dismissable ? (
+          <Button size="sm" variant="ghost" aria-label="Not now" onClick={() => writeStoredValue(DISMISSED_KEY, 'true')}>
+            <span className="max-sm:hidden">Not now</span>
+            <X className="sm:hidden" aria-hidden />
+          </Button>
+        ) : null}
       </div>
-    </section>
+    </div>
   )
 }
 
@@ -125,16 +123,14 @@ function AndroidBeta({ beta }: { beta: { group: string; optIn: string } }) {
   )
 }
 
-/**
- * The credit lines Apple and Google ask for wherever their badges appear, kept at the page's foot. A player's go with
- * their dismissable card; a visitor's hero badges always show, so theirs do too.
- */
+/** The credit lines Apple and Google ask for wherever their badges appear, kept at the page's foot and gone with the band. */
 export function HomeAppCredits({ dismissable }: { dismissable: boolean }) {
   const dismissed = useDismissed()
   if (dismissable && dismissed) return null
   return (
     <p
       data-store-link
+      data-app-band
       data-home-apps={dismissable || undefined}
       className="mx-auto max-w-6xl px-5 pt-4 pb-6 text-2xs leading-snug text-faint sm:px-6"
     >

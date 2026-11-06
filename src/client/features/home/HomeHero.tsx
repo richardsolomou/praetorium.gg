@@ -7,7 +7,7 @@ import type { Battle } from '../battles/battle'
 import { FactionMark } from '../../components/FactionMark'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { SOURCE } from '../../projectLinks'
-import { HeroApps } from './HomeApps'
+import { AppBand } from './HomeApps'
 
 /**
  * The one full-bleed moment on the page, for somebody who has never been here.
@@ -59,10 +59,10 @@ export function HomeHero({ battle }: { battle?: Battle }) {
             </a>
             .
           </p>
-          <HeroApps />
         </div>
         {battle ? <HeroBattle battle={battle} /> : <HeroMark />}
       </div>
+      <AppBand dismissable={false} />
     </section>
   )
 }

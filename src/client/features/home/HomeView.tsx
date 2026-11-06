@@ -7,7 +7,7 @@ import type { Battle } from '../battles/battle'
 import { BattleShelf } from '../battles/BattleShelf'
 import type { OnboardingProgress } from '../../../core/onboarding'
 import type { Standing } from '../../../core/standings'
-import { HomeAppCredits, HomeApps } from './HomeApps'
+import { AppBand, HomeAppCredits } from './HomeApps'
 import { type ArmyUpdate, HomeArmyUpdates } from './HomeArmyUpdates'
 import { FriendTables, PublicTables, SHOWN, watchedTables } from './HomeFeed'
 import { HomeHero } from './HomeHero'
@@ -113,7 +113,6 @@ export function HomeView({
                 {/* A phone reaches its games before the record, so the tiles follow them there instead of sitting in the band. */}
                 {stats ? <div className="-mt-6 sm:hidden">{stats}</div> : null}
                 <HomeWaiting rostersDue={rostersDue} friendRequests={friendRequests} />
-                <HomeApps />
                 {listsFirst ? null : rosterShelf}
                 {recentSimulations}
                 <HomeArmyUpdates updates={armyUpdates} />
@@ -193,6 +192,7 @@ function Welcome({ name, returning, newBattle, stats }: { name: string; returnin
         </div>
         {stats ? <div className="max-sm:hidden">{stats}</div> : null}
       </div>
+      <AppBand dismissable />
     </section>
   )
 }
