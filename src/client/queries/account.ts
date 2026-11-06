@@ -24,7 +24,7 @@ import {
   userProfile,
   collectionProfile,
 } from '../functions'
-import { SSR_STALE_TIME } from './shared'
+import { requirePage, SSR_STALE_TIME } from './shared'
 import { withTimeout } from '../abortSignals'
 import {
   abilityRemindersKey,
@@ -104,7 +104,7 @@ export const heldCollectionPhotosQuery = () =>
 export const adminCollectionPhotosQuery = () =>
   infiniteQueryOptions({
     queryKey: [...adminKey(), 'photos'],
-    queryFn: ({ pageParam }) => adminCollectionPhotos({ data: { before: pageParam } }),
+    queryFn: ({ pageParam }) => adminCollectionPhotos({ data: { before: pageParam } }).then(requirePage('collection photos read')),
     initialPageParam: null as AdminCollectionPhotosCursor | null,
     getNextPageParam: (page) => page.nextCursor ?? undefined,
   })
