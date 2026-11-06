@@ -35,8 +35,7 @@ function StoreBadges() {
 /** A visitor meets the apps in the hero, beside the other ways in; the hero only ever greets someone signed out. */
 export function HeroApps() {
   return (
-    <div data-store-link className="mt-8 border-t border-edge pt-6">
-      <p className="mb-3 text-sm text-dim">Also on iPhone, iPad and Android.</p>
+    <div data-store-link className="mt-4">
       <StoreBadges />
     </div>
   )
