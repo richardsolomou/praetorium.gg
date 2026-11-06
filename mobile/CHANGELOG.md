@@ -1,5 +1,11 @@
 # @praetorium/mobile
 
+## 1.4.3
+
+### Patch Changes
+
+- 97bcdfc: Fix the Android app closing as soon as it opens.
+
 ## 1.4.2
 
 ### Patch Changes

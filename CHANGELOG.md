@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.222.2 (2026-11-06)
+
+### Patch Changes
+
+- 6862ff1: The Android beta steps say to sign in to Google before joining the testers' group, which offers no way to join while signed out.
+- 8e518be: Fixes a page reload sometimes failing with an error when the site was slow to respond.
+
 ## 0.222.1 (2026-11-06)
 
 ### Patch Changes
