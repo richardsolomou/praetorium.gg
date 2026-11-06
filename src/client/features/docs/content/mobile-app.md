@@ -4,10 +4,10 @@ The Praetorium app opens the same site as praetorium.gg, with the same account, 
 
 On iPhone and iPad, install [Praetorium from the App Store](https://apps.apple.com/app/praetorium-gg/id6806875244). Home links to it on the web until you choose **Not now**, and in Safari praetorium.gg also offers it in a banner at the top of the page. Sign in with the account you use on the web and everything is already there.
 
-The Android app is in a closed beta:
+The Android app is in a closed beta. On Home, the **Get it on Google Play** badge shows these steps:
 
 1. Join the [Praetorium Android beta group](https://groups.google.com/g/praetorium-android-beta) with your Google account.
-2. Opt in to the test from the link on the group's page.
+2. On the group's page, follow the opt-in link and choose **Become a tester**.
 3. Install Praetorium from Google Play with the same Google account.
 
 Stay in the test for at least 14 days: Google only opens the app to everyone once enough testers have stayed opted in that long.
