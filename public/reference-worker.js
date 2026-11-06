@@ -9,8 +9,13 @@ self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET' || event.request.mode !== 'navigate' || url.origin !== self.location.origin) return
   event.respondWith(
     (async () => {
+      // The timer stops once headers arrive: an abort after that would cut off a page still streaming its HTML.
+      const waiting = new AbortController()
+      const timer = setTimeout(() => waiting.abort(), 5000)
       try {
-        return await fetch(event.request, { cache: 'no-store', signal: AbortSignal.timeout(5000) })
+        const response = await fetch(event.request, { cache: 'no-store', signal: waiting.signal })
+        clearTimeout(timer)
+        return response
       } catch {
         // Read only once the network fails: WebKit copies a matched response's whole body into memory.
         const saved =
