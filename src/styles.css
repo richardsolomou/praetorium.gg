@@ -222,6 +222,11 @@ html[data-native-app='true'] [data-mobile-app-header-spacer] {
   display: flex;
 }
 
+/* Someone already in the app has no use for a link to install it. */
+html[data-native-app='true'] [data-store-link] {
+  display: none;
+}
+
 @media (max-width: 1023px) {
   html[data-native-app='true'] [data-release-update],
   html[data-native-app='true'] [data-whats-new] {
