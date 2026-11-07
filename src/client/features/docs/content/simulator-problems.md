@@ -18,7 +18,7 @@ The pairing isn't legal, for example a Support model without a squad. Add or rem
 
 ### Optimize is greyed out
 
-It needs a defender, both units fully loaded, and a legal attacker. It's only on the attacker side.
+It needs a defender, both units to have finished loading, and a legal attacker. It's only on the attacker side.
 
 ### "The full search could not finish."
 

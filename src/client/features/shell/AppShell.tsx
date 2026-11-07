@@ -93,6 +93,7 @@ function RailTooltip({ label, collapsed, children }: { label: string; collapsed:
 }
 
 function RailLinks({ links, name, collapsed }: { links: readonly RailLink[]; name: string; collapsed: boolean }) {
+  const path = useLocation().pathname
   return (
     <nav
       aria-label={name}
@@ -103,6 +104,7 @@ function RailLinks({ links, name, collapsed }: { links: readonly RailLink[]; nam
           <Link
             to={to}
             search={to === '/leaderboard' ? { faction: undefined } : undefined}
+            aria-current={to === '/missions' && path.startsWith('/force-dispositions/') ? 'page' : undefined}
             className="group flex h-9 items-center gap-2.5 rounded-lg border border-transparent px-2.5 text-sm font-semibold text-dim transition-colors in-data-[rail=collapsed]:justify-center in-data-[rail=collapsed]:px-0 hover:bg-raised/60 hover:text-bone aria-[current=page]:border-edge aria-[current=page]:bg-panel aria-[current=page]:text-bone aria-[current=page]:shadow-part"
           >
             <Icon aria-hidden className="size-4.5 shrink-0 text-faint group-aria-[current=page]:text-parchment" />

@@ -22,7 +22,7 @@ Press **Try again** once you're back online.
 
 ### "This roster is locked. Unlock it to add units."
 
-Unlock it from the roster menu, or create a variant.
+Unlock it from the roster menu, or create a variant. The longer message "This roster is locked. Unlock it to change it, or keep your changes as a new roster." has the same fix.
 
 ## Limits
 

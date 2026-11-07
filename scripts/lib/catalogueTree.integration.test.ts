@@ -20,7 +20,7 @@ function repository() {
   fs.writeFileSync(path.join(root, 'catalogue/sources.json'), '{}')
   fs.writeFileSync(path.join(root, 'catalogue.json'), '{"pointer":"first"}')
   git('add', '.')
-  git('-c', 'user.name=Test', '-c', 'user.email=test@example.test', 'commit', '--quiet', '-m', 'data')
+  git('-c', 'user.name=Test', '-c', 'user.email=test@example.test', '-c', 'commit.gpgsign=false', 'commit', '--quiet', '-m', 'data')
   return { root, git }
 }
 

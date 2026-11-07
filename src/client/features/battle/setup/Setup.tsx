@@ -108,7 +108,7 @@ const SECTION_IDS = [
   'pre-battle',
 ] as const
 type SectionId = (typeof SECTION_IDS)[number]
-const BUDGET_MISMATCH = 'Choose rosters with the same points budget for each side. Allies split the points evenly.'
+const BUDGET_MISMATCH = 'Choose rosters with the same points budget for each side.'
 
 /**
  * Setting the table on one page, in the order the rules set it.
@@ -192,7 +192,7 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
               ? 'These roster formats do not make a supported battle size. Choose another format; allies split the points evenly.'
               : format.problem === 'budget-mismatch'
                 ? BUDGET_MISMATCH
-                : 'Choose matching roster formats for each side. Allies split the points evenly.'
+                : 'Choose matching roster formats for each side.'
           : 'Choose a battle size to continue.'
 
   /**
