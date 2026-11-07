@@ -1,5 +1,13 @@
 # praetorium
 
+## 0.222.8 (2026-11-07)
+
+### Patch Changes
+
+- 9ab2b6e: Importing from the official app in another language reads models only a datasheet's composition names, as the French "Chef de Meute de Griffes Sanglantes".
+- 9ab2b6e: Importing from the official app in another language reads a detachment another faction's card names, as Space Wolves' French "Force d’Assaut Terminator".
+- 9ab2b6e: Importing from the official app in French reads Wolf Guard Headtakers.
+
 ## 0.222.7 (2026-11-07)
 
 ### Patch Changes
