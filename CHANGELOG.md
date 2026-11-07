@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.222.3 (2026-11-07)
+
+### Patch Changes
+
+- 98f1006: Each Android beta step shows the Google page it opens, with the button to tap ringed.
+
 ## 0.222.2 (2026-11-06)
 
 ### Patch Changes
