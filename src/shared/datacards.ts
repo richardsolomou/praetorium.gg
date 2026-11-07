@@ -865,15 +865,16 @@ function compositionModels(value: unknown): string[][] {
       return [
         {
           language,
-          names: items.map(
-            (item) =>
-              pattern.exec(
-                item
-                  .replace(/^\s*•\s*/, '')
-                  .replaceAll(/\s+/g, ' ')
-                  .trim(),
-              )?.[1],
-          ),
+          names: items.map((item) => {
+            const name = pattern.exec(
+              item
+                .replace(/^\s*•\s*/, '')
+                .replaceAll(/\s+/g, ' ')
+                .trim(),
+            )?.[1]
+            // A line ending in a full stop is a sentence, as Deathwatch's Spanish "… y puños de ceramita.", not a name.
+            return name?.endsWith('.') ? undefined : name
+          }),
         },
       ]
     })
