@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.222.6 (2026-11-07)
+
+### Patch Changes
+
+- 7b7f1eb: The docs are rewritten in plainer language, with the most common task first on each page.
+
 ## 0.222.5 (2026-11-07)
 
 ### Patch Changes
