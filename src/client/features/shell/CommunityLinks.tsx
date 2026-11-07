@@ -20,7 +20,7 @@ export const COMMUNITY_LINKS = [
 
 export function CommunityLinks() {
   return (
-    <nav aria-label="Community" className="inline-flex shrink-0 items-center gap-1">
+    <nav aria-label="Project links" className="inline-flex shrink-0 items-center gap-1">
       {COMMUNITY_LINKS.map(({ href, Icon, label, description }) => (
         <Tooltip key={label}>
           <TooltipTrigger

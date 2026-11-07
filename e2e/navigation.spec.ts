@@ -55,7 +55,7 @@ test('the mobile website uses application navigation below 860 pixels', async ({
   await expect(mobileHeader.getByRole('link', { name: 'Praetorium home' })).toBeVisible()
   await expect(mobileHeader.getByRole('button', { name: 'Search Praetorium' })).toBeVisible()
   await expect(mobileHeader.getByRole('button', { name: 'Account menu' })).toBeVisible()
-  await expect(mobileHeader.getByRole('navigation', { name: 'Community' })).toHaveCount(0)
+  await expect(mobileHeader.getByRole('navigation', { name: 'Project links' })).toHaveCount(0)
   await expect(primary).toBeHidden()
   await expect(sections).toBeVisible()
   await expect(sections.getByRole('link')).toHaveText(['Home', 'Rosters', 'Battles', 'Factions', 'More'])
@@ -111,15 +111,8 @@ test('the mobile website uses application navigation below 860 pixels', async ({
   await page.setViewportSize({ width: 860, height: 844 })
   const reference = page.getByRole('navigation', { name: 'Reference' })
   await expect(reference.getByRole('link')).toHaveText(['Factions', 'Missions', 'Rules'])
-  await expect(primary.getByRole('link')).toHaveText([
-    'Rosters',
-    'Battles',
-    'Simulator',
-    'Leaderboard',
-    'Groups',
-    'Tournaments',
-    'Collection',
-  ])
+  await expect(primary.getByRole('link')).toHaveText(['Rosters', 'Battles', 'Simulator', 'Collection'])
+  await expect(page.getByRole('navigation', { name: 'Community' }).getByRole('link')).toHaveText(['Groups', 'Tournaments', 'Leaderboard'])
   await expect(webRail).toHaveJSProperty('scrollWidth', await webRail.evaluate((rail) => rail.clientWidth))
   await page.setViewportSize({ width: 910, height: 844 })
   await expect(primary.getByRole('link', { name: 'Rosters' }).locator('svg')).toHaveCount(1)

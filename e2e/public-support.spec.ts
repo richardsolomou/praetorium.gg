@@ -19,7 +19,7 @@ for (const pageDetails of [
 test('support sends feedback in place and keeps the public issue tracker', async ({ page }) => {
   await page.goto('/support')
   await page.setViewportSize({ width: 1440, height: 900 })
-  const community = page.locator('[data-web-app-chrome]').getByRole('navigation', { name: 'Community' })
+  const community = page.locator('[data-web-app-chrome]').getByRole('navigation', { name: 'Project links' })
   await expect(community.getByRole('link', { name: 'Discord', exact: true })).toHaveAttribute('href', 'https://discord.gg/RFUMZNFwMu')
   await expect(community.getByRole('link', { name: 'GitHub', exact: true })).toHaveAttribute(
     'href',
