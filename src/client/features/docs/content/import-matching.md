@@ -16,7 +16,7 @@ A list that names only Space Marines but fields a chapter's own units, such as M
 
 ## Official-app exports in other languages
 
-Names are matched through the translations on datasheet cards and [New Recruit's community translations](https://nrdata.org), which cover French, German, Spanish, Italian, Portuguese, Russian, Chinese, Korean and Japanese to varying degrees. A name neither translates, such as some enhancements, is reported and never guessed.
+Names are matched through the translations printed on datasheet and detachment cards and [New Recruit's community translations](https://nrdata.org), which cover French, German, Spanish, Italian, Portuguese, Russian, Chinese, Korean and Japanese to varying degrees. A name neither translates, such as some enhancements, is reported and never guessed.
 
 If a faction's name isn't translated yet, Praetorium takes the faction whose datasheets hold most of the list's units. If every unit is shared by several factions, the review says no faction matched.
 
