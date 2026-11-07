@@ -63,10 +63,13 @@ const PRIMARY_LINKS = [
   { to: '/rosters', label: 'Rosters', Icon: ScrollText },
   { to: '/battles', label: 'Battles', Icon: Swords },
   { to: '/simulator', label: 'Simulator', Icon: Calculator },
-  { to: '/leaderboard', label: 'Leaderboard', Icon: Medal },
+  { to: '/collection', label: 'Collection', Icon: Boxes },
+] as const
+
+const SOCIAL_LINKS = [
   { to: '/groups', label: 'Groups', Icon: Users },
   { to: '/tournaments', label: 'Tournaments', Icon: Trophy },
-  { to: '/collection', label: 'Collection', Icon: Boxes },
+  { to: '/leaderboard', label: 'Leaderboard', Icon: Medal },
 ] as const
 
 const REFERENCE_LINKS = [
@@ -111,6 +114,15 @@ function RailLinks({ links, name, collapsed }: { links: readonly RailLink[]; nam
   )
 }
 
+function RailSection({ links, name, collapsed }: { links: readonly RailLink[]; name: string; collapsed: boolean }) {
+  return (
+    <div>
+      <p className="mb-1.5 ml-1 text-2xs font-semibold tracking-eyebrow text-faint uppercase in-data-[rail=collapsed]:sr-only">{name}</p>
+      <RailLinks links={links} name={name} collapsed={collapsed} />
+    </div>
+  )
+}
+
 /**
  * The desktop navigation is a sprue: a framed rail whose sections hang off a runner by gates, the open one gated in green.
  * It stays pinned beside the page at the window's full height, so nothing sits above the page and `--app-header` is zero.
@@ -149,12 +161,8 @@ function SiteRail({ workspace }: { workspace: boolean }) {
           </div>
           <div className="no-scrollbar min-h-0 flex-1 space-y-4 overflow-y-auto pr-2.5 pl-2 in-data-[rail=collapsed]:pr-2">
             <RailLinks links={PRIMARY_LINKS} name="Primary" collapsed={collapsed} />
-            <div>
-              <p className="mb-1.5 ml-1 text-2xs font-semibold tracking-eyebrow text-faint uppercase in-data-[rail=collapsed]:sr-only">
-                Reference
-              </p>
-              <RailLinks links={REFERENCE_LINKS} name="Reference" collapsed={collapsed} />
-            </div>
+            <RailSection links={SOCIAL_LINKS} name="Community" collapsed={collapsed} />
+            <RailSection links={REFERENCE_LINKS} name="Reference" collapsed={collapsed} />
           </div>
           {/*
            * Folded, the column is the open row reversed: the toggle keeps the corner under the pointer
