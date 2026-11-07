@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.222.7 (2026-11-07)
+
+### Patch Changes
+
+- 708d763: Missions stays highlighted in the side menu on a force disposition's page, and battle setup no longer says allies must split points evenly when they don't have to.
+
 ## 0.222.6 (2026-11-07)
 
 ### Patch Changes
