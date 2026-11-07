@@ -6,9 +6,11 @@ On iPhone and iPad, install [Praetorium from the App Store](https://apps.apple.c
 
 The Android app is in a closed beta. On Home, the **Get it on Google Play** badge shows these steps:
 
-1. Open the [Praetorium Android beta group](https://groups.google.com/g/praetorium-android-beta/about), choose **Sign in** at the top if Google asks, then choose **Join group**. Signed out, Google offers no way to join and can say you don't have permission.
+1. Open the [Praetorium Android beta group](https://groups.google.com/g/praetorium-android-beta/about) and choose **Join group**, then **Join group** again on the form that opens. If Google shows only **Sign in**, sign in at the top first.
 2. [Opt in to the beta](https://play.google.com/apps/testing/gg.praetorium) and choose **Become a tester**.
-3. [Install Praetorium from Google Play](https://play.google.com/store/apps/details?id=gg.praetorium) with the same Google account.
+3. [Install Praetorium from Google Play](https://play.google.com/store/apps/details?id=gg.praetorium) with the same Google account. If Google Play says the page isn't found, wait a few minutes or switch Google Play to that account.
+
+Each step in the badge's dialog shows the Google page it opens, with the button to tap ringed.
 
 Stay in the test for at least 14 days: Google only opens the app to everyone once enough testers have stayed opted in that long.
 

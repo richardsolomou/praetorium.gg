@@ -6,6 +6,10 @@ import { Dialog, DialogBody, DialogContent, DialogDescription, DialogHeader, Dia
 import { ANDROID_BETA, APP_STORE, GOOGLE_PLAY } from '../../projectLinks'
 import { useStoredValue, writeStoredValue } from '../../storedValue'
 import appStoreBadge from './app-store-badge.svg?no-inline'
+import becomeTesterShot from './beta-become-tester.webp?no-inline'
+import groupConfirmShot from './beta-group-confirm.webp?no-inline'
+import groupJoinShot from './beta-group-join.webp?no-inline'
+import installShot from './beta-install.webp?no-inline'
 import googlePlayBadge from './google-play-badge.png?no-inline'
 
 const DISMISSED_KEY = 'praetorium-apps-dismissed'
@@ -63,16 +67,35 @@ export function AppBand({ dismissable }: { dismissable: boolean }) {
 
 /**
  * The badge opens the steps rather than a store page, because Play admits only members of the testers' group to the
- * closed test. Each step's link opens in a new tab, so the dialog stays put and moves on to the next step.
+ * closed test. Each step's link opens in a new tab, so the dialog stays put and moves on to the next step. The current
+ * step shows Google's own page with the button to tap ringed, captured signed in as a Gmail account that had not joined.
  */
 function AndroidBeta({ beta }: { beta: { group: string; optIn: string } }) {
   const [done, setDone] = useState(0)
   const steps = [
-    { title: 'Join the testers’ group', text: 'Sign in to Google first, then tap Join group.', href: beta.group, action: 'Open group' },
-    { title: 'Become a tester', text: 'Opt in to the beta on Google Play.', href: beta.optIn, action: 'Opt in' },
+    {
+      title: 'Join the testers’ group',
+      text: 'Tap Join group, then Join group again to confirm.',
+      hint: 'Only see Sign in? Sign in at the top first.',
+      shots: [
+        { src: groupJoinShot, width: 352, height: 120, alt: 'The group page, with its Join group button ringed' },
+        { src: groupConfirmShot, width: 541, height: 280, alt: 'The join form, with its Join group button ringed' },
+      ],
+      href: beta.group,
+      action: 'Open group',
+    },
+    {
+      title: 'Become a tester',
+      text: 'Tap Become a tester on Google Play.',
+      shots: [{ src: becomeTesterShot, width: 541, height: 215, alt: 'The testing page, with its Become a tester button ringed' }],
+      href: beta.optIn,
+      action: 'Opt in',
+    },
     {
       title: 'Install Praetorium',
       text: 'From Google Play, signed in with the same Google account.',
+      hint: 'Page not found? Wait a few minutes, or switch Play to that account.',
+      shots: [{ src: installShot, width: 541, height: 325, alt: 'The store listing, with its Install button ringed' }],
       href: GOOGLE_PLAY,
       action: 'Install',
     },
@@ -89,34 +112,51 @@ function AndroidBeta({ beta }: { beta: { group: string; optIn: string } }) {
         </DialogHeader>
         <DialogBody>
           <ol className="relative grid gap-3 before:absolute before:top-5 before:bottom-5 before:left-[1.1875rem] before:w-px before:bg-runner">
-            {steps.map(({ title, text, href, action }, at) => {
+            {steps.map(({ title, text, hint, shots, href, action }, at) => {
               const state = at < done ? 'done' : at === done ? 'current' : 'next'
               return (
                 <li
                   key={title}
                   data-state={state}
-                  className="relative flex items-center gap-3 rounded-lg border border-edge bg-void/60 p-2.5 data-[state=current]:border-parchment/50 data-[state=current]:bg-raised"
+                  className="relative grid gap-2.5 rounded-lg border border-edge bg-void/60 p-2.5 data-[state=current]:border-parchment/50 data-[state=current]:bg-raised"
                 >
-                  <span
-                    aria-hidden
-                    className="grid size-7 shrink-0 place-items-center rounded-full border border-runner bg-panel font-display text-sm font-bold text-dim in-data-[state=current]:border-parchment in-data-[state=current]:text-parchment in-data-[state=done]:border-achieved in-data-[state=done]:text-achieved"
-                  >
-                    {state === 'done' ? <Check className="size-4" /> : at + 1}
+                  <span className="flex items-center gap-3">
+                    <span
+                      aria-hidden
+                      className="grid size-7 shrink-0 place-items-center rounded-full border border-runner bg-panel font-display text-sm font-bold text-dim in-data-[state=current]:border-parchment in-data-[state=current]:text-parchment in-data-[state=done]:border-achieved in-data-[state=done]:text-achieved"
+                    >
+                      {state === 'done' ? <Check className="size-4" /> : at + 1}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block leading-tight font-semibold in-data-[state=done]:text-dim">{title}</span>
+                      <span className="block text-sm text-dim">{text}</span>
+                    </span>
+                    <a
+                      href={href}
+                      rel="noreferrer noopener"
+                      target="_blank"
+                      onClick={() => setDone((current) => Math.max(current, at + 1))}
+                      className={buttonClass({ size: 'sm', variant: state === 'current' ? 'default' : 'ghost' })}
+                    >
+                      {state === 'done' ? 'Again' : action}
+                      <ExternalLink aria-hidden />
+                    </a>
                   </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block leading-tight font-semibold in-data-[state=done]:text-dim">{title}</span>
-                    <span className="block text-sm text-dim">{text}</span>
-                  </span>
-                  <a
-                    href={href}
-                    rel="noreferrer noopener"
-                    target="_blank"
-                    onClick={() => setDone((current) => Math.max(current, at + 1))}
-                    className={buttonClass({ size: 'sm', variant: state === 'current' ? 'default' : 'ghost' })}
-                  >
-                    {state === 'done' ? 'Again' : action}
-                    <ExternalLink aria-hidden />
-                  </a>
+                  {state === 'current' ? (
+                    <span className="grid gap-2 pl-10">
+                      {shots.map(({ src, width, height, alt }) => (
+                        <img
+                          key={src}
+                          src={src}
+                          alt={alt}
+                          width={width}
+                          height={height}
+                          className="w-full max-w-72 rounded-md border border-edge"
+                        />
+                      ))}
+                      {hint ? <span className="text-xs text-faint">{hint}</span> : null}
+                    </span>
+                  ) : null}
                 </li>
               )
             })}
