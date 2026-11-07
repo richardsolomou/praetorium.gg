@@ -22,7 +22,7 @@ export function ForceDispositionPage({ dispositionId }: { dispositionId: string 
     <main className="w-full">
       <PageHeader title={disposition.name} description={disposition.text} />
       <PageContent className="space-y-8">
-        <BackLink to="/force-dispositions">Force dispositions</BackLink>
+        <BackLink to="/missions">Missions</BackLink>
         {packs.map(({ pack, matchups }) => (
           <section key={pack.id}>
             <SectionHeading

@@ -20,13 +20,6 @@ const pages: GlobalSearchResult[] = [
   { id: 'page:new-roster', group: 'Pages', label: 'New roster', detail: 'Build a roster', href: '/rosters/new' },
   { id: 'page:factions', group: 'Pages', label: 'Factions', detail: 'Datasheets and detachment references', href: '/factions' },
   { id: 'page:missions', group: 'Pages', label: 'Missions', detail: 'Mission packs, scoring and deployments', href: '/missions' },
-  {
-    id: 'page:force-dispositions',
-    group: 'Pages',
-    label: 'Force dispositions',
-    detail: 'Primary mission matchups',
-    href: '/force-dispositions',
-  },
   { id: 'page:rules', group: 'Pages', label: 'Rules', detail: 'Core rules, missions and event rules', href: '/rules' },
   {
     id: 'page:docs',

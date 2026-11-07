@@ -41,14 +41,9 @@ export function MissionPackPage({ packId }: { packId: string }) {
         title={pack.name}
         help={<GuideHelp task="reference">Search help</GuideHelp>}
         actions={
-          <>
-            <Link to="/rosters/new" search={{ reference: 'mission-pack' }} className={buttonClass()}>
-              Build a roster
-            </Link>
-            <Link to="/force-dispositions" className={buttonClass({ variant: 'outline' })}>
-              Force dispositions
-            </Link>
-          </>
+          <Link to="/rosters/new" search={{ reference: 'mission-pack' }} className={buttonClass()}>
+            Build a roster
+          </Link>
         }
       >
         {allowances.length ? <p className="readout mt-1 text-xs text-dim">{allowances.join(' · ')}</p> : null}

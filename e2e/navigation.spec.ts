@@ -55,11 +55,7 @@ test('the mobile website uses application navigation below 860 pixels', async ({
   await expect(mobileHeader.getByRole('link', { name: 'Praetorium home' })).toBeVisible()
   await expect(mobileHeader.getByRole('button', { name: 'Search Praetorium' })).toBeVisible()
   await expect(mobileHeader.getByRole('button', { name: 'Account menu' })).toBeVisible()
-  await expect(mobileHeader.getByRole('link', { name: 'Discord', exact: true })).toHaveAttribute('href', 'https://discord.gg/RFUMZNFwMu')
-  await expect(mobileHeader.getByRole('link', { name: 'GitHub', exact: true })).toHaveAttribute(
-    'href',
-    'https://github.com/richardsolomou/praetorium.gg',
-  )
+  await expect(mobileHeader.getByRole('navigation', { name: 'Community' })).toHaveCount(0)
   await expect(primary).toBeHidden()
   await expect(sections).toBeVisible()
   await expect(sections.getByRole('link')).toHaveText(['Home', 'Rosters', 'Battles', 'Factions', 'More'])
@@ -71,19 +67,18 @@ test('the mobile website uses application navigation below 860 pixels', async ({
   await expect(more).toHaveAttribute('aria-current', 'page')
   // The URL can change before the home page has left the screen, so the links are read until the More page alone is there.
   await expect
-    .poll(() =>
-      page.locator('main section a').evaluateAll((links) => links.map((link) => new URL((link as HTMLAnchorElement).href).pathname)),
-    )
+    .poll(() => page.locator('main section a').evaluateAll((links) => links.map((link) => link.getAttribute('href'))))
     .toEqual([
       '/simulator',
       '/missions',
       '/rules',
-      '/force-dispositions',
+      '/docs',
       '/groups',
       '/tournaments',
       '/leaderboard',
+      'https://discord.gg/RFUMZNFwMu',
+      'https://github.com/richardsolomou/praetorium.gg',
       '/whats-new',
-      '/docs',
       '/data-updates',
       '/support',
     ])
@@ -106,10 +101,7 @@ test('the mobile website uses application navigation below 860 pixels', async ({
     .click()
   await expect(page).toHaveURL(/\/missions\//)
   await page.setViewportSize(PHONE)
-  await expect(page.getByRole('main').getByRole('link', { name: 'Force dispositions' })).toBeVisible()
   await page.screenshot({ path: test.info().outputPath('mission-reference-phone.png') })
-  await page.getByRole('main').getByRole('link', { name: 'Force dispositions' }).click()
-  await expect(page).toHaveURL('/force-dispositions')
   await expect(more).toHaveAttribute('aria-current', 'page')
 
   await page.setViewportSize({ width: 859, height: 844 })
@@ -118,7 +110,7 @@ test('the mobile website uses application navigation below 860 pixels', async ({
   await expect(sections).toBeVisible()
   await page.setViewportSize({ width: 860, height: 844 })
   const reference = page.getByRole('navigation', { name: 'Reference' })
-  await expect(reference.getByRole('link')).toHaveText(['Factions', 'Missions', 'Dispositions', 'Rules'])
+  await expect(reference.getByRole('link')).toHaveText(['Factions', 'Missions', 'Rules'])
   await expect(primary.getByRole('link')).toHaveText([
     'Rosters',
     'Battles',
@@ -131,11 +123,11 @@ test('the mobile website uses application navigation below 860 pixels', async ({
   await expect(webRail).toHaveJSProperty('scrollWidth', await webRail.evaluate((rail) => rail.clientWidth))
   await page.setViewportSize({ width: 910, height: 844 })
   await expect(primary.getByRole('link', { name: 'Rosters' }).locator('svg')).toHaveCount(1)
-  await expect(reference.getByRole('link', { name: 'Dispositions' }).locator('svg')).toHaveCount(1)
+  await expect(reference.getByRole('link', { name: 'Missions' }).locator('svg')).toHaveCount(1)
   await page.screenshot({ path: test.info().outputPath('navigation-desktop-910.png') })
-  await reference.getByRole('link', { name: 'Dispositions' }).click()
-  await expect(page).toHaveURL('/force-dispositions')
-  await expect(reference.getByRole('link', { name: 'Dispositions' })).toHaveAttribute('aria-current', 'page')
+  await reference.getByRole('link', { name: 'Missions' }).click()
+  await expect(page).toHaveURL(/\/missions\//)
+  await expect(reference.getByRole('link', { name: 'Missions' })).toHaveAttribute('aria-current', 'page')
   await expect(sections).toBeHidden()
   await expect(mobileHeader).toBeHidden()
   await expect(webRail).toHaveJSProperty('scrollWidth', await webRail.evaluate((rail) => rail.clientWidth))
@@ -247,7 +239,6 @@ document.addEventListener('DOMContentLoaded', () => { document.documentElement.d
   await expect(morePage.getByRole('link', { name: /^Tournaments/ })).toBeVisible()
   await expect(morePage.getByRole('link', { name: /^Leaderboard/ })).toBeVisible()
   await expect(morePage.getByRole('link', { name: /^Rules/ })).toBeVisible()
-  await expect(morePage.getByRole('link', { name: /^Force dispositions/ })).toBeVisible()
   await expect(morePage.getByRole('button', { name: 'Search Praetorium' })).toHaveCount(0)
   await expect(morePage.getByRole('link', { name: /^Sign in/ })).toHaveCount(0)
   await expect(mobileHeader.getByRole('button', { name: 'Search Praetorium' })).toBeVisible()
@@ -367,16 +358,8 @@ test('public reference data renders without client JavaScript', async ({ browser
   await expect(page).toHaveTitle(/Chapter Approved 2026-2027 missions — Praetorium/)
   await expectCanonical(page, '/missions/chapter-approved-2026-2027')
 
-  await page.getByRole('main').getByRole('link', { name: 'Force dispositions', exact: true }).click()
-  await expect(page).toHaveURL('/force-dispositions')
-  await expect(page.getByRole('heading', { name: 'Force dispositions', exact: true })).toBeVisible()
-  await expect(page.locator('a[href="/force-dispositions/take-and-hold"]')).toContainText('Take and Hold')
-  await expectCanonical(page, '/force-dispositions')
-  await page.setViewportSize(PHONE)
-  await expectNoPageOverflow(page)
-  await page.screenshot({ path: test.info().outputPath('force-dispositions-phone.png'), fullPage: true })
-  await page.setViewportSize({ width: 1_440, height: 900 })
-  await page.goBack()
+  await page.goto('/force-dispositions')
+  await expect(page).toHaveURL('/missions/chapter-approved-2026-2027')
 
   const secondaryLink = page.locator('a[href*="/secondaries/"]').first()
   const secondaryName = (await secondaryLink.locator('span').first().textContent())!
