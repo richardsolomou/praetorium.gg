@@ -1,28 +1,31 @@
-## After the game
+A finished battle shows the result, the battle events and a timeline you can scrub through turn by turn. Filter to **CP only** to check command point spending. Watchers can scrub a live battle, and seated players get the replay once it's finished.
 
-A finished battle shows the result, the battle events (filter to **CP only** to check command point spending) and a timeline you can scrub through turn by turn. Watchers can scrub a live battle; seated players get the replay once it's finished.
+Battles between accounts count in each player's record. A guest battle counts in your record, not on the leaderboard. Practice battles count nowhere.
 
-- Battles between accounts count in each player's record.
-- The [leaderboard](/leaderboard) lists everyone who has finished a guided battle, rated on every guided battle they've finished. A rating drifts down while you don't play. Until you've finished 5 battles counted in a table, you're listed there as not yet ranked, with no place or rating. A concession counts as a loss, and allies share their side's result. In a team battle, each side is rated on its players' average rating, so beating two players together counts like beating one player of that strength. Each army has one table, whatever rules version you played it under. Your battle list, your profile and every finished battle show how far each counted battle moved each player's rating, beside their name. Your profile also charts your overall rating after every counted battle.
-- A guest battle counts in your record, not on the leaderboard.
-- Practice battles count nowhere.
+## The leaderboard
 
-### Guests keeping the game
+The [leaderboard](/leaderboard) rates everyone on every guided battle they've finished. Until you've finished 5 battles counted in a table, you're listed as not yet ranked. A rating drifts down while you don't play.
 
-When the battle finishes, the guest's device shows **Keep this battle**. They choose **Create an account** or **I already have an account**, then **Add to my record**. It then counts as a game between two accounts: in both records and, if it was guided, on the leaderboard. The account they use can't already be seated in that battle.
+A concession counts as a loss, and allies share their side's result. In a team battle, each side is rated on its players' average rating. Each army has one table, whatever rules version you played it under.
+
+Your battle list, your profile and every finished battle show how far each counted battle moved each player's rating. Your profile also charts your overall rating.
+
+## Guests keeping the game
+
+When the battle finishes, the guest's device shows **Keep this battle**. They choose **Create an account** or **I already have an account**, then **Add to my record**. It then counts as a game between two accounts, and on the leaderboard if it was guided. The account they use can't already be seated in that battle.
 
 ## Achievements
 
-Every profile has an **Achievements** tab, and its first row is a tour of the app: build and publish a roster, run a simulation, play a guest, join a group, seal a list, add to your collection. Tap or hover a medal to see what earns it and when it was earned. Most medals belong to a series that counts up, such as battles finished, wins, win streaks and different opponents faced, and the medal shows the count it needs. Bronze medals are worth 10 points, silver 25, gold 50 and platinum 100, and the total shows under the player's name. When you earn one, a message says so once, on whichever device you're using, with a link to your achievements.
+Every profile has an **Achievements** tab. Tap or hover a medal to see what earns it. Bronze medals are worth 10 points, silver 25, gold 50 and platinum 100, and the total shows under the player's name.
 
-- Battle achievements count only battles that count for the leaderboard, so guest and practice battles never earn them. A conceded win is never a close one, and a streak ends at any loss or draw.
-- **Recruiter** goes to the player whose guest created an account to add the battle to their own record. Each guest counts once, and imported battles never count.
+- Battle achievements only count battles that count for the leaderboard, so guest and practice battles never earn them. A conceded win is never a close one, and a streak ends at any loss or draw.
+- **Recruiter** goes to the player whose guest created an account to add the battle to their record. Each guest counts once, and imported battles never count.
 - Group achievements count casual battles played for a group and the group's hidden-list games.
 - Tournament achievements need a Swiss tournament played to its last round.
 - **Admired** counts likes from other players on one collection photo.
-- Some medals count things only you can open, such as private rosters, friends, reminders, favourites and simulations. The medal shows that you reached the count, never what you built, who your friends are or what you simulated.
-- Painting medals count the models your collection marks painted. Nothing records when each was painted, so they show no date.
-- Achievements follow your battles: undo or delete the battle that earned one and it goes too.
+- Some medals count private things like rosters, friends and simulations. The medal shows you reached the count, never the details.
+- Painting medals count models your collection marks painted, so they show no date.
+- Undo or delete the battle that earned an achievement and it goes too.
 
 ## Who can watch
 

@@ -1,11 +1,18 @@
-The picker (**Add units** on smaller screens) lists every datasheet your faction and detachments allow, grouped as Epic heroes, Characters, Battleline, Infantry and so on, with allied units in their own collapsed section at the end.
+Press **+** on a unit's row to add it. To read the datasheet first, choose the unit's name, then **Add to list**. On smaller screens, open the picker with **Add units**.
 
-- **Search units, keywords, abilities…** matches names, keywords and ability names, including keywords your detachments give a unit.
+The picker shows every datasheet your faction and detachments allow, with allied units in a collapsed section at the end. Each row shows the price and how many you hold, such as **2/3 in roster**.
+
+## Find a unit
+
+**Search units, keywords, abilities…** matches names, keywords and ability names, including keywords your detachments give a unit. Then narrow the list:
+
 - **Points fit** hides anything that won't fit in the points you have left.
 - **Unit limit** hides anything you already hold as many of as you may.
-- The heart filter shows only your favourite datasheets, and the box filter only datasheets in your [collection](/collection), including those your models can also be. Both need an account. Favourites also sort to the top of each group.
-- **Legends** and **Crucible** show those datasheets, which are hidden otherwise. The builder doesn't check whether your event allows them. Their datasheets have no printed composition or default loadout, so those parts of the datasheet are left out.
-
-Each row shows its price and how many you hold, such as **2/3 in roster**. Choose a unit's name to read its datasheet first, then **Add to list**, or press **+** on the row.
+- The heart shows only your favourites, which also sort to the top of each group. It needs an account.
+- The box shows only datasheets in your [collection](/collection), including those your models can also be. It needs an account.
 
 ![The unit picker with its search box, filter chips and Space Marines characters.](screenshot:build-an-army-picker 'The filter row: Points fit, Unit limit, favourites, collection, Legends, Crucible and Format restrictions')
+
+## Legends and Crucible
+
+Turn on **Legends** or **Crucible** to show those datasheets. The builder doesn't check whether your event allows them, and they have no printed composition or default loadout.
