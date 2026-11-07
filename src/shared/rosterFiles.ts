@@ -317,11 +317,12 @@ function importTextRoster(
 
   const detachmentName = parsed.detachment
   const offered = loaded.detachments.get(faction.id)?.options ?? []
-  const whole = detachmentName ? detachmentsNamed(detachmentName, offered, translations) : []
+  const printed = printedDetachments(loaded)
+  const whole = detachmentName ? detachmentsNamed(detachmentName, offered, translations, printed) : []
   // Where one of several detachments is unknown, the others still count, so their enhancements stay. The last two are
   // joined by a word, "and" or a translation of it, that a detachment's own name can also hold, so a part splits at the
   // word only where one side is a known detachment.
-  const known = (name: string) => detachmentsNamed(name, offered, translations).length > 0
+  const known = (name: string) => detachmentsNamed(name, offered, translations, printed).length > 0
   const joined = (part: string) => {
     const words = part.split(' ')
     for (let at = 1; at < words.length - 1; at++) {
@@ -331,7 +332,7 @@ function importTextRoster(
     return [part]
   }
   const parts = whole.length || !detachmentName ? [] : detachmentName.split(/,\s+/).flatMap((part) => (known(part) ? [part] : joined(part)))
-  const detachments = whole.length ? whole : parts.flatMap((part) => detachmentsNamed(part, offered, translations))
+  const detachments = whole.length ? whole : parts.flatMap((part) => detachmentsNamed(part, offered, translations, printed))
   const unknown: UnmatchedName[] = parts
     .filter((part) => !known(part))
     .map((part) => ({ name: part, reason: unmatchedDetachmentReason(part, faction.id, loaded, removed) }))
@@ -365,18 +366,24 @@ function importTextRoster(
     return found ?? (rest.length && factionWords.has(first!) ? datasheetNamed(rest.join(' ')) : undefined)
   }
   // A list exported in another language names its units in it, as the French "Mékadakka de Gros Mek", in the words its
-  // datasheet's card prints or the community translations give.
+  // datasheet's card prints or the community translations give. Entries sharing a catalogue name, as Wolf Guard Headtakers
+  // and their Crusade variant, resolve as that name does.
   let printedDatasheets: Map<string, Set<string>> | undefined
   const printedDatasheet = (name: string) => {
     printedDatasheets ??= new Map(
       datasheets
-        .flatMap(({ id }) =>
-          (datacardOf(loaded, faction.id, id)?.details.printedName ?? []).map((printed) => [normalized(printed), id] as const),
+        .flatMap((datasheet) =>
+          (datacardOf(loaded, faction.id, datasheet.id)?.details.printedName ?? []).map(
+            (spelling) => [normalized(spelling), datasheet.name] as const,
+          ),
         )
-        .reduce((found, [printed, id]) => found.set(printed, (found.get(printed) ?? new Set()).add(id)), new Map<string, Set<string>>()),
+        .reduce(
+          (found, [spelling, own]) => found.set(spelling, (found.get(spelling) ?? new Set()).add(own)),
+          new Map<string, Set<string>>(),
+        ),
     )
-    const ids = printedDatasheets.get(name)
-    return ids?.size === 1 ? [...ids][0] : undefined
+    const owns = printedDatasheets.get(name)
+    return owns?.size === 1 ? datasheetNamed([...owns][0]!) : undefined
   }
   const namedInAnyLanguage = (name: string) =>
     datasheetNamed(name) ??
@@ -577,10 +584,24 @@ function attachTextUnits(units: readonly TextRosterUnit[], picks: { attachedTo?:
   }
 }
 
+const printedDetachmentCache = new WeakMap<LoadedCatalogue, Map<string, readonly string[]>>()
+/** Every spelling the cards print a detachment in, by its English name: Space Wolves field Space Marines' "Force d’Assaut Terminator". */
+const printedDetachments = (loaded: LoadedCatalogue) =>
+  remember(printedDetachmentCache, loaded, () => {
+    const found = new Map<string, readonly string[]>()
+    for (const content of new Set(loaded.factionContents.values()))
+      for (const names of content.printedDetachments ?? []) {
+        const key = normalized(names[0]!)
+        found.set(key, [...new Set([...(found.get(key) ?? []), ...names])])
+      }
+    return found
+  })
+
 function detachmentsNamed<T extends { id: string; name: string }>(
   combined: string,
   options: readonly T[],
   translations: CatalogueTranslations = NO_TRANSLATIONS,
+  printed: ReadonlyMap<string, readonly string[]> = new Map(),
 ): T[] {
   const names = new Map(
     options.map((option) => [
@@ -588,7 +609,7 @@ function detachmentsNamed<T extends { id: string; name: string }>(
       [
         ...new Set(
           detachmentNameVariants(option.name)
-            .flatMap((name) => translationsOf(name, translations))
+            .flatMap((name) => [...translationsOf(name, translations), ...(printed.get(normalized(name)) ?? [])])
             .map(normalized),
         ),
       ],
@@ -773,14 +794,19 @@ function textRosterPick(
       .find(Boolean)
   // The official app prints its datasheet card's names, which can be another spelling of the catalogue's in any language.
   const printedGroups = datacardOf(loaded, catalogueId, entryId)?.details.printedPieces ?? []
+  const printedAs = (label: string) => printedGroups.filter((names) => names.some((name) => normalized(name) === normalized(label)))
   const printed = (label: string, enhancement: boolean) =>
-    printedGroups
-      .filter((names) => names.some((name) => normalized(name) === normalized(label)))
+    printedAs(label)
       .flatMap((names) => names.filter((name) => normalized(name) !== normalized(label)))
       .map((name) => resolved(name, enhancement))
       .find(Boolean)
+  // A name only the card knows reads as its English one, so a French "Chef de Meute de Cavalerie sur Loups Tonnerre" is
+  // the "Thunderwolf Cavalry Pack Leader" its datasheet titles.
   const nameFor = (label: string, enhancement = false) =>
-    resolved(label, enhancement) ?? translated(label, enhancement) ?? printed(label, enhancement) ?? normalized(label)
+    resolved(label, enhancement) ??
+    translated(label, enhancement) ??
+    printed(label, enhancement) ??
+    normalized(printedAs(label)[0]?.[0] ?? label)
   const unitEnhancements = new Map<string, number>()
   for (const selection of unit.selections) {
     const enhancement = /^(?:Enhancements?|Upgrade):/i.test(selection.name)
@@ -803,7 +829,7 @@ function textRosterPick(
   }
   // The official app titles a model after its datasheet, as a "Thunderwolf Cavalry Pack Leader" the catalogue does not name;
   // a name the datasheet holds, as a "Piranha fusion blaster", is not one.
-  const ownNames = nameVariants(unit.name)
+  const ownNames = [unit.name, nameOf(loaded.index.definitions.get(entryId)!, loaded.index.definitions)].flatMap(nameVariants)
   const namedForUnit = (name: string) => !respelled.has(spellingKey(name)) && ownNames.some((own) => name.startsWith(`${own} `))
   const statedModels = [...stated].reduce((total, [name, count]) => total + (models.has(name) || namedForUnit(name) ? count : 0), 0)
   // Model lines size the unit; without them, its most numerous wargear stands in.

@@ -930,6 +930,45 @@ Exported with App Version: v2.8.1 (1), Data Version: v995`,
     expect([result.units.map((unit) => nameOf(definitions.get(unit.entryId)!, definitions)), result.unplaced]).toEqual([[datasheet], []])
   })
 
+  // Only the card's composition names the leaders, and only another faction's card names the detachment.
+  it('reads the models and detachments a French export names as the cards print them', () => {
+    const file = `Loups (565 Points)
+
+Space Marines
+Space Wolves
+Force d’Assaut Terminator et Saga du Loup Suprême (3 Points de Détachement)
+Force de Frappe (2 000 Points)
+
+AUTRES FICHES TECHNIQUES
+
+Cavalerie sur Loup Tonnerre (115 Points)
+  • 1x Chef de Meute de Cavalerie sur Loups Tonnerre
+     ◦ 1x Arme de Garde Loup
+     ◦ 1x Griffes et Crocs
+     ◦ 1x Pistolet Bolter
+  • 2x Cavalerie sur Loup Tonnerre
+     ◦ 2x Arme de Garde Loup
+     ◦ 2x Griffes et Crocs
+     ◦ 2x Pistolet Bolter
+
+Preneurs de Têtes Gardes Loups (85 Points)
+  • 3x Preneur de Têtes Garde Loup
+     ◦ 3x Paire d'Armes Énergétiques de Maître
+     ◦ 3x Pistolet Bolter Lourd
+
+Terminators Gardes Loups (365 Points)
+  • 1x Chef de Meute Terminator Garde Loup
+     ◦ 1x Arme Énergétique de Maître
+     ◦ 1x Bolter Tempête
+  • 9x Terminator Garde Loup
+     ◦ 9x Arme Énergétique de Maître
+     ◦ 9x Bolter Tempête
+
+Exported with App Version: v2.8.1 (1), Data Version: v995`
+    const { detachments, mismatches, points } = summary(file)
+    expect({ detachments, mismatches, points }).toEqual({ detachments: 2, mismatches: [], points: '565 for 565' })
+  })
+
   it.each([
     ['an export from older app data', custodesOfficial, { exported: 981, current: 995 }],
     ['an export from current app data', necronsOfficial, null],

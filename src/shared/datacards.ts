@@ -97,6 +97,8 @@ export type FactionContent = {
   datasheetIds: ReadonlyMap<string, DatasheetDetails>
   detachments: Set<string>
   detachmentFactions?: ReadonlyMap<string, string>
+  /** Each detachment the file prints in more than one spelling, every spelling together, the English first. */
+  printedDetachments?: readonly (readonly string[])[]
   /** Unambiguous cards by their detachment's accent- and spacing-insensitive join key. */
   enhancements: ReadonlyMap<string, readonly ConstructionEnhancement[]>
   stratagems: ReadonlyMap<string, readonly FactionStratagem[]>
@@ -354,6 +356,9 @@ export function factionContent(
     return description ? [description] : []
   })
   const sentences = restrictionSentences(name, worded)
+  const printedDetachments = records(parsed, 'detachments')
+    .map((entry) => printedIn(entry.name))
+    .filter((names) => names.length > 1)
   return {
     name,
     ...(typeof parsed.attribution === 'string' && parsed.attribution.trim()
@@ -376,6 +381,7 @@ export function factionContent(
         return detachment && faction ? [[detachment, faction] as const] : []
       }),
     ),
+    ...(printedDetachments.length ? { printedDetachments } : {}),
     enhancements,
     stratagems: new Map(
       [...stratagemCandidates].map(([detachment, cards]) => [
@@ -834,12 +840,57 @@ function printedIn(value: unknown): string[] {
   return [...new Set(names)]
 }
 
+const COUNT = String.raw`\d+(?:\s*\p{Pd}\s*\d+)?`
+/** How each language words a composition line, as the French "1 figurine de Chef de Meute de Griffes Sanglantes". */
+const COMPOSITION_LINES: Record<string, RegExp> = {
+  en: new RegExp(String.raw`^${COUNT}\s+(.+?)\s+models?$`, 'u'),
+  de: new RegExp(String.raw`^${COUNT}\s+(.+?)-Modelle?$`, 'u'),
+  es: new RegExp(String.raw`^${COUNT}\s+miniaturas?\s+(.+)$`, 'u'),
+  fr: new RegExp(String.raw`^${COUNT}\s+figurines?\s+d(?:e\s+|['’])(.+)$`, 'u'),
+  it: new RegExp(String.raw`^${COUNT}\s+modell[oi]\s+di\s+(.+)$`, 'u'),
+  ja: new RegExp(String.raw`^(.+?)・兵[:：]?${COUNT}体$`, 'u'),
+  ko: new RegExp(String.raw`^(.+?)\s+모델\s+${COUNT}개$`, 'u'),
+  zh: new RegExp(String.raw`^${COUNT}\s*(.+?)模型$`, 'u'),
+}
+/**
+ * The models a card's composition names in every language, which is often the only place it prints them: the app names
+ * a Blood Claws' leader "Chef de Meute de Griffes Sanglantes" in French, a model no profile or keyword carries.
+ */
+function compositionModels(value: unknown): string[][] {
+  return records(value, 'composition').flatMap((entry) => {
+    const lines = Object.entries(entry).flatMap(([language, text]) => {
+      const pattern = COMPOSITION_LINES[language]
+      if (!pattern || typeof text !== 'string') return []
+      const items = text.includes('<li>') ? [...text.matchAll(LIST_ITEM)].map((item) => item[1]!) : [text]
+      return [
+        {
+          language,
+          names: items.map(
+            (item) =>
+              pattern.exec(
+                item
+                  .replace(/^\s*•\s*/, '')
+                  .replaceAll(/\s+/g, ' ')
+                  .trim(),
+              )?.[1],
+          ),
+        },
+      ]
+    })
+    const inEnglish = lines.find((line) => line.language === 'en')?.names ?? []
+    // A language that splits the lines differently cannot say which of them is which.
+    const aligned = lines.filter((line) => line.names.length === inEnglish.length)
+    return inEnglish.flatMap((name, at) => (name ? [[name, ...aligned.flatMap((line) => line.names[at] ?? [])]] : []))
+  })
+}
+
 /** The names a datasheet's card prints in more than one spelling: its own, and each model's and piece of wargear's. */
 function printedNamesOf(value: unknown): Pick<DatasheetDetails, 'printedName' | 'printedPieces'> {
   const weapons = [...records(value, 'rangedWeapons'), ...records(value, 'meleeWeapons')].flatMap((weapon) => records(weapon, 'profiles'))
   const name = printedIn((value as Record<string, unknown>).name)
   const pieces = [
     ...records(value, 'modelKeywords').map((model) => printedIn(model.name)),
+    ...compositionModels(value).map((names) => [...new Set(names)]),
     ...weapons.map((profile) => printedIn(profile.name)),
     ...records(value, 'wargearOptions')
       .flatMap((group) => records(group, 'options'))
