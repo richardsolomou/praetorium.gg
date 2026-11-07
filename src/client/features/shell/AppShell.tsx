@@ -13,7 +13,6 @@ import {
   BookOpen,
   Calculator,
   Gavel,
-  Layers3,
   Medal,
   ScrollText,
   Swords,
@@ -73,7 +72,6 @@ const PRIMARY_LINKS = [
 const REFERENCE_LINKS = [
   { to: '/factions', label: 'Factions', Icon: UsersRound },
   { to: '/missions', label: 'Missions', Icon: BookOpen },
-  { to: '/force-dispositions', label: 'Dispositions', Icon: Layers3 },
   { to: '/rules', label: 'Rules', Icon: Gavel },
 ] as const
 
@@ -177,7 +175,7 @@ function SiteRail({ workspace }: { workspace: boolean }) {
             </RailTooltip>
             <Account className="size-8" />
             <span className="flex-1" />
-            <CommunityLinks compact />
+            <CommunityLinks />
           </div>
         </div>
       </div>
@@ -329,7 +327,6 @@ export function AppShell() {
                       </Link>
                       <div className="ml-auto flex shrink-0 items-center gap-1">
                         <GlobalSearch compact />
-                        <CommunityLinks />
                         <Account className="size-[44px]" />
                       </div>
                     </header>

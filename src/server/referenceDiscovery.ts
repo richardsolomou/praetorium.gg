@@ -14,7 +14,6 @@ const PUBLIC_PAGES = [
   '/',
   '/battles',
   '/factions',
-  '/force-dispositions',
   '/docs',
   '/leaderboard',
   '/tournaments',

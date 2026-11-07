@@ -122,7 +122,7 @@ test('the complete reference keeps its existing UI after a cold offline launch',
         .locator('nav[aria-label="Community"] img')
         .evaluateAll((icons) => icons.map((icon) => (icon as HTMLImageElement).complete && (icon as HTMLImageElement).naturalWidth > 0)),
     )
-    .toEqual([true, true, true, true])
+    .toEqual([true, true])
   await expect(offline.getByRole('region', { name: 'Offline reference' })).toHaveCount(0)
   await offline.locator('main details summary').first().click()
   await expect(offline.locator('main details').first()).toHaveAttribute('open', '')

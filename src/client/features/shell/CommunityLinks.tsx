@@ -7,15 +7,21 @@ import discordOfflineIcon from './discord.svg'
 import githubIcon from './github.svg?no-inline'
 import githubOfflineIcon from './github.svg'
 
-const links = [
-  { href: DISCORD, icon: discordIcon, offlineIcon: discordOfflineIcon, label: 'Discord', description: 'Join the Discord community' },
-  { href: SOURCE, icon: githubIcon, offlineIcon: githubOfflineIcon, label: 'GitHub', description: 'Browse the source on GitHub' },
+function brandIcon(online: string, offline: string) {
+  return function BrandIcon({ className }: { className?: string }) {
+    return <img src={offlineData() ? offline : online} alt="" aria-hidden className={className} />
+  }
+}
+
+export const COMMUNITY_LINKS = [
+  { href: DISCORD, Icon: brandIcon(discordIcon, discordOfflineIcon), label: 'Discord', description: 'Join the Discord community' },
+  { href: SOURCE, Icon: brandIcon(githubIcon, githubOfflineIcon), label: 'GitHub', description: 'Browse the source on GitHub' },
 ]
 
-export function CommunityLinks({ compact = false }: { compact?: boolean }) {
+export function CommunityLinks() {
   return (
     <nav aria-label="Community" className="inline-flex shrink-0 items-center gap-1">
-      {links.map(({ href, icon, offlineIcon, label, description }) => (
+      {COMMUNITY_LINKS.map(({ href, Icon, label, description }) => (
         <Tooltip key={label}>
           <TooltipTrigger
             render={
@@ -24,11 +30,11 @@ export function CommunityLinks({ compact = false }: { compact?: boolean }) {
                 aria-label={label}
                 target="_blank"
                 rel="noreferrer noopener"
-                className={buttonClass({ variant: 'ghost', size: 'icon', className: compact ? 'size-8' : 'size-[44px]' })}
+                className={buttonClass({ variant: 'ghost', size: 'icon', className: 'size-8' })}
               />
             }
           >
-            <img src={offlineData() ? offlineIcon : icon} alt="" aria-hidden className="size-4.5" />
+            <Icon className="size-4.5" />
           </TooltipTrigger>
           <TooltipContent role="tooltip">{description}</TooltipContent>
         </Tooltip>

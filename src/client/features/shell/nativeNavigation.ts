@@ -98,15 +98,7 @@ export function nativeNavigation(path: string, search: Record<string, unknown> =
     }
     return { back: '/rules', section: 'rules', title: 'Rules' }
   }
-  if (root === 'force-dispositions') {
-    return id
-      ? {
-          back: '/force-dispositions',
-          section: 'missions',
-          title: 'Force disposition',
-        }
-      : { back: '/more', section: 'missions', title: 'Force dispositions' }
-  }
+  if (root === 'force-dispositions') return { back: '/missions', section: 'missions', title: 'Force disposition' }
   if (root === 'more') return { title: 'More' }
   if (root === 'simulator') return { back: '/more', title: 'Combat simulator' }
   if (root === 'profile') return { back: '/', title: 'Account settings' }

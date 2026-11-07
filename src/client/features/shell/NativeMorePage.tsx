@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link, type LinkProps } from '@tanstack/react-router'
 import {
+  ArrowUpRight,
   BookOpen,
   Boxes,
   Calculator,
@@ -9,7 +10,6 @@ import {
   Gavel,
   GraduationCap,
   History,
-  Layers3,
   Medal,
   MessageSquareWarning,
   ShieldCheck,
@@ -19,7 +19,7 @@ import {
   Users,
   type LucideIcon,
 } from 'lucide-react'
-import type { ReactNode } from 'react'
+import type { ComponentType, ReactNode } from 'react'
 import { meQuery } from '../../queries'
 import { PageContent } from '../../components/Page'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
@@ -27,6 +27,7 @@ import { openConversations, unreadReplies, useSupportTickets } from '../feedback
 import { countLabel } from '../../text'
 import { useUnseenRelease } from './seenRelease'
 import { UnseenDot, unseenLabel } from './WhatsNew'
+import { COMMUNITY_LINKS } from './CommunityLinks'
 
 type MoreLink = { icon: LucideIcon; label: string; to: LinkProps['to'] }
 type Tool = MoreLink & { description: string }
@@ -35,7 +36,7 @@ const TOOLS: readonly Tool[] = [
   { description: 'Damage and kill odds for any attack', icon: Calculator, label: 'Combat simulator', to: '/simulator' },
   { description: 'Packs, scoring and deployments', icon: BookOpen, label: 'Missions', to: '/missions' },
   { description: 'Core rules, missions and event rules', icon: Gavel, label: 'Rules', to: '/rules' },
-  { description: 'Primary mission matchups', icon: Layers3, label: 'Force dispositions', to: '/force-dispositions' },
+  { description: 'Army lists, imports and battle tracking', icon: GraduationCap, label: 'Docs', to: '/docs' },
 ]
 
 const COMMUNITY: readonly MoreLink[] = [
@@ -50,20 +51,28 @@ const ACCOUNT: readonly MoreLink[] = [{ icon: Boxes, label: 'Collection', to: '/
 
 const WHATS_NEW: MoreLink = { icon: Sparkles, label: "What's new", to: '/whats-new' }
 
-const HELP: readonly MoreLink[] = [
-  { icon: GraduationCap, label: 'Docs', to: '/docs' },
-  { icon: History, label: 'Data updates', to: '/data-updates' },
-]
+const HELP: readonly MoreLink[] = [{ icon: History, label: 'Data updates', to: '/data-updates' }]
 
 const rowClass = 'flex min-h-12 w-full items-center gap-3 px-3.5 py-2 text-left text-bone transition-colors hover:bg-raised'
 
-function Row({ icon: Icon, label, status }: { icon: LucideIcon; label: string; status?: ReactNode }) {
+function Row({
+  icon: Icon,
+  label,
+  status,
+  external = false,
+}: {
+  icon: ComponentType<{ className?: string; 'aria-hidden'?: boolean }>
+  label: string
+  status?: ReactNode
+  external?: boolean
+}) {
+  const Trailing = external ? ArrowUpRight : ChevronRight
   return (
     <>
       <Icon className="size-4.5 shrink-0 text-dim" aria-hidden />
       <span className="min-w-0 flex-1 truncate font-semibold">{label}</span>
       {status}
-      <ChevronRight className="size-4 shrink-0 text-faint" aria-hidden />
+      <Trailing className="size-4 shrink-0 text-faint" aria-hidden />
     </>
   )
 }
@@ -139,6 +148,11 @@ export function NativeMorePage() {
         <div className="grid content-start gap-6 sm:grid-cols-2">
           <Group id="more-community-heading" title="Community">
             <Links links={me ? [...COMMUNITY, FRIENDS] : COMMUNITY} />
+            {COMMUNITY_LINKS.map(({ href, Icon, label }) => (
+              <a key={href} href={href} target="_blank" rel="noreferrer noopener" className={rowClass}>
+                <Row icon={Icon} label={label} external />
+              </a>
+            ))}
           </Group>
           {me ? (
             <Group id="more-account-heading" title="Your things">

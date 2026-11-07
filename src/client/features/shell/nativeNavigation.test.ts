@@ -24,7 +24,6 @@ describe('native application navigation', () => {
     ['/rules', 'rules', 'Rules'],
     ['/leaderboard', 'leaderboard', 'Leaderboard'],
     ['/missions', 'missions', 'Missions'],
-    ['/force-dispositions', 'missions', 'Force dispositions'],
   ])('returns from %s to the More screen that lists it', (path, section, title) => {
     expect(nativeNavigation(path)).toEqual({ back: '/more', section, title })
   })
@@ -72,7 +71,7 @@ describe('native application navigation', () => {
     [
       '/force-dispositions/take-and-hold',
       {
-        back: '/force-dispositions',
+        back: '/missions',
         section: 'missions',
         title: 'Force disposition',
       },

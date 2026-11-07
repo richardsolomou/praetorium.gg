@@ -236,9 +236,7 @@ it('dates no reference page the history cannot date', async () => {
 })
 
 it('lists every force disposition page', async () => {
-  expect(await sitemap()).toMatch(
-    /<loc>https:\/\/praetorium\.gg\/force-dispositions<\/loc>.*<loc>https:\/\/praetorium\.gg\/force-dispositions\/take-and-hold<\/loc>/s,
-  )
+  expect(await sitemap()).toContain('<loc>https://praetorium.gg/force-dispositions/take-and-hold</loc>')
 })
 
 it('lists no data updates for a snapshot that carries none', async () => {
