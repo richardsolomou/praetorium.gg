@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.222.4 (2026-11-07)
+
+### Patch Changes
+
+- 473e5a0: Force dispositions now live on the Missions page, so the separate Dispositions page and menu entry are gone; each disposition's own page still lists its missions and detachments.
+- 473e5a0: On phones, the Discord and GitHub links have moved from the top bar to the Community section of More, and Docs is now a tile at the top of More.
+
 ## 0.222.3 (2026-11-07)
 
 ### Patch Changes
