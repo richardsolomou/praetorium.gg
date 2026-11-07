@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.222.5 (2026-11-07)
+
+### Patch Changes
+
+- d0d485d: The side menu now keeps Groups, Tournaments and Leaderboard together under Community.
+
 ## 0.222.4 (2026-11-07)
 
 ### Patch Changes
