@@ -2,15 +2,15 @@
 
 ### Add is greyed out
 
-You've reached that datasheet's limit, shown as "Limit reached: 3 of 3 permitted copies in the roster." "No copies available with the current detachments and prerequisite units." means the unit needs a different detachment or another unit first.
+You've reached that datasheet's limit, shown as "Limit reached: 3 of 3 permitted copies in the roster." If it says "No copies available with the current detachments and prerequisite units.", the unit needs a different detachment or another unit first.
 
 ### A unit isn't in the picker
 
-Check the filters ("Everything is filtered out." means they hide every match), your detachments, and, for a Legends or Crucible datasheet, whether **Legends** or **Crucible** is on.
+Check your filters ("Everything is filtered out." means they hide every match) and your detachments. For a Legends or Crucible datasheet, turn on **Legends** or **Crucible**.
 
 ### I can't select a detachment
 
-A greyed card explains itself: "An army can include only one … detachment". If they're selectable but the dialog says the combination costs too many DP, drop one or move up a battle size.
+A greyed card tells you why: "An army can include only one … detachment". If the dialog says the combination costs too many DP, drop one or move up a battle size.
 
 ### Attach to unit doesn't appear
 
@@ -28,4 +28,4 @@ Unlock it from the roster menu, or create a variant.
 
 - A roster holds at most 100 entries, and roster names are up to 80 characters.
 - A clean footer doesn't promise a legal list. Anything under **Could not check every rule**, and your event's own restrictions, are yours to check.
-- Lists already taken into a battle or tournament keep the version they were fielded with; editing the roster afterwards doesn't change them.
+- Lists already taken into a battle or tournament keep the version they were fielded with. Editing the roster afterwards doesn't change them.
