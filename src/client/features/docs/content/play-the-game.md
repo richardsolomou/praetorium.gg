@@ -18,7 +18,7 @@ In a manual battle, each side has **−1**, **+1** and **+5** buttons for primar
 
 Guided battles give each side its Command phase CP automatically. **+1 CP** records your one extra command point for the round, then reads **CP gain used**. Discarding a secondary for CP uses the same allowance.
 
-To use a stratagem, press its cost button, for example **2 CP**. If the cost depends on the board, the **⋮** beside it lets you spend a different amount. A greyed-out stratagem shows why on hover.
+To use a stratagem, press its cost button, for example **2 CP**. If the cost depends on the board, the **⋮** beside it lets you spend a different amount. A greyed-out stratagem shows why on hover: wrong phase, wrong turn, not enough CP, or its use limit is already spent.
 
 ![A player's panel with victory points, command points, +1 CP, mission cards and stratagems, each stratagem with a 1 CP button.](screenshot:track-a-battle-stratagems "A stratagem's cost button")
 

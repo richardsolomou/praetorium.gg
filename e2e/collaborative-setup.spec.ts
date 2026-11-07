@@ -80,8 +80,8 @@ test('battle setup stays shared and does not wait for the other device', async (
 
   await attachRoster(alice, incursionRoster)
   await expect(bob.getByText(incursionRoster, { exact: true }).first()).toBeVisible()
-  await expect(alice.getByText('Choose matching roster formats for each side. Allies split the points evenly.')).toBeVisible()
-  await expect(bob.getByText('Choose matching roster formats for each side. Allies split the points evenly.')).toBeVisible()
+  await expect(alice.getByText('Choose matching roster formats for each side.')).toBeVisible()
+  await expect(bob.getByText('Choose matching roster formats for each side.')).toBeVisible()
   await expect(alice.getByRole('button', { name: 'Start battle', exact: true })).toBeDisabled()
   await expect(alice.locator('[data-setup-bar]')).toContainText('Battle size')
   await expect(alice.getByText(bobRoster, { exact: true }).first()).toBeVisible()

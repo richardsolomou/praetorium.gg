@@ -79,7 +79,19 @@ it('compares a pull request with the base its merge commit was built on, not the
   git('checkout', '--quiet', '-')
   fs.writeFileSync(path.join(root, 'runtime.ts'), 'export const runtime = false\n')
   commit()
-  git('-c', 'user.name=Test', '-c', 'user.email=test@example.com', 'merge', '--quiet', '--no-ff', '--no-edit', 'feature')
+  git(
+    '-c',
+    'user.name=Test',
+    '-c',
+    'user.email=test@example.com',
+    '-c',
+    'commit.gpgsign=false',
+    'merge',
+    '--quiet',
+    '--no-ff',
+    '--no-edit',
+    'feature',
+  )
   const step = scope.jobs.changes.steps.find((candidate) => candidate.id === 'scope')!
   const result = spawnSync('bash', ['-c', step.run.replace('scripts/ciScope.ts', script)], {
     cwd: root,

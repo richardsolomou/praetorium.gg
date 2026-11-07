@@ -12,6 +12,10 @@ Your lists were built for different sizes or budgets. Pick lists built for the s
 
 In a 2v1 or doubles battle each side has its own points per army, shown beside **Battle size**. Use **Set points per army**, switch on **Allies split their points**, or bring a list that spends less.
 
+### "allies spend more than their … points"
+
+The two lists on a side cost more together than that side's points. Bring a list that spends less, or edit one.
+
 ### "choose lists saved to the same points total"
 
 Allies on one side bring lists saved to the same points total. Change one ally's list, or set its points total in the builder to match.
@@ -54,7 +58,7 @@ Praetorium only rebuilds an army when it finds every unit in it. Otherwise the a
 
 ## Limits
 
-- Praetorium records what you tell it. It doesn't roll dice, check movement, range or line of sight, or judge whether a score was earned.
+- Praetorium records what you tell it. It doesn't roll dice, check movement, range or line of sight, or judge whether a score was earned. In a manual battle it doesn't check scores or CP at all.
 - There's no computer opponent. A practice opponent is a side you play yourself.
 - Guests can't sit on your side or play in tournaments.
 - A finished battle can't be reopened from the app, except by a Swiss tournament's organizer from the tournament page.

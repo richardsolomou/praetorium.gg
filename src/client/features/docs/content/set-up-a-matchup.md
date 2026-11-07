@@ -27,4 +27,4 @@ When you're signed in, choose a roster under **Attacking with** or **Defending w
 
 That side keeps the roster's detachment, enhancements, attachments and army rules. Attachments come from the list itself, so you can't add or remove members there. The **×** on the roster line keeps the unit and its loadout but drops the roster.
 
-As well as **Your rosters**, you can pick from **Friends' rosters** (their public lists), **Lent by friends** and **Friends' sealed rosters**. Sealed lists appear once a tournament or group hidden-list game you can see is revealed, and stay while it's still on.
+As well as **Your rosters**, you can pick from **Friends' rosters** (their public lists), **Lent by friends** and **Friends' sealed rosters**. Sealed lists appear once a tournament or group hidden-list game you can see is revealed, and stay while it's still on: a hidden-list game until it moves to past games, a Swiss tournament until its last round is played.

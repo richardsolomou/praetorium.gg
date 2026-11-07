@@ -28,6 +28,10 @@ Part of the code was lost while copying. Copy the whole code again, or scan the 
 
 It was made by a newer version. Refresh the page or update the app.
 
+### The code "uses format …, which Praetorium no longer reads"
+
+The code is too old to open. Ask for a new code.
+
 ### The code uses "a rules version that is not available here"
 
 Ask the sender to move the roster onto a current rules version, or to send **Export text** instead.

@@ -6,7 +6,7 @@ Battles between accounts count in each player's record. A guest battle counts in
 
 The [leaderboard](/leaderboard) rates everyone on every guided battle they've finished. Until you've finished 5 battles counted in a table, you're listed as not yet ranked. A rating drifts down while you don't play.
 
-A concession counts as a loss, and allies share their side's result. In a team battle, each side is rated on its players' average rating. Each army has one table, whatever rules version you played it under.
+A concession counts as a loss, and allies share their side's result. In a team battle, each side is rated on its players' average rating, so beating two players together counts like beating one player of that strength. Each army has one table, whatever rules version you played it under.
 
 Your battle list, your profile and every finished battle show how far each counted battle moved each player's rating. Your profile also charts your overall rating.
 

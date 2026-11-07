@@ -121,6 +121,8 @@ test('the mobile website uses application navigation below 860 pixels', async ({
   await reference.getByRole('link', { name: 'Missions' }).click()
   await expect(page).toHaveURL(/\/missions\//)
   await expect(reference.getByRole('link', { name: 'Missions' })).toHaveAttribute('aria-current', 'page')
+  await page.goto('/force-dispositions/take-and-hold')
+  await expect(reference.getByRole('link', { name: 'Missions' })).toHaveAttribute('aria-current', 'page')
   await expect(sections).toBeHidden()
   await expect(mobileHeader).toBeHidden()
   await expect(webRail).toHaveJSProperty('scrollWidth', await webRail.evaluate((rail) => rail.clientWidth))
