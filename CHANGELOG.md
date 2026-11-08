@@ -1,5 +1,14 @@
 # praetorium
 
+## 0.222.9 (2026-11-08)
+
+### Patch Changes
+
+- 7f99d3a: A sudden flood of automated visitors no longer takes the site offline for players.
+- d14ba2c: When a unit is at its limit, its menu now says why Duplicate unit is unavailable.
+- 5010aaa: Your rosters no longer jump down the page as the library finishes loading.
+- d07261e: When a plus button stops at a limit, such as a unit's largest size, the limit now shows next to it without moving the controls around it.
+
 ## 0.222.8 (2026-11-07)
 
 ### Patch Changes
