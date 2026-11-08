@@ -12,7 +12,7 @@ Pairings start at full health, or current health in a battle. Supported always-o
 
 ## Read the table
 
-**Show** switches between wounds lost, models lost, uncapped kills and destruction chance. Click any cell to open that matchup in full.
+**Show** switches between wounds lost, average damage, models lost, uncapped kills and destruction chance. Click any cell to open that matchup in full.
 
 **Highlight** marks the best target for each attacker, or the best attacker for each target. Each one is judged on its own, so it isn't a plan for the whole turn.
 

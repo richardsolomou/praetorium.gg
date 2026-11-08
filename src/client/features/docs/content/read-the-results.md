@@ -1,6 +1,8 @@
-The bar along the bottom updates as you change anything. **Shooting + melee** shows the **chance to destroy** the defender, the **avg. wounds lost** and the **avg. models lost**.
+The bar along the bottom updates as you change anything. **Shooting + melee** shows the **chance to destroy** the defender, the **avg. damage** and the **avg. models lost**.
 
 A higher average doesn't always mean a better chance to wipe the unit. Only the destruction chance tells you that.
+
+**Avg. damage** doesn't stop at the target's total wounds, so you can compare attackers that would all usually destroy it. Damage past a model's last wound is still lost, because it doesn't carry over to the next model. **Breakdown** has the wounds the target actually loses. On a target with mixed profiles you'll see **avg. wounds lost** in the bar instead.
 
 If the attacker would usually destroy the whole target, you may see **uncapped kills** instead of models lost. That's the average models destroyed if the target had enough models to absorb every attack.
 
