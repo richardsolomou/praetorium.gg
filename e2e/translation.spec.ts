@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './test'
-import { chooseUnit, retryUntilVisible, signUp, uniqueName, visitorSetup } from './account'
+import { chooseUnit, openImport, retryUntilVisible, signUp, uniqueName, visitorSetup } from './account'
 
 async function replaceTranslatedText(page: Page) {
   await page.evaluate(() => {
@@ -61,4 +61,43 @@ test('a translated virtualized unit selector opens a reference unit in the simul
   await expect(unit).toContainText('Imotekh the Stormlord')
   await page.reload()
   await expect(unit).toContainText('Imotekh the Stormlord')
+})
+
+test('a translated friends page survives a button changing the icon beside its label', async ({ browser }) => {
+  const context = await browser.newContext({ permissions: ['clipboard-read', 'clipboard-write'] })
+  const page = await context.newPage()
+  await signUp(page, uniqueName('Translated friends'))
+  await page.goto('/friends')
+  await page.getByRole('button', { name: 'Create invite link' }).click()
+  await expect(page.getByRole('button', { name: 'Link copied' })).toBeVisible()
+  await page.reload()
+  await page.waitForLoadState('networkidle')
+  const copy = page.getByRole('button', { name: 'Copy invite link' })
+  await expect(copy).toBeVisible()
+  await replaceTranslatedText(page)
+  await copy.click()
+  await expect(copy.locator('svg.lucide-check')).toBeVisible()
+  await expect(page.locator('[data-route-error]')).toHaveCount(0)
+  await page.screenshot({ path: test.info().outputPath('translated-friends-invite.png'), fullPage: true })
+})
+
+test('a translated rosters page survives an import button changing the icon beside its label', async ({ page }) => {
+  await signUp(page, uniqueName('Translated import'))
+  const dialog = await openImport(page)
+  await page.waitForLoadState('networkidle')
+  await dialog.getByLabel('Roster text').fill('Not a roster')
+  await replaceTranslatedText(page)
+  await dialog.getByRole('button', { name: 'Import pasted roster', exact: true }).click()
+  await expect(dialog.getByRole('alert')).toBeVisible()
+  await expect(page.locator('[data-route-error]')).toHaveCount(0)
+})
+
+test('removing a text node translation has already replaced leaves the page alone', async ({ page }) => {
+  await page.goto('/')
+  await page.waitForLoadState('networkidle')
+  const removed = await page.evaluate(() => {
+    const replaced = document.createTextNode('Translated')
+    return document.body.removeChild(replaced) === replaced
+  })
+  expect(removed).toBe(true)
 })
