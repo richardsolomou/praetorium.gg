@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.224.2 (2026-11-08)
+
+### Patch Changes
+
+- 2709bed: The site no longer freezes for about twenty seconds shortly after an update.
+
 ## 0.224.1 (2026-11-08)
 
 ### Patch Changes
