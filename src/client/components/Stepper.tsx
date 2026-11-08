@@ -74,13 +74,11 @@ export function Stepper({
       {reason && !reasonBeside ? <BlockedReason id={reasonId}>{reason}</BlockedReason> : null}
     </span>
   )
-  return reasonBeside ? (
+  return reasonBeside && reason ? (
     <span className="flex min-w-0 items-center gap-1.5">
-      {reason ? (
-        <BlockedReason id={reasonId} beside>
-          {reason}
-        </BlockedReason>
-      ) : null}
+      <BlockedReason id={reasonId} beside>
+        {reason}
+      </BlockedReason>
       {stepper}
     </span>
   ) : (

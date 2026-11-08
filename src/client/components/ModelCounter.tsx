@@ -128,14 +128,14 @@ export function ModelCounter({
       </span>
       {counter}
     </span>
-  ) : (
+  ) : atMax ? (
     <span className="flex min-w-0 items-center gap-1.5">
-      {atMax ? (
-        <BlockedReason id={reasonId} beside>
-          {blocked}
-        </BlockedReason>
-      ) : null}
+      <BlockedReason id={reasonId} beside>
+        {blocked}
+      </BlockedReason>
       {counter}
     </span>
+  ) : (
+    counter
   )
 }
