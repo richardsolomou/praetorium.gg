@@ -1,5 +1,13 @@
 # praetorium
 
+## 0.222.10 (2026-11-08)
+
+### Patch Changes
+
+- 76d0998: The signed-out home page now points to the faction datasheets on their own, without separate links to missions and rules.
+- dce37a2: A saved offline copy of the app from an older release no longer shows an error page.
+- 7b96ea1: Pages translated by your browser no longer break with an error page when buttons change.
+
 ## 0.222.9 (2026-11-08)
 
 ### Patch Changes
