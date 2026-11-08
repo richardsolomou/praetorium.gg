@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.222.12 (2026-11-08)
+
+### Patch Changes
+
+- 51eeaad: Twenty-model Khorne Berzerkers can now take all four eviscerators.
+- 51eeaad: Ten-model Purifier Squads, and other squads whose special weapon limit grows with size, can now take all the special weapons they are allowed.
+
 ## 0.222.11 (2026-11-08)
 
 ### Patch Changes
