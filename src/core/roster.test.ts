@@ -6,6 +6,7 @@ import { buildUnit, resolveUnitChoice } from './roster'
 import { unitChoices } from './unitChoices'
 import { modelKindsOf } from './modelKinds'
 import { withUnitSpread } from './unitSpread'
+import { countAt } from './selection'
 import { modelCountOf, sizeOf } from './unitSize'
 import { wargearOf } from './wargear'
 
@@ -2822,6 +2823,195 @@ describe('specialists joining the models a unit is sized by', () => {
     const built = buildUnit('beserks', index, 10)!
     const choice = unitChoices('beserks', built.selection, index).find((candidate) => candidate.key === 'squad')
     expect(choice?.options.find((option) => option.id === 'gauntlets')?.max).toBe(2)
+  })
+})
+
+describe('specialists under a cap that grows with the squad', () => {
+  const index = indexOf({
+    sharedSelectionEntries: [
+      {
+        id: 'squad',
+        name: 'Squad',
+        type: 'unit',
+        selectionEntries: [
+          {
+            id: 'sergeant',
+            name: 'Sergeant',
+            type: 'model',
+            constraints: [
+              { id: 'sergeant-min', type: 'min', value: 1, field: 'selections', scope: 'parent' },
+              { id: 'sergeant-max', type: 'max', value: 1, field: 'selections', scope: 'parent' },
+            ],
+          },
+        ],
+        selectionEntryGroups: [
+          {
+            id: 'bodies',
+            name: '4-9 Marines',
+            constraints: [
+              { id: 'bodies-min', type: 'min', value: 4, field: 'selections', scope: 'parent' },
+              { id: 'bodies-max', type: 'max', value: 9, field: 'selections', scope: 'parent' },
+            ],
+            selectionEntries: [
+              {
+                id: 'marine',
+                name: 'Marine',
+                type: 'model',
+                constraints: [
+                  { id: 'marine-min', type: 'min', value: 2, field: 'selections', scope: 'parent' },
+                  { id: 'marine-max', type: 'max', value: 9, field: 'selections', scope: 'parent' },
+                ],
+              },
+            ],
+            defaultSelectionEntryId: 'marine',
+            selectionEntryGroups: [
+              {
+                id: 'heavy',
+                name: 'Heavy weapons',
+                constraints: [{ id: 'heavy-max', type: 'max', value: 2, field: 'selections', scope: 'parent' }],
+                modifiers: [
+                  {
+                    field: 'heavy-max',
+                    type: 'set',
+                    value: 4,
+                    conditions: [
+                      {
+                        childId: 'model',
+                        field: 'selections',
+                        includeChildSelections: true,
+                        scope: 'squad',
+                        type: 'atLeast',
+                        value: 10,
+                      },
+                    ],
+                  },
+                ],
+                selectionEntries: [
+                  {
+                    id: 'gunner',
+                    name: 'Marine w/ cannon',
+                    type: 'model',
+                    constraints: [{ id: 'gunner-max', type: 'max', value: 4, field: 'selections', scope: 'parent' }],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  })
+
+  it('holds what the full size allows when the smallest size could not', () => {
+    const built = buildUnit('squad', index, 10, undefined, { spreads: { 'bodies/heavy': { gunner: 4 } } })!
+
+    expect(countAt(built.selection, ['bodies', 'heavy', 'gunner'])).toBe(4)
+  })
+
+  it('keeps the squad at the size asked for', () => {
+    const built = buildUnit('squad', index, 10, undefined, { spreads: { 'bodies/heavy': { gunner: 4 } } })!
+
+    expect(modelCountOf(built.selection, index)).toBe(10)
+  })
+
+  it('leaves room to add the last specialist', () => {
+    const built = buildUnit('squad', index, 10, undefined, { spreads: { 'bodies/heavy': { gunner: 3 } } })!
+    const choice = unitChoices('squad', built.selection, index).find((candidate) => candidate.key === 'bodies/heavy')
+
+    expect(choice?.options[0]?.max).toBe(4)
+  })
+})
+
+describe('specialists whose caps grow with the squad and lower each other', () => {
+  const perFive = (field: string) => ({
+    field,
+    type: 'increment' as const,
+    value: 1,
+    repeats: [
+      { childId: 'model', field: 'selections', includeChildSelections: true, repeats: 1, roundUp: false, scope: 'squad', value: 5 },
+    ],
+  })
+  const lessPer = (field: string, childId: string) => ({
+    field,
+    type: 'decrement' as const,
+    value: 1,
+    repeats: [{ childId, field: 'selections', includeChildSelections: true, repeats: 1, roundUp: false, scope: 'squad', value: 1 }],
+  })
+  const index = indexOf({
+    sharedSelectionEntries: [
+      {
+        id: 'squad',
+        name: 'Squad',
+        type: 'unit',
+        selectionEntries: [
+          {
+            id: 'champion',
+            name: 'Champion',
+            type: 'model',
+            constraints: [
+              { id: 'champion-min', type: 'min', value: 1, field: 'selections', scope: 'parent' },
+              { id: 'champion-max', type: 'max', value: 1, field: 'selections', scope: 'parent' },
+            ],
+          },
+        ],
+        selectionEntryGroups: [
+          {
+            id: 'bodies',
+            name: '9-19 Marines',
+            constraints: [
+              { id: 'bodies-min', type: 'min', value: 9, field: 'selections', scope: 'parent' },
+              { id: 'bodies-max', type: 'max', value: 19, field: 'selections', scope: 'parent' },
+            ],
+            defaultSelectionEntryId: 'marine',
+            selectionEntries: [
+              {
+                id: 'marine',
+                name: 'Marine',
+                type: 'model',
+                constraints: [
+                  { id: 'marine-min', type: 'min', value: 5, field: 'selections', scope: 'parent' },
+                  { id: 'marine-max', type: 'max', value: 19, field: 'selections', scope: 'parent' },
+                ],
+              },
+            ],
+            selectionEntryGroups: [
+              {
+                id: 'alternates',
+                name: 'Alternate weapons',
+                selectionEntries: [
+                  {
+                    id: 'axe',
+                    name: 'Marine w/ axe',
+                    type: 'model',
+                    constraints: [{ id: 'axe-max', type: 'max', value: 0, field: 'selections', scope: 'parent' }],
+                    modifiers: [perFive('axe-max'), lessPer('axe-max', 'sword')],
+                  },
+                  {
+                    id: 'sword',
+                    name: 'Marine w/ sword',
+                    type: 'model',
+                    constraints: [{ id: 'sword-max', type: 'max', value: 0, field: 'selections', scope: 'parent' }],
+                    modifiers: [perFive('sword-max'), lessPer('sword-max', 'axe')],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  })
+
+  it('holds what the full size allows when the smallest size could not', () => {
+    const built = buildUnit('squad', index, 20, undefined, { spreads: { 'bodies/alternates': { axe: 4 } } })!
+
+    expect(countAt(built.selection, ['bodies', 'alternates', 'axe'])).toBe(4)
+  })
+
+  it('keeps the squad at the size asked for', () => {
+    const built = buildUnit('squad', index, 20, undefined, { spreads: { 'bodies/alternates': { axe: 4 } } })!
+
+    expect(modelCountOf(built.selection, index)).toBe(20)
   })
 })
 

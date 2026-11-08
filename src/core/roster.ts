@@ -2,7 +2,7 @@
 
 import { type CatalogueIndex, type Definition, resolve } from './catalogue'
 import { isCollective, storesUnitTotal } from './collective'
-import { childrenOf, MAX_DEPTH, maximumCount, type Option, pointsOf, requiredCount } from './definitions'
+import { childrenOf, MAX_DEPTH, maximumCount, maximumCountAt, type Option, pointsOf, requiredCount } from './definitions'
 import { evaluate, type EvaluateOptions, type Selection } from './evaluate'
 import { defaultSelection, expand, withChoice } from './expand'
 import { allAt, at as selectionAt, countAt, updateSelection, withCounts } from './selection'
@@ -183,11 +183,17 @@ function assemble(
   const resized = withCounts(toggled, [{ path: size.path, count: Math.max(0, current + (wanted - size.models)) }])
   const resizedModel = `${size.path.join('/')}/`
   // A spread the smaller squad could not hold is asked again at the size requested, since a limit can depend on it,
-  // as a Neophyte squad arms its second pair of heavy weapons only at twenty models.
+  // as a Neophyte squad arms its second pair of heavy weapons only at twenty models and ten Purifiers field four specialists.
   const carried = (key: string) => allAt(resized, key.split('/').slice(0, -1)).reduce((total, model) => total + (model.count ?? 1), 0)
   const asked = (counts: Record<string, number>) => Object.values(counts).reduce((total, count) => total + count, 0)
+  const capGrew = (key: string) => {
+    const path = key.split('/')
+    const group = index.definitions.get(path.at(-1) ?? '')
+    if (!group) return false
+    return (maximumCountAt(resized, path, group, index, context) ?? 0) > (maximumCountAt(toggled, path, group, index, context) ?? 0)
+  }
   const restored = requests
-    .filter(([key, counts]) => !modelGroup(key) && (key.startsWith(resizedModel) || carried(key) < asked(counts)))
+    .filter(([key, counts]) => (modelGroup(key) ? capGrew(key) : key.startsWith(resizedModel) || carried(key) < asked(counts)))
     .reduce(applySpread, resized)
   const selection = refit(restored, index, 1, context)
   return finishUnit(entryId, settleProfileWeaponSwaps(selection, index, context), { ...size, models: wanted }, index, fittedContext)

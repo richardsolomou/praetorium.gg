@@ -263,7 +263,12 @@ function standing(present: readonly Selection[], option: { id: string; definitio
     kept.push(child)
     left -= child.count ?? 1
   }
-  return left > 0 ? [...kept, expand(option.id, option.definition, index, MAX_DEPTH, left, new Set(), 1)] : kept
+  if (left <= 0) return kept
+  const built = (models: number) => expand(option.id, option.definition, index, MAX_DEPTH, models, new Set(), 1)
+  // Models nothing was chosen for stay one selection, since a cap is measured against each selection's count.
+  const plain = kept.find((child) => JSON.stringify(child) === JSON.stringify(built(child.count ?? 1)))
+  if (!plain) return [...kept, built(left)]
+  return [...kept.filter((child) => child !== plain), built((plain.count ?? 1) + left)]
 }
 
 /**
@@ -537,7 +542,13 @@ function keepingReplacedSquadmates(before: Selection, after: Selection, path: re
   }
   const grew = fielded(after) - fielded(before)
   const bounds = (squadmate: Selection) => selectionCountBoundsAt(after, [...groupPath, squadmate.id], index)
-  if (grew > 0) return spendBodies(after, groupPath, '', grew, index, (giver) => bounds(giver)?.maximum ?? giver.count ?? 1)
+  // The counts just asked for stay as asked: a cap read before the squad reaches its size can still rise.
+  const asked = (squadmate: Selection) => countAt(before, [...groupPath, squadmate.id]) !== countAt(after, [...groupPath, squadmate.id])
+  if (grew > 0) {
+    return spendBodies(after, groupPath, '', grew, index, (giver) =>
+      asked(giver) ? (giver.count ?? 1) : (bounds(giver)?.maximum ?? giver.count ?? 1),
+    )
+  }
   if (grew < 0) return refundBodies(after, groupPath, '', -grew, index, (taker) => bounds(taker)?.minimum ?? 0)
   return after
 }
