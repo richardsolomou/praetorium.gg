@@ -3,6 +3,7 @@ import {
   ABILITY_REMINDERS_MAX,
   abilityReminderFits,
   abilityRemindersFromRosters,
+  currentAbilityReminder,
   chosenReminderAbilities,
   fieldedReminders,
   groupedReminders,
@@ -274,6 +275,26 @@ describe('chosenReminderAbilities', () => {
 
   it('ignores a declined upgrade', () => {
     expect(chosenReminderAbilities([{ kind: 'upgrade', chosen: '' }])).toEqual([])
+  })
+})
+
+describe('currentAbilityReminder', () => {
+  const alert = (key: string, ability: string) => ({
+    key,
+    ability,
+    description: '',
+    timings: [{ moment: 'turn-start' as const, phase: null, turn: 'your-turn' as const }],
+  })
+
+  it('files an upgrade once listed as wargear under its current key', () => {
+    expect(currentAbilityReminder(alert('wargear:memento', 'Memento Moritoi (Upgrade)'))).toEqual(
+      alert('upgrade:memento', 'Memento Moritoi'),
+    )
+  })
+
+  it('leaves real wargear alone', () => {
+    const wargear = alert('wargear:shield', 'Storm Shield')
+    expect(currentAbilityReminder(wargear)).toBe(wargear)
   })
 })
 

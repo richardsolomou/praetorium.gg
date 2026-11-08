@@ -83,6 +83,7 @@ import {
   ABILITY_REMINDERS_MAX,
   abilityReminderSchema,
   abilityRemindersFromRosters,
+  currentAbilityReminder,
   legacyAbilityKey,
   ROSTER_REMINDERS_MAX,
   rosterReminderSchema,
@@ -2220,7 +2221,7 @@ function productJson(value: unknown) {
 export const migrateProductData = spacetime.procedure({ table: t.string(), keys: t.array(t.string()) }, t.string(), (ctx, input) =>
   operatorTx(ctx, (tx) => {
     const { table: entity, keys } = z
-      .object({ table: z.enum(['rosters', 'collection']), keys: z.array(z.string().min(1).max(512)).max(20) })
+      .object({ table: z.enum(['rosters', 'collection', 'ability_reminders']), keys: z.array(z.string().min(1).max(512)).max(20) })
       .parse(input)
     let changed = 0
     for (const key of keys) {
@@ -2233,6 +2234,8 @@ export const migrateProductData = spacetime.procedure({ table: t.string(), keys:
         tx.db.rosters.id.update(migrated)
         touchProduct(tx, row.userId, 'rosters')
         changed++
+      } else if (entity === 'ability_reminders') {
+        if (migrateAbilityReminder(tx, key)) changed++
       } else {
         const row = tx.db.collection.key.find(key)
         if (!row || !migrateCollectionHeart(tx, row)) continue
@@ -3268,6 +3271,20 @@ function writeAbilityReminder(tx: Context, userId: string, reminder: z.infer<typ
   else if (Array.from(tx.db.abilityReminders.userId.filter(userId)).length >= ABILITY_REMINDERS_MAX) return false
   else tx.db.abilityReminders.insert(row)
   touchProduct(tx, userId, 'settings')
+  return true
+}
+
+/** An alert the player has since set again under its current key keeps that newer one. */
+function migrateAbilityReminder(tx: Context, key: string) {
+  const row = tx.db.abilityReminders.key.find(key)
+  const parsed = row && abilityReminderSchema.safeParse(JSON.parse(row.reminder))
+  if (!row || !parsed?.success) return false
+  const reminder = currentAbilityReminder(parsed.data)
+  if (reminder === parsed.data) return false
+  tx.db.abilityReminders.key.delete(key)
+  const current = JSON.stringify([row.userId, reminder.key])
+  if (!tx.db.abilityReminders.key.find(current)) tx.db.abilityReminders.insert({ ...row, key: current, reminder: JSON.stringify(reminder) })
+  touchProduct(tx, row.userId, 'settings')
   return true
 }
 
