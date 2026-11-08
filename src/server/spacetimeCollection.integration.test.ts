@@ -13,12 +13,12 @@ it.skipIf(!url || !database || !token)('publishes model counts and revokes them 
   const other = randomUUID()
   try {
     await operator.setCollectionModels({ userId: owner, entryId: 'warriors', models: 100, now: Date.now() })
-    expect((await operator.collectionProfile(owner, null))?.entries).toEqual([{ entryId: 'warriors', models: 100 }])
+    expect((await operator.collectionProfile(owner, null))?.entries).toEqual([{ entryId: 'warriors', models: 100, built: 0, painted: 0 }])
     await operator.setCollectionModels({ userId: owner, entryId: 'overlord', models: 2, now: Date.now() })
     expect((await operator.collectionProfile(owner, other))?.entries).toEqual(
       expect.arrayContaining([
-        { entryId: 'warriors', models: 100 },
-        { entryId: 'overlord', models: 2 },
+        { entryId: 'warriors', models: 100, built: 0, painted: 0 },
+        { entryId: 'overlord', models: 2, built: 0, painted: 0 },
       ]),
     )
     await operator.deleteUserData(owner)
@@ -39,7 +39,7 @@ it.skipIf(!url || !database || !token)(
       for (const [index, photoId] of photos.slice(0, MAX_DATASHEET_PHOTOS).entries())
         await operator.setCollectionPhoto({ userId: owner, entryId: 'warriors', photoId, now: index + 1 })
       expect((await operator.collectionProfile(owner, null))?.entries).toEqual([
-        { entryId: 'warriors', models: 1, photoIds: photos.slice(0, MAX_DATASHEET_PHOTOS) },
+        { entryId: 'warriors', models: 1, built: 0, painted: 0, photoIds: photos.slice(0, MAX_DATASHEET_PHOTOS) },
       ])
       await expect(
         operator.setCollectionPhoto({ userId: owner, entryId: 'warriors', photoId: photos.at(-1)!, now: Date.now() }),
@@ -152,7 +152,7 @@ it.skipIf(!url || !database || !token)(
       expect([
         (await operator.collectionProfile(owner, reader))?.entries,
         (await operator.collectionProfile(owner, owner))?.entries,
-      ]).toEqual([[{ entryId, models: 1 }], [{ entryId, models: 1, photoIds: [photoId] }]])
+      ]).toEqual([[{ entryId, models: 1, built: 0, painted: 0 }], [{ entryId, models: 1, built: 0, painted: 0, photoIds: [photoId] }]])
       await expect(operator.setCollectionPhotoLike({ userId: reader, photoId, liked: true, now: 2 })).rejects.toThrow('no longer shown')
       await operator.keepCollectionPhoto(photoId)
       expect([await shown(null), await held()]).toEqual([[photoId], null])

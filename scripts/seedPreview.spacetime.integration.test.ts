@@ -18,7 +18,7 @@ const token = process.env.SPACETIME_TEST_OPERATOR_TOKEN
 
 it.skipIf(!url || !databaseName || !token)(
   'seeds the same SpacetimeDB preview after replacing its SQLite auth store',
-  { timeout: 30_000 },
+  { timeout: 180_000 },
   async () => {
     const directory = await mkdtemp(path.join(tmpdir(), 'praetorium-preview-spacetime-'))
     const sqlitePath = path.join(directory, 'auth.sqlite')

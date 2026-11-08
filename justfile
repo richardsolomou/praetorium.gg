@@ -74,6 +74,10 @@ test-unit *args:
 test-integration *args:
     pnpm test:integration {{ args }}
 
+# Integration tests that need SpacetimeDB, against a throwaway server
+test-spacetime:
+    pnpm test:spacetime
+
 # Format, lint, database, catalogue pins, build, typecheck, all Vitest and Python tests
 check:
     pnpm check
