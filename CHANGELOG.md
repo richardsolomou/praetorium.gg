@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.224.5 (2026-11-08)
+
+### Patch Changes
+
+- 170e0ec: Pages no longer stall for a few seconds just after an update.
+- a8abb30: Every unit upgrade now appears in the builder the same way, including Adeptus Custodes and Space Marines upgrades that showed as plain wargear.
+
 ## 0.224.4 (2026-11-08)
 
 ### Patch Changes
