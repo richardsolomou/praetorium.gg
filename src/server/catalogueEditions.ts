@@ -25,7 +25,8 @@ import { type ConstructionSummaries, constructionSummaries, pickerConstruction, 
 import { unitSummaries } from '../shared/cataloguePicker'
 import { completeSteps, type Steps, type Stepwise, stepThrough, stepwise } from '../shared/steps'
 
-export type ConstructionScope = 'serving' | 'others'
+/** `editions-loaded` reads the other editions without pricing them. */
+export type ConstructionScope = 'serving' | 'others' | 'editions-loaded'
 
 export function catalogueEditionLoaders(
   directory: string,
@@ -214,6 +215,10 @@ export function catalogueEditionLoaders(
    * Reference lists come next because every faction and datasheet page reads one.
    */
   function* construction(scope: ConstructionScope): Steps<void> {
+    if (scope === 'editions-loaded') {
+      yield* constructionBooks('others')
+      return
+    }
     const books = yield* constructionBooks(scope)
     if (!runtime) return
     for (const [catalogue, rules, id] of books) {
@@ -223,7 +228,9 @@ export function catalogueEditionLoaders(
     for (const [catalogue, , id] of books) yield* stepThrough(unitSummaries(catalogue, id, { factionCards: true, nonMatchedPlay: true }))
     for (const [catalogue, rules, id] of books) yield* pickerConstruction(catalogue, rules, id)
   }
-  function* constructionBooks(scope: ConstructionScope): Steps<[LoadedCatalogue, LoadedRules | null, string][]> {
+  function* constructionBooks(
+    scope: Exclude<ConstructionScope, 'editions-loaded'>,
+  ): Steps<[LoadedCatalogue, LoadedRules | null, string][]> {
     const original = base()
     const originalRules = baseRules()
     yield

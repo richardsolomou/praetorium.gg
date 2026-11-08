@@ -9,6 +9,7 @@ import {
   REFERENCE_FILTER_MAX_LENGTH,
   REFERENCE_QUERY_MAX_LENGTH,
   REFERENCE_RESULT_MAX,
+  indexFor,
   searchReference,
   validReferenceCursor,
   type ReferenceSearchInput,
@@ -75,6 +76,12 @@ export async function activeReferenceCorpus(catalogueId?: string) {
     textLocations,
     factions,
   })
+}
+
+/** Builds the corpus and its search index, so no read after a deploy has to. */
+export async function prepareReference() {
+  const corpus = await activeReferenceCorpus()
+  if (corpus) indexFor(corpus)
 }
 
 /** One faction's planning units, with the corpus they came from; null while no snapshot can answer. */

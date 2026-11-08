@@ -174,8 +174,9 @@ const nextTurn = () => yieldToEventLoop(undefined, { ref: false })
  * index. A faction costs seconds on a production replica, so the build runs in slices that let
  * requests in between, until a sync swap replaces these loaders.
  *
- * With `untilBuilt`, the returned promise waits for the serving build as well; `readiness` decides when.
- * The other editions build after it, since few requests read them.
+ * With `untilBuilt`, the returned promise also waits for the serving build, every edition's loading, and the reference
+ * corpus; `readiness` decides when. A request for an edition still loading finishes the load at once, holding every
+ * other request. Pricing the other editions takes minutes and few requests read them, so that stays in the background.
  */
 export async function warm(
   instance: Pick<App, 'searchIndexFor' | 'canonicalCatalogue' | 'combatUnits' | 'catalogue' | 'construction'>,
@@ -198,9 +199,16 @@ export async function warm(
   const current = () => instance.construction === construction
   const failed = (error: unknown) => reportServerFailure({ event: 'catalogue_construction_failed', error })
   const serving = inBackground(construction('serving'), current).catch(failed)
-  void serving.then(() => inBackground(construction('others'), current)).catch(failed)
-  if (untilBuilt) await serving
+  const editionsLoaded = serving.then(() => inBackground(construction('editions-loaded'), current)).catch(failed)
+  const prepared = untilBuilt ? editionsLoaded.then(prepareReference) : editionsLoaded
+  void prepared.then(() => inBackground(construction('others'), current)).catch(failed)
+  if (untilBuilt) await prepared
 }
+
+const prepareReference = () =>
+  import('./referenceApi')
+    .then((reference) => reference.prepareReference())
+    .catch((error: unknown) => reportServerFailure({ event: 'reference_warm_failed', error }))
 
 /**
  * When the warm-up holds readiness: in production, until the first warm-up a replica answers readiness after
@@ -463,13 +471,6 @@ export function app(): App {
         await instance.service.refreshStandings()
       })
       .catch((error: unknown) => reportServerFailure({ event: 'derived_tables_refresh_failed', error }))
-    // Otherwise the first agent or crawler to read the reference after a deploy waits for this build.
-    if (process.env.NODE_ENV === 'production' && process.env.LOCAL_TEST_MODE !== 'true')
-      void startup
-        .ready()
-        .then(() => import('./referenceApi'))
-        .then(({ activeReferenceCorpus }) => activeReferenceCorpus())
-        .catch((error: unknown) => reportServerFailure({ event: 'reference_corpus_warm_failed', error }))
     return instance
   }
   const instance = globalSingleton('praetorium.app', createApp)

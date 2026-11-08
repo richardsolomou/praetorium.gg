@@ -141,7 +141,7 @@ function decodeCursor(cursor: string | undefined) {
   return cursor && validReferenceCursor(cursor) ? Number(Buffer.from(cursor, 'base64url').toString('utf8')) : 0
 }
 
-function indexFor(corpus: ReferenceCorpus) {
+export function indexFor(corpus: ReferenceCorpus) {
   return remember(indices, corpus.documents, () => {
     const indexed = corpus.documents.map((document): IndexedDocument => {
       const id = normalize(document.id)

@@ -1,6 +1,9 @@
 import { afterEach, expect, it, vi } from 'vitest'
 import { readiness, warm } from './app'
+import { prepareReference } from './referenceApi'
 import type { Steps } from '../shared/steps'
+
+vi.mock('./referenceApi', () => ({ prepareReference: vi.fn(async () => {}) }))
 
 afterEach(() => {
   vi.useRealTimers()
@@ -69,13 +72,48 @@ it('answers startup readiness once the construction indexes are built', async ()
 it('answers startup readiness before the other editions are built', async () => {
   const serving = construction(10)
   const others = construction(1_000)
-  await warm({ ...projections(), construction: (scope) => (scope === 'serving' ? serving : others).steps() }, true)
+  await warm(
+    { ...projections(), construction: (scope) => (scope === 'others' ? others : scope === 'serving' ? serving : construction(0)).steps() },
+    true,
+  )
   expect({ serving: serving.progress.steps, others: others.progress.steps < 1_000 }).toEqual({ serving: 10, others: true })
+})
+
+it('holds startup readiness until the other editions are loaded', async () => {
+  const loaded = construction(1_000)
+  await warm({ ...projections(), construction: (scope) => (scope === 'editions-loaded' ? loaded : construction(0)).steps() }, true)
+  expect(loaded.progress.steps).toBe(1_000)
+})
+
+it('prepares the reference after the editions load and before answering startup readiness', async () => {
+  const loaded = construction(1_000)
+  let stepsAtPrepare = 0
+  vi.mocked(prepareReference).mockImplementationOnce(async () => {
+    stepsAtPrepare = loaded.progress.steps
+  })
+  await warm({ ...projections(), construction: (scope) => (scope === 'editions-loaded' ? loaded : construction(0)).steps() }, true)
+  expect(stepsAtPrepare).toBe(1_000)
+})
+
+it('leaves pricing the other editions until the reference is prepared', async () => {
+  const others = construction(1_000)
+  let pricedDuringPrepare = 0
+  vi.mocked(prepareReference).mockImplementationOnce(async () => {
+    await turns(10)
+    pricedDuringPrepare = others.progress.steps
+  })
+  await warm({ ...projections(), construction: (scope) => (scope === 'others' ? others : construction(0)).steps() }, true)
+  expect(pricedDuringPrepare).toBe(0)
+})
+
+it('still answers startup readiness when the reference cannot be prepared', async () => {
+  vi.mocked(prepareReference).mockRejectedValueOnce(new Error('no reference'))
+  await expect(warm({ ...projections(), construction: construction(0).steps }, true)).resolves.toBeUndefined()
 })
 
 it('builds the other editions once startup readiness is answered', async () => {
   const others = construction(10)
-  await warm({ ...projections(), construction: (scope) => (scope === 'serving' ? construction(0) : others).steps() }, true)
+  await warm({ ...projections(), construction: (scope) => (scope === 'others' ? others : construction(0)).steps() }, true)
   await turns(20)
   expect(others.progress.steps).toBe(10)
 })
