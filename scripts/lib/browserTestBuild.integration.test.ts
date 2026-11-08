@@ -15,7 +15,8 @@ beforeEach(async () => {
   directory = await mkdtemp(path.join(os.tmpdir(), 'praetorium-browser-build-'))
   await execute('git', ['init', '--quiet', directory])
   await snapshot('first snapshot')
-})
+  // Starting git can wait behind the integration suite's other processes on a loaded runner.
+}, 30_000)
 afterEach(async () => {
   await rm(directory, { recursive: true, force: true })
 })
