@@ -189,6 +189,7 @@ export function MissedActionDialog({
                   countLabel={`${cost} CP`}
                   onRemove={stratagem && cost > choices[0]! ? () => setCp(cost - 1) : undefined}
                   onAdd={stratagem && cost < choices.at(-1)! ? () => setCp(cost + 1) : undefined}
+                  blocked={stratagem ? `Max ${choices.at(-1)} CP` : null}
                 />
               </div>
             </div>

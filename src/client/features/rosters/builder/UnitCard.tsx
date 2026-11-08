@@ -63,6 +63,8 @@ type Editing = {
   onRemove: () => void
   onDuplicate: () => void
   canDuplicate: boolean
+  /** Why another copy would break the unit's limit, said under the disabled Duplicate unit. */
+  duplicateLimit: string | null
   /** Absent for a visitor, who has no account to keep a loadout in. */
   onSaveLoadout?: () => void
   /** Absent for a unit standing alone, which has nothing to save with it. */
@@ -98,6 +100,7 @@ export function UnitCard({
   onRemove = noop,
   onDuplicate = noop,
   canDuplicate = true,
+  duplicateLimit = null,
   onSaveLoadout,
   onSaveAttachedUnit,
   onDetach,
@@ -119,7 +122,7 @@ export function UnitCard({
     selected ? 'border-parchment inset-ring-1 inset-ring-parchment' : 'border-edge hover:border-runner-hi'
   }`
   const gate = selected ? 'current' : undefined
-  const actions = { onDuplicate, canDuplicate, onSaveLoadout, onSaveAttachedUnit, onDetach, onRemove }
+  const actions = { onDuplicate, canDuplicate, duplicateLimit, onSaveLoadout, onSaveAttachedUnit, onDetach, onRemove }
 
   // One target over the whole card, under everything on it. An enhancement, an
   // upgrade and who a unit is standing with are all things a player reads on the
@@ -447,6 +450,7 @@ function UnitActions({
   parts: { Item, Separator },
   onDuplicate,
   canDuplicate,
+  duplicateLimit,
   onSaveLoadout,
   onSaveAttachedUnit,
   onDetach,
@@ -455,15 +459,32 @@ function UnitActions({
   parts: typeof DROPDOWN_PARTS | typeof CONTEXT_PARTS
   onDuplicate: () => void
   canDuplicate: boolean
+  duplicateLimit: string | null
   onSaveLoadout?: () => void
   onSaveAttachedUnit?: () => void
   onDetach?: () => void
   onRemove: () => void
 }) {
+  const limitId = useId()
+  const limit = canDuplicate ? null : duplicateLimit
   return (
     <>
-      <Item className={ITEM} disabled={!canDuplicate} onClick={onDuplicate}>
-        <Copy className="size-3.5" /> Duplicate unit
+      <Item
+        className="items-start data-disabled:opacity-100"
+        aria-label="Duplicate unit"
+        disabled={!canDuplicate}
+        aria-describedby={limit ? limitId : undefined}
+        onClick={onDuplicate}
+      >
+        <Copy className={`mt-0.5 size-3.5 ${canDuplicate ? '' : 'text-faint'}`} />
+        <span className="min-w-0 flex-1">
+          <span className={`block ${ITEM} ${canDuplicate ? '' : 'text-faint'}`}>Duplicate unit</span>
+          {limit ? (
+            <span id={limitId} className="mt-0.5 block text-2xs text-discarded">
+              {limit}
+            </span>
+          ) : null}
+        </span>
       </Item>
       {onSaveLoadout || onSaveAttachedUnit ? <Separator /> : null}
       {onSaveLoadout ? (

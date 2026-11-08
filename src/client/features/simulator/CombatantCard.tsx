@@ -87,7 +87,12 @@ export function CombatantCard({
     picks.positioned.length > 0 &&
     ((combatant.price.isSuccess && !unit) || (combatant.sheets.isSuccess && !combatant.sheets.data?.selected))
   const models = combatant.models
-  const maximum = Math.min(MAX_COMBAT_MODELS, battleUnit?.startingModels ?? unit?.size.max ?? 0)
+  const sizeLimit = battleUnit?.startingModels ?? unit?.size.max ?? 0
+  const maximum = Math.min(MAX_COMBAT_MODELS, sizeLimit)
+  const maximumReason =
+    sizeLimit > MAX_COMBAT_MODELS
+      ? `Simulator max ${MAX_COMBAT_MODELS} models`
+      : `${battleUnit ? 'Started with' : 'Max'} ${countLabel(maximum, 'model')}`
   const nextSize = (count: number, direction: -1 | 1) =>
     !battleUnit && unit?.size.options
       ? ((direction === 1 ? unit.size.options.find((size) => size > count) : unit.size.options.findLast((size) => size < count)) ?? count)
@@ -318,6 +323,7 @@ export function CombatantCard({
                               : edit.resize(pickIndex, (count) => Math.min(maximum, nextSize(count, 1)))
                         : undefined
                     }
+                    blocked={unit && unit.entryId === pick?.entryId ? maximumReason : null}
                     choices={
                       unit && unit.entryId === pick?.entryId
                         ? modelCountChoices(battleUnit ? { min: 1, max: maximum } : { ...unit.size, max: maximum })
@@ -442,6 +448,8 @@ export function CombatantCard({
             count={battleUnit.wounds - combatant.damage}
             onRemove={combatant.damage < battleUnit.wounds - 1 ? () => combatant.setHealth({ damage: combatant.damage + 1 }) : undefined}
             onAdd={combatant.damage > 0 ? () => combatant.setHealth({ damage: combatant.damage - 1 }) : undefined}
+            blocked="No wounds lost"
+            reasonBeside
             choices={modelCountChoices({ min: 1, max: battleUnit.wounds })}
             onChoose={(left) => battleUnit.wounds && combatant.setHealth({ damage: battleUnit.wounds - left })}
           />

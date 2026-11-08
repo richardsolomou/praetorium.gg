@@ -2554,18 +2554,23 @@ export const syncRoster = spacetime.procedure({ payload: t.string() }, t.string(
     const current = tx.db.rosters.id.find(input.id)
     const receipt = tx.db.rosterSync.id.find(input.id)
     if ((current && current.userId !== input.userId) || (receipt && receipt.userId !== input.userId))
-      return productJson({ outcome: 'refused', message: 'You do not own this roster.' })
+      return productJson({ outcome: 'refused', cause: 'not-owned', message: 'You do not own this roster.' })
     if (receipt?.operationId === parsed.operationId) {
       if (receipt.fingerprint !== parsed.fingerprint) throw new SenderError('Operation ID reused for a different edit')
       return productJson({ outcome: 'applied', version: safeNumber(receipt.version), deleted: receipt.deleted, lifecycle: null })
     }
     const refusal = parsed.deleted ? null : lockedEdit(current, input)
-    if (refusal) return productJson({ outcome: 'refused', message: refusal })
+    if (refusal) return productJson({ outcome: 'refused', cause: 'locked', message: refusal })
     if ((current ? safeNumber(current.updatedAt) : null) !== parsed.expectedVersion || (!current && receipt))
-      return productJson({
-        outcome: 'conflict',
-        message: current ? 'This roster changed on another device.' : 'This roster was deleted on another device.',
-      })
+      return productJson(
+        current
+          ? {
+              outcome: 'conflict',
+              cause: parsed.expectedVersion === null ? 'exists' : 'stale',
+              message: 'This roster changed on another device.',
+            }
+          : { outcome: 'conflict', cause: 'deleted', message: 'This roster was deleted on another device.' },
+      )
     let lifecycle: 'created' | 'deleted' | null = null
     if (parsed.deleted) {
       if (current) {
@@ -2574,8 +2579,8 @@ export const syncRoster = spacetime.procedure({ payload: t.string() }, t.string(
       }
     } else {
       const saved = saveRosterIn(tx, input)
-      if (saved === 'forbidden') return productJson({ outcome: 'refused', message: 'You do not own this roster.' })
-      if (saved === 'locked') return productJson({ outcome: 'refused', message: LOCKED_ROSTER_MESSAGE })
+      if (saved === 'forbidden') return productJson({ outcome: 'refused', cause: 'not-owned', message: 'You do not own this roster.' })
+      if (saved === 'locked') return productJson({ outcome: 'refused', cause: 'locked', message: LOCKED_ROSTER_MESSAGE })
       if (saved === 'inserted') lifecycle = 'created'
     }
     const version = parsed.deleted ? BigInt(input.now) : tx.db.rosters.id.find(input.id)!.updatedAt

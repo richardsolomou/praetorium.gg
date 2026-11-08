@@ -100,10 +100,13 @@ it.each([
   expect(mocks.capture).not.toHaveBeenCalled()
 })
 
-it.each(['conflict', 'refused'] as const)('reports a %s sync without its message', async (outcome) => {
-  mocks.syncRoster.mockResolvedValue({ outcome, message: 'Changed elsewhere' })
+it.each([
+  ['conflict', 'stale'],
+  ['refused', 'locked'],
+] as const)('reports a %s sync with its cause and without its message', async (outcome, cause) => {
+  mocks.syncRoster.mockResolvedValue({ outcome, cause, message: 'Changed elsewhere' })
   await invoke({ data: input() })
-  expect(mocks.capture.mock.calls).toEqual([['actor', 'sync_refused', { kind: 'roster', outcome }]])
+  expect(mocks.capture.mock.calls).toEqual([['actor', 'sync_refused', { kind: 'roster', outcome, cause }]])
 })
 
 it('does not capture a creation before the database confirms it', async () => {

@@ -108,8 +108,10 @@ export const syncRoster = createServerFn({ method: 'POST' })
               : { delivery: 'sync' },
           )
         else if (result.lifecycle === 'deleted') await captureWrite(player.id, 'roster_deleted', 'sync')
+        return result
       }
-      return unsynced(player.id, 'roster', result)
+      const { cause, ...answer } = result
+      return unsynced(player.id, 'roster', answer, cause)
     }),
   )
 

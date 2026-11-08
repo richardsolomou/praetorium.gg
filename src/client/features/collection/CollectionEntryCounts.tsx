@@ -23,6 +23,7 @@ export function CollectionEntryCounts({ entryId, name, onboarding }: { entryId: 
           inputLabel={`${name} models built`}
           min={0}
           max={models ?? 0}
+          blocked={`Only ${models ?? 0} owned`}
           compact
           caption="Built"
           maxAction
@@ -34,6 +35,7 @@ export function CollectionEntryCounts({ entryId, name, onboarding }: { entryId: 
           inputLabel={`${name} models painted`}
           min={0}
           max={built ?? 0}
+          blocked={built ? `Only ${built} built` : 'None built yet'}
           compact
           caption="Painted"
           maxAction

@@ -3,7 +3,7 @@ import { ROSTER_VISIBILITIES } from '../core/savedRoster'
 import { GAME_SIZES } from '../core/battle'
 import { keptRosterSort } from '../client/features/rosters/rosterSort'
 import { ROSTER_UPDATE_FILTERS } from '../client/features/rosters/RosterFilters'
-import { GUEST_DRAFT_COOKIE, ROSTER_SORT_COOKIE } from '../contracts/rosterCookies'
+import { GUEST_DRAFT_COOKIE, ROSTER_NOTICES_COOKIE, ROSTER_SORT_COOKIE } from '../contracts/rosterCookies'
 import { requestCookie } from '../server/requestCookie'
 import { discoveryFilter } from '../client/features/rosters/RosterDiscoveryPage'
 import { ROSTER_VIEWS, RostersRoute, type RostersSearch } from '../client/features/rosters/RostersRoute'
@@ -56,7 +56,11 @@ export const Route = createFileRoute('/rosters/')({
           staleTime: 'static',
         })
     }
-    return { guestDraft: requestCookie(GUEST_DRAFT_COOKIE) === '1', sort: keptRosterSort(requestCookie(ROSTER_SORT_COOKIE)) }
+    return {
+      guestDraft: requestCookie(GUEST_DRAFT_COOKIE) === '1',
+      sort: keptRosterSort(requestCookie(ROSTER_SORT_COOKIE)),
+      notices: requestCookie(ROSTER_NOTICES_COOKIE) === '1',
+    }
   },
   head: ({ match }) =>
     pageHead(
@@ -86,6 +90,6 @@ export const Route = createFileRoute('/rosters/')({
 })
 
 function RosterLibraryRoute() {
-  const { guestDraft, sort } = Route.useLoaderData()
-  return <RostersRoute search={Route.useSearch()} guestDraft={guestDraft} sort={sort} />
+  const { guestDraft, sort, notices } = Route.useLoaderData()
+  return <RostersRoute search={Route.useSearch()} guestDraft={guestDraft} sort={sort} notices={notices} />
 }

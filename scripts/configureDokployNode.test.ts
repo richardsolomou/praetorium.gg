@@ -35,7 +35,7 @@ it('allows the first catalogue download and compilation before declaring a cold 
       Interval: 10_000_000_000,
       Timeout: 10_000_000_000,
       StartPeriod: 1_800_000_000_000,
-      Retries: 3,
+      Retries: 12,
     },
   })
 })

@@ -94,6 +94,7 @@ export function WishToCollection({
               label={`moved ${name}`}
               inputLabel={`${name} models to move`}
               max={wanted}
+              blocked={`Only ${wanted} wanted`}
               caption="Models"
               maxAction
               onChange={setMoving}

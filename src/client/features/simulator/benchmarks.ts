@@ -4,6 +4,7 @@ import type { CombatRoster } from './useCombatant'
 import { parseStored } from '../../storedValue'
 
 export type CombatUnitIndex = Awaited<ReturnType<typeof combatUnits>>
+export const MAX_BENCHMARK_MODELS = 200
 const targetSchema = z.object({
   key: z
     .string()
@@ -13,7 +14,7 @@ const targetSchema = z.object({
   catalogueId: z.string().min(1).max(200),
   entryId: z.string().min(1).max(200),
   name: z.string().min(1).max(200),
-  models: z.int().min(1).max(200).optional(),
+  models: z.int().min(1).max(MAX_BENCHMARK_MODELS).optional(),
 })
 const targetsSchema = z.array(targetSchema).max(50)
 export type BenchmarkTarget = z.infer<typeof targetSchema>

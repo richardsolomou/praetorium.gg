@@ -67,6 +67,7 @@ test('a squad jumps straight to a chosen size', async ({ page }) => {
   await chooseOption(page, 'Immortals models', '10')
   await expect(page.getByLabel('Immortals models')).toHaveText('10')
   await expect(page.getByRole('button', { name: 'More models in Immortals' })).toBeDisabled()
+  await expect(page.getByRole('button', { name: 'More models in Immortals' })).toHaveAccessibleDescription('Max 10 models')
   await expect.poll(async () => Number((await total.innerText()).split('/')[0])).toBeGreaterThan(startingPoints)
 
   await page.getByRole('combobox', { name: 'Immortals models' }).press('Enter')
@@ -158,6 +159,7 @@ test('the filters narrow the book to what is worth taking', async ({ browser, pa
   await expect(page.getByRole('button', { name: 'Add to list' })).toBeDisabled()
   await page.locator('[data-unit="Lychguard"]').first().getByLabel('Unit actions for Lychguard').click()
   await expect(page.getByRole('menuitem', { name: 'Duplicate unit' })).toBeDisabled()
+  await expect(page.getByRole('menuitem', { name: 'Duplicate unit' })).toHaveAccessibleDescription(/^Limit reached: 3 of 3/)
   await page.keyboard.press('Escape')
   const rosterUrl = page.url()
   await page.goto('/collection')
