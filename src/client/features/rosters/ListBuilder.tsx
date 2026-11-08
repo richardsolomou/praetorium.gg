@@ -1124,6 +1124,7 @@ export function ListBuilder({
         onRemove={drop}
         onDuplicate={duplicate}
         canDuplicate={!pricePending && canAddCopy(unit.entryId, held[unit.entryId] ?? 0, unitLimits)}
+        duplicateLimit={unitLimitMessage(unit.entryId, held[unit.entryId] ?? 0, unitLimits)}
         onSaveLoadout={pricePending ? undefined : guest ? askForLoadoutAccount : me ? openSaveLoadout : undefined}
         onSaveAttachedUnit={
           pricePending || !joinedUnits(picks, picks[index]?.key ?? -1, catalogueId).length

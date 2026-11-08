@@ -449,6 +449,7 @@ export function CombatantCard({
             onRemove={combatant.damage < battleUnit.wounds - 1 ? () => combatant.setHealth({ damage: combatant.damage + 1 }) : undefined}
             onAdd={combatant.damage > 0 ? () => combatant.setHealth({ damage: combatant.damage - 1 }) : undefined}
             blocked="No wounds lost"
+            reasonBeside
             choices={modelCountChoices({ min: 1, max: battleUnit.wounds })}
             onChoose={(left) => battleUnit.wounds && combatant.setHealth({ damage: battleUnit.wounds - left })}
           />

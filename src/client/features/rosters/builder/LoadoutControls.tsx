@@ -80,6 +80,7 @@ export function PoolStepper({
       onAdd={disabled ? undefined : onAdd}
       onRemove={disabled ? undefined : onRemove}
       blocked={disabled ? null : blocked}
+      reasonBeside
       countLabel={`${name} count`}
     />
   )

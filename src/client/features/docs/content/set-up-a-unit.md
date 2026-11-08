@@ -1,4 +1,4 @@
-Select a unit card to open its loadout. Use the minus and plus buttons to change the **Model count**, or pick from the number between them. Only sizes the datasheet allows are listed. At the largest size, the most it allows shows beside the buttons. **Simulate combat** opens the [simulator](/docs/set-up-a-matchup) with this unit and never changes the list.
+Select a unit card to open its loadout. Use the minus and plus buttons to change the **Model count**, or pick from the number between them. Only sizes the datasheet allows are listed. At the largest size, the most it allows shows under the plus button. **Simulate combat** opens the [simulator](/docs/set-up-a-matchup) with this unit and never changes the list.
 
 ![An Intercessor Squad loadout with its points, model count and buttons along the top.](screenshot:build-an-army-loadout 'The loadout header: points, model count, Simulate combat and the full datasheet link')
 

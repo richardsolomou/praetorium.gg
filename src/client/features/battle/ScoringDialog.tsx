@@ -383,6 +383,7 @@ function AwardRow({
             onRemove={pending || times === 0 ? undefined : () => onAnswer(times - 1)}
             onAdd={pending || (limit !== null && times >= limit) ? undefined : () => onAnswer(times + 1)}
             blocked={pending || award.max !== null ? null : `Max ${limit}`}
+            reasonBeside
             choices={limit === null ? undefined : modelCountChoices({ min: 0, max: limit })}
             onChoose={(chosen) => !pending && onAnswer(chosen)}
           />

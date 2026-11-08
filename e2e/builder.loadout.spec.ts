@@ -159,6 +159,7 @@ test('the filters narrow the book to what is worth taking', async ({ browser, pa
   await expect(page.getByRole('button', { name: 'Add to list' })).toBeDisabled()
   await page.locator('[data-unit="Lychguard"]').first().getByLabel('Unit actions for Lychguard').click()
   await expect(page.getByRole('menuitem', { name: 'Duplicate unit' })).toBeDisabled()
+  await expect(page.getByRole('menuitem', { name: 'Duplicate unit' })).toHaveAccessibleDescription(/^Limit reached: 3 of 3/)
   await page.keyboard.press('Escape')
   const rosterUrl = page.url()
   await page.goto('/collection')

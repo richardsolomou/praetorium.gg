@@ -10,7 +10,8 @@ import { holdPress } from './holdRepeat'
 /**
  * Minus, the number, plus, each held to repeat; given choices, the number also picks a count directly.
  *
- * A disabled button fires no hover or tap, so why More is disabled is said beside it.
+ * A disabled button fires no hover or tap, so why More is disabled is said next to it, placed so that reaching the cap
+ * moves neither the stepper nor what sits around it.
  */
 export function Stepper({
   label,
@@ -21,6 +22,7 @@ export function Stepper({
   onAdd,
   onRemove,
   blocked,
+  reasonBeside = false,
   choices,
   onChoose,
 }: {
@@ -33,13 +35,18 @@ export function Stepper({
   onRemove?: () => void
   /** Why More is disabled, shown while it is: the cap and what sets it. */
   blocked?: string | null
+  /**
+   * Says the reason before the stepper, taking width from the flexible text it ends a row after, rather than hanging
+   * it under the stepper, for rows packed too tightly to leave room below.
+   */
+  reasonBeside?: boolean
   choices?: readonly number[]
   onChoose?: (count: number) => void
 }) {
   const reasonId = useId()
   const reason = onAdd ? null : blocked
   const stepper = (
-    <span data-onboarding={onboarding} className="grid shrink-0 grid-cols-[1.5rem_2rem_1.5rem] items-center gap-1">
+    <span data-onboarding={onboarding} className="relative grid shrink-0 grid-cols-[1.5rem_2rem_1.5rem] items-center gap-1">
       <CountButton label={`Fewer ${label}`} decrease repeat onClick={onRemove} />
       {count !== null && !loading && choices?.length && onChoose ? (
         <Select value={count} onValueChange={(chosen) => chosen !== null && chosen !== count && onChoose(chosen)}>
@@ -64,11 +71,16 @@ export function Stepper({
         </span>
       )}
       <CountButton label={`More ${label}`} repeat onClick={onAdd} describedBy={reason ? reasonId : undefined} />
+      {reason && !reasonBeside ? <BlockedReason id={reasonId}>{reason}</BlockedReason> : null}
     </span>
   )
-  return reason ? (
+  return reasonBeside ? (
     <span className="flex min-w-0 items-center gap-1.5">
-      <BlockedReason id={reasonId}>{reason}</BlockedReason>
+      {reason ? (
+        <BlockedReason id={reasonId} beside>
+          {reason}
+        </BlockedReason>
+      ) : null}
       {stepper}
     </span>
   ) : (
@@ -76,9 +88,13 @@ export function Stepper({
   )
 }
 
-export function BlockedReason({ id, className = '', children }: { id: string; className?: string; children: string }) {
+/** Below, it hangs under its positioned counter, right-aligned to More, taking no space, so its row needs room under it. */
+export function BlockedReason({ id, beside = false, children }: { id: string; beside?: boolean; children: string }) {
   return (
-    <span id={id} className={`text-right text-2xs text-faint ${className}`}>
+    <span
+      id={id}
+      className={`text-right text-2xs text-faint ${beside ? '' : 'absolute top-full right-0 mt-0.5 leading-none whitespace-nowrap'}`}
+    >
       {children}
     </span>
   )

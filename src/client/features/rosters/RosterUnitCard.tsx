@@ -31,6 +31,7 @@ type BuilderUnitCardProps = {
   onRemove: (index: number) => void
   onDuplicate: (index: number) => void
   canDuplicate?: boolean
+  duplicateLimit?: string | null
   onSaveLoadout?: (index: number) => void
   onSaveAttachedUnit?: (index: number) => void
   onDetach: (index: number) => void
@@ -58,6 +59,7 @@ export const BuilderUnitCard = memo(function BuilderUnitCard({
   onRemove,
   onDuplicate,
   canDuplicate,
+  duplicateLimit,
   onSaveLoadout,
   onSaveAttachedUnit,
   onDetach,
@@ -77,6 +79,7 @@ export const BuilderUnitCard = memo(function BuilderUnitCard({
       onRemove={() => onRemove(index)}
       onDuplicate={() => onDuplicate(index)}
       canDuplicate={canDuplicate}
+      duplicateLimit={duplicateLimit}
       onSaveLoadout={onSaveLoadout && (() => onSaveLoadout(index))}
       onSaveAttachedUnit={onSaveAttachedUnit && (() => onSaveAttachedUnit(index))}
       onDetach={joined.some((row) => row.detach === index) ? () => onDetach(index) : undefined}

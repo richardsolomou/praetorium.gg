@@ -1,7 +1,7 @@
 import { GuideHelp } from '../onboarding/GuideHelp'
 import { useQuery } from '@tanstack/react-query'
 import { Link, useNavigate, useRouter } from '@tanstack/react-router'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ChevronDown, ScrollText } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
@@ -23,6 +23,8 @@ import { useAccountPrompt } from './AccountPrompt'
 import { claimInput, GUEST_PATH, type GuestDraft, guestRosterSummary, readGuestDraft } from './guestDraft'
 import { GuestBattleLink, useGuestRosterRow } from './GuestRoster'
 import { useNewRoster } from './newRoster'
+import { setRosterCookie } from './rosterCookie'
+import { ROSTER_NOTICES_COOKIE } from '../../../contracts/rosterCookies'
 import type { MissionReference } from './rosterStart'
 import { PageContent, PageHeader } from '../../components/Page'
 import { PageState } from '../../components/PageState'
@@ -76,12 +78,15 @@ type DeviceLibrary = { guest: GuestDraft | null; pending: boolean; onChange: (gu
 export function RosterLibraryPage({
   search,
   sort,
+  notices = false,
   starting,
   reference,
   device,
 }: {
   search: RosterLibrarySearch
   sort: RosterSort
+  /** Whether the library last had a data update notice, so its line is kept while the counts load. */
+  notices?: boolean
   starting?: boolean
   reference?: MissionReference
   device?: DeviceLibrary
@@ -172,6 +177,12 @@ export function RosterLibraryPage({
   const olderLists = available ? saved.filter(olderRules).length : 0
   const olderNotice = Boolean(olderLists) && search.updates !== 'older'
   const changedNotice = Boolean(changedLists) && search.updates !== 'changed'
+  // The changed count loads after the rows, so a notice arriving then would push them down unless its line is kept.
+  const noticesKnown = Boolean(available) && !(me && changedResult.isPending)
+  const keepNoticeLine = notices && !noticesKnown && !libraryError
+  useEffect(() => {
+    if (noticesKnown) setRosterCookie(ROSTER_NOTICES_COOKIE, olderLists || changedLists ? '1' : null)
+  }, [noticesKnown, olderLists, changedLists])
 
   const origin = useOrigin()
   const actions = useRosterActions(
@@ -395,6 +406,10 @@ export function RosterLibraryPage({
                   {countLabel(changedLists, 'roster')} changed by a data update
                 </Link>
               ) : null}
+            </div>
+          ) : keepNoticeLine ? (
+            <div aria-hidden className="mt-2 text-xs font-semibold">
+              {'\u00a0'}
             </div>
           ) : null}
           {selecting ? (

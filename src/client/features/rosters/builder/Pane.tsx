@@ -132,9 +132,10 @@ export function Pane({
 
   const body = (
     <>
+      {/* The loadout's deeper bottom padding holds the reason its size stepper gives at the cap, which hangs under it. */}
       <div
-        className={`relative flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-edge px-3 py-2 ${
-          variant === 'loadout' ? 'pl-12 roster-split:pl-3' : 'pr-12'
+        className={`relative flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-edge px-3 pt-2 ${
+          variant === 'loadout' ? 'pb-3.5 pl-12 roster-split:pl-3' : 'pb-2 pr-12'
         } ${CLOSERS[variant]}`}
       >
         {drawer ? (
