@@ -192,7 +192,8 @@ async function collectPage(page: Page) {
 export const test = base.extend<{ closeOpenedContexts: void; recordCoverage: void; rulesText: boolean }, { stopCombatWorkers: void }>({
   /**
    * Worker threads write their coverage only when they exit, and the stack may be killed before
-   * the server stops its own, so a coverage run stops them once this worker's tests are done.
+   * the server stops its own, so a coverage run stops them once this worker's tests are done. The
+   * pool reopens because Playwright replaces a worker after a failure and the next one shares this server.
    */
   stopCombatWorkers: [
     // Playwright reads a fixture's dependencies from this pattern, and this one has none.
@@ -201,7 +202,11 @@ export const test = base.extend<{ closeOpenedContexts: void; recordCoverage: voi
       await use()
       const server = coverageDirectory && inspectPort ? await serverCoverage() : null
       const stopped = (await server?.('Runtime.evaluate', {
-        expression: "globalThis[Symbol.for('ras-stack.server.singletons')]?.get('praetorium.combatCalculationPool')?.value.close()",
+        expression: `(async () => {
+          const pool = globalThis[Symbol.for('ras-stack.server.singletons')]?.get('praetorium.combatCalculationPool')?.value
+          await pool?.close()
+          if (pool) pool.closed = false
+        })()`,
         awaitPromise: true,
       })) as unknown as { exceptionDetails?: unknown } | undefined
       if (stopped?.exceptionDetails) throw new Error('the app server could not stop its combat workers')
