@@ -123,7 +123,15 @@ export function summarizeRosterCombat(answer: CombatAnswer, unavailable: Partial
   const phase = (name: keyof RosterCombatSummary) => {
     const result = answer[name]?.result
     return result
-      ? { result: { wipe: result.wipe, meanDamage: result.meanDamage, meanKills: result.meanKills, uncappedKills: result.uncappedKills } }
+      ? {
+          result: {
+            wipe: result.wipe,
+            meanDamage: result.meanDamage,
+            meanKills: result.meanKills,
+            uncappedKills: result.uncappedKills,
+            uncappedDamage: result.uncappedDamage,
+          },
+        }
       : {
           error:
             answer[name]?.error ??

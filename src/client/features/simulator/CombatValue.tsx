@@ -1,7 +1,10 @@
 import type { CombatResult } from '../../../core/combat'
 import { cn } from '@/lib/utils'
 
-export type CombatMetric = 'meanDamage' | 'meanKills' | 'uncappedKills' | 'wipe'
+export type CombatMetric = 'meanDamage' | 'meanKills' | 'uncappedDamage' | 'uncappedKills' | 'wipe'
+
+export const UNCAPPED_DAMAGE_EXPLANATION =
+  'Damage dealt on average, without stopping at the target’s total wounds, so attackers that all usually destroy it can still be compared. Damage past a model’s last wound is lost, because it doesn’t carry over to the next model.'
 
 export const UNCAPPED_KILLS_EXPLANATION =
   'Models destroyed on average if the target had enough models to take every attack. Compares attackers that all usually destroy a small unit.'

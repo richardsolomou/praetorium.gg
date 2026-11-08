@@ -3,7 +3,7 @@ import { PHASE_TITLES, PhaseIcon } from './CombatControls'
 import type { CombatResult } from '../../../core/combat'
 import { HoverTooltip } from '../../components/HoverTooltip'
 import { CombatEstimate } from './CombatEstimate'
-import { CombatValue, formatCombatValue, UNCAPPED_KILLS_EXPLANATION } from './CombatValue'
+import { CombatValue, formatCombatValue, UNCAPPED_DAMAGE_EXPLANATION, UNCAPPED_KILLS_EXPLANATION } from './CombatValue'
 
 export function CombatResults({
   ranged,
@@ -67,10 +67,18 @@ export function CombatResults({
             <div className="flex-1">
               <CombatValue
                 result={combined}
-                metric="meanDamage"
+                metric={uncapped ? 'uncappedDamage' : 'meanDamage'}
                 className={`figure block text-lg leading-none font-semibold ${muted ? 'text-dim' : 'text-bone'}`}
               />
-              <p className="mt-1 text-xs text-dim">avg. wounds lost</p>
+              {uncapped ? (
+                <div className="mt-1 flex">
+                  <HoverTooltip title="Avg. damage" body={UNCAPPED_DAMAGE_EXPLANATION} className="text-left text-xs text-dim">
+                    avg. damage
+                  </HoverTooltip>
+                </div>
+              ) : (
+                <p className="mt-1 text-xs text-dim">avg. wounds lost</p>
+              )}
             </div>
             <div className="flex-1">
               <CombatValue
@@ -81,7 +89,7 @@ export function CombatResults({
               {uncapped ? (
                 <div className="mt-1 flex">
                   <HoverTooltip title="Uncapped kills" body={UNCAPPED_KILLS_EXPLANATION} className="text-left text-xs text-dim">
-                    uncapped kills
+                    kills if it had more models
                   </HoverTooltip>
                 </div>
               ) : (

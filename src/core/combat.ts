@@ -154,6 +154,8 @@ export type CombatResult = {
   wipe: number
   /** Mean models destroyed if a single-profile target had enough models to absorb every attack. */
   uncappedKills?: number
+  /** Mean damage on that same target: nothing is lost to its total wounds, but damage past a model's last wound still is. */
+  uncappedDamage?: number
 }
 export const rerollRank = { none: 0, ones: 1, failed: 2 } as const
 
@@ -1161,11 +1163,11 @@ function mostKills(input: CombatInput, models: number) {
   return attacks + mortals
 }
 
-function uncappedKills(inputs: readonly CombatInput[], capped: CombatResult, maxWork: number) {
+function uncappedMeans(inputs: readonly CombatInput[], capped: CombatResult, maxWork: number) {
   if (inputs.some((input) => input.target.groups.length !== 1)) return undefined
   const models = targetModels(inputs[0]!.target)
   const reach = inputs.reduce((total, input) => total + mostKills(input, models), 0)
-  if (reach <= models) return capped.meanKills
+  if (reach <= models) return { uncappedKills: capped.meanKills, uncappedDamage: capped.meanDamage }
   const extended = Math.min(MAX_COMBAT_MODELS, reach)
   const inflated = inputs.map((input) => ({
     ...input,
@@ -1177,8 +1179,10 @@ function uncappedKills(inputs: readonly CombatInput[], capped: CombatResult, max
   } catch {
     return undefined
   }
-  // Wiping the extended target hides any further kills; keep the mean only while that cannot change its second decimal.
-  return result.wipe * (reach - extended) < 0.005 ? result.meanKills : undefined
+  // Wiping the extended target hides any further damage; keep the means only while that cannot change their second decimal.
+  return result.wipe * (reach - extended) * inputs[0]!.target.groups[0]!.wounds < 0.005
+    ? { uncappedKills: result.meanKills, uncappedDamage: result.meanDamage }
+    : undefined
 }
 
 /** Resolve successive phases against the surviving models and their remaining wounds. */
@@ -1202,8 +1206,7 @@ export function calculateCombatSequence(scenarios: readonly CombatInput[], maxWo
   )
     throw new Error('Every phase must attack the same target with the same starting wounds.')
   const result = combatResult(...resolveSequence(inputs, maxWork), target)
-  const uncapped = uncappedKills(inputs, result, maxWork)
-  return uncapped === undefined ? result : { ...result, uncappedKills: uncapped }
+  return { ...result, ...uncappedMeans(inputs, result, maxWork) }
 }
 
 /** `attackModels` is the target size Blast and Cleave count, before this sequence's losses. */

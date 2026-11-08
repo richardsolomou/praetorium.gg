@@ -1215,6 +1215,18 @@ describe('uncapped kills', () => {
     expect(result.uncappedKills).toBe(result.meanKills)
   })
 
+  it('averages damage past the total wounds, losing only what overkills each model', () => {
+    const scenario = input()
+    scenario.target.groups[0]!.models = 1
+    scenario.weapons[0]!.attacks.bonus = 20
+    expect(calculateCombat(scenario).uncappedDamage).toBeCloseTo(20 * (2 / 3) * (1 / 2) * 2)
+  })
+
+  it('equals the wounds lost when the attacks cannot destroy the target', () => {
+    const result = calculateCombat(input())
+    expect(result.uncappedDamage).toBe(result.meanDamage)
+  })
+
   it('counts Blast attacks against the real target size', () => {
     const scenario = input()
     scenario.target.groups[0]!.wounds = 1

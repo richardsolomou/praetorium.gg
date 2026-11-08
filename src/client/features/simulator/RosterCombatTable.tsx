@@ -11,6 +11,7 @@ import { countLabel } from '../../text'
 
 const metrics = [
   ['meanDamage', 'Wounds lost'],
+  ['uncappedDamage', 'Avg. damage'],
   ['meanKills', 'Models lost'],
   ['uncappedKills', 'Uncapped kills'],
   ['wipe', 'Destruction chance'],
