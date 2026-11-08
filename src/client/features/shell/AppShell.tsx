@@ -243,6 +243,7 @@ const VISITOR_LINKS = [
   { to: '/battles', label: 'Battle tracker' },
   { to: '/factions', label: 'Factions' },
   { to: '/rules', label: 'Rules' },
+  { to: '/missions', label: 'Missions' },
 ] as const
 
 /*
