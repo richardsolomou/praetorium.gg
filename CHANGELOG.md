@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.224.6 (2026-11-08)
+
+### Patch Changes
+
+- d71edc3: Alerts set on Adeptus Custodes upgrades before they moved to Unit upgrades keep working.
+
 ## 0.224.5 (2026-11-08)
 
 ### Patch Changes
