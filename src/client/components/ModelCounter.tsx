@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { CountButton } from './Stepper'
+import { BlockedReason, CountButton } from './Stepper'
 
 export function ModelCounter({
   count,
@@ -12,6 +12,7 @@ export function ModelCounter({
   compact = false,
   caption,
   maxAction = false,
+  blocked,
   onChange,
 }: {
   count: number | null
@@ -23,6 +24,8 @@ export function ModelCounter({
   compact?: boolean
   caption?: string
   maxAction?: boolean
+  /** Why More is disabled at `max`, shown while it is: the cap and what sets it. */
+  blocked: string
   onChange: (count: number) => void | Promise<unknown>
 }) {
   const countText = count === null ? '' : String(count)
@@ -57,6 +60,8 @@ export function ModelCounter({
     }
   }
   const unavailable = disabled || count === null
+  const reasonId = useId()
+  const atMax = !unavailable && current !== null && current >= max
   const counter = (
     <span
       className={`grid shrink-0 items-center ${compact ? 'w-14 max-w-full grid-cols-2 gap-1 @[18rem]:w-full @[18rem]:max-w-24 @[18rem]:grid-cols-[1.5rem_minmax(0,1fr)_1.5rem] @[18rem]:gap-0.5' : 'grid-cols-[1.5rem_3.5rem_1.5rem] gap-1'}`}
@@ -98,9 +103,15 @@ export function ModelCounter({
         label={`More ${label} models`}
         repeat
         onClick={!unavailable && current !== null && current < max ? () => void save(current + 1) : undefined}
+        describedBy={atMax ? reasonId : undefined}
       />
     </span>
   )
+  const reason = atMax ? (
+    <BlockedReason id={reasonId} className={caption ? 'w-full @[15rem]:text-center' : ''}>
+      {blocked}
+    </BlockedReason>
+  ) : null
   return caption ? (
     <span className="flex min-w-0 flex-wrap items-center justify-between gap-2 @[15rem]:flex-col @[15rem]:items-center @[15rem]:gap-1">
       <span className="inline-flex h-4 items-center gap-1 text-xs text-dim">
@@ -118,6 +129,12 @@ export function ModelCounter({
           </Button>
         ) : null}
       </span>
+      {counter}
+      {reason}
+    </span>
+  ) : reason ? (
+    <span className="flex min-w-0 items-center gap-1.5">
+      {reason}
       {counter}
     </span>
   ) : (

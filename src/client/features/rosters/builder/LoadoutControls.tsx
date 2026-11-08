@@ -1,4 +1,4 @@
-import { type ReactNode, useId } from 'react'
+import type { ReactNode } from 'react'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { Datasheet } from '../../../../contracts/catalogue'
 import { RuleText } from '../../../components/RuleText'
@@ -48,8 +48,6 @@ const PICKED = 'border-parchment inset-ring-1 inset-ring-parchment'
 
 /**
  * A row's share of the bodies its kind of model has, given and taken one at a time.
- *
- * A disabled button fires no hover, so why More is disabled is said beside it.
  */
 export function PoolStepper({
   name,
@@ -68,7 +66,6 @@ export function PoolStepper({
   onRemove?: () => void
   blocked?: string | null
 }) {
-  const reasonId = useId()
   if (!editable) {
     return (
       <span className="chip readout" aria-label={`${name} count`}>
@@ -76,26 +73,15 @@ export function PoolStepper({
       </span>
     )
   }
-  const reason = !disabled && !onAdd ? blocked : null
-  const stepper = (
+  return (
     <Stepper
       label={name}
       count={count}
       onAdd={disabled ? undefined : onAdd}
       onRemove={disabled ? undefined : onRemove}
-      addDescribedBy={reason ? reasonId : undefined}
+      blocked={disabled ? null : blocked}
       countLabel={`${name} count`}
     />
-  )
-  return reason ? (
-    <span className="flex min-w-0 items-center gap-1.5">
-      <span id={reasonId} className="text-right text-2xs text-faint">
-        {reason}
-      </span>
-      {stepper}
-    </span>
-  ) : (
-    stepper
   )
 }
 

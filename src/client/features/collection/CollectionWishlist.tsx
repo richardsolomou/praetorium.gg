@@ -117,6 +117,7 @@ export function CollectionWishlist({ datasheets }: { datasheets: ReadonlyMap<str
                           label={`wanted ${name}`}
                           inputLabel={`${name} models wanted`}
                           max={MAX_COLLECTION_MODELS}
+                          blocked={`Up to ${MAX_COLLECTION_MODELS.toLocaleString()} models`}
                           compact
                           caption="Wanted"
                           onChange={(next) => set(entryId, next)}

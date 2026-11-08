@@ -56,6 +56,7 @@ export function CombatSurvivorControls({
                 count={carrier.models}
                 onRemove={carrier.models > 0 ? () => resize(index, carrier.models - 1) : undefined}
                 onAdd={carrier.models < original[index]!.models ? () => resize(index, carrier.models + 1) : undefined}
+                blocked={`Only ${original[index]!.models} in the unit`}
                 choices={modelCountChoices({ min: 0, max: original[index]!.models })}
                 onChoose={(remaining) => resize(index, remaining)}
               />
@@ -81,6 +82,9 @@ export function CombatSurvivorControls({
                   count={weapon.count}
                   onRemove={weapon.count > min ? () => change(weapon.count - 1) : undefined}
                   onAdd={weapon.count < max ? () => change(weapon.count + 1) : undefined}
+                  blocked={
+                    max === source.weapons[at]!.count ? `Only ${max} carried` : max ? `Survivors carry up to ${max}` : 'No survivors left'
+                  }
                   choices={modelCountChoices({ min, max })}
                   onChoose={change}
                 />

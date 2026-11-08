@@ -7,7 +7,7 @@ import { ModelCounter } from '../../components/ModelCounter'
 import { UnitPicker } from '../../components/UnitPicker'
 import { FactionMark } from '../../components/FactionMark'
 import { combatantDatasheetQuery, factionIndexQuery } from '../../queries'
-import type { BenchmarkTarget, CombatUnitIndex } from './benchmarks'
+import { type BenchmarkTarget, type CombatUnitIndex, MAX_BENCHMARK_MODELS } from './benchmarks'
 
 /** The benchmark set laid out as the units it fields, each opening its own size, order and removal. */
 export function BenchmarkTargets({
@@ -151,7 +151,8 @@ function BenchmarkModelCounter({
         count={target.models ?? defaults.data?.models ?? null}
         label={label}
         inputLabel={`${label} models`}
-        max={200}
+        max={MAX_BENCHMARK_MODELS}
+        blocked={`Up to ${MAX_BENCHMARK_MODELS} models`}
         disabled={disabled}
         onChange={onChange}
       />

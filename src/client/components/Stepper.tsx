@@ -1,5 +1,5 @@
 import { Minus, Plus } from 'lucide-react'
-import { type PointerEvent, useEffect, useRef, useState } from 'react'
+import { type PointerEvent, useEffect, useId, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Select as SelectPrimitive } from '@base-ui/react/select'
 import { Select, SelectContent, SelectItem, SelectValue } from '@/components/ui/select'
@@ -7,7 +7,11 @@ import type { OnboardingTarget } from '../onboardingTargets'
 import { requestNativeHaptic } from '../nativeBridge'
 import { holdPress } from './holdRepeat'
 
-/** Minus, the number, plus, each held to repeat; given choices, the number also picks a count directly. */
+/**
+ * Minus, the number, plus, each held to repeat; given choices, the number also picks a count directly.
+ *
+ * A disabled button fires no hover or tap, so why More is disabled is said beside it.
+ */
 export function Stepper({
   label,
   count,
@@ -16,7 +20,7 @@ export function Stepper({
   onboarding,
   onAdd,
   onRemove,
-  addDescribedBy,
+  blocked,
   choices,
   onChoose,
 }: {
@@ -27,12 +31,14 @@ export function Stepper({
   onboarding?: OnboardingTarget
   onAdd?: () => void
   onRemove?: () => void
-  /** The element saying why More is disabled. */
-  addDescribedBy?: string
+  /** Why More is disabled, shown while it is: the cap and what sets it. */
+  blocked?: string | null
   choices?: readonly number[]
   onChoose?: (count: number) => void
 }) {
-  return (
+  const reasonId = useId()
+  const reason = onAdd ? null : blocked
+  const stepper = (
     <span data-onboarding={onboarding} className="grid shrink-0 grid-cols-[1.5rem_2rem_1.5rem] items-center gap-1">
       <CountButton label={`Fewer ${label}`} decrease repeat onClick={onRemove} />
       {count !== null && !loading && choices?.length && onChoose ? (
@@ -57,7 +63,23 @@ export function Stepper({
           {loading ? <span aria-hidden className="inline-block h-4 w-5 animate-pulse bg-muted align-middle" /> : (count ?? '—')}
         </span>
       )}
-      <CountButton label={`More ${label}`} repeat onClick={onAdd} describedBy={addDescribedBy} />
+      <CountButton label={`More ${label}`} repeat onClick={onAdd} describedBy={reason ? reasonId : undefined} />
+    </span>
+  )
+  return reason ? (
+    <span className="flex min-w-0 items-center gap-1.5">
+      <BlockedReason id={reasonId}>{reason}</BlockedReason>
+      {stepper}
+    </span>
+  ) : (
+    stepper
+  )
+}
+
+export function BlockedReason({ id, className = '', children }: { id: string; className?: string; children: string }) {
+  return (
+    <span id={id} className={`text-right text-2xs text-faint ${className}`}>
+      {children}
     </span>
   )
 }

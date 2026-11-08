@@ -67,6 +67,7 @@ test('a squad jumps straight to a chosen size', async ({ page }) => {
   await chooseOption(page, 'Immortals models', '10')
   await expect(page.getByLabel('Immortals models')).toHaveText('10')
   await expect(page.getByRole('button', { name: 'More models in Immortals' })).toBeDisabled()
+  await expect(page.getByRole('button', { name: 'More models in Immortals' })).toHaveAccessibleDescription('Max 10 models')
   await expect.poll(async () => Number((await total.innerText()).split('/')[0])).toBeGreaterThan(startingPoints)
 
   await page.getByRole('combobox', { name: 'Immortals models' }).press('Enter')

@@ -23,6 +23,7 @@ export function CollectionCount({
       label={name}
       inputLabel={`${name} models owned`}
       max={MAX_COLLECTION_MODELS}
+      blocked={`Up to ${MAX_COLLECTION_MODELS.toLocaleString()} models`}
       compact={compact}
       caption={caption}
       onChange={(models) => mutation.mutateAsync({ entryId, models })}

@@ -382,6 +382,7 @@ function AwardRow({
             countLabel={`${card.name}: scored ${times} times`}
             onRemove={pending || times === 0 ? undefined : () => onAnswer(times - 1)}
             onAdd={pending || (limit !== null && times >= limit) ? undefined : () => onAnswer(times + 1)}
+            blocked={pending || award.max !== null ? null : `Max ${limit}`}
             choices={limit === null ? undefined : modelCountChoices({ min: 0, max: limit })}
             onChoose={(chosen) => !pending && onAnswer(chosen)}
           />

@@ -24,7 +24,7 @@ import {
 } from 'lucide-react'
 import { posthog } from 'posthog-js'
 import { toast } from 'sonner'
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
@@ -291,6 +291,7 @@ export function ListBuilder({
     setSetup(next)
   }
   const [savedPrep, setSavedPrep] = useState(prep)
+  const previewLimitId = useId()
   const [reminderDraft, setReminderDraft] = useState<ReminderDraft | null>(null)
   const abilityAlerts = useAbilityReminders(Boolean(guest))
   const resetAbilityAlert = abilityAlerts.reset
@@ -1230,6 +1231,7 @@ export function ListBuilder({
     unit.toggles.some((toggle) => toggle.name === 'Warlord' && toggle.required && toggle.selected),
   )
   const inspectedEntryId = preview?.entryId ?? optimisticUnit?.entryId ?? null
+  const previewLimitMessage = preview && !priceFailed ? unitLimitMessage(preview.entryId, held[preview.entryId] ?? 0, unitLimits) : null
   const previewOver = preview && building ? pointsOver(attachCandidates?.find((unit) => unit.id === preview.entryId)?.points, room) : null
   const referenceRoute = reference?.entryId === inspectedEntryId ? reference.route : undefined
   const limitFailure = priceFailed ? (
@@ -1869,6 +1871,7 @@ export function ListBuilder({
                     size="sm"
                     className="px-2"
                     disabled={!canAddCopy(preview.entryId, held[preview.entryId] ?? 0, unitLimits)}
+                    aria-describedby={previewLimitMessage ? previewLimitId : undefined}
                     onClick={() => add(preview.entryId)}
                   >
                     <Plus className="size-3" />
@@ -1922,6 +1925,7 @@ export function ListBuilder({
                                 edit.resize(selected, (models) => optimisticUnit.size.options?.find((size) => size > models) ?? models + 1)
                             : undefined
                         }
+                        blocked={`Max ${countLabel(optimisticUnit.size.max, 'model')}`}
                         choices={modelCountChoices(optimisticUnit.size)}
                         onChoose={(models) => selected !== null && edit.resize(selected, () => models)}
                       />
@@ -1969,9 +1973,9 @@ export function ListBuilder({
             {preview ? (
               <>
                 {limitFailure}
-                {!priceFailed && unitLimitMessage(preview.entryId, held[preview.entryId] ?? 0, unitLimits) ? (
-                  <output className="block border-b border-edge px-3 py-2 text-xs text-discarded">
-                    {unitLimitMessage(preview.entryId, held[preview.entryId] ?? 0, unitLimits)}
+                {previewLimitMessage ? (
+                  <output id={previewLimitId} className="block border-b border-edge px-3 py-2 text-xs text-discarded">
+                    {previewLimitMessage}
                   </output>
                 ) : null}
                 {previewOver !== null ? (

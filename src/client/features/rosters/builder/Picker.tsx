@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { EllipsisVertical, Heart, Plus, type LucideIcon } from 'lucide-react'
-import { Fragment, memo, useMemo, useState } from 'react'
+import { Fragment, memo, useId, useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -456,6 +456,7 @@ const PickerRow = memo(function PickerRow({
   onFavourite,
   onAdd,
 }: PickerRowProps) {
+  const limitId = useId()
   return (
     <div
       data-picker-unit={unit.name}
@@ -471,10 +472,15 @@ const PickerRow = memo(function PickerRow({
           <span className="block text-sm leading-tight font-semibold wrap-break-word">{unit.name}</span>
           <DatasheetMatchReasons query={query} reasons={unit.matchReasons} fuzzy={unit.fuzzy} />
           {unavailableReason ? (
-            <span className="mt-1 block text-2xs font-normal normal-case text-discarded">{unavailableReason}</span>
+            <span id={limitId} className="mt-1 block text-2xs font-normal normal-case text-discarded">
+              {unavailableReason}
+            </span>
           ) : null}
           {held ? (
-            <span className={`readout block text-2xs ${full ? 'text-discarded' : 'text-faint'}`}>
+            <span
+              id={unavailableReason ? undefined : limitId}
+              className={`readout block text-2xs ${full ? 'text-discarded' : 'text-faint'}`}
+            >
               {held}
               {limit === null ? '' : `/${limit}`} in roster
             </span>
@@ -504,6 +510,7 @@ const PickerRow = memo(function PickerRow({
           aria-label={`Add ${unit.name}`}
           title="Add to roster"
           disabled={full}
+          aria-describedby={full && (unavailableReason || held) ? limitId : undefined}
           onClick={() => onAdd(unit.id)}
         >
           <Plus className="size-3.5" />
