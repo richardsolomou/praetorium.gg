@@ -20,6 +20,122 @@ const mandatory = (id: string) => [{ id, type: 'min' as const, value: 1, field: 
 
 const points = (value: number) => [{ name: 'pts', typeId: PTS, value }]
 
+describe('squads bundled into their weapon options', () => {
+  const dishonouredLimit = (id: string) => ({
+    field: id,
+    type: 'set' as const,
+    value: 2,
+    conditionGroups: [
+      {
+        type: 'or' as const,
+        conditions: ['seventeen', 'two-fifteen'].map((childId) => ({
+          childId,
+          field: 'selections',
+          scope: 'pack',
+          type: 'equalTo' as const,
+          value: 1,
+          includeChildSelections: true,
+          shared: true,
+        })),
+      },
+    ],
+  })
+  const bodies = (owner: string, id: string, name: string, count: number): SelectionEntry => ({
+    id: `${owner}-${id}`,
+    name,
+    type: 'model',
+    constraints: [
+      { id: `${owner}-${id}-min`, type: 'min', value: count, field: 'selections', scope: 'parent' },
+      { id: `${owner}-${id}-max`, type: 'max', value: count, field: 'selections', scope: 'parent' },
+    ],
+  })
+  const index = indexOf({
+    sharedSelectionEntries: [
+      {
+        id: 'pack',
+        name: 'Pack',
+        type: 'unit',
+        selectionEntries: [bodies('pack', 'leader', 'Leader', 1)],
+        selectionEntryGroups: [
+          {
+            id: 'bundles',
+            name: 'Pack',
+            defaultSelectionEntryId: 'eight',
+            constraints: [...mandatory('bundles-min'), { id: 'bundles-max', type: 'max', value: 1, field: 'selections', scope: 'parent' }],
+            selectionEntries: [
+              { id: 'eight', name: '8 blades', type: 'upgrade', selectionEntries: [bodies('eight', 'blade', 'Blade', 8)] },
+              {
+                id: 'two-fifteen',
+                name: '2 maulers, 15 blades',
+                type: 'upgrade',
+                selectionEntries: [bodies('two-fifteen', 'mauler', 'Mauler', 2), bodies('two-fifteen', 'blade', 'Blade', 15)],
+              },
+              { id: 'seventeen', name: '17 blades', type: 'upgrade', selectionEntries: [bodies('seventeen', 'blade', 'Blade', 17)] },
+            ],
+          },
+          {
+            id: 'brutes',
+            name: 'Brutes',
+            defaultSelectionEntryId: 'paired',
+            constraints: [
+              { id: 'brutes-min', type: 'min', value: 1, field: 'selections', scope: 'parent' },
+              { id: 'brutes-max', type: 'max', value: 1, field: 'selections', scope: 'parent' },
+            ],
+            modifiers: [dishonouredLimit('brutes-min'), dishonouredLimit('brutes-max')],
+            selectionEntries: [
+              {
+                id: 'paired',
+                name: 'Brute w/ paired',
+                type: 'model',
+                constraints: [{ id: 'paired-max', type: 'max', value: 2, field: 'selections', scope: 'parent' }],
+              },
+              {
+                id: 'smasher',
+                name: 'Brute w/ smasher',
+                type: 'model',
+                constraints: [{ id: 'smasher-max', type: 'max', value: 2, field: 'selections', scope: 'parent' }],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  })
+  const held = (built: ReturnType<typeof buildUnit>, key: string) =>
+    Object.fromEntries(
+      built!.choices.find((choice) => choice.key === key)!.options.flatMap((option) => (option.count ? [[option.id, option.count]] : [])),
+    )
+
+  it('offers the sizes its bundles field', () => {
+    expect(buildUnit('pack', index)?.size).toMatchObject({ models: 10, min: 10, max: 20, options: [10, 20] })
+  })
+
+  it('takes the plain bundle when asked for a larger size', () => {
+    expect(held(buildUnit('pack', index, 20), 'bundles')).toEqual({ seventeen: 1 })
+  })
+
+  it('fields the models the larger bundle requires', () => {
+    expect(modelCountOf(buildUnit('pack', index, 20)!.selection, index)).toBe(20)
+  })
+
+  it('leaves no limit broken at the larger size', () => {
+    expect(evaluate([buildUnit('pack', index, 20)!.selection], index).errors).toEqual([])
+  })
+
+  it('lets a picked bundle set the size over a count saved beside it', () => {
+    expect(buildUnit('pack', index, 10, { bundles: 'two-fifteen' })?.size.models).toBe(20)
+  })
+
+  it('trims a saved split the smaller size cannot hold', () => {
+    const built = buildUnit('pack', index, 10, undefined, { spreads: { brutes: { paired: 1, smasher: 1 } } })
+    expect(modelCountOf(built!.selection, index)).toBe(10)
+  })
+
+  it('still offers every weapon bundle as a choice', () => {
+    expect(buildUnit('pack', index)?.choices.find((choice) => choice.key === 'bundles')?.options).toHaveLength(3)
+  })
+})
+
 describe('fixed squad sizes', () => {
   const armedSquad = (sizes: number[], bodies = (_count: number) => 'Bodies') =>
     indexOf({

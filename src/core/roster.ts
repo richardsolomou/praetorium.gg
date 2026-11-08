@@ -3,7 +3,7 @@
 import { type CatalogueIndex, type Definition, resolve } from './catalogue'
 import { isCollective, storesUnitTotal } from './collective'
 import { childrenOf, MAX_DEPTH, maximumCount, maximumCountAt, type Option, pointsOf, requiredCount } from './definitions'
-import { evaluate, type EvaluateOptions, type Selection } from './evaluate'
+import { evaluate, type EvaluateOptions, type Selection, selectionCountBoundsAt } from './evaluate'
 import { defaultSelection, expand, withChoice } from './expand'
 import { allAt, at as selectionAt, countAt, updateSelection, withCounts } from './selection'
 import { type ChoiceOptions, isUnitCompositionChoice, type UnitChoice, unitChoices, type UnitToggle, unitToggles } from './unitChoices'
@@ -92,15 +92,19 @@ function assemble(
   const chosen = Object.entries(choices ?? {})
     .toSorted(([left], [right]) => left.split('/').length - right.split('/').length)
     .reduce((tree, [key, optionId]) => withUnitChoice(tree, key, optionId, index, context), base)
-  const fixedSizes = modelCompositionSizes(entryId, chosen, index, context)
+  const { sizes: fixedSizes, bundleKey } = fixedComposition(entryId, chosen, index, context)
+  const fit = (tree: Selection) => (bundleKey ? withFittedModelGroups(entryId, tree, index, context) : tree)
+  // A bundle the player picked already says how many models it fields.
   const requestedModels =
-    models === undefined || !fixedSizes.length
-      ? models
-      : fixedSizes.reduce((nearest, size) => (Math.abs(size - models) < Math.abs(nearest - models) ? size : nearest))
+    bundleKey && choices?.[bundleKey]
+      ? undefined
+      : models === undefined || !fixedSizes.length
+        ? models
+        : fixedSizes.reduce((nearest, size) => (Math.abs(size - models) < Math.abs(nearest - models) ? size : nearest))
   const sized =
     requestedModels === undefined
-      ? chosen
-      : withModelComposition(entryId, chosen, requestedModels, new Set(Object.keys(choices ?? {})), index, context)
+      ? fit(chosen)
+      : withModelComposition(entryId, fit(chosen), requestedModels, new Set(Object.keys(choices ?? {})), fit, index, context)
   const composed = Object.entries(choices ?? {}).reduce((tree, [key, optionId]) => {
     if (!fixedSizes.length) return tree
     const request = compositionRequest(sized, key, index)
@@ -165,7 +169,7 @@ function assemble(
     const own = Object.entries(counts).filter(([optionId]) => !governed(key, optionId))
     return own.length ? withUnitSpread(tree, key, Object.fromEntries(own), index, context) : tree
   }
-  const spread = requests.reduce(applySpread, composed)
+  const spread = fit(requests.reduce(applySpread, composed))
   const toggled = withCounts(
     spread,
     Object.entries(context?.toggles ?? {}).map(([key, count]) => ({ path: key.split('/'), count })),
@@ -228,16 +232,47 @@ function settleProfileWeaponSwaps(selection: Selection, index: CatalogueIndex, c
   return updates.length ? withCounts(selection, updates) : selection
 }
 
-/** Fixed model-count alternatives offered by a unit-composition choice. */
-function modelCompositionSizes(entryId: string, selection: Selection, index: CatalogueIndex, context?: ChoiceOptions): number[] {
-  const current = modelCountOf(selection, index)
+/** Fixed model-count alternatives offered by a unit-composition choice, and that choice's key when its options bundle their models. */
+function fixedComposition(
+  entryId: string,
+  selection: Selection,
+  index: CatalogueIndex,
+  context?: ChoiceOptions,
+): { sizes: number[]; bundleKey: string | null } {
   for (const choice of unitChoices(entryId, selection, index, context)) {
-    if (!isUnitCompositionChoice(choice) || choice.room !== 1 || choice.options.length < 2) continue
-    const counts = [current, ...choice.options.map((option) => modelCountOf(withChoice(selection, choice.key, option.id, index), index))]
+    if ((!isUnitCompositionChoice(choice) && !choice.bundlesModels) || choice.room !== 1 || choice.options.length < 2) continue
+    const fielded = (tree: Selection) =>
+      modelCountOf(choice.bundlesModels ? withFittedModelGroups(entryId, tree, index, context) : tree, index)
+    const counts = [fielded(selection), ...choice.options.map((option) => fielded(withChoice(selection, choice.key, option.id, index)))]
     const sizes = [...new Set(counts)].toSorted((left, right) => left - right)
-    if (sizes.length > 1) return sizes
+    if (sizes.length > 1) return { sizes, bundleKey: choice.bundlesModels ? choice.key : null }
   }
-  return []
+  return { sizes: [], bundleKey: null }
+}
+
+/** Holds each group of models to what the squad's size allows, as twenty Jakhals field two Dishonoured where ten field one. */
+function withFittedModelGroups(entryId: string, selection: Selection, index: CatalogueIndex, context?: ChoiceOptions): Selection {
+  return unitChoices(entryId, selection, index, context).reduce((tree, choice) => {
+    if (choice.options.some((option) => option.profile === undefined)) return tree
+    const held = choice.options.reduce((total, option) => total + option.count, 0)
+    const bounds = selectionCountBoundsAt(tree, choice.key.split('/'), index, context)
+    if (!bounds) return tree
+    const wanted = Math.min(bounds.maximum ?? held, Math.max(held, bounds.minimum))
+    if (wanted === held) return tree
+    const ordered = choice.options.toSorted(
+      (one, other) => other.count - one.count || Number(other.default ?? 0) - Number(one.default ?? 0),
+    )
+    let left = wanted
+    const counts = Object.fromEntries(
+      ordered.map((option) => {
+        const kept = Math.min(option.count, left)
+        left -= kept
+        return [option.id, kept]
+      }),
+    )
+    counts[ordered[0]!.id]! += left
+    return withUnitSpread(tree, choice.key, counts, index, context)
+  }, selection)
 }
 
 /**
@@ -373,6 +408,7 @@ function withModelComposition(
   selection: Selection,
   models: number,
   explicit: ReadonlySet<string>,
+  fit: (selection: Selection) => Selection,
   index: CatalogueIndex,
   context?: ChoiceOptions,
 ): Selection {
@@ -383,8 +419,11 @@ function withModelComposition(
   if (modelCountOf(fitted, index) === models) return fitted
   for (const choice of unitChoices(entryId, selection, index, context)) {
     if ((explicit.has(choice.key) && !isUnitCompositionChoice(choice)) || choice.room !== 1) continue
-    for (const option of choice.options) {
-      const candidate = withChoice(selection, choice.key, option.id, index)
+    // Of the bundles at a size, the plainest: "17 chainblades" before "2 mauler chainblades, 15 chainblades".
+    const kindsIn = (id: string) => (index.definitions.get(id) ? childrenOf(index.definitions.get(id)!, index).length : 0)
+    const options = choice.bundlesModels ? choice.options.toSorted((one, other) => kindsIn(one.id) - kindsIn(other.id)) : choice.options
+    for (const option of options) {
+      const candidate = fit(withChoice(selection, choice.key, option.id, index))
       if (modelCountOf(candidate, index) === models) return candidate
       const completed = withOptionalModels(candidate, models, index)
       if (modelCountOf(completed, index) === models) return completed
