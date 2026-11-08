@@ -74,9 +74,13 @@ export { browserAgentToolCatalog, callBrowserAgentTool, prepareBrowserAgentTool 
 export { mcpConnections, revokeMcpConnection } from '../server/functions/mcpConnections'
 
 const read =
-  <K extends ConstructionReadName, T>(name: K, online: (args: { data: ConstructionReadData<K>; signal?: AbortSignal }) => Promise<T>) =>
+  <K extends ConstructionReadName, T>(
+    name: K,
+    online: (args: { data: ConstructionReadData<K>; signal?: AbortSignal }) => Promise<T>,
+    serverTimeoutMs?: number,
+  ) =>
   (args: { data: ConstructionReadData<K> & { catalogueId?: string }; signal?: AbortSignal }) =>
-    constructionRead(name, args.data, (signal) => online({ ...args, signal }), args.data.catalogueId, args.signal)
+    constructionRead(name, args.data, (signal) => online({ ...args, signal }), args.data.catalogueId, args.signal, serverTimeoutMs)
 
 export { retireDeviceConstruction } from './offline/constructionWorker'
 
@@ -121,7 +125,8 @@ export const datasheetOfferedBy = async (args: Parameters<typeof server.datashee
 export const datasheet = read('datasheet', (args) => server.datasheet(args))
 export const loadoutDatasheets = read('loadoutDatasheets', (args) => server.loadoutDatasheets(args))
 export const combatantDatasheet = read('combatantDatasheet', (args) => server.combatantDatasheet(args))
-export const combatantDatasheets = read('combatantDatasheets', (args) => server.combatantDatasheets(args))
+// A roster comparison sends these together and a device without the army's rules has no answer of its own, so a short deadline blanks whole rows.
+export const combatantDatasheets = read('combatantDatasheets', (args) => server.combatantDatasheets(args), 16_000)
 export const combatLoadouts = read('combatLoadouts', (args) => server.combatLoadouts(args))
 export const unitBattleDetails = read('unitBattleDetails', (args) => server.unitBattleDetails(args))
 export const reminderAbilities = read('reminderAbilities', (args) => server.reminderAbilities(args))

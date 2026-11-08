@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from 'vitest'
-import { createQueryClient } from './queryClient'
+import { createQueryClient, errorMessage } from './queryClient'
 import { writeAppSnapshot } from './offline/appStorage'
 import { SIGN_IN_REQUIRED } from '../core/session'
 
@@ -85,4 +85,8 @@ it('counts a failed read by the name its key starts with', async () => {
 it('does not count a read refused for a lapsed session', async () => {
   await failedRead(['me'], new Error(SIGN_IN_REQUIRED))
   expect(capture).not.toHaveBeenCalled()
+})
+
+it('says a timed-out request took too long instead of quoting the browser', () => {
+  expect(errorMessage(new DOMException('signal timed out', 'TimeoutError'))).toBe('That took too long. Try again.')
 })
