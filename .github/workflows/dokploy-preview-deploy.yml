@@ -51,7 +51,7 @@ jobs:
       checks: write
       issues: write
       pull-requests: write
-    uses: richardsolomou/ras-stack/.github/workflows/deploy-dokploy-preview.yml@d111193b241d809afd3f36a1cc756f73454d9958
+    uses: richardsolomou/ras-stack/.github/workflows/deploy-dokploy-preview.yml@c3513d30be88bb171c028a14f5b7df55c00f3d9f
     with:
       package: praetorium.gg
       # Pulls the arm64 preview image and extracts its database module natively.
