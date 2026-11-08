@@ -8,6 +8,13 @@ export const SHARED_PAGE_CACHE = 'public, max-age=0, s-maxage=20'
 
 const SIGNED_IN = /(?:^|;\s*)(?:__Secure-)?better-auth\./
 
+/** A GET or HEAD for a public page from a reader without a session. */
+export function signedOutPublicRead(request: Request) {
+  if (request.method !== 'GET' && request.method !== 'HEAD') return false
+  if (request.headers.has('authorization') || SIGNED_IN.test(request.headers.get('cookie') ?? '')) return false
+  return PUBLIC_PATH.test(new URL(request.url).pathname)
+}
+
 /**
  * The `Cache-Control` that lets Cloudflare share a reference page between signed-out readers, or null.
  *
@@ -15,10 +22,7 @@ const SIGNED_IN = /(?:^|;\s*)(?:__Secure-)?better-auth\./
  * cookies while rendering, so it never does.
  */
 export function sharedPageCache(request: Request, response: Response) {
-  if (request.method !== 'GET' && request.method !== 'HEAD') return null
   if (response.status !== 200 || response.headers.has('cache-control') || response.headers.has('set-cookie')) return null
   if (!response.headers.get('content-type')?.startsWith('text/html')) return null
-  if (request.headers.has('authorization') || SIGNED_IN.test(request.headers.get('cookie') ?? '')) return null
-  const { pathname } = new URL(request.url)
-  return pathname !== '/rosters' && PUBLIC_PATH.test(pathname) ? SHARED_PAGE_CACHE : null
+  return signedOutPublicRead(request) && new URL(request.url).pathname !== '/rosters' ? SHARED_PAGE_CACHE : null
 }

@@ -94,12 +94,14 @@ type Domain = {
 }
 
 export async function ensureWebHealthCheck(api: DokployApi, applicationId: string) {
+  // A replica busy with a burst of page renders misses probes while still serving, and with one replica a replacement
+  // is an outage until the new one warms its catalogue, so it is replaced only after about three minutes without an answer.
   const healthCheckSwarm = {
     Test: ['CMD', 'node', '/app/scripts/healthcheck.ts'],
     Interval: 10_000_000_000,
     Timeout: 10_000_000_000,
     StartPeriod: STARTUP_BUDGET_MS * 1_000_000,
-    Retries: 3,
+    Retries: 12,
   }
   await api('application.update', { body: { applicationId, healthCheckSwarm } })
   const saved = await api<{ applicationId: string; healthCheckSwarm: typeof healthCheckSwarm | null }>('application.one', {
