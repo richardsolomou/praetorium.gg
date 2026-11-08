@@ -1,5 +1,8 @@
 import type { PushPlatform } from '../core/notificationConfig'
 
+/** The product token the native shell adds to its web view's user agent, the one sign of the app a server request carries. */
+export const NATIVE_USER_AGENT_PRODUCT = 'PraetoriumNative'
+
 /** Events the native shell dispatches on `window` for the web application. */
 export const NATIVE_EVENTS = {
   appBack: 'praetorium-app-back',

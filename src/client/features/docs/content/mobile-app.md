@@ -2,7 +2,7 @@ The Praetorium app opens the same site as praetorium.gg, with the same account, 
 
 ## Get the app
 
-On iPhone and iPad, install [Praetorium from the App Store](https://apps.apple.com/app/praetorium-gg/id6806875244). Safari on those devices also offers it in a banner at the top of praetorium.gg. On a computer, Home shows both store badges under its opening band. Signed in, **Not now** hides them.
+On iPhone and iPad, install [Praetorium from the App Store](https://apps.apple.com/app/praetorium-gg/id6806875244). Safari on those devices also offers it in a banner at the top of praetorium.gg. On a computer, Home shows both store badges under its opening band. Signed in, **Not now** hides them, and they stay away while you have opened the app in the past month.
 
 The Android app is in a closed beta. The **Get it on Google Play** badge on Home shows these steps, with each Google page it opens and the button to tap ringed.
 

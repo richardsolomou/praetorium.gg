@@ -26,6 +26,10 @@ const migrations = [
     file: new URL('../drizzle-auth/0003_burly_karnak.sql', import.meta.url),
     applied: (database: DatabaseSync) => hasTable(database, 'githubSponsor'),
   },
+  {
+    file: new URL('../drizzle-auth/0004_dark_jimmy_woo.sql', import.meta.url),
+    applied: (database: DatabaseSync) => hasColumn(database, 'user', 'lastNativeAppAt'),
+  },
 ]
 
 function applyMigrations(database: DatabaseSync) {

@@ -380,6 +380,32 @@ it('refuses an administrator deletion of themselves, another administrator, or b
   }).toEqual({ results: ['self', 'admin', 'forbidden', 'missing'], deleted: [] })
 })
 
+it('remembers that a player opened the app for 30 days', async () => {
+  const { user: player } = await signUpAs(authFor(testEnvironment), 'App player', 'user')
+  const accounts = new SqliteAccountRepository(local.database)
+  const opened = new Date('2026-11-01T12:00:00Z')
+  const daysLater = (days: number) => new Date(opened.getTime() + days * 24 * 60 * 60 * 1_000)
+  expect([
+    await accounts.usesApp(player.id, false, opened),
+    await accounts.usesApp(player.id, true, opened),
+    await accounts.usesApp(player.id, false, daysLater(29)),
+    await accounts.usesApp(player.id, false, daysLater(30)),
+  ]).toEqual([false, true, true, false])
+})
+
+it('writes an app open at most once a day', async () => {
+  const { user: player } = await signUpAs(authFor(testEnvironment), 'Daily app player', 'user')
+  const accounts = new SqliteAccountRepository(local.database)
+  const recorded = async () => (await local.database.select({ at: user.lastNativeAppAt }).from(user).where(eq(user.id, player.id)))[0]?.at
+  const first = new Date('2026-11-01T12:00:00Z')
+  const nextDay = new Date('2026-11-02T12:00:00Z')
+  await accounts.usesApp(player.id, true, first)
+  await accounts.usesApp(player.id, true, new Date(nextDay.getTime() - 1))
+  const withinDay = await recorded()
+  await accounts.usesApp(player.id, true, nextDay)
+  expect({ withinDay, afterDay: await recorded() }).toEqual({ withinDay: first, afterDay: nextDay })
+})
+
 it('records when a player was last seen without counting an administrator viewing as them', async () => {
   const auth = authFor(testEnvironment)
   const admin = await signUpAs(auth, 'Viewing admin', 'admin')

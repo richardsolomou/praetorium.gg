@@ -21,7 +21,8 @@ import { HomeWaiting, type RosterDue } from './HomeWaiting'
 
 /** What the page draws, with nothing left to fetch. */
 export type HomeData = {
-  me: { id: string; name: string } | null
+  /** `usesApp`: they opened the mobile app in the past month, so Home stops offering it. */
+  me: { id: string; name: string; usesApp?: boolean } | null
   mine: readonly Battle[]
   friends: readonly Battle[]
   open: readonly Battle[]
@@ -88,7 +89,7 @@ export function HomeView({
     const stats = onboarding?.completedTasks.includes('battle') && record !== null ? <HomeRecord userId={me.id} data={record} /> : null
     return (
       <main className="w-full">
-        <Welcome name={me.name} returning={mine.length > 0 || rosterCount > 0} newBattle={newBattle} stats={stats} />
+        <Welcome name={me.name} returning={mine.length > 0 || rosterCount > 0} newBattle={newBattle} stats={stats} offerApp={!me.usesApp} />
         {notifications}
         <div className="mx-auto w-full max-w-6xl space-y-10 px-5 py-8 sm:px-6">
           <Columns
@@ -132,7 +133,7 @@ export function HomeView({
             }
           />
         </div>
-        <HomeAppCredits dismissable />
+        {me.usesApp ? null : <HomeAppCredits dismissable />}
       </main>
     )
   }
@@ -174,7 +175,19 @@ function AllMyBattles() {
  * of the page is one width: a second tall gradient panel would make one page look
  * like two.
  */
-function Welcome({ name, returning, newBattle, stats }: { name: string; returning: boolean; newBattle?: ReactNode; stats: ReactNode }) {
+function Welcome({
+  name,
+  returning,
+  newBattle,
+  stats,
+  offerApp,
+}: {
+  name: string
+  returning: boolean
+  newBattle?: ReactNode
+  stats: ReactNode
+  offerApp: boolean
+}) {
   const firstName = name.trim().split(/\s+/)[0]
   const greeting = returning ? 'Welcome back' : 'Welcome'
   return (
@@ -192,7 +205,7 @@ function Welcome({ name, returning, newBattle, stats }: { name: string; returnin
         </div>
         {stats ? <div className="max-sm:hidden">{stats}</div> : null}
       </div>
-      <AppBand dismissable />
+      {offerApp ? <AppBand dismissable /> : null}
     </section>
   )
 }

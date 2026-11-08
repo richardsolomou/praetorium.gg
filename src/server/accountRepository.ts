@@ -6,6 +6,9 @@ import { byId, remember } from '../core/collections'
 import type { GithubSponsor } from './githubSponsors'
 import type { AdminUserCountSort, AdminUserSort, AdminUsersRequest } from '../admin'
 
+const DAY_MS = 24 * 60 * 60 * 1_000
+const APP_USE_WINDOW_MS = 30 * DAY_MS
+
 type UnlinkAccountResult =
   | { status: 'removed'; account: { accessToken: string | null; refreshToken: string | null } }
   | { status: 'missing' | 'two-factor' | 'last-method' }
@@ -65,6 +68,14 @@ export class SqliteAccountRepository {
   async isAdmin(id: string) {
     const [row] = await this.database.select({ role: user.role }).from(user).where(eq(user.id, id)).limit(1)
     return row?.role === 'admin'
+  }
+
+  /** Whether the player has opened the mobile app in the past month; `opening` says this request came from it. */
+  async usesApp(userId: string, opening: boolean, now = new Date()) {
+    const [row] = await this.database.select({ at: user.lastNativeAppAt }).from(user).where(eq(user.id, userId)).limit(1)
+    const elapsed = row?.at ? now.getTime() - row.at.getTime() : Infinity
+    if (opening && elapsed >= DAY_MS) await this.database.update(user).set({ lastNativeAppAt: now }).where(eq(user.id, userId))
+    return opening || elapsed < APP_USE_WINDOW_MS
   }
 
   async namesByIds(ids: readonly string[]) {
