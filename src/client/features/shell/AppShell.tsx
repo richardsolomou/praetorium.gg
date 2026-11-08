@@ -9,15 +9,14 @@ import { useQuery } from '@tanstack/react-query'
 import { HeadContent, Link, Outlet, Scripts, useLocation } from '@tanstack/react-router'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import {
+  ArrowUpRight,
   Boxes,
   BookOpen,
   Calculator,
   Gavel,
-  Medal,
+  GraduationCap,
   ScrollText,
   Swords,
-  Trophy,
-  Users,
   UsersRound,
   PanelLeftClose,
   PanelLeftOpen,
@@ -46,7 +45,7 @@ import { DisplayNamePrompt } from '../account/DisplayNamePrompt'
 import { SupportPanel } from '../feedback/SupportPanel'
 import { SupportIdentity } from '../feedback/support'
 import { meQuery } from '../../queries'
-import { CommunityLinks } from './CommunityLinks'
+import { COMMUNITY_LINKS, COMMUNITY_PAGES, FRIENDS_PAGE } from './CommunityLinks'
 import { followTextSourceChoice } from '../../rulesText'
 import { useRealtimeConfig, useSpacetimeLiveProduct } from '../../spacetimeLive'
 // A local dev server shares the production project token, so gate the browser
@@ -66,19 +65,18 @@ const PRIMARY_LINKS = [
   { to: '/collection', label: 'Collection', Icon: Boxes },
 ] as const
 
-const SOCIAL_LINKS = [
-  { to: '/groups', label: 'Groups', Icon: Users },
-  { to: '/tournaments', label: 'Tournaments', Icon: Trophy },
-  { to: '/leaderboard', label: 'Leaderboard', Icon: Medal },
-] as const
-
 const REFERENCE_LINKS = [
   { to: '/factions', label: 'Factions', Icon: UsersRound },
   { to: '/missions', label: 'Missions', Icon: BookOpen },
   { to: '/rules', label: 'Rules', Icon: Gavel },
+  { to: '/docs', label: 'Docs', Icon: GraduationCap },
 ] as const
 
 type RailLink = { to: string; label: string; Icon: LucideIcon }
+type RailSiteLink = (typeof COMMUNITY_LINKS)[number]
+
+const RAIL_LINK_CLASS =
+  'group flex h-8 items-center gap-2.5 rounded-lg border border-transparent px-2.5 text-sm font-semibold text-dim transition-colors in-data-[rail=collapsed]:justify-center in-data-[rail=collapsed]:px-0 hover:bg-raised/60 hover:text-bone aria-[current=page]:border-edge aria-[current=page]:bg-panel aria-[current=page]:text-bone aria-[current=page]:shadow-part'
 
 /** Names an icon beside the folded rail, where its label is hidden; the open rail shows the label instead. */
 function RailTooltip({ label, collapsed, children }: { label: string; collapsed: boolean; children: ReactElement }) {
@@ -92,12 +90,22 @@ function RailTooltip({ label, collapsed, children }: { label: string; collapsed:
   )
 }
 
-function RailLinks({ links, name, collapsed }: { links: readonly RailLink[]; name: string; collapsed: boolean }) {
+function RailLinks({
+  links,
+  sites,
+  name,
+  collapsed,
+}: {
+  links: readonly RailLink[]
+  sites?: readonly RailSiteLink[]
+  name: string
+  collapsed: boolean
+}) {
   const path = useLocation().pathname
   return (
     <nav
       aria-label={name}
-      className="runner gap-0.5 [--gate-y:1.125rem] in-data-[rail=collapsed]:pl-0 in-data-[rail=collapsed]:before:hidden in-data-[rail=collapsed]:*:before:hidden in-data-[rail=collapsed]:*:after:hidden"
+      className="runner gap-0.5 [--gate-y:1rem] in-data-[rail=collapsed]:pl-0 in-data-[rail=collapsed]:before:hidden in-data-[rail=collapsed]:*:before:hidden in-data-[rail=collapsed]:*:after:hidden"
     >
       {links.map(({ to, label, Icon }) => (
         <RailTooltip key={to} label={label} collapsed={collapsed}>
@@ -105,22 +113,31 @@ function RailLinks({ links, name, collapsed }: { links: readonly RailLink[]; nam
             to={to}
             search={to === '/leaderboard' ? { faction: undefined } : undefined}
             aria-current={to === '/missions' && path.startsWith('/force-dispositions/') ? 'page' : undefined}
-            className="group flex h-9 items-center gap-2.5 rounded-lg border border-transparent px-2.5 text-sm font-semibold text-dim transition-colors in-data-[rail=collapsed]:justify-center in-data-[rail=collapsed]:px-0 hover:bg-raised/60 hover:text-bone aria-[current=page]:border-edge aria-[current=page]:bg-panel aria-[current=page]:text-bone aria-[current=page]:shadow-part"
+            className={RAIL_LINK_CLASS}
           >
             <Icon aria-hidden className="size-4.5 shrink-0 text-faint group-aria-[current=page]:text-parchment" />
             <span className="truncate in-data-[rail=collapsed]:sr-only">{label}</span>
           </Link>
         </RailTooltip>
       ))}
+      {sites?.map(({ href, label, Icon }) => (
+        <RailTooltip key={href} label={label} collapsed={collapsed}>
+          <a href={href} target="_blank" rel="noreferrer noopener" className={RAIL_LINK_CLASS}>
+            <Icon className="size-4.5 shrink-0 opacity-60 transition-opacity group-hover:opacity-100" />
+            <span className="truncate in-data-[rail=collapsed]:sr-only">{label}</span>
+            <ArrowUpRight aria-hidden className="ml-auto size-3.5 shrink-0 text-faint in-data-[rail=collapsed]:hidden" />
+          </a>
+        </RailTooltip>
+      ))}
     </nav>
   )
 }
 
-function RailSection({ links, name, collapsed }: { links: readonly RailLink[]; name: string; collapsed: boolean }) {
+function RailSection({ name, ...links }: Parameters<typeof RailLinks>[0]) {
   return (
     <div>
       <p className="mb-1.5 ml-1 text-2xs font-semibold tracking-eyebrow text-faint uppercase in-data-[rail=collapsed]:sr-only">{name}</p>
-      <RailLinks links={links} name={name} collapsed={collapsed} />
+      <RailLinks name={name} {...links} />
     </div>
   )
 }
@@ -133,6 +150,7 @@ function RailSection({ links, name, collapsed }: { links: readonly RailLink[]; n
  */
 function SiteRail({ workspace }: { workspace: boolean }) {
   const collapsed = useRailCollapsed(workspace)
+  const { data: me } = useQuery(meQuery())
   const Toggle = collapsed ? PanelLeftOpen : PanelLeftClose
   return (
     <aside
@@ -163,14 +181,19 @@ function SiteRail({ workspace }: { workspace: boolean }) {
           </div>
           <div className="no-scrollbar min-h-0 flex-1 space-y-4 overflow-y-auto pr-2.5 pl-2 in-data-[rail=collapsed]:pr-2">
             <RailLinks links={PRIMARY_LINKS} name="Primary" collapsed={collapsed} />
-            <RailSection links={SOCIAL_LINKS} name="Community" collapsed={collapsed} />
             <RailSection links={REFERENCE_LINKS} name="Reference" collapsed={collapsed} />
+            <RailSection
+              links={me ? [...COMMUNITY_PAGES, FRIENDS_PAGE] : COMMUNITY_PAGES}
+              sites={COMMUNITY_LINKS}
+              name="Community"
+              collapsed={collapsed}
+            />
           </div>
           {/*
            * Folded, the column is the open row reversed: the toggle keeps the corner under the pointer
            * so the rail opens again without moving, and the account stays next to it.
            */}
-          <div className="mx-2.5 mt-2 flex items-center gap-1 border-t border-edge pt-2 in-data-[rail=collapsed]:flex-col-reverse in-data-[rail=collapsed]:[&_nav]:flex-col">
+          <div className="mx-2.5 mt-2 flex items-center justify-between gap-1 border-t border-edge pt-2 in-data-[rail=collapsed]:flex-col-reverse">
             <RailTooltip label="Expand navigation" collapsed={collapsed}>
               <Button
                 variant="ghost"
@@ -184,8 +207,6 @@ function SiteRail({ workspace }: { workspace: boolean }) {
               </Button>
             </RailTooltip>
             <Account className="size-8" />
-            <span className="flex-1" />
-            <CommunityLinks />
           </div>
         </div>
       </div>
