@@ -329,8 +329,8 @@ importers:
         specifier: ^2.0.8
         version: 2.0.8(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       spacetimedb:
-        specifier: 2.13.0
-        version: 2.13.0(@tanstack/react-query@5.104.1(react@19.3.0))(react@19.3.0)
+        specifier: 2.14.0
+        version: 2.14.0(@tanstack/react-query@5.104.1(react@19.3.0))(react@19.3.0)
       tailwind-merge:
         specifier: ^3.7.0
         version: 3.7.0
@@ -508,8 +508,8 @@ importers:
   spacetimedb:
     dependencies:
       spacetimedb:
-        specifier: 2.13.0
-        version: 2.13.0(@tanstack/react-query@5.104.1(react@19.3.0))(react@19.3.0)
+        specifier: 2.14.0
+        version: 2.14.0(@tanstack/react-query@5.104.1(react@19.3.0))(react@19.3.0)
     devDependencies:
       typescript:
         specifier: ^7.0.2
@@ -6797,8 +6797,8 @@ packages:
   space-separated-tokens@2.0.2:
     resolution: {integrity: sha512-PEGlAwrG8yXGXRjW32fGbg66JAlOAwbObuqVoJpv/mRgoWDQfgH1wDPvtzWyUSNAXBGSk8h755YDbbcEy3SH2Q==}
 
-  spacetimedb@2.13.0:
-    resolution: {integrity: sha512-KuViI2SVCb4SwVSSRkKddtZe5uoy09SFK2ZmpK+R4JVvckPSdYJ7I97fvceChIjKQem0IuF5plYNAbgTBMGp3w==}
+  spacetimedb@2.14.0:
+    resolution: {integrity: sha512-u3rcGjy5A/qInTuEYBbGmKv0Rr7JN5iCtW67D9G4as2yRYJrxhhUVe1i1oIzcn/YdtfT9yeE3JYGSIPJPoL8eQ==}
     peerDependencies:
       '@angular/core': '>=17.0.0'
       '@tanstack/react-query': ^5.0.0
@@ -13776,7 +13776,7 @@ snapshots:
 
   space-separated-tokens@2.0.2: {}
 
-  spacetimedb@2.13.0(@tanstack/react-query@5.104.1(react@19.3.0))(react@19.3.0):
+  spacetimedb@2.14.0(@tanstack/react-query@5.104.1(react@19.3.0))(react@19.3.0):
     dependencies:
       base64-js: 1.5.1
       headers-polyfill: 4.0.3
