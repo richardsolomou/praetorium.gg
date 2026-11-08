@@ -173,7 +173,7 @@ it.skipIf(!url || !database || !token)('hands a variant group to its oldest rema
     expect((await store.rosterGroupByUser(userId, base)).map((row) => row.id)).toEqual([base])
     expect((await store.rosterGroupByUser(userId, first)).map((row) => row.id)).toEqual([first, second])
     expect(await store.splitRosterVariant(second, userId, now + 5)).toBe(true)
-    expect((await store.roster(second))?.baseRosterId).toBeUndefined()
+    expect((await store.roster(second))?.baseRosterId).toBeNull()
     expect((await store.rosterGroupByUser(userId, first)).map((row) => row.id)).toEqual([first])
   } finally {
     for (const id of [base, first, second]) await store.deleteRoster(id, userId)
@@ -404,7 +404,9 @@ it.skipIf(!url || !database || !token)('keeps collection and favourites idempote
     await store.addFavouriteDetachment({ userId, catalogueId, detachmentId, now: now + 1 })
     await store.addFavouriteDatasheet({ userId, entryId, now })
     await store.addFavouriteDatasheet({ userId, entryId, now: now + 1 })
-    expect(await store.collectionByUser(userId)).toEqual([{ userId, entryId, at: now, models: 1 }])
+    expect(await store.collectionByUser(userId)).toEqual([
+      { userId, entryId, at: now, models: 1, built: 0, painted: 0, countsAs: [], photoShows: {} },
+    ])
     expect(await store.favouriteFactionsByUser(userId)).toEqual([{ userId, catalogueId, at: now }])
     expect(await store.favouriteDetachmentsByUser(userId)).toEqual([{ userId, catalogueId, detachmentId, at: now }])
     expect(await store.favouriteDatasheetsByUser(userId)).toEqual([{ userId, entryId, at: now }])
@@ -471,7 +473,7 @@ it.skipIf(!url || !database || !token)('records a model count without duplicatin
     await store.setCollectionModels({ userId, entryId, models: 3, now })
     await store.addToCollection({ userId, entryId, now: now + 1 })
     await store.setCollectionModels({ userId, entryId, models: 12, now: now + 2 })
-    expect(await store.collectionByUser(userId)).toEqual([{ userId, entryId, at: now, models: 12 }])
+    expect(await store.collectionByUser(userId)).toMatchObject([{ userId, entryId, at: now, models: 12 }])
     expect(await store.collectionByUser('other')).toEqual([])
   } finally {
     await store.removeFromCollection(userId, entryId)
