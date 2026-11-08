@@ -8,11 +8,18 @@ export const SHARED_PAGE_CACHE = 'public, max-age=0, s-maxage=20'
 
 const SIGNED_IN = /(?:^|;\s*)(?:__Secure-)?better-auth\./
 
-/** A GET or HEAD for a public page from a reader without a session. */
+/** A GET or HEAD for a public page. */
+export function publicRead(request: Request) {
+  return (request.method === 'GET' || request.method === 'HEAD') && PUBLIC_PATH.test(new URL(request.url).pathname)
+}
+
+/**
+ * A public read with no sign of a session. Any `better-auth.` cookie counts, forged or not, because the cost of
+ * mistaking a forged one for a session is only an uncached page, while the reverse would share a player's page.
+ */
 export function signedOutPublicRead(request: Request) {
-  if (request.method !== 'GET' && request.method !== 'HEAD') return false
   if (request.headers.has('authorization') || SIGNED_IN.test(request.headers.get('cookie') ?? '')) return false
-  return PUBLIC_PATH.test(new URL(request.url).pathname)
+  return publicRead(request)
 }
 
 /**
