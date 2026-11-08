@@ -16,6 +16,12 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 from urllib.parse import urlencode
 
+FREEZE_SECONDS = 5
+# Writes through SpacetimeDB's mmapped offset index change bytes without moving the mtime until the kernel flushes the page, so only a file idle this long can be trusted by size and time.
+SETTLED_SECONDS = 300
+# The server's own text log grows without limit and a restore never reads it.
+SERVER_LOGS = "data/logs"
+
 
 @dataclasses.dataclass(frozen=True)
 class BackupConfig:
@@ -106,6 +112,27 @@ def container_volumes(config):
     return container, volumes
 
 
+def rsync(source, target, *options):
+    return [
+        "rsync",
+        "--archive",
+        "--hard-links",
+        f"--exclude=/{SERVER_LOGS}/",
+        *options,
+        str(source) + "/",
+        str(target) + "/",
+    ]
+
+
+def recent_files(source, since):
+    logs = source / SERVER_LOGS
+    return [
+        str(path.relative_to(source))
+        for path in source.rglob("*")
+        if path.is_file() and logs not in path.parents and path.stat().st_mtime >= since
+    ]
+
+
 def archive(config, work):
     container, volumes = container_volumes(config)
     size = sum(
@@ -114,19 +141,13 @@ def archive(config, work):
     )
     if shutil.disk_usage(work).free < size * 3 + 512 * 1024 * 1024:
         raise RuntimeError("Insufficient space for backup copy, archive and readback")
+    settled_before = time.time() - SETTLED_SECONDS
     for kind, source in volumes.items():
         target = work / kind
         target.mkdir()
         # Snapshot GC may remove files during the initial copy; the frozen pass is authoritative.
         copied = subprocess.run(
-            [
-                "rsync",
-                "--archive",
-                "--hard-links",
-                "--delete",
-                str(source) + "/",
-                str(target) + "/",
-            ],
+            rsync(source, target, "--delete"),
             capture_output=True,
             timeout=180,
         )
@@ -154,26 +175,29 @@ def archive(config, work):
     started = time.monotonic()
     try:
         run_command(["docker", "pause", container], timeout=2)
-        for kind, source in volumes.items():
-            remaining = 5 - (time.monotonic() - started)
+        def freeze_left():
+            remaining = FREEZE_SECONDS - (time.monotonic() - started)
             if remaining <= 0:
                 raise TimeoutError(
                     "SpacetimeDB backup exceeded its five-second freeze budget"
                 )
+            return remaining
+
+        for kind, source in volumes.items():
+            # Compared first, so the size and time pass below finds these already identical.
             subprocess.run(
-                [
-                    "rsync",
-                    "--archive",
-                    "--hard-links",
-                    "--checksum",
-                    "--delete",
-                    "--inplace",
-                    str(source) + "/",
-                    str(work / kind) + "/",
-                ],
+                rsync(source, work / kind, "--checksum", "--inplace", "--files-from=-"),
+                input="\n".join(recent_files(source, settled_before)),
+                text=True,
                 check=True,
                 capture_output=True,
-                timeout=remaining,
+                timeout=freeze_left(),
+            )
+            subprocess.run(
+                rsync(source, work / kind, "--delete", "--inplace"),
+                check=True,
+                capture_output=True,
+                timeout=freeze_left(),
             )
         if (
             run_command(
@@ -321,7 +345,10 @@ def main():
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         for stale in workspace.glob("work-*"):
             shutil.rmtree(stale)
-        with tempfile.TemporaryDirectory(prefix="work-", dir=workspace) as directory:
+        # A timed-out rsync's child can still be writing, and that must not hide the timeout; the next run clears the leftovers.
+        with tempfile.TemporaryDirectory(
+            prefix="work-", dir=workspace, ignore_cleanup_errors=True
+        ) as directory:
             work = Path(directory)
             archive(config, work)
             publish(config, work)

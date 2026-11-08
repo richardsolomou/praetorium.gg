@@ -288,6 +288,75 @@ class ResumeTest(unittest.TestCase):
 
 
 class CopyIntegrationTest(unittest.TestCase):
+    def frozen(self, build, during_pause=lambda _source: None):
+        """Runs a real copy of the volume `build` fills; returns the archive's names and what was compared by content."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source, identity, work = root / "source", root / "keys", root / "work"
+            for path in (source, identity, work):
+                path.mkdir()
+            build(source)
+            paused = False
+            compared = []
+            subprocess_run = subprocess.run
+
+            def execute(args, **kwargs):
+                if args[:2] == ["systemctl", "stop"]:
+                    return subprocess.CompletedProcess(args, 0)
+                if "--files-from=-" in args:
+                    compared.extend(filter(None, kwargs["input"].split("\n")))
+                return subprocess_run(args, **kwargs)
+
+            def command(args, **kwargs):
+                nonlocal paused
+                if args[0] == "du":
+                    return "0"
+                if args[:2] == ["docker", "pause"]:
+                    during_pause(source)
+                    paused = True
+                elif args[:2] == ["docker", "unpause"]:
+                    paused = False
+                elif args[:2] == ["docker", "inspect"]:
+                    return str(paused).lower()
+                elif args[0] == "tar":
+                    return run_command(args, **kwargs)
+                return ""
+
+            with patch(
+                "backupSpacetime.container_volumes",
+                return_value=("container", {"data": source, "identity": identity}),
+            ), patch("backupSpacetime.run_command", side_effect=command), patch(
+                "backupSpacetime.subprocess.run", side_effect=execute
+            ):
+                archive(CONFIG, work)
+            with tarfile.open(work / "data.tar") as copied:
+                return copied.getnames(), compared
+
+    @staticmethod
+    def settled_and_recent(source):
+        (source / "settled").write_bytes(b"old")
+        os.utime(source / "settled", (1, 1))
+        (source / "recent").write_bytes(b"new")
+
+    def test_frozen_copy_compares_only_recently_written_files(self):
+        self.assertEqual(self.frozen(self.settled_and_recent)[1], ["recent"])
+
+    def test_frozen_copy_keeps_settled_files(self):
+        self.assertIn("./settled", self.frozen(self.settled_and_recent)[0])
+
+    def test_frozen_copy_drops_a_file_deleted_after_the_first_copy(self):
+        names, _ = self.frozen(
+            self.settled_and_recent, lambda source: (source / "settled").unlink()
+        )
+        self.assertNotIn("./settled", names)
+
+    def test_server_logs_stay_out_of_the_archive(self):
+        def with_logs(source):
+            (source / "data/logs").mkdir(parents=True)
+            (source / "data/logs/server.log").write_bytes(b"noise")
+
+        self.assertNotIn("./data/logs/server.log", self.frozen(with_logs)[0])
+
     def test_frozen_copy_detects_changed_bytes_with_unchanged_size_and_time(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
