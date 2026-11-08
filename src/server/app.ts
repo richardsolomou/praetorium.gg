@@ -18,6 +18,7 @@ import type { SyncState } from './sync'
 import { createSqliteAuth } from './sqliteAuth'
 import { SqliteAccountRepository } from './accountRepository'
 import { localAuthDatabase } from './localAuthDatabase'
+import { recordServerStart } from './serverStartRecord'
 import { SpacetimeOperator } from './spacetimeOperator'
 import { SpacetimeRepository } from './spacetimeRepository'
 import { storeProfileImageFromUrl } from './avatarStorage'
@@ -327,6 +328,7 @@ function useCatalogueLoaders(instance: App, directory: string) {
 export function app(): App {
   const createApp = (): App => {
     const telemetry = serverTelemetry()
+    recordServerStart()
     let catalogueDataDirectory = catalogueDirectory()
     const email = emailDelivery()
     const localAuth = localAuthDatabase(process.env.AUTH_SQLITE_PATH ?? '')
