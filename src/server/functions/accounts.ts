@@ -38,8 +38,23 @@ import {
   unlinkOwnAccountSchema,
 } from '../../contracts/schemas'
 import { onboardingAnswer } from '../../contracts/onboarding'
+import { NATIVE_USER_AGENT_PRODUCT } from '../../contracts/nativeBridge'
 
-export const me = createServerFn({ method: 'GET' }).handler(() => rpc(() => currentUser()))
+export const me = createServerFn({ method: 'GET' }).handler(() =>
+  rpc(async () => {
+    const player = await currentUser()
+    if (!player) return null
+    const opening = !player.impersonatedBy && (getRequest().headers.get('user-agent') ?? '').includes(`${NATIVE_USER_AGENT_PRODUCT}/`)
+    // It only decides whether Home offers the app, so a failure here must not read as being signed out.
+    const usesApp = await app()
+      .repository.usesApp(player.id, opening)
+      .catch((error: unknown) => {
+        reportServerFailure({ event: 'app_use_failed', error }, 'warn')
+        return false
+      })
+    return { ...player, usesApp }
+  }),
+)
 
 export const onboardingProgress = createServerFn({ method: 'GET' }).handler(() =>
   rpc(async () => onboardingAnswer(await app().repository.onboardingProgress(await requireUserId()))),

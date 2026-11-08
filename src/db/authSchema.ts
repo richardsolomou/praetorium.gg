@@ -20,6 +20,8 @@ export const user = sqliteTable(
     twoFactorEnabled: flag('twoFactorEnabled').notNull().default(false),
     /** When the player last signed in or refreshed a session of their own; signing out does not erase it. */
     lastSeenAt: date('lastSeenAt'),
+    /** When the player last opened the mobile app, to the day; Home stops offering the app while this is recent. */
+    lastNativeAppAt: date('lastNativeAppAt'),
   },
   (table) => [
     index('user_role_idx').on(table.role),

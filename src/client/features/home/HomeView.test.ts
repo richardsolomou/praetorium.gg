@@ -50,6 +50,16 @@ describe('home greeting', () => {
   })
 })
 
+describe('home app offer', () => {
+  it('offers the app to a player who has not opened it lately', () => {
+    expect(render()).toContain('data-app-band')
+  })
+
+  it('stops offering the app to a player who has', () => {
+    expect(render({ me: { ...player, usesApp: true } })).not.toContain('data-app-band')
+  })
+})
+
 const progress = (completedTasks: OnboardingTaskId[]) => ({ ...EMPTY_ONBOARDING_PROGRESS, completedTasks })
 
 describe('home record', () => {

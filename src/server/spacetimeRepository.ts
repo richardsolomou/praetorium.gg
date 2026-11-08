@@ -136,6 +136,10 @@ export class SpacetimeRepository {
     return this.accounts.isAdmin(id)
   }
 
+  usesApp(userId: string, opening: boolean) {
+    return this.accounts.usesApp(userId, opening)
+  }
+
   githubSponsorship(userId: string) {
     return this.accounts.githubSponsorship(userId)
   }

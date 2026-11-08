@@ -3,7 +3,7 @@ import { LegalLinks, LegalPage, LegalSection, PrivacyEmail } from './LegalPage'
 
 export function PrivacyPolicy() {
   return (
-    <LegalPage title="Privacy policy" updated="29 October 2026">
+    <LegalPage title="Privacy policy" updated="8 November 2026">
       <LegalSection title="Scope">
         <p>
           Praetorium builds Warhammer 40,000 army lists and tracks battles between the players seated at them. This policy covers the
@@ -35,7 +35,8 @@ export function PrivacyPolicy() {
         <p>
           Sessions record your IP address and browser user agent. Rate-limiting counters protect sign-in and other sensitive actions. A
           cookie remembers the order you sort your rosters in on that device. If you join a battle as a guest, a cookie holds the seat's
-          secret on that device for up to 30 days; we keep only a hash of it.
+          secret on that device for up to 30 days; we keep only a hash of it. We note the last day your account opened the mobile app, so
+          the site stops offering it to you.
         </p>
         <p>
           If you connect an MCP app, we store that app’s authorization, access grants and refresh tokens. You can revoke its access from
