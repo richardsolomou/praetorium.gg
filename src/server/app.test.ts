@@ -120,8 +120,9 @@ it('builds the other editions once startup readiness is answered', async () => {
 
 it('serves other work while startup readiness waits for construction', async () => {
   let answered = false
-  void warm({ ...projections(), construction: construction(50, 5).steps }, true).then(() => (answered = true))
+  const warming = warm({ ...projections(), construction: construction(50, 5).steps }, true).then(() => (answered = true))
   const answeredBeforeTimer = await new Promise<boolean>((resolve) => setTimeout(() => resolve(answered)))
+  await warming
   expect(answeredBeforeTimer).toBe(false)
 })
 
