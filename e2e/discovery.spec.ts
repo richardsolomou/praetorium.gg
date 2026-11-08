@@ -141,12 +141,7 @@ test('docs can be discovered from the home page, sitemap and agent text', async 
   await expect(page).toHaveURL('/docs')
   for (const doc of PRODUCT_DOCS)
     await expect(page.locator('main').getByRole('link', { name: doc.title, exact: true })).toHaveAttribute('href', `/docs/${doc.slug}`)
-  await page
-    .locator('[data-web-app-chrome]')
-    .getByRole('button', { name: /Account menu/ })
-    .click()
-  await expect(page.getByRole('menuitem', { name: 'Docs', exact: true })).toHaveAttribute('href', '/docs')
-  await page.keyboard.press('Escape')
+  await expect(page.locator('[data-web-app-chrome]').getByRole('link', { name: 'Docs', exact: true })).toHaveAttribute('href', '/docs')
   await page.screenshot({ path: testInfo.outputPath('docs-index-1440.png'), fullPage: true })
   await page.setViewportSize({ width: 390, height: 900 })
   await expectNoPageOverflow(page)
