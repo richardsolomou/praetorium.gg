@@ -195,7 +195,7 @@ export function Account({ native = false, className = '' }: { native?: boolean; 
           />
         }
       >
-        <span className="relative">
+        <span className="relative flex">
           {me ? <PlayerAvatar name={me.name} image={me.image} className="size-7 text-xs" /> : <CircleUserRound className="size-5" />}
           {unread ? (
             <span
