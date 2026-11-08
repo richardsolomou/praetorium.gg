@@ -1400,9 +1400,10 @@ Exported with App Version: v2.8.0 (2), Data Version: v981`).mismatches,
   })
 
   it.each([
-    ['Contemptor-Achillus Dreadnought', '1x memento moritoi (upgrade)'],
-    ['Telemon Heavy Dreadnought', '1x augury uplink (upgrade)'],
+    ['Contemptor-Achillus Dreadnought', 'Memento Moritoi'],
+    ['Telemon Heavy Dreadnought', 'Augury Uplink'],
   ])('keeps the reported upgrade on %s', (unit, upgrade) => {
-    expect(wargear(custodesOfficial, unit)).toContain(upgrade)
+    const found = priced(custodesOfficial)?.units.find((candidate) => candidate.name === unit)
+    expect(found?.upgrades).toContain(upgrade)
   })
 })

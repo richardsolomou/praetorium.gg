@@ -26,7 +26,7 @@ import { rulesReferencedIn } from './catalogueRules'
 import { contextualAbilityNamesIn, datasheetIn, toughnessOf } from './catalogue'
 import { matchesKeywordSelector } from '../core/keywords'
 import { describedEnhancements } from './catalogueDescriptions'
-import { descriptionKey } from './datacards'
+import { cardName, descriptionKey } from './datacards'
 import { factionDisplayName } from './factionNames'
 import { detachmentNamed } from './factionReferences'
 import { contextualUnitLimit, detachmentsUnlocking, shelfIn, unitIdsIn } from './cataloguePicker'
@@ -368,7 +368,7 @@ export function savedRosterPriceInput(saved: {
 
 function specialKind(choice: UnitChoice, upgradeNames: ReadonlySet<string>) {
   if (!/enhancement|upgrade/i.test(choice.name)) return null
-  return choiceOptionsForPricing(choice).every((option) => upgradeNames.has(routeSlug(option.name)))
+  return choiceOptionsForPricing(choice).every((option) => upgradeNames.has(cardName(option.name)))
     ? ('upgrade' as const)
     : /enhancement/i.test(choice.name)
       ? ('enhancement' as const)
@@ -389,7 +389,7 @@ function selectedSpecials(
   const automatic = catalogued.filter((piece) => enhancementNames.has(routeSlug(piece.name))).map((piece) => piece.name)
   return {
     enhancements: uniqueNames([...selected.filter((option) => option.kind === 'enhancement').map((option) => option.name), ...automatic]),
-    upgrades: selected.filter((option) => option.kind === 'upgrade').map((option) => option.name),
+    upgrades: selected.filter((option) => option.kind === 'upgrade').map((option) => withoutUpgrade(option.name)),
     specialSelections: new Set([
       ...selected.filter((option) => option.kind).map((option) => routeSlug(option.name)),
       ...automatic.map(routeSlug),
@@ -475,10 +475,9 @@ function calculateRoster(
   const budget = detachmentPointBudget(data.limit)
   const spent = purchased.reduce((total, option) => total + (option.points ?? 0), 0)
   const upgradeNames = new Set([
-    ...detachmentSpecials.flatMap(({ detail }) => detail?.upgrades.map((upgrade) => routeSlug(upgrade.name)) ?? []),
+    ...detachmentSpecials.flatMap(({ detail }) => detail?.upgrades.map((upgrade) => cardName(upgrade.name)) ?? []),
     ...mfmDetachments.flatMap(
-      (detachment) =>
-        detachment.enhancements?.filter((entry) => isUpgrade(entry.name)).map((entry) => routeSlug(withoutUpgrade(entry.name))) ?? [],
+      (detachment) => detachment.enhancements?.filter((entry) => isUpgrade(entry.name)).map((entry) => cardName(entry.name)) ?? [],
     ),
   ])
   const enhancementNames = new Set(
@@ -771,7 +770,12 @@ function calculateRoster(
         ...deployment,
         ...(strategicReserveExempt ? { strategicReserveExempt: true } : {}),
         ...(unitKeywords.some((keyword) => keyword.toLowerCase() === 'transport') ? { transport: true } : {}),
-        choices,
+        // Wargear above reads the printed names; the list says what an upgrade is under its own heading.
+        choices: choices.map((choice) =>
+          choice.kind === 'upgrade'
+            ? { ...choice, options: choice.options.map((option) => ({ ...option, name: withoutUpgrade(option.name) })) }
+            : choice,
+        ),
         models,
         toggles: unit.toggles,
         enhancements: selectedEnhancements,

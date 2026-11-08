@@ -222,63 +222,66 @@ describe('the abilities and wargear a datasheet lists', () => {
     ])
   })
 
-  it('identifies a selected detachment unit upgrade separately from wargear', () => {
-    const book = bookOf({
-      sharedSelectionEntries: [
-        {
-          id: 'upgrade',
-          name: 'Death in the Dark',
-          type: 'upgrade',
-          profiles: [ability('upgrade-ability', 'Death in the Dark')],
-        },
-      ],
-      selectionEntries: [
-        {
-          id: 'incursors',
-          name: 'Incursor Squad',
-          type: 'unit',
-          selectionEntryGroups: [
-            {
-              id: 'enhancements',
-              name: 'Subversion Assets Enhancements',
-              entryLinks: [{ id: 'selected-upgrade', name: 'Death in the Dark', type: 'selectionEntry', targetId: 'upgrade' }],
-            },
-          ],
-        },
-      ],
-    })
-    const selections = [{ id: 'incursors', selections: [{ id: 'enhancements', selections: [{ id: 'selected-upgrade' }] }] }]
-    const rules = {
-      abilityDescriptions: new Map(),
-      factionKeys: new Map(),
-      detachmentDetails: new Map([
-        [
-          'test-catalogue',
-          new Map([
-            [
-              'subversion-assets',
+  it.each(['Death in the Dark', 'Death in the Dark (Upgrade)'])(
+    'identifies a selected detachment unit upgrade spelled %s separately from wargear',
+    (catalogueName) => {
+      const book = bookOf({
+        sharedSelectionEntries: [
+          {
+            id: 'upgrade',
+            name: catalogueName,
+            type: 'upgrade',
+            profiles: [ability('upgrade-ability', catalogueName)],
+          },
+        ],
+        selectionEntries: [
+          {
+            id: 'incursors',
+            name: 'Incursor Squad',
+            type: 'unit',
+            selectionEntryGroups: [
               {
-                id: 'subversion-assets',
-                name: 'Subversion Assets',
-                points: null,
-                dispositions: [],
-                rules: [],
-                enhancements: [],
-                upgrades: [{ name: 'Death in the Dark', points: 15, description: 'Strike from concealment.' }],
-                stratagems: [],
+                id: 'enhancements',
+                name: 'Subversion Assets Enhancements',
+                entryLinks: [{ id: 'selected-upgrade', name: 'Death in the Dark', type: 'selectionEntry', targetId: 'upgrade' }],
               },
             ],
-          ]),
+          },
         ],
-      ]),
-    } as Partial<LoadedRules> as LoadedRules
-    const sheet = datasheetIn(book, 'cat', 'incursors', { selections, unitSelectionIndex: 0 })
+      })
+      const selections = [{ id: 'incursors', selections: [{ id: 'enhancements', selections: [{ id: 'selected-upgrade' }] }] }]
+      const rules = {
+        abilityDescriptions: new Map(),
+        factionKeys: new Map(),
+        detachmentDetails: new Map([
+          [
+            'test-catalogue',
+            new Map([
+              [
+                'subversion-assets',
+                {
+                  id: 'subversion-assets',
+                  name: 'Subversion Assets',
+                  points: null,
+                  dispositions: [],
+                  rules: [],
+                  enhancements: [],
+                  upgrades: [{ name: 'Death in the Dark', points: 15, description: 'Strike from concealment.' }],
+                  stratagems: [],
+                },
+              ],
+            ]),
+          ],
+        ]),
+      } as Partial<LoadedRules> as LoadedRules
+      const sheet = datasheetIn(book, 'cat', 'incursors', { selections, unitSelectionIndex: 0 })
 
-    expect(datasheetIn(book, 'cat', 'incursors', { selections: [{ id: 'incursors' }], unitSelectionIndex: 0 })?.abilities).toEqual([])
-    const described = describeDatasheetAbilitiesWithContributions(book, 'cat', sheet, rules)
-    expect(described?.datasheet.abilities).toContainEqual(expect.objectContaining({ name: 'Death in the Dark', kind: 'upgrade' }))
-    expect(described?.contributions.rules).toBe(true)
-  })
+      expect(datasheetIn(book, 'cat', 'incursors', { selections: [{ id: 'incursors' }], unitSelectionIndex: 0 })?.abilities).toEqual([])
+      const described = describeDatasheetAbilitiesWithContributions(book, 'cat', sheet, rules)
+      expect(described?.datasheet.abilities).toContainEqual(expect.objectContaining({ name: 'Death in the Dark', kind: 'upgrade' }))
+      expect(described?.contributions.rules).toBe(true)
+    },
+  )
 
   it('does not offer an enhancement when its eligibility semantics are unavailable', () => {
     const book = bookOf({
