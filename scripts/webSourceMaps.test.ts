@@ -32,13 +32,18 @@ afterEach(() => {
   for (const directory of directories.splice(0)) rmSync(directory, { recursive: true, force: true })
 })
 
-function imageBuild(environment: Record<string, string>, buildExitCode = 37) {
+function imageBuild(environment: Record<string, string>, buildExitCode = 37, uploadAttemptsToFail = 99) {
   const directory = mkdtempSync(path.join(tmpdir(), 'praetorium-source-maps-test-'))
   directories.push(directory)
   mkdirSync(path.join(directory, '.output/public/assets'), { recursive: true })
   const map = path.join(directory, '.output/public/assets/app.js.map')
   writeFileSync(map, '{}')
-  writeFileSync(path.join(directory, 'pnpm'), `#!/bin/sh\nif [ "$1" = build ]; then exit ${buildExitCode}; fi\nexit 37\n`, { mode: 0o755 })
+  writeFileSync(
+    path.join(directory, 'pnpm'),
+    `#!/bin/sh\nif [ "$1" = build ]; then exit ${buildExitCode}; fi\necho x >> attempts; [ "$(wc -l < attempts)" -ge ${uploadAttemptsToFail + 1} ] && exit 0\nexit 37\n`,
+    { mode: 0o755 },
+  )
+  writeFileSync(path.join(directory, 'sleep'), '#!/bin/sh\n', { mode: 0o755 })
   const result = spawnSync('sh', ['-c', uploadCommand], {
     cwd: directory,
     env: { PATH: `${directory}:${process.env.PATH}`, ...environment },
@@ -103,6 +108,12 @@ test('stops publication when the worker upload fails after the browser build suc
   const { result, map } = imageBuild(uploadEnvironment, 0)
 
   expect({ status: result.status, mapRetained: existsSync(map) }).toEqual({ status: 37, mapRetained: true })
+})
+
+test('publishes when an upload succeeds after a dropped connection', () => {
+  const { result, map } = imageBuild(uploadEnvironment, 0, 1)
+
+  expect({ status: result.status, mapRetained: existsSync(map) }).toEqual({ status: 0, mapRetained: false })
 })
 
 test('removes served source maps from preview images without upload credentials', () => {
