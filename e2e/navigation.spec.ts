@@ -109,7 +109,7 @@ test('the mobile website uses application navigation below 860 pixels', async ({
   await expect(sections).toBeVisible()
   await page.setViewportSize({ width: 860, height: 844 })
   const reference = page.getByRole('navigation', { name: 'Reference' })
-  await expect(reference.getByRole('link')).toHaveText(['Factions', 'Missions', 'Rules', 'Docs'])
+  await expect(reference.getByRole('link')).toHaveText(['Factions', 'Missions', 'Rules'])
   await expect(primary.getByRole('link')).toHaveText(['Rosters', 'Battles', 'Simulator', 'Collection'])
   await expect(page.getByRole('navigation', { name: 'Community' }).getByRole('link')).toHaveText([
     'Groups',

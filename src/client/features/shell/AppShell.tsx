@@ -14,7 +14,6 @@ import {
   BookOpen,
   Calculator,
   Gavel,
-  GraduationCap,
   ScrollText,
   Swords,
   UsersRound,
@@ -69,7 +68,6 @@ const REFERENCE_LINKS = [
   { to: '/factions', label: 'Factions', Icon: UsersRound },
   { to: '/missions', label: 'Missions', Icon: BookOpen },
   { to: '/rules', label: 'Rules', Icon: Gavel },
-  { to: '/docs', label: 'Docs', Icon: GraduationCap },
 ] as const
 
 type RailLink = { to: string; label: string; Icon: LucideIcon }

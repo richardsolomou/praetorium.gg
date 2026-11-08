@@ -2,7 +2,7 @@ import { hasLocalChanges, stopLocalRuntime } from '../../offline/localRuntime'
 import { clearLocalState } from '../../offline/localStorage'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useLocation, useNavigate } from '@tanstack/react-router'
-import { CircleUserRound, LogIn, LogOut, MessageSquareWarning, ShieldCheck, Sparkles, UserRoundPen } from 'lucide-react'
+import { GraduationCap, CircleUserRound, LogIn, LogOut, MessageSquareWarning, ShieldCheck, Sparkles, UserRoundPen } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import {
@@ -73,6 +73,9 @@ function AccountMenuItems() {
   const unseenRelease = useUnseenRelease()
   const help = (
     <MenuSection label="Praetorium">
+      <DropdownMenuItem render={<Link to="/docs" />}>
+        <GraduationCap /> Docs
+      </DropdownMenuItem>
       <DropdownMenuItem render={<Link to="/whats-new" />}>
         <Sparkles />
         <span>What's new</span>
