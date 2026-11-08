@@ -1,18 +1,24 @@
-import { execFile, type ChildProcess } from 'node:child_process'
+import { type ChildProcess } from 'node:child_process'
 import { randomBytes, randomUUID } from 'node:crypto'
 import { existsSync } from 'node:fs'
-import { cp, mkdir, readFile, realpath, rm, symlink, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, realpath, rm, symlink, writeFile } from 'node:fs/promises'
 import { replaceFile } from '../src/server/replaceFile.ts'
 import { createServer } from 'node:http'
 import path from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
-import { promisify } from 'node:util'
 import { assertSavedDevData, localControlPort, localDevPreviewFile, readLocalDevPreview, type LocalDevPreview } from './localDevPreview.ts'
-import { closeServer, reserveLocalPort, startLocalChild, stopLocalChildren } from './lib/localStack.ts'
+import {
+  closeServer,
+  copyProductModule,
+  localSpacetimeIdentity,
+  reserveLocalPort,
+  startLocalChild,
+  stopLocalChildren,
+} from './lib/localStack.ts'
 import { migrateProductData } from './lib/productDataMigrations.ts'
 import { moduleEnvironment } from './lib/spacetimeEnvironment.ts'
 import { TEST_STACK_NAME } from './lib/testStacks.ts'
-import { installedSpacetimeCli, SPACETIME_VERSION } from './lib/spacetimeCli.ts'
+import { assertSpacetimeCliVersion, spacetimeCli as cli } from './lib/spacetimeCli.ts'
 import { callSpacetime, publishSpacetimeModule } from 'ras-stack/spacetime'
 import { browserTestBuildEnvironment, ensureBrowserTestBuild } from './lib/browserTestBuild.ts'
 import { prepareModuleCoverage } from './lib/moduleCoverage.ts'
@@ -30,7 +36,6 @@ const controlPort = Number(
 const token = randomUUID()
 const children: ChildProcess[] = []
 const reservations: Awaited<ReturnType<typeof reserveLocalPort>>[] = []
-const execute = promisify(execFile)
 const abort = new AbortController()
 let requestedStop = false
 let ownsTestData = false
@@ -43,7 +48,6 @@ const credentialsPath = path.join(root, 'credentials.json')
 // A browser-test coverage run records what the SpacetimeDB module runs here (see `e2e/stackEnv.ts`).
 const moduleCoverage = testMode && process.env.LOCAL_COVERAGE_DIR ? path.join(process.env.LOCAL_COVERAGE_DIR, 'spacetime') : null
 let ownerToken = ''
-const cli = process.env.SPACETIME_BIN ?? (existsSync(installedSpacetimeCli) ? installedSpacetimeCli : 'spacetime')
 const buildDir = path.join(root, 'build')
 const environment: NodeJS.ProcessEnv = { ...process.env, LOCAL_BUILD_DIR: buildDir, LOCAL_TEST_MODE: String(testMode) }
 delete environment.LOCAL_VITE_ORIGIN
@@ -119,14 +123,6 @@ async function writePreview() {
   await replaceFile(previewFile, (temporary) => writeFile(temporary, JSON.stringify(preview), { mode: 0o600 }))
 }
 
-async function identity(): Promise<Identity> {
-  const response = await fetch(`${spacetimeUrl}/v1/identity`, { method: 'POST' })
-  if (!response.ok) throw new Error(`Local SpacetimeDB identity failed with HTTP ${response.status}`)
-  const value = (await response.json()) as Partial<Identity>
-  if (typeof value.identity !== 'string' || typeof value.token !== 'string') throw new Error('Invalid local SpacetimeDB identity')
-  return { identity: value.identity, token: value.token }
-}
-
 async function credentials(): Promise<Credentials> {
   try {
     return JSON.parse(await readFile(credentialsPath, 'utf8')) as Credentials
@@ -134,8 +130,8 @@ async function credentials(): Promise<Credentials> {
     if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
   }
   const value = {
-    owner: await identity(),
-    operator: await identity(),
+    owner: await localSpacetimeIdentity(spacetimeUrl),
+    operator: await localSpacetimeIdentity(spacetimeUrl),
     authSecret: randomBytes(32).toString('base64url'),
   }
   await writeFile(credentialsPath, JSON.stringify(value), { mode: 0o600, flag: 'wx' })
@@ -225,9 +221,7 @@ async function main() {
   }
   if (!testMode) await mkdir(path.dirname(previewFile), { recursive: true })
   await writePreview()
-  const { stdout } = await execute(cli, ['--version'], { signal: abort.signal })
-  if (!stdout.includes(`spacetimedb tool version ${SPACETIME_VERSION};`))
-    throw new Error(`Local development requires SpacetimeDB CLI ${SPACETIME_VERSION}`)
+  await assertSpacetimeCliVersion(abort.signal)
   await product.release()
   start(
     cli,
@@ -238,14 +232,7 @@ async function main() {
   const value = await credentials()
   const moduleRoot = path.join(root, 'module')
   await rm(moduleRoot, { recursive: true, force: true })
-  await cp('spacetimedb', path.join(moduleRoot, 'spacetimedb'), {
-    recursive: true,
-    filter: (source) => !['node_modules', 'dist'].includes(path.basename(source)),
-  })
-  await cp('src/core', path.join(moduleRoot, 'src/core'), { recursive: true })
-  await cp('catalogue', path.join(moduleRoot, 'catalogue'), { recursive: true })
-  await symlink(path.join(worktree, 'node_modules'), path.join(moduleRoot, 'node_modules'), 'dir')
-  await symlink(path.join(worktree, 'spacetimedb/node_modules'), path.join(moduleRoot, 'spacetimedb/node_modules'), 'dir')
+  await copyProductModule(moduleRoot, worktree)
   await run(cli, ['build', '-p', path.join(moduleRoot, 'spacetimedb')])
   if (moduleCoverage) prepareModuleCoverage(path.join(moduleRoot, 'spacetimedb/dist/bundle.js'), moduleCoverage, worktree)
   await configure(value)

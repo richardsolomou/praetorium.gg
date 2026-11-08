@@ -1,6 +1,8 @@
 import { createServer, type Server } from 'node:net'
 import { randomUUID } from 'node:crypto'
 import { execFileSync, spawn, type ChildProcess } from 'node:child_process'
+import { cp, symlink } from 'node:fs/promises'
+import path from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 
 export async function reserveLocalPort(requested = 0, fallback = false) {
@@ -45,6 +47,27 @@ export async function localTestEnvironment(kind: 'e2e' | 'native-auth-ios', envi
 
 export function startLocalChild(command: string, args: string[], environment: NodeJS.ProcessEnv) {
   return spawn(command, args, { env: environment, stdio: 'inherit', detached: process.platform !== 'win32' })
+}
+
+/** A fresh identity on a local SpacetimeDB server. */
+export async function localSpacetimeIdentity(url: string) {
+  const response = await fetch(`${url}/v1/identity`, { method: 'POST' })
+  if (!response.ok) throw new Error(`Local SpacetimeDB identity failed with HTTP ${response.status}`)
+  const value = (await response.json()) as { identity?: unknown; token?: unknown }
+  if (typeof value.identity !== 'string' || typeof value.token !== 'string') throw new Error('Invalid local SpacetimeDB identity')
+  return { identity: value.identity, token: value.token }
+}
+
+/** Copies the product module's sources so a build never writes into the checkout, which another process may be reading. */
+export async function copyProductModule(target: string, worktree: string) {
+  await cp(path.join(worktree, 'spacetimedb'), path.join(target, 'spacetimedb'), {
+    recursive: true,
+    filter: (source) => !['node_modules', 'dist'].includes(path.basename(source)),
+  })
+  await cp(path.join(worktree, 'src/core'), path.join(target, 'src/core'), { recursive: true })
+  await cp(path.join(worktree, 'catalogue'), path.join(target, 'catalogue'), { recursive: true })
+  await symlink(path.join(worktree, 'node_modules'), path.join(target, 'node_modules'), 'dir')
+  await symlink(path.join(worktree, 'spacetimedb/node_modules'), path.join(target, 'spacetimedb/node_modules'), 'dir')
 }
 
 /** Whether the signal reached a live member of the child's process group. */

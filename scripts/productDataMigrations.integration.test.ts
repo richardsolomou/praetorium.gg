@@ -1,13 +1,13 @@
 import { execFile } from 'node:child_process'
 import { existsSync } from 'node:fs'
-import { appendFile, cp, mkdtemp, readFile, rm, symlink } from 'node:fs/promises'
+import { appendFile, mkdtemp, readFile, rm } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import { promisify } from 'node:util'
 import { expect, it, vi } from 'vitest'
 import { SpacetimeOperator } from '../src/server/spacetimeOperator'
 import { migrateProductData } from './lib/productDataMigrations'
-import { reserveLocalPort, startLocalChild, stopLocalChildren } from './lib/localStack'
+import { copyProductModule, reserveLocalPort, startLocalChild, stopLocalChildren } from './lib/localStack'
 import { moduleEnvironment } from './lib/spacetimeEnvironment'
 import { installedSpacetimeCli } from './lib/spacetimeCli'
 import { moduleEnvironmentHeaders } from 'ras-stack/spacetime'
@@ -52,14 +52,7 @@ it.skipIf(!existsSync(cli))(
     const database = 'migration-test'
     let server: ReturnType<typeof startLocalChild> | undefined
     try {
-      await cp('spacetimedb', path.join(root, 'spacetimedb'), {
-        recursive: true,
-        filter: (file) => !['node_modules', 'dist'].includes(path.basename(file)),
-      })
-      await cp('src/core', path.join(root, 'src/core'), { recursive: true })
-      await cp('catalogue', path.join(root, 'catalogue'), { recursive: true })
-      await symlink(path.resolve('node_modules'), path.join(root, 'node_modules'), 'dir')
-      await symlink(path.resolve('spacetimedb/node_modules'), path.join(root, 'spacetimedb/node_modules'), 'dir')
+      await copyProductModule(root, process.cwd())
       await appendFile(path.join(root, 'spacetimedb/src/index.ts'), fixture)
       await execute(cli, ['build', '-p', path.join(root, 'spacetimedb')], { timeout: 30_000 }).catch(
         (error: { stdout: string; stderr: string }) => {
