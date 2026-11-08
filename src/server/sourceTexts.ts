@@ -4,7 +4,17 @@ import path from 'node:path'
 import { remember } from '../core/collections'
 import { type CatalogueComposition, readCatalogueComposition } from './catalogueComposition'
 import { type CatalogueSourceConfig, catalogueSources, readRevisions } from './catalogueSources'
-import { type SourceTexts, TEXT_HASH_LENGTH, type TextSource, type TextSourceFile, sourceStrings, textToken } from '../shared/sourceText'
+import {
+  type SourceTexts,
+  TEXT_HASH_LENGTH,
+  type TextSource,
+  type TextSourceFile,
+  hasTextTokens,
+  sourceStrings,
+  textToken,
+  textTokensIn,
+} from '../shared/sourceText'
+import type { Steps } from '../shared/steps'
 
 export type { SourceTexts }
 
@@ -21,6 +31,9 @@ export function sourceTexts(upstream: string): SourceTexts {
 }
 
 const textHash = (raw: string) => hash('sha256', raw).slice(0, TEXT_HASH_LENGTH)
+
+/** Values read between pauses in a resumable scan of a source file. */
+const SCAN_STEP = 256
 
 const SNAPSHOT_FILE = /(?:^|\/)((?:editions\/[^/]+\/)?(?:definitions|points|datacards)\/.+)$/
 
@@ -189,23 +202,42 @@ const recordIdOf = (value: object, detachments: ReadonlyMap<string, string>) => 
  * a stratagem several detachments share is held by each. The file's own id, as a catalogue
  * has, tells a reader nothing about where to look.
  */
-export function textRecordsIn(file: string) {
+export function* textRecordsSteps(file: string): Steps<ReadonlyMap<string, readonly string[]>> {
   const records = new Map<string, string[]>()
   const root: unknown = JSON.parse(fs.readFileSync(file, 'utf8'))
   const detachments = detachmentIdsByName(root)
-  const visit = (value: unknown, record: string | undefined) => {
-    if (typeof value === 'string') {
-      if (!record) return
-      const holding = remember(records, textHash(value), () => [])
-      if (!holding.includes(record)) holding.push(record)
-    } else if (Array.isArray(value)) for (const entry of value) visit(entry, record)
-    else if (value && typeof value === 'object') {
-      const own = value === root ? undefined : recordIdOf(value, detachments)
-      for (const entry of Object.values(value)) visit(entry, own ?? record)
+  let scanned = 0
+  function* visit(value: object, record: string | undefined): Steps<void> {
+    const own = value === root || Array.isArray(value) ? undefined : recordIdOf(value, detachments)
+    const holder = own ?? record
+    for (const entry of Array.isArray(value) ? value : Object.values(value)) {
+      if (typeof entry === 'string' && holder) {
+        const holding = remember(records, textHash(entry), () => [])
+        if (!holding.includes(holder)) holding.push(holder)
+      } else if (entry && typeof entry === 'object') yield* visit(entry as object, holder)
+      if (++scanned % SCAN_STEP === 0) yield
     }
   }
-  visit(root, undefined)
+  if (root && typeof root === 'object') yield* visit(root, undefined)
   return records
+}
+
+/** The ids of the source files the tokens anywhere in these values name, so only those files need reading. */
+export function* textFileIdsIn(values: readonly unknown[]): Steps<ReadonlySet<string>> {
+  const files = new Set<string>()
+  const visited = new WeakSet<object>()
+  let scanned = 0
+  function* visit(value: object): Steps<void> {
+    if (visited.has(value)) return
+    visited.add(value)
+    for (const entry of value instanceof Map ? value.values() : Object.values(value)) {
+      if (typeof entry === 'string' && hasTextTokens(entry)) for (const { file } of textTokensIn(entry)) files.add(file)
+      else if (entry && typeof entry === 'object') yield* visit(entry as object)
+      if (++scanned % SCAN_STEP === 0) yield
+    }
+  }
+  for (const value of values) if (value && typeof value === 'object') yield* visit(value)
+  return files
 }
 
 const TOKENS_AND_WORDS = /(\u27E6[^\u27E7]*\u27E7)/

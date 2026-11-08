@@ -28,7 +28,7 @@ const { document, corpus, state } = vi.hoisted(() => {
 
 vi.mock('./referenceCorpus', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./referenceCorpus')>()),
-  referenceCorpusFor: () => (state.available ? corpus : null),
+  referenceCorpusCooperatively: () => (state.available ? corpus : null),
 }))
 vi.mock('./app', () => ({
   app: () => ({

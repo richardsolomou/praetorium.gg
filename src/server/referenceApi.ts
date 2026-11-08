@@ -3,7 +3,7 @@ import { withTextPointers, withoutText } from '../shared/sourceText'
 import { publishedTextLocations } from './publishedTextFiles'
 import { REFERENCE_KINDS, type ReferenceDocument, type ReferenceKind } from '../contracts/reference'
 import { app } from './app'
-import { datasheetRoute, referenceCorpusFor, referenceDocumentMarkdown, type ReferenceCorpus } from './referenceCorpus'
+import { datasheetRoute, referenceCorpusCooperatively, referenceDocumentMarkdown, type ReferenceCorpus } from './referenceCorpus'
 import { PRAETORIUM_GUIDE, praetoriumGuideMarkdown } from './referenceGuide'
 import {
   REFERENCE_FILTER_MAX_LENGTH,
@@ -56,7 +56,7 @@ export async function activeReferenceCorpus(catalogueId?: string) {
   const textLocations = await publishedTextLocations()
   const factions = (await instance.factionsFor())?.factions
   if (!catalogueId || !catalogueEditionId(catalogueId))
-    return referenceCorpusFor({
+    return referenceCorpusCooperatively({
       catalogue: () => instance.catalogue(),
       rules: () => instance.rules(),
       canonicalCatalogue: () => instance.canonicalCatalogue(),
@@ -68,7 +68,7 @@ export async function activeReferenceCorpus(catalogueId?: string) {
     instance.rulesFor(catalogueId),
     instance.canonicalCatalogueFor(catalogueId),
   ])
-  return referenceCorpusFor({
+  return referenceCorpusCooperatively({
     catalogue: () => catalogue,
     rules: () => rules,
     canonicalCatalogue: () => canonical,
