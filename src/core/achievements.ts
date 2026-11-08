@@ -653,6 +653,16 @@ export function achievements(playerId: string, facts: AchievementFacts, exclude:
   return { earned, points: achievementPoints(earned) }
 }
 
+/** A player's newest dated medals. One battle can earn several at once, so among those the most valuable lead. */
+export function latestAchievements(earned: Partial<Record<AchievementId, number | null>>, limit: number) {
+  return ACHIEVEMENTS.flatMap((achievement) => {
+    const at = earned[achievement.id]
+    return at == null ? [] : [{ achievement, at }]
+  })
+    .toSorted((one, other) => other.at - one.at || ACHIEVEMENT_TIERS[other.achievement.tier] - ACHIEVEMENT_TIERS[one.achievement.tier])
+    .slice(0, limit)
+}
+
 export function achievementPoints(earned: Partial<Record<AchievementId, number | null>>) {
   return ACHIEVEMENTS.reduce((points, achievement) => points + (achievement.id in earned ? ACHIEVEMENT_TIERS[achievement.tier] : 0), 0)
 }
