@@ -28,7 +28,7 @@ describe('squads bundled into their weapon options', () => {
     conditionGroups: [
       {
         type: 'or' as const,
-        conditions: ['seventeen', 'two-fifteen'].map((childId) => ({
+        conditions: ['seventeen', 'two-fifteen', 'one-sixteen'].map((childId) => ({
           childId,
           field: 'selections',
           scope: 'pack',
@@ -71,6 +71,18 @@ describe('squads bundled into their weapon options', () => {
                 selectionEntries: [bodies('two-fifteen', 'mauler', 'Mauler', 2), bodies('two-fifteen', 'blade', 'Blade', 15)],
               },
               { id: 'seventeen', name: '17 blades', type: 'upgrade', selectionEntries: [bodies('seventeen', 'blade', 'Blade', 17)] },
+              {
+                id: 'one-seven',
+                name: '1 mauler, 7 blades',
+                type: 'upgrade',
+                selectionEntries: [bodies('one-seven', 'mauler', 'Mauler', 1), bodies('one-seven', 'blade', 'Blade', 7)],
+              },
+              {
+                id: 'one-sixteen',
+                name: '1 mauler, 16 blades',
+                type: 'upgrade',
+                selectionEntries: [bodies('one-sixteen', 'mauler', 'Mauler', 1), bodies('one-sixteen', 'blade', 'Blade', 16)],
+              },
             ],
           },
           {
@@ -132,7 +144,17 @@ describe('squads bundled into their weapon options', () => {
   })
 
   it('still offers every weapon bundle as a choice', () => {
-    expect(buildUnit('pack', index)?.choices.find((choice) => choice.key === 'bundles')?.options).toHaveLength(3)
+    expect(buildUnit('pack', index)?.choices.find((choice) => choice.key === 'bundles')?.options).toHaveLength(5)
+  })
+
+  it('names the bundle closest to the held weapons at each size', () => {
+    const built = buildUnit('pack', index, undefined, { bundles: 'one-seven' })
+    expect(built?.choices.find((choice) => choice.key === 'bundles')?.bundleBySize).toEqual({ 10: 'one-seven', 20: 'one-sixteen' })
+  })
+
+  it('names the nearest bundle a smaller size can hold', () => {
+    const built = buildUnit('pack', index, undefined, { bundles: 'two-fifteen' })
+    expect(built?.choices.find((choice) => choice.key === 'bundles')?.bundleBySize).toEqual({ 10: 'one-seven', 20: 'two-fifteen' })
   })
 })
 

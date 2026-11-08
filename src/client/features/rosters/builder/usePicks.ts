@@ -50,6 +50,7 @@ type SizedUnit = {
     optional?: boolean
     room?: number
     bundlesModels?: true
+    bundleBySize?: Record<number, string>
     options: { id: string; name?: string; count: number; min?: number; default?: boolean }[]
   }[]
   models?: { members: { choiceKey: string | null }[] }[]
@@ -299,7 +300,13 @@ export function pickEditor(
             : {}),
           ...(compositions.length
             ? {
-                choices: Object.fromEntries(Object.entries(pick.choices ?? {}).filter(([key]) => !inside(key))),
+                choices: Object.fromEntries([
+                  ...Object.entries(pick.choices ?? {}).filter(([key]) => !inside(key)),
+                  ...compositions.flatMap((choice) => {
+                    const bundle = choice.bundleBySize?.[sized]
+                    return bundle ? [[choice.key, bundle] as const] : []
+                  }),
+                ]),
                 spreads: Object.fromEntries([
                   ...Object.entries(pick.spreads ?? {}).filter(([key]) => !inside(key)),
                   ...equipment.map((choice) => [
