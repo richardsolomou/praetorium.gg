@@ -110,7 +110,8 @@ export function RosterSummary({
         className={`col-start-2 row-start-1 sm:self-center ${differences ? 'sm:row-span-4' : 'sm:row-span-3'}`}
       />
       <span data-slot="roster-chips" className="col-span-2 flex flex-wrap gap-1 *:whitespace-nowrap sm:col-span-1">
-        {faction ? <FactionLabel faction={faction} chip /> : factionLoading ? <Skeleton className="h-5 w-24" /> : null}
+        {/* The skeleton is a faction chip's height (its size-5 mark, padding and border), so the row keeps its height when the chip lands. */}
+        {faction ? <FactionLabel faction={faction} chip /> : factionLoading ? <Skeleton className="h-[calc(1.25rem+4px)] w-24" /> : null}
         {detachments.map((name) => (
           <span key={name} className="chip">
             {name}

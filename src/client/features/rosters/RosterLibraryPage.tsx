@@ -372,10 +372,11 @@ export function RosterLibraryPage({
               <span className="readout">{active.length}</span>
             )}
             {me && !libraryPending && !libraryError && shown.length ? (
+              // The negative margin keeps the header its text's height, so the button arriving with the rosters moves nothing below it.
               <Button
                 variant="ghost"
                 size="sm"
-                className="self-center tracking-normal normal-case"
+                className="-my-2 self-center tracking-normal normal-case"
                 onClick={() => (selecting ? stopSelecting() : setSelecting(true))}
               >
                 {selecting ? 'Done' : 'Select'}
@@ -588,9 +589,10 @@ export function RosterLibraryPage({
   )
 }
 
+/** Cards the height of a loaded roster's, enough to reach past most desktop screens so the rows arriving do not push the footer away. */
 function RosterLibrarySkeleton() {
-  return Array.from({ length: 3 }, (_, index) => (
-    <div key={index} className="flex min-h-[5.25rem] items-center gap-3 part p-3" aria-hidden>
+  return Array.from({ length: 8 }, (_, index) => (
+    <div key={index} className="flex min-h-[6rem] items-center gap-3 part p-3" aria-hidden>
       <div className="min-w-0 flex-1 space-y-2">
         <Skeleton className="h-4 w-1/3" />
         <div className="flex gap-2">
