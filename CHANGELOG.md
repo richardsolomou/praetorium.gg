@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.224.4 (2026-11-08)
+
+### Patch Changes
+
+- d6e19e0: Resizing Jakhals between 10 and 20 models now keeps their mauler chainblades.
+- 3762d1e: The simulator's results bar now shows average damage without stopping at the target's total wounds, so attackers that all usually destroy it can be compared.
+
 ## 0.224.3 (2026-11-08)
 
 ### Patch Changes
