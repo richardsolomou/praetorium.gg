@@ -1,5 +1,15 @@
 # praetorium
 
+## 0.223.0 (2026-11-08)
+
+### Minor Changes
+
+- b4d1503: Select a stratagem's name in the battle events to read what it does.
+
+### Patch Changes
+
+- c2536ce: Recorded guard and consecration choices on a mission card now show each objective above its unit, so the list is easier to scan.
+
 ## 0.222.13 (2026-11-08)
 
 ### Patch Changes
