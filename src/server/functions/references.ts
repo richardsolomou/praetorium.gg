@@ -2,6 +2,7 @@ import { rosterLoadoutDatasheets, rosterDatasheet } from '../../shared/rosterRea
 import { z } from 'zod'
 import { rosterDatasheetLoadedProperties } from '../../shared/rosterTelemetry'
 import { createServerFn } from '@tanstack/react-start'
+import { withServerSpan } from '../../adapters/posthog'
 import { app } from '../app'
 import { unitBattleDetailsIn, unitWoundsIn } from '../../shared/catalogue'
 import { publishedTextFiles } from '../publishedTextFiles'
@@ -263,10 +264,14 @@ export const datasheetBySlug = createServerFn({ method: 'GET' })
     snapshotRpc(async () => {
       return memoUntilSnapshotChanges('datasheet-by-slug', data, async () => {
         const instance = app()
-        const canonical = await instance.canonicalCatalogueFor(data.catalogueId)
-        const catalogue = canonical ? null : await instance.catalogueFor(data.catalogueId)
-        const rules = canonical ? null : await instance.rulesFor(data.catalogueId)
-        return referenceDatasheetBySlug({ catalogue: () => catalogue, rules: () => rules, canonicalCatalogue: () => canonical }, data)
+        const canonical = await withServerSpan('datasheet_by_slug.canonical', () => instance.canonicalCatalogueFor(data.catalogueId))
+        const { catalogue, rules } = await withServerSpan('datasheet_by_slug.fallback', async () => ({
+          catalogue: canonical ? null : await instance.catalogueFor(data.catalogueId),
+          rules: canonical ? null : await instance.rulesFor(data.catalogueId),
+        }))
+        return withServerSpan('datasheet_by_slug.lookup', async () =>
+          referenceDatasheetBySlug({ catalogue: () => catalogue, rules: () => rules, canonicalCatalogue: () => canonical }, data),
+        )
       })
     }),
   )
