@@ -1,6 +1,7 @@
 import type { z } from 'zod'
 import { saveRosterSchema } from '../contracts/schemas'
 import { offlineActionSchemas as schemas, type OfflineActionKind } from '../contracts/offlineActions'
+import { onboardingAnswer } from '../contracts/onboarding'
 import { app } from './app'
 import { rosterForUse, withCurrentAlerts } from './rosterUsage'
 import { captureMutation, captureBattleCreated, captureSealedEventCreated, captureSealedEventBattleCreated } from './mutationTelemetry'
@@ -92,7 +93,7 @@ export const productActions = {
   updateOnboardingProgress: action(schemas.updateOnboardingProgress, async (owner, data) => {
     const progress = await app().repository.updateOnboardingProgress(owner, data)
     await captureMutation(owner, 'onboarding_task_completed', { task: data.task })
-    return progress
+    return onboardingAnswer(progress)
   }),
   requestFriend: action(schemas.requestFriend, async (owner, data) => {
     const result = await app().service.socialService.requestFriend(owner, data.userId)

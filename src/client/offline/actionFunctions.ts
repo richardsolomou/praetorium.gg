@@ -45,6 +45,7 @@ import {
 import type { RecentMatchup } from '../../core/recentMatchups'
 import { withAbilityReminder, type AbilityReminder } from '../../core/reminders'
 import { withoutRecentMatchup, withRecentMatchup } from '../../contracts/recentMatchups'
+import { onboardingAnswer } from '../../contracts/onboarding'
 import { OfflineRefusal } from './offlineRefusal'
 
 export const queryResource = (key: readonly unknown[]) => `query:${JSON.stringify(key)}`
@@ -557,7 +558,7 @@ export async function updateOnboardingProgress(
   const stored: StoredOnboarding = {
     tasks: [...new Set<OnboardingTaskId>([...current.completedTasks, input.task])].map((task) => ({ task, state: 'completed' as const })),
   }
-  const next = foldOnboarding(stored, facts)
+  const next = onboardingAnswer(foldOnboarding(stored, facts))
   await defer('updateOnboardingProgress', input, queryResource(onboardingKey()), next)
   return next
 }

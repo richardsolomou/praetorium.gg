@@ -37,11 +37,12 @@ import {
   setOwnPasswordSchema,
   unlinkOwnAccountSchema,
 } from '../../contracts/schemas'
+import { onboardingAnswer } from '../../contracts/onboarding'
 
 export const me = createServerFn({ method: 'GET' }).handler(() => rpc(() => currentUser()))
 
 export const onboardingProgress = createServerFn({ method: 'GET' }).handler(() =>
-  rpc(async () => app().repository.onboardingProgress(await requireUserId())),
+  rpc(async () => onboardingAnswer(await app().repository.onboardingProgress(await requireUserId()))),
 )
 
 export const updateOnboardingProgress = createServerFn({ method: 'POST' })
