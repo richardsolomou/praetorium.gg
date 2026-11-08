@@ -49,6 +49,7 @@ type SizedUnit = {
     name?: string
     optional?: boolean
     room?: number
+    bundlesModels?: true
     options: { id: string; name?: string; count: number; min?: number; default?: boolean }[]
   }[]
   models?: { members: { choiceKey: string | null }[] }[]
@@ -283,7 +284,9 @@ export function pickEditor(
         const unit = context.units[index]
         const models = step(pick.models ?? unit?.size.models ?? 0)
         const compositions = unit?.size.options?.length
-          ? unit.choices.filter((choice) => isUnitCompositionChoice({ name: choice.name ?? '', options: choice.options }))
+          ? unit.choices.filter(
+              (choice) => choice.bundlesModels || isUnitCompositionChoice({ name: choice.name ?? '', options: choice.options }),
+            )
           : []
         const inside = (key: string) => compositions.some((choice) => key === choice.key || key.startsWith(`${choice.key}/`))
         const equipment = unit?.choices.filter((choice) => inside(choice.key) && !compositions.includes(choice)) ?? []
@@ -314,7 +317,14 @@ export function pickEditor(
         const choices = { ...pick.choices }
         if (optionId) choices[key] = optionId
         else delete choices[key]
-        return { ...pick, choices, spreads: optionId ? without(pick.spreads, key) : emptied(pick.spreads, key) }
+        const { models, ...rest } = pick
+        // A bundle states its own size, so a count saved beside it would disagree.
+        const sizing = context.units[index]?.choices.some((choice) => choice.key === key && choice.bundlesModels)
+        return {
+          ...(sizing ? rest : { ...rest, ...(models === undefined ? {} : { models }) }),
+          choices,
+          spreads: optionId ? without(pick.spreads, key) : emptied(pick.spreads, key),
+        }
       }),
 
     /** How many of each option a group holds, leaving the unit's other groups alone. */

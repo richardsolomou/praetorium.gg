@@ -67,6 +67,8 @@ export type UnitChoice = {
   room: number
   /** How many selections the group must hold across its carriers, when it must hold some. */
   least?: number
+  /** Whether each option brings its own required models, so taking one also sets the squad's size, as Jakhals' "8 chainblades" and "17 chainblades" do. */
+  bundlesModels?: true
   /**
    * Whether the squad has to answer this one way for all of it.
    *
@@ -460,6 +462,19 @@ function collectUnitChoices(
               minimum(child.definition) === 0 || (sized !== undefined && adjustable.every((option) => minimum(option.definition) === 0)),
             room: adjustableRoom,
             ...(minimum(child.definition) > 0 ? { least: minimum(child.definition) * scale } : {}),
+            ...(!isUnitCompositionChoice({
+              name: inner.name ?? '',
+              options: adjustable.map((option) => ({ name: resolve(option.definition, index).name })),
+            }) &&
+            adjustable.every(
+              (option) =>
+                resolve(option.definition, index).type === 'upgrade' &&
+                childrenOf(option.definition, index).some(
+                  (body) => resolve(body.definition, index).type === 'model' && minimum(body.definition) > 0,
+                ),
+            )
+              ? { bundlesModels: true as const }
+              : {}),
             options: adjustable.map((option) => ({
               id: option.id,
               name: resolve(option.definition, index).name ?? option.id,
