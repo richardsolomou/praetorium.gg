@@ -389,7 +389,8 @@ export function app(): App {
           if (sync.state.status !== 'ready') throw new Error(`Catalogue ${sync.state.status}`)
           await Promise.all([localAuth.client.execute('select 1'), operator.health()])
         } catch (error) {
-          reportServerFailure({ event: 'health_check_failed', accessConfigured: Boolean(spacetimeAccess), error })
+          // One failed probe is routine during a database restart; Swarm tolerates twelve before it acts.
+          reportServerFailure({ event: 'health_check_failed', accessConfigured: Boolean(spacetimeAccess), error }, 'warn')
           throw error
         }
       },
