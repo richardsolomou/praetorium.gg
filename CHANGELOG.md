@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.224.1 (2026-11-08)
+
+### Patch Changes
+
+- b0517ba: Home no longer offers the mobile app to players who have opened it in the past month.
+
 ## 0.224.0 (2026-11-08)
 
 ### Minor Changes
