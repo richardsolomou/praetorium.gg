@@ -7,20 +7,21 @@ import { datasheetIn, detachmentAbilitiesIn } from './catalogue'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { type LoadedRules, rulesFaction } from './rules'
 import { joinKey } from '../core/text'
-import { DATACARDS_ATTRIBUTION } from './datacards'
+import { cardName, DATACARDS_ATTRIBUTION } from './datacards'
 import { factionContentOf } from './factionNames'
+import { withoutUpgrade } from './mfm'
 
 /** The names, as route slugs, of the unit upgrades a faction's detachments offer. */
 export function detachmentUpgradeNames(loaded: LoadedCatalogue, catalogueId: string, loadedRules: LoadedRules | null | undefined) {
   const faction = loaded.index.catalogues.get(catalogueId)
   const factionSlug = faction ? rulesFaction(loadedRules, routeSlug(faction.name)) : null
   const detachments = factionSlug ? [...(loadedRules?.detachmentDetails.get(factionSlug)?.values() ?? [])] : []
-  return new Set(detachments.flatMap((detachment) => detachment.upgrades.map((upgrade) => routeSlug(upgrade.name))))
+  return new Set(detachments.flatMap((detachment) => detachment.upgrades.map((upgrade) => cardName(upgrade.name))))
 }
 
 /** A datasheet shows wargear named after a detachment upgrade as that upgrade. */
 export const describedAbilityKind = <Kind extends string>(ability: { kind: Kind; name: string }, upgradeNames: ReadonlySet<string>) =>
-  ability.kind === 'wargear' && upgradeNames.has(routeSlug(ability.name)) ? ('upgrade' as const) : ability.kind
+  ability.kind === 'wargear' && upgradeNames.has(cardName(ability.name)) ? ('upgrade' as const) : ability.kind
 
 export function describeDatasheetAbilities(
   loaded: LoadedCatalogue,
@@ -65,6 +66,7 @@ export function describeDatasheetAbilitiesWithContributions(
   const rulesContributeAbilities = visibleAbilities.some((ability) => describedAbilityKind(ability, upgradeNames) === 'upgrade')
   const describeAbility = (ability: (typeof visibleAbilities)[number]) => ({
     ...ability,
+    name: withoutUpgrade(ability.name),
     kind: describedAbilityKind(ability, upgradeNames),
     description:
       ability.description ??
