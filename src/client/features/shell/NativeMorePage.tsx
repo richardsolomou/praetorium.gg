@@ -10,13 +10,9 @@ import {
   Gavel,
   GraduationCap,
   History,
-  Medal,
   MessageSquareWarning,
   ShieldCheck,
   Sparkles,
-  Trophy,
-  UserRound,
-  Users,
   type LucideIcon,
 } from 'lucide-react'
 import type { ComponentType, ReactNode } from 'react'
@@ -27,31 +23,23 @@ import { openConversations, unreadReplies, useSupportTickets } from '../feedback
 import { countLabel } from '../../text'
 import { useUnseenRelease } from './seenRelease'
 import { UnseenDot, unseenLabel } from './WhatsNew'
-import { COMMUNITY_LINKS } from './CommunityLinks'
+import { COMMUNITY_LINKS, COMMUNITY_PAGES, FRIENDS_PAGE } from './CommunityLinks'
 
-type MoreLink = { icon: LucideIcon; label: string; to: LinkProps['to'] }
+type MoreLink = { Icon: LucideIcon; label: string; to: LinkProps['to'] }
 type Tool = MoreLink & { description: string }
 
 const TOOLS: readonly Tool[] = [
-  { description: 'Damage and kill odds for any attack', icon: Calculator, label: 'Combat simulator', to: '/simulator' },
-  { description: 'Packs, scoring and deployments', icon: BookOpen, label: 'Missions', to: '/missions' },
-  { description: 'Core rules, missions and event rules', icon: Gavel, label: 'Rules', to: '/rules' },
-  { description: 'Army lists, imports and battle tracking', icon: GraduationCap, label: 'Docs', to: '/docs' },
+  { description: 'Damage and kill odds for any attack', Icon: Calculator, label: 'Combat simulator', to: '/simulator' },
+  { description: 'Packs, scoring and deployments', Icon: BookOpen, label: 'Missions', to: '/missions' },
+  { description: 'Core rules, missions and event rules', Icon: Gavel, label: 'Rules', to: '/rules' },
+  { description: 'Army lists, imports and battle tracking', Icon: GraduationCap, label: 'Docs', to: '/docs' },
 ]
 
-const COMMUNITY: readonly MoreLink[] = [
-  { icon: Users, label: 'Groups', to: '/groups' },
-  { icon: Trophy, label: 'Tournaments', to: '/tournaments' },
-  { icon: Medal, label: 'Leaderboard', to: '/leaderboard' },
-]
+const ACCOUNT: readonly MoreLink[] = [{ Icon: Boxes, label: 'Collection', to: '/collection' }]
 
-const FRIENDS: MoreLink = { icon: UserRound, label: 'Friends', to: '/friends' }
+const WHATS_NEW: MoreLink = { Icon: Sparkles, label: "What's new", to: '/whats-new' }
 
-const ACCOUNT: readonly MoreLink[] = [{ icon: Boxes, label: 'Collection', to: '/collection' }]
-
-const WHATS_NEW: MoreLink = { icon: Sparkles, label: "What's new", to: '/whats-new' }
-
-const HELP: readonly MoreLink[] = [{ icon: History, label: 'Data updates', to: '/data-updates' }]
+const HELP: readonly MoreLink[] = [{ Icon: History, label: 'Data updates', to: '/data-updates' }]
 
 const rowClass = 'flex min-h-12 w-full items-center gap-3 px-3.5 py-2 text-left text-bone transition-colors hover:bg-raised'
 
@@ -89,9 +77,9 @@ function Group({ id, title, children }: { id: string; title: string; children: R
 }
 
 function Links({ links }: { links: readonly MoreLink[] }) {
-  return links.map(({ to, icon, label }) => (
+  return links.map(({ to, Icon, label }) => (
     <Link key={to} to={to} className={rowClass}>
-      <Row icon={icon} label={label} />
+      <Row icon={Icon} label={label} />
     </Link>
   ))
 }
@@ -103,7 +91,7 @@ function Tools() {
         Tools
       </h2>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-        {TOOLS.map(({ to, icon: Icon, label, description }) => (
+        {TOOLS.map(({ to, Icon, label, description }) => (
           <Link
             key={to}
             to={to}
@@ -147,7 +135,7 @@ export function NativeMorePage() {
         <Tools />
         <div className="grid content-start gap-6 sm:grid-cols-2">
           <Group id="more-community-heading" title="Community">
-            <Links links={me ? [...COMMUNITY, FRIENDS] : COMMUNITY} />
+            <Links links={me ? [...COMMUNITY_PAGES, FRIENDS_PAGE] : COMMUNITY_PAGES} />
             {COMMUNITY_LINKS.map(({ href, Icon, label }) => (
               <a key={href} href={href} target="_blank" rel="noreferrer noopener" className={rowClass}>
                 <Row icon={Icon} label={label} external />
@@ -166,7 +154,7 @@ export function NativeMorePage() {
           ) : null}
           <Group id="more-help-heading" title="Help">
             <Link to={WHATS_NEW.to} aria-label={unseenRelease ? unseenLabel : undefined} className={rowClass}>
-              <Row icon={WHATS_NEW.icon} label={WHATS_NEW.label} status={unseenRelease ? <UnseenDot /> : null} />
+              <Row icon={WHATS_NEW.Icon} label={WHATS_NEW.label} status={unseenRelease ? <UnseenDot /> : null} />
             </Link>
             <Links links={HELP} />
             <button type="button" onClick={openConversations} className={rowClass}>

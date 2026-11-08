@@ -30,7 +30,7 @@ const useDismissed = () => useStoredValue(DISMISSED_KEY) === 'true'
  */
 function StoreBadges() {
   return (
-    <div className="flex shrink-0 items-center gap-3">
+    <div className="flex shrink-0 flex-wrap items-center gap-3 max-sm:col-span-2 max-sm:row-start-2">
       <a data-store-apple href={APP_STORE} rel="noreferrer noopener" target="_blank" className="block">
         <img src={appStoreBadge} alt="Download on the App Store" width={120} height={40} className="h-10 w-auto" />
       </a>
@@ -48,8 +48,8 @@ export function AppBand({ dismissable }: { dismissable: boolean }) {
   if (dismissable && dismissed) return null
   return (
     <div data-store-link data-app-band data-home-apps={dismissable || undefined} className="relative border-t border-edge">
-      <div className="mx-auto flex max-w-6xl items-center gap-3 px-5 py-3 sm:gap-4 sm:px-6">
-        <p className="min-w-0 flex-1 text-sm leading-snug text-dim">
+      <div className="mx-auto grid max-w-6xl grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-5 py-3 sm:flex sm:gap-4 sm:px-6">
+        <p className="text-sm leading-snug text-dim sm:min-w-0 sm:flex-1">
           <span data-platform-text="other">Take it to the table: Praetorium is on iPhone and Android.</span>
           <span data-platform-text="android">Praetorium for Android is in beta.</span>
         </p>

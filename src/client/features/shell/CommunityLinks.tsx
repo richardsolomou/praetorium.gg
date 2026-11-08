@@ -1,5 +1,4 @@
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { buttonClass } from '../../components/buttonClass'
+import { Medal, Trophy, UserRound, Users } from 'lucide-react'
 import { offlineData } from '../../offline/runtime'
 import { DISCORD, SOURCE } from '../../projectLinks'
 import discordIcon from './discord.svg?no-inline'
@@ -13,32 +12,15 @@ function brandIcon(online: string, offline: string) {
   }
 }
 
-export const COMMUNITY_LINKS = [
-  { href: DISCORD, Icon: brandIcon(discordIcon, discordOfflineIcon), label: 'Discord', description: 'Join the Discord community' },
-  { href: SOURCE, Icon: brandIcon(githubIcon, githubOfflineIcon), label: 'GitHub', description: 'Browse the source on GitHub' },
-]
+export const COMMUNITY_PAGES = [
+  { to: '/groups', label: 'Groups', Icon: Users },
+  { to: '/tournaments', label: 'Tournaments', Icon: Trophy },
+  { to: '/leaderboard', label: 'Leaderboard', Icon: Medal },
+] as const
 
-export function CommunityLinks() {
-  return (
-    <nav aria-label="Project links" className="inline-flex shrink-0 items-center gap-1">
-      {COMMUNITY_LINKS.map(({ href, Icon, label, description }) => (
-        <Tooltip key={label}>
-          <TooltipTrigger
-            render={
-              <a
-                href={href}
-                aria-label={label}
-                target="_blank"
-                rel="noreferrer noopener"
-                className={buttonClass({ variant: 'ghost', size: 'icon', className: 'size-8' })}
-              />
-            }
-          >
-            <Icon className="size-4.5" />
-          </TooltipTrigger>
-          <TooltipContent role="tooltip">{description}</TooltipContent>
-        </Tooltip>
-      ))}
-    </nav>
-  )
-}
+export const FRIENDS_PAGE = { to: '/friends', label: 'Friends', Icon: UserRound } as const
+
+export const COMMUNITY_LINKS = [
+  { href: DISCORD, Icon: brandIcon(discordIcon, discordOfflineIcon), label: 'Discord' },
+  { href: SOURCE, Icon: brandIcon(githubIcon, githubOfflineIcon), label: 'GitHub' },
+]

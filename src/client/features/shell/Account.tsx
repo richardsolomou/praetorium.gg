@@ -2,17 +2,7 @@ import { hasLocalChanges, stopLocalRuntime } from '../../offline/localRuntime'
 import { clearLocalState } from '../../offline/localStorage'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useLocation, useNavigate } from '@tanstack/react-router'
-import {
-  GraduationCap,
-  CircleUserRound,
-  LogIn,
-  LogOut,
-  MessageSquareWarning,
-  ShieldCheck,
-  Sparkles,
-  UserRoundPen,
-  Users,
-} from 'lucide-react'
+import { GraduationCap, CircleUserRound, LogIn, LogOut, MessageSquareWarning, ShieldCheck, Sparkles, UserRoundPen } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import {
@@ -128,9 +118,6 @@ function AccountMenuItems() {
       {me ? (
         <>
           <DropdownMenuGroup>
-            <DropdownMenuItem render={<Link to="/friends" />}>
-              <Users /> Friends
-            </DropdownMenuItem>
             <DropdownMenuItem render={<Link to="/profile" />}>
               <UserRoundPen /> Account settings
             </DropdownMenuItem>
@@ -195,7 +182,7 @@ export function Account({ native = false, className = '' }: { native?: boolean; 
           />
         }
       >
-        <span className="relative">
+        <span className="relative flex">
           {me ? <PlayerAvatar name={me.name} image={me.image} className="size-7 text-xs" /> : <CircleUserRound className="size-5" />}
           {unread ? (
             <span

@@ -119,7 +119,7 @@ test('the complete reference keeps its existing UI after a cold offline launch',
   await expect
     .poll(() =>
       offline
-        .locator('nav[aria-label="Project links"] img')
+        .locator('nav[aria-label="Community"] img')
         .evaluateAll((icons) => icons.map((icon) => (icon as HTMLImageElement).complete && (icon as HTMLImageElement).naturalWidth > 0)),
     )
     .toEqual([true, true])
