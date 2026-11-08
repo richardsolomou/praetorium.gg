@@ -33,7 +33,7 @@ import {
   type ReminderDismissalScope,
 } from './reminderDismissals'
 import { parseSeenMoment, passedMoments, reminderMomentStorageKey, sameSeenMoment, type SeenMoment } from './reminderMoments'
-import { armyRulesRequest } from './sideRules'
+import { armyRulesRequest, writtenStratagem } from './sideRules'
 import { formatName, type Side, type SideMission, sides } from '../../sides'
 import { asSecondary, battleSizeText } from '../../../core/battle'
 import type { BattleClock } from '../../../core/battleClock'
@@ -284,14 +284,7 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
     () => (active?.isViewer ? missionActionReminders(active, referenceFor) : EMPTY_REMINDERS),
     [active, referenceFor],
   )
-  const writtenFor = useCallback(
-    (side: Side, key: string): StratagemText | undefined => {
-      const rules = rulesFor(side).find((candidate) => candidate.written.some((entry) => entry.key === key))
-      const written = rules?.written.find((entry) => entry.key === key)
-      return written ? { ...written, keywordRules: rules?.keywordRules ?? [] } : undefined
-    },
-    [rulesFor],
-  )
+  const writtenFor = useCallback((side: Side, key: string): StratagemText | undefined => writtenStratagem(rulesFor(side), key), [rulesFor])
   const whenDrawnFor = useCallback(
     (key: string): WhenDrawn | undefined => secondaryDeck.find((card) => card.key === key)?.whenDrawn ?? undefined,
     [secondaryDeck],
@@ -700,7 +693,7 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
                 <div className="mt-3">
                   <BattleNote pending={pending || promptMinimized} send={sendAction} />
                 </div>
-                <Report token={view.token} players={reportedPlayers} />
+                <Report token={view.token} players={reportedPlayers} sides={table} />
               </div>
 
               {emptySettlementRetryNeeded ? (

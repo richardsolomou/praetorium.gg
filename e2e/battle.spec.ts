@@ -431,6 +431,19 @@ test('a tactical hand pays out when the card says', async ({ browser }) => {
   await expect(bob.getByRole('dialog', { name: stratagem })).toContainText('used 1x this battle')
   await bob.keyboard.press('Escape')
   await expect(alice.getByText(`${bobName} uses ${aliceName}’s ${stratagem} for 1 CP`)).toBeVisible()
+  await alice
+    .locator('[data-battle-report-scroll]')
+    .getByRole('button', { name: `About ${stratagem}` })
+    .click()
+  await expect(alice.getByRole('dialog', { name: stratagem })).toContainText('used 1x this battle')
+  await alice.keyboard.press('Escape')
+  await spectator.keyboard.press('Escape')
+  await spectator
+    .locator('[data-battle-report-scroll]')
+    .getByRole('button', { name: `About ${stratagem}` })
+    .click()
+  await expect(spectator.getByRole('dialog', { name: stratagem })).toContainText('Effect')
+  await spectator.keyboard.press('Escape')
 
   // Nothing is scoreable mid-turn, and a mission cannot be completed early either:
   // both arrive with the moment the card names.

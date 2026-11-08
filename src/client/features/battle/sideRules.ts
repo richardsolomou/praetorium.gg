@@ -19,6 +19,18 @@ export function armyRulesRequest(roster: RosterView | null | undefined): { catal
   }
 }
 
+/** A stratagem's written card, read from whichever of the side's rule sets prints it. */
+export function writtenStratagem<Written extends { key: string }, Keyword>(
+  rules: readonly { written: readonly Written[]; keywordRules?: readonly Keyword[] }[],
+  key: string,
+) {
+  for (const { written, keywordRules = [] } of rules) {
+    const entry = written.find((candidate) => candidate.key === key)
+    if (entry) return { ...entry, keywordRules: [...keywordRules] }
+  }
+  return undefined
+}
+
 /**
  * The stratagems a side plays: every detachment on it, then the core cards once.
  *
