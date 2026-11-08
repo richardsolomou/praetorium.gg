@@ -4,7 +4,7 @@ A higher average doesn't always mean a better chance to wipe the unit. Only the 
 
 **Avg. damage** doesn't stop at the target's total wounds, so you can compare attackers that would all usually destroy it. Damage past a model's last wound is still lost, because it doesn't carry over to the next model. **Breakdown** has the wounds the target actually loses. On a target with mixed profiles you'll see **avg. wounds lost** in the bar instead.
 
-If the attacker would usually destroy the whole target, you may see **kills if it had more models** instead of models lost. That's the average models destroyed if the target had enough models to absorb every attack.
+If the attacker would usually destroy the whole target, you may see **uncapped kills** instead of models lost. That's the average models destroyed if the target had enough models to absorb every attack.
 
 With a **Command Re-roll** chosen, the bar also shows how much it changes each figure compared with not using it.
 

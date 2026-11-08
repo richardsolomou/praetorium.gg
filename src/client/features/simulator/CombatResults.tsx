@@ -89,7 +89,7 @@ export function CombatResults({
               {uncapped ? (
                 <div className="mt-1 flex">
                   <HoverTooltip title="Uncapped kills" body={UNCAPPED_KILLS_EXPLANATION} className="text-left text-xs text-dim">
-                    kills if it had more models
+                    uncapped kills
                   </HoverTooltip>
                 </div>
               ) : (
