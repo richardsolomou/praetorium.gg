@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.222.13 (2026-11-08)
+
+### Patch Changes
+
+- f6ada17: Test targets no longer leaves whole rows uncalculated when the server is slow to load units.
+- f6ada17: Timed-out requests now say that they took too long instead of showing a browser error.
+
 ## 0.222.12 (2026-11-08)
 
 ### Patch Changes
