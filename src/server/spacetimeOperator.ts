@@ -801,7 +801,11 @@ export class SpacetimeOperator {
           deleted: z.boolean(),
           lifecycle: z.enum(['created', 'deleted']).nullable().default(null),
         }),
-        z.object({ outcome: z.enum(['conflict', 'refused']), message: z.string() }),
+        z.object({
+          outcome: z.enum(['conflict', 'refused']),
+          cause: z.enum(['not-owned', 'locked', 'stale', 'exists', 'deleted']).optional(),
+          message: z.string(),
+        }),
       ]),
     )
   }

@@ -271,7 +271,10 @@ it.skipIf(!url || !database || !token)('refuses competing roster versions and pr
     }
     await operator.syncRoster(input)
     const stale = await operator.syncRoster({ ...input, row: JSON.stringify({ ...row, name: 'Other device' }), operationId: randomUUID() })
-    expect({ outcome: stale.outcome, name: (await operator.roster(row.id))?.name }).toEqual({ outcome: 'conflict', name: 'First device' })
+    expect({ stale, name: (await operator.roster(row.id))?.name }).toEqual({
+      stale: { outcome: 'conflict', cause: 'stale', message: 'This roster changed on another device.' },
+      name: 'First device',
+    })
   } finally {
     await operator.deleteUserData(owner)
   }
@@ -284,9 +287,10 @@ it.skipIf(!url || !database || !token)('retains a roster deletion tombstone agai
     await operator.saveRoster(row)
     const input = { row: JSON.stringify(row), operationId: randomUUID(), fingerprint, expectedVersion: row.now, deleted: true }
     await operator.syncRoster(input)
-    expect((await operator.syncRoster({ ...input, operationId: randomUUID(), expectedVersion: null, deleted: false })).outcome).toBe(
-      'conflict',
-    )
+    expect(await operator.syncRoster({ ...input, operationId: randomUUID(), expectedVersion: null, deleted: false })).toMatchObject({
+      outcome: 'conflict',
+      cause: 'deleted',
+    })
   } finally {
     await operator.deleteUserData(owner)
   }

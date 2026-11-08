@@ -290,8 +290,8 @@ it.skipIf(!url || !database || !token)('refuses queued edits to a locked roster 
       picks: (await store.roster(input.id))?.picks,
     }).toEqual({
       lockedVersionAdvanced: true,
-      stale: { outcome: 'refused', message: LOCKED_ROSTER_MESSAGE },
-      current: { outcome: 'refused', message: LOCKED_ROSTER_MESSAGE },
+      stale: { outcome: 'refused', cause: 'locked', message: LOCKED_ROSTER_MESSAGE },
+      current: { outcome: 'refused', cause: 'locked', message: LOCKED_ROSTER_MESSAGE },
       picks: input.picks,
     })
   } finally {
