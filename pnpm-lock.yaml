@@ -221,8 +221,8 @@ importers:
         specifier: 0.223.0
         version: 0.223.0(@opentelemetry/api@1.9.1)
       '@posthog/mcp':
-        specifier: 0.25.0
-        version: 0.25.0(@modelcontextprotocol/sdk@1.32.2(supports-color@8.1.1)(zod@4.6.7))(posthog-node@5.61.2(@opentelemetry/api@1.9.1))
+        specifier: 0.26.0
+        version: 0.26.0(@modelcontextprotocol/sdk@1.32.2(supports-color@8.1.1)(zod@4.6.7))(posthog-node@5.61.2(@opentelemetry/api@1.9.1))
       '@posthog/react':
         specifier: 1.11.3
         version: 1.11.3(@types/react@19.3.0)(posthog-js@1.445.3(@types/react@19.3.0)(react@19.3.0))(react@19.3.0)
@@ -284,8 +284,8 @@ importers:
         specifier: ^6.2.14
         version: 6.2.14
       lucide-react:
-        specifier: ^1.63.0
-        version: 1.63.0(@types/react@19.3.0)(react@19.3.0)
+        specifier: ^1.66.0
+        version: 1.66.0(@types/react@19.3.0)(react@19.3.0)
       next-themes:
         specifier: ^0.4.6
         version: 0.4.6(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
@@ -2501,8 +2501,11 @@ packages:
   '@posthog/core@1.63.1':
     resolution: {integrity: sha512-LcUSRUM8zoTdwQFH1kWDQDMOFwiFjJ2lVxOOtpOwp6ezcHdr94KjO84YcoEeYtMuIFVMjasDFWyrOuuMAAg52g==}
 
-  '@posthog/mcp@0.25.0':
-    resolution: {integrity: sha512-YV4J09e4eEyibDcS6D7BCCaDMfojkPiMWoZLoXCg3LECgAyyN3esOX4ROT4vquBiFJGz/Tugf3o0jBKZJf6pgA==}
+  '@posthog/core@1.64.1':
+    resolution: {integrity: sha512-2ziryOLWTxftHrTLhGYQzLHDpPughaRRi/+L1vhg4cQFHJfgTevMzAz21R1zR7MKFDkyJ9lCJD/K2jxIkGbnfg==}
+
+  '@posthog/mcp@0.26.0':
+    resolution: {integrity: sha512-FWvI4QA2M8KPXwVw/gjLuUjniBZWkuNnVj/IiJfNef5XX82K/VHk5GCY51bryNAvahjBoMcCJ3vgmHcxDeIidQ==}
     engines: {node: ^20.20.0 || >=22.22.0}
     peerDependencies:
       '@modelcontextprotocol/sdk': '>=1.26.0'
@@ -2540,6 +2543,9 @@ packages:
 
   '@posthog/types@1.419.0':
     resolution: {integrity: sha512-XX7zRYt/vK8AzaD6V+oDquAzacZf5exJv971dja9En8Qf6g84Qvc3rpT0w6hDYYLWrjaSSkdjFfvvoXI0ouJDg==}
+
+  '@posthog/types@1.421.1':
+    resolution: {integrity: sha512-475eg+usYiQ2m7GfxgylnBTVa3aPsEfaE6gQoDvg5nEkWAjcNiGm1u3WsESOErfrFFUajpYcxc71JCzfdoJ8gg==}
 
   '@react-native/asset-utils@0.88.1':
     resolution: {integrity: sha512-BLb5FF7NgggGYiCsA7KKkK2qFhn0K+6iGXOI+4Ucd+G7Robzw9Gt4WsWwxLt+Od+G+/hyqfz8ASokyWFZ6VcLw==}
@@ -5740,8 +5746,8 @@ packages:
   lru-cache@5.1.1:
     resolution: {integrity: sha512-KpNARQA3Iwv+jTA0utUVVbrh+Jlrr1Fv0e56GGzAFOXN7dk/FviaDW8LHmK52DlcH4WP2n6gI8vN1aesBFgo9w==}
 
-  lucide-react@1.63.0:
-    resolution: {integrity: sha512-GkBfQG+FUJ41x6y3/lNXiOziVU0Rcqqq0TCzhHS8avsFXHZmOdmfBqsVTvHSaVmbI+wbdGkxHRmhYWhD3N4/yA==}
+  lucide-react@1.66.0:
+    resolution: {integrity: sha512-8zjbi/Us+ETXqfBwmXF/FHrWGIqOdE6zT1yUdRJLQVoptomSkB0zdFWVIM667t9K8djWDaXdkBkqi2qVTuDNiw==}
     peerDependencies:
       '@types/react': '*'
       react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
@@ -9228,9 +9234,13 @@ snapshots:
     dependencies:
       '@posthog/types': 1.419.0
 
-  '@posthog/mcp@0.25.0(@modelcontextprotocol/sdk@1.32.2(supports-color@8.1.1)(zod@4.6.7))(posthog-node@5.61.2(@opentelemetry/api@1.9.1))':
+  '@posthog/core@1.64.1':
     dependencies:
-      '@posthog/core': 1.63.1
+      '@posthog/types': 1.421.1
+
+  '@posthog/mcp@0.26.0(@modelcontextprotocol/sdk@1.32.2(supports-color@8.1.1)(zod@4.6.7))(posthog-node@5.61.2(@opentelemetry/api@1.9.1))':
+    dependencies:
+      '@posthog/core': 1.64.1
       posthog-node: 5.61.2(@opentelemetry/api@1.9.1)
     optionalDependencies:
       '@modelcontextprotocol/sdk': 1.32.2(supports-color@8.1.1)(zod@4.6.7)
@@ -9259,6 +9269,8 @@ snapshots:
       rollup: 4.63.2
 
   '@posthog/types@1.419.0': {}
+
+  '@posthog/types@1.421.1': {}
 
   '@react-native/asset-utils@0.88.1': {}
 
@@ -12369,7 +12381,7 @@ snapshots:
     dependencies:
       yallist: 3.1.1
 
-  lucide-react@1.63.0(@types/react@19.3.0)(react@19.3.0):
+  lucide-react@1.66.0(@types/react@19.3.0)(react@19.3.0):
     dependencies:
       react: 19.3.0
     optionalDependencies:
