@@ -123,9 +123,7 @@ test('links each tool a visitor can use without an account as one action', async
   await page.goto('/')
 
   await expect(page.getByRole('link', { name: /Test your matchups/ })).toHaveAttribute('href', '/simulator')
-  await expect(page.getByRole('link', { name: /Read the datasheets/ })).toHaveAttribute('href', '/factions')
-  await expect(page.getByRole('link', { name: /Choose a mission/ })).toHaveAttribute('href', '/missions')
-  await expect(page.getByRole('link', { name: /Look up a rule/ })).toHaveAttribute('href', '/rules')
+  await expect(page.getByRole('link', { name: 'Browse factions' })).toHaveAttribute('href', '/factions')
 })
 
 test('explains how it works before public activity and opens an account-free matchup', async ({ page }) => {

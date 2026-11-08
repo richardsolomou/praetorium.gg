@@ -8,6 +8,7 @@ import { ALICE, BOB, log, NAMES, started } from '../../../core/battle.fixtures'
 import { battleClock } from '../../../core/battleClock'
 import { battleView } from '../../../core/battleView'
 import { EMPTY_ONBOARDING_PROGRESS } from '../../../core/onboarding'
+import { onboardingAnswer } from '../../../contracts/onboarding'
 import { deploymentsQuery, meQuery, onboardingQuery } from '../../queries'
 import { Spectator } from './Spectator'
 
@@ -64,7 +65,7 @@ describe('invitation to track your own games', () => {
     const view = battleView({ token: 'test' }, NAMES, reduceBattle([ALICE, BOB], commands), viewer)
     const client = new QueryClient()
     client.setQueryData(meQuery().queryKey, me as never)
-    client.setQueryData(onboardingQuery().queryKey, { ...EMPTY_ONBOARDING_PROGRESS, completedTasks })
+    client.setQueryData(onboardingQuery().queryKey, onboardingAnswer({ ...EMPTY_ONBOARDING_PROGRESS, completedTasks }))
     return renderToStaticMarkup(
       createElement(
         QueryClientProvider,

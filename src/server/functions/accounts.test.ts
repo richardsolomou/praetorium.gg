@@ -1,5 +1,5 @@
 import { expect, it, vi } from 'vitest'
-import { uploadCollectionPhoto } from './accounts'
+import { onboardingProgress, updateOnboardingProgress, uploadCollectionPhoto } from './accounts'
 
 const mocks = vi.hoisted(() => ({ capture: vi.fn() }))
 vi.mock('@tanstack/react-start', () => {
@@ -22,6 +22,10 @@ vi.mock('../photoScreening', () => ({
 vi.mock('../app', () => ({
   app: () => ({
     collectionPhotos: { upload: async () => 'private-photo-id' },
+    repository: {
+      onboardingProgress: async () => ({ completedTasks: ['roster'] }),
+      updateOnboardingProgress: async () => ({ completedTasks: ['roster'] }),
+    },
     telemetry: { capture: mocks.capture },
   }),
 }))
@@ -33,4 +37,26 @@ it('records screening probabilities without the photo or image identifier', asyn
     ['actor', 'collection_photo_uploaded', { delivery: 'direct' }],
     ['actor', 'collection_photo_screened', { outcome: 'scored', model: 'jev', miniature: 0.9 }],
   ])
+})
+
+/** What a build that still offered skipping a task does with the answer. */
+function readAsOldBuild(progress: { completedTasks: string[]; skippedTasks: string[] }) {
+  return {
+    skipped: progress.skippedTasks.includes('roster'),
+    saved: [...progress.completedTasks.map((task) => task), ...progress.skippedTasks.map((task) => task)],
+    resolved: [...new Set([...progress.completedTasks, ...progress.skippedTasks])],
+  }
+}
+
+it.each([
+  ['read', () => (onboardingProgress as unknown as () => Promise<never>)()],
+  [
+    'update',
+    () =>
+      (updateOnboardingProgress as unknown as (input: { data: unknown }) => Promise<never>)({
+        data: { operation: 'complete', task: 'reference' },
+      }),
+  ],
+])('keeps an onboarding %s answer readable by an old saved build', async (_name, answer) => {
+  expect(readAsOldBuild(await answer())).toEqual({ skipped: false, saved: ['roster'], resolved: ['roster'] })
 })

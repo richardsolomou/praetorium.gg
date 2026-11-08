@@ -68,13 +68,16 @@ export const browserEventContext: BeforeSendFn = (event) => {
 }
 
 /**
- * Browser noise with nothing to act on: a cross-origin script hides its error, a resize observer skips a frame, and
- * Outlook's link scanner rejects with its own message when it opens the page.
+ * Browser noise with nothing to act on: a cross-origin script hides its error, a resize observer skips a frame,
+ * Outlook's link scanner rejects with its own message when it opens the page, and a browser abandons a page transition
+ * when the tab hides or the window resizes. The SDK prefixes a DOMException's message with its name.
  */
 const UNACTIONABLE_EXCEPTIONS = [
   /^Script error\.?$/,
   /^ResizeObserver loop (completed with undelivered notifications|limit exceeded)/,
   /^Non-Error promise rejection captured with value: Object Not Found Matching Id:\d+, MethodName:\w+, ParamCount:\d+$/,
+  /^(InvalidStateError: )?Transition was aborted because of invalid state/,
+  /^(InvalidStateError: )?Skipping view transition because viewport size changed$/,
 ]
 
 export const dropUnactionableExceptions: BeforeSendFn = (event) => {

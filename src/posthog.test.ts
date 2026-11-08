@@ -109,6 +109,12 @@ it.each([
   'Script error.',
   'ResizeObserver loop completed with undelivered notifications.',
   'Non-Error promise rejection captured with value: Object Not Found Matching Id:4, MethodName:update, ParamCount:4',
+  'Transition was aborted because of invalid state',
+  'InvalidStateError: Transition was aborted because of invalid state',
+  'InvalidStateError: Transition was aborted because of invalid state: Document hidden',
+  'InvalidStateError: Transition was aborted because of invalid state: Viewport size changed',
+  'Skipping view transition because viewport size changed',
+  'InvalidStateError: Skipping view transition because viewport size changed',
 ])('drops the unactionable browser exception %s', (value) => {
   expect(dropUnactionableExceptions(exception(value))).toBeNull()
 })
