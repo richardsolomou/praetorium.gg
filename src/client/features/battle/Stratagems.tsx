@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { EllipsisVertical, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { DialogBody, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../../components/Dialog'
+import { Skeleton } from '@/components/ui/skeleton'
 import { BattleDialogContent, BattlePromptDialog } from './BattlePromptDialog'
 import {
   DropdownMenu,
@@ -147,7 +148,6 @@ function StratagemCard({
     if (newOrders) setNewOrdersCost(cp)
     else onUse(cp === stratagem.cp ? undefined : cp)
   }
-  const timing = [written?.type, ...stratagemTiming(stratagem)].filter(Boolean).join(' · ')
   return (
     <div className={`${CARD} flex items-center gap-1.5`}>
       <BattlePromptDialog minimizedLabel={stratagem.name} resumeLabel="Return to stratagem">
@@ -162,24 +162,7 @@ function StratagemCard({
         >
           {stratagem.name}
         </DialogTrigger>
-        <BattleDialogContent size="md">
-          <DialogHeader>
-            <DialogTitle>{stratagem.name}</DialogTitle>
-            <DialogDescription className="eyebrow">{timing}</DialogDescription>
-          </DialogHeader>
-          <DialogBody>
-            <p className="flex items-baseline justify-between gap-3">
-              <span className="chip">{stratagem.cp} CP</span>
-              <span className="readout text-xs text-dim">used {stratagem.uses}x this battle</span>
-            </p>
-            {written?.description ? (
-              <RuleText text={written.description} rules={written.keywordRules} />
-            ) : (
-              <p className="mt-2 text-sm text-dim">No description is available for this stratagem.</p>
-            )}
-            {refusal ? <p className="mt-2 text-sm text-discarded">{refusal}</p> : null}
-          </DialogBody>
-        </BattleDialogContent>
+        <StratagemDetails stratagem={stratagem} written={written} refusal={refusal} />
       </BattlePromptDialog>
       {/* Some stratagems cost more or less depending on what is on the board, so the price is a choice. */}
       <DropdownMenu>
@@ -259,6 +242,43 @@ function StratagemCard({
         </BattleDialogContent>
       </BattlePromptDialog>
     </div>
+  )
+}
+
+/** What the stratagem is for: the same card from the tracker and from the battle events. */
+export function StratagemDetails({
+  stratagem,
+  written,
+  pending = false,
+  refusal = null,
+}: {
+  stratagem: ViewStratagem
+  written: StratagemText | undefined
+  pending?: boolean
+  refusal?: string | null
+}) {
+  const timing = [written?.type, ...stratagemTiming(stratagem)].filter(Boolean).join(' · ')
+  return (
+    <BattleDialogContent size="md">
+      <DialogHeader>
+        <DialogTitle>{stratagem.name}</DialogTitle>
+        <DialogDescription className="eyebrow">{timing}</DialogDescription>
+      </DialogHeader>
+      <DialogBody>
+        <p className="flex items-baseline justify-between gap-3">
+          <span className="chip">{stratagem.cp} CP</span>
+          <span className="readout text-xs text-dim">used {stratagem.uses}x this battle</span>
+        </p>
+        {pending ? (
+          <Skeleton className="mt-2 h-16 w-full" />
+        ) : written?.description ? (
+          <RuleText text={written.description} rules={written.keywordRules} />
+        ) : (
+          <p className="mt-2 text-sm text-dim">No description is available for this stratagem.</p>
+        )}
+        {refusal ? <p className="mt-2 text-sm text-discarded">{refusal}</p> : null}
+      </DialogBody>
+    </BattleDialogContent>
   )
 }
 

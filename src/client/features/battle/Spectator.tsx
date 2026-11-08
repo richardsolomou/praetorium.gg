@@ -207,7 +207,7 @@ export function Spectator({
             ) : null}
             <div className="border-t border-edge pt-3">
               <p className="eyebrow">Battle events</p>
-              <Report token={view.token} players={reportPlayers(view.players)} entries={report} />
+              <Report token={view.token} players={reportPlayers(view.players)} sides={table} entries={report} />
             </div>
           </section>
         </div>

@@ -3,6 +3,7 @@ import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { expect, it } from 'vitest'
 import type { ReportEntry } from '../../../core/battleReport'
+import type { Side } from '../../sides'
 import { Report } from './Report'
 
 it('shows the dates of events on different days in the battle report', () => {
@@ -62,4 +63,23 @@ it('labels a line from before the battle began as setup rather than a phase', ()
   )
 
   expect(markup.replaceAll(/<[^>]+>/g, ' ')).toMatch(/\bsetup\b.*Alice names Bob as the attacker/)
+})
+
+it('makes a used stratagem a way to read it, and leaves the rest of the line as written', () => {
+  const entry: ReportEntry = {
+    seq: 1,
+    at: 0,
+    round: 1,
+    phase: 'charge',
+    by: 'alice',
+    commandKind: 'use-stratagem',
+    text: 'Alice uses Fury of the Emperor for 1 CP',
+    stratagem: { key: 'fury', name: 'Fury of the Emperor', playerId: 'alice' },
+  }
+  const sides = [{ armies: [{ playerId: 'alice' }], stratagems: [{ key: 'fury' }] }] as unknown as Side[]
+  const markup = renderToStaticMarkup(
+    createElement(QueryClientProvider, { client: new QueryClient() }, createElement(Report, { token: 'battle', entries: [entry], sides })),
+  )
+
+  expect(markup).toMatch(/Alice uses <button[^>]*>Fury of the Emperor<\/button> for 1 CP/)
 })

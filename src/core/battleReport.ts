@@ -41,6 +41,8 @@ export type ReportEntry = {
   elapsed?: AdvanceTime
   /** The end of `text` that names the earlier moment an action recorded late belongs to. */
   missed?: string
+  /** The stratagem `text` names, and the army that holds it, so a reader can open the card. */
+  stratagem?: { key: string; name: string; playerId: PlayerId }
 }
 
 type BattleReportReferences = {
@@ -68,6 +70,7 @@ export function battleReport(
     const missed = 'missed' in entry.command && entry.command.missed ? missedLabel(entry.command.missed, named) : undefined
     const text = missed ? `${described}${missed}` : described
     const targetId = commandTarget(entry.command, entry.by)
+    const stratagem = usedStratagem(entry.command, army)
     if (
       returned &&
       returned.entry.seq + 1 === entry.seq &&
@@ -79,7 +82,7 @@ export function battleReport(
       returned = null
       continue
     }
-    const reportEntry = {
+    const reportEntry: ReportEntry = {
       seq: entry.seq,
       at: entry.at,
       round: before.round || state.round,
@@ -89,6 +92,7 @@ export function battleReport(
       text,
       ...(elapsed.has(entry.seq) ? { elapsed: elapsed.get(entry.seq) } : {}),
       ...(missed ? { missed } : {}),
+      ...(stratagem ? { stratagem: { ...stratagem, playerId: targetId } } : {}),
     }
     entries.push(reportEntry)
     returned =
@@ -98,6 +102,12 @@ export function battleReport(
   }
 
   return entries
+}
+
+function usedStratagem(command: Command, player: PlayerState | undefined) {
+  const key = command.kind === 'use-stratagem' ? command.key : command.kind === 'use-new-orders' ? command.stratagemKey : null
+  const name = player?.stratagems.find((candidate) => candidate.key === key)?.name
+  return key && name ? { key, name } : null
 }
 
 function describe(

@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQueries, useQuery } from '@tanstack/react-query'
 import { Timer } from 'lucide-react'
 import { Fragment, useLayoutEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
@@ -7,9 +7,13 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 import type { ReportEntry } from '../../../core/battleReport'
 import { useDateFormatting } from '../../dates'
-import { reportQuery } from '../../queries'
+import { detachmentRulesQuery, reportQuery } from '../../queries'
+import type { Side } from '../../sides'
+import { BattlePromptDialog } from './BattlePromptDialog'
+import { armyRulesRequest, writtenStratagem } from './sideRules'
+import { StratagemDetails } from './Stratagems'
 import { formatDuration } from './turnTime'
-import { tint } from './battleTints'
+import { CARD_NAME_LINK, tint } from './battleTints'
 
 type ReportPlayer = { id: string; name: string; className: string }
 
@@ -28,6 +32,9 @@ const PHASE_LABELS: Record<string, string> = {
 }
 
 const NO_PLAYERS: readonly ReportPlayer[] = []
+const NO_SIDES: readonly Side[] = []
+
+type UsedStratagem = NonNullable<ReportEntry['stratagem']>
 
 /** The log grows all game and refetches on every change; only this many lines render until asked. */
 const WINDOW = 100
@@ -42,10 +49,12 @@ const WINDOW = 100
 export function Report({
   token,
   players = NO_PLAYERS,
+  sides = NO_SIDES,
   entries: suppliedEntries,
 }: {
   token: string
   players?: readonly ReportPlayer[]
+  sides?: readonly Side[]
   entries?: readonly ReportEntry[]
 }) {
   const { date, time } = useDateFormatting()
@@ -54,6 +63,8 @@ export function Report({
   const entries = suppliedEntries ?? fetchedEntries
   const [filter, setFilter] = useState<'all' | 'cp'>('all')
   const [shownCount, setShownCount] = useState(WINDOW)
+  const [reading, setReading] = useState<UsedStratagem | null>(null)
+  const readingSide = reading ? sideHolding(sides, reading) : undefined
   const scroll = useRef<HTMLDivElement>(null)
   const scrollTop = useRef(0)
   useLayoutEffect(() => {
@@ -112,14 +123,13 @@ export function Report({
                     </span>
                   </span>
                   <span className="min-w-0 break-words text-bone">
-                    {entry.missed ? (
-                      <>
-                        {colourNames(entry.text.slice(0, -entry.missed.length), players)}
-                        <span className="text-discarded">{colourNames(entry.missed, players)}</span>
-                      </>
-                    ) : (
-                      colourNames(entry.text, players)
-                    )}
+                    <EntryText
+                      text={entry.missed ? entry.text.slice(0, -entry.missed.length) : entry.text}
+                      stratagem={entry.stratagem && sideHolding(sides, entry.stratagem) ? entry.stratagem : undefined}
+                      players={players}
+                      onRead={setReading}
+                    />
+                    {entry.missed ? <span className="text-discarded">{colourNames(entry.missed, players)}</span> : null}
                     {entry.elapsed ? <TimeTaken elapsed={entry.elapsed} /> : null}
                   </span>
                 </li>
@@ -137,7 +147,69 @@ export function Report({
           <p className="text-xs text-dim">No command point events yet.</p>
         )}
       </div>
+      {reading && readingSide ? <StratagemDialog side={readingSide} used={reading} onClose={() => setReading(null)} /> : null}
     </>
+  )
+}
+
+function sideHolding(sides: readonly Side[], used: UsedStratagem) {
+  return sides.find(
+    (side) => side.armies.some((army) => army.playerId === used.playerId) && side.stratagems.some((s) => s.key === used.key),
+  )
+}
+
+/** A line with its stratagem's name made into the way to read that stratagem. */
+function EntryText({
+  text,
+  stratagem,
+  players,
+  onRead,
+}: {
+  text: string
+  stratagem: UsedStratagem | undefined
+  players: readonly ReportPlayer[]
+  onRead: (used: UsedStratagem) => void
+}) {
+  // From the end, because the player's name comes first and may contain the stratagem's.
+  const at = stratagem ? text.lastIndexOf(stratagem.name) : -1
+  if (!stratagem || at === -1) return colourNames(text, players)
+  return (
+    <>
+      {colourNames(text.slice(0, at), players)}
+      <button
+        type="button"
+        aria-label={`About ${stratagem.name}`}
+        className={cn('text-left', CARD_NAME_LINK)}
+        onClick={() => onRead(stratagem)}
+      >
+        {stratagem.name}
+      </button>
+      {colourNames(text.slice(at + stratagem.name.length), players)}
+    </>
+  )
+}
+
+/** Fetches the card only when asked, since a spectator's screen has no other use for the side's rules. */
+function StratagemDialog({ side, used, onClose }: { side: Side; used: UsedStratagem; onClose: () => void }) {
+  const results = useQueries({
+    queries: side.armies.map((army) => {
+      const request = armyRulesRequest(army.roster)
+      return detachmentRulesQuery(request.catalogueId, request.detachmentNames)
+    }),
+  })
+  const stratagem = side.stratagems.find((candidate) => candidate.key === used.key)
+  if (!stratagem) return null
+  return (
+    <BattlePromptDialog open onOpenChange={(open) => !open && onClose()} minimizedLabel={used.name} resumeLabel="Return to stratagem">
+      <StratagemDetails
+        stratagem={stratagem}
+        written={writtenStratagem(
+          results.flatMap((result) => (result.data ? [result.data] : [])),
+          used.key,
+        )}
+        pending={results.some((result) => result.isLoading)}
+      />
+    </BattlePromptDialog>
   )
 }
 

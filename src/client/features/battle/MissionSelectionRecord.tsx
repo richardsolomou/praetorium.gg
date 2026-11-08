@@ -40,19 +40,23 @@ export function MissionSelectionRecords({ records, cardKey }: { records: Mission
               ) : null}
             </p>
             {record.selection.kind === 'guards' || record.selection.kind === 'consecrate' ? (
-              (record.selection.kind === 'guards' ? record.selection.guards : record.selection.consecrations).map((guard) => (
-                <p key={guard.objective.key}>
-                  {guard.objective.name} ·{' '}
-                  <RecordedUnit
-                    unit={record.units.find(
-                      (unit) =>
-                        unit.playerId === guard.unit.playerId &&
-                        unit.rosterSeq === guard.unit.rosterSeq &&
-                        unit.unitKey === guard.unit.unitKey,
-                    )}
-                  />
-                </p>
-              ))
+              <dl className="space-y-1.5 pt-0.5">
+                {(record.selection.kind === 'guards' ? record.selection.guards : record.selection.consecrations).map((guard) => (
+                  <div key={guard.objective.key}>
+                    <dt className="text-2xs text-dim">{guard.objective.name}</dt>
+                    <dd>
+                      <RecordedUnit
+                        unit={record.units.find(
+                          (unit) =>
+                            unit.playerId === guard.unit.playerId &&
+                            unit.rosterSeq === guard.unit.rosterSeq &&
+                            unit.unitKey === guard.unit.unitKey,
+                        )}
+                      />
+                    </dd>
+                  </div>
+                ))}
+              </dl>
             ) : record.selection.kind === 'tempting-target' ? (
               <p>{record.selection.objective.name}</p>
             ) : record.selection.kind === 'sensor-sweep' ? (

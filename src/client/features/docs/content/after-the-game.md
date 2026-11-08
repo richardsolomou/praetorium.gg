@@ -1,4 +1,4 @@
-A finished battle shows the result, the battle events and a timeline you can scrub through turn by turn. Filter to **CP only** to check command point spending. Watchers can scrub a live battle, and seated players get the replay once it's finished.
+A finished battle shows the result, the battle events and a timeline you can scrub through turn by turn. Filter to **CP only** to check command point spending, and select a stratagem's name to read what it does. Watchers can scrub a live battle, and seated players get the replay once it's finished.
 
 Battles between accounts count in each player's record. A guest battle counts in your record, not on the leaderboard. Practice battles count nowhere.
 

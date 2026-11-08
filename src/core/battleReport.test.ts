@@ -27,6 +27,24 @@ describe('the account of the battle', () => {
     expect(battleReport(NAMES, history).at(-1)?.elapsed).toEqual({ phase: 60_000, turn: null })
   })
 
+  it('names the stratagem a line is about and the army holding it', () => {
+    const history = log(
+      ...started(),
+      [
+        ALICE,
+        {
+          kind: 'set-prep',
+          stratagems: [{ key: 's1', name: 'Grenade', cp: 1, limit: 'turn' }],
+          secondaries: [],
+          primary: null,
+          secondaryMode: 'fixed',
+        },
+      ],
+      [ALICE, { kind: 'use-stratagem', key: 's1' }],
+    )
+    expect(battleReport(NAMES, history).at(-1)?.stratagem).toEqual({ key: 's1', name: 'Grenade', playerId: ALICE })
+  })
+
   it('says who brought what', () => {
     expect(text(battleReport(NAMES, log(...started())))[0]).toBe('Alice brought Ultramarines')
   })

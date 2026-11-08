@@ -293,7 +293,7 @@ test('Consecrate records end-of-turn objectives that stay consecrated into the n
   await openChoices(page)
   const card = primaryCard(page, 0)
   await expect(card.getByText('1 consecrated objective', { exact: true })).toBeVisible()
-  await expect(card.getByText(`${objective} · Immortals`, { exact: true })).toBeVisible()
+  await expect(card.locator('dl > div', { hasText: objective }).locator('dd')).toHaveText('Immortals')
   await inspectChoices(page, card, 'Consecrate')
   await page.setViewportSize({ width: 1440, height: 900 })
   await advance(page)
