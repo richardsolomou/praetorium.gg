@@ -250,6 +250,24 @@ function fixedComposition(
   return { sizes: [], bundleKey: null }
 }
 
+/** Models in a bundle beyond its largest kind, as a "1 mauler chainblade, 16 chainblades" has one. */
+function bundleSpecialists(optionId: string, index: CatalogueIndex): number {
+  const definition = index.definitions.get(optionId)
+  const counts = definition
+    ? childrenOf(definition, index)
+        .filter((child) => resolve(child.definition, index).type === 'model')
+        .map((child) => requiredCount(child.definition, index))
+    : []
+  return counts.reduce((total, count) => total + count, 0) - Math.max(0, ...counts)
+}
+
+/** A choice's bundles, those closest to the weapons held now first. */
+function nearestBundlesFirst(choice: UnitChoice, index: CatalogueIndex): UnitChoice['options'] {
+  const held = bundleSpecialists(choice.options.find((option) => option.count > 0)?.id ?? '', index)
+  const distance = (option: UnitChoice['options'][number]) => Math.abs(bundleSpecialists(option.id, index) - held)
+  return choice.options.toSorted((one, other) => distance(one) - distance(other))
+}
+
 /** Holds each group of models to what the squad's size allows, as twenty Jakhals field two Dishonoured where ten field one. */
 function withFittedModelGroups(entryId: string, selection: Selection, index: CatalogueIndex, context?: ChoiceOptions): Selection {
   return unitChoices(entryId, selection, index, context).reduce((tree, choice) => {
@@ -391,11 +409,22 @@ function finishUnit(entryId: string, selection: Selection, size: UnitSize, index
     )
   }, completed)
 
+  const settledChoices = settled === completed ? completedChoices : unitChoices(entryId, settled, index, context)
+  const bundleBySize = (choice: UnitChoice) => {
+    const sizes = new Map<number, string>()
+    for (const option of nearestBundlesFirst(choice, index)) {
+      const fitted = withFittedModelGroups(entryId, withChoice(settled, choice.key, option.id, index), index, context)
+      const models = modelCountOf(fitted, index)
+      if (!sizes.has(models)) sizes.set(models, option.id)
+    }
+    return Object.fromEntries(sizes)
+  }
+
   let toggles: UnitToggle[] | undefined
   return {
     selection: settled,
     size,
-    choices: settled === completed ? completedChoices : unitChoices(entryId, settled, index, context),
+    choices: settledChoices.map((choice) => (choice.bundlesModels ? { ...choice, bundleBySize: bundleBySize(choice) } : choice)),
     get toggles() {
       return (toggles ??= unitToggles(entryId, settled, index, context))
     },
@@ -419,9 +448,7 @@ function withModelComposition(
   if (modelCountOf(fitted, index) === models) return fitted
   for (const choice of unitChoices(entryId, selection, index, context)) {
     if ((explicit.has(choice.key) && !isUnitCompositionChoice(choice)) || choice.room !== 1) continue
-    // Of the bundles at a size, the plainest: "17 chainblades" before "2 mauler chainblades, 15 chainblades".
-    const kindsIn = (id: string) => (index.definitions.get(id) ? childrenOf(index.definitions.get(id)!, index).length : 0)
-    const options = choice.bundlesModels ? choice.options.toSorted((one, other) => kindsIn(one.id) - kindsIn(other.id)) : choice.options
+    const options = choice.bundlesModels ? nearestBundlesFirst(choice, index) : choice.options
     for (const option of options) {
       const candidate = fit(withChoice(selection, choice.key, option.id, index))
       if (modelCountOf(candidate, index) === models) return candidate

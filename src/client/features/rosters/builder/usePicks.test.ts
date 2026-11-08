@@ -96,6 +96,27 @@ describe('consecutive counter presses', () => {
     expect(picks()[0]?.spreads).not.toHaveProperty('composition/two/weapons')
     expect(picks()[0]?.choices).not.toHaveProperty('composition')
   })
+  it('moves a bundled weapon pick to its counterpart at the new size', () => {
+    const { edit, picks } = editor([{ key: 0, entryId: 'pack', choices: { bundles: 'one-seven' } }], {
+      catalogueId: 'imperium',
+      units: [
+        {
+          size: { models: 10, min: 10, max: 20, options: [10, 20] },
+          toggles: [],
+          choices: [
+            {
+              key: 'bundles',
+              bundlesModels: true,
+              bundleBySize: { 10: 'one-seven', 20: 'one-sixteen' },
+              options: [{ id: 'one-seven', count: 1 }],
+            },
+          ],
+        },
+      ],
+    })
+    edit.resize(0, () => 20)
+    expect(picks()[0]?.choices).toEqual({ bundles: 'one-sixteen' })
+  })
   it('saves the shown counts a press leaves alone when the group has no saved spread yet', () => {
     const { edit, pick } = harness()
     edit.spread(0, 'weapons', (counts) => ({ carbine: (counts.carbine ?? 0) + 1 }))

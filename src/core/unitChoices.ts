@@ -69,6 +69,8 @@ export type UnitChoice = {
   least?: number
   /** Whether each option brings its own required models, so taking one also sets the squad's size, as Jakhals' "8 chainblades" and "17 chainblades" do. */
   bundlesModels?: true
+  /** For such a choice, the option to hold at each size: the one closest to the weapons held now. */
+  bundleBySize?: Record<number, string>
   /**
    * Whether the squad has to answer this one way for all of it.
    *
