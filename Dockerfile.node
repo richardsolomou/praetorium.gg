@@ -27,9 +27,20 @@ RUN --mount=type=cache,target=/root/.cache/praetorium/runtime \
         "${POSTHOG_CLI_PROJECT_ID:?PostHog project is required}" \
         "${GITHUB_SHA:?Release revision is required}"; \
     fi; \
-    POSTHOG_CLI_DRY_RUN=false NITRO_PRESET=node-server pnpm build; \
+    export POSTHOG_CLI_DRY_RUN=false NITRO_PRESET=node-server; \
+    uploading() { \
+      if [ "$POSTHOG_UPLOAD_SOURCEMAPS" != true ]; then "$@"; return; fi; \
+      attempt=1; \
+      until "$@"; do \
+        status=$?; \
+        if [ "$attempt" -eq 3 ]; then return "$status"; fi; \
+        attempt=$((attempt + 1)); \
+        sleep 15; \
+      done; \
+    }; \
+    uploading pnpm build; \
     if [ "$POSTHOG_UPLOAD_SOURCEMAPS" = true ]; then \
-      POSTHOG_CLI_DRY_RUN=false pnpm exec posthog-cli sourcemap upload \
+      uploading pnpm exec posthog-cli sourcemap upload \
         --directory .output/public --release-name praetorium-web --release-version "$GITHUB_SHA" --release-mode symbol-set; \
     fi; \
     find .output/public -type f -name '*.map' -delete
