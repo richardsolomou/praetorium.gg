@@ -59,6 +59,22 @@ it('aborts a stalled server request after five seconds before falling back local
   }
 })
 
+it('gives a slower read the longer server deadline it asks for', async () => {
+  connect(true)
+  const timeout = vi.spyOn(AbortSignal, 'timeout')
+  try {
+    await calculationRead(
+      async () => 'server',
+      () => 'device',
+      undefined,
+      16_000,
+    )
+    expect(timeout.mock.calls[0]).toEqual([16_000])
+  } finally {
+    timeout.mockRestore()
+  }
+})
+
 it('does not start local calculations for a cancelled caller', async () => {
   connect(true)
   const controller = new AbortController()

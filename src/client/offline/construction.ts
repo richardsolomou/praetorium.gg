@@ -141,6 +141,7 @@ export function constructionRead<K extends ConstructionReadName, T>(
   online: (signal?: AbortSignal) => Promise<T>,
   catalogueId?: string,
   signal?: AbortSignal,
+  serverTimeoutMs?: number,
 ): Promise<T> {
   const remote = () =>
     calculationRead(
@@ -151,6 +152,7 @@ export function constructionRead<K extends ConstructionReadName, T>(
         throw error ?? new Error('Download this army’s rules online before using them offline.')
       },
       signal,
+      serverTimeoutMs,
     )
   const device = typeof window === 'undefined' || SERVER_READS.has(name) ? null : deviceConstructionRead(name, data, catalogueId)
   if (!device) return remote()

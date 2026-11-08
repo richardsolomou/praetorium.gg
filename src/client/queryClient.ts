@@ -49,6 +49,7 @@ export function createQueryClient() {
 }
 
 export function errorMessage(error: unknown, fallback = 'Something went wrong. Try again.') {
+  if (error instanceof Error && error.name === 'TimeoutError') return 'That took too long. Try again.'
   return error instanceof Error && error.message ? error.message : fallback
 }
 
