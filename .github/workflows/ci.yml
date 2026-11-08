@@ -103,9 +103,11 @@ jobs:
           r2-access-key-id: ${{ secrets.PRIVATE_R2_ACCESS_KEY_ID }}
           r2-secret-access-key: ${{ secrets.PRIVATE_R2_SECRET_ACCESS_KEY }}
       # The build lane audits publication after generating the offline bundle once.
-      - run: pnpm test:integration --exclude scripts/clientText.integration.test.ts
       - uses: ./.github/actions/setup-spacetime
         id: spacetime
+      - run: pnpm test:integration --exclude scripts/clientText.integration.test.ts
+        env:
+          SPACETIME_BIN: ${{ steps.spacetime.outputs.cli-path }}
       - run: pnpm test:spacetime
         env:
           SPACETIME_BIN: ${{ steps.spacetime.outputs.cli-path }}
