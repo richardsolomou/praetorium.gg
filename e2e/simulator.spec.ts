@@ -1089,7 +1089,7 @@ test('the simulator leads with one outcome and reveals its controls', async ({ p
   const summary = page.getByLabel('Results summary')
   const combined = page.getByRole('region', { name: 'Combined estimate' })
   await expect(combined).toContainText('8.1%')
-  await expect(combined).toContainText('6.83')
+  await expect(combined).toContainText('6.96')
   await expect(page.getByRole('region', { name: 'Shooting estimate' })).toBeHidden()
   await expect(page.locator('[data-manual-modifiers]')).not.toHaveAttribute('open')
   await page.locator('[data-manual-modifiers] > summary').click()
@@ -1213,7 +1213,7 @@ test('Deathwing Knights optimize against Mortarion', async ({ page }) => {
   await chooseCombatUnit(page, 'Defender', 'Death Guard', 'Mortarion')
   const attacker = page.getByRole('region', { name: 'Attacker', exact: true })
   const headline = page.getByRole('region', { name: 'Combined estimate' })
-  await expect(headline.locator('.readout').nth(1)).toHaveText('5.55')
+  await expect(headline.locator('.readout').nth(1)).toHaveText('5.56')
   const response = page.waitForResponse((answer) => answer.url().endsWith('/api/simulator/optimize'))
   await attacker.getByRole('button', { name: 'Optimize', exact: true }).click()
   expect((await response).ok()).toBe(true)
@@ -1245,7 +1245,10 @@ test('the headline retains results when weapon phases are empty', async ({ page 
     await openCombatBreakdown(page)
     const result = page.getByRole('region', { name: `${phase} estimate` })
     await expect(headline.locator('[data-combat-wipe]')).toHaveText(await result.locator('[data-combat-wipe]').innerText())
-    await expect(headline.locator('.readout').nth(1)).toHaveText(await result.locator('.readout').first().innerText())
+    // The headline's damage carries on past the total wounds that Breakdown stops at.
+    expect(Number(await headline.locator('.readout').nth(1).innerText())).toBeGreaterThanOrEqual(
+      Number(await result.locator('.readout').first().innerText()),
+    )
     await expect(headline.locator('.readout').nth(2)).toHaveText(await result.locator('.readout').nth(1).innerText())
     await closeCombatBreakdown(page)
   }

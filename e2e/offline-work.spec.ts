@@ -48,7 +48,7 @@ test('simulation and loadout optimization work in a cold offline application', a
   await chooseCombatUnit(reopened, 'Attacker', 'Dark Angels', 'Deathwing Knights')
   await chooseCombatUnit(reopened, 'Defender', 'Death Guard', 'Mortarion')
   const attacker = reopened.getByRole('region', { name: 'Attacker', exact: true })
-  await expect(reopened.getByRole('region', { name: 'Combined estimate' }).locator('.readout').nth(1)).toHaveText('5.55')
+  await expect(reopened.getByRole('region', { name: 'Combined estimate' }).locator('.readout').nth(1)).toHaveText('5.56')
   await expect(reopened.getByRole('region', { name: 'Melee results' }).getByRole('alert')).toHaveCount(0)
   await attacker.getByRole('button', { name: 'Optimize', exact: true }).click()
   await expect(attacker.getByRole('button', { name: 'Optimize', exact: true })).toBeVisible({ timeout: 120_000 })
