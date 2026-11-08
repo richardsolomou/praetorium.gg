@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.224.0 (2026-11-08)
+
+### Minor Changes
+
+- 6a53a7f: The Achievements tab on a profile now shows the player's latest three medals at the top.
+
 ## 0.223.0 (2026-11-08)
 
 ### Minor Changes
