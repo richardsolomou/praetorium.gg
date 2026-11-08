@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest'
 import type { CanonicalCatalogue } from '../contracts/catalogue'
-import { referenceCorpusFor } from './referenceCorpus'
+import { referenceCorpusCooperatively, referenceCorpusFor } from './referenceCorpus'
 import type { LoadedRules } from './rules'
 import { bookOf, card, withCards } from './catalogue.fixtures'
 import { compileCanonicalCatalogue } from './canonicalCatalogue'
@@ -353,4 +353,50 @@ it('publishes the selected rules route for detachment documents and sections', (
     '/factions/test-faction/rules/codex-2026-10-13/detachments/detachment',
     '/factions/test-faction/rules/codex-2026-10-13/detachments/detachment#summary',
   ])
+})
+
+it('shares one build among concurrent reads of a corpus', async () => {
+  const loaded = bookOf({ name: 'Example Army', selectionEntries: [{ id: 'unit', name: 'Test Unit', type: 'unit' }] })
+  loaded.factionContents.set('example-army', withCards('Example Army', new Map([['Test Unit', card()]])))
+  const compiled = compileCanonicalCatalogue(loaded, { definitions: 'one' })
+  let scans = 0
+  const sources = {
+    canonicalCatalogue: () => compiled,
+    catalogue: () => loaded,
+    rules: () => null,
+    textLocations: {
+      files: {},
+      holds: () => false,
+      recordsHolding: () => [],
+      scanFilesNamedIn: async () => {
+        scans += 1
+      },
+    },
+  }
+
+  await Promise.all([referenceCorpusCooperatively(sources), referenceCorpusCooperatively(sources)])
+
+  expect(scans).toBe(1)
+})
+
+it('keeps building the catalogue it scanned when another is published mid-build', async () => {
+  const loaded = bookOf({ name: 'Example Army', selectionEntries: [{ id: 'unit', name: 'Test Unit', type: 'unit' }] })
+  loaded.factionContents.set('example-army', withCards('Example Army', new Map([['Test Unit', card()]])))
+  let current = compileCanonicalCatalogue(loaded, { definitions: 'scanned' })
+
+  const corpus = await referenceCorpusCooperatively({
+    canonicalCatalogue: () => current,
+    catalogue: () => loaded,
+    rules: () => null,
+    textLocations: {
+      files: {},
+      holds: () => false,
+      recordsHolding: () => [],
+      scanFilesNamedIn: async () => {
+        current = compileCanonicalCatalogue(loaded, { definitions: 'published' })
+      },
+    },
+  })
+
+  expect(corpus?.catalogue.revisions.definitions).toBe('scanned')
 })

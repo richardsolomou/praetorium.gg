@@ -463,6 +463,13 @@ export function app(): App {
         await instance.service.refreshStandings()
       })
       .catch((error: unknown) => reportServerFailure({ event: 'derived_tables_refresh_failed', error }))
+    // Otherwise the first agent or crawler to read the reference after a deploy waits for this build.
+    if (process.env.NODE_ENV === 'production' && process.env.LOCAL_TEST_MODE !== 'true')
+      void startup
+        .ready()
+        .then(() => import('./referenceApi'))
+        .then(({ activeReferenceCorpus }) => activeReferenceCorpus())
+        .catch((error: unknown) => reportServerFailure({ event: 'reference_corpus_warm_failed', error }))
     return instance
   }
   const instance = globalSingleton('praetorium.app', createApp)

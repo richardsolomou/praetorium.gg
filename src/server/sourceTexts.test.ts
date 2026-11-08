@@ -5,8 +5,18 @@ import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { catalogueSources } from './catalogueSources'
 import type { CatalogueComposition } from './catalogueComposition'
-import { publishedTexts, sourceTexts, textFileId, textRecordsIn, textSourceFiles, upstreamUrl, withDefinitionTokens } from './sourceTexts'
+import {
+  publishedTexts,
+  sourceTexts,
+  textFileId,
+  textFileIdsIn,
+  textRecordsSteps,
+  textSourceFiles,
+  upstreamUrl,
+  withDefinitionTokens,
+} from './sourceTexts'
 import { resolvedText, textTokensIn } from '../shared/sourceText'
+import { completeSteps } from '../shared/steps'
 
 const base = {
   ...catalogueSources,
@@ -121,7 +131,7 @@ describe('the records holding a file’s texts', () => {
   const records = (parsed: unknown) => {
     const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-text-records-')), 'file.json')
     fs.writeFileSync(file, JSON.stringify(parsed))
-    return textRecordsIn(file)
+    return completeSteps(textRecordsSteps(file))
   }
 
   it('names no record for a text the file holds by its own id', () => {
@@ -201,4 +211,21 @@ describe('publishing a canonical record', () => {
     const profile = { kind: 'unit', values: [{ name: 'M', value: 'While 6"' }] }
     expect(withDefinitionTokens({ profiles: [profile] }, token).profiles[0]!.values[0]!.value).toBe('While 6"')
   })
+})
+
+it('names only the source files a value holds tokens from', () => {
+  const named = sourceTexts('https://example.test/named.json')('Words.', 'prose')
+  const nested = sourceTexts('https://example.test/nested.json')('More words.', 'prose')
+
+  expect(completeSteps(textFileIdsIn([{ rules: [named] }, new Map([['key', { text: nested }]]), 'plain']))).toEqual(
+    new Set([textFileId('https://example.test/named.json'), textFileId('https://example.test/nested.json')]),
+  )
+})
+
+it('pauses while scanning a long source file, so requests can run between its steps', () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'text-records-'))
+  const file = path.join(directory, 'long.json')
+  fs.writeFileSync(file, JSON.stringify({ rules: Array.from({ length: 2_000 }, (_, at) => ({ id: `rule-${at}`, text: `Words ${at}.` })) }))
+
+  expect([...textRecordsSteps(file)].length).toBeGreaterThan(1)
 })

@@ -4,22 +4,26 @@ import type { CanonicalCatalogue, CanonicalDatasheet, CanonicalDetachment } from
 import type { ReferenceDocument, ReferenceSection } from '../contracts/reference'
 import type { RuleDocument, RuleEntry } from '../contracts/rules'
 import { routeSlug } from '../core/slug'
-import { byId } from '../core/collections'
+import { byId, remember } from '../core/collections'
 import type { MissionSelectionKind } from '../core/missionSelections'
-import { compileCanonicalDetachments } from './canonicalCatalogue'
+import { compileCanonicalDetachments, completeStepsCooperatively } from './canonicalCatalogue'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { DATACARDS_ATTRIBUTION } from './datacards'
 import { gameReferencesFor } from '../shared/gameReferences'
 import { RULES_DATA_ATTRIBUTION, type LoadedRules } from './rules'
 import { referenceText } from './referenceText'
 import { factionReferenceHref, type ReferenceFaction } from '../core/factionReferenceRoute'
+import { completeSteps, type Steps } from '../shared/steps'
+
+/** Text locations that can read the files some values name without holding the event loop. */
+export type ScannableTextLocations = TextLocations & { scanFilesNamedIn: (values: readonly unknown[]) => Promise<void> }
 
 export type ReferenceSources = {
   canonicalCatalogue: () => CanonicalCatalogue | null
   catalogue: () => LoadedCatalogue | null
   rules: () => LoadedRules | null
   /** Where each file a token names lives upstream; without it, withheld words say only that they are withheld. */
-  textLocations?: TextLocations
+  textLocations?: TextLocations | ScannableTextLocations
   factions?: readonly (ReferenceFaction & { slug: string })[]
 }
 
@@ -40,15 +44,44 @@ type CachedCorpus = {
 }
 const corpora = new WeakMap<CanonicalCatalogue, CachedCorpus>()
 
-export function referenceCorpusFor(sources: ReferenceSources): ReferenceCorpus | null {
+const isCurrent = (cached: CachedCorpus, sources: ReferenceSources, loaded: LoadedCatalogue | null, rules: LoadedRules | null) =>
+  cached.catalogue === loaded &&
+  cached.rules === rules &&
+  cached.files === (sources.textLocations ?? NO_LOCATIONS) &&
+  cached.factions === sources.factions
+
+export const referenceCorpusFor = (sources: ReferenceSources) => completeSteps(referenceCorpusSteps(sources))
+
+const building = new WeakMap<CanonicalCatalogue, Promise<ReferenceCorpus | null>>()
+
+/** Builds a corpus between other requests, sharing one build among concurrent reads of it. */
+export async function referenceCorpusCooperatively(sources: ReferenceSources): Promise<ReferenceCorpus | null> {
+  const canonical = sources.canonicalCatalogue()
+  if (!canonical) return null
+  const loaded = sources.catalogue()
+  const rules = sources.rules()
+  const cached = corpora.get(canonical)
+  if (cached && isCurrent(cached, sources, loaded, rules)) return cached.corpus
+  // Read once: a catalogue published mid-build would name files this build never scanned.
+  const held = { ...sources, canonicalCatalogue: () => canonical, catalogue: () => loaded, rules: () => rules }
+  return remember(building, canonical, async () => {
+    try {
+      if (held.textLocations && 'scanFilesNamedIn' in held.textLocations) await held.textLocations.scanFilesNamedIn([canonical, rules])
+      return await completeStepsCooperatively(referenceCorpusSteps(held))
+    } finally {
+      building.delete(canonical)
+    }
+  })
+}
+
+function* referenceCorpusSteps(sources: ReferenceSources): Steps<ReferenceCorpus | null> {
   const canonical = sources.canonicalCatalogue()
   if (!canonical) return null
   const loaded = sources.catalogue()
   const rules = sources.rules()
   const files = sources.textLocations ?? NO_LOCATIONS
   const cached = corpora.get(canonical)
-  if (cached?.catalogue === loaded && cached.rules === rules && cached.files === files && cached.factions === sources.factions)
-    return cached.corpus
+  if (cached && isCurrent(cached, sources, loaded, rules)) return cached.corpus
   const factionPaths = new Map<string, string>()
   for (const faction of sources.factions ?? []) {
     const path = factionReferenceHref(faction)
@@ -59,12 +92,22 @@ export function referenceCorpusFor(sources: ReferenceSources): ReferenceCorpus |
     canonical.detachments.length || !loaded || !rules
       ? canonical
       : { ...canonical, detachments: compileCanonicalDetachments(loaded, canonical.revisions, rules) }
-  const documents = [
-    ...catalogue.datasheets.map((sheet) => datasheetDocument(files, sheet, factionPaths)),
-    ...catalogue.detachments.map((detachment) => detachmentDocument(files, detachment, factionPaths)),
-    ...(rules ? gameReferenceDocuments(files, gameReferencesFor(rules), rules, catalogue.revisions) : []),
-    ...catalogue.ruleDocuments.flatMap((document) => ruleDocuments(files, document)),
-  ].toSorted(
+  const unsorted: ReferenceDocument[] = []
+  for (const sheet of catalogue.datasheets) {
+    unsorted.push(datasheetDocument(files, sheet, factionPaths))
+    yield
+  }
+  for (const detachment of catalogue.detachments) {
+    unsorted.push(detachmentDocument(files, detachment, factionPaths))
+    yield
+  }
+  if (rules) unsorted.push(...gameReferenceDocuments(files, gameReferencesFor(rules), rules, catalogue.revisions))
+  yield
+  for (const document of catalogue.ruleDocuments) {
+    unsorted.push(...ruleDocuments(files, document))
+    yield
+  }
+  const documents = unsorted.toSorted(
     (left, right) => left.kind.localeCompare(right.kind) || left.title.localeCompare(right.title) || left.id.localeCompare(right.id),
   )
   const revision = hash('sha256', JSON.stringify({ catalogue, documents }))

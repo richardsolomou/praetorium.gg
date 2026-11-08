@@ -1,10 +1,13 @@
 import { transformed } from '../shared/datacards'
-import { resolvedText, type TextLocations } from '../shared/sourceText'
+import { resolvedText } from '../shared/sourceText'
+import type { ScannableTextLocations } from './referenceCorpus'
 import { readCatalogueComposition } from './catalogueComposition'
 import { catalogueDirectory } from './catalogueIndex'
 import { memoUntilSnapshotChanges } from './snapshotMemo'
-import { recordIdsIn, stringsByHash, textFileId, textFilesFrom, textRecordsIn, textSourcePaths } from './sourceTexts'
+import { recordIdsIn, stringsByHash, textFileId, textFileIdsIn, textFilesFrom, textRecordsSteps, textSourcePaths } from './sourceTexts'
+import { completeStepsCooperatively } from './canonicalCatalogue'
 import { RecentlyUsed, remember } from '../core/collections'
+import { completeSteps } from '../shared/steps'
 
 const located = () =>
   memoUntilSnapshotChanges('text-locations', null, async () => {
@@ -20,9 +23,18 @@ const located = () =>
     }
     const recordsHolding = (url: string, hash: string) => {
       const file = local.get(url)
-      return (file && remember(records, url, () => textRecordsIn(file)).get(hash)) || []
+      return (file && remember(records, url, () => completeSteps(textRecordsSteps(file))).get(hash)) || []
     }
-    return { files: textFilesFrom(paths), holds, recordsHolding } satisfies TextLocations
+    const files = textFilesFrom(paths)
+    // A snapshot's stored editions hold far more files than any one catalogue names, so only those named are read.
+    const scanFilesNamedIn = async (values: readonly unknown[]) => {
+      for (const id of await completeStepsCooperatively(textFileIdsIn(values))) {
+        const url = files[id]?.url
+        const file = url && local.get(url)
+        if (file && !records.has(url)) records.set(url, await completeStepsCooperatively(textRecordsSteps(file)))
+      }
+    }
+    return { files, holds, recordsHolding, scanFilesNamedIn } satisfies ScannableTextLocations
   })
 
 /** Where each file a rules-text token names lives upstream, for the active snapshot; Praetorium serves where the words are, never the words. */
