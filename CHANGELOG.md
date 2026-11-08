@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.224.3 (2026-11-08)
+
+### Patch Changes
+
+- 03ba2c1: Jakhals can now be fielded as a unit of 20, with both Dishonoured, in the roster builder and combat simulator.
+
 ## 0.224.2 (2026-11-08)
 
 ### Patch Changes
