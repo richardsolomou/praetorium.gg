@@ -1,11 +1,17 @@
-import { afterEach, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { readiness, warm } from './app'
 import { prepareReference } from './referenceApi'
 import type { Steps } from '../shared/steps'
 
 vi.mock('./referenceApi', () => ({ prepareReference: vi.fn(async () => {}) }))
 
+// A warm-up's turns do not hold the event loop, so an otherwise idle test would sleep through them; production's delay monitor keeps its loop awake.
+let awake: NodeJS.Timeout
+beforeEach(() => {
+  awake = setInterval(() => {}, 1)
+})
 afterEach(() => {
+  clearInterval(awake)
   vi.useRealTimers()
   vi.unstubAllEnvs()
 })
