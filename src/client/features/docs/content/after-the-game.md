@@ -16,7 +16,7 @@ When the battle finishes, the guest's device shows **Keep this battle**. They ch
 
 ## Achievements
 
-Every profile has an **Achievements** tab. Tap or hover a medal to see what earns it. Bronze medals are worth 10 points, silver 25, gold 50 and platinum 100, and the total shows under the player's name.
+Every profile has an **Achievements** tab, with the player's latest three medals at the top. Tap or hover a medal to see what earns it. Bronze medals are worth 10 points, silver 25, gold 50 and platinum 100, and the total shows under the player's name.
 
 - Battle achievements only count battles that count for the leaderboard, so guest and practice battles never earn them. A conceded win is never a close one, and a streak ends at any loss or draw.
 - **Recruiter** goes to the player whose guest created an account to add the battle to their record. Each guest counts once, and imported battles never count.

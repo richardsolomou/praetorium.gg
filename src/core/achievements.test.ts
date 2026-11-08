@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { achievements, type AchievementFacts } from './achievements'
+import { achievements, latestAchievements, type AchievementFacts } from './achievements'
 import { guestSeatId } from './newBattle'
 import type { StandingBattle } from './standings'
 
@@ -106,5 +106,22 @@ describe('achievements', () => {
 
   it('does not count a guest who already had an account', () => {
     expect(earned({ recruits: [{ userId: 'alex', startedAt: 5, at: 6, signedUpAt: 1 }] }).recruiter).toBeUndefined()
+  })
+})
+
+describe('latestAchievements', () => {
+  const ids = (medals: Parameters<typeof latestAchievements>[0], limit = 3) =>
+    latestAchievements(medals, limit).map(({ achievement }) => achievement.id)
+
+  it('puts the newest first and stops at the limit', () => {
+    expect(ids({ 'first-list': 100, 'first-blood': 300, 'first-victory': 200 }, 2)).toEqual(['first-blood', 'first-victory'])
+  })
+
+  it('leaves out a medal with no date', () => {
+    expect(ids({ 'first-list': null, 'first-victory': 200 })).toEqual(['first-victory'])
+  })
+
+  it('leads with the most valuable of medals earned together', () => {
+    expect(ids({ 'first-list': 100, brotherhood: 100 })).toEqual(['brotherhood', 'first-list'])
   })
 })
