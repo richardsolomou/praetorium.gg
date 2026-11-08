@@ -29,6 +29,11 @@ beforeEach(() => {
   vi.mocked(setAbilityReminder).mockReset().mockResolvedValue(null)
 })
 
+it('keeps a browser alert on an upgrade once listed as wargear', () => {
+  writeVisitorReminders([{ ...alert('wargear:memento'), ability: 'Memento Moritoi (Upgrade)' }])
+  expect(kept()).toEqual([{ ...alert('upgrade:memento'), ability: 'Memento Moritoi' }])
+})
+
 describe('adopting the alerts an older build kept in a visitor’s list', () => {
   it('keeps them by ability', () => {
     adoptVisitorReminders(legacy)

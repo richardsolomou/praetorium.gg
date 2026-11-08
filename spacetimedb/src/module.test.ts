@@ -2493,6 +2493,28 @@ describe('ability reminders', () => {
     expect(listed(setup).map((row) => row.timings)).toEqual([timings('opponent-turn')])
   })
 
+  describe('alerts on upgrades once listed as wargear', () => {
+    const old = { ...reminder('wargear:memento'), ability: 'Memento Moritoi (Upgrade)' }
+    const migrate = (setup: ReturnType<typeof harness>) =>
+      module.migrateProductData(setup.procedure(setup.operator), { table: 'ability_reminders', keys: [JSON.stringify(['owner', old.key])] })
+
+    it('moves one to its current key', () => {
+      const setup = harness()
+      save(setup, old)
+      migrate(setup)
+      expect(listed(setup)).toEqual([{ ...old, key: 'upgrade:memento', ability: 'Memento Moritoi' }])
+    })
+
+    it('keeps the alert already set again under the current key', () => {
+      const setup = harness()
+      const newer = reminder('upgrade:memento', 'opponent-turn')
+      save(setup, old)
+      save(setup, newer)
+      migrate(setup)
+      expect(listed(setup)).toEqual([newer])
+    })
+  })
+
   it('migrates a roster saved at the same time without replacing the alert it found', () => {
     const setup = harness()
     stored(setup, [

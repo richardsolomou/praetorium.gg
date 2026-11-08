@@ -10,6 +10,7 @@ export const ABILITY_REMINDERS_MAX = 200
 export const REMINDER_TIMINGS_MAX = 10
 const REMINDER_ABILITY_MAX_LENGTH = 80
 const REMINDER_DESCRIPTION_MAX_LENGTH = 10_000
+const UPGRADE_MARK = /\s*\(upgrade\)\s*$/i
 
 export type ReminderMoment = (typeof REMINDER_MOMENTS)[number]
 export type ReminderPhase = (typeof REMINDER_PHASES)[number] | 'any'
@@ -111,6 +112,12 @@ export const withAbilityReminder = (settings: readonly AbilityReminder[], remind
 /** The enhancement and upgrade alerts a unit's chosen options carry, keyed as their loadout offers them. */
 export const chosenReminderAbilities = (choices: readonly ChosenOption[]) =>
   choices.flatMap((choice) => (choice.kind && choice.chosen ? [`${choice.kind}:${choice.chosen}`] : []))
+
+/** An alert set while a detachment upgrade printed as "X (Upgrade)" was still listed among a datasheet's wargear, keyed as it is listed now. */
+export function currentAbilityReminder(reminder: AbilityReminder): AbilityReminder {
+  if (!reminder.key.startsWith('wargear:') || !UPGRADE_MARK.test(reminder.ability)) return reminder
+  return { ...reminder, key: `upgrade:${reminder.key.slice('wargear:'.length)}`, ability: reminder.ability.replace(UPGRADE_MARK, '') }
+}
 
 /** The ability a per-unit alert kept by an older build's roster is for, keyed as an account keeps it. */
 export function legacyAbilityKey(reminder: Pick<RosterReminder, 'key' | 'ability'>) {

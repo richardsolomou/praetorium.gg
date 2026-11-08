@@ -39,6 +39,9 @@ export const seedMigrationFixture = spacetime.reducer({ broken: t.bool() }, (ctx
   const key = JSON.stringify([base.userId, 'duplicate'])
   ctx.db.favouriteDatasheets.key.delete(key)
   ctx.db.favouriteDatasheets.insert({ key, userId: base.userId, entryId: 'duplicate', at: 9n })
+  const alert = JSON.stringify([base.userId, 'wargear:memento'])
+  ctx.db.abilityReminders.key.delete(alert)
+  ctx.db.abilityReminders.insert({ key: alert, userId: base.userId, updatedAt: 3n, reminder: JSON.stringify({ key: 'wargear:memento', ability: 'Memento Moritoi (Upgrade)', description: '', timings: [{ moment: 'turn-start', phase: null, turn: 'your-turn' }] }) })
 })
 `
 
@@ -96,7 +99,7 @@ it.skipIf(!existsSync(cli))(
       const stranger = (await (await fetch(`${url}/v1/identity`, { method: 'POST' })).json()) as { token: string }
       await expect(send('/call/migrate_product_data', '["rosters",["old"]]', stranger.token)).rejects.toThrow('Operator required')
       await send('/call/seed_migration_fixture', '[false]')
-      expect(await migrateProductData(source)).toEqual({ rosters: 3, collection: 2 })
+      expect(await migrateProductData(source)).toEqual({ rosters: 3, collection: 2, ability_reminders: 1 })
       expect(await rawRoster('old')).toEqual({
         ...before,
         automaticName: true,
@@ -104,7 +107,7 @@ it.skipIf(!existsSync(cli))(
         detachmentId: '["first"]',
         prep: '{"stratagems":[],"secondaries":[],"remindersEnabled":false}',
       })
-      expect(await migrateProductData(source)).toEqual({ rosters: 0, collection: 0 })
+      expect(await migrateProductData(source)).toEqual({ rosters: 0, collection: 0, ability_reminders: 0 })
       const store = new SpacetimeOperator(url, database, identity.token)
       expect({ prep: (await rawRoster('reminded')).prep, alerts: await store.abilityRemindersByUser('migration-owner') }).toEqual({
         prep: '{"stratagems":[],"secondaries":[],"remindersEnabled":true}',
@@ -112,6 +115,12 @@ it.skipIf(!existsSync(cli))(
           {
             key: 'datasheet:lightning',
             ability: 'Living Lightning',
+            description: '',
+            timings: [{ moment: 'turn-start', phase: null, turn: 'your-turn' }],
+          },
+          {
+            key: 'upgrade:memento',
+            ability: 'Memento Moritoi',
             description: '',
             timings: [{ moment: 'turn-start', phase: null, turn: 'your-turn' }],
           },

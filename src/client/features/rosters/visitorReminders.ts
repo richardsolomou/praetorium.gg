@@ -2,6 +2,7 @@ import {
   abilityReminderFits,
   abilityReminderSchema,
   abilityRemindersFromRosters,
+  currentAbilityReminder,
   type AbilityReminder,
   type RosterReminder,
 } from '../../../core/reminders'
@@ -11,7 +12,8 @@ import { parseStored, readStoredValue, writeStoredValue } from '../../storedValu
 /** A visitor's ability alerts, kept in this browser as an account keeps a player's. */
 export const VISITOR_REMINDERS_KEY = 'praetorium.ability-reminders'
 
-export const parseVisitorReminders = (stored: string | null): AbilityReminder[] | null => parseStored(abilityReminderSchema.array(), stored)
+export const parseVisitorReminders = (stored: string | null): AbilityReminder[] | null =>
+  parseStored(abilityReminderSchema.array(), stored)?.map(currentAbilityReminder) ?? null
 
 /** An empty list is stored too, so a visitor who removed every alert never adopts their draft's old ones again. */
 export const writeVisitorReminders = (reminders: readonly AbilityReminder[]) =>

@@ -9,7 +9,9 @@ it('inventories private keys before upgrading in bounded operator batches', asyn
     .fn<typeof fetch>()
     .mockResolvedValueOnce(sql(Array.from({ length: 21 }, (_, index) => `roster-${index}`)))
     .mockResolvedValueOnce(sql(['heart']))
+    .mockResolvedValueOnce(sql(['alert']))
     .mockResolvedValueOnce(Response.json(JSON.stringify({ changed: 20 })))
+    .mockResolvedValueOnce(Response.json(JSON.stringify({ changed: 1 })))
     .mockResolvedValueOnce(Response.json(JSON.stringify({ changed: 1 })))
     .mockResolvedValueOnce(Response.json(JSON.stringify({ changed: 1 })))
   const totals = await migrateProductData(source, request)
@@ -21,14 +23,20 @@ it('inventories private keys before upgrading in bounded operator batches', asyn
       options?.headers,
     ]),
   }).toEqual({
-    totals: { rosters: 21, collection: 1 },
+    totals: { rosters: 21, collection: 1, ability_reminders: 1 },
     calls: [
       ['/v1/database/migration-test/sql', 'SELECT id FROM rosters', { authorization: 'Bearer owner', 'content-type': 'text/plain' }],
       ['/v1/database/migration-test/sql', 'SELECT key FROM collection', { authorization: 'Bearer owner', 'content-type': 'text/plain' }],
+      [
+        '/v1/database/migration-test/sql',
+        'SELECT key FROM ability_reminders',
+        { authorization: 'Bearer owner', 'content-type': 'text/plain' },
+      ],
       ...[
         ['rosters', Array.from({ length: 20 }, (_, index) => `roster-${index}`)],
         ['rosters', ['roster-20']],
         ['collection', ['heart']],
+        ['ability_reminders', ['alert']],
       ].map((batch) => [
         '/v1/database/migration-test/call/migrate_product_data',
         JSON.stringify(batch),
@@ -43,9 +51,10 @@ it('stops on a failed batch so a deployment cannot continue with partially upgra
     .fn<typeof fetch>()
     .mockResolvedValueOnce(sql(['roster']))
     .mockResolvedValueOnce(sql(['heart']))
+    .mockResolvedValueOnce(sql([]))
     .mockResolvedValueOnce(new Response('', { status: 500 }))
   await expect(migrateProductData(source, request)).rejects.toThrow('HTTP 500')
-  expect(request).toHaveBeenCalledTimes(3)
+  expect(request).toHaveBeenCalledTimes(4)
 })
 
 it('does not write when an inventory is invalid', async () => {
