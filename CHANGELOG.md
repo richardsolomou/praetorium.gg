@@ -1,5 +1,14 @@
 # praetorium
 
+## 0.222.11 (2026-11-08)
+
+### Patch Changes
+
+- a1c6663: Your profile picture now lines up with the search button in the phone header.
+- 5cfdb2d: Friends has left the account menu, now that the navigation and the More page list it.
+- e3497fb: The App Store and Google Play badges on Home no longer squeeze the text beside them on narrow screens.
+- 3aab117: The desktop navigation now has Friends, Discord and GitHub under Community, matching the phone's More page.
+
 ## 0.222.10 (2026-11-08)
 
 ### Patch Changes
