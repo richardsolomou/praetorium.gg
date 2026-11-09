@@ -1,5 +1,16 @@
 # praetorium
 
+## 0.228.0 (2026-11-09)
+
+### Minor Changes
+
+- fdf35f0: Each unit in a battle has its own Simulate button, which starts the combat simulator with that unit.
+- fdf35f0: The combat simulator lists your battles in progress, so you can start from your units' current models and wounds.
+
+### Patch Changes
+
+- fdf35f0: A model's Damaged rule switches on by itself in the combat simulator when its wounds in the battle are in range.
+
 ## 0.227.3 (2026-11-09)
 
 ### Patch Changes
