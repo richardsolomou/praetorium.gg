@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.226.2 (2026-11-09)
+
+### Patch Changes
+
+- c26d77e: Detachment pages end with an offer to build a list with that detachment.
+
 ## 0.226.1 (2026-11-09)
 
 ### Patch Changes
