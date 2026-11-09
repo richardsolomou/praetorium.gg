@@ -19,6 +19,7 @@ import { createSqliteAuth } from './sqliteAuth'
 import { SqliteAccountRepository } from './accountRepository'
 import { localAuthDatabase } from './localAuthDatabase'
 import { recordServerStart } from './serverStartRecord'
+import { checkSpacetimeBackup } from './spacetimeBackupCheck'
 import { SpacetimeOperator } from './spacetimeOperator'
 import { SpacetimeRepository } from './spacetimeRepository'
 import { storeProfileImageFromUrl } from './avatarStorage'
@@ -435,6 +436,9 @@ export function app(): App {
       refreshSponsors()
       setInterval(refreshSponsors, 60 * 60 * 1000).unref()
     }
+    // Also at start, because deploys can arrive more often than hourly and restart the timer.
+    void checkSpacetimeBackup()
+    setInterval(() => void checkSpacetimeBackup(), 60 * 60 * 1000).unref()
     let thumbnailsPending = true
     let maintainingPhotos = false
     const maintainPhotos = async () => {

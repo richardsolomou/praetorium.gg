@@ -26,3 +26,4 @@
 ## Backups
 
 - Copying the running product database freezes it: resume before upload, and never scale the database down or pull helper images while frozen.
+- The production web server checks the published backup hourly and logs an error, which fires the "Server error logs" alert, once it is more than 13 hours old.
