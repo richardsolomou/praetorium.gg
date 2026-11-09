@@ -5141,6 +5141,7 @@ function sealedEventCommandIn(tx: Context, args: unknown[]) {
       soloPoints: input.soloPoints ?? undefined,
       allyPoints: input.allyPoints ?? undefined,
       remindedAt: undefined,
+      roundEndsAt: undefined,
       sharedPoints: input.sharedPoints || undefined,
     })
     if (input.ownerPlays) insertSealedEventEntry(tx, input.eventId, input.ownerId, 'accepted', input.now)
@@ -5368,6 +5369,7 @@ function sealedEventCommandIn(tx: Context, args: unknown[]) {
       input.pairs.filter(([, b]) => b === null).length > 1
     )
       return productJson('stale')
+    tx.db.sealedEvents.id.update({ ...tx.db.sealedEvents.id.find(event.id)!, roundEndsAt: undefined })
     for (const [index, [aId, bId]] of input.pairs.entries())
       tx.db.roundPairings.insert({
         key: JSON.stringify([event.id, input.round, index + 1]),
@@ -5380,6 +5382,36 @@ function sealedEventCommandIn(tx: Context, args: unknown[]) {
       })
     touchEvent(tx, host)
     return productJson('paired')
+  }
+  if (operation === 'set-round-timer') {
+    const input = sealedEventCommandInput(z.object({ op: z.literal('set-round-timer'), endsAt: sealedEventTimeInput.nullable() }), value)
+    if (event.rounds === undefined || event.revealedAt === undefined) return productJson('not-ready')
+    tx.db.sealedEvents.id.update({
+      ...tx.db.sealedEvents.id.find(event.id)!,
+      roundEndsAt: input.endsAt === null ? undefined : BigInt(input.endsAt),
+    })
+    touchEvent(tx, host)
+    return productJson('set')
+  }
+  if (operation === 'swap-seats') {
+    const input = sealedEventCommandInput(z.object({ op: z.literal('swap-seats'), players: z.tuple([idInput, idInput]) }), value)
+    const pairings = roundPairings(tx, event.id)
+    const latest = Math.max(0, ...pairings.map((pairing) => pairing.round))
+    const current = pairings.filter((pairing) => pairing.round === latest)
+    const [one, two] = input.players.map((id) => current.find((pairing) => pairing.aId === id || pairing.bId === id))
+    if (!one || !two || input.players[0] === input.players[1] || one === two) return productJson('stale')
+    if (one.battleId !== undefined || two.battleId !== undefined) return productJson('started')
+    const swapped = (pairing: typeof one, from: string, to: string) => ({
+      ...pairing,
+      aId: pairing.aId === from ? to : pairing.aId,
+      bId: pairing.bId === from ? to : pairing.bId,
+    })
+    tx.db.roundPairings.key.update(swapped(one, input.players[0], input.players[1]))
+    tx.db.roundPairings.key.update(swapped(two, input.players[1], input.players[0]))
+    // A table's layouts depend on its armies, so a new pair chooses again.
+    for (const { round, table } of [one, two]) tx.db.eventBattlefields.key.delete(JSON.stringify([event.id, round, table]))
+    touchEvent(tx, host)
+    return productJson('swapped')
   }
   if (operation === 'set-battlefield') {
     const input = sealedEventCommandInput(

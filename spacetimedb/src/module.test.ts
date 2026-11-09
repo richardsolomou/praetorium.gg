@@ -71,6 +71,7 @@ function insertTournament(ctx: Ctx, event: Partial<SealedEvent> = {}) {
     soloPoints: undefined,
     allyPoints: undefined,
     remindedAt: undefined,
+    roundEndsAt: undefined,
     sharedPoints: undefined,
     ...event,
   })
@@ -1104,9 +1105,62 @@ describe('swiss rounds', () => {
         ['b', 'd'],
       ])
     const drop = (ownerId: string, userId: string) => command({ op: 'drop', ownerId, userId, now: NOW })
-    return { pair, battle, submit, admin, playRoundOne, pairRoundTwo, drop }
+    return { host, command, pair, battle, submit, admin, playRoundOne, pairRoundTwo, drop }
   }
   const table = (round: number, number: number) => JSON.stringify(['event', round, number])
+
+  it('swaps two players between unstarted tables and clears their battlefields', () => {
+    const { host, pair, command } = setup()
+    pair(1, [
+      ['a', 'b'],
+      ['c', 'd'],
+    ])
+    host.call(host.operator, (ctx) =>
+      ctx.db.eventBattlefields.insert({
+        key: JSON.stringify(['event', 1, 1]),
+        eventId: 'event',
+        round: 1,
+        table: 1,
+        patternId: 'dawn',
+        terrainLayoutId: 'layout',
+      }),
+    )
+    const swapped = command({ op: 'swap-seats', players: ['b', 'c'] })
+    const [tables, battlefields] = host.call(host.operator, (ctx) => [
+      Array.from(ctx.db.roundPairings.eventId.filter('event')).map(({ aId, bId }) => [aId, bId]),
+      Array.from(ctx.db.eventBattlefields.eventId.filter('event')).length,
+    ])
+    expect([swapped, tables, battlefields]).toEqual([
+      'swapped',
+      [
+        ['a', 'c'],
+        ['b', 'd'],
+      ],
+      0,
+    ])
+  })
+
+  it('refuses to swap a player whose table has started', () => {
+    const { pair, battle, command } = setup()
+    pair(1, [
+      ['a', 'b'],
+      ['c', 'd'],
+    ])
+    battle('a', 'b', JSON.stringify(['event', 1, 1]))
+    expect(command({ op: 'swap-seats', players: ['b', 'c'] })).toBe('started')
+  })
+
+  it('clears the round clock when the next round is paired', () => {
+    const { host, pair, command } = setup()
+    const endsAt = () => host.call(host.operator, (ctx) => ctx.db.sealedEvents.id.find('event')!.roundEndsAt)
+    command({ op: 'set-round-timer', endsAt: NOW })
+    const running = endsAt()
+    pair(1, [
+      ['a', 'b'],
+      ['c', 'd'],
+    ])
+    expect([running, endsAt()]).toEqual([BigInt(NOW), undefined])
+  })
 
   it('lets a player reopen a result while its round is the latest', () => {
     const swiss = setup()

@@ -404,6 +404,14 @@ export class SpacetimeRepository {
     return this.product.sealedEventCommand({ op: 'pair-round', ...input }, z.enum(['paired', 'not-ready', 'stale', 'missing', 'forbidden']))
   }
 
+  setSealedEventRoundTimer(input: { token: string; eventToken: string; ownerId: string; endsAt: number | null }) {
+    return this.product.sealedEventCommand({ op: 'set-round-timer', ...input }, z.enum(['set', 'not-ready', 'missing', 'forbidden']))
+  }
+
+  swapSealedEventSeats(input: { token: string; eventToken: string; ownerId: string; players: [string, string] }) {
+    return this.product.sealedEventCommand({ op: 'swap-seats', ...input }, z.enum(['swapped', 'stale', 'started', 'missing', 'forbidden']))
+  }
+
   setSealedEventBattlefield(input: {
     token: string
     eventToken: string
@@ -707,6 +715,7 @@ export class SpacetimeRepository {
       playsAt: event.playsAt,
       sealBy: event.sealBy,
       remindedAt: event.remindedAt,
+      roundEndsAt: event.roundEndsAt ?? null,
       pairings,
       battlefields: record.battlefields,
       occupiedCount: entries.filter((entry) => entry.status !== 'rejected').length,

@@ -177,6 +177,13 @@ const eventTable = {
   missionPackId: id.nullable(),
 }
 export const tableBattlefieldsSchema = z.object(eventTable)
+/** `minutes` null stops the clock; `fromEnd` adds to the time already running. */
+export const setRoundTimerSchema = z.object({
+  ...sealedEvent,
+  minutes: z.number().int().min(1).max(600).nullable(),
+  fromEnd: z.number().int().nonnegative().nullable(),
+})
+export const swapTableSeatsSchema = z.object({ ...sealedEvent, players: z.tuple([id, id]) })
 /** Each seat's final score, by the pairing's two players in order. */
 export const reportTableResultSchema = z.object({
   ...eventTable,

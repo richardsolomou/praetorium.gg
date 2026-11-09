@@ -24,6 +24,8 @@ import {
   moderateSealedEventEntrySchema,
   openSealedEventSchema,
   pairSealedEventRoundSchema,
+  setRoundTimerSchema,
+  swapTableSeatsSchema,
   reportTableResultSchema,
   setTableBattlefieldSchema,
   tableBattlefieldsSchema,
@@ -271,6 +273,26 @@ const loadedRules = async () => {
   if (!rules) throw new Response('battlefields are unavailable right now', { status: 503 })
   return rules
 }
+
+export const setRoundTimer = createServerFn({ method: 'POST' })
+  .validator(setRoundTimerSchema)
+  .handler(({ data }) =>
+    mutationRpc(async () => {
+      const userId = await requireUserId()
+      await app().service.sealedEventService.setRoundTimer(data.token, data.eventToken ?? data.token, userId, data.minutes, data.fromEnd)
+      await captureMutation(userId, 'sealed_event_round_timer_set', { minutes: data.minutes })
+    }),
+  )
+
+export const swapTableSeats = createServerFn({ method: 'POST' })
+  .validator(swapTableSeatsSchema)
+  .handler(({ data }) =>
+    mutationRpc(async () => {
+      const userId = await requireUserId()
+      await app().service.sealedEventService.swapSeats(data.token, data.eventToken ?? data.token, userId, data.players)
+      await captureMutation(userId, 'sealed_event_seats_swapped', {})
+    }),
+  )
 
 export const tableBattlefields = createServerFn({ method: 'GET' })
   .validator(tableBattlefieldsSchema)

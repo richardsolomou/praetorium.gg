@@ -188,6 +188,12 @@ const sealedEvent = z.object({
   soloPoints: eventPoints,
   allyPoints: eventPoints,
   sharedPoints: eventSharedPoints,
+  // Absent from a module released before organizers ran a round clock.
+  roundEndsAt: z
+    .number()
+    .int()
+    .nullish()
+    .transform((value) => value ?? null),
   playsAt: z.number().int().nullable(),
   sealBy: z.number().int().nullable(),
   // Absent from a module released before organizers sent seal reminders.

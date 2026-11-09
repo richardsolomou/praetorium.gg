@@ -15,6 +15,7 @@ import { SectionHeading } from '../../components/SectionHeading'
 import { useSealedEventRefresh, type SealedEvent } from './sealedEvent'
 import { TableBattlefield } from './TableBattlefield'
 import { ReportTableResult } from './ReportTableResult'
+import { RoundClock, SwapSeats } from './RoundTools'
 
 type Pairing = SealedEvent['pairings'][number]
 /** What the rounds read of a table's battle, which the sample tournament supplies without a real one. */
@@ -107,6 +108,14 @@ export function SealedEventRounds({
     )
   }
   const rematch = rematches(sealedEvent.pairings)
+  const seatLabel = (userId: string) => {
+    const entry = entries.find((candidate) => candidate.userId === userId)
+    return { value: userId, label: entry ? label(entry) : 'A player' }
+  }
+  const swappable = progress.current
+    .filter((pairing) => !pairing.battleToken)
+    .flatMap((pairing) => (pairing.bId ? [pairing.aId, pairing.bId] : [pairing.aId]))
+    .map(seatLabel)
   const rounds = [...new Set(sealedEvent.pairings.map((pairing) => pairing.round))].toSorted((a, b) => b - a)
   const next = progress.round + 1
   const canPair = isOrganizer && next <= progress.rounds && progress.complete
@@ -127,6 +136,14 @@ export function SealedEventRounds({
         }
       />
       {pair.error ? <Problem error={pair.error} className="mb-2" /> : null}
+      {progress.round && !progress.complete && !sample ? (
+        <div className="mb-1 flex flex-wrap items-start justify-between gap-2">
+          <RoundClock token={token} eventToken={sealedEvent.eventToken} endsAt={sealedEvent.roundEndsAt} organizes={isOrganizer} />
+          {isOrganizer && swappable.length >= 2 ? (
+            <SwapSeats token={token} eventToken={sealedEvent.eventToken} players={swappable} />
+          ) : null}
+        </div>
+      ) : null}
       {progress.rounds ? (
         <ol aria-hidden className="mb-4 flex gap-1.5">
           {Array.from({ length: progress.rounds }, (_, index) => {

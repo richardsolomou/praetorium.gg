@@ -231,6 +231,8 @@ const sealedEvents = table(
     remindedAt: t.option(t.u64()).default(undefined),
     /** Allies spend their pair's points between them in any split; absent spends each ally's own. */
     sharedPoints: t.option(t.bool()).default(undefined),
+    /** When the round's clock runs out, while an organizer has one running. */
+    roundEndsAt: t.option(t.u64()).default(undefined),
   },
 )
 

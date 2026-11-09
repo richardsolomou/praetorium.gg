@@ -447,6 +447,25 @@ export class SealedEventService {
     )
   }
 
+  /** Starts, extends or stops the round's clock; the end time is what everyone counts down to. */
+  async setRoundTimer(token: string, eventToken: string, ownerId: string, minutes: number | null, fromEnd: number | null) {
+    const endsAt = minutes === null ? null : Math.max(this.clock(), fromEnd ?? 0) + minutes * 60_000
+    const result = await this.repository.setSealedEventRoundTimer({ token, eventToken, ownerId, endsAt })
+    if (result === 'set') return
+    if (result === 'missing') throw new Response('no such event', { status: 404 })
+    if (result === 'forbidden') throw new Response('only the organizer can run the round clock', { status: 403 })
+    throw new Response('pair a round before starting its clock', { status: 409 })
+  }
+
+  async swapSeats(token: string, eventToken: string, ownerId: string, players: [string, string]) {
+    const result = await this.repository.swapSealedEventSeats({ token, eventToken, ownerId, players })
+    if (result === 'swapped') return
+    if (result === 'missing') throw new Response('no such event', { status: 404 })
+    if (result === 'forbidden') throw new Response('only the organizer can change the pairings', { status: 403 })
+    if (result === 'started') throw new Response('one of those tables has already started its battle', { status: 409 })
+    throw new Response('those players aren’t at different tables this round', { status: 409 })
+  }
+
   /** The layouts one table can play on, once the rosters are out. Only duels have two armies to name them. */
   async tableBattlefields(
     token: string,

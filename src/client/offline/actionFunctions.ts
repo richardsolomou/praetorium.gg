@@ -350,6 +350,7 @@ export async function createSealedEvent(args: Parameters<typeof server.createSea
   const draft: NonNullable<Awaited<ReturnType<typeof server.openSealedEvent>>> = {
     kind: 'tournament',
     battlefields: [],
+    roundEndsAt: null,
     token: identifiers.tournamentToken,
     eventToken: identifiers.eventToken,
     createdAt: now,

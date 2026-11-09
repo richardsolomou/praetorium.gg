@@ -100,6 +100,7 @@ export function sampleTournament(stage: SampleStage): SealedEvent {
     eventToken: 'sample',
     kind: 'tournament',
     battlefields: [],
+    roundEndsAt: null,
     createdAt: opened,
     remindedAt: null,
     organizer: false,

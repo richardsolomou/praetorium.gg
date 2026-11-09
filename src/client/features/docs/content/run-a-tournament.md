@@ -53,6 +53,12 @@ Players are ranked by:
 2. Total victory points.
 3. Strength of schedule: the match points of everyone a player has faced.
 
+### Change the pairings and run the clock
+
+To keep clubmates apart or sort out a mix-up, press **Swap players** and choose two players at tables that haven't started. They trade tables for that round, and any battlefield set for those tables is cleared.
+
+Set a round length and press **Start the clock** to show everyone the same countdown. You can add time or stop it, and pairing the next round clears it. The clock doesn't end the round. You still pair the next one when you're ready.
+
 ### Set the battlefields ahead of the game
 
 Once a round is paired you can set each table's battlefield, so players know who they face and where before the day. Press **Set battlefield** on a table to pick one of its layouts or **Roll** one, or press **Roll battlefields** to roll every table at once. A table's layouts come from its two armies, so a table whose army hasn't settled on a Force Disposition stays for its players to choose.
