@@ -16,6 +16,7 @@ import {
   Pencil,
   Plus,
   Share2,
+  Download,
   SlidersHorizontal,
   Swords,
   Trash2,
@@ -684,6 +685,11 @@ export function ListBuilder({
   const shareItem = (
     <DropdownMenuItem className={MENU_ITEM} onClick={() => setSharing(true)}>
       <Share2 /> Share…
+    </DropdownMenuItem>
+  )
+  const exportItem = (
+    <DropdownMenuItem className={MENU_ITEM} disabled={take.isPending || !positioned.length} onClick={() => take.mutate()}>
+      <Download /> Export text
     </DropdownMenuItem>
   )
   const rosterLoading = !frozen && priceLoading && picks.length > 0
@@ -1486,6 +1492,7 @@ export function ListBuilder({
                   ) : null}
                   <DropdownMenuSeparator />
                   {shareItem}
+                  {exportItem}
                   {displaySection}
                   {manageSection}
                 </DropdownMenuContent>
@@ -1589,6 +1596,7 @@ export function ListBuilder({
                   </MenuSection>
                   <DropdownMenuSeparator />
                   {shareItem}
+                  {exportItem}
                   {displaySection}
                   {manageSection}
                 </DropdownMenuContent>

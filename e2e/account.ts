@@ -131,7 +131,7 @@ export async function visitorSetup(page: Page) {
 }
 
 /** The roster page's share dialog holds these, so choosing one goes through Share… first. */
-const SHARED_ROSTER_ACTIONS = new Set(['Export text', 'Exchange code', 'Print'])
+const SHARED_ROSTER_ACTIONS = new Set(['Exchange code', 'Print'])
 
 /**
  * Chooses an item from a roster's Roster actions menu, reopening the menu until the item shows: a press before

@@ -280,6 +280,7 @@ for (const width of [1440, 390]) {
       'Lend to a friend',
       'Lock roster',
       'Share…',
+      'Export text',
       'Archive',
       'Delete',
     ])
@@ -298,6 +299,7 @@ for (const width of [1440, 390]) {
       'Create variant',
       'Duplicate',
       /Share…\s*Public/,
+      'Export text',
       'Lend to a friend',
       'Lock roster',
       'Archive',
