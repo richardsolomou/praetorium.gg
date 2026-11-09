@@ -1,6 +1,7 @@
 import { boundedProgress, withCountsAs, withProgress, withWanted, type CollectionProgress } from '../../core/collection'
 import { withEntry, withMember } from '../../core/collections'
 import { withFavouriteDetachment, type FavouriteDetachment } from '../../core/favouriteDetachments'
+import { hiddenListGameOpen } from '../../core/group'
 import { sealedEventTitle, sealedEventWarlordRefusal, sealedEventWarlordValid, waivedWarlordRules } from '../../core/sealedEvent'
 import { attemptLocalSync } from './localRuntime'
 import { rosterSnapshot } from '../../core/rosterSnapshot'
@@ -98,6 +99,7 @@ export const listSealedEvents = async (): ReturnType<typeof server.listSealedEve
       ...draft,
       tournament: draft.tournament && { ...draft.tournament, adminIds: draft.tournament.admins.map((admin) => admin.id) },
       personal: true,
+      pastAt: null,
       entrantCount: accepted,
       currentEntrantCount: draft.entries.length,
       ownEntry: null,
@@ -578,7 +580,7 @@ export async function sealedEventBattleOptions(
   const sealedEvents = await listSealedEvents()
   const candidates = await Promise.all(
     sealedEvents
-      .filter((sealedEvent) => sealedEvent.personal)
+      .filter((sealedEvent) => sealedEvent.personal && hiddenListGameOpen({ pastAt: sealedEvent.pastAt ?? null }, Date.now()))
       .map(async (summary) => {
         const sealedEvent = await openSealedEvent({ data: { token: summary.token } })
         return sealedEvent?.revealedAt

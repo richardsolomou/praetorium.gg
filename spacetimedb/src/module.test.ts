@@ -1305,6 +1305,48 @@ describe('friends’ sealed rosters', () => {
     expect([playing, fixture.listed()]).toEqual([['friend'], []])
   })
 
+  it('offers only the current hidden-list game when starting a battle', () => {
+    const fixture = setup()
+    const now = Date.parse('2026-10-25T19:00:00Z')
+    fixture.at(now / 1000)
+    module.groupCommand(fixture.procedure(fixture.operator), {
+      payload: JSON.stringify({
+        token: 'group',
+        op: 'create',
+        id: 'group-id',
+        ownerId: 'viewer',
+        now,
+        name: 'Group',
+        description: '',
+        visibility: 'private',
+        admission: 'automatic',
+      }),
+    })
+    for (const name of ['older', 'newer']) {
+      module.sealedEventCommand(fixture.procedure(fixture.operator), {
+        payload: JSON.stringify({
+          op: 'create-hidden-list-game',
+          eventId: `${name}-id`,
+          eventToken: name,
+          groupToken: 'group',
+          ownerId: 'viewer',
+          format: '1v1',
+          rosterLimit: 2000,
+          now,
+          timeZone: 'UTC',
+        }),
+      })
+      fixture.call(fixture.operator, (ctx) => {
+        ctx.db.sealedEvents.id.update({ ...ctx.db.sealedEvents.id.find(`${name}-id`)!, revealedAt: BigInt(now) })
+        fixture.enter(ctx, `${name}-id`)
+      })
+    }
+    const candidates = JSON.parse(
+      module.sealedEventBattleCandidates(fixture.procedure(fixture.operator), { userId: 'viewer', participantIds: ['viewer', 'friend'] }),
+    ) as { event: { token: string } }[]
+    expect(candidates.map((candidate) => candidate.event.token)).toEqual(['newer'])
+  })
+
   it('drops a Swiss tournament’s lists once its final round has finished', () => {
     const fixture = setup()
     module.createBattle(fixture.procedure(fixture.operator), {

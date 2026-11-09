@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.225.2 (2026-11-09)
+
+### Patch Changes
+
+- 9642b89: Starting a battle no longer offers hidden-list games that are already over.
+
 ## 0.225.1 (2026-11-09)
 
 ### Patch Changes
