@@ -3823,6 +3823,7 @@ export const sealedEventsVisibleTo = spacetime.procedure({ userId: t.string(), l
           accepted: entries.filter((entry) => entry.status === 'accepted').length,
           occupied: entries.filter((entry) => entry.status !== 'rejected').length,
           ownEntry: entries.find((entry) => entry.userId === userId) ?? null,
+          pastAt: host.kind === 'group' ? gamePastAt(host) : null,
         }
       }),
     )
@@ -3931,7 +3932,7 @@ export const sealedEventBattleCandidates = spacetime.procedure(
         const event = tx.db.sealedEvents.id.find(own.eventId)
         if (!event || event.revealedAt === undefined) continue
         const host = hostOfEvent(tx, event)
-        if (!host) continue
+        if (!host || pastHiddenListGame(tx, host)) continue
         const participants = sealedEventEntriesFor(tx, event.id).filter(
           (entry) => participantIds.includes(entry.userId) && entry.status === 'accepted' && entry.rosterSnapshot !== undefined,
         )

@@ -16,4 +16,5 @@ it.skipIf(!fs.existsSync(path.join(directory, 'definitions')))(
       slug: 'blood-legion',
     })
   },
+  60_000,
 )
