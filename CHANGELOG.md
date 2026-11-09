@@ -1,5 +1,18 @@
 # praetorium
 
+## 0.226.0 (2026-11-09)
+
+### Minor Changes
+
+- 55539e2: Sort any battle list oldest first.
+- 55539e2: Saved filter views and pinned filters now follow your account across devices.
+- 55539e2: Filter every roster list by legality and by points.
+
+### Patch Changes
+
+- d69716a: Importing keeps a comma inside a bracketed weapon note as one piece of wargear.
+- d69716a: Importing reads Warscribe's text exports.
+
 ## 0.225.3 (2026-11-09)
 
 ### Patch Changes
