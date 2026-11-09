@@ -1,19 +1,18 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { type BattlesView, BattlesPage } from '../client/features/battles/BattlesPage'
+import { BattlesPage } from '../client/features/battles/BattlesPage'
+import { battleFilterOf, parseBattlesSearch } from '../client/features/battles/battleSearch'
 import { battlesQuery, deploymentsQuery, friendBattlesQuery, meQuery, publicBattlesQuery } from '../client/queries'
 import { pageHead } from '../client/linkPreview'
 
-const VIEWS = ['friends', 'public'] as const
-
 export const Route = createFileRoute('/battles/')({
-  validateSearch: (search: Record<string, unknown>): { view?: Exclude<BattlesView, 'mine'> } => ({
-    view: VIEWS.find((view) => view === search.view),
-  }),
-  loaderDeps: ({ search }) => ({ view: search.view }),
+  validateSearch: parseBattlesSearch,
+  loaderDeps: ({ search }) => search,
   loader: async ({ context, deps }) => {
     const me = await context.queryClient.query({ ...meQuery(), staleTime: 'static' })
-    const view = me ? (deps.view ?? 'mine') : 'public'
-    const query = view === 'mine' ? battlesQuery() : view === 'friends' ? friendBattlesQuery() : publicBattlesQuery()
+    const { view: asked, ...search } = deps
+    const view = me ? (asked ?? 'mine') : 'public'
+    const filter = battleFilterOf(search)
+    const query = view === 'mine' ? battlesQuery(filter) : view === 'friends' ? friendBattlesQuery(filter) : publicBattlesQuery(filter)
     await Promise.all([
       context.queryClient.infiniteQuery({ ...query, staleTime: 'static' }),
       context.queryClient.query({ ...deploymentsQuery(), staleTime: 'static' }).catch(() => null),
@@ -30,5 +29,6 @@ export const Route = createFileRoute('/battles/')({
 })
 
 function BattlesRoute() {
-  return <BattlesPage view={Route.useSearch().view ?? 'mine'} />
+  const { view, ...search } = Route.useSearch()
+  return <BattlesPage view={view ?? 'mine'} search={search} />
 }

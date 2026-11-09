@@ -45,3 +45,12 @@ export const countLabel = (total: number, one: string, many = `${one}s`) => `${t
 
 /** "a, b and c": British English has no serial comma. */
 export const formatList = (items: readonly string[]) => new Intl.ListFormat('en-GB').format(items)
+
+/** Every word of the query appears in the text, whatever its case, accents or quote marks. */
+export function matchesSearch(text: string, query: string) {
+  const folded = foldedText(text)
+  return foldedText(query)
+    .split(/\s+/)
+    .filter(Boolean)
+    .every((word) => folded.includes(word))
+}

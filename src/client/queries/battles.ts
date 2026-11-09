@@ -31,6 +31,7 @@ import type { BattlesCursor } from '../../contracts/battles'
 import { requirePage, SSR_STALE_TIME } from './shared'
 import { liveProductRefresh } from '../liveProductRefresh'
 import { uniqueBy } from '../../core/collections'
+import { battleFilterActive, type BattleFilter } from '../../core/battleFilter'
 import {
   battleKey,
   battleRatingChangesKey,
@@ -71,7 +72,11 @@ export function battleFeedQuery<Page extends { nextCursor: BattlesCursor | null 
   })
 }
 
-export const battlesQuery = () => battleFeedQuery(battlesKey(), (before) => myBattles({ data: { before } }))
+/** A filter keys under its whole feed, so what refreshes the feed refreshes every filtered list of it. */
+const feedKey = (key: unknown[], filter?: BattleFilter) => (battleFilterActive(filter) ? [...key, filter] : key)
+
+export const battlesQuery = (filter?: BattleFilter) =>
+  battleFeedQuery(feedKey(battlesKey(), filter), (before) => myBattles({ data: { before, filter } }))
 
 /** Takes a deleted battle off the player's list at once rather than after the refetch, which can take a second. */
 export function forgetBattle(queryClient: QueryClient, token: string) {
@@ -97,9 +102,19 @@ const FEED_POLL_MS = 20_000
 /** A page without realtime refresh polls its feeds; with it, signals refresh them. */
 const feedPoll = () => (liveProductRefresh() ? false : FEED_POLL_MS)
 
-export const publicBattlesQuery = () => battleFeedQuery(publicBattlesKey(), (before) => publicBattles({ data: { before } }), feedPoll)
+export const publicBattlesQuery = (filter?: BattleFilter) =>
+  battleFeedQuery(
+    feedKey(publicBattlesKey(), filter),
+    (before) => publicBattles({ data: { before, filter } }),
+    battleFilterActive(filter) ? undefined : feedPoll,
+  )
 
-export const friendBattlesQuery = () => battleFeedQuery(friendBattlesKey(), (before) => friendBattles({ data: { before } }), feedPoll)
+export const friendBattlesQuery = (filter?: BattleFilter) =>
+  battleFeedQuery(
+    feedKey(friendBattlesKey(), filter),
+    (before) => friendBattles({ data: { before, filter } }),
+    battleFilterActive(filter) ? undefined : feedPoll,
+  )
 
 export type PlayerProfileFilter = {
   faction?: string

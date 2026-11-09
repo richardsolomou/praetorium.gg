@@ -1,7 +1,9 @@
 import { partialMatchKey } from '@tanstack/react-query'
 import { requireReviewedRoster, type ReviewedServerSave } from './offline/reviewedRoster'
 import { projectBattles } from './offline/battleFunctions'
-import { accountChanged, accountGuard, cachedRead, cachedPage } from './offline/reads'
+import { accountChanged, accountGuard, cachedRead, cachedPage, filteredPage } from './offline/reads'
+import { battleFilterActive, matchesBattle, type BattleFilter } from '../core/battleFilter'
+import type { BattlesCursor } from '../contracts/battles'
 import { hasLocalChanges, localOwner, syncLocalWork } from './offline/localRuntime'
 import { byId } from '../core/collections'
 import { lockedRosterRefusal } from '../core/rosterLock'
@@ -940,10 +942,22 @@ export const combatUnits = async () => {
   return saved ?? server.combatUnits()
 }
 
+const filteredBattles = <T extends Parameters<typeof matchesBattle>[0] & { lastActivity: number }>(
+  key: unknown[],
+  filter: BattleFilter,
+  online: () => Promise<{ battles: T[]; nextCursor: BattlesCursor | null }>,
+) =>
+  filteredPage<T>(key, online, (battle, viewerId) =>
+    matchesBattle(battle, filter, viewerId, battle.lastActivity, Date.now()),
+  ) as ReturnType<typeof online>
 export const publicBattles = (args: Parameters<typeof server.publicBattles>[0]) =>
-  cachedPage(publicBattlesKey(), args.data.before, () => server.publicBattles(args))
+  battleFilterActive(args.data.filter as BattleFilter | undefined)
+    ? filteredBattles(publicBattlesKey(), args.data.filter as BattleFilter, () => server.publicBattles(args))
+    : cachedPage(publicBattlesKey(), args.data.before, () => server.publicBattles(args))
 export const friendBattles = (args: Parameters<typeof server.friendBattles>[0]) =>
-  cachedPage(friendBattlesKey(), args.data.before, () => server.friendBattles(args))
+  battleFilterActive(args.data.filter as BattleFilter | undefined)
+    ? filteredBattles(friendBattlesKey(), args.data.filter as BattleFilter, () => server.friendBattles(args))
+    : cachedPage(friendBattlesKey(), args.data.before, () => server.friendBattles(args))
 export const listSealedEventBattles = (args: Parameters<typeof server.listSealedEventBattles>[0]) =>
   cachedPage(sealedEventBattlesKey(args.data.token, args.data.eventToken), args.data.before, () => server.listSealedEventBattles(args))
 export const standings = () => cachedRead(standingsKey(), () => server.standings())

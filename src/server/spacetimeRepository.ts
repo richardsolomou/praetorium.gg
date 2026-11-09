@@ -170,6 +170,10 @@ export class SpacetimeRepository {
     return found
   }
 
+  async playerIdsNamed(query: string, viewerId: string | null) {
+    return (await this.accounts.searchPlayerRows(viewerId ?? '', query, null, 100)).map((row) => row.id)
+  }
+
   async practiceOpponents() {
     const ids = await this.product.practiceOpponentIds()
     const profiles = await this.accounts.profilesByIds(ids)

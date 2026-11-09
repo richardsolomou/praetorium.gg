@@ -240,6 +240,12 @@ export const PRODUCT_DOCS = [
     description: 'Getting the app, signing in, offline use, notifications, updates and the Apple Watch.',
   },
   {
+    slug: 'filter-lists',
+    section: 'Account and app',
+    title: 'Filter battles and rosters',
+    description: 'Search, combine filters, rule things out and save the views you use.',
+  },
+  {
     slug: 'search',
     section: 'Account and app',
     title: 'Search Praetorium',

@@ -1,6 +1,9 @@
 import { type BattleState, builtDetachments, type Roster } from './battle'
 import { listUnitCount } from './attachedUnits'
+import { facetActive, facetMatches, periodBounds, withinPeriod } from './listFilter'
 import type { RosterPick } from './roster'
+import type { PlayedArmyFilter } from './rosterDiscovery'
+import { matchesSearch } from './text'
 import { battleOutcome, type BattleOutcome, opponentScore, sideScore, type StandingBattle, type StandingFaction } from './standings'
 
 type Built = NonNullable<Roster['built']>
@@ -94,4 +97,24 @@ function outcome(battle: StandingBattle, side: number): PlayedOutcome {
     opponentScore: opponentScore(battle, side),
     opponents: [...opponents.values()],
   }
+}
+
+const PLAYED_FACETS = ['faction', 'detachment', 'rules', 'size', 'disposition', 'result', 'against'] as const
+
+export const playedArmyFilterActive = (filter: PlayedArmyFilter) =>
+  Boolean(filter.q || filter.period || filter.from || filter.to || PLAYED_FACETS.some((key) => facetActive(filter[key])))
+
+/** The parts of a played-army filter that are not about its catalogue, which `inDiscoveryScope` answers. */
+export function matchesPlayedArmy(army: PlayedArmy, filter: PlayedArmyFilter, now: number) {
+  return (
+    withinPeriod(army.playedAt, periodBounds(filter, now)) &&
+    facetMatches(filter.size, [String(army.limit)]) &&
+    facetMatches(filter.disposition, army.disposition ? [army.disposition] : []) &&
+    facetMatches(filter.result, [army.outcome.result]) &&
+    facetMatches(
+      filter.against,
+      army.outcome.opponents.map((faction) => faction.slug),
+    ) &&
+    (!filter.q || matchesSearch([army.name, army.player.name, ...army.detachments].join(' '), filter.q))
+  )
 }

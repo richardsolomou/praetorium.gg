@@ -10,6 +10,10 @@ import {
 import { meKey } from '../queries/queryKeys'
 import { jsonByteLength } from '../../core/json'
 
+/** A filtered battle list is a passing question; offline, filters answer from the saved whole feeds instead. */
+const isFilteredFeed = (key: readonly unknown[]) =>
+  key.length > 1 && ['battles', 'public-battles', 'friend-battles'].includes(String(key[0]))
+
 declare global {
   interface Window {
     PraetoriumAppSnapshot?: AppSnapshot
@@ -39,6 +43,7 @@ export function captureAppSnapshot(client: QueryClient): AppSnapshot | null {
         query.state.data !== undefined &&
         query.state.dataUpdatedAt > 0 &&
         APP_SNAPSHOT_QUERIES.has(String(query.queryKey[0])) &&
+        !isFilteredFeed(query.queryKey) &&
         (owner || query.queryKey[0] === 'me' || PUBLIC_APP_QUERIES.has(String(query.queryKey[0]))),
     )
     .sort((a, b) => Number(b.queryKey[0] === 'me') - Number(a.queryKey[0] === 'me') || b.state.dataUpdatedAt - a.state.dataUpdatedAt)

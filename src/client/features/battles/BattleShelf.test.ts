@@ -33,6 +33,7 @@ const battle: Battle = {
   deploymentId: dawnId,
   settings: { limit: 1_000, missionPackId: null, terrainLayoutId: null, twistId: null, teamBattle: false, playerCount: 2 },
   result: null,
+  organised: false,
 }
 
 function render(overrides: Partial<Battle> = {}, loaded = true) {

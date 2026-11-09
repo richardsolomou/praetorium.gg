@@ -1,58 +1,41 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { ROSTER_VISIBILITIES } from '../core/savedRoster'
-import { GAME_SIZES } from '../core/battle'
 import { keptRosterSort } from '../client/features/rosters/rosterSort'
-import { ROSTER_UPDATE_FILTERS } from '../client/features/rosters/RosterFilters'
+import { LIBRARY_FACETS } from '../client/features/rosters/RosterLibraryPage'
 import { GUEST_DRAFT_COOKIE, ROSTER_NOTICES_COOKIE, ROSTER_SORT_COOKIE } from '../contracts/rosterCookies'
 import { requestCookie } from '../server/requestCookie'
-import { discoveryFilter } from '../client/features/rosters/RosterDiscoveryPage'
+import { discoveryFilter, DISCOVERY_FACETS, playedFilter } from '../client/features/rosters/RosterDiscoveryPage'
 import { ROSTER_VIEWS, RostersRoute, type RostersSearch } from '../client/features/rosters/RostersRoute'
-import { RULES_VERSION_STATUSES } from '../core/rosterDiscovery'
+import { ROSTER_SEARCH_MAX_LENGTH } from '../core/rosterDiscovery'
 import { ROSTER_SORTS } from '../core/rosterSort'
 import { discoveredRostersQuery, factionIndexQuery, meQuery, playedArmiesQuery } from '../client/queries'
 import { pageHead } from '../client/linkPreview'
 import { PageLoading } from '../client/components/PageState'
-import { searchText } from '../client/searchParams'
+import { facetSearch, periodSearch, searchText } from '../client/searchParams'
 import { rosterStartSearch } from '../client/features/rosters/rosterStart'
 
 export const Route = createFileRoute('/rosters/')({
   pendingComponent: PageLoading,
   validateSearch: (search: Record<string, unknown>): RostersSearch => {
-    const limit = Number(search.limit)
-    const faction = searchText(search.faction, 128)
+    const q = searchText(search.q, ROSTER_SEARCH_MAX_LENGTH)?.trim()
+    const text = q ? { q } : {}
     const view = ROSTER_VIEWS.find((known) => known === search.view)
     if (view) {
-      const detachment = faction && searchText(search.detachment, 128)
-      const rules = RULES_VERSION_STATUSES.find((status) => status === search.rules)
       const sort = ROSTER_SORTS.find((known) => known !== 'updated-desc' && known === search.sort)
-      return {
-        view,
-        ...(faction ? { faction } : {}),
-        ...(detachment ? { detachment } : {}),
-        ...(rules ? { rules } : {}),
-        ...(sort ? { sort } : {}),
-      }
+      return { view, ...text, ...facetSearch(search, DISCOVERY_FACETS), ...periodSearch(search), ...(sort ? { sort } : {}) }
     }
-    const visibility = ROSTER_VISIBILITIES.find((known) => known === search.visibility)
-    const updates = ROSTER_UPDATE_FILTERS.find((known) => known === search.updates)
-    return {
-      ...(GAME_SIZES.some((size) => size.limit === limit) ? { limit } : {}),
-      ...(faction ? { faction } : {}),
-      ...(visibility ? { visibility } : {}),
-      ...(updates ? { updates } : {}),
-      ...rosterStartSearch(search),
-    }
+    return { ...text, ...facetSearch(search, LIBRARY_FACETS), ...periodSearch(search), ...rosterStartSearch(search) }
   },
-  loaderDeps: ({ search: { view, faction, detachment, rules, sort } }) => ({ view, faction, detachment, rules, sort }),
+  loaderDeps: ({ search }) => (search.view ? search : {}),
   loader: async ({ context, deps: { view, sort, ...search } }) => {
     const me = await context.queryClient.query({ ...meQuery(), staleTime: 'static' })
     if (view) {
       const index = await context.queryClient.query({ ...factionIndexQuery(), staleTime: 'static' })
-      const filter = discoveryFilter(search, index?.factions ?? [])
-      if (view === 'played') await context.queryClient.infiniteQuery({ ...playedArmiesQuery(filter), staleTime: 'static' })
+      const factions = index?.factions ?? []
+      if (view === 'played')
+        await context.queryClient.infiniteQuery({ ...playedArmiesQuery(playedFilter(search, factions)), staleTime: 'static' })
       else
         await context.queryClient.infiniteQuery({
-          ...discoveredRostersQuery(filter, me ? view : 'public', sort ?? 'updated-desc'),
+          ...discoveredRostersQuery(discoveryFilter(search, factions), me ? view : 'public', sort ?? 'updated-desc'),
           staleTime: 'static',
         })
     }

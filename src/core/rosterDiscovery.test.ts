@@ -178,36 +178,44 @@ describe('roster discovery pages', () => {
   })
 })
 
+const only = (value: string) => ({ in: [value], out: [] })
+
 describe('roster discovery scope', () => {
+  it('leaves out an excluded faction and keeps the rest', () => {
+    expect(discoveryScope({ faction: { in: [], out: ['necrons'] } }, factions)?.catalogueIds).not.toContain('necrons')
+  })
+
   it('asks for every rules version of a faction', () => {
-    expect(discoveryScope({ faction: 'necrons' }, factions)?.catalogueIds).toEqual(['necrons', 'legacy~necrons', 'preview~necrons'])
+    expect(discoveryScope({ faction: only('necrons') }, factions)?.catalogueIds).toEqual(['necrons', 'legacy~necrons', 'preview~necrons'])
   })
 
   it('asks for archived rules versions only', () => {
-    expect(discoveryScope({ rules: 'archived' }, factions)?.catalogueIds).toEqual(['legacy~necrons'])
+    expect(discoveryScope({ rules: only('archived') }, factions)?.catalogueIds).toEqual(['legacy~necrons'])
   })
 
   it('asks for the saved IDs a replaced book was stored under', () => {
-    expect(discoveryScope({ faction: ultramarines.current }, factions)?.catalogueIds).toContain(ultramarines.retired)
+    expect(discoveryScope({ faction: only(ultramarines.current) }, factions)?.catalogueIds).toContain(ultramarines.retired)
   })
 
   it('asks for no book when no faction is chosen', () => {
-    expect(discoveryScope({}, factions)).toEqual({ catalogueIds: null, detachmentIds: null })
+    expect(discoveryScope({}, factions)).toEqual({ catalogueIds: null, detachmentIds: null, excludedDetachmentIds: [] })
   })
 
   it('finds nothing for a faction without a rules version in that state', () => {
-    expect(discoveryScope({ faction: ultramarines.current, rules: 'preview' }, factions)).toBeNull()
+    expect(discoveryScope({ faction: only(ultramarines.current), rules: only('preview') }, factions)).toBeNull()
   })
 
   it('places a roster on an archived rules version outside the current filter', () => {
-    expect(inDiscoveryScope({ catalogueId: 'legacy~necrons', detachmentIds: [] }, { rules: 'current' }, indexed)).toBe(false)
+    expect(inDiscoveryScope({ catalogueId: 'legacy~necrons', detachmentIds: [] }, { rules: only('current') }, indexed)).toBe(false)
   })
 
   it('places a roster inside its faction family whatever its rules version', () => {
-    expect(inDiscoveryScope({ catalogueId: 'legacy~necrons', detachmentIds: [] }, { faction: 'necrons' }, indexed)).toBe(true)
+    expect(inDiscoveryScope({ catalogueId: 'legacy~necrons', detachmentIds: [] }, { faction: only('necrons') }, indexed)).toBe(true)
   })
 
   it('places a roster outside a detachment it does not hold', () => {
-    expect(inDiscoveryScope({ catalogueId: 'necrons', detachmentIds: ['awakened'] }, { detachment: 'hypercrypt' }, indexed)).toBe(false)
+    expect(inDiscoveryScope({ catalogueId: 'necrons', detachmentIds: ['awakened'] }, { detachment: only('hypercrypt') }, indexed)).toBe(
+      false,
+    )
   })
 })

@@ -1,6 +1,8 @@
 import { z } from 'zod'
 import { detachmentIds } from './savedRoster'
 import { compareRosters, ROSTER_SORTS } from './rosterSort'
+import { facetMatches, facetSchema, periodFields } from './listFilter'
+import { matchesSearch } from './text'
 
 export const ROSTER_DISCOVERY_PAGE_SIZE = 24
 export const ROSTER_DISCOVERY_MAX_PAGE_SIZE = 50
@@ -24,13 +26,30 @@ export const rosterDiscoveryCursorSchema = z.object({
 })
 export type RosterDiscoveryCursor = z.infer<typeof rosterDiscoveryCursorSchema>
 
-/** A faction family (`currentCatalogueFamilyId`), one detachment, and a rules-version status. */
-export const rosterDiscoveryFilterSchema = z.strictObject({
-  faction: id.optional(),
-  detachment: id.optional(),
-  rules: z.enum(RULES_VERSION_STATUSES).optional(),
-})
+const rosterFacets = {
+  /** Faction families (`currentCatalogueFamilyId`). */
+  faction: facetSchema,
+  detachment: facetSchema,
+  /** `RULES_VERSION_STATUSES`. */
+  rules: facetSchema,
+  size: facetSchema,
+  disposition: facetSchema,
+}
+
+export const ROSTER_SEARCH_MAX_LENGTH = 80
+const q = z.string().trim().min(1).max(ROSTER_SEARCH_MAX_LENGTH).optional()
+
+export const rosterDiscoveryFilterSchema = z.strictObject({ q, ...rosterFacets, owner: facetSchema })
 export type RosterDiscoveryFilter = z.infer<typeof rosterDiscoveryFilterSchema>
+
+export const playedArmyFilterSchema = z.strictObject({
+  q,
+  ...rosterFacets,
+  result: facetSchema,
+  against: facetSchema,
+  ...periodFields,
+})
+export type PlayedArmyFilter = z.infer<typeof playedArmyFilterSchema>
 
 /**
  * What the product database is asked for: the saved IDs a roster inside the filter is stored under, and whose rosters.
@@ -43,6 +62,13 @@ export const rosterDiscoveryQuerySchema = z.strictObject({
   sort: z.enum(ROSTER_SORTS).default('updated-desc'),
   catalogueIds: z.array(id).max(ROSTER_DISCOVERY_MAX_SCOPE_IDS).nullable(),
   detachmentIds: z.array(id).max(ROSTER_DISCOVERY_MAX_SCOPE_IDS).nullable(),
+  excludedDetachmentIds: z.array(id).max(ROSTER_DISCOVERY_MAX_SCOPE_IDS).optional(),
+  sizes: facetSchema,
+  dispositions: facetSchema,
+  owners: facetSchema,
+  /** Matches a roster's name, or any roster of `namedOwnerIds`, whose names only the account database holds. */
+  q,
+  namedOwnerIds: z.array(id).max(ROSTER_DISCOVERY_MAX_SCOPE_IDS).optional(),
   before: rosterDiscoveryCursorSchema.nullable(),
   limit: z.number().int().min(1).max(ROSTER_DISCOVERY_MAX_PAGE_SIZE),
 })
@@ -63,12 +89,15 @@ export function discoveryPage<
     visibility: string
     catalogueId: string
     detachmentId?: string | null
+    disposition?: string | null
     createdAt: number
     updatedAt: number
   },
 >(rows: Iterable<T>, query: RosterDiscoveryQuery, friendIds: ReadonlySet<string> = new Set()) {
   const catalogues = query.catalogueIds && new Set(query.catalogueIds)
   const detachments = query.detachmentIds && new Set(query.detachmentIds)
+  const excludedDetachments = new Set(query.excludedDetachmentIds)
+  const namedOwners = new Set(query.namedOwnerIds)
   const order = compareRosters(query.sort)
   const { before } = query
   const after = before && { id: before.id, name: before.name, limit: before.limit, createdAt: before.createdAt, updatedAt: before.at }
@@ -79,6 +108,11 @@ export function discoveryPage<
     if (query.audience === 'friends' ? !friendIds.has(row.userId) : row.userId === query.viewerId) continue
     if (catalogues && !catalogues.has(row.catalogueId)) continue
     if (detachments && !detachmentIds(row.detachmentId).some((saved) => detachments.has(saved))) continue
+    if (detachmentIds(row.detachmentId).some((saved) => excludedDetachments.has(saved))) continue
+    if (!facetMatches(query.sizes, [String(row.limit)])) continue
+    if (!facetMatches(query.dispositions, row.disposition ? [row.disposition] : [])) continue
+    if (!facetMatches(query.owners, [row.userId])) continue
+    if (query.q && !namedOwners.has(row.userId) && !matchesSearch(row.name, query.q)) continue
     total += 1
     // A cursor from a build that paged only by update time carries no name, so its own roster is matched by ID.
     if (after && (row.id === after.id || order(row, after) <= 0)) continue

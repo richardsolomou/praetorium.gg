@@ -15,6 +15,7 @@ import { ROSTER_PRICED_SAMPLE_RATE, rosterPricedProperties, rosterTelemetryPrope
 import { isRosterExchangeCode } from '../../core/rosterExchange'
 import { ROSTER_DISCOVERY_MAX_PAGE_SIZE, ROSTER_DISCOVERY_PAGE_SIZE } from '../../core/rosterDiscovery'
 import { discoveryScope, inDiscoveryScope } from '../../core/rosterDiscoveryScope'
+import { matchesPlayedArmy, playedArmyFilterActive } from '../../core/playedArmies'
 import { variantDifferences } from '../rosterDifferences'
 import { copySavedRoster, saveOwnedRoster } from '../saveOwnedRoster'
 import { rosterActions } from '../rosterActions'
@@ -115,7 +116,7 @@ export const wishlistSuggestions = createServerFn({ method: 'GET' }).handler(() 
       ]
         .toSorted(([, a], [, b]) => b.length - a.length)
         .slice(0, WISHLIST_ARMIES)
-        .map(([faction]) => ({ faction, rules: 'current' as const }))
+        .map(([faction]) => ({ faction: { in: [faction], out: [] }, rules: { in: ['current'], out: [] } }))
       const published = await Promise.all(
         armies.map(async (filter) => {
           const scope = discoveryScope(filter, factions)
@@ -135,7 +136,7 @@ export const wishlistSuggestions = createServerFn({ method: 'GET' }).handler(() 
       )
       return suggestFromRosters(
         own.map(fieldedEntryIds),
-        armies.map((filter, index) => ({ catalogueId: filter.faction, rosters: published[index]! })),
+        armies.map((filter, index) => ({ catalogueId: filter.faction.in[0]!, rosters: published[index]! })),
       )
     }),
   ),
@@ -180,6 +181,11 @@ export const discoverRosters = createServerFn({ method: 'GET' })
       if (!scope || (audience === 'friends' && !viewerId)) return { rosters: [], total: 0, nextCursor: null }
       const page = await instance.service.rosterService.discoverRosters({
         ...scope,
+        sizes: filter.size,
+        dispositions: filter.disposition,
+        owners: filter.owner,
+        q: filter.q,
+        namedOwnerIds: filter.q ? await instance.service.rosterService.ownerIdsNamed(filter.q, viewerId) : [],
         audience,
         viewerId,
         sort,
@@ -358,12 +364,17 @@ export const discoverPlayedArmies = createServerFn({ method: 'GET' })
       ])
       const factions = factionIndex?.factions ?? []
       if (!discoveryScope(filter, factions)) return { armies: [], nextCursor: null }
-      const page = await instance.service.playedArmies(viewerId, before ?? undefined, battleFactions)
       const indexed = byId(factions)
-      const shown = page.armies.flatMap((army) => {
-        const copy = copiedArmy(army)
-        return inDiscoveryScope(copy, filter, indexed) ? [{ army, copy }] : []
-      })
+      const now = Date.now()
+      const page = await instance.service.playedArmies(
+        viewerId,
+        before ?? undefined,
+        battleFactions,
+        playedArmyFilterActive(filter)
+          ? (army) => inDiscoveryScope(copiedArmy(army), filter, indexed) && matchesPlayedArmy(army, filter, now)
+          : undefined,
+      )
+      const shown = page.armies.map((army) => ({ army, copy: copiedArmy(army) }))
       const assessments = await cachedRosterAssessmentsFor(
         shown.map(({ army, copy }) => ({
           ...copy,

@@ -13,6 +13,7 @@
 - The rail is automatic until a fold or open differs from what the page shows by default: folded in the roster workspace, open elsewhere. The workspace's `roster-split` and `roster-wide` breakpoints count on the folded width; change them together.
 - At most five tabs; the rest go in More.
 - Filters, tabs, sort, and search live in the URL; search replaces history rather than pushing per keystroke.
+- `FilterBar` is the one filter control for battle and roster lists. A list whose rows are only partly in the browser filters on the server, or a filter would judge only the loaded pages. Excluded values use the struck line form.
 
 ## Components
 
