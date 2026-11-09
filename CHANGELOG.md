@@ -1,5 +1,13 @@
 # praetorium
 
+## 0.227.3 (2026-11-09)
+
+### Patch Changes
+
+- e943320: Weapon odds beside loadout options follow the shooting type you've chosen in the combat simulator.
+- e943320: The combat simulator can work out shooting at a Monster or Vehicle that's engaged with your other units.
+- e943320: Weapons in the combat simulator show when a shooting type gives them -1 to hit.
+
 ## 0.227.2 (2026-11-09)
 
 ### Patch Changes
