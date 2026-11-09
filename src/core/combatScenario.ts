@@ -160,7 +160,11 @@ export function combatWeaponInputs(
   preferences: Readonly<Record<string, string>> = {},
 ) {
   const sheet = combatRuleProfiles(attacker.sheet, attacker.rules ?? [], 'attacker', defender.keywords, defender.rules)
-  const { chosen } = resolveShootingType([attacker, ...(attacker.companions ?? [])], defender.keywords, preferences)
+  const { chosen } = resolveShootingType(
+    [{ sheet, carriers: attacker.carriers }, ...(attacker.companions ?? [])],
+    defender.keywords,
+    preferences,
+  )
   return combatWeapons(sheet, defender.keywords, phase).flatMap(({ profile, weapon: printed }) => {
     const weapon = phase === 'ranged' && printed ? weaponInShootingType(sheet, profile, printed, chosen) : printed
     if (!weapon) return []
