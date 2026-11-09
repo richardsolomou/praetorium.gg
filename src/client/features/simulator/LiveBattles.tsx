@@ -3,6 +3,7 @@ import { Calculator } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { battleQuery, battlesFrom, battlesQuery, meQuery } from '../../queries'
+import { useSpacetimeLiveBattle } from '../../spacetimeLive'
 import { BattleCombatDialog } from './BattleCombatDialog'
 
 /** The signed-in player's battles in progress, so the standalone page can start from their units' current health. */
@@ -29,7 +30,8 @@ export function LiveBattles() {
 }
 
 function LiveBattleCombat({ token, onClose }: { token: string; onClose: () => void }) {
-  const { data: screen } = useQuery(battleQuery(token))
+  const { data: screen } = useQuery({ ...battleQuery(token), staleTime: 0 })
+  useSpacetimeLiveBattle(token, true)
   if (!screen || screen.kind === 'unavailable') return null
   return <BattleCombatDialog view={screen.view} selection={{ playerId: screen.view.viewerId }} onClose={onClose} />
 }
