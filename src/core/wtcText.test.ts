@@ -122,3 +122,19 @@ describe('WTC text import', () => {
     expect(fromWtcText('CHARACTER\n\nLokhust Lord (70 pts)')).toBeNull()
   })
 })
+
+it('reads a compact list that names what each leader joins on its own line', () => {
+  const list = fromWtcText(`+++++++++++++++++++++++++++++++++++++++++++++++
++ FACTION KEYWORD: Xenos - Necrons
++ TOTAL ARMY POINTS: 2000pts
++++++++++++++++++++++++++++++++++++++++++++++++
+
+Char1: 1x Lokhust Lord (80 pts): 1x Staff of light
+Leading: Lokhust Destroyers
+1x Lokhust Destroyers (75 pts): 3x Gauss cannon
+`)
+  expect(list?.units.map(({ leading, unread }) => [leading, unread])).toEqual([
+    ['Lokhust Destroyers', undefined],
+    [null, undefined],
+  ])
+})

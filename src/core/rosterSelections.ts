@@ -42,7 +42,7 @@ export function unavailableRosterSelections(
     const applied = <V>(entries: Record<string, V> | undefined) =>
       Object.entries(entries ?? {}).filter(([key]) => !rememberedUnderAnotherOption(key, unit.choices))
     return [
-      ...applied(pick.choices).flatMap(([key, id]) => (hasOption(key, id) ? [] : [problem('choice', key, id)])),
+      ...applied(pick.choices).flatMap(([key, id]) => (id === '' || hasOption(key, id) ? [] : [problem('choice', key, id)])),
       ...applied(pick.spreads).flatMap(([key, counts]) =>
         Object.entries(counts).flatMap(([id, count]) => (count === 0 || hasOption(key, id) ? [] : [problem('spread', key, id)])),
       ),

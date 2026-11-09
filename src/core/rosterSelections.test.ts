@@ -37,6 +37,10 @@ it('treats a malformed choice without options as unavailable', () => {
   ).toEqual([{ pickIndex: 0, entryId: 'unit', kind: 'choice', key: 'weapons', optionId: 'bolter' }])
 })
 
+it('does not ask to restore a choice saved with nothing chosen', () => {
+  expect(unavailableRosterSelections([{ entryId: 'unit', choices: { removedGroup: '' } }], units)).toEqual([])
+})
+
 it('does not ask to restore removed options that the player saved as unselected', () => {
   expect(
     unavailableRosterSelections(
