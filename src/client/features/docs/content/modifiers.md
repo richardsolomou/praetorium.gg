@@ -27,6 +27,7 @@ A dimmed chip wouldn't change anything. Hover it to see why. **Reset** clears ev
 
 A unit that can shoot in more than one way gets a **Shooting type** choice under **Shooting**. It starts on **Normal**.
 
+- **Normal, target engaged**: against a Monster or Vehicle that's engaged with your other units. [BLAST] weapons can't fire and every attack is at -1 to hit.
 - **Assault**: the unit advanced this turn, so only its [ASSAULT] weapons fire.
 - **Close-quarters**: the unit is engaged and shoots a unit it's engaged with. Monsters and Vehicles fire everything except [BLAST] weapons, at -1 to hit unless the weapon is [CLOSE-QUARTERS] or [PISTOL]. Everything else fires only those weapons.
 

@@ -228,6 +228,7 @@ export type CombatWeaponChoice = { key: string; label: string; value: string; op
 export const SHOOTING_TYPE_KEY = 'ranged:shooting-type'
 const SHOOTING_TYPES = {
   normal: 'Normal',
+  'engaged-target': 'Normal, target engaged',
   assault: 'Assault (advanced this turn)',
   'close-quarters': 'Close-quarters (engaged)',
 } as const
@@ -235,22 +236,49 @@ export type ShootingType = keyof typeof SHOOTING_TYPES
 
 const has = (profile: Profile, keyword: string) =>
   splitWeaponKeywords(value(profile, 'keywords')).some((written) => combatKeyword(written)?.kind === keyword)
-const isMonsterOrVehicle = (sheet: Datasheet) => sheet.keywords.some((keyword) => ['monster', 'vehicle'].includes(normalized(keyword)))
+const namesMonsterOrVehicle = (keywords: readonly string[]) =>
+  keywords.some((keyword) => ['monster', 'vehicle'].includes(normalized(keyword)))
 
-/** The shooting type a unit uses is one choice for all its members, so what it may choose is what any of them allows (10.05, 10.06). */
-export function combatShootingTypes(members: readonly { sheet: Datasheet; carriers: readonly CombatCarrier[] }[]): ShootingType[] {
+const canFire = (sheet: Datasheet, profile: Profile, type: ShootingType) => {
+  if (type === 'assault') return has(profile, 'assault')
+  if (type === 'engaged-target') return !has(profile, 'blast')
+  if (type === 'close-quarters') return namesMonsterOrVehicle(sheet.keywords) ? !has(profile, 'blast') : has(profile, 'close-quarters')
+  return true
+}
+
+/** The weapon as it attacks under a shooting type, or null when that type cannot use it. */
+export function weaponInShootingType<Weapon extends { hitModifier?: number }>(
+  sheet: Datasheet,
+  profile: Profile,
+  weapon: Weapon,
+  type: ShootingType,
+) {
+  if (!canFire(sheet, profile, type)) return null
+  const penalised =
+    type === 'engaged-target' || (type === 'close-quarters' && namesMonsterOrVehicle(sheet.keywords) && !has(profile, 'close-quarters'))
+  return penalised ? { ...weapon, hitModifier: (weapon.hitModifier ?? 0) - 1 } : weapon
+}
+
+/** A unit shoots with one type, so what it may choose is what any member allows, and a saved type it cannot use is normal shooting. */
+export function resolveShootingType(
+  members: readonly { sheet: Datasheet; carriers: readonly CombatCarrier[] }[],
+  targetKeywords: readonly string[],
+  preferences: Readonly<Record<string, string>>,
+) {
   const carried = members.flatMap(({ sheet, carriers }) =>
     datasheetProfilesByKind(sheet).ranged.filter((profile) =>
       carriers.some(({ weapons }) => weapons.some((piece) => combatEquipmentMatches(piece, profile))),
     ),
   )
-  return [
+  const types: ShootingType[] = [
     'normal',
+    ...(namesMonsterOrVehicle(targetKeywords) ? (['engaged-target'] as const) : []),
     ...(carried.some((profile) => has(profile, 'assault')) ? (['assault'] as const) : []),
-    ...(members.some(({ sheet }) => isMonsterOrVehicle(sheet)) || carried.some((profile) => has(profile, 'close-quarters'))
+    ...(members.some(({ sheet }) => namesMonsterOrVehicle(sheet.keywords)) || carried.some((profile) => has(profile, 'close-quarters'))
       ? (['close-quarters'] as const)
       : []),
   ]
+  return { types, chosen: types.find((type) => type === preferences[SHOOTING_TYPE_KEY]) ?? 'normal' }
 }
 
 export const shootingTypeChoice = (types: readonly ShootingType[], chosen: ShootingType): CombatWeaponChoice => ({
@@ -304,7 +332,7 @@ export function combatPlan(
     })),
   }
   const profiles = combatWeapons(selectedSheet, targetKeywords, phase)
-  const unrestricted = isMonsterOrVehicle(sheet)
+  const unrestricted = namesMonsterOrVehicle(sheet.keywords)
   const accounted = new Map<string, number>()
   const idleModes = new Set<string>()
   for (const [at, carrier] of carriers.entries()) {
@@ -337,12 +365,10 @@ export function combatPlan(
       }
     }
     if (phase === 'ranged') {
+      const allowed = equipment.filter(({ profile }) => canFire(sheet, profile, shootingType))
       if (shootingType === 'close-quarters') {
-        equipment
-          .filter(({ profile }) => (unrestricted ? !has(profile, 'blast') : has(profile, 'close-quarters')))
-          .forEach((entry) => add(entry))
+        allowed.forEach((entry) => add(entry))
       } else {
-        const allowed = shootingType === 'assault' ? equipment.filter(({ profile }) => has(profile, 'assault')) : equipment
         const ordinary = allowed.filter(({ profile }) => !has(profile, 'close-quarters'))
         const close = allowed.filter(({ profile }) => has(profile, 'close-quarters'))
         const group = choose(`ranged:${at}:group`, `${carrier.name} shooting`, [
@@ -383,12 +409,11 @@ export function combatPlan(
   const used = profiles.flatMap((entry) => {
     const count = counts.get(entry.profile.id) ?? 0
     if (!count) return []
-    const penalised = phase === 'ranged' && shootingType === 'close-quarters' && unrestricted && !has(entry.profile, 'close-quarters')
     return [
       {
         ...entry,
         count,
-        weapon: penalised && entry.weapon ? { ...entry.weapon, hitModifier: (entry.weapon.hitModifier ?? 0) - 1 } : entry.weapon,
+        weapon: phase === 'ranged' && entry.weapon ? weaponInShootingType(sheet, entry.profile, entry.weapon, shootingType) : entry.weapon,
       },
     ]
   })

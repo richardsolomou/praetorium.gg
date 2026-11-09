@@ -653,6 +653,12 @@ export function CombatMatchup({
                             />
                             <div className={`min-w-0 ${included ? '' : 'opacity-50'}`}>
                               <WeaponProfiles weapons={group} rules={attacker?.sheet.keywordRules ?? []} embedded />
+                              {plan?.used.some(
+                                ({ profile, weapon }) =>
+                                  wargearKey(profile.name, true) === key && !weapon?.psychic && (weapon?.hitModifier ?? 0) < 0,
+                              ) ? (
+                                <p className="px-3 pb-2 text-xs text-dim">−1 to hit from this shooting type</p>
+                              ) : null}
                             </div>
                           </div>
                         )
