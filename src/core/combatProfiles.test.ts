@@ -396,6 +396,11 @@ describe('automatic combat loadouts', () => {
       ['Sidearm', 0],
     ])
   })
+  it('leaves out Blast and takes -1 from every weapon when shooting at an engaged Monster or Vehicle', () => {
+    const data = { ...sheet(), profiles: [weaponProfile('Rifle', 'ranged', 1), weaponProfile('Mortar', 'ranged', 1, 'Blast')] }
+    const shot = combatPlan(data, [carrier(1, ['Rifle', 1], ['Mortar', 1])], ['Monster'], 'ranged', {}, new Set(), 'engaged-target')
+    expect(shot.used.map(({ profile, weapon }) => [profile.name, weapon?.hitModifier ?? 0])).toEqual([['Rifle', -1]])
+  })
   it('keeps a disabled weapon visible while omitting its attacks', () => {
     const data = { ...sheet(), profiles: [weaponProfile('Rifle', 'ranged', 1), weaponProfile('Grenade', 'ranged', 1)] }
     const selection = combatPlan(data, [carrier(1, ['Rifle', 1], ['Grenade', 1])], [], 'ranged', {}, new Set([wargearKey('Grenade')]))

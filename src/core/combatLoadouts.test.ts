@@ -252,6 +252,25 @@ describe('weapon profile odds', () => {
       phases: { ranged: { target, options: DEFAULT_COMBAT_OPTIONS, adjustment: {} }, melee: null },
     },
   )
+  it('leaves out weapons the chosen shooting type cannot fire', () => {
+    const sidearm = {
+      ...weapon('Sidearm', 5),
+      values: [...weapon('Sidearm', 5).values.slice(0, -1), { name: 'Keywords', value: 'Pistol' }],
+    }
+    const engaged = loadoutProfileOdds(
+      { carriers: squad({ Boltgun: 5, Sidearm: 5 }), choices: [], weapons: [weapon('Boltgun'), sidearm] },
+      {
+        sheet: datasheetFixture({ name: 'Squad', profiles: [weapon('Boltgun', 5), sidearm] }),
+        models: 5,
+        rules: [],
+        opponent: { keywords: [], rules: [] },
+        preferences: { 'ranged:shooting-type': 'close-quarters' },
+        excluded: { ranged: [], melee: [] },
+        phases: { ranged: { target, options: DEFAULT_COMBAT_OPTIONS, adjustment: {} }, melee: null },
+      },
+    )
+    expect([...engaged.keys()]).toEqual(['Sidearm'])
+  })
   it('resolves a carried weapon at the count the unit carries', () => {
     expect(odds.get('Boltgun')?.result.meanDamage).toBeCloseTo(5 * 2 * (4 / 6) * (3 / 6) * (3 / 6), 10)
   })

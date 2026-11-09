@@ -2,7 +2,7 @@ import type { Datasheet } from './datasheet'
 import { MAX_COMBAT_MODELS, type CombatInput, type CombatOptions, type CombatWeapon, type CombatPhase } from './combat'
 import { adjustCombatWeapon, type WeaponAdjustment } from './combatAdjustments'
 import type { CombatCarrier } from './combatLoadout'
-import { combatPlan, combatShootingTypes, combatWeapons, SHOOTING_TYPE_KEY, shootingTypeChoice } from './combatProfiles'
+import { combatPlan, combatWeapons, resolveShootingType, shootingTypeChoice, weaponInShootingType } from './combatProfiles'
 import { combatRuleMortals, combatRuleProfiles, combatRuleSacrifices, combatRuleWeapons, type ActiveCombatRule } from './combatRules'
 import type { StructuredDatasheetProfile } from './datasheet'
 
@@ -69,8 +69,11 @@ export function combatAttacks(
   const sheets = members.map((member) =>
     combatRuleProfiles(member.sheet, member.rules ?? [], 'attacker', defender.keywords, defender.rules),
   )
-  const shootingTypes = combatShootingTypes(members.map((member, index) => ({ sheet: sheets[index]!, carriers: member.carriers })))
-  const shootingType = shootingTypes.find((type) => type === preferences[SHOOTING_TYPE_KEY]) ?? 'normal'
+  const { types: shootingTypes, chosen: shootingType } = resolveShootingType(
+    members.map((member, index) => ({ sheet: sheets[index]!, carriers: member.carriers })),
+    defender.keywords,
+    preferences,
+  )
   const phaseChoices = (phase: CombatPhase) =>
     phase === 'ranged' && shootingTypes.length > 1 ? [shootingTypeChoice(shootingTypes, shootingType)] : []
   if (attacker.companions?.length) {
@@ -154,9 +157,12 @@ export function combatWeaponInputs(
   target: CombatInput['target'],
   options: CombatOptions,
   adjustment: WeaponAdjustment,
+  preferences: Readonly<Record<string, string>> = {},
 ) {
   const sheet = combatRuleProfiles(attacker.sheet, attacker.rules ?? [], 'attacker', defender.keywords, defender.rules)
-  return combatWeapons(sheet, defender.keywords, phase).flatMap(({ profile, weapon }) => {
+  const { chosen } = resolveShootingType([attacker, ...(attacker.companions ?? [])], defender.keywords, preferences)
+  return combatWeapons(sheet, defender.keywords, phase).flatMap(({ profile, weapon: printed }) => {
+    const weapon = phase === 'ranged' && printed ? weaponInShootingType(sheet, profile, printed, chosen) : printed
     if (!weapon) return []
     const base = ruledAttack(attacker, defender, phase, [{ weapon, count: weapon.count, profile }], Boolean(attacker.companions?.length))
     const input = combatAttackInput({ base }, target, options, adjustment)

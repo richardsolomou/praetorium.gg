@@ -153,6 +153,7 @@ export function loadoutProfileOdds(space: LoadoutSpace, scoring: LoadoutScoring)
       setup.target,
       setup.options,
       setup.adjustment,
+      scoring.preferences,
     )
     for (const { profile, input } of inputs) {
       try {

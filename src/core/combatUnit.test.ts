@@ -65,6 +65,16 @@ describe('shooting type', () => {
         .map((choice) => [choice.key, choice.options.map((option) => option.value)]),
     ).toEqual([['ranged:shooting-type', ['normal', 'close-quarters']]])
   })
+  it('offers shooting at an engaged target only against a Monster or Vehicle', () => {
+    const offered = (keywords: string[]) =>
+      combatAttacks(attached(), { keywords, rules: [] }, {}, { ranged: [], melee: [] }).ranged.plan.choices[0]?.options.map(
+        (option) => option.value,
+      )
+    expect({ infantry: offered(['Infantry']), vehicle: offered(['Vehicle']) }).toEqual({
+      infantry: ['normal', 'close-quarters'],
+      vehicle: ['normal', 'engaged-target', 'close-quarters'],
+    })
+  })
   it('applies to every member of the attached unit', () => {
     expect(shots({ 'ranged:shooting-type': 'close-quarters' }).base?.weapons.map((weapon) => weapon.count)).toEqual([1])
   })
