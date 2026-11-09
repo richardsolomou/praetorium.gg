@@ -523,8 +523,11 @@ function datasheetsIn(
     const imports = importsOf(book, books, definitions)
     const importedSources = new Map(imports.map((source, order) => [source.id, { name: source.name, order }]))
     const fallbackAllies = new Set(imports.slice(1).map((source) => source.id))
+    const factionsIn = (source: Catalogue) => rootEntriesOf(source, definitions).flatMap((entry) => factionCategories(entry, definitions))
+    const own = factionsIn(book)
+    // Libraries count because Chaos Daemons links only cultists and keeps its Daemons in one; a supplement with no factions follows its imports.
     const factionCounts = countBy(
-      rootEntriesOf(book, definitions).flatMap((entry) => [...factionCategories(entry, definitions)]),
+      own.length ? [...own, ...imports.filter((source) => source.library).flatMap(factionsIn)] : [],
       (faction) => faction,
     )
     const most = Math.max(0, ...factionCounts.values())
