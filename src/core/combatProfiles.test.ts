@@ -337,6 +337,24 @@ describe('automatic combat loadouts', () => {
       ['Sidearm', 1],
     ])
   })
+  it('offers firing modes only for the weapons the model is shooting', () => {
+    const data = {
+      ...sheet(),
+      profiles: [
+        weaponProfile('Cannon (focused)', 'ranged', 1),
+        weaponProfile('Cannon (dispersed)', 'ranged', 1),
+        weaponProfile('Sidearm', 'ranged', 1, 'Pistol'),
+      ],
+    }
+    const keys = (group: string) =>
+      combatPlan(data, [carrier(1, ['Cannon', 1], ['Sidearm', 1])], [], 'ranged', { 'ranged:0:group': group }).choices.map(
+        (choice) => choice.key,
+      )
+    expect({ ordinary: keys('ordinary'), close: keys('close') }).toEqual({
+      ordinary: ['ranged:0:cannon', 'ranged:0:group'],
+      close: ['ranged:0:group'],
+    })
+  })
   it('keeps a disabled weapon visible while omitting its attacks', () => {
     const data = { ...sheet(), profiles: [weaponProfile('Rifle', 'ranged', 1), weaponProfile('Grenade', 'ranged', 1)] }
     const selection = combatPlan(data, [carrier(1, ['Rifle', 1], ['Grenade', 1])], [], 'ranged', {}, new Set([wargearKey('Grenade')]))

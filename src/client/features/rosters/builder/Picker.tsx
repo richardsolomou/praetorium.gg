@@ -27,7 +27,7 @@ import { searchDatasheetEntries } from '../../../../core/datasheetSearch'
 import { collectionCountsAsQuery, collectionQuery, meQuery, unitsQuery } from '../../../queries'
 import { usableDatasheets } from '../../../../core/collection'
 import { shortName } from './factions'
-import { GROUPS } from '../../../unitGroups'
+import { GROUPS, shelvesOf } from '../../../unitGroups'
 import { Section } from './Section'
 import { batchFits, canAddCopy, nextCopyPoints, requestedUnit, unitLimitMessage } from './usePicks'
 import { Problem } from '../../../components/Problem'
@@ -280,49 +280,55 @@ export const Picker = memo(function Picker({
                 .filter((unit) => (alliedFaction ? unit.alliedFaction === alliedFaction : !unit.allied && unit.group === id))
                 .toSorted((left, right) => Number(favourites.has(right.id)) - Number(favourites.has(left.id)))
               const attached = group.flatMap((unit) => rows.loadouts.get(unit.id)?.filter(isAttachedUnit) ?? [])
+              const shelves = alliedFaction ? shelvesOf(group, (unit) => unit.group) : []
               return group.length ? (
                 <Fragment key={id}>
                   {alliedFaction === alliedFactions[0] ? <h2 className="rubric pt-1.5">Allied units</h2> : null}
                   <Section title={plural} count={group.length + attached.length} defaultOpen={!alliedFaction}>
-                    {group.map((unit) => {
-                      const held = inRoster[unit.id] ?? 0
-                      const full = !canAddCopy(unit.id, held, limits)
-                      return (
-                        <Fragment key={unit.id}>
-                          <PickerRow
-                            unit={unit}
-                            limit={limits.has(unit.id) ? limits.get(unit.id)! : unit.limit}
-                            unavailableReason={limits.get(unit.id) === 0 ? unitLimitMessage(unit.id, held, limits) : null}
-                            held={held}
-                            full={full}
-                            over={pointsOver(nextCopyPoints(unit, held), room)}
-                            favourite={favourites.has(unit.id)}
-                            favouritePending={favouriting.isPending && favouriting.variables?.entryId === unit.id}
-                            query={query}
-                            onPreview={onPreview}
-                            onFavourite={signedIn ? toggleFavourite : undefined}
-                            onAdd={onAdd}
-                          />
-                          {rows.loadouts
-                            .get(unit.id)
-                            ?.filter((loadout) => !isAttachedUnit(loadout))
-                            .map((loadout) => (
-                              <LoadoutRow
-                                key={loadout.id}
-                                loadout={loadout}
-                                datasheet={unit.name}
-                                addable={!full}
-                                over={pointsOver(loadout.points, room)}
-                                unavailableReason={null}
+                    {(shelves.length > 1 ? shelves : [{ id, plural: null, units: group }]).map((shelf) => (
+                      <Fragment key={shelf.id}>
+                        {shelf.plural ? <p className="eyebrow pt-1">{shelf.plural}</p> : null}
+                        {shelf.units.map((unit) => {
+                          const held = inRoster[unit.id] ?? 0
+                          const full = !canAddCopy(unit.id, held, limits)
+                          return (
+                            <Fragment key={unit.id}>
+                              <PickerRow
+                                unit={unit}
+                                limit={limits.has(unit.id) ? limits.get(unit.id)! : unit.limit}
+                                unavailableReason={limits.get(unit.id) === 0 ? unitLimitMessage(unit.id, held, limits) : null}
+                                held={held}
+                                full={full}
+                                over={pointsOver(nextCopyPoints(unit, held), room)}
+                                favourite={favourites.has(unit.id)}
+                                favouritePending={favouriting.isPending && favouriting.variables?.entryId === unit.id}
+                                query={query}
                                 onPreview={onPreview}
-                                onApply={onApplyLoadout}
-                                onRename={setRenaming}
-                                onDelete={setDeleting}
+                                onFavourite={signedIn ? toggleFavourite : undefined}
+                                onAdd={onAdd}
                               />
-                            ))}
-                        </Fragment>
-                      )
-                    })}
+                              {rows.loadouts
+                                .get(unit.id)
+                                ?.filter((loadout) => !isAttachedUnit(loadout))
+                                .map((loadout) => (
+                                  <LoadoutRow
+                                    key={loadout.id}
+                                    loadout={loadout}
+                                    datasheet={unit.name}
+                                    addable={!full}
+                                    over={pointsOver(loadout.points, room)}
+                                    unavailableReason={null}
+                                    onPreview={onPreview}
+                                    onApply={onApplyLoadout}
+                                    onRename={setRenaming}
+                                    onDelete={setDeleting}
+                                  />
+                                ))}
+                            </Fragment>
+                          )
+                        })}
+                      </Fragment>
+                    ))}
                     {attached.map((loadout) => (
                       <LoadoutRow
                         key={loadout.id}

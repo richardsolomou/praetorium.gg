@@ -272,19 +272,22 @@ export function combatPlan(
     splitWeaponKeywords(value(profile, 'keywords')).some((written) => combatKeyword(written)?.kind === keyword)
   const unrestricted = sheet.keywords.some((keyword) => ['monster', 'vehicle'].includes(normalized(keyword)))
   const accounted = new Map<string, number>()
+  const idleModes = new Set<string>()
   for (const [at, carrier] of carriers.entries()) {
     const equipment = carrier.weapons.flatMap((piece) => {
       const modes = profiles.filter(({ profile }) => combatEquipmentMatches(piece, profile))
       for (const { profile } of modes) accounted.set(profile.id, (accounted.get(profile.id) ?? 0) + piece.count)
       if (!modes.length) return []
+      const modeKey = `${phase}:${at}:${wargearBaseName(piece.name, true)}`
       const selected = choose(
-        `${phase}:${at}:${wargearBaseName(piece.name, true)}`,
+        modeKey,
         `${carrier.name} · ${piece.name}`,
         modes.map(({ profile }) => ({ value: profile.id, label: profile.name })),
       )
       const mode = modes.find(({ profile }) => profile.id === selected)!
-      return [{ ...mode, count: piece.count }]
+      return [{ ...mode, count: piece.count, modeKey }]
     })
+    const attacking = new Set<string>()
     const add = (entry: (typeof equipment)[number], count = entry.count) => {
       if (
         entry.weapon?.oneShot &&
@@ -294,7 +297,10 @@ export function combatPlan(
         ]) === 'spent'
       )
         return
-      if (count > 0) counts.set(entry.profile.id, (counts.get(entry.profile.id) ?? 0) + count)
+      if (count > 0) {
+        attacking.add(entry.modeKey)
+        counts.set(entry.profile.id, (counts.get(entry.profile.id) ?? 0) + count)
+      }
     }
     if (phase === 'ranged') {
       const ordinary = equipment.filter(({ profile }) => !has(profile, 'close-quarters'))
@@ -328,6 +334,7 @@ export function combatPlan(
       }
       equipment.filter(({ profile }) => has(profile, 'extra attacks')).forEach((entry) => add(entry))
     }
+    for (const { modeKey } of equipment) if (!attacking.has(modeKey)) idleModes.add(modeKey)
   }
   for (const { profile } of profiles) {
     if (accounted.get(profile.id) !== profile.count) errors.push(`${profile.name}: equipped weapons could not be matched to their models.`)
@@ -341,7 +348,7 @@ export function combatPlan(
   return {
     used,
     active,
-    choices,
+    choices: choices.filter((choice) => !idleModes.has(choice.key)),
     errors: [...new Set(errors)],
     weapons: active.flatMap(({ weapon, count }) => (weapon ? [{ ...weapon, count }] : [])),
   }
