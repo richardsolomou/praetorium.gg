@@ -4,7 +4,7 @@ import type { FormatRuleId, OptionalRuleId } from '../../../core/battle'
 import type { RosterPick } from '../../../core/roster'
 import { combatAtHealth } from '../../../core/combatSurvivors'
 import type { CombatCarrier } from '../../../core/combatLoadout'
-import { combatRuleSelections } from '../../../core/combatRules'
+import { combatDamageStateSelections, combatRuleSelections } from '../../../core/combatRules'
 import { useSourceTexts } from '../../sourceText'
 import { combatantTexts, readableCombatant } from './readableRules'
 import { combatLoadoutsQuery, combatantDatasheetQuery, factionQuery, priceQuery } from '../../queries'
@@ -143,7 +143,16 @@ export function useCombatant(roster?: CombatRoster, initial?: SimulatorSide | nu
         )
       : null
   const survivors = sheets.data ? (liveUnit ? (liveUnit.allocationRequired ? null : liveUnit.carriers) : sheets.data.carriers) : null
-  const ruleSelections = selectedRules[identity] ?? {}
+  const memberHealth = (index: number) => ({
+    models: health[healthKey(index)]?.models ?? roster?.battle?.units[index]?.models ?? 0,
+    damage: health[healthKey(index)]?.damage ?? roster?.battle?.units[index]?.damage ?? 0,
+    wounds: roster?.battle?.units[index]?.wounds,
+  })
+  const ruleSelections: Record<string, number> = Object.assign(
+    combatDamageStateSelections(readable?.rules ?? [], memberHealth(pickIndex)),
+    ...(readable?.companions ?? []).map((member) => combatDamageStateSelections(member.rules, memberHealth(member.pickIndex))),
+    selectedRules[identity],
+  )
   const {
     rules: allRules,
     choices: ruleChoices,

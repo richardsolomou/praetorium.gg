@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { compileCombatRule } from './combatRuleCompiler'
-import { combatRuleAppliesTo, combatRuleChoices, combatRuleDefault, type CombatRule } from './combatRules'
+import { combatDamageStateSelections, combatRuleAppliesTo, combatRuleChoices, combatRuleDefault, type CombatRule } from './combatRules'
 
 const rule = (description: string, extra: Partial<CombatRule> = {}): CombatRule => ({
   id: 'buff',
@@ -15,6 +15,23 @@ const effects = (description: string, extra: Partial<CombatRule> = {}) =>
   combatRuleChoices(rule(description, extra)).map((choice) => choice.effects)
 const selectedPair =
   'Once per turn, in your Movement phase, when this model starts or ends a move, select one friendly Army Construct unit within 6" of this model (excluding Titanic units) and one enemy unit visible to this model. Until the start of your next Movement phase, weapons equipped by models in that friendly unit have the [Sustained Hits 1] ability while targeting that enemy unit.'
+
+describe('damage states in a battle', () => {
+  const damaged = [
+    rule('While this model has 1-6 wounds remaining, each time this model makes an attack, subtract 1 from the Hit roll.', {
+      id: 'damaged',
+    }),
+  ]
+  const at = (wounds: number, damage: number, models = 1) => combatDamageStateSelections(damaged, { models, damage, wounds })
+  it('switches the bracket on when the wounds left are inside it', () => expect(at(16, 12)).toEqual({ damaged: 1 }))
+  it('reaches the top of the bracket', () => expect(at(16, 10)).toEqual({ damaged: 1 }))
+  it('leaves the bracket off just above it', () => expect(at(16, 9)).toEqual({ damaged: 0 }))
+  it('reads no bracket from a squad, whose wounds are spread over models', () => expect(at(16, 12, 2)).toEqual({}))
+  it('leaves rules without a bracket to their default', () =>
+    expect(combatDamageStateSelections([rule('This model has a 4+ invulnerable save.')], { models: 1, damage: 12, wounds: 16 })).toEqual(
+      {},
+    ))
+})
 
 describe('composed combat rules', () => {
   const magnaImperator =

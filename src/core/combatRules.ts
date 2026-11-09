@@ -126,6 +126,27 @@ export function combatRuleSelections(rules: readonly CombatRule[], selections: R
   }
 }
 
+/**
+ * How each rule with a "1-6 wounds remaining" choice starts for a unit whose health a battle records. Only a lone model
+ * has one wounds count to read, so a squad keeps the rule's default.
+ */
+export function combatDamageStateSelections(
+  rules: readonly CombatRule[],
+  { models, damage, wounds }: { models: number; damage: number; wounds?: number },
+): Record<string, number> {
+  if (!wounds || models !== 1) return {}
+  const left = wounds - damage
+  return Object.fromEntries(
+    rules.flatMap((rule) => {
+      const states = combatRuleChoices(rule).flatMap(({ label }, index) => {
+        const range = /^(?:This model has )?(\d+)[-–](\d+) wounds remaining$/.exec(label)
+        return range ? [{ selection: index + 1, min: Number(range[1]), max: Number(range[2]) }] : []
+      })
+      return states.length ? [[rule.id, states.find(({ min, max }) => left >= min && left <= max)?.selection ?? 0]] : []
+    }),
+  )
+}
+
 const weaponKey = (value: string) => combatTextKey(value).replace(/^the /, '')
 
 /** False only when the source's explicit keyword restriction rules the unit out. */
