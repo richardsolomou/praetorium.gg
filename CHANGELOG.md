@@ -1,5 +1,13 @@
 # praetorium
 
+## 0.225.0 (2026-11-09)
+
+### Minor Changes
+
+- d6d447f: Every Battles tab can now be searched and filtered by status, result, army matchup, opponent, battle size, game type, mission pack, deployment and date.
+- d6d447f: Every Rosters tab now has a search box and filters you can combine, including choosing several values or ruling one out.
+- d6d447f: Save the filters you use most as a named view, and choose which filters stay in the bar on Battles and Rosters.
+
 ## 0.224.7 (2026-11-09)
 
 ### Patch Changes
