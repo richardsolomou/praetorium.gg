@@ -96,6 +96,63 @@ describe('judging a rule in its place in a roster', () => {
         { ...immortals, origin: 'support' },
       )?.scope,
     ).toBe('nearby'))
+  describe('an aura written as what nearby units can do', () => {
+    const captain = rule(
+      'Friendly NECRONS units (excluding MONSTER/VEHICLE units) within 6" of this model can\n- Re-roll hit rolls of 1\n- Re-roll wound rolls of 1',
+    )
+    it('reaches another unit nearby', () => expect(judgedCombatRule(captain, { ...immortals, origin: 'support' })?.scope).toBe('nearby'))
+    it('needs no range check inside its own attached unit', () =>
+      expect(judgedCombatRule(captain, { ...immortals, origin: 'support', attached: true })?.scope).toBe('attached'))
+    it('stays off a unit it excludes', () =>
+      expect(judgedCombatRule(captain, { ...immortals, keywords: ['Necrons', 'Vehicle'], origin: 'support' })).toBeNull())
+  })
+  it.each([
+    "This unit's melee attacks have +1 A.",
+    'This unit has Feel No Pain 4+ against mortal wounds.',
+    'Melee attacks that target this unit have -1 to hit rolls.',
+    'While a NOBLE model is leading this unit, each time an attack targets this unit, subtract 1 from the Wound roll.',
+    'Each time an attack is allocated to a model\u00a0in this unit, subtract 1 from the Damage characteristic of that attack.',
+  ])('shares %s across its attached unit', (description) =>
+    expect(judgedCombatRule(rule(description), { ...immortals, origin: 'support', attached: true })?.scope).toBe('attached'),
+  )
+  describe('a defence from the bodyguards', () => {
+    const fromBodyguards = { ...immortals, origin: 'support', attached: true, bodyguardSource: true } as const
+    it.each(['Melee attacks that target this unit have -1 to hit rolls.', 'This unit has the Feel No Pain 5+ ability.'])(
+      'stays off the leader: %s',
+      (description) => expect(judgedCombatRule(rule(description), fromBodyguards)).toBeNull(),
+    )
+    it('leaves their attack buffs reaching the leader', () =>
+      expect(judgedCombatRule(rule("This unit's melee attacks have +1 A."), fromBodyguards)?.scope).toBe('attached'))
+  })
+  it('reads an aura from a unit as reaching other units nearby', () =>
+    expect(
+      judgedCombatRule(
+        rule(
+          'While a friendly NECRONS unit is within 6" of this unit, models in that unit have the Feel No Pain 5+ ability against Psychic Attacks.',
+        ),
+        {
+          ...immortals,
+          origin: 'support',
+        },
+      )?.scope,
+    ).toBe('nearby'))
+  it('keeps a one-off charge trigger with the unit that rolls it', () =>
+    expect(
+      judgedCombatRule(
+        rule(
+          'Each time this unit ends a Charge move, select one enemy unit within Engagement Range of it and roll one D6 for each model in this unit: for each 4+, that enemy unit suffers 1 mortal wound.',
+        ),
+        { ...immortals, origin: 'support', attached: true },
+      ),
+    ).toBeNull())
+  it("keeps an enhancement's single-model effect with its bearer", () =>
+    expect(judgedCombatRule(rule("The bearer's melee weapons have +1 A."), { ...immortals, origin: 'support', attached: true })).toBeNull())
+  describe("a unit's ability written as what its attacks have", () => {
+    const slayer = rule("This unit's melee attacks that target a unit with a T greater than this unit's T have +1 to wound rolls.")
+    it('reaches the rest of its attached unit', () =>
+      expect(judgedCombatRule(slayer, { ...immortals, origin: 'support', attached: true })?.scope).toBe('attached'))
+    it('stays with its own unit otherwise', () => expect(judgedCombatRule(slayer, { ...immortals, origin: 'support' })).toBeNull())
+  })
   it('leaves out another unit’s ability that reaches no other unit', () =>
     expect(
       judgedCombatRule(rule('Each time this model makes an attack, re-roll a Hit roll of 1.'), { ...immortals, origin: 'support' }),

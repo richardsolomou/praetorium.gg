@@ -6,7 +6,7 @@ import type { DatasheetCharacteristicKind } from './datasheet'
 import type { CombatRule, CombatRuleChoice, CombatRuleEffect } from './combatRules'
 import { compileMortalRule } from './combatMortalRules'
 import { combatKeyword, combatKeywordKind, combatKeywordPhraseMatches, rangedKeywordKinds } from './combatKeywords'
-import { printedPhrasing } from './combatPhrasing'
+import { markedBullets, printedPhrasing } from './combatPhrasing'
 import { combatRuleRoles } from './combatRules'
 
 type Clause = { effects: CombatRuleEffect[]; conditions: string[]; instead?: boolean }
@@ -212,7 +212,7 @@ function compileRule(rule: CombatRule, enemy = false): { choices: CombatRuleChoi
     return options.length ? optionChoices(options) : null
   }
   const effectSection = ruleSection(rule.description, 'Effect') ?? rule.description
-  let text = printedPhrasing(normalizeCombatText(effectSection.replaceAll(/(?:^|\n)\s*- /g, ' ■ ')))
+  let text = printedPhrasing(normalizeCombatText(markedBullets(effectSection)))
     .replace(/^.+? (?:model|unit) only(?: \(excluding [^)]+\))?\.\s*/i, '')
     .replace(/^One per army\.\s*/i, '')
     // A lowered critical threshold replaces only the default 6, not the rule's other effects.

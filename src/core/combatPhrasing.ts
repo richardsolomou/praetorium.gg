@@ -16,6 +16,11 @@ export function printedPhrasing(text: string) {
 
 const OFFENSIVE = /^(?:this|the|your) unit['’]s (?:(melee|ranged) )?attacks(?: that target (.+?))? (can|have) (.+?)\.?$/i
 
+/** A rule's words as printed, for reading who it reaches without compiling it. */
+export const printedRule = (text: string) => printedPhrasing(markedBullets(text))
+
+export const markedBullets = (text: string) => text.replaceAll(/(?:^|\n)\s*- /g, ' ■ ')
+
 function offensiveSentence(sentence: string) {
   const match = OFFENSIVE.exec(sentence)
   if (!match) return null

@@ -1,4 +1,5 @@
 import { uniqueBy } from './collections'
+import { markedBullets, printedPhrasing, printedRule } from './combatPhrasing'
 import type { Datasheet, DatasheetCharacteristicKind } from './datasheet'
 import {
   COMBAT_PHASES,
@@ -41,6 +42,8 @@ export type CombatRuleJudge = {
   origin: 'own' | 'support' | 'listed' | 'army'
   /** Whether this unit is led by an attached unit, or, for another unit's ability, whether that unit is attached. */
   attached?: boolean
+  /** Whether another unit's ability comes from the bodyguards this unit leads. */
+  bodyguardSource?: boolean
   keywords: readonly string[]
   /** The keywords of the unit and the units attached to it, which a stratagem's target names. */
   unitKeywords: readonly string[]
@@ -269,9 +272,10 @@ export function combatRuleChoices(rule: CombatRule): CombatRuleChoice[] {
 }
 
 /** A recipient must be granted an effect; proximity that only protects the source is not an aura. */
-export function combatRuleRecipient(description: string) {
+export function combatRuleRecipient(written: string) {
+  const description = printedRule(written)
   return (
-    /While a friendly ([\s\S]+?) is within \d+["“”] of (?:this model|the bearer),/i.exec(description)?.[1] ??
+    /While a friendly ([\s\S]+?) is within \d+["“”] of (?:this model|this unit|the bearer),/i.exec(description)?.[1] ??
     /select (?:one|a) (?:other )?friendly ([\s\S]+?) within \d+["“”]/i.exec(description)?.[1] ??
     /select one ([^.;]+? unit) that was set up on the battlefield using the Deep Strike ability this turn/i.exec(description)?.[1] ??
     /weapons equipped by friendly ([^.,]+?) models/i.exec(description)?.[1] ??
@@ -303,6 +307,12 @@ export function combatRuleRoles(description: string): CombatRuleEffect['role'][]
   return [...(attacker ? ['attacker' as const] : []), ...(defender ? ['defender' as const] : [])]
 }
 
+/** Core rule 19.04: what affects a unit or models in it reaches its whole attached unit. A trigger the unit rolls once, as for a charge, must not, or each member would roll it. */
+const REACHES_ATTACHED_UNIT =
+  /leading a unit|this model's unit|bearer's unit|(?:a model|models) in (?:this|that) unit|this unit's (?:(?:ranged|melee) )?attacks|equipped by this unit/i
+/** Stays off a leader while its source is the bodyguards: the combined estimate cannot end a defence when they die, so it would refuse. */
+const DEFENDS_ATTACHED_UNIT = /\battacks? (?:that )?targets? this unit|\bthis unit has\b/i
+
 /** A rule as it applies to a unit, judged from its words in its place in the roster, or null when it takes no part. */
 export function judgedCombatRule(rule: CombatRule, judge: CombatRuleJudge): CombatRule | null {
   const { description } = rule
@@ -319,8 +329,9 @@ export function judgedCombatRule(rule: CombatRule, judge: CombatRuleJudge): Comb
     if (/select (?:one|a) other friendly/i.test(description)) return null
     scope = judge.attached && /^While this model is leading a unit,/i.test(description) ? 'attached' : 'unit'
   } else if (judge.origin === 'support') {
+    const printed = printedPhrasing(normalizeCombatText(markedBullets(description)))
     const linked =
-      judge.attached && /leading a unit|this model[’']s unit|bearer[’']s unit|(?:a model|models) in (?:this|that) unit/i.test(description)
+      judge.attached && (REACHES_ATTACHED_UNIT.test(printed) || (!judge.bodyguardSource && DEFENDS_ATTACHED_UNIT.test(printed)))
     if (linked) scope = 'attached'
     else if (combatRuleRecipient(description)) scope = 'nearby'
     else return null
