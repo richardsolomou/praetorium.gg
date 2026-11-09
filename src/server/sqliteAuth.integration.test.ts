@@ -716,6 +716,52 @@ it('signs a linked sponsor into the existing player account with GitHub', async 
   }
 })
 
+it('finishes a native app sign-in whose callback lost the state cookie, but not a web one', async () => {
+  const auth = authFor(githubEnvironment)
+  const nativeBack = `/native-auth?${new URLSearchParams({
+    action: 'sign-in',
+    next: '/rosters',
+    provider: 'github',
+    bridge: '3',
+    challenge: 'c'.repeat(43),
+    complete: 'true',
+    requestSignUp: 'true',
+  })}`
+  vi.stubGlobal('fetch', async (input: string | URL | Request) => {
+    const requestUrl = new URL(input instanceof Request ? input.url : input)
+    if (requestUrl.pathname === '/login/oauth/access_token')
+      return Response.json({ access_token: 'github-test-token', token_type: 'bearer' })
+    if (requestUrl.pathname === '/user')
+      return Response.json({ id: 9077, login: 'native', name: 'Native', email: 'native-state@example.com', avatar_url: null })
+    if (requestUrl.pathname === '/user/emails') return Response.json([{ email: 'native-state@example.com', primary: true, verified: true }])
+    throw new Error(`Unexpected OAuth request: ${requestUrl.origin}${requestUrl.pathname}`)
+  })
+  try {
+    const landings = []
+    for (const back of [nativeBack, '/rosters']) {
+      const start = await auth.handler(
+        new Request('https://praetorium.gg/api/auth/sign-in/social', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Origin: 'https://praetorium.gg' },
+          body: JSON.stringify({ provider: 'github', callbackURL: back, errorCallbackURL: back, requestSignUp: true }),
+        }),
+      )
+      const state = new URL(((await start.json()) as { url: string }).url).searchParams.get('state')!
+      const callback = await auth.handler(
+        new Request(`https://praetorium.gg/api/auth/callback/github?state=${encodeURIComponent(state)}&code=github-test-code`),
+      )
+      const landing = new URL(callback.headers.get('location') ?? '/', 'https://praetorium.gg')
+      landings.push([landing.pathname, landing.searchParams.get('error')])
+    }
+    expect(landings).toEqual([
+      ['/native-auth', null],
+      ['/rosters', 'state_mismatch'],
+    ])
+  } finally {
+    vi.unstubAllGlobals()
+  }
+})
+
 it('still starts sign-in with the other configured providers', async () => {
   const auth = authFor(githubEnvironment)
 

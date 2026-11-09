@@ -14,6 +14,7 @@ type AuthFailureReason =
   | 'email_mismatch'
   | 'invalid_token'
   | 'token_expired'
+  | 'state_mismatch'
   | 'other'
 
 function callbackFailureReason(error: string): AuthFailureReason {
@@ -24,6 +25,8 @@ function callbackFailureReason(error: string): AuthFailureReason {
       return 'cancelled'
     case 'internal_server_error':
       return 'server_error'
+    case 'state_mismatch':
+      return 'state_mismatch'
   }
   const reason = classifyAuthCallbackFailure(error)
   return reason === 'error' ? 'other' : reason
