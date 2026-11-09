@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.227.2 (2026-11-09)
+
+### Patch Changes
+
+- 0f502aa: Organizers can set or roll a tournament table's battlefield ahead of the game, and players can't change it.
+
 ## 0.227.1 (2026-11-09)
 
 ### Patch Changes
