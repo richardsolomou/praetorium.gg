@@ -30,7 +30,7 @@ test('import a roster', async ({ page }) => {
   await dialog.getByRole('button', { name: 'Edit pasted text', exact: true }).click()
   await dialog.getByLabel('Roster text').fill(necronsOfficial)
   await dialog.getByRole('button', { name: 'Import pasted roster', exact: true }).click()
-  const points = dialog.getByText(/^Reported army:/)
+  const points = dialog.locator('[data-import-figure="reported"]')
   await expect(points).toBeVisible()
   await capture('import-a-roster-review', dialog, points)
 

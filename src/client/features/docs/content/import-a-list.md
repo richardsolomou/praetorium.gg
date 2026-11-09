@@ -35,5 +35,6 @@ You can bring in several lists at once from these apps.
 - **Warscribe** text, in its GW and Compact layouts and as a Discord code block. Its share links can't be read, so copy the text instead.
 - **40k.app** text and Markdown exports. Your notes on units become your private unit notes. Its list links can't be read, so copy the text instead.
 - Other WTC-style tournament text
+- Links from other sites that send a list here, which open the same review
 
 A list can hold at most 100 entries. Anything else is refused with "it is not a supported army-text export". `.ros`, `.rosz` and `.regiztry` files aren't supported yet, so use the app's text export instead.

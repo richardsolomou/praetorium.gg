@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
+import { toBase64Url } from './base64'
 import {
+  decodeImportLinkText,
   decodeRosterExchange,
   encodeRosterExchange,
   isRosterExchangeCode,
@@ -164,5 +166,22 @@ describe('roster exchange codes', () => {
   it('refuses more than 100 entries as oversized', async () => {
     const picks = Array.from({ length: 101 }, () => ({ entryId: 'immortals' }))
     expect(await problemOf(await codeFor(JSON.stringify({ ...roster, picks })))).toBe('oversized')
+  })
+})
+
+describe('decodeImportLinkText', () => {
+  const linkPayload = async (text: string) => {
+    const stream = new Blob([new TextEncoder().encode(text)]).stream().pipeThrough(new CompressionStream('deflate'))
+    return toBase64Url(new Uint8Array(await new Response(stream).arrayBuffer()))
+  }
+
+  it('reads the text an "Open in" link compresses', async () => {
+    expect(await decodeImportLinkText(await linkPayload("T'au Empire (2000 points)\n• Kroot – Carnívoros"))).toBe(
+      "T'au Empire (2000 points)\n• Kroot – Carnívoros",
+    )
+  })
+
+  it('reads nothing from a payload that is not a compressed list', async () => {
+    expect(await decodeImportLinkText('not-a-compressed-list')).toBeNull()
   })
 })
