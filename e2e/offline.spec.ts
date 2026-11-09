@@ -53,6 +53,25 @@ test('the home page paints before downloading the offline application and keeps 
   await expect(page.locator('main h1')).toBeVisible()
 })
 
+test('a saved copy that finds the connection back offers the live app', async ({ page, context }) => {
+  test.setTimeout(240_000)
+  await page.goto('/')
+  await expect(page.locator('main h1')).toBeVisible()
+  await waitForOfflineApp(page)
+  await context.setOffline(true)
+  await page.reload()
+  await expect.poll(() => page.evaluate(() => Boolean(window.PraetoriumOffline))).toBe(true)
+  const notice = page.getByRole('complementary', { name: 'Back online' })
+  await expect(notice).toHaveCount(0)
+
+  await context.setOffline(false)
+  await expect(notice).toBeVisible({ timeout: 90_000 })
+  await page.screenshot({ path: test.info().outputPath('saved-copy-back-online.png') })
+  await notice.getByRole('button', { name: 'Reload' }).click()
+  await expect.poll(() => page.evaluate(() => Boolean(window.PraetoriumOffline))).toBe(false)
+  await expect(page.locator('main h1')).toBeVisible()
+})
+
 test('the complete reference keeps its existing UI after a cold offline launch', { tag: '@catalogue' }, async ({ page, context }) => {
   test.setTimeout(240_000)
   const player = uniqueName('Offline reference')
