@@ -523,10 +523,14 @@ test('a Swiss tournament pairs its rounds and ranks the tables by match points',
   await revealEvent(owner)
 
   const rounds = owner.locator('[data-sealed-event-rounds]')
+  await rounds.getByRole('button', { name: 'Check in' }).click()
+  await expect(rounds.getByText('1 of 2 checked in')).toBeVisible()
+  await owner.screenshot({ path: testInfo.outputPath('swiss-check-in.png'), fullPage: true })
   await rounds.getByRole('button', { name: 'Pair round 1' }).click()
   await expect(rounds.locator('[data-table="1"]')).toBeVisible()
   await rounds.getByRole('button', { name: 'Start the clock' }).click()
   await expect(rounds.getByLabel('Time left in this round')).toContainText(/^\d:\d\d:\d\d$/)
+  await owner.screenshot({ path: testInfo.outputPath('swiss-clock.png'), fullPage: true })
   // The organizer fixes the table's battlefield before anyone sits down, and the setup then only shows it.
   await rounds.getByRole('button', { name: 'Roll battlefields' }).click()
   const setBattlefield = rounds.locator('[data-table="1"]').getByRole('button', { name: /^Table 1 battlefield: / })

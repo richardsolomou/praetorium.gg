@@ -447,6 +447,22 @@ export class SealedEventService {
     )
   }
 
+  async checkIn(token: string, eventToken: string, ownerId: string, userId: string, checkedIn: boolean) {
+    const result = await this.repository.checkInSealedEventEntrant({ token, eventToken, ownerId, userId, checkedIn, now: this.clock() })
+    this.checkInOutcome(result)
+  }
+
+  async dropNoShows(token: string, eventToken: string, ownerId: string) {
+    this.checkInOutcome(await this.repository.dropSealedEventNoShows({ token, eventToken, ownerId, now: this.clock() }))
+  }
+
+  private checkInOutcome(result: 'ok' | 'closed' | 'missing' | 'forbidden') {
+    if (result === 'ok') return
+    if (result === 'missing') throw new Response('no such entrant', { status: 404 })
+    if (result === 'forbidden') throw new Response('only the organizer can do that for another player', { status: 403 })
+    throw new Response('check-in closes when the first round is paired', { status: 409 })
+  }
+
   /** Starts, extends or stops the round's clock; the end time is what everyone counts down to. */
   async setRoundTimer(token: string, eventToken: string, ownerId: string, minutes: number | null, fromEnd: number | null) {
     const endsAt = minutes === null ? null : Math.max(this.clock(), fromEnd ?? 0) + minutes * 60_000

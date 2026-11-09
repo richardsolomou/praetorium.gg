@@ -82,6 +82,7 @@ export function sampleTournament(stage: SampleStage): SealedEvent {
       joinedAt: opened + index * DAY,
       submitted: sealed,
       dropped: false,
+      checkedIn: true,
       // Before the reveal a reader knows only the name of their own sealed list.
       rosterName: revealed || player.userId === SAMPLE_VIEWER ? player.army.name : null,
       army: revealed ? player.army : null,

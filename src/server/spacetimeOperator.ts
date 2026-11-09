@@ -232,6 +232,7 @@ const sealedEventEntry = z.object({
   requiredLimit: z.number().int().nullable(),
   teamId: z.string().nullable(),
   droppedAt: z.number().int().nullish(),
+  checkedInAt: z.number().int().nullish(),
 })
 const sealedEventRecord = z.object({
   ...eventHost,

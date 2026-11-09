@@ -4070,6 +4070,7 @@ function insertSealedEventEntry(ctx: Context, eventId: string, userId: string, s
     requiredLimit: undefined,
     teamId: undefined,
     droppedAt: undefined,
+    checkedInAt: undefined,
   })
 }
 
@@ -5201,6 +5202,7 @@ function sealedEventCommandIn(tx: Context, args: unknown[]) {
           'share-roster',
           'dismiss-roster-sharing',
           'drop',
+          'check-in',
         ].includes(operation) && !organizer
   )
     return productJson('forbidden')
@@ -5877,6 +5879,31 @@ function sealedEventCommandIn(tx: Context, args: unknown[]) {
     tx.db.sealedEvents.id.update({ ...event, remindedAt: BigInt(input.now) })
     touchEvent(tx, host)
     return productJson({ outcome: 'reminded', recipientIds })
+  }
+  if (operation === 'check-in' || operation === 'drop-no-shows') {
+    if (event.revealedAt === undefined || event.rounds === undefined || roundPairings(tx, event.id).length) return productJson('closed')
+    if (operation === 'check-in') {
+      const input = sealedEventCommandInput(
+        z.object({ op: z.literal('check-in'), userId: idInput, checkedIn: z.boolean(), now: sealedEventTimeInput }),
+        value,
+      )
+      if (input.userId !== ownerId && !organizer) return productJson('forbidden')
+      const entry = tx.db.sealedEventEntries.key.find(JSON.stringify([event.id, input.userId]))
+      if (!entry || entry.status !== 'accepted' || entry.droppedAt !== undefined) return productJson('missing')
+      tx.db.sealedEventEntries.key.update({ ...entry, checkedInAt: input.checkedIn ? BigInt(input.now) : undefined })
+    } else {
+      const input = sealedEventCommandInput(z.object({ op: z.literal('drop-no-shows'), now: sealedEventTimeInput }), value)
+      for (const entry of sealedEventEntriesFor(tx, event.id))
+        if (
+          entry.status === 'accepted' &&
+          entry.rosterSnapshot !== undefined &&
+          entry.droppedAt === undefined &&
+          entry.checkedInAt === undefined
+        )
+          tx.db.sealedEventEntries.key.update({ ...entry, droppedAt: BigInt(input.now) })
+    }
+    touchEvent(tx, host)
+    return productJson('ok')
   }
   if (operation === 'drop') {
     const input = sealedEventCommandInput(z.object({ op: z.literal('drop'), userId: idInput, now: sealedEventTimeInput }), value)

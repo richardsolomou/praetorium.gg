@@ -25,6 +25,8 @@ import {
   openSealedEventSchema,
   pairSealedEventRoundSchema,
   setRoundTimerSchema,
+  checkInSchema,
+  dropNoShowsSchema,
   swapTableSeatsSchema,
   reportTableResultSchema,
   setTableBattlefieldSchema,
@@ -273,6 +275,25 @@ const loadedRules = async () => {
   if (!rules) throw new Response('battlefields are unavailable right now', { status: 503 })
   return rules
 }
+
+export const checkInEntrant = createServerFn({ method: 'POST' })
+  .validator(checkInSchema)
+  .handler(({ data }) =>
+    mutationRpc(async () => {
+      const userId = await requireUserId()
+      await app().service.sealedEventService.checkIn(data.token, data.eventToken ?? data.token, userId, data.userId, data.checkedIn)
+    }),
+  )
+
+export const dropNoShows = createServerFn({ method: 'POST' })
+  .validator(dropNoShowsSchema)
+  .handler(({ data }) =>
+    mutationRpc(async () => {
+      const userId = await requireUserId()
+      await app().service.sealedEventService.dropNoShows(data.token, data.eventToken ?? data.token, userId)
+      await captureMutation(userId, 'sealed_event_no_shows_dropped', {})
+    }),
+  )
 
 export const setRoundTimer = createServerFn({ method: 'POST' })
   .validator(setRoundTimerSchema)

@@ -153,6 +153,8 @@ export const SEALED_EVENT_MEMBER_MIN = 2
 export type SealedEventEntryView = SealedEventRevealEntry & {
   /** Withdrew or was dropped from Swiss rounds after the reveal. */
   dropped: boolean
+  /** Arrived before the first round. */
+  checkedIn: boolean
   name: string
   image: string | null
   joinedAt: number

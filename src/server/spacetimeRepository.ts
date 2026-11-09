@@ -404,6 +404,21 @@ export class SpacetimeRepository {
     return this.product.sealedEventCommand({ op: 'pair-round', ...input }, z.enum(['paired', 'not-ready', 'stale', 'missing', 'forbidden']))
   }
 
+  checkInSealedEventEntrant(input: {
+    token: string
+    eventToken: string
+    ownerId: string
+    userId: string
+    checkedIn: boolean
+    now: number
+  }) {
+    return this.product.sealedEventCommand({ op: 'check-in', ...input }, z.enum(['ok', 'closed', 'missing', 'forbidden']))
+  }
+
+  dropSealedEventNoShows(input: { token: string; eventToken: string; ownerId: string; now: number }) {
+    return this.product.sealedEventCommand({ op: 'drop-no-shows', ...input }, z.enum(['ok', 'closed', 'missing', 'forbidden']))
+  }
+
   setSealedEventRoundTimer(input: { token: string; eventToken: string; ownerId: string; endsAt: number | null }) {
     return this.product.sealedEventCommand({ op: 'set-round-timer', ...input }, z.enum(['set', 'not-ready', 'missing', 'forbidden']))
   }
@@ -731,6 +746,7 @@ export class SpacetimeRepository {
           joinedAt: entry.joinedAt,
           submitted: entry.rosterSnapshot !== null,
           dropped: entry.droppedAt != null,
+          checkedIn: entry.checkedInAt != null,
           rosterName: revealed || viewerId === entry.userId ? entry.rosterName : null,
           army: revealed && roster ? sealedEventArmy(roster) : null,
           sealedAt: revealed ? entry.submittedAt : null,

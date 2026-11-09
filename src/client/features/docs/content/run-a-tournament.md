@@ -53,6 +53,10 @@ Players are ranked by:
 2. Total victory points.
 3. Strength of schedule: the match points of everyone a player has faced.
 
+### Check players in
+
+Once the rosters are out, players can press **Check in** before round 1, and you can check anyone in from the list. It's optional. If some players don't arrive, press **Drop not checked in** so they aren't paired.
+
 ### Change the pairings and run the clock
 
 To keep clubmates apart or sort out a mix-up, press **Swap players** and choose two players at tables that haven't started. They trade tables for that round, and any battlefield set for those tables is cleared.

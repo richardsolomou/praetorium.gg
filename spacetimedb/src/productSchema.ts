@@ -326,6 +326,8 @@ const sealedEventEntries = table(
     teamId: t.option(t.string()),
     /** When a revealed Swiss entrant withdrew or was dropped: they are never paired again and can't rejoin. */
     droppedAt: t.option(t.u64()).default(undefined),
+    /** When the entrant arrived at a Swiss event, before its first round. */
+    checkedInAt: t.option(t.u64()).default(undefined),
   },
 )
 

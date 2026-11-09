@@ -113,6 +113,7 @@ describe('sharing a revealed sealed event roster', () => {
         requiredLimit: undefined,
         teamId: undefined,
         droppedAt: undefined,
+        checkedInAt: undefined,
       })
     })
     const save = (id = 'saved', changes: Record<string, unknown> = {}) =>
@@ -320,6 +321,7 @@ describe('what a sealed event allows', () => {
           requiredLimit: undefined,
           teamId: format === '2v2' ? 'team' : undefined,
           droppedAt: undefined,
+          checkedInAt: undefined,
         })
     })
     const command = (payload: Record<string, unknown>) =>
@@ -850,6 +852,7 @@ describe('hidden-list games', () => {
           requiredLimit: undefined,
           teamId: undefined,
           droppedAt: undefined,
+          checkedInAt: undefined,
         })
     })
     const battle = (id: string) =>
@@ -1024,6 +1027,7 @@ describe('swiss rounds', () => {
           requiredLimit: undefined,
           teamId: undefined,
           droppedAt: undefined,
+          checkedInAt: undefined,
         })
     })
     const command = (input: Record<string, unknown>) =>
@@ -1108,6 +1112,27 @@ describe('swiss rounds', () => {
     return { host, command, pair, battle, submit, admin, playRoundOne, pairRoundTwo, drop }
   }
   const table = (round: number, number: number) => JSON.stringify(['event', round, number])
+
+  it('drops only the players not checked in', () => {
+    const { host, pair, command } = setup()
+    for (const userId of ['a', 'b', 'c']) command({ op: 'check-in', userId, checkedIn: true, now: NOW })
+    const dropped = command({ op: 'drop-no-shows', now: NOW })
+    const gone = host.call(host.operator, (ctx) =>
+      Array.from(ctx.db.sealedEventEntries.eventId.filter('event'))
+        .filter((entry) => entry.droppedAt !== undefined)
+        .map((entry) => entry.userId),
+    )
+    pair(1, [
+      ['a', 'b'],
+      ['c', null],
+    ])
+    expect([dropped, gone, command({ op: 'check-in', userId: 'a', checkedIn: false, now: NOW })]).toEqual(['ok', ['d'], 'closed'])
+  })
+
+  it('lets a player check in only themselves', () => {
+    const { command } = setup()
+    expect(command({ op: 'check-in', ownerId: 'a', userId: 'b', checkedIn: true, now: NOW })).toBe('forbidden')
+  })
 
   it('swaps two players between unstarted tables and clears their battlefields', () => {
     const { host, pair, command } = setup()
@@ -1279,6 +1304,7 @@ describe('friends’ sealed rosters', () => {
           requiredLimit: undefined,
           teamId: undefined,
           droppedAt: undefined,
+          checkedInAt: undefined,
         })
     }
     const finish = (battleId: string) =>

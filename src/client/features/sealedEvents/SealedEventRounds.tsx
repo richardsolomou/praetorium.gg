@@ -16,6 +16,7 @@ import { useSealedEventRefresh, type SealedEvent } from './sealedEvent'
 import { TableBattlefield } from './TableBattlefield'
 import { ReportTableResult } from './ReportTableResult'
 import { RoundClock, SwapSeats } from './RoundTools'
+import { CheckIn } from './CheckIn'
 
 type Pairing = SealedEvent['pairings'][number]
 /** What the rounds read of a table's battle, which the sample tournament supplies without a real one. */
@@ -136,6 +137,16 @@ export function SealedEventRounds({
         }
       />
       {pair.error ? <Problem error={pair.error} className="mb-2" /> : null}
+      {!progress.round && !sample ? (
+        <CheckIn
+          token={token}
+          eventToken={sealedEvent.eventToken}
+          entries={entries}
+          viewerId={viewerId}
+          organizes={isOrganizer}
+          label={label}
+        />
+      ) : null}
       {progress.round && !progress.complete && !sample ? (
         <div className="mb-1 flex flex-wrap items-start justify-between gap-2">
           <RoundClock token={token} eventToken={sealedEvent.eventToken} endsAt={sealedEvent.roundEndsAt} organizes={isOrganizer} />
