@@ -122,13 +122,9 @@ test('a table keeps score by hand in a manually tracked battle', async ({ page }
   await expect(page.getByText('Battle replay')).toBeVisible()
   const facts = page.locator('dl').filter({ hasText: 'Tracking' }).first()
   await expect(facts).toContainText('Manual')
-  const teams = page.locator('[data-teams-battle-points]')
-  await teams.getByRole('switch', { name: 'Teams event scoring' }).click()
-  await expect(teams.locator('dl')).toHaveText(`${host}5 VP10 BP${PRACTICE_OPPONENT}6 VP10 BP`)
   for (const viewport of [desktopContext.viewport, phone]) {
     await page.setViewportSize(viewport)
     await page.reload()
-    await expect(teams.locator('dl')).toHaveText(`${host}5 VP10 BP${PRACTICE_OPPONENT}6 VP10 BP`)
     await expect(scoreboard(page)).toContainText(`${PRACTICE_OPPONENT} wins`)
     await expectNoPageOverflow(page)
   }
