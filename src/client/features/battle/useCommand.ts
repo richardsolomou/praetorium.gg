@@ -8,7 +8,7 @@ import { isRosterNotUsable } from '../../../core/rosterUse'
 import { OfflineRefusal } from '../../offline/offlineRefusal'
 import { isSignedOut } from '../../../core/session'
 import { submit } from '../../functions'
-import { battleQuery, meQuery, reportKey } from '../../queries'
+import { battleQuery, battlesKey, groupStandingsKeys, meQuery, reportKey } from '../../queries'
 import { errorMessage } from '../../queryClient'
 import { requestNativeHaptic } from '../../nativeBridge'
 import { captureAppSnapshot } from '../../offline/appSnapshot'
@@ -24,6 +24,7 @@ export type RosterAttachment =
   | { kind: 'attach-saved-roster'; rosterId: string; playerId?: string }
   | { kind: 'attach-draft-roster'; draft: RosterDraftInput; reminders: AbilityReminder[] | undefined }
 type SubmittedCommand = Command | RosterAttachment
+const isRosterAttachment = (command: SubmittedCommand) => command.kind === 'attach-saved-roster' || command.kind === 'attach-draft-roster'
 export type SendCommand = (
   command: Command,
   /** `blocking: false` leaves other controls enabled while it is in flight, for presses meant to be repeated. */
@@ -58,9 +59,11 @@ export const confirmedSeq = (screen: { view: { seq: number } }) => predictions.g
 /** Commands that change the result, felt as a success; every other one the player sends is a light tap. */
 const MOMENTS = new Set<string>(['score', 'score-secondary', 'score-settlement', 'acknowledge-scoring', 'begin-battle', 'end-battle'])
 
-function explain(result: SubmitResult, setup: boolean) {
+function explain(result: SubmitResult, setup: boolean, command: SubmittedCommand) {
   if (result.outcome === 'appended') return null
-  if (result.outcome === 'stale' && setup) return null
+  // A roster choice leaves its chooser open, unchanged, so it has to say why.
+  if (result.outcome === 'stale' && setup)
+    return isRosterAttachment(command) ? 'The setup changed while that was saving. Choose the roster again.' : null
   // Shared setup redraws from the winner; live controls remain available to retry.
   if (result.outcome === 'stale') return 'Your opponent got there first. Try that again.'
   return asSentence(result.reason)
@@ -123,7 +126,7 @@ async function sendQueued({
       try {
         const { result, screen } = await submit({ data: { token, expectedSeq: item.onlyAt ?? seen.current, command: item.command } })
         const setup = screen?.kind === 'battle' && screen.view.status === 'setup'
-        const problem = explain(result, setup)
+        const problem = explain(result, setup, item.command)
         if (!item.background || result.outcome === 'refused') setProblem(problem)
         // A realtime refetch that landed while this command was in flight can hold a newer screen than its answer, and so can
         // the predictions of commands queued behind it, unless this one failed and they are about to be dropped.
@@ -140,6 +143,10 @@ async function sendQueued({
         // Before the snapshot write yields, so the screen and anything shown ahead of it change in one render.
         item.complete?.(result.outcome === 'appended')
         void queryClient.invalidateQueries({ queryKey: reportKey(token) })
+        if (result.outcome === 'appended' && item.command.kind === 'end-battle') {
+          void queryClient.invalidateQueries({ queryKey: battlesKey() })
+          void queryClient.invalidateQueries({ queryKey: groupStandingsKeys() })
+        }
         await writeAppSnapshot(captureAppSnapshot(queryClient)).catch(() => {})
         if (!item.background) {
           if (result.outcome === 'appended') requestNativeHaptic(MOMENTS.has(item.command.kind) ? 'success' : 'light')

@@ -21,7 +21,7 @@ import { type FactionRestrictions, restrictedBy } from './datacards'
 import { datacardOf } from './datasheetJoin'
 import { factionContentOf } from './factionNames'
 import { rosterDetachments } from './rosterDetachments'
-import { isOfferedDatasheet, listPriceOf, priceOf, seedListPrice } from './catalogueUnit'
+import { isOfferedDatasheet, laterCopyPrices, listPriceOf, priceOf, seedListPrice } from './catalogueUnit'
 import { completeSteps, type Steps, type Stepwise, stepwise } from './steps'
 
 /** Derived from one immutable catalogue snapshot. Search filters this list in memory. */
@@ -301,6 +301,7 @@ function* summarizeUnits(loaded: LoadedCatalogue, catalogueId: string, options: 
   for (const unit of units) {
     yield
     const kind = nonMatchedPlayKind(unit.name)
+    const laterCopyPoints = roster.length ? laterCopyPrices(loaded, catalogueId, unit.id, roster) : undefined
     summaries.push({
       id: unit.id,
       slug: datasheetSlug(loaded, catalogueId, unit.id),
@@ -310,6 +311,7 @@ function* summarizeUnits(loaded: LoadedCatalogue, catalogueId: string, options: 
       alliedFaction: unit.alliedFaction,
       ...(kind ? { nonMatchedPlay: kind } : {}),
       points: roster.length ? priceOf(loaded, catalogueId, unit.id, roster) : listPriceOf(loaded, catalogueId, unit.id),
+      ...(laterCopyPoints ? { laterCopyPoints } : {}),
       limit: minimumLimit(limitOf(loaded, catalogueId, unit.id, size), unit.formatLimit),
     })
   }

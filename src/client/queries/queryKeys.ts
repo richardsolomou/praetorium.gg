@@ -85,7 +85,8 @@ export const battleReplayKey = (token: string, seq?: number) =>
 
 export const groupsKey = () => ['groups']
 export const groupKey = (token: string) => ['group', token]
-export const groupStandingsKey = (token: string) => ['group-standings', token]
+export const groupStandingsKeys = () => ['group-standings']
+export const groupStandingsKey = (token: string) => [...groupStandingsKeys(), token]
 export const groupLeagueKey = (token: string) => ['group-league', token]
 export const battleGroupsKey = (token: string) => ['battle-groups', token]
 export const sealedEventsKey = () => ['sealed-events']

@@ -32,6 +32,14 @@ const drain = (options: Partial<Parameters<typeof drainCommands>[0]> = {}) =>
     ...options,
   })
 
+it('says why a roster choice did not stick when setup changed underneath it', async () => {
+  submit.mockResolvedValueOnce({ result: { outcome: 'stale' }, screen: { kind: 'battle', view: { status: 'setup', seq: 1 } } })
+  writeAppSnapshot.mockResolvedValue(undefined)
+  const setProblem = vi.fn()
+  await drain({ setProblem, queued: { current: [{ command: { kind: 'attach-saved-roster', rosterId: 'r' } as never, basedOn: 0 }] } })
+  expect(setProblem).toHaveBeenLastCalledWith('The setup changed while that was saving. Choose the roster again.')
+})
+
 describe('the command queue after a failed command', () => {
   it('drops a tap built from the same screen as a failed tap', () => {
     const tap = queued(4)

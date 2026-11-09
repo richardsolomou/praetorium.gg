@@ -768,11 +768,12 @@ export function ListBuilder({
     { entryId: string; context: readonly unknown[]; link?: AttachLink; loadout?: readonly RosterPick[] }[]
   >([])
   const queueAdd = (entryId: string, extra: { link?: AttachLink; loadout?: readonly RosterPick[] }) => {
-    setRequestRefusal(null)
+    const adding = extra.loadout ?? [{ entryId }]
+    const exceedsRoster = (queuedPicks: readonly unknown[]) => picks.length + queuedPicks.length + adding.length > 100
+    setRequestRefusal(exceedsRoster(queuedAdds.flatMap((entry) => entry.loadout ?? [entry])) ? 'A roster can hold up to 100 units.' : null)
     setQueuedAdds((current) => {
       const queuedPicks = current.flatMap((entry) => entry.loadout ?? [entry])
-      const adding = extra.loadout ?? [{ entryId }]
-      if (picks.length + queuedPicks.length + adding.length > 100 || !batchFits(adding, held, unitLimits, queuedPicks)) return current
+      if (exceedsRoster(queuedPicks) || !batchFits(adding, held, unitLimits, queuedPicks)) return current
       return [...current, { entryId, context: priceRequest.queryKey, ...extra }]
     })
   }

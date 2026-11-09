@@ -121,6 +121,10 @@ export function unitLimitMessage(entryId: string, held: number, limits: Readonly
     : `Limit reached: ${held} of ${limit} permitted copies in the roster.`
 }
 
+/** What one more of a datasheet costs a roster that already holds `held` of it. */
+export const nextCopyPoints = (unit: { points: number | null; laterCopyPoints?: readonly number[] }, held: number) =>
+  (held > 0 && unit.laterCopyPoints ? unit.laterCopyPoints[Math.min(held, unit.laterCopyPoints.length) - 1] : undefined) ?? unit.points
+
 /** The roster unit a newly added unit joins, or the one that joins it. */
 export type AttachLink = { joins: number } | { joinedBy: number }
 

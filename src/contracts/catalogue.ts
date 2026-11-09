@@ -20,6 +20,8 @@ export type UnitSummary = {
   slug: string
   name: string
   points: number | null
+  /** The second and later copies' prices, set when the points table charges copies differently. */
+  laterCopyPoints?: number[]
   group: UnitGroup
   limit: number | null
   allied: boolean

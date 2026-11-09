@@ -91,7 +91,7 @@ export function BlockedReason({ id, beside = false, children }: { id: string; be
   return (
     <span
       id={id}
-      className={`text-right text-2xs text-faint ${beside ? '' : 'absolute top-full right-0 mt-0.5 leading-none whitespace-nowrap'}`}
+      className={`text-right text-2xs text-discarded ${beside ? '' : 'absolute top-full right-0 mt-0.5 leading-none whitespace-nowrap'}`}
     >
       {children}
     </span>
