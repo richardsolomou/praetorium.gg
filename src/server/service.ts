@@ -29,6 +29,7 @@ import {
   type Command,
   commandArmy,
   reduceBattle,
+  sameRandomDraw,
   sideDisposition,
   type SubmitResult,
 } from '../core/battle'
@@ -1229,6 +1230,14 @@ export class PraetoriumService {
       groupId && !(await this.repository.battleGroups(history.battle.id)).options.some((group) => group.id === groupId)
         ? refuse('group-members-only', 'every player must be a member of the group')
         : null
+    // Both sides act in the Command Phase, so an opponent's command would otherwise make
+    // the automatic draw stale although it never touched this side's hand.
+    if (!sync && command.kind === 'draw-secondaries' && !command.selected) {
+      const fold = (log: typeof history.log) => reduceBattle(...battleFoldArgs(history.players, log))
+      const current = fold(history.log)
+      if (current.seq > expectedSeq && sameRandomDraw(fold(battleLogThroughSeq(history.log, expectedSeq)), current, userId, command))
+        expectedSeq = current.seq
+    }
     // The log comes back with the answer, so a refusal and a lost race both report
     // the state that refused them rather than the one the caller was holding —
     // and without a second read of a history the append had already in hand.

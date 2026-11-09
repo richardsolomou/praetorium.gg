@@ -10,7 +10,7 @@ Forgot something? In a guided battle, **Battle options** › **Record a missed a
 
 ## Play on several devices
 
-Every seated player's screen stays in step. If two people press at the same moment, one is told **Your opponent got there first. Try that again.**
+Every seated player's screen stays in step. If two people press at the same moment, one is told **Your opponent got there first. Try that again.** Drawing your secondary missions at random still goes through when your opponent acts at the same moment.
 
 Seated players can keep going offline if they've opened the battle online once. Changes sync when you reconnect. Guests need a connection.
 

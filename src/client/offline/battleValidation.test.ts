@@ -20,6 +20,7 @@ const mocks = vi.hoisted(() => ({
   saved: vi.fn(),
   remember: vi.fn(),
   sync: vi.fn(),
+  operations: vi.fn(),
 }))
 vi.mock('../../server/functions', () => ({ submit: mocks.submit, openBattle: mocks.open }))
 vi.mock('../../server/functions/offline', () => ({ battleWorkspace: mocks.workspace }))
@@ -31,7 +32,7 @@ vi.mock('./construction', () => ({
   hasLocalConstruction: mocks.hasConstruction,
 }))
 vi.mock('./localRuntime', () => ({
-  localEngine: () => ({ storage: { read: async () => ({ operations: [] }) } }),
+  localEngine: () => ({ storage: { read: async () => ({ operations: mocks.operations() ?? [] }) } }),
   localOwner: () => ({ id: 'alice' }),
   localDocument: mocks.document,
   queueLocal: mocks.queue,
@@ -357,6 +358,17 @@ it('saves a connected automatic write on the device when the service never answe
   mocks.submit.mockRejectedValue(new TypeError('Failed to fetch'))
   await submit(input)
   expect(mocks.queue).toHaveBeenCalledOnce()
+})
+
+it('blames the lost connection rather than an earlier conflict the connected battle never waited on', async () => {
+  prepare(80)
+  vi.stubGlobal('navigator', { onLine: true })
+  mocks.operations.mockReturnValue([{ resource: 'battle:battle', status: 'conflict' }])
+  const lost = new TypeError('Failed to fetch')
+  mocks.submit.mockRejectedValue(lost)
+  await expect(submit({ data: { token: 'battle', expectedSeq: 0, command: { kind: 'set-attacker', attackerId: 'bob' } } })).rejects.toBe(
+    lost,
+  )
 })
 
 it('returns a competing connected defender choice without retaining a durable conflict', async () => {
