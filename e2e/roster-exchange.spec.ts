@@ -1,3 +1,4 @@
+import { deflateSync } from 'node:zlib'
 import { expect, type Page, test } from './test'
 import {
   chooseRosterAction,
@@ -164,6 +165,34 @@ test('damaged, unsupported and unavailable exchange codes explain why they canno
     await dialog.getByRole('button', { name: 'Cancel', exact: true }).click()
     await expect(page.locator('[data-roster], [data-roster-builder]')).toHaveCount(0)
   }
+})
+
+test('a list another site links to opens the review under the name it sent', async ({ browser }) => {
+  const page = await (await browser.newContext(phone)).newPage()
+  const list = `(100 Points)
+
+Necrons
+Awakened Dynasty (3 Detachment Points)
+Strike Force (2,000 Points)
+
+CHARACTERS
+
+Imotekh the Stormlord (100 Points)
+  • Warlord
+  • 1x Gauntlet of Fire
+  • 1x Staff of the Destroyer
+
+Exported with New Recruit v36.50, Data Version: v27
+`
+  const name = 'Ann & Bo + 100% - GT #2 - Listhammer'
+  await page.goto(`/import?d=${deflateSync(list).toString('base64url')}&src=listhammer&listname=${encodeURIComponent(name)}`)
+  const review = page.getByRole('dialog', { name: 'Import roster', exact: true })
+  await expect(review.getByRole('heading', { name })).toBeVisible()
+  await expect(review).toContainText('Sent from Listhammer')
+  await expect(review).toContainText('1 of 1 matched entry')
+  expect(new URL(page.url()).hash).toBe('')
+  await review.getByRole('button', { name: 'Open imported draft', exact: true }).click()
+  await expect(page.locator('[data-unit="Imotekh the Stormlord"]')).toHaveCount(1)
 })
 
 test('a roster too long for a QR code still offers its exchange code', async ({ browser }) => {

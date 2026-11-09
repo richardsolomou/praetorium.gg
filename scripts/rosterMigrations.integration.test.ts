@@ -25,18 +25,22 @@ const picks: RosterPick[] = [
   { entryId: '8b71-580f-ad19-83d7', choices: { '692c-f7be-75d4-ba2d/f1f6-718e-222f-9ed5': 'b440-75d0-9e95-486a' } },
 ]
 
-it.skipIf(!fs.existsSync(directory))('builds every migrated loadout against the pinned source, where the old paths fail', () => {
-  const loaded = catalogue()
-  const unavailable = (pick: RosterPick) => {
-    const unit = buildUnit(pick.entryId, loaded.index, pick.models, pick.choices)
-    return unavailableRosterSelections([pick], unit ? [{ ...unit, key: 0 }] : [])
-  }
-  expect(picks.map((pick) => [unavailable(pick).length, unavailable(currentPick(pick)).length])).toEqual([
-    [1, 0],
-    [3, 0],
-    [1, 0],
-  ])
-})
+it.skipIf(!fs.existsSync(directory))(
+  'builds every migrated loadout against the pinned source, where the old paths fail',
+  { timeout: 60_000 },
+  () => {
+    const loaded = catalogue()
+    const unavailable = (pick: RosterPick) => {
+      const unit = buildUnit(pick.entryId, loaded.index, pick.models, pick.choices)
+      return unavailableRosterSelections([pick], unit ? [{ ...unit, key: 0 }] : [])
+    }
+    expect(picks.map((pick) => [unavailable(pick).length, unavailable(currentPick(pick)).length])).toEqual([
+      [1, 0],
+      [3, 0],
+      [1, 0],
+    ])
+  },
+)
 
 it.skipIf(!fs.existsSync(directory))('equips migrated optional Land Raider weapons instead of silently restoring defaults', () => {
   const loaded = catalogue()

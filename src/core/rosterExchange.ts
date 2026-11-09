@@ -23,6 +23,7 @@ export const ROSTER_EXCHANGE_MAX_CODE_LENGTH = 12_000
 /** Longer links make QR codes too dense for a phone camera to read from another screen. */
 export const ROSTER_EXCHANGE_QR_MAX_LENGTH = 2_000
 const MAX_PAYLOAD_BYTES = 100_000
+const MAX_LINK_TEXT_BYTES = 200_000
 const MAX_PICKS = 100
 const PREFIX = 'PR'
 const CODE = /^(?:https?:\/\/[^\s#]+#code=)?PR(\d{1,4})\.(\S*)$/
@@ -139,6 +140,16 @@ export async function decodeRosterExchange(text: string): Promise<RosterExchange
   const parsed = exchangeSchema.safeParse(raw)
   if (!parsed.success) throw malformed()
   return currentRosterIds(parsed.data)
+}
+
+/** The army text in another site's import link: zlib-compressed UTF-8 in URL-safe base64. Null when it cannot be read. */
+export async function decodeImportLinkText(encoded: string) {
+  try {
+    const bytes = await transform(fromBase64Url(encoded), new DecompressionStream('deflate'), MAX_LINK_TEXT_BYTES)
+    return new TextDecoder('utf-8', { fatal: true }).decode(bytes)
+  } catch {
+    return null
+  }
 }
 
 async function transform(bytes: Uint8Array<ArrayBuffer>, stream: CompressionStream | DecompressionStream, limit = Infinity) {

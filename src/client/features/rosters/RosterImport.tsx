@@ -2,21 +2,21 @@ import { advanceOnboarding } from '../onboarding/onboarding'
 import { GuideHelp } from '../onboarding/GuideHelp'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Link, useLocation, useNavigate } from '@tanstack/react-router'
-import { Copy, FileUp, LoaderCircle, TriangleAlert } from 'lucide-react'
+import { Check, Copy, FileUp, LoaderCircle, TriangleAlert } from 'lucide-react'
 import { posthog } from 'posthog-js'
-import { useEffect, useRef, useState } from 'react'
+import { type ReactNode, useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/Dialog'
 import { findImportableRosters, importRoster, saveRoster } from '../../functions'
 import { invalidateSavedRosters, playerDefaultsQuery } from '../../queries'
-import { isRosterExchangeCode } from '../../../core/rosterExchange'
+import { decodeImportLinkText, isRosterExchangeCode } from '../../../core/rosterExchange'
 import { isNewRecruitLink, newRecruitShareId } from '../../../core/newRecruit'
 import { isWarscribeLink } from '../../../core/warscribe'
 import { structuredRosterFile, type StructuredRosterFile } from '../../../core/structuredRosterFile'
 import { importRosterFormat, UNSUPPORTED_ARMY_TEXT } from '../../../shared/rosterFiles'
-import { battleSizeLabel } from '../../../core/battle'
+import { battleSizeLabel, ROSTER_NAME_MAX_LENGTH } from '../../../core/battle'
 import { importFailureReport } from '../feedback/feedback'
 import { sendFeedback } from '../feedback/sendFeedback'
 import { Problem } from '../../components/Problem'
@@ -50,6 +50,11 @@ export function importedSetup(imported: MatchedImport, defaultLimit: number) {
 }
 
 const CODE_HASH = 'code='
+const LIST_HASH = 'd='
+/** The sites whose import links are credited by name; any other sender is unnamed, since a link can claim to be from anyone. */
+const LINK_SITES = new Map([['listhammer', 'Listhammer']])
+
+type Submission = { file: string; link?: { name: string | null; site: string | null } }
 
 /** Files the failure as an automatic feedback response carrying the exact input, so it can be reproduced. */
 function reportImportFailure(report: Parameters<typeof importFailureReport>[0]) {
@@ -75,7 +80,7 @@ function Shortfall({ title, rows }: { title: string; rows: readonly { key: strin
   return (
     <div className="space-y-1.5">
       <p className="eyebrow text-discarded">{title}</p>
-      <ul role="alert" className="min-w-0 space-y-1.5 border border-discarded/40 bg-discarded/5 p-2.5">
+      <ul role="alert" className="min-w-0 space-y-1.5 rounded-lg border border-discarded/40 bg-discarded/5 p-2.5">
         {rows.map((row) => (
           <li key={row.key} className="flex items-start gap-2 text-sm text-discarded">
             <TriangleAlert className="mt-0.5 size-3.5 shrink-0" aria-hidden />
@@ -94,6 +99,17 @@ function Shortfall({ title, rows }: { title: string; rows: readonly { key: strin
   )
 }
 
+function ReviewRow({ label, name, children }: { label: string; name: string; children: ReactNode }) {
+  return (
+    <div className="flex items-baseline justify-between gap-4 py-2">
+      <dt className="min-w-0 text-sm text-dim">{label}</dt>
+      <dd data-import-figure={name} className="figure shrink-0 text-sm whitespace-nowrap text-bone">
+        {children}
+      </dd>
+    </div>
+  )
+}
+
 /**
  * `onImport` keeps the list somewhere other than the account, such as a visitor's device; `blocked` replaces importing
  * for a visitor who already keeps their one list there, including an import a scanned code opened.
@@ -104,7 +120,7 @@ export function RosterImport({ onImport, blocked }: { onImport?: (imported: Matc
   /** A list found in another app and opened for review, which pasted text never fills. */
   const [picked, setPicked] = useState<MatchedImport | null>(null)
   const [text, setText] = useState('')
-  const [droppedFile, setDroppedFile] = useState<Error | null>(null)
+  const [refusal, setRefusal] = useState<Error | null>(null)
   const navigate = useNavigate()
   const queryClient = useQueryClient()
 
@@ -155,8 +171,11 @@ export function RosterImport({ onImport, blocked }: { onImport?: (imported: Matc
   const inputOf = (file: string) => (isRosterExchangeCode(file) ? 'exchange-code' : 'text')
   const formatOf = (file: string) => (isRosterExchangeCode(file) ? 'praetorium' : importRosterFormat(file))
   const bring = useMutation({
-    onMutate: (file) => posthog.capture('roster_import_submitted', { input: inputOf(file) }),
-    mutationFn: async (file: string): Promise<MatchedImport> => {
+    onMutate: ({ file }: Submission) => {
+      setText(file)
+      posthog.capture('roster_import_submitted', { input: inputOf(file) })
+    },
+    mutationFn: async ({ file, link }: Submission): Promise<MatchedImport> => {
       if (isNewRecruitLink(file)) {
         const found = newRecruitShareId(file)
           ? await findImportableRosters({ data: { source: 'newrecruit', links: [file] } }).catch(() => null)
@@ -176,7 +195,7 @@ export function RosterImport({ onImport, blocked }: { onImport?: (imported: Matc
       if (structured) throw refuseRosterFile(structured, 'text')
       const imported = await importRoster({ data: { file } }).catch((error: unknown) => {
         posthog.capture('roster_import_failed', { reason: 'request', input: inputOf(file), format: formatOf(file) })
-        reportImportFailure({ reason: 'request', inputKind: inputOf(file), unknown: [], unplaced: [], input: file })
+        if (!link) reportImportFailure({ reason: 'request', inputKind: inputOf(file), unknown: [], unplaced: [], input: file })
         throw error
       })
       if (!isMatchedImport(imported)) {
@@ -185,55 +204,72 @@ export function RosterImport({ onImport, blocked }: { onImport?: (imported: Matc
           input: inputOf(file),
           format: imported.format ?? 'unrecognized',
         })
-        reportImportFailure({
-          reason: 'catalogue_unmatched',
-          inputKind: inputOf(file),
-          unknown: imported.unknown,
-          unplaced: imported.unplaced,
-          input: file,
-        })
+        if (!link)
+          reportImportFailure({
+            reason: 'catalogue_unmatched',
+            inputKind: inputOf(file),
+            unknown: imported.unknown,
+            unplaced: imported.unplaced,
+            input: file,
+          })
         throw new Error(explain(imported.unknown) || `Could not match ${imported.catalogueName || 'the faction'}`)
       }
       return imported
     },
-    onSuccess: (imported, file) => {
+    onSuccess: (imported, { file, link }) => {
       advanceOnboarding('roster-tools', 'tools-input', 'tools-review')
       if (imported.unknown.length || imported.unplaced.length) {
         posthog.capture('roster_import_review_required', {
           missing_count: imported.unknown.length,
           unplaced_count: imported.unplaced.length,
         })
-        reportImportFailure({
-          reason: 'review_required',
-          inputKind: inputOf(file),
-          unknown: imported.unknown,
-          unplaced: imported.unplaced,
-          olderData: 'olderData' in imported ? imported.olderData : null,
-          input: file,
-        })
+        // A published list can predate a data update, which says nothing about the importer.
+        if (!link)
+          reportImportFailure({
+            reason: 'review_required',
+            inputKind: inputOf(file),
+            unknown: imported.unknown,
+            unplaced: imported.unplaced,
+            olderData: 'olderData' in imported ? imported.olderData : null,
+            input: file,
+          })
       }
     },
   })
 
-  const review = picked ?? bring.data ?? null
-  const fromCode = !picked && bring.variables !== undefined && isRosterExchangeCode(bring.variables)
+  const link = picked ? undefined : bring.variables?.link
+  const review = picked ?? (bring.data && link?.name ? { ...bring.data, name: link.name } : bring.data) ?? null
+  const fromCode = !picked && bring.variables !== undefined && isRosterExchangeCode(bring.variables.file)
+  const matchedAll = Boolean(review) && !review?.unknown.length && !review?.unplaced.length
   const working = bring.isPending || keep.isPending || keepAll.isPending
-  const failure = droppedFile ?? bring.error ?? keep.error ?? keepAll.error
+  const failure = refusal ?? bring.error ?? keep.error ?? keepAll.error
 
-  // A scanned QR code opens this page with the code in the fragment, which never reaches the server.
+  // A scanned QR code or another site's import link opens this page with the list in the fragment.
   const hash = useLocation({ select: (location) => location.hash })
   const { mutate: submit, reset: resetSubmit } = bring
   const consumed = useRef<string | null>(null)
   useEffect(() => {
-    if (!hash.startsWith(CODE_HASH) || consumed.current === hash) return
+    const scanned = hash.startsWith(CODE_HASH)
+    if ((!scanned && !hash.startsWith(LIST_HASH)) || consumed.current === hash) return
     consumed.current = hash
-    const code = hash.slice(CODE_HASH.length)
     void navigate({ to: '.', hash: '', replace: true, resetScroll: false })
-    posthog.capture('roster_import_started', { input: 'exchange-link' })
+    const params = new URLSearchParams(hash)
+    const site = LINK_SITES.get(params.get('src') ?? '') ?? null
+    posthog.capture('roster_import_started', scanned ? { input: 'exchange-link' } : { input: 'list-link', from: site ?? 'other' })
     resetSubmit()
-    setText(code)
     setOpen(true)
-    submit(code)
+    if (scanned) {
+      submit({ file: hash.slice(CODE_HASH.length) })
+      return
+    }
+    void decodeImportLinkText(params.get('d') ?? '').then((file) => {
+      if (!file?.trim()) {
+        setRefusal(new Error("That link didn't contain a list Praetorium can read. Copy the list as text and paste it here."))
+        return
+      }
+      setRefusal(null)
+      submit({ file, link: { name: params.get('listname')?.trim().slice(0, ROSTER_NAME_MAX_LENGTH) || null, site } })
+    })
   }, [hash, navigate, resetSubmit, submit])
 
   const accept = (imported: MatchedImport) => {
@@ -260,7 +296,7 @@ export function RosterImport({ onImport, blocked }: { onImport?: (imported: Matc
     keep.reset()
     keepAll.reset()
     setPicked(null)
-    setDroppedFile(null)
+    setRefusal(null)
     setOpen(true)
   }
 
@@ -272,6 +308,8 @@ export function RosterImport({ onImport, blocked }: { onImport?: (imported: Matc
       <Dialog open={open} onOpenChange={(next) => !working && setOpen(next)}>
         <DialogContent
           size="md"
+          // The whole dialog, so the guide keeps clear of the actions in its footer.
+          data-onboarding={review ? 'import-review' : undefined}
           actions={
             <GuideHelp task="roster-tools" step={review ? 'tools-review' : 'tools-input'}>
               Import guide
@@ -291,19 +329,41 @@ export function RosterImport({ onImport, blocked }: { onImport?: (imported: Matc
 
           <DialogBody>
             {review ? (
-              <div data-onboarding="import-review" className="space-y-3">
-                <p className="text-sm">
-                  <span className="font-semibold">{review.name}</span> · {review.units.length} of {review.sourceUnitCount} matched{' '}
-                  {review.units.length === 1 ? 'entry' : 'entries'}
+              <div className="space-y-3">
+                <div className="min-w-0 space-y-1">
+                  <h3 className="rubric wrap-anywhere text-balance text-bone">{review.name}</h3>
+                  {review.catalogueName || link?.site ? (
+                    <p className="text-sm text-dim">
+                      {[review.catalogueName?.split(' - ').at(-1), link?.site ? `Sent from ${link.site}` : null]
+                        .filter(Boolean)
+                        .join(' · ')}
+                    </p>
+                  ) : null}
+                </div>
+                <p className={`flex items-center gap-1.5 text-sm ${matchedAll ? 'text-achieved' : 'text-discarded'}`}>
+                  {matchedAll ? (
+                    <Check className="size-3.5 shrink-0" aria-hidden />
+                  ) : (
+                    <TriangleAlert className="size-3.5 shrink-0" aria-hidden />
+                  )}
+                  <span>
+                    {review.units.length} of {review.sourceUnitCount} matched {review.units.length === 1 ? 'entry' : 'entries'}
+                  </span>
                 </p>
-                <p className="text-xs text-dim">
-                  Reported army: {review.reportedPoints === null ? 'points not stated' : `${review.reportedPoints} points`}. Matched entries
-                  at selected rules: {review.currentPoints === null ? 'pricing unavailable' : `${review.currentPoints} points`}. Saving uses
-                  the selected rules' prices.
-                </p>
-                {'limit' in review && review.limit ? (
-                  <p className="text-xs text-dim">Battle size: {battleSizeLabel(review.limit, review.pointsBudget)}.</p>
-                ) : null}
+                <dl className="divide-y divide-edge border-y border-edge">
+                  <ReviewRow label="Reported army" name="reported">
+                    {review.reportedPoints === null ? 'points not stated' : `${review.reportedPoints} points`}
+                  </ReviewRow>
+                  <ReviewRow label="Matched entries at selected rules" name="current">
+                    {review.currentPoints === null ? 'pricing unavailable' : `${review.currentPoints} points`}
+                  </ReviewRow>
+                  {'limit' in review && review.limit ? (
+                    <ReviewRow label="Battle size" name="size">
+                      {battleSizeLabel(review.limit, review.pointsBudget)}
+                    </ReviewRow>
+                  ) : null}
+                </dl>
+                <p className="text-xs text-dim">Saving uses the selected rules' prices.</p>
                 {fromCode ? (
                   <p className="text-xs text-dim">
                     The exchange code carries units, model counts, equipment, attachments, Warlord, enhancements, setup and rules version.
@@ -334,33 +394,11 @@ export function RosterImport({ onImport, blocked }: { onImport?: (imported: Matc
                     lines: entry.choices.map((choice) => `Could not apply ${choice.name}: ${choice.reason}`),
                   }))}
                 />
-                <Button className="w-full" disabled={working} onClick={() => accept(review)}>
-                  {keep.isPending ? (
-                    <LoaderCircle className="animate-spin" />
-                  ) : !review.unknown.length && !review.unplaced.length ? (
-                    <Copy />
-                  ) : (
-                    <TriangleAlert />
-                  )}
-                  {onImport ? 'Open imported draft' : review.unknown.length || review.unplaced.length ? 'Import anyway' : 'Import roster'}
-                </Button>
                 {onImport ? (
                   <p className="text-xs text-dim">
                     No account needed. This device keeps the draft; sign in when you want to save it to your account.
                   </p>
                 ) : null}
-                <Button
-                  variant="outline"
-                  disabled={working}
-                  onClick={() => {
-                    advanceOnboarding('roster-tools', 'tools-review', 'tools-input')
-                    bring.reset()
-                    keep.reset()
-                    setPicked(null)
-                  }}
-                >
-                  {picked ? 'Back to the lists' : fromCode ? 'Edit code' : 'Edit pasted text'}
-                </Button>
               </div>
             ) : null}
             {/* Kept mounted under a review, so the lists found are still there to go back to. */}
@@ -397,7 +435,7 @@ export function RosterImport({ onImport, blocked }: { onImport?: (imported: Matc
                     id="roster-text"
                     value={text}
                     onChange={(event) => {
-                      setDroppedFile(null)
+                      setRefusal(null)
                       setText(event.target.value)
                     }}
                     // Cancelling dragover for files makes the box a drop target, so a dropped roster file is refused rather than opened.
@@ -407,7 +445,7 @@ export function RosterImport({ onImport, blocked }: { onImport?: (imported: Matc
                       if (!format) return
                       event.preventDefault()
                       bring.reset()
-                      setDroppedFile(refuseRosterFile(format, 'file'))
+                      setRefusal(refuseRosterFile(format, 'file'))
                     }}
                     placeholder="Paste Games Workshop roster text or an exchange code…"
                     className="h-52 min-h-52 field-sizing-fixed resize-none overflow-y-auto font-mono text-xs"
@@ -418,8 +456,8 @@ export function RosterImport({ onImport, blocked }: { onImport?: (imported: Matc
                     className="w-full"
                     disabled={!text.trim() || working}
                     onClick={() => {
-                      setDroppedFile(null)
-                      bring.mutate(text)
+                      setRefusal(null)
+                      bring.mutate({ file: text })
                     }}
                   >
                     {working ? <LoaderCircle className="animate-spin" /> : <Copy />}
@@ -448,6 +486,26 @@ export function RosterImport({ onImport, blocked }: { onImport?: (imported: Matc
             <Button variant="outline" disabled={working} onClick={() => setOpen(false)}>
               Cancel
             </Button>
+            {review ? (
+              <>
+                <Button
+                  variant="outline"
+                  disabled={working}
+                  onClick={() => {
+                    advanceOnboarding('roster-tools', 'tools-review', 'tools-input')
+                    bring.reset()
+                    keep.reset()
+                    setPicked(null)
+                  }}
+                >
+                  {picked ? 'Back to the lists' : fromCode ? 'Edit code' : 'Edit pasted text'}
+                </Button>
+                <Button disabled={working} onClick={() => accept(review)}>
+                  {keep.isPending ? <LoaderCircle className="animate-spin" /> : matchedAll ? <Copy /> : <TriangleAlert />}
+                  {onImport ? 'Open imported draft' : matchedAll ? 'Import roster' : 'Import anyway'}
+                </Button>
+              </>
+            ) : null}
           </DialogFooter>
         </DialogContent>
       </Dialog>

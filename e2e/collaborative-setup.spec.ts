@@ -223,8 +223,9 @@ test('both devices settle mandatory tactical cards without racing', async ({ bro
   await attachRoster(bob, bobRoster)
   await expect(alice.getByText(bobRoster, { exact: true }).first()).toBeVisible()
   await expect(alice.getByText('King of the Colosseum · 600 points', { exact: true })).toBeVisible()
-  await setupStep(alice, 'Battlefield')
+  // Settling folds an untouched step, so it is opened only once the fixed battlefield has settled.
   await expect(alice.locator('#setup-battlefield')).toHaveAttribute('data-complete', 'true')
+  await setupStep(alice, 'Battlefield')
   await expect(alice.getByRole('button', { name: /Select layout|Select random/ })).toHaveCount(0)
   const card = alice.getByRole('button', { name: 'Enlarge Colosseum battlefield' }).locator('xpath=..')
   const grid = card.locator('xpath=..')

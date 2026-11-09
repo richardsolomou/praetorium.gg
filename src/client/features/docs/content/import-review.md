@@ -2,7 +2,7 @@ The review shows how your list came across before anything is saved. If everythi
 
 ## Reading the review
 
-The top line shows how many entries matched, such as "9 of 10 matched entries".
+The line under the list's name shows how many entries matched, such as "9 of 10 matched entries".
 
 **Reported army** is the total your export stated, or "points not stated". **Matched entries at selected rules** is what the list costs in Praetorium today, and that's the price saved and checked. **Battle size** appears when the text named one.
 
