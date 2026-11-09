@@ -79,6 +79,24 @@ describe('optimization phase', () => {
   it('returns only the selected phase’s damage', () => {
     expect(optimizeLoadout(space, scoring, 'ranged').best?.result.meanDamage).toBeCloseTo(4 * (5 / 6) ** 3, 10)
   })
+  it('keeps the shooting type the player chose', () => {
+    const gun = weapon('Gun', 'ranged', '8')
+    const pistol = {
+      ...weapon('Sidearm', 'ranged', '1'),
+      values: [...weapon('Sidearm', 'ranged', '1').values.slice(0, -1), { name: 'Keywords', value: 'Pistol' }],
+    }
+    const member = {
+      ...candidate('engaged', '1', '1').members[0]!,
+      carriers: squad({ Gun: 1, Sidearm: 1 }, 1),
+      sheet: datasheetFixture({ name: 'Trooper', profiles: [gun, pistol] }),
+    }
+    const preferences = { 'ranged:shooting-type': 'close-quarters' }
+    expect(
+      optimizeLoadout({ candidates: [{ members: [member] }] }, { ...scoring, preferences }, 'ranged').best?.preferences[
+        'ranged:shooting-type'
+      ],
+    ).toBe('close-quarters')
+  })
   it('scores ranged loadouts when melee is unsupported', () => {
     expect(
       optimizeLoadout({ candidates: [candidate('ranged', '4', '?')] }, { ...scoring, phases: { ranged: setup, melee: null } }, 'ranged')

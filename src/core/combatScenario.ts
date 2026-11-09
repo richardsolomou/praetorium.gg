@@ -2,7 +2,7 @@ import type { Datasheet } from './datasheet'
 import { MAX_COMBAT_MODELS, type CombatInput, type CombatOptions, type CombatWeapon, type CombatPhase } from './combat'
 import { adjustCombatWeapon, type WeaponAdjustment } from './combatAdjustments'
 import type { CombatCarrier } from './combatLoadout'
-import { combatPlan, combatWeapons } from './combatProfiles'
+import { combatPlan, combatShootingTypes, combatWeapons, SHOOTING_TYPE_KEY, shootingTypeChoice } from './combatProfiles'
 import { combatRuleMortals, combatRuleProfiles, combatRuleSacrifices, combatRuleWeapons, type ActiveCombatRule } from './combatRules'
 import type { StructuredDatasheetProfile } from './datasheet'
 
@@ -65,20 +65,33 @@ export function combatAttacks(
   preferences: Readonly<Record<string, string>>,
   excluded: Readonly<Record<CombatPhase, readonly string[]>>,
 ) {
+  const members = [attacker, ...(attacker.companions ?? [])]
+  const sheets = members.map((member) =>
+    combatRuleProfiles(member.sheet, member.rules ?? [], 'attacker', defender.keywords, defender.rules),
+  )
+  const shootingTypes = combatShootingTypes(members.map((member, index) => ({ sheet: sheets[index]!, carriers: member.carriers })))
+  const shootingType = shootingTypes.find((type) => type === preferences[SHOOTING_TYPE_KEY]) ?? 'normal'
+  const phaseChoices = (phase: CombatPhase) =>
+    phase === 'ranged' && shootingTypes.length > 1 ? [shootingTypeChoice(shootingTypes, shootingType)] : []
   if (attacker.companions?.length) {
-    const members = [attacker, ...attacker.companions]
     const attack = (phase: CombatPhase) => {
       const tooMany = members.reduce((total, member) => total + member.models, 0) > MAX_COMBAT_MODELS
       const parts = members.map((member, index) => {
         const prefix = index ? attachedProfilePrefix(index) : ''
-        const rules = member.rules ?? []
-        const sheet = combatRuleProfiles(member.sheet, rules, 'attacker', defender.keywords, defender.rules)
         const localPreferences = Object.fromEntries(
           Object.entries(preferences)
             .filter(([key]) => !prefix || key.startsWith(prefix))
             .map(([key, value]) => [prefix ? key.slice(prefix.length) : key, value]),
         )
-        const plan = combatPlan(sheet, member.carriers, defender.keywords, phase, localPreferences, new Set(excluded[phase]))
+        const plan = combatPlan(
+          sheets[index]!,
+          member.carriers,
+          defender.keywords,
+          phase,
+          localPreferences,
+          new Set(excluded[phase]),
+          shootingType,
+        )
         return {
           plan: { ...plan, choices: plan.choices.map((choice) => ({ ...choice, key: `${prefix}${choice.key}` })) },
           base: plan.errors.length ? null : ruledAttack(member, defender, phase, plan.active, true),
@@ -88,7 +101,7 @@ export function combatAttacks(
         plan: {
           used: parts.flatMap((part) => part.plan.used),
           active: parts.flatMap((part) => part.plan.active),
-          choices: parts.flatMap((part) => part.plan.choices),
+          choices: [...phaseChoices(phase), ...parts.flatMap((part) => part.plan.choices)],
           errors: [
             ...parts.flatMap((part) => part.plan.errors),
             ...(tooMany ? ['This attached unit exceeds the supported model limit.'] : []),
@@ -106,11 +119,12 @@ export function combatAttacks(
     }
     return { ranged: attack('ranged'), melee: attack('melee') }
   }
-  const rules = attacker.rules ?? []
-  const sheet = combatRuleProfiles(attacker.sheet, rules, 'attacker', defender.keywords, defender.rules)
   const attack = (phase: CombatPhase) => {
-    const plan = combatPlan(sheet, attacker.carriers, defender.keywords, phase, preferences, new Set(excluded[phase]))
-    return { plan, base: plan.errors.length ? null : ruledAttack(attacker, defender, phase, plan.active) }
+    const plan = combatPlan(sheets[0]!, attacker.carriers, defender.keywords, phase, preferences, new Set(excluded[phase]), shootingType)
+    return {
+      plan: { ...plan, choices: [...phaseChoices(phase), ...plan.choices] },
+      base: plan.errors.length ? null : ruledAttack(attacker, defender, phase, plan.active),
+    }
   }
   return { ranged: attack('ranged'), melee: attack('melee') }
 }

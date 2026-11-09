@@ -355,6 +355,47 @@ describe('automatic combat loadouts', () => {
       close: ['ranged:0:group'],
     })
   })
+  it('limits assault shooting to assault weapons', () => {
+    const data = {
+      ...sheet(),
+      profiles: [
+        weaponProfile('Rifle', 'ranged', 1),
+        weaponProfile('Bolter', 'ranged', 1, 'Assault'),
+        weaponProfile('Sidearm', 'ranged', 1, 'Pistol'),
+      ],
+    }
+    const carriers = [carrier(1, ['Rifle', 1], ['Bolter', 1], ['Sidearm', 1])]
+    expect(selected(combatPlan(data, carriers, [], 'ranged', {}, new Set(), 'assault'))).toEqual([['Bolter', 1]])
+  })
+  it('limits other models to close-quarters weapons while engaged, with nothing left to choose', () => {
+    const data = { ...sheet(), profiles: [weaponProfile('Rifle', 'ranged', 1), weaponProfile('Sidearm', 'ranged', 1, 'Pistol')] }
+    const engaged = combatPlan(data, [carrier(1, ['Rifle', 1], ['Sidearm', 1])], [], 'ranged', {}, new Set(), 'close-quarters')
+    expect({ weapons: selected(engaged), choices: engaged.choices }).toEqual({ weapons: [['Sidearm', 1]], choices: [] })
+  })
+  it('lets a Monster fire all but Blast weapons while engaged, at -1 unless close-quarters', () => {
+    const data = {
+      ...sheet(),
+      keywords: ['Monster'],
+      profiles: [
+        weaponProfile('Cannon', 'ranged', 1),
+        weaponProfile('Mortar', 'ranged', 1, 'Blast'),
+        weaponProfile('Sidearm', 'ranged', 1, 'Pistol'),
+      ],
+    }
+    const engaged = combatPlan(
+      data,
+      [carrier(1, ['Cannon', 1], ['Mortar', 1], ['Sidearm', 1])],
+      [],
+      'ranged',
+      {},
+      new Set(),
+      'close-quarters',
+    )
+    expect(engaged.used.map(({ profile, weapon }) => [profile.name, weapon?.hitModifier ?? 0])).toEqual([
+      ['Cannon', -1],
+      ['Sidearm', 0],
+    ])
+  })
   it('keeps a disabled weapon visible while omitting its attacks', () => {
     const data = { ...sheet(), profiles: [weaponProfile('Rifle', 'ranged', 1), weaponProfile('Grenade', 'ranged', 1)] }
     const selection = combatPlan(data, [carrier(1, ['Rifle', 1], ['Grenade', 1])], [], 'ranged', {}, new Set([wargearKey('Grenade')]))

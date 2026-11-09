@@ -23,6 +23,13 @@ A dimmed chip wouldn't change anything. Hover it to see why. **Reset** clears ev
 
 ![Manual modifiers on the Shooting tab with Cover selected.](screenshot:compare-loadouts-modifiers 'The All, Shooting and Melee tabs choose which attacks a modifier affects')
 
+## Shooting type
+
+A unit that can shoot in more than one way gets a **Shooting type** choice under **Shooting**. It starts on **Normal**.
+
+- **Assault**: the unit advanced this turn, so only its [ASSAULT] weapons fire.
+- **Close-quarters**: the unit is engaged and shoots a unit it's engaged with. Monsters and Vehicles fire everything except [BLAST] weapons, at -1 to hit unless the weapon is [CLOSE-QUARTERS] or [PISTOL]. Everything else fires only those weapons.
+
 ## Check what's included
 
 **Calculation uses**, under the modifiers, lists everything behind the current numbers for each phase. Look here when a result surprises you.
