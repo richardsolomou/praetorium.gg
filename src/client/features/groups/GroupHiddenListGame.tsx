@@ -34,7 +34,7 @@ import { RevealedLists } from '../sealedEvents/SealedEventArmies'
 import { SealedEventCombatDialog } from '../sealedEvents/SealedEventCombatDialog'
 import { RosterChooser } from '../sealedEvents/SealedEventRosterChooser'
 import { RemindEntrants } from '../sealedEvents/SealedEventReadiness'
-import { TableBattlefield } from '../sealedEvents/TableBattlefield'
+import { OpenTableBattlefield } from '../sealedEvents/OpenTableBattlefield'
 import { SealedEventSettingsDialog } from '../sealedEvents/SealedEventSettingsDialog'
 import { TeamDispositionPanel } from '../sealedEvents/SealedEventTeamDisposition'
 import { TeamWarlordPanel } from '../sealedEvents/SealedEventTeamWarlord'
@@ -396,6 +396,16 @@ export function GroupHiddenListGame({
             {menu}
           </div>
           {revealed ? revealedLists : lists}
+          {revealed && record ? (
+            <OpenTableBattlefield
+              sealedEvent={record}
+              token={game.token}
+              organizes={group.organizer}
+              battles={battles}
+              noun="game"
+              className="border-t border-edge p-4"
+            />
+          ) : null}
           {revealed ? (
             team && toPlay.length ? (
               <div className="flex flex-wrap items-center gap-2 border-t border-edge p-4">
@@ -428,16 +438,6 @@ export function GroupHiddenListGame({
               ) : null}
               <p className="text-xs text-dim">{hint}</p>
               {group.organizer && record ? <RemindEntrants token={game.token} sealedEvent={record} viewerId={viewerId} /> : null}
-              {revealed && record && !team ? (
-                <TableBattlefield
-                  sealedEvent={record}
-                  token={game.token}
-                  round={0}
-                  table={0}
-                  canChange={group.organizer && battles.every((battle) => battle.status === 'setup')}
-                  label="Battlefield"
-                />
-              ) : null}
               {side.error && moving === undefined ? <Problem error={side.error} /> : null}
               {viewerId && ownEntry?.team && ownEntry.team.choices.length > 1 ? (
                 <TeamDispositionPanel token={game.token} eventToken={game.token} team={ownEntry.team} />

@@ -8,6 +8,7 @@ import { randomId, randomToken } from 'ras-stack/auth'
 import { pointsBudgetError, pointsLabel, type Roster } from '../../core/battle'
 import { commandSchema, parseRosterSnapshot, rosterSnapshotOrNull } from '../../core/commands'
 import {
+  eventTableSides,
   sealedEventArmyPointsError,
   offeredSealedEventAllowances,
   sealedEventTableShape,
@@ -23,6 +24,7 @@ import {
   type SealedEventVisibility,
 } from '../../core/sealedEvent'
 import type { TableShape } from '../../core/tableShape'
+import { teamDisposition } from '../../core/teamDisposition'
 import type { SealedEventSide } from '../../contracts/schemas'
 import type { SealedEventSchedule, RepositoryPort } from '../spacetimeRepository'
 import type { BattleFaction } from '../../shared/battleSummary'
@@ -490,8 +492,12 @@ export class SealedEventService {
     throw new Response('those players aren’t at different tables this round', { status: 409 })
   }
 
-  /** The layouts one table can play on, once the rosters are out. Only duels have two armies to name them. */
-  async tableBattlefields(
+  /** The layouts one table can play on, once the rosters are out and its two sides are known. */
+  async tableBattlefields(...args: Parameters<SealedEventService['seatedTable']>) {
+    return (await this.seatedTable(...args)).battlefields
+  }
+
+  private async seatedTable(
     token: string,
     eventToken: string | undefined,
     round: number,
@@ -501,14 +507,17 @@ export class SealedEventService {
   ) {
     const seat = await this.repository.sealedEventTable(token, eventToken, round, table)
     if (!seat) throw new Response('no such event', { status: 404 })
-    if (!seat.revealed || (seat.format !== null && seat.format !== '1v1')) return { matchupIds: [], options: [] }
-    const built = seat.snapshots.map((snapshot) => parseRosterSnapshot(snapshot).built)
-    return tableBattlefields(
-      rules,
-      built.map((army) => army?.disposition ?? null),
-      seat.rosterLimit ?? built[0]?.limit ?? null,
-      missionPackId,
-    )
+    const sides = (seat.revealed && eventTableSides(seat.format, seat.players)) || []
+    const armies = sides.map((side) => side.map((player) => parseRosterSnapshot(player.snapshot)))
+    return {
+      playerIds: seat.players.map((player) => player.userId),
+      battlefields: tableBattlefields(
+        rules,
+        armies.map((rosters, index) => teamDisposition(rosters, sides[index]![0]!.teamDisposition)),
+        seat.rosterLimit ?? armies[0]?.[0]?.built?.limit ?? null,
+        missionPackId,
+      ),
+    }
   }
 
   async setTableBattlefield(
@@ -521,7 +530,10 @@ export class SealedEventService {
     battlefield: { patternId: string; terrainLayoutId: string } | 'roll' | null,
     rules: LoadedRules,
   ) {
-    const { options } = await this.tableBattlefields(token, eventToken, round, table, missionPackId, rules)
+    const {
+      playerIds,
+      battlefields: { options },
+    } = await this.seatedTable(token, eventToken, round, table, missionPackId, rules)
     const chosen = battlefield === 'roll' ? options[Math.floor(Math.random() * options.length)] : battlefield
     if (battlefield === 'roll' && !chosen) throw new Response('these armies have no battlefields to roll', { status: 409 })
     if (chosen && !options.some(({ terrainLayoutId }) => terrainLayoutId === chosen.terrainLayoutId))
@@ -534,7 +546,16 @@ export class SealedEventService {
       table,
       battlefield: chosen ?? null,
     })
-    if (result === 'set') return
+    if (result === 'set') {
+      this.notifySealedEvent(
+        chosen ? 'sealed-event-battlefield-set' : 'sealed-event-battlefield-cleared',
+        ownerId,
+        playerIds,
+        token,
+        eventToken,
+      )
+      return
+    }
     if (result === 'missing') throw new Response('no such event', { status: 404 })
     if (result === 'forbidden') throw new Response('only the organizer can set a battlefield', { status: 403 })
     if (result === 'started') throw new Response('this table has already started its battle', { status: 409 })

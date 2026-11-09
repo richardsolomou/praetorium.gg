@@ -1600,6 +1600,7 @@ export function commandRefusal(state: BattleState, by: PlayerId, command: Comman
     case 'set-side-disposition': {
       if (state.status !== 'setup') return refuse('battle-started', 'the battle has started')
       if (state.dispositionsSealed) return refuse('sealed-event-sealed', 'each side’s force disposition is sealed')
+      if (state.battlefieldFixed) return refuse('battlefield-fixed', 'the organizer set this battlefield for these Force Dispositions')
       return sideDispositionChoices(state, command.side).includes(command.disposition)
         ? null
         : refuse('disposition-not-brought', 'that force disposition is not one this side brought')

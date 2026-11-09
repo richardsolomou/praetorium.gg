@@ -69,7 +69,9 @@ Set a round length and press **Start the clock** to show everyone the same count
 
 Once a round is paired you can set each table's battlefield, so players know who they face and where before the day. Press **Set battlefield** on a table to pick one of its layouts or **Roll** one, or press **Roll battlefields** to roll every table at once. A table's layouts come from its two armies, so a table whose army hasn't settled on a Force Disposition stays for its players to choose.
 
-Players see the battlefield on the table and can't change it during setup. You can change it until that table's battle starts, even if the players have already opened it.
+Players are notified, see the battlefield on the table and can't change it during setup. You can change it until that table's battle starts, even if the players have already opened it. If you unseal a list, that table's battlefield is cleared, because the replacement may change the layouts.
+
+A tournament without Swiss rounds has one table to set when exactly two sides sealed lists, including solo vs pair and doubles, and **Set battlefield** appears above the armies after the reveal. A pair's layouts come from the Force Disposition it sealed. With more than two sides, players choose at the table.
 
 ### Enter a score without tracking the game
 

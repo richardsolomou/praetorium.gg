@@ -1472,6 +1472,8 @@ describe('friends’ sealed rosters', () => {
       Array.from(ctx.db.commands.battleId.filter('battle')).map((row) => (JSON.parse(row.body) as { kind: string }).kind),
     )
     expect([refused, applied, logged.at(-1)]).toEqual(['forbidden', 'set', 'fix-battlefield'])
+    command({ token: 'game', op: 'unseal', ownerId: 'viewer', userId: 'friend' })
+    expect(fixture.call(fixture.operator, (ctx) => Array.from(ctx.db.eventBattlefields.eventId.filter('game-id')).length)).toBe(0)
   })
 
   it('counts a group game’s players as playing again when the end of their battle is undone', () => {

@@ -19,6 +19,15 @@ it('leaves out a layout whose exact terrain has not loaded', () => {
   expect(tableBattlefields(rules(layout('rough', 'purge-vs-recon', false)), ['recon', 'purge'], 2000, null).options).toEqual([])
 })
 
+it('leaves out a deployment only one side’s mission allows, whichever side is listed first', () => {
+  const missions = new Map([
+    ['recon|purge', { deploymentIds: ['dawn'] }],
+    ['purge|recon', { deploymentIds: ['dusk'] }],
+  ])
+  const onlyDawn = { ...rules(layout('match', 'purge-vs-recon')), missions } as unknown as LoadedRules
+  expect(tableBattlefields(onlyDawn, ['recon', 'purge'], 2000, null).options).toEqual([])
+})
+
 it('offers nothing when an army has not settled on a disposition', () => {
   expect(tableBattlefields(rules(layout('match', 'purge-vs-recon')), ['recon', null], 2000, null).options).toEqual([])
 })

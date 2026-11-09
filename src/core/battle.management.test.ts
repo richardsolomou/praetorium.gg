@@ -56,6 +56,12 @@ describe('an organizer-set battlefield', () => {
     expect(validate(reduceBattle(PLAYERS, []), ALICE, fixed)).toBe('only the organizer can set this battlefield')
   })
 
+  it('stops a side changing the Force Disposition it was set for', () => {
+    expect(validate(state(), ALICE, { kind: 'set-side-disposition', side: 0, disposition: 'recon' })).toBe(
+      'the organizer set this battlefield for these Force Dispositions',
+    )
+  })
+
   it('lets an organizer without a seat change it during setup', () => {
     expect(validate(state(), 'organizer', { ...fixed, patternId: 'dusk' }, true)).toBeNull()
   })

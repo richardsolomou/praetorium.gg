@@ -12,6 +12,7 @@ import { pairSealedEventRound, reopenSwissTable, setTableBattlefield } from '../
 import { useStartBattle } from '../battles/useStartBattle'
 import type { Battle } from '../battles/battle'
 import { SectionHeading } from '../../components/SectionHeading'
+import { countLabel } from '../../text'
 import { useSealedEventRefresh, type SealedEvent } from './sealedEvent'
 import { TableBattlefield } from './TableBattlefield'
 import { ReportTableResult } from './ReportTableResult'
@@ -84,6 +85,7 @@ export function SealedEventRounds({
     (pairing) =>
       pairing.bId !== null &&
       !pairing.battleToken &&
+      !forfeited(pairing, entries) &&
       !sealedEvent.battlefields.some(({ round, table }) => round === pairing.round && table === pairing.table),
   )
   // A table whose armies name no layouts stays for its players to choose, so one refusal doesn't stop the rest.
@@ -137,6 +139,11 @@ export function SealedEventRounds({
         }
       />
       {pair.error ? <Problem error={pair.error} className="mb-2" /> : null}
+      {isOrganizer && !sample && !canPair && unset.length ? (
+        <p data-battlefields-unset className="mb-2 text-sm text-dim">
+          Set this round’s battlefields so players can prepare. {countLabel(unset.length, 'table')} still to set.
+        </p>
+      ) : null}
       {!progress.round && !sample ? (
         <>
           <CheckIn

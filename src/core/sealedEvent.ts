@@ -48,6 +48,22 @@ export function sealedEventTableShape(format: TableShape | null | undefined): Ta
   return format ?? '1v1'
 }
 
+const SEALED_EVENT_SIDE_SIZES: Record<TableShape, string> = { '1v1': '1,1', '2v1': '1,2', '2v2': '2,2' }
+
+/**
+ * The two sides of a table, from the players at it. Null unless they make exactly one battle of the event's shape: with
+ * more sides, who meets whom is only settled as battles start.
+ */
+export function eventTableSides<Player extends { userId: string; teamId: string | null }>(
+  format: TableShape | null | undefined,
+  players: readonly Player[],
+) {
+  const sideOf = (player: Player) => player.teamId ?? player.userId
+  const sides = [...new Set(players.map(sideOf))].map((side) => players.filter((player) => sideOf(player) === side))
+  const sizes = sides.map((side) => side.length).toSorted((a, b) => a - b)
+  return sizes.join() === SEALED_EVENT_SIDE_SIZES[sealedEventTableShape(format)] ? sides : null
+}
+
 export function alliedSealedEventRosterLimit(rosterLimit: number) {
   return rosterLimit / 2
 }

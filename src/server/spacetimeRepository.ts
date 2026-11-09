@@ -449,8 +449,9 @@ export class SpacetimeRepository {
   async sealedEventTable(token: string, eventToken: string | undefined, round: number, table: number) {
     const record = await this.product.sealedEventByToken(token, eventToken)
     if (!record) return undefined
-    const { event, pairings, entries, organizerIds } = record
+    const { event, pairings, entries, organizerIds, teams } = record
     const pairing = pairings.find((candidate) => candidate.round === round && candidate.table === table)
+    const picks = new Map(teams.map((team) => [team.teamId, team.disposition]))
     const accepted = entries.filter((entry) => entry.status === 'accepted' && entry.rosterSnapshot !== null)
     const seated =
       event.rounds === null ? accepted : accepted.filter((entry) => entry.userId === pairing?.aId || entry.userId === pairing?.bId)
@@ -460,7 +461,12 @@ export class SpacetimeRepository {
       rosterLimit: event.rosterLimit,
       revealed: event.revealedAt !== null,
       organizerIds,
-      snapshots: seated.map((entry) => entry.rosterSnapshot!),
+      players: seated.map((entry) => ({
+        userId: entry.userId,
+        teamId: entry.teamId,
+        teamDisposition: (entry.teamId && picks.get(entry.teamId)) ?? null,
+        snapshot: entry.rosterSnapshot!,
+      })),
     }
   }
 

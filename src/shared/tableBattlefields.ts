@@ -15,13 +15,13 @@ export function tableBattlefields(
   const [one, two] = dispositions
   if (limit === null || isKotcLimit(limit) || dispositions.length !== 2 || !one || !two) return { matchupIds: [], options: [] }
   const matchupIds = terrainMatchupIds([one, two])
-  const allowed = missionFor(rules, one, two, missionPackId)?.deploymentIds ?? []
-  const options = rules.terrainLayouts.flatMap((layout) =>
-    matchupIds.includes(layout.matchupId) &&
-    layout.geometry &&
-    layout.deploymentId &&
-    (!allowed.length || allowed.includes(layout.deploymentId))
-      ? [{ patternId: layout.deploymentId, terrainLayoutId: layout.id }]
+  // Each side has its own mission, and starting the battle checks the deployment against both.
+  const allowed = [missionFor(rules, one, two, missionPackId), missionFor(rules, two, one, missionPackId)].map(
+    (mission) => mission?.deploymentIds ?? [],
+  )
+  const options = rules.terrainLayouts.flatMap(({ id, matchupId, geometry, deploymentId }) =>
+    matchupIds.includes(matchupId) && geometry && deploymentId && allowed.every((ids) => !ids.length || ids.includes(deploymentId))
+      ? [{ patternId: deploymentId, terrainLayoutId: id }]
       : [],
   )
   return { matchupIds, options }

@@ -5904,6 +5904,12 @@ function sealedEventCommandIn(tx: Context, args: unknown[]) {
     const entry = tx.db.sealedEventEntries.key.find(JSON.stringify([event.id, input.userId]))
     if (!entry || entry.status !== 'accepted' || entry.rosterSnapshot === undefined) return productJson('missing')
     tx.db.sealedEventEntries.key.update({ ...entry, ...UNSEALED })
+    // A table's layouts depend on its armies, so a table yet to sit down chooses again around the replacement.
+    const tables =
+      event.rounds === undefined
+        ? [{ round: 0, table: 0 }]
+        : roundPairings(tx, event.id).filter(({ aId, bId, battleId }) => !battleId && (aId === input.userId || bId === input.userId))
+    for (const seat of tables) tx.db.eventBattlefields.key.delete(JSON.stringify([event.id, seat.round, seat.table]))
     touchEvent(tx, host)
     return productJson('unsealed')
   }
