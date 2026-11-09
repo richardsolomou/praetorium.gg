@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { fromWarscribeText } from './warscribe'
+import { fromWarscribeText, isWarscribeLink } from './warscribe'
 
 const gw = `Sanitised (520 Points)
 
@@ -100,6 +100,14 @@ const immortals = {
 }
 
 describe('Warscribe text import', () => {
+  it.each([
+    [' https://40k.warscribe.app/l#Pc7BboMw ', true],
+    ['https://40k.warscribe.app/build/4b475aa8-8e10-4458-a4fd-ac29c30c9958', true],
+    [gw, false],
+  ])('tells a link to the site from a list that mentions it', (input, link) => {
+    expect(isWarscribeLink(input)).toBe(link)
+  })
+
   it('leaves other exports to their own readers', () => {
     expect(fromWarscribeText(gw.replace('Created with Warscribe', ''))).toBeNull()
   })

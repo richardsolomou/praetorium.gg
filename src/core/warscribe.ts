@@ -10,6 +10,9 @@ const section = /^[A-Z][A-Z -]*[A-Z](?: ·{2,} [\d,]+)?$/
 const dottedUnit = /^(.+?)(?: \((\d+) models?\))? ·{2,} [\d,]+(\s+★ Warlord)?$/
 const pricedUnit = /^(.+?) \([\d,]+ points\)(?: \[(\d+) models?\])?$/
 
+/** A Warscribe share link names its detachments and wargear by Warscribe's private ids, so only its text export can be read. */
+export const isWarscribeLink = (input: string) => /^(?:https?:\/\/)?(?:[\w-]+\.)?warscribe\.app(?:[/?#]\S*)?$/i.test(input.trim())
+
 /**
  * Warscribe's text exports.
  *

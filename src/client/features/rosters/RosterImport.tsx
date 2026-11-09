@@ -13,6 +13,7 @@ import { findImportableRosters, importRoster, saveRoster } from '../../functions
 import { invalidateSavedRosters, playerDefaultsQuery } from '../../queries'
 import { isRosterExchangeCode } from '../../../core/rosterExchange'
 import { isNewRecruitLink, newRecruitShareId } from '../../../core/newRecruit'
+import { isWarscribeLink } from '../../../core/warscribe'
 import { structuredRosterFile, type StructuredRosterFile } from '../../../core/structuredRosterFile'
 import { importRosterFormat, UNSUPPORTED_ARMY_TEXT } from '../../../shared/rosterFiles'
 import { battleSizeLabel } from '../../../core/battle'
@@ -166,6 +167,10 @@ export function RosterImport({ onImport, blocked }: { onImport?: (imported: Matc
         throw new Error(
           'That New Recruit link could not be opened. Copy the share link from the list in New Recruit, or export the list as text and paste the text here.',
         )
+      }
+      if (isWarscribeLink(file)) {
+        posthog.capture('roster_import_failed', { reason: 'share_link', input: inputOf(file), format: 'warscribe' })
+        throw new Error("Warscribe links can't be read. In Warscribe, open Share, copy the list as text, and paste that here.")
       }
       const structured = structuredRosterFile(file)
       if (structured) throw refuseRosterFile(structured, 'text')
