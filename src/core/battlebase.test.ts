@@ -54,6 +54,24 @@ Immortals (70 Points)
 Exported with BattleBase, Data Version: v20260812`
 
 describe('BattleBase text import', () => {
+  describe('an export whose setup was cut', () => {
+    const cut =
+      'Spooky\n\nATTACHED UNITS\n\nAttached unit 1\n\nChaos Lord (130 Points)\n• Attached as: Leader\n\nOTHER DATASHEETS\n\nChaos Rhino (75 Points)\n'
+
+    it('reads the units and reports what stands above them when the setup is optional', () => {
+      expect(fromBattleBaseText(cut, { setupOptional: true })).toMatchObject({
+        name: 'Imported list',
+        detachment: null,
+        units: [{ name: 'Chaos Lord' }, { name: 'Chaos Rhino' }],
+        unread: ['Spooky'],
+      })
+    })
+
+    it('stays unread for the other layouts that try this reader first', () => {
+      expect(fromBattleBaseText(cut)).toBeNull()
+    })
+  })
+
   it('reads the chapter and disposition after a parent faction in New Recruit text', () => {
     expect(fromBattleBaseText(blackTemplarsNewRecruit)).toMatchObject({
       faction: 'Black Templars',
