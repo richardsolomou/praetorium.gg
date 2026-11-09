@@ -100,8 +100,12 @@ const immortals = {
 }
 
 describe('Warscribe text import', () => {
-  it('recognises a share link but not a list that mentions the site', () => {
-    expect([isWarscribeLink(' https://40k.warscribe.app/l#Pc7BboMw '), isWarscribeLink(gw)]).toEqual([true, false])
+  it.each([
+    [' https://40k.warscribe.app/l#Pc7BboMw ', true],
+    ['https://40k.warscribe.app/build/4b475aa8-8e10-4458-a4fd-ac29c30c9958', true],
+    [gw, false],
+  ])('tells a link to the site from a list that mentions it', (input, link) => {
+    expect(isWarscribeLink(input)).toBe(link)
   })
 
   it('leaves other exports to their own readers', () => {

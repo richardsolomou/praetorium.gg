@@ -11,7 +11,7 @@ const dottedUnit = /^(.+?)(?: \((\d+) models?\))? ·{2,} [\d,]+(\s+★ Warlord)?
 const pricedUnit = /^(.+?) \([\d,]+ points\)(?: \[(\d+) models?\])?$/
 
 /** A Warscribe share link names its detachments and wargear by Warscribe's private ids, so only its text export can be read. */
-export const isWarscribeLink = (input: string) => /^(?:https?:\/\/)?40k\.warscribe\.app\/l#\S+$/i.test(input.trim())
+export const isWarscribeLink = (input: string) => /^(?:https?:\/\/)?(?:[\w-]+\.)?warscribe\.app(?:[/?#]\S*)?$/i.test(input.trim())
 
 /**
  * Warscribe's text exports.
