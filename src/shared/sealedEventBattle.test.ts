@@ -52,6 +52,12 @@ const build = (sealedEvent: SealedEventBattleSetup, userId: string, opponentId: 
 const lock = (prepared: ReturnType<typeof build>) =>
   prepared.initialCommands.find((command) => command.kind === 'lock-sealed-event-rosters')
 
+it('fixes the battlefield the organizer set, after the rosters are locked', () => {
+  const battlefield = { patternId: 'dawn', terrainLayoutId: 'layout' }
+  const kinds = build({ ...paired, battlefield }, 'solo', 'ally').initialCommands.map((command) => command.kind)
+  expect(kinds.slice(-2)).toEqual(['lock-sealed-event-rosters', 'fix-battlefield'])
+})
+
 describe('2v1 sealed event battles', () => {
   it('seats a solo entrant against the whole pair of the ally they chose', () => {
     expect(build(paired, 'solo', 'ally').opponentIds).toEqual(['ally', 'partner'])

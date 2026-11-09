@@ -33,6 +33,8 @@ export type SealedEventBattleSetup = {
   /** Swiss rounds, or null in open play; a Swiss battle needs the players' unplayed table in the current round. */
   rounds: number | null
   paired: boolean
+  /** What the organizer set for this table, if anything. */
+  battlefield?: { patternId: string; terrainLayoutId: string } | null
   /**
    * `teamDisposition` is the card the entrant's fixed pair sealed and `teamWarlord` the entrant whose Warlord leads it,
    * each absent from events revealed before pairs sealed one.
@@ -215,6 +217,7 @@ export function buildSealedEventBattle(
       ...sealedDispositions(sealedEvent, [userId, ...allyIds], opponentIds),
       ...sealedWarlords(sealedEvent, [userId, ...allyIds], opponentIds),
     },
+    ...(sealedEvent.battlefield ? [{ kind: 'fix-battlefield' as const, ...sealedEvent.battlefield }] : []),
   ]
   return {
     allyIds,

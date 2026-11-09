@@ -1,4 +1,6 @@
 import { buildSealedEventBattle, SealedEventBattleSetupError } from '../../shared/sealedEventBattle'
+import { tableBattlefields } from '../../shared/tableBattlefields'
+import type { LoadedRules } from '../../shared/rules'
 import { offlineContext, offlineIdentifier } from '../offlineContext'
 import { byId } from '../../core/collections'
 import type { Notice } from '../../core/notifications'
@@ -443,6 +445,57 @@ export class SealedEventService {
         ownerId: userId,
       }),
     )
+  }
+
+  /** The layouts one table can play on, once the rosters are out. Only duels have two armies to name them. */
+  async tableBattlefields(
+    token: string,
+    eventToken: string | undefined,
+    round: number,
+    table: number,
+    missionPackId: string | null,
+    rules: LoadedRules,
+  ) {
+    const seat = await this.repository.sealedEventTable(token, eventToken, round, table)
+    if (!seat) throw new Response('no such event', { status: 404 })
+    if (!seat.revealed || (seat.format !== null && seat.format !== '1v1')) return { matchupIds: [], options: [] }
+    const built = seat.snapshots.map((snapshot) => parseRosterSnapshot(snapshot).built)
+    return tableBattlefields(
+      rules,
+      built.map((army) => army?.disposition ?? null),
+      seat.rosterLimit ?? built[0]?.limit ?? null,
+      missionPackId,
+    )
+  }
+
+  async setTableBattlefield(
+    token: string,
+    eventToken: string,
+    ownerId: string,
+    round: number,
+    table: number,
+    missionPackId: string | null,
+    battlefield: { patternId: string; terrainLayoutId: string } | 'roll' | null,
+    rules: LoadedRules,
+  ) {
+    const { options } = await this.tableBattlefields(token, eventToken, round, table, missionPackId, rules)
+    const chosen = battlefield === 'roll' ? options[Math.floor(Math.random() * options.length)] : battlefield
+    if (battlefield === 'roll' && !chosen) throw new Response('these armies have no battlefields to roll', { status: 409 })
+    if (chosen && !options.some(({ terrainLayoutId }) => terrainLayoutId === chosen.terrainLayoutId))
+      throw new Response('that battlefield does not match these armies', { status: 409 })
+    const result = await this.repository.setSealedEventBattlefield({
+      token,
+      eventToken,
+      ownerId,
+      round,
+      table,
+      battlefield: chosen ?? null,
+    })
+    if (result === 'set') return
+    if (result === 'missing') throw new Response('no such event', { status: 404 })
+    if (result === 'forbidden') throw new Response('only the organizer can set a battlefield', { status: 403 })
+    if (result === 'started') throw new Response('this table has already started its battle', { status: 409 })
+    throw new Response('this table has changed, so reload and try again', { status: 409 })
   }
 
   async createSealedEventBattle(

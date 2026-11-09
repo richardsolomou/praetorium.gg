@@ -171,6 +171,7 @@ function describe(
         ? `The battlefield is ${deployments.get(command.patternId) ?? titled(command.patternId)}`
         : `${who} clears the battlefield`
     case 'set-battlefield':
+    case 'fix-battlefield':
       return `The battlefield is ${deployments.get(command.patternId) ?? titled(command.patternId)}`
     case 'deploy-unit': {
       const unit = player?.units.find((candidate) => candidate.key === command.unitKey)?.name ?? 'a unit'

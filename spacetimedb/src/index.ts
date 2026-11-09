@@ -3627,6 +3627,12 @@ function eventRecord(ctx: Context, host: EventHost) {
     teams: Array.from(ctx.db.sealedEventTeams.eventId.filter(event.id), ({ teamId, disposition }) => ({ teamId, disposition })),
     teamWarlords: Array.from(ctx.db.sealedEventTeamWarlords.eventId.filter(event.id), ({ teamId, userId }) => ({ teamId, userId })),
     pairings: roundPairings(ctx, event.id).map((pairing) => pairingView(ctx, pairing)),
+    battlefields: Array.from(ctx.db.eventBattlefields.eventId.filter(event.id)).map((row) => ({
+      round: row.round,
+      table: row.table,
+      patternId: row.patternId,
+      terrainLayoutId: row.terrainLayoutId,
+    })),
   }
 }
 
@@ -5374,6 +5380,54 @@ function sealedEventCommandIn(tx: Context, args: unknown[]) {
     touchEvent(tx, host)
     return productJson('paired')
   }
+  if (operation === 'set-battlefield') {
+    const input = sealedEventCommandInput(
+      z.object({
+        op: z.literal('set-battlefield'),
+        round: z.number().int().min(0).max(SWISS_ROUNDS_MAX),
+        table: z.number().int().min(0).max(1024),
+        battlefield: z.object({ patternId: idInput, terrainLayoutId: idInput }).nullable(),
+      }),
+      value,
+    )
+    if (event.revealedAt === undefined) return productJson('not-ready')
+    const pairing =
+      event.rounds === undefined
+        ? undefined
+        : roundPairings(tx, event.id).find((row) => row.round === input.round && row.table === input.table)
+    const hasTable = event.rounds === undefined ? input.round === 0 && input.table === 0 : pairing?.bId !== undefined
+    if (!hasTable) return productJson('stale')
+    const battleIds =
+      event.rounds === undefined
+        ? Array.from(tx.db.eventBattles.eventId.filter(event.id)).map(({ battleId }) => battleId)
+        : pairing?.battleId
+          ? [pairing.battleId]
+          : []
+    const command = input.battlefield && { kind: 'fix-battlefield' as const, ...input.battlefield }
+    const battles = battleIds.map((battleId) => ({ battleId, ...battleState(tx, battleId) }))
+    // Clearing has no command to send a battle, so a table already sat down at keeps a battlefield.
+    if (battles.some(({ state }) => state.status !== 'setup' || !command)) return productJson('started')
+    for (const { battleId, seats, state } of battles) {
+      const seq = state.seq + 1
+      tx.db.commands.insert({
+        key: JSON.stringify([battleId, seq]),
+        battleId,
+        seq,
+        userId: ownerId,
+        at: tx.timestamp.microsSinceUnixEpoch / 1000n,
+        body: JSON.stringify(command),
+      })
+      for (const seat of seats) touchProduct(tx, seat.id, 'battles')
+      touchBattle(tx, battleId)
+    }
+    const key = JSON.stringify([event.id, input.round, input.table])
+    const row = command && { key, eventId: event.id, round: input.round, table: input.table, ...input.battlefield! }
+    if (!row) tx.db.eventBattlefields.key.delete(key)
+    else if (tx.db.eventBattlefields.key.find(key)) tx.db.eventBattlefields.key.update(row)
+    else tx.db.eventBattlefields.insert(row)
+    touchEvent(tx, host)
+    return productJson('set')
+  }
   if (operation === 'share-roster' || operation === 'dismiss-roster-sharing') {
     const current = sealedEventRosterSharingState(tx, event, ownerId)
     if (!current) return productJson('unavailable')
@@ -5872,7 +5926,10 @@ function sealedEventCommandIn(tx: Context, args: unknown[]) {
       tx,
       { id: input.id, token: input.battleToken, now: input.now, by: input.userId, seats },
       input.initialCommands,
-      (state, command) => (command.kind === 'set-battle-group' ? 'a group is chosen during setup' : validate(state, input.userId, command)),
+      (state, command) =>
+        command.kind === 'set-battle-group'
+          ? 'a group is chosen during setup'
+          : validate(state, input.userId, command, command.kind === 'fix-battlefield'),
     )
     tx.db.eventBattles.insert({ battleId: input.id, eventId: event.id })
     if (pairing && event.rounds !== undefined) tx.db.roundPairings.key.update({ ...pairing, battleId: input.id })

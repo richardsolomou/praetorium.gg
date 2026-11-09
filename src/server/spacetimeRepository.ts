@@ -404,6 +404,39 @@ export class SpacetimeRepository {
     return this.product.sealedEventCommand({ op: 'pair-round', ...input }, z.enum(['paired', 'not-ready', 'stale', 'missing', 'forbidden']))
   }
 
+  setSealedEventBattlefield(input: {
+    token: string
+    eventToken: string
+    ownerId: string
+    round: number
+    table: number
+    battlefield: { patternId: string; terrainLayoutId: string } | null
+  }) {
+    return this.product.sealedEventCommand(
+      { op: 'set-battlefield', ...input },
+      z.enum(['set', 'not-ready', 'stale', 'started', 'missing', 'forbidden']),
+    )
+  }
+
+  /** Who sits at a table and what they sealed, for working out which battlefields it can play on. */
+  async sealedEventTable(token: string, eventToken: string | undefined, round: number, table: number) {
+    const record = await this.product.sealedEventByToken(token, eventToken)
+    if (!record) return undefined
+    const { event, pairings, entries, organizerIds } = record
+    const pairing = pairings.find((candidate) => candidate.round === round && candidate.table === table)
+    const accepted = entries.filter((entry) => entry.status === 'accepted' && entry.rosterSnapshot !== null)
+    const seated =
+      event.rounds === null ? accepted : accepted.filter((entry) => entry.userId === pairing?.aId || entry.userId === pairing?.bId)
+    return {
+      eventToken: event.token,
+      format: event.format,
+      rosterLimit: event.rosterLimit,
+      revealed: event.revealedAt !== null,
+      organizerIds,
+      snapshots: seated.map((entry) => entry.rosterSnapshot!),
+    }
+  }
+
   deleteSealedEvent(token: string, ownerId: string) {
     return this.product.sealedEventCommand({ op: 'delete', token, ownerId }, z.enum(['deleted', 'missing', 'forbidden']))
   }
@@ -675,6 +708,7 @@ export class SpacetimeRepository {
       sealBy: event.sealBy,
       remindedAt: event.remindedAt,
       pairings,
+      battlefields: record.battlefields,
       occupiedCount: entries.filter((entry) => entry.status !== 'rejected').length,
       entries: entries.map((entry) => {
         const profile = profileOf(profiles, entry.userId, 'Entrant')
@@ -938,6 +972,8 @@ export class SpacetimeRepository {
       revealedAt: event.revealedAt,
       rounds: event.rounds,
       paired: Boolean(pairing),
+      battlefield:
+        record.battlefields.find(({ round, table }) => round === (pairing?.round ?? 0) && table === (pairing?.table ?? 0)) ?? null,
       entries: entries.map((entry) => ({
         userId: entry.userId,
         requiredLimit: entry.requiredLimit,

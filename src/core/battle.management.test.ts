@@ -13,6 +13,35 @@ import { battleReport } from './battleReport'
 import { ALICE, BOB, CAROL, NAMES, PLAYERS, attachedRoster, builtRoster, log, roster, started, text } from './battle.fixtures'
 import { guestSeatId } from './newBattle'
 
+describe('an organizer-set battlefield', () => {
+  const fixed = { kind: 'fix-battlefield', patternId: 'dawn', terrainLayoutId: 'layout' } as const
+  const state = () => reduceBattle(PLAYERS, log([ALICE, fixed]))
+
+  it('stops a player setting it', () => {
+    expect(validate(reduceBattle(PLAYERS, []), ALICE, fixed)).toBe('only the organizer can set this battlefield')
+  })
+
+  it('lets an organizer without a seat change it during setup', () => {
+    expect(validate(state(), 'organizer', { ...fixed, patternId: 'dusk' }, true)).toBeNull()
+  })
+
+  it.each<[string, Command]>([
+    ['set-battlefield', { kind: 'set-battlefield', patternId: 'dusk', terrainLayoutId: 'other' }],
+    ['set-deployment', { kind: 'set-deployment', patternId: 'dusk' }],
+  ])('refuses %s from a player', (_, command) => {
+    expect(validate(state(), ALICE, command)).toBe('the organizer set this battlefield')
+  })
+
+  it('applies the battlefield without a seated sender', () => {
+    const after = reduceBattle(PLAYERS, log(['organizer', fixed]))
+    expect([after.deploymentId, after.settings.terrainLayoutId, after.battlefieldFixed]).toEqual(['dawn', 'layout', true])
+  })
+
+  it('refuses changes once the battle has started', () => {
+    expect(validate(reduceBattle(PLAYERS, log(...started())), 'organizer', fixed, true)).toBe('the battle has started')
+  })
+})
+
 describe('battle management', () => {
   it('requires a conceding player for a concession', () => {
     const state = reduceBattle(PLAYERS, log(...started()))

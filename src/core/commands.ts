@@ -265,6 +265,7 @@ export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('damage-unit'), unitKey: id, delta: z.number().int(), playerId: id.optional() }),
   z.object({ kind: z.literal('set-deployment'), patternId: id.nullable() }),
   z.object({ kind: z.literal('set-battlefield'), patternId: id, terrainLayoutId: id }),
+  z.object({ kind: z.literal('fix-battlefield'), patternId: id, terrainLayoutId: id }),
   z.object({
     kind: z.literal('use-stratagem'),
     key: id,

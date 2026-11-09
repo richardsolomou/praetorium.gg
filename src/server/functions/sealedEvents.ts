@@ -24,6 +24,8 @@ import {
   moderateSealedEventEntrySchema,
   openSealedEventSchema,
   pairSealedEventRoundSchema,
+  setTableBattlefieldSchema,
+  tableBattlefieldsSchema,
   reopenSwissTableSchema,
   setSealedEventAdminsSchema,
   setSealedEventTeamDispositionSchema,
@@ -260,6 +262,49 @@ export const pairSealedEventRound = createServerFn({ method: 'POST' })
       const result = await app().service.pairSealedEventRound(data.token, data.eventToken, userId)
       await captureMutation(userId, 'sealed_event_round_paired', { round: result.round })
       return result
+    }),
+  )
+
+const loadedRules = async () => {
+  const rules = await app().rulesFor()
+  if (!rules) throw new Response('battlefields are unavailable right now', { status: 503 })
+  return rules
+}
+
+export const tableBattlefields = createServerFn({ method: 'GET' })
+  .validator(tableBattlefieldsSchema)
+  .handler(({ data }) =>
+    rpc(async () =>
+      app().service.sealedEventService.tableBattlefields(
+        data.token,
+        data.eventToken,
+        data.round,
+        data.table,
+        data.missionPackId,
+        await loadedRules(),
+      ),
+    ),
+  )
+
+export const setTableBattlefield = createServerFn({ method: 'POST' })
+  .validator(setTableBattlefieldSchema)
+  .handler(({ data }) =>
+    mutationRpc(async () => {
+      const userId = await requireUserId()
+      await app().service.sealedEventService.setTableBattlefield(
+        data.token,
+        data.eventToken ?? data.token,
+        userId,
+        data.round,
+        data.table,
+        data.missionPackId,
+        data.battlefield,
+        await loadedRules(),
+      )
+      await captureMutation(userId, 'sealed_event_battlefield_set', {
+        rolled: data.battlefield === 'roll',
+        cleared: data.battlefield === null,
+      })
     }),
   )
 

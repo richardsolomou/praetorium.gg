@@ -170,6 +170,18 @@ export const updateSealedEventSchema = z
 const sealedEvent = { token, eventToken: token.optional() }
 export const sealedEventSchema = z.object(sealedEvent)
 export const pairSealedEventRoundSchema = z.object(sealedEvent)
+const eventTable = {
+  ...sealedEvent,
+  round: z.number().int().min(0).max(64),
+  table: z.number().int().min(0).max(1024),
+  missionPackId: id.nullable(),
+}
+export const tableBattlefieldsSchema = z.object(eventTable)
+/** A layout to fix, `roll` to draw one of the table's layouts, or null to let the players choose. */
+export const setTableBattlefieldSchema = z.object({
+  ...eventTable,
+  battlefield: z.union([z.object({ patternId: id, terrainLayoutId: id }), z.literal('roll'), z.null()]),
+})
 export const reopenSwissTableSchema = z.object({ ...sealedEvent, battleToken: token })
 export const openSealedEventSchema = z.object(sealedEvent)
 export const moderateSealedEventEntrySchema = z.object({

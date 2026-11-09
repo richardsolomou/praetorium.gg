@@ -940,6 +940,8 @@ export type Command =
   | ({ kind: 'set-painted'; painted: boolean } & OnBehalfOf)
   | { kind: 'set-deployment'; patternId: string | null }
   | { kind: 'set-battlefield'; patternId: string; terrainLayoutId: string }
+  /** The organizer's battlefield for a tournament table, which its players can't change. */
+  | { kind: 'fix-battlefield'; patternId: string; terrainLayoutId: string }
   | ({
       kind: 'set-prep'
       stratagems: Stratagem[]
@@ -1001,6 +1003,7 @@ const GUIDED_COMMANDS: ReadonlySet<Command['kind']> = new Set([
   'set-side-disposition',
   'set-deployment',
   'set-battlefield',
+  'fix-battlefield',
   'set-prep',
   'use-stratagem',
   'use-new-orders',
@@ -1070,6 +1073,8 @@ export type RefusalCode =
   | 'invalid-sides'
   | 'invalid-transport'
   | 'sealed-event-sealed'
+  | 'battlefield-fixed'
+  | 'organizer-only'
   | 'manual-tracking'
   | 'matchup-not-in-pack'
   | 'missing-deployment'
@@ -1258,6 +1263,8 @@ export type BattleState = {
   /** The battlefield both players are using. Shared, so either may set it. */
   deploymentId: string | null
   sealedEventToken: string | null
+  /** An organizer chose this battlefield, so the players can't change it. */
+  battlefieldFixed: boolean
   eventToken: string | null
   groupId: string | null
   settings: BattleSettings
@@ -1354,7 +1361,12 @@ export function applyEntry(state: BattleState, entry: LoggedCommand) {
       player.cpByMoment[order] = { fewest, last: player.cp }
     }
   }
-  if (entry.command.kind === 'begin-battle' || entry.command.kind === 'lock-sealed-event-rosters') state.undoable = null
+  if (
+    entry.command.kind === 'begin-battle' ||
+    entry.command.kind === 'lock-sealed-event-rosters' ||
+    entry.command.kind === 'fix-battlefield'
+  )
+    state.undoable = null
   else if (
     ![
       'settle-opponent-turn',
@@ -1443,6 +1455,7 @@ export function emptyBattle(
     drawAcknowledged: false,
     deploymentId: null,
     sealedEventToken: null,
+    battlefieldFixed: false,
     eventToken: null,
     groupId: null,
     settings: { ...DEFAULT_SETTINGS },
@@ -1495,6 +1508,10 @@ export function importedCommandRefusal(state: BattleState, by: PlayerId, command
  * battle, so that its players can correct the result.
  */
 export function commandRefusal(state: BattleState, by: PlayerId, command: Command, organizer = false): Refusal | null {
+  if (command.kind === 'fix-battlefield') {
+    if (!organizer) return refuse('organizer-only', 'only the organizer can set this battlefield')
+    return state.status === 'setup' ? null : refuse('battle-started', 'the battle has started')
+  }
   const actor = state.players.find((candidate) => candidate.id === by)
   if (!actor)
     return organizer && command.kind === 'reopen-battle' ? reopenRefusal(state) : refuse('not-seated', 'you are not in this battle')
@@ -1510,6 +1527,11 @@ export function commandRefusal(state: BattleState, by: PlayerId, command: Comman
       return missionSelectionRefusal(state, by, player, command)
     case 'configure-battle': {
       if (state.status !== 'setup') return refuse('battle-started', 'the battle has started')
+      if (
+        state.battlefieldFixed &&
+        (command.terrainLayoutId !== state.settings.terrainLayoutId || command.missionPackId !== state.settings.missionPackId)
+      )
+        return refuse('battlefield-fixed', 'the organizer set this battlefield')
       if (command.manual && state.sealedEventToken) return refuse('sealed-event-sealed', 'this battle plays its event’s mission pack')
       if (command.manual && state.groupId) return refuse('group-ineligible', 'a battle counting for a group keeps its missions and scoring')
       if (command.manual && (command.missionPackId || command.twistId || command.terrainLayoutId))
@@ -1837,6 +1859,7 @@ export function commandRefusal(state: BattleState, by: PlayerId, command: Comman
       // The battlefield is shared, so either player may set it, and only before the
       // first turn — moving the deployment zones mid-battle is not a thing.
       if (state.status !== 'setup') return refuse('battle-started', 'the battle has started')
+      if (state.battlefieldFixed) return refuse('battlefield-fixed', 'the organizer set this battlefield')
       return null
     }
     case 'set-prep': {
@@ -2028,6 +2051,12 @@ const reopenRefusal = (state: BattleState) => (state.status === 'finished' ? nul
 function apply(state: BattleState, by: PlayerId, command: Command, seq: number) {
   // An event's organizer may reopen a battle without a seat in it, so this one needs no actor.
   if (command.kind === 'reopen-battle') return reopenBattle(state)
+  if (command.kind === 'fix-battlefield') {
+    state.deploymentId = command.patternId
+    state.settings.terrainLayoutId = command.terrainLayoutId
+    state.battlefieldFixed = true
+    return
+  }
   const actor = state.players.find((candidate) => candidate.id === by)
   if (!actor) return
   const player = targetArmy(state, actor, command)
@@ -2074,8 +2103,11 @@ function apply(state: BattleState, by: PlayerId, command: Command, seq: number) 
       state.firstPlayerId = null
       state.sideDispositions = {}
       state.sideWarlords = {}
-      state.deploymentId = null
-      state.settings = { ...state.settings, terrainLayoutId: null, twistId: null }
+      if (!state.battlefieldFixed) {
+        state.deploymentId = null
+        state.settings.terrainLayoutId = null
+      }
+      state.settings.twistId = null
       for (const seat of state.players) Object.assign(seat, freshPlayer(seat.id, seat.side, seat.automated))
       inferBattleSize(state)
       return

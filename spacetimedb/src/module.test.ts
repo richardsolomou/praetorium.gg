@@ -1306,6 +1306,66 @@ describe('friends’ sealed rosters', () => {
     expect([playing, fixture.listed()]).toEqual([['friend'], []])
   })
 
+  it('fixes a hidden-list duel’s battlefield for a battle that has not started, for organizers only', () => {
+    const fixture = setup()
+    const now = Date.parse('2026-10-25T19:00:00Z')
+    fixture.at(now / 1000)
+    const command = (input: Record<string, unknown>) =>
+      JSON.parse(module.sealedEventCommand(fixture.procedure(fixture.operator), { payload: JSON.stringify(input) })) as unknown
+    module.groupCommand(fixture.procedure(fixture.operator), {
+      payload: JSON.stringify({
+        token: 'group',
+        op: 'create',
+        id: 'group-id',
+        ownerId: 'viewer',
+        now,
+        name: 'Group',
+        description: '',
+        visibility: 'private',
+        admission: 'automatic',
+      }),
+    })
+    module.groupCommand(fixture.procedure(fixture.operator), {
+      payload: JSON.stringify({ token: 'group', op: 'join', userId: 'friend', now }),
+    })
+    command({
+      op: 'create-hidden-list-game',
+      eventId: 'game-id',
+      eventToken: 'game',
+      groupToken: 'group',
+      ownerId: 'viewer',
+      format: '1v1',
+      rosterLimit: 2000,
+      now,
+      timeZone: 'UTC',
+    })
+    fixture.call(fixture.operator, (ctx) => {
+      ctx.db.sealedEvents.id.update({ ...ctx.db.sealedEvents.id.find('game-id')!, revealedAt: BigInt(now) })
+      fixture.enter(ctx, 'game-id')
+    })
+    command({
+      token: 'game',
+      op: 'create-battle',
+      ownerId: 'viewer',
+      userId: 'viewer',
+      id: 'battle',
+      battleToken: 'battle',
+      allyIds: [],
+      opponentIds: ['friend'],
+      initialCommands: [],
+      now,
+      expectedEntries: ['friend', 'viewer'].map((userId) => ({ userId, snapshot })),
+    })
+    const battlefield = { patternId: 'dawn', terrainLayoutId: 'layout' }
+    const set = (ownerId: string) => command({ token: 'game', op: 'set-battlefield', ownerId, round: 0, table: 0, battlefield })
+    const refused = set('friend')
+    const applied = set('viewer')
+    const logged = fixture.call(fixture.operator, (ctx) =>
+      Array.from(ctx.db.commands.battleId.filter('battle')).map((row) => (JSON.parse(row.body) as { kind: string }).kind),
+    )
+    expect([refused, applied, logged.at(-1)]).toEqual(['forbidden', 'set', 'fix-battlefield'])
+  })
+
   it('counts a group game’s players as playing again when the end of their battle is undone', () => {
     const fixture = setup()
     const now = Date.parse('2026-10-25T19:00:00Z')

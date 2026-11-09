@@ -234,6 +234,7 @@ const sealedEventRecord = z.object({
   teams: z.array(z.object({ teamId: z.string(), disposition: z.string() })),
   teamWarlords: z.array(z.object({ teamId: z.string(), userId: z.string() })),
   pairings: z.array(sealedEventPairing),
+  battlefields: z.array(z.object({ round: z.number().int(), table: z.number().int(), patternId: z.string(), terrainLayoutId: z.string() })),
 })
 const sealedEventAddress = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('tournament'), token: z.string() }),

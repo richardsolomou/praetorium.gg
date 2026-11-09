@@ -34,9 +34,11 @@ export function Battlefield({ view, send, pending, allowedIds, matchup }: Props)
   const matchupIds = battleMatchupIds(view)
   const referencesQuery = useQuery(terrainReferencesQuery(matchupIds))
   const references = referencesQuery.data
+  const fixedByOrganizer = view.battlefieldFixed
   const options =
     references?.layouts.flatMap((terrain) => {
       const deployment = allPatterns?.find((pattern) => pattern.id === terrain.deploymentId)
+      if (fixedByOrganizer && terrain.id !== view.settings.terrainLayoutId) return []
       if (!deployment || (!kotc && allowedIds?.length && !allowedIds.includes(deployment.id))) return []
       return [{ terrain, deployment }]
     }) ?? []
@@ -87,7 +89,8 @@ export function Battlefield({ view, send, pending, allowedIds, matchup }: Props)
             </p>
           ) : null}
         </div>
-        {!singleColosseum ? (
+        {fixedByOrganizer ? <p className="text-sm text-dim">The organizer set this battlefield.</p> : null}
+        {!singleColosseum && !fixedByOrganizer ? (
           <Button
             variant="outline"
             size="sm"
@@ -155,7 +158,7 @@ export function Battlefield({ view, send, pending, allowedIds, matchup }: Props)
                     ariaLabel={`Layout ${label}: ${deployment.name} battlefield with ${terrain.name}`}
                   />
                 </button>
-                {!singleColosseum ? (
+                {!singleColosseum && !fixedByOrganizer ? (
                   <Button
                     variant={selected ? 'secondary' : 'outline'}
                     className="mt-3 w-full"

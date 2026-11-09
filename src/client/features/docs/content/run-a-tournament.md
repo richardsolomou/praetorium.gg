@@ -53,6 +53,12 @@ Players are ranked by:
 2. Total victory points.
 3. Strength of schedule: the match points of everyone a player has faced.
 
+### Set the battlefields ahead of the game
+
+Once a round is paired you can set each table's battlefield, so players know who they face and where before the day. Press **Set battlefield** on a table to pick one of its layouts or **Roll** one, or press **Roll battlefields** to roll every table at once. A table's layouts come from its two armies, so a table whose army hasn't settled on a Force Disposition stays for its players to choose.
+
+Players see the battlefield on the table and can't change it during setup. You can change it until that table's battle starts, even if the players have already opened it.
+
 ### Correct a result
 
 Once you pair the next round, earlier results are locked, and only you and your admins can correct them. To correct a result in any round, press the reopen button beside the table's score, then **Reopen result**. You don't need to have played at that table.

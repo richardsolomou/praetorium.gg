@@ -184,6 +184,8 @@ export type BattleView = {
   /** The conventional ceilings, for display beside a total. */
   guides: { primary: number; secondary: number }
   deploymentId: string | null
+  /** The organizer chose the battlefield, so the setup only shows it. */
+  battlefieldFixed: boolean
   sealedEventToken: string | null
   eventToken: string | null
   groupId: string | null
@@ -348,6 +350,7 @@ export function battleView(
     }),
     guides: { primary: PRIMARY_GUIDE, secondary: SECONDARY_GUIDE },
     deploymentId: state.deploymentId,
+    battlefieldFixed: state.battlefieldFixed,
     sealedEventToken: state.sealedEventToken,
     eventToken: state.eventToken,
     groupId: state.groupId,
