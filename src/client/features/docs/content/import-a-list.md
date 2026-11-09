@@ -37,4 +37,6 @@ You can bring in several lists at once from these apps.
 - Other WTC-style tournament text
 - Links from other sites that send a list here, which open the same review
 
+If the lines above the units were cut from an official-app style export, the army is worked out from its units. Anything left above them shows in the review, and you choose the detachment in setup.
+
 A list can hold at most 100 entries. Anything else is refused with "it is not a supported army-text export". `.ros`, `.rosz` and `.regiztry` files aren't supported yet, so use the app's text export instead.

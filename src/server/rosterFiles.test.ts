@@ -2944,6 +2944,19 @@ describe('names a list joins or splits differently from the catalogue', () => {
               { id: 'tzeentch-grinder', name: 'Tzeentch Soul Grinder', type: 'unit' },
               { id: 'khorne-grinder', name: 'Khorne Soul Grinder', type: 'unit' },
               {
+                id: 'sentinels',
+                name: 'Sentinel Guard Sodality',
+                type: 'unit',
+                selectionEntries: [
+                  {
+                    id: 'sentinel',
+                    name: 'Sentinel Guard Sodality',
+                    type: 'model',
+                    constraints: [{ id: 'sentinel-max', type: 'max', value: 6, field: 'selections', scope: 'parent' }],
+                  },
+                ],
+              },
+              {
                 id: 'boyz',
                 name: 'Boyz',
                 type: 'unit',
@@ -3018,6 +3031,11 @@ Exported with BattleBase`,
   it("reads the official app's spellings of a model and its wargear", () => {
     const imported = importRosterFile(list('Ultramarines', 'Boyz (80 Points)\n  • 1x Boss Nob\n     ◦ 1x Transdimensional isolator'), books)
     expect([imported.unknown, imported.unplaced]).toEqual([[], []])
+  })
+
+  it('reads the model name the official app prints for a unit BSData names its model after', () => {
+    const imported = importRosterFile(list('Ultramarines', 'Sentinel Guard Sodality (240 Points)\n  • 3x Custodian Guard'), books)
+    expect(imported.unplaced).toEqual([])
   })
 })
 

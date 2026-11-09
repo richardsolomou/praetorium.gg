@@ -35,7 +35,7 @@ function price(line: string) {
  * attached group whose last unit is the bodyguard, and any other line over a unit or alone in its paragraph is a section
  * heading. The labels of other tools, which write only English, are still read by name.
  */
-export function fromBattleBaseText(input: string): TextRoster | null {
+export function fromBattleBaseText(input: string, { setupOptional = false } = {}): TextRoster | null {
   // The app can print a model's first piece of wargear on the model's own line, as "• 4x Prosecutors     • 4x Boltgun".
   const raw = input
     .replaceAll('\r', '')
@@ -113,10 +113,14 @@ export function fromBattleBaseText(input: string): TextRoster | null {
     sizeLine = lines[afterSetup]
     setupEnd = afterSetup + 1
   }
-  const body = lines.slice(setupEnd)
   const exportedBy = /Exported with (?:BattleBase|Praetorium\.gg)/i.test(input)
-  if (!exportedBy && ((detachmentAt < 0 && (!titlePrice || !faction || !sizeLine)) || !body.some(isUnit))) return null
-  const size = sizeLine ? price(sizeLine) : null
+  // A player can cut or rewrite the setup above the units, and the importer then works the faction out from the units.
+  const firstSection = lines.findIndex((line) => WTC_SECTION.test(line))
+  const headless = setupOptional && !exportedBy && detachmentAt < 0 && (!titlePrice || !faction || !sizeLine) && firstSection >= 0
+  if (headless) setupEnd = firstSection
+  const body = lines.slice(setupEnd)
+  if (!exportedBy && ((detachmentAt < 0 && (!titlePrice || !faction || !sizeLine) && !headless) || !body.some(isUnit))) return null
+  const size = sizeLine && !headless ? price(sizeLine) : null
   // Detachments are priced in their own points; Warmind gives each one a line.
   const pricedDetachments = armySetup.filter((line) => line !== sizeLine && price(line))
   const statedDisposition = armySetup.find((line) => labelled.test(line))
@@ -128,7 +132,8 @@ export function fromBattleBaseText(input: string): TextRoster | null {
     : unlabelled.find((line) => line !== dispositionLine)
 
   const units: TextRosterUnit[] = []
-  const unread: string[] = []
+  // Nothing above the units was read, so each line of it is reported rather than dropped.
+  const unread = headless ? lines.slice(firstAt, firstSection).filter((line) => line && !/^\+{3,}$/.test(line)) : []
   const groups: TextRosterUnit[][] = []
   const labels = new Map<TextRosterUnit, { label: string; selection: TextRosterUnit['selections'][number] }[]>()
   const bare: { unit: TextRosterUnit; selection: TextRosterUnit['selections'][number] }[] = []
@@ -253,5 +258,6 @@ export function fromBattleBaseText(input: string): TextRoster | null {
     ...(size?.name ? { sizeName: size.name } : {}),
     units,
     ...(unread.length ? { unread } : {}),
+    ...(headless ? { name: 'Imported list', faction: 'Unnamed faction', detachment: null, disposition: null } : {}),
   }
 }

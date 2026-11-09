@@ -102,7 +102,7 @@ function parsedImport(file: string): { parsed: TextRoster; format: RosterTextFor
   if (warOrgan) return { parsed: warOrgan, format: 'warorgan' }
   const fortyKApp = fromFortyKAppText(file)
   if (fortyKApp) return { parsed: fortyKApp, format: '40k-app' }
-  const battleBase = fromBattleBaseText(file)
+  const battleBase = fromBattleBaseText(file, { setupOptional: true })
   if (battleBase)
     return {
       parsed: battleBase,
@@ -660,13 +660,25 @@ const upgradeName = (name: string) => name.replace(/(?:\s+\((?:one per army|Upgr
 const nameVariants = (name: string) => normalizedNameVariants(normalized(name))
 const modelLoadout = /\s+w\/\s*(.+)$/i
 // BSData can also bracket the loadout, as a "Sicarian Infiltrator Princeps (Taser goad & flechette blaster)".
+// BSData names these models after their units; neither the catalogue nor the cards hold the names the official app prints.
+const APP_MODEL_NAMES = new Map([
+  ['sentinel guard sodality', ['custodian guard']],
+  ['aquilon terminators with solarite power gauntlets', ['aquilon custodians', 'aquilon terminator']],
+  ['aquilon terminators with solarite power talons', ['aquilon custodians', 'aquilon terminator']],
+  ['gyrfalcon jetbike sodality', ['agamatus custodians']],
+])
 const modelAliases = (name: string) => {
   const kind = name
     .replace(modelLoadout, '')
     .replace(/\s+\([^()]+\)$/, '')
     .replace(/\s+(?:Squad|Sodality)$/i, '')
   // Ork plurals end in z, as BSData's "Flash Gitz" model is the official app's "Flash Git".
-  return [normalized(name), ...nameVariants(kind), ...(/[^z]z$/i.test(kind) ? [normalized(kind.slice(0, -1))] : [])]
+  return [
+    normalized(name),
+    ...nameVariants(kind),
+    ...(/[^z]z$/i.test(kind) ? [normalized(kind.slice(0, -1))] : []),
+    ...(APP_MODEL_NAMES.get(normalized(name)) ?? []),
+  ]
 }
 // BSData prefixes weapons the official app does not, as its "Astartes Chainsword" and "Steed's savage claws" are the app's "Chainsword" and "Savage claws".
 // "Exo-armour" and "Exoarmour", "sabre & clawed limbs" and "sabre and clawed limbs", "Company Veteran w/ Bolt Rifle" and "with bolt rifle", are one piece.
