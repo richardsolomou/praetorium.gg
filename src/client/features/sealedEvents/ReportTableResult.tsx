@@ -61,9 +61,9 @@ export function ReportTableResult({
             </DialogDescription>
           </DialogHeader>
           <DialogBody>
-            {names.map((name, at) => (
+            {([0, 1] as const).map((at) => (
               <div key={at} className="space-y-1.5">
-                <Label htmlFor={`table-${table}-score-${at}`}>{name}</Label>
+                <Label htmlFor={`table-${table}-score-${at}`}>{names[at]}</Label>
                 <Input
                   id={`table-${table}-score-${at}`}
                   inputMode="numeric"

@@ -90,7 +90,7 @@ export function RoundClock({
   )
 }
 
-/** Moves two players between tables before their battles start, for keeping clubmates apart or fixing the day's mix-ups. */
+/** Moves two players between tables before their battles start, for keeping friends apart or fixing the day's mix-ups. */
 export function SwapSeats({
   token,
   eventToken,

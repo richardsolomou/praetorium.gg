@@ -61,7 +61,7 @@ Once the rosters are out, players can press **Check in** before round 1, and you
 
 ### Change the pairings and run the clock
 
-To keep clubmates apart or sort out a mix-up, press **Swap players** and choose two players at tables that haven't started. They trade tables for that round, and any battlefield set for those tables is cleared.
+To keep friends apart or sort out a mix-up, press **Swap players** and choose two players at tables that haven't started. They trade tables for that round, and any battlefield set for those tables is cleared.
 
 Set a round length and press **Start the clock** to show everyone the same countdown. You can add time or stop it, and pairing the next round clears it. The clock doesn't end the round. You still pair the next one when you're ready.
 

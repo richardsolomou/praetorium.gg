@@ -5459,7 +5459,7 @@ function sealedEventCommandIn(tx: Context, args: unknown[]) {
     tx.db.roundPairings.key.update(swapped(one, input.players[0], input.players[1]))
     tx.db.roundPairings.key.update(swapped(two, input.players[1], input.players[0]))
     // A table's layouts depend on its armies, so a new pair chooses again.
-    for (const { round, table } of [one, two]) tx.db.eventBattlefields.key.delete(JSON.stringify([event.id, round, table]))
+    for (const seat of [one, two]) tx.db.eventBattlefields.key.delete(JSON.stringify([event.id, seat.round, seat.table]))
     touchEvent(tx, host)
     return productJson('swapped')
   }
