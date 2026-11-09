@@ -2,7 +2,7 @@ import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { expect, it } from 'vitest'
 import type { CombatAnswer, CombatantSnapshot } from '../../../core/combatMatchup'
-import { CombatMatchup, combatOutcomeEvent } from './CombatMatchup'
+import { CombatMatchup, combatOutcomeEvent, withPenalisedHitRoll } from './CombatMatchup'
 import { datasheetFixture } from '../../../core/datasheet.fixtures'
 
 it('records a partial estimate as a completion with its available phase', () => {
@@ -152,4 +152,38 @@ it('explains when equipment invalidates a previously selected weapon profile', (
     }),
   )
   expect(markup).toContain('Some previous weapon choices no longer apply to this equipment. Current profiles are used.')
+})
+
+const rifle: CombatantSnapshot['sheet']['profiles'][number] = {
+  id: 'rifle',
+  name: 'Rifle',
+  type: 'Ranged Weapons',
+  values: [
+    { name: 'BS', value: '3+' },
+    { name: 'S', value: '5' },
+  ],
+}
+
+it('shows the hit roll a penalised weapon needs in place of its BS', () => {
+  expect(withPenalisedHitRoll(rifle, { needed: 4, moved: true }).values[0]).toEqual({
+    name: 'BS',
+    value: '4+',
+    baseValue: '3+',
+    modifiers: ['−1 to hit from this shooting type'],
+  })
+})
+
+it('says other modifiers also moved the hit roll when it is more than one worse', () => {
+  expect(withPenalisedHitRoll(rifle, { needed: 5, moved: true }).values[0]?.modifiers).toEqual([
+    '−1 to hit from this shooting type',
+    'other modifiers',
+  ])
+})
+
+it('leaves the BS alone when the weapon still hits on it', () => {
+  expect(withPenalisedHitRoll(rifle, { needed: 3, moved: true }).values[0]).toEqual(rifle.values[0])
+})
+
+it('credits other modifiers alone when the penalty did not move the roll', () => {
+  expect(withPenalisedHitRoll(rifle, { needed: 4, moved: false }).values[0]).toMatchObject({ value: '4+', modifiers: ['other modifiers'] })
 })

@@ -3,6 +3,7 @@ import {
   calculateCombat,
   calculateCombatSequence,
   bestReroll,
+  hitRollNeeded,
   type CombatInput,
   type CombatOptions,
   type CombatResult,
@@ -152,6 +153,20 @@ export function combatMatchup(
         : null)
     )
   }
+  /** The dice result each attacking profile needs, with and without the -1 a shooting type costs it. */
+  const hitRolls = (phase: CombatPhase, adjustments: CombatAdjustments) => {
+    const input = scenario(phase, adjustments)
+    const profileIds = attacks?.[phase].base?.profileIds ?? []
+    return new Map(
+      (input?.weapons ?? []).map((weapon, index) => [
+        profileIds[index]!,
+        {
+          needed: hitRollNeeded(weapon, input!.options),
+          withoutPenalty: hitRollNeeded({ ...weapon, hitModifier: (weapon.hitModifier ?? 0) + 1 }, input!.options),
+        },
+      ]),
+    )
+  }
   const phaseSetup = (phase: CombatPhase, adjustments: CombatAdjustments) => {
     const defences = defencesIn(phase, adjustments)
     return defences
@@ -173,6 +188,7 @@ export function combatMatchup(
     attacks,
     plans: { ranged: attacks?.ranged.plan ?? null, melee: attacks?.melee.plan ?? null },
     scenario,
+    hitRolls,
     phaseSetup,
     sequenceError: defender ? combatUnitSequenceError(defender, target?.target?.groups) : undefined,
   }

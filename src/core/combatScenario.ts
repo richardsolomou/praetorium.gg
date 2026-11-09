@@ -55,7 +55,7 @@ function ruledAttack(
     phase,
     attacker.sheet.keywords,
   )
-  return { weapons, mortalWounds }
+  return { weapons, mortalWounds, profileIds: carried.map(({ profile }) => profile.id) }
 }
 
 /** Which weapons attack in each phase once the attacker's and the defender's rules apply. */
@@ -116,6 +116,7 @@ export function combatAttacks(
             ? {
                 weapons: parts.flatMap((part) => part.base!.weapons),
                 mortalWounds: parts.flatMap((part) => part.base!.mortalWounds),
+                profileIds: parts.flatMap((part) => part.base!.profileIds),
               }
             : null,
       }

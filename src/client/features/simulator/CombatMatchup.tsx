@@ -24,6 +24,7 @@ import {
 import { combatUnitKeywords, combatUnitTarget } from '../../../core/combatUnit'
 import { combatMatchup, noExclusions, type CombatAnswer, type CombatantSnapshot, type CombatRequest } from '../../../core/combatMatchup'
 import type { CombatAdjustments, TargetAdjustment, WeaponAdjustment } from '../../../core/combatAdjustments'
+import { datasheetCharacteristicKindOf } from '../../../core/datasheetStructure'
 import { wargearKey } from '../../../core/wargear'
 import { Chip, Choice, PHASE_TITLES, PhaseIcon } from './CombatControls'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -45,6 +46,29 @@ function weaponToggleGroups(entries: readonly { profile: Datasheet['profiles'][n
       (profile) => wargearKey(profile.name, true),
     ),
   ]
+}
+
+const SHOOTING_PENALTY = '−1 to hit from this shooting type'
+
+/** The profile with the hit roll its shooting type leaves it needing, so the card reads what the calculation uses. */
+export function withPenalisedHitRoll(profile: Datasheet['profiles'][number], { needed, moved }: { needed: number; moved: boolean }) {
+  return {
+    ...profile,
+    values: profile.values.map((value) => {
+      const printed = Number.parseInt(value.value)
+      if (datasheetCharacteristicKindOf(value) !== 'ballistic-skill' || needed === printed) return value
+      return {
+        ...value,
+        value: `${needed}+`,
+        baseValue: value.baseValue ?? value.value,
+        modifiers: [
+          ...(value.modifiers ?? []),
+          ...(moved ? [SHOOTING_PENALTY] : []),
+          ...(needed === printed + Number(moved) ? [] : ['other modifiers']),
+        ],
+      }
+    }),
+  }
 }
 
 type PhaseScope = CombatPhase | 'all'
@@ -591,6 +615,12 @@ export function CombatMatchup({
           <div className="grid gap-x-3 gap-y-6 @xl:grid-cols-2">
             {phases.map(([phase, title]) => {
               const plan = plans[phase]
+              const hitRolls = matchup.hitRolls(phase, adjustments)
+              const penalisedRoll = (id: string) => {
+                const roll = hitRolls.get(id)
+                const penalised = plan?.used.some(({ profile, weapon }) => profile.id === id && (weapon?.hitModifier ?? 0) < 0)
+                return penalised && roll?.needed ? { needed: roll.needed, moved: roll.needed !== roll.withoutPenalty } : null
+              }
               const answer = outcome?.answer[phase]
               const valid = Boolean(scenario(phase))
               const error = outcome?.key === outcomeKey ? answer?.error : undefined
@@ -652,12 +682,16 @@ export function CombatMatchup({
                               }
                             />
                             <div className={`min-w-0 ${included ? '' : 'opacity-50'}`}>
-                              <WeaponProfiles weapons={group} rules={attacker?.sheet.keywordRules ?? []} embedded />
-                              {plan?.used.some(
-                                ({ profile, weapon }) =>
-                                  wargearKey(profile.name, true) === key && !weapon?.psychic && (weapon?.hitModifier ?? 0) < 0,
-                              ) ? (
-                                <p className="px-3 pb-2 text-xs text-dim">−1 to hit from this shooting type</p>
+                              <WeaponProfiles
+                                weapons={group.map((profile) => {
+                                  const roll = penalisedRoll(profile.id)
+                                  return roll ? withPenalisedHitRoll(profile, roll) : profile
+                                })}
+                                rules={attacker?.sheet.keywordRules ?? []}
+                                embedded
+                              />
+                              {group.some((profile) => penalisedRoll(profile.id)?.moved) ? (
+                                <p className="px-3 pb-2 text-xs text-dim">{SHOOTING_PENALTY}</p>
                               ) : null}
                             </div>
                           </div>
