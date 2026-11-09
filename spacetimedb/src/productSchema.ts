@@ -292,6 +292,22 @@ const roundPairings = table(
   },
 )
 
+/**
+ * The battlefield an organizer set for one table ahead of its battle. A Swiss table is named by its round and table; a
+ * hidden-list duel, which has one table, is round 0, table 0.
+ */
+const eventBattlefields = table(
+  { name: 'event_battlefields' },
+  {
+    key: t.string().primaryKey(),
+    eventId: t.string().index('btree'),
+    round: t.u32(),
+    table: t.u32(),
+    patternId: t.string(),
+    terrainLayoutId: t.string(),
+  },
+)
+
 const sealedEventEntries = table(
   { name: 'sealed_event_entries' },
   {
@@ -774,6 +790,7 @@ export const productTables = {
   sealedEventRosterSharing,
   eventBattles,
   roundPairings,
+  eventBattlefields,
   groups,
   groupMembers,
   groupBattles,

@@ -525,8 +525,20 @@ test('a Swiss tournament pairs its rounds and ranks the tables by match points',
   const rounds = owner.locator('[data-sealed-event-rounds]')
   await rounds.getByRole('button', { name: 'Pair round 1' }).click()
   await expect(rounds.locator('[data-table="1"]')).toBeVisible()
+  // The organizer fixes the table's battlefield before anyone sits down, and the setup then only shows it.
+  await rounds.getByRole('button', { name: 'Roll battlefields' }).click()
+  const setBattlefield = rounds.locator('[data-table="1"]').getByRole('button', { name: /^Table 1 battlefield: / })
+  await expect(setBattlefield).not.toHaveAccessibleName(/not set$/)
+  await setBattlefield.click()
+  await expect(owner.getByRole('dialog', { name: 'Table 1 battlefield' }).getByRole('button', { name: 'Selected' })).toBeVisible()
+  await owner.screenshot({ path: testInfo.outputPath('swiss-battlefield.png') })
+  await owner.keyboard.press('Escape')
   await rounds.locator('[data-table="1"]').getByRole('button', { name: 'Start battle' }).click()
   await owner.waitForURL(/\/battles\/[^/]+$/)
+  await expect(owner.getByText(/left/).first()).not.toContainText('Battlefield')
+  await owner.getByRole('button', { name: 'Battlefield', exact: true }).click()
+  await expect(owner.getByText('The organizer set this battlefield.')).toBeVisible()
+  await owner.screenshot({ path: testInfo.outputPath('swiss-fixed-battlefield.png'), fullPage: true })
 
   // Settle the table in its log: the rounds are under test, not the game.
   const battlePath = new URL(owner.url()).pathname

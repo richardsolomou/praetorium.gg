@@ -1,6 +1,6 @@
 import { useMutation } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { Lock, RotateCcw, Shuffle, Swords } from 'lucide-react'
+import { Dices, Lock, RotateCcw, Shuffle, Swords } from 'lucide-react'
 import { type ReactNode, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { IconAction } from './SealedEventEntrants'
@@ -8,10 +8,12 @@ import type { SealedEventEntryView } from '../../../core/sealedEvent'
 import { rematches } from '../../../core/swiss'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { Problem } from '../../components/Problem'
-import { pairSealedEventRound, reopenSwissTable } from '../../functions'
+import { pairSealedEventRound, reopenSwissTable, setTableBattlefield } from '../../functions'
+import { useStartBattle } from '../battles/useStartBattle'
 import type { Battle } from '../battles/battle'
 import { SectionHeading } from '../../components/SectionHeading'
 import { useSealedEventRefresh, type SealedEvent } from './sealedEvent'
+import { TableBattlefield } from './TableBattlefield'
 
 type Pairing = SealedEvent['pairings'][number]
 /** What the rounds read of a table's battle, which the sample tournament supplies without a real one. */
@@ -73,7 +75,26 @@ export function SealedEventRounds({
     mutationFn: () => pairSealedEventRound({ data: { token, eventToken: sealedEvent.eventToken } }),
     onSettled: refresh,
   })
+  const { defaultMissionPackId } = useStartBattle()
   const progress = swissProgress(sealedEvent, battles)
+  const unset = progress.current.filter(
+    (pairing) =>
+      pairing.bId !== null &&
+      !pairing.battleToken &&
+      !sealedEvent.battlefields.some(({ round, table }) => round === pairing.round && table === pairing.table),
+  )
+  // A table whose armies name no layouts stays for its players to choose, so one refusal doesn't stop the rest.
+  const rollAll = useMutation({
+    mutationFn: async () => {
+      const missionPackId = await defaultMissionPackId()
+      await Promise.allSettled(
+        unset.map(({ round, table }) =>
+          setTableBattlefield({ data: { token, eventToken: sealedEvent.eventToken, round, table, missionPackId, battlefield: 'roll' } }),
+        ),
+      )
+    },
+    onSettled: refresh,
+  })
   const byToken = new Map(battles.map((battle) => [battle.token, battle]))
   const name = (userId: string) => {
     const entry = entries.find((candidate) => candidate.userId === userId)
@@ -96,6 +117,10 @@ export function SealedEventRounds({
           canPair ? (
             <Button size="sm" disabled={pair.isPending} onClick={() => pair.mutate()}>
               <Shuffle /> {pair.isPending ? 'Pairing…' : `Pair round ${next}`}
+            </Button>
+          ) : isOrganizer && !sample && unset.length ? (
+            <Button size="sm" variant="outline" disabled={rollAll.isPending} onClick={() => rollAll.mutate()}>
+              <Dices /> {rollAll.isPending ? 'Rolling…' : 'Roll battlefields'}
             </Button>
           ) : null
         }
@@ -170,6 +195,7 @@ export function SealedEventRounds({
                         playing={playing}
                         sample={sample}
                         reopen={isOrganizer && !sample ? { token, eventToken: sealedEvent.eventToken } : undefined}
+                        battlefield={sample ? undefined : { sealedEvent, token, organizes: isOrganizer }}
                       />
                     ))}
                 </ol>
@@ -194,6 +220,7 @@ function TableRow({
   playing,
   sample,
   reopen,
+  battlefield,
 }: {
   pairing: Pairing
   rematch: boolean
@@ -208,6 +235,8 @@ function TableRow({
   sample: boolean
   /** The event an organizer reopens a finished result in, so its players can correct it. */
   reopen?: { token: string; eventToken: string }
+  /** Absent in the sample tournament, which has no battlefields to read. */
+  battlefield?: { sealedEvent: SealedEvent; token: string; organizes: boolean }
 }) {
   const own = pairing.aId === viewerId || pairing.bId === viewerId
   const opponent = pairing.aId === viewerId ? pairing.bId : pairing.aId
@@ -242,6 +271,15 @@ function TableRow({
       ) : (
         <span className="shrink-0 text-sm text-faint">Not started</span>
       )}
+      {battlefield && pairing.bId && !forfeit ? (
+        <TableBattlefield
+          {...battlefield}
+          round={pairing.round}
+          table={pairing.table}
+          canChange={battlefield.organizes && (!pairing.battleToken || battle?.status === 'setup')}
+          label={`Table ${pairing.table} battlefield`}
+        />
+      ) : null}
       {reopen && pairing.battleToken && battle?.status === 'finished' ? (
         <ReopenTable {...reopen} battleToken={pairing.battleToken} table={pairing.table} />
       ) : null}

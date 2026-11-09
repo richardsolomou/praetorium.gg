@@ -349,6 +349,7 @@ export async function createSealedEvent(args: Parameters<typeof server.createSea
   const now = Date.now()
   const draft: NonNullable<Awaited<ReturnType<typeof server.openSealedEvent>>> = {
     kind: 'tournament',
+    battlefields: [],
     token: identifiers.tournamentToken,
     eventToken: identifiers.eventToken,
     createdAt: now,

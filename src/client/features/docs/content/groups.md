@@ -50,6 +50,8 @@ Each list shows its faction and points. Use **Simulate** beside another player's
 
 ### When a game ends
 
+Once a one-on-one game's lists are revealed, an organizer can set or roll its battlefield, so both players can prepare. The players can't change it, and the organizer can until the battle starts.
+
 Starting a new hidden-list game moves the previous one to **Past hidden-list games**. A scheduled game also moves there after its scheduled day ends, and an undated game after the day its lists were revealed. Days end at midnight in the timezone of the organizer who created it. An undated game with unrevealed lists stays open until replaced.
 
 A game with a battle still being played stays under **Up next** until that battle ends. Past games keep their results, and you can still resume battles already underway. View or simulate revealed armies under **Lists**. You can't start another battle or change lists in a past game.

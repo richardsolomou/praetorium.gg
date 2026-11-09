@@ -181,6 +181,16 @@ export const EarnedAchievements = __t.object('EarnedAchievements', {
 })
 export type EarnedAchievements = __Infer<typeof EarnedAchievements>
 
+export const EventBattlefields = __t.object('EventBattlefields', {
+  key: __t.string(),
+  eventId: __t.string(),
+  round: __t.u32(),
+  table: __t.u32(),
+  patternId: __t.string(),
+  terrainLayoutId: __t.string(),
+})
+export type EventBattlefields = __Infer<typeof EventBattlefields>
+
 export const EventBattles = __t.object('EventBattles', {
   battleId: __t.string(),
   eventId: __t.string(),
