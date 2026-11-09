@@ -51,6 +51,12 @@ export const BattleChanges = __t.object('BattleChanges', {
 })
 export type BattleChanges = __Infer<typeof BattleChanges>
 
+export const BattleFinishes = __t.object('BattleFinishes', {
+  battleId: __t.string(),
+  at: __t.option(__t.u64()),
+})
+export type BattleFinishes = __Infer<typeof BattleFinishes>
+
 export const BattleImports = __t.object('BattleImports', {
   battleId: __t.string(),
   key: __t.string(),
