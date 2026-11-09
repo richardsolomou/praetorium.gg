@@ -15,13 +15,13 @@ export function TextSourceRow({
   source,
   checked,
   disabled,
-  needed = false,
+  needed,
   onCheckedChange,
 }: {
   source: TextSource
   checked: boolean
   disabled?: boolean
-  /** The text the reader asked from comes from this source. */
+  /** The prompt that opened the dialog needs this source. */
   needed?: boolean
   onCheckedChange: (checked: boolean) => void
 }) {
