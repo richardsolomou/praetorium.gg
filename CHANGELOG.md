@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.227.0 (2026-11-09)
+
+### Minor Changes
+
+- c5e943c: The combat simulator can now work out assault shooting after advancing and close-quarters shooting while engaged.
+
 ## 0.226.8 (2026-11-09)
 
 ### Patch Changes
