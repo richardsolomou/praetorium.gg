@@ -205,7 +205,7 @@ export const saveSucceeds = (value: number, critical: boolean, group: CombatTarg
   (value + weapon.ap + (critical ? (weapon.criticalAp ?? 0) : 0) >= group.save ||
     (group.invulnerable !== null && value >= group.invulnerable))
 
-export function attackRolls(weapon: CombatWeapon, options: CombatOptions, toughness: number) {
+function hitRolls(weapon: CombatWeapon, options: CombatOptions) {
   const ranged = options.phase === 'ranged'
   const indirect = ranged && weapon.indirectFire === true && (options.indirectFire === 'unobserved' || options.indirectFire === 'spotted')
   const cover = ranged && (options.cover || indirect) && !weapon.ignoresCover && !weapon.psychic
@@ -220,6 +220,12 @@ export function attackRolls(weapon: CombatWeapon, options: CombatOptions, toughn
         ? (weapon.positiveHitModifier ?? Math.max(0, weapon.hitModifier ?? 0))
         : (weapon.hitModifier ?? 0)),
   )
+  const hitMinimum = indirect ? (options.indirectFire === 'spotted' ? 4 : 6) : 2
+  return { indirect, skill, hitBonus, hitMinimum }
+}
+
+export function attackRolls(weapon: CombatWeapon, options: CombatOptions, toughness: number) {
+  const ranged = options.phase === 'ranged'
   const woundBonus = cappedModifier(
     (weapon.ignoreWoundModifiers ? (options.positiveWoundModifier ?? Math.max(0, options.woundModifier)) : options.woundModifier) +
       (weapon.ignoreWoundModifiers
@@ -242,12 +248,18 @@ export function attackRolls(weapon: CombatWeapon, options: CombatOptions, toughn
         : 0) +
       Number(!ranged && weapon.lance && options.charged),
   )
-  const hitMinimum = indirect ? (options.indirectFire === 'spotted' ? 4 : 6) : 2
-  return { indirect, skill, hitBonus, hitMinimum, woundBonus, wound: woundTarget(weapon.strength, toughness) }
+  return { ...hitRolls(weapon, options), woundBonus, wound: woundTarget(weapon.strength, toughness) }
 }
 
 const criticalThreshold = (weapon: CombatWeapon, kind: 'hit' | 'wound') =>
   kind === 'hit' ? (weapon.criticalHit ?? 6) : weapon.criticalWound
+
+/** The lowest dice result that hits, or null for a weapon that never rolls to hit. */
+export function hitRollNeeded(weapon: CombatWeapon, options: CombatOptions) {
+  if (weapon.torrent) return null
+  const { skill, hitBonus, hitMinimum } = hitRolls(weapon, options)
+  return [2, 3, 4, 5, 6].find((value) => rollSucceeds(value, skill, hitBonus, criticalThreshold(weapon, 'hit'), hitMinimum)) ?? null
+}
 
 /** Whether changing a critical threshold changes any possible roll in the current matchup. */
 export function criticalThresholdMatters(current: CombatInput, previous: CombatInput, kind: 'hit' | 'wound') {

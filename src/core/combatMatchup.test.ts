@@ -1,5 +1,5 @@
-import { expect, it } from 'vitest'
-import { calculateCombat, calculateCombatSequence, type CombatInput } from './combat'
+import { describe, expect, it } from 'vitest'
+import { calculateCombat, calculateCombatSequence, hitRollNeeded, type CombatInput } from './combat'
 import { resolveCombatRequest } from './combatMatchup'
 
 const phase = (name: CombatInput['options']['phase'], attacks = 2): CombatInput => ({
@@ -64,4 +64,29 @@ it('refuses a phase whose work exceeds the given bound', () => {
 
 it('does not combine a single phase', () => {
   expect(resolveCombatRequest({ ranged: phase('ranged'), melee: null })).not.toHaveProperty('combined')
+})
+
+describe('the hit roll a weapon needs', () => {
+  const weapon = phase('ranged').weapons[0]!
+  const options = phase('ranged').options
+
+  it('is one worse with a penalty on the weapon', () => {
+    expect(hitRollNeeded({ ...weapon, hitModifier: -1 }, options)).toBe(4)
+  })
+
+  it('cancels a penalty against a bonus', () => {
+    expect(hitRollNeeded({ ...weapon, hitModifier: -1 }, { ...options, hitModifier: 1 })).toBe(3)
+  })
+
+  it('stays on a 6 because an unmodified 6 always hits', () => {
+    expect(hitRollNeeded({ ...weapon, skill: 6, hitModifier: -1 }, options)).toBe(6)
+  })
+
+  it('ignores a penalty on a psychic weapon', () => {
+    expect(hitRollNeeded({ ...weapon, psychic: true, hitModifier: -1 }, options)).toBe(3)
+  })
+
+  it('is nothing for a weapon that never rolls to hit', () => {
+    expect(hitRollNeeded({ ...weapon, torrent: true, hitModifier: -1 }, options)).toBeNull()
+  })
 })
