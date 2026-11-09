@@ -5,7 +5,6 @@ import {
   uniqueName,
   visitorSetup,
   shotAtWidths,
-  chooseRosterAction,
   openRosterSetup,
   chooseFaction,
   chooseOption,
@@ -233,7 +232,8 @@ test("a visitor's account-only roster actions ask them to sign up", async ({ pag
 
 test('a visitor starting a battle from their roster is asked to sign up', async ({ page }) => {
   await startGuestRoster(page)
-  await chooseRosterAction(page, 'Start a battle')
+  await add(page, 'Necron Warriors')
+  await page.getByRole('button', { name: 'Start a battle', exact: true }).click()
 
   await expect(page.getByRole('dialog', { name: 'Start battles with an account' })).toBeVisible()
 })
