@@ -29,7 +29,7 @@ import { usableDatasheets } from '../../../../core/collection'
 import { shortName } from './factions'
 import { GROUPS } from '../../../unitGroups'
 import { Section } from './Section'
-import { batchFits, canAddCopy, requestedUnit, unitLimitMessage } from './usePicks'
+import { batchFits, canAddCopy, nextCopyPoints, requestedUnit, unitLimitMessage } from './usePicks'
 import { Problem } from '../../../components/Problem'
 import { ConfirmDialog } from '../../../components/ConfirmDialog'
 import { loadoutPicks } from '../../../../core/rosterCopies'
@@ -295,7 +295,7 @@ export const Picker = memo(function Picker({
                             unavailableReason={limits.get(unit.id) === 0 ? unitLimitMessage(unit.id, held, limits) : null}
                             held={held}
                             full={full}
-                            over={pointsOver(unit.points, room)}
+                            over={pointsOver(nextCopyPoints(unit, held), room)}
                             favourite={favourites.has(unit.id)}
                             favouritePending={favouriting.isPending && favouriting.variables?.entryId === unit.id}
                             query={query}
@@ -501,7 +501,7 @@ const PickerRow = memo(function PickerRow({
             <Heart className={`size-3.5 ${favourite ? 'fill-rust text-rust' : 'text-faint hover:text-dim'}`} />
           </Toggle>
         ) : null}
-        <PointsChip points={unit.points} over={over} />
+        <PointsChip points={nextCopyPoints(unit, held)} over={over} />
         <Button
           data-onboarding="picker-add"
           variant="outline"

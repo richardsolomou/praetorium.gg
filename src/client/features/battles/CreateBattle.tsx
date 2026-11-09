@@ -165,8 +165,8 @@ export function CreateBattle({
         setSealedEventMatches(result.matches)
         return
       }
-      setOpen(false)
-      return openBattle(result.battle.token)
+      // Closes once the battle is showing: closing first leaves the previous page looking as if nothing happened.
+      return Promise.resolve(openBattle(result.battle.token)).finally(() => setOpen(false))
     },
   })
   const changeIntent = () => {

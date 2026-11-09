@@ -1,7 +1,7 @@
 import { advanceOnboarding } from '../onboarding/onboarding'
 import { GuideHelp } from '../onboarding/GuideHelp'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { useLocation, useNavigate } from '@tanstack/react-router'
+import { Link, useLocation, useNavigate } from '@tanstack/react-router'
 import { Copy, FileUp, LoaderCircle, TriangleAlert } from 'lucide-react'
 import { posthog } from 'posthog-js'
 import { useEffect, useRef, useState } from 'react'
@@ -14,7 +14,7 @@ import { invalidateSavedRosters, playerDefaultsQuery } from '../../queries'
 import { isRosterExchangeCode } from '../../../core/rosterExchange'
 import { isNewRecruitLink, newRecruitShareId } from '../../../core/newRecruit'
 import { structuredRosterFile, type StructuredRosterFile } from '../../../core/structuredRosterFile'
-import { importRosterFormat } from '../../../shared/rosterFiles'
+import { importRosterFormat, UNSUPPORTED_ARMY_TEXT } from '../../../shared/rosterFiles'
 import { battleSizeLabel } from '../../../core/battle'
 import { importFailureReport } from '../feedback/feedback'
 import { sendFeedback } from '../feedback/sendFeedback'
@@ -425,6 +425,19 @@ export function RosterImport({ onImport, blocked }: { onImport?: (imported: Matc
             </div>
 
             {failure ? <Problem error={failure} className="whitespace-pre-line" /> : null}
+            {String(failure).includes(UNSUPPORTED_ARMY_TEXT) ? (
+              <p className="text-xs text-dim">
+                Paste the whole export from your list builder.{' '}
+                <Link
+                  to="/docs/$docId"
+                  params={{ docId: 'import-a-list' }}
+                  className="text-info underline-offset-4 hover:underline"
+                  onClick={() => setOpen(false)}
+                >
+                  See which exports work
+                </Link>
+              </p>
+            ) : null}
           </DialogBody>
           <DialogFooter>
             <Button variant="outline" disabled={working} onClick={() => setOpen(false)}>

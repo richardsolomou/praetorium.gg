@@ -355,6 +355,7 @@ function RosterChooser({
           </DialogDescription>
         </DialogHeader>
         <DialogBody>
+          {error ? <Problem>{error}</Problem> : null}
           <SectionHeading title="Rosters" count={rosters.length} className="mb-0" />
           <div className="space-y-2">
             {loading ? (
@@ -408,7 +409,6 @@ function RosterChooser({
               <LentRosterList rosters={lent} selectedId={selectedId} disabled={pending} onChoose={onChoose} />
             </>
           ) : null}
-          {error ? <Problem>{error}</Problem> : null}
         </DialogBody>
       </DialogContent>
     </Dialog>

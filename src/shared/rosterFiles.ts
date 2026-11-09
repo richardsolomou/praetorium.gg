@@ -149,6 +149,8 @@ export function matchesImportFaction(stated: string, name: string, translations:
 /** Translations spell names with and without accents, as "Tiranidos" for "Tiránidos". */
 const unaccented = (value: string) => normalized(value).normalize('NFD').replace(/\p{M}/gu, '')
 
+export const UNSUPPORTED_ARMY_TEXT = 'it is not a supported army-text export'
+
 export function importRosterFile(
   data: ImportRosterInput,
   loaded: LoadedCatalogue | null,
@@ -166,7 +168,7 @@ export function importRosterFile(
     catalogueName: null,
     detachmentIds: [],
     units: [],
-    unknown: [{ name: 'the pasted text', reason: 'it is not a supported army-text export' }],
+    unknown: [{ name: 'the pasted text', reason: UNSUPPORTED_ARMY_TEXT }],
     unplaced: [],
     source: null,
     format: null,
