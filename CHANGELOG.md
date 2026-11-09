@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.226.5 (2026-11-09)
+
+### Patch Changes
+
+- 842987c: Importing a tournament list keeps each leader attached when the list writes "Leading:" on its own line.
+- 842987c: An imported list with an option left empty no longer asks you to reselect that unit's options.
+
 ## 0.226.4 (2026-11-09)
 
 ### Patch Changes
