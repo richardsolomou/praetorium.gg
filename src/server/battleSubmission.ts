@@ -41,15 +41,16 @@ export async function submittedBattleCommand(userId: string, submitted: z.infer<
     }
   }
   if (submitted.kind === 'attach-draft-roster') {
-    // An account fields what it saved, so the list it played stays in its library.
-    if (!isGuestSeat(userId)) throw new Response('save the roster before fielding it', { status: 400 })
+    // An account fields what it saved, so the list it played stays in its library; a guest's list is theirs, not the host's.
+    if (!isGuestSeat(userId) && !(submitted.playerId && isGuestSeat(submitted.playerId)))
+      throw new Response('save the roster before fielding it', { status: 400 })
     const { draft } = submitted
     const roster = await frozenRoster(
       { ...draft, id: draft.id ?? randomUUID(), waivedRules: draft.waivedRules ?? [], remindersEnabled: draft.prep?.remindersEnabled },
       // A device on an older build still sends the per-unit alerts it kept in the draft.
       submitted.reminders ?? abilityRemindersFromRosters([{ updatedAt: 0, reminders: draft.prep?.reminders ?? [] }]),
     )
-    return { kind: 'attach-roster', roster, prep: null, painted: true }
+    return { kind: 'attach-roster', roster, prep: null, painted: true, ...(submitted.playerId ? { playerId: submitted.playerId } : {}) }
   }
   if (submitted.kind === 'attach-roster' && submitted.roster.built) {
     if (!submitted.roster.id) throw new Response('choose a saved roster', { status: 400 })

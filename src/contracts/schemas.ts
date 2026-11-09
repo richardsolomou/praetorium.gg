@@ -454,6 +454,7 @@ const attachSavedRosterSchema = z.object({ kind: z.literal('attach-saved-roster'
 const attachDraftRosterSchema = z
   .object({
     kind: z.literal('attach-draft-roster'),
+    playerId: id.optional(),
     draft: saveRosterSchema,
     reminders: z.array(abilityReminderSchema).max(ABILITY_REMINDERS_MAX).optional(),
   })

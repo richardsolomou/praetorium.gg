@@ -28,6 +28,22 @@ it('fields the draft a guest built, frozen by the server', async () => {
   })
 })
 
+it('fields a list pasted for a guest the host is playing', async () => {
+  expect(await submittedBattleCommand('host', { kind: 'attach-draft-roster', draft, playerId: 'guest:battle:0' })).toEqual({
+    kind: 'attach-roster',
+    roster: frozen,
+    prep: null,
+    painted: true,
+    playerId: 'guest:battle:0',
+  })
+})
+
+it('asks an account to save a list before fielding it for another account', async () => {
+  await expect(submittedBattleCommand('host', { kind: 'attach-draft-roster', draft, playerId: 'friend' })).rejects.toMatchObject({
+    status: 400,
+  })
+})
+
 it('asks an account to save a list before fielding it', async () => {
   await expect(submittedBattleCommand('host', { kind: 'attach-draft-roster', draft })).rejects.toMatchObject({ status: 400 })
 })

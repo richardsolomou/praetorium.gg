@@ -1,4 +1,8 @@
-You play a guest's seat until they join: you choose its roster from your own lists and record its side. To let them play on their own phone:
+You play a guest's seat until they join: you choose its roster and record its side. Pick one of your own lists, or choose **Choose roster** and paste their list. A pasted list is used for that game only and isn't added to your rosters.
+
+In a [manual battle](/docs/start-a-battle), choose **Keep score only** to play without entering their army at all. You then choose the battle size yourself.
+
+To let them play on their own phone:
 
 1. Choose **Invite to play** beside their name.
 2. Show them the QR code, or use **Copy link** or **Share link**.
