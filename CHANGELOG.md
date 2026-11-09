@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.228.4 (2026-11-09)
+
+### Patch Changes
+
+- bd45db6: Finished battles no longer show the Teams event scoring switch.
+
 ## 0.228.3 (2026-11-09)
 
 ### Patch Changes
