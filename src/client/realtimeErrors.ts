@@ -25,6 +25,11 @@ function isSocketErrorEvent(value: unknown) {
   return typeof Event !== 'undefined' && value instanceof Event && value.type === 'error'
 }
 
+/** A scraper's stubbed WebSocket refuses every address with this text; Chrome's own refusal names the address. */
+export function isStubbedWebSocketRefusal(error: unknown) {
+  return error instanceof Error && error.message.endsWith('Failed to create a WebSocket: the provided URL is invalid.')
+}
+
 export function isExpectedRealtimeDisconnect(error: unknown): boolean {
   // The SDK wraps the browser's socket error event in an Error.
   if (isSocketErrorEvent(error) || (error instanceof Error && isSocketErrorEvent(error.cause))) return true
@@ -44,7 +49,6 @@ export function isExpectedRealtimeDisconnect(error: unknown): boolean {
     message.startsWith('WebSocket closed') ||
     message === 'Session busy' ||
     message.startsWith('Failed to verify token') ||
-    // A scraper's stubbed WebSocket refuses every address with this text; Chrome's own refusal names the address.
-    message.endsWith('Failed to create a WebSocket: the provided URL is invalid.')
+    isStubbedWebSocketRefusal(error)
   )
 }

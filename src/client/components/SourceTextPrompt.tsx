@@ -49,12 +49,14 @@ function TextFailed({ className }: { className?: string }) {
 
 function TextAsk({ className, ...props }: { className?: string; 'data-text-gap-ask'?: boolean }) {
   return (
-    <p className={cn('text-xs text-faint', className)} {...props}>
-      Rules text isn’t loaded.{' '}
-      <button type="button" className="text-info hover:text-bone" onClick={() => openTextSourcesDialog()}>
-        Choose sources
-      </button>
-    </p>
+    <button
+      type="button"
+      className={cn('group text-left text-xs text-faint', className)}
+      onClick={() => openTextSourcesDialog()}
+      {...props}
+    >
+      Rules text isn’t loaded. <span className="text-info group-hover:text-bone">Choose sources</span>
+    </button>
   )
 }
 

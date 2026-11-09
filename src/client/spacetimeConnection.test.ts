@@ -290,6 +290,21 @@ it('says how long the connection was down once it is back', async () => {
   stop()
 })
 
+it('does not count a scraper stubbing the WebSocket as a lost connection', async () => {
+  vi.useFakeTimers()
+  let fail: SpacetimeLink<string>['failed'] | undefined
+  const open = vi.fn((_ticket: string, { failed }: SpacetimeLink<string>) => {
+    fail = failed
+    return { disconnect: vi.fn() }
+  })
+  const lost = vi.fn()
+  const stop = maintainSpacetimeConnection({ issue: async () => 'ticket', open, inactive: vi.fn(), report: vi.fn(), lost })
+  await vi.waitFor(() => expect(open).toHaveBeenCalledTimes(1))
+  fail!(new Error("Failed to construct 'WebSocket': Failed to create a WebSocket: the provided URL is invalid."))
+  expect(lost).not.toHaveBeenCalled()
+  stop()
+})
+
 it('counts one lost connection per outage, until it has recovered', async () => {
   vi.useFakeTimers()
   const links: SpacetimeLink<string>[] = []

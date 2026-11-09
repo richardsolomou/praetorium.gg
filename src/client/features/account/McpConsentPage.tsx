@@ -1,3 +1,4 @@
+import { posthog } from 'posthog-js'
 import { useAuthAction } from 'ras-stack/auth/react'
 import { Button } from '@/components/ui/button'
 import { buttonClass } from '../../components/buttonClass'
@@ -25,7 +26,9 @@ export function McpConsentPage({
 
   const decide = async (accept: boolean) => {
     const result = await run(() => authClient.oauth2.consent({ accept }))
-    if (!result.error && 'data' in result && result.data?.url) window.location.assign(result.data.url)
+    if (result.error) return
+    posthog.capture('mcp_consent_decided', { accepted: accept })
+    if ('data' in result && result.data?.url) window.location.assign(result.data.url)
   }
 
   return (

@@ -1,4 +1,9 @@
-import { isExpectedRealtimeDisconnect, isRealtimeServiceUnavailable, RealtimeOutageError } from './realtimeErrors'
+import {
+  isExpectedRealtimeDisconnect,
+  isRealtimeServiceUnavailable,
+  isStubbedWebSocketRefusal,
+  RealtimeOutageError,
+} from './realtimeErrors'
 
 type Connection = { disconnect(): void }
 
@@ -74,7 +79,7 @@ export function maintainSpacetimeConnection<T>(options: {
     const failed = (error?: unknown) => {
       if (!active || attempt !== generation || retry !== undefined) return
       note(error)
-      loseOnce('failed')
+      if (!isStubbedWebSocketRefusal(error)) loseOnce('failed')
       generation++
       clearTimeout(refresh)
       clearTimeout(recovery)

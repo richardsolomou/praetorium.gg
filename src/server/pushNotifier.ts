@@ -6,6 +6,11 @@ import { reportServerFailure } from '../adapters/posthog'
 /** Told about a notice after its write has committed. Never awaited by the request that caused it. */
 export type Notifier = { notify: (notices: readonly Notice[]) => void }
 
+/** Campaign tags on the page a notification opens, so the pageview records which kind of notice brought the player back. */
+export function campaignPath(path: string, kind: Notice['kind']) {
+  return `${path}${path.includes('?') ? '&' : '?'}utm_source=praetorium-app&utm_medium=push&utm_campaign=${kind}`
+}
+
 /** An instance without a push service sends nothing, and nothing else changes. */
 export const silentNotifier: Notifier = { notify: () => {} }
 
@@ -30,7 +35,8 @@ export function pushNotifier(repository: PushRepository, sender: PushSender): No
         group: 'groupToken' in notice ? groups.get(notice.groupToken) : undefined,
       })
       if (!message) return []
-      return targets.filter((target) => recipients.includes(target.userId)).map((target) => ({ to: target.token, ...message }))
+      const path = campaignPath(message.path, notice.kind)
+      return targets.filter((target) => recipients.includes(target.userId)).map((target) => ({ to: target.token, ...message, path }))
     })
     if (messages.length) await sender.send(messages)
   }

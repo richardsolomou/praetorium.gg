@@ -130,6 +130,7 @@ export function OfflineReference() {
         abort.signal.throwIfAborted()
         await saveReference(data, supportsNativeOffline() ? null : html)
         await applyReferenceData(client, data)
+        posthog.capture('offline_reference_refreshed', { first: !held })
       } catch (error) {
         // A failed background refresh leaves the last complete download in use.
         if (!abort.signal.aborted)

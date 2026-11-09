@@ -11,6 +11,7 @@ import {
   LockOpen,
   Pencil,
   Share2,
+  Download,
   Swords,
   Trash2,
   Unlink,
@@ -108,7 +109,7 @@ export function RosterRow({
 }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const title = rosterTitle(roster, faction, label)
-  const items = { roster, grouped: layout !== 'card', actions, onEdit, onShare, onLend, onStartBattle, onDelete, onNeedsAccount }
+  const items = { roster, title, grouped: layout !== 'card', actions, onEdit, onShare, onLend, onStartBattle, onDelete, onNeedsAccount }
 
   return (
     <ContextMenu>
@@ -192,6 +193,7 @@ function RosterActionItems({
   Item,
   Separator,
   roster,
+  title,
   grouped,
   actions,
   onEdit,
@@ -204,6 +206,7 @@ function RosterActionItems({
   Item: typeof DropdownMenuItem | typeof ContextMenuItem
   Separator: typeof DropdownMenuSeparator | typeof ContextMenuSeparator
   roster: SavedRoster
+  title: string
   /** Whether the list shares a card with its variants, so it can be taken out to stand on its own. */
   grouped: boolean
   actions: RosterActions
@@ -247,6 +250,9 @@ function RosterActionItems({
         <span className="ml-auto flex items-center gap-1 pl-4 text-2xs text-faint normal-case">
           <VisibleIcon className="size-3" /> {VISIBILITY_NAME[roster.visibility]}
         </span>
+      </Item>
+      <Item className={MENU_ITEM} disabled={actions.take.isPending} onClick={() => actions.take.mutate({ roster, title })}>
+        <Download /> Export text
       </Item>
       <Item className={MENU_ITEM} onClick={orAccount('lend', onLend)}>
         <HandHelping /> Lend to a friend
