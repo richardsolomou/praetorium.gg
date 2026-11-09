@@ -1,0 +1,11 @@
+diff --git a/definitions/Chaos - Chaos Knights Library.json b/definitions/Chaos - Chaos Knights Library.json
+--- a/definitions/Chaos - Chaos Knights Library.json
++++ b/definitions/Chaos - Chaos Knights Library.json
+@@ -11479,6 +11479,7 @@
+         "import": true,
+         "type": "model",
+         "categoryLinks": [
++          {"name": "Faction: Chaos Knights", "id": "c1a0-9d3e-4f7a-2b68", "hidden": false, "primary": false, "targetId": "bb67-f191-6562-acc7"},
+           {"name": "Vehicle", "id": "4814-bfa9-5590-55dd", "hidden": false, "primary": false, "targetId": "dbd4-63-af05-998"},
+           {"name": "Walker", "id": "e339-2678-5dc0-ff16", "hidden": false, "primary": false, "targetId": "6dda-e157-334d-e93a"},
+           {"name": "Character", "id": "f6fe-ca30-8438-de6c", "hidden": false, "primary": true, "targetId": "9cfd-1c32-585f-7d5c"},
