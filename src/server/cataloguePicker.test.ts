@@ -846,6 +846,72 @@ describe('the picker', () => {
     })
   })
 
+  it('takes the faction from the library a book draws its roster from', () => {
+    const borrowed = (id: string) => ({
+      id,
+      name: id,
+      type: 'unit' as const,
+      costs: points(10),
+      categoryLinks: categories('Faction: Heretic Astartes'),
+    })
+    const daemon = (id: string) => ({
+      id,
+      name: id,
+      type: 'unit' as const,
+      costs: points(10),
+      categoryLinks: categories('Faction: Legiones Daemonica'),
+    })
+    const shelf = shelfOf(
+      {
+        name: 'Chaos Daemons',
+        selectionEntries: [borrowed('Cultists'), borrowed('Sorcerer')],
+        catalogueLinks: [{ targetId: 'cat-1', importRootEntries: true }],
+      },
+      { library: true, selectionEntries: [daemon('Bloodletters'), daemon('Flesh Hounds'), daemon('Horrors')] },
+    )
+
+    expect(Object.fromEntries(unitsIn(shelf, 'cat', '').map((unit) => [unit.name, Boolean(unit.alliedFaction)]))).toEqual({
+      Bloodletters: false,
+      'Flesh Hounds': false,
+      Horrors: false,
+      Cultists: true,
+      Sorcerer: true,
+    })
+  })
+
+  it('lets a supplement with no units of its own follow its main import, not a library', () => {
+    const sheet = (name: string, faction: string) => ({
+      id: name,
+      name,
+      type: 'unit' as const,
+      costs: points(10),
+      categoryLinks: categories(`Faction: ${faction}`),
+    })
+    const shelf = shelfOf(
+      {
+        catalogueLinks: [
+          { targetId: 'cat-1', importRootEntries: true },
+          { targetId: 'cat-2', importRootEntries: true },
+        ],
+      },
+      {
+        selectionEntries: [
+          sheet('Intercessors', 'Adeptus Astartes'),
+          sheet('Terminators', 'Adeptus Astartes'),
+          sheet('Scouts', 'Adeptus Astartes'),
+        ],
+      },
+      { library: true, selectionEntries: [sheet('Armiger', 'Imperial Knights')] },
+    )
+
+    expect(Object.fromEntries(unitsIn(shelf, 'cat', '').map((unit) => [unit.name, Boolean(unit.alliedFaction)]))).toEqual({
+      Intercessors: false,
+      Terminators: false,
+      Scouts: false,
+      Armiger: true,
+    })
+  })
+
   it('marks a directly linked datasheet from another faction as allied', () => {
     const shelf = shelfOf(
       {
