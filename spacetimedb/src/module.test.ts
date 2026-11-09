@@ -1241,6 +1241,7 @@ describe('friends’ sealed rosters', () => {
             at: BigInt(NOW * 1_000),
             body: JSON.stringify(body),
           })
+        ctx.db.battleFinishes.battleId.delete(battleId)
       })
     const listed = () =>
       (JSON.parse(module.friendSealedEventRosters(host.procedure(host.operator), { viewerId: 'viewer' })) as { userId: string }[]).map(
@@ -1303,6 +1304,85 @@ describe('friends’ sealed rosters', () => {
     const playing = fixture.listed()
     fixture.finish('battle')
     expect([playing, fixture.listed()]).toEqual([['friend'], []])
+  })
+
+  it('counts a group game’s players as playing again when the end of their battle is undone', () => {
+    const fixture = setup()
+    const now = Date.parse('2026-10-25T19:00:00Z')
+    fixture.at(now / 1000)
+    const command = (input: Record<string, unknown>) =>
+      module.sealedEventCommand(fixture.procedure(fixture.operator), { payload: JSON.stringify(input) })
+    module.groupCommand(fixture.procedure(fixture.operator), {
+      payload: JSON.stringify({
+        token: 'group',
+        op: 'create',
+        id: 'group-id',
+        ownerId: 'viewer',
+        now,
+        name: 'Group',
+        description: '',
+        visibility: 'private',
+        admission: 'automatic',
+      }),
+    })
+    module.groupCommand(fixture.procedure(fixture.operator), {
+      payload: JSON.stringify({ token: 'group', op: 'join', userId: 'friend', now }),
+    })
+    command({
+      op: 'create-hidden-list-game',
+      eventId: 'game-id',
+      eventToken: 'game',
+      groupToken: 'group',
+      ownerId: 'viewer',
+      format: '1v1',
+      rosterLimit: 2000,
+      now,
+      timeZone: 'UTC',
+    })
+    fixture.call(fixture.operator, (ctx) => {
+      ctx.db.sealedEvents.id.update({ ...ctx.db.sealedEvents.id.find('game-id')!, revealedAt: BigInt(now) })
+      fixture.enter(ctx, 'game-id')
+    })
+    command({
+      token: 'game',
+      op: 'create-battle',
+      ownerId: 'viewer',
+      userId: 'viewer',
+      id: 'battle',
+      battleToken: 'battle',
+      allyIds: [],
+      opponentIds: ['friend'],
+      initialCommands: [],
+      now,
+      expectedEntries: ['friend', 'viewer'].map((userId) => ({ userId, snapshot })),
+    })
+    const submit = (expectedSeq: number, body: Record<string, unknown>) =>
+      module.submitBattle(fixture.procedure(fixture.operator), {
+        battleId: 'battle',
+        userId: 'viewer',
+        expectedSeq,
+        body: JSON.stringify(body),
+        now: BigInt(now * 1_000),
+        externalRefusal: '',
+      })
+    const playing = () =>
+      (JSON.parse(module.groupByToken(fixture.procedure(fixture.operator), { token: 'group' })) as { games: { playing: string[] }[] })
+        .games[0]!.playing.length
+    fixture.call(TestAuth.internal(), (ctx) =>
+      ctx.db.commands.insert({
+        key: JSON.stringify(['battle', 1]),
+        battleId: 'battle',
+        seq: 1,
+        userId: 'viewer',
+        at: BigInt(now * 1_000),
+        body: JSON.stringify({ kind: 'begin-battle', firstPlayerId: 'viewer' }),
+      }),
+    )
+    const before = playing()
+    submit(1, { kind: 'end-battle', reason: 'conceded', concededBy: 'friend' })
+    const ended = [playing(), playing()]
+    submit(2, { kind: 'undo', target: 2 })
+    expect([before, ...ended, playing()]).toEqual([2, 0, 0, 2])
   })
 
   it('offers only the current hidden-list game when starting a battle', () => {

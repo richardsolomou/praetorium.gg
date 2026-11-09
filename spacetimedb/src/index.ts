@@ -327,6 +327,7 @@ function touchBattle(ctx: Context, battleId: string) {
   ctx.db.battleChanges.battleId.delete(battleId)
   ctx.db.battleChanges.insert({ battleId, revision })
   ctx.db.battleActivity.battleId.delete(battleId)
+  ctx.db.battleFinishes.battleId.delete(battleId)
 }
 
 /** When a battle last had a command, read from its log only the first time after the log changed. */
@@ -1957,6 +1958,8 @@ function endGuestSessions(ctx: Context, seatId: string) {
 }
 
 function touchBattleSeats(ctx: Context, battleId: string) {
+  // Whether a guest plays from their own device feeds the fold.
+  ctx.db.battleFinishes.battleId.delete(battleId)
   for (const seat of ctx.db.battleUsers.battleId.filter(battleId)) touchProduct(ctx, seat.userId, 'battles')
 }
 
@@ -3548,7 +3551,7 @@ function pairingFinished(ctx: Context, pairing: { eventId: string; aId: string; 
   if (pairing.bId === undefined || droppedFrom(ctx, pairing.eventId, pairing.aId) || droppedFrom(ctx, pairing.eventId, pairing.bId))
     return true
   if (pairing.battleId === undefined || !ctx.db.battles.id.find(pairing.battleId)) return false
-  return battleState(ctx, pairing.battleId).state.status === 'finished'
+  return finishedAt(ctx, pairing.battleId) !== null
 }
 
 /** A Swiss event is over once its final round is paired and every table has finished. */
@@ -3566,7 +3569,7 @@ function eventOn(ctx: Context, host: EventHost) {
   if (host.kind === 'tournament') return !swissFinished(ctx, host.event)
   if (!pastHiddenListGame(ctx, host)) return true
   for (const row of ctx.db.eventBattles.eventId.filter(host.event.id))
-    if (ctx.db.battles.id.find(row.battleId) && battleState(ctx, row.battleId).state.status !== 'finished') return true
+    if (ctx.db.battles.id.find(row.battleId) && finishedAt(ctx, row.battleId) === null) return true
   return false
 }
 
@@ -3659,10 +3662,14 @@ function personalEventIds(ctx: Context, userId: string) {
   return ids
 }
 
-/** When a battle's last command was written, or null while it is still being played. */
+/** When a battle's last command was written, or null while it is still being played, folded only the first time after the log changed. */
 function finishedAt(ctx: Context, battleId: string) {
+  const stored = ctx.db.battleFinishes.battleId.find(battleId)
+  if (stored) return stored.at === undefined ? null : safeNumber(stored.at)
   const { log, state } = battleState(ctx, battleId)
-  return state.status === 'finished' ? (log.at(-1)?.at ?? null) : null
+  const at = state.status === 'finished' ? (log.at(-1)?.at ?? null) : null
+  ctx.db.battleFinishes.insert({ battleId, at: at === null ? undefined : BigInt(at) })
+  return at
 }
 
 /** Each group league fixture's finish, null while one is unplayed; a bye or a fixture a player withdrew from has none. */
@@ -4527,9 +4534,8 @@ function hiddenListGameSeat(format: string | undefined, rosterLimit: number | un
 function unfinishedPlayers(ctx: Context, eventId: string) {
   const players = new Set<string>()
   for (const row of ctx.db.eventBattles.eventId.filter(eventId)) {
-    if (!ctx.db.battles.id.find(row.battleId)) continue
-    const { seats, state } = battleState(ctx, row.battleId)
-    if (state.status !== 'finished') for (const seat of seats) players.add(seat.id)
+    if (!ctx.db.battles.id.find(row.battleId) || finishedAt(ctx, row.battleId) !== null) continue
+    for (const seat of ctx.db.battleUsers.battleId.filter(row.battleId)) players.add(seat.userId)
   }
   return [...players]
 }
@@ -5763,8 +5769,7 @@ function sealedEventCommandIn(tx: Context, args: unknown[]) {
     for (const pairing of roundPairings(tx, event.id))
       if (pairing.battleId !== undefined && (pairing.aId === input.userId || pairing.bId === input.userId)) {
         const battle = tx.db.battles.id.find(pairing.battleId)
-        if (!battle || battleState(tx, pairing.battleId).state.status !== 'finished')
-          tx.db.roundPairings.key.update({ ...pairing, battleId: undefined })
+        if (!battle || finishedAt(tx, pairing.battleId) === null) tx.db.roundPairings.key.update({ ...pairing, battleId: undefined })
       }
     touchEvent(tx, host)
     return productJson('dropped')

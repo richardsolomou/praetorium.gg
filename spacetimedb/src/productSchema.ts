@@ -414,6 +414,15 @@ const battleActivity = table(
   },
 )
 
+/** When each battle finished, with no time while it is being played, so a list of battles needs no fold of each log; filled lazily by `finishedAt` and dropped by `touchBattle`. */
+const battleFinishes = table(
+  { name: 'battle_finishes' },
+  {
+    battleId: t.string().primaryKey(),
+    at: t.option(t.u64()),
+  },
+)
+
 /**
  * The `battles` revision at which each battle's log or seats last changed, so a reader keeping its own copy of results
  * rereads only what changed since it last read. The row outlives its battle, which tells that reader it is gone.
@@ -757,6 +766,7 @@ export const productTables = {
   groupMembers,
   groupBattles,
   battleActivity,
+  battleFinishes,
   battleChanges,
   battleResults,
   ratingSteps,
