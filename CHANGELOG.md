@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.227.1 (2026-11-09)
+
+### Patch Changes
+
+- deea622: Where rules text isn't loaded, the prompt now names the source to turn on, and the sources dialog marks it.
+
 ## 0.227.0 (2026-11-09)
 
 ### Minor Changes
