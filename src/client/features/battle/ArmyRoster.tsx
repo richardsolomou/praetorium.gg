@@ -1,4 +1,5 @@
 import { Calculator, ChevronLeft, Minus, Plus, Scroll } from 'lucide-react'
+import { ControlTooltip } from '../../components/ControlTooltip'
 import { useCallback, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { DialogBody, DialogDescription, DialogHeader, DialogTitle } from '../../components/Dialog'
@@ -90,7 +91,10 @@ export function ArmyRoster({ army, side, actionable, pending, blocked = false, s
   const sheets = units.some(readable)
   const selected = units.find((unit) => unit.key === selectedKey && readable(unit)) ?? null
   const canSimulate = (unit: UnitState) => readable(unit) && !unit.destroyed && unit.formation === 'battlefield'
-  const simulate = () => onSimulate({ playerId: army.playerId })
+  const simulate = (unitKey?: string) => {
+    setOpen(false)
+    onSimulate({ playerId: army.playerId, unitKey })
+  }
   const unitProps: UnitControls = { army, actionable, pending, blocked, send, press }
   // Allies field one Warlord between them, so only the list whose Warlord leads the side wears the crown.
   const leads = (side.warlord ?? army.playerId) === army.playerId
@@ -103,6 +107,7 @@ export function ArmyRoster({ army, side, actionable, pending, blocked = false, s
       inUnit={inUnit}
       selected={unit.key === selected?.key}
       onSelect={readable(unit) ? () => setSelectedKey(unit.key) : undefined}
+      onSimulate={canSimulate(unit) ? () => simulate(unit.key) : undefined}
     />
   )
   const list = units.length ? (
@@ -234,10 +239,12 @@ function BattleUnit({
   inUnit,
   selected,
   onSelect,
+  onSimulate,
   ...controls
 }: {
   selected: boolean
   onSelect?: () => void
+  onSimulate?: () => void
   unit: UnitState
   warlord: boolean
   /** Drawn inside its attached unit's block, which already shows the units it joined. */
@@ -265,7 +272,20 @@ function BattleUnit({
       onSelect={onSelect}
       joined={inUnit ? unitRoleRows(unit.joined ?? []) : (unit.joined ?? [])}
       editable={false}
-      status={worthSaying ? <UnitStatus {...controls} unit={unit} /> : undefined}
+      status={
+        worthSaying || onSimulate ? (
+          <>
+            {onSimulate ? (
+              <ControlTooltip label={`Simulate ${unit.name}`}>
+                <Button variant="outline" size="icon-xs" aria-label={`Simulate ${unit.name}`} onClick={onSimulate}>
+                  <Calculator aria-hidden />
+                </Button>
+              </ControlTooltip>
+            ) : null}
+            {worthSaying ? <UnitStatus {...controls} unit={unit} /> : null}
+          </>
+        ) : undefined
+      }
     />
   )
 }

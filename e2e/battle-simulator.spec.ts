@@ -177,7 +177,7 @@ test('battle combat uses frozen loadouts and live casualties', async ({ page, br
     if (width === 1440) await squad.getByRole('button', { name: 'Take a wound off Intercessor Squad' }).click()
     await expect(squad.locator('[data-count="wounds"]')).toHaveText('1/2')
     await expectNoHorizontalOverflow(army.locator('[data-army-list]'))
-    await expect(army.getByRole('button', { name: /^Simulate/ })).toHaveCount(0)
+    await expect(army.getByRole('button', { name: 'Simulate Intercessor Squad', exact: true })).toBeVisible()
     await army.getByRole('button', { name: 'Close', exact: true }).click()
     await panel.getByRole('button', { name: /Simulate .*combat/ }).click()
     if (width < 860) {

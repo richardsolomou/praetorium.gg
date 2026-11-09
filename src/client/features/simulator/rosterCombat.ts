@@ -1,7 +1,7 @@
 import type { RosterPick } from '../../../core/roster'
 import { attachmentHost } from '../../../core/attachedUnits'
 import { readableCombatant } from './readableRules'
-import { combatRuleSelections } from '../../../core/combatRules'
+import { combatDamageStateSelections, combatRuleSelections } from '../../../core/combatRules'
 import { combatMatchup, noExclusions, type CombatAnswer, type CombatantSnapshot, type CombatRequest } from '../../../core/combatMatchup'
 import { COMBAT_PHASES, type CombatPhase, type CombatResult } from '../../../core/combat'
 import type { combatantDatasheet } from '../../functions'
@@ -61,7 +61,17 @@ export function rosterCombatSnapshot(
   live?: { units: NonNullable<CombatRoster['battle']>['units']; pickIndex: number },
 ): CombatantSnapshot {
   const data = readableCombatant(combatant)
-  const selections = combatRuleSelections([...data.rules, ...data.companions.flatMap((member) => member.rules)], {})
+  const selections = combatRuleSelections(
+    [...data.rules, ...data.companions.flatMap((member) => member.rules)],
+    live
+      ? Object.assign(
+          combatDamageStateSelections(data.rules, live.units[live.pickIndex]!),
+          ...data.companions.map((member) =>
+            combatDamageStateSelections(member.rules, live.units[member.pickIndex] ?? { models: 0, damage: 0 }),
+          ),
+        )
+      : {},
+  )
   const snapshot: CombatantSnapshot = {
     sheet: data.selected,
     models: data.models,

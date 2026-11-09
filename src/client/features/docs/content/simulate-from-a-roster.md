@@ -6,7 +6,9 @@ On someone else's roster, it opens the main simulator with their unit defending,
 
 ## From a battle
 
-Choose **Simulate** on a player's army. Each unit comes in with its current models and wounds. Destroyed, reserve and embarked units can't be picked.
+Choose **Simulate** on a player's army, or on one of its units to start with that unit. Each unit comes in with its current models and wounds, and a single model's **Damaged** rule switches on when its wounds are in range. Destroyed, reserve and embarked units can't be picked.
+
+In the [Combat simulator](/simulator), your battles in progress are listed at the top, so you can open one from there.
 
 To try a different state, change the model count or **Wounded model · wounds left**. If losses could have come from different models, **Survivors** lets you choose who's left.
 

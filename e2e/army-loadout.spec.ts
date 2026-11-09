@@ -11,7 +11,7 @@ for (const token of ['preview-casual-strike-force', 'preview-tournament-battle-d
       await expect(open).toHaveText('Army')
       const army = page.locator('[data-army-roster]')
       await retryUntilVisible(army, () => open.click())
-      await expect(army.getByRole('button', { name: /^Simulate/ })).toHaveCount(0)
+      await expect(army.getByRole('button', { name: /^Simulate/ }).first()).toBeVisible()
       if (width < 860) {
         await expect.poll(async () => (await army.boundingBox())?.x).toBe(0)
         const bounds = (await army.boundingBox())!

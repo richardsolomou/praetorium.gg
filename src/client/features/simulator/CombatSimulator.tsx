@@ -33,6 +33,7 @@ import { RecentSimulations } from './RecentSimulations'
 import { sealedCombatRoster } from './rosterCombat'
 import { friendSealedEventLabel, friendSealedEventSource, useRosterOwners, useSimulatorRosters } from './rosterOwners'
 import type { RecentMatchup } from '../../../core/recentMatchups'
+import { LiveBattles } from './LiveBattles'
 
 /** A link's roster side with that roster's current contents; null when the roster or its unit is gone. */
 function savedRosterSide(side: SimulatorSide, roster: CombatRoster | null, name: string): CombatRoster | null {
@@ -283,6 +284,7 @@ export function CombatSimulator({
         }
       />
       <PageContent>
+        <LiveBattles />
         <RosterCombatComparison
           units={{
             active: !comparingRosters,
