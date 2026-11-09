@@ -1,5 +1,6 @@
+import { posthog } from 'posthog-js'
 import { Check, Copy, Download, LoaderCircle, Printer, QrCode, Share2, type LucideIcon } from 'lucide-react'
-import type { ReactNode } from 'react'
+import { type ReactNode, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogBody, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../../components/Dialog'
 import { Problem } from '../../components/Problem'
@@ -38,6 +39,9 @@ export type RosterShareChoices = {
  */
 export function RosterShareDialog({ open, onClose, ...share }: RosterShareChoices & { open: boolean; onClose: () => void }) {
   const nativeShare = useNativeShare()
+  useEffect(() => {
+    if (open) posthog.capture('roster_share_opened')
+  }, [open])
   const isPrivate = share.visibility === 'private'
   const pending = Boolean(share.choosing)
   const CurrentIcon = VISIBILITY_ICON[share.visibility]
@@ -164,7 +168,10 @@ export function RosterShareDialog({ open, onClose, ...share }: RosterShareChoice
                 label="Print"
                 detail="A battle reference pack"
                 disabled={share.printDisabled}
-                onClick={handOff(share.onPrint)}
+                onClick={handOff(() => {
+                  posthog.capture('roster_print_started')
+                  share.onPrint()
+                })}
               />
             </div>
           </section>

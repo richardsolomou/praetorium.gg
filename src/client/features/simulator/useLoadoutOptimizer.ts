@@ -1,3 +1,4 @@
+import { posthog } from 'posthog-js'
 import { noExclusions } from '../../../core/combatMatchup'
 import { loadoutSearch } from '../../functions'
 import CombatWorker from './combatWorker'
@@ -17,6 +18,8 @@ import { LoadoutOptimizationContext } from './LoadoutOdds'
 import type { Combatant } from './useCombatant'
 import { errorMessage } from '../../queryClient'
 import { workerAnswer } from '../../workerAnswer'
+
+type OptimizationOutcome = 'improved' | 'unchanged' | 'cut-short' | 'failed' | 'cancelled'
 
 const SEARCH_CUT_SHORT = 'The full search could not finish. The best loadout found so far has been kept.'
 
@@ -39,7 +42,7 @@ export function useLoadoutOptimizer(combatant: Combatant) {
   const [progress, setProgress] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
-  const active = useRef<{ cancel: () => void; keep: () => void; key: string } | null>(null)
+  const active = useRef<{ cancel: () => void; keep: () => void; report: (outcome: OptimizationOutcome) => void; key: string } | null>(null)
   const applied = useRef<string | null>(null)
   const key = JSON.stringify([
     combatant.identity,
@@ -64,6 +67,7 @@ export function useLoadoutOptimizer(combatant: Combatant) {
   }, [key])
   useEffect(() => () => active.current?.cancel(), [])
   const cancel = () => {
+    active.current?.report('cancelled')
     active.current?.keep()
     active.current?.cancel()
     setBusy(false)
@@ -73,10 +77,13 @@ export function useLoadoutOptimizer(combatant: Combatant) {
     if (!context?.scoring || !combatant.ready || active.current || combatant.battleUnit) return
     const controller = new AbortController()
     const workers: Worker[] = []
+    const started = performance.now()
     let timer: ReturnType<typeof setTimeout> | undefined
     const job = {
       key,
       keep: () => {},
+      report: (outcome: OptimizationOutcome) =>
+        posthog.capture('combat_loadout_optimized', { mode, outcome, duration_ms: Math.round(performance.now() - started) }),
       cancel: () => {
         controller.abort()
         workers.forEach((worker) => worker.terminate())
@@ -87,6 +94,7 @@ export function useLoadoutOptimizer(combatant: Combatant) {
     const current = () => active.current === job && latest.current === job.key
     const fail = (message: string) => {
       if (!current()) return
+      job.report(message === SEARCH_CUT_SHORT ? 'cut-short' : 'failed')
       job.keep()
       job.cancel()
       setBusy(false)
@@ -117,7 +125,6 @@ export function useLoadoutOptimizer(combatant: Combatant) {
       let reason: string | undefined
       let improved = false
       const notes: string[] = []
-      const started = performance.now()
       const apply = (optimized: OptimizedLoadout) => {
         const picks = applyOptimizedLoadout(combatant.picks.positioned, optimized.picks)
         job.key = JSON.stringify([combatant.identity, picks, combatant.ruleSelections, context.key, optimized.preferences, noExclusions()])
@@ -262,6 +269,7 @@ export function useLoadoutOptimizer(combatant: Combatant) {
       if (!current()) return
       if (!scored) throw new Error(reason ?? 'No supported legal loadout is available.')
       if (skipped) notes.push('Loadouts with rules the simulator cannot estimate were left out.')
+      job.report(improved ? 'improved' : 'unchanged')
       job.keep()
       setProgress(100)
       setNotice(notes.join(' ') || null)

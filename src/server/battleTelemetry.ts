@@ -1,4 +1,6 @@
 import type { BattleEndReason, Command, SubmitResult } from '../core/battle'
+import type { BattleView } from '../core/battleView'
+import { isGuestSeat } from '../core/newBattle'
 import { captureWrite } from './mutationTelemetry'
 
 const lifecycleEvents: Partial<Record<Command['kind'], string>> = {
@@ -7,11 +9,24 @@ const lifecycleEvents: Partial<Record<Command['kind'], string>> = {
   'reopen-battle': 'battle_reopened',
 }
 
+/** What kind of game this is, so a solo try-out is not read as a game played between people. */
+function gameKind(view: BattleView) {
+  return {
+    player_count: view.settings.playerCount,
+    automated_seats: view.players.filter((player) => player.automated).length,
+    guest_seats: view.players.filter((player) => isGuestSeat(player.id)).length,
+    limit: view.settings.limit,
+    manual: Boolean(view.settings.manual),
+    sealed_event: view.sealedEventToken !== null,
+    round: view.round,
+  }
+}
+
 export async function captureBattleCommand(
   userId: string,
   battleId: string,
   command: Command,
-  { result, finished }: { result: SubmitResult; finished?: BattleEndReason },
+  { result, finished, screen }: { result: SubmitResult; finished?: BattleEndReason; screen?: { view: BattleView } },
   duration: number,
   delivery: 'direct' | 'sync',
 ) {
@@ -31,6 +46,8 @@ export async function captureBattleCommand(
   })
   if (result.outcome !== 'appended') return
   const event = lifecycleEvents[command.kind]
-  if (event) await captureWrite(userId, event, delivery, { battle_id: battleId })
-  if (finished) await captureWrite(userId, 'battle_finished', delivery, { battle_id: battleId, reason: finished })
+  if (!event && !finished) return
+  const kind = screen ? gameKind(screen.view) : {}
+  if (event) await captureWrite(userId, event, delivery, { battle_id: battleId, ...kind })
+  if (finished) await captureWrite(userId, 'battle_finished', delivery, { battle_id: battleId, reason: finished, ...kind })
 }

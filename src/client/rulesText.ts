@@ -77,7 +77,9 @@ export const textSourceChoice = () => textSourceChoiceFrom(readStoredValue(KEY))
 /** Records exactly these sources as the ones to load, none included, which also settles the question. */
 export const chooseTextSources = (sources: Iterable<TextSource>) => {
   const chosen = new Set(sources)
-  writeStoredValue(KEY, TEXT_SOURCES.filter((source) => chosen.has(source)).join(','))
+  const kept = TEXT_SOURCES.filter((source) => chosen.has(source))
+  writeStoredValue(KEY, kept.join(','))
+  posthog.capture('rules_text_sources_chosen', { sources: kept })
 }
 
 export const chooseTextSource = (source: TextSource, load: boolean) => chooseTextSources(toggled(textSourceChoice().sources, source, load))

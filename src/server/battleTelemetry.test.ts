@@ -1,5 +1,6 @@
 import { beforeEach, expect, it, vi } from 'vitest'
 import type { Command } from '../core/battle'
+import type { BattleView } from '../core/battleView'
 import { captureBattleCommand } from './battleTelemetry'
 
 const mocks = vi.hoisted(() => ({ capture: vi.fn() }))
@@ -50,6 +51,29 @@ it('identifies the battle a lifecycle change belongs to', async () => {
   await captureBattleCommand('player', 'battle-id', { kind: 'begin-battle', firstPlayerId: 'player' }, appended, 1, 'direct')
 
   expect(mocks.capture).toHaveBeenLastCalledWith('player', 'battle_started', { battle_id: 'battle-id', delivery: 'direct' })
+})
+
+it('says what kind of game a battle was when it finishes', async () => {
+  const view = {
+    settings: { playerCount: 2, limit: 2000, manual: false },
+    players: [
+      { id: 'player', automated: false },
+      { id: 'practice', automated: true },
+    ],
+    sealedEventToken: null,
+    round: 5,
+  } as unknown as BattleView
+
+  await captureBattleCommand(
+    'player',
+    'battle-id',
+    { kind: 'end-battle' },
+    { ...appended, finished: 'completed', screen: { view } },
+    1,
+    'direct',
+  )
+
+  expect(finishes()[0]).toMatchObject({ player_count: 2, automated_seats: 1, guest_seats: 0, sealed_event: false, round: 5 })
 })
 
 it.each(['advance', 'settle-opponent-turn', 'end-battle'] as const)('reports a battle that %s finished once, with why', async (kind) => {
