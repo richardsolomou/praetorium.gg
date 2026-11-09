@@ -2463,6 +2463,28 @@ Lokhust Lord (80 pts) · Warlord
 Built with Warmind · https://warmind.online`,
     ],
     [
+      'warscribe',
+      `Lord (150 Points)
+
++++++++++++++++++++++++++++++++++++++++++++++++
++ FACTION KEYWORD: Necrons
++ DETACHMENT: Pantheon of Woe
++ FORCE DISPOSITION: Disruption
++ BATTLE SIZE: Strike Force
++ TOTAL ARMY POINTS: 150pts
++ NUMBER OF UNITS: 2
++++++++++++++++++++++++++++++++++++++++++++++++
+
+Char1: 1x Lokhust Lord (80 pts): Staff of light, Warlord
+Leading: Immortals
+
+5x Immortals (70 pts): 5x Tesla carbine, 5x Close combat weapon
+
+Data: v995
+Created with Warscribe
+40k.warscribe.app`,
+    ],
+    [
       'ironbuilt',
       `+==========================================
 Lord — Necrons

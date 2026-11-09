@@ -262,7 +262,7 @@ const relationName = (value: string) => value.trim().replace(/\[\d+\]$/, '')
 /** A unit's details, where "N with" counts what follows it for N models, as in "Plasmacyte, 3 with Skorpekh hyperphase weapons". */
 function addDetails(unit: TextRosterUnit, details: string, defaultMultiplier: number) {
   let multiplier = defaultMultiplier
-  for (const raw of details.split(',')) {
+  for (const raw of details.split(/,(?![^()]*\))/)) {
     let item = raw.trim().replace(/\s+\([+-]?\d+\s*pts?\)\s*$/i, '')
     const grouped = item.match(/^(\d+)\s+with\s+(.+)$/i)
     if (grouped) {

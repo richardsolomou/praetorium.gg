@@ -14,6 +14,7 @@ import { fromFortyKAppText } from '../core/fortyKApp'
 import { fromWarmindText } from '../core/warmind'
 import { fromWarOrganText } from '../core/warOrgan'
 import { fromIronbuiltText } from '../core/ironbuilt'
+import { fromWarscribeText } from '../core/warscribe'
 import { fromNewRecruitMarkdown } from '../core/newRecruitMarkdown'
 import { fromWtcText } from '../core/wtcText'
 import type { RosterSource } from '../core/savedRoster'
@@ -69,6 +70,7 @@ export type RosterTextFormat =
   | 'warorgan'
   | 'warmind'
   | 'ironbuilt'
+  | 'warscribe'
   | 'wtc'
   | '40k-app'
 
@@ -78,6 +80,9 @@ function parsedImport(file: string): { parsed: TextRoster; format: RosterTextFor
   if (newRecruit && (newRecruit.units.length || praetorium)) return { parsed: newRecruit, format: praetorium ? 'praetorium' : 'newrecruit' }
   const markdown = fromNewRecruitMarkdown(file)
   if (markdown) return { parsed: markdown, format: 'newrecruit' }
+  // Warscribe writes the WTC and official-app layouts too, so it is told apart by its footer first.
+  const warscribe = fromWarscribeText(file)
+  if (warscribe) return { parsed: warscribe, format: 'warscribe' }
   // New Recruit also writes the WTC header over the official app's unit layout.
   const wtc = fromWtcText(file)
   if (wtc) return { parsed: wtc, format: newRecruit ? 'newrecruit' : 'wtc' }
@@ -1257,9 +1262,9 @@ function textRosterPick(
   for (const line of unit.unread ?? []) unplaced.push({ name: line, reason: 'this line is not understood by the text importer' })
   // A crown this datasheet cannot wear, and a squad size it does not field, are both
   // choices the list states and this build could not take. Only a stated size counts:
-  // an export that prints no model count leaves one to be inferred from its weapons.
+  // an export that prints no model count leaves one to be inferred from its weapons, and "1x" counts one entry of any size.
   if (warlord && !Object.keys(toggles).length) unplaced.push({ name: 'Warlord', reason: WARLORD_REASON })
-  if (unit.models !== undefined && unit.models !== null && built && built.size.models !== unit.models) {
+  if (unit.models !== undefined && unit.models !== null && unit.models !== 1 && built && built.size.models !== unit.models) {
     unplaced.push({ name: `${unit.models} models`, reason: squadSizeReason(built.size) })
   }
   return { pick, unplaced }

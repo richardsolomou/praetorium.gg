@@ -119,8 +119,8 @@ function officialUnits(lines: readonly string[]) {
 }
 
 /** One bullet can name several items, as "2x Gun Drone, 2x Shield Drone". */
-function addItems(unit: TextRosterUnit, text: string) {
-  for (const part of text.split(/,\s+/)) {
+export function addItems(unit: TextRosterUnit, text: string) {
+  for (const part of text.split(/,\s+(?![^()]*\))/)) {
     const item = part.replace(/\s*\(\+\d[\d,]*\s*pts?\)$/i, '').trim()
     const counted = item.match(/^(\d+)x\s+(.+)$/i)
     unit.selections.push({ name: counted?.[2] ?? item, count: Number(counted?.[1] ?? 1) })
