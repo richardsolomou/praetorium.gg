@@ -64,16 +64,27 @@ function StartRosterDialog({
   )
 }
 
-/** A faction or detachment page's way into the builder: a new roster with this faction, and maybe this detachment, already chosen. */
-export function StartRoster({ faction, detachmentId }: { faction: RosterSetupFaction; detachmentId?: string }) {
+/**
+ * A faction or detachment page's way into the builder: a new roster with this faction, and maybe this detachment, already chosen.
+ * `closing` is the offer at the end of a page, counted apart from the one in its header.
+ */
+export function StartRoster({
+  faction,
+  detachmentId,
+  closing = false,
+}: {
+  faction: RosterSetupFaction
+  detachmentId?: string
+  closing?: boolean
+}) {
   const [open, setOpen] = useState(false)
-  const reference = detachmentId ? 'detachment' : 'faction'
+  const reference = closing ? 'detachment-closing' : detachmentId ? 'detachment' : 'faction'
   const { data: me } = useQuery(meQuery())
   const account = useAccountPrompt()
   return (
     <>
       <Button
-        variant="outline"
+        variant={closing ? 'default' : 'outline'}
         size="sm"
         onClick={() => {
           if (!me && readGuestDraft()) return account.ask('another-roster')
@@ -81,7 +92,7 @@ export function StartRoster({ faction, detachmentId }: { faction: RosterSetupFac
           setOpen(true)
         }}
       >
-        <Plus /> Start a roster
+        <Plus /> {closing ? 'Build a list' : 'Start a roster'}
       </Button>
       <StartRosterDialog
         open={open}

@@ -12,7 +12,7 @@ import type { RosterSetup } from './RosterSetupDialog'
 import type { MissionReference } from './rosterStart'
 
 /** The reference page a roster was started from, as telemetry names it. */
-export type RosterReference = 'datasheet' | 'detachment' | 'faction' | MissionReference
+export type RosterReference = 'datasheet' | 'detachment' | 'detachment-closing' | 'faction' | MissionReference
 
 /**
  * Starting a roster from a setup and opening it in the builder, with `add` asked of it there.

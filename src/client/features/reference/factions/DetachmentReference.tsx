@@ -19,6 +19,7 @@ export function DetachmentReference({
   faction,
   action,
   afterHero,
+  closing,
 }: {
   catalogueId: string
   slug: string
@@ -27,6 +28,8 @@ export function DetachmentReference({
   /** The page's way into the builder, beside the detachment's own chips. */
   action?: ReactNode
   afterHero?: ReactNode
+  /** What the page ends on, once the detachment has been read. */
+  closing?: ReactNode
 }) {
   const { data: detachment, isPending, isError } = useQuery(detachmentDetailQuery(catalogueId, slug))
   if (isPending)
@@ -158,6 +161,8 @@ export function DetachmentReference({
               ))}
             </div>
           </section>
+
+          {closing}
         </PageContent>
       </div>
     </div>
