@@ -48,6 +48,31 @@ it('includes squad, leader and support attacks without sharing personal buffs', 
   ])
 })
 
+describe('shooting type', () => {
+  const attached = () => {
+    const squad = member('Squad', 5)
+    const leader = member('Leader')
+    leader.sheet.profiles[1]!.values.push({ name: 'Keywords', value: 'Pistol' })
+    squad.companions = [leader]
+    return squad
+  }
+  const shots = (preferences: Record<string, string>) =>
+    combatAttacks(attached(), { keywords: [], rules: [] }, preferences, { ranged: [], melee: [] }).ranged
+  it('is one choice for the whole attached unit, from what any member carries', () => {
+    expect(
+      shots({})
+        .plan.choices.filter((choice) => choice.key.endsWith('shooting-type'))
+        .map((choice) => [choice.key, choice.options.map((option) => option.value)]),
+    ).toEqual([['ranged:shooting-type', ['normal', 'close-quarters']]])
+  })
+  it('applies to every member of the attached unit', () => {
+    expect(shots({ 'ranged:shooting-type': 'close-quarters' }).base?.weapons.map((weapon) => weapon.count)).toEqual([1])
+  })
+  it('falls back to normal shooting when the unit cannot use the saved type', () => {
+    expect(shots({ 'ranged:shooting-type': 'assault' }).base?.weapons.map((weapon) => weapon.count)).toEqual([5, 1])
+  })
+})
+
 const sacrifice = (unit: CombatMember) => {
   unit.rules = [
     {

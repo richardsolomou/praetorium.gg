@@ -225,6 +225,41 @@ export function combatWeapons(sheet: Datasheet, targetKeywords: readonly string[
 
 export type CombatWeaponChoice = { key: string; label: string; value: string; options: { value: string; label: string }[] }
 
+export const SHOOTING_TYPE_KEY = 'ranged:shooting-type'
+const SHOOTING_TYPES = {
+  normal: 'Normal',
+  assault: 'Assault (advanced this turn)',
+  'close-quarters': 'Close-quarters (engaged)',
+} as const
+export type ShootingType = keyof typeof SHOOTING_TYPES
+
+const has = (profile: Profile, keyword: string) =>
+  splitWeaponKeywords(value(profile, 'keywords')).some((written) => combatKeyword(written)?.kind === keyword)
+const isMonsterOrVehicle = (sheet: Datasheet) => sheet.keywords.some((keyword) => ['monster', 'vehicle'].includes(normalized(keyword)))
+
+/** The shooting type a unit uses is one choice for all its members, so what it may choose is what any of them allows (10.05, 10.06). */
+export function combatShootingTypes(members: readonly { sheet: Datasheet; carriers: readonly CombatCarrier[] }[]): ShootingType[] {
+  const carried = members.flatMap(({ sheet, carriers }) =>
+    datasheetProfilesByKind(sheet).ranged.filter((profile) =>
+      carriers.some(({ weapons }) => weapons.some((piece) => combatEquipmentMatches(piece, profile))),
+    ),
+  )
+  return [
+    'normal',
+    ...(carried.some((profile) => has(profile, 'assault')) ? (['assault'] as const) : []),
+    ...(members.some(({ sheet }) => isMonsterOrVehicle(sheet)) || carried.some((profile) => has(profile, 'close-quarters'))
+      ? (['close-quarters'] as const)
+      : []),
+  ]
+}
+
+export const shootingTypeChoice = (types: readonly ShootingType[], chosen: ShootingType): CombatWeaponChoice => ({
+  key: SHOOTING_TYPE_KEY,
+  label: 'Shooting type',
+  value: chosen,
+  options: types.map((type) => ({ value: type, label: SHOOTING_TYPES[type] })),
+})
+
 export function combatPlan(
   sheet: Datasheet,
   carriers: readonly CombatCarrier[],
@@ -232,6 +267,7 @@ export function combatPlan(
   phase: CombatPhase,
   preferences: Readonly<Record<string, string>> = {},
   excluded: ReadonlySet<string> = new Set(),
+  shootingType: ShootingType = 'normal',
 ) {
   const counts = new Map<string, number>()
   const choices: CombatWeaponChoice[] = []
@@ -268,9 +304,7 @@ export function combatPlan(
     })),
   }
   const profiles = combatWeapons(selectedSheet, targetKeywords, phase)
-  const has = (profile: Profile, keyword: string) =>
-    splitWeaponKeywords(value(profile, 'keywords')).some((written) => combatKeyword(written)?.kind === keyword)
-  const unrestricted = sheet.keywords.some((keyword) => ['monster', 'vehicle'].includes(normalized(keyword)))
+  const unrestricted = isMonsterOrVehicle(sheet)
   const accounted = new Map<string, number>()
   const idleModes = new Set<string>()
   for (const [at, carrier] of carriers.entries()) {
@@ -303,14 +337,21 @@ export function combatPlan(
       }
     }
     if (phase === 'ranged') {
-      const ordinary = equipment.filter(({ profile }) => !has(profile, 'close-quarters'))
-      const close = equipment.filter(({ profile }) => has(profile, 'close-quarters'))
-      const group = choose(`ranged:${at}:group`, `${carrier.name} shooting`, [
-        ...(ordinary.length ? [{ value: 'ordinary', label: 'Ranged weapons' }] : []),
-        ...(close.length && !unrestricted ? [{ value: 'close', label: 'Close-Quarters weapons' }] : []),
-      ])
-      const selected = unrestricted ? equipment : group === 'close' ? close : ordinary
-      selected.forEach((entry) => add(entry))
+      if (shootingType === 'close-quarters') {
+        equipment
+          .filter(({ profile }) => (unrestricted ? !has(profile, 'blast') : has(profile, 'close-quarters')))
+          .forEach((entry) => add(entry))
+      } else {
+        const allowed = shootingType === 'assault' ? equipment.filter(({ profile }) => has(profile, 'assault')) : equipment
+        const ordinary = allowed.filter(({ profile }) => !has(profile, 'close-quarters'))
+        const close = allowed.filter(({ profile }) => has(profile, 'close-quarters'))
+        const group = choose(`ranged:${at}:group`, `${carrier.name} shooting`, [
+          ...(ordinary.length ? [{ value: 'ordinary', label: 'Ranged weapons' }] : []),
+          ...(close.length && !unrestricted ? [{ value: 'close', label: 'Close-Quarters weapons' }] : []),
+        ])
+        const selected = unrestricted ? allowed : group === 'close' ? close : ordinary
+        selected.forEach((entry) => add(entry))
+      }
     } else {
       if (carrier.unitWide && equipment.length) {
         errors.push(`${carrier.name}: melee allocation needs individual model ownership.`)
@@ -341,7 +382,15 @@ export function combatPlan(
   }
   const used = profiles.flatMap((entry) => {
     const count = counts.get(entry.profile.id) ?? 0
-    return count ? [{ ...entry, count }] : []
+    if (!count) return []
+    const penalised = phase === 'ranged' && shootingType === 'close-quarters' && unrestricted && !has(entry.profile, 'close-quarters')
+    return [
+      {
+        ...entry,
+        count,
+        weapon: penalised && entry.weapon ? { ...entry.weapon, hitModifier: (entry.weapon.hitModifier ?? 0) - 1 } : entry.weapon,
+      },
+    ]
   })
   const active = used.filter((entry) => !excluded.has(wargearKey(entry.profile.name, true)))
   for (const entry of active) if (entry.error) errors.push(`${entry.profile.name}: ${entry.error}`)

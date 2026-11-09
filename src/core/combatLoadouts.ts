@@ -12,6 +12,7 @@ import {
 import type { RosterPick } from './roster'
 import type { WeaponAdjustment } from './combatAdjustments'
 import { carriedCount, type CombatCarrier } from './combatLoadout'
+import { SHOOTING_TYPE_KEY } from './combatProfiles'
 import { combatAttackInput, combatAttacks, combatWeaponInputs, type CombatAttacker, type CombatOpponent } from './combatScenario'
 import { weaponPhase } from './datasheetStructure'
 import { wargearKey } from './wargear'
@@ -361,7 +362,7 @@ export function optimizeLoadout(
       const attacks = combatAttacks(attacker, scoring.opponent, preferences, { ranged: [], melee: [] })
       const choice = phases
         .flatMap((phase) => attacks[phase].plan.choices)
-        .find((entry) => !chosen.has(entry.key) && !entry.key.endsWith(':one-shot'))
+        .find((entry) => !chosen.has(entry.key) && !entry.key.endsWith(':one-shot') && entry.key !== SHOOTING_TYPE_KEY)
       if (choice) {
         for (const option of choice.options) search({ ...preferences, [choice.key]: option.value }, new Set([...chosen, choice.key]))
         return
