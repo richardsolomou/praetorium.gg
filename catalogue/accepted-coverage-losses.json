@@ -1,1 +1,6 @@
-[]
+[
+  {
+    "reason": "Sorcerer in Terminator Armour in the Chaos Daemons book now takes its card from Chaos Space Marines, where it is borrowed from, and shows that card's two wargear lines instead of three generated when no card matched.",
+    "entries": ["chaos-daemons / Sorcerer in Terminator Armour: wargearOptions 3 → 2"]
+  }
+]
