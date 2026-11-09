@@ -1,5 +1,6 @@
 import { decodeReferencePart, isOfflineReferenceData, referenceAssets, type OfflineReferenceData } from '../../contracts/offlineReference'
 import { withTimeout } from '../abortSignals'
+import { DownloadRefused } from './downloadFailure'
 
 /** Where the device keeps the saved offline application, its record, and each downloaded part as it was published. */
 export const REFERENCE_CACHE = 'praetorium-reference-v3'
@@ -51,7 +52,7 @@ export async function storePart(asset: string, signal: AbortSignal) {
   // `keys` rather than `match`: WebKit copies a matched response's whole body into the page's process.
   if ((await store.keys(asset, { ignoreVary: true })).length) return
   const response = await fetch(asset, { credentials: 'omit', signal: withTimeout(signal, 60_000) })
-  if (!response.ok) throw new Error('The reference download is unavailable')
+  if (!response.ok) throw new DownloadRefused('The reference download is unavailable')
   await store.put(asset, response)
 }
 
