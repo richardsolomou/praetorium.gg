@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.226.8 (2026-11-09)
+
+### Patch Changes
+
+- e2fb05d: Four-digit unit prices in the list builder stay on one line.
+
 ## 0.226.7 (2026-11-09)
 
 ### Patch Changes
