@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.226.7 (2026-11-09)
+
+### Patch Changes
+
+- 14b7ec3: When the app falls back to its saved offline copy, it now offers to reload once you're back online.
+
 ## 0.226.6 (2026-11-09)
 
 ### Patch Changes
