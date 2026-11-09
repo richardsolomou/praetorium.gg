@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.226.3 (2026-11-09)
+
+### Patch Changes
+
+- 0120225: Chaos Daemons units are sorted into their usual categories when you build a roster, instead of being listed as allies.
+- 0120225: Imperial Knights and Chaos Knights units are sorted into their usual categories when you build a roster, instead of being listed as allies.
+
 ## 0.226.2 (2026-11-09)
 
 ### Patch Changes
