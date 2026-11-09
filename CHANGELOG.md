@@ -1,5 +1,17 @@
 # praetorium
 
+## 0.226.6 (2026-11-09)
+
+### Patch Changes
+
+- 09bbd77: Allied units are sorted into their usual categories when you build a roster.
+- 74609bc: Pasting a Warscribe share link now tells you to copy the list as text.
+- 09bbd77: Chaos Questoris Knight Magaera is listed with the other Chaos Knights instead of as an ally.
+- 92e1a7c: When you play a guest, you can paste their list while setting up the battle.
+- 92e1a7c: A finished practice game now offers to start one against a real opponent.
+- 92e1a7c: A manual battle against a guest can start without entering their army.
+- 09bbd77: The combat simulator no longer asks for a firing mode on a weapon the unit isn't shooting.
+
 ## 0.226.5 (2026-11-09)
 
 ### Patch Changes
