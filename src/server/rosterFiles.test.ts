@@ -2101,6 +2101,11 @@ describe('Praetorium roster import', () => {
     expect(importRosterFile({ file: exported.text }, loaded)).toMatchObject({ limit: 2000, pointsBudget: 1500 })
   })
 
+  it('reads a stated single model as one entry of a larger squad', () => {
+    const text = setup + 'Tomb Blades (70 Points)\n • Models: 1\n' + footer
+    expect(importRosterFile({ file: text }, loaded).unplaced).toEqual([])
+  })
+
   it('reports an explicit zero model count instead of silently using the minimum squad size', () => {
     const text = setup + 'Tomb Blades (70 Points)\n • Models: 0\n' + footer
     expect(importRosterFile({ file: text }, loaded).unplaced).toEqual([

@@ -54,19 +54,23 @@ function fromCompact(lines: readonly string[]) {
 }
 
 /**
- * Each kind of model in a unit heads its wargear with a counted line, which says the size outright and may name a model the
- * catalogue spells differently. Without such lines the models are alike, and one holding two of a weapon shows as uneven counts.
+ * Each kind of model in a unit heads its wargear with a counted line, which says the size outright. A squad's line can name
+ * a model the catalogue spells differently, but a lone model's can be the option that fields it, so only the former is dropped.
+ * Without such lines the models are alike, and one holding two of a weapon shows as uneven counts.
  */
 function fromGw(lines: readonly string[]): TextRoster | null {
   const parsed = fromBattleBaseText(lines.join('\n'))
+  // Where no line is nested, the shared reader takes one weapon over another for a model and its wargear.
+  const nested = lines.some((line) => line.trim().startsWith('◦'))
   for (const unit of parsed?.units ?? []) {
+    if (!nested) for (const selection of unit.selections) delete selection.model
     const heads = new Set(unit.selections.flatMap((selection) => selection.model ?? []))
     const isHead = (selection: TextRosterUnit['selections'][number]) => !selection.model && heads.has(selection.name)
     const counts = unit.selections.map((selection) => selection.count)
     const headed = unit.selections.filter(isHead).reduce((total, selection) => total + selection.count, 0)
     if (headed) unit.models = headed
     else if (Math.min(...counts) < Math.max(...counts)) unit.models = Math.min(...counts)
-    unit.selections = unit.selections.filter((selection) => !isHead(selection))
+    unit.selections = unit.selections.filter((selection) => !isHead(selection) || selection.count === 1)
   }
   return parsed
 }

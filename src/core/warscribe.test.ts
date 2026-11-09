@@ -132,9 +132,20 @@ describe('Warscribe text import', () => {
     expect(units?.[0]?.selections.map((selection) => selection.name)).toContain('Pulsa Rokkit (Once per battle, per unit)')
   })
 
-  it('counts the models of each kind and drops their heading lines', () => {
-    const unit = fromWarscribeText(gw.replace('• 5x Immortal', '• 1x Sergeant\n◦ 1x Blade\n• 4x Immortal'))?.units[1]
-    expect([unit?.models, unit?.selections.map((selection) => selection.name)]).toEqual([5, ['Blade', 'Gauss blaster']])
+  it("counts the models of each kind and keeps only a lone model's line", () => {
+    const unit = fromWarscribeText(gw.replace('• 5x Immortal', '• 1x Specialist\n◦ 1x Blade\n• 4x Immortal'))?.units[1]
+    expect([unit?.models, unit?.selections.map((selection) => selection.name)]).toEqual([5, ['Specialist', 'Blade', 'Gauss blaster']])
+  })
+
+  it('keeps every weapon of a list with no nested lines', () => {
+    const flat = gw
+      .replace('• 5x Immortal\n◦ 5x Gauss blaster', '• 1x Gauss blaster')
+      .replace('• 1x Tachyon arrow', '• 1x Staff\n• 2x Tachyon arrow\n• 1x Haft')
+    const unit = fromWarscribeText(flat)?.units[0]
+    expect([unit?.models, unit?.selections.map((selection) => selection.name)]).toEqual([
+      1,
+      ['Enhancements: Destroyer Ankh', 'Staff', 'Tachyon arrow', 'Haft'],
+    ])
   })
 
   it('reads uneven weapon counts as a lone model holding two', () => {
