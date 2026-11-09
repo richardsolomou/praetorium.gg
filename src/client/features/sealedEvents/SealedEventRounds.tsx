@@ -14,6 +14,7 @@ import type { Battle } from '../battles/battle'
 import { SectionHeading } from '../../components/SectionHeading'
 import { useSealedEventRefresh, type SealedEvent } from './sealedEvent'
 import { TableBattlefield } from './TableBattlefield'
+import { ReportTableResult } from './ReportTableResult'
 
 type Pairing = SealedEvent['pairings'][number]
 /** What the rounds read of a table's battle, which the sample tournament supplies without a real one. */
@@ -271,6 +272,15 @@ function TableRow({
       ) : (
         <span className="shrink-0 text-sm text-faint">Not started</span>
       )}
+      {battlefield && pairing.bId && !forfeit && current && (own || battlefield.organizes) && battle?.status !== 'finished' ? (
+        <ReportTableResult
+          token={battlefield.token}
+          eventToken={battlefield.sealedEvent.eventToken}
+          round={pairing.round}
+          table={pairing.table}
+          names={[name(pairing.aId), name(pairing.bId)]}
+        />
+      ) : null}
       {battlefield && pairing.bId && !forfeit ? (
         <TableBattlefield
           {...battlefield}

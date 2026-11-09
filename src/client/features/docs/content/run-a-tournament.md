@@ -59,6 +59,10 @@ Once a round is paired you can set each table's battlefield, so players know who
 
 Players see the battlefield on the table and can't change it during setup. You can change it until that table's battle starts, even if the players have already opened it.
 
+### Enter a score without tracking the game
+
+Press **Enter score** on a table to record its final score when the game wasn't tracked here, for example at a venue where not everyone has a phone. You or either player at the table can do it. It counts for the tournament's standings but not the leaderboard, and you can reopen it like any other result.
+
 ### Correct a result
 
 Once you pair the next round, earlier results are locked, and only you and your admins can correct them. To correct a result in any round, press the reopen button beside the table's score, then **Reopen result**. You don't need to have played at that table.

@@ -753,6 +753,47 @@ export class PraetoriumService {
     return { battleId: history.battle.id, result }
   }
 
+  /** Records a table's final score. A table nobody has started gets its battle now, seated as the pairing is. */
+  async reportTableResult(
+    sealedEventToken: string,
+    eventToken: string | undefined,
+    round: number,
+    table: number,
+    vp: [number, number],
+    missionPackId: string | null,
+    userId: string,
+  ) {
+    const sealedEvent = await this.sealedEventService.sealedEvent(sealedEventToken, userId, eventToken)
+    if (!sealedEvent) throw new Response('no such tournament', { status: 404 })
+    const pairing = sealedEvent.pairings.find((candidate) => candidate.round === round && candidate.table === table)
+    if (!pairing?.bId) throw new Response('no such table in this tournament', { status: 404 })
+    if (!sealedEvent.organizer && userId !== pairing.aId && userId !== pairing.bId)
+      throw new Response('only the organizer or the table’s players can report its score', { status: 403 })
+    const token =
+      pairing.battleToken ??
+      (
+        await this.sealedEventService.createSealedEventBattle(
+          pairing.aId,
+          sealedEventToken,
+          pairing.bId,
+          missionPackId,
+          sealedEvent.eventToken,
+        )
+      ).token
+    const history = await this.mustFind(token)
+    const { result } = await this.repository.submit({
+      battleId: history.battle.id,
+      userId,
+      expectedSeq: foldHistory(history).seq,
+      command: { kind: 'report-result', vp: { [pairing.aId]: vp[0], [pairing.bId]: vp[1] } },
+      now: this.clock(),
+      snapshot: { seats: history.players, log: history.log },
+      organizer: sealedEvent.organizer,
+    })
+    if (result.outcome === 'refused') throw new Response(result.reason, { status: 409 })
+    if (result.outcome === 'stale') throw new Response('the battle changed while the score was being saved, so try again', { status: 409 })
+  }
+
   /**
    * A group's standing table: every battle tagged for it, rated together, with rows for its current members only, so
    * someone who leaves drops off and comes back with their record if they rejoin. A private group shows it to members alone.

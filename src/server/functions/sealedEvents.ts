@@ -24,6 +24,7 @@ import {
   moderateSealedEventEntrySchema,
   openSealedEventSchema,
   pairSealedEventRoundSchema,
+  reportTableResultSchema,
   setTableBattlefieldSchema,
   tableBattlefieldsSchema,
   reopenSwissTableSchema,
@@ -305,6 +306,16 @@ export const setTableBattlefield = createServerFn({ method: 'POST' })
         rolled: data.battlefield === 'roll',
         cleared: data.battlefield === null,
       })
+    }),
+  )
+
+export const reportTableResult = createServerFn({ method: 'POST' })
+  .validator(reportTableResultSchema)
+  .handler(({ data }) =>
+    mutationRpc(async () => {
+      const userId = await requireUserId()
+      await app().service.reportTableResult(data.token, data.eventToken, data.round, data.table, data.vp, data.missionPackId, userId)
+      await captureMutation(userId, 'sealed_event_result_reported', { round: data.round })
     }),
   )
 

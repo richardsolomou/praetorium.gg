@@ -602,7 +602,9 @@ function battleMetrics(battles: readonly StandingBattle[], playerId: string): Re
 
 /** `exclude` names the practice opponents, as the leaderboard is given them. */
 export function achievements(playerId: string, facts: AchievementFacts, exclude: readonly string[]): EarnedAchievements {
-  const seated = facts.battles.filter((battle) => battle.status === 'finished' && battle.playerIds.includes(playerId))
+  const seated = facts.battles.filter(
+    (battle) => battle.status === 'finished' && battle.result?.reason !== 'reported' && battle.playerIds.includes(playerId),
+  )
   const rated = counted(seated, exclude)
   const practice = new Set(exclude)
   const tournaments = (test: (tournament: TournamentFact) => boolean) =>

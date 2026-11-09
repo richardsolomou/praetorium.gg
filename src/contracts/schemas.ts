@@ -177,6 +177,11 @@ const eventTable = {
   missionPackId: id.nullable(),
 }
 export const tableBattlefieldsSchema = z.object(eventTable)
+/** Each seat's final score, by the pairing's two players in order. */
+export const reportTableResultSchema = z.object({
+  ...eventTable,
+  vp: z.tuple([z.number().int().min(0).max(999), z.number().int().min(0).max(999)]),
+})
 /** A layout to fix, `roll` to draw one of the table's layouts, or null to let the players choose. */
 export const setTableBattlefieldSchema = z.object({
   ...eventTable,

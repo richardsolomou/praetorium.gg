@@ -1774,7 +1774,8 @@ export const submitBattle = spacetime.procedure(
       if (input.expectedSeq !== state.seq) return productJson({ result: { outcome: 'stale', seq: state.seq }, log, ...appliedReport })
       // Only reopening a finished result, directly or by undoing its end, depends on who runs a Swiss table.
       const swiss =
-        state.status === 'finished' && (parsed.data.kind === 'reopen-battle' || parsed.data.kind === 'undo')
+        parsed.data.kind === 'report-result' ||
+        (state.status === 'finished' && (parsed.data.kind === 'reopen-battle' || parsed.data.kind === 'undo'))
           ? swissTable(tx, input.battleId)
           : null
       const isOrganizer = Boolean(swiss?.organizerIds.includes(input.userId))

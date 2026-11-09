@@ -24,7 +24,7 @@ export type StandingBattle = {
   scores: readonly number[]
   /** The army each seat brought, when it was built from a catalogue. */
   factions: readonly (StandingFaction | null)[]
-  result: { concededBy: string | null } | null
+  result: { concededBy: string | null; reason?: string } | null
   lastActivity: number
   settings?: { manual?: boolean }
 }
@@ -94,7 +94,10 @@ export function counted<B extends StandingBattle>(battles: readonly B[], exclude
   const excluded = new Set(exclude)
   return battles.filter(
     (battle) =>
-      battle.status === 'finished' && !battle.settings?.manual && !battle.playerIds.some((id) => excluded.has(id) || isGuestSeat(id)),
+      battle.status === 'finished' &&
+      battle.result?.reason !== 'reported' &&
+      !battle.settings?.manual &&
+      !battle.playerIds.some((id) => excluded.has(id) || isGuestSeat(id)),
   )
 }
 
