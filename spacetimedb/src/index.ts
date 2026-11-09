@@ -1958,8 +1958,6 @@ function endGuestSessions(ctx: Context, seatId: string) {
 }
 
 function touchBattleSeats(ctx: Context, battleId: string) {
-  // Whether a guest plays from their own device feeds the fold.
-  ctx.db.battleFinishes.battleId.delete(battleId)
   for (const seat of ctx.db.battleUsers.battleId.filter(battleId)) touchProduct(ctx, seat.userId, 'battles')
 }
 
