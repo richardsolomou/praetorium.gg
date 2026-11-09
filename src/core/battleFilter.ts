@@ -39,6 +39,10 @@ export const battleFilterSchema = z.strictObject({
   ...periodFields,
 })
 
+/** The one order besides a feed's default of newest first. */
+export const BATTLE_ORDERS = ['oldest'] as const
+export type BattleOrder = (typeof BATTLE_ORDERS)[number]
+
 export type BattleFilter = PeriodFilter & { q?: string } & Partial<Record<BattleFacet, Facet>>
 
 export const battleFilterActive = (filter: BattleFilter | undefined): filter is BattleFilter =>

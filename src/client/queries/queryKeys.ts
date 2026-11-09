@@ -54,6 +54,7 @@ export const datasheetPhotosKey = (entryId?: string) => (entryId === undefined ?
 /** Without a player, every player's collection. */
 export const collectionProfileKey = (userId?: string) => (userId === undefined ? ['collection-profile'] : ['collection-profile', userId])
 export const playerDefaultsKey = () => ['player-defaults']
+export const listFilterPreferencesKey = () => ['list-filter-preferences']
 export const notificationSettingsKey = () => ['notification-settings']
 export const friendshipsKey = () => ['friendships']
 export const opponentsKey = () => ['opponents']

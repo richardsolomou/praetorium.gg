@@ -28,6 +28,8 @@ import {
 } from '../../src/core/battle'
 import { teamDispositionChoices } from '../../src/core/teamDisposition'
 import { DEFAULT_PLAYER_DEFAULTS, isPlayerDefaults } from '../../src/core/playerDefaults'
+import { BATTLE_ORDERS } from '../../src/core/battleFilter'
+import { LIST_FILTER_SCOPES, LIST_PREFERENCES_MAX_LENGTH, listPreferencesSchema } from '../../src/core/listFilter'
 import { matchupPairingSchema, RECENT_MATCHUP_LIMIT, recentMatchupSchema } from '../../src/core/recentMatchups'
 import { onboardingTaskIds, tourTaskIds } from '../../src/core/onboarding'
 import {
@@ -770,6 +772,7 @@ export const deleteUserData = spacetime.reducer({ userId: t.string() }, (ctx, { 
   ctx.db.userOnboarding.userId.delete(userId)
   ctx.db.pushPreferences.userId.delete(userId)
   ctx.db.playerDefaults.userId.delete(userId)
+  for (const row of Array.from(ctx.db.listFilterPreferences.userId.filter(userId))) ctx.db.listFilterPreferences.id.delete(row.id)
   for (const row of Array.from(ctx.db.sealedEventRosterSharing.userId.filter(userId))) ctx.db.sealedEventRosterSharing.key.delete(row.key)
   touchPublic(ctx, 'collection')
   for (const row of Array.from(ctx.db.pushTokens.userId.filter(userId))) ctx.db.pushTokens.token.delete(row.token)
@@ -1055,6 +1058,8 @@ const battleFeedQuery = z.strictObject({
   groupToken: z.string().max(MAX_ID_LENGTH).optional(),
   since: z.number().int().nonnegative().nullable(),
   before: pageCursorInput,
+  // Absent from a web build older than this order; every feed reads newest first without it.
+  order: z.enum(BATTLE_ORDERS).optional(),
   limit: z.number().int().min(1).max(500),
 })
 
@@ -1078,6 +1083,9 @@ export const battleFeed = spacetime.procedure({ payload: t.string() }, t.string(
     const league = input.scope === 'group-league' ? tx.db.groupLeagues.groupId.find(group!.id) : undefined
     const friendIds = input.scope === 'friends' ? acceptedFriendIds(tx, input.userId!) : new Set<string>()
 
+    const direction = input.order === 'oldest' ? -1 : 1
+    const inOrder = (left: { at: number; id: string }, right: { at: number; id: string }) =>
+      direction * (right.at - left.at || right.id.localeCompare(left.id))
     const rows: { id: string; token: string; createdAt: number; at: number }[] = []
     const candidates = function* () {
       if (input.scope === 'user' || input.scope === 'profile') {
@@ -1120,12 +1128,12 @@ export const battleFeed = spacetime.procedure({ payload: t.string() }, t.string(
       if (input.scope === 'friends' && (hasPractice || seatIds.has(input.userId!))) continue
       const at = safeNumber(input.scope === 'public' || input.scope === 'friends' ? battle.createdAt : lastActivity(tx, battle))
       if (input.scope === 'watchable' && at < input.since!) continue
-      if (input.before && (at > input.before.at || (at === input.before.at && battle.id >= input.before.id))) continue
       const row = { id: battle.id, token: battle.token, createdAt: safeNumber(battle.createdAt), at }
+      if (input.before && inOrder(row, input.before) <= 0) continue
       const last = rows.at(-1)
-      if (rows.length === input.limit + 1 && last && (row.at < last.at || (row.at === last.at && row.id <= last.id))) continue
+      if (rows.length === input.limit + 1 && last && inOrder(row, last) >= 0) continue
       rows.push(row)
-      rows.sort((left, right) => right.at - left.at || right.id.localeCompare(left.id))
+      rows.sort(inOrder)
       if (rows.length > input.limit + 1) rows.pop()
     }
     const shown = rows.slice(0, input.limit)
@@ -3435,6 +3443,34 @@ export const setPlayerDefaults = spacetime.procedure(
   { userId: t.string(), rosterVisibility: t.string(), battleSize: t.u32(), now: t.u64() },
   t.string(),
   (ctx, input) => operatorTx(ctx, (tx) => setPlayerDefaultsIn(tx, [input.userId, input.rosterVisibility, input.battleSize, input.now])),
+)
+
+export const listFilterPreferences = spacetime.procedure({ userId: t.string() }, t.string(), (ctx, { userId }) =>
+  operatorTx(ctx, (tx) =>
+    productJson(
+      Object.fromEntries(Array.from(tx.db.listFilterPreferences.userId.filter(userId), (row) => [row.scope, JSON.parse(row.preferences)])),
+    ),
+  ),
+)
+
+export const setListFilterPreferences = spacetime.procedure(
+  { userId: t.string(), scope: t.string(), preferences: t.string(), now: t.u64() },
+  t.string(),
+  (ctx, input) =>
+    operatorTx(ctx, (tx) => {
+      if (
+        !validId(input.userId) ||
+        !(LIST_FILTER_SCOPES as readonly string[]).includes(input.scope) ||
+        input.preferences.length > LIST_PREFERENCES_MAX_LENGTH
+      )
+        throw new SenderError('Invalid list preferences')
+      const preferences = JSON.stringify(decodePayload(listPreferencesSchema, input.preferences, 'Invalid list preferences'))
+      const id = `${input.userId}:${input.scope}`
+      const row = { id, userId: input.userId, scope: input.scope, preferences, at: input.now }
+      if (tx.db.listFilterPreferences.id.find(id)) tx.db.listFilterPreferences.id.update(row)
+      else tx.db.listFilterPreferences.insert(row)
+      return productJson(true)
+    }),
 )
 
 export const registerPushToken = spacetime.reducer(

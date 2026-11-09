@@ -214,6 +214,31 @@ for (const [width, label] of [
   })
 }
 
+test('a public roster is found by its legality and not by another', async ({ browser }) => {
+  const publisher = await (await browser.newContext()).newPage()
+  const userId = await userIdFor((await signUp(publisher, uniqueName('Legal publisher'))).email)
+  const product = await productOperator()
+  const source = (await product.roster('preview-necrons-cursed-skyshroud'))!
+  const name = uniqueName('Legal army')
+  await product.saveRoster({
+    ...source,
+    id: crypto.randomUUID(),
+    userId,
+    name,
+    automaticName: false,
+    visibility: 'public',
+    now: Date.now(),
+  })
+
+  const visitor = await (await browser.newContext()).newPage()
+  const listed = visitor.locator(`[data-discovered-roster="${name}"]`)
+  await visitor.goto('/rosters?view=public&legality=legal')
+  await expect(listed).toBeVisible()
+  await visitor.goto('/rosters?view=public&legality=!legal')
+  await expect(visitor.getByRole('heading', { name: 'Public rosters', exact: true })).toBeVisible()
+  await expect(listed).toHaveCount(0)
+})
+
 test('public rosters keep a chosen order in the address across filter changes', async ({ page }) => {
   await page.goto('/rosters?view=public')
   await page.waitForLoadState('networkidle')

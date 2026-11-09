@@ -495,11 +495,12 @@ export async function createSealedEventBattle(
 
 export async function myBattles(args: Parameters<typeof server.myBattles>[0]): ReturnType<typeof server.myBattles> {
   const filter = args.data.filter as BattleFilter | undefined
-  if (battleFilterActive(filter))
+  if (battleFilterActive(filter) || args.data.order)
     return filteredPage(
       battlesKey(),
       () => server.myBattles(args),
-      (battle, viewerId) => matchesBattle(battle, filter, viewerId, battle.lastActivity, Date.now()),
+      (battle, viewerId) => matchesBattle(battle, filter ?? {}, viewerId, battle.lastActivity, Date.now()),
+      args.data.order === 'oldest',
     ) as ReturnType<typeof server.myBattles>
   const page = await cachedPage(battlesKey(), args.data.before, () => server.myBattles(args))
   const state = await localEngine()?.storage.read()

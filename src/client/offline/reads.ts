@@ -64,10 +64,12 @@ export async function filteredPage<T>(
   key: readonly unknown[],
   online: () => Promise<{ battles: T[]; nextCursor: unknown }>,
   matches: (battle: T, viewerId: string | null) => boolean,
+  oldestFirst = false,
 ) {
   if (!isOffline()) return online()
   const cached = localClient()?.getQueryData<{ pages: { battles: T[] }[] }>(key)
   if (!cached) throw new OfflineRefusal('This page has not been downloaded yet.')
   const viewerId = localOwner()?.id ?? null
-  return { battles: cached.pages.flatMap((page) => page.battles).filter((battle) => matches(battle, viewerId)), nextCursor: null }
+  const battles = cached.pages.flatMap((page) => page.battles).filter((battle) => matches(battle, viewerId))
+  return { battles: oldestFirst ? battles.toReversed() : battles, nextCursor: null }
 }

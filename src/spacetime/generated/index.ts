@@ -126,6 +126,7 @@ import * as JoinGuestSeatProcedure from './join_guest_seat_procedure'
 import * as LeaderboardProcedure from './leaderboard_procedure'
 import * as LendRosterProcedure from './lend_roster_procedure'
 import * as LinkExternalAccountProcedure from './link_external_account_procedure'
+import * as ListFilterPreferencesProcedure from './list_filter_preferences_procedure'
 import * as MarkAchievementsSeenProcedure from './mark_achievements_seen_procedure'
 import * as MigrateProductDataProcedure from './migrate_product_data_procedure'
 import * as OnboardingByUserProcedure from './onboarding_by_user_procedure'
@@ -168,6 +169,7 @@ import * as SealedEventNamesProcedure from './sealed_event_names_procedure'
 import * as SealedEventRosterSharingProcedure from './sealed_event_roster_sharing_procedure'
 import * as SealedEventRostersProcedure from './sealed_event_rosters_procedure'
 import * as SealedEventsVisibleToProcedure from './sealed_events_visible_to_procedure'
+import * as SetListFilterPreferencesProcedure from './set_list_filter_preferences_procedure'
 import * as SetPlayerDefaultsProcedure from './set_player_defaults_procedure'
 import * as SetPushEnabledProcedure from './set_push_enabled_procedure'
 import * as SetRosterArchivedProcedure from './set_roster_archived_procedure'
@@ -350,6 +352,7 @@ const proceduresSchema = __procedures(
   __procedureSchema('leaderboard', LeaderboardProcedure.params, LeaderboardProcedure.returnType),
   __procedureSchema('lend_roster', LendRosterProcedure.params, LendRosterProcedure.returnType),
   __procedureSchema('link_external_account', LinkExternalAccountProcedure.params, LinkExternalAccountProcedure.returnType),
+  __procedureSchema('list_filter_preferences', ListFilterPreferencesProcedure.params, ListFilterPreferencesProcedure.returnType),
   __procedureSchema('mark_achievements_seen', MarkAchievementsSeenProcedure.params, MarkAchievementsSeenProcedure.returnType),
   __procedureSchema('migrate_product_data', MigrateProductDataProcedure.params, MigrateProductDataProcedure.returnType),
   __procedureSchema('onboarding_by_user', OnboardingByUserProcedure.params, OnboardingByUserProcedure.returnType),
@@ -400,6 +403,7 @@ const proceduresSchema = __procedures(
   __procedureSchema('sealed_event_roster_sharing', SealedEventRosterSharingProcedure.params, SealedEventRosterSharingProcedure.returnType),
   __procedureSchema('sealed_event_rosters', SealedEventRostersProcedure.params, SealedEventRostersProcedure.returnType),
   __procedureSchema('sealed_events_visible_to', SealedEventsVisibleToProcedure.params, SealedEventsVisibleToProcedure.returnType),
+  __procedureSchema('set_list_filter_preferences', SetListFilterPreferencesProcedure.params, SetListFilterPreferencesProcedure.returnType),
   __procedureSchema('set_player_defaults', SetPlayerDefaultsProcedure.params, SetPlayerDefaultsProcedure.returnType),
   __procedureSchema('set_push_enabled', SetPushEnabledProcedure.params, SetPushEnabledProcedure.returnType),
   __procedureSchema('set_roster_archived', SetRosterArchivedProcedure.params, SetRosterArchivedProcedure.returnType),

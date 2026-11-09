@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { detachmentIds } from './savedRoster'
 import { compareRosters, ROSTER_SORTS } from './rosterSort'
-import { facetMatches, facetSchema, periodFields } from './listFilter'
+import { facetActive, facetMatches, facetSchema, periodFields, type Facet } from './listFilter'
 import { matchesSearch } from './text'
 
 export const ROSTER_DISCOVERY_PAGE_SIZE = 24
@@ -34,6 +34,9 @@ const rosterFacets = {
   rules: facetSchema,
   size: facetSchema,
   disposition: facetSchema,
+  /** Known only once a roster is priced, so these two narrow what the database returned. */
+  legality: facetSchema,
+  points: facetSchema,
 }
 
 export const ROSTER_SEARCH_MAX_LENGTH = 80
@@ -50,6 +53,30 @@ export const playedArmyFilterSchema = z.strictObject({
   ...periodFields,
 })
 export type PlayedArmyFilter = z.infer<typeof playedArmyFilterSchema>
+
+export const ROSTER_LEGALITIES = ['legal', 'over-limit', 'not-legal'] as const
+export const ROSTER_POINTS_BANDS = [
+  { value: 'under-1000', label: 'Under 1,000', below: 1_000 },
+  { value: '1000-1499', label: '1,000 to 1,499', below: 1_500 },
+  { value: '1500-1999', label: '1,500 to 1,999', below: 2_000 },
+  { value: '2000-plus', label: '2,000 or more', below: Infinity },
+] as const
+
+type RosterAssessmentFilter = { legality?: Facet; points?: Facet }
+
+export const rosterAssessmentFilterActive = (filter: RosterAssessmentFilter) => facetActive(filter.legality) || facetActive(filter.points)
+
+/** A roster the current data could not price is in no band and neither legal nor illegal, so only an exclusion lets it through. */
+export function matchesRosterAssessment(
+  filter: RosterAssessmentFilter,
+  { points, problem }: { points: number | null; problem: string | null },
+) {
+  if (points === null) return facetMatches(filter.legality, []) && facetMatches(filter.points, [])
+  return (
+    facetMatches(filter.legality, [problem ?? 'legal']) &&
+    facetMatches(filter.points, [ROSTER_POINTS_BANDS.find((band) => points < band.below)!.value])
+  )
+}
 
 /**
  * What the product database is asked for: the saved IDs a roster inside the filter is stored under, and whose rosters.

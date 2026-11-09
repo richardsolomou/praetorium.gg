@@ -3,6 +3,7 @@ Every tab of [Battles](/battles) and [Rosters](/rosters) has a search box and a 
 - **Choose several values** in one filter to see anything matching any of them.
 - Press the **ban** icon beside a value to rule it out. A value you ruled out is struck through.
 - Filters of different kinds combine, so each one you add narrows the list further.
+- **Legality** and **Points** work from each list's current price, on every roster tab.
 - **Your army** and **Opposing army** read as a matchup: on Friends and Public, **Army** and **Against army** must be on opposite sides of the table.
 
 Press the cross on a filter to remove it, or **Clear filters** to remove them all. The address holds your filters, so you can share a filtered list as a link.
@@ -11,10 +12,10 @@ Press the cross on a filter to remove it, or **Clear filters** to remove them al
 
 **Customise** picks which filters stay in the bar. A filter in use always shows, even when you have hidden it.
 
-**Views** saves the filters you have chosen under a name. Views and your choice of filters are kept on this device, separately for each tab.
+**Views** saves the filters you have chosen under a name. Views and your choice of filters are kept separately for each tab. Signed in, they follow your account to every device, and the views already on a device join your account the first time you open that tab. Without an account they stay on the device, and signing out removes them from it.
 
 ## When a search stops early
 
-Battles are searched a stretch at a time, newest first. If you see **Search older battles**, press it to carry on further back. Without a connection, filters only cover the battles already saved on your device.
+Battles are searched a stretch at a time, in the order you sort them. If you see **Search older battles** or **Search newer battles**, press it to carry on. Legality and Points filters search public rosters the same way, so press **Show more rosters** to look further. Without a connection, filters only cover the battles already saved on your device.
 
 Calendar dates in a filter are UTC.

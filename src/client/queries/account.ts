@@ -19,6 +19,7 @@ import {
   me,
   notificationSettings,
   onboardingProgress,
+  listFilterPreferences,
   playerDefaults,
   signInOptions,
   userProfile,
@@ -34,6 +35,7 @@ import {
   meKey,
   notificationSettingsKey,
   onboardingKey,
+  listFilterPreferencesKey,
   playerDefaultsKey,
   userProfileKey,
 } from './queryKeys'
@@ -58,6 +60,9 @@ export const meQuery = () =>
   })
 export const notificationSettingsQuery = () =>
   queryOptions({ queryKey: notificationSettingsKey(), queryFn: () => notificationSettings(), staleTime: SSR_STALE_TIME })
+export const listFilterPreferencesQuery = () =>
+  queryOptions({ queryKey: listFilterPreferencesKey(), queryFn: () => listFilterPreferences(), staleTime: SSR_STALE_TIME })
+
 export const playerDefaultsQuery = () =>
   queryOptions({ queryKey: playerDefaultsKey(), queryFn: () => playerDefaults(), staleTime: SSR_STALE_TIME })
 /** The player's ability alerts, which every roster they build and field applies. */

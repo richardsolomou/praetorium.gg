@@ -388,6 +388,13 @@ async function readBack(repository: SpacetimeRepository, product: SpacetimeOpera
     await repository.friendInviteByInviter(userId)
     await repository.onboardingProgress(userId)
     await repository.playerDefaults(userId)
+    await repository.setListFilterPreferences(
+      userId,
+      'battles:mine',
+      { pinned: null, views: [{ name: 'Finished games', address: { status: 'finished' } }] },
+      Date.now(),
+    )
+    await repository.listFilterPreferences(userId)
     await repository.pushEnabled(userId)
     await repository.recentMatchupsByUser(userId)
     await repository.abilityRemindersByUser(userId)

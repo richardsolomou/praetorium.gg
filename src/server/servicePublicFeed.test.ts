@@ -79,4 +79,16 @@ describe('a filtered feed', () => {
     await service.publicBattles(null, null, { filter: { to: '1970-01-01' } })
     expect(publicBattles.mock.calls[0]![0].before).toEqual({ at: 86_400_000, id: '' })
   })
+
+  it('starts oldest first at the beginning of a period', async () => {
+    const { service, publicBattles } = walking([{ battles: [], nextCursor: null }])
+    await service.publicBattles(null, null, { filter: { from: '1970-01-02' }, order: 'oldest' })
+    expect(publicBattles.mock.calls[0]![0]).toMatchObject({ before: { at: 86_400_000, id: '' }, order: 'oldest' })
+  })
+
+  it('stops oldest first once the walk passes the end of a period', async () => {
+    const { service, publicBattles } = walking([{ battles: [], nextCursor: { at: 86_400_000, id: 'later' } }])
+    await service.publicBattles(null, null, { filter: { to: '1970-01-01' }, order: 'oldest' })
+    expect(publicBattles).toHaveBeenCalledTimes(1)
+  })
 })

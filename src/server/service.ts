@@ -6,7 +6,7 @@ import { type BattlebaseBattle, battlebaseBattleImport, battlebaseBattleSchema }
 import { guestSessionCurrent } from '../core/guestSession'
 import { matchingSealedEventBattles } from '../shared/sealedEventBattleOptions'
 import { battleSummary, type BattleFaction } from '../shared/battleSummary'
-import { battleFilterActive, matchesBattle, type BattleFilter } from '../core/battleFilter'
+import { battleFilterActive, matchesBattle, type BattleFilter, type BattleOrder } from '../core/battleFilter'
 import { periodBounds } from '../core/listFilter'
 import type { PlayedArmy } from '../core/playedArmies'
 import { offlineIdentifier, offlineContext } from './offlineContext'
@@ -222,7 +222,7 @@ export class PraetoriumService {
   async battles(
     userId: string,
     rules?: BattleMissionRules | null,
-    page?: { limit: number; before?: BattlesCursor; withUserId?: string; filter?: BattleFilter },
+    page?: { limit: number; before?: BattlesCursor; withUserId?: string; filter?: BattleFilter; order?: BattleOrder },
     factions?: readonly BattleFaction[],
   ) {
     if (battleFilterActive(page?.filter)) {
@@ -243,20 +243,20 @@ export class PraetoriumService {
   async publicBattles(
     viewerId: string | null,
     rules?: BattleMissionRules | null,
-    page?: { limit?: number; before?: BattlesCursor; filter?: BattleFilter },
+    page?: { limit?: number; before?: BattlesCursor; filter?: BattleFilter; order?: BattleOrder },
     factions?: readonly BattleFaction[],
   ) {
     const limit = page?.limit ?? PUBLIC_BATTLES_PAGE
     if (battleFilterActive(page?.filter))
       return this.filteredFeed((read) => this.heldPublicFeed(viewerId, read), { ...page, limit }, viewerId, rules, factions)
-    const { battles: histories, nextCursor } = await this.heldPublicFeed(viewerId, { limit, before: page?.before })
+    const { battles: histories, nextCursor } = await this.heldPublicFeed(viewerId, { limit, before: page?.before, order: page?.order })
     return { battles: this.battleSummaries(histories, viewerId, rules, factions), nextCursor }
   }
 
   /** Anyone can ask for this signed out and with any search text, so every reader's scan shares the one held read of each page. */
-  private heldPublicFeed(viewerId: string | null, page: { limit: number; before?: BattlesCursor }) {
+  private heldPublicFeed(viewerId: string | null, page: { limit: number; before?: BattlesCursor; order?: BattleOrder }) {
     const now = this.clock()
-    const key = JSON.stringify([viewerId, page.limit, page.before ?? null])
+    const key = JSON.stringify([viewerId, page.limit, page.before ?? null, page.order ?? null])
     const read = () => this.repository.publicBattles({ ...page, viewerId })
     const held = this.publicFeedHeld.get(key)
     if (held && held.until > now) return held.page as ReturnType<typeof read>
@@ -274,8 +274,11 @@ export class PraetoriumService {
    * The walk is bounded, so a rare match can return a short or empty page; its cursor continues from where the walk stopped.
    */
   private async filteredFeed(
-    read: (page: { limit: number; before?: BattlesCursor }) => Promise<{ battles: FeedBattle[]; nextCursor: BattlesCursor | null }>,
-    page: { limit?: number; before?: BattlesCursor; filter?: BattleFilter } | undefined,
+    read: (page: { limit: number; before?: BattlesCursor; order?: BattleOrder }) => Promise<{
+      battles: FeedBattle[]
+      nextCursor: BattlesCursor | null
+    }>,
+    page: { limit?: number; before?: BattlesCursor; filter?: BattleFilter; order?: BattleOrder } | undefined,
     viewerId: string | null,
     rules?: BattleMissionRules | null,
     factions: readonly BattleFaction[] = [],
@@ -286,9 +289,13 @@ export class PraetoriumService {
     const bounds = periodBounds(filter, now)
     const factionsById = byId(factions)
     const kept: ReturnType<typeof battleSummary>[] = []
-    let cursor = page!.before ?? (bounds.to === undefined ? undefined : { at: bounds.to, id: '' })
+    const order = page!.order
+    const edge = order === 'oldest' ? bounds.from : bounds.to
+    let cursor = page!.before ?? (edge === undefined ? undefined : { at: edge, id: '' })
+    const pastPeriod = (at: number) =>
+      order === 'oldest' ? bounds.to !== undefined && at >= bounds.to : bounds.from !== undefined && at < bounds.from
     for (let walked = 0; walked < FILTER_SCAN_PAGES; walked++) {
-      const { battles, nextCursor } = await read({ limit: FILTER_SCAN_BATTLES, before: cursor })
+      const { battles, nextCursor } = await read({ limit: FILTER_SCAN_BATTLES, before: cursor, order })
       for (const [index, history] of battles.entries()) {
         const summary = battleSummary(history, foldHistory(history), viewerId, rules, factionsById)
         if (!matchesBattle(summary, filter, viewerId, history.at, now)) continue
@@ -296,7 +303,7 @@ export class PraetoriumService {
         if (kept.length === wanted)
           return { battles: kept, nextCursor: index < battles.length - 1 || nextCursor ? { at: history.at, id: history.battle.id } : null }
       }
-      if (!nextCursor || (bounds.from !== undefined && nextCursor.at < bounds.from)) return { battles: kept, nextCursor: null }
+      if (!nextCursor || pastPeriod(nextCursor.at)) return { battles: kept, nextCursor: null }
       cursor = nextCursor
     }
     return { battles: kept, nextCursor: cursor ?? null }
@@ -310,7 +317,7 @@ export class PraetoriumService {
     viewerId: string | null,
     before?: BattlesCursor,
     factions: readonly BattleFaction[] = [],
-    accepts?: (army: PlayedArmy) => boolean,
+    accepts?: (armies: PlayedArmy[]) => PlayedArmy[] | Promise<PlayedArmy[]>,
   ) {
     const armies: PlayedArmy[] = []
     let cursor = before
@@ -320,7 +327,8 @@ export class PraetoriumService {
         before: cursor,
         viewerId,
       })
-      armies.push(...histories.flatMap((history) => this.playedArmiesOf(history, factions)).filter((army) => accepts?.(army) ?? true))
+      const fielded = histories.flatMap((history) => this.playedArmiesOf(history, factions))
+      armies.push(...(accepts ? await accepts(fielded) : fielded))
       cursor = nextCursor ?? undefined
       if (!cursor || armies.length >= PLAYED_ARMY_BATTLES) break
     }
@@ -343,13 +351,17 @@ export class PraetoriumService {
   async friendBattles(
     userId: string,
     rules?: BattleMissionRules | null,
-    page?: { limit?: number; before?: BattlesCursor; filter?: BattleFilter },
+    page?: { limit?: number; before?: BattlesCursor; filter?: BattleFilter; order?: BattleOrder },
     factions?: readonly BattleFaction[],
   ) {
     const limit = page?.limit ?? PUBLIC_BATTLES_PAGE
     if (battleFilterActive(page?.filter))
       return this.filteredFeed((read) => this.repository.battlesByFriends(userId, read), { ...page, limit }, userId, rules, factions)
-    const { battles: histories, nextCursor } = await this.repository.battlesByFriends(userId, { limit, before: page?.before })
+    const { battles: histories, nextCursor } = await this.repository.battlesByFriends(userId, {
+      limit,
+      before: page?.before,
+      order: page?.order,
+    })
     return { battles: this.battleSummaries(histories, userId, rules, factions), nextCursor }
   }
 

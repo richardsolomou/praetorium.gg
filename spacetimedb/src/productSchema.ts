@@ -95,6 +95,17 @@ const pushPreferences = table(
   },
 )
 
+const listFilterPreferences = table(
+  { name: 'list_filter_preferences' },
+  {
+    id: t.string().primaryKey(),
+    userId: t.string().index('btree'),
+    scope: t.string(),
+    preferences: t.string(),
+    at: t.u64(),
+  },
+)
+
 const playerDefaults = table(
   { name: 'player_defaults' },
   {
@@ -745,6 +756,7 @@ export const productTables = {
   battleUsers,
   guestSeats,
   pushPreferences,
+  listFilterPreferences,
   playerDefaults,
   pushTokens,
   friendships,

@@ -1,3 +1,4 @@
+import { forgetDeviceFilterPreferences } from '../../components/FilterBar'
 import { hasLocalChanges, stopLocalRuntime } from '../../offline/localRuntime'
 import { clearLocalState } from '../../offline/localStorage'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
@@ -50,6 +51,7 @@ function useAccountControls() {
       clearWatchBattle()
       if (owner)
         await clearLocalState(owner, true).catch((error: unknown) => posthog.captureException(error, { operation: 'sign_out_local_work' }))
+      forgetDeviceFilterPreferences()
       reconcileAppAccount(queryClient, null)
       queryClient.setQueryData(meQuery().queryKey, null)
       await clearSavedApp().catch((error: unknown) => posthog.captureException(error, { operation: 'sign_out_saved_data' }))
