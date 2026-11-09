@@ -1,5 +1,20 @@
 # praetorium
 
+## 0.228.1 (2026-11-09)
+
+### Patch Changes
+
+- c6f7dcf: Players are notified when an organizer sets or clears their battlefield, and organizers are prompted to set each round's.
+- c6f7dcf: Group organizers now see Set battlefield on a revealed hidden-list game.
+- 385bda6: Other sites can now send a list straight to Praetorium's import review.
+- d0f590f: Ending a group's league keeps its final table under Past leagues, so a group can run one after another.
+- c6f7dcf: Organizers can set the battlefield ahead of solo vs pair and doubles games, in groups and tournaments.
+- 52c0a35: A Swiss tournament table can record its final score without tracking the game.
+- 42b95de: Organizers can swap players between Swiss tables before their battles start.
+- 42b95de: Organizers can run a shared round clock for a Swiss tournament.
+- 7dc3e04: Swiss tournaments can check players in before round 1 and drop the no-shows.
+- a624046: Tournament organizers can break ties on strength of schedule before victory points.
+
 ## 0.228.0 (2026-11-09)
 
 ### Minor Changes
