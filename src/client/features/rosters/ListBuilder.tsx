@@ -1341,6 +1341,18 @@ export function ListBuilder({
 
   if (printInput) return <RosterPrintPack input={printInput} onClose={() => setPrintInput(null)} />
 
+  const startBattleButton = positioned.length ? (
+    <Button
+      size="sm"
+      variant="outline"
+      aria-label="Start a battle"
+      disabled={saving}
+      onClick={guest ? () => account.ask('battle') : () => setStartingBattle(true)}
+    >
+      <Swords /> <span className="sm:hidden">Battle</span>
+      <span className="max-sm:hidden">Start a battle</span>
+    </Button>
+  ) : null
   const variantMenu = savedId ? (
     <RosterVariantMenu
       current={savedId}
@@ -1410,6 +1422,7 @@ export function ListBuilder({
         actions={
           editable ? (
             <>
+              {savedId || guest ? startBattleButton : null}
               {variantMenu}
               <DropdownMenu>
                 <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label="Roster actions" />}>
@@ -1533,6 +1546,7 @@ export function ListBuilder({
             </>
           ) : (
             <>
+              {locked ? startBattleButton : null}
               {locked ? variantMenu : null}
               <DropdownMenu>
                 <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label="Roster actions" />}>
