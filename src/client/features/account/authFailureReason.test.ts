@@ -15,7 +15,8 @@ it.each([
   ['a cancelled Sign in with Apple', 'user_cancelled_authorize', 'cancelled'],
   ['an unlinked provider account callback', 'account_not_linked', 'account_not_linked'],
   ['a provider callback server failure', 'internal_server_error', 'server_error'],
-  ['an unrecognised callback code', 'state_mismatch', 'other'],
+  ['a lost OAuth state cookie', 'state_mismatch', 'state_mismatch'],
+  ['an unrecognised callback code', 'oauth_code_verification_failed', 'other'],
 ])('reads %s as %s', (_, failure, reason) => {
   expect(authFailureReason(failure)).toBe(reason)
 })

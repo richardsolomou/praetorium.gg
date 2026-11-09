@@ -299,7 +299,8 @@ export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret
         const provider = context.params?.id ?? context.path.split('/').pop()
         const state = context.query?.state
         if (typeof provider !== 'string' || typeof state !== 'string') return
-        const stored = await context.context.internalAdapter.findVerificationValue(state)
+        // Better Auth keys database OAuth state as `auth-state:<state>` and does not export the helper that builds it.
+        const stored = await context.context.internalAdapter.findVerificationValue(`auth-state:${state}`)
         if (!stored || !isNativeOAuthState(stored.value, state, provider, context.context.baseURL)) return
         const stateCookie = context.context.createAuthCookie('state')
         const signedCookie = await context.setSignedCookie(stateCookie.name, state, context.context.secret, stateCookie.attributes)
