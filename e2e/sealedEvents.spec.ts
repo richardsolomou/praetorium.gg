@@ -2,6 +2,7 @@ import { recordEvents } from './telemetry.harness'
 import { expect, test, type Locator, type Page } from './test'
 import { z } from 'zod'
 import {
+  chooseRosterDefault,
   confirmRosterSetup,
   befriend,
   createRoster,
@@ -47,13 +48,13 @@ test('players can decline and publish their original sealed event roster across 
   const opponentName = uniqueName('SealedEvent friend')
   await signUp(owner, ownerName)
   await signUp(opponent, opponentName)
+  await chooseRosterDefault(owner, 'Private')
   const armyName = uniqueName('The revealed army')
   await sealableRoster(owner, armyName)
   const savedUrl = owner.url()
   const savedId = lastPathSegment(savedUrl)
   const product = await productOperator()
   const saved = (await product.roster(savedId))!
-  await product.setRosterVisibility(savedId, saved.userId, 'private', Date.now())
   await sealableRoster(opponent, 'Already public sealed event army')
   await owner.goto('/tournaments')
   const create = await openSealedEventCreation(owner)
