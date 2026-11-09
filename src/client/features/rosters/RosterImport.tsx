@@ -66,7 +66,7 @@ function refuseRosterFile(format: StructuredRosterFile, input: 'text' | 'file') 
 }
 
 /** Each name the import refused, on its own line, so the player reads why rather than only what. */
-const explain = (unknown: readonly { name: string; reason: string }[]) =>
+export const explain = (unknown: readonly { name: string; reason: string }[]) =>
   unknown.map(({ name, reason }) => `Could not match ${name}: ${reason}.`).join('\n')
 
 /** One reading of what the import could not do, so the two halves of it are read the same way. */

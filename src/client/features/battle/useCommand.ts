@@ -22,7 +22,7 @@ import { asSentence } from '../../text'
 /** A list the server prices and freezes before it is attached: a saved one, or the draft a guest built on this device. */
 export type RosterAttachment =
   | { kind: 'attach-saved-roster'; rosterId: string; playerId?: string }
-  | { kind: 'attach-draft-roster'; draft: RosterDraftInput; reminders: AbilityReminder[] | undefined }
+  | { kind: 'attach-draft-roster'; draft: RosterDraftInput; playerId?: string; reminders: AbilityReminder[] | undefined }
 type SubmittedCommand = Command | RosterAttachment
 const isRosterAttachment = (command: SubmittedCommand) => command.kind === 'attach-saved-roster' || command.kind === 'attach-draft-roster'
 export type SendCommand = (

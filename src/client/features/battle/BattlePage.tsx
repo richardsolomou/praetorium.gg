@@ -6,7 +6,8 @@ import { Setup } from './setup/Setup'
 import { Spectator } from './Spectator'
 import { Tracker } from './Tracker'
 import { GuestKeepGame } from './GuestKeepGame'
-import { isGuestSeat } from '../../../core/newBattle'
+import { PracticeNextGame } from './PracticeNextGame'
+import { isGuestSeat, isPracticeSeat } from '../../../core/newBattle'
 import { celebrateVictory } from './victory'
 import { battleResult } from '../../battleOutcome'
 import { sides } from '../../sides'
@@ -71,6 +72,10 @@ function SeatedBattle({ token, screen }: { token: string; screen: Extract<Awaite
   return <Tracker view={screen.view} clock={screen.clock} missions={screen.missions} send={send} pending={pending} problem={problem} />
 }
 
+/** A seated player's game against nobody but practice opponents. */
+const practicedAlone = ({ players, viewerId }: { players: readonly { id: string; automated: boolean }[]; viewerId: string | null }) =>
+  players.some(({ id }) => id === viewerId) && players.filter(({ id }) => id !== viewerId).every(isPracticeSeat)
+
 function FinishedBattle({ screen }: { screen: Extract<Awaited<ReturnType<typeof openBattle>>, { kind: 'battle' }> }) {
   const { view, clock, missions } = screen
   // Kept here, so the thanks outlasts the refetch that seats the account where the guest sat.
@@ -91,7 +96,11 @@ function FinishedBattle({ screen }: { screen: Extract<Awaited<ReturnType<typeof 
       missions={missions}
       timeline={screen.timeline}
       lead={
-        isGuestSeat(view.viewerId) || claimed ? <GuestKeepGame view={view} claimed={claimed} onClaimed={() => setClaimed(true)} /> : null
+        isGuestSeat(view.viewerId) || claimed ? (
+          <GuestKeepGame view={view} claimed={claimed} onClaimed={() => setClaimed(true)} />
+        ) : practicedAlone(view) ? (
+          <PracticeNextGame />
+        ) : null
       }
     />
   )

@@ -1,7 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
 import { Check, Crown, Pencil, Trash2, TriangleAlert } from 'lucide-react'
-import { useRef, useState } from 'react'
+import { type ReactNode, useRef, useState } from 'react'
 import { Link } from '@tanstack/react-router'
+import { posthog } from 'posthog-js'
 import { Button } from '@/components/ui/button'
 import { buttonClass } from '../../../components/buttonClass'
 import {
@@ -40,10 +41,14 @@ import { isGuestSeat } from '../../../../core/newBattle'
 import type { RosterAttachment } from '../useCommand'
 import { GuestInvite } from '../GuestInvite'
 import { GuestRosterChooser } from './GuestRosterChooser'
+import { PasteOpponentList } from './PasteOpponentList'
 import { visitorFieldingReminders } from '../../rosters/visitorReminders'
 import { useHistoryDialog } from '../../../useHistoryDialog'
 import { SectionHeading } from '../../../components/SectionHeading'
 import { countLabel } from '../../../text'
+
+/** What a guest's army says when the table is only keeping score, since every army carries text for its opponent to read. */
+const SCORE_ONLY_TEXT = 'No list entered. This game only keeps score.'
 
 type SavedRoster = QueryData<typeof savedRosterSummariesQuery>[number]
 type Props = {
@@ -134,7 +139,9 @@ export function ArmiesStep({ view, sides, send, attachRoster, pending, problem }
                       <span className="mt-0.5 block text-xs text-dim">
                         {army.roster.built
                           ? `${countLabel(army.unitCount, 'unit')} · ${(army.points ?? 0).toLocaleString('en')} of ${pointsLabel(team ? (sharedSidePoints(view, side.index) ?? armyPointsFor(view, side.index) ?? pointsBudgetOf(army.roster.built)) : pointsBudgetOf(army.roster.built))}`
-                          : 'Imported army'}
+                          : army.roster.text === SCORE_ONLY_TEXT
+                            ? 'Score only'
+                            : 'Imported army'}
                       </span>
                     ) : null}
                     {/* Said under every army rather than only under your own: an opponent
@@ -156,6 +163,23 @@ export function ArmiesStep({ view, sides, send, attachRoster, pending, problem }
                       >
                         {army.roster ? 'Change roster' : 'Choose roster'}
                       </Button>
+                      {isGuestSeat(army.playerId) && !guest && view.settings.manual && !army.roster ? (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          disabled={pending}
+                          onClick={() => {
+                            posthog.capture('battle_guest_score_only')
+                            send({
+                              kind: 'attach-roster',
+                              roster: { name: `${army.playerName}’s army`, text: SCORE_ONLY_TEXT },
+                              playerId: army.playerId,
+                            })
+                          }}
+                        >
+                          Keep score only
+                        </Button>
+                      ) : null}
                       {/* Bringing the wrong list is as easy as bringing the right one, so the
                         seat can be emptied as well as changed. */}
                       {army.roster ? (
@@ -256,6 +280,20 @@ export function ArmiesStep({ view, sides, send, attachRoster, pending, problem }
           else void attach(savedRoster)
         }}
         error={rosterQuery.error ? errorMessage(rosterQuery.error) : problem}
+        pasted={
+          choosing && isGuestSeat(choosing.playerId) ? (
+            <PasteOpponentList
+              name={choosing.playerName}
+              limit={view.settings.limit}
+              pending={pending}
+              onUse={(draft) =>
+                void attachRoster({ kind: 'attach-draft-roster', draft, reminders: undefined, playerId: choosing.playerId }).then(
+                  (attached) => attached && closeChooser(),
+                )
+              }
+            />
+          ) : null
+        }
       />
       <WaiverConfirmDialog
         roster={confirming}
@@ -311,6 +349,7 @@ function RosterChooser({
   pending,
   onChoose,
   error,
+  pasted,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -328,6 +367,8 @@ function RosterChooser({
   pending: boolean
   onChoose: (roster: SavedRoster, problem?: RosterProblem | null) => void
   error: string | null
+  /** Where a list that is on nobody's account comes in, for a guest playing from someone else's device. */
+  pasted: ReactNode
 }) {
   const changingSize = useRef(false)
   return (
@@ -348,7 +389,11 @@ function RosterChooser({
           </DialogTitle>
           <DialogDescription>
             {/* A practice opponent owns no lists, so the army it brings comes from yours. */}
-            {forArmy?.automated ? 'One of your own lists, played by the side across the table. ' : ''}
+            {forArmy?.automated
+              ? pasted
+                ? 'Paste their list, or field one of yours for them. '
+                : 'One of your own lists, played by the side across the table. '
+              : ''}
             {requiredLimit === null
               ? 'Your rosters, most recently updated first.'
               : `Rosters built for ${pointsLabel(requiredLimit)}${orSmaller ? ' or fewer' : ''}, most recently updated first.`}
@@ -356,6 +401,7 @@ function RosterChooser({
         </DialogHeader>
         <DialogBody>
           {error ? <Problem>{error}</Problem> : null}
+          {pasted}
           <SectionHeading title="Rosters" count={rosters.length} className="mb-0" />
           <div className="space-y-2">
             {loading ? (
