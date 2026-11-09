@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.228.2 (2026-11-09)
+
+### Patch Changes
+
+- b3e2626: Imported Sentinel Guard, Aquilon and Gyrfalcon Custodes squads no longer warn about their model names.
+- b3e2626: A pasted list with the setup lines above its units cut off now imports, working out the army from its units.
+
 ## 0.228.1 (2026-11-09)
 
 ### Patch Changes
