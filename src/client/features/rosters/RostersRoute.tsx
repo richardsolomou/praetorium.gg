@@ -17,7 +17,7 @@ export type RostersSearch = RosterLibrarySearch & RosterDiscoverySearch & { view
  * saved first. `new` opens the setup for another roster, as `/rosters/new` asks.
  */
 export function RostersRoute({
-  search: { view, detachment, rules, sort: listSort, new: starting, reference, ...search },
+  search: { view, new: starting, reference, sort: listSort, ...search },
   guestDraft: hinted,
   sort,
   notices,
@@ -31,7 +31,7 @@ export function RostersRoute({
 }) {
   const { data: me } = useQuery(meQuery())
   const [{ ready, guest }, setGuest] = useGuestDraft(hinted)
-  if (view) return <RosterDiscoveryPage view={view} search={{ faction: search.faction, detachment, rules, sort: listSort }} />
+  if (view) return <RosterDiscoveryPage view={view} search={{ ...search, sort: listSort }} />
   if (me && !ready && hinted) return <BuilderFrame />
   if (me && guest) return <ClaimGuestRoster key={guest.id} guest={guest} onDiscard={() => setGuest(null)} />
   return (

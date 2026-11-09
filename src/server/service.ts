@@ -6,6 +6,9 @@ import { type BattlebaseBattle, battlebaseBattleImport, battlebaseBattleSchema }
 import { guestSessionCurrent } from '../core/guestSession'
 import { matchingSealedEventBattles } from '../shared/sealedEventBattleOptions'
 import { battleSummary, type BattleFaction } from '../shared/battleSummary'
+import { battleFilterActive, matchesBattle, type BattleFilter } from '../core/battleFilter'
+import { periodBounds } from '../core/listFilter'
+import type { PlayedArmy } from '../core/playedArmies'
 import { offlineIdentifier, offlineContext } from './offlineContext'
 import {
   withAuthoritativeAwards,
@@ -133,6 +136,7 @@ const ACHIEVEMENT_DEFINITIONS = createHash('sha256')
   .update(JSON.stringify(ACHIEVEMENTS.map(({ id, metric, count }) => [id, metric, count])))
   .digest('hex')
   .slice(0, 16)
+type FeedBattle = BattleHistory & { at: number }
 type AchievementRows = { achievementId: AchievementId; earnedAt: number | null; seen: boolean }[]
 
 /** A page of the battle list. History grows for an account's lifetime; a page does not. */
@@ -140,6 +144,9 @@ export const BATTLES_PAGE = 25
 /** A page of a home-page feed. Small: every row on it costs a folded log, and the page shows three at once. */
 const PUBLIC_BATTLES_PAGE = 10
 const PLAYED_ARMY_BATTLES = 12
+/** How far one filtered read walks a feed: enough to fill a page for most filters without tying up the product database. */
+const FILTER_SCAN_BATTLES = 50
+const FILTER_SCAN_PAGES = 6
 /** How long one public feed page serves repeated reads, such as a burst of tabs refetching after the same signal. */
 const PUBLIC_FEED_HOLD_MS = 5_000
 const PUBLIC_FEED_HELD_PAGES = 200
@@ -215,9 +222,13 @@ export class PraetoriumService {
   async battles(
     userId: string,
     rules?: BattleMissionRules | null,
-    page?: { limit: number; before?: BattlesCursor; withUserId?: string },
+    page?: { limit: number; before?: BattlesCursor; withUserId?: string; filter?: BattleFilter },
     factions?: readonly BattleFaction[],
   ) {
+    if (battleFilterActive(page?.filter)) {
+      const found = await this.filteredFeed((read) => this.repository.battlesByUser(userId, read), page, userId, rules, factions)
+      return { ...found, battles: await this.withRatingChanges(found.battles) }
+    }
     const { battles: histories, nextCursor } = await this.repository.battlesByUser(userId, page)
     return { battles: await this.withRatingChanges(this.battleSummaries(histories, userId, rules, factions)), nextCursor }
   }
@@ -232,21 +243,23 @@ export class PraetoriumService {
   async publicBattles(
     viewerId: string | null,
     rules?: BattleMissionRules | null,
-    page?: { limit?: number; before?: BattlesCursor },
+    page?: { limit?: number; before?: BattlesCursor; filter?: BattleFilter },
     factions?: readonly BattleFaction[],
   ) {
+    const limit = page?.limit ?? PUBLIC_BATTLES_PAGE
+    if (battleFilterActive(page?.filter))
+      return this.filteredFeed((read) => this.heldPublicFeed(viewerId, read), { ...page, limit }, viewerId, rules, factions)
+    const { battles: histories, nextCursor } = await this.heldPublicFeed(viewerId, { limit, before: page?.before })
+    return { battles: this.battleSummaries(histories, viewerId, rules, factions), nextCursor }
+  }
+
+  /** Anyone can ask for this signed out and with any search text, so every reader's scan shares the one held read of each page. */
+  private heldPublicFeed(viewerId: string | null, page: { limit: number; before?: BattlesCursor }) {
     const now = this.clock()
-    const key = JSON.stringify([viewerId, page?.limit ?? PUBLIC_BATTLES_PAGE, page?.before ?? null])
+    const key = JSON.stringify([viewerId, page.limit, page.before ?? null])
+    const read = () => this.repository.publicBattles({ ...page, viewerId })
     const held = this.publicFeedHeld.get(key)
     if (held && held.until > now) return held.page as ReturnType<typeof read>
-    const read = async () => {
-      const { battles: histories, nextCursor } = await this.repository.publicBattles({
-        limit: page?.limit ?? PUBLIC_BATTLES_PAGE,
-        before: page?.before,
-        viewerId,
-      })
-      return { battles: this.battleSummaries(histories, viewerId, rules, factions), nextCursor }
-    }
     const pending = read()
     this.publicFeedHeld.set(key, { until: now + PUBLIC_FEED_HOLD_MS, page: pending })
     pending.catch(() => this.publicFeedHeld.delete(key))
@@ -256,12 +269,62 @@ export class PraetoriumService {
   }
 
   /**
-   * The armies finished battles in one page of the public feed fielded, read without the feed's
-   * hold. A page holds only finished battles, so it can come back short; its cursor still continues.
+   * One page of a feed's matches, walking its stored order because whether a battle matches is only known from its log.
+   *
+   * The walk is bounded, so a rare match can return a short or empty page; its cursor continues from where the walk stopped.
    */
-  async playedArmies(viewerId: string | null, before?: BattlesCursor, factions: readonly BattleFaction[] = []) {
-    const { battles: histories, nextCursor } = await this.repository.publicBattles({ limit: PLAYED_ARMY_BATTLES, before, viewerId })
-    return { armies: histories.flatMap((history) => this.playedArmiesOf(history, factions)), nextCursor }
+  private async filteredFeed(
+    read: (page: { limit: number; before?: BattlesCursor }) => Promise<{ battles: FeedBattle[]; nextCursor: BattlesCursor | null }>,
+    page: { limit?: number; before?: BattlesCursor; filter?: BattleFilter } | undefined,
+    viewerId: string | null,
+    rules?: BattleMissionRules | null,
+    factions: readonly BattleFaction[] = [],
+  ) {
+    const filter = page!.filter!
+    const wanted = page!.limit ?? BATTLES_PAGE
+    const now = this.clock()
+    const bounds = periodBounds(filter, now)
+    const factionsById = byId(factions)
+    const kept: ReturnType<typeof battleSummary>[] = []
+    let cursor = page!.before ?? (bounds.to === undefined ? undefined : { at: bounds.to, id: '' })
+    for (let walked = 0; walked < FILTER_SCAN_PAGES; walked++) {
+      const { battles, nextCursor } = await read({ limit: FILTER_SCAN_BATTLES, before: cursor })
+      for (const [index, history] of battles.entries()) {
+        const summary = battleSummary(history, foldHistory(history), viewerId, rules, factionsById)
+        if (!matchesBattle(summary, filter, viewerId, history.at, now)) continue
+        kept.push(summary)
+        if (kept.length === wanted)
+          return { battles: kept, nextCursor: index < battles.length - 1 || nextCursor ? { at: history.at, id: history.battle.id } : null }
+      }
+      if (!nextCursor || (bounds.from !== undefined && nextCursor.at < bounds.from)) return { battles: kept, nextCursor: null }
+      cursor = nextCursor
+    }
+    return { battles: kept, nextCursor: cursor ?? null }
+  }
+
+  /**
+   * The armies finished public battles fielded, read without the feed's hold. A filtered read keeps walking older
+   * battles until it has a page of matches or reaches the walk's limit; its cursor continues either way.
+   */
+  async playedArmies(
+    viewerId: string | null,
+    before?: BattlesCursor,
+    factions: readonly BattleFaction[] = [],
+    accepts?: (army: PlayedArmy) => boolean,
+  ) {
+    const armies: PlayedArmy[] = []
+    let cursor = before
+    for (let walked = 0; walked < (accepts ? FILTER_SCAN_PAGES : 1); walked++) {
+      const { battles: histories, nextCursor } = await this.repository.publicBattles({
+        limit: PLAYED_ARMY_BATTLES,
+        before: cursor,
+        viewerId,
+      })
+      armies.push(...histories.flatMap((history) => this.playedArmiesOf(history, factions)).filter((army) => accepts?.(army) ?? true))
+      cursor = nextCursor ?? undefined
+      if (!cursor || armies.length >= PLAYED_ARMY_BATTLES) break
+    }
+    return { armies, nextCursor: cursor ?? null }
   }
 
   /** One army from a finished battle, or nothing. */
@@ -280,13 +343,13 @@ export class PraetoriumService {
   async friendBattles(
     userId: string,
     rules?: BattleMissionRules | null,
-    page?: { limit?: number; before?: BattlesCursor },
+    page?: { limit?: number; before?: BattlesCursor; filter?: BattleFilter },
     factions?: readonly BattleFaction[],
   ) {
-    const { battles: histories, nextCursor } = await this.repository.battlesByFriends(userId, {
-      limit: page?.limit ?? PUBLIC_BATTLES_PAGE,
-      before: page?.before,
-    })
+    const limit = page?.limit ?? PUBLIC_BATTLES_PAGE
+    if (battleFilterActive(page?.filter))
+      return this.filteredFeed((read) => this.repository.battlesByFriends(userId, read), { ...page, limit }, userId, rules, factions)
+    const { battles: histories, nextCursor } = await this.repository.battlesByFriends(userId, { limit, before: page?.before })
     return { battles: this.battleSummaries(histories, userId, rules, factions), nextCursor }
   }
 

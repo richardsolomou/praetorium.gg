@@ -46,9 +46,10 @@ import {
   type LocalRoster,
 } from './localRuntime'
 import { battleRules, hasLocalConstruction, loadLocalRules, localConstruction, localRules } from './construction'
-import { cachedRead, cachedPage } from './reads'
+import { cachedRead, cachedPage, filteredPage } from './reads'
 import { isFetchNetworkFailure } from '../networkErrors'
 import { battleKey, battlesKey, meKey, opponentsKey, reportKey } from '../queries/queryKeys'
+import { battleFilterActive, matchesBattle, type BattleFilter } from '../../core/battleFilter'
 
 export function workspaceScreen(
   workspace: BattleWorkspace,
@@ -493,6 +494,13 @@ export async function createSealedEventBattle(
 }
 
 export async function myBattles(args: Parameters<typeof server.myBattles>[0]): ReturnType<typeof server.myBattles> {
+  const filter = args.data.filter as BattleFilter | undefined
+  if (battleFilterActive(filter))
+    return filteredPage(
+      battlesKey(),
+      () => server.myBattles(args),
+      (battle, viewerId) => matchesBattle(battle, filter, viewerId, battle.lastActivity, Date.now()),
+    ) as ReturnType<typeof server.myBattles>
   const page = await cachedPage(battlesKey(), args.data.before, () => server.myBattles(args))
   const state = await localEngine()?.storage.read()
   // Unsynced battles are summarised with the rules, which only they need.

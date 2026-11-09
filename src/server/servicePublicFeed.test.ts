@@ -1,4 +1,4 @@
-import { expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import type { RepositoryPort } from './spacetimeRepository'
 import { PraetoriumService } from './service'
 
@@ -39,4 +39,44 @@ it('reads again after a failed read', async () => {
   publicBattles.mockRejectedValueOnce(new Error('unavailable'))
   await expect(service.publicBattles(null)).rejects.toThrow('unavailable')
   await expect(service.publicBattles(null)).resolves.toEqual({ battles: [], nextCursor: null })
+})
+
+describe('a filtered feed', () => {
+  const history = (id: string, at: number) => ({ battle: { id, token: id, createdAt: at }, at, players: [], log: [] })
+  const walking = (pages: { battles: ReturnType<typeof history>[]; nextCursor: { at: number; id: string } | null }[]) => {
+    const publicBattles = vi.fn()
+    for (const page of pages) publicBattles.mockResolvedValueOnce(page)
+    publicBattles.mockImplementation(async ({ before }: { before?: { at: number } }) => ({
+      battles: [],
+      nextCursor: { at: (before?.at ?? 1_000) - 1, id: 'older' },
+    }))
+    const service = new PraetoriumService(
+      { publicBattles } as unknown as RepositoryPort,
+      () => 1_000,
+      () => 0,
+    )
+    return { service, publicBattles }
+  }
+  const nobody = { q: 'no such player' }
+
+  it('walks on when a page holds no match', async () => {
+    const { service, publicBattles } = walking([
+      { battles: [history('a', 900)], nextCursor: { at: 900, id: 'a' } },
+      { battles: [], nextCursor: null },
+    ])
+    await service.publicBattles(null, null, { filter: nobody })
+    expect(publicBattles).toHaveBeenCalledTimes(2)
+  })
+
+  it('stops at its limit and leaves a cursor to continue from', async () => {
+    const { service, publicBattles } = walking([])
+    const page = await service.publicBattles(null, null, { filter: nobody })
+    expect([publicBattles.mock.calls.length, page.nextCursor]).toEqual([6, { at: 994, id: 'older' }])
+  })
+
+  it('starts a bounded period at its end instead of walking down to it', async () => {
+    const { service, publicBattles } = walking([{ battles: [], nextCursor: null }])
+    await service.publicBattles(null, null, { filter: { to: '1970-01-01' } })
+    expect(publicBattles.mock.calls[0]![0].before).toEqual({ at: 86_400_000, id: '' })
+  })
 })

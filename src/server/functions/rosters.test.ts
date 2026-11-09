@@ -65,13 +65,15 @@ beforeEach(() => {
 })
 
 it('asks the product database for one bounded page of the rules versions in scope', async () => {
-  await invoke({ data: { rules: 'archived', before: null } })
+  await invoke({ data: { rules: { in: ['archived'], out: [] }, before: null } })
   expect(mocks.discover).toHaveBeenCalledWith({
     audience: 'public',
     viewerId: null,
     sort: 'updated-desc',
     catalogueIds: ['legacy~necrons'],
     detachmentIds: null,
+    excludedDetachmentIds: [],
+    namedOwnerIds: [],
     before: null,
     limit: ROSTER_DISCOVERY_PAGE_SIZE,
   })
@@ -89,16 +91,18 @@ it("does not ask for friends' rosters when nobody is signed in", async () => {
 })
 
 it('reads nothing when no rules version is in that state', async () => {
-  expect((await invoke({ data: { rules: 'preview', before: null } })).rosters).toEqual([])
+  expect((await invoke({ data: { rules: { in: ['preview'], out: [] }, before: null } })).rosters).toEqual([])
 })
 
 it('does not ask the product database when no rules version is in that state', async () => {
-  await invoke({ data: { rules: 'preview', before: null } })
+  await invoke({ data: { rules: { in: ['preview'], out: [] }, before: null } })
   expect(mocks.discover).not.toHaveBeenCalled()
 })
 
 it('leaves out a roster that reads as another rules version than the filter asks for', async () => {
-  expect((await invoke({ data: { rules: 'current', before: null } })).rosters.map((found) => found.roster.id)).toEqual(['current'])
+  expect((await invoke({ data: { rules: { in: ['current'], out: [] }, before: null } })).rosters.map((found) => found.roster.id)).toEqual([
+    'current',
+  ])
 })
 
 it("names each army's owner beside its points and legality", async () => {

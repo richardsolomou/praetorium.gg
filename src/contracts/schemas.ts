@@ -1,5 +1,6 @@
 import { ADMIN_USER_ROLES, ADMIN_USER_SORTS } from '../admin'
 import { z } from 'zod'
+import { battleFilterSchema } from '../core/battleFilter'
 import { REPLAY_BATCH_SIZE } from './battles'
 import { tourTaskIds } from '../core/onboarding'
 import { PLAYER_SEARCH_MAX_LENGTH } from '../core/playerSearch'
@@ -35,7 +36,7 @@ import {
 import { currentCatalogueId, currentEntryId, currentRosterIds } from '../core/retiredCatalogueIds'
 import { ROSTER_SOURCES, ROSTER_VISIBILITIES } from '../core/savedRoster'
 import { ROSTER_BATCH_ACTIONS, ROSTER_BATCH_MAX, ROSTER_LIBRARY_BATCH_SIZE } from '../core/rosterLibrary'
-import { ROSTER_AUDIENCES, rosterDiscoveryCursorSchema, rosterDiscoveryFilterSchema } from '../core/rosterDiscovery'
+import { playedArmyFilterSchema, ROSTER_AUDIENCES, rosterDiscoveryCursorSchema, rosterDiscoveryFilterSchema } from '../core/rosterDiscovery'
 import { ROSTER_SORTS } from '../core/rosterSort'
 import { isPlayerDefaults } from '../core/playerDefaults'
 import { recentMatchupSchema } from '../core/recentMatchups'
@@ -275,6 +276,7 @@ export const deleteBattleSchema = z.object({ token })
 export const battlesPageSchema = z.object({
   before: battlesCursor.nullable().default(null),
 })
+export const battlesFeedSchema = battlesPageSchema.extend({ filter: battleFilterSchema.optional() })
 export const playerDefaultsSchema = z
   .object({ rosterVisibility: z.enum(ROSTER_VISIBILITIES), battleSize: z.number().int() })
   .refine(isPlayerDefaults, 'choose a supported battle size')
@@ -506,7 +508,7 @@ export const rosterBatchSchema = z.object({
   action: z.enum(ROSTER_BATCH_ACTIONS),
 })
 export const rosterLoanSchema = z.object({ id, borrowerId: id })
-export const playedArmiesSchema = rosterDiscoveryFilterSchema.extend({ before: battlesCursor.nullable().default(null) })
+export const playedArmiesSchema = playedArmyFilterSchema.extend({ before: battlesCursor.nullable().default(null) })
 export const playedArmySchema = z.object({ token, playerId: id })
 export const saveUnitLoadoutSchema = unitLoadoutSchema.extend({ id: z.uuid() })
 export const unitLoadoutIdSchema = z.object({ id: z.uuid() })

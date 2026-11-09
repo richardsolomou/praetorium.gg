@@ -8,7 +8,7 @@ import { battleViewerId, requireBattleActor } from '../guestSession'
 import { submitBattleCommand } from '../battleSubmission'
 import { mutationRpc, rpc } from '../rpc'
 import {
-  battlesPageSchema,
+  battlesFeedSchema,
   battleReplaySchema,
   battleReplayBatchSchema,
   createBattleSchema,
@@ -30,12 +30,12 @@ async function orNull<T>(work: () => Promise<T>) {
 }
 
 export const myBattles = createServerFn({ method: 'GET' })
-  .validator(battlesPageSchema)
+  .validator(battlesFeedSchema)
   .handler(({ data }) =>
     rpc(() =>
       forSignedIn({ battles: [], nextCursor: null }, async (id) => {
         const [rules, factions] = await Promise.all([app().rulesFor(), app().battleFactionsFor()])
-        return app().service.battles(id, rules, { limit: BATTLES_PAGE, before: data.before ?? undefined }, factions)
+        return app().service.battles(id, rules, { limit: BATTLES_PAGE, before: data.before ?? undefined, filter: data.filter }, factions)
       }),
     ),
   )
@@ -48,22 +48,22 @@ export const myBattles = createServerFn({ method: 'GET' })
  * is one, only narrows it — their own games are already above it on that page.
  */
 export const publicBattles = createServerFn({ method: 'GET' })
-  .validator(battlesPageSchema)
+  .validator(battlesFeedSchema)
   .handler(({ data }) =>
     rpc(async () => {
       const [viewerId, rules, factions] = await Promise.all([currentUserId(), app().rulesFor(), app().battleFactionsFor()])
-      return app().service.publicBattles(viewerId, rules, { before: data.before ?? undefined }, factions)
+      return app().service.publicBattles(viewerId, rules, { before: data.before ?? undefined, filter: data.filter }, factions)
     }),
   )
 
 /** The battles this player's friends are in and they are not. */
 export const friendBattles = createServerFn({ method: 'GET' })
-  .validator(battlesPageSchema)
+  .validator(battlesFeedSchema)
   .handler(({ data }) =>
     rpc(() =>
       forSignedIn({ battles: [], nextCursor: null }, async (id) => {
         const [rules, factions] = await Promise.all([app().rulesFor(), app().battleFactionsFor()])
-        return app().service.friendBattles(id, rules, { before: data.before ?? undefined }, factions)
+        return app().service.friendBattles(id, rules, { before: data.before ?? undefined, filter: data.filter }, factions)
       }),
     ),
   )

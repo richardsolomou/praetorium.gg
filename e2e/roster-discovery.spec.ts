@@ -9,7 +9,6 @@ import {
   waitForRosterSave,
   setRosterAccess,
   addUnit,
-  chooseOption,
   PHONE,
 } from './account'
 import { expectNoHorizontalOverflow, shot, closePicker } from './builder.harness'
@@ -30,17 +29,18 @@ async function addNotedUnit(page: Page) {
 
 async function filterTo(page: Page, choices: { faction: string; detachment: string; rules: string }) {
   await expect(page.getByRole('heading', { name: 'Public rosters', exact: true })).toBeVisible()
-  const dialog = page.getByRole('dialog', { name: 'Filter rosters' })
-  await retryUntilVisible(dialog, () => page.getByRole('button', { name: 'Filter', exact: true }).click())
-  for (const [label, option] of [
-    ['Faction', choices.faction],
-    ['Detachment', choices.detachment],
-    ['Rules version', choices.rules],
+  for (const [filter, label, option] of [
+    ['faction', 'Faction', choices.faction],
+    ['detachment', 'Detachment', choices.detachment],
+    ['rules', 'Rules version', choices.rules],
   ] as const) {
-    await chooseOption(page, label, option)
-    await expect(dialog.getByRole('combobox', { name: label })).toContainText(option, { timeout: 60_000 })
+    const pill = page.locator(`[data-filter="${filter}"]`)
+    const choice = page.getByRole('button', { name: option, exact: true })
+    await retryUntilVisible(choice, () => pill.getByRole('button', { name: label }).click())
+    await choice.click()
+    await expect(pill).toContainText(option, { timeout: 60_000 })
+    await page.keyboard.press('Escape')
   }
-  await dialog.getByRole('button', { name: 'Done' }).click()
 }
 
 for (const [width, label] of [
@@ -222,10 +222,7 @@ test('public rosters keep a chosen order in the address across filter changes', 
   await expect(page).toHaveURL(/[?&]sort=name-asc/)
   await page.goto('/rosters?view=public&sort=name-asc&faction=necrons')
   await page.waitForLoadState('networkidle')
-  await page.getByRole('button', { name: 'Filter 1', exact: true }).click()
-  const dialog = page.getByRole('dialog', { name: 'Filter rosters' })
-  await dialog.getByRole('button', { name: 'Clear filters' }).click()
+  await page.getByRole('button', { name: 'Clear filters' }).click()
   await expect(page).toHaveURL(/\/rosters\?view=public&sort=name-asc$/)
-  await dialog.getByRole('button', { name: 'Done' }).click()
   await expect(page.getByRole('button', { name: 'Sort: A to Z' })).toBeVisible()
 })

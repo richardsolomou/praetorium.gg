@@ -1,4 +1,4 @@
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
 import { Copy, Eye, ScrollText, Swords, Users } from 'lucide-react'
 import { posthog } from 'posthog-js'
@@ -6,11 +6,15 @@ import { Button } from '@/components/ui/button'
 import { buttonClass } from '../../components/buttonClass'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
+  ROSTER_SEARCH_MAX_LENGTH,
   RULES_VERSION_STATUSES,
+  type PlayedArmyFilter,
   type RosterAudience,
   type RosterDiscoveryFilter,
   type RulesVersionStatus,
 } from '../../../core/rosterDiscovery'
+import { facetActive, facetMatches, facetText, type FacetAddress, type PeriodFilter } from '../../../core/listFilter'
+import { GAME_SIZES, battleSizeOptionLabel } from '../../../core/battle'
 import { currentCatalogueFamilyId } from '../../../core/retiredCatalogueIds'
 import type { RosterSort } from '../../../core/rosterSort'
 import { rulesVersionStatus } from '../../../core/rosterDiscoveryScope'
@@ -22,6 +26,8 @@ import { useFavouriteFactions } from '../../favouriteFactions'
 import {
   discoveredRostersQuery,
   factionIndexQuery,
+  friendshipsQuery,
+  gameReferencesQuery,
   invalidateSavedRosters,
   meQuery,
   playedArmiesQuery,
@@ -30,7 +36,12 @@ import {
 import { errorMessage } from '../../queryClient'
 import { factionSelectGroups } from './builder/factions'
 import { CreateRoster } from './CreateRoster'
-import { FilterDialog, FilterField, NoFilterMatches, RosterSortMenu } from './RosterFilters'
+import { RosterSortMenu } from './RosterFilters'
+import { factionFamilies } from './factionFamilies'
+import { FilterBar, type FilterDimension } from '../../components/FilterBar'
+import { NoFilterMatches } from '../../components/NoFilterMatches'
+import { facetsOf, periodSearch } from '../../searchParams'
+import { countLabel } from '../../text'
 import { RosterImport } from './RosterImport'
 import { RosterSummary, rosterTitle } from './RosterSummary'
 import { RosterViews } from './RosterViews'
@@ -43,43 +54,54 @@ import { FactionMark } from '../../components/FactionMark'
 import { BATTLE_ENDINGS, battleOutcomeStage } from '../../battleStage'
 import { OwnerLink } from './OwnerLink'
 
-export type RosterDiscoverySearch = { faction?: string; detachment?: string; rules?: RulesVersionStatus; sort?: RosterSort }
+export const DISCOVERY_FACETS = ['faction', 'detachment', 'rules', 'size', 'disposition', 'owner', 'result', 'against'] as const
+export type RosterDiscoverySearch = PeriodFilter & { q?: string; sort?: RosterSort } & Partial<
+    Record<(typeof DISCOVERY_FACETS)[number], FacetAddress>
+  >
 
 type IndexedFactions = NonNullable<QueryData<typeof factionIndexQuery>>['factions']
 type DiscoveredPage = QueryData<typeof discoveredRostersQuery>
 type Discovered = DiscoveredPage['rosters'][number]
 type PlayedArmy = QueryData<typeof playedArmiesQuery>['armies'][number]
 
+const plain = (items: { label: string; value: string }[]): SearchableGroup[] => [{ label: '', items }]
 const RULES_LABEL: Record<RulesVersionStatus, string> = { current: 'Current', archived: 'Archived', preview: 'Preview' }
-const RULES_GROUPS: SearchableGroup[] = [
-  {
-    label: '',
-    items: [
-      { label: 'Any rules version', value: 'all' },
-      ...RULES_VERSION_STATUSES.map((status) => ({ label: RULES_LABEL[status], value: status })),
-    ],
-  },
-]
+const RULES_GROUPS = plain(RULES_VERSION_STATUSES.map((status) => ({ label: RULES_LABEL[status], value: status })))
+const SIZE_GROUPS = plain(GAME_SIZES.map((size) => ({ label: battleSizeOptionLabel(size), value: String(size.limit) })))
+const RESULT_GROUPS = plain([
+  { label: 'Won', value: 'won' },
+  { label: 'Lost', value: 'lost' },
+  { label: 'Drawn', value: 'drawn' },
+])
 
-/** One entry per faction, named by its current rules where it has them, whatever versions its rosters use. */
-function factionFamilies(factions: IndexedFactions) {
-  const families = new Map<string, IndexedFactions[number]>()
-  for (const faction of factions) {
-    const family = currentCatalogueFamilyId(faction.id)
-    const known = families.get(family)
-    if (!known || (faction.isDefault && !known.isDefault)) families.set(family, faction)
+/** The filter the page's address asks for, read against the faction index. An address can name any rules version of a faction. */
+export function discoveryFilter(search: RosterDiscoverySearch, factions: IndexedFactions): RosterDiscoveryFilter {
+  const { faction, detachment, rules, size, disposition, owner } = facetsOf(search, DISCOVERY_FACETS)
+  const familyOf = (slug: string) => {
+    const named = factions.find((entry) => entry.slug === slug)
+    return named ? [currentCatalogueFamilyId(named.id)] : []
   }
-  return [...families].map(([family, faction]) => ({ ...faction, family }))
+  const family = faction && { in: faction.in.flatMap(familyOf), out: faction.out.flatMap(familyOf) }
+  return {
+    ...(facetActive(family) ? { faction: family } : {}),
+    ...(facetActive(family) && detachment ? { detachment: detachment } : {}),
+    ...(rules ? { rules: rules } : {}),
+    ...(size ? { size: size } : {}),
+    ...(disposition ? { disposition: disposition } : {}),
+    ...(owner ? { owner: owner } : {}),
+    ...(search.q ? { q: search.q } : {}),
+  }
 }
 
-/** The filter the page's address asks for, read against the faction index. */
-export function discoveryFilter(search: RosterDiscoverySearch, factions: IndexedFactions): RosterDiscoveryFilter {
-  const named = factions.find((faction) => faction.slug === search.faction)
-  const family = named && currentCatalogueFamilyId(named.id)
+/** The same address read for the Played tab, which also knows how each battle went and when. */
+export function playedFilter(search: RosterDiscoverySearch, factions: IndexedFactions): PlayedArmyFilter {
+  const { owner: _owner, ...shared } = discoveryFilter(search, factions)
+  const { result, against } = facetsOf(search, DISCOVERY_FACETS)
   return {
-    ...(family ? { faction: family } : {}),
-    ...(family && search.detachment ? { detachment: search.detachment } : {}),
-    ...(search.rules ? { rules: search.rules } : {}),
+    ...shared,
+    ...(result ? { result: result } : {}),
+    ...(against ? { against: against } : {}),
+    ...periodSearch(search),
   }
 }
 
@@ -92,32 +114,60 @@ export function RosterDiscoveryPage({ view, search }: { view: RosterAudience | '
   const indexResult = useQuery(factionIndexQuery())
   const factions = indexResult.data?.factions ?? []
   const filter = discoveryFilter(search, factions)
+  const facets = facetsOf(search, DISCOVERY_FACETS)
   const { favourites } = useFavouriteFactions(Boolean(me))
+  const { data: references } = useQuery(gameReferencesQuery())
+  const { data: friendships } = useQuery({ ...friendshipsQuery(), enabled: view === 'friends' && Boolean(me) })
   const families = factionFamilies(factions)
-  const family = families.find((faction) => faction.family === filter.faction)
+  const chosenFamilies = new Set(filter.faction?.in ?? [])
   const detachments = new Map<string, string>()
   for (const faction of factions)
-    if (family && currentCatalogueFamilyId(faction.id) === family.family && (!filter.rules || rulesVersionStatus(faction) === filter.rules))
+    if (chosenFamilies.has(currentCatalogueFamilyId(faction.id)) && facetMatches(filter.rules, [rulesVersionStatus(faction) ?? '']))
       for (const detachment of faction.detachments) detachments.set(detachment.id, detachment.name)
-  const detachmentGroups: SearchableGroup[] = [
+  const factionGroups = factionSelectGroups(
+    families.map((faction) => ({ ...faction, id: faction.slug })),
+    new Set(families.filter((faction) => favourites.has(faction.id)).map((faction) => faction.slug)),
+  )
+  const dimensions: FilterDimension[] = [
+    { key: 'faction', label: 'Faction', groups: factionGroups, pinned: true },
     {
-      label: '',
-      items: [
-        { label: 'Any detachment', value: 'all' },
-        ...[...detachments].map(([value, label]) => ({ label, value })).toSorted((left, right) => left.label.localeCompare(right.label)),
-      ],
+      key: 'detachment',
+      label: 'Detachment',
+      pinned: true,
+      groups: plain(
+        [...detachments].map(([value, label]) => ({ label, value })).toSorted((left, right) => left.label.localeCompare(right.label)),
+      ),
     },
-  ]
-  const factionGroups: SearchableGroup[] = [
-    { label: '', items: [{ label: 'All factions', value: 'all' }] },
-    ...factionSelectGroups(
-      families.map((faction) => ({ ...faction, id: faction.slug })),
-      new Set(families.filter((faction) => favourites.has(faction.id)).map((faction) => faction.slug)),
-    ),
+    { key: 'size', label: 'Battle size', groups: SIZE_GROUPS, pinned: true },
+    { key: 'rules', label: 'Rules version', groups: RULES_GROUPS, pinned: true },
+    {
+      key: 'disposition',
+      label: 'Disposition',
+      groups: plain((references?.dispositions ?? []).map((disposition) => ({ label: disposition.name, value: disposition.id }))),
+    },
+    ...(view === 'friends'
+      ? [
+          {
+            key: 'owner',
+            label: 'Friend',
+            pinned: true,
+            groups: plain((friendships?.friends ?? []).map((friend) => ({ label: friend.name, value: friend.id }))),
+          },
+        ]
+      : []),
+    ...(played
+      ? [
+          { key: 'result', label: 'Result', groups: RESULT_GROUPS, pinned: true },
+          { key: 'against', label: 'Against army', groups: factionGroups, pinned: true },
+        ]
+      : []),
   ]
   const sort = search.sort ?? 'updated-desc'
-  const choose = (next: RosterDiscoverySearch) => void navigate({ to: '/rosters', search: { view, sort: search.sort, ...next } })
-  const active = [filter.faction, filter.detachment, filter.rules].filter(Boolean).length
+  const choose = (next: RosterDiscoverySearch) =>
+    void navigate({ to: '/rosters', search: { view, sort: search.sort, ...next }, replace: true })
+  const { sort: _sort, ...address } = search
+  const active = Object.values(address).filter(Boolean).length
+  const dates = periodSearch(search)
 
   const ready = !search.faction || indexResult.isSuccess
   // A visitor has no friends to list, so their Friends tab says what an account adds instead of asking.
@@ -125,9 +175,15 @@ export function RosterDiscoveryPage({ view, search }: { view: RosterAudience | '
   const result = useInfiniteQuery({
     ...discoveredRostersQuery(filter, played ? 'public' : view, sort),
     enabled: !played && !signedOutFriends && ready,
+    placeholderData: keepPreviousData,
   })
-  const playedResult = useInfiniteQuery({ ...playedArmiesQuery(filter), enabled: played && ready })
+  const playedResult = useInfiniteQuery({
+    ...playedArmiesQuery(playedFilter(search, factions)),
+    enabled: played && ready,
+    placeholderData: keepPreviousData,
+  })
   const shown = result.data?.pages.flatMap((page) => page.rosters) ?? []
+  const total = result.data?.pages[0]?.total ?? null
   const listed = played ? 'played armies' : view === 'friends' ? "friends' public rosters" : 'public rosters'
 
   const queryClient = useQueryClient()
@@ -172,39 +228,44 @@ export function RosterDiscoveryPage({ view, search }: { view: RosterAudience | '
         <RosterViews view={view} />
       </PageHeader>
       <PageContent className="space-y-6">
-        <div className="flex flex-wrap items-center gap-2">
-          <FilterDialog
-            active={active}
-            description={`Narrow the ${listed} to a faction, detachment or rules version.`}
-            onClear={() => choose({})}
-          >
-            <FilterField
-              label="Faction"
-              value={family?.slug ?? 'all'}
-              groups={factionGroups}
-              onChange={(chosen) => choose({ rules: search.rules, ...(chosen === 'all' ? {} : { faction: chosen }) })}
-            />
-            <FilterField
-              label="Detachment"
-              value={filter.detachment ?? 'all'}
-              groups={detachmentGroups}
-              disabled={!family}
-              onChange={(chosen) => choose({ ...search, detachment: chosen === 'all' ? undefined : chosen })}
-            />
-            <FilterField
-              label="Rules version"
-              value={filter.rules ?? 'all'}
-              groups={RULES_GROUPS}
-              onChange={(chosen) => choose({ ...search, rules: chosen === 'all' ? undefined : (chosen as RulesVersionStatus) })}
-            />
-          </FilterDialog>
-          {played ? null : (
-            <RosterSortMenu
-              value={sort}
-              onChange={(chosen) => choose({ ...search, sort: chosen === 'updated-desc' ? undefined : chosen })}
-            />
-          )}
-        </div>
+        <FilterBar
+          scope={`rosters:${view}`}
+          label="Roster"
+          query={search.q ?? ''}
+          onQuery={(next) => choose({ ...search, q: next.trim() || undefined })}
+          placeholder={played ? 'Search armies, players, detachments…' : 'Search roster names and players…'}
+          maxQueryLength={ROSTER_SEARCH_MAX_LENGTH}
+          dimensions={dimensions}
+          value={facets}
+          onChange={(key, facet) =>
+            choose({
+              ...search,
+              [key]: facetText(facet),
+              // A detachment belongs to the factions chosen, so it goes when they do.
+              ...(key === 'faction' && !facet?.in.length ? { detachment: undefined } : {}),
+            })
+          }
+          period={
+            played
+              ? {
+                  label: 'Played',
+                  value: dates,
+                  onChange: (next) => choose({ ...search, period: undefined, from: undefined, to: undefined, ...next }),
+                }
+              : undefined
+          }
+          address={address}
+          onApply={(next) => choose(next)}
+          sort={
+            played ? null : (
+              <RosterSortMenu
+                value={sort}
+                onChange={(chosen) => choose({ ...search, sort: chosen === 'updated-desc' ? undefined : chosen })}
+              />
+            )
+          }
+          summary={!played && active > 0 && total !== null ? countLabel(total, 'roster') : null}
+        />
         {duplicate.isError ? <Problem>Could not duplicate that roster: {errorMessage(duplicate.error)}</Problem> : null}
         {copyPlayed.isError ? <Problem>Could not copy that army: {errorMessage(copyPlayed.error)}</Problem> : null}
         {create.saveError ? <Problem>{create.saveError}</Problem> : null}
@@ -216,7 +277,6 @@ export function RosterDiscoveryPage({ view, search }: { view: RosterAudience | '
             filtered={active > 0}
             copying={copyPlayed.isPending ? copyPlayed.variables : null}
             onCopy={(army) => (another ? another() : copyPlayed.mutate(army))}
-            onClearFilters={() => choose({})}
           />
         ) : (
           <section>
@@ -257,7 +317,7 @@ export function RosterDiscoveryPage({ view, search }: { view: RosterAudience | '
                 </div>
               ) : shown.length || result.hasNextPage ? (
                 <>
-                  {shown.length ? null : <p className="py-2 text-sm text-dim">None of the most recently saved rosters match yet.</p>}
+                  {shown.length ? null : <p className="py-2 text-sm text-dim">None of the rosters searched so far match.</p>}
                   {shown.length ? (
                     <div className="runner gap-3 [--gate-x:1rem] [--gate-y:1.5rem] sm:[--gate-x:1.5rem]">
                       {shown.map((entry) => (
@@ -279,7 +339,7 @@ export function RosterDiscoveryPage({ view, search }: { view: RosterAudience | '
                   ) : null}
                 </>
               ) : active ? (
-                <NoFilterMatches onClear={() => choose({})}>No {listed} match these filters</NoFilterMatches>
+                <NoFilterMatches>No {listed} match these filters</NoFilterMatches>
               ) : view === 'friends' ? (
                 <div data-friends-empty>
                   <PageState
@@ -327,14 +387,12 @@ function PlayedArmies({
   filtered,
   copying,
   onCopy,
-  onClearFilters,
 }: {
   result: ReturnType<typeof useInfiniteQuery<QueryData<typeof playedArmiesQuery>>>
   factions: IndexedFactions
   filtered: boolean
   copying: PlayedArmy | null
   onCopy: (army: PlayedArmy) => void
-  onClearFilters: () => void
 }) {
   const armies = result.data?.pages.flatMap((page) => page.armies) ?? []
   return (
@@ -363,7 +421,7 @@ function PlayedArmies({
           </div>
         ) : armies.length || result.hasNextPage ? (
           <>
-            {armies.length ? null : <p className="py-2 text-sm text-dim">None of the most recently finished battles match yet.</p>}
+            {armies.length ? null : <p className="py-2 text-sm text-dim">None of the battles searched so far match.</p>}
             <div className="runner gap-3 [--gate-x:1rem] [--gate-y:1.5rem] sm:[--gate-x:1.5rem] empty:hidden">
               {armies.map((army) => {
                 const indexed = factions.find((faction) => faction.id === army.catalogueId)
@@ -410,12 +468,12 @@ function PlayedArmies({
             </div>
             {result.hasNextPage ? (
               <Button variant="outline" disabled={result.isFetchingNextPage} onClick={() => void result.fetchNextPage()}>
-                {result.isFetchingNextPage ? 'Loading…' : 'Show more armies'}
+                {result.isFetchingNextPage ? 'Loading…' : armies.length ? 'Show more armies' : 'Search older battles'}
               </Button>
             ) : null}
           </>
         ) : filtered ? (
-          <NoFilterMatches onClear={onClearFilters}>No played armies match these filters</NoFilterMatches>
+          <NoFilterMatches>No played armies match these filters</NoFilterMatches>
         ) : (
           <PageState
             headingLevel={2}

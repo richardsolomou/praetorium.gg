@@ -71,6 +71,8 @@ export function battleSummary(
     mission: rules ? resolvedMissionForSide(state, rules, viewerSide) : null,
     deploymentId: state.deploymentId,
     settings: state.settings,
+    // Whether it counts for a group or tournament, without naming one a private group keeps to its players.
+    organised: state.groupId !== null || state.eventToken !== null || state.sealedEventToken !== null,
     result: state.result,
     lastActivity: log.at(-1)?.at ?? battle.createdAt,
   }

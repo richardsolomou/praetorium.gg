@@ -29,7 +29,11 @@ export function FactionPage({ catalogueId }: { catalogueId: string }) {
   const { favourites } = useFavouriteDetachments()
   // The rosters page asks for exactly this filter and order, so following the link reuses the answer.
   const { data: publicRosters } = useInfiniteQuery({
-    ...discoveredRostersQuery({ faction: faction ? currentCatalogueFamilyId(faction.id) : '' }, 'public', 'updated-desc'),
+    ...discoveredRostersQuery(
+      { faction: { in: [faction ? currentCatalogueFamilyId(faction.id) : ''], out: [] } },
+      'public',
+      'updated-desc',
+    ),
     enabled: Boolean(faction),
   })
   const publicArmies = publicRosters?.pages[0]?.total ?? null

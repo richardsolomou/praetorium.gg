@@ -1,7 +1,7 @@
 import { GuideHelp } from '../onboarding/GuideHelp'
 import { useQuery } from '@tanstack/react-query'
 import { Link, useNavigate, useRouter } from '@tanstack/react-router'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { ChevronDown, ScrollText } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
@@ -34,7 +34,25 @@ import { RosterImport } from './RosterImport'
 import { RosterSetupDialog, type RosterSetup } from './RosterSetupDialog'
 import { rosterSetupOf } from './rosterDraft'
 import { factionSelectGroups } from './builder/factions'
-import { NoFilterMatches, RosterFilters, type RosterUpdateFilter } from './RosterFilters'
+import { RosterSortMenu } from './RosterFilters'
+import { FilterBar, type FilterDimension } from '../../components/FilterBar'
+import { NoFilterMatches } from '../../components/NoFilterMatches'
+import type { SearchableGroup } from '../../components/SearchableSelect'
+import { facetsOf, periodSearch } from '../../searchParams'
+import {
+  facetMatches,
+  facetText,
+  periodBounds,
+  withinPeriod,
+  type Facet,
+  type FacetAddress,
+  type PeriodFilter,
+} from '../../../core/listFilter'
+import { ROSTER_SEARCH_MAX_LENGTH } from '../../../core/rosterDiscovery'
+import { ROSTER_VISIBILITIES, type RosterVisibility } from '../../../core/savedRoster'
+import { GAME_SIZES, battleSizeOptionLabel } from '../../../core/battle'
+import { countBy } from '../../../core/collections'
+import { matchesSearch } from '../../text'
 import { RosterRow } from './RosterRow'
 import { RosterLoanDialog } from './RosterLoanDialog'
 import { CreateBattle } from '../battles/CreateBattle'
@@ -46,12 +64,19 @@ import { keepRosterSort } from './rosterSort'
 import { type RosterSort, sortRosters } from '../../../core/rosterSort'
 import { SETUP_STATE, useWorkspaceState } from './workspaceState'
 import { useFavouriteFactions } from '../../favouriteFactions'
-import { factionIndexQuery, meQuery, rostersLentToMeQuery, savedRosterChangedIdsQuery, savedRosterSummariesQuery } from '../../queries'
+import {
+  factionIndexQuery,
+  gameReferencesQuery,
+  meQuery,
+  rostersLentToMeQuery,
+  savedRosterChangedIdsQuery,
+  savedRosterSummariesQuery,
+  type QueryData,
+} from '../../queries'
 import { LentRosterList } from './LentRosters'
 import { RosterViews } from './RosterViews'
 import { useDispositionNames } from '../battle/setup/chrome'
 import { useOrigin } from '../../useOrigin'
-import type { RosterVisibility } from '../../../core/savedRoster'
 import { ROSTER_BATCH_MAX, ROSTER_LIBRARY_BATCH_SIZE, type RosterBatchAction } from '../../../core/rosterLibrary'
 import { variantCards, variantGroups } from '../../../core/rosterVariants'
 import { useRosterPages } from './rosterPages'
@@ -59,8 +84,22 @@ import { errorMessage } from '../../queryClient'
 import { Problem } from '../../components/Problem'
 import { countLabel } from '../../text'
 
-export type RosterLibrarySearch = { limit?: number; faction?: string; visibility?: RosterVisibility; updates?: RosterUpdateFilter }
+export const LIBRARY_FACETS = ['limit', 'faction', 'detachment', 'visibility', 'disposition', 'updates', 'state'] as const
+export type RosterLibrarySearch = PeriodFilter & { q?: string } & Partial<Record<(typeof LIBRARY_FACETS)[number], FacetAddress>>
+
+const plain = (items: { label: string; value: string; detail?: string }[]): SearchableGroup[] => [{ label: '', items }]
+const SHARING_LABEL: Record<RosterVisibility, string> = { private: 'Private', unlisted: 'Unlisted', public: 'Public' }
+const UPDATE_GROUPS = plain([
+  { label: 'Older rules', value: 'older' },
+  { label: 'Changed by update', value: 'changed' },
+])
+const STATE_GROUPS = plain([
+  { label: 'Locked', value: 'locked' },
+  { label: 'Variant of another list', value: 'variant' },
+])
 /** An unsaved setup edit, kept per tab so a refresh does not lose it. */
+type FilterableFaction =
+  QueryData<typeof factionIndexQuery> extends infer Index ? (Index extends { factions: (infer Faction)[] } ? Faction : never) : never
 type EditingSession = { rosterId: string; draft: RosterSetup }
 
 const WORKSPACE_PATH = '/rosters/'
@@ -92,13 +131,7 @@ export function RosterLibraryPage({
   device?: DeviceLibrary
 }) {
   const [selectedSort, setSelectedSort] = useState(sort)
-  const pageKey = JSON.stringify([
-    search.limit ?? null,
-    search.faction ?? null,
-    search.visibility ?? null,
-    search.updates ?? null,
-    selectedSort,
-  ])
+  const pageKey = JSON.stringify([search, selectedSort])
   const [page, setPage] = useState({ key: pageKey, visibleCount: ROSTER_LIBRARY_BATCH_SIZE })
   const visibleCount = page.key === pageKey ? page.visibleCount : ROSTER_LIBRARY_BATCH_SIZE
   const [sortFrom, setSortFrom] = useState(sort)
@@ -106,6 +139,7 @@ export function RosterLibraryPage({
     setSortFrom(sort)
     setSelectedSort(sort)
   }
+  const [now] = useState(() => Date.now())
   const { data: me } = useQuery(meQuery())
   const guest = me ? null : (device?.guest ?? null)
   const savedResult = useQuery({ ...savedRosterSummariesQuery(), enabled: Boolean(me) })
@@ -119,38 +153,42 @@ export function RosterLibraryPage({
   const navigate = useNavigate()
   const router = useRouter()
   const { favourites } = useFavouriteFactions(Boolean(me))
-  const factionSlugById = new Map((available?.factions ?? []).map((faction) => [faction.id, faction.slug]))
-  const selectedFactionId = available?.factions.find((faction) => faction.slug === search.faction)?.id
-  const factionGroups = factionSelectGroups(available?.factions ?? [], favourites).map((group) => ({
-    ...group,
-    items: group.items.map((faction) => ({ ...faction, value: factionSlugById.get(faction.value) ?? faction.value })),
-  }))
+  const facets = facetsOf(search, LIBRARY_FACETS)
+  const facetUses = (facet: Facet | undefined, value: string) => Boolean(facet?.in.includes(value) || facet?.out.includes(value))
   // Walking every list is slow, so it waits for the visible rows unless the filter asks for it.
   const [rowsSettled, setRowsSettled] = useState(false)
   const changedResult = useQuery({
     ...savedRosterChangedIdsQuery(),
-    enabled: Boolean(me && savedResult.isSuccess && (rowsSettled || search.updates === 'changed')),
+    enabled: Boolean(me && savedResult.isSuccess && (rowsSettled || facetUses(facets.updates, 'changed'))),
   })
   const changedIds = new Set(changedResult.data ?? [])
   const olderRules = (roster: SavedRoster) => Boolean(currentRulesFor(roster.catalogueId, available?.factions ?? []))
+  const factionOf = (roster: SavedRoster) => available?.factions.find((faction) => faction.id === roster.catalogueId)
+  const bounds = periodBounds(periodSearch(search), now)
   const shown = sortRosters(
-    saved.filter(
-      (roster) =>
-        (search.limit === undefined || roster.limit === search.limit) &&
-        (search.faction === undefined || roster.catalogueId === selectedFactionId) &&
-        (search.visibility === undefined || roster.visibility === search.visibility) &&
-        (search.updates !== 'older' || olderRules(roster)) &&
-        (search.updates !== 'changed' || changedIds.has(roster.id)),
-    ),
+    saved.filter((roster) => {
+      const faction = factionOf(roster)
+      return (
+        facetMatches(facets.limit, [String(roster.limit)]) &&
+        facetMatches(facets.faction, faction ? [faction.slug] : []) &&
+        facetMatches(facets.detachment, roster.detachmentIds) &&
+        facetMatches(facets.visibility, [roster.visibility]) &&
+        facetMatches(facets.disposition, roster.disposition ? [roster.disposition] : []) &&
+        facetMatches(facets.updates, [...(olderRules(roster) ? ['older'] : []), ...(changedIds.has(roster.id) ? ['changed'] : [])]) &&
+        facetMatches(facets.state, [...(roster.locked ? ['locked'] : []), ...(roster.baseRosterId ? ['variant'] : [])]) &&
+        withinPeriod(roster.updatedAt, bounds) &&
+        (!search.q || matchesSearch(`${rosterTitle(roster, faction)} ${faction?.displayName ?? ''}`, search.q))
+      )
+    }),
     selectedSort,
   )
-  const needsFactions = Boolean(search.faction || search.updates === 'older')
+  const needsChanged = facetUses(facets.updates, 'changed')
+  const needsFactions = Boolean(search.faction || search.q || search.updates)
   const libraryPending =
     (me ? savedResult.isPending : Boolean(device?.pending)) ||
     (needsFactions && availableResult.isPending) ||
-    (search.updates === 'changed' && changedResult.isPending)
-  const libraryError =
-    (me && savedResult.isError) || (needsFactions && availableResult.isError) || (search.updates === 'changed' && changedResult.isError)
+    (needsChanged && changedResult.isPending)
+  const libraryError = (me && savedResult.isError) || (needsFactions && availableResult.isError) || (needsChanged && changedResult.isError)
   const active = shown.filter((roster) => !roster.archived)
   const archived = shown.filter((roster) => roster.archived)
   const [archivedOpen, setArchivedOpen] = useState(false)
@@ -175,8 +213,8 @@ export function RosterLibraryPage({
     : pages.byId
   const changedLists = changedIds.size
   const olderLists = available ? saved.filter(olderRules).length : 0
-  const olderNotice = Boolean(olderLists) && search.updates !== 'older'
-  const changedNotice = Boolean(changedLists) && search.updates !== 'changed'
+  const olderNotice = Boolean(olderLists) && !facetUses(facets.updates, 'older')
+  const changedNotice = Boolean(changedLists) && !facetUses(facets.updates, 'changed')
   // The changed count loads after the rows, so a notice arriving then would push them down unless its line is kept.
   const noticesKnown = Boolean(available) && !(me && changedResult.isPending)
   const keepNoticeLine = notices && !noticesKnown && !libraryError
@@ -294,7 +332,7 @@ export function RosterLibraryPage({
     )
   }
 
-  const filtered = Boolean(search.limit !== undefined || search.faction || search.visibility || search.updates)
+  const filtered = Object.values(search).some(Boolean)
   const deletingCount = deleting?.rosters.length ?? 0
   const unarchived = guest ? [] : (deleting?.rosters.filter((roster) => !roster.archived) ?? [])
   const archivable = unarchived.length > 0
@@ -326,7 +364,7 @@ export function RosterLibraryPage({
             <RosterImport onImport={me ? undefined : keepImported} blocked={another} />
             <CreateRoster
               factionOptions={available?.factions ?? []}
-              limit={search.limit}
+              limit={facets.limit?.in.length === 1 ? Number(facets.limit.in[0]) : undefined}
               blocked={another}
               starting={starting}
               reference={reference}
@@ -350,23 +388,24 @@ export function RosterLibraryPage({
         )}
         <GuestBattleLink />
         {importError ? <Problem>{importError}</Problem> : null}
-        <RosterFilters
-          value={{ ...search, sort: selectedSort }}
-          factionGroups={factionGroups}
-          onChange={({ sort: chosen, ...filters }) => {
-            if (chosen !== selectedSort) {
-              setSelectedSort(chosen)
-              keepRosterSort(chosen)
-              void router.invalidate({ filter: (match) => match.routeId === '/rosters/' })
-            }
-            if (
-              filters.limit !== search.limit ||
-              filters.faction !== search.faction ||
-              filters.visibility !== search.visibility ||
-              filters.updates !== search.updates
-            )
-              void navigate({ to: '/rosters', search: filters })
-          }}
+        <RosterLibraryFilters
+          search={search}
+          facets={facets}
+          rosters={saved}
+          factions={available?.factions ?? []}
+          favourites={favourites}
+          count={filtered && !libraryPending ? shown.length : null}
+          onChange={(next) => void navigate({ to: '/rosters', search: next, replace: true })}
+          sort={
+            <RosterSortMenu
+              value={selectedSort}
+              onChange={(chosen) => {
+                setSelectedSort(chosen)
+                keepRosterSort(chosen)
+                void router.invalidate({ filter: (match) => match.routeId === '/rosters/' })
+              }}
+            />
+          }
         />
         {actions.lock.isError ? <Problem error={actions.lock.error} /> : null}
         {actions.split.isError ? <Problem error={actions.split.error} /> : null}
@@ -471,7 +510,7 @@ export function RosterLibraryPage({
                 ) : null}
               </>
             ) : saved.length ? (
-              <NoFilterMatches onClear={filtered ? () => void navigate({ to: '/rosters', search: {} }) : undefined}>
+              <NoFilterMatches>
                 {archived.length ? 'Every roster here is archived. Archived rosters are listed below.' : 'No rosters match these filters'}
               </NoFilterMatches>
             ) : (
@@ -623,4 +662,106 @@ function RosterLibrarySkeleton() {
       <Skeleton className="size-8" />
     </div>
   ))
+}
+
+function RosterLibraryFilters({
+  search,
+  facets,
+  rosters,
+  factions,
+  favourites,
+  count,
+  onChange,
+  sort,
+}: {
+  search: RosterLibrarySearch
+  facets: Partial<Record<(typeof LIBRARY_FACETS)[number], Facet>>
+  rosters: readonly SavedRoster[]
+  factions: readonly FilterableFaction[]
+  favourites: ReadonlySet<string>
+  count: number | null
+  onChange: (next: RosterLibrarySearch) => void
+  sort: ReactNode
+}) {
+  const { data: references } = useQuery(gameReferencesQuery())
+  const tally = <T,>(values: T[]) => countBy(values, (value) => value)
+  const countOf = (counts: ReadonlyMap<unknown, number>, value: unknown) => String(counts.get(value) ?? 0)
+  // Everything here is in the browser already, so the choices are what the library holds and each can say how many.
+  const held = factions.filter((faction) => rosters.some((roster) => roster.catalogueId === faction.id))
+  const perFaction = tally(rosters.map((roster) => roster.catalogueId))
+  const factionGroups = factionSelectGroups(held, favourites).map((group) => ({
+    ...group,
+    items: group.items.map((item) => ({
+      ...item,
+      value: factions.find((faction) => faction.id === item.value)?.slug ?? item.value,
+      detail: countOf(perFaction, item.value),
+    })),
+  }))
+  const perDetachment = tally(rosters.flatMap((roster) => roster.detachmentIds))
+  const detachmentNames = new Map(
+    factions.flatMap((faction) => faction.detachments.map((detachment) => [detachment.id, detachment.name] as const)),
+  )
+  const perSize = tally(rosters.map((roster) => roster.limit))
+  const perSharing = tally(rosters.map((roster) => roster.visibility))
+  const perDisposition = tally(rosters.flatMap((roster) => roster.disposition ?? []))
+  const dimensions: FilterDimension[] = [
+    { key: 'faction', label: 'Faction', groups: factionGroups, pinned: true },
+    {
+      key: 'detachment',
+      label: 'Detachment',
+      pinned: true,
+      groups: plain(
+        [...perDetachment.keys()]
+          .map((id) => ({ label: detachmentNames.get(id) ?? id, value: id, detail: countOf(perDetachment, id) }))
+          .toSorted((left, right) => left.label.localeCompare(right.label)),
+      ),
+    },
+    {
+      key: 'limit',
+      label: 'Battle size',
+      pinned: true,
+      groups: plain(
+        GAME_SIZES.map((size) => ({ label: battleSizeOptionLabel(size), value: String(size.limit), detail: countOf(perSize, size.limit) })),
+      ),
+    },
+    {
+      key: 'visibility',
+      label: 'Sharing',
+      pinned: true,
+      groups: plain(ROSTER_VISIBILITIES.map((value) => ({ label: SHARING_LABEL[value], value, detail: countOf(perSharing, value) }))),
+    },
+    { key: 'updates', label: 'Rules and data', groups: UPDATE_GROUPS, pinned: true },
+    {
+      key: 'disposition',
+      label: 'Disposition',
+      groups: plain(
+        (references?.dispositions ?? [])
+          .filter((disposition) => perDisposition.has(disposition.id))
+          .map((disposition) => ({ label: disposition.name, value: disposition.id, detail: countOf(perDisposition, disposition.id) })),
+      ),
+    },
+    { key: 'state', label: 'Status', groups: STATE_GROUPS },
+  ]
+  return (
+    <FilterBar
+      scope="rosters:mine"
+      label="Roster"
+      query={search.q ?? ''}
+      onQuery={(next) => onChange({ ...search, q: next.trim() || undefined })}
+      placeholder="Search your rosters…"
+      maxQueryLength={ROSTER_SEARCH_MAX_LENGTH}
+      dimensions={dimensions}
+      value={facets}
+      onChange={(key, facet) => onChange({ ...search, [key]: facetText(facet) })}
+      period={{
+        label: 'Updated',
+        value: periodSearch(search),
+        onChange: (next) => onChange({ ...search, period: undefined, from: undefined, to: undefined, ...next }),
+      }}
+      address={search}
+      onApply={onChange}
+      sort={sort}
+      summary={count === null ? null : countLabel(count, 'roster')}
+    />
+  )
 }

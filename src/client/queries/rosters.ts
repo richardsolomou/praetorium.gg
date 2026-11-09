@@ -3,7 +3,7 @@ import { infiniteQueryOptions, keepPreviousData, type QueryClient, queryOptions 
 import type { FormatRuleId, OptionalRuleId } from '../../core/battle'
 import type { RosterPick } from '../../core/roster'
 import type { FactionDatasheet } from '../../contracts/catalogue'
-import type { RosterAudience, RosterDiscoveryCursor, RosterDiscoveryFilter } from '../../core/rosterDiscovery'
+import type { PlayedArmyFilter, RosterAudience, RosterDiscoveryCursor, RosterDiscoveryFilter } from '../../core/rosterDiscovery'
 import type { RosterSort } from '../../core/rosterSort'
 import type { BattlesCursor } from '../../contracts/battles'
 import {
@@ -65,7 +65,7 @@ export const unitLoadoutsQuery = () =>
   queryOptions({ queryKey: unitLoadoutsKey(), queryFn: () => unitLoadouts(), staleTime: SSR_STALE_TIME })
 
 /** Never saved for offline reading: a battle whose player narrows its audience must leave the page on the next read. */
-export const playedArmiesQuery = (filter: RosterDiscoveryFilter) =>
+export const playedArmiesQuery = (filter: PlayedArmyFilter) =>
   infiniteQueryOptions({
     queryKey: ['played-armies', filter],
     queryFn: ({ pageParam }) => discoverPlayedArmies({ data: { ...filter, before: pageParam } }).then(requirePage('played armies read')),

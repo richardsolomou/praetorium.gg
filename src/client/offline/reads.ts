@@ -58,3 +58,16 @@ export async function cachedPage<T>(key: readonly unknown[], cursor: unknown, on
     throw error
   }
 }
+
+/** Offline, a filter reads the pages already saved for the whole feed; only the online search can reach further back. */
+export async function filteredPage<T>(
+  key: readonly unknown[],
+  online: () => Promise<{ battles: T[]; nextCursor: unknown }>,
+  matches: (battle: T, viewerId: string | null) => boolean,
+) {
+  if (!isOffline()) return online()
+  const cached = localClient()?.getQueryData<{ pages: { battles: T[] }[] }>(key)
+  if (!cached) throw new OfflineRefusal('This page has not been downloaded yet.')
+  const viewerId = localOwner()?.id ?? null
+  return { battles: cached.pages.flatMap((page) => page.battles).filter((battle) => matches(battle, viewerId)), nextCursor: null }
+}

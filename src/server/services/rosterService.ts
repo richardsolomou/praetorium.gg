@@ -1,3 +1,4 @@
+import { PLAYER_SEARCH_MIN_LENGTH } from '../../core/playerSearch'
 import type { RosterBatchAction } from '../../core/rosterLibrary'
 import { randomId } from 'ras-stack/auth'
 import { listUnitCount } from '../../core/attachedUnits'
@@ -138,6 +139,11 @@ export class RosterService {
   }
 
   /** Public rosters anyone can find, newest save first, named and pictured for their owner; a roster whose owner has no account is left out. */
+  /** Whose rosters a search for this text finds by owner, since only the account database holds names. */
+  async ownerIdsNamed(query: string, viewerId: string | null) {
+    return query.length < PLAYER_SEARCH_MIN_LENGTH ? [] : this.repository.playerIdsNamed(query, viewerId)
+  }
+
   async discoverRosters(query: RosterDiscoveryQuery) {
     const { rows, total, nextCursor } = await this.repository.discoverRosters(query)
     const owners = await this.repository.profilesByIds(rows.map((row) => row.userId))
