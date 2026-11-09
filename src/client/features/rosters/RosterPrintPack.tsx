@@ -359,7 +359,7 @@ function TextGapNotice({ gap }: { gap: TextGap }) {
       {gap === 'unchosen' ? (
         <>
           <p className="min-w-0 flex-1">Printing needs the rules text, which loads on this device from the community sources you choose.</p>
-          <Button size="sm" onClick={openTextSourcesDialog}>
+          <Button size="sm" onClick={() => openTextSourcesDialog()}>
             Choose sources
           </Button>
         </>

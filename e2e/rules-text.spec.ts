@@ -12,7 +12,8 @@ const prose = 'The principles of movement are explained here.'
 const ability = 'subtract 1 from that attack’s Damage characteristic'
 
 const rulesPage = '/rules/core-rules/moving'
-const ask = (page: Page) => page.getByRole('main').getByRole('button', { name: 'Choose sources' }).first()
+const gapButtons = (page: Page) => page.getByRole('main').getByRole('button', { name: /^Rules text isn’t loaded\./ })
+const ask = (page: Page) => gapButtons(page).first()
 const dialog = (page: Page) => page.getByRole('dialog', { name: 'Load rules text from community sources' })
 
 /** Turns on exactly these sources in the dialog a prompt opened, then loads them. */
@@ -104,7 +105,7 @@ test('a datasheet gap opens the dialog and loads only the source turned on', asy
   const gaps = page.getByRole('main').getByText('Rules text isn’t loaded.')
   await expect(gaps.first()).toBeVisible()
   // Every gap asks, so a reader who skipped the first still finds a way where they are reading.
-  const choose = page.getByRole('main').getByRole('button', { name: 'Choose sources' })
+  const choose = gapButtons(page)
   expect(await gaps.count()).toBeGreaterThan(1)
   await expect(choose).toHaveCount(await gaps.count())
   await choose.last().click()
@@ -126,6 +127,16 @@ test('a source file that fails to load says so and loads when tried again', asyn
   await page.getByRole('main').getByRole('button', { name: 'Try again' }).first().click()
   await expect(page.getByText(ability)).toBeVisible()
   await expect(failures).toHaveCount(0)
+})
+
+test('a gap names the source the reader left off and marks it in the dialog', async ({ page }) => {
+  await setSource(page, 'BSData', true)
+  await page.goto(rulesPage)
+  await expect(ask(page)).toHaveAccessibleName('Rules text isn’t loaded. Turn on Game Datacards')
+  await ask(page).click()
+  await expect(dialog(page).getByText('Needed for the text you asked to load.')).toHaveCount(1)
+  await loadFromDialog(page, ['Game Datacards'])
+  await expect(page.getByText(prose)).toBeVisible()
 })
 
 test('Game Datacards text loads while BSData text stays unloaded', async ({ page }) => {

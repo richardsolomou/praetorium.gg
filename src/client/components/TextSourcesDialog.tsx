@@ -1,5 +1,6 @@
 import { Link } from '@tanstack/react-router'
 import { useId, useState, useSyncExternalStore } from 'react'
+import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { toggled } from '../../core/collections'
@@ -14,21 +15,30 @@ export function TextSourceRow({
   source,
   checked,
   disabled,
+  needed,
   onCheckedChange,
 }: {
   source: TextSource
   checked: boolean
   disabled?: boolean
+  /** The prompt that opened the dialog needs this source. */
+  needed?: boolean
   onCheckedChange: (checked: boolean) => void
 }) {
   const id = useId()
   const { name, repository, provides, licence } = TEXT_SOURCE_INFO[source]
   return (
-    <div className="flex items-start justify-between gap-4 rounded-lg border border-edge bg-sunken p-3 font-sans">
+    <div
+      className={cn(
+        'flex items-start justify-between gap-4 rounded-lg border bg-sunken p-3 font-sans',
+        needed ? 'border-parchment' : 'border-edge',
+      )}
+    >
       <div className="min-w-0">
         <label htmlFor={id} className="block text-sm font-semibold text-bone">
           {name}
         </label>
+        {needed ? <p className="text-xs text-parchment">Needed for the text you asked to load.</p> : null}
         <p className="text-xs text-dim">{provides}</p>
         <p className="text-xs text-faint">
           <a href={repository} className={linkClass} target="_blank" rel="noreferrer">
@@ -45,8 +55,9 @@ export function TextSourceRow({
   )
 }
 
-/** Whether the one dialog every prompt opens is showing. */
+/** Whether the one dialog every prompt opens is showing, and the source the prompt that opened it needs. */
 let shown = false
+let asked: TextSource | undefined
 const listeners = new Set<() => void>()
 const set = (next: boolean) => {
   shown = next
@@ -59,8 +70,14 @@ const subscribe = (listener: () => void) => {
   }
 }
 
-/** Asks the reader which external sources to load; the same question wherever it is asked. */
-export const openTextSourcesDialog = () => set(true)
+/**
+ * Asks the reader which external sources to load; the same question wherever it is asked.
+ * A prompt that knows its source marks it, but the reader still turns it on themselves.
+ */
+export const openTextSourcesDialog = (source?: TextSource) => {
+  asked = source
+  set(true)
+}
 
 /**
  * The only place a prompt sends a reader to load rules text: it says where the text comes
@@ -74,12 +91,12 @@ export function TextSourcesDialog() {
   )
   return (
     <Dialog open={open} onOpenChange={set}>
-      {open ? <TextSourcesForm close={() => set(false)} /> : null}
+      {open ? <TextSourcesForm needed={asked} close={() => set(false)} /> : null}
     </Dialog>
   )
 }
 
-function TextSourcesForm({ close }: { close: () => void }) {
+function TextSourcesForm({ needed, close }: { needed?: TextSource; close: () => void }) {
   const choice = useTextSourceChoice()
   const [selected, setSelected] = useState<ReadonlySet<TextSource>>(choice.sources)
   const changed = TEXT_SOURCES.some((source) => selected.has(source) !== choice.sources.has(source))
@@ -110,6 +127,7 @@ function TextSourcesForm({ close }: { close: () => void }) {
               key={source}
               source={source}
               checked={selected.has(source)}
+              needed={source === needed}
               onCheckedChange={(on) => setSelected((current) => toggled(current, source, on))}
             />
           ))}

@@ -114,8 +114,8 @@ export function registerTextSources(table: Readonly<Record<string, TextSourceFil
 
 /** What stands in for text this device has not chosen to load, is still loading, could not load, or cannot find. */
 export type MissingText = 'unchosen' | 'loading' | 'failed' | 'unavailable' | null
-/** Text as this device can show it. */
-type LoadedText = { text: string; missing: MissingText }
+/** Text as this device can show it, and the one source to turn on when that alone would load it. */
+type LoadedText = { text: string; missing: MissingText; needs?: TextSource }
 
 /**
  * The sources a text's tokens need that this device has not chosen: the one authority for
@@ -142,7 +142,8 @@ export function loadedText(text: string, choice = textSourceChoice()): LoadedTex
   if (!hasTextTokens(text)) return { text, missing: null }
   const tokens = textTokensIn(text)
   const needs = unchosenSources(tokens, choice)
-  if (needs === null ? choice.sources.size === 0 : needs.length > 0) return { text: withoutText(text), missing: 'unchosen' }
+  if (needs === null ? choice.sources.size === 0 : needs.length > 0)
+    return { text: withoutText(text), missing: 'unchosen', needs: needs?.length === 1 ? needs[0] : undefined }
   const waiting = tokens.some(({ file }) => {
     const url = urls.get(file)
     if (!url) return urls.size === 0
