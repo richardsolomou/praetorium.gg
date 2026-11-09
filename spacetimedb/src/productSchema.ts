@@ -233,6 +233,8 @@ const sealedEvents = table(
     sharedPoints: t.option(t.bool()).default(undefined),
     /** When the round's clock runs out, while an organizer has one running. */
     roundEndsAt: t.option(t.u64()).default(undefined),
+    /** Swiss ties break on strength of schedule before victory points; absent breaks them the other way. */
+    scheduleFirst: t.option(t.bool()).default(undefined),
   },
 )
 

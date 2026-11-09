@@ -419,6 +419,10 @@ export class SpacetimeRepository {
     return this.product.sealedEventCommand({ op: 'drop-no-shows', ...input }, z.enum(['ok', 'closed', 'missing', 'forbidden']))
   }
 
+  setSealedEventTiebreak(input: { token: string; eventToken: string; ownerId: string; scheduleFirst: boolean }) {
+    return this.product.sealedEventCommand({ op: 'set-tiebreak', ...input }, z.enum(['set', 'closed', 'missing', 'forbidden']))
+  }
+
   setSealedEventRoundTimer(input: { token: string; eventToken: string; ownerId: string; endsAt: number | null }) {
     return this.product.sealedEventCommand({ op: 'set-round-timer', ...input }, z.enum(['set', 'not-ready', 'missing', 'forbidden']))
   }
@@ -731,6 +735,7 @@ export class SpacetimeRepository {
       sealBy: event.sealBy,
       remindedAt: event.remindedAt,
       roundEndsAt: event.roundEndsAt ?? null,
+      scheduleFirst: event.scheduleFirst,
       pairings,
       battlefields: record.battlefields,
       occupiedCount: entries.filter((entry) => entry.status !== 'rejected').length,

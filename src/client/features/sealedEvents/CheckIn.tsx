@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { Problem } from '../../components/Problem'
-import { checkInEntrant, dropNoShows } from '../../functions'
+import { checkInEntrant, dropNoShows, setTiebreak } from '../../functions'
 import type { SealedEventEntryView } from '../../../core/sealedEvent'
 import { useSealedEventRefresh } from './sealedEvent'
 
@@ -93,6 +93,26 @@ export function CheckIn({
         onClose={() => setConfirming(false)}
         onConfirm={() => drop.mutate()}
       />
+    </div>
+  )
+}
+
+/** Which tiebreak comes first, which the organizer settles before any result can favour one player. */
+export function TiebreakChoice({ token, eventToken, scheduleFirst }: { token: string; eventToken: string; scheduleFirst: boolean }) {
+  const refresh = useSealedEventRefresh(token)
+  const set = useMutation({
+    mutationFn: (next: boolean) => setTiebreak({ data: { token, eventToken, scheduleFirst: next } }),
+    onSettled: refresh,
+  })
+  return (
+    <div className="mb-4 flex flex-wrap items-center gap-2" data-tiebreak>
+      <p className="text-sm text-dim">
+        Ties break on {scheduleFirst ? 'strength of schedule, then victory points' : 'victory points, then strength of schedule'}.
+      </p>
+      <Button size="sm" variant="ghost" disabled={set.isPending} onClick={() => set.mutate(!scheduleFirst)}>
+        {scheduleFirst ? 'Use victory points first' : 'Use strength of schedule first'}
+      </Button>
+      {set.error ? <Problem error={set.error} /> : null}
     </div>
   )
 }

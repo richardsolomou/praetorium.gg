@@ -463,6 +463,14 @@ export class SealedEventService {
     throw new Response('check-in closes when the first round is paired', { status: 409 })
   }
 
+  async setTiebreak(token: string, eventToken: string, ownerId: string, scheduleFirst: boolean) {
+    const result = await this.repository.setSealedEventTiebreak({ token, eventToken, ownerId, scheduleFirst })
+    if (result === 'set') return
+    if (result === 'missing') throw new Response('no such event', { status: 404 })
+    if (result === 'forbidden') throw new Response('only the organizer can change the tiebreak', { status: 403 })
+    throw new Response('the tiebreak is fixed once round 1 is paired', { status: 409 })
+  }
+
   /** Starts, extends or stops the round's clock; the end time is what everyone counts down to. */
   async setRoundTimer(token: string, eventToken: string, ownerId: string, minutes: number | null, fromEnd: number | null) {
     const endsAt = minutes === null ? null : Math.max(this.clock(), fromEnd ?? 0) + minutes * 60_000

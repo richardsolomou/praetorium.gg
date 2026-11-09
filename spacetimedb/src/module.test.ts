@@ -72,6 +72,7 @@ function insertTournament(ctx: Ctx, event: Partial<SealedEvent> = {}) {
     allyPoints: undefined,
     remindedAt: undefined,
     roundEndsAt: undefined,
+    scheduleFirst: undefined,
     sharedPoints: undefined,
     ...event,
   })

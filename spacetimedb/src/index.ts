@@ -5143,6 +5143,7 @@ function sealedEventCommandIn(tx: Context, args: unknown[]) {
       allyPoints: input.allyPoints ?? undefined,
       remindedAt: undefined,
       roundEndsAt: undefined,
+      scheduleFirst: undefined,
       sharedPoints: input.sharedPoints || undefined,
     })
     if (input.ownerPlays) insertSealedEventEntry(tx, input.eventId, input.ownerId, 'accepted', input.now)
@@ -5384,6 +5385,14 @@ function sealedEventCommandIn(tx: Context, args: unknown[]) {
       })
     touchEvent(tx, host)
     return productJson('paired')
+  }
+  if (operation === 'set-tiebreak') {
+    const input = sealedEventCommandInput(z.object({ op: z.literal('set-tiebreak'), scheduleFirst: z.boolean() }), value)
+    // Changing the order once results exist could hand a place to whoever asked for it.
+    if (event.rounds === undefined || roundPairings(tx, event.id).length) return productJson('closed')
+    tx.db.sealedEvents.id.update({ ...tx.db.sealedEvents.id.find(event.id)!, scheduleFirst: input.scheduleFirst || undefined })
+    touchEvent(tx, host)
+    return productJson('set')
   }
   if (operation === 'set-round-timer') {
     const input = sealedEventCommandInput(z.object({ op: z.literal('set-round-timer'), endsAt: sealedEventTimeInput.nullable() }), value)

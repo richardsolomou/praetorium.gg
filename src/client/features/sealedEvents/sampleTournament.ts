@@ -102,6 +102,7 @@ export function sampleTournament(stage: SampleStage): SealedEvent {
     kind: 'tournament',
     battlefields: [],
     roundEndsAt: null,
+    scheduleFirst: false,
     createdAt: opened,
     remindedAt: null,
     organizer: false,

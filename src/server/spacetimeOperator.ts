@@ -188,6 +188,10 @@ const sealedEvent = z.object({
   soloPoints: eventPoints,
   allyPoints: eventPoints,
   sharedPoints: eventSharedPoints,
+  scheduleFirst: z
+    .boolean()
+    .nullish()
+    .transform((value) => value ?? false),
   // Absent from a module released before organizers ran a round clock.
   roundEndsAt: z
     .number()

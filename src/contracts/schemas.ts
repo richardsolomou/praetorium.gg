@@ -185,6 +185,7 @@ export const setRoundTimerSchema = z.object({
 })
 export const checkInSchema = z.object({ ...sealedEvent, userId: id, checkedIn: z.boolean() })
 export const dropNoShowsSchema = z.object(sealedEvent)
+export const setTiebreakSchema = z.object({ ...sealedEvent, scheduleFirst: z.boolean() })
 export const swapTableSeatsSchema = z.object({ ...sealedEvent, players: z.tuple([id, id]) })
 /** Each seat's final score, by the pairing's two players in order. */
 export const reportTableResultSchema = z.object({

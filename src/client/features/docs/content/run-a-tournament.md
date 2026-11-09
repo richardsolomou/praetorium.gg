@@ -53,6 +53,8 @@ Players are ranked by:
 2. Total victory points.
 3. Strength of schedule: the match points of everyone a player has faced.
 
+Before round 1, you can put strength of schedule ahead of total victory points. It locks when round 1 is paired.
+
 ### Check players in
 
 Once the rosters are out, players can press **Check in** before round 1, and you can check anyone in from the list. It's optional. If some players don't arrive, press **Drop not checked in** so they aren't paired.

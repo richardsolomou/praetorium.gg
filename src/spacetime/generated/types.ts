@@ -570,6 +570,7 @@ export const SealedEvents = __t.object('SealedEvents', {
   remindedAt: __t.option(__t.u64()),
   sharedPoints: __t.option(__t.bool()),
   roundEndsAt: __t.option(__t.u64()),
+  scheduleFirst: __t.option(__t.bool()),
 })
 export type SealedEvents = __Infer<typeof SealedEvents>
 

@@ -25,6 +25,7 @@ import {
   openSealedEventSchema,
   pairSealedEventRoundSchema,
   setRoundTimerSchema,
+  setTiebreakSchema,
   checkInSchema,
   dropNoShowsSchema,
   swapTableSeatsSchema,
@@ -292,6 +293,16 @@ export const dropNoShows = createServerFn({ method: 'POST' })
       const userId = await requireUserId()
       await app().service.sealedEventService.dropNoShows(data.token, data.eventToken ?? data.token, userId)
       await captureMutation(userId, 'sealed_event_no_shows_dropped', {})
+    }),
+  )
+
+export const setTiebreak = createServerFn({ method: 'POST' })
+  .validator(setTiebreakSchema)
+  .handler(({ data }) =>
+    mutationRpc(async () => {
+      const userId = await requireUserId()
+      await app().service.sealedEventService.setTiebreak(data.token, data.eventToken ?? data.token, userId, data.scheduleFirst)
+      await captureMutation(userId, 'sealed_event_tiebreak_set', { scheduleFirst: data.scheduleFirst })
     }),
   )
 

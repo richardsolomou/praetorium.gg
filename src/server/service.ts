@@ -681,7 +681,12 @@ export class PraetoriumService {
       swiss:
         sealedEvent.rounds === null
           ? null
-          : swissStandings(entrantIds, swissMatches(sealedEvent.pairings, battles), droppedIds(sealedEvent.entries)),
+          : swissStandings(
+              entrantIds,
+              swissMatches(sealedEvent.pairings, battles),
+              droppedIds(sealedEvent.entries),
+              sealedEvent.scheduleFirst,
+            ),
       partial: nextCursor !== null,
     }
   }
