@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.225.3 (2026-11-09)
+
+### Patch Changes
+
+- 2d28d6c: Start a battle straight from a roster with a button beside its menu.
+
 ## 0.225.2 (2026-11-09)
 
 ### Patch Changes
