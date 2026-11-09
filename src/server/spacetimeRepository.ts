@@ -413,7 +413,7 @@ export class SpacetimeRepository {
   async sealedEventsVisibleTo(userId: string | null) {
     const rows = await this.product.sealedEventsVisibleTo(userId, 100)
     const owners = await this.accounts.profilesByIds(rows.flatMap((row) => (row.tournament ? [row.tournament.ownerId] : [])))
-    return rows.map(({ kind, token, tournament, group, event, personal, joined, accepted, occupied, ownEntry }) => {
+    return rows.map(({ kind, token, tournament, group, event, personal, joined, accepted, occupied, ownEntry, pastAt }) => {
       const owner = tournament && profileOf(owners, tournament.ownerId, 'Tournament owner')
       return {
         kind,
@@ -438,6 +438,7 @@ export class SpacetimeRepository {
         entrantCount: accepted,
         currentEntrantCount: joined,
         occupiedCount: occupied,
+        pastAt,
         ownEntry: ownEntry
           ? {
               status: ownEntry.status,

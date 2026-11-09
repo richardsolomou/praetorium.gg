@@ -245,6 +245,7 @@ const visibleSealedEvent = z.object({
   accepted: z.number().int(),
   occupied: z.number().int(),
   ownEntry: sealedEventEntry.nullable(),
+  pastAt: z.number().int().nullable().optional(),
 })
 const sealedEventCandidate = z.object({ token: z.string(), name: z.string(), event: sealedEvent, entries: z.array(sealedEventEntry) })
 const sealedEventRoster = z.object({ event: sealedEvent, entry: sealedEventEntry, reader: sealedEventEntry.nullable() })

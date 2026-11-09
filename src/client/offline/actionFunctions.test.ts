@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { sealedEventRosterFixture } from '../../server/sealedEventRoster.fixtures'
 import { saveRosterSchema } from '../../contracts/schemas'
-import { setPlayerDefaults, submitSealedEventRoster } from './actionFunctions'
+import { sealedEventBattleOptions, setPlayerDefaults, submitSealedEventRoster } from './actionFunctions'
 
 const runtime = vi.hoisted(() => ({
   owner: 'alice',
@@ -10,13 +10,14 @@ const runtime = vi.hoisted(() => ({
   sync: vi.fn(),
   document: vi.fn(),
   construction: vi.fn(),
+  client: undefined as { getQueryData: () => unknown } | undefined,
 }))
 vi.mock('./localRuntime', () => ({
   localOwner: () => ({ id: runtime.owner }),
   localEngine: () => ({ storage: { read: async () => ({ operations: runtime.operations }) } }),
   queueLocal: runtime.queue,
   attemptLocalSync: runtime.sync,
-  localClient: () => undefined,
+  localClient: () => runtime.client,
   localDocument: runtime.document,
   hasLocalChanges: () => true,
   rememberDocument: vi.fn(),
@@ -34,6 +35,28 @@ afterEach(() => {
   vi.useRealTimers()
   vi.unstubAllGlobals()
 })
+it('leaves ended group games out of the matchups offered offline', async () => {
+  const game = (token: string, pastAt: number | null) => ({
+    token,
+    eventToken: token,
+    personal: true,
+    pastAt,
+    revealedAt: 1,
+    format: '1v1',
+    tournament: null,
+    group: { name: 'Group' },
+    entries: ['alice', 'bob'].map((userId) => ({ userId, status: 'accepted', submitted: true })),
+  })
+  const games = [game('ended', 1), game('current', null)]
+  vi.stubGlobal('window', {})
+  vi.stubGlobal('navigator', { onLine: false })
+  runtime.client = { getQueryData: () => games }
+  runtime.document.mockImplementation(async (resource: string) => games.find(({ token }) => resource.endsWith(token)))
+  const matches = await sealedEventBattleOptions({ data: { opponentIds: ['bob'] } })
+  runtime.client = undefined
+  expect(matches.map((match) => match.eventToken)).toEqual(['current'])
+})
+
 it('reports an authoritative refusal without discarding the saved action', async () => {
   runtime.operations[0] = { id: 'saved', status: 'refused', message: 'The account cannot change this setting.' }
   runtime.sync.mockResolvedValue(undefined)
