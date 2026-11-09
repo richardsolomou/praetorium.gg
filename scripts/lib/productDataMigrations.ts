@@ -1,3 +1,4 @@
+import pRetry from 'p-retry'
 import { z } from 'zod'
 import { spacetimeDatabaseUrl } from 'ras-stack/spacetime'
 
@@ -31,7 +32,7 @@ async function responseJson(response: Response) {
   }
 }
 
-export async function migrateProductData(source: Source, request: typeof fetch = fetch) {
+export async function migrateProductData(source: Source, request: typeof fetch = fetch, retryMs = 2_000) {
   const endpoint = spacetimeDatabaseUrl({ url: source.url, database: source.database }, '/sql')
   if (!source.ownerToken || !source.operatorToken) throw new Error('Product migration needs owner and operator credentials')
   if (Boolean(source.accessClientId) !== Boolean(source.accessClientSecret)) throw new Error('Supply both Cloudflare Access credentials')
@@ -39,17 +40,26 @@ export async function migrateProductData(source: Source, request: typeof fetch =
     ? { 'CF-Access-Client-Id': source.accessClientId, 'CF-Access-Client-Secret': source.accessClientSecret! }
     : {}
   const signal = AbortSignal.timeout(600_000)
-  const send = async (url: URL, body: string, token: string, contentType: string) => {
-    const response = await request(url, {
-      method: 'POST',
-      redirect: 'error',
-      headers: { ...access, authorization: `Bearer ${token}`, 'content-type': contentType },
-      body,
-      signal: AbortSignal.any([signal, AbortSignal.timeout(60_000)]),
-    })
-    if (!response.ok) throw new Error(`Product migration failed with HTTP ${response.status}`)
-    return responseJson(response)
-  }
+  // A batch skips rows already upgraded and commits as one, so one that got no answer can be sent again.
+  const send = (url: URL, body: string, token: string, contentType: string) =>
+    pRetry(
+      async () => {
+        const response = await request(url, {
+          method: 'POST',
+          redirect: 'error',
+          headers: { ...access, authorization: `Bearer ${token}`, 'content-type': contentType },
+          body,
+          signal: AbortSignal.any([signal, AbortSignal.timeout(60_000)]),
+        })
+        if (!response.ok) throw new Error(`Product migration failed with HTTP ${response.status}`)
+        return responseJson(response)
+      },
+      {
+        retries: 2,
+        minTimeout: retryMs,
+        shouldRetry: ({ error }) => !signal.aborted && (error.name === 'TimeoutError' || error instanceof TypeError),
+      },
+    )
   const inventory: { table: (typeof tables)[number]; keys: string[] }[] = []
   for (const table of tables) {
     const column = table === 'rosters' ? 'id' : 'key'

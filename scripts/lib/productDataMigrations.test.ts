@@ -57,6 +57,18 @@ it('stops on a failed batch so a deployment cannot continue with partially upgra
   expect(request).toHaveBeenCalledTimes(4)
 })
 
+it('sends a batch again when it got no answer', async () => {
+  const request = vi
+    .fn<typeof fetch>()
+    .mockResolvedValueOnce(sql(['roster']))
+    .mockResolvedValueOnce(sql([]))
+    .mockResolvedValueOnce(sql([]))
+    .mockRejectedValueOnce(new DOMException('aborted', 'TimeoutError'))
+    .mockResolvedValueOnce(Response.json(JSON.stringify({ changed: 0 })))
+  await expect(migrateProductData(source, request, 1)).resolves.toMatchObject({ rosters: 0 })
+  expect(request).toHaveBeenCalledTimes(5)
+})
+
 it('does not write when an inventory is invalid', async () => {
   const request = vi
     .fn<typeof fetch>()
