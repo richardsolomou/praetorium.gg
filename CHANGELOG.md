@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.228.5 (2026-11-09)
+
+### Patch Changes
+
+- 438b328: In the combat simulator, attack buffs written for a whole unit now reach every model in its attached unit, and a leader's unit-wide defences now protect its bodyguards.
+- 438b328: In the combat simulator, Trajann Valoris's Captain-General aura now re-rolls the attacks of the unit he leads and of nearby Adeptus Custodes units, not only his own.
+
 ## 0.228.4 (2026-11-09)
 
 ### Patch Changes
