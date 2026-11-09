@@ -22,6 +22,8 @@ export type Notice = { actorId: string; recipientIds: readonly string[] } & (
         | 'sealed-event-revealed'
         | 'sealed-event-roster-unsealed'
         | 'sealed-event-roster-reminder'
+        | 'sealed-event-battlefield-set'
+        | 'sealed-event-battlefield-cleared'
       sealedEventToken: string
       eventToken?: string
     }
@@ -67,7 +69,9 @@ export function noticeMessage(notice: Notice, names: { actor?: string; sealedEve
     case 'sealed-event-roster-reseal':
     case 'sealed-event-revealed':
     case 'sealed-event-roster-unsealed':
-    case 'sealed-event-roster-reminder': {
+    case 'sealed-event-roster-reminder':
+    case 'sealed-event-battlefield-set':
+    case 'sealed-event-battlefield-cleared': {
       if (!names.sealedEvent) return null
       const body = {
         'sealed-event-entry-requested': `${actor} requested to join. Review their entry.`,
@@ -79,6 +83,8 @@ export function noticeMessage(notice: Notice, names: { actor?: string; sealedEve
         'sealed-event-roster-unsealed': 'The organizer unsealed your roster. Seal a replacement.',
         // The recipient's timezone is unknown here, so the deadline stays on the page they open.
         'sealed-event-roster-reminder': 'Seal your list before the deadline.',
+        'sealed-event-battlefield-set': 'The organizer set your battlefield. Take a look before the game.',
+        'sealed-event-battlefield-cleared': 'The organizer cleared your battlefield, so you’ll choose it at the table.',
       }[notice.kind]
       return { title: names.sealedEvent, body, path: sealedEventPath(notice) }
     }

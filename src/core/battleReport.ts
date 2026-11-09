@@ -170,6 +170,8 @@ function describe(
       return command.patternId
         ? `The battlefield is ${deployments.get(command.patternId) ?? titled(command.patternId)}`
         : `${who} clears the battlefield`
+    case 'report-result':
+      return 'The score was reported'
     case 'set-battlefield':
     case 'fix-battlefield':
       return `The battlefield is ${deployments.get(command.patternId) ?? titled(command.patternId)}`

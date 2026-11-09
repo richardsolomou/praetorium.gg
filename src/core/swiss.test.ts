@@ -11,6 +11,12 @@ const match = (round: number, a: string, b: string | null, outcome: SwissMatch['
 const first = () => 0
 
 describe('swiss standings', () => {
+  it('can break ties on strength of schedule before victory points', () => {
+    const matches = [match(1, 'a', 'd', 'a', [90, 0]), match(1, 'c', 'b', 'a', [50, 0]), match(2, 'b', 'd', 'a', [0, 0])]
+    const top = (scheduleFirst: boolean) => swissStandings(['a', 'b', 'c', 'd'], matches, new Set(), scheduleFirst)[0]!.userId
+    expect([top(false), top(true)]).toEqual(['a', 'c'])
+  })
+
   it('breaks a tie on match points by victory points', () => {
     const rows = swissStandings(['a', 'b', 'c', 'd'], [match(1, 'a', 'b', 'a', [60, 40]), match(1, 'c', 'd', 'a', [80, 20])])
     expect(rows.slice(0, 2).map((row) => row.userId)).toEqual(['c', 'a'])

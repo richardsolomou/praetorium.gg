@@ -35,4 +35,4 @@ export const sideLost = (battle: StandingBattle, side: number) => battle.status 
 /** Whether a side won a finished battle, which lists mark by name since a concession can hand it to the lower score. */
 export const sideWon = (battle: StandingBattle, side: number) => battle.status === 'finished' && battleOutcome(battle, side) === 'won'
 
-export const BATTLE_ENDINGS = { 'finished-early': 'Finished early', conceded: 'Conceded' } as const
+export const BATTLE_ENDINGS = { 'finished-early': 'Finished early', conceded: 'Conceded', reported: 'Score reported' } as const

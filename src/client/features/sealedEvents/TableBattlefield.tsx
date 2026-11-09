@@ -90,7 +90,7 @@ export function TableBattlefield({ sealedEvent, token, round, table, canChange, 
             {available.isError ? <Problem>Battlefields are unavailable right now. Try again shortly.</Problem> : null}
             {available.data && !available.data.options.length ? (
               <p className="mt-3 text-sm text-dim">
-                These armies don’t name a pair of battlefield layouts, so the players choose at the table.
+                These sides don’t name a pair of battlefield layouts, so the players choose at the table.
               </p>
             ) : null}
             <div className="grid gap-3 sm:grid-cols-3">

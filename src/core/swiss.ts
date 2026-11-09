@@ -4,7 +4,8 @@ import { compareText } from './text'
  * Swiss rounds for a one-on-one tournament: who plays whom each round, and who leads.
  *
  * A win is worth 3 match points and a draw 1; a bye counts as a win with no victory points. Ties break on total
- * victory points, then strength of schedule: the match points of everyone a player has faced.
+ * victory points, then strength of schedule: the match points of everyone a player has faced. An organizer can put
+ * strength of schedule first.
  *
  * A dropped player is never paired again and keeps their results. Their unfinished table goes to the opponent as a bye.
  */
@@ -39,6 +40,7 @@ export function swissStandings(
   players: readonly string[],
   matches: readonly SwissMatch[],
   dropped: ReadonlySet<string> = new Set(),
+  scheduleFirst = false,
 ): SwissRow[] {
   const rows = new Map(
     players.map((userId): [string, SwissRow] => [userId, { userId, played: 0, won: 0, drawn: 0, lost: 0, points: 0, vp: 0, schedule: 0 }]),
@@ -76,7 +78,9 @@ export function swissStandings(
     row.schedule = (opponents.get(row.userId) ?? []).reduce((sum, id) => sum + (rows.get(id)?.points ?? 0), 0)
   return [...rows.values()].toSorted(
     (one, other) =>
-      other.points - one.points || other.vp - one.vp || other.schedule - one.schedule || compareText(one.userId, other.userId),
+      other.points - one.points ||
+      (scheduleFirst ? other.schedule - one.schedule || other.vp - one.vp : other.vp - one.vp || other.schedule - one.schedule) ||
+      compareText(one.userId, other.userId),
   )
 }
 

@@ -177,6 +177,21 @@ const eventTable = {
   missionPackId: id.nullable(),
 }
 export const tableBattlefieldsSchema = z.object(eventTable)
+/** `minutes` null stops the clock; `fromEnd` adds to the time already running. */
+export const setRoundTimerSchema = z.object({
+  ...sealedEvent,
+  minutes: z.number().int().min(1).max(600).nullable(),
+  fromEnd: z.number().int().nonnegative().nullable(),
+})
+export const checkInSchema = z.object({ ...sealedEvent, userId: id, checkedIn: z.boolean() })
+export const dropNoShowsSchema = z.object(sealedEvent)
+export const setTiebreakSchema = z.object({ ...sealedEvent, scheduleFirst: z.boolean() })
+export const swapTableSeatsSchema = z.object({ ...sealedEvent, players: z.tuple([id, id]) })
+/** Each seat's final score, by the pairing's two players in order. */
+export const reportTableResultSchema = z.object({
+  ...eventTable,
+  vp: z.tuple([z.number().int().min(0).max(999), z.number().int().min(0).max(999)]),
+})
 /** A layout to fix, `roll` to draw one of the table's layouts, or null to let the players choose. */
 export const setTableBattlefieldSchema = z.object({
   ...eventTable,

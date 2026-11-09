@@ -48,9 +48,9 @@ An organizer can change the game from **Edit** in its ⋯ menu. Once anyone seal
 
 Each list shows its faction and points. Use **Simulate** beside another player's list to compare your sealed armies. In a team game, **Simulate** sits on the other side's heading and sets your side's lists against theirs.
 
-### When a game ends
+When a game has exactly two sides, an organizer can press **Set battlefield** after the reveal to pick or **Roll** its battlefield, so everyone can prepare before anyone starts the battle. That covers a duel between two players, solo vs pair and doubles, and each side's Force Disposition decides the layouts on offer. The players are notified and can't change it, and the organizer can until the battle starts. A duel with more than two players has no single table to set, so those players choose at the table.
 
-Once a one-on-one game's lists are revealed, an organizer can set or roll its battlefield, so both players can prepare. The players can't change it, and the organizer can until the battle starts.
+### When a game ends
 
 Starting a new hidden-list game moves the previous one to **Past hidden-list games**. A scheduled game also moves there after its scheduled day ends, and an undated game after the day its lists were revealed. Days end at midnight in the timezone of the organizer who created it. An undated game with unrevealed lists stays open until replaced.
 
@@ -73,7 +73,7 @@ On the table, a win or a bye is worth 3 points and a draw 1. Ties are broken by 
 
 To leave, choose **Withdraw from league** in the **Fixtures** ⋯ menu. Your unplayed fixtures become void, and your finished games stay on the table. Leaving the group withdraws you too.
 
-**End league**, in the same menu, removes the fixtures and table. Their battles stay.
+**End league**, in the same menu, closes it so you can start another. Its final table stays under **Past leagues** on the **League** tab, and its battles stay.
 
 ## Leave or delete a group
 

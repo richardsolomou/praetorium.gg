@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   type Command,
   reduceBattle,
+  sidePaintedPoints,
   strategicReservePoints,
   transportLabel,
   transportLoadOf,
@@ -13,12 +14,52 @@ import { battleReport } from './battleReport'
 import { ALICE, BOB, CAROL, NAMES, PLAYERS, attachedRoster, builtRoster, log, roster, started, text } from './battle.fixtures'
 import { guestSeatId } from './newBattle'
 
+describe('a reported tournament score', () => {
+  const report = { kind: 'report-result', vp: { [ALICE]: 72, [BOB]: 60 } } as const
+  const event = { kind: 'lock-sealed-event-rosters', sealedEventToken: 'event', eventToken: 'event' } as const
+  const reported = () => reduceBattle(PLAYERS, log([ALICE, event], [ALICE, report]))
+
+  it('only applies to a tournament table', () => {
+    expect(validate(reduceBattle(PLAYERS, []), ALICE, report)).toBe('only a tournament table can report a score')
+  })
+
+  it('finishes the battle on exactly the reported scores', () => {
+    const state = reported()
+    expect([
+      state.status,
+      state.result?.reason,
+      state.players.map((player) => player.primary + player.secondary + sidePaintedPoints(state, player.side)),
+    ]).toEqual(['finished', 'reported', [72, 60]])
+  })
+
+  it('needs a score for each seat', () => {
+    const state = reduceBattle(PLAYERS, log([ALICE, event]))
+    expect(validate(state, ALICE, { kind: 'report-result', vp: { [ALICE]: 72 } })).toBe('give a score for each player')
+  })
+
+  it('lets an organizer without a seat report but no other outsider', () => {
+    const state = reduceBattle(PLAYERS, log([ALICE, event]))
+    expect([validate(state, 'organizer', report, true), validate(state, 'stranger', report)]).toEqual([null, 'you are not in this battle'])
+  })
+
+  it('goes back to setup when a battle reported before it started is reopened', () => {
+    const state = reduceBattle(PLAYERS, log([ALICE, event], [ALICE, report], [ALICE, { kind: 'reopen-battle' }]))
+    expect([state.status, state.result, state.players[0]!.primary]).toEqual(['setup', null, 0])
+  })
+})
+
 describe('an organizer-set battlefield', () => {
   const fixed = { kind: 'fix-battlefield', patternId: 'dawn', terrainLayoutId: 'layout' } as const
   const state = () => reduceBattle(PLAYERS, log([ALICE, fixed]))
 
   it('stops a player setting it', () => {
     expect(validate(reduceBattle(PLAYERS, []), ALICE, fixed)).toBe('only the organizer can set this battlefield')
+  })
+
+  it('stops a side changing the Force Disposition it was set for', () => {
+    expect(validate(state(), ALICE, { kind: 'set-side-disposition', side: 0, disposition: 'recon' })).toBe(
+      'the organizer set this battlefield for these Force Dispositions',
+    )
   })
 
   it('lets an organizer without a seat change it during setup', () => {

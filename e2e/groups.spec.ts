@@ -136,6 +136,9 @@ test('a group seals lists for a game night and plays them from the group page', 
   await game.getByRole('button', { name: 'Reveal lists' }).click()
   await owner.getByRole('alertdialog', { name: 'Reveal every list?' }).getByRole('button', { name: 'Reveal lists' }).click()
   await expect(game).toContainText('Regular army')
+  await expect(game.locator('[data-table-battlefield]').getByRole('button', { name: 'Battlefield: not set' })).toBeVisible()
+  await game.scrollIntoViewIfNeeded()
+  await owner.screenshot({ path: testInfo.outputPath('duel-game-battlefield-organizer.png') })
   await game.getByRole('button', { name: `Simulate against ${memberName}`, exact: true }).click()
   const simulator = owner.getByRole('dialog', { name: 'Combat simulator', exact: true })
   await expect(simulator.getByRole('group', { name: 'Attacking with', exact: true })).toContainText(ownerName)
@@ -246,6 +249,21 @@ test('a group plays a solo-vs-pair hidden-list game, its players taking their ow
   await game(solo).getByRole('button', { name: 'Reveal lists' }).click()
   await solo.getByRole('alertdialog', { name: 'Reveal every list?' }).getByRole('button', { name: 'Reveal lists' }).click()
   await expect(game(solo)).toContainText('Second allied army')
+
+  // The organizer sets the battlefield before anyone starts the battle, and the players can only read it.
+  await game(solo).getByRole('button', { name: 'Battlefield: not set' }).click()
+  const battlefield = solo.getByRole('dialog', { name: 'Battlefield', exact: true })
+  await battlefield.getByRole('button', { name: 'Roll', exact: true }).click()
+  await expect(game(solo).locator('[data-table-battlefield]')).toContainText('battlefield is set')
+  await game(solo).scrollIntoViewIfNeeded()
+  await solo.screenshot({ path: test.info().outputPath('team-game-battlefield-organizer.png') })
+  await battlefield.getByRole('button', { name: 'Close', exact: true }).click()
+  await ally.reload()
+  await expect(game(ally).locator('[data-table-battlefield]')).toContainText('battlefield is set')
+  await expect(game(ally).getByRole('button', { name: 'Battlefield: not set' })).toHaveCount(0)
+  await game(ally).scrollIntoViewIfNeeded()
+  await ally.screenshot({ path: test.info().outputPath('team-game-battlefield-player.png') })
+
   await game(solo).getByRole('button', { name: 'Start battle' }).click()
   await solo.waitForURL(/\/battles\/[^/]+$/)
   await expect(solo.getByText('Solo army').first()).toBeVisible()
@@ -362,6 +380,42 @@ test('a group plays doubles with open lists from New game', async ({ page }) => 
   const battleId = await battleIdFor(lastPathSegment(page.url()))
   await expectGroupBattle(battleId)
   expect(await productSql`SELECT user_id FROM battle_users WHERE battle_id = ${battleId}`).toHaveLength(4)
+})
+
+test('an ended league stays readable under past leagues and another can start', async ({ browser }, testInfo) => {
+  const contexts = await Promise.all([
+    browser.newContext({ viewport: { width: 1440, height: 1000 } }),
+    browser.newContext(),
+    browser.newContext(),
+  ])
+  const [owner, second, third] = await Promise.all(contexts.map((context) => context.newPage()))
+  const names = ['League host', 'League second', 'League third'].map(uniqueName)
+  await signUp(owner, names[0])
+  await signUp(second, names[1])
+  await signUp(third, names[2])
+  await createGroup(owner, uniqueName('League group'))
+  const url = owner.url().split('?')[0]
+  await joinGroup(second, url, names[1])
+  await joinGroup(third, url, names[2])
+  await owner.goto(`${url}?tab=league`)
+  await owner.getByRole('button', { name: 'Start a league' }).click()
+  for (const page of [owner, second, third]) {
+    await page.goto(`${url}?tab=league`)
+    await page.getByRole('button', { name: 'Join league' }).click()
+    await expect(page.getByRole('button', { name: 'Join league' })).toBeHidden()
+  }
+  await owner.reload()
+  await owner.getByRole('button', { name: 'Publish' }).click()
+  await owner.getByRole('alertdialog').getByRole('button', { name: 'Publish' }).click()
+  await owner.getByRole('button', { name: 'More for the league' }).click()
+  await owner.getByRole('menuitem', { name: 'End league' }).click()
+  await owner.getByRole('alertdialog').getByRole('button', { name: 'End league' }).click()
+  const past = owner.locator('[data-past-leagues]')
+  await past.getByRole('button', { name: /^Ended / }).click()
+  await expect(past.getByText(names[2])).toBeVisible()
+  await expect(owner.getByRole('button', { name: 'Start a league' })).toBeVisible()
+  await owner.screenshot({ path: testInfo.outputPath('past-leagues.png'), fullPage: true })
+  await Promise.all(contexts.map((context) => context.close()))
 })
 
 async function openNewGame(page: Page) {

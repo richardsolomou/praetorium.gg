@@ -2,6 +2,7 @@ import { recordEvents } from './telemetry.harness'
 import { expect, test, type Locator, type Page } from './test'
 import { z } from 'zod'
 import {
+  chooseRosterDefault,
   confirmRosterSetup,
   befriend,
   createRoster,
@@ -47,13 +48,13 @@ test('players can decline and publish their original sealed event roster across 
   const opponentName = uniqueName('SealedEvent friend')
   await signUp(owner, ownerName)
   await signUp(opponent, opponentName)
+  await chooseRosterDefault(owner, 'Private')
   const armyName = uniqueName('The revealed army')
   await sealableRoster(owner, armyName)
   const savedUrl = owner.url()
   const savedId = lastPathSegment(savedUrl)
   const product = await productOperator()
   const saved = (await product.roster(savedId))!
-  await product.setRosterVisibility(savedId, saved.userId, 'private', Date.now())
   await sealableRoster(opponent, 'Already public sealed event army')
   await owner.goto('/tournaments')
   const create = await openSealedEventCreation(owner)
@@ -523,10 +524,19 @@ test('a Swiss tournament pairs its rounds and ranks the tables by match points',
   await revealEvent(owner)
 
   const rounds = owner.locator('[data-sealed-event-rounds]')
+  await rounds.getByRole('button', { name: 'Check in' }).click()
+  await expect(rounds.getByText('1 of 2 checked in')).toBeVisible()
+  await owner.screenshot({ path: testInfo.outputPath('swiss-check-in.png'), fullPage: true })
   await rounds.getByRole('button', { name: 'Pair round 1' }).click()
   await expect(rounds.locator('[data-table="1"]')).toBeVisible()
+  await rounds.getByRole('button', { name: 'Start the clock' }).click()
+  await expect(rounds.getByLabel('Time left in this round')).toContainText(/^\d:\d\d:\d\d$/)
+  await owner.screenshot({ path: testInfo.outputPath('swiss-clock.png'), fullPage: true })
   // The organizer fixes the table's battlefield before anyone sits down, and the setup then only shows it.
+  await expect(rounds.locator('[data-battlefields-unset]')).toContainText('1 table still to set')
+  await owner.screenshot({ path: testInfo.outputPath('swiss-battlefields-prompt.png') })
   await rounds.getByRole('button', { name: 'Roll battlefields' }).click()
+  await expect(rounds.locator('[data-battlefields-unset]')).toHaveCount(0)
   const setBattlefield = rounds.locator('[data-table="1"]').getByRole('button', { name: /^Table 1 battlefield: / })
   await expect(setBattlefield).not.toHaveAccessibleName(/not set$/)
   await setBattlefield.click()
@@ -558,6 +568,15 @@ test('a Swiss tournament pairs its rounds and ranks the tables by match points',
   await expect(rounds.getByText('Round 2 of 3')).toBeVisible()
   await expect(rounds.locator('[data-table="1"]').first()).toContainText('Rematch')
   await expect(rounds.getByText('Results from earlier rounds are locked once the next round is paired.')).toBeVisible()
+  // A table that didn't track its game can still record the score.
+  await rounds.getByRole('button', { name: 'Enter score for table 1' }).click()
+  const score = owner.getByRole('dialog', { name: 'Table 1 score' })
+  await score.getByRole('textbox').first().fill('72')
+  await score.getByRole('textbox').last().fill('60')
+  await owner.screenshot({ path: testInfo.outputPath('swiss-score.png') })
+  await score.getByRole('button', { name: 'Save score' }).click()
+  await expect(score).toBeHidden()
+  await expect(rounds.locator('[data-table="1"]').first()).toContainText(/72.*60|60.*72/)
   await owner.screenshot({ path: testInfo.outputPath('swiss-rounds.png'), fullPage: true })
   await opponent.goto(url)
   await expect(opponent.locator('[data-sealed-event-rounds]').getByText('Results locked')).toBeVisible()
@@ -2013,6 +2032,14 @@ test('a doubles event pairs teams, filters half-size rosters, and starts a four-
   await eventLoaded(owner)
   await expect(team(1)).toContainText('plays Priority Assets')
   await expect(team(2)).toContainText('plays Purge the Foe')
+  // The organizer sets the doubles table's battlefield before either team starts the battle.
+  const doublesTable = owner.locator('[data-table-battlefield]')
+  await doublesTable.getByRole('button', { name: 'Battlefield: not set' }).click()
+  await owner.getByRole('dialog', { name: 'Battlefield', exact: true }).getByRole('button', { name: 'Roll', exact: true }).click()
+  await expect(doublesTable).toContainText('battlefield is set')
+  await owner.keyboard.press('Escape')
+  await doublesTable.scrollIntoViewIfNeeded()
+  await owner.screenshot({ path: test.info().outputPath('doubles-tournament-battlefield.png') })
   await owner.getByRole('button', { name: 'Start 2 vs 2 battle' }).click()
   const battleChooser = owner.getByRole('dialog', { name: 'Start 2 vs 2 battle' })
   await expect(battleChooser.getByLabel('Opposing team')).toContainText(`${names[2]} & ${names[3]}`)

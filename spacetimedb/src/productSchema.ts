@@ -231,6 +231,10 @@ const sealedEvents = table(
     remindedAt: t.option(t.u64()).default(undefined),
     /** Allies spend their pair's points between them in any split; absent spends each ally's own. */
     sharedPoints: t.option(t.bool()).default(undefined),
+    /** When the round's clock runs out, while an organizer has one running. */
+    roundEndsAt: t.option(t.u64()).default(undefined),
+    /** Swiss ties break on strength of schedule before victory points; absent breaks them the other way. */
+    scheduleFirst: t.option(t.bool()).default(undefined),
   },
 )
 
@@ -308,6 +312,19 @@ const eventBattlefields = table(
   },
 )
 
+/** A group's ended league. Its fixtures and battles stay in `round_pairings` and `event_battles` under its id, so its table still folds from them. */
+const pastGroupLeagues = table(
+  { name: 'past_group_leagues' },
+  {
+    id: t.string().primaryKey(),
+    groupId: t.string().index('btree'),
+    publishedAt: t.u64(),
+    endedAt: t.u64(),
+    /** JSON `{ userId, withdrawn }[]`. */
+    players: t.string(),
+  },
+)
+
 const sealedEventEntries = table(
   { name: 'sealed_event_entries' },
   {
@@ -324,6 +341,8 @@ const sealedEventEntries = table(
     teamId: t.option(t.string()),
     /** When a revealed Swiss entrant withdrew or was dropped: they are never paired again and can't rejoin. */
     droppedAt: t.option(t.u64()).default(undefined),
+    /** When the entrant arrived at a Swiss event, before its first round. */
+    checkedInAt: t.option(t.u64()).default(undefined),
   },
 )
 
@@ -791,6 +810,7 @@ export const productTables = {
   eventBattles,
   roundPairings,
   eventBattlefields,
+  pastGroupLeagues,
   groups,
   groupMembers,
   groupBattles,

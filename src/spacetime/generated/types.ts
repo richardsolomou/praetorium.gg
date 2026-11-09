@@ -360,6 +360,15 @@ export type MyProductSignals = __Infer<typeof MyProductSignals>
 export const MySession = __t.object('MySession', {})
 export type MySession = __Infer<typeof MySession>
 
+export const PastGroupLeagues = __t.object('PastGroupLeagues', {
+  id: __t.string(),
+  groupId: __t.string(),
+  publishedAt: __t.u64(),
+  endedAt: __t.u64(),
+  players: __t.string(),
+})
+export type PastGroupLeagues = __Infer<typeof PastGroupLeagues>
+
 export const PlayerDefaults = __t.object('PlayerDefaults', {
   userId: __t.string(),
   rosterVisibility: __t.string(),
@@ -524,6 +533,7 @@ export const SealedEventEntries = __t.object('SealedEventEntries', {
   requiredLimit: __t.option(__t.u32()),
   teamId: __t.option(__t.string()),
   droppedAt: __t.option(__t.u64()),
+  checkedInAt: __t.option(__t.u64()),
 })
 export type SealedEventEntries = __Infer<typeof SealedEventEntries>
 
@@ -568,6 +578,8 @@ export const SealedEvents = __t.object('SealedEvents', {
   allyPoints: __t.option(__t.u32()),
   remindedAt: __t.option(__t.u64()),
   sharedPoints: __t.option(__t.bool()),
+  roundEndsAt: __t.option(__t.u64()),
+  scheduleFirst: __t.option(__t.bool()),
 })
 export type SealedEvents = __Infer<typeof SealedEvents>
 

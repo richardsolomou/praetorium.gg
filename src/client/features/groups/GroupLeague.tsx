@@ -13,6 +13,8 @@ import { SectionHeading } from '../../components/SectionHeading'
 import {
   deleteGroupLeague,
   drawGroupLeague,
+  groupPastLeague,
+  groupPastLeagues,
   joinGroupLeague,
   leaveGroupLeague,
   publishGroupLeague,
@@ -33,11 +35,65 @@ type Fixture = League['fixtures'][number]
 export function GroupLeague({ group, viewerId, member }: { group: Group; viewerId: string | null; member: boolean }) {
   const { data: league } = useQuery(groupLeagueQuery(group.token))
   if (league === undefined) return null
-  if (league === null) return group.organizer ? <NoLeague group={group} /> : null
-  return league.published ? (
-    <PublishedLeague group={group} league={league} viewerId={viewerId} />
-  ) : (
-    <DraftLeague group={group} league={league} viewerId={viewerId} member={member} />
+  return (
+    <>
+      {league === null ? (
+        group.organizer ? (
+          <NoLeague group={group} />
+        ) : null
+      ) : league.published ? (
+        <PublishedLeague group={group} league={league} viewerId={viewerId} />
+      ) : (
+        <DraftLeague group={group} league={league} viewerId={viewerId} member={member} />
+      )}
+      <PastLeagues group={group} />
+    </>
+  )
+}
+
+/** Ended leagues stay readable, so a group can run one after another and look back on them. */
+function PastLeagues({ group }: { group: Group }) {
+  const [opened, setOpened] = useState<string | null>(null)
+  const { data: leagues } = useQuery({
+    queryKey: [...groupLeagueQuery(group.token).queryKey, 'past'],
+    queryFn: () => groupPastLeagues({ data: { token: group.token } }),
+  })
+  const { data: table } = useQuery({
+    queryKey: [...groupLeagueQuery(group.token).queryKey, 'past', opened],
+    enabled: opened !== null,
+    queryFn: () => groupPastLeague({ data: { token: group.token, leagueId: opened! } }),
+  })
+  const moment = useMoment()
+  if (!leagues?.length) return null
+  return (
+    <section data-past-leagues className="mt-6">
+      <SectionHeading title="Past leagues" count={leagues.length} />
+      <ul className="space-y-1">
+        {leagues.map((past) => (
+          <li key={past.id}>
+            <Button
+              variant="ghost"
+              size="sm"
+              aria-expanded={opened === past.id}
+              onClick={() => setOpened(opened === past.id ? null : past.id)}
+            >
+              Ended {moment(past.endedAt)} · {countLabel(past.players, 'player')}
+            </Button>
+            {opened === past.id && table ? (
+              <SealedEventResults
+                event={`${group.name} league`}
+                title="Final table"
+                rows={table.table}
+                swiss
+                partial={false}
+                entries={table.players}
+                label={(player) => (player.withdrawn ? `${player.name} (withdrawn)` : player.name)}
+              />
+            ) : null}
+          </li>
+        ))}
+      </ul>
+    </section>
   )
 }
 

@@ -53,11 +53,29 @@ Players are ranked by:
 2. Total victory points.
 3. Strength of schedule: the match points of everyone a player has faced.
 
+Before round 1, you can put strength of schedule ahead of total victory points. It locks when round 1 is paired.
+
+### Check players in
+
+Once the rosters are out, players can press **Check in** before round 1, and you can check anyone in from the list. It's optional. If some players don't arrive, press **Drop not checked in** so they aren't paired.
+
+### Change the pairings and run the clock
+
+To keep friends apart or sort out a mix-up, press **Swap players** and choose two players at tables that haven't started. They trade tables for that round, and any battlefield set for those tables is cleared.
+
+Set a round length and press **Start the clock** to show everyone the same countdown. You can add time or stop it, and pairing the next round clears it. The clock doesn't end the round. You still pair the next one when you're ready.
+
 ### Set the battlefields ahead of the game
 
 Once a round is paired you can set each table's battlefield, so players know who they face and where before the day. Press **Set battlefield** on a table to pick one of its layouts or **Roll** one, or press **Roll battlefields** to roll every table at once. A table's layouts come from its two armies, so a table whose army hasn't settled on a Force Disposition stays for its players to choose.
 
-Players see the battlefield on the table and can't change it during setup. You can change it until that table's battle starts, even if the players have already opened it.
+Players are notified, see the battlefield on the table and can't change it during setup. You can change it until that table's battle starts, even if the players have already opened it. If you unseal a list, that table's battlefield is cleared, because the replacement may change the layouts.
+
+A tournament without Swiss rounds has one table to set when exactly two sides sealed lists, including solo vs pair and doubles, and **Set battlefield** appears above the armies after the reveal. A pair's layouts come from the Force Disposition it sealed. With more than two sides, players choose at the table.
+
+### Enter a score without tracking the game
+
+Press **Enter score** on a table to record its final score when the game wasn't tracked here, for example at a venue where not everyone has a phone. You or either player at the table can do it. It counts for the tournament's standings but not the leaderboard, and you can reopen it like any other result.
 
 ### Correct a result
 

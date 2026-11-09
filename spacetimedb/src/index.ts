@@ -604,6 +604,10 @@ function deleteGroup(ctx: Context, group: GroupRow) {
   for (const host of hiddenListGameHosts(ctx, group)) deleteHost(ctx, host)
   const league = ctx.db.groupLeagues.groupId.find(group.id)
   if (league) deleteLeague(ctx, league)
+  for (const past of Array.from(ctx.db.pastGroupLeagues.groupId.filter(group.id))) {
+    deleteLeagueFixtures(ctx, past.id)
+    ctx.db.pastGroupLeagues.id.delete(past.id)
+  }
   touchGroup(ctx, group.id)
   for (const row of Array.from(ctx.db.groupMembers.groupId.filter(group.id))) ctx.db.groupMembers.key.delete(row.key)
   for (const row of Array.from(ctx.db.groupBattles.groupId.filter(group.id))) ctx.db.groupBattles.battleId.delete(row.battleId)
@@ -621,11 +625,29 @@ function leaguePlayers(ctx: Context, leagueId: string) {
   return Array.from(ctx.db.groupLeaguePlayers.leagueId.filter(leagueId)).sort(byJoined)
 }
 
+function deleteLeagueFixtures(ctx: Context, leagueId: string) {
+  for (const row of Array.from(ctx.db.eventBattles.eventId.filter(leagueId))) ctx.db.eventBattles.battleId.delete(row.battleId)
+  for (const row of Array.from(ctx.db.roundPairings.eventId.filter(leagueId))) ctx.db.roundPairings.key.delete(row.key)
+}
+
+/** A published league that ends is kept with its fixtures so its table can still be read; a draft has nothing to keep. */
+function endLeague(ctx: Context, league: LeagueRow, now: bigint) {
+  if (league.publishedAt === undefined) return deleteLeague(ctx, league)
+  ctx.db.pastGroupLeagues.insert({
+    id: league.id,
+    groupId: league.groupId,
+    publishedAt: league.publishedAt,
+    endedAt: now,
+    players: JSON.stringify(leaguePlayers(ctx, league.id).map((row) => ({ userId: row.userId, withdrawn: row.withdrawn }))),
+  })
+  for (const row of Array.from(ctx.db.groupLeaguePlayers.leagueId.filter(league.id))) ctx.db.groupLeaguePlayers.key.delete(row.key)
+  ctx.db.groupLeagues.id.delete(league.id)
+}
+
 /** A league takes its players and fixtures with it; its battles stay. */
 function deleteLeague(ctx: Context, league: LeagueRow) {
   for (const row of Array.from(ctx.db.groupLeaguePlayers.leagueId.filter(league.id))) ctx.db.groupLeaguePlayers.key.delete(row.key)
-  for (const row of Array.from(ctx.db.eventBattles.eventId.filter(league.id))) ctx.db.eventBattles.battleId.delete(row.battleId)
-  for (const row of Array.from(ctx.db.roundPairings.eventId.filter(league.id))) ctx.db.roundPairings.key.delete(row.key)
+  deleteLeagueFixtures(ctx, league.id)
   ctx.db.groupLeagues.id.delete(league.id)
 }
 
@@ -1080,7 +1102,15 @@ export const battleFeed = spacetime.procedure({ payload: t.string() }, t.string(
     if (input.scope === 'sealed-event' && event?.revealedAt === undefined) return productJson({ battles: [], nextCursor: null })
     const group = input.groupToken ? tx.db.groups.token.find(input.groupToken) : undefined
     if ((input.scope === 'group' || input.scope === 'group-league') && !group) return productJson({ battles: [], nextCursor: null })
-    const league = input.scope === 'group-league' ? tx.db.groupLeagues.groupId.find(group!.id) : undefined
+    const pastLeague = input.scope === 'group-league' && input.eventToken ? tx.db.pastGroupLeagues.id.find(input.eventToken) : undefined
+    const league =
+      input.scope === 'group-league'
+        ? input.eventToken
+          ? pastLeague?.groupId === group!.id
+            ? pastLeague
+            : undefined
+          : tx.db.groupLeagues.groupId.find(group!.id)
+        : undefined
     const friendIds = input.scope === 'friends' ? acceptedFriendIds(tx, input.userId!) : new Set<string>()
 
     const direction = input.order === 'oldest' ? -1 : 1
@@ -1774,7 +1804,8 @@ export const submitBattle = spacetime.procedure(
       if (input.expectedSeq !== state.seq) return productJson({ result: { outcome: 'stale', seq: state.seq }, log, ...appliedReport })
       // Only reopening a finished result, directly or by undoing its end, depends on who runs a Swiss table.
       const swiss =
-        state.status === 'finished' && (parsed.data.kind === 'reopen-battle' || parsed.data.kind === 'undo')
+        parsed.data.kind === 'report-result' ||
+        (state.status === 'finished' && (parsed.data.kind === 'reopen-battle' || parsed.data.kind === 'undo'))
           ? swissTable(tx, input.battleId)
           : null
       const isOrganizer = Boolean(swiss?.organizerIds.includes(input.userId))
@@ -4069,6 +4100,7 @@ function insertSealedEventEntry(ctx: Context, eventId: string, userId: string, s
     requiredLimit: undefined,
     teamId: undefined,
     droppedAt: undefined,
+    checkedInAt: undefined,
   })
 }
 
@@ -4491,7 +4523,7 @@ function groupCommandIn(tx: Context, args: unknown[]) {
   }
   if (input.op === 'league-delete') {
     if (!league) return productJson('missing')
-    deleteLeague(tx, league)
+    endLeague(tx, league, tx.timestamp.microsSinceUnixEpoch / 1000n)
     touchGroup(tx, group.id)
     return productJson('deleted')
   }
@@ -4556,6 +4588,15 @@ export const groupByToken = spacetime.procedure({ token: t.string() }, t.string(
         }
       }),
       league: leagueRecord(tx, group.id),
+      pastLeagues: Array.from(tx.db.pastGroupLeagues.groupId.filter(group.id))
+        .sort((one, other) => Number(other.endedAt - one.endedAt))
+        .map((past) => ({
+          id: past.id,
+          publishedAt: past.publishedAt,
+          endedAt: past.endedAt,
+          players: JSON.parse(past.players) as { userId: string; withdrawn: boolean }[],
+          fixtures: roundPairings(tx, past.id).map((pairing) => pairingView(tx, pairing)),
+        })),
     })
   }),
 )
@@ -5140,6 +5181,8 @@ function sealedEventCommandIn(tx: Context, args: unknown[]) {
       soloPoints: input.soloPoints ?? undefined,
       allyPoints: input.allyPoints ?? undefined,
       remindedAt: undefined,
+      roundEndsAt: undefined,
+      scheduleFirst: undefined,
       sharedPoints: input.sharedPoints || undefined,
     })
     if (input.ownerPlays) insertSealedEventEntry(tx, input.eventId, input.ownerId, 'accepted', input.now)
@@ -5199,6 +5242,7 @@ function sealedEventCommandIn(tx: Context, args: unknown[]) {
           'share-roster',
           'dismiss-roster-sharing',
           'drop',
+          'check-in',
         ].includes(operation) && !organizer
   )
     return productJson('forbidden')
@@ -5367,6 +5411,7 @@ function sealedEventCommandIn(tx: Context, args: unknown[]) {
       input.pairs.filter(([, b]) => b === null).length > 1
     )
       return productJson('stale')
+    tx.db.sealedEvents.id.update({ ...tx.db.sealedEvents.id.find(event.id)!, roundEndsAt: undefined })
     for (const [index, [aId, bId]] of input.pairs.entries())
       tx.db.roundPairings.insert({
         key: JSON.stringify([event.id, input.round, index + 1]),
@@ -5379,6 +5424,44 @@ function sealedEventCommandIn(tx: Context, args: unknown[]) {
       })
     touchEvent(tx, host)
     return productJson('paired')
+  }
+  if (operation === 'set-tiebreak') {
+    const input = sealedEventCommandInput(z.object({ op: z.literal('set-tiebreak'), scheduleFirst: z.boolean() }), value)
+    // Changing the order once results exist could hand a place to whoever asked for it.
+    if (event.rounds === undefined || roundPairings(tx, event.id).length) return productJson('closed')
+    tx.db.sealedEvents.id.update({ ...tx.db.sealedEvents.id.find(event.id)!, scheduleFirst: input.scheduleFirst || undefined })
+    touchEvent(tx, host)
+    return productJson('set')
+  }
+  if (operation === 'set-round-timer') {
+    const input = sealedEventCommandInput(z.object({ op: z.literal('set-round-timer'), endsAt: sealedEventTimeInput.nullable() }), value)
+    if (event.rounds === undefined || event.revealedAt === undefined) return productJson('not-ready')
+    tx.db.sealedEvents.id.update({
+      ...tx.db.sealedEvents.id.find(event.id)!,
+      roundEndsAt: input.endsAt === null ? undefined : BigInt(input.endsAt),
+    })
+    touchEvent(tx, host)
+    return productJson('set')
+  }
+  if (operation === 'swap-seats') {
+    const input = sealedEventCommandInput(z.object({ op: z.literal('swap-seats'), players: z.tuple([idInput, idInput]) }), value)
+    const pairings = roundPairings(tx, event.id)
+    const latest = Math.max(0, ...pairings.map((pairing) => pairing.round))
+    const current = pairings.filter((pairing) => pairing.round === latest)
+    const [one, two] = input.players.map((id) => current.find((pairing) => pairing.aId === id || pairing.bId === id))
+    if (!one || !two || input.players[0] === input.players[1] || one === two) return productJson('stale')
+    if (one.battleId !== undefined || two.battleId !== undefined) return productJson('started')
+    const swapped = (pairing: typeof one, from: string, to: string) => ({
+      ...pairing,
+      aId: pairing.aId === from ? to : pairing.aId,
+      bId: pairing.bId === from ? to : pairing.bId,
+    })
+    tx.db.roundPairings.key.update(swapped(one, input.players[0], input.players[1]))
+    tx.db.roundPairings.key.update(swapped(two, input.players[1], input.players[0]))
+    // A table's layouts depend on its armies, so a new pair chooses again.
+    for (const seat of [one, two]) tx.db.eventBattlefields.key.delete(JSON.stringify([event.id, seat.round, seat.table]))
+    touchEvent(tx, host)
+    return productJson('swapped')
   }
   if (operation === 'set-battlefield') {
     const input = sealedEventCommandInput(
@@ -5821,6 +5904,12 @@ function sealedEventCommandIn(tx: Context, args: unknown[]) {
     const entry = tx.db.sealedEventEntries.key.find(JSON.stringify([event.id, input.userId]))
     if (!entry || entry.status !== 'accepted' || entry.rosterSnapshot === undefined) return productJson('missing')
     tx.db.sealedEventEntries.key.update({ ...entry, ...UNSEALED })
+    // A table's layouts depend on its armies, so a table yet to sit down chooses again around the replacement.
+    const tables =
+      event.rounds === undefined
+        ? [{ round: 0, table: 0 }]
+        : roundPairings(tx, event.id).filter(({ aId, bId, battleId }) => !battleId && (aId === input.userId || bId === input.userId))
+    for (const seat of tables) tx.db.eventBattlefields.key.delete(JSON.stringify([event.id, seat.round, seat.table]))
     touchEvent(tx, host)
     return productJson('unsealed')
   }
@@ -5844,6 +5933,31 @@ function sealedEventCommandIn(tx: Context, args: unknown[]) {
     tx.db.sealedEvents.id.update({ ...event, remindedAt: BigInt(input.now) })
     touchEvent(tx, host)
     return productJson({ outcome: 'reminded', recipientIds })
+  }
+  if (operation === 'check-in' || operation === 'drop-no-shows') {
+    if (event.revealedAt === undefined || event.rounds === undefined || roundPairings(tx, event.id).length) return productJson('closed')
+    if (operation === 'check-in') {
+      const input = sealedEventCommandInput(
+        z.object({ op: z.literal('check-in'), userId: idInput, checkedIn: z.boolean(), now: sealedEventTimeInput }),
+        value,
+      )
+      if (input.userId !== ownerId && !organizer) return productJson('forbidden')
+      const entry = tx.db.sealedEventEntries.key.find(JSON.stringify([event.id, input.userId]))
+      if (!entry || entry.status !== 'accepted' || entry.droppedAt !== undefined) return productJson('missing')
+      tx.db.sealedEventEntries.key.update({ ...entry, checkedInAt: input.checkedIn ? BigInt(input.now) : undefined })
+    } else {
+      const input = sealedEventCommandInput(z.object({ op: z.literal('drop-no-shows'), now: sealedEventTimeInput }), value)
+      for (const entry of sealedEventEntriesFor(tx, event.id))
+        if (
+          entry.status === 'accepted' &&
+          entry.rosterSnapshot !== undefined &&
+          entry.droppedAt === undefined &&
+          entry.checkedInAt === undefined
+        )
+          tx.db.sealedEventEntries.key.update({ ...entry, droppedAt: BigInt(input.now) })
+    }
+    touchEvent(tx, host)
+    return productJson('ok')
   }
   if (operation === 'drop') {
     const input = sealedEventCommandInput(z.object({ op: z.literal('drop'), userId: idInput, now: sealedEventTimeInput }), value)

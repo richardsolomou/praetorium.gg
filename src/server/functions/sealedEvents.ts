@@ -24,6 +24,12 @@ import {
   moderateSealedEventEntrySchema,
   openSealedEventSchema,
   pairSealedEventRoundSchema,
+  setRoundTimerSchema,
+  setTiebreakSchema,
+  checkInSchema,
+  dropNoShowsSchema,
+  swapTableSeatsSchema,
+  reportTableResultSchema,
   setTableBattlefieldSchema,
   tableBattlefieldsSchema,
   reopenSwissTableSchema,
@@ -271,6 +277,55 @@ const loadedRules = async () => {
   return rules
 }
 
+export const checkInEntrant = createServerFn({ method: 'POST' })
+  .validator(checkInSchema)
+  .handler(({ data }) =>
+    mutationRpc(async () => {
+      const userId = await requireUserId()
+      await app().service.sealedEventService.checkIn(data.token, data.eventToken ?? data.token, userId, data.userId, data.checkedIn)
+    }),
+  )
+
+export const dropNoShows = createServerFn({ method: 'POST' })
+  .validator(dropNoShowsSchema)
+  .handler(({ data }) =>
+    mutationRpc(async () => {
+      const userId = await requireUserId()
+      await app().service.sealedEventService.dropNoShows(data.token, data.eventToken ?? data.token, userId)
+      await captureMutation(userId, 'sealed_event_no_shows_dropped', {})
+    }),
+  )
+
+export const setTiebreak = createServerFn({ method: 'POST' })
+  .validator(setTiebreakSchema)
+  .handler(({ data }) =>
+    mutationRpc(async () => {
+      const userId = await requireUserId()
+      await app().service.sealedEventService.setTiebreak(data.token, data.eventToken ?? data.token, userId, data.scheduleFirst)
+      await captureMutation(userId, 'sealed_event_tiebreak_set', { scheduleFirst: data.scheduleFirst })
+    }),
+  )
+
+export const setRoundTimer = createServerFn({ method: 'POST' })
+  .validator(setRoundTimerSchema)
+  .handler(({ data }) =>
+    mutationRpc(async () => {
+      const userId = await requireUserId()
+      await app().service.sealedEventService.setRoundTimer(data.token, data.eventToken ?? data.token, userId, data.minutes, data.fromEnd)
+      await captureMutation(userId, 'sealed_event_round_timer_set', { minutes: data.minutes })
+    }),
+  )
+
+export const swapTableSeats = createServerFn({ method: 'POST' })
+  .validator(swapTableSeatsSchema)
+  .handler(({ data }) =>
+    mutationRpc(async () => {
+      const userId = await requireUserId()
+      await app().service.sealedEventService.swapSeats(data.token, data.eventToken ?? data.token, userId, data.players)
+      await captureMutation(userId, 'sealed_event_seats_swapped', {})
+    }),
+  )
+
 export const tableBattlefields = createServerFn({ method: 'GET' })
   .validator(tableBattlefieldsSchema)
   .handler(({ data }) =>
@@ -305,6 +360,16 @@ export const setTableBattlefield = createServerFn({ method: 'POST' })
         rolled: data.battlefield === 'roll',
         cleared: data.battlefield === null,
       })
+    }),
+  )
+
+export const reportTableResult = createServerFn({ method: 'POST' })
+  .validator(reportTableResultSchema)
+  .handler(({ data }) =>
+    mutationRpc(async () => {
+      const userId = await requireUserId()
+      await app().service.reportTableResult(data.token, data.eventToken, data.round, data.table, data.vp, data.missionPackId, userId)
+      await captureMutation(userId, 'sealed_event_result_reported', { round: data.round })
     }),
   )
 

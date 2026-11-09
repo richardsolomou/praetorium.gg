@@ -48,6 +48,7 @@ import {
 } from './sealedEvent'
 import { InvitePanel, OrganizerEntrants } from './SealedEventOrganizer'
 import { SealedEventArmies } from './SealedEventArmies'
+import { OpenTableBattlefield } from './OpenTableBattlefield'
 import { SealedEventReadiness, RevealRostersDialog } from './SealedEventReadiness'
 import { RosterChooser } from './SealedEventRosterChooser'
 import { SealedEventCombatDialog } from './SealedEventCombatDialog'
@@ -389,6 +390,15 @@ export function SealedEventView({
               canUnseal={isOrganizer}
               dropBy={!swiss ? null : isOrganizer ? 'organizer' : ownEntry?.status === 'accepted' ? 'player' : null}
               onSimulate={ownEntry?.status === 'accepted' && ownEntry.submitted ? setSimulating : null}
+            />
+          ) : null}
+          {revealed && !swiss ? (
+            <OpenTableBattlefield
+              sealedEvent={sealedEvent}
+              token={token}
+              organizes={isOrganizer}
+              battles={eventBattles}
+              noun="tournament"
             />
           ) : null}
           {revealed && swiss ? (

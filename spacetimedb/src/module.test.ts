@@ -71,6 +71,8 @@ function insertTournament(ctx: Ctx, event: Partial<SealedEvent> = {}) {
     soloPoints: undefined,
     allyPoints: undefined,
     remindedAt: undefined,
+    roundEndsAt: undefined,
+    scheduleFirst: undefined,
     sharedPoints: undefined,
     ...event,
   })
@@ -112,6 +114,7 @@ describe('sharing a revealed sealed event roster', () => {
         requiredLimit: undefined,
         teamId: undefined,
         droppedAt: undefined,
+        checkedInAt: undefined,
       })
     })
     const save = (id = 'saved', changes: Record<string, unknown> = {}) =>
@@ -319,6 +322,7 @@ describe('what a sealed event allows', () => {
           requiredLimit: undefined,
           teamId: format === '2v2' ? 'team' : undefined,
           droppedAt: undefined,
+          checkedInAt: undefined,
         })
     })
     const command = (payload: Record<string, unknown>) =>
@@ -731,8 +735,35 @@ describe('group leagues', () => {
         }),
       })
     const game = () => fixtures().find((fixture) => fixture.bId !== null)!
-    return { command, publish, fixtures, start, game }
+    return { host, command, publish, fixtures, start, game }
   }
+
+  it('keeps an ended league under the group with its fixtures, and lets another start', () => {
+    const league = setup()
+    league.publish()
+    const fixtureCount = league.fixtures().length
+    const deleted = league.command({ op: 'league-delete', actorId: 'owner' })
+    const record = JSON.parse(module.groupByToken(league.host.procedure(league.host.operator), { token: 'group' })) as {
+      league: unknown
+      pastLeagues: { id: string; players: unknown[]; fixtures: unknown[] }[]
+    }
+    const redrawn = league.command({ op: 'league-draw', actorId: 'owner', leagueId: 'second', seed: 1, now: NOW })
+    expect([
+      deleted,
+      record.league,
+      record.pastLeagues.map((past) => [past.id, past.players.length, past.fixtures.length]),
+      redrawn,
+    ]).toEqual(['deleted', null, [['league', 3, fixtureCount]], 'drawn'])
+  })
+
+  it('throws away a league that was never published', () => {
+    const league = setup()
+    league.command({ op: 'league-delete', actorId: 'owner' })
+    const { pastLeagues } = JSON.parse(module.groupByToken(league.host.procedure(league.host.operator), { token: 'group' })) as {
+      pastLeagues: unknown[]
+    }
+    expect(pastLeagues).toEqual([])
+  })
 
   it('lets only an organizer draw a league', () => {
     expect(setup().command({ op: 'league-draw', actorId: 'a', leagueId: 'other', seed: 1, now: NOW })).toBe('forbidden')
@@ -849,6 +880,7 @@ describe('hidden-list games', () => {
           requiredLimit: undefined,
           teamId: undefined,
           droppedAt: undefined,
+          checkedInAt: undefined,
         })
     })
     const battle = (id: string) =>
@@ -1023,6 +1055,7 @@ describe('swiss rounds', () => {
           requiredLimit: undefined,
           teamId: undefined,
           droppedAt: undefined,
+          checkedInAt: undefined,
         })
     })
     const command = (input: Record<string, unknown>) =>
@@ -1104,9 +1137,83 @@ describe('swiss rounds', () => {
         ['b', 'd'],
       ])
     const drop = (ownerId: string, userId: string) => command({ op: 'drop', ownerId, userId, now: NOW })
-    return { pair, battle, submit, admin, playRoundOne, pairRoundTwo, drop }
+    return { host, command, pair, battle, submit, admin, playRoundOne, pairRoundTwo, drop }
   }
   const table = (round: number, number: number) => JSON.stringify(['event', round, number])
+
+  it('drops only the players not checked in', () => {
+    const { host, pair, command } = setup()
+    for (const userId of ['a', 'b', 'c']) command({ op: 'check-in', userId, checkedIn: true, now: NOW })
+    const dropped = command({ op: 'drop-no-shows', now: NOW })
+    const gone = host.call(host.operator, (ctx) =>
+      Array.from(ctx.db.sealedEventEntries.eventId.filter('event'))
+        .filter((entry) => entry.droppedAt !== undefined)
+        .map((entry) => entry.userId),
+    )
+    pair(1, [
+      ['a', 'b'],
+      ['c', null],
+    ])
+    expect([dropped, gone, command({ op: 'check-in', userId: 'a', checkedIn: false, now: NOW })]).toEqual(['ok', ['d'], 'closed'])
+  })
+
+  it('lets a player check in only themselves', () => {
+    const { command } = setup()
+    expect(command({ op: 'check-in', ownerId: 'a', userId: 'b', checkedIn: true, now: NOW })).toBe('forbidden')
+  })
+
+  it('swaps two players between unstarted tables and clears their battlefields', () => {
+    const { host, pair, command } = setup()
+    pair(1, [
+      ['a', 'b'],
+      ['c', 'd'],
+    ])
+    host.call(host.operator, (ctx) =>
+      ctx.db.eventBattlefields.insert({
+        key: JSON.stringify(['event', 1, 1]),
+        eventId: 'event',
+        round: 1,
+        table: 1,
+        patternId: 'dawn',
+        terrainLayoutId: 'layout',
+      }),
+    )
+    const swapped = command({ op: 'swap-seats', players: ['b', 'c'] })
+    const [tables, battlefields] = host.call(host.operator, (ctx) => [
+      Array.from(ctx.db.roundPairings.eventId.filter('event')).map(({ aId, bId }) => [aId, bId]),
+      Array.from(ctx.db.eventBattlefields.eventId.filter('event')).length,
+    ])
+    expect([swapped, tables, battlefields]).toEqual([
+      'swapped',
+      [
+        ['a', 'c'],
+        ['b', 'd'],
+      ],
+      0,
+    ])
+  })
+
+  it('refuses to swap a player whose table has started', () => {
+    const { pair, battle, command } = setup()
+    pair(1, [
+      ['a', 'b'],
+      ['c', 'd'],
+    ])
+    battle('a', 'b', JSON.stringify(['event', 1, 1]))
+    expect(command({ op: 'swap-seats', players: ['b', 'c'] })).toBe('started')
+  })
+
+  it('clears the round clock when the next round is paired', () => {
+    const { host, pair, command } = setup()
+    const endsAt = () => host.call(host.operator, (ctx) => ctx.db.sealedEvents.id.find('event')!.roundEndsAt)
+    command({ op: 'set-round-timer', endsAt: NOW })
+    const running = endsAt()
+    pair(1, [
+      ['a', 'b'],
+      ['c', 'd'],
+    ])
+    expect([running, endsAt()]).toEqual([BigInt(NOW), undefined])
+  })
 
   it('lets a player reopen a result while its round is the latest', () => {
     const swiss = setup()
@@ -1225,6 +1332,7 @@ describe('friends’ sealed rosters', () => {
           requiredLimit: undefined,
           teamId: undefined,
           droppedAt: undefined,
+          checkedInAt: undefined,
         })
     }
     const finish = (battleId: string) =>
@@ -1364,6 +1472,8 @@ describe('friends’ sealed rosters', () => {
       Array.from(ctx.db.commands.battleId.filter('battle')).map((row) => (JSON.parse(row.body) as { kind: string }).kind),
     )
     expect([refused, applied, logged.at(-1)]).toEqual(['forbidden', 'set', 'fix-battlefield'])
+    command({ token: 'game', op: 'unseal', ownerId: 'viewer', userId: 'friend' })
+    expect(fixture.call(fixture.operator, (ctx) => Array.from(ctx.db.eventBattlefields.eventId.filter('game-id')).length)).toBe(0)
   })
 
   it('counts a group game’s players as playing again when the end of their battle is undone', () => {

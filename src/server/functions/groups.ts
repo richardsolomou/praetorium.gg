@@ -1,3 +1,4 @@
+import { z } from 'zod'
 import { createServerFn } from '@tanstack/react-start'
 import { app } from '../app'
 import { currentUserId, requireUserId } from '../playerSession'
@@ -29,6 +30,16 @@ export const groupStandings = createServerFn({ method: 'GET' })
 export const groupLeague = createServerFn({ method: 'GET' })
   .validator(tokenSchema)
   .handler(({ data }) => rpc(async () => app().service.groupLeague(data.token, await currentUserId(), await app().battleFactionsFor())))
+
+export const groupPastLeagues = createServerFn({ method: 'GET' })
+  .validator(tokenSchema)
+  .handler(({ data }) => rpc(async () => app().service.groupPastLeagues(data.token, await currentUserId())))
+
+export const groupPastLeague = createServerFn({ method: 'GET' })
+  .validator(tokenSchema.extend({ leagueId: z.string().min(1).max(128) }))
+  .handler(({ data }) =>
+    rpc(async () => app().service.groupPastLeague(data.token, data.leagueId, await currentUserId(), await app().battleFactionsFor())),
+  )
 
 export const drawGroupLeague = createServerFn({ method: 'POST' })
   .validator(tokenSchema)

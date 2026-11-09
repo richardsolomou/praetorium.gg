@@ -404,6 +404,33 @@ export class SpacetimeRepository {
     return this.product.sealedEventCommand({ op: 'pair-round', ...input }, z.enum(['paired', 'not-ready', 'stale', 'missing', 'forbidden']))
   }
 
+  checkInSealedEventEntrant(input: {
+    token: string
+    eventToken: string
+    ownerId: string
+    userId: string
+    checkedIn: boolean
+    now: number
+  }) {
+    return this.product.sealedEventCommand({ op: 'check-in', ...input }, z.enum(['ok', 'closed', 'missing', 'forbidden']))
+  }
+
+  dropSealedEventNoShows(input: { token: string; eventToken: string; ownerId: string; now: number }) {
+    return this.product.sealedEventCommand({ op: 'drop-no-shows', ...input }, z.enum(['ok', 'closed', 'missing', 'forbidden']))
+  }
+
+  setSealedEventTiebreak(input: { token: string; eventToken: string; ownerId: string; scheduleFirst: boolean }) {
+    return this.product.sealedEventCommand({ op: 'set-tiebreak', ...input }, z.enum(['set', 'closed', 'missing', 'forbidden']))
+  }
+
+  setSealedEventRoundTimer(input: { token: string; eventToken: string; ownerId: string; endsAt: number | null }) {
+    return this.product.sealedEventCommand({ op: 'set-round-timer', ...input }, z.enum(['set', 'not-ready', 'missing', 'forbidden']))
+  }
+
+  swapSealedEventSeats(input: { token: string; eventToken: string; ownerId: string; players: [string, string] }) {
+    return this.product.sealedEventCommand({ op: 'swap-seats', ...input }, z.enum(['swapped', 'stale', 'started', 'missing', 'forbidden']))
+  }
+
   setSealedEventBattlefield(input: {
     token: string
     eventToken: string
@@ -422,8 +449,9 @@ export class SpacetimeRepository {
   async sealedEventTable(token: string, eventToken: string | undefined, round: number, table: number) {
     const record = await this.product.sealedEventByToken(token, eventToken)
     if (!record) return undefined
-    const { event, pairings, entries, organizerIds } = record
+    const { event, pairings, entries, organizerIds, teams } = record
     const pairing = pairings.find((candidate) => candidate.round === round && candidate.table === table)
+    const picks = new Map(teams.map((team) => [team.teamId, team.disposition]))
     const accepted = entries.filter((entry) => entry.status === 'accepted' && entry.rosterSnapshot !== null)
     const seated =
       event.rounds === null ? accepted : accepted.filter((entry) => entry.userId === pairing?.aId || entry.userId === pairing?.bId)
@@ -433,7 +461,12 @@ export class SpacetimeRepository {
       rosterLimit: event.rosterLimit,
       revealed: event.revealedAt !== null,
       organizerIds,
-      snapshots: seated.map((entry) => entry.rosterSnapshot!),
+      players: seated.map((entry) => ({
+        userId: entry.userId,
+        teamId: entry.teamId,
+        teamDisposition: (entry.teamId && picks.get(entry.teamId)) ?? null,
+        snapshot: entry.rosterSnapshot!,
+      })),
     }
   }
 
@@ -589,6 +622,7 @@ export class SpacetimeRepository {
     const profiles = await this.accounts.profilesByIds([
       ...record.members.map((member) => member.userId),
       ...(record.league?.players.map((player) => player.userId) ?? []),
+      ...record.pastLeagues.flatMap((league) => league.players.map((player) => player.userId)),
     ])
     const owner = profileOf(profiles, record.group.ownerId, 'Group owner')
     return {
@@ -601,6 +635,13 @@ export class SpacetimeRepository {
           return profile ? [{ ...player, name: profile.name, image: profile.image }] : []
         }),
       },
+      pastLeagues: record.pastLeagues.map((league) => ({
+        ...league,
+        players: league.players.flatMap((player) => {
+          const profile = profiles.get(player.userId)
+          return profile ? [{ ...player, name: profile.name, image: profile.image }] : []
+        }),
+      })),
       ownerName: owner.name,
       ownerImage: owner.image,
       members: record.members.flatMap((member) => {
@@ -707,6 +748,8 @@ export class SpacetimeRepository {
       playsAt: event.playsAt,
       sealBy: event.sealBy,
       remindedAt: event.remindedAt,
+      roundEndsAt: event.roundEndsAt ?? null,
+      scheduleFirst: event.scheduleFirst,
       pairings,
       battlefields: record.battlefields,
       occupiedCount: entries.filter((entry) => entry.status !== 'rejected').length,
@@ -722,6 +765,7 @@ export class SpacetimeRepository {
           joinedAt: entry.joinedAt,
           submitted: entry.rosterSnapshot !== null,
           dropped: entry.droppedAt != null,
+          checkedIn: entry.checkedInAt != null,
           rosterName: revealed || viewerId === entry.userId ? entry.rosterName : null,
           army: revealed && roster ? sealedEventArmy(roster) : null,
           sealedAt: revealed ? entry.submittedAt : null,
@@ -1365,8 +1409,8 @@ export class SpacetimeRepository {
   }
 
   /** Every battle a group's league fixtures started, which one page always holds. */
-  async battlesByLeague(groupToken: string) {
-    return (await this.feed({ scope: 'group-league', groupToken, limit: 500 })).battles
+  async battlesByLeague(groupToken: string, pastLeagueId?: string) {
+    return (await this.feed({ scope: 'group-league', groupToken, eventToken: pastLeagueId, limit: 500 })).battles
   }
 
   battleGroups(battleId: string) {

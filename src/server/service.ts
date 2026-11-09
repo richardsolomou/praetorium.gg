@@ -681,7 +681,12 @@ export class PraetoriumService {
       swiss:
         sealedEvent.rounds === null
           ? null
-          : swissStandings(entrantIds, swissMatches(sealedEvent.pairings, battles), droppedIds(sealedEvent.entries)),
+          : swissStandings(
+              entrantIds,
+              swissMatches(sealedEvent.pairings, battles),
+              droppedIds(sealedEvent.entries),
+              sealedEvent.scheduleFirst,
+            ),
       partial: nextCursor !== null,
     }
   }
@@ -751,6 +756,47 @@ export class PraetoriumService {
       organizer: true,
     })
     return { battleId: history.battle.id, result }
+  }
+
+  /** Records a table's final score. A table nobody has started gets its battle now, seated as the pairing is. */
+  async reportTableResult(
+    sealedEventToken: string,
+    eventToken: string | undefined,
+    round: number,
+    table: number,
+    vp: [number, number],
+    missionPackId: string | null,
+    userId: string,
+  ) {
+    const sealedEvent = await this.sealedEventService.sealedEvent(sealedEventToken, userId, eventToken)
+    if (!sealedEvent) throw new Response('no such tournament', { status: 404 })
+    const pairing = sealedEvent.pairings.find((candidate) => candidate.round === round && candidate.table === table)
+    if (!pairing?.bId) throw new Response('no such table in this tournament', { status: 404 })
+    if (!sealedEvent.organizer && userId !== pairing.aId && userId !== pairing.bId)
+      throw new Response('only the organizer or the table’s players can report its score', { status: 403 })
+    const token =
+      pairing.battleToken ??
+      (
+        await this.sealedEventService.createSealedEventBattle(
+          pairing.aId,
+          sealedEventToken,
+          pairing.bId,
+          missionPackId,
+          sealedEvent.eventToken,
+        )
+      ).token
+    const history = await this.mustFind(token)
+    const { result } = await this.repository.submit({
+      battleId: history.battle.id,
+      userId,
+      expectedSeq: foldHistory(history).seq,
+      command: { kind: 'report-result', vp: { [pairing.aId]: vp[0], [pairing.bId]: vp[1] } },
+      now: this.clock(),
+      snapshot: { seats: history.players, log: history.log },
+      organizer: sealedEvent.organizer,
+    })
+    if (result.outcome === 'refused') throw new Response(result.reason, { status: 409 })
+    if (result.outcome === 'stale') throw new Response('the battle changed while the score was being saved, so try again', { status: 409 })
   }
 
   /**
@@ -856,6 +902,39 @@ export class PraetoriumService {
             ),
           )
         : [],
+    }
+  }
+
+  /** A group's ended leagues, newest first, each named by the player who topped it. A private group shows them to members alone. */
+  async groupPastLeagues(token: string, viewerId: string | null) {
+    const found = await this.groupService.groupWithLeague(token, viewerId)
+    if (!found) return null
+    const { group } = found
+    if (group.visibility === 'private' && !group.members.some((member) => member.userId === viewerId && member.status === 'accepted'))
+      return null
+    const record = await this.repository.groupByToken(token)
+    return record?.pastLeagues.map(({ id, publishedAt, endedAt, players }) => ({ id, publishedAt, endedAt, players: players.length })) ?? []
+  }
+
+  /** One ended league's table, read from the battles its fixtures started, as a running league's is. */
+  async groupPastLeague(token: string, leagueId: string, viewerId: string | null, factions: readonly BattleFaction[] = []) {
+    if ((await this.groupPastLeagues(token, viewerId)) === null) return null
+    const record = await this.repository.groupByToken(token)
+    const league = record?.pastLeagues.find((candidate) => candidate.id === leagueId)
+    if (!league) return null
+    const battles = this.battleSummaries(await this.repository.battlesByLeague(token, leagueId), viewerId, null, factions)
+    const byToken = new Map(battles.map((battle) => [battle.token, battle]))
+    const playing = new Set(league.players.filter((player) => !player.withdrawn).map((player) => player.userId))
+    const fixtures = league.fixtures.filter((fixture) => {
+      const battle = fixture.battleToken ? (byToken.get(fixture.battleToken) ?? null) : null
+      return leagueFixtureStatus({ ...fixture, battle }, (userId) => playing.has(userId)) !== 'void'
+    })
+    return {
+      players: league.players,
+      table: swissStandings(
+        league.players.map((player) => player.userId),
+        swissMatches(fixtures, battles),
+      ),
     }
   }
 

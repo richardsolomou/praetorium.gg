@@ -598,7 +598,7 @@ type BattlePrep = {
   secondaryMode: SecondaryMode
 }
 
-export type BattleEndReason = 'completed' | 'finished-early' | 'conceded'
+export type BattleEndReason = 'completed' | 'finished-early' | 'conceded' | 'reported'
 
 export type BattleSettings = {
   limit: number | null
@@ -990,6 +990,8 @@ export type Command =
   | { kind: 'resume-clock' }
   | { kind: 'end-battle'; reason?: BattleEndReason; concededBy?: PlayerId }
   | { kind: 'reopen-battle' }
+  /** A tournament table's final score, for a game that wasn't tracked here. `vp` is each seat's total. */
+  | { kind: 'report-result'; vp: Record<PlayerId, number> }
   | { kind: 'add-note'; text: string }
   | { kind: 'undo'; target: number }
 
@@ -1004,6 +1006,7 @@ const GUIDED_COMMANDS: ReadonlySet<Command['kind']> = new Set([
   'set-deployment',
   'set-battlefield',
   'fix-battlefield',
+  'report-result',
   'set-prep',
   'use-stratagem',
   'use-new-orders',
@@ -1075,6 +1078,7 @@ export type RefusalCode =
   | 'sealed-event-sealed'
   | 'battlefield-fixed'
   | 'organizer-only'
+  | 'not-a-tournament-table'
   | 'manual-tracking'
   | 'matchup-not-in-pack'
   | 'missing-deployment'
@@ -1265,6 +1269,8 @@ export type BattleState = {
   sealedEventToken: string | null
   /** An organizer chose this battlefield, so the players can't change it. */
   battlefieldFixed: boolean
+  /** What a reported score replaced, so reopening it puts the table back where it was. */
+  beforeReport: ReportedFrom | null
   eventToken: string | null
   groupId: string | null
   settings: BattleSettings
@@ -1456,6 +1462,7 @@ export function emptyBattle(
     deploymentId: null,
     sealedEventToken: null,
     battlefieldFixed: false,
+    beforeReport: null,
     eventToken: null,
     groupId: null,
     settings: { ...DEFAULT_SETTINGS },
@@ -1508,6 +1515,15 @@ export function importedCommandRefusal(state: BattleState, by: PlayerId, command
  * battle, so that its players can correct the result.
  */
 export function commandRefusal(state: BattleState, by: PlayerId, command: Command, organizer = false): Refusal | null {
+  if (command.kind === 'report-result') {
+    if (!state.sealedEventToken) return refuse('not-a-tournament-table', 'only a tournament table can report a score')
+    if (state.status === 'finished') return refuse('battle-over', 'the battle is over')
+    if (!organizer && !state.players.some((candidate) => candidate.id === by)) return refuse('not-seated', 'you are not in this battle')
+    const seats = state.players.map((candidate) => candidate.id)
+    if (seats.length !== Object.keys(command.vp).length || seats.some((id) => command.vp[id] === undefined))
+      return refuse('unknown-player', 'give a score for each player')
+    return null
+  }
   if (command.kind === 'fix-battlefield') {
     if (!organizer) return refuse('organizer-only', 'only the organizer can set this battlefield')
     return state.status === 'setup' ? null : refuse('battle-started', 'the battle has started')
@@ -1584,6 +1600,7 @@ export function commandRefusal(state: BattleState, by: PlayerId, command: Comman
     case 'set-side-disposition': {
       if (state.status !== 'setup') return refuse('battle-started', 'the battle has started')
       if (state.dispositionsSealed) return refuse('sealed-event-sealed', 'each side’s force disposition is sealed')
+      if (state.battlefieldFixed) return refuse('battlefield-fixed', 'the organizer set this battlefield for these Force Dispositions')
       return sideDispositionChoices(state, command.side).includes(command.disposition)
         ? null
         : refuse('disposition-not-brought', 'that force disposition is not one this side brought')
@@ -2051,6 +2068,7 @@ const reopenRefusal = (state: BattleState) => (state.status === 'finished' ? nul
 function apply(state: BattleState, by: PlayerId, command: Command, seq: number) {
   // An event's organizer may reopen a battle without a seat in it, so this one needs no actor.
   if (command.kind === 'reopen-battle') return reopenBattle(state)
+  if (command.kind === 'report-result') return reportResult(state, command.vp)
   if (command.kind === 'fix-battlefield') {
     state.deploymentId = command.patternId
     state.settings.terrainLayoutId = command.terrainLayoutId
@@ -2692,7 +2710,33 @@ export function pointsRound(state: BattleState, command: Extract<Command, { kind
   return command.missed?.round ?? command.round ?? state.round
 }
 
+type ReportedFrom = {
+  status: BattleState['status']
+  activePlayerId: PlayerId | null
+  seats: Pick<PlayerState, 'primary' | 'secondary' | 'painted'>[]
+}
+
+/** The score stands alone: it replaces what was tracked and earns no battle-ready bonus on top. */
+function reportResult(state: BattleState, vp: Record<PlayerId, number>) {
+  state.beforeReport = {
+    status: state.status,
+    activePlayerId: state.activePlayerId,
+    seats: state.players.map(({ primary, secondary, painted }) => ({ primary, secondary, painted })),
+  }
+  for (const player of state.players) Object.assign(player, { primary: vp[player.id]!, secondary: 0, painted: false })
+  finishBattle(state, { reason: 'reported', concededBy: null })
+}
+
 function reopenBattle(state: BattleState) {
+  if (state.beforeReport) {
+    const { status, activePlayerId, seats } = state.beforeReport
+    for (const [at, player] of state.players.entries()) Object.assign(player, seats[at])
+    state.status = status
+    state.activePlayerId = activePlayerId
+    state.result = null
+    state.beforeReport = null
+    return
+  }
   state.advanceRequested = false
   state.scoringAcknowledged = false
   state.completionPending = false

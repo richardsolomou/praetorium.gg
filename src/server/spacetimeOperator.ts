@@ -188,6 +188,16 @@ const sealedEvent = z.object({
   soloPoints: eventPoints,
   allyPoints: eventPoints,
   sharedPoints: eventSharedPoints,
+  scheduleFirst: z
+    .boolean()
+    .nullish()
+    .transform((value) => value ?? false),
+  // Absent from a module released before organizers ran a round clock.
+  roundEndsAt: z
+    .number()
+    .int()
+    .nullish()
+    .transform((value) => value ?? null),
   playsAt: z.number().int().nullable(),
   sealBy: z.number().int().nullable(),
   // Absent from a module released before organizers sent seal reminders.
@@ -226,6 +236,7 @@ const sealedEventEntry = z.object({
   requiredLimit: z.number().int().nullable(),
   teamId: z.string().nullable(),
   droppedAt: z.number().int().nullish(),
+  checkedInAt: z.number().int().nullish(),
 })
 const sealedEventRecord = z.object({
   ...eventHost,
@@ -323,6 +334,9 @@ const groupRecord = z.object({
   games: z.array(hiddenListGame),
   // Absent from a module deployed before group leagues.
   league: groupLeague.nullable().default(null),
+  pastLeagues: z
+    .array(groupLeague.pick({ publishedAt: true, players: true, fixtures: true }).extend({ id: z.string(), endedAt: z.number().int() }))
+    .default([]),
 })
 const visibleGroup = z.object({
   group,
