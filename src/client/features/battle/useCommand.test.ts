@@ -79,6 +79,19 @@ describe('a command answered after a realtime refetch', () => {
   })
 })
 
+describe('a press the opponent got to first', () => {
+  it('counts the stale answer though nothing was queued behind it', async () => {
+    submit.mockResolvedValueOnce({ result: { outcome: 'stale', seq: 5 }, screen: { kind: 'battle', view: { seq: 5, status: 'playing' } } })
+    await drain()
+    expect(capture).toHaveBeenCalledWith('battle_command_failed', {
+      command: 'begin-battle',
+      reason: 'stale',
+      dropped_count: 0,
+      background: false,
+    })
+  })
+})
+
 describe('a command sent while the connection drops', () => {
   it('asks the player to check their connection and reports nothing', async () => {
     submit.mockRejectedValueOnce(new TypeError('Load failed'))

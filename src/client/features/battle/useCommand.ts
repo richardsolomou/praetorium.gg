@@ -149,7 +149,8 @@ async function sendQueued({
           const authoritativeSeq = screen?.kind === 'battle' ? screen.view.seq : item.basedOn
           const { kept, dropped } = afterFailedCommand(queued.current, item, authoritativeSeq)
           for (const candidate of dropped) candidate.complete?.(false)
-          if (dropped.length)
+          // A stale press drops nothing when nothing was queued behind it, but its player still has to press again.
+          if (dropped.length || (result.outcome === 'stale' && !item.background))
             posthog.capture('battle_command_failed', {
               command: item.command.kind,
               reason: result.outcome,

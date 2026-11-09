@@ -2867,6 +2867,39 @@ export function undrawnSecondaries(player: Pick<PlayerState, 'secondaryDeck' | '
   return (player.secondaryDeck ?? []).filter((candidate) => !player.secondaries.some((secondary) => secondary.key === candidate.key))
 }
 
+/**
+ * Whether a random secondary draw worked out from `before` deals the same hand against `after`.
+ *
+ * The service picks a random draw's cards, so the commands appended since only change
+ * the draw when they move the turn or this army's hand or deck. Anything else, such as
+ * the opponent spending CP in the same Command Phase, leaves the draw as its player saw it.
+ */
+export function sameRandomDraw(before: BattleState, after: BattleState, by: PlayerId, command: Command): boolean {
+  if (command.kind !== 'draw-secondaries' || command.selected) return false
+  const facts = (state: BattleState) => {
+    const player = commandArmy(state, by, command)
+    return (
+      player &&
+      JSON.stringify([
+        state.status,
+        state.round,
+        state.phase,
+        state.activePlayerId,
+        state.turnSeq,
+        player.id,
+        player.secondaryMode,
+        player.secondaries.map((secondary) => [secondary.key, player.secondaryStatus[secondary.key]]),
+        player.secondariesDrawnThisTurn,
+        player.secondariesToReview,
+        secondaryDrawTarget(player),
+        player.secondaryDeck?.map((secondary) => secondary.key),
+      ])
+    )
+  }
+  const drawn = facts(before)
+  return drawn !== undefined && drawn === facts(after)
+}
+
 /** The cards in hand still in play, apart from a secret mission. */
 function activeTacticalSecondaries(player: PlayerState): Secondary[] {
   return player.secondaries.filter(
