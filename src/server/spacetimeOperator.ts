@@ -334,6 +334,9 @@ const groupRecord = z.object({
   games: z.array(hiddenListGame),
   // Absent from a module deployed before group leagues.
   league: groupLeague.nullable().default(null),
+  pastLeagues: z
+    .array(groupLeague.pick({ publishedAt: true, players: true, fixtures: true }).extend({ id: z.string(), endedAt: z.number().int() }))
+    .default([]),
 })
 const visibleGroup = z.object({
   group,

@@ -312,6 +312,19 @@ const eventBattlefields = table(
   },
 )
 
+/** A group's ended league. Its fixtures and battles stay in `round_pairings` and `event_battles` under its id, so its table still folds from them. */
+const pastGroupLeagues = table(
+  { name: 'past_group_leagues' },
+  {
+    id: t.string().primaryKey(),
+    groupId: t.string().index('btree'),
+    publishedAt: t.u64(),
+    endedAt: t.u64(),
+    /** JSON `{ userId, withdrawn }[]`. */
+    players: t.string(),
+  },
+)
+
 const sealedEventEntries = table(
   { name: 'sealed_event_entries' },
   {
@@ -797,6 +810,7 @@ export const productTables = {
   eventBattles,
   roundPairings,
   eventBattlefields,
+  pastGroupLeagues,
   groups,
   groupMembers,
   groupBattles,

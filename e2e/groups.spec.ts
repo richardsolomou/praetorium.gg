@@ -364,6 +364,42 @@ test('a group plays doubles with open lists from New game', async ({ page }) => 
   expect(await productSql`SELECT user_id FROM battle_users WHERE battle_id = ${battleId}`).toHaveLength(4)
 })
 
+test('an ended league stays readable under past leagues and another can start', async ({ browser }, testInfo) => {
+  const contexts = await Promise.all([
+    browser.newContext({ viewport: { width: 1440, height: 1000 } }),
+    browser.newContext(),
+    browser.newContext(),
+  ])
+  const [owner, second, third] = await Promise.all(contexts.map((context) => context.newPage()))
+  const names = ['League host', 'League second', 'League third'].map(uniqueName)
+  await signUp(owner!, names[0]!)
+  await signUp(second!, names[1]!)
+  await signUp(third!, names[2]!)
+  await createGroup(owner!, uniqueName('League group'))
+  const url = owner!.url().split('?')[0]!
+  await joinGroup(second!, url, names[1]!)
+  await joinGroup(third!, url, names[2]!)
+  await owner!.goto(`${url}?tab=league`)
+  await owner!.getByRole('button', { name: 'Start a league' }).click()
+  for (const page of [owner!, second!, third!]) {
+    await page.goto(`${url}?tab=league`)
+    await page.getByRole('button', { name: 'Join league' }).click()
+    await expect(page.getByRole('button', { name: 'Join league' })).toBeHidden()
+  }
+  await owner!.reload()
+  await owner!.getByRole('button', { name: 'Publish' }).click()
+  await owner!.getByRole('alertdialog').getByRole('button', { name: 'Publish' }).click()
+  await owner!.getByRole('button', { name: 'More for the league' }).click()
+  await owner!.getByRole('menuitem', { name: 'End league' }).click()
+  await owner!.getByRole('alertdialog').getByRole('button', { name: 'End league' }).click()
+  const past = owner!.locator('[data-past-leagues]')
+  await past.getByRole('button', { name: /^Ended / }).click()
+  await expect(past.getByText(names[2]!)).toBeVisible()
+  await expect(owner!.getByRole('button', { name: 'Start a league' })).toBeVisible()
+  await owner!.screenshot({ path: testInfo.outputPath('past-leagues.png'), fullPage: true })
+  await Promise.all(contexts.map((context) => context.close()))
+})
+
 async function openNewGame(page: Page) {
   const dialog = page.getByRole('dialog', { name: 'New game', exact: true })
   await retryUntilVisible(dialog, () => page.getByRole('button', { name: 'New game', exact: true }).click({ timeout: 1_000 }))

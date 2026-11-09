@@ -73,7 +73,7 @@ On the table, a win or a bye is worth 3 points and a draw 1. Ties are broken by 
 
 To leave, choose **Withdraw from league** in the **Fixtures** ⋯ menu. Your unplayed fixtures become void, and your finished games stay on the table. Leaving the group withdraws you too.
 
-**End league**, in the same menu, removes the fixtures and table. Their battles stay.
+**End league**, in the same menu, closes it so you can start another. Its final table stays under **Past leagues** on the **League** tab, and its battles stay.
 
 ## Leave or delete a group
 

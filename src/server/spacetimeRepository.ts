@@ -616,6 +616,7 @@ export class SpacetimeRepository {
     const profiles = await this.accounts.profilesByIds([
       ...record.members.map((member) => member.userId),
       ...(record.league?.players.map((player) => player.userId) ?? []),
+      ...record.pastLeagues.flatMap((league) => league.players.map((player) => player.userId)),
     ])
     const owner = profileOf(profiles, record.group.ownerId, 'Group owner')
     return {
@@ -628,6 +629,13 @@ export class SpacetimeRepository {
           return profile ? [{ ...player, name: profile.name, image: profile.image }] : []
         }),
       },
+      pastLeagues: record.pastLeagues.map((league) => ({
+        ...league,
+        players: league.players.flatMap((player) => {
+          const profile = profiles.get(player.userId)
+          return profile ? [{ ...player, name: profile.name, image: profile.image }] : []
+        }),
+      })),
       ownerName: owner.name,
       ownerImage: owner.image,
       members: record.members.flatMap((member) => {
@@ -1395,8 +1403,8 @@ export class SpacetimeRepository {
   }
 
   /** Every battle a group's league fixtures started, which one page always holds. */
-  async battlesByLeague(groupToken: string) {
-    return (await this.feed({ scope: 'group-league', groupToken, limit: 500 })).battles
+  async battlesByLeague(groupToken: string, pastLeagueId?: string) {
+    return (await this.feed({ scope: 'group-league', groupToken, eventToken: pastLeagueId, limit: 500 })).battles
   }
 
   battleGroups(battleId: string) {

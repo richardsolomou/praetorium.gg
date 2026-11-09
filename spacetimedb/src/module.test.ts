@@ -735,8 +735,35 @@ describe('group leagues', () => {
         }),
       })
     const game = () => fixtures().find((fixture) => fixture.bId !== null)!
-    return { command, publish, fixtures, start, game }
+    return { host, command, publish, fixtures, start, game }
   }
+
+  it('keeps an ended league under the group with its fixtures, and lets another start', () => {
+    const league = setup()
+    league.publish()
+    const fixtureCount = league.fixtures().length
+    const deleted = league.command({ op: 'league-delete', actorId: 'owner' })
+    const record = JSON.parse(module.groupByToken(league.host.procedure(league.host.operator), { token: 'group' })) as {
+      league: unknown
+      pastLeagues: { id: string; players: unknown[]; fixtures: unknown[] }[]
+    }
+    const redrawn = league.command({ op: 'league-draw', actorId: 'owner', leagueId: 'second', seed: 1, now: NOW })
+    expect([
+      deleted,
+      record.league,
+      record.pastLeagues.map((past) => [past.id, past.players.length, past.fixtures.length]),
+      redrawn,
+    ]).toEqual(['deleted', null, [['league', 3, fixtureCount]], 'drawn'])
+  })
+
+  it('throws away a league that was never published', () => {
+    const league = setup()
+    league.command({ op: 'league-delete', actorId: 'owner' })
+    const { pastLeagues } = JSON.parse(module.groupByToken(league.host.procedure(league.host.operator), { token: 'group' })) as {
+      pastLeagues: unknown[]
+    }
+    expect(pastLeagues).toEqual([])
+  })
 
   it('lets only an organizer draw a league', () => {
     expect(setup().command({ op: 'league-draw', actorId: 'a', leagueId: 'other', seed: 1, now: NOW })).toBe('forbidden')

@@ -905,6 +905,39 @@ export class PraetoriumService {
     }
   }
 
+  /** A group's ended leagues, newest first, each named by the player who topped it. A private group shows them to members alone. */
+  async groupPastLeagues(token: string, viewerId: string | null) {
+    const found = await this.groupService.groupWithLeague(token, viewerId)
+    if (!found) return null
+    const { group } = found
+    if (group.visibility === 'private' && !group.members.some((member) => member.userId === viewerId && member.status === 'accepted'))
+      return null
+    const record = await this.repository.groupByToken(token)
+    return record?.pastLeagues.map(({ id, publishedAt, endedAt, players }) => ({ id, publishedAt, endedAt, players: players.length })) ?? []
+  }
+
+  /** One ended league's table, read from the battles its fixtures started, as a running league's is. */
+  async groupPastLeague(token: string, leagueId: string, viewerId: string | null, factions: readonly BattleFaction[] = []) {
+    if ((await this.groupPastLeagues(token, viewerId)) === null) return null
+    const record = await this.repository.groupByToken(token)
+    const league = record?.pastLeagues.find((candidate) => candidate.id === leagueId)
+    if (!league) return null
+    const battles = this.battleSummaries(await this.repository.battlesByLeague(token, leagueId), viewerId, null, factions)
+    const byToken = new Map(battles.map((battle) => [battle.token, battle]))
+    const playing = new Set(league.players.filter((player) => !player.withdrawn).map((player) => player.userId))
+    const fixtures = league.fixtures.filter((fixture) => {
+      const battle = fixture.battleToken ? (byToken.get(fixture.battleToken) ?? null) : null
+      return leagueFixtureStatus({ ...fixture, battle }, (userId) => playing.has(userId)) !== 'void'
+    })
+    return {
+      players: league.players,
+      table: swissStandings(
+        league.players.map((player) => player.userId),
+        swissMatches(fixtures, battles),
+      ),
+    }
+  }
+
   /** The group a battle counts for, and for a seated player during setup the groups it could; a private group's name stays with its players. */
   async battleGroups(token: string, viewerId: string | null) {
     const seats = await this.repository.battleByToken(token)

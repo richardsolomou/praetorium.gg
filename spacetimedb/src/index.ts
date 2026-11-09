@@ -604,6 +604,10 @@ function deleteGroup(ctx: Context, group: GroupRow) {
   for (const host of hiddenListGameHosts(ctx, group)) deleteHost(ctx, host)
   const league = ctx.db.groupLeagues.groupId.find(group.id)
   if (league) deleteLeague(ctx, league)
+  for (const past of Array.from(ctx.db.pastGroupLeagues.groupId.filter(group.id))) {
+    deleteLeagueFixtures(ctx, past.id)
+    ctx.db.pastGroupLeagues.id.delete(past.id)
+  }
   touchGroup(ctx, group.id)
   for (const row of Array.from(ctx.db.groupMembers.groupId.filter(group.id))) ctx.db.groupMembers.key.delete(row.key)
   for (const row of Array.from(ctx.db.groupBattles.groupId.filter(group.id))) ctx.db.groupBattles.battleId.delete(row.battleId)
@@ -621,11 +625,29 @@ function leaguePlayers(ctx: Context, leagueId: string) {
   return Array.from(ctx.db.groupLeaguePlayers.leagueId.filter(leagueId)).sort(byJoined)
 }
 
+function deleteLeagueFixtures(ctx: Context, leagueId: string) {
+  for (const row of Array.from(ctx.db.eventBattles.eventId.filter(leagueId))) ctx.db.eventBattles.battleId.delete(row.battleId)
+  for (const row of Array.from(ctx.db.roundPairings.eventId.filter(leagueId))) ctx.db.roundPairings.key.delete(row.key)
+}
+
+/** A published league that ends is kept with its fixtures so its table can still be read; a draft has nothing to keep. */
+function endLeague(ctx: Context, league: LeagueRow, now: bigint) {
+  if (league.publishedAt === undefined) return deleteLeague(ctx, league)
+  ctx.db.pastGroupLeagues.insert({
+    id: league.id,
+    groupId: league.groupId,
+    publishedAt: league.publishedAt,
+    endedAt: now,
+    players: JSON.stringify(leaguePlayers(ctx, league.id).map((row) => ({ userId: row.userId, withdrawn: row.withdrawn }))),
+  })
+  for (const row of Array.from(ctx.db.groupLeaguePlayers.leagueId.filter(league.id))) ctx.db.groupLeaguePlayers.key.delete(row.key)
+  ctx.db.groupLeagues.id.delete(league.id)
+}
+
 /** A league takes its players and fixtures with it; its battles stay. */
 function deleteLeague(ctx: Context, league: LeagueRow) {
   for (const row of Array.from(ctx.db.groupLeaguePlayers.leagueId.filter(league.id))) ctx.db.groupLeaguePlayers.key.delete(row.key)
-  for (const row of Array.from(ctx.db.eventBattles.eventId.filter(league.id))) ctx.db.eventBattles.battleId.delete(row.battleId)
-  for (const row of Array.from(ctx.db.roundPairings.eventId.filter(league.id))) ctx.db.roundPairings.key.delete(row.key)
+  deleteLeagueFixtures(ctx, league.id)
   ctx.db.groupLeagues.id.delete(league.id)
 }
 
@@ -1080,7 +1102,15 @@ export const battleFeed = spacetime.procedure({ payload: t.string() }, t.string(
     if (input.scope === 'sealed-event' && event?.revealedAt === undefined) return productJson({ battles: [], nextCursor: null })
     const group = input.groupToken ? tx.db.groups.token.find(input.groupToken) : undefined
     if ((input.scope === 'group' || input.scope === 'group-league') && !group) return productJson({ battles: [], nextCursor: null })
-    const league = input.scope === 'group-league' ? tx.db.groupLeagues.groupId.find(group!.id) : undefined
+    const pastLeague = input.scope === 'group-league' && input.eventToken ? tx.db.pastGroupLeagues.id.find(input.eventToken) : undefined
+    const league =
+      input.scope === 'group-league'
+        ? input.eventToken
+          ? pastLeague?.groupId === group!.id
+            ? pastLeague
+            : undefined
+          : tx.db.groupLeagues.groupId.find(group!.id)
+        : undefined
     const friendIds = input.scope === 'friends' ? acceptedFriendIds(tx, input.userId!) : new Set<string>()
 
     const direction = input.order === 'oldest' ? -1 : 1
@@ -4493,7 +4523,7 @@ function groupCommandIn(tx: Context, args: unknown[]) {
   }
   if (input.op === 'league-delete') {
     if (!league) return productJson('missing')
-    deleteLeague(tx, league)
+    endLeague(tx, league, tx.timestamp.microsSinceUnixEpoch / 1000n)
     touchGroup(tx, group.id)
     return productJson('deleted')
   }
@@ -4558,6 +4588,15 @@ export const groupByToken = spacetime.procedure({ token: t.string() }, t.string(
         }
       }),
       league: leagueRecord(tx, group.id),
+      pastLeagues: Array.from(tx.db.pastGroupLeagues.groupId.filter(group.id))
+        .sort((one, other) => Number(other.endedAt - one.endedAt))
+        .map((past) => ({
+          id: past.id,
+          publishedAt: past.publishedAt,
+          endedAt: past.endedAt,
+          players: JSON.parse(past.players) as { userId: string; withdrawn: boolean }[],
+          fixtures: roundPairings(tx, past.id).map((pairing) => pairingView(tx, pairing)),
+        })),
     })
   }),
 )
