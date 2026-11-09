@@ -9,10 +9,15 @@ export const Route = createFileRoute('/battles/')({
   loaderDeps: ({ search }) => search,
   loader: async ({ context, deps }) => {
     const me = await context.queryClient.query({ ...meQuery(), staleTime: 'static' })
-    const { view: asked, ...search } = deps
+    const { view: asked, order, ...search } = deps
     const view = me ? (asked ?? 'mine') : 'public'
     const filter = battleFilterOf(search)
-    const query = view === 'mine' ? battlesQuery(filter) : view === 'friends' ? friendBattlesQuery(filter) : publicBattlesQuery(filter)
+    const query =
+      view === 'mine'
+        ? battlesQuery(filter, order)
+        : view === 'friends'
+          ? friendBattlesQuery(filter, order)
+          : publicBattlesQuery(filter, order)
     await Promise.all([
       context.queryClient.infiniteQuery({ ...query, staleTime: 'static' }),
       context.queryClient.query({ ...deploymentsQuery(), staleTime: 'static' }).catch(() => null),
@@ -29,6 +34,6 @@ export const Route = createFileRoute('/battles/')({
 })
 
 function BattlesRoute() {
-  const { view, ...search } = Route.useSearch()
-  return <BattlesPage view={view ?? 'mine'} search={search} />
+  const { view, order, ...search } = Route.useSearch()
+  return <BattlesPage view={view ?? 'mine'} search={search} order={order} />
 }

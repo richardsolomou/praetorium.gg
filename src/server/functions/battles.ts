@@ -35,7 +35,12 @@ export const myBattles = createServerFn({ method: 'GET' })
     rpc(() =>
       forSignedIn({ battles: [], nextCursor: null }, async (id) => {
         const [rules, factions] = await Promise.all([app().rulesFor(), app().battleFactionsFor()])
-        return app().service.battles(id, rules, { limit: BATTLES_PAGE, before: data.before ?? undefined, filter: data.filter }, factions)
+        return app().service.battles(
+          id,
+          rules,
+          { limit: BATTLES_PAGE, before: data.before ?? undefined, filter: data.filter, order: data.order },
+          factions,
+        )
       }),
     ),
   )
@@ -52,7 +57,12 @@ export const publicBattles = createServerFn({ method: 'GET' })
   .handler(({ data }) =>
     rpc(async () => {
       const [viewerId, rules, factions] = await Promise.all([currentUserId(), app().rulesFor(), app().battleFactionsFor()])
-      return app().service.publicBattles(viewerId, rules, { before: data.before ?? undefined, filter: data.filter }, factions)
+      return app().service.publicBattles(
+        viewerId,
+        rules,
+        { before: data.before ?? undefined, filter: data.filter, order: data.order },
+        factions,
+      )
     }),
   )
 
@@ -63,7 +73,12 @@ export const friendBattles = createServerFn({ method: 'GET' })
     rpc(() =>
       forSignedIn({ battles: [], nextCursor: null }, async (id) => {
         const [rules, factions] = await Promise.all([app().rulesFor(), app().battleFactionsFor()])
-        return app().service.friendBattles(id, rules, { before: data.before ?? undefined, filter: data.filter }, factions)
+        return app().service.friendBattles(
+          id,
+          rules,
+          { before: data.before ?? undefined, filter: data.filter, order: data.order },
+          factions,
+        )
       }),
     ),
   )

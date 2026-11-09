@@ -1,4 +1,4 @@
-import { beforeEach, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ROSTER_DISCOVERY_PAGE_SIZE, type RosterAudience, type RosterDiscoveryFilter } from '../../core/rosterDiscovery'
 import type { RosterSort } from '../../core/rosterSort'
 import { discoverRosters, rosterAccess, rostersLentToMe } from './rosters'
@@ -37,7 +37,11 @@ vi.mock('../playerSession', () => ({
 }))
 vi.mock('../rosterPrices', () => ({ cachedRosterAssessmentsFor: mocks.assessments }))
 
-type Discovered = { rosters: { roster: { id: string }; owner: { name: string }; points: number | null; problem: string | null }[] }
+type Discovered = {
+  rosters: { roster: { id: string }; owner: { name: string }; points: number | null; problem: string | null }[]
+  total: number | null
+  nextCursor: { id: string } | null
+}
 const discover = discoverRosters as unknown as (input: {
   data: RosterDiscoveryFilter & { audience: RosterAudience; sort: RosterSort; before: null }
 }) => Promise<Discovered>
@@ -125,4 +129,35 @@ it('prices a lent roster for its card without sending its unit notes', async () 
   mocks.lent.mockResolvedValue([{ ...entry('lent', 'necrons'), lentAt: 1 }])
   const lent = JSON.stringify(await (rostersLentToMe as unknown as () => Promise<unknown>)())
   expect([lent.includes('"points":990'), lent.includes('Hold the left flank.')]).toEqual([true, false])
+})
+
+describe('a legality filter', () => {
+  const priced = (id: string) => ({
+    ...entry(id, 'necrons'),
+    priceable: { id, name: id, limit: 2_000, createdAt: 1, updatedAt: 2, picks: [] },
+  })
+  const page = (ids: string[], nextCursor: unknown) => ({ rosters: ids.map(priced), total: ids.length, nextCursor })
+  const legal = { legality: { in: ['legal'], out: [] } }
+  const cursor = { at: 2, id: 'walked', name: '', limit: 0, createdAt: 0 }
+
+  it('reads on past a page with no legal roster', async () => {
+    mocks.assessments.mockImplementationOnce(async (rosters: unknown[]) =>
+      rosters.map(() => ({ points: 990, verdict: { problem: 'not-legal' } })),
+    )
+    mocks.discover.mockResolvedValueOnce(page(['illegal'], cursor)).mockResolvedValueOnce(page(['fine'], null))
+    const found = await invoke({ data: { ...legal, before: null } })
+    expect(found.rosters.map(({ roster }) => roster.id)).toEqual(['fine'])
+  })
+
+  it('continues from the last roster it kept when one read overfills the page', async () => {
+    const ids = Array.from({ length: ROSTER_DISCOVERY_PAGE_SIZE + 2 }, (_, index) => `roster-${index}`)
+    mocks.discover.mockResolvedValueOnce(page(ids, cursor))
+    const found = await invoke({ data: { ...legal, before: null } })
+    expect(found.nextCursor).toMatchObject({ id: `roster-${ROSTER_DISCOVERY_PAGE_SIZE - 1}` })
+  })
+
+  it('gives no total, since the database counted rosters the filter drops', async () => {
+    mocks.discover.mockResolvedValueOnce(page(['fine'], null))
+    expect((await invoke({ data: { ...legal, before: null } })).total).toBeNull()
+  })
 })

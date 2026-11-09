@@ -1,5 +1,14 @@
 import { useQuery } from '@tanstack/react-query'
-import { BATTLE_FILTER_FACETS, BATTLE_SEARCH_MAX_LENGTH, type BattleFacet } from '../../../core/battleFilter'
+import { ArrowDownUp } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { BATTLE_FILTER_FACETS, BATTLE_SEARCH_MAX_LENGTH, type BattleFacet, type BattleOrder } from '../../../core/battleFilter'
 import { GAME_SIZES, battleSizeOptionLabel } from '../../../core/battle'
 import { facetText } from '../../../core/listFilter'
 import { FilterBar, type FilterDimension } from '../../components/FilterBar'
@@ -38,15 +47,41 @@ const TYPE = plain([
 ])
 const SIZE = plain(GAME_SIZES.map((size) => ({ label: battleSizeOptionLabel(size), value: String(size.limit) })))
 
+function BattleOrderMenu({ order, onOrder }: { order?: BattleOrder; onOrder: (order: BattleOrder | undefined) => void }) {
+  const label = order ? 'Oldest first' : 'Newest first'
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger render={<Button variant="outline" aria-label={`Sort: ${label}`} />}>
+        <ArrowDownUp />
+        {label}
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="w-44">
+        <DropdownMenuRadioGroup value={order ?? 'newest'} onValueChange={(chosen) => onOrder(chosen === 'oldest' ? 'oldest' : undefined)}>
+          <DropdownMenuRadioItem value="newest" closeOnClick>
+            Newest first
+          </DropdownMenuRadioItem>
+          <DropdownMenuRadioItem value="oldest" closeOnClick>
+            Oldest first
+          </DropdownMenuRadioItem>
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+
 export function BattleFilters({
   view,
   search,
   onChange,
+  order,
+  onOrder,
   signedIn,
 }: {
   view: BattlesView
   search: BattleListSearch
   onChange: (next: BattleListSearch) => void
+  order?: BattleOrder
+  onOrder: (order: BattleOrder | undefined) => void
   signedIn: boolean
 }) {
   const mine = view === 'mine'
@@ -121,6 +156,7 @@ export function BattleFilters({
       }}
       address={search}
       onApply={(address) => onChange(address)}
+      sort={<BattleOrderMenu order={order} onOrder={onOrder} />}
     />
   )
 }

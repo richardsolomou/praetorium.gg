@@ -1,3 +1,5 @@
+import type { FilterDimension } from '../../components/FilterBar'
+import { ROSTER_POINTS_BANDS } from '../../../core/rosterDiscovery'
 import { ArrowDownUp } from 'lucide-react'
 import { Fragment } from 'react'
 import { Button } from '@/components/ui/button'
@@ -68,3 +70,23 @@ export function RosterSortMenu({ value, onChange }: { value: RosterSort; onChang
     </DropdownMenu>
   )
 }
+
+/** The filters that need a roster's price, on every roster list. */
+export const ROSTER_ASSESSMENT_DIMENSIONS: FilterDimension[] = [
+  {
+    key: 'legality',
+    label: 'Legality',
+    pinned: true,
+    groups: [
+      {
+        label: '',
+        items: [
+          { label: 'Legal', value: 'legal' },
+          { label: 'Over the points limit', value: 'over-limit' },
+          { label: 'Not legal', value: 'not-legal' },
+        ],
+      },
+    ],
+  },
+  { key: 'points', label: 'Points', groups: [{ label: '', items: ROSTER_POINTS_BANDS.map(({ label, value }) => ({ label, value })) }] },
+]

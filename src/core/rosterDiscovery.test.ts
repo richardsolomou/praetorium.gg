@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  matchesRosterAssessment,
   ROSTER_DISCOVERY_MAX_PAGE_SIZE,
   discoveryPage,
   rosterDiscoveryCursorSchema,
@@ -111,6 +112,19 @@ describe('roster discovery filters', () => {
 
   it('leaves out a roster without a detachment when one is requested', () => {
     expect(ids([row('none', 1, { detachmentId: null })], { detachmentIds: ['awakened'] })).toEqual([])
+  })
+})
+
+describe('roster assessment filters', () => {
+  const legal = { in: ['legal'], out: [] }
+  it('leaves out a roster the current data could not price when legal lists are asked for', () => {
+    expect(matchesRosterAssessment({ legality: legal }, { points: null, problem: null })).toBe(false)
+  })
+  it('counts 2,000 points in the top band, not the one below it', () => {
+    expect(matchesRosterAssessment({ points: { in: ['2000-plus'], out: [] } }, { points: 2_000, problem: null })).toBe(true)
+  })
+  it('tells an over-limit list from a legal one', () => {
+    expect(matchesRosterAssessment({ legality: legal }, { points: 2_010, problem: 'over-limit' })).toBe(false)
   })
 })
 

@@ -13,9 +13,14 @@ import { captureMutation } from '../mutationTelemetry'
 import { captureRosterCreated } from '../rosterTelemetry'
 import { ROSTER_PRICED_SAMPLE_RATE, rosterPricedProperties, rosterTelemetryProperties } from '../../shared/rosterTelemetry'
 import { isRosterExchangeCode } from '../../core/rosterExchange'
-import { ROSTER_DISCOVERY_MAX_PAGE_SIZE, ROSTER_DISCOVERY_PAGE_SIZE } from '../../core/rosterDiscovery'
+import {
+  matchesRosterAssessment,
+  rosterAssessmentFilterActive,
+  ROSTER_DISCOVERY_MAX_PAGE_SIZE,
+  ROSTER_DISCOVERY_PAGE_SIZE,
+} from '../../core/rosterDiscovery'
 import { discoveryScope, inDiscoveryScope } from '../../core/rosterDiscoveryScope'
-import { matchesPlayedArmy, playedArmyFilterActive } from '../../core/playedArmies'
+import { matchesPlayedArmy, playedArmyFilterActive, type PlayedArmy } from '../../core/playedArmies'
 import { variantDifferences } from '../rosterDifferences'
 import { copySavedRoster, saveOwnedRoster } from '../saveOwnedRoster'
 import { rosterActions } from '../rosterActions'
@@ -164,6 +169,9 @@ export const playerRosters = createServerFn({ method: 'GET' })
     }),
   )
 
+/** How many full pages a legality or points filter prices at most in one read; every roster costs a pricing the first time. */
+const ASSESSED_DISCOVERY_READS = 4
+
 /**
  * Public rosters, most recently saved first, with their owner's name and whether the current
  * data can field them: other players' for anyone, or a signed-in player's friends'. A rare page
@@ -179,31 +187,43 @@ export const discoverRosters = createServerFn({ method: 'GET' })
       const factions = factionIndex?.factions ?? []
       const scope = discoveryScope(filter, factions)
       if (!scope || (audience === 'friends' && !viewerId)) return { rosters: [], total: 0, nextCursor: null }
-      const page = await instance.service.rosterService.discoverRosters({
-        ...scope,
-        sizes: filter.size,
-        dispositions: filter.disposition,
-        owners: filter.owner,
-        q: filter.q,
-        namedOwnerIds: filter.q ? await instance.service.rosterService.ownerIdsNamed(filter.q, viewerId) : [],
-        audience,
-        viewerId,
-        sort,
-        before,
-        limit: ROSTER_DISCOVERY_PAGE_SIZE,
-      })
+      const namedOwnerIds = filter.q ? await instance.service.rosterService.ownerIdsNamed(filter.q, viewerId) : []
       const indexed = byId(factions)
-      const shown = page.rosters.filter(({ summary }) => inDiscoveryScope(summary, filter, indexed))
-      const assessments = await cachedRosterAssessmentsFor(shown.map(({ priceable }) => priceable))
+      const assessed = rosterAssessmentFilterActive(filter)
+      const found = []
+      let total: number | null = null
+      let cursor = before
+      for (let walked = 0; walked < (assessed ? ASSESSED_DISCOVERY_READS : 1); walked++) {
+        const page = await instance.service.rosterService.discoverRosters({
+          ...scope,
+          sizes: filter.size,
+          dispositions: filter.disposition,
+          owners: filter.owner,
+          q: filter.q,
+          namedOwnerIds,
+          audience,
+          viewerId,
+          sort,
+          before: cursor,
+          limit: assessed ? ROSTER_DISCOVERY_MAX_PAGE_SIZE : ROSTER_DISCOVERY_PAGE_SIZE,
+        })
+        const shown = page.rosters.filter(({ summary }) => inDiscoveryScope(summary, filter, indexed))
+        const assessments = await cachedRosterAssessmentsFor(shown.map(({ priceable }) => priceable))
+        for (const [index, { summary, owner, priceable }] of shown.entries()) {
+          const { points, verdict } = assessments[index]!
+          if (matchesRosterAssessment(filter, { points, problem: verdict.problem }))
+            found.push({ priceable, entry: { roster: summary, owner, points, problem: verdict.problem } })
+        }
+        // A count of what the database found would include rosters this filter then drops.
+        total = assessed ? null : page.total
+        cursor = page.nextCursor
+        if (!cursor || found.length >= ROSTER_DISCOVERY_PAGE_SIZE) break
+      }
+      const last = found.length > ROSTER_DISCOVERY_PAGE_SIZE ? found[ROSTER_DISCOVERY_PAGE_SIZE - 1]!.priceable : null
       return {
-        rosters: shown.map(({ summary, owner }, index) => ({
-          roster: summary,
-          owner,
-          points: assessments[index]!.points,
-          problem: assessments[index]!.verdict.problem,
-        })),
-        total: page.total,
-        nextCursor: page.nextCursor,
+        rosters: found.slice(0, ROSTER_DISCOVERY_PAGE_SIZE).map(({ entry }) => entry),
+        total,
+        nextCursor: last ? { at: last.updatedAt, id: last.id, name: last.name, limit: last.limit, createdAt: last.createdAt } : cursor,
       }
     }),
   )
@@ -366,26 +386,36 @@ export const discoverPlayedArmies = createServerFn({ method: 'GET' })
       if (!discoveryScope(filter, factions)) return { armies: [], nextCursor: null }
       const indexed = byId(factions)
       const now = Date.now()
+      const assess = (armies: PlayedArmy[]) =>
+        cachedRosterAssessmentsFor(
+          armies.map((army) => ({
+            ...copiedArmy(army),
+            id: `${army.battle}:${army.player.id}`,
+            updatedAt: army.playedAt,
+            optionalRules: [],
+            borrowedDetachmentId: null,
+          })),
+        )
       const page = await instance.service.playedArmies(
         viewerId,
         before ?? undefined,
         battleFactions,
         playedArmyFilterActive(filter)
-          ? (army) => inDiscoveryScope(copiedArmy(army), filter, indexed) && matchesPlayedArmy(army, filter, now)
+          ? async (armies) => {
+              const fit = armies.filter(
+                (army) => inDiscoveryScope(copiedArmy(army), filter, indexed) && matchesPlayedArmy(army, filter, now),
+              )
+              if (!rosterAssessmentFilterActive(filter)) return fit
+              const assessments = await assess(fit)
+              return fit.filter((_, index) =>
+                matchesRosterAssessment(filter, { points: assessments[index]!.points, problem: assessments[index]!.verdict.problem }),
+              )
+            }
           : undefined,
       )
-      const shown = page.armies.map((army) => ({ army, copy: copiedArmy(army) }))
-      const assessments = await cachedRosterAssessmentsFor(
-        shown.map(({ army, copy }) => ({
-          ...copy,
-          id: `${army.battle}:${army.player.id}`,
-          updatedAt: army.playedAt,
-          optionalRules: [],
-          borrowedDetachmentId: null,
-        })),
-      )
+      const assessments = await assess(page.armies)
       return {
-        armies: shown.map(({ army: { picks: _picks, ...army } }, index) => ({
+        armies: page.armies.map(({ picks: _picks, ...army }, index) => ({
           ...army,
           points: assessments[index]!.points,
           problem: assessments[index]!.verdict.problem,

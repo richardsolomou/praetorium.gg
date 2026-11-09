@@ -139,6 +139,9 @@ it.skipIf(!url || !database || !token)('orders a player feed by activity across 
     const first = await operator.battleFeed({ scope: 'user', userId, limit: 2 })
     const second = await operator.battleFeed({ scope: 'user', userId, before: first.nextCursor, limit: 2 })
     expect([...first.battles, ...second.battles].map((row) => row.battle.id)).toEqual([ids[0], ids[2], ids[1]])
+    const earliest = await operator.battleFeed({ scope: 'user', userId, order: 'oldest', limit: 2 })
+    const latest = await operator.battleFeed({ scope: 'user', userId, order: 'oldest', before: earliest.nextCursor, limit: 2 })
+    expect([...earliest.battles, ...latest.battles].map((row) => row.battle.id)).toEqual([ids[1], ids[2], ids[0]])
   } finally {
     for (const id of ids) await operator.deleteBattle(id, userId)
   }

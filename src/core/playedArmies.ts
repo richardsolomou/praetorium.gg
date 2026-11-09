@@ -99,7 +99,7 @@ function outcome(battle: StandingBattle, side: number): PlayedOutcome {
   }
 }
 
-const PLAYED_FACETS = ['faction', 'detachment', 'rules', 'size', 'disposition', 'result', 'against'] as const
+const PLAYED_FACETS = ['faction', 'detachment', 'rules', 'size', 'disposition', 'result', 'against', 'legality', 'points'] as const
 
 export const playedArmyFilterActive = (filter: PlayedArmyFilter) =>
   Boolean(filter.q || filter.period || filter.from || filter.to || PLAYED_FACETS.some((key) => facetActive(filter[key])))

@@ -1,6 +1,7 @@
 import { Ban, Bookmark, Check, ChevronDown, SlidersHorizontal, Trash2, X } from 'lucide-react'
-import { useEffect, useState, type ReactNode } from 'react'
-import { z } from 'zod'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -16,7 +17,23 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { cn } from '@/lib/utils'
-import { facetActive, PERIODS, type Facet, type FacetAddress, type Period, type PeriodFilter } from '../../core/listFilter'
+import {
+  facetActive,
+  LIST_FILTER_SCOPES,
+  listPreferencesSchema,
+  MAX_SAVED_VIEWS,
+  PERIODS,
+  SAVED_VIEW_NAME_MAX_LENGTH,
+  type Facet,
+  type FacetAddress,
+  type ListFilterScope,
+  type ListPreferences,
+  type Period,
+  type PeriodFilter,
+} from '../../core/listFilter'
+import { setListFilterPreferences } from '../functions'
+import { listFilterPreferencesQuery, meQuery } from '../queries'
+import { listFilterPreferencesKey } from '../queries/queryKeys'
 import { parseStored, useStoredValue, writeStoredValue } from '../storedValue'
 import { matchesSearch } from '../text'
 import { FactionMark } from './FactionMark'
@@ -31,23 +48,68 @@ export type FilterDimension = {
   pinned?: boolean
 }
 
-const MAX_VIEWS = 12
-const VIEW_NAME_MAX_LENGTH = 40
 const SEARCHABLE_FROM = 8
 const SEARCH_SETTLE_MS = 250
 const PERIOD_LABEL: Record<Period, string> = { '7d': 'Last 7 days', '30d': 'Last 30 days', '90d': 'Last 90 days', '1y': 'Last year' }
 
-const preferencesSchema = z.object({
-  pinned: z.array(z.string()).nullable().default(null),
-  views: z.array(z.object({ name: z.string(), address: z.record(z.string(), z.union([z.string(), z.number()])) })).default([]),
-})
-type Preferences = z.infer<typeof preferencesSchema>
+const preferencesKey = (scope: ListFilterScope) => `praetorium:filters:${scope}`
 
-/** What this player keeps in the bar and the views they saved, per list, on this device. */
-function usePreferences(scope: string) {
-  const key = `praetorium:filters:${scope}`
-  const preferences: Preferences = parseStored(preferencesSchema, useStoredValue(key)) ?? { pinned: null, views: [] }
-  return [preferences, (next: Preferences) => writeStoredValue(key, JSON.stringify(next))] as const
+/** Sign-out leaves them on the account; left here, they would upload into whoever signs in next. */
+export function forgetDeviceFilterPreferences() {
+  for (const scope of LIST_FILTER_SCOPES) writeStoredValue(preferencesKey(scope), null)
+}
+
+/**
+ * What this player keeps in the bar and the views they saved, per list.
+ *
+ * Browser storage is what renders, so a visitor and an offline page work the same. A signed-in player's account is the
+ * authority over it: its copy replaces this device's, and a list the account has never heard of takes this device's.
+ */
+function usePreferences(scope: ListFilterScope) {
+  const key = preferencesKey(scope)
+  const stored = useStoredValue(key)
+  const preferences: ListPreferences = parseStored(listPreferencesSchema, stored) ?? { pinned: null, views: [] }
+  const queryClient = useQueryClient()
+  const { data: me } = useQuery(meQuery())
+  const { data: account } = useQuery({ ...listFilterPreferencesQuery(), enabled: Boolean(me) })
+  const { mutate } = useMutation({
+    mutationFn: (next: ListPreferences) => setListFilterPreferences({ data: { scope, preferences: next } }),
+    onError: () => {
+      toast.error('Could not save that to your account.')
+      void queryClient.invalidateQueries({ queryKey: listFilterPreferencesKey() })
+    },
+  })
+  const keep = useCallback(
+    (next: ListPreferences) => {
+      void queryClient.cancelQueries({ queryKey: listFilterPreferencesKey() })
+      queryClient.setQueryData(listFilterPreferencesQuery().queryKey, (current) => ({ ...current, [scope]: next }))
+      mutate(next)
+    },
+    [mutate, queryClient, scope],
+  )
+  const signedIn = Boolean(me)
+  const kept = account?.[scope]
+  // A refused upload refetches an account still without this list, which must not ask again.
+  const uploaded = useRef(false)
+  useEffect(() => {
+    if (!signedIn || !account) return
+    if (kept) {
+      const held = JSON.stringify(kept)
+      if (held !== stored) writeStoredValue(key, held)
+      return
+    }
+    const device = parseStored(listPreferencesSchema, stored)
+    if (uploaded.current || !device || (!device.pinned && !device.views.length)) return
+    uploaded.current = true
+    keep(device)
+  }, [signedIn, account, kept, stored, key, keep])
+  return [
+    preferences,
+    (next: ListPreferences) => {
+      writeStoredValue(key, JSON.stringify(next))
+      if (me) keep(next)
+    },
+  ] as const
 }
 
 const optionsOf = (groups: SearchableGroup[]) => groups.flatMap((group) => group.items)
@@ -82,7 +144,7 @@ export function FilterBar({
   summary,
 }: {
   /** Which list's preferences these are; different tabs offer different filters. */
-  scope: string
+  scope: ListFilterScope
   label: string
   query: string
   onQuery: (query: string) => void
@@ -134,7 +196,7 @@ export function FilterBar({
           onSave={(name) =>
             save({
               ...preferences,
-              views: [...preferences.views.filter((view) => view.name !== name), { name, address: filled }].slice(-MAX_VIEWS),
+              views: [...preferences.views.filter((view) => view.name !== name), { name, address: filled }].slice(-MAX_SAVED_VIEWS),
             })
           }
           onDelete={(name) => save({ ...preferences, views: preferences.views.filter((view) => view.name !== name) })}
@@ -477,7 +539,7 @@ function SavedViews({
   onSave,
   onDelete,
 }: {
-  views: Preferences['views']
+  views: ListPreferences['views']
   canSave: boolean
   onApply: (address: Record<string, FacetAddress>) => void
   onSave: (name: string) => void
@@ -530,7 +592,7 @@ function SavedViews({
           <Input
             value={name}
             onChange={(event) => setName(event.target.value)}
-            maxLength={VIEW_NAME_MAX_LENGTH}
+            maxLength={SAVED_VIEW_NAME_MAX_LENGTH}
             placeholder={canSave ? 'Name this view' : 'Choose some filters first'}
             aria-label="View name"
             disabled={!canSave}
