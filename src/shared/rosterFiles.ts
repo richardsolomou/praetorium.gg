@@ -405,14 +405,17 @@ function importTextRoster(
       const entryId = datasheetNamed(normalized(`${selection.name.replace(/^(?:Enhancements?|Upgrade):\s*/i, '')} ${unit.name}`))
       return entryId ? [{ entryId, unit: { ...unit, selections: unit.selections.filter((other) => other !== selection) } }] : []
     })
+  // Some apps print a "Soul Grinder" with no allegiance at all, so the unit still comes in, as the first god's, for the player to check.
+  const allegiancesOf = (name: string) => CHAOS_GODS.flatMap((god) => datasheetNamed(`${god} ${normalized(name)}`) ?? [])
   const units = parsed.units.flatMap((listed, sourceIndex) => {
     const named = namedInAnyLanguage(normalized(listed.name))
     const variants = named ? [] : variantNamed(listed)
+    const guessed = named || variants.length ? undefined : allegiancesOf(listed.name)[0]
     const { entryId, unit } = named
       ? { entryId: named, unit: listed }
       : variants.length === 1
         ? variants[0]!
-        : { entryId: null, unit: listed }
+        : { entryId: guessed ?? null, unit: listed }
     if (!entryId) {
       unknown.push({ name: label(unit, sourceIndex), reason: unmatchedDatasheetReason(unit.name, faction.id, loaded, removed) })
       return []
@@ -428,7 +431,15 @@ function importTextRoster(
       translations,
       removed,
     )
-    if (read.unplaced.length) note(unplaced, sourceIndex, read.unplaced)
+    const allegiance = guessed
+      ? [
+          {
+            name: 'Allegiance',
+            reason: `the list names no god, so it came in as ${nameOf(loaded.index.definitions.get(guessed)!, loaded.index.definitions)}`,
+          },
+        ]
+      : []
+    if (read.unplaced.length || allegiance.length) note(unplaced, sourceIndex, [...allegiance, ...read.unplaced])
     return [read.pick]
   })
 
@@ -659,9 +670,12 @@ const modelAliases = (name: string) => {
 }
 // BSData prefixes weapons the official app does not, as its "Astartes Chainsword" and "Steed's savage claws" are the app's "Chainsword" and "Savage claws".
 // "Exo-armour" and "Exoarmour", "sabre & clawed limbs" and "sabre and clawed limbs", "Company Veteran w/ Bolt Rifle" and "with bolt rifle", are one piece.
+// The official app's "Transdimensional isolator" and "Boss Nob" are the catalogue's "Dimensional isolator" and "Nob".
 const spellingKey = (name: string) =>
   name
     .replace(/^(?:astartes|\S+'s) /, '')
+    .replace(/^transdimensional /, 'dimensional ')
+    .replace(/^boss nob\b/, 'nob')
     .replaceAll('&', 'and')
     .replaceAll(/\s+with\s+/g, 'w/')
     .replaceAll(/[\s-]/g, '')
@@ -670,6 +684,7 @@ const powerWeaponKey = (key: string) => key.replace(/power(?:sword|maul)/, 'powe
 // The official app names a datasheet's plain melee profile "Close combat weapon" where the catalogue names it for what it is, as a Prosecutor's "Gun Stock".
 const GENERIC_MELEE = spellingKey('close combat weapon')
 /** The kind of model a counted group fields, as "1 - 2 Gun Servitors" fields a "Gun Servitor", which the official app names it by. */
+const CHAOS_GODS = ['khorne', 'nurgle', 'slaanesh', 'tzeentch']
 const groupKind = (name: string) => normalized(name).match(/^\d+(?:\s*-\s*\d+)?\s+(.+?)s?$/)?.[1]
 
 /**

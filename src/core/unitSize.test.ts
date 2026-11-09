@@ -50,8 +50,27 @@ const sizedSquad = (): Partial<Catalogue> => ({
   ],
 })
 
+const openingSquad = (): Partial<Catalogue> => {
+  const squad = sizedSquad()
+  squad.sharedSelectionEntries![0]!.selectionEntries![0]!.modifiers = [
+    {
+      field: 'sgt-max',
+      type: 'increment',
+      value: 1,
+      conditions: [
+        { type: 'atLeast', value: 9, field: 'selections', scope: 'parent', childId: 'trooper', shared: true, includeChildSelections: true },
+      ],
+    },
+  ]
+  return squad
+}
+
 describe('how many models a unit may field', () => {
   const squad = sizedSquad
+
+  it('fields a second companion a full squad opens when a list asks for more', () => {
+    expect(buildUnit('squad', indexOf(openingSquad()), 11)?.size.models).toBe(11)
+  })
 
   it('counts the leader and the bodies together', () => {
     expect(unitSize('squad', indexOf(squad()))?.models).toBe(5)

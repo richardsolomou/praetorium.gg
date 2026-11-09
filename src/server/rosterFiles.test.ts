@@ -2943,6 +2943,30 @@ describe('names a list joins or splits differently from the catalogue', () => {
               },
               { id: 'tzeentch-grinder', name: 'Tzeentch Soul Grinder', type: 'unit' },
               { id: 'khorne-grinder', name: 'Khorne Soul Grinder', type: 'unit' },
+              {
+                id: 'boyz',
+                name: 'Boyz',
+                type: 'unit',
+                selectionEntries: [
+                  {
+                    id: 'nob',
+                    name: 'Nob',
+                    type: 'model',
+                    constraints: [
+                      { id: 'nob-min', type: 'min', value: 1, field: 'selections', scope: 'parent' },
+                      { id: 'nob-max', type: 'max', value: 1, field: 'selections', scope: 'parent' },
+                    ],
+                    selectionEntries: [
+                      {
+                        id: 'isolator',
+                        name: 'Dimensional isolator',
+                        type: 'upgrade',
+                        constraints: [{ id: 'isolator-max', type: 'max', value: 1, field: 'selections', scope: 'parent' }],
+                      },
+                    ],
+                  },
+                ],
+              },
             ],
           },
         },
@@ -2981,6 +3005,19 @@ Exported with BattleBase`,
   it('reads the datasheet BSData splits out by the choice the official app lists', () => {
     const imported = importRosterFile(list('Ultramarines', 'Soul Grinder (180 Points)\n  • Daemonic Allegiance: Tzeentch'), books)
     expect([imported.units.map((unit) => unit.entryId), imported.unknown, imported.unplaced]).toEqual([['tzeentch-grinder'], [], []])
+  })
+
+  it('brings in a datasheet with no stated allegiance and says which it became', () => {
+    const imported = importRosterFile(list('Ultramarines', 'Soul Grinder (180 Points)\n  • 1x Iron claw'), books)
+    expect([imported.units[0]?.entryId, imported.unplaced[0]?.choices[0]]).toEqual([
+      'khorne-grinder',
+      { name: 'Allegiance', reason: 'the list names no god, so it came in as Khorne Soul Grinder' },
+    ])
+  })
+
+  it("reads the official app's spellings of a model and its wargear", () => {
+    const imported = importRosterFile(list('Ultramarines', 'Boyz (80 Points)\n  • 1x Boss Nob\n     ◦ 1x Transdimensional isolator'), books)
+    expect([imported.unknown, imported.unplaced]).toEqual([[], []])
   })
 })
 

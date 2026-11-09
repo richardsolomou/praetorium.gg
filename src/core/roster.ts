@@ -184,7 +184,8 @@ function assemble(
 
   const wanted = Math.min(Math.max(requestedModels, size.min), size.max)
   const current = countAt(toggled, size.path)
-  const resized = withCounts(toggled, [{ path: size.path, count: Math.max(0, current + (wanted - size.models)) }])
+  const squadSized = withCounts(toggled, [{ path: size.path, count: Math.max(0, current + (wanted - size.models)) }])
+  const resized = grownCompanions(squadSized, size.path, requestedModels - wanted, index, context)
   const resizedModel = `${size.path.join('/')}/`
   // A spread the smaller squad could not hold is asked again at the size requested, since a limit can depend on it,
   // as a Neophyte squad arms its second pair of heavy weapons only at twenty models and ten Purifiers field four specialists.
@@ -200,7 +201,35 @@ function assemble(
     .filter(([key, counts]) => (modelGroup(key) ? capGrew(key) : key.startsWith(resizedModel) || carried(key) < asked(counts)))
     .reduce(applySpread, resized)
   const selection = refit(restored, index, 1, context)
-  return finishUnit(entryId, settleProfileWeaponSwaps(selection, index, context), { ...size, models: wanted }, index, fittedContext)
+  return finishUnit(
+    entryId,
+    settleProfileWeaponSwaps(selection, index, context),
+    { ...size, models: wanted + modelCountOf(resized, index) - modelCountOf(squadSized, index) },
+    index,
+    fittedContext,
+  )
+}
+
+/** A full squad can open another of its fixed companions, as twenty Neurogaunts field a second Nodebeast, for a list asking for more than the squad holds. */
+function grownCompanions(selection: Selection, squad: readonly string[], spare: number, index: CatalogueIndex, context?: BuildContext) {
+  const modelPaths = (node: Selection, trail: string[]): string[][] =>
+    (node.selections ?? []).flatMap((child) => {
+      const here = [...trail, child.id]
+      const definition = index.definitions.get(child.id)
+      return [...(definition && resolve(definition, index).type === 'model' ? [here] : []), ...modelPaths(child, here)]
+    })
+  let grown = selection
+  let left = spare
+  for (const path of modelPaths(selection, [])) {
+    const definition = index.definitions.get(path.at(-1)!)!
+    const count = countAt(grown, path)
+    if (left <= 0 || path.join('/') === squad.join('/') || maximumCount(definition, index) !== count) continue
+    const opened = Math.min(left, Math.max(0, (maximumCountAt(grown, path, definition, index, context) ?? count) - count))
+    if (!opened) continue
+    grown = withCounts(grown, [{ path, count: count + opened }])
+    left -= opened
+  }
+  return grown
 }
 
 function settleProfileWeaponSwaps(selection: Selection, index: CatalogueIndex, context: BuildContext = {}): Selection {
