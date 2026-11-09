@@ -1,4 +1,5 @@
 import { Calculator, ChevronLeft, Minus, Plus, Scroll } from 'lucide-react'
+import { ControlTooltip } from '../../components/ControlTooltip'
 import { useCallback, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { DialogBody, DialogDescription, DialogHeader, DialogTitle } from '../../components/Dialog'
@@ -275,9 +276,11 @@ function BattleUnit({
         worthSaying || onSimulate ? (
           <>
             {onSimulate ? (
-              <Button variant="outline" size="xs" className="shrink-0" aria-label={`Simulate ${unit.name}`} onClick={onSimulate}>
-                <Calculator aria-hidden /> Simulate
-              </Button>
+              <ControlTooltip label={`Simulate ${unit.name}`}>
+                <Button variant="outline" size="icon-xs" aria-label={`Simulate ${unit.name}`} onClick={onSimulate}>
+                  <Calculator aria-hidden />
+                </Button>
+              </ControlTooltip>
             ) : null}
             {worthSaying ? <UnitStatus {...controls} unit={unit} /> : null}
           </>
