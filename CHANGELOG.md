@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.228.3 (2026-11-09)
+
+### Patch Changes
+
+- 222cc29: Weapon cards in the combat simulator show the hit roll a shooting type's -1 leaves them needing, instead of the printed BS.
+
 ## 0.228.2 (2026-11-09)
 
 ### Patch Changes
