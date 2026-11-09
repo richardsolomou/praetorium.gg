@@ -1,5 +1,6 @@
 import { cn } from '@/lib/utils'
 import type { TextSource } from '../../shared/sourceText'
+import { TEXT_SOURCE_INFO } from '../rulesText'
 import { type MissingText, retryFailedTextFiles } from '../sourceText'
 import { useHydrated } from '../useClientValue'
 import { openTextSourcesDialog } from './TextSourcesDialog'
@@ -25,14 +26,14 @@ export function SourceTextPrompt({
   if (!hydrated)
     return (
       <div data-text-gap={source ?? 'any'} className={className}>
-        <TextAsk data-text-gap-ask />
+        <TextAsk source={source} data-text-gap-ask />
         <TextWait data-text-gap-wait />
       </div>
     )
   if (missing === 'loading') return <TextWait className={className} />
   if (missing === 'failed') return <TextFailed className={className} />
   if (missing === 'unavailable') return null
-  return <TextAsk className={className} />
+  return <TextAsk source={source} className={className} />
 }
 
 /** Not a `Problem`: a page of rules has one gap per rule, and an alert for each would flood a screen reader. */
@@ -47,15 +48,17 @@ function TextFailed({ className }: { className?: string }) {
   )
 }
 
-function TextAsk({ className, ...props }: { className?: string; 'data-text-gap-ask'?: boolean }) {
+/** Names the source this gap needs when it is known, so a reader who chose only the other source sees which one to add. */
+function TextAsk({ source, className, ...props }: { source?: TextSource; className?: string; 'data-text-gap-ask'?: boolean }) {
   return (
     <button
       type="button"
       className={cn('group text-left text-xs text-faint', className)}
-      onClick={() => openTextSourcesDialog()}
+      onClick={() => openTextSourcesDialog(source)}
       {...props}
     >
-      Rules text isn’t loaded. <span className="text-info group-hover:text-bone">Choose sources</span>
+      Rules text isn’t loaded.{' '}
+      <span className="text-info group-hover:text-bone">{source ? `Turn on ${TEXT_SOURCE_INFO[source].name}` : 'Choose sources'}</span>
     </button>
   )
 }

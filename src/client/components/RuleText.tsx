@@ -94,7 +94,7 @@ function SourcedRuleText({ text, rules, className }: { text: string; rules: Keyw
   const source = useSourceText(text)
   // Labels with nothing loaded beneath them say nothing, so a card waiting on its text shows only why.
   if (source.missing && source.missing !== 'unavailable')
-    return <SourceTextPrompt missing={source.missing} className={cn('mt-2', className)} />
+    return <SourceTextPrompt missing={source.missing} source={source.needs} className={cn('mt-2', className)} />
   return <RuleTextBody text={source.text} rules={rules} className={className} />
 }
 

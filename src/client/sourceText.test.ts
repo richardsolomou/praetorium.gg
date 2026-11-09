@@ -40,9 +40,9 @@ describe('rules text on this device', () => {
     })
   })
 
-  it('keeps a text unloaded while only another source is chosen', () => {
+  it('keeps a text unloaded while only another source is chosen, and names the source it needs', () => {
     file('00000010', 'bsdata')
-    expect(loadedText(token('00000010'), textSourceChoiceFrom('game-datacards')).missing).toBe('unchosen')
+    expect(loadedText(token('00000010'), textSourceChoiceFrom('game-datacards'))).toMatchObject({ missing: 'unchosen', needs: 'bsdata' })
   })
 
   it('waits for the file a token names', () => {
