@@ -1,5 +1,17 @@
 # praetorium
 
+## 0.225.1 (2026-11-09)
+
+### Patch Changes
+
+- 8e439a5: Battle lists and group standings update as soon as a battle ends.
+- 8e439a5: Trying to add a unit to a full roster now tells you the roster is full.
+- 8e439a5: When pasted text is not a list we can read, the import now shows which exports work.
+- 8e439a5: The reason a plus button has stopped at its limit is now easier to see.
+- 8e439a5: The add units list now shows what your next copy of a unit will cost when later copies are priced differently.
+- 8e439a5: Choosing a roster in battle setup now tells you when it did not save, at the top of the list where you can see it.
+- 8e439a5: Starting a battle keeps the dialog open until the battle appears, so it no longer looks as if nothing happened.
+
 ## 0.225.0 (2026-11-09)
 
 ### Minor Changes
