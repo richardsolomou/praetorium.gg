@@ -1,5 +1,14 @@
 # praetorium
 
+## 0.226.4 (2026-11-09)
+
+### Patch Changes
+
+- 9aede33: Importing an Ork squad reads its "Boss Nob" as the squad's Nob.
+- 9aede33: Importing a full squad that fields a second companion, such as twenty-two Neurogaunts, keeps every model.
+- 9aede33: Importing a Soul Grinder with no stated god keeps the unit and says which god it came in as.
+- 9aede33: Importing reads the official app's "Transdimensional isolator".
+
 ## 0.226.3 (2026-11-09)
 
 ### Patch Changes
