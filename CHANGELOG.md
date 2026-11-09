@@ -1,5 +1,15 @@
 # praetorium
 
+## 0.226.1 (2026-11-09)
+
+### Patch Changes
+
+- 22d224a: Signing in with Google, Apple, Discord or GitHub in the app no longer sometimes fails and makes you start again.
+- 7848270: Group pages load faster for groups with many played battles.
+- 05b968b: Importing a Warscribe list keeps every weapon of a list of single models, and its squads' lone specialists.
+- 9d88b50: A battle action that fails because the connection dropped now says to check your connection, instead of asking you to review an old sync conflict.
+- 9d88b50: Drawing secondary missions at random no longer fails with "Your opponent got there first" when your opponent acts at the same moment.
+
 ## 0.226.0 (2026-11-09)
 
 ### Minor Changes
