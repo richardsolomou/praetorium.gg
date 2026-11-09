@@ -28,6 +28,7 @@ These units imported, but some choices didn't, so they keep their datasheet defa
 - "nothing in the … catalogue is called that": the name doesn't exist for this army.
 - "no model in the imported unit carries it": none of the imported models can hold the option.
 - "this datasheet has no Warlord option".
+- "the list names no god, so it came in as …": swap the unit if it serves another god.
 - A model count such as "4 models" with "this datasheet fields 5 to 10 models".
 - An attachment that couldn't be made. See [Characters and attachments](/docs/import-matching#characters-and-attachments).
 
