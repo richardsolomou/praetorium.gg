@@ -9,6 +9,7 @@ import { buttonClass } from '../../components/buttonClass'
 import { battleFilterActive } from '../../../core/battleFilter'
 import type { Battle } from './battle'
 import { BattleFilters } from './BattleFilters'
+import type { BattleOrder } from '../../../core/battleFilter'
 import { battleFilterOf, type BattleListSearch, type BattlesView } from './battleSearch'
 import { NoFilterMatches } from '../../components/NoFilterMatches'
 import { BattleShelf } from './BattleShelf'
@@ -25,24 +26,33 @@ const VIEWS: readonly [BattlesView, string][] = [
   ['public', 'Public'],
 ]
 
-export function BattlesPage({ view: asked, search }: { view: BattlesView; search: BattleListSearch }) {
+export function BattlesPage({ view: asked, search, order }: { view: BattlesView; search: BattleListSearch; order?: BattleOrder }) {
   const { data: me } = useQuery(meQuery())
   // A visitor has no games of their own and no friends, so every battle they may see is public.
   const view = me ? asked : 'public'
   const filter = battleFilterOf(search)
   const filtered = battleFilterActive(filter)
   const feed = useInfiniteQuery({
-    ...(view === 'mine' ? battlesQuery(filter) : view === 'friends' ? friendBattlesQuery(filter) : publicBattlesQuery(filter)),
+    ...(view === 'mine'
+      ? battlesQuery(filter, order)
+      : view === 'friends'
+        ? friendBattlesQuery(filter, order)
+        : publicBattlesQuery(filter, order)),
     placeholderData: keepPreviousData,
   })
   const battles = battlesFrom(feed.data)
   const [deleting, setDeleting] = useState<Battle | null>(null)
   const navigate = useNavigate()
-  const choose = (next: BattleListSearch) =>
-    void navigate({ to: '/battles', search: { ...(view === 'mine' ? {} : { view }), ...next }, replace: true })
+  const go = (next: BattleListSearch, nextOrder: BattleOrder | undefined) =>
+    void navigate({
+      to: '/battles',
+      search: { ...(view === 'mine' ? {} : { view }), ...(nextOrder ? { order: nextOrder } : {}), ...next },
+      replace: true,
+    })
+  const choose = (next: BattleListSearch) => go(next, order)
   const more = feed.hasNextPage ? (
     <Button variant="outline" size="sm" className="mt-2" disabled={feed.isFetchingNextPage} onClick={() => void feed.fetchNextPage()}>
-      {feed.isFetchingNextPage ? 'Loading…' : filtered ? 'Search older battles' : 'Show more battles'}
+      {feed.isFetchingNextPage ? 'Loading…' : filtered ? (order ? 'Search newer battles' : 'Search older battles') : 'Show more battles'}
     </Button>
   ) : null
   const noMatches = filtered && !battles.length && !feed.isPending
@@ -93,7 +103,16 @@ export function BattlesPage({ view: asked, search }: { view: BattlesView; search
         ) : null}
       </PageHeader>
       <PageContent className="space-y-6">
-        {battles.length || filtered ? <BattleFilters view={view} search={search} onChange={choose} signedIn={Boolean(me)} /> : null}
+        {battles.length || filtered ? (
+          <BattleFilters
+            view={view}
+            search={search}
+            onChange={choose}
+            order={order}
+            onOrder={(next) => go(search, next)}
+            signedIn={Boolean(me)}
+          />
+        ) : null}
         {matches ??
           (view === 'mine' ? (
             battles.length ? (

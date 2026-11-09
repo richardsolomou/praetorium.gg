@@ -21,6 +21,8 @@ import { battleFoldArgs } from '../core/offlineBattle'
 import { ROSTER_LIBRARY_BATCH_SIZE } from '../core/rosterLibrary'
 import { ROSTER_DISCOVERY_MAX_PAGE_SIZE, rosterDiscoveryCursorSchema, type RosterDiscoveryQuery } from '../core/rosterDiscovery'
 import type { PlayerDefaults } from '../core/playerDefaults'
+import type { BattleOrder } from '../core/battleFilter'
+import { listPreferencesSchema, type ListFilterScope, type ListPreferences } from '../core/listFilter'
 import { playerDefaultsSchema } from '../contracts/schemas'
 import { recentMatchupSchema, type RecentMatchup } from '../core/recentMatchups'
 import { abilityReminderSchema, type AbilityReminder } from '../core/reminders'
@@ -590,6 +592,7 @@ export class SpacetimeOperator {
     eventToken?: string | null
     groupToken?: string
     before?: { at: number; id: string } | null
+    order?: BattleOrder
     limit: number
   }) {
     return this.read(
@@ -605,6 +608,8 @@ export class SpacetimeOperator {
           ...(input.groupToken ? { groupToken: input.groupToken } : {}),
           since: null,
           before: input.before ?? null,
+          // Sent only when chosen, so the default feed still reads from a module older than this order.
+          ...(input.order ? { order: input.order } : {}),
           limit: input.limit,
         }),
       ],
@@ -1104,6 +1109,14 @@ export class SpacetimeOperator {
 
   async setPushEnabled(userId: string, enabled: boolean, now: number) {
     return this.reply('set_push_enabled', [userId, enabled, now], z.boolean())
+  }
+
+  async listFilterPreferences(userId: string) {
+    return this.read('list_filter_preferences', [userId], z.record(z.string(), listPreferencesSchema))
+  }
+
+  async setListFilterPreferences(userId: string, scope: ListFilterScope, preferences: ListPreferences, now: number) {
+    return this.read('set_list_filter_preferences', [userId, scope, JSON.stringify(preferences), now], z.boolean())
   }
 
   async playerDefaults(userId: string) {

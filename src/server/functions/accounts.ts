@@ -19,6 +19,7 @@ import { fixedWindowRateLimit } from '../rateLimit'
 import { mutationRpc, rpc } from '../rpc'
 import { unlinkSignInMethod } from '../signInMethods'
 import {
+  listFilterPreferencesSchema,
   playerDefaultsSchema,
   favouriteDetachmentSchema,
   favouriteFactionSchema,
@@ -63,6 +64,17 @@ export const onboardingProgress = createServerFn({ method: 'GET' }).handler(() =
 export const updateOnboardingProgress = createServerFn({ method: 'POST' })
   .validator(onboardingUpdateSchema)
   .handler(({ data }) => signedInAction(productActions.updateOnboardingProgress, data))
+
+/** The filters a player keeps in each list's bar and the views they saved, on every device they sign in on. */
+export const listFilterPreferences = createServerFn({ method: 'GET' }).handler(() =>
+  rpc(() => forSignedIn({}, (id) => app().repository.listFilterPreferences(id))),
+)
+
+export const setListFilterPreferences = createServerFn({ method: 'POST' })
+  .validator(listFilterPreferencesSchema)
+  .handler(({ data }) =>
+    mutationRpc(async () => app().repository.setListFilterPreferences(await requireUserId(), data.scope, data.preferences, Date.now())),
+  )
 
 /** What this player's new rosters and battles start with. */
 export const playerDefaults = createServerFn({ method: 'GET' }).handler(() =>

@@ -1,6 +1,7 @@
 import { ADMIN_USER_ROLES, ADMIN_USER_SORTS } from '../admin'
 import { z } from 'zod'
-import { battleFilterSchema } from '../core/battleFilter'
+import { LIST_FILTER_SCOPES, listPreferencesSchema } from '../core/listFilter'
+import { BATTLE_ORDERS, battleFilterSchema } from '../core/battleFilter'
 import { REPLAY_BATCH_SIZE } from './battles'
 import { tourTaskIds } from '../core/onboarding'
 import { PLAYER_SEARCH_MAX_LENGTH } from '../core/playerSearch'
@@ -276,10 +277,14 @@ export const deleteBattleSchema = z.object({ token })
 export const battlesPageSchema = z.object({
   before: battlesCursor.nullable().default(null),
 })
-export const battlesFeedSchema = battlesPageSchema.extend({ filter: battleFilterSchema.optional() })
+export const battlesFeedSchema = battlesPageSchema.extend({
+  filter: battleFilterSchema.optional(),
+  order: z.enum(BATTLE_ORDERS).optional(),
+})
 export const playerDefaultsSchema = z
   .object({ rosterVisibility: z.enum(ROSTER_VISIBILITIES), battleSize: z.number().int() })
   .refine(isPlayerDefaults, 'choose a supported battle size')
+export const listFilterPreferencesSchema = z.object({ scope: z.enum(LIST_FILTER_SCOPES), preferences: listPreferencesSchema })
 export const pushPreferenceSchema = z.object({ enabled: z.boolean() })
 export const pushDeviceSchema = z.object({ token: pushTokenSchema, platform: z.enum(PUSH_PLATFORMS) })
 export const pushTokenOnlySchema = z.object({ token: pushTokenSchema })

@@ -82,3 +82,36 @@ export function periodBounds({ period, from, to }: PeriodFilter, now: number): {
 
 export const withinPeriod = (at: number, bounds: { from?: number; to?: number }) =>
   (bounds.from === undefined || at >= bounds.from) && (bounds.to === undefined || at < bounds.to)
+
+export const LIST_FILTER_SCOPES = [
+  'battles:mine',
+  'battles:friends',
+  'battles:public',
+  'rosters:mine',
+  'rosters:friends',
+  'rosters:public',
+  'rosters:played',
+] as const
+export type ListFilterScope = (typeof LIST_FILTER_SCOPES)[number]
+
+export const MAX_SAVED_VIEWS = 12
+export const SAVED_VIEW_NAME_MAX_LENGTH = 40
+const MAX_FILTERS_ADDRESSED = 32
+export const LIST_PREFERENCES_MAX_LENGTH = 64_000
+
+/** Which filters a player keeps in a list's bar, null for the list's own choice, and the views they saved for it. */
+export const listPreferencesSchema = z.object({
+  pinned: z.array(z.string().max(64)).max(MAX_FILTERS_ADDRESSED).nullable().default(null),
+  views: z
+    .array(
+      z.object({
+        name: z.string().min(1).max(SAVED_VIEW_NAME_MAX_LENGTH),
+        address: z
+          .record(z.string().max(64), z.union([z.string().max(2_400), z.number()]))
+          .refine((address) => Object.keys(address).length <= MAX_FILTERS_ADDRESSED),
+      }),
+    )
+    .max(MAX_SAVED_VIEWS)
+    .default([]),
+})
+export type ListPreferences = z.infer<typeof listPreferencesSchema>

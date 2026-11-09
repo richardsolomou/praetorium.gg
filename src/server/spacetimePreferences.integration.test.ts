@@ -29,11 +29,17 @@ it.skipIf(!url || !database || !token)('starts rosters public, keeps a chosen de
   const operator = new SpacetimeOperator(url!, database!, token!)
   const userId = randomUUID()
   try {
+    const views = { pinned: ['status'], views: [{ name: 'Done', address: { status: 'finished' } }] }
+    await operator.setListFilterPreferences(userId, 'battles:mine', views, Date.now())
+    await operator.setListFilterPreferences(userId, 'battles:mine', { ...views, pinned: null }, Date.now())
+    expect(await operator.listFilterPreferences(userId)).toEqual({ 'battles:mine': { ...views, pinned: null } })
+    await expect(operator.setListFilterPreferences(userId, 'unknown' as 'battles:mine', views, Date.now())).rejects.toThrow()
     expect(await operator.playerDefaults(userId)).toEqual({ rosterVisibility: 'public', battleSize: 2000 })
     await operator.setPlayerDefaults(userId, { rosterVisibility: 'private', battleSize: 1000 }, Date.now())
     expect(await operator.playerDefaults(userId)).toEqual({ rosterVisibility: 'private', battleSize: 1000 })
     await expect(operator.setPlayerDefaults(userId, { rosterVisibility: 'public', battleSize: 1500 }, Date.now())).rejects.toThrow()
     await operator.deleteUserData(userId)
+    expect(await operator.listFilterPreferences(userId)).toEqual({})
     expect(await operator.playerDefaults(userId)).toEqual({ rosterVisibility: 'public', battleSize: 2000 })
   } finally {
     await operator.deleteUserData(userId)

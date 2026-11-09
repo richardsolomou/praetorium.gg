@@ -302,6 +302,15 @@ export const ImportedSeats = __t.object('ImportedSeats', {
 })
 export type ImportedSeats = __Infer<typeof ImportedSeats>
 
+export const ListFilterPreferences = __t.object('ListFilterPreferences', {
+  id: __t.string(),
+  userId: __t.string(),
+  scope: __t.string(),
+  preferences: __t.string(),
+  at: __t.u64(),
+})
+export type ListFilterPreferences = __Infer<typeof ListFilterPreferences>
+
 export const MyAdminSignal = __t.object('MyAdminSignal', {
   scope: __t.string(),
   revision: __t.u64(),

@@ -34,7 +34,7 @@ import { RosterImport } from './RosterImport'
 import { RosterSetupDialog, type RosterSetup } from './RosterSetupDialog'
 import { rosterSetupOf } from './rosterDraft'
 import { factionSelectGroups } from './builder/factions'
-import { RosterSortMenu } from './RosterFilters'
+import { RosterSortMenu, ROSTER_ASSESSMENT_DIMENSIONS } from './RosterFilters'
 import { FilterBar, type FilterDimension } from '../../components/FilterBar'
 import { NoFilterMatches } from '../../components/NoFilterMatches'
 import type { SearchableGroup } from '../../components/SearchableSelect'
@@ -48,7 +48,7 @@ import {
   type FacetAddress,
   type PeriodFilter,
 } from '../../../core/listFilter'
-import { ROSTER_SEARCH_MAX_LENGTH } from '../../../core/rosterDiscovery'
+import { matchesRosterAssessment, rosterAssessmentFilterActive, ROSTER_SEARCH_MAX_LENGTH } from '../../../core/rosterDiscovery'
 import { ROSTER_VISIBILITIES, type RosterVisibility } from '../../../core/savedRoster'
 import { GAME_SIZES, battleSizeOptionLabel } from '../../../core/battle'
 import { countBy } from '../../../core/collections'
@@ -84,7 +84,17 @@ import { errorMessage } from '../../queryClient'
 import { Problem } from '../../components/Problem'
 import { countLabel } from '../../text'
 
-export const LIBRARY_FACETS = ['limit', 'faction', 'detachment', 'visibility', 'disposition', 'updates', 'state'] as const
+export const LIBRARY_FACETS = [
+  'limit',
+  'faction',
+  'detachment',
+  'visibility',
+  'disposition',
+  'legality',
+  'points',
+  'updates',
+  'state',
+] as const
 export type RosterLibrarySearch = PeriodFilter & { q?: string } & Partial<Record<(typeof LIBRARY_FACETS)[number], FacetAddress>>
 
 const plain = (items: { label: string; value: string; detail?: string }[]): SearchableGroup[] => [{ label: '', items }]
@@ -165,7 +175,7 @@ export function RosterLibraryPage({
   const olderRules = (roster: SavedRoster) => Boolean(currentRulesFor(roster.catalogueId, available?.factions ?? []))
   const factionOf = (roster: SavedRoster) => available?.factions.find((faction) => faction.id === roster.catalogueId)
   const bounds = periodBounds(periodSearch(search), now)
-  const shown = sortRosters(
+  const candidates = sortRosters(
     saved.filter((roster) => {
       const faction = factionOf(roster)
       return (
@@ -182,13 +192,32 @@ export function RosterLibraryPage({
     }),
     selectedSort,
   )
+  const needsAssessment = rosterAssessmentFilterActive(facets)
+  // Only lists this filter has to judge are priced beyond the ones on screen.
+  // In a fixed order, so changing the sort does not reprice every batch.
+  const assessed = useRosterPages(
+    needsAssessment && me ? candidates.map((roster) => roster.id).toSorted() : [],
+    Boolean(me && savedResult.isSuccess),
+  )
+  const assessmentOf = (roster: SavedRoster) => (guest ? guestRow : assessed.byId.get(roster.id))
+  const shown = needsAssessment
+    ? candidates.filter((roster) => {
+        const entry = assessmentOf(roster)
+        return entry && matchesRosterAssessment(facets, { points: entry.points ?? null, problem: entry.problem ?? null })
+      })
+    : candidates
   const needsChanged = facetUses(facets.updates, 'changed')
   const needsFactions = Boolean(search.faction || search.q || search.updates)
   const libraryPending =
     (me ? savedResult.isPending : Boolean(device?.pending)) ||
     (needsFactions && availableResult.isPending) ||
-    (needsChanged && changedResult.isPending)
-  const libraryError = (me && savedResult.isError) || (needsFactions && availableResult.isError) || (needsChanged && changedResult.isError)
+    (needsChanged && changedResult.isPending) ||
+    (needsAssessment && (guest ? guestRow.pending : assessed.results.some((result) => result.isPending)))
+  const libraryError =
+    (me && savedResult.isError) ||
+    (needsFactions && availableResult.isError) ||
+    (needsChanged && changedResult.isError) ||
+    (needsAssessment && assessed.results.some((result) => result.isError))
   const active = shown.filter((roster) => !roster.archived)
   const archived = shown.filter((roster) => roster.archived)
   const [archivedOpen, setArchivedOpen] = useState(false)
@@ -741,6 +770,7 @@ function RosterLibraryFilters({
       ),
     },
     { key: 'state', label: 'Status', groups: STATE_GROUPS },
+    ...ROSTER_ASSESSMENT_DIMENSIONS,
   ]
   return (
     <FilterBar

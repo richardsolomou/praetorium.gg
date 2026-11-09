@@ -31,7 +31,7 @@ import type { BattlesCursor } from '../../contracts/battles'
 import { requirePage, SSR_STALE_TIME } from './shared'
 import { liveProductRefresh } from '../liveProductRefresh'
 import { uniqueBy } from '../../core/collections'
-import { battleFilterActive, type BattleFilter } from '../../core/battleFilter'
+import { battleFilterActive, type BattleFilter, type BattleOrder } from '../../core/battleFilter'
 import {
   battleKey,
   battleRatingChangesKey,
@@ -73,10 +73,14 @@ export function battleFeedQuery<Page extends { nextCursor: BattlesCursor | null 
 }
 
 /** A filter keys under its whole feed, so what refreshes the feed refreshes every filtered list of it. */
-const feedKey = (key: unknown[], filter?: BattleFilter) => (battleFilterActive(filter) ? [...key, filter] : key)
+const feedKey = (key: unknown[], filter?: BattleFilter, order?: BattleOrder) => [
+  ...key,
+  ...(battleFilterActive(filter) ? [filter] : []),
+  ...(order ? [order] : []),
+]
 
-export const battlesQuery = (filter?: BattleFilter) =>
-  battleFeedQuery(feedKey(battlesKey(), filter), (before) => myBattles({ data: { before, filter } }))
+export const battlesQuery = (filter?: BattleFilter, order?: BattleOrder) =>
+  battleFeedQuery(feedKey(battlesKey(), filter, order), (before) => myBattles({ data: { before, filter, order } }))
 
 /** Takes a deleted battle off the player's list at once rather than after the refetch, which can take a second. */
 export function forgetBattle(queryClient: QueryClient, token: string) {
@@ -102,18 +106,18 @@ const FEED_POLL_MS = 20_000
 /** A page without realtime refresh polls its feeds; with it, signals refresh them. */
 const feedPoll = () => (liveProductRefresh() ? false : FEED_POLL_MS)
 
-export const publicBattlesQuery = (filter?: BattleFilter) =>
+export const publicBattlesQuery = (filter?: BattleFilter, order?: BattleOrder) =>
   battleFeedQuery(
-    feedKey(publicBattlesKey(), filter),
-    (before) => publicBattles({ data: { before, filter } }),
-    battleFilterActive(filter) ? undefined : feedPoll,
+    feedKey(publicBattlesKey(), filter, order),
+    (before) => publicBattles({ data: { before, filter, order } }),
+    battleFilterActive(filter) || order ? undefined : feedPoll,
   )
 
-export const friendBattlesQuery = (filter?: BattleFilter) =>
+export const friendBattlesQuery = (filter?: BattleFilter, order?: BattleOrder) =>
   battleFeedQuery(
-    feedKey(friendBattlesKey(), filter),
-    (before) => friendBattles({ data: { before, filter } }),
-    battleFilterActive(filter) ? undefined : feedPoll,
+    feedKey(friendBattlesKey(), filter, order),
+    (before) => friendBattles({ data: { before, filter, order } }),
+    battleFilterActive(filter) || order ? undefined : feedPoll,
   )
 
 export type PlayerProfileFilter = {

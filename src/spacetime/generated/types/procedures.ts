@@ -61,6 +61,7 @@ import * as JoinGuestSeatProcedure from '../join_guest_seat_procedure'
 import * as LeaderboardProcedure from '../leaderboard_procedure'
 import * as LendRosterProcedure from '../lend_roster_procedure'
 import * as LinkExternalAccountProcedure from '../link_external_account_procedure'
+import * as ListFilterPreferencesProcedure from '../list_filter_preferences_procedure'
 import * as MarkAchievementsSeenProcedure from '../mark_achievements_seen_procedure'
 import * as MigrateProductDataProcedure from '../migrate_product_data_procedure'
 import * as OnboardingByUserProcedure from '../onboarding_by_user_procedure'
@@ -103,6 +104,7 @@ import * as SealedEventNamesProcedure from '../sealed_event_names_procedure'
 import * as SealedEventRosterSharingProcedure from '../sealed_event_roster_sharing_procedure'
 import * as SealedEventRostersProcedure from '../sealed_event_rosters_procedure'
 import * as SealedEventsVisibleToProcedure from '../sealed_events_visible_to_procedure'
+import * as SetListFilterPreferencesProcedure from '../set_list_filter_preferences_procedure'
 import * as SetPlayerDefaultsProcedure from '../set_player_defaults_procedure'
 import * as SetPushEnabledProcedure from '../set_push_enabled_procedure'
 import * as SetRosterArchivedProcedure from '../set_roster_archived_procedure'
@@ -229,6 +231,8 @@ export type LendRosterArgs = __Infer<typeof LendRosterProcedure.params>
 export type LendRosterResult = __Infer<typeof LendRosterProcedure.returnType>
 export type LinkExternalAccountArgs = __Infer<typeof LinkExternalAccountProcedure.params>
 export type LinkExternalAccountResult = __Infer<typeof LinkExternalAccountProcedure.returnType>
+export type ListFilterPreferencesArgs = __Infer<typeof ListFilterPreferencesProcedure.params>
+export type ListFilterPreferencesResult = __Infer<typeof ListFilterPreferencesProcedure.returnType>
 export type MarkAchievementsSeenArgs = __Infer<typeof MarkAchievementsSeenProcedure.params>
 export type MarkAchievementsSeenResult = __Infer<typeof MarkAchievementsSeenProcedure.returnType>
 export type MigrateProductDataArgs = __Infer<typeof MigrateProductDataProcedure.params>
@@ -313,6 +317,8 @@ export type SealedEventRostersArgs = __Infer<typeof SealedEventRostersProcedure.
 export type SealedEventRostersResult = __Infer<typeof SealedEventRostersProcedure.returnType>
 export type SealedEventsVisibleToArgs = __Infer<typeof SealedEventsVisibleToProcedure.params>
 export type SealedEventsVisibleToResult = __Infer<typeof SealedEventsVisibleToProcedure.returnType>
+export type SetListFilterPreferencesArgs = __Infer<typeof SetListFilterPreferencesProcedure.params>
+export type SetListFilterPreferencesResult = __Infer<typeof SetListFilterPreferencesProcedure.returnType>
 export type SetPlayerDefaultsArgs = __Infer<typeof SetPlayerDefaultsProcedure.params>
 export type SetPlayerDefaultsResult = __Infer<typeof SetPlayerDefaultsProcedure.returnType>
 export type SetPushEnabledArgs = __Infer<typeof SetPushEnabledProcedure.params>

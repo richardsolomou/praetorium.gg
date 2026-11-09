@@ -1,3 +1,4 @@
+import type { BattleOrder } from '../core/battleFilter'
 import { isAdminUserCountSort, type AdminUser, type AdminUserCountSort, type AdminUserPage, type AdminUsersRequest } from '../admin'
 import type { BattlesCursor } from '../contracts/battles'
 import { rosterSnapshotOrNull } from '../core/commands'
@@ -271,6 +272,14 @@ export class SpacetimeRepository {
 
   setPushEnabled(...args: Parameters<SpacetimeOperator['setPushEnabled']>) {
     return this.product.setPushEnabled(...args)
+  }
+
+  listFilterPreferences(...args: Parameters<SpacetimeOperator['listFilterPreferences']>) {
+    return this.product.listFilterPreferences(...args)
+  }
+
+  setListFilterPreferences(...args: Parameters<SpacetimeOperator['setListFilterPreferences']>) {
+    return this.product.setListFilterPreferences(...args)
   }
 
   playerDefaults(...args: Parameters<SpacetimeOperator['playerDefaults']>) {
@@ -1289,8 +1298,15 @@ export class SpacetimeRepository {
     return { battles, nextCursor: page.nextCursor }
   }
 
-  async battlesByUser(userId: string, page?: { limit: number; before?: BattlesCursor; withUserId?: string }) {
-    return this.feed({ scope: 'user', userId, withUserId: page?.withUserId, before: page?.before, limit: page?.limit ?? 500 })
+  async battlesByUser(userId: string, page?: { limit: number; before?: BattlesCursor; withUserId?: string; order?: BattleOrder }) {
+    return this.feed({
+      scope: 'user',
+      userId,
+      withUserId: page?.withUserId,
+      before: page?.before,
+      order: page?.order,
+      limit: page?.limit ?? 500,
+    })
   }
 
   async battlesBySealedEvent(
@@ -1321,12 +1337,12 @@ export class SpacetimeRepository {
     return this.product.battleGroups(battleId)
   }
 
-  async publicBattles(page: { limit: number; before?: BattlesCursor; viewerId?: string | null }) {
-    return this.feed({ scope: 'public', viewerId: page.viewerId, before: page.before, limit: page.limit })
+  async publicBattles(page: { limit: number; before?: BattlesCursor; viewerId?: string | null; order?: BattleOrder }) {
+    return this.feed({ scope: 'public', viewerId: page.viewerId, before: page.before, order: page.order, limit: page.limit })
   }
 
-  async battlesByFriends(userId: string, page: { limit: number; before?: BattlesCursor }) {
-    return this.feed({ scope: 'friends', userId, before: page.before, limit: page.limit })
+  async battlesByFriends(userId: string, page: { limit: number; before?: BattlesCursor; order?: BattleOrder }) {
+    return this.feed({ scope: 'friends', userId, before: page.before, order: page.order, limit: page.limit })
   }
 
   /** The battles whose log or seats changed after a revision, deleted ones included, and the revision read up to. */

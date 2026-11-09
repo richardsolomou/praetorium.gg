@@ -36,7 +36,7 @@ import {
 import { errorMessage } from '../../queryClient'
 import { factionSelectGroups } from './builder/factions'
 import { CreateRoster } from './CreateRoster'
-import { RosterSortMenu } from './RosterFilters'
+import { RosterSortMenu, ROSTER_ASSESSMENT_DIMENSIONS } from './RosterFilters'
 import { factionFamilies } from './factionFamilies'
 import { FilterBar, type FilterDimension } from '../../components/FilterBar'
 import { NoFilterMatches } from '../../components/NoFilterMatches'
@@ -54,7 +54,18 @@ import { FactionMark } from '../../components/FactionMark'
 import { BATTLE_ENDINGS, battleOutcomeStage } from '../../battleStage'
 import { OwnerLink } from './OwnerLink'
 
-export const DISCOVERY_FACETS = ['faction', 'detachment', 'rules', 'size', 'disposition', 'owner', 'result', 'against'] as const
+export const DISCOVERY_FACETS = [
+  'faction',
+  'detachment',
+  'rules',
+  'size',
+  'disposition',
+  'legality',
+  'points',
+  'owner',
+  'result',
+  'against',
+] as const
 export type RosterDiscoverySearch = PeriodFilter & { q?: string; sort?: RosterSort } & Partial<
     Record<(typeof DISCOVERY_FACETS)[number], FacetAddress>
   >
@@ -76,7 +87,7 @@ const RESULT_GROUPS = plain([
 
 /** The filter the page's address asks for, read against the faction index. An address can name any rules version of a faction. */
 export function discoveryFilter(search: RosterDiscoverySearch, factions: IndexedFactions): RosterDiscoveryFilter {
-  const { faction, detachment, rules, size, disposition, owner } = facetsOf(search, DISCOVERY_FACETS)
+  const { faction, detachment, rules, size, disposition, legality, points, owner } = facetsOf(search, DISCOVERY_FACETS)
   const familyOf = (slug: string) => {
     const named = factions.find((entry) => entry.slug === slug)
     return named ? [currentCatalogueFamilyId(named.id)] : []
@@ -88,6 +99,8 @@ export function discoveryFilter(search: RosterDiscoverySearch, factions: Indexed
     ...(rules ? { rules: rules } : {}),
     ...(size ? { size: size } : {}),
     ...(disposition ? { disposition: disposition } : {}),
+    ...(legality ? { legality } : {}),
+    ...(points ? { points } : {}),
     ...(owner ? { owner: owner } : {}),
     ...(search.q ? { q: search.q } : {}),
   }
@@ -145,6 +158,7 @@ export function RosterDiscoveryPage({ view, search }: { view: RosterAudience | '
       label: 'Disposition',
       groups: plain((references?.dispositions ?? []).map((disposition) => ({ label: disposition.name, value: disposition.id }))),
     },
+    ...ROSTER_ASSESSMENT_DIMENSIONS,
     ...(view === 'friends'
       ? [
           {
