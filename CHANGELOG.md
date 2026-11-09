@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.224.7 (2026-11-09)
+
+### Patch Changes
+
+- 8fa96e1: Export text is back in the roster menus, so you can copy a list without opening Share first.
+- 8fa96e1: Tapping anywhere on the "Rules text isn't loaded" line now opens the sources to choose from.
+
 ## 0.224.6 (2026-11-08)
 
 ### Patch Changes
