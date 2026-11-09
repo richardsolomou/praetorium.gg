@@ -1,6 +1,5 @@
 import { posthog } from 'posthog-js'
 import { useEffect, useRef } from 'react'
-import { isFetchNetworkFailure } from '../networkErrors'
 import { useQueryClient } from '@tanstack/react-query'
 import { useRouter } from '@tanstack/react-router'
 import { afterInitialScreen } from './background'
@@ -9,6 +8,7 @@ import { offlineData, referenceData, setPublishedReference } from './runtime'
 import { applyReferenceData } from './referenceData'
 import { saveReference, savedReference, storePart, storesEvery } from './referenceStore'
 import { offlineAppVersion, offlineApplication, offlineReferenceVersion } from './download'
+import { refreshFailureReason } from './downloadFailure'
 import { cataloguesIn, cataloguesInUse } from './cataloguesInUse'
 import { PUBLIC_REFERENCE_QUERIES } from '../../contracts/appSnapshot'
 import type { OfflineReferenceData, OfflineReferenceVersion } from '../../contracts/offlineReference'
@@ -133,14 +133,7 @@ export function OfflineReference() {
         posthog.capture('offline_reference_refreshed', { first: !held })
       } catch (error) {
         // A failed background refresh leaves the last complete download in use.
-        if (!abort.signal.aborted)
-          posthog.capture('offline_reference_refresh_failed', {
-            reason: isFetchNetworkFailure(error)
-              ? 'network'
-              : error instanceof DOMException && error.name === 'TimeoutError'
-                ? 'timeout'
-                : 'error',
-          })
+        if (!abort.signal.aborted) posthog.capture('offline_reference_refresh_failed', { reason: refreshFailureReason(error) })
       } finally {
         // Stops the other download loops once one part fails, so a retry never fetches the same parts alongside them.
         abort.abort()
