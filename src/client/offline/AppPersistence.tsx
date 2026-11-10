@@ -7,7 +7,6 @@ import { captureAppSnapshot, restoreAppSnapshot } from './appSnapshot'
 import { APP_ACCOUNT_EVENT, clearSavedApp, readAppSnapshot, writeAppSnapshot } from './appStorage'
 import {
   battlesQuery,
-  battleQuery,
   battlesFrom,
   friendBattlesQuery,
   friendshipsQuery,
@@ -34,6 +33,7 @@ import {
   sealedEventRosterQuery,
 } from '../queries'
 import { refreshBattleFeed } from './refreshBattleFeed'
+import { prepareBattles } from './prepareBattles'
 import { prepareRosters } from './prepareRosters'
 import { ROSTER_LIBRARY_BATCH_SIZE } from '../../core/rosterLibrary'
 import { meKey } from '../queries/queryKeys'
@@ -105,13 +105,9 @@ export function AppPersistence() {
           refreshBattleFeed(client, publicBattlesQuery()),
           ...(me
             ? [
-                refreshBattleFeed(client, battlesQuery()).then(async (feed) => {
-                  const recent = battlesFrom(feed).slice(0, ROSTER_LIBRARY_BATCH_SIZE)
-                  for (const batch of chunks(recent, 3)) {
-                    if (!stillSignedInAs(me.id)) break
-                    await Promise.allSettled(batch.map((battle) => client.query({ ...battleQuery(battle.token), staleTime: Infinity })))
-                  }
-                }),
+                refreshBattleFeed(client, battlesQuery()).then((feed) =>
+                  prepareBattles(client, battlesFrom(feed).slice(0, ROSTER_LIBRARY_BATCH_SIZE), () => stillSignedInAs(me.id)),
+                ),
                 refreshBattleFeed(client, friendBattlesQuery()),
                 client.query({ ...homeRostersQuery(), staleTime: Infinity }),
                 client.query({ ...sealedEventsQuery(), staleTime: Infinity }).then(async (sealedEvents) => {

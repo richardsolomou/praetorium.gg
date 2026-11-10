@@ -170,6 +170,13 @@ export async function localDocument<T>(resource: string): Promise<T | undefined>
   const state = await engine.storage.read()
   return localOwner()?.id === state.owner ? (state.documents[resource]?.data as T | undefined) : undefined
 }
+/** The service version this account's device copy of a document holds, or undefined when it holds none. */
+export async function localVersion(resource: string): Promise<number | null | undefined> {
+  const engine = localEngine()
+  if (!engine) return undefined
+  const state = await engine.storage.read()
+  return localOwner()?.id === state.owner ? state.documents[resource]?.serverVersion : undefined
+}
 /** A battle download's server time is read by nothing, so a copy differing only there is the same download. */
 const withoutServerTime = (key: string, value: unknown) => (key === 'serverNow' ? undefined : value)
 const sameDownload = (saved: unknown, downloaded: unknown) =>
