@@ -27,7 +27,7 @@ import {
   teamArmyProblems,
 } from '../../../../core/battle'
 import { ArmyPoints } from './ArmyPoints'
-import { battleGroupsQuery, deploymentsQuery, gameReferencesQuery } from '../../../queries'
+import { battleGroupsQuery, deploymentsQuery, gameReferencesQuery, meQuery } from '../../../queries'
 import { fixedHandShort, missionCardsReady, type Side, type SideMission, sideName, sideOf, sides as foldSides } from '../../../sides'
 import type { RosterAttachment, SendCommand } from '../useCommand'
 import { GroupChoice } from './GroupChoice'
@@ -54,6 +54,7 @@ import { SideDispositionChoice } from './SideDispositionChoice'
 import { ReservesStep } from './ReservesStep'
 import { SecondariesStep } from './SecondariesStep'
 import { MissionDetailsDialog, type MissionDetails } from '../MissionCards'
+import { useSpectated } from '../Spectator'
 import { tint } from '../battleTints'
 import { SidePlayers } from '../PlayerName'
 import type { OnboardingTarget } from '../../../onboardingTargets'
@@ -68,10 +69,11 @@ type Props = {
   mission: { id: string; name: string; deploymentIds: string[] } | null
   /** Every side's matchup, so a side the table plays settles its cards from its own. */
   missions: { side: number; mission: SideMission | null }[]
-  send: SendCommand
-  attachRoster: (command: RosterAttachment) => Promise<boolean>
-  pending: boolean
-  problem: string | null
+  /** Absent for a reader with no seat, who follows the table's answers without the controls. */
+  send?: SendCommand
+  attachRoster?: (command: RosterAttachment) => Promise<boolean>
+  pending?: boolean
+  problem?: string | null
 }
 
 /**
@@ -117,14 +119,17 @@ const BUDGET_MISMATCH = 'Choose rosters with the same points budget for each sid
  * Every answer is folded from the battle log, so both devices read the same page and
  * the same list of what is left; where each device is scrolled is its own.
  */
-export function Setup({ view, mission, missions, send: sendCommand, attachRoster, pending, problem }: Props) {
+export function Setup({ view, mission, missions, send: sendCommand, attachRoster, pending = false, problem = null }: Props) {
+  const watching = !sendCommand
   const table = foldSides(view, missions)
+  useSpectated(view, table)
   const manual = view.settings.manual === true
   const skipped = (id: SectionId) => manual && MANUAL_SKIPS.has(id)
   const yours = table.find((side) => side.isViewer)
   const { data: references } = useQuery(gameReferencesQuery())
   const { data: deployments } = useQuery(deploymentsQuery())
   const { data: groups } = useQuery(battleGroupsQuery(view.token))
+  const { data: me } = useQuery(meQuery())
   const nameDisposition = useDispositionNames()
   const attacker = sideOf(table, view.attackerId)
   const defender = attacker ? table.find((side) => side.index !== attacker.index) : undefined
@@ -136,7 +141,7 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
   // Any other command the player sends takes the latest refusal back to the bar.
   const send: SendCommand = (command, options) => {
     if (!options?.background) setReserveRow(null)
-    sendCommand(command, options)
+    sendCommand?.(command, options)
   }
   /** The mission card a matchup panel has been asked to read out, if any. */
   const [reading, setReading] = useState<MissionDetails | null>(null)
@@ -220,17 +225,17 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
   ]
 
   useEffect(() => {
-    if (ready) advanceOnboarding('battle', 'battle-setup-armies', 'battle-setup-mission')
-  }, [ready])
+    if (ready && !watching) advanceOnboarding('battle', 'battle-setup-armies', 'battle-setup-mission')
+  }, [ready, watching])
   useEffect(() => {
-    if (view.deploymentId) advanceOnboarding('battle', 'battle-setup-battlefield', 'battle-setup-defender')
-  }, [view.deploymentId])
+    if (view.deploymentId && !watching) advanceOnboarding('battle', 'battle-setup-battlefield', 'battle-setup-defender')
+  }, [view.deploymentId, watching])
   useEffect(() => {
-    if (view.attackerId) advanceOnboarding('battle', 'battle-setup-defender', 'battle-setup-secondaries')
-  }, [view.attackerId])
+    if (view.attackerId && !watching) advanceOnboarding('battle', 'battle-setup-defender', 'battle-setup-secondaries')
+  }, [view.attackerId, watching])
   useEffect(() => {
-    if (view.firstPlayerId) advanceOnboarding('battle', 'battle-setup-first', 'battle-setup-begin')
-  }, [view.firstPlayerId])
+    if (view.firstPlayerId && !watching) advanceOnboarding('battle', 'battle-setup-first', 'battle-setup-begin')
+  }, [view.firstPlayerId, watching])
 
   // A twist belongs to the pack that prints it, so changing the pack drops it above.
   const chosenPack = references?.packs.find((pack) => pack.id === view.settings.missionPackId)
@@ -262,9 +267,13 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
     })
 
   const sizeFixed = Boolean(view.sealedEventToken || (view.settings.sizeFromRosters && format.problem !== 'manual'))
+  // A size taken from the rosters is only known once every list is in, which the next step asks for.
+  const sizeAwaited = view.settings.limit === null && Boolean(view.settings.sizeFromRosters)
   const sizeName =
     view.settings.limit === null
-      ? 'Determined by your rosters'
+      ? sizeAwaited
+        ? 'After the armies'
+        : 'Not chosen yet'
       : team
         ? battleSizeText(view)!
         : pointsBudget === null
@@ -289,11 +298,12 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
   const locked: Record<SectionId, boolean> = {
     format: false,
     armies: false,
-    mission: !youHaveAnArmy,
+    // A reader with no seat has no army of their own, so these open with the table's.
+    mission: watching ? !ready : !youHaveAnArmy,
     battlefield: !ready || (!kotc && !complete.mission),
     defender: !complete.armies,
     secondaries: !ready,
-    reserves: !youHaveAnArmy,
+    reserves: watching ? !ready : !youHaveAnArmy,
     deploy: !view.deploymentId || !view.attackerId,
     'first-turn': manual ? !complete.armies : !view.deploymentId || !view.attackerId,
     'pre-battle': !firstSide,
@@ -348,6 +358,7 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
     open: isOpen(id),
     onToggle: () => toggle(id),
     skipped: skipped(id),
+    watching,
   })
   const deployment = deploymentFor(view.deploymentId, deployments)
   const group = groups?.current?.name
@@ -360,13 +371,28 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
             <div aria-hidden className="construction-grid -inset-x-3 -top-6 sm:-inset-x-4" />
             <div className="relative space-y-1.5">
               <div className="flex items-start justify-between gap-2">
-                <h1 className="text-2xl text-balance sm:text-3xl">Set up the battle</h1>
-                <GuideHelp task="battle" step="battle-setup-size">
-                  Battle setup guide
-                </GuideHelp>
+                <h1 className="text-2xl text-balance sm:text-3xl">{watching ? 'Battle setup' : 'Set up the battle'}</h1>
+                {watching ? (
+                  me ? null : (
+                    <Link
+                      to="/sign-in"
+                      search={{ next: `/battles/${view.token}` }}
+                      rel="nofollow"
+                      className="shrink-0 text-xs text-info hover:text-bone"
+                    >
+                      Sign in to play
+                    </Link>
+                  )
+                ) : (
+                  <GuideHelp task="battle" step="battle-setup-size">
+                    Battle setup guide
+                  </GuideHelp>
+                )}
               </div>
               <p className="max-w-prose text-sm text-dim sm:text-base">
-                In the order the rules play it. Anyone at the table can answer for either side.
+                {watching
+                  ? 'The players are still setting up. Their choices show here, and the battle opens on this page once they start.'
+                  : 'In the order the rules play it. Anyone at the table can answer for either side.'}
               </p>
               {manual ? <p className="text-sm text-discarded">Manual tracking. {MANUAL_TRACKING_LIMITS}</p> : null}
             </div>
@@ -380,10 +406,16 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
               name="Format"
               onboarding="battle-setup-size"
               needed={!complete.format}
-              hint={complete.format ? undefined : 'Choose the battle size and how this battle is tracked.'}
+              hint={
+                !complete.format
+                  ? 'Choose the battle size and how this battle is tracked.'
+                  : sizeAwaited
+                    ? 'The lists chosen under Armies set the battle size.'
+                    : undefined
+              }
               summary={
                 <SharedAnswer>
-                  <span className="font-bold uppercase">{sizeName}</span>
+                  <span className={view.settings.limit === null ? 'text-dim' : 'font-bold uppercase'}>{sizeName}</span>
                   <span className="text-dim">
                     {' '}
                     · {manual ? 'Manual tracking' : (chosenPack?.name ?? 'Guided')}
@@ -397,7 +429,12 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
                   {sizeFixed ? (
                     <>
                       <p className="eyebrow">Battle size</p>
-                      <p className="mt-1 flex min-h-11 items-center rounded-lg border border-input bg-input/30 px-3 py-2 text-sm font-bold uppercase">
+                      <p
+                        className={cn(
+                          'mt-1 flex min-h-11 items-center rounded-lg border border-input bg-input/30 px-3 py-2 text-sm',
+                          sizeAwaited ? 'text-dim' : 'font-bold uppercase',
+                        )}
+                      >
                         {sizeName}
                       </p>
                     </>
@@ -517,7 +554,9 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
                           : 'Battle size follows your rosters. Each side brings the same points.'))
               }
             >
-              <ArmiesStep view={view} sides={table} send={send} attachRoster={attachRoster} pending={busy} problem={problem} />
+              {attachRoster ? (
+                <ArmiesStep view={view} sides={table} send={send} attachRoster={attachRoster} pending={busy} problem={problem} />
+              ) : null}
             </SpineStep>
 
             <SpineStep
@@ -669,7 +708,7 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
               renderSide={(side) => <ReservesAnswer side={side} />}
               hint="Every unit starts on the battlefield unless its side holds it back in reserves, deep strike or a transport."
             >
-              {youHaveAnArmy ? (
+              {youHaveAnArmy && sendCommand ? (
                 <ReservesStep view={view} sides={table} send={sendCommand} problem={problem} sentFrom={reserveRow} onSent={setReserveRow} />
               ) : null}
             </SpineStep>
@@ -750,16 +789,21 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
                 <p className="text-xs font-bold text-achieved uppercase">Ready</p>
               )}
             </div>
-            <Button
-              data-onboarding="battle-setup-begin"
-              className="h-11 shrink-0 px-5 text-base"
-              disabled={pending || remaining.length > 0 || !firstSide}
-              onClick={() => {
-                if (firstSide) send({ kind: 'begin-battle', firstPlayerId: firstSide.captain.id, attackerId: view.attackerId ?? undefined })
-              }}
-            >
-              Start battle
-            </Button>
+            {watching ? (
+              <p className="shrink-0 text-xs text-dim">{remaining.length ? 'Being set up' : 'Waiting to start'}</p>
+            ) : (
+              <Button
+                data-onboarding="battle-setup-begin"
+                className="h-11 shrink-0 px-5 text-base"
+                disabled={pending || remaining.length > 0 || !firstSide}
+                onClick={() => {
+                  if (firstSide)
+                    send({ kind: 'begin-battle', firstPlayerId: firstSide.captain.id, attackerId: view.attackerId ?? undefined })
+                }}
+              >
+                Start battle
+              </Button>
+            )}
           </div>
         </div>
       </SideFocusProvider>
@@ -838,6 +882,7 @@ function FaceOff({ sides, battle }: { sides: Side[]; battle: string }) {
  * settled, so the page condenses as the table works down it.
  */
 function SpineStep({
+  watching = false,
   skipped = false,
   id,
   number,
@@ -857,6 +902,8 @@ function SpineStep({
   check,
   children,
 }: {
+  /** Read by someone with no seat: only the answers, without the step's controls or the hints about what to do. */
+  watching?: boolean
   /** Absent from a battle that does not play this step, such as a manually tracked one. */
   skipped?: boolean
   id: SectionId
@@ -885,7 +932,9 @@ function SpineStep({
   children: ReactNode
 }) {
   if (skipped) return null
-  const shown = open && Boolean(children)
+  const body = watching ? null : children
+  const tick = watching ? undefined : check
+  const shown = open && Boolean(body)
   // The runner down from the step's number says where the table is: settled solid, the step owed now doubled, the rest dashed.
   const line = settled ? 'done' : current ? 'now' : locked ? 'locked' : 'todo'
   return (
@@ -913,20 +962,20 @@ function SpineStep({
         {/* Held under the app header while the step's body scrolls past, so its tick stays in reach. */}
         <div className="sticky top-(--app-header) z-10 flex items-center gap-3 bg-void/95 py-1 backdrop-blur sm:gap-5">
           {/* Outside the heading, so the step is still named by its title alone. */}
-          {check ? (
+          {tick ? (
             <label
-              title={check.checked ? `Mark ${name} not done` : `Mark ${name} done`}
+              title={tick.checked ? `Mark ${name} not done` : `Mark ${name} done`}
               className="group/check relative grid h-12 w-12 shrink-0 cursor-pointer place-items-center rounded-lg has-disabled:cursor-not-allowed has-focus-visible:outline-2 has-focus-visible:outline-primary sm:w-19"
             >
               <input
                 type="checkbox"
                 className="sr-only"
                 aria-label={`${name} done`}
-                checked={check.checked}
-                disabled={check.disabled}
-                onChange={check.onCheck}
+                checked={tick.checked}
+                disabled={tick.disabled}
+                onChange={tick.onCheck}
               />
-              <StepMark settled={settled} current={current} locked={locked} number={number} checkable={!check.disabled} />
+              <StepMark settled={settled} current={current} locked={locked} number={number} checkable={!tick.disabled} />
             </label>
           ) : (
             <span aria-hidden className="relative grid h-12 w-12 shrink-0 place-items-center sm:w-19">
@@ -938,12 +987,12 @@ function SpineStep({
               type="button"
               aria-expanded={shown}
               aria-controls={`setup-${id}-body`}
-              disabled={!children}
+              disabled={!body}
               className="flex min-h-11 w-full items-center justify-between gap-2.5 text-left transition-colors enabled:hover:text-bone disabled:cursor-default"
               onClick={onToggle}
             >
               <span className={cn('min-w-0', current ? 'text-bone' : locked ? 'text-faint' : undefined)}>{name}</span>
-              {children ? (
+              {body ? (
                 <ChevronDown
                   aria-hidden
                   className={cn('size-4 shrink-0 text-dim transition-transform duration-200', shown && 'rotate-180')}
@@ -953,7 +1002,9 @@ function SpineStep({
           </h2>
         </div>
         <div className={cn('pl-15 sm:pl-24', locked && 'opacity-50')}>
-          {hint ? <p className={cn('mt-0.5 max-w-prose text-sm text-balance', needed ? 'text-discarded' : 'text-dim')}>{hint}</p> : null}
+          {hint && !watching ? (
+            <p className={cn('mt-0.5 max-w-prose text-sm text-balance', needed ? 'text-discarded' : 'text-dim')}>{hint}</p>
+          ) : null}
           <div id={`setup-${id}-body`} className="relative mt-3">
             {shown ? (
               <div className={cn('relative', current ? 'rounded-2xl border-2 border-runner bg-panel shadow-lifted' : 'part')}>
@@ -969,7 +1020,7 @@ function SpineStep({
                 ) : null}
                 {sides && renderSide ? <SideSwitch sides={sides} renderSide={renderSide} /> : null}
                 <div className="space-y-4 p-3 sm:p-4">
-                  {children}
+                  {body}
                   {sides ? <SideSwitchNext sides={sides} /> : null}
                 </div>
               </div>

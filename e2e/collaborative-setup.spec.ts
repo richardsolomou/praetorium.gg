@@ -42,7 +42,7 @@ test('battle setup stays shared and does not wait for the other device', async (
   for (const name of ['Mission', 'Battlefield', 'Defender', 'Secondaries', 'Reserves', 'Deploy', 'First turn', 'Pre-battle rules']) {
     await expect(alice.getByRole('region', { name, exact: true })).toHaveAttribute('data-locked', 'true')
   }
-  await expect(alice.getByText('Determined by your rosters')).toBeVisible()
+  await expect(alice.locator('#setup-format').getByText('After the armies', { exact: true })).toBeVisible()
   await expect(alice.locator('[data-setup-bar]')).toContainText('Your army')
   // Setup is one page: nothing walks the table through its sections.
   await expect(alice.getByRole('button', { name: 'Next', exact: true })).toHaveCount(0)
@@ -65,7 +65,7 @@ test('battle setup stays shared and does not wait for the other device', async (
   await attachRoster(alice, aliceRoster)
   await expect(bob.getByText(aliceRoster, { exact: true }).first()).toBeVisible()
   await expect(alice.locator('#setup-armies')).toHaveAttribute('data-complete', 'false')
-  await expect(alice.getByText('Determined by your rosters')).toBeVisible()
+  await expect(alice.locator('#setup-format').getByText('After the armies', { exact: true })).toBeVisible()
   await attachRoster(bob, bobRoster)
   await expect(alice.getByText('Strike Force · 2,000 points', { exact: true })).toBeVisible()
   await expect(bob.getByText('Strike Force · 2,000 points', { exact: true })).toBeVisible()

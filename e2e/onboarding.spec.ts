@@ -53,7 +53,7 @@ async function practiceBattleGuide(page: Page, name: string, width: number) {
     },
   })
   await expect(prompt(page)).toContainText('Battle size and mission pack')
-  await expect(page.getByText('Determined by your rosters')).toBeVisible()
+  await expect(page.locator('#setup-format').getByText('After the armies', { exact: true })).toBeVisible()
   await next(page, 'Battle size and mission pack')
   await attachRoster(page, name)
   await attachRoster(page, name, { forPlayer: PRACTICE_OPPONENT })

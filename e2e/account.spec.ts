@@ -269,7 +269,7 @@ test('profile defaults apply to rosters while battles infer their format', async
   await page.keyboard.press('Escape')
 
   await createBattle(page, { practice: true })
-  await expect(page.getByText('Determined by your rosters')).toBeVisible()
+  await expect(page.locator('#setup-format').getByText('After the armies', { exact: true })).toBeVisible()
 })
 
 test('a player can permanently delete their account', async ({ page }) => {

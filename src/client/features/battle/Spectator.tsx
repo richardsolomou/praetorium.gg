@@ -46,6 +46,21 @@ type Props = {
 }
 
 const ignoreCommand = (_command: Command) => {}
+
+/** Counts one watch of a battle by a reader with no seat in it, whichever screen they watch it on. */
+export function useSpectated(view: BattleView, table: Side[]) {
+  const captured = useRef(false)
+  useEffect(() => {
+    if (captured.current || view.players.some((player) => player.isViewer)) return
+    captured.current = true
+    posthog.capture('battle_spectated', {
+      status: view.status,
+      format: formatName(table),
+      player_count: view.players.length,
+      sealedEvent: Boolean(view.sealedEventToken),
+    })
+  }, [table, view.sealedEventToken, view.players, view.status])
+}
 const emptyTimeline: readonly ReplayPoint[] = []
 const noReference = () => undefined
 const noPrompts: never[] = []
@@ -107,19 +122,8 @@ export function Spectator({
   const missionPack = references?.packs.find((entry) => entry.id === view.settings.missionPackId)
   const cardsByKey = useMemo(() => missionCardsByKey(references), [references])
   const referenceFor = (key: string) => cardsByKey.get(key)
-  const captured = useRef(false)
   useWatchBattle(currentView, currentClock, currentMissions, noReference, noPrompts)
-
-  useEffect(() => {
-    if (captured.current || view.players.some((player) => player.isViewer)) return
-    captured.current = true
-    posthog.capture('battle_spectated', {
-      status: view.status,
-      format: formatName(table),
-      player_count: view.players.length,
-      sealedEvent: Boolean(view.sealedEventToken),
-    })
-  }, [table, view.sealedEventToken, view.players, view.status])
+  useSpectated(view, table)
 
   return (
     <>
