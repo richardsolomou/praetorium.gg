@@ -1250,7 +1250,6 @@ function resolveSequence(
   state[0] = 1
   let work = 0
   for (const [phase, base] of inputs.entries()) {
-    const currentLayout = allocation(base.target)
     const variants = afterLosses[phase] ?? []
     const named = [...new Set(variants.flatMap(({ units }) => units))]
     const byModels = new Map<string, { models: number; input: CombatInput; state: State }>()
@@ -1288,11 +1287,13 @@ function resolveSequence(
       part.state[at] = state[at]!
       byModels.set(key, part)
     }
-    for (const part of byModels.values()) work += workOf(part.input, currentLayout)
+    // A variant can change a group's defences, so each part needs the layout of its own target.
+    const parts = [...byModels.values()].map((part) => ({ ...part, layout: allocation(part.input.target) }))
+    for (const part of parts) work += workOf(part.input, part.layout)
     if (work > maxWork) throw new Error('This attack is too large to simulate. Select fewer weapons or models.')
     const next = new Float64Array(state.length)
     next[layout.total] = state[layout.total]!
-    for (const part of byModels.values()) addInto(next, resolveCombat(part.input, currentLayout, part.state, part.models))
+    for (const part of parts) addInto(next, resolveCombat(part.input, part.layout, part.state, part.models))
     state = next
   }
   return [state, layout] as const
