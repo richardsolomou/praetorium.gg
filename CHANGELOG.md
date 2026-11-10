@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.228.9 (2026-11-10)
+
+### Patch Changes
+
+- 193a637: A leader now gets the defences of the bodyguards it leads, and the shooting + melee estimate ends them in melee when shooting destroys the bodyguards.
+
 ## 0.228.8 (2026-11-10)
 
 ### Patch Changes
