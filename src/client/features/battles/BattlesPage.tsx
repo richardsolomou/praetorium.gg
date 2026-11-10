@@ -111,6 +111,7 @@ export function BattlesPage({ view: asked, search, order }: { view: BattlesView;
             order={order}
             onOrder={(next) => go(search, next)}
             signedIn={Boolean(me)}
+            updating={feed.isPlaceholderData}
           />
         ) : null}
         {matches ??

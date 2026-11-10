@@ -74,6 +74,7 @@ export function BattleFilters({
   order,
   onOrder,
   signedIn,
+  updating,
 }: {
   view: BattlesView
   search: BattleListSearch
@@ -81,6 +82,8 @@ export function BattleFilters({
   order?: BattleOrder
   onOrder: (order: BattleOrder | undefined) => void
   signedIn: boolean
+  /** The battles shown are the previous filter's while the new one loads. */
+  updating: boolean
 }) {
   const mine = view === 'mine'
   const { data: index } = useQuery(factionIndexQuery())
@@ -163,6 +166,7 @@ export function BattleFilters({
       address={search}
       onApply={(address) => onChange(address)}
       sort={<BattleOrderMenu order={order} onOrder={onOrder} />}
+      summary={updating ? 'Updating…' : null}
     />
   )
 }

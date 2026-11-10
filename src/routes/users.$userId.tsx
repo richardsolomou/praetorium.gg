@@ -15,8 +15,9 @@ import {
 
 export const Route = createFileRoute('/users/$userId')({
   validateSearch: readSearch,
-  loaderDeps: ({ search }) => recordFilter(search),
-  loader: async ({ context, params, deps }) => {
+  loader: async ({ context, params, location }) => {
+    // Read from the address rather than keyed on it, so a record filter refetches in place instead of blocking navigation.
+    const deps = recordFilter(readSearch(location.search))
     const [, profile, record, rankings] = await Promise.all([
       context.queryClient.query({ ...meQuery(), staleTime: 'static' }),
       context.queryClient.query({ ...userProfileQuery(params.userId), staleTime: 'static' }),

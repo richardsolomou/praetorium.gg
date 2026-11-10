@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { UserX } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -38,7 +38,7 @@ export function PlayerProfilePage({ userId, search }: { userId: string; search: 
   const navigate = useNavigate()
   const { data: me } = useQuery(meQuery())
   const { data: profile } = useQuery(userProfileQuery(userId))
-  const { data } = useQuery(playerProfileQuery(userId, filter))
+  const { data } = useQuery({ ...playerProfileQuery(userId, filter), placeholderData: keepPreviousData })
   const { data: rankings } = useQuery(playerRankingsQuery(userId))
   const { data: achievements } = useQuery(playerAchievementsQuery(userId))
   const collection = useQuery(collectionProfileQuery(userId))

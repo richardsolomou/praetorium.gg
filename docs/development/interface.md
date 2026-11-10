@@ -12,7 +12,7 @@
 - From 860px the navigation is a rail beside the page, so nothing sits above it; below that a fixed header sits on top, and sticky bars clear it with `--app-header`. Check rail changes at text sizes up to 200%.
 - The rail is automatic until a fold or open differs from what the page shows by default: folded in the roster workspace, open elsewhere. The workspace's `roster-split` and `roster-wide` breakpoints count on the folded width; change them together.
 - At most five tabs; the rest go in More.
-- Filters, tabs, sort, and search live in the URL; search replaces history rather than pushing per keystroke.
+- Filters, tabs, sort, and search live in the URL; search replaces history rather than pushing per keystroke. A list route's `loaderDeps` name its tab, never its filters, and its loader reads filters from `location.search`: a dependency on a filter makes every change a new blocking match that the route's pending screen replaces.
 - `FilterBar` is the one filter control for battle and roster lists. A list whose rows are only partly in the browser filters on the server, or a filter would judge only the loaded pages. Excluded values use the struck line form.
 
 ## Components
