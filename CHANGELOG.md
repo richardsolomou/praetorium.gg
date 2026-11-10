@@ -1,5 +1,15 @@
 # praetorium
 
+## 0.228.8 (2026-11-10)
+
+### Patch Changes
+
+- 1562d55: Changing only a tournament's Swiss rounds or a duel's points total now saves.
+- d71dc96: The help pages now say exactly who can read a sealed roster and which battles count on the leaderboard.
+- 946352a: Try again on the app's could not load screen reopens the page you were on.
+- a1d6e9e: Fixed several cases where saving or using a roster could unexpectedly switch it to older rules.
+- 946352a: The simulator says once, not twice, when a unit could not load.
+
 ## 0.228.7 (2026-11-10)
 
 ### Patch Changes
