@@ -10,8 +10,7 @@ const replySchema = z.object({ ticket_id: z.string().min(1).max(100) })
 type Recipient = { name: string; email: string }
 
 export type SupportReplyDeps = {
-  /** Unset where this instance does not tell players about replies, which answers as if the route did not exist. */
-  secret: string | undefined
+  secret: string
   readTicket: (ticketId: string) => Promise<{ ticket: SupportTicket; messages: SupportTicketMessage[] } | null>
   account: (id: string) => Promise<Recipient | null | undefined>
   send: (email: EmailMessage) => Promise<unknown>
@@ -70,7 +69,6 @@ function aboutReply(messages: readonly SupportTicketMessage[]) {
 
 /** Emails the player when we reply to their message, at most once per run of replies. */
 export async function supportReplyResponse(request: Request, deps: SupportReplyDeps) {
-  if (!deps.secret) return new Response(null, { status: 404 })
   if (!sameSecret(request.headers.get('x-praetorium-webhook-secret') ?? '', deps.secret)) return new Response(null, { status: 401 })
   const reply = replySchema.safeParse(await request.json().catch(() => null))
   if (!reply.success) return new Response('expected a ticket_id', { status: 400 })

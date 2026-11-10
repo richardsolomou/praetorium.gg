@@ -37,7 +37,7 @@ import { factionSelectGroups } from './builder/factions'
 import { RosterSortMenu, ROSTER_ASSESSMENT_DIMENSIONS } from './RosterFilters'
 import { FilterBar, type FilterDimension } from '../../components/FilterBar'
 import { NoFilterMatches } from '../../components/NoFilterMatches'
-import type { SearchableGroup } from '../../components/SearchableSelect'
+import { ungrouped } from '../../components/SearchableSelect'
 import { facetsOf, periodSearch } from '../../searchParams'
 import {
   facetMatches,
@@ -49,9 +49,10 @@ import {
   type PeriodFilter,
 } from '../../../core/listFilter'
 import { matchesRosterAssessment, rosterAssessmentFilterActive, ROSTER_SEARCH_MAX_LENGTH } from '../../../core/rosterDiscovery'
-import { ROSTER_VISIBILITIES, type RosterVisibility } from '../../../core/savedRoster'
+import { ROSTER_VISIBILITIES } from '../../../core/savedRoster'
+import { VISIBILITY_NAME } from './visibility'
 import { GAME_SIZES, battleSizeOptionLabel } from '../../../core/battle'
-import { countBy } from '../../../core/collections'
+import { countBy, toggled } from '../../../core/collections'
 import { matchesSearch } from '../../text'
 import { RosterRow } from './RosterRow'
 import { RosterLoanDialog } from './RosterLoanDialog'
@@ -97,13 +98,11 @@ export const LIBRARY_FACETS = [
 ] as const
 export type RosterLibrarySearch = PeriodFilter & { q?: string } & Partial<Record<(typeof LIBRARY_FACETS)[number], FacetAddress>>
 
-const plain = (items: { label: string; value: string; detail?: string }[]): SearchableGroup[] => [{ label: '', items }]
-const SHARING_LABEL: Record<RosterVisibility, string> = { private: 'Private', unlisted: 'Unlisted', public: 'Public' }
-const UPDATE_GROUPS = plain([
+const UPDATE_GROUPS = ungrouped([
   { label: 'Older rules', value: 'older' },
   { label: 'Changed by update', value: 'changed' },
 ])
-const STATE_GROUPS = plain([
+const STATE_GROUPS = ungrouped([
   { label: 'Locked', value: 'locked' },
   { label: 'Variant of another list', value: 'variant' },
 ])
@@ -292,13 +291,7 @@ export function RosterLibraryPage({
       ? {
           checked: selectedIds.has(roster.id),
           disabled: actions.batch.isPending || (!selectedIds.has(roster.id) && selected.length >= ROSTER_BATCH_MAX),
-          onCheckedChange: (checked: boolean) =>
-            setSelectedIds((current) => {
-              const next = new Set(current)
-              if (checked) next.add(roster.id)
-              else next.delete(roster.id)
-              return next
-            }),
+          onCheckedChange: (checked: boolean) => setSelectedIds((current) => toggled(current, roster.id, checked)),
         }
       : undefined
 
@@ -739,7 +732,7 @@ function RosterLibraryFilters({
       key: 'detachment',
       label: 'Detachment',
       pinned: true,
-      groups: plain(
+      groups: ungrouped(
         [...perDetachment.keys()]
           .map((id) => ({ label: detachmentNames.get(id) ?? id, value: id, detail: countOf(perDetachment, id) }))
           .toSorted((left, right) => left.label.localeCompare(right.label)),
@@ -749,7 +742,7 @@ function RosterLibraryFilters({
       key: 'limit',
       label: 'Battle size',
       pinned: true,
-      groups: plain(
+      groups: ungrouped(
         GAME_SIZES.map((size) => ({ label: battleSizeOptionLabel(size), value: String(size.limit), detail: countOf(perSize, size.limit) })),
       ),
     },
@@ -757,13 +750,13 @@ function RosterLibraryFilters({
       key: 'visibility',
       label: 'Sharing',
       pinned: true,
-      groups: plain(ROSTER_VISIBILITIES.map((value) => ({ label: SHARING_LABEL[value], value, detail: countOf(perSharing, value) }))),
+      groups: ungrouped(ROSTER_VISIBILITIES.map((value) => ({ label: VISIBILITY_NAME[value], value, detail: countOf(perSharing, value) }))),
     },
     { key: 'updates', label: 'Rules and data', groups: UPDATE_GROUPS, pinned: true },
     {
       key: 'disposition',
       label: 'Disposition',
-      groups: plain(
+      groups: ungrouped(
         (references?.dispositions ?? [])
           .filter((disposition) => perDisposition.has(disposition.id))
           .map((disposition) => ({ label: disposition.name, value: disposition.id, detail: countOf(perDisposition, disposition.id) })),

@@ -1,3 +1,4 @@
+import { splitWeaponKeywords } from './ruleReference'
 import { uniqueBy } from './collections'
 import { markedBullets, printedPhrasing, printedRule } from './combatPhrasing'
 import type { Datasheet, DatasheetCharacteristicKind } from './datasheet'
@@ -405,7 +406,7 @@ export function combatRuleProfiles(
       if (!phase) return profile
       let values = profile.values
       const weaponKinds = new Set(
-        (profile.values.find((value) => datasheetCharacteristicKind(value.name) === 'keywords')?.value.split(/[,;]/) ?? []).map(
+        splitWeaponKeywords(profile.values.find((value) => datasheetCharacteristicKind(value.name) === 'keywords')?.value).map(
           (keyword) => combatKeyword(keyword)?.kind,
         ),
       )
@@ -440,7 +441,7 @@ export function combatRuleProfiles(
           if (effect.keyword) {
             const keyword = effect.keyword
             const existing = values.find((value) => datasheetCharacteristicKind(value.name) === 'keywords')
-            const held = existing?.value.split(/[,;]/).map((value) => value.trim()) ?? []
+            const held = splitWeaponKeywords(existing?.value)
             const numbered = combatKeyword(keyword)
             if (held.some((value) => combatTextKey(value) === combatTextKey(keyword))) continue
             if (numbered?.amount !== undefined && !numbered.target) {
@@ -462,7 +463,7 @@ export function combatRuleProfiles(
             }
             const next = {
               name: existing?.name ?? 'Keywords',
-              value: [...held.filter((value) => !/^[-—]$/.test(value)), keyword].filter(Boolean).join(', '),
+              value: [...held, keyword].join(', '),
               modifiers: [...new Set([...(existing?.modifiers ?? []), rule.name])],
             }
             values = existing ? values.map((value) => (value === existing ? next : value)) : [...values, next]
@@ -544,6 +545,10 @@ export function combatRuleDefences(
   attackRules: readonly ActiveCombatRule[] = [],
 ): CombatInput['target'] {
   const effects = rules.flatMap((rule) => rule.effects).filter((effect) => effect.role === 'defender' && effect.phases.includes(phase))
+  const bestRoll = <T extends number | null | undefined>(
+    field: 'invulnerable' | 'feelNoPain' | 'psychicFeelNoPain' | 'mortalFeelNoPain',
+    initial: T,
+  ) => effects.reduce<number | T>((roll, effect) => (effect[field] === undefined ? roll : Math.min(roll ?? 7, effect[field])), initial)
   const attacks = [...new Map(attackRules.map((rule) => [combatTextKey(rule.name), rule])).values()]
     .flatMap((rule) => rule.effects)
     .filter((effect) => effect.role === 'attacker' && effect.phases.includes(phase))
@@ -551,10 +556,7 @@ export function combatRuleDefences(
     ...target,
     groups: target.groups.map((group) => ({
       ...group,
-      invulnerable: effects.reduce(
-        (roll, effect) => (effect.invulnerable === undefined ? roll : Math.min(roll ?? 7, effect.invulnerable)),
-        group.invulnerable,
-      ),
+      invulnerable: bestRoll('invulnerable', group.invulnerable),
       save: Math.max(
         2,
         Math.min(
@@ -573,18 +575,9 @@ export function combatRuleDefences(
       ),
     })),
     damageDivisor: effects.reduce((divisor, effect) => Math.max(divisor, effect.damageDivisor ?? 1), target.damageDivisor ?? 1),
-    feelNoPain: effects.reduce(
-      (roll, effect) => (effect.feelNoPain === undefined ? roll : Math.min(roll ?? 7, effect.feelNoPain)),
-      target.feelNoPain,
-    ),
-    psychicFeelNoPain: effects.reduce(
-      (roll, effect) => (effect.psychicFeelNoPain === undefined ? roll : Math.min(roll ?? 7, effect.psychicFeelNoPain)),
-      target.psychicFeelNoPain,
-    ),
-    mortalFeelNoPain: effects.reduce(
-      (roll, effect) => (effect.mortalFeelNoPain === undefined ? roll : Math.min(roll ?? 7, effect.mortalFeelNoPain)),
-      target.mortalFeelNoPain,
-    ),
+    feelNoPain: bestRoll('feelNoPain', target.feelNoPain),
+    psychicFeelNoPain: bestRoll('psychicFeelNoPain', target.psychicFeelNoPain),
+    mortalFeelNoPain: bestRoll('mortalFeelNoPain', target.mortalFeelNoPain),
     damageReduction: [...new Map(rules.map((rule) => [rule.name, rule])).values()].reduce(
       (amount, rule) =>
         amount +
@@ -659,8 +652,9 @@ export function combatRuleWeapons(
             return Boolean(held && required && held.kind === required.kind && combatKeywordApplies(held, targetKeywords))
           }
           const original = source.profiles.find((candidate) => candidate.id === profile.id)
-          const keywords =
-            original?.values.find((value) => datasheetCharacteristicKind(value.name) === 'keywords')?.value.split(/[,;]/) ?? []
+          const keywords = splitWeaponKeywords(
+            original?.values.find((value) => datasheetCharacteristicKind(value.name) === 'keywords')?.value,
+          )
           const otherGrant = rules.some(
             (other) =>
               other.name !== rule.name &&

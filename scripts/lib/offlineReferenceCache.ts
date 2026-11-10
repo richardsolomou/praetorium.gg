@@ -5,7 +5,6 @@ import path from 'node:path'
 import { unzipSync, zipSync } from 'fflate'
 import { CATALOGUE_HISTORY_FILE } from '../../src/server/catalogueHistory'
 import { catalogueCacheRoot } from './catalogueCache'
-import { catalogueDataDirectory } from './catalogueFiles'
 import { downloadArchive, storeHasArchive, storeUrl, uploadArchive } from './catalogueRuntimeDistribution'
 import { writeReferenceBundle } from './offlineReferenceBundle'
 import { errorText } from './errorText'
@@ -86,7 +85,7 @@ function tryInstall(outDir: string, archive: Uint8Array, origin: string) {
 export async function prepareReferenceBundle(
   outDir: string,
   key: string,
-  directory = catalogueDataDirectory(),
+  directory: string,
   cacheRoot = catalogueCacheRoot('offline-reference'),
   build: (outDir: string, directory: string) => Promise<void> = writeReferenceBundle,
   store: ReferenceStore = sharedStore,

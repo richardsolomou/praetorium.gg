@@ -1,6 +1,6 @@
 import { Calculator, ChevronLeft, Minus, Plus, Scroll } from 'lucide-react'
 import { ControlTooltip } from '../../components/ControlTooltip'
-import { useCallback, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { DialogBody, DialogDescription, DialogHeader, DialogTitle } from '../../components/Dialog'
 import { BattleDialogContent, BattlePromptDialog } from './BattlePromptDialog'
@@ -53,15 +53,12 @@ type UnitControls = {
 function usePendingCasualties(units: readonly UnitState[], send: SendCommand) {
   const [presses, setPresses] = useState<{ id: number; command: CasualtyCommand }[]>([])
   const nextId = useRef(0)
-  const press: Press = useCallback(
-    (command) => {
-      const id = nextId.current++
-      setPresses((current) => [...current, { id, command }])
-      const settled = () => setPresses((current) => current.filter((candidate) => candidate.id !== id))
-      send(command, { blocking: false, shown: settled, complete: settled })
-    },
-    [send],
-  )
+  const press: Press = (command) => {
+    const id = nextId.current++
+    setPresses((current) => [...current, { id, command }])
+    const settled = () => setPresses((current) => current.filter((candidate) => candidate.id !== id))
+    send(command, { blocking: false, shown: settled, complete: settled })
+  }
   const shown = presses.length
     ? units.map((unit) =>
         presses

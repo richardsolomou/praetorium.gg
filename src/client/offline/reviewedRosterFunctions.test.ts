@@ -3,7 +3,7 @@ import { QueryClient } from '@tanstack/react-query'
 import { emptyLocalState } from '../../contracts/localState'
 import { saveRosterSchema } from '../../contracts/schemas'
 import { saveRoster } from '../functions'
-import { configureLocalRuntime, stopLocalRuntime } from './localRuntime'
+import { configureLocalRuntime, stopLocalRuntime, syncLocalWork } from './localRuntime'
 
 const mocks = vi.hoisted(() => ({
   storage: vi.fn(),
@@ -131,4 +131,39 @@ it('refuses native result projection when the account changes during acknowledge
     return { ...original, limit: 1000, updatedAt: 9 }
   })
   await expect(nativeSave()).rejects.toThrow('account changed')
+})
+
+it('saves and verifies a native folded candidate on the version resolved by the server', async () => {
+  mocks.native = 3
+  const folded = { ...original, catalogueId: 'current-rosters~2261-79a5-19d9-1668', detachmentIds: ['3caf-c168-c372-51b1'] }
+  let catalogueId: string | undefined
+  mocks.sync.mockImplementation(async ({ data }) => {
+    const parsed = saveRosterSchema.parse(data.roster)
+    catalogueId = parsed.catalogueId
+    mocks.shared.mockResolvedValue({ ...parsed, updatedAt: 9 })
+    return { outcome: 'applied', version: 9 }
+  })
+  const result = await saveRoster({ data: folded }, folded, 'alice', receipt).catch((error: Error) => error.message)
+  expect({ result, catalogueId }).toEqual({ result: { id: 'army', updatedAt: 9 }, catalogueId: '2261-79a5-19d9-1668' })
+})
+
+it('syncs a locally saved folded roster and projects the same resolved rules after acknowledgement', async () => {
+  const folded = { ...original, catalogueId: 'current-rosters~2261-79a5-19d9-1668', detachmentIds: ['3caf-c168-c372-51b1'] }
+  let catalogueId: string | undefined
+  mocks.sync.mockImplementation(async ({ data }) => {
+    catalogueId = saveRosterSchema.parse(data.roster).catalogueId
+    return { outcome: 'applied', version: 9 }
+  })
+  await saveRoster({ data: folded })
+  vi.stubGlobal('navigator', { onLine: true })
+  await syncLocalWork()
+  expect({
+    catalogueId,
+    document: (state.documents['roster:army']!.data as typeof original).catalogueId,
+    pending: state.operations.length,
+  }).toEqual({
+    catalogueId: '2261-79a5-19d9-1668',
+    document: '2261-79a5-19d9-1668',
+    pending: 0,
+  })
 })

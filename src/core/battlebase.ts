@@ -1,4 +1,5 @@
-import { attachGroups, starredLabel, textNickname, WTC_SECTION, type TextRoster, type TextRosterUnit } from './textRoster'
+import { countBy } from './collections'
+import { attachGroups, bodyguardLast, starredLabel, textNickname, WTC_SECTION, type TextRoster, type TextRosterUnit } from './textRoster'
 
 /**
  * A points figure grouped in any locale's style, read as "(1 995 Punkte)", "(1'995 Punkte)" or "(2 Detachment Points)":
@@ -56,8 +57,10 @@ export function fromBattleBaseText(input: string, { setupOptional = false } = {}
   const lines = raw.map((line) => line.trim())
   const prices = lines.map((line) => (selection.test(line) ? null : price(line)))
   // Units outnumber the title, the battle size and the detachments, so the commonest points word is the one they share.
-  const tally = new Map<string, number>()
-  for (const priced of prices) if (priced) tally.set(priced.unit, (tally.get(priced.unit) ?? 0) + 1)
+  const tally = countBy(
+    prices.flatMap((priced) => (priced ? [priced.unit] : [])),
+    (unit) => unit,
+  )
   const pointsWord = [...tally].reduce((best, next) => (next[1] > best[1] ? next : best), ['points', 0])[0]
   const inPoints = (at: number) => prices[at]?.unit === pointsWord
   const isUnit = (line: string) => !selection.test(line) && price(line)?.unit === pointsWord
@@ -240,10 +243,7 @@ export function fromBattleBaseText(input: string, { setupOptional = false } = {}
     warlord.unit.selections.splice(warlord.unit.selections.indexOf(warlord.selection), 1)
     warlord.unit.warlord = true
   }
-  attachGroups(
-    units,
-    groups.filter((members) => members.length > 1).map((members) => ({ leaders: members.slice(0, -1), bodyguard: members.at(-1)! })),
-  )
+  attachGroups(units, groups.filter((members) => members.length > 1).map(bodyguardLast))
 
   // The footer names the app's data version last, in the export's language: "Data Version: v995", "versión de los datos v925".
   const dataVersion = Number(lines.find((line) => appVersion.test(line))?.match(/\bv(\d+)\s*$/)?.[1])

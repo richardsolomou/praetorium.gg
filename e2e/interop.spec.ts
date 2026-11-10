@@ -1,5 +1,5 @@
 import { expect, test } from './test'
-import { arrangeByRole } from './builder.harness'
+import { add, arrangeByRole } from './builder.harness'
 import { readFile } from 'node:fs/promises'
 import { listForgeDetailed } from '../src/core/rosterText.fixtures'
 import { custodesOfficial } from '../src/core/rosterText.custodes.fixture'
@@ -26,10 +26,8 @@ test('a list can be copied as Games Workshop text', async ({ browser }) => {
   await signUp(page, 'Alice')
 
   await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/ })
-  await page.getByLabel('Add a unit').fill('Immortals')
-  await page.getByRole('button', { name: 'Add Immortals', exact: true }).first().click()
-  await page.getByLabel('Add a unit').fill('Overlord')
-  await page.getByRole('button', { name: 'Add Overlord', exact: true }).first().click()
+  await add(page, 'Immortals')
+  await add(page, 'Overlord')
   await page.locator('[data-unit="Overlord"]').getByRole('button', { name: 'Attach Overlord to unit' }).click()
   await page.getByRole('menu').getByRole('menuitem', { name: 'Immortals', exact: true }).click()
   await page

@@ -80,7 +80,7 @@ export type ImportPack = {
   deployments: readonly { id: string; name: string }[]
 }
 
-export type BattlebaseImport = {
+type BattlebaseImport = {
   sourceId: string
   createdAt: number
   /** The opponent's BattleBase id, which the guest seat stands for. */

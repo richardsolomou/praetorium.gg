@@ -7,12 +7,10 @@ export function FavouriteDetachmentToggle({
   catalogueId,
   detachmentId,
   name,
-  className,
 }: {
   catalogueId: string
   detachmentId: string
   name: string
-  className?: string
 }) {
   const { favourites, toggleFavourite, pending } = useFavouriteDetachments()
   return (
@@ -21,7 +19,6 @@ export function FavouriteDetachmentToggle({
       list="favourite detachments"
       favourite={favourites.has(favouriteDetachmentKey(catalogueId, detachmentId))}
       pending={pending.isPending && pending.variables?.detachmentId === detachmentId}
-      className={className}
       onToggle={() => toggleFavourite(catalogueId, detachmentId)}
     />
   )

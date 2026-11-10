@@ -17,7 +17,7 @@ type Compared = {
 export type RosterUnitChange = { entryId: string; catalogueId?: string; count: number }
 type RosterSetupChange = 'faction' | 'size' | 'detachment' | 'disposition' | 'rules'
 
-export type RosterDifferences = {
+type RosterDifferences = {
   setup: RosterSetupChange[]
   /** Detachment ids on one side only; `replaced` when the variant keeps none of its base's. */
   detachments: { added: string[]; removed: string[]; replaced: boolean }

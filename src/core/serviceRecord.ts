@@ -202,6 +202,9 @@ function matches(appearance: Appearance, filter: RecordFilter) {
   return true
 }
 
+const matching = (battles: readonly RecordBattle[], playerId: string, filter: RecordFilter) =>
+  appearances(battles, playerId).filter((one) => matches(one, filter))
+
 /** Whether the player's own side took the first turn. Unknown until the battle begins. */
 function wentFirst(appearance: Appearance): boolean | null {
   const first = appearance.battle.firstPlayerId
@@ -222,7 +225,7 @@ function split(taken: readonly Appearance[]): Split {
 
 /** Monthly results from the same filtered appearances as the visible service record. */
 export function personalPerformance(battles: readonly RecordBattle[], playerId: string, filter: RecordFilter = {}): PersonalPerformance {
-  const taken = appearances(battles, playerId).filter((one) => matches(one, filter))
+  const taken = matching(battles, playerId, filter)
   const rows = (choices: (one: Appearance) => readonly { key: string; label: string }[]): PerformanceRow[] => {
     const groups = new Map<string, { label: string; appearances: Appearance[] }>()
     for (const one of taken) {
@@ -284,12 +287,13 @@ function streaks(taken: readonly Appearance[]) {
  * battles that record counted rather than a second answer to the same question.
  */
 export function filterBattles<T extends RecordBattle>(battles: readonly T[], playerId: string, filter: RecordFilter = {}): T[] {
-  const taken = appearances(battles, playerId).filter((one) => matches(one, filter))
-  return taken.map((one) => one.battle as T).toReversed()
+  return matching(battles, playerId, filter)
+    .map((one) => one.battle as T)
+    .toReversed()
 }
 
 export function serviceRecord(battles: readonly RecordBattle[], playerId: string, filter: RecordFilter = {}): ServiceRecord {
-  const taken = appearances(battles, playerId).filter((one) => matches(one, filter))
+  const taken = matching(battles, playerId, filter)
   const wins = taken.filter((one) => one.result === 'won')
   const losses = taken.filter((one) => one.result === 'lost')
   const first = taken.filter((one) => wentFirst(one) === true)
@@ -483,8 +487,7 @@ function sideTotal(appearance: Appearance, values: readonly number[]) {
   return appearance.battle.sides.reduce((total, side, seat) => (side === appearance.side ? total + (values[seat] ?? 0) : total), 0)
 }
 
-/** One value a reader can filter by, and how many of their battles carry it. */
-/** `latest` is when the most recent of those battles was last played. */
+/** One value a reader can filter by, how many of their battles carry it, and when the most recent of them was last played. */
 export type Facet = { value: string; label: string; battles: number; latest: number; image?: string | null }
 
 /** Every dimension of the record a reader can narrow, with the values they have played. */

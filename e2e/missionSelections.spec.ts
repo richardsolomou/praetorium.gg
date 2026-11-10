@@ -129,6 +129,7 @@ test('source matchup nominations survive undo and reload', async ({ page, browse
   await expect(target).toBeHidden()
   await expect(guards).toBeVisible()
   await guards.getByRole('button', { name: 'Record choice', exact: true }).click()
+  await expect(guards).toBeHidden()
   await expect(advanceButton(page)).toBeEnabled()
   await page.getByRole('button', { name: 'Undo latest action', exact: true }).click()
   await expect(guards).toBeVisible()

@@ -140,24 +140,21 @@ export function localStateStorage(owner: string): LocalStateStorage {
   }
 }
 
-export async function clearLocalState(owner: string, onlyIfClean = false) {
+/** Forgets this account's saved state on the device, unless any of its work has yet to sync. */
+export async function clearLocalState(owner: string) {
   if (supportsNativeLocalState())
     return nativeWrite(owner, async () => {
       const saved = await readStoredState(owner)
-      if (onlyIfClean && saved.state?.operations.length) return
+      if (saved.state?.operations.length) return
       const answer = await requestNativeLocalState(owner, { state: null, epoch: saved.epoch, expectedRevision: saved.state?.revision ?? 0 })
-      if (!answer.saved) {
-        if (onlyIfClean) return
-        throw new Error('Another window has saved changes. Try signing out again.')
-      }
-      notify(owner, answer)
+      if (answer.saved) notify(owner, answer)
     })
   const value = { epoch: crypto.randomUUID(), state: null }
   let cleared = false
   await update<StoredState>(
     `work:${owner}`,
     (current) => {
-      if (onlyIfClean && current?.state?.operations.length) return current
+      if (current?.state?.operations.length) return current
       cleared = true
       return value
     },

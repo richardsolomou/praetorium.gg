@@ -30,7 +30,7 @@ export const offlineActionSchemas = {
   admitSealedEventEntries: schemas.admitSealedEventEntriesSchema,
   moderateSealedEventEntry: schemas.moderateSealedEventEntrySchema,
   submitSealedEventRoster: schemas.submitSealedEventRosterSchema.extend({
-    capturedRoster: schemas.saveRosterSchema,
+    capturedRoster: schemas.rosterContentSchema,
     catalogueRevision: z.string().min(1).max(128),
   }),
   setSealedEventTeamDisposition: schemas.setSealedEventTeamDispositionSchema,

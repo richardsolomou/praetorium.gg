@@ -297,8 +297,6 @@ export type CatalogueIndex = {
   costTypes: Map<string, CostType>
   /** The cost type players mean when they say "points". */
   pointsTypeId: string
-  /** Unit and model entries by name, for looking one up the way a person would. */
-  unitsByName: Map<string, SelectionEntry[]>
   catalogues: Map<string, { id: string; name: string; revision?: number; library?: boolean; gameSystem: boolean }>
   /** Which catalogue each definition came from, for the chapter-specific pricing that asks. */
   catalogueOf: Map<string, string>
@@ -341,7 +339,6 @@ export type CatalogueIndex = {
 export function buildIndex(files: readonly CatalogueFile[], revision: string): CatalogueIndex {
   const definitions = new Map<string, Definition>()
   const costTypes = new Map<string, CostType>()
-  const unitsByName = new Map<string, SelectionEntry[]>()
   const catalogues = new Map<string, { id: string; name: string; revision?: number; library?: boolean; gameSystem: boolean }>()
   const catalogueOf = new Map<string, string>()
   const forces: ForceEntry[] = []
@@ -357,11 +354,6 @@ export function buildIndex(files: readonly CatalogueFile[], revision: string): C
     if (node.id) {
       definitions.set(node.id, node)
       catalogueOf.set(node.id, owner)
-    }
-    if (node.name && (node.type === 'unit' || node.type === 'model')) {
-      const existing = unitsByName.get(node.name) ?? []
-      existing.push(node)
-      unitsByName.set(node.name, existing)
     }
     for (const child of node.selectionEntries ?? []) collect(child)
     for (const child of node.selectionEntryGroups ?? []) collect(child)
@@ -404,7 +396,6 @@ export function buildIndex(files: readonly CatalogueFile[], revision: string): C
     definitions,
     costTypes,
     pointsTypeId: points.id,
-    unitsByName,
     catalogues,
     catalogueOf,
     datasheets: datasheets.datasheets,
@@ -448,6 +439,9 @@ export function targetOf(definition: Definition, definitions: ReadonlyMap<string
 }
 
 export const resolve = (definition: Definition, index: CatalogueIndex) => targetOf(definition, index.definitions)
+
+export const profileDescription = (profile: Profile) =>
+  profile.characteristics?.find((characteristic) => characteristic.name === 'Description')?.$text ?? null
 
 /** An entry, and its target when it is a link: the two places its own data can be written. */
 export function definitionAndTarget(definition: Definition, index: CatalogueIndex): Definition[] {

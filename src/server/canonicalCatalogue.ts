@@ -371,12 +371,7 @@ export type CanonicalCatalogueSteps = Steps<CanonicalCatalogue>
 
 const COOPERATIVE_SLICE_MS = 20
 
-/**
- * Runs a compile in short slices, so requests are served between them.
- *
- * One step per event-loop turn made a cold read wait a whole turn per datasheet, and during the
- * background warm-up each turn also carries its slice, so a large faction took tens of seconds.
- */
+/** Runs a compile in short slices, so requests are served between them. */
 export async function completeStepsCooperatively<T>(steps: Steps<T>): Promise<T> {
   let step = steps.next()
   while (!step.done) {

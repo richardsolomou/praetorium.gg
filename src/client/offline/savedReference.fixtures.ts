@@ -7,7 +7,7 @@ import {
 import type { GlobalSearchIndex } from '../../core/referenceSearch'
 
 /** Parts a test saved, by address; `storedPartReader` stands in for `./referenceStore` reading them. */
-export const storedParts = new Map<string, unknown>()
+const storedParts = new Map<string, unknown>()
 
 export const storedPartReader = {
   readPart: async (asset: string) => {

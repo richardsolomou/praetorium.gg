@@ -31,7 +31,7 @@ While rosters are still owed, press **Remind players** under the reveal countdow
 
 ## Reveal and play
 
-When everyone is in and sealed, press **Reveal all rosters**. Every list opens at once and entry closes. Anyone playing can do this, and it can't be undone. Before the reveal nobody sees another list, not even you. If the button is greyed out, **Before you can reveal** lists what's left.
+When everyone is in and sealed, press **Reveal all rosters**. Every list opens at once and entry closes. Anyone playing can do this, and it can't be undone. Before the reveal, players can read their own list and their assigned ally's. Being the organizer gives no extra access. If the button is greyed out, **Before you can reveal** lists what's left.
 
 Players then start their tournament battles from the tournament page, and finished battles fill the results table.
 

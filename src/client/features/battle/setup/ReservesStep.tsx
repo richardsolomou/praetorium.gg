@@ -86,8 +86,6 @@ function ReserveSide({ side, moves }: { side: Side; moves: Moves }) {
 
 function ArmySetup({ army, multiple, moves }: { army: Army; multiple: boolean; moves: Moves }) {
   const sections = reserveSections(army.units)
-  // Counted the way the rows are: a character and the unit he joined are one unit.
-  const listed = sections.reduce((total, section) => total + section.units.length, 0)
   const reserveLimit = army.roster?.built?.strategicReserveLimit
   const reservePoints = strategicReservePoints(army.units)
   const units = sections.flatMap((section) => section.units)
@@ -100,7 +98,7 @@ function ArmySetup({ army, multiple, moves }: { army: Army; multiple: boolean; m
           {multiple ? <span className="block text-3xs text-dim">{army.playerName}</span> : null}
         </span>
         <span className="flex max-w-full shrink-0 flex-wrap justify-end gap-1">
-          <span className="chip">{countLabel(listed, 'unit')}</span>
+          <span className="chip">{countLabel(units.length, 'unit')}</span>
           {multiple || reserveLimit === undefined ? null : (
             <span className="chip">
               {reservePoints}/{reserveLimit} reserve points

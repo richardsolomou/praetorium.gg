@@ -92,7 +92,7 @@ function withForfeits(matches: readonly SwissMatch[], dropped: ReadonlySet<strin
   })
 }
 
-/** Every pair that has already met, as a key either order of the two reads the same. */
+/** A pair as one key, the same whichever order the two are named in. */
 const pairKey = (one: string, other: string) => (one < other ? `${one}|${other}` : `${other}|${one}`)
 
 /**

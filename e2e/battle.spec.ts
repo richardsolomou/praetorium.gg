@@ -24,6 +24,7 @@ import {
   PHONE,
   uploadAvatar,
   playerPanel,
+  rosteredPlayers,
 } from './account'
 import { battleCommands, battleLog, productSql, lastPathSegment, battleIdFor } from './storage'
 import { expectNoHorizontalOverflow } from './builder.harness'
@@ -65,15 +66,16 @@ test('Cleanse and Centre Ground prompt for scoring on the first turn', async ({ 
   await expect(ongoing.locator('[data-secondary] [aria-label="Victory points by battle round"]')).toHaveCount(0)
   for (const width of [900, 1100, 1440]) {
     await page.setViewportSize({ width, height: 900 })
-    const missions = await ongoing.locator('[data-missions]').boundingBox()
-    const stratagems = await ongoing.locator('[data-stratagems]').boundingBox()
-    expect(missions && stratagems).toBeTruthy()
-    if (width === 1100) {
-      expect(stratagems!.y).toBeGreaterThan(missions!.y + missions!.height)
-    } else {
-      expect(stratagems!.x).toBeGreaterThan(missions!.x + missions!.width)
-      expect(Math.abs(stratagems!.y - missions!.y)).toBeLessThan(1)
-    }
+    await expect
+      .poll(async () => {
+        const missions = await ongoing.locator('[data-missions]').boundingBox()
+        const stratagems = await ongoing.locator('[data-stratagems]').boundingBox()
+        if (!missions || !stratagems) return false
+        return width === 1100
+          ? stratagems.y > missions.y + missions.height
+          : stratagems.x > missions.x + missions.width && Math.abs(stratagems.y - missions.y) < 1
+      })
+      .toBe(true)
     await expectNoPageOverflow(page)
   }
   await page.setViewportSize(PHONE)
@@ -85,6 +87,8 @@ test('Cleanse and Centre Ground prompt for scoring on the first turn', async ({ 
   const scoring = page.getByRole('dialog', { name: /^Scoring end of turn points/ })
   await expect(scoring.getByRole('button', { name: 'Cleanse plus 2', exact: true })).toBeVisible()
   await expect(scoring.getByRole('button', { name: 'Centre Ground plus 3', exact: true })).toBeVisible()
+  // The dialog shows ahead of the service's answer, and a reload would drop a command still in flight.
+  await page.waitForLoadState('networkidle')
   await page.reload()
   await scoring.getByRole('button', { name: 'Cleanse plus 2', exact: true }).click()
   await scoring.getByRole('button', { name: 'Centre Ground plus 3', exact: true }).click()
@@ -624,13 +628,7 @@ test('a tactical hand pays out when the card says', async ({ browser }) => {
 test('paired secondary missions may be kept or put back as they are drawn', async ({ browser }) => {
   const alice = await (await browser.newContext(desktopContext)).newPage()
   const bob = await (await browser.newContext(desktopContext)).newPage()
-  const aliceName = uniqueName('Alice')
-  const bobName = uniqueName('Bob')
-
-  await signUp(bob, bobName)
-  const bobRoster = await createRoster(bob, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Necrons' })
-  await signUp(alice, aliceName)
-  const aliceRoster = await createRoster(alice, { faction: 'Death Guard', detachment: /Shamblerot Vectorium/, name: 'Death Guard' })
+  const { bobName, aliceRoster, bobRoster } = await rosteredPlayers(alice, bob)
   await befriend(alice, bob)
   const url = await createBattle(alice, { opponent: bobName })
   await bob.goto(url)
@@ -731,13 +729,7 @@ test('paired secondary missions may be kept or put back as they are drawn', asyn
 test('a secret mission chosen before they were retired is handed off before its scoring prompt', async ({ browser }) => {
   const alice = await (await browser.newContext(desktopContext)).newPage()
   const bob = await (await browser.newContext(desktopContext)).newPage()
-  const aliceName = uniqueName('Alice')
-  const bobName = uniqueName('Bob')
-
-  await signUp(bob, bobName)
-  const bobRoster = await createRoster(bob, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Necrons' })
-  await signUp(alice, aliceName)
-  const aliceRoster = await createRoster(alice, { faction: 'Death Guard', detachment: /Shamblerot Vectorium/, name: 'Death Guard' })
+  const { aliceName, bobName, aliceRoster, bobRoster } = await rosteredPlayers(alice, bob)
   await setupBattle(alice, bob, {
     opponent: bobName,
     hostRoster: aliceRoster,

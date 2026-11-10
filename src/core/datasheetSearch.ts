@@ -166,8 +166,7 @@ function selectReasons(wanted: readonly string[], nameWords: readonly string[], 
       .map((match, index) => ({ index, coverage: uncovered.filter((word) => match.matchingWords.includes(word)).length }))
       .toSorted((left, right) => right.coverage - left.coverage || left.index - right.index)[0]
     if (!best?.coverage) break
-    const [match] = remaining.splice(best.index, 1)
-    if (!match) break
+    const match = remaining.splice(best.index, 1)[0]!
     selected.push(match)
     match.matchingWords.forEach((word) => covered.add(word))
   }
@@ -186,9 +185,7 @@ function reasonCombination(
     return uncovered.every((word) => selected.some((match) => match.matchingWords.includes(word))) ? [...selected] : null
   }
   for (let index = start; index <= candidates.length - (size - selected.length); index++) {
-    const candidate = candidates[index]
-    if (!candidate) continue
-    const found = reasonCombination(uncovered, candidates, size, index + 1, [...selected, candidate])
+    const found = reasonCombination(uncovered, candidates, size, index + 1, [...selected, candidates[index]!])
     if (found) return found
   }
   return null

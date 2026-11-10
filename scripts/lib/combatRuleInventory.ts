@@ -1,3 +1,4 @@
+import { profileDescription } from '../../src/core/catalogue'
 import type { InfoGroup, InfoLink, Profile } from '../../src/core/catalogue'
 import type { LoadedCatalogue } from '../../src/server/catalogueIndex'
 import { combatKeyword, normalizeCombatKeyword } from '../../src/core/combatKeywords'
@@ -36,7 +37,7 @@ export function combatWeaponKeywordInventory(loaded: LoadedCatalogue, factionFil
 export function unselectedCombatRules(loaded: LoadedCatalogue) {
   const rows: { name: string; description: string; source: string }[] = []
   const profile = (value: Profile, source: string) => {
-    const description = value.characteristics?.find((entry) => entry.name === 'Description')?.$text
+    const description = profileDescription(value)
     if (value.typeName === 'Abilities' && value.name && description) rows.push({ name: value.name, description, source })
   }
   visitCatalogueProfiles(loaded, profile)

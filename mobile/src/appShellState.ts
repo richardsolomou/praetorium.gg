@@ -77,7 +77,6 @@ export function authReceived(state: AppShellState, callback: AuthCallback): AppS
     loadStarted: false,
     loadFailed: false,
     pendingAuth: callback,
-    delivering: null,
     renderKey: restored.renderKey + 1,
   }
 }
@@ -147,9 +146,7 @@ export function authDeliveryFailed(state: AppShellState, id: string): AppShellSt
 }
 
 export function authDeliveryDeferred(state: AppShellState, id: string): AppShellState {
-  return state.delivering?.kind === 'auth' && state.delivering.callback.id === id
-    ? { ...state, pendingAuth: state.pendingAuth ?? state.delivering.callback, delivering: null }
-    : state
+  return state.delivering?.kind === 'auth' && state.delivering.callback.id === id ? restoreDelivery(state) : state
 }
 
 export function authDeliverySucceeded(state: AppShellState, id: string): AppShellState {

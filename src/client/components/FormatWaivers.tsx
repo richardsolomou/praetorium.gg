@@ -12,7 +12,6 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { cn } from '@/lib/utils'
 import { type FormatRule, waivedFormatRules } from '../../core/battle'
 import { countLabel } from '../text'
 import { buttonClass } from './buttonClass'
@@ -43,17 +42,17 @@ const switchedOff = (rules: readonly FormatRule[]) =>
  * A mark beside a list's identity, which says what it is on hover.
  *
  * The identity line is what a list is, and every other thing on it is a fact about
- * the army rather than a caveat; spelling the waivers out there made the caveat the
- * loudest thing on the line. The mark holds the place, and the reader asks for the
+ * the army rather than a caveat; spelling the waivers out there would make the caveat
+ * the loudest thing on the line. The mark holds the place, and the reader asks for the
  * rest. Wherever a list is being decided about — chosen for a seat, sealed into a
  * sealed event, read under its own roster — the full sentence is still written out.
  */
-export function WaiverChip({ rules, className = '' }: { rules: readonly FormatRule[]; className?: string }) {
+export function WaiverChip({ rules }: { rules: readonly FormatRule[] }) {
   if (!rules.length) return null
   const summary = `${countLabel(rules.length, 'format restriction')} switched off: ${waiverLabels(rules)}`
   return (
     <Tooltip>
-      <TooltipTrigger render={<span className={cn('relative inline-flex shrink-0 items-center text-discarded', className)} />}>
+      <TooltipTrigger render={<span className="relative inline-flex shrink-0 items-center text-discarded" />}>
         <TriangleAlert className="size-4" aria-hidden />
         {/* The mark shows on hover and the tooltip is not read aloud, so the sentence travels with it. */}
         <span className="sr-only">{summary}</span>
@@ -67,15 +66,14 @@ export function WaiverChip({ rules, className = '' }: { rules: readonly FormatRu
 }
 
 /** The same fact as a line, where a row or an army has room for one. */
-export function WaiverNote({ rules, className = '' }: { rules: readonly FormatRule[]; className?: string }) {
+export function WaiverNote({ rules }: { rules: readonly FormatRule[] }) {
   if (!rules.length) return null
-  return <p className={cn('text-xs text-discarded', className)}>Format restrictions off: {waiverLabels(rules)}</p>
+  return <p className="mt-1 text-xs text-discarded">Format restrictions off: {waiverLabels(rules)}</p>
 }
 
 /**
  * Each waived restriction on its own line, for the moment someone has to decide
- * about them. A run-on sentence made the reader count commas to find out what they
- * were agreeing to.
+ * about them, so nobody has to count commas to find out what they are agreeing to.
  */
 function WaiverList({ rules }: { rules: readonly FormatRule[] }) {
   return (

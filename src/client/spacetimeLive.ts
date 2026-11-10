@@ -99,7 +99,7 @@ function connection<T extends Ticket>(issued: T, link: SpacetimeLink<T>, identit
 /** How long a realtime battle refresh waits for this device's own command to answer. */
 const COMMAND_ANSWER_WAIT_MS = 3_000
 
-export function useSpacetimeLiveBattle(token: string, enabled: boolean) {
+export function useSpacetimeLiveBattle(token: string) {
   const queryClient = useQueryClient()
   const [subscribed, setSubscribed] = useState(false)
   const refresh = useCallback(
@@ -128,7 +128,6 @@ export function useSpacetimeLiveBattle(token: string, enabled: boolean) {
   )
 
   useEffect(() => {
-    if (!enabled) return
     let leaving = false
     const stop = maintainSpacetimeConnection({
       issue: async () => {
@@ -191,13 +190,13 @@ export function useSpacetimeLiveBattle(token: string, enabled: boolean) {
       leaving = true
       stop()
     }
-  }, [enabled, refresh, token])
+  }, [refresh, token])
 
   useEffect(() => {
-    if (!enabled || subscribed) return
+    if (subscribed) return
     const timer = window.setInterval(() => refresh(), 5_000)
     return () => window.clearInterval(timer)
-  }, [enabled, refresh, subscribed])
+  }, [refresh, subscribed])
 }
 
 /** The shortest gap between two refetches of one signal scope. */

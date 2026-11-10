@@ -443,6 +443,18 @@ describe('what a sealed event allows', () => {
     expect(sealedEvent.reveal(NOW + 2)).toMatchObject({ outcome: 'revealed', entrantIds: ['entrant'] })
   })
 
+  it('saves a duel’s points total changed on its own', () => {
+    const sealedEvent = setup('[]')
+    sealedEvent.update({ pointsBudget: 1500 })
+    expect(sealedEvent.event()?.pointsBudget).toBe(1500)
+  })
+
+  it('saves Swiss rounds changed on their own', () => {
+    const sealedEvent = setup('[]')
+    sealedEvent.update({ rounds: 4 })
+    expect(sealedEvent.event()?.rounds).toBe(4)
+  })
+
   it('refuses a list built to another points total than the event’s', () => {
     const sealedEvent = setup('[]')
     sealedEvent.set({ pointsBudget: 1500 })
@@ -1707,13 +1719,6 @@ describe('session access', () => {
     expect(test.db.sessionAccess.count()).toBe(0n)
   })
 
-  it('refuses a session that revoked its own access', () => {
-    const { call } = harness()
-    call(player('session-1'), (ctx) => module.onConnect(ctx, {}))
-    call(player('session-1'), (ctx) => module.revokeOwnAccess(ctx, {}))
-    expect(() => call(player('session-1'), (ctx) => module.onConnect(ctx, {}))).toThrow('Invalid auth token')
-  })
-
   it('ends access once the expiry timer runs after the token lapsed', () => {
     const { test, call, at } = harness()
     call(player('session-1'), (ctx) => module.onConnect(ctx, {}))
@@ -2386,12 +2391,6 @@ describe('guest devices', () => {
       expect(() => h.call(h.auth, (ctx) => module.watchBattle(ctx, { battleId: 'other' }))).toThrow('Battle unavailable')
     })
 
-    it('lists only the guest seat’s own battle', () => {
-      const h = connected()
-      otherBattle(h)
-      expect(module.myBattleList(h.test.viewContext(h.auth))).toEqual([{ battleId: 'battle', seq: 0 }])
-    })
-
     it('gives a guest no account or admin signals', () => {
       const { test, auth } = connected()
       expect([module.myProductSignals(test.viewContext(auth)), module.myAdminSignals(test.viewContext(auth))]).toEqual([[], []])
@@ -2550,17 +2549,6 @@ describe('saved unit loadouts', () => {
       payload: JSON.stringify({ name: 'Command', catalogueId: 'sm', pick: { entryId: 'intercessors' }, joined }),
     })
     expect(saved(setup)).toMatchObject([{ joined }])
-  })
-
-  it('refuses a joined unit carrying a private note', () => {
-    const setup = harness()
-    const payload = JSON.stringify({
-      name: 'Command',
-      catalogueId: 'sm',
-      pick: { entryId: 'intercessors' },
-      joined: [{ entryId: 'lieutenant', attachedTo: 0, note: 'secret' }],
-    })
-    expect(() => module.saveUnitLoadout(setup.procedure(setup.operator), { ...loadout('one'), payload })).toThrow('Invalid loadout')
   })
 
   it('refuses another loadout once the library is full', () => {

@@ -188,44 +188,32 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
   const storedDismissals = useStoredValue(dismissalStorageKey)
   const dismissedReminders = useMemo(() => parseReminderDismissals(storedDismissals), [storedDismissals])
   const actionRemindersEnabled = storedMissionActionRemindersEnabled(useStoredValue(actionReminderStorageKey))
-  const updateActionReminders = useCallback(
-    (enabled: boolean) => {
-      writeStoredValue(actionReminderStorageKey, enabled ? 'on' : 'off')
-      if (!enabled)
-        setReminderPrompts((current) => keepReminders(current, (reminder) => !reminder.key.startsWith(MISSION_ACTION_REMINDER_PREFIX)))
-    },
-    [actionReminderStorageKey],
-  )
-  const reminderDismissed = useCallback(
-    (reminderKey: string, context: ReminderDismissalContext) =>
-      reminderDismissalKeys(reminderKey, context).some((key) => dismissedReminders.has(key)),
-    [dismissedReminders],
-  )
-  const rememberReminder = useCallback(
-    (reminderKey: string, scope: ReminderDismissalScope, context: ReminderDismissalContext) => {
-      // Read back from storage, so several dismissals in one handler all keep.
-      const dismissed = parseReminderDismissals(readStoredValue(dismissalStorageKey)).add(reminderDismissalKey(reminderKey, scope, context))
-      writeStoredValue(dismissalStorageKey, serializeReminderDismissals(dismissed))
-      setReminderPrompts((current) =>
-        keepReminders(
-          current,
-          (candidate, prompt) => !reminderDismissalKeys(candidate.key, prompt.context).some((key) => dismissed.has(key)),
-        ),
-      )
-    },
-    [dismissalStorageKey],
-  )
-  const remindersAt = useCallback(
-    (moments: readonly ReminderTiming[], context: ReminderDismissalContext) =>
-      remindersDueAt(viewerReminders, moments, context.round).filter((reminder) => !reminderDismissed(reminder.key, context)),
-    [reminderDismissed, viewerReminders],
-  )
-  const enqueueReminderPrompt = useCallback((prompt: ReminderPrompt) => {
+  const updateActionReminders = (enabled: boolean) => {
+    writeStoredValue(actionReminderStorageKey, enabled ? 'on' : 'off')
+    if (!enabled)
+      setReminderPrompts((current) => keepReminders(current, (reminder) => !reminder.key.startsWith(MISSION_ACTION_REMINDER_PREFIX)))
+  }
+  const reminderDismissed = (reminderKey: string, context: ReminderDismissalContext) =>
+    reminderDismissalKeys(reminderKey, context).some((key) => dismissedReminders.has(key))
+  const rememberReminder = (reminderKey: string, scope: ReminderDismissalScope, context: ReminderDismissalContext) => {
+    // Read back from storage, so several dismissals in one handler all keep.
+    const dismissed = parseReminderDismissals(readStoredValue(dismissalStorageKey)).add(reminderDismissalKey(reminderKey, scope, context))
+    writeStoredValue(dismissalStorageKey, serializeReminderDismissals(dismissed))
+    setReminderPrompts((current) =>
+      keepReminders(
+        current,
+        (candidate, prompt) => !reminderDismissalKeys(candidate.key, prompt.context).some((key) => dismissed.has(key)),
+      ),
+    )
+  }
+  const remindersAt = (moments: readonly ReminderTiming[], context: ReminderDismissalContext) =>
+    remindersDueAt(viewerReminders, moments, context.round).filter((reminder) => !reminderDismissed(reminder.key, context))
+  const enqueueReminderPrompt = (prompt: ReminderPrompt) => {
     setReminderPrompts((current) => {
       const duplicate = current.some((queued) => queued.moment === prompt.moment && sameMoment(queued.context, prompt.context))
       return duplicate ? current : [...current, prompt]
     })
-  }, [])
+  }
   const ruleRequests = useMemo(
     () =>
       table.flatMap((side) =>
@@ -274,27 +262,18 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
   const primaryDeck = useMemo(() => primaryCards(references), [references])
   const secondaryDeck = useMemo(() => secondaryCards(references), [references])
   const cardsByKey = useMemo(() => missionCardsByKey(references), [references])
-  const awardsFor = useCallback(
-    (key: string, mode?: string): MissionAward[] => (cardsByKey.get(key)?.awards ?? []).filter((award) => appliesInMode(award, mode)),
-    [cardsByKey],
-  )
+  const awardsFor = (key: string, mode?: string): MissionAward[] =>
+    (cardsByKey.get(key)?.awards ?? []).filter((award) => appliesInMode(award, mode))
   const referenceFor = useCallback((key: string): ReferenceCard | undefined => cardsByKey.get(key), [cardsByKey])
   useWatchBattle(view, clock, missions, referenceFor, reminderPrompts)
-  const activeMissionActionReminders = useMemo(
-    () => (active?.isViewer ? missionActionReminders(active, referenceFor) : EMPTY_REMINDERS),
-    [active, referenceFor],
-  )
+  const activeMissionActionReminders = active?.isViewer ? missionActionReminders(active, referenceFor) : EMPTY_REMINDERS
   const writtenFor = useCallback((side: Side, key: string): StratagemText | undefined => writtenStratagem(rulesFor(side), key), [rulesFor])
-  const whenDrawnFor = useCallback(
-    (key: string): WhenDrawn | undefined => secondaryDeck.find((card) => card.key === key)?.whenDrawn ?? undefined,
-    [secondaryDeck],
-  )
+  const whenDrawnFor = (key: string): WhenDrawn | undefined => secondaryDeck.find((card) => card.key === key)?.whenDrawn ?? undefined
   const coreKeysBySide = useMemo(
     () =>
       new Map(table.map((side) => [side.index, new Set(rulesFor(side).flatMap((rules) => rules.core.map((stratagem) => stratagem.key)))])),
     [table, rulesFor],
   )
-  const reportedPlayers = useMemo(() => reportPlayers(view.players), [view.players])
   const attemptedPrepRepairs = useRef(new Map<string, number>())
   const repairSide = table.find(
     (side) =>
@@ -693,7 +672,7 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
                 <div className="mt-3">
                   <BattleNote pending={pending || promptMinimized} send={sendAction} />
                 </div>
-                <Report token={view.token} players={reportedPlayers} sides={table} />
+                <Report token={view.token} players={reportPlayers(view.players)} sides={table} />
               </div>
 
               {emptySettlementRetryNeeded ? (
@@ -736,12 +715,8 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
             onCancel={() => send({ kind: 'cancel-advance', playerId: active.captain.id })}
             onDone={(completedSecondaryKeys, scored) => {
               const unresolved = discardableSecondaries(active).filter((key) => !completedSecondaryKeys.includes(key))
-              if (view.phase !== 'end' || !unresolved.length) {
-                if (!scored) send({ kind: 'acknowledge-scoring', playerId: active.captain.id })
-                send({ kind: 'advance', playerId: active.captain.id })
-              } else if (!scored) {
-                send({ kind: 'acknowledge-scoring', playerId: active.captain.id })
-              }
+              if (!scored) send({ kind: 'acknowledge-scoring', playerId: active.captain.id })
+              if (view.phase !== 'end' || !unresolved.length) send({ kind: 'advance', playerId: active.captain.id })
             }}
           />
         ) : null}

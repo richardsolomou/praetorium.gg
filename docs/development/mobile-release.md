@@ -16,7 +16,7 @@ Android delivery stays disabled until the [physical-device gate](#physical-devic
 10. Set `ANDROID_APP_CERTIFICATE_SHA256_FINGERPRINTS` in production (comma-separated only during a signing transition).
 11. Enable Push Notifications for the App ID, add an APNs key as the Expo project's iOS push key, and from `mobile/` run `pnpm dlx eas-cli@23.2.0 credentials:configure-build -p ios -e production` with `EXPO_ASC_API_KEY_PATH`, `EXPO_ASC_KEY_ID`, `EXPO_ASC_ISSUER_ID`, `EXPO_APPLE_TEAM_ID`, `EXPO_APPLE_TEAM_TYPE`, and `EXPO_NO_CAPABILITY_SYNC=1` (capability sync tries to disable Sign in with Apple).
 12. Turn on Expo enhanced push security and set a Viewer-role Expo robot token as `EXPO_PUSH_ACCESS_TOKEN` in production.
-13. Before enabling Android delivery, set `android.googleServicesFile` in `mobile/app.json` to the Firebase `google-services.json` and upload its FCM V1 service-account key to Expo.
+13. Before enabling Android delivery, upload the FCM V1 service-account key for the Firebase project in `mobile/google-services.json` to Expo.
 14. Provision the Watch target `gg.praetorium.watch` by dispatching `mobile.yml` with `-f provision_watch=true`.
 
 ## Delivery

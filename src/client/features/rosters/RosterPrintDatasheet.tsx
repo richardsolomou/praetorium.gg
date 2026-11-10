@@ -1,5 +1,10 @@
 import type { Datasheet } from '../../../contracts/catalogue'
-import { datasheetCharacteristicKindOf, datasheetProfilesByKind } from '../../../core/datasheetStructure'
+import {
+  datasheetCharacteristicKindOf,
+  datasheetProfilesByKind,
+  invulnerableSaveOf,
+  statlineValues,
+} from '../../../core/datasheetStructure'
 import { RuleText } from '../../components/RuleText'
 import { unitKeywordsText } from '../../components/Keyword'
 import { ruleProfileSections, weaponProfileGroups, weaponShapedProfile } from '../../datasheet'
@@ -92,9 +97,8 @@ export function RosterPrintDatasheet({ sheet }: { sheet: Datasheet }) {
 
 /** Every unit profile in one table, named only when the datasheet has more than one, with an invulnerable save column if any has one. */
 function StatTable({ profiles }: { profiles: Profile[] }) {
-  const shown = (profile: Profile) =>
-    profile.values.filter((value) => !['invulnerable-save', 'base-size'].includes(datasheetCharacteristicKindOf(value)))
-  const invulnerable = (profile: Profile) => profile.values.find((value) => datasheetCharacteristicKindOf(value) === 'invulnerable-save')
+  const shown = (profile: Profile) => statlineValues(profile.values)
+  const invulnerable = (profile: Profile) => invulnerableSaveOf(profile.values)
   const columns = shown(profiles[0]!).map((value) => value.name)
   const anyInvulnerable = profiles.some(invulnerable)
   const named = profiles.length > 1

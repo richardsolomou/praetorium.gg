@@ -12,21 +12,6 @@ it.each([true, false])('retains whether this transaction applied the saved actio
   expect({ result, applied: offlineContext.run(context, () => offlineContext.getStore()?.applied) }).toEqual({ result: defaults, applied })
 })
 
-it('accepts roster sync acknowledgements from a module that predates lifecycle telemetry', async () => {
-  const operator = new SpacetimeOperator('https://spacetime.example/', 'preview-42', 'operator-secret', async () =>
-    Response.json(JSON.stringify({ outcome: 'applied', version: 123, deleted: false })),
-  )
-  expect(
-    await operator.syncRoster({
-      row: '{}',
-      operationId: crypto.randomUUID(),
-      fingerprint: 'a'.repeat(64),
-      expectedVersion: null,
-      deleted: false,
-    }),
-  ).toEqual({ outcome: 'applied', version: 123, deleted: false, lifecycle: null })
-})
-
 it('sends a session revocation to the selected database with the operator credential', async () => {
   const request = vi.fn(async () => new Response(null, { status: 200 }))
   const operator = new SpacetimeOperator('https://spacetime.example/', 'preview-42', 'operator-secret', request)
@@ -305,7 +290,7 @@ it('reads player defaults carrying a field added after this build', async () => 
 })
 
 it('reads a roster discovery cursor carrying a field added after this build', async () => {
-  const page = { rows: [], nextCursor: { at: 1, id: 'roster', fieldFromALaterRelease: 1 } }
+  const page = { rows: [], total: 0, nextCursor: { at: 1, id: 'roster', fieldFromALaterRelease: 1 } }
   const request = vi.fn(async () => Response.json(JSON.stringify(page)))
   const operator = new SpacetimeOperator('https://spacetime.example/', 'preview-42', 'operator-secret', request)
   expect(

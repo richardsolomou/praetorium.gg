@@ -2,9 +2,6 @@
 
 import fs from 'node:fs'
 
-/** Whether a shortfall fails the run. Read per call so a caller can set it and a test can too. */
-const baselinesEnforced = () => process.env.CATALOGUE_BASELINES !== 'report'
-
 /**
  * Records one baseline shortfall.
  *
@@ -13,7 +10,7 @@ const baselinesEnforced = () => process.env.CATALOGUE_BASELINES !== 'report'
  */
 export function baselineShortfall(message: string) {
   console.log(`\n## baseline shortfall\n  ${message}`)
-  if (baselinesEnforced()) {
+  if (process.env.CATALOGUE_BASELINES !== 'report') {
     process.exitCode = 1
     return
   }

@@ -91,7 +91,7 @@ type Judgment = {
   disagreementRoles: Role[]
 }
 type ClassifiedRule = InventoryRule & Partial<Judgment> & { error?: string }
-export type CombatRuleShortlist = Awaited<ReturnType<typeof classifyCombatRules>>
+type CombatRuleShortlist = Awaited<ReturnType<typeof classifyCombatRules>>
 
 export async function classifyCombatRules(
   rows: readonly InventoryRule[],

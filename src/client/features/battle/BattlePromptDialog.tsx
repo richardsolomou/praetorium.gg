@@ -5,7 +5,7 @@ import { Dialog, DialogContent } from '../../components/Dialog'
 import { useCompactChrome } from '../shell/useCompactChrome'
 
 type Props = Omit<ComponentProps<typeof Dialog>, 'defaultOpen' | 'modal' | 'disablePointerDismissal'> & {
-  minimizedLabel?: string
+  minimizedLabel: string
   resumeLabel?: string
 }
 
@@ -63,7 +63,7 @@ export function BattlePromptDialog({ children, open, onOpenChange, minimizedLabe
           className="fixed right-3 left-[calc(var(--app-chrome-left)+0.75rem)] z-50 flex items-center justify-between gap-3 rounded-lg border border-edge-strong bg-panel p-2 shadow-xl lg:inset-x-auto lg:right-4 lg:bottom-4"
         >
           <div className="min-w-0 pl-1">
-            <p className="truncate text-sm font-semibold">{minimizedLabel ?? 'Battle dialog'}</p>
+            <p className="truncate text-sm font-semibold">{minimizedLabel}</p>
             <p className="text-xs text-dim">
               {resumeLabel === 'Return to prompt' ? 'Finish this prompt to continue' : 'Return here to continue'}
             </p>

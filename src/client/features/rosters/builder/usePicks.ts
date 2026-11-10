@@ -10,9 +10,8 @@ import { pressedCounts, type SpreadUpdate } from './loadoutModel'
  * A group told to hold nothing holds nothing, however it came to be filled.
  *
  * The same group can be answered as one chosen option or as a spread of counts, and
- * only one of those is a choice. Clearing the choice alone left the count behind,
- * which put the option straight back — the button emptied the group and the group
- * refilled itself, so nothing on screen moved. Anything recorded under the group's
+ * only one of those is a choice. Clearing the choice alone would leave the count
+ * behind, which puts the option straight back. Anything recorded under the group's
  * own options goes too: those describe a loadout that is no longer carried.
  */
 function emptied(spreads: Record<string, Record<string, number>> | undefined, key: string) {
@@ -23,7 +22,7 @@ function emptied(spreads: Record<string, Record<string, number>> | undefined, ke
 
 /**
  * A group saved as one chosen option or as counts, never both: spreads apply after
- * choices, so a stale spread silently overruled the option just chosen.
+ * choices, so a stale spread would overrule the option just chosen.
  */
 function without<T>(entries: Record<string, T> | undefined, key: string) {
   if (!entries || !Object.hasOwn(entries, key)) return entries
@@ -393,8 +392,5 @@ export function pickEditor(
     /** Selections pricing reported unavailable, which the editor offers no option to clear. */
     resetUnavailable: (unavailable: readonly UnavailableSelection[]) =>
       setPicks((current) => current.map((pick, at) => withoutUnavailableSelections(pick, at, unavailable))),
-
-    /** A new faction is a new list: nothing picked from the old book still applies. */
-    clear: () => setPicks([]),
   }
 }

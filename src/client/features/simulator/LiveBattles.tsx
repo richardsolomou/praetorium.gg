@@ -31,7 +31,7 @@ export function LiveBattles() {
 
 function LiveBattleCombat({ token, onClose }: { token: string; onClose: () => void }) {
   const { data: screen } = useQuery({ ...battleQuery(token), staleTime: 0 })
-  useSpacetimeLiveBattle(token, true)
+  useSpacetimeLiveBattle(token)
   if (!screen || screen.kind === 'unavailable') return null
   return <BattleCombatDialog view={screen.view} selection={{ playerId: screen.view.viewerId }} onClose={onClose} />
 }

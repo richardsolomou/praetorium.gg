@@ -164,7 +164,7 @@ it.each(['product', 'battle'] as const)('recovers a %s subscription after socket
   if (surface === 'product') {
     useSpacetimeLiveProduct({ mode: 'spacetime', database: 'test', uri: 'https://praetorium.gg/spacetime/' }, false)
   } else {
-    useSpacetimeLiveBattle('battle-token', true)
+    useSpacetimeLiveBattle('battle-token')
   }
   mount()
   await vi.advanceTimersByTimeAsync(0)
@@ -321,7 +321,7 @@ it('refreshes a scope whose signal moves after the catch-up', async () => {
 it('does not refetch a battle screen that already holds the sequence a renewed connection reports', async () => {
   vi.stubGlobal('fetch', issued('battle-id'))
   mocks.getQueryData.mockReturnValue({ kind: 'battle', view: { seq: 7 } })
-  useSpacetimeLiveBattle('battle-token', true)
+  useSpacetimeLiveBattle('battle-token')
   mount()
   await vi.advanceTimersByTimeAsync(0)
   apply({ battle: [{ battleId: 'battle-id', seq: 7 }] })
@@ -331,7 +331,7 @@ it('does not refetch a battle screen that already holds the sequence a renewed c
 it('waits for this device’s command to answer before refetching the battle its signal names', async () => {
   vi.stubGlobal('fetch', issued('battle-id'))
   mocks.getQueryData.mockReturnValue({ kind: 'battle', view: { seq: 7 } })
-  useSpacetimeLiveBattle('battle-token', true)
+  useSpacetimeLiveBattle('battle-token')
   mount()
   await vi.advanceTimersByTimeAsync(0)
   const db = apply({ battle: [{ battleId: 'battle-id', seq: 7 }] })
@@ -350,7 +350,7 @@ it('waits for this device’s command to answer before refetching the battle its
 it('refetches the battle its signal names once this device’s command has gone unanswered for three seconds', async () => {
   vi.stubGlobal('fetch', issued('battle-id'))
   mocks.getQueryData.mockReturnValue({ kind: 'battle', view: { seq: 7 } })
-  useSpacetimeLiveBattle('battle-token', true)
+  useSpacetimeLiveBattle('battle-token')
   mount()
   await vi.advanceTimersByTimeAsync(0)
   const db = apply({ battle: [{ battleId: 'battle-id', seq: 7 }] })
@@ -369,7 +369,7 @@ it('refetches the battle its signal names once this device’s command has gone 
 it('asks for an open battle again when its signal leaves, as it does when the battle is deleted', async () => {
   vi.stubGlobal('fetch', issued('battle-id'))
   mocks.getQueryData.mockReturnValue({ kind: 'battle', view: { seq: 7 } })
-  useSpacetimeLiveBattle('battle-token', true)
+  useSpacetimeLiveBattle('battle-token')
   mount()
   await vi.advanceTimersByTimeAsync(0)
   const db = apply({ battle: [{ battleId: 'battle-id', seq: 7 }] })
@@ -382,7 +382,7 @@ it('asks for an open battle again when its signal leaves, as it does when the ba
 it.each([401, 403, 404])('stops asking for a battle ticket the viewer is refused (HTTP %s)', async (status) => {
   const fetch = vi.fn(async () => new Response(null, { status }))
   vi.stubGlobal('fetch', fetch)
-  useSpacetimeLiveBattle('battle-token', true)
+  useSpacetimeLiveBattle('battle-token')
   mount()
   await vi.advanceTimersByTimeAsync(5 * 60_000)
   expect(fetch).toHaveBeenCalledOnce()
@@ -391,7 +391,7 @@ it.each([401, 403, 404])('stops asking for a battle ticket the viewer is refused
 it.each(['product', 'battle'] as const)('keeps a %s connection while the SDK reconnects its socket', async (surface) => {
   vi.stubGlobal('fetch', issued('battle-id'))
   if (surface === 'product') useSpacetimeLiveProduct(product, true)
-  else useSpacetimeLiveBattle('battle-token', true)
+  else useSpacetimeLiveBattle('battle-token')
   mount()
   await vi.advanceTimersByTimeAsync(0)
   apply()
@@ -403,7 +403,7 @@ it.each(['product', 'battle'] as const)('keeps a %s connection while the SDK rec
 it.each(['product', 'battle'] as const)('replaces a %s connection the SDK has given up on', async (surface) => {
   vi.stubGlobal('fetch', issued('battle-id'))
   if (surface === 'product') useSpacetimeLiveProduct(product, true)
-  else useSpacetimeLiveBattle('battle-token', true)
+  else useSpacetimeLiveBattle('battle-token')
   mount()
   await vi.advanceTimersByTimeAsync(0)
   apply()
@@ -494,7 +494,7 @@ it('renews a seated battle token instead of reusing its expiring credential', as
     Response.json({ token: `seat-${fetch.mock.calls.length}`, database: 'test', uri: product.uri, battleId: 'battle-id' }),
   )
   vi.stubGlobal('fetch', fetch)
-  useSpacetimeLiveBattle('battle-token', true)
+  useSpacetimeLiveBattle('battle-token')
   mount()
   await vi.advanceTimersByTimeAsync(0)
   expect(await mocks.sockets[0]!.renew!()).toBe('seat-2')
@@ -507,7 +507,7 @@ it('ends a battle connection when its reconnect ticket loses seat access', async
       : new Response(null, { status: 403 }),
   )
   vi.stubGlobal('fetch', fetch)
-  useSpacetimeLiveBattle('battle-token', true)
+  useSpacetimeLiveBattle('battle-token')
   mount()
   await vi.advanceTimersByTimeAsync(0)
   await expect(mocks.sockets[0]!.renew!()).rejects.toThrow('Realtime access ended')
@@ -517,7 +517,7 @@ it('ends a battle connection when its reconnect ticket loses seat access', async
 
 it('gives back a battle watch before closing the connection when the screen leaves', async () => {
   vi.stubGlobal('fetch', issued('battle-id'))
-  useSpacetimeLiveBattle('battle-token', true)
+  useSpacetimeLiveBattle('battle-token')
   mount()
   await vi.advanceTimersByTimeAsync(0)
   apply()
@@ -532,7 +532,7 @@ it('gives back a battle watch before closing the connection when the screen leav
 
 it('closes a battle connection that cannot give its watch back', async () => {
   vi.stubGlobal('fetch', issued('battle-id'))
-  useSpacetimeLiveBattle('battle-token', true)
+  useSpacetimeLiveBattle('battle-token')
   mount()
   await vi.advanceTimersByTimeAsync(0)
   const socket = mocks.sockets[0]!
@@ -544,7 +544,7 @@ it('closes a battle connection that cannot give its watch back', async () => {
 
 it('keeps the battle watch when a connection is renewed', async () => {
   vi.stubGlobal('fetch', issued('battle-id'))
-  useSpacetimeLiveBattle('battle-token', true)
+  useSpacetimeLiveBattle('battle-token')
   mount()
   await vi.advanceTimersByTimeAsync(0)
   apply()

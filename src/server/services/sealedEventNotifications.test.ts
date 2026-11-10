@@ -142,15 +142,4 @@ describe('sealedEvent notifications', () => {
 
     expect(notify).not.toHaveBeenCalled()
   })
-
-  it('accepts assignment results from the previous database module', async () => {
-    const { sealedEvent, notify } = service({
-      assignSealedEventRosterRequirement: vi.fn().mockResolvedValue('updated'),
-      assignSealedEventTeam: vi.fn().mockResolvedValue('updated'),
-    })
-
-    expect(await sealedEvent.assignSealedEventRosterRequirement('tournament', 'owner', 'player', 1_000)).toEqual({ requiredLimit: 1_000 })
-    expect(await sealedEvent.assignSealedEventTeam('tournament', 'owner', ['player', 'teammate'])).toEqual({ teamSize: 2 })
-    expect(notify).not.toHaveBeenCalled()
-  })
 })

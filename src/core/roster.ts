@@ -1,5 +1,6 @@
 /** Saved picks are rebuilt and repriced against the current catalogue. */
 
+import { byId } from './collections'
 import { type CatalogueIndex, type Definition, resolve } from './catalogue'
 import { isCollective, storesUnitTotal } from './collective'
 import { childrenOf, MAX_DEPTH, maximumCount, maximumCountAt, type Option, pointsOf, requiredCount } from './definitions'
@@ -420,15 +421,14 @@ function finishUnit(entryId: string, selection: Selection, size: UnitSize, index
     if ((!missingRequired && !defaultedComposition) || !option || context?.spreads?.[choice.key] !== undefined) return tree
     return withUnitSpread(tree, choice.key, { [option.id]: defaultedComposition ? option.max : 1 }, index, context)
   }, selection)
-  /** When growing an identical squad, copy its existing loadout to new models; preserve an imported split and report its illegality separately. */
   const completedChoices = completed === selection ? choices : unitChoices(entryId, completed, index, context)
+  // When growing an identical squad, copy its existing loadout to new models; preserve an imported split and report its illegality separately.
   const settled = completedChoices.reduce((tree, choice) => {
     const held = choice.options.filter((option) => option.count > 0)
     const asked = context?.spreads?.[choice.key] ?? {}
     const stated = choice.options.filter((option) => (asked[option.id] ?? 0) > 0)
     if (!choice.uniform || held.length < 2 || stated.length > 1) return tree
-    const chosen = stated[0] ?? held.toSorted((one, other) => other.count - one.count)[0]
-    if (!chosen) return tree
+    const chosen = stated[0] ?? held.toSorted((one, other) => other.count - one.count)[0]!
     return withUnitSpread(
       tree,
       choice.key,
@@ -540,7 +540,7 @@ function optionalModelSlots(selection: Selection, index: CatalogueIndex): ModelS
     const target = resolve(definition, index)
     if (depth <= 0 || seen.has(target.id)) return
     const visited = new Set(seen).add(target.id)
-    const present = new Map((node.selections ?? []).map((child) => [child.id, child]))
+    const present = byId(node.selections ?? [])
 
     for (const child of childrenOf(definition, index)) {
       const inner = resolve(child.definition, index)
@@ -556,8 +556,7 @@ function optionalModelSlots(selection: Selection, index: CatalogueIndex): ModelS
       if (inner.type === undefined && !held) {
         const models = childrenOf(child.definition, index).filter((option) => resolve(option.definition, index).type === 'model')
         if (models.length === 1) {
-          const [model] = models
-          if (!model) continue
+          const model = models[0]!
           const min = requiredCount(model.definition, index)
           const max = maximumCount(model.definition, index)
           if (min === 0 && max !== null && max > 0) {
@@ -627,7 +626,7 @@ function refit(selection: Selection, index: CatalogueIndex, carriers: number, op
 }
 
 /**
- * Moves a group's shortfall onto its default option, or its excess off the largest.
+ * Moves a group's shortfall onto its default option.
  *
  * The default is the one the data names, and failing that the cheapest — the same
  * order `defaultSelection` fills a group in, and for the same reason: filling with
@@ -644,9 +643,8 @@ function fill(group: Selection, room: number, defaultId: string | undefined, opt
     const option = options.find((candidate) => candidate.id === selection.id)
     return option ? pointsOf(option, index) : 0
   }
-  const cheapest = held.toSorted((left, right) => price(left) - price(right))[0]
+  const cheapest = held.toSorted((left, right) => price(left) - price(right))[0]!
   const moving = held.find((option) => option.id === defaultId) ?? cheapest
-  if (!moving) return group
 
   const adjusted = Math.max(0, (moving.count ?? 0) + (room - total))
   return { ...group, selections: held.map((option) => (option === moving ? { ...option, count: adjusted } : option)) }

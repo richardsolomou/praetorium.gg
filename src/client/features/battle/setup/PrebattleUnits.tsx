@@ -22,27 +22,27 @@ export function prebattleCounts(side: Side, rule: Rule) {
 }
 
 /**
- * Every unit on the table carrying one pre-battle ability, side by side.
- *
- * Read twice with a different rule each time: Infiltrators is about where a unit is
- * set up, so it belongs to the deployment section, and Scouts is a move made after
- * both armies are down, so it belongs to the one after the first turn is settled.
+ * Every unit on the table with Scouts, side by side: a move made after both armies are down.
  *
  * An attached unit is one unit and is listed once, carrying only what every part of
- * it carries — both these abilities ask that every model in the unit has them.
+ * it carries, because Scouts asks that every model in the unit has it.
  * Nothing is recorded: where a model stands is the board's business.
  */
-export function PrebattleUnits({ sides, rule, empty }: { sides: Side[]; rule: Rule; empty: string }) {
+export function PrebattleUnits({ sides }: { sides: Side[] }) {
   return (
     <div className="grid items-start gap-6 md:grid-cols-2">
       {sides.map((side) => (
         <SetupSidePanel key={side.index} side={side} className="space-y-3">
           {side.armies.map((army) => {
             const standing = onTable(army)
-            const carrying = standing.filter((unit) => unit.prebattleRules.includes(rule))
+            const carrying = standing.filter((unit) => unit.prebattleRules.includes('scouts'))
             return (
               <ArmyUnits key={army.playerId} army={army} chip={`${standing.length} on the table`} multiple={side.armies.length > 1}>
-                {carrying.length ? <Shelves units={carrying} rule={rule} /> : <p className="text-xs text-dim">{empty}</p>}
+                {carrying.length ? (
+                  <Shelves units={carrying} rule="scouts" />
+                ) : (
+                  <p className="text-xs text-dim">No unit has a pre-battle move.</p>
+                )}
               </ArmyUnits>
             )
           })}

@@ -1,5 +1,14 @@
 import { uniqueBy, remember } from './collections'
-import type { DatasheetSearchFields, DatasheetSearchReason } from './datasheetSearch'
+import {
+  type DatasheetSearchFields,
+  type DatasheetSearchReason,
+  fuzzyNameScore,
+  matchDatasheet,
+  strongestMatches,
+  matchSearchText,
+  prepareDatasheetSearch,
+  prepareSearchText,
+} from './datasheetSearch'
 import type { CatalogueEdition } from './catalogueEdition'
 import { rosterLabel } from './rosterLabel'
 import { pointsLabel } from './battle'
@@ -40,28 +49,15 @@ export type GlobalSearchIndex = {
   rules: IndexedResult[]
 }
 
-import {
-  fuzzyNameScore,
-  matchDatasheet,
-  strongestMatches,
-  matchSearchText,
-  prepareDatasheetSearch,
-  prepareSearchText,
-} from './datasheetSearch'
-
 export function searchReference(query: string, index: GlobalSearchIndex): GlobalSearchResult[] {
   const wanted = query.toLowerCase()
-  const results = [
+  return [
     ...catalogueResults(wanted, index),
     ...[...index.missions, ...index.rules].filter((entry) => entry.search.includes(wanted)).map((entry) => entry.result),
   ]
-  return ['Factions', 'Datasheets', 'Detachments', 'Missions', 'Rules'].flatMap((group) =>
-    results.filter((result) => result.group === group),
-  )
 }
 
-function catalogueResults(wanted: string, index: GlobalSearchIndex | null): GlobalSearchResult[] {
-  if (!index) return []
+function catalogueResults(wanted: string, index: GlobalSearchIndex): GlobalSearchResult[] {
   const results: GlobalSearchResult[] = [
     ...index.factions.filter((entry) => entry.search.includes(wanted)).map((entry) => entry.result),
     ...detachmentResults(wanted, index.detachments),
@@ -85,8 +81,8 @@ function catalogueResults(wanted: string, index: GlobalSearchIndex | null): Glob
 }
 
 function detachmentResults(query: string, entries: IndexedDetachment[]): GlobalSearchResult[] {
-  return entries
-    .flatMap((entry) => {
+  return bestFirst(
+    entries.flatMap((entry) => {
       const titleScore = matchSearchText(query, entry.search)
       if (titleScore !== null) return [{ result: entry.result, score: titleScore }]
       const matches = (entry.cards ?? [])
@@ -100,9 +96,8 @@ function detachmentResults(query: string, entries: IndexedDetachment[]): GlobalS
       return matches.length
         ? [{ result: { ...entry.result, matchReasons: matches.slice(0, 3).map(({ reason }) => reason) }, score: 10 + matches[0]!.score }]
         : []
-    })
-    .toSorted((left, right) => left.score - right.score || left.result.label.localeCompare(right.result.label))
-    .map(({ result }) => result)
+    }),
+  )
 }
 
 const cardTexts = new WeakMap<NonNullable<IndexedDetachment['cards']>[number], string>()
@@ -129,14 +124,16 @@ export function* prepareReferenceSearch(index: GlobalSearchIndex) {
 
 type RankedResult = { result: GlobalSearchResult; score: number }
 
-const datasheetResults = (datasheets: ReadonlyMap<string, { primary: RankedResult[]; allied?: RankedResult }>) =>
-  [...datasheets.values()]
-    .flatMap((found) => (found.primary.length ? found.primary : found.allied ? [found.allied] : []))
+const bestFirst = (ranked: readonly RankedResult[]) =>
+  ranked
     .toSorted((left, right) => left.score - right.score || left.result.label.localeCompare(right.result.label))
     .map(({ result }) => result)
 
+const datasheetResults = (datasheets: ReadonlyMap<string, { primary: RankedResult[]; allied?: RankedResult }>) =>
+  bestFirst([...datasheets.values()].flatMap((found) => (found.primary.length ? found.primary : found.allied ? [found.allied] : [])))
+
 function fuzzyDatasheetResults(datasheets: readonly IndexedDatasheet[], query: string) {
-  const found = new Map<string, { result: GlobalSearchResult; score: number }>()
+  const found = new Map<string, RankedResult>()
   for (const entry of datasheets) {
     const score = fuzzyNameScore(query, entry.name)
     if (score === null) continue
@@ -144,9 +141,7 @@ function fuzzyDatasheetResults(datasheets: readonly IndexedDatasheet[], query: s
     if (existing && existing.score <= score) continue
     found.set(entry.targetId, { score, result: { ...entry.result, fuzzy: true } })
   }
-  return [...found.values()]
-    .toSorted((left, right) => left.score - right.score || left.result.label.localeCompare(right.result.label))
-    .map(({ result }) => result)
+  return bestFirst([...found.values()])
 }
 
 /** The fewest characters global search answers. */

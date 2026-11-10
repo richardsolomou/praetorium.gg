@@ -10,15 +10,19 @@ export const Route = createFileRoute('/api/support-replies')({
       POST: ({ request }) => {
         const readTicket = posthogSupportTickets()
         const delivery = app().email
+        const appUrl = process.env.APP_URL
+        const secret = process.env.SUPPORT_REPLY_WEBHOOK_SECRET
+        // An instance that does not tell players about replies answers as if the route did not exist.
+        if (!readTicket || !delivery || !appUrl || !secret) return new Response(null, { status: 404 })
         return supportReplyResponse(request, {
-          secret: readTicket && delivery && process.env.APP_URL ? process.env.SUPPORT_REPLY_WEBHOOK_SECRET : undefined,
-          readTicket: readTicket ?? (async () => null),
+          secret,
+          readTicket,
           account: async (id) => {
             const user = await app().service.userById(id)
             return user ? { name: user.name, email: user.email } : null
           },
-          send: (email) => delivery!.send(email),
-          appUrl: process.env.APP_URL ?? '',
+          send: (email) => delivery.send(email),
+          appUrl,
         })
       },
     },

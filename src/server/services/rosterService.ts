@@ -138,12 +138,12 @@ export class RosterService {
     return { summaries: readerSummaries(rows), priceable: rows.map((row) => rosterFromRow(row)) }
   }
 
-  /** Public rosters anyone can find, newest save first, named and pictured for their owner; a roster whose owner has no account is left out. */
   /** Whose rosters a search for this text finds by owner, since only the account database holds names. */
   async ownerIdsNamed(query: string, viewerId: string | null) {
     return query.length < PLAYER_SEARCH_MIN_LENGTH ? [] : this.repository.playerIdsNamed(query, viewerId)
   }
 
+  /** Public rosters anyone can find, newest save first, named and pictured for their owner; a roster whose owner has no account is left out. */
   async discoverRosters(query: RosterDiscoveryQuery) {
     const { rows, total, nextCursor } = await this.repository.discoverRosters(query)
     const owners = await this.repository.profilesByIds(rows.map((row) => row.userId))
@@ -151,7 +151,7 @@ export class RosterService {
     const summaries = readerSummaries(owned)
     return {
       rosters: owned.map((row, index) => ({ summary: summaries[index]!, owner: owners.get(row.userId)!, priceable: rosterFromRow(row) })),
-      total: total ?? null,
+      total,
       nextCursor,
     }
   }

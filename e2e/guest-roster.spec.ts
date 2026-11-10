@@ -10,6 +10,7 @@ import {
   chooseOption,
   recordSaves,
   PHONE,
+  startVisitorRoster,
 } from './account'
 import { add, ROSTER_WIDE } from './builder.harness'
 import { SIGN_IN_REQUIRED } from '../src/core/session'
@@ -17,12 +18,7 @@ import { lastPathSegment, guestDraft } from './storage'
 
 /** A visitor starts a Necrons list from the rosters page, with no account behind them, and opens it in the builder. */
 async function startGuestRoster(page: Page) {
-  const setup = await visitorSetup(page)
-  await chooseFaction(setup, 'Necrons')
-  await setup.getByRole('button', { name: /^Select (?:Awakened Dynasty)$/ }).click()
-  await setup.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Take and Hold' }).click()
-  await setup.getByRole('button', { name: 'Create roster' }).click()
-  await page.waitForURL(/\/rosters\/[^/]+$/)
+  await startVisitorRoster(page)
   await expect(page.getByLabel('Add a unit')).toBeVisible()
 }
 

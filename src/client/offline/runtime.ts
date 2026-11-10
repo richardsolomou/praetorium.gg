@@ -77,11 +77,11 @@ const decoded = new Map<string, { value?: unknown; read: Promise<unknown> }>()
 export const MAX_DECODED_PARTS = 6
 
 /** Decodes a part of the download, keeping the few read last so pages reading the same parts do not decode them again. */
-export function loadPart(asset: string, limit = MAX_REFERENCE_PART_BYTES): Promise<unknown> {
+export function loadPart(asset: string): Promise<unknown> {
   let entry = decoded.get(asset)
   if (entry) decoded.delete(asset)
   else {
-    const loading: { value?: unknown; read: Promise<unknown> } = { read: readPart(asset, limit, partsReachable()) }
+    const loading: { value?: unknown; read: Promise<unknown> } = { read: readPart(asset, MAX_REFERENCE_PART_BYTES, partsReachable()) }
     loading.read.then(
       (value) => void (loading.value = value),
       () => void (decoded.get(asset) === loading && decoded.delete(asset)),

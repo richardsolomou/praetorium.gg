@@ -37,3 +37,14 @@ it('refuses an explicit disabled-reminders preparation after an enabled-default 
     requireReviewedRoster({ ...original, prep: { stratagems: [], secondaries: [], remindersEnabled: false } }, original),
   ).toThrow('changed after your review')
 })
+
+it('refuses a retained roster after reviewing the same content on current rules', () => {
+  const current = saveRosterSchema.parse({
+    ...original,
+    catalogueId: 'current-rosters~2261-79a5-19d9-1668',
+    detachmentIds: ['3caf-c168-c372-51b1'],
+  })
+  expect(() => requireReviewedRoster({ ...current, catalogueId: 'legacy-rosters~2261-79a5-19d9-1668' }, current)).toThrow(
+    'changed after your review',
+  )
+})

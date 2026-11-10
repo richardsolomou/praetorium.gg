@@ -165,10 +165,8 @@ export function AppPersistence() {
       }
     }
     const foreground = () => {
-      if (document.visibilityState === 'visible') {
-        if (Date.now() - refreshedAt >= FOREGROUND_REFRESH_MS) void refresh()
-        save()
-      } else save()
+      if (document.visibilityState === 'visible' && Date.now() - refreshedAt >= FOREGROUND_REFRESH_MS) void refresh()
+      save()
     }
     const reconnect = () => void refresh()
     const accountChanged = (event: StorageEvent) => {

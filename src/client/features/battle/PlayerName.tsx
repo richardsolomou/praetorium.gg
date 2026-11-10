@@ -18,7 +18,7 @@ export function SideDot({ side }: { side: number }) {
  * screen of a game to the last. A guest has no profile to go to, so their name says
  * what they are instead.
  */
-export function PlayerName({ army, linked = true, className = '' }: { army: Army; linked?: boolean; className?: string }) {
+export function PlayerName({ army, linked = true }: { army: Army; linked?: boolean }) {
   const guest = isGuestSeat(army.playerId)
   if (guest) linked = false
   const inner = (
@@ -33,13 +33,9 @@ export function PlayerName({ army, linked = true, className = '' }: { army: Army
   )
   // Unlinked where the card around it is already a control: a link inside a button is
   // neither valid nor pressable, and the way out to a profile is on screen elsewhere.
-  if (!linked) return <span className={cn('inline-flex min-w-0 items-center gap-1.5', className)}>{inner}</span>
+  if (!linked) return <span className="inline-flex min-w-0 items-center gap-1.5">{inner}</span>
   return (
-    <Link
-      to="/users/$userId"
-      params={{ userId: army.playerId }}
-      className={cn('group inline-flex min-w-0 items-center gap-1.5', className)}
-    >
+    <Link to="/users/$userId" params={{ userId: army.playerId }} className="group inline-flex min-w-0 items-center gap-1.5">
       {inner}
     </Link>
   )

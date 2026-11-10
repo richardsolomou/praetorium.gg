@@ -1,4 +1,5 @@
-import type { CatalogueIndex, Definition, Profile } from '../core/catalogue'
+import { profileDescription } from '../core/catalogue'
+import type { CatalogueIndex, Definition } from '../core/catalogue'
 import { routeSlug } from '../core/slug'
 import { datacardsFactionKeys, type SectionProse } from './datacards'
 import { joinKey } from '../core/text'
@@ -74,6 +75,3 @@ function sectionProse(definition: Definition) {
     if (rule.name && !rule.hidden && rule.description) found.set(joinKey(rule.name), rule.description)
   return found
 }
-
-const profileDescription = (profile: Profile) =>
-  profile.characteristics?.find((characteristic) => characteristic.name === 'Description')?.$text ?? null

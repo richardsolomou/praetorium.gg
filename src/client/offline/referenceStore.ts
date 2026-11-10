@@ -3,10 +3,10 @@ import { withTimeout } from '../abortSignals'
 import { DownloadRefused } from './downloadFailure'
 
 /** Where the device keeps the saved offline application, its record, and each downloaded part as it was published. */
-export const REFERENCE_CACHE = 'praetorium-reference-v3'
+const REFERENCE_CACHE = 'praetorium-reference-v3'
 /** The single-file download earlier releases saved, deleted once a download replaces it. */
 const LEGACY_REFERENCE_CACHE = 'praetorium-reference-v2'
-export const SAVED_APPLICATION = '/offline-reference.html'
+const SAVED_APPLICATION = '/offline-reference.html'
 const SAVED_RECORD = '/offline-reference.json'
 
 const openStore = () => caches.open(REFERENCE_CACHE)

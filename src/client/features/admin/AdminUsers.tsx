@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import type { PaginationState, SortingState } from '@tanstack/react-table'
 import { ShieldCheck } from 'lucide-react'
 import { Tabs, TabsContent } from '@/components/ui/tabs'
-import { ADMIN_USER_ROLES, type AdminUser, type AdminUserSort } from '../../../admin'
+import { type AdminUser, type AdminUserSort } from '../../../admin'
 import { adminUsersQuery, heldCollectionPhotosQuery } from '../../queries'
 import { useSettled } from '../../useSettled'
 import { PageContent, PageHeader } from '../../components/Page'
@@ -30,14 +30,16 @@ export function AdminUsers({
 }) {
   const query = useSettled(search.q?.trim() ?? '')
   const roles = (search.role?.split(',') ?? []) as AdminUser['role'][]
-  const sorting: SortingState = [{ id: search.sort ?? DEFAULT_SORT, desc: search.order !== 'asc' }]
+  const sort = search.sort ?? DEFAULT_SORT
+  const descending = search.order !== 'asc'
+  const sorting: SortingState = [{ id: sort, desc: descending }]
   const pagination: PaginationState = { pageIndex: (search.page ?? 1) - 1, pageSize: search.size ?? DEFAULT_PAGE_SIZE }
   const usersResult = useQuery(
     adminUsersQuery({
       query,
       role: roles,
-      sort: sorting[0]!.id as AdminUserSort,
-      descending: sorting[0]!.desc,
+      sort,
+      descending,
       page: pagination.pageIndex,
       pageSize: pagination.pageSize,
     }),
@@ -79,9 +81,7 @@ export function AdminUsers({
               search={search.q ?? ''}
               onSearch={(value) => onSearch({ q: value || undefined, page: undefined })}
               roles={roles}
-              onRoles={(value) =>
-                onSearch({ role: ADMIN_USER_ROLES.filter((role) => value.includes(role)).join(',') || undefined, page: undefined })
-              }
+              onRoles={(value) => onSearch({ role: value.join(',') || undefined, page: undefined })}
               sorting={sorting}
               onSorting={([value]) =>
                 onSearch({

@@ -1,3 +1,4 @@
+import { add } from './builder.harness'
 import fs from 'node:fs'
 import { join } from 'node:path'
 import { devices, expect, type Page, test } from './test'
@@ -963,8 +964,7 @@ test('a player can enter through the roster library and browse the product', asy
   await setup.getByRole('button', { name: 'Select Cryptek Conclave', pressed: true }).click()
   await setup.getByRole('button', { name: 'Select Cursed Legion' }).click()
   await confirmRosterSetup(setup)
-  await page.getByLabel('Add a unit').fill('Lokhust Destroyers')
-  await page.getByRole('button', { name: 'Add Lokhust Destroyers', exact: true }).first().click()
+  await add(page, 'Lokhust Destroyers')
   await page
     .getByRole('button', { name: /^Lokhust Destroyers/ })
     .first()
@@ -977,10 +977,8 @@ test('a player can enter through the roster library and browse the product', asy
   await expect(page.getByRole('tooltip')).toContainText('5 → 7')
   await expect(page.getByRole('tooltip')).toContainText('Cursed Legion')
   await page.screenshot({ path: test.info().outputPath('contextual-datasheet-modifier.png'), fullPage: true })
-  await page.getByLabel('Add a unit').fill('Skorpekh Lord')
-  await page.getByRole('button', { name: 'Add Skorpekh Lord', exact: true }).first().click()
-  await page.getByLabel('Add a unit').fill('Immortals')
-  await page.getByRole('button', { name: 'Add Immortals', exact: true }).first().click()
+  await add(page, 'Skorpekh Lord')
+  await add(page, 'Immortals')
   await page.locator('[data-unit="Immortals"]').getByRole('button', { name: 'Immortals', exact: true }).click()
   const immortalsWeapons = page.locator('aside[aria-label="Loadout"]')
   const gauss = immortalsWeapons.locator('article').filter({ hasText: 'Gauss blaster' }).first()

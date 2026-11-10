@@ -23,7 +23,6 @@ type Props = {
   picks: readonly RosterPick[]
   pickIndex: number | null
   embedded?: boolean
-  hideSummary?: boolean
   providedSheet?: Datasheet | null
   onRelationshipSelect?: (entryId: string, name: string) => void
   /** `route` is undefined while the sheet loads and null when the datasheet has no reference page. */
@@ -39,7 +38,6 @@ export function DatasheetPanel({
   picks,
   pickIndex,
   embedded = false,
-  hideSummary = false,
   providedSheet,
   onRelationshipSelect,
   onReferenceRoute,
@@ -96,9 +94,9 @@ export function DatasheetPanel({
   const transport = separateTransport(sheet)
   const content = (
     <div data-slot="datasheet-content" className="w-full min-w-0 space-y-4">
-      {!hideSummary && model ? <UnitProfile profile={model} /> : null}
-      {!hideSummary && ranged.length ? <WeaponSummary title="Ranged weapons" weapons={ranged} rules={sheet.keywordRules} /> : null}
-      {!hideSummary && melee.length ? <WeaponSummary title="Melee weapons" weapons={melee} rules={sheet.keywordRules} /> : null}
+      {!embedded && model ? <UnitProfile profile={model} /> : null}
+      {!embedded && ranged.length ? <WeaponSummary title="Ranged weapons" weapons={ranged} rules={sheet.keywordRules} /> : null}
+      {!embedded && melee.length ? <WeaponSummary title="Melee weapons" weapons={melee} rules={sheet.keywordRules} /> : null}
       <AbilitySummary
         abilities={referenceAbilities(sheet.abilities, sheet.attachments)}
         rules={sheet.keywordRules}

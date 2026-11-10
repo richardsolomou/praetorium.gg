@@ -1,5 +1,4 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useMemo } from 'react'
 import { Button } from '@/components/ui/button'
 import { attachedUnitList } from '../../../core/attachedUnits'
 import { ATTACHMENT_LABELS } from '../../../core/attachmentRows'
@@ -44,13 +43,13 @@ export type RosterPrintInput = {
 
 export function RosterPrintPack({ input, onClose }: { input: RosterPrintInput; onClose: () => void }) {
   const client = useQueryClient()
-  const picks = useMemo(() => normalisePicks(input.picks), [input.picks])
   const title = (unit: { key: number; name: string }) => nicknamedUnit(unit.name, input.picks[unit.key]?.nickname)
   const { data, isError, refetch } = useQuery({
     queryKey: ['roster-print-pack', input],
     retry: false,
     gcTime: 0,
     queryFn: async ({ signal }) => {
+      const picks = normalisePicks(input.picks)
       const faction = await client.query({ ...factionQuery(input.catalogueId), staleTime: 0 })
       if (!faction) throw new Error('The army reference is unavailable.')
       const selected = input.detachmentIds.map((id) => faction.detachments.find((detachment) => detachment.id === id))

@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { plainQuotes, printedNumber } from './text'
-import { type TextRoster, type TextRosterUnit, WTC_SECTION } from './textRoster'
+import { defaultListName, type TextRoster, type TextRosterUnit, WTC_SECTION } from './textRoster'
 import { GAME_SIZES } from './battle'
 
 const unitHeader = /^(?:Char\d+:\s*)?(\d+)x\s+(.+?)\s+\(\d[\d,]*\s*pts?\)(?::\s*(.*))?$/i
@@ -171,9 +171,8 @@ export function fromNewRecruitText(input: string): TextRoster | null {
     if (unit) unit.warlord = true
   }
 
-  const factionName = faction.split(' - ').at(-1)?.trim() || 'Imported roster'
   return {
-    name: metadata(lines, 'ROSTER NAME') ?? (total === null ? `${factionName} roster` : `${factionName} ${total}pts`),
+    name: metadata(lines, 'ROSTER NAME') ?? defaultListName(faction, total),
     ...(total !== null ? { reportedPoints: total } : {}),
     faction,
     detachment: detachment === 'No detachment' ? null : detachment,

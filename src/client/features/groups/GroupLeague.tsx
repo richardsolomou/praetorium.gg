@@ -173,7 +173,7 @@ function DraftLeague({ group, league, viewerId, member }: { group: Group; league
         ) : null}
       </div>
       {error ? <Problem error={error} className="mt-2" /> : null}
-      {league.organizer && ready ? <Rounds group={group} league={league} viewerId={viewerId} now={0} className="mt-4" /> : null}
+      {league.organizer && ready ? <Rounds group={group} league={league} viewerId={viewerId} now={0} /> : null}
       <ConfirmDialog
         open={confirming === 'publish'}
         title="Publish the league?"
@@ -257,7 +257,7 @@ function PublishedLeague({ group, league, viewerId }: { group: Group; league: Le
           ) : null}
           . Play rounds in any order.
         </p>
-        <Rounds group={group} league={league} viewerId={viewerId} now={now} className="mt-4" />
+        <Rounds group={group} league={league} viewerId={viewerId} now={now} />
       </div>
       <ConfirmDialog
         open={confirming === 'withdraw'}
@@ -290,19 +290,7 @@ function PublishedLeague({ group, league, viewerId }: { group: Group; league: Le
 }
 
 /** Every round's fixtures with its deadline; a draft's are the organizer's preview. */
-function Rounds({
-  group,
-  league,
-  viewerId,
-  now,
-  className,
-}: {
-  group: Group
-  league: League
-  viewerId: string | null
-  now: number
-  className?: string
-}) {
+function Rounds({ group, league, viewerId, now }: { group: Group; league: League; viewerId: string | null; now: number }) {
   const play = usePlayGroupGame(group.token)
   const moment = useMoment()
   const [editing, setEditing] = useState<number | null>(null)
@@ -314,7 +302,7 @@ function Rounds({
   const current = league.published ? rounds.find(unsettled) : undefined
   const gate = (round: number) => (!league.published ? 'pending' : round === current ? 'current' : unsettled(round) ? 'pending' : undefined)
   return (
-    <div className={`space-y-3 ${className ?? ''}`}>
+    <div className="mt-4 space-y-3">
       {play.error ? <Problem error={play.error} /> : null}
       <div className="runner gap-3 [--gate-y:1.375rem]">
         {rounds.map((round) => {

@@ -377,8 +377,8 @@ export const adminUsersSchema = z.object({
  * than ignored: a waiver this build cannot name would silently enforce a rule the
  * player believes they turned off.
  */
-export const waivedRules = z.array(z.enum(FORMAT_RULE_IDS)).max(FORMAT_RULE_IDS.length).optional()
-export const optionalRules = z.array(z.enum(OPTIONAL_RULE_IDS)).max(OPTIONAL_RULE_IDS.length).optional()
+const waivedRules = z.array(z.enum(FORMAT_RULE_IDS)).max(FORMAT_RULE_IDS.length).optional()
+const optionalRules = z.array(z.enum(OPTIONAL_RULE_IDS)).max(OPTIONAL_RULE_IDS.length).optional()
 
 export const picksSchema = z.array(rosterPickSchema).max(100)
 
@@ -455,7 +455,8 @@ const prepSchema = z.object({
   remindersEnabled: z.boolean().default(true),
 })
 
-export const saveRosterSchema = z
+/** Validates already-resolved roster content without inferring its rules version again. */
+export const rosterContentSchema = z
   .object({
     id: id.optional(),
     /** Empty when the player wants a name generated from the saved roster. */
@@ -474,7 +475,9 @@ export const saveRosterSchema = z
     source: z.enum(ROSTER_SOURCES).default('editable'),
   })
   .superRefine(validatePointsBudget)
-  .overwrite((value) => withStandardBudget(currentRosterIds(value)))
+  .overwrite(withStandardBudget)
+
+export const saveRosterSchema = rosterContentSchema.overwrite(currentRosterIds)
 
 const attachSavedRosterSchema = z.object({ kind: z.literal('attach-saved-roster'), rosterId: id, playerId: id.optional() }).strict()
 /** A guest has no saved lists, so they field the one this device is building, priced and frozen by the server, with this browser's alerts. */

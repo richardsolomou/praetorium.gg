@@ -741,6 +741,39 @@ export async function startBattle(page: Page, firstSide?: string, takeOpeningTur
   }
 }
 
+/** A visitor's Necrons roster, left open in the builder. */
+export async function startVisitorRoster(page: Page) {
+  const setup = await visitorSetup(page)
+  await chooseFaction(setup, 'Necrons')
+  await setup.getByRole('button', { name: /^Select (?:Awakened Dynasty)$/ }).click()
+  await setup.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Take and Hold' }).click()
+  await setup.getByRole('button', { name: 'Create roster' }).click()
+  await page.waitForURL(/\/rosters\/[^/]+$/)
+}
+
+/** Two new players with a roster each, the first Death Guard and the second Necrons. */
+export async function rosteredPlayers(alice: Page, bob: Page) {
+  const aliceName = uniqueName('Alice')
+  const bobName = uniqueName('Bob')
+  await signUp(bob, bobName)
+  const bobRoster = await createRoster(bob, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Necrons' })
+  await signUp(alice, aliceName)
+  const aliceRoster = await createRoster(alice, { faction: 'Death Guard', detachment: /Shamblerot Vectorium/, name: 'Death Guard' })
+  return { aliceName, bobName, aliceRoster, bobRoster }
+}
+
+/** Two new players, the first hosting Necrons against the second's Death Guard. */
+export async function twoPlayerBattle(alice: Page, bob: Page) {
+  const aliceName = uniqueName('Alice')
+  const bobName = uniqueName('Bob')
+  await signUp(bob, bobName)
+  const bobRoster = await createRoster(bob, { faction: 'Death Guard', detachment: /Shamblerot Vectorium/, name: 'Death Guard' })
+  await signUp(alice, aliceName)
+  const aliceRoster = await createRoster(alice, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Necrons' })
+  const link = await setupBattle(alice, bob, { opponent: bobName, hostRoster: aliceRoster, guestRoster: bobRoster })
+  return { aliceName, bobName, link }
+}
+
 export async function setupBattle(
   host: Page,
   guest: Page,

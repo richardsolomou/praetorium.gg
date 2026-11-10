@@ -94,7 +94,6 @@ export type FactionContent = {
   dataVersion?: number
   datasheets: Set<string>
   datasheetDetails: Map<string, DatasheetDetails>
-  datasheetIds: ReadonlyMap<string, DatasheetDetails>
   detachments: Set<string>
   detachmentFactions?: ReadonlyMap<string, string>
   /** Each detachment the file prints in more than one spelling, every spelling together, the English first. */
@@ -127,13 +126,10 @@ export type LoadedDatacards = {
   enhancements: ReadonlyMap<string, string>
   /** By `descriptionKey`, carrying the name as the card prints it: the rules dataset shouts. */
   stratagems: ReadonlyMap<string, RuleCard>
-  stratagemsById: ReadonlyMap<string, RuleCard>
   /** Every army rule by its slug, where the files agree on what it says. */
   armyRules: ReadonlyMap<string, string>
   /** By detachment slug, retaining every exact-name candidate so conflicts fail closed. */
   constructionDetachments: ReadonlyMap<string, readonly ConstructionDetachment[]>
-  /** By `descriptionKey`, where every matching card agrees on the points. */
-  enhancementPoints: ReadonlyMap<string, number>
   /** What the roster rules read from each published text, by `textKey`. */
   textFacts?: TextFactsByKey
 }
@@ -220,8 +216,6 @@ function stratagemTiming(entry: Record<string, unknown>) {
   const turn = owner ? (owner.toLowerCase() === 'your' ? 'your-turn' : 'opponent-turn') : cardTurn(entry.turn)
   return { phases, turn }
 }
-export const enhancementPoints = (datacards: LoadedDatacards, detachment: string, enhancement: string) =>
-  datacards.enhancementPoints.get(descriptionKey(detachment, enhancement)) ?? null
 export function factionContent(
   name: string,
   parsed: DatacardsFaction,
@@ -234,16 +228,9 @@ export function factionContent(
   const sectionsOnce: SectionProse = (section) => remember(asked, JSON.stringify(section), () => sections(section))
   const datasheets = records(parsed, 'datasheets').flatMap((entry) => {
     const datasheetName = localizedField(entry, 'name')
-    return datasheetName ? [{ id: stringField(entry, 'id'), name: datasheetName, details: datasheetDetails(entry, texts) }] : []
+    return datasheetName ? [{ name: datasheetName, details: datasheetDetails(entry, texts) }] : []
   })
   const datasheetDetailsByName = new Map(datasheets.map(({ name: datasheetName, details }) => [datasheetName, details]))
-  const datasheetIdCandidates = new Map<string, Map<string, DatasheetDetails>>()
-  for (const { id, details } of datasheets) {
-    if (!id) continue
-    const candidates = datasheetIdCandidates.get(id) ?? new Map<string, DatasheetDetails>()
-    candidates.set(JSON.stringify(details), details)
-    datasheetIdCandidates.set(id, candidates)
-  }
   for (const { name: sourceName, details } of datasheets) {
     for (const attachment of details.attachesTo) {
       const target = datasheetDetailsByName.get(attachment.name)
@@ -368,11 +355,6 @@ export function factionContent(
     ...(Number.isInteger(parsed.compatibleDataVersion) ? { dataVersion: parsed.compatibleDataVersion as number } : {}),
     datasheets: new Set(datasheets.map(({ name: datasheetName }) => datasheetName)),
     datasheetDetails: datasheetDetailsByName,
-    datasheetIds: new Map(
-      [...datasheetIdCandidates].flatMap(([id, candidates]) =>
-        candidates.size === 1 ? [[id, candidates.values().next().value!] as const] : [],
-      ),
-    ),
     detachments: new Set(records(parsed, 'detachments').flatMap((entry) => localizedField(entry, 'name') ?? [])),
     detachmentFactions: new Map(
       records(parsed, 'detachments').flatMap((entry) => {

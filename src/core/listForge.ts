@@ -1,4 +1,4 @@
-import { attachGroups, type TextRoster, type TextRosterUnit } from './textRoster'
+import { attachGroups, bodyguardLast, type AttachedGroup, type TextRoster, type TextRosterUnit } from './textRoster'
 import { printedNumber } from './text'
 
 const title = /^(.+) \((\d[\d,]*) Points?\)$/i
@@ -63,7 +63,7 @@ export function fromListForgeShortText(input: string): TextRoster | null {
   if (!titled || parts.length < 3 || !body.length || !body.every((line) => unitHeader.test(line) && /^[^:(]+: /.test(line))) return null
   const disposed = parts.length > 3
   const units: TextRosterUnit[] = []
-  const groups: { leaders: TextRosterUnit[]; bodyguard: TextRosterUnit }[] = []
+  const groups: AttachedGroup[] = []
   for (const line of body) {
     const members = line
       .match(unitHeader)![1]!
@@ -82,7 +82,7 @@ export function fromListForgeShortText(input: string): TextRoster | null {
         return { unit, copies: Number(copies ?? 1) }
       })
     for (const { unit, copies } of members) for (let copy = 0; copy < copies; copy++) units.push(copy ? structuredClone(unit) : unit)
-    if (members.length > 1) groups.push({ leaders: members.slice(0, -1).map(({ unit }) => unit), bodyguard: members.at(-1)!.unit })
+    if (members.length > 1) groups.push(bodyguardLast(members.map(({ unit }) => unit)))
   }
   attachGroups(units, groups)
   return {
@@ -132,7 +132,7 @@ export function fromListForgeWtcText(input: string): TextRoster | null {
 function readBody(lines: readonly string[]): Pick<TextRoster, 'units' | 'unread'> | null {
   const units: TextRosterUnit[] = []
   const unread: string[] = []
-  const groups: { leaders: TextRosterUnit[]; bodyguard: TextRosterUnit }[] = []
+  const groups: AttachedGroup[] = []
   let headings = 0
   let attached = false
   let members: TextRosterUnit[] | null = null
@@ -140,7 +140,7 @@ function readBody(lines: readonly string[]): Pick<TextRoster, 'units' | 'unread'
   // The shallowest bullet of a unit names a model or a piece of its wargear; deeper ones belong to it.
   let top: { indent: number; name: string } | null = null
   const close = () => {
-    if (members && members.length > 1) groups.push({ leaders: members.slice(0, -1), bodyguard: members.at(-1)! })
+    if (members && members.length > 1) groups.push(bodyguardLast(members))
     members = null
   }
 

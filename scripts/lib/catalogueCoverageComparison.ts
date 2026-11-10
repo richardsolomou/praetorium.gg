@@ -47,7 +47,7 @@ type FactionCoverage = {
   detachments: DetachmentCoverage[]
   datasheets: DatasheetCoverage[]
 }
-export type AcceptedLoss = { reason: string; entries: string[] }
+type AcceptedLoss = { reason: string; entries: string[] }
 export const readAcceptedLosses = (file: string | undefined): AcceptedLoss[] => (file ? JSON.parse(fs.readFileSync(file, 'utf8')) : [])
 type RawConstruction = { name: string; enhancements: Set<string> }
 
@@ -114,7 +114,7 @@ export function compareCatalogueCoverage(
     for (const item of later) if (!earlierKeys.has(key(item))) gained.push(`${where}: ${item}`)
   }
   // `Bolt pistol ×2` and `Sergeant (3 rows, 1 fixed)` count a named thing, so like the
-  // datasheet counts above only a lower count is a loss; a raised one is reported as gained.
+  // datasheet counts only a lower count is a loss; a raised one is reported as gained.
   const compareCounted = (where: string, earlier: readonly string[], later: readonly string[]) => {
     const counted = (item: string) => {
       const match = /^(.*) (?:×(\d+)|\((\d+) rows, (\d+) fixed\))$/.exec(item)

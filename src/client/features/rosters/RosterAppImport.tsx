@@ -1,3 +1,4 @@
+import { toggled } from '../../../core/collections'
 import { useMutation } from '@tanstack/react-query'
 import { Copy, LoaderCircle, Search, TriangleAlert } from 'lucide-react'
 import { posthog } from 'posthog-js'
@@ -196,14 +197,7 @@ export function RosterAppImport({
                     className="size-5 shrink-0 accent-parchment"
                     checked={chosen.has(found.key)}
                     disabled={working}
-                    onChange={(event) =>
-                      setChosen((current) => {
-                        const next = new Set(current)
-                        if (event.target.checked) next.add(found.key)
-                        else next.delete(found.key)
-                        return next
-                      })
-                    }
+                    onChange={(event) => setChosen((current) => toggled(current, found.key, event.target.checked))}
                   />
                 ) : null}
                 <label htmlFor={onImport && whole ? id : undefined} className="min-w-0 flex-1 text-sm">

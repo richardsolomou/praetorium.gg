@@ -146,7 +146,7 @@ export function ArmiesStep({ view, sides, send, attachRoster, pending, problem }
                     ) : null}
                     {/* Said under every army rather than only under your own: an opponent
                         deciding whether to play this game needs the same fact its owner has. */}
-                    <WaiverNote rules={rosterWaivers(army.roster?.built)} className="mt-1" />
+                    <WaiverNote rules={rosterWaivers(army.roster?.built)} />
                   </div>
                   {view.sealedEventToken ? (
                     <span className="chip shrink-0 self-start text-achieved sm:self-auto">Sealed roster</span>

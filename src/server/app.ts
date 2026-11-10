@@ -88,7 +88,7 @@ type App = {
   /** How the community data is doing, so the interface can say rather than guess. */
   sync: () => SyncState
   auth: ReturnType<typeof createSqliteAuth>
-  spacetimeToken: ((headers: Headers) => Promise<string>) | null
+  spacetimeToken: (headers: Headers) => Promise<string>
   spacetimeGuestToken: (seatId: string, deviceHash: string) => Promise<string>
   email: ReturnType<typeof emailDelivery>
   /** Whether this instance sends push notifications; nothing else depends on it. */
@@ -274,24 +274,24 @@ function catalogueLoaders(directory: string) {
 }
 
 function catalogueReads(getInstance: () => App, loaded: ReturnType<typeof catalogueLoaders>) {
-  const versions = () => loaded.editions
+  const { editions } = loaded
   return {
-    catalogueFor: async (catalogueId: string) => versions().catalogueFor(catalogueId),
+    catalogueFor: async (catalogueId: string) => editions.catalogueFor(catalogueId),
     canonicalCatalogueFor: async (catalogueId?: string) =>
       catalogueId
-        ? versions().pageCanonical(catalogueId, await versions().canonicalForRequest(catalogueId), () => getInstance().canonicalCatalogue())
+        ? editions.pageCanonical(catalogueId, await editions.canonicalForRequest(catalogueId), () => getInstance().canonicalCatalogue())
         : getInstance().canonicalCatalogue(),
-    rulesFor: async (catalogueId?: string) => versions().rulesFor(catalogueId),
-    battleFactionsFor: async () => versions().battleFactions(),
+    rulesFor: async (catalogueId?: string) => editions.rulesFor(catalogueId),
+    battleFactionsFor: async () => editions.battleFactions(),
     battleDetachmentDataFor: async (catalogueId: string) => {
-      const catalogue = versions().catalogueFor(catalogueId)
-      const rules = versions().rulesFor(catalogueId)
+      const catalogue = editions.catalogueFor(catalogueId)
+      const rules = editions.rulesFor(catalogueId)
       return catalogue && rules ? battleDetachmentData(catalogue, rules, catalogueId) : null
     },
     catalogueHistoryFor: async () => getInstance().catalogueHistory(),
     combatUnitsFor: async () => getInstance().combatUnits(),
     factionIndexFor: async () => {
-      const data = versions().factions()
+      const data = editions.factions()
       return data
         ? {
             revision: data.revision,
@@ -304,10 +304,10 @@ function catalogueReads(getInstance: () => App, loaded: ReturnType<typeof catalo
           }
         : null
     },
-    factionsFor: async () => versions().factions(),
+    factionsFor: async () => editions.factions(),
     factionFor: async (catalogueId: string) => {
-      const faction = versions().factionFor(catalogueId)
-      return faction ? publishedFaction(faction, versions().catalogueFor(faction.id)) : null
+      const faction = editions.factionFor(catalogueId)
+      return faction ? publishedFaction(faction, editions.catalogueFor(faction.id)) : null
     },
     factionIconFor: async (id: string) => getInstance().rules()?.factionIcons.get(id) ?? null,
     searchIndexFor: async () => loaded.searchIndex(),

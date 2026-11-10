@@ -20,8 +20,8 @@ import { workerAnswer } from './workerAnswer'
 const HASHING_TIMEOUT_MS = 60_000
 
 /**
- * Parsing a faction's file and hashing each of its strings held a phone's main thread for hundreds of milliseconds
- * on every page that shows rules text, so a browser does it in a worker.
+ * Parsing a faction's file and hashing each of its strings would hold a phone's main thread for hundreds of
+ * milliseconds on every page that shows rules text, so a browser does it in a worker.
  */
 async function hashedInBackground(bytes: ArrayBuffer) {
   if (typeof Worker === 'undefined') return hashedSourceStrings(bytes)

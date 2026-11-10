@@ -241,8 +241,8 @@ export class SealedEventService {
 
   async assignSealedEventRosterRequirement(token: string, ownerId: string, userId: string, requiredLimit: number, eventToken?: string) {
     const result = await this.repository.assignSealedEventRosterRequirement(token, ownerId, userId, requiredLimit, eventToken)
-    if (result === 'updated' || typeof result === 'object') {
-      if (typeof result === 'object') this.notifySealedEvent('sealed-event-roster-reseal', ownerId, result.resealIds, token, eventToken)
+    if (typeof result === 'object') {
+      this.notifySealedEvent('sealed-event-roster-reseal', ownerId, result.resealIds, token, eventToken)
       return { requiredLimit }
     }
     if (result === 'forbidden') throw new Response('only the organizer can assign roster sizes', { status: 403 })
@@ -254,8 +254,8 @@ export class SealedEventService {
 
   async assignSealedEventTeam(token: string, ownerId: string, userIds: readonly string[], eventToken?: string) {
     const result = await this.repository.assignSealedEventTeam(token, ownerId, userIds, offlineIdentifier('teamId', randomId), eventToken)
-    if (result === 'updated' || typeof result === 'object') {
-      if (typeof result === 'object') this.notifySealedEvent('sealed-event-roster-reseal', ownerId, result.resealIds, token, eventToken)
+    if (typeof result === 'object') {
+      this.notifySealedEvent('sealed-event-roster-reseal', ownerId, result.resealIds, token, eventToken)
       return { teamSize: userIds.length }
     }
     if (result === 'forbidden') throw new Response('only the organizer can assign teams', { status: 403 })

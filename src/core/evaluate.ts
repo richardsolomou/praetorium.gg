@@ -369,7 +369,7 @@ function parseAffects(selection: readonly string[]) {
  * A force sits between the roster and its selections. Conditions count forces and
  * scope to them — a per-detachment limit is written against the force, not the
  * roster — so there has to be one. It is transparent when counting selections,
- * exactly as a group is, so nothing that already worked sees a new layer.
+ * exactly as a group is.
  */
 function rosterContext(
   forces: readonly (readonly Selection[])[],
@@ -983,7 +983,7 @@ function selectionsUnder(node: Node, deep: boolean): Node[] {
   return found
 }
 
-/** The forces at or under a node. A roster has one; the shape allows more. */
+/** The forces at or under a node. */
 function forcesUnder(node: Node): Node[] {
   const found = node.force ? [node] : []
   for (const child of node.children) found.push(...forcesUnder(child))
@@ -1217,8 +1217,7 @@ function measure(spec: Measurable, node: Node, root: Node, index: CatalogueIndex
     return matching.reduce((total, each) => total + (costOf(each, spec.field) ?? 0) * each.count, 0)
   }
   if (spec.field === 'forces') {
-    // A roster has exactly one force today, so this counts whether it is the kind
-    // being asked about — which is how Crusade-only content is gated.
+    // Counts the forces of the kind being asked about, which is how Crusade-only content is gated.
     return origins.flatMap((origin) => forcesUnder(origin)).filter((force) => matches(force, spec.childId, root, index, census)).length
   }
   census.note(`measured field ${spec.field}`)
@@ -1350,7 +1349,7 @@ function resolveScope(scope: string, node: Node, root: Node, index: CatalogueInd
     case 'parent': {
       // A datasheet sits directly in the force, and what it asks about its parent it
       // means about itself: an enhancement is a child of the unit that bears it, so
-      // reading the force here let one character's relic change another's weapons.
+      // reading the force here would let one character's relic change another's weapons.
       // A group standing between them — a library of enhancements reached through
       // one link — is catalogue organisation rather than a roster selection, so it
       // is not the parent either: skipping past it is what keeps "the bearer's

@@ -1,6 +1,6 @@
 import { beforeEach, expect, it, vi } from 'vitest'
 import { reviewRosterSetup, verifySetupReview } from './rosterSetupReview'
-import { saveRosterSchema } from '../../../contracts/schemas'
+import { priceSchema, saveRosterSchema } from '../../../contracts/schemas'
 
 const mocks = vi.hoisted(() => ({ price: vi.fn(), load: vi.fn(), owner: 'alice' as string | null, serverOnly: false }))
 vi.mock('../../functions', () => ({ priceRoster: mocks.price, sharedRoster: mocks.load }))
@@ -118,4 +118,15 @@ it('refuses to review a displayed server-only baseline that already changed', as
   mocks.serverOnly = true
   mocks.load.mockResolvedValue({ ...source, name: 'Changed', updatedAt: 8 })
   await expect(reviewRosterSetup(source, setup)).rejects.toThrow('changed after your review')
+})
+
+it('lets the pricing entry point migrate folded review input once', async () => {
+  const versions: string[] = []
+  mocks.price.mockImplementation(async ({ data }) => {
+    versions.push(priceSchema.parse(data).catalogueId)
+    return priced
+  })
+  const folded = { ...source, catalogueId: 'current-rosters~2261-79a5-19d9-1668', detachmentIds: ['3caf-c168-c372-51b1'] }
+  await reviewRosterSetup(folded, { ...setup, catalogueId: folded.catalogueId })
+  expect(versions).toEqual(['2261-79a5-19d9-1668', '2261-79a5-19d9-1668'])
 })

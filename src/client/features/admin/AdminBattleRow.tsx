@@ -46,7 +46,7 @@ export function AdminBattleRow({ battle }: { battle: AdminBattle }) {
           `last move ${dates.date(battle.lastActivity)}`,
         ].join(' · ')}
         action={
-          <Button type="button" variant="ghost" size="sm" className="text-dim hover:text-destructive" onClick={() => setConfirming(true)}>
+          <Button variant="ghost" size="sm" className="text-dim hover:text-destructive" onClick={() => setConfirming(true)}>
             Delete
           </Button>
         }

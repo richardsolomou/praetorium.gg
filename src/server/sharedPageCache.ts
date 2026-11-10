@@ -17,7 +17,7 @@ export function publicRead(request: Request) {
  * A public read with no sign of a session. Any `better-auth.` cookie counts, forged or not, because the cost of
  * mistaking a forged one for a session is only an uncached page, while the reverse would share a player's page.
  */
-export function signedOutPublicRead(request: Request) {
+function signedOutPublicRead(request: Request) {
   if (request.headers.has('authorization') || SIGNED_IN.test(request.headers.get('cookie') ?? '')) return false
   return publicRead(request)
 }

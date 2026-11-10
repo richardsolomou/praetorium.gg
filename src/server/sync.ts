@@ -47,16 +47,18 @@ const MAX_BATTLEMASTER_TOTAL_BYTES = 64 * 1024 * 1024
 const MAX_BATTLEMASTER_CATALOG_BYTES = 1024 * 1024
 
 /** The live layout catalogue for `source` and the revision that pins it. */
+async function boundedDownload(url: URL, label: string, limit: number) {
+  const response = await fetchWithRetry(url)
+  if (!response.ok) throw new Error(`${label} answered ${response.status}`)
+  return boundedBytes(response, limit, `${label} exceeds ${limit} bytes`)
+}
+
 export async function battlemasterCatalogue(source: BattlemasterSource) {
   const url = new URL('/v1.1/public/tts/layouts', source.baseUrl)
   url.searchParams.set('owner', source.owner)
   url.searchParams.set('missionPack', source.missionPack)
   url.searchParams.set('text', '0')
-  const response = await fetchWithRetry(url)
-  if (!response.ok) throw new Error(`catalog answered ${response.status}`)
-  const body = parseJson(
-    await boundedBytes(response, MAX_BATTLEMASTER_CATALOG_BYTES, `catalog exceeds ${MAX_BATTLEMASTER_CATALOG_BYTES} bytes`),
-  )
+  const body = parseJson(await boundedDownload(url, 'catalog', MAX_BATTLEMASTER_CATALOG_BYTES))
   if (!battlemasterCatalogSchema.safeParse(body).success) throw new Error('catalog has an unexpected shape')
   // The validated body itself, not the parsed copy, keeps every served field in its order for catalog.json.
   const catalog = body as BattlemasterCatalog
@@ -125,9 +127,7 @@ function cachedLayout(cache: string, entry: BattlemasterCatalog['layouts'][numbe
 async function downloadLayout(source: BattlemasterSource, entry: BattlemasterCatalog['layouts'][number]): Promise<BattlemasterLayout> {
   const detailUrl = new URL(`/v1/public/data/layouts/${entry.owner}/${entry.id}`, source.baseUrl)
   // Fetch sequentially to avoid bursting the public API.
-  const detailResponse = await fetchWithRetry(detailUrl)
-  if (!detailResponse.ok) throw new Error(`${entry.id} answered ${detailResponse.status}`)
-  const detail = await boundedBytes(detailResponse, MAX_BATTLEMASTER_FILE_BYTES, `${entry.id} exceeds ${MAX_BATTLEMASTER_FILE_BYTES} bytes`)
+  const detail = await boundedDownload(detailUrl, entry.id, MAX_BATTLEMASTER_FILE_BYTES)
   const parsed = parseJson(detail) as BattlemasterDetail
   if (!battlemasterDetailMatches(entry, parsed, source.baseUrl)) throw new Error(`${entry.id} changed during sync`)
   const slot = parsed.layout?.chapterApprovedSlot
@@ -142,13 +142,7 @@ async function downloadLayout(source: BattlemasterSource, entry: BattlemasterCat
   })) {
     liteUrl.searchParams.set(key, value)
   }
-  const liteResponse = await fetchWithRetry(liteUrl)
-  if (!liteResponse.ok) throw new Error(`${entry.id} objective layout answered ${liteResponse.status}`)
-  const lite = await boundedBytes(
-    liteResponse,
-    MAX_BATTLEMASTER_FILE_BYTES,
-    `${entry.id} objective layout exceeds ${MAX_BATTLEMASTER_FILE_BYTES} bytes`,
-  )
+  const lite = await boundedDownload(liteUrl, `${entry.id} objective layout`, MAX_BATTLEMASTER_FILE_BYTES)
   return { detail, lite }
 }
 

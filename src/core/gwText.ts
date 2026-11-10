@@ -29,7 +29,7 @@ export type GwTextRoster = {
   }[]
 }
 
-export const headings = {
+const headings = {
   character: 'CHARACTERS',
   battleline: 'BATTLELINE',
   transport: 'DEDICATED TRANSPORTS',

@@ -52,7 +52,6 @@ export function ArmyLoadout({ army, unit }: { army: Army; unit: UnitState }) {
                 picks={picks}
                 pickIndex={selected?.key ?? null}
                 embedded
-                hideSummary
                 detachmentRules={detachmentRules}
               />
             }

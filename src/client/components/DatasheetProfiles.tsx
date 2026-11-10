@@ -1,5 +1,5 @@
 import { createContext, useContext, type ReactNode } from 'react'
-import { datasheetCharacteristicKindOf } from '../../core/datasheetStructure'
+import { datasheetCharacteristicKindOf, invulnerableSaveOf, statlineValues } from '../../core/datasheetStructure'
 import type { Datasheet } from '../../contracts/catalogue'
 import { HoverTooltip } from './HoverTooltip'
 import { KeywordList } from './Keyword'
@@ -8,8 +8,8 @@ import { addedKeywords, weaponProfileGroupName, weaponProfileGroups, weaponProfi
 type Profile = Datasheet['profiles'][number]
 
 export function UnitProfile({ profile }: { profile: Profile }) {
-  const invulnerable = profile.values.find((value) => datasheetCharacteristicKindOf(value) === 'invulnerable-save')
-  const values = profile.values.filter((value) => !['invulnerable-save', 'base-size'].includes(datasheetCharacteristicKindOf(value)))
+  const invulnerable = invulnerableSaveOf(profile.values)
+  const values = statlineValues(profile.values)
   return (
     <section data-slot="unit-profile">
       <ProfileGrid values={values} />

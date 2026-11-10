@@ -1,4 +1,4 @@
-import { attachGroups, type TextRoster, type TextRosterUnit } from './textRoster'
+import { attachGroups, type AttachedGroup, type TextRoster, type TextRosterUnit } from './textRoster'
 import { printedNumber } from './text'
 
 const rule = /^─{10,}$/
@@ -41,7 +41,7 @@ export function fromWarmindText(input: string): TextRoster | null {
 
   const units: TextRosterUnit[] = []
   const unread = setup.filter((line) => !/^(?:Faction|Detachment|Battle Size|Total|Disposition):/.test(line) && line !== 'Battle Ready')
-  const groups: { leaders: TextRosterUnit[]; bodyguard: TextRosterUnit }[] = []
+  const groups: AttachedGroup[] = []
   let leaders: TextRosterUnit[] = []
   let current: TextRosterUnit | null = null
   let added = false

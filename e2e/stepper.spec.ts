@@ -1,14 +1,9 @@
 import { expect, type Page, test } from './test'
-import { visitorSetup, chooseFaction } from './account'
+import { startVisitorRoster } from './account'
 import { add } from './builder.harness'
 
 async function openImmortals(page: Page) {
-  const setup = await visitorSetup(page)
-  await chooseFaction(setup, 'Necrons')
-  await setup.getByRole('button', { name: /^Select (?:Awakened Dynasty)$/ }).click()
-  await setup.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Take and Hold' }).click()
-  await setup.getByRole('button', { name: 'Create roster' }).click()
-  await page.waitForURL(/\/rosters\/[^/]+$/)
+  await startVisitorRoster(page)
   await add(page, 'Immortals')
   await page
     .locator('[data-unit="Immortals"]')

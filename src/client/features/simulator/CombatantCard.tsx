@@ -422,10 +422,8 @@ export function CombatantCard({
         {rosters && combatant.rosterName && combatant.shared ? (
           <RosterCaption side={side} name={combatant.rosterName} combatant={combatant} rosters={rosters} />
         ) : null}
-        {!unit && (failed || unavailable) ? (
-          <p className="text-sm text-faint">
-            {failed ? 'Unit data could not load.' : 'This unit cannot be configured. Choose another unit.'}
-          </p>
+        {!unit && unavailable && !failed ? (
+          <p className="text-sm text-faint">This unit cannot be configured. Choose another unit.</p>
         ) : null}
       </div>
       {optimizer.error ? <Problem className="mt-2 text-xs">{optimizer.error}</Problem> : null}

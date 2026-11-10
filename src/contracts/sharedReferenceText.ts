@@ -5,7 +5,7 @@ const REFERENCE = '$praetoriumText'
 const MAX_TEXTS = 100_000
 const MAX_BYTES = 100_000_000
 
-export function isReferenceTexts(texts: unknown): texts is string[] {
+function isReferenceTexts(texts: unknown): texts is string[] {
   return Array.isArray(texts) && texts.length <= MAX_TEXTS && texts.every((text) => typeof text === 'string')
 }
 

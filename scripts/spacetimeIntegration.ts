@@ -56,7 +56,7 @@ async function gatedFiles() {
   return files
 }
 
-/** Vitest passes a run whose every test skipped, which is how these files went unrun in CI. */
+/** Vitest passes a run whose every test skipped. */
 function assertEveryTestPassed(report: VitestReport, files: string[], worktree: string) {
   const problems = files.flatMap((file) => {
     const result = report.testResults.find(({ name }) => name === path.join(worktree, file))

@@ -257,7 +257,7 @@ describe('BattleBase text import', () => {
 
   it('reads a group the player named under the attached units heading', () => {
     const parsed = fromBattleBaseText(necronsOfficial.replace('Attached Unit 2', 'Destroyer cult'))
-    expect(parsed?.units.find((unit) => unit.name === 'Lokhust Lord')?.attachedToEntry).toBeDefined()
+    expect(parsed?.units.find((unit) => unit.name === 'Lokhust Lord')?.attachedToEntry).toBe(2)
   })
 
   it("reads the attachment of a bodyguard whose first label is an enhancement's", () => {

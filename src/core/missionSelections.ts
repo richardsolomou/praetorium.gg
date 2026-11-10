@@ -1,6 +1,7 @@
 import { attachedUnits, attachedUnitList } from './attachedUnits'
 import type { BattleState, Command, PlayerState, Secondary } from './battle'
 import { opposingSide, playsSide, refuse, sameSide } from './battlePrimitives'
+import { uniqueBy } from './collections'
 
 export const MISSION_SELECTION_KINDS = [
   'punishment',
@@ -311,7 +312,7 @@ export function applyMissionSelection(state: BattleState, player: PlayerState, c
     turnSeq: state.turnSeq,
     expired: false,
     selection: command.selection,
-    units: units.filter((unit, index) => units.findIndex((candidate) => unitIdentity(candidate) === unitIdentity(unit)) === index),
+    units: uniqueBy(units, unitIdentity),
   }
   player.missionSelections = [
     ...player.missionSelections.filter((old) => !sameOccurrence(old, { ...saved, kind: saved.selection.kind })),

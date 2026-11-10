@@ -17,14 +17,13 @@ export function PlayerRosters({
   rosters,
   totals,
   factions,
-  factionsLoading = false,
+  factionsLoading,
 }: {
   rosters: readonly SavedRoster[]
   totals: ReadonlyMap<string, { points: number | null; label: string }>
   factions: readonly IndexedFaction[]
-  factionsLoading?: boolean
+  factionsLoading: boolean
 }) {
-  if (!rosters.length) return null
   return (
     <section data-player-rosters>
       <div className="space-y-2">

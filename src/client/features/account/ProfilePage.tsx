@@ -141,12 +141,11 @@ function ProfileForm({
                   aria-label="Choose profile picture"
                   onChange={(event) => void chooseImage(event.target.files?.[0])}
                 />
-                <Button type="button" variant="outline" onClick={() => fileInput.current?.click()} disabled={preparing}>
+                <Button variant="outline" onClick={() => fileInput.current?.click()} disabled={preparing}>
                   <ImagePlus /> {preparing ? 'Preparing…' : image ? 'Replace picture' : 'Add picture'}
                 </Button>
                 {image ? (
                   <Button
-                    type="button"
                     variant="ghost"
                     className="text-dim hover:text-destructive"
                     onClick={() => {

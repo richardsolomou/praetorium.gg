@@ -50,7 +50,7 @@ function useAccountControls() {
       stopLocalRuntime()
       clearWatchBattle()
       if (owner)
-        await clearLocalState(owner, true).catch((error: unknown) => posthog.captureException(error, { operation: 'sign_out_local_work' }))
+        await clearLocalState(owner).catch((error: unknown) => posthog.captureException(error, { operation: 'sign_out_local_work' }))
       forgetDeviceFilterPreferences()
       reconcileAppAccount(queryClient, null)
       queryClient.setQueryData(meQuery().queryKey, null)

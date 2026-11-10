@@ -247,11 +247,9 @@ jobs:
           MAX: ${{ inputs.e2e-runners || '14' }}
         run: |
           set -euo pipefail
-          specs="$SELECTED"
-          if [ "$FULL" = true ]; then specs=all; fi
-          runners="$(node scripts/e2eShard.ts --runners "$specs" "$MAX")"
+          runners="$(node scripts/e2eShard.ts --runners "$SELECTED" "$MAX")"
           {
-            echo "specs=$specs"
+            echo "specs=$SELECTED"
             echo "runners=$runners"
             echo "count=$(node -p 'JSON.parse(process.argv[1]).length' "$runners")"
           } >> "$GITHUB_OUTPUT"

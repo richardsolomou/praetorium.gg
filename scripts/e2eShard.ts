@@ -21,7 +21,7 @@ import { isEntryPoint } from './lib/entryPoint.ts'
 type SpecReport = { title: string; tests?: { results?: { status: string; duration: number }[] }[] }
 type Suite = { title: string; file: string; specs?: SpecReport[]; suites?: Suite[] }
 type Report = { suites: Suite[] }
-export type Durations = Record<string, number>
+type Durations = Record<string, number>
 
 const durationsFile = path.join(import.meta.dirname, '..', 'e2e', 'durations.json')
 

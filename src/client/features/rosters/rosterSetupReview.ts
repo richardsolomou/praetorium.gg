@@ -3,7 +3,7 @@ import { requireReviewedRoster, type ReviewedServerSave } from '../../offline/re
 import { localEngine, localOwner } from '../../offline/localRuntime'
 import { priceRoster, sharedRoster } from '../../functions'
 import type { RosterDraft } from './rosterDraft'
-import { priceSchema, saveRosterSchema } from '../../../contracts/schemas'
+import { rosterContentSchema } from '../../../contracts/schemas'
 import type { RosterSetup } from './RosterSetupDialog'
 
 type SetupPrice = NonNullable<Awaited<ReturnType<typeof priceRoster>>>
@@ -17,7 +17,10 @@ export type RosterSetupReview = {
 }
 
 async function priceSetup(draft: RosterDraft) {
-  const price = await priceRoster({ data: priceSchema.parse({ ...draft, units: draft.picks }) })
+  const { catalogueId, detachmentIds, disposition, borrowedDetachmentId, limit, picks: units, waivedRules, optionalRules } = draft
+  const price = await priceRoster({
+    data: { catalogueId, detachmentIds, disposition, borrowedDetachmentId, limit, units, waivedRules, optionalRules },
+  })
   if (!price) throw new Error('The rules needed to review this roster are unavailable.')
   return price
 }
@@ -29,7 +32,7 @@ export async function reviewRosterSetup(source: RosterDraft | string, setup: Ros
   const loaded = typeof source === 'string' || serverOnly ? (id ? await sharedRoster({ data: { id } }) : null) : null
   if (typeof source === 'string' && !loaded) throw new Error('This roster is no longer available.')
   const original =
-    typeof source === 'string' ? saveRosterSchema.parse({ ...loaded, name: loaded!.automaticName ? '' : loaded!.name }) : source
+    typeof source === 'string' ? rosterContentSchema.parse({ ...loaded, name: loaded!.automaticName ? '' : loaded!.name }) : source
   let serverSave: ReviewedServerSave | undefined
   if (serverOnly) {
     if (!loaded) throw new Error('This roster is no longer available.')

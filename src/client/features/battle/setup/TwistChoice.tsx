@@ -14,7 +14,6 @@ export function TwistChoice({
   disabled: boolean
   onChoose: (id: string | null) => void
 }) {
-  if (!twists.length) return null
   const chosen = twists.find((twist) => twist.id === chosenId)
 
   return (

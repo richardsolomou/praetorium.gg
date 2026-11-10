@@ -17,7 +17,6 @@ export function ImpersonationBanner({ name, email }: { name: string; email: stri
           {error ? <Problem className="mt-1 text-xs">{error}</Problem> : null}
         </div>
         <Button
-          type="button"
           size="sm"
           variant="outline"
           disabled={busy}

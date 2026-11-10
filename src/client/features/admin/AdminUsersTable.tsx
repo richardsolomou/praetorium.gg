@@ -179,13 +179,13 @@ export function AdminUsersTable({
         />
         <RoleFilter selected={roles} onChange={onRoles} />
         {roles.length ? (
-          <Button type="button" variant="ghost" onClick={() => onRoles([])}>
+          <Button variant="ghost" onClick={() => onRoles([])}>
             Reset
             <X aria-hidden />
           </Button>
         ) : null}
         <DropdownMenu>
-          <DropdownMenuTrigger render={<Button type="button" variant="outline" className="ml-auto" />}>
+          <DropdownMenuTrigger render={<Button variant="outline" className="ml-auto" />}>
             <Settings2 aria-hidden />
             View
           </DropdownMenuTrigger>
@@ -225,7 +225,6 @@ export function AdminUsersTable({
                     >
                       {column.getCanSort() ? (
                         <Button
-                          type="button"
                           variant="ghost"
                           size="sm"
                           className={cn('text-dim', numeric(column) ? '-mr-2.5' : '-ml-2.5')}
@@ -339,7 +338,7 @@ const ROLE_NAMES: Record<AdminUser['role'], string> = { admin: 'Administrator', 
 function RoleFilter({ selected, onChange }: { selected: AdminUser['role'][]; onChange: (roles: AdminUser['role'][]) => void }) {
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger render={<Button type="button" variant="outline" className="border-dashed" />}>
+      <DropdownMenuTrigger render={<Button variant="outline" className="border-dashed" />}>
         <CirclePlus aria-hidden />
         Role
         {selected.length ? <span className="chip ml-1 text-parchment">{selected.map((role) => ROLE_NAMES[role]).join(', ')}</span> : null}
@@ -376,7 +375,7 @@ function PageButton({
   children: ReactNode
 }) {
   return (
-    <Button type="button" variant="outline" size="icon-sm" aria-label={label} disabled={disabled} onClick={onClick}>
+    <Button variant="outline" size="icon-sm" aria-label={label} disabled={disabled} onClick={onClick}>
       {children}
     </Button>
   )

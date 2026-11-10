@@ -23,21 +23,19 @@ const SAVE = ['group-settings']
 /** Without a group the dialog creates one; with one, it edits it, and its owner also chooses admins from the members. */
 export function GroupSettingsDialog({
   group,
-  ownerId,
+  isOwner = false,
   open,
   onOpenChange,
 }: {
   group: Group | null
-  ownerId?: string | null
+  isOwner?: boolean
   open: boolean
   onOpenChange: (open: boolean) => void
 }) {
   const saving = useIsMutating({ mutationKey: SAVE }) > 0
   return (
     <Dialog open={open} onOpenChange={(next) => !saving && onOpenChange(next)}>
-      {open ? (
-        <SettingsForm group={group} isOwner={Boolean(group && ownerId === group.ownerId)} onClose={() => onOpenChange(false)} />
-      ) : null}
+      {open ? <SettingsForm group={group} isOwner={isOwner} onClose={() => onOpenChange(false)} /> : null}
     </Dialog>
   )
 }
@@ -164,7 +162,7 @@ function SettingsForm({ group, isOwner, onClose }: { group: Group | null; isOwne
           {save.error ? <Problem error={save.error} /> : null}
         </DialogBody>
         <DialogFooter>
-          <Button type="button" variant="outline" disabled={disabled} onClick={onClose}>
+          <Button variant="outline" disabled={disabled} onClick={onClose}>
             Cancel
           </Button>
           <Button data-onboarding="group-create" type="submit" disabled={disabled || !value.name.trim()}>

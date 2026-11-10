@@ -9,9 +9,7 @@ export type {
   AbilityKind,
   Datasheet,
   DatasheetCharacteristicKind,
-  DatasheetProfileKind,
   DatasheetRelationship,
-  StructuredDatasheetCharacteristic,
   StructuredDatasheetProfile,
 } from '../core/datasheet'
 

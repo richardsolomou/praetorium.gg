@@ -43,7 +43,7 @@ import {
 export type RosterRowLayout = 'card' | 'base' | 'variant'
 
 /** A row's checkbox while the library is choosing rosters to archive or unarchive together. */
-export type RosterRowSelection = { checked: boolean; disabled: boolean; onCheckedChange: (checked: boolean) => void }
+type RosterRowSelection = { checked: boolean; disabled: boolean; onCheckedChange: (checked: boolean) => void }
 
 /** A list on its own is a card; a base shares its card with its variants, which are the slim rows beneath it. */
 export const rosterRowFrame: Record<RosterRowLayout, string> = {

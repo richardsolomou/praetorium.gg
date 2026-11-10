@@ -150,7 +150,6 @@ export function FeedbackForm({
                 className="ph-no-capture max-h-32 min-w-0 border border-edge object-contain"
               />
               <Button
-                type="button"
                 variant="ghost"
                 size="icon"
                 className="size-11 sm:size-9"
@@ -192,7 +191,7 @@ export function FeedbackForm({
         {typeof failure === 'object' ? <Problem>{failure.error}</Problem> : null}
       </DialogBody>
       <DialogFooter>
-        <Button type="button" variant="outline" onClick={onCancel}>
+        <Button variant="outline" onClick={onCancel}>
           Cancel
         </Button>
         <Button type="submit" disabled={sending || !message.trim()}>

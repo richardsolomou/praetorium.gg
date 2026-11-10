@@ -31,7 +31,7 @@ export function UnitPhoto({ entryId, name }: { entryId: string; name: string }) 
           <PhotoViewer entryId={entryId} name={name} photo={viewing ? shared : null} onClose={() => setViewing(false)} />
         </figure>
       ) : null}
-      <OwnPhotos entryId={entryId} name={name} className="grid-cols-3" />
+      <OwnPhotos entryId={entryId} name={name} />
     </section>
   )
 }

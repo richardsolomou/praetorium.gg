@@ -158,7 +158,7 @@ import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { useAccountPrompt } from './AccountPrompt'
 import { CreateBattle } from '../battles/CreateBattle'
 import { guestDraftOf, peekGuestDraft, writeGuestDraft } from './guestDraft'
-import { withMember } from '../../../core/collections'
+import { toggled, withMember } from '../../../core/collections'
 import { usePrintWhenReady } from './usePrintWhenReady'
 import { hasWarlordToggle } from '../../../core/unitChoices'
 import { factionDisposition } from '../../components/rosterSetup'
@@ -341,8 +341,7 @@ export function ListBuilder({
   // their unit picker. Other readers still get the roster without builder controls.
   // Storage holds the only copy of the choice, so a roster opens in the mode last chosen.
   const viewPreferred = useStoredValue(READ_ONLY_PREFERENCE) === 'true'
-  const readOnly = !editable || viewPreferred
-  const building = editable && !readOnly
+  const building = editable && !viewPreferred
   const keptArrangement = useMatch({ from: '/rosters/$id/', shouldThrow: false })?.loaderData?.arrangement
   const [arrangement, setArrangement] = useState(keptArrangement ?? 'attached')
   const frozenReference = Boolean(frozen) || (!editable && !resolvePersistedRoster)
@@ -361,15 +360,7 @@ export function ListBuilder({
     (rule: FormatRuleId) => setSetup((current) => ({ ...current, waivedRules: withMember(current.waivedRules, rule) })),
     [],
   )
-  const togglePickerFilter = useCallback(
-    (filter: PickerFilter) =>
-      setPickerFilters((current) => {
-        const next = new Set(current)
-        if (!next.delete(filter)) next.add(filter)
-        return next
-      }),
-    [],
-  )
+  const togglePickerFilter = useCallback((filter: PickerFilter) => setPickerFilters((current) => toggled(current, filter)), [])
 
   const listName = name.trim()
   const storedPrep = useMemo(
@@ -884,24 +875,20 @@ export function ListBuilder({
   useLayoutEffect(() => {
     selection.current = { picks, updateLoadoutHistory, workspacePath }
   }, [picks, updateLoadoutHistory, workspacePath])
-  const adding = useRef(add)
-  useLayoutEffect(() => {
-    adding.current = add
-  })
   const detach = useCallback((index: number) => join(index, undefined), [join])
   const attach = useCallback(
     (index: number, direction: AttachDirection, choice: AttachChoice) => {
       const { picks: currentPicks } = selection.current
       const key = currentPicks[index]?.key
       if (key === undefined) return
-      if (choice.kind === 'new') adding.current(choice.entryId, direction === 'join' ? { joinedBy: key } : { joins: key })
+      if (choice.kind === 'new') add(choice.entryId, direction === 'join' ? { joinedBy: key } : { joins: key })
       else if (direction === 'join') join(index, choice.key)
       else {
         const joiner = currentPicks.findIndex((pick) => pick.key === choice.key)
         join(joiner, key)
       }
     },
-    [join],
+    [add, join],
   )
   const selectUnit = useCallback(
     (index: number) => {
@@ -914,8 +901,9 @@ export function ListBuilder({
     },
     [setPreview, setSelected, setShowing],
   )
-  const editReminder = useCallback(
-    (subject: ReminderSubject) => {
+  const reminderControls = {
+    active: (subject: ReminderSubject) => abilityAlerts.settings.some((reminder) => reminder.key === reminderKey(subject)),
+    onSelect: (subject: ReminderSubject) => {
       const key = reminderKey(subject)
       const description = loadedWords(subject.description ?? '') ?? ''
       resetAbilityAlert()
@@ -929,15 +917,7 @@ export function ListBuilder({
         },
       )
     },
-    [abilityAlerts.settings, resetAbilityAlert],
-  )
-  const reminderControls = useMemo(
-    () => ({
-      active: (subject: ReminderSubject) => abilityAlerts.settings.some((reminder) => reminder.key === reminderKey(subject)),
-      onSelect: editReminder,
-    }),
-    [abilityAlerts.settings, editReminder],
-  )
+  }
   const { data: reminderAbilities } = useQuery({
     ...reminderAbilitiesQuery(catalogueId, detachmentIds, positioned),
     enabled: editable && abilityAlerts.settings.length > 0 && Boolean(catalogueId && positioned.length),
@@ -1232,7 +1212,6 @@ export function ListBuilder({
    * acknowledged yet and the warning comes back.
    */
   const waiverKey = waivers.map((rule) => rule.id).join(',')
-  const inspectorView = building ? 'edit' : 'readonly'
   const warlord = optimisticUnit?.toggles.find((toggle) => toggle.name === 'Warlord')
   // A unit the data requires as Warlord holds the crown, so no other unit can claim it and it cannot be given up.
   const requiredWarlord = units.find((unit) =>
@@ -1250,36 +1229,33 @@ export function ListBuilder({
       </Button>
     </div>
   ) : null
-  const picker =
-    editable && faction ? (
-      <div className="flex h-full flex-col">
-        {limitFailure}
-        <div className="min-h-0 flex-1">
-          <Picker
-            enabled={pickerEnabled}
-            catalogueId={catalogueId}
-            detachmentIds={detachmentIds}
-            onAdd={add}
-            onApplyLoadout={applyLoadout}
-            priceLoadouts={priceLoadouts}
-            onPreview={previewUnit}
-            inRoster={held}
-            limits={unitLimits}
-            room={room}
-            battleSize={limit}
-            pointsBudget={pointsBudget}
-            waivedRules={waivedRules}
-            onWaiveToggle={toggleWaivedRule}
-            query={pickerQuery}
-            onQueryChange={setPickerQuery}
-            active={pickerFilters}
-            onFilterToggle={togglePickerFilter}
-          />
-        </div>
+  const picker = (
+    <div className="flex h-full flex-col">
+      {limitFailure}
+      <div className="min-h-0 flex-1">
+        <Picker
+          enabled={pickerEnabled}
+          catalogueId={catalogueId}
+          detachmentIds={detachmentIds}
+          onAdd={add}
+          onApplyLoadout={applyLoadout}
+          priceLoadouts={priceLoadouts}
+          onPreview={previewUnit}
+          inRoster={held}
+          limits={unitLimits}
+          room={room}
+          battleSize={limit}
+          pointsBudget={pointsBudget}
+          waivedRules={waivedRules}
+          onWaiveToggle={toggleWaivedRule}
+          query={pickerQuery}
+          onQueryChange={setPickerQuery}
+          active={pickerFilters}
+          onFilterToggle={togglePickerFilter}
+        />
       </div>
-    ) : (
-      <p className="p-2.5 text-xs text-faint">Pick a book first.</p>
-    )
+    </div>
+  )
 
   const loadoutCatalogueId = selected === null ? catalogueId : (picks[selected]?.catalogueId ?? catalogueId)
   const datasheetCatalogueId = preview?.catalogueId ?? loadoutCatalogueId
@@ -1293,9 +1269,9 @@ export function ListBuilder({
       pickIndex={selected}
       onChoose={(key, optionId) => selected !== null && edit.choose(selected, key, optionId)}
       onSpread={(key, update) => selected !== null && edit.spread(selected, key, update)}
-      editable={editable && inspectorView === 'edit'}
+      editable={building}
       controlsDisabled={loadoutConstraintsPending}
-      showOptions={inspectorView !== 'readonly'}
+      showOptions={building}
       persistedRoster={editable || !resolvePersistedRoster ? undefined : { id: savedId, ...(battle ? { battle } : {}) }}
       reminders={building && selected !== null ? reminderControls : undefined}
       header={
@@ -1316,7 +1292,6 @@ export function ListBuilder({
           picks={positioned}
           pickIndex={selected}
           embedded
-          hideSummary
           onRelationshipSelect={(entryId, unitName) => inspect(datasheetCatalogueId, entryId, unitName)}
           onReferenceRoute={setReference}
           abilityReminders={building && selected !== null ? reminderControls : undefined}
@@ -1483,7 +1458,7 @@ export function ListBuilder({
                               <Lock /> Lock roster
                             </DropdownMenuItem>
                           </>
-                        ) : guest ? (
+                        ) : (
                           // Offered as an account offers them, so a visitor finds out what signing up adds.
                           <>
                             <DropdownMenuItem className={MENU_ITEM} onClick={() => account.ask('variant')}>
@@ -1500,7 +1475,7 @@ export function ListBuilder({
                               <Lock /> Lock roster
                             </DropdownMenuItem>
                           </>
-                        ) : null}
+                        )}
                       </MenuSection>
                     </>
                   ) : null}
@@ -1516,7 +1491,7 @@ export function ListBuilder({
                   render={
                     <div>
                       <ToggleGroup
-                        value={[readOnly ? 'view' : 'build']}
+                        value={[building ? 'build' : 'view']}
                         onValueChange={(value) => {
                           if (value[0] === 'view' || value[0] === 'build') setReadOnlyMode(value[0] === 'view')
                         }}
@@ -1851,22 +1826,18 @@ export function ListBuilder({
                 ))}
               </span>
             </output>
-          ) : faction || frozen ? (
-            building ? (
-              <div className="space-y-3 py-6">
-                <h2 className="text-xl">Add your first unit</h2>
-                <p className="max-w-sm text-sm text-dim">
-                  Search for a unit you own or want to field. Then choose its model count and equipment in Loadout.
-                </p>
-                <Button variant="outline" className="roster-wide:hidden" onClick={openPicker}>
-                  Choose a unit
-                </Button>
-              </div>
-            ) : (
-              <p className="py-6 text-sm text-faint">This roster has no units.</p>
-            )
+          ) : building ? (
+            <div className="space-y-3 py-6">
+              <h2 className="text-xl">Add your first unit</h2>
+              <p className="max-w-sm text-sm text-dim">
+                Search for a unit you own or want to field. Then choose its model count and equipment in Loadout.
+              </p>
+              <Button variant="outline" className="roster-wide:hidden" onClick={openPicker}>
+                Choose a unit
+              </Button>
+            </div>
           ) : (
-            <p className="py-6 text-sm text-faint">Pick a book to start building.</p>
+            <p className="py-6 text-sm text-faint">This roster has no units.</p>
           )}
           {me && !frozen && !guest && !print && units.length ? (
             <RosterReadiness
@@ -1903,7 +1874,7 @@ export function ListBuilder({
                   </Button>
                 ) : optimisticUnit ? (
                   <span className="flex max-w-full shrink-0 flex-wrap items-center justify-start gap-1.5 @max-[30rem]:gap-1">
-                    {warlord && inspectorView === 'edit' ? (
+                    {warlord && building ? (
                       <button
                         type="button"
                         title={
@@ -1921,13 +1892,13 @@ export function ListBuilder({
                         Warlord
                       </button>
                     ) : null}
-                    {warlord?.selected && inspectorView === 'readonly' ? (
+                    {warlord?.selected && !building ? (
                       <span className="chip gap-1 text-info">
                         <Crown className="size-3.5 fill-current" /> Warlord
                       </span>
                     ) : null}
                     <PointsChip points={optimisticUnit.points} />
-                    {optimisticUnit.size.resizable && inspectorView === 'edit' ? (
+                    {optimisticUnit.size.resizable && building ? (
                       <Stepper
                         label={`models in ${optimisticUnit.name}`}
                         countLabel={`${optimisticUnit.name} models`}
@@ -2024,7 +1995,6 @@ export function ListBuilder({
         limit={budget}
         hasUnits={Boolean(cards.length)}
         editable={editable}
-        canAddUnits={Boolean(faction)}
         onAddUnits={openPicker}
         saveFailed={save.isError}
         saving={save.isPending}

@@ -157,7 +157,7 @@ it('retains work queued during sign-out’s network requests', async () => {
     status: 'pending' as const,
   }
   await storage.change((state) => ({ ...state, operations: [operation] }))
-  await clearLocalState(owner, true)
+  await clearLocalState(owner)
   expect((await storage.read()).operations).toEqual([operation])
 })
 it('keeps every change one native app screen saves at once', async () => {

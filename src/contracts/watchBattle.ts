@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { BATTLE_STATUSES, PHASES } from '../core/battle'
 import { clockMs, runsIn, type BattleClock } from '../core/battleClock'
 import type { BattleView } from '../core/battleView'
+import { uniqueBy } from '../core/collections'
 
 export const MAX_WATCH_MESSAGE_BYTES = 48_000
 
@@ -74,9 +75,7 @@ export function parseWatchBattle(value: unknown): WatchBattle | null {
  */
 export function watchLive(view: BattleView, clock: BattleClock, now: number) {
   // Every seat on a side carries the side's folded score and CP, so the first seat stands for it.
-  const captains = view.players
-    .filter((player, index) => view.players.findIndex((other) => other.side === player.side) === index)
-    .toSorted((left, right) => left.side - right.side)
+  const captains = uniqueBy(view.players, (player) => player.side).toSorted((left, right) => left.side - right.side)
   const active = captains.find((captain) => captain.isActive)
   const turn = active ? { side: active.side, round: view.round } : null
   return {

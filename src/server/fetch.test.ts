@@ -23,11 +23,11 @@ describe('fetchWithRetry', () => {
     expect(fetch).toHaveBeenCalledTimes(1)
   })
 
-  it('stops after the configured attempt limit', async () => {
+  it('stops after three attempts', async () => {
     const fetch = vi.fn().mockRejectedValue(new TypeError('fetch failed'))
     vi.stubGlobal('fetch', fetch)
 
-    await expect(fetchWithRetry('https://example.test', {}, { attempts: 2, minTimeoutMs: 0 })).rejects.toThrow('fetch failed')
-    expect(fetch).toHaveBeenCalledTimes(2)
+    await expect(fetchWithRetry('https://example.test', {}, { minTimeoutMs: 0 })).rejects.toThrow('fetch failed')
+    expect(fetch).toHaveBeenCalledTimes(3)
   })
 })

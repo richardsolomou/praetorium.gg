@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { calculateCombat, calculateCombatSequence, diceExpression, woundTarget, type CombatInput } from './combat'
-import { attackSequence, sampleCombat } from './combatReference'
+import { attackSequence, sampleCombat } from './combatReference.fixtures'
 
 const input = (): CombatInput => ({
   target: { groups: [{ models: 5, toughness: 4, save: 7, invulnerable: null, wounds: 2 }], feelNoPain: null },

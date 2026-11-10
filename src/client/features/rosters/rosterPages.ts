@@ -1,7 +1,7 @@
 import { useQueries } from '@tanstack/react-query'
 import { ROSTER_LIBRARY_BATCH_SIZE } from '../../../core/rosterLibrary'
 import { savedRosterPageQuery } from '../../queries'
-import { chunks } from '../../../core/collections'
+import { byId, chunks } from '../../../core/collections'
 
 /**
  * Points, legality, labels and variant differences for the lists on screen, asked for
@@ -10,10 +10,9 @@ import { chunks } from '../../../core/collections'
 export function useRosterPages(ids: readonly string[], enabled: boolean) {
   const batches = chunks(ids, ROSTER_LIBRARY_BATCH_SIZE)
   const results = useQueries({ queries: batches.map((batch) => ({ ...savedRosterPageQuery(batch), enabled })) })
-  const byId = new Map(results.flatMap((result) => result.data ?? []).map((entry) => [entry.id, entry]))
   return {
     results,
-    byId,
+    byId: byId(results.flatMap((result) => result.data ?? [])),
     /** Whether the batch holding the list at this position is still being priced. */
     pending: (index: number) => results[Math.floor(index / ROSTER_LIBRARY_BATCH_SIZE)]?.isPending ?? false,
   }

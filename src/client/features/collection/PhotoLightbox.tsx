@@ -93,7 +93,6 @@ function StepButton({
 }) {
   return (
     <Button
-      type="button"
       variant="outline"
       size="icon"
       aria-label={label}

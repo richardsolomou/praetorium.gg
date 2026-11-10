@@ -3,10 +3,9 @@ import { ModelCounter } from '../../components/ModelCounter'
 import { collectionCountsQuery, collectionProgressQuery } from '../../queries'
 import { useCollectionProgressMutation } from '../../useCollection'
 import { CollectionCount } from './CollectionCount'
-import type { OnboardingTarget } from '../../onboardingTargets'
 
 /** Built models are some of those owned, and painted models some of those built, so each counter is bounded by the one before. */
-export function CollectionEntryCounts({ entryId, name, onboarding }: { entryId: string; name: string; onboarding?: OnboardingTarget }) {
+export function CollectionEntryCounts({ entryId, name }: { entryId: string; name: string }) {
   const counts = useQuery(collectionCountsQuery())
   const { data: progress, isPending } = useQuery(collectionProgressQuery())
   const mutation = useCollectionProgressMutation()
@@ -14,7 +13,7 @@ export function CollectionEntryCounts({ entryId, name, onboarding }: { entryId: 
   const built = isPending || models === null ? null : (progress?.[entryId]?.built ?? 0)
   const painted = built === null ? null : (progress?.[entryId]?.painted ?? 0)
   return (
-    <span data-onboarding={onboarding} className="@container block">
+    <span data-onboarding="collection-counts" className="@container block">
       <span className="grid grid-cols-1 gap-2 @[15rem]:grid-cols-3">
         <CollectionCount entryId={entryId} name={name} compact caption="Owned" />
         <ModelCounter

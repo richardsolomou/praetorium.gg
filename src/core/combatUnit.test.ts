@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_COMBAT_OPTIONS, calculateCombat, calculateCombatSequence, type CombatInput } from './combat'
-import { attackSequence, sampleCombat } from './combatReference'
+import { attackSequence, sampleCombat } from './combatReference.fixtures'
 import { combatUnitTarget, combatUnitSequenceError, type CombatMember } from './combatUnit'
 import { combatAttacks } from './combatScenario'
 import { combatRuleChoices, combatRuleHasSharedDefence, type CombatRule } from './combatRules'

@@ -4,7 +4,7 @@ import { rosterDatasheetLoadedProperties } from '../../shared/rosterTelemetry'
 import { createServerFn } from '@tanstack/react-start'
 import { withServerSpan } from '../../adapters/posthog'
 import { app } from '../app'
-import { unitBattleDetailsIn, unitWoundsIn } from '../../shared/catalogue'
+import { unitBattleDetailsIn } from '../../shared/catalogue'
 import { publishedTextFiles } from '../publishedTextFiles'
 import { booksOffering, pickerUnitsFor } from '../../shared/pickerUnits'
 import { detachmentsOffering } from '../../shared/factionReferences'
@@ -223,27 +223,6 @@ export const savedRosterLoadoutDatasheets = createServerFn({ method: 'GET' })
           duration_ms: Math.round(performance.now() - startedAt),
         })
       return result
-    }),
-  )
-
-/**
- * What one model of each of an army's datasheets can take, asked once as it is fielded.
- *
- * Read here rather than in pricing because pricing runs on every keystroke in the
- * builder and this does not: a battle needs the number once, at the moment the list
- * is attached, and it is frozen into the log with the rest of the list from then on.
- *
- * A datasheet whose models disagree, or that this instance cannot read, is simply
- * absent from the answer. The unit is then counted in models, which is what it was
- * before anyone asked.
- */
-export const unitWounds = createServerFn({ method: 'GET' })
-  .validator(unitWoundsSchema)
-  .handler(({ data }) =>
-    rpc(async () => {
-      const loaded = await app().catalogueFor(data.catalogueId)
-      if (!loaded) return []
-      return unitWoundsIn(loaded, data.catalogueId, data.entryIds)
     }),
   )
 

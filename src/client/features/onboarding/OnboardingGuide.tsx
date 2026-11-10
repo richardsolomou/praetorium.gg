@@ -87,15 +87,12 @@ function AccountOnboardingGuide({ userId }: { userId?: string }) {
   if (arrived !== focus) setFocus(arrived)
   const target = focusedStep && trackedTarget?.step === focus?.step ? trackedTarget?.element : undefined
 
-  const showStep = useCallback(
-    async (next: OnboardingFocus) => {
-      rememberFocus(next)
-      const href = onboardingHrefFor(next.step, onboardingPage(location.pathname))
-      const targetExists = document.querySelector(`[data-onboarding="${ONBOARDING_UI[next.step].target}"]`)
-      if (href && !targetExists) await navigate({ href })
-    },
-    [location.pathname, navigate, rememberFocus],
-  )
+  const showStep = async (next: OnboardingFocus) => {
+    rememberFocus(next)
+    const href = onboardingHrefFor(next.step, onboardingPage(location.pathname))
+    const targetExists = document.querySelector(`[data-onboarding="${ONBOARDING_UI[next.step].target}"]`)
+    if (href && !targetExists) await navigate({ href })
+  }
 
   useEffect(() => {
     window.dispatchEvent(new CustomEvent<OnboardingFocus | undefined>(ONBOARDING_FOCUS_EVENT, { detail: focus }))
@@ -320,29 +317,22 @@ function GuidePrompt({
     <section role="note" aria-live="polite" aria-label="Getting started">
       <div className="flex items-start justify-between gap-3">
         <p className="eyebrow text-info">Getting started</p>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-sm"
-          className="-mt-2 -mr-2"
-          aria-label="Close onboarding prompt"
-          onClick={onDismiss}
-        >
+        <Button variant="ghost" size="icon-sm" className="-mt-2 -mr-2" aria-label="Close onboarding prompt" onClick={onDismiss}>
           <X />
         </Button>
       </div>
       <h2 className="font-semibold">{step.title}</h2>
       <p className="mt-1 text-xs leading-snug text-dim">{step.description}</p>
       {stranded ? (
-        <Button type="button" size="sm" className="mt-3 w-full" onClick={onOpenPage}>
+        <Button size="sm" className="mt-3 w-full" onClick={onOpenPage}>
           Take me there <ChevronRight />
         </Button>
       ) : onAdvance ? (
-        <Button type="button" size="sm" className="mt-3 w-full" onClick={onAdvance.run}>
+        <Button size="sm" className="mt-3 w-full" onClick={onAdvance.run}>
           {onAdvance.label} <ChevronRight />
         </Button>
       ) : onFinish ? (
-        <Button type="button" size="sm" className="mt-3 w-full" onClick={onFinish} disabled={saving}>
+        <Button size="sm" className="mt-3 w-full" onClick={onFinish} disabled={saving}>
           <Check /> Finish tour
         </Button>
       ) : null}

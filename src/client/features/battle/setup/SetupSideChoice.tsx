@@ -20,15 +20,15 @@ export function SetupSideChoice({
   sides,
   chosen,
   roles,
-  disabled = false,
+  disabled,
   onChoose,
 }: {
   label: string
   sides: Side[]
   chosen: number | null
   /** What each side becomes once one is picked: the one picked, then the other. */
-  roles?: { chosen: string; other: string }
-  disabled?: boolean
+  roles: { chosen: string; other: string }
+  disabled: boolean
   onChoose: (index: number) => void
 }) {
   return (
@@ -37,7 +37,7 @@ export function SetupSideChoice({
       <div className="grid gap-2 sm:grid-cols-2">
         {sides.map((side) => {
           const picked = side.index === chosen
-          const role = chosen === null ? null : picked ? roles?.chosen : roles?.other
+          const role = chosen === null ? null : picked ? roles.chosen : roles.other
           return (
             <Button
               key={side.index}

@@ -1,5 +1,6 @@
 import { beforeEach, expect, it, vi } from 'vitest'
 import { app } from './app'
+import { copyRosterSchema } from '../contracts/schemas'
 import { copySavedRoster } from './saveOwnedRoster'
 
 vi.mock('./app', () => ({ app: vi.fn() }))
@@ -144,4 +145,18 @@ it('saves a reviewed conversion as a variant and leaves its name and access to t
     catalogueId: 'codex~marines',
     picks: converted.picks,
   })
+})
+
+it.each([
+  ['current-rosters~2261-79a5-19d9-1668', '2261-79a5-19d9-1668'],
+  ['2261-79a5-19d9-1668', 'legacy-rosters~2261-79a5-19d9-1668'],
+])('keeps a reviewed variant on the rules resolved from %s', async (catalogueId, expected) => {
+  library([base])
+  const data = copyRosterSchema.parse({
+    id: 'base',
+    variant: true,
+    setup: { ...base, catalogueId, detachmentIds: ['3caf-c168-c372-51b1'], optionalRules: [], waivedRules: [] },
+  })
+  await copySavedRoster('player', data.id, data.variant, data.setup)
+  expect(saved()?.catalogueId).toBe(expected)
 })

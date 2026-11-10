@@ -57,7 +57,6 @@ import RemoveFavouriteFactionReducer from './remove_favourite_faction_reducer'
 import RemoveFromCollectionReducer from './remove_from_collection_reducer'
 import ReplaceFriendInviteReducer from './replace_friend_invite_reducer'
 import ReportCollectionPhotoReducer from './report_collection_photo_reducer'
-import RevokeOwnAccessReducer from './revoke_own_access_reducer'
 import RevokeSessionReducer from './revoke_session_reducer'
 import SetCollectionCountsAsReducer from './set_collection_counts_as_reducer'
 import SetCollectionModelsReducer from './set_collection_models_reducer'
@@ -136,7 +135,6 @@ import * as PlayerDefaultsProcedure from './player_defaults_procedure'
 import * as PlayerStandingsProcedure from './player_standings_procedure'
 import * as PracticeOpponentIdsProcedure from './practice_opponent_ids_procedure'
 import * as ProductStatsProcedure from './product_stats_procedure'
-import * as PublicStandingsRevisionProcedure from './public_standings_revision_procedure'
 import * as PushEnabledProcedure from './push_enabled_procedure'
 import * as PushTargetsProcedure from './push_targets_procedure'
 import * as RatingChangesProcedure from './rating_changes_procedure'
@@ -188,7 +186,6 @@ import * as UsableRosterProcedure from './usable_roster_procedure'
 
 // Import all table schema definitions
 import MyAdminSignalsRow from './my_admin_signals_table'
-import MyBattleListRow from './my_battle_list_table'
 import MyBattleSignalsRow from './my_battle_signals_table'
 import MyProductSignalsRow from './my_product_signals_table'
 import MySessionRow from './my_session_table'
@@ -205,14 +202,6 @@ const tablesSchema = __schema({
       constraints: [],
     },
     MyAdminSignalsRow,
-  ),
-  myBattleList: __table(
-    {
-      name: 'my_battle_list',
-      indexes: [],
-      constraints: [],
-    },
-    MyBattleListRow,
   ),
   myBattleSignals: __table(
     {
@@ -273,7 +262,6 @@ const reducersSchema = __reducers(
   __reducerSchema('remove_from_collection', RemoveFromCollectionReducer),
   __reducerSchema('replace_friend_invite', ReplaceFriendInviteReducer),
   __reducerSchema('report_collection_photo', ReportCollectionPhotoReducer),
-  __reducerSchema('revoke_own_access', RevokeOwnAccessReducer),
   __reducerSchema('revoke_session', RevokeSessionReducer),
   __reducerSchema('set_collection_counts_as', SetCollectionCountsAsReducer),
   __reducerSchema('set_collection_models', SetCollectionModelsReducer),
@@ -366,7 +354,6 @@ const proceduresSchema = __procedures(
   __procedureSchema('player_standings', PlayerStandingsProcedure.params, PlayerStandingsProcedure.returnType),
   __procedureSchema('practice_opponent_ids', PracticeOpponentIdsProcedure.params, PracticeOpponentIdsProcedure.returnType),
   __procedureSchema('product_stats', ProductStatsProcedure.params, ProductStatsProcedure.returnType),
-  __procedureSchema('public_standings_revision', PublicStandingsRevisionProcedure.params, PublicStandingsRevisionProcedure.returnType),
   __procedureSchema('push_enabled', PushEnabledProcedure.params, PushEnabledProcedure.returnType),
   __procedureSchema('push_targets', PushTargetsProcedure.params, PushTargetsProcedure.returnType),
   __procedureSchema('rating_changes', RatingChangesProcedure.params, RatingChangesProcedure.returnType),

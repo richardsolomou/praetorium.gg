@@ -2,9 +2,8 @@ import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 
 /**
- * Groups were once clubs, their leagues seasons and their hidden-list games sealed games, and the old words crept back
- * whenever code was copied from nearby. They survive only in links already shared, as
- * docs/development/groups-and-tournaments.md lists. "League" is legal again, so this cannot catch its old sense.
+ * "Club", "season" and "sealed game" survive only in links already shared, as docs/development/groups-and-tournaments.md
+ * lists. "League" is a current word, so this cannot catch its old sense.
  */
 const EXEMPT = [
   // Generated from the module, so it repeats the names below.

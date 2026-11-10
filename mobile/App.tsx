@@ -1,5 +1,5 @@
 import { isWatchCompanionAvailable, publishWatchBattle, subscribeWatchAvailability } from './src/watchCompanion'
-import { canCoverScreen, canGateBackSwipe, setBackSwipe, setScreenCover } from './src/webSwipe'
+import { canGateBackSwipe, setBackSwipe, setScreenCover } from './src/webSwipe'
 import { offlineReferenceDataScript, readOfflineReference, storeOfflineReference } from './src/offlineReferenceStorage'
 import { readLocalState, storeLocalState } from './src/localStateStorage'
 import { appSnapshotScript, storeAppSnapshot } from './src/appSnapshotStorage'
@@ -30,7 +30,6 @@ import {
 } from 'react-native'
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { WebView } from 'react-native-webview'
-import type { WebViewNavigation } from 'react-native-webview'
 import {
   appShellActivityChanged,
   appShellRenderChanged,
@@ -170,8 +169,7 @@ function LoadingView() {
   )
 }
 
-function StateView({ error, retry }: { error?: boolean; retry?: () => void }) {
-  if (!error) return <LoadingView />
+function ErrorView({ retry }: { retry: () => void }) {
   return (
     <View style={styles.state}>
       <Text style={styles.title}>Praetorium could not load</Text>
@@ -242,19 +240,16 @@ function AppShell() {
     loadDrainTimer.current = null
   }, [])
 
-  const finishWebLoad = useCallback(
-    (url: string) => {
-      cancelScheduledDrain()
-      commitShell(webLoadFinished(shellRef.current, url))
-      const generation = loadGeneration.current
-      loadDrainTimer.current = setTimeout(() => {
-        if (generation !== loadGeneration.current) return
-        loadDrainTimer.current = null
-        commitAndDrain(confirmWebLoadSucceeded(shellRef.current))
-      }, 0)
-    },
-    [cancelScheduledDrain, commitAndDrain, commitShell],
-  )
+  const finishWebLoad = (url: string) => {
+    cancelScheduledDrain()
+    commitShell(webLoadFinished(shellRef.current, url))
+    const generation = loadGeneration.current
+    loadDrainTimer.current = setTimeout(() => {
+      if (generation !== loadGeneration.current) return
+      loadDrainTimer.current = null
+      commitAndDrain(confirmWebLoadSucceeded(shellRef.current))
+    }, 0)
+  }
 
   const handleAuthCallback = useCallback(
     async (url: string, knownPending?: PendingNativeAuth) => {
@@ -274,34 +269,31 @@ function AppShell() {
     [commitAndDrain, commitShell],
   )
 
-  const openNativeAuth = useCallback(
-    async (message: string) => {
-      const request = parseNativeAuthRequest(message)
-      if (!request || authOpen.current) return
-      authOpen.current = true
-      const pending = pendingNativeAuth(request)
-      try {
-        await setSecureValue(PENDING_AUTH_KEY, JSON.stringify(pending))
-        const result = await WebBrowser.openAuthSessionAsync(nativeAuthStartUrl(request), NATIVE_AUTH_CALLBACK_URL)
-        if ('url' in result) await handleAuthCallback(result.url, pending)
-        else {
-          await deleteSecureValue(PENDING_AUTH_KEY)
-          if (result.type !== WebBrowser.WebBrowserResultType.CANCEL && result.type !== WebBrowser.WebBrowserResultType.DISMISS) {
-            alertProviderRetry()
-          }
-        }
-      } catch (error) {
-        captureNativeException('native_auth', error)
+  const openNativeAuth = async (message: string) => {
+    const request = parseNativeAuthRequest(message)
+    if (!request || authOpen.current) return
+    authOpen.current = true
+    const pending = pendingNativeAuth(request)
+    try {
+      await setSecureValue(PENDING_AUTH_KEY, JSON.stringify(pending))
+      const result = await WebBrowser.openAuthSessionAsync(nativeAuthStartUrl(request), NATIVE_AUTH_CALLBACK_URL)
+      if ('url' in result) await handleAuthCallback(result.url, pending)
+      else {
         await deleteSecureValue(PENDING_AUTH_KEY)
-        Alert.alert('Could not open sign-in', 'The secure system sign-in session could not be opened.')
-      } finally {
-        authOpen.current = false
+        if (result.type !== WebBrowser.WebBrowserResultType.CANCEL && result.type !== WebBrowser.WebBrowserResultType.DISMISS) {
+          alertProviderRetry()
+        }
       }
-    },
-    [handleAuthCallback],
-  )
+    } catch (error) {
+      captureNativeException('native_auth', error)
+      await deleteSecureValue(PENDING_AUTH_KEY)
+      Alert.alert('Could not open sign-in', 'The secure system sign-in session could not be opened.')
+    } finally {
+      authOpen.current = false
+    }
+  }
 
-  const openExternal = useCallback(async (url: string) => {
+  const openExternal = async (url: string) => {
     for (const strategy of externalOpenStrategies(url, await systemCanOpen(url))) {
       try {
         if (strategy === 'system') await Linking.openURL(url)
@@ -312,7 +304,7 @@ function AppShell() {
       }
     }
     Alert.alert('Could not open link', 'No application on this device can open that link.')
-  }, [])
+  }
 
   const setBattleActive = useCallback((active: boolean) => {
     if (active === battleAwake.current) return battleAwakeOperation.current
@@ -344,127 +336,111 @@ function AppShell() {
     [commitAndDrain, offlineView],
   )
 
-  const handleNativeAction = useCallback(
-    async (action: NativeActionRequest) => {
-      switch (action.kind) {
-        case 'export-work': {
-          let error: string | undefined
-          const file = new File(Paths.cache, `praetorium-offline-${action.id}.json`)
-          try {
-            if (Platform.OS !== 'ios') throw new Error('File export is currently available on iOS and the website.')
-            file.writeSync(JSON.stringify(action.state, null, 2))
-            await Share.share({ url: file.uri, title: 'Praetorium saved changes' })
-          } catch (problem) {
-            error = problem instanceof Error ? problem.message : 'Your saved changes could not be exported.'
-          } finally {
-            if (file.exists) file.delete()
-          }
-          webView.current?.injectJavaScript(nativeAnswerScript(NATIVE_EVENTS.exportWork, { id: action.id, error }))
-          break
+  const handleNativeAction = async (action: NativeActionRequest) => {
+    switch (action.kind) {
+      case 'export-work': {
+        let error: string | undefined
+        const file = new File(Paths.cache, `praetorium-offline-${action.id}.json`)
+        try {
+          if (Platform.OS !== 'ios') throw new Error('File export is currently available on iOS and the website.')
+          file.writeSync(JSON.stringify(action.state, null, 2))
+          await Share.share({ url: file.uri, title: 'Praetorium saved changes' })
+        } catch (problem) {
+          error = problem instanceof Error ? problem.message : 'Your saved changes could not be exported.'
+        } finally {
+          if (file.exists) file.delete()
         }
-        case 'local-state': {
-          let answer
-          try {
-            answer =
-              action.state === undefined
-                ? { ...readLocalState(action.owner), saved: true }
-                : storeLocalState(action.owner, action.state, action.epoch!, action.expectedRevision!, action.id)
-          } catch (error) {
-            captureNativeException('local_state_save', error)
-            answer = { saved: false, error: 'Changes could not be saved on this device.' }
-          }
-          webView.current?.injectJavaScript(nativeAnswerScript(NATIVE_EVENTS.localState, { id: action.id, ...answer }))
-          break
-        }
-        case 'watch-battle':
-          await publishWatchBattle(action.snapshot)
-          break
-        case 'app-snapshot': {
-          let saved = false
-          try {
-            storeAppSnapshot(action.snapshot, action.id)
-            setSnapshotScript(appSnapshotScript(action.snapshot))
-            saved = true
-          } catch (error) {
-            captureNativeException('app_snapshot_save', error)
-          }
-          webView.current?.injectJavaScript(nativeAnswerScript(NATIVE_EVENTS.appSnapshot, { id: action.id, saved }))
-          break
-        }
-        case 'offline-save': {
-          let saved = false
-          try {
-            storeOfflineReference(action.reference, action.id)
-            setReferenceCacheScript(offlineReferenceDataScript(action.reference))
-            saved = true
-          } catch (error) {
-            captureNativeException('offline_reference_save', error)
-          }
-          webView.current?.injectJavaScript(nativeAnswerScript(NATIVE_EVENTS.offline, { id: action.id, saved }))
-          break
-        }
-        case 'back-gesture':
-          setHistoryBack(action.enabled)
-          break
-        case 'screen-cover':
-          await setScreenCover(action.covered)
-          break
-        case 'battle-active':
-          await setBattleActive(action.active)
-          break
-        case 'haptic':
-          await playHaptic(action.haptic)
-          break
-        case 'open-window': {
-          const decision = classifyNavigation(action.url)
-          // The application is one screen: a second window would stack a separate
-          // web context over the one the player is already in.
-          if (decision.kind === 'internal') navigateApplication(decision.url)
-          if (decision.kind === 'external') await openExternal(decision.url)
-          break
-        }
-        case 'print':
-          await printDocument(action.html, Print.printAsync)
-          break
-        case 'push': {
-          const answer = await pushAnswer(action.prompt).catch((error: unknown) => {
-            captureNativeException('native_push', error)
-            return { status: 'unavailable' } as const
-          })
-          webView.current?.injectJavaScript(nativeAnswerScript(NATIVE_EVENTS.push, { id: action.id, ...answer }))
-          break
-        }
-        case 'share':
-          await Share.share({ message: action.url, url: action.url, title: action.title })
-          break
+        webView.current?.injectJavaScript(nativeAnswerScript(NATIVE_EVENTS.exportWork, { id: action.id, error }))
+        break
       }
-    },
-    [navigateApplication, openExternal, setBattleActive],
-  )
+      case 'local-state': {
+        let answer
+        try {
+          answer =
+            action.state === undefined
+              ? { ...readLocalState(action.owner), saved: true }
+              : storeLocalState(action.owner, action.state, action.epoch!, action.expectedRevision!, action.id)
+        } catch (error) {
+          captureNativeException('local_state_save', error)
+          answer = { saved: false, error: 'Changes could not be saved on this device.' }
+        }
+        webView.current?.injectJavaScript(nativeAnswerScript(NATIVE_EVENTS.localState, { id: action.id, ...answer }))
+        break
+      }
+      case 'watch-battle':
+        await publishWatchBattle(action.snapshot)
+        break
+      case 'app-snapshot': {
+        let saved = false
+        try {
+          storeAppSnapshot(action.snapshot, action.id)
+          setSnapshotScript(appSnapshotScript(action.snapshot))
+          saved = true
+        } catch (error) {
+          captureNativeException('app_snapshot_save', error)
+        }
+        webView.current?.injectJavaScript(nativeAnswerScript(NATIVE_EVENTS.appSnapshot, { id: action.id, saved }))
+        break
+      }
+      case 'offline-save': {
+        let saved = false
+        try {
+          storeOfflineReference(action.reference, action.id)
+          setReferenceCacheScript(offlineReferenceDataScript(action.reference))
+          saved = true
+        } catch (error) {
+          captureNativeException('offline_reference_save', error)
+        }
+        webView.current?.injectJavaScript(nativeAnswerScript(NATIVE_EVENTS.offline, { id: action.id, saved }))
+        break
+      }
+      case 'back-gesture':
+        setHistoryBack(action.enabled)
+        break
+      case 'screen-cover':
+        await setScreenCover(action.covered)
+        break
+      case 'battle-active':
+        await setBattleActive(action.active)
+        break
+      case 'haptic':
+        await playHaptic(action.haptic)
+        break
+      case 'open-window': {
+        const decision = classifyNavigation(action.url)
+        // The application is one screen: a second window would stack a separate
+        // web context over the one the player is already in.
+        if (decision.kind === 'internal') navigateApplication(decision.url)
+        if (decision.kind === 'external') await openExternal(decision.url)
+        break
+      }
+      case 'print':
+        await printDocument(action.html, Print.printAsync)
+        break
+      case 'push': {
+        const answer = await pushAnswer(action.prompt).catch((error: unknown) => {
+          captureNativeException('native_push', error)
+          return { status: 'unavailable' } as const
+        })
+        webView.current?.injectJavaScript(nativeAnswerScript(NATIVE_EVENTS.push, { id: action.id, ...answer }))
+        break
+      }
+      case 'share':
+        await Share.share({ message: action.url, url: action.url, title: action.title })
+        break
+    }
+  }
 
-  const handleNativeActionMessage = useCallback(
-    (message: string) => {
-      const action = parseNativeActionRequest(message)
-      if (!action) return false
-      void handleNativeAction(action).catch((error) => {
-        captureNativeException(`native_${action.kind.replace('-', '_')}`, error)
-        if (action.kind === 'print') Alert.alert('Could not print', 'The system print service could not open this roster.')
-        if (action.kind === 'share') Alert.alert('Could not share', 'The system share sheet could not open this link.')
-      })
-      return true
-    },
-    [handleNativeAction],
-  )
-
-  const handleUrl = useCallback(
-    (url: string) => {
-      const decision = classifyNavigation(url)
-      if (decision.kind === 'internal') return true
-      if (decision.kind === 'external') void openExternal(decision.url)
-      return false
-    },
-    [openExternal],
-  )
+  const handleNativeActionMessage = (message: string) => {
+    const action = parseNativeActionRequest(message)
+    if (!action) return false
+    void handleNativeAction(action).catch((error) => {
+      captureNativeException(`native_${action.kind.replace('-', '_')}`, error)
+      if (action.kind === 'print') Alert.alert('Could not print', 'The system print service could not open this roster.')
+      if (action.kind === 'share') Alert.alert('Could not share', 'The system share sheet could not open this link.')
+    })
+    return true
+  }
 
   const handleIncomingUrl = useCallback(
     (url: string) => {
@@ -542,7 +518,7 @@ function AppShell() {
                 commitShell(initialUrlReceived(shellRef.current, null))
                 alertProviderRetry()
               }
-            } else if (active && pending?.callbackUrl) {
+            } else if (pending?.callbackUrl) {
               await handleAuthCallback(pending.callbackUrl, pending)
             }
           },
@@ -583,19 +559,12 @@ function AppShell() {
     return () => subscription.remove()
   }, [commitAndDrain, commitShell, offlineView])
 
-  const updateNavigation = useCallback(
-    (navigation: WebViewNavigation) => {
-      commitShell(webNavigationChanged(shellRef.current, navigation.url))
-    },
-    [commitShell],
-  )
-
-  const recoverRenderer = useCallback(() => {
+  const recoverRenderer = () => {
     captureNativeException('web_renderer')
     cancelScheduledDrain()
     void setBattleActive(false).catch(() => undefined)
     commitShell(rendererTerminated(shellRef.current))
-  }, [cancelScheduledDrain, commitShell, setBattleActive])
+  }
 
   const openSavedReference = (url: string) => {
     try {
@@ -647,7 +616,7 @@ function AppShell() {
           decelerationRate={WEB_DECELERATION}
           setBuiltInZoomControls={false}
           setSupportMultipleWindows
-          injectedJavaScriptBeforeContentLoaded={`${mountedSnapshot.script}\nwindow.PraetoriumOfflineStart=${JSON.stringify(offlineView.path)};\n${NATIVE_BRIDGE_SCRIPT}\n${nativeCapabilityScript('watch-battle', watchAvailable)}\n${nativeCapabilityScript('screen-cover', canCoverScreen)}`}
+          injectedJavaScriptBeforeContentLoaded={`${mountedSnapshot.script}\nwindow.PraetoriumOfflineStart=${JSON.stringify(offlineView.path)};\n${NATIVE_BRIDGE_SCRIPT}\n${nativeCapabilityScript('watch-battle', watchAvailable)}\n${nativeCapabilityScript('screen-cover', canGateBackSwipe)}`}
           onLoad={() => webView.current?.injectJavaScript(nativeCapabilityScript('watch-battle', isWatchCompanionAvailable()))}
           onMessage={({ nativeEvent }) => {
             try {
@@ -681,7 +650,7 @@ function AppShell() {
           containerStyle={styles.webView}
           originWhitelist={['*']}
           applicationNameForUserAgent={NATIVE_USER_AGENT}
-          injectedJavaScriptBeforeContentLoaded={`${referenceCacheScript}\n${mountedSnapshot.script}\n${NATIVE_BRIDGE_SCRIPT}\n${nativeCapabilityScript('watch-battle', watchAvailable)}\n${nativeCapabilityScript('screen-cover', canCoverScreen)}\n${nativeAuthCompletionScript()}`}
+          injectedJavaScriptBeforeContentLoaded={`${referenceCacheScript}\n${mountedSnapshot.script}\n${NATIVE_BRIDGE_SCRIPT}\n${nativeCapabilityScript('watch-battle', watchAvailable)}\n${nativeCapabilityScript('screen-cover', canGateBackSwipe)}\n${nativeAuthCompletionScript()}`}
           sharedCookiesEnabled
           thirdPartyCookiesEnabled={false}
           allowsBackForwardNavigationGestures={backSwipeGated || historyBack}
@@ -690,8 +659,8 @@ function AppShell() {
           setBuiltInZoomControls={false}
           setSupportMultipleWindows
           startInLoadingState
-          renderLoading={() => <StateView />}
-          renderError={() => <StateView error retry={retryOnline} />}
+          renderLoading={() => <LoadingView />}
+          renderError={() => <ErrorView retry={() => retryOnline()} />}
           onLoadStart={({ nativeEvent }) => {
             mainFrameUrl.current = nativeEvent.url
             cancelScheduledDrain()
@@ -763,15 +732,19 @@ function AppShell() {
             }
             void openNativeAuth(nativeEvent.data)
           }}
-          onNavigationStateChange={updateNavigation}
-          onShouldStartLoadWithRequest={({ url }) => handleUrl(url)}
+          onNavigationStateChange={({ url }) => commitShell(webNavigationChanged(shellRef.current, url))}
+          onShouldStartLoadWithRequest={({ url }) => {
+            const decision = classifyNavigation(url)
+            if (decision.kind === 'external') void openExternal(decision.url)
+            return decision.kind === 'internal'
+          }}
           onOpenWindow={({ nativeEvent }) => {
             void handleNativeAction({ kind: 'open-window', url: nativeEvent.targetUrl })
           }}
         />
       ) : (
         <View style={styles.webView}>
-          <StateView />
+          <LoadingView />
         </View>
       )}
     </SafeAreaView>

@@ -5,7 +5,6 @@ import type { RosterPick } from '../../core/roster'
 import type { FactionDatasheet } from '../../contracts/catalogue'
 import type { PlayedArmyFilter, RosterAudience, RosterDiscoveryCursor, RosterDiscoveryFilter } from '../../core/rosterDiscovery'
 import type { RosterSort } from '../../core/rosterSort'
-import type { BattlesCursor } from '../../contracts/battles'
 import {
   collection,
   collectionCounts,
@@ -39,6 +38,7 @@ import {
   units,
 } from '../functions'
 import { inFamilies, savedRosterFamilies } from '../productSignals'
+import { battleFeedQuery } from './battles'
 import { referenceStaleTime, requirePage, SSR_STALE_TIME } from './shared'
 import {
   collectionCountsKey,
@@ -66,13 +66,7 @@ export const unitLoadoutsQuery = () =>
 
 /** Never saved for offline reading: a battle whose player narrows its audience must leave the page on the next read. */
 export const playedArmiesQuery = (filter: PlayedArmyFilter) =>
-  infiniteQueryOptions({
-    queryKey: ['played-armies', filter],
-    queryFn: ({ pageParam }) => discoverPlayedArmies({ data: { ...filter, before: pageParam } }).then(requirePage('played armies read')),
-    initialPageParam: null as BattlesCursor | null,
-    getNextPageParam: (page) => page.nextCursor ?? undefined,
-    staleTime: SSR_STALE_TIME,
-  })
+  battleFeedQuery(['played-armies', filter], (before) => discoverPlayedArmies({ data: { ...filter, before } }))
 
 /** Never saved for offline reading: a roster made private must leave the page on the next read. */
 export const discoveredRostersQuery = (filter: RosterDiscoveryFilter, audience: RosterAudience, sort: RosterSort) =>
@@ -315,10 +309,10 @@ export const savedRosterPageQuery = (ids: string[]) =>
   })
 export const homeRostersQuery = () =>
   queryOptions({ queryKey: homeRostersKey(), queryFn: ({ signal }) => homeRosters({ signal }), staleTime: SSR_STALE_TIME })
-export const rosterBootstrapQuery = (id: string, battle?: string) =>
+export const rosterBootstrapQuery = (id: string) =>
   queryOptions({
-    queryKey: rosterBootstrapKey(id, battle),
-    queryFn: ({ signal }) => rosterBootstrap({ data: { id, ...(battle ? { battle } : {}) }, signal }),
+    queryKey: rosterBootstrapKey(id),
+    queryFn: ({ signal }) => rosterBootstrap({ data: { id }, signal }),
     staleTime: SSR_STALE_TIME,
   })
 

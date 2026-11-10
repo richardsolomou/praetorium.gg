@@ -81,10 +81,9 @@ function useScrollEdges<T extends HTMLElement>() {
     if (!node) return
     const remeasure = () => setEdges((current) => scrollEdges(node, current))
     node.addEventListener('scroll', remeasure, { passive: true })
-    // Content decides the overflow as much as the viewport does, and a detachment can change under a row that never
-    // resized. Every element inside is watched, because counts and detachments sit in `display: contents` wrappers
-    // that have no box of their own. Observing reads layout once it has settled; measuring after every render forced
-    // a layout of the whole roster on each of the editor's several renders per keystroke.
+    // Content decides the overflow as much as the viewport does, and counts and detachments sit in `display: contents`
+    // wrappers with no box of their own, so every element inside is observed rather than measured on each render, which
+    // would lay out the whole roster on every keystroke.
     const observer = new ResizeObserver(remeasure)
     const observeItems = () => {
       observer.disconnect()

@@ -1,5 +1,6 @@
 import type { z } from 'zod'
-import { saveRosterSchema } from '../contracts/schemas'
+import { rosterContentSchema, type saveRosterSchema } from '../contracts/schemas'
+import { currentRosterIds } from '../core/retiredCatalogueIds'
 import { offlineActionSchemas as schemas, type OfflineActionKind } from '../contracts/offlineActions'
 import { onboardingAnswer } from '../contracts/onboarding'
 import { app } from './app'
@@ -20,6 +21,29 @@ export function signedInAction<R>(run: (owner: string, input: unknown) => Promis
 /** A roster as a seal compares it: alerts belong to the player, so a device's older copy of them never conflicts. */
 const sealedContent = (roster: z.infer<typeof saveRosterSchema>) =>
   JSON.stringify({ ...roster, prep: roster.prep && { ...roster.prep, reminders: undefined } })
+
+const submitRosterSchema = schemas.submitSealedEventRoster.partial({ capturedRoster: true, catalogueRevision: true })
+
+export async function submitSealedEventRoster(owner: string, data: z.output<typeof submitRosterSchema>) {
+  const { saved, snapshot } = await rosterForUse(owner, data.rosterId, { lent: true, sealing: true })
+  if (
+    data.capturedRoster !== undefined &&
+    (![data.capturedRoster, currentRosterIds(data.capturedRoster)].some(
+      // A capture is either the device's resolved copy, or older input the server's copy has since been resolved from.
+      (captured) => sealedContent(captured) === sealedContent(rosterContentSchema.parse(saved)),
+    ) ||
+      (await app().catalogueFor(saved.catalogueId))?.index.revision !== data.catalogueRevision)
+  )
+    throw new Response('This roster or its army data changed after you chose to seal it. Review the saved action before sealing again.', {
+      status: 409,
+    })
+  const result = await app().service.sealedEventService.submitSealedEventRoster(data.token, owner, saved, snapshot, data.eventToken)
+  await captureMutation(owner, 'sealed_event_roster_submitted', {
+    format: result.format,
+    required_limit: result.requiredLimit,
+  })
+  return null
+}
 
 export const productActions = {
   setOwned: action(schemas.setOwned, async (owner, data) => {
@@ -155,29 +179,7 @@ export const productActions = {
     await captureMutation(owner, 'sealed_event_entry_moderated', { status: data.status })
     return null
   }),
-  submitSealedEventRoster: action(
-    schemas.submitSealedEventRoster.partial({ capturedRoster: true, catalogueRevision: true }),
-    async (owner, data) => {
-      const { saved, snapshot } = await rosterForUse(owner, data.rosterId, { lent: true, sealing: true })
-      if (
-        data.capturedRoster !== undefined &&
-        (sealedContent(saveRosterSchema.parse(saved)) !== sealedContent(data.capturedRoster) ||
-          (await app().catalogueFor(saved.catalogueId))?.index.revision !== data.catalogueRevision)
-      )
-        throw new Response(
-          'This roster or its army data changed after you chose to seal it. Review the saved action before sealing again.',
-          {
-            status: 409,
-          },
-        )
-      const result = await app().service.sealedEventService.submitSealedEventRoster(data.token, owner, saved, snapshot, data.eventToken)
-      await captureMutation(owner, 'sealed_event_roster_submitted', {
-        format: result.format,
-        required_limit: result.requiredLimit,
-      })
-      return null
-    },
-  ),
+  submitSealedEventRoster: action(submitRosterSchema, submitSealedEventRoster),
   setSealedEventTeamDisposition: action(schemas.setSealedEventTeamDisposition, async (owner, data) => {
     await app().service.sealedEventService.setSealedEventTeamDisposition(data.token, owner, data.disposition, data.eventToken)
     return null

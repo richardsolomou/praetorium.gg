@@ -1,4 +1,4 @@
-import { builtDetachments, GAME_SIZES, pointsSpent, type Roster } from './battle'
+import { battleSizeTitle, builtDetachments, pointsSpent, type Roster } from './battle'
 import { gwTextGroup, gwTextVersionLines, toGwText } from './gwText'
 import { textNickname } from './textRoster'
 
@@ -46,7 +46,7 @@ function sealedRosterText(roster: Roster, faction: string, dispositionName: (id:
       faction,
       detachments: builtDetachments(built),
       dispositions: dispositions.map(dispositionName).filter((name) => name !== undefined),
-      size: GAME_SIZES.find((size) => size.limit === built.limit)?.name ?? 'Battle',
+      size: battleSizeTitle(built.limit),
       limit: built.limit,
       ...(built.pointsBudget ? { pointsBudget: built.pointsBudget } : {}),
       points: pointsSpent(built),

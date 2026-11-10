@@ -17,7 +17,7 @@ import type { EvaluationError, Selection } from './evaluate'
 import { normalizedName, withoutFactionPrefix } from './name'
 import { sameText } from './text'
 
-/** Only an ability titled "Leader" establishes that role; other attachments default to support. */
+/** An ability titled "Leader" or a leading association establishes that role; other attachments default to support. */
 export type Attachment = {
   kind: 'leader' | 'support'
   targets: string[]
@@ -90,12 +90,12 @@ const constraintName = (constraint: { childId?: string; childName?: string }, in
   constraint.childName ?? index.categories.get(constraint.childId ?? '')?.name ?? ''
 
 /**
- * Which units this entry may be attached to, read out of its own ability text.
+ * Which units this entry may be attached to, read out of its own ability text and,
+ * given a selection, the associations that selection carries.
  *
- * This is parsing prose, which is not a thing to do lightly — but the relationship
- * exists nowhere else. There is no link, no category and no constraint that says a
- * Plasmancer may join Immortals; there is a sentence saying so. Finding nothing is
- * therefore an ordinary answer, not a failure: a character with no such sentence
+ * Parsing prose is not a thing to do lightly, but for most entries the relationship
+ * exists nowhere else: a sentence is what says a Plasmancer may join Immortals. Finding
+ * nothing is therefore an ordinary answer, not a failure: a character with neither
  * simply cannot be attached, and every name that fails to match a datasheet is
  * dropped rather than guessed at.
  */
@@ -105,10 +105,10 @@ export function attachmentOf(definition: Definition, index: CatalogueIndex, sele
     definition,
     () => findAttachment(definition, index),
   )
-  if (!selection) return attachment ?? null
+  if (!selection) return attachment
 
   const associated = attachmentFromAssociations(definition, selection, index)
-  if (!associated) return attachment ?? null
+  if (!associated) return attachment
   return {
     kind: attachment?.kind ?? associated.kind,
     targets: uniqueNormalizedNames([...(attachment?.targets ?? []), ...associated.targets]),
@@ -319,8 +319,7 @@ function categoryTargets(name: string, index: CatalogueIndex) {
       )
       if (required.every((category) => categories.has(category))) found.push(nameOf(definition, index.definitions))
     }
-    const targets = uniqueNormalizedNames(found)
-    return targets
+    return uniqueNormalizedNames(found)
   })
 }
 
@@ -551,7 +550,7 @@ function statements(definition: Definition, index: CatalogueIndex): [string, str
 
 function names(text: string): string[] {
   const claim = CLAIM.exec(text)
-  if (!claim || claim.index === undefined) return []
+  if (!claim) return []
   const afterClaim = text.slice(claim.index + claim[0].length).replace(REQUIRES_LEADER, '')
   const bulleted = [...afterClaim.matchAll(BULLETED)].flatMap((match) => (match[1] ? [match[1]] : []))
   if (bulleted.length) return bulleted.map(clean).filter(Boolean)

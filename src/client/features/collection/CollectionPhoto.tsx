@@ -1,5 +1,4 @@
 import { useQuery } from '@tanstack/react-query'
-import { cn } from '@/lib/utils'
 import { Camera } from 'lucide-react'
 import { useState } from 'react'
 import { collectionPhotoPath } from '../../../contracts/collection'
@@ -80,17 +79,7 @@ export function CollectionPhoto({
 }
 
 /** The player's photos of a datasheet, each opening the viewer that removes it, followed by space to add more. */
-export function OwnPhotos({
-  entryId,
-  name,
-  className = 'grid-cols-3',
-  addable = true,
-}: {
-  entryId: string
-  name: string
-  className?: string
-  addable?: boolean
-}) {
+export function OwnPhotos({ entryId, name, addable = true }: { entryId: string; name: string; addable?: boolean }) {
   const { data: me } = useQuery(meQuery())
   const { data: photos } = useQuery({ ...collectionPhotosQuery(), enabled: Boolean(me) })
   const { data: shows } = useQuery({ ...collectionPhotoShowsQuery(), enabled: Boolean(me) })
@@ -98,7 +87,7 @@ export function OwnPhotos({
   const viewing = usePhotoSteps(me ? own.map((photoId) => ({ photoId, owner: { id: me.id, name: me.name } })) : [])
   if (!me) return null
   return (
-    <div className={cn('grid gap-2', className)} data-own-photos>
+    <div className="grid grid-cols-3 gap-2" data-own-photos>
       {own.map((photoId, index) => (
         <button
           key={photoId}

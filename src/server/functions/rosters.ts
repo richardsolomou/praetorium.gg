@@ -3,6 +3,7 @@ import { setImmediate as yieldToEventLoop } from 'node:timers/promises'
 import { changesTouching } from '../../core/catalogueChanges'
 import { historySince } from '../../core/catalogueHistory'
 import { app } from '../app'
+import { requireCatalogue } from '../requireCatalogue'
 import { currentUserId, forSignedIn, requireUserId } from '../playerSession'
 import { calculateRosterPrice } from '../../shared/pricing'
 import { cachedRosterAssessmentsFor, cachedRosterPrice, cachedRosterTotalsFor, cachedRosterVerdictsFor } from '../rosterPrices'
@@ -52,6 +53,7 @@ import {
   rosterLoanSchema,
   rosterVisibilitySchema,
   saveRosterSchema,
+  rosterContentSchema,
   userSchema,
 } from '../../contracts/schemas'
 
@@ -430,7 +432,7 @@ async function playedArmyCopy(data: { token: string; playerId: string }) {
   const army = await app().service.playedArmy(data.token, data.playerId)
   if (!army) throw new Response('That army is no longer available to copy.', { status: 404 })
   const copy = copiedArmy(army)
-  return saveRosterSchema.parse({
+  return rosterContentSchema.parse({
     name: `Copy of ${army.name}`.slice(0, ROSTER_NAME_MAX_LENGTH),
     catalogueId: copy.catalogueId,
     detachmentIds: copy.detachmentIds,
@@ -627,8 +629,7 @@ export const exportRoster = createServerFn({ method: 'POST' })
   .handler(({ data }) =>
     mutationRpc(async () => {
       const instance = app()
-      const loaded = await instance.catalogueFor(data.catalogueId)
-      if (!loaded) throw new Response('army data is not available', { status: 409 })
+      const loaded = await requireCatalogue(data.catalogueId)
       const rules = await instance.rulesFor(data.catalogueId)
       const priced = calculateRosterPrice(data, loaded, rules)
       if (!priced) throw new Response('army data is not available', { status: 409 })

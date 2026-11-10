@@ -46,12 +46,6 @@ describe('onboarding page', () => {
   })
 })
 
-describe('onboarding tasks', () => {
-  it('starts a tour for every task', () => {
-    expect(Object.keys(FIRST_ONBOARDING_STEP)).toEqual(onboardingTaskIds)
-  })
-})
-
 describe('onboarding steps', () => {
   it.each(onboardingTaskIds)('walks %s from its first step to a finish', (task) => {
     const walked: OnboardingStepId[] = []

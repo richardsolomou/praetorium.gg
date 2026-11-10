@@ -77,7 +77,6 @@ export function ServiceRecordPanel({
         <div className="mt-2 space-y-3">
           <Results record={record} />
           <Tallies
-            label="Per battle"
             items={[
               { label: 'Victory points', value: oneDecimal(record.averagePoints) },
               { label: 'In wins', value: oneDecimal(record.averageInWins) },
@@ -191,24 +190,23 @@ function RecordFilters({
   )
 }
 
-type TallyItem = { label: string; value: number | string; tint?: string }
+type TallyItem = { label: string; value: number | string }
 
 /**
  * A labelled set of numbers.
  *
  * The cells grow to fill the row rather than sitting in fixed columns, because a
- * group holds anywhere from two of them to six and a grid wide enough for six
- * leaves holes under the ones that hold two.
+ * fixed grid leaves holes under a short last row.
  */
-function Tallies({ label, items }: { label: string; items: readonly TallyItem[] }) {
+function Tallies({ items }: { items: readonly TallyItem[] }) {
   return (
     <div>
-      <p className="eyebrow">{label}</p>
+      <p className="eyebrow">Per battle</p>
       <dl className="part mt-1 flex flex-wrap gap-px overflow-hidden bg-edge">
         {items.map((item) => (
           <div key={item.label} className="min-w-0 grow basis-[calc(50%-1px)] bg-panel px-3 py-2.5 sm:basis-[calc(25%-1px)]">
             <dt className="eyebrow truncate text-faint">{item.label}</dt>
-            <dd className={`figure mt-1 text-xl leading-none font-bold ${item.tint ?? 'text-bone'}`}>{item.value}</dd>
+            <dd className={`figure mt-1 text-xl leading-none font-bold text-bone`}>{item.value}</dd>
           </div>
         ))}
       </dl>
@@ -368,11 +366,7 @@ function CareerTables({ record }: { record: ServiceRecord }) {
               <span className="font-bold break-words uppercase">{row.name}</span>
             )
           }
-          columns={[
-            { label: 'Played', cell: (row) => row.battles, tint: 'text-bone' },
-            ...results,
-            { label: 'Avg VP', cell: (row) => oneDecimal(row.averagePoints), tint: 'text-info' },
-          ]}
+          columns={[...results, { label: 'Avg VP', cell: (row) => oneDecimal(row.averagePoints), tint: 'text-info' }]}
         />
         <RecordTable
           label="Against factions"
@@ -388,11 +382,7 @@ function CareerTables({ record }: { record: ServiceRecord }) {
               <span className="font-bold break-words uppercase">{row.faction.displayName}</span>
             </FactionReferenceLink>
           )}
-          columns={[
-            { label: 'Played', cell: (row) => row.battles, tint: 'text-bone' },
-            ...results,
-            { label: 'Rate', cell: (row) => percentLabel(row.rate) },
-          ]}
+          columns={[...results, { label: 'Rate', cell: (row) => percentLabel(row.rate) }]}
         />
         {record.opponents.length ? (
           <RecordTable
@@ -405,11 +395,7 @@ function CareerTables({ record }: { record: ServiceRecord }) {
                 <span className="font-bold break-words uppercase">{row.name}</span>
               </Link>
             )}
-            columns={[
-              { label: 'Played', cell: (row) => row.battles, tint: 'text-bone' },
-              ...results,
-              { label: 'Rate', cell: (row) => percentLabel(row.rate) },
-            ]}
+            columns={[...results, { label: 'Rate', cell: (row) => percentLabel(row.rate) }]}
           />
         ) : null}
       </div>
@@ -419,7 +405,8 @@ function CareerTables({ record }: { record: ServiceRecord }) {
 
 type Column<T> = { label: string; cell: (row: T) => ReactNode; tint?: string }
 
-const results: Column<{ won: number; drawn: number; lost: number }>[] = [
+const results: Column<{ battles: number; won: number; drawn: number; lost: number }>[] = [
+  { label: 'Played', cell: (row) => row.battles, tint: 'text-bone' },
   { label: 'W', cell: (row) => row.won, tint: 'text-achieved' },
   { label: 'D', cell: (row) => row.drawn },
   { label: 'L', cell: (row) => row.lost, tint: 'text-rust' },

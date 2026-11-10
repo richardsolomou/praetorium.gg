@@ -395,10 +395,10 @@ function tally(faces: Weights, kind: (value: number) => number, kinds: number) {
   return totals
 }
 
-/** The chance a die ends failed without having been re-rolled, so a Command Re-roll may still re-roll it. */
 /** The outcome shares of a roll changed to an unmodified 6. */
 const sixFace = (kind: (value: number) => number, kinds: number) => tally([0, 0, 0, 0, 0, 0, 1], kind, kinds)
 
+/** The chance a die ends failed without having been re-rolled, so a Command Re-roll may still re-roll it. */
 const unrerolledFailures = (again: (value: number) => boolean, succeeds: (value: number) => boolean) =>
   [1, 2, 3, 4, 5, 6].filter((value) => !again(value) && !succeeds(value)).length / 6
 
@@ -636,8 +636,15 @@ const sum = (...terms: [Polynomial, number][]) => {
   return result
 }
 
+const extraAttacks = (weapon: Pick<CombatWeapon, 'blast' | 'cleave'>, models: number) =>
+  (weapon.blast + (weapon.cleave ?? 0)) * Math.floor(models / 5)
+
+/** Whether a die is re-rolled: a 1 under "ones", any failure under "failed". */
+const rerollsDie = (kind: CombatOptions['hitReroll'] | undefined, succeeds: (value: number) => boolean) => (value: number) =>
+  (kind === 'ones' && value === 1) || (kind === 'failed' && !succeeds(value))
+
 function attackCounts(weapon: CombatWeapon, models: number, halfRange: boolean) {
-  const extra = (weapon.blast + (weapon.cleave ?? 0)) * Math.floor(models / 5)
+  const extra = extraAttacks(weapon, models)
   const each = convolve(convolve(diceWeights(weapon.attacks), diceWeights(extra)), halfRange ? diceWeights(weapon.rapidFire) : [1])
   let total: Weights = [1]
   for (let carrier = 0; carrier < weapon.count; carrier++) total = convolve(total, each)
@@ -657,7 +664,7 @@ function weaponPlan(weapon: CombatWeapon, input: CombatInput, toughness: number,
   if (!weapon.torrent) {
     const succeeds = (value: number) => rollSucceeds(value, skill, hitBonus, weapon.criticalHit ?? 6, hitMinimum)
     const rerolls = indirect ? 'none' : bestReroll(options.hitReroll, weapon.hitReroll)
-    const again = (value: number) => (rerolls === 'ones' && value === 1) || (rerolls === 'failed' && !succeeds(value))
+    const again = rerollsDie(rerolls, succeeds)
     const kind = (value: number) =>
       !succeeds(value)
         ? 0
@@ -679,7 +686,7 @@ function weaponPlan(weapon: CombatWeapon, input: CombatInput, toughness: number,
   }
   const woundSucceeds = (value: number) => rollSucceeds(value, wound, woundBonus, weapon.criticalWound, 2)
   const woundRerolls = weapon.twinLinked ? 'failed' : bestReroll(options.woundReroll, weapon.woundReroll)
-  const woundAgain = (value: number) => (woundRerolls === 'ones' && value === 1) || (woundRerolls === 'failed' && !woundSucceeds(value))
+  const woundAgain = rerollsDie(woundRerolls, woundSucceeds)
   const woundKind = (value: number) => {
     if (!woundSucceeds(value)) return 0
     const critical =
@@ -691,9 +698,7 @@ function weaponPlan(weapon: CombatWeapon, input: CombatInput, toughness: number,
   const rerolledWoundFailures = single.wound ? unrerolledFailures(woundAgain, woundSucceeds) : six === 'wound' ? failed : 0
   const groups = target.groups
   const saveFaces = (critical: boolean, rolling: CombatTargetGroup) =>
-    rerolledFaces((value) =>
-      target.saveReroll === 'failed' ? !saveSucceeds(value, critical, rolling, weapon) : target.saveReroll === 'ones' && value === 1,
-    )
+    rerolledFaces(rerollsDie(target.saveReroll, (value) => saveSucceeds(value, critical, rolling, weapon)))
   const sharedSaves = groups.every((group) => group.save === groups[0]!.save && group.invulnerable === groups[0]!.invulnerable)
   const failChance = (critical: boolean) =>
     saveFaces(critical, groups[0]!).reduce(
@@ -711,7 +716,7 @@ function weaponPlan(weapon: CombatWeapon, input: CombatInput, toughness: number,
     if (!sharedSaves || criticalSaveDiffers) throw new Error(SAVE_COMMAND_REROLL_REFUSAL)
     saveRerolls = [false, true].map((critical) => {
       const succeeds = (value: number) => saveSucceeds(value, critical, groups[0]!, weapon)
-      const again = (value: number) => (target.saveReroll === 'failed' ? !succeeds(value) : target.saveReroll === 'ones' && value === 1)
+      const again = rerollsDie(target.saveReroll, succeeds)
       return { unrerolled: unrerolledFailures(again, succeeds), fresh: unrerolledFailures(() => false, succeeds) }
     })
   }
@@ -867,10 +872,7 @@ function rerolledAttackCounts(weapon: CombatWeapon, models: number, halfRange: b
     weapon.attacks.dice && (total - weapon.attacks.bonus) * 2 < weapon.attacks.sides + 1 ? weight : 0,
   )
   const chance = low.reduce((total, weight) => total + weight, 0)
-  const rest = convolve(
-    diceWeights((weapon.blast + (weapon.cleave ?? 0)) * Math.floor(models / 5)),
-    halfRange ? diceWeights(weapon.rapidFire) : [1],
-  )
+  const rest = convolve(diceWeights(extraAttacks(weapon, models)), halfRange ? diceWeights(weapon.rapidFire) : [1])
   const each = convolve(rolled, rest)
   const kept = convolve(
     rolled.map((weight, total) => weight - low[total]!),
@@ -1093,13 +1095,7 @@ function resolveCombat(input: CombatInput, layout: Allocation, initial: State, m
         const points = outcome ? diceWeights(outcome.damage) : [1]
         points.forEach((weight, wounds) => (attempt[wounds] = (attempt[wounds] ?? 0) + weight / 6))
       }
-      for (let i = 0; i < ability.rolls; i++)
-        state = spill(
-          state,
-          attempt.map((weight) => weight ?? 0),
-          layout,
-          prevention,
-        )
+      for (let i = 0; i < ability.rolls; i++) state = spill(state, attempt, layout, prevention)
     }
   }
   mortals('before')
@@ -1166,8 +1162,7 @@ function combatResult(state: State, layout: Allocation, target: CombatInput['tar
 function mostKills(input: CombatInput, models: number) {
   const halfRange = input.options.phase === 'ranged' && input.options.halfRange
   const attacks = input.weapons.reduce((total, weapon) => {
-    const each =
-      maximum(weapon.attacks) + (weapon.blast + (weapon.cleave ?? 0)) * Math.floor(models / 5) + (halfRange ? maximum(weapon.rapidFire) : 0)
+    const each = maximum(weapon.attacks) + extraAttacks(weapon, models) + (halfRange ? maximum(weapon.rapidFire) : 0)
     return total + weapon.count * each * (1 + maximum(weapon.sustained))
   }, 0)
   const mortals = (input.mortalWounds ?? []).reduce(

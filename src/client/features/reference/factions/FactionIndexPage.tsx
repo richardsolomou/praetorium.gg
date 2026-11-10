@@ -113,63 +113,57 @@ function FactionShelf({
   return (
     <section data-shelf={title} className="mt-8">
       <SectionHeading title={title} count={entries.length} />
-      {entries.length ? (
-        <div className={`${RUNNER_COLUMNS} [--gate-y:1.875rem] md:columns-2 xl:columns-3`}>
-          {entries.map((entry) => {
-            const editions = versions.filter(
-              (version) => currentCatalogueFamilyId(version.id) === currentCatalogueFamilyId(entry.id),
-            ).length
-            return (
-              <div
-                key={entry.id}
-                data-faction={entry.displayName}
-                className="flex min-h-15 items-center part pr-2 transition-colors hover:border-runner hover:bg-raised"
+      <div className={`${RUNNER_COLUMNS} [--gate-y:1.875rem] md:columns-2 xl:columns-3`}>
+        {entries.map((entry) => {
+          const editions = versions.filter((version) => currentCatalogueFamilyId(version.id) === currentCatalogueFamilyId(entry.id)).length
+          return (
+            <div
+              key={entry.id}
+              data-faction={entry.displayName}
+              className="flex min-h-15 items-center part pr-2 transition-colors hover:border-runner hover:bg-raised"
+            >
+              <FactionReferenceLink
+                to="/factions/$catalogueId"
+                params={{ catalogueId: entry.slug }}
+                className="flex min-w-0 flex-1 items-center gap-3 self-stretch py-2.5 pr-1 pl-3"
               >
-                <FactionReferenceLink
-                  to="/factions/$catalogueId"
-                  params={{ catalogueId: entry.slug }}
-                  className="flex min-w-0 flex-1 items-center gap-3 self-stretch py-2.5 pr-1 pl-3"
-                >
-                  <FactionMark faction={entry} />
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[0.9375rem] font-bold">{entry.displayName}</span>
-                    <span className="block text-xs text-dim">
-                      {[
-                        countLabel(entry.references[0]?.detachments ?? 0, 'detachment'),
-                        ...(editions > 1 ? [`${editions} rules versions`] : []),
-                      ].join(' · ')}
-                    </span>
+                <FactionMark faction={entry} />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[0.9375rem] font-bold">{entry.displayName}</span>
+                  <span className="block text-xs text-dim">
+                    {[
+                      countLabel(entry.references[0]?.detachments ?? 0, 'detachment'),
+                      ...(editions > 1 ? [`${editions} rules versions`] : []),
+                    ].join(' · ')}
                   </span>
-                  <ChevronRight className="size-4 shrink-0 text-dim" aria-hidden />
-                </FactionReferenceLink>
-                {onFavourite ? (
-                  <Toggle
-                    variant="default"
-                    size="sm"
-                    className="size-9 bg-transparent p-0 aria-pressed:bg-transparent hover:bg-transparent"
-                    aria-label={`${favourites.has(entry.id) ? 'Remove' : 'Add'} ${entry.displayName} ${favourites.has(entry.id) ? 'from' : 'to'} favourites`}
-                    pressed={favourites.has(entry.id)}
-                    onPressedChange={() => onFavourite(entry.id)}
-                  >
-                    <Heart className={`size-4 ${favourites.has(entry.id) ? 'fill-rust text-rust' : 'text-dim'}`} />
-                  </Toggle>
-                ) : (
-                  <Link
-                    to="/sign-in"
-                    search={{ next: '/factions' }}
-                    className="grid size-9 place-items-center"
-                    aria-label={`Sign in to add ${entry.displayName} to favourites`}
-                  >
-                    <Heart className="size-4 text-dim" />
-                  </Link>
-                )}
-              </div>
-            )
-          })}
-        </div>
-      ) : (
-        <p className="mt-2 text-sm text-dim">No factions match.</p>
-      )}
+                </span>
+                <ChevronRight className="size-4 shrink-0 text-dim" aria-hidden />
+              </FactionReferenceLink>
+              {onFavourite ? (
+                <Toggle
+                  variant="default"
+                  size="sm"
+                  className="size-9 bg-transparent p-0 aria-pressed:bg-transparent hover:bg-transparent"
+                  aria-label={`${favourites.has(entry.id) ? 'Remove' : 'Add'} ${entry.displayName} ${favourites.has(entry.id) ? 'from' : 'to'} favourites`}
+                  pressed={favourites.has(entry.id)}
+                  onPressedChange={() => onFavourite(entry.id)}
+                >
+                  <Heart className={`size-4 ${favourites.has(entry.id) ? 'fill-rust text-rust' : 'text-dim'}`} />
+                </Toggle>
+              ) : (
+                <Link
+                  to="/sign-in"
+                  search={{ next: '/factions' }}
+                  className="grid size-9 place-items-center"
+                  aria-label={`Sign in to add ${entry.displayName} to favourites`}
+                >
+                  <Heart className="size-4 text-dim" />
+                </Link>
+              )}
+            </div>
+          )
+        })}
+      </div>
     </section>
   )
 }

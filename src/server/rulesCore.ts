@@ -7,22 +7,6 @@ import { coreRulesFirst, ruleDocumentFrom, ruleOutline } from '../shared/ruleDoc
 import { readSharedJson } from './sharedJson'
 import { remember } from '../core/collections'
 
-export type {
-  RuleBlock,
-  RuleDocument,
-  RuleDocumentSummary,
-  RuleEntry,
-  RuleEntrySummary,
-  RuleFact,
-  RuleIndex,
-  RuleReference,
-  RuleSection,
-  RuleSectionSummary,
-  RuleTextSource,
-} from '../contracts/rules'
-
-export { coreRulesFirst }
-
 type TextOrigin = { repository: string; revision: string; path?: string | undefined }
 
 /**

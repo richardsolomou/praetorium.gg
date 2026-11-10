@@ -40,7 +40,6 @@ export function ReminderDialog({
                   <DropdownMenuTrigger
                     render={
                       <Button
-                        type="button"
                         variant="outline"
                         size="sm"
                         className="h-7 shrink-0 px-2 text-xs"

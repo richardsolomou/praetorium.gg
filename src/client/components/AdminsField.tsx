@@ -42,7 +42,6 @@ export function AdminsField({
                 <PlayerAvatar name={person?.name ?? '?'} image={person?.image ?? null} className="size-6 text-3xs" />
                 <span className="max-w-40 truncate">{person?.name ?? labels.former}</span>
                 <Button
-                  type="button"
                   variant="ghost"
                   size="icon-xs"
                   className="pointer-coarse:size-11"

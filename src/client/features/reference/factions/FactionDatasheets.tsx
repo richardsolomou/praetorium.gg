@@ -185,7 +185,7 @@ const FactionDatasheetRow = memo(function FactionDatasheetRow({
         {unit.points === null ? null : <span className="chip ml-2 shrink-0 text-bone">{unit.points} pts</span>}
         <ChevronRight className="ml-2 size-4 shrink-0 text-faint" aria-hidden />
       </FactionReferenceLink>
-      <FavouriteDatasheetToggle entryId={unit.id} name={unit.name} className="size-11 rounded-lg" />
+      <FavouriteDatasheetToggle entryId={unit.id} name={unit.name} />
     </div>
   )
 })

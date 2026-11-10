@@ -4,7 +4,7 @@ import path from 'node:path'
 import { z } from 'zod'
 
 const port = z.number().int().min(1).max(65_535)
-export const localDevPreviewSchema = z.object({
+const localDevPreviewSchema = z.object({
   pid: z.number().int().positive(),
   token: z.uuid(),
   worktree: z.string(),

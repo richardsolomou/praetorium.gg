@@ -18,8 +18,7 @@ const TILES = 'mt-6 grid grid-cols-2 gap-2 sm:grid-cols-4'
  * Each tile opens where its figure is broken down. The tiles
  * keep their size while the record is folded, so the band does not jump when it arrives.
  */
-export function HomeRecord({ userId, data }: { userId: string; data: HomeRecordData | null | undefined }) {
-  if (data === null) return null
+export function HomeRecord({ userId, data }: { userId: string; data: HomeRecordData | undefined }) {
   if (!data) {
     return (
       <div className={TILES} aria-label="Loading your record">

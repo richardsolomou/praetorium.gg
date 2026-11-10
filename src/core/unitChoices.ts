@@ -246,11 +246,8 @@ function collectUnitChoices(
           ? (selectionCountBoundsAt(selection, here, index, options)?.maximum ?? maximumCount(child.definition, index))
           : null
       const single = inner.type === 'upgrade' && lower === 0 && upperBound === 1
-      let upper: number | null = null
-      if (single) upper = 1
-      else if (inner.type === 'upgrade') upper = upperBound
       // An optional upgrade a unit may take more than once, such as two Incubi Shrine Tokens.
-      const boundedUpgrade = single || (inner.type === 'upgrade' && upper !== null && upper > Math.max(lower, 1))
+      const boundedUpgrade = single || (inner.type === 'upgrade' && upperBound !== null && upperBound > Math.max(lower, 1))
       const onRepeatedModel = Boolean(repeatingEntry && repeatingEntry.path.length === trail.length)
       if (repeatingEntry && onRepeatedModel && single) {
         const room = effectiveCount(selection, repeatingEntry.path, repeatingEntry.definition, index, options)
@@ -274,7 +271,7 @@ function collectUnitChoices(
       /** Report ungrouped unit upgrades once; grouped options are already represented by their group. */
       if (
         boundedUpgrade &&
-        upper !== null &&
+        upperBound !== null &&
         !onRepeatedModel &&
         target.type !== undefined &&
         !isRosterToggle(inner.name ?? child.definition.name)
@@ -285,8 +282,8 @@ function collectUnitChoices(
           name: inner.name ?? child.id,
           chosen: count ? child.id : '',
           optional: lower === 0,
-          room: upper,
-          options: [{ id: child.id, name: inner.name ?? child.id, points: pointsOf(child, index), count, min: lower, max: upper }],
+          room: upperBound,
+          options: [{ id: child.id, name: inner.name ?? child.id, points: pointsOf(child, index), count, min: lower, max: upperBound }],
           uniform: false,
           carried: false,
           owner: modelOwnerOf(trail, index),
@@ -583,18 +580,13 @@ function effectiveCount(
   if (requiredCount(definition, index, { ...context, roster: [...(context.roster ?? []), selection] }) > 0) return existing
   for (let count = Math.max(1, existing + 1); count <= ceiling; count++) {
     let candidate = withCounts(selection, [{ path, count }])
-    if (size.path.length && size.path.join('/') !== path.join('/')) {
+    if (size.path.length) {
       const resized = countAt(candidate, size.path) - (count - existing)
       if (resized < 0) return count - 1
       candidate = withCounts(candidate, [{ path: size.path, count: resized }])
     }
-    const errors = evaluationErrorsFor(targetId, [...(context.roster ?? []), candidate], index, {
-      primaryCatalogueId: context.primaryCatalogueId,
-      modifierCache: context.modifierCache,
-    })
-    if (errors.some((error) => error.limit)) {
-      return Math.max(existing, count - 1)
-    }
+    const errors = candidateErrors(targetId, candidate, index, context)
+    if (errors.some((error) => error.limit)) return count - 1
   }
   return ceiling
 }
@@ -624,10 +616,7 @@ function legalMaximum(
     const counts: Record<string, number> = { [option.id]: count }
     if (other) counts[other.id] = room - count
     const candidate = withSpread(whole, path.join('/'), counts)
-    const errors = evaluationErrorsFor(targetId, [...(context.roster ?? []), candidate], index, {
-      primaryCatalogueId: context.primaryCatalogueId,
-      modifierCache: context.modifierCache,
-    })
+    const errors = candidateErrors(targetId, candidate, index, context)
     if (!errors.length) return count
   }
   return 0
@@ -652,10 +641,7 @@ function replacingMaximum(
       { path: optionPath, count },
       { path: sizePath, count: sized - (count - held) },
     ])
-    const errors = evaluationErrorsFor(targetId, [...(context.roster ?? []), candidate], index, {
-      primaryCatalogueId: context.primaryCatalogueId,
-      modifierCache: context.modifierCache,
-    })
+    const errors = candidateErrors(targetId, candidate, index, context)
     if (!errors.length) return count
   }
   return 0
@@ -683,12 +669,7 @@ function mutableSpare(
         { path: [...path, option.id], count: countOf(option.id) + count },
         { path: sizePath, count: countOf(sized.id) - count },
       ])
-      const errors = [sizedId, resolve(option.definition, index).id].flatMap((id) =>
-        evaluationErrorsFor(id, [...(context.roster ?? []), candidate], index, {
-          primaryCatalogueId: context.primaryCatalogueId,
-          modifierCache: context.modifierCache,
-        }),
-      )
+      const errors = [sizedId, resolve(option.definition, index).id].flatMap((id) => candidateErrors(id, candidate, index, context))
       return !errors.length
     })
     if (fits) return count
@@ -721,3 +702,10 @@ const scaled = (cap: number | null, carriers: number) => (cap === null ? UNBOUND
 
 /** Occupants that share no capacity are bounded one by one, so their room adds up. */
 const sum = (rooms: number[]) => (rooms.includes(UNBOUNDED) ? UNBOUNDED : rooms.reduce((total, room) => total + room, 0))
+
+function candidateErrors(id: string, candidate: Selection, index: CatalogueIndex, context: EvaluateOptions) {
+  return evaluationErrorsFor(id, [...(context.roster ?? []), candidate], index, {
+    primaryCatalogueId: context.primaryCatalogueId,
+    modifierCache: context.modifierCache,
+  })
+}

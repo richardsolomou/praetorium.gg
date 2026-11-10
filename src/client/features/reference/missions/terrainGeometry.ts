@@ -7,7 +7,7 @@
  */
 
 import type { Point, TerrainGeometry } from '../../../../contracts/terrain'
-import { groupBy } from '../../../../core/collections'
+import { groupBy, uniqueBy } from '../../../../core/collections'
 
 export type { Point, TerrainGeometry, TerrainPiece, TerrainTemplate } from '../../../../contracts/terrain'
 
@@ -262,7 +262,7 @@ const longestEdgeArrow = 12
 /** Drops repeats of a distance along the same line, keeping the first: placement, so it keeps its step number. */
 export function uniqueMeasurements(measurements: Measurement[]) {
   const line = (measurement: Measurement) => `${measurement.from.x}-${measurement.from.y}-${measurement.to.x}-${measurement.to.y}`
-  return measurements.filter((measurement, index) => measurements.findIndex((other) => line(other) === line(measurement)) === index)
+  return uniqueBy(measurements, line)
 }
 
 /** The deployment zone edges that cross the board: the lines a mat prints. Territory boundaries are not printed. */
@@ -508,9 +508,7 @@ function rayHit(origin: Point, direction: Point, start: Point, end: Point) {
 export function territoryBoundary(territory: { x: number; y: number }[], board: TerrainGeometry['board']) {
   const onEdge = (start: { x: number; y: number }, end: { x: number; y: number }) =>
     [0, board.width].some((x) => start.x === x && end.x === x) || [0, board.height].some((y) => start.y === y && end.y === y)
-  return territory
-    .map((start, index) => [start, territory[(index + 1) % territory.length]!] as const)
-    .filter(([start, end]) => !onEdge(start, end) && (start.x !== end.x || start.y !== end.y))
+  return polygonEdges(territory).filter(([start, end]) => !onEdge(start, end) && (start.x !== end.x || start.y !== end.y))
 }
 
 export function svgPoints(points: { x: number; y: number }[]) {

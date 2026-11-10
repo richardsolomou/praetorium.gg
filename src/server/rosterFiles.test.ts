@@ -813,10 +813,8 @@ const loaded: LoadedCatalogue = {
     detachmentRules: new Map(),
     enhancements: new Map([[descriptionKey('Skyshroud Spearhead', 'Veil of Darkness'), 'Vanishes.']]),
     stratagems: new Map(),
-    stratagemsById: new Map(),
     armyRules: new Map(),
     constructionDetachments: new Map(),
-    enhancementPoints: new Map(),
   },
   factions: [
     { id: 'necrons', name: 'Xenos - Necrons', references: [] },

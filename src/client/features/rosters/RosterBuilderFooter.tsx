@@ -15,7 +15,6 @@ type Props = {
   limit: number
   hasUnits: boolean
   editable: boolean
-  canAddUnits: boolean
   onAddUnits: () => void
   saveFailed: boolean
   saving: boolean
@@ -41,7 +40,6 @@ export function RosterBuilderFooter({
   limit,
   hasUnits,
   editable,
-  canAddUnits,
   onAddUnits,
   saveFailed,
   saving,
@@ -122,7 +120,6 @@ export function RosterBuilderFooter({
                 advanceOnboarding('roster', 'roster-picker', 'roster-search')
                 onAddUnits()
               }}
-              disabled={!canAddUnits}
             >
               Add units
             </Button>

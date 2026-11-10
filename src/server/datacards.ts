@@ -74,10 +74,8 @@ export function* loadDatacardsSteps(
   const enhancements = new Map<string, Map<string, string>>()
   const stratagems = new Map<string, Map<string, string>>()
   const stratagemNames = new Map<string, string>()
-  const stratagemIds = new Map<string, Map<string, RuleCard>>()
   const armyRules = new Map<string, Map<string, string>>()
   const constructionDetachments = new Map<string, ConstructionDetachment[]>()
-  const enhancementPointCandidates = new Map<string, Set<number | null>>()
   // Texts are compared by what they say: one card copied into two files publishes two tokens for one text.
   const remember = (into: Map<string, Map<string, string>>, key: string, text: string) => {
     const found = into.get(key) ?? new Map<string, string>()
@@ -92,10 +90,8 @@ export function* loadDatacardsSteps(
       detachmentRules: new Map(),
       enhancements: new Map(),
       stratagems: new Map(),
-      stratagemsById: new Map(),
       armyRules: new Map(),
       constructionDetachments: new Map(),
-      enhancementPoints: new Map(),
       textFacts,
     }
   const files: (DatacardsFaction & { name: string; texts: SourceTexts })[] = []
@@ -179,12 +175,6 @@ export function* loadDatacardsSteps(
       const detachment = stringField(enhancement, 'detachment')
       const description = localizedField(enhancement, 'description')
       if (name && detachment && description) remember(enhancements, descriptionKey(detachment, name), parsed.texts(description, 'prose'))
-      if (name && detachment) {
-        const key = descriptionKey(detachment, name)
-        const candidates = enhancementPointCandidates.get(key) ?? new Set<number | null>()
-        candidates.add(integerField(enhancement, 'cost'))
-        enhancementPointCandidates.set(key, candidates)
-      }
     }
     for (const stratagem of records(parsed, 'stratagems')) {
       const name = localizedField(stratagem, 'name')
@@ -195,12 +185,6 @@ export function* loadDatacardsSteps(
         remember(stratagems, descriptionKey(detachment, name), description)
         // A card printed entirely in lower case is a slip in the file, not how the name reads.
         stratagemNames.set(descriptionKey(detachment, name), card.name)
-        const id = stringField(stratagem, 'id')
-        if (id) {
-          const candidates = stratagemIds.get(id) ?? new Map<string, RuleCard>()
-          candidates.set(JSON.stringify({ ...card, description: comparableText(card.description) }), card)
-          stratagemIds.set(id, candidates)
-        }
       }
     }
   }
@@ -215,17 +199,8 @@ export function* loadDatacardsSteps(
     ),
     enhancements: agreed(enhancements),
     stratagems: new Map([...agreed(stratagems)].map(([key, description]) => [key, { name: stratagemNames.get(key)!, description }])),
-    stratagemsById: new Map(
-      [...stratagemIds].flatMap(([id, candidates]) => (candidates.size === 1 ? [[id, candidates.values().next().value!] as const] : [])),
-    ),
     armyRules: agreed(armyRules),
     constructionDetachments,
-    enhancementPoints: new Map(
-      [...enhancementPointCandidates].flatMap(([key, candidates]) => {
-        const points = candidates.size === 1 ? candidates.values().next().value! : null
-        return points === null ? [] : [[key, points] as const]
-      }),
-    ),
     textFacts,
   }
 }

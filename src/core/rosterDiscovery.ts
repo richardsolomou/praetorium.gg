@@ -54,7 +54,6 @@ export const playedArmyFilterSchema = z.strictObject({
 })
 export type PlayedArmyFilter = z.infer<typeof playedArmyFilterSchema>
 
-export const ROSTER_LEGALITIES = ['legal', 'over-limit', 'not-legal'] as const
 export const ROSTER_POINTS_BANDS = [
   { value: 'under-1000', label: 'Under 1,000', below: 1_000 },
   { value: '1000-1499', label: '1,000 to 1,499', below: 1_500 },

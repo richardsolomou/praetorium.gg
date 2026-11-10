@@ -3,7 +3,14 @@ import { FactionReferenceLink } from '../../../components/FactionReferenceLink'
 import { useQuery } from '@tanstack/react-query'
 import { Link, useParams } from '@tanstack/react-router'
 import { FactionBreadcrumb } from './FactionBreadcrumb'
-import { datasheetCharacteristicKindOf, datasheetProfileKindOf, datasheetProfilesByKind } from '../../../../core/datasheetStructure'
+import {
+  datasheetCharacteristicKindOf,
+  datasheetProfileKindOf,
+  datasheetProfilesByKind,
+  invulnerableSaveOf,
+  NON_STATLINE_KINDS,
+  statlineValues,
+} from '../../../../core/datasheetStructure'
 import type { Datasheet, DatasheetCharacteristicKind, StructuredDatasheetProfile } from '../../../../contracts/catalogue'
 import {
   abilitySections,
@@ -28,7 +35,6 @@ import { Keyword, KEYWORD_TAG_CLASS, KeywordList, type KeywordRule, UnitKeywords
 import { ProfileRules } from '../../rosters/ProfileRules'
 import { RuleText } from '../../../components/RuleText'
 import { PageContent, PageHeader } from '../../../components/Page'
-import type { OnboardingTarget } from '../../../onboardingTargets'
 import { groupBy } from '../../../../core/collections'
 import { SectionHeading } from '../../../components/SectionHeading'
 
@@ -81,7 +87,7 @@ export function FactionDatasheet() {
           <ProfileTable
             title="Models"
             profiles={unit}
-            omit={['invulnerable-save', 'base-size']}
+            omit={NON_STATLINE_KINDS}
             keywordRules={sheet.keywordRules}
             anchorIds={unitAnchorIds}
           />
@@ -116,15 +122,7 @@ export function FactionDatasheet() {
 type DisplayAbility = Datasheet['abilities'][number]
 const noAnchorIds: readonly string[] = []
 
-export function Abilities({
-  abilities,
-  rules,
-  onboarding,
-}: {
-  abilities: DisplayAbility[]
-  rules: KeywordRule[]
-  onboarding?: OnboardingTarget
-}) {
+export function Abilities({ abilities, rules }: { abilities: DisplayAbility[]; rules: KeywordRule[] }) {
   return Object.entries(abilitySections).map(([kind, title]) => {
     const found = abilities.filter((ability) => ability.kind === kind)
     if (!found.length) return null
@@ -141,7 +139,7 @@ export function Abilities({
     )
     if (kind === 'core' || kind === 'faction') {
       return (
-        <section key={kind} data-onboarding={onboarding}>
+        <section key={kind}>
           <SectionHeading title={title} count={found.length} />
           <div className="flex flex-wrap gap-1">
             {found.map((ability) => (
@@ -164,7 +162,7 @@ export function Abilities({
       )
     }
     return (
-      <section key={kind} data-onboarding={onboarding}>
+      <section key={kind}>
         <SectionHeading title={title} count={found.length} />
         {cards}
       </section>
@@ -172,12 +170,12 @@ export function Abilities({
   })
 }
 
-function UnitConfiguration({ sheet, rules, onboarding }: { sheet: Datasheet; rules: KeywordRule[]; onboarding?: OnboardingTarget }) {
+function UnitConfiguration({ sheet, rules }: { sheet: Datasheet; rules: KeywordRule[] }) {
   // Sources print a lone "None" when a unit has no wargear options.
   const wargearOptions = sheet.wargearOptions.filter((option) => option.trim().toLowerCase() !== 'none')
   if (!sheet.composition.length && !sheet.loadout && !wargearOptions.length && !sheet.costs.length) return null
   return (
-    <section data-onboarding={onboarding}>
+    <section>
       <SectionHeading title="Unit configuration" />
       <div className="overflow-hidden part">
         <div className="grid md:grid-cols-2 md:divide-x md:divide-edge">
@@ -305,19 +303,11 @@ export function Relationships({
 
 type DisplayProfile = StructuredDatasheetProfile
 
-function UnitCharacteristics({
-  profile,
-  onboarding,
-  anchorIds = noAnchorIds,
-}: {
-  profile: DisplayProfile
-  onboarding?: OnboardingTarget
-  anchorIds?: readonly string[]
-}) {
-  const invulnerable = profile.values.find((value) => datasheetCharacteristicKindOf(value) === 'invulnerable-save')?.value
-  const values = profile.values.filter((value) => !['invulnerable-save', 'base-size'].includes(datasheetCharacteristicKindOf(value)))
+function UnitCharacteristics({ profile, anchorIds = noAnchorIds }: { profile: DisplayProfile; anchorIds?: readonly string[] }) {
+  const invulnerable = invulnerableSaveOf(profile.values)?.value
+  const values = statlineValues(profile.values)
   return (
-    <section id={`profile-${profile.id}`} data-onboarding={onboarding}>
+    <section id={`profile-${profile.id}`}>
       <ReferenceAnchors prefix="profile" ids={anchorIds.filter((id) => id !== profile.id)} />
       <div className="grid grid-cols-6 gap-1.5 sm:gap-2">
         {values.map((value) => (
@@ -347,7 +337,7 @@ function characteristicProfileGroups(profiles: DisplayProfile[]) {
   ]
 }
 
-const noColumns: DatasheetCharacteristicKind[] = []
+const noColumns: readonly DatasheetCharacteristicKind[] = []
 const noProfileAnchorIds: ReadonlyMap<string, readonly string[]> = new Map()
 
 export function ProfileTable({
@@ -355,14 +345,12 @@ export function ProfileTable({
   profiles,
   omit = noColumns,
   keywordRules,
-  onboarding,
   anchorIds = noProfileAnchorIds,
 }: {
   title: string
   profiles: DisplayProfile[]
-  omit?: DatasheetCharacteristicKind[]
+  omit?: readonly DatasheetCharacteristicKind[]
   keywordRules: KeywordRule[]
-  onboarding?: OnboardingTarget
   anchorIds?: ReadonlyMap<string, readonly string[]>
 }) {
   const columns = profileTableColumns(profiles).filter(
@@ -373,7 +361,7 @@ export function ProfileTable({
       ? weaponProfileGroups(profiles)
       : profiles.map((profile) => [profile])
   return (
-    <section data-onboarding={onboarding}>
+    <section>
       <SectionHeading title={title} count={groups.length} />
       <div className="overflow-x-auto part">
         <table className="w-full min-w-max text-left text-sm">

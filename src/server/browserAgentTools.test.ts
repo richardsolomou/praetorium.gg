@@ -1,6 +1,7 @@
 import { beforeEach, expect, it, vi } from 'vitest'
 
-const { user, ownRoster } = vi.hoisted(() => ({ user: vi.fn(), ownRoster: vi.fn() }))
+const { user, ownRoster, saveOwnedRoster } = vi.hoisted(() => ({ user: vi.fn(), ownRoster: vi.fn(), saveOwnedRoster: vi.fn() }))
+vi.mock('./saveOwnedRoster', () => ({ saveOwnedRoster }))
 vi.mock('./playerSession', () => ({ currentUser: user }))
 vi.mock('./publishedTextFiles', () => ({
   publishedTextLocations: async () => ({ files: {}, holds: () => false, recordsHolding: () => [] }),
@@ -145,4 +146,15 @@ it('does not prepare changes to rosters the player cannot read', async () => {
 
 it('keeps the complete battle schema refinements on the browser path', async () => {
   await expect(executeBrowserAgentTool('create_battle', { allyId: 'ally-1' }, 'player-1')).rejects.toMatchObject({ status: 400 })
+})
+
+it.each([
+  ['current-rosters~2261-79a5-19d9-1668', '2261-79a5-19d9-1668'],
+  ['2261-79a5-19d9-1668', 'legacy-rosters~2261-79a5-19d9-1668'],
+])('executes approved browser input on %s as %s', async (catalogueId, expected) => {
+  saveOwnedRoster.mockResolvedValueOnce({ id: 'roster-1', updatedAt: 1 })
+  const input = { name: 'Army', catalogueId, detachmentIds: ['3caf-c168-c372-51b1'], disposition: null, limit: 1000, picks: [], prep: null }
+  const proposal = await prepareBrowserAgentWrite('save_roster', input, 'player-1')
+  await executeBrowserAgentTool('save_roster', JSON.parse(proposal.input), 'player-1')
+  expect(saveOwnedRoster).toHaveBeenLastCalledWith('player-1', expect.objectContaining({ catalogueId: expected }))
 })

@@ -258,7 +258,7 @@ function SettingsForm({
           {save.error ? <Problem error={save.error} /> : null}
         </DialogBody>
         <DialogFooter>
-          <Button type="button" variant="outline" disabled={save.isPending} onClick={onClose}>
+          <Button variant="outline" disabled={save.isPending} onClick={onClose}>
             Cancel
           </Button>
           <Button

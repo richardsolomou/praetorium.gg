@@ -1,9 +1,14 @@
 import { describe, expect, it } from 'vitest'
-import { buildIndex, type Catalogue, type CatalogueFile } from './catalogue'
+import { buildIndex, type Catalogue, type CatalogueFile, type CatalogueIndex } from './catalogue'
 import { buildUnit } from './roster'
-import { modelCountChoices, modelCountOf, sizeOf, unitSize } from './unitSize'
+import { defaultSelection } from './expand'
+import { modelCountChoices, modelCountOf, sizeOf } from './unitSize'
 
 const PTS = 'cost-pts'
+const unitSize = (entryId: string, index: CatalogueIndex) => {
+  const base = defaultSelection(entryId, index)
+  return base ? sizeOf(base, index) : null
+}
 const system: CatalogueFile = { gameSystem: { id: 'gs', name: 'Test', costTypes: [{ id: PTS, name: 'pts' }] } }
 
 const indexOf = (catalogue: Partial<Catalogue>) =>

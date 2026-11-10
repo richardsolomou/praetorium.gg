@@ -387,7 +387,7 @@ export function AppShell() {
                 <DisplayNamePrompt />
                 <SupportPanel />
                 <TextSourcesDialog />
-                <Impersonation />
+                {me?.impersonatedBy ? <ImpersonationBanner name={me.name} email={me.email} /> : null}
                 <NativePushRegistration />
                 <ReleaseUpdateNotice />
                 {/* An administrator viewing as a player must not use up the player's announcements. */}
@@ -402,9 +402,4 @@ export function AppShell() {
       </body>
     </html>
   )
-}
-
-function Impersonation() {
-  const { data: me } = useQuery(meQuery())
-  return me?.impersonatedBy ? <ImpersonationBanner name={me.name} email={me.email} /> : null
 }

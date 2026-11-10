@@ -18,6 +18,7 @@ import {
   battleSizeLabel,
   battleSizeOptionLabel,
   battleSizeText,
+  battleSizeTitle,
   GAME_SIZES,
   isKotcLimit,
   pointsBudgetsAgree,
@@ -268,7 +269,7 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
         ? battleSizeText(view)!
         : pointsBudget === null
           ? battleSizeOptionLabel({
-              name: GAME_SIZES.find((size) => size.limit === view.settings.limit)?.name ?? 'Battle',
+              name: battleSizeTitle(view.settings.limit),
               limit: view.settings.limit,
             })
           : battleSizeLabel(view.settings.limit, pointsBudget)
@@ -729,7 +730,7 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
               renderSide={(side) => <PrebattleAnswer side={side} rule="scouts" />}
               hint={`Sides alternate resolving pre-battle rules${firstSide ? `, ${sideName(firstSide)} first` : ''}. Start battle opens the first Command phase.`}
             >
-              {youHaveAnArmy ? <PrebattleUnits sides={table} rule="scouts" empty="No unit has a pre-battle move." /> : null}
+              {youHaveAnArmy ? <PrebattleUnits sides={table} /> : null}
             </SpineStep>
           </ol>
           {reading ? <MissionDetailsDialog details={reading} onOpenChange={(open) => !open && setReading(null)} /> : null}

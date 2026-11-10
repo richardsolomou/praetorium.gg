@@ -28,7 +28,7 @@ import { textNickname, textNote, type TextRoster, type TextRosterUnit } from '..
 import { nicknamedUnit } from '../core/unitNotes'
 import { gwTextGroup, gwTextVersionLines, toGwText, type GwTextRoster } from '../core/gwText'
 import type { UnitGroup } from '../core/unitGroups'
-import { allowsPointsBudget, customPointsBudget, GAME_SIZES, isGameSize, pointsBudgetError } from '../core/battle'
+import { allowsPointsBudget, battleSizeTitle, customPointsBudget, GAME_SIZES, isGameSize, pointsBudgetError } from '../core/battle'
 import { catalogueFactionName, factionDisplayName } from './factionNames'
 import { englishNames, NO_TRANSLATIONS, translationsOf, type CatalogueTranslations } from './catalogueTranslations'
 import {
@@ -377,18 +377,13 @@ function importTextRoster(
   // and their Crusade variant, resolve as that name does.
   let printedDatasheets: Map<string, Set<string>> | undefined
   const printedDatasheet = (name: string) => {
-    printedDatasheets ??= new Map(
-      datasheets
-        .flatMap((datasheet) =>
-          (datacardOf(loaded, faction.id, datasheet.id)?.details.printedName ?? []).map(
-            (spelling) => [normalized(spelling), datasheet.name] as const,
-          ),
-        )
-        .reduce(
-          (found, [spelling, own]) => found.set(spelling, (found.get(spelling) ?? new Set()).add(own)),
-          new Map<string, Set<string>>(),
+    printedDatasheets ??= datasheets
+      .flatMap((datasheet) =>
+        (datacardOf(loaded, faction.id, datasheet.id)?.details.printedName ?? []).map(
+          (spelling) => [normalized(spelling), datasheet.name] as const,
         ),
-    )
+      )
+      .reduce((found, [spelling, own]) => found.set(spelling, (found.get(spelling) ?? new Set()).add(own)), new Map<string, Set<string>>())
     const owns = printedDatasheets.get(name)
     return owns?.size === 1 ? datasheetNamed([...owns][0]!) : undefined
   }
@@ -618,8 +613,8 @@ const printedDetachments = (loaded: LoadedCatalogue) =>
 function detachmentsNamed<T extends { id: string; name: string }>(
   combined: string,
   options: readonly T[],
-  translations: CatalogueTranslations = NO_TRANSLATIONS,
-  printed: ReadonlyMap<string, readonly string[]> = new Map(),
+  translations: CatalogueTranslations,
+  printed: ReadonlyMap<string, readonly string[]>,
 ): T[] {
   const names = new Map(
     options.map((option) => [
@@ -659,7 +654,6 @@ function detachmentsNamed<T extends { id: string; name: string }>(
 const upgradeName = (name: string) => name.replace(/(?:\s+\((?:one per army|Upgrade)\))+$/i, '')
 const nameVariants = (name: string) => normalizedNameVariants(normalized(name))
 const modelLoadout = /\s+w\/\s*(.+)$/i
-// BSData can also bracket the loadout, as a "Sicarian Infiltrator Princeps (Taser goad & flechette blaster)".
 // BSData names these models after their units; neither the catalogue nor the cards hold the names the official app prints.
 const APP_MODEL_NAMES = new Map([
   ['sentinel guard sodality', ['custodian guard']],
@@ -695,8 +689,8 @@ const spellingKey = (name: string) =>
 const powerWeaponKey = (key: string) => key.replace(/power(?:sword|maul)/, 'powerweapon')
 // The official app names a datasheet's plain melee profile "Close combat weapon" where the catalogue names it for what it is, as a Prosecutor's "Gun Stock".
 const GENERIC_MELEE = spellingKey('close combat weapon')
-/** The kind of model a counted group fields, as "1 - 2 Gun Servitors" fields a "Gun Servitor", which the official app names it by. */
 const CHAOS_GODS = ['khorne', 'nurgle', 'slaanesh', 'tzeentch']
+/** The kind of model a counted group fields, as "1 - 2 Gun Servitors" fields a "Gun Servitor", which the official app names it by. */
 const groupKind = (name: string) => normalized(name).match(/^\d+(?:\s*-\s*\d+)?\s+(.+?)s?$/)?.[1]
 
 /**
@@ -1445,6 +1439,10 @@ function modelLoadouts(entryId: string, index: LoadedCatalogue['index']) {
   return found
 }
 
+function recordSpelling(names: Map<string, string | null>, key: string, name: string) {
+  names.set(key, names.has(key) && names.get(key) !== name ? null : name)
+}
+
 /** A datasheet's names keyed by spellingKey, as BSData's "Relic Great Axe" is the app's "Relic Greataxe"; null where two collide. */
 function respelledNames(entryId: string, index: LoadedCatalogue['index']) {
   const names = new Map<string, string | null>()
@@ -1456,7 +1454,7 @@ function respelledNames(entryId: string, index: LoadedCatalogue['index']) {
     const profile = target.type === 'model' ? modelProfileOf(definition, index) : null
     for (const name of new Set([nameOf(definition, index.definitions), target.name ?? '', profile ?? ''].filter(Boolean).map(normalized))) {
       const key = spellingKey(name)
-      names.set(key, names.has(key) && names.get(key) !== name ? null : name)
+      recordSpelling(names, key, name)
       // The catalogue can name a piece after its unit where a list does not, as a Gladiator Lancer's "Lancer laser destroyer".
       const words = name.split(' ')
       const at = words.findIndex((word, position) => !unitWords.has(word) || position === words.length - 1)
@@ -1485,7 +1483,7 @@ function respelledNames(entryId: string, index: LoadedCatalogue['index']) {
   })
   // Only where the catalogue's own names leave the key free; two such names for one key mean neither.
   const unprefixed = new Map<string, string | null>()
-  for (const [key, name] of prefixed) unprefixed.set(key, unprefixed.has(key) && unprefixed.get(key) !== name ? null : name)
+  for (const [key, name] of prefixed) recordSpelling(unprefixed, key, name)
   for (const [key, name] of unprefixed) if (!names.has(key)) names.set(key, name)
   return names
 }
@@ -1499,7 +1497,7 @@ function bearerNames(entryId: string, index: LoadedCatalogue['index']) {
     const owner = name.match(/\s(?:w\/|with)\s*(.+?)'s\s/)?.[1]
     if (!owner) return
     const key = spellingKey(owner)
-    names.set(key, names.has(key) && names.get(key) !== name ? null : name)
+    recordSpelling(names, key, name)
   })
   return names
 }
@@ -1599,14 +1597,14 @@ function placeableNames(
 function singleChoice(
   options: readonly { id: string }[],
   aliases: ReadonlyMap<string, ReadonlyMap<string, number>>,
-  counts: ReadonlyMap<string, number> | undefined,
+  counts: ReadonlyMap<string, number>,
   stated: ReadonlyMap<string, number>,
   offeredBy: ReadonlyMap<string, number>,
-  offeredApart: ReadonlyMap<string, number> = offeredBy,
+  offeredApart: ReadonlyMap<string, number>,
 ) {
   // A zero says the rest of the unit accounts for every one stated, as the squad's
   // splinter pistols do when only the leader's blast pistol is hers.
-  const candidates = options.filter((option) => (counts?.get(option.id) ?? 0) > 0)
+  const candidates = options.filter((option) => (counts.get(option.id) ?? 0) > 0)
   const exclusive = (offers: ReadonlyMap<string, number>) =>
     candidates.find((option) => [...(aliases.get(option.id)?.keys() ?? [])].some((name) => offers.get(name) === 1 && stated.has(name)))
   return (exclusive(offeredBy) ?? exclusive(offeredApart) ?? candidates[0])?.id
@@ -1877,7 +1875,7 @@ export function readableRoster(data: ExportRosterInput, loaded: LoadedCatalogue,
     faction: factionDisplayName(faction),
     detachments: priced.detachments.map(({ name, points }) => ({ name, points })),
     dispositions: dispositionNames,
-    size: GAME_SIZES.find((size) => size.limit === data.limit)?.name ?? 'Battle',
+    size: battleSizeTitle(data.limit),
     limit: data.limit,
     ...(data.pointsBudget ? { pointsBudget: data.pointsBudget } : {}),
     points: priced.points,

@@ -279,7 +279,7 @@ const noop = () => undefined
 const NONE: never[] = []
 
 /** A line under the unit's name: an enhancement, an upgrade, or who it is standing with. */
-export const ROW = 'flex items-center border-t border-edge px-2.5 py-1'
+const ROW = 'flex items-center border-t border-edge px-2.5 py-1'
 const MENU = 'w-44'
 const ITEM = 'text-xs font-semibold uppercase'
 

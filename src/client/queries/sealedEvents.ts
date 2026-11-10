@@ -41,10 +41,10 @@ export const outdatedSealedEventEntriesQuery = (rosterId: string) =>
     queryFn: () => outdatedSealedEventEntriesForRoster({ data: { rosterId } }),
     staleTime: SSR_STALE_TIME,
   })
-export const sealedEventQuery = (token: string, eventToken?: string) =>
+export const sealedEventQuery = (token: string) =>
   queryOptions({
-    queryKey: sealedEventKey(token, eventToken),
-    queryFn: () => openSealedEvent({ data: { token, eventToken } }),
+    queryKey: sealedEventKey(token),
+    queryFn: () => openSealedEvent({ data: { token } }),
     staleTime: SSR_STALE_TIME,
     refetchInterval: ({ state }) => (state.data?.revealedAt ? false : 5_000),
   })

@@ -22,7 +22,7 @@ import {
 const MCP_REQUEST_MAX_BYTES = 64 * 1024
 
 export async function handleReferenceMcp(request: Request) {
-  if (request.method !== 'POST') return referenceMcpResponse(methodNotAllowed())
+  if (request.method !== 'POST') return referenceMcpResponse(mcpError(405, -32000, 'Method not allowed.', { Allow: 'POST' }))
   const limited = referenceRateLimit(request)
   if (limited) return referenceMcpResponse(limited)
   const body = await boundedMcpBody(request)
@@ -106,12 +106,6 @@ function referenceMcpResponse(response: Response) {
   headers.set('Cache-Control', 'no-store')
   return new Response(response.body, { status: response.status, statusText: response.statusText, headers })
 }
-
-const methodNotAllowed = () =>
-  Response.json(
-    { jsonrpc: '2.0', error: { code: -32000, message: 'Method not allowed.' }, id: null },
-    { status: 405, headers: { Allow: 'POST' } },
-  )
 
 const mcpError = (status: number, code: number, message: string, headers?: HeadersInit) =>
   Response.json({ jsonrpc: '2.0', error: { code, message }, id: null }, { status, headers })

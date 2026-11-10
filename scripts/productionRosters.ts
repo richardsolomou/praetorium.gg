@@ -42,7 +42,7 @@ function loadEditions(directory: string) {
   )
 }
 
-export async function productionRostersMain(args: string[]) {
+async function productionRostersMain(args: string[]) {
   const apply = args[0] === 'normalise' && args.at(-1) === '--apply'
   const [command, snapshotFile = defaultSnapshot, catalogueDir, baselineFile] = apply ? args.slice(0, -1) : args
   const maximum = command === 'audit' ? 4 : command === 'normalise' ? 2 + Number(apply) : 2

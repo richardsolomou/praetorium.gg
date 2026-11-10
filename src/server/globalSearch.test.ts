@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { categories, points, shelfOf } from './catalogue.fixtures'
 import { compiledGlobalSearchIndex, searchEverything } from './globalSearch'
 import type { LoadedRules } from './rules'
-import type { RuleDocument } from './rulesCore'
+import type { RuleDocument } from '../contracts/rules'
 
 it('links preview search results through the stable faction path', () => {
   const catalogue = shelfOf({
@@ -319,7 +319,6 @@ describe('global datasheet search', () => {
       name: 'Deathwatch',
       datasheets: new Set(),
       datasheetDetails: new Map(),
-      datasheetIds: new Map(),
       detachments: new Set(['Black Spear Task Force']),
       enhancements: new Map(),
       stratagems: new Map(),

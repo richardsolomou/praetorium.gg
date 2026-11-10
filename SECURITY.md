@@ -17,7 +17,7 @@ Security fixes target the current `main` branch and [praetorium.gg](https://prae
 Praetorium stores accounts, army lists, and battle history. Relevant reports include any way to:
 
 - Act as another player.
-- Read a battle without a seat or invitation.
+- Read private roster data or another player's face-down Secret Mission.
 - Take a seat without permission.
 - Submit a command that the domain rules reject.
 - Bypass mutation origin checks, session handling, redirect validation, or event-stream authorization.

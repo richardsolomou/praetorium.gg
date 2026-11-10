@@ -26,11 +26,11 @@ import { loadSnapshotWithRules } from './lib/catalogueSnapshotLoad'
 
 export const PREVIEW_EMAIL = 'preview@praetorium.gg'
 export const PREVIEW_PASSWORD = 'preview-preview-preview'
-export const PREVIEW_OPPONENT_EMAIL = 'opponent@praetorium.gg'
+const PREVIEW_OPPONENT_EMAIL = 'opponent@praetorium.gg'
 const PREVIEW_OPPONENT_PASSWORD = 'opponent-opponent-opponent'
-export const PREVIEW_ALLY_EMAIL = 'ally@praetorium.gg'
+const PREVIEW_ALLY_EMAIL = 'ally@praetorium.gg'
 const PREVIEW_ALLY_PASSWORD = 'ally-ally-ally-ally'
-export const PREVIEW_RIVAL_EMAIL = 'rival@praetorium.gg'
+const PREVIEW_RIVAL_EMAIL = 'rival@praetorium.gg'
 const PREVIEW_RIVAL_PASSWORD = 'rival-rival-rival-rival'
 const PREVIEW_STRANGER_EMAIL = 'stranger@praetorium.gg'
 const PREVIEW_STRANGER_PASSWORD = 'stranger-stranger-stranger'
@@ -42,7 +42,7 @@ const PRACTICE_OPPONENTS = [
   { id: 'practice-opponent-2', name: 'Practice Opponent II' },
 ] as const
 
-export type PreviewRoster = {
+type PreviewRoster = {
   id: string
   name: string
   catalogueId: string
@@ -148,7 +148,7 @@ const PREVIEW_PLAYER_ROSTERS: readonly PreviewRoster[] = [
 ]
 
 /** Four more factions for the second interactive login. */
-export const PREVIEW_OPPONENT_ROSTERS: readonly PreviewRoster[] = [
+const PREVIEW_OPPONENT_ROSTERS: readonly PreviewRoster[] = [
   {
     id: 'preview-opponent-orks',
     name: 'Taktikal Stompa 2K',
@@ -242,18 +242,18 @@ function rosterCopy(source: PreviewRoster, id: string): PreviewRoster {
   return { ...source, id, picks: source.picks.map((pick) => ({ ...pick })) }
 }
 
-export const PREVIEW_ROSTERS: readonly PreviewRoster[] = [
+const PREVIEW_ROSTERS: readonly PreviewRoster[] = [
   ...PREVIEW_PLAYER_ROSTERS,
   ...PREVIEW_OPPONENT_ROSTERS.map((roster) => rosterCopy(roster, roster.id.replace('preview-opponent-', 'preview-'))),
 ]
 
-export const PREVIEW_ALLY_ROSTERS: readonly PreviewRoster[] = [
+const PREVIEW_ALLY_ROSTERS: readonly PreviewRoster[] = [
   rosterCopy(PREVIEW_PLAYER_ROSTERS[3]!, 'preview-ally-death-guard'),
   rosterCopy(PREVIEW_PLAYER_ROSTERS[1]!, 'preview-ally-space-marines'),
   rosterCopy(PREVIEW_PLAYER_ROSTERS[2]!, 'preview-ally-astra-militarum'),
 ]
 
-export const PREVIEW_RIVAL_ROSTERS: readonly PreviewRoster[] = [
+const PREVIEW_RIVAL_ROSTERS: readonly PreviewRoster[] = [
   rosterCopy(PREVIEW_OPPONENT_ROSTERS[3]!, 'preview-rival-world-eaters'),
   rosterCopy(PREVIEW_OPPONENT_ROSTERS[1]!, 'preview-rival-tyranids'),
   rosterCopy(PREVIEW_OPPONENT_ROSTERS[0]!, 'preview-rival-orks'),
@@ -281,7 +281,7 @@ export const PREVIEW_ACCOUNTS = [
 
 const PREVIEW_ALL_ROSTERS = PREVIEW_ACCOUNTS.flatMap((account) => account.rosters)
 
-export type PreviewSnapshots = ReadonlyMap<string, Roster>
+type PreviewSnapshots = ReadonlyMap<string, Roster>
 
 export function previewAccountId(database: string, email: string) {
   return hash('sha256', `${database}\0${email}`).slice(0, 32)

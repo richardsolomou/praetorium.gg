@@ -1,7 +1,16 @@
 import { withoutFactionPrefix } from '../core/name'
 import { canonicalDetachmentName } from '../core/detachmentName'
 import { cachedIn, remember, uniqueBy } from '../core/collections'
-import { type Definition, definitionAndTarget, type InfoGroup, type InfoLink, nameOf, type Profile, targetOf } from '../core/catalogue'
+import {
+  type Definition,
+  definitionAndTarget,
+  profileDescription,
+  type InfoGroup,
+  type InfoLink,
+  nameOf,
+  type Profile,
+  targetOf,
+} from '../core/catalogue'
 import { withoutText } from './sourceText'
 import { referenceAttachmentOf } from '../core/attach'
 import {
@@ -88,12 +97,6 @@ export function unitBattleDetailsIn(loaded: LoadedCatalogue, catalogueId: string
   })
 }
 
-export function unitWoundsIn(loaded: LoadedCatalogue, catalogueId: string, entryIds: readonly string[]) {
-  return unitBattleDetailsIn(loaded, catalogueId, entryIds).flatMap(({ entryId, wounds }) =>
-    wounds === undefined ? [] : [{ entryId, wounds }],
-  )
-}
-
 type DatasheetContext = {
   selections: readonly Selection[]
   unitSelectionIndex?: number
@@ -109,9 +112,6 @@ type DatasheetContext = {
   choiceCache?: UnitChoiceCache
   modifierCache?: ModifierCache
 }
-
-const abilityDescription = (profile: Profile) =>
-  profile.characteristics?.find((characteristic) => characteristic.name === 'Description')?.$text ?? null
 
 type Walked = NonNullable<ReturnType<typeof walk>>
 
@@ -143,12 +143,12 @@ export function contextualAbilityNamesIn(
       ? defaultSelection(entryId, loaded.index, { primaryCatalogueId: catalogueId })
       : context.selections[context.unitSelectionIndex]
   const definitions = selected ? definitionsInSelections([selected], [0], loaded.index) : []
-  const intrinsic = [root, targetOf(root, loaded.index.definitions)]
+  const intrinsic = definitionAndTarget(root, loaded.index)
   return [
     ...new Set([
       ...intrinsic.flatMap((definition) => linkedAbilityNames(definition, loaded.index, catalogueId, context.selections)),
       ...definitions.flatMap((definition) =>
-        [definition, targetOf(definition, loaded.index.definitions)].flatMap((source) => abilityProfileNames(source, loaded.index)),
+        definitionAndTarget(definition, loaded.index).flatMap((source) => abilityProfileNames(source, loaded.index)),
       ),
       ...grantedAbilitiesInAttachedUnit(
         context.selections,
@@ -371,7 +371,7 @@ function walk(loaded: LoadedCatalogue, catalogueId: string, entryId: string, con
         modifiers,
       ).value
       if (hidden === 'true') return
-      abilities.set(`${kind}:${profile.id}`, { id: profile.id, name: profile.name, source, description: abilityDescription(profile), kind })
+      abilities.set(`${kind}:${profile.id}`, { id: profile.id, name: profile.name, source, description: profileDescription(profile), kind })
     } else if (!abilitiesOnly) {
       profiles.set(profile.id, { profile, lineage, owner })
     }
@@ -848,7 +848,7 @@ function grantedAbilitiesInAttachedUnit(
     })
     const abilities = selection
       ? definitionsInSelections([selection], [0], index).flatMap((selected) =>
-          [selected, targetOf(selected, index.definitions)].flatMap((source) => [
+          definitionAndTarget(selected, index).flatMap((source) => [
             ...linkedAbilityNames(source, index, catalogueId, selections),
             ...abilityProfileNames(source, index),
           ]),
@@ -860,14 +860,14 @@ function grantedAbilitiesInAttachedUnit(
   const companionReferences = companionIndexes.flatMap((at) => referencesAt(at, keywordsBySelection[at] ?? []))
   const collect = (definitions: readonly Definition[], origin: 'self' | 'companion') => {
     for (const definition of definitions) {
-      for (const source of [definition, targetOf(definition, index.definitions)]) {
+      for (const source of definitionAndTarget(definition, index)) {
         const linkedAbilities = linkedAbilityNames(source, index, catalogueId, selections)
         const hasConditionalAbilityLink = flattenedModifiers([source]).some(
           (modifier) => modifier.type === 'add' && modifier.field === 'add-info' && isConditionalModifier(modifier),
         )
         for (const profile of abilityProfilesOf(source, index)) {
           const grants = parsedAbilityGrants(
-            abilityDescription(profile),
+            profileDescription(profile),
             companionIndexes.length > 0,
             linkedAbilities,
             !hasConditionalAbilityLink,
@@ -950,7 +950,7 @@ function weaponAbilitiesInSelectedUnit(
           /^(Ranged|Melee) weapons equipped by (?:the bearer|models in this unit) have (?:the )?\[([^\]]+)\] ability\.$/iu,
         )
         const unitAttacks = !match
-          ? abilityDescription(profile)
+          ? profileDescription(profile)
               ?.normalize('NFKC')
               .trim()
               .match(/(?:^This unit['’]s|(?:^|\n\n)[A-Z][A-Z -]+ unit only\. This unit['’]s) (melee|ranged) attacks have \[([^\]]+)\]\.$/u)
@@ -978,7 +978,7 @@ function weaponAbilitiesInAttachedUnit(
   if (unitSelectionIndex === undefined || !companionIndexes.length) return []
   const found = new Map<string, GrantedWeaponAbility>()
   for (const definition of definitionsInSelections(selections, [unitSelectionIndex, ...companionIndexes], index)) {
-    for (const source of [definition, targetOf(definition, index.definitions)]) {
+    for (const source of definitionAndTarget(definition, index)) {
       for (const profile of abilityProfilesOf(source, index)) {
         const description = normalizedAbilityDescription(profile)
         const match = description?.match(
@@ -1002,7 +1002,7 @@ function invulnerableSavesInSelectedUnit(
   if (unitSelectionIndex === undefined) return []
   const found = new Map<string, GrantedInvulnerableSave>()
   for (const definition of definitionsInSelections(selections, [unitSelectionIndex], index)) {
-    for (const source of [definition, targetOf(definition, index.definitions)]) {
+    for (const source of definitionAndTarget(definition, index)) {
       for (const profile of abilityProfilesOf(source, index)) {
         const value = normalizedAbilityDescription(profile)?.match(/^This model has an? (\d+\+) invulnerable save\.$/i)?.[1]
         if (!value) continue
@@ -1032,7 +1032,7 @@ function definitionsInSelections(
   return [...found.values()]
 }
 
-const normalizedAbilityDescription = (profile: Profile) => abilityDescription(profile)?.normalize('NFKC').replaceAll(/\s+/g, ' ').trim()
+const normalizedAbilityDescription = (profile: Profile) => profileDescription(profile)?.normalize('NFKC').replaceAll(/\s+/g, ' ').trim()
 
 function addGrantedInvulnerableSave(
   values: Datasheet['profiles'][number]['values'],

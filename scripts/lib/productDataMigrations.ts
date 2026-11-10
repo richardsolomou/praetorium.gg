@@ -1,3 +1,4 @@
+import { boundedBytes } from '../../src/server/boundedBody.ts'
 import pRetry from 'p-retry'
 import { z } from 'zod'
 import { spacetimeDatabaseUrl } from 'ras-stack/spacetime'
@@ -13,23 +14,7 @@ type Source = {
 }
 
 async function responseJson(response: Response) {
-  if (!response.body) throw new Error('Missing product migration response')
-  const reader = response.body.getReader()
-  const chunks: Uint8Array[] = []
-  let bytes = 0
-  try {
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) break
-      bytes += value.byteLength
-      if (bytes > 32_000_000) throw new Error('Product migration response exceeds 32 MB')
-      chunks.push(value)
-    }
-    return JSON.parse(Buffer.concat(chunks).toString('utf8')) as unknown
-  } finally {
-    await reader.cancel()
-    reader.releaseLock()
-  }
+  return JSON.parse((await boundedBytes(response, 32_000_000, 'Product migration response exceeds 32 MB')).toString('utf8')) as unknown
 }
 
 export async function migrateProductData(source: Source, request: typeof fetch = fetch, retryMs = 2_000) {

@@ -154,7 +154,7 @@ const writeOutcomeSchema = z.strictObject({
 export type RosterWriteOutcome = z.infer<typeof writeOutcomeSchema>
 
 type RosterWrite = NonNullable<NormalisedRoster['write']>
-export type NormalisedRosterWrite = { id: string; updatedAt: number; expected: RosterWrite; write: RosterWrite }
+type NormalisedRosterWrite = { id: string; updatedAt: number; expected: RosterWrite; write: RosterWrite }
 
 export async function writeNormalisedRostersOverSsh(
   host: string,

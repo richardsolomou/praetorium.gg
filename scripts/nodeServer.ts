@@ -26,7 +26,7 @@ const execFile = promisify(execFileCallback)
 const v8Coverage = (child: 'seed' | 'server') =>
   process.env.LOCAL_COVERAGE_DIR ? { NODE_V8_COVERAGE: path.join(process.env.LOCAL_COVERAGE_DIR, child) } : {}
 
-export function nodeBuildDirectory(environment: NodeJS.ProcessEnv = process.env) {
+function nodeBuildDirectory(environment: NodeJS.ProcessEnv = process.env) {
   return environment.LOCAL_BUILD_DIR ? path.resolve(environment.LOCAL_BUILD_DIR) : fileURLToPath(new URL('../.output', import.meta.url))
 }
 
@@ -86,7 +86,7 @@ export function cacheAssetResponse(
 
 /**
  * The edge in front of this server replaces `x-forwarded-for` with its own address, so PostHog (through the ingest
- * proxy), the reference rate limit and the crawler log all saw one client. Cloudflare's `cf-connecting-ip` still names
+ * proxy), the reference rate limit and the crawler log would see one client. Cloudflare's `cf-connecting-ip` still names
  * the visitor; it goes first, and anything that is not an address is ignored.
  */
 export function forwardVisitor(request: Pick<IncomingMessage, 'headers'>) {

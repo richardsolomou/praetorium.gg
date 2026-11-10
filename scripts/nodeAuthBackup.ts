@@ -16,7 +16,7 @@ function configuredR2() {
   return r2
 }
 
-export async function restoreAuthArchive(bytes: Uint8Array, target: string) {
+async function restoreAuthArchive(bytes: Uint8Array, target: string) {
   if (!path.isAbsolute(target)) throw new Error('Auth restore target must be absolute')
   if (bytes.byteLength > maxArchiveBytes) throw new Error('Auth archive is too large')
   let expanded = 0

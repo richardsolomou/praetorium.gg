@@ -86,7 +86,7 @@ const publicQueryFamilies = {
   opponents: ['opponents', 'player-search'],
 } as const
 
-export type ProductScope = keyof typeof queryFamilies
+type ProductScope = keyof typeof queryFamilies
 
 const followRosterSignals = new Set<string>(['discovered-rosters', 'roster-loans', 'rosters-lent-to-me'])
 /** What a roster write refreshes; live roster signals refresh discovery and loans, so the write does not wait on them. */

@@ -313,7 +313,7 @@ export function useCommand(token: string, seq: number) {
           .then((shown) => {
             if (shown) options?.shown?.()
             if (!shown) {
-              // Disabled controls take over from here; controls that ignore `pending` queue their presses as before.
+              // Disabled controls take over from here; controls that ignore `pending` keep queueing their presses.
               if (!unshown.current.delete(item)) return
               awaiting.current = true
               setPending(true)
