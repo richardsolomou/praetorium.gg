@@ -12,5 +12,8 @@ export const ROSTER_SORT_COOKIE = 'praetorium_roster_sort'
 /** Whether the library last had a data update notice, read by the server so the first frame keeps the notice's line while it loads. */
 export const ROSTER_NOTICES_COOKIE = 'praetorium_roster_notices'
 
+/** How many rows the unfiltered library last showed, read by the server so the first frame reserves that many while it loads. */
+export const ROSTER_ROWS_COOKIE = 'praetorium_roster_rows'
+
 /** Whether the builder shelves attached units together, read by the server so the first frame is already arranged. */
 export const ROSTER_ARRANGEMENT_COOKIE = 'praetorium_roster_arrangement'

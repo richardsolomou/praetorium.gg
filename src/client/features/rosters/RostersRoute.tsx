@@ -16,6 +16,7 @@ export function RostersRoute({
   guestDraft: hinted,
   sort,
   notices,
+  rows,
 }: {
   search: RostersSearch
   /** Whether the request said this browser holds a visitor's list, so the first frame holds its row or the claim it becomes. */
@@ -23,6 +24,8 @@ export function RostersRoute({
   sort: ReturnType<typeof keptRosterSort>
   /** Whether the library last had a data update notice, so the first frame keeps its line. */
   notices: boolean
+  /** How many rows the unfiltered library last showed, so the first frame reserves them. */
+  rows: number
 }) {
   const { data: me } = useQuery(meQuery())
   const [{ ready, guest }, setGuest] = useGuestDraft(hinted)
@@ -34,6 +37,7 @@ export function RostersRoute({
       search={search}
       sort={sort}
       notices={notices}
+      rows={rows}
       starting={starting && ready}
       reference={reference}
       device={{ guest, pending: !ready && hinted, onChange: setGuest }}

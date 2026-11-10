@@ -1,6 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { keptRosterSort } from '../client/features/rosters/rosterSort'
-import { GUEST_DRAFT_COOKIE, ROSTER_NOTICES_COOKIE, ROSTER_SORT_COOKIE } from '../contracts/rosterCookies'
+import { GUEST_DRAFT_COOKIE, ROSTER_NOTICES_COOKIE, ROSTER_ROWS_COOKIE, ROSTER_SORT_COOKIE } from '../contracts/rosterCookies'
+import { keptRosterRows } from '../client/features/rosters/rosterCookie'
 import { requestCookie } from '../server/requestCookie'
 import {
   discoveryFilter,
@@ -49,6 +50,7 @@ export const Route = createFileRoute('/rosters/')({
       guestDraft: requestCookie(GUEST_DRAFT_COOKIE) === '1',
       sort: keptRosterSort(requestCookie(ROSTER_SORT_COOKIE)),
       notices: requestCookie(ROSTER_NOTICES_COOKIE) === '1',
+      rows: keptRosterRows(requestCookie(ROSTER_ROWS_COOKIE)),
     }
   },
   head: ({ match }) =>
@@ -79,6 +81,6 @@ export const Route = createFileRoute('/rosters/')({
 })
 
 function RosterLibraryRoute() {
-  const { guestDraft, sort, notices } = Route.useLoaderData()
-  return <RostersRoute search={Route.useSearch()} guestDraft={guestDraft} sort={sort} notices={notices} />
+  const { guestDraft, sort, notices, rows } = Route.useLoaderData()
+  return <RostersRoute search={Route.useSearch()} guestDraft={guestDraft} sort={sort} notices={notices} rows={rows} />
 }
