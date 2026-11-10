@@ -8,6 +8,7 @@
  * come out the size the player set it to.
  */
 
+import { byId } from './collections'
 import { type CatalogueIndex, type Definition, resolve } from './catalogue'
 import { isCollectiveGroup, storesUnitTotal } from './collective'
 import {
@@ -119,7 +120,7 @@ function spreadOptions(
 ): Selection {
   const requested = new Set(Object.keys(counts))
   const occupants = childrenOf(group, index)
-  const byId = new Map(occupants.map((option) => [option.id, option]))
+  const optionsById = byId(occupants)
   const asking = Object.values(counts).some((count) => count > 0)
   const carrier = asking ? withExpandedCarrier(selection, path, index) : selection
   if (!selectedCarriers(carrier, path, index)) return selection
@@ -135,7 +136,7 @@ function spreadOptions(
       selections: [
         ...(held.selections ?? []).filter((child) => !requested.has(child.id)),
         ...Object.entries(counts).flatMap(([optionId, count]) => {
-          const option = byId.get(optionId)
+          const option = optionsById.get(optionId)
           return option && count > 0 ? [expand(option.id, option.definition, index, MAX_DEPTH, count, new Set(), 1)] : []
         }),
       ],

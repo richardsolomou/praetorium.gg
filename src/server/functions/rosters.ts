@@ -3,6 +3,7 @@ import { setImmediate as yieldToEventLoop } from 'node:timers/promises'
 import { changesTouching } from '../../core/catalogueChanges'
 import { historySince } from '../../core/catalogueHistory'
 import { app } from '../app'
+import { requireCatalogue } from '../requireCatalogue'
 import { currentUserId, forSignedIn, requireUserId } from '../playerSession'
 import { calculateRosterPrice } from '../../shared/pricing'
 import { cachedRosterAssessmentsFor, cachedRosterPrice, cachedRosterTotalsFor, cachedRosterVerdictsFor } from '../rosterPrices'
@@ -627,8 +628,7 @@ export const exportRoster = createServerFn({ method: 'POST' })
   .handler(({ data }) =>
     mutationRpc(async () => {
       const instance = app()
-      const loaded = await instance.catalogueFor(data.catalogueId)
-      if (!loaded) throw new Response('army data is not available', { status: 409 })
+      const loaded = await requireCatalogue(data.catalogueId)
       const rules = await instance.rulesFor(data.catalogueId)
       const priced = calculateRosterPrice(data, loaded, rules)
       if (!priced) throw new Response('army data is not available', { status: 409 })

@@ -100,8 +100,8 @@ export function Scoreboard({ view, clock, sides }: Props) {
  */
 function Result({ view, sides }: Omit<Props, 'clock'>) {
   const result = battleResult(sides, view)
-  const winner = result.kind === 'win' ? sides.find((side) => side.index === result.side.index) : undefined
-  if (!winner || result.kind !== 'win') return <h1 className="text-sm leading-tight font-bold text-balance uppercase">{result.detail}</h1>
+  if (result.kind !== 'win') return <h1 className="text-sm leading-tight font-bold text-balance uppercase">{result.detail}</h1>
+  const winner = result.side
   const colours = tint(winner.index)
   return (
     <h1 className="text-base leading-tight font-bold text-balance uppercase sm:text-lg">

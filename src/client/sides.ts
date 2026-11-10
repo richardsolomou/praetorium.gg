@@ -40,8 +40,6 @@ export type Army = {
   /** The saved list this army came from, when it came from one. */
   rosterId: string | null
   units: ViewPlayer['units']
-  /** How many of them are still on the table, folded by the domain rather than counted again here. */
-  standing: number
   /** How many units the army plays after attachments are formed. */
   unitCount: number
   painted: boolean
@@ -234,7 +232,6 @@ function toArmy(player: ViewPlayer): Army {
     roster: player.roster,
     rosterId: player.roster?.id ?? null,
     units: player.units,
-    standing: player.standing,
     unitCount: player.unitCount,
     painted: player.painted,
     paintedPoints: player.paintedPoints,

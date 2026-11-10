@@ -10,7 +10,7 @@ export const Route = createFileRoute('/api/spacetime/token')({
     handlers: {
       GET: async ({ request }) => {
         const instance = app()
-        if (!instance.spacetimeToken || !process.env.SPACETIME_DATABASE) return new Response(null, { status: 404 })
+        if (!process.env.SPACETIME_DATABASE) return new Response(null, { status: 404 })
         const battle = new URL(request.url).searchParams.get('battle')
         // Like every battle read, the seat this device holds comes before the account, and only in its own battle.
         const guest = battle ? await heldGuestSeat(battle) : null

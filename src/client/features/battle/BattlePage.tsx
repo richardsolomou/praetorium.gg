@@ -83,8 +83,7 @@ function FinishedBattle({ screen }: { screen: Extract<Awaited<ReturnType<typeof 
   const won = useMemo(() => {
     const table = sides(view, missions)
     const result = battleResult(table, view)
-    const side = result.kind === 'win' ? table.find((entry) => entry.index === result.side.index) : undefined
-    return side?.isViewer ? side.index : null
+    return result.kind === 'win' && result.side.isViewer ? result.side.index : null
   }, [missions, view])
   useEffect(() => {
     if (won !== null) void celebrateVictory(view.token, won)

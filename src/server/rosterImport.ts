@@ -12,6 +12,7 @@ import {
 } from '../shared/rosterFiles'
 import type { CatalogueTranslations } from '../shared/catalogueTranslations'
 import { app } from './app'
+import { requireCatalogue } from './requireCatalogue'
 
 export type Factions = NonNullable<Awaited<ReturnType<ReturnType<typeof app>['factionsFor']>>>['factions']
 
@@ -26,8 +27,7 @@ export async function importParsedList(parsed: TextRoster, format: RosterTextFor
   const instance = app()
   const translations = instance.catalogueTranslations()
   const faction = await importedFaction(parsed.faction, null, factions, translations)
-  const loaded = faction ? await instance.catalogueFor(faction.id) : null
-  if (faction && !loaded) throw new Response('army data is not available', { status: 409 })
+  const loaded = faction ? await requireCatalogue(faction.id) : null
   const rules = await instance.rulesFor(faction?.id)
   return importParsedRoster(
     parsed,
@@ -69,8 +69,7 @@ async function importText(file: string, factions: Factions) {
   const byUnits = base ? importRosterUnitFaction(file, base) : null
   const faction = named ?? (byUnits ? await importedFaction(byUnits.name, null, factions, translations) : null)
   if (statedCatalogueId && !faction) throw new Response('the exported codex version is not available', { status: 409 })
-  const loaded = faction ? await instance.catalogueFor(faction.id) : null
-  if (faction && !loaded) throw new Response('army data is not available', { status: 409 })
+  const loaded = faction ? await requireCatalogue(faction.id) : null
   const rules = await instance.rulesFor(faction?.id)
   const result = importRosterFile(
     { file },
@@ -90,8 +89,7 @@ async function importExchangeCode(code: string) {
   })
   const faction = await factionById(exchange.catalogueId)
   if (!faction) throw new Response(ROSTER_EXCHANGE_RULES_UNAVAILABLE, { status: 409 })
-  const loaded = await instance.catalogueFor(faction.id)
-  if (!loaded) throw new Response('army data is not available', { status: 409 })
+  const loaded = await requireCatalogue(faction.id)
   const rules = await instance.rulesFor(faction.id)
   return { result: importRosterExchange(exchange, loaded, rules, faction.name), loaded, rules }
 }

@@ -1,5 +1,6 @@
 /** Saved picks are rebuilt and repriced against the current catalogue. */
 
+import { byId } from './collections'
 import { type CatalogueIndex, type Definition, resolve } from './catalogue'
 import { isCollective, storesUnitTotal } from './collective'
 import { childrenOf, MAX_DEPTH, maximumCount, maximumCountAt, type Option, pointsOf, requiredCount } from './definitions'
@@ -540,7 +541,7 @@ function optionalModelSlots(selection: Selection, index: CatalogueIndex): ModelS
     const target = resolve(definition, index)
     if (depth <= 0 || seen.has(target.id)) return
     const visited = new Set(seen).add(target.id)
-    const present = new Map((node.selections ?? []).map((child) => [child.id, child]))
+    const present = byId(node.selections ?? [])
 
     for (const child of childrenOf(definition, index)) {
       const inner = resolve(child.definition, index)
@@ -627,7 +628,7 @@ function refit(selection: Selection, index: CatalogueIndex, carriers: number, op
 }
 
 /**
- * Moves a group's shortfall onto its default option, or its excess off the largest.
+ * Moves a group's shortfall onto its default option.
  *
  * The default is the one the data names, and failing that the cheapest — the same
  * order `defaultSelection` fills a group in, and for the same reason: filling with

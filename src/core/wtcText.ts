@@ -1,7 +1,15 @@
 import { fromBattleBaseText } from './battlebase'
 import { newRecruitUnits } from './newRecruit'
 import { plainQuotes, printedNumber } from './text'
-import { attachGroups, starredLabel, type AttachedGroup, type TextRoster, type TextRosterUnit, WTC_SECTION } from './textRoster'
+import {
+  attachGroups,
+  defaultListName,
+  starredLabel,
+  type AttachedGroup,
+  type TextRoster,
+  type TextRosterUnit,
+  WTC_SECTION,
+} from './textRoster'
 
 const compactHeader = /^(?:Char\d+:\s*)?\d+x\s+.+\(\d[\d,]*\s*pts?\)/i
 const unitHeader = /^(.+?)\s+\((\d[\d,]*)\s*(?:pts?|points?)\)$/i
@@ -42,9 +50,8 @@ export function fromWtcText(input: string): TextRoster | null {
   const reportedPoints = points ? printedNumber(points) : undefined
   const size = battleSize(field('BATTLE SIZE'))
   const detachment = field('DETACHMENT')?.replace(/\s+\([^()]+\)\.?$/, '') ?? null
-  const factionName = faction.split(' - ').at(-1)!.trim()
   return {
-    name: field('LIST NAME') ?? (reportedPoints === undefined ? `${factionName} roster` : `${factionName} ${reportedPoints}pts`),
+    name: field('LIST NAME') ?? defaultListName(faction, reportedPoints),
     ...(reportedPoints === undefined ? {} : { reportedPoints }),
     faction,
     detachment: detachment === 'No detachment' ? null : detachment,

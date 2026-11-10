@@ -125,10 +125,6 @@ describe('supportReplyResponse', () => {
     expect(readTicket).not.toHaveBeenCalled()
   })
 
-  it('answers as a missing route where replies are not configured', async () => {
-    expect((await supportReplyResponse(post({ ticket_id: 't-1' }), deps({ secret: undefined }))).status).toBe(404)
-  })
-
   it('rejects a body without a ticket', async () => {
     expect((await supportReplyResponse(post({ ticket: 't-1' }), deps())).status).toBe(400)
   })

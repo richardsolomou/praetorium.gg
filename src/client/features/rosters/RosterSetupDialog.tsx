@@ -549,12 +549,7 @@ export function RosterSetupDialog({
                   <BookOpen />
                 </Button>
                 {faction ? (
-                  <FavouriteDetachmentToggle
-                    catalogueId={faction.id}
-                    detachmentId={detachment.id}
-                    name={detachment.name}
-                    className="size-7"
-                  />
+                  <FavouriteDetachmentToggle catalogueId={faction.id} detachmentId={detachment.id} name={detachment.name} />
                 ) : null}
               </div>
             )

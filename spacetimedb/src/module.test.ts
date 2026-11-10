@@ -443,6 +443,18 @@ describe('what a sealed event allows', () => {
     expect(sealedEvent.reveal(NOW + 2)).toMatchObject({ outcome: 'revealed', entrantIds: ['entrant'] })
   })
 
+  it('saves a duel’s points total changed on its own', () => {
+    const sealedEvent = setup('[]')
+    sealedEvent.update({ pointsBudget: 1500 })
+    expect(sealedEvent.event()?.pointsBudget).toBe(1500)
+  })
+
+  it('saves Swiss rounds changed on their own', () => {
+    const sealedEvent = setup('[]')
+    sealedEvent.update({ rounds: 4 })
+    expect(sealedEvent.event()?.rounds).toBe(4)
+  })
+
   it('refuses a list built to another points total than the event’s', () => {
     const sealedEvent = setup('[]')
     sealedEvent.set({ pointsBudget: 1500 })

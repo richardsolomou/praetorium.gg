@@ -256,14 +256,12 @@ function DeclineButton({
   chosen,
   editable,
   disabled = false,
-  highlightSelection = true,
   onDecline,
 }: {
   label: string
   chosen: boolean
   editable: boolean
   disabled?: boolean
-  highlightSelection?: boolean
   onDecline: () => void
 }) {
   const cursor = disabled ? 'cursor-wait' : editable ? 'hover:bg-raised' : 'cursor-not-allowed'
@@ -274,7 +272,7 @@ function DeclineButton({
       disabled={!editable || disabled}
       onClick={onDecline}
       className={`w-full ${OPTION} px-2.5 py-2 text-left text-xs font-semibold uppercase text-bone ${cursor} ${
-        !chosen && highlightSelection ? PICKED : 'border-edge'
+        !chosen ? PICKED : 'border-edge'
       }`}
     >
       {label}
@@ -318,7 +316,6 @@ export function SpecialChoice({
           <DeclineButton
             label={`No ${choice.kind === 'upgrade' ? 'upgrade' : 'enhancement'}`}
             chosen={Boolean(choice.chosen)}
-            highlightSelection={showOptions}
             editable={editable}
             disabled={controlsDisabled}
             onDecline={() => choose('')}
@@ -378,7 +375,6 @@ export function EitherChoice({
           <DeclineButton
             label="None"
             chosen={Boolean(choice.chosen)}
-            highlightSelection={showOptions}
             editable={editable}
             disabled={controlsDisabled}
             onDecline={() => onChoose(choice.key, '')}

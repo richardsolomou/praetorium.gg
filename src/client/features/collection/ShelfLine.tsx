@@ -18,7 +18,7 @@ const LINE: Record<Stage, { line: 'done' | 'todo'; style?: CSSProperties }> = {
  * A small pile gets one tick per model so a player can count it; a large one is split by share. The counts beside it carry
  * the same figures in words, so the line is hidden from screen readers.
  */
-export function ShelfLine({ owned, built, painted, className }: { owned: number; built: number; painted: number; className?: string }) {
+export function ShelfLine({ owned, built, painted }: { owned: number; built: number; painted: number }) {
   const progress = boundedProgress(owned, { built, painted })
   const stages: [Stage, number][] = [
     ['painted', progress.painted],
@@ -26,7 +26,7 @@ export function ShelfLine({ owned, built, painted, className }: { owned: number;
     ['unbuilt', owned - progress.built],
   ]
   return (
-    <span aria-hidden className={cn('flex h-1.5 w-full gap-0.5', owned > TICKED_MODELS && 'gap-1', className)}>
+    <span aria-hidden className={cn('flex h-1.5 w-full gap-0.5', owned > TICKED_MODELS && 'gap-1')}>
       {owned > TICKED_MODELS
         ? stages.map(([stage, count]) =>
             count ? (

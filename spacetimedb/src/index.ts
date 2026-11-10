@@ -5257,6 +5257,9 @@ function sealedEventCommandIn(tx: Context, args: unknown[]) {
       input.rule &&
       (shapeChanged ||
         pointsChanged ||
+        (input.rule.rounds !== undefined && (input.rule.rounds ?? undefined) !== event.rounds) ||
+        (input.rule.pointsBudget !== undefined &&
+          sealedEventPointsBudget(input.rule.format, input.rule.rosterLimit, input.rule.pointsBudget)?.budget !== event.pointsBudget) ||
         (input.rule.allowances !== undefined && JSON.stringify(input.rule.allowances) !== JSON.stringify(sealedEventAllowances(event))))
         ? input.rule
         : null

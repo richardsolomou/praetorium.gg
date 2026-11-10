@@ -17,7 +17,7 @@ import type { EvaluationError, Selection } from './evaluate'
 import { normalizedName, withoutFactionPrefix } from './name'
 import { sameText } from './text'
 
-/** Only an ability titled "Leader" establishes that role; other attachments default to support. */
+/** An ability titled "Leader" or a leading association establishes that role; other attachments default to support. */
 export type Attachment = {
   kind: 'leader' | 'support'
   targets: string[]
@@ -90,12 +90,12 @@ const constraintName = (constraint: { childId?: string; childName?: string }, in
   constraint.childName ?? index.categories.get(constraint.childId ?? '')?.name ?? ''
 
 /**
- * Which units this entry may be attached to, read out of its own ability text.
+ * Which units this entry may be attached to, read out of its own ability text and,
+ * given a selection, the associations that selection carries.
  *
- * This is parsing prose, which is not a thing to do lightly — but the relationship
- * exists nowhere else. There is no link, no category and no constraint that says a
- * Plasmancer may join Immortals; there is a sentence saying so. Finding nothing is
- * therefore an ordinary answer, not a failure: a character with no such sentence
+ * Parsing prose is not a thing to do lightly, but for most entries the relationship
+ * exists nowhere else: a sentence is what says a Plasmancer may join Immortals. Finding
+ * nothing is therefore an ordinary answer, not a failure: a character with neither
  * simply cannot be attached, and every name that fails to match a datasheet is
  * dropped rather than guessed at.
  */

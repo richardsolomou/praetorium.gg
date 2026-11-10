@@ -70,17 +70,17 @@ export const GROUP_ROSTER_RULE: Partial<Record<TableShape, string>> = {
 
 export function SealedEventRuleFields({
   value,
-  pairing = false,
-  shapeLock = null,
-  disabled = false,
+  pairing,
+  shapeLock,
+  disabled,
   onChange,
 }: {
   value: SealedEventRuleValue
   /** Whether the organizer may choose Swiss rounds, which a group's hidden-list game never plays. */
-  pairing?: boolean
+  pairing: boolean
   /** Why the format, size, pairing and a duel's own total can no longer change, while points per army and house rules still can. */
-  shapeLock?: string | null
-  disabled?: boolean
+  shapeLock: string | null
+  disabled: boolean
   onChange: (value: SealedEventRuleValue) => void
 }) {
   const shapeDisabled = disabled || shapeLock !== null

@@ -11,7 +11,6 @@ export function deploymentName(id: string | null, deployments: readonly { id: st
   return deploymentFor(id, deployments)?.name ?? null
 }
 
-/** Fold list rows by side, not seat order: a 2v1 creator can sit beside an ally in the first two seats. */
 type BattleSummary = {
   players: readonly string[]
   playerDetails?: readonly { id: string; name: string; image: string | null; automated: boolean }[]
@@ -41,6 +40,7 @@ export type SummarySide = {
   score: number
 }
 
+/** Fold list rows by side, not seat order: a 2v1 creator can sit beside an ally in the first two seats. */
 export function summarySides(battle: BattleSummary): SummarySide[] {
   const indexes = [...new Set(battle.sides)].toSorted((left, right) => left - right)
   return indexes.map((index) => {

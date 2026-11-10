@@ -88,7 +88,7 @@ type App = {
   /** How the community data is doing, so the interface can say rather than guess. */
   sync: () => SyncState
   auth: ReturnType<typeof createSqliteAuth>
-  spacetimeToken: ((headers: Headers) => Promise<string>) | null
+  spacetimeToken: (headers: Headers) => Promise<string>
   spacetimeGuestToken: (seatId: string, deviceHash: string) => Promise<string>
   email: ReturnType<typeof emailDelivery>
   /** Whether this instance sends push notifications; nothing else depends on it. */

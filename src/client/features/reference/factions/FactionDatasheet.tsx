@@ -3,7 +3,14 @@ import { FactionReferenceLink } from '../../../components/FactionReferenceLink'
 import { useQuery } from '@tanstack/react-query'
 import { Link, useParams } from '@tanstack/react-router'
 import { FactionBreadcrumb } from './FactionBreadcrumb'
-import { datasheetCharacteristicKindOf, datasheetProfileKindOf, datasheetProfilesByKind } from '../../../../core/datasheetStructure'
+import {
+  datasheetCharacteristicKindOf,
+  datasheetProfileKindOf,
+  datasheetProfilesByKind,
+  invulnerableSaveOf,
+  NON_STATLINE_KINDS,
+  statlineValues,
+} from '../../../../core/datasheetStructure'
 import type { Datasheet, DatasheetCharacteristicKind, StructuredDatasheetProfile } from '../../../../contracts/catalogue'
 import {
   abilitySections,
@@ -80,7 +87,7 @@ export function FactionDatasheet() {
           <ProfileTable
             title="Models"
             profiles={unit}
-            omit={['invulnerable-save', 'base-size']}
+            omit={NON_STATLINE_KINDS}
             keywordRules={sheet.keywordRules}
             anchorIds={unitAnchorIds}
           />
@@ -297,8 +304,8 @@ export function Relationships({
 type DisplayProfile = StructuredDatasheetProfile
 
 function UnitCharacteristics({ profile, anchorIds = noAnchorIds }: { profile: DisplayProfile; anchorIds?: readonly string[] }) {
-  const invulnerable = profile.values.find((value) => datasheetCharacteristicKindOf(value) === 'invulnerable-save')?.value
-  const values = profile.values.filter((value) => !['invulnerable-save', 'base-size'].includes(datasheetCharacteristicKindOf(value)))
+  const invulnerable = invulnerableSaveOf(profile.values)?.value
+  const values = statlineValues(profile.values)
   return (
     <section id={`profile-${profile.id}`}>
       <ReferenceAnchors prefix="profile" ids={anchorIds.filter((id) => id !== profile.id)} />
@@ -330,7 +337,7 @@ function characteristicProfileGroups(profiles: DisplayProfile[]) {
   ]
 }
 
-const noColumns: DatasheetCharacteristicKind[] = []
+const noColumns: readonly DatasheetCharacteristicKind[] = []
 const noProfileAnchorIds: ReadonlyMap<string, readonly string[]> = new Map()
 
 export function ProfileTable({
@@ -342,7 +349,7 @@ export function ProfileTable({
 }: {
   title: string
   profiles: DisplayProfile[]
-  omit?: DatasheetCharacteristicKind[]
+  omit?: readonly DatasheetCharacteristicKind[]
   keywordRules: KeywordRule[]
   anchorIds?: ReadonlyMap<string, readonly string[]>
 }) {

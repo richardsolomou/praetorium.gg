@@ -1,3 +1,4 @@
+import { toggled } from '../../../core/collections'
 import { Fragment, useMemo, useState } from 'react'
 import { ChevronDown, RotateCcw, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -83,12 +84,7 @@ export function RosterCombatTable({
   // Pairings the player has crossed off, keyed by unit rather than position so a recalculation keeps them.
   const [marked, setMarked] = useState<ReadonlySet<string>>(new Set())
   const pairKey = (row: number, column: number) => `${unitKey(attackers[row]!)}|${unitKey(defenders[column]!)}`
-  const toggleMark = (key: string) =>
-    setMarked((current) => {
-      const next = new Set(current)
-      if (!next.delete(key)) next.add(key)
-      return next
-    })
+  const toggleMark = (key: string) => setMarked((current) => toggled(current, key))
   // A crossed-off pairing reads as no result, so the next best one takes the highlight.
   const ranked = (row: number, column: number) => (marked.has(pairKey(row, column)) ? {} : results[`${row}:${column}`]?.[phase])
   const attackingHealth = useMemo(() => attackers.map(modelCount), [attackers])

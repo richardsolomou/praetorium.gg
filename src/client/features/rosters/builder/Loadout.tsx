@@ -7,7 +7,6 @@ import type { RosterPick } from '../../../../core/roster'
 import { isUnitCompositionChoice } from '../../../../core/unitChoices'
 import { primaryUnitProfile } from '../../../datasheet'
 import { datasheetLoad, loadoutDatasheetsQuery } from '../../../queries'
-import type { loadoutDatasheets } from '../../../functions'
 import { useSettled } from '../../../useSettled'
 import { UnitProfile, WeaponSummary } from '../../../components/DatasheetProfiles'
 import {
@@ -42,7 +41,6 @@ type Props = {
   reminders?: ReminderControls
   /** Something to say beside an option, such as what it would do in a combat simulation. */
   optionNote?: OptionNote
-  providedSheets?: Awaited<ReturnType<typeof loadoutDatasheets>>
   /** The roster's own fields for this unit, scrolled with the loadout. */
   header?: ReactNode
   /** Shown below everything else the pane holds. */
@@ -74,7 +72,6 @@ export function Loadout({
   persistedRoster,
   reminders,
   optionNote,
-  providedSheets,
   header,
   footer,
 }: Props) {
@@ -89,16 +86,15 @@ export function Loadout({
   const forSameUnit = (previousQuery?: { queryKey: readonly unknown[] }) => previousQuery?.queryKey[2] === unit?.entryId
   const request = loadoutDatasheetsQuery(catalogueId, unit?.entryId ?? '', detachments, settledPicks, pickIndex, persistedRoster)
   const {
-    data: fetchedSheets,
+    data: sheets,
     dataUpdatedAt,
     isError,
     isPending,
   } = useQuery({
     ...request,
-    enabled: providedSheets === undefined && request.enabled && (pickIndex === null || settledPicks[pickIndex]?.entryId === unit?.entryId),
+    enabled: request.enabled && (pickIndex === null || settledPicks[pickIndex]?.entryId === unit?.entryId),
     placeholderData: (previous, previousQuery) => (forSameUnit(previousQuery) ? previous : undefined),
   })
-  const sheets = providedSheets ?? fetchedSheets
   useEffect(() => {
     const measured = sheets && datasheetLoad(sheets)
     if (!sheets || !measured || dataUpdatedAt <= capturedAt.current) return

@@ -15,12 +15,12 @@ type OutcomeView = {
  * the avatar to show, the device to congratulate — so it is answered once here rather
  * than parsed back out of the sentence.
  */
-export type BattleResult =
-  | { kind: 'win'; side: OutcomeSide; verb: 'wins' | 'win'; detail: string; score: string | null }
+export type BattleResult<Side extends OutcomeSide = OutcomeSide> =
+  | { kind: 'win'; side: Side; verb: 'wins' | 'win'; detail: string; score: string | null }
   | { kind: 'none'; detail: string }
 
-export function battleResult(table: readonly OutcomeSide[], view: OutcomeView): BattleResult {
-  const won = (side: OutcomeSide, detail: string, score: string | null = null): BattleResult => ({
+export function battleResult<Side extends OutcomeSide>(table: readonly Side[], view: OutcomeView): BattleResult<Side> {
+  const won = (side: Side, detail: string, score: string | null = null): BattleResult<Side> => ({
     kind: 'win',
     side,
     verb: side.armies.length === 1 ? 'wins' : 'win',

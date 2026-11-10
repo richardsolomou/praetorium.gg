@@ -18,6 +18,7 @@ import {
   battleSizeLabel,
   battleSizeOptionLabel,
   battleSizeText,
+  battleSizeTitle,
   GAME_SIZES,
   isKotcLimit,
   pointsBudgetsAgree,
@@ -268,7 +269,7 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
         ? battleSizeText(view)!
         : pointsBudget === null
           ? battleSizeOptionLabel({
-              name: GAME_SIZES.find((size) => size.limit === view.settings.limit)?.name ?? 'Battle',
+              name: battleSizeTitle(view.settings.limit),
               limit: view.settings.limit,
             })
           : battleSizeLabel(view.settings.limit, pointsBudget)

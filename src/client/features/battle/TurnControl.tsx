@@ -19,13 +19,6 @@ type Props = {
   className?: string
 }
 
-/**
- * Where the battle moves forward.
- *
- * Advancing belongs to the battle rather than to either side's panel, so the two
- * panels stay the same shape and their numbers line up across the table whichever
- * side is taking the turn.
- */
 /** What fits a sixth of the rail at any width; the full name stays for a screen reader. */
 const SHORT: Record<(typeof PHASES)[number], string> = {
   command: 'Cmd',
@@ -36,6 +29,13 @@ const SHORT: Record<(typeof PHASES)[number], string> = {
   end: 'End',
 }
 
+/**
+ * Where the battle moves forward.
+ *
+ * Advancing belongs to the battle rather than to either side's panel, so the two
+ * panels stay the same shape and their numbers line up across the table whichever
+ * side is taking the turn.
+ */
 export function TurnControl({ view, clock, send, pending, blockReason, onAdvance, className = '' }: Props) {
   const active = view.players.find((player) => player.isActive)
   const activeSide = active?.side ?? 0

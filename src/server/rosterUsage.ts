@@ -5,6 +5,7 @@ import type { AbilityReminder } from '../core/reminders'
 import { fieldingReminders } from '../shared/reminderAbilities'
 import { ROSTER_NOT_USABLE } from '../core/rosterUse'
 import { app } from './app'
+import { requireCatalogue } from './requireCatalogue'
 import { unitBattleDetailsIn } from '../shared/catalogue'
 import { calculateRosterPrice, savedRosterPriceInput } from '../shared/pricing'
 
@@ -34,8 +35,7 @@ type UsableRoster = Parameters<typeof rosterSnapshot>[0] &
  * list's points answer to its event instead, where allies who share points may spend past their own saved total.
  */
 export async function frozenRoster(saved: UsableRoster, settings: readonly AbilityReminder[], options: { sealing?: boolean } = {}) {
-  const catalogue = await app().catalogueFor(saved.catalogueId)
-  if (!catalogue) throw new Response('army data is not available', { status: 409 })
+  const catalogue = await requireCatalogue(saved.catalogueId)
   const rules = await app().rulesFor(saved.catalogueId)
   if (!rules) throw new Response('army rules data is not available', { status: 409 })
   const priced = calculateRosterPrice(savedRosterPriceInput(saved), catalogue, rules)

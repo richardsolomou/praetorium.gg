@@ -714,6 +714,9 @@ export const pointsSize = (points: number): string => `${points.toLocaleString('
 
 export const battleSizeName = (limit: number): string => GAME_SIZES.find((size) => size.limit === limit)?.name ?? pointsLabel(limit)
 
+/** A standard size's name, or plain "Battle" for any other limit. */
+export const battleSizeTitle = (limit: number): string => GAME_SIZES.find((size) => size.limit === limit)?.name ?? 'Battle'
+
 export const battleSizeOptionLabel = (size: { name: string; limit: number }): string => `${size.name} · ${pointsLabel(size.limit)}`
 
 /** The battle size whose limits apply, and beside it any custom points budget. */

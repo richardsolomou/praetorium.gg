@@ -158,7 +158,7 @@ import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { useAccountPrompt } from './AccountPrompt'
 import { CreateBattle } from '../battles/CreateBattle'
 import { guestDraftOf, peekGuestDraft, writeGuestDraft } from './guestDraft'
-import { withMember } from '../../../core/collections'
+import { toggled, withMember } from '../../../core/collections'
 import { usePrintWhenReady } from './usePrintWhenReady'
 import { hasWarlordToggle } from '../../../core/unitChoices'
 import { factionDisposition } from '../../components/rosterSetup'
@@ -360,15 +360,7 @@ export function ListBuilder({
     (rule: FormatRuleId) => setSetup((current) => ({ ...current, waivedRules: withMember(current.waivedRules, rule) })),
     [],
   )
-  const togglePickerFilter = useCallback(
-    (filter: PickerFilter) =>
-      setPickerFilters((current) => {
-        const next = new Set(current)
-        if (!next.delete(filter)) next.add(filter)
-        return next
-      }),
-    [],
-  )
+  const togglePickerFilter = useCallback((filter: PickerFilter) => setPickerFilters((current) => toggled(current, filter)), [])
 
   const listName = name.trim()
   const storedPrep = useMemo(

@@ -1,4 +1,4 @@
-import { groupBy, remember } from './collections'
+import { byId, groupBy, remember } from './collections'
 import type { Datasheet } from './datasheet'
 import {
   COMBAT_PHASES,
@@ -129,9 +129,7 @@ export type ProfileOdds = { phase: CombatPhase; result: CombatResult; models: nu
 export function loadoutProfileOdds(space: LoadoutSpace, scoring: LoadoutScoring) {
   const member = loadoutMember(scoring)
   const held = new Map(member.sheet.profiles.filter(isWeaponProfile).map((profile) => [profile.id, profile.count ?? 0]))
-  const weapons = [
-    ...new Map([...member.sheet.profiles.filter(isWeaponProfile), ...space.weapons].map((profile) => [profile.id, profile])).values(),
-  ]
+  const weapons = [...byId([...member.sheet.profiles.filter(isWeaponProfile), ...space.weapons]).values()]
   const sheet = {
     ...member.sheet,
     profiles: [

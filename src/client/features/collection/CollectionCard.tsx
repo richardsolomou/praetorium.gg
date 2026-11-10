@@ -8,7 +8,6 @@ export function CollectionCard({
   sheet,
   photo,
   action,
-  controls,
   description,
   children,
   className,
@@ -18,7 +17,6 @@ export function CollectionCard({
   sheet?: { catalogueId: string; slug: string; presentation?: FactionPresentation }
   photo?: ReactNode
   action?: ReactNode
-  controls?: ReactNode
   description?: ReactNode
 }) {
   return (
@@ -44,7 +42,6 @@ export function CollectionCard({
           )}
           {description ? <span className="mt-0.5 block text-xs text-dim">{description}</span> : null}
         </span>
-        {controls}
         {action}
       </div>
       {children}

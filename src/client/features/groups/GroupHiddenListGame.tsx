@@ -358,7 +358,7 @@ export function GroupHiddenListGame({
       id={`game-${game.token}`}
       data-hidden-list-game={game.token}
       aria-label={`Hidden-list game: ${gameName}`}
-      className={`overflow-hidden part ${!embedded && highlighted ? 'border-parchment' : ''}`}
+      className={`overflow-hidden part ${highlighted ? 'border-parchment' : ''}`}
     >
       {embedded ? (
         <>

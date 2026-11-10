@@ -52,7 +52,7 @@ import { matchesRosterAssessment, rosterAssessmentFilterActive, ROSTER_SEARCH_MA
 import { ROSTER_VISIBILITIES } from '../../../core/savedRoster'
 import { VISIBILITY_NAME } from './visibility'
 import { GAME_SIZES, battleSizeOptionLabel } from '../../../core/battle'
-import { countBy } from '../../../core/collections'
+import { countBy, toggled } from '../../../core/collections'
 import { matchesSearch } from '../../text'
 import { RosterRow } from './RosterRow'
 import { RosterLoanDialog } from './RosterLoanDialog'
@@ -291,13 +291,7 @@ export function RosterLibraryPage({
       ? {
           checked: selectedIds.has(roster.id),
           disabled: actions.batch.isPending || (!selectedIds.has(roster.id) && selected.length >= ROSTER_BATCH_MAX),
-          onCheckedChange: (checked: boolean) =>
-            setSelectedIds((current) => {
-              const next = new Set(current)
-              if (checked) next.add(roster.id)
-              else next.delete(roster.id)
-              return next
-            }),
+          onCheckedChange: (checked: boolean) => setSelectedIds((current) => toggled(current, roster.id, checked)),
         }
       : undefined
 

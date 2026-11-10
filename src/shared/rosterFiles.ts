@@ -28,7 +28,7 @@ import { textNickname, textNote, type TextRoster, type TextRosterUnit } from '..
 import { nicknamedUnit } from '../core/unitNotes'
 import { gwTextGroup, gwTextVersionLines, toGwText, type GwTextRoster } from '../core/gwText'
 import type { UnitGroup } from '../core/unitGroups'
-import { allowsPointsBudget, customPointsBudget, GAME_SIZES, isGameSize, pointsBudgetError } from '../core/battle'
+import { allowsPointsBudget, battleSizeTitle, customPointsBudget, GAME_SIZES, isGameSize, pointsBudgetError } from '../core/battle'
 import { catalogueFactionName, factionDisplayName } from './factionNames'
 import { englishNames, NO_TRANSLATIONS, translationsOf, type CatalogueTranslations } from './catalogueTranslations'
 import {
@@ -1876,7 +1876,7 @@ export function readableRoster(data: ExportRosterInput, loaded: LoadedCatalogue,
     faction: factionDisplayName(faction),
     detachments: priced.detachments.map(({ name, points }) => ({ name, points })),
     dispositions: dispositionNames,
-    size: GAME_SIZES.find((size) => size.limit === data.limit)?.name ?? 'Battle',
+    size: battleSizeTitle(data.limit),
     limit: data.limit,
     ...(data.pointsBudget ? { pointsBudget: data.pointsBudget } : {}),
     points: priced.points,

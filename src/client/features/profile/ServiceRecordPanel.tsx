@@ -191,14 +191,13 @@ function RecordFilters({
   )
 }
 
-type TallyItem = { label: string; value: number | string; tint?: string }
+type TallyItem = { label: string; value: number | string }
 
 /**
  * A labelled set of numbers.
  *
  * The cells grow to fill the row rather than sitting in fixed columns, because a
- * group holds anywhere from two of them to six and a grid wide enough for six
- * leaves holes under the ones that hold two.
+ * fixed grid leaves holes under a short last row.
  */
 function Tallies({ label, items }: { label: string; items: readonly TallyItem[] }) {
   return (
@@ -208,7 +207,7 @@ function Tallies({ label, items }: { label: string; items: readonly TallyItem[] 
         {items.map((item) => (
           <div key={item.label} className="min-w-0 grow basis-[calc(50%-1px)] bg-panel px-3 py-2.5 sm:basis-[calc(25%-1px)]">
             <dt className="eyebrow truncate text-faint">{item.label}</dt>
-            <dd className={`figure mt-1 text-xl leading-none font-bold ${item.tint ?? 'text-bone'}`}>{item.value}</dd>
+            <dd className={`figure mt-1 text-xl leading-none font-bold text-bone`}>{item.value}</dd>
           </div>
         ))}
       </dl>

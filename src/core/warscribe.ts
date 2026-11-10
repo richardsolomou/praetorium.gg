@@ -1,7 +1,7 @@
 import { GAME_SIZES } from './battle'
 import { fromBattleBaseText } from './battlebase'
 import { printedNumber } from './text'
-import { type TextRoster, type TextRosterUnit } from './textRoster'
+import { defaultListName, type TextRoster, type TextRosterUnit } from './textRoster'
 import { addItems, fromWtcText } from './wtcText'
 
 const footer = /^(?:```\w*|(?:App: \S+ \| )?Data: v\d+|Created with Warscribe\b.*|(?:https?:\/\/)?40k\.warscribe\.app\/?)$/i
@@ -89,7 +89,7 @@ function fromFramed(lines: readonly string[]): TextRoster | null {
   const detachments = setup.find((line) => /\(\d+ DP\)/.test(line))
   const reportedPoints = printedNumber(points[1]!)
   return withUnits(body, dottedUnit, {
-    name: `${faction.split(' - ').at(-1)!.trim()} ${reportedPoints}pts`,
+    name: defaultListName(faction, reportedPoints),
     faction,
     detachment: detachments?.replace(/\s*\(\d+ DP\)/g, '').replaceAll(' · ', ', ') ?? null,
     disposition: null,

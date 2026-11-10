@@ -113,3 +113,12 @@ export function profileBaseSize(profiles: readonly DatasheetProfile[]): string |
   if (new Set(bases.map((base) => base.value)).size <= 1) return bases[0]?.value ?? null
   return bases.map((base) => `${base.name}: ${base.value}`).join('\n')
 }
+
+/** What a unit's statline shows apart from its columns, or not at all. */
+export const NON_STATLINE_KINDS: readonly DatasheetCharacteristicKind[] = ['invulnerable-save', 'base-size']
+
+export const invulnerableSaveOf = <Value extends Parameters<typeof datasheetCharacteristicKindOf>[0]>(values: readonly Value[]) =>
+  values.find((value) => datasheetCharacteristicKindOf(value) === 'invulnerable-save')
+
+export const statlineValues = <Value extends Parameters<typeof datasheetCharacteristicKindOf>[0]>(values: readonly Value[]) =>
+  values.filter((value) => !NON_STATLINE_KINDS.includes(datasheetCharacteristicKindOf(value)))

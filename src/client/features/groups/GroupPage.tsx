@@ -251,7 +251,7 @@ function GroupScreen({
         </div>
       </PageContent>
 
-      <GroupSettingsDialog group={group} ownerId={viewerId} open={editing} onOpenChange={setEditing} />
+      <GroupSettingsDialog group={group} isOwner={isOwner} open={editing} onOpenChange={setEditing} />
       <ConfirmDialog
         open={deleting}
         title={`Delete ${group.name}?`}
@@ -500,14 +500,7 @@ function CurrentGames({
         <GroupHiddenListGame key={game.token} group={group} game={game} viewerId={viewerId} highlighted={game.token === highlight} />
       ))}
       {live.map((game) => (
-        <GroupHiddenListGame
-          key={game.token}
-          group={group}
-          game={game}
-          viewerId={viewerId}
-          highlighted={game.token === highlight}
-          embedded
-        />
+        <GroupHiddenListGame key={game.token} group={group} game={game} viewerId={viewerId} embedded />
       ))}
     </>
   )
@@ -713,7 +706,7 @@ function PastHiddenListGames({
       <ul className="space-y-3">
         {shown.map((game) => (
           <li key={game.token}>
-            <GroupHiddenListGame group={group} game={game} viewerId={viewerId} highlighted={game.token === highlight} embedded />
+            <GroupHiddenListGame group={group} game={game} viewerId={viewerId} embedded />
           </li>
         ))}
       </ul>
