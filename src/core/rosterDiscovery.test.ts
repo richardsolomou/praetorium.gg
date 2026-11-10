@@ -254,13 +254,13 @@ describe('roster discovery counts', () => {
 })
 
 describe('played army opponents', () => {
-  const factions = [{ id: '1f19-6509-d906-ca10', slug: 'adeptus-custodes' }]
+  const custodes = [{ id: '1f19-6509-d906-ca10', slug: 'adeptus-custodes' }]
 
   it('reads an Against slug as its faction family', () => {
-    expect(againstFamilies({ in: ['adeptus-custodes'], out: [] }, factions).in).toEqual(['1f19-6509-d906-ca10'])
+    expect(againstFamilies({ in: ['adeptus-custodes'], out: [] }, custodes).in).toEqual(['1f19-6509-d906-ca10'])
   })
 
   it('keeps a slug the index does not know, so it matches nothing', () => {
-    expect(againstFamilies({ in: ['no-such-army'], out: [] }, factions).in).toEqual(['no-such-army'])
+    expect(againstFamilies({ in: ['no-such-army'], out: [] }, custodes).in).toEqual(['no-such-army'])
   })
 })

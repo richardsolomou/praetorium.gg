@@ -106,5 +106,5 @@ export function discoveryCounts(
     add('result', list.result ? [list.result] : [], count)
     add('against', list.against ?? [], count)
   }
-  return Object.fromEntries(Object.entries(counts).filter(([, values]) => Object.keys(values).length)) as DiscoveryCounts
+  return Object.fromEntries(Object.entries(counts).filter(([, values]) => Object.keys(values).length))
 }
