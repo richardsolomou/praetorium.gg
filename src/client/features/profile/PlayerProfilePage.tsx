@@ -122,7 +122,9 @@ export function PlayerProfilePage({ userId, search }: { userId: string; search: 
                 record={data.record}
                 facets={data.facets}
                 filter={filter}
-                onFilter={(next) => void navigate({ to: '/users/$userId', params: { userId }, search: { ...next, tab: 'record' } })}
+                onFilter={(next) =>
+                  void navigate({ to: '/users/$userId', params: { userId }, search: { ...next, tab: 'record' }, resetScroll: false })
+                }
               />
             ) : null}
             {data?.record.battles ? <PersonalPerformancePanel performance={data.performance} /> : null}

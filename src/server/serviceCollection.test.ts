@@ -1,4 +1,5 @@
 import { expect, it, vi } from 'vitest'
+import { battleCard } from './battleCard.fixtures'
 import { ALICE, BOB, NAMES, log } from '../core/battle.fixtures'
 import type { Command } from '../core/battle'
 import type { RepositoryPort } from './spacetimeRepository'
@@ -28,7 +29,7 @@ const battle = (id: string, ...entries: Parameters<typeof log>) => ({
 
 function fielded(battles: ReturnType<typeof battle>[], rosters: { catalogueId: string; archived: boolean }[] = []) {
   const repository = {
-    battlesSeatedBy: vi.fn().mockResolvedValue(battles),
+    battlesSeatedBy: vi.fn().mockResolvedValue(battles.map(battleCard)),
     rostersByUser: vi.fn().mockResolvedValue(rosters),
   } as unknown as RepositoryPort
   return new PraetoriumService(

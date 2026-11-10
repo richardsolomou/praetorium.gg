@@ -1,7 +1,6 @@
-import { type BattleState, builtDetachments, type Roster } from './battle'
-import { listUnitCount } from './attachedUnits'
+import { builtDetachments, type Roster } from './battle'
+import type { BattleDigest } from './battleDigest'
 import { facetActive, facetMatches, periodBounds, withinPeriod } from './listFilter'
-import type { RosterPick } from './roster'
 import type { PlayedArmyFilter } from './rosterDiscovery'
 import { matchesSearch } from './text'
 import { battleOutcome, type BattleOutcome, opponentScore, sideScore, type StandingBattle, type StandingFaction } from './standings'
@@ -21,7 +20,8 @@ export type PlayedArmy = {
   limit: number
   pointsBudget: number | null
   waivedRules: NonNullable<Built['waivedRules']>
-  picks: RosterPick[]
+  /** What a copy would be saved under today, which discovery filters by. */
+  copied: { catalogueId: string; detachmentIds: string[] }
   unitCount: number
   playedAt: number
   outcome: PlayedOutcome
@@ -44,29 +44,22 @@ type PlayedOutcome = {
  * Who may read the battle is the caller's question: this reads only what was fielded.
  */
 export function playedArmies(
-  history: {
-    battle: { token: string; createdAt: number }
-    players: readonly { id: string; name: string }[]
-    log: readonly { at: number }[]
-  },
-  state: {
-    status: BattleState['status']
-    players: readonly Pick<BattleState['players'][number], 'id' | 'side' | 'automated' | 'roster'>[]
-  },
+  history: { battle: { token: string; createdAt: number }; players: readonly { id: string; name: string }[] },
+  digest: Pick<BattleDigest, 'status' | 'lastCommandAt' | 'seats'>,
   summary: StandingBattle,
 ): PlayedArmy[] {
-  if (state.status !== 'finished') return []
+  if (digest.status !== 'finished') return []
   const names = new Map(history.players.map((player) => [player.id, player.name]))
-  const playedAt = history.log.at(-1)?.at ?? history.battle.createdAt
-  return state.players.flatMap((seat) => {
-    const built = seat.roster?.built
+  const playedAt = digest.lastCommandAt ?? history.battle.createdAt
+  return digest.seats.flatMap((seat) => {
+    const { built } = seat
     const name = names.get(seat.id)
-    if (seat.automated || !built?.picks?.length || name === undefined) return []
+    if (seat.automated || !built || !seat.copied || !seat.unitCount || name === undefined) return []
     return [
       {
         battle: history.battle.token,
         player: { id: seat.id, name },
-        name: seat.roster!.name,
+        name: seat.army!,
         catalogueId: built.catalogueId,
         edition: built.edition ?? null,
         detachmentIds: built.detachmentIds ?? [],
@@ -75,8 +68,8 @@ export function playedArmies(
         limit: built.limit,
         pointsBudget: built.pointsBudget ?? null,
         waivedRules: built.waivedRules ?? [],
-        picks: built.picks,
-        unitCount: listUnitCount(built.picks),
+        copied: seat.copied,
+        unitCount: seat.unitCount,
         playedAt,
         outcome: outcome(summary, seat.side),
       },

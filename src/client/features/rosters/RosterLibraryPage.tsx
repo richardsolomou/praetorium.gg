@@ -1,6 +1,6 @@
 import { GuideHelp } from '../onboarding/GuideHelp'
 import { useQuery } from '@tanstack/react-query'
-import { Link, useNavigate, useRouter } from '@tanstack/react-router'
+import { Link, useNavigate } from '@tanstack/react-router'
 import { useEffect, useState, type ReactNode } from 'react'
 import { ChevronDown, ScrollText } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -23,8 +23,8 @@ import { useAccountPrompt } from './AccountPrompt'
 import { claimInput, GUEST_PATH, type GuestDraft, guestRosterSummary, readGuestDraft } from './guestDraft'
 import { GuestBattleLink, useGuestRosterRow } from './GuestRoster'
 import { useNewRoster } from './newRoster'
-import { DEFAULT_ROSTER_ROWS, setRosterCookie } from './rosterCookie'
-import { ROSTER_NOTICES_COOKIE, ROSTER_ROWS_COOKIE } from '../../../contracts/rosterCookies'
+import { DEFAULT_ROSTER_ROWS, setRosterCookie, useRosterCookieChoice } from './rosterCookie'
+import { ROSTER_GROUPING_COOKIE, ROSTER_NOTICES_COOKIE, ROSTER_ROWS_COOKIE, ROSTER_SORT_COOKIE } from '../../../contracts/rosterCookies'
 import type { MissionReference } from './rosterStart'
 import { PageContent, PageHeader } from '../../components/Page'
 import { PageState } from '../../components/PageState'
@@ -34,7 +34,7 @@ import { RosterImport } from './RosterImport'
 import { RosterSetupDialog, type RosterSetup } from './RosterSetupDialog'
 import { rosterSetupOf } from './rosterDraft'
 import { factionSelectGroups } from './builder/factions'
-import { RosterSortMenu, ROSTER_ASSESSMENT_DIMENSIONS } from './RosterFilters'
+import { RosterGroupMenu, RosterSortMenu, ROSTER_ASSESSMENT_DIMENSIONS } from './RosterFilters'
 import { FilterBar, type FilterDimension } from '../../components/FilterBar'
 import { NoFilterMatches } from '../../components/NoFilterMatches'
 import { ungrouped } from '../../components/SearchableSelect'
@@ -43,7 +43,7 @@ import { facetMatches, facetText, periodBounds, withinPeriod, type Facet } from 
 import { matchesRosterAssessment, rosterAssessmentFilterActive, ROSTER_SEARCH_MAX_LENGTH } from '../../../core/rosterDiscovery'
 import { ROSTER_VISIBILITIES } from '../../../core/savedRoster'
 import { VISIBILITY_NAME } from './visibility'
-import { GAME_SIZES, battleSizeOptionLabel } from '../../../core/battle'
+import { GAME_SIZES, battleSizeOptionLabel, pointsLabel } from '../../../core/battle'
 import { countBy, toggled } from '../../../core/collections'
 import { matchesSearch } from '../../text'
 import { RosterRow } from './RosterRow'
@@ -53,8 +53,9 @@ import { type RosterShareChoices, RosterShareDialog } from './RosterShareDialog'
 import { rosterTitle } from './RosterSummary'
 import { RosterSelectionToolbar } from './RosterSelectionToolbar'
 import { type SavedRoster, useRosterActions } from './rosterLibrary'
-import { keepRosterSort } from './rosterSort'
+import { keepRosterGrouping, keepRosterSort, keptRosterGrouping, keptRosterSort } from './rosterSort'
 import { type RosterSort, sortRosters } from '../../../core/rosterSort'
+import { groupedEntries, groupsPage, type RosterGroup, type RosterGrouping } from '../../../core/rosterGrouping'
 import { SETUP_STATE, useWorkspaceState } from './workspaceState'
 import { useFavouriteFactions } from '../../favouriteFactions'
 import {
@@ -106,6 +107,7 @@ type DeviceLibrary = { guest: GuestDraft | null; pending: boolean; onChange: (gu
 export function RosterLibraryPage({
   search,
   sort,
+  grouping = 'none',
   notices = false,
   rows = DEFAULT_ROSTER_ROWS,
   starting,
@@ -114,6 +116,7 @@ export function RosterLibraryPage({
 }: {
   search: RosterLibrarySearch
   sort: RosterSort
+  grouping?: RosterGrouping
   /** Whether the library last had a data update notice, so its line is kept while the counts load. */
   notices?: boolean
   /** How many rows the unfiltered library last showed, so its skeleton holds the list's height. */
@@ -122,15 +125,11 @@ export function RosterLibraryPage({
   reference?: MissionReference
   device?: DeviceLibrary
 }) {
-  const [selectedSort, setSelectedSort] = useState(sort)
-  const pageKey = JSON.stringify([search, selectedSort])
+  const [selectedSort, setSelectedSort] = useRosterCookieChoice(sort, ROSTER_SORT_COOKIE, keptRosterSort)
+  const [selectedGrouping, setSelectedGrouping] = useRosterCookieChoice(grouping, ROSTER_GROUPING_COOKIE, keptRosterGrouping)
+  const pageKey = JSON.stringify([search, selectedSort, selectedGrouping])
   const [page, setPage] = useState({ key: pageKey, visibleCount: ROSTER_LIBRARY_BATCH_SIZE })
   const visibleCount = page.key === pageKey ? page.visibleCount : ROSTER_LIBRARY_BATCH_SIZE
-  const [sortFrom, setSortFrom] = useState(sort)
-  if (sortFrom !== sort) {
-    setSortFrom(sort)
-    setSelectedSort(sort)
-  }
   const [now] = useState(() => Date.now())
   const { data: me } = useQuery(meQuery())
   const guest = me ? null : (device?.guest ?? null)
@@ -143,7 +142,6 @@ export function RosterLibraryPage({
   const saved = me ? (savedResult.data ?? []) : guest ? [guestRosterSummary(guest)] : []
   const available = availableResult.data
   const navigate = useNavigate()
-  const router = useRouter()
   const { favourites } = useFavouriteFactions(Boolean(me))
   const facets = facetsOf(search, LIBRARY_FACETS)
   const facetUses = (facet: Facet | undefined, value: string) => Boolean(facet?.in.includes(value) || facet?.out.includes(value))
@@ -189,7 +187,9 @@ export function RosterLibraryPage({
       })
     : candidates
   const needsChanged = facetUses(facets.updates, 'changed')
-  const needsFactions = Boolean(search.faction || search.q || search.updates)
+  const needsFactions = Boolean(
+    search.faction || search.q || search.updates || selectedGrouping === 'faction' || selectedGrouping === 'detachment',
+  )
   const libraryPending =
     (me ? savedResult.isPending : Boolean(device?.pending)) ||
     (needsFactions && availableResult.isPending) ||
@@ -203,7 +203,30 @@ export function RosterLibraryPage({
   const active = shown.filter((roster) => !roster.archived)
   const archived = shown.filter((roster) => roster.archived)
   const [archivedOpen, setArchivedOpen] = useState(false)
-  const visible = variantGroups(active).slice(0, visibleCount)
+  const groupOf = (roster: SavedRoster): RosterGroup => {
+    if (selectedGrouping === 'size') {
+      const size = GAME_SIZES.find((entry) => entry.limit === roster.limit)
+      return { key: String(roster.limit), label: size ? battleSizeOptionLabel(size) : pointsLabel(roster.limit), rank: roster.limit }
+    }
+    const faction = factionOf(roster)
+    const factionName = faction?.displayName ?? 'Unknown faction'
+    if (selectedGrouping === 'faction') return { key: faction?.id ?? '', label: factionName, rank: faction ? 0 : 1 }
+    const detachments = roster.detachmentIds.flatMap((id) => faction?.detachments.find((entry) => entry.id === id)?.name ?? [])
+    return {
+      key: `${faction?.id ?? ''} ${roster.detachmentIds.join(' ')}`,
+      label: `${factionName} · ${detachments.join(' + ') || 'No detachment'}`,
+      rank: faction ? 0 : 1,
+    }
+  }
+  // Variants stay beneath their base, so a whole variant set is shown under its base's group.
+  const runs = selectedGrouping === 'none' ? null : groupedEntries(variantGroups(active), groupOf)
+  // Keyed with the grouping, so a group folded under one grouping stays open under the next.
+  const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set())
+  const isCollapsed = (key: string) => collapsed.has(`${selectedGrouping} ${key}`)
+  const groupPage = runs ? groupsPage(runs, isCollapsed, visibleCount) : null
+  const runOf = new Map(groupPage?.shown.flatMap((run) => run.entries.map(({ roster }) => [roster, run.group.key] as const)))
+  const visible = groupPage ? groupPage.shown.flatMap((run) => run.entries) : variantGroups(active).slice(0, visibleCount)
+  const more = groupPage ? groupPage.more : visible.length < active.length
   const archivedVisible = archivedOpen ? variantGroups(archived) : []
   const cards = variantCards([...visible, ...archivedVisible])
   const groups = cards.filter(({ head }) => head.index < visible.length)
@@ -406,16 +429,24 @@ export function RosterLibraryPage({
           factions={available?.factions ?? []}
           favourites={favourites}
           count={filtered && !libraryPending ? shown.length : null}
-          onChange={(next) => void navigate({ to: '/rosters', search: next, replace: true })}
+          onChange={(next) => void navigate({ to: '/rosters', search: next, replace: true, resetScroll: false })}
           sort={
-            <RosterSortMenu
-              value={selectedSort}
-              onChange={(chosen) => {
-                setSelectedSort(chosen)
-                keepRosterSort(chosen)
-                void router.invalidate({ filter: (match) => match.routeId === '/rosters/' })
-              }}
-            />
+            <>
+              <RosterSortMenu
+                value={selectedSort}
+                onChange={(chosen) => {
+                  setSelectedSort(chosen)
+                  keepRosterSort(chosen)
+                }}
+              />
+              <RosterGroupMenu
+                value={selectedGrouping}
+                onChange={(chosen) => {
+                  setSelectedGrouping(chosen)
+                  keepRosterGrouping(chosen)
+                }}
+              />
+            </>
           }
         />
         {actions.lock.isError ? <Problem error={actions.lock.error} /> : null}
@@ -498,7 +529,33 @@ export function RosterLibraryPage({
               </div>
             ) : active.length ? (
               <>
-                <div className="runner gap-3 [--gate-x:1rem] [--gate-y:1.5rem] sm:[--gate-x:1.5rem]">{groups.map(renderCard)}</div>
+                {groupPage ? (
+                  <div className="space-y-6">
+                    {groupPage.shown.map(({ group, total }) => (
+                      <Collapsible
+                        key={group.key}
+                        render={<section />}
+                        open={!isCollapsed(group.key)}
+                        onOpenChange={(open) => setCollapsed((current) => toggled(current, `${selectedGrouping} ${group.key}`, !open))}
+                      >
+                        <h3>
+                          <CollapsibleTrigger className="group eyebrow flex w-full items-baseline gap-3 pb-2 text-left hover:text-bone">
+                            <span className="mr-auto">{group.label}</span>
+                            <span className="readout">{total}</span>
+                            <ChevronDown className="size-4 self-center transition-transform group-data-panel-open:rotate-180" aria-hidden />
+                          </CollapsibleTrigger>
+                        </h3>
+                        <CollapsibleContent>
+                          <div className="runner gap-3 [--gate-x:1rem] [--gate-y:1.5rem] sm:[--gate-x:1.5rem]">
+                            {groups.filter((card) => runOf.get(card.head.roster) === group.key).map(renderCard)}
+                          </div>
+                        </CollapsibleContent>
+                      </Collapsible>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="runner gap-3 [--gate-x:1rem] [--gate-y:1.5rem] sm:[--gate-x:1.5rem]">{groups.map(renderCard)}</div>
+                )}
                 {pageResults.some((result) => result.isError) || guestRow.failed ? (
                   <Button
                     variant="outline"
@@ -510,7 +567,7 @@ export function RosterLibraryPage({
                     Retry roster points and legality
                   </Button>
                 ) : null}
-                {visible.length < active.length ? (
+                {more ? (
                   <Button
                     variant="outline"
                     disabled={pageResults.some((result) => !result.isSuccess)}

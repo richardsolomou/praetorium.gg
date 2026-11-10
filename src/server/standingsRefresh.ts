@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { reduceBattle } from '../core/battle'
+import { battleDigest } from '../core/battleDigest'
 import { byId } from '../core/collections'
 import { battleFoldArgs } from '../core/offlineBattle'
 import { counted, newcomer, OVERALL, rateBattle, shownRating, type Rated, type StandingBattle } from '../core/standings'
@@ -182,7 +183,7 @@ function ratingsVersion(factions: readonly BattleFaction[]) {
 function storedResult(history: BattleHistory): StoredResult | null {
   const state = reduceBattle(...battleFoldArgs(history.players, history.log))
   if (state.status !== 'finished') return null
-  const summary = battleSummary(history, state, null, null, new Map())
+  const summary = battleSummary(history, battleDigest(state, history.log), null, null, new Map())
   const result: BattleResult = {
     token: summary.token,
     playerIds: summary.playerIds,

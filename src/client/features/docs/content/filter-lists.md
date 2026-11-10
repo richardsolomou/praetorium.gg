@@ -6,6 +6,8 @@ Every tab of [Battles](/battles) and [Rosters](/rosters) has a search box and a 
 - **Legality** and **Points** work from each list's current price, on every roster tab.
 - **Your army** and **Opposing army** read as a matchup: on Friends and Public, **Army** and **Against army** must be on opposite sides of the table.
 
+On the Mine tab of Rosters, **Group** gathers your rosters under headings by faction, detachment, or battle size, each in the order you sort by. A variant stays with the roster it was made from. Press a heading to fold its group away, and again to open it. Your choice of grouping is kept on this device.
+
 Press the cross on a filter to remove it, or **Clear filters** to remove them all. The address holds your filters, so you can share a filtered list as a link.
 
 ## Customise the bar

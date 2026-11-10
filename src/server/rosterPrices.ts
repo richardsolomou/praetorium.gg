@@ -128,6 +128,12 @@ export async function cachedRosterAssessmentsFor(rosters: readonly Parameters<ty
   return values
 }
 
+/** The assessments already held for these rosters, by position, so a caller fetches a roster's picks only to price a miss. */
+export async function heldRosterAssessments(rosters: readonly { id: string; updatedAt: Date | number }[]) {
+  const revision = await catalogueRevision()
+  return rosters.map((roster) => rosterVerdictCache.get(revisionKey(roster, revision)))
+}
+
 export async function cachedRosterVerdictsFor(rosters: readonly Parameters<typeof cachedRosterPrice>[0][]) {
   return (await cachedRosterAssessmentsFor(rosters)).map((assessment) => assessment.verdict)
 }
