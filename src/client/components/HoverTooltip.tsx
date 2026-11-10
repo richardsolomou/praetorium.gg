@@ -1,10 +1,7 @@
-import { lazy, type ReactNode, Suspense, useRef, useState } from 'react'
+import { type ReactNode, useRef, useState } from 'react'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
-
-// The shell draws these badges on every page, so the Markdown renderer loads only once a reader reaches for one.
-const loadRuleText = () => import('./RuleText')
-const RuleText = lazy(() => loadRuleText().then((module) => ({ default: module.RuleText })))
+import { RuleText } from './RuleText'
 
 /** Hover opens and closes the tooltip; a pinning press keeps it open until the reader presses outside or escapes. */
 export function usePressTooltip() {
@@ -59,8 +56,6 @@ export function HoverTooltip({
               }
             }}
             aria-label={label}
-            onPointerEnter={() => void loadRuleText()}
-            onFocus={() => void loadRuleText()}
             onClick={(event) => show(event.detail > 0)}
             className={cn('inline-flex items-center justify-center cursor-help underline decoration-dotted underline-offset-2', className)}
           />
@@ -77,13 +72,7 @@ export function HoverTooltip({
         <strong className="block border-b border-edge px-2.5 py-1.5 text-xs font-bold tracking-label text-bone uppercase">{title}</strong>
         {body ? (
           <div className="max-h-56 overflow-y-auto px-2.5 py-1.5 font-rules text-xs text-dim">
-            {typeof body === 'string' ? (
-              <Suspense fallback={<p className="mt-0 text-xs">{body}</p>}>
-                <RuleText text={body} className="mt-0 text-xs" authored />
-              </Suspense>
-            ) : (
-              body
-            )}
+            {typeof body === 'string' ? <RuleText text={body} className="mt-0 text-xs" authored /> : body}
           </div>
         ) : null}
         {note ? <span className="eyebrow block border-t border-edge px-2.5 py-1 text-faint">{note}</span> : null}

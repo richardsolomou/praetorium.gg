@@ -75,8 +75,7 @@ vi.mock('../spacetime/generated', () => ({
 }))
 
 import { IdentityChangedError, stdbLogger } from 'spacetimedb'
-import { useRealtimeConfig } from './realtimeConfig'
-import { useSpacetimeLiveBattle, useSpacetimeLiveProduct } from './spacetimeLive'
+import { useRealtimeConfig, useSpacetimeLiveBattle, useSpacetimeLiveProduct } from './spacetimeLive'
 import { sendingBattleCommands } from './pendingWrites'
 
 let cleanups: (() => void)[] = []

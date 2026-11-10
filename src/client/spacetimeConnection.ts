@@ -1,5 +1,9 @@
-import { isRealtimeServiceUnavailable, isStubbedWebSocketRefusal, RealtimeOutageError } from './realtimeErrors'
-import { isExpectedRealtimeDisconnect } from './spacetimeErrors'
+import {
+  isExpectedRealtimeDisconnect,
+  isRealtimeServiceUnavailable,
+  isStubbedWebSocketRefusal,
+  RealtimeOutageError,
+} from './realtimeErrors'
 
 type Connection = { disconnect(): void }
 
