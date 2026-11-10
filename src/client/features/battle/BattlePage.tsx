@@ -34,11 +34,19 @@ export function BattlePage({ token }: { token: string }) {
   // Until it begins there is no score or turn to follow, only the table's answers.
   if (screen.kind === 'spectator' && screen.view.status === 'setup')
     return <Setup view={screen.view} mission={screen.missions.find((entry) => entry.mission)?.mission ?? null} missions={screen.missions} />
-  if (screen.kind === 'spectator')
-    return (
-      <Spectator view={screen.view} clock={screen.clock} missions={screen.missions} report={screen.report} timeline={screen.timeline} />
-    )
+  if (screen.kind === 'spectator') return <WatchedBattle token={token} screen={screen} />
   return <SeatedBattle token={token} screen={screen} />
+}
+
+function WatchedBattle({
+  token,
+  screen,
+}: {
+  token: string
+  screen: Extract<Awaited<ReturnType<typeof openBattle>>, { kind: 'spectator' }>
+}) {
+  useSpacetimeLiveBattle(token)
+  return <Spectator view={screen.view} clock={screen.clock} missions={screen.missions} report={screen.report} timeline={screen.timeline} />
 }
 
 function SeatedBattle({ token, screen }: { token: string; screen: Extract<Awaited<ReturnType<typeof openBattle>>, { kind: 'battle' }> }) {
