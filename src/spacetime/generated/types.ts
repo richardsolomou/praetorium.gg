@@ -77,6 +77,12 @@ export const BattleSignal = __t.object('BattleSignal', {
 })
 export type BattleSignal = __Infer<typeof BattleSignal>
 
+export const BattleStarts = __t.object('BattleStarts', {
+  battleId: __t.string(),
+  begun: __t.bool(),
+})
+export type BattleStarts = __Infer<typeof BattleStarts>
+
 export const BattleUsers = __t.object('BattleUsers', {
   key: __t.string(),
   battleId: __t.string(),
