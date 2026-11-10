@@ -57,7 +57,7 @@ const LINK_SITES = new Map([['listhammer', 'Listhammer']])
 type Submission = { file: string; link?: { name: string | null; site: string | null } }
 
 /** Files the failure as an automatic feedback response carrying the exact input, so it can be reproduced. */
-function reportImportFailure(report: Parameters<typeof importFailureReport>[0]) {
+export function reportImportFailure(report: Parameters<typeof importFailureReport>[0]) {
   const { message, ...response } = importFailureReport(report)
   sendFeedback(response, { message })
 }

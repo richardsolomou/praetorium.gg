@@ -1,7 +1,7 @@
 import { useMutation } from '@tanstack/react-query'
 import { Copy, LoaderCircle, Search, TriangleAlert } from 'lucide-react'
 import { posthog } from 'posthog-js'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -10,7 +10,7 @@ import { Problem } from '../../components/Problem'
 import { ProgressBar } from '../../components/ProgressBar'
 import { findImportableRosters } from '../../functions'
 import { countLabel } from '../../text'
-import { isMatchedImport, type MatchedImport } from './RosterImport'
+import { isMatchedImport, type MatchedImport, reportImportFailure } from './RosterImport'
 
 type Found = Awaited<Extract<Awaited<ReturnType<typeof findImportableRosters>>, { found: true }>['rosters'][number]>
 export type RosterApp = 'battlebase' | 'newrecruit'
@@ -75,6 +75,28 @@ export function RosterAppImport({
         setChosen(new Set(result.rosters.filter((found) => matched(found) && complete(found.imported)).map((found) => found.key)))
     },
   })
+  /** Lists already reported, so going back and forth between reviews files each one once. */
+  const reported = useRef(new Set<string>())
+  const review = (key: string, imported: MatchedImport) => {
+    if (!complete(imported) && !reported.current.has(key)) {
+      reported.current.add(key)
+      posthog.capture('roster_import_review_required', {
+        source: app,
+        missing_count: imported.unknown.length,
+        unplaced_count: imported.unplaced.length,
+      })
+      // A New Recruit link is the player's own live list, as when pasted; a BattleBase player's public list can predate a data update.
+      if (app === 'newrecruit')
+        reportImportFailure({
+          reason: 'review_required',
+          inputKind: 'newrecruit-link',
+          unknown: imported.unknown,
+          unplaced: imported.unplaced,
+          input: `https://www.newrecruit.eu/app/list/${key}`,
+        })
+    }
+    onReview(imported)
+  }
   const restart = () => {
     find.reset()
     setChosen(new Set())
@@ -198,7 +220,7 @@ export function RosterAppImport({
                   )}
                 </label>
                 {!onImport || !whole ? (
-                  <Button size="sm" variant="outline" disabled={working} onClick={() => onReview(imported)}>
+                  <Button size="sm" variant="outline" disabled={working} onClick={() => review(found.key, imported)}>
                     Review
                   </Button>
                 ) : null}
