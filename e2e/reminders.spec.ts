@@ -38,6 +38,15 @@ async function turnOffActionReminders(page: Page) {
   await page.keyboard.press('Escape')
 }
 
+async function startReminderBattle(page: Page, roster: string, firstSide?: string) {
+  await practiceBattle(page, roster)
+  await chooseBattlefield(page)
+  await setupStep(page, 'Secondaries')
+  await expect(page.locator('[data-secondary-deck-ready="false"]')).toHaveCount(0)
+  await recordFirstTurn(page, firstSide)
+  await page.getByRole('button', { name: 'Start battle' }).click()
+}
+
 test('roster reminders cover selected rules and advances from another device', async ({ browser }) => {
   test.setTimeout(180_000)
   const page = await (await browser.newContext(desktopContext)).newPage()
@@ -231,12 +240,7 @@ test('round alerts fire once at both boundaries when your opponent takes the fir
   await expect(editor.getByText('Alert: End of round', { exact: true })).toBeVisible()
   await editor.getByRole('button', { name: 'Cancel', exact: true }).click()
 
-  await practiceBattle(page, roster)
-  await chooseBattlefield(page)
-  await setupStep(page, 'Secondaries')
-  await expect(page.locator('[data-secondary-deck-ready="false"]')).toHaveCount(0)
-  await recordFirstTurn(page, PRACTICE_OPPONENT)
-  await page.getByRole('button', { name: 'Start battle' }).click()
+  await startReminderBattle(page, roster, PRACTICE_OPPONENT)
 
   const reminder = page.getByRole('dialog', { name: 'Battle reminder', exact: true })
   await expect(reminder.getByText('Start of round', { exact: true })).toBeVisible()
@@ -284,12 +288,7 @@ test('a detachment rule alert covers the whole army and fires in battle', async 
   await page.locator('[data-unit="Immortals"]').getByRole('button', { name: 'Immortals', exact: true }).click()
   await expect(page.getByLabel('Edit alert for Cold Fervour')).toBeVisible()
 
-  await practiceBattle(page, roster)
-  await chooseBattlefield(page)
-  await setupStep(page, 'Secondaries')
-  await expect(page.locator('[data-secondary-deck-ready="false"]')).toHaveCount(0)
-  await recordFirstTurn(page, PRACTICE_OPPONENT)
-  await page.getByRole('button', { name: 'Start battle' }).click()
+  await startReminderBattle(page, roster, PRACTICE_OPPONENT)
 
   const reminder = page.getByRole('dialog', { name: 'Battle reminder', exact: true })
   await expect(reminder.getByRole('heading', { name: 'Cold Fervour', exact: true })).toBeVisible()
@@ -354,12 +353,7 @@ for (const scenario of [
     // reminders.test.ts restricts first-round alerts and battleView.test.ts keeps destroyed-unit alerts for their owner.
     if (scenario.kind !== 'any-phase') return
 
-    await practiceBattle(page, roster)
-    await chooseBattlefield(page)
-    await setupStep(page, 'Secondaries')
-    await expect(page.locator('[data-secondary-deck-ready="false"]')).toHaveCount(0)
-    await recordFirstTurn(page)
-    await page.getByRole('button', { name: 'Start battle' }).click()
+    await startReminderBattle(page, roster)
     const reminder = page.getByRole('dialog', { name: 'Battle reminder', exact: true })
     await takeTheTurn(page)
     await turnOffActionReminders(page)

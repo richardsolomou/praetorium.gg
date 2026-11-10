@@ -67,15 +67,15 @@ export function Home() {
     <>
       <HomeView
         me={me ?? null}
-        mine={signedIn ? battlesFrom(mine) : []}
+        mine={battlesFrom(mine)}
         friends={signedIn ? battlesFrom(friends) : []}
         open={battlesFrom(open)}
-        rosters={signedIn ? rosters : []}
-        rosterCount={signedIn ? (homeRosters?.count ?? 0) : 0}
-        rostersDue={signedIn ? rostersDue : []}
-        friendRequests={signedIn ? (friendships?.incoming.length ?? 0) : 0}
-        changedRosters={signedIn ? changedRosters.length : 0}
-        armyUpdates={signedIn ? armyUpdates : []}
+        rosters={rosters}
+        rosterCount={homeRosters?.count ?? 0}
+        rostersDue={rostersDue}
+        friendRequests={friendships?.incoming.length ?? 0}
+        changedRosters={changedRosters.length}
+        armyUpdates={armyUpdates}
         record={
           profile.isError
             ? null
@@ -83,7 +83,7 @@ export function Home() {
               ? { record: profile.data.record, rank: rankings.data?.overall ?? null }
               : undefined
         }
-        onboarding={signedIn ? onboarding : undefined}
+        onboarding={onboarding}
         leaders={standings ? { rows: standings.overall.rows } : null}
         newBattle={<CreateBattle />}
         notifications={me && !me.impersonatedBy ? <HomeNotifications /> : null}

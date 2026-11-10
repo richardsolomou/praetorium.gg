@@ -220,7 +220,8 @@ function provenance(
   }
 }
 
-function packedSnapshot(directory: string, disabled = new Set([...disabledCatalogueSources(), ...catalogueRevocations.sources])) {
+function packedSnapshot(directory: string) {
+  const disabled = new Set([...disabledCatalogueSources(), ...catalogueRevocations.sources])
   const { included, revisions } = includedSources(directory, disabled)
   const bytes = new Map<string, Uint8Array>()
   const unique = new Map<string, Uint8Array>()

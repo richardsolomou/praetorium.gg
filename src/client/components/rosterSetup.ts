@@ -64,7 +64,7 @@ export function detachmentConflict(detachment: OfferedDetachment, selected: read
   return null
 }
 
-export type DetachmentRefusal = { kind: 'count' | 'points' | 'conflict'; reason: string }
+type DetachmentRefusal = { kind: 'count' | 'points' | 'conflict'; reason: string }
 
 /**
  * Why this detachment cannot join the ones already taken at this battle size, if it cannot. A list

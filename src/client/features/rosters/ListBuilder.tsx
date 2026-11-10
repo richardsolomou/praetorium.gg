@@ -901,8 +901,9 @@ export function ListBuilder({
     },
     [setPreview, setSelected, setShowing],
   )
-  const editReminder = useCallback(
-    (subject: ReminderSubject) => {
+  const reminderControls = {
+    active: (subject: ReminderSubject) => abilityAlerts.settings.some((reminder) => reminder.key === reminderKey(subject)),
+    onSelect: (subject: ReminderSubject) => {
       const key = reminderKey(subject)
       const description = loadedWords(subject.description ?? '') ?? ''
       resetAbilityAlert()
@@ -916,15 +917,7 @@ export function ListBuilder({
         },
       )
     },
-    [abilityAlerts.settings, resetAbilityAlert],
-  )
-  const reminderControls = useMemo(
-    () => ({
-      active: (subject: ReminderSubject) => abilityAlerts.settings.some((reminder) => reminder.key === reminderKey(subject)),
-      onSelect: editReminder,
-    }),
-    [abilityAlerts.settings, editReminder],
-  )
+  }
   const { data: reminderAbilities } = useQuery({
     ...reminderAbilitiesQuery(catalogueId, detachmentIds, positioned),
     enabled: editable && abilityAlerts.settings.length > 0 && Boolean(catalogueId && positioned.length),
@@ -1299,7 +1292,6 @@ export function ListBuilder({
           picks={positioned}
           pickIndex={selected}
           embedded
-          hideSummary
           onRelationshipSelect={(entryId, unitName) => inspect(datasheetCatalogueId, entryId, unitName)}
           onReferenceRoute={setReference}
           abilityReminders={building && selected !== null ? reminderControls : undefined}

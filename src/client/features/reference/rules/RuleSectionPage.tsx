@@ -3,6 +3,7 @@ import { Link, useLocation } from '@tanstack/react-router'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { useEffect, useSyncExternalStore } from 'react'
 import type { RuleEntry, RuleSection } from '../../../../contracts/rules'
+import { byId } from '../../../../core/collections'
 import { type RuleLinks, ruleLinks } from '../../../ruleLinks'
 import { ruleIndexQuery, ruleSectionQuery } from '../../../queries'
 import { RuleMarkup } from '../../../components/RuleMarkup'
@@ -88,7 +89,7 @@ const currentHash = () => decodeURIComponent(window.location.hash.slice(1))
 const noHash = () => ''
 
 function withText(outline: RuleSection, loaded: RuleSection): RuleSection {
-  const texts = new Map(loaded.entries.map((entry) => [entry.id, entry]))
+  const texts = byId(loaded.entries)
   return {
     ...outline,
     entries: outline.entries.map((entry) => {

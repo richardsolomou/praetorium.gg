@@ -35,8 +35,7 @@ export function SecondariesStep({ view, sides, send, pending }: Props) {
                   Need {FIXED_SECONDARIES}, selected {side.secondaries.length}
                 </p>
               ) : null}
-              {/* Each side's primary follows from its own matchup, which the fold already put on it. */}
-              <Prep view={view} side={side} missionId={side.mission?.id ?? null} send={send} pending={pending} />
+              <Prep view={view} side={side} send={send} pending={pending} />
             </SetupSidePanel>
           )
         })}

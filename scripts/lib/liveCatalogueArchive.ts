@@ -11,7 +11,7 @@ const TARGET = /^(?:production|staging)$/
 type Store = { client: { fetch: (url: string, init?: RequestInit) => Promise<Response> }; base: string }
 
 /** The catalogue authoring configuration an archive was materialized with, and its live revision's source key. */
-export type LiveCatalogueVersion = { authoring: string; sources: string }
+type LiveCatalogueVersion = { authoring: string; sources: string }
 
 function liveObject(target: string, r2: Store | null) {
   if (!TARGET.test(target)) throw new Error(`Unknown live catalogue target ${target}`)

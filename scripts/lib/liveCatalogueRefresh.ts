@@ -25,7 +25,7 @@ import { fetchLiveCatalogue } from './liveCatalogueArchive'
 import type { OfflineReferenceVersion } from '../../src/contracts/offlineReference'
 
 /** What a live revision's `sources.json` records: its source key and, after a refresh, the key it was refreshed from. */
-export type LiveRevisionSources = { key: string; from?: string }
+type LiveRevisionSources = { key: string; from?: string }
 
 export const liveRevisionId = (previousId: string | null, sourceKey: string) => hash('sha256', `${previousId ?? 'initial'}:${sourceKey}`)
 

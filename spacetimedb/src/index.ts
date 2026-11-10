@@ -435,12 +435,8 @@ function eventTitle(host: EventHost) {
   return sealedEventTitle({
     tournament: host.kind === 'tournament' ? host.tournament : null,
     group: host.kind === 'group' ? host.group : null,
-    format: (host.event.format ?? null) as TableShape | null,
-    rosterLimit: host.event.rosterLimit ?? null,
+    ...eventPoints(host.event),
     pointsBudget: host.event.pointsBudget,
-    soloPoints: host.event.soloPoints ?? null,
-    allyPoints: host.event.allyPoints ?? null,
-    sharedPoints: host.event.sharedPoints ?? false,
   })
 }
 
@@ -631,13 +627,13 @@ function deleteLeagueFixtures(ctx: Context, leagueId: string) {
 }
 
 /** A published league that ends is kept with its fixtures so its table can still be read; a draft has nothing to keep. */
-function endLeague(ctx: Context, league: LeagueRow, now: bigint) {
+function endLeague(ctx: Context, league: LeagueRow) {
   if (league.publishedAt === undefined) return deleteLeague(ctx, league)
   ctx.db.pastGroupLeagues.insert({
     id: league.id,
     groupId: league.groupId,
     publishedAt: league.publishedAt,
-    endedAt: now,
+    endedAt: nowMs(ctx),
     players: JSON.stringify(leaguePlayers(ctx, league.id).map((row) => ({ userId: row.userId, withdrawn: row.withdrawn }))),
   })
   for (const row of Array.from(ctx.db.groupLeaguePlayers.leagueId.filter(league.id))) ctx.db.groupLeaguePlayers.key.delete(row.key)
@@ -1808,7 +1804,7 @@ export const submitBattle = spacetime.procedure(
           {
             seq,
             by: input.userId,
-            at: sync ? Math.max(log.at(-1)?.at ?? 0, Math.min(sync.at, safeNumber(input.now))) : safeNumber(input.now),
+            at: safeNumber(at),
             command: parsed.data,
             ...(sync ? { operationId: sync.operationId } : {}),
           },
@@ -2137,7 +2133,7 @@ export const removeFriend = spacetime.procedure({ leftId: t.string(), rightId: t
 
 export const friendInviteByInviter = spacetime.procedure({ inviterId: t.string() }, t.string(), (ctx, { inviterId }) =>
   operatorTx(ctx, (tx) => {
-    return productJson(tx.db.friendInvites.inviterId.find(inviterId)?.token ?? null)
+    return productJson(tx.db.friendInvites.inviterId.find(inviterId)?.token)
   }),
 )
 
@@ -2177,9 +2173,7 @@ function onboardingData(ctx: Context, userId: string) {
   const tasks = Array.from(ctx.db.userOnboardingTasks.userId.filter(userId)).map(({ task, state }) => ({ task, state }))
   if (tasks.length > 100) throw new SenderError('Too many onboarding tasks')
   const roster = Array.from(ctx.db.rosters.userId.filter(userId)).some((row) => row.picks !== '[]')
-  const friend = [...ctx.db.friendships.requesterId.filter(userId), ...ctx.db.friendships.addresseeId.filter(userId)].some(
-    (row) => row.acceptedAt !== undefined,
-  )
+  const friend = acceptedFriendIds(ctx, userId).size > 0
   const tournament = Boolean(
     ctx.db.tournaments.ownerId.filter(userId).next().value || ctx.db.sealedEventEntries.userId.filter(userId).next().value,
   )
@@ -2297,7 +2291,7 @@ function parseRoster(payload: string) {
 export const rosterById = spacetime.procedure({ id: t.string() }, t.string(), (ctx, { id }) =>
   operatorTx(ctx, (tx) => {
     if (!validId(id)) throw new SenderError('Invalid roster ID')
-    return productJson(tx.db.rosters.id.find(id) ?? null)
+    return productJson(tx.db.rosters.id.find(id))
   }),
 )
 
@@ -4022,7 +4016,7 @@ export const sealedEventRosterSharing = spacetime.procedure(
   (ctx, { token, eventToken, userId }) =>
     operatorTx(ctx, (tx) => {
       const event = namedHost(tx, token, eventToken)?.event
-      return productJson(event ? (sealedEventRosterSharingState(tx, event, userId)?.state ?? null) : null)
+      return productJson(event ? sealedEventRosterSharingState(tx, event, userId)?.state : null)
     }),
 )
 
@@ -4479,7 +4473,7 @@ function groupCommandIn(tx: Context, args: unknown[]) {
   }
   if (input.op === 'league-delete') {
     if (!league) return productJson('missing')
-    endLeague(tx, league, tx.timestamp.microsSinceUnixEpoch / 1000n)
+    endLeague(tx, league)
     touchGroup(tx, group.id)
     return productJson('deleted')
   }
@@ -5368,7 +5362,7 @@ function sealedEventCommandIn(tx: Context, args: unknown[]) {
       input.pairs.filter(([, b]) => b === null).length > 1
     )
       return productJson('stale')
-    tx.db.sealedEvents.id.update({ ...tx.db.sealedEvents.id.find(event.id)!, roundEndsAt: undefined })
+    tx.db.sealedEvents.id.update({ ...event, roundEndsAt: undefined })
     for (const [index, [aId, bId]] of input.pairs.entries())
       tx.db.roundPairings.insert({
         key: JSON.stringify([event.id, input.round, index + 1]),
@@ -5386,7 +5380,7 @@ function sealedEventCommandIn(tx: Context, args: unknown[]) {
     const input = sealedEventCommandInput(z.object({ op: z.literal('set-tiebreak'), scheduleFirst: z.boolean() }), value)
     // Changing the order once results exist could hand a place to whoever asked for it.
     if (event.rounds === undefined || roundPairings(tx, event.id).length) return productJson('closed')
-    tx.db.sealedEvents.id.update({ ...tx.db.sealedEvents.id.find(event.id)!, scheduleFirst: input.scheduleFirst || undefined })
+    tx.db.sealedEvents.id.update({ ...event, scheduleFirst: input.scheduleFirst || undefined })
     touchEvent(tx, host)
     return productJson('set')
   }
@@ -5394,7 +5388,7 @@ function sealedEventCommandIn(tx: Context, args: unknown[]) {
     const input = sealedEventCommandInput(z.object({ op: z.literal('set-round-timer'), endsAt: sealedEventTimeInput.nullable() }), value)
     if (event.rounds === undefined || event.revealedAt === undefined) return productJson('not-ready')
     tx.db.sealedEvents.id.update({
-      ...tx.db.sealedEvents.id.find(event.id)!,
+      ...event,
       roundEndsAt: input.endsAt === null ? undefined : BigInt(input.endsAt),
     })
     touchEvent(tx, host)
@@ -5454,7 +5448,7 @@ function sealedEventCommandIn(tx: Context, args: unknown[]) {
         battleId,
         seq,
         userId: ownerId,
-        at: tx.timestamp.microsSinceUnixEpoch / 1000n,
+        at: nowMs(tx),
         body: JSON.stringify(command),
       })
       for (const seat of seats) touchProduct(tx, seat.id, 'battles')
@@ -6079,7 +6073,7 @@ export const syncProduct = spacetime.procedure({ payload: t.string() }, t.string
     const result = action(tx, input.args)
     const decoded: unknown = typeof result === 'string' ? JSON.parse(result) : result
     const refusal = productSyncRefusal(input.name, decoded)
-    const encoded = productJson(result ?? null)
+    const encoded = productJson(result)
     tx.db.syncReceipts.insert({
       id: input.id,
       owner: input.owner,

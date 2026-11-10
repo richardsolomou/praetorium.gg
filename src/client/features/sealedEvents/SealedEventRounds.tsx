@@ -131,7 +131,7 @@ export function SealedEventRounds({
             <Button size="sm" disabled={pair.isPending} onClick={() => pair.mutate()}>
               <Shuffle /> {pair.isPending ? 'Pairing…' : `Pair round ${next}`}
             </Button>
-          ) : isOrganizer && !sample && unset.length ? (
+          ) : isOrganizer && unset.length ? (
             <Button size="sm" variant="outline" disabled={rollAll.isPending} onClick={() => rollAll.mutate()}>
               <Dices /> {rollAll.isPending ? 'Rolling…' : 'Roll battlefields'}
             </Button>
@@ -139,7 +139,7 @@ export function SealedEventRounds({
         }
       />
       {pair.error ? <Problem error={pair.error} className="mb-2" /> : null}
-      {isOrganizer && !sample && !canPair && unset.length ? (
+      {isOrganizer && !canPair && unset.length ? (
         <p data-battlefields-unset className="mb-2 text-sm text-dim">
           Set this round’s battlefields so players can prepare. {countLabel(unset.length, 'table')} still to set.
         </p>
@@ -235,7 +235,7 @@ export function SealedEventRounds({
                         onPlay={onPlay}
                         playing={playing}
                         sample={sample}
-                        reopen={isOrganizer && !sample ? { token, eventToken: sealedEvent.eventToken } : undefined}
+                        reopen={isOrganizer ? { token, eventToken: sealedEvent.eventToken } : undefined}
                         battlefield={sample ? undefined : { sealedEvent, token, organizes: isOrganizer }}
                       />
                     ))}

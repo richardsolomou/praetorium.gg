@@ -12,7 +12,6 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { cn } from '@/lib/utils'
 import { type FormatRule, waivedFormatRules } from '../../core/battle'
 import { countLabel } from '../text'
 import { buttonClass } from './buttonClass'
@@ -67,9 +66,9 @@ export function WaiverChip({ rules }: { rules: readonly FormatRule[] }) {
 }
 
 /** The same fact as a line, where a row or an army has room for one. */
-export function WaiverNote({ rules, className = '' }: { rules: readonly FormatRule[]; className?: string }) {
+export function WaiverNote({ rules }: { rules: readonly FormatRule[] }) {
   if (!rules.length) return null
-  return <p className={cn('text-xs text-discarded', className)}>Format restrictions off: {waiverLabels(rules)}</p>
+  return <p className="mt-1 text-xs text-discarded">Format restrictions off: {waiverLabels(rules)}</p>
 }
 
 /**

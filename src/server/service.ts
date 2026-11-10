@@ -393,8 +393,7 @@ export class PraetoriumService {
 
   async standings(): Promise<StandingsAnswer> {
     const now = this.clock()
-    const revision = await this.refreshStandings()
-    const key = revision
+    const key = await this.refreshStandings()
     if (this.standingsHeld?.key === key && this.standingsHeld.until > now) return this.standingsHeld.answer
     const read = async (): Promise<StandingsAnswer> => {
       const armies = await this.armyTables()
@@ -807,7 +806,7 @@ export class PraetoriumService {
     const group = await this.groupService.group(token, viewerId)
     if (!group) return null
     const memberIds = new Set(group.members.filter((member) => member.status === 'accepted').map((member) => member.userId))
-    if (group.visibility === 'private' && !(viewerId && memberIds.has(viewerId))) return null
+    if (hiddenFromViewer(group, viewerId)) return null
     const histories: BattleHistory[] = []
     let before: BattlesCursor | undefined
     for (let page = 0; page < STANDINGS_PAGES; page++) {
@@ -860,9 +859,7 @@ export class PraetoriumService {
    */
   async groupLeague(token: string, viewerId: string | null, factions: readonly BattleFaction[] = []) {
     const { group, league } = (await this.groupService.groupWithLeague(token, viewerId)) ?? {}
-    if (!group || !league) return null
-    if (group.visibility === 'private' && !group.members.some((member) => member.userId === viewerId && member.status === 'accepted'))
-      return null
+    if (!group || !league || hiddenFromViewer(group, viewerId)) return null
     const published = league.publishedAt !== null
     const histories = published ? await this.repository.battlesByLeague(token) : []
     const battles = this.battleSummaries(histories, viewerId, null, factions)
@@ -910,9 +907,7 @@ export class PraetoriumService {
     const found = await this.groupService.groupWithLeague(token, viewerId)
     if (!found) return null
     const { group } = found
-    if (group.visibility === 'private' && !group.members.some((member) => member.userId === viewerId && member.status === 'accepted'))
-      return null
-    return group.pastLeagues
+    return hiddenFromViewer(group, viewerId) ? null : group.pastLeagues
   }
 
   /** A group's ended leagues, newest first, each named by the player who topped it. */
@@ -961,10 +956,10 @@ export class PraetoriumService {
   }
 
   /** Each battle with how far it moved each player's overall rating, from the leaderboard's stored ratings. */
-  private async withRatingChanges<T extends { token: string }>(
+  private async withRatingChanges<T extends { token: string; status: string }>(
     battles: T[],
   ): Promise<(T & { ratingChanges?: Readonly<Record<string, number>> })[]> {
-    const finished = battles.flatMap((battle) => ('status' in battle && battle.status !== 'finished' ? [] : [battle.token]))
+    const finished = battles.flatMap((battle) => (battle.status === 'finished' ? [battle.token] : []))
     if (finished.length) await this.refreshStandings()
     const changes = new Map<string, Readonly<Record<string, number>>>()
     for (const batch of chunks(finished, 500))
@@ -1574,6 +1569,9 @@ function referencedPlays(
 export function guestDeviceHash(secret: string) {
   return createHash('sha256').update(secret).digest('hex')
 }
+
+const hiddenFromViewer = (group: { visibility: string; members: readonly { userId: string; status: string }[] }, viewerId: string | null) =>
+  group.visibility === 'private' && !group.members.some((member) => member.userId === viewerId && member.status === 'accepted')
 
 const droppedIds = (entries: readonly { userId: string; dropped: boolean }[]) =>
   new Set(entries.filter((entry) => entry.dropped).map((entry) => entry.userId))

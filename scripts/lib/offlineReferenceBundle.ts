@@ -37,7 +37,6 @@ import {
   type OfflineReferenceVersion,
   type ReferenceQuery,
 } from '../../src/contracts/offlineReference'
-import { catalogueDataDirectory } from './catalogueFiles'
 import { loadCatalogueTranslations } from '../../src/server/catalogueTranslations'
 import type { CatalogueRuntime } from '../../src/server/catalogueRuntime'
 
@@ -81,7 +80,7 @@ export function sharedEdition(source: OfflineConstructionSource, base: OfflineCo
   }
 }
 
-export async function writeReferenceBundle(outDir: string, directory = catalogueDataDirectory(), runtime?: CatalogueRuntime) {
+export async function writeReferenceBundle(outDir: string, directory: string, runtime?: CatalogueRuntime) {
   const { catalogue, rules } = loadSnapshotWithRules(directory)
   const versions = catalogueEditionLoaders(
     directory,

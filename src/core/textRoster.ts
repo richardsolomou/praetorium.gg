@@ -45,6 +45,12 @@ export function defaultListName(faction: string, points: number | null | undefin
 
 export type AttachedGroup = { leaders: TextRosterUnit[]; bodyguard: TextRosterUnit }
 
+/** A group listed with its bodyguard last. */
+export const bodyguardLast = (members: readonly TextRosterUnit[]): AttachedGroup => ({
+  leaders: members.slice(0, -1),
+  bodyguard: members.at(-1)!,
+})
+
 /**
  * Points each leader of a listed group at its bodyguard by entry number.
  *

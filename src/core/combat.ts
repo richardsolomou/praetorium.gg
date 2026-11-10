@@ -1095,13 +1095,7 @@ function resolveCombat(input: CombatInput, layout: Allocation, initial: State, m
         const points = outcome ? diceWeights(outcome.damage) : [1]
         points.forEach((weight, wounds) => (attempt[wounds] = (attempt[wounds] ?? 0) + weight / 6))
       }
-      for (let i = 0; i < ability.rolls; i++)
-        state = spill(
-          state,
-          attempt.map((weight) => weight ?? 0),
-          layout,
-          prevention,
-        )
+      for (let i = 0; i < ability.rolls; i++) state = spill(state, attempt, layout, prevention)
     }
   }
   mortals('before')

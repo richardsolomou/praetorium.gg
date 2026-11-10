@@ -27,7 +27,7 @@ import { account, schema, session as sessionTable, user } from '../db/authSchema
 import { oauthAccessToken, oauthClient, oauthConsent, oauthRefreshToken, oauthSchema } from '../db/oauthSchema'
 import type { AdminConnection, AdminSession } from '../admin'
 import { APPLE_AUTH_ORIGIN, appleCredentials, revokeAppleToken } from './appleAuth'
-import { configuredAuthProviderOptions, configuredAuthProviders } from './authProviders'
+import { configuredAuthProviderOptions } from './authProviders'
 import { nativeAuthToken } from './nativeAuthToken'
 import { isNativeOAuthState } from './nativeOAuthState'
 import { guestDeviceSubject } from '../core/guestSession'
@@ -86,7 +86,7 @@ export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret
   const authEmails = options.email ? accountEmails(options.email) : undefined
   const deploymentOrigins = trustedOrigins({
     trustForwardedHeaders: true,
-    configured: [environment.APP_URL, ...(configuredAuthProviders(environment).includes('apple') ? [APPLE_AUTH_ORIGIN] : [])],
+    configured: [environment.APP_URL, ...(configuredApple ? [APPLE_AUTH_ORIGIN] : [])],
   })
 
   const createdAccounts = new WeakSet<GenericEndpointContext['context']>()

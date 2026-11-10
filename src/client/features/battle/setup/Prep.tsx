@@ -17,7 +17,6 @@ import type { Side } from '../../../sides'
 type Props = {
   view: BattleView
   side: Side
-  missionId: string | null
   send: SendCommand
   pending: boolean
 }
@@ -33,7 +32,7 @@ type Props = {
  * its own detachment. The pool and choices target the side captain, while any seated
  * player may record them from the device at the table.
  */
-export function Prep({ view, side, missionId, send, pending }: Props) {
+export function Prep({ view, side, send, pending }: Props) {
   const captain = side.captain
   const tacticalOnly = isKotcLimit(view.settings.limit)
   const writes = canWritePrep(view)
@@ -56,7 +55,7 @@ export function Prep({ view, side, missionId, send, pending }: Props) {
     return !request?.catalogueId || !request.detachmentNames.length || Boolean(result.data)
   })
   // The deck is the instance's, so it is read once here rather than once per army.
-  const primaryCard = primaryCards(references).find((card) => card.key === missionId)
+  const primaryCard = primaryCards(references).find((card) => card.key === side.mission?.id)
   const deck = secondaryCards(references)
   /**
    * The cards that may be taken as fixed.

@@ -105,10 +105,10 @@ export function attachmentOf(definition: Definition, index: CatalogueIndex, sele
     definition,
     () => findAttachment(definition, index),
   )
-  if (!selection) return attachment ?? null
+  if (!selection) return attachment
 
   const associated = attachmentFromAssociations(definition, selection, index)
-  if (!associated) return attachment ?? null
+  if (!associated) return attachment
   return {
     kind: attachment?.kind ?? associated.kind,
     targets: uniqueNormalizedNames([...(attachment?.targets ?? []), ...associated.targets]),
@@ -319,8 +319,7 @@ function categoryTargets(name: string, index: CatalogueIndex) {
       )
       if (required.every((category) => categories.has(category))) found.push(nameOf(definition, index.definitions))
     }
-    const targets = uniqueNormalizedNames(found)
-    return targets
+    return uniqueNormalizedNames(found)
   })
 }
 
@@ -551,7 +550,7 @@ function statements(definition: Definition, index: CatalogueIndex): [string, str
 
 function names(text: string): string[] {
   const claim = CLAIM.exec(text)
-  if (!claim || claim.index === undefined) return []
+  if (!claim) return []
   const afterClaim = text.slice(claim.index + claim[0].length).replace(REQUIRES_LEADER, '')
   const bulleted = [...afterClaim.matchAll(BULLETED)].flatMap((match) => (match[1] ? [match[1]] : []))
   if (bulleted.length) return bulleted.map(clean).filter(Boolean)

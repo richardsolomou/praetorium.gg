@@ -10,7 +10,7 @@ import { changedFiles } from './lib/git.ts'
 import { stepOutput } from './lib/stepOutput.ts'
 import { importClosures } from './lib/moduleGraph.ts'
 
-export const coverageEntries = [
+const coverageEntries = [
   'scripts/catalogueCoverage.ts',
   'scripts/parallelCatalogueCoverage.ts',
   'scripts/compareCatalogueCoverage.ts',

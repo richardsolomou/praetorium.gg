@@ -15,7 +15,7 @@ type OutcomeView = {
  * the avatar to show, the device to congratulate — so it is answered once here rather
  * than parsed back out of the sentence.
  */
-export type BattleResult<Side extends OutcomeSide = OutcomeSide> =
+type BattleResult<Side extends OutcomeSide = OutcomeSide> =
   | { kind: 'win'; side: Side; verb: 'wins' | 'win'; detail: string; score: string | null }
   | { kind: 'none'; detail: string }
 

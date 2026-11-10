@@ -2679,7 +2679,6 @@ function fewestCpSince(state: BattleState, player: PlayerState, moment: BattleMo
   }, player.cp)
 }
 
-/** Carries a CP change through every moment since the one it belongs to. */
 /** A gain beyond the side's own Command phase, which the rules cap at one a battle round. */
 function bonusCpRefusal(player: PlayerState, round: number, delta: number): Refusal | null {
   return (player.bonusCpByRound[round - 1] ?? 0) + delta > 1
@@ -2697,6 +2696,7 @@ function adjustCp(state: BattleState, player: PlayerState, delta: number, missed
   recordCpChange(state, player, delta, missed)
 }
 
+/** Carries a CP change through every moment since the one it belongs to. */
 function recordCpChange(state: BattleState, player: PlayerState, delta: number, missed?: BattleMoment) {
   if (missed) {
     const from = momentOrder(state, missed)
@@ -2848,18 +2848,12 @@ function armyCommand(command: Command): boolean {
   ].includes(command.kind)
 }
 
-/**
- * The army a command acts on, resolved for a caller outside this file.
- *
- * The server has to know which deck a draw comes off before it chooses the cards,
- * and that is this question: asking it a second way there would let the cards come
- * off one deck and be recorded against another.
- */
 /** The player a command names, or whoever sent it. */
 export function commandTarget(command: Command, by: PlayerId): PlayerId {
   return 'playerId' in command && command.playerId ? command.playerId : by
 }
 
+/** Resolves the army once for both choosing cards from its deck and recording the draw. */
 export function commandArmy(state: BattleState, by: PlayerId, command: Command): PlayerState | undefined {
   const actor = state.players.find((candidate) => candidate.id === by)
   return actor ? targetArmy(state, actor, command) : undefined

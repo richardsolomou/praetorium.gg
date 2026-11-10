@@ -266,10 +266,7 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
     (cardsByKey.get(key)?.awards ?? []).filter((award) => appliesInMode(award, mode))
   const referenceFor = useCallback((key: string): ReferenceCard | undefined => cardsByKey.get(key), [cardsByKey])
   useWatchBattle(view, clock, missions, referenceFor, reminderPrompts)
-  const activeMissionActionReminders = useMemo(
-    () => (active?.isViewer ? missionActionReminders(active, referenceFor) : EMPTY_REMINDERS),
-    [active, referenceFor],
-  )
+  const activeMissionActionReminders = active?.isViewer ? missionActionReminders(active, referenceFor) : EMPTY_REMINDERS
   const writtenFor = useCallback((side: Side, key: string): StratagemText | undefined => writtenStratagem(rulesFor(side), key), [rulesFor])
   const whenDrawnFor = (key: string): WhenDrawn | undefined => secondaryDeck.find((card) => card.key === key)?.whenDrawn ?? undefined
   const coreKeysBySide = useMemo(
@@ -277,7 +274,6 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
       new Map(table.map((side) => [side.index, new Set(rulesFor(side).flatMap((rules) => rules.core.map((stratagem) => stratagem.key)))])),
     [table, rulesFor],
   )
-  const reportedPlayers = useMemo(() => reportPlayers(view.players), [view.players])
   const attemptedPrepRepairs = useRef(new Map<string, number>())
   const repairSide = table.find(
     (side) =>
@@ -676,7 +672,7 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
                 <div className="mt-3">
                   <BattleNote pending={pending || promptMinimized} send={sendAction} />
                 </div>
-                <Report token={view.token} players={reportedPlayers} sides={table} />
+                <Report token={view.token} players={reportPlayers(view.players)} sides={table} />
               </div>
 
               {emptySettlementRetryNeeded ? (
@@ -719,12 +715,8 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
             onCancel={() => send({ kind: 'cancel-advance', playerId: active.captain.id })}
             onDone={(completedSecondaryKeys, scored) => {
               const unresolved = discardableSecondaries(active).filter((key) => !completedSecondaryKeys.includes(key))
-              if (view.phase !== 'end' || !unresolved.length) {
-                if (!scored) send({ kind: 'acknowledge-scoring', playerId: active.captain.id })
-                send({ kind: 'advance', playerId: active.captain.id })
-              } else if (!scored) {
-                send({ kind: 'acknowledge-scoring', playerId: active.captain.id })
-              }
+              if (!scored) send({ kind: 'acknowledge-scoring', playerId: active.captain.id })
+              if (view.phase !== 'end' || !unresolved.length) send({ kind: 'advance', playerId: active.captain.id })
             }}
           />
         ) : null}

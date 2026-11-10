@@ -3,8 +3,8 @@ import { useFavouriteDatasheets } from '../../../favouriteDatasheets'
 import { meQuery } from '../../../queries'
 import { FavouriteToggle } from './FavouriteToggle'
 
-/** The account-backed favourite action shared by every datasheet surface; favourites list first. */
-export function FavouriteDatasheetToggle({ entryId, name, className }: { entryId: string; name: string; className?: string }) {
+/** The account-backed favourite action for a datasheet; favourites list first. */
+export function FavouriteDatasheetToggle({ entryId, name }: { entryId: string; name: string }) {
   const { data: me } = useQuery(meQuery())
   const { favourites, loading, toggleFavourite, pending } = useFavouriteDatasheets(Boolean(me))
   return (
@@ -14,7 +14,7 @@ export function FavouriteDatasheetToggle({ entryId, name, className }: { entryId
       favourite={favourites.has(entryId)}
       pending={pending.isPending && pending.variables?.entryId === entryId}
       loading={loading}
-      className={className}
+      className="size-11 rounded-lg"
       onToggle={() => toggleFavourite(entryId)}
     />
   )

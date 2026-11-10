@@ -385,7 +385,7 @@ export async function saveRoster(
   if (roster.automaticName && !navigator.onLine) await localConstruction(roster.catalogueId)
   const price = roster.automaticName ? pricedRoster(roster) : null
   if (roster.automaticName) roster.name = price?.label ?? previous?.name ?? ''
-  await queueLocal('saveRoster', { ...roster, name: roster.automaticName ? '' : roster.name }, resource, {
+  await queueLocal('saveRoster', draftFor(roster), resource, {
     data: roster,
     owner,
     update: reviewed

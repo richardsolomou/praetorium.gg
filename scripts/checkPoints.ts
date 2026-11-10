@@ -113,8 +113,8 @@ for (const id of offered) {
  * The entries a Munitorum name could mean, preferring units over models.
  *
  * Most of the manual's entries are single-model characters and vehicles, which
- * the catalogues model as `model` rather than `unit`. Looking only for units
- * skipped two thirds of the game.
+ * the catalogues model as `model` rather than `unit`, so looking only for units
+ * would skip two thirds of the game.
  */
 function resolve(name: string, catalogueId?: string) {
   const key = normalise(name)

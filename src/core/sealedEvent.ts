@@ -405,7 +405,7 @@ export function matchesSealedRoster(
   )
 }
 
-/** The two facts about an entry that decide whether its reader is on the same side of the table. */
+/** The facts about an entry that decide whether its reader is on the same side of the table. */
 export type SealedEventAllyEntry = Pick<SealedEventRevealEntry, 'userId' | 'status' | 'requiredLimit' | 'teamId'>
 
 /** Before reveal, doubles teammates and 2v1 allies may read each other’s sealed rosters; solo and 1v1 entrants cannot. */
@@ -511,7 +511,7 @@ export function sealedEventWarlordValid(roster: Roster, legacy = false) {
 /**
  * What an event lets a sealed list do beyond matched play: switch off one of its battle size's restrictions, or bring
  * Legends or Crucible datasheets. An event created before organizers chose this records none (null) and keeps sealing
- * whatever a list switches off, as it always did; a new one starts from strict matched play.
+ * whatever a list switches off; a new one starts from strict matched play.
  */
 const SEALED_EVENT_ALLOWANCES = [...FORMAT_RULE_IDS, ...NON_MATCHED_PLAY_KINDS] as const
 export type SealedEventAllowance = (typeof SEALED_EVENT_ALLOWANCES)[number]

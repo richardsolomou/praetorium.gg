@@ -1,4 +1,4 @@
-import { sealedEventBattleOptions, savedAbilityReminders } from './actionFunctions'
+import { openSealedEvent, openSealedEventRoster, sealedEventBattleOptions, savedAbilityReminders } from './actionFunctions'
 import { OfflineRefusal } from './offlineRefusal'
 import { fieldingReminders } from '../../shared/reminderAbilities'
 import { compactReplayFrames } from '../../core/replayFrames'
@@ -51,6 +51,16 @@ import { isFetchNetworkFailure } from '../networkErrors'
 import { battleKey, battlesKey, meKey, opponentsKey, reportKey } from '../queries/queryKeys'
 import { battleFilterActive, matchesBattle, type BattleFilter } from '../../core/battleFilter'
 
+const workspaceReport = ({ players, log }: BattleWorkspace, viewerId: string, rules: LoadedRules | undefined) =>
+  foldReport(
+    players,
+    log,
+    players.map((player) => player.id),
+    viewerId,
+    players.map((player) => player.side),
+    rules,
+  )
+
 export function workspaceScreen(
   workspace: BattleWorkspace,
   viewerId: string,
@@ -64,17 +74,7 @@ export function workspaceScreen(
     mission: rules ? resolvedMissionForSide(state, rules, side) : null,
   }))
   const viewerSide = workspace.players.find((player) => player.id === viewerId)?.side
-  const report =
-    state.status === 'finished'
-      ? foldReport(
-          workspace.players,
-          workspace.log,
-          workspace.players.map((player) => player.id),
-          viewerId,
-          workspace.players.map((player) => player.side),
-          rules,
-        )
-      : []
+  const report = state.status === 'finished' ? workspaceReport(workspace, viewerId, rules) : []
   const labels = new Map(report.map((entry) => [entry.seq, entry.text]))
   return {
     kind: 'battle',
@@ -317,14 +317,7 @@ async function unsyncedWorkspace(token: string) {
 export async function battleReport(args: Parameters<typeof server.battleReport>[0]): ReturnType<typeof server.battleReport> {
   const workspace = await unsyncedWorkspace(args.data.token)
   return workspace
-    ? foldReport(
-        workspace.players,
-        workspace.log,
-        workspace.players.map((player) => player.id),
-        localOwner()!.id,
-        workspace.players.map((player) => player.side),
-        (await loadLocalRules())?.rules,
-      )
+    ? workspaceReport(workspace, localOwner()!.id, (await loadLocalRules())?.rules)
     : cachedRead(reportKey(args.data.token), () => server.battleReport(args))
 }
 export async function replayBattleAt(args: Parameters<typeof server.replayBattleAt>[0]): ReturnType<typeof server.replayBattleAt> {
@@ -337,14 +330,7 @@ export async function replayBattleAt(args: Parameters<typeof server.replayBattle
     view: screen.view,
     clock: { ...screen.clock, running: null },
     missions: screen.missions,
-    report: foldReport(
-      prefix.players,
-      prefix.log,
-      prefix.players.map((player) => player.id),
-      localOwner()!.id,
-      prefix.players.map((player) => player.side),
-      localRules()?.rules,
-    ),
+    report: workspaceReport(prefix, localOwner()!.id, localRules()?.rules),
   }
 }
 
@@ -448,7 +434,6 @@ export async function createSealedEventBattle(
 ): ReturnType<typeof server.createSealedEventBattle> {
   const owner = localOwner()
   if (!owner || !localEngine() || !hasLocalConstruction()) return server.createSealedEventBattle(args)
-  const { openSealedEvent, openSealedEventRoster } = await import('./actionFunctions')
   const sealedEvent = await openSealedEvent({ data: { token: args.data.token, eventToken: args.data.eventToken } })
   if (!sealedEvent) throw new OfflineRefusal('Open and save this event online before starting an offline battle.')
   const entries = sealedEvent.entries.filter((entry) => entry.status === 'accepted' && entry.submitted)

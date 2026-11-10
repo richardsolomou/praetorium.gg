@@ -87,15 +87,12 @@ function AccountOnboardingGuide({ userId }: { userId?: string }) {
   if (arrived !== focus) setFocus(arrived)
   const target = focusedStep && trackedTarget?.step === focus?.step ? trackedTarget?.element : undefined
 
-  const showStep = useCallback(
-    async (next: OnboardingFocus) => {
-      rememberFocus(next)
-      const href = onboardingHrefFor(next.step, onboardingPage(location.pathname))
-      const targetExists = document.querySelector(`[data-onboarding="${ONBOARDING_UI[next.step].target}"]`)
-      if (href && !targetExists) await navigate({ href })
-    },
-    [location.pathname, navigate, rememberFocus],
-  )
+  const showStep = async (next: OnboardingFocus) => {
+    rememberFocus(next)
+    const href = onboardingHrefFor(next.step, onboardingPage(location.pathname))
+    const targetExists = document.querySelector(`[data-onboarding="${ONBOARDING_UI[next.step].target}"]`)
+    if (href && !targetExists) await navigate({ href })
+  }
 
   useEffect(() => {
     window.dispatchEvent(new CustomEvent<OnboardingFocus | undefined>(ONBOARDING_FOCUS_EVENT, { detail: focus }))

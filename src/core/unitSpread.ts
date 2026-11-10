@@ -395,15 +395,14 @@ function spreadRepeatedGroup(
   // already as big as it is allowed to be. The body comes from one of its own — a
   // veteran puts down his bolt rifle to carry the heavy bolter — and never from a
   // model the data insists on, such as the sergeant.
-  const before = models.reduce((total, model) => total + (model.count ?? 1), 0)
   const after = variants.reduce((total, variant) => total + (variant.count ?? 1), 0)
   // The squadmate may stand a group further out than the carrier does, where the
   // catalogue files its specialists apart from the squad they are drawn from, so what
   // the holder cannot pay for is asked of the squad around it.
-  if (after > before) return keepingTheSquad(selection, spendBodies(replaced, holder, modelId, after - before, index), path, index)
+  if (after > bodies) return keepingTheSquad(selection, spendBodies(replaced, holder, modelId, after - bodies, index), path, index)
   // And a body no longer needed goes back to the squadmate who lent it, so putting
   // a heavy bolter down leaves the unit the size the player asked for.
-  if (after < before) return keepingTheSquad(selection, refundBodies(replaced, holder, modelId, before - after, index), path, index)
+  if (after < bodies) return keepingTheSquad(selection, refundBodies(replaced, holder, modelId, bodies - after, index), path, index)
   return replaced
 }
 
@@ -496,15 +495,14 @@ function keepingTheSquad(before: Selection, after: Selection, path: readonly str
   const sized = sizeOf(before, index).path.slice(0, -1)
   const inside = sized.length > 0 && path.length > sized.length && sized.every((step, depth) => path[depth] === step)
   if (!inside) return sized.length ? after : keepingAFullGroup(before, after, path, index)
-  const squad = sized
   const fielded = (tree: Selection) => {
-    const held = at(tree, squad)
+    const held = at(tree, sized)
     return held ? modelCountOf(held, index) : 0
   }
   const grew = fielded(after) - fielded(before)
-  const carrier = path[squad.length] ?? ''
-  if (grew > 0) return spendBodies(after, squad, carrier, grew, index)
-  if (grew < 0) return refundBodies(after, squad, carrier, -grew, index)
+  const carrier = path[sized.length] ?? ''
+  if (grew > 0) return spendBodies(after, sized, carrier, grew, index)
+  if (grew < 0) return refundBodies(after, sized, carrier, -grew, index)
   return after
 }
 

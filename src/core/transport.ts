@@ -72,10 +72,6 @@ const list = (printed: string) => printed.replaceAll('/', ', ')
 /**
  * A printed transport rule read sentence by sentence, before any wargear is chosen: the
  * facts a datasheet's text states, kept so the rule can be judged without the text.
- *
- * Null when any sentence says something these checks cannot hold it to, such as a
- * capacity in units or a space that does not say which allowance it fills. A rule the
- * checks only partly understand is not enforced partly.
  */
 export type PrintedTransport = {
   main: Pool
@@ -113,6 +109,7 @@ export const printedTransportSchema = z.object({
     .max(20),
 }) satisfies z.ZodType<PrintedTransport>
 
+/** Null when any sentence says something the checks cannot hold it to: a rule they only partly understand is not enforced partly. */
 export function printedTransport(printed: string | undefined): PrintedTransport | null {
   if (!printed) return null
   let main: Pool | null = null
@@ -202,7 +199,7 @@ const described = (load: readonly Pool[]) =>
  * Where each passenger rides, or why they cannot all ride together.
  *
  * A passenger frozen without keywords, from a battle created before they were
- * recorded, is counted one space per model in the first allowance, as it always was.
+ * recorded, is counted one space per model in the first allowance.
  */
 export function transportLoad(rule: TransportRule, passengers: readonly Passenger[]): TransportLoad | Refusal {
   const needs: { models: number; units: number; pools: number[] }[][] = rule.loads.map(() => [])

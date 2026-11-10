@@ -545,6 +545,10 @@ export function combatRuleDefences(
   attackRules: readonly ActiveCombatRule[] = [],
 ): CombatInput['target'] {
   const effects = rules.flatMap((rule) => rule.effects).filter((effect) => effect.role === 'defender' && effect.phases.includes(phase))
+  const bestRoll = <T extends number | null | undefined>(
+    field: 'invulnerable' | 'feelNoPain' | 'psychicFeelNoPain' | 'mortalFeelNoPain',
+    initial: T,
+  ) => effects.reduce<number | T>((roll, effect) => (effect[field] === undefined ? roll : Math.min(roll ?? 7, effect[field])), initial)
   const attacks = [...new Map(attackRules.map((rule) => [combatTextKey(rule.name), rule])).values()]
     .flatMap((rule) => rule.effects)
     .filter((effect) => effect.role === 'attacker' && effect.phases.includes(phase))
@@ -552,10 +556,7 @@ export function combatRuleDefences(
     ...target,
     groups: target.groups.map((group) => ({
       ...group,
-      invulnerable: effects.reduce(
-        (roll, effect) => (effect.invulnerable === undefined ? roll : Math.min(roll ?? 7, effect.invulnerable)),
-        group.invulnerable,
-      ),
+      invulnerable: bestRoll('invulnerable', group.invulnerable),
       save: Math.max(
         2,
         Math.min(
@@ -574,18 +575,9 @@ export function combatRuleDefences(
       ),
     })),
     damageDivisor: effects.reduce((divisor, effect) => Math.max(divisor, effect.damageDivisor ?? 1), target.damageDivisor ?? 1),
-    feelNoPain: effects.reduce(
-      (roll, effect) => (effect.feelNoPain === undefined ? roll : Math.min(roll ?? 7, effect.feelNoPain)),
-      target.feelNoPain,
-    ),
-    psychicFeelNoPain: effects.reduce(
-      (roll, effect) => (effect.psychicFeelNoPain === undefined ? roll : Math.min(roll ?? 7, effect.psychicFeelNoPain)),
-      target.psychicFeelNoPain,
-    ),
-    mortalFeelNoPain: effects.reduce(
-      (roll, effect) => (effect.mortalFeelNoPain === undefined ? roll : Math.min(roll ?? 7, effect.mortalFeelNoPain)),
-      target.mortalFeelNoPain,
-    ),
+    feelNoPain: bestRoll('feelNoPain', target.feelNoPain),
+    psychicFeelNoPain: bestRoll('psychicFeelNoPain', target.psychicFeelNoPain),
+    mortalFeelNoPain: bestRoll('mortalFeelNoPain', target.mortalFeelNoPain),
     damageReduction: [...new Map(rules.map((rule) => [rule.name, rule])).values()].reduce(
       (amount, rule) =>
         amount +

@@ -77,7 +77,6 @@ export function ServiceRecordPanel({
         <div className="mt-2 space-y-3">
           <Results record={record} />
           <Tallies
-            label="Per battle"
             items={[
               { label: 'Victory points', value: oneDecimal(record.averagePoints) },
               { label: 'In wins', value: oneDecimal(record.averageInWins) },
@@ -199,10 +198,10 @@ type TallyItem = { label: string; value: number | string }
  * The cells grow to fill the row rather than sitting in fixed columns, because a
  * fixed grid leaves holes under a short last row.
  */
-function Tallies({ label, items }: { label: string; items: readonly TallyItem[] }) {
+function Tallies({ items }: { items: readonly TallyItem[] }) {
   return (
     <div>
-      <p className="eyebrow">{label}</p>
+      <p className="eyebrow">Per battle</p>
       <dl className="part mt-1 flex flex-wrap gap-px overflow-hidden bg-edge">
         {items.map((item) => (
           <div key={item.label} className="min-w-0 grow basis-[calc(50%-1px)] bg-panel px-3 py-2.5 sm:basis-[calc(25%-1px)]">

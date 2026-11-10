@@ -309,10 +309,10 @@ export const savedRosterPageQuery = (ids: string[]) =>
   })
 export const homeRostersQuery = () =>
   queryOptions({ queryKey: homeRostersKey(), queryFn: ({ signal }) => homeRosters({ signal }), staleTime: SSR_STALE_TIME })
-export const rosterBootstrapQuery = (id: string, battle?: string) =>
+export const rosterBootstrapQuery = (id: string) =>
   queryOptions({
-    queryKey: rosterBootstrapKey(id, battle),
-    queryFn: ({ signal }) => rosterBootstrap({ data: { id, ...(battle ? { battle } : {}) }, signal }),
+    queryKey: rosterBootstrapKey(id),
+    queryFn: ({ signal }) => rosterBootstrap({ data: { id }, signal }),
     staleTime: SSR_STALE_TIME,
   })
 

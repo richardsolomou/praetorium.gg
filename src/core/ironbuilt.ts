@@ -1,4 +1,4 @@
-import { attachGroups, type AttachedGroup, type TextRoster, type TextRosterUnit } from './textRoster'
+import { attachGroups, bodyguardLast, type AttachedGroup, type TextRoster, type TextRosterUnit } from './textRoster'
 import { printedNumber } from './text'
 
 const frame = /^\+={10,}$/
@@ -35,7 +35,7 @@ export function fromIronbuiltText(input: string): TextRoster | null {
   let leading = false
   let current: TextRosterUnit | null = null
   const close = () => {
-    if (group && group.length > 1) groups.push({ leaders: group.slice(0, -1), bodyguard: group.at(-1)! })
+    if (group && group.length > 1) groups.push(bodyguardLast(group))
     group = null
   }
 

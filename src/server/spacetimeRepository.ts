@@ -30,7 +30,6 @@ export type SealedEventSchedule = { playsAt: number | null; sealBy: number | nul
 type Tournament = NonNullable<NonNullable<Awaited<ReturnType<SpacetimeOperator['sealedEventByToken']>>>['tournament']>
 
 /** A tournament's own details; its host fields already address and date it, and each read names its admins its own way. */
-
 function tournamentDetails({ token: _token, createdAt: _createdAt, adminIds: _adminIds, ...details }: Tournament) {
   return details
 }
@@ -359,9 +358,8 @@ export class SpacetimeRepository {
     schedule?: SealedEventSchedule
     now: number
   }) {
-    const { groupToken, ...rest } = input
     return this.product.sealedEventCommand(
-      { ...rest, groupToken, op: 'create-hidden-list-game', format: rest.format ?? null, rosterLimit: rest.rosterLimit ?? null },
+      { ...input, op: 'create-hidden-list-game', format: input.format ?? null, rosterLimit: input.rosterLimit ?? null },
       z.literal('forbidden').nullable(),
     )
   }
@@ -625,29 +623,19 @@ export class SpacetimeRepository {
       ...record.pastLeagues.flatMap((league) => league.players.map((player) => player.userId)),
     ])
     const owner = profileOf(profiles, record.group.ownerId, 'Group owner')
+    const named = <T extends { userId: string }>(people: readonly T[]) =>
+      people.flatMap((person) => {
+        const profile = profiles.get(person.userId)
+        return profile ? [{ ...person, name: profile.name, image: profile.image }] : []
+      })
     return {
       ...record.group,
       games: record.games,
-      league: record.league && {
-        ...record.league,
-        players: record.league.players.flatMap((player) => {
-          const profile = profiles.get(player.userId)
-          return profile ? [{ ...player, name: profile.name, image: profile.image }] : []
-        }),
-      },
-      pastLeagues: record.pastLeagues.map((league) => ({
-        ...league,
-        players: league.players.flatMap((player) => {
-          const profile = profiles.get(player.userId)
-          return profile ? [{ ...player, name: profile.name, image: profile.image }] : []
-        }),
-      })),
+      league: record.league && { ...record.league, players: named(record.league.players) },
+      pastLeagues: record.pastLeagues.map((league) => ({ ...league, players: named(league.players) })),
       ownerName: owner.name,
       ownerImage: owner.image,
-      members: record.members.flatMap((member) => {
-        const profile = profiles.get(member.userId)
-        return profile ? [{ ...member, name: profile.name, image: profile.image }] : []
-      }),
+      members: named(record.members),
     }
   }
 

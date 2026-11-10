@@ -127,47 +127,28 @@ export function parseAbilityGrants(
     /^(?:[^.\n]{1,160} model only\.\s*)?While (?:this model|the bearer) is leading a unit:\s*(?:[-▪]\s*)?Models in that unit have the \[?([\p{L}\p{N} +"'’\p{Pd}]+?)\]? abilit(?:y|ies)(?:\.\s*|$)/iu,
   )
   if (leadingBulletGrant) return { matched: true, grants: attached ? grant(leadingBulletGrant[1]!, 'unit') : [] }
-  const namedModelLeadingGrants = [
-    ...prose.matchAll(
+  for (const [pattern, recipient] of [
+    [
       /\bWhile an? ([^,.\n]{1,160}?) model is leading this unit, models in this unit have (?:the )?\[?([\p{L}\p{N} +,"'’\p{Pd}]+?)\]? abilit(?:y|ies)(?=[.,]|$)/giu,
-    ),
-  ]
-  if (namedModelLeadingGrants.length) {
-    const grants = namedModelLeadingGrants.flatMap((match) =>
-      attachmentTargetMatches(match[1]!, counterpartReferences) ? grant(match[2]!, 'unit', true) : [],
-    )
-    return { matched: true, grants: attached ? grants : [] }
-  }
-  const namedLedUnitGrants = [
-    ...prose.matchAll(
+      'unit',
+    ],
+    [
       /\bWhile (?:this model|the bearer) is leading an? ([^,.\n]{1,160}?) unit, that unit has (?:the )?\[?([\p{L}\p{N} +,"'’\p{Pd}]+?)\]? abilit(?:y|ies)(?=[.,]|$)/giu,
-    ),
-  ]
-  if (namedLedUnitGrants.length) {
-    const grants = namedLedUnitGrants.flatMap((match) =>
-      attachmentTargetMatches(match[1]!, counterpartReferences) ? grant(match[2]!, 'unit', true) : [],
-    )
-    return { matched: true, grants: attached ? grants : [] }
-  }
-  const counterpartAbilityGrants = [
-    ...prose.matchAll(
+      'unit',
+    ],
+    [
       /\bWhile (?:this model|the bearer) is leading a unit with (?:the )?\[?([\p{L}\p{N} +,"'’\p{Pd}]+?)\]? abilit(?:y|ies), every model in (?:this model's|the bearer's|the bearer’s) unit has (?:the )?\[?([\p{L}\p{N} +,"'’\p{Pd}]+?)\]? abilit(?:y|ies)(?=[.,]|$)/giu,
-    ),
-  ]
-  if (counterpartAbilityGrants.length) {
-    const grants = counterpartAbilityGrants.flatMap((match) =>
-      attachmentTargetMatches(match[1]!, counterpartReferences) ? grant(match[2]!, 'unit', true) : [],
-    )
-    return { matched: true, grants: attached ? grants : [] }
-  }
-  const namedBodyguardGrants = [
-    ...prose.matchAll(
+      'unit',
+    ],
+    [
       /\bWhile (?:this model|the bearer) is leading an? ([^,.\n]{1,160}?) unit, (?:it|the bearer|this model) has (?:the )?\[?([\p{L}\p{N} +,"'’\p{Pd}]+?)\]? abilit(?:y|ies)(?=[.,]|$)/giu,
-    ),
-  ]
-  if (namedBodyguardGrants.length) {
-    const grants = namedBodyguardGrants.flatMap((match) =>
-      attachmentTargetMatches(match[1]!, counterpartReferences) ? grant(match[2]!, 'bearer', true) : [],
+      'bearer',
+    ],
+  ] as const) {
+    const matches = [...prose.matchAll(pattern)]
+    if (!matches.length) continue
+    const grants = matches.flatMap((match) =>
+      attachmentTargetMatches(match[1]!, counterpartReferences) ? grant(match[2]!, recipient, true) : [],
     )
     return { matched: true, grants: attached ? grants : [] }
   }

@@ -1,3 +1,4 @@
+import { countBy } from '../src/core/collections'
 import { readCanonicalCatalogue } from '../src/server/canonicalCatalogue'
 import { canonicalCatalogueOutputFile } from './lib/catalogueFiles'
 
@@ -7,8 +8,7 @@ process.stdout.on('error', (error: NodeJS.ErrnoException) => {
 })
 
 const catalogue = readCanonicalCatalogue(canonicalCatalogueOutputFile())
-const counts = new Map<string, number>()
-for (const issue of catalogue.issues) counts.set(issue.kind, (counts.get(issue.kind) ?? 0) + 1)
+const counts = countBy(catalogue.issues, (issue) => issue.kind)
 for (const [kind, count] of [...counts].toSorted(([left], [right]) => left.localeCompare(right))) {
   console.log(`${kind}: ${count}`)
 }

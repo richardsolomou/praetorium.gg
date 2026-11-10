@@ -26,5 +26,5 @@
 
 ## Production roster copies
 
-- `just rosters-fetch` and `just rosters-import` copy production rosters into the local preview account; keep snapshots in ignored `data-dev/` and credentials out of commands and tracked files.
+- `just rosters-fetch` exports production selections; `just rosters-import` copies that snapshot into the local preview account. Keep snapshots in ignored `data-dev/` and credentials out of commands and tracked files.
 - `just rosters-normalise --apply` writes to production; run it only from a checkout of the deployed release.

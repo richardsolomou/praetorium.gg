@@ -568,8 +568,8 @@ function calculateRoster(
     }
   }
   const selfContradictory = new Set(whole.errors.filter((error) => isCatalogueSelfContradiction(error, composedByCatalogue)))
-  const pickedSelections = data.units.map((_, key) => picked.find((unit) => unit.key === key)?.selection)
-  const pickedIndexByKey = new Map(picked.map((unit, at) => [unit.key, at]))
+  const pickedByKey = new Map(picked.map((unit) => [unit.key, unit]))
+  const pickedSelections = data.units.map((_, key) => pickedByKey.get(key)?.selection)
   const attachedByHost = groupBy(data.units.keys(), (key) => attachmentHost(data.units, key))
   const specialsByKey = new Map(
     picked.map((unit) => [
@@ -604,7 +604,7 @@ function calculateRoster(
       loaded.index,
       pickedSelections,
       data.units.map((_, key) => {
-        const unit = picked.find((candidate) => candidate.key === key)
+        const unit = pickedByKey.get(key)
         return unit ? keywordNamesOf(unit) : undefined
       }),
     ),
@@ -687,8 +687,7 @@ function calculateRoster(
       const unitKeywords = keywordNamesOf(unit)
       const host = attachmentHost(data.units, unit.key)
       const companions = (attachedByHost.get(host) ?? []).flatMap((key) => {
-        const index = pickedIndexByKey.get(key)
-        const companion = index === undefined ? undefined : picked[index]
+        const companion = pickedByKey.get(key)
         const companionSelectionIndex = companion ? selectionIndex.get(companion.selection) : undefined
         return companionSelectionIndex !== undefined && companion !== unit ? [companionSelectionIndex] : []
       })

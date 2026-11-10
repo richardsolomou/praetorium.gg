@@ -1,9 +1,10 @@
+/** Standings rate players from finished battles; each faction table rates the seats that fielded it. */
+
 import type { BattleStatus } from './battle'
 import type { CatalogueEdition } from './catalogueEdition'
 import { isGuestSeat } from './newBattle'
 import { routeSlug } from './slug'
 import { compareText } from './text'
-/** Standings rate players from finished battles; each faction table rates the seats that fielded it. */
 import { ordinal, rate, rating, type Rating } from 'openskill'
 
 /** The catalogue army a seat brought, as the battle list already names it. */
@@ -110,12 +111,13 @@ const DISPLAY = { alpha: 20, target: 1000 }
  */
 const BETA = 25 / 3
 
+const NEWCOMER_SIGMA = rating().sigma
+
 /**
  * How much a player's uncertainty grows per day since their last battle in a table, from none back to a newcomer's in
  * two years, so a player who has stopped playing drifts down it. Only the listed rating drifts: battles are rated
  * without it, since much of the history is imported and its gaps are not time away.
  */
-const NEWCOMER_SIGMA = rating().sigma
 const IDLE_VARIANCE_PER_DAY = NEWCOMER_SIGMA ** 2 / 730
 const DAY_MS = 24 * 60 * 60 * 1000
 

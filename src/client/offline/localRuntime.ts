@@ -240,6 +240,6 @@ export async function hasSyncableChanges(resource: string) {
   const engine = localEngine()
   return engine ? hasSyncableWork(await engine.storage.read(), resource) : false
 }
-export async function rememberBattle(workspace: BattleWorkspace, owner = localOwner()?.id) {
+export async function rememberBattle(workspace: BattleWorkspace, owner: string) {
   await rememberDocument(`battle:${workspace.battle.token}`, workspace, workspace.serverSeq, owner)
 }

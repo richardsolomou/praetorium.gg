@@ -83,7 +83,7 @@ export async function compareInOrder<S, T>(
 export type SourceCommit = { sha: string; at: number }
 
 /** Upstream history at one UTC day's end: the revision each source had reached by then. */
-export type Checkpoint = { day: string; recordedAt: number; revisions: Record<string, string>; missing: string[] }
+type Checkpoint = { day: string; recordedAt: number; revisions: Record<string, string>; missing: string[] }
 
 const DAY = 24 * 60 * 60 * 1000
 const dayOf = (at: number) => new Date(at).toISOString().slice(0, 10)

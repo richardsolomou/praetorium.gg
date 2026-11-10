@@ -101,7 +101,7 @@ export const constructionReadEvents: {
 
 export type ConstructionReadEvent = ReadEvent
 
-export type ConstructionReads = typeof constructionReads
+type ConstructionReads = typeof constructionReads
 export type ConstructionReadName = keyof ConstructionReads
 export type ConstructionReadData<K extends ConstructionReadName> = Parameters<ConstructionReads[K]>[1]
 export type ConstructionReadResult<K extends ConstructionReadName> = ReturnType<ConstructionReads[K]>

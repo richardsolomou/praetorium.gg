@@ -225,7 +225,7 @@ export function CollectionPage() {
                       {counts.isPending || progress.isPending ? null : (
                         <ShelfLine owned={countOf(sheet.id)} {...(progress.data?.[sheet.id] ?? { built: 0, painted: 0 })} />
                       )}
-                      <CollectionEntryCounts onboarding="collection-counts" entryId={sheet.id} name={sheet.name} />
+                      <CollectionEntryCounts entryId={sheet.id} name={sheet.name} />
                       <CollectionCountsAs entryId={sheet.id} candidates={armySheets.get(sheet.catalogueId) ?? []} />
                     </CollectionCard>
                   ))}

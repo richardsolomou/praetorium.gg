@@ -86,7 +86,7 @@ export function TerrainBoard({
   const flipped = deploymentNeedsFlip(deployment?.zones ?? [], board)
   const upright = flipped ? `translate(${board.height} 0) rotate(90)` : `translate(0 ${board.width}) rotate(-90)`
   const { geometry } = layout
-  const objectives = useMemo(() => deploymentObjectiveMarkers(geometry, deployment?.objectives ?? []), [geometry, deployment?.objectives])
+  const objectives = deploymentObjectiveMarkers(geometry, deployment?.objectives ?? [])
   const objectivePositions = useMemo(
     () => battlefieldObjectives(geometry, deployment?.objectives ?? []).map((objective) => objective.position),
     [geometry, deployment?.objectives],
@@ -159,12 +159,7 @@ export function TerrainBoard({
           </>
         ) : null}
         {deployment?.zones.map((zone) => (
-          <polygon
-            key={zone.name}
-            points={zone.points.map((point) => `${point.x},${point.y}`).join(' ')}
-            className={deploymentZoneClass(zone.player)}
-            strokeWidth=".25"
-          />
+          <polygon key={zone.name} points={svgPoints(zone.points)} className={deploymentZoneClass(zone.player)} strokeWidth=".25" />
         ))}
         {deployment?.attackerTerritory ? (
           <path

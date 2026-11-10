@@ -1,5 +1,5 @@
 import { countBy } from './collections'
-import { attachGroups, starredLabel, textNickname, WTC_SECTION, type TextRoster, type TextRosterUnit } from './textRoster'
+import { attachGroups, bodyguardLast, starredLabel, textNickname, WTC_SECTION, type TextRoster, type TextRosterUnit } from './textRoster'
 
 /**
  * A points figure grouped in any locale's style, read as "(1 995 Punkte)", "(1'995 Punkte)" or "(2 Detachment Points)":
@@ -243,10 +243,7 @@ export function fromBattleBaseText(input: string, { setupOptional = false } = {}
     warlord.unit.selections.splice(warlord.unit.selections.indexOf(warlord.selection), 1)
     warlord.unit.warlord = true
   }
-  attachGroups(
-    units,
-    groups.filter((members) => members.length > 1).map((members) => ({ leaders: members.slice(0, -1), bodyguard: members.at(-1)! })),
-  )
+  attachGroups(units, groups.filter((members) => members.length > 1).map(bodyguardLast))
 
   // The footer names the app's data version last, in the export's language: "Data Version: v995", "versión de los datos v925".
   const dataVersion = Number(lines.find((line) => appVersion.test(line))?.match(/\bv(\d+)\s*$/)?.[1])

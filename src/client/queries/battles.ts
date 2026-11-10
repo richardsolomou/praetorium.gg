@@ -53,8 +53,6 @@ import {
   standingsKey,
 } from './queryKeys'
 
-export type { BattlesCursor } from '../../contracts/battles'
-
 /** A battle list read a page at a time, older pages before the cursor the previous page gave. */
 export function battleFeedQuery<Page extends { nextCursor: BattlesCursor | null }>(
   queryKey: unknown[],

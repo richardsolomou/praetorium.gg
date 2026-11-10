@@ -3,7 +3,7 @@ import { useNavigate } from '@tanstack/react-router'
 import { UserX } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent } from '@/components/ui/tabs'
-import { countBy } from '../../../core/collections'
+import { byId, countBy } from '../../../core/collections'
 import { BattleShelf } from '../battles/BattleShelf'
 import { PageTabsList } from '../../components/PageTabs'
 import { PageContent, PageHeader } from '../../components/Page'
@@ -212,7 +212,7 @@ export function PlayerProfilePage({ userId, search }: { userId: string; search: 
             <TabsContent value="rosters" className="mt-4">
               <PlayerRosters
                 rosters={published.rosters}
-                totals={new Map(published.totals.map((entry) => [entry.id, entry]))}
+                totals={byId(published.totals)}
                 factions={factions.data?.factions ?? []}
                 factionsLoading={factions.isPending}
               />

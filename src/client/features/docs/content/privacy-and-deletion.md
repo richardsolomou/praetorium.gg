@@ -2,7 +2,7 @@ Your name, picture and profile page are public, and your email is private. Battl
 
 ## Battles
 
-Battles are public. Anyone can find and watch your past and live battles, tournament games included, and finished ones count on the leaderboard. Spectators can't change anything or see a face-down Secret Mission.
+Battles are public. Anyone can find and watch your past and live battles, tournament games included. Finished guided battles count on the leaderboard once every seat belongs to an account, except practice battles and games entered with **Enter score**. Spectators can't change anything or see a face-down Secret Mission.
 
 ## Rosters
 

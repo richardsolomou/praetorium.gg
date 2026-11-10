@@ -39,7 +39,7 @@ export function BattlePage({ token }: { token: string }) {
 }
 
 function SeatedBattle({ token, screen }: { token: string; screen: Extract<Awaited<ReturnType<typeof openBattle>>, { kind: 'battle' }> }) {
-  useSpacetimeLiveBattle(token, true)
+  useSpacetimeLiveBattle(token)
   // Taps are shown from the rules on this device, which take a moment to prepare.
   useEffect(() => warmLocalRules(), [])
   useEffect(() => {
