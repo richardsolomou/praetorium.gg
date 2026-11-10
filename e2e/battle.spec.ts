@@ -66,15 +66,16 @@ test('Cleanse and Centre Ground prompt for scoring on the first turn', async ({ 
   await expect(ongoing.locator('[data-secondary] [aria-label="Victory points by battle round"]')).toHaveCount(0)
   for (const width of [900, 1100, 1440]) {
     await page.setViewportSize({ width, height: 900 })
-    const missions = await ongoing.locator('[data-missions]').boundingBox()
-    const stratagems = await ongoing.locator('[data-stratagems]').boundingBox()
-    expect(missions && stratagems).toBeTruthy()
-    if (width === 1100) {
-      expect(stratagems!.y).toBeGreaterThan(missions!.y + missions!.height)
-    } else {
-      expect(stratagems!.x).toBeGreaterThan(missions!.x + missions!.width)
-      expect(Math.abs(stratagems!.y - missions!.y)).toBeLessThan(1)
-    }
+    await expect
+      .poll(async () => {
+        const missions = await ongoing.locator('[data-missions]').boundingBox()
+        const stratagems = await ongoing.locator('[data-stratagems]').boundingBox()
+        if (!missions || !stratagems) return false
+        return width === 1100
+          ? stratagems.y > missions.y + missions.height
+          : stratagems.x > missions.x + missions.width && Math.abs(stratagems.y - missions.y) < 1
+      })
+      .toBe(true)
     await expectNoPageOverflow(page)
   }
   await page.setViewportSize(PHONE)
@@ -86,6 +87,8 @@ test('Cleanse and Centre Ground prompt for scoring on the first turn', async ({ 
   const scoring = page.getByRole('dialog', { name: /^Scoring end of turn points/ })
   await expect(scoring.getByRole('button', { name: 'Cleanse plus 2', exact: true })).toBeVisible()
   await expect(scoring.getByRole('button', { name: 'Centre Ground plus 3', exact: true })).toBeVisible()
+  // The dialog shows ahead of the service's answer, and a reload would drop a command still in flight.
+  await page.waitForLoadState('networkidle')
   await page.reload()
   await scoring.getByRole('button', { name: 'Cleanse plus 2', exact: true }).click()
   await scoring.getByRole('button', { name: 'Centre Ground plus 3', exact: true }).click()
