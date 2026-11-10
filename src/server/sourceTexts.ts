@@ -206,13 +206,19 @@ export function* textRecordsSteps(file: string): Steps<ReadonlyMap<string, reado
   const records = new Map<string, string[]>()
   const root: unknown = JSON.parse(fs.readFileSync(file, 'utf8'))
   const detachments = detachmentIdsByName(root)
+  // A source file repeats each string several times over, and hashing dominates the scan.
+  const hashes = new Map<string, string>()
   let scanned = 0
   function* visit(value: object, record: string | undefined): Steps<void> {
     const own = value === root || Array.isArray(value) ? undefined : recordIdOf(value, detachments)
     const holder = own ?? record
     for (const entry of Array.isArray(value) ? value : Object.values(value)) {
       if (typeof entry === 'string' && holder) {
-        const holding = remember(records, textHash(entry), () => [])
+        const holding = remember(
+          records,
+          remember(hashes, entry, () => textHash(entry)),
+          () => [],
+        )
         if (!holding.includes(holder)) holding.push(holder)
       } else if (entry && typeof entry === 'object') yield* visit(entry as object, holder)
       if (++scanned % SCAN_STEP === 0) yield
