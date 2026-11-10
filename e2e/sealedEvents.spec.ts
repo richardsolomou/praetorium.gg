@@ -33,7 +33,7 @@ import {
 } from './storage'
 import { holdCombatCalculations } from './combat'
 import type { Command } from '../src/core/battle'
-import { expectNoHorizontalOverflow } from './builder.harness'
+import { add, expectNoHorizontalOverflow } from './builder.harness'
 
 test.setTimeout(180_000)
 
@@ -932,11 +932,7 @@ for (const { rules, status } of [
       await createRoster(page, { faction: 'Adeptus Custodes', detachment: /Aquilan Shield/, name: rosterName, rules })
     }
     const unit = status === 'archived' ? 'Captain' : 'Blade Champion'
-    await page.getByLabel('Add a unit').fill(unit)
-    await page
-      .getByRole('button', { name: `Add ${unit}`, exact: true })
-      .first()
-      .click()
+    await add(page, unit)
     await page.locator(`[data-unit="${unit}"]`).getByRole('button', { name: unit, exact: true }).click()
     await makeWarlord(page, unit)
     const operator = await productOperator()
@@ -1189,8 +1185,7 @@ test('a revealed roster keeps its selected upgrades and reference metadata', asy
 
   await signUp(owner, ownerName)
   await createRoster(owner, { faction: 'Necrons', detachment: /Cursed Legion/, name: rosterName })
-  await owner.getByLabel('Add a unit').fill('Skorpekh Lord')
-  await owner.getByRole('button', { name: 'Add Skorpekh Lord', exact: true }).first().click()
+  await add(owner, 'Skorpekh Lord')
   await owner.locator('[data-unit="Skorpekh Lord"]').getByRole('button', { name: 'Skorpekh Lord', exact: true }).click()
   await waitForRosterSave(owner, () => owner.getByRole('button', { name: 'Select Mark of the Nekrosor' }).click())
   await makeWarlord(owner, 'Skorpekh Lord')
@@ -1199,8 +1194,7 @@ test('a revealed roster keeps its selected upgrades and reference metadata', asy
   await setup.getByRole('button', { name: 'Select Skyshroud Spearhead' }).click()
   await waitForRosterSave(owner, () => confirmRosterSetup(setup))
 
-  await owner.getByLabel('Add a unit').fill('Lokhust Destroyers')
-  await owner.getByRole('button', { name: 'Add Lokhust Destroyers', exact: true }).first().click()
+  await add(owner, 'Lokhust Destroyers')
   await owner.locator('[data-unit="Lokhust Destroyers"]').getByRole('button', { name: 'Lokhust Destroyers', exact: true }).click()
   await waitForRosterSave(owner, () => owner.getByRole('button', { name: 'Select Deepening Madness' }).click())
 

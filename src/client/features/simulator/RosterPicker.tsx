@@ -5,7 +5,7 @@ import { SearchableSelect, type SearchableGroup } from '../../components/Searcha
 import { FactionMark } from '../../components/FactionMark'
 import { factionIndexQuery } from '../../queries'
 
-export type RosterOption = { id: string; label: string; catalogueId?: string; icon?: ReactNode }
+type RosterOption = { id: string; label: string; catalogueId?: string; icon?: ReactNode }
 export type RosterGroup = { label: string; options: readonly RosterOption[] }
 
 /** Each option marked with its faction; an option without one shows its own icon. */

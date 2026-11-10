@@ -38,12 +38,12 @@ function TwistDialog({ twist, trigger, children }: { twist: Twist; trigger: Reac
 }
 
 /** The twist's name, which opens it. For the places that only report what is in play. */
-export function TwistName({ twist, className = '' }: { twist: Twist; className?: string }) {
-  if (!twist.rules) return <span className={cn(CARD_NAME, className)}>{twist.name}</span>
+export function TwistName({ twist }: { twist: Twist }) {
+  if (!twist.rules) return <span className={CARD_NAME}>{twist.name}</span>
   return (
     <TwistDialog
       twist={twist}
-      trigger={<button type="button" aria-label={`Read ${twist.name}`} className={cn(CARD_NAME, CARD_NAME_LINK, 'text-left', className)} />}
+      trigger={<button type="button" aria-label={`Read ${twist.name}`} className={cn(CARD_NAME, CARD_NAME_LINK, 'text-left')} />}
     >
       {twist.name}
     </TwistDialog>

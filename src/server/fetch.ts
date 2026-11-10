@@ -4,7 +4,6 @@ import { countServerMetric, requestOutcome, withServerSpan } from '../adapters/p
 const RETRYABLE_STATUS = new Set([408, 429])
 
 export type FetchRetryOptions = {
-  attempts?: number
   timeoutMs?: number
   minTimeoutMs?: number
 }
@@ -19,7 +18,7 @@ class RetryableResponseError extends Error {
 export function fetchWithRetry(
   input: string | URL,
   init: RequestInit = {},
-  { attempts = 3, timeoutMs = 15_000, minTimeoutMs = 250 }: FetchRetryOptions = {},
+  { timeoutMs = 15_000, minTimeoutMs = 250 }: FetchRetryOptions = {},
 ): Promise<Response> {
   const upstream = new URL(input).host
   return withServerSpan(`upstream.${upstream}`, () =>
@@ -39,7 +38,7 @@ export function fetchWithRetry(
         return response
       },
       {
-        retries: Math.max(0, attempts - 1),
+        retries: 2,
         minTimeout: minTimeoutMs,
         factor: 2,
         shouldRetry: ({ error }) => error instanceof RetryableResponseError || error instanceof TypeError || error.name === 'TimeoutError',

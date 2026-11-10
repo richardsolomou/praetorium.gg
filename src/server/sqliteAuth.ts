@@ -1,3 +1,4 @@
+import { isPreviewIssuer } from './previewOidc'
 import { createHash } from 'node:crypto'
 import type { Account, GenericEndpointContext } from 'better-auth'
 import { betterAuth } from 'better-auth'
@@ -77,18 +78,7 @@ export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret
       : undefined
   const issuer = environment.SPACETIME_ISSUER ?? authUrl.toString()
   if (environment.SPACETIME_ISSUER) {
-    const previewUrl = new URL(issuer)
-    if (
-      previewUrl.protocol !== 'https:' ||
-      previewUrl.origin !== authUrl.origin ||
-      !/^\/api\/auth\/preview\/[0-9a-f]{40}$/.test(previewUrl.pathname) ||
-      previewUrl.username ||
-      previewUrl.password ||
-      previewUrl.search ||
-      previewUrl.hash
-    ) {
-      throw new Error('Invalid SpacetimeDB preview issuer')
-    }
+    if (!isPreviewIssuer(new URL(issuer), authUrl.origin)) throw new Error('Invalid SpacetimeDB preview issuer')
   }
   const audience = environment.SPACETIME_AUDIENCE
   if (!/^[a-z0-9][a-z0-9-]{0,127}$/.test(audience ?? '')) throw new Error('SPACETIME_AUDIENCE is required')

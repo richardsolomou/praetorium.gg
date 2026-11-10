@@ -1,4 +1,4 @@
-import { attachGroups, type TextRoster, type TextRosterUnit } from './textRoster'
+import { attachGroups, type AttachedGroup, type TextRoster, type TextRosterUnit } from './textRoster'
 import { printedNumber } from './text'
 
 const frame = /^\+={10,}$/
@@ -30,7 +30,7 @@ export function fromIronbuiltText(input: string): TextRoster | null {
 
   const units: TextRosterUnit[] = []
   const unread: string[] = []
-  const groups: { leaders: TextRosterUnit[]; bodyguard: TextRosterUnit }[] = []
+  const groups: AttachedGroup[] = []
   let group: TextRosterUnit[] | null = null
   let leading = false
   let current: TextRosterUnit | null = null

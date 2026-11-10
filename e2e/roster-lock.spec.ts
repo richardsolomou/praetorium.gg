@@ -1,3 +1,4 @@
+import { add } from './builder.harness'
 import { expect, test } from './test'
 import {
   createRoster,
@@ -20,8 +21,7 @@ test('a locked roster stays read-only until unlocked while its copies stay edita
   const id = lastPathSegment(page.url())
   const operator = await productOperator()
   await waitForRosterSave(page, async () => {
-    await page.getByLabel('Add a unit').fill('Immortals')
-    await page.getByRole('button', { name: 'Add Immortals', exact: true }).first().click()
+    await add(page, 'Immortals')
   })
 
   await chooseRosterAction(page, 'Lock roster')

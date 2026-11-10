@@ -1,6 +1,6 @@
 import { boundedProgress, type CollectionProgress } from './collection'
 
-export type ReadinessRow = {
+type ReadinessRow = {
   entryId: string
   name: string
   units: number

@@ -1,5 +1,5 @@
 import { expect, test } from './test'
-import { arrangeByRole, expectNoHorizontalOverflow } from './builder.harness'
+import { add, arrangeByRole, expectNoHorizontalOverflow } from './builder.harness'
 import {
   chooseRosterAction,
   confirmRosterSetup,
@@ -12,12 +12,11 @@ import {
   waitForRosterSave,
   expectNoPageOverflow,
   openRosterSetup,
-  chooseFaction,
-  visitorSetup,
   recordSaves,
   chooseLibraryAction,
   openLibraryShare,
   PHONE,
+  startVisitorRoster,
 } from './account'
 import { productOperator, productSql, userIdFor, lastPathSegment, seedRoster } from './storage'
 
@@ -144,19 +143,13 @@ test('opening an unchanged list saves nothing, and an edit still saves', async (
 
 test('automatic roster names are saved with edits and a player can override or restore them', async ({ page }) => {
   await signUp(page, 'Automatic roster')
-  const dialog = await visitorSetup(page)
-  await chooseFaction(dialog, 'Necrons')
-  await dialog.getByRole('button', { name: 'Select Awakened Dynasty' }).click()
-  await dialog.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Take and Hold' }).click()
-  await dialog.getByRole('button', { name: 'Create roster' }).click()
-  await page.waitForURL(/\/rosters\/[^/]+$/)
+  await startVisitorRoster(page)
   const name = page.getByLabel('List name')
   await expect(name).toHaveValue('')
   await expect(name).toHaveAttribute('placeholder', 'AD 2K')
 
   await waitForRosterSave(page, async () => {
-    await page.getByLabel('Add a unit').fill('Immortals')
-    await page.getByRole('button', { name: 'Add Immortals', exact: true }).first().click()
+    await add(page, 'Immortals')
   })
   await expect(name).toHaveAttribute('placeholder', 'AD 2K - Immortals')
   await page.reload()
@@ -167,8 +160,7 @@ test('automatic roster names are saved with edits and a player can override or r
   await page.reload()
   await expect(name).toHaveValue('My Necrons')
   await waitForRosterSave(page, async () => {
-    await page.getByLabel('Add a unit').fill("C'tan Shard of the Deceiver")
-    await page.getByRole('button', { name: "Add C'tan Shard of the Deceiver", exact: true }).first().click()
+    await add(page, "C'tan Shard of the Deceiver")
   })
   await page.reload()
   await expect(name).toHaveValue('My Necrons')
@@ -183,8 +175,7 @@ test('a roster variant is numbered and grouped under its base without renaming',
   await signUp(page, 'Variant roster')
   await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Dynasty 2k' })
   await waitForRosterSave(page, async () => {
-    await page.getByLabel('Add a unit').fill('Immortals')
-    await page.getByRole('button', { name: 'Add Immortals', exact: true }).first().click()
+    await add(page, 'Immortals')
   })
   await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Another list' })
 
@@ -304,8 +295,7 @@ test('a battle’s roster chooser tells a variant apart from its base', async ({
   await signUp(page, 'Variant chooser')
   await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Dynasty 2k' })
   await waitForRosterSave(page, async () => {
-    await page.getByLabel('Add a unit').fill('Immortals')
-    await page.getByRole('button', { name: 'Add Immortals', exact: true }).first().click()
+    await add(page, 'Immortals')
   })
   await chooseRosterAction(page, 'Create variant')
   await expect(page.getByLabel('List name')).toHaveValue('Dynasty 2k · 2')
@@ -361,8 +351,7 @@ test('a connected legacy shell roster follows other tabs without replacing an un
 
   await viewer.getByRole('button', { name: 'Build', exact: true }).click()
   await waitForRosterSave(page, async () => {
-    await page.getByLabel('Add a unit').fill('Immortals')
-    await page.getByRole('button', { name: 'Add Immortals', exact: true }).first().click()
+    await add(page, 'Immortals')
   })
   await expect(viewer.locator('[data-unit="Immortals"]')).toBeVisible()
 
@@ -402,8 +391,7 @@ test('the roster library reprices a saved list edited in another tab', async ({ 
   await expect(row.getByText('0/2000', { exact: true })).toBeVisible()
 
   await waitForRosterSave(page, async () => {
-    await page.getByLabel('Add a unit').fill('Immortals')
-    await page.getByRole('button', { name: 'Add Immortals', exact: true }).first().click()
+    await add(page, 'Immortals')
   })
 
   await expect(row.getByText(/^[1-9]\d*\/2000$/)).toBeVisible()
@@ -465,10 +453,8 @@ test('a saved list is reopened, duplicated, shared and published', async ({ brow
   await signUp(page, 'Alice')
 
   await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/ })
-  await page.getByLabel('Add a unit').fill('Immortals')
-  await page.getByRole('button', { name: 'Add Immortals', exact: true }).first().click()
-  await page.getByLabel('Add a unit').fill('Overlord')
-  await page.getByRole('button', { name: 'Add Overlord', exact: true }).first().click()
+  await add(page, 'Immortals')
+  await add(page, 'Overlord')
   await page.locator('[data-unit="Overlord"]').getByRole('button', { name: 'Attach Overlord to unit' }).click()
   await page.getByRole('menu').getByRole('menuitem', { name: 'Immortals', exact: true }).click()
   await expect(page.getByText('Leading')).toBeVisible()

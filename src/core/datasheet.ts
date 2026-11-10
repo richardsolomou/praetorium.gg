@@ -72,7 +72,7 @@ export type DatasheetCharacteristicKind =
   | 'keywords'
   | 'other'
 
-export type StructuredDatasheetCharacteristic = Datasheet['profiles'][number]['values'][number] & {
+type StructuredDatasheetCharacteristic = Datasheet['profiles'][number]['values'][number] & {
   kind: DatasheetCharacteristicKind
 }
 

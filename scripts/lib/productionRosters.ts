@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { hash, randomUUID } from 'node:crypto'
+import { boundedBytes } from '../../src/server/boundedBody'
 import { rosterPickSchema } from '../../src/core/commands'
 import { FORMAT_RULE_IDS, OPTIONAL_RULE_IDS, pointsBudgetOf } from '../../src/core/battle'
 import { ROSTER_SOURCES } from '../../src/core/savedRoster'
@@ -119,23 +120,7 @@ const productionRosterQuery =
 export const MAX_ROSTER_SNAPSHOT_BYTES = 64 * 1024 * 1024
 
 export async function boundedResponseText(response: Response) {
-  if (!response.body) throw new Error('Missing SpacetimeDB response body')
-  const reader = response.body.getReader()
-  const chunks: Uint8Array[] = []
-  let bytes = 0
-  try {
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) break
-      bytes += value.byteLength
-      if (bytes > MAX_ROSTER_SNAPSHOT_BYTES) throw new Error('Roster snapshot exceeds 64 MiB')
-      chunks.push(value)
-    }
-    return Buffer.concat(chunks).toString('utf8')
-  } finally {
-    await reader.cancel()
-    reader.releaseLock()
-  }
+  return (await boundedBytes(response, MAX_ROSTER_SNAPSHOT_BYTES, 'Roster snapshot exceeds 64 MiB')).toString('utf8')
 }
 
 export async function fetchProductionRosters(

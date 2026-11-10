@@ -2,6 +2,14 @@ import { z } from 'zod'
 import { catalogueEditionSummarySchema } from '../core/catalogueEdition'
 
 const time = z.number().int().nonnegative()
+const standingTotals = {
+  rating: z.number().int(),
+  battles: z.number().int().nonnegative(),
+  won: z.number().int().nonnegative(),
+  lost: z.number().int().nonnegative(),
+  drawn: z.number().int().nonnegative(),
+  points: z.number(),
+}
 
 /** A finished battle as `battle_results` holds it: what the leaderboard and achievements need, without folding its log. */
 export const battleResultSchema = z.object({
@@ -30,23 +38,13 @@ export const standingStepSchema = z.object({
   finishedAt: time,
   mu: z.number(),
   sigma: z.number(),
-  rating: z.number().int(),
-  battles: z.number().int().nonnegative(),
-  won: z.number().int().nonnegative(),
-  lost: z.number().int().nonnegative(),
-  drawn: z.number().int().nonnegative(),
-  points: z.number(),
+  ...standingTotals,
 })
 export type StandingStep = z.infer<typeof standingStepSchema> & { change: number }
 
 const standingRowSchema = z.object({
   id: z.string(),
-  rating: z.number().int(),
-  battles: z.number().int().nonnegative(),
-  won: z.number().int().nonnegative(),
-  lost: z.number().int().nonnegative(),
-  drawn: z.number().int().nonnegative(),
-  points: z.number(),
+  ...standingTotals,
   lastPlayed: time,
 })
 

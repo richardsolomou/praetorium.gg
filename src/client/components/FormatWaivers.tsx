@@ -48,12 +48,12 @@ const switchedOff = (rules: readonly FormatRule[]) =>
  * rest. Wherever a list is being decided about — chosen for a seat, sealed into a
  * sealed event, read under its own roster — the full sentence is still written out.
  */
-export function WaiverChip({ rules, className = '' }: { rules: readonly FormatRule[]; className?: string }) {
+export function WaiverChip({ rules }: { rules: readonly FormatRule[] }) {
   if (!rules.length) return null
   const summary = `${countLabel(rules.length, 'format restriction')} switched off: ${waiverLabels(rules)}`
   return (
     <Tooltip>
-      <TooltipTrigger render={<span className={cn('relative inline-flex shrink-0 items-center text-discarded', className)} />}>
+      <TooltipTrigger render={<span className="relative inline-flex shrink-0 items-center text-discarded" />}>
         <TriangleAlert className="size-4" aria-hidden />
         {/* The mark shows on hover and the tooltip is not read aloud, so the sentence travels with it. */}
         <span className="sr-only">{summary}</span>

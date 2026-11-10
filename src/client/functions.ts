@@ -566,52 +566,46 @@ export async function deleteUnitLoadout(args: Parameters<typeof server.deleteUni
   return server.deleteUnitLoadout(args)
 }
 
-/** Locking is accepted by the server, after this device has sent the roster's saved changes. */
-export async function setRosterLocked(args: Parameters<typeof server.setRosterLocked>[0]): ReturnType<typeof server.setRosterLocked> {
+type StoredDocument = LocalState['documents'][string]
+
+const rosterMoved = (before: StoredDocument | undefined, after: StoredDocument | undefined) =>
+  before?.serverVersion !== after?.serverVersion ||
+  (before?.data as LocalRoster | null | undefined)?.updatedAt !== (after?.data as LocalRoster | null | undefined)?.updatedAt
+
+/** An action only the server accepts, sent once this device has sent the roster's saved changes, and then recorded on the saved copy. */
+async function serverAcceptedRoster<Saved extends { updatedAt: LocalRoster['updatedAt'] }>(
+  id: string,
+  action: string,
+  send: () => Promise<Saved>,
+  patch: Partial<LocalRoster>,
+) {
   const owner = localOwner()?.id
-  const resource = `roster:${args.data.id}`
+  const resource = `roster:${id}`
   if (localEngine()) {
-    if (!navigator.onLine) throw new Error('Connect to the internet to lock or unlock this roster.')
+    if (!navigator.onLine) throw new Error(`Connect to the internet to ${action}.`)
     if (await hasLocalChanges(resource)) await syncLocalWork()
     if (await hasLocalChanges(resource)) throw new Error('This roster has changes waiting to sync. Sync or review them first.')
   }
-  const saved = await server.setRosterLocked(args)
+  const saved = await send()
   const local = await localDocument<LocalRoster | null>(resource)
-  if (local) await rememberDocument(resource, { ...local, locked: args.data.locked, updatedAt: saved.updatedAt }, saved.updatedAt, owner)
+  if (local) await rememberDocument(resource, { ...local, ...patch, updatedAt: saved.updatedAt }, saved.updatedAt, owner)
   return saved
 }
 
-/** Archiving is accepted by the server, after this device has sent the roster's saved changes. */
-export async function setRosterArchived(args: Parameters<typeof server.setRosterArchived>[0]): ReturnType<typeof server.setRosterArchived> {
-  const owner = localOwner()?.id
-  const resource = `roster:${args.data.id}`
-  if (localEngine()) {
-    if (!navigator.onLine) throw new Error('Connect to the internet to archive or unarchive this roster.')
-    if (await hasLocalChanges(resource)) await syncLocalWork()
-    if (await hasLocalChanges(resource)) throw new Error('This roster has changes waiting to sync. Sync or review them first.')
-  }
-  const saved = await server.setRosterArchived(args)
-  const local = await localDocument<LocalRoster | null>(resource)
-  if (local)
-    await rememberDocument(resource, { ...local, archived: args.data.archived, updatedAt: saved.updatedAt }, saved.updatedAt, owner)
-  return saved
+export function setRosterLocked(args: Parameters<typeof server.setRosterLocked>[0]): ReturnType<typeof server.setRosterLocked> {
+  return serverAcceptedRoster(args.data.id, 'lock or unlock this roster', () => server.setRosterLocked(args), { locked: args.data.locked })
 }
 
-/** Splitting a variant off is accepted by the server, after this device has sent the roster's saved changes. */
-export async function splitRosterVariant(
-  args: Parameters<typeof server.splitRosterVariant>[0],
-): ReturnType<typeof server.splitRosterVariant> {
-  const owner = localOwner()?.id
-  const resource = `roster:${args.data.id}`
-  if (localEngine()) {
-    if (!navigator.onLine) throw new Error('Connect to the internet to make this variant its own roster.')
-    if (await hasLocalChanges(resource)) await syncLocalWork()
-    if (await hasLocalChanges(resource)) throw new Error('This roster has changes waiting to sync. Sync or review them first.')
-  }
-  const saved = await server.splitRosterVariant(args)
-  const local = await localDocument<LocalRoster | null>(resource)
-  if (local) await rememberDocument(resource, { ...local, baseRosterId: null, updatedAt: saved.updatedAt }, saved.updatedAt, owner)
-  return saved
+export function setRosterArchived(args: Parameters<typeof server.setRosterArchived>[0]): ReturnType<typeof server.setRosterArchived> {
+  return serverAcceptedRoster(args.data.id, 'archive or unarchive this roster', () => server.setRosterArchived(args), {
+    archived: args.data.archived,
+  })
+}
+
+export function splitRosterVariant(args: Parameters<typeof server.splitRosterVariant>[0]): ReturnType<typeof server.splitRosterVariant> {
+  return serverAcceptedRoster(args.data.id, 'make this variant its own roster', () => server.splitRosterVariant(args), {
+    baseRosterId: null,
+  })
 }
 
 /**
@@ -696,11 +690,7 @@ export async function savedRosterSummaries(args?: { signal?: AbortSignal }): Ret
       for (const [resource, document] of Object.entries(current.documents)) {
         if (!resource.startsWith('roster:')) continue
         const previous = before?.documents[resource]
-        if (
-          previous?.serverVersion !== document.serverVersion ||
-          (previous?.data as LocalRoster | null | undefined)?.updatedAt !== (document.data as LocalRoster | null)?.updatedAt
-        )
-          retained.add(resource)
+        if (rosterMoved(previous, document)) retained.add(resource)
       }
       return {
         ...current,
@@ -761,9 +751,7 @@ export async function savedRosterPage(args: Parameters<typeof server.savedRoster
     args.data.ids.map(async (id) => {
       const resource = `roster:${id}`
       const document = state.documents[resource]
-      const changed =
-        before.documents[resource]?.serverVersion !== document?.serverVersion ||
-        (before.documents[resource]?.data as LocalRoster | null)?.updatedAt !== (document?.data as LocalRoster | null)?.updatedAt
+      const changed = rosterMoved(before.documents[resource], document)
       if (fresh && !changed && !state.operations.some((operation) => operation.resource === resource)) return
       const roster = document?.data as LocalRoster | null | undefined
       if (!roster) {
@@ -805,10 +793,7 @@ export async function homeRosters(args?: { signal?: AbortSignal }): ReturnType<t
     fresh &&
     !state.operations.some((operation) => operation.resource.startsWith('roster:')) &&
     Object.entries(state.documents).every(
-      ([resource, document]) =>
-        !resource.startsWith('roster:') ||
-        (document.serverVersion === before.documents[resource]?.serverVersion &&
-          (document.data as LocalRoster | null)?.updatedAt === (before.documents[resource]?.data as LocalRoster | null)?.updatedAt),
+      ([resource, document]) => !resource.startsWith('roster:') || !rosterMoved(before.documents[resource], document),
     )
   )
     return fresh

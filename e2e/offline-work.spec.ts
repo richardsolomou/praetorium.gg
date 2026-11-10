@@ -1,3 +1,4 @@
+import { add } from './builder.harness'
 import { waitForOfflineApp } from './offline'
 import { expect, test, type Page } from './test'
 import {
@@ -113,8 +114,7 @@ test('offline roster edits survive a cold reopen and sync after reconnecting', a
   await context.setOffline(true)
   await page.getByLabel('List name').fill('Edited on the plane')
   await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(1)
-  await page.getByLabel('Add a unit').fill('Immortals')
-  await page.getByRole('button', { name: 'Add Immortals', exact: true }).first().click()
+  await add(page, 'Immortals')
   await expect(page.locator('[data-unit="Immortals"]')).toHaveCount(1)
   await expect.poll(async () => ((await savedWork(page))?.documents[`roster:${id}`]?.data as { picks?: unknown[] })?.picks?.length).toBe(1)
   await expect(page.getByText('1 change waiting to sync', { exact: true })).toBeVisible()
@@ -375,8 +375,7 @@ test('a roster on another rules version saves that version for offline edits', a
   )
   expect(Object.keys(construction.editions)).toContain(edition)
   await context.setOffline(true)
-  await page.getByLabel('Add a unit').fill('Allarus Custodians')
-  await page.getByRole('button', { name: 'Add Allarus Custodians', exact: true }).first().click()
+  await add(page, 'Allarus Custodians')
   await expect(page.locator('[data-unit="Allarus Custodians"]')).toHaveCount(1)
   await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(1)
 })

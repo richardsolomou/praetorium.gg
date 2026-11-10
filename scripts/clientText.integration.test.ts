@@ -3,7 +3,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { gunzipSync } from 'node:zlib'
 import { beforeAll, describe, expect, it } from 'vitest'
-import { decodeReferencePart, isReferenceQueries } from '../src/contracts/offlineReference'
+import { decodeReferencePart } from '../src/contracts/offlineReference'
 import { compileCanonicalCatalogueFromSnapshot, loadCanonicalCatalogue } from '../src/server/canonicalCatalogue'
 import { loadCatalogue } from '../src/server/catalogueIndex'
 import { compiledGlobalSearchIndex } from '../src/server/globalSearch'
@@ -26,6 +26,11 @@ import { rosterLoadoutDatasheets } from '../src/shared/rosterReads'
 import { checkoutReferenceKey } from './lib/checkoutReferenceKey'
 import { prepareReferenceBundle } from './lib/offlineReferenceCache'
 import { namesIn, normal, sourceProse, stringsIn } from './lib/sourceProse.fixtures'
+import { PUBLIC_REFERENCE_QUERIES } from '../src/contracts/appSnapshot'
+
+const isReferenceQueries = (value: unknown) =>
+  Array.isArray(value) &&
+  value.every((entry: { key?: unknown[] } | null) => Array.isArray(entry?.key) && PUBLIC_REFERENCE_QUERIES.has(String(entry.key[0])))
 
 const source = process.env.CATALOGUE_DIR ?? 'catalogue-data'
 const exists = fs.existsSync(source)

@@ -1,3 +1,4 @@
+import { countBy } from './collections'
 import { attachGroups, starredLabel, textNickname, WTC_SECTION, type TextRoster, type TextRosterUnit } from './textRoster'
 
 /**
@@ -56,8 +57,10 @@ export function fromBattleBaseText(input: string, { setupOptional = false } = {}
   const lines = raw.map((line) => line.trim())
   const prices = lines.map((line) => (selection.test(line) ? null : price(line)))
   // Units outnumber the title, the battle size and the detachments, so the commonest points word is the one they share.
-  const tally = new Map<string, number>()
-  for (const priced of prices) if (priced) tally.set(priced.unit, (tally.get(priced.unit) ?? 0) + 1)
+  const tally = countBy(
+    prices.flatMap((priced) => (priced ? [priced.unit] : [])),
+    (unit) => unit,
+  )
   const pointsWord = [...tally].reduce((best, next) => (next[1] > best[1] ? next : best), ['points', 0])[0]
   const inPoints = (at: number) => prices[at]?.unit === pointsWord
   const isUnit = (line: string) => !selection.test(line) && price(line)?.unit === pointsWord

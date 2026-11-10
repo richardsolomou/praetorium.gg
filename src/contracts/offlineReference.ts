@@ -1,4 +1,3 @@
-import { PUBLIC_REFERENCE_QUERIES } from './appSnapshot'
 import type { RuntimeData } from './runtimeData'
 import type { CatalogueFile } from '../core/catalogue'
 import { catalogueEditionSchema, type CatalogueEdition } from '../core/catalogueEdition'
@@ -57,7 +56,6 @@ export const MAX_REFERENCE_PART_BYTES = 5_000_000
 /** The most JSON a construction catalogue or other rules version may hold; pages decode them only for offline roster work. */
 export const MAX_CONSTRUCTION_PART_BYTES = 48_000_000
 const MAX_PARTS = 2_000
-const MAX_PART_QUERIES = 20_000
 
 const OWN_PARTS = new Set(['faction', 'combat-units', 'reference-changes', 'import-translations'])
 
@@ -125,14 +123,6 @@ export function isOfflineReferenceData(value: unknown): value is OfflineReferenc
     isOfflineReferenceVersion(data.download) &&
     Array.isArray(data.editions) &&
     data.editions.every((id) => typeof id === 'string' && Object.hasOwn(data.download.construction.editions, id))
-  )
-}
-
-export function isReferenceQueries(value: unknown): value is ReferenceQuery[] {
-  return (
-    Array.isArray(value) &&
-    value.length <= MAX_PART_QUERIES &&
-    value.every((entry) => Array.isArray(entry?.key) && PUBLIC_REFERENCE_QUERIES.has(String(entry.key[0])))
   )
 }
 

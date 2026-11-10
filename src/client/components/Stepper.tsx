@@ -3,7 +3,6 @@ import { type PointerEvent, useEffect, useId, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Select as SelectPrimitive } from '@base-ui/react/select'
 import { Select, SelectContent, SelectItem, SelectValue } from '@/components/ui/select'
-import type { OnboardingTarget } from '../onboardingTargets'
 import { requestNativeHaptic } from '../nativeBridge'
 import { holdPress } from './holdRepeat'
 
@@ -18,7 +17,6 @@ export function Stepper({
   count,
   countLabel,
   loading = false,
-  onboarding,
   onAdd,
   onRemove,
   blocked,
@@ -30,7 +28,6 @@ export function Stepper({
   count: number | null
   countLabel: string
   loading?: boolean
-  onboarding?: OnboardingTarget
   onAdd?: () => void
   onRemove?: () => void
   /** Why More is disabled, shown while it is: the cap and what sets it. */
@@ -46,7 +43,7 @@ export function Stepper({
   const reasonId = useId()
   const reason = onAdd ? null : blocked
   const stepper = (
-    <span data-onboarding={onboarding} className="relative grid shrink-0 grid-cols-[1.5rem_2rem_1.5rem] items-center gap-1">
+    <span className="relative grid shrink-0 grid-cols-[1.5rem_2rem_1.5rem] items-center gap-1">
       <CountButton label={`Fewer ${label}`} decrease repeat onClick={onRemove} />
       {count !== null && !loading && choices?.length && onChoose ? (
         <Select value={count} onValueChange={(chosen) => chosen !== null && chosen !== count && onChoose(chosen)}>

@@ -37,15 +37,14 @@ export type TextRosterUnit = {
   warlord: boolean
 }
 
+export type AttachedGroup = { leaders: TextRosterUnit[]; bodyguard: TextRosterUnit }
+
 /**
  * Points each leader of a listed group at its bodyguard by entry number.
  *
  * The numbers start after any the text gives itself, so they cannot collide with them.
  */
-export function attachGroups(
-  units: readonly TextRosterUnit[],
-  groups: readonly { leaders: TextRosterUnit[]; bodyguard: TextRosterUnit }[],
-) {
+export function attachGroups(units: readonly TextRosterUnit[], groups: readonly AttachedGroup[]) {
   let entry = Math.max(0, ...units.map((unit) => unit.entry ?? 0))
   for (const { leaders, bodyguard } of groups) {
     if (!leaders.length) continue

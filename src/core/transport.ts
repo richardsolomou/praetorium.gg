@@ -1,3 +1,4 @@
+import { countLabel } from './text'
 import type { Refusal } from './battle'
 import { withoutFactionPrefix } from './name'
 import { refuse } from './battlePrimitives'
@@ -193,7 +194,7 @@ function spelled(keywords: readonly string[]) {
 }
 
 export const countedIn = (pool: Pool) => (pool.units ? 'units' : 'models')
-const capacityOf = (pool: Pool) => (pool.units ? `${pool.capacity} ${pool.capacity === 1 ? 'unit' : 'units'}` : `${pool.capacity} models`)
+const capacityOf = (pool: Pool) => (pool.units ? countLabel(pool.capacity, 'unit') : `${pool.capacity} models`)
 const described = (load: readonly Pool[]) =>
   load.map((pool) => `${pool.capacity} ${pool.carries}${pool.maxWounds ? ` (up to ${pool.maxWounds} Wounds)` : ''}`).join(' and ')
 

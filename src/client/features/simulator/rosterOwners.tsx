@@ -85,11 +85,11 @@ export function useRosterOwners() {
 }
 
 /** Players' faces side by side, overlapping when there is more than one, as a pair's are. */
-export function OwnerAvatars({ owners, className = 'size-5 text-3xs' }: { owners: readonly RosterOwner[]; className?: string }) {
+export function OwnerAvatars({ owners }: { owners: readonly RosterOwner[] }) {
   return (
     <span aria-hidden className="flex shrink-0 -space-x-1.5">
       {owners.map((owner) => (
-        <PlayerAvatar key={owner.name} name={owner.name} image={owner.image} className={`${className} ring-2 ring-panel`} />
+        <PlayerAvatar key={owner.name} name={owner.name} image={owner.image} className="size-5 text-3xs ring-2 ring-panel" />
       ))}
     </span>
   )

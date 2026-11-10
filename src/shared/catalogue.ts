@@ -88,12 +88,6 @@ export function unitBattleDetailsIn(loaded: LoadedCatalogue, catalogueId: string
   })
 }
 
-export function unitWoundsIn(loaded: LoadedCatalogue, catalogueId: string, entryIds: readonly string[]) {
-  return unitBattleDetailsIn(loaded, catalogueId, entryIds).flatMap(({ entryId, wounds }) =>
-    wounds === undefined ? [] : [{ entryId, wounds }],
-  )
-}
-
 type DatasheetContext = {
   selections: readonly Selection[]
   unitSelectionIndex?: number

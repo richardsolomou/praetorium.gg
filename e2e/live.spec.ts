@@ -1,18 +1,11 @@
 import type { WebSocketRoute } from '@playwright/test'
 import { expect, test, type Page } from './test'
-import { createRoster, setupBattle, signUp, takeTheTurn, uniqueName, PHONE } from './account'
+import { takeTheTurn, PHONE, twoPlayerBattle } from './account'
 
 test('a battle stays in step across two devices', async ({ browser }) => {
   const alice = await (await browser.newContext()).newPage()
   const bob = await (await browser.newContext()).newPage()
-  const aliceName = uniqueName('Alice')
-  const bobName = uniqueName('Bob')
-
-  await signUp(bob, bobName)
-  const bobRoster = await createRoster(bob, { faction: 'Death Guard', detachment: /Shamblerot Vectorium/, name: 'Death Guard' })
-  await signUp(alice, aliceName)
-  const aliceRoster = await createRoster(alice, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Necrons' })
-  await setupBattle(alice, bob, { opponent: bobName, hostRoster: aliceRoster, guestRoster: bobRoster })
+  const { aliceName, bobName } = await twoPlayerBattle(alice, bob)
 
   await takeTheTurn(alice)
   await expect(panel(bob, 'Death Guard').locator('[data-stat="cp"]')).toHaveText('1')
@@ -97,13 +90,7 @@ test('a dropped live connection reconnects without a new ticket and keeps the ba
   bob.on('request', (request) => {
     if (new URL(request.url()).pathname === '/api/spacetime/token') tickets += 1
   })
-  const aliceName = uniqueName('Alice')
-  const bobName = uniqueName('Bob')
-  await signUp(bob, bobName)
-  const bobRoster = await createRoster(bob, { faction: 'Death Guard', detachment: /Shamblerot Vectorium/, name: 'Death Guard' })
-  await signUp(alice, aliceName)
-  const aliceRoster = await createRoster(alice, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Necrons' })
-  await setupBattle(alice, bob, { opponent: bobName, hostRoster: aliceRoster, guestRoster: bobRoster })
+  await twoPlayerBattle(alice, bob)
   await takeTheTurn(alice)
   await expect(panel(bob, 'Death Guard').locator('[data-stat="cp"]')).toHaveText('1')
 

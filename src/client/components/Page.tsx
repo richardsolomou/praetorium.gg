@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react'
 import { cn } from '@/lib/utils'
-import type { OnboardingTarget } from '../onboardingTargets'
 
 /**
  * The band every top-level page opens with, drawn on the booklet's construction
@@ -15,7 +14,6 @@ export function PageHeader({
   media,
   children,
   tint,
-  onboarding,
 }: {
   title: ReactNode
   description?: ReactNode
@@ -27,11 +25,9 @@ export function PageHeader({
   children?: ReactNode
   /** A faction's colour along the top edge, on the pages that belong to it. */
   tint?: string
-  onboarding?: OnboardingTarget
 }) {
   return (
     <header
-      data-onboarding={onboarding}
       className={cn('masthead-bleed relative overflow-hidden border-b border-edge bg-masthead', tint && 'border-t-[3px] [--band-top:3px]')}
       style={tint ? { borderTopColor: tint } : undefined}
     >

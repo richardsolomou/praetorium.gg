@@ -11,7 +11,6 @@
 import { type CatalogueIndex, resolve } from './catalogue'
 import { childrenOf, maximumCount, replacesSquadmate, requiredCount, UNBOUNDED } from './definitions'
 import type { Selection } from './evaluate'
-import { defaultSelection } from './expand'
 
 export type UnitSize = { min: number; max: number; models: number; path: string[]; options?: number[] }
 
@@ -20,11 +19,6 @@ type BoundedGroup = { min: number; max: number; total: number; adjust: string[] 
 
 /** Every group in this selection whose size can vary, for a caller scaling all of them at once. */
 export const boundedGroups = (selection: Selection, index: CatalogueIndex): BoundedGroup[] => survey(selection, index, []).groups
-
-export function unitSize(entryId: string, index: CatalogueIndex): UnitSize | null {
-  const base = defaultSelection(entryId, index)
-  return base ? sizeOf(base, index) : null
-}
 
 /** How many models an already-built or imported selection actually contains. */
 export function modelCountOf(selection: Selection, index: CatalogueIndex): number {

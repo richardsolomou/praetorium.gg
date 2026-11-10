@@ -1,3 +1,4 @@
+import { groupBy } from './collections'
 import { capitalised, plainQuotes } from './text'
 import { z } from 'zod'
 import { type Phase, type Stratagem, TURN_SCOPES, type TurnScope } from './battle'
@@ -254,11 +255,7 @@ export function remindersDueAt(reminders: readonly RosterReminder[], moments: re
 
 /** Reminders that read the same, one per ability and wording, with the units that hold it, such as `Ophydian Destroyers ×2`. */
 export function groupedReminders<Reminder extends RosterReminder>(reminders: readonly Reminder[]) {
-  const groups = new Map<string, Reminder[]>()
-  for (const reminder of reminders) {
-    const key = JSON.stringify([reminder.ability, reminder.description])
-    groups.set(key, [...(groups.get(key) ?? []), reminder])
-  }
+  const groups = groupBy(reminders, (reminder) => JSON.stringify([reminder.ability, reminder.description]))
   return [...groups.values()].map((members) => {
     const counts = new Map<string, number>()
     for (const { unit } of members) if (unit) counts.set(unit.name, (counts.get(unit.name) ?? 0) + 1)

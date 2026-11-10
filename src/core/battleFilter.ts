@@ -13,7 +13,6 @@ import { isGuestSeat } from './newBattle'
 import { battleOutcome, type StandingBattle } from './standings'
 import { matchesSearch } from './text'
 
-export const BATTLE_TYPES = ['practice', 'guest', 'team', 'manual', 'organised'] as const
 const battleFacets = {
   status: facetSchema,
   result: facetSchema,

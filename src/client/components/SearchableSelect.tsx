@@ -38,6 +38,8 @@ export type SearchableOption = {
   detail?: string
 }
 export type SearchableGroup = { label: string; items: SearchableOption[] }
+/** Options listed under no heading. */
+export const ungrouped = (items: SearchableOption[]): SearchableGroup[] => [{ label: '', items }]
 type GroupedOption = SearchableOption & { group: string }
 type Row = { kind: 'group'; label: string } | { kind: 'option'; option: GroupedOption; index: number }
 type VirtualList = { virtualizer: Virtualizer<HTMLDivElement, Element>; rowOf: (index: number) => number }

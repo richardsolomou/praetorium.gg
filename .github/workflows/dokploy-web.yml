@@ -209,7 +209,6 @@ jobs:
           IMAGE: ${{ steps.image.outputs.reference }}
         run: |
           set -euo pipefail
-          docker pull --quiet --platform linux/arm64 "$IMAGE"
           container="$(docker create --platform linux/arm64 "$IMAGE")"
           trap 'docker rm "$container" > /dev/null' EXIT
           docker cp "$container:/app/spacetimedb/dist/bundle.js" "$RUNNER_TEMP/product.js"

@@ -1,15 +1,22 @@
+/** A preview deployment's issuer: this site's own HTTPS origin, under the path a preview is served from, and nothing else. */
+export function isPreviewIssuer(issuer: URL, origin: string) {
+  return (
+    issuer.protocol === 'https:' &&
+    issuer.origin === origin &&
+    /^\/api\/auth\/preview\/[0-9a-f]{40}$/.test(issuer.pathname) &&
+    !issuer.username &&
+    !issuer.password &&
+    !issuer.search &&
+    !issuer.hash
+  )
+}
+
 export function previewOidcRequest(request: Request, issuer?: string, externalOrigin?: string) {
   if (!issuer || request.method !== 'GET') return request
   const configured = new URL(issuer)
   const incoming = new URL(request.url)
   if (
-    configured.protocol !== 'https:' ||
-    configured.origin !== (externalOrigin ? new URL(externalOrigin).origin : incoming.origin) ||
-    !/^\/api\/auth\/preview\/[0-9a-f]{40}$/.test(configured.pathname) ||
-    configured.username ||
-    configured.password ||
-    configured.search ||
-    configured.hash ||
+    !isPreviewIssuer(configured, externalOrigin ? new URL(externalOrigin).origin : incoming.origin) ||
     !incoming.pathname.startsWith(configured.pathname)
   ) {
     return request
@@ -25,9 +32,7 @@ export async function previewOAuthPostRequest(request: Request, issuer?: string,
   const configured = new URL(issuer)
   const incoming = new URL(request.url)
   if (
-    configured.protocol !== 'https:' ||
-    configured.origin !== (externalOrigin ? new URL(externalOrigin).origin : incoming.origin) ||
-    !/^\/api\/auth\/preview\/[0-9a-f]{40}$/.test(configured.pathname) ||
+    !isPreviewIssuer(configured, externalOrigin ? new URL(externalOrigin).origin : incoming.origin) ||
     !incoming.pathname.startsWith(`${configured.pathname}/oauth2/`)
   )
     return request

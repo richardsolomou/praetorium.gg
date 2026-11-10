@@ -30,16 +30,13 @@ export const Route = createFileRoute('/api/simulator/optimize')({
         if (searches >= MAX_SEARCHES) return new Response('Loadout searches are busy. Try again shortly.', { status: 503 })
         searches++
         const controller = new AbortController()
-        const abort = () => controller.abort()
-        if (request.signal.aborted) abort()
-        else request.signal.addEventListener('abort', abort, { once: true })
+        const signal = AbortSignal.any([request.signal, controller.signal])
         let finished = false
         const cleanup = () => {
-          request.signal.removeEventListener('abort', abort)
           if (!finished) searches--
           finished = true
         }
-        const batches = combatLoadoutCandidates(loaded, parsed.data, controller.signal, rules)
+        const batches = combatLoadoutCandidates(loaded, parsed.data, signal, rules)
         const encoder = new TextEncoder()
         const stream = new ReadableStream<Uint8Array>({
           async pull(output) {

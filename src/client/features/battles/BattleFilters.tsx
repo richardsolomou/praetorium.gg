@@ -13,7 +13,7 @@ import { GAME_SIZES, battleSizeOptionLabel } from '../../../core/battle'
 import { facetText } from '../../../core/listFilter'
 import { FilterBar, type FilterDimension } from '../../components/FilterBar'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
-import type { SearchableGroup } from '../../components/SearchableSelect'
+import { type SearchableGroup, ungrouped } from '../../components/SearchableSelect'
 import { useFavouriteFactions } from '../../favouriteFactions'
 import { deploymentsQuery, factionIndexQuery, friendshipsQuery, gameReferencesQuery, opponentsQuery } from '../../queries'
 import { facetsOf, periodSearch } from '../../searchParams'
@@ -21,31 +21,29 @@ import { factionFamilies } from '../rosters/factionFamilies'
 import { factionSelectGroups } from '../rosters/builder/factions'
 import type { BattleListSearch, BattlesView } from './battleSearch'
 
-const plain = (items: { label: string; value: string }[]): SearchableGroup[] => [{ label: '', items }]
-
-const STATUS = plain([
+const STATUS = ungrouped([
   { label: 'Setting up', value: 'setup' },
   { label: 'In progress', value: 'playing' },
   { label: 'Finished', value: 'finished' },
 ])
-const RESULT = plain([
+const RESULT = ungrouped([
   { label: 'Won', value: 'won' },
   { label: 'Lost', value: 'lost' },
   { label: 'Drawn', value: 'drawn' },
 ])
-const ENDING = plain([
+const ENDING = ungrouped([
   { label: 'Played to the end', value: 'completed' },
   { label: 'Finished early', value: 'finished-early' },
   { label: 'Conceded', value: 'conceded' },
 ])
-const TYPE = plain([
+const TYPE = ungrouped([
   { label: 'Practice', value: 'practice' },
   { label: 'With a guest', value: 'guest' },
   { label: 'Team (2v1, 2v2)', value: 'team' },
   { label: 'Manual tracking', value: 'manual' },
   { label: 'Group or tournament', value: 'organised' },
 ])
-const SIZE = plain(GAME_SIZES.map((size) => ({ label: battleSizeOptionLabel(size), value: String(size.limit) })))
+const SIZE = ungrouped(GAME_SIZES.map((size) => ({ label: battleSizeOptionLabel(size), value: String(size.limit) })))
 
 function BattleOrderMenu({ order, onOrder }: { order?: BattleOrder; onOrder: (order: BattleOrder | undefined) => void }) {
   const label = order ? 'Oldest first' : 'Newest first'
@@ -106,7 +104,7 @@ export function BattleFilters({
         .filter((faction) => chosen?.includes(faction.slug))
         .flatMap((faction) => faction.detachments.map((detachment) => detachment.name)),
     )
-    return plain([...names].toSorted().map((name) => ({ label: name, value: name })))
+    return ungrouped([...names].toSorted().map((name) => ({ label: name, value: name })))
   }
   const people = mine ? opponents : friendships?.friends
 
@@ -133,8 +131,16 @@ export function BattleFilters({
     },
     { key: 'size', label: 'Battle size', groups: SIZE, pinned: true },
     { key: 'type', label: 'Kind of game', groups: TYPE },
-    { key: 'pack', label: 'Mission pack', groups: plain((references?.packs ?? []).map((pack) => ({ label: pack.name, value: pack.id }))) },
-    { key: 'deployment', label: 'Deployment', groups: plain((deployments ?? []).map((zone) => ({ label: zone.name, value: zone.id }))) },
+    {
+      key: 'pack',
+      label: 'Mission pack',
+      groups: ungrouped((references?.packs ?? []).map((pack) => ({ label: pack.name, value: pack.id }))),
+    },
+    {
+      key: 'deployment',
+      label: 'Deployment',
+      groups: ungrouped((deployments ?? []).map((zone) => ({ label: zone.name, value: zone.id }))),
+    },
     { key: 'ending', label: 'How it ended', groups: ENDING },
   ]
 

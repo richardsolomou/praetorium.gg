@@ -7,7 +7,6 @@ import {
   constructionDetachment,
   descriptionKey,
   enhancementEligibility,
-  enhancementPoints,
   factionRestrictionCoverageIssues,
   factionRestrictions,
   loadDatacards,
@@ -331,46 +330,6 @@ it('indexes the faction-owned datasheets and detachments', () => {
         },
       ],
     ]),
-    datasheetIds: new Map([
-      [
-        'asmodai',
-        {
-          composition: ['**1 Asmodai**'],
-          modelCount: '1 model',
-          loadout: '**This model is equipped with:** Crozius arcanum.',
-          wargear: ['This model cannot replace its wargear.'],
-          baseSize: '50mm',
-          transport: 'This model has a transport capacity of 6 **INFANTRY** models.',
-          transportCapacity: {
-            main: { capacity: 6, carries: 'INFANTRY' },
-            instead: null,
-            conditions: [],
-            pools: [],
-            alternatives: [],
-            excluded: [],
-            space: [],
-          },
-          points: [{ models: '1', cost: '70', keyword: null, faction: null, detachment: null }],
-          attachesTo: [{ kind: 'leader', name: 'Azrael' }],
-          leaders: [],
-          supporters: [],
-        },
-      ],
-      [
-        'azrael',
-        {
-          composition: [],
-          loadout: null,
-          wargear: [],
-          baseSize: null,
-          transport: null,
-          points: [],
-          attachesTo: [],
-          leaders: ['Asmodai'],
-          supporters: [],
-        },
-      ],
-    ]),
     detachments: new Set(['Inner Circle Task Force', 'Unforgiven Task Force']),
     enhancements: new Map(),
     stratagems: new Map(),
@@ -588,11 +547,7 @@ it('reads army-construction numbers without trusting malformed alternatives', ()
     unscopedOverride: constructionDetachment(datacards, 'Adeptus Astartes', 'Unscoped Override'),
     baseWithConflictingOverride: constructionDetachment(datacards, 'Adeptus Astartes', 'Conflicting Override'),
     conflictingOverride: constructionDetachment(datacards, 'Black Templars', 'Conflicting Override'),
-    validEnhancement: enhancementPoints(datacards, 'Stormlance Task Force', 'Valid Relic'),
-    poisonedEnhancement: enhancementPoints(datacards, 'Stormlance Task Force', 'Fury of the Storm'),
-    malformedEnhancement: enhancementPoints(datacards, 'Stormlance Task Force', 'Broken Relic'),
     conflictingDetachment: constructionDetachment(datacards, 'Unknown Faction', 'Shared Detachment'),
-    conflictingEnhancement: enhancementPoints(datacards, 'Shared Detachment', 'Shared Relic'),
     factionEnhancements: datacards.factions.get('adeptus-astartes')?.enhancements.get('stormlancetaskforce'),
     factionScopedEnhancement: datacards.factions.get('one')?.enhancements.get('shareddetachment'),
     factionScopedRule: datacards.factions.get('one')?.detachmentRules.get('shareddetachment'),
@@ -606,11 +561,7 @@ it('reads army-construction numbers without trusting malformed alternatives', ()
     unscopedOverride: null,
     baseWithConflictingOverride: { points: 3, dispositions: ['disruption'] },
     conflictingOverride: null,
-    validEnhancement: 25,
-    poisonedEnhancement: null,
-    malformedEnhancement: null,
     conflictingDetachment: null,
-    conflictingEnhancement: null,
     factionEnhancements: [
       { name: 'Fury of the Storm', detachment: 'Stormlance Task Force', points: null, description: null, eligibility: null },
       { name: 'Valid Relic', detachment: 'Stormlance Task Force', points: 25, description: null, eligibility: null },
@@ -1180,6 +1131,6 @@ describe('what a faction file publishes', () => {
         path.join(directory, `${name}.json`),
         JSON.stringify(faction(name, 'No exclusions.', 'Your attacks have Lethal Hits.')),
       )
-    expect(loadDatacards(directory).stratagemsById.has('hit-em-harder')).toBe(true)
+    expect(loadDatacards(directory).stratagems.size).toBe(1)
   })
 })

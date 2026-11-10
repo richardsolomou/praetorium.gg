@@ -28,7 +28,7 @@ export type PlayedArmy = {
 }
 
 /** How the battle went for the side an army stood on, as standings count it. */
-export type PlayedOutcome = {
+type PlayedOutcome = {
   result: BattleOutcome
   conceded: boolean
   score: number

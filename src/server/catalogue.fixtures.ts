@@ -30,7 +30,7 @@ const battleSizes = {
   ],
 }
 
-export const ENHANCEMENTS = 'cost-enhancements'
+const ENHANCEMENTS = 'cost-enhancements'
 
 /** The army-wide enhancement limit, written on the force the way the game system writes it. */
 const armyRoster = {
@@ -88,10 +88,8 @@ export function shelfOf(...catalogues: Partial<Catalogue>[]): LoadedCatalogue {
     detachmentRules: new Map(),
     enhancements: new Map(),
     stratagems: new Map(),
-    stratagemsById: new Map(),
     armyRules: new Map(),
     constructionDetachments: new Map(),
-    enhancementPoints: new Map(),
   }
   return {
     index,
@@ -167,7 +165,6 @@ export const withCards = (name: string, cards: readonly string[] | ReadonlyMap<s
     name,
     datasheets: new Set(details.keys()),
     datasheetDetails: details,
-    datasheetIds: new Map(),
     detachments: new Set(),
     enhancements: new Map(),
     stratagems: new Map(),

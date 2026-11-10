@@ -377,8 +377,8 @@ export const adminUsersSchema = z.object({
  * than ignored: a waiver this build cannot name would silently enforce a rule the
  * player believes they turned off.
  */
-export const waivedRules = z.array(z.enum(FORMAT_RULE_IDS)).max(FORMAT_RULE_IDS.length).optional()
-export const optionalRules = z.array(z.enum(OPTIONAL_RULE_IDS)).max(OPTIONAL_RULE_IDS.length).optional()
+const waivedRules = z.array(z.enum(FORMAT_RULE_IDS)).max(FORMAT_RULE_IDS.length).optional()
+const optionalRules = z.array(z.enum(OPTIONAL_RULE_IDS)).max(OPTIONAL_RULE_IDS.length).optional()
 
 export const picksSchema = z.array(rosterPickSchema).max(100)
 

@@ -588,7 +588,7 @@ export type SecondaryMode = 'fixed' | 'tactical'
 
 export const SECONDARY_MODES: SecondaryMode[] = ['tactical', 'fixed']
 /** How many tactical cards a side draws at the top of each of its own turns. Unresolved cards from earlier turns are kept alongside them, not replaced. */
-export const TACTICAL_HAND_SIZE = 2
+const TACTICAL_HAND_SIZE = 2
 
 type BattlePrep = {
   stratagems: Stratagem[]

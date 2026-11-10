@@ -1,13 +1,11 @@
 import { type Attachment, type AttachmentParty, type AttachmentRefusal, attachmentRefusals } from './attach'
 
-export type AttachableUnit = AttachmentParty
-
 type AttachmentPick = { key: number; attachedTo?: number }
-type Units = readonly (AttachableUnit | undefined)[]
+type Units = readonly (AttachmentParty | undefined)[]
 
 /** The units attached to each pick, by the pick's key, which every attach judgement counts against its host's limits. */
 export function occupantsByHost(picks: readonly AttachmentPick[], units: Units) {
-  const occupants = new Map<number, AttachableUnit[]>()
+  const occupants = new Map<number, AttachmentParty[]>()
   picks.forEach((pick, position) => {
     const unit = units[position]
     if (pick.attachedTo === undefined || !unit) return
@@ -16,15 +14,15 @@ export function occupantsByHost(picks: readonly AttachmentPick[], units: Units) 
   return occupants
 }
 
-const asJoiner = (unit: AttachableUnit | undefined) =>
+const asJoiner = (unit: AttachmentParty | undefined) =>
   unit?.attachment && !unit.unattachable ? { ...unit, attachment: unit.attachment } : null
 
 /** Why `joiner` cannot join `host` now, null when it can, or undefined when it may never join it. */
 function joinReason(
   pick: AttachmentPick,
   joiner: NonNullable<ReturnType<typeof asJoiner>>,
-  host: AttachableUnit,
-  occupants: readonly AttachableUnit[],
+  host: AttachmentParty,
+  occupants: readonly AttachmentParty[],
 ) {
   const refusals = attachmentRefusals(joiner, host, occupants)
   if (refusals.some((refusal) => refusal.rule === 'host')) return undefined
@@ -74,7 +72,7 @@ type Candidate = Omit<AttachmentParty, 'attachment'> & {
   search?: { keywords: readonly string[] } | null
 }
 
-const asParty = <T extends Candidate>(candidate: T): AttachableUnit => ({
+const asParty = <T extends Candidate>(candidate: T): AttachmentParty => ({
   ...candidate,
   attachment: candidate.attachment ?? null,
   keywords: candidate.keywords ?? candidate.search?.keywords,

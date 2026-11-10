@@ -17,5 +17,3 @@ export const shareSealedEventRosterSchema = sealedEventSchema.extend({
   submittedAt: z.number().int().nonnegative(),
   rosterId: z.string().min(1).max(128),
 })
-
-export type SealedEventRosterSharing = z.infer<typeof sealedEventRosterSharingSchema>

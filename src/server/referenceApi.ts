@@ -173,12 +173,10 @@ export const referenceUnitsResponse = rateLimited(async (request: Request, catal
   if (battleSize !== undefined && (!Number.isInteger(battleSize) || battleSize < 1 || battleSize > 10_000)) {
     return problem('battleSize must be an integer from 1 to 10000', 400)
   }
-  const detachment = url.searchParams.get('detachment')?.trim() || undefined
-  if (detachment && detachment.length > REFERENCE_FILTER_MAX_LENGTH)
-    return problem(`detachment must contain at most ${REFERENCE_FILTER_MAX_LENGTH} characters`, 400)
-  const query = url.searchParams.get('query')?.trim() || undefined
-  if (query && query.length > REFERENCE_FILTER_MAX_LENGTH)
-    return problem(`query must contain at most ${REFERENCE_FILTER_MAX_LENGTH} characters`, 400)
+  const oversized = oversizedFilter(url, ['detachment', 'query'])
+  if (oversized) return problem(oversized, 400)
+  const detachment = filterParam(url, 'detachment')
+  const query = filterParam(url, 'query')
   const nonMatchedPlay = url.searchParams.get('nonMatchedPlay') === 'true'
   const found = await referenceUnitsFor(catalogueId, { battleSize, detachment, nonMatchedPlay, query })
   if (!found) return referenceUnavailable()
@@ -299,15 +297,11 @@ export function parseReferenceSearch(url: URL): ReferenceSearchInput | { error: 
     .filter(Boolean)
   const kinds = [...new Set(rawKinds)]
   if (kinds.some((kind) => !(REFERENCE_KINDS as readonly string[]).includes(kind))) return { error: 'kind is not supported' }
-  const faction = url.searchParams.get('faction')?.trim() || undefined
-  if (faction && faction.length > REFERENCE_FILTER_MAX_LENGTH)
-    return { error: `faction must contain at most ${REFERENCE_FILTER_MAX_LENGTH} characters` }
-  const pack = url.searchParams.get('pack')?.trim() || undefined
-  if (pack && pack.length > REFERENCE_FILTER_MAX_LENGTH)
-    return { error: `pack must contain at most ${REFERENCE_FILTER_MAX_LENGTH} characters` }
-  const document = url.searchParams.get('document')?.trim() || undefined
-  if (document && document.length > REFERENCE_FILTER_MAX_LENGTH)
-    return { error: `document must contain at most ${REFERENCE_FILTER_MAX_LENGTH} characters` }
+  const oversized = oversizedFilter(url, ['faction', 'pack', 'document'])
+  if (oversized) return { error: oversized }
+  const faction = filterParam(url, 'faction')
+  const pack = filterParam(url, 'pack')
+  const document = filterParam(url, 'document')
   const cursor = url.searchParams.get('cursor')?.trim() || undefined
   if (!validReferenceCursor(cursor)) return { error: 'cursor is not valid' }
   const rawLimit = url.searchParams.get('limit')
@@ -339,6 +333,14 @@ async function referenceResponse(request: Request, revision: string, key: string
 }
 
 const referenceUnavailable = () => problem('reference data is unavailable', 503)
+
+const filterParam = (url: URL, name: string) => url.searchParams.get(name)?.trim() || undefined
+
+/** The complaint about the first of these filters to run past the limit. */
+function oversizedFilter(url: URL, names: readonly string[]) {
+  const name = names.find((candidate) => (filterParam(url, candidate)?.length ?? 0) > REFERENCE_FILTER_MAX_LENGTH)
+  return name && `${name} must contain at most ${REFERENCE_FILTER_MAX_LENGTH} characters`
+}
 
 function problem(error: string, status: number) {
   return Response.json({ error }, { status, headers: { 'Cache-Control': 'no-store' } })

@@ -16,6 +16,7 @@
  */
 import fs from 'node:fs'
 import path from 'node:path'
+import { parseArgs } from 'node:util'
 import { liveCatalogueRevision } from '../src/server/liveCatalogue'
 import { loadCatalogueHistory } from '../src/server/catalogueHistory'
 import { removedNamesOf } from '../src/shared/importMismatch'
@@ -27,29 +28,25 @@ import { compilerFingerprint } from './lib/compilerSources'
 import { refreshLiveCatalogue } from './lib/liveCatalogue'
 import { prepareLiveRevision } from './lib/liveCatalogueRefresh'
 
-const [command = 'run', ...rest] = process.argv.slice(2)
-const flag = (name: string) => {
-  const at = rest.indexOf(`--${name}`)
-  return at >= 0 ? rest.splice(at, 2)[1] : undefined
-}
-const toggle = (name: string) => {
-  const at = rest.indexOf(`--${name}`)
-  return at >= 0 && Boolean(rest.splice(at, 1))
-}
+const { values, positionals } = parseArgs({
+  allowPositionals: true,
+  options: { since: { type: 'string' }, out: { type: 'string' }, source: { type: 'string' }, live: { type: 'boolean' } },
+})
+const [command = 'run', target] = positionals
 
 if (command === 'fetch') {
-  const wanted = rest[0] ?? 'all'
+  const wanted = target ?? 'all'
   for (const source of SOURCES.filter((candidate) => wanted === 'all' || candidate === wanted)) {
     const { added, total, directory } = await fetchSource(source)
     console.log(`${source}: ${added} new, ${total} held, in ${directory}`)
   }
 } else if (command === 'run') {
-  const since = flag('since')
-  const out = flag('out')
-  const source = flag('source') ?? '40kstats'
+  const since = values.since
+  const out = values.out
+  const source = values.source ?? '40kstats'
   const pinned = path.resolve(process.env.CATALOGUE_DIR ?? 'catalogue-data')
-  const catalogueDirectory = toggle('live') ? await liveCatalogue(pinned) : pinned
-  run(rest[0] ?? path.join(CORPUS_ROOT, source), since, out, catalogueDirectory)
+  const catalogueDirectory = values.live ? await liveCatalogue(pinned) : pinned
+  run(target ?? path.join(CORPUS_ROOT, source), since, out, catalogueDirectory)
 } else throw new Error(`Unknown command ${command}: use fetch or run`)
 
 async function liveCatalogue(pinned: string) {

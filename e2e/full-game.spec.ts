@@ -1,5 +1,5 @@
 import { expect, test } from './test'
-import { createRoster, setupBattle, signUp, uniqueName, playTurn, PHONE, scoreboard } from './account'
+import { playTurn, PHONE, scoreboard, twoPlayerBattle } from './account'
 import { battleLog } from './storage'
 
 test('two phones finish a five-round battle in step', async ({ browser }) => {
@@ -8,14 +8,7 @@ test('two phones finish a five-round battle in step', async ({ browser }) => {
   const bobContext = await browser.newContext({ viewport: PHONE })
   const alice = await aliceContext.newPage()
   const bob = await bobContext.newPage()
-  const aliceName = uniqueName('Alice')
-  const bobName = uniqueName('Bob')
-
-  await signUp(bob, bobName)
-  const bobRoster = await createRoster(bob, { faction: 'Death Guard', detachment: /Shamblerot Vectorium/, name: 'Death Guard' })
-  await signUp(alice, aliceName)
-  const aliceRoster = await createRoster(alice, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Necrons' })
-  await setupBattle(alice, bob, { opponent: bobName, hostRoster: aliceRoster, guestRoster: bobRoster })
+  const { aliceName, bobName } = await twoPlayerBattle(alice, bob)
 
   const playRound = async (round: number) => {
     await expect(scoreboard(alice).getByText(`${aliceName}’s turn`, { exact: true })).toBeVisible()

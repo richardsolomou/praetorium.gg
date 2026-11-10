@@ -1,4 +1,4 @@
-import { attachGroups, type TextRoster, type TextRosterUnit } from './textRoster'
+import { attachGroups, type AttachedGroup, type TextRoster, type TextRosterUnit } from './textRoster'
 import { printedNumber } from './text'
 
 const title = /^(.+) \((\d[\d,]*) Points?\)$/i
@@ -63,7 +63,7 @@ export function fromListForgeShortText(input: string): TextRoster | null {
   if (!titled || parts.length < 3 || !body.length || !body.every((line) => unitHeader.test(line) && /^[^:(]+: /.test(line))) return null
   const disposed = parts.length > 3
   const units: TextRosterUnit[] = []
-  const groups: { leaders: TextRosterUnit[]; bodyguard: TextRosterUnit }[] = []
+  const groups: AttachedGroup[] = []
   for (const line of body) {
     const members = line
       .match(unitHeader)![1]!
@@ -132,7 +132,7 @@ export function fromListForgeWtcText(input: string): TextRoster | null {
 function readBody(lines: readonly string[]): Pick<TextRoster, 'units' | 'unread'> | null {
   const units: TextRosterUnit[] = []
   const unread: string[] = []
-  const groups: { leaders: TextRosterUnit[]; bodyguard: TextRosterUnit }[] = []
+  const groups: AttachedGroup[] = []
   let headings = 0
   let attached = false
   let members: TextRosterUnit[] | null = null

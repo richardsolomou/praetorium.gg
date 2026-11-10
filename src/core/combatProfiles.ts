@@ -243,7 +243,7 @@ const SHOOTING_TYPES = {
   assault: 'Assault (advanced this turn)',
   'close-quarters': 'Close-quarters (engaged)',
 } as const
-export type ShootingType = keyof typeof SHOOTING_TYPES
+type ShootingType = keyof typeof SHOOTING_TYPES
 
 const has = (profile: Profile, keyword: string) =>
   splitWeaponKeywords(value(profile, 'keywords')).some((written) => combatKeyword(written)?.kind === keyword)

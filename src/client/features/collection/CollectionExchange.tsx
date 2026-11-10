@@ -3,7 +3,7 @@ import { Download, FileUp } from 'lucide-react'
 import { posthog } from 'posthog-js'
 import { useId, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { byId } from '../../../core/collections'
+import { byId, uniqueBy } from '../../../core/collections'
 import { countsAsList, type CollectionEntry, type CollectionImportRow } from '../../../core/collection'
 import {
   collectionCsv,
@@ -131,7 +131,7 @@ function ImportReview({
     ]
   })
   // A row resolved to a datasheet an earlier row already names is left out, as the file's own duplicates are.
-  const unique = resolved.filter((row, index) => resolved.findIndex((other) => other.entryId === row.entryId) === index)
+  const unique = uniqueBy(resolved, (row) => row.entryId)
   const changes = unique.map((row) => ({ row, change: importChange(row, current.get(row.entryId)) }))
   const conflicts = changes.filter(({ change }) => change === 'conflict').length
   // Rows that differ go too: without `replace` the server keeps their saved counts and still adds what they lack.

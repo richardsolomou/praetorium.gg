@@ -1,15 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import {
-  attachmentOptions,
-  availableChoices,
-  joinableUnits,
-  newHosts,
-  newJoiners,
-  rosterJoiners,
-  type AttachableUnit,
-} from './attachmentOptions'
+import { attachmentOptions, availableChoices, joinableUnits, newHosts, newJoiners, rosterJoiners } from './attachmentOptions'
+import type { AttachmentParty } from './attach'
 
-const host: AttachableUnit = { name: 'Bodyguard', attachment: null }
+const host: AttachmentParty = { name: 'Bodyguard', attachment: null }
 const leader = { id: 'leader', name: 'Captain', attachment: { kind: 'leader' as const, targets: ['Bodyguard'] } }
 const bodyguard = { id: 'host', ...host }
 

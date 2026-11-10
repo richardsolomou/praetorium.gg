@@ -20,7 +20,7 @@ import type { RosterSort } from '../../../core/rosterSort'
 import { rulesVersionStatus } from '../../../core/rosterDiscoveryScope'
 import { PageContent, PageHeader } from '../../components/Page'
 import { PageState } from '../../components/PageState'
-import type { SearchableGroup } from '../../components/SearchableSelect'
+import { ungrouped } from '../../components/SearchableSelect'
 import { copyPlayedArmy, copyRoster } from '../../functions'
 import { useFavouriteFactions } from '../../favouriteFactions'
 import {
@@ -75,11 +75,10 @@ type DiscoveredPage = QueryData<typeof discoveredRostersQuery>
 type Discovered = DiscoveredPage['rosters'][number]
 type PlayedArmy = QueryData<typeof playedArmiesQuery>['armies'][number]
 
-const plain = (items: { label: string; value: string }[]): SearchableGroup[] => [{ label: '', items }]
 const RULES_LABEL: Record<RulesVersionStatus, string> = { current: 'Current', archived: 'Archived', preview: 'Preview' }
-const RULES_GROUPS = plain(RULES_VERSION_STATUSES.map((status) => ({ label: RULES_LABEL[status], value: status })))
-const SIZE_GROUPS = plain(GAME_SIZES.map((size) => ({ label: battleSizeOptionLabel(size), value: String(size.limit) })))
-const RESULT_GROUPS = plain([
+const RULES_GROUPS = ungrouped(RULES_VERSION_STATUSES.map((status) => ({ label: RULES_LABEL[status], value: status })))
+const SIZE_GROUPS = ungrouped(GAME_SIZES.map((size) => ({ label: battleSizeOptionLabel(size), value: String(size.limit) })))
+const RESULT_GROUPS = ungrouped([
   { label: 'Won', value: 'won' },
   { label: 'Lost', value: 'lost' },
   { label: 'Drawn', value: 'drawn' },
@@ -147,7 +146,7 @@ export function RosterDiscoveryPage({ view, search }: { view: RosterAudience | '
       key: 'detachment',
       label: 'Detachment',
       pinned: true,
-      groups: plain(
+      groups: ungrouped(
         [...detachments].map(([value, label]) => ({ label, value })).toSorted((left, right) => left.label.localeCompare(right.label)),
       ),
     },
@@ -156,7 +155,7 @@ export function RosterDiscoveryPage({ view, search }: { view: RosterAudience | '
     {
       key: 'disposition',
       label: 'Disposition',
-      groups: plain((references?.dispositions ?? []).map((disposition) => ({ label: disposition.name, value: disposition.id }))),
+      groups: ungrouped((references?.dispositions ?? []).map((disposition) => ({ label: disposition.name, value: disposition.id }))),
     },
     ...ROSTER_ASSESSMENT_DIMENSIONS,
     ...(view === 'friends'
@@ -165,7 +164,7 @@ export function RosterDiscoveryPage({ view, search }: { view: RosterAudience | '
             key: 'owner',
             label: 'Friend',
             pinned: true,
-            groups: plain((friendships?.friends ?? []).map((friend) => ({ label: friend.name, value: friend.id }))),
+            groups: ungrouped((friendships?.friends ?? []).map((friend) => ({ label: friend.name, value: friend.id }))),
           },
         ]
       : []),
@@ -331,7 +330,7 @@ export function RosterDiscoveryPage({ view, search }: { view: RosterAudience | '
                 </div>
               ) : shown.length || result.hasNextPage ? (
                 <>
-                  {shown.length ? null : <p className="py-2 text-sm text-dim">None of the rosters searched so far match.</p>}
+                  {shown.length ? null : <NoFilterMatches>None of the rosters searched so far match.</NoFilterMatches>}
                   {shown.length ? (
                     <div className="runner gap-3 [--gate-x:1rem] [--gate-y:1.5rem] sm:[--gate-x:1.5rem]">
                       {shown.map((entry) => (
@@ -435,7 +434,7 @@ function PlayedArmies({
           </div>
         ) : armies.length || result.hasNextPage ? (
           <>
-            {armies.length ? null : <p className="py-2 text-sm text-dim">None of the battles searched so far match.</p>}
+            {armies.length ? null : <NoFilterMatches>None of the battles searched so far match.</NoFilterMatches>}
             <div className="runner gap-3 [--gate-x:1rem] [--gate-y:1.5rem] sm:[--gate-x:1.5rem] empty:hidden">
               {armies.map((army) => {
                 const indexed = factions.find((faction) => faction.id === army.catalogueId)

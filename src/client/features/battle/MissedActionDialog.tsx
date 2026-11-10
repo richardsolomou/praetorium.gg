@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { uniqueBy } from '../../../core/collections'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -288,7 +289,5 @@ export function MissedActionDialog({
 
 /** Each turn the moments cover, in the order they were played. */
 function turnsOf(moments: readonly BattleMoment[]) {
-  return moments.filter(
-    (moment, index) => moments.findIndex((candidate) => candidate.round === moment.round && candidate.turn === moment.turn) === index,
-  )
+  return uniqueBy(moments, (moment) => `${moment.round}:${moment.turn}`)
 }

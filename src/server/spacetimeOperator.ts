@@ -348,8 +348,8 @@ const visibleGroup = z.object({
   ownMember: groupMember.pick({ status: true, role: true }).nullable(),
 })
 
-/** A nullable procedure argument as SpacetimeDB's option type. */
 const revision = z.number().int().nonnegative()
+/** A nullable procedure argument as SpacetimeDB's option type. */
 const option = <T>(value: T | null) => (value === null ? { none: [] } : { some: value })
 
 type SaveRosterInput = {

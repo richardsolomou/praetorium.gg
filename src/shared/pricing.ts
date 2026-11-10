@@ -627,9 +627,7 @@ function calculateRoster(
   ]
   // One fact, said once. A limit on a shared entry is broken by each selection of it,
   // and every one of them reports the same sentence about the same count.
-  const errors = reported.filter(
-    (error, at) => reported.findIndex((other) => other.entryId === error.entryId && other.message === error.message) === at,
-  )
+  const errors = uniqueBy(reported, (error) => JSON.stringify([error.entryId, error.message]))
 
   if (mode === 'assessment')
     return {

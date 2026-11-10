@@ -355,6 +355,37 @@ export function AccountSecurity({ me, preferences }: { me: AccountIdentity; pref
   )
 }
 
+function PasswordField({
+  id,
+  label,
+  value,
+  onChange,
+  minLength,
+  autoComplete,
+}: {
+  id: string
+  label: string
+  value: string
+  onChange: (value: string) => void
+  minLength?: number
+  autoComplete: 'current-password' | 'new-password'
+}) {
+  return (
+    <div className="space-y-2">
+      <Label htmlFor={id}>{label}</Label>
+      <Input
+        id={id}
+        type="password"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        minLength={minLength}
+        autoComplete={autoComplete}
+        required
+      />
+    </div>
+  )
+}
+
 function AccountMethodsSkeleton() {
   return (
     <div className="mt-4 grid gap-3 lg:grid-cols-2" aria-label="Loading sign-in methods">
@@ -399,17 +430,13 @@ function DeleteAccountForm({ hasPassword }: { hasPassword: boolean }) {
     >
       <DialogBody>
         {hasPassword ? (
-          <div className="space-y-2">
-            <Label htmlFor="delete-account-password">Confirm your password</Label>
-            <Input
-              id="delete-account-password"
-              type="password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              autoComplete="current-password"
-              required
-            />
-          </div>
+          <PasswordField
+            id="delete-account-password"
+            label="Confirm your password"
+            value={password}
+            onChange={setPassword}
+            autoComplete="current-password"
+          />
         ) : (
           <p className="text-sm text-dim">Your recent Apple, Google, Discord or GitHub sign-in confirms this request.</p>
         )}
@@ -502,18 +529,14 @@ function CreatePasswordForm({ onDone }: { onDone: () => void | Promise<void> }) 
       }}
     >
       <DialogBody>
-        <div className="space-y-2">
-          <Label htmlFor="create-password">New password</Label>
-          <Input
-            id="create-password"
-            type="password"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            minLength={PASSWORD_MIN_LENGTH}
-            autoComplete="new-password"
-            required
-          />
-        </div>
+        <PasswordField
+          id="create-password"
+          label="New password"
+          value={password}
+          onChange={setPassword}
+          minLength={PASSWORD_MIN_LENGTH}
+          autoComplete="new-password"
+        />
         {error ? <Problem>{error}</Problem> : null}
       </DialogBody>
       <DialogFooter>
@@ -545,29 +568,21 @@ function ChangePasswordForm({ onDone }: { onDone: () => void }) {
     >
       <DialogBody>
         <p className="text-sm text-dim">Changing your password signs out every other device.</p>
-        <div className="space-y-2">
-          <Label htmlFor="current-password">Current password</Label>
-          <Input
-            id="current-password"
-            type="password"
-            value={currentPassword}
-            onChange={(event) => setCurrentPassword(event.target.value)}
-            autoComplete="current-password"
-            required
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="new-password">New password</Label>
-          <Input
-            id="new-password"
-            type="password"
-            value={newPassword}
-            onChange={(event) => setNewPassword(event.target.value)}
-            minLength={PASSWORD_MIN_LENGTH}
-            autoComplete="new-password"
-            required
-          />
-        </div>
+        <PasswordField
+          id="current-password"
+          label="Current password"
+          value={currentPassword}
+          onChange={setCurrentPassword}
+          autoComplete="current-password"
+        />
+        <PasswordField
+          id="new-password"
+          label="New password"
+          value={newPassword}
+          onChange={setNewPassword}
+          minLength={PASSWORD_MIN_LENGTH}
+          autoComplete="new-password"
+        />
         {error ? <Problem>{error}</Problem> : null}
       </DialogBody>
       <DialogFooter>
@@ -708,17 +723,13 @@ function TwoFactorSetupForm({ onDone }: { onDone: () => void | Promise<void> }) 
         }}
       >
         <DialogBody>
-          <div className="space-y-2">
-            <Label htmlFor="two-factor-password">Confirm your password</Label>
-            <Input
-              id="two-factor-password"
-              type="password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              autoComplete="current-password"
-              required
-            />
-          </div>
+          <PasswordField
+            id="two-factor-password"
+            label="Confirm your password"
+            value={password}
+            onChange={setPassword}
+            autoComplete="current-password"
+          />
           {start.error ? <Problem>{start.error}</Problem> : null}
         </DialogBody>
         <DialogFooter>
@@ -793,17 +804,13 @@ function DisableTwoFactorForm({ onDone }: { onDone: () => void | Promise<void> }
     >
       <DialogBody>
         <p className="text-sm text-dim">Your account returns to password-only sign-in and unused recovery codes stop working.</p>
-        <div className="space-y-2">
-          <Label htmlFor="disable-two-factor-password">Confirm your password</Label>
-          <Input
-            id="disable-two-factor-password"
-            type="password"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            autoComplete="current-password"
-            required
-          />
-        </div>
+        <PasswordField
+          id="disable-two-factor-password"
+          label="Confirm your password"
+          value={password}
+          onChange={setPassword}
+          autoComplete="current-password"
+        />
         {error ? <Problem>{error}</Problem> : null}
       </DialogBody>
       <DialogFooter>
