@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.228.10 (2026-11-10)
+
+### Patch Changes
+
+- 49f0b97: Pages open faster on a first visit, because each page now downloads much less of the app before it starts.
+- addadcc: Your roster list no longer jumps when it finishes loading.
+
 ## 0.228.9 (2026-11-10)
 
 ### Patch Changes
