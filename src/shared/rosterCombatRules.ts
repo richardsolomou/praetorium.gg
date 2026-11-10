@@ -250,7 +250,7 @@ function rosterCombatRules(
   ]
   const supportKeywords = [sheet.keywords]
   const models = context.unitSelections.find((unit) => unit.pickIndex === data.pickIndex)?.models
-  const add = (rule: CombatRule, judge: Pick<CombatRuleJudge, 'origin' | 'attached' | 'bodyguardSource'>) => {
+  const add = (rule: CombatRule, judge: Pick<CombatRuleJudge, 'origin' | 'attached'>) => {
     const placed: CombatRule = {
       ...rule,
       appliedDefences: (['save', 'invulnerable-save', 'toughness'] as const).filter(
@@ -296,11 +296,7 @@ function rosterCombatRules(
       if (!ability.description || ability.kind === 'core' || ability.kind === 'faction') continue
       add(
         { id: `roster:${ability.id}`, name: ability.name, source: source!.name, description: ability.description, scope: 'nearby' },
-        {
-          origin: 'support',
-          attached: attached.includes(unit.pickIndex),
-          bodyguardSource: data.picks[unit.pickIndex]!.attachedTo === undefined,
-        },
+        { origin: 'support', attached: attached.includes(unit.pickIndex) },
       )
     }
   }

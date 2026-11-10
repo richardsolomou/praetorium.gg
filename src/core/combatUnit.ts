@@ -9,18 +9,31 @@ export type CombatMember = Omit<CombatAttacker, 'companions'> & {
   damage?: number
   allocationRequired?: boolean
   bodyguard?: boolean
-  sharedDefenceSources?: readonly string[]
+  /** The members whose shared defences the roster already counts in this member's characteristics. */
+  appliedDefenceSources?: readonly string[]
   companions?: readonly CombatMember[]
 }
 
 export function combatUnitSequenceError(unit: CombatMember, groups?: CombatInput['target']['groups']) {
   const members = [unit, ...(unit.companions ?? [])]
-  const sources = members.flatMap((member) => member.sharedDefenceSources ?? [])
+  if (members.length < 2) return undefined
+  const named = (source: string) => members.filter((member) => member.sheet.name === source).length
   const last = (groups ?? combatUnitTarget(unit).target?.groups)?.at(-1)?.unit
-  return unit.companions?.length &&
-    sources.some((source) => source !== last || members.filter((member) => member.sheet.name === source).length !== 1)
-    ? 'Combined attacks cannot yet remove a shared defensive ability when its source is destroyed. Use the phase estimates.'
-    : undefined
+  if (members.some((member) => member.appliedDefenceSources?.some((source) => source !== last || named(source) !== 1)))
+    return 'Combined attacks cannot yet remove a shared defensive ability already counted in a characteristic when its source is destroyed. Use the phase estimates.'
+  if (
+    members.some((member) =>
+      member.rules?.some(
+        (rule) =>
+          rule.source !== undefined &&
+          rule.source !== member.sheet.name &&
+          named(rule.source) > 1 &&
+          rule.effects.some((effect) => effect.role === 'defender'),
+      ),
+    )
+  )
+    return 'Combined attacks cannot tell which of two units with the same name shares a defensive ability. Use the phase estimates.'
+  return undefined
 }
 
 /** The Feel No Pain other members give a group, leaving out grants limited to models with a keyword the group lacks. */

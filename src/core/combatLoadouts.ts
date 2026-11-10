@@ -184,8 +184,11 @@ export type LoadoutScoring = {
   opponent: CombatOpponent
   preferences: Readonly<Record<string, string>>
   excluded: Readonly<Record<CombatPhase, readonly string[]>>
-  phases: Record<CombatPhase, { target: CombatInput['target']; options: CombatOptions; adjustment: WeaponAdjustment } | null>
+  phases: LoadoutPhases
+  /** The opponent once shooting destroys members whose defences the rest of its unit shared (`CombatAfterLosses`). */
+  afterLosses?: readonly { units: string[]; opponent: CombatOpponent; phases: LoadoutPhases }[]
 }
+type LoadoutPhases = Record<CombatPhase, { target: CombatInput['target']; options: CombatOptions; adjustment: WeaponAdjustment } | null>
 
 function loadoutMember(scoring: LoadoutScoring): CombatAttacker {
   const member = scoring.memberIndex
@@ -366,25 +369,34 @@ export function optimizeLoadout(
         for (const option of choice.options) search({ ...preferences, [choice.key]: option.value }, new Set([...chosen, choice.key]))
         return
       }
-      const inputs = phases.map((phase) => {
-        const setup = scoring.phases[phase]
-        const attack = attacks[phase]
-        if (!setup || !attack.base)
-          throw new Error(`${attack.plan.errors[0] ?? 'Some loadouts contain unsupported rules.'} Optimization could not finish.`)
-        return (
-          combatAttackInput(attack, setup.target, setup.options, setup.adjustment) ?? {
-            target: setup.target,
-            weapons: [],
-            options: setup.options,
-          }
-        )
-      })
-      const key = JSON.stringify(inputs)
+      const phaseInputs = (against: typeof attacks, setups: LoadoutPhases) =>
+        phases.map((phase) => {
+          const setup = setups[phase]
+          const attack = against[phase]
+          if (!setup || !attack.base)
+            throw new Error(`${attack.plan.errors[0] ?? 'Some loadouts contain unsupported rules.'} Optimization could not finish.`)
+          return (
+            combatAttackInput(attack, setup.target, setup.options, setup.adjustment) ?? {
+              target: setup.target,
+              weapons: [],
+              options: setup.options,
+            }
+          )
+        })
+      const inputs = phaseInputs(attacks, scoring.phases)
+      const meleeAfterLosses =
+        mode === 'combined'
+          ? (scoring.afterLosses ?? []).map(({ units, opponent, phases: setups }) => ({
+              units,
+              input: phaseInputs(combatAttacks(attacker, opponent, preferences, { ranged: [], melee: [] }), setups)[1]!,
+            }))
+          : []
+      const key = JSON.stringify([inputs, meleeAfterLosses])
       let result = results.get(key)
       if (!result) {
         retainedBytes += key.length * 2
         if (results.size >= 20_000 || retainedBytes > 32 * 1024 * 1024) throw new SearchLimit()
-        result = mode === 'combined' ? calculateCombatSequence(inputs) : calculateCombat(inputs[0]!)
+        result = mode === 'combined' ? calculateCombatSequence(inputs, undefined, [[], meleeAfterLosses]) : calculateCombat(inputs[0]!)
         results.set(key, result)
       }
       if (!top || compareOutcomes(result, top.result) > 0)

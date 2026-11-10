@@ -5,7 +5,17 @@ import { currentRosterIds } from '../core/retiredCatalogueIds'
 
 export const COMBAT_BATCH_SIZE = 4
 export const combatRequestsSchema = z
-  .array(z.object({ ranged: combatSchema.nullable(), melee: combatSchema.nullable(), sequenceError: z.string().max(400).optional() }))
+  .array(
+    z.object({
+      ranged: combatSchema.nullable(),
+      melee: combatSchema.nullable(),
+      sequenceError: z.string().max(400).optional(),
+      meleeAfterLosses: z
+        .array(z.object({ units: z.array(z.string().max(400)).min(1).max(8), input: combatSchema }))
+        .max(8)
+        .optional(),
+    }),
+  )
   .min(1)
   .max(COMBAT_BATCH_SIZE)
 

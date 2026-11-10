@@ -1194,48 +1194,77 @@ function uncappedMeans(inputs: readonly CombatInput[], capped: CombatResult, max
     : undefined
 }
 
-/** Resolve successive phases against the surviving models and their remaining wounds. */
-export function calculateCombatSequence(scenarios: readonly CombatInput[], maxWork = MAX_COMBAT_WORK): CombatResult {
+/**
+ * A phase's attacks as they resolve once the named units of an attached target are destroyed, which ends the abilities
+ * they shared with the rest of the unit (19.04). While no entry names the units lost so far, the phase resolves unchanged.
+ */
+export type CombatAfterLosses = { units: string[]; input: CombatInput }
+
+const sameStart = (left: CombatInput['target'], right: CombatInput['target']) =>
+  (left.damage ?? 0) === (right.damage ?? 0) &&
+  left.groups.length === right.groups.length &&
+  left.groups.every(
+    (group, index) =>
+      group.models === right.groups[index]!.models &&
+      group.unit === right.groups[index]!.unit &&
+      group.wounds === right.groups[index]!.wounds &&
+      (group.damage ?? 0) === (right.groups[index]!.damage ?? 0),
+  )
+
+/**
+ * Resolve successive phases against the surviving models and their remaining wounds. `afterLosses[phase]` holds that
+ * phase's attacks for each set of units an earlier phase can destroy first.
+ */
+export function calculateCombatSequence(
+  scenarios: readonly CombatInput[],
+  maxWork = MAX_COMBAT_WORK,
+  afterLosses: readonly (readonly CombatAfterLosses[] | undefined)[] = [],
+): CombatResult {
   if (!scenarios.length) throw new Error('Select an attack to simulate.')
   const inputs = scenarios.map(checkedCombat)
-  const target = inputs[0]!.target
-  if (
-    inputs.some(
-      (input) =>
-        (input.target.damage ?? 0) !== (target.damage ?? 0) ||
-        input.target.groups.length !== target.groups.length ||
-        input.target.groups.some(
-          (group, index) =>
-            group.models !== target.groups[index]!.models ||
-            group.unit !== target.groups[index]!.unit ||
-            group.wounds !== target.groups[index]!.wounds ||
-            (group.damage ?? 0) !== (target.groups[index]!.damage ?? 0),
-        ),
-    )
+  const survivors = (input: CombatInput, units: readonly string[]) =>
+    JSON.stringify({ ...input, target: { ...input.target, groups: input.target.groups.filter((group) => !units.includes(group.unit!)) } })
+  // Losses that change nothing for the survivors cost a second calculation for nothing.
+  const variants = afterLosses.map((phase, index) =>
+    phase?.flatMap(({ units, input }) => {
+      const checked = checkedCombat(input)
+      return inputs[index] && survivors(checked, units) === survivors(inputs[index], units) ? [] : [{ units, input: checked }]
+    }),
   )
+  const target = inputs[0]!.target
+  if ([...inputs, ...variants.flatMap((phase) => phase?.map(({ input }) => input) ?? [])].some((input) => !sameStart(input.target, target)))
     throw new Error('Every phase must attack the same target with the same starting wounds.')
-  const result = combatResult(...resolveSequence(inputs, maxWork), target)
+  const result = combatResult(...resolveSequence(inputs, maxWork, targetModels(target), variants), target)
   return { ...result, ...uncappedMeans(inputs, result, maxWork) }
 }
 
 /** `attackModels` is the target size Blast and Cleave count, before this sequence's losses. */
-function resolveSequence(inputs: readonly CombatInput[], maxWork: number, attackModels = targetModels(inputs[0]!.target)) {
+function resolveSequence(
+  inputs: readonly CombatInput[],
+  maxWork: number,
+  attackModels = targetModels(inputs[0]!.target),
+  afterLosses: readonly (readonly CombatAfterLosses[] | undefined)[] = [],
+) {
   const layout = allocation(inputs[0]!.target)
   let state: State = new Float64Array(layout.total + 1)
   state[0] = 1
   let work = 0
-  for (const input of inputs) {
-    const currentLayout = allocation(input.target)
+  for (const [phase, base] of inputs.entries()) {
+    const variants = afterLosses[phase] ?? []
+    const named = [...new Set(variants.flatMap(({ units }) => units))]
     const byModels = new Map<string, { models: number; input: CombatInput; state: State }>()
-    const varies = input.weapons.some((weapon) => weapon.blast || weapon.cleave)
-    const sources = [...new Set(input.target.groups.flatMap((group) => group.feelNoPainSources?.map((source) => source.unit) ?? []))]
     for (let at = 0; at < layout.total; at++) {
       if (!state[at]) continue
+      const standing = (unit: string) => base.target.groups.some((group, index) => group.unit === unit && index >= layout.group[at]!)
+      // An ability a destroyed unit shared lasts until the attacks that destroyed it resolve, so it ends between phases.
+      const lost = named.filter((unit) => !standing(unit))
+      const variant = variants.findIndex(({ units }) => units.length === lost.length && lost.every((unit) => units.includes(unit)))
+      const input = variant < 0 ? base : variants[variant]!.input
+      const varies = input.weapons.some((weapon) => weapon.blast || weapon.cleave)
       const models = Math.max(0, attackModels - (varies ? layout.killed[at]! : 0))
-      const alive = sources.filter((source) =>
-        input.target.groups.some((group, index) => group.unit === source && index >= layout.group[at]!),
-      )
-      const key = JSON.stringify([models, alive])
+      const sources = [...new Set(input.target.groups.flatMap((group) => group.feelNoPainSources?.map((source) => source.unit) ?? []))]
+      const alive = sources.filter(standing)
+      const key = JSON.stringify([variant, models, alive])
       const part = byModels.get(key) ?? {
         models,
         input: sources.length
@@ -1258,11 +1287,13 @@ function resolveSequence(inputs: readonly CombatInput[], maxWork: number, attack
       part.state[at] = state[at]!
       byModels.set(key, part)
     }
-    work += workOf(input, currentLayout) * byModels.size
+    // A variant can change a group's defences, so each part needs the layout of its own target.
+    const parts = [...byModels.values()].map((part) => ({ ...part, layout: allocation(part.input.target) }))
+    for (const part of parts) work += workOf(part.input, part.layout)
     if (work > maxWork) throw new Error('This attack is too large to simulate. Select fewer weapons or models.')
     const next = new Float64Array(state.length)
     next[layout.total] = state[layout.total]!
-    for (const part of byModels.values()) addInto(next, resolveCombat(part.input, currentLayout, part.state, part.models))
+    for (const part of parts) addInto(next, resolveCombat(part.input, part.layout, part.state, part.models))
     state = next
   }
   return [state, layout] as const

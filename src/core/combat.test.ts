@@ -1165,6 +1165,24 @@ describe('shooting followed by melee', () => {
     expect(calculateCombatSequence([shooting, melee]).wipe).toBeCloseTo(1 / 12)
   })
 
+  it('wounds against the Toughness a leader keeps once its bodyguards are destroyed', () => {
+    const shooting = phase('ranged')
+    shooting.weapons[0]!.strength = 16
+    shooting.target.groups = [
+      { unit: 'guard', models: 1, toughness: 8, save: 7, invulnerable: null, wounds: 1 },
+      { unit: 'leader', models: 1, toughness: 8, save: 7, invulnerable: null, wounds: 3 },
+    ]
+    const melee = structuredClone(shooting)
+    melee.options.phase = 'melee'
+    melee.weapons[0]!.strength = 4
+    const unprotected = structuredClone(melee)
+    unprotected.target.groups[1]!.toughness = 4
+    // Shooting destroys the guard on a 2+; melee then wounds the T4 leader on a 4+, or the T8 guard on a 6+.
+    expect(
+      calculateCombatSequence([shooting, melee], undefined, [undefined, [{ units: ['guard'], input: unprotected }]]).meanDamage,
+    ).toBeCloseTo(5 / 6 + (5 / 6) * (1 / 2) + (1 / 6) * (1 / 6))
+  })
+
   it('counts Cleave from the models surviving at the start of melee', () => {
     const shooting = phase('ranged')
     shooting.target.groups[0]!.models = 5

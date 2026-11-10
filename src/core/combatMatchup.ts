@@ -4,10 +4,12 @@ import {
   calculateCombatSequence,
   bestReroll,
   hitRollNeeded,
+  type CombatAfterLosses,
   type CombatInput,
   type CombatOptions,
   type CombatResult,
   type CombatPhase,
+  type CombatTargetGroup,
 } from './combat'
 import { uniqueBy } from './collections'
 import { adjustCombatTarget, combineAttackAdjustments, combineWeaponAdjustments, type CombatAdjustments } from './combatAdjustments'
@@ -24,7 +26,11 @@ type CombatMatchupChoices = {
 }
 /** A matchup that leaves every weapon in. */
 export const noExclusions = (): Record<CombatPhase, string[]> => ({ ranged: [], melee: [] })
-export type CombatRequest = Record<CombatPhase, CombatInput | null> & { sequenceError?: string }
+export type CombatRequest = Record<CombatPhase, CombatInput | null> & {
+  sequenceError?: string
+  /** The melee attacks once shooting destroys members whose defences the rest of the unit shared. */
+  meleeAfterLosses?: CombatAfterLosses[]
+}
 type CombatPhaseAnswer = { result?: CombatResult; error?: string } | null
 export type CombatAnswer = Record<CombatPhase, CombatPhaseAnswer> & { combined?: CombatPhaseAnswer }
 
@@ -32,7 +38,66 @@ export type CombatAnswer = Record<CombatPhase, CombatPhaseAnswer> & { combined?:
  * How one unit's attacks meet another: the defender's allocation order, both units' rule options, and the
  * calculation each phase makes once a set of situational adjustments is layered over them.
  */
-export function combatMatchup(
+export function combatMatchup(attacker: CombatantSnapshot | null, defender: CombatantSnapshot | null, choices: CombatMatchupChoices) {
+  const matchup = phaseMatchup(attacker, defender, choices)
+  const afterLosses = defender
+    ? sharedDefenceLosses(defender, matchup.target?.target?.groups).map(({ units, remaining }) => ({
+        units,
+        matchup: phaseMatchup(attacker, remaining, choices),
+      }))
+    : []
+  return {
+    ...matchup,
+    afterLosses,
+    /** Both phases, with the melee attacks for each set of members shooting can destroy first. */
+    request: (adjustments: CombatAdjustments): CombatRequest => {
+      const meleeAfterLosses = afterLosses.flatMap(({ units, matchup: after }) => {
+        const input = after.scenario('melee', adjustments)
+        return input ? [{ units, input }] : []
+      })
+      return {
+        ranged: matchup.scenario('ranged', adjustments),
+        melee: matchup.scenario('melee', adjustments),
+        sequenceError: matchup.sequenceError,
+        ...(meleeAfterLosses.length ? { meleeAfterLosses } : {}),
+      }
+    },
+  }
+}
+
+/**
+ * The defender without the rules each set of its members shared, for every set an earlier phase can destroy while
+ * another member survives. Members that share a name stay out: `combatUnitSequenceError` refuses their shared defences.
+ */
+function sharedDefenceLosses(defender: CombatantSnapshot, groups: readonly CombatTargetGroup[] | undefined) {
+  if (!defender.companions?.length || !groups) return []
+  const members = [defender, ...defender.companions]
+  const sources = new Set(
+    members.flatMap((member) =>
+      (member.rules ?? []).flatMap((rule) =>
+        rule.source &&
+        members.filter((other) => other.sheet.name === rule.source).length === 1 &&
+        rule.effects.some((effect) => effect.role === 'defender')
+          ? [rule.source]
+          : [],
+      ),
+    ),
+  )
+  const losses = new Map<string, string[]>()
+  for (let at = 1; at < groups.length; at++) {
+    const units = [...sources].filter((unit) => !groups.slice(at).some((group) => group.unit === unit))
+    if (units.length) losses.set(JSON.stringify(units), units)
+  }
+  return [...losses.values()].map((units) => {
+    const without = <Member extends CombatMember>(member: Member): Member => ({
+      ...member,
+      rules: member.rules?.filter((rule) => !rule.source || !units.includes(rule.source)),
+    })
+    return { units, remaining: { ...without(defender), companions: defender.companions!.map(without) } }
+  })
+}
+
+function phaseMatchup(
   attacker: CombatantSnapshot | null,
   defender: CombatantSnapshot | null,
   { preferences, excluded, allocation }: CombatMatchupChoices,
@@ -211,6 +276,6 @@ export function resolveCombatRequest(request: CombatRequest, maxWork?: number): 
   if (request.ranged && request.melee && answer.ranged?.result && answer.melee?.result)
     answer.combined = request.sequenceError
       ? { error: request.sequenceError }
-      : resolved(() => calculateCombatSequence([request.ranged!, request.melee!], maxWork))
+      : resolved(() => calculateCombatSequence([request.ranged!, request.melee!], maxWork, [[], request.meleeAfterLosses]))
   return answer
 }

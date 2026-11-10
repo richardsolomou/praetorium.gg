@@ -3,7 +3,8 @@ import { DEFAULT_COMBAT_OPTIONS, calculateCombat, calculateCombatSequence, type 
 import { attackSequence, sampleCombat } from './combatReference.fixtures'
 import { combatUnitTarget, combatUnitSequenceError, type CombatMember } from './combatUnit'
 import { combatAttacks } from './combatScenario'
-import { combatRuleChoices, combatRuleHasSharedDefence, type CombatRule } from './combatRules'
+import { combatMatchup, noExclusions } from './combatMatchup'
+import { combatRuleChoices, combatRuleHasAppliedSharedDefence, type CombatRule } from './combatRules'
 import type { Datasheet } from './datasheet'
 import { datasheetFixture } from './datasheet.fixtures'
 
@@ -224,33 +225,69 @@ const sharedProtection: CombatRule = {
   description: 'While this model is leading a unit, models in that unit have the Feel No Pain 5+ ability.',
 }
 
-it('identifies active defensive abilities that depend on an attached source', () => {
-  expect(combatRuleHasSharedDefence(sharedProtection, 1)).toBe(true)
-})
-
-it('does not block sequences for an unselected defensive ability', () => {
-  expect(combatRuleHasSharedDefence(sharedProtection, 0)).toBe(false)
-})
-
-it('does not classify a personal defensive ability as shared', () => {
-  expect(combatRuleHasSharedDefence({ ...sharedProtection, scope: 'unit' }, 1)).toBe(false)
-})
-
 it('tracks shared defensive profile changes already applied by projection', () => {
-  expect(combatRuleHasSharedDefence({ ...sharedProtection, appliedDefences: ['toughness'] }, 0)).toBe(true)
+  expect(combatRuleHasAppliedSharedDefence({ ...sharedProtection, appliedDefences: ['toughness'] })).toBe(true)
+  expect(combatRuleHasAppliedSharedDefence(sharedProtection)).toBe(false)
 })
 
-it('refuses combined estimates when a shared defensive source can be destroyed', () => {
+it('refuses combined estimates when a shared defence already in a characteristic can be destroyed', () => {
   const squad = member('Squad')
-  squad.companions = [{ ...member('Leader'), sharedDefenceSources: ['Squad'] }]
+  squad.companions = [{ ...member('Leader'), appliedDefenceSources: ['Squad'] }]
   expect(combatUnitSequenceError(squad)).toMatch(/shared defensive ability/)
 })
 
 it('permits a shared defensive source allocated after every other member', () => {
   const squad = member('Squad')
-  squad.sharedDefenceSources = ['Leader']
+  squad.appliedDefenceSources = ['Leader']
   squad.companions = [member('Leader')]
   expect(combatUnitSequenceError(squad)).toBeUndefined()
+})
+
+describe('a defence the bodyguards share with their leader', () => {
+  const guarded = () => {
+    const squad = member('Squad')
+    const leader = member('Leader')
+    leader.rules = [{ name: 'Guard', source: 'Squad', effects: [{ role: 'defender', phases: ['ranged', 'melee'], invulnerable: 2 }] }]
+    squad.companions = [leader]
+    return squad
+  }
+
+  it('keeps the combined estimate', () => expect(combatUnitSequenceError(guarded())).toBeUndefined())
+
+  it('leaves the leader in melee once shooting destroys them', () => {
+    const request = combatMatchup(member('Attacker', 5), guarded(), { preferences: {}, excluded: noExclusions(), allocation: [] }).request(
+      {},
+    )
+    expect(request.meleeAfterLosses?.map(({ units, input }) => [units, input.target.groups.at(-1)?.invulnerable])).toEqual([
+      [['Squad'], null],
+    ])
+  })
+
+  it('protects the leader until the attacks that destroy them resolve', () => {
+    const phase = (attacks: number): CombatInput => ({
+      target: {
+        groups: [
+          { models: 2, toughness: 4, save: 7, invulnerable: null, wounds: 1, unit: 'Squad' },
+          { models: 1, toughness: 4, save: 7, invulnerable: null, feelNoPain: 4, wounds: 3, unit: 'Leader' },
+        ],
+        feelNoPain: null,
+      },
+      weapons: [
+        { ...structuredClone(scenario().weapons[0]!), torrent: true, strength: 100, attacks: { dice: 0, sides: 6, bonus: attacks } },
+      ],
+      options: DEFAULT_COMBAT_OPTIONS,
+    })
+    const unguarded = (input: CombatInput) => {
+      const after = structuredClone(input)
+      after.target.groups[1]!.feelNoPain = null
+      return [{ units: ['Squad'], input: after }]
+    }
+    // Each attack wounds on a 2+ and kills a bodyguard, so the leader is unguarded in melee only when shooting wounds twice.
+    const melee = phase(1)
+    expect(calculateCombatSequence([phase(2), melee], undefined, [[], unguarded(melee)]).meanDamage).toBeCloseTo(5 / 2, 12)
+    const longer = phase(2)
+    expect(calculateCombatSequence([phase(1), longer], undefined, [[], unguarded(longer)]).meanDamage).toBeCloseTo(955 / 432, 12)
+  })
 })
 
 function bodyguardProtection(): CombatInput {
