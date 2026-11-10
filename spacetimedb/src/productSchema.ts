@@ -469,6 +469,15 @@ const battleFinishes = table(
   },
 )
 
+/** Whether each battle has left setup, so the public and friends feeds need no fold of each log; filled lazily by `hasBegun` and dropped by `touchBattle`. */
+const battleStarts = table(
+  { name: 'battle_starts' },
+  {
+    battleId: t.string().primaryKey(),
+    begun: t.bool(),
+  },
+)
+
 /**
  * The `battles` revision at which each battle's log or seats last changed, so a reader keeping its own copy of results
  * rereads only what changed since it last read. The row outlives its battle, which tells that reader it is gone.
@@ -816,6 +825,7 @@ export const productTables = {
   groupBattles,
   battleActivity,
   battleFinishes,
+  battleStarts,
   battleChanges,
   battleResults,
   ratingSteps,

@@ -30,3 +30,5 @@ Every profile has an **Achievements** tab, with the player's latest three medals
 ## Who can watch
 
 Anyone can find and watch a battle, tournament games included. A guest's name shows wherever the battle does.
+
+Public and friends' games list the most recently played first. A battle nobody has started leaves those lists two days after its last change and returns once it begins. Its players still find it under their battles, and anyone with its link can still watch it.
