@@ -4,6 +4,7 @@ import { BuilderFrame, ClaimGuestRoster, useGuestDraft } from './GuestRoster'
 import { RosterDiscoveryPage } from './RosterDiscoveryPage'
 import { RosterLibraryPage } from './RosterLibraryPage'
 import type { RostersSearch } from './rosterSearch'
+import type { RosterGrouping } from '../../../core/rosterGrouping'
 import type { keptRosterSort } from './rosterSort'
 
 /**
@@ -15,6 +16,7 @@ export function RostersRoute({
   search: { view, new: starting, reference, sort: listSort, ...search },
   guestDraft: hinted,
   sort,
+  grouping,
   notices,
   rows,
 }: {
@@ -22,6 +24,7 @@ export function RostersRoute({
   /** Whether the request said this browser holds a visitor's list, so the first frame holds its row or the claim it becomes. */
   guestDraft: boolean
   sort: ReturnType<typeof keptRosterSort>
+  grouping: RosterGrouping
   /** Whether the library last had a data update notice, so the first frame keeps its line. */
   notices: boolean
   /** How many rows the unfiltered library last showed, so the first frame reserves them. */
@@ -36,6 +39,7 @@ export function RostersRoute({
     <RosterLibraryPage
       search={search}
       sort={sort}
+      grouping={grouping}
       notices={notices}
       rows={rows}
       starting={starting && ready}

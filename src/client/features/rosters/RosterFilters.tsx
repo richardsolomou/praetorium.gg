@@ -1,6 +1,6 @@
 import type { FilterDimension } from '../../components/FilterBar'
 import { ROSTER_POINTS_BANDS } from '../../../core/rosterDiscovery'
-import { ArrowDownUp } from 'lucide-react'
+import { ArrowDownUp, Rows3 } from 'lucide-react'
 import { Fragment } from 'react'
 import { Button } from '@/components/ui/button'
 import {
@@ -11,6 +11,7 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import type { RosterGrouping } from '../../../core/rosterGrouping'
 import type { RosterSort } from '../../../core/rosterSort'
 
 const SORT_GROUPS: { label: string; items: { label: string; value: RosterSort }[] }[] = [
@@ -64,6 +65,35 @@ export function RosterSortMenu({ value, onChange }: { value: RosterSort; onChang
                 </DropdownMenuRadioItem>
               ))}
             </Fragment>
+          ))}
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+
+const GROUPINGS: { label: string; value: RosterGrouping }[] = [
+  { label: 'No grouping', value: 'none' },
+  { label: 'By faction', value: 'faction' },
+  { label: 'By detachment', value: 'detachment' },
+  { label: 'By battle size', value: 'size' },
+]
+
+/** What a roster list is gathered under, each group keeping the chosen sort. */
+export function RosterGroupMenu({ value, onChange }: { value: RosterGrouping; onChange: (grouping: RosterGrouping) => void }) {
+  const label = GROUPINGS.find((item) => item.value === value)?.label ?? ''
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger render={<Button variant="outline" aria-label={`Group: ${label}`} />}>
+        <Rows3 />
+        {value === 'none' ? 'Group' : label}
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="w-56">
+        <DropdownMenuRadioGroup value={value} onValueChange={(chosen) => onChange(chosen as RosterGrouping)}>
+          {GROUPINGS.map((item) => (
+            <DropdownMenuRadioItem key={item.value} value={item.value} closeOnClick>
+              {item.label}
+            </DropdownMenuRadioItem>
           ))}
         </DropdownMenuRadioGroup>
       </DropdownMenuContent>
