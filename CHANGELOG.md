@@ -1,5 +1,14 @@
 # praetorium
 
+## 0.229.2 (2026-11-10)
+
+### Patch Changes
+
+- 484111e: Groups have a Battles tab listing every game played for the group, with filters, and Recent games links to it.
+- 484111e: A player's Battles tab now lists every battle you may watch them in, with the same filters as the Battles page, and keeps the Record tab's filters when you switch to it.
+- 484111e: A player's Rosters tab can be searched, filtered by faction, detachment, battle size and points, and sorted.
+- 484111e: A tournament's battle list can be searched and filtered by status, army, player and more.
+
 ## 0.229.1 (2026-11-10)
 
 ### Patch Changes
