@@ -1,4 +1,5 @@
 import { expect, it, vi } from 'vitest'
+import { battleDigest } from '../core/battleDigest'
 
 // The test host stubs environment reads, so the module reads these instead.
 const env = vi.hoisted((): Record<string, string> => ({}))
@@ -65,7 +66,7 @@ function product() {
       held.map((history) =>
         battleSummary(
           { ...history, players: history.players.map((player) => ({ ...player, name: names.get(player.id) ?? player.name })) },
-          reduceBattle(...battleFoldArgs(history.players, history.log)),
+          battleDigest(reduceBattle(...battleFoldArgs(history.players, history.log)), history.log),
           null,
           null,
           byId(FACTIONS),

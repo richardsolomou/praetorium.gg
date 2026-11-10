@@ -1,4 +1,5 @@
 import { expect, it, vi } from 'vitest'
+import { battleCard } from './battleCard.fixtures'
 import { ALICE, NAMES, log, started } from '../core/battle.fixtures'
 import type { Command } from '../core/battle'
 import type { RepositoryPort } from './spacetimeRepository'
@@ -17,7 +18,7 @@ function fixture(sealedEvent: boolean, seated = true) {
   }
   const repository = {
     battleHistoryByToken: vi.fn().mockResolvedValue(history),
-    battlesBySealedEvent: vi.fn().mockResolvedValue({ battles: [history], nextCursor: null }),
+    battlesBySealedEvent: vi.fn().mockResolvedValue({ battles: [battleCard(history)], nextCursor: null }),
   } as unknown as RepositoryPort
   const service = new PraetoriumService(
     repository,

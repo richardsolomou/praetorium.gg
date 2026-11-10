@@ -18,6 +18,7 @@ import { ROSTER_SOURCES, ROSTER_VISIBILITIES, type RosterSource, type RosterVisi
 import { commandRefusal, reduceBattle, type Command, type LoggedCommand, type Refusal, type SubmitResult } from '../core/battle'
 import { commandSchema } from '../core/commands'
 import { battleFoldArgs } from '../core/offlineBattle'
+import { BATTLE_DIGEST_VERSION, type BattleDigest } from '../core/battleDigest'
 import { ROSTER_LIBRARY_BATCH_SIZE } from '../core/rosterLibrary'
 import { ROSTER_DISCOVERY_MAX_PAGE_SIZE, rosterDiscoveryCursorSchema, type RosterDiscoveryQuery } from '../core/rosterDiscovery'
 import type { PlayerDefaults } from '../core/playerDefaults'
@@ -121,8 +122,18 @@ const guestInvitation = z.object({
 })
 const joinedGuest = z.object({ battleId: z.string(), token: z.string(), seatId: z.string() })
 const feedCursor = z.object({ at: z.number().int(), id: z.string() })
+/** The release this server was built from, which keys the module's stored digests so a new release refolds each battle once. */
+const DIGEST_REVISION = process.env.GITHUB_SHA?.trim() || 'development'
+
+/** Built by this release's own module, so only its version is checked rather than parsing every seat again. */
+const battleDigestRow = z.custom<BattleDigest>(
+  (value) => typeof value === 'object' && value !== null && (value as BattleDigest).version === BATTLE_DIGEST_VERSION,
+  'battle digest from another release',
+)
 const battleFeedResult = z.object({
-  battles: z.array(z.object({ ...battleSnapshot.shape, at: z.number().int() })),
+  battles: z.array(
+    z.object({ battle: battleSnapshot.shape.battle, seats: battleSnapshot.shape.seats, digest: battleDigestRow, at: z.number().int() }),
+  ),
   nextCursor: feedCursor.nullable(),
 })
 const submission = z.object({
@@ -609,6 +620,7 @@ export class SpacetimeOperator {
           before: input.before ?? null,
           order: input.order,
           limit: input.limit,
+          digests: DIGEST_REVISION,
         }),
       ],
       battleFeedResult,

@@ -1,4 +1,5 @@
 import { expect, it, vi } from 'vitest'
+import { battleCard } from './battleCard.fixtures'
 import { ALICE, NAMES, log, roster, started } from '../core/battle.fixtures'
 import { guestSeatId } from '../core/newBattle'
 import type { RepositoryPort } from './spacetimeRepository'
@@ -11,7 +12,7 @@ it('shows a player’s battles in their profile to an anonymous reader', async (
     log: log(...started(), [ALICE, { kind: 'end-battle', reason: 'conceded', concededBy: ALICE }]),
   }
   const repository = {
-    battlesSeatedBy: vi.fn().mockResolvedValue([history]),
+    battlesSeatedBy: vi.fn().mockResolvedValue([battleCard(history)]),
     claimStandingsRefresh: vi.fn().mockResolvedValue({ state: 'fresh', standings: '1' }),
     ratingChanges: vi.fn().mockResolvedValue([]),
     profilesByIds: vi.fn().mockResolvedValue(new Map()),
@@ -32,7 +33,7 @@ it('shows how far the leaderboard says each profile battle moved each player’s
     log: log(...started(), [ALICE, { kind: 'end-battle', reason: 'conceded', concededBy: ALICE }]),
   }
   const repository = {
-    battlesSeatedBy: vi.fn().mockResolvedValue([history]),
+    battlesSeatedBy: vi.fn().mockResolvedValue([battleCard(history)]),
     claimStandingsRefresh: vi.fn().mockResolvedValue({ state: 'fresh', standings: '1' }),
     ratingChanges: vi.fn().mockResolvedValue([{ token: 'token', changes: { [ALICE]: -12, bob: 12 } }]),
     profilesByIds: vi.fn().mockResolvedValue(new Map()),
@@ -63,7 +64,7 @@ function recordAgainst(opponent: { id: string; name: string }, practiceIds: stri
     ),
   }
   const repository = {
-    battlesSeatedBy: vi.fn().mockResolvedValue([history]),
+    battlesSeatedBy: vi.fn().mockResolvedValue([battleCard(history)]),
     claimStandingsRefresh: vi.fn().mockResolvedValue({ state: 'fresh', standings: '1' }),
     ratingChanges: vi.fn().mockResolvedValue([]),
     profilesByIds: vi.fn().mockResolvedValue(new Map()),

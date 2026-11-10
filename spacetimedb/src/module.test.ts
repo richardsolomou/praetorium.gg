@@ -1,4 +1,5 @@
 import { ConnectionId, Timestamp } from 'spacetimedb'
+import type { BattleDigest } from '../../src/core/battleDigest'
 import { createModuleTestHarness, TestAuth, TestClock } from 'spacetimedb/server/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -2124,6 +2125,51 @@ describe('guest devices', () => {
       )
     return { ...h, invite, join, device, seat, finish, claim }
   }
+
+  /** The host's battle as a list reads it, from the stored digest when its key still names the battle. */
+  const digest = (h: ReturnType<typeof setup>, revision = 'release') =>
+    (
+      JSON.parse(
+        module.battleFeed(h.procedure(h.operator), {
+          payload: JSON.stringify({
+            scope: 'user',
+            userId: 'host',
+            viewerId: null,
+            withUserId: null,
+            hostToken: null,
+            eventToken: null,
+            since: null,
+            before: null,
+            limit: 1,
+            digests: revision,
+          }),
+        }),
+      ) as { battles: { digest: BattleDigest }[] }
+    ).battles[0]!.digest
+
+  it('folds commands written after a battle was last listed', () => {
+    const h = setup()
+    digest(h)
+    h.finish()
+    expect(digest(h).status).toBe('finished')
+  })
+
+  it('plays a guest’s side from their device once they join after a battle was last listed', () => {
+    const h = setup()
+    digest(h)
+    h.join(h.invite())
+    expect(digest(h).seats.find((seat) => seat.id === GUEST)?.automated).toBe(false)
+  })
+
+  it('folds again for a release that did not fold the stored digest', () => {
+    const h = setup()
+    digest(h)
+    h.call(TestAuth.internal(), (ctx) => {
+      const stored = ctx.db.battleDigests.battleId.find('battle')!
+      ctx.db.battleDigests.battleId.update({ ...stored, digest: JSON.stringify({ ...JSON.parse(stored.digest), round: 9 }) })
+    })
+    expect(digest(h, 'next-release').round).toBe(0)
+  })
 
   it('keeps one invite per guest seat', () => {
     const { invite } = setup()

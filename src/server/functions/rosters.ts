@@ -6,7 +6,13 @@ import { app } from '../app'
 import { requireCatalogue } from '../requireCatalogue'
 import { currentUserId, forSignedIn, requireUserId } from '../playerSession'
 import { calculateRosterPrice } from '../../shared/pricing'
-import { cachedRosterAssessmentsFor, cachedRosterPrice, cachedRosterTotalsFor, cachedRosterVerdictsFor } from '../rosterPrices'
+import {
+  cachedRosterAssessmentsFor,
+  cachedRosterPrice,
+  cachedRosterTotalsFor,
+  cachedRosterVerdictsFor,
+  heldRosterAssessments,
+} from '../rosterPrices'
 import { mutationRpc, rpc } from '../rpc'
 import { exportRosterFile, pricedDispositionNames } from '../../shared/rosterFiles'
 import { importRosterInput } from '../rosterImport'
@@ -388,25 +394,31 @@ export const discoverPlayedArmies = createServerFn({ method: 'GET' })
       if (!discoveryScope(filter, factions)) return { armies: [], nextCursor: null }
       const indexed = byId(factions)
       const now = Date.now()
-      const assess = (armies: PlayedArmy[]) =>
-        cachedRosterAssessmentsFor(
-          armies.map((army) => ({
-            ...copiedArmy(army),
+      // Most armies were priced by an earlier read under this catalogue, so only the rest have their battles' logs read for picks.
+      const assess = async (armies: PlayedArmy[]) => {
+        const priceable = armies.map((army) => ({ id: `${army.battle}:${army.player.id}`, updatedAt: army.playedAt }))
+        const held = await heldRosterAssessments(priceable)
+        const unpriced = armies.filter((_, index) => !held[index])
+        const picks = await instance.service.playedArmyPicks(unpriced)
+        const priced = await cachedRosterAssessmentsFor(
+          unpriced.map((army, index) => ({
+            ...copiedArmy({ ...army, picks: picks[index]! }),
             id: `${army.battle}:${army.player.id}`,
             updatedAt: army.playedAt,
             optionalRules: [],
             borrowedDetachmentId: null,
           })),
         )
+        let next = 0
+        return held.map((assessment) => assessment ?? priced[next++]!)
+      }
       const page = await instance.service.playedArmies(
         viewerId,
         before ?? undefined,
         battleFactions,
         playedArmyFilterActive(filter)
           ? async (armies) => {
-              const fit = armies.filter(
-                (army) => inDiscoveryScope(copiedArmy(army), filter, indexed) && matchesPlayedArmy(army, filter, now),
-              )
+              const fit = armies.filter((army) => inDiscoveryScope(army.copied, filter, indexed) && matchesPlayedArmy(army, filter, now))
               if (!rosterAssessmentFilterActive(filter)) return fit
               const assessments = await assess(fit)
               return fit.filter((_, index) =>
@@ -417,7 +429,7 @@ export const discoverPlayedArmies = createServerFn({ method: 'GET' })
       )
       const assessments = await assess(page.armies)
       return {
-        armies: page.armies.map(({ picks: _picks, ...army }, index) => ({
+        armies: page.armies.map(({ copied: _copied, ...army }, index) => ({
           ...army,
           points: assessments[index]!.points,
           problem: assessments[index]!.verdict.problem,

@@ -26,6 +26,7 @@ import {
   type Command,
   type LoggedCommand,
 } from '../../src/core/battle'
+import { BATTLE_DIGEST_VERSION, battleDigest, type BattleDigest } from '../../src/core/battleDigest'
 import { teamDispositionChoices } from '../../src/core/teamDisposition'
 import { DEFAULT_PLAYER_DEFAULTS, isPlayerDefaults } from '../../src/core/playerDefaults'
 import { BATTLE_ORDERS } from '../../src/core/battleFilter'
@@ -936,12 +937,31 @@ const battleSyncSchema = z.object({
 })
 type BattleSync = z.infer<typeof battleSyncSchema>
 
-function battleData(ctx: Context, battleId: string) {
+/** A battle and its seats in seating order, as every product read names them. */
+function battleSeats(ctx: Context, battleId: string) {
   const battle = ctx.db.battles.id.find(battleId)
   if (!battle) throw new SenderError('Battle unavailable')
-  const seats = Array.from(ctx.db.battleUsers.battleId.filter(battleId)).sort(
+  const rows = Array.from(ctx.db.battleUsers.battleId.filter(battleId)).sort(
     (left, right) => left.side - right.side || (left.joinedAt > right.joinedAt ? 1 : left.joinedAt < right.joinedAt ? -1 : 0),
   )
+  return {
+    battle,
+    rows,
+    seats: rows.map((seat) => ({
+      id: seat.userId,
+      side: seat.side,
+      // A guest who joined on their own device plays their side; until then, or once the host takes it back, the table does.
+      automated:
+        seat.guestName !== undefined
+          ? ctx.db.guestSeats.seatId.find(seat.userId)?.deviceHash === undefined
+          : Boolean(ctx.db.practiceOpponents.userId.find(seat.userId)),
+      ...(seat.guestName !== undefined ? { guestName: seat.guestName } : {}),
+    })),
+  }
+}
+
+function battleData(ctx: Context, battleId: string) {
+  const { battle, rows, seats } = battleSeats(ctx, battleId)
   const written = Array.from(ctx.db.commands.battleId.filter(battleId))
     .sort((left, right) => left.seq - right.seq)
     .flatMap((row): LoggedCommand[] => {
@@ -963,22 +983,9 @@ function battleData(ctx: Context, battleId: string) {
   // Every product read of a battle passes through here, so no reader sees a claimed guest seat by its old name.
   const log = claimedLog(
     written,
-    seats.flatMap((seat) => (seat.claimedSeat === undefined ? [] : [{ seatId: seat.claimedSeat, userId: seat.userId }])),
+    rows.flatMap((seat) => (seat.claimedSeat === undefined ? [] : [{ seatId: seat.claimedSeat, userId: seat.userId }])),
   )
-  return {
-    battle,
-    seats: seats.map((seat) => ({
-      id: seat.userId,
-      side: seat.side,
-      // A guest who joined on their own device plays their side; until then, or once the host takes it back, the table does.
-      automated:
-        seat.guestName !== undefined
-          ? ctx.db.guestSeats.seatId.find(seat.userId)?.deviceHash === undefined
-          : Boolean(ctx.db.practiceOpponents.userId.find(seat.userId)),
-      ...(seat.guestName !== undefined ? { guestName: seat.guestName } : {}),
-    })),
-    log,
-  }
+  return { battle, seats, log }
 }
 
 /** A battle's seats and log with the state they fold to. */
@@ -991,6 +998,39 @@ function battleState(ctx: Context, battleId: string) {
     seats.filter((seat) => seat.automated).map((seat) => seat.id),
   )
   return { seats, log, state }
+}
+
+/**
+ * A battle's digest, folded only when its seats, its log or the reading server's release changed since the stored one.
+ *
+ * The key is read without parsing a command, and it names everything the fold reads, so no write has to remember to
+ * drop it: a guest's device joining, a claimed seat, a removed player's commands and an appended one each change it.
+ * `revision` is the release the reading server and this module were published from, so a release that changes the
+ * fold refolds each battle once instead of serving what the previous one folded.
+ */
+function battleDigestOf(ctx: Context, battleId: string, revision: string) {
+  const { rows, seats } = battleSeats(ctx, battleId)
+  let commands = 0
+  let lastSeq = 0
+  for (const command of ctx.db.commands.battleId.filter(battleId)) {
+    commands += 1
+    if (command.seq > lastSeq) lastSeq = command.seq
+  }
+  const key = JSON.stringify([BATTLE_DIGEST_VERSION, revision, seats, rows.map((seat) => seat.claimedSeat ?? null), commands, lastSeq])
+  const stored = ctx.db.battleDigests.battleId.find(battleId)
+  if (stored?.key === key) return JSON.parse(stored.digest) as BattleDigest
+  const { log, state } = battleState(ctx, battleId)
+  const digest = battleDigest(state, log)
+  const row = { battleId, key, digest: JSON.stringify(digest) }
+  if (stored) ctx.db.battleDigests.battleId.update(row)
+  else ctx.db.battleDigests.insert(row)
+  return digest
+}
+
+/** A battle as a list reads it: its seats and digest, without its log. */
+function battleCard(ctx: Context, battleId: string, revision: string) {
+  const { battle, seats } = battleSeats(ctx, battleId)
+  return { battle, seats, digest: battleDigestOf(ctx, battleId, revision) }
 }
 
 export const battleForOperator = spacetime.procedure({ battleId: t.string() }, t.string(), (ctx, { battleId }) =>
@@ -1050,6 +1090,8 @@ const battleFeedQuery = z.strictObject({
   // Absent from a web build older than this order; every feed reads newest first without it.
   order: z.enum(BATTLE_ORDERS).optional(),
   limit: z.number().int().min(1).max(500),
+  // Sent by a server that reads digests, naming its release; one that reads logs leaves it out.
+  digests: z.string().min(1).max(100).optional(),
 })
 
 export const battleFeed = spacetime.procedure({ payload: t.string() }, t.string(), (ctx, { payload }) =>
@@ -1127,7 +1169,10 @@ export const battleFeed = spacetime.procedure({ payload: t.string() }, t.string(
     const shown = rows.slice(0, input.limit)
     const last = shown.at(-1)
     return productJson({
-      battles: shown.map((row) => ({ ...battleData(tx, row.id), at: row.at })),
+      battles: shown.map((row) => ({
+        ...(input.digests === undefined ? battleData(tx, row.id) : battleCard(tx, row.id, input.digests)),
+        at: row.at,
+      })),
       nextCursor: rows.length > input.limit && last ? { at: last.at, id: last.id } : null,
     })
   }),
