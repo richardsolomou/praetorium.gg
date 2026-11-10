@@ -28,11 +28,35 @@ const components: Components = {
  * itself in the middle of a sentence.
  */
 export function ruleMarkdown(text: string) {
-  return text
-    .replaceAll('^^', '')
-    .replaceAll(/<\/?ins>/g, '')
-    .replaceAll(/^[ \t\u00a0]+/gm, (indent) => indent.replaceAll('\u00a0', ' '))
-    .replaceAll(/(?<!\*)\[([\p{L}\p{N} +'"’:/\p{Pd}]+)\](?!\*)/gu, '**[$1]**')
+  return printedBullets(
+    text
+      .replaceAll('^^', '')
+      .replaceAll(/<\/?ins>/g, '')
+      .replaceAll(/^[ \t\u00a0]+/gm, (indent) => indent.replaceAll('\u00a0', ' ')),
+  ).replaceAll(/(?<!\*)\[([\p{L}\p{N} +'"’:/\p{Pd}]+)\](?!\*)/gu, '**[$1]**')
+}
+
+/** A square the catalogues print after other words on a line, where a quote or bold run opening the line does not count. */
+const RUN_IN_BULLET = /(?<=\S)(?<!^[^\S\n]*(?:[‘'"“]|\*\*))[^\S\n]*([■▪•▫◦])(?=[^\S\n])/gm
+/** A line the catalogues open with a printed square, their bullet: how deep it is indented, and the quote or bold run it opens. */
+const PRINTED_BULLET = /^( *)([‘'"“]|\*\*)?[■▪•▫◦][ \t\u00a0]*(?=\S)/
+
+/**
+ * The catalogues' printed bullets as Markdown's. A wargear option lists its choices along
+ * one line, so each square there starts a bullet of its own. A bullet never continues onto
+ * an unindented line, so such a line is the prose after the list rather than more of its last item.
+ */
+function printedBullets(text: string) {
+  const lines = text.replaceAll(RUN_IN_BULLET, '\n$1').split('\n')
+  return lines
+    .map((line, at) => {
+      const bullet = PRINTED_BULLET.exec(line)
+      if (!bullet) return line
+      const item = `${bullet[1]}- ${bullet[2] ?? ''}${line.slice(bullet[0].length)}`
+      const next = lines[at + 1] ?? ''
+      return /^[^\s-]/.test(next) && !PRINTED_BULLET.test(next) ? `${item}\n` : item
+    })
+    .join('\n')
 }
 
 /** A table, and the prose either side of it. Markdown has no table this source's rows fit. */

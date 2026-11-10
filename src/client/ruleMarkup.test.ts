@@ -138,6 +138,19 @@ describe('the Markdown the source mixes into its tags', () => {
     expect(list).toMatchObject({ kind: 'list', items: [[{ content: [{ text: 'Must make one ' }, { kind: 'strong' }, {}] }]] })
   })
 
+  it('reads lines the source opens with a square as bullets', () => {
+    const blocks = parseRuleMarkup('That unit:\n▫ Must make one hazard roll.\n■ Must make a battle-shock roll.')
+    expect(blocks[1]).toMatchObject({ kind: 'list', items: [[{ content: [{ text: 'Must make one hazard roll.' }] }], [{}]] })
+  })
+
+  it('reads a square the source runs into its words as a bullet', () => {
+    expect(parseRuleMarkup('Each player:\n\n■First, gain the VP.').map((block) => block.kind)).toEqual(['paragraph', 'list'])
+  })
+
+  it('reads a square followed by a tag as a bullet', () => {
+    expect(parseRuleMarkup('One of these:\n▫ <b>Remain stationary</b> (09.04)').map((block) => block.kind)).toEqual(['paragraph', 'list'])
+  })
+
   it('leaves a dash inside a sentence out of it', () => {
     expect(parseRuleMarkup('Rapid - Tactical Disembark: 3"').map((block) => block.kind)).toEqual(['paragraph'])
   })
