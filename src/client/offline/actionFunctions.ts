@@ -141,8 +141,7 @@ function deferredForAccount(waitForSync = true) {
     }: { identifiers?: Record<string, string>; dependencies?: string[]; update?: LocalDocumentUpdate } = {},
   ) => {
     const normalized = offlineActionSchemas[kind].parse(input)
-    // A captured roster keeps its original IDs until the server resolves its rules version.
-    const operation = await queueLocal(kind, { input: kind === 'submitSealedEventRoster' ? input : normalized, identifiers }, resource, {
+    const operation = await queueLocal(kind, { input: normalized, identifiers }, resource, {
       data,
       dependencies,
       owner,

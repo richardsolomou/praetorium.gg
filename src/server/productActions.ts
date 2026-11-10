@@ -1,5 +1,6 @@
 import type { z } from 'zod'
 import { rosterContentSchema, type saveRosterSchema } from '../contracts/schemas'
+import { currentRosterIds } from '../core/retiredCatalogueIds'
 import { offlineActionSchemas as schemas, type OfflineActionKind } from '../contracts/offlineActions'
 import { onboardingAnswer } from '../contracts/onboarding'
 import { app } from './app'
@@ -27,7 +28,10 @@ export async function submitSealedEventRoster(owner: string, data: z.output<type
   const { saved, snapshot } = await rosterForUse(owner, data.rosterId, { lent: true, sealing: true })
   if (
     data.capturedRoster !== undefined &&
-    (sealedContent(rosterContentSchema.parse(saved)) !== sealedContent(data.capturedRoster) ||
+    (![data.capturedRoster, currentRosterIds(data.capturedRoster)].some(
+      // A capture is either the device's resolved copy, or older input the server's copy has since been resolved from.
+      (captured) => sealedContent(captured) === sealedContent(rosterContentSchema.parse(saved)),
+    ) ||
       (await app().catalogueFor(saved.catalogueId))?.index.revision !== data.catalogueRevision)
   )
     throw new Response('This roster or its army data changed after you chose to seal it. Review the saved action before sealing again.', {

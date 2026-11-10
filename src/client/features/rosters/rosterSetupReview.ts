@@ -17,7 +17,10 @@ export type RosterSetupReview = {
 }
 
 async function priceSetup(draft: RosterDraft) {
-  const price = await priceRoster({ data: { ...draft, units: draft.picks } })
+  const { catalogueId, detachmentIds, disposition, borrowedDetachmentId, limit, picks: units, waivedRules, optionalRules } = draft
+  const price = await priceRoster({
+    data: { catalogueId, detachmentIds, disposition, borrowedDetachmentId, limit, units, waivedRules, optionalRules },
+  })
   if (!price) throw new Error('The rules needed to review this roster are unavailable.')
   return price
 }

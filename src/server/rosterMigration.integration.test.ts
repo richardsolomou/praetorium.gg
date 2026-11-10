@@ -50,6 +50,11 @@ it('seals a queued folded capture against the current roster it captured', async
   await seal()
   expect(submit).toHaveBeenCalledWith('event', 'player', expect.objectContaining({ catalogueId: book }), { name: 'Army' }, undefined)
 })
+it('seals a capture the device already resolved to the current roster', async () => {
+  saved(book)
+  await seal(book)
+  expect(submit).toHaveBeenCalledWith('event', 'player', expect.objectContaining({ catalogueId: book }), { name: 'Army' }, undefined)
+})
 it('still recognizes plain older input when checking a queued retained roster', async () => {
   saved(`legacy-rosters~${book}`)
   await seal(book)
