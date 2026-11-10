@@ -47,6 +47,7 @@ import { meQuery } from '../../queries'
 import { COMMUNITY_LINKS, COMMUNITY_PAGES, FRIENDS_PAGE } from './CommunityLinks'
 import { followTextSourceChoice } from '../../rulesText'
 import { useRealtimeConfig } from '../../realtimeConfig'
+import { useHydrated } from '../../useClientValue'
 // A local dev server shares the production project token, so gate the browser
 // SDK on a built bundle to keep localhost sessions out of the production project.
 const posthog = import.meta.env.PROD
@@ -311,6 +312,8 @@ export function AppShell() {
   // Set while rendering so it holds before any child's effect captures.
   if (typeof window !== 'undefined') setImpersonating(impersonating)
   const realtime = useRealtimeConfig()
+  // The server never draws the live connection, so it waits for hydration even when a restored cache already has its config.
+  const hydrated = useHydrated()
   useLayoutEffect(followTextSourceChoice, [])
   useLayoutEffect(() => followRailState(immersive), [immersive])
   // Browser tests wait for this before interacting: a click before hydration does nothing.
@@ -328,7 +331,7 @@ export function AppShell() {
               <PostHogBetterAuthIdentity authClient={authClient} properties={({ name, email }) => ({ name, email })} />
             )}
             {posthog && !impersonating && <SupportIdentity />}
-            {realtime && (
+            {hydrated && realtime && (
               <Suspense>
                 <LiveProductUpdates config={realtime} signedIn={Boolean(me)} />
               </Suspense>
