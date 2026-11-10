@@ -1,8 +1,9 @@
+import type { z } from 'zod'
 import { ACCOUNT_MCP_SCOPES } from './accountMcp'
 import { createAgentTools } from './createAgentTools'
 import { registerReferenceContextTools } from './referenceAgentContext'
 import { app } from './app'
-import { createBattleSchema, rosterVisibilitySchema, saveRosterSchema, submitSchema } from '../contracts/schemas'
+import { createBattleSchema, rosterVisibilitySchema, type saveRosterSchema, type submitSchema } from '../contracts/schemas'
 import { currentUser } from './playerSession'
 
 function browserTools(userId: string | null) {
@@ -47,7 +48,7 @@ export async function prepareBrowserAgentWrite(name: string, input: unknown, exp
   let summary: string
   switch (name) {
     case 'save_roster': {
-      const data = saveRosterSchema.parse(normalized)
+      const data = normalized as z.output<typeof saveRosterSchema>
       const saved = data.id ? await instance.service.sealedEventService.ownRoster(user.id, data.id) : null
       summary = `${saved ? `Replace the saved choices in “${saved.name}”` : 'Save a roster'}${data.name ? ` as “${data.name}”` : ' with an automatic name'}. Visibility: ${data.visibility}.`
       break
@@ -67,7 +68,7 @@ export async function prepareBrowserAgentWrite(name: string, input: unknown, exp
       break
     }
     default: {
-      const data = submitSchema.parse(normalized)
+      const data = normalized as z.output<typeof submitSchema>
       await instance.service.userBattleId(data.token, user.id)
       const screen = await instance.service.screen(data.token, user.id, await instance.rulesFor())
       summary =
@@ -76,5 +77,6 @@ export async function prepareBrowserAgentWrite(name: string, input: unknown, exp
           : 'Record an action in this battle.'
     }
   }
-  return { input: JSON.stringify(normalized), summary }
+  // Execution validates the original arguments again; migrated output can lose its folded rules version.
+  return { input: JSON.stringify(input), summary }
 }

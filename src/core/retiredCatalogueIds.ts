@@ -166,7 +166,7 @@ export function currentRosterIds<
     updatedAt?: number
   },
 >(roster: T, folded = false): T {
-  // A folded rules version reads on the version it folded into, and never routes back to older rules.
+  // A fold bypasses historical-rule detection for this pass; its unqualified target no longer carries that provenance.
   if (onFoldedEdition(roster.catalogueId))
     return currentRosterIds(
       {

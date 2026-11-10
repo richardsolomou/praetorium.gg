@@ -12,7 +12,7 @@ import type { BattleWorkspace } from '../../contracts/battleWorkspace'
 import type { LocalState } from '../../contracts/localState'
 import { commandSchema } from '../../core/commands'
 import { guestSeatId, isPracticeSeat } from '../../core/newBattle'
-import { createBattleSchema, saveRosterSchema, submitSchema } from '../../contracts/schemas'
+import { createBattleSchema, rosterContentSchema, submitSchema } from '../../contracts/schemas'
 import { appendLocalCommand, resolveLocalDraw, localBattleState } from '../../core/offlineBattle'
 import { battleView } from '../../core/battleView'
 import { commandArmy, type Command } from '../../core/battle'
@@ -234,7 +234,7 @@ export async function submit(args: Parameters<typeof server.submit>[0]): ReturnT
     command,
     recordedAt,
     catalogueRevision: revision,
-    ...(capturedRoster ? { capturedRoster: { ...saveRosterSchema.parse(capturedRoster), id: capturedRoster.id } } : {}),
+    ...(capturedRoster ? { capturedRoster: { ...rosterContentSchema.parse(capturedRoster), id: capturedRoster.id } } : {}),
   }
   const operationId = crypto.randomUUID()
   log[log.length - 1]!.operationId = operationId

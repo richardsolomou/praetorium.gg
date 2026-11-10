@@ -1,4 +1,5 @@
 import type { QueryClient } from '@tanstack/react-query'
+import { saveRosterSchema } from '../../contracts/schemas'
 import type { LocalOperation, LocalState } from '../../contracts/localState'
 import { offlineActionKind, offlineActionSchemas, type OfflineActionKind } from '../../contracts/offlineActions'
 import type { BattleWorkspace } from '../../contracts/battleWorkspace'
@@ -70,6 +71,8 @@ export function stopLocalRuntime() {
 async function execute(operation: LocalOperation, state: LocalState): Promise<SyncAnswer> {
   if (!navigator.onLine) throw new Error('Disconnected')
   if (operation.kind === 'saveRoster' || operation.kind === 'deleteRoster') {
+    const saved = operation.input as LocalRoster
+    const resolved = operation.kind === 'saveRoster' ? saveRosterSchema.parse(saved) : null
     const answer = await syncRoster({
       signal: AbortSignal.timeout(15_000),
       data: {
@@ -81,12 +84,12 @@ async function execute(operation: LocalOperation, state: LocalState): Promise<Sy
       },
     })
     if (answer.outcome !== 'applied') return answer
-    const saved = operation.input as LocalRoster
     const roster =
       operation.kind === 'deleteRoster'
         ? null
         : {
             ...saved,
+            ...resolved,
             name: saved.name || (state.documents[operation.resource]?.data as LocalRoster | null)?.name || '',
             automaticName: !saved.name,
             updatedAt: answer.version,

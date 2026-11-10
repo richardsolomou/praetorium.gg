@@ -13,7 +13,6 @@ import * as server from '../../server/functions'
 import { offlineActionSchemas, type OfflineActionKind } from '../../contracts/offlineActions'
 import { localClient, localOwner, localDocument, localEngine, hasLocalChanges, queueLocal, rememberDocument } from './localRuntime'
 import { localConstruction } from './construction'
-import { saveRosterSchema } from '../../contracts/schemas'
 import type { LocalRoster } from './localRuntime'
 import { accountChanged, cachedRead, isOffline } from './reads'
 import type { LocalDocumentUpdate } from './syncEngine'
@@ -142,7 +141,13 @@ function deferredForAccount(waitForSync = true) {
     }: { identifiers?: Record<string, string>; dependencies?: string[]; update?: LocalDocumentUpdate } = {},
   ) => {
     const normalized = offlineActionSchemas[kind].parse(input)
-    const operation = await queueLocal(kind, { input: normalized, identifiers }, resource, { data, dependencies, owner, update })
+    // A captured roster keeps its original IDs until the server resolves its rules version.
+    const operation = await queueLocal(kind, { input: kind === 'submitSealedEventRoster' ? input : normalized, identifiers }, resource, {
+      data,
+      dependencies,
+      owner,
+      update,
+    })
     if (waitForSync && navigator.onLine) {
       await attemptLocalSync()
       if (localOwner()?.id !== owner) throw new Error('The account changed while saving this action.')
@@ -479,7 +484,7 @@ export async function submitSealedEventRoster(
   if (!waivedWarlordRules(snapshot).length && !sealedEventWarlordValid(snapshot)) throw new Error(sealedEventWarlordRefusal(snapshot))
   await defer(
     'submitSealedEventRoster',
-    { ...args.data, capturedRoster: saveRosterSchema.parse(roster), catalogueRevision: construction.catalogue.index.revision },
+    { ...args.data, capturedRoster: roster, catalogueRevision: construction.catalogue.index.revision },
     `sealed-event:${args.data.token}`,
     undefined,
     { dependencies: [`roster:${args.data.rosterId}`] },

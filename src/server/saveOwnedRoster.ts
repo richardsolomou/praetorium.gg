@@ -3,7 +3,7 @@ import { ROSTER_NAME_MAX_LENGTH } from '../core/battle'
 import { variantName } from '../core/rosterVariants'
 import { app } from './app'
 import { calculateRosterTotals } from '../shared/pricing'
-import { saveRosterSchema } from '../contracts/schemas'
+import type { saveRosterSchema } from '../contracts/schemas'
 import { convertedSetup } from '../core/rosterSetup'
 
 export async function saveOwnedRoster(
@@ -62,7 +62,7 @@ export async function copySavedRoster(userId: string, id: string, variant: boole
     visibility: rosterVisibility,
     source: roster.source,
   }
-  const saved = setup ? saveRosterSchema.parse({ ...data, ...convertedSetup(setup) }) : data
+  const saved = setup ? { ...data, ...convertedSetup(setup) } : data
   return { ...(await saveOwnedRoster(userId, saved, variant ? roster.id : null, variant ? null : roster.id)), data: saved }
 }
 

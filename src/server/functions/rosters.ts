@@ -53,6 +53,7 @@ import {
   rosterLoanSchema,
   rosterVisibilitySchema,
   saveRosterSchema,
+  rosterContentSchema,
   userSchema,
 } from '../../contracts/schemas'
 
@@ -431,7 +432,7 @@ async function playedArmyCopy(data: { token: string; playerId: string }) {
   const army = await app().service.playedArmy(data.token, data.playerId)
   if (!army) throw new Response('That army is no longer available to copy.', { status: 404 })
   const copy = copiedArmy(army)
-  return saveRosterSchema.parse({
+  return rosterContentSchema.parse({
     name: `Copy of ${army.name}`.slice(0, ROSTER_NAME_MAX_LENGTH),
     catalogueId: copy.catalogueId,
     detachmentIds: copy.detachmentIds,

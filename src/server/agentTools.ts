@@ -117,7 +117,7 @@ export class AgentTools {
           // Directory scanners read the listing name from annotations.title, not the tool's own title.
           { ...config, annotations: { title: config.title, ...config.annotations }, inputSchema: schema },
           async (input) => {
-            const result = await published(await mcpResult(async () => execute(await schema.parseAsync(input))))
+            const result = await published(await mcpResult(async () => execute(input)))
             return {
               ...result,
               content: result.content.map((item) =>

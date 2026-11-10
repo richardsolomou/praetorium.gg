@@ -1,9 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ROSTER_DISCOVERY_PAGE_SIZE, type RosterAudience, type RosterDiscoveryFilter } from '../../core/rosterDiscovery'
 import type { RosterSort } from '../../core/rosterSort'
-import { discoverRosters, rosterAccess, rostersLentToMe } from './rosters'
+import { discoverRosters, playedArmyDraft, rosterAccess, rostersLentToMe } from './rosters'
 
 const mocks = vi.hoisted(() => ({
+  playedArmy: vi.fn(),
   factionIndexFor: vi.fn(),
   factionFor: vi.fn(),
   discover: vi.fn(),
@@ -22,6 +23,7 @@ vi.mock('../app', () => ({
     factionIndexFor: mocks.factionIndexFor,
     factionFor: mocks.factionFor,
     service: {
+      playedArmy: mocks.playedArmy,
       rosterService: {
         discoverRosters: mocks.discover,
         rostersLentTo: mocks.lent,
@@ -160,4 +162,23 @@ describe('a legality filter', () => {
     mocks.discover.mockResolvedValueOnce(page(['fine'], null))
     expect((await invoke({ data: { ...legal, before: null } })).total).toBeNull()
   })
+})
+
+it.each([
+  ['current-rosters~2261-79a5-19d9-1668', '2261-79a5-19d9-1668'],
+  ['2261-79a5-19d9-1668', 'legacy-rosters~2261-79a5-19d9-1668'],
+])('copies a played army from %s on its resolved rules', async (catalogueId, expected) => {
+  mocks.playedArmy.mockResolvedValue({
+    name: 'Army',
+    catalogueId,
+    detachmentIds: ['3caf-c168-c372-51b1'],
+    disposition: null,
+    limit: 1000,
+    picks: [],
+    waivedRules: [],
+  })
+  const invokePlayedArmy = playedArmyDraft as unknown as (input: {
+    data: { token: string; playerId: string }
+  }) => Promise<{ catalogueId: string }>
+  expect((await invokePlayedArmy({ data: { token: 'battle', playerId: 'player' } })).catalogueId).toBe(expected)
 })

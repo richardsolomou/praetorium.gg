@@ -331,7 +331,7 @@ export async function saveRoster(
       throw new Error('Saved changes are not ready on this device. Reload the roster before reviewing it again.')
     const answer = await syncRoster({
       signal: args.signal ?? AbortSignal.timeout(15_000),
-      data: { ...serverReview, owner, roster: { ...saveRosterSchema.parse(args.data), id: args.data.id } },
+      data: { ...serverReview, owner, roster: { ...args.data, id: args.data.id } },
     })
     if (localOwner()?.id !== owner) throw new Error('The account changed after this review. Reload before continuing.')
     if (answer.outcome !== 'applied') throw new Error(`${answer.message} Go back, reload it and review the changes again.`)
@@ -339,7 +339,7 @@ export async function saveRoster(
     if (localOwner()?.id !== owner) throw new Error('The account changed after this review. Reload before continuing.')
     if (!saved || saved.updatedAt !== answer.version)
       throw new Error('This roster changed after your review. Go back, reload it and review the changes again.')
-    requireReviewedRoster(saved, args.data)
+    requireReviewedRoster(saved, saveRosterSchema.parse(args.data))
     return { id: args.data.id, updatedAt: answer.version }
   }
   const input = {
@@ -385,16 +385,28 @@ export async function saveRoster(
   if (roster.automaticName && !navigator.onLine) await localConstruction(roster.catalogueId)
   const price = roster.automaticName ? pricedRoster(roster) : null
   if (roster.automaticName) roster.name = price?.label ?? previous?.name ?? ''
-  await queueLocal('saveRoster', draftFor(roster), resource, {
-    data: roster,
-    owner,
-    update: reviewed
-      ? (current) => {
-          requireReviewedRoster(current, reviewed)
-          return roster
-        }
-      : undefined,
-  })
+  // The device projects resolved IDs, while sync validates the original IDs against the same migration as the server.
+  await queueLocal(
+    'saveRoster',
+    {
+      ...draftFor(roster),
+      catalogueId: args.data.catalogueId,
+      detachmentIds: args.data.detachmentIds,
+      borrowedDetachmentId: args.data.borrowedDetachmentId ?? null,
+      picks: args.data.picks,
+    },
+    resource,
+    {
+      data: roster,
+      owner,
+      update: reviewed
+        ? (current) => {
+            requireReviewedRoster(current, reviewed)
+            return roster
+          }
+        : undefined,
+    },
+  )
   if (!previous && navigator.onLine) await attemptLocalSync()
   if (localOwner()?.id !== owner) throw new Error('The account changed while saving this roster.')
   return { id: input.id, updatedAt: now }

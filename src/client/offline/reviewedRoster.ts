@@ -1,4 +1,4 @@
-import { saveRosterSchema } from '../../contracts/schemas'
+import { rosterContentSchema } from '../../contracts/schemas'
 import type { RosterInput } from './localRuntime'
 import type { syncRoster } from '../../server/functions/offline'
 
@@ -7,7 +7,7 @@ export type ReviewedServerSave = Pick<Parameters<typeof syncRoster>[0]['data'], 
 function rosterSaveKey(value: unknown) {
   if (!value || typeof value !== 'object') return null
   const roster = value as RosterInput & { automaticName?: boolean }
-  const parsed = saveRosterSchema.safeParse({
+  const parsed = rosterContentSchema.safeParse({
     ...roster,
     name: roster.automaticName ? '' : roster.name,
     pointsBudget: roster.pointsBudget ?? null,
