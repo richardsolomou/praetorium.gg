@@ -1,4 +1,5 @@
-import { posthog, type BeforeSendFn, type PostHogConfig, type Properties } from 'posthog-js'
+import { posthog, type BeforeSendFn, type CaptureLogOptions, type PostHogConfig, type Properties } from 'posthog-js'
+import { version } from '../package.json'
 import { nativeBridgeVersion } from './client/nativeBridge'
 
 const FEATURES = {
@@ -90,6 +91,42 @@ export const dropUnactionableExceptions: BeforeSendFn = (event) => {
   return unactionable ? null : event
 }
 
+/** Query parameters that hold a secret: reset and invite tokens, and an MCP consent request's OAuth state, PKCE challenge and signature. */
+const PRIVATE_URL_PARAMS = ['token', 'state', 'code_challenge', 'sig']
+
+// Stops at a quote or backslash so a value inside serialized JSON keeps the JSON valid.
+const PRIVATE_URL_PARAM = new RegExp(`([?&](?:${PRIVATE_URL_PARAMS.join('|')})=)[^&#\\s"'\\\\]+`, 'g')
+
+/** Masks the private parameters of every address in `text` the way the SDK masks them in event URLs. */
+function maskPrivateUrlParams(text: string) {
+  return text.replace(PRIVATE_URL_PARAM, '$1<MASKED>')
+}
+
+/** A server error flattened for the browser can take the page address as its stack, parameters and all. */
+export const maskExceptionUrls: BeforeSendFn = (event) => {
+  const list: unknown = event.properties.$exception_list
+  if (event.event !== '$exception' || !list) return event
+  const json = JSON.stringify(list)
+  const masked = maskPrivateUrlParams(json)
+  return masked === json ? event : { ...event, properties: { ...event.properties, $exception_list: JSON.parse(masked) } }
+}
+
+/**
+ * Captured console output can quote the page address in its body and attributes. The SDK adds `url.full` after this
+ * hook, unmasked, unless the record already has one, so it is set here; a record buffered before the logs script
+ * loaded gets the address at send time.
+ */
+export const maskLogUrls = (record: CaptureLogOptions): CaptureLogOptions => ({
+  ...record,
+  body: maskPrivateUrlParams(record.body),
+  attributes: {
+    ...Object.fromEntries(
+      Object.entries(record.attributes ?? {}).map(([key, value]) => [key, typeof value === 'string' ? maskPrivateUrlParams(value) : value]),
+    ),
+    ...(typeof window === 'undefined' ? {} : { 'url.full': maskPrivateUrlParams(window.location.href) }),
+  },
+})
+
 let impersonating = false
 
 /** While an admin views as a player, the app is the admin's, so it must not count as the player's or the admin's use. */
@@ -108,14 +145,23 @@ export function captureWhenLoaded(event: string, properties: Properties) {
   else held.push([event, properties])
 }
 
+export const POSTHOG_SERVICE = { name: 'praetorium', version, environment: import.meta.env.MODE }
+
 export const POSTHOG_BROWSER_OPTIONS = {
   capture_exceptions: true,
   capture_performance: true,
   capture_dead_clicks: true,
   mask_personal_data_properties: true,
-  custom_personal_data_properties: ['token'],
+  custom_personal_data_properties: PRIVATE_URL_PARAMS,
   session_recording: { maskAllInputs: true },
-  before_send: [dropWhileImpersonating, dropUnactionableExceptions, browserEventContext],
+  before_send: [dropWhileImpersonating, dropUnactionableExceptions, maskExceptionUrls, browserEventContext],
+  // Replaces the logs options the integration builds from `service`, so it names the service again.
+  logs: {
+    serviceName: POSTHOG_SERVICE.name,
+    serviceVersion: POSTHOG_SERVICE.version,
+    environment: POSTHOG_SERVICE.environment,
+    beforeSend: maskLogUrls,
+  },
   loaded: (client) => {
     for (const [event, properties] of held.splice(0)) client.capture(event, properties)
   },

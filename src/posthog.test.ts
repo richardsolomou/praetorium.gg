@@ -10,6 +10,8 @@ import {
   captureWhenLoaded,
   dropUnactionableExceptions,
   dropWhileImpersonating,
+  maskExceptionUrls,
+  maskLogUrls,
   setImpersonating,
   telemetryFeature,
 } from './posthog'
@@ -100,7 +102,48 @@ it('leaves server rendering alone', () => {
 })
 
 it('installs filtering and context on the SDK send boundary', () => {
-  expect(POSTHOG_BROWSER_OPTIONS.before_send).toEqual([dropWhileImpersonating, dropUnactionableExceptions, browserEventContext])
+  expect(POSTHOG_BROWSER_OPTIONS.before_send).toEqual([
+    dropWhileImpersonating,
+    dropUnactionableExceptions,
+    maskExceptionUrls,
+    browserEventContext,
+  ])
+  expect(POSTHOG_BROWSER_OPTIONS.logs).toMatchObject({ serviceName: 'praetorium', beforeSend: maskLogUrls })
+})
+
+const consentUrl =
+  'https://praetorium.gg/mcp-consent?response_type=code&state=synthetic-state&code_challenge=synthetic-challenge&sig=synthetic-sig'
+const maskedConsentUrl = 'https://praetorium.gg/mcp-consent?response_type=code&state=<MASKED>&code_challenge=<MASKED>&sig=<MASKED>'
+
+it('masks consent request parameters in a captured console error', () => {
+  vi.stubGlobal('window', { location: { href: consentUrl } })
+  const stack = `Error: This authorization request has expired.\n    at ${consentUrl}`
+  const record = maskLogUrls({
+    body: JSON.stringify({ name: 'Error', message: 'This authorization request has expired.', stack }),
+    level: 'error',
+    attributes: { stack, 'log.source': 'console.error' },
+  })
+  expect(record).toEqual({
+    body: JSON.stringify({
+      name: 'Error',
+      message: 'This authorization request has expired.',
+      stack: `Error: This authorization request has expired.\n    at ${maskedConsentUrl}`,
+    }),
+    level: 'error',
+    attributes: {
+      stack: `Error: This authorization request has expired.\n    at ${maskedConsentUrl}`,
+      'log.source': 'console.error',
+      'url.full': maskedConsentUrl,
+    },
+  })
+})
+
+it('masks consent request parameters in exception stack frames', () => {
+  const frames = [{ filename: consentUrl, lineno: 1 }]
+  const error = { ...event({ $exception_list: [{ type: 'Error', value: 'Failed', stacktrace: { frames } }] }), event: '$exception' }
+  expect(maskExceptionUrls(error)?.properties.$exception_list).toEqual([
+    { type: 'Error', value: 'Failed', stacktrace: { frames: [{ filename: maskedConsentUrl, lineno: 1 }] } },
+  ])
 })
 
 const exception = (value: string) => ({ ...event({ $exception_list: [{ type: 'Error', value }] }), event: '$exception' })

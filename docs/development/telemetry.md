@@ -6,6 +6,7 @@
 - The only ID is the internal `battle_id` on server battle events, never the URL token. Faction and detachment labels are allowed; catalogue IDs are not.
 - Battle refusals carry a `RefusalCode`, never the message. MCP tool failures carry a `ToolErrorType` the result declares through `toolError`, never the error class or message; calls to tool names the server does not register are not captured. Server logs, spans, and metrics use operation names and bounded metadata, never raw URLs or payloads.
 - `rules_text_load_failed` carries `file_url`, the pinned public upstream file that failed. It names no reader, and it is the only way to find a missing file.
+- A query parameter that holds a secret, such as a reset token or an MCP consent request's OAuth state, goes in `PRIVATE_URL_PARAMS` in `src/posthog.ts`, which masks it in browser event URLs, replay, exception stacks, and logs.
 - Mark account, security, and administration surfaces `ph-no-capture`. Native screenshot replay stays disabled because it cannot redact the WebView.
 - The PostHog project's `Remove MCP Analytics IP` transformation removes the ingestion address; SDK `$ip = null` alone does not.
 
