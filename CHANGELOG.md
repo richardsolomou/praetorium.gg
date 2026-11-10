@@ -1,5 +1,15 @@
 # praetorium
 
+## 0.229.0 (2026-11-10)
+
+### Minor Changes
+
+- 0336f3a: Your rosters can now be grouped by faction, detachment, or battle size, with the sort you chose kept inside each group, and each group can be folded away.
+
+### Patch Changes
+
+- 93cd269: Changing a filter, the sort, or the search on the roster, battle and profile lists no longer jumps back to the top of the page.
+
 ## 0.228.11 (2026-11-10)
 
 ### Patch Changes
