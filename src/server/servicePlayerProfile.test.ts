@@ -94,7 +94,7 @@ it('reads a profile battle’s result from its player’s seat, not the reader�
     log: log(...started(), [ALICE, { kind: 'end-battle', reason: 'conceded', concededBy: ALICE }]),
   }
   const repository = {
-    battlesInProfile: vi.fn().mockResolvedValue({ battles: [history], nextCursor: null }),
+    battlesInProfile: vi.fn().mockResolvedValue({ battles: [battleCard(history)], nextCursor: null }),
     claimStandingsRefresh: vi.fn().mockResolvedValue({ state: 'fresh', standings: '1' }),
     ratingChanges: vi.fn().mockResolvedValue([]),
     practiceOpponents: vi.fn().mockResolvedValue([]),

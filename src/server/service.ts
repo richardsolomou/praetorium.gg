@@ -1634,7 +1634,7 @@ export function guestDeviceHash(secret: string) {
  * The battles a group feed read that count for the group, noting in `gameOf` the hidden-list game each came from.
  * A game's battles name its event; one from before events were recorded on battles names only its sealed event, now this group.
  */
-function groupBattlesOf<History extends BattleHistory>(
+function groupBattlesOf<History extends BattleCard>(
   group: { id: string; token: string; games: readonly { token: string }[] },
   histories: readonly History[],
   gameOf: Map<string, string>,
