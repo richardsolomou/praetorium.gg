@@ -39,7 +39,7 @@ const IMPORT_FAILURES = {
   catalogue_unmatched: 'roster import failed (no faction matched)',
   review_required: 'roster import needed review',
 } as const
-const INPUT_KINDS = { text: 'pasted text', 'exchange-code': 'exchange code' } as const
+const INPUT_KINDS = { text: 'pasted text', 'exchange-code': 'exchange code', 'newrecruit-link': 'a New Recruit share link' } as const
 
 /** A feedback response the import files by itself, carrying the exact input so the failure can be reproduced. */
 export function importFailureReport({
