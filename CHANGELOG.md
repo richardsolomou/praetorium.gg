@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.228.6 (2026-11-10)
+
+### Patch Changes
+
+- 5065332: Importing a New Recruit link no longer flags a combined weapon that newer data splits up, such as a Bolt Rifle w/ Grenade Launcher, when its parts were imported.
+
 ## 0.228.5 (2026-11-09)
 
 ### Patch Changes
