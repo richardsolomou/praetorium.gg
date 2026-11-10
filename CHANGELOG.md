@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.228.7 (2026-11-10)
+
+### Patch Changes
+
+- f038208: The combat simulator now calculates Conversion weapons, such as the Brôkhyr Thunderkyn's SP conversion beamer, instead of refusing them.
+
 ## 0.228.6 (2026-11-10)
 
 ### Patch Changes
