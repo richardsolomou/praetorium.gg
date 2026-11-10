@@ -126,7 +126,7 @@ export function RosterDiscoveryPage({ view, search }: { view: RosterAudience | '
   ]
   const sort = search.sort ?? 'updated-desc'
   const choose = (next: RosterDiscoverySearch) =>
-    void navigate({ to: '/rosters', search: { view, sort: search.sort, ...next }, replace: true })
+    void navigate({ to: '/rosters', search: { view, sort: search.sort, ...next }, replace: true, resetScroll: false })
   const { sort: _sort, ...address } = search
   const active = Object.values(address).filter(Boolean).length
   const dates = periodSearch(search)

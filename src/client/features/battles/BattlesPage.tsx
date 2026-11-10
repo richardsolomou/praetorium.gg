@@ -48,6 +48,7 @@ export function BattlesPage({ view: asked, search, order }: { view: BattlesView;
       to: '/battles',
       search: { ...(view === 'mine' ? {} : { view }), ...(nextOrder ? { order: nextOrder } : {}), ...next },
       replace: true,
+      resetScroll: false,
     })
   const choose = (next: BattleListSearch) => go(next, order)
   const more = feed.hasNextPage ? (
