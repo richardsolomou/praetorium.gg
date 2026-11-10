@@ -331,7 +331,7 @@ export function CombatMatchup({
       active.every((input) => input.target.feelNoPain && input.target.feelNoPain <= candidate)
     )
       return 'The defender already has an equal or better Feel No Pain roll.'
-    if (field === 'halfRange') return 'No included weapon has Rapid Fire or Melta.'
+    if (field === 'halfRange') return 'No included weapon has Rapid Fire, Melta or Conversion.'
     if (field === 'sustained') return 'The included weapons already have equal or better Sustained Hits.'
     if (field === 'lethal' || field === 'devastating' || field === 'damageReroll') return 'The included weapons already have this ability.'
     return 'The current weapon rules, target, and other modifiers give the same result with or without this choice.'

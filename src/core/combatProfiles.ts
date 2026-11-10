@@ -6,6 +6,7 @@ import { wargearBaseName, wargearKey } from './wargear'
 import { combatSchema, diceExpression, type CombatInput, type CombatWeapon, type CombatPhase } from './combat'
 import { combatKeyword, combatKeywordApplies, normalizeCombatKeyword as normalized } from './combatKeywords'
 import { splitWeaponKeywords } from './ruleReference'
+import { joinKey } from './text'
 
 type Profile = ReturnType<typeof datasheetProfilesByKind>['profiles'][number]
 const value = (profile: Profile, kind: DatasheetCharacteristicKind) => profile.values.find((entry) => entry.kind === kind)?.value.trim()
@@ -190,6 +191,9 @@ function parseWeapon(profile: Profile, targetKeywords: readonly string[], phase:
       case 'anti':
         weapon.criticalWound = ability.critical!
         break
+      case 'conversion':
+        weapon.conversion = 'successfulCriticalHit'
+        break
       case 'assault':
       case 'close-quarters':
       case 'extra attacks':
@@ -206,6 +210,10 @@ function parseWeapon(profile: Profile, targetKeywords: readonly string[], phase:
   }
 }
 
+// Only this printing omits "successful", so a 4 a penalty would fail still crits; sheets hold keyword rule text as tokens, so its name identifies it.
+const conversionIgnoresFailure = (sheet: Datasheet) =>
+  sheet.keywordRules.some(({ name }) => joinKey(name) === joinKey('Conversion (Thunderkyn)'))
+
 export function combatWeapons(sheet: Datasheet, targetKeywords: readonly string[], phase: CombatPhase) {
   return datasheetProfilesByKind(sheet)[phase].map((profile) => {
     const { weapon, unsupported, valid: characteristics } = parsedWeapon(profile, targetKeywords, phase)
@@ -213,7 +221,10 @@ export function combatWeapons(sheet: Datasheet, targetKeywords: readonly string[
     const valid = characteristics && Number.isInteger(count) && count >= 1 && count <= 100
     return {
       profile,
-      weapon: valid && !unsupported.length ? { ...weapon, count } : null,
+      weapon:
+        valid && !unsupported.length
+          ? { ...weapon, count, ...(weapon.conversion && conversionIgnoresFailure(sheet) ? { conversion: 'criticalHit' as const } : {}) }
+          : null,
       error: unsupported.length
         ? `Unsupported: ${unsupported.join(', ')}.`
         : valid
@@ -247,7 +258,7 @@ const canFire = (sheet: Datasheet, profile: Profile, type: ShootingType) => {
 }
 
 /** The weapon as it attacks under a shooting type, or null when that type cannot use it. */
-export function weaponInShootingType<Weapon extends { hitModifier?: number }>(
+export function weaponInShootingType<Weapon extends Pick<CombatWeapon, 'hitModifier' | 'conversion'>>(
   sheet: Datasheet,
   profile: Profile,
   weapon: Weapon,
@@ -256,7 +267,9 @@ export function weaponInShootingType<Weapon extends { hitModifier?: number }>(
   if (!canFire(sheet, profile, type)) return null
   const penalised =
     type === 'engaged-target' || (type === 'close-quarters' && namesMonsterOrVehicle(sheet.keywords) && !has(profile, 'close-quarters'))
-  return penalised ? { ...weapon, hitModifier: (weapon.hitModifier ?? 0) - 1 } : weapon
+  // An engaged target is never beyond Conversion's distance.
+  const eligible = type === 'close-quarters' ? { ...weapon, conversion: undefined } : weapon
+  return penalised ? { ...eligible, hitModifier: (eligible.hitModifier ?? 0) - 1 } : eligible
 }
 
 /** A unit shoots with one type, so what it may choose is what any member allows, and a saved type it cannot use is normal shooting. */

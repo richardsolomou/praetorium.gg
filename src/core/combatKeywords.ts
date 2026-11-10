@@ -25,6 +25,7 @@ const simple = [
   'hazardous',
   'precision',
   'one shot',
+  'conversion',
 ] as const
 type KeywordKind = (typeof simple)[number] | 'sustained hits' | 'rapid fire' | 'melta' | 'blast' | 'cleave' | 'anti'
 type CombatKeyword = {
@@ -85,6 +86,7 @@ export const rangedKeywordKinds: ReadonlySet<KeywordKind | undefined> = new Set<
   'melta',
   'close-quarters',
   'one shot',
+  'conversion',
 ])
 
 export function combatKeywordApplies(keyword: CombatKeyword, targetKeywords: readonly string[]) {

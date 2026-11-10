@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import type { Datasheet } from '../contracts/catalogue'
 import { combatSurvivorSheet } from './combatSurvivors'
-import { combatPlan, combatTarget, combatWeapons } from './combatProfiles'
+import { DEFAULT_COMBAT_OPTIONS } from './combat'
+import { combatPlan, combatTarget, combatWeapons, weaponInShootingType } from './combatProfiles'
+import { combatAttackInput } from './combatScenario'
 import { wargearKey } from './wargear'
 import { datasheetFixture } from './datasheet.fixtures'
 
@@ -31,7 +33,28 @@ const sheet = (keywords = ''): Datasheet =>
     ],
   })
 
+const conversionWeapon = (halfRange: boolean, keywordRules: Datasheet['keywordRules'] = []) => {
+  const weapon = combatWeapons({ ...sheet('Conversion, Lethal Hits'), keywordRules }, [], 'ranged')[0]!.weapon!
+  const target = { groups: [{ models: 3, toughness: 7, save: 2, invulnerable: 4, wounds: 4 }], feelNoPain: null }
+  const base = { weapons: [weapon], mortalWounds: [], profileIds: [] }
+  return combatAttackInput({ base }, target, { ...DEFAULT_COMBAT_OPTIONS, halfRange }, {})!.weapons[0]!
+}
+
 describe('combat profiles', () => {
+  it('scores successful Critical Hits on 4+ with Conversion beyond half range', () => {
+    expect(conversionWeapon(false).successfulCriticalHit).toBe(4)
+  })
+  it('keeps Critical Hits on 6s with Conversion at half range', () => {
+    expect(conversionWeapon(true).successfulCriticalHit).toBeUndefined()
+  })
+  it('scores Critical Hits on failed 4s with the Thunderkyn printing of Conversion', () => {
+    expect(conversionWeapon(false, [{ name: 'Conversion (Thunderkyn)', description: '⟦token⟧' }]).criticalHit).toBe(4)
+  })
+  it('loses Conversion when shooting a unit it is engaged with', () => {
+    const vehicle = { ...sheet('Conversion'), keywords: ['Vehicle'] }
+    const { profile, weapon } = combatWeapons(vehicle, [], 'ranged')[0]!
+    expect(weaponInShootingType(vehicle, profile, weapon!, 'close-quarters')?.conversion).toBeUndefined()
+  })
   it.each(['Sustained Hits D3', 'Rapid Fire D6+3', 'Melta D3'])('parses a variable value for %s', (keyword) => {
     const weapon = combatWeapons(sheet(keyword), [], 'ranged')[0]?.weapon
     expect(keyword.startsWith('Sustained') ? weapon?.sustained : keyword.startsWith('Rapid') ? weapon?.rapidFire : weapon?.melta).toEqual(

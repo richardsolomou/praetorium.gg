@@ -86,6 +86,8 @@ export const combatSchema = z.object({
         successfulCriticalHit: rollTarget.optional(),
         successfulCriticalWound: rollTarget.optional(),
         allHitsCritical: z.boolean().optional(),
+        /** The critical threshold that Conversion lowers to 4+ beyond half range. */
+        conversion: z.enum(['criticalHit', 'successfulCriticalHit']).optional(),
         /** The phase's one change of a failed Hit or Wound roll to an unmodified 6, which this weapon's attacks can take. */
         unmodifiedSix: z.enum(['hit', 'wound']).optional(),
         criticalAp: z.int().min(-10).max(10).optional(),
@@ -349,7 +351,7 @@ export function saveAdjustmentMatters(current: CombatInput, previous: CombatInpu
 }
 
 export function halfRangeMatters(input: CombatInput) {
-  return input.weapons.some((weapon) => maximum(weapon.rapidFire) > 0 || maximum(weapon.melta) > 0)
+  return input.weapons.some((weapon) => maximum(weapon.rapidFire) > 0 || maximum(weapon.melta) > 0 || weapon.conversion)
 }
 
 /** Probabilities indexed by a count or a total. */

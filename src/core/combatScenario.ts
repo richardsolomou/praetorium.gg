@@ -134,6 +134,11 @@ export function combatAttacks(
 }
 
 /** The calculation for one phase, or null when nothing in it can attack. */
+/** Every printed Conversion distance is half its weapon's range, so the Half range choice decides whether it applies. */
+function withConversion(weapon: CombatWeapon, options: CombatOptions): CombatWeapon {
+  return weapon.conversion && !options.halfRange ? { ...weapon, [weapon.conversion]: Math.min(weapon[weapon.conversion] ?? 6, 4) } : weapon
+}
+
 export function combatAttackInput(
   { base }: Pick<CombatAttack, 'base'>,
   target: CombatInput['target'] | null,
@@ -143,7 +148,7 @@ export function combatAttackInput(
   return target && base && (base.weapons.length || base.mortalWounds.length)
     ? {
         target,
-        weapons: base.weapons.map((weapon) => adjustCombatWeapon(weapon, adjustment)),
+        weapons: base.weapons.map((weapon) => withConversion(adjustCombatWeapon(weapon, adjustment), options)),
         options,
         ...(base.mortalWounds.length ? { mortalWounds: base.mortalWounds } : {}),
       }
