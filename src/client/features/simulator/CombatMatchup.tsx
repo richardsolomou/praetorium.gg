@@ -75,10 +75,12 @@ type PhaseScope = CombatPhase | 'all'
 type AdjustmentSource = 'attack' | 'weapon' | 'target' | 'feelNoPain'
 type CombatEntryPoint = 'standalone' | 'roster' | 'battle'
 
-export function combatOutcomeEvent(answer: CombatAnswer, source: CombatEntryPoint) {
+/** `refused` is whether the combined estimate's error is the matchup's own refusal rather than a failed calculation. */
+export function combatOutcomeEvent(answer: CombatAnswer, source: CombatEntryPoint, refused = false) {
   const shooting = Boolean(answer.ranged?.result)
   const melee = Boolean(answer.melee?.result)
-  if (shooting || melee) return { name: 'combat_simulation_completed', properties: { source, shooting, melee } } as const
+  const combined = !answer.combined ? 'none' : answer.combined.result ? 'calculated' : refused ? 'refused' : 'failed'
+  if (shooting || melee) return { name: 'combat_simulation_completed', properties: { source, shooting, melee, combined } } as const
   if (answer.ranged?.error || answer.melee?.error)
     return { name: 'combat_simulation_failed', properties: { source, reason: 'calculation' } } as const
   return null
@@ -219,16 +221,12 @@ export function CombatMatchup({
   )
   const options = (phase: CombatPhase, settings: CombatAdjustments = adjustments) => matchup.options(phase, settings)
   const scenario = (phase: CombatPhase, settings: CombatAdjustments = adjustments) => matchup.scenario(phase, settings)
-  const scenarios = useMemo<CombatRequest>(
-    () => ({ ranged: matchup.scenario('ranged', adjustments), melee: matchup.scenario('melee', adjustments), sequenceError }),
-    [matchup, adjustments, sequenceError],
-  )
+  const scenarios = useMemo<CombatRequest>(() => matchup.request(adjustments), [matchup, adjustments])
   const commandRerolled = Boolean(adjustments.all?.commandReroll || adjustments.ranged?.commandReroll || adjustments.melee?.commandReroll)
   const scenariosWithout = useMemo<CombatRequest | null>(() => {
     if (!commandRerolled) return null
-    const settings = withoutCommandReroll(adjustments)
-    return { ranged: matchup.scenario('ranged', settings), melee: matchup.scenario('melee', settings), sequenceError }
-  }, [commandRerolled, matchup, adjustments, sequenceError])
+    return matchup.request(withoutCommandReroll(adjustments))
+  }, [commandRerolled, matchup, adjustments])
   const adjustmentValue = (scope: PhaseScope, source: AdjustmentSource, field: string) =>
     source === 'weapon'
       ? adjustments.weapons?.[scope]?.[field as keyof WeaponAdjustment]
@@ -352,7 +350,7 @@ export function CombatMatchup({
       .then(([answer, without]) => {
         if (controller.signal.aborted) return
         setOutcome({ key, attempt: retry, answer, ...(without ? { without } : {}) })
-        const telemetry = combatOutcomeEvent(answer, entryPoint)
+        const telemetry = combatOutcomeEvent(answer, entryPoint, Boolean(request.sequenceError))
         if (telemetry?.name === 'combat_simulation_completed') completed()
         if (telemetry?.name === 'combat_simulation_completed' && !reported.current) {
           reported.current = true
@@ -396,6 +394,11 @@ export function CombatMatchup({
             preferences,
             excluded: excludedWeapons,
             phases: { ranged: matchup.phaseSetup('ranged', adjustments), melee: matchup.phaseSetup('melee', adjustments) },
+            afterLosses: matchup.afterLosses.map(({ units, matchup: after }) => ({
+              units,
+              opponent: { keywords: combatUnitKeywords(defender), rules: after.defenceRules },
+              phases: { ranged: after.phaseSetup('ranged', adjustments), melee: after.phaseSetup('melee', adjustments) },
+            })),
           }
         : null,
     [attacker, defender, pending, failed, attackRules, sequenceError, defenceRules, preferences, excludedWeapons, matchup, adjustments],

@@ -157,7 +157,7 @@ export function useCombatant(roster?: CombatRoster, initial?: SimulatorSide | nu
     rules: allRules,
     choices: ruleChoices,
     active,
-    sharedDefenceSources,
+    appliedDefenceSources,
   } = combatRuleSelections([...(readable?.rules ?? []), ...(readable?.companions ?? []).flatMap((member) => member.rules)], ruleSelections)
   const activeRules = active(readable?.rules ?? [])
   const companions = (readable?.companions ?? []).map((member) => {
@@ -173,7 +173,7 @@ export function useCombatant(roster?: CombatRoster, initial?: SimulatorSide | nu
       carriers: member.carriers,
       allocationRequired: false,
       rules: active(member.rules),
-      sharedDefenceSources: sharedDefenceSources(member.rules),
+      appliedDefenceSources: appliedDefenceSources(member.rules),
     }
     return battleMember
       ? combatAtHealth(
@@ -300,7 +300,7 @@ export function useCombatant(roster?: CombatRoster, initial?: SimulatorSide | nu
             allocationRequired: !survivors || Boolean(sheets.data.attachmentErrors.length),
             rules: activeRules,
             ruleChoices,
-            sharedDefenceSources: sharedDefenceSources(readable?.rules ?? []),
+            appliedDefenceSources: appliedDefenceSources(readable?.rules ?? []),
             companions,
           }
         : null,

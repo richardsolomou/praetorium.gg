@@ -2,7 +2,7 @@ import type { RosterPick } from '../../../core/roster'
 import { attachmentHost } from '../../../core/attachedUnits'
 import { readableCombatant } from './readableRules'
 import { combatDamageStateSelections, combatRuleSelections } from '../../../core/combatRules'
-import { combatMatchup, noExclusions, type CombatAnswer, type CombatantSnapshot, type CombatRequest } from '../../../core/combatMatchup'
+import { combatMatchup, noExclusions, type CombatAnswer, type CombatantSnapshot } from '../../../core/combatMatchup'
 import { COMBAT_PHASES, type CombatPhase, type CombatResult } from '../../../core/combat'
 import type { combatantDatasheet } from '../../functions'
 import { combatAtHealth } from '../../../core/combatSurvivors'
@@ -82,7 +82,7 @@ export function rosterCombatSnapshot(
     allocationRequired: Boolean(data.attachmentErrors.length),
     rules: selections.active(data.rules),
     ruleChoices: selections.choices,
-    sharedDefenceSources: selections.sharedDefenceSources(data.rules),
+    appliedDefenceSources: selections.appliedDefenceSources(data.rules),
     companions: data.companions
       .filter((member) => !live || live.units[member.pickIndex]?.available)
       .map((member) => {
@@ -94,7 +94,7 @@ export function rosterCombatSnapshot(
           bodyguard: picks[member.pickIndex]?.attachedTo === undefined,
           carriers: member.carriers,
           rules: selections.active(member.rules),
-          sharedDefenceSources: selections.sharedDefenceSources(member.rules),
+          appliedDefenceSources: selections.appliedDefenceSources(member.rules),
         }
         return live ? combatAtHealth(projected, live.units[member.pickIndex]!) : projected
       }),
@@ -104,11 +104,7 @@ export function rosterCombatSnapshot(
 
 export function rosterCombatRequest(attacker: CombatantSnapshot | null, defender: CombatantSnapshot | null, error?: string) {
   const matchup = combatMatchup(attacker, defender, { preferences: {}, excluded: noExclusions(), allocation: [] })
-  const request: CombatRequest = {
-    ranged: matchup.scenario('ranged', {}),
-    melee: matchup.scenario('melee', {}),
-    sequenceError: matchup.sequenceError,
-  }
+  const request = matchup.request({})
   const unavailable = Object.fromEntries(
     COMBAT_PHASES.flatMap((phase) =>
       request[phase]

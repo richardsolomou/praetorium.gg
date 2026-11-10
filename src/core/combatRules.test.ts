@@ -115,15 +115,6 @@ describe('judging a rule in its place in a roster', () => {
   ])('shares %s across its attached unit', (description) =>
     expect(judgedCombatRule(rule(description), { ...immortals, origin: 'support', attached: true })?.scope).toBe('attached'),
   )
-  describe('a defence from the bodyguards', () => {
-    const fromBodyguards = { ...immortals, origin: 'support', attached: true, bodyguardSource: true } as const
-    it.each(['Melee attacks that target this unit have -1 to hit rolls.', 'This unit has the Feel No Pain 5+ ability.'])(
-      'stays off the leader: %s',
-      (description) => expect(judgedCombatRule(rule(description), fromBodyguards)).toBeNull(),
-    )
-    it('leaves their attack buffs reaching the leader', () =>
-      expect(judgedCombatRule(rule("This unit's melee attacks have +1 A."), fromBodyguards)?.scope).toBe('attached'))
-  })
   it('reads an aura from a unit as reaching other units nearby', () =>
     expect(
       judgedCombatRule(

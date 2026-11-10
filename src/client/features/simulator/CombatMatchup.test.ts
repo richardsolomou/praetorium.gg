@@ -9,8 +9,14 @@ it('records a partial estimate as a completion with its available phase', () => 
   const answer = { ranged: { result: {} }, melee: { error: 'unsupported weapon details' } } as CombatAnswer
   expect(combatOutcomeEvent(answer, 'roster')).toEqual({
     name: 'combat_simulation_completed',
-    properties: { source: 'roster', shooting: true, melee: false },
+    properties: { source: 'roster', shooting: true, melee: false, combined: 'none' },
   })
+})
+
+it('records a refused combined estimate apart from a failed one', () => {
+  const answer = { ranged: { result: {} }, melee: { result: {} }, combined: { error: 'refused' } } as CombatAnswer
+  expect(combatOutcomeEvent(answer, 'standalone', true)?.properties.combined).toBe('refused')
+  expect(combatOutcomeEvent(answer, 'standalone')?.properties.combined).toBe('failed')
 })
 
 it('records a failed estimate without its error message', () => {

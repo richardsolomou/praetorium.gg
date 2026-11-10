@@ -10,7 +10,7 @@ With a **Command Re-roll** chosen, the bar also shows how much it changes each f
 
 ## Compare phases
 
-Open **Breakdown**. **Shooting** and **Melee** each start from the defender's current health, as if that phase happened alone. **Combined** carries the survivors of shooting into the melee.
+Open **Breakdown**. **Shooting** and **Melee** each start from the defender's current health, as if that phase happened alone. **Combined** carries the survivors of shooting into the melee. If shooting destroys the bodyguards of an attached unit, the defences they gave their leader stop in melee.
 
 Hover or tap a wounds or models figure to see the chance of at least each number.
 

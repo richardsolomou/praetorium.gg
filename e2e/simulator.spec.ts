@@ -1471,7 +1471,7 @@ test('attached leaders and support contribute weapons and survive sharing', asyn
   await atWidths(page, [1440, 390], async () => noOverflow(page))
 })
 
-test('shared defences retain phase estimates when their source can die before another character', async ({ page }) => {
+test('a shared defence ends in the combined estimate when its source can die before another character', async ({ page }) => {
   await page.goto('/simulator')
   await chooseCombatUnit(page, 'Attacker', 'Space Marines', 'Intercessor Squad')
   await chooseCombatUnit(page, 'Defender', 'Necrons', 'Immortals')
@@ -1479,8 +1479,8 @@ test('shared defences retain phase estimates when their source can die before an
   await chooseOption(page, 'Defender add attached unit', 'Overlord')
   const headline = page.getByRole('region', { name: 'Combined estimate' })
   await expect(headline).toHaveAttribute('aria-busy', 'false')
-  await expect(page.getByRole('alert')).toContainText('shared defensive ability')
-  await expect(headline.locator('[data-combat-wipe]')).toHaveText('—')
+  await expect(page.getByRole('alert')).toHaveCount(0)
+  await expect(headline.locator('[data-combat-wipe]')).toHaveText(KILL_CHANCE)
   for (const phase of ['Shooting', 'Melee'] as const) {
     await expect(await combatDamage(page, phase)).toHaveText(/^\d+\.\d{2}$/)
   }

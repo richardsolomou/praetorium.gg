@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import type { CombatResult, CombatPhase } from '../core/combat'
 import { combatAdjustmentsSchema } from '../core/combatAdjustments'
-import { combatMatchup, resolveCombatRequest, type CombatantSnapshot, type CombatRequest } from '../core/combatMatchup'
+import { combatMatchup, resolveCombatRequest, type CombatantSnapshot } from '../core/combatMatchup'
 import {
   combatEffectAppliesTo,
   combatRuleAppliesTo,
@@ -270,7 +270,7 @@ async function combatant(corpus: ReferenceCorpus, side: SideInput, role: Role) {
     carriers: projection.carriers,
     rules: selection.active(projection.rules),
     ruleChoices: selection.choices,
-    sharedDefenceSources: selection.sharedDefenceSources(projection.rules),
+    appliedDefenceSources: selection.appliedDefenceSources(projection.rules),
     companions: projection.companions.map((member) => ({
       sheet: member.selected,
       bodyguard: false,
@@ -279,7 +279,7 @@ async function combatant(corpus: ReferenceCorpus, side: SideInput, role: Role) {
       damage: 0,
       carriers: member.carriers,
       rules: selection.active(member.rules),
-      sharedDefenceSources: selection.sharedDefenceSources(member.rules),
+      appliedDefenceSources: selection.appliedDefenceSources(member.rules),
     })),
   }
   const units = resolved.sheets.map((sheet, index) => {
@@ -369,11 +369,7 @@ export async function simulateCombat(input: SimulateCombatInput) {
     allocation: [],
   })
   const adjustments = input.modifiers ?? {}
-  const request: CombatRequest = {
-    ranged: matchup.scenario('ranged', adjustments),
-    melee: matchup.scenario('melee', adjustments),
-    sequenceError: matchup.sequenceError,
-  }
+  const request = matchup.request(adjustments)
   const answer = resolveCombatRequest(request, COMBAT_TOOL_MAX_WORK)
   const phase = (key: CombatPhase) => {
     const plan = matchup.plans[key]!

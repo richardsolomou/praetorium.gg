@@ -43,8 +43,6 @@ export type CombatRuleJudge = {
   origin: 'own' | 'support' | 'listed' | 'army'
   /** Whether this unit is led by an attached unit, or, for another unit's ability, whether that unit is attached. */
   attached?: boolean
-  /** Whether another unit's ability comes from the bodyguards this unit leads. */
-  bodyguardSource?: boolean
   keywords: readonly string[]
   /** The keywords of the unit and the units attached to it, which a stratagem's target names. */
   unitKeywords: readonly string[]
@@ -94,7 +92,8 @@ export type CombatRuleEffect = {
   damageReduction?: number
 }
 export type CombatRuleChoice = { label: string; effects: CombatRuleEffect[] }
-export type ActiveCombatRule = { name: string; effects: CombatRuleEffect[] }
+/** `source` names the unit whose ability it is, so a combined estimate can end it when that unit is destroyed (19.04). */
+export type ActiveCombatRule = { name: string; source?: string; effects: CombatRuleEffect[] }
 
 export const combatRuleKey = (rule: CombatRule) => `${rule.source}:${rule.name}`
 
@@ -103,19 +102,14 @@ export function activeCombatRules(rules: readonly CombatRule[], choices: Readonl
     ...new Map(
       rules.flatMap((rule) => {
         const choice = combatRuleChoices(rule)[(choices[combatRuleKey(rule)] ?? combatRuleDefault(rule)) - 1]
-        return choice ? [[rule.name, { name: rule.name, effects: choice.effects }] as const] : []
+        return choice ? [[rule.name, { name: rule.name, source: rule.source, effects: choice.effects }] as const] : []
       }),
     ).values(),
   ]
 }
 
-export function combatRuleHasSharedDefence(rule: CombatRule, choice: number) {
-  return (
-    rule.scope === 'attached' &&
-    (Boolean(rule.appliedDefences?.length) ||
-      Boolean(combatRuleChoices(rule)[choice - 1]?.effects.some((effect) => effect.role === 'defender')))
-  )
-}
+/** A defence another attached member shares that the roster already counts in this unit's characteristics, so no estimate can remove it. */
+export const combatRuleHasAppliedSharedDefence = (rule: CombatRule) => rule.scope === 'attached' && Boolean(rule.appliedDefences?.length)
 
 /** Each rule once by source, with the player's choice by rule id or its default, as the matchup applies it. */
 export function combatRuleSelections(rules: readonly CombatRule[], selections: Readonly<Record<string, number>>) {
@@ -125,8 +119,7 @@ export function combatRuleSelections(rules: readonly CombatRule[], selections: R
     rules: all,
     choices,
     active: (subset: readonly CombatRule[]) => activeCombatRules(subset, choices),
-    sharedDefenceSources: (subset: readonly CombatRule[]) =>
-      subset.filter((rule) => combatRuleHasSharedDefence(rule, choices[combatRuleKey(rule)]!)).map((rule) => rule.source),
+    appliedDefenceSources: (subset: readonly CombatRule[]) => subset.filter(combatRuleHasAppliedSharedDefence).map((rule) => rule.source),
   }
 }
 
@@ -308,11 +301,13 @@ export function combatRuleRoles(description: string): CombatRuleEffect['role'][]
   return [...(attacker ? ['attacker' as const] : []), ...(defender ? ['defender' as const] : [])]
 }
 
-/** Core rule 19.04: what affects a unit or models in it reaches its whole attached unit. A trigger the unit rolls once, as for a charge, must not, or each member would roll it. */
+/**
+ * Core rule 19.04: what affects a unit or models in it reaches its whole attached unit. A trigger the unit rolls once, as for
+ * a charge, must not, or each member would roll it. A combined estimate ends a defence from the bodyguards on the leader once
+ * they are destroyed (`calculateCombatSequence`).
+ */
 const REACHES_ATTACHED_UNIT =
-  /leading a unit|this model's unit|bearer's unit|(?:a model|models) in (?:this|that) unit|this unit's (?:(?:ranged|melee) )?attacks|equipped by this unit/i
-/** Stays off a leader while its source is the bodyguards: the combined estimate cannot end a defence when they die, so it would refuse. */
-const DEFENDS_ATTACHED_UNIT = /\battacks? (?:that )?targets? this unit|\bthis unit has\b/i
+  /leading a unit|this model's unit|bearer's unit|(?:a model|models) in (?:this|that) unit|this unit's (?:(?:ranged|melee) )?attacks|equipped by this unit|\battacks? (?:that )?targets? this unit|\bthis unit has\b/i
 
 /** A rule as it applies to a unit, judged from its words in its place in the roster, or null when it takes no part. */
 export function judgedCombatRule(rule: CombatRule, judge: CombatRuleJudge): CombatRule | null {
@@ -331,9 +326,7 @@ export function judgedCombatRule(rule: CombatRule, judge: CombatRuleJudge): Comb
     scope = judge.attached && /^While this model is leading a unit,/i.test(description) ? 'attached' : 'unit'
   } else if (judge.origin === 'support') {
     const printed = printedPhrasing(normalizeCombatText(markedBullets(description)))
-    const linked =
-      judge.attached && (REACHES_ATTACHED_UNIT.test(printed) || (!judge.bodyguardSource && DEFENDS_ATTACHED_UNIT.test(printed)))
-    if (linked) scope = 'attached'
+    if (judge.attached && REACHES_ATTACHED_UNIT.test(printed)) scope = 'attached'
     else if (combatRuleRecipient(description)) scope = 'nearby'
     else return null
   }
