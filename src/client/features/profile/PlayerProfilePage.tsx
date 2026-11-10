@@ -4,7 +4,10 @@ import { UserX } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent } from '@/components/ui/tabs'
 import { byId, countBy } from '../../../core/collections'
-import { BattleShelf } from '../battles/BattleShelf'
+import { PlayerBattles } from './PlayerBattles'
+import type { BattleListSearch } from '../battles/battleSearch'
+import { facetText } from '../../../core/listFilter'
+import { useFavouriteFactions } from '../../favouriteFactions'
 import { PageTabsList } from '../../components/PageTabs'
 import { PageContent, PageHeader } from '../../components/Page'
 import { FullPageState } from '../../components/PageState'
@@ -30,7 +33,34 @@ import {
   userProfileQuery,
 } from '../../queries'
 import { Problem } from '../../components/Problem'
-import { recordFilter, type ProfileSearch, type ProfileTab } from './profileSearch'
+import {
+  recordFilter,
+  type BattlesTab,
+  type PlayerRosterSearch,
+  type ProfileSearch,
+  type ProfileTab,
+  type RostersTab,
+} from './profileSearch'
+import type { PlayerProfileFilter } from '../../queries'
+
+const battleSearch = ({ tab: _tab, order: _order, ...search }: BattlesTab): BattleListSearch => search
+const rosterSearch = ({ tab: _tab, ...search }: RostersTab): PlayerRosterSearch => search
+
+/** The record's narrowing as the battle list asks for it, so following it from the record to the list keeps it. */
+const recordBattles = (filter: PlayerProfileFilter): BattleListSearch => {
+  const one = (value: string | number | undefined) => (value === undefined ? undefined : facetText({ in: [String(value)], out: [] }))
+  return Object.fromEntries(
+    Object.entries({
+      faction: one(filter.faction),
+      detachment: one(filter.detachment),
+      against: one(filter.opponentFaction),
+      againstDetachment: one(filter.opponentDetachment),
+      player: one(filter.opponentId),
+      pack: one(filter.missionPackId),
+      size: one(filter.limit),
+    }).filter(([, value]) => value !== undefined),
+  )
+}
 
 /** A profile is public, but its record, battle list, and rank derive only from games the reader may watch. */
 export function PlayerProfilePage({ userId, search }: { userId: string; search: ProfileSearch }) {
@@ -45,6 +75,7 @@ export function PlayerProfilePage({ userId, search }: { userId: string; search: 
   const { data: published } = useQuery(playerRostersQuery(userId))
   // Only fetched when there is a list to name a faction for, since the index is large.
   const factions = useQuery({ ...factionIndexQuery(), enabled: Boolean(published?.rosters.length) })
+  const { favourites } = useFavouriteFactions(Boolean(me))
   if (!profile) {
     return <FullPageState title="No such player" explanation="This account does not exist, or it has been deleted." icon={UserX} />
   }
@@ -110,7 +141,16 @@ export function PlayerProfilePage({ userId, search }: { userId: string; search: 
           value={tab}
           className="flex-col gap-0"
           onValueChange={(value) =>
-            void navigate({ to: '/users/$userId', params: { userId }, search: { ...filter, tab: value as ProfileTab } })
+            void navigate({
+              to: '/users/$userId',
+              params: { userId },
+              search:
+                value === 'battles'
+                  ? { tab: 'battles', ...recordBattles(filter) }
+                  : value === 'record'
+                    ? { ...filter, tab: 'record' }
+                    : { tab: value as ProfileTab },
+            })
           }
         >
           <PageTabsList tabs={tabs} />
@@ -131,22 +171,28 @@ export function PlayerProfilePage({ userId, search }: { userId: string; search: 
           </TabsContent>
 
           <TabsContent value="battles" className="mt-4">
-            {data?.battles.length ? (
-              <>
-                <BattleShelf battles={[...data.battles]} />
-                {data.played > data.battles.length ? (
-                  <p className="mt-2 text-xs text-faint">
-                    The {data.battles.length} most recent of {data.played}.
-                  </p>
-                ) : null}
-              </>
-            ) : (
-              <p className="text-sm text-dim">
-                {yourself
-                  ? 'None of your battles are listed here. Only the ones your sharing setting allows appear.'
-                  : 'This player has no battles anyone else can watch.'}
-              </p>
-            )}
+            {search.tab === 'battles' ? (
+              <PlayerBattles
+                userId={userId}
+                search={battleSearch(search)}
+                order={search.order}
+                onChange={(next, order) =>
+                  void navigate({
+                    to: '/users/$userId',
+                    params: { userId },
+                    search: { tab: 'battles', ...(order ? { order } : {}), ...next },
+                    replace: true,
+                  })
+                }
+                opponents={data?.facets.opponents ?? []}
+                signedIn={Boolean(me)}
+                empty={
+                  yourself
+                    ? 'None of your battles are listed here. Only the ones your sharing setting allows appear.'
+                    : 'This player has no battles anyone else can watch.'
+                }
+              />
+            ) : null}
           </TabsContent>
 
           <TabsContent value="collection" className="mt-4">
@@ -187,6 +233,11 @@ export function PlayerProfilePage({ userId, search }: { userId: string; search: 
                 totals={byId(published.totals)}
                 factions={factions.data?.factions ?? []}
                 factionsLoading={factions.isPending}
+                favourites={favourites}
+                search={search.tab === 'rosters' ? rosterSearch(search) : {}}
+                onChange={(next) =>
+                  void navigate({ to: '/users/$userId', params: { userId }, search: { tab: 'rosters', ...next }, replace: true })
+                }
               />
             </TabsContent>
           ) : null}

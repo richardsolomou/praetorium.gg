@@ -66,6 +66,7 @@ export const playerRankingsKey = (userId: string) => ['player-rankings', userId]
 export const playerAchievementsKey = (userId: string) => ['player-achievements', userId]
 export const newAchievementsKey = () => ['achievement-news']
 /** Without a player, every player's profile. */
+export const playerBattlesKey = (userId: string) => ['player-battles', userId]
 export const playerProfileKey = (...player: [userId: string, filter: PlayerProfileFilter] | []) => ['player-profile', ...player]
 /** Without a query, every search. */
 export const playerSearchKey = (query?: string) => (query === undefined ? ['player-search'] : ['player-search', query])
@@ -88,6 +89,8 @@ export const groupsKey = () => ['groups']
 export const groupKey = (token: string) => ['group', token]
 export const groupStandingsKeys = () => ['group-standings']
 export const groupStandingsKey = (token: string) => [...groupStandingsKeys(), token]
+/** Under the group's standings, so whatever refreshes its table refreshes its battle list. */
+export const groupBattlesKey = (token: string) => [...groupStandingsKey(token), 'battles']
 export const groupLeagueKey = (token: string) => ['group-league', token]
 export const battleGroupsKey = (token: string) => ['battle-groups', token]
 export const sealedEventsKey = () => ['sealed-events']

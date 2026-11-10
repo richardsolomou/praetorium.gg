@@ -85,3 +85,18 @@ it('lists a hidden-list game’s battle among the recent ones, named by its game
 it('keeps a hidden-list game current while one of its battles is still being played', async () => {
   expect((await fixture({ counted: lock('game', 'game'), finished: false }).groupStandings('group', ALICE))?.playing).toEqual(['game'])
 })
+
+const listed = async (service: PraetoriumService, viewerId: string | null = ALICE) =>
+  (await service.groupBattles('group', viewerId, {})).battles.map((battle) => battle.token)
+
+it('lists the battles of the group’s games with the game each came from', async () => {
+  expect((await fixture({ counted: lock('game', 'game') }).groupBattles('group', ALICE, {})).games).toEqual({ token: 'game' })
+})
+
+it('leaves a battle of another group out of the group’s list', async () => {
+  expect(await listed(fixture({ counted: { kind: 'set-battle-group', groupId: 'another-group' } }))).toEqual([])
+})
+
+it('hides a private group’s battles from a non-member', async () => {
+  expect(await listed(fixture(), 'stranger')).toEqual([])
+})

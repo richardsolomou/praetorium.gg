@@ -36,13 +36,13 @@ const ENDING = ungrouped([
   { label: 'Finished early', value: 'finished-early' },
   { label: 'Conceded', value: 'conceded' },
 ])
-const TYPE = ungrouped([
+const TYPES = [
   { label: 'Practice', value: 'practice' },
   { label: 'With a guest', value: 'guest' },
   { label: 'Team (2v1, 2v2)', value: 'team' },
   { label: 'Manual tracking', value: 'manual' },
   { label: 'Group or tournament', value: 'organised' },
-])
+]
 const SIZE = ungrouped(GAME_SIZES.map((size) => ({ label: battleSizeOptionLabel(size), value: String(size.limit) })))
 
 function BattleOrderMenu({ order, onOrder }: { order?: BattleOrder; onOrder: (order: BattleOrder | undefined) => void }) {
@@ -67,6 +67,14 @@ function BattleOrderMenu({ order, onOrder }: { order?: BattleOrder; onOrder: (or
   )
 }
 
+/**
+ * Which list the bar narrows: one of the battles page's feeds, or the battles of one player, group or tournament.
+ * The battles page's own and a profile's are read from a seat, so they offer a result and name the other side the opponent.
+ */
+export type BattleFilterView = BattlesView | 'player' | 'group' | 'tournament'
+
+type Person = { id: string; name: string; image: string | null }
+
 export function BattleFilters({
   view,
   search,
@@ -75,8 +83,9 @@ export function BattleFilters({
   onOrder,
   signedIn,
   updating,
+  people: listed,
 }: {
-  view: BattlesView
+  view: BattleFilterView
   search: BattleListSearch
   onChange: (next: BattleListSearch) => void
   order?: BattleOrder
@@ -84,8 +93,12 @@ export function BattleFilters({
   signedIn: boolean
   /** The battles shown are the previous filter's while the new one loads. */
   updating: boolean
+  /** Who the player choice offers, where the view is not one whose people the bar reads itself. */
+  people?: readonly Person[]
 }) {
   const mine = view === 'mine'
+  const seated = mine || view === 'player'
+  const organised = view === 'group' || view === 'tournament'
   const { data: index } = useQuery(factionIndexQuery())
   const { data: references } = useQuery(gameReferencesQuery())
   const { data: deployments } = useQuery(deploymentsQuery())
@@ -109,18 +122,19 @@ export function BattleFilters({
     )
     return ungrouped([...names].toSorted().map((name) => ({ label: name, value: name })))
   }
-  const people = mine ? opponents : friendships?.friends
+  const people = mine ? opponents : view === 'friends' ? friendships?.friends : listed
 
   const dimensions: FilterDimension[] = [
     { key: 'status', label: 'Status', groups: STATUS, pinned: true },
-    ...(mine ? [{ key: 'result', label: 'Result', groups: RESULT, pinned: true }] : []),
+    ...(seated ? [{ key: 'result', label: 'Result', groups: RESULT, pinned: true }] : []),
     { key: 'faction', label: mine ? 'Your army' : 'Army', groups: factionGroups, pinned: true },
-    { key: 'against', label: mine ? 'Opposing army' : 'Against army', groups: factionGroups, pinned: true },
+    { key: 'against', label: seated ? 'Opposing army' : 'Against army', groups: factionGroups, pinned: true },
     { key: 'detachment', label: mine ? 'Your detachment' : 'Detachment', groups: detachmentsOf(facets.faction?.in) },
     { key: 'againstDetachment', label: 'Opposing detachment', groups: detachmentsOf(facets.against?.in) },
     {
       key: 'player',
-      label: mine ? 'Opponent' : 'Friend',
+      label: seated ? 'Opponent' : view === 'friends' ? 'Friend' : 'Player',
+      pinned: organised,
       groups: [
         {
           label: '',
@@ -133,7 +147,8 @@ export function BattleFilters({
       ],
     },
     { key: 'size', label: 'Battle size', groups: SIZE, pinned: true },
-    { key: 'type', label: 'Kind of game', groups: TYPE },
+    // Every battle of a group or tournament is organised, so asking for one would narrow nothing.
+    { key: 'type', label: 'Kind of game', groups: ungrouped(organised ? TYPES.filter((type) => type.value !== 'organised') : TYPES) },
     {
       key: 'pack',
       label: 'Mission pack',
@@ -159,7 +174,7 @@ export function BattleFilters({
       value={facets}
       onChange={(key, facet) => onChange({ ...search, [key as BattleFacet]: facetText(facet) })}
       period={{
-        label: mine ? 'Last played' : 'Started',
+        label: view === 'friends' || view === 'public' ? 'Started' : 'Last played',
         value: periodSearch(search),
         onChange: (next) => onChange({ ...search, period: undefined, from: undefined, to: undefined, ...next }),
       }}

@@ -4,7 +4,6 @@ import { keepPreviousData, useInfiniteQuery, useQuery } from '@tanstack/react-qu
 import { Link, useNavigate } from '@tanstack/react-router'
 import { Swords, Users } from 'lucide-react'
 import { useState } from 'react'
-import { Button } from '@/components/ui/button'
 import { buttonClass } from '../../components/buttonClass'
 import { battleFilterActive } from '../../../core/battleFilter'
 import type { Battle } from './battle'
@@ -13,6 +12,7 @@ import type { BattleOrder } from '../../../core/battleFilter'
 import { battleFilterOf, type BattleListSearch, type BattlesView } from './battleSearch'
 import { NoFilterMatches } from '../../components/NoFilterMatches'
 import { BattleShelf } from './BattleShelf'
+import { MoreBattles } from './BattleFeedList'
 import { CreateBattle } from './CreateBattle'
 import { DeleteBattleDialog } from './DeleteBattle'
 import { ImportBattles } from './ImportBattles'
@@ -51,11 +51,7 @@ export function BattlesPage({ view: asked, search, order }: { view: BattlesView;
       resetScroll: false,
     })
   const choose = (next: BattleListSearch) => go(next, order)
-  const more = feed.hasNextPage ? (
-    <Button variant="outline" size="sm" className="mt-2" disabled={feed.isFetchingNextPage} onClick={() => void feed.fetchNextPage()}>
-      {feed.isFetchingNextPage ? 'Loading…' : filtered ? (order ? 'Search newer battles' : 'Search older battles') : 'Show more battles'}
-    </Button>
-  ) : null
+  const more = <MoreBattles feed={feed} filtered={filtered} order={order} />
   const noMatches = filtered && !battles.length && !feed.isPending
   const matches = noMatches ? (
     <div>

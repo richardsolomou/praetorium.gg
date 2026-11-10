@@ -1,10 +1,11 @@
-Every tab of [Battles](/battles) and [Rosters](/rosters) has a search box and a row of filters above the list.
+Every tab of [Battles](/battles) and [Rosters](/rosters) has a search box and a row of filters above the list. So do the battles and rosters on a player's profile, a group's **Battles** tab, and a tournament's battles.
 
 - **Choose several values** in one filter to see anything matching any of them.
 - Press the **ban** icon beside a value to rule it out. A value you ruled out is struck through.
 - Filters of different kinds combine, so each one you add narrows the list further.
 - **Legality** and **Points** work from each list's current price, on every roster tab.
 - **Your army** and **Opposing army** read as a matchup: on Friends and Public, **Army** and **Against army** must be on opposite sides of the table.
+- On a player's profile, **Result**, **Army** and **Opposing army** are read from that player's side. Filtering a tournament's battles doesn't change its rounds or results.
 
 On the Mine tab of Rosters, **Group** gathers your rosters under headings by faction, detachment, or battle size, each in the order you sort by. A variant stays with the roster it was made from. Press a heading to fold its group away, and again to open it. Your choice of grouping is kept on this device.
 

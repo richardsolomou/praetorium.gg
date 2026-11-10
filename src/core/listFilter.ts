@@ -87,10 +87,14 @@ export const LIST_FILTER_SCOPES = [
   'battles:mine',
   'battles:friends',
   'battles:public',
+  'battles:player',
+  'battles:group',
+  'battles:tournament',
   'rosters:mine',
   'rosters:friends',
   'rosters:public',
   'rosters:played',
+  'rosters:player',
 ] as const
 export type ListFilterScope = (typeof LIST_FILTER_SCOPES)[number]
 

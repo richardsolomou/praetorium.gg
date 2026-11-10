@@ -85,3 +85,26 @@ it('counts a battle against a guest in the host’s record', async () => {
 it('leaves a battle against a practice opponent out of the record', async () => {
   expect((await recordAgainst({ id: 'practice', name: 'Practice Opponent' }, ['practice'])).record.battles).toBe(0)
 })
+
+it('reads a profile battle’s result from its player’s seat, not the reader’s', async () => {
+  const history = {
+    battle: { id: 'battle', token: 'token', createdAt: 0 },
+    at: 5,
+    players: NAMES.map((player, side) => ({ ...player, side, automated: false })),
+    log: log(...started(), [ALICE, { kind: 'end-battle', reason: 'conceded', concededBy: ALICE }]),
+  }
+  const repository = {
+    battlesInProfile: vi.fn().mockResolvedValue({ battles: [history], nextCursor: null }),
+    claimStandingsRefresh: vi.fn().mockResolvedValue({ state: 'fresh', standings: '1' }),
+    ratingChanges: vi.fn().mockResolvedValue([]),
+    practiceOpponents: vi.fn().mockResolvedValue([]),
+  } as unknown as RepositoryPort
+  const service = new PraetoriumService(
+    repository,
+    () => 10,
+    () => 0,
+  )
+  const { battles } = await service.playerBattles(ALICE, null, { filter: { result: { in: ['lost'], out: [] } } })
+
+  expect(battles.map((battle) => battle.token)).toEqual(['token'])
+})

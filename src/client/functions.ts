@@ -52,6 +52,7 @@ import {
   sealedEventBattlesKey,
   sealedEventKey,
   meKey,
+  playerBattlesKey,
   playerProfileKey,
   playerRankingsKey,
   playerAchievementsKey,
@@ -939,13 +940,15 @@ export const combatUnits = async () => {
   return saved ?? server.combatUnits()
 }
 
+/** `perspective` is whose seat a result is read from when it is not the device owner's, as on a profile. */
 const filteredBattles = <T extends Parameters<typeof matchesBattle>[0] & { lastActivity: number }>(
   key: unknown[],
   filter: BattleFilter,
   online: () => Promise<{ battles: T[]; nextCursor: BattlesCursor | null }>,
+  perspective?: string,
 ) =>
   filteredPage<T>(key, online, (battle, viewerId) =>
-    matchesBattle(battle, filter, viewerId, battle.lastActivity, Date.now()),
+    matchesBattle(battle, filter, perspective ?? viewerId, battle.lastActivity, Date.now()),
   ) as ReturnType<typeof online>
 export const publicBattles = (args: Parameters<typeof server.publicBattles>[0]) =>
   battleFilterActive(args.data.filter as BattleFilter | undefined)
@@ -956,7 +959,20 @@ export const friendBattles = (args: Parameters<typeof server.friendBattles>[0]) 
     ? filteredBattles(friendBattlesKey(), args.data.filter as BattleFilter, () => server.friendBattles(args))
     : cachedPage(friendBattlesKey(), args.data.before, () => server.friendBattles(args))
 export const listSealedEventBattles = (args: Parameters<typeof server.listSealedEventBattles>[0]) =>
-  cachedPage(sealedEventBattlesKey(args.data.token, args.data.eventToken), args.data.before, () => server.listSealedEventBattles(args))
+  battleFilterActive(args.data.filter as BattleFilter | undefined)
+    ? filteredBattles(sealedEventBattlesKey(args.data.token, args.data.eventToken), args.data.filter as BattleFilter, () =>
+        server.listSealedEventBattles(args),
+      )
+    : cachedPage(sealedEventBattlesKey(args.data.token, args.data.eventToken), args.data.before, () => server.listSealedEventBattles(args))
+export const playerBattles = (args: Parameters<typeof server.playerBattles>[0]) =>
+  battleFilterActive(args.data.filter as BattleFilter | undefined)
+    ? filteredBattles(
+        playerBattlesKey(args.data.userId),
+        args.data.filter as BattleFilter,
+        () => server.playerBattles(args),
+        args.data.userId,
+      )
+    : cachedPage(playerBattlesKey(args.data.userId), args.data.before, () => server.playerBattles(args))
 export const standings = () => cachedRead(standingsKey(), () => server.standings())
 export const playerRosters = (args: Parameters<typeof server.playerRosters>[0]) =>
   cachedRead(playerRostersKey(args.data.userId), () => server.playerRosters(args))

@@ -101,6 +101,12 @@ export function RosterGroupMenu({ value, onChange }: { value: RosterGrouping; on
   )
 }
 
+export const ROSTER_POINTS_DIMENSION: FilterDimension = {
+  key: 'points',
+  label: 'Points',
+  groups: [{ label: '', items: ROSTER_POINTS_BANDS.map(({ label, value }) => ({ label, value })) }],
+}
+
 /** The filters that need a roster's price, on every roster list. */
 export const ROSTER_ASSESSMENT_DIMENSIONS: FilterDimension[] = [
   {
@@ -118,5 +124,5 @@ export const ROSTER_ASSESSMENT_DIMENSIONS: FilterDimension[] = [
       },
     ],
   },
-  { key: 'points', label: 'Points', groups: [{ label: '', items: ROSTER_POINTS_BANDS.map(({ label, value }) => ({ label, value })) }] },
+  ROSTER_POINTS_DIMENSION,
 ]
