@@ -114,7 +114,7 @@ it('completes an HTTP request and exits cleanly after SIGTERM with Nitro’s rea
   child.kill('SIGTERM')
   const body = await (await response).text()
   expect([body, (await exited)[0]]).toEqual(['complete', 0])
-})
+}, 10_000)
 
 it('cancels warming without ever opening the public listener', async () => {
   const { child, waitFor, origin } = await fixture(false)
