@@ -15,13 +15,19 @@ import {
 import { productSql, withAuthSql, battleIdFor } from './storage'
 import { NATIVE_BROWSER_BRIDGE_SCRIPT } from './native.harness'
 
+/** Dates a battle ahead of the public battles other tests play meanwhile; the feed orders by its cached last activity, so that goes too. */
+async function dateAhead(token: string, minutes: number) {
+  const id = await battleIdFor(token)
+  await productSql`UPDATE battles SET created_at = ${Date.now() + minutes * 60 * 1000} WHERE id = ${id}`
+  await productSql`DELETE FROM battle_activity WHERE battle_id = ${id}`
+}
+
 /**
- * Opens the signed-out home page with a preview battle as its hero, the most recent public battle.
- *
- * Dated ahead of the public battles other tests open meanwhile, and reloaded past the public feed's short hold.
+ * Opens the signed-out home page with a preview battle as its hero, the most recent public battle,
+ * reloaded past the public feed's short hold.
  */
 async function featurePreviewBattle(page: Page, token: string) {
-  await productSql`UPDATE battles SET created_at = ${Date.now() + 60 * 60 * 1000} WHERE id = ${await battleIdFor(token)}`
+  await dateAhead(token, 60)
   await expect(async () => {
     await page.goto('/')
     await expect(page.locator('[data-home-featured]')).toHaveAttribute('href', `/battles/${token}`, { timeout: 1_000 })
@@ -30,8 +36,7 @@ async function featurePreviewBattle(page: Page, token: string) {
 
 test('shows the faction icon for an unqualified frozen army', async ({ page }, testInfo) => {
   await signUp(page, uniqueName('Historical faction'))
-  // Other tests publish battles meanwhile, so date this one ahead of them to keep it on the shelf.
-  await productSql`UPDATE battles SET created_at = ${Date.now() + 30 * 60 * 1000} WHERE token = 'preview-tournament-battle-doubles'`
+  await dateAhead('preview-tournament-battle-doubles', 30)
   const battle = page.locator('[data-battle-shelf="Public games"] a[href="/battles/preview-tournament-battle-doubles"]')
   const mark = battle.locator('[data-faction-mark="space-marines"]').first()
   await expect(async () => {

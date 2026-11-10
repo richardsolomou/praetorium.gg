@@ -331,6 +331,7 @@ function touchBattle(ctx: Context, battleId: string) {
   ctx.db.battleChanges.insert({ battleId, revision })
   ctx.db.battleActivity.battleId.delete(battleId)
   ctx.db.battleFinishes.battleId.delete(battleId)
+  ctx.db.battleStarts.battleId.delete(battleId)
 }
 
 /** When a battle last had a command, read from its log only the first time after the log changed. */
@@ -1076,6 +1077,9 @@ export const battleByToken = spacetime.procedure({ token: t.string() }, t.string
   }),
 )
 
+/** How long a battle nobody has started stays in the public and friends feeds after its last command; its players and its event still list it. */
+const UNSTARTED_FEED_MS = 48 * 60 * 60 * 1_000
+
 const battleFeedQuery = z.strictObject({
   scope: z.enum(['user', 'sealed-event', 'group', 'group-league', 'public', 'friends', 'profile']),
   userId: z.string().max(MAX_ID_LENGTH).nullable(),
@@ -1121,6 +1125,7 @@ export const battleFeed = spacetime.procedure({ payload: t.string() }, t.string(
         : undefined
     const friendIds = input.scope === 'friends' ? acceptedFriendIds(tx, input.userId!) : new Set<string>()
 
+    const now = safeNumber(nowMs(tx))
     const direction = input.order === 'oldest' ? -1 : 1
     const inOrder = (left: { at: number; id: string }, right: { at: number; id: string }) =>
       direction * (right.at - left.at || right.id.localeCompare(left.id))
@@ -1157,7 +1162,14 @@ export const battleFeed = spacetime.procedure({ payload: t.string() }, t.string(
       if (input.scope === 'user' && input.withUserId && !seatIds.has(input.withUserId)) continue
       if (input.scope === 'public' && (hasPractice || (input.viewerId && seatIds.has(input.viewerId)))) continue
       if (input.scope === 'friends' && (hasPractice || seatIds.has(input.userId!))) continue
-      const at = safeNumber(input.scope === 'public' || input.scope === 'friends' ? battle.createdAt : lastActivity(tx, battle))
+      const at = safeNumber(lastActivity(tx, battle))
+      if (
+        (input.scope === 'public' || input.scope === 'friends') &&
+        now - at > UNSTARTED_FEED_MS &&
+        !tx.db.eventBattles.battleId.find(battle.id) &&
+        !hasBegun(tx, battle.id)
+      )
+        continue
       const row = { id: battle.id, token: battle.token, createdAt: safeNumber(battle.createdAt), at }
       if (input.before && inOrder(row, input.before) <= 0) continue
       const last = rows.at(-1)
@@ -3736,6 +3748,15 @@ function finishedAt(ctx: Context, battleId: string) {
   const at = state.status === 'finished' ? (log.at(-1)?.at ?? null) : null
   ctx.db.battleFinishes.insert({ battleId, at: at === null ? undefined : BigInt(at) })
   return at
+}
+
+/** Whether a battle has left setup, folded only the first time after the log changed. */
+function hasBegun(ctx: Context, battleId: string) {
+  const stored = ctx.db.battleStarts.battleId.find(battleId)
+  if (stored) return stored.begun
+  const begun = battleState(ctx, battleId).state.status !== 'setup'
+  ctx.db.battleStarts.insert({ battleId, begun })
+  return begun
 }
 
 /** Each group league fixture's finish, null while one is unplayed; a bye or a fixture a player withdrew from has none. */

@@ -98,3 +98,9 @@ test("a signed-in player's battles page lists their own, their friends' or every
   await hostContext.close()
   await guestContext.close()
 })
+
+test('a visitor follows a battle still being set up without its controls', async ({ page }) => {
+  await page.goto('/battles/preview-public-setup')
+  await expect(page.getByRole('heading', { name: 'Battle setup', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Start battle' })).toHaveCount(0)
+})

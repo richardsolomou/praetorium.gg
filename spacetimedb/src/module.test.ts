@@ -1771,10 +1771,70 @@ describe('public battle feed', () => {
         opponentIds: [],
         guestNames: ['Sam'],
         initialCommands: [],
-        now: NOW,
+        now: NOW * 1_000,
       }),
     })
     expect(feed(procedure, operator)).toEqual(['battle-token'])
+  })
+
+  const HOUR = 3_600
+  const create = ({ operator, procedure }: ReturnType<typeof harness>, id: string, at = NOW) =>
+    module.createBattle(procedure(operator), {
+      payload: JSON.stringify({
+        id,
+        token: id,
+        userId: `${id}-creator`,
+        allyIds: [],
+        opponentIds: [`${id}-opponent`],
+        initialCommands: [],
+        now: at * 1_000,
+      }),
+    })
+  const begin = (host: ReturnType<typeof harness>, battleId: string, at: number) =>
+    host.call(TestAuth.internal(), (ctx) => {
+      const seq = Array.from(ctx.db.commands.battleId.filter(battleId)).length + 1
+      const body = { kind: 'begin-battle', firstPlayerId: `${battleId}-creator` }
+      ctx.db.commands.insert({
+        key: JSON.stringify([battleId, seq]),
+        battleId,
+        seq,
+        userId: `${battleId}-creator`,
+        at: BigInt(at * 1_000),
+        body: JSON.stringify(body),
+      })
+      ctx.db.battleActivity.battleId.delete(battleId)
+      ctx.db.battleStarts.battleId.delete(battleId)
+    })
+
+  it('drops a battle left in setup for two days', () => {
+    const host = harness()
+    create(host, 'abandoned')
+    host.at(NOW + 49 * HOUR)
+    expect(feed(host.procedure, host.operator)).toEqual([])
+  })
+
+  it('keeps a started battle idle as long', () => {
+    const host = harness()
+    create(host, 'started')
+    begin(host, 'started', NOW)
+    host.at(NOW + 49 * HOUR)
+    expect(feed(host.procedure, host.operator)).toEqual(['started'])
+  })
+
+  it("keeps an unstarted battle an event's pairing made", () => {
+    const host = harness()
+    create(host, 'fixture')
+    host.call(TestAuth.internal(), (ctx) => ctx.db.eventBattles.insert({ battleId: 'fixture', eventId: 'league' }))
+    host.at(NOW + 49 * HOUR)
+    expect(feed(host.procedure, host.operator)).toEqual(['fixture'])
+  })
+
+  it('lists the most recently played battle first', () => {
+    const host = harness()
+    create(host, 'older')
+    create(host, 'newer', NOW + HOUR)
+    begin(host, 'older', NOW + 2 * HOUR)
+    expect(feed(host.procedure, host.operator)).toEqual(['older', 'newer'])
   })
 })
 
@@ -1783,7 +1843,7 @@ describe('friends battle feed', () => {
     const { operator, procedure } = harness()
     const create = (id: string, userId: string, opponentId: string) =>
       module.createBattle(procedure(operator), {
-        payload: JSON.stringify({ id, token: id, userId, allyIds: [], opponentIds: [opponentId], initialCommands: [], now: NOW }),
+        payload: JSON.stringify({ id, token: id, userId, allyIds: [], opponentIds: [opponentId], initialCommands: [], now: NOW * 1_000 }),
       })
     module.requestFriend(procedure(operator), { requesterId: 'viewer', addresseeId: 'friend', now: BigInt(NOW) })
     module.acceptFriend(procedure(operator), { requesterId: 'viewer', addresseeId: 'friend', now: BigInt(NOW) })

@@ -469,6 +469,15 @@ const battleFinishes = table(
   },
 )
 
+/** Whether each battle has left setup, so the public and friends feeds need no fold of each log; filled lazily by `hasBegun` and dropped by `touchBattle`. */
+const battleStarts = table(
+  { name: 'battle_starts' },
+  {
+    battleId: t.string().primaryKey(),
+    begun: t.bool(),
+  },
+)
+
 /**
  * Each battle's digest (`src/core/battleDigest.ts`), so a list of battles reads one small row per battle rather than its log.
  * Filled lazily by `battleDigestOf`, and refolded whenever `key` no longer names the battle's seats and log.
@@ -829,6 +838,7 @@ export const productTables = {
   groupBattles,
   battleActivity,
   battleFinishes,
+  battleStarts,
   battleDigests,
   battleChanges,
   battleResults,
