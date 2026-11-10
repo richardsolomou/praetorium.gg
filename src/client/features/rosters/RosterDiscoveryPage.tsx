@@ -14,7 +14,7 @@ import {
 import { facetMatches, facetText } from '../../../core/listFilter'
 import { GAME_SIZES, battleSizeOptionLabel } from '../../../core/battle'
 import { currentCatalogueFamilyId } from '../../../core/retiredCatalogueIds'
-import { rulesVersionStatus } from '../../../core/rosterDiscoveryScope'
+import { DISCOVERY_COUNT_FACETS, rulesVersionStatus, type DiscoveryCounts } from '../../../core/rosterDiscoveryScope'
 import { PageContent, PageHeader } from '../../components/Page'
 import { PageState } from '../../components/PageState'
 import { ungrouped } from '../../components/SearchableSelect'
@@ -29,6 +29,7 @@ import {
   meQuery,
   playedArmiesQuery,
   type QueryData,
+  rosterDiscoveryCountsQuery,
 } from '../../queries'
 import { errorMessage } from '../../queryClient'
 import { factionSelectGroups } from './builder/factions'
@@ -124,6 +125,25 @@ export function RosterDiscoveryPage({ view, search }: { view: RosterAudience | '
         ]
       : []),
   ]
+  const { data: counts } = useQuery({ ...rosterDiscoveryCountsQuery(view), enabled: !(view === 'friends' && !me) })
+  const familyOfSlug = new Map(families.map((faction) => [faction.slug, faction.family]))
+  // Every choice says how many lists the tab holds under it, nought included, so a choice that finds none says so first.
+  const counted = counts
+    ? dimensions.map((dimension) => {
+        if (!(DISCOVERY_COUNT_FACETS as readonly string[]).includes(dimension.key)) return dimension
+        const tally = counts[dimension.key as keyof DiscoveryCounts] ?? {}
+        // Faction choices are slugs, and a tab counts the family, whichever rules version each list used.
+        const byFamily = dimension.key === 'faction' || dimension.key === 'against'
+        const keyOf = (value: string) => (byFamily ? (familyOfSlug.get(value) ?? value) : value)
+        return {
+          ...dimension,
+          groups: dimension.groups.map((group) => ({
+            ...group,
+            items: group.items.map((item) => ({ ...item, detail: String(tally[keyOf(item.value)] ?? 0) })),
+          })),
+        }
+      })
+    : dimensions
   const sort = search.sort ?? 'updated-desc'
   const choose = (next: RosterDiscoverySearch) =>
     void navigate({ to: '/rosters', search: { view, sort: search.sort, ...next }, replace: true, resetScroll: false })
@@ -197,7 +217,7 @@ export function RosterDiscoveryPage({ view, search }: { view: RosterAudience | '
           onQuery={(next) => choose({ ...search, q: next.trim() || undefined })}
           placeholder={played ? 'Search armies, players, detachments…' : 'Search roster names and players…'}
           maxQueryLength={ROSTER_SEARCH_MAX_LENGTH}
-          dimensions={dimensions}
+          dimensions={counted}
           value={facets}
           onChange={(key, facet) =>
             choose({

@@ -533,6 +533,7 @@ export const rosterDiscoverySchema = rosterDiscoveryFilterSchema.extend({
   sort: z.enum(ROSTER_SORTS).default('updated-desc'),
   before: rosterDiscoveryCursorSchema.nullable().default(null),
 })
+export const discoveryCountsSchema = z.object({ view: z.enum([...ROSTER_AUDIENCES, 'played']) })
 export const rosterVisibilitySchema = z.object({ id, visibility: z.enum(ROSTER_VISIBILITIES) })
 export const rosterLockSchema = z.object({ id, locked: z.boolean() })
 export const rosterArchiveSchema = z.object({ id, archived: z.boolean() })

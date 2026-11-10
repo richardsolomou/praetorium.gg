@@ -1,5 +1,6 @@
 import { builtDetachments, type Roster } from './battle'
 import type { BattleDigest } from './battleDigest'
+import { currentCatalogueFamilyId } from './retiredCatalogueIds'
 import { facetActive, facetMatches, periodBounds, withinPeriod } from './listFilter'
 import type { PlayedArmyFilter } from './rosterDiscovery'
 import { matchesSearch } from './text'
@@ -22,6 +23,8 @@ export type PlayedArmy = {
   waivedRules: NonNullable<Built['waivedRules']>
   /** What a copy would be saved under today, which discovery filters by. */
   copied: { catalogueId: string; detachmentIds: string[] }
+  /** The faction families it played against, whichever rules version each fielded, which the Against filter reads. */
+  against: string[]
   unitCount: number
   playedAt: number
   outcome: PlayedOutcome
@@ -69,6 +72,13 @@ export function playedArmies(
         pointsBudget: built.pointsBudget ?? null,
         waivedRules: built.waivedRules ?? [],
         copied: seat.copied,
+        against: [
+          ...new Set(
+            digest.seats.flatMap((other) =>
+              other.side !== seat.side && other.copied ? [currentCatalogueFamilyId(other.copied.catalogueId)] : [],
+            ),
+          ),
+        ],
         unitCount: seat.unitCount,
         playedAt,
         outcome: outcome(summary, seat.side),
@@ -104,10 +114,7 @@ export function matchesPlayedArmy(army: PlayedArmy, filter: PlayedArmyFilter, no
     facetMatches(filter.size, [String(army.limit)]) &&
     facetMatches(filter.disposition, army.disposition ? [army.disposition] : []) &&
     facetMatches(filter.result, [army.outcome.result]) &&
-    facetMatches(
-      filter.against,
-      army.outcome.opponents.map((faction) => faction.slug),
-    ) &&
+    facetMatches(filter.against, army.against) &&
     (!filter.q || matchesSearch([army.name, army.player.name, ...army.detachments].join(' '), filter.q))
   )
 }

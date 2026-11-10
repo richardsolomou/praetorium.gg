@@ -49,6 +49,7 @@ export const playedArmyFilterSchema = z.strictObject({
   q,
   ...rosterFacets,
   result: facetSchema,
+  /** Faction slugs, of any rules version; the server reads them as families (`againstFamilies`). */
   against: facetSchema,
   ...periodFields,
 })
@@ -97,8 +98,21 @@ export const rosterDiscoveryQuerySchema = z.strictObject({
   namedOwnerIds: z.array(id).max(ROSTER_DISCOVERY_MAX_SCOPE_IDS).optional(),
   before: rosterDiscoveryCursorSchema.nullable(),
   limit: z.number().int().min(1).max(ROSTER_DISCOVERY_MAX_PAGE_SIZE),
+  /** Also tally the whole audience, which a tab's filter counts read; a web build older than counts leaves it out. */
+  tally: z.boolean().optional(),
 })
 export type RosterDiscoveryQuery = z.infer<typeof rosterDiscoveryQuerySchema>
+
+/** Rosters of the audience alike in every fact a tab's filters count by, so a count reply grows with variety rather than rosters. */
+export type DiscoveryGroup = {
+  catalogueId: string
+  /** As saved, which can name several detachments. */
+  detachmentId: string | null
+  limit: number
+  disposition: string | null
+  ownerId: string | null
+  count: number
+}
 
 /**
  * One page of discoverable rosters in the requested order.
@@ -128,10 +142,25 @@ export function discoveryPage<
   const { before } = query
   const after = before && { id: before.id, name: before.name, limit: before.limit, createdAt: before.createdAt, updatedAt: before.at }
   const kept: T[] = []
+  const tally = new Map<string, DiscoveryGroup>()
   let total = 0
   for (const row of rows) {
     if (row.visibility !== 'public') continue
     if (query.audience === 'friends' ? !friendIds.has(row.userId) : row.userId === query.viewerId) continue
+    if (query.tally) {
+      const group = {
+        catalogueId: row.catalogueId,
+        detachmentId: row.detachmentId ?? null,
+        limit: row.limit,
+        disposition: row.disposition ?? null,
+        // Only a friends tab filters by whose list it is, so only it is told.
+        ownerId: query.audience === 'friends' ? row.userId : null,
+      }
+      const key = JSON.stringify(Object.values(group))
+      const held = tally.get(key)
+      if (held) held.count += 1
+      else tally.set(key, { ...group, count: 1 })
+    }
     if (catalogues && !catalogues.has(row.catalogueId)) continue
     if (detachments && !detachmentIds(row.detachmentId).some((saved) => detachments.has(saved))) continue
     if (detachmentIds(row.detachmentId).some((saved) => excludedDetachments.has(saved))) continue
@@ -153,6 +182,7 @@ export function discoveryPage<
     rows: shown,
     /** Every roster the filter finds, across all pages. */
     total,
+    ...(query.tally ? { groups: [...tally.values()] } : {}),
     nextCursor:
       kept.length > query.limit && last
         ? { at: last.updatedAt, id: last.id, name: last.name, limit: last.limit, createdAt: last.createdAt }

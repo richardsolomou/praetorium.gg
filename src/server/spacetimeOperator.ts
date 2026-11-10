@@ -785,6 +785,18 @@ export class SpacetimeOperator {
         // A module published before the count was added answers without it.
         total: z.number().int().nonnegative(),
         nextCursor: rosterDiscoveryCursorSchema.nullable(),
+        groups: z
+          .array(
+            z.object({
+              catalogueId: z.string(),
+              detachmentId: z.string().nullable(),
+              limit: z.number().int(),
+              disposition: z.string().nullable(),
+              ownerId: z.string().nullable(),
+              count: z.number().int().positive(),
+            }),
+          )
+          .optional(),
       }),
     )
   }

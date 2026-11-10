@@ -26,13 +26,14 @@ import {
   ROSTER_DISCOVERY_MAX_PAGE_SIZE,
   ROSTER_DISCOVERY_PAGE_SIZE,
 } from '../../core/rosterDiscovery'
-import { discoveryScope, inDiscoveryScope } from '../../core/rosterDiscoveryScope'
+import { againstFamilies, discoveryCounts, discoveryScope, inDiscoveryScope, type DiscoveryCounts } from '../../core/rosterDiscoveryScope'
+import { detachmentIds } from '../../core/savedRoster'
 import { matchesPlayedArmy, playedArmyFilterActive, type PlayedArmy } from '../../core/playedArmies'
 import { variantDifferences } from '../rosterDifferences'
 import { copySavedRoster, saveOwnedRoster } from '../saveOwnedRoster'
 import { rosterActions } from '../rosterActions'
 import { copiedArmy } from '../../core/rosterCopies'
-import { currentCatalogueFamilyId, currentEntryId } from '../../core/retiredCatalogueIds'
+import { currentCatalogueFamilyId, currentEntryId, currentRosterIds } from '../../core/retiredCatalogueIds'
 import { byId, groupBy, chunks } from '../../core/collections'
 import type { RosterPick } from '../../core/roster'
 import { wishlistSuggestions as suggestFromRosters } from '../../core/wishlistSuggestions'
@@ -52,6 +53,7 @@ import {
   rosterBatchSchema,
   rosterLockSchema,
   renameUnitLoadoutSchema,
+  discoveryCountsSchema,
   playedArmiesSchema,
   playedArmySchema,
   saveUnitLoadoutSchema,
@@ -174,6 +176,48 @@ export const playerRosters = createServerFn({ method: 'GET' })
         label: values[index]?.label ?? '',
       }))
       return { rosters: summaries, totals }
+    }),
+  )
+
+/**
+ * How many lists a discovery tab holds under each value of its filters, over the whole tab, so a choice can say it finds
+ * none before it is chosen. Null when the tab is too large to count whole.
+ */
+export const rosterDiscoveryCounts = createServerFn({ method: 'GET' })
+  .validator(discoveryCountsSchema)
+  .handler(({ data: { view } }) =>
+    rpc(async (): Promise<DiscoveryCounts | null> => {
+      const instance = app()
+      const [viewerId, factionIndex] = await Promise.all([currentUserId(), instance.factionIndexFor()])
+      const indexed = byId(factionIndex?.factions ?? [])
+      if (view === 'played') {
+        const armies = await instance.service.everyPlayedArmy(viewerId, await instance.battleFactionsFor())
+        return (
+          armies &&
+          discoveryCounts(
+            armies.map((army) => ({
+              ...army.copied,
+              limit: army.limit,
+              disposition: army.disposition,
+              result: army.outcome.result,
+              against: army.against,
+            })),
+            indexed,
+          )
+        )
+      }
+      if (view === 'friends' && !viewerId) return {}
+      const groups = await instance.service.rosterService.discoveryGroups(view, viewerId)
+      return discoveryCounts(
+        groups.map((group) => ({
+          ...currentRosterIds({ catalogueId: group.catalogueId, detachmentIds: detachmentIds(group.detachmentId) }),
+          limit: group.limit,
+          disposition: group.disposition,
+          ownerId: group.ownerId ?? undefined,
+          count: group.count,
+        })),
+        indexed,
+      )
     }),
   )
 
@@ -393,6 +437,7 @@ export const discoverPlayedArmies = createServerFn({ method: 'GET' })
       const factions = factionIndex?.factions ?? []
       if (!discoveryScope(filter, factions)) return { armies: [], nextCursor: null }
       const indexed = byId(factions)
+      const played = filter.against ? { ...filter, against: againstFamilies(filter.against, factions) } : filter
       const now = Date.now()
       // Most armies were priced by an earlier read under this catalogue, so only the rest have their battles' logs read for picks.
       const assess = async (armies: PlayedArmy[]) => {
@@ -418,7 +463,7 @@ export const discoverPlayedArmies = createServerFn({ method: 'GET' })
         battleFactions,
         playedArmyFilterActive(filter)
           ? async (armies) => {
-              const fit = armies.filter((army) => inDiscoveryScope(army.copied, filter, indexed) && matchesPlayedArmy(army, filter, now))
+              const fit = armies.filter((army) => inDiscoveryScope(army.copied, filter, indexed) && matchesPlayedArmy(army, played, now))
               if (!rosterAssessmentFilterActive(filter)) return fit
               const assessments = await assess(fit)
               return fit.filter((_, index) =>

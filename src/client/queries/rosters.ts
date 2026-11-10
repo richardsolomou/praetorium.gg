@@ -20,6 +20,7 @@ import {
   datasheetOfferedBy,
   discoverRosters,
   discoverPlayedArmies,
+  rosterDiscoveryCounts,
   factionDatasheets,
   homeRosters,
   loadoutDatasheets,
@@ -67,6 +68,14 @@ export const unitLoadoutsQuery = () =>
 /** Never saved for offline reading: a battle whose player narrows its audience must leave the page on the next read. */
 export const playedArmiesQuery = (filter: PlayedArmyFilter) =>
   battleFeedQuery(['played-armies', filter], (before) => discoverPlayedArmies({ data: { ...filter, before } }))
+
+/** How many lists each filter choice of a discovery tab finds, over the whole tab; filters never change it, so it is read once per tab. */
+export const rosterDiscoveryCountsQuery = (view: RosterAudience | 'played') =>
+  queryOptions({
+    queryKey: ['roster-discovery-counts', view],
+    queryFn: () => rosterDiscoveryCounts({ data: { view } }),
+    staleTime: SSR_STALE_TIME,
+  })
 
 /** Never saved for offline reading: a roster made private must leave the page on the next read. */
 export const discoveredRostersQuery = (filter: RosterDiscoveryFilter, audience: RosterAudience, sort: RosterSort) =>

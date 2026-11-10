@@ -151,6 +151,11 @@ const FILTER_SCAN_PAGES = 6
 /** How long one public feed page serves repeated reads, such as a burst of tabs refetching after the same signal. */
 const PUBLIC_FEED_HOLD_MS = 5_000
 const PUBLIC_FEED_HELD_PAGES = 200
+/** How long one walk of the played armies serves every reader's counts; they move only as battles finish. */
+const PLAYED_COUNTS_HOLD_MS = 60_000
+/** The most public battles Played counts walk, in the feed's largest pages; past it the counts are left out rather than undercounted. */
+const PLAYED_COUNT_BATTLES = 500
+const PLAYED_COUNT_PAGES = 20
 
 /** Pages of 500 battles a group's table reads, newest first, before it rates only those. */
 const STANDINGS_PAGES = 20
@@ -209,6 +214,7 @@ export class PraetoriumService {
 
   private standingsHeld: { key: string; until: number; answer: Promise<StandingsAnswer> } | null = null
   private readonly publicFeedHeld = new Map<string, { until: number; page: Promise<unknown> }>()
+  private playedArmiesHeld: { until: number; armies: Promise<{ seated: readonly string[]; army: PlayedArmy }[] | null> } | null = null
 
   userById(id: string) {
     return this.repository.userById(id)
@@ -339,6 +345,41 @@ export class PraetoriumService {
       if (!cursor || armies.length >= PLAYED_ARMY_BATTLES) break
     }
     return { armies, nextCursor: cursor ?? null }
+  }
+
+  /**
+   * Every army the public battles fielded, read from their digests, for the Played tab's counts; null when there are
+   * more battles than the walk reads. One walk serves every reader for a minute, less the battles a reader sat in,
+   * which their own feed leaves out.
+   */
+  async everyPlayedArmy(viewerId: string | null, factions: readonly BattleFaction[] = []) {
+    const now = this.clock()
+    if (!this.playedArmiesHeld || this.playedArmiesHeld.until <= now) {
+      const armies = this.walkPlayedArmies(factions)
+      this.playedArmiesHeld = { until: now + PLAYED_COUNTS_HOLD_MS, armies }
+      armies.catch(() => {
+        if (this.playedArmiesHeld?.armies === armies) this.playedArmiesHeld = null
+      })
+    }
+    const armies = await this.playedArmiesHeld.armies
+    return armies && armies.flatMap(({ seated, army }) => (viewerId && seated.includes(viewerId) ? [] : [army]))
+  }
+
+  private async walkPlayedArmies(factions: readonly BattleFaction[]) {
+    const factionsById = byId(factions)
+    const armies: { seated: readonly string[]; army: PlayedArmy }[] = []
+    let before: BattlesCursor | undefined
+    for (let page = 0; page < PLAYED_COUNT_PAGES; page++) {
+      const { battles, nextCursor } = await this.repository.publicBattles({ limit: PLAYED_COUNT_BATTLES, before, viewerId: null })
+      for (const card of battles) {
+        const seated = card.players.map((player) => player.id)
+        for (const army of playedArmies(card, card.digest, battleSummary(card, card.digest, null, null, factionsById)))
+          armies.push({ seated, army })
+      }
+      if (!nextCursor) return armies
+      before = nextCursor
+    }
+    return null
   }
 
   /** One army from a finished battle with the picks it fielded, or nothing. */

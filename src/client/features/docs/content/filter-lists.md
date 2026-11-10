@@ -4,6 +4,8 @@ Every tab of [Battles](/battles) and [Rosters](/rosters) has a search box and a 
 - Press the **ban** icon beside a value to rule it out. A value you ruled out is struck through.
 - Filters of different kinds combine, so each one you add narrows the list further.
 - **Legality** and **Points** work from each list's current price, on every roster tab.
+- On the roster tabs, the number beside a value is how many lists the whole tab holds with it, whatever other filters you have chosen. Mine lists only the values your rosters use; Friends, Public and Played list every value and show **0** where none match.
+- On Played, **Against army** finds armies that played that faction under any of its rules versions.
 - **Your army** and **Opposing army** read as a matchup: on Friends and Public, **Army** and **Against army** must be on opposite sides of the table.
 - On a player's profile, **Result**, **Army** and **Opposing army** are read from that player's side. Filtering a tournament's battles doesn't change its rounds or results.
 
