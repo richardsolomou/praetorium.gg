@@ -74,7 +74,7 @@ export const listSealedEventBattles = createServerFn({ method: 'GET' })
       return app().service.sealedEventBattles(
         data.token,
         data.eventToken,
-        { limit: BATTLES_PAGE, before: data.before ?? undefined },
+        { limit: BATTLES_PAGE, before: data.before ?? undefined, filter: data.filter, order: data.order },
         await app().rulesFor(),
         await app().battleFactionsFor(),
         await currentUserId(),

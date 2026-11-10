@@ -5,6 +5,7 @@ import { currentUserId, requireUserId } from '../playerSession'
 import { mutationRpc, rpc } from '../rpc'
 import { captureMutation } from '../mutationTelemetry'
 import {
+  groupBattlesSchema,
   groupMemberSchema,
   groupLeagueDeadlineSchema,
   createGroupSchema,
@@ -26,6 +27,20 @@ export const openGroup = createServerFn({ method: 'GET' })
 export const groupStandings = createServerFn({ method: 'GET' })
   .validator(tokenSchema)
   .handler(({ data }) => rpc(async () => app().service.groupStandings(data.token, await currentUserId(), await app().battleFactionsFor())))
+
+/** A page of every battle played for a group, narrowed as the battles page is. */
+export const groupBattles = createServerFn({ method: 'GET' })
+  .validator(groupBattlesSchema)
+  .handler(({ data }) =>
+    rpc(async () =>
+      app().service.groupBattles(
+        data.token,
+        await currentUserId(),
+        { before: data.before ?? undefined, filter: data.filter, order: data.order },
+        await app().battleFactionsFor(),
+      ),
+    ),
+  )
 
 export const groupLeague = createServerFn({ method: 'GET' })
   .validator(tokenSchema)

@@ -9,7 +9,7 @@ export type Group = NonNullable<Awaited<ReturnType<typeof openGroup>>>
 export const memberNameOf = (group: Pick<Group, 'members'>) => (userId: string) =>
   group.members.find((member) => member.userId === userId)?.name ?? 'A former member'
 
-export const GROUP_TABS = ['overview', 'leaderboard', 'league'] as const
+export const GROUP_TABS = ['overview', 'battles', 'leaderboard', 'league'] as const
 export type GroupTab = (typeof GROUP_TABS)[number]
 
 export function useGroupRefresh(token: string) {

@@ -9,7 +9,8 @@ import {
   openSealedEventRoster,
   outdatedSealedEventEntriesForRoster,
 } from '../functions'
-import { battleFeedQuery } from './battles'
+import { battleFeedQuery, feedKey } from './battles'
+import { battleFilterActive, type BattleFilter, type BattleOrder } from '../../core/battleFilter'
 import { SSR_STALE_TIME } from './shared'
 import {
   friendSealedEventRostersKey,
@@ -57,11 +58,11 @@ export const sealedEventRosterQuery = (token: string, eventToken: string | undef
     staleTime: Infinity,
   })
 
-export const sealedEventBattlesQuery = (token: string, eventToken: string) =>
+export const sealedEventBattlesQuery = (token: string, eventToken: string, filter?: BattleFilter, order?: BattleOrder) =>
   battleFeedQuery(
-    sealedEventBattlesKey(token, eventToken),
-    (before) => listSealedEventBattles({ data: { token, eventToken, before } }),
-    5_000,
+    feedKey(sealedEventBattlesKey(token, eventToken), filter, order),
+    (before) => listSealedEventBattles({ data: { token, eventToken, before, filter, order } }),
+    battleFilterActive(filter) || order ? undefined : 5_000,
   )
 
 /** Under the sealed event's key, so every sealed event refresh also refreshes its table; battles finish less often than the list polls. */

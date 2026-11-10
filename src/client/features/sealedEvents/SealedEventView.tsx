@@ -6,7 +6,6 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { warmLocalRules } from '../../offline/construction'
 import { afterPaint } from '../../afterPaint'
 import { Button } from '@/components/ui/button'
-import { Skeleton } from '@/components/ui/skeleton'
 import { buttonClass } from '../../components/buttonClass'
 import { GAME_SIZES, pointsSize } from '../../../core/battle'
 import {
@@ -27,7 +26,12 @@ import { createSealedEventBattle, joinSealedEvent, submitSealedEventRoster } fro
 import { rosterWaivers, WaiverConfirmDialog } from '../../components/FormatWaivers'
 import { entrantLabels } from '../../playerLabels'
 import { battlesFrom, sealedEventBattlesQuery, sealedEventResultsQuery } from '../../queries'
-import { BattleShelf } from '../battles/BattleShelf'
+import { TournamentBattles } from './TournamentBattles'
+import type { BattleListSearch, BattlesSearch } from '../battles/battleSearch'
+import type { BattleOrder } from '../../../core/battleFilter'
+
+export type TournamentBattlesSearch = Omit<BattlesSearch, 'view'>
+const battleListOf = ({ order: _order, ...search }: TournamentBattlesSearch): BattleListSearch => search
 import type { SavedRoster } from '../rosters/rosterLibrary'
 import { DoublesBattleChooser, SealedEventBattleChooser, OneOnOneBattleChooser, startBattleLabel } from './SealedEventBattleChoosers'
 import { EntrantGroup, EntrantList, EntrantRow, sealStatus, useEntrantGroups, ViewRosterButton } from './SealedEventEntrants'
@@ -91,7 +95,12 @@ export function SealedEventView({
   isOrganizer,
   startBattle,
   chooseRoster,
+  battles,
+  onBattles,
 }: {
+  /** The battle list's narrowing, read from the page's address. */
+  battles: TournamentBattlesSearch
+  onBattles: (next: BattleListSearch, order: BattleOrder | undefined) => void
   sealedEvent: SealedEvent
   token: string
   viewerId: string | null
@@ -415,41 +424,22 @@ export function SealedEventView({
             />
           ) : null}
           {revealed ? (
-            <section>
-              {eventBattles.length || !battleHistory.isPending ? <SectionHeading title="Battles" count={eventBattles.length} /> : null}
-              {eventBattles.length ? (
-                <>
-                  <BattleShelf
-                    name="Battles"
-                    battles={eventBattles}
-                    viewerId={viewerId ?? undefined}
-                    label={
-                      swiss
-                        ? (candidate) => {
-                            const pairing = tables.get(candidate.token)
-                            return pairing ? `Round ${pairing.round} · Table ${pairing.table}` : 'Not counted'
-                          }
-                        : undefined
+            <TournamentBattles
+              sealedEvent={sealedEvent}
+              token={token}
+              search={battleListOf(battles)}
+              order={battles.order}
+              onChange={onBattles}
+              viewerId={viewerId}
+              label={
+                swiss
+                  ? (candidate) => {
+                      const pairing = tables.get(candidate.token)
+                      return pairing ? `Round ${pairing.round} · Table ${pairing.table}` : 'Not counted'
                     }
-                  />
-                  {battleHistory.hasNextPage ? (
-                    <Button
-                      className="mt-2"
-                      variant="outline"
-                      size="sm"
-                      disabled={battleHistory.isFetchingNextPage}
-                      onClick={() => void battleHistory.fetchNextPage()}
-                    >
-                      {battleHistory.isFetchingNextPage ? 'Loading…' : 'Show more battles'}
-                    </Button>
-                  ) : null}
-                </>
-              ) : battleHistory.isPending ? (
-                <SealedEventBattleSkeleton />
-              ) : (
-                <p className="text-sm text-dim">No battles yet. Battles started from this page show up here.</p>
-              )}
-            </section>
+                  : undefined
+              }
+            />
           ) : null}
           {results?.swiss && sealedEvent.pairings.length ? (
             <SealedEventResults
@@ -847,22 +837,4 @@ export function swissDetail(
     : progress.round < progress.rounds
       ? `Your round ${progress.round} battle is done. Round ${progress.round + 1} is paired once every table has finished.`
       : `Your last battle is done. The results are final once every table has finished.`
-}
-
-function SealedEventBattleSkeleton() {
-  return (
-    <div className="space-y-2" aria-label="Loading battles">
-      <Skeleton className="h-4 w-20" />
-      {Array.from({ length: 2 }, (_, index) => (
-        <div key={index} className="flex min-h-20 items-center gap-3 part p-3" aria-hidden>
-          <Skeleton className="size-10 shrink-0 rounded-full" />
-          <div className="flex-1 space-y-2">
-            <Skeleton className="h-4 w-1/2" />
-            <Skeleton className="h-3 w-2/3" />
-          </div>
-          <Skeleton className="h-8 w-20" />
-        </div>
-      ))}
-    </div>
-  )
 }

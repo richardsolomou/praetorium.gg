@@ -4,14 +4,28 @@ import { useEffect } from 'react'
 import { PageContent, PageHeader } from '../../components/Page'
 import { sealedEventQuery, meQuery } from '../../queries'
 import { SealedEventPageActions, useSealedEventActions } from './SealedEventActions'
-import { SealedEventView } from './SealedEventView'
+import { SealedEventView, type TournamentBattlesSearch } from './SealedEventView'
+import type { BattleListSearch } from '../battles/battleSearch'
+import type { BattleOrder } from '../../../core/battleFilter'
 import { EventSchedule } from './EventSchedule'
 import { accessSummary, OrganizerLinks, VisibilityIcon } from './EventAccess'
 import { eventName, sealedEventAllowances, sealedEventNoun, sealedEventPhase, sealedEventPlayers, type SealedEvent } from './sealedEvent'
 import { countLabel } from '../../text'
 import { sealedEventFormat } from '../../../core/sealedEvent'
 
-export function SealedEventPage({ token, startBattle, chooseRoster }: { token: string; startBattle?: boolean; chooseRoster?: boolean }) {
+export function SealedEventPage({
+  token,
+  startBattle,
+  chooseRoster,
+  battles,
+  onBattles,
+}: {
+  token: string
+  startBattle?: boolean
+  chooseRoster?: boolean
+  battles: TournamentBattlesSearch
+  onBattles: (next: BattleListSearch, order: BattleOrder | undefined) => void
+}) {
   const navigate = useNavigate()
   const { data: me } = useQuery(meQuery())
   const { data: sealedEvent } = useQuery(sealedEventQuery(token))
@@ -26,6 +40,8 @@ export function SealedEventPage({ token, startBattle, chooseRoster }: { token: s
       viewerId={me?.id ?? null}
       startBattle={startBattle}
       chooseRoster={chooseRoster}
+      battles={battles}
+      onBattles={onBattles}
     />
   )
 }
@@ -36,12 +52,16 @@ function SealedEventScreen({
   viewerId,
   startBattle,
   chooseRoster,
+  battles,
+  onBattles,
 }: {
   sealedEvent: SealedEvent
   token: string
   viewerId: string | null
   startBattle?: boolean
   chooseRoster?: boolean
+  battles: TournamentBattlesSearch
+  onBattles: (next: BattleListSearch, order: BattleOrder | undefined) => void
 }) {
   const navigate = useNavigate()
   const { tournament } = sealedEvent
@@ -111,6 +131,8 @@ function SealedEventScreen({
           isOrganizer={isOrganizer}
           startBattle={startBattle}
           chooseRoster={chooseRoster}
+          battles={battles}
+          onBattles={onBattles}
         />
       </PageContent>
     </main>

@@ -235,7 +235,6 @@ export const assignSealedEventTeamSchema = z.object({
     .refine((ids) => new Set(ids).size === ids.length, 'choose different entrants'),
 })
 export const sealedEventRosterSchema = z.object({ ...sealedEvent, userId: id })
-export const sealedEventBattlesSchema = z.object({ token, eventToken: token, before: battlesCursor.nullable().default(null) })
 export const sealedEventResultsSchema = z.object({ token, eventToken: token })
 export const setSealedEventAdminsSchema = z.object({ token, userIds: z.array(id).max(SEALED_EVENT_ADMIN_MAX) })
 const groupFields = {
@@ -308,6 +307,9 @@ export const battlesFeedSchema = battlesPageSchema.extend({
   filter: battleFilterSchema.optional(),
   order: z.enum(BATTLE_ORDERS).optional(),
 })
+export const playerBattlesSchema = battlesFeedSchema.extend({ userId: id })
+export const groupBattlesSchema = battlesFeedSchema.extend({ token })
+export const sealedEventBattlesSchema = battlesFeedSchema.extend({ token, eventToken: token })
 export const playerDefaultsSchema = z
   .object({ rosterVisibility: z.enum(ROSTER_VISIBILITIES), battleSize: z.number().int() })
   .refine(isPlayerDefaults, 'choose a supported battle size')

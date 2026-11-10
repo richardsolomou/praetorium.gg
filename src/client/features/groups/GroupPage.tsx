@@ -37,6 +37,8 @@ import { deleteGroup, joinGroup, leaveGroup, moderateGroupMember, removeGroupMem
 import { groupQuery, groupLeagueQuery, groupStandingsQuery, meQuery, type QueryData } from '../../queries'
 import { useDateFormatting, useMoment } from '../../dates'
 import { BattleShelf } from '../battles/BattleShelf'
+import type { BattleListSearch, BattlesSearch } from '../battles/battleSearch'
+import { GroupBattles } from './GroupBattles'
 import type { Battle } from '../battles/battle'
 import { useNativeShare } from '../../nativeBridge'
 import { shareButtonLabel } from '../../useShareLink'
@@ -62,7 +64,10 @@ type GroupTable = NonNullable<QueryData<typeof groupStandingsQuery>>
 type League = NonNullable<QueryData<typeof groupLeagueQuery>>
 type Game = Group['games'][number]
 
-export function GroupPage({ token, game, tab }: { token: string; game?: string; tab?: GroupTab }) {
+type GroupBattlesSearch = Omit<BattlesSearch, 'view'>
+const battleListOf = ({ order: _order, ...search }: GroupBattlesSearch): BattleListSearch => search
+
+export function GroupPage({ token, game, tab, battles }: { token: string; game?: string; tab?: GroupTab; battles: GroupBattlesSearch }) {
   const navigate = useNavigate()
   const { data: me } = useQuery(meQuery())
   const { data: group } = useQuery(groupQuery(token))
@@ -70,7 +75,7 @@ export function GroupPage({ token, game, tab }: { token: string; game?: string; 
     if (group === null) void navigate({ to: '/groups' })
   }, [group, navigate])
   if (!group) return null
-  return <GroupScreen group={group} viewerId={me?.id ?? null} highlight={game} tab={tab} />
+  return <GroupScreen group={group} viewerId={me?.id ?? null} highlight={game} tab={tab} battles={battles} />
 }
 
 function GroupScreen({
@@ -78,11 +83,13 @@ function GroupScreen({
   viewerId,
   highlight,
   tab,
+  battles,
 }: {
   group: Group
   viewerId: string | null
   highlight: string | undefined
   tab: GroupTab | undefined
+  battles: GroupBattlesSearch
 }) {
   const navigate = useNavigate()
   const refresh = useGroupRefresh(group.token)
@@ -106,6 +113,7 @@ function GroupScreen({
   const past = group.games.filter((game) => !hiddenListGameOpen(game, now) && !playing.has(game.token))
   const tabs: { value: GroupTab; label: string; count?: number }[] = [
     { value: 'overview', label: 'Overview' },
+    { value: 'battles', label: 'Battles' },
     { value: 'leaderboard', label: 'Leaderboard', count: table?.table.rows.length || undefined },
     ...(league || group.organizer ? [{ value: 'league' as const, label: 'League' }] : []),
   ]
@@ -121,12 +129,13 @@ function GroupScreen({
   // Battles outside hidden-list games are a league's fixtures or friendly games, and say which.
   const { date } = useDateFormatting()
   const rounds = new Map(league?.fixtures.flatMap((fixture) => (fixture.battle ? [[fixture.battle.token, fixture.round] as const] : [])))
-  const label = (battle: Battle) => {
-    const game = group.games.find((candidate) => candidate.token === table?.games[battle.token])
+  const labelWith = (games: Readonly<Record<string, string>> | undefined) => (battle: Battle) => {
+    const game = group.games.find((candidate) => candidate.token === games?.[battle.token])
     if (game) return `Hidden-list game · ${date(game.playsAt ?? game.revealedAt ?? game.createdAt)}`
     const round = rounds.get(battle.token)
     return round === undefined ? 'Friendly game' : `League · Round ${round}`
   }
+  const label = labelWith(table?.games)
   const remove = useMutation({
     mutationFn: () => deleteGroup({ data: { token: group.token } }),
     onSettled: refresh,
@@ -228,8 +237,35 @@ function GroupScreen({
               <PageTabsList data-onboarding="group-tabs" tabs={tabs} />
               <TabsContent value="overview" className="mt-6 space-y-8">
                 <UpNext group={group} open={open} live={live} table={table} viewerId={viewerId} highlight={highlight} label={label} />
-                <RecentGames table={table} viewerId={viewerId} member={member} quiet={!open.length && !live.length} label={label} />
+                <RecentGames
+                  table={table}
+                  viewerId={viewerId}
+                  member={member}
+                  quiet={!open.length && !live.length}
+                  label={label}
+                  onAll={() => showTab('battles')}
+                />
                 <PastHiddenListGames group={group} games={past} viewerId={viewerId} highlight={highlight} />
+              </TabsContent>
+              <TabsContent value="battles" className="mt-6">
+                {current === 'battles' ? (
+                  <GroupBattles
+                    group={group}
+                    search={battleListOf(battles)}
+                    order={battles.order}
+                    viewerId={viewerId}
+                    label={labelWith}
+                    onChange={(next, order) =>
+                      void navigate({
+                        to: '/groups/$token',
+                        params: { token: group.token },
+                        search: { tab: 'battles', ...(order ? { order } : {}), ...next },
+                        replace: true,
+                        resetScroll: false,
+                      })
+                    }
+                  />
+                ) : null}
               </TabsContent>
               <TabsContent value="leaderboard" className="mt-6">
                 <GroupLeaderboard table={table} viewerId={viewerId} />
@@ -643,6 +679,7 @@ function RecentGames({
   member,
   quiet,
   label,
+  onAll,
 }: {
   table: GroupTable | null | undefined
   viewerId: string | null
@@ -650,10 +687,25 @@ function RecentGames({
   /** Whether nothing else is on, with no open hidden-list game to show above. */
   quiet: boolean
   label: (battle: Battle) => string
+  onAll: () => void
 }) {
   if (!table) return null
   if (table.recent.length)
-    return <BattleShelf title="Recent games" name="Group games" battles={table.recent} viewerId={viewerId ?? undefined} label={label} />
+    return (
+      <section>
+        <SectionHeading
+          title="Recent games"
+          action={
+            table.finished > table.recent.length ? (
+              <Button variant="ghost" size="sm" onClick={onAll}>
+                All games <ArrowRight />
+              </Button>
+            ) : null
+          }
+        />
+        <BattleShelf name="Group games" battles={table.recent} viewerId={viewerId ?? undefined} label={label} />
+      </section>
+    )
   if (!quiet || table.active.length) return null
   return (
     <section>

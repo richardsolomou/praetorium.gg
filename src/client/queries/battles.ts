@@ -16,6 +16,7 @@ import {
   myBattles,
   openBattle,
   opponents,
+  playerBattles,
   playerProfile,
   playerRankings,
   playerAchievements,
@@ -43,6 +44,7 @@ import {
   guestInvitationKey,
   guestInviteKey,
   opponentsKey,
+  playerBattlesKey,
   playerProfileKey,
   playerRankingsKey,
   playerAchievementsKey,
@@ -71,7 +73,7 @@ export function battleFeedQuery<Page extends { nextCursor: BattlesCursor | null 
 }
 
 /** A filter keys under its whole feed, so what refreshes the feed refreshes every filtered list of it. */
-const feedKey = (key: unknown[], filter?: BattleFilter, order?: BattleOrder) => [
+export const feedKey = (key: unknown[], filter?: BattleFilter, order?: BattleOrder) => [
   ...key,
   ...(battleFilterActive(filter) ? [filter] : []),
   ...(order ? [order] : []),
@@ -130,6 +132,9 @@ export type PlayerProfileFilter = {
 
 export const playerProfileQuery = (userId: string, filter: PlayerProfileFilter = {}) =>
   queryOptions({ queryKey: playerProfileKey(userId, filter), queryFn: () => playerProfile({ data: { userId, ...filter } }) })
+
+export const playerBattlesQuery = (userId: string, filter?: BattleFilter, order?: BattleOrder) =>
+  battleFeedQuery(feedKey(playerBattlesKey(userId), filter, order), (before) => playerBattles({ data: { userId, before, filter, order } }))
 
 export const playerRostersQuery = (userId: string) =>
   queryOptions({ queryKey: playerRostersKey(userId), queryFn: () => playerRosters({ data: { userId } }) })

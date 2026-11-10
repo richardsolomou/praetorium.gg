@@ -273,6 +273,7 @@ export class PraetoriumService {
    * One page of a feed's matches, walking its stored order because whether a battle matches is only known from its digest.
    *
    * The walk is bounded, so a rare match can return a short or empty page; its cursor continues from where the walk stopped.
+   * `perspective` is whose seat a result or "their army" is read from, which on a profile is its player's rather than the reader's.
    */
   private async filteredFeed(
     read: (page: { limit: number; before?: BattlesCursor; order?: BattleOrder }) => Promise<{
@@ -283,8 +284,9 @@ export class PraetoriumService {
     viewerId: string | null,
     rules?: BattleMissionRules | null,
     factions: readonly BattleFaction[] = [],
+    perspective: string | null = viewerId,
   ) {
-    const filter = page!.filter!
+    const filter = page?.filter ?? {}
     const wanted = page!.limit ?? BATTLES_PAGE
     const now = this.clock()
     const bounds = periodBounds(filter, now)
@@ -299,7 +301,7 @@ export class PraetoriumService {
       const { battles, nextCursor } = await read({ limit: FILTER_SCAN_BATTLES, before: cursor, order })
       for (const [index, history] of battles.entries()) {
         const summary = battleSummary(history, history.digest, viewerId, rules, factionsById)
-        if (!matchesBattle(summary, filter, viewerId, history.at, now)) continue
+        if (!matchesBattle(summary, filter, perspective, history.at, now)) continue
         kept.push(summary)
         if (kept.length === wanted)
           return { battles: kept, nextCursor: index < battles.length - 1 || nextCursor ? { at: history.at, id: history.battle.id } : null }
@@ -589,6 +591,29 @@ export class PraetoriumService {
     }
   }
 
+  /** One page of the battles a profile lists, read from the player's seat, without the practice games its record leaves out. */
+  async playerBattles(
+    userId: string,
+    viewerId: string | null,
+    page: { before?: BattlesCursor; filter?: BattleFilter; order?: BattleOrder },
+    rules?: BattleMissionRules | null,
+    factions: readonly BattleFaction[] = [],
+  ) {
+    const practised = new Set((await this.repository.practiceOpponents()).map((opponent) => opponent.id))
+    const found = await this.filteredFeed(
+      async (read) => {
+        const { battles, nextCursor } = await this.repository.battlesInProfile(userId, viewerId, read)
+        return { battles: battles.filter((history) => !history.players.some((player) => practised.has(player.id))), nextCursor }
+      },
+      page,
+      viewerId,
+      rules,
+      factions,
+      userId,
+    )
+    return { ...found, battles: await this.withRatingChanges(found.battles) }
+  }
+
   /** Datasheets in the player's own armies across their recent battles, with how many battles each appeared in, except armies they have archived. */
   async fieldedDatasheets(userId: string) {
     const [seated, rosters] = await Promise.all([
@@ -648,11 +673,22 @@ export class PraetoriumService {
   async sealedEventBattles(
     sealedEventToken: string,
     eventToken: string,
-    page: { limit: number; before?: BattlesCursor },
+    page: { limit: number; before?: BattlesCursor; filter?: BattleFilter; order?: BattleOrder },
     rules?: BattleMissionRules | null,
     factions?: readonly BattleFaction[],
     viewerId: string | null = null,
   ) {
+    if (battleFilterActive(page.filter))
+      return this.filteredFeed(
+        async (read) => {
+          const found = await this.repository.battlesBySealedEvent(sealedEventToken, eventToken, { ...read, viewerId })
+          return { ...found, battles: found.battles.filter((history) => this.mayWatch(history)) }
+        },
+        page,
+        viewerId,
+        rules,
+        factions,
+      )
     const { battles: histories, nextCursor } = await this.repository.battlesBySealedEvent(sealedEventToken, eventToken, {
       ...page,
       viewerId,
@@ -828,21 +864,9 @@ export class PraetoriumService {
       if (!before) break
     }
     const practice = await this.repository.practiceOpponents()
-    // A game's battles name its event; one from before events were recorded on battles names only its sealed event, now this group.
-    const gameEvents = new Set(group.games.map((game) => game.token))
     // Which hidden-list game each battle came from, so the page can name it and leave a game's battles inside its card.
     const gameOf = new Map<string, string>()
-    const counted = this.battleSummaries(
-      histories.filter((history) => {
-        const state = history.digest
-        const fromGame = state.eventToken !== null && gameEvents.has(state.eventToken)
-        if (fromGame) gameOf.set(history.battle.token, state.eventToken!)
-        return state.groupId === group.id || fromGame || (state.eventToken === null && state.sealedEventToken === group.token)
-      }),
-      viewerId,
-      null,
-      factions,
-    )
+    const counted = this.battleSummaries(groupBattlesOf(group, histories, gameOf), viewerId, null, factions)
     const tables = standings(counted, { exclude: practice.map((opponent) => opponent.id), now: this.clock() })
     const rows = tables.overall.filter((row) => memberIds.has(row.id))
     const recent = counted.filter((battle) => battle.status === 'finished').slice(0, GROUP_RECENT_BATTLES)
@@ -862,6 +886,34 @@ export class PraetoriumService {
       // Hidden-list games with a battle still being set up or played, which stay current until it ends.
       playing: [...new Set(counted.flatMap((battle) => (battle.status === 'finished' ? [] : (gameOf.get(battle.token) ?? []))))],
       partial: before !== undefined,
+    }
+  }
+
+  /** One page of every battle played for a group, with the hidden-list game each came from; a private group shows them to members alone. */
+  async groupBattles(
+    token: string,
+    viewerId: string | null,
+    page: { before?: BattlesCursor; filter?: BattleFilter; order?: BattleOrder },
+    factions: readonly BattleFaction[] = [],
+  ) {
+    const group = await this.groupService.group(token, viewerId)
+    if (!group || hiddenFromViewer(group, viewerId)) return { battles: [], nextCursor: null, games: {} }
+    const gameOf = new Map<string, string>()
+    const found = await this.filteredFeed(
+      async (read) => {
+        const { battles, nextCursor } = await this.repository.battlesByGroup(token, read)
+        return { battles: groupBattlesOf(group, battles, gameOf), nextCursor }
+      },
+      page,
+      viewerId,
+      null,
+      factions,
+    )
+    return {
+      ...found,
+      games: Object.fromEntries(
+        found.battles.flatMap((battle) => (gameOf.has(battle.token) ? [[battle.token, gameOf.get(battle.token)!]] : [])),
+      ),
     }
   }
 
@@ -1576,6 +1628,24 @@ function referencedPlays(
 /** What the service keeps of a guest device's secret, and what that device's realtime token names it by. */
 export function guestDeviceHash(secret: string) {
   return createHash('sha256').update(secret).digest('hex')
+}
+
+/**
+ * The battles a group feed read that count for the group, noting in `gameOf` the hidden-list game each came from.
+ * A game's battles name its event; one from before events were recorded on battles names only its sealed event, now this group.
+ */
+function groupBattlesOf<History extends BattleCard>(
+  group: { id: string; token: string; games: readonly { token: string }[] },
+  histories: readonly History[],
+  gameOf: Map<string, string>,
+) {
+  const gameEvents = new Set(group.games.map((game) => game.token))
+  return histories.filter((history) => {
+    const state = history.digest
+    const fromGame = state.eventToken !== null && gameEvents.has(state.eventToken)
+    if (fromGame) gameOf.set(history.battle.token, state.eventToken!)
+    return state.groupId === group.id || fromGame || (state.eventToken === null && state.sealedEventToken === group.token)
+  })
 }
 
 const hiddenFromViewer = (group: { visibility: string; members: readonly { userId: string; status: string }[] }, viewerId: string | null) =>

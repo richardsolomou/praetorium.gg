@@ -1380,20 +1380,21 @@ export class SpacetimeRepository {
   async battlesBySealedEvent(
     sealedEventToken: string,
     eventToken: string,
-    page: { limit: number; before?: BattlesCursor; viewerId?: string | null },
+    page: { limit: number; before?: BattlesCursor; viewerId?: string | null; order?: BattleOrder },
   ) {
     return this.feed({
       scope: 'sealed-event',
       hostToken: sealedEventToken,
       eventToken,
       before: page.before,
+      order: page.order,
       limit: page.limit,
       viewerId: page.viewerId,
     })
   }
 
-  async battlesByGroup(groupToken: string, page: { limit: number; before?: BattlesCursor }) {
-    return this.feed({ scope: 'group', groupToken, before: page.before, limit: page.limit })
+  async battlesByGroup(groupToken: string, page: { limit: number; before?: BattlesCursor; order?: BattleOrder }) {
+    return this.feed({ scope: 'group', groupToken, before: page.before, order: page.order, limit: page.limit })
   }
 
   /** Every battle a group's league fixtures started, which one page always holds. */
@@ -1487,6 +1488,10 @@ export class SpacetimeRepository {
 
   async battlesSeatedBy(userId: string, limit: number, viewerId: string | null) {
     return (await this.feed({ scope: 'profile', userId, viewerId, limit })).battles
+  }
+
+  battlesInProfile(userId: string, viewerId: string | null, page: { limit: number; before?: BattlesCursor; order?: BattleOrder }) {
+    return this.feed({ scope: 'profile', userId, viewerId, before: page.before, order: page.order, limit: page.limit })
   }
 
   submit(...args: Parameters<SpacetimeOperator['submit']>) {

@@ -14,6 +14,7 @@ import {
   createBattleSchema,
   deleteBattleSchema,
   sealedEventBattleOptionsSchema,
+  playerBattlesSchema,
   playerProfileSchema,
   submitSchema,
   tokenSchema,
@@ -104,6 +105,22 @@ export const playerProfile = createServerFn({ method: 'GET' })
       const viewerId = await currentUserId()
       const [rules, factions] = await Promise.all([app().rulesFor(), app().battleFactionsFor()])
       return app().service.playerProfile(userId, viewerId, filter, rules, factions)
+    }),
+  )
+
+/** A page of the battles one player's profile lists, narrowed as the battles page is. Signed out too. */
+export const playerBattles = createServerFn({ method: 'GET' })
+  .validator(playerBattlesSchema)
+  .handler(({ data }) =>
+    rpc(async () => {
+      const [viewerId, rules, factions] = await Promise.all([currentUserId(), app().rulesFor(), app().battleFactionsFor()])
+      return app().service.playerBattles(
+        data.userId,
+        viewerId,
+        { before: data.before ?? undefined, filter: data.filter, order: data.order },
+        rules,
+        factions,
+      )
     }),
   )
 
