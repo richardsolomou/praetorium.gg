@@ -59,9 +59,10 @@ export function getRouter() {
       const matches = router.state.matches
       const components = matches.map((match) => router.routesById[match.routeId]?.options.component)
       // SSR can commit before its lazy import settles; an unsuccessful import retains its preload function.
+      // A timer, not an animation frame: a reload that finishes in a background tab paints nothing until the player returns.
       void Promise.all(components.map((component) => Promise.resolve(component?.preload?.()))).then(
         () => {
-          requestAnimationFrame(() => {
+          setTimeout(() => {
             if (
               router.state.location.href !== location ||
               document.querySelector('[data-route-error]') ||
