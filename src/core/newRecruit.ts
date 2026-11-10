@@ -75,6 +75,8 @@ export function fromNewRecruitShare(
   )
   // A bodyguard names the characters joining it, so each of them is attached to the bodyguard's entry.
   const bodyguards = new Map(nodes.flatMap((node, at) => (node.associated ?? []).map((link) => [link.uid, at + 1] as const)))
+  // A list saved on older data can hold wargear since split up, as a "Bolt Rifle w/ Grenade Launcher"; the pieces under it say it all.
+  const bundleSinceSplit = (node: ShareNode) => node.option_id !== undefined && !named(node.option_id)
   const units = nodes.map((node, at): TextRosterUnit => {
     const selections: TextRosterUnit['selections'] = []
     let models = 0
@@ -86,7 +88,7 @@ export function fromNewRecruitShare(
         if (!child.options.length) {
           if (/^warlord$/i.test(label(child))) warlord = true
           else selections.push({ name: label(child), count: amount! * multiplier, ...(model ? { model } : {}) })
-        } else if (amount === undefined) visit(child, model, multiplier)
+        } else if (amount === undefined || bundleSinceSplit(child)) visit(child, model, (amount ?? 1) * multiplier)
         else if (!model) {
           models += amount * multiplier
           selections.push({ name: label(child), count: amount * multiplier })
