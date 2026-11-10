@@ -5,20 +5,13 @@ import { buttonClass } from '../../components/buttonClass'
 import { Dialog, DialogBody, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../../components/Dialog'
 import { ANDROID_BETA, APP_STORE, GOOGLE_PLAY } from '../../projectLinks'
 import { useStoredValue, writeStoredValue } from '../../storedValue'
+import { DISMISSED_KEY } from './appsBand'
 import appStoreBadge from './app-store-badge.svg?no-inline'
 import becomeTesterShot from './beta-become-tester.webp?no-inline'
 import groupConfirmShot from './beta-group-confirm.webp?no-inline'
 import groupJoinShot from './beta-group-join.webp?no-inline'
 import installShot from './beta-install.webp?no-inline'
 import googlePlayBadge from './google-play-badge.png?no-inline'
-
-const DISMISSED_KEY = 'praetorium-apps-dismissed'
-
-/**
- * Runs in the document head before the first paint: a band already dismissed is never drawn while the page hydrates,
- * and a phone's platform is known before the band picks which store to show.
- */
-export const APPS_SCRIPT = `try{var d=document.documentElement;if(localStorage.getItem(${JSON.stringify(DISMISSED_KEY)})==='true')d.dataset.appsDismissed='true';var u=navigator.userAgent;d.dataset.platform=/iPhone|iPad|iPod/.test(u)?'ios':/Android/.test(u)?'android':''}catch(e){}`
 
 const useDismissed = () => useStoredValue(DISMISSED_KEY) === 'true'
 

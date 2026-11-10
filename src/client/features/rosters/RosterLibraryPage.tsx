@@ -23,8 +23,8 @@ import { useAccountPrompt } from './AccountPrompt'
 import { claimInput, GUEST_PATH, type GuestDraft, guestRosterSummary, readGuestDraft } from './guestDraft'
 import { GuestBattleLink, useGuestRosterRow } from './GuestRoster'
 import { useNewRoster } from './newRoster'
-import { setRosterCookie } from './rosterCookie'
-import { ROSTER_NOTICES_COOKIE } from '../../../contracts/rosterCookies'
+import { DEFAULT_ROSTER_ROWS, setRosterCookie } from './rosterCookie'
+import { ROSTER_NOTICES_COOKIE, ROSTER_ROWS_COOKIE } from '../../../contracts/rosterCookies'
 import type { MissionReference } from './rosterStart'
 import { PageContent, PageHeader } from '../../components/Page'
 import { PageState } from '../../components/PageState'
@@ -39,15 +39,7 @@ import { FilterBar, type FilterDimension } from '../../components/FilterBar'
 import { NoFilterMatches } from '../../components/NoFilterMatches'
 import { ungrouped } from '../../components/SearchableSelect'
 import { facetsOf, periodSearch } from '../../searchParams'
-import {
-  facetMatches,
-  facetText,
-  periodBounds,
-  withinPeriod,
-  type Facet,
-  type FacetAddress,
-  type PeriodFilter,
-} from '../../../core/listFilter'
+import { facetMatches, facetText, periodBounds, withinPeriod, type Facet } from '../../../core/listFilter'
 import { matchesRosterAssessment, rosterAssessmentFilterActive, ROSTER_SEARCH_MAX_LENGTH } from '../../../core/rosterDiscovery'
 import { ROSTER_VISIBILITIES } from '../../../core/savedRoster'
 import { VISIBILITY_NAME } from './visibility'
@@ -84,19 +76,7 @@ import { useRosterPages } from './rosterPages'
 import { errorMessage } from '../../queryClient'
 import { Problem } from '../../components/Problem'
 import { countLabel } from '../../text'
-
-export const LIBRARY_FACETS = [
-  'limit',
-  'faction',
-  'detachment',
-  'visibility',
-  'disposition',
-  'legality',
-  'points',
-  'updates',
-  'state',
-] as const
-export type RosterLibrarySearch = PeriodFilter & { q?: string } & Partial<Record<(typeof LIBRARY_FACETS)[number], FacetAddress>>
+import { LIBRARY_FACETS, type RosterLibrarySearch } from './rosterSearch'
 
 const UPDATE_GROUPS = ungrouped([
   { label: 'Older rules', value: 'older' },
@@ -127,6 +107,7 @@ export function RosterLibraryPage({
   search,
   sort,
   notices = false,
+  rows = DEFAULT_ROSTER_ROWS,
   starting,
   reference,
   device,
@@ -135,6 +116,8 @@ export function RosterLibraryPage({
   sort: RosterSort
   /** Whether the library last had a data update notice, so its line is kept while the counts load. */
   notices?: boolean
+  /** How many rows the unfiltered library last showed, so its skeleton holds the list's height. */
+  rows?: number
   starting?: boolean
   reference?: MissionReference
   device?: DeviceLibrary
@@ -249,6 +232,12 @@ export function RosterLibraryPage({
   useEffect(() => {
     if (noticesKnown) setRosterCookie(ROSTER_NOTICES_COOKIE, olderLists || changedLists ? '1' : null)
   }, [noticesKnown, olderLists, changedLists])
+  // A filtered address shows a different count, so only the plain library teaches the skeleton its size.
+  const unfiltered = Object.values(search).every((value) => value === undefined)
+  const shownRows = !libraryPending && !libraryError && unfiltered ? groups.length : undefined
+  useEffect(() => {
+    if (shownRows !== undefined) setRosterCookie(ROSTER_ROWS_COOKIE, shownRows === DEFAULT_ROSTER_ROWS ? null : String(shownRows))
+  }, [shownRows])
 
   const origin = useOrigin()
   const actions = useRosterActions(
@@ -505,7 +494,7 @@ export function RosterLibraryPage({
                 <output className="sr-only" data-gate="none">
                   Loading your rosters…
                 </output>
-                <RosterLibrarySkeleton />
+                <RosterLibrarySkeleton rows={unfiltered ? rows : DEFAULT_ROSTER_ROWS} />
               </div>
             ) : active.length ? (
               <>
@@ -666,8 +655,8 @@ export function RosterLibraryPage({
 }
 
 /** Cards the height of a loaded roster's, enough to reach past most desktop screens so the rows arriving do not push the footer away. */
-function RosterLibrarySkeleton() {
-  return Array.from({ length: 8 }, (_, index) => (
+function RosterLibrarySkeleton({ rows }: { rows: number }) {
+  return Array.from({ length: rows }, (_, index) => (
     <div key={index} className="flex min-h-[6rem] items-center gap-3 part p-3" aria-hidden>
       <div className="min-w-0 flex-1 space-y-2">
         <Skeleton className="h-4 w-1/3" />

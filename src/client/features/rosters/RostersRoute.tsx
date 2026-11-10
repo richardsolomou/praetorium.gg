@@ -1,15 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
 import { meQuery } from '../../queries'
 import { BuilderFrame, ClaimGuestRoster, useGuestDraft } from './GuestRoster'
-import { RosterDiscoveryPage, type RosterDiscoverySearch } from './RosterDiscoveryPage'
-import { RosterLibraryPage, type RosterLibrarySearch } from './RosterLibraryPage'
-import type { MissionReference } from './rosterStart'
+import { RosterDiscoveryPage } from './RosterDiscoveryPage'
+import { RosterLibraryPage } from './RosterLibraryPage'
+import type { RostersSearch } from './rosterSearch'
 import type { keptRosterSort } from './rosterSort'
-
-export const ROSTER_VIEWS = ['friends', 'public', 'played'] as const
-type RosterView = (typeof ROSTER_VIEWS)[number]
-
-export type RostersSearch = RosterLibrarySearch & RosterDiscoverySearch & { view?: RosterView; new?: true; reference?: MissionReference }
 
 /**
  * A player's library, or a visitor's one list on this device on the same page; either may instead ask for friends' or
@@ -21,6 +16,7 @@ export function RostersRoute({
   guestDraft: hinted,
   sort,
   notices,
+  rows,
 }: {
   search: RostersSearch
   /** Whether the request said this browser holds a visitor's list, so the first frame holds its row or the claim it becomes. */
@@ -28,6 +24,8 @@ export function RostersRoute({
   sort: ReturnType<typeof keptRosterSort>
   /** Whether the library last had a data update notice, so the first frame keeps its line. */
   notices: boolean
+  /** How many rows the unfiltered library last showed, so the first frame reserves them. */
+  rows: number
 }) {
   const { data: me } = useQuery(meQuery())
   const [{ ready, guest }, setGuest] = useGuestDraft(hinted)
@@ -39,6 +37,7 @@ export function RostersRoute({
       search={search}
       sort={sort}
       notices={notices}
+      rows={rows}
       starting={starting && ready}
       reference={reference}
       device={{ guest, pending: !ready && hinted, onChange: setGuest }}

@@ -1,10 +1,17 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { keptRosterSort } from '../client/features/rosters/rosterSort'
-import { LIBRARY_FACETS } from '../client/features/rosters/RosterLibraryPage'
-import { GUEST_DRAFT_COOKIE, ROSTER_NOTICES_COOKIE, ROSTER_SORT_COOKIE } from '../contracts/rosterCookies'
+import { GUEST_DRAFT_COOKIE, ROSTER_NOTICES_COOKIE, ROSTER_ROWS_COOKIE, ROSTER_SORT_COOKIE } from '../contracts/rosterCookies'
+import { keptRosterRows } from '../client/features/rosters/rosterCookie'
 import { requestCookie } from '../server/requestCookie'
-import { discoveryFilter, DISCOVERY_FACETS, playedFilter } from '../client/features/rosters/RosterDiscoveryPage'
-import { ROSTER_VIEWS, RostersRoute, type RostersSearch } from '../client/features/rosters/RostersRoute'
+import {
+  discoveryFilter,
+  DISCOVERY_FACETS,
+  LIBRARY_FACETS,
+  playedFilter,
+  ROSTER_VIEWS,
+  type RostersSearch,
+} from '../client/features/rosters/rosterSearch'
+import { RostersRoute } from '../client/features/rosters/RostersRoute'
 import { ROSTER_SEARCH_MAX_LENGTH } from '../core/rosterDiscovery'
 import { ROSTER_SORTS } from '../core/rosterSort'
 import { discoveredRostersQuery, factionIndexQuery, meQuery, playedArmiesQuery } from '../client/queries'
@@ -43,6 +50,7 @@ export const Route = createFileRoute('/rosters/')({
       guestDraft: requestCookie(GUEST_DRAFT_COOKIE) === '1',
       sort: keptRosterSort(requestCookie(ROSTER_SORT_COOKIE)),
       notices: requestCookie(ROSTER_NOTICES_COOKIE) === '1',
+      rows: keptRosterRows(requestCookie(ROSTER_ROWS_COOKIE)),
     }
   },
   head: ({ match }) =>
@@ -73,6 +81,6 @@ export const Route = createFileRoute('/rosters/')({
 })
 
 function RosterLibraryRoute() {
-  const { guestDraft, sort, notices } = Route.useLoaderData()
-  return <RostersRoute search={Route.useSearch()} guestDraft={guestDraft} sort={sort} notices={notices} />
+  const { guestDraft, sort, notices, rows } = Route.useLoaderData()
+  return <RostersRoute search={Route.useSearch()} guestDraft={guestDraft} sort={sort} notices={notices} rows={rows} />
 }

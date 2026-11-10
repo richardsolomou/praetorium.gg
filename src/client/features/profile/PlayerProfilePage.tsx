@@ -17,14 +17,12 @@ import { PlayerRosters } from './PlayerRosters'
 import { PlayerCollection } from './PlayerCollection'
 import { recordSummary } from './recordSummary'
 import { ServiceRecordPanel } from './ServiceRecordPanel'
-import { searchText } from '../../searchParams'
 import { PersonalPerformancePanel } from './PersonalPerformancePanel'
 import { AchievementsPanel } from './AchievementsPanel'
 import {
   factionIndexQuery,
   collectionProfileQuery,
   meQuery,
-  type PlayerProfileFilter,
   playerAchievementsQuery,
   playerProfileQuery,
   playerRankingsQuery,
@@ -32,35 +30,7 @@ import {
   userProfileQuery,
 } from '../../queries'
 import { Problem } from '../../components/Problem'
-
-const TABS = ['record', 'battles', 'rosters', 'collection', 'achievements'] as const
-type ProfileTab = (typeof TABS)[number]
-
-type ProfileSearch = PlayerProfileFilter & { tab?: ProfileTab }
-
-/**
- * The address carries both the tab and the record's narrowing.
- *
- * `tab` is deliberately not a loader dependency: every tab's data is fetched for
- * the first frame, so switching one is a render rather than a request.
- */
-export const readSearch = (search: Record<string, unknown>): ProfileSearch => {
-  const size = Number(search.limit)
-  const tab = TABS.find((candidate) => candidate === search.tab)
-  return {
-    tab,
-    faction: searchText(search.faction),
-    detachment: searchText(search.detachment),
-    opponentFaction: searchText(search.opponentFaction),
-    opponentDetachment: searchText(search.opponentDetachment),
-    opponentId: searchText(search.opponentId),
-    missionPackId: searchText(search.missionPackId),
-    limit: Number.isFinite(size) && size > 0 ? size : undefined,
-  }
-}
-
-/** The narrowing alone, so a tab change is not a new cache key for the record. */
-export const recordFilter = ({ tab: _tab, ...filter }: ProfileSearch): PlayerProfileFilter => filter
+import { recordFilter, type ProfileSearch, type ProfileTab } from './profileSearch'
 
 /** A profile is public, but its record, battle list, and rank derive only from games the reader may watch. */
 export function PlayerProfilePage({ userId, search }: { userId: string; search: ProfileSearch }) {
