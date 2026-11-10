@@ -71,7 +71,7 @@ export function readCatalogueRuntime(directory: string, output: string): Catalog
     const content = fs.readFileSync(target)
     if (content.length !== entry.bytes || hash('sha256', content) !== entry.sha256)
       throw new Error(`Catalogue runtime verification failed for ${key}`)
-    const parsed = parseSharedJson(content.toString('utf8'))
+    const parsed = parseSharedJson(content)
     if (key === 'startup') return (startup = parsed as RuntimeStartup)
     const restore = <T>(indexes: number[], records: T[]) =>
       indexes.map((index) => {

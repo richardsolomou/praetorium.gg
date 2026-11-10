@@ -1,7 +1,7 @@
 import { randomInt } from 'node:crypto'
 import { globalSingleton } from 'ras-stack/server'
 import os from 'node:os'
-import { setImmediate as yieldToEventLoop } from 'node:timers/promises'
+import { setTimeout as yieldToEventLoop } from 'node:timers/promises'
 import { deploymentHost, reportServerFailure, serverTelemetry } from '../adapters/posthog'
 import { catalogueDirectory, type LoadedCatalogue, loadCatalogue } from './catalogueIndex'
 import { type LoadedRules, loadRulesSteps } from './rules'
@@ -168,7 +168,8 @@ const sync = {
 }
 
 const SLICE_MS = 20
-const nextTurn = () => yieldToEventLoop(undefined, { ref: false })
+// An unref'd immediate lets the loop sleep until some other event wakes it; an unref'd timer wakes it within a millisecond.
+const nextTurn = () => yieldToEventLoop(0, undefined, { ref: false })
 
 /**
  * Loads the projections every page needs, then resolves and builds each faction's construction

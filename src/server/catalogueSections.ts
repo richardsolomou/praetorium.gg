@@ -3,16 +3,19 @@ import type { CatalogueIndex, Definition } from '../core/catalogue'
 import { routeSlug } from '../core/slug'
 import { datacardsFactionKeys, type SectionProse } from './datacards'
 import { joinKey } from '../core/text'
+import { remember } from '../core/collections'
 
 /** Fill an undescribed card section only from a complete matching entry in the same faction’s books; a title match alone can name unrelated wargear. */
 export function catalogueSections(index: CatalogueIndex): SectionProse {
+  let named: ReadonlyMap<string, Definition[]> | undefined
   return ({ faction, entry, titles }) => {
     const found = new Map<string, string>()
     if (!titles.length) return found
     const books = booksOf(index, faction)
     const keys = titles.map(joinKey)
-    const covering = (entry === null ? [armyRuleProse(index, books)] : entryProse(index, books, joinKey(entry))).filter((prose) =>
-      keys.every((key) => prose.has(key)),
+    named ??= describedByName(index)
+    const covering = (entry === null ? [armyRuleProse(index, books)] : entryProse(index, books, named.get(joinKey(entry)) ?? [])).filter(
+      (prose) => keys.every((key) => prose.has(key)),
     )
     for (const [at, title] of titles.entries()) {
       const said = new Set(covering.map((prose) => prose.get(keys[at]!)!))
@@ -40,15 +43,16 @@ function booksOf(index: CatalogueIndex, faction: string) {
   )
 }
 
-const entryProse = (index: CatalogueIndex, books: ReadonlySet<string>, named: string) =>
-  [...index.definitions.values()]
-    .filter(
-      (definition) =>
-        (definition.profiles?.length || definition.rules?.length) &&
-        joinKey(definition.name ?? '') === named &&
-        books.has(index.catalogueOf.get(definition.id) ?? ''),
-    )
-    .map(sectionProse)
+/** Each entry with profiles or rules, by its name's join key, since every card section asks for one name. */
+function describedByName(index: CatalogueIndex) {
+  const named = new Map<string, Definition[]>()
+  for (const definition of index.definitions.values())
+    if (definition.profiles?.length || definition.rules?.length) remember(named, joinKey(definition.name ?? ''), () => []).push(definition)
+  return named
+}
+
+const entryProse = (index: CatalogueIndex, books: ReadonlySet<string>, named: readonly Definition[]) =>
+  named.filter((definition) => books.has(index.catalogueOf.get(definition.id) ?? '')).map(sectionProse)
 
 /** The faction's own rules, unless two of its books word one differently. */
 function armyRuleProse(index: CatalogueIndex, books: ReadonlySet<string>) {

@@ -1,17 +1,11 @@
-import { afterEach, beforeEach, expect, it, vi } from 'vitest'
+import { afterEach, expect, it, vi } from 'vitest'
 import { readiness, warm } from './app'
 import { prepareReference } from './referenceApi'
 import type { Steps } from '../shared/steps'
 
 vi.mock('./referenceApi', () => ({ prepareReference: vi.fn(async () => {}) }))
 
-// A warm-up's turns do not hold the event loop, so an otherwise idle test would sleep through them; production's delay monitor keeps its loop awake.
-let awake: NodeJS.Timeout
-beforeEach(() => {
-  awake = setInterval(() => {}, 1)
-})
 afterEach(() => {
-  clearInterval(awake)
   vi.useRealTimers()
   vi.unstubAllEnvs()
 })
@@ -49,8 +43,9 @@ function construction(total: number, ms = 0) {
   return { progress, steps }
 }
 
+/** Waits as long as the warm-up does between its slices. */
 const turns = async (count: number) => {
-  for (let turn = 0; turn < count; turn++) await new Promise<void>((resolve) => setImmediate(resolve))
+  for (let turn = 0; turn < count; turn++) await new Promise<void>((resolve) => setTimeout(resolve, 0))
 }
 
 it('loads the page projections after yielding startup', async () => {

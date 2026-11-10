@@ -538,6 +538,13 @@ export function whenDrawnCondition(text: string) {
   const replacement = /^WHEN DRAWN: If (.+?), you can discard this card and draw one new Secondary Mission card\.?$/i.exec(plain)
   return replacement ? replacement[1]!.replace(/^there /i, 'there ') : null
 }
+const searchWords = (text: string) => foldedText(text).match(/[a-z0-9]+/g) ?? []
+
+// One load passes every faction's enhancements the same list of datasheet names, thousands long.
+const nameForms = new WeakMap<readonly string[], { keys: string[]; words: string[][] }>()
+const formsOf = (names: readonly string[]) =>
+  remember(nameForms, names, () => ({ keys: names.map(joinKey), words: names.map(searchWords) }))
+
 export function enhancementEligibility(
   card: Record<string, unknown>,
   datasheetNames: readonly string[] = [],
@@ -569,36 +576,37 @@ export function enhancementEligibility(
   ) {
     keywords.push('Character')
   }
-  const words = (text: string) => foldedText(text).match(/[a-z0-9]+/g) ?? []
+  const names = formsOf(datasheetNames)
   const requirement = (phrase: string) => {
     const key = joinKey(phrase)
-    const named = datasheetNames.filter((name) => joinKey(name) === key)
+    const named = datasheetNames.filter((_, at) => names.keys[at] === key)
     if (named.length === 1) return [named[0]!]
     const exact = !invalidKeywords ? keywords.filter((keyword) => joinKey(keyword) === key) : []
     if (exact.length === 1) return exact
-    const ending = words(phrase)
+    const ending = searchWords(phrase)
     const endingText = ending.join(' ')
-    const suffixed = ending.length >= 2 ? datasheetNames.filter((name) => words(name).slice(-ending.length).join(' ') === endingText) : []
+    const suffixed =
+      ending.length >= 2 ? datasheetNames.filter((_, at) => names.words[at]!.slice(-ending.length).join(' ') === endingText) : []
     if (suffixed.length === 1) return [suffixed[0]!]
     if ((!plain && !exclusion) || invalidKeywords || !keywords.length) return null
-    const required = new Set(words(phrase))
-    const selected = keywords.filter((keyword) => words(keyword).every((word) => required.has(word)))
-    const covered = new Set(words(selected.join(' ')))
+    const required = new Set(searchWords(phrase))
+    const selected = keywords.filter((keyword) => searchWords(keyword).every((word) => required.has(word)))
+    const covered = new Set(searchWords(selected.join(' ')))
     return required.size && [...required].every((word) => covered.has(word)) ? selected : null
   }
   const phrases = included.split(/\s+or\s+|\//i)
   if (phrases.length > 3) return null
   const exact = (phrase: string) => {
     const key = joinKey(phrase)
-    return datasheetNames.some((name) => joinKey(name) === key) || keywords.some((keyword) => joinKey(keyword) === key)
+    return names.keys.includes(key) || keywords.some((keyword) => joinKey(keyword) === key)
   }
   const alternatives: string[][][] = []
   if (included.includes('/') && !phrases.every(exact) && phrases.length === 2 && !invalidKeywords) {
-    const [left, right] = phrases.map(words)
+    const [left, right] = phrases.map(searchWords)
     for (const first of keywords) {
       if (joinKey(phrases[0]!) === joinKey(first)) {
         for (const second of keywords) {
-          const secondWords = words(second)
+          const secondWords = searchWords(second)
           if (right?.slice(0, secondWords.length).join(' ') !== secondWords.join(' ')) continue
           const common = requirement(right.slice(secondWords.length).join(' '))
           if (common?.length)
@@ -610,7 +618,7 @@ export function enhancementEligibility(
       }
       if (joinKey(phrases[1]!) === joinKey(first)) {
         for (const second of keywords) {
-          const secondWords = words(second)
+          const secondWords = searchWords(second)
           if (left?.slice(-secondWords.length).join(' ') !== secondWords.join(' ')) continue
           const common = requirement(left.slice(0, -secondWords.length).join(' '))
           if (common?.length)
