@@ -182,6 +182,7 @@ export function PlayerProfilePage({ userId, search }: { userId: string; search: 
                     params: { userId },
                     search: { tab: 'battles', ...(order ? { order } : {}), ...next },
                     replace: true,
+                    resetScroll: false,
                   })
                 }
                 opponents={data?.facets.opponents ?? []}
@@ -236,7 +237,13 @@ export function PlayerProfilePage({ userId, search }: { userId: string; search: 
                 favourites={favourites}
                 search={search.tab === 'rosters' ? rosterSearch(search) : {}}
                 onChange={(next) =>
-                  void navigate({ to: '/users/$userId', params: { userId }, search: { tab: 'rosters', ...next }, replace: true })
+                  void navigate({
+                    to: '/users/$userId',
+                    params: { userId },
+                    search: { tab: 'rosters', ...next },
+                    replace: true,
+                    resetScroll: false,
+                  })
                 }
               />
             </TabsContent>

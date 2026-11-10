@@ -261,6 +261,7 @@ function GroupScreen({
                         params: { token: group.token },
                         search: { tab: 'battles', ...(order ? { order } : {}), ...next },
                         replace: true,
+                        resetScroll: false,
                       })
                     }
                   />
