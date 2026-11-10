@@ -1,5 +1,13 @@
 # praetorium
 
+## 0.229.3 (2026-11-10)
+
+### Patch Changes
+
+- d5183ca: Battle setup's Format step now says the battle size comes after the armies, instead of "Determined by your rosters", until every list is in.
+- cdbe543: Public and friends' games now list the most recently played first, and a battle nobody has started leaves them two days after its last change, until it begins.
+- d5183ca: Watching a battle that has not started now shows its setup, with each side's choices so far, instead of an empty scoreboard.
+
 ## 0.229.2 (2026-11-10)
 
 ### Patch Changes
