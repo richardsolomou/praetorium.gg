@@ -16,7 +16,7 @@ Choose **All**, **Shooting** or **Melee**, then pick from these. A phase tab ove
 - **Command Re-roll**: the stratagem, once in that phase, on a hit, wound, save or Attacks roll.
 - **Stats**: BS or WS, S, A, AP and D.
 - **Abilities**: Sustained Hits, Lethal Hits, Devastating Wounds and damage re-rolls.
-- **Situation**: **Cover (−1 BS)**, **Half range**, **Charged**, plus indirect fire and **Decline Lethal Hits** when a weapon has them.
+- **Situation**: **Cover (−1 BS)**, **Half range**, **Charged**, plus indirect fire and **Decline Lethal Hits** when a weapon has them. Conversion weapons score Critical Hits on 4+ unless **Half range** is on.
 - **Defender**: T and Sv changes, an invulnerable save, Feel No Pain, save re-rolls, **−1 Damage** and **Half damage**.
 
 A dimmed chip wouldn't change anything. Hover it to see why. **Reset** clears every modifier and weapon choice.
