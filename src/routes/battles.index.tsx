@@ -6,10 +6,11 @@ import { pageHead } from '../client/linkPreview'
 
 export const Route = createFileRoute('/battles/')({
   validateSearch: parseBattlesSearch,
-  loaderDeps: ({ search }) => search,
-  loader: async ({ context, deps }) => {
+  // Keyed by the tab alone, so a filter change keeps the page and its list refetches in place instead of blocking navigation.
+  loaderDeps: ({ search }) => ({ view: search.view }),
+  loader: async ({ context, location }) => {
     const me = await context.queryClient.query({ ...meQuery(), staleTime: 'static' })
-    const { view: asked, order, ...search } = deps
+    const { view: asked, order, ...search } = parseBattlesSearch(location.search)
     const view = me ? (asked ?? 'mine') : 'public'
     const filter = battleFilterOf(search)
     const query =

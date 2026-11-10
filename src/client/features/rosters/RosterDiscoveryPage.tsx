@@ -277,7 +277,13 @@ export function RosterDiscoveryPage({ view, search }: { view: RosterAudience | '
               />
             )
           }
-          summary={!played && active > 0 && total !== null ? countLabel(total, 'roster') : null}
+          summary={
+            (played ? playedResult : result).isPlaceholderData
+              ? 'Updating…'
+              : !played && active > 0 && total !== null
+                ? countLabel(total, 'roster')
+                : null
+          }
         />
         {duplicate.isError ? <Problem>Could not duplicate that roster: {errorMessage(duplicate.error)}</Problem> : null}
         {copyPlayed.isError ? <Problem>Could not copy that army: {errorMessage(copyPlayed.error)}</Problem> : null}

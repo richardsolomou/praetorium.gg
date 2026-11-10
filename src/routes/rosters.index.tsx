@@ -13,20 +13,24 @@ import { PageLoading } from '../client/components/PageState'
 import { facetSearch, periodSearch, searchText } from '../client/searchParams'
 import { rosterStartSearch } from '../client/features/rosters/rosterStart'
 
+function rostersSearch(search: Record<string, unknown>): RostersSearch {
+  const q = searchText(search.q, ROSTER_SEARCH_MAX_LENGTH)?.trim()
+  const text = q ? { q } : {}
+  const view = ROSTER_VIEWS.find((known) => known === search.view)
+  if (view) {
+    const sort = ROSTER_SORTS.find((known) => known !== 'updated-desc' && known === search.sort)
+    return { view, ...text, ...facetSearch(search, DISCOVERY_FACETS), ...periodSearch(search), ...(sort ? { sort } : {}) }
+  }
+  return { ...text, ...facetSearch(search, LIBRARY_FACETS), ...periodSearch(search), ...rosterStartSearch(search) }
+}
+
 export const Route = createFileRoute('/rosters/')({
   pendingComponent: PageLoading,
-  validateSearch: (search: Record<string, unknown>): RostersSearch => {
-    const q = searchText(search.q, ROSTER_SEARCH_MAX_LENGTH)?.trim()
-    const text = q ? { q } : {}
-    const view = ROSTER_VIEWS.find((known) => known === search.view)
-    if (view) {
-      const sort = ROSTER_SORTS.find((known) => known !== 'updated-desc' && known === search.sort)
-      return { view, ...text, ...facetSearch(search, DISCOVERY_FACETS), ...periodSearch(search), ...(sort ? { sort } : {}) }
-    }
-    return { ...text, ...facetSearch(search, LIBRARY_FACETS), ...periodSearch(search), ...rosterStartSearch(search) }
-  },
-  loaderDeps: ({ search }) => (search.view ? search : {}),
-  loader: async ({ context, deps: { view, sort, ...search } }) => {
+  validateSearch: rostersSearch,
+  // Keyed by the tab alone, so a filter change keeps the page and its list refetches in place instead of blocking navigation.
+  loaderDeps: ({ search }) => ({ view: search.view }),
+  loader: async ({ context, location }) => {
+    const { view, sort, ...search } = rostersSearch(location.search)
     const me = await context.queryClient.query({ ...meQuery(), staleTime: 'static' })
     if (view) {
       const index = await context.queryClient.query({ ...factionIndexQuery(), staleTime: 'static' })
