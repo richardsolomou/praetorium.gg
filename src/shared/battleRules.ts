@@ -75,11 +75,20 @@ export function hydrateAuthoritativeAwards(state: BattleState, rules: BattleRead
 }
 
 export function resolvedMissionForSide(state: BattleState, rules: BattleMissionRules, side: number) {
-  if (state.settings.manual) return null
-  const ownDisposition = sideDisposition(state, side)
   const opponent = opposingSide(state, side)
-  const opposingDisposition = opponent === undefined ? null : sideDisposition(state, opponent)
-  return missionFor(rules, ownDisposition, opposingDisposition, state.settings.missionPackId)
+  return matchupMission(rules, state.settings, {
+    own: sideDisposition(state, side),
+    opposing: opponent === undefined ? null : sideDisposition(state, opponent),
+  })
+}
+
+/** The mission a side plays for its matchup, or none for a battle tracked by hand. */
+export function matchupMission(
+  rules: BattleMissionRules,
+  settings: { manual?: boolean; missionPackId: string | null },
+  matchup: { own: string | null; opposing: string | null },
+) {
+  return settings.manual ? null : missionFor(rules, matchup.own, matchup.opposing, settings.missionPackId)
 }
 
 export function setupReferenceError(state: ReturnType<typeof reduceBattle>, rules: LoadedRules): Refusal | null {

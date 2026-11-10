@@ -13,6 +13,7 @@ import { offlineIdentifier, offlineContext } from './offlineContext'
 import {
   withAuthoritativeAwards,
   hydrateAuthoritativeAwards,
+  matchupMission,
   resolvedMissionForSide,
   setupReferenceError,
   repairPrepReferenceError,
@@ -25,15 +26,15 @@ import type { AdminBattle } from '../admin'
 import {
   battleCapacity,
   type BattleEndReason,
-  type BattleState,
   type Command,
   commandArmy,
   reduceBattle,
   sameRandomDraw,
-  sideDisposition,
   type SubmitResult,
 } from '../core/battle'
 import { playedArmies } from '../core/playedArmies'
+import { battleDigest, type BattleDigest } from '../core/battleDigest'
+import type { RosterPick } from '../core/roster'
 import type { PlayerDefaults } from '../core/playerDefaults'
 import type { RecentMatchup } from '../core/recentMatchups'
 import { ABILITY_REMINDERS_FULL, type AbilityReminder } from '../core/reminders'
@@ -64,7 +65,7 @@ import {
   type StandingFaction,
   standings,
 } from '../core/standings'
-import { opposingSide, refuse } from '../core/battlePrimitives'
+import { refuse } from '../core/battlePrimitives'
 import { ACHIEVEMENTS, achievementPoints, achievements, type AchievementId, type EarnedAchievements } from '../core/achievements'
 import { swissPairings, swissStandings, type SwissMatch } from '../core/swiss'
 import { leagueDraw, leagueFixtureStatus } from '../core/groupLeague'
@@ -81,7 +82,7 @@ import { GroupService } from './services/groupService'
 import { RosterService } from './services/rosterService'
 import { SocialService } from './services/socialService'
 import { StandingsRefresh, storedBattle } from './standingsRefresh'
-import type { BattleHistory, BattleSeats, RepositoryPort } from './spacetimeRepository'
+import type { BattleCard, BattleHistory, BattleSeats, RepositoryPort } from './spacetimeRepository'
 
 /**
  * `mission` is the viewer's, for the screens that are about them. `missions` is every
@@ -137,7 +138,6 @@ const ACHIEVEMENT_DEFINITIONS = createHash('sha256')
   .update(JSON.stringify(ACHIEVEMENTS.map(({ id, metric, count }) => [id, metric, count])))
   .digest('hex')
   .slice(0, 16)
-type FeedBattle = BattleHistory & { at: number }
 type AchievementRows = { achievementId: AchievementId; earnedAt: number | null; seen: boolean }[]
 
 /** A page of the battle list. History grows for an account's lifetime; a page does not. */
@@ -215,9 +215,9 @@ export class PraetoriumService {
   }
 
   /**
-   * A user's battles with their current state folded from each log.
+   * A user's battles with their current state, read from each one's digest.
    *
-   * The logs arrive with the seats, so the cost of this page does not grow by a
+   * The digests arrive with the seats, so the cost of this page does not grow by a
    * round trip for every battle the player has ever opened.
    */
   async battles(
@@ -237,7 +237,7 @@ export class PraetoriumService {
   /**
    * The battles anyone may watch, for the home page.
    *
-   * Folded with no viewer, the same as a sealed event's list: a reader with no
+   * Read with no viewer, the same as a sealed event's list: a reader with no
    * seat is told what a spectator of any one of these would be told, and nothing
    * in a summary is hidden from a spectator anyway.
    */
@@ -270,13 +270,13 @@ export class PraetoriumService {
   }
 
   /**
-   * One page of a feed's matches, walking its stored order because whether a battle matches is only known from its log.
+   * One page of a feed's matches, walking its stored order because whether a battle matches is only known from its digest.
    *
    * The walk is bounded, so a rare match can return a short or empty page; its cursor continues from where the walk stopped.
    */
   private async filteredFeed(
     read: (page: { limit: number; before?: BattlesCursor; order?: BattleOrder }) => Promise<{
-      battles: FeedBattle[]
+      battles: BattleCard[]
       nextCursor: BattlesCursor | null
     }>,
     page: { limit?: number; before?: BattlesCursor; filter?: BattleFilter; order?: BattleOrder } | undefined,
@@ -298,7 +298,7 @@ export class PraetoriumService {
     for (let walked = 0; walked < FILTER_SCAN_PAGES; walked++) {
       const { battles, nextCursor } = await read({ limit: FILTER_SCAN_BATTLES, before: cursor, order })
       for (const [index, history] of battles.entries()) {
-        const summary = battleSummary(history, foldHistory(history), viewerId, rules, factionsById)
+        const summary = battleSummary(history, history.digest, viewerId, rules, factionsById)
         if (!matchesBattle(summary, filter, viewerId, history.at, now)) continue
         kept.push(summary)
         if (kept.length === wanted)
@@ -321,6 +321,7 @@ export class PraetoriumService {
     accepts?: (armies: PlayedArmy[]) => PlayedArmy[] | Promise<PlayedArmy[]>,
   ) {
     const armies: PlayedArmy[] = []
+    const factionsById = byId(factions)
     let cursor = before
     for (let walked = 0; walked < (accepts ? FILTER_SCAN_PAGES : 1); walked++) {
       const { battles: histories, nextCursor } = await this.repository.publicBattles({
@@ -328,7 +329,9 @@ export class PraetoriumService {
         before: cursor,
         viewerId,
       })
-      const fielded = histories.flatMap((history) => this.playedArmiesOf(history, factions))
+      const fielded = histories.flatMap((card) =>
+        playedArmies(card, card.digest, battleSummary(card, card.digest, null, null, factionsById)),
+      )
       armies.push(...(accepts ? await accepts(fielded) : fielded))
       cursor = nextCursor ?? undefined
       if (!cursor || armies.length >= PLAYED_ARMY_BATTLES) break
@@ -336,16 +339,30 @@ export class PraetoriumService {
     return { armies, nextCursor: cursor ?? null }
   }
 
-  /** One army from a finished battle, or nothing. */
+  /** One army from a finished battle with the picks it fielded, or nothing. */
   async playedArmy(token: string, playerId: string) {
     const history = await this.repository.battleHistoryByToken(token)
     if (!history || !this.mayWatch(history)) return null
-    return this.playedArmiesOf(history, []).find((army) => army.player.id === playerId) ?? null
+    const state = foldHistory(history)
+    const digest = battleDigest(state, history.log)
+    const army = playedArmies(history, digest, battleSummary(history, digest, null, null, new Map())).find(
+      (played) => played.player.id === playerId,
+    )
+    const picks = state.players.find((player) => player.id === playerId)?.roster?.built?.picks
+    return army && picks ? { ...army, picks } : null
   }
 
-  private playedArmiesOf(history: BattleHistory, factions: readonly BattleFaction[]) {
-    const state = foldHistory(history)
-    return playedArmies(history, state, battleSummary(history, state, null, null, byId(factions)))
+  /** The picks each army fielded, read from its battle's log; only the armies a page prices need them. */
+  async playedArmyPicks(armies: readonly PlayedArmy[]) {
+    const tokens = [...new Set(armies.map((army) => army.battle))]
+    const histories = await Promise.all(tokens.map((token) => this.repository.battleHistoryByToken(token)))
+    const picks = new Map<string, RosterPick[]>()
+    for (const history of histories) {
+      if (!history) continue
+      for (const player of foldHistory(history).players)
+        if (player.roster?.built?.picks) picks.set(`${history.battle.token}:${player.id}`, player.roster.built.picks)
+    }
+    return armies.map((army) => picks.get(`${army.battle}:${army.player.id}`) ?? [])
   }
 
   /** The battles this player's friends are in and they are not. */
@@ -581,14 +598,9 @@ export class PraetoriumService {
     const archived = archivedArmies(rosters)
     const uses = countBy(
       seated.flatMap((history) => {
-        const built = foldHistory(history).players.find((player) => player.id === userId)?.roster?.built
-        if (built && archived.has(currentCatalogueFamilyId(built.catalogueId))) return []
-        return [
-          ...new Set([
-            ...(built?.picks ?? []).map((pick) => pick.entryId),
-            ...(built?.units ?? []).flatMap((unit) => (unit.entryId ? [unit.entryId] : [])),
-          ]),
-        ]
+        const seat = history.digest.seats.find((candidate) => candidate.id === userId)
+        if (seat?.built && archived.has(currentCatalogueFamilyId(seat.built.catalogueId))) return []
+        return seat?.fielded ?? []
       }),
       (entryId) => entryId,
     )
@@ -629,7 +641,7 @@ export class PraetoriumService {
   }
 
   /** Every battle with a seated player is open to watch; a table nobody sits at is not. */
-  private mayWatch(history: BattleHistory) {
+  private mayWatch(history: BattleSeats) {
     return history.players.length > 0
   }
 
@@ -807,7 +819,7 @@ export class PraetoriumService {
     if (!group) return null
     const memberIds = new Set(group.members.filter((member) => member.status === 'accepted').map((member) => member.userId))
     if (hiddenFromViewer(group, viewerId)) return null
-    const histories: BattleHistory[] = []
+    const histories: BattleCard[] = []
     let before: BattlesCursor | undefined
     for (let page = 0; page < STANDINGS_PAGES; page++) {
       const { battles, nextCursor } = await this.repository.battlesByGroup(token, { limit: SEALED_EVENT_RESULTS_BATTLE_LIMIT, before })
@@ -822,7 +834,7 @@ export class PraetoriumService {
     const gameOf = new Map<string, string>()
     const counted = this.battleSummaries(
       histories.filter((history) => {
-        const state = foldHistory(history)
+        const state = history.digest
         const fromGame = state.eventToken !== null && gameEvents.has(state.eventToken)
         if (fromGame) gameOf.set(history.battle.token, state.eventToken!)
         return state.groupId === group.id || fromGame || (state.eventToken === null && state.sealedEventToken === group.token)
@@ -971,31 +983,30 @@ export class PraetoriumService {
   }
 
   private battleSummaries(
-    histories: readonly BattleHistory[],
+    histories: readonly BattleCard[],
     viewerId: string | null,
     rules?: BattleMissionRules | null,
     factions: readonly BattleFaction[] = [],
   ) {
     const factionsById = byId(factions)
-    return histories.map((history) => battleSummary(history, foldHistory(history), viewerId, rules, factionsById))
+    return histories.map((history) => battleSummary(history, history.digest, viewerId, rules, factionsById))
   }
 
   /**
    * The battle list's summaries with what each side did with its resources, for a
-   * record. Each log is folded once for both, so the record costs no second pass.
+   * record, both read from the one digest.
    */
   private recordBattles(
-    histories: readonly BattleHistory[],
+    histories: readonly BattleCard[],
     viewerId: string | null,
     rules: BattleReadRules | null | undefined,
     factions: readonly BattleFaction[],
   ) {
     const factionsById = byId(factions)
     return histories.map((history) => {
-      const state = foldHistory(history)
       return {
-        ...battleSummary(history, state, viewerId, rules, factionsById),
-        plays: referencedPlays(state, seatPlays(state, viewerId), rules, factionsById),
+        ...battleSummary(history, history.digest, viewerId, rules, factionsById),
+        plays: referencedPlays(history.digest, seatPlays(history.digest, viewerId), rules, factionsById),
       }
     })
   }
@@ -1488,14 +1499,13 @@ export class PraetoriumService {
   }
 }
 
-function adminBattleSummary(history: BattleHistory): AdminBattle {
-  const state = foldHistory(history)
+function adminBattleSummary(history: BattleCard): AdminBattle {
   return {
     token: history.battle.token,
     createdAt: history.battle.createdAt,
-    lastActivity: history.log.at(-1)?.at ?? history.battle.createdAt,
-    status: state.status,
-    round: state.round,
+    lastActivity: history.digest.lastCommandAt ?? history.battle.createdAt,
+    status: history.digest.status,
+    round: history.digest.round,
     players: history.players.map(({ id, name, side }) => ({ id, name, side })),
   }
 }
@@ -1520,30 +1530,28 @@ function foldHistory({ players, log }: BattleHistory) {
  * dispositions, falling back to what `set-prep` recorded only where that fails.
  */
 function referencedPlays(
-  state: BattleState,
+  digest: BattleDigest,
   plays: SeatPlay[],
   rules: BattleReadRules | null | undefined,
   factionsById: ReadonlyMap<string, BattleFaction>,
 ): SeatPlay[] {
-  const packId = state.settings.missionPackId
+  const packId = digest.settings.missionPackId
   const packs = rules ? gameReferencesFor(rules).packs : []
   const pack = packs.find((candidate) => candidate.id === packId)
   const cards = new Set(pack ? rules?.secondaries.map((card) => card.key) : [])
-  return plays.map((play, seat) => {
-    const player = state.players[seat]!
-    const allies = state.players.filter((candidate) => candidate.side === player.side)
+  return plays.map((play, index) => {
+    const seat = digest.seats[index]!
+    const allies = digest.seats.filter((candidate) => candidate.side === seat.side)
     const printedBy = (detachment: string | undefined) => {
       if (!detachment) return undefined
       const faction = allies
-        .map((ally) => factionsById.get(ally.roster?.built?.catalogueId ?? ''))
+        .map((ally) => factionsById.get(ally.built?.catalogueId ?? ''))
         .find((candidate) => candidate?.detachments?.some((listed) => listed.name === detachment))
       const route = faction?.detachments?.find((listed) => listed.name === detachment)?.referenceRoute
       return faction ? { catalogueId: route?.catalogueId ?? faction.slug, detachmentId: route?.slug ?? routeSlug(detachment) } : undefined
     }
-    const opposing = opposingSide(state, player.side)
-    const you = sideDisposition(state, player.side)
-    const opponent = opposing === undefined ? null : sideDisposition(state, opposing)
-    const mission = play.primary && rules && state.status !== 'setup' ? resolvedMissionForSide(state, rules, player.side) : null
+    const { own: you, opposing: opponent } = seat.matchup
+    const mission = play.primary && rules && digest.status !== 'setup' ? matchupMission(rules, digest.settings, seat.matchup) : null
     const matchup = pack?.missions.some(
       (candidate) => candidate.id === mission?.id && candidate.matchups.some((pair) => pair[0]?.id === you && pair[1]?.id === opponent),
     )

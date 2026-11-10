@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import { battleCard } from './battleCard.fixtures'
 import type { RepositoryPort } from './spacetimeRepository'
 import { PraetoriumService } from './service'
 
@@ -42,7 +43,7 @@ it('reads again after a failed read', async () => {
 })
 
 describe('a filtered feed', () => {
-  const history = (id: string, at: number) => ({ battle: { id, token: id, createdAt: at }, at, players: [], log: [] })
+  const history = (id: string, at: number) => battleCard({ battle: { id, token: id, createdAt: at }, at, players: [], log: [] })
   const walking = (pages: { battles: ReturnType<typeof history>[]; nextCursor: { at: number; id: string } | null }[]) => {
     const publicBattles = vi.fn()
     for (const page of pages) publicBattles.mockResolvedValueOnce(page)

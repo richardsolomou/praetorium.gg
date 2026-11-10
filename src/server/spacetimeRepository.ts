@@ -1,3 +1,4 @@
+import type { BattleDigest } from '../core/battleDigest'
 import type { BattleOrder } from '../core/battleFilter'
 import { isAdminUserCountSort, type AdminUser, type AdminUserCountSort, type AdminUserPage, type AdminUsersRequest } from '../admin'
 import type { BattlesCursor } from '../contracts/battles'
@@ -36,6 +37,8 @@ function tournamentDetails({ token: _token, createdAt: _createdAt, adminIds: _ad
 
 export type BattleSeats = { battle: Snapshot['battle']; players: BattlePlayer[] }
 export type BattleHistory = BattleSeats & { log: Snapshot['log'] }
+/** A battle as a list reads it, with the digest of its log in place of the log. */
+export type BattleCard = BattleSeats & { digest: BattleDigest; at: number }
 
 const ADMIN_USER_COUNT_FIELDS = {
   rosters: 'rosterCount',
@@ -1354,11 +1357,11 @@ export class SpacetimeRepository {
   private async feed(input: Parameters<SpacetimeOperator['battleFeed']>[0]) {
     const page = await this.product.battleFeed(input)
     const profiles = await this.seatProfiles(page.battles)
-    const battles = page.battles.map((row) => ({
+    const battles: BattleCard[] = page.battles.map((row) => ({
       battle: row.battle,
       at: row.at,
       players: row.seats.map((seat) => seatPlayer(profiles, seat)),
-      log: row.log,
+      digest: row.digest,
     }))
     return { battles, nextCursor: page.nextCursor }
   }

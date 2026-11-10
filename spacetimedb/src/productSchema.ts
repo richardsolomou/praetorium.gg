@@ -470,6 +470,19 @@ const battleFinishes = table(
 )
 
 /**
+ * Each battle's digest (`src/core/battleDigest.ts`), so a list of battles reads one small row per battle rather than its log.
+ * Filled lazily by `battleDigestOf`, and refolded whenever `key` no longer names the battle's seats and log.
+ */
+const battleDigests = table(
+  { name: 'battle_digests' },
+  {
+    battleId: t.string().primaryKey(),
+    key: t.string(),
+    digest: t.string(),
+  },
+)
+
+/**
  * The `battles` revision at which each battle's log or seats last changed, so a reader keeping its own copy of results
  * rereads only what changed since it last read. The row outlives its battle, which tells that reader it is gone.
  */
@@ -816,6 +829,7 @@ export const productTables = {
   groupBattles,
   battleActivity,
   battleFinishes,
+  battleDigests,
   battleChanges,
   battleResults,
   ratingSteps,

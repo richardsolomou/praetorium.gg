@@ -3,7 +3,8 @@
 import { groupBy } from './collections'
 import { isGuestSeat } from './newBattle'
 import { routeSlug } from './slug'
-import { type BattleState, mayNameCard, type PlayerId, pointsLabel } from './battle'
+import { type PlayerId, pointsLabel } from './battle'
+import type { BattleDigest } from './battleDigest'
 import {
   battleOutcome,
   opponentScore,
@@ -36,25 +37,21 @@ type MissionPlay = { key: string; name: string; reference?: { packId: string; yo
 export type SeatPlay = { cpSpent: number; stratagems: readonly StratagemPlay[]; cards: readonly CardPlay[]; primary: MissionPlay | null }
 
 /**
- * Each seat's stratagems, cards and primary, read off a folded battle.
+ * Each seat's stratagems, cards and primary, read off a battle's digest.
  *
  * The fold has already skipped every undone command, so an undone stratagem was
  * never used here. A card put back the moment it was drawn was never held, and a
  * face-down Secret Mission this reader may not name is left out altogether rather
- * than counted under another name: `mayNameCard` is the answer `battleView` masks
- * by, so a record cannot name a card the battle itself withholds.
+ * than counted under another name: a digest's `secret` is `mayNameCard` asked of
+ * no viewer, so a record cannot name a card the battle itself withholds.
  */
-export function seatPlays(state: BattleState, viewerId: PlayerId | null): SeatPlay[] {
-  return state.players.map((player) => ({
-    cpSpent: player.cpSpent,
-    stratagems: player.uses.map(({ key, name, cp }) => {
-      const detachment = player.stratagems.find((stratagem) => stratagem.key === key)?.detachment
-      return { key, name, cp, ...(detachment ? { detachment } : {}) }
-    }),
-    cards: [...new Map(player.secondaries.map((secondary) => [secondary.key, secondary])).values()]
-      .filter((secondary) => player.secondaryStatus[secondary.key] !== 'returned' && mayNameCard(state, viewerId, player, secondary.key))
-      .map(({ key, name }) => ({ key, name, points: player.scored[key] ?? 0 })),
-    primary: player.primaryCard ? { key: player.primaryCard.key, name: player.primaryCard.name } : null,
+export function seatPlays(digest: BattleDigest, viewerId: PlayerId | null): SeatPlay[] {
+  const viewerSide = digest.seats.find((seat) => seat.id === viewerId)?.side
+  return digest.seats.map((seat) => ({
+    cpSpent: seat.cpSpent,
+    stratagems: seat.stratagems,
+    cards: seat.cards.filter((card) => !card.secret || seat.side === viewerSide).map(({ key, name, points }) => ({ key, name, points })),
+    primary: seat.primaryCard,
   }))
 }
 

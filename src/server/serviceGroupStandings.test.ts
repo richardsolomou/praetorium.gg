@@ -1,4 +1,5 @@
 import { expect, it, vi } from 'vitest'
+import { battleCard } from './battleCard.fixtures'
 import { ALICE, BOB, NAMES, builtRoster, log } from '../core/battle.fixtures'
 import type { Command } from '../core/battle'
 import type { RepositoryPort } from './spacetimeRepository'
@@ -32,7 +33,7 @@ function fixture({ members = [ALICE, BOB], visibility = 'private', counted = tag
       games: [{ token: 'game' }],
       members: members.map((userId) => ({ userId, status: 'accepted', role: 'member', name: userId, image: null })),
     }),
-    battlesByGroup: vi.fn().mockResolvedValue({ battles: [history], nextCursor: null }),
+    battlesByGroup: vi.fn().mockResolvedValue({ battles: [battleCard(history)], nextCursor: null }),
     practiceOpponents: vi.fn().mockResolvedValue([]),
   } as unknown as RepositoryPort
   return new PraetoriumService(

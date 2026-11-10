@@ -15,6 +15,7 @@ const battle: Battle = {
   token: 'battle',
   createdAt: 0,
   lastActivity: 0,
+  serverSeq: 0,
   status: 'playing',
   round: 1,
   phase: 'command',

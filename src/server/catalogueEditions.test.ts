@@ -1,4 +1,5 @@
 import fs from 'node:fs'
+import { battleDigest } from '../core/battleDigest'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
@@ -339,7 +340,7 @@ it.each([undefined, { id: 'old', name: 'Previous rules', status: 'retired' as co
     }
     const summary = battleSummary(
       history,
-      reduceBattle([ALICE, BOB], history.log),
+      battleDigest(reduceBattle([ALICE, BOB], history.log), history.log),
       null,
       null,
       new Map(loaded.battleFactions().map((faction) => [faction.id, faction])),

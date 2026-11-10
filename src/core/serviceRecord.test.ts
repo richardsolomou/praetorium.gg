@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { battleDigest } from './battleDigest'
 import { type Command, reduceBattle } from './battle'
 import { ALICE, BOB, log, PLAYERS, started } from './battle.fixtures'
 import { guestSeatId } from './newBattle'
@@ -60,7 +61,10 @@ const allied = (over: Partial<RecordBattle> = {}): RecordBattle =>
   })
 
 /** Folds a log as the profile does, read by `viewer`. */
-const folded = (viewer: string | null, ...entries: [string, Command][]) => seatPlays(reduceBattle(PLAYERS, log(...entries)), viewer)
+const folded = (viewer: string | null, ...entries: [string, Command][]) => {
+  const logged = log(...entries)
+  return seatPlays(battleDigest(reduceBattle(PLAYERS, logged), logged), viewer)
+}
 
 const STRATAGEM = { key: 'grenade', name: 'Grenade', cp: 1, limit: 'unlimited' as const }
 

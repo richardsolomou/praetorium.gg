@@ -5,6 +5,7 @@ import { compactReplayFrames } from '../../core/replayFrames'
 import { REPLAY_BATCH_SIZE } from '../../contracts/battles'
 import { buildSealedEventBattle, openPairing } from '../../shared/sealedEventBattle'
 import { battleSummary } from '../../shared/battleSummary'
+import { battleDigest } from '../../core/battleDigest'
 import type * as Server from '../../server/functions'
 import * as server from '../../server/functions'
 import { battleWorkspace } from '../../server/functions/offline'
@@ -513,7 +514,13 @@ function overlayBattlePage(page: Awaited<ReturnType<typeof server.myBattles>>, s
     if (!first && !battles.has(workspace.battle.token)) continue
     battles.set(
       workspace.battle.token,
-      battleSummary(workspace, localBattleState(workspace.players, workspace.log), state.owner, localRules()?.rules, new Map()),
+      battleSummary(
+        workspace,
+        battleDigest(localBattleState(workspace.players, workspace.log), workspace.log),
+        state.owner,
+        localRules()?.rules,
+        new Map(),
+      ),
     )
   }
   return { ...page, battles: [...battles.values()].sort((left, right) => right.lastActivity - left.lastActivity) }
