@@ -9,6 +9,9 @@ export const GUEST_DRAFT_COOKIE = 'praetorium_guest_draft'
 /** The order a player keeps their library in, read by the server so the first frame is already sorted. */
 export const ROSTER_SORT_COOKIE = 'praetorium_roster_sort'
 
+/** What a player groups their library by, read by the server so the first frame is already grouped. */
+export const ROSTER_GROUPING_COOKIE = 'praetorium_roster_grouping'
+
 /** Whether the library last had a data update notice, read by the server so the first frame keeps the notice's line while it loads. */
 export const ROSTER_NOTICES_COOKIE = 'praetorium_roster_notices'
 
