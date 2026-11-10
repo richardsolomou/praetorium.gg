@@ -55,6 +55,8 @@ import { ReservesStep } from './ReservesStep'
 import { SecondariesStep } from './SecondariesStep'
 import { MissionDetailsDialog, type MissionDetails } from '../MissionCards'
 import { useSpectated } from '../Spectator'
+import { ArmyRoster } from '../ArmyRoster'
+import { BattleCombatDialog, type BattleCombatSelection } from '../../simulator/BattleCombatDialog'
 import { tint } from '../battleTints'
 import { SidePlayers } from '../PlayerName'
 import type { OnboardingTarget } from '../../../onboardingTargets'
@@ -143,6 +145,8 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
     if (!options?.background) setReserveRow(null)
     sendCommand?.(command, options)
   }
+  /** The unit a reader with no seat asked to simulate from an army's list. */
+  const [combatSelection, setCombatSelection] = useState<BattleCombatSelection | null>(null)
   /** The mission card a matchup panel has been asked to read out, if any. */
   const [reading, setReading] = useState<MissionDetails | null>(null)
   /**
@@ -396,7 +400,7 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
               </p>
               {manual ? <p className="text-sm text-discarded">Manual tracking. {MANUAL_TRACKING_LIMITS}</p> : null}
             </div>
-            <FaceOff sides={table} battle={view.token} />
+            <FaceOff sides={table} battle={view.token} onSimulate={watching ? setCombatSelection : undefined} />
           </header>
 
           <ol className="mt-10">
@@ -773,6 +777,7 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
             </SpineStep>
           </ol>
           {reading ? <MissionDetailsDialog details={reading} onOpenChange={(open) => !open && setReading(null)} /> : null}
+          {combatSelection ? <BattleCombatDialog view={view} selection={combatSelection} onClose={() => setCombatSelection(null)} /> : null}
         </div>
 
         <div data-setup-bar className="sticky bottom-0 z-20 mt-4 border-t border-edge bg-sunken">
@@ -819,8 +824,17 @@ const NOTHING_OWED = new Set<SectionId>(['reserves', 'deploy', 'pre-battle'])
 /**
  * Who is playing whom, facing each other across the spine every step below hangs from.
  * Each army's name links to its list, so the table can read what it faces before the battle begins.
+ * A reader with no seat opens the list in place instead, as they would once the battle runs, given `onSimulate`.
  */
-function FaceOff({ sides, battle }: { sides: Side[]; battle: string }) {
+function FaceOff({
+  sides,
+  battle,
+  onSimulate,
+}: {
+  sides: Side[]
+  battle: string
+  onSimulate?: (selection: BattleCombatSelection) => void
+}) {
   return (
     <div className="relative grid grid-cols-[minmax(0,1fr)_2rem_minmax(0,1fr)] items-stretch sm:grid-cols-[minmax(0,1fr)_3rem_minmax(0,1fr)]">
       {sides.map((side, position) => {
@@ -851,20 +865,37 @@ function FaceOff({ sides, battle }: { sides: Side[]; battle: string }) {
                   ? armies.map((army, at) => (
                       <Fragment key={army.playerId}>
                         {at ? ' & ' : null}
-                        {/* The list as fielded, which the battle lets either side read even where the saved roster is private. */}
-                        <Link
-                          to="/rosters/$id"
-                          params={{ id: army.playerId }}
-                          search={{ battle }}
-                          className="underline decoration-faint decoration-2 underline-offset-4 hover:decoration-current"
-                        >
-                          {army.roster!.name}
-                        </Link>
+                        {onSimulate ? (
+                          army.roster!.name
+                        ) : (
+                          /* The list as fielded, which the battle lets either side read even where the saved roster is private. */
+                          <Link
+                            to="/rosters/$id"
+                            params={{ id: army.playerId }}
+                            search={{ battle }}
+                            className="underline decoration-faint decoration-2 underline-offset-4 hover:decoration-current"
+                          >
+                            {army.roster!.name}
+                          </Link>
+                        )}
                       </Fragment>
                     ))
                   : 'No army yet'}
               </span>
               {points ? <span className="figure text-xs text-dim">{points.toLocaleString('en')} pts</span> : null}
+              {onSimulate
+                ? armies.map((army) => (
+                    <ArmyRoster
+                      key={army.playerId}
+                      army={army}
+                      side={side}
+                      actionable={false}
+                      pending={false}
+                      send={ignoreCommand}
+                      onSimulate={onSimulate}
+                    />
+                  ))
+                : null}
             </div>
           </Fragment>
         )
@@ -872,6 +903,8 @@ function FaceOff({ sides, battle }: { sides: Side[]; battle: string }) {
     </div>
   )
 }
+
+const ignoreCommand: SendCommand = () => {}
 
 /**
  * One step of setup, hung from the spine.
