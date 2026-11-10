@@ -39,15 +39,7 @@ import { FilterBar, type FilterDimension } from '../../components/FilterBar'
 import { NoFilterMatches } from '../../components/NoFilterMatches'
 import { ungrouped } from '../../components/SearchableSelect'
 import { facetsOf, periodSearch } from '../../searchParams'
-import {
-  facetMatches,
-  facetText,
-  periodBounds,
-  withinPeriod,
-  type Facet,
-  type FacetAddress,
-  type PeriodFilter,
-} from '../../../core/listFilter'
+import { facetMatches, facetText, periodBounds, withinPeriod, type Facet } from '../../../core/listFilter'
 import { matchesRosterAssessment, rosterAssessmentFilterActive, ROSTER_SEARCH_MAX_LENGTH } from '../../../core/rosterDiscovery'
 import { ROSTER_VISIBILITIES } from '../../../core/savedRoster'
 import { VISIBILITY_NAME } from './visibility'
@@ -84,19 +76,7 @@ import { useRosterPages } from './rosterPages'
 import { errorMessage } from '../../queryClient'
 import { Problem } from '../../components/Problem'
 import { countLabel } from '../../text'
-
-export const LIBRARY_FACETS = [
-  'limit',
-  'faction',
-  'detachment',
-  'visibility',
-  'disposition',
-  'legality',
-  'points',
-  'updates',
-  'state',
-] as const
-export type RosterLibrarySearch = PeriodFilter & { q?: string } & Partial<Record<(typeof LIBRARY_FACETS)[number], FacetAddress>>
+import { LIBRARY_FACETS, type RosterLibrarySearch } from './rosterSearch'
 
 const UPDATE_GROUPS = ungrouped([
   { label: 'Older rules', value: 'older' },

@@ -1,4 +1,4 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQueryClient } from '@tanstack/react-query'
 import { posthog } from 'posthog-js'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { IdentityChangedError, setGlobalLogLevel } from 'spacetimedb'
@@ -14,32 +14,11 @@ import {
   invalidatePublicProductQueries,
 } from './productSignals'
 import { setLiveProductRefresh } from './liveProductRefresh'
-import { isExpectedRealtimeDisconnect, RealtimeHttpError } from './realtimeErrors'
-import { withTimeout } from './abortSignals'
+import { RealtimeHttpError } from './realtimeErrors'
+import { browserUri, reportRealtime, type RealtimeConfig } from './realtimeConfig'
+import { isExpectedRealtimeDisconnect } from './spacetimeErrors'
 import { battleCommandsSettled } from './pendingWrites'
-import { meKey, realtimeModeKey, reportKey } from './queries/queryKeys'
-
-/** The SpacetimeDB proxy on the page's own origin, which a local server may have named by another host. */
-const browserUri = (uri: string) => new URL(new URL(uri).pathname, window.location.origin).toString()
-
-export function useRealtimeConfig() {
-  const { data, error } = useQuery({
-    queryKey: realtimeModeKey(),
-    queryFn: async ({ signal }) => {
-      const response = await fetch('/api/realtime/mode', { signal: withTimeout(signal, 10_000) })
-      if (!response.ok) throw new RealtimeHttpError('Realtime mode', response.status)
-      const parsed = z.object({ mode: z.literal('spacetime'), database: z.string().min(1), uri: z.url() }).parse(await response.json())
-      return { ...parsed, uri: browserUri(parsed.uri) }
-    },
-    staleTime: Infinity,
-  })
-  useEffect(() => {
-    if (error) report(error)
-  }, [error])
-  return data ?? null
-}
-
-type RealtimeConfig = NonNullable<ReturnType<typeof useRealtimeConfig>>
+import { meKey, reportKey } from './queries/queryKeys'
 
 const ticketSchema = z.object({
   token: z.string().min(1),
@@ -67,14 +46,9 @@ async function guestTicket(config: RealtimeConfig) {
 
 // A hidden tab's socket is often closed by the browser to save power, which is not an outage the player sees.
 const hidden = () => globalThis.document?.visibilityState === 'hidden'
+const report = (error: unknown) => reportRealtime(error, isExpectedRealtimeDisconnect)
 const lost = (how: 'interrupted' | 'failed') => posthog.capture('realtime_connection_lost', { how, hidden: hidden() })
 const restored = (downMs: number) => posthog.capture('realtime_connection_restored', { down_ms: Math.round(downMs), hidden: hidden() })
-
-function report(error: unknown) {
-  if (isExpectedRealtimeDisconnect(error)) return
-  posthog.captureException(error, { operation: 'spacetime_realtime' })
-  console.error({ event: 'spacetime_realtime_failed', error })
-}
 
 type Ticket = { token: string; database: string; uri: string }
 
@@ -327,4 +301,10 @@ export function useSpacetimeLiveProduct(config: RealtimeConfig | null, signedIn:
     }, 20_000)
     return () => window.clearInterval(timer)
   }, [enabled, queryClient, refreshAdmin, signedIn, subscribed])
+}
+
+/** Product signals as a component, so the shell can load the SpacetimeDB client after the first paint. */
+export function LiveProductUpdates({ config, signedIn }: { config: RealtimeConfig; signedIn: boolean }) {
+  useSpacetimeLiveProduct(config, signedIn)
+  return null
 }

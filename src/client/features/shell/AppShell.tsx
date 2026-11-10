@@ -23,7 +23,7 @@ import {
 } from 'lucide-react'
 import { postHogEnvironment } from 'ras-stack/posthog'
 import { PostHogBetterAuthIdentity, PostHogIntegration } from 'ras-stack/posthog/react'
-import { type ReactElement, useEffect, useLayoutEffect } from 'react'
+import { lazy, type ReactElement, Suspense, useEffect, useLayoutEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { buttonClass } from '../../components/buttonClass'
 import { ROSTER_WORKSPACE, followRailState, setRailCollapsed, useRailCollapsed } from './railState'
@@ -46,7 +46,7 @@ import { SupportIdentity } from '../feedback/support'
 import { meQuery } from '../../queries'
 import { COMMUNITY_LINKS, COMMUNITY_PAGES, FRIENDS_PAGE } from './CommunityLinks'
 import { followTextSourceChoice } from '../../rulesText'
-import { useRealtimeConfig, useSpacetimeLiveProduct } from '../../spacetimeLive'
+import { useRealtimeConfig } from '../../realtimeConfig'
 // A local dev server shares the production project token, so gate the browser
 // SDK on a built bundle to keep localhost sessions out of the production project.
 const posthog = import.meta.env.PROD
@@ -298,6 +298,8 @@ function SiteFooter() {
   )
 }
 
+const LiveProductUpdates = lazy(() => import('../../spacetimeLive').then((live) => ({ default: live.LiveProductUpdates })))
+
 export function AppShell() {
   const location = useLocation()
   const path = location.pathname
@@ -309,7 +311,6 @@ export function AppShell() {
   // Set while rendering so it holds before any child's effect captures.
   if (typeof window !== 'undefined') setImpersonating(impersonating)
   const realtime = useRealtimeConfig()
-  useSpacetimeLiveProduct(realtime, Boolean(me))
   useLayoutEffect(followTextSourceChoice, [])
   useLayoutEffect(() => followRailState(immersive), [immersive])
   // Browser tests wait for this before interacting: a click before hydration does nothing.
@@ -327,6 +328,11 @@ export function AppShell() {
               <PostHogBetterAuthIdentity authClient={authClient} properties={({ name, email }) => ({ name, email })} />
             )}
             {posthog && !impersonating && <SupportIdentity />}
+            {realtime && (
+              <Suspense>
+                <LiveProductUpdates config={realtime} signedIn={Boolean(me)} />
+              </Suspense>
+            )}
             <GlobalSearchProvider>
               {/*
                * The rail sits beside the page and the page decides its own width,

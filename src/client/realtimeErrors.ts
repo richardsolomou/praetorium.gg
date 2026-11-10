@@ -1,4 +1,3 @@
-import { IdentityChangedError, UnknownCallResultError } from 'spacetimedb'
 import { isFetchNetworkFailure } from './networkErrors'
 
 export class RealtimeHttpError extends Error {
@@ -30,16 +29,13 @@ export function isStubbedWebSocketRefusal(error: unknown) {
   return error instanceof Error && error.message.endsWith('Failed to create a WebSocket: the provided URL is invalid.')
 }
 
-export function isExpectedRealtimeDisconnect(error: unknown): boolean {
+/** A failure the next attempt rides out, whatever client raised it; `spacetimeErrors` adds the SDK's own. */
+export function isExpectedRealtimeFailure(error: unknown): boolean {
   // The SDK wraps the browser's socket error event in an Error.
   if (isSocketErrorEvent(error) || (error instanceof Error && isSocketErrorEvent(error.cause))) return true
   if (isRealtimeServiceUnavailable(error)) return true
   if (error instanceof RealtimeHttpError) return error.status === 401 || error.status === 408 || error.status === 429
   if (isFetchNetworkFailure(error)) return true
-  // The SDK ends a connection whose reconnect ticket names another session rather than serve it, and the loop opens a fresh one.
-  if (error instanceof IdentityChangedError) return true
-  // A call cut off by a dropped or closed socket; the next subscription repeats it.
-  if (error instanceof UnknownCallResultError) return true
   if (typeof error !== 'object' || error === null) return false
   const { name, message } = error as { name?: unknown; message?: unknown }
   if (name === 'UnauthorizedError' || name === 'TimeoutError') return true

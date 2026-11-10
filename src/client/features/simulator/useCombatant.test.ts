@@ -34,6 +34,7 @@ vi.mock('./combatWorker', () => ({
 vi.mock('react', () => ({
   useContext: () => hooks.optimization,
   createContext: () => ({}),
+  lazy: () => () => null,
   useState: (initial: unknown) => {
     const index = hooks.cursor++
     if (!(index in hooks.slots)) hooks.slots[index] = typeof initial === 'function' ? initial() : initial

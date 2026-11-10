@@ -1,15 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
 import { meQuery } from '../../queries'
 import { BuilderFrame, ClaimGuestRoster, useGuestDraft } from './GuestRoster'
-import { RosterDiscoveryPage, type RosterDiscoverySearch } from './RosterDiscoveryPage'
-import { RosterLibraryPage, type RosterLibrarySearch } from './RosterLibraryPage'
-import type { MissionReference } from './rosterStart'
+import { RosterDiscoveryPage } from './RosterDiscoveryPage'
+import { RosterLibraryPage } from './RosterLibraryPage'
+import type { RostersSearch } from './rosterSearch'
 import type { keptRosterSort } from './rosterSort'
-
-export const ROSTER_VIEWS = ['friends', 'public', 'played'] as const
-type RosterView = (typeof ROSTER_VIEWS)[number]
-
-export type RostersSearch = RosterLibrarySearch & RosterDiscoverySearch & { view?: RosterView; new?: true; reference?: MissionReference }
 
 /**
  * A player's library, or a visitor's one list on this device on the same page; either may instead ask for friends' or

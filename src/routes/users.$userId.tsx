@@ -1,6 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { pageMeta, playerPreview, previewImage } from '../client/linkPreview'
-import { PlayerProfilePage, readSearch, recordFilter } from '../client/features/profile/PlayerProfilePage'
+import { PlayerProfilePage } from '../client/features/profile/PlayerProfilePage'
+import { readSearch, recordFilter } from '../client/features/profile/profileSearch'
 import {
   deploymentsQuery,
   meQuery,

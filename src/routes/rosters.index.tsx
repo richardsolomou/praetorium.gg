@@ -1,10 +1,16 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { keptRosterSort } from '../client/features/rosters/rosterSort'
-import { LIBRARY_FACETS } from '../client/features/rosters/RosterLibraryPage'
 import { GUEST_DRAFT_COOKIE, ROSTER_NOTICES_COOKIE, ROSTER_SORT_COOKIE } from '../contracts/rosterCookies'
 import { requestCookie } from '../server/requestCookie'
-import { discoveryFilter, DISCOVERY_FACETS, playedFilter } from '../client/features/rosters/RosterDiscoveryPage'
-import { ROSTER_VIEWS, RostersRoute, type RostersSearch } from '../client/features/rosters/RostersRoute'
+import {
+  discoveryFilter,
+  DISCOVERY_FACETS,
+  LIBRARY_FACETS,
+  playedFilter,
+  ROSTER_VIEWS,
+  type RostersSearch,
+} from '../client/features/rosters/rosterSearch'
+import { RostersRoute } from '../client/features/rosters/RostersRoute'
 import { ROSTER_SEARCH_MAX_LENGTH } from '../core/rosterDiscovery'
 import { ROSTER_SORTS } from '../core/rosterSort'
 import { discoveredRostersQuery, factionIndexQuery, meQuery, playedArmiesQuery } from '../client/queries'

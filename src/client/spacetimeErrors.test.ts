@@ -1,6 +1,7 @@
 import { IdentityChangedError, UnknownCallResultError } from 'spacetimedb'
 import { expect, it } from 'vitest'
-import { isExpectedRealtimeDisconnect, RealtimeHttpError } from './realtimeErrors'
+import { RealtimeHttpError } from './realtimeErrors'
+import { isExpectedRealtimeDisconnect } from './spacetimeErrors'
 
 it.each([
   new Event('error'),
