@@ -440,6 +440,9 @@ export function targetOf(definition: Definition, definitions: ReadonlyMap<string
 
 export const resolve = (definition: Definition, index: CatalogueIndex) => targetOf(definition, index.definitions)
 
+export const profileDescription = (profile: Profile) =>
+  profile.characteristics?.find((characteristic) => characteristic.name === 'Description')?.$text ?? null
+
 /** An entry, and its target when it is a link: the two places its own data can be written. */
 export function definitionAndTarget(definition: Definition, index: CatalogueIndex): Definition[] {
   const target = targetOf(definition, index.definitions)

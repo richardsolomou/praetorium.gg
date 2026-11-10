@@ -16,6 +16,15 @@ import {
 import { add, attach, expectNoHorizontalOverflow } from './builder.harness'
 import { chooseCombatUnit } from './combat'
 
+async function openRostersToImport(page: Page, name: string) {
+  await signUp(page, uniqueName(name))
+  await page.goto('/rosters')
+  // Pressing Import before hydration does nothing.
+  await page.waitForLoadState('networkidle')
+  await page.getByRole('button', { name: 'Import roster', exact: true }).waitFor()
+  return recordEvents(page)
+}
+
 test.use({ serviceWorkers: 'block' })
 
 test('search reports empty results, dismissal, and successful selection without the query', async ({ page }) => {
@@ -117,11 +126,7 @@ test('a failed search reports an error rather than a successful empty search', a
 })
 
 test('an unmatched import reports one failed attempt and no completed save', async ({ page }) => {
-  await signUp(page, uniqueName('Import analytics'))
-  await page.goto('/rosters')
-  await page.waitForLoadState('networkidle')
-  await page.getByRole('button', { name: 'Import roster', exact: true }).waitFor()
-  const events = await recordEvents(page)
+  const events = await openRostersToImport(page, 'Import analytics')
   await page.getByRole('button', { name: 'Import roster', exact: true }).click()
   await page.getByLabel('Roster text').fill('private unmatched roster')
   await page.getByRole('button', { name: 'Import pasted roster' }).click()
@@ -150,11 +155,7 @@ test('an unmatched import reports one failed attempt and no completed save', asy
 })
 
 test('a New Recruit link that cannot be opened asks for the exported text and reports no list contents', async ({ page }) => {
-  await signUp(page, uniqueName('Import link analytics'))
-  await page.goto('/rosters')
-  await page.waitForLoadState('networkidle')
-  await page.getByRole('button', { name: 'Import roster', exact: true }).waitFor()
-  const events = await recordEvents(page)
+  const events = await openRostersToImport(page, 'Import link analytics')
   await page.getByRole('button', { name: 'Import roster', exact: true }).click()
   await page.getByLabel('Roster text').fill('https://www.newrecruit.eu/app/list/AbC123xyz')
   await page.getByRole('button', { name: 'Import pasted roster' }).click()
@@ -169,11 +170,7 @@ test('a New Recruit link that cannot be opened asks for the exported text and re
 })
 
 test('a pasted roster file asks for the exported text and reports only its format', async ({ page }) => {
-  await signUp(page, uniqueName('Import file analytics'))
-  await page.goto('/rosters')
-  await page.waitForLoadState('networkidle')
-  await page.getByRole('button', { name: 'Import roster', exact: true }).waitFor()
-  const events = await recordEvents(page)
+  const events = await openRostersToImport(page, 'Import file analytics')
   await page.getByRole('button', { name: 'Import roster', exact: true }).click()
   await page.getByLabel('Roster text').fill('<?xml version="1.0"?>\n<roster name="Private roster file">')
   await page.getByRole('button', { name: 'Import pasted roster' }).click()
@@ -191,11 +188,7 @@ test('a connected legacy shell import reports saving only after the write succee
   await page.addInitScript(() => {
     window.PraetoriumNative = { bridgeVersion: 3, capabilities: [] }
   })
-  await signUp(page, uniqueName('Import retry analytics'))
-  await page.goto('/rosters')
-  await page.waitForLoadState('networkidle')
-  await page.getByRole('button', { name: 'Import roster', exact: true }).waitFor()
-  const events = await recordEvents(page)
+  const events = await openRostersToImport(page, 'Import retry analytics')
   await page.route('**/_serverFn/**', (route) =>
     isRosterSave(route.request()) ? route.fulfill({ status: 503, body: 'save unavailable' }) : route.continue(),
   )
@@ -226,10 +219,7 @@ Exported with BattleBase, Data Version: v20260812`)
 })
 
 test('a matched import reports review only for unmatched entries', async ({ page }) => {
-  await signUp(page, uniqueName('Import review analytics'))
-  await page.goto('/rosters')
-  await page.getByRole('button', { name: 'Import roster', exact: true }).waitFor()
-  const events = await recordEvents(page)
+  const events = await openRostersToImport(page, 'Import review analytics')
   await page.getByRole('button', { name: 'Import roster', exact: true }).click()
   await page.getByLabel('Roster text').fill(`Private imported army (2000 Points)
 

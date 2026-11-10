@@ -190,23 +190,11 @@ function PhotoActions({
   return (
     <span className={`grid gap-1.5 ${onKeep ? 'grid-cols-2' : 'grid-cols-1'}`}>
       {onKeep ? (
-        <Button
-          type="button"
-          variant="outline"
-          disabled={pending}
-          onClick={onKeep}
-          aria-label={`Keep ${photo.name} from ${photo.owner.name}`}
-        >
+        <Button variant="outline" disabled={pending} onClick={onKeep} aria-label={`Keep ${photo.name} from ${photo.owner.name}`}>
           <Check /> Keep
         </Button>
       ) : null}
-      <Button
-        type="button"
-        variant="destructive"
-        disabled={pending}
-        onClick={onRemove}
-        aria-label={`Remove ${photo.name} from ${photo.owner.name}`}
-      >
+      <Button variant="destructive" disabled={pending} onClick={onRemove} aria-label={`Remove ${photo.name} from ${photo.owner.name}`}>
         <Trash2 /> Remove
       </Button>
     </span>
@@ -302,7 +290,7 @@ function LoadMore({ loading, onLoad }: { loading: boolean; onLoad: () => void })
     return () => observer.disconnect()
   }, [button, loading, onLoad])
   return (
-    <Button ref={setButton} type="button" variant="outline" className="mt-3 w-full" disabled={loading} onClick={onLoad}>
+    <Button ref={setButton} variant="outline" className="mt-3 w-full" disabled={loading} onClick={onLoad}>
       {loading ? 'Loading…' : 'Show more photos'}
     </Button>
   )

@@ -29,7 +29,6 @@ import RemoveFavouriteFactionReducer from '../remove_favourite_faction_reducer'
 import RemoveFromCollectionReducer from '../remove_from_collection_reducer'
 import ReplaceFriendInviteReducer from '../replace_friend_invite_reducer'
 import ReportCollectionPhotoReducer from '../report_collection_photo_reducer'
-import RevokeOwnAccessReducer from '../revoke_own_access_reducer'
 import RevokeSessionReducer from '../revoke_session_reducer'
 import SetCollectionCountsAsReducer from '../set_collection_counts_as_reducer'
 import SetCollectionModelsReducer from '../set_collection_models_reducer'
@@ -65,7 +64,6 @@ export type RemoveFavouriteFactionParams = __Infer<typeof RemoveFavouriteFaction
 export type RemoveFromCollectionParams = __Infer<typeof RemoveFromCollectionReducer>
 export type ReplaceFriendInviteParams = __Infer<typeof ReplaceFriendInviteReducer>
 export type ReportCollectionPhotoParams = __Infer<typeof ReportCollectionPhotoReducer>
-export type RevokeOwnAccessParams = __Infer<typeof RevokeOwnAccessReducer>
 export type RevokeSessionParams = __Infer<typeof RevokeSessionReducer>
 export type SetCollectionCountsAsParams = __Infer<typeof SetCollectionCountsAsReducer>
 export type SetCollectionModelsParams = __Infer<typeof SetCollectionModelsReducer>

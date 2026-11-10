@@ -71,7 +71,6 @@ import * as PlayerDefaultsProcedure from '../player_defaults_procedure'
 import * as PlayerStandingsProcedure from '../player_standings_procedure'
 import * as PracticeOpponentIdsProcedure from '../practice_opponent_ids_procedure'
 import * as ProductStatsProcedure from '../product_stats_procedure'
-import * as PublicStandingsRevisionProcedure from '../public_standings_revision_procedure'
 import * as PushEnabledProcedure from '../push_enabled_procedure'
 import * as PushTargetsProcedure from '../push_targets_procedure'
 import * as RatingChangesProcedure from '../rating_changes_procedure'
@@ -251,8 +250,6 @@ export type PracticeOpponentIdsArgs = __Infer<typeof PracticeOpponentIdsProcedur
 export type PracticeOpponentIdsResult = __Infer<typeof PracticeOpponentIdsProcedure.returnType>
 export type ProductStatsArgs = __Infer<typeof ProductStatsProcedure.params>
 export type ProductStatsResult = __Infer<typeof ProductStatsProcedure.returnType>
-export type PublicStandingsRevisionArgs = __Infer<typeof PublicStandingsRevisionProcedure.params>
-export type PublicStandingsRevisionResult = __Infer<typeof PublicStandingsRevisionProcedure.returnType>
 export type PushEnabledArgs = __Infer<typeof PushEnabledProcedure.params>
 export type PushEnabledResult = __Infer<typeof PushEnabledProcedure.returnType>
 export type PushTargetsArgs = __Infer<typeof PushTargetsProcedure.params>

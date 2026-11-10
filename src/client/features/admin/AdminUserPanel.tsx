@@ -115,7 +115,7 @@ export function AdminUserPanel({ user, current, onClose }: { user: AdminUser; cu
               <CopyButton value={user.email} label="Copy email" />
             </DrawerDescription>
           </div>
-          <Button type="button" variant="ghost" size="icon" aria-label="Close" className="absolute top-2 right-2" onClick={onClose}>
+          <Button variant="ghost" size="icon" aria-label="Close" className="absolute top-2 right-2" onClick={onClose}>
             <X />
           </Button>
         </header>
@@ -157,7 +157,6 @@ export function AdminUserPanel({ user, current, onClose }: { user: AdminUser; cu
               action={
                 user.image ? (
                   <Button
-                    type="button"
                     variant="ghost"
                     size="sm"
                     className="text-dim hover:text-destructive"
@@ -196,7 +195,6 @@ export function AdminUserPanel({ user, current, onClose }: { user: AdminUser; cu
               }
               action={
                 <Button
-                  type="button"
                   variant="outline"
                   size="sm"
                   disabled={current || isAdmin || impersonate.isPending}
@@ -219,17 +217,11 @@ export function AdminUserPanel({ user, current, onClose }: { user: AdminUser; cu
                 user.emailVerified ? undefined : (
                   <span className="flex flex-wrap justify-end gap-1">
                     {emailDelivery ? (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        disabled={sendVerification.isPending}
-                        onClick={() => sendVerification.mutate()}
-                      >
+                      <Button variant="outline" size="sm" disabled={sendVerification.isPending} onClick={() => sendVerification.mutate()}>
                         {sendVerification.isPending ? 'Sending…' : 'Send link'}
                       </Button>
                     ) : null}
-                    <Button type="button" variant="ghost" size="sm" onClick={() => setConfirming({ kind: 'verify' })}>
+                    <Button variant="ghost" size="sm" onClick={() => setConfirming({ kind: 'verify' })}>
                       Mark verified
                     </Button>
                   </span>
@@ -245,18 +237,11 @@ export function AdminUserPanel({ user, current, onClose }: { user: AdminUser; cu
                 action={
                   <span className="flex flex-wrap justify-end gap-1">
                     {method.providerId === 'credential' && emailDelivery ? (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        disabled={resetPassword.isPending}
-                        onClick={() => resetPassword.mutate()}
-                      >
+                      <Button variant="outline" size="sm" disabled={resetPassword.isPending} onClick={() => resetPassword.mutate()}>
                         {resetPassword.isPending ? 'Sending…' : 'Send reset'}
                       </Button>
                     ) : null}
                     <Button
-                      type="button"
                       variant="ghost"
                       size="sm"
                       aria-label={`Unlink ${methodName(method.providerId)}`}
@@ -294,7 +279,7 @@ export function AdminUserPanel({ user, current, onClose }: { user: AdminUser; cu
                 <p className="text-sm text-dim">
                   {isAdmin ? 'Remove the administrator role before deleting this account.' : deletionImpact(user)}
                 </p>
-                <Button type="button" variant="destructive" disabled={isAdmin} onClick={() => setConfirming({ kind: 'delete' })}>
+                <Button variant="destructive" disabled={isAdmin} onClick={() => setConfirming({ kind: 'delete' })}>
                   <Trash2 /> Delete account
                 </Button>
               </div>
@@ -515,7 +500,6 @@ function Sessions({
             action={
               current ? undefined : (
                 <Button
-                  type="button"
                   variant="ghost"
                   size="sm"
                   aria-label={`Sign out ${device.name}`}
@@ -530,7 +514,7 @@ function Sessions({
       })}
       {sessions.isSuccess && !list.length ? <p className="py-2 text-sm text-dim">{user.name} is not signed in anywhere.</p> : null}
       {!current && list.length > 1 ? (
-        <Button type="button" variant="outline" size="sm" onClick={() => onConfirm({ kind: 'sessions' })}>
+        <Button variant="outline" size="sm" onClick={() => onConfirm({ kind: 'sessions' })}>
           <LogOut /> Sign out everywhere
         </Button>
       ) : null}
@@ -555,7 +539,6 @@ function Connections({ user, notice, onConfirm }: { user: AdminUser; notice: Rea
           detail={[`Granted ${dates.date(connection.createdAt)}`, connection.scopes.join(', ')].filter(Boolean).join(' · ')}
           action={
             <Button
-              type="button"
               variant="ghost"
               size="sm"
               aria-label={`Revoke ${connection.name}`}
@@ -593,7 +576,6 @@ function CopyButton({ value, label }: { value: string; label: string }) {
   return (
     <>
       <Button
-        type="button"
         variant="ghost"
         size="icon-xs"
         aria-label={copied ? 'Copied' : label}

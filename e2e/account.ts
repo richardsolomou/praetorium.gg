@@ -751,6 +751,17 @@ export async function startVisitorRoster(page: Page) {
   await page.waitForURL(/\/rosters\/[^/]+$/)
 }
 
+/** Two new players with a roster each, the first Death Guard and the second Necrons. */
+export async function rosteredPlayers(alice: Page, bob: Page) {
+  const aliceName = uniqueName('Alice')
+  const bobName = uniqueName('Bob')
+  await signUp(bob, bobName)
+  const bobRoster = await createRoster(bob, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Necrons' })
+  await signUp(alice, aliceName)
+  const aliceRoster = await createRoster(alice, { faction: 'Death Guard', detachment: /Shamblerot Vectorium/, name: 'Death Guard' })
+  return { aliceName, bobName, aliceRoster, bobRoster }
+}
+
 /** Two new players, the first hosting Necrons against the second's Death Guard. */
 export async function twoPlayerBattle(alice: Page, bob: Page) {
   const aliceName = uniqueName('Alice')

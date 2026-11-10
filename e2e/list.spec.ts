@@ -4,26 +4,18 @@ import {
   befriend,
   chooseBattlefield,
   createBattle,
-  createRoster,
   desktopContext,
   retryUntilVisible,
   setupStep,
-  signUp,
   startBattle,
-  uniqueName,
   addUnit,
+  rosteredPlayers,
 } from './account'
 
 test('a built list is priced, deployed and tracked', async ({ browser }) => {
   const alice = await (await browser.newContext(desktopContext)).newPage()
   const bob = await (await browser.newContext(desktopContext)).newPage()
-  const aliceName = uniqueName('Alice')
-  const bobName = uniqueName('Bob')
-
-  await signUp(bob, bobName)
-  const bobRoster = await createRoster(bob, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Necrons' })
-  await signUp(alice, aliceName)
-  const aliceRoster = await createRoster(alice, { faction: 'Death Guard', detachment: /Shamblerot Vectorium/, name: 'Death Guard' })
+  const { aliceName, bobName, aliceRoster, bobRoster } = await rosteredPlayers(alice, bob)
   await alice.getByLabel('Add a unit').fill('Plague Marines')
   await alice.getByRole('button', { name: 'Add Plague Marines', exact: true }).first().click()
   // The server prices the list, so the total follows the model count rather than changing with it.

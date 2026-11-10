@@ -223,7 +223,6 @@ export function SignInPage({
                 {submit.error ? <Problem>{submit.error}</Problem> : null}
                 {!joining && options?.passwordReset ? (
                   <Button
-                    type="button"
                     variant="link"
                     className="h-auto p-0"
                     disabled={submit.busy}

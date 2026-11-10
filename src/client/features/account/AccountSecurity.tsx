@@ -65,6 +65,10 @@ export function AccountSecurity({ me, preferences }: { me: AccountIdentity; pref
       queryClient.invalidateQueries({ queryKey: meQuery().queryKey }),
     ])
   }
+  const closeAndRefresh = async () => {
+    setDialog(undefined)
+    await refresh()
+  }
 
   if (methodsResult.isError) {
     return (
@@ -105,7 +109,6 @@ export function AccountSecurity({ me, preferences }: { me: AccountIdentity; pref
                   </div>
                 </div>
                 <Button
-                  type="button"
                   variant="outline"
                   size="sm"
                   className="mt-3"
@@ -132,23 +135,17 @@ export function AccountSecurity({ me, preferences }: { me: AccountIdentity; pref
               action={
                 hasPassword ? (
                   <div className="flex flex-wrap gap-2">
-                    <Button type="button" variant="outline" size="sm" onClick={() => setDialog('change-password')}>
+                    <Button variant="outline" size="sm" onClick={() => setDialog('change-password')}>
                       Change
                     </Button>
                     {canRemove('credential') ? (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        disabled={me.twoFactorEnabled}
-                        onClick={() => setRemoving('credential')}
-                      >
+                      <Button variant="ghost" size="sm" disabled={me.twoFactorEnabled} onClick={() => setRemoving('credential')}>
                         Remove
                       </Button>
                     ) : null}
                   </div>
                 ) : (
-                  <Button type="button" variant="outline" size="sm" onClick={() => setDialog('create-password')}>
+                  <Button variant="outline" size="sm" onClick={() => setDialog('create-password')}>
                     Create password
                   </Button>
                 )
@@ -164,7 +161,7 @@ export function AccountSecurity({ me, preferences }: { me: AccountIdentity; pref
                   action={
                     linked.has(provider) ? (
                       canRemove(provider) ? (
-                        <Button type="button" variant="ghost" size="sm" onClick={() => setRemoving(provider)}>
+                        <Button variant="ghost" size="sm" onClick={() => setRemoving(provider)}>
                           Unlink
                         </Button>
                       ) : null
@@ -172,7 +169,6 @@ export function AccountSecurity({ me, preferences }: { me: AccountIdentity; pref
                       <span className="text-xs text-faint">Update the app to link GitHub.</span>
                     ) : (
                       <Button
-                        type="button"
                         variant="outline"
                         size="sm"
                         onClick={async () => {
@@ -215,7 +211,6 @@ export function AccountSecurity({ me, preferences }: { me: AccountIdentity; pref
               }
               action={
                 <Button
-                  type="button"
                   variant="outline"
                   size="sm"
                   disabled={!hasPassword}
@@ -261,7 +256,7 @@ export function AccountSecurity({ me, preferences }: { me: AccountIdentity; pref
                   .filter(Boolean)
                   .join(' · ')}
                 action={
-                  <Button type="button" variant="outline" size="sm" onClick={() => setRevoking(connection)}>
+                  <Button variant="outline" size="sm" onClick={() => setRevoking(connection)}>
                     Revoke access
                   </Button>
                 }
@@ -277,7 +272,7 @@ export function AccountSecurity({ me, preferences }: { me: AccountIdentity; pref
           <p className="text-sm text-dim">
             Permanently deletes your rosters, friendships, tournaments, the groups you own and every battle you played.
           </p>
-          <Button type="button" variant="destructive" disabled={!methods} onClick={() => setDialog('delete-account')}>
+          <Button variant="destructive" disabled={!methods} onClick={() => setDialog('delete-account')}>
             <Trash2 /> Delete account
           </Button>
         </div>
@@ -289,12 +284,7 @@ export function AccountSecurity({ me, preferences }: { me: AccountIdentity; pref
           description="Add email and password sign-in alongside your linked providers."
           onClose={() => setDialog(undefined)}
         >
-          <CreatePasswordForm
-            onDone={async () => {
-              setDialog(undefined)
-              await refresh()
-            }}
-          />
+          <CreatePasswordForm onDone={closeAndRefresh} />
         </AccountDialog>
       ) : null}
       {dialog === 'change-password' ? (
@@ -304,22 +294,12 @@ export function AccountSecurity({ me, preferences }: { me: AccountIdentity; pref
       ) : null}
       {dialog === 'two-factor-setup' ? (
         <AccountDialog title="Set up two-factor authentication" onClose={() => setDialog(undefined)}>
-          <TwoFactorSetupForm
-            onDone={async () => {
-              setDialog(undefined)
-              await refresh()
-            }}
-          />
+          <TwoFactorSetupForm onDone={closeAndRefresh} />
         </AccountDialog>
       ) : null}
       {dialog === 'two-factor-disable' ? (
         <AccountDialog title="Turn off two-factor authentication" onClose={() => setDialog(undefined)}>
-          <DisableTwoFactorForm
-            onDone={async () => {
-              setDialog(undefined)
-              await refresh()
-            }}
-          />
+          <DisableTwoFactorForm onDone={closeAndRefresh} />
         </AccountDialog>
       ) : null}
       {dialog === 'delete-account' ? (
@@ -452,7 +432,7 @@ function DeleteAccountForm({ hasPassword }: { hasPassword: boolean }) {
         {error ? <Problem>{error}</Problem> : null}
       </DialogBody>
       <DialogFooter>
-        <DialogClose render={<Button type="button" variant="outline" />}>Keep account</DialogClose>
+        <DialogClose render={<Button variant="outline" />}>Keep account</DialogClose>
         <Button type="submit" variant="destructive" disabled={busy || !confirmed || (hasPassword && !password)}>
           {busy ? 'Deleting…' : 'Permanently delete account'}
         </Button>
@@ -540,7 +520,7 @@ function CreatePasswordForm({ onDone }: { onDone: () => void | Promise<void> }) 
         {error ? <Problem>{error}</Problem> : null}
       </DialogBody>
       <DialogFooter>
-        <DialogClose render={<Button type="button" variant="outline" />}>Cancel</DialogClose>
+        <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
         <Button type="submit" disabled={busy || password.length < PASSWORD_MIN_LENGTH}>
           {busy ? 'Creating…' : 'Create password'}
         </Button>
@@ -586,7 +566,7 @@ function ChangePasswordForm({ onDone }: { onDone: () => void }) {
         {error ? <Problem>{error}</Problem> : null}
       </DialogBody>
       <DialogFooter>
-        <DialogClose render={<Button type="button" variant="outline" />}>Cancel</DialogClose>
+        <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
         <Button type="submit" disabled={busy || newPassword.length < PASSWORD_MIN_LENGTH}>
           {busy ? 'Changing…' : 'Change password'}
         </Button>
@@ -678,7 +658,6 @@ function TwoFactorSetupForm({ onDone }: { onDone: () => void | Promise<void> }) 
         {/* Reading order on a phone: copying comes before the button that puts the codes away for good. */}
         <DialogFooter className="flex-col">
           <Button
-            type="button"
             variant="outline"
             onClick={async () => {
               if (
@@ -698,9 +677,7 @@ function TwoFactorSetupForm({ onDone }: { onDone: () => void | Promise<void> }) 
               'Copy recovery codes'
             )}
           </Button>
-          <Button type="button" onClick={() => void onDone()}>
-            I saved my recovery codes
-          </Button>
+          <Button onClick={() => void onDone()}>I saved my recovery codes</Button>
         </DialogFooter>
       </>
     )
@@ -733,7 +710,7 @@ function TwoFactorSetupForm({ onDone }: { onDone: () => void | Promise<void> }) 
           {start.error ? <Problem>{start.error}</Problem> : null}
         </DialogBody>
         <DialogFooter>
-          <DialogClose render={<Button type="button" variant="outline" />}>Cancel</DialogClose>
+          <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
           <Button type="submit" disabled={start.busy || !password}>
             {start.busy ? 'Starting…' : 'Continue'}
           </Button>
@@ -774,7 +751,7 @@ function TwoFactorSetupForm({ onDone }: { onDone: () => void | Promise<void> }) 
         {verify.error ? <Problem>{verify.error}</Problem> : null}
       </DialogBody>
       <DialogFooter>
-        <DialogClose render={<Button type="button" variant="outline" />}>Cancel</DialogClose>
+        <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
         <Button type="submit" disabled={verify.busy || !code.trim()}>
           {verify.busy ? 'Verifying…' : 'Verify and enable'}
         </Button>
@@ -814,7 +791,7 @@ function DisableTwoFactorForm({ onDone }: { onDone: () => void | Promise<void> }
         {error ? <Problem>{error}</Problem> : null}
       </DialogBody>
       <DialogFooter>
-        <DialogClose render={<Button type="button" variant="outline" />}>Keep two-factor</DialogClose>
+        <DialogClose render={<Button variant="outline" />}>Keep two-factor</DialogClose>
         <Button type="submit" variant="destructive" disabled={busy || !password}>
           {busy ? 'Turning off…' : 'Turn off two-factor authentication'}
         </Button>

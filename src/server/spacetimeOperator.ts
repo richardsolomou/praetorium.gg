@@ -162,11 +162,7 @@ const tournament = z.object({
   adminIds: z.array(z.string()),
 })
 // Absent from a module released before events set points per army.
-const eventPoints = z
-  .number()
-  .int()
-  .nullish()
-  .transform((value) => value ?? null)
+const eventPoints = z.number().int().nullable()
 const eventSharedPoints = z
   .boolean()
   .nullish()
@@ -190,22 +186,12 @@ const sealedEvent = z.object({
   sharedPoints: eventSharedPoints,
   scheduleFirst: z
     .boolean()
-    .nullish()
+    .nullable()
     .transform((value) => value ?? false),
-  // Absent from a module released before organizers ran a round clock.
-  roundEndsAt: z
-    .number()
-    .int()
-    .nullish()
-    .transform((value) => value ?? null),
+  roundEndsAt: z.number().int().nullable(),
   playsAt: z.number().int().nullable(),
   sealBy: z.number().int().nullable(),
-  // Absent from a module released before organizers sent seal reminders.
-  remindedAt: z
-    .number()
-    .int()
-    .nullish()
-    .transform((value) => value ?? null),
+  remindedAt: z.number().int().nullable(),
 })
 /** Who hosts an event: a tournament, or the group whose game it is, which `token` addresses either way. */
 const eventHost = {
@@ -235,8 +221,8 @@ const sealedEventEntry = z.object({
   submittedAt: z.number().int().nullable(),
   requiredLimit: z.number().int().nullable(),
   teamId: z.string().nullable(),
-  droppedAt: z.number().int().nullish(),
-  checkedInAt: z.number().int().nullish(),
+  droppedAt: z.number().int().nullable(),
+  checkedInAt: z.number().int().nullable(),
 })
 const sealedEventRecord = z.object({
   ...eventHost,
@@ -259,7 +245,7 @@ const visibleSealedEvent = z.object({
   accepted: z.number().int(),
   occupied: z.number().int(),
   ownEntry: sealedEventEntry.nullable(),
-  pastAt: z.number().int().nullable().optional(),
+  pastAt: z.number().int().nullable(),
 })
 const sealedEventCandidate = z.object({ token: z.string(), name: z.string(), event: sealedEvent, entries: z.array(sealedEventEntry) })
 const sealedEventRoster = z.object({ event: sealedEvent, entry: sealedEventEntry, reader: sealedEventEntry.nullable() })
@@ -332,19 +318,17 @@ const groupRecord = z.object({
   group,
   members: z.array(groupMember),
   games: z.array(hiddenListGame),
-  // Absent from a module deployed before group leagues.
-  league: groupLeague.nullable().default(null),
-  pastLeagues: z
-    .array(groupLeague.pick({ publishedAt: true, players: true, fixtures: true }).extend({ id: z.string(), endedAt: z.number().int() }))
-    .default([]),
+  league: groupLeague.nullable(),
+  pastLeagues: z.array(
+    groupLeague.pick({ publishedAt: true, players: true, fixtures: true }).extend({ id: z.string(), endedAt: z.number().int() }),
+  ),
 })
 const visibleGroup = z.object({
   group,
   adminIds: z.array(z.string()),
   memberCount: z.number().int(),
-  // Absent from a module deployed before group tables counted battles.
-  battleCount: z.number().int().default(0),
-  lastBattleAt: z.number().int().nullable().default(null),
+  battleCount: z.number().int(),
+  lastBattleAt: z.number().int().nullable(),
   ownMember: groupMember.pick({ status: true, role: true }).nullable(),
 })
 
@@ -623,8 +607,7 @@ export class SpacetimeOperator {
           ...(input.groupToken ? { groupToken: input.groupToken } : {}),
           since: null,
           before: input.before ?? null,
-          // Sent only when chosen, so the default feed still reads from a module older than this order.
-          ...(input.order ? { order: input.order } : {}),
+          order: input.order,
           limit: input.limit,
         }),
       ],
@@ -788,7 +771,7 @@ export class SpacetimeOperator {
       z.object({
         rows: z.array(rosterRow).max(ROSTER_DISCOVERY_MAX_PAGE_SIZE),
         // A module published before the count was added answers without it.
-        total: z.number().int().nonnegative().optional(),
+        total: z.number().int().nonnegative(),
         nextCursor: rosterDiscoveryCursorSchema.nullable(),
       }),
     )
@@ -820,7 +803,7 @@ export class SpacetimeOperator {
           outcome: z.literal('applied'),
           version: z.number().int().nonnegative(),
           deleted: z.boolean(),
-          lifecycle: z.enum(['created', 'deleted']).nullable().default(null),
+          lifecycle: z.enum(['created', 'deleted']).nullable(),
         }),
         z.object({
           outcome: z.enum(['conflict', 'refused']),

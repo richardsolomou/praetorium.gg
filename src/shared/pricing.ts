@@ -216,13 +216,13 @@ function labelUnitsOf(
 
 type PickedUnit = { key: number; entryId: string }
 
-/** The book a picked unit is drawn from: the one the pick names, else the one defining it, else the roster's own. */
+/** The book a picked unit is drawn from: the one the pick names, else the roster's own. */
 // A pick that names no book belongs to the army, as the builder's own picks do: the
 // book defining the entry is often one the army imports, such as a chapter's Space Marines.
 const unitCatalogueId = (data: PriceInput, unit: PickedUnit) => data.units[unit.key]?.catalogueId ?? data.catalogueId
 
 const pickedMfmUnit = (loaded: LoadedCatalogue, data: PriceInput, unit: PickedUnit) =>
-  mfmUnitFor(loaded, data.units[unit.key]?.catalogueId ?? data.catalogueId, unit.entryId)
+  mfmUnitFor(loaded, unitCatalogueId(data, unit), unit.entryId)
 
 function selectionPointsOf(forces: readonly (readonly Selection[])[], evaluated: { selectionPoints: readonly (readonly number[])[] }) {
   const points = new Map<Selection, number>()
@@ -522,8 +522,7 @@ function calculateRoster(
   const pointCaps = pointCapErrors(forces, loaded.index, options, (selection) => selectionPoints.get(selection) ?? 0)
   const restrictions = rules?.factionRestrictions.get(factionSlug)
   // Keywords and Toughness are only inputs to these two construction rule sets.
-  // Projecting every contextual datasheet for an ordinary roster made pricing
-  // revisit the complete roster once per unit, despite never reading the result.
+  // Projecting every contextual datasheet for an ordinary roster would revisit the whole roster once per unit.
   const constructionUnits =
     restrictions || isKotcLimit(data.limit)
       ? picked.map((unit) => {

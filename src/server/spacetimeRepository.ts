@@ -748,7 +748,7 @@ export class SpacetimeRepository {
       playsAt: event.playsAt,
       sealBy: event.sealBy,
       remindedAt: event.remindedAt,
-      roundEndsAt: event.roundEndsAt ?? null,
+      roundEndsAt: event.roundEndsAt,
       scheduleFirst: event.scheduleFirst,
       pairings,
       battlefields: record.battlefields,
@@ -786,7 +786,7 @@ export class SpacetimeRepository {
 
   joinSealedEvent(token: string, userId: string, now: number, memberLimit: number, eventToken?: string) {
     return this.product.sealedEventCommand(
-      { op: 'join', token, userId, now, memberLimit, eventToken: eventToken ?? '', noticeResults: true },
+      { op: 'join', token, userId, now, memberLimit, eventToken: eventToken ?? '' },
       z.union([
         z.object({ status: z.literal('pending'), organizerIds: z.array(z.string()) }),
         z.enum(['pending', 'accepted', 'rejected', 'missing', 'closed', 'full', 'members-only']),
@@ -803,7 +803,7 @@ export class SpacetimeRepository {
     eventToken?: string,
   ) {
     return this.product.sealedEventCommand(
-      { op: 'moderate', token, ownerId, userId, status, memberLimit, eventToken: eventToken ?? '', noticeResults: true },
+      { op: 'moderate', token, ownerId, userId, status, memberLimit, eventToken: eventToken ?? '' },
       z.union([
         z.object({ rejected: z.boolean(), resealIds: z.array(z.string()) }),
         z.enum(['admitted', 'updated', 'missing', 'forbidden', 'closed', 'full']),
@@ -834,18 +834,15 @@ export class SpacetimeRepository {
 
   assignSealedEventRosterRequirement(token: string, ownerId: string, userId: string, requiredLimit: number, eventToken?: string) {
     return this.product.sealedEventCommand(
-      { op: 'assign-limit', token, ownerId, userId, requiredLimit, eventToken: eventToken ?? '', noticeResults: true },
-      z.union([
-        z.object({ resealIds: z.array(z.string()) }),
-        z.enum(['updated', 'missing', 'forbidden', 'closed', 'wrong-format', 'wrong-limit']),
-      ]),
+      { op: 'assign-limit', token, ownerId, userId, requiredLimit, eventToken: eventToken ?? '' },
+      z.union([z.object({ resealIds: z.array(z.string()) }), z.enum(['missing', 'forbidden', 'closed', 'wrong-format', 'wrong-limit'])]),
     )
   }
 
   assignSealedEventTeam(token: string, ownerId: string, userIds: readonly string[], teamId: string, eventToken?: string) {
     return this.product.sealedEventCommand(
-      { op: 'assign-team', token, ownerId, userIds, teamId, eventToken: eventToken ?? '', noticeResults: true },
-      z.union([z.object({ resealIds: z.array(z.string()) }), z.enum(['updated', 'missing', 'forbidden', 'closed', 'wrong-format'])]),
+      { op: 'assign-team', token, ownerId, userIds, teamId, eventToken: eventToken ?? '' },
+      z.union([z.object({ resealIds: z.array(z.string()) }), z.enum(['missing', 'forbidden', 'closed', 'wrong-format'])]),
     )
   }
 

@@ -1162,17 +1162,6 @@ describe('King of the Colosseum army construction', () => {
     ])
   })
 
-  it('leaves an unmodified Toughness 9 unit alone', () => {
-    expect(
-      kotcViolations(
-        1,
-        [unit('leader', ['Infantry', 'Character'], 4, true), unit('troops', ['Infantry', 'Battleline'], 4), unit('tank', ['Vehicle'], 9)],
-        600,
-        [],
-      ),
-    ).toEqual([])
-  })
-
   it('reports every KOTC-specific restriction without guessing unknown toughness', () => {
     const errors = kotcViolations(
       2,

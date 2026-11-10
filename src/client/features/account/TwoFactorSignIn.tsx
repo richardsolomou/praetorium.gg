@@ -68,7 +68,6 @@ export function TwoFactorSignIn({
         {busy ? 'Verifying…' : 'Verify and sign in'}
       </Button>
       <Button
-        type="button"
         variant="ghost"
         size="sm"
         className="w-full"
@@ -81,7 +80,7 @@ export function TwoFactorSignIn({
       >
         {recovery ? 'Use authenticator code' : 'Use a recovery code'}
       </Button>
-      <Button type="button" variant="ghost" size="sm" className="w-full" disabled={busy} onClick={onBack}>
+      <Button variant="ghost" size="sm" className="w-full" disabled={busy} onClick={onBack}>
         Back to sign in
       </Button>
     </form>

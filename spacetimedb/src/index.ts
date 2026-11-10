@@ -2,7 +2,7 @@ import { ScheduleAt } from 'spacetimedb'
 import { SenderError, schema, table, t, type InferSchema, type ProcedureCtx, type ReducerCtx, type ViewCtx } from 'spacetimedb/server'
 import { detachmentIds, ROSTER_SOURCES, ROSTER_VISIBILITIES } from '../../src/core/savedRoster'
 import { migrateStoredRoster } from '../../src/core/savedRosterMigrations'
-import { LOCKED_ROSTER_MESSAGE, lockedRosterRefusal, storedRosterContent } from '../../src/core/rosterLock'
+import { lockedRosterRefusal, storedRosterContent } from '../../src/core/rosterLock'
 import { listUnitCount } from '../../src/core/attachedUnits'
 import { ROSTER_BATCH_ACTIONS, ROSTER_BATCH_CHANGES, ROSTER_BATCH_MAX, ROSTER_LIBRARY_BATCH_SIZE } from '../../src/core/rosterLibrary'
 import { orderVariantGroup } from '../../src/core/rosterVariants'
@@ -760,10 +760,6 @@ export const onConnect = spacetime.clientConnected((ctx) => {
   ctx.db.accessExpiry.insert({ scheduledId: 0n, subject, scheduledAt: ScheduleAt.time(expiresAt * 1_000_000n) })
 })
 
-export const revokeOwnAccess = spacetime.reducer({}, (ctx) => {
-  revoke(ctx, activeSession(ctx).subject)
-})
-
 export const revokeSession = spacetime.reducer({ subject: t.string() }, (ctx, { subject }) => {
   requireOperator(ctx)
   revoke(ctx, subject)
@@ -935,31 +931,6 @@ export const myBattleSignals = spacetime.view(
   },
 )
 
-export const myBattleList = spacetime.view(
-  { name: 'my_battle_list', public: true },
-  t.array(t.row('MyBattleListEntry', { battleId: t.string().primaryKey(), seq: t.u32() })),
-  (ctx) => {
-    const session = viewerSession(ctx)
-    if (!session) return []
-    const recent: { battleId: string; seq: number; at: bigint }[] = []
-    for (const { battleId } of ctx.db.battleUsers.userId.filter(session.userId)) {
-      let seq = 0
-      let at = ctx.db.battles.id.find(battleId)?.createdAt ?? 0n
-      for (const command of ctx.db.commands.battleId.filter(battleId)) {
-        seq = Math.max(seq, command.seq)
-        if (command.at > at) at = command.at
-      }
-      const row = { battleId, seq, at }
-      if (recent.length === 500 && (row.at < recent[499]!.at || (row.at === recent[499]!.at && row.battleId >= recent[499]!.battleId)))
-        continue
-      recent.push(row)
-      recent.sort((a, b) => Number(b.at - a.at) || a.battleId.localeCompare(b.battleId))
-      if (recent.length > 500) recent.pop()
-    }
-    return recent.map(({ battleId, seq }) => ({ battleId, seq }))
-  },
-)
-
 /** What an offline command carries so its retry lands once; the stored body keeps it under `$sync`. */
 const battleSyncSchema = z.object({
   operationId: z.uuid(),
@@ -1070,7 +1041,7 @@ export const battleByToken = spacetime.procedure({ token: t.string() }, t.string
 )
 
 const battleFeedQuery = z.strictObject({
-  scope: z.enum(['user', 'sealed-event', 'group', 'group-league', 'public', 'friends', 'watchable', 'profile']),
+  scope: z.enum(['user', 'sealed-event', 'group', 'group-league', 'public', 'friends', 'profile']),
   userId: z.string().max(MAX_ID_LENGTH).nullable(),
   viewerId: z.string().max(MAX_ID_LENGTH).nullable(),
   withUserId: z.string().max(MAX_ID_LENGTH).nullable(),
@@ -1092,8 +1063,7 @@ export const battleFeed = spacetime.procedure({ payload: t.string() }, t.string(
     if (
       ((input.scope === 'user' || input.scope === 'friends' || input.scope === 'profile') && !input.userId) ||
       (input.scope === 'sealed-event' && (!input.hostToken || !input.eventToken)) ||
-      ((input.scope === 'group' || input.scope === 'group-league') && !input.groupToken) ||
-      (input.scope === 'watchable' && input.since === null)
+      ((input.scope === 'group' || input.scope === 'group-league') && !input.groupToken)
     ) {
       throw new SenderError('Invalid battle feed scope')
     }
@@ -1117,28 +1087,21 @@ export const battleFeed = spacetime.procedure({ payload: t.string() }, t.string(
     const inOrder = (left: { at: number; id: string }, right: { at: number; id: string }) =>
       direction * (right.at - left.at || right.id.localeCompare(left.id))
     const rows: { id: string; token: string; createdAt: number; at: number }[] = []
+    const existing = function* (battleIds: Iterable<string>) {
+      for (const battleId of battleIds) {
+        const battle = tx.db.battles.id.find(battleId)
+        if (battle) yield battle
+      }
+    }
+    const idsOf = function* (entries: Iterable<{ battleId: string }>) {
+      for (const entry of entries) yield entry.battleId
+    }
     const candidates = function* () {
-      if (input.scope === 'user' || input.scope === 'profile') {
-        for (const seat of tx.db.battleUsers.userId.filter(input.userId!)) {
-          const battle = tx.db.battles.id.find(seat.battleId)
-          if (battle) yield battle
-        }
-      } else if (input.scope === 'sealed-event') {
-        for (const entry of tx.db.eventBattles.eventId.filter(event!.id)) {
-          const battle = tx.db.battles.id.find(entry.battleId)
-          if (battle) yield battle
-        }
-      } else if (input.scope === 'group') {
-        for (const battleId of groupBattleIds(tx, group!.id)) {
-          const battle = tx.db.battles.id.find(battleId)
-          if (battle) yield battle
-        }
-      } else if (input.scope === 'group-league') {
-        for (const entry of league ? tx.db.eventBattles.eventId.filter(league.id) : []) {
-          const battle = tx.db.battles.id.find(entry.battleId)
-          if (battle) yield battle
-        }
-      } else if (input.scope === 'friends') {
+      if (input.scope === 'user' || input.scope === 'profile') yield* existing(idsOf(tx.db.battleUsers.userId.filter(input.userId!)))
+      else if (input.scope === 'sealed-event') yield* existing(idsOf(tx.db.eventBattles.eventId.filter(event!.id)))
+      else if (input.scope === 'group') yield* existing(groupBattleIds(tx, group!.id))
+      else if (input.scope === 'group-league') yield* existing(idsOf(league ? tx.db.eventBattles.eventId.filter(league.id) : []))
+      else if (input.scope === 'friends') {
         const seen = new Set<string>()
         for (const friendId of friendIds)
           for (const seat of tx.db.battleUsers.userId.filter(friendId)) {
@@ -1157,7 +1120,6 @@ export const battleFeed = spacetime.procedure({ payload: t.string() }, t.string(
       if (input.scope === 'public' && (hasPractice || (input.viewerId && seatIds.has(input.viewerId)))) continue
       if (input.scope === 'friends' && (hasPractice || seatIds.has(input.userId!))) continue
       const at = safeNumber(input.scope === 'public' || input.scope === 'friends' ? battle.createdAt : lastActivity(tx, battle))
-      if (input.scope === 'watchable' && at < input.since!) continue
       const row = { id: battle.id, token: battle.token, createdAt: safeNumber(battle.createdAt), at }
       if (input.before && inOrder(row, input.before) <= 0) continue
       const last = rows.at(-1)
@@ -2623,7 +2585,6 @@ export const syncRoster = spacetime.procedure({ payload: t.string() }, t.string(
     } else {
       const saved = saveRosterIn(tx, input)
       if (saved === 'forbidden') return productJson({ outcome: 'refused', cause: 'not-owned', message: 'You do not own this roster.' })
-      if (saved === 'locked') return productJson({ outcome: 'refused', cause: 'locked', message: LOCKED_ROSTER_MESSAGE })
       if (saved === 'inserted') lifecycle = 'created'
     }
     const version = parsed.deleted ? BigInt(input.now) : tx.db.rosters.id.find(input.id)!.updatedAt
@@ -3593,11 +3554,6 @@ export const groupNames = spacetime.procedure({ tokens: t.array(t.string()) }, t
 )
 
 export const operatorHealth = spacetime.procedure({}, t.bool(), (ctx) => operatorTx(ctx, () => true))
-
-/** Read by servers released before the leaderboard was stored; nothing reads it once none of them still serves. */
-export const publicStandingsRevision = spacetime.procedure({}, t.string(), (ctx) =>
-  operatorTx(ctx, (tx) => standingsRevision(tx).toString()),
-)
 
 function sealedEventEntriesFor(ctx: Context, eventId: string) {
   return Array.from(ctx.db.sealedEventEntries.eventId.filter(eventId)).sort(byJoined)
@@ -4839,8 +4795,7 @@ function acceptFriendIn(tx: Context, args: unknown[]) {
 function rejectFriendIn(tx: Context, args: unknown[]) {
   const [requesterId, addresseeId] = z.tuple([textArg, textArg]).parse(args)
   const current = tx.db.friendships.key.find(friendshipKey(requesterId, addresseeId))
-  if (!current || current.requesterId !== requesterId || current.addresseeId !== addresseeId || current.acceptedAt !== undefined)
-    return false
+  if (!current || current.acceptedAt !== undefined) return false
   const deleted = tx.db.friendships.key.delete(current.key)
   if (deleted) touchFriends(tx, requesterId, addresseeId)
   return deleted
@@ -5198,7 +5153,6 @@ function sealedEventCommandIn(tx: Context, args: unknown[]) {
         userId: idInput,
         now: sealedEventTimeInput,
         memberLimit: sealedEventMemberLimitInput,
-        noticeResults: z.boolean().optional(),
       }),
       value,
     )
@@ -5220,7 +5174,7 @@ function sealedEventCommandIn(tx: Context, args: unknown[]) {
     if (existing) tx.db.sealedEventEntries.key.update({ ...existing, status, joinedAt: BigInt(input.now) })
     else insertSealedEventEntry(tx, event.id, input.userId, status, input.now)
     touchEvent(tx, host)
-    return productJson(status === 'pending' && input.noticeResults ? { status, organizerIds: organizers } : status)
+    return productJson(status === 'pending' ? { status, organizerIds: organizers } : status)
   }
   if (!host) return productJson(operation === 'reveal' ? { outcome: 'not-ready' } : 'missing')
   const { event } = host
@@ -5594,7 +5548,6 @@ function sealedEventCommandIn(tx: Context, args: unknown[]) {
         userId: idInput,
         status: z.enum(['accepted', 'rejected']),
         memberLimit: sealedEventMemberLimitInput,
-        noticeResults: z.boolean().optional(),
       }),
       value,
     )
@@ -5635,8 +5588,7 @@ function sealedEventCommandIn(tx: Context, args: unknown[]) {
       })
     else tx.db.sealedEventEntries.key.update({ ...entry, status: input.status })
     touchEvent(tx, host)
-    if (input.status === 'rejected')
-      return productJson(input.noticeResults ? { rejected: entry.status !== 'rejected', resealIds } : 'updated')
+    if (input.status === 'rejected') return productJson({ rejected: entry.status !== 'rejected', resealIds })
     return productJson(entry.status !== 'accepted' ? 'admitted' : 'updated')
   }
   if (operation === 'assign-limit') {
@@ -5645,7 +5597,6 @@ function sealedEventCommandIn(tx: Context, args: unknown[]) {
         op: z.literal('assign-limit'),
         userId: idInput,
         requiredLimit: sealedEventRosterLimitInput,
-        noticeResults: z.boolean().optional(),
       }),
       value,
     )
@@ -5673,7 +5624,7 @@ function sealedEventCommandIn(tx: Context, args: unknown[]) {
       })
       touchEvent(tx, host)
     }
-    return productJson(input.noticeResults ? { resealIds } : 'updated')
+    return productJson({ resealIds })
   }
   if (operation === 'assign-team') {
     const input = sealedEventCommandInput(
@@ -5681,7 +5632,6 @@ function sealedEventCommandIn(tx: Context, args: unknown[]) {
         op: z.literal('assign-team'),
         userIds: z.array(idInput).min(1).max(2),
         teamId: idInput,
-        noticeResults: z.boolean().optional(),
       }),
       value,
     )
@@ -5693,7 +5643,7 @@ function sealedEventCommandIn(tx: Context, args: unknown[]) {
     if (targets.length !== userIds.length) return productJson('missing')
     const previousTeamId = targets[0]?.teamId
     if (userIds.length === 2 && previousTeamId && targets.every((entry) => entry.teamId === previousTeamId))
-      return productJson(input.noticeResults ? { resealIds: [] } : 'updated')
+      return productJson({ resealIds: [] })
     const oldTeams = new Set(targets.map((entry) => entry.teamId).filter((id) => id !== undefined))
     const affected = entries.filter((entry) => userIds.includes(entry.userId) || (entry.teamId && oldTeams.has(entry.teamId)))
     clearTeamPicks(tx, event.id, oldTeams)
@@ -5712,7 +5662,7 @@ function sealedEventCommandIn(tx: Context, args: unknown[]) {
       }
       touchEvent(tx, host)
       const resealIds = resized.filter((entry) => entry.rosterSnapshot !== undefined).map((entry) => entry.userId)
-      return productJson(input.noticeResults ? { resealIds } : 'updated')
+      return productJson({ resealIds })
     }
     const resealIds = affected.filter((entry) => entry.rosterSnapshot !== undefined).map((entry) => entry.userId)
     for (const entry of affected)
@@ -5731,7 +5681,7 @@ function sealedEventCommandIn(tx: Context, args: unknown[]) {
           ...UNSEALED,
         })
     touchEvent(tx, host)
-    return productJson(input.noticeResults ? { resealIds } : 'updated')
+    return productJson({ resealIds })
   }
   if (operation === 'set-side') {
     const input = sealedEventCommandInput(

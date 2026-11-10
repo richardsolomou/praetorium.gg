@@ -151,7 +151,7 @@ export class RosterService {
     const summaries = readerSummaries(owned)
     return {
       rosters: owned.map((row, index) => ({ summary: summaries[index]!, owner: owners.get(row.userId)!, priceable: rosterFromRow(row) })),
-      total: total ?? null,
+      total,
       nextCursor,
     }
   }

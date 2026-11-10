@@ -7,7 +7,6 @@ import { openOnboarding, type OnboardingStepId } from './onboarding'
 export function GuideHelp({ task, step, children }: { task: OnboardingTaskId; step?: OnboardingStepId; children: string }) {
   return (
     <Button
-      type="button"
       variant="ghost"
       size="icon-sm"
       aria-label={children}

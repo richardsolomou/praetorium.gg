@@ -17,7 +17,6 @@ import { type ReactNode, type RefObject, useCallback, useImperativeHandle, useMe
 import { cn } from '@/lib/utils'
 import { LoaderCircle } from 'lucide-react'
 import { FactionLabel, type FactionPresentation } from './FactionMark'
-import type { OnboardingTarget } from '../onboardingTargets'
 import { useVirtualRows } from './useVirtualRows'
 import { matchesSearch } from '../text'
 
@@ -47,7 +46,6 @@ type VirtualList = { virtualizer: Virtualizer<HTMLDivElement, Element>; rowOf: (
 type Props = {
   id?: string
   ariaLabel?: string
-  title?: string
   groups: SearchableGroup[]
   value: string
   selectedFaction?: FactionPresentation
@@ -61,7 +59,6 @@ type Props = {
   trigger?: ReactNode
   /** Which edge of the trigger the list lines up with; a custom trigger defaults to its end. */
   align?: 'start' | 'end'
-  onboarding?: OnboardingTarget
   /** Renders only the visible rows, for lists too long to mount at once. */
   virtualized?: boolean
   /** Shown when no option matches, such as while the options are still loading. */
@@ -76,7 +73,6 @@ type Props = {
 export function SearchableSelect({
   id,
   ariaLabel,
-  title,
   groups,
   value,
   selectedFaction,
@@ -89,7 +85,6 @@ export function SearchableSelect({
   loading = false,
   trigger,
   align = trigger ? 'end' : 'start',
-  onboarding,
   virtualized = false,
   emptyText = 'No matches.',
   header,
@@ -127,9 +122,7 @@ export function SearchableSelect({
     >
       <ComboboxTrigger
         id={id}
-        data-onboarding={onboarding}
         aria-label={ariaLabel}
-        title={title}
         aria-busy={loading}
         className={cn(
           'flex h-8 w-full min-w-0 items-center justify-between gap-2 overflow-hidden rounded-lg border border-input bg-transparent px-2.5 text-sm font-normal text-bone outline-none hover:bg-muted focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 data-popup-open:bg-muted data-placeholder:text-muted-foreground data-disabled:pointer-events-none data-disabled:opacity-50',

@@ -368,11 +368,7 @@ function CareerTables({ record }: { record: ServiceRecord }) {
               <span className="font-bold break-words uppercase">{row.name}</span>
             )
           }
-          columns={[
-            { label: 'Played', cell: (row) => row.battles, tint: 'text-bone' },
-            ...results,
-            { label: 'Avg VP', cell: (row) => oneDecimal(row.averagePoints), tint: 'text-info' },
-          ]}
+          columns={[...results, { label: 'Avg VP', cell: (row) => oneDecimal(row.averagePoints), tint: 'text-info' }]}
         />
         <RecordTable
           label="Against factions"
@@ -388,11 +384,7 @@ function CareerTables({ record }: { record: ServiceRecord }) {
               <span className="font-bold break-words uppercase">{row.faction.displayName}</span>
             </FactionReferenceLink>
           )}
-          columns={[
-            { label: 'Played', cell: (row) => row.battles, tint: 'text-bone' },
-            ...results,
-            { label: 'Rate', cell: (row) => percentLabel(row.rate) },
-          ]}
+          columns={[...results, { label: 'Rate', cell: (row) => percentLabel(row.rate) }]}
         />
         {record.opponents.length ? (
           <RecordTable
@@ -405,11 +397,7 @@ function CareerTables({ record }: { record: ServiceRecord }) {
                 <span className="font-bold break-words uppercase">{row.name}</span>
               </Link>
             )}
-            columns={[
-              { label: 'Played', cell: (row) => row.battles, tint: 'text-bone' },
-              ...results,
-              { label: 'Rate', cell: (row) => percentLabel(row.rate) },
-            ]}
+            columns={[...results, { label: 'Rate', cell: (row) => percentLabel(row.rate) }]}
           />
         ) : null}
       </div>
@@ -419,7 +407,8 @@ function CareerTables({ record }: { record: ServiceRecord }) {
 
 type Column<T> = { label: string; cell: (row: T) => ReactNode; tint?: string }
 
-const results: Column<{ won: number; drawn: number; lost: number }>[] = [
+const results: Column<{ battles: number; won: number; drawn: number; lost: number }>[] = [
+  { label: 'Played', cell: (row) => row.battles, tint: 'text-bone' },
   { label: 'W', cell: (row) => row.won, tint: 'text-achieved' },
   { label: 'D', cell: (row) => row.drawn },
   { label: 'L', cell: (row) => row.lost, tint: 'text-rust' },

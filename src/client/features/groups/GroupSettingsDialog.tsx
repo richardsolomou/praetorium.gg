@@ -164,7 +164,7 @@ function SettingsForm({ group, isOwner, onClose }: { group: Group | null; isOwne
           {save.error ? <Problem error={save.error} /> : null}
         </DialogBody>
         <DialogFooter>
-          <Button type="button" variant="outline" disabled={disabled} onClick={onClose}>
+          <Button variant="outline" disabled={disabled} onClick={onClose}>
             Cancel
           </Button>
           <Button data-onboarding="group-create" type="submit" disabled={disabled || !value.name.trim()}>

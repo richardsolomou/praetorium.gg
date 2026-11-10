@@ -569,7 +569,7 @@ function AddPlayers({ sealedEvent, token }: { sealedEvent: SealedEvent; token: s
             {add.error ? <Problem error={add.error} /> : null}
           </DialogBody>
           <DialogFooter>
-            <Button type="button" variant="outline" disabled={add.isPending} onClick={() => setOpen(false)}>
+            <Button variant="outline" disabled={add.isPending} onClick={() => setOpen(false)}>
               Cancel
             </Button>
             <Button disabled={add.isPending || !picked.length} onClick={() => add.mutate()}>

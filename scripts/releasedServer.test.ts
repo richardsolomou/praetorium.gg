@@ -43,7 +43,6 @@ const UNREACHED = new Set([
   'join_guest_seat',
   'lend_roster',
   'migrate_product_data',
-  'public_standings_revision',
   'ratings_before',
   'reject_friend',
   'remove_battle',

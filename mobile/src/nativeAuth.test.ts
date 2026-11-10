@@ -1,11 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import {
-  nativeAuthConsumeScript,
-  nativeAuthExchangeScript,
-  nativeAuthStartUrl,
-  parseNativeAuthCallback,
-  parseNativeAuthRequest,
-} from './nativeAuth'
+import { nativeAuthConsumeScript, nativeAuthStartUrl, parseNativeAuthCallback, parseNativeAuthRequest } from './nativeAuth'
 
 describe('native authentication bridge', () => {
   const proof = { challenge: 'c'.repeat(43), verifier: 'v'.repeat(43) }
@@ -110,16 +104,6 @@ describe('native authentication bridge', () => {
         { ...proof, challenge: 'x'.repeat(43) },
       ),
     ).toEqual({ kind: 'error' })
-  })
-
-  it('submits the exchange as a top-level form rather than a background request', () => {
-    const script = nativeAuthExchangeScript(callback)
-    expect(script).toContain("form.action = '/api/auth/native-auth-token/exchange'")
-    expect(script).toContain("sessionStorage.setItem('praetorium.native-auth.exchange'")
-    expect(script).toContain("navigation: '1'")
-    expect(script).toContain('form.submit()')
-    expect(script).not.toContain('fetch(')
-    expect(script).not.toContain('?token=')
   })
 
   it('acknowledges the same exchange proof after native persistence succeeds', () => {

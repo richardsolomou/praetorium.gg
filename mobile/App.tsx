@@ -1,5 +1,5 @@
 import { isWatchCompanionAvailable, publishWatchBattle, subscribeWatchAvailability } from './src/watchCompanion'
-import { canCoverScreen, canGateBackSwipe, setBackSwipe, setScreenCover } from './src/webSwipe'
+import { canGateBackSwipe, setBackSwipe, setScreenCover } from './src/webSwipe'
 import { offlineReferenceDataScript, readOfflineReference, storeOfflineReference } from './src/offlineReferenceStorage'
 import { readLocalState, storeLocalState } from './src/localStateStorage'
 import { appSnapshotScript, storeAppSnapshot } from './src/appSnapshotStorage'
@@ -647,7 +647,7 @@ function AppShell() {
           decelerationRate={WEB_DECELERATION}
           setBuiltInZoomControls={false}
           setSupportMultipleWindows
-          injectedJavaScriptBeforeContentLoaded={`${mountedSnapshot.script}\nwindow.PraetoriumOfflineStart=${JSON.stringify(offlineView.path)};\n${NATIVE_BRIDGE_SCRIPT}\n${nativeCapabilityScript('watch-battle', watchAvailable)}\n${nativeCapabilityScript('screen-cover', canCoverScreen)}`}
+          injectedJavaScriptBeforeContentLoaded={`${mountedSnapshot.script}\nwindow.PraetoriumOfflineStart=${JSON.stringify(offlineView.path)};\n${NATIVE_BRIDGE_SCRIPT}\n${nativeCapabilityScript('watch-battle', watchAvailable)}\n${nativeCapabilityScript('screen-cover', canGateBackSwipe)}`}
           onLoad={() => webView.current?.injectJavaScript(nativeCapabilityScript('watch-battle', isWatchCompanionAvailable()))}
           onMessage={({ nativeEvent }) => {
             try {
@@ -681,7 +681,7 @@ function AppShell() {
           containerStyle={styles.webView}
           originWhitelist={['*']}
           applicationNameForUserAgent={NATIVE_USER_AGENT}
-          injectedJavaScriptBeforeContentLoaded={`${referenceCacheScript}\n${mountedSnapshot.script}\n${NATIVE_BRIDGE_SCRIPT}\n${nativeCapabilityScript('watch-battle', watchAvailable)}\n${nativeCapabilityScript('screen-cover', canCoverScreen)}\n${nativeAuthCompletionScript()}`}
+          injectedJavaScriptBeforeContentLoaded={`${referenceCacheScript}\n${mountedSnapshot.script}\n${NATIVE_BRIDGE_SCRIPT}\n${nativeCapabilityScript('watch-battle', watchAvailable)}\n${nativeCapabilityScript('screen-cover', canGateBackSwipe)}\n${nativeAuthCompletionScript()}`}
           sharedCookiesEnabled
           thirdPartyCookiesEnabled={false}
           allowsBackForwardNavigationGestures={backSwipeGated || historyBack}
@@ -691,7 +691,7 @@ function AppShell() {
           setSupportMultipleWindows
           startInLoadingState
           renderLoading={() => <StateView />}
-          renderError={() => <StateView error retry={retryOnline} />}
+          renderError={() => <StateView error retry={() => retryOnline()} />}
           onLoadStart={({ nativeEvent }) => {
             mainFrameUrl.current = nativeEvent.url
             cancelScheduledDrain()

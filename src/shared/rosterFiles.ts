@@ -659,7 +659,6 @@ function detachmentsNamed<T extends { id: string; name: string }>(
 const upgradeName = (name: string) => name.replace(/(?:\s+\((?:one per army|Upgrade)\))+$/i, '')
 const nameVariants = (name: string) => normalizedNameVariants(normalized(name))
 const modelLoadout = /\s+w\/\s*(.+)$/i
-// BSData can also bracket the loadout, as a "Sicarian Infiltrator Princeps (Taser goad & flechette blaster)".
 // BSData names these models after their units; neither the catalogue nor the cards hold the names the official app prints.
 const APP_MODEL_NAMES = new Map([
   ['sentinel guard sodality', ['custodian guard']],
@@ -695,8 +694,8 @@ const spellingKey = (name: string) =>
 const powerWeaponKey = (key: string) => key.replace(/power(?:sword|maul)/, 'powerweapon')
 // The official app names a datasheet's plain melee profile "Close combat weapon" where the catalogue names it for what it is, as a Prosecutor's "Gun Stock".
 const GENERIC_MELEE = spellingKey('close combat weapon')
-/** The kind of model a counted group fields, as "1 - 2 Gun Servitors" fields a "Gun Servitor", which the official app names it by. */
 const CHAOS_GODS = ['khorne', 'nurgle', 'slaanesh', 'tzeentch']
+/** The kind of model a counted group fields, as "1 - 2 Gun Servitors" fields a "Gun Servitor", which the official app names it by. */
 const groupKind = (name: string) => normalized(name).match(/^\d+(?:\s*-\s*\d+)?\s+(.+?)s?$/)?.[1]
 
 /**

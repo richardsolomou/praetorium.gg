@@ -147,8 +147,8 @@ export function useRosterPanes({ path, workspacePath, picks }: { path: string; w
   )
 
   // A pane the workspace is wide enough to draw in place no longer needs a history
-  // entry of its own. The widths are the desktop defaults until the layout effect
-  // above measures them, so a mount that lands on an open pane has to wait for that.
+  // entry of its own. The widths are the desktop defaults until the workspace is
+  // measured, so a mount that lands on an open pane has to wait for that.
   useEffect(() => {
     if (!paneHistory || !workspaceMeasured) return
     const becameInline = paneHistory.pane === 'picker' ? wideWorkspace : loadoutInline

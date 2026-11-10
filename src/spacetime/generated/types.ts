@@ -336,15 +336,6 @@ export type MyAdminSignal = __Infer<typeof MyAdminSignal>
 export const MyAdminSignals = __t.object('MyAdminSignals', {})
 export type MyAdminSignals = __Infer<typeof MyAdminSignals>
 
-export const MyBattleList = __t.object('MyBattleList', {})
-export type MyBattleList = __Infer<typeof MyBattleList>
-
-export const MyBattleListEntry = __t.object('MyBattleListEntry', {
-  battleId: __t.string(),
-  seq: __t.u32(),
-})
-export type MyBattleListEntry = __Infer<typeof MyBattleListEntry>
-
 export const MyBattleSignals = __t.object('MyBattleSignals', {})
 export type MyBattleSignals = __Infer<typeof MyBattleSignals>
 

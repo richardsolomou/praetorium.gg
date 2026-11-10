@@ -905,22 +905,25 @@ export class PraetoriumService {
     }
   }
 
-  /** A group's ended leagues, newest first, each named by the player who topped it. A private group shows them to members alone. */
-  async groupPastLeagues(token: string, viewerId: string | null) {
+  /** A group's ended leagues as stored, which a private group shows to members alone. */
+  private async visiblePastLeagues(token: string, viewerId: string | null) {
     const found = await this.groupService.groupWithLeague(token, viewerId)
     if (!found) return null
     const { group } = found
     if (group.visibility === 'private' && !group.members.some((member) => member.userId === viewerId && member.status === 'accepted'))
       return null
-    const record = await this.repository.groupByToken(token)
-    return record?.pastLeagues.map(({ id, publishedAt, endedAt, players }) => ({ id, publishedAt, endedAt, players: players.length })) ?? []
+    return group.pastLeagues
+  }
+
+  /** A group's ended leagues, newest first, each named by the player who topped it. */
+  async groupPastLeagues(token: string, viewerId: string | null) {
+    const leagues = await this.visiblePastLeagues(token, viewerId)
+    return leagues && leagues.map(({ id, publishedAt, endedAt, players }) => ({ id, publishedAt, endedAt, players: players.length }))
   }
 
   /** One ended league's table, read from the battles its fixtures started, as a running league's is. */
   async groupPastLeague(token: string, leagueId: string, viewerId: string | null, factions: readonly BattleFaction[] = []) {
-    if ((await this.groupPastLeagues(token, viewerId)) === null) return null
-    const record = await this.repository.groupByToken(token)
-    const league = record?.pastLeagues.find((candidate) => candidate.id === leagueId)
+    const league = (await this.visiblePastLeagues(token, viewerId))?.find((candidate) => candidate.id === leagueId)
     if (!league) return null
     const battles = this.battleSummaries(await this.repository.battlesByLeague(token, leagueId), viewerId, null, factions)
     const byToken = new Map(battles.map((battle) => [battle.token, battle]))

@@ -33,7 +33,6 @@ export function GithubSupporter() {
             <TooltipTrigger
               render={
                 <Button
-                  type="button"
                   variant="ghost"
                   size="icon-sm"
                   className="text-info pointer-coarse:size-11"

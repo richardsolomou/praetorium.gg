@@ -43,8 +43,8 @@ const switchedOff = (rules: readonly FormatRule[]) =>
  * A mark beside a list's identity, which says what it is on hover.
  *
  * The identity line is what a list is, and every other thing on it is a fact about
- * the army rather than a caveat; spelling the waivers out there made the caveat the
- * loudest thing on the line. The mark holds the place, and the reader asks for the
+ * the army rather than a caveat; spelling the waivers out there would make the caveat
+ * the loudest thing on the line. The mark holds the place, and the reader asks for the
  * rest. Wherever a list is being decided about — chosen for a seat, sealed into a
  * sealed event, read under its own roster — the full sentence is still written out.
  */
@@ -74,8 +74,7 @@ export function WaiverNote({ rules, className = '' }: { rules: readonly FormatRu
 
 /**
  * Each waived restriction on its own line, for the moment someone has to decide
- * about them. A run-on sentence made the reader count commas to find out what they
- * were agreeing to.
+ * about them, so nobody has to count commas to find out what they are agreeing to.
  */
 function WaiverList({ rules }: { rules: readonly FormatRule[] }) {
   return (

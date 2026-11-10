@@ -1,3 +1,4 @@
+import { splitWeaponKeywords } from './ruleReference'
 import { uniqueBy } from './collections'
 import { markedBullets, printedPhrasing, printedRule } from './combatPhrasing'
 import type { Datasheet, DatasheetCharacteristicKind } from './datasheet'
@@ -405,7 +406,7 @@ export function combatRuleProfiles(
       if (!phase) return profile
       let values = profile.values
       const weaponKinds = new Set(
-        (profile.values.find((value) => datasheetCharacteristicKind(value.name) === 'keywords')?.value.split(/[,;]/) ?? []).map(
+        splitWeaponKeywords(profile.values.find((value) => datasheetCharacteristicKind(value.name) === 'keywords')?.value).map(
           (keyword) => combatKeyword(keyword)?.kind,
         ),
       )
@@ -440,7 +441,7 @@ export function combatRuleProfiles(
           if (effect.keyword) {
             const keyword = effect.keyword
             const existing = values.find((value) => datasheetCharacteristicKind(value.name) === 'keywords')
-            const held = existing?.value.split(/[,;]/).map((value) => value.trim()) ?? []
+            const held = splitWeaponKeywords(existing?.value)
             const numbered = combatKeyword(keyword)
             if (held.some((value) => combatTextKey(value) === combatTextKey(keyword))) continue
             if (numbered?.amount !== undefined && !numbered.target) {
@@ -462,7 +463,7 @@ export function combatRuleProfiles(
             }
             const next = {
               name: existing?.name ?? 'Keywords',
-              value: [...held.filter((value) => !/^[-—]$/.test(value)), keyword].filter(Boolean).join(', '),
+              value: [...held, keyword].join(', '),
               modifiers: [...new Set([...(existing?.modifiers ?? []), rule.name])],
             }
             values = existing ? values.map((value) => (value === existing ? next : value)) : [...values, next]
@@ -659,8 +660,9 @@ export function combatRuleWeapons(
             return Boolean(held && required && held.kind === required.kind && combatKeywordApplies(held, targetKeywords))
           }
           const original = source.profiles.find((candidate) => candidate.id === profile.id)
-          const keywords =
-            original?.values.find((value) => datasheetCharacteristicKind(value.name) === 'keywords')?.value.split(/[,;]/) ?? []
+          const keywords = splitWeaponKeywords(
+            original?.values.find((value) => datasheetCharacteristicKind(value.name) === 'keywords')?.value,
+          )
           const otherGrant = rules.some(
             (other) =>
               other.name !== rule.name &&

@@ -39,6 +39,8 @@ import { isSafeRelativePath } from './relativePath'
 import { reportServerFailure } from '../adapters/posthog'
 import { forEachConcurrently } from '../shared/forEachConcurrently'
 
+const isSha256 = (value: unknown): value is string => typeof value === 'string' && /^[0-9a-f]{64}$/.test(value)
+
 const LEGACY_FORMAT = 'praetorium.catalogue.v1'
 const COMPLETE_FORMAT = 'praetorium.catalogue.v2'
 const SOURCE_FORMAT = 'praetorium.catalogue.v3'
@@ -99,10 +101,10 @@ function filesUnder(directory: string, relative = ''): string[] {
 
 function parsePointer(value: unknown): SnapshotPointer {
   const pointer = value as Partial<SnapshotPointer>
-  if (pointer?.format !== POINTER_FORMAT || !pointer.id?.match(/^[0-9a-f]{64}$/) || !pointer.archiveSha256?.match(/^[0-9a-f]{64}$/)) {
+  if (pointer?.format !== POINTER_FORMAT || !isSha256(pointer.id) || !isSha256(pointer.archiveSha256)) {
     throw new Error('catalogue snapshot pointer is invalid')
   }
-  if (pointer.runtime && (!/^[a-f0-9]{64}$/.test(pointer.runtime.fingerprint) || !/^[a-f0-9]{64}$/.test(pointer.runtime.archiveSha256)))
+  if (pointer.runtime && (!isSha256(pointer.runtime.fingerprint) || !isSha256(pointer.runtime.archiveSha256)))
     throw new Error('catalogue runtime pointer is invalid')
   if (pointer.authoringRevision && !/^[a-f0-9]{40}$/.test(pointer.authoringRevision))
     throw new Error('catalogue authoring revision is invalid')
@@ -131,7 +133,7 @@ function parseRevocations(value: unknown): CatalogueRevocations {
     throw new Error('catalogue revocations are invalid')
   }
   const snapshots = candidate.snapshots.map((id) => {
-    if (typeof id !== 'string' || !id.match(/^[0-9a-f]{64}$/)) throw new Error('catalogue revocations contain an invalid snapshot')
+    if (!isSha256(id)) throw new Error('catalogue revocations contain an invalid snapshot')
     return id
   })
   const sources = candidate.sources.map((name) => {
@@ -366,7 +368,7 @@ function installManifestFiles(
     let size = 0
     fs.mkdirSync(staging, { recursive: true })
     for (const [name, fileHash] of Object.entries(manifest.files)) {
-      if (!/^[a-f0-9]{64}$/.test(fileHash)) throw new Error('catalogue snapshot has an invalid file hash')
+      if (!isSha256(fileHash)) throw new Error('catalogue snapshot has an invalid file hash')
       if (!isSafeRelativePath(name) || name.startsWith('.snapshot')) {
         throw new Error(`unsafe catalogue snapshot path ${name}`)
       }
@@ -472,7 +474,7 @@ async function fetchSnapshotObjects(
     assertCatalogueSnapshotAllowed(pointer, manifestSources(manifest), revocations)
     assertLockedRevisions(manifest.revisions, revisions)
     const hashes = [...new Set(Object.values(manifest.files))]
-    if (hashes.some((objectHash) => !/^[a-f0-9]{64}$/.test(objectHash))) throw new Error('catalogue object hash is invalid')
+    if (hashes.some((objectHash) => !isSha256(objectHash))) throw new Error('catalogue object hash is invalid')
     const entries = new Map<string, ExtractedFile>()
     let total = 0
     await forEachConcurrently(hashes, 8, async (objectHash) => {
@@ -553,7 +555,7 @@ export async function fetchCurrentPointer(baseUrl: string) {
 }
 
 export async function fetchReleasePointer(baseUrl: string, id: string) {
-  if (!/^[a-f0-9]{64}$/.test(id)) throw new Error('catalogue release id is invalid')
+  if (!isSha256(id)) throw new Error('catalogue release id is invalid')
   const response = await fetchCatalogueObject(`${baseUrl}/releases/${id}.json`, {}, ARTIFACT_REQUEST)
   if (!response.ok) throw new Error(`catalogue release pointer answered ${response.status}`)
   const pointer = parsePointer(await response.json())
