@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.229.1 (2026-11-10)
+
+### Patch Changes
+
+- fb035f5: Battle lists, group and tournament pages, player records, the home page and played armies load faster, and stay fast as more battles are played.
+
 ## 0.229.0 (2026-11-10)
 
 ### Minor Changes
