@@ -1,14 +1,5 @@
 import { expect, test, type Page } from './test'
-import {
-  createBattle,
-  PRACTICE_OPPONENT,
-  retryUntilVisible,
-  savedArmy,
-  setupStep,
-  chooseRosterAction,
-  chooseOption,
-  PHONE,
-} from './account'
+import { createBattle, PRACTICE_OPPONENT, retryUntilVisible, savedArmy, setupStep, chooseOption, PHONE } from './account'
 import type { SpacetimeOperator } from '../src/server/spacetimeOperator'
 
 /** A practice battle at 2,000 points, opened straight in the product, and its token. */
@@ -91,9 +82,7 @@ test('a battle started from a saved roster opens with that roster on the playerâ
   await page.goto(`/rosters/${id}`)
   await page.waitForLoadState('networkidle')
   const dialog = page.getByRole('dialog', { name: 'Start a battle' })
-  await retryUntilVisible(dialog, async () => {
-    await chooseRosterAction(page, 'Start a battle')
-  })
+  await retryUntilVisible(dialog, () => page.getByRole('button', { name: 'Start a battle', exact: true }).click())
   await chooseOption(page, 'Opponent', PRACTICE_OPPONENT)
   await dialog.getByRole('button', { name: 'Start battle' }).click()
   await page.waitForURL(/\/battles\/[^/]+$/)
