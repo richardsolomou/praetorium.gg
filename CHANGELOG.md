@@ -1,5 +1,36 @@
 # praetorium
 
+## 0.232.0 (2026-11-11)
+
+### Minor Changes
+
+- 79c51a7: Assistants can now search your battles by result, army, opponent, mission pack and date.
+- 79c51a7: Assistants can now summarise a finished battle from its report, and delete a battle you created.
+- 79c51a7: Assistants can now set up a battle from start to first turn, see who you can play, and know what the battle needs next.
+- 79c51a7: Assistants connected to Praetorium can now check a list for problems without saving it.
+- 79c51a7: Assistants can now read the models in your collection to build lists from what you own.
+- 79c51a7: Assistants can now run every unit in your list against every unit in another, like the simulator's roster comparison.
+- 79c51a7: Assistants can now tell you what changed in each points and datasheet update.
+- 79c51a7: Connected AI assistants can now compare every detachment a faction can take before choosing one.
+- 79c51a7: Assistants connected to Praetorium can now grade a list the same way the roster builder does.
+- 79c51a7: Assistants can now bring in a list you paste from another app, and give you a list's text export or exchange code.
+- 79c51a7: Connected AI assistants now follow Praetorium's guides for building, grading and tuning a list, comparing units, answering rules questions and tracking battles.
+- 79c51a7: Assistants can now look up force dispositions and the missions, deployments and terrain for any pairing of them.
+- 79c51a7: Assistants can now find the best wargear for a unit against a target, the same way Optimize does on the simulator.
+- 79c51a7: Assistants can now read your groups, leagues, tournaments and hidden-list games, seal your list, check you in, start your table's battle and report its score.
+- 79c51a7: Connected AI assistants can now plan how your list plays against an opponent's army and mission.
+- 79c51a7: Assistants can now read your win rates and leaderboard places.
+- 79c51a7: Assistants can now copy, archive or delete your rosters.
+- 79c51a7: Assistants can now help you choose fixed or tactical secondary missions for a game.
+- 79c51a7: Assistants can now simulate a unit that has already lost models or wounds.
+- 79c51a7: Assistants can now simulate a unit with the wargear from your saved list, not just its default loadout.
+- 79c51a7: Assistants connected to Praetorium can now choose your Warlord, enhancements and wargear when they build a list.
+
+### Patch Changes
+
+- 79c51a7: The assistant consent page and Connected apps now list everything an assistant's access covers.
+- 2b6c0e5: When an assistant copies a list or makes a variant of it, it now tells you whether the copy will be public.
+
 ## 0.231.11 (2026-11-11)
 
 ### Patch Changes
