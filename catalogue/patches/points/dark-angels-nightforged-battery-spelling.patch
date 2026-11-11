@@ -1,0 +1,9 @@
+diff --git a/points/data/dark-angels.yaml b/points/data/dark-angels.yaml
+index 655d445..8fec071 100644
+--- a/points/data/dark-angels.yaml
++++ b/points/data/dark-angels.yaml
+@@ -19,3 +19,3 @@ detachments:
+     enhancements:
+-      - { name: Nightforged Battery (Upgarde), points: 10 }
++      - { name: Nightforged Battery (Upgrade), points: 10 }
+       - { name: Thundercowl Turbines (Upgrade), points: 15 }

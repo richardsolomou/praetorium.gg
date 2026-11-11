@@ -1,0 +1,9 @@
+diff --git a/definitions/Chaos - Chaos Space Marines.json b/definitions/Chaos - Chaos Space Marines.json
+index f42b12e..d67b417 100644
+--- a/definitions/Chaos - Chaos Space Marines.json	
++++ b/definitions/Chaos - Chaos Space Marines.json	
+@@ -6517,3 +6517,3 @@
+                   {
+-                    "name": "Creations of Bile",
++                    "name": "Experimental Augmentations",
+                     "id": "baec-58bb-7156-3bde",

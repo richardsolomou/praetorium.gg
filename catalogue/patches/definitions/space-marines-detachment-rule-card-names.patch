@@ -1,0 +1,19 @@
+diff --git a/definitions/Imperium - Space Marines.json b/definitions/Imperium - Space Marines.json
+index 39e7155..3b1e332 100644
+--- a/definitions/Imperium - Space Marines.json	
++++ b/definitions/Imperium - Space Marines.json	
+@@ -87445,3 +87445,3 @@
+               {
+-                "name": "Masters of Shadow",
++                "name": "Shadow Tactics",
+                 "id": "1869-3566-2284-e685",
+@@ -88156,3 +88156,3 @@
+               {
+-                "name": "New Rule",
++                "name": "Purge and Sanctify",
+                 "id": "1093-42df-a7d1-3f55",
+@@ -88243,3 +88243,3 @@
+               {
+-                "name": "New Rule",
++                "name": "Armoured Wrath",
+                 "id": "fbce-3eac-c3a9-b353",

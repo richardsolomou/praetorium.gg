@@ -1,35 +1,14 @@
 [
   {
-    "reason": "Detachments link the core rules their own rule grants (Lethal Hits, Stealth, Deep Strike…). These are keyword definitions, not detachment rules, and still show as keyword tooltips on the detachment rule that names them.",
+    "reason": "BSData names these detachment rules differently from the card that prints them (a placeholder \"New Rule\", the detachment's name, or one section of the card rule). The patches rename them to the card's name, so each now merges with the card rule instead of listing it twice.",
     "entries": [
-      "adeptus-mechanicus / Skitarii Hunter Cohort rules: Stealth",
-      "aeldari / Armoured Warhost rules: Assault",
-      "aeldari / Twilight Flickers rules: Stealth",
-      "genestealer-cults / Host of Ascension rules: Ignores Cover",
-      "genestealer-cults / Host of Ascension rules: Sustained Hits",
-      "tau-empire / Kauyon rules: Sustained Hits",
-      "tau-empire / Mont'ka rules: Assault",
-      "tau-empire / Mont'ka rules: Lethal Hits",
-      "astra-militarum / Combined Arms rules: Lethal Hits",
-      "astra-militarum / Siege Regiment rules: Stealth",
-      "imperial-knights / Freeblade Company rules: Feel No Pain",
-      "imperial-knights / Gate Warden Lance rules: Sustained Hits",
-      "imperial-knights / Valourstrike Lance rules: Assault",
-      "tyranids / Ambush Predators rules: Deep Strike",
-      "tyranids / Invasion Fleet rules: Lethal Hits",
-      "tyranids / Invasion Fleet rules: Precision",
-      "tyranids / Invasion Fleet rules: Sustained Hits"
-    ]
-  },
-  {
-    "reason": "BSData misspells these detachment rules; the card rule with the correct spelling is still listed, so the misspelt copy was a duplicate.",
-    "entries": [
-      "chaos-daemons / Blood Legion rules: Bloodtainted",
-      "chaos-space-marines / Soulforged Warpack rules: Debt to the Soulforge",
-      "adeptus-mechanicus / Data-psalm Conclave rules: Benediction of the Omnissiah",
-      "tau-empire / Experimental Prototype Cadre rules: Superior Craftmanship",
-      "tyranids / Invasion Fleet rules: Hyper Adaptions",
-      "tyranids / Synaptic Nexus rules: Synaptic Imperitives"
+      "chaos-space-marines / Creations of Bile rules: Creations of Bile",
+      "chaos-space-marines / Renegade Warband rules: Twisted Doctrine",
+      "chaos-space-marines / Renegade Warband rules: Vendetta",
+      "black-templars / Fist of the God-Emperor rules: New Rule",
+      "iron-hands / Medusa's Wrath rules: New Rule",
+      "raven-guard / Shadowmark Talon rules: Masters of Shadow",
+      "adeptus-mechanicus / Skitarii Hunter Cohort rules: Skitarii Hunter Cohort"
     ]
   }
 ]

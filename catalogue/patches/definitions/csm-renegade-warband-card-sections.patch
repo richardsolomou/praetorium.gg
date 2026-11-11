@@ -1,0 +1,14 @@
+diff --git a/definitions/Chaos - Chaos Space Marines.json b/definitions/Chaos - Chaos Space Marines.json
+index f42b12e..bd119c4 100644
+--- a/definitions/Chaos - Chaos Space Marines.json	
++++ b/definitions/Chaos - Chaos Space Marines.json	
+@@ -6634,3 +6634,3 @@
+                   {
+-                    "name": "Vendetta",
++                    "name": "Slaves to None",
+                     "id": "9bf6-79b0-a430-7e1e",
+@@ -6640,3 +6640,3 @@
+                   {
+-                    "name": "Twisted Doctrine",
++                    "name": "Slaves to None",
+                     "id": "49db-1da6-9dd2-b33d",
