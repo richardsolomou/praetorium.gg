@@ -334,6 +334,40 @@ describe('fromNewRecruitShare', () => {
     expect(fromNewRecruitShare(shared())!.units.map((unit) => unit.name)).toEqual(['Warboss', 'Boyz'])
   })
 
+  describe('a Crusade force', () => {
+    const crusade = () => {
+      const share = shared()
+      const categories = share.army.options[0]!.options[0]!.options
+      const setup = categories[0]!
+      categories.splice(
+        0,
+        1,
+        { name: 'Order of Battle', option_id: 'ac7e-be7b-eb02-4752', options: [{ name: 'Order of Battle', amount: 1, options: [] }] },
+        {
+          name: 'Configuration',
+          option_id: '4ac9-fd30-1e3d-b249',
+          options: [{ name: 'Show/Hide Options', option_id: 'e8ef-836a-a9d1-901d', amount: 1, options: [] }],
+        },
+        { name: 'Crusade Army', options: [setup] },
+      )
+      return share
+    }
+
+    it('reads the setup from its Crusade Army entry', () => {
+      expect(fromNewRecruitShare(crusade())).toMatchObject({ detachment: 'War Horde', disposition: 'Take and Hold', limit: 2000 })
+    })
+
+    it('leaves out its Order of Battle and setup entries', () => {
+      expect(fromNewRecruitShare(crusade())!.units.map((unit) => unit.name)).toEqual(['Warboss', 'Boyz'])
+    })
+  })
+
+  it('reads no disposition when none is chosen', () => {
+    const share = shared()
+    share.army.options[0]!.options[0]!.options[0]!.options[2]!.options = []
+    expect(fromNewRecruitShare(share)!.disposition).toBeNull()
+  })
+
   describe('a bundle of wargear on a model', () => {
     const pieces = () => [
       { name: 'Slugga', amount: 1, options: [] },
