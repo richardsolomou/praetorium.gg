@@ -338,6 +338,12 @@ const selectionTracking: Record<MissionSelectionKind, string> = {
   'locate-and-deny': 'start-of-battle operation markers with recorded table confirmations and manual Sensor Sweep removals',
   'sensor-sweep': 'manual Sensor Sweep removals of opposing operation markers',
   consecrate: 'consecrated objectives with recorded table confirmations',
+  decoy: 'decoyed objectives with recorded table confirmations',
+  triangulate: 'triangulated objectives with recorded table confirmations',
+  'extract-intel': 'Extract Intelligence operation markers with recorded table confirmations',
+  'maintain-control': 'Maintain Control operation markers with recorded table confirmations',
+  'booby-trap': 'trapped terrain areas with recorded table confirmations',
+  surveil: 'manual removals of opposing operation markers',
 }
 
 function missionCardLines(

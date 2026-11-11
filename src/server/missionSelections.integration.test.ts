@@ -13,10 +13,36 @@ const card = (name: string) =>
 
 it.skipIf(!pinned)('grants each verified capability from the pinned pack wording', () => {
   expect(
-    ['Punishment', 'Burden Of Trust', 'A Tempting Target', 'Beacon', 'Locate and Deny', 'Extract Relic', 'Consecrate'].map((name) =>
-      missionSelectionKind(pack().id, card(name)),
-    ),
-  ).toEqual(['punishment', 'guards', 'tempting-target', 'beacon', 'locate-and-deny', 'sensor-sweep', 'consecrate'])
+    [
+      'Punishment',
+      'Burden Of Trust',
+      'A Tempting Target',
+      'Beacon',
+      'Locate and Deny',
+      'Extract Relic',
+      'Consecrate',
+      'Smoke and Mirrors',
+      'Triangulation',
+      'Gather Intel',
+      'Vital Link',
+      'Death Trap',
+      'Surveil the Foe',
+    ].map((name) => missionSelectionKind(pack().id, card(name))),
+  ).toEqual([
+    'punishment',
+    'guards',
+    'tempting-target',
+    'beacon',
+    'locate-and-deny',
+    'sensor-sweep',
+    'consecrate',
+    'decoy',
+    'triangulate',
+    'extract-intel',
+    'maintain-control',
+    'booby-trap',
+    'surveil',
+  ])
 })
 
 it.skipIf(!pinned)('withdraws the capability when the printed action changes', () => {

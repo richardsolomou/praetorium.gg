@@ -11,13 +11,35 @@ export const MISSION_SELECTION_KINDS = [
   'locate-and-deny',
   'sensor-sweep',
   'consecrate',
+  'decoy',
+  'triangulate',
+  'extract-intel',
+  'maintain-control',
+  'booby-trap',
+  'surveil',
 ] as const
 export type MissionSelectionKind = (typeof MISSION_SELECTION_KINDS)[number]
+
+/**
+ * Actions that place one of your operation markers, with the first battle round each can be performed and which
+ * earlier places the card rules out: any it ever marked ("not decoyed", "not yet trapped"), only those where its
+ * marker still stands ("does not have any of your operation markers"), or none.
+ */
+export const MARKER_PLACEMENTS = {
+  decoy: { fromRound: 1, excludes: 'ever' },
+  triangulate: { fromRound: 2, excludes: 'standing' },
+  'extract-intel': { fromRound: 2, excludes: 'standing' },
+  'maintain-control': { fromRound: 1, excludes: 'none' },
+  'booby-trap': { fromRound: 1, excludes: 'ever' },
+} as const satisfies Record<string, { fromRound: number; excludes: 'ever' | 'standing' | 'none' }>
+export type MarkerPlacementKind = keyof typeof MARKER_PLACEMENTS
+export const isMarkerPlacement = (kind: MissionSelectionKind): kind is MarkerPlacementKind => kind in MARKER_PLACEMENTS
 /** An action the player may take, so the board offers it on its card without asking. */
 export const isOptionalSelection = (kind: MissionSelectionKind) => kind === 'sensor-sweep'
 export type MissionUnitRef = { playerId: string; unitKey: string; rosterSeq: number }
 export type MissionObjectiveRef = { key: string; name: string }
-type MissionMarkerRef = { playerId: string; key: string; name: string }
+/** `seq` names the record that placed the marker; Locate and Deny markers from older logs omit it. */
+export type MissionMarkerRef = { playerId: string; key: string; name: string; seq?: number }
 export type MissionSelection =
   | { kind: 'punishment'; units: MissionUnitRef[]; fallback: boolean; qualified: boolean; unavailable?: true }
   | { kind: 'guards'; guards: { objective: MissionObjectiveRef; unit: MissionUnitRef }[] }
@@ -31,6 +53,8 @@ export type MissionSelection =
       qualified: boolean
       notHome: boolean
     }
+  | { kind: MarkerPlacementKind; targets: MissionObjectiveRef[]; confirmed: boolean }
+  | { kind: 'surveil'; markers: MissionMarkerRef[] }
 
 export type SavedMissionUnit = MissionUnitRef & { name: string; memberKeys: string[] }
 export type SavedMissionSelection = {
@@ -42,7 +66,7 @@ export type SavedMissionSelection = {
   turnSeq: number
   expired: boolean
   beaconDestroyed?: true
-  /** Locate and Deny marker keys removed by a Sensor Sweep, with the round of removal. */
+  /** Marker keys of this record removed by a Sensor Sweep or Surveil the Foe, with the round of removal. */
   removedMarkers?: Record<string, number>
   selection: MissionSelection
   units: SavedMissionUnit[]
@@ -56,7 +80,7 @@ export type MissionSelectionPrompt = {
   chooserSide: number
 }
 
-export type OperationMarker = MissionMarkerRef & { removedRound: number | null }
+export type OperationMarker = Required<MissionMarkerRef> & { placedRound: number; removedRound: number | null }
 
 type SelectionCommand = Extract<Command, { kind: 'select-mission' }>
 
@@ -92,7 +116,14 @@ function missionSelectionPrompts(state: BattleState, player: PlayerState, card: 
     case 'tempting-target':
       return startOfTurn ? prompt('tempting-target', drawn, opposingSide(state, player.side)) : []
     case 'consecrate':
-      return primary && endOfTurn ? prompt('consecrate', state.turnSeq) : []
+    case 'surveil':
+      return primary && endOfTurn ? prompt(capability, state.turnSeq) : []
+    case 'decoy':
+    case 'triangulate':
+    case 'extract-intel':
+    case 'maintain-control':
+    case 'booby-trap':
+      return primary && endOfTurn && state.round >= MARKER_PLACEMENTS[capability].fromRound ? prompt(capability, state.turnSeq) : []
     case 'sensor-sweep':
       return primary && endOfTurn ? prompt('sensor-sweep', state.turnSeq) : []
     case 'locate-and-deny': {
@@ -114,31 +145,58 @@ function selectionOpen(state: BattleState, player: PlayerState, prompt: MissionS
   const previous = player.missionSelections.find((saved) => sameOccurrence(saved, prompt))
   if (prompt.kind === 'beacon') return !previous?.beaconDestroyed
   if (prompt.kind === 'sensor-sweep') return !previous && remainingOperationMarkers(state).length > 1
+  if (prompt.kind === 'surveil') return !previous && remainingOperationMarkers(state).some((marker) => marker.playerId !== player.id)
   return !previous
 }
+
+const placedAt = (selection: MissionSelection): MissionObjectiveRef[] =>
+  selection.kind === 'locate-and-deny'
+    ? selection.areas
+    : selection.kind === 'consecrate'
+      ? selection.consecrations.map((consecration) => consecration.objective)
+      : isMarkerPlacement(selection.kind) && 'targets' in selection
+        ? selection.targets
+        : []
 
 export function operationMarkers(state: BattleState): OperationMarker[] {
   return state.players.flatMap((player) =>
     player.missionSelections.flatMap((saved) =>
-      saved.selection.kind === 'locate-and-deny'
-        ? saved.selection.areas.map((area) => ({
-            playerId: player.id,
-            key: area.key,
-            name: area.name,
-            removedRound: saved.removedMarkers?.[area.key] ?? null,
-          }))
-        : [],
+      placedAt(saved.selection).map((place) => ({
+        playerId: player.id,
+        key: place.key,
+        name: place.name,
+        seq: saved.seq,
+        placedRound: saved.round,
+        removedRound: saved.removedMarkers?.[place.key] ?? null,
+      })),
     ),
   )
 }
 
+/** The record that placed a marker; an older Locate and Deny reference without `seq` names its area alone. */
+const placedBy = (saved: SavedMissionSelection, marker: MissionMarkerRef) =>
+  (marker.seq === undefined ? saved.selection.kind === 'locate-and-deny' : saved.seq === marker.seq) &&
+  placedAt(saved.selection).some((place) => place.key === marker.key)
+
+const sameMarker = (marker: OperationMarker, ref: MissionMarkerRef) =>
+  marker.playerId === ref.playerId &&
+  marker.key === ref.key &&
+  marker.name === ref.name &&
+  (ref.seq === undefined || marker.seq === ref.seq)
+
 export const remainingOperationMarkers = (state: BattleState) => operationMarkers(state).filter((marker) => marker.removedRound === null)
 
-export function consecratedObjectives(player: PlayerState, cardKey: string): MissionObjectiveRef[] {
-  return player.missionSelections.flatMap((saved) =>
-    saved.cardKey === cardKey && saved.selection.kind === 'consecrate'
-      ? saved.selection.consecrations.map((consecration) => consecration.objective)
-      : [],
+/** Places a card cannot choose again: consecrated objectives, and those its marker action rules out. */
+export function markedObjectives(player: PlayerState, cardKey: string, kind: MissionSelectionKind): MissionObjectiveRef[] {
+  const excludes = kind === 'consecrate' ? 'ever' : isMarkerPlacement(kind) ? MARKER_PLACEMENTS[kind].excludes : 'none'
+  if (excludes === 'none') return []
+  return uniqueBy(
+    player.missionSelections.flatMap((saved) =>
+      saved.cardKey === cardKey && saved.selection.kind === kind
+        ? placedAt(saved.selection).filter((place) => excludes === 'ever' || !saved.removedMarkers?.[place.key])
+        : [],
+    ),
+    (place) => place.key,
   )
 }
 
@@ -276,12 +334,7 @@ export function missionSelectionRefusal(state: BattleState, by: string, player: 
     const remaining = remainingOperationMarkers(state)
     if (remaining.length < 2)
       return refuse('mission-selection-count', 'a Sensor Sweep cannot start while only one operation marker remains')
-    if (
-      !remaining.some(
-        (marker) =>
-          marker.playerId === selection.marker.playerId && marker.key === selection.marker.key && marker.name === selection.marker.name,
-      )
-    )
+    if (!remaining.some((marker) => sameMarker(marker, selection.marker)))
       return refuse('mission-selection-objective', 'choose an operation marker that is still on the battlefield')
     if (!selection.controlled) return refuse('mission-selection-facts', 'confirm that the sweeping unit controls its central objective')
   }
@@ -293,7 +346,7 @@ export function missionSelectionRefusal(state: BattleState, by: string, player: 
       return refuse('mission-selection-objective', 'consecrate each objective once')
     if (new Set(refs.map(unitIdentity)).size !== refs.length)
       return refuse('mission-selection-count', 'each consecration unit can consecrate one objective')
-    const consecrated = new Set(consecratedObjectives(player, command.cardKey).map((objective) => objective.key))
+    const consecrated = new Set(markedObjectives(player, command.cardKey, kind).map((objective) => objective.key))
     if (consecrations.some((consecration) => consecrated.has(consecration.objective.key)))
       return refuse('mission-selection-objective', 'that objective is already consecrated')
     if (consecrations.length && (!selection.qualified || !selection.notHome))
@@ -301,6 +354,23 @@ export function missionSelectionRefusal(state: BattleState, by: string, player: 
         'mission-selection-facts',
         'confirm that each unit is a consecration unit within range of its objective and that no objective is your home objective',
       )
+  }
+  if (isMarkerPlacement(selection.kind) && 'targets' in selection) {
+    const keys = selection.targets.map((place) => place.key)
+    if (keys.length > 20 || selection.targets.some((place) => !validObjective(place)))
+      return refuse('mission-selection-objective', 'name each place that received a marker')
+    if (new Set(keys).size !== keys.length) return refuse('mission-selection-objective', 'name each place once')
+    const ruledOut = new Set(markedObjectives(player, command.cardKey, selection.kind).map((place) => place.key))
+    if (keys.some((key) => ruledOut.has(key))) return refuse('mission-selection-objective', 'this mission rules that place out')
+    if (keys.length && !selection.confirmed)
+      return refuse('mission-selection-facts', 'confirm that each action met the conditions printed on the mission')
+  }
+  if (selection.kind === 'surveil') {
+    const remaining = remainingOperationMarkers(state).filter((marker) => marker.playerId !== player.id)
+    if (selection.markers.length > 40 || selection.markers.some((ref) => !remaining.some((marker) => sameMarker(marker, ref))))
+      return refuse('mission-selection-objective', 'choose opposing operation markers that are still on the battlefield')
+    if (uniqueBy(selection.markers, (ref) => JSON.stringify([ref.playerId, ref.seq, ref.key])).length !== selection.markers.length)
+      return refuse('mission-selection-objective', 'remove each marker once')
   }
   return null
 }
@@ -324,14 +394,17 @@ export function applyMissionSelection(state: BattleState, player: PlayerState, c
     ...player.missionSelections.filter((old) => !sameOccurrence(old, { ...saved, kind: saved.selection.kind })),
     saved,
   ]
-  if (command.selection.kind === 'sensor-sweep') {
-    const { marker } = command.selection
+  const removed =
+    command.selection.kind === 'sensor-sweep'
+      ? [command.selection.marker]
+      : command.selection.kind === 'surveil'
+        ? command.selection.markers
+        : []
+  for (const marker of removed) {
     const owner = state.players.find((candidate) => candidate.id === marker.playerId)
     if (owner)
       owner.missionSelections = owner.missionSelections.map((old) =>
-        old.selection.kind === 'locate-and-deny' && old.selection.areas.some((area) => area.key === marker.key)
-          ? { ...old, removedMarkers: { ...old.removedMarkers, [marker.key]: state.round } }
-          : old,
+        placedBy(old, marker) ? { ...old, removedMarkers: { ...old.removedMarkers, [marker.key]: state.round } } : old,
       )
   }
 }

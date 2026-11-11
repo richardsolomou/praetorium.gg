@@ -36,7 +36,7 @@ import {
 import { battleUnitCounts } from './attachedUnits'
 import { withoutUnitNotes } from './unitNotes'
 import {
-  consecratedObjectives,
+  markedObjectives,
   beaconLost,
   openMissionSelections,
   missionUnitCandidates,
@@ -57,7 +57,8 @@ export type MissionChoiceView = MissionSelectionPrompt & {
   canChoose: boolean
   units: SavedMissionUnit[]
   markers?: OperationMarker[]
-  consecrated?: MissionObjectiveRef[]
+  /** Objectives this card already marked, which cannot be chosen again. */
+  marked?: MissionObjectiveRef[]
 }
 
 /**
@@ -260,7 +261,10 @@ export function battleView(
                   prompt.kind !== 'beacon',
                 ),
                 ...(prompt.kind === 'sensor-sweep' ? { markers: remainingOperationMarkers(state) } : {}),
-                ...(prompt.kind === 'consecrate' ? { consecrated: consecratedObjectives(player, prompt.cardKey) } : {}),
+                ...(prompt.kind === 'surveil'
+                  ? { markers: remainingOperationMarkers(state).filter((marker) => marker.playerId !== player.id) }
+                  : {}),
+                marked: markedObjectives(player, prompt.cardKey, prompt.kind),
               })),
           ),
     players: state.players.map((player) => {

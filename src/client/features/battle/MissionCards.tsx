@@ -11,7 +11,8 @@ import { CARD, CARD_NAME, CARD_NAME_LINK } from './battleTints'
 import { DispositionChip, useDispositionNames } from './setup/chrome'
 import { MissionSelectionRecords } from './MissionSelectionRecord'
 import { MissionSelectionDialog } from './MissionSelectionDialog'
-import type { MissionSelectionKind } from '../../../core/missionSelections'
+import { MARKER_PLACEMENT_COPY } from './markerPlacementCopy'
+import { isMarkerPlacement, type MarkerPlacementKind, type MissionSelectionKind } from '../../../core/missionSelections'
 
 import type { MissionAction } from '../../../contracts/missions'
 import { countLabel } from '../../text'
@@ -65,7 +66,7 @@ export function PrimaryMission({ view, side, pending, send, referenceFor, guides
   )
 }
 
-const CHOICE_LABELS: Record<MissionSelectionKind, string> = {
+const CHOICE_LABELS: Record<Exclude<MissionSelectionKind, MarkerPlacementKind>, string> = {
   punishment: 'Record condemned units',
   guards: 'Record guards',
   'tempting-target': 'Record tempting target',
@@ -73,7 +74,9 @@ const CHOICE_LABELS: Record<MissionSelectionKind, string> = {
   'locate-and-deny': 'Record operation markers',
   'sensor-sweep': 'Record Sensor Sweep',
   consecrate: 'Record consecrations',
+  surveil: 'Record removed markers',
 }
+const choiceLabel = (kind: MissionSelectionKind) => (isMarkerPlacement(kind) ? MARKER_PLACEMENT_COPY[kind].label : CHOICE_LABELS[kind])
 
 function MissionChoices({
   view,
@@ -101,7 +104,7 @@ function MissionChoices({
           disabled={pending}
           onClick={() => setOpenKind(choice.kind)}
         >
-          {CHOICE_LABELS[choice.kind]}
+          {choiceLabel(choice.kind)}
         </Button>
       ))}
       {opened ? (

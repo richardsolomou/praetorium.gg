@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import { commandRefusal, reduceBattle, type Command, type LoggedCommand } from './battle'
 import { ALICE, BOB, NAMES, PLAYERS, advance, attachedRoster, builtRoster, log, turns } from './battle.fixtures'
-import { openMissionSelections, missionUnitCandidates, operationMarkers, savedMissionUnitStatus } from './missionSelections'
+import {
+  openMissionSelections,
+  missionUnitCandidates,
+  operationMarkers,
+  savedMissionUnitStatus,
+  type MissionSelection,
+  type MissionSelectionKind,
+} from './missionSelections'
 import { battleView } from './battleView'
 import { appendLocalCommand, localBattleState, visibleBattleLog } from './offlineBattle'
 import { commandSchema } from './commands'
@@ -614,7 +621,9 @@ describe('source-backed mission selections', () => {
 const locate = { key: 'locate', name: 'Locate and Deny', selection: 'locate-and-deny' as const }
 const relic = { key: 'relic', name: 'Extract Relic', selection: 'sensor-sweep' as const }
 const consecrate = { key: 'consecrate', name: 'Consecrate', selection: 'consecrate' as const }
-const prepare = (card: typeof locate | typeof relic | typeof consecrate): Command => ({
+const smoke = { key: 'smoke', name: 'Smoke and Mirrors', selection: 'decoy' as const }
+type PreparedCard = { key: string; name: string; selection: MissionSelectionKind }
+const prepare = (card: PreparedCard): Command => ({
   kind: 'set-prep',
   primary: { ...card },
   secondaries: [],
@@ -915,7 +924,7 @@ describe('Consecrate', () => {
 
   it('leaves already consecrated objectives out of the choice', () => {
     const battle = atEnd([ALICE, consecration([['a', 'u0']])], [ALICE, advance()], ...turns(6, BOB), ...turns(5, ALICE))
-    expect(battleView({ token: 'test' }, NAMES, battle, ALICE).missionChoices?.[0]?.consecrated).toEqual([objective('a')])
+    expect(battleView({ token: 'test' }, NAMES, battle, ALICE).missionChoices?.[0]?.marked).toEqual([objective('a')])
   })
 
   it('keeps consecrated objectives after the next own turn begins', () => {
@@ -959,5 +968,140 @@ describe('Consecrate', () => {
   it('shows consecrations to the opponent', () => {
     const view = battleView({ token: 'test' }, NAMES, atEnd([ALICE, consecration([['a', 'u0']])]), BOB)
     expect(view.players[0]!.missionSelections?.map((saved) => saved.units.map((unit) => unit.name))).toEqual([['Squad']])
+  })
+})
+
+describe('Smoke and Mirrors', () => {
+  const objective = (key: string) => ({ key, name: `Objective ${key}` })
+  const decoy = (keys: string[], occurrence = 4): SelectionCommand => ({
+    kind: 'select-mission',
+    cardKey: smoke.key,
+    occurrence,
+    selection: { kind: 'decoy', targets: keys.map(objective), confirmed: true },
+  })
+  const smokeBattle = (...extra: [string, Command][]) =>
+    reduceBattle(
+      PLAYERS,
+      log(
+        [ALICE, builtRoster('Alice', ['Squad'])],
+        [BOB, attachedRoster()],
+        [ALICE, prepare(smoke)],
+        [ALICE, { kind: 'begin-battle', firstPlayerId: ALICE }],
+        ...extra,
+      ),
+    )
+  const atEnd = (...extra: [string, Command][]) => smokeBattle(...turns(5, ALICE), ...extra)
+  const nextEnd = (...first: [string, Command][]) => atEnd(...first, [ALICE, advance()], ...turns(6, BOB), ...turns(5, ALICE))
+
+  it('asks for decoyed objectives at the end of the own turn', () => {
+    expect(openMissionSelections(atEnd(), atEnd().players[0]!)).toEqual([
+      { cardKey: smoke.key, cardName: smoke.name, kind: 'decoy', occurrence: 4, chooserSide: 0 },
+    ])
+  })
+
+  it('refuses decoying one objective twice in one turn', () => {
+    expect(commandRefusal(atEnd(), ALICE, decoy(['a', 'a']))?.code).toBe('mission-selection-objective')
+  })
+
+  it('refuses an objective decoyed in an earlier turn', () => {
+    expect(commandRefusal(nextEnd([ALICE, decoy(['a'])]), ALICE, decoy(['a'], 17))?.code).toBe('mission-selection-objective')
+  })
+
+  it('offers the objectives already decoyed', () => {
+    const battle = nextEnd([ALICE, decoy(['a', 'b'])])
+    expect(battleView({ token: 'test' }, NAMES, battle, ALICE).missionChoices?.[0]?.marked).toEqual([objective('a'), objective('b')])
+  })
+
+  it('requires the table to confirm each decoying unit controls its objective', () => {
+    const command = decoy(['a'])
+    if (command.selection.kind !== 'decoy') throw new Error('expected decoy')
+    command.selection.confirmed = false
+    expect(commandRefusal(atEnd(), ALICE, command)?.code).toBe('mission-selection-facts')
+  })
+})
+
+describe('marker actions', () => {
+  const objective = (key: string) => ({ key, name: `Objective ${key}` })
+  const intel = { key: 'intel', name: 'Gather Intel', selection: 'extract-intel' as const }
+  const link = { key: 'link', name: 'Vital Link', selection: 'maintain-control' as const }
+  const surveil = { key: 'surveil', name: 'Surveil the Foe', selection: 'surveil' as const }
+
+  /** Alice plays `card` against Bob's Surveil the Foe; each step appends to one shared log. */
+  function game(card: PreparedCard) {
+    const steps: [string, Command][] = [
+      [ALICE, builtRoster('Alice', ['Squad'])],
+      [BOB, builtRoster('Bob', ['Squad'])],
+      [ALICE, prepare(card)],
+      [BOB, prepare(surveil)],
+      [ALICE, { kind: 'begin-battle', firstPlayerId: ALICE }],
+    ]
+    const battle = () => reduceBattle(PLAYERS, log(...steps))
+    const select = (by: string, cardKey: string, selection: MissionSelection): Command => {
+      const side = by === ALICE ? 0 : 1
+      const due = openMissionSelections(battle(), battle().players[side]!).find((prompt) => prompt.cardKey === cardKey)
+      return { kind: 'select-mission', cardKey, occurrence: due?.occurrence ?? 0, selection }
+    }
+    const placing = (keys: string[]) =>
+      select(ALICE, card.key, { kind: card.selection as 'decoy', targets: keys.map(objective), confirmed: true })
+    return {
+      battle,
+      placing,
+      aliceEnd: () => steps.push(...turns(5, ALICE)),
+      bobEnd: () => steps.push([ALICE, advance()], ...turns(5, BOB)),
+      nextRound: () => steps.push([BOB, advance()]),
+      place: (keys: string[]) => steps.push([ALICE, placing(keys)]),
+      surveil: () => {
+        const markers = operationMarkers(battle()).filter((marker) => marker.playerId === ALICE)
+        steps.push([BOB, select(BOB, surveil.key, { kind: 'surveil', markers })])
+      },
+      refusal: (keys: string[]) => commandRefusal(battle(), ALICE, placing(keys))?.code,
+    }
+  }
+
+  it('does not ask for Extract Intelligence in the first battle round', () => {
+    const play = game(intel)
+    play.aliceEnd()
+    expect(openMissionSelections(play.battle(), play.battle().players[0]!)).toEqual([])
+  })
+
+  it('refuses Extract Intelligence where its marker still stands', () => {
+    const play = game(intel)
+    ;(play.aliceEnd(), play.bobEnd(), play.nextRound(), play.aliceEnd(), play.place(['a']))
+    ;(play.bobEnd(), play.nextRound(), play.aliceEnd())
+    expect(play.refusal(['a'])).toBe('mission-selection-objective')
+  })
+
+  it('allows Extract Intelligence again once Surveil the Foe removes the marker', () => {
+    const play = game(intel)
+    ;(play.aliceEnd(), play.bobEnd(), play.nextRound(), play.aliceEnd(), play.place(['a']))
+    ;(play.bobEnd(), play.surveil(), play.nextRound(), play.aliceEnd())
+    expect(play.refusal(['a'])).toBeUndefined()
+  })
+
+  it('lets Vital Link place another marker at the same objective', () => {
+    const play = game(link)
+    ;(play.aliceEnd(), play.place(['a']), play.bobEnd(), play.nextRound(), play.aliceEnd())
+    expect(play.refusal(['a'])).toBeUndefined()
+  })
+
+  it('does not offer Surveil the Foe while the opponent has no marker', () => {
+    const play = game(link)
+    ;(play.aliceEnd(), play.bobEnd())
+    expect(openMissionSelections(play.battle(), play.battle().players[1]!)).toEqual([])
+  })
+
+  it('refuses removing a marker the opponent never placed', () => {
+    const play = game(link)
+    ;(play.aliceEnd(), play.place(['a']), play.bobEnd())
+    const battle = play.battle()
+    const due = openMissionSelections(battle, battle.players[1]!)[0]!
+    expect(
+      commandRefusal(battle, BOB, {
+        kind: 'select-mission',
+        cardKey: surveil.key,
+        occurrence: due.occurrence,
+        selection: { kind: 'surveil', markers: [{ playerId: ALICE, key: 'b', name: 'Objective b', seq: 1 }] },
+      })?.code,
+    ).toBe('mission-selection-objective')
   })
 })

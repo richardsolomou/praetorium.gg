@@ -4,7 +4,7 @@ import { useEffect, useId, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
-import type { MissionObjectiveRef, MissionSelection } from '../../../core/missionSelections'
+import { isMarkerPlacement, type MissionObjectiveRef, type MissionSelection, type OperationMarker } from '../../../core/missionSelections'
 import type { Command } from '../../../core/battle'
 import type { BattleView, MissionChoiceView } from '../../../core/battleView'
 import { deploymentsQuery, terrainReferencesQuery } from '../../queries'
@@ -19,6 +19,9 @@ import { MissionCardReference } from '../../components/MissionCardReference'
 import { missionUnitChoice, missionUnitChoiceKey } from './missionUnitChoice'
 import { UndoLatest } from './UndoLatest'
 import { withMember } from '../../../core/collections'
+import { MARKER_PLACEMENT_COPY } from './markerPlacementCopy'
+
+const markerValue = (marker: OperationMarker) => JSON.stringify([marker.playerId, marker.seq, marker.key])
 
 export function MissionSelectionDialog({
   view,
@@ -56,6 +59,8 @@ export function MissionSelectionDialog({
   const [manualName, setManualName] = useState('')
   const [manualObjectives, setManualObjectives] = useState<MissionObjectiveRef[]>([])
   const [guards, setGuards] = useState<Record<string, string>>({})
+  const [placed, setPlaced] = useState<string[]>([])
+  const [surveilled, setSurveilled] = useState<string[]>([])
   const [beacon, setBeacon] = useState(() => {
     const saved = latest?.selection.kind === 'beacon' ? latest.selection.unit : null
     return saved ? missionUnitChoiceKey(saved) : ''
@@ -87,7 +92,14 @@ export function MissionSelectionDialog({
   const nonHomeObjectives = objectives.filter(
     (_, index) => !deployment?.zones.some((zone) => pointInPolygon(markers[index]!.position, zone.points)),
   )
-  const consecrated = new Set(choice.consecrated?.map((candidate) => candidate.key))
+  const ownHomeObjectives = new Set(
+    objectives.flatMap((candidate, index) =>
+      deployment?.zones.some((zone) => zone.player === viewer && pointInPolygon(markers[index]!.position, zone.points))
+        ? [candidate.key]
+        : [],
+    ),
+  )
+  const marked = new Set(choice.marked?.map((candidate) => candidate.key))
   const named = manualName.trim()
   const manual = named ? { key: `manual-${named.toLocaleLowerCase()}`, name: named } : null
   const pickedObjective = objectives.find((candidate) => candidate.key === objective) ?? (!objectives.length ? manual : null)
@@ -109,7 +121,7 @@ export function MissionSelectionDialog({
     selection = { kind: 'punishment', units: selected.flatMap((key) => ref(key) ?? []), fallback, qualified }
   else if (choice.kind === 'guards' || choice.kind === 'consecrate') {
     const pairs = [...objectives, ...manualObjectives].flatMap((candidate) =>
-      guards[candidate.key] && ref(guards[candidate.key]!) && !consecrated.has(candidate.key)
+      guards[candidate.key] && ref(guards[candidate.key]!) && !marked.has(candidate.key)
         ? [{ objective: candidate, unit: ref(guards[candidate.key]!)! }]
         : [],
     )
@@ -120,11 +132,26 @@ export function MissionSelectionDialog({
         : pairs.length && !(qualified && notHome)
           ? null
           : { kind: 'consecrate', consecrations: pairs, qualified, notHome }
-  } else if (choice.kind === 'locate-and-deny' && (!areas.length || outsideZone) && (areas.length === 5 || allEligible))
+  } else if (isMarkerPlacement(choice.kind)) {
+    const picked = [...objectives, ...manualObjectives].filter((candidate) => placed.includes(candidate.key) && !marked.has(candidate.key))
+    if (!picked.length || controlled) selection = { kind: choice.kind, targets: picked, confirmed: controlled }
+  } else if (choice.kind === 'surveil')
+    selection = {
+      kind: 'surveil',
+      markers: (choice.markers ?? [])
+        .filter((marker) => surveilled.includes(markerValue(marker)))
+        .map(({ playerId, key, name, seq }) => ({ playerId, key, name, seq })),
+    }
+  else if (choice.kind === 'locate-and-deny' && (!areas.length || outsideZone) && (areas.length === 5 || allEligible))
     selection = { kind: 'locate-and-deny', areas, outsideZone, allEligible: areas.length < 5 }
   else if (choice.kind === 'sensor-sweep' && controlled) {
-    const picked = choice.markers?.find((candidate) => JSON.stringify([candidate.playerId, candidate.key]) === sweptMarker)
-    if (picked) selection = { kind: 'sensor-sweep', marker: { playerId: picked.playerId, key: picked.key, name: picked.name }, controlled }
+    const picked = choice.markers?.find((candidate) => markerValue(candidate) === sweptMarker)
+    if (picked)
+      selection = {
+        kind: 'sensor-sweep',
+        marker: { playerId: picked.playerId, key: picked.key, name: picked.name, seq: picked.seq },
+        controlled,
+      }
   } else if (choice.kind === 'tempting-target' && pickedObjective) selection = { kind: 'tempting-target', objective: pickedObjective }
   else if (choice.kind === 'beacon' && ref(beacon)) selection = { kind: 'beacon', unit: ref(beacon), note }
   const staleUnits =
@@ -159,8 +186,8 @@ export function MissionSelectionDialog({
         <DialogHeader>
           <DialogTitle>{choice.cardName} · choices</DialogTitle>
           <DialogDescription>
-            {choice.kind === 'sensor-sweep'
-              ? 'Optional. Removes the chosen operation marker; scoring still asks you separately.'
+            {choice.kind === 'sensor-sweep' || choice.kind === 'surveil'
+              ? 'Optional. Removes the chosen operation markers; scoring still asks you separately.'
               : 'Optional. Keeps the choice on the card for reference; scoring still asks you separately.'}
           </DialogDescription>
         </DialogHeader>
@@ -288,7 +315,7 @@ export function MissionSelectionDialog({
                         !manual ||
                         manualObjectives.length >= 20 ||
                         manualObjectives.some((candidate) => candidate.key === manual?.key) ||
-                        consecrated.has(manual.key)
+                        marked.has(manual.key)
                       }
                       onClick={() => {
                         if (manual) {
@@ -301,7 +328,7 @@ export function MissionSelectionDialog({
                     </Button>
                   ) : null}
                   {[...objectives, ...manualObjectives]
-                    .filter((candidate) => !consecrated.has(candidate.key))
+                    .filter((candidate) => !marked.has(candidate.key))
                     .map((candidate) => {
                       const label = `${choice.kind === 'guards' ? 'Guard' : 'Consecration unit'} for ${candidate.name}`
                       const pick = (value: string) => {
@@ -325,10 +352,8 @@ export function MissionSelectionDialog({
                         </div>
                       )
                     })}
-                  {choice.consecrated?.length ? (
-                    <p className="text-xs text-faint">
-                      Already consecrated: {choice.consecrated.map((candidate) => candidate.name).join(', ')}
-                    </p>
+                  {choice.marked?.length ? (
+                    <p className="text-xs text-faint">Already consecrated: {choice.marked.map((candidate) => candidate.name).join(', ')}</p>
                   ) : null}
                   {choice.kind === 'consecrate' && Object.values(guards).some(Boolean) ? (
                     <FactSwitch
@@ -343,6 +368,51 @@ export function MissionSelectionDialog({
                   ) : null}
                 </>
               )}
+            </>
+          ) : null}
+          {isMarkerPlacement(choice.kind) ? (
+            <MarkerPlacement
+              copy={MARKER_PLACEMENT_COPY[choice.kind]}
+              places={[...(MARKER_PLACEMENT_COPY[choice.kind].terrain ? [] : objectives), ...manualObjectives].filter(
+                (candidate) => !marked.has(candidate.key) && !ownHomeObjectives.has(candidate.key),
+              )}
+              ruledOut={choice.marked ?? []}
+              manualName={MARKER_PLACEMENT_COPY[choice.kind].terrain || !objectives.length ? manualName : null}
+              onManualName={setManualName}
+              onAdd={() => {
+                if (!manual || marked.has(manual.key) || manualObjectives.some((candidate) => candidate.key === manual.key)) return
+                setManualObjectives((current) => [...current, manual])
+                setPlaced((current) => [...current, manual.key])
+                setManualName('')
+                setControlled(false)
+              }}
+              picked={placed}
+              onToggle={(key) => {
+                setPlaced((current) => withMember(current, key))
+                setControlled(false)
+              }}
+              confirmed={controlled}
+              onConfirm={setControlled}
+              pending={pending}
+            />
+          ) : null}
+          {choice.kind === 'surveil' ? (
+            <>
+              <p className="text-sm">Choose each opposing operation marker your units removed this turn.</p>
+              <fieldset aria-label="Removed operation markers" className="grid grid-cols-2 gap-2">
+                {(choice.markers ?? []).map((marker) => (
+                  <Button
+                    key={markerValue(marker)}
+                    variant={surveilled.includes(markerValue(marker)) ? 'default' : 'outline'}
+                    className="h-auto min-h-8 py-1.5 whitespace-normal"
+                    aria-pressed={surveilled.includes(markerValue(marker))}
+                    disabled={pending}
+                    onClick={() => setSurveilled((current) => withMember(current, markerValue(marker)))}
+                  >
+                    {marker.name} · R{marker.placedRound}
+                  </Button>
+                ))}
+              </fieldset>
             </>
           ) : null}
           {choice.kind === 'locate-and-deny' ? (
@@ -420,7 +490,7 @@ export function MissionSelectionDialog({
                   {
                     label: 'Operation markers',
                     items: (choice.markers ?? []).map((candidate) => ({
-                      value: JSON.stringify([candidate.playerId, candidate.key]),
+                      value: markerValue(candidate),
                       label: `${view.players.find((player) => player.id === candidate.playerId)?.name ?? 'Army'} · ${candidate.name}`,
                     })),
                   },
@@ -503,5 +573,82 @@ function FactSwitch({
         {label}
       </label>
     </div>
+  )
+}
+
+function MarkerPlacement({
+  copy,
+  places,
+  ruledOut,
+  manualName,
+  onManualName,
+  onAdd,
+  picked,
+  onToggle,
+  confirmed,
+  onConfirm,
+  pending,
+}: {
+  copy: (typeof MARKER_PLACEMENT_COPY)[keyof typeof MARKER_PLACEMENT_COPY]
+  places: MissionObjectiveRef[]
+  ruledOut: MissionObjectiveRef[]
+  /** The typed place name, or null when the battlefield's objectives can be chosen directly. */
+  manualName: string | null
+  onManualName: (name: string) => void
+  onAdd: () => void
+  picked: string[]
+  onToggle: (key: string) => void
+  confirmed: boolean
+  onConfirm: (next: boolean) => void
+  pending: boolean
+}) {
+  const inputId = useId()
+  const label = copy.terrain ? 'Terrain area at the table' : 'Objective name at the table'
+  return (
+    <>
+      <p className="text-sm">{copy.intro}</p>
+      {manualName !== null ? (
+        <div className="flex items-end gap-2">
+          <label htmlFor={inputId} className="min-w-0 flex-1 space-y-1 text-sm">
+            {label}
+            <Input
+              id={inputId}
+              aria-label={label}
+              maxLength={80}
+              value={manualName}
+              disabled={pending}
+              onChange={(event) => onManualName(event.target.value)}
+            />
+          </label>
+          <Button variant="outline" disabled={pending || !manualName.trim() || places.length >= 20} onClick={onAdd}>
+            Add
+          </Button>
+        </div>
+      ) : null}
+      {places.length ? (
+        <fieldset aria-label="Places with a new marker" className="grid grid-cols-2 gap-2">
+          {places.map((place) => (
+            <Button
+              key={place.key}
+              variant={picked.includes(place.key) ? 'default' : 'outline'}
+              className="h-auto min-h-8 py-1.5 whitespace-normal"
+              aria-pressed={picked.includes(place.key)}
+              disabled={pending}
+              onClick={() => onToggle(place.key)}
+            >
+              {place.name}
+            </Button>
+          ))}
+        </fieldset>
+      ) : null}
+      {ruledOut.length && copy.ruledOut ? (
+        <p className="text-xs text-faint">
+          {copy.ruledOut}: {ruledOut.map((place) => place.name).join(', ')}
+        </p>
+      ) : null}
+      {picked.some((key) => places.some((place) => place.key === key)) ? (
+        <FactSwitch label={copy.confirm} checked={confirmed} disabled={pending} onChange={onConfirm} />
+      ) : null}
+    </>
   )
 }

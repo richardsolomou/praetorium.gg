@@ -74,6 +74,7 @@ const secondary = z.object({
 })
 const missionUnit = z.object({ playerId: id, unitKey: id, rosterSeq: z.number().int().positive() })
 const missionObjective = z.object({ key: z.string().trim().min(1).max(128), name: z.string().trim().min(1).max(80) })
+const missionMarker = missionObjective.extend({ playerId: id, seq: z.number().int().positive().optional() })
 const missionSelection = z.discriminatedUnion('kind', [
   z.object({
     kind: z.literal('punishment'),
@@ -91,13 +92,19 @@ const missionSelection = z.discriminatedUnion('kind', [
     outsideZone: z.boolean(),
     allEligible: z.boolean(),
   }),
-  z.object({ kind: z.literal('sensor-sweep'), marker: missionObjective.extend({ playerId: id }), controlled: z.boolean() }),
+  z.object({ kind: z.literal('sensor-sweep'), marker: missionMarker, controlled: z.boolean() }),
   z.object({
     kind: z.literal('consecrate'),
     consecrations: z.array(z.object({ objective: missionObjective, unit: missionUnit })).max(20),
     qualified: z.boolean(),
     notHome: z.boolean(),
   }),
+  z.object({
+    kind: z.enum(['decoy', 'triangulate', 'extract-intel', 'maintain-control', 'booby-trap']),
+    targets: z.array(missionObjective).max(20),
+    confirmed: z.boolean(),
+  }),
+  z.object({ kind: z.literal('surveil'), markers: z.array(missionMarker).max(40) }),
 ])
 /** A stratagem as a roster's battle preparation saves it. */
 export const stratagemSchema = z.object({
