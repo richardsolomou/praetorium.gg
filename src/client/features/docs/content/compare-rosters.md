@@ -6,7 +6,7 @@ To run every unit in one list against every unit in another:
 
 The table fills in as soon as both sides are chosen. **Cancel** stops it and keeps the finished pairings.
 
-Pairings start at full health, or current health in a battle. Supported always-on rules apply. Cover, range bonuses and conditional buffs stay off.
+Pairings start at full health, or current health in a battle. Supported always-on rules apply. Cover, range bonuses and conditional buffs stay off. Where a model chooses between weapons or weapon profiles, each pairing uses the one that does most against that target.
 
 **Test targets** in the roster menu (**Roster actions**) opens the same table for the list you're editing.
 

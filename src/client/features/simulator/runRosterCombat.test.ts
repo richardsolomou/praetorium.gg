@@ -5,7 +5,7 @@ import { resolveCombatRequest, type CombatAnswer, type CombatRequest } from '../
 import { runRosterCombat } from './runRosterCombat'
 import { clearCombatAnswerCache } from './combatCalculation'
 import type { CombatRoster } from './useCombatant'
-import type { RosterCombatSummary } from './rosterCombat'
+import { rosterCombatRequest, rosterCombatSnapshot, type RosterCombatSummary } from './rosterCombat'
 import { clearRosterCombatCache } from './rosterCombatCache'
 
 const mocks = vi.hoisted(() => ({ project: vi.fn(), worker: vi.fn() }))
@@ -46,7 +46,8 @@ const roster: CombatRoster = {
 beforeEach(() => {
   clearRosterCombatCache()
   clearCombatAnswerCache()
-  mocks.project.mockReset().mockImplementation(({ data }) => Promise.resolve(rosterCombatant(preferenceBook(false, 'Leader'), null, data)))
+  // The staff carried by default leaves no weapon choice to search, so worker counts are only the scoring.
+  mocks.project.mockReset().mockImplementation(({ data }) => Promise.resolve(rosterCombatant(preferenceBook(true, 'Leader'), null, data)))
   mocks.worker.mockReset().mockImplementation(() => {
     const current = worker()
     current.postMessage.mockImplementation((request: CombatRequest) =>
@@ -102,11 +103,33 @@ it('invalidates cached results when current wounds change', async () => {
 })
 
 it('reuses attacks when changed equipment resolves to the same calculation', async () => {
-  mocks.project.mockImplementation(({ data }) => Promise.resolve(rosterCombatant(preferenceBook(true, 'Leader'), null, data)))
-  await cachedComparison({ attacker: { ...roster, picks: [{ entryId: 'support', choices: { 'support-weapon': 'staff' } }] } })
+  mocks.project.mockImplementation(({ data }) => Promise.resolve(rosterCombatant(preferenceBook(false, 'Leader'), null, data)))
+  await cachedComparison()
   mocks.worker.mockClear()
+  mocks.project.mockImplementation(({ data }) => Promise.resolve(rosterCombatant(preferenceBook(true, 'Leader'), null, data)))
   await cachedComparison({ attacker: { ...roster, picks: [{ entryId: 'support', choices: { 'support-weapon': 'plasma' } }] } })
   expect(mocks.worker).not.toHaveBeenCalled()
+})
+
+it('scores each pairing with the weapon mode that does most against the target', async () => {
+  const plasma = [{ entryId: 'support', choices: { 'support-weapon': 'plasma' } }]
+  const onResult = vi.fn()
+  await cachedComparison({ attacker: { ...roster, picks: plasma }, onResult })
+  const attacker = rosterCombatSnapshot(
+    rosterCombatant(preferenceBook(true, 'Leader'), null, { catalogueId: 'cat', detachmentIds: [], picks: plasma, pickIndex: 0 })!,
+    plasma,
+  )
+  const target = rosterCombatSnapshot(
+    rosterCombatant(preferenceBook(true, 'Leader'), null, {
+      catalogueId: 'cat',
+      detachmentIds: [],
+      picks: [{ entryId: 'squad' }],
+      pickIndex: 0,
+    })!,
+    [{ entryId: 'squad' }],
+  )
+  const spread = rosterCombatRequest(attacker, target, undefined, { 'ranged:0:plasma': 'support-spread' }).request
+  expect(onResult.mock.calls[0]![2].ranged.result.meanDamage).toBe(resolveCombatRequest(spread).ranged!.result!.meanDamage)
 })
 
 it('does not reuse outgoing damage for the reversed matchup', async () => {
@@ -121,7 +144,7 @@ it('invalidates cached results when the evaluated rules change with the same ros
   await cachedComparison({ onResult: original })
   mocks.worker.mockClear()
   mocks.project.mockImplementation(({ data }) => {
-    const projected = structuredClone(rosterCombatant(preferenceBook(false, 'Leader'), null, data)!)
+    const projected = structuredClone(rosterCombatant(preferenceBook(true, 'Leader'), null, data)!)
     for (const profile of projected.selected.profiles) for (const value of profile.values) if (value.name === 'T') value.value = '10'
     return Promise.resolve(projected)
   })

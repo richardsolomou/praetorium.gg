@@ -36,12 +36,12 @@ test('new rosters compare customizable mixed-faction benchmarks and retain the t
   }
   await expect(table.getByRole('cell')).toHaveCount(18)
   await expect(table.getByText('Not calculated', { exact: true })).toHaveCount(0)
-  const firstTarget = table.locator('tbody tr td').filter({ has: page.locator('button[aria-label*="against Cadian Shock Troops #1:"]') })
-  const damages = await firstTarget.locator('.readout').allTextContents()
+  const contested = table.locator('tbody tr td').filter({ has: page.locator('button[aria-label*="against Intercessor Squad #3:"]') })
+  const damages = await contested.locator('.readout').allTextContents()
   expect(new Set(damages).size).toBe(2)
   const bestAttacker = table
     .locator('tbody tr td[data-best-matchup]')
-    .filter({ has: page.locator('button[aria-label*="against Cadian Shock Troops #1:"]') })
+    .filter({ has: page.locator('button[aria-label*="against Intercessor Squad #3:"]') })
   expect(Number(await bestAttacker.locator('.readout').first().textContent())).toBe(Math.max(...damages.map(Number)))
   await bestAttacker.getByRole('button', { name: /^Cross off / }).click()
   expect(Number(await bestAttacker.locator('.readout').first().textContent())).toBe(Math.min(...damages.map(Number)))

@@ -33,6 +33,7 @@ const loaded = shelfOf(
         id: 'squad',
         name: 'Squad',
         type: 'unit',
+        categoryLinks: categories('Infantry'),
         selectionEntries: [
           {
             id: 'trooper',
@@ -56,6 +57,47 @@ const loaded = shelfOf(
           profile('leader-stats', 'Leader', 'Unit', { T: '4', Sv: '3+', W: '5' }),
           profile('pistol', 'Pistol', 'Ranged Weapons', { A: '1', BS: '2+', S: '5', AP: '-1', D: '2' }),
           profile('leader-rule', 'Leader', 'Abilities', { Description: 'This model can be attached to the following units:\n■ Squad' }),
+        ],
+        selectionEntryGroups: [
+          {
+            id: 'enhancements',
+            name: 'Enhancements',
+            constraints: [{ id: 'enhancement-max', type: 'max' as const, value: 1, field: 'selections', scope: 'parent' }],
+            selectionEntries: [
+              {
+                id: 'keen-eye',
+                name: 'Keen Eye',
+                type: 'upgrade',
+                profiles: [
+                  profile('keen-eye-rule', 'Keen Eye', 'Abilities', {
+                    Description: 'Each time a model in this unit makes an attack, add 1 to the Hit roll.',
+                  }),
+                ],
+              },
+            ],
+          },
+        ],
+      },
+      {
+        id: 'banner',
+        name: 'Banner',
+        type: 'model',
+        profiles: [
+          profile('banner-stats', 'Banner', 'Unit', { T: '4', Sv: '3+', W: '3' }),
+          profile('banner-aura', 'Rallying Banner (Aura)', 'Abilities', {
+            Description:
+              'While a friendly Infantry unit is within 6" of this model, each time a model in that unit makes an attack, add 1 to the Hit roll.',
+          }),
+        ],
+      },
+      {
+        id: 'duellist',
+        name: 'Duellist',
+        type: 'model',
+        profiles: [
+          profile('duellist-stats', 'Duellist', 'Unit', { T: '4', Sv: '3+', W: '5' }),
+          profile('claw', 'Claw', 'Melee Weapons', { A: '4', WS: '3+', S: '4', AP: '0', D: '1' }),
+          profile('harvester', 'Harvester', 'Melee Weapons', { A: '3', WS: '3+', S: '10', AP: '-3', D: '3' }),
         ],
       },
       {
@@ -153,7 +195,7 @@ const document = (name: string) => ({
   revisions: { datacards: 'revision' },
   attribution: ['Community data'],
 })
-const documents = ['Squad', 'Leader', 'Protector', 'Beast', 'Oddity', 'Wraith', 'Sentinel'].map(document)
+const documents = ['Squad', 'Leader', 'Protector', 'Beast', 'Oddity', 'Wraith', 'Sentinel', 'Banner', 'Duellist'].map(document)
 const corpus: ReferenceCorpus = {
   catalogue: {
     format: 'praetorium.canonical-catalogue.v1',
@@ -167,6 +209,8 @@ const corpus: ReferenceCorpus = {
       canonical('oddity', 'Oddity'),
       canonical('wraith', 'Wraith'),
       canonical('sentinel', 'Sentinel'),
+      canonical('banner', 'Banner'),
+      canonical('duellist', 'Duellist'),
       {
         ...canonical('chapter-beast', 'Beast'),
         catalogueId: 'cat-1',
@@ -343,6 +387,51 @@ describe('the rules of a unit', () => {
 
   it('withholds a choice label that quotes the rule', async () => {
     expect((await rules()).find((rule) => rule.name === 'Vengeful')?.options).toEqual([{ choice: 1, label: 'Condition the rule states' }])
+  })
+})
+
+type Rules = { attacker: { rules: { name: string; options: { label: string }[] }[] } }
+
+describe('an enhancement', () => {
+  it("fields the enhancement's rules on the character that takes it", async () => {
+    const result = await simulateCombat({
+      attacker: { ...squad, attached: [{ unit: 'Leader', enhancement: 'Keen Eye' }] },
+      defender: beast,
+    })
+    expect((result.structuredContent as Rules).attacker.rules.map((rule) => rule.name)).toContain('Keen Eye')
+  })
+
+  it('refuses one the unit cannot take, naming those it can', async () => {
+    const result = await simulateCombat({
+      attacker: { ...squad, attached: [{ unit: 'Leader', enhancement: 'Iron Will' }] },
+      defender: beast,
+    })
+    expect(result.structuredContent).toEqual({
+      refused: ['Leader cannot take an enhancement named Iron Will. Its enhancements are: Keen Eye.'],
+    })
+  })
+})
+
+it("offers a nearby unit's aura as a rule choice", async () => {
+  const result = await simulateCombat({ attacker: { ...squad, nearby: [{ unit: 'Banner' }] }, defender: beast })
+  expect((result.structuredContent as Rules).attacker.rules.find((rule) => rule.name === 'Rallying Banner (Aura)')?.options).toEqual([
+    { choice: 1, label: 'Within 6"' },
+  ])
+})
+
+describe('a model with a choice of melee weapons', () => {
+  const melee = async (weaponModes?: Record<string, string>) =>
+    (
+      (await simulateCombat({ attacker: { faction: 'test', unit: 'Duellist' }, defender: beast, ...(weaponModes ? { weaponModes } : {}) }))
+        .structuredContent as { melee: { weapons: { name: string }[] } }
+    ).melee.weapons.map((weapon) => weapon.name)
+
+  it('fights with the weapon that does most against the defender', async () => {
+    expect(await melee()).toEqual(['Harvester'])
+  })
+
+  it('fights with the weapon the agent names', async () => {
+    expect(await melee({ 'melee:0:weapon': 'claw' })).toEqual(['Claw'])
   })
 })
 

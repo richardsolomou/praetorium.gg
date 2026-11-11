@@ -810,12 +810,12 @@ test('a failed worker can be retried without reselecting either unit', async ({ 
   await page.route('**/_serverFn/**', (route) => (isCombatCalculationRequest(route.request()) ? route.abort() : route.continue()))
   await page.addInitScript(() => {
     const RealWorker = window.Worker
-    let first = true
+    Object.assign(window, { failCombatWorkers: true })
     window.Worker = class extends RealWorker {
       override postMessage(message: unknown, options?: StructuredSerializeOptions) {
         // Only a combat calculation carries a phase; other workers, such as the reference restore, start normally.
-        if (first && message && typeof message === 'object' && 'ranged' in message) {
-          first = false
+        const failing = (window as unknown as { failCombatWorkers: boolean }).failCombatWorkers
+        if (failing && message && typeof message === 'object' && 'ranged' in message) {
           this.terminate()
           throw new Error('Worker startup failure')
         }
@@ -827,6 +827,7 @@ test('a failed worker can be retried without reselecting either unit', async ({ 
   await matchup(page)
   const shooting = page.getByRole('region', { name: 'Shooting results' })
   await expect(shooting).toContainText('The calculation could not start.')
+  await page.evaluate(() => Object.assign(window, { failCombatWorkers: false }))
   await shooting.getByRole('button', { name: 'Retry' }).click()
   await expect(await combatEstimate(page, 'Shooting')).toContainText('2.22')
   await expect(page.getByLabel('Attacker models', { exact: true })).toHaveText('5')

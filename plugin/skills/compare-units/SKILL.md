@@ -6,9 +6,9 @@ description: Compare two Warhammer 40,000 units with Praetorium's combat simulat
 # Compare units
 
 1. Find both units with `list_units` for their factions, and use the unit ids it returns. Ask which unit the player means when a name matches more than one.
-2. Call `simulate_combat` with the attacker and defender. Add leaders or attached units, model counts, a side's detachment, or modifiers such as cover only when the player gives them.
+2. Call `simulate_combat` with the attacker and defender. Add leaders or attached units, model counts, a side's detachment, enhancements, nearby units whose auras reach a side, or modifiers such as cover only when the player gives them. A modifier such as `charged` never switches on a rule: when the player says the unit charged or remained stationary, also choose the rules whose options need it.
 3. Report expected models destroyed for shooting, melee, and shooting followed by melee, plus the chance to destroy the target. Use the numbers the tool returns; don't compute odds yourself.
 4. List every rule the result marks `notCalculated`, and any refusal, in plain words. Don't estimate what they would change.
 5. Share the returned simulator link so the player can change loadouts, rules and modifiers in Praetorium.
 
-The simulator uses default loadouts and full-strength units, and applies a detachment only when you name one for that side. Say so when the player's question depends on something else, such as specific wargear or a damaged unit.
+The simulator uses default loadouts and full-strength units, fights with the weapon choice that does most against the defender unless you pass `weaponModes`, and applies a detachment, an enhancement, or another unit's aura only when you name it. Say so when the player's question depends on something else, such as specific wargear or a damaged unit.

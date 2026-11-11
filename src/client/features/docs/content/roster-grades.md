@@ -27,7 +27,7 @@ Counts reward every unit you add. Shares are weighted by points, so a cheap scre
 
 ### Damage
 
-**Clear hordes**, **Kill elite infantry**, **Kill vehicles**, **Kill heavy armour** and **Kill monsters** add up how much of 20 Termagants, a Chaos Terminator Squad, a Rhino, a Leman Russ Battle Tank or a Carnifex each of your units takes in one turn of shooting, fighting, or shooting then fighting. A unit can count for up to three of each target, since its damage does not carry over from one model to the next; hordes count one squad at a time, since Blast gains attacks against bigger units. The units that take at least half of one alone are named.
+**Clear hordes**, **Kill elite infantry**, **Kill vehicles**, **Kill heavy armour** and **Kill monsters** add up how much of 20 Termagants, a Chaos Terminator Squad, a Rhino, a Leman Russ Battle Tank or a Carnifex each of your units takes in one turn of shooting, fighting, or shooting then fighting. A unit can count for up to three of each target, since its damage does not carry over from one model to the next; hordes count one squad at a time, since Blast gains attacks against bigger units. The units that take at least half of one alone are named. A model with a choice of weapons or weapon profiles uses the one that does most against each target.
 
 Heavy armour is left out at King of the Colosseum, which allows nothing above Toughness 9. Each side there may field only one Toughness 9 unit, so vehicles and monsters count only the first two units that could remove one.
 
