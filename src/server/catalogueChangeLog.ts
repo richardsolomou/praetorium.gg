@@ -1,11 +1,10 @@
 import type { CatalogueChange } from '../core/catalogueChanges'
 import { editionFamilyId } from '../core/catalogueEdition'
-import { type CatalogueHistoryEntry, decodeHistoryCursor, encodeHistoryCursor, historyPage, updateSummary } from '../core/catalogueHistory'
+import { type CatalogueHistoryEntry, updateSummary } from '../core/catalogueHistory'
 import type { CanonicalCatalogue } from '../contracts/catalogue'
 import type { IndexedUpdate, ReferenceLink } from '../contracts/catalogueChanges'
 import { historyAnchor } from './catalogueHistory'
 import { groupBy, remember } from '../core/collections'
-import { app } from './app'
 
 type Routes = {
   factions: Map<string, string>
@@ -129,28 +128,6 @@ export function factionHistory(history: readonly CatalogueHistoryEntry[], canoni
     const cut = factions.includes(entry.changes.factions.at(-1)!)
     return [{ ...entry, changes: { factions, omitted: cut ? entry.changes.omitted : 0 } }]
   })
-}
-
-export const installedHistory = async () => listedHistory((await app().catalogueHistoryFor()) ?? [])
-
-/** How many data updates one page of the index lists. */
-const CHANGE_LOG_PAGE = 20
-
-/**
- * One page of the data updates the installed snapshot carries, newest first, and the address of
- * the next, across every faction or for the one a slug names. A cursor naming no page this history
- * has starts again from the newest.
- */
-export async function changeLogPage({ before, faction }: { before?: string; faction?: string }) {
-  const cursor = before ? decodeHistoryCursor(before) : null
-  const history = await installedHistory()
-  const canonical = history.length ? await app().canonicalCatalogueFor(faction) : null
-  const scoped = faction ? (canonical ? factionHistory(history, canonical, faction) : []) : history
-  const page = historyPage(scoped, CHANGE_LOG_PAGE, cursor ?? undefined)
-  return {
-    updates: page.entries.map((entry) => indexedUpdate(entry, canonical)),
-    older: page.next ? encodeHistoryCursor(page.next) : null,
-  }
 }
 
 /** The page a reference link opens. */
