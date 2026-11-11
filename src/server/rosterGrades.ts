@@ -15,7 +15,9 @@ const referenceUnit = (key: string, unit: { faction: string; unit: string; model
   memoUntilSnapshotChanges('roster-grade-reference', key, async (): Promise<ReferenceUnit | null> => {
     const snapshot = await namedCombatant(unit.faction, unit.unit, unit.models)
     if (!snapshot) return null
-    return unit.copies ? referenceTarget(snapshot, unit.copies) : { snapshot, wounds: unitTotal(snapshot, 'wounds') }
+    if (unit.copies) return referenceTarget(snapshot, unit.copies)
+    const wounds = unitTotal(snapshot, 'wounds')
+    return wounds === null ? null : { snapshot, wounds }
   })
 
 async function references(limit: number): Promise<GradeReferences> {

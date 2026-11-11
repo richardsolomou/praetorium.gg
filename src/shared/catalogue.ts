@@ -942,7 +942,7 @@ function weaponAbilitiesInSelectedUnit(
       for (const profile of abilityProfilesOf(source, index)) {
         const description = normalizedAbilityDescription(profile)
         const match = description?.match(
-          /^(Ranged|Melee) weapons equipped by (?:the bearer|models in this unit) have (?:the )?\[([^\]]+)\] ability\.$/iu,
+          /^(?:(Ranged|Melee) )?weapons equipped by (?:the bearer|models in this unit|models in this model['’]s unit) have (?:the )?\[([^\]]+)\] ability\.$/iu,
         )
         const unitAttacks = !match
           ? profileDescription(profile)
@@ -976,9 +976,13 @@ function weaponAbilitiesInAttachedUnit(
     for (const source of definitionAndTarget(definition, index)) {
       for (const profile of abilityProfilesOf(source, index)) {
         const description = normalizedAbilityDescription(profile)
-        const match = description?.match(
-          /^While this model is leading a unit, (?:(melee|ranged) )?weapons equipped by models in that unit have the \[([\p{L}\p{N} +'’\p{Pd}]+)\] ability\.$/iu,
-        )
+        const match =
+          description?.match(
+            /^While this model is leading a unit, (?:(melee|ranged) )?weapons equipped by models in that unit have the \[([\p{L}\p{N} +'’\p{Pd}]+)\] ability\.$/iu,
+          ) ??
+          description?.match(
+            /^(?:(melee|ranged) )?weapons equipped by models in this model['’]s unit have the \[([\p{L}\p{N} +'’\p{Pd}]+)\] ability\.$/iu,
+          )
         if (!match) continue
         const keyword = titleCaseAbility(match[2]!)
         const profileTypes = weaponProfileTypes(match[1])
@@ -1027,7 +1031,12 @@ function definitionsInSelections(
   return [...found.values()]
 }
 
-const normalizedAbilityDescription = (profile: Profile) => profileDescription(profile)?.normalize('NFKC').replaceAll(/\s+/g, ' ').trim()
+const normalizedAbilityDescription = (profile: Profile) =>
+  profileDescription(profile)
+    ?.normalize('NFKC')
+    .replaceAll(/\*\*|\^\^/g, '')
+    .replaceAll(/\s+/g, ' ')
+    .trim()
 
 function addGrantedInvulnerableSave(
   values: Datasheet['profiles'][number]['values'],
@@ -1052,7 +1061,7 @@ function addGrantedWeaponAbilities(
       ...values,
       {
         name: 'Keywords',
-        value: granted.map((ability) => ability.keyword).join(', '),
+        value: [...new Set(granted.map((ability) => ability.keyword))].join(', '),
         baseValue: '',
         modifiers: [...new Set(granted.map((ability) => ability.source))],
       },
@@ -1063,7 +1072,7 @@ function addGrantedWeaponAbilities(
   if (!additions.length) return values
   const changed = {
     ...keywords,
-    value: [...splitWeaponKeywords(keywords.value), ...additions.map((ability) => ability.keyword)].join(', '),
+    value: [...new Set([...splitWeaponKeywords(keywords.value), ...additions.map((ability) => ability.keyword)])].join(', '),
     baseValue: keywords.baseValue ?? keywords.value,
     modifiers: [...new Set([...(keywords.modifiers ?? []), ...additions.map((ability) => ability.source)])],
   }

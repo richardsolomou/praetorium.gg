@@ -74,6 +74,36 @@ const grade = (units: GradedUnit[], limit: number) => rosterGrades(units, limit,
 const categoryOf = (grades: ReturnType<typeof rosterGrades>, key: string) => grades.categories.find((category) => category.key === key)
 
 describe('rosterGrades', () => {
+  it('names the scope of the mobility benchmark', () => {
+    expect(categoryOf(grade([unit()], 600), 'mobility')?.label).toBe('Charge & deployment')
+  })
+
+  it('shows normal movement separately from conditional movement', () => {
+    const grades = grade([unit({ name: 'Fast unit', move: 10, movementTools: ['Advance and charge'] })], 600)
+    expect(rowOf(grades, 'movement')?.units).toEqual(['Fast unit: 10″ normal move; Advance and charge'])
+  })
+
+  it('does not treat conditional movement as guaranteed charge reach', () => {
+    expect(grade([unit({ movementTools: ['Advance and charge'] })], 600).score).toBe(grade([unit()], 600).score)
+  })
+
+  it('shows generated units separately from starting board presence', () => {
+    const grades = grade([unit({ unitGeneration: [{ unit: 'MINE', trigger: 'shooting', shared: true }] })], 600)
+    expect(rowOf(grades, 'generation')?.detail).toContain('not scored')
+  })
+
+  it('does not award an uncalibrated score bonus for generated units', () => {
+    const generated = unit({ unitGeneration: [{ unit: 'SWARM', trigger: 'kill', shared: false }] })
+    expect(grade([generated], 600).categories.map((category) => category.score)).toEqual(
+      grade([unit()], 600).categories.map((category) => category.score),
+    )
+  })
+
+  it('does not count possible future units as starting board presence', () => {
+    const generated = unit({ unitGeneration: [{ unit: 'MINE', trigger: 'shooting', shared: true }] })
+    expect(rowOf(grade([generated], 600), 'presence')?.detail).toBe('1 unit for 5 objectives')
+  })
+
   it('leaves heavy armour out at King of the Colosseum', () => {
     expect(rowOf(grade([unit()], 600), 'heavyVehicle')).toBeUndefined()
   })
@@ -91,6 +121,15 @@ describe('rosterGrades', () => {
   it('does not call an uncalculated row missing', () => {
     const grades = grade([unit({ removes: { horde: 1, elite: 1, vehicle: null, heavyVehicle: 1, monster: 1 } })], 2000)
     expect(grades.missing).toEqual([])
+  })
+
+  it('leaves objective holding ungraded when model OC cannot be counted', () => {
+    expect(rowOf(grade([unit({ objectiveControl: null })], 600), 'hold')?.grade).toBeNull()
+  })
+
+  it('names units whose objective control could not be counted', () => {
+    const grades = grade([unit({ name: 'Unknown unit', objectiveControl: null }), unit({ objectiveControl: 10 })], 600)
+    expect(rowOf(grades, 'hold')?.notCalculated).toEqual(['Unknown unit'])
   })
 
   it('credits at most two units that can remove a vehicle at King of the Colosseum, where the opponent has one Toughness 9 unit', () => {

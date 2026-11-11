@@ -3,6 +3,7 @@ import { attachedUnitList, attachmentHost } from '../core/attachedUnits'
 import { combatMatchup, strongestWeaponPreferences, type CombatAnswer, type CombatantSnapshot } from '../core/combatMatchup'
 import { combatRuleSelections, readCombatRule, type CombatRule } from '../core/combatRules'
 import { datasheetProfilesByKind } from '../core/datasheetStructure'
+import { combatModelMatches } from '../core/combatLoadout'
 import { gradedTargets, type GradedUnit, type ReferenceTargetKey } from '../core/rosterGrades'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { calculateRosterPrice } from './pricing'
@@ -10,6 +11,7 @@ import { rosterCombatant, rosterProjectionCache } from './rosterCombatRules'
 import { rosterDatasheetSelections } from './rosterDatasheetContext'
 import type { LoadedRules } from './rules'
 import { hasTextTokens } from './sourceText'
+import { movementToolsFrom, unitGenerationFrom } from './rosterGradeUtility'
 
 export type CombatProjection = NonNullable<ReturnType<typeof rosterCombatant>>
 /** The words behind a rule's text tokens, or null when the snapshot does not hold them. */
@@ -26,9 +28,10 @@ export type GradeReferences = {
  * A reference target fielded as `copies` of itself in one unit, so a unit's damage can run past the first copy
  * without carrying over between models; `wounds` stays one copy's.
  */
-export function referenceTarget(snapshot: CombatantSnapshot, copies: number): ReferenceUnit {
+export function referenceTarget(snapshot: CombatantSnapshot, copies: number): ReferenceUnit | null {
   const models = snapshot.models * copies
-  return { snapshot: { ...snapshot, models, startingModels: models }, wounds: unitTotal(snapshot, 'wounds') }
+  const wounds = unitTotal(snapshot, 'wounds')
+  return wounds === null ? null : { snapshot: { ...snapshot, models, startingModels: models }, wounds }
 }
 
 /**
@@ -87,14 +90,40 @@ export function defaultSnapshot(projection: CombatProjection) {
   return combatantSnapshot(projection, selection)
 }
 
-const characteristic = (sheet: CombatantSnapshot['sheet'], kind: string) => {
-  const [profile] = datasheetProfilesByKind(sheet).unit
-  return Number.parseInt(profile?.values.find((value) => value.kind === kind)?.value ?? '', 10) || 0
-}
+/** The distance every model can move together, including slower attachments. */
+export const unitMove = (snapshot: CombatantSnapshot) =>
+  Math.min(
+    ...[snapshot, ...(snapshot.companions ?? [])].flatMap((member) => {
+      const profiles = datasheetProfilesByKind(member.sheet).unit
+      return profiles.length
+        ? profiles.map((profile) => Number.parseInt(profile.values.find((value) => value.kind === 'movement')?.value ?? '', 10) || 0)
+        : [0]
+    }),
+  )
 
 /** Every model's characteristic, summed over the unit and everything attached to it. */
-export const unitTotal = (snapshot: CombatantSnapshot, kind: 'wounds' | 'objective-control') =>
-  [snapshot, ...(snapshot.companions ?? [])].reduce((total, member) => total + characteristic(member.sheet, kind) * member.models, 0)
+export function unitTotal(snapshot: CombatantSnapshot, kind: 'wounds' | 'objective-control'): number | null {
+  let total = 0
+  for (const member of [snapshot, ...(snapshot.companions ?? [])]) {
+    const profiles = datasheetProfilesByKind(member.sheet).unit
+    const values = profiles.map((profile) => Number.parseInt(profile.values.find((value) => value.kind === kind)?.value ?? '', 10))
+    if (!values.length || values.some((value) => !Number.isFinite(value))) return null
+    if (values.every((value) => value === values[0])) {
+      total += values[0]! * member.models
+      continue
+    }
+    let counted = 0
+    for (const carrier of member.carriers ?? []) {
+      if (carrier.unitWide) continue
+      const matches = profiles.flatMap((profile, index) => (combatModelMatches(carrier, profile) ? [index] : []))
+      if (matches.length !== 1) return null
+      total += values[matches[0]!]! * carrier.models
+      counted += carrier.models
+    }
+    if (counted !== member.models) return null
+  }
+  return total
+}
 
 const numberIn = (names: readonly string[], pattern: RegExp) => Math.max(0, ...names.map((name) => Number(pattern.exec(name)?.[1] ?? 0)))
 
@@ -204,7 +233,7 @@ export async function measureRosterUnits({
       removes[target.key] = at === -1 ? null : removed(answered[at]!, targets[at]!.wounds)
     }
     const wounds = unitTotal(host.snapshot, 'wounds')
-    const losses = answered.slice(targets.length).map((answer) => lost(answer, wounds))
+    const losses = wounds === null ? [] : answered.slice(targets.length).map((answer) => lost(answer, wounds))
     const formed = deployment.get(host.pickIndex)
     const abilities = [host.projection.selected, ...host.projection.companions.map((member) => member.selected)].map((sheet) =>
       sheet.abilities.filter((ability) => ability.kind === 'core').map((ability) => ability.name),
@@ -212,17 +241,28 @@ export async function measureRosterUnits({
     const scouts = formed?.prebattleRules.includes('scouts')
       ? Math.min(...abilities.map((names) => numberIn(names, /^Scouts (\d+)/i)).filter(Boolean))
       : 0
+    const descriptions = [host.projection.selected, ...host.projection.companions.map((member) => member.selected)].flatMap((sheet) =>
+      sheet.abilities.map((ability) => {
+        const description = ability.description ?? ''
+        return hasTextTokens(description) ? (words(description) ?? '') : description
+      }),
+    )
     return {
       name: [host.projection.selected.name, ...host.projection.companions.map((member) => member.selected.name)].join(' + '),
       points: host.points,
-      move: characteristic(host.projection.selected, 'movement'),
+      move: unitMove(host.snapshot),
       objectiveControl: unitTotal(host.snapshot, 'objective-control'),
       deepStrike: Boolean(formed?.formationOptions.includes('deep-strike')),
       infiltrators: Boolean(formed?.prebattleRules.includes('infiltrators')),
       scouts: Number.isFinite(scouts) ? scouts : 0,
       chargeBonus: numberIn(abilities.flat(), /\+(\d+) to charge/i),
       removes,
-      volleyLoss: losses.length && !losses.includes(null) ? losses.reduce<number>((total, loss) => total + loss!, 0) / losses.length : null,
+      unitGeneration: descriptions.flatMap(unitGenerationFrom),
+      movementTools: [...new Set(descriptions.flatMap(movementToolsFrom))],
+      volleyLoss:
+        wounds !== null && losses.length && !losses.includes(null)
+          ? losses.reduce<number>((total, loss) => total + loss!, 0) / losses.length
+          : null,
     }
   })
 }
