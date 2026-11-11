@@ -150,6 +150,14 @@ it('overlays a server library batch with server pricing for unsynced choices', a
   expect((await savedRosterPage({ data: { ids: ['army'] } }))[0]?.points).toBe(160)
 })
 
+it('asks the server once for an unsynced roster read by every library refresh', async () => {
+  pending({ ...roster, updatedAt: 2, picks: [...roster.picks, ...roster.picks] })
+  mocks.price.mockResolvedValue({ points: 160, errors: [], unhandled: [], label: 'Army' })
+  await savedRosterPage({ data: { ids: ['army'] } })
+  await savedRosterPage({ data: { ids: ['army'] } })
+  expect(mocks.price).toHaveBeenCalledOnce()
+})
+
 it('does not resurrect a locally deleted roster from a server batch', async () => {
   pending(null)
   expect(await savedRosterPage({ data: { ids: ['army'] } })).toEqual([])
@@ -225,7 +233,7 @@ it('keeps the server error when the rules needed for a local fallback were never
 it('keeps cached server library points offline before the roster document has finished downloading', async () => {
   vi.stubGlobal('navigator', { onLine: false })
   state.documents = {}
-  client.setQueryData(['saved-roster-page', ['army']], [row])
+  client.setQueryData(['saved-roster-page', 'army'], row)
   expect(await savedRosterPage({ data: { ids: ['army'] } })).toEqual([row])
 })
 

@@ -273,7 +273,7 @@ it('refreshes only the scopes that changed while a product connection was renewe
 
 const refreshesOf = (key: string) =>
   (mocks.invalidateQueries.mock.calls as unknown as [{ predicate?: (query: unknown) => boolean }][]).filter(([filter]) =>
-    filter.predicate?.({ queryKey: [key] }),
+    filter.predicate?.({ queryKey: [key], state: { dataUpdatedAt: 0 } }),
   ).length
 
 it('refreshes a query both signal lists follow once when a product connection first opens', async () => {

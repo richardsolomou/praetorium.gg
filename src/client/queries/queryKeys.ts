@@ -16,7 +16,7 @@ export const rosterAccessKey = (id: string, battle?: string | null) => ['roster-
 export const rosterBootstrapKey = (id: string, battle?: string | null) => ['roster-bootstrap', id, battle ?? null]
 export const sharedRosterKey = (id: string, battle?: string | null) => ['shared-roster', id, battle ?? null]
 export const savedRosterSummariesKey = () => ['saved-roster-summaries']
-export const savedRosterPageKey = (ids: readonly string[]) => ['saved-roster-page', ids]
+export const savedRosterPageKey = (id: string) => ['saved-roster-page', id]
 export const homeRostersKey = () => ['home-rosters']
 export const rosterChangesKey = (id: string) => ['roster-changes', id]
 export const savedRosterChangedIdsKey = () => ['saved-roster-changed-ids']

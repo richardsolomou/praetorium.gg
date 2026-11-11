@@ -10,7 +10,7 @@ import { lockedRosterRefusal } from '../core/rosterLock'
 import { ROSTER_BATCH_CHANGES } from '../core/rosterLibrary'
 import { rosterDifferences } from '../core/rosterDifferences'
 import { convertedSetup } from '../core/rosterSetup'
-import { datasheetSchema, saveRosterSchema } from '../contracts/schemas'
+import { datasheetSchema, saveRosterSchema, type PriceInput } from '../contracts/schemas'
 import type { RosterPick } from '../core/roster'
 import * as server from '../server/functions'
 import { syncRoster } from '../server/functions/offline'
@@ -220,11 +220,12 @@ async function accessOf(roster: LocalRoster, state?: LocalState) {
 }
 
 /** The price shown for a roster saved on this device; offline, from construction data already built for it. */
+const cachedPrice = (input: PriceInput) =>
+  localClient()?.getQueryData<Awaited<ReturnType<typeof server.priceRoster>>>(rosterPriceKey(input))
+
 function pricedRoster(roster: LocalRoster) {
   const input = savedRosterPriceInput(roster)
-  const cached =
-    localClient()?.getQueryData<Awaited<ReturnType<typeof server.priceRoster>>>(rosterPriceKey(input)) ??
-    localClient()?.getQueryData<Awaited<ReturnType<typeof server.priceRoster>>>(rosterPriceKey({ ...input, includeUnitLimits: true }))
+  const cached = cachedPrice(input) ?? cachedPrice({ ...input, includeUnitLimits: true })
   if (cached !== undefined) return cached
   if (typeof window !== 'undefined' && navigator.onLine) return null
   const data = builtConstruction(roster.catalogueId)
@@ -729,7 +730,13 @@ export async function savedRosterSummaries(args?: { signal?: AbortSignal }): Ret
 async function assessedRoster(roster: LocalRoster, owner: string, signal?: AbortSignal) {
   return calculationRead(
     async (requestSignal) => {
-      const price = await server.priceRoster({ data: savedRosterPriceInput(roster), signal: requestSignal })
+      const input = savedRosterPriceInput(roster)
+      // A price depends only on its key, so a list repriced on every library read asks the server once per version.
+      let price = cachedPrice(input)
+      if (price === undefined) {
+        price = await server.priceRoster({ data: input, signal: requestSignal })
+        localClient()?.setQueryData(rosterPriceKey(input), price)
+      }
       return {
         points: price?.points ?? null,
         problem: price ? (rosterUseProblem(price, roster)?.kind ?? null) : null,
@@ -759,8 +766,9 @@ export async function savedRosterPage(args: Parameters<typeof server.savedRoster
   assertAccount()
   const state = await engine.storage.read()
   assertAccount()
-  const cached = localClient()?.getQueryData<Awaited<ReturnType<typeof server.savedRosterPage>>>(savedRosterPageKey(args.data.ids))
-  const rows = new Map((fresh ?? cached)?.map((row) => [row.id, row]))
+  const cachedRow = (id: string) =>
+    localClient()?.getQueryData<Awaited<ReturnType<typeof server.savedRosterPage>>[number] | null>(savedRosterPageKey(id)) ?? undefined
+  const rows = new Map((fresh ?? args.data.ids.flatMap((id) => cachedRow(id) ?? [])).map((row) => [row.id, row]))
   await Promise.all(
     args.data.ids.map(async (id) => {
       const resource = `roster:${id}`
@@ -777,7 +785,7 @@ export async function savedRosterPage(args: Parameters<typeof server.savedRoster
       rows.set(id, {
         id,
         ...assessment,
-        changes: cached?.find((row) => row.id === id)?.changes ?? 0,
+        changes: cachedRow(id)?.changes ?? 0,
         differences: (await accessOf(roster, state)).differences,
       })
     }),

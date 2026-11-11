@@ -1,8 +1,9 @@
-import { QueryClient } from '@tanstack/react-query'
+import { QueryClient, QueryObserver } from '@tanstack/react-query'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   coalescedBy,
   invalidateAdminProductQueries,
+  invalidateEveryProductQuery,
   invalidateProductQueries,
   invalidatePublicProductQueries,
   invalidateSyncedQueries,
@@ -13,14 +14,14 @@ it('refreshes the home roster shelf and saved lists after a roster signal withou
   for (const key of ['home-rosters', 'saved-roster-summaries', 'saved-roster-changed-ids', 'faction-index']) {
     client.setQueryData([key], {})
   }
-  client.setQueryData(['saved-roster-page', ['roster-1']], {})
+  client.setQueryData(['saved-roster-page', 'roster-1'], {})
 
   await invalidateProductQueries(client, 'rosters')
 
   expect([
     client.getQueryState(['home-rosters'])?.isInvalidated,
     client.getQueryState(['saved-roster-summaries'])?.isInvalidated,
-    client.getQueryState(['saved-roster-page', ['roster-1']])?.isInvalidated,
+    client.getQueryState(['saved-roster-page', 'roster-1'])?.isInvalidated,
     client.getQueryState(['saved-roster-changed-ids'])?.isInvalidated,
     client.getQueryState(['faction-index'])?.isInvalidated,
   ]).toEqual([true, true, true, true, false])
@@ -219,4 +220,26 @@ describe('coalesced signal refreshes', () => {
     vi.advanceTimersByTime(10_000)
     expect(run).toHaveBeenCalledTimes(1)
   })
+})
+
+it('lets a saved answer already being refreshed finish when a new connection refreshes everything', async () => {
+  const client = new QueryClient()
+  client.setQueryData(['saved-roster-summaries'], [], { updatedAt: 0 })
+  const queryFn = vi.fn(() => new Promise((resolve) => setTimeout(() => resolve([]), 10)))
+  const unsubscribe = new QueryObserver(client, { queryKey: ['saved-roster-summaries'], queryFn }).subscribe(() => {})
+
+  await invalidateEveryProductQuery(client, true)
+  unsubscribe()
+
+  expect(queryFn).toHaveBeenCalledTimes(1)
+})
+
+it('refreshes only answers read before a new connection began listening', async () => {
+  const client = new QueryClient()
+  client.setQueryData(['saved-roster-summaries'], [], { updatedAt: 1 })
+  client.setQueryData(['favourite-factions'], [], { updatedAt: 3 })
+
+  await invalidateEveryProductQuery(client, true, 2)
+
+  expect(['saved-roster-summaries', 'favourite-factions'].map((key) => client.getQueryState([key])?.isInvalidated)).toEqual([true, false])
 })

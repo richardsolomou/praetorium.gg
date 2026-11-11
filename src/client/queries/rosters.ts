@@ -41,6 +41,8 @@ import {
 import { inFamilies, savedRosterFamilies } from '../productSignals'
 import { battleFeedQuery } from './battles'
 import { referenceStaleTime, requirePage, SSR_STALE_TIME } from './shared'
+import { ROSTER_LIBRARY_BATCH_SIZE } from '../../core/rosterLibrary'
+import { byId, chunks } from '../../core/collections'
 import {
   collectionCountsKey,
   collectionKey,
@@ -310,10 +312,38 @@ export const sharedRosterQuery = (id: string) =>
     queryFn: ({ signal }) => sharedRoster({ data: { id }, signal }),
     staleTime: SSR_STALE_TIME,
   })
-export const savedRosterPageQuery = (ids: string[]) =>
+type SavedRosterRow = Awaited<ReturnType<typeof savedRosterPage>>[number]
+let queuedRows: { id: string; resolve: (row: SavedRosterRow | null) => void; reject: (error: unknown) => void }[] = []
+
+/** Asks for every row requested in the same task together, in the bounded batches the server prices them in. */
+function savedRosterRow(id: string) {
+  return new Promise<SavedRosterRow | null>((resolve, reject) => {
+    if (!queuedRows.length)
+      setTimeout(() => {
+        const queued = queuedRows
+        queuedRows = []
+        for (const ids of chunks([...new Set(queued.map((entry) => entry.id))], ROSTER_LIBRARY_BATCH_SIZE)) {
+          const waiting = queued.filter((entry) => ids.includes(entry.id))
+          savedRosterPage({ data: { ids } }).then(
+            (rows) => {
+              const found = byId(rows)
+              for (const entry of waiting) entry.resolve(found.get(entry.id) ?? null)
+            },
+            (error: unknown) => {
+              for (const entry of waiting) entry.reject(error)
+            },
+          )
+        }
+      })
+    queuedRows.push({ id, resolve, reject })
+  })
+}
+
+/** One saved roster's points, legality, label and variant differences; null once it is no longer the player's. */
+export const savedRosterPageQuery = (id: string) =>
   queryOptions({
-    queryKey: savedRosterPageKey(ids),
-    queryFn: ({ signal }) => savedRosterPage({ data: { ids }, signal }),
+    queryKey: savedRosterPageKey(id),
+    queryFn: () => savedRosterRow(id),
     staleTime: SSR_STALE_TIME,
   })
 export const homeRostersQuery = () =>
