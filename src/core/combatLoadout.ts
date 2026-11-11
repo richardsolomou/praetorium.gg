@@ -3,6 +3,7 @@ import { definitionAndTarget, type CatalogueIndex, type Definition, type Profile
 import type { StructuredDatasheetProfile } from './datasheet'
 import { fieldedCount, isCollectiveGroup } from './collective'
 import { datasheetProfileKind, weaponPhase } from './datasheetStructure'
+import { normalizeCombatKeyword } from './combatKeywords'
 import { withoutFactionPrefix } from './name'
 import { selectionCountBoundsAt, type EvaluateOptions, type Selection } from './evaluate'
 import { wargearKey, wargearOf, type Wargear } from './wargear'
@@ -22,6 +23,11 @@ export const referenceOnlyWeapon = (name: string) => /\(ref\.?\s*only\)/i.test(n
 
 export const combatEquipmentMatches = (piece: CombatEquipment, profile: Pick<StructuredDatasheetProfile, 'id' | 'name'>) =>
   piece.profileIds ? piece.profileIds.includes(profile.id) : wargearKey(piece.name, true) === wargearKey(profile.name, true)
+
+export const combatModelMatches = (carrier: CombatCarrier, profile: Pick<StructuredDatasheetProfile, 'id' | 'name'>) =>
+  carrier.modelProfileIds
+    ? carrier.modelProfileIds.includes(profile.id)
+    : normalizeCombatKeyword(profile.name) === normalizeCombatKeyword(carrier.name)
 
 /** How many of a weapon profile one carrier holds. */
 export const carriedCount = (carrier: CombatCarrier, profile: Pick<StructuredDatasheetProfile, 'id' | 'name'>) =>

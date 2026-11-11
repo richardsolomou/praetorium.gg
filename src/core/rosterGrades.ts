@@ -92,12 +92,22 @@ export const SQUAD_OC = 10
 /** Cheap enough to spend on screening, an action or a home objective without leaving a hole. */
 export const CHEAP_UNIT_POINTS = 70
 
-export type MetricKey = 'presence' | 'hold' | 'screens' | 'reach' | 'deployment' | ReferenceTargetKey | 'survive' | 'spread'
+export type MetricKey =
+  | 'presence'
+  | 'hold'
+  | 'screens'
+  | 'generation'
+  | 'movement'
+  | 'reach'
+  | 'deployment'
+  | ReferenceTargetKey
+  | 'survive'
+  | 'spread'
 
 /** Four groups, each scored from its measures, the way Lighthouse rolls audits into categories. */
 export const CATEGORIES: readonly { key: string; label: string; metrics: readonly MetricKey[] }[] = [
-  { key: 'control', label: 'Board control', metrics: ['presence', 'hold', 'screens'] },
-  { key: 'mobility', label: 'Mobility', metrics: ['reach', 'deployment'] },
+  { key: 'control', label: 'Board control', metrics: ['presence', 'hold', 'screens', 'generation'] },
+  { key: 'mobility', label: 'Charge & deployment', metrics: ['reach', 'deployment', 'movement'] },
   { key: 'damage', label: 'Damage', metrics: ['horde', 'elite', 'vehicle', 'heavyVehicle', 'monster'] },
   { key: 'durability', label: 'Durability', metrics: ['survive', 'spread'] },
 ]
@@ -111,7 +121,7 @@ export type GradedUnit = {
   name: string
   points: number
   move: number
-  objectiveControl: number
+  objectiveControl: number | null
   /** Whether every model in the unit, attachments included, has Deep Strike or Infiltrators. */
   deepStrike: boolean
   infiltrators: boolean
@@ -122,7 +132,12 @@ export type GradedUnit = {
   removes: Partial<Record<ReferenceTargetKey, number | null>>
   /** The share of the unit's wounds a turn of the reference attackers' shooting takes on average, or null when it cannot be calculated. */
   volleyLoss: number | null
+  unitGeneration?: UnitGeneration[]
+  movementTools?: string[]
 }
+
+/** Facts about creating a new unit, never an estimate of how many will be created or survive. */
+export type UnitGeneration = { unit: string; trigger: 'shooting' | 'kill'; shared: boolean }
 
 export type GradeRow = {
   key: MetricKey
@@ -244,7 +259,9 @@ function gradeMeasures(units: readonly GradedUnit[], limit: number) {
   const [first = 0, second = 0] = units.map((unit) => unit.points).toSorted((left, right) => right - left)
   return {
     presence: units.length,
-    hold: units.filter((unit) => unit.objectiveControl >= SQUAD_OC).length,
+    hold: units.some((unit) => unit.objectiveControl !== null)
+      ? units.filter((unit) => unit.objectiveControl !== null && unit.objectiveControl >= SQUAD_OC).length
+      : null,
     screens: units.filter((unit) => unit.points > 0 && unit.points <= CHEAP_UNIT_POINTS).length,
     reach: byPoints(units, (unit) => reachChance(unit, gap)),
     deployment: byPoints(units, (unit) => (deploysEarly(unit) ? 1 : 0)),
@@ -297,9 +314,17 @@ export function rosterGrades(units: readonly GradedUnit[], limit: number, catalo
     return { key, label, score: shown, grade: gradeOf(shown), detail, ...extra }
   }
   const named = (chosen: readonly GradedUnit[]) => chosen.map((unit) => unit.name)
-  const holders = units.filter((unit) => unit.objectiveControl >= SQUAD_OC)
+  const holders = units.filter((unit) => unit.objectiveControl !== null && unit.objectiveControl >= SQUAD_OC)
+  const unknownControl = named(units.filter((unit) => unit.objectiveControl === null))
   const cheap = units.filter((unit) => unit.points > 0 && unit.points <= CHEAP_UNIT_POINTS)
   const early = units.filter(deploysEarly)
+  const generation = units.flatMap((unit) =>
+    (unit.unitGeneration ?? []).map((spawn) => {
+      const condition = spawn.trigger === 'kill' ? 'requires a qualifying kill' : 'uses shooting'
+      const sharedLimit = spawn.shared ? '; once per turn across your army' : ''
+      return `${unit.name} → ${spawn.unit} (${condition}${sharedLimit})`
+    }),
+  )
   const gap = deploymentGap(limit)
   const rows: GradeRow[] = [
     row('presence', 'Board presence', score('presence', measures.presence), `${unitCount(units.length)} for ${OBJECTIVES} objectives`),
@@ -307,8 +332,10 @@ export function rosterGrades(units: readonly GradedUnit[], limit: number, catalo
       'hold',
       'Hold objectives',
       score('hold', measures.hold),
-      `${unitCount(holders.length)} with OC ${SQUAD_OC} or more, enough to contest a five-model squad`,
-      { units: named(holders) },
+      measures.hold === null
+        ? "No unit's objective control could be counted"
+        : `${unitCount(holders.length)} with OC ${SQUAD_OC} or more, enough to contest a five-model squad`,
+      { units: named(holders), ...(unknownControl.length ? { notCalculated: unknownControl } : {}) },
     ),
     row(
       'screens',
@@ -317,9 +344,20 @@ export function rosterGrades(units: readonly GradedUnit[], limit: number, catalo
       `${unitCount(cheap.length)} at ${CHEAP_UNIT_POINTS} points or less, cheap enough to screen or do actions`,
       { units: named(cheap) },
     ),
+    ...(generation.length
+      ? [
+          row(
+            'generation',
+            'Unit generation',
+            null,
+            'Extra units may screen space. Their future number, objective control, actions and damage are not scored.',
+            { units: generation },
+          ),
+        ]
+      : []),
     row(
       'reach',
-      'Reach',
+      'Charge reach',
       score('reach', measures.reach),
       `${percent(measures.reach)} of your points can charge across the ${gap}″ gap by round two, on average`,
     ),
@@ -329,6 +367,17 @@ export function rosterGrades(units: readonly GradedUnit[], limit: number, catalo
       score('deployment', measures.deployment),
       `${percent(measures.deployment)} of your points can deep strike, infiltrate or scout`,
       { units: named(early) },
+    ),
+    row(
+      'movement',
+      'Movement tools',
+      null,
+      'Normal moves help reach objectives without charging. Conditional moves are listed, not scored or assumed to happen. Terrain, transports and later repositioning are not measured.',
+      {
+        units: units.map(
+          (unit) => `${unit.name}: ${unit.move}″ normal move${unit.movementTools?.length ? `; ${unit.movementTools.join('; ')}` : ''}`,
+        ),
+      },
     ),
   ]
   const missing: string[] = []

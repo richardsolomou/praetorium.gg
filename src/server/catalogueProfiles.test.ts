@@ -694,7 +694,18 @@ describe('the profile modifiers on a datasheet', () => {
     expect(keywords('destroyers', 1, [])).toBeUndefined()
   })
 
-  it('reads an attached-unit weapon ability when the catalogue only supplies its prose', () => {
+  it.each([
+    {
+      description: 'While this model is leading a unit, weapons equipped by models in that unit have the [LETHAL HITS] ability.',
+      keyword: 'Lethal Hits',
+      appliesAlone: false,
+    },
+    {
+      description: 'Weapons equipped by models in this model’s unit have the **[SUSTAINED HITS 1]** ability.',
+      keyword: 'Sustained Hits 1',
+      appliesAlone: true,
+    },
+  ])('reads an attached-unit weapon grant: $description', ({ description, keyword, appliesAlone }) => {
     const weapon = (id: string, typeName: string) => ({
       id,
       name: 'Weapon',
@@ -716,7 +727,7 @@ describe('the profile modifiers on a datasheet', () => {
               characteristics: [
                 {
                   name: 'Description',
-                  $text: 'While this model is leading a unit, weapons equipped by models in that unit have the [LETHAL HITS] ability.',
+                  $text: description,
                 },
               ],
             },
@@ -736,14 +747,15 @@ describe('the profile modifiers on a datasheet', () => {
         profile.values.filter((value) => value.name === 'Keywords'),
       )
 
-    expect(keywords('captain', 0, [1])).toEqual([
-      { name: 'Keywords', value: 'Lethal Hits', baseValue: '', modifiers: ['Tactical Instinct'] },
-    ])
+    expect(keywords('captain', 0, [1])).toEqual([{ name: 'Keywords', value: keyword, baseValue: '', modifiers: ['Tactical Instinct'] }])
     expect(keywords('veterans', 1, [0])).toEqual([
-      { name: 'Keywords', value: 'Lethal Hits', baseValue: '', modifiers: ['Tactical Instinct'] },
-      { name: 'Keywords', value: 'Lethal Hits', baseValue: '', modifiers: ['Tactical Instinct'] },
+      { name: 'Keywords', value: keyword, baseValue: '', modifiers: ['Tactical Instinct'] },
+      { name: 'Keywords', value: keyword, baseValue: '', modifiers: ['Tactical Instinct'] },
     ])
     expect(keywords('veterans', 1, [])).toEqual([])
+    expect(keywords('captain', 0, [])).toEqual(
+      appliesAlone ? [{ name: 'Keywords', value: keyword, baseValue: '', modifiers: ['Tactical Instinct'] }] : [],
+    )
   })
 
   it('shows abilities granted by enhancements and attached units as core abilities', () => {

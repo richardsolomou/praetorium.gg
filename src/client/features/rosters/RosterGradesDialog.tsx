@@ -90,7 +90,8 @@ export function RosterGradesDialog({
         </DialogBody>
         <DialogFooter className="border-t border-edge bg-sunken px-4 py-3 text-xs text-dim sm:justify-start">
           <p>
-            Each unit fights at full strength with its saved wargear and passive rules; stratagems and switched-on abilities stay off.{' '}
+            Each unit fights at full strength with its saved wargear and passive rules. Nearby units’ auras, returning models and stratagems
+            are not included. Unit generation is listed separately without a score.{' '}
             <Link
               to="/docs/$docId"
               params={{ docId: 'roster-grades' }}
@@ -227,7 +228,7 @@ function Gaps({ grades }: { grades: RosterGrades }) {
     )
   const damage = grades.categories.find((category) => category.key === 'damage')?.rows ?? []
   if (damage.every((row) => row.grade && !row.notCalculated?.length))
-    return <p className="text-sm text-achieved">No gaps: this list has a unit for every target tournament lists this size can deal with.</p>
+    return <p className="text-sm text-achieved">No common damage gaps found. Check the individual measures for weaker matchups.</p>
   return null
 }
 

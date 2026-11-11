@@ -1,7 +1,7 @@
 import { groupBy, RecentlyUsed, remember } from './collections'
 import type { Datasheet, DatasheetCharacteristicKind } from './datasheet'
 import { datasheetCharacteristicKind, datasheetProfileKind, datasheetProfilesByKind } from './datasheetStructure'
-import { combatEquipmentMatches, type CombatCarrier } from './combatLoadout'
+import { combatEquipmentMatches, combatModelMatches, type CombatCarrier } from './combatLoadout'
 import { wargearBaseName, wargearKey } from './wargear'
 import { combatSchema, diceExpression, type CombatInput, type CombatWeapon, type CombatPhase } from './combat'
 import { combatKeyword, combatKeywordApplies, normalizeCombatKeyword as normalized } from './combatKeywords'
@@ -38,10 +38,7 @@ export function combatTarget(
   )
     return refuse('This unit has an unsupported invulnerable save.')
   if (!profiles.length) return refuse('This unit has no model profiles.')
-  const carriedBy = (carrier: CombatCarrier, index: number) =>
-    carrier.modelProfileIds
-      ? carrier.modelProfileIds.includes(profiles[index]!.id)
-      : normalized(profiles[index]!.name) === normalized(carrier.name)
+  const carriedBy = (carrier: CombatCarrier, index: number) => combatModelMatches(carrier, profiles[index]!)
   const defences = profiles.map((profile, index) => ({
     name: profile.name,
     toughness: integer(value(profile, 'toughness')),
