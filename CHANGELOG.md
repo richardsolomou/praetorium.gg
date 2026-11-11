@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.231.7 (2026-11-11)
+
+### Patch Changes
+
+- e170817: Battle reminders now wait until you finish scoring, drawing secondaries or another open prompt, instead of covering it.
+
 ## 0.231.6 (2026-11-11)
 
 ### Patch Changes
