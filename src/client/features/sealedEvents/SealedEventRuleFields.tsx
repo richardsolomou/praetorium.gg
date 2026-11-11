@@ -5,10 +5,8 @@ import { ChevronDown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
-  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuGroup,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
@@ -35,6 +33,7 @@ import { Problem } from '../../components/Problem'
 import { SWISS_ROUNDS_MAX } from '../../../core/swiss'
 import { sealedEventAllowances } from './sealedEvent'
 import { asSentence, countLabel } from '../../text'
+import { DropdownMenuCheckboxItem, DropdownMenuLabel } from '../../components/Menu'
 
 /** `rounds` is the Swiss rounds the organizer pairs, or null for open play. */
 type SealedEventRuleValue = {
@@ -342,9 +341,9 @@ function HouseRules({
   const toggle = (id: SealedEventAllowance) =>
     onChange({ ...value, allowances: allowed(id) ? value.allowances.filter((other) => other !== id) : [...value.allowances, id] })
   const item = (option: SealedEventAllowanceOption, checked: boolean) => (
-    <DropdownMenuCheckboxItem key={option.id} className="items-start py-1.5" checked={checked} onCheckedChange={() => toggle(option.id)}>
+    <DropdownMenuCheckboxItem key={option.id} className="items-start" checked={checked} onCheckedChange={() => toggle(option.id)}>
       <span className="min-w-0">
-        <span className="block text-xs font-semibold uppercase">{option.label}</span>
+        <span className="block">{option.label}</span>
         <span className="mt-0.5 block text-2xs leading-tight text-wrap text-dim">{option.hint}</span>
       </span>
     </DropdownMenuCheckboxItem>
@@ -371,12 +370,12 @@ function HouseRules({
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start">
           <DropdownMenuGroup>
-            <DropdownMenuLabel className="eyebrow text-faint">Format restrictions</DropdownMenuLabel>
+            <DropdownMenuLabel>Format restrictions</DropdownMenuLabel>
             {options.filter((option) => !isNonMatchedPlayAllowance(option.id)).map((option) => item(option, !allowed(option.id)))}
           </DropdownMenuGroup>
           <DropdownMenuSeparator />
           <DropdownMenuGroup>
-            <DropdownMenuLabel className="eyebrow text-faint">Lists may include</DropdownMenuLabel>
+            <DropdownMenuLabel>Lists may include</DropdownMenuLabel>
             {options.filter((option) => isNonMatchedPlayAllowance(option.id)).map((option) => item(option, allowed(option.id)))}
           </DropdownMenuGroup>
         </DropdownMenuContent>

@@ -137,8 +137,8 @@ const SHARED_ROSTER_ACTIONS = new Set(['Exchange code', 'Print'])
  * Chooses an item from a roster's Roster actions menu, reopening the menu until the item shows: a press before
  * hydration opens nothing. Export, exchange code and print are chosen from the share dialog the menu opens.
  */
-export async function chooseRosterAction(page: Page, item: string) {
-  if (SHARED_ROSTER_ACTIONS.has(item)) {
+export async function chooseRosterAction(page: Page, item: string | RegExp) {
+  if (typeof item === 'string' && SHARED_ROSTER_ACTIONS.has(item)) {
     const dialog = await openRosterShare(page)
     await dialog.getByRole('button', { name: new RegExp(`^${item}`) }).click()
     return
@@ -150,7 +150,8 @@ export async function chooseRosterAction(page: Page, item: string) {
 
 /** Opens the roster page's share dialog from its Roster actions menu. */
 export async function openRosterShare(page: Page) {
-  await chooseRosterAction(page, 'Share…')
+  // The item also names the roster's visibility, after the label.
+  await chooseRosterAction(page, /^Share…/)
   const dialog = page.getByRole('dialog', { name: /^Share / })
   await expect(dialog).toBeVisible()
   return dialog

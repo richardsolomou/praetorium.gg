@@ -2,8 +2,8 @@ import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { EllipsisVertical, Eye, Trash2, Trophy } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from '@/components/ui/context-menu'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { ContextMenu, ContextMenuContent, ContextMenuTrigger } from '@/components/ui/context-menu'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { cn } from '@/lib/utils'
 import { pointsLabel } from '../../../core/battle'
 import { BATTLE_ENDINGS, sideLost, sideWon, viewerStage } from '../../battleStage'
@@ -17,6 +17,7 @@ import type { OnboardingTarget } from '../../onboardingTargets'
 import type { Battle } from './battle'
 import { SectionHeading } from '../../components/SectionHeading'
 import { tint } from '../battle/battleTints'
+import { ContextMenuItem, DropdownMenuItem } from '../../components/Menu'
 
 /**
  * One heading's worth of battles, a short card each: how it stands, who sits on each side

@@ -4,8 +4,8 @@ import { Check, Clipboard, EllipsisVertical, Eye, Pencil, Share2, Trash2 } from 
 import { type ReactNode, useEffect, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
-import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from '@/components/ui/context-menu'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { ContextMenu, ContextMenuContent, ContextMenuTrigger } from '@/components/ui/context-menu'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { deleteSealedEvent } from '../../functions'
 
 import { SealedEventSettingsDialog } from './SealedEventSettingsDialog'
@@ -15,6 +15,7 @@ import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { FloatingNotice } from '../../components/FloatingNotice'
 import { useNativeShare } from '../../nativeBridge'
 import { shareButtonLabel, useShareLink } from '../../useShareLink'
+import { ContextMenuItem, DropdownMenuItem } from '../../components/Menu'
 
 type ManageableSealedEvent = {
   token: string

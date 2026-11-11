@@ -18,7 +18,7 @@ import {
 } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Switch } from '@/components/ui/switch'
 import { TABLE_SHAPES, TABLE_SHAPE_LABELS, type TableShape } from '../../../core/tableShape'
 import { seatedPlayers, seatsFor, type Seat, type SoloPairRole } from '../../seats'
@@ -58,6 +58,7 @@ import { sealedEventSealingClosed } from '../../../core/sealedEvent'
 import { useNow } from '../../useNow'
 import { countLabel } from '../../text'
 import { GuideHelp } from '../onboarding/GuideHelp'
+import { DropdownMenuItem } from '../../components/Menu'
 
 type Member = Group['members'][number]
 type GroupTable = NonNullable<QueryData<typeof groupStandingsQuery>>

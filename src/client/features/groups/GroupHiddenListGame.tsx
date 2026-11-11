@@ -4,7 +4,7 @@ import { ChevronRight, EllipsisVertical, Eye, FileLock2, Lock, LogOut, Pencil, S
 import { posthog } from 'posthog-js'
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import type { SealedEventSide } from '../../../contracts/schemas'
 import {
   isTeamFormat,
@@ -46,6 +46,7 @@ import { memberNameOf, useGroupRefresh, type Group } from './group'
 import { useStartBattle } from '../battles/useStartBattle'
 import { warmLocalRules } from '../../offline/construction'
 import { afterPaint } from '../../afterPaint'
+import { DropdownMenuItem } from '../../components/Menu'
 
 type Game = Group['games'][number]
 type Player = Game['players'][number]

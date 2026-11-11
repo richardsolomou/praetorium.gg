@@ -5,11 +5,8 @@ import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
-  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
@@ -39,6 +36,7 @@ import { matchesSearch } from '../text'
 import { FactionMark } from './FactionMark'
 import { SearchField } from './SearchField'
 import type { SearchableGroup, SearchableOption } from './SearchableSelect'
+import { DropdownMenuCheckboxItem, DropdownMenuItem, DropdownMenuLabel } from './Menu'
 
 export type FilterDimension = {
   key: string
@@ -208,7 +206,7 @@ export function FilterBar({
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
             <DropdownMenuGroup>
-              <DropdownMenuLabel className="eyebrow text-faint">Show in the bar</DropdownMenuLabel>
+              <DropdownMenuLabel>Show in the bar</DropdownMenuLabel>
               {pinnable.map((dimension) => (
                 <DropdownMenuCheckboxItem
                   key={dimension.key}

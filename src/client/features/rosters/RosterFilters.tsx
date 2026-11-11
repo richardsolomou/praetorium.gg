@@ -3,16 +3,10 @@ import { ROSTER_POINTS_BANDS } from '../../../core/rosterDiscovery'
 import { ArrowDownUp, Rows3 } from 'lucide-react'
 import { Fragment } from 'react'
 import { Button } from '@/components/ui/button'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuLabel,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import type { RosterGrouping } from '../../../core/rosterGrouping'
 import type { RosterSort } from '../../../core/rosterSort'
+import { DropdownMenuLabel, DropdownMenuRadioItem } from '../../components/Menu'
 
 const SORT_GROUPS: { label: string; items: { label: string; value: RosterSort }[] }[] = [
   {
@@ -58,7 +52,7 @@ export function RosterSortMenu({ value, onChange }: { value: RosterSort; onChang
         <DropdownMenuRadioGroup value={value} onValueChange={(chosen) => onChange(chosen as RosterSort)}>
           {SORT_GROUPS.map((group) => (
             <Fragment key={group.label}>
-              <DropdownMenuLabel className="eyebrow text-faint">{group.label}</DropdownMenuLabel>
+              <DropdownMenuLabel>{group.label}</DropdownMenuLabel>
               {group.items.map((item) => (
                 <DropdownMenuRadioItem key={item.value} value={item.value} closeOnClick>
                   {item.label}

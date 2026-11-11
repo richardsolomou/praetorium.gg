@@ -23,14 +23,7 @@ import {
   X,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuLabel,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
@@ -40,6 +33,7 @@ import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { SearchField } from '../../components/SearchField'
 import { useDateFormatting } from '../../dates'
 import { countLabel } from '../../text'
+import { DropdownMenuCheckboxItem, DropdownMenuLabel } from '../../components/Menu'
 
 type AdminTableMeta = { currentUserId: string; openedUserId?: string }
 const features = tableFeatures({
