@@ -1,4 +1,4 @@
-Roster grades score what a roster can do on the table. Choose **Grade this roster** from the roster's **⋮** menu. You get an overall score out of 100, a score for each of four categories, and a grade for every measure in them. **Worth knowing** names the gaps. Scores describe the list, not your odds of winning: the player, the mission and the dice decide far more than the list does.
+Roster grades score what a roster can do on the table. Choose **Grade this roster** from the roster's **⋮** menu, or from its card's **⋮** menu on the Rosters page. You get an overall score out of 100, a score for each of four categories, and a grade for every measure in them. **Worth knowing** names the gaps. Scores describe the list, not your odds of winning: the player, the mission and the dice decide far more than the list does.
 
 ## How scores work
 

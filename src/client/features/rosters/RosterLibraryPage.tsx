@@ -48,6 +48,7 @@ import { countBy, toggled } from '../../../core/collections'
 import { matchesSearch } from '../../text'
 import { RosterRow } from './RosterRow'
 import { RosterLoanDialog } from './RosterLoanDialog'
+import { SavedRosterGradesDialog } from './RosterGradesDialog'
 import { CreateBattle } from '../battles/CreateBattle'
 import { type RosterShareChoices, RosterShareDialog } from './RosterShareDialog'
 import { rosterTitle } from './RosterSummary'
@@ -284,6 +285,7 @@ export function RosterLibraryPage({
   const sharing = saved.find((roster) => roster.id === sharingId) ?? null
   const [lendingId, setLendingId] = useState<string | null>(null)
   const [battleRosterId, setBattleRosterId] = useState<string | null>(null)
+  const [grading, setGrading] = useState<{ id: string; name: string } | null>(null)
   const [session, setEditing] = useWorkspaceState<EditingSession>(WORKSPACE_PATH, SETUP_STATE)
   const editing = saved.find((roster) => roster.id === session?.rosterId) ?? null
   // Only a signed-in player's own rosters can be changed together; rosters a filter hides stay out of the action.
@@ -351,6 +353,7 @@ export function RosterLibraryPage({
         onShare={() => setSharingId(roster.id)}
         onLend={() => setLendingId(roster.id)}
         onStartBattle={() => setBattleRosterId(roster.id)}
+        onGrade={() => setGrading({ id: roster.id, name: rosterTitle(roster, factionOf(roster), pageById.get(roster.id)?.label) })}
         onDelete={() => setDeleting({ rosters: [roster], together: false })}
         onNeedsAccount={guest ? account.ask : undefined}
         selection={selectionOf(roster)}
@@ -705,6 +708,7 @@ export function RosterLibraryPage({
       ) : null}
       {lendingId ? <RosterLoanDialog rosterId={lendingId} open onClose={() => setLendingId(null)} /> : null}
       {battleRosterId ? <CreateBattle rosterId={battleRosterId} open onOpenChange={(open) => !open && setBattleRosterId(null)} /> : null}
+      {grading ? <SavedRosterGradesDialog id={grading.id} guest={guest} name={grading.name} onClose={() => setGrading(null)} /> : null}
       <RosterExportDialog exported={actions.exportText} onClose={actions.clearExport} />
       <RosterExchangeDialog exchange={actions.exchangeCode} onClose={actions.clearExchange} />
     </main>

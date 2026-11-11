@@ -297,6 +297,7 @@ for (const width of [1440, 390]) {
     await expect(menu.getByRole('menuitem')).toHaveText([
       'View',
       'Start a battle',
+      'Grade this roster',
       'Edit roster setup',
       'Create variant',
       'Duplicate',

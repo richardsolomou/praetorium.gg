@@ -7,7 +7,9 @@ import { Problem } from '../../components/Problem'
 import type { RosterPick } from '../../../core/roster'
 import type { Grade, GradeCategory, GradeRow, RosterGrades } from '../../../core/rosterGrades'
 import { formatList } from '../../text'
-import { rosterGradesQuery } from '../../queries'
+import { rosterGradesQuery, sharedRosterQuery } from '../../queries'
+import { claimInput, type GuestDraft } from './guestDraft'
+import { positionedPicks } from './rosterPicks'
 
 /** Colour and line form both carry the grade: solid for A and B, dashed for C and D, so it reads without colour too. */
 const GRADE_TONE: Record<Grade, { text: string; border: string; stroke: string; dashed: boolean }> = {
@@ -24,12 +26,15 @@ export function RosterGradesDialog({
   name,
   setup,
   picks,
+  failed = false,
 }: {
   open: boolean
   onClose: () => void
   name: string
   setup: Parameters<typeof rosterGradesQuery>[0]
   picks: readonly RosterPick[]
+  /** The list itself could not be loaded, so there is nothing to grade. */
+  failed?: boolean
 }) {
   const grades = useQuery(rosterGradesQuery(setup, picks, open))
   return (
@@ -53,7 +58,7 @@ export function RosterGradesDialog({
                 ))}
               </div>
             </>
-          ) : grades.isError ? (
+          ) : grades.isError || failed ? (
             <Problem>Grades could not be worked out right now. They need a connection to Praetorium; try again in a moment.</Problem>
           ) : (
             <output className="grid gap-5" aria-label="Grading this roster">
@@ -82,6 +87,33 @@ export function RosterGradesDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  )
+}
+
+/** A library roster's grades, loading the whole list first; a visitor's list is already on the device. */
+export function SavedRosterGradesDialog({
+  id,
+  guest,
+  name,
+  onClose,
+}: {
+  id: string
+  guest: GuestDraft | null
+  name: string
+  onClose: () => void
+}) {
+  const saved = useQuery({ ...sharedRosterQuery(id), enabled: !guest })
+  const roster = guest ? claimInput(guest) : saved.data
+  const picks = roster ? positionedPicks(roster.picks.map((pick, key) => ({ ...pick, key }))) : []
+  return (
+    <RosterGradesDialog
+      open
+      onClose={onClose}
+      name={name}
+      setup={roster ?? { catalogueId: '', detachmentIds: [], disposition: null, limit: 0 }}
+      picks={picks}
+      failed={!guest && (saved.isError || saved.data === null)}
+    />
   )
 }
 
