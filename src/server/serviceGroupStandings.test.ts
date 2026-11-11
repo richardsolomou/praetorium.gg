@@ -89,6 +89,14 @@ it('shows a battle played since the table was last read', async () => {
   expect(await rows(service)).toEqual([ALICE, BOB])
 })
 
+it('reads the group’s battles once while none of them changes', async () => {
+  const repository = repositoryFor()
+  const service = serviceOf(repository)
+  await rows(service)
+  await rows(service)
+  expect(repository.battlesByGroup).toHaveBeenCalledOnce()
+})
+
 it('drops a player who leaves while the group’s battles are unchanged', async () => {
   const repository = repositoryFor()
   const service = serviceOf(repository)

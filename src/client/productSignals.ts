@@ -188,19 +188,14 @@ export function invalidatePublicProductQueries(queryClient: QueryClient, scope?:
 }
 
 /**
- * Refreshes every product query answered before `since`, for a connection that cannot tell what changed before it arrived.
+ * Refreshes every product query once, for a connection that cannot tell what changed before it arrived.
  *
  * Several query families sit in both the account and the public lists, so refreshing the two lists apart would
- * fetch those twice, the second request cancelling the first. Answers the page read while the connection opened, and
- * reads still in flight, are kept rather than asked for again.
+ * fetch those twice, the second request cancelling the first.
  */
-export function invalidateEveryProductQuery(queryClient: QueryClient, signedIn: boolean, since = Infinity) {
+export function invalidateEveryProductQuery(queryClient: QueryClient, signedIn: boolean) {
   const keys = new Set<string>([...Object.values(publicQueryFamilies).flat(), ...(signedIn ? Object.values(queryFamilies).flat() : [])])
-  const inFamily = inFamilies(keys)
-  return queryClient.invalidateQueries(
-    { predicate: (query) => inFamily(query) && query.state.dataUpdatedAt < since },
-    { cancelRefetch: false },
-  )
+  return queryClient.invalidateQueries({ predicate: inFamilies(keys) })
 }
 
 export function invalidateAdminProductQueries(queryClient: QueryClient, scope?: string) {

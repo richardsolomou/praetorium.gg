@@ -118,6 +118,8 @@ export type ChoiceOptions = EvaluateOptions & { depth?: number }
 
 const MODEL_COUNT = /^\d+\s+models?$/i
 const CACHE_LIMIT = 4096
+/** Longer keys carry a whole roster, as a datasheet view's do; they rarely repeat and would hold megabytes, so they are not kept. */
+const CACHE_KEY_LIMIT = 2048
 
 /**
  * A group that picks how many models the squad fields rather than what they carry.
@@ -129,7 +131,7 @@ export const isUnitCompositionChoice = ({ name, options }: { name: string; optio
   (options.length > 0 && options.every((option) => MODEL_COUNT.test(option.name?.trim() ?? '')))
 
 export function unitChoices(entryId: string, selection: Selection, index: CatalogueIndex, options: ChoiceOptions = {}): UnitChoice[] {
-  return remember(memoFor(index).choices, memoKey(entryId, selection, options), () =>
+  return memoized(memoFor(index).choices, memoKey(entryId, selection, options), () =>
     collectUnitChoices(entryId, selection, index, options),
   )
 }
@@ -144,6 +146,8 @@ const memoFor = (index: CatalogueIndex) =>
   remember(memos, index, (): ChoiceMemo => ({ choices: new RecentlyUsed(CACHE_LIMIT), toggles: new RecentlyUsed(CACHE_LIMIT) }))
 const memoKey = (entryId: string, selection: Selection, options: ChoiceOptions) =>
   JSON.stringify([entryId, selection, options.primaryCatalogueId, options.roster, options.mustering, options.depth])
+const memoized = <T>(store: RecentlyUsed<string, T>, key: string, compute: () => T) =>
+  key.length > CACHE_KEY_LIMIT ? compute() : remember(store, key, compute)
 
 const exclusiveSetsByEntry = new WeakMap<CatalogueIndex, WeakMap<Definition, Map<number, string[][]>>>()
 
@@ -537,7 +541,7 @@ function collectUnitChoices(entryId: string, selection: Selection, index: Catalo
  * Walking past those conditions can offer the choice to ineligible units.
  */
 export function unitToggles(entryId: string, selection: Selection, index: CatalogueIndex, options: ChoiceOptions = {}): UnitToggle[] {
-  return remember(memoFor(index).toggles, memoKey(entryId, selection, options), () =>
+  return memoized(memoFor(index).toggles, memoKey(entryId, selection, options), () =>
     collectUnitToggles(entryId, selection, index, options),
   )
 }

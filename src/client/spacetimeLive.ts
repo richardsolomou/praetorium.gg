@@ -239,7 +239,6 @@ export function useSpacetimeLiveProduct(config: RealtimeConfig | null, signedIn:
     // Revisions seen by earlier connections, so a reconnect refreshes only what changed while it was away.
     const seen = { product: new Map<string, bigint>(), admin: new Map<string, bigint>(), public: new Map<string, bigint>() }
     let synced = false
-    const openedAt = Date.now()
     const catchUp = (
       revisions: Map<string, bigint>,
       rows: Iterable<{ scope: string; revision: bigint }>,
@@ -296,7 +295,7 @@ export function useSpacetimeLiveProduct(config: RealtimeConfig | null, signedIn:
                 setSubscribed(true)
                 const first = !synced
                 synced = true
-                if (first) void invalidateEveryProductQuery(queryClient, signedIn, openedAt)
+                if (first) void invalidateEveryProductQuery(queryClient, signedIn)
                 if (first && signedIn) refreshAdmin()
                 if (signedIn) catchUp(seen.product, current.db.myProductSignals.iter(), refresh, first)
                 if (signedIn) catchUp(seen.admin, current.db.myAdminSignals.iter(), refreshAdmin, first)
