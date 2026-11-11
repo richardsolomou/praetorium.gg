@@ -2,15 +2,14 @@ import { useQuery } from '@tanstack/react-query'
 import { Link, useLocation } from '@tanstack/react-router'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { useEffect, useSyncExternalStore } from 'react'
-import type { RuleEntry, RuleSection } from '../../../../contracts/rules'
-import { byId } from '../../../../core/collections'
+import type { RuleEntry } from '../../../../contracts/rules'
 import { type RuleLinks, ruleLinks } from '../../../ruleLinks'
 import { ruleIndexQuery, ruleSectionQuery } from '../../../queries'
 import { RuleMarkup } from '../../../components/RuleMarkup'
 import { SourceTextPrompt } from '../../../components/SourceTextPrompt'
 import type { MissingText } from '../../../sourceText'
 import { PageContent, PageHeader } from '../../../components/Page'
-import { useRuleText } from '../../../rulesText'
+import { useRuleText, withText } from '../../../rulesText'
 import { RulesTextNotice } from './RulesTextNotice'
 import { revealHashTarget } from '../../../hashTarget'
 import { BackLink } from '../BackLink'
@@ -87,17 +86,6 @@ const subscribeToHash = (onChange: () => void) => {
 }
 const currentHash = () => decodeURIComponent(window.location.hash.slice(1))
 const noHash = () => ''
-
-function withText(outline: RuleSection, loaded: RuleSection): RuleSection {
-  const texts = byId(loaded.entries)
-  return {
-    ...outline,
-    entries: outline.entries.map((entry) => {
-      const source = texts.get(entry.id)
-      return source ? { ...entry, blocks: source.blocks, facts: source.facts, lore: source.lore } : entry
-    }),
-  }
-}
 
 function Rule({ entry, links, missing, current }: { entry: RuleEntry; links: RuleLinks; missing: MissingText; current: boolean }) {
   return (

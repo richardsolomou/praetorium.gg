@@ -33,7 +33,7 @@ export function Keyword({
     <HoverTooltip
       className={`${className} ${note && highlightNote ? 'font-semibold text-info' : 'text-azure'} hover:text-bone`}
       title={rule?.name ?? name}
-      body={rule?.description ? <RuleText text={rule.description} className="mt-0 text-xs" /> : undefined}
+      body={rule?.description ? <RuleText text={rule.description} className="mt-0 text-xs" cite /> : undefined}
       note={note}
     >
       {name}

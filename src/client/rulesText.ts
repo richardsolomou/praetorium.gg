@@ -1,9 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
 import { posthog } from 'posthog-js'
 import { useEffect } from 'react'
-import type { RuleDocument, RuleTextSource } from '../contracts/rules'
+import type { RuleDocument, RuleSection, RuleTextSource } from '../contracts/rules'
 import { ruleDocumentFrom } from '../shared/ruleDocuments'
-import { toggled } from '../core/collections'
+import { byId, toggled } from '../core/collections'
 import { TEXT_SOURCES, type TextSource } from '../shared/sourceText'
 import { isFetchNetworkFailure } from './networkErrors'
 import { readStoredValue, subscribeStoredValues, useStoredValue, writeStoredValue } from './storedValue'
@@ -153,4 +153,16 @@ export function useRuleText(text: RuleTextSource | null) {
   }, [query.error])
   // A copy loaded before the reader stopped loading stays cached, so the choice decides what shows.
   return { chosen, query, document: chosen ? (query.data ?? null) : null }
+}
+
+/** A section's outline with each rule's words from the loaded file, matched by the rule's id. */
+export function withText(outline: RuleSection, loaded: RuleSection): RuleSection {
+  const texts = byId(loaded.entries)
+  return {
+    ...outline,
+    entries: outline.entries.map((entry) => {
+      const source = texts.get(entry.id)
+      return source ? { ...entry, blocks: source.blocks, facts: source.facts, lore: source.lore } : entry
+    }),
+  }
 }
