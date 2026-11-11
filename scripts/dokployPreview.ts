@@ -4,7 +4,13 @@ import { mkdtemp, readFile, rm, stat } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import { promisify } from 'node:util'
-import { DokployClient, dokployPreviewFromEnvironment, loadPreviewAppSecrets, pullRequestNumber } from 'ras-stack/preview/dokploy'
+import {
+  DokployClient,
+  type DokployApplication,
+  dokployPreviewFromEnvironment,
+  loadPreviewAppSecrets,
+  pullRequestNumber,
+} from 'ras-stack/preview/dokploy'
 import { callSpacetime, deleteSpacetimeDatabase, publishSpacetimeModule, type SpacetimeConnection } from 'ras-stack/spacetime'
 import { moduleEnvironment } from './lib/spacetimeEnvironment.ts'
 import { isEntryPoint } from './lib/entryPoint.ts'
@@ -101,23 +107,45 @@ async function productModule(image: string) {
 // Every image creates /data for the server user, so the volume is writable from whichever preview mounts it first.
 const catalogueCache = { type: 'volume', volumeName: 'praetorium-preview-catalogues', mountPath: '/data' } as const
 
+// Every preview shares hera with production, so a preview must hit its own limit before the host runs out.
+const memoryLimit = String(2 * 1024 ** 3)
+
 /**
- * Mounts the catalogue cache every preview shares, before the application first starts. Prepared
- * catalogues are scoped by compiler, so a preview whose compiler another has prepared starts in
- * seconds instead of compiling for minutes.
+ * Caps memory and mounts the catalogue cache every preview shares, before the application first
+ * starts. Prepared catalogues are scoped by compiler, so a preview whose compiler another has
+ * prepared starts in seconds instead of compiling for minutes.
  */
-export async function shareCatalogueCache(client: DokployClient, name: string) {
+export async function prepareApplication(client: DokployClient, name: string) {
   let application = await client.application(name)
   if (!application) {
     await client.api('application.create', { body: { name, appName: name, environmentId: client.environmentId } })
     application = await client.application(name)
   }
   if (!application) throw new Error(`Dokploy did not create ${name}`)
-  const { mounts } = await client.api<{ mounts?: { volumeName?: string | null; mountPath: string }[] }>('application.one', {
-    query: { applicationId: application.applicationId },
-  })
-  if (mounts?.some((mount) => mount.volumeName === catalogueCache.volumeName && mount.mountPath === catalogueCache.mountPath)) return
-  await client.api('mounts.create', { body: { ...catalogueCache, serviceType: 'application', serviceId: application.applicationId } })
+  const { applicationId } = application
+  const settings = await client.api<{ mounts?: { volumeName?: string | null; mountPath: string }[]; memoryLimit?: string | null }>(
+    'application.one',
+    { query: { applicationId } },
+  )
+  if (settings.memoryLimit !== memoryLimit) await client.api('application.update', { body: { applicationId, memoryLimit } })
+  if (settings.mounts?.some((mount) => mount.volumeName === catalogueCache.volumeName && mount.mountPath === catalogueCache.mountPath))
+    return
+  await client.api('mounts.create', { body: { ...catalogueCache, serviceType: 'application', serviceId: applicationId } })
+}
+
+// Three capped previews and production's peak fit in hera's memory together.
+const runningPreviewLimit = 3
+
+/** Stops the longest-standing other previews, so this one runs as at most the third. Its next deploy starts a stopped preview again. */
+export async function makeRoomForPreview(client: DokployClient, prefix: string, name: string) {
+  const preview = new RegExp(`^${prefix}-pr-[1-9][0-9]{0,7}$`)
+  const running = ((await client.applications()) as (DokployApplication & { createdAt: string; applicationStatus: string })[])
+    .filter((application) => application.name !== name && preview.test(application.name) && application.applicationStatus !== 'idle')
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+  for (const application of running.slice(0, Math.max(0, running.length - runningPreviewLimit + 1))) {
+    await client.api('application.stop', { body: { applicationId: application.applicationId } })
+    console.log(`Stopped ${application.name} to keep at most ${runningPreviewLimit} previews running`)
+  }
 }
 
 async function deploy() {
@@ -126,10 +154,10 @@ async function deploy() {
   const revision = previewImageRevision(image, number)
   const { config } = dokployPreviewFromEnvironment()
   if (!config.domain) throw new Error('Preview requires a protected HTTPS domain')
-  await shareCatalogueCache(
-    new DokployClient({ url: config.url, apiKey: config.apiKey, environmentId: config.environmentId }),
-    `${config.applicationPrefix}-pr-${number}`,
-  )
+  const client = new DokployClient({ url: config.url, apiKey: config.apiKey, environmentId: config.environmentId })
+  const application = `${config.applicationPrefix}-pr-${number}`
+  await prepareApplication(client, application)
+  await makeRoomForPreview(client, config.applicationPrefix, application)
   const module = await productModule(image)
   const name = previewDatabase(number)
   const previewUrl = `https://${config.subdomainPrefix}-${number}.${config.domain}`

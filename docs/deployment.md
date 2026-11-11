@@ -21,6 +21,7 @@
 
 - Previews run at `pr-<number>.praetorium.gg`; ready means `/api/health` reports the expected commit. Fork artifacts need maintainer approval.
 - Previews are public and share one runtime catalogue cache; keep sensitive data out. Redeploying resets their data.
+- Previews share hera with production, so each is capped at 2 GiB and at most three run: deploying another stops the one first deployed longest ago until its next deploy.
 - Sign in with `preview@praetorium.gg` / `preview-preview-preview` or `opponent@praetorium.gg` / `opponent-opponent-opponent`.
 
 ## Backups
