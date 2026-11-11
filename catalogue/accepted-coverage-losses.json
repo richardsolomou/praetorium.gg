@@ -1,1 +1,35 @@
-[]
+[
+  {
+    "reason": "Detachments link the core rules their own rule grants (Lethal Hits, Stealth, Deep Strike…). These are keyword definitions, not detachment rules, and still show as keyword tooltips on the detachment rule that names them.",
+    "entries": [
+      "adeptus-mechanicus / Skitarii Hunter Cohort rules: Stealth",
+      "aeldari / Armoured Warhost rules: Assault",
+      "aeldari / Twilight Flickers rules: Stealth",
+      "genestealer-cults / Host of Ascension rules: Ignores Cover",
+      "genestealer-cults / Host of Ascension rules: Sustained Hits",
+      "tau-empire / Kauyon rules: Sustained Hits",
+      "tau-empire / Mont'ka rules: Assault",
+      "tau-empire / Mont'ka rules: Lethal Hits",
+      "astra-militarum / Combined Arms rules: Lethal Hits",
+      "astra-militarum / Siege Regiment rules: Stealth",
+      "imperial-knights / Freeblade Company rules: Feel No Pain",
+      "imperial-knights / Gate Warden Lance rules: Sustained Hits",
+      "imperial-knights / Valourstrike Lance rules: Assault",
+      "tyranids / Ambush Predators rules: Deep Strike",
+      "tyranids / Invasion Fleet rules: Lethal Hits",
+      "tyranids / Invasion Fleet rules: Precision",
+      "tyranids / Invasion Fleet rules: Sustained Hits"
+    ]
+  },
+  {
+    "reason": "BSData misspells these detachment rules; the card rule with the correct spelling is still listed, so the misspelt copy was a duplicate.",
+    "entries": [
+      "chaos-daemons / Blood Legion rules: Bloodtainted",
+      "chaos-space-marines / Soulforged Warpack rules: Debt to the Soulforge",
+      "adeptus-mechanicus / Data-psalm Conclave rules: Benediction of the Omnissiah",
+      "tau-empire / Experimental Prototype Cadre rules: Superior Craftmanship",
+      "tyranids / Invasion Fleet rules: Hyper Adaptions",
+      "tyranids / Synaptic Nexus rules: Synaptic Imperitives"
+    ]
+  }
+]
