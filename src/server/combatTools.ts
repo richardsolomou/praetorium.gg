@@ -1,7 +1,13 @@
 import { z } from 'zod'
 import type { CombatResult, CombatPhase } from '../core/combat'
 import { combatAdjustmentsSchema } from '../core/combatAdjustments'
-import { combatMatchup, resolveCombatRequest, type CombatantSnapshot } from '../core/combatMatchup'
+import {
+  combatMatchup,
+  noExclusions,
+  resolveCombatRequest,
+  strongestWeaponPreferences,
+  type CombatantSnapshot,
+} from '../core/combatMatchup'
 import {
   combatEffectAppliesTo,
   combatRuleAppliesTo,
@@ -16,6 +22,7 @@ import { combatUnitKeywords } from '../core/combatUnit'
 import type { RosterPick } from '../core/roster'
 import { encodeSimulatorState } from '../contracts/simulatorState'
 import { joinKey } from '../core/text'
+import { fuzzyNameScore } from '../core/datasheetSearch'
 import { hasTextTokens } from '../shared/sourceText'
 import type { ToolErrorType } from '../contracts/agentTools'
 import { READ_ONLY_TOOL, structured, toolError, type AgentTools } from './agentTools'
@@ -27,7 +34,9 @@ import { activeReferenceCorpus, currentFactionIds } from './referenceApi'
 import type { ReferenceCorpus } from './referenceCorpus'
 import { datasheetCitation, factionDatasheets, factionUnits, referenceFaction } from './referenceService'
 import type { LoadedCatalogue } from '../shared/catalogueIndex'
+import type { LoadedRules } from '../shared/rules'
 import { rosterDatasheetSelections } from '../shared/rosterDatasheetContext'
+import { calculateRosterPrice } from '../shared/pricing'
 
 /**
  * Estimates run synchronously on the shared server, so this is 400 times below the browser worker's bound, about
@@ -35,6 +44,7 @@ import { rosterDatasheetSelections } from '../shared/rosterDatasheetContext'
  */
 const COMBAT_TOOL_MAX_WORK = 5_000_000
 const MAX_ATTACHED = 2
+const MAX_NEARBY = 3
 
 type Role = 'attacker' | 'defender'
 
@@ -45,21 +55,32 @@ const ruleChoicesSchema = z
 const memberShape = {
   unit: name.describe('Unit id, slug, name, or referenceId from list_units.'),
   models: z.int().min(1).max(60).optional().describe('Model count; must be a legal unit size. Defaults to the minimum size.'),
+  enhancement: name
+    .optional()
+    .describe(
+      "Enhancement name from list_units for the side's detachment, given to this unit's character; it needs that detachment named.",
+    ),
 }
+const otherUnit = z.object({
+  ...memberShape,
+  faction: z.string().trim().min(1).max(160).optional().describe("Defaults to the unit's faction."),
+})
 const sideSchema = z.object({
   faction: z.string().trim().min(1).max(160).describe('Faction id, URL slug, or display name from list_reference or list_units.'),
   ...memberShape,
   attached: z
-    .array(
-      z.object({
-        ...memberShape,
-        faction: z.string().trim().min(1).max(160).optional().describe("Defaults to the unit's faction."),
-      }),
-    )
+    .array(otherUnit)
     .max(MAX_ATTACHED)
     .optional()
     .describe(
       'Leaders or support units joined to the unit, from its canBeLedBy and canBeSupportedBy. A unit that joins one of these instead, such as Nork Deddog joining a Cadian Command Squad, goes after it.',
+    ),
+  nearby: z
+    .array(otherUnit.omit({ models: true }))
+    .max(MAX_NEARBY)
+    .optional()
+    .describe(
+      'Friendly units near this one but not joined to it, such as a character whose aura reaches it. Their abilities that can affect this unit are offered as rules, off until chosen; the simulator link leaves them out.',
     ),
   detachment: z
     .string()
@@ -84,7 +105,9 @@ const simulateCombatInputSchema = z.object({
     .record(z.string().max(400), z.string().max(200))
     .refine((modes) => Object.keys(modes).length <= 60, 'Choose at most 60 weapon modes.')
     .optional()
-    .describe('Weapon mode choices by key from a previous result, such as a frag or krak profile.'),
+    .describe(
+      'Weapon mode choices by key from a previous result, such as a frag or krak profile or which melee weapon a model fights with; a choice left out takes the option that does most against the defender.',
+    ),
 })
 type SimulateCombatInput = z.infer<typeof simulateCombatInputSchema>
 type SideInput = z.infer<typeof sideSchema>
@@ -162,7 +185,9 @@ async function sidePicks(corpus: ReferenceCorpus, side: SideInput) {
       )
     if (!unit) {
       const stem = key.length > 4 ? key.replace(/s$/, '') : key
-      const similar = units.filter((candidate) => stem && joinKey(candidate.name).includes(stem)).map((candidate) => candidate.name)
+      const similar = units
+        .filter((candidate) => (stem && joinKey(candidate.name).includes(stem)) || fuzzyNameScore(unitName, candidate.name) !== null)
+        .map((candidate) => candidate.name)
       throw new CombatRefusal(
         [
           `${faction.name} has no unit named ${unitName}.${similar.length ? ` Similar units: ${similar.slice(0, 5).join(', ')}.` : ''} Use a unit name or id from list_units for this faction.`,
@@ -173,17 +198,25 @@ async function sidePicks(corpus: ReferenceCorpus, side: SideInput) {
     return { faction, unit, sheet: sheets.get(unit.id) }
   }
   const host = await resolve(side.faction, side.unit)
-  const found = await Promise.all((side.attached ?? []).map((member) => resolve(member.faction ?? side.faction, member.unit)))
+  const attached = side.attached ?? []
+  const others = [...attached, ...(side.nearby ?? [])]
+  const found = await Promise.all(others.map((member) => resolve(member.faction ?? side.faction, member.unit)))
   const picks: RosterPick[] = [
     { entryId: host.unit.id, catalogueId: host.faction.id, ...(side.models ? { models: side.models } : {}) },
     ...found.map((member, index) => ({
       entryId: member.unit.id,
       catalogueId: member.faction.id,
-      attachedTo: 0,
-      ...(side.attached?.[index]?.models ? { models: side.attached[index].models } : {}),
+      ...(index < attached.length ? { attachedTo: 0 } : {}),
+      ...(attached[index]?.models ? { models: attached[index].models } : {}),
     })),
   ]
-  return { catalogueId: host.faction.id, picks, sheets: [host.sheet, ...found.map((member) => member.sheet)] }
+  return {
+    catalogueId: host.faction.id,
+    picks,
+    sheets: [host.sheet, ...found.map((member) => member.sheet)],
+    enhancements: [side.enhancement, ...others.map((member) => member.enhancement)],
+    members: 1 + attached.length,
+  }
 }
 
 /** Each attached unit joins the main unit, or else the first attached unit before it that can take it, as a Loyal Protector joins a Command Squad. */
@@ -197,8 +230,41 @@ function joinedPicks(loaded: LoadedCatalogue, catalogueId: string, detachmentIds
     return Boolean(attachment && admitsHost(attachment, hostName))
   }
   return picks.map((pick, at) =>
-    at ? { ...pick, attachedTo: [...picks.keys()].slice(0, at).find((host) => admits(at, host)) ?? 0 } : pick,
+    at && pick.attachedTo !== undefined
+      ? { ...pick, attachedTo: [...picks.keys()].slice(0, at).find((host) => admits(at, host)) ?? 0 }
+      : pick,
   )
+}
+
+/** Each pick with the enhancement named for it chosen, refusing one its unit cannot take in these detachments. */
+function withEnhancements(
+  loaded: LoadedCatalogue,
+  rules: LoadedRules | null,
+  catalogueId: string,
+  detachmentIds: string[],
+  picks: RosterPick[],
+  wanted: readonly (string | undefined)[],
+) {
+  if (!wanted.some(Boolean)) return picks
+  const price = calculateRosterPrice({ catalogueId, detachmentIds, disposition: null, limit: 2_000, units: picks }, loaded, rules)
+  return picks.map((pick, index) => {
+    const enhancement = wanted[index]
+    if (!enhancement) return pick
+    const unit = price?.units.find((candidate) => candidate.key === index)
+    const options = (unit?.choices ?? [])
+      .filter((choice) => choice.kind === 'enhancement')
+      .flatMap((choice) => choice.options.map((option) => ({ key: choice.key, option })))
+    const found = options.find(({ option }) => joinKey(option.name) === joinKey(enhancement))
+    if (!found)
+      throw new CombatRefusal([
+        `${unit?.name ?? pick.entryId} cannot take an enhancement named ${enhancement}. ${
+          options.length
+            ? `Its enhancements are: ${options.map(({ option }) => option.name).join(', ')}.`
+            : `It has no enhancements${detachmentIds.length ? ' in this detachment' : ' without a detachment'}.`
+        }`,
+      ])
+    return { ...pick, choices: { ...pick.choices, [found.key]: found.option.id } }
+  })
 }
 
 /** The detachment a side names, by id, slug, or name among those its faction's lists can take. */
@@ -222,7 +288,12 @@ async function combatant(corpus: ReferenceCorpus, side: SideInput, role: Role) {
   const [loaded, rules] = await Promise.all([instance.catalogueFor(named.catalogueId), instance.rulesFor(named.catalogueId)])
   if (!loaded) throw new CombatRefusal([REFERENCE_UNAVAILABLE], 'unavailable')
   const detachmentIds = side.detachment ? [detachmentId(loaded, named.catalogueId, side.detachment)] : []
-  const resolved = { ...named, detachmentIds, picks: joinedPicks(loaded, named.catalogueId, detachmentIds, named.picks) }
+  const joined = joinedPicks(loaded, named.catalogueId, detachmentIds, named.picks)
+  const resolved = {
+    ...named,
+    detachmentIds,
+    picks: withEnhancements(loaded, rules, named.catalogueId, detachmentIds, joined, named.enhancements),
+  }
   const unread = rosterCombatant(loaded, rules, { catalogueId: resolved.catalogueId, detachmentIds, picks: resolved.picks, pickIndex: 0 })
   if (!unread) throw new CombatRefusal([`${side.unit} could not be loaded.`])
   const projection = withReadRules(unread, await serverWords())
@@ -245,15 +316,22 @@ async function combatant(corpus: ReferenceCorpus, side: SideInput, role: Role) {
     side.rules ?? {},
   )
   const snapshot = combatantSnapshot(projection, selection)
-  const units = resolved.sheets.map((sheet, index) => {
+  const units = resolved.sheets.slice(0, named.members).map((sheet, index) => {
     const member = index ? projection.companions.find((companion) => companion.pickIndex === index)! : null
+    const enhancement = named.enhancements[index]
     return {
       name: member ? member.selected.name : projection.selected.name,
       models: member ? member.models : projection.models,
+      ...(enhancement ? { enhancement } : {}),
       ...datasheetCitation(corpus, sheet),
     }
   })
-  return { snapshot, units, rules: selection.rules, choices: selection.choices, resolved, role }
+  const nearby = resolved.sheets.slice(named.members).map((sheet, index) => ({
+    name: sheet?.name ?? side.nearby![index]!.unit,
+    ...(side.nearby![index]!.enhancement ? { enhancement: side.nearby![index]!.enhancement } : {}),
+    ...datasheetCitation(corpus, sheet),
+  }))
+  return { snapshot, units, nearby, rules: selection.rules, choices: selection.choices, resolved, role }
 }
 
 type Combatant = Awaited<ReturnType<typeof combatant>>
@@ -338,12 +416,15 @@ export async function simulateCombat(input: SimulateCombatInput) {
       refusals[0]!.type,
     )
   const [attacker, defender] = sides.map((side) => (side as PromiseFulfilledResult<Combatant>).value) as [Combatant, Combatant]
-  const matchup = combatMatchup(attacker.snapshot, defender.snapshot, {
-    preferences: input.weaponModes ?? {},
-    excluded: { ranged: [], melee: [] },
-    allocation: [],
-  })
   const adjustments = input.modifiers ?? {}
+  const preferences = await strongestWeaponPreferences(
+    attacker.snapshot,
+    defender.snapshot,
+    { preferences: input.weaponModes ?? {}, excluded: noExclusions(), allocation: [] },
+    adjustments,
+    async (requests) => requests.map((request) => resolveCombatRequest(request, COMBAT_TOOL_MAX_WORK)),
+  )
+  const matchup = combatMatchup(attacker.snapshot, defender.snapshot, { preferences, excluded: noExclusions(), allocation: [] })
   const request = matchup.request(adjustments)
   const answer = resolveCombatRequest(request, COMBAT_TOOL_MAX_WORK)
   const phase = (key: CombatPhase) => {
@@ -364,9 +445,10 @@ export async function simulateCombat(input: SimulateCombatInput) {
   const citations = [...attacker.units, ...defender.units]
   const documents = citations.flatMap((unit) => (unit.referenceId && corpus.byId.get(unit.referenceId)) || [])
   const result = {
-    attacker: { units: attacker.units, ...ruleSummary(attacker, defender) },
+    attacker: { units: attacker.units, ...(attacker.nearby.length ? { nearby: attacker.nearby } : {}), ...ruleSummary(attacker, defender) },
     defender: {
       units: defender.units,
+      ...(defender.nearby.length ? { nearby: defender.nearby } : {}),
       models: matchup.target?.target?.groups.reduce((total, group) => total + group.models, 0) ?? 0,
       ...ruleSummary(defender, attacker),
     },
@@ -383,7 +465,7 @@ export async function simulateCombat(input: SimulateCombatInput) {
       v: 1,
       sides: [sharedSide(attacker, input.attacker.rules), sharedSide(defender, input.defender.rules)],
       swapped: false,
-      matchup: { adjustments, preferences: input.weaponModes ?? {}, excluded: { ranged: [], melee: [] }, allocation: [] },
+      matchup: { adjustments, preferences, excluded: noExclusions(), allocation: [] },
     })}`,
     revisions: corpus.catalogue.revisions,
     attribution: [...new Set(documents.flatMap((document) => document.attribution))],
@@ -392,7 +474,7 @@ export async function simulateCombat(input: SimulateCombatInput) {
 }
 
 function sharedSide({ resolved }: Combatant, rules: SideInput['rules']) {
-  const [pick, ...attached] = resolved.picks
+  const [pick, ...attached] = resolved.picks.slice(0, resolved.members)
   const { attachedTo: _host, ...host } = pick!
   return {
     catalogueId: resolved.catalogueId,
@@ -411,7 +493,7 @@ export function registerCombatTools(tools: AgentTools) {
     {
       title: 'Estimate combat between two units',
       description:
-        "Runs Praetorium's exact combat simulator for one attacking unit, with any attached leaders, against one defending unit at full strength: shooting, melee, and shooting followed by melee. Returns expected models destroyed, expected wounds lost, the chance to destroy the unit, cumulative odds, weapons used, the rule and weapon-mode choices each side can change, datasheet citations, and a simulator link. Passive datasheet rules apply by default; stratagems and conditional rules stay off until chosen. Rules the simulator cannot calculate are never approximated: a phase it cannot estimate has status refused with its reasons, and recognised rules it leaves out are listed under notCalculated, so explain those gaps rather than retrying. Errors are reserved for unknown factions or units, illegal unit sizes or attachments, and unavailable reference data. It uses default loadouts, and a side fields a detachment's rules and offers its stratagems only when its detachment is named; unit sizes and attachments must be legal.",
+        "Runs Praetorium's exact combat simulator for one attacking unit, with any attached leaders, against one defending unit at full strength: shooting, melee, and shooting followed by melee. Returns expected models destroyed, expected wounds lost, the chance to destroy the unit, cumulative odds, weapons used, the rule and weapon-mode choices each side can change, datasheet citations, and a simulator link. Passive datasheet rules apply by default; stratagems and conditional rules stay off until chosen in rules. A modifier never chooses a rule: charged and heavy change only weapon abilities such as [LANCE] and [HEAVY], so a rule whose option needs the unit to have charged or remained stationary must also be chosen. Rules the simulator cannot calculate are never approximated: a phase it cannot estimate has status refused with its reasons, and recognised rules it leaves out are listed under notCalculated, so explain those gaps rather than retrying. Errors are reserved for unknown factions or units, illegal unit sizes, attachments, or enhancements, and unavailable reference data. It uses default loadouts; a weapon choice left out of weaponModes takes the option that does most against this defender. A side fields a detachment's rules and offers its stratagems only when its detachment is named, an enhancement applies only when named for its unit, and another unit's aura applies only when that unit is listed in nearby and its rule chosen.",
       inputSchema: simulateCombatInputSchema,
       annotations: READ_ONLY_TOOL,
     },

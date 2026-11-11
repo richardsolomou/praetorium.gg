@@ -4,7 +4,7 @@ import { combatCalculator, readCombatAnswer } from './combatCalculation'
 import { COMBAT_BATCH_SIZE } from '../../../contracts/combatCalculation'
 import { errorMessage } from '../../queryClient'
 import { forEachConcurrently } from '../../../shared/forEachConcurrently'
-import type { CombatAnswer, CombatRequest } from '../../../core/combatMatchup'
+import { noExclusions, strongestWeaponPreferences, type CombatAnswer, type CombatRequest } from '../../../core/combatMatchup'
 import type { CombatRoster } from './useCombatant'
 import { readRosterCombatCache, writeRosterCombatCache } from './rosterCombatCache'
 import {
@@ -135,10 +135,43 @@ export async function runRosterCombat({
     results[index] = result
     onResult(Math.floor(index / defenders.length), index % defenders.length, result)
   }
+  // Each cell fights with the weapon choices that do most against its defender, searched once per distinct pairing.
+  const preferences: Record<string, string>[] = []
+  const searches = new Map<string, Promise<Record<string, string>>>()
+  const choosers: ReturnType<typeof combatCalculator>[] = []
+  let nextCell = 0
+  const choose = async () => {
+    // A calculator answers one request at a time, so each lane has its own.
+    const chooser = combatCalculator()
+    choosers.push(chooser)
+    while (nextCell < total) {
+      const index = nextCell++
+      const unit = attackers[Math.floor(index / defenders.length)]!
+      const target = defenders[index % defenders.length]!
+      const pairing = JSON.stringify([unit.snapshot, target.snapshot])
+      const search =
+        searches.get(pairing) ??
+        strongestWeaponPreferences(
+          unit.snapshot,
+          target.snapshot,
+          { preferences: {}, excluded: noExclusions(), allocation: [] },
+          {},
+          (requests) => chooser.calculate(requests, signal),
+        )
+      searches.set(pairing, search)
+      preferences[index] = await search
+    }
+  }
+  try {
+    await Promise.all(Array.from({ length: Math.min(CONCURRENT_MATCHUPS, total) }, choose))
+  } finally {
+    if (choosers.some((chooser) => chooser.failed)) cacheable = false
+    for (const chooser of choosers) chooser.dispose()
+  }
   for (let index = 0; index < total; index++) {
     const unit = attackers[Math.floor(index / defenders.length)]!
     const target = defenders[index % defenders.length]!
-    const { request, unavailable } = rosterCombatRequest(unit.snapshot, target.snapshot, unit.error ?? target.error)
+    const { request, unavailable } = rosterCombatRequest(unit.snapshot, target.snapshot, unit.error ?? target.error, preferences[index])
     const hit = readCombatAnswer(request)
     if (hit) publish(index, hit, unavailable)
     else {

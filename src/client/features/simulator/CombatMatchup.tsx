@@ -1,5 +1,5 @@
 import { invalidWeaponChoices } from './combatPreferences'
-import { calculateCombatPair } from './combatCalculation'
+import { calculateCombatPair, combatCalculator } from './combatCalculation'
 import { useEffect, useEffectEvent, useMemo, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react'
 import { posthog } from 'posthog-js'
 import { Button } from '@/components/ui/button'
@@ -22,7 +22,14 @@ import {
   type CombatPhase,
 } from '../../../core/combat'
 import { combatUnitKeywords, combatUnitTarget } from '../../../core/combatUnit'
-import { combatMatchup, noExclusions, type CombatAnswer, type CombatantSnapshot, type CombatRequest } from '../../../core/combatMatchup'
+import {
+  combatMatchup,
+  noExclusions,
+  strongestWeaponPreferences,
+  type CombatAnswer,
+  type CombatantSnapshot,
+  type CombatRequest,
+} from '../../../core/combatMatchup'
 import type { CombatAdjustments, TargetAdjustment, WeaponAdjustment } from '../../../core/combatAdjustments'
 import { datasheetCharacteristicKindOf } from '../../../core/datasheetStructure'
 import { wargearKey } from '../../../core/wargear'
@@ -192,9 +199,33 @@ export function CombatMatchup({
   useEffect(() => {
     onSettingsChange?.({ adjustments, preferences, excluded: excludedWeapons, allocation: [...allocation] })
   }, [adjustments, preferences, excludedWeapons, allocation, onSettingsChange])
+  // Weapon choices the player left open take the option that does most against this defender; only their own picks are saved.
+  const [strongest, setStrongest] = useState<{ key: string; preferences: Record<string, string> } | null>(null)
+  const strongestKey = useMemo(
+    () => JSON.stringify([attacker, defender, preferences, excludedWeapons, allocation, adjustments, retry]),
+    [attacker, defender, preferences, excludedWeapons, allocation, adjustments, retry],
+  )
+  const choosing = !pending && !failed && Boolean(attacker && defender) && strongest?.key !== strongestKey
+  useEffect(() => {
+    if (pending || failed || !attacker || !defender) return
+    const controller = new AbortController()
+    const calculator = combatCalculator()
+    const settle = (found: Record<string, string>) => {
+      if (!controller.signal.aborted) setStrongest({ key: strongestKey, preferences: found })
+    }
+    void strongestWeaponPreferences(attacker, defender, { preferences, excluded: excludedWeapons, allocation }, adjustments, (requests) =>
+      calculator.calculate(requests, controller.signal),
+    )
+      .then(settle, () => settle(preferences))
+      .finally(() => calculator.dispose())
+    return () => controller.abort()
+    // strongestKey stands for every input the search reads.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [strongestKey, pending, failed])
+  const chosen = strongest?.key === strongestKey ? strongest.preferences : preferences
   const matchup = useMemo(
-    () => combatMatchup(attacker, defender, { preferences, excluded: excludedWeapons, allocation }),
-    [attacker, defender, preferences, excludedWeapons, allocation],
+    () => combatMatchup(attacker, defender, { preferences: chosen, excluded: excludedWeapons, allocation }),
+    [attacker, defender, chosen, excludedWeapons, allocation],
   )
   const { target, labels, attackRules, defenceRules, inheritedOptions, plans, sequenceError } = matchup
   const invalidChoices = useStableValue(
@@ -338,9 +369,9 @@ export function CombatMatchup({
   const comparisonKey = JSON.stringify(scenariosWithout)
   const canSimulate = Boolean(scenarios.ranged || scenarios.melee)
   const outcomeKey = `${requestKey}\n${comparisonKey}`
-  const updating = pending || (canSimulate && (outcome?.key !== outcomeKey || outcome?.attempt !== retry))
+  const updating = pending || choosing || (canSimulate && (outcome?.key !== outcomeKey || outcome?.attempt !== retry))
   useEffect(() => {
-    if (pending || failed) return
+    if (pending || failed || choosing) return
     const request = JSON.parse(requestKey) as CombatRequest
     const comparison = JSON.parse(comparisonKey) as CombatRequest | null
     if (!request.ranged && !request.melee) return
@@ -377,7 +408,7 @@ export function CombatMatchup({
       })
     const stop = () => controller.abort()
     return stop
-  }, [requestKey, comparisonKey, pending, failed, retry, entryPoint])
+  }, [requestKey, comparisonKey, pending, failed, choosing, retry, entryPoint])
   // After the estimate's effect, so the matchup's own calculation starts first.
   const loadoutScoring = useMemo(
     () =>
@@ -391,7 +422,7 @@ export function CombatMatchup({
             companions: attacker.companions,
             sequenceError,
             opponent: { keywords: combatUnitKeywords(defender), rules: defenceRules },
-            preferences,
+            preferences: chosen,
             excluded: excludedWeapons,
             phases: { ranged: matchup.phaseSetup('ranged', adjustments), melee: matchup.phaseSetup('melee', adjustments) },
             afterLosses: matchup.afterLosses.map(({ units, matchup: after }) => ({
@@ -401,7 +432,7 @@ export function CombatMatchup({
             })),
           }
         : null,
-    [attacker, defender, pending, failed, attackRules, sequenceError, defenceRules, preferences, excludedWeapons, matchup, adjustments],
+    [attacker, defender, pending, failed, attackRules, sequenceError, defenceRules, chosen, excludedWeapons, matchup, adjustments],
   )
   const loadoutOdds = useLoadoutOdds({
     space: loadoutSpace,
@@ -410,7 +441,7 @@ export function CombatMatchup({
   })
   const optimizationKey = JSON.stringify({
     key: JSON.stringify([defender, adjustments, defenceRules, attacker?.models]),
-    preferences,
+    preferences: chosen,
     excluded: excludedWeapons,
     results:
       outcome?.key === outcomeKey

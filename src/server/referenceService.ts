@@ -6,6 +6,7 @@ import { publishedFacts } from '../shared/sourceText'
 import { byId, countBy, remember } from '../core/collections'
 import { catalogueEditionId } from '../core/catalogueEdition'
 import { joinKey } from '../core/text'
+import { fuzzyNameScore } from '../core/datasheetSearch'
 import { datasheetPageBySlug } from '../core/datasheetSlug'
 import { unitsIn } from '../shared/cataloguePicker'
 import { entryFactions } from '../shared/catalogueIndex'
@@ -80,9 +81,8 @@ export function referenceUnits(
   const wanted = query?.trim().toLocaleLowerCase()
   const offered = factionUnits(loaded, rules, foundFaction, { battleSize, detachmentIds, nonMatchedPlay })
   const offeredIds = new Set(offered.map((unit) => unit.id))
-  const units = offered
-    .map((unit) => unitReference(corpus, unit, sheets.get(unit.id), offeredIds))
-    .filter((unit) => !wanted || [unit.name, ...unit.keywords].some((value) => value.toLocaleLowerCase().includes(wanted)))
+  const all = offered.map((unit) => unitReference(corpus, unit, sheets.get(unit.id), offeredIds))
+  const units = wanted ? queriedUnits(all, wanted) : all
   return {
     faction: foundFaction,
     battleSize: battleSize ?? null,
@@ -92,6 +92,19 @@ export function referenceUnits(
     units,
     revisions: corpus.catalogue.revisions,
   }
+}
+
+/** The units whose name or keywords contain the query, or else those whose names are close to a mistyped one. */
+function queriedUnits<T extends { name: string; keywords: readonly string[] }>(units: readonly T[], wanted: string) {
+  const containing = units.filter((unit) => [unit.name, ...unit.keywords].some((value) => value.toLocaleLowerCase().includes(wanted)))
+  if (containing.length) return containing
+  return units
+    .flatMap((unit) => {
+      const score = fuzzyNameScore(wanted, unit.name)
+      return score === null ? [] : [{ unit, score }]
+    })
+    .toSorted((left, right) => left.score - right.score)
+    .map(({ unit }) => unit)
 }
 
 /** The units a faction's lists can take, as list_units offers them. */

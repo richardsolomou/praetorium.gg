@@ -1,6 +1,6 @@
 import type { PriceInput } from '../contracts/schemas'
 import { attachedUnitList, attachmentHost } from '../core/attachedUnits'
-import { combatMatchup, type CombatAnswer, type CombatantSnapshot } from '../core/combatMatchup'
+import { combatMatchup, strongestWeaponPreferences, type CombatAnswer, type CombatantSnapshot } from '../core/combatMatchup'
 import { combatRuleSelections, readCombatRule, type CombatRule } from '../core/combatRules'
 import { datasheetProfilesByKind } from '../core/datasheetStructure'
 import { gradedTargets, type GradedUnit, type ReferenceTargetKey } from '../core/rosterGrades'
@@ -177,10 +177,15 @@ export async function measureRosterUnits({
     const reference = references.targets[target.key]
     return reference ? [{ key: target.key, ...reference }] : []
   })
-  const matchups = hosts.flatMap((host) => [
-    ...targets.map((target) => combatMatchup(host.snapshot, target.snapshot, NO_CHOICES)),
-    ...references.attackers.map((attacker) => combatMatchup(attacker.snapshot, host.snapshot, NO_CHOICES)),
+  const pairs = hosts.flatMap((host) => [
+    ...targets.map((target) => [host.snapshot, target.snapshot] as const),
+    ...references.attackers.map((attacker) => [attacker.snapshot, host.snapshot] as const),
   ])
+  const matchups: ReturnType<typeof combatMatchup>[] = []
+  for (const [attacker, defender] of pairs) {
+    const preferences = await strongestWeaponPreferences(attacker, defender, NO_CHOICES, {}, calculate)
+    matchups.push(combatMatchup(attacker, defender, { ...NO_CHOICES, preferences }))
+  }
   const resolved = await calculate(matchups.map((matchup) => matchup.request({})))
   const answers: Attack[] = resolved.map((answer, index) => {
     const matchup = matchups[index]!

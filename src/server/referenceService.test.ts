@@ -143,6 +143,10 @@ it('narrows a planning list to the units a query names', () => {
   ).toEqual(['Lord [Legends]', 'Overlord'])
 })
 
+it('lists the units a mistyped query is close to when none contain it', () => {
+  expect(referenceUnits(lordsCorpus(), lords, null, 'cat', { query: 'Imortals' })?.units.map((unit) => unit.name)).toEqual(['Immortals'])
+})
+
 it('rejects a detachment outside the requested faction', () => {
   const loaded = bookOf({ selectionEntries: [] })
   const catalogue = {

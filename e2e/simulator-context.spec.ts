@@ -136,7 +136,7 @@ test('surviving profile choices agree with results and v1 links through member e
     await page.setViewportSize({ width, height: 1000 })
     await combatSettled(page)
     await expect(page.getByText(discarded, { exact: true })).toBeVisible()
-    await expect(page.getByRole('combobox', { name: 'Librarian · Smite', exact: true })).toContainText(witchfireName)
+    await expect(page.getByRole('combobox', { name: 'Librarian · Smite', exact: true })).toContainText(focusedName)
   }
   await page.setViewportSize({ width: 1440, height: 1000 })
   await expect

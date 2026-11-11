@@ -1,4 +1,5 @@
 import {
+  COMBAT_PHASES,
   DEFAULT_COMBAT_OPTIONS,
   calculateCombat,
   calculateCombatSequence,
@@ -13,6 +14,8 @@ import {
 } from './combat'
 import { uniqueBy } from './collections'
 import { adjustCombatTarget, combineAttackAdjustments, combineWeaponAdjustments, type CombatAdjustments } from './combatAdjustments'
+import { compareOutcomes } from './combatLoadouts'
+import { SHOOTING_TYPE_KEY } from './combatProfiles'
 import { combatRuleDefences, combatRuleOptions } from './combatRules'
 import { combatAttackInput, combatAttacks } from './combatScenario'
 import { combatUnitKeywords, combatUnitSequenceError, combatUnitTarget, type CombatMember } from './combatUnit'
@@ -63,6 +66,48 @@ export function combatMatchup(attacker: CombatantSnapshot | null, defender: Comb
       }
     },
   }
+}
+
+/** Whether a choice picks which weapon or weapon profile attacks, rather than how the unit shoots or what it has already spent. */
+const weaponChoice = (key: string) => key !== SHOOTING_TYPE_KEY && !/:(?:group|one-shot)$/.test(key)
+
+/**
+ * The given weapon choices, with each one left open set to the option that does most against the defender. Open
+ * choices are settled one at a time with the rest at their defaults, so a unit whose choices interact may not get its
+ * best combination.
+ */
+export async function strongestWeaponPreferences(
+  attacker: CombatantSnapshot | null,
+  defender: CombatantSnapshot | null,
+  choices: CombatMatchupChoices,
+  adjustments: CombatAdjustments,
+  calculate: (requests: CombatRequest[]) => Promise<CombatAnswer[]>,
+): Promise<Record<string, string>> {
+  const preferences = { ...choices.preferences }
+  const settled = new Set(Object.keys(preferences))
+  for (const phase of COMBAT_PHASES) {
+    for (;;) {
+      const plan = phaseMatchup(attacker, defender, { ...choices, preferences }).plans[phase]
+      const open = plan?.choices.find((choice) => !settled.has(choice.key) && choice.options.length > 1 && weaponChoice(choice.key))
+      if (!open) break
+      settled.add(open.key)
+      const options = open.options.flatMap((option) => {
+        const input = phaseMatchup(attacker, defender, { ...choices, preferences: { ...preferences, [open.key]: option.value } }).scenario(
+          phase,
+          adjustments,
+        )
+        return input ? [{ value: option.value, request: { ranged: null, melee: null, [phase]: input } }] : []
+      })
+      const answers = await calculate(options.map((option) => option.request))
+      let best: { value: string; result: CombatResult } | undefined
+      options.forEach((option, at) => {
+        const result = answers[at]?.[phase]?.result
+        if (result && (!best || compareOutcomes(result, best.result) > 0)) best = { value: option.value, result }
+      })
+      if (best) preferences[open.key] = best.value
+    }
+  }
+  return preferences
 }
 
 /**

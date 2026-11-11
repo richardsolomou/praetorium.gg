@@ -102,8 +102,13 @@ export function rosterCombatSnapshot(
   return live ? combatAtHealth(snapshot, live.units[live.pickIndex]!) : snapshot
 }
 
-export function rosterCombatRequest(attacker: CombatantSnapshot | null, defender: CombatantSnapshot | null, error?: string) {
-  const matchup = combatMatchup(attacker, defender, { preferences: {}, excluded: noExclusions(), allocation: [] })
+export function rosterCombatRequest(
+  attacker: CombatantSnapshot | null,
+  defender: CombatantSnapshot | null,
+  error?: string,
+  preferences: Readonly<Record<string, string>> = {},
+) {
+  const matchup = combatMatchup(attacker, defender, { preferences, excluded: noExclusions(), allocation: [] })
   const request = matchup.request({})
   const unavailable = Object.fromEntries(
     COMBAT_PHASES.flatMap((phase) =>
