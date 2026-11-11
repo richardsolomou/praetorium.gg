@@ -8,10 +8,25 @@ vi.mock('./publishedTextFiles', () => ({
 }))
 vi.mock('./app', () => ({
   app: () => ({
-    service: { sealedEventService: { ownRoster }, rosterService: { rosterAccess: async () => ({ roster: { name: 'My army' } }) } },
+    service: {
+      sealedEventService: {
+        ownRoster,
+        sealedEvent: async () => ({
+          tournament: { name: 'Friday Swiss' },
+          rounds: 3,
+          entries: [
+            { userId: 'player-1', name: 'Me' },
+            { userId: 'opponent-1', name: 'Ada' },
+          ],
+          pairings: [{ round: 1, table: 1, aId: 'opponent-1', bId: 'player-1' }],
+        }),
+      },
+      rosterService: { rosterAccess: async () => ({ roster: { name: 'My army' } }) },
+    },
     repository: { playerDefaults: async () => ({ rosterVisibility: 'public', battleSize: 2000 }) },
     catalogueFor: async () => null,
     rulesFor: async () => null,
+    battleFactionsFor: async () => [],
   }),
 }))
 vi.mock('./referenceApi', () => ({ activeReferenceCorpus: async () => null, referenceDocumentFor: async () => null }))
@@ -187,6 +202,12 @@ it('prepares a deletion naming the owned roster it removes', async () => {
 it('prepares a variant naming the visibility it will be saved with', async () => {
   expect((await prepareBrowserAgentWrite('copy_roster', { id: 'roster-1', variant: true }, 'player-1')).summary).toBe(
     'Save a variant of “My army” to your rosters. Visibility: public.',
+  )
+})
+
+it('names the paired opponent when an agent starts a Swiss table’s battle', async () => {
+  expect((await prepareBrowserAgentWrite('start_event_battle', { token: 'event-1' }, 'player-1')).summary).toBe(
+    'Start a battle against Ada in “Friday Swiss”.',
   )
 })
 

@@ -59,7 +59,7 @@ function currentRound(sealedEvent: SealedEvent) {
   return Math.max(0, ...sealedEvent.pairings.map((pairing) => pairing.round))
 }
 
-function ownTable(sealedEvent: SealedEvent, userId: string, round = currentRound(sealedEvent)) {
+export function ownTable(sealedEvent: SealedEvent, userId: string, round = currentRound(sealedEvent)) {
   return sealedEvent.pairings.find((pairing) => pairing.round === round && (pairing.aId === userId || pairing.bId === userId))
 }
 

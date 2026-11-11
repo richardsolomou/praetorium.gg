@@ -4,6 +4,7 @@ import {
   builtDetachments,
   FIXED_SECONDARIES,
   isKotcLimit,
+  mayNameCard,
   scoringDue,
   secondaryDrawTarget,
   sideCaptain,
@@ -21,6 +22,7 @@ import { terrainMatchupIds } from '../contracts/terrainReference'
 import { createBattleSchema, submitSchema, tokenSchema } from '../contracts/schemas'
 import { selectedBattleDetachmentData } from '../shared/battleDetachmentData'
 import { setupReferenceError } from '../shared/battleRules'
+import { gameReferencesFor } from '../shared/gameReferences'
 import type { LoadedRules } from '../shared/rules'
 import { resultOf, WRITE } from './accountMcp'
 import { READ_ONLY_TOOL, type AgentTools } from './agentTools'
@@ -265,6 +267,12 @@ async function missionCards(
   const fixed = submitted.mode === 'fixed' ? (submitted.fixed ?? []) : []
   const unknown = fixed.find((key) => !deck.some((card) => card.key === key))
   if (unknown) throw new Response(`${unknown} is not a secondary card; use a key from next.secondaryOptions`, { status: 400 })
+  // The battle page offers only cards that score fixed, and begin-battle refuses a fixed side without its two.
+  const tacticalOnly = fixed.find((key) => !deck.find((card) => card.key === key)!.awards?.some((award) => award.mode === 'fixed'))
+  if (tacticalOnly)
+    throw new Response(`${tacticalOnly} cannot be taken fixed; use a key from next.secondaryOptions where fixed is true`, { status: 400 })
+  if (submitted.mode === 'fixed' && new Set(fixed).size !== FIXED_SECONDARIES)
+    throw new Response(`fixed secondaries take ${FIXED_SECONDARIES} different cards`, { status: 400 })
   return {
     kind: 'set-prep',
     playerId: captain.id,
@@ -287,18 +295,33 @@ export async function agentBattleCommand(owner: string, token: string, sent: obj
   }
   if (submitted.kind === 'configure-battle') {
     const { settings } = (await app().service.seatedBattle(token, owner, rules)).state
+    // The same follow-on changes the setup page makes: a twist belongs to its pack, and a manual battle has no pack, twist or layout.
+    const manual = submitted.manual ?? settings.manual ?? false
+    const missionPackId = manual
+      ? null
+      : submitted.missionPackId !== undefined
+        ? submitted.missionPackId
+        : settings.manual && rules
+          ? (gameReferencesFor(rules).packs[0]?.id ?? null)
+          : settings.missionPackId
     return commandSchema.parse({
       kind: 'configure-battle',
       limit: submitted.limit !== undefined ? submitted.limit : settings.sizeFromRosters ? null : settings.limit,
-      missionPackId: submitted.missionPackId !== undefined ? submitted.missionPackId : settings.missionPackId,
-      terrainLayoutId: settings.terrainLayoutId,
-      twistId: submitted.twistId !== undefined ? submitted.twistId : settings.twistId,
+      missionPackId,
+      terrainLayoutId: manual ? null : settings.terrainLayoutId,
+      twistId: manual
+        ? null
+        : submitted.twistId !== undefined
+          ? submitted.twistId
+          : missionPackId === settings.missionPackId
+            ? settings.twistId
+            : null,
       teamBattle: settings.teamBattle,
       playerCount: settings.playerCount,
       armyPoints: settings.armyPoints ?? null,
       ...(settings.sharedArmyPoints ? { sharedArmyPoints: true } : {}),
       clockLimitMinutes: null,
-      ...((submitted.manual ?? settings.manual) ? { manual: true } : {}),
+      ...(manual ? { manual: true } : {}),
     })
   }
   if (submitted.kind === 'draw-secondaries') {
@@ -490,7 +513,12 @@ export function battleNext(
       you: view.players.some((player) => player.isViewer && player.side === active.side),
     },
     settlement: settlement && { playerId: settlement.playerId, name: named.get(settlement.playerId), round: settlement.round },
-    scoringDue: active ? scoringDue(state, active).map(({ key, name, category }) => ({ key, name, category })) : [],
+    // Raw state holds the opponent's unrevealed secret mission; the view hides it, so this must too.
+    scoringDue: active
+      ? scoringDue(state, active)
+          .filter((card) => mayNameCard(state, owner, active, card.key))
+          .map(({ key, name, category }) => ({ key, name, category }))
+      : [],
     allowed: commands.filter((probe) => !probe.refusal).map((probe) => probe.kind),
     advanceRefusal: commands.find((probe) => probe.kind === 'advance')?.refusal ?? null,
     stratagems: view.players
@@ -564,7 +592,9 @@ export function registerBattleTools(server: AgentTools, userId: string | null) {
         const instance = app()
         const rules = await instance.rulesFor()
         const { screen, state } = await instance.service.seatedBattle(token, owner(), rules)
-        return { battle: screen, next: battleNext(owner(), screen, state, rules) }
+        // A finished battle's timeline repeats its whole report unpaged; get_my_battle_report pages it.
+        const { timeline: _timeline, ...battle } = screen
+        return { battle, next: battleNext(owner(), screen, state, rules) }
       }),
   )
   server.registerTool(

@@ -34,7 +34,8 @@ Never resend a command after an error or a lost response without reading the bat
 - **Ending a phase.** If `next.scoringDue` lists cards, send `request-advance`. Ask what each card paid, then send `score-settlement` with one entry per card that scored, or `acknowledge-scoring` if none did. Then `advance`. With nothing due, `advance` alone ends the phase, and from the end phase it passes the turn.
 - **Casualties.** `wound-unit` removes whole models (negative `delta`). `damage-unit` removes wounds (negative `delta`). `set-unit` marks a unit destroyed. `set-unit-formation` with `battlefield` brings a reserve onto the table.
 - **Notes.** `add-note` records a rules call. Anyone who can watch the battle can read it.
-- **Ending early.** `end-battle` with `reason` `conceded` and `concededBy`. A full battle ends itself after the fifth round's scoring.
+- **The last turn.** After the final turn of round five, a guided battle stays open with `next.settlement` naming the side that went first: record its end-of-game points with `score-settlement` and that `round`, then send `settle-opponent-turn`, which finishes the battle. A manual battle finishes on its final `advance`.
+- **Ending early.** `end-battle` with `reason` `conceded` and `concededBy`.
 
 ## Mistakes
 

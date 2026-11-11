@@ -12,7 +12,7 @@ import {
   type submitSchema,
 } from '../contracts/schemas'
 import { currentUser } from './playerSession'
-import { readEvent } from './organisedPlayTools'
+import { ownTable, readEvent } from './organisedPlayTools'
 
 function browserTools(userId: string | null) {
   const tools = createAgentTools(userId)
@@ -124,9 +124,19 @@ export async function prepareBrowserAgentWrite(name: string, input: unknown, exp
         checkedIn?: boolean
         yourScore?: number
         opponentScore?: number
+        round?: number
+        opponentId?: string
+        allyId?: string
+        secondOpponentId?: string
       }
       const sealedEvent = await readEvent(data.token, data.eventToken, user.id)
       const event = { name: sealedEvent.tournament?.name ?? 'this hidden-list game' }
+      // The approval is the player's only check on who the agent seats or scores against, so it names them.
+      const entrant = (id: string | null | undefined) =>
+        sealedEvent.entries.find((entry) => entry.userId === id)?.name ?? 'an entrant you did not name'
+      const table = ownTable(sealedEvent, user.id, data.round)
+      const tableOpponent = table && (table.aId === user.id ? table.bId : table.aId)
+      const opponent = data.opponentId ?? (sealedEvent.rounds === null ? null : tableOpponent)
       const roster = data.rosterId ? await instance.service.sealedEventService.ownRoster(user.id, data.rosterId) : null
       if (data.rosterId && !roster) throw new Response('Roster not found.', { status: 404 })
       summary =
@@ -137,8 +147,8 @@ export async function prepareBrowserAgentWrite(name: string, input: unknown, exp
             : name === 'check_in_event'
               ? `${data.checkedIn === false ? 'Undo your check-in for' : 'Check in for'} “${event.name}”.`
               : name === 'start_event_battle'
-                ? `Start your battle in “${event.name}”.`
-                : `Report ${data.yourScore}–${data.opponentScore} (you first) for your table in “${event.name}”.`
+                ? `Start a battle against ${entrant(opponent)}${data.allyId ? ` with ${entrant(data.allyId)} on your side` : ''}${data.secondOpponentId ? ` and ${entrant(data.secondOpponentId)} against you` : ''} in “${event.name}”.`
+                : `Report ${data.yourScore}–${data.opponentScore} (you first) against ${entrant(tableOpponent)} in round ${table?.round ?? data.round ?? '?'} of “${event.name}”.`
       break
     }
     default:

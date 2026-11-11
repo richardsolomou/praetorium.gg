@@ -15,6 +15,7 @@ import { defaultSnapshot, unitTotal, withReadRules } from '../shared/rosterGrade
 import { rosterCombatants } from '../shared/rosterCombatants'
 import { READ_ONLY_TOOL, structured, toolError, type AgentTools } from './agentTools'
 import { app } from './app'
+import { agentPoolWork } from './agentPoolWork'
 import { combatCalculationPool } from './combatCalculationPool'
 import { serverWords } from './publishedTextFiles'
 
@@ -22,8 +23,8 @@ import { serverWords } from './publishedTextFiles'
 const COMPARISON_TIMEOUT_MS = 30_000
 // A 3,000-point list fields about 25 units; past that the answer grows beyond what an agent can read.
 const MAX_PAIRINGS = 625
-// The pool refuses work beyond 64 pending calculations, so a few pairings run at once, each asking a few calculations at a time.
-const LANES = 4
+// Two pairings at a time, each asking a few calculations, keep a run's share of the pool's 64 pending calculations small.
+const LANES = 2
 const BATCH = 4
 
 const PHASES = { shooting: 'ranged', melee: 'melee', shootingThenMelee: 'combined' } as const
@@ -267,6 +268,8 @@ export function registerRosterComparisonTools(tools: AgentTools) {
       inputSchema,
       annotations: READ_ONLY_TOOL,
     },
-    (input) => compareRosters(input, AbortSignal.timeout(COMPARISON_TIMEOUT_MS)),
+    async (input) =>
+      (await agentPoolWork(() => compareRosters(input, AbortSignal.timeout(COMPARISON_TIMEOUT_MS)))) ??
+      toolError('unavailable', 'The simulator is busy with other roster comparisons just now. Try again shortly.'),
   )
 }
