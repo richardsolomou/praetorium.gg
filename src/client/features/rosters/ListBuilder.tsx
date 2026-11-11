@@ -1359,7 +1359,12 @@ export function ListBuilder({
       return
     }
     setCompareTargets(compare)
-    setCombatRoster({ ...setup, picks: positioned, pickIndex })
+    setCombatRoster({
+      ...setup,
+      picks: positioned,
+      pickIndex,
+      ...(savedId ? { saved: { source: { id: savedId }, name: shownName || 'Roster' } } : {}),
+    })
   }
 
   const testTargets = !frozen ? (

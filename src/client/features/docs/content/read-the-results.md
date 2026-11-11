@@ -22,4 +22,4 @@ To share a simulation, copy the simulator's address. The link carries the units,
 
 A side taken from a roster needs whoever opens the link to be able to see that roster. If it's been deleted or the unit removed, that side opens empty with a notice.
 
-When you're signed in, **Recent simulations** keeps your latest settings for six pairings on your account. Opening one recalculates with current rules and roster contents. The home page shows your newest three.
+When you're signed in, **Recent simulations** keeps your latest settings for six pairings on your account, wherever you ran them. Opening one recalculates with current rules and roster contents. A pairing from a battle reopens its units at full strength, and one from a roster you haven't saved reopens them without the roster. The home page shows your newest three.

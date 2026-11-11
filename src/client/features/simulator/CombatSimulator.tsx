@@ -32,8 +32,6 @@ import { exampleMatchup, useMatchupHistory } from './matchupHistory'
 import { RecentSimulations } from './RecentSimulations'
 import { sealedCombatRoster } from './rosterCombat'
 import { friendSealedEventLabel, friendSealedEventSource, useRosterOwners, useSimulatorRosters } from './rosterOwners'
-import type { RecentMatchup } from '../../../core/recentMatchups'
-import { LiveBattles } from './LiveBattles'
 
 /** A link's roster side with that roster's current contents; null when the roster or its unit is gone. */
 function savedRosterSide(side: SimulatorSide, roster: CombatRoster | null, name: string): CombatRoster | null {
@@ -65,7 +63,6 @@ export function CombatSimulator({
   const [problem, setProblem] = useState<string | null>(null)
   const queryClient = useQueryClient()
   const units = useQuery(combatUnitsQuery())
-  const history = useMatchupHistory()
   const { saved, friendRosters, lentRosters, sealedEventRosters } = useSimulatorRosters()
   const factions = useQuery(factionIndexQuery())
   const titled = (roster: Parameters<typeof rosterTitle>[0] & { catalogueId: string }) =>
@@ -284,7 +281,6 @@ export function CombatSimulator({
         }
       />
       <PageContent>
-        <LiveBattles />
         <RosterCombatComparison
           units={{
             active: !comparingRosters,
@@ -309,7 +305,6 @@ export function CombatSimulator({
                     secondRosters={rosterNavigation(1)}
                     initial={linked && sides ? { ...linked, sides: [sides[0]!.side, sides[1]!.side] } : null}
                     onChange={share}
-                    onRemember={history.remember}
                     reference={reference}
                   />
                 )}
@@ -343,7 +338,6 @@ export function CombatSimulatorMatchup({
   inDialog = false,
   initial,
   onChange,
-  onRemember,
   reference,
 }: {
   source?: 'standalone' | 'roster' | 'battle'
@@ -357,11 +351,10 @@ export function CombatSimulatorMatchup({
   inDialog?: boolean
   initial?: SimulatorState | null
   onChange?: (state: SimulatorState) => void
-  /** Keeps a completed pairing in the player's recent simulations; only the standalone simulator supplies it. */
-  onRemember?: (entry: RecentMatchup) => void
   reference?: 'datasheet'
 }) {
   const opened = useRef(false)
+  const { remember } = useMatchupHistory()
   useEffect(() => {
     if (opened.current) return
     opened.current = true
@@ -449,8 +442,8 @@ export function CombatSimulatorMatchup({
       onCompleted={() => {
         calculated.current = state
         advanceOnboarding('simulator', 'simulator-defender', 'simulator-results')
-        if (!onRemember || !attacker.ready || !defender.ready || !attacker.unit || !defender.unit) return
-        onRemember({
+        if (!remember || !attacker.ready || !defender.ready || !attacker.unit || !defender.unit) return
+        remember({
           shared: encodeSimulatorState(JSON.parse(state) as SimulatorState),
           attacker: joinedUnitName(attacker),
           defender: joinedUnitName(defender),
