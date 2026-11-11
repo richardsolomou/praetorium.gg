@@ -8,6 +8,7 @@ import {
   hiddenByRules,
   keywordIds,
   keywordsBySelection,
+  rosterAllowance,
   rosterLimit,
   selectionCountBounds,
   type Selection,
@@ -1280,6 +1281,11 @@ describe('the limit on how many of a datasheet a roster may hold', () => {
   it('unlocks an allied datasheet when its prerequisite is added', () => {
     const index = alliedIndex()
     expect(rosterLimit(index.definitions.get('beast')!, index, { roster: [{ id: 'line' }] })).toBe(1)
+  })
+
+  it('names what raises the cap, so a player can be told what to add', () => {
+    const index = alliedIndex()
+    expect(rosterAllowance(index.definitions.get('beast')!, index).unlockedBy).toBe('Line troops')
   })
 
   it('deducts other datasheets sharing the same roster cap', () => {

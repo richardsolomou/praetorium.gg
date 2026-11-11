@@ -1,7 +1,7 @@
 import { cachedIn, remember } from '../core/collections'
 import { type CatalogueIndex, type Definition, nameOf, targetOf } from '../core/catalogue'
 import { formatDatasheetLimit, isKotcLimit, kotcDatasheetRepeatable, kotcUnitExclusions } from '../core/battle'
-import { battleSizeSelection, hiddenByRules, keywordNames, keywordsBySelection, rosterLimit, type Selection } from '../core/evaluate'
+import { battleSizeSelection, hiddenByRules, keywordNames, keywordsBySelection, rosterLimit, type Selection, rosterAllowance, } from '../core/evaluate'
 import { defaultSelection } from '../core/expand'
 import { isNonMatchedPlayName, nonMatchedPlayKind } from '../core/name'
 import type { UnitGroup } from '../core/unitGroups'
@@ -332,11 +332,15 @@ export function contextualUnitLimit(
   roster: readonly Selection[],
 ) {
   const entry = loaded.index.definitions.get(entryId)
-  if (!entry) return 0
-  const limit = rosterLimit(entry, loaded.index, { primaryCatalogueId: catalogueId, mustering: true, roster })
-  if (!isKotcLimit(battleSize)) return limit
+  if (!entry) return { limit: 0, unlockedBy: null }
+  const allowance = rosterAllowance(entry, loaded.index, { primaryCatalogueId: catalogueId, mustering: true, roster })
+  if (!isKotcLimit(battleSize)) return allowance
   const listed = listedUnitFacts(loaded, catalogueId, entryId, roster)
-  return minimumLimit(limit, listed ? formatDatasheetLimit(battleSize, kotcDatasheetRepeatable(listed.keywords), waivedRules) : null)
+  const limit = minimumLimit(
+    allowance.limit,
+    listed ? formatDatasheetLimit(battleSize, kotcDatasheetRepeatable(listed.keywords), waivedRules) : null,
+  )
+  return { limit, unlockedBy: limit === allowance.limit ? allowance.unlockedBy : null }
 }
 
 function minimumLimit(left: number | null, right: number | null) {

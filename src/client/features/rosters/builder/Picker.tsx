@@ -29,7 +29,7 @@ import { usableDatasheets } from '../../../../core/collection'
 import { shortName } from './factions'
 import { GROUPS, shelvesOf } from '../../../unitGroups'
 import { Section } from './Section'
-import { batchFits, canAddCopy, nextCopyPoints, requestedUnit, unitLimitMessage } from './usePicks'
+import { batchFits, canAddCopy, type LimitUnlocks, nextCopyPoints, requestedUnit, unitLimitMessage } from './usePicks'
 import { Problem } from '../../../components/Problem'
 import { ConfirmDialog } from '../../../components/ConfirmDialog'
 import { loadoutPicks } from '../../../../core/rosterCopies'
@@ -51,6 +51,7 @@ type Props = {
   onPreview: (entryId: string, name: string) => void
   inRoster: Record<string, number>
   limits: ReadonlyMap<string, number | null>
+  limitUnlocks: LimitUnlocks
   room: number | null
   battleSize: number
   pointsBudget: number | null
@@ -92,6 +93,7 @@ export const Picker = memo(function Picker({
   onPreview,
   inRoster,
   limits,
+  limitUnlocks,
   room,
   battleSize,
   pointsBudget,
@@ -296,7 +298,7 @@ export const Picker = memo(function Picker({
                               <PickerRow
                                 unit={unit}
                                 limit={limits.has(unit.id) ? limits.get(unit.id)! : unit.limit}
-                                unavailableReason={limits.get(unit.id) === 0 ? unitLimitMessage(unit.id, held, limits) : null}
+                                unavailableReason={limits.get(unit.id) === 0 ? unitLimitMessage(unit.id, held, limits, limitUnlocks) : null}
                                 held={held}
                                 full={full}
                                 over={pointsOver(nextCopyPoints(unit, held), room)}
@@ -352,7 +354,7 @@ export const Picker = memo(function Picker({
               <Section title="Unavailable loadouts" count={rows.unavailable.length}>
                 {rows.unavailable.map((loadout) => {
                   const { entryId } = loadout.picks.find((pick) => !offered.has(pick.entryId)) ?? loadout.picks[0]
-                  const outcome = requestedUnit(entryId, inRoster[entryId] ?? 0, limits)
+                  const outcome = requestedUnit(entryId, inRoster[entryId] ?? 0, limits, limitUnlocks)
                   return (
                     <LoadoutRow
                       key={loadout.id}

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { KeyedPick } from '../rosterPicks'
-import { pickEditor, requestedUnit, settledWarlord } from './usePicks'
+import { pickEditor, requestedUnit, settledWarlord, unitLimitMessage } from './usePicks'
 
 /** The group a model's heavy weapon is chosen from, and a choice nested under it. */
 const group = 'members/heavy-terminator/heavy-weapon'
@@ -422,6 +422,12 @@ it('explains a requested unit blocked by current construction prerequisites', ()
     reason: 'limit',
     message: 'No copies available with the current detachments and prerequisite units.',
   })
+})
+
+it('names the unit that unlocks a datasheet the roster cannot take yet', () => {
+  expect(unitLimitMessage('ally', 0, new Map([['ally', 0]]), new Map([['ally', 'Khorne Battleline']]))).toBe(
+    'Add a Khorne Battleline unit to the roster first.',
+  )
 })
 
 describe('unit nicknames and notes', () => {

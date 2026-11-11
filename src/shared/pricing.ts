@@ -646,7 +646,7 @@ function calculateRoster(
     unitLimits: data.includeUnitLimits
       ? unitIdsIn(loaded, data.catalogueId, { battleSize: data.limit, waivedRules: data.waivedRules, nonMatchedPlay: true }).map((id) => ({
           id,
-          limit: contextualUnitLimit(loaded, data.catalogueId, id, data.limit, data.waivedRules ?? [], selections),
+          ...contextualUnitLimit(loaded, data.catalogueId, id, data.limit, data.waivedRules ?? [], selections),
         }))
       : undefined,
     revision: loaded.index.revision,
