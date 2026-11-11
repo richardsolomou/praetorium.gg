@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.231.6 (2026-11-11)
+
+### Patch Changes
+
+- 02cd326: Clicking a folded battle setup step's answer opens that step to change it.
+- 02cd326: Battle setup shows a Choose army button under each player with no army yet, so the list chooser is in reach on a phone without scrolling.
+
 ## 0.231.5 (2026-11-11)
 
 ### Patch Changes
