@@ -61,18 +61,23 @@ export function fromNewRecruitShare(
   if (!book) return null
   const label = (node: ShareNode) => (node.option_id && named(node.option_id)) || node.name
   const forces = book.options
-  const configuration = forces.flatMap((force) => force.options).find((node) => node.option_id === SETUP.configuration)
+  const categories = forces.flatMap((force) => force.options)
+  // A Crusade force keeps its setup in a Configuration entry under its Crusade Army category, beside a Configuration category of visibility toggles.
+  const setup = [...categories, ...categories.flatMap((category) => category.options)]
+    .filter((node) => node.option_id === SETUP.configuration)
+    .flatMap((node) => node.options)
   const chosen = (found: (node: ShareNode) => boolean) =>
-    (configuration?.options.filter(found) ?? []).flatMap((node) => leaves(node)).filter((leaf) => (leaf.amount ?? 1) > 0)
+    setup
+      .filter(found)
+      .flatMap((node) => node.options.flatMap((child) => leaves(child)))
+      .filter((leaf) => (leaf.amount ?? 1) > 0)
   const size = chosen((node) => node.option_id === SETUP.battleSize)[0]?.name ?? null
-  const others = configuration?.options.filter((node) => !Object.values(SETUP).includes(node.option_id ?? '')) ?? []
+  const others = setup.filter((node) => !Object.values(SETUP).includes(node.option_id ?? ''))
   const detachments = others.find((node) => /detach/i.test(label(node))) ?? others[0]
   const limit = size ? Number(/\(([\d.,]+)/.exec(size)?.[1]?.replaceAll(/[.,]/g, '') ?? '') || null : null
-  const nodes = forces.flatMap((force) =>
-    force.options
-      .filter((category) => category !== configuration && category.option_id !== SETUP.reference)
-      .flatMap((category) => category.options.filter((unit) => (unit.amount ?? 1) > 0)),
-  )
+  const nodes = categories
+    .filter((category) => !Object.values(SETUP).includes(category.option_id ?? ''))
+    .flatMap((category) => category.options.filter((unit) => (unit.amount ?? 1) > 0 && unit.option_id !== SETUP.configuration))
   // A bodyguard names the characters joining it, so each of them is attached to the bodyguard's entry.
   const bodyguards = new Map(nodes.flatMap((node, at) => (node.associated ?? []).map((link) => [link.uid, at + 1] as const)))
   // A list saved on older data can hold wargear since split up, as a "Bolt Rifle w/ Grenade Launcher"; the pieces under it say it all.
@@ -130,7 +135,8 @@ export function fromNewRecruitShare(
 /**
  * The game system's own setup entries, by BattleScribe id since New Recruit translates their names.
  * The detachment entry differs by army: the remaining one named for detachments, or in another
- * language the first of the rest. The reference category holds rules reminders, not units.
+ * language the first of the rest. The reference category holds rules reminders and Crusade's Order
+ * of Battle its supply and requisition, not units.
  */
 const SETUP = {
   configuration: '4ac9-fd30-1e3d-b249',
@@ -138,10 +144,10 @@ const SETUP = {
   disposition: '2f69-9148-45b4-86a8',
   visibility: 'e8ef-836a-a9d1-901d',
   reference: 'eef1-be80-500a-edfc',
+  orderOfBattle: 'ac7e-be7b-eb02-4752',
 }
 
-const leaves = (node: ShareNode | undefined): ShareNode[] =>
-  !node ? [] : node.options.length ? node.options.flatMap((child) => leaves(child)) : [node]
+const leaves = (node: ShareNode): ShareNode[] => (node.options.length ? node.options.flatMap((child) => leaves(child)) : [node])
 
 export function fromNewRecruitText(input: string): TextRoster | null {
   const newRecruit = /Created with newrecruit\.eu/i.test(input)
