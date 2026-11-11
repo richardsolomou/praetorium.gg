@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.232.2 (2026-11-11)
+
+### Patch Changes
+
+- e430dcd: Each Templar Vow and Combat Doctrine now starts on its own line instead of running into the option before it.
+
 ## 0.232.1 (2026-11-11)
 
 ### Patch Changes
