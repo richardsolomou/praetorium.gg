@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { TriangleAlert } from 'lucide-react'
+import { Crosshair, Flag, Footprints, Shield, TriangleAlert, type LucideIcon } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/Dialog'
 import { Problem } from '../../components/Problem'
@@ -11,13 +11,19 @@ import { rosterGradesQuery, sharedRosterQuery } from '../../queries'
 import { claimInput, type GuestDraft } from './guestDraft'
 import { positionedPicks } from './rosterPicks'
 
-/** Colour and line form both carry the grade: solid for A and B, dashed for C and D, so it reads without colour too. */
+/**
+ * Colour and line form both carry the grade, solid for A and B and dashed for C and D, so it reads without colour
+ * too. Each colour keeps its job: Map Green the best, Chart Blue a gauge, Amber a warning, Rust a loss.
+ */
 const GRADE_TONE: Record<Grade, { text: string; border: string; stroke: string; dashed: boolean }> = {
   A: { text: 'text-achieved', border: 'border-achieved', stroke: 'stroke-achieved', dashed: false },
-  B: { text: 'text-bone', border: 'border-runner-hi', stroke: 'stroke-bone', dashed: false },
-  C: { text: 'text-dim', border: 'border-dashed border-runner-hi', stroke: 'stroke-dim', dashed: true },
-  D: { text: 'text-discarded', border: 'border-dashed border-discarded', stroke: 'stroke-discarded', dashed: true },
+  B: { text: 'text-info', border: 'border-info', stroke: 'stroke-info', dashed: false },
+  C: { text: 'text-discarded', border: 'border-dashed border-discarded', stroke: 'stroke-discarded', dashed: true },
+  D: { text: 'text-rust', border: 'border-dashed border-rust', stroke: 'stroke-rust', dashed: true },
 }
+
+/** What each category is about, at a glance; the grade, not the icon, carries the colour. */
+const CATEGORY_ICON: Record<string, LucideIcon> = { control: Flag, mobility: Footprints, damage: Crosshair, durability: Shield }
 
 /** Where each category sits in the two desktop columns; written out whole so Tailwind finds the classes. */
 const CATEGORY_AREA: Record<string, string> = {
@@ -147,7 +153,7 @@ function Scores({ grades }: { grades: RosterGrades }) {
           {grades.categories.map((category) => (
             <li key={category.key} className="grid content-start justify-items-center gap-1.5 text-center">
               <Gauge score={category.score} grade={category.grade} />
-              <span className="text-xs leading-tight text-dim">{category.label}</span>
+              <CategoryLabel category={category} className="text-xs leading-tight text-dim" icon="hidden sm:block" />
             </li>
           ))}
         </ol>
@@ -224,11 +230,22 @@ function Gaps({ grades }: { grades: RosterGrades }) {
   return null
 }
 
+/** A category's name with its icon; `icon` hides the icon where a label can wrap, as under the narrow gauges. */
+function CategoryLabel({ category, className, icon = '' }: { category: GradeCategory; className: string; icon?: string }) {
+  const Icon = CATEGORY_ICON[category.key]
+  return (
+    <span className={`inline-flex items-center gap-1.5 ${className}`}>
+      {Icon ? <Icon className={`size-3.5 shrink-0 text-faint ${icon}`} aria-hidden /> : null}
+      {category.label}
+    </span>
+  )
+}
+
 function Category({ category }: { category: GradeCategory }) {
   return (
     <section aria-label={category.label} className={`grid gap-2 ${CATEGORY_AREA[category.key] ?? ''}`}>
       <h3 className="flex items-baseline justify-between gap-3">
-        <span className="rubric">{category.label}</span>
+        <CategoryLabel category={category} className="rubric" />
         <span className={`figure text-sm ${category.grade ? GRADE_TONE[category.grade].text : 'text-faint'}`}>
           {category.score ?? '–'}
           <span className="text-faint">/100</span>
