@@ -35,13 +35,12 @@ export function routerReloading(error: unknown) {
 
 /** Set while the router's reload is in flight, so the reloaded page can report how it ended. */
 const ROUTER_RECOVERY_SESSION_KEY = 'praetorium.router-module-reload'
-let routerRecoveryReported = false
 
 /** React passes errors caught by a route's error page only to console.error, so report them here. */
 export function reportRouteError(error: unknown) {
   if (routerReloading(error)) {
-    if (!routerRecoveryReported) posthog.capture('route_recovery_started', { failure_kind: 'module_load', trigger: 'router' })
-    routerRecoveryReported = true
+    if (readSessionValue(ROUTER_RECOVERY_SESSION_KEY) === null)
+      posthog.capture('route_recovery_started', { failure_kind: 'module_load', trigger: 'router' })
     writeSessionValue(ROUTER_RECOVERY_SESSION_KEY, '1')
     return
   }
