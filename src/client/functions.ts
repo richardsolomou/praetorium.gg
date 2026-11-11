@@ -29,6 +29,7 @@ import {
 } from './offline/localRuntime'
 import { calculateRosterPrice, savedRosterPriceInput } from '../shared/pricing'
 import { rosterLoadoutDatasheets } from '../shared/rosterReads'
+import { rosterFaction } from '../shared/rosterFaction'
 import { matchesImportFaction, importRosterFaction, importRosterCatalogueId } from '../shared/rosterFiles'
 import { decodeRosterExchange, isRosterExchangeCode } from '../core/rosterExchange'
 import { listUnitCount } from '../core/attachedUnits'
@@ -820,6 +821,17 @@ export async function homeRosters(args?: { signal?: AbortSignal }): ReturnType<t
   assertAccount()
   const active = summaries.filter((roster) => !roster.archived)
   const recent = active.slice(0, 5)
+  const savedHome = localClient()?.getQueryData<Awaited<ReturnType<typeof server.homeRosters>>>(homeRostersKey())
+  // Rows already joined to their army name it first; a list only this device has needs the saved faction index.
+  const joined = new Map([...(savedHome?.rosters ?? []), ...(fresh?.rosters ?? [])].map((row) => [row.roster.catalogueId, row.faction]))
+  const index = recent.every((roster) => joined.get(roster.catalogueId))
+    ? null
+    : await loadSavedQuery<Awaited<ReturnType<typeof server.factionIndex>>>(referenceData(), factionIndexKey())
+  assertAccount()
+  const factionOf = (catalogueId: string) => {
+    const indexed = index?.factions.find((faction) => faction.id === catalogueId)
+    return joined.get(catalogueId) ?? (indexed && rosterFaction(indexed))
+  }
   if (fresh) {
     const page = await savedRosterPage({ data: { ids: recent.map((roster) => roster.id) }, signal: args?.signal })
     assertAccount()
@@ -828,13 +840,13 @@ export async function homeRosters(args?: { signal?: AbortSignal }): ReturnType<t
       count: active.length,
       rosters: recent.map((roster) => ({
         roster,
+        faction: factionOf(roster.catalogueId),
         points: rows.get(roster.id)?.points ?? null,
         problem: rows.get(roster.id)?.problem ?? null,
         label: rows.get(roster.id)?.label ?? roster.name,
       })),
     }
   }
-  const savedHome = localClient()?.getQueryData<Awaited<ReturnType<typeof server.homeRosters>>>(homeRostersKey())
   const rosters = await Promise.all(
     recent.map(async (summary) => {
       const roster = state.documents[`roster:${summary.id}`]?.data as LocalRoster | null | undefined
@@ -843,7 +855,7 @@ export async function homeRosters(args?: { signal?: AbortSignal }): ReturnType<t
         ? await localRosterAssessment(roster, owner)
         : { points: cached?.points ?? null, problem: cached?.problem ?? null, label: cached?.label ?? summary.name }
       assertAccount()
-      return { roster: summary, ...assessment }
+      return { roster: summary, faction: factionOf(summary.catalogueId), ...assessment }
     }),
   )
   return { count: active.length, rosters }
