@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.231.3 (2026-11-11)
+
+### Patch Changes
+
+- cfa1278: Roster grades colour each score by its grade, from green for an A to rust for a D, and mark each category with an icon.
+- 24b9858: Roster grades show Damage in its own column on wider screens, so the two columns come out about the same height.
+
 ## 0.231.2 (2026-11-11)
 
 ### Patch Changes
