@@ -242,5 +242,5 @@ it('searches the download together with the player’s own loaded lists', async 
       rosters: [{ id: 'army', name: 'Warriors army', catalogueId: 'necrons', detachmentIds: [], limit: 2000 }] as never,
       battles: undefined,
     })?.map((result) => result.href),
-  ).toEqual(['/factions/necrons/datasheets/1', '/rosters/army'])
+  ).toEqual(['/rosters/army', '/factions/necrons/datasheets/1'])
 })

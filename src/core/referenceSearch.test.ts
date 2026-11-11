@@ -1,5 +1,12 @@
 import { expect, it } from 'vitest'
-import { OWN_SEARCH_BATTLES, ownSearchLists, prepareReferenceSearch, searchReference, type GlobalSearchIndex } from './referenceSearch'
+import {
+  OWN_SEARCH_BATTLES,
+  ownSearchLists,
+  prepareReferenceSearch,
+  searchAll,
+  searchReference,
+  type GlobalSearchIndex,
+} from './referenceSearch'
 import { rosterLabel } from './rosterLabel'
 
 const datasheet = (name: string) => ({
@@ -53,4 +60,14 @@ it('labels a roster with its faction, detachments and points', () => {
   expect(ownSearchLists([roster], [], factions).rosters[0]?.label).toBe(
     rosterLabel({ factionName: 'Necrons', detachmentNames: ['Awakened Dynasty'], limit: 2000 }),
   )
+})
+
+const rule = (title: string) => ({
+  search: title.toLowerCase(),
+  result: { id: `rule:${title}`, group: 'Rules' as const, label: title, detail: 'Core Rules', href: `/rules#${title}` },
+})
+
+it('leads with the rules named for the query ahead of a datasheet whose name only contains it', () => {
+  const searched = { ...index(0), datasheets: [datasheet('Recovery Vehicle')], rules: [rule('Taking Cover'), rule('Cover')] }
+  expect(searchAll('cover', searched, null).map((result) => result.label)).toEqual(['Cover', 'Taking Cover', 'Recovery Vehicle'])
 })

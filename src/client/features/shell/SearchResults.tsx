@@ -5,7 +5,7 @@ import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } fro
 import type { GlobalSearchResult } from '../../functions'
 import { DatasheetMatchReasons } from '../../components/DatasheetMatchReasons'
 import { useVirtualRows } from '../../components/useVirtualRows'
-import { globalSearchGroups } from './globalSearchPages'
+import { searchGroupsFor } from '../../../core/referenceSearch'
 import { rememberSearch } from './searchHistory'
 import { SearchResultDetail } from './SearchResultDetail'
 
@@ -43,7 +43,7 @@ function ResultList({
   }, [])
   const rows = useMemo(
     () =>
-      globalSearchGroups.flatMap((group) => {
+      searchGroupsFor(query, results).flatMap((group) => {
         const items = results.map((result, index) => ({ result, index })).filter(({ result }) => result.group === group)
         return items.length
           ? [
@@ -55,7 +55,7 @@ function ResultList({
             ]
           : []
       }),
-    [results],
+    [query, results],
   )
   const activeRow = rows.findIndex((row) => row.kind === 'result' && row.index === selectedIndex)
   const { items, totalSize, virtualizer } = useVirtualRows({
