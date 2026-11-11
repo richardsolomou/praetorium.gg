@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.229.4 (2026-11-11)
+
+### Patch Changes
+
+- 6229356: Watching a battle you are not playing in now follows each move as it happens, without reloading.
+
 ## 0.229.3 (2026-11-10)
 
 ### Patch Changes
