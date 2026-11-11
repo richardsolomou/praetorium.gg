@@ -527,7 +527,7 @@ export async function confirmScoring(prompt: Locator, name: string | RegExp) {
 }
 
 /** The hand being dealt: this table's own, or the practice opponent's it is also playing. */
-const drawPrompt = (page: Page) => page.getByRole('dialog', { name: /secondary missions$/ })
+export const drawPrompt = (page: Page) => page.getByRole('dialog', { name: /secondary missions$/ })
 /** What the turn the other side just finished owed this one, asked as the turn arrives. */
 const owedPrompt = (page: Page) => page.getByRole('dialog', { name: /^Scoring end of (their turn|battle)/ })
 
