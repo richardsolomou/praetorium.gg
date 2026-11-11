@@ -9,7 +9,8 @@ import { PICKER_POPUP } from './CombatControls'
 import { RosterPicker } from './RosterPicker'
 import type { RosterOwner } from './rosterOwners'
 import type { Combatant, CombatRoster } from './useCombatant'
-import { countLabel } from '../../text'
+import { countLabel, formatList } from '../../text'
+import { attachedUnitList } from '../../../core/attachedUnits'
 
 type RosterGroup = { label: string; options: readonly { id: string; label: string; catalogueId?: string }[] }
 
@@ -182,24 +183,30 @@ export function RosterUnits({
   const units = combatant ? (combatant.price.data?.units ?? []) : (priced.data?.units ?? [])
   const picks = combatant ? combatant.picks.positioned : (roster?.picks ?? [])
   const catalogueId = combatant ? combatant.catalogueId : roster?.catalogueId
-  const items = units.flatMap((entry, index) =>
-    combatant?.availableUnits && !combatant.availableUnits[index]
-      ? []
-      : [
-          {
-            value: String(index),
-            icon: factionIcon(picks[index]?.catalogueId ?? catalogueId),
-            label: `${entry.name}${units.filter((candidate) => candidate.entryId === entry.entryId).length > 1 ? ` · ${index + 1}` : ''}`,
-          },
-        ],
+  // A leader and the bodyguard it joined are one unit, so they are one choice, named by the bodyguard with its leaders beside.
+  const fielded = picks.flatMap(({ attachedTo }, key) =>
+    units[key] && (!combatant?.availableUnits || combatant.availableUnits[key]) ? [{ key, attachedTo }] : [],
   )
+  const name = (index: number) => {
+    const entry = units[index]!
+    const same = units.flatMap((candidate, position) => (candidate.entryId === entry.entryId ? [position] : []))
+    return `${entry.name}${same.length > 1 ? ` · ${same.indexOf(index) + 1}` : ''}`
+  }
+  const items = attachedUnitList(fielded).map(({ host, joined }) => ({
+    members: [host.key, ...joined.map(({ key }) => key)],
+    value: String(host.key),
+    icon: factionIcon(picks[host.key]?.catalogueId ?? catalogueId),
+    label: name(host.key),
+    detail: joined.length ? formatList(joined.map(({ key }) => units[key]!.name)) : undefined,
+  }))
+  const selected = combatant ? items.find(({ members }) => members.includes(combatant.pickIndex))?.value : undefined
   const waiting = !combatant && (opened.isPending || priced.isPending)
   return (
     <SearchableSelect
       {...props}
       searchPlaceholder="Search this roster…"
       emptyText={waiting ? 'Loading roster…' : opened.data === null ? 'This roster could not be opened.' : 'No units match.'}
-      value={combatant ? String(combatant.pickIndex) : onWhole ? WHOLE : ''}
+      value={selected ?? (onWhole ? WHOLE : '')}
       onValueChange={(value) =>
         value === WHOLE ? onWhole?.() : onChoose(Number(value), items.find((item) => item.value === value)?.label ?? '')
       }

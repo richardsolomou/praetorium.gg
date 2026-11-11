@@ -132,6 +132,7 @@ export function CombatantCard({
       }}
     />
   )
+  const stepped = Boolean(battleUnit || !unit || unit.size.resizable)
   const unready = !pick ? 'Choose a unit first' : !ready ? 'Loading the unit…' : undefined
   const busy = optimizer.busy ? 'Wait for the optimization to finish' : unready
   const unscored = unready ?? (optimizer.enabled ? undefined : 'Choose a defender first')
@@ -267,7 +268,12 @@ export function CombatantCard({
       <div className="min-h-8 space-y-2">
         <div className="space-y-1" aria-label={`${side} unit members`}>
           {members.map((member) => (
-            <div key={member.index} className="flex min-w-0 flex-wrap items-center gap-2 text-sm" data-combat-member={member.name}>
+            <div
+              key={member.index}
+              // The stepper's cap hangs below it, so a member listed under it needs that room kept.
+              className={`flex min-w-0 flex-wrap items-center gap-2 text-sm ${member.index === pickIndex && stepped && members.length > 1 ? 'pb-3' : ''}`}
+              data-combat-member={member.name}
+            >
               <div className="min-w-40 flex-1 [&_[data-slot=combobox-trigger]>span]:truncate">
                 {member.index === pickIndex ? (
                   unitPicker
@@ -304,7 +310,7 @@ export function CombatantCard({
                 )}
               </div>
               <div className="ml-auto flex max-w-full shrink-0 flex-wrap items-center gap-2">
-                {member.index === pickIndex && (battleUnit || !unit || unit.size.resizable) ? (
+                {member.index === pickIndex && stepped ? (
                   <Stepper
                     label={`${side.toLowerCase()} models`}
                     countLabel={`${side} models`}
@@ -336,7 +342,7 @@ export function CombatantCard({
                   <span
                     aria-label={member.index === pickIndex ? `${side} models` : `${side} ${member.name} models`}
                     aria-busy={!combatant.price.data?.units[member.index]}
-                    className="readout w-8 shrink-0 text-center text-sm text-dim"
+                    className={`readout shrink-0 text-center text-sm text-dim ${stepped ? 'w-[5.5rem]' : 'w-8'}`}
                   >
                     {combatant.price.data?.units[member.index] ? (
                       member.models
