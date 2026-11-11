@@ -58,6 +58,21 @@ export const BattleDigests = __t.object('BattleDigests', {
 })
 export type BattleDigests = __Infer<typeof BattleDigests>
 
+export const BattleFeedOrder = __t.object('BattleFeedOrder', {
+  battleId: __t.string(),
+  at: __t.u64(),
+  day: __t.u32(),
+})
+export type BattleFeedOrder = __Infer<typeof BattleFeedOrder>
+
+export const BattleFeedState = __t.object('BattleFeedState', {
+  scope: __t.string(),
+  revision: __t.u64(),
+  firstDay: __t.u32(),
+  lastDay: __t.u32(),
+})
+export type BattleFeedState = __Infer<typeof BattleFeedState>
+
 export const BattleFinishes = __t.object('BattleFinishes', {
   battleId: __t.string(),
   at: __t.option(__t.u64()),

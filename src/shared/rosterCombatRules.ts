@@ -15,28 +15,18 @@ import { detachmentCatalogueDetail, sameRuleName } from './catalogueDescriptions
 import { buildRosterPick, rosterDatasheetContext } from './rosterDatasheetContext'
 import { type LoadedRules, rulesFaction } from './rules'
 import { selectedDetachmentRules } from './selectedDetachmentRules'
-import type { UnitChoiceCache } from '../core/unitChoices'
-import { keywordIdsBySelection, keywordNames, type ModifierCache } from '../core/evaluate'
+import { keywordIdsBySelection, keywordNames } from '../core/evaluate'
 import { namespaceCarriers } from '../core/combatLoadouts'
 import { attachedProfilePrefix } from '../core/combatScenario'
 import { remember } from '../core/collections'
 
 /**
- * What projections of one built roster can share: unit choices and modifiers are keyed by value, and each unit's
- * support abilities by its place in that roster, so share it only between projections of the same `prepared` roster.
+ * What projections of one built roster can share: each unit's support abilities by its place in that roster, so share
+ * it only between projections of the same `prepared` roster.
  */
-type RosterProjectionCache = {
-  choiceCache: UnitChoiceCache
-  modifierCache: ModifierCache
-  supportSources: Map<number, ReturnType<typeof datasheetAbilitiesIn>>
-}
+type RosterProjectionCache = { supportSources: Map<number, ReturnType<typeof datasheetAbilitiesIn>> }
 
-/** The modifier cache holds catalogue data only, so a caller may share one across rosters. */
-export const rosterProjectionCache = (modifierCache: ModifierCache = new WeakMap()): RosterProjectionCache => ({
-  choiceCache: new WeakMap(),
-  modifierCache,
-  supportSources: new Map(),
-})
+export const rosterProjectionCache = (): RosterProjectionCache => ({ supportSources: new Map() })
 
 type Projection = NonNullable<ReturnType<typeof rosterDatasheetContext>> & RosterProjectionCache
 
@@ -128,7 +118,7 @@ export function rosterCombatant(
     if (!unit) return undefined
     const catalogueId = pick.catalogueId ?? data.catalogueId
     const ids = remember(keywordIds, catalogueId, () =>
-      keywordIdsBySelection(context.selections, loaded.index, { primaryCatalogueId: catalogueId, modifierCache: cache.modifierCache }),
+      keywordIdsBySelection(context.selections, loaded.index, { primaryCatalogueId: catalogueId }),
     )
     return keywordNames(ids[unit.selectionIndex] ?? [], loaded.index)
   })
@@ -235,8 +225,6 @@ function rosterCombatRules(
       datasheetAbilitiesIn(loaded, pick.catalogueId ?? data.catalogueId, pick.entryId, {
         selections: context.selections,
         unitSelectionIndex: unit.selectionIndex,
-        choiceCache: context.choiceCache,
-        modifierCache: context.modifierCache,
       }),
     )
     return [{ unit, source }]

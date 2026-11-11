@@ -5,7 +5,6 @@ import {
   armyUpdatesQuery,
   battlesQuery,
   deploymentsQuery,
-  factionIndexQuery,
   friendBattlesQuery,
   friendshipsQuery,
   homeRostersQuery,
@@ -55,13 +54,11 @@ export async function loadHome(queryClient: QueryClient) {
           },
         () => undefined,
       )
-      const rosters = timed('homeRosters', queryClient.query({ ...homeRostersQuery(), staleTime: 'static' }))
-      const factions = timed('factionIndex', queryClient.query({ ...factionIndexQuery(), staleTime: 'static' }))
       return Promise.all([
         timed('myBattles', queryClient.infiniteQuery({ ...battlesQuery(), staleTime: 'static' })),
         timed('friendBattles', queryClient.infiniteQuery({ ...friendBattlesQuery(), staleTime: 'static' })),
-        Promise.all([rosters, factions]).then(([home, index]) => {
-          const armies = armySlugs(home.rosters.map(({ roster }) => index?.factions.find((faction) => faction.id === roster.catalogueId)))
+        timed('homeRosters', queryClient.query({ ...homeRostersQuery(), staleTime: 'static' })).then((home) => {
+          const armies = armySlugs(home.rosters.map(({ faction }) => faction))
           // A side panel the page reads fine without; the client asks again rather than the page failing.
           return armies.length
             ? timed(

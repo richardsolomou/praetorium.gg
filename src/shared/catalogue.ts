@@ -18,14 +18,13 @@ import {
   infoLinkHiddenByRules,
   keywordIds,
   keywordIdsBySelection,
-  type ModifierCache,
   profileModifiers,
   type ProfileModifier,
   type Selection,
   unitKeywordIds,
 } from '../core/evaluate'
 import { defaultSelection } from '../core/expand'
-import { unitChoices, type UnitChoiceCache } from '../core/unitChoices'
+import { unitChoices } from '../core/unitChoices'
 import { wargearKey, wargearOf } from '../core/wargear'
 import { combatCarriers, referenceOnlyWeapon } from '../core/combatLoadout'
 import { ruleReferenceMatches, splitWeaponKeywords } from '../core/ruleReference'
@@ -109,8 +108,6 @@ type DatasheetContext = {
   rosterKeywordIds?: readonly (readonly string[])[]
   /** Shared by paired projections of the same roster and unit. */
   modifiers?: readonly ProfileModifier[]
-  choiceCache?: UnitChoiceCache
-  modifierCache?: ModifierCache
 }
 
 type Walked = NonNullable<ReturnType<typeof walk>>
@@ -292,7 +289,7 @@ function walk(loaded: LoadedCatalogue, catalogueId: string, entryId: string, con
           context.selections,
           entryId,
           loaded.index,
-          { primaryCatalogueId: catalogueId, modifierCache: context.modifierCache },
+          { primaryCatalogueId: catalogueId },
           context.unitSelectionIndex,
           context.companions ?? [],
         )
@@ -478,8 +475,6 @@ function walk(loaded: LoadedCatalogue, catalogueId: string, entryId: string, con
     ? unitChoices(root.id, selection, loaded.index, {
         primaryCatalogueId: catalogueId,
         roster: context?.selections,
-        choiceCache: context?.choiceCache,
-        modifierCache: context?.modifierCache,
       })
     : []
   // What the datasheet offers sits on the options themselves, which a tank's sponsons

@@ -20,6 +20,8 @@ async function dateAhead(token: string, minutes: number) {
   const id = await battleIdFor(token)
   await productSql`UPDATE battles SET created_at = ${Date.now() + minutes * 60 * 1000} WHERE id = ${id}`
   await productSql`DELETE FROM battle_activity WHERE battle_id = ${id}`
+  // The write above skips the module's change log, so the public feed's order is rebuilt from every battle on its next read.
+  await productSql`DELETE FROM battle_feed_state WHERE scope = 'public'`
 }
 
 /**

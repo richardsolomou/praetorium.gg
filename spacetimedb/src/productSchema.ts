@@ -492,6 +492,30 @@ const battleDigests = table(
 )
 
 /**
+ * Every battle filed under the UTC day of its last activity, so the public feed reads a page a day at a time from its
+ * cursor rather than every battle. Caught up from `battle_changes` by each public feed read.
+ */
+const battleFeedOrder = table(
+  { name: 'battle_feed_order' },
+  {
+    battleId: t.string().primaryKey(),
+    at: t.u64(),
+    day: t.u32().index('btree'),
+  },
+)
+
+/** The `battles` revision `battle_feed_order` has caught up to, and the first and last days any of its rows was filed under. */
+const battleFeedState = table(
+  { name: 'battle_feed_state' },
+  {
+    scope: t.string().primaryKey(),
+    revision: t.u64(),
+    firstDay: t.u32(),
+    lastDay: t.u32(),
+  },
+)
+
+/**
  * The `battles` revision at which each battle's log or seats last changed, so a reader keeping its own copy of results
  * rereads only what changed since it last read. The row outlives its battle, which tells that reader it is gone.
  */
@@ -840,6 +864,8 @@ export const productTables = {
   battleFinishes,
   battleStarts,
   battleDigests,
+  battleFeedOrder,
+  battleFeedState,
   battleChanges,
   battleResults,
   ratingSteps,

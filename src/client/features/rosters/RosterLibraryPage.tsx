@@ -174,11 +174,7 @@ export function RosterLibraryPage({
   )
   const needsAssessment = rosterAssessmentFilterActive(facets)
   // Only lists this filter has to judge are priced beyond the ones on screen.
-  // In a fixed order, so changing the sort does not reprice every batch.
-  const assessed = useRosterPages(
-    needsAssessment && me ? candidates.map((roster) => roster.id).toSorted() : [],
-    Boolean(me && savedResult.isSuccess),
-  )
+  const assessed = useRosterPages(needsAssessment && me ? candidates.map((roster) => roster.id) : [], Boolean(me && savedResult.isSuccess))
   const assessmentOf = (roster: SavedRoster) => (guest ? guestRow : assessed.byId.get(roster.id))
   const shown = needsAssessment
     ? candidates.filter((roster) => {

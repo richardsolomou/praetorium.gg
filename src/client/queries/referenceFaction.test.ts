@@ -1,6 +1,6 @@
 import { QueryClient } from '@tanstack/react-query'
 import { expect, it } from 'vitest'
-import { factionIndexQuery, factionQuery, loadReferenceFaction } from './references'
+import { cachedFaction, factionIndexQuery, factionQuery, loadReferenceFaction } from './references'
 import type { faction, factionIndex } from '../../server/functions'
 
 const current: NonNullable<Awaited<ReturnType<typeof faction>>> = {
@@ -62,4 +62,11 @@ it('makes a readable faction load available to components keyed by its catalogue
 
   expect(client.getQueryData(factionQuery(current.id).queryKey)).toBe(current)
   client.clear()
+})
+
+it('finds a faction read by catalogue id from its route slug', () => {
+  const client = new QueryClient()
+  client.setQueryData(factionQuery(current.id).queryKey, current)
+
+  expect(cachedFaction(client, 'adeptus-custodes')).toBe(current)
 })

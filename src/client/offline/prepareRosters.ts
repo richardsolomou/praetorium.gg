@@ -16,12 +16,7 @@ export async function prepareRosters(
   for (const batch of chunks(rosters, ROSTER_LIBRARY_BATCH_SIZE)) {
     await nextTask()
     if (!current()) return
-    await client
-      .query({
-        ...savedRosterPageQuery(batch.map((roster) => roster.id)),
-        staleTime: Infinity,
-      })
-      .catch(() => {})
+    await Promise.all(batch.map((roster) => client.query({ ...savedRosterPageQuery(roster.id), staleTime: Infinity }).catch(() => {})))
   }
   for (const roster of rosters) {
     await nextTask()

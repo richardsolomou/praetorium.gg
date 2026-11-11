@@ -4,7 +4,7 @@ import { cachedIn } from '../core/collections'
 import { isNonMatchedPlayName } from '../core/name'
 import { buildUnit } from '../core/roster'
 import type { LoadedCatalogue } from './catalogueIndex'
-import { mfmOptionAdjustment, mfmUnitFor, pricingChoices, unitPointAdjustment } from './unitPoints'
+import { mfmOptionAdjustment, mfmUnitFor, unitPointAdjustment } from './unitPoints'
 
 export const isMatchedPlayDatasheet = (index: CatalogueIndex, entry: Definition) => isOfferedDatasheet(index, entry, false)
 
@@ -31,7 +31,7 @@ export const seedListPrice = (loaded: LoadedCatalogue, catalogueId: string, entr
 
 /** What the smallest legal version of one datasheet costs as the list's `copy`th of it, or null if it cannot be built. */
 export function priceOf(loaded: LoadedCatalogue, catalogueId: string, entryId: string, roster: readonly Selection[] = [], copy = 1) {
-  const options = { primaryCatalogueId: catalogueId, mustering: true, roster, choiceCache: pricingChoices }
+  const options = { primaryCatalogueId: catalogueId, mustering: true, roster }
   const built = buildUnit(entryId, loaded.index, undefined, undefined, options)
   if (!built) return null
   const mfmUnit = mfmUnitFor(loaded, catalogueId, entryId)

@@ -142,8 +142,8 @@ export class GroupService {
   async groupWithLeague(token: string, viewerId: string | null) {
     const record = await this.repository.groupByToken(token)
     if (!record) return null
-    const { league, ...group } = record
+    const { league, battlesRevision, ...group } = record
     const organizer = isGroupOrganizer(group, group.members, viewerId)
-    return { group: { ...group, organizer, members: visibleGroupMembers(group.members, organizer, viewerId) }, league }
+    return { group: { ...group, organizer, members: visibleGroupMembers(group.members, organizer, viewerId) }, league, battlesRevision }
   }
 }

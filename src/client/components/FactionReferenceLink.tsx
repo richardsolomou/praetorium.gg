@@ -1,10 +1,11 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import type { ComponentPropsWithRef } from 'react'
 import { catalogueEditionId, editionFamilyId } from '../../core/catalogueEdition'
 import { factionReferenceRoute } from '../../core/factionReferenceRoute'
 import { factionFor } from '../factions'
-import { factionIndexQuery } from '../queries'
+import type { factionIndex } from '../functions'
+import { cachedFaction, factionIndexQuery } from '../queries'
 
 type Props = Omit<ComponentPropsWithRef<'a'>, 'href'> & {
   hash?: string
@@ -15,20 +16,10 @@ type Props = Omit<ComponentPropsWithRef<'a'>, 'href'> & {
   )
 
 export function FactionReferenceLink({ to, params, ...props }: Props) {
-  const { data } = useQuery(factionIndexQuery())
-  const faction =
-    factionFor(data, params.catalogueId) ??
-    data?.factions.find((entry) => entry.isDefault && editionFamilyId(entry.id) === editionFamilyId(params.catalogueId)) ??
-    data?.factions.find((entry) => editionFamilyId(entry.id) === editionFamilyId(params.catalogueId))
-  const editionId = catalogueEditionId(params.catalogueId)
-  const route = faction
-    ? factionReferenceRoute({
-        ...faction,
-        edition: editionId
-          ? (data?.factions.find((entry) => entry.edition?.id === editionId)?.edition ?? { id: editionId })
-          : faction.edition,
-      })
-    : null
+  // A faction the page already read names its own route, so a link to it never downloads every faction's summary.
+  const loaded = cachedFaction(useQueryClient(), params.catalogueId)
+  const { data } = useQuery({ ...factionIndexQuery(), enabled: !loaded })
+  const route = loaded ? factionReferenceRoute(loaded) : indexRoute(data, params.catalogueId)
   const catalogueId = route?.catalogueId ?? params.catalogueId
   const rulesVersion = route?.rulesVersion
   if (rulesVersion) {
@@ -58,4 +49,20 @@ export function FactionReferenceLink({ to, params, ...props }: Props) {
   if (to === '/factions/$catalogueId/detachments/$detachmentId')
     return <Link {...props} to={to} params={{ catalogueId, detachmentId: params.detachmentId }} search={search} />
   return <Link {...props} to={to} params={{ catalogueId }} search={search} />
+}
+
+function indexRoute(data: Awaited<ReturnType<typeof factionIndex>> | undefined, catalogueId: string) {
+  const faction =
+    factionFor(data, catalogueId) ??
+    data?.factions.find((entry) => entry.isDefault && editionFamilyId(entry.id) === editionFamilyId(catalogueId)) ??
+    data?.factions.find((entry) => editionFamilyId(entry.id) === editionFamilyId(catalogueId))
+  const editionId = catalogueEditionId(catalogueId)
+  return faction
+    ? factionReferenceRoute({
+        ...faction,
+        edition: editionId
+          ? (data?.factions.find((entry) => entry.edition?.id === editionId)?.edition ?? { id: editionId })
+          : faction.edition,
+      })
+    : null
 }

@@ -674,7 +674,21 @@ describe('group battles', () => {
         current: { token: string } | null
         options: { token: string }[]
       }
-    return { submit, groups }
+    const revision = () =>
+      (JSON.parse(module.groupByToken(host.procedure(host.operator), { token: 'group' })) as { battlesRevision: string }).battlesRevision
+    const another = () =>
+      module.createBattle(host.procedure(host.operator), {
+        payload: JSON.stringify({
+          id: 'another',
+          token: 'another-token',
+          userId: 'creator',
+          allyIds: [],
+          opponentIds: ['opponent'],
+          initialCommands: [{ kind: 'set-battle-group', groupId: 'group-id' }],
+          now: NOW,
+        }),
+      })
+    return { submit, groups, revision, another }
   }
 
   it('tags a hidden-list game started between members from the start', () => {
@@ -706,6 +720,24 @@ describe('group battles', () => {
     battle.submit(0, { kind: 'set-battle-group', groupId: 'group-id' })
     battle.submit(1, { kind: 'undo', target: 1 })
     expect(battle.groups().current).toBeNull()
+  })
+
+  it('moves the group’s battles revision when one of its battles changes', () => {
+    const battle = setup(['opponent'], [{ kind: 'set-battle-group', groupId: 'group-id' }])
+    const before = battle.revision()
+    expect([battle.submit(1, { kind: 'set-setup-step', step: 1 }).result.outcome, battle.revision() === before]).toEqual([
+      'appended',
+      false,
+    ])
+  })
+
+  it('moves the group’s battles revision when an older battle leaves it', () => {
+    const battle = setup(['opponent'])
+    battle.submit(0, { kind: 'set-battle-group', groupId: 'group-id' })
+    battle.another()
+    const before = battle.revision()
+    battle.submit(1, { kind: 'undo', target: 1 })
+    expect(battle.revision()).not.toBe(before)
   })
 })
 
@@ -1805,6 +1837,71 @@ describe('public battle feed', () => {
       ctx.db.battleActivity.battleId.delete(battleId)
       ctx.db.battleStarts.battleId.delete(battleId)
     })
+  const play = ({ operator, procedure }: ReturnType<typeof harness>, battleId: string, at: number) =>
+    expect(
+      JSON.parse(
+        module.submitBattle(procedure(operator), {
+          battleId,
+          userId: `${battleId}-creator`,
+          expectedSeq: 0,
+          body: JSON.stringify({ kind: 'set-deployment', patternId: null }),
+          now: BigInt(at * 1_000),
+          externalRefusal: '',
+        }),
+      ),
+    ).toMatchObject({ result: { outcome: 'appended' } })
+  const page = (
+    { operator, procedure }: ReturnType<typeof harness>,
+    order: 'oldest' | undefined,
+    before: { at: number; id: string } | null = null,
+  ) =>
+    JSON.parse(
+      module.battleFeed(procedure(operator), {
+        payload: JSON.stringify({
+          scope: 'public',
+          userId: null,
+          viewerId: null,
+          withUserId: null,
+          hostToken: null,
+          eventToken: null,
+          since: null,
+          before,
+          order,
+          limit: 2,
+        }),
+      }),
+    ) as { battles: { battle: { token: string } }[]; nextCursor: { at: number; id: string } | null }
+  const DAY = 24 * HOUR
+  const playedAcrossDays = () => {
+    const host = harness()
+    create(host, 'first')
+    create(host, 'second', NOW + DAY + HOUR)
+    create(host, 'third', NOW + 2 * DAY)
+    create(host, 'fourth', NOW + 3 * DAY)
+    host.at(NOW + 3 * DAY)
+    feed(host.procedure, host.operator)
+    play(host, 'first', NOW + 4 * DAY)
+    return host
+  }
+  const pages = (host: ReturnType<typeof harness>, order?: 'oldest') => {
+    const first = page(host, order)
+    const second = page(host, order, first.nextCursor)
+    return [first, second].map((read) => read.battles.map((row) => row.battle.token))
+  }
+
+  it('pages battles newest first by their play since the last read', () => {
+    expect(pages(playedAcrossDays())).toEqual([
+      ['first', 'fourth'],
+      ['third', 'second'],
+    ])
+  })
+
+  it('pages battles oldest first by their play since the last read', () => {
+    expect(pages(playedAcrossDays(), 'oldest')).toEqual([
+      ['second', 'third'],
+      ['fourth', 'first'],
+    ])
+  })
 
   it('drops a battle left in setup for two days', () => {
     const host = harness()

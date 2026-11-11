@@ -28,6 +28,7 @@ import {
 } from '../../core/rosterDiscovery'
 import { againstFamilies, discoveryCounts, discoveryScope, inDiscoveryScope, type DiscoveryCounts } from '../../core/rosterDiscoveryScope'
 import { detachmentIds } from '../../core/savedRoster'
+import { rosterFaction } from '../../shared/rosterFaction'
 import { matchesPlayedArmy, playedArmyFilterActive, type PlayedArmy } from '../../core/playedArmies'
 import { variantDifferences } from '../rosterDifferences'
 import { copySavedRoster, saveOwnedRoster } from '../saveOwnedRoster'
@@ -94,13 +95,22 @@ export const homeRosters = createServerFn({ method: 'GET' }).handler(() =>
       const instance = app()
       const { count, summaries, priceable } = await instance.service.rosterService.homeRosters(id)
       if (!priceable.length) return { count, rosters: [] }
-      const [totals, verdicts] = await Promise.all([cachedRosterTotalsFor(priceable), cachedRosterVerdictsFor(priceable)])
-      const rosters = priceable.map((_, index) => ({
-        roster: summaries[index]!,
-        points: totals[index]?.points ?? null,
-        label: totals[index]?.label ?? '',
-        problem: verdicts[index]!.problem,
-      }))
+      const [totals, verdicts, factionIndex] = await Promise.all([
+        cachedRosterTotalsFor(priceable),
+        cachedRosterVerdictsFor(priceable),
+        instance.factionIndexFor(),
+      ])
+      const factions = byId(factionIndex?.factions ?? [])
+      const rosters = priceable.map((roster, index) => {
+        const faction = factions.get(roster.catalogueId)
+        return {
+          roster: summaries[index]!,
+          faction: faction && rosterFaction(faction),
+          points: totals[index]?.points ?? null,
+          label: totals[index]?.label ?? '',
+          problem: verdicts[index]!.problem,
+        }
+      })
       return { count, rosters }
     }),
   ),

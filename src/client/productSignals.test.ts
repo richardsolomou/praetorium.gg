@@ -13,14 +13,14 @@ it('refreshes the home roster shelf and saved lists after a roster signal withou
   for (const key of ['home-rosters', 'saved-roster-summaries', 'saved-roster-changed-ids', 'faction-index']) {
     client.setQueryData([key], {})
   }
-  client.setQueryData(['saved-roster-page', ['roster-1']], {})
+  client.setQueryData(['saved-roster-page', 'roster-1'], {})
 
   await invalidateProductQueries(client, 'rosters')
 
   expect([
     client.getQueryState(['home-rosters'])?.isInvalidated,
     client.getQueryState(['saved-roster-summaries'])?.isInvalidated,
-    client.getQueryState(['saved-roster-page', ['roster-1']])?.isInvalidated,
+    client.getQueryState(['saved-roster-page', 'roster-1'])?.isInvalidated,
     client.getQueryState(['saved-roster-changed-ids'])?.isInvalidated,
     client.getQueryState(['faction-index'])?.isInvalidated,
   ]).toEqual([true, true, true, true, false])

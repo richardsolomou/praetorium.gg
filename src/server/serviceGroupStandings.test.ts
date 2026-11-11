@@ -12,7 +12,7 @@ const lock = (sealedEventToken: string, eventToken?: string): Command => ({
 })
 const tagged: Command = { kind: 'set-battle-group', groupId: 'group-id' }
 
-function fixture({ members = [ALICE, BOB], visibility = 'private', counted = tagged, finished = true } = {}) {
+function repositoryFor({ members = [ALICE, BOB], visibility = 'private', counted = tagged, finished = true } = {}) {
   const history = {
     battle: { id: 'battle', token: 'token', createdAt: 0 },
     players: NAMES.map((player, side) => ({ ...player, side, automated: false })),
@@ -24,24 +24,34 @@ function fixture({ members = [ALICE, BOB], visibility = 'private', counted = tag
       ...(finished ? [[ALICE, { kind: 'end-battle', reason: 'conceded', concededBy: BOB }] as [string, Command]] : []),
     ),
   }
-  const repository = {
-    groupByToken: vi.fn().mockResolvedValue({
-      id: 'group-id',
-      token: 'group',
-      ownerId: ALICE,
-      visibility,
-      games: [{ token: 'game' }],
-      members: members.map((userId) => ({ userId, status: 'accepted', role: 'member', name: userId, image: null })),
-    }),
+  return {
+    groupByToken: vi.fn().mockResolvedValue(groupRecord(members, visibility, '1:1')),
     battlesByGroup: vi.fn().mockResolvedValue({ battles: [battleCard(history)], nextCursor: null }),
     practiceOpponents: vi.fn().mockResolvedValue([]),
-  } as unknown as RepositoryPort
-  return new PraetoriumService(
-    repository,
+    profilesByIds: vi.fn().mockResolvedValue(new Map()),
+  }
+}
+
+function groupRecord(members: string[], visibility: string, battlesRevision: string) {
+  return {
+    id: 'group-id',
+    token: 'group',
+    ownerId: ALICE,
+    visibility,
+    games: [{ token: 'game' }],
+    members: members.map((userId) => ({ userId, status: 'accepted', role: 'member', name: userId, image: null })),
+    battlesRevision,
+  }
+}
+
+const serviceOf = (repository: ReturnType<typeof repositoryFor>) =>
+  new PraetoriumService(
+    repository as unknown as RepositoryPort,
     () => 10,
     () => 0,
   )
-}
+
+const fixture = (options?: Parameters<typeof repositoryFor>[0]) => serviceOf(repositoryFor(options))
 
 const rows = async (service: PraetoriumService, viewerId: string | null = ALICE) =>
   (await service.groupStandings('group', viewerId))?.table.rows.map((row) => row.id)
@@ -68,6 +78,39 @@ it('leaves a player who left the group off its table', async () => {
 
 it('counts only battles whose log still names the group', async () => {
   expect(await rows(fixture({ counted: { kind: 'set-battle-group', groupId: 'another-group' } }))).toEqual([])
+})
+
+it('shows a battle played since the table was last read', async () => {
+  const repository = repositoryFor()
+  const service = serviceOf(repository)
+  repository.battlesByGroup.mockResolvedValueOnce({ battles: [], nextCursor: null })
+  await rows(service)
+  repository.groupByToken.mockResolvedValue(groupRecord([ALICE, BOB], 'private', '1:2'))
+  expect(await rows(service)).toEqual([ALICE, BOB])
+})
+
+it('reads the group’s battles once while none of them changes', async () => {
+  const repository = repositoryFor()
+  const service = serviceOf(repository)
+  await rows(service)
+  await rows(service)
+  expect(repository.battlesByGroup).toHaveBeenCalledOnce()
+})
+
+it('drops a player who leaves while the group’s battles are unchanged', async () => {
+  const repository = repositoryFor()
+  const service = serviceOf(repository)
+  await rows(service)
+  repository.groupByToken.mockResolvedValue(groupRecord([ALICE], 'private', '1:1'))
+  expect(await rows(service)).toEqual([ALICE])
+})
+
+it('names a player who renamed while the group’s battles are unchanged', async () => {
+  const repository = repositoryFor()
+  const service = serviceOf(repository)
+  await rows(service)
+  repository.profilesByIds.mockResolvedValue(new Map([[ALICE, { id: ALICE, name: 'Alicia', image: null }]]))
+  expect((await service.groupStandings('group', ALICE))?.table.rows[0]?.name).toBe('Alicia')
 })
 
 it('hides a private group’s table from a non-member', async () => {

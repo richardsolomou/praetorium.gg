@@ -6,10 +6,9 @@ import {
   hiddenByRules,
   keywordNames,
   keywordsBySelection,
-  type ModifierCache,
-  rosterAllowance,
   rosterLimit,
   type Selection,
+  rosterAllowance,
 } from '../core/evaluate'
 import { defaultSelection } from '../core/expand'
 import { isNonMatchedPlayName, nonMatchedPlayKind } from '../core/name'
@@ -332,9 +331,6 @@ function limitOf(loaded: LoadedCatalogue, catalogueId: string, entryId: string, 
   return rosterLimit(entry, loaded.index, { primaryCatalogueId: catalogueId, mustering: true, roster: battleSize ? [battleSize] : [] })
 }
 
-// Modifier expansion reads only catalogue definitions, so one expansion serves every roster priced from the catalogue.
-const modifierCaches = new WeakMap<LoadedCatalogue, ModifierCache>()
-
 export function contextualUnitLimit(
   loaded: LoadedCatalogue,
   catalogueId: string,
@@ -345,8 +341,7 @@ export function contextualUnitLimit(
 ) {
   const entry = loaded.index.definitions.get(entryId)
   if (!entry) return { limit: 0, unlockedBy: null }
-  const modifierCache = remember(modifierCaches, loaded, () => new WeakMap())
-  const allowance = rosterAllowance(entry, loaded.index, { primaryCatalogueId: catalogueId, mustering: true, roster, modifierCache })
+  const allowance = rosterAllowance(entry, loaded.index, { primaryCatalogueId: catalogueId, mustering: true, roster })
   if (!isKotcLimit(battleSize)) return allowance
   const listed = listedUnitFacts(loaded, catalogueId, entryId, roster)
   const limit = minimumLimit(

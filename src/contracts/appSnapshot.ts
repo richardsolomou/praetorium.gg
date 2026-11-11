@@ -2,7 +2,8 @@ import { z } from 'zod'
 import { predatesEventHosts } from './savedSealedEvents'
 
 export const MAX_APP_SNAPSHOT_BYTES = 10_000_000
-export const MAX_APP_SNAPSHOT_QUERIES = 500
+// Library rows are cached one per roster, so a large library needs room beside its battles and sealed events.
+export const MAX_APP_SNAPSHOT_QUERIES = 1_000
 export const PUBLIC_APP_QUERIES = new Set(['public-battles', 'standings', 'catalogue-changes', 'army-updates'])
 export const PUBLIC_REFERENCE_QUERIES = new Set([
   'faction',

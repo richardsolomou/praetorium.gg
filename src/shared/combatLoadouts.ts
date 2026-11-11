@@ -2,9 +2,9 @@ import { canonicalJson } from '../core/text'
 import { combatCarriers } from '../core/combatLoadout'
 import { toBase64 } from '../core/base64'
 import { isWeaponProfile, type LoadoutBatch, type LoadoutCandidate, type LoadoutOption, type LoadoutSpace } from '../core/combatLoadouts'
-import { evaluate, type ModifierCache, type Selection } from '../core/evaluate'
+import { evaluate, type Selection } from '../core/evaluate'
 import type { BuiltUnit, RosterPick } from '../core/roster'
-import { isUnitCompositionChoice, type UnitChoice, type UnitChoiceCache } from '../core/unitChoices'
+import { isUnitCompositionChoice, type UnitChoice } from '../core/unitChoices'
 import { datasheetViewsIn } from './catalogue'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { buildRosterPick, rosterDatasheetContext } from './rosterDatasheetContext'
@@ -158,9 +158,7 @@ export async function* combatLoadoutCandidates(
   const context = rosterDatasheetContext(loaded, data)
   if (!context) throw new Error('The loadout could not be loaded.')
   const detachments = rosterDetachments(loaded, data.catalogueId, data.detachmentIds).selections
-  const choiceCache: UnitChoiceCache = new WeakMap()
-  const modifierCache: ModifierCache = new WeakMap()
-  const build = (candidate: RosterPick) => buildRosterPick(loaded, data.catalogueId, detachments, candidate, choiceCache, modifierCache)
+  const build = (candidate: RosterPick) => buildRosterPick(loaded, data.catalogueId, detachments, candidate)
   const picks = indexes.map((index) => data.picks[index]!)
   const base = picks.map(build)
   if (base.some((unit) => !unit)) throw new Error('The attached unit could not be loaded.')
@@ -176,7 +174,6 @@ export async function* combatLoadoutCandidates(
       {
         primaryCatalogueId: data.catalogueId,
         roster: outside,
-        modifierCache,
       },
     ).errors.map((error) => `${error.entryId}:${error.message}`)
   const known = new Set(errors(units))
@@ -239,7 +236,7 @@ export async function* combatLoadoutCandidates(
     const roster = data.picks.map((pick, pickIndex) => updates.get(pickIndex) ?? pick)
     const projected = rosterCombatant(loaded, rules, { ...data, picks: roster }, prepared(built), {
       attachmentChoices: false,
-      cache: rosterProjectionCache(modifierCache),
+      cache: rosterProjectionCache(),
     })
     if (!projected) throw new Error('The attached unit could not be loaded.')
     if (projected.attachmentErrors.length) {

@@ -4,7 +4,6 @@ import {
   armyUpdatesQuery,
   battlesFrom,
   battlesQuery,
-  factionIndexQuery,
   friendBattlesQuery,
   friendshipsQuery,
   homeRostersQuery,
@@ -40,7 +39,6 @@ export function Home() {
   const { data: friends } = useInfiniteQuery({ ...friendBattlesQuery(), enabled: signedIn })
   const { data: open } = useInfiniteQuery(publicBattlesQuery())
   const { data: homeRosters } = useQuery({ ...homeRostersQuery(), enabled: signedIn })
-  const { data: factions } = useQuery({ ...factionIndexQuery(), enabled: signedIn })
   const { data: sealedEvents = [] } = useQuery({ ...sealedEventsQuery(), enabled: signedIn })
   const { data: friendships } = useQuery({ ...friendshipsQuery(), enabled: signedIn })
   const { data: standings } = useQuery({ ...standingsQuery(), enabled: !signedIn })
@@ -48,10 +46,7 @@ export function Home() {
   const profile = useQuery({ ...playerProfileQuery(me?.id ?? ''), enabled: signedIn, staleTime: 60_000 })
   const rankings = useQuery({ ...playerRankingsQuery(me?.id ?? ''), enabled: signedIn })
   const { data: changedRosters = [] } = useQuery({ ...savedRosterChangedIdsQuery(), enabled: Boolean(homeRosters?.count) })
-  const rosters: HomeRoster[] = (homeRosters?.rosters ?? []).map((entry) => ({
-    ...entry,
-    faction: factions?.factions.find((faction) => faction.id === entry.roster.catalogueId),
-  }))
+  const rosters: HomeRoster[] = homeRosters?.rosters ?? []
   const armies = armySlugs(rosters.map((entry) => entry.faction))
   const { data: newestUpdates = [] } = useQuery({ ...armyUpdatesQuery(armies), enabled: signedIn && armies.length > 0 })
   const armyUpdates = newestUpdates.flatMap(({ slug, ...update }): ArmyUpdate[] => {

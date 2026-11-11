@@ -159,6 +159,8 @@ const PLAYED_COUNT_PAGES = 20
 
 /** Pages of 500 battles a group's table reads, newest first, before it rates only those. */
 const STANDINGS_PAGES = 20
+/** How many battles the group tables hold across every group, about 5 KB each; the group read longest ago is let go first. */
+const GROUP_BATTLES_HELD = STANDINGS_PAGES * SEALED_EVENT_RESULTS_BATTLE_LIMIT
 const GROUP_RECENT_BATTLES = 6
 /** How long one leaderboard read serves repeated reads, such as a burst of tabs refetching after the same signal. */
 const STANDINGS_HOLD_MS = 5_000
@@ -215,6 +217,10 @@ export class PraetoriumService {
   private standingsHeld: { key: string; until: number; answer: Promise<StandingsAnswer> } | null = null
   private readonly publicFeedHeld = new Map<string, { until: number; page: Promise<unknown> }>()
   private playedArmiesHeld: { until: number; armies: Promise<{ seated: readonly string[]; army: PlayedArmy }[] | null> } | null = null
+  private readonly groupBattlesHeld = new Map<
+    string,
+    { revision: string; size: number; read: Promise<{ battles: BattleCard[]; partial: boolean }> }
+  >()
 
   userById(id: string) {
     return this.repository.userById(id)
@@ -892,19 +898,14 @@ export class PraetoriumService {
    * someone who leaves drops off and comes back with their record if they rejoin. A private group shows it to members alone.
    */
   async groupStandings(token: string, viewerId: string | null, factions: readonly BattleFaction[] = []) {
-    const group = await this.groupService.group(token, viewerId)
-    if (!group) return null
+    const { group, battlesRevision } = (await this.groupService.groupWithLeague(token, viewerId)) ?? {}
+    if (!group || battlesRevision === undefined) return null
     const memberIds = new Set(group.members.filter((member) => member.status === 'accepted').map((member) => member.userId))
     if (hiddenFromViewer(group, viewerId)) return null
-    const histories: BattleCard[] = []
-    let before: BattlesCursor | undefined
-    for (let page = 0; page < STANDINGS_PAGES; page++) {
-      const { battles, nextCursor } = await this.repository.battlesByGroup(token, { limit: SEALED_EVENT_RESULTS_BATTLE_LIMIT, before })
-      histories.push(...battles)
-      before = nextCursor ?? undefined
-      if (!before) break
-    }
-    const practice = await this.repository.practiceOpponents()
+    const [{ battles: histories, partial }, practice] = await Promise.all([
+      this.heldGroupBattles(token, battlesRevision),
+      this.repository.practiceOpponents(),
+    ])
     // Which hidden-list game each battle came from, so the page can name it and leave a game's battles inside its card.
     const gameOf = new Map<string, string>()
     const counted = this.battleSummaries(groupBattlesOf(group, histories, gameOf), viewerId, null, factions)
@@ -926,8 +927,61 @@ export class PraetoriumService {
       ),
       // Hidden-list games with a battle still being set up or played, which stay current until it ends.
       playing: [...new Set(counted.flatMap((battle) => (battle.status === 'finished' ? [] : (gameOf.get(battle.token) ?? []))))],
-      partial: before !== undefined,
+      partial,
     }
+  }
+
+  /**
+   * Every battle a group's table counts, read again only once `revision`, which the group read hands out, has moved; the
+   * seats are named afresh each time, so a renamed player shows under their new name.
+   */
+  private async heldGroupBattles(token: string, revision: string) {
+    let held = this.groupBattlesHeld.get(token)
+    this.groupBattlesHeld.delete(token)
+    if (held?.revision !== revision) {
+      const entry = { revision, size: 0, read: this.readGroupBattles(token) }
+      entry.read.then(
+        ({ battles }) => (entry.size = battles.length),
+        () => this.groupBattlesHeld.get(token) === entry && this.groupBattlesHeld.delete(token),
+      )
+      held = entry
+    }
+    // Reinserted last, so the first key is always the group read longest ago.
+    this.groupBattlesHeld.set(token, held)
+    const { battles, partial } = await held.read
+    let size = 0
+    for (const entry of this.groupBattlesHeld.values()) size += entry.size
+    for (const [oldest, entry] of this.groupBattlesHeld) {
+      if (size <= GROUP_BATTLES_HELD) break
+      size -= entry.size
+      this.groupBattlesHeld.delete(oldest)
+    }
+    const profiles = await this.repository.profilesByIds(battles.flatMap((battle) => battle.players.map((player) => player.id)))
+    return {
+      battles: battles.map((battle) => ({
+        ...battle,
+        players: battle.players.map((player) => {
+          const profile = profiles.get(player.id)
+          return profile ? { ...player, name: profile.name, image: profile.image } : player
+        }),
+      })),
+      partial,
+    }
+  }
+
+  private async readGroupBattles(token: string) {
+    const battles: BattleCard[] = []
+    let before: BattlesCursor | undefined
+    for (let page = 0; page < STANDINGS_PAGES; page++) {
+      const { battles: found, nextCursor } = await this.repository.battlesByGroup(token, {
+        limit: SEALED_EVENT_RESULTS_BATTLE_LIMIT,
+        before,
+      })
+      battles.push(...found)
+      before = nextCursor ?? undefined
+      if (!before) break
+    }
+    return { battles, partial: before !== undefined }
   }
 
   /** One page of every battle played for a group, with the hidden-list game each came from; a private group shows them to members alone. */
