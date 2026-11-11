@@ -924,6 +924,7 @@ function FaceOff({
                       key={army.playerId}
                       army={army}
                       side={side}
+                      finished={false}
                       actionable={false}
                       pending={false}
                       send={ignoreCommand}

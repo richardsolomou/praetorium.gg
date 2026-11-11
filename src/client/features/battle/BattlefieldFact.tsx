@@ -6,7 +6,7 @@ import { terrainReferencesQuery } from '../../queries'
 import { Dialog, DialogBody, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../../components/Dialog'
 import { Fact } from '../../components/Fact'
 import { battlefieldObjectives } from '../reference/missions/terrainGeometry'
-import { TerrainBoard } from '../reference/missions/TerrainBoard'
+import { TerrainLayoutDialogContent } from '../reference/missions/TerrainLayoutDialogContent'
 import { battleMatchupIds, battlefieldLayout } from './battlefieldLayout'
 import { countLabel } from '../../text'
 
@@ -49,27 +49,28 @@ export function BattlefieldFact({
           >
             {value}
           </DialogTrigger>
-          <DialogContent size="md">
-            <DialogHeader>
-              <DialogTitle>{deployment.name}</DialogTitle>
-              <DialogDescription>{layout?.name ?? 'Battlefield layout'}</DialogDescription>
-            </DialogHeader>
-            <DialogBody>
-              {view.settings.terrainLayoutId && !layout ? (
+          {view.settings.terrainLayoutId && !layout ? (
+            <DialogContent size="md">
+              <DialogHeader>
+                <DialogTitle>{deployment.name}</DialogTitle>
+                <DialogDescription>Battlefield layout</DialogDescription>
+              </DialogHeader>
+              <DialogBody>
                 <output className="text-dim">
                   {references.isFetching ? 'Loading battlefield…' : 'The saved battlefield layout is unavailable.'}
                 </output>
-              ) : (
-                <TerrainBoard
-                  layout={layout ?? { name: deployment.name, pieces: [], geometry: null }}
-                  deployment={deployment}
-                  templates={references.data?.templates ?? []}
-                  ariaLabel={`${deployment.name} battlefield map`}
-                  className="mx-auto max-h-[calc(100dvh-10rem)] w-full"
-                />
-              )}
-            </DialogBody>
-          </DialogContent>
+              </DialogBody>
+            </DialogContent>
+          ) : (
+            <TerrainLayoutDialogContent
+              title={deployment.name}
+              description={layout ? `${layout.name} terrain and deployment zones.` : 'Deployment zones.'}
+              layout={layout ?? { name: deployment.name, pieces: [], geometry: null }}
+              deployment={deployment}
+              templates={references.data?.templates ?? []}
+              ariaLabel={`${deployment.name} battlefield map`}
+            />
+          )}
         </Dialog>
       </dd>
     </div>

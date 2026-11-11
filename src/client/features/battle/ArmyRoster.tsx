@@ -23,6 +23,8 @@ type Props = {
   army: Army
   side: Side
   onSimulate: (selection: BattleCombatSelection) => void
+  /** A finished battle simulates every unit, destroyed ones included. */
+  finished: boolean
   /** Casualties are recorded only while the battle is running. */
   actionable: boolean
   pending: boolean
@@ -70,7 +72,7 @@ function usePendingCasualties(units: readonly UnitState[], send: SendCommand) {
 }
 
 /** Show the frozen roster from the battle log in place, with current losses; either seated side can record either army’s losses. */
-export function ArmyRoster({ army, side, actionable, pending, blocked = false, send, onSimulate }: Props) {
+export function ArmyRoster({ army, side, finished, actionable, pending, blocked = false, send, onSimulate }: Props) {
   const [open, setOpen] = useState(false)
   const [selectedKey, setSelectedKey] = useState<string | null>(null)
   const [destroyedOpen, setDestroyedOpen] = useState(false)
@@ -87,7 +89,7 @@ export function ArmyRoster({ army, side, actionable, pending, blocked = false, s
   const readable = (unit: UnitState) => Boolean(roster.built?.picks?.length && unit.entryId)
   const sheets = units.some(readable)
   const selected = units.find((unit) => unit.key === selectedKey && readable(unit)) ?? null
-  const canSimulate = (unit: UnitState) => readable(unit) && !unit.destroyed && unit.formation === 'battlefield'
+  const canSimulate = (unit: UnitState) => readable(unit) && (finished || (!unit.destroyed && unit.formation === 'battlefield'))
   const simulate = (unitKey?: string) => {
     setOpen(false)
     onSimulate({ playerId: army.playerId, unitKey })

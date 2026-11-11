@@ -59,6 +59,8 @@ describe('battle combat rosters', () => {
     value.units[2]!.formation = 'deep-strike'
     expect(battleCombatRoster(value)!.battle?.units.map((member) => member.available)).toEqual([false, true, false])
   })
+  it('brings destroyed units back at full strength once the battle is over', () =>
+    expect(battleCombatRoster(player(), true)!.battle?.units[0]).toMatchObject({ available: true, models: 5, damage: 0 }))
   it('does not invent loadouts for old text-only armies', () =>
     expect(battleCombatRoster({ name: 'Player', units: [], roster: { name: 'Army', text: 'Squad' } })).toBeNull())
 })
