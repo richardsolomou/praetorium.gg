@@ -11,8 +11,7 @@ import type { Datasheet } from '../contracts/catalogue'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { describeDatasheetAbilities } from './datasheetDescriptions'
 import { detachmentReference } from './detachmentReference'
-import { detachmentCatalogueDetail } from './catalogueDescriptions'
-import { joinKey } from '../core/text'
+import { detachmentCatalogueDetail, sameRuleName } from './catalogueDescriptions'
 import { buildRosterPick, rosterDatasheetContext } from './rosterDatasheetContext'
 import { type LoadedRules, rulesFaction } from './rules'
 import { selectedDetachmentRules } from './selectedDetachmentRules'
@@ -342,7 +341,7 @@ function rosterCombatRules(
       const catalogued = detachmentCatalogueDetail(loaded, data.catalogueId, option.id, [])?.rules ?? []
       for (const rule of detachmentReference(loaded, rules, data.catalogueId, routeSlug(option.name))?.rules ?? []) {
         const plain = catalogued.find(
-          (candidate) => joinKey(candidate.name) === joinKey(rule.name) && candidate.description && !hasTextTokens(candidate.description),
+          (candidate) => sameRuleName(candidate.name, rule.name) && candidate.description && !hasTextTokens(candidate.description),
         )?.description
         const description = rule.description && hasTextTokens(rule.description) ? (plain ?? rule.description) : rule.description
         if (description)

@@ -65,9 +65,11 @@ const UPGRADE_MARK = /\s*\(upgrade\)\s*$/i
 export const isUpgrade = (name: string) => UPGRADE_MARK.test(name)
 export const withoutUpgrade = (name: string) => name.replace(UPGRADE_MARK, '')
 
+/** Sources disagree on which printed qualifiers an enhancement's name carries, so names are joined without them. */
+export const enhancementKey = (name: string) => joinKey(name.replace(/\s*\((?:aura|upgrade|one per army|psychic)\)/gi, ''))
+
 export function mfmEnhancementPoints(detachment: NonNullable<ReturnType<typeof mfmDetachment>>, name: string) {
-  const key = (value: string) => joinKey(value.replace(/\s*\((?:aura|upgrade|one per army)\)/gi, ''))
-  const matched = detachment.enhancements?.filter((enhancement) => key(enhancement.name) === key(name)) ?? []
+  const matched = detachment.enhancements?.filter((enhancement) => enhancementKey(enhancement.name) === enhancementKey(name)) ?? []
   return matched.length === 1 ? matched[0]!.points : null
 }
 function mfmWargearPoints(unit: MfmUnit | null, name: string) {

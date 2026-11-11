@@ -60,6 +60,58 @@ it('appends catalogue-only keyword definitions to detachment rule cards', () => 
   ])
 })
 
+it('leaves core rules and respelt card rules out of the detachment rules', () => {
+  const loaded = bookOf({
+    sharedSelectionEntries: [
+      {
+        id: 'wrapper',
+        name: 'Detachment',
+        type: 'upgrade',
+        selectionEntryGroups: [
+          {
+            id: 'choices',
+            name: 'Detachment',
+            selectionEntries: [
+              {
+                id: 'invasion-fleet',
+                name: 'Invasion Fleet',
+                type: 'upgrade',
+                infoLinks: [{ id: 'lethal-link', name: 'Lethal Hits', targetId: 'lethal', type: 'rule' }],
+                rules: [{ id: 'adaptions', name: 'Hyper Adaptions', description: 'Catalogue adaptations.' }],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  })
+  loaded.index.rules.set('lethal', { id: 'lethal', name: 'Lethal Hits', description: 'Core lethal hits.' })
+  loaded.index.ruleCatalogueOf.set('lethal', 'gs')
+  const detail = {
+    id: 'invasion-fleet',
+    name: 'Invasion Fleet',
+    points: 3,
+    dispositions: [],
+    rules: [{ name: 'Hyper-adaptations', description: 'Card adaptations.' }],
+    enhancements: [],
+    upgrades: [],
+    stratagems: [],
+  }
+  const rules = {
+    attribution: 'Community data',
+    factionKeys: new Map(),
+    detachmentReferences: new Map([
+      ['test-catalogue', new Map([['invasion-fleet', { enhancements: 0, upgrades: 0, stratagems: 0, points: 3, dispositions: [] }]])],
+    ]),
+    detachmentDetails: new Map([['test-catalogue', new Map([['invasion-fleet', detail]])]]),
+    dispositions: new Map(),
+  } as Partial<LoadedRules> as LoadedRules
+
+  expect(detachmentReference(loaded, rules, 'cat', 'invasion-fleet')?.rules).toEqual([
+    { name: 'Hyper-adaptations', description: 'Card adaptations.' },
+  ])
+})
+
 it('shows unit upgrade eligibility when the catalogue only describes the effect', () => {
   const loaded = bookOf({
     sharedSelectionEntries: [
