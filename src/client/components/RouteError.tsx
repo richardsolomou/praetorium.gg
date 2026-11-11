@@ -5,23 +5,26 @@ import { Button } from '@/components/ui/button'
 import { isModuleLoadFailure } from '../networkErrors'
 import { writesPending } from '../pendingWrites'
 import { checkedStaleBuildRelease } from '../releaseUpdate'
-import { mayReloadCancelledLoad, reloadModuleRoute, reloadStaleBuild, routeErrorExplanation } from '../routeErrors'
+import { mayReloadCancelledLoad, reloadModuleRoute, reloadStaleBuild, routeErrorExplanation, routerReloading } from '../routeErrors'
 import { FullPageState } from './PageState'
 
 /**
  * A loader that joined a read whose last viewer unmounted mid-flight sees it cancelled, not failed, so the route loads
  * again instead of showing an error. Signing in in the mobile app does this: the refetch it starts loses its screen.
  * A page built before the deployed release can fail on the newer server's responses, which only its code can fix.
+ * A page the router is already reloading skips that check: its request fails as the page unloads.
  */
 export function RouteError({ error }: ErrorComponentProps) {
   const router = useRouter()
   const [reload] = useState(() => error instanceof CancelledError && mayReloadCancelledLoad())
   const [reloadingModules, setReloadingModules] = useState(false)
+  const [unloading] = useState(() => routerReloading(error))
   useEffect(() => {
     if (reload) {
       void router.invalidate()
       return
     }
+    if (unloading) return
     const { queryClient } = router.options.context
     let mounted = true
     void checkedStaleBuildRelease(queryClient).then((release) => {
@@ -30,7 +33,7 @@ export function RouteError({ error }: ErrorComponentProps) {
     return () => {
       mounted = false
     }
-  }, [reload, router])
+  }, [reload, unloading, router])
   if (reload) return null
   return (
     <FullPageState

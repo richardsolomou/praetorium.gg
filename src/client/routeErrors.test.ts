@@ -1,4 +1,5 @@
 import { CancelledError } from '@tanstack/react-query'
+import { lazyRouteComponent } from '@tanstack/react-router'
 import type { PostHog } from 'posthog-js'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 
@@ -51,7 +52,60 @@ it('leaves a dropped connection out of error tracking', () => {
 it('reports a chunk that failed to load after a deploy', () => {
   const error = new TypeError('Failed to fetch dynamically imported module: https://praetorium.gg/assets/a.js')
   reportRouteError(error)
-  expect(captureException).toHaveBeenCalledWith(error, { operation: 'route', failure_kind: 'module_load', recovery_attempt: 0 })
+  expect(captureException).toHaveBeenCalledWith(error, {
+    operation: 'route',
+    failure_kind: 'module_load',
+    recovery_attempt: 0,
+    $exception_fingerprint: 'route-module-load',
+  })
+})
+
+function stubSessionStorage(entries: Record<string, string> = {}) {
+  const stored = new Map(Object.entries(entries))
+  const storage = {
+    getItem: (key: string) => stored.get(key) ?? null,
+    setItem: (key: string, value: string) => stored.set(key, value),
+    removeItem: (key: string) => stored.delete(key),
+  }
+  // Object.keys lists entries as a browser's sessionStorage does.
+  vi.stubGlobal(
+    'sessionStorage',
+    new Proxy(storage, { ownKeys: () => [...stored.keys()], getOwnPropertyDescriptor: () => ({ enumerable: true, configurable: true }) }),
+  )
+}
+
+it('reports a failed import the router is already reloading as a recovery, not an error', async () => {
+  stubSessionStorage()
+  const reload = vi.fn()
+  vi.stubGlobal('window', { location: { href: 'https://praetorium.gg/rosters', replace, reload } })
+  const error = new TypeError('Importing a module script failed.')
+  const Lazy = lazyRouteComponent(() => Promise.reject(error))
+  await Lazy.preload?.()
+  expect(() => Lazy({})).toThrow(Promise)
+  expect(() => Lazy({})).toThrow(error)
+  reportRouteError(error)
+  reportRouteError(error)
+  expect([reload.mock.calls.length, captureException.mock.calls, capture.mock.calls]).toEqual([
+    1,
+    [],
+    [['route_recovery_started', { failure_kind: 'module_load', trigger: 'router' }]],
+  ])
+  capture.mockClear()
+  completedRouteRecovery('https://praetorium.gg/rosters')
+  completedRouteRecovery('https://praetorium.gg/rosters')
+  expect(capture.mock.calls).toEqual([['route_recovery_completed', { failure_kind: 'module_load', trigger: 'router' }]])
+})
+
+it('reports a failed import the router reloaded for earlier in the tab, which the router leaves to the error page', async () => {
+  stubSessionStorage({ 'tanstack_router_reload:Importing a module script failed.': '1', 'praetorium.router-module-reload': '1' })
+  vi.resetModules()
+  const reloaded = await import('./routeErrors')
+  const error = new TypeError('Importing a module script failed.')
+  reloaded.reportRouteError(error)
+  expect([captureException.mock.calls.length, capture.mock.calls]).toEqual([
+    1,
+    [['route_recovery_failed', { failure_kind: 'module_load', trigger: 'router' }]],
+  ])
 })
 
 it('leaves a cancelled read out of error tracking, since the route loads again', () => {
