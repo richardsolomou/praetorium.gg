@@ -33,9 +33,16 @@ import type { ToolErrorType } from '../contracts/agentTools'
 import { READ_ONLY_TOOL, structured, toolError, type AgentTools } from './agentTools'
 import { app } from './app'
 import { combatantSnapshot, readRules, withReadRules } from '../shared/rosterGradeMeasures'
-import { applyOptimizedLoadout, compareOutcomes, optimizeLoadout, type LoadoutScoring, type OptimizedLoadout } from '../core/combatLoadouts'
+import {
+  applyOptimizedLoadout,
+  compareOutcomes,
+  type LoadoutCandidates,
+  type LoadoutOptimization,
+  type LoadoutScoring,
+  type OptimizedLoadout,
+} from '../core/combatLoadouts'
+import { createCombatWorker, type OptimizeLoadoutMessage, type OptimizeLoadoutReply } from './combatCalculationPool'
 import { combatLoadoutCandidates } from '../shared/combatLoadouts'
-import { nextTask } from '../shared/nextTask'
 import { rosterCombatant } from '../shared/rosterCombatRules'
 import { serverWords } from './publishedTextFiles'
 import { activeReferenceCorpus, currentFactionIds } from './referenceApi'
@@ -621,6 +628,39 @@ const MAX_OPTIMIZATIONS = 2
 let optimizations = 0
 
 /**
+ * Scores loadouts in a worker of their own: one candidate can run thousands of exact calculations, which on the main
+ * thread would hold every other request, and only terminating the worker stops one mid-way.
+ */
+function loadoutScorer(signal: AbortSignal) {
+  const worker = createCombatWorker()
+  const stop = () => void worker.terminate()
+  signal.addEventListener('abort', stop, { once: true })
+  const score = (space: LoadoutCandidates, scoring: LoadoutScoring, mode: OptimizeLoadoutMessage['mode']) =>
+    new Promise<LoadoutOptimization>((resolve, reject) => {
+      // Ending early reads as the core search's own limit, so the caller keeps the best found so far.
+      const cut = () => {
+        worker.off('message', settle)
+        reject(new Error('The full search could not finish in time.'))
+      }
+      const settle = (reply: OptimizeLoadoutReply) => {
+        worker.off('exit', cut)
+        if ('error' in reply) reject(new Error(reply.error))
+        else resolve(reply.optimized)
+      }
+      if (signal.aborted) return cut()
+      worker.once('message', settle)
+      worker.once('exit', cut)
+      worker.postMessage({ kind: 'optimize-loadout', space, scoring, mode, maxWork: COMBAT_TOOL_MAX_WORK } satisfies OptimizeLoadoutMessage)
+    })
+  return Object.assign(score, {
+    close: () => {
+      signal.removeEventListener('abort', stop)
+      stop()
+    },
+  })
+}
+
+/**
  * The attacking unit's legal wargear searched for the best result against the defender, as the simulator's Optimize
  * does: every loadout when there are few enough, otherwise climbs from the current loadout and random starts, which
  * never claim an optimum.
@@ -668,13 +708,14 @@ export async function optimizeCombatLoadout(input: OptimizeLoadoutInput) {
   optimizations++
   const started = performance.now()
   const signal = AbortSignal.timeout(OPTIMIZE_MS)
+  const score = loadoutScorer(signal)
   let current: OptimizedLoadout | undefined
   let best: OptimizedLoadout | undefined
   let checked = 0
   let skipped = 0
   let reason: string | undefined
   let cutShort = false
-  /** Scores every loadout one search sends, one at a time so other requests are answered between them. */
+  /** Scores every loadout one search sends, one at a time. */
   const search = async (picks: RosterPick[], walk?: { seed: number; steps: number }) => {
     let top: OptimizedLoadout | undefined
     let local = false
@@ -687,7 +728,7 @@ export async function optimizeCombatLoadout(input: OptimizeLoadoutInput) {
         for (const candidate of batch.candidates) {
           if (signal.aborted) break
           const read = { members: candidate.members.map((member) => ({ ...member, rules: readRules(member.rules, words) })) }
-          const found = optimizeLoadout({ candidates: [read] }, scoring, input.mode, COMBAT_TOOL_MAX_WORK)
+          const found = await score({ candidates: [read] }, scoring, input.mode)
           checked++
           if (found.skipped) {
             skipped += found.skipped
@@ -696,7 +737,6 @@ export async function optimizeCombatLoadout(input: OptimizeLoadoutInput) {
           if (checked === 1) current = found.best
           if (found.best && (!top || compareOutcomes(found.best.result, top.result) > 0)) top = found.best
           if (found.best && (!best || compareOutcomes(found.best.result, best.result) > 0)) best = found.best
-          await nextTask()
         }
       }
     } catch (error) {
@@ -734,12 +774,14 @@ export async function optimizeCombatLoadout(input: OptimizeLoadoutInput) {
         'The unit allows too many loadouts to check them all, so this is the best found by improving on several starting loadouts; a better one may exist.',
       )
     } else if (cutShort) notes.push('The search could not finish in time, so a better loadout may exist.')
-    else exhaustive = true
+    // A loadout skipped for its rules or this server's work limit was never scored, so the best of the rest is not proven best.
+    else exhaustive = skipped === 0
   } catch (error) {
     if (error instanceof CombatRefusal) return refused(error.reasons, error.type)
     throw error
   } finally {
     optimizations--
+    score.close()
   }
   if (!best) return refused([reason ?? 'No supported legal loadout is available.'], 'refused')
   if (skipped) notes.push(`${skipped} loadouts were left out because the simulator cannot estimate them${reason ? `: ${reason}` : '.'}`)

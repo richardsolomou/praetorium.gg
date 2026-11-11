@@ -6,6 +6,7 @@ import { calculateRosterPrice, savedRosterPriceInput } from '../shared/pricing'
 import { pricedDispositionNames, readableRoster } from '../shared/rosterFiles'
 import { READ_ONLY_TOOL, structured, toolError, type AgentTools } from './agentTools'
 import { app } from './app'
+import { agentPoolWork } from './agentPoolWork'
 import { calculateRosterGrades } from './rosterGrades'
 import { CombatRefusal, detachmentId, namedUnit } from './combatTools'
 import { activeReferenceCorpus } from './referenceApi'
@@ -166,8 +167,12 @@ export function registerRosterTools(server: AgentTools) {
     async ({ roster }) => {
       if (!(await app().catalogueFor(roster.catalogueId))) return unavailable()
       try {
-        const grades = await calculateRosterGrades(savedRosterPriceInput(roster), AbortSignal.timeout(GRADE_TIMEOUT_MS))
-        return structured({ grades })
+        const grades = await agentPoolWork(() =>
+          calculateRosterGrades(savedRosterPriceInput(roster), AbortSignal.timeout(GRADE_TIMEOUT_MS)),
+        )
+        return grades
+          ? structured({ grades })
+          : toolError('unavailable', 'The simulator is busy grading other lists just now. Try again shortly.')
       } catch (error) {
         if (error instanceof DOMException && error.name === 'TimeoutError')
           return toolError('unavailable', 'Grading took too long just now. Try again shortly.')

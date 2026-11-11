@@ -2,6 +2,7 @@ import path from 'node:path'
 import { Worker } from 'node:worker_threads'
 import { globalSingleton } from 'ras-stack/server'
 import type { CombatAnswer, CombatRequest } from '../core/combatMatchup'
+import type { LoadoutCandidates, LoadoutOptimization, LoadoutOptimizationMode, LoadoutScoring } from '../core/combatLoadouts'
 import { CombatAnswerCache } from '../shared/combatAnswerCache'
 
 type Task = {
@@ -137,17 +138,28 @@ export class CombatCalculationPool {
   }
 }
 
+export type OptimizeLoadoutMessage = {
+  kind: 'optimize-loadout'
+  space: LoadoutCandidates
+  scoring: LoadoutScoring
+  mode: LoadoutOptimizationMode
+  maxWork: number
+}
+export type OptimizeLoadoutReply = { optimized: LoadoutOptimization } | { error: string }
+
+/** A calculation worker of the build this server runs. */
+export function createCombatWorker() {
+  const production = process.env.NODE_ENV === 'production'
+  const filename = production
+    ? path.resolve(process.env.LOCAL_BUILD_DIR ?? '.output', 'server/combat-calculation-worker.mjs')
+    : path.resolve('src/server/combatCalculation.worker.ts')
+  return new Worker(filename, {
+    execArgv: production ? [] : ['--import', 'tsx'],
+    resourceLimits: { maxOldGenerationSizeMb: 128 },
+  })
+}
+
 export const combatCalculationPool = globalSingleton(
   'praetorium.combatCalculationPool',
-  () =>
-    new CombatCalculationPool(() => {
-      const production = process.env.NODE_ENV === 'production'
-      const filename = production
-        ? path.resolve(process.env.LOCAL_BUILD_DIR ?? '.output', 'server/combat-calculation-worker.mjs')
-        : path.resolve('src/server/combatCalculation.worker.ts')
-      return new Worker(filename, {
-        execArgv: production ? [] : ['--import', 'tsx'],
-        resourceLimits: { maxOldGenerationSizeMb: 128 },
-      })
-    }),
+  () => new CombatCalculationPool(createCombatWorker),
 )

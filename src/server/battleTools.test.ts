@@ -124,6 +124,45 @@ it('changes only the battle settings an agent names', async () => {
   expect(submit.mock.lastCall?.[3]).toMatchObject({ limit: 2000, missionPackId: 'pariah-nexus' })
 })
 
+it('drops a twist when an agent changes the mission pack, as the setup page does', async () => {
+  seated(ALICE, [
+    [
+      ALICE,
+      {
+        kind: 'configure-battle',
+        limit: 2000,
+        missionPackId: 'chapter-approved',
+        terrainLayoutId: null,
+        twistId: 'fog',
+        clockLimitMinutes: null,
+      },
+    ],
+  ])
+  submit.mockResolvedValueOnce({ result: { outcome: 'appended' } })
+  await battleAction({ kind: 'configure-battle', missionPackId: 'pariah-nexus' })
+  expect(submit.mock.lastCall?.[3]).toMatchObject({ missionPackId: 'pariah-nexus', twistId: null })
+})
+
+it('clears the pack and layout when an agent switches a battle to manual tracking', async () => {
+  seated(ALICE, [
+    [
+      ALICE,
+      {
+        kind: 'configure-battle',
+        limit: 2000,
+        missionPackId: 'chapter-approved',
+        terrainLayoutId: null,
+        twistId: null,
+        clockLimitMinutes: null,
+      },
+    ],
+    [ALICE, { kind: 'set-battlefield', patternId: 'pattern-1', terrainLayoutId: 'layout-1' }],
+  ])
+  submit.mockResolvedValueOnce({ result: { outcome: 'appended' } })
+  await battleAction({ kind: 'configure-battle', manual: true })
+  expect(submit.mock.lastCall?.[3]).toMatchObject({ manual: true, missionPackId: null, terrainLayoutId: null, twistId: null })
+})
+
 it('prepares a side’s mission cards from its matchup and the whole secondary deck', async () => {
   const card = (key: string) => ({ key, name: key, awards: [] })
   rules.value = { primaries: [card('take-and-hold')], secondaries: [card('assassination'), card('bring-it-down')] }
@@ -146,6 +185,18 @@ it('prepares a side’s mission cards from its matchup and the whole secondary d
     primary: card('take-and-hold'),
     secondaryMode: 'tactical',
   })
+})
+
+it('refuses a fixed secondary the card cannot be taken as, before recording anything', async () => {
+  const card = (key: string, mode: string) => ({ key, name: key, awards: [{ mode }] })
+  rules.value = { primaries: [], secondaries: [card('assassination', 'fixed'), card('cleanse', 'tactical')] }
+  seated(ALICE, [[ALICE, roster('Ultramarines')]])
+  submit.mockClear()
+  const response = await battleAction({ kind: 'set-secondaries', mode: 'fixed', fixed: ['assassination', 'cleanse'], playerId: ALICE })
+  expect([response.result.content[0].text, submit.mock.calls.length]).toEqual([
+    'cleanse cannot be taken fixed; use a key from next.secondaryOptions where fixed is true',
+    0,
+  ])
 })
 
 it('tells an agent a battle cannot begin until both armies are in', async () => {

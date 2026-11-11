@@ -11,7 +11,6 @@ it.each([
   'DESIGN.md',
   'PRODUCT.md',
   '.changeset/fix.md',
-  'plugin/skills/build-a-roster/SKILL.md',
   'plugin/.claude-plugin/plugin.json',
   'plugin/assets/logo.png',
   'justfile',
@@ -29,6 +28,7 @@ it.each([
   '.changeset/config.json',
   'docs/example.ts',
   'docs/image.svg',
+  'plugin/skills/build-a-roster/SKILL.md',
   '.github/workflows/ci.yml',
   'pnpm-lock.yaml',
 ])('requires runtime checks when documentation accompanies %s', (file) => {
