@@ -19,6 +19,14 @@ const GRADE_TONE: Record<Grade, { text: string; border: string; stroke: string; 
   D: { text: 'text-discarded', border: 'border-dashed border-discarded', stroke: 'stroke-discarded', dashed: true },
 }
 
+/** Where each category sits in the two desktop columns; written out whole so Tailwind finds the classes. */
+const CATEGORY_AREA: Record<string, string> = {
+  control: 'md:[grid-area:control]',
+  mobility: 'md:[grid-area:mobility]',
+  damage: 'md:[grid-area:damage]',
+  durability: 'md:[grid-area:durability]',
+}
+
 /** What the roster can do on the table, scored the way Lighthouse scores a page; it asks the server only while open. */
 export function RosterGradesDialog({
   open,
@@ -52,7 +60,9 @@ export function RosterGradesDialog({
             <>
               <Scores grades={grades.data} />
               <Gaps grades={grades.data} />
-              <div className="grid gap-5 md:grid-cols-2 md:items-start">
+              {/* Damage has the most measures, so it takes the right column alone beside the other three; the last row
+                  takes the slack so the left ones stay together. */}
+              <div className="grid gap-5 md:grid-cols-2 md:grid-rows-[auto_auto_1fr] md:items-start md:[grid-template-areas:'control_damage'_'mobility_damage'_'durability_damage']">
                 {grades.data.categories.map((category) => (
                   <Category key={category.key} category={category} />
                 ))}
@@ -216,7 +226,7 @@ function Gaps({ grades }: { grades: RosterGrades }) {
 
 function Category({ category }: { category: GradeCategory }) {
   return (
-    <section aria-label={category.label} className="grid gap-2">
+    <section aria-label={category.label} className={`grid gap-2 ${CATEGORY_AREA[category.key] ?? ''}`}>
       <h3 className="flex items-baseline justify-between gap-3">
         <span className="rubric">{category.label}</span>
         <span className={`figure text-sm ${category.grade ? GRADE_TONE[category.grade].text : 'text-faint'}`}>
