@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { TriangleAlert } from 'lucide-react'
+import { Crosshair, Flag, Footprints, Shield, TriangleAlert, type LucideIcon } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/Dialog'
 import { Problem } from '../../components/Problem'
@@ -11,12 +11,26 @@ import { rosterGradesQuery, sharedRosterQuery } from '../../queries'
 import { claimInput, type GuestDraft } from './guestDraft'
 import { positionedPicks } from './rosterPicks'
 
-/** Colour and line form both carry the grade: solid for A and B, dashed for C and D, so it reads without colour too. */
+/**
+ * Colour and line form both carry the grade, solid for A and B and dashed for C and D, so it reads without colour
+ * too. Each colour keeps its job: Map Green the best, Chart Blue a gauge, Amber a warning, Rust a loss.
+ */
 const GRADE_TONE: Record<Grade, { text: string; border: string; stroke: string; dashed: boolean }> = {
   A: { text: 'text-achieved', border: 'border-achieved', stroke: 'stroke-achieved', dashed: false },
-  B: { text: 'text-bone', border: 'border-runner-hi', stroke: 'stroke-bone', dashed: false },
-  C: { text: 'text-dim', border: 'border-dashed border-runner-hi', stroke: 'stroke-dim', dashed: true },
-  D: { text: 'text-discarded', border: 'border-dashed border-discarded', stroke: 'stroke-discarded', dashed: true },
+  B: { text: 'text-info', border: 'border-info', stroke: 'stroke-info', dashed: false },
+  C: { text: 'text-discarded', border: 'border-dashed border-discarded', stroke: 'stroke-discarded', dashed: true },
+  D: { text: 'text-rust', border: 'border-dashed border-rust', stroke: 'stroke-rust', dashed: true },
+}
+
+/** What each category is about, at a glance; the grade, not the icon, carries the colour. */
+const CATEGORY_ICON: Record<string, LucideIcon> = { control: Flag, mobility: Footprints, damage: Crosshair, durability: Shield }
+
+/** Where each category sits in the two desktop columns; written out whole so Tailwind finds the classes. */
+const CATEGORY_AREA: Record<string, string> = {
+  control: 'md:[grid-area:control]',
+  mobility: 'md:[grid-area:mobility]',
+  damage: 'md:[grid-area:damage]',
+  durability: 'md:[grid-area:durability]',
 }
 
 /** What the roster can do on the table, scored the way Lighthouse scores a page; it asks the server only while open. */
@@ -52,7 +66,9 @@ export function RosterGradesDialog({
             <>
               <Scores grades={grades.data} />
               <Gaps grades={grades.data} />
-              <div className="grid gap-5 md:grid-cols-2 md:items-start">
+              {/* Damage has the most measures, so it takes the right column alone beside the other three; the last row
+                  takes the slack so the left ones stay together. */}
+              <div className="grid gap-5 md:grid-cols-2 md:grid-rows-[auto_auto_1fr] md:items-start md:[grid-template-areas:'control_damage'_'mobility_damage'_'durability_damage']">
                 {grades.data.categories.map((category) => (
                   <Category key={category.key} category={category} />
                 ))}
@@ -137,7 +153,7 @@ function Scores({ grades }: { grades: RosterGrades }) {
           {grades.categories.map((category) => (
             <li key={category.key} className="grid content-start justify-items-center gap-1.5 text-center">
               <Gauge score={category.score} grade={category.grade} />
-              <span className="text-xs leading-tight text-dim">{category.label}</span>
+              <CategoryLabel category={category} className="text-xs leading-tight text-dim" icon="hidden sm:block" />
             </li>
           ))}
         </ol>
@@ -159,9 +175,10 @@ function Scores({ grades }: { grades: RosterGrades }) {
 /** A ring whose arc is the score out of 100; it is dashed below a B so it reads without colour too. */
 function Gauge({ score, grade, large = false }: { score: number | null; grade: Grade | null; large?: boolean }) {
   const tone = grade ? GRADE_TONE[grade] : null
-  const width = large ? 7 : 9
+  // The ring is drawn in a 100-unit box, so the large gauge's thinner stroke keeps it as thick on screen as before.
+  const width = large ? 6 : 9
   return (
-    <span className={`relative grid place-items-center ${large ? 'size-24' : 'size-14'}`}>
+    <span className={`relative grid place-items-center ${large ? 'size-28' : 'size-14'}`}>
       <svg viewBox="0 0 100 100" aria-hidden className="absolute inset-0 -rotate-90">
         <circle cx="50" cy="50" r="42" fill="none" strokeWidth={width} className="stroke-edge" />
         {score !== null && tone ? (
@@ -214,11 +231,22 @@ function Gaps({ grades }: { grades: RosterGrades }) {
   return null
 }
 
+/** A category's name with its icon; `icon` hides the icon where a label can wrap, as under the narrow gauges. */
+function CategoryLabel({ category, className, icon = '' }: { category: GradeCategory; className: string; icon?: string }) {
+  const Icon = CATEGORY_ICON[category.key]
+  return (
+    <span className={`inline-flex items-center gap-1.5 ${className}`}>
+      {Icon ? <Icon className={`size-3.5 shrink-0 text-faint ${icon}`} aria-hidden /> : null}
+      {category.label}
+    </span>
+  )
+}
+
 function Category({ category }: { category: GradeCategory }) {
   return (
-    <section aria-label={category.label} className="grid gap-2">
+    <section aria-label={category.label} className={`grid gap-2 ${CATEGORY_AREA[category.key] ?? ''}`}>
       <h3 className="flex items-baseline justify-between gap-3">
-        <span className="rubric">{category.label}</span>
+        <CategoryLabel category={category} className="rubric" />
         <span className={`figure text-sm ${category.grade ? GRADE_TONE[category.grade].text : 'text-faint'}`}>
           {category.score ?? '–'}
           <span className="text-faint">/100</span>
