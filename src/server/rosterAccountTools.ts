@@ -44,7 +44,7 @@ export function registerRosterAccountTools(server: AgentTools, userId: string | 
     {
       title: 'Copy a roster',
       description:
-        "Saves a copy of a roster to the signed-in player's account: one of their own from list_my_rosters, or a public or unlisted one they can open. variant true keeps the copy grouped with the original as an alternative version, which only works on their own rosters; false makes a standalone copy. The copy takes the player's default visibility. Returns the new roster's id and url. Requires mcp:write.",
+        "Saves a copy of a roster to the signed-in player's account: one of their own from list_my_rosters, or a public or unlisted one they can open. variant true keeps the copy grouped with the original as an alternative version, which only works on their own rosters; false makes a standalone copy. The copy takes the player's default visibility, which is public unless they changed it, whatever the original's. Returns the new roster's id, url and visibility: tell the player when it is public, and offer set_roster_visibility. Requires mcp:write.",
       inputSchema: {
         id: rosterIdSchema.shape.id,
         variant: z.boolean().default(false).describe('Group the copy with the original as a variant; only for the player’s own rosters.'),

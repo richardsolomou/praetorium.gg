@@ -22,7 +22,7 @@ export const rosterActions = {
     const copied = await copySavedRoster(owner, data.id, data.variant, data.setup)
     if (!copied) throw new Response('roster not found', { status: 404 })
     await captureRosterCreated(app(), owner, copied.data, { variant: data.variant })
-    return { id: copied.id }
+    return { id: copied.id, visibility: copied.data.visibility }
   },
   async delete(owner: string, id: string) {
     await app().service.rosterService.deleteRoster(owner, id)

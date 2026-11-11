@@ -7,7 +7,12 @@ vi.mock('./publishedTextFiles', () => ({
   publishedTextLocations: async () => ({ files: {}, holds: () => false, recordsHolding: () => [] }),
 }))
 vi.mock('./app', () => ({
-  app: () => ({ service: { sealedEventService: { ownRoster } }, catalogueFor: async () => null, rulesFor: async () => null }),
+  app: () => ({
+    service: { sealedEventService: { ownRoster }, rosterService: { rosterAccess: async () => ({ roster: { name: 'My army' } }) } },
+    repository: { playerDefaults: async () => ({ rosterVisibility: 'public', battleSize: 2000 }) },
+    catalogueFor: async () => null,
+    rulesFor: async () => null,
+  }),
 }))
 vi.mock('./referenceApi', () => ({ activeReferenceCorpus: async () => null, referenceDocumentFor: async () => null }))
 
@@ -177,6 +182,12 @@ it('prepares a visibility change with the owned roster name', async () => {
 
 it('prepares a deletion naming the owned roster it removes', async () => {
   expect((await prepareBrowserAgentWrite('delete_roster', { id: 'roster-1' }, 'player-1')).summary).toBe('Permanently delete “My army”.')
+})
+
+it('prepares a variant naming the visibility it will be saved with', async () => {
+  expect((await prepareBrowserAgentWrite('copy_roster', { id: 'roster-1', variant: true }, 'player-1')).summary).toBe(
+    'Save a variant of “My army” to your rosters. Visibility: public.',
+  )
 })
 
 it('refuses to prepare a change for a different account', async () => {

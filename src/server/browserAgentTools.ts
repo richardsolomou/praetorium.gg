@@ -81,7 +81,8 @@ export async function prepareBrowserAgentWrite(name: string, input: unknown, exp
       const data = rosterIdSchema.extend({ variant: z.boolean() }).parse(normalized)
       const access = await instance.service.rosterService.rosterAccess(data.id, user.id)
       if (!access) throw new Response('Roster not found.', { status: 404 })
-      summary = `Save a ${data.variant ? 'variant' : 'copy'} of “${access.roster.name}” to your rosters.`
+      const { rosterVisibility } = await instance.repository.playerDefaults(user.id)
+      summary = `Save a ${data.variant ? 'variant' : 'copy'} of “${access.roster.name}” to your rosters. Visibility: ${rosterVisibility}.`
       break
     }
     case 'create_battle': {
