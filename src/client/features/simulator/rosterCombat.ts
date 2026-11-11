@@ -1,24 +1,14 @@
 import type { RosterPick } from '../../../core/roster'
-import { attachmentHost } from '../../../core/attachedUnits'
 import { readableCombatant } from './readableRules'
 import { combatDamageStateSelections, combatRuleSelections } from '../../../core/combatRules'
-import { combatMatchup, noExclusions, type CombatAnswer, type CombatantSnapshot } from '../../../core/combatMatchup'
-import { COMBAT_PHASES, type CombatPhase, type CombatResult } from '../../../core/combat'
+import type { CombatantSnapshot } from '../../../core/combatMatchup'
 import type { combatantDatasheet } from '../../functions'
 import { combatAtHealth } from '../../../core/combatSurvivors'
 import type { CombatRoster } from './useCombatant'
 import type { RosterOwner } from './rosterOwners'
 import type { BuiltRoster } from '../../../core/battle'
-import type { CombatMetric } from './CombatValue'
 
 type ProjectedCombatant = NonNullable<Awaited<ReturnType<typeof combatantDatasheet>>>
-export type RosterCombatSummary = Record<
-  'ranged' | 'melee' | 'combined',
-  {
-    result?: Pick<CombatResult, CombatMetric>
-    error?: string
-  }
->
 export type RosterCombatUnit = {
   rosterIndex: number
   pickIndex: number
@@ -45,14 +35,6 @@ export function sealedCombatRoster(roster: { built?: Omit<BuiltRoster, 'units'> 
     borrowedDetachmentId: null,
     optionalRules: [],
   }
-}
-
-export function rosterCombatIndices(picks: readonly RosterPick[]) {
-  for (const [index, pick] of picks.entries()) {
-    if (pick.attachedTo !== undefined && (!picks[pick.attachedTo] || picks[attachmentHost(picks, index)]!.attachedTo !== undefined))
-      throw new Error('Fix the roster’s invalid attachment before comparing it.')
-  }
-  return picks.flatMap((pick, index) => (pick.attachedTo === undefined ? [index] : []))
 }
 
 export function rosterCombatSnapshot(
@@ -100,55 +82,4 @@ export function rosterCombatSnapshot(
       }),
   }
   return live ? combatAtHealth(snapshot, live.units[live.pickIndex]!) : snapshot
-}
-
-export function rosterCombatRequest(
-  attacker: CombatantSnapshot | null,
-  defender: CombatantSnapshot | null,
-  error?: string,
-  preferences: Readonly<Record<string, string>> = {},
-) {
-  const matchup = combatMatchup(attacker, defender, { preferences, excluded: noExclusions(), allocation: [] })
-  const request = matchup.request({})
-  const unavailable = Object.fromEntries(
-    COMBAT_PHASES.flatMap((phase) =>
-      request[phase]
-        ? []
-        : [
-            [
-              phase,
-              error ??
-                (attacker?.allocationRequired || attacker?.companions?.some((member) => member.allocationRequired)
-                  ? "Choose the attacker's surviving models and weapons in the unit simulator."
-                  : undefined) ??
-                matchup.target?.error ??
-                (matchup.plans[phase]?.errors.join(' ') || 'This phase could not be calculated.'),
-            ],
-          ],
-    ),
-  ) as Partial<Record<CombatPhase, string>>
-  return { request, unavailable }
-}
-
-export function summarizeRosterCombat(answer: CombatAnswer, unavailable: Partial<Record<CombatPhase, string>>): RosterCombatSummary {
-  const phase = (name: keyof RosterCombatSummary) => {
-    const result = answer[name]?.result
-    return result
-      ? {
-          result: {
-            wipe: result.wipe,
-            meanDamage: result.meanDamage,
-            meanKills: result.meanKills,
-            uncappedKills: result.uncappedKills,
-            uncappedDamage: result.uncappedDamage,
-          },
-        }
-      : {
-          error:
-            answer[name]?.error ??
-            (name === 'combined' ? 'Both phases must be supported for a combined estimate.' : unavailable[name]) ??
-            'This phase could not be calculated.',
-        }
-  }
-  return { ranged: phase('ranged'), melee: phase('melee'), combined: phase('combined') }
 }

@@ -7,14 +7,8 @@ import { forEachConcurrently } from '../../../shared/forEachConcurrently'
 import { noExclusions, strongestWeaponPreferences, type CombatAnswer, type CombatRequest } from '../../../core/combatMatchup'
 import type { CombatRoster } from './useCombatant'
 import { readRosterCombatCache, writeRosterCombatCache } from './rosterCombatCache'
-import {
-  rosterCombatIndices,
-  rosterCombatRequest,
-  rosterCombatSnapshot,
-  summarizeRosterCombat,
-  type RosterCombatSummary,
-  type RosterCombatUnit,
-} from './rosterCombat'
+import { rosterCombatSnapshot, type RosterCombatUnit } from './rosterCombat'
+import { rosterCombatIndices, rosterCombatRequest, summarizeRosterCombat, type RosterCombatSummary } from '../../../core/rosterCombatTable'
 
 const MAX_ROSTER_MATCHUPS = 2500
 export const ROSTER_COMBAT_TIMEOUT = 300_000

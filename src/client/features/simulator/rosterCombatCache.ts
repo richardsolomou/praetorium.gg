@@ -1,6 +1,6 @@
 import { RecentlyUsed } from '../../../core/collections'
 import { BoundedCache } from '../../../shared/boundedCache'
-import type { RosterCombatSummary } from './rosterCombat'
+import type { RosterCombatSummary } from '../../../core/rosterCombatTable'
 
 const MAX_ENTRIES = 20
 const cache = new BoundedCache<string, RosterCombatSummary[]>(8 * 1024 * 1024, MAX_ENTRIES, (key) => key)

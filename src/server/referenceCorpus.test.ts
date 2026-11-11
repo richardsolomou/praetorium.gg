@@ -5,6 +5,9 @@ import type { LoadedRules } from './rules'
 import { bookOf, card, withCards } from './catalogue.fixtures'
 import { compileCanonicalCatalogue } from './canonicalCatalogue'
 
+/** A faction whose detachments offer no force disposition. */
+const noDetachments = { icon: null, referenceDetachmentIds: [], detachments: [] }
+
 function canonical(revision: string, text: string): CanonicalCatalogue {
   return {
     format: 'praetorium.canonical-catalogue.v1',
@@ -47,7 +50,11 @@ function canonical(revision: string, text: string): CanonicalCatalogue {
 
 it.each([
   { rulesSlug: 'mfm-1-6', edition: null, expected: 'mfm-1-6' },
-  { rulesSlug: 'mfm-1-6', edition: { id: 'previous', slug: 'codex-2026-10-13' }, expected: 'codex-2026-10-13' },
+  {
+    rulesSlug: 'mfm-1-6',
+    edition: { id: 'previous', slug: 'codex-2026-10-13', name: 'Codex', status: 'released' as const },
+    expected: 'codex-2026-10-13',
+  },
 ])('publishes datasheet URLs for the selected $expected rules', ({ rulesSlug, edition, expected }) => {
   const loaded = bookOf({ name: 'Example Army', selectionEntries: [{ id: 'unit', name: 'Test Unit', type: 'unit' }] })
   loaded.factionContents.set('example-army', withCards('Example Army', new Map([['Test Unit', card()]])))
@@ -55,7 +62,7 @@ it.each([
     canonicalCatalogue: () => compileCanonicalCatalogue(loaded, { definitions: 'one' }),
     catalogue: () => loaded,
     rules: () => null,
-    factions: [{ id: 'cat', slug: 'example-army', displayName: 'Example Army', rulesSlug, edition }],
+    factions: [{ id: 'cat', slug: 'example-army', displayName: 'Example Army', rulesSlug, edition, ...noDetachments }],
   }
 
   expect(referenceCorpusFor(sources)?.byId.get('datasheet:example-army:test-unit')?.url).toBe(
@@ -71,7 +78,7 @@ it('invalidates cached citations when the faction rules route changes', () => {
     canonicalCatalogue: () => source,
     catalogue: () => loaded,
     rules: () => null,
-    factions: [{ id: 'cat', slug: 'example-army', displayName: 'Example Army', rulesSlug: 'mfm-1-5' }],
+    factions: [{ id: 'cat', slug: 'example-army', displayName: 'Example Army', rulesSlug: 'mfm-1-5', ...noDetachments }],
   }
   const before = referenceCorpusFor(sources)!
   sources.factions = [{ ...sources.factions[0]!, rulesSlug: 'mfm-1-6' }]
@@ -240,6 +247,18 @@ it('includes the force disposition matrix and primary mission scoring', () => {
     canonicalCatalogue: () => canonical('one', 'Rule text.'),
     catalogue: () => null,
     rules: () => rules,
+    factions: [
+      {
+        id: 'orks',
+        slug: 'orks',
+        displayName: 'Orks',
+        icon: null,
+        referenceDetachmentIds: ['war-horde'],
+        detachments: [
+          { id: 'war-horde', slug: 'war-horde', name: 'War Horde', dispositions: [{ id: 'disruption' }], reference: { points: 60 } },
+        ],
+      },
+    ],
   })!
   const document = corpus.byId.get('mission-pack:chapter-approved-2026-2027')!
   const mission = corpus.byId.get('mission:chapter-approved-2026-2027:death-trap')!
@@ -268,6 +287,15 @@ it('includes the force disposition matrix and primary mission scoring', () => {
     url: expect.stringContaining('#deployment-hammer-and-anvil'),
     sections: [expect.objectContaining({ text: expect.stringContaining('1 objective markers.') })],
   })
+  expect(
+    corpus.byId
+      .get('disposition:disruption')
+      ?.sections.slice(1)
+      .map(({ id, text }) => ({ id, text })),
+  ).toEqual([
+    { id: 'missions-chapter-approved-2026-2027', text: 'vs Take and Hold: Death Trap' },
+    { id: 'detachments', text: 'Orks: War Horde (60 DP)' },
+  ])
   expect(terrain).toMatchObject({
     kind: 'terrain',
     url: expect.stringContaining('#terrain-layout-a'),
@@ -345,7 +373,13 @@ it('publishes the selected rules route for detachment documents and sections', (
     catalogue: () => null,
     rules: () => null,
     factions: [
-      { id: 'previous~test', slug: 'previous~test', displayName: 'Test Faction', edition: { id: 'previous', slug: 'codex-2026-10-13' } },
+      {
+        id: 'previous~test',
+        slug: 'previous~test',
+        displayName: 'Test Faction',
+        edition: { id: 'previous', slug: 'codex-2026-10-13', name: 'Codex', status: 'released' },
+        ...noDetachments,
+      },
     ],
   })!.byId.get('detachment:previous~test:detachment')!
 

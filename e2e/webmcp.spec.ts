@@ -62,20 +62,20 @@ function start(page: Page, toolName: string, arguments_: object) {
 test('browser agents discover the full MCP surface and account tools disappear on sign-out', async ({ page }) => {
   await installInspector(page)
   await page.goto('/')
-  await expect.poll(() => names(page)).toHaveLength(11)
+  await expect.poll(() => names(page)).toHaveLength(21)
   await signUp(page, uniqueName('Agent'))
-  await expect.poll(() => names(page)).toHaveLength(19)
+  await expect.poll(() => names(page)).toHaveLength(47)
   const factions = await call(page, 'list_factions')
   expect(factions.structuredContent?.factions).toBeInstanceOf(Array)
   await signOut(page)
-  await expect.poll(() => names(page)).toHaveLength(11)
+  await expect.poll(() => names(page)).toHaveLength(21)
 })
 
 test('declining a browser-agent write leaves saved data unchanged; approving writes and refreshes the screen', async ({ page }) => {
   await installInspector(page)
   await signUp(page, uniqueName('Approval'))
   await page.goto('/battles')
-  await expect.poll(() => names(page)).toHaveLength(19)
+  await expect.poll(() => names(page)).toHaveLength(47)
   const before = await call(page, 'list_my_battles')
   await start(page, 'create_battle', { opponentId: 'practice-opponent-1', limit: 2000 })
   const dialog = page.getByRole('dialog', { name: 'Create a battle' })
@@ -98,7 +98,7 @@ test('declining a browser-agent write leaves saved data unchanged; approving wri
 test('browser agents save rosters, change visibility and append battle actions through the shared handlers', async ({ page }) => {
   await installInspector(page)
   await signUp(page, uniqueName('Agent writes'))
-  await expect.poll(() => names(page)).toHaveLength(19)
+  await expect.poll(() => names(page)).toHaveLength(47)
   const factions = (await call(page, 'list_factions')).structuredContent!.factions as { id: string }[]
   await start(page, 'save_roster', {
     name: 'Agent army',
@@ -140,7 +140,7 @@ test('browser agents save rosters, change visibility and append battle actions t
 test('an unanswered browser-agent approval expires without saving', async ({ page }) => {
   await installInspector(page)
   await signUp(page, uniqueName('Agent timeout'))
-  await expect.poll(() => names(page)).toHaveLength(19)
+  await expect.poll(() => names(page)).toHaveLength(47)
   const before = await call(page, 'list_my_battles')
   await page.clock.install()
   await start(page, 'create_battle', { opponentId: 'practice-opponent-1', limit: 2000 })

@@ -1,6 +1,12 @@
 import { z } from 'zod'
 import { REFERENCE_KINDS } from '../contracts/reference'
-import { activeReferenceCorpus, referenceDocumentFor, referenceRecordFor, referenceUnitsFor } from './referenceApi'
+import {
+  activeReferenceCorpus,
+  referenceDocumentFor,
+  referenceMissionMatchupFor,
+  referenceRecordFor,
+  referenceUnitsFor,
+} from './referenceApi'
 import { referenceDocumentMarkdown } from './referenceCorpus'
 import {
   REFERENCE_FILTER_MAX_LENGTH,
@@ -15,6 +21,7 @@ import {
   referenceIndexSchema,
   referenceSearchResponseSchema,
   revisionsSchema,
+  missionMatchupSchema,
   unitSummarySchema,
 } from './referenceSchemas'
 import { referenceFactions, referenceIndex } from './referenceService'
@@ -26,7 +33,7 @@ export function registerReferenceTools(server: AgentTools) {
     {
       title: 'Search the Praetorium game reference',
       description:
-        'Searches Praetorium’s missions, rules, detachments, and datasheets by name, number, keyword, and value. Returns bounded excerpts with canonical URLs, source revisions, and attribution. Rules text is not included; records point to it upstream.',
+        'Searches Praetorium’s missions, force dispositions, deployments, terrain, rules, detachments, and datasheets by name, number, keyword, and value. Returns bounded excerpts with canonical URLs, source revisions, and attribution. Rules text is not included; records point to it upstream.',
       inputSchema: {
         query: z
           .string()
@@ -78,7 +85,7 @@ export function registerReferenceTools(server: AgentTools) {
     {
       title: 'Read structured Praetorium reference data',
       description:
-        'Returns the structured record behind a search result, including mission cards, deployments, terrain geometry, detachments, and datasheets. Records that withhold rules text carry textSources pointing at the pinned upstream file and record id.',
+        'Returns the structured record behind a search result, including mission cards, force dispositions (missions by opposing disposition, detachments that offer them), deployments, terrain geometry, detachments, and datasheets. Records that withhold rules text carry textSources pointing at the pinned upstream file and record id.',
       inputSchema: { id: referenceIdSchema },
       outputSchema: { document: referenceDocumentSchema, data: z.unknown() },
       annotations: READ_ONLY_TOOL,
@@ -126,7 +133,7 @@ export function registerReferenceTools(server: AgentTools) {
     {
       title: 'List compact faction units for roster planning',
       description:
-        'Returns every pickable unit in one bounded response with unit-size costs, composition, attachment relationships, roster limits, roles, keywords, and links. Include a detachment, including one a chapter takes from its codex, to list only the units it allows and receive its rules, enhancements, upgrades, and stratagems by name, cost, and timing without opening every unit page. Their rules text is at each record’s textSources. A unit’s points is what its smallest size costs in this battle size and detachment, including any wargear or enhancement the detachment makes it take; costs is the Munitorum Field Manual table for every size. Legends and Crucible datasheets are left out unless nonMatchedPlay is true. A large faction such as a Space Marine chapter can exceed what an assistant reads at once, so pass query to list only the units whose name or keywords contain it; a query nothing contains lists the units whose names are close to it, so a misspelt name still finds its unit.',
+        'Returns every pickable unit in one bounded response with unit-size costs, composition, attachment relationships, roster limits, roles, keywords, and links. Without a detachment it also lists every detachment the faction can take, with its detachment points, Force dispositions, rule names and enhancement costs, so you can compare them before choosing. Include a detachment, including one a chapter takes from its codex, to list only the units it allows and receive its rules, enhancements, upgrades, and stratagems by name, cost, and timing without opening every unit page. Their rules text is at each record’s textSources. A unit’s points is what its smallest size costs in this battle size and detachment, including any wargear or enhancement the detachment makes it take; costs is the Munitorum Field Manual table for every size. Legends and Crucible datasheets are left out unless nonMatchedPlay is true. A large faction such as a Space Marine chapter can exceed what an assistant reads at once, so pass query to list only the units whose name or keywords contain it; a query nothing contains lists the units whose names are close to it, so a misspelt name still finds its unit.',
       inputSchema: {
         faction: z
           .string()
@@ -135,7 +142,13 @@ export function registerReferenceTools(server: AgentTools) {
           .max(REFERENCE_FILTER_MAX_LENGTH)
           .describe('Faction id, URL slug, or display name from list_reference.'),
         battleSize: z.number().int().min(1).max(10_000).optional().describe('Battle size in points for size-dependent limits.'),
-        detachment: z.string().trim().min(1).max(REFERENCE_FILTER_MAX_LENGTH).optional().describe('Detachment id, slug, or display name.'),
+        detachment: z
+          .string()
+          .trim()
+          .min(1)
+          .max(REFERENCE_FILTER_MAX_LENGTH)
+          .optional()
+          .describe('Detachment id, slug, or display name. Omit it to compare every detachment the faction can take.'),
         nonMatchedPlay: z
           .boolean()
           .default(false)
@@ -156,6 +169,18 @@ export function registerReferenceTools(server: AgentTools) {
         nonMatchedPlay: z.boolean(),
         query: z.string().nullable(),
         detachment: z.unknown().nullable(),
+        detachments: z
+          .array(
+            z.object({
+              name: z.string(),
+              points: z.number().nullable(),
+              dispositions: z.array(z.string()),
+              rules: z.array(z.string()),
+              enhancements: z.array(z.object({ name: z.string(), points: z.number().nullable() })),
+              referenceId: z.string(),
+            }),
+          )
+          .nullable(),
         units: z.array(unitSummarySchema),
         revisions: revisionsSchema,
       },
@@ -173,6 +198,37 @@ export function registerReferenceTools(server: AgentTools) {
             )
           : toolError('not_found', `No faction is named ${faction}. Use a faction id, slug, or name from list_factions.`)
       return structured(result)
+    },
+  )
+  server.registerTool(
+    'get_mission_matchup',
+    {
+      title: 'Resolve a mission matchup',
+      description:
+        'Resolves a pack and two force dispositions to the primary mission each side plays (its card: scoring awards, caps, actions, timing), the terrain layouts and deployments for the pairing, and canonical URLs and reference ids for each. Pass each value by id, slug, or name; an unknown or ambiguous value is refused with the valid options. Rules text is withheld; cards point to it through textSources.',
+      inputSchema: {
+        pack: z
+          .string()
+          .trim()
+          .min(1)
+          .max(REFERENCE_FILTER_MAX_LENGTH)
+          .describe('Mission pack id or name from list_reference missionPacks.'),
+        yourDisposition: z
+          .string()
+          .trim()
+          .min(1)
+          .max(REFERENCE_FILTER_MAX_LENGTH)
+          .describe('Your force disposition, such as Take and Hold.'),
+        opponentDisposition: z.string().trim().min(1).max(REFERENCE_FILTER_MAX_LENGTH).describe('The opponent’s force disposition.'),
+      },
+      outputSchema: missionMatchupSchema.shape,
+      annotations: READ_ONLY_TOOL,
+    },
+    async (query) => {
+      const found = await referenceMissionMatchupFor(query)
+      if (!found) return unavailable()
+      if ('error' in found) return toolError('not_found', found.error)
+      return structured(found.matchup)
     },
   )
 }

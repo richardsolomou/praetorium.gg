@@ -47,3 +47,24 @@ function buildGameReferences(rules: BattleReadRules) {
 const cache = new WeakMap<BattleReadRules, ReturnType<typeof buildGameReferences>>()
 
 export const gameReferencesFor = (rules: BattleReadRules) => remember(cache, rules, () => buildGameReferences(rules))
+
+type MatchupPack<Mission> = { missions: readonly Mission[] }
+type MatchupMission = { matchups: readonly (readonly ({ id: string } | undefined)[])[] }
+
+/** The primary mission the `you` disposition plays against `opponent` in this pack. */
+export const matchupMission = <Mission extends MatchupMission>(pack: MatchupPack<Mission>, you: string, opponent: string) =>
+  pack.missions.find((mission) => mission.matchups.some((pair) => pair[0]?.id === you && pair[1]?.id === opponent))
+
+/** Each pack's primary mission for this disposition against every opponent disposition. */
+export function dispositionMatchups<Disposition extends { id: string }, Pack extends MatchupPack<MatchupMission>>(
+  references: { dispositions: readonly Disposition[]; packs: readonly Pack[] },
+  dispositionId: string,
+) {
+  return references.packs.flatMap((pack) => {
+    const matchups = references.dispositions.flatMap((opponent) => {
+      const mission = matchupMission<Pack['missions'][number]>(pack, dispositionId, opponent.id)
+      return mission ? [{ opponent, mission }] : []
+    })
+    return matchups.length ? [{ pack, matchups }] : []
+  })
+}

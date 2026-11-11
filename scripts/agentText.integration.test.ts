@@ -81,6 +81,13 @@ describe.skipIf(!exists)('what agents get from Praetorium', () => {
       const detachment = corpus.catalogue.detachments.find((entry) => entry.catalogueId === faction)?.id
       await call('list_units', { faction, ...(detachment ? { detachment } : {}) })
     }
+    const dispositions = corpus.documents.filter((document) => document.kind === 'disposition')
+    for (const pack of corpus.documents.filter((document) => document.id.startsWith('mission-pack:')))
+      await call('get_mission_matchup', {
+        pack: pack.title,
+        yourDisposition: dispositions[0]!.title,
+        opponentDisposition: dispositions.at(-1)!.title,
+      })
     const [attacker, defender] = corpus.catalogue.datasheets
     await call('simulate_combat', {
       attacker: { faction: attacker!.catalogueId, unit: attacker!.name },

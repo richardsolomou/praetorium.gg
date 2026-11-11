@@ -1,9 +1,10 @@
-import type {
-  ReferenceDocument,
-  ReferenceKind,
-  ReferenceSearchResponse,
-  ReferenceSearchResult,
-  ReferenceSection,
+import {
+  DISPOSITION_PACK_SECTION,
+  type ReferenceDocument,
+  type ReferenceKind,
+  type ReferenceSearchResponse,
+  type ReferenceSearchResult,
+  type ReferenceSection,
 } from '../contracts/reference'
 import { distance } from 'fastest-levenshtein'
 import { foldedText } from '../core/text'
@@ -122,6 +123,10 @@ const archived = (result: ReferenceSearchResult) => Boolean(result.faction?.incl
 function missionPackOf(document: ReferenceDocument) {
   if (document.id.startsWith('mission-pack:')) return [document.id.slice('mission-pack:'.length)]
   if (document.id.startsWith('mission:') && !document.id.startsWith('mission:secondary:')) return [document.id.split(':')[1] ?? '']
+  if (document.kind === 'disposition')
+    return document.sections.flatMap((section) =>
+      section.id.startsWith(DISPOSITION_PACK_SECTION) ? [section.id.slice(DISPOSITION_PACK_SECTION.length)] : [],
+    )
   const segments = document.url.split('#')[0]!.split('/')
   const packAt = segments.indexOf('missions')
   return packAt >= 0 ? [segments[packAt + 1] ?? ''] : []

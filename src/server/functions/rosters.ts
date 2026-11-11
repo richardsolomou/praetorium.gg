@@ -31,7 +31,7 @@ import { detachmentIds } from '../../core/savedRoster'
 import { rosterFaction } from '../../shared/rosterFaction'
 import { matchesPlayedArmy, playedArmyFilterActive, type PlayedArmy } from '../../core/playedArmies'
 import { variantDifferences } from '../rosterDifferences'
-import { copySavedRoster, saveOwnedRoster } from '../saveOwnedRoster'
+import { saveOwnedRoster } from '../saveOwnedRoster'
 import { rosterActions } from '../rosterActions'
 import { copiedArmy } from '../../core/rosterCopies'
 import { currentCatalogueFamilyId, currentEntryId, currentRosterIds } from '../../core/retiredCatalogueIds'
@@ -538,11 +538,7 @@ export const copyRoster = createServerFn({ method: 'POST' })
   .validator(copyRosterSchema)
   .handler(({ data }) =>
     mutationRpc(async () => {
-      const userId = await requireUserId()
-      const copied = await copySavedRoster(userId, data.id, data.variant, data.setup)
-      if (!copied) throw new Response('roster not found', { status: 404 })
-      await captureRosterCreated(app(), userId, copied.data, { variant: data.variant })
-      return { id: copied.id }
+      return rosterActions.copy(await requireUserId(), data)
     }),
   )
 
@@ -550,9 +546,7 @@ export const deleteRoster = createServerFn({ method: 'POST' })
   .validator(rosterIdSchema)
   .handler(({ data }) =>
     mutationRpc(async () => {
-      const userId = await requireUserId()
-      await app().service.rosterService.deleteRoster(userId, data.id)
-      await captureMutation(userId, 'roster_deleted')
+      await rosterActions.delete(await requireUserId(), data.id)
       return null
     }),
   )
@@ -629,10 +623,7 @@ export const setRosterArchived = createServerFn({ method: 'POST' })
   .validator(rosterArchiveSchema)
   .handler(({ data }) =>
     mutationRpc(async () => {
-      const userId = await requireUserId()
-      const saved = await app().service.rosterService.setRosterArchived(userId, data.id, data.archived)
-      await captureMutation(userId, 'roster_archive_updated', { archived: data.archived })
-      return saved
+      return rosterActions.setArchived(await requireUserId(), data)
     }),
   )
 

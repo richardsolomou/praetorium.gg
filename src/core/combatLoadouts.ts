@@ -316,6 +316,7 @@ export function optimizeLoadout(
   space: LoadoutCandidates,
   scoring: LoadoutScoring,
   mode: LoadoutOptimizationMode = 'combined',
+  maxWork?: number,
 ): LoadoutOptimization {
   if (mode === 'combined' && scoring.sequenceError) throw new Error(scoring.sequenceError)
   const phases = mode === 'combined' ? COMBAT_PHASES : [mode]
@@ -396,7 +397,8 @@ export function optimizeLoadout(
       if (!result) {
         retainedBytes += key.length * 2
         if (results.size >= 20_000 || retainedBytes > 32 * 1024 * 1024) throw new SearchLimit()
-        result = mode === 'combined' ? calculateCombatSequence(inputs, undefined, [[], meleeAfterLosses]) : calculateCombat(inputs[0]!)
+        result =
+          mode === 'combined' ? calculateCombatSequence(inputs, maxWork, [[], meleeAfterLosses]) : calculateCombat(inputs[0]!, maxWork)
         results.set(key, result)
       }
       if (!top || compareOutcomes(result, top.result) > 0)

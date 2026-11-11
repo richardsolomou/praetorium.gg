@@ -18,6 +18,7 @@ import {
   missionMatchupText,
   promptMessages,
 } from './referenceAgentContext'
+import { agentSkills } from './agentSkills'
 
 const MCP_REQUEST_MAX_BYTES = 64 * 1024
 
@@ -124,7 +125,7 @@ export function referenceMcpOptions() {
 }
 
 function referenceMcpServer(userId: string | null, origin: string) {
-  const server = new McpServer({ name: 'praetorium-reference', version: '1.2.0' }, { instructions: PRAETORIUM_MCP_INSTRUCTIONS })
+  const server = new McpServer({ name: 'praetorium-reference', version: '1.3.0' }, { instructions: PRAETORIUM_MCP_INSTRUCTIONS })
   const tools = createAgentTools(userId)
   tools.registerMcp(server, origin)
 
@@ -136,6 +137,8 @@ function referenceMcpServer(userId: string | null, origin: string) {
   }
   server.registerPrompt(rulesQuestionPrompt.name, rulesQuestionPrompt, async (input) => promptMessages(rulesQuestionText(input)))
   server.registerPrompt(missionMatchupPrompt.name, missionMatchupPrompt, async (input) => promptMessages(missionMatchupText(input)))
+  for (const skill of agentSkills)
+    server.registerPrompt(skill.name, { title: skill.title, description: skill.description }, async () => promptMessages(skill.body))
   instrumentReferenceMcp(server, tools.names())
   return server
 }

@@ -15,6 +15,13 @@ const sizes = (min: number, max: number) => [
   { id: 'min', type: 'min' as const, value: min, field: 'selections', scope: 'parent' },
   { id: 'max', type: 'max' as const, value: max, field: 'selections', scope: 'parent' },
 ]
+const gear = (id: string, name: string, values: Record<string, string>) => ({
+  id: `${id}-gear`,
+  name,
+  type: 'upgrade' as const,
+  constraints: sizes(1, 1),
+  profiles: [profile(id, name, 'Ranged Weapons', values)],
+})
 const CARD_TOKEN = '⟦0123abcd:plain:0123456789abcdef⟧'
 const loaded = shelfOf(
   {
@@ -135,6 +142,38 @@ const loaded = shelfOf(
         ],
       },
       {
+        id: 'gunners',
+        name: 'Gunners',
+        type: 'unit',
+        categoryLinks: categories('Infantry'),
+        selectionEntryGroups: [
+          {
+            id: 'gunner-models',
+            name: 'Models',
+            defaultSelectionEntryId: 'gunner',
+            constraints: sizes(3, 3),
+            selectionEntries: [
+              {
+                id: 'gunner',
+                name: 'Gunner',
+                type: 'model',
+                constraints: [{ id: 'gunner-max', type: 'max' as const, value: 3, field: 'selections', scope: 'parent' }],
+                profiles: [profile('gunner-stats', 'Gunner', 'Unit', { T: '4', Sv: '3+', W: '2' })],
+                selectionEntries: [gear('gun', 'Gun', { A: '2', BS: '3+', S: '4', AP: '0', D: '1' })],
+              },
+              {
+                id: 'specialist',
+                name: 'Specialist',
+                type: 'model',
+                constraints: [{ id: 'specialist-max', type: 'max' as const, value: 1, field: 'selections', scope: 'parent' }],
+                profiles: [profile('specialist-stats', 'Specialist', 'Unit', { T: '4', Sv: '3+', W: '2' })],
+                selectionEntries: [gear('plasma', 'Plasma gun', { A: '1', BS: '3+', S: '8', AP: '-3', D: '2' })],
+              },
+            ],
+          },
+        ],
+      },
+      {
         id: 'wraith',
         name: 'Wraith',
         type: 'model',
@@ -245,7 +284,8 @@ vi.mock('./publishedTextFiles', () => ({
     text === CARD_TOKEN ? 'Each time a model in this unit makes an attack, add 1 to the Hit roll.' : null,
 }))
 
-import { simulateCombat } from './combatTools'
+import { optimizeCombatLoadout, simulateCombat } from './combatTools'
+import { unitOptionsFor } from './rosterTools'
 
 beforeEach(() => {
   reference.corpus = corpus
@@ -499,4 +539,115 @@ describe('an attack larger than the server calculation bound', () => {
 it('refuses while reference data is unavailable', async () => {
   reference.corpus = null
   expect(await simulateCombat({ attacker: squad, defender: beast })).toMatchObject({ isError: true })
+})
+
+describe('a loadout from a saved roster pick', () => {
+  const gunners = { faction: 'test', unit: 'gunners', spreads: { 'gunner-models': { gunner: 2, specialist: 1 } } }
+  const fielded = async () => (await simulateCombat({ attacker: gunners, defender: beast })).structuredContent as Record<string, unknown>
+
+  it('names the wargear each unit fielded', async () => {
+    expect(await fielded()).toMatchObject({
+      attacker: { units: [{ name: 'Gunners', wargear: expect.arrayContaining([{ name: 'Plasma gun', count: 1 }]) }] },
+    })
+  })
+
+  it('shoots with the chosen wargear', async () => {
+    expect(await fielded()).toMatchObject({
+      shooting: {
+        weapons: [
+          { name: 'Gun', count: 2 },
+          { name: 'Plasma gun', count: 1 },
+        ],
+      },
+    })
+  })
+
+  it('links to the simulator with the same loadout', async () => {
+    const url = (await fielded()).simulatorUrl as string
+    expect(decodeSimulatorState(new URL(url, 'https://praetorium.gg').searchParams.get('s') ?? undefined)?.sides[0]?.pick).toMatchObject({
+      spreads: gunners.spreads,
+    })
+  })
+
+  it('refuses an option the unit does not have, naming the unit', async () => {
+    const result = await simulateCombat({ attacker: { ...gunners, spreads: { 'gunner-models': { veteran: 1 } } }, defender: beast })
+    expect(result.structuredContent).toEqual({
+      refused: ['Gunners cannot take these wargear choices: it has no option veteran under gunner-models.'],
+    })
+  })
+
+  it('refuses more of an option than the unit allows', async () => {
+    const result = await simulateCombat({
+      attacker: { ...gunners, spreads: { 'gunner-models': { gunner: 1, specialist: 2 } } },
+      defender: beast,
+    })
+    expect(result).toMatchObject({
+      isError: true,
+      structuredContent: { refused: [expect.stringMatching(/^Gunners cannot take these wargear choices/)] },
+    })
+  })
+})
+
+describe('a damaged unit', () => {
+  const structured = async (defender: Parameters<typeof simulateCombat>[0]['defender']) =>
+    (await simulateCombat({ attacker: { ...squad, models: 10 }, defender })).structuredContent as {
+      defender: { models: number; units: unknown[] }
+      melee: { destroyedChance: number }
+    }
+
+  it('defends with the models it has left', async () => {
+    expect((await structured({ ...squad, models: 5, modelsLost: 2 })).defender.models).toBe(3)
+  })
+
+  it('is destroyed more often with wounds already lost', async () => {
+    const [fresh, wounded] = await Promise.all([structured(beast), structured({ ...beast, woundsLost: 10 })])
+    expect(wounded.melee.destroyedChance).toBeGreaterThan(fresh.melee.destroyedChance)
+  })
+
+  it('refuses losing every wound of its wounded model', async () => {
+    expect((await simulateCombat({ attacker: squad, defender: { ...beast, woundsLost: 12 } })).structuredContent).toEqual({
+      refused: ['Beast has 12 wounds per model, so its wounded model cannot have lost 12.'],
+    })
+  })
+
+  it('refuses losing models when its models carry different wargear', async () => {
+    const defender = { faction: 'test', unit: 'gunners', spreads: { 'gunner-models': { gunner: 2, specialist: 1 } }, modelsLost: 1 }
+    expect((await simulateCombat({ attacker: squad, defender })).structuredContent).toEqual({
+      refused: ['Gunners cannot lose models: its models carry different wargear, so which ones fell is unknown.'],
+    })
+  })
+})
+
+describe('options for a roster pick', () => {
+  it('gives the spread key and option ids of a squad that divides its models', async () => {
+    const result = await unitOptionsFor({ faction: 'test', units: [{ unit: 'gunners' }], battleSize: 2_000 })
+    expect(result.structuredContent).toMatchObject({
+      units: [{ choices: [{ key: 'gunner-models', set: 'spreads', options: [{ id: 'gunner' }, { id: 'specialist', max: 1 }] }] }],
+    })
+  })
+})
+
+describe('the best loadout', () => {
+  const gunners = { faction: 'test', unit: 'gunners' }
+  const optimized = async () =>
+    (await optimizeCombatLoadout({ attacker: gunners, defender: beast, mode: 'ranged' })).structuredContent as {
+      exhaustive: boolean
+      best: { units: { spreads: Record<string, Record<string, number>> }[]; outcome: unknown }
+    }
+
+  it('gives the specialist his plasma gun against a tough target', async () => {
+    expect((await optimized()).best.units[0]!.spreads['gunner-models']).toMatchObject({ gunner: 2, specialist: 1 })
+  })
+
+  it('claims an optimum only after checking every loadout', async () => {
+    expect((await optimized()).exhaustive).toBe(true)
+  })
+
+  it('scores the loadout it returns as simulate_combat does', async () => {
+    const { best } = await optimized()
+    const fielded = await simulateCombat({ attacker: { ...gunners, spreads: best.units[0]!.spreads }, defender: beast })
+    expect((fielded.structuredContent as { shooting: Record<string, unknown> }).shooting).toMatchObject(
+      best.outcome as Record<string, unknown>,
+    )
+  })
 })

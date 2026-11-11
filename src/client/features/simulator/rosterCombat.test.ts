@@ -2,7 +2,8 @@ import { expect, it } from 'vitest'
 import { rosterCombatant } from '../../../shared/rosterCombatRules'
 import { preferenceBook } from '../../../server/combatPreferences.fixtures'
 import { resolveCombatRequest } from '../../../core/combatMatchup'
-import { rosterCombatIndices, rosterCombatSnapshot, rosterCombatRequest, summarizeRosterCombat } from './rosterCombat'
+import { rosterCombatSnapshot } from './rosterCombat'
+import { rosterCombatIndices, rosterCombatRequest, summarizeRosterCombat } from '../../../core/rosterCombatTable'
 
 it('counts an attached unit once and keeps repeated squads separate', () => {
   expect(

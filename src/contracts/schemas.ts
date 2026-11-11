@@ -463,16 +463,21 @@ export const rosterContentSchema = z
     id: id.optional(),
     /** Empty when the player wants a name generated from the saved roster. */
     name: z.string().trim().max(ROSTER_NAME_MAX_LENGTH),
-    catalogueId: id,
-    detachmentIds: z.array(detachmentIdSchema).max(DETACHMENTS_MAX),
-    disposition: id.nullable(),
+    catalogueId: id.describe('Faction catalogue id, as get_unit_options gives it under roster.'),
+    detachmentIds: z
+      .array(detachmentIdSchema)
+      .max(DETACHMENTS_MAX)
+      .describe('Detachment ids, as get_unit_options gives them under roster.'),
+    disposition: id
+      .nullable()
+      .describe("Force disposition id from get_unit_options' roster.dispositions; null when the detachment allows only one."),
     borrowedDetachmentId: detachmentIdSchema.nullable().default(null),
-    limit: rosterLimit,
+    limit: rosterLimit.describe('Battle size in points: 1000, 2000 or 3000, or 600 for King of the Colosseum.'),
     pointsBudget,
-    picks: picksSchema,
+    picks: picksSchema.describe('The units in list order; attachedTo and embarkedIn point at indexes in this list.'),
     waivedRules,
     optionalRules,
-    prep: prepSchema.nullable(),
+    prep: prepSchema.nullable().describe('Chosen stratagems and secondaries; null for none.'),
     visibility: z.enum(ROSTER_VISIBILITIES).default('private'),
     source: z.enum(ROSTER_SOURCES).default('editable'),
   })

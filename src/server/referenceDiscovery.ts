@@ -4,7 +4,6 @@ import { activeReferenceCorpus } from './referenceApi'
 import { app } from './app'
 import { updateId } from './catalogueHistory'
 import { factionsLastUpdated, listedHistory, referencesLastUpdated } from './catalogueChangeLog'
-import { gameReferencesFor } from '../shared/gameReferences'
 import { ifNoneMatch } from './ifNoneMatch'
 import { PRODUCT_DOCS, type ProductDoc } from '../contracts/productDocs'
 import { escapeHtml } from './escapeHtml'
@@ -53,8 +52,6 @@ export async function referenceSitemap(request: Request) {
     add(`/rules/${document.slug}`)
     for (const section of document.sections) add(`/rules/${document.slug}/${section.slug}`)
   }
-  const rules = await app().rulesFor()
-  if (rules) for (const disposition of gameReferencesFor(rules).dispositions) add(`/force-dispositions/${disposition.id}`)
   // The history rides in the snapshot but is not part of the corpus revision, so the updates
   // it carries are part of the cache key.
   const history = (await app().catalogueHistoryFor()) ?? []
@@ -109,7 +106,7 @@ Praetorium is a free Warhammer 40,000 army builder, combat simulator, battle tra
 - [OpenAPI](${origin}/api/reference/v1/openapi.json): versioned read-only HTTP API
 - [Praetorium guide](${origin}/api/reference/v1/about): product capabilities, privacy boundaries, and efficient agent workflow
 - [Reference index](${origin}/api/reference/v1/): discover kinds, mission packs, rule documents, factions, and active revisions
-- [Search](${origin}/api/reference/v1/search?q=movement): search missions, deployments, terrain, rules, detachments, and datasheets
+- [Search](${origin}/api/reference/v1/search?q=movement): search missions, force dispositions, deployments, terrain, rules, detachments, and datasheets
 - [Factions](${origin}/api/reference/v1/factions): discover available factions
 - [MCP](${origin}/mcp): public reference and combat simulator tools with optional account sign-in for rosters and battles. Players add it to their assistant with ${docLink(origin, 'connect-an-assistant')}, or from [Claude's connector directory](https://claude.ai/directory/praetorium) or [ChatGPT's plugin directory](https://chatgpt.com/plugins/plugin_asdk_app_6adb29330cd08191b5833c45b0fffc79).
 

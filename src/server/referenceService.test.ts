@@ -2,7 +2,7 @@ import { expect, it } from 'vitest'
 import type { CanonicalCatalogue, CanonicalDatasheet } from '../contracts/catalogue'
 import { bookOf, points, shelfOf } from './catalogue.fixtures'
 import type { ReferenceCorpus } from './referenceCorpus'
-import { referenceRecord, referenceUnits, referenceFaction } from './referenceService'
+import { missionMatchup, referenceRecord, referenceUnits, referenceFaction } from './referenceService'
 import type { LoadedRules } from './rules'
 
 it('returns roster-planning facts for a whole detachment in one read', () => {
@@ -163,7 +163,7 @@ it('rejects a detachment outside the requested faction', () => {
   expect(referenceUnits(corpus, loaded, null, 'cat', { detachment: 'missing' })).toBeNull()
 })
 
-it('plans a chapter with a detachment its codex holds', () => {
+function chapterWithCodexDetachment() {
   const loaded = shelfOf(
     {
       selectionEntries: [{ id: 'intercessors', name: 'Intercessors', type: 'unit' }],
@@ -216,15 +216,37 @@ it('plans a chapter with a detachment its codex holds', () => {
       id: 'gladius',
       slug: 'gladius-task-force',
       name: 'Gladius Task Force',
+      points: catalogueId === 'old~cat' ? 2 : 1,
+      dispositions: ['Take and Hold'],
+      rules: [{ name: 'Combat Doctrines', description: null }],
+      enhancements: [{ name: 'Artificer Armour', points: 10, description: null }],
     })),
     ruleDocuments: [],
     issues: [],
   } as unknown as CanonicalCatalogue
   const corpus: ReferenceCorpus = { catalogue, documents: [], byId: new Map(), revision: 'snapshot' }
+  return { corpus, loaded, current: new Set(['cat-1', 'current~cat']) }
+}
 
-  const planned = referenceUnits(corpus, loaded, null, 'chapter', { detachment: 'Gladius Task Force' }, new Set(['cat-1', 'current~cat']))
+it('plans a chapter with a detachment its codex holds', () => {
+  const { corpus, loaded, current } = chapterWithCodexDetachment()
+  const planned = referenceUnits(corpus, loaded, null, 'chapter', { detachment: 'Gladius Task Force' }, current)
   expect(planned?.detachment).toMatchObject({ id: 'gladius', catalogueId: 'current~cat' })
   expect(planned?.units.find((unit) => unit.name === 'Intercessors')?.referenceId).toBe('datasheet:current~cat:intercessors')
+})
+
+it("surveys a chapter's detachments, including its codex's current one, when none is chosen", () => {
+  const { corpus, loaded, current } = chapterWithCodexDetachment()
+  expect(referenceUnits(corpus, loaded, null, 'chapter', {}, current)?.detachments).toEqual([
+    {
+      name: 'Gladius Task Force',
+      points: 1,
+      dispositions: ['Take and Hold'],
+      rules: ['Combat Doctrines'],
+      enhancements: [{ name: 'Artificer Armour', points: 10 }],
+      referenceId: 'detachment:codex:gladius-task-force',
+    },
+  ])
 })
 
 it("cites an allied unit's page under the faction that owns it, not another faction's copy", () => {
@@ -292,100 +314,114 @@ it.each([
   ).toBe(referenceId)
 })
 
-it('connects a primary mission to its terrain and deployment records', () => {
-  const catalogue = {
-    format: 'praetorium.canonical-catalogue.v1',
-    compilerVersion: 1,
+const missionCatalogue = {
+  format: 'praetorium.canonical-catalogue.v1',
+  compilerVersion: 1,
+  revisions: {},
+  datasheets: [],
+  detachments: [],
+  ruleDocuments: [],
+  issues: [],
+} as CanonicalCatalogue
+const missionDocuments = [
+  {
+    id: 'mission:pack:mission',
+    kind: 'mission' as const,
+    title: 'Mission',
+    faction: null,
+    url: '/missions/pack/matchups/one/two',
+    sections: [],
     revisions: {},
-    datasheets: [],
-    detachments: [],
-    ruleDocuments: [],
-    issues: [],
-  } as CanonicalCatalogue
-  const documents = [
-    {
-      id: 'mission:pack:mission',
-      kind: 'mission' as const,
-      title: 'Mission',
-      faction: null,
-      url: '/missions/pack/matchups/one/two',
-      sections: [],
-      revisions: {},
-      attribution: [],
-    },
-    {
-      id: 'terrain:layout',
-      kind: 'terrain' as const,
-      title: 'Layout',
-      faction: null,
-      url: '/missions/pack/matchups/one/two#terrain-layout',
-      sections: [],
-      revisions: {},
-      attribution: [],
-    },
-    {
-      id: 'deployment:deployment',
-      kind: 'deployment' as const,
-      title: 'Deployment',
-      faction: null,
-      url: '/missions/pack/matchups/one/two#deployment-deployment',
-      sections: [],
-      revisions: {},
-      attribution: [],
-    },
-  ]
-  const corpus: ReferenceCorpus = {
-    catalogue,
-    documents,
-    byId: new Map(documents.map((document) => [document.id, document])),
-    revision: 'snapshot',
-  }
-  const rules = {
-    attribution: 'Community data',
-    dispositions: new Map([
-      ['one', 'One'],
-      ['two', 'Two'],
-    ]),
-    dispositionDetails: [
-      { id: 'one', name: 'One', text: null },
-      { id: 'two', name: 'Two', text: null },
-    ],
-    missions: new Map([
-      [
-        'pack|one|two',
-        {
-          id: 'mission',
-          name: 'Mission',
-          roundCap: null,
-          gameCap: null,
-          secondaryRoundCap: null,
-          secondaryGameCap: null,
-          source: 'Pack',
-          packId: 'pack',
-          deploymentIds: [],
-        },
-      ],
-    ]),
-    primaries: [],
-    secondaries: [],
-    missionTwists: new Map(),
-    fixedSecondaryCaps: new Map(),
-    deployments: [{ id: 'deployment', name: 'Deployment', description: null, zones: [], attackerTerritory: null, objectives: [] }],
-    terrainLayouts: [
+    attribution: [],
+  },
+  {
+    id: 'terrain:layout',
+    kind: 'terrain' as const,
+    title: 'Layout',
+    faction: null,
+    url: '/missions/pack/matchups/one/two#terrain-layout',
+    sections: [],
+    revisions: {},
+    attribution: [],
+  },
+  {
+    id: 'deployment:deployment',
+    kind: 'deployment' as const,
+    title: 'Deployment',
+    faction: null,
+    url: '/missions/pack/matchups/one/two#deployment-deployment',
+    sections: [],
+    revisions: {},
+    attribution: [],
+  },
+]
+const missionCorpus: ReferenceCorpus = {
+  catalogue: missionCatalogue,
+  documents: missionDocuments,
+  byId: new Map(missionDocuments.map((document) => [document.id, document])),
+  revision: 'snapshot',
+}
+const missionRules = {
+  attribution: 'Community data',
+  dispositions: new Map([
+    ['one', 'One'],
+    ['two', 'Two'],
+  ]),
+  dispositionDetails: [
+    { id: 'one', name: 'One', text: null },
+    { id: 'two', name: 'Two', text: null },
+  ],
+  missions: new Map([
+    [
+      'pack|one|two',
       {
-        id: 'layout',
-        name: 'Layout',
-        description: null,
-        matchupId: 'two-vs-one',
-        variant: 1,
-        deploymentId: 'deployment',
-        pieces: [],
-        geometry: null,
+        id: 'mission',
+        name: 'Mission',
+        roundCap: null,
+        gameCap: null,
+        secondaryRoundCap: null,
+        secondaryGameCap: null,
+        source: 'Pack',
+        packId: 'pack',
+        deploymentIds: [],
       },
     ],
-  } as unknown as LoadedRules
+    [
+      'pack|two|one',
+      {
+        id: 'counter',
+        name: 'Counter',
+        roundCap: null,
+        gameCap: null,
+        secondaryRoundCap: null,
+        secondaryGameCap: null,
+        source: 'Pack',
+        packId: 'pack',
+        deploymentIds: [],
+      },
+    ],
+  ]),
+  primaries: [],
+  secondaries: [],
+  missionTwists: new Map(),
+  fixedSecondaryCaps: new Map(),
+  deployments: [{ id: 'deployment', name: 'Deployment', description: null, zones: [], attackerTerritory: null, objectives: [] }],
+  terrainLayouts: [
+    {
+      id: 'layout',
+      name: 'Layout',
+      description: null,
+      matchupId: 'two-vs-one',
+      variant: 1,
+      deploymentId: 'deployment',
+      pieces: [],
+      geometry: null,
+    },
+  ],
+} as unknown as LoadedRules
 
-  expect(referenceRecord(corpus, rules, 'mission:pack:mission')).toMatchObject({
+it('connects a primary mission to its terrain and deployment records', () => {
+  expect(referenceRecord(missionCorpus, missionRules, 'mission:pack:mission')).toMatchObject({
     data: {
       setups: [
         {
@@ -396,6 +432,27 @@ it('connects a primary mission to its terrain and deployment records', () => {
         },
       ],
     },
+  })
+})
+
+it('resolves a matchup by name to both sides’ missions and the terrain they play on', () => {
+  expect(missionMatchup(missionCorpus, missionRules, { pack: 'Pack', yourDisposition: 'one', opponentDisposition: 'Two' })).toMatchObject({
+    matchup: {
+      url: '/missions/pack/matchups/one/two',
+      you: { mission: { name: 'Mission', url: '/missions/pack/matchups/one/two#mission-mission' } },
+      opponent: { mission: { name: 'Counter', url: '/missions/pack/matchups/one/two#mission-counter' } },
+      terrain: [{ id: 'layout' }],
+      deployments: [{ id: 'deployment' }],
+    },
+  })
+})
+
+it.each([
+  ['o', 'o could be more than one force disposition: One (one), Two (two).'],
+  ['three', 'No force disposition is named three. Use one of: One (one), Two (two).'],
+])('refuses the disposition %s with the options it could mean', (value, error) => {
+  expect(missionMatchup(missionCorpus, missionRules, { pack: 'pack', yourDisposition: value, opponentDisposition: 'two' })).toEqual({
+    error,
   })
 })
 

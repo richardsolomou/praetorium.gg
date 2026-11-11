@@ -39,14 +39,16 @@ type Attack = { answer: CombatAnswer; refused: Record<'ranged' | 'melee', boolea
 
 const NO_CHOICES = { preferences: {}, excluded: { ranged: [], melee: [] }, allocation: [] }
 
-/** A projection with each rule read from its words where they are held; a rule left as a token is reported as not calculated. */
+/** Each rule read from its words where they are held; a rule left as a token is reported as not calculated. */
+export const readRules = (unread: readonly CombatRule[], words: RuleWords) =>
+  unread.flatMap((rule) => {
+    if (!hasTextTokens(rule.description)) return [rule]
+    const description = words(rule.description)
+    return description === null ? [rule] : (readCombatRule(rule, description) ?? [])
+  })
+
 export function withReadRules(projection: CombatProjection, words: RuleWords): CombatProjection {
-  const read = (unread: readonly CombatRule[]) =>
-    unread.flatMap((rule) => {
-      if (!hasTextTokens(rule.description)) return [rule]
-      const description = words(rule.description)
-      return description === null ? [rule] : (readCombatRule(rule, description) ?? [])
-    })
+  const read = (unread: readonly CombatRule[]) => readRules(unread, words)
   return {
     ...projection,
     rules: read(projection.rules),

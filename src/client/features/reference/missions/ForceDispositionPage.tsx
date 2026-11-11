@@ -7,8 +7,9 @@ import { dispositionTone } from '../../../components/rosterSetup'
 import { dispositionDetachmentsQuery, gameReferencesQuery } from '../../../queries'
 import { FactionMark } from '../../../components/FactionMark'
 import { PageContent, PageHeader } from '../../../components/Page'
-import { dispositionMatchups } from './dispositionMatchups'
+import { dispositionMatchups } from '../../../../shared/gameReferences'
 import { SectionHeading } from '../../../components/SectionHeading'
+import { DISPOSITION_PACK_SECTION } from '../../../../contracts/reference'
 
 export function ForceDispositionPage({ dispositionId }: { dispositionId: string }) {
   const { data } = useQuery(gameReferencesQuery())
@@ -24,7 +25,7 @@ export function ForceDispositionPage({ dispositionId }: { dispositionId: string 
       <PageContent className="space-y-8">
         <BackLink to="/missions">Missions</BackLink>
         {packs.map(({ pack, matchups }) => (
-          <section key={pack.id}>
+          <section key={pack.id} id={`${DISPOSITION_PACK_SECTION}${pack.id}`} className="scroll-mt-header">
             <SectionHeading
               title="Primary missions"
               detail={
@@ -53,7 +54,7 @@ export function ForceDispositionPage({ dispositionId }: { dispositionId: string 
           </section>
         ))}
 
-        <section>
+        <section id="detachments" className="scroll-mt-header">
           <SectionHeading title="Detachments" count={factions ? detachmentCount : undefined} />
           {!factions ? (
             <div aria-busy className="mt-3 grid gap-3 md:grid-cols-2">
