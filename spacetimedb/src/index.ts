@@ -334,6 +334,34 @@ function touchBattle(ctx: Context, battleId: string) {
   ctx.db.battleStarts.battleId.delete(battleId)
 }
 
+/** Files every battle whose log or seats changed since the last sync under the UTC day of its last activity. */
+function syncFeedOrder(ctx: Context) {
+  const revision = ctx.db.publicRevisions.scope.find('battles')?.revision ?? 0n
+  const state = ctx.db.battleFeedState.scope.find('public')
+  if (state?.revision === revision) return state
+  const changed = !state
+    ? Array.from(ctx.db.battles.iter(), (battle) => battle.id)
+    : revision - state.revision > BigInt(CHANGES_SCANNED_BY_REVISION)
+      ? Array.from(ctx.db.battleChanges.iter()).flatMap((row) => (row.revision > state.revision ? [row.battleId] : []))
+      : Array.from({ length: Number(revision - state.revision) }, (_, at) =>
+          Array.from(ctx.db.battleChanges.revision.filter(state.revision + 1n + BigInt(at)), (row) => row.battleId),
+        ).flat()
+  const synced = { scope: 'public', revision, firstDay: state?.firstDay ?? 0xffff_ffff, lastDay: state?.lastDay ?? 0 }
+  for (const battleId of changed) {
+    ctx.db.battleFeedOrder.battleId.delete(battleId)
+    const battle = ctx.db.battles.id.find(battleId)
+    if (!battle) continue
+    const at = lastActivity(ctx, battle)
+    const day = finishedDay(at)
+    synced.firstDay = Math.min(synced.firstDay, day)
+    synced.lastDay = Math.max(synced.lastDay, day)
+    ctx.db.battleFeedOrder.insert({ battleId, at, day })
+  }
+  if (state) ctx.db.battleFeedState.scope.update(synced)
+  else ctx.db.battleFeedState.insert(synced)
+  return synced
+}
+
 /** When a battle last had a command, read from its log only the first time after the log changed. */
 function lastActivity(ctx: Context, battle: { id: string; createdAt: bigint }) {
   const stored = ctx.db.battleActivity.battleId.find(battle.id)
@@ -1153,9 +1181,22 @@ export const battleFeed = spacetime.procedure({ payload: t.string() }, t.string(
             const battle = tx.db.battles.id.find(seat.battleId)
             if (battle) yield battle
           }
-      } else yield* tx.db.battles.iter()
+      } else {
+        const { firstDay, lastDay } = syncFeedOrder(tx)
+        const cursorDay = input.before ? finishedDay(BigInt(input.before.at)) : undefined
+        for (
+          let day = direction === 1 ? Math.min(cursorDay ?? lastDay, lastDay) : Math.max(cursorDay ?? firstDay, firstDay);
+          day >= firstDay && day <= lastDay;
+          day -= direction
+        ) {
+          const filed = Array.from(tx.db.battleFeedOrder.day.filter(day), (row) => ({ id: row.battleId, at: safeNumber(row.at) }))
+          yield* existing(filed.sort(inOrder).map((row) => row.id))
+        }
+      }
     }
     for (const battle of candidates()) {
+      // The public feed's candidates arrive in feed order, so the page is whole once it holds one more than it shows.
+      if (input.scope === 'public' && rows.length > input.limit) break
       const seats = Array.from(tx.db.battleUsers.battleId.filter(battle.id))
       const seatIds = new Set(seats.map((seat) => seat.userId))
       const hasPractice = seats.some((seat) => Boolean(tx.db.practiceOpponents.userId.find(seat.userId)))

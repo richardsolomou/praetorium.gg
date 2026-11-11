@@ -1805,6 +1805,71 @@ describe('public battle feed', () => {
       ctx.db.battleActivity.battleId.delete(battleId)
       ctx.db.battleStarts.battleId.delete(battleId)
     })
+  const play = ({ operator, procedure }: ReturnType<typeof harness>, battleId: string, at: number) =>
+    expect(
+      JSON.parse(
+        module.submitBattle(procedure(operator), {
+          battleId,
+          userId: `${battleId}-creator`,
+          expectedSeq: 0,
+          body: JSON.stringify({ kind: 'set-deployment', patternId: null }),
+          now: BigInt(at * 1_000),
+          externalRefusal: '',
+        }),
+      ),
+    ).toMatchObject({ result: { outcome: 'appended' } })
+  const page = (
+    { operator, procedure }: ReturnType<typeof harness>,
+    order: 'oldest' | undefined,
+    before: { at: number; id: string } | null = null,
+  ) =>
+    JSON.parse(
+      module.battleFeed(procedure(operator), {
+        payload: JSON.stringify({
+          scope: 'public',
+          userId: null,
+          viewerId: null,
+          withUserId: null,
+          hostToken: null,
+          eventToken: null,
+          since: null,
+          before,
+          order,
+          limit: 2,
+        }),
+      }),
+    ) as { battles: { battle: { token: string } }[]; nextCursor: { at: number; id: string } | null }
+  const DAY = 24 * HOUR
+  const playedAcrossDays = () => {
+    const host = harness()
+    create(host, 'first')
+    create(host, 'second', NOW + DAY + HOUR)
+    create(host, 'third', NOW + 2 * DAY)
+    create(host, 'fourth', NOW + 3 * DAY)
+    host.at(NOW + 3 * DAY)
+    feed(host.procedure, host.operator)
+    play(host, 'first', NOW + 4 * DAY)
+    return host
+  }
+  const pages = (host: ReturnType<typeof harness>, order?: 'oldest') => {
+    const first = page(host, order)
+    const second = page(host, order, first.nextCursor)
+    return [first, second].map((read) => read.battles.map((row) => row.battle.token))
+  }
+
+  it('pages battles newest first by their play since the last read', () => {
+    expect(pages(playedAcrossDays())).toEqual([
+      ['first', 'fourth'],
+      ['third', 'second'],
+    ])
+  })
+
+  it('pages battles oldest first by their play since the last read', () => {
+    expect(pages(playedAcrossDays(), 'oldest')).toEqual([
+      ['second', 'third'],
+      ['fourth', 'first'],
+    ])
+  })
 
   it('drops a battle left in setup for two days', () => {
     const host = harness()
