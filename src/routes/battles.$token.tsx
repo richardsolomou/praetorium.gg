@@ -31,7 +31,8 @@ export const Route = createFileRoute('/battles/$token')({
     const screen = await context.queryClient.query({ ...battleQuery(params.token), staleTime: 'static' })
     if (!screen) throw notFound()
     if (screen.kind === 'unavailable') return { preview: null }
-    const matchupIds = battleMatchupIds(screen.view)
+    // Only a seated player's setup and tracker draw terrain on arrival; a watched or finished battle reads it when its map opens.
+    const matchupIds = screen.kind === 'battle' && screen.view.status !== 'finished' ? battleMatchupIds(screen.view) : []
     // The battle decides which independent reads are needed; start them together once it is known.
     await Promise.all([
       ...instanceData,
