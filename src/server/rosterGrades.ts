@@ -1,6 +1,6 @@
 import type { PriceInput } from '../contracts/schemas'
 import { REFERENCE_ATTACKERS, gradedTargets, rosterGrades } from '../core/rosterGrades'
-import { measureRosterUnits, unitTotal, type GradeReferences, type ReferenceUnit } from '../shared/rosterGradeMeasures'
+import { measureRosterUnits, referenceTarget, unitTotal, type GradeReferences, type ReferenceUnit } from '../shared/rosterGradeMeasures'
 import { app } from './app'
 import { combatCalculationPool } from './combatCalculationPool'
 import { namedCombatant } from './combatTools'
@@ -11,10 +11,11 @@ import { memoUntilSnapshotChanges } from './snapshotMemo'
 const BATCH = 4
 
 // Reference units are shared reference data, never a reader's roster, so one build serves every request.
-const referenceUnit = (key: string, unit: { faction: string; unit: string; models?: number }) =>
+const referenceUnit = (key: string, unit: { faction: string; unit: string; models?: number; copies?: number }) =>
   memoUntilSnapshotChanges('roster-grade-reference', key, async (): Promise<ReferenceUnit | null> => {
     const snapshot = await namedCombatant(unit.faction, unit.unit, unit.models)
-    return snapshot && { snapshot, wounds: unitTotal(snapshot, 'wounds') }
+    if (!snapshot) return null
+    return unit.copies ? referenceTarget(snapshot, unit.copies) : { snapshot, wounds: unitTotal(snapshot, 'wounds') }
   })
 
 async function references(limit: number): Promise<GradeReferences> {
@@ -49,5 +50,8 @@ export async function calculateRosterGrades(data: PriceInput, signal: AbortSigna
       return answers
     },
   })
-  return rosterGrades(units, data.limit)
+  // An older rules version's catalogue is the same book behind a prefix.
+  const book =
+    loaded.index.catalogues.get(data.catalogueId) ?? loaded.index.catalogues.get(data.catalogueId.slice(data.catalogueId.indexOf('~') + 1))
+  return rosterGrades(units, data.limit, book?.name ?? '')
 }

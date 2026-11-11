@@ -43,8 +43,8 @@ export function RosterGradesDialog({
         <DialogHeader>
           <DialogTitle>Roster grades</DialogTitle>
           <DialogDescription>
-            What {name || 'this roster'} can do on the table, scored against lists that place at tournaments. Scores describe the list, not
-            your odds of winning.
+            What {name || 'this roster'} can do on the table, scored against tournament lists of the same faction and size. Scores describe
+            the list, not your odds of winning.
           </DialogDescription>
         </DialogHeader>
         <DialogBody className="gap-5">
@@ -128,7 +128,10 @@ function Scores({ grades }: { grades: RosterGrades }) {
       <div className="grid items-center gap-4 sm:grid-cols-[auto_1fr] sm:gap-6">
         <div className="grid justify-items-center gap-1.5">
           <Gauge score={grades.score} grade={grades.grade} large />
-          <span className="text-sm font-semibold text-bone">Overall</span>
+          <span className="grid justify-items-center text-center">
+            <span className="text-sm font-semibold text-bone">Overall</span>
+            <span className="text-xs text-dim">{grades.comparedWith ? `Among ${grades.comparedWith} lists` : 'Among all factions'}</span>
+          </span>
         </div>
         <ol aria-label="Categories" className="grid grid-cols-4 items-start gap-2">
           {grades.categories.map((category) => (
@@ -201,13 +204,13 @@ function Gaps({ grades }: { grades: RosterGrades }) {
         </h3>
         <p className="text-sm text-bone">
           Nothing in this list can take half the wounds of {new Intl.ListFormat('en-GB', { type: 'disjunction' }).format(grades.missing)} on
-          its own, something nearly every list that places at a tournament can do.
+          its own, something nearly every tournament list this size can do.
         </p>
       </section>
     )
   const damage = grades.categories.find((category) => category.key === 'damage')?.rows ?? []
   if (damage.every((row) => row.grade && !row.notCalculated?.length))
-    return <p className="text-sm text-achieved">No gaps: every reference target has a unit that can deal with it.</p>
+    return <p className="text-sm text-achieved">No gaps: this list has a unit for every target tournament lists this size can deal with.</p>
   return null
 }
 

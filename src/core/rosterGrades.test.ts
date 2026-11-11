@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { gradeOf, percentileOf, reachChance, rosterGrades, type GradedUnit } from './rosterGrades'
+import { gradeOf, percentileOf, reachChance, rosterGrades, scaled, type GradedUnit } from './rosterGrades'
 
 const unit = (overrides: Partial<GradedUnit> = {}): GradedUnit => ({
   name: 'Unit',
@@ -10,8 +10,8 @@ const unit = (overrides: Partial<GradedUnit> = {}): GradedUnit => ({
   infiltrators: false,
   scouts: 0,
   chargeBonus: 0,
-  removes: { horde: true, elite: true, vehicle: true, heavyVehicle: true, monster: true },
-  survives: true,
+  removes: { horde: 1, elite: 1, vehicle: 1, heavyVehicle: 1, monster: 1 },
+  volleyLoss: 0.2,
   ...overrides,
 })
 
@@ -53,47 +53,81 @@ describe('percentileOf', () => {
 })
 
 describe('gradeOf', () => {
-  it('splits A from B at the 75th percentile', () => {
-    expect([gradeOf(75), gradeOf(74)]).toEqual(['A', 'B'])
+  it('splits A from B at 85', () => {
+    expect([gradeOf(85), gradeOf(84)]).toEqual(['A', 'B'])
   })
 })
 
+describe('scaled', () => {
+  it('scores a typical tournament list 70', () => {
+    expect(scaled(50)).toBe(70)
+  })
+
+  it('interpolates between the curve points', () => {
+    expect(scaled(5)).toBe(20)
+  })
+})
+
+/** A faction without enough tournament lists of its own, so categories compare it with every list. */
+const grade = (units: GradedUnit[], limit: number) => rosterGrades(units, limit, 'no-such-faction')
+
+const categoryOf = (grades: ReturnType<typeof rosterGrades>, key: string) => grades.categories.find((category) => category.key === key)
+
 describe('rosterGrades', () => {
   it('leaves heavy armour out at King of the Colosseum', () => {
-    expect(rowOf(rosterGrades([unit()], 600), 'heavyVehicle')).toBeUndefined()
+    expect(rowOf(grade([unit()], 600), 'heavyVehicle')).toBeUndefined()
   })
 
   it('names a reference target nothing in the list can take half of alone', () => {
-    const grades = rosterGrades([unit({ removes: { horde: true, elite: true, vehicle: false, monster: true } })], 600)
+    const grades = grade([unit({ removes: { horde: 1, elite: 1, vehicle: 0.4, heavyVehicle: 1, monster: 1 } })], 2000)
     expect(grades.missing).toEqual(['a Rhino'])
   })
 
   it('grades nothing for a row the simulator could not calculate', () => {
-    const grades = rosterGrades([unit({ removes: { horde: true, elite: true, vehicle: null, monster: true } })], 600)
+    const grades = grade([unit({ removes: { horde: 1, elite: 1, vehicle: null, heavyVehicle: 1, monster: 1 } })], 2000)
     expect(rowOf(grades, 'vehicle')?.grade).toBeNull()
   })
 
   it('does not call an uncalculated row missing', () => {
-    expect(rosterGrades([unit({ removes: { horde: true, elite: true, vehicle: null, monster: true } })], 600).missing).toEqual([])
+    const grades = grade([unit({ removes: { horde: 1, elite: 1, vehicle: null, heavyVehicle: 1, monster: 1 } })], 2000)
+    expect(grades.missing).toEqual([])
   })
 
-  it('rates one vehicle killer a B at King of the Colosseum, where the opponent has at most one Toughness 9 unit', () => {
-    const grades = rosterGrades(
-      [unit(), ...Array.from({ length: 7 }, () => unit({ removes: { horde: true, elite: true, vehicle: false, monster: true } }))],
-      600,
+  it('credits at most two units that can remove a vehicle at King of the Colosseum, where the opponent has one Toughness 9 unit', () => {
+    const killers = (count: number) =>
+      Array.from({ length: count }, () => unit({ removes: { horde: 0, elite: 0, vehicle: 1, monster: 0 } }))
+    expect(rowOf(grade(killers(3), 600), 'vehicle')?.score).toBe(rowOf(grade(killers(2), 600), 'vehicle')?.score)
+  })
+
+  it('does not lower damage for a cheap unit that kills nothing', () => {
+    const killers = Array.from({ length: 6 }, () => unit({ points: 300 }))
+    const screen = unit({ points: 40, removes: { horde: 0, elite: 0, vehicle: 0, heavyVehicle: 0, monster: 0 }, volleyLoss: 1 })
+    expect(categoryOf(grade([...killers, screen], 2000), 'damage')?.score).toBe(categoryOf(grade(killers, 2000), 'damage')?.score)
+  })
+
+  it("places a list among its own army's tournament lists", () => {
+    expect(rosterGrades([unit()], 2000, 'Xenos - Necrons').comparedWith).toBe('Necrons')
+  })
+
+  it("places a chapter with too few tournament lists among its parent's", () => {
+    expect(rosterGrades([unit()], 2000, 'Imperium - Adeptus Astartes - Black Templars').comparedWith).toBe('Adeptus Astartes')
+  })
+
+  it('places an army with no tournament lists among every faction', () => {
+    expect(grade([unit()], 2000).comparedWith).toBeNull()
+  })
+
+  it('keeps the overall score within its categories', () => {
+    const grades = grade(
+      Array.from({ length: 10 }, () => unit({ points: 200 })),
+      2000,
     )
-    expect(rowOf(grades, 'vehicle')?.grade).toBe('B')
+    const scores = grades.categories.map((category) => category.score!)
+    expect(grades.score! >= Math.min(...scores) && grades.score! <= Math.max(...scores)).toBe(true)
   })
 
-  it('grades five units for five objectives a C', () => {
-    expect(
-      rowOf(
-        rosterGrades(
-          Array.from({ length: 5 }, () => unit()),
-          600,
-        ),
-        'presence',
-      )?.grade,
-    ).toBe('C')
+  it('compares a small list with lists of its own size', () => {
+    const units = Array.from({ length: 5 }, () => unit({ points: 120 }))
+    expect(rowOf(grade(units, 600), 'presence')!.score!).toBeGreaterThan(rowOf(grade(units, 2000), 'presence')!.score!)
   })
 })
