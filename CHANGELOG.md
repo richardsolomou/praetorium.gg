@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.232.4 (2026-11-11)
+
+### Patch Changes
+
+- 75fb5d7: Simulations you run from a roster, a battle or a roster comparison now appear in Recent simulations.
+- 75fb5d7: The simulator page no longer lists your battles in progress; simulate from the battle itself instead.
+
 ## 0.232.3 (2026-11-11)
 
 ### Patch Changes
