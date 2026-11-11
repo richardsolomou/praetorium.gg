@@ -259,7 +259,7 @@ export function CombatantCard({
       </div>
       {armyControl}
       {/* A saved roster's caption under the unit names it instead. */}
-      {combatant.roster && !combatant.rosterName ? (
+      {combatant.roster && !(rosters && combatant.rosterName && combatant.shared) ? (
         <div className="mb-3 flex h-8 min-w-0 items-center gap-2 text-sm text-dim" aria-label={`${side} faction`}>
           {selectedFaction ? <FactionLabel faction={selectedFaction} /> : 'Loading faction…'}
           <span className="ml-auto text-xs text-faint">{battleUnit ? 'Battle' : 'Roster'}</span>

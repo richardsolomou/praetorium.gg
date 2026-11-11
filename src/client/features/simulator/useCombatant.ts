@@ -323,7 +323,7 @@ export function useCombatant(roster?: CombatRoster, initial?: SimulatorSide | nu
         )
       })
     },
-    /** What a shared link needs to restore this standalone side. */
+    /** What a link needs to reopen this side in the standalone simulator: a saved roster's unit by position, anything else as a lone unit at full strength. */
     shared: shareable(
       roster,
       catalogueId,
@@ -405,7 +405,7 @@ function shareable(
   picks: readonly KeyedPick[],
   detachmentIds: readonly string[],
 ): SimulatorSide | null {
-  if ((roster && !roster.saved) || !catalogueId || !pick) return null
+  if (!catalogueId || !pick) return null
   const { key: _key, attachedTo: _attachedTo, note: _note, ...shared } = pick
   if (roster?.saved)
     return {

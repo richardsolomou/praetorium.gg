@@ -1,6 +1,6 @@
 ## From a roster
 
-Choose **Simulate combat** on a selected unit in the roster builder. The unit keeps its detachment, enhancements and attachments. Nothing you change there is saved to the list.
+Choose **Simulate combat** on a selected unit in the roster builder. The unit keeps its detachment, enhancements and attachments. Nothing you change there is saved to the list, but the pairing joins your **Recent simulations**, so you can reopen it from the simulator or home page.
 
 On someone else's roster, it opens the main simulator with their unit defending, so you can attack it with one of your own.
 
@@ -8,9 +8,9 @@ On someone else's roster, it opens the main simulator with their unit defending,
 
 Choose **Simulate** on a player's army, or on one of its units to start with that unit. Each unit comes in with its current models and wounds, and a single model's **Damaged** rule switches on when its wounds are in range. Destroyed, reserve and embarked units can't be picked.
 
-In the [Combat simulator](/simulator), your battles in progress are listed at the top, so you can open one from there.
-
 To try a different state, change the model count or **Wounded model · wounds left**. If losses could have come from different models, **Survivors** lets you choose who's left.
+
+The pairing joins your **Recent simulations** too, but it reopens at full strength.
 
 ## From a tournament
 

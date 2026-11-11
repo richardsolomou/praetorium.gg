@@ -444,8 +444,13 @@ it('shares a revealed sealed event list’s unit by event, entrant and position'
   })
 })
 
-it('shares nothing for a roster that was never saved', () => {
-  expect(renderBattle({ ...savedRoster(1), saved: undefined }).shared).toBeNull()
+it('shares an unsaved roster’s unit on its own, so a battle check can be reopened', () => {
+  expect(renderBattle({ ...savedRoster(0), saved: undefined }).shared).toEqual({
+    catalogueId: 'cat',
+    pick: { entryId: 'squad' },
+    rules: {},
+    detachmentIds: ['detachment'],
+  })
 })
 
 it('restores rule choices to the saved roster unit the link names', () => {

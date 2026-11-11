@@ -6,7 +6,8 @@ import { CombatSimulatorMatchup } from './CombatSimulator'
 import type { Combatant } from './useCombatant'
 
 const hooks = vi.hoisted(() => ({ cursor: 0, side: 0, slots: [] as unknown[], combatants: [] as Combatant[], initial: vi.fn() }))
-const rememberMatchup = vi.fn()
+const rememberMatchup = vi.hoisted(() => vi.fn())
+vi.mock('./matchupHistory', () => ({ useMatchupHistory: () => ({ remember: rememberMatchup }) }))
 vi.mock('../onboarding/onboarding', async (original) => ({
   ...(await original<typeof import('../onboarding/onboarding')>()),
   advanceOnboarding: vi.fn(),
@@ -42,7 +43,7 @@ vi.mock('./useCombatant', () => ({
 function render(initial?: SimulatorState, source: 'standalone' | 'roster' | 'battle' = 'standalone') {
   hooks.cursor = 0
   hooks.side = 0
-  const element = CombatSimulatorMatchup({ initial, source, onRemember: rememberMatchup })
+  const element = CombatSimulatorMatchup({ initial, source })
   return element.props as ComponentProps<typeof CombatMatchup>
 }
 function swap(props: ComponentProps<typeof CombatMatchup>) {
