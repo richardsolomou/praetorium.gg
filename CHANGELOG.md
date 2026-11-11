@@ -1,5 +1,17 @@
 # praetorium
 
+## 0.231.4 (2026-11-11)
+
+### Patch Changes
+
+- 62a5b15: Assistants comparing units can give a character an enhancement from its detachment, such as a Feel No Pain.
+- 62a5b15: Assistants comparing units can name nearby units, such as a character, so their auras can apply to a unit they are not leading.
+- 62a5b15: Assistants comparing units now fight with the stronger of a model's melee weapons or weapon profiles against the defender, instead of the first one listed.
+- 62a5b15: Roster grades now count a unit's stronger weapon choice, so a Skorpekh Lord is graded with its hyperphase harvester rather than its flensing claw.
+- 62a5b15: Searching an army's units from an assistant now finds a unit whose name is misspelt.
+- 62a5b15: Comparing two rosters now scores each pairing with the weapon choice that does most against that target.
+- 62a5b15: The simulator now starts a model on the weapon or weapon mode that does most against the defender, instead of the first one listed.
+
 ## 0.231.3 (2026-11-11)
 
 ### Patch Changes
