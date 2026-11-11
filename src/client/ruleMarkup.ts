@@ -21,6 +21,9 @@ const READABLE_TAGS = new Set(['b', 'i', 'u', 'k', 'ul', 'li', 'table', 'tbody',
 const TAG = /<(\/?)([a-z]+)>/g
 const QUOTED_RULE = /\((\d{2}(?:\.\d{2})+)\)/g
 
+/** Every rule number a text quotes, once each, in the order it quotes them. */
+export const quotedRuleCodes = (text: string) => [...new Set(Array.from(text.matchAll(QUOTED_RULE), (match) => match[1]!))]
+
 export function parseRuleMarkup(markup: string): RuleMarkupBlock[] {
   return blocksOf(treeOf(markup))
 }

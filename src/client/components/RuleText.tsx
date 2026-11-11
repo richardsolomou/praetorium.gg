@@ -5,6 +5,7 @@ import { Separator } from '@/components/ui/separator'
 import { cn } from '@/lib/utils'
 import type { RuleLinks } from '../ruleLinks'
 import { Keyword, type KeywordRule } from './Keyword'
+import { CitedRules } from './CitedRules'
 import { RuleMarkup } from './RuleMarkup'
 import { SourceTextPrompt } from './SourceTextPrompt'
 import { useSourceText } from '../sourceText'
@@ -99,30 +100,33 @@ export function RuleText({
   rules = noRules,
   className,
   authored = false,
+  cite = false,
 }: {
   text: string
   rules?: KeywordRule[]
   className?: string
   authored?: boolean
+  /** Also write out the core rules the text quotes by number. */
+  cite?: boolean
 }) {
   const choice = useTextSourceChoice()
-  if (hasTextTokens(text)) return <SourcedRuleText text={text} rules={rules} className={className} />
+  if (hasTextTokens(text)) return <SourcedRuleText text={text} rules={rules} className={className} cite={cite} />
   // BSData's words reach this device to compute from, and show only where the reader chose to load BSData text.
   if (!authored && !choice.sources.has('bsdata'))
     return <SourceTextPrompt missing="unchosen" source="bsdata" className={cn('mt-2', className)} />
-  return <RuleTextBody text={text} rules={rules} className={className} />
+  return <RuleTextBody text={text} rules={rules} className={className} cite={cite} />
 }
 
 /** Published text names its source rather than stating it, so it is read from that source before it is drawn. */
-function SourcedRuleText({ text, rules, className }: { text: string; rules: KeywordRule[]; className?: string }) {
+function SourcedRuleText({ text, rules, className, cite }: { text: string; rules: KeywordRule[]; className?: string; cite: boolean }) {
   const source = useSourceText(text)
   // Labels with nothing loaded beneath them say nothing, so a card waiting on its text shows only why.
   if (source.missing && source.missing !== 'unavailable')
     return <SourceTextPrompt missing={source.missing} source={source.needs} className={cn('mt-2', className)} />
-  return <RuleTextBody text={source.text} rules={rules} className={className} />
+  return <RuleTextBody text={source.text} rules={rules} className={className} cite={cite} />
 }
 
-function RuleTextBody({ text, rules, className }: { text: string; rules: KeywordRule[]; className?: string }) {
+function RuleTextBody({ text, rules, className, cite }: { text: string; rules: KeywordRule[]; className?: string; cite: boolean }) {
   const segments = useMemo(() => ruleSegments(text), [text])
   return (
     <Rules value={rules}>
@@ -136,6 +140,7 @@ function RuleTextBody({ text, rules, className }: { text: string; rules: Keyword
             </Markdown>
           )
         })}
+        {cite ? <CitedRules text={text} /> : null}
       </div>
     </Rules>
   )
