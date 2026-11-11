@@ -20,14 +20,7 @@ import {
   resolve,
 } from './catalogue'
 import { isCollectiveGroup } from './collective'
-import {
-  type EvaluateOptions,
-  flattenedModifiers,
-  type ModifierCache,
-  selectionCountBounds,
-  selectionCountBoundsAt,
-  type Selection,
-} from './evaluate'
+import { type EvaluateOptions, flattenedModifiers, selectionCountBounds, selectionCountBoundsAt, type Selection } from './evaluate'
 
 /**
  * How many catalogue containers deep a walk goes before it stops.
@@ -133,24 +126,24 @@ export function requiredCount(definition: Definition, index: CatalogueIndex, opt
   return minimums.length ? Math.max(...minimums) : 0
 }
 
-export function hasMutableMinimum(definition: Definition, index: CatalogueIndex, cache?: ModifierCache): boolean {
+export function hasMutableMinimum(definition: Definition, index: CatalogueIndex): boolean {
   const minimums = new Set(
     constraintsOn(definition, index)
       .filter(isSelectionMinimum)
       .map((constraint) => constraint.id),
   )
-  return flattenedModifiers(definitionAndTarget(definition, index), cache).some(
+  return flattenedModifiers(definitionAndTarget(definition, index)).some(
     (modifier) => minimums.has(modifier.field) && ['set', 'increment', 'decrement'].includes(modifier.type),
   )
 }
 
-export function hasDynamicSelectionLimit(definition: Definition, index: CatalogueIndex, cache?: ModifierCache): boolean {
+export function hasDynamicSelectionLimit(definition: Definition, index: CatalogueIndex): boolean {
   const maximums = new Set(
     constraintsOn(definition, index)
       .filter((constraint) => constraint.type === 'max' && constraint.field === 'selections')
       .map((constraint) => constraint.id),
   )
-  return flattenedModifiers(definitionAndTarget(definition, index), cache).some(
+  return flattenedModifiers(definitionAndTarget(definition, index)).some(
     (modifier) => modifier.field === 'error' || (maximums.has(modifier.field) && ['set', 'increment', 'decrement'].includes(modifier.type)),
   )
 }
@@ -160,7 +153,7 @@ export function hasDynamicSelectionLimit(definition: Definition, index: Catalogu
  * simulacrum imperialis lowers the hand-flamer Sanctifiers': it takes one of their
  * places rather than adding a body.
  */
-export function replacesSquadmate(definition: Definition, squadmates: readonly Option[], index: CatalogueIndex, cache?: ModifierCache) {
+export function replacesSquadmate(definition: Definition, squadmates: readonly Option[], index: CatalogueIndex) {
   const ids = new Set([definition.id, resolve(definition, index).id])
   const counted = (childId: string | undefined) => childId !== undefined && ids.has(childId)
   return squadmates.some((squadmate) => {
@@ -170,7 +163,7 @@ export function replacesSquadmate(definition: Definition, squadmates: readonly O
         .filter((constraint) => constraint.field === 'selections')
         .map((constraint) => constraint.id),
     )
-    return flattenedModifiers(definitionAndTarget(squadmate.definition, index), cache).some(
+    return flattenedModifiers(definitionAndTarget(squadmate.definition, index)).some(
       (modifier) =>
         modifier.type === 'decrement' &&
         limits.has(modifier.field) &&
