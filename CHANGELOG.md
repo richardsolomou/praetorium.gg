@@ -1,5 +1,15 @@
 # praetorium
 
+## 0.231.9 (2026-11-11)
+
+### Patch Changes
+
+- 644b2b0: Drawing Beacon now asks which unit is your beacon.
+- 644b2b0: A Beacon card whose unit was destroyed now says so and is pre-selected for discard at the end of your turn.
+- 0c0fd90: Triangulation, Gather Intel, Vital Link and Death Trap now ask where you placed operation markers at the end of your turn and keep them on the card.
+- 0c0fd90: Surveil the Foe now asks which opposing operation markers you removed, and Sensor Sweep can remove a marker from any mission, not only Locate and Deny.
+- 0c0fd90: Smoke and Mirrors now asks which objectives you decoyed at the end of your turn and keeps them on the card for the rest of the battle.
+
 ## 0.231.8 (2026-11-11)
 
 ### Patch Changes
