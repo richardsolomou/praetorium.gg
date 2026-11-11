@@ -30,6 +30,7 @@ import { capitalised } from '../../../../core/text'
 const SIDE_SWITCH_WIDTH = '(max-width: 767px)'
 const SideFocus = createContext<{ side: number; show: (side: number) => void } | null>(null)
 export const SideFocusProvider = SideFocus.Provider
+export const useSideFocus = () => useContext(SideFocus)
 
 /** The phone's side switch, or nothing where both sides show at once. */
 function useSideSwitch(sides: Side[]) {

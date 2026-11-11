@@ -66,6 +66,11 @@ type Props = {
  * A player only ever changes their own list, but everyone sees every list as soon as
  * it is attached — that is what makes the step worth doing together.
  */
+/** Whether this reader picks the list for an army: their own, or a practice opponent's, outside a sealed event. */
+export function canChooseFor(view: BattleView, army: Army) {
+  return !view.sealedEventToken && (army.isViewer || (army.automated && !isGuestSeat(view.viewerId)))
+}
+
 export function ArmiesStep({ view, sides, send, attachRoster, pending, problem }: Props) {
   /** The army the chooser is picking for, your own or a practice opponent's, by player id. */
   const [choosingId, choose, closeChooser] = useHistoryDialog('choose-roster')
@@ -150,13 +155,13 @@ export function ArmiesStep({ view, sides, send, attachRoster, pending, problem }
                   </div>
                   {view.sealedEventToken ? (
                     <span className="chip shrink-0 self-start text-achieved sm:self-auto">Sealed roster</span>
-                  ) : army.isViewer || (army.automated && !guest) ? (
+                  ) : canChooseFor(view, army) ? (
                     <div className="flex shrink-0 flex-wrap items-center gap-1">
                       {isGuestSeat(army.playerId) && !guest ? (
                         <GuestInvite token={view.token} playerId={army.playerId} name={army.playerName} joined={false} />
                       ) : null}
                       <Button
-                        variant="outline"
+                        variant={army.roster ? 'outline' : 'default'}
                         size="sm"
                         aria-label={`${army.roster ? 'Change' : 'Choose'} roster for ${army.playerName}`}
                         onClick={() => choose(army.playerId)}
