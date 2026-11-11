@@ -1,7 +1,15 @@
 import { cachedIn, remember } from '../core/collections'
 import { type CatalogueIndex, type Definition, nameOf, targetOf } from '../core/catalogue'
 import { formatDatasheetLimit, isKotcLimit, kotcDatasheetRepeatable, kotcUnitExclusions } from '../core/battle'
-import { battleSizeSelection, hiddenByRules, keywordNames, keywordsBySelection, rosterLimit, type Selection, rosterAllowance, } from '../core/evaluate'
+import {
+  battleSizeSelection,
+  hiddenByRules,
+  keywordNames,
+  keywordsBySelection,
+  rosterLimit,
+  type Selection,
+  rosterAllowance,
+} from '../core/evaluate'
 import { defaultSelection } from '../core/expand'
 import { isNonMatchedPlayName, nonMatchedPlayKind } from '../core/name'
 import type { UnitGroup } from '../core/unitGroups'
