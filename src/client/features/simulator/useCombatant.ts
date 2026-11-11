@@ -15,7 +15,7 @@ import { useStableValue } from '../../useStableValue'
 import { survivingUnits } from '../rosters/builder/pricePlaceholder'
 import type { KeyedPick } from '../rosters/rosterPicks'
 import { pickEditor, usePicks } from '../rosters/builder/usePicks'
-import { attachedHost, attachedUnit, withoutUnit } from '../../../core/attachedUnits'
+import { attachedHost, attachedUnit, attachmentHost, withoutUnit } from '../../../core/attachedUnits'
 import { restoreWeaponPreferences, storeWeaponPreferences, type PreferenceMember, type StoredWeaponPreferences } from './combatPreferences'
 
 export type CombatRoster = {
@@ -44,7 +44,7 @@ export function useCombatant(roster?: CombatRoster, initial?: SimulatorSide | nu
   const [catalogueId, setCatalogueId] = useState(roster?.catalogueId ?? initial?.catalogueId ?? '')
   const [selectedIndex, selectRosterUnit] = useState(roster?.pickIndex ?? 0)
   // A unit destroyed while the battle simulator is open hands the side back to the battle's choice.
-  const pickIndex = roster?.battle?.units[selectedIndex]?.available === false ? roster.pickIndex : selectedIndex
+  const chosenIndex = roster?.battle?.units[selectedIndex]?.available === false ? roster.pickIndex : selectedIndex
   // Picks are keyed by position when seeded, so restored rule choices belong to the restored pick's identity.
   const [selectedRules, setSelectedRules] = useState<Record<string, Record<string, number>>>(() =>
     initial
@@ -59,6 +59,8 @@ export function useCombatant(roster?: CombatRoster, initial?: SimulatorSide | nu
     roster?.picks ??
       (initial ? [initial.pick, ...(initial.attached ?? []).map((pick) => ({ ...pick, attachedTo: pick.attachedTo ?? 0 }))] : []),
   )
+  // An attached unit is fielded from its bodyguard, so a leader's own roster entry opens the whole unit the same way.
+  const pickIndex = attachmentHost(picks.positioned, chosenIndex)
   const battlePicks = useStableValue(roster?.battle ? roster.picks : null)
   const { resetPicks } = picks
   useEffect(() => {

@@ -101,7 +101,7 @@ export function SearchableSelect({
       disabled={disabled}
       items={virtualized ? options : groups}
       virtualized={virtualized}
-      filter={virtualized ? matchesGroupedOption : undefined}
+      filter={virtualized ? matchesGroupedOption : matchesOption}
       value={selected}
       onValueChange={(option) => {
         if (option) onValueChange(option.value)
@@ -187,6 +187,8 @@ function centreSelected(container: HTMLElement | null) {
   container.scrollTop += offset - (container.clientHeight - item.offsetHeight) / 2
 }
 
+/** A row's detail can name what it holds, such as a unit's leaders, so search reads it too. */
+const matchesOption = (option: SearchableOption, query: string) => matchesSearch(`${option.label} ${option.detail ?? ''}`, query)
 /** Every search word must appear in the option or its group, so a faction name narrows a long flat list. */
 const matchesGroupedOption = (option: GroupedOption, query: string) => matchesSearch(`${option.label} ${option.group}`, query)
 
