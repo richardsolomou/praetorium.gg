@@ -4,6 +4,7 @@ export { terrainMatchupIds } from '../../contracts/terrainReference'
 import { loadSearch, offlineSearch } from '../offline/runtime'
 import { queryOptions, type QueryClient } from '@tanstack/react-query'
 import { referenceFactionId } from '../../core/factionReferenceRoute'
+import { factionFor } from '../factions'
 import { SEARCH_MIN_LENGTH } from '../../core/referenceSearch'
 import {
   datasheetBySlug,
@@ -23,10 +24,23 @@ import {
   terrainReferences,
 } from '../functions'
 import { referenceQuery, referenceStaleTime, SSR_STALE_TIME } from './shared'
-import { factionIndexKey, factionKey, favouriteDatasheetsKey, favouriteDetachmentsKey, favouriteFactionsKey } from './queryKeys'
+import {
+  factionIndexKey,
+  factionKey,
+  factionKeys,
+  favouriteDatasheetsKey,
+  favouriteDetachmentsKey,
+  favouriteFactionsKey,
+} from './queryKeys'
 
 export const factionQuery = (catalogueId: string) => referenceQuery(factionKey(catalogueId), () => faction({ data: { catalogueId } }))
 export const factionIndexQuery = () => referenceQuery(factionIndexKey(), () => factionIndex())
+
+/** A faction this client already read, by id or route slug, whichever key it was read under. */
+export function cachedFaction(client: QueryClient, catalogueId: string) {
+  const factions = client.getQueriesData<Awaited<ReturnType<typeof faction>>>({ queryKey: factionKeys() }).flatMap(([, data]) => data ?? [])
+  return factionFor({ factions }, catalogueId)
+}
 
 export async function loadReferenceFaction(client: QueryClient, catalogueId: string, rules?: string) {
   const index = await client.query({ ...factionIndexQuery(), staleTime: 'static' })
