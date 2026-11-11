@@ -181,7 +181,7 @@ export async function measureRosterUnits({
     ...targets.map((target) => [host.snapshot, target.snapshot] as const),
     ...references.attackers.map((attacker) => [attacker.snapshot, host.snapshot] as const),
   ])
-  const matchups = []
+  const matchups: ReturnType<typeof combatMatchup>[] = []
   for (const [attacker, defender] of pairs) {
     const preferences = await strongestWeaponPreferences(attacker, defender, NO_CHOICES, {}, calculate)
     matchups.push(combatMatchup(attacker, defender, { ...NO_CHOICES, preferences }))
