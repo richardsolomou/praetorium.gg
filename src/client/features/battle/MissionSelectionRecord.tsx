@@ -1,5 +1,7 @@
 import type { MissionSelectionView } from '../../../core/battleView'
+import { isMarkerPlacement } from '../../../core/missionSelections'
 import { countLabel } from '../../text'
+import { MARKER_PLACEMENT_COPY } from './markerPlacementCopy'
 
 function RecordedUnit({ unit }: { unit: MissionSelectionView['units'][number] | undefined }) {
   return (
@@ -30,6 +32,10 @@ export function MissionSelectionRecords({ records, cardKey }: { records: Mission
               {record.selection.kind === 'consecrate' ? (
                 <span>{countLabel(record.selection.consecrations.length, 'consecrated objective')}</span>
               ) : null}
+              {isMarkerPlacement(record.selection.kind) && 'targets' in record.selection ? (
+                <span>{countLabel(record.selection.targets.length, MARKER_PLACEMENT_COPY[record.selection.kind].counted)}</span>
+              ) : null}
+              {record.selection.kind === 'surveil' ? <span>{countLabel(record.selection.markers.length, 'removed marker')}</span> : null}
               {record.selection.kind === 'guards' ? <span>{countLabel(record.selection.guards.length, 'guard nomination')}</span> : null}
               {record.selection.kind === 'punishment' ? (
                 <span>
@@ -61,8 +67,11 @@ export function MissionSelectionRecords({ records, cardKey }: { records: Mission
               <p>{record.selection.objective.name}</p>
             ) : record.selection.kind === 'sensor-sweep' ? (
               <p>Removed {record.selection.marker.name}</p>
-            ) : record.selection.kind === 'locate-and-deny' ? (
-              record.selection.areas.map((area) => (
+            ) : record.selection.kind === 'surveil' ? (
+              record.selection.markers.map((marker) => <p key={`${marker.seq}:${marker.key}`}>Removed {marker.name}</p>)
+            ) : record.selection.kind === 'locate-and-deny' ||
+              (isMarkerPlacement(record.selection.kind) && 'targets' in record.selection) ? (
+              ('areas' in record.selection ? record.selection.areas : record.selection.targets).map((area) => (
                 <p key={area.key}>
                   {area.name}
                   {record.removedMarkers?.[area.key] ? (

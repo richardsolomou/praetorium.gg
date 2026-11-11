@@ -67,7 +67,10 @@ export function DiscardSecondaryDialog({
                     chosen ? 'border-parchment bg-parchment/10 text-parchment' : 'border-edge bg-card text-bone hover:border-dim'
                   }`}
                 >
-                  {card.name}
+                  <span>
+                    {card.name}
+                    {card.beaconLost ? <span className="block text-2xs font-normal text-discarded">Beacon unit destroyed</span> : null}
+                  </span>
                   {chosen ? <Check className="size-3.5 shrink-0" aria-hidden /> : null}
                 </button>
               )

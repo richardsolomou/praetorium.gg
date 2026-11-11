@@ -36,7 +36,8 @@ import {
 import { battleUnitCounts } from './attachedUnits'
 import { withoutUnitNotes } from './unitNotes'
 import {
-  consecratedObjectives,
+  markedObjectives,
+  beaconLost,
   openMissionSelections,
   missionUnitCandidates,
   remainingOperationMarkers,
@@ -56,7 +57,8 @@ export type MissionChoiceView = MissionSelectionPrompt & {
   canChoose: boolean
   units: SavedMissionUnit[]
   markers?: OperationMarker[]
-  consecrated?: MissionObjectiveRef[]
+  /** Objectives this card already marked, which cannot be chosen again. */
+  marked?: MissionObjectiveRef[]
 }
 
 /**
@@ -162,6 +164,7 @@ export type BattleView = {
       status: SecondaryStatus
       secret: boolean
       revealed: boolean
+      beaconLost?: true
     }[]
     primaryCard: Secondary | null
     missionSelections?: MissionSelectionView[]
@@ -258,7 +261,10 @@ export function battleView(
                   prompt.kind !== 'beacon',
                 ),
                 ...(prompt.kind === 'sensor-sweep' ? { markers: remainingOperationMarkers(state) } : {}),
-                ...(prompt.kind === 'consecrate' ? { consecrated: consecratedObjectives(player, prompt.cardKey) } : {}),
+                ...(prompt.kind === 'surveil'
+                  ? { markers: remainingOperationMarkers(state).filter((marker) => marker.playerId !== player.id) }
+                  : {}),
+                marked: markedObjectives(player, prompt.cardKey, prompt.kind),
               })),
           ),
     players: state.players.map((player) => {
@@ -344,6 +350,7 @@ export function battleView(
             status: resources.secondaryStatus[secondary.key] ?? 'active',
             secret: resources.secretSecondary === secondary.key,
             revealed: resources.secretSecondary !== secondary.key || resources.secretRevealed,
+            ...(nameable && beaconLost(resources, secondary.key) ? { beaconLost: true as const } : {}),
           }
         }),
       }

@@ -46,7 +46,7 @@ import { ReminderDialog } from './ReminderDialog'
 import type { WhenDrawn } from '../../../contracts/missions'
 import { DrawDialog, type DrawSelection } from './DrawDialog'
 import { MissionSelectionDialog } from './MissionSelectionDialog'
-import { isManualSelection } from '../../../core/missionSelections'
+import { isOptionalSelection } from '../../../core/missionSelections'
 import { DiscardSecondaryDialog } from './DiscardSecondaryDialog'
 import type { ReferenceCard, StratagemText } from './MissionCards'
 import { Scoreboard } from './Scoreboard'
@@ -330,9 +330,15 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
   const needsDrawAcknowledgement =
     active?.secondaryMode === 'tactical' && view.phase === 'command' && active.secondariesToReview.length > 0 && !view.drawAcknowledged
   const choiceKey = (choice: MissionChoiceView) => JSON.stringify([choice.playerId, choice.cardKey, choice.occurrence, choice.kind])
-  // Offered once as its moment arrives; a skipped choice stays on its card until the moment passes.
+  const recordedChoice = (choice: MissionChoiceView) =>
+    view.players
+      .find((player) => player.id === choice.playerId)
+      ?.missionSelections?.some(
+        (saved) => saved.cardKey === choice.cardKey && saved.occurrence === choice.occurrence && saved.selection.kind === choice.kind,
+      )
+  // Offered once as its moment arrives; a skipped or recorded choice stays on its card, where a Beacon can be moved.
   const missionChoice = view.missionChoices?.find(
-    (choice) => !isManualSelection(choice.kind) && choice.canChoose && !skippedChoices.has(choiceKey(choice)),
+    (choice) => !isOptionalSelection(choice.kind) && !recordedChoice(choice) && choice.canChoose && !skippedChoices.has(choiceKey(choice)),
   )
   const missedMoments = view.missedMoments ?? []
   const recordMissedStratagem = useCallback(
@@ -787,7 +793,9 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
           <DiscardSecondaryDialog
             side={active}
             keys={discardable}
-            initialSelection={discardDrafts.get(turnDraftKey)}
+            initialSelection={
+              discardDrafts.get(turnDraftKey) ?? active.secondaries.filter((card) => card.beaconLost).map((card) => card.key)
+            }
             onSelectionChange={(selected) => setDiscardDrafts((current) => new Map(current).set(turnDraftKey, selected))}
             pending={pending}
             send={send}

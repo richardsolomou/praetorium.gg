@@ -37,6 +37,30 @@ const selections: Record<string, { kind: MissionSelectionKind; wording: string }
     kind: 'consecrate',
     wording: 'a1cf40d3c6559cd4cc10559e7ca4d124999f334e82a24f6c2364abb594cf70f5',
   },
+  '948cdd1b-8e33-4ff9-9feb-7d983ec211e5': {
+    kind: 'decoy',
+    wording: 'd939851fdb19eaee861288e58949e0ec1a2399e6761107023b69796165555de6',
+  },
+  '12d85492-6018-4fd7-b04d-78ca19159a61': {
+    kind: 'triangulate',
+    wording: 'f60315083ed9318871ba287f33dfd505535602d134665301a1eac9b90d17a9fb',
+  },
+  '662be231-e658-4007-9e78-406749ebc71a': {
+    kind: 'extract-intel',
+    wording: 'bea1da99b850541a08b14c117aaafcac9095c0dbf864f0c665bdd005bca9b7db',
+  },
+  'c0bad90e-a96c-4f99-8760-35360f049e13': {
+    kind: 'maintain-control',
+    wording: '0257927320bb2218e635f3427df7fa2c707156e717485a3f0bfd4ecaef9a82f0',
+  },
+  'eecd8d9e-73a3-4316-ac51-ed2e424d36a5': {
+    kind: 'booby-trap',
+    wording: '1f055ef86922d0710b9a808bd6cbcb0e96e7d000e671bf2bd19d7d38c5f21939',
+  },
+  '7d8df9d0-2483-4ba3-bc6c-0c08f62f211c': {
+    kind: 'surveil',
+    wording: '9dcdef14e3dd330e9c5c81a6a6b6f2f046fb51485c5099b4ae1ba84482de4bd5',
+  },
 }
 
 const actionFields = ['name', 'startsText', 'completesText', 'effectText', 'unitsText', 'useLimitText', 'restrictionText'] as const

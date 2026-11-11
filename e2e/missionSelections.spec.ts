@@ -16,6 +16,7 @@ import {
   expectNoPageOverflow,
   practiceBattle,
   chooseOption,
+  confirmScoring,
   playerPanel,
 } from './account'
 import { expectWorkSynced } from './storage'
@@ -191,7 +192,7 @@ test('a skipped choice leaves the turn free and stays on its card until recorded
   await expect(side.getByRole('button', { name: 'Record guards', exact: true })).toHaveCount(0)
 })
 
-test('manual Beacon nomination persists and a destroyed Beacon cannot be replaced', async ({ page }) => {
+test('Beacon asks for its unit when drawn, and a destroyed Beacon is locked and offered for discard', async ({ page }) => {
   await signUp(page, uniqueName('Beacon captain'))
   const roster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Beacon nomination roster' })
   await addUnit(page, 'Immortals')
@@ -199,16 +200,16 @@ test('manual Beacon nomination persists and a destroyed Beacon cannot be replace
   await startBattle(page, undefined, false)
   await draw(page, ['Beacon', 'Cleanse'])
   const side = playerPanel(page, 0)
-  await expect(advanceButton(page)).toBeEnabled()
-  await side.getByRole('button', { name: 'Record Beacon', exact: true }).click()
   const nomination = page.getByRole('dialog', { name: 'Beacon · choices', exact: true })
-  await expect(nomination).toContainText('Optional.')
+  await expect(nomination).toBeVisible()
   await chooseOption(page, 'Beacon unit', / · Immortals$/)
   await nomination.getByLabel('Beacon table note').fill('Chosen at the table during the card’s timing.')
   await nomination.getByRole('button', { name: 'Record choice', exact: true }).click()
   await expect(nomination).toBeHidden()
+  await expect(advanceButton(page)).toBeEnabled()
   await expectWorkSynced(page)
   await page.reload()
+  await expect(nomination).toBeHidden()
   await side
     .locator('summary')
     .filter({ hasText: /^Choices$/ })
@@ -222,11 +223,20 @@ test('manual Beacon nomination persists and a destroyed Beacon cannot be replace
   await army.getByRole('button', { name: 'Close', exact: true }).click()
   await expect(side.getByRole('button', { name: 'Record Beacon', exact: true })).toHaveCount(0)
   await expect(beacon.getByText('Immortals (destroyed)', { exact: true })).toBeVisible()
+  await expect(beacon.getByText('Beacon unit destroyed. Discard this card at the end of your turn.', { exact: true })).toBeVisible()
   await inspectChoices(page, beacon, 'Beacon')
   await expectWorkSynced(page)
   await page.reload()
   await expect(side.getByRole('button', { name: 'Record Beacon', exact: true })).toHaveCount(0)
   await expect(side.locator('[data-stat="secondary"]')).toHaveText('0')
+  for (let phase = 0; phase < 5; phase++) await advance(page)
+  await advanceButton(page).click()
+  const scoring = page.getByRole('dialog', { name: /^Scoring end of turn/ })
+  const discard = page.getByRole('dialog', { name: 'Discard tactical secondaries?' })
+  await expect(scoring.or(discard).first()).toBeVisible()
+  if (await scoring.isVisible()) await confirmScoring(scoring, 'Pass the turn')
+  await expect(discard.getByRole('button', { name: /^Beacon/ })).toHaveAttribute('aria-pressed', 'true')
+  await expect(discard.getByRole('button', { name: /^Cleanse/ })).toHaveAttribute('aria-pressed', 'false')
 })
 
 async function inspectDialog(page: Page, dialog: Locator) {
@@ -272,7 +282,7 @@ test('Consecrate records end-of-turn objectives that stay consecrated into the n
   await startBattle(page, undefined, false)
   await draw(page, ['Cleanse', 'No Prisoners'])
   const consecrate = page.getByRole('dialog', { name: 'Consecrate · choices', exact: true })
-  for (let phase = 0; phase < 5; phase++) await advance(page)
+  for (let phase = 0; phase < 5; phase++) await advance(page, { keepChoices: true })
   await expect(consecrate).toBeVisible()
   const first = consecrate.getByRole('combobox', { name: /^Consecration unit for / }).first()
   const objective = (await first.getAttribute('aria-label'))!.replace('Consecration unit for ', '')
@@ -303,7 +313,7 @@ test('Consecrate records end-of-turn objectives that stay consecrated into the n
   await takeTheTurn(page)
   await expect(page.getByText('Round 2 of 5', { exact: true })).toBeVisible()
   await expect(consecrate).toBeHidden()
-  for (let phase = 0; phase < 5; phase++) await advance(page)
+  for (let phase = 0; phase < 5; phase++) await advance(page, { keepChoices: true })
   await expect(consecrate).toBeVisible()
   await expect(consecrate.getByText(`Already consecrated: ${objective}`, { exact: true })).toBeVisible()
   await expect(consecrate.getByRole('combobox', { name: `Consecration unit for ${objective}`, exact: true })).toHaveCount(0)
@@ -313,6 +323,66 @@ test('Consecrate records end-of-turn objectives that stay consecrated into the n
   await openChoices(page)
   await expect(card.getByText('0 consecrated objectives', { exact: true })).toBeVisible()
   await inspectChoices(page, card, 'Consecrate')
+})
+
+test('Smoke and Mirrors decoys stay decoyed after Surveil the Foe removes their marker', async ({ page }) => {
+  const name = uniqueName('Decoy captain')
+  await signUp(page, name)
+  const disruption = await createRoster(page, { faction: 'Death Guard', detachment: /Shamblerot Vectorium/, name: 'Decoy roster' })
+  await addUnit(page, 'Plague Marines')
+  const recon = await createRoster(page, { faction: 'Necrons', detachment: /Hypercrypt Legion/, name: 'Decoy recon roster' })
+  await addUnit(page, 'Immortals')
+  await practiceBattle(page, disruption, { opponentRoster: recon })
+  await startBattle(page, undefined, false)
+  await draw(page, ['Cleanse', 'No Prisoners'])
+  const smoke = page.getByRole('dialog', { name: 'Smoke and Mirrors · choices', exact: true })
+  for (let phase = 0; phase < 5; phase++) await advance(page, { keepChoices: true })
+  await expect(smoke).toBeVisible()
+  const choices = smoke.getByRole('group', { name: 'Places with a new marker', exact: true })
+  await expect(choices.getByRole('button', { name: `${name}'s home`, exact: true })).toHaveCount(0)
+  const first = choices.getByRole('button').first()
+  const objective = await first.innerText()
+  await first.click()
+  const record = smoke.getByRole('button', { name: 'Record choice', exact: true })
+  await expect(record).toBeDisabled()
+  await smoke
+    .getByRole('switch', {
+      name: 'Each decoying unit controls its objective at the end of my turn, and none of these is my home objective',
+    })
+    .click()
+  await inspectDialog(page, smoke)
+  await record.click()
+  await expect(smoke).toBeHidden()
+  await expect(advanceButton(page)).toBeEnabled()
+  await expectWorkSynced(page)
+  await page.reload()
+  await openChoices(page)
+  const card = primaryCard(page, 0)
+  await expect(card.getByText('1 decoyed objective', { exact: true })).toBeVisible()
+  await inspectChoices(page, card, 'Smoke and Mirrors')
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await advance(page)
+  await takeTheTurn(page)
+  const surveil = page.getByRole('dialog', { name: 'Surveil the Foe · choices', exact: true })
+  for (let phase = 0; phase < 5; phase++) await advance(page, { keepChoices: true })
+  await expect(surveil).toBeVisible()
+  await surveil
+    .getByRole('group', { name: 'Removed operation markers', exact: true })
+    .getByRole('button', { name: `${objective} · R1`, exact: true })
+    .click()
+  await inspectDialog(page, surveil)
+  await surveil.getByRole('button', { name: 'Record choice', exact: true }).click()
+  await expect(surveil).toBeHidden()
+  await openChoices(page)
+  await expect(card.getByText('(removed R1)', { exact: true })).toBeVisible()
+  await expect(primaryCard(page, 1).getByText(`Removed ${objective}`, { exact: true })).toBeVisible()
+  await advance(page)
+  await takeTheTurn(page)
+  await expect(page.getByText('Round 2 of 5', { exact: true })).toBeVisible()
+  for (let phase = 0; phase < 5; phase++) await advance(page, { keepChoices: true })
+  await expect(smoke).toBeVisible()
+  await expect(smoke.getByText(`Already decoyed: ${objective}`, { exact: true })).toBeVisible()
+  await expect(choices.getByRole('button', { name: objective, exact: true })).toHaveCount(0)
 })
 
 test('Locate and Deny markers are placed before the first turn and an Extract Relic sweep removes one', async ({ page }) => {
