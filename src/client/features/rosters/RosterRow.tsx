@@ -2,34 +2,26 @@ import { Link } from '@tanstack/react-router'
 import {
   Archive,
   ArchiveRestore,
+  Download,
   ClipboardCheck,
   Copy,
   EllipsisVertical,
-  Eye,
   GitBranchPlus,
   HandHelping,
   Lock,
   LockOpen,
   Pencil,
   Share2,
-  Download,
   Swords,
   Trash2,
   Unlink,
 } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { MENU_ITEM } from '../../components/MenuSection'
-import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuTrigger } from '@/components/ui/context-menu'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+import { ContextMenu, ContextMenuContent, ContextMenuSeparator, ContextMenuTrigger } from '@/components/ui/context-menu'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import type { NamedRosterDifferences } from '../../../core/rosterDifferences'
-import { VISIBILITY_ICON, VISIBILITY_NAME } from './visibility'
+import { VisibilityTag } from './VisibilityTag'
 import type { RosterActions, SavedRoster } from './rosterLibrary'
 import type { AccountReason } from './AccountPrompt'
 import {
@@ -40,6 +32,7 @@ import {
   RosterVariantSummary,
   rosterTitle,
 } from './RosterSummary'
+import { ContextMenuItem, DropdownMenuItem, MenuSection } from '../../components/Menu'
 
 export type RosterRowLayout = 'card' | 'base' | 'variant'
 
@@ -176,9 +169,6 @@ export function RosterRow({
             <EllipsisVertical />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-max">
-            <DropdownMenuItem className={MENU_ITEM} render={<Link to="/rosters/$id" params={{ id: roster.id }} target="_blank" />}>
-              <Eye /> View
-            </DropdownMenuItem>
             <RosterActionItems Item={DropdownMenuItem} Separator={DropdownMenuSeparator} {...items} />
           </DropdownMenuContent>
         </DropdownMenu>
@@ -235,66 +225,62 @@ function RosterActionItems({
   onNeedsAccount?: (reason: AccountReason) => void
 }) {
   const orAccount = (reason: AccountReason, action: () => void) => (onNeedsAccount ? () => onNeedsAccount(reason) : action)
-  const VisibleIcon = VISIBILITY_ICON[roster.visibility]
   return (
     <>
-      <Item className={MENU_ITEM} disabled={!roster.unitCount} onClick={orAccount('battle', onStartBattle)}>
-        <Swords /> Start a battle
-      </Item>
-      <Item className={MENU_ITEM} disabled={!roster.unitCount} onClick={onGrade}>
-        <ClipboardCheck /> Grade this roster
-      </Item>
-      <Separator />
-      <Item className={MENU_ITEM} disabled={roster.locked} onClick={onEdit}>
-        <Pencil /> Edit roster setup
-      </Item>
-      <Separator />
-      <Item className={MENU_ITEM} disabled={actions.variant.isPending} onClick={orAccount('variant', () => actions.variant.mutate(roster))}>
-        <GitBranchPlus /> Create variant
-      </Item>
-      <Item
-        className={MENU_ITEM}
-        disabled={actions.duplicate.isPending}
-        onClick={orAccount('another-roster', () => actions.duplicate.mutate(roster))}
-      >
-        <Copy /> Duplicate
-      </Item>
-      {grouped ? (
-        <Item className={MENU_ITEM} disabled={actions.split.isPending} onClick={() => actions.split.mutate(roster.id)}>
-          <Unlink /> Make its own roster
+      <MenuSection label="Play">
+        <Item disabled={!roster.unitCount} onClick={orAccount('battle', onStartBattle)}>
+          <Swords /> Start a battle
         </Item>
-      ) : null}
-      <Separator />
-      <Item className={MENU_ITEM} onClick={onShare}>
-        <Share2 /> Share…
-        <span className="ml-auto flex items-center gap-1 pl-4 text-2xs text-faint normal-case">
-          <VisibleIcon className="size-3" /> {VISIBILITY_NAME[roster.visibility]}
-        </span>
-      </Item>
-      <Item className={MENU_ITEM} disabled={actions.take.isPending} onClick={() => actions.take.mutate({ roster, title })}>
-        <Download /> Export text
-      </Item>
-      <Item className={MENU_ITEM} onClick={orAccount('lend', onLend)}>
-        <HandHelping /> Lend to a friend
-      </Item>
+        <Item disabled={!roster.unitCount} onClick={onGrade}>
+          <ClipboardCheck /> Grade this roster
+        </Item>
+      </MenuSection>
+      <MenuSection label="Edit">
+        <Item disabled={roster.locked} onClick={onEdit}>
+          <Pencil /> Edit roster setup
+        </Item>
+        <Item
+          disabled={actions.lock.isPending}
+          onClick={orAccount('lock', () => actions.lock.mutate({ id: roster.id, locked: !roster.locked }))}
+        >
+          {roster.locked ? (
+            <>
+              <LockOpen /> Unlock roster
+            </>
+          ) : (
+            <>
+              <Lock /> Lock roster
+            </>
+          )}
+        </Item>
+      </MenuSection>
+      <MenuSection label="Share">
+        <Item onClick={onShare}>
+          <Share2 /> Share…
+          <VisibilityTag visibility={roster.visibility} />
+        </Item>
+        <Item disabled={actions.take.isPending} onClick={() => actions.take.mutate({ roster, title })}>
+          <Download /> Export text
+        </Item>
+        <Item onClick={orAccount('lend', onLend)}>
+          <HandHelping /> Lend to a friend
+        </Item>
+      </MenuSection>
+      <MenuSection label="Copy">
+        <Item disabled={actions.variant.isPending} onClick={orAccount('variant', () => actions.variant.mutate(roster))}>
+          <GitBranchPlus /> Create variant
+        </Item>
+        {grouped ? (
+          <Item disabled={actions.split.isPending} onClick={() => actions.split.mutate(roster.id)}>
+            <Unlink /> Make its own roster
+          </Item>
+        ) : null}
+        <Item disabled={actions.duplicate.isPending} onClick={orAccount('another-roster', () => actions.duplicate.mutate(roster))}>
+          <Copy /> Duplicate
+        </Item>
+      </MenuSection>
       <Separator />
       <Item
-        className={MENU_ITEM}
-        disabled={actions.lock.isPending}
-        onClick={orAccount('lock', () => actions.lock.mutate({ id: roster.id, locked: !roster.locked }))}
-      >
-        {roster.locked ? (
-          <>
-            <LockOpen /> Unlock roster
-          </>
-        ) : (
-          <>
-            <Lock /> Lock roster
-          </>
-        )}
-      </Item>
-      <Item
-        className={MENU_ITEM}
         disabled={actions.archive.isPending}
         onClick={orAccount('archive', () => actions.archive.mutate({ id: roster.id, archived: !roster.archived }))}
       >
@@ -308,8 +294,7 @@ function RosterActionItems({
           </>
         )}
       </Item>
-      <Separator />
-      <Item className={MENU_ITEM} variant="destructive" disabled={actions.remove.isPending} onClick={onDelete}>
+      <Item variant="destructive" disabled={actions.remove.isPending} onClick={onDelete}>
         <Trash2 /> Delete
       </Item>
     </>

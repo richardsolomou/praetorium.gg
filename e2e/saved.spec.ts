@@ -523,9 +523,9 @@ test('a saved list is reopened, duplicated, shared and published', async ({ brow
   await page.locator('[data-unit="Immortals"]').getByRole('button', { name: 'Immortals', exact: true }).click()
   await expect(page.getByLabel('Immortals models')).toHaveText('6')
   await page.goto('/rosters')
-  const view = page.waitForEvent('popup')
-  await chooseLibraryAction(page, 'Copy of Nurgle 2k', 'View')
-  const roster = await view
+  const href = await page.getByRole('link', { name: /Copy of Nurgle 2k/ }).getAttribute('href')
+  const roster = await context.newPage()
+  await roster.goto(href!)
   await expect(roster.getByLabel('List name')).toHaveValue('Copy of Nurgle 2k')
   await expect(roster.getByRole('button', { name: 'Immortals', exact: true })).toBeVisible()
   await roster.emulateMedia({ media: 'print' })

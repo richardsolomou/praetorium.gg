@@ -6,7 +6,7 @@ import { Check, EllipsisVertical, Link2, RotateCw, Swords, UserMinus, UserPlus, 
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { PageContent, PageHeader } from '../../components/Page'
 import { SearchField } from '../../components/SearchField'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
@@ -25,6 +25,7 @@ import { CreateBattle } from '../battles/CreateBattle'
 import type { Facet } from '../../../core/serviceRecord'
 import { formatAgo } from '../../dates'
 import { countLabel } from '../../text'
+import { DropdownMenuItem } from '../../components/Menu'
 
 type Person = { id: string; name: string; image?: string | null }
 type Confirming = { kind: 'remove' | 'reject' | 'cancel'; person: Person }

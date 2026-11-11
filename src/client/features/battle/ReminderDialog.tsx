@@ -1,11 +1,12 @@
 import { BellRing } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { DialogBody, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/Dialog'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { groupedReminders, type RosterReminder } from '../../../core/reminders'
 import type { ReminderDismissalScope } from './reminderDismissals'
 import { RuleText } from '../../components/RuleText'
 import { BattleDialogContent, BattlePromptDialog } from './BattlePromptDialog'
+import { DropdownMenuItem } from '../../components/Menu'
 
 export function ReminderDialog({
   reminders,

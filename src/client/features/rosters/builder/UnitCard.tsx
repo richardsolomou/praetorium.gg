@@ -2,13 +2,11 @@ import { BellRing, BookmarkPlus, Copy, Crown, EllipsisVertical, Plus, Unlink, Us
 import { type ReactNode, useId } from 'react'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuTrigger } from '@/components/ui/context-menu'
+import { ContextMenu, ContextMenuContent, ContextMenuSeparator, ContextMenuTrigger } from '@/components/ui/context-menu'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
@@ -19,6 +17,7 @@ import { countLabel } from '../../../text'
 import { asSentence } from '../../../text'
 import type { EmbarkChoice } from './embarkModel'
 import { PointsChip } from './PointsChip'
+import { ContextMenuItem, DropdownMenuItem, DropdownMenuLabel } from '../../../components/Menu'
 
 type BuiltUnit = {
   entryId: string
@@ -281,7 +280,6 @@ const NONE: never[] = []
 /** A line under the unit's name: an enhancement, an upgrade, or who it is standing with. */
 const ROW = 'flex items-center border-t border-edge px-2.5 py-1'
 const MENU = 'w-44'
-const ITEM = 'text-xs font-semibold uppercase'
 
 /** A row naming who a unit is joined to or riding with, and the button undoing it while the roster can be edited. */
 export function JoinedRow({ row, editable }: { row: Joined; editable: boolean }) {
@@ -322,9 +320,9 @@ export function AttachMenu({
     <CardMenu label={label} ariaLabel={ariaLabel}>
       {roster.length ? (
         <DropdownMenuGroup>
-          <DropdownMenuLabel className="eyebrow text-faint">In this roster</DropdownMenuLabel>
+          <DropdownMenuLabel>In this roster</DropdownMenuLabel>
           {roster.map((choice) => (
-            <DropdownMenuItem key={choice.key} className={ITEM} onClick={() => onChoose(choice)}>
+            <DropdownMenuItem key={choice.key} onClick={() => onChoose(choice)}>
               {choice.name}
             </DropdownMenuItem>
           ))}
@@ -333,7 +331,7 @@ export function AttachMenu({
       {roster.length && added.length ? <DropdownMenuSeparator /> : null}
       {added.length ? (
         <DropdownMenuGroup>
-          <DropdownMenuLabel className="eyebrow text-faint">Add a new unit</DropdownMenuLabel>
+          <DropdownMenuLabel>Add a new unit</DropdownMenuLabel>
           {added.map((choice) => (
             <DropdownMenuItem
               key={choice.entryId}
@@ -343,9 +341,9 @@ export function AttachMenu({
               className="items-start data-disabled:opacity-100"
               onClick={() => onChoose(choice)}
             >
-              <Plus className={`mt-0.5 size-3.5 ${choice.reason ? 'text-faint' : 'text-info'}`} aria-hidden />
+              <Plus className={`mt-0.5 ${choice.reason ? 'text-faint' : 'text-info'}`} aria-hidden />
               <span className="min-w-0 flex-1">
-                <span className={`block ${ITEM} ${choice.reason ? 'text-faint' : ''}`}>{choice.name}</span>
+                <span className={choice.reason ? 'block text-faint' : 'block'}>{choice.name}</span>
                 {choice.reason ? (
                   <span id={`${id}-${choice.entryId}`} className="mt-0.5 block text-2xs text-discarded">
                     {choice.reason}
@@ -387,7 +385,7 @@ export function EmbarkMenu({
           onClick={() => onChoose(choice)}
         >
           <span className="min-w-0 flex-1">
-            <span className={`block ${ITEM} ${choice.reason ? 'text-faint' : ''}`}>{choice.name}</span>
+            <span className={choice.reason ? 'block text-faint' : 'block'}>{choice.name}</span>
             {choice.detail ? <span className="readout mt-0.5 block text-2xs text-dim">{choice.detail}</span> : null}
             {choice.reason ? (
               <span id={`${id}-${at}`} className="mt-0.5 block text-2xs text-discarded">
@@ -476,9 +474,9 @@ function UnitActions({
         aria-describedby={limit ? limitId : undefined}
         onClick={onDuplicate}
       >
-        <Copy className={`mt-0.5 size-3.5 ${canDuplicate ? '' : 'text-faint'}`} />
+        <Copy className={`mt-0.5 ${canDuplicate ? '' : 'text-faint'}`} />
         <span className="min-w-0 flex-1">
-          <span className={`block ${ITEM} ${canDuplicate ? '' : 'text-faint'}`}>Duplicate unit</span>
+          <span className={canDuplicate ? 'block' : 'block text-faint'}>Duplicate unit</span>
           {limit ? (
             <span id={limitId} className="mt-0.5 block text-2xs text-discarded">
               {limit}
@@ -488,26 +486,26 @@ function UnitActions({
       </Item>
       {onSaveLoadout || onSaveAttachedUnit ? <Separator /> : null}
       {onSaveLoadout ? (
-        <Item className={ITEM} onClick={onSaveLoadout}>
-          <BookmarkPlus className="size-3.5" /> Save loadout
+        <Item onClick={onSaveLoadout}>
+          <BookmarkPlus /> Save loadout
         </Item>
       ) : null}
       {onSaveAttachedUnit ? (
-        <Item className={ITEM} onClick={onSaveAttachedUnit}>
-          <Users className="size-3.5" /> Save attached unit
+        <Item onClick={onSaveAttachedUnit}>
+          <Users /> Save attached unit
         </Item>
       ) : null}
       {onDetach ? (
         <>
           <Separator />
-          <Item className={ITEM} onClick={onDetach}>
-            <Unlink className="size-3.5" /> Detach from unit
+          <Item onClick={onDetach}>
+            <Unlink /> Detach from unit
           </Item>
         </>
       ) : null}
       <Separator />
-      <Item variant="destructive" className={ITEM} onClick={onRemove}>
-        <X className="size-3.5" /> Delete unit
+      <Item variant="destructive" onClick={onRemove}>
+        <X /> Delete unit
       </Item>
     </>
   )

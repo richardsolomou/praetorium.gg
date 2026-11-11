@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useContext, useState, type ReactNode } from 'react'
 import { ChevronDown, Plus, ScrollText, Settings, WandSparkles, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Dialog, DialogBody, DialogContent, DialogHeader, DialogTitle } from '../../components/Dialog'
 import { MAX_COMBAT_MODELS } from '../../../core/combat'
 import { modelCountChoices } from '../../../core/unitSize'
@@ -29,6 +29,7 @@ import { rulesVersionLabel } from '../../../core/catalogueEdition'
 import { Problem } from '../../components/Problem'
 import { ControlTooltip } from '../../components/ControlTooltip'
 import { countLabel, formatList } from '../../text'
+import { DropdownMenuItem } from '../../components/Menu'
 
 export function CombatantCard({
   side,

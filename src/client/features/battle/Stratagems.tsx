@@ -4,13 +4,7 @@ import { Button } from '@/components/ui/button'
 import { DialogBody, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../../components/Dialog'
 import { Skeleton } from '@/components/ui/skeleton'
 import { BattleDialogContent, BattlePromptDialog } from './BattlePromptDialog'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { type Command, isNewOrders, STRATAGEM_CP_MAX } from '../../../core/battle'
 import { type BattleView } from '../../../core/battleView'
 import { stratagemTiming } from '../../../core/reminders'
@@ -20,6 +14,7 @@ import { RuleText } from '../../components/RuleText'
 import type { StratagemText } from './MissionCards'
 import { CARD, CARD_NAME, CARD_NAME_LINK } from './battleTints'
 import { asSentence } from '../../text'
+import { DropdownMenuItem } from '../../components/Menu'
 
 type ViewStratagem = BattleView['players'][number]['stratagems'][number]
 
@@ -170,7 +165,7 @@ function StratagemCard({
           <EllipsisVertical />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-64">
-          {refusal ? <p className="px-1.5 py-1 text-xs text-dim">{asSentence(refusal)}</p> : null}
+          {refusal ? <p className="px-2 py-1.5 text-xs text-dim">{asSentence(refusal)}</p> : null}
           {costChoices(stratagem.cp).map((cost) => (
             <DropdownMenuItem
               key={cost}

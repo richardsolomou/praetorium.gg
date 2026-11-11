@@ -1,13 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { ArrowDownUp } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { BATTLE_FILTER_FACETS, BATTLE_SEARCH_MAX_LENGTH, type BattleFacet, type BattleOrder } from '../../../core/battleFilter'
 import { GAME_SIZES, battleSizeOptionLabel } from '../../../core/battle'
 import { facetText } from '../../../core/listFilter'
@@ -20,6 +14,7 @@ import { facetsOf, periodSearch } from '../../searchParams'
 import { factionFamilies } from '../rosters/factionFamilies'
 import { factionSelectGroups } from '../rosters/builder/factions'
 import type { BattleListSearch, BattlesView } from './battleSearch'
+import { DropdownMenuRadioItem } from '../../components/Menu'
 
 const STATUS = ungrouped([
   { label: 'Setting up', value: 'setup' },

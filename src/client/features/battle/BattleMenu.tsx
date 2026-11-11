@@ -1,15 +1,10 @@
 import { useState } from 'react'
 import { EllipsisVertical } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { isPracticeSeat } from '../../../core/newBattle'
+import { DropdownMenuCheckboxItem, DropdownMenuItem } from '../../components/Menu'
 
 type Ending = { key: string; label: string; description: string; act: () => void }
 

@@ -3,7 +3,7 @@ import { Link } from '@tanstack/react-router'
 import { CalendarClock, EllipsisVertical, LogOut, Send, Shuffle, Swords, Trash2, Trophy, UserPlus } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { GROUP_LEAGUE_PLAYERS_MIN, leagueFixtureOverdue } from '../../../core/groupLeague'
@@ -27,6 +27,7 @@ import { useNow } from '../../useNow'
 import { SealedEventResults } from '../sealedEvents/SealedEventResults'
 import { useGroupRefresh, usePlayGroupGame, type Group } from './group'
 import { useMoment, inputMoment, momentFromInput } from '../../dates'
+import { DropdownMenuItem } from '../../components/Menu'
 
 type League = NonNullable<Awaited<ReturnType<typeof groupLeague>>>
 type Fixture = League['fixtures'][number]

@@ -3,20 +3,18 @@ import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuSub,
   DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import type { RosterBatchAction } from '../../../core/rosterLibrary'
 import { ROSTER_VISIBILITIES } from '../../../core/savedRoster'
-import { MENU_ITEM } from '../../components/MenuSection'
 import { Problem } from '../../components/Problem'
 import { countLabel } from '../../text'
 import type { SavedRoster } from './rosterLibrary'
 import { VISIBILITY_ICON, VISIBILITY_NAME, VISIBILITY_REACH } from './visibility'
+import { DropdownMenuItem, DropdownMenuSubTrigger } from '../../components/Menu'
 
 type Choice = { action: RosterBatchAction; label: string; icon: LucideIcon; ids: string[] }
 
@@ -62,7 +60,7 @@ export function RosterSelectionToolbar({
   const visibilityItems = visibilities.map((choice) => (
     <DropdownMenuItem
       key={choice.action}
-      className={MENU_ITEM}
+
       disabled={!choice.ids.length}
       onClick={() => onChange(choice.action, choice.ids)}
     >
@@ -115,18 +113,18 @@ export function RosterSelectionToolbar({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-max">
               {choices.map((choice) => (
-                <DropdownMenuItem key={choice.action} className={MENU_ITEM} onClick={() => onChange(choice.action, choice.ids)}>
+                <DropdownMenuItem key={choice.action} onClick={() => onChange(choice.action, choice.ids)}>
                   <choice.icon /> {label(choice)}
                 </DropdownMenuItem>
               ))}
               <DropdownMenuSub>
-                <DropdownMenuSubTrigger className={MENU_ITEM}>
+                <DropdownMenuSubTrigger>
                   <Eye /> Visibility
                 </DropdownMenuSubTrigger>
                 <DropdownMenuSubContent className="w-max max-w-xs">{visibilityItems}</DropdownMenuSubContent>
               </DropdownMenuSub>
               <DropdownMenuSeparator />
-              <DropdownMenuItem className={MENU_ITEM} variant="destructive" onClick={onDelete}>
+              <DropdownMenuItem variant="destructive" onClick={onDelete}>
                 <Trash2 /> Delete
               </DropdownMenuItem>
             </DropdownMenuContent>

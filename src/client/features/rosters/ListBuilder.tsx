@@ -5,6 +5,7 @@ import {
   ClipboardCheck,
   Archive,
   ArchiveRestore,
+  Download,
   Calculator,
   Copy,
   Crown,
@@ -17,7 +18,6 @@ import {
   Pencil,
   Plus,
   Share2,
-  Download,
   SlidersHorizontal,
   Swords,
   Trash2,
@@ -31,15 +31,7 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
-import { MENU_ITEM, MenuSection } from '../../components/MenuSection'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { attachedUnitCount, attachmentHost } from '../../../core/attachedUnits'
 import type { AttachmentRow } from '../../../core/attachmentRows'
 import type { BuiltRoster, FormatRuleId, Secondary, Stratagem } from '../../../core/battle'
@@ -166,6 +158,8 @@ import { hasWarlordToggle } from '../../../core/unitChoices'
 import { factionDisposition } from '../../components/rosterSetup'
 import { PointsChip, pointsOver } from './builder/PointsChip'
 import { remember } from '../../../core/collections'
+import { DropdownMenuCheckboxItem, DropdownMenuItem, MenuSection } from '../../components/Menu'
+import { VisibilityTag } from './VisibilityTag'
 
 type Props = {
   /** What the player has written down, so a saved list carries it and restores it. */
@@ -496,7 +490,7 @@ export function ListBuilder({
   })
   const splitItem =
     savedId && variants.length > 1 ? (
-      <DropdownMenuItem className={MENU_ITEM} disabled={splitVariant.isPending} onClick={() => splitVariant.mutate(savedId)}>
+      <DropdownMenuItem disabled={splitVariant.isPending} onClick={() => splitVariant.mutate(savedId)}>
         <Unlink /> Make its own roster
       </DropdownMenuItem>
     ) : null
@@ -682,12 +676,13 @@ export function ListBuilder({
     printDisabled: !frozenReference && (!priced || pricePending || priceLoading),
   }
   const shareItem = (
-    <DropdownMenuItem className={MENU_ITEM} onClick={() => setSharing(true)}>
+    <DropdownMenuItem onClick={() => setSharing(true)}>
       <Share2 /> Share…
+      {ownsSaved || guest ? <VisibilityTag visibility={visibility} /> : null}
     </DropdownMenuItem>
   )
   const exportItem = (
-    <DropdownMenuItem className={MENU_ITEM} disabled={take.isPending || !positioned.length} onClick={() => take.mutate()}>
+    <DropdownMenuItem disabled={take.isPending || !positioned.length} onClick={() => take.mutate()}>
       <Download /> Export text
     </DropdownMenuItem>
   )
@@ -1145,30 +1140,26 @@ export function ListBuilder({
   }
 
   const displaySection = cards.some((card) => card.attachedTo !== undefined) ? (
-    <>
-      <DropdownMenuSeparator />
-      <MenuSection label="Display">
-        <DropdownMenuCheckboxItem
-          className={MENU_ITEM}
-          checked={arrangement === 'attached'}
-          closeOnClick
-          onCheckedChange={(checked) => {
-            const next = checked ? 'attached' : 'role'
-            setArrangement(next)
-            keepRosterArrangement(next)
-            posthog.capture('roster_arrangement_changed', { arrangement: next })
-          }}
-        >
-          <Group /> Group attached units
-        </DropdownMenuCheckboxItem>
-      </MenuSection>
-    </>
+    <MenuSection label="Display">
+      <DropdownMenuCheckboxItem
+        checked={arrangement === 'attached'}
+        closeOnClick
+        onCheckedChange={(checked) => {
+          const next = checked ? 'attached' : 'role'
+          setArrangement(next)
+          keepRosterArrangement(next)
+          posthog.capture('roster_arrangement_changed', { arrangement: next })
+        }}
+      >
+        <Group /> Group attached units
+      </DropdownMenuCheckboxItem>
+    </MenuSection>
   ) : null
 
   const manageSection = ownsSaved ? (
     <>
       <DropdownMenuSeparator />
-      <DropdownMenuItem className={MENU_ITEM} disabled={archiveRoster.isPending} onClick={() => archiveRoster.mutate(!initial.archived)}>
+      <DropdownMenuItem disabled={archiveRoster.isPending} onClick={() => archiveRoster.mutate(!initial.archived)}>
         {initial.archived ? (
           <>
             <ArchiveRestore /> Unarchive
@@ -1179,7 +1170,7 @@ export function ListBuilder({
           </>
         )}
       </DropdownMenuItem>
-      <DropdownMenuItem className={MENU_ITEM} variant="destructive" onClick={() => setDeleting(true)}>
+      <DropdownMenuItem variant="destructive" onClick={() => setDeleting(true)}>
         <Trash2 /> Delete
       </DropdownMenuItem>
     </>
@@ -1372,19 +1363,24 @@ export function ListBuilder({
   }
 
   const testTargets = !frozen ? (
-    <DropdownMenuItem
-      className={MENU_ITEM}
-      disabled={!positioned.length || pricePending || priceLoading}
-      onClick={() => openCombat(0, true)}
-    >
+    <DropdownMenuItem disabled={!positioned.length || pricePending || priceLoading} onClick={() => openCombat(0, true)}>
       <Calculator /> Test targets
     </DropdownMenuItem>
   ) : null
   const gradeItem = gradesAvailable ? (
-    <DropdownMenuItem className={MENU_ITEM} disabled={!positioned.length} onClick={() => setGrading(true)}>
+    <DropdownMenuItem disabled={!positioned.length} onClick={() => setGrading(true)}>
       <ClipboardCheck /> Grade this roster
     </DropdownMenuItem>
   ) : null
+
+  // Starting a battle is the button beside this menu, so the menu offers only the other ways to play.
+  const playSection =
+    testTargets || gradeItem ? (
+      <MenuSection label="Play">
+        {testTargets}
+        {gradeItem}
+      </MenuSection>
+    ) : null
 
   return (
     <RosterShell saving={saving} saveError={save.isError}>
@@ -1427,85 +1423,62 @@ export function ListBuilder({
                   <EllipsisVertical />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-max">
-                  <MenuSection label="Play">
-                    {savedId && !guest ? (
-                      <DropdownMenuItem
-                        className={MENU_ITEM}
-                        disabled={saving || !positioned.length}
-                        onClick={() => setStartingBattle(true)}
-                      >
-                        <Swords /> Start a battle
-                      </DropdownMenuItem>
-                    ) : guest ? (
-                      <DropdownMenuItem className={MENU_ITEM} onClick={() => account.ask('battle')}>
-                        <Swords /> Start a battle
-                      </DropdownMenuItem>
-                    ) : null}
-                    {testTargets}
-                    {gradeItem}
-                  </MenuSection>
-                  <DropdownMenuSeparator />
-                  <MenuSection label="Setup">
-                    <DropdownMenuItem className={MENU_ITEM} onClick={openSetup}>
+                  {playSection}
+                  <MenuSection label="Edit">
+                    <DropdownMenuItem onClick={openSetup}>
                       <Pencil /> Edit roster setup
                     </DropdownMenuItem>
+                    {savedId && !guest ? (
+                      <DropdownMenuItem disabled={saving || lockRoster.isPending} onClick={() => lockRoster.mutate(true)}>
+                        <Lock /> Lock roster
+                      </DropdownMenuItem>
+                    ) : guest ? (
+                      <DropdownMenuItem onClick={() => account.ask('lock')}>
+                        <Lock /> Lock roster
+                      </DropdownMenuItem>
+                    ) : null}
+                  </MenuSection>
+                  <MenuSection label="Share">
+                    {shareItem}
+                    {exportItem}
+                    {savedId && !guest ? (
+                      <DropdownMenuItem onClick={() => setLending(true)}>
+                        <HandHelping /> Lend to a friend
+                      </DropdownMenuItem>
+                    ) : guest ? (
+                      <DropdownMenuItem onClick={() => account.ask('lend')}>
+                        <HandHelping /> Lend to a friend
+                      </DropdownMenuItem>
+                    ) : null}
                   </MenuSection>
                   {savedId || guest ? (
                     <>
-                      <DropdownMenuSeparator />
-                      <MenuSection label="Copies and access">
+                      <MenuSection label="Copy">
                         {savedId && !guest ? (
                           <>
-                            <DropdownMenuItem
-                              className={MENU_ITEM}
-                              disabled={saving || createVariant.isPending}
-                              onClick={() => createVariant.mutate(savedId)}
-                            >
+                            <DropdownMenuItem disabled={saving || createVariant.isPending} onClick={() => createVariant.mutate(savedId)}>
                               <GitBranchPlus /> Create variant
                             </DropdownMenuItem>
                             {splitItem}
-                            <DropdownMenuItem
-                              className={MENU_ITEM}
-                              disabled={saving || duplicateRoster.isPending}
-                              onClick={() => duplicateRoster.mutate()}
-                            >
+                            <DropdownMenuItem disabled={saving || duplicateRoster.isPending} onClick={() => duplicateRoster.mutate()}>
                               <Copy /> Duplicate
-                            </DropdownMenuItem>
-                            <DropdownMenuItem className={MENU_ITEM} onClick={() => setLending(true)}>
-                              <HandHelping /> Lend to a friend
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              className={MENU_ITEM}
-                              disabled={saving || lockRoster.isPending}
-                              onClick={() => lockRoster.mutate(true)}
-                            >
-                              <Lock /> Lock roster
                             </DropdownMenuItem>
                           </>
                         ) : (
                           // Offered as an account offers them, so a visitor finds out what signing up adds.
                           <>
-                            <DropdownMenuItem className={MENU_ITEM} onClick={() => account.ask('variant')}>
+                            <DropdownMenuItem onClick={() => account.ask('variant')}>
                               <GitBranchPlus /> Create variant
                             </DropdownMenuItem>
                             {splitItem}
-                            <DropdownMenuItem className={MENU_ITEM} onClick={() => account.ask('another-roster')}>
+                            <DropdownMenuItem onClick={() => account.ask('another-roster')}>
                               <Copy /> Duplicate
-                            </DropdownMenuItem>
-                            <DropdownMenuItem className={MENU_ITEM} onClick={() => account.ask('lend')}>
-                              <HandHelping /> Lend to a friend
-                            </DropdownMenuItem>
-                            <DropdownMenuItem className={MENU_ITEM} onClick={() => account.ask('lock')}>
-                              <Lock /> Lock roster
                             </DropdownMenuItem>
                           </>
                         )}
                       </MenuSection>
                     </>
                   ) : null}
-                  <DropdownMenuSeparator />
-                  {shareItem}
-                  {exportItem}
                   {displaySection}
                   {manageSection}
                 </DropdownMenuContent>
@@ -1552,56 +1525,40 @@ export function ListBuilder({
                   <EllipsisVertical />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-max">
-                  {locked || testTargets ? (
-                    <>
-                      <MenuSection label="Play">
-                        {locked ? (
-                          <DropdownMenuItem className={MENU_ITEM} disabled={!positioned.length} onClick={() => setStartingBattle(true)}>
-                            <Swords /> Start a battle
-                          </DropdownMenuItem>
-                        ) : null}
-                        {testTargets}
-                        {gradeItem}
-                      </MenuSection>
-                      <DropdownMenuSeparator />
-                    </>
+                  {playSection}
+                  {locked ? (
+                    <MenuSection label="Edit">
+                      <DropdownMenuItem disabled={lockRoster.isPending} onClick={() => lockRoster.mutate(false)}>
+                        <LockOpen /> Unlock roster
+                      </DropdownMenuItem>
+                    </MenuSection>
                   ) : null}
-                  <MenuSection label={locked ? 'Copies and access' : 'Copies'}>
+                  <MenuSection label="Share">
+                    {shareItem}
+                    {exportItem}
+                    {locked ? (
+                      <DropdownMenuItem onClick={() => setLending(true)}>
+                        <HandHelping /> Lend to a friend
+                      </DropdownMenuItem>
+                    ) : null}
+                  </MenuSection>
+                  <MenuSection label="Copy">
                     {locked ? (
                       <>
-                        <DropdownMenuItem className={MENU_ITEM} disabled={lockRoster.isPending} onClick={() => lockRoster.mutate(false)}>
-                          <LockOpen /> Unlock roster
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          className={MENU_ITEM}
-                          disabled={createVariant.isPending}
-                          onClick={() => createVariant.mutate(savedId)}
-                        >
+                        <DropdownMenuItem disabled={createVariant.isPending} onClick={() => createVariant.mutate(savedId)}>
                           <GitBranchPlus /> Create variant
                         </DropdownMenuItem>
                         {splitItem}
-                        <DropdownMenuItem
-                          className={MENU_ITEM}
-                          disabled={duplicateRoster.isPending}
-                          onClick={() => duplicateRoster.mutate()}
-                        >
+                        <DropdownMenuItem disabled={duplicateRoster.isPending} onClick={() => duplicateRoster.mutate()}>
                           <Copy /> Duplicate
-                        </DropdownMenuItem>
-                        <DropdownMenuItem className={MENU_ITEM} onClick={() => setLending(true)}>
-                          <HandHelping /> Lend to a friend
                         </DropdownMenuItem>
                       </>
                     ) : me ? (
-                      <DropdownMenuItem
-                        className={MENU_ITEM}
-                        disabled={duplicateRoster.isPending || !positioned.length}
-                        onClick={() => duplicateRoster.mutate()}
-                      >
+                      <DropdownMenuItem disabled={duplicateRoster.isPending || !positioned.length} onClick={() => duplicateRoster.mutate()}>
                         <Copy /> Duplicate to my rosters
                       </DropdownMenuItem>
                     ) : (
                       <DropdownMenuItem
-                        className={MENU_ITEM}
                         disabled={duplicateRoster.isPending || !positioned.length}
                         onClick={() => (peekGuestDraft() ? account.ask('another-roster') : duplicateRoster.mutate())}
                       >
@@ -1609,9 +1566,6 @@ export function ListBuilder({
                       </DropdownMenuItem>
                     )}
                   </MenuSection>
-                  <DropdownMenuSeparator />
-                  {shareItem}
-                  {exportItem}
                   {displaySection}
                   {manageSection}
                 </DropdownMenuContent>

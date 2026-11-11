@@ -1,10 +1,11 @@
 import { Bookmark, EllipsisVertical, Pencil, Plus, Trash2, Users } from 'lucide-react'
 import { memo } from 'react'
 import { Button } from '@/components/ui/button'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import type { RosterPick } from '../../../../core/roster'
 import { loadoutNoun, type PickerLoadout } from './pickerRows'
 import { PointsChip } from './PointsChip'
+import { DropdownMenuItem } from '../../../components/Menu'
 
 type Props = {
   loadout: PickerLoadout
@@ -76,11 +77,11 @@ export const LoadoutRow = memo(function LoadoutRow({
             <EllipsisVertical />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-44">
-            <DropdownMenuItem className="text-xs font-semibold uppercase" onClick={() => onRename(loadout)}>
-              <Pencil className="size-3.5" /> Rename {noun}
+            <DropdownMenuItem onClick={() => onRename(loadout)}>
+              <Pencil /> Rename {noun}
             </DropdownMenuItem>
-            <DropdownMenuItem variant="destructive" className="text-xs font-semibold uppercase" onClick={() => onDelete(loadout)}>
-              <Trash2 className="size-3.5" /> Delete {noun}
+            <DropdownMenuItem variant="destructive" onClick={() => onDelete(loadout)}>
+              <Trash2 /> Delete {noun}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

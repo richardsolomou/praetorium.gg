@@ -272,49 +272,48 @@ for (const width of [1440, 390]) {
     await page.getByRole('button', { name: 'Roster actions', exact: true }).click()
     const menu = page.getByRole('menu')
     await expect(menu.getByRole('menuitem')).toHaveText([
-      'Start a battle',
       'Test targets',
       'Grade this roster',
       'Edit roster setup',
+      'Lock roster',
+      /Share…\s*Public/,
+      'Export text',
+      'Lend to a friend',
       'Create variant',
       'Duplicate',
-      'Lend to a friend',
-      'Lock roster',
-      'Share…',
-      'Export text',
       'Archive',
       'Delete',
     ])
     await expect(menu.getByRole('menuitem', { name: 'Test targets', exact: true })).toHaveAttribute('aria-disabled', 'true')
     await expect(menu.getByRole('menuitem', { name: 'Grade this roster', exact: true })).toHaveAttribute('aria-disabled', 'true')
     // Grouped under headings; a list with no attached unit has nothing to display differently.
-    await expect(menu.getByRole('group')).toHaveText([/^Play/, /^Setup/, /^Copies and access/])
-    await expect(menu.getByRole('separator')).toHaveCount(4)
+    await expect(menu.getByRole('group')).toHaveText([/^Play/, /^Edit/, /^Share/, /^Copy/])
+    await expect(menu.getByRole('separator')).toHaveCount(1)
     await page.screenshot({ path: test.info().outputPath(`builder-menu-${width}.png`) })
     await page.keyboard.press('Escape')
     await page.goto('/rosters')
     await page.getByRole('button', { name: 'Actions for Menu roster', exact: true }).click()
     await expect(menu.getByRole('menuitem')).toHaveText([
-      'View',
       'Start a battle',
       'Grade this roster',
       'Edit roster setup',
-      'Create variant',
-      'Duplicate',
+      'Lock roster',
       /Share…\s*Public/,
       'Export text',
       'Lend to a friend',
-      'Lock roster',
+      'Create variant',
+      'Duplicate',
       'Archive',
       'Delete',
     ])
-    await expect(menu.getByRole('separator')).toHaveCount(5)
+    await expect(menu.getByRole('group')).toHaveText([/^Play/, /^Edit/, /^Share/, /^Copy/])
+    await expect(menu.getByRole('separator')).toHaveCount(1)
     await page.screenshot({ path: test.info().outputPath(`library-menu-${width}.png`) })
     await page.keyboard.press('Escape')
     await page.getByRole('link', { name: /Menu roster/ }).click({ button: 'right' })
     await expect(menu.getByRole('menuitem').first()).toHaveText('Start a battle')
     await expect(menu.getByRole('menuitem').last()).toHaveText('Delete')
-    await expect(menu.getByRole('separator')).toHaveCount(5)
+    await expect(menu.getByRole('separator')).toHaveCount(1)
   })
 }
 

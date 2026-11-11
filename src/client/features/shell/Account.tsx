@@ -10,7 +10,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuGroup,
-  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
@@ -23,13 +22,13 @@ import { setNativeAccountMenuOpen } from '../../nativeBridge'
 import { forgetThisDevice } from '../../pushNotifications'
 import { clearWatchBattle } from '../battle/useWatchBattle'
 import { meQuery } from '../../queries'
-import { MenuSection } from '../../components/MenuSection'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { openConversations, unreadReplies, useSupportTickets } from '../feedback/support'
 import { errorMessage } from '../../queryClient'
 import { OPEN_SYNC_EVENT } from '../../offline/SyncStatus'
 import { countLabel } from '../../text'
 import { useUnseenRelease } from './seenRelease'
+import { DropdownMenuItem, MenuSection } from '../../components/Menu'
 
 function useAccountControls() {
   const { data: me } = useQuery(meQuery())
@@ -129,7 +128,6 @@ function AccountMenuItems() {
               </DropdownMenuItem>
             ) : null}
           </DropdownMenuGroup>
-          <DropdownMenuSeparator />
           {help}
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={signOut}>
@@ -141,7 +139,6 @@ function AccountMenuItems() {
           <DropdownMenuItem render={<Link to="/sign-in" search={{ next: path === '/sign-in' ? undefined : href }} />}>
             <LogIn /> Sign in
           </DropdownMenuItem>
-          <DropdownMenuSeparator />
           {help}
         </>
       )}

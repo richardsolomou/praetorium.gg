@@ -3,13 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Boxes, EllipsisVertical, Plus, Shuffle, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Skeleton } from '@/components/ui/skeleton'
 import { PageContent, PageHeader } from '../../components/Page'
 import { PageState } from '../../components/PageState'
@@ -41,6 +35,7 @@ import { groupBy } from '../../../core/collections'
 import { countLabel } from '../../text'
 import { GuideHelp } from '../onboarding/GuideHelp'
 import { advanceOnboarding } from '../onboarding/onboarding'
+import { DropdownMenuItem } from '../../components/Menu'
 
 const SUGGESTIONS_SHOWN = 6
 
