@@ -13,8 +13,8 @@ export const MISSION_SELECTION_KINDS = [
   'consecrate',
 ] as const
 export type MissionSelectionKind = (typeof MISSION_SELECTION_KINDS)[number]
-/** Choices that stay open across a turn or more, so the board offers them without asking. */
-export const isManualSelection = (kind: MissionSelectionKind) => kind === 'beacon' || kind === 'sensor-sweep'
+/** An action the player may take, so the board offers it on its card without asking. */
+export const isOptionalSelection = (kind: MissionSelectionKind) => kind === 'sensor-sweep'
 export type MissionUnitRef = { playerId: string; unitKey: string; rosterSeq: number }
 export type MissionObjectiveRef = { key: string; name: string }
 type MissionMarkerRef = { playerId: string; key: string; name: string }
@@ -169,6 +169,12 @@ export function savedMissionUnitStatus(state: BattleState, saved: SavedMissionUn
   const standing = members.filter((unit) => !unit.destroyed)
   return !standing.length ? 'destroyed' : standing.some((unit) => unit.formation === 'battlefield') ? 'battlefield' : 'away'
 }
+
+/** Whether the Beacon chosen for the card as currently drawn was destroyed, so the card can no longer score. */
+export const beaconLost = (player: PlayerState, cardKey: string) =>
+  player.missionSelections.some(
+    (saved) => saved.cardKey === cardKey && saved.occurrence === player.secondaryDrawSeq[cardKey] && saved.beaconDestroyed === true,
+  )
 
 export function recordBeaconDestruction(state: BattleState) {
   for (const player of state.players)

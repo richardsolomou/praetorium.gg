@@ -174,6 +174,9 @@ export function SecondaryMissions({ view, side, actionable, pending, send, refer
                 ) : null}
               </div>
               <MissionSelectionRecords records={side.captain.missionSelections ?? []} cardKey={secondary.key} />
+              {secondary.status === 'active' && secondary.beaconLost ? (
+                <p className="text-xs text-discarded">Beacon unit destroyed. Discard this card at the end of your turn.</p>
+              ) : null}
               <MissionChoices
                 view={view}
                 side={side}

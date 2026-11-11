@@ -37,6 +37,7 @@ import { battleUnitCounts } from './attachedUnits'
 import { withoutUnitNotes } from './unitNotes'
 import {
   consecratedObjectives,
+  beaconLost,
   openMissionSelections,
   missionUnitCandidates,
   remainingOperationMarkers,
@@ -162,6 +163,7 @@ export type BattleView = {
       status: SecondaryStatus
       secret: boolean
       revealed: boolean
+      beaconLost?: true
     }[]
     primaryCard: Secondary | null
     missionSelections?: MissionSelectionView[]
@@ -344,6 +346,7 @@ export function battleView(
             status: resources.secondaryStatus[secondary.key] ?? 'active',
             secret: resources.secretSecondary === secondary.key,
             revealed: resources.secretSecondary !== secondary.key || resources.secretRevealed,
+            ...(nameable && beaconLost(resources, secondary.key) ? { beaconLost: true as const } : {}),
           }
         }),
       }

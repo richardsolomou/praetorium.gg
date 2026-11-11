@@ -526,6 +526,16 @@ describe('source-backed mission selections', () => {
     ).toBe('mission-selection-recorded')
   })
 
+  it('marks the held card once its Beacon unit is destroyed', () => {
+    const battle = state(
+      [ALICE, { kind: 'draw-secondary', secondary: beacon }],
+      [ALICE, chooseBeacon],
+      [ALICE, { kind: 'set-unit', unitKey: 'u0', destroyed: true }],
+    )
+    const view = battleView({ token: 'test' }, NAMES, battle, ALICE)
+    expect(view.players[0]!.secondaries.find((card) => card.key === beacon.key)?.beaconLost).toBe(true)
+  })
+
   it('keeps the Beacon destruction lock after the original unit returns', () => {
     const battle = state(
       [ALICE, { kind: 'draw-secondary', secondary: beacon }],

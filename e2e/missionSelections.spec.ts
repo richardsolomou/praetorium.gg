@@ -16,6 +16,7 @@ import {
   expectNoPageOverflow,
   practiceBattle,
   chooseOption,
+  confirmScoring,
   playerPanel,
 } from './account'
 import { expectWorkSynced } from './storage'
@@ -191,7 +192,7 @@ test('a skipped choice leaves the turn free and stays on its card until recorded
   await expect(side.getByRole('button', { name: 'Record guards', exact: true })).toHaveCount(0)
 })
 
-test('manual Beacon nomination persists and a destroyed Beacon cannot be replaced', async ({ page }) => {
+test('Beacon asks for its unit when drawn, and a destroyed Beacon is locked and offered for discard', async ({ page }) => {
   await signUp(page, uniqueName('Beacon captain'))
   const roster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Beacon nomination roster' })
   await addUnit(page, 'Immortals')
@@ -199,16 +200,16 @@ test('manual Beacon nomination persists and a destroyed Beacon cannot be replace
   await startBattle(page, undefined, false)
   await draw(page, ['Beacon', 'Cleanse'])
   const side = playerPanel(page, 0)
-  await expect(advanceButton(page)).toBeEnabled()
-  await side.getByRole('button', { name: 'Record Beacon', exact: true }).click()
   const nomination = page.getByRole('dialog', { name: 'Beacon · choices', exact: true })
-  await expect(nomination).toContainText('Optional.')
+  await expect(nomination).toBeVisible()
   await chooseOption(page, 'Beacon unit', / · Immortals$/)
   await nomination.getByLabel('Beacon table note').fill('Chosen at the table during the card’s timing.')
   await nomination.getByRole('button', { name: 'Record choice', exact: true }).click()
   await expect(nomination).toBeHidden()
+  await expect(advanceButton(page)).toBeEnabled()
   await expectWorkSynced(page)
   await page.reload()
+  await expect(nomination).toBeHidden()
   await side
     .locator('summary')
     .filter({ hasText: /^Choices$/ })
@@ -222,11 +223,20 @@ test('manual Beacon nomination persists and a destroyed Beacon cannot be replace
   await army.getByRole('button', { name: 'Close', exact: true }).click()
   await expect(side.getByRole('button', { name: 'Record Beacon', exact: true })).toHaveCount(0)
   await expect(beacon.getByText('Immortals (destroyed)', { exact: true })).toBeVisible()
+  await expect(beacon.getByText('Beacon unit destroyed. Discard this card at the end of your turn.', { exact: true })).toBeVisible()
   await inspectChoices(page, beacon, 'Beacon')
   await expectWorkSynced(page)
   await page.reload()
   await expect(side.getByRole('button', { name: 'Record Beacon', exact: true })).toHaveCount(0)
   await expect(side.locator('[data-stat="secondary"]')).toHaveText('0')
+  for (let phase = 0; phase < 5; phase++) await advance(page)
+  await advanceButton(page).click()
+  const scoring = page.getByRole('dialog', { name: /^Scoring end of turn/ })
+  const discard = page.getByRole('dialog', { name: 'Discard tactical secondaries?' })
+  await expect(scoring.or(discard).first()).toBeVisible()
+  if (await scoring.isVisible()) await confirmScoring(scoring, 'Pass the turn')
+  await expect(discard.getByRole('button', { name: /^Beacon/ })).toHaveAttribute('aria-pressed', 'true')
+  await expect(discard.getByRole('button', { name: /^Cleanse/ })).toHaveAttribute('aria-pressed', 'false')
 })
 
 async function inspectDialog(page: Page, dialog: Locator) {
