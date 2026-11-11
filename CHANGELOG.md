@@ -1,5 +1,14 @@
 # praetorium
 
+## 0.232.3 (2026-11-11)
+
+### Patch Changes
+
+- dcb3fe6: When an assistant starts a tournament battle or reports a score for you, the approval now names your opponent and the round.
+- dcb3fe6: Assistants now record the end-of-game scoring after the last turn, so the battle finishes.
+- dcb3fe6: Assistants now refuse secondary missions that can't be taken fixed, instead of leaving the battle unable to start.
+- dcb3fe6: Assistants setting up a battle now drop the old pack's twist when you change mission pack, and clear the pack and layout when you switch to manual tracking.
+
 ## 0.232.2 (2026-11-11)
 
 ### Patch Changes
