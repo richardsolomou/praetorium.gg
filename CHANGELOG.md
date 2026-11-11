@@ -1,5 +1,18 @@
 # praetorium
 
+## 0.232.1 (2026-11-11)
+
+### Patch Changes
+
+- e20120a: Roster grades count each model's wounds and objective control correctly in units with different model types.
+
+  Roster grades explain which damage gaps they check and which sources of protection they leave out.
+
+- e20120a: Roster grades distinguish charge reach and deployment from general mobility, show normal and recognised conditional movement separately, and account for slower attached models.
+- 9630cfa: Weapon ability tooltips such as Indirect Fire, Assault and Stealth now show the core rule they point to, not just its number.
+- e20120a: Attached units display weapon abilities granted by their leader's unit-wide rules, including Alpha Warrior's Sustained Hits 1.
+- e20120a: Roster grades show recognised abilities that create extra units and their conditions separately from the score.
+
 ## 0.232.0 (2026-11-11)
 
 ### Minor Changes
