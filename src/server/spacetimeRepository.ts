@@ -635,6 +635,7 @@ export class SpacetimeRepository {
       ...record.group,
       games: record.games,
       league: record.league && { ...record.league, players: named(record.league.players) },
+      battlesRevision: record.battlesRevision,
       pastLeagues: record.pastLeagues.map((league) => ({ ...league, players: named(league.players) })),
       ownerName: owner.name,
       ownerImage: owner.image,

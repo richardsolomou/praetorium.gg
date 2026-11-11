@@ -330,6 +330,7 @@ const groupRecord = z.object({
   members: z.array(groupMember),
   games: z.array(hiddenListGame),
   league: groupLeague.nullable(),
+  battlesRevision: z.string(),
   pastLeagues: z.array(
     groupLeague.pick({ publishedAt: true, players: true, fixtures: true }).extend({ id: z.string(), endedAt: z.number().int() }),
   ),

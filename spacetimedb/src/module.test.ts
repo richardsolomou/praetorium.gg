@@ -674,7 +674,21 @@ describe('group battles', () => {
         current: { token: string } | null
         options: { token: string }[]
       }
-    return { submit, groups }
+    const revision = () =>
+      (JSON.parse(module.groupByToken(host.procedure(host.operator), { token: 'group' })) as { battlesRevision: string }).battlesRevision
+    const another = () =>
+      module.createBattle(host.procedure(host.operator), {
+        payload: JSON.stringify({
+          id: 'another',
+          token: 'another-token',
+          userId: 'creator',
+          allyIds: [],
+          opponentIds: ['opponent'],
+          initialCommands: [{ kind: 'set-battle-group', groupId: 'group-id' }],
+          now: NOW,
+        }),
+      })
+    return { submit, groups, revision, another }
   }
 
   it('tags a hidden-list game started between members from the start', () => {
@@ -706,6 +720,24 @@ describe('group battles', () => {
     battle.submit(0, { kind: 'set-battle-group', groupId: 'group-id' })
     battle.submit(1, { kind: 'undo', target: 1 })
     expect(battle.groups().current).toBeNull()
+  })
+
+  it('moves the group’s battles revision when one of its battles changes', () => {
+    const battle = setup(['opponent'], [{ kind: 'set-battle-group', groupId: 'group-id' }])
+    const before = battle.revision()
+    expect([battle.submit(1, { kind: 'set-setup-step', step: 1 }).result.outcome, battle.revision() === before]).toEqual([
+      'appended',
+      false,
+    ])
+  })
+
+  it('moves the group’s battles revision when an older battle leaves it', () => {
+    const battle = setup(['opponent'])
+    battle.submit(0, { kind: 'set-battle-group', groupId: 'group-id' })
+    battle.another()
+    const before = battle.revision()
+    battle.submit(1, { kind: 'undo', target: 1 })
+    expect(battle.revision()).not.toBe(before)
   })
 })
 

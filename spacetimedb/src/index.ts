@@ -601,6 +601,20 @@ function* groupBattleIds(ctx: Context, groupId: string) {
     for (const row of ctx.db.eventBattles.eventId.filter(game.eventId)) yield row.battleId
 }
 
+/**
+ * Moves whenever a battle counting for the group changes, joins it or leaves it: any change touches the battle at a new
+ * highest revision, and one leaving without a change elsewhere lowers the count.
+ */
+function groupBattlesRevision(ctx: Context, groupId: string) {
+  const ids = new Set(groupBattleIds(ctx, groupId))
+  let latest = 0n
+  for (const id of ids) {
+    const revision = ctx.db.battleChanges.battleId.find(id)?.revision ?? 0n
+    if (revision > latest) latest = revision
+  }
+  return `${ids.size}:${latest}`
+}
+
 /** Whether `groupBattleIds` yields this battle for any group. */
 function isGroupBattle(ctx: Context, battleId: string) {
   const game = ctx.db.eventBattles.battleId.find(battleId)
@@ -4645,6 +4659,7 @@ export const groupByToken = spacetime.procedure({ token: t.string() }, t.string(
         }
       }),
       league: leagueRecord(tx, group.id),
+      battlesRevision: groupBattlesRevision(tx, group.id),
       pastLeagues: Array.from(tx.db.pastGroupLeagues.groupId.filter(group.id))
         .sort((one, other) => Number(other.endedAt - one.endedAt))
         .map((past) => ({
