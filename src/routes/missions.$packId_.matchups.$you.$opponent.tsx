@@ -2,7 +2,7 @@ import { createFileRoute, notFound } from '@tanstack/react-router'
 import { MissionMatchupPage } from '../client/features/reference/missions/MissionMatchupPage'
 import { gameReferencesQuery, terrainMatchupIds, terrainReferencesQuery } from '../client/queries'
 import { pageHead } from '../client/linkPreview'
-import { matchupMission } from '../client/features/reference/missions/dispositionMatchups'
+import { matchupMission } from '../shared/gameReferences'
 
 export const Route = createFileRoute('/missions/$packId_/matchups/$you/$opponent')({
   loader: async ({ context, params }) => {

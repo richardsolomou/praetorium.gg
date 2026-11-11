@@ -230,7 +230,7 @@ export function AccountSecurity({ me, preferences }: { me: AccountIdentity; pref
       <section className="part p-5 md:p-7">
         <SectionHeading title="Connected apps" />
         <p className="text-sm text-dim">
-          Apps you have allowed to read or change your rosters and battles.{' '}
+          Apps you have allowed to read or change your rosters, battles and events.{' '}
           <Link to="/docs/$docId" params={{ docId: 'connect-an-assistant' }} className="text-info underline-offset-4 hover:underline">
             Connect Claude, ChatGPT or Gemini
           </Link>
@@ -250,8 +250,8 @@ export function AccountSecurity({ me, preferences }: { me: AccountIdentity; pref
                 icon={<ConnectedAppIcon name={connection.name} />}
                 title={connection.name}
                 detail={[
-                  connection.scopes.includes('mcp:read') ? 'Read rosters and battles' : null,
-                  connection.scopes.includes('mcp:write') ? 'Change rosters and record battles' : null,
+                  connection.scopes.includes('mcp:read') ? 'Read rosters, battles and events' : null,
+                  connection.scopes.includes('mcp:write') ? 'Change rosters, battles and events' : null,
                 ]
                   .filter(Boolean)
                   .join(' · ')}
@@ -619,7 +619,7 @@ function RevokeConnectionDialog({
   return (
     <ConfirmDialog
       title={`Revoke ${connection.name}?`}
-      description={`${connection.name} can no longer read or change your rosters and battles. Connect it again to give it access.`}
+      description={`${connection.name} can no longer read or change your rosters, battles and events. Connect it again to give it access.`}
       cancel="Keep access"
       confirm="Revoke access"
       pendingLabel="Revoking…"

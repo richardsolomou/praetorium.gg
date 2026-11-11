@@ -43,6 +43,14 @@ const { corpus } = vi.hoisted(() => ({
         attribution: ['Community data'],
       },
       {
+        id: 'disposition:take-and-hold',
+        kind: 'disposition',
+        title: 'Take and Hold',
+        faction: null,
+        url: '/force-dispositions/take-and-hold',
+        sections: [],
+      },
+      {
         id: 'deployment:unmatched',
         kind: 'deployment',
         title: 'Unmatched deployment',
@@ -94,15 +102,12 @@ const canonical = {
   datasheets: [{ catalogueId: 'test-catalogue', id: 'unit', referenceRoute: { catalogueId: 'test', slug: 'unit' } }],
   detachments: [],
 }
-const rules = {}
 vi.mock('./app', () => ({
   app: () => ({
     catalogueHistoryFor: async () => history.entries,
     canonicalCatalogueFor: async () => canonical,
-    rulesFor: async () => rules,
   }),
 }))
-vi.mock('../shared/gameReferences', () => ({ gameReferencesFor: () => ({ dispositions: [{ id: 'take-and-hold' }] }) }))
 
 import { referenceLlms, referenceRobots, referenceSitemap } from './referenceDiscovery'
 
@@ -265,7 +270,7 @@ it('documents reference updates, licensing, and attribution for agents', async (
   const response = await referenceLlms(new Request('https://praetorium.gg/llms.txt'))
 
   expect(await response.text()).toMatch(
-    /Praetorium guide.*Reference index.*search missions, deployments, terrain, rules, detachments, and datasheets.*instead of reading every datasheet.*Missions.*## Update model.*verified immutable snapshot.*## Licence and attribution.*AGPL-3\.0.*https:\/\/praetorium\.gg\/sources/s,
+    /Praetorium guide.*Reference index.*search missions, force dispositions, deployments, terrain, rules, detachments, and datasheets.*instead of reading every datasheet.*Missions.*## Update model.*verified immutable snapshot.*## Licence and attribution.*AGPL-3\.0.*https:\/\/praetorium\.gg\/sources/s,
   )
 })
 

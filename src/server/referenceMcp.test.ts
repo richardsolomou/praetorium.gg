@@ -316,6 +316,25 @@ it('serves reference discovery and structured records through MCP', async () => 
   })
 })
 
+it('tells every client to load the matching skill before planning a list', async () => {
+  const initialized = await handleReferenceMcp(
+    rpcRequest('initialize', { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'test', version: '1.0.0' } }),
+  )
+  expect(await initialized.json()).toMatchObject({ result: { instructions: expect.stringMatching(/get_skill.*build-a-roster/) } })
+})
+
+it('serves a skill through a tool for clients that never read prompts', async () => {
+  const response = await handleReferenceMcp(toolRequest('get_skill', { name: 'build-a-roster' }))
+  expect(await response.json()).toMatchObject({ result: { content: [{ text: expect.stringContaining('# Build a roster') }] } })
+})
+
+it('offers each skill as a prompt', async () => {
+  const response = await handleReferenceMcp(rpcRequest('prompts/get', { name: 'compare-units' }))
+  expect(await response.json()).toMatchObject({
+    result: { messages: [{ content: { text: expect.stringContaining('# Compare units') } }] },
+  })
+})
+
 it('rejects JSON-RPC batches', async () => {
   const response = await handleReferenceMcp(
     new Request('https://praetorium.gg/mcp', {

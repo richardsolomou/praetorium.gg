@@ -1,7 +1,7 @@
 import { hash } from 'node:crypto'
 import { hasTextTokens, textPointersIn, type TextLocations } from '../shared/sourceText'
 import type { CanonicalCatalogue, CanonicalDatasheet, CanonicalDetachment } from '../contracts/catalogue'
-import type { ReferenceDocument, ReferenceSection } from '../contracts/reference'
+import { DISPOSITION_PACK_SECTION, type ReferenceDocument, type ReferenceSection } from '../contracts/reference'
 import type { RuleDocument, RuleEntry } from '../contracts/rules'
 import { routeSlug } from '../core/slug'
 import { byId, remember } from '../core/collections'
@@ -9,7 +9,8 @@ import type { MissionSelectionKind } from '../core/missionSelections'
 import { compileCanonicalDetachments, completeStepsCooperatively } from './canonicalCatalogue'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { DATACARDS_ATTRIBUTION } from './datacards'
-import { gameReferencesFor } from '../shared/gameReferences'
+import { dispositionMatchups, gameReferencesFor } from '../shared/gameReferences'
+import { detachmentsOffering, type DispositionFaction } from '../shared/factionReferences'
 import { RULES_DATA_ATTRIBUTION, type LoadedRules } from './rules'
 import { referenceText } from './referenceText'
 import { factionReferenceHref, type ReferenceFaction } from '../core/factionReferenceRoute'
@@ -24,7 +25,8 @@ export type ReferenceSources = {
   rules: () => LoadedRules | null
   /** Where each file a token names lives upstream; without it, withheld words say only that they are withheld. */
   textLocations?: TextLocations | ScannableTextLocations
-  factions?: readonly (ReferenceFaction & { slug: string })[]
+  /** Each faction's route and detachments, which file detachments under their pages and say which offer a force disposition. */
+  factions?: readonly (ReferenceFaction & DispositionFaction)[]
 }
 
 export type ReferenceCorpus = {
@@ -101,7 +103,14 @@ function* referenceCorpusSteps(sources: ReferenceSources): Steps<ReferenceCorpus
     unsorted.push(detachmentDocument(files, detachment, factionPaths))
     yield
   }
-  if (rules) unsorted.push(...gameReferenceDocuments(files, gameReferencesFor(rules), rules, catalogue.revisions))
+  if (rules) {
+    const references = gameReferencesFor(rules)
+    unsorted.push(...gameReferenceDocuments(files, references, rules, catalogue.revisions))
+    for (const disposition of references.dispositions) {
+      unsorted.push(dispositionDocument(files, references, disposition, sources.factions ?? [], catalogue.revisions))
+      yield
+    }
+  }
   yield
   for (const document of catalogue.ruleDocuments) {
     unsorted.push(...ruleDocuments(files, document))
@@ -286,6 +295,48 @@ function terrainDocuments(
       ]),
     }
   })
+}
+
+function dispositionDocument(
+  files: TextLocations,
+  references: GameReferences,
+  disposition: GameReferences['dispositions'][number],
+  factions: readonly DispositionFaction[],
+  revisions: CanonicalCatalogue['revisions'],
+): ReferenceDocument {
+  const url = `/force-dispositions/${disposition.id}`
+  return {
+    id: `disposition:${disposition.id}`,
+    kind: 'disposition',
+    title: disposition.name,
+    faction: null,
+    url,
+    revisions: definedRevisions({ rules: revisions.rules, datacards: revisions.datacards, definitions: revisions.definitions }),
+    attribution: [RULES_DATA_ATTRIBUTION, DATACARDS_ATTRIBUTION],
+    sections: present([
+      section(files, url, 'summary', 'Summary', [disposition.text], disposition.id),
+      ...dispositionMatchups(references, disposition.id).map(({ pack, matchups }) =>
+        section(
+          files,
+          url,
+          `${DISPOSITION_PACK_SECTION}${pack.id}`,
+          `Primary missions: ${pack.name}`,
+          matchups.map(({ opponent, mission }) => `vs ${opponent.name}: ${mission.name}`),
+        ),
+      ),
+      section(
+        files,
+        url,
+        'detachments',
+        'Detachments',
+        detachmentsOffering(factions, disposition.id).flatMap((faction) =>
+          faction.detachments.map(
+            (detachment) => `${faction.displayName}: ${detachment.name}${detachment.points === null ? '' : ` (${detachment.points} DP)`}`,
+          ),
+        ),
+      ),
+    ]),
+  }
 }
 
 function missionRevisions(revisions: CanonicalCatalogue['revisions']) {

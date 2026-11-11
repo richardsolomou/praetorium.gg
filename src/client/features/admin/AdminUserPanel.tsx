@@ -445,7 +445,7 @@ function confirmationCopy(user: AdminUser, confirming: Confirming) {
     case 'connection':
       return {
         title: `Revoke ${confirming.name}?`,
-        description: `${confirming.name} can no longer read or change ${user.name}’s rosters and battles. They can connect it again.`,
+        description: `${confirming.name} can no longer read or change ${user.name}’s rosters, battles and events. They can connect it again.`,
         cancel: 'Keep access',
         confirm: 'Revoke',
         pendingLabel: 'Revoking…',

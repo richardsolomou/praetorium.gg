@@ -7,7 +7,12 @@ vi.mock('./publishedTextFiles', () => ({
   publishedTextLocations: async () => ({ files: {}, holds: () => false, recordsHolding: () => [] }),
 }))
 vi.mock('./app', () => ({
-  app: () => ({ service: { sealedEventService: { ownRoster } }, catalogueFor: async () => null, rulesFor: async () => null }),
+  app: () => ({
+    service: { sealedEventService: { ownRoster }, rosterService: { rosterAccess: async () => ({ roster: { name: 'My army' } }) } },
+    repository: { playerDefaults: async () => ({ rosterVisibility: 'public', battleSize: 2000 }) },
+    catalogueFor: async () => null,
+    rulesFor: async () => null,
+  }),
 }))
 vi.mock('./referenceApi', () => ({ activeReferenceCorpus: async () => null, referenceDocumentFor: async () => null }))
 
@@ -18,7 +23,7 @@ beforeEach(() => {
   ownRoster.mockResolvedValue({ id: 'roster-1', name: 'My army' })
 })
 
-it('exposes all fifteen MCP tools and both resources and prompts for a signed-in player', async () => {
+it('exposes every MCP tool and both resources and prompts for a signed-in player', async () => {
   const tools = await browserAgentDescriptors()
   expect(tools.map((tool) => tool.name).sort()).toEqual(
     [
@@ -26,17 +31,45 @@ it('exposes all fifteen MCP tools and both resources and prompts for a signed-in
       'get_my_roster',
       'list_my_battles',
       'get_my_battle',
+      'get_my_stats',
       'save_roster',
       'set_roster_visibility',
+      'copy_roster',
+      'delete_roster',
+      'set_roster_archived',
+      'get_my_collection',
+      'import_roster',
+      'export_roster',
       'create_battle',
       'submit_battle_action',
+      'list_my_opponents',
+      'get_my_battle_report',
+      'delete_battle',
+      'list_my_events',
+      'get_my_group',
+      'get_my_event',
+      'join_group',
+      'join_league',
+      'join_event',
+      'submit_event_roster',
+      'check_in_event',
+      'start_event_battle',
+      'report_table_result',
       'search_reference',
       'get_reference',
       'get_reference_record',
+      'get_mission_matchup',
       'list_factions',
       'list_reference',
       'list_units',
       'simulate_combat',
+      'optimize_loadout',
+      'get_unit_options',
+      'list_data_updates',
+      'check_roster',
+      'grade_roster',
+      'compare_rosters',
+      'get_skill',
       'get_praetorium_guide',
       'get_reference_status',
       'answer_rules_question',
@@ -55,14 +88,30 @@ it('does not expose account tools during impersonation', async () => {
   expect((await browserAgentDescriptors()).filter((tool) => tool.account)).toEqual([])
 })
 
-it('requires approval for each of the four account writes', async () => {
+it('requires approval for each account write', async () => {
   const tools = await browserAgentDescriptors()
   expect(
     tools
       .filter((tool) => !tool.readOnly)
       .map((tool) => tool.name)
       .sort(),
-  ).toEqual(['create_battle', 'save_roster', 'set_roster_visibility', 'submit_battle_action'])
+  ).toEqual([
+    'check_in_event',
+    'copy_roster',
+    'create_battle',
+    'delete_battle',
+    'delete_roster',
+    'join_event',
+    'join_group',
+    'join_league',
+    'report_table_result',
+    'save_roster',
+    'set_roster_archived',
+    'set_roster_visibility',
+    'start_event_battle',
+    'submit_battle_action',
+    'submit_event_roster',
+  ])
 })
 
 it('binds account calls to the current server session', async () => {
@@ -129,6 +178,16 @@ it('prepares a visibility change with the owned roster name', async () => {
     input: '{"id":"roster-1","visibility":"public"}',
     summary: 'Make “My army” public.',
   })
+})
+
+it('prepares a deletion naming the owned roster it removes', async () => {
+  expect((await prepareBrowserAgentWrite('delete_roster', { id: 'roster-1' }, 'player-1')).summary).toBe('Permanently delete “My army”.')
+})
+
+it('prepares a variant naming the visibility it will be saved with', async () => {
+  expect((await prepareBrowserAgentWrite('copy_roster', { id: 'roster-1', variant: true }, 'player-1')).summary).toBe(
+    'Save a variant of “My army” to your rosters. Visibility: public.',
+  )
 })
 
 it('refuses to prepare a change for a different account', async () => {

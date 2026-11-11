@@ -1,7 +1,8 @@
 import { expect, it } from 'vitest'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { bestRosterMatches, matchupShade, ownerRuns, RosterCombatTable } from './RosterCombatTable'
+import { matchupShade, ownerRuns, RosterCombatTable } from './RosterCombatTable'
+import { bestRosterMatches } from '../../../core/rosterCombatTable'
 
 const answer = (meanDamage: number, meanKills: number, wipe: number) => ({ result: { meanDamage, meanKills, wipe } })
 it('highlights damage rather than destruction chance when comparing wounds', () => {

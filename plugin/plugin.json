@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "praetorium",
-  "version": "1.0.2",
+  "version": "1.1.0",
   "description": "Warhammer 40,000 datasheets, points, detachments, missions and a combat simulator, plus your saved rosters and battles on Praetorium.",
   "author": {
     "name": "Richard Solomou",
@@ -16,10 +16,17 @@
       "interface": {
         "displayName": "Praetorium",
         "shortDescription": "Warhammer 40K army builder",
-        "longDescription": "Praetorium is an open source Warhammer 40,000 army builder, combat simulator and battle tracker. Ask about any faction's units, points, detachments, enhancements, stratagems and missions, and get answers with links to the matching Praetorium page. Compare two units with Praetorium's combat simulator to see expected casualties and the odds of destroying the target. Sign in with your Praetorium account to read your saved rosters and battles, build or edit a roster, create a battle, or record a battle action.\n\nPraetorium returns names, numbers, points and calculated results, not rules text: when an answer depends on a rule's wording, it links to the published source instead. Reference lookups and the simulator work without an account; roster and battle tools need sign-in, with read and change access granted separately. Praetorium is unofficial and not affiliated with or endorsed by Games Workshop.",
+        "longDescription": "Praetorium is an open source Warhammer 40,000 army builder, combat simulator and battle tracker. Ask about any faction's units, points, detachments, enhancements, stratagems and missions, and get answers with links to the matching Praetorium page. Import, check, grade and export an army list, compare two lists unit by unit, look up the missions for a pairing of Force dispositions, and see what changed in each points update. Compare two units with Praetorium's combat simulator to see expected casualties and the odds of destroying the target. Sign in with your Praetorium account to read your saved rosters, collection, battles and record, build or edit a roster, set up and track a battle, or seal a list and report results in a tournament or league.\n\nPraetorium returns names, numbers, points and calculated results, not rules text: when an answer depends on a rule's wording, it links to the published source instead. Reference lookups and the simulator work without an account; roster and battle tools need sign-in, with read and change access granted separately. Praetorium is unofficial and not affiliated with or endorsed by Games Workshop.",
         "developerName": "Richard Solomou",
         "category": "Entertainment",
-        "capabilities": ["Look up units and points", "Search rules and missions", "Simulate combat", "Manage rosters and battles"],
+        "capabilities": [
+          "Look up units and points",
+          "Search rules and missions",
+          "Check and grade lists",
+          "Simulate combat",
+          "Manage rosters and battles",
+          "Play in tournaments and leagues"
+        ],
         "websiteURL": "https://praetorium.gg",
         "supportURL": "https://praetorium.gg/support",
         "privacyPolicyURL": "https://praetorium.gg/privacy",

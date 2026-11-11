@@ -5,7 +5,8 @@ import { resolveCombatRequest, type CombatAnswer, type CombatRequest } from '../
 import { runRosterCombat } from './runRosterCombat'
 import { clearCombatAnswerCache } from './combatCalculation'
 import type { CombatRoster } from './useCombatant'
-import { rosterCombatRequest, rosterCombatSnapshot, type RosterCombatSummary } from './rosterCombat'
+import { rosterCombatSnapshot } from './rosterCombat'
+import { rosterCombatRequest, type RosterCombatSummary } from '../../../core/rosterCombatTable'
 import { clearRosterCombatCache } from './rosterCombatCache'
 
 const mocks = vi.hoisted(() => ({ project: vi.fn(), worker: vi.fn() }))

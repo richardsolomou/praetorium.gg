@@ -1,7 +1,10 @@
 import type { TextPointer } from '../shared/sourceText'
 
-export const REFERENCE_KINDS = ['datasheet', 'deployment', 'detachment', 'mission', 'rule', 'terrain'] as const
+export const REFERENCE_KINDS = ['datasheet', 'deployment', 'detachment', 'disposition', 'mission', 'rule', 'terrain'] as const
 export type ReferenceKind = (typeof REFERENCE_KINDS)[number]
+
+/** The anchor prefix of a force disposition's primary missions in one pack, which a pack filter finds it by. */
+export const DISPOSITION_PACK_SECTION = 'missions-'
 
 export type ReferenceSection = {
   id: string

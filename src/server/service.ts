@@ -1407,6 +1407,14 @@ export class PraetoriumService {
     return this.viewerReport(history, userId, rules)
   }
 
+  /** The seated screen with the fold it was drawn from, so a reader can ask `validate` what the battle accepts next. */
+  async seatedBattle(token: string, userId: string, rules?: BattleReadRules | null) {
+    const history = await this.mustSeatHistory(token, userId)
+    const state = reduceBattle(...battleFoldArgs(history.players, history.log))
+    if (rules) hydrateAuthoritativeAwards(state, rules)
+    return { screen: this.seatedScreen(history, userId, rules), state }
+  }
+
   async battleWorkspace(
     token: string,
     userId: string,

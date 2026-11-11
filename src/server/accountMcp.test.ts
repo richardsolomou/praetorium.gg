@@ -3,16 +3,15 @@ import { AgentTools } from './agentTools'
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js'
 
-const { ownRoster, saveOwnedRoster, submit, userBattleId, screen, createBattle, setRosterVisibility, capture, shelf } = vi.hoisted(() => ({
+const { ownRoster, saveOwnedRoster, setRosterVisibility, capture, shelf, battles, playerProfile, playerRankings } = vi.hoisted(() => ({
   shelf: { value: null as LoadedCatalogue | null },
   ownRoster: vi.fn(),
   saveOwnedRoster: vi.fn(),
-  submit: vi.fn(),
-  userBattleId: vi.fn(),
-  screen: vi.fn(),
-  createBattle: vi.fn(),
   setRosterVisibility: vi.fn(),
   capture: vi.fn(),
+  battles: vi.fn(),
+  playerProfile: vi.fn(),
+  playerRankings: vi.fn(),
 }))
 vi.mock('./saveOwnedRoster', () => ({ saveOwnedRoster }))
 vi.mock('./publishedTextFiles', () => ({
@@ -20,10 +19,17 @@ vi.mock('./publishedTextFiles', () => ({
 }))
 vi.mock('./app', () => ({
   app: () => ({
-    service: { submit, userBattleId, screen, createBattle, sealedEventService: { ownRoster }, rosterService: { setRosterVisibility } },
+    service: {
+      battles,
+      playerProfile,
+      playerRankings,
+      sealedEventService: { ownRoster },
+      rosterService: { setRosterVisibility },
+    },
     telemetry: { capture },
     catalogueFor: async () => shelf.value,
     rulesFor: async () => null,
+    battleFactionsFor: async () => [],
   }),
 }))
 
@@ -88,24 +94,6 @@ it('does not return a roster the player does not own', async () => {
   expect(response.result.isError).toBe(true)
 })
 
-it('submits a battle command with the current sequence and account identity', async () => {
-  submit.mockResolvedValueOnce({ result: { outcome: 'appended' } })
-  const response = await call('player-1', 'submit_battle_action', {
-    token: 'battle-1',
-    expectedSeq: 4,
-    command: { kind: 'set-painted', painted: true },
-  })
-  expect(response.result.structuredContent.result.outcome).toBe('appended')
-  expect(submit).toHaveBeenLastCalledWith('battle-1', 'player-1', 4, { kind: 'set-painted', painted: true }, null)
-})
-
-it('checks a battle seat before returning the private battle screen', async () => {
-  userBattleId.mockRejectedValueOnce(new Response('not seated', { status: 403 }))
-  const response = await call('player-1', 'get_my_battle', { token: 'private-battle' })
-  expect(response.result.isError).toBe(true)
-  expect(screen).not.toHaveBeenCalled()
-})
-
 it('counts a roster an agent creates', async () => {
   saveOwnedRoster.mockResolvedValueOnce({ id: 'roster-1', created: true, updatedAt: 1 })
   await call('player-1', 'save_roster', roster)
@@ -127,41 +115,6 @@ it('reports a visibility change an agent makes', async () => {
   })
 })
 
-it('counts a battle an agent creates as a direct creation of that battle', async () => {
-  createBattle.mockResolvedValueOnce({ battleId: 'battle-id', token: 'battle-1', practice: false })
-  await call('player-1', 'create_battle', { opponentId: 'opponent', casual: true })
-  expect(capture.mock.calls.map(([, event, { battle_id, delivery, via }]) => [event, battle_id, delivery, via])).toEqual([
-    ['battle_created', 'battle-id', 'direct', 'agent'],
-  ])
-})
-
-it('reports a battle command an agent records against its battle', async () => {
-  submit.mockResolvedValueOnce({ result: { outcome: 'appended', seq: 5 }, battleId: 'battle-id' })
-  await call('player-1', 'submit_battle_action', { token: 'battle-1', expectedSeq: 4, command: { kind: 'set-painted', painted: true } })
-  expect(capture.mock.calls.map(([, event, { battle_id }]) => [event, battle_id])).toEqual([['battle_command_submitted', 'battle-id']])
-})
-
-it('keeps the internal battle id out of an agent’s battle action answer', async () => {
-  submit.mockResolvedValueOnce({ result: { outcome: 'appended', seq: 5 }, battleId: 'battle-id' })
-  const response = await call('player-1', 'submit_battle_action', {
-    token: 'battle-1',
-    expectedSeq: 4,
-    command: { kind: 'set-painted', painted: true },
-  })
-  expect(response.result.structuredContent).not.toHaveProperty('battleId')
-})
-
-it('reports a battle an agent’s command finished, with its battle and why', async () => {
-  submit.mockResolvedValueOnce({ result: { outcome: 'appended', seq: 5 }, battleId: 'battle-id', finished: 'completed' })
-  await call('player-1', 'submit_battle_action', { token: 'battle-1', expectedSeq: 4, command: { kind: 'advance' } })
-  expect(capture).toHaveBeenLastCalledWith('player-1', 'battle_finished', {
-    battle_id: 'battle-id',
-    reason: 'completed',
-    delivery: 'direct',
-    via: 'agent',
-  })
-})
-
 it.each([
   ['current-rosters~2261-79a5-19d9-1668', '2261-79a5-19d9-1668'],
   ['2261-79a5-19d9-1668', 'legacy-rosters~2261-79a5-19d9-1668'],
@@ -169,4 +122,56 @@ it.each([
   saveOwnedRoster.mockResolvedValueOnce({ id: 'roster-1', updatedAt: 1 })
   await call('player-1', 'save_roster', { ...roster, catalogueId, detachmentIds: ['3caf-c168-c372-51b1'] })
   expect(saveOwnedRoster).toHaveBeenLastCalledWith('player-1', expect.objectContaining({ catalogueId: expected }))
+})
+
+const finished = {
+  token: 'battle-1',
+  createdAt: 0,
+  lastActivity: 0,
+  status: 'finished',
+  playerIds: ['opponent', 'player-1'],
+  playerDetails: [
+    { id: 'opponent', name: 'Sam', automated: false },
+    { id: 'player-1', name: 'Kieran', automated: false },
+  ],
+  players: ['Sam', 'Kieran'],
+  sides: [0, 1],
+  scores: [80, 60],
+  primaries: [40, 30],
+  secondaries: [40, 30],
+  armies: [null, null],
+  factions: [null, null],
+  detachments: [[], []],
+  result: { reason: 'completed', concededBy: null },
+  settings: { limit: 2000, missionPackId: null },
+  mission: null,
+  deploymentId: null,
+}
+
+it('narrows an agent’s battle list by the filter and order it asks for', async () => {
+  battles.mockResolvedValueOnce({ battles: [], nextCursor: null })
+  await call('player-1', 'list_my_battles', { filter: { faction: { in: ['necrons'] } }, order: 'oldest' })
+  expect(battles).toHaveBeenLastCalledWith(
+    'player-1',
+    null,
+    { limit: 25, before: undefined, filter: { faction: { in: ['necrons'], out: [] } }, order: 'oldest' },
+    [],
+  )
+})
+
+it('reads a listed battle’s result from the signed-in player’s seat', async () => {
+  battles.mockResolvedValueOnce({ battles: [finished], nextCursor: null })
+  const response = await call('player-1', 'list_my_battles', {})
+  expect(response.result.structuredContent.battles[0].result).toBe('lost')
+})
+
+it('reads an agent’s statistics from its own seat, narrowed as asked', async () => {
+  playerProfile.mockResolvedValueOnce({
+    record: { opponents: [] },
+    performance: { detachments: [], missions: [], sizes: [] },
+    facets: {},
+  })
+  playerRankings.mockResolvedValueOnce({ overall: null, factions: [], history: [] })
+  await call('player-1', 'get_my_stats', { faction: 'necrons' })
+  expect(playerProfile).toHaveBeenLastCalledWith('player-1', 'player-1', { faction: 'necrons' }, null, [])
 })

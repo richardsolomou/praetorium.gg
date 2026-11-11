@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import type { Roster, Stratagem } from '../../../core/battle'
 import { STRATAGEMS_MAX } from '../../../core/battle'
-import { armyRulesRequest, sideStratagems } from './sideRules'
+import { armyRulesRequest } from './sideRules'
+import { sideStratagems } from '../../../core/sideStratagems'
 
 const stratagem = (key: string): Stratagem => ({ key, name: key, cp: 1, limit: 'unlimited' })
 

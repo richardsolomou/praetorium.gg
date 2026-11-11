@@ -56,7 +56,7 @@ export function missionMatchupText({
   yourDisposition,
   opponentDisposition,
 }: z.infer<z.ZodObject<typeof missionMatchupPrompt.argsSchema>>) {
-  return `Use list_reference and search_reference with pack ${pack} to resolve ${yourDisposition} vs ${opponentDisposition}. Read the structured mission, deployment, and terrain records before explaining the primary scoring and setup. Cite canonical URLs and do not infer missing card text.`
+  return `Call get_mission_matchup with pack ${pack}, yourDisposition ${yourDisposition}, and opponentDisposition ${opponentDisposition}; if it refuses a value, retry with one of the options it lists. Explain each side's primary scoring from its card, then the deployments and terrain layouts, reading their records with get_reference_record where needed. Cite canonical URLs and do not infer missing card text.`
 }
 
 export function promptMessages(text: string) {

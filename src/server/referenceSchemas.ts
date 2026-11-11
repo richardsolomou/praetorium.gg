@@ -100,3 +100,29 @@ export const unitSummarySchema = z.object({
   url: z.string().nullable(),
   referenceId: z.string().nullable(),
 })
+
+const citationSchema = z.object({ id: z.string(), name: z.string(), referenceId: z.string(), url: z.string() })
+const matchupSideSchema = z.object({
+  disposition: citationSchema,
+  mission: citationSchema.loose().describe('The primary mission: its card, caps, and deployments it allows, with the page that cites it.'),
+})
+
+export const missionMatchupSchema = z.object({
+  pack: citationSchema,
+  url: z.string(),
+  you: matchupSideSchema,
+  opponent: matchupSideSchema,
+  terrain: z.array(
+    z.object({
+      id: z.string(),
+      name: z.string(),
+      variant: z.number().nullable(),
+      deploymentId: z.string().nullable(),
+      referenceId: z.string(),
+      url: z.string().nullable(),
+    }),
+  ),
+  deployments: z.array(z.object({ id: z.string(), name: z.string(), referenceId: z.string(), url: z.string().nullable() })),
+  revisions: revisionsSchema,
+  attribution: attributionSchema,
+})

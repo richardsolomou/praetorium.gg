@@ -40,8 +40,12 @@ export function McpConsentPage({
           <ul className="mt-6 list-disc space-y-2 pl-5 text-sm">
             {scopes.includes('openid') && <li>Identify your Praetorium account.</li>}
             {scopes.includes('profile') && <li>Read your profile name and picture.</li>}
-            {scopes.includes('mcp:read') && <li>Read your saved rosters and battles.</li>}
-            {scopes.includes('mcp:write') && <li>Edit your rosters, create battles, and record battle actions.</li>}
+            {scopes.includes('mcp:read') && (
+              <li>Read your saved rosters, collection, battles and record, and the groups and tournaments you play in.</li>
+            )}
+            {scopes.includes('mcp:write') && (
+              <li>Edit your rosters, set up and record battles, and seal lists and report results in groups and tournaments.</li>
+            )}
             {scopes.includes('offline_access') && <li>Stay connected until you revoke access.</li>}
           </ul>
           {error && <Problem className="mt-4 text-base">{error}</Problem>}

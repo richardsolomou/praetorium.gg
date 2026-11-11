@@ -13,7 +13,7 @@ import { DispositionChip } from '../../battle/setup/chrome'
 import { gameReferencesQuery, terrainMatchupIds, terrainReferencesQuery } from '../../../queries'
 import { PageContent, PageHeader } from '../../../components/Page'
 import { buttonClass } from '../../../components/buttonClass'
-import { matchupMission } from './dispositionMatchups'
+import { matchupMission } from '../../../../shared/gameReferences'
 import { SectionHeading } from '../../../components/SectionHeading'
 
 export function MissionMatchupPage({ packId, you, opponent }: { packId: string; you: string; opponent: string }) {

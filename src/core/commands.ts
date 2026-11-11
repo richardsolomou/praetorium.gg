@@ -36,15 +36,41 @@ const rosterLimit = z.number().int().min(0).max(POINTS_BUDGET_MAX)
 const name = z.string().min(1).max(ROSTER_NAME_MAX_LENGTH)
 export { id as idSchema, name as nameSchema, rosterLimit as rosterLimitSchema }
 export const detachmentIdSchema = z.string().min(1).max(128)
+// Descriptions are for agents, who build picks from get_unit_options without seeing the builder.
 export const rosterPickSchema = z.object({
-  entryId: id,
-  catalogueId: id.optional(),
-  models: z.number().int().min(1).max(60).optional(),
-  choices: z.record(z.string().max(400), id).optional(),
-  spreads: z.record(z.string().max(400), z.record(z.string().max(64), z.number().int().min(0).max(60))).optional(),
-  toggles: z.record(z.string().max(400), z.number().int().min(0).max(1)).optional(),
-  attachedTo: z.number().int().min(0).max(99).optional(),
-  embarkedIn: z.number().int().min(0).max(99).optional(),
+  entryId: id.describe('Unit id from list_units or get_unit_options.'),
+  catalogueId: id.optional().describe("The unit's own catalogue when it differs from the roster's; usually omitted."),
+  models: z.number().int().min(1).max(60).optional().describe('Unit size; defaults to the minimum.'),
+  choices: z
+    .record(z.string().max(400), id)
+    .optional()
+    .describe(
+      'One option per choice group, choice key to option id from get_unit_options, for groups it sets with choices: wargear, an enhancement, a detachment upgrade. Omitted groups keep their default.',
+    ),
+  spreads: z
+    .record(z.string().max(400), z.record(z.string().max(64), z.number().int().min(0).max(60)))
+    .optional()
+    .describe(
+      'How many models take each option of a group get_unit_options sets with spreads: choice key to {option id: count}. A group is in choices or spreads, never both.',
+    ),
+  toggles: z
+    .record(z.string().max(400), z.number().int().min(0).max(1))
+    .optional()
+    .describe("Optional single entries by toggle key from get_unit_options, 1 on, 0 off; the Warlord toggle names the army's one Warlord."),
+  attachedTo: z
+    .number()
+    .int()
+    .min(0)
+    .max(99)
+    .optional()
+    .describe('Index in picks of the unit this leader or support unit joins, one from its list_units canBeLedBy or canBeSupportedBy.'),
+  embarkedIn: z
+    .number()
+    .int()
+    .min(0)
+    .max(99)
+    .optional()
+    .describe('Index in picks of the TRANSPORT this unit starts embarked in; set it on the bodyguard unit, never on its attached leader.'),
   nickname: z.string().max(UNIT_NICKNAME_MAX_LENGTH).optional(),
   note: z.string().max(UNIT_NOTE_MAX_LENGTH).optional(),
 })

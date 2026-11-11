@@ -233,7 +233,7 @@ function buildFactions(loaded: LoadedCatalogue, rules: LoadedRules | null | unde
   }
 }
 
-type DispositionFaction = {
+export type DispositionFaction = {
   slug: string
   displayName: string
   icon: string | null

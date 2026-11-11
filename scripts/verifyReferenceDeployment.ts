@@ -190,7 +190,7 @@ if (!mcpMissionSearch.ok || mcpMission?.id !== missionMatrix.id || mcpMission.se
 const { body: mcpToolsBody } = await mcp<{
   result?: { tools?: { name?: string; annotations?: { readOnlyHint?: boolean }; outputSchema?: unknown }[] }
 }>(3, 'tools/list')
-for (const name of ['list_reference', 'list_units', 'get_reference_record']) {
+for (const name of ['list_reference', 'list_units', 'get_reference_record', 'get_mission_matchup']) {
   const tool = mcpToolsBody.result?.tools?.find((candidate) => candidate.name === name)
   if (!tool?.annotations?.readOnlyHint || !tool.outputSchema) throw new Error(`MCP omitted the ${name} contract`)
 }
@@ -212,6 +212,23 @@ const { body: mcpRecordBody } = await callTool<{ result?: { structuredContent?: 
 )
 if (!mcpRecordBody.result?.structuredContent?.data?.setups?.length) {
   throw new Error('MCP structured mission omitted matchup setup references')
+}
+
+const disposition = (await search('Purge the Foe', 'disposition')).body.results[0]
+const dispositionRecord = disposition && (await request(`/api/reference/v1/records/${encodeURIComponent(disposition.id)}`))
+const dispositionData = dispositionRecord?.ok
+  ? ((await dispositionRecord.json()) as { data?: { packs?: { matchups?: unknown[] }[]; detachments?: unknown[] } }).data
+  : undefined
+if (!dispositionData?.packs?.[0]?.matchups?.length || !dispositionData.detachments?.length) {
+  throw new Error('force disposition record omitted its missions or detachments')
+}
+
+const { body: mcpMatchupBody } = await callTool<{
+  result?: { structuredContent?: { url?: string; you?: { mission?: { name?: string } }; terrain?: unknown[] } }
+}>(9, 'get_mission_matchup', { pack: 'chapter-approved-2026-2027', yourDisposition: 'Take and Hold', opponentDisposition: 'Purge the Foe' })
+const matchup = mcpMatchupBody.result?.structuredContent
+if (!matchup?.you?.mission?.name || !matchup.terrain?.length || !matchup.url?.includes('/matchups/take-and-hold/purge-the-foe')) {
+  throw new Error('MCP mission matchup omitted its missions, terrain, or canonical URL')
 }
 
 async function simulateCombat(id: number, attacker: object, defender: object) {

@@ -5,8 +5,9 @@ import { Button } from '@/components/ui/button'
 import { Choice, PHASE_TITLES, PhaseIcon } from './CombatControls'
 import { OwnerName, type RosterOwner } from './rosterOwners'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { CombatValue, formatCombatValue, type CombatMetric } from './CombatValue'
-import type { RosterCombatSummary, RosterCombatUnit } from './rosterCombat'
+import { CombatValue, formatCombatValue } from './CombatValue'
+import type { RosterCombatUnit } from './rosterCombat'
+import { bestRosterMatches, type CombatMetric, type RosterCombatSummary } from '../../../core/rosterCombatTable'
 import { combatUnitTarget } from '../../../core/combatUnit'
 import { countLabel } from '../../text'
 
@@ -33,12 +34,6 @@ function modelCount(unit: RosterCombatUnit) {
     target.groups.reduce((sum, group) => sum + group.models * group.wounds - (group.damage ?? 0), 0) -
     (unit.snapshot.companions?.length ? 0 : (unit.snapshot.damage ?? 0))
   return `${count} · ${wounds} wounds`
-}
-
-export function bestRosterMatches(results: (RosterCombatSummary[keyof RosterCombatSummary] | undefined)[], metric: CombatMetric) {
-  if (results.some((answer) => !answer)) return []
-  const best = Math.max(0, ...results.map((answer) => answer?.result?.[metric] ?? 0))
-  return best > 0 ? results.flatMap((answer, index) => (answer?.result?.[metric] === best ? [index] : [])) : []
 }
 
 /** How much of the bone tint a cell takes, so larger results read brighter at a glance. */

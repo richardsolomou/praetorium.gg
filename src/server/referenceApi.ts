@@ -16,6 +16,8 @@ import {
 } from './referenceSearch'
 import {
   factionDetachmentNames,
+  missionMatchup,
+  type MissionMatchupQuery,
   referenceFaction,
   referenceFactions,
   referenceIndex,
@@ -104,7 +106,14 @@ export async function referenceRecordFor(id: string) {
   const catalogueId = referenceRecordCatalogueId(id)
   const corpus = await activeReferenceCorpus(catalogueId)
   if (!corpus) return null
-  return { corpus, record: referenceRecord(corpus, await app().rulesFor(catalogueId), id) }
+  const [rules, factions] = await Promise.all([app().rulesFor(catalogueId), app().factionsFor()])
+  return { corpus, record: referenceRecord(corpus, rules, id, factions?.factions) }
+}
+
+/** Both sides' primary missions and setup for a pairing, with the corpus they came from; null while no snapshot can answer. */
+export async function referenceMissionMatchupFor(query: MissionMatchupQuery) {
+  const [corpus, rules] = await Promise.all([activeReferenceCorpus(), app().rulesFor()])
+  return corpus && rules ? missionMatchup(corpus, rules, query) : null
 }
 
 /** The document a reference id names, with the corpus it came from; null while no snapshot can answer. */
@@ -186,6 +195,10 @@ export const referenceUnitsResponse = rateLimited(async (request: Request, catal
     `# ${data.faction.name} roster planning`,
     data.detachment ? `Detachment: ${data.detachment.name}` : null,
     data.battleSize ? `Battle size: ${data.battleSize} points` : null,
+    ...(data.detachments ?? []).map(
+      (option) =>
+        `- Detachment ${option.name}: ${option.points ?? '?'} DP · ${option.dispositions.join(', ') || 'no Force disposition'} · rules ${option.rules.join(', ') || 'none'} · enhancements ${option.enhancements.map((enhancement) => `${enhancement.name} (${enhancement.points ?? '?'} pts)`).join(', ') || 'none'}`,
+    ),
     ...data.units.map(
       (unit) =>
         `- ${unit.name}: ${unit.points ?? 'points unavailable'}${unit.limit === null ? '' : `, limit ${unit.limit}`} · ${unit.group}${unit.keywords.length ? ` · ${unit.keywords.join(', ')}` : ''}${unit.url ? ` · ${unit.url}` : ''}`,

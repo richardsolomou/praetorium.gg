@@ -445,7 +445,7 @@ export async function copyRoster(args: Parameters<typeof server.copyRoster>[0]):
   }
   if (localOwner()?.id !== owner) throw new Error('The account changed before this roster could be copied.')
   const result = await saveRoster({ data: input })
-  return { id: result.id }
+  return { id: result.id, visibility: rosterVisibility }
 }
 
 function summaryFor(roster: LocalRoster) {

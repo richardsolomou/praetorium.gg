@@ -1,4 +1,4 @@
-import type { CanonicalDatasheet, UnitSummary } from '../contracts/catalogue'
+import type { CanonicalDatasheet, CanonicalDetachment, UnitSummary } from '../contracts/catalogue'
 import type { ReferenceDocument } from '../contracts/reference'
 import type { DatasheetRelationship } from '../core/datasheet'
 import { routeSlug } from '../core/slug'
@@ -12,7 +12,9 @@ import { unitsIn } from '../shared/cataloguePicker'
 import { entryFactions } from '../shared/catalogueIndex'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { factionDisplayName } from '../shared/factionNames'
-import { gameReferencesFor } from '../shared/gameReferences'
+import { dispositionMatchups, gameReferencesFor, matchupMission } from '../shared/gameReferences'
+import { detachmentsOffering, type DispositionFaction } from '../shared/factionReferences'
+import { terrainMatchupIds } from '../contracts/terrainReference'
 import { datasheetRoute, type ReferenceCorpus } from './referenceCorpus'
 import type { LoadedRules } from './rules'
 
@@ -89,6 +91,9 @@ export function referenceUnits(
     nonMatchedPlay,
     query: wanted || null,
     detachment: selectedDetachment,
+    detachments: selectedDetachment
+      ? null
+      : factionDetachments(corpus, loaded, foundFaction.id, currentCatalogueIds).map(detachmentOverview),
     units,
     revisions: corpus.catalogue.revisions,
   }
@@ -212,6 +217,27 @@ function referenceDetachment(
   )
 }
 
+/** Every detachment a faction's lists can take, each in the rules version referenceDetachment would read. */
+function factionDetachments(corpus: ReferenceCorpus, loaded: LoadedCatalogue, factionId: string, currentCatalogueIds: ReadonlySet<string>) {
+  const sameVersion = sameRulesVersion(factionId, currentCatalogueIds)
+  return (loaded.detachments.get(factionId)?.options ?? []).flatMap((option) => {
+    const copies = corpus.catalogue.detachments.filter((candidate) => candidate.id === option.id)
+    const found =
+      copies.find((candidate) => candidate.catalogueId === factionId) ?? copies.find((candidate) => sameVersion(candidate.catalogueId))
+    return found ? [found] : []
+  })
+}
+
+/** What an agent compares detachments by before choosing one; list_units with that detachment gives the rest. */
+const detachmentOverview = (detachment: CanonicalDetachment) => ({
+  name: detachment.name,
+  points: detachment.points,
+  dispositions: detachment.dispositions,
+  rules: detachment.rules.map((rule) => rule.name),
+  enhancements: detachment.enhancements.map(({ name, points }) => ({ name, points })),
+  referenceId: `detachment:${detachment.factionSlug}:${detachment.slug}`,
+})
+
 /** Where a datasheet is read: its canonical page and the id get_reference_record accepts. */
 export function datasheetCitation(corpus: ReferenceCorpus, sheet: CanonicalDatasheet | undefined) {
   if (!sheet) return { url: null, referenceId: null }
@@ -251,7 +277,12 @@ function unitReference(corpus: ReferenceCorpus, unit: UnitSummary, sheet: Canoni
 
 export const referenceRecordCatalogueId = (id: string) => /^(?:datasheet|detachment):([^:]+):/.exec(id)?.[1]
 
-export function referenceRecord(corpus: ReferenceCorpus, rules: LoadedRules | null, id: string) {
+export function referenceRecord(
+  corpus: ReferenceCorpus,
+  rules: LoadedRules | null,
+  id: string,
+  factions: readonly DispositionFaction[] = [],
+) {
   if (id.startsWith('datasheet:')) return datasheetRecord(corpus, id)
   const document = corpus.byId.get(id)
   if (!document) return null
@@ -270,6 +301,9 @@ export function referenceRecord(corpus: ReferenceCorpus, rules: LoadedRules | nu
     const [, packId, missionId] = id.split(':')
     const mission = references.packs.find((candidate) => candidate.id === packId)?.missions.find((candidate) => candidate.id === missionId)
     data = mission ? { ...mission, setups: missionSetups(corpus, rules, mission.matchups) } : null
+  } else if (id.startsWith('disposition:') && references) {
+    const disposition = references.dispositions.find((candidate) => candidate.id === id.slice('disposition:'.length))
+    data = disposition ? dispositionRecord(corpus, references, disposition, factions) : null
   } else if (id.startsWith('deployment:') && rules) {
     data = rules.deployments.find((candidate) => candidate.id === id.slice('deployment:'.length))
   } else if (id.startsWith('terrain:') && rules) {
@@ -295,35 +329,136 @@ type GameReferences = ReturnType<typeof gameReferencesFor>
 
 function missionSetups(corpus: ReferenceCorpus, rules: LoadedRules | null, matchups: GameReferencePack['missions'][number]['matchups']) {
   if (!rules) return []
+  return matchups.flatMap(([you, opponent]) =>
+    you && opponent ? [{ you, opponent, ...matchupSetup(corpus, rules, you.id, opponent.id) }] : [],
+  )
+}
+
+/** The terrain layouts two force dispositions play on, and the deployments those layouts use. */
+function matchupSetup(corpus: ReferenceCorpus, rules: LoadedRules, you: string, opponent: string) {
   const deployments = byId(rules.deployments)
-  return matchups.flatMap(([you, opponent]) => {
-    if (!you || !opponent) return []
-    const matchupIds = new Set([`${you.id}-vs-${opponent.id}`, `${opponent.id}-vs-${you.id}`])
-    const terrain = rules.terrainLayouts
-      .filter((layout) => matchupIds.has(layout.matchupId))
-      .map((layout) => ({
-        id: layout.id,
-        name: layout.name,
-        variant: layout.variant,
-        deploymentId: layout.deploymentId,
-        referenceId: `terrain:${layout.id}`,
-        url: corpus.byId.get(`terrain:${layout.id}`)?.url ?? null,
-      }))
-    const deploymentIds = new Set(terrain.flatMap((layout) => (layout.deploymentId ? [layout.deploymentId] : [])))
-    return [
-      {
-        you,
-        opponent,
-        terrain,
-        deployments: [...deploymentIds].map((deploymentId) => ({
-          id: deploymentId,
-          name: deployments.get(deploymentId)?.name ?? deploymentId,
-          referenceId: `deployment:${deploymentId}`,
-          url: corpus.byId.get(`deployment:${deploymentId}`)?.url ?? null,
-        })),
+  const matchupIds = terrainMatchupIds([you, opponent])
+  const terrain = rules.terrainLayouts
+    .filter((layout) => matchupIds.includes(layout.matchupId))
+    .map((layout) => ({
+      id: layout.id,
+      name: layout.name,
+      variant: layout.variant,
+      deploymentId: layout.deploymentId,
+      referenceId: `terrain:${layout.id}`,
+      url: corpus.byId.get(`terrain:${layout.id}`)?.url ?? null,
+    }))
+  const deploymentIds = new Set(terrain.flatMap((layout) => (layout.deploymentId ? [layout.deploymentId] : [])))
+  return {
+    terrain,
+    deployments: [...deploymentIds].map((deploymentId) => ({
+      id: deploymentId,
+      name: deployments.get(deploymentId)?.name ?? deploymentId,
+      referenceId: `deployment:${deploymentId}`,
+      url: corpus.byId.get(`deployment:${deploymentId}`)?.url ?? null,
+    })),
+  }
+}
+
+const matchupUrl = (packId: string, you: string, opponent: string) => `/missions/${packId}/matchups/${you}/${opponent}`
+
+/** A primary mission as it is cited on the page of the pairing that plays it. */
+const missionCitation = (packId: string, you: string, opponent: string, mission: GameReferencePack['missions'][number]) => ({
+  id: mission.id,
+  name: mission.name,
+  referenceId: `mission:${packId}:${mission.id}`,
+  url: `${matchupUrl(packId, you, opponent)}#mission-${mission.id}`,
+})
+
+function dispositionRecord(
+  corpus: ReferenceCorpus,
+  references: GameReferences,
+  disposition: GameReferences['dispositions'][number],
+  factions: readonly DispositionFaction[],
+) {
+  return {
+    ...disposition,
+    packs: dispositionMatchups(references, disposition.id).map(({ pack, matchups }) => ({
+      id: pack.id,
+      name: pack.name,
+      referenceId: `mission-pack:${pack.id}`,
+      matchups: matchups.map(({ opponent, mission }) => ({
+        opponent: { id: opponent.id, name: opponent.name },
+        url: matchupUrl(pack.id, disposition.id, opponent.id),
+        mission: missionCitation(pack.id, disposition.id, opponent.id, mission),
+      })),
+    })),
+    detachments: detachmentsOffering(factions, disposition.id).flatMap((faction) =>
+      faction.detachments.map((detachment) => {
+        const referenceId = `detachment:${faction.slug}:${detachment.slug}`
+        return {
+          faction: faction.displayName,
+          name: detachment.name,
+          points: detachment.points,
+          referenceId,
+          url: corpus.byId.get(referenceId)?.url ?? `/factions/${faction.slug}/detachments/${detachment.slug}`,
+        }
+      }),
+    ),
+  }
+}
+
+type Named = { id: string; name: string }
+
+/** The one candidate a value names by id, slug, or name, exactly or else as part of one; otherwise why none is chosen. */
+function namedIn<T extends Named>(candidates: readonly T[], value: string, label: string): { found: T } | { error: string } {
+  const key = joinKey(value)
+  const keys = (candidate: T) => [joinKey(candidate.id), joinKey(candidate.name)]
+  const exact = candidates.filter((candidate) => keys(candidate).includes(key))
+  const matches = exact.length ? exact : candidates.filter((candidate) => key && keys(candidate).some((entry) => entry.includes(key)))
+  if (matches.length === 1) return { found: matches[0]! }
+  const options = (matches.length ? matches : candidates).map((candidate) => `${candidate.name} (${candidate.id})`).join(', ')
+  return {
+    error: matches.length
+      ? `${value} could be more than one ${label}: ${options}.`
+      : `No ${label} is named ${value}. Use one of: ${options || 'none'}.`,
+  }
+}
+
+export type MissionMatchupQuery = { pack: string; yourDisposition: string; opponentDisposition: string }
+
+/** Each side's primary mission for a pairing in a pack, and the terrain and deployments it is played on. */
+export function missionMatchup(corpus: ReferenceCorpus, rules: LoadedRules, query: MissionMatchupQuery) {
+  const references = gameReferencesFor(rules)
+  const pack = namedIn(references.packs, query.pack, 'mission pack')
+  if ('error' in pack) return pack
+  const you = namedIn(references.dispositions, query.yourDisposition, 'force disposition')
+  if ('error' in you) return you
+  const opponent = namedIn(references.dispositions, query.opponentDisposition, 'force disposition')
+  if ('error' in opponent) return opponent
+  const ids = [pack.found.id, you.found.id, opponent.found.id] as const
+  const packDocument = corpus.byId.get(`mission-pack:${pack.found.id}`)
+  const yours = matchupMission(pack.found, you.found.id, opponent.found.id)
+  const theirs = matchupMission(pack.found, opponent.found.id, you.found.id)
+  if (!yours || !theirs) return { error: `${pack.found.name} has no mission for ${you.found.name} vs ${opponent.found.name}.` }
+  const side = (disposition: Named, mission: typeof yours) => {
+    const { matchups: _, ...card } = mission
+    return {
+      disposition: {
+        id: disposition.id,
+        name: disposition.name,
+        referenceId: `disposition:${disposition.id}`,
+        url: `/force-dispositions/${disposition.id}`,
       },
-    ]
-  })
+      mission: { ...card, ...missionCitation(...ids, mission) },
+    }
+  }
+  return {
+    matchup: {
+      pack: { id: pack.found.id, name: pack.found.name, referenceId: `mission-pack:${pack.found.id}`, url: `/missions/${pack.found.id}` },
+      url: matchupUrl(...ids),
+      you: side(you.found, yours),
+      opponent: side(opponent.found, theirs),
+      ...matchupSetup(corpus, rules, you.found.id, opponent.found.id),
+      revisions: packDocument?.revisions ?? corpus.catalogue.revisions,
+      attribution: packDocument?.attribution ?? [],
+    },
+  }
 }
 
 type GameReferencePack = GameReferences['packs'][number]

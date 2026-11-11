@@ -43,9 +43,9 @@ export function PrivacyPolicy() {
           your profile’s security settings.
         </p>
         <p>
-          If you use a browser assistant, supported browsers can let it read game references and your saved rosters and battles through your
-          signed-in session. You review and approve proposed changes on the page. Information returned to the assistant may be processed by
-          its provider under that provider's privacy policy.
+          If you use a browser assistant, supported browsers can let it read game references and your saved rosters, collection, battles and
+          groups through your signed-in session. You review and approve proposed changes on the page. Information returned to the assistant
+          may be processed by its provider under that provider's privacy policy.
         </p>
         <p>
           If you allow notifications in the mobile app, we store that device's push token, its platform, and when it was last seen. Signing
