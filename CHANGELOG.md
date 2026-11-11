@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.231.10 (2026-11-11)
+
+### Patch Changes
+
+- 8b7cb6e: New Recruit share links to Crusade lists import with their detachment and battle size, without flagging Order of Battle and Configuration as unknown units.
+
 ## 0.231.9 (2026-11-11)
 
 ### Patch Changes
