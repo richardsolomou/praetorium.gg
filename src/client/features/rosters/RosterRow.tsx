@@ -2,6 +2,7 @@ import { Link } from '@tanstack/react-router'
 import {
   Archive,
   ArchiveRestore,
+  ClipboardCheck,
   Copy,
   EllipsisVertical,
   Eye,
@@ -67,6 +68,7 @@ export function RosterRow({
   onShare,
   onLend,
   onStartBattle,
+  onGrade,
   onDelete,
   points,
   label,
@@ -92,6 +94,7 @@ export function RosterRow({
   onShare: () => void
   onLend: () => void
   onStartBattle: () => void
+  onGrade: () => void
   onDelete: () => void
   /** Priced with every other list in the library, so a row asks for nothing of its own. */
   points?: number | null
@@ -109,7 +112,19 @@ export function RosterRow({
 }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const title = rosterTitle(roster, faction, label)
-  const items = { roster, title, grouped: layout !== 'card', actions, onEdit, onShare, onLend, onStartBattle, onDelete, onNeedsAccount }
+  const items = {
+    roster,
+    title,
+    grouped: layout !== 'card',
+    actions,
+    onEdit,
+    onShare,
+    onLend,
+    onStartBattle,
+    onGrade,
+    onDelete,
+    onNeedsAccount,
+  }
 
   return (
     <ContextMenu>
@@ -200,6 +215,7 @@ function RosterActionItems({
   onShare,
   onLend,
   onStartBattle,
+  onGrade,
   onDelete,
   onNeedsAccount,
 }: {
@@ -214,6 +230,7 @@ function RosterActionItems({
   onShare: () => void
   onLend: () => void
   onStartBattle: () => void
+  onGrade: () => void
   onDelete: () => void
   onNeedsAccount?: (reason: AccountReason) => void
 }) {
@@ -223,6 +240,9 @@ function RosterActionItems({
     <>
       <Item className={MENU_ITEM} disabled={!roster.unitCount} onClick={orAccount('battle', onStartBattle)}>
         <Swords /> Start a battle
+      </Item>
+      <Item className={MENU_ITEM} disabled={!roster.unitCount} onClick={onGrade}>
+        <ClipboardCheck /> Grade this roster
       </Item>
       <Separator />
       <Item className={MENU_ITEM} disabled={roster.locked} onClick={onEdit}>

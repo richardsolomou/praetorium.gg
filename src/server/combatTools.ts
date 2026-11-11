@@ -9,7 +9,6 @@ import {
   combatRuleKey,
   combatRuleRoles,
   combatRuleSelections,
-  readCombatRule,
   type CombatRule,
 } from '../core/combatRules'
 import { admitsHost, attachmentOf } from '../core/attach'
@@ -21,12 +20,13 @@ import { hasTextTokens } from '../shared/sourceText'
 import type { ToolErrorType } from '../contracts/agentTools'
 import { READ_ONLY_TOOL, structured, toolError, type AgentTools } from './agentTools'
 import { app } from './app'
+import { combatantSnapshot, withReadRules } from '../shared/rosterGradeMeasures'
+import { rosterCombatant } from '../shared/rosterCombatRules'
 import { serverWords } from './publishedTextFiles'
 import { activeReferenceCorpus, currentFactionIds } from './referenceApi'
 import type { ReferenceCorpus } from './referenceCorpus'
 import { datasheetCitation, factionDatasheets, factionUnits, referenceFaction } from './referenceService'
 import type { LoadedCatalogue } from '../shared/catalogueIndex'
-import { rosterCombatant } from '../shared/rosterCombatRules'
 import { rosterDatasheetSelections } from '../shared/rosterDatasheetContext'
 
 /**
@@ -223,26 +223,9 @@ async function combatant(corpus: ReferenceCorpus, side: SideInput, role: Role) {
   if (!loaded) throw new CombatRefusal([REFERENCE_UNAVAILABLE], 'unavailable')
   const detachmentIds = side.detachment ? [detachmentId(loaded, named.catalogueId, side.detachment)] : []
   const resolved = { ...named, detachmentIds, picks: joinedPicks(loaded, named.catalogueId, detachmentIds, named.picks) }
-  let projection = rosterCombatant(loaded, rules, {
-    catalogueId: resolved.catalogueId,
-    detachmentIds,
-    picks: resolved.picks,
-    pickIndex: 0,
-  })
-  if (!projection) throw new CombatRefusal([`${side.unit} could not be loaded.`])
-  const words = await serverWords()
-  // A rule whose words the snapshot does not hold stays a token, which `ruleSummary` reports as not calculated.
-  const read = (unread: readonly CombatRule[]) =>
-    unread.flatMap((rule) => {
-      if (!hasTextTokens(rule.description)) return [rule]
-      const description = words(rule.description)
-      return description === null ? [rule] : (readCombatRule(rule, description) ?? [])
-    })
-  projection = {
-    ...projection,
-    rules: read(projection.rules),
-    companions: projection.companions.map((member) => ({ ...member, rules: read(member.rules) })),
-  }
+  const unread = rosterCombatant(loaded, rules, { catalogueId: resolved.catalogueId, detachmentIds, picks: resolved.picks, pickIndex: 0 })
+  if (!unread) throw new CombatRefusal([`${side.unit} could not be loaded.`])
+  const projection = withReadRules(unread, await serverWords())
   const errors = [
     ...projection.attachmentErrors.map((error) => `${error.entryName}: ${error.message}.`),
     ...[
@@ -261,27 +244,7 @@ async function combatant(corpus: ReferenceCorpus, side: SideInput, role: Role) {
     [...projection.rules, ...projection.companions.flatMap((member) => member.rules)],
     side.rules ?? {},
   )
-  const snapshot: CombatantSnapshot = {
-    sheet: projection.selected,
-    bodyguard: true,
-    models: projection.models,
-    startingModels: projection.models,
-    damage: 0,
-    carriers: projection.carriers,
-    rules: selection.active(projection.rules),
-    ruleChoices: selection.choices,
-    appliedDefenceSources: selection.appliedDefenceSources(projection.rules),
-    companions: projection.companions.map((member) => ({
-      sheet: member.selected,
-      bodyguard: false,
-      models: member.models,
-      startingModels: member.models,
-      damage: 0,
-      carriers: member.carriers,
-      rules: selection.active(member.rules),
-      appliedDefenceSources: selection.appliedDefenceSources(member.rules),
-    })),
-  }
+  const snapshot = combatantSnapshot(projection, selection)
   const units = resolved.sheets.map((sheet, index) => {
     const member = index ? projection.companions.find((companion) => companion.pickIndex === index)! : null
     return {
@@ -294,6 +257,18 @@ async function combatant(corpus: ReferenceCorpus, side: SideInput, role: Role) {
 }
 
 type Combatant = Awaited<ReturnType<typeof combatant>>
+
+/** A named faction's unit at full strength with its passive rules, or null when the reference data cannot field it. */
+export async function namedCombatant(faction: string, unit: string, models?: number): Promise<CombatantSnapshot | null> {
+  const corpus = await activeReferenceCorpus()
+  if (!corpus) return null
+  try {
+    return (await combatant(corpus, { faction, unit, ...(models ? { models } : {}) }, 'defender')).snapshot
+  } catch (error) {
+    if (error instanceof CombatRefusal) return null
+    throw error
+  }
+}
 
 const comparable = (text: string) =>
   text

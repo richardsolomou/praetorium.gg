@@ -25,6 +25,7 @@ import {
   homeRosters,
   loadoutDatasheets,
   priceRoster,
+  rosterGrades,
   unitBattleDetails,
   rosterAccess,
   rosterBootstrap,
@@ -287,6 +288,27 @@ export const setupPriceQuery = (
     setup.optionalRules,
     includeUnitLimits,
   )
+
+/** The roster grades for the picks on screen, which only the server can calculate, so it asks only while they are open. */
+export const rosterGradesQuery = (setup: Parameters<typeof setupPriceQuery>[0], picked: readonly RosterPick[], open: boolean) => {
+  const data = {
+    catalogueId: setup.catalogueId,
+    detachmentIds: [...setup.detachmentIds],
+    disposition: setup.disposition,
+    borrowedDetachmentId: setup.borrowedDetachmentId ?? null,
+    limit: setup.limit,
+    units: [...picked],
+    waivedRules: [...(setup.waivedRules ?? [])],
+    optionalRules: [...(setup.optionalRules ?? [])],
+  }
+  return queryOptions({
+    queryKey: ['roster-grades', ...rosterPriceKey(data).slice(1)],
+    queryFn: ({ signal }) => rosterGrades({ data, signal }),
+    enabled: open && Boolean(setup.catalogueId) && picked.length > 0,
+    staleTime: SSR_STALE_TIME,
+    placeholderData: keepPreviousData,
+  })
+}
 
 /** What a battle freezes of each datasheet in a list, for judging embarks as setup will. */
 export const unitBattleDetailsQuery = (catalogueId: string, entryIds: readonly string[]) => {

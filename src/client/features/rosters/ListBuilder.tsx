@@ -2,6 +2,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tansta
 import { loadedWords } from '../../sourceText'
 import { Link, useMatch, useNavigate, useRouterState } from '@tanstack/react-router'
 import {
+  ClipboardCheck,
   Archive,
   ArchiveRestore,
   Calculator,
@@ -137,6 +138,7 @@ import type { AttachChoice } from './builder/UnitCard'
 import { RosterDataChanges } from './RosterDataChanges'
 import { RosterRulesNotice } from './RosterRulesNotice'
 import { RosterReadiness } from './RosterReadiness'
+import { RosterGradesDialog } from './RosterGradesDialog'
 import { convertAsVariantOf } from './rosterLibrary'
 import { currentRulesFor } from '../../../core/currentRules'
 import { OutdatedSealedEventRosters } from './OutdatedSealedEventRosters'
@@ -302,6 +304,7 @@ export function ListBuilder({
   const [exportText, setExportText] = useState<RosterTextExport | null>(null)
   const [exchangeCode, setExchangeCode] = useState<RosterExchangeCode | null>(null)
   const [lending, setLending] = useState(false)
+  const [grading, setGrading] = useState(false)
   const [returning, setReturning] = useState(false)
   const [startingBattle, setStartingBattle] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -1190,6 +1193,8 @@ export function ListBuilder({
   // Frozen selections are what a datasheet is applied to; a log written without them
   // leaves cards that say what was fielded and nothing to open behind them.
   const loadoutAvailable = !frozen || picks.length > 0
+  // Frozen battle armies show what was recorded, never a fresh judgement of the list.
+  const gradesAvailable = !frozen && !print
   const selectedPick = selected === null ? null : (picks[selected] ?? null)
   const selectedUnitLoading = selected !== null && !selectedUnit
   const evaluatedPick = selectedPick ? (evaluatedPicks.current.get(selectedPick.key) ?? null) : null
@@ -1375,6 +1380,11 @@ export function ListBuilder({
       <Calculator /> Test targets
     </DropdownMenuItem>
   ) : null
+  const gradeItem = gradesAvailable ? (
+    <DropdownMenuItem className={MENU_ITEM} disabled={!positioned.length} onClick={() => setGrading(true)}>
+      <ClipboardCheck /> Grade this roster
+    </DropdownMenuItem>
+  ) : null
 
   return (
     <RosterShell saving={saving} saveError={save.isError}>
@@ -1432,6 +1442,7 @@ export function ListBuilder({
                       </DropdownMenuItem>
                     ) : null}
                     {testTargets}
+                    {gradeItem}
                   </MenuSection>
                   <DropdownMenuSeparator />
                   <MenuSection label="Setup">
@@ -1550,6 +1561,7 @@ export function ListBuilder({
                           </DropdownMenuItem>
                         ) : null}
                         {testTargets}
+                        {gradeItem}
                       </MenuSection>
                       <DropdownMenuSeparator />
                     </>
@@ -2046,6 +2058,9 @@ export function ListBuilder({
       <RosterShareDialog open={sharing} onClose={() => setSharing(false)} {...rosterShare} />
       <RosterExportDialog exported={exportText} onClose={() => setExportText(null)} />
       <RosterExchangeDialog exchange={exchangeCode} onClose={() => setExchangeCode(null)} />
+      {gradesAvailable ? (
+        <RosterGradesDialog open={grading} onClose={() => setGrading(false)} name={listName} setup={setup} picks={positioned} />
+      ) : null}
       {account.prompt}
       {savedId && (editable || locked) && !guest ? (
         <>

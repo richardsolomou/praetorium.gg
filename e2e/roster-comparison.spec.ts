@@ -274,6 +274,7 @@ for (const width of [1440, 390]) {
     await expect(menu.getByRole('menuitem')).toHaveText([
       'Start a battle',
       'Test targets',
+      'Grade this roster',
       'Edit roster setup',
       'Create variant',
       'Duplicate',
@@ -285,6 +286,7 @@ for (const width of [1440, 390]) {
       'Delete',
     ])
     await expect(menu.getByRole('menuitem', { name: 'Test targets', exact: true })).toHaveAttribute('aria-disabled', 'true')
+    await expect(menu.getByRole('menuitem', { name: 'Grade this roster', exact: true })).toHaveAttribute('aria-disabled', 'true')
     // Grouped under headings; a list with no attached unit has nothing to display differently.
     await expect(menu.getByRole('group')).toHaveText([/^Play/, /^Setup/, /^Copies and access/])
     await expect(menu.getByRole('separator')).toHaveCount(4)
@@ -295,6 +297,7 @@ for (const width of [1440, 390]) {
     await expect(menu.getByRole('menuitem')).toHaveText([
       'View',
       'Start a battle',
+      'Grade this roster',
       'Edit roster setup',
       'Create variant',
       'Duplicate',

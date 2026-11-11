@@ -1,13 +1,14 @@
 import { createServerFn } from '@tanstack/react-start'
 import { getRequest } from '@tanstack/react-start/server'
 import { rosterCombatantsSchema, combatRequestsSchema } from '../../contracts/combatCalculation'
-import { forgetMatchupSchema, rememberMatchupSchema } from '../../contracts/schemas'
+import { forgetMatchupSchema, priceSchema, rememberMatchupSchema } from '../../contracts/schemas'
 import { rosterCombatants } from '../../shared/rosterCombatants'
 import { app } from '../app'
 import { forSignedIn } from '../playerSession'
 import { productActions, signedInAction } from '../productActions'
 import { mutationRpc, rpc } from '../rpc'
 import { combatCalculationPool } from '../combatCalculationPool'
+import { calculateRosterGrades } from '../rosterGrades'
 
 export const combatantDatasheets = createServerFn({ method: 'POST' })
   .validator(rosterCombatantsSchema)
@@ -45,3 +46,8 @@ export const rememberMatchup = createServerFn({ method: 'POST' })
 export const forgetMatchup = createServerFn({ method: 'POST' })
   .validator(forgetMatchupSchema)
   .handler(({ data }) => signedInAction(productActions.forgetMatchup, data))
+
+/** The roster grades for the picks on screen; it reads rule words, so it is calculated here rather than on the device. */
+export const rosterGrades = createServerFn({ method: 'POST' })
+  .validator(priceSchema)
+  .handler(({ data }) => mutationRpc(() => calculateRosterGrades(data, getRequest().signal)))

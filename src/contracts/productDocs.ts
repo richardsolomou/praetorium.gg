@@ -35,6 +35,12 @@ export const PRODUCT_DOCS = [
     description: 'Points, validation messages, and switching format restrictions off.',
   },
   {
+    slug: 'roster-grades',
+    section: 'Army lists',
+    title: 'Read your roster grades',
+    description: 'How the scores work, what each category measures, and where they stop.',
+  },
+  {
     slug: 'change-setup',
     section: 'Army lists',
     title: 'Change setup and rules version',
