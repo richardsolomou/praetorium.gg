@@ -138,7 +138,7 @@ import type { AttachChoice } from './builder/UnitCard'
 import { RosterDataChanges } from './RosterDataChanges'
 import { RosterRulesNotice } from './RosterRulesNotice'
 import { RosterReadiness } from './RosterReadiness'
-import { RosterGradesPanel } from './RosterGradesPanel'
+import { RosterGradesDialog } from './RosterGradesDialog'
 import { convertAsVariantOf } from './rosterLibrary'
 import { currentRulesFor } from '../../../core/currentRules'
 import { OutdatedSealedEventRosters } from './OutdatedSealedEventRosters'
@@ -304,6 +304,7 @@ export function ListBuilder({
   const [exportText, setExportText] = useState<RosterTextExport | null>(null)
   const [exchangeCode, setExchangeCode] = useState<RosterExchangeCode | null>(null)
   const [lending, setLending] = useState(false)
+  const [grading, setGrading] = useState(false)
   const [returning, setReturning] = useState(false)
   const [startingBattle, setStartingBattle] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -323,8 +324,6 @@ export function ListBuilder({
     paneHistory,
     closePane,
     openPicker,
-    openGrades,
-    loadoutInline,
     updateLoadoutHistory,
   } = useRosterPanes({ path, workspacePath, picks })
   const [setupDraft, setSetupDraft] = useWorkspaceState<RosterSetup>(workspacePath, SETUP_STATE)
@@ -1184,8 +1183,7 @@ export function ListBuilder({
   // leaves cards that say what was fielded and nothing to open behind them.
   const loadoutAvailable = !frozen || picks.length > 0
   // Frozen battle armies show what was recorded, never a fresh judgement of the list.
-  const gradesAvailable = !frozen && !print && positioned.length > 0
-  const showGrades = gradesAvailable && selected === null && !preview && (showing === 'grades' || loadoutInline)
+  const gradesAvailable = !frozen && !print
   const selectedPick = selected === null ? null : (picks[selected] ?? null)
   const selectedUnitLoading = selected !== null && !selectedUnit
   const evaluatedPick = selectedPick ? (evaluatedPicks.current.get(selectedPick.key) ?? null) : null
@@ -1370,7 +1368,7 @@ export function ListBuilder({
     </DropdownMenuItem>
   ) : null
   const gradeItem = gradesAvailable ? (
-    <DropdownMenuItem className={MENU_ITEM} onClick={openGrades}>
+    <DropdownMenuItem className={MENU_ITEM} disabled={!positioned.length} onClick={() => setGrading(true)}>
       <ClipboardCheck /> Grade this roster
     </DropdownMenuItem>
   ) : null
@@ -1867,126 +1865,119 @@ export function ListBuilder({
         {loadoutAvailable ? (
           <Pane
             variant="loadout"
-            open={(showing === 'loadout' && Boolean(selected !== null || preview)) || (showing === 'grades' && gradesAvailable)}
+            open={showing === 'loadout' && Boolean(selected !== null || preview)}
             threeColumn={editable}
-            title={showGrades ? 'Roster grades' : (preview?.name ?? frozenSelected?.name ?? selectedUnit?.name ?? 'Unit')}
-            ariaLabel={showGrades ? 'Roster grades' : preview ? 'Datasheet' : 'Loadout'}
+            title={preview?.name ?? frozenSelected?.name ?? selectedUnit?.name ?? 'Unit'}
+            ariaLabel={preview ? 'Datasheet' : 'Loadout'}
             backLabel={paneHistory?.pane === 'loadout' && paneHistory.returnToPicker ? 'Back to units' : undefined}
             onClose={closePane}
             actions={
-              showGrades ? undefined : (
-                <>
-                  {preview && building ? (
-                    <Button
-                      size="sm"
-                      className="px-2"
-                      disabled={!canAddCopy(preview.entryId, held[preview.entryId] ?? 0, unitLimits)}
-                      aria-describedby={previewLimitMessage ? previewLimitId : undefined}
-                      onClick={() => add(preview.entryId)}
-                    >
-                      <Plus className="size-3" />
-                      Add to list
-                    </Button>
-                  ) : optimisticUnit ? (
-                    <span className="flex max-w-full shrink-0 flex-wrap items-center justify-start gap-1.5 @max-[30rem]:gap-1">
-                      {warlord && building ? (
-                        <button
-                          type="button"
-                          title={
-                            requiredWarlord
-                              ? `${requiredWarlord.name} must be your Warlord`
-                              : `${warlord.selected ? 'Remove' : 'Make'} ${optimisticUnit.name} Warlord`
-                          }
-                          aria-label={`${warlord.selected ? 'Remove' : 'Make'} ${optimisticUnit.name} Warlord`}
-                          aria-pressed={warlord.selected}
-                          disabled={Boolean(requiredWarlord)}
-                          className={`chip gap-1 ${warlord.selected ? 'text-info' : requiredWarlord ? 'cursor-not-allowed text-faint' : 'hover:border-info hover:text-bone'}`}
-                          onClick={() => selected !== null && edit.toggle(selected, warlord.key, warlord.name, !warlord.selected)}
-                        >
-                          <Crown className={`size-3.5 ${warlord.selected ? 'fill-current' : ''}`} />
-                          Warlord
-                        </button>
-                      ) : null}
-                      {warlord?.selected && !building ? (
-                        <span className="chip gap-1 text-info">
-                          <Crown className="size-3.5 fill-current" /> Warlord
-                        </span>
-                      ) : null}
-                      <PointsChip points={optimisticUnit.points} />
-                      {optimisticUnit.size.resizable && building ? (
-                        <Stepper
-                          label={`models in ${optimisticUnit.name}`}
-                          countLabel={`${optimisticUnit.name} models`}
-                          count={optimisticUnit.size.models}
-                          onRemove={
-                            optimisticUnit.size.models > optimisticUnit.size.min
-                              ? () =>
-                                  selected !== null &&
-                                  edit.resize(
-                                    selected,
-                                    (models) => optimisticUnit.size.options?.findLast((size) => size < models) ?? models - 1,
-                                  )
-                              : undefined
-                          }
-                          onAdd={
-                            optimisticUnit.size.models < optimisticUnit.size.max
-                              ? () =>
-                                  selected !== null &&
-                                  edit.resize(
-                                    selected,
-                                    (models) => optimisticUnit.size.options?.find((size) => size > models) ?? models + 1,
-                                  )
-                              : undefined
-                          }
-                          blocked={`Max ${countLabel(optimisticUnit.size.max, 'model')}`}
-                          choices={modelCountChoices(optimisticUnit.size)}
-                          onChoose={(models) => selected !== null && edit.resize(selected, () => models)}
-                        />
-                      ) : (
-                        <span className="chip normal-case">{countLabel(optimisticUnit.size.models, 'model')}</span>
-                      )}
-                    </span>
-                  ) : frozenSelected ? (
-                    // The list as fought, before the price behind it has said anything.
-                    <span className="flex shrink-0 flex-wrap items-center justify-start gap-1.5 @max-[30rem]:gap-1">
-                      <PointsChip points={frozenSelected.points} />
-                      <span className="chip normal-case">{countLabel(frozenSelected.models, 'model')}</span>
-                    </span>
-                  ) : null}
-                  {!frozen && !preview && selected !== null ? (
-                    <Tooltip>
-                      <TooltipTrigger
-                        render={
-                          <Button
-                            size="icon-sm"
-                            variant="ghost"
-                            aria-label="Simulate combat"
-                            disabled={!selectedUnit || pricePending || priceLoading}
-                            onClick={() => openCombat(selected, false)}
-                          />
+              <>
+                {preview && building ? (
+                  <Button
+                    size="sm"
+                    className="px-2"
+                    disabled={!canAddCopy(preview.entryId, held[preview.entryId] ?? 0, unitLimits)}
+                    aria-describedby={previewLimitMessage ? previewLimitId : undefined}
+                    onClick={() => add(preview.entryId)}
+                  >
+                    <Plus className="size-3" />
+                    Add to list
+                  </Button>
+                ) : optimisticUnit ? (
+                  <span className="flex max-w-full shrink-0 flex-wrap items-center justify-start gap-1.5 @max-[30rem]:gap-1">
+                    {warlord && building ? (
+                      <button
+                        type="button"
+                        title={
+                          requiredWarlord
+                            ? `${requiredWarlord.name} must be your Warlord`
+                            : `${warlord.selected ? 'Remove' : 'Make'} ${optimisticUnit.name} Warlord`
                         }
+                        aria-label={`${warlord.selected ? 'Remove' : 'Make'} ${optimisticUnit.name} Warlord`}
+                        aria-pressed={warlord.selected}
+                        disabled={Boolean(requiredWarlord)}
+                        className={`chip gap-1 ${warlord.selected ? 'text-info' : requiredWarlord ? 'cursor-not-allowed text-faint' : 'hover:border-info hover:text-bone'}`}
+                        onClick={() => selected !== null && edit.toggle(selected, warlord.key, warlord.name, !warlord.selected)}
                       >
-                        <Calculator aria-hidden />
-                      </TooltipTrigger>
-                      <TooltipContent role="tooltip" side="bottom">
-                        Simulate combat
-                      </TooltipContent>
-                    </Tooltip>
-                  ) : null}
-                  {inspectedEntryId && referenceRoute !== null ? (
-                    referenceRoute ? (
-                      <FullDatasheetLink route={referenceRoute} />
+                        <Crown className={`size-3.5 ${warlord.selected ? 'fill-current' : ''}`} />
+                        Warlord
+                      </button>
+                    ) : null}
+                    {warlord?.selected && !building ? (
+                      <span className="chip gap-1 text-info">
+                        <Crown className="size-3.5 fill-current" /> Warlord
+                      </span>
+                    ) : null}
+                    <PointsChip points={optimisticUnit.points} />
+                    {optimisticUnit.size.resizable && building ? (
+                      <Stepper
+                        label={`models in ${optimisticUnit.name}`}
+                        countLabel={`${optimisticUnit.name} models`}
+                        count={optimisticUnit.size.models}
+                        onRemove={
+                          optimisticUnit.size.models > optimisticUnit.size.min
+                            ? () =>
+                                selected !== null &&
+                                edit.resize(
+                                  selected,
+                                  (models) => optimisticUnit.size.options?.findLast((size) => size < models) ?? models - 1,
+                                )
+                            : undefined
+                        }
+                        onAdd={
+                          optimisticUnit.size.models < optimisticUnit.size.max
+                            ? () =>
+                                selected !== null &&
+                                edit.resize(selected, (models) => optimisticUnit.size.options?.find((size) => size > models) ?? models + 1)
+                            : undefined
+                        }
+                        blocked={`Max ${countLabel(optimisticUnit.size.max, 'model')}`}
+                        choices={modelCountChoices(optimisticUnit.size)}
+                        onChoose={(models) => selected !== null && edit.resize(selected, () => models)}
+                      />
                     ) : (
-                      <FullDatasheetLinkLoading />
-                    )
-                  ) : null}
-                </>
-              )
+                      <span className="chip normal-case">{countLabel(optimisticUnit.size.models, 'model')}</span>
+                    )}
+                  </span>
+                ) : frozenSelected ? (
+                  // The list as fought, before the price behind it has said anything.
+                  <span className="flex shrink-0 flex-wrap items-center justify-start gap-1.5 @max-[30rem]:gap-1">
+                    <PointsChip points={frozenSelected.points} />
+                    <span className="chip normal-case">{countLabel(frozenSelected.models, 'model')}</span>
+                  </span>
+                ) : null}
+                {!frozen && !preview && selected !== null ? (
+                  <Tooltip>
+                    <TooltipTrigger
+                      render={
+                        <Button
+                          size="icon-sm"
+                          variant="ghost"
+                          aria-label="Simulate combat"
+                          disabled={!selectedUnit || pricePending || priceLoading}
+                          onClick={() => openCombat(selected, false)}
+                        />
+                      }
+                    >
+                      <Calculator aria-hidden />
+                    </TooltipTrigger>
+                    <TooltipContent role="tooltip" side="bottom">
+                      Simulate combat
+                    </TooltipContent>
+                  </Tooltip>
+                ) : null}
+                {inspectedEntryId && referenceRoute !== null ? (
+                  referenceRoute ? (
+                    <FullDatasheetLink route={referenceRoute} />
+                  ) : (
+                    <FullDatasheetLinkLoading />
+                  )
+                ) : null}
+              </>
             }
           >
-            {showGrades ? (
-              <RosterGradesPanel setup={setup} picks={positioned} />
-            ) : preview ? (
+            {preview ? (
               <>
                 {limitFailure}
                 {previewLimitMessage ? (
@@ -2054,6 +2045,9 @@ export function ListBuilder({
       <RosterShareDialog open={sharing} onClose={() => setSharing(false)} {...rosterShare} />
       <RosterExportDialog exported={exportText} onClose={() => setExportText(null)} />
       <RosterExchangeDialog exchange={exchangeCode} onClose={() => setExchangeCode(null)} />
+      {gradesAvailable ? (
+        <RosterGradesDialog open={grading} onClose={() => setGrading(false)} name={listName} setup={setup} picks={positioned} />
+      ) : null}
       {account.prompt}
       {savedId && (editable || locked) && !guest ? (
         <>

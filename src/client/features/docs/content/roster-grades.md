@@ -1,4 +1,4 @@
-Roster grades show what a roster can do on the table, one job at a time. On a wide screen they fill the column beside your units whenever no unit is selected; anywhere else, choose **Grade this roster** from the roster's **⋮** menu. Each row gets a grade from A to D, and the summary at the top names the gaps worth knowing about. The grades are not a chance to win: the player, the mission and the dice decide far more than the list does.
+Roster grades show what a roster can do on the table, one job at a time. Choose **Grade this roster** from the roster's **⋮** menu. Each job gets a grade from A to D, the overview at the top names what the list does best and worst, and **Worth knowing** lists the gaps. The grades are not a chance to win: the player, the mission and the dice decide far more than the list does.
 
 ## What each grade measures
 

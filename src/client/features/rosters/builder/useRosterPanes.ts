@@ -5,7 +5,7 @@ import { useMediaQuery } from '../../../useMediaQuery'
 import { useHydrated } from '../../../useClientValue'
 
 type RosterPaneHistory =
-  | { workspace: string; pane: 'picker' | 'grades' }
+  | { workspace: string; pane: 'picker' }
   | ({ workspace: string; pane: 'loadout'; returnToPicker?: boolean } & (
       | { selectedKey: number }
       | { preview: { catalogueId: string; entryId: string; name: string } }
@@ -23,7 +23,7 @@ export function useRosterPanes({ path, workspacePath, picks }: { path: string; w
   const router = useRouter()
   const [selected, setSelected] = useState<number | null>(null)
   const [preview, setPreview] = useState<{ catalogueId: string; entryId: string; name: string } | null>(null)
-  const [showing, setShowing] = useState<'picker' | 'loadout' | 'grades' | null>(null)
+  const [showing, setShowing] = useState<'picker' | 'loadout' | null>(null)
   // The server draws the desktop workspace; the browser corrects it before the first paint.
   // `roster-wide` in styles.css, from which the picker joins as a third column.
   const wideWorkspace = useMediaQuery('(min-width: 1172px)', true)
@@ -89,7 +89,7 @@ export function useRosterPanes({ path, workspacePath, picks }: { path: string; w
     if (paneHistoryRef.current !== paneHistory) paneHistoryBackPending.current = false
     paneHistoryRef.current = paneHistory
     setShowing(paneHistory.pane)
-    if (paneHistory.pane !== 'loadout') return
+    if (paneHistory.pane === 'picker') return
     if ('preview' in paneHistory) {
       setPreview(paneHistory.preview)
       setSelected(null)
@@ -134,14 +134,6 @@ export function useRosterPanes({ path, workspacePath, picks }: { path: string; w
     if (!wideWorkspace) pushPaneHistory({ workspace: workspacePath, pane: 'picker' })
   }, [pushPaneHistory, wideWorkspace, workspacePath])
 
-  /** The roster grades take the loadout's place, so no unit stays selected behind it. */
-  const openGrades = useCallback(() => {
-    setSelected(null)
-    setPreview(null)
-    setShowing('grades')
-    if (!loadoutInline) pushPaneHistory({ workspace: workspacePath, pane: 'grades' }, paneHistory?.pane === 'loadout')
-  }, [loadoutInline, paneHistory, pushPaneHistory, workspacePath])
-
   const updateLoadoutHistory = useCallback(
     (pane: Extract<RosterPaneHistory, { pane: 'loadout' }>) => {
       const returnToPicker = paneHistory?.pane === 'picker' || (paneHistory?.pane === 'loadout' && Boolean(paneHistory.returnToPicker))
@@ -171,7 +163,6 @@ export function useRosterPanes({ path, workspacePath, picks }: { path: string; w
     }
     if (!workspaceMeasured || paneHistory || paneHistoryRef.current || paneClosing.current) return
     if (showing === 'picker' && !wideWorkspace) pushPaneHistory({ workspace: workspacePath, pane: 'picker' })
-    if (showing === 'grades' && !loadoutInline) pushPaneHistory({ workspace: workspacePath, pane: 'grades' })
     if (showing !== 'loadout' || loadoutInline) return
     if (preview) pushPaneHistory({ workspace: workspacePath, pane: 'loadout', preview })
     else if (selected !== null && picks[selected]) {
@@ -191,8 +182,6 @@ export function useRosterPanes({ path, workspacePath, picks }: { path: string; w
     paneHistory,
     closePane,
     openPicker,
-    openGrades,
-    loadoutInline,
     updateLoadoutHistory,
   }
 }

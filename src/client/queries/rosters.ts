@@ -278,8 +278,8 @@ export const setupPriceQuery = (
     includeUnitLimits,
   )
 
-/** The roster grades for the picks on screen, which only the server can calculate. */
-export const rosterGradesQuery = (setup: Parameters<typeof setupPriceQuery>[0], picked: readonly RosterPick[]) => {
+/** The roster grades for the picks on screen, which only the server can calculate, so it asks only while they are open. */
+export const rosterGradesQuery = (setup: Parameters<typeof setupPriceQuery>[0], picked: readonly RosterPick[], open: boolean) => {
   const data = {
     catalogueId: setup.catalogueId,
     detachmentIds: [...setup.detachmentIds],
@@ -293,7 +293,7 @@ export const rosterGradesQuery = (setup: Parameters<typeof setupPriceQuery>[0], 
   return queryOptions({
     queryKey: ['roster-grades', ...rosterPriceKey(data).slice(1)],
     queryFn: ({ signal }) => rosterGrades({ data, signal }),
-    enabled: Boolean(setup.catalogueId) && picked.length > 0,
+    enabled: open && Boolean(setup.catalogueId) && picked.length > 0,
     staleTime: SSR_STALE_TIME,
     placeholderData: keepPreviousData,
   })

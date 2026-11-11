@@ -80,6 +80,7 @@ export type GradeRow = {
   notCalculated?: string[]
 }
 
+/** `missing` names each reference target nothing in the list can take half of on its own, as in "a Rhino". */
 export type RosterGrades = { rows: GradeRow[]; missing: string[] }
 
 const percentGrade = (value: number, [d, c, b]: readonly [number, number, number]): Grade =>
@@ -170,7 +171,7 @@ export function rosterGrades(units: readonly GradedUnit[], limit: number): Roste
       ...(notCalculated.length ? { notCalculated } : {}),
     })
     // At least 95% of the tournament lists have a unit for each target, so lacking one is worth naming.
-    if (!tools.length && !notCalculated.length) missing.push(`Nothing in this list can take half the wounds of ${target.target} on its own`)
+    if (!tools.length && !notCalculated.length) missing.push(target.target)
   }
   return { rows, missing }
 }

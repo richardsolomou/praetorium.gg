@@ -38,7 +38,7 @@ describe('rosterGrades', () => {
 
   it('names a reference target nothing in the list can take half of alone', () => {
     const grades = rosterGrades([unit({ removes: { horde: true, elite: true, vehicle: false, monster: true } })], 600)
-    expect(grades.missing).toEqual(['Nothing in this list can take half the wounds of a Rhino on its own'])
+    expect(grades.missing).toEqual(['a Rhino'])
   })
 
   it('grades nothing for a row the simulator could not calculate', () => {
