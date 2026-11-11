@@ -5,22 +5,19 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/Dialog'
 import { Problem } from '../../components/Problem'
 import type { RosterPick } from '../../../core/roster'
-import type { Grade, GradeRow } from '../../../core/rosterGrades'
+import type { Grade, GradeCategory, GradeRow, RosterGrades } from '../../../core/rosterGrades'
 import { formatList } from '../../text'
 import { rosterGradesQuery } from '../../queries'
 
 /** Colour and line form both carry the grade: solid for A and B, dashed for C and D, so it reads without colour too. */
-const GRADE_MARK: Record<Grade, string> = {
-  A: 'border-achieved text-achieved',
-  B: 'border-runner-hi text-bone',
-  C: 'border-dashed border-runner-hi text-dim',
-  D: 'border-dashed border-discarded text-discarded',
+const GRADE_TONE: Record<Grade, { text: string; border: string; stroke: string; dashed: boolean }> = {
+  A: { text: 'text-achieved', border: 'border-achieved', stroke: 'stroke-achieved', dashed: false },
+  B: { text: 'text-bone', border: 'border-runner-hi', stroke: 'stroke-bone', dashed: false },
+  C: { text: 'text-dim', border: 'border-dashed border-runner-hi', stroke: 'stroke-dim', dashed: true },
+  D: { text: 'text-discarded', border: 'border-dashed border-discarded', stroke: 'stroke-discarded', dashed: true },
 }
-const UNGRADED_MARK = 'border-dotted border-runner text-faint'
 
-const ON_THE_TABLE = new Set(['presence', 'spread', 'reach', 'deployment'])
-
-/** What the roster can do on the table, graded row by row; it asks the server only while open. */
+/** What the roster can do on the table, scored the way Lighthouse scores a page; it asks the server only while open. */
 export function RosterGradesDialog({
   open,
   onClose,
@@ -35,29 +32,24 @@ export function RosterGradesDialog({
   picks: readonly RosterPick[]
 }) {
   const grades = useQuery(rosterGradesQuery(setup, picks, open))
-  const rows = grades.data?.rows ?? []
-  const groups = [
-    { title: 'On the table', rows: rows.filter((row) => ON_THE_TABLE.has(row.key)) },
-    { title: 'Damage', rows: rows.filter((row) => !ON_THE_TABLE.has(row.key)) },
-  ]
   return (
     <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
       <DialogContent size="md">
         <DialogHeader>
           <DialogTitle>Roster grades</DialogTitle>
           <DialogDescription>
-            What {name || 'this roster'} can do on the table, graded against lists that place at tournaments. Grades describe the list, not
+            What {name || 'this roster'} can do on the table, scored against lists that place at tournaments. Scores describe the list, not
             your odds of winning.
           </DialogDescription>
         </DialogHeader>
         <DialogBody className="gap-5">
           {grades.data ? (
             <>
-              <Overview groups={groups} />
-              <Gaps rows={rows} missing={grades.data.missing} />
+              <Scores grades={grades.data} />
+              <Gaps grades={grades.data} />
               <div className="grid gap-5 md:grid-cols-2 md:items-start">
-                {groups.map((group) => (
-                  <Group key={group.title} title={group.title} rows={group.rows} />
+                {grades.data.categories.map((category) => (
+                  <Category key={category.key} category={category} />
                 ))}
               </div>
             </>
@@ -66,10 +58,11 @@ export function RosterGradesDialog({
           ) : (
             <output className="grid gap-5" aria-label="Grading this roster">
               <span className="sr-only">Grading this roster…</span>
-              <Skeleton className="h-28 rounded-xl" />
+              <Skeleton className="h-40 rounded-xl" />
               <div className="grid gap-5 md:grid-cols-2">
-                <Skeleton className="h-64 rounded-xl" />
-                <Skeleton className="h-64 rounded-xl" />
+                {[0, 1, 2, 3].map((key) => (
+                  <Skeleton key={key} className="h-48 rounded-xl" />
+                ))}
               </div>
             </output>
           )}
@@ -83,7 +76,7 @@ export function RosterGradesDialog({
               className="text-info underline-offset-4 hover:underline"
               onClick={onClose}
             >
-              How grades work
+              How scores work
             </Link>
           </p>
         </DialogFooter>
@@ -92,32 +85,31 @@ export function RosterGradesDialog({
   )
 }
 
-/** Every grade at a glance, named, in the two groups the details below use. */
-function Overview({ groups }: { groups: readonly { title: string; rows: readonly GradeRow[] }[] }) {
-  const rows = groups.flatMap((group) => group.rows)
+/** The overall score beside each category's, then one line on what the list does best and worst. */
+function Scores({ grades }: { grades: RosterGrades }) {
+  const rows = grades.categories.flatMap((category) => category.rows)
   const strongest = rows.filter((row) => row.grade === 'A').map((row) => row.label.toLowerCase())
   const lowest = rows.reduce<Grade | null>((worst, row) => (row.grade && (!worst || row.grade > worst) ? row.grade : worst), null)
   const thinnest = lowest === 'C' || lowest === 'D' ? rows.filter((row) => row.grade === lowest).map((row) => row.label.toLowerCase()) : []
   return (
-    <section aria-label="Overview" className="part grid gap-3 p-3">
-      <div className="grid items-start gap-3 sm:grid-cols-2 sm:gap-4">
-        {groups.map((group) => (
-          <div key={group.title} className="grid gap-1.5">
-            <h3 className="text-2xs font-semibold tracking-label text-faint uppercase">{group.title}</h3>
-            <ol className="grid grid-cols-4 items-start gap-1.5">
-              {group.rows.map((row) => (
-                <li key={row.key} className="grid content-start justify-items-center gap-1 text-center">
-                  <GradeMark grade={row.grade} />
-                  <span className="text-3xs leading-tight text-dim">{shortLabel(row.label)}</span>
-                </li>
-              ))}
-            </ol>
-          </div>
-        ))}
+    <section aria-label="Scores" className="part grid gap-4 p-4">
+      <div className="grid items-center gap-4 sm:grid-cols-[auto_1fr] sm:gap-6">
+        <div className="grid justify-items-center gap-1.5">
+          <Gauge score={grades.score} grade={grades.grade} large />
+          <span className="text-sm font-semibold text-bone">Overall</span>
+        </div>
+        <ol aria-label="Categories" className="grid grid-cols-4 items-start gap-2">
+          {grades.categories.map((category) => (
+            <li key={category.key} className="grid content-start justify-items-center gap-1.5 text-center">
+              <Gauge score={category.score} grade={category.grade} />
+              <span className="text-xs leading-tight text-dim">{category.label}</span>
+            </li>
+          ))}
+        </ol>
       </div>
-      <p className="border-t border-edge pt-2.5 text-sm text-dim">
+      <p className="border-t border-edge pt-3 text-sm text-dim">
         <span className="font-semibold text-bone">Strongest at</span>{' '}
-        {strongest.length ? `${formatList(strongest)}.` : 'nothing yet: no grade reaches an A.'}
+        {strongest.length ? `${formatList(strongest)}.` : 'nothing yet: no measure reaches an A.'}
         {thinnest.length ? (
           <>
             {' '}
@@ -129,11 +121,46 @@ function Overview({ groups }: { groups: readonly { title: string; rows: readonly
   )
 }
 
-/** The kill rows say what they kill; the overview only has room for the target. */
-const shortLabel = (label: string) => label.replace(/^(Kill|Clear) /, '').replace(/^\w/, (first) => first.toUpperCase())
+/** A ring whose arc is the score out of 100; it is dashed below a B so it reads without colour too. */
+function Gauge({ score, grade, large = false }: { score: number | null; grade: Grade | null; large?: boolean }) {
+  const tone = grade ? GRADE_TONE[grade] : null
+  const width = large ? 7 : 9
+  return (
+    <span className={`relative grid place-items-center ${large ? 'size-24' : 'size-14'}`}>
+      <svg viewBox="0 0 100 100" aria-hidden className="absolute inset-0 -rotate-90">
+        <circle cx="50" cy="50" r="42" fill="none" strokeWidth={width} className="stroke-edge" />
+        {score !== null && tone ? (
+          <circle
+            cx="50"
+            cy="50"
+            r="42"
+            fill="none"
+            pathLength={100}
+            strokeWidth={width}
+            strokeLinecap={tone.dashed ? 'butt' : 'round'}
+            strokeDasharray={tone.dashed ? dashedArc(score) : `${score} 100`}
+            className={tone.stroke}
+          />
+        ) : null}
+      </svg>
+      <span className={`relative grid justify-items-center leading-none ${tone?.text ?? 'text-faint'}`}>
+        <span className={`figure font-semibold ${large ? 'text-3xl' : 'text-lg'}`}>{score ?? '–'}</span>
+        {large && grade ? <span className="mt-1 font-display text-2xs font-bold tracking-label uppercase">Grade {grade}</span> : null}
+      </span>
+      <span className="sr-only">{score === null ? 'Not scored' : `${score} out of 100, grade ${grade}`}</span>
+    </span>
+  )
+}
 
-function Gaps({ rows, missing }: { rows: readonly GradeRow[]; missing: readonly string[] }) {
-  if (missing.length)
+/** Short dashes that still end at the score, so a low score keeps both its length and its line form. */
+function dashedArc(score: number) {
+  const count = Math.max(1, Math.round(score / 5))
+  const step = score / count
+  return `${Array.from({ length: count }, () => `${(step * 0.6).toFixed(2)} ${(step * 0.4).toFixed(2)}`).join(' ')} 0 100`
+}
+
+function Gaps({ grades }: { grades: RosterGrades }) {
+  if (grades.missing.length)
     return (
       <section aria-label="Gaps" className="grid gap-1.5 rounded-xl border border-discarded/40 bg-discarded/5 px-3 py-2.5">
         <h3 className="flex items-center gap-1.5 text-sm font-semibold text-discarded">
@@ -141,60 +168,76 @@ function Gaps({ rows, missing }: { rows: readonly GradeRow[]; missing: readonly 
           Worth knowing
         </h3>
         <p className="text-sm text-bone">
-          Nothing in this list can take half the wounds of {new Intl.ListFormat('en-GB', { type: 'disjunction' }).format(missing)} on its
-          own, something nearly every list that places at a tournament can do.
+          Nothing in this list can take half the wounds of {new Intl.ListFormat('en-GB', { type: 'disjunction' }).format(grades.missing)} on
+          its own, something nearly every list that places at a tournament can do.
         </p>
       </section>
     )
-  if (rows.every((row) => row.grade && !row.notCalculated?.length))
+  const damage = grades.categories.find((category) => category.key === 'damage')?.rows ?? []
+  if (damage.every((row) => row.grade && !row.notCalculated?.length))
     return <p className="text-sm text-achieved">No gaps: every reference target has a unit that can deal with it.</p>
   return null
 }
 
-function Group({ title, rows }: { title: string; rows: readonly GradeRow[] }) {
+function Category({ category }: { category: GradeCategory }) {
   return (
-    <section aria-label={title} className="grid gap-2">
-      <h3 className="rubric">{title}</h3>
+    <section aria-label={category.label} className="grid gap-2">
+      <h3 className="flex items-baseline justify-between gap-3">
+        <span className="rubric">{category.label}</span>
+        <span className={`figure text-sm ${category.grade ? GRADE_TONE[category.grade].text : 'text-faint'}`}>
+          {category.score ?? '–'}
+          <span className="text-faint">/100</span>
+        </span>
+      </h3>
       <ul className="part divide-y divide-edge">
-        {rows.map((row) => (
-          <li key={row.key} data-grade-row={row.key} className="flex items-start gap-3 px-3 py-2.5">
-            <GradeMark grade={row.grade} large />
-            <span className="grid min-w-0 flex-1 gap-0.5">
-              <span className="text-sm font-semibold text-bone">{row.label}</span>
-              <span className="text-sm text-dim">{row.detail}</span>
-              {row.units?.length ? (
-                <span className="flex flex-wrap gap-1 pt-1">
-                  {row.units.map((unit) => (
-                    <span key={unit} className="chip normal-case tracking-normal">
-                      {unit}
-                    </span>
-                  ))}
-                </span>
-              ) : null}
-              {row.notCalculated?.length ? (
-                <span className="text-xs text-discarded">Not calculated for {formatList(row.notCalculated)}</span>
-              ) : null}
-            </span>
-          </li>
+        {category.rows.map((row) => (
+          <Measure key={row.key} row={row} />
         ))}
       </ul>
     </section>
   )
 }
 
-/** The letter is drawn for the eye; screen readers hear "grade B" beside the row's own label. */
-function GradeMark({ grade, large = false }: { grade: Grade | null; large?: boolean }) {
+function Measure({ row }: { row: GradeRow }) {
   return (
-    <>
+    <li data-grade-row={row.key} className="flex items-start gap-3 px-3 py-2.5">
       <span
         aria-hidden
-        className={`grid shrink-0 place-items-center border-[1.5px] font-display leading-none font-bold ${
-          large ? 'size-9 rounded-lg text-lg' : 'size-8 rounded-md text-base'
-        } ${grade ? GRADE_MARK[grade] : UNGRADED_MARK}`}
+        className={`grid size-9 shrink-0 place-items-center rounded-lg border-[1.5px] font-display text-lg leading-none font-bold ${
+          row.grade ? `${GRADE_TONE[row.grade].border} ${GRADE_TONE[row.grade].text}` : 'border-dotted border-runner text-faint'
+        }`}
       >
-        {grade ?? '–'}
+        {row.grade ?? '–'}
       </span>
-      <span className="sr-only">{grade ? `Grade ${grade}` : 'Not graded'}</span>
-    </>
+      <span className="grid min-w-0 flex-1 gap-0.5">
+        <span className="flex items-baseline justify-between gap-3">
+          <span className="text-sm font-semibold text-bone">{row.label}</span>
+          <span aria-hidden className="figure text-xs text-faint">
+            {row.score ?? '–'}
+          </span>
+        </span>
+        <span className="sr-only">{row.grade ? `Grade ${row.grade}, ${row.score} out of 100` : 'Not graded'}</span>
+        <span className="text-sm text-dim">{row.detail}</span>
+        {row.units?.length ? (
+          <span className="flex flex-wrap gap-1 pt-1">
+            {[...counted(row.units)].map(([unit, copies]) => (
+              <span key={unit} className="chip tracking-normal normal-case">
+                {copies > 1 ? `${unit} ×${copies}` : unit}
+              </span>
+            ))}
+          </span>
+        ) : null}
+        {row.notCalculated?.length ? (
+          <span className="text-xs text-discarded">Not calculated for {formatList(row.notCalculated)}</span>
+        ) : null}
+      </span>
+    </li>
   )
+}
+
+/** A list can hold the same unit twice; one chip names it with its count. */
+function counted(names: readonly string[]) {
+  const counts = new Map<string, number>()
+  for (const name of names) counts.set(name, (counts.get(name) ?? 0) + 1)
+  return counts
 }

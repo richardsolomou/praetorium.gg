@@ -1,0 +1,200 @@
+import type { PriceInput } from '../contracts/schemas'
+import { attachedUnitList, attachmentHost } from '../core/attachedUnits'
+import { combatMatchup, type CombatAnswer, type CombatantSnapshot } from '../core/combatMatchup'
+import { combatRuleSelections, readCombatRule, type CombatRule } from '../core/combatRules'
+import { datasheetProfilesByKind } from '../core/datasheetStructure'
+import { gradedTargets, type GradedUnit, type ReferenceTargetKey } from '../core/rosterGrades'
+import type { LoadedCatalogue } from './catalogueIndex'
+import { calculateRosterPrice } from './pricing'
+import { rosterCombatant, rosterProjectionCache } from './rosterCombatRules'
+import { rosterDatasheetSelections } from './rosterDatasheetContext'
+import type { LoadedRules } from './rules'
+import { hasTextTokens } from './sourceText'
+
+export type CombatProjection = NonNullable<ReturnType<typeof rosterCombatant>>
+/** The words behind a rule's text tokens, or null when the snapshot does not hold them. */
+export type RuleWords = (text: string) => string | null
+/** A reference unit every list is measured against, with its total wounds. */
+export type ReferenceUnit = { snapshot: CombatantSnapshot; wounds: number }
+export type GradeReferences = {
+  targets: Partial<Record<ReferenceTargetKey, ReferenceUnit>>
+  /** The units whose shooting a unit has to survive. */
+  attackers: readonly ReferenceUnit[]
+}
+
+const NO_CHOICES = { preferences: {}, excluded: { ranged: [], melee: [] }, allocation: [] }
+
+/** A projection with each rule read from its words where they are held; a rule left as a token is reported as not calculated. */
+export function withReadRules(projection: CombatProjection, words: RuleWords): CombatProjection {
+  const read = (unread: readonly CombatRule[]) =>
+    unread.flatMap((rule) => {
+      if (!hasTextTokens(rule.description)) return [rule]
+      const description = words(rule.description)
+      return description === null ? [rule] : (readCombatRule(rule, description) ?? [])
+    })
+  return {
+    ...projection,
+    rules: read(projection.rules),
+    companions: projection.companions.map((member) => ({ ...member, rules: read(member.rules) })),
+  }
+}
+
+/** The unit at full strength with the selected rules active, as the simulator fields it. */
+export function combatantSnapshot(projection: CombatProjection, selection: ReturnType<typeof combatRuleSelections>): CombatantSnapshot {
+  return {
+    sheet: projection.selected,
+    bodyguard: true,
+    models: projection.models,
+    startingModels: projection.models,
+    damage: 0,
+    carriers: projection.carriers,
+    rules: selection.active(projection.rules),
+    ruleChoices: selection.choices,
+    appliedDefenceSources: selection.appliedDefenceSources(projection.rules),
+    companions: projection.companions.map((member) => ({
+      sheet: member.selected,
+      bodyguard: false,
+      models: member.models,
+      startingModels: member.models,
+      damage: 0,
+      carriers: member.carriers,
+      rules: selection.active(member.rules),
+      appliedDefenceSources: selection.appliedDefenceSources(member.rules),
+    })),
+  }
+}
+
+/** A unit as the simulator fields it, with its passive rules switched on. */
+export function defaultSnapshot(projection: CombatProjection) {
+  const selection = combatRuleSelections([...projection.rules, ...projection.companions.flatMap((member) => member.rules)], {})
+  return combatantSnapshot(projection, selection)
+}
+
+const characteristic = (sheet: CombatantSnapshot['sheet'], kind: string) => {
+  const [profile] = datasheetProfilesByKind(sheet).unit
+  return Number.parseInt(profile?.values.find((value) => value.kind === kind)?.value ?? '', 10) || 0
+}
+
+/** Every model's characteristic, summed over the unit and everything attached to it. */
+export const unitTotal = (snapshot: CombatantSnapshot, kind: 'wounds' | 'objective-control') =>
+  [snapshot, ...(snapshot.companions ?? [])].reduce((total, member) => total + characteristic(member.sheet, kind) * member.models, 0)
+
+const numberIn = (names: readonly string[], pattern: RegExp) => Math.max(0, ...names.map((name) => Number(pattern.exec(name)?.[1] ?? 0)))
+
+/**
+ * Whether one unit's shooting, fighting, or shooting then fighting takes half the target's wounds.
+ *
+ * A phase the simulator refuses could have been the one that does it, so a shortfall beside a refusal is
+ * not calculated rather than a no.
+ */
+function removesHalf(answer: CombatAnswer, wounds: number): boolean | null {
+  const phases = [answer.ranged, answer.melee, answer.combined]
+  const dealt = Math.max(0, ...phases.map((phase) => phase?.result?.meanDamage ?? 0))
+  if (dealt >= wounds / 2) return true
+  return phases.some((phase) => phase?.error && !phase.result) ? null : false
+}
+
+/** Whether a turn of the attacker's shooting leaves the unit standing at least half the time; null when it cannot be calculated. */
+function survives(answer: CombatAnswer): boolean | null {
+  if (answer.ranged?.error && !answer.ranged.result) return null
+  return (answer.ranged?.result?.wipe ?? 0) < 0.5
+}
+
+/**
+ * The facts the grades are read from, one entry per unit the list forms.
+ *
+ * `calculate` resolves each matchup; the server sends them to its shared workers and a script may resolve
+ * them in place, so a list measured either way gets the same answer.
+ */
+export async function measureRosterUnits({
+  loaded,
+  rules,
+  data,
+  words,
+  references,
+  calculate,
+}: {
+  loaded: LoadedCatalogue
+  rules: LoadedRules | null
+  data: PriceInput
+  words: RuleWords
+  references: GradeReferences
+  calculate: (requests: ReturnType<ReturnType<typeof combatMatchup>['request']>[]) => Promise<CombatAnswer[]>
+}): Promise<GradedUnit[]> {
+  const price = calculateRosterPrice(data, loaded, rules)
+  const priced = new Map((price?.units ?? []).map((unit) => [unit.key, unit]))
+  const picks = data.units.map((pick) => ({ catalogueId: data.catalogueId, ...pick }))
+  // Deep Strike, Infiltrators and Scouts need every model in the unit, so they come from the units the list forms.
+  const deployment = new Map(
+    attachedUnitList(
+      picks.map((pick, key) => ({
+        key,
+        attachedTo: pick.attachedTo ?? undefined,
+        formationOptions: priced.get(key)?.formationOptions ?? [],
+        prebattleRules: priced.get(key)?.prebattleRules ?? [],
+      })),
+    ).map((unit) => [unit.host.key, unit]),
+  )
+  const prepared = rosterDatasheetSelections(loaded, { catalogueId: data.catalogueId, detachmentIds: data.detachmentIds, picks })
+  const cache = rosterProjectionCache()
+  const hosts = picks.flatMap((_, pickIndex) => {
+    if (attachmentHost(picks, pickIndex) !== pickIndex) return []
+    const unread = rosterCombatant(
+      loaded,
+      rules,
+      { catalogueId: data.catalogueId, detachmentIds: data.detachmentIds, picks, pickIndex },
+      prepared,
+      { attachmentChoices: false, cache },
+    )
+    if (!unread) return []
+    const projection = withReadRules(unread, words)
+    const members = [pickIndex, ...projection.companions.map((member) => member.pickIndex)]
+    return [
+      {
+        projection,
+        pickIndex,
+        snapshot: defaultSnapshot(projection),
+        points: members.reduce((total, index) => total + (priced.get(index)?.points ?? 0), 0),
+      },
+    ]
+  })
+  const targets = gradedTargets(data.limit).flatMap((target) => {
+    const reference = references.targets[target.key]
+    return reference ? [{ key: target.key, ...reference }] : []
+  })
+  const attacks = hosts.flatMap((host) => [
+    ...targets.map((target) => combatMatchup(host.snapshot, target.snapshot, NO_CHOICES).request({})),
+    ...references.attackers.map((attacker) => combatMatchup(attacker.snapshot, host.snapshot, NO_CHOICES).request({})),
+  ])
+  const answers = await calculate(attacks)
+  const perHost = targets.length + references.attackers.length
+  return hosts.map((host, index) => {
+    const answered = answers.slice(index * perHost, (index + 1) * perHost)
+    const removes: Partial<Record<ReferenceTargetKey, boolean | null>> = {}
+    for (const target of gradedTargets(data.limit)) {
+      const at = targets.findIndex((built) => built.key === target.key)
+      // A reference unit the data cannot field leaves its row uncalculated for every unit.
+      removes[target.key] = at === -1 ? null : removesHalf(answered[at]!, targets[at]!.wounds)
+    }
+    const survived = answered.slice(targets.length).map(survives)
+    const formed = deployment.get(host.pickIndex)
+    const abilities = [host.projection.selected, ...host.projection.companions.map((member) => member.selected)].map((sheet) =>
+      sheet.abilities.filter((ability) => ability.kind === 'core').map((ability) => ability.name),
+    )
+    const scouts = formed?.prebattleRules.includes('scouts')
+      ? Math.min(...abilities.map((names) => numberIn(names, /^Scouts (\d+)/i)).filter(Boolean))
+      : 0
+    return {
+      name: [host.projection.selected.name, ...host.projection.companions.map((member) => member.selected.name)].join(' + '),
+      points: host.points,
+      move: characteristic(host.projection.selected, 'movement'),
+      objectiveControl: unitTotal(host.snapshot, 'objective-control'),
+      deepStrike: Boolean(formed?.formationOptions.includes('deep-strike')),
+      infiltrators: Boolean(formed?.prebattleRules.includes('infiltrators')),
+      scouts: Number.isFinite(scouts) ? scouts : 0,
+      chargeBonus: numberIn(abilities.flat(), /\+(\d+) to charge/i),
+      removes,
+      survives: survived.includes(null) ? null : survived.length ? survived.every(Boolean) : null,
+    }
+  })
+}

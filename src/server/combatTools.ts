@@ -20,7 +20,9 @@ import { hasTextTokens } from '../shared/sourceText'
 import type { ToolErrorType } from '../contracts/agentTools'
 import { READ_ONLY_TOOL, structured, toolError, type AgentTools } from './agentTools'
 import { app } from './app'
-import { combatantSnapshot, readRosterCombatant } from './combatSnapshot'
+import { combatantSnapshot, withReadRules } from '../shared/rosterGradeMeasures'
+import { rosterCombatant } from '../shared/rosterCombatRules'
+import { serverWords } from './publishedTextFiles'
 import { activeReferenceCorpus, currentFactionIds } from './referenceApi'
 import type { ReferenceCorpus } from './referenceCorpus'
 import { datasheetCitation, factionDatasheets, factionUnits, referenceFaction } from './referenceService'
@@ -221,13 +223,9 @@ async function combatant(corpus: ReferenceCorpus, side: SideInput, role: Role) {
   if (!loaded) throw new CombatRefusal([REFERENCE_UNAVAILABLE], 'unavailable')
   const detachmentIds = side.detachment ? [detachmentId(loaded, named.catalogueId, side.detachment)] : []
   const resolved = { ...named, detachmentIds, picks: joinedPicks(loaded, named.catalogueId, detachmentIds, named.picks) }
-  const projection = await readRosterCombatant(loaded, rules, {
-    catalogueId: resolved.catalogueId,
-    detachmentIds,
-    picks: resolved.picks,
-    pickIndex: 0,
-  })
-  if (!projection) throw new CombatRefusal([`${side.unit} could not be loaded.`])
+  const unread = rosterCombatant(loaded, rules, { catalogueId: resolved.catalogueId, detachmentIds, picks: resolved.picks, pickIndex: 0 })
+  if (!unread) throw new CombatRefusal([`${side.unit} could not be loaded.`])
+  const projection = withReadRules(unread, await serverWords())
   const errors = [
     ...projection.attachmentErrors.map((error) => `${error.entryName}: ${error.message}.`),
     ...[

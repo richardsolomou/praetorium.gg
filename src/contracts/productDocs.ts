@@ -38,7 +38,7 @@ export const PRODUCT_DOCS = [
     slug: 'roster-grades',
     section: 'Army lists',
     title: 'Read your roster grades',
-    description: 'What each grade measures, the gaps they name, and where they stop.',
+    description: 'How the scores work, what each category measures, and where they stop.',
   },
   {
     slug: 'change-setup',
