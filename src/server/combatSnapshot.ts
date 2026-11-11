@@ -13,8 +13,10 @@ export async function readRosterCombatant(
   loaded: LoadedCatalogue,
   rules: LoadedRules | null,
   data: Parameters<typeof rosterCombatant>[2],
+  prepared?: Parameters<typeof rosterCombatant>[3],
+  options?: Parameters<typeof rosterCombatant>[4],
 ): Promise<CombatProjection | null> {
-  const projection = rosterCombatant(loaded, rules, data)
+  const projection = rosterCombatant(loaded, rules, data, prepared, options)
   if (!projection) return null
   const words = await serverWords()
   // A rule whose words the snapshot does not hold stays a token, which callers report as not calculated.

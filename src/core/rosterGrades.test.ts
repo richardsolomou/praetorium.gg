@@ -5,26 +5,29 @@ const unit = (overrides: Partial<GradedUnit> = {}): GradedUnit => ({
   name: 'Unit',
   points: 100,
   move: 6,
-  coreAbilities: [],
+  deepStrike: false,
+  infiltrators: false,
+  scouts: 0,
+  chargeBonus: 0,
   removes: { horde: true, elite: true, vehicle: true, heavyVehicle: true, monster: true },
   ...overrides,
 })
 
 describe('reachChance', () => {
   it('needs an 8 on two dice after two 6″ moves across 20″', () => {
-    expect(reachChance([], 6, 20)).toBeCloseTo(15 / 36)
+    expect(reachChance(unit(), 20)).toBeCloseTo(15 / 36)
   })
 
   it('charges 9″ from deep strike when walking would be slower', () => {
-    expect(reachChance(['Deep Strike'], 5, 24)).toBeCloseTo(10 / 36)
+    expect(reachChance(unit({ move: 5, deepStrike: true }), 24)).toBeCloseTo(10 / 36)
   })
 
   it('starts infiltrators 9″ away', () => {
-    expect(reachChance(['Infiltrators'], 6, 24)).toBeCloseTo(1)
+    expect(reachChance(unit({ infiltrators: true }), 24)).toBeCloseTo(1)
   })
 
   it('adds a charge bonus to the roll', () => {
-    expect(reachChance(['+1 To Charge Rolls'], 6, 20)).toBeCloseTo(21 / 36)
+    expect(reachChance(unit({ chargeBonus: 1 }), 20)).toBeCloseTo(21 / 36)
   })
 })
 
@@ -55,7 +58,7 @@ describe('rosterGrades', () => {
     expect(grades.rows.find((row) => row.key === 'vehicle')?.grade).toBe('B')
   })
 
-  it('counts each unit with its attachments as one towards the objectives', () => {
+  it('grades five units for five objectives a C', () => {
     const grades = rosterGrades(
       Array.from({ length: 5 }, () => unit()),
       600,

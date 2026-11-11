@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { TriangleAlert } from 'lucide-react'
@@ -33,9 +33,10 @@ function useSettled<T>(value: T) {
 
 /** What the roster can do on the table, graded row by row, in the pane beside it. */
 export function RosterGradesPanel({ setup, picks }: { setup: Parameters<typeof rosterGradesQuery>[0]; picks: readonly RosterPick[] }) {
-  const settled = useSettled(picks)
-  const grades = useQuery(rosterGradesQuery(setup, settled))
-  const updating = grades.isPlaceholderData || settled !== picks
+  const current = useMemo(() => ({ setup, picks }), [setup, picks])
+  const settled = useSettled(current)
+  const grades = useQuery(rosterGradesQuery(settled.setup, settled.picks))
+  const updating = grades.isPlaceholderData || settled !== current
   return (
     <div data-roster-grades className="min-h-0 flex-1 overflow-y-auto px-3 pt-3 pb-6">
       {grades.data ? (
@@ -106,11 +107,11 @@ function Summary({ rows, missing }: { rows: readonly GradeRow[]; missing: readon
             </li>
           ))}
         </ul>
-      ) : (
+      ) : rows.every((row) => row.grade && !row.notCalculated?.length) ? (
         <p className="border-t border-edge pt-2.5 text-sm text-achieved">
           No gaps: every reference target has a unit that can deal with it.
         </p>
-      )}
+      ) : null}
     </section>
   )
 }

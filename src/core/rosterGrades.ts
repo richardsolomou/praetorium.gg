@@ -61,7 +61,12 @@ export type GradedUnit = {
   name: string
   points: number
   move: number
-  coreAbilities: readonly string[]
+  /** Whether every model in the unit, attachments included, has Deep Strike or Infiltrators. */
+  deepStrike: boolean
+  infiltrators: boolean
+  /** The Scouts move every model in the unit has, or 0. */
+  scouts: number
+  chargeBonus: number
   /** Per target: whether the unit alone takes at least half its wounds in a turn, or null when the simulator cannot say. */
   removes: Partial<Record<ReferenceTargetKey, boolean | null>>
 }
@@ -96,23 +101,17 @@ export const deploymentGap = (limit: number) => (isKotcLimit(limit) ? 20 : 24)
  * It moves its full Move each round with no Advance; Scouts and Infiltrators shorten the gap before the first
  * turn, and Deep Strike sets it up 9″ away in round two. Terrain and the opponent's own moves are ignored.
  */
-export function reachChance(coreAbilities: readonly string[], move: number, gap: number) {
-  let start = gap
-  for (const name of coreAbilities) {
-    const scouts = /Scouts (\d+)/i.exec(name)
-    if (scouts) start = Math.min(start, gap - Number(scouts[1]))
-    if (/^Infiltrators$/i.test(name)) start = Math.min(start, 9)
-  }
-  const bonus = Math.max(0, ...coreAbilities.map((name) => Number(/\+(\d+) to charge/i.exec(name)?.[1] ?? 0)))
-  const walking = Math.max(twoDice(start - move - bonus), twoDice(start - 2 * move - bonus))
-  return coreAbilities.some((name) => /^Deep Strike$/i.test(name)) ? Math.max(walking, twoDice(9 - bonus)) : walking
+export function reachChance(unit: Pick<GradedUnit, 'move' | 'deepStrike' | 'infiltrators' | 'scouts' | 'chargeBonus'>, gap: number) {
+  const start = Math.min(gap - unit.scouts, unit.infiltrators ? 9 : gap)
+  const walking = Math.max(twoDice(start - unit.move - unit.chargeBonus), twoDice(start - 2 * unit.move - unit.chargeBonus))
+  return unit.deepStrike ? Math.max(walking, twoDice(9 - unit.chargeBonus)) : walking
 }
 
-const deploysEarly = (unit: GradedUnit) => unit.coreAbilities.some((name) => /^(Deep Strike|Infiltrators|Scouts\b)/i.test(name))
+const deploysEarly = (unit: GradedUnit) => unit.deepStrike || unit.infiltrators || unit.scouts > 0
 const percent = (value: number) => `${Math.round(value * 100)}%`
 const unitCount = (count: number) => `${count} ${count === 1 ? 'unit' : 'units'}`
 
-/** The graded card for a roster's units, each a unit and everything attached to it. */
+/** The grades for a roster's units, each a unit and everything attached to it. */
 export function rosterGrades(units: readonly GradedUnit[], limit: number): RosterGrades {
   const total = units.reduce((sum, unit) => sum + unit.points, 0)
   const rows: GradeRow[] = []
@@ -132,7 +131,7 @@ export function rosterGrades(units: readonly GradedUnit[], limit: number): Roste
     detail: `Your two costliest units are ${percent(share)} of the points`,
   })
   const gap = deploymentGap(limit)
-  const reach = count ? units.reduce((sum, unit) => sum + reachChance(unit.coreAbilities, unit.move, gap), 0) / count : 0
+  const reach = count ? units.reduce((sum, unit) => sum + reachChance(unit, gap), 0) / count : 0
   rows.push({
     key: 'reach',
     label: 'Reach',

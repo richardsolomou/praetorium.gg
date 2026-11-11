@@ -294,7 +294,7 @@ export const rosterGradesQuery = (setup: Parameters<typeof setupPriceQuery>[0], 
     queryKey: ['roster-grades', ...rosterPriceKey(data).slice(1)],
     queryFn: ({ signal }) => rosterGrades({ data, signal }),
     enabled: Boolean(setup.catalogueId) && picked.length > 0,
-    staleTime: referenceStaleTime,
+    staleTime: SSR_STALE_TIME,
     placeholderData: keepPreviousData,
   })
 }
