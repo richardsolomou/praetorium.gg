@@ -1,7 +1,7 @@
 import { groupBy, remember } from '../core/collections'
 import type { Condition, Definition, ModifierGroup, SelectionEntry } from '../core/catalogue'
-import { routeSlug } from '../core/slug'
-import { compareText } from '../core/text'
+import { distance } from 'fastest-levenshtein'
+import { compareText, joinKey } from '../core/text'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { cardName, descriptionKey } from './datacards'
 import type { DetachmentRulesDetail } from '../contracts/factions'
@@ -12,15 +12,20 @@ type DetachmentCatalogueDetail = {
   forcedEnhancements: { name: string; points: number | null; description: string | null }[]
 }
 
+/** The catalogue misspells some card rule names ("Hyper Adaptions", "Synaptic Imperitives"); a couple of letters apart in a long name is the same rule. */
+export function sameRuleName(left: string, right: string) {
+  const [a, b] = [joinKey(left), joinKey(right)]
+  return a === b || (Math.min(a.length, b.length) >= 10 && distance(a, b) <= 2)
+}
+
 export function mergeDetachmentRules(
   catalogueRules: readonly { name: string; description: string | null }[],
   cardRules: readonly { name: string; description: string }[],
 ) {
-  const supplied = new Set(cardRules.map((rule) => routeSlug(rule.name)))
+  const supplied: string[] = cardRules.map((rule) => rule.name)
   const missing = catalogueRules.filter((rule) => {
-    const name = routeSlug(rule.name)
-    if (supplied.has(name)) return false
-    supplied.add(name)
+    if (supplied.some((name) => sameRuleName(name, rule.name))) return false
+    supplied.push(rule.name)
     return true
   })
   return [...cardRules, ...missing]
@@ -42,7 +47,9 @@ export function detachmentCatalogueDetail(
   const rules = [
     ...(definition?.infoLinks?.flatMap((link) => {
       const rule = loaded.index.rules.get(link.targetId)
-      return rule && !rule.hidden ? [rule] : []
+      // A link to a core rule such as Lethal Hits only defines a keyword the detachment's own rule grants.
+      const core = loaded.index.catalogues.get(loaded.index.ruleCatalogueOf.get(link.targetId) ?? '')?.gameSystem
+      return rule && !rule.hidden && !core ? [rule] : []
     }) ?? []),
     ...(definition?.rules?.filter((rule) => !rule.hidden) ?? []),
   ].flatMap((rule) => (rule.name ? [{ name: rule.name, description: rule.description ?? null }] : []))

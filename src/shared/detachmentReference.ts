@@ -6,11 +6,8 @@ import { detachmentPoints } from './detachmentPoints'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { type LoadedRules, rulesFaction } from './rules'
 import { detachmentNamed } from './factionReferences'
-import { isUpgrade, mfmAttribution, mfmDetachmentFor, mfmEnhancementPoints, withoutUpgrade } from './mfm'
-import { joinKey } from '../core/text'
+import { enhancementKey, isUpgrade, mfmAttribution, mfmDetachmentFor, mfmEnhancementPoints, withoutUpgrade } from './mfm'
 import { factionContentOf } from './factionNames'
-
-const specialKey = (name: string) => joinKey(name.replace(/\s*\((?:aura|upgrade)\)/gi, ''))
 
 export function detachmentReference(loaded: LoadedCatalogue, rules: LoadedRules, catalogueId: string, detachmentSlug: string) {
   const faction = loaded.index.catalogues.get(catalogueId)
@@ -28,10 +25,10 @@ export function detachmentReference(loaded: LoadedCatalogue, rules: LoadedRules,
   const cardEnhancements = detail?.enhancements ?? []
   const cardUpgrades = detail?.upgrades ?? []
   const enhancementsFromMfm = (mfm?.enhancements ?? [])
-    .filter((entry) => !isUpgrade(entry.name) && !cardEnhancements.some((card) => specialKey(card.name) === specialKey(entry.name)))
+    .filter((entry) => !isUpgrade(entry.name) && !cardEnhancements.some((card) => enhancementKey(card.name) === enhancementKey(entry.name)))
     .map((entry) => ({ name: entry.name, points: entry.points, description: null, eligibility: null }))
   const upgradesFromMfm = (mfm?.enhancements ?? [])
-    .filter((entry) => isUpgrade(entry.name) && !cardUpgrades.some((card) => specialKey(card.name) === specialKey(entry.name)))
+    .filter((entry) => isUpgrade(entry.name) && !cardUpgrades.some((card) => enhancementKey(card.name) === enhancementKey(entry.name)))
     .map((entry) => ({ name: withoutUpgrade(entry.name), points: entry.points, description: null }))
   const allEnhancements = [...cardEnhancements, ...enhancementsFromMfm]
   const allUpgrades = [...cardUpgrades, ...upgradesFromMfm]
@@ -47,7 +44,7 @@ export function detachmentReference(loaded: LoadedCatalogue, rules: LoadedRules,
       description: described.get(descriptionKey(option.name, enhancement.name)) ?? null,
     })),
     ...(catalogueDetail?.forcedEnhancements.filter(
-      (forced) => !allEnhancements.some((enhancement) => enhancement.name.toLocaleLowerCase() === forced.name.toLocaleLowerCase()),
+      (forced) => !allEnhancements.some((enhancement) => enhancementKey(enhancement.name) === enhancementKey(forced.name)),
     ) ?? []),
   ].toSorted((left, right) => left.name.localeCompare(right.name))
   const upgrades = allUpgrades.map((upgrade) => ({

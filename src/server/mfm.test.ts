@@ -187,6 +187,7 @@ it('attributes an entirely authored dataset without claiming it is MFM', () => {
 it.each([
   ['Augury Uplink (Upgrade)', 30],
   ['Auriferous Orb', 20],
+  ['Pyresoul (Psychic)', 25],
 ])('prices the %s enhancement from a row with printed qualifiers', (name, points) => {
   const detachment = {
     name: 'Might of the Moritoi',
@@ -194,6 +195,7 @@ it.each([
     enhancements: [
       { name: 'Augury Uplink (one per army) (Upgrade)', points: 30 },
       { name: 'Auriferous Orb (Aura)', points: 20 },
+      { name: 'Pyresoul', points: 25 },
     ],
   }
   expect(mfmEnhancementPoints(detachment, name)).toBe(points)
