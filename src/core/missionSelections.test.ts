@@ -1051,8 +1051,8 @@ describe('marker actions', () => {
       nextRound: () => steps.push([BOB, advance()]),
       place: (keys: string[]) => steps.push([ALICE, placing(keys)]),
       surveil: () => {
-        const markers = operationMarkers(battle()).filter((marker) => marker.playerId === ALICE)
-        steps.push([BOB, select(BOB, surveil.key, { kind: 'surveil', markers })])
+        const placed = operationMarkers(battle()).filter((marker) => marker.playerId === ALICE)
+        steps.push([BOB, select(BOB, surveil.key, { kind: 'surveil', markers: placed })])
       },
       refusal: (keys: string[]) => commandRefusal(battle(), ALICE, placing(keys))?.code,
     }
@@ -1066,33 +1066,53 @@ describe('marker actions', () => {
 
   it('refuses Extract Intelligence where its marker still stands', () => {
     const play = game(intel)
-    ;(play.aliceEnd(), play.bobEnd(), play.nextRound(), play.aliceEnd(), play.place(['a']))
-    ;(play.bobEnd(), play.nextRound(), play.aliceEnd())
+    play.aliceEnd()
+    play.bobEnd()
+    play.nextRound()
+    play.aliceEnd()
+    play.place(['a'])
+    play.bobEnd()
+    play.nextRound()
+    play.aliceEnd()
     expect(play.refusal(['a'])).toBe('mission-selection-objective')
   })
 
   it('allows Extract Intelligence again once Surveil the Foe removes the marker', () => {
     const play = game(intel)
-    ;(play.aliceEnd(), play.bobEnd(), play.nextRound(), play.aliceEnd(), play.place(['a']))
-    ;(play.bobEnd(), play.surveil(), play.nextRound(), play.aliceEnd())
+    play.aliceEnd()
+    play.bobEnd()
+    play.nextRound()
+    play.aliceEnd()
+    play.place(['a'])
+    play.bobEnd()
+    play.surveil()
+    play.nextRound()
+    play.aliceEnd()
     expect(play.refusal(['a'])).toBeUndefined()
   })
 
   it('lets Vital Link place another marker at the same objective', () => {
     const play = game(link)
-    ;(play.aliceEnd(), play.place(['a']), play.bobEnd(), play.nextRound(), play.aliceEnd())
+    play.aliceEnd()
+    play.place(['a'])
+    play.bobEnd()
+    play.nextRound()
+    play.aliceEnd()
     expect(play.refusal(['a'])).toBeUndefined()
   })
 
   it('does not offer Surveil the Foe while the opponent has no marker', () => {
     const play = game(link)
-    ;(play.aliceEnd(), play.bobEnd())
+    play.aliceEnd()
+    play.bobEnd()
     expect(openMissionSelections(play.battle(), play.battle().players[1]!)).toEqual([])
   })
 
   it('refuses removing a marker the opponent never placed', () => {
     const play = game(link)
-    ;(play.aliceEnd(), play.place(['a']), play.bobEnd())
+    play.aliceEnd()
+    play.place(['a'])
+    play.bobEnd()
     const battle = play.battle()
     const due = openMissionSelections(battle, battle.players[1]!)[0]!
     expect(
