@@ -39,13 +39,16 @@ import { ROSTER_LIBRARY_BATCH_SIZE } from '../../core/rosterLibrary'
 import { meKey } from '../queries/queryKeys'
 import { chunks } from '../../core/collections'
 
+/** How recent an answer a refresh keeps: the page's own reads and the realtime catch-up land just before it. */
+export const RECENT_ANSWER_MS = 60_000
+
 /**
  * Whether a refresh of saved screens asks for this query again. A roster price depends only on its key, which holds
  * every input, so asking again repeats the costliest read for the same answer.
  */
-export function refreshesSavedQuery(queryKey: readonly unknown[]) {
+export function refreshesSavedQuery({ queryKey, state }: { queryKey: readonly unknown[]; state: { dataUpdatedAt: number } }, now: number) {
   const family = String(queryKey[0])
-  return APP_SNAPSHOT_QUERIES.has(family) && family !== 'me' && family !== 'price'
+  return APP_SNAPSHOT_QUERIES.has(family) && family !== 'me' && family !== 'price' && now - state.dataUpdatedAt >= RECENT_ANSWER_MS
 }
 
 /** Switching back to the app within this long of the last refresh skips it; the screen in view refreshes itself. */
@@ -96,9 +99,8 @@ export function AppPersistence() {
         const me = await client.query({ ...meQuery(), staleTime: 0 })
         if (!active) return
         if (!pendingRefresh) accountChangePending = false
-        await client.invalidateQueries({
-          predicate: ({ queryKey }) => refreshesSavedQuery(queryKey),
-        })
+        const startedAt = Date.now()
+        await client.invalidateQueries({ predicate: (query) => refreshesSavedQuery(query, startedAt) })
         if (!active || (client.getQueryData<{ id: string } | null>(meKey())?.id ?? null) !== (me?.id ?? null)) return
         const stillSignedInAs = (id: string) => active && client.getQueryData<{ id: string }>(meKey())?.id === id
         await Promise.allSettled([

@@ -542,7 +542,7 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
               name="Armies"
               onboarding="battle-setup-armies"
               sides={table}
-              renderSide={(side) => <ArmyAnswer side={side} manual={manual} />}
+              renderSide={(side) => <ArmyAnswer side={side} manual={manual} watching={watching} />}
               needed={Boolean(owed.length || sizeProblem || leaderless.length)}
               hint={
                 owed.length
@@ -1145,10 +1145,11 @@ function Answer({ value, detail, tone }: { value: ReactNode; detail?: ReactNode;
   )
 }
 
-function ArmyAnswer({ side, manual }: { side: Side; manual: boolean }) {
+function ArmyAnswer({ side, manual, watching }: { side: Side; manual: boolean; watching: boolean }) {
   const chosen = side.armies.filter((army) => army.roster)
   if (!chosen.length) {
-    const yours = side.armies.some((army) => army.isViewer || army.automated)
+    // The table chooses for a seat it plays, such as a guest's, which a reader with no seat cannot.
+    const yours = !watching && side.armies.some((army) => army.isViewer || army.automated)
     return <Answer value={yours ? 'Choose an army' : 'Waiting'} tone={yours ? 'needed' : 'quiet'} />
   }
   const units = chosen.reduce((total, army) => total + army.unitCount, 0)

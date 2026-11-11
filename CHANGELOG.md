@@ -1,5 +1,18 @@
 # praetorium
 
+## 0.229.5 (2026-11-11)
+
+### Patch Changes
+
+- eb95ac8: Watching a battle being set up no longer asks you to choose an army for a guest's seat; it says the seat is waiting.
+- a83c753: Rules, abilities, stratagems, enhancements and wargear options that the sources list with printed squares or dots now show those points as a bulleted list instead of one run-on paragraph.
+
+## 0.229.4 (2026-11-11)
+
+### Patch Changes
+
+- 6229356: Watching a battle you are not playing in now follows each move as it happens, without reloading.
+
 ## 0.229.3 (2026-11-10)
 
 ### Patch Changes

@@ -96,8 +96,8 @@ function paragraphsOf(nodes: readonly Node[]): RuleMarkupBlock[] {
 
 type Line = { bullet: boolean; nodes: (string | Element)[] }
 
-/** A Markdown bullet, which the source writes as a line of its own. */
-const BULLET = /^[ \t]*-[ \t]+/
+/** A bullet, which the source writes as a line of its own opened by a dash or a printed square. */
+const BULLET = /^[ \t]*(?:-[ \t]+|[■▪•▫◦][ \t\u00a0]*(?=\S|$))/
 
 function linesOf(nodes: readonly Node[]): Line[] {
   const lines: Line[] = [{ bullet: false, nodes: [] }]
