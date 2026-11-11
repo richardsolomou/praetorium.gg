@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.230.2 (2026-11-11)
+
+### Patch Changes
+
+- fdb7166: A unit you can't add yet now names what unlocks it, such as "Add a Khorne Battleline unit to the roster first." for allied Daemons.
+
 ## 0.230.1 (2026-11-11)
 
 ### Patch Changes
