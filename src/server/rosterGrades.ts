@@ -56,7 +56,7 @@ export async function calculateRosterGrades(data: PriceInput, signal: AbortSigna
   const [loaded, rules] = await Promise.all([instance.catalogueFor(data.catalogueId), instance.rulesFor(data.catalogueId)])
   if (!loaded) throw new Error('This roster’s army data is unavailable.')
   const price = calculateRosterPrice(data, loaded, rules)
-  const priced = new Map((price?.units ?? []).map((unit) => [Number(unit.key), unit]))
+  const priced = new Map((price?.units ?? []).map((unit) => [unit.key, unit]))
   const picks = data.units.map((pick) => ({ catalogueId: data.catalogueId, ...pick }))
   // Deep Strike, Infiltrators and Scouts need every model in the unit, so they come from the units the list forms.
   const deployment = new Map(
