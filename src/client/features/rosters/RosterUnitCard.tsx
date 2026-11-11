@@ -7,7 +7,7 @@ import type { KeyedPick } from './rosterPicks'
 import { AttachMenu, type AttachChoice, EmbarkMenu, JoinedRow, UnitCard } from './builder/UnitCard'
 import { cardEmbark, type EmbarkCard, embarkRows, NO_EMBARK } from './builder/embarkModel'
 import { pointsOver } from './builder/PointsChip'
-import { unitLimitMessage } from './builder/usePicks'
+import { type LimitUnlocks, unitLimitMessage } from './builder/usePicks'
 
 export type AttachDirection = 'join' | 'host'
 
@@ -164,6 +164,7 @@ type AttachDiscovery = {
   candidates: readonly PickerUnit[]
   held: Readonly<Record<string, number>>
   limits: ReadonlyMap<string, number | null>
+  unlocks: LimitUnlocks
   /** Points left under the list's limit, or null when none is enforced. */
   room: number | null
 }
@@ -186,7 +187,7 @@ export function useCardRelationships(
           name: option.name,
           points: option.points,
           over: pointsOver(option.points, discovery?.room ?? null),
-          reason: discovery && unitLimitMessage(option.id, discovery.held[option.id] ?? 0, discovery.limits),
+          reason: discovery && unitLimitMessage(option.id, discovery.held[option.id] ?? 0, discovery.limits, discovery.unlocks),
         }))
         .toSorted((left, right) => Number(Boolean(left.reason)) - Number(Boolean(right.reason)) || left.name.localeCompare(right.name))
     // Lists name a roster unit as its card does, with the player's nickname; legality still reads the datasheet name.

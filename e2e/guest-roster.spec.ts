@@ -275,9 +275,7 @@ for (const width of [1440, 390]) {
     await page.getByLabel('Add a unit').fill('Beasts of Nurgle')
     await page.getByRole('button', { name: 'Toggle Daemons Library' }).click()
     await expect(page.getByRole('button', { name: 'Add Beasts of Nurgle', exact: true })).toBeDisabled()
-    await expect(page.locator('[data-picker-unit="Beasts of Nurgle"]')).toContainText(
-      'No copies available with the current detachments and prerequisite units.',
-    )
+    await expect(page.locator('[data-picker-unit="Beasts of Nurgle"]')).toContainText('Add a Nurgle Battleline unit to the roster first.')
     await page.getByLabel('Add a unit').fill('Nurglings')
     await page.getByRole('button', { name: 'Add Nurglings', exact: true }).click()
     await page.getByLabel('Add a unit').fill('Beasts of Nurgle')

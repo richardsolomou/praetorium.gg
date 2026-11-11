@@ -2,7 +2,7 @@
 
 ### Add is greyed out
 
-You've reached that datasheet's limit, shown as "Limit reached: 3 of 3 permitted copies in the roster." If it says "No copies available with the current detachments and prerequisite units.", the unit needs a different detachment or another unit first.
+You've reached that datasheet's limit, shown as "Limit reached: 3 of 3 permitted copies in the roster." If the data says what unlocks it, the message names it: allied Daemons, for example, read "Add a Khorne Battleline unit to the roster first." until the matching Battleline unit is in. "No copies available with the current detachments and prerequisite units." means the unit needs a different detachment or another unit first.
 
 ### A unit isn't in the picker
 

@@ -7,6 +7,7 @@ import {
   keywordNames,
   keywordsBySelection,
   type ModifierCache,
+  rosterAllowance,
   rosterLimit,
   type Selection,
 } from '../core/evaluate'
@@ -343,12 +344,16 @@ export function contextualUnitLimit(
   roster: readonly Selection[],
 ) {
   const entry = loaded.index.definitions.get(entryId)
-  if (!entry) return 0
+  if (!entry) return { limit: 0, unlockedBy: null }
   const modifierCache = remember(modifierCaches, loaded, () => new WeakMap())
-  const limit = rosterLimit(entry, loaded.index, { primaryCatalogueId: catalogueId, mustering: true, roster, modifierCache })
-  if (!isKotcLimit(battleSize)) return limit
+  const allowance = rosterAllowance(entry, loaded.index, { primaryCatalogueId: catalogueId, mustering: true, roster, modifierCache })
+  if (!isKotcLimit(battleSize)) return allowance
   const listed = listedUnitFacts(loaded, catalogueId, entryId, roster)
-  return minimumLimit(limit, listed ? formatDatasheetLimit(battleSize, kotcDatasheetRepeatable(listed.keywords), waivedRules) : null)
+  const limit = minimumLimit(
+    allowance.limit,
+    listed ? formatDatasheetLimit(battleSize, kotcDatasheetRepeatable(listed.keywords), waivedRules) : null,
+  )
+  return { limit, unlockedBy: limit === allowance.limit ? allowance.unlockedBy : null }
 }
 
 function minimumLimit(left: number | null, right: number | null) {
