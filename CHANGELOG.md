@@ -1,5 +1,15 @@
 # praetorium
 
+## 0.230.3 (2026-11-11)
+
+### Patch Changes
+
+- b2843e3: Battle and data update pages no longer download every faction's summary just to link to the armies already on screen.
+- b1c4b9a: Saved lists price and check legality faster, so the roster library and shared lists load sooner.
+- 1cbf8ac: A group's page opens faster when its battles have not changed since it was last read.
+- 868b4f3: The roster library no longer reprices lists it already priced when you change the sort or filter by legality or points.
+- 3576c5c: Watched and finished battles open faster, since they no longer download the battlefield terrain until you open the map.
+
 ## 0.230.2 (2026-11-11)
 
 ### Patch Changes
