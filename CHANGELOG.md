@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.230.1 (2026-11-11)
+
+### Patch Changes
+
+- f92aa27: Detachment pages no longer list an enhancement or upgrade twice when sources print it with or without a qualifier such as (Psychic) or (one per army).
+- f92aa27: Detachment pages no longer list core rules such as Lethal Hits or a misspelt second copy of the detachment's own rule.
+
 ## 0.230.0 (2026-11-11)
 
 ### Minor Changes
