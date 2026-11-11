@@ -17,13 +17,13 @@ import { Button } from '@/components/ui/button'
 import { Kbd, KbdGroup } from '@/components/ui/kbd'
 import type { GlobalSearchResult } from '../../functions'
 import { useClientValue } from '../../useClientValue'
-import { globalSearchGroups, matchingPages } from './globalSearchPages'
+import { matchingPages } from './globalSearchPages'
 import { isSearchShortcut, searchShortcutModifier } from './globalSearchShortcut'
 import { RecentSearches } from './RecentSearches'
 import { rememberSearch } from './searchHistory'
 import { SearchResults } from './SearchResults'
 import { useGlobalSearch } from './useGlobalSearch'
-import { SEARCH_MIN_LENGTH } from '../../../core/referenceSearch'
+import { inSearchOrder, SEARCH_MIN_LENGTH } from '../../../core/referenceSearch'
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from '../../components/Dialog'
 
 type GlobalSearchContextValue = {
@@ -44,10 +44,7 @@ export function GlobalSearchProvider({ children }: { children: ReactNode }) {
   const shortcutModifier = useClientValue(shortcutModifierOfBrowser, 'Ctrl')
   const trimmed = query.trim()
   const { query: settled, typingSettled, data, isFetching, isPending, isError, refetch } = useGlobalSearch(trimmed, open)
-  const results = useMemo(
-    () => globalSearchGroups.flatMap((group) => [...matchingPages(settled), ...data].filter((result) => result.group === group)),
-    [data, settled],
-  )
+  const results = useMemo(() => inSearchOrder(settled, [...matchingPages(settled), ...data]), [data, settled])
   const resultCount = results.length
   const reportedQuery = useRef<string | null>(null)
   const searchStarted = useRef(false)

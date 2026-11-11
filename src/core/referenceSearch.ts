@@ -53,9 +53,33 @@ export function searchReference(query: string, index: GlobalSearchIndex): Global
   const wanted = query.toLowerCase()
   return [
     ...catalogueResults(wanted, index),
-    ...[...index.missions, ...index.rules].filter((entry) => entry.search.includes(wanted)).map((entry) => entry.result),
+    ...namedFirst(
+      wanted,
+      index.missions.filter((entry) => entry.search.includes(wanted)).map((entry) => entry.result),
+    ),
+    ...namedFirst(
+      wanted,
+      index.rules.filter((entry) => entry.search.includes(wanted)).map((entry) => entry.result),
+    ),
   ]
 }
+
+/**
+ * How closely a result's own name matches the query, lower first: the whole name, then whole words, then the start
+ * of a word, then inside one ("cover" in "Recovery"); a match elsewhere, such as a rule number, comes last.
+ */
+function nameRank(query: string, result: GlobalSearchResult) {
+  const name = result.label.toLowerCase()
+  const wanted = query.trim().toLowerCase()
+  if (!wanted || !name.includes(wanted)) return 5
+  if (name === wanted) return 0
+  const escaped = wanted.replaceAll(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`)
+  if (new RegExp(String.raw`(^|\W)${escaped}(\W|$)`).test(name)) return name.startsWith(wanted) ? 1 : 2
+  return new RegExp(String.raw`(^|\W)${escaped}`).test(name) ? 3 : 4
+}
+
+const namedFirst = (query: string, results: readonly GlobalSearchResult[]) =>
+  results.toSorted((left, right) => nameRank(query, left) - nameRank(query, right))
 
 function catalogueResults(wanted: string, index: GlobalSearchIndex): GlobalSearchResult[] {
   const results: GlobalSearchResult[] = [
@@ -151,6 +175,7 @@ export const SEARCH_MIN_LENGTH = 2
 export const OWN_SEARCH_BATTLES = 50
 
 const SEARCH_GROUPS: GlobalSearchResult['group'][] = [
+  'Pages',
   'Factions',
   'Datasheets',
   'Detachments',
@@ -191,9 +216,24 @@ export function ownSearchLists<B extends OwnSearchData['battles'][number]>(
 
 /** Global search over a reference index and the player's own lists, in the order search shows them. */
 export function searchAll(query: string, index: GlobalSearchIndex, own: OwnSearchData | null) {
-  const results = [...searchReference(query, index), ...searchOwn(query, own)]
-  return SEARCH_GROUPS.flatMap((group) => results.filter((result) => result.group === group))
+  return inSearchOrder(query, [...searchReference(query, index), ...searchOwn(query, own)])
 }
+
+/**
+ * Results grouped as search shows them: a group with a result named like the query leads one whose results only
+ * mention it, so searching "cover" opens on the Cover rules rather than every datasheet with a cover ability.
+ */
+export function searchGroupsFor(query: string, results: readonly GlobalSearchResult[]) {
+  const best = (group: GlobalSearchResult['group']) =>
+    Math.min(...results.filter((result) => result.group === group).map((result) => nameRank(query, result)))
+  return SEARCH_GROUPS.map((group) => ({ group, score: best(group) }))
+    .filter(({ score }) => score !== Infinity)
+    .toSorted((left, right) => left.score - right.score)
+    .map(({ group }) => group)
+}
+
+export const inSearchOrder = (query: string, results: readonly GlobalSearchResult[]) =>
+  searchGroupsFor(query, results).flatMap((group) => results.filter((result) => result.group === group))
 
 export type OwnSearchData = {
   rosters: { id: string; name: string; limit: number; label: string }[]
