@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.231.1 (2026-11-11)
+
+### Patch Changes
+
+- a989d64: Detachment pages for Creations of Bile, Renegade Warband, Fist of the God-Emperor, Medusa's Wrath, Shadowmark Talon and Skitarii Hunter Cohort no longer list their detachment rule twice.
+- a989d64: Darkflight Pursuit no longer lists the Nightforged Battery upgrade twice.
+
 ## 0.231.0 (2026-11-11)
 
 ### Minor Changes
