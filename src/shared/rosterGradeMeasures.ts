@@ -22,6 +22,15 @@ export type GradeReferences = {
   attackers: readonly ReferenceUnit[]
 }
 
+/**
+ * A reference target fielded as `copies` of itself in one unit, so a unit's damage can run past the first copy
+ * without carrying over between models; `wounds` stays one copy's.
+ */
+export function referenceTarget(snapshot: CombatantSnapshot, copies: number): ReferenceUnit {
+  const models = snapshot.models * copies
+  return { snapshot: { ...snapshot, models, startingModels: models }, wounds: unitTotal(snapshot, 'wounds') }
+}
+
 const NO_CHOICES = { preferences: {}, excluded: { ranged: [], melee: [] }, allocation: [] }
 
 /** A projection with each rule read from its words where they are held; a rule left as a token is reported as not calculated. */
@@ -82,14 +91,15 @@ export const unitTotal = (snapshot: CombatantSnapshot, kind: 'wounds' | 'objecti
 const numberIn = (names: readonly string[], pattern: RegExp) => Math.max(0, ...names.map((name) => Number(pattern.exec(name)?.[1] ?? 0)))
 
 /**
- * The share of the target's wounds one unit takes in its shooting, fighting, or shooting then fighting, up to all of them.
+ * How many of the target one unit's shooting, fighting, or shooting then fighting removes in a turn: its expected
+ * damage to the stacked reference over one copy's wounds, so a unit that takes two Rhinos counts 2.
  *
  * A phase the simulator refuses could have done more, so a shortfall beside a refusal is not calculated rather than a guess.
  */
 function removed(answer: CombatAnswer, wounds: number): number | null {
   const phases = [answer.ranged, answer.melee, answer.combined]
-  const share = Math.min(1, Math.max(0, ...phases.map((phase) => phase?.result?.meanDamage ?? 0)) / wounds)
-  if (share === 1) return 1
+  const share = Math.max(0, ...phases.map((phase) => phase?.result?.meanDamage ?? 0)) / wounds
+  if (share >= 1) return share
   return phases.some((phase) => phase?.error && !phase.result) ? null : share
 }
 

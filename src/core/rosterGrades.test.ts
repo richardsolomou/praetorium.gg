@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { gradeOf, percentileOf, reachChance, rosterGrades, type GradedUnit } from './rosterGrades'
+import { gradeOf, percentileOf, reachChance, rosterGrades, scaled, type GradedUnit } from './rosterGrades'
 
 const unit = (overrides: Partial<GradedUnit> = {}): GradedUnit => ({
   name: 'Unit',
@@ -53,48 +53,67 @@ describe('percentileOf', () => {
 })
 
 describe('gradeOf', () => {
-  it('splits A from B at the 75th percentile', () => {
-    expect([gradeOf(75), gradeOf(74)]).toEqual(['A', 'B'])
+  it('splits A from B at 85', () => {
+    expect([gradeOf(85), gradeOf(84)]).toEqual(['A', 'B'])
   })
 })
+
+describe('scaled', () => {
+  it('scores a typical tournament list 70', () => {
+    expect(scaled(50)).toBe(70)
+  })
+
+  it('interpolates between the curve points', () => {
+    expect(scaled(5)).toBe(20)
+  })
+})
+
+/** A faction without enough tournament lists of its own, so categories compare it with every list. */
+const grade = (units: GradedUnit[], limit: number) => rosterGrades(units, limit, 'no-such-faction')
 
 const categoryOf = (grades: ReturnType<typeof rosterGrades>, key: string) => grades.categories.find((category) => category.key === key)
 
 describe('rosterGrades', () => {
   it('leaves heavy armour out at King of the Colosseum', () => {
-    expect(rowOf(rosterGrades([unit()], 600), 'heavyVehicle')).toBeUndefined()
+    expect(rowOf(grade([unit()], 600), 'heavyVehicle')).toBeUndefined()
   })
 
   it('names a reference target nothing in the list can take half of alone', () => {
-    const grades = rosterGrades([unit({ removes: { horde: 1, elite: 1, vehicle: 0.4, heavyVehicle: 1, monster: 1 } })], 2000)
+    const grades = grade([unit({ removes: { horde: 1, elite: 1, vehicle: 0.4, heavyVehicle: 1, monster: 1 } })], 2000)
     expect(grades.missing).toEqual(['a Rhino'])
   })
 
   it('grades nothing for a row the simulator could not calculate', () => {
-    const grades = rosterGrades([unit({ removes: { horde: 1, elite: 1, vehicle: null, heavyVehicle: 1, monster: 1 } })], 2000)
+    const grades = grade([unit({ removes: { horde: 1, elite: 1, vehicle: null, heavyVehicle: 1, monster: 1 } })], 2000)
     expect(rowOf(grades, 'vehicle')?.grade).toBeNull()
   })
 
   it('does not call an uncalculated row missing', () => {
-    const grades = rosterGrades([unit({ removes: { horde: 1, elite: 1, vehicle: null, heavyVehicle: 1, monster: 1 } })], 2000)
+    const grades = grade([unit({ removes: { horde: 1, elite: 1, vehicle: null, heavyVehicle: 1, monster: 1 } })], 2000)
     expect(grades.missing).toEqual([])
   })
 
   it('rates removing one vehicle a turn a B at King of the Colosseum, where the opponent has at most one Toughness 9 unit', () => {
-    const grades = rosterGrades([unit({ removes: { horde: 1, elite: 1, vehicle: 1, monster: 1 } })], 600)
+    const grades = grade([unit({ removes: { horde: 1, elite: 1, vehicle: 1, monster: 1 } })], 600)
     expect(rowOf(grades, 'vehicle')?.grade).toBe('B')
   })
 
   it('does not lower damage for a cheap unit that kills nothing', () => {
     const killers = Array.from({ length: 6 }, () => unit({ points: 300 }))
     const screen = unit({ points: 40, removes: { horde: 0, elite: 0, vehicle: 0, heavyVehicle: 0, monster: 0 }, volleyLoss: 1 })
-    expect(categoryOf(rosterGrades([...killers, screen], 2000), 'damage')?.score).toBe(
-      categoryOf(rosterGrades(killers, 2000), 'damage')?.score,
-    )
+    expect(categoryOf(grade([...killers, screen], 2000), 'damage')?.score).toBe(categoryOf(grade(killers, 2000), 'damage')?.score)
+  })
+
+  it("places a list on an older rules version among its faction's tournament lists", () => {
+    expect(rosterGrades([unit()], 2000, 'mfm-1-6~b654-a18a-ea1-3bf2').comparedWith).toBe('faction')
+  })
+
+  it('places a faction with too few tournament lists among all of them', () => {
+    expect(grade([unit()], 2000).comparedWith).toBe('all')
   })
 
   it('compares a small list with lists of its own size', () => {
     const units = Array.from({ length: 5 }, () => unit({ points: 120 }))
-    expect(rowOf(rosterGrades(units, 600), 'presence')!.score!).toBeGreaterThan(rowOf(rosterGrades(units, 2000), 'presence')!.score!)
+    expect(rowOf(grade(units, 600), 'presence')!.score!).toBeGreaterThan(rowOf(grade(units, 2000), 'presence')!.score!)
   })
 })
