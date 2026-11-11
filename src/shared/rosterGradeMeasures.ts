@@ -31,6 +31,12 @@ export function referenceTarget(snapshot: CombatantSnapshot, copies: number): Re
   return { snapshot: { ...snapshot, models, startingModels: models }, wounds: unitTotal(snapshot, 'wounds') }
 }
 
+/**
+ * A resolved matchup with the phases the simulator refused before resolving anything, such as a weapon whose
+ * profile it cannot read; those come back without an answer rather than with an error.
+ */
+type Attack = { answer: CombatAnswer; refused: Record<'ranged' | 'melee', boolean> }
+
 const NO_CHOICES = { preferences: {}, excluded: { ranged: [], melee: [] }, allocation: [] }
 
 /** A projection with each rule read from its words where they are held; a rule left as a token is reported as not calculated. */
@@ -96,16 +102,16 @@ const numberIn = (names: readonly string[], pattern: RegExp) => Math.max(0, ...n
  *
  * A phase the simulator refuses could have done more, so a shortfall beside a refusal is not calculated rather than a guess.
  */
-function removed(answer: CombatAnswer, wounds: number): number | null {
+function removed({ answer, refused }: Attack, wounds: number): number | null {
   const phases = [answer.ranged, answer.melee, answer.combined]
   const share = Math.max(0, ...phases.map((phase) => phase?.result?.meanDamage ?? 0)) / wounds
   if (share >= 1) return share
-  return phases.some((phase) => phase?.error && !phase.result) ? null : share
+  return refused.ranged || refused.melee || phases.some((phase) => phase?.error && !phase.result) ? null : share
 }
 
 /** The share of the unit's wounds a turn of the attacker's shooting takes on average; null when it cannot be calculated. */
-function lost(answer: CombatAnswer, wounds: number): number | null {
-  if (answer.ranged?.error && !answer.ranged.result) return null
+function lost({ answer, refused }: Attack, wounds: number): number | null {
+  if (refused.ranged || (answer.ranged?.error && !answer.ranged.result)) return null
   return wounds ? Math.min(1, (answer.ranged?.result?.meanDamage ?? 0) / wounds) : 1
 }
 
@@ -171,11 +177,16 @@ export async function measureRosterUnits({
     const reference = references.targets[target.key]
     return reference ? [{ key: target.key, ...reference }] : []
   })
-  const attacks = hosts.flatMap((host) => [
-    ...targets.map((target) => combatMatchup(host.snapshot, target.snapshot, NO_CHOICES).request({})),
-    ...references.attackers.map((attacker) => combatMatchup(attacker.snapshot, host.snapshot, NO_CHOICES).request({})),
+  const matchups = hosts.flatMap((host) => [
+    ...targets.map((target) => combatMatchup(host.snapshot, target.snapshot, NO_CHOICES)),
+    ...references.attackers.map((attacker) => combatMatchup(attacker.snapshot, host.snapshot, NO_CHOICES)),
   ])
-  const answers = await calculate(attacks)
+  const resolved = await calculate(matchups.map((matchup) => matchup.request({})))
+  const answers: Attack[] = resolved.map((answer, index) => {
+    const matchup = matchups[index]!
+    const refusedPhase = (phase: 'ranged' | 'melee') => Boolean(matchup.target?.error || matchup.plans[phase]?.errors.length)
+    return { answer, refused: { ranged: refusedPhase('ranged'), melee: refusedPhase('melee') } }
+  })
   const perHost = targets.length + references.attackers.length
   return hosts.map((host, index) => {
     const answered = answers.slice(index * perHost, (index + 1) * perHost)

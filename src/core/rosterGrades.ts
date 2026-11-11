@@ -139,15 +139,15 @@ export type GradeCategory = { key: string; label: string; score: number | null; 
 
 /**
  * `missing` names each reference target nothing in the list can take half of on its own, as in "a Rhino";
- * `comparedWith` says whether its scores place it among its own faction's tournament lists or, for a faction
- * with too few of them, among all of them.
+ * `comparedWith` names the tournament lists its scores place it among, such as "Necrons" or, for a chapter with
+ * too few of its own, "Adeptus Astartes", or is null when it is placed among every faction's.
  */
 export type RosterGrades = {
   score: number | null
   grade: Grade | null
   categories: GradeCategory[]
   missing: string[]
-  comparedWith: 'faction' | 'all'
+  comparedWith: string | null
 }
 
 /**
@@ -249,19 +249,41 @@ function gradeMeasures(units: readonly GradedUnit[], limit: number) {
     reach: byPoints(units, (unit) => reachChance(unit, gap)),
     deployment: byPoints(units, (unit) => (deploysEarly(unit) ? 1 : 0)),
     ...(Object.fromEntries(
-      gradedTargets(limit).map((target) => [target.key, units.reduce((sum, unit) => sum + (unit.removes[target.key] ?? 0), 0)]),
+      gradedTargets(limit).map((target) => [
+        target.key,
+        // The Colosseum allows one Toughness 9 unit a side, so a third unit that could remove one has nothing to do.
+        colosseumCapped(limit, target.key)
+          ? Math.min(
+              2,
+              units.reduce((sum, unit) => sum + Math.min(1, unit.removes[target.key] ?? 0), 0),
+            )
+          : units.reduce((sum, unit) => sum + (unit.removes[target.key] ?? 0), 0),
+      ]),
     ) as Partial<Record<ReferenceTargetKey, number>>),
     survive: measured.length ? 1 - byPoints(measured, (unit) => unit.volleyLoss!) : null,
     spread: total ? 1 - (first + second) / total : null,
   } satisfies Partial<Record<MetricKey, number | null>>
 }
 
-/** The grades for a roster's units, each a unit and everything attached to it. */
-export function rosterGrades(units: readonly GradedUnit[], limit: number, catalogueId: string): RosterGrades {
+const colosseumCapped = (limit: number, key: ReferenceTargetKey) => isKotcLimit(limit) && (key === 'vehicle' || key === 'monster')
+
+/**
+ * The catalogue's own tournament lists, then its parent's, as "Imperium - Adeptus Astartes" for a chapter, and
+ * every faction's last; a top-level name such as "Imperium" spans too many armies to compare with.
+ */
+function peerGroup(size: CalibratedSize, catalogueName: string) {
+  const parts = catalogueName.split(' - ')
+  for (let length = parts.length; length > 1; length--) {
+    const peers = PEERS[size][parts.slice(0, length).join(' - ')]
+    if (peers) return { peers, label: parts[length - 1]! }
+  }
+  return { peers: PEERS[size]['']!, label: null }
+}
+
+/** The grades for a roster's units, each a unit and everything attached to it, from the name of its army's catalogue. */
+export function rosterGrades(units: readonly GradedUnit[], limit: number, catalogueName: string): RosterGrades {
   const size = calibratedSize(limit)
-  // An older rules version's catalogue keeps the faction's own id after its prefix.
-  const faction = PEERS[size][catalogueId.split('~').at(-1)!]
-  const peers = faction ?? PEERS[size]['']!
+  const { peers, label: peerLabel } = peerGroup(size, catalogueName)
   const measures = gradeMeasures(units, limit)
   const score = (key: MetricKey, value: number | null | undefined) => {
     const quantiles = peers.measures[key]
@@ -311,13 +333,10 @@ export function rosterGrades(units: readonly GradedUnit[], limit: number, catalo
   ]
   const missing: string[] = []
   for (const target of gradedTargets(limit)) {
-    const removed = measures[target.key] ?? 0
+    const removed = units.reduce((sum, unit) => sum + (unit.removes[target.key] ?? 0), 0)
     const alone = units.filter((unit) => (unit.removes[target.key] ?? 0) >= 0.5)
     const notCalculated = named(units.filter((unit) => unit.removes[target.key] === null))
-    // The Colosseum allows one Toughness 9 unit a side, so one unit that removes it is typical and a second a spare.
-    const capped = isKotcLimit(limit) && (target.key === 'vehicle' || target.key === 'monster')
-    const covered = units.reduce((sum, unit) => sum + Math.min(1, unit.removes[target.key] ?? 0), 0)
-    const value = capped ? 50 * Math.min(covered, 1) + 40 * Math.min(Math.max(covered - 1, 0), 1) : score(target.key, removed)
+    const value = score(target.key, measures[target.key])
     rows.push(
       row(
         target.key,
@@ -356,13 +375,17 @@ export function rosterGrades(units: readonly GradedUnit[], limit: number, catalo
     return { percentile, category: { key: category.key, label: category.label, score: shown, grade: gradeOf(shown), rows: members } }
   })
   const overall = mean(categories.map(({ percentile }) => percentile))
-  const total = display(overall === null ? null : percentileOf(overall, peers.overall))
+  const shown = categories.flatMap(({ category }) => (category.score === null ? [] : [category.score]))
+  // Lists that place usually stand out somewhere, so one middling at everything ranks low among them; it still
+  // never reads as worse than its weakest category or better than its strongest.
+  const total =
+    overall === null ? null : Math.min(Math.max(display(percentileOf(overall, peers.overall))!, Math.min(...shown)), Math.max(...shown))
   return {
     score: total,
     grade: gradeOf(total),
     categories: categories.map(({ category }) => category),
     missing,
-    comparedWith: faction ? 'faction' : 'all',
+    comparedWith: peerLabel,
   }
 }
 

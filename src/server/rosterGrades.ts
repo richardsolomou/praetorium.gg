@@ -50,5 +50,8 @@ export async function calculateRosterGrades(data: PriceInput, signal: AbortSigna
       return answers
     },
   })
-  return rosterGrades(units, data.limit, data.catalogueId)
+  // An older rules version's catalogue is the same book behind a prefix.
+  const book =
+    loaded.index.catalogues.get(data.catalogueId) ?? loaded.index.catalogues.get(data.catalogueId.slice(data.catalogueId.indexOf('~') + 1))
+  return rosterGrades(units, data.limit, book?.name ?? '')
 }

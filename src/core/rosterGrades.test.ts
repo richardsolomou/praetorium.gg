@@ -93,9 +93,10 @@ describe('rosterGrades', () => {
     expect(grades.missing).toEqual([])
   })
 
-  it('rates removing one vehicle a turn a B at King of the Colosseum, where the opponent has at most one Toughness 9 unit', () => {
-    const grades = grade([unit({ removes: { horde: 1, elite: 1, vehicle: 1, monster: 1 } })], 600)
-    expect(rowOf(grades, 'vehicle')?.grade).toBe('B')
+  it('credits at most two units that can remove a vehicle at King of the Colosseum, where the opponent has one Toughness 9 unit', () => {
+    const killers = (count: number) =>
+      Array.from({ length: count }, () => unit({ removes: { horde: 0, elite: 0, vehicle: 1, monster: 0 } }))
+    expect(rowOf(grade(killers(3), 600), 'vehicle')?.score).toBe(rowOf(grade(killers(2), 600), 'vehicle')?.score)
   })
 
   it('does not lower damage for a cheap unit that kills nothing', () => {
@@ -104,12 +105,25 @@ describe('rosterGrades', () => {
     expect(categoryOf(grade([...killers, screen], 2000), 'damage')?.score).toBe(categoryOf(grade(killers, 2000), 'damage')?.score)
   })
 
-  it("places a list on an older rules version among its faction's tournament lists", () => {
-    expect(rosterGrades([unit()], 2000, 'mfm-1-6~b654-a18a-ea1-3bf2').comparedWith).toBe('faction')
+  it("places a list among its own army's tournament lists", () => {
+    expect(rosterGrades([unit()], 2000, 'Xenos - Necrons').comparedWith).toBe('Necrons')
   })
 
-  it('places a faction with too few tournament lists among all of them', () => {
-    expect(grade([unit()], 2000).comparedWith).toBe('all')
+  it("places a chapter with too few tournament lists among its parent's", () => {
+    expect(rosterGrades([unit()], 2000, 'Imperium - Adeptus Astartes - Black Templars').comparedWith).toBe('Adeptus Astartes')
+  })
+
+  it('places an army with no tournament lists among every faction', () => {
+    expect(grade([unit()], 2000).comparedWith).toBeNull()
+  })
+
+  it('keeps the overall score within its categories', () => {
+    const grades = grade(
+      Array.from({ length: 10 }, () => unit({ points: 200 })),
+      2000,
+    )
+    const scores = grades.categories.map((category) => category.score!)
+    expect(grades.score! >= Math.min(...scores) && grades.score! <= Math.max(...scores)).toBe(true)
   })
 
   it('compares a small list with lists of its own size', () => {

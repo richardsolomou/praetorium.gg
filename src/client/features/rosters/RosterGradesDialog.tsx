@@ -130,7 +130,7 @@ function Scores({ grades }: { grades: RosterGrades }) {
           <Gauge score={grades.score} grade={grades.grade} large />
           <span className="grid justify-items-center text-center">
             <span className="text-sm font-semibold text-bone">Overall</span>
-            <span className="text-xs text-dim">{grades.comparedWith === 'faction' ? 'Among its faction' : 'Among all factions'}</span>
+            <span className="text-xs text-dim">{grades.comparedWith ? `Among ${grades.comparedWith} lists` : 'Among all factions'}</span>
           </span>
         </div>
         <ol aria-label="Categories" className="grid grid-cols-4 items-start gap-2">
