@@ -501,6 +501,8 @@ export function prose(text: string) {
   const converted = text
     .replaceAll(TABLE, (table) => `\uE000${tables.push(table) - 1}\uE000`)
     .replaceAll('\r', '\n')
+    // A doubled bold run names one of several options a card lists, such as a Vow, so it stands on its own line.
+    .replaceAll(/<b><b>([^<]*)<\/b><\/b>/g, '\n\n**$1**\n\n')
     .replaceAll(/<\/?(?:k|b)>/g, '**')
     .replaceAll(/<\/?(?:u|i)>/g, '')
     .replaceAll(/<br\s*\/?>/g, '\n')
