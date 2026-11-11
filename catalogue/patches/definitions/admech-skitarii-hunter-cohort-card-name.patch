@@ -1,0 +1,9 @@
+diff --git a/definitions/Imperium - Adeptus Mechanicus.json b/definitions/Imperium - Adeptus Mechanicus.json
+index 93747ea..fa27d2a 100644
+--- a/definitions/Imperium - Adeptus Mechanicus.json	
++++ b/definitions/Imperium - Adeptus Mechanicus.json	
+@@ -30479,3 +30479,3 @@
+               {
+-                "name": "Skitarii Hunter Cohort",
++                "name": "Stealth Optimisation",
+                 "id": "66a8-d10b-deee-fe42",
