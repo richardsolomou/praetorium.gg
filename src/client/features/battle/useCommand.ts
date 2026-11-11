@@ -124,7 +124,7 @@ async function sendQueued({
         if (!item.background || result.outcome === 'refused') setProblem(problem)
         // A realtime refetch that landed while this command was in flight can hold a newer screen than its answer, and so can
         // the predictions of commands queued behind it, unless this one failed and they are about to be dropped.
-        queryClient.setQueryData(battleQuery(token).queryKey, (held) =>
+        const shown = queryClient.setQueryData(battleQuery(token).queryKey, (held) =>
           held?.kind === 'battle' &&
           screen?.kind === 'battle' &&
           held.view.seq > screen.view.seq &&
@@ -132,6 +132,9 @@ async function sendQueued({
             ? held
             : screen,
         )
+        // Structural sharing keeps a prediction the answer matches exactly, which would otherwise go on reporting the
+        // sequence before this command, so a remounted page sends its next command stale.
+        if (shown?.kind === 'battle' && screen?.kind === 'battle' && shown.view.seq === screen.view.seq) predictions.delete(shown)
         if (projection?.current && screen?.kind === 'battle') projection.current.confirmed = screen
         if (screen?.kind === 'battle') seen.current = Math.max(seen.current, screen.view.seq)
         // Before the snapshot write yields, so the screen and anything shown ahead of it change in one render.

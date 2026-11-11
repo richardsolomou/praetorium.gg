@@ -15,7 +15,7 @@ const device = vi.hoisted(() => ({ savedBattleAt: vi.fn(), predictedBattle: vi.f
 vi.mock('../../offline/battleFunctions', () => device)
 
 import { OfflineRefusal } from '../../offline/offlineRefusal'
-import { afterFailedCommand, drainCommands, showPrediction } from './useCommand'
+import { afterFailedCommand, confirmedSeq, drainCommands, showPrediction } from './useCommand'
 
 const queued = (basedOn: number, background = false) => ({ basedOn, background })
 const begin = { command: { kind: 'begin-battle' } as never, basedOn: 0 }
@@ -164,6 +164,13 @@ describe('a command shown before the service answers', () => {
     void drainTaps(client, projection, 2)
     await vi.waitFor(() => expect(submit).toHaveBeenCalledTimes(2))
     expect(client.getQueryData(['battle', 'battle'])).toEqual(screen(6))
+  })
+
+  it('counts the shown screen as confirmed when the service’s answer matches it', async () => {
+    const { client, projection } = await predicted(5)
+    submit.mockResolvedValueOnce({ result: { outcome: 'appended' }, screen: screen(5) })
+    await drainTaps(client, projection, 1)
+    expect(confirmedSeq(client.getQueryData(['battle', 'battle'])!)).toBe(5)
   })
 
   it('returns to the service’s screen when it refuses the command', async () => {
