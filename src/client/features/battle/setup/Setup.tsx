@@ -28,13 +28,23 @@ import {
 } from '../../../../core/battle'
 import { ArmyPoints } from './ArmyPoints'
 import { battleGroupsQuery, deploymentsQuery, gameReferencesQuery, meQuery } from '../../../queries'
-import { fixedHandShort, missionCardsReady, type Side, type SideMission, sideName, sideOf, sides as foldSides } from '../../../sides'
+import {
+  type Army,
+  fixedHandShort,
+  missionCardsReady,
+  type Side,
+  type SideMission,
+  sideName,
+  sideOf,
+  sides as foldSides,
+} from '../../../sides'
 import type { RosterAttachment, SendCommand } from '../useCommand'
 import { GroupChoice } from './GroupChoice'
 import { SearchableSelect, type SearchableGroup } from '../../../components/SearchableSelect'
 import { advanceOnboarding } from '../../onboarding/onboarding'
 import { Battlefield } from './Battlefield'
-import { ArmiesStep } from './ArmiesStep'
+import { ArmiesStep, canChooseFor } from './ArmiesStep'
+import { useHistoryDialog } from '../../../useHistoryDialog'
 import {
   BATTLE_SIZE_CONTROL,
   CHOOSABLE,
@@ -42,6 +52,7 @@ import {
   landOn,
   SetupSidePanel,
   SideFocusProvider,
+  useSideFocus,
   SideSwitch,
   SideSwitchNext,
   useDispositionNames,
@@ -154,6 +165,8 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
    * decision; a step nobody has touched is open exactly while it still needs an answer.
    */
   const [folding, setFolding] = useState<Partial<Record<SectionId, boolean>>>({})
+  // The Armies step owns the chooser; this opens it from the face-off too.
+  const [, chooseRoster] = useHistoryDialog('choose-roster')
   /** The side a phone shows in steps that list both, starting on the viewer's own. */
   const [focusedSide, setFocusedSide] = useState<number | null>(null)
   const attached = view.players.filter((player) => player.roster).length
@@ -400,7 +413,18 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
               </p>
               {manual ? <p className="text-sm text-discarded">Manual tracking. {MANUAL_TRACKING_LIMITS}</p> : null}
             </div>
-            <FaceOff sides={table} battle={view.token} onSimulate={watching ? setCombatSelection : undefined} />
+            <FaceOff
+              sides={table}
+              battle={view.token}
+              onSimulate={watching ? setCombatSelection : undefined}
+              choosable={(side) =>
+                watching || !attachRoster ? undefined : side.armies.find((army) => !army.roster && canChooseFor(view, army))
+              }
+              onChoose={(army) => {
+                fold('armies', true)
+                chooseRoster(army.playerId)
+              }}
+            />
           </header>
 
           <ol className="mt-10">
@@ -418,14 +442,14 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
                     : undefined
               }
               summary={
-                <SharedAnswer>
+                <>
                   <span className={view.settings.limit === null ? 'text-dim' : 'font-bold uppercase'}>{sizeName}</span>
                   <span className="text-dim">
                     {' '}
                     · {manual ? 'Manual tracking' : (chosenPack?.name ?? 'Guided')}
                     {group ? ` · ${group}` : ''}
                   </span>
-                </SharedAnswer>
+                </>
               }
             >
               <div className="grid gap-4 sm:grid-cols-2">
@@ -637,13 +661,13 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
                     : 'Choose a layout. It sets the deployment zones and the terrain for both sides.'
               }
               summary={
-                <SharedAnswer>
+                <>
                   {deployment ? (
                     <span className="font-bold uppercase">{deployment.name}</span>
                   ) : (
                     <span className="text-dim">No layout yet</span>
                   )}
-                </SharedAnswer>
+                </>
               }
             >
               {youHaveAnArmy ? (
@@ -669,7 +693,7 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
                   : 'Once the armies are chosen, roll off. The winner chooses the defender.'
               }
               summary={
-                <SharedAnswer>
+                <>
                   {defender ? (
                     <>
                       <span className={`font-bold uppercase ${tint(defender.index).text}`}>{sideName(defender)}</span>
@@ -678,7 +702,7 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
                   ) : (
                     <span className="text-dim">Not rolled yet</span>
                   )}
-                </SharedAnswer>
+                </>
               }
             >
               {complete.armies ? <DefenderStep sides={table} attackerId={view.attackerId} disabled={busy} send={send} /> : null}
@@ -742,7 +766,7 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
                   : 'Once both armies are deployed, roll off. The winner takes the first turn.'
               }
               summary={
-                <SharedAnswer>
+                <>
                   {firstSide ? (
                     <>
                       <span className={`font-bold uppercase ${tint(firstSide.index).text}`}>{sideName(firstSide)}</span>
@@ -751,7 +775,7 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
                   ) : (
                     <span className="text-dim">Not rolled yet</span>
                   )}
-                </SharedAnswer>
+                </>
               }
             >
               {manual || view.deploymentId ? (
@@ -830,16 +854,22 @@ function FaceOff({
   sides,
   battle,
   onSimulate,
+  choosable,
+  onChoose,
 }: {
   sides: Side[]
   battle: string
   onSimulate?: (selection: BattleCombatSelection) => void
+  /** The army on a side still without a list that this reader picks for. */
+  choosable: (side: Side) => Army | undefined
+  onChoose: (army: Army) => void
 }) {
   return (
     <div className="relative grid grid-cols-[minmax(0,1fr)_2rem_minmax(0,1fr)] items-stretch sm:grid-cols-[minmax(0,1fr)_3rem_minmax(0,1fr)]">
       {sides.map((side, position) => {
         const armies = side.armies.filter((army) => army.roster)
         const points = side.armies.reduce((total, army) => total + (army.roster?.built ? (army.points ?? 0) : 0), 0)
+        const unchosen = choosable(side)
         return (
           <Fragment key={side.index}>
             {position ? (
@@ -882,6 +912,11 @@ function FaceOff({
                     ))
                   : 'No army yet'}
               </span>
+              {unchosen ? (
+                <Button size="sm" className="mt-1" onClick={() => onChoose(unchosen)}>
+                  {armies.length ? `Choose ${unchosen.playerName}’s army` : 'Choose army'}
+                </Button>
+              ) : null}
               {points ? <span className="figure text-xs text-dim">{points.toLocaleString('en')} pts</span> : null}
               {onSimulate
                 ? armies.map((army) => (
@@ -964,6 +999,7 @@ function SpineStep({
   check?: { checked: boolean; disabled: boolean; onCheck: () => void }
   children: ReactNode
 }) {
+  const sideFocus = useSideFocus()
   if (skipped) return null
   const body = watching ? null : children
   const tick = watching ? undefined : check
@@ -1060,21 +1096,33 @@ function SpineStep({
             ) : sides && renderSide ? (
               <div className="grid grid-cols-2 items-stretch gap-2">
                 {sides.map((side, position) => (
-                  <div
+                  <FoldedAnswer
                     key={side.index}
+                    opens={body ? name : undefined}
+                    onOpen={() => {
+                      sideFocus?.show(side.index)
+                      onToggle()
+                    }}
                     className={cn(
-                      'min-w-0 rounded-lg border border-t-2 border-edge bg-sunken px-3 py-2 text-sm',
+                      // The hover leaves the top edge alone, since its tint says whose answer it is.
+                      'min-w-0 rounded-lg border border-t-2 border-edge bg-sunken px-3 py-2 text-sm enabled:hover:border-x-parchment/50 enabled:hover:border-b-parchment/50',
                       tint(side.index).edge,
-                      position ? 'text-right' : '',
+                      position ? 'text-right' : 'text-left',
                     )}
                   >
                     {renderSide(side)}
-                  </div>
+                  </FoldedAnswer>
                 ))}
               </div>
-            ) : (
-              summary
-            )}
+            ) : summary ? (
+              <FoldedAnswer
+                opens={body ? name : undefined}
+                onOpen={onToggle}
+                className="block w-fit max-w-full rounded-lg border border-edge bg-sunken px-3 py-2 text-left text-sm text-balance enabled:hover:border-parchment/50"
+              >
+                {summary}
+              </FoldedAnswer>
+            ) : null}
           </div>
         </div>
       </section>
@@ -1123,9 +1171,30 @@ function StepMark({
   )
 }
 
-/** A choice the table shares, written on the spine. */
-function SharedAnswer({ children }: { children: ReactNode }) {
-  return <p className="w-fit max-w-full rounded-lg border border-edge bg-sunken px-3 py-2 text-sm text-balance">{children}</p>
+/** A folded step's answer, which opens the step to change it wherever the reader can. Its content must be inline, since it can be a button. */
+function FoldedAnswer({
+  opens,
+  onOpen,
+  className,
+  children,
+}: {
+  /** The step's name when it has controls to open onto. */
+  opens?: string
+  onOpen: () => void
+  className: string
+  children: ReactNode
+}) {
+  if (!opens) return <div className={className}>{children}</div>
+  return (
+    <button
+      type="button"
+      title={`Change ${opens}`}
+      className={cn(className, 'cursor-pointer transition-colors hover:bg-panel')}
+      onClick={onOpen}
+    >
+      {children}
+    </button>
+  )
 }
 
 /** One side's answer to a step: what it is, then what it means. Inline throughout, since the side switch is a button. */
