@@ -1,7 +1,8 @@
 import { z } from 'zod'
 import { READ_ONLY_TOOL, structured, type AgentTools } from './agentTools'
 import type { IndexedUpdate } from '../contracts/catalogueChanges'
-import { changeLogPage, referencePath } from './catalogueChangeLog'
+import { referencePath } from './catalogueChangeLog'
+import { changeLogPage } from './catalogueChangePages'
 
 /** How many changes each faction an update reached recorded, which is all an unscoped page carries: one update across every army can run past 100 KB. */
 function factionCounts(groups: IndexedUpdate['groups']) {
