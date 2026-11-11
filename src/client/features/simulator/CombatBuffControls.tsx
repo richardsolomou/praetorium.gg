@@ -12,30 +12,39 @@ import { missingRuleText } from './readableRules'
 export function CombatBuffControls({ side, combatant, opponent }: { side: string; combatant: Combatant; opponent: Combatant }) {
   const role = side === 'Attacker' ? 'attacker' : 'defender'
   const opposingKeywords = opponent.snapshot ? combatUnitKeywords(opponent.snapshot) : undefined
-  const enhancements = (combatant.unit?.choices ?? []).flatMap((choice) => {
-    if (choice.kind !== 'enhancement' && choice.kind !== 'upgrade') return []
-    const options = choice.options.filter(
-      (option) =>
-        'description' in option &&
-        typeof option.description === 'string' &&
-        combatRuleAppliesTo(
-          {
-            id: option.id,
-            name: option.name,
-            source: choice.name,
-            scope: 'unit',
-            description: option.description,
-            included: combatant.sheets.data?.selected?.profiles.some((profile) =>
-              profile.values.some((value) => value.modifiers?.includes(option.name)),
-            ),
-            models: combatant.unit?.size.models,
-            keywords: combatant.sheets.data?.selected?.keywords,
-          },
-          role,
-          opposingKeywords,
-        ),
-    )
-    return options.length ? [{ ...choice, options }] : []
+  // Leaders join their bodyguard as members, so each member's enhancements are offered, not only the bodyguard's.
+  const members = [
+    { index: combatant.pickIndex, sheet: combatant.sheets.data?.selected },
+    ...(combatant.sheets.data?.companions ?? []).map((member) => ({ index: member.pickIndex, sheet: member.selected })),
+  ]
+  const enhancements = members.flatMap(({ index, sheet }) => {
+    const unit = combatant.price.data?.units[index]
+    if (!unit) return []
+    return unit.choices.flatMap((choice) => {
+      if (choice.kind !== 'enhancement' && choice.kind !== 'upgrade') return []
+      const options = choice.options.filter(
+        (option) =>
+          'description' in option &&
+          typeof option.description === 'string' &&
+          combatRuleAppliesTo(
+            {
+              id: option.id,
+              name: option.name,
+              source: choice.name,
+              scope: 'unit',
+              description: option.description,
+              included: sheet?.profiles.some((profile) => profile.values.some((value) => value.modifiers?.includes(option.name))),
+              models: unit.size.models,
+              keywords: sheet?.keywords,
+            },
+            role,
+            opposingKeywords,
+          ),
+      )
+      return options.length
+        ? [{ ...choice, options, index, label: index === combatant.pickIndex ? choice.name : `${unit.name} ${choice.name.toLowerCase()}` }]
+        : []
+    })
   })
   const rules = combatant.allRules.filter((rule) => combatRuleAppliesTo(rule, role, opposingKeywords))
   // Rules compile from their words, so unloaded ones are absent from the list above rather than off.
@@ -50,13 +59,13 @@ export function CombatBuffControls({ side, combatant, opponent }: { side: string
           </p>
         ) : null}
         {enhancements.map((choice) => (
-          <div key={choice.key} className="space-y-2">
+          <div key={`${choice.index}:${choice.key}`} className="space-y-2">
             <Choice
-              label={choice.name}
-              ariaLabel={`${side} ${choice.name}`}
+              label={choice.label}
+              ariaLabel={`${side} ${choice.label}`}
               value={choice.options.some((option) => option.id === choice.chosen) ? choice.chosen : ''}
               disabled={!combatant.ready}
-              onChange={(id) => combatant.edit.choose(combatant.pickIndex, choice.key, id)}
+              onChange={(id) => combatant.edit.choose(choice.index, choice.key, id)}
               choices={[
                 ...(choice.optional
                   ? [
