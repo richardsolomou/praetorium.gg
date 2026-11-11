@@ -840,6 +840,12 @@ it('reads card markup as the markdown the app renders', () => {
   )
 })
 
+it('puts the name of each option a card lists on its own line', () => {
+  expect(prose('<ul><li>Have <k>[LANCE]</k>.</li></ul><b><b>Accept Any Challenge</b></b>Friendly attacks.')).toBe(
+    '- Have **[LANCE]**.\n\n**Accept Any Challenge**\n\nFriendly attacks.',
+  )
+})
+
 it('keys a card by its detachment and name, whatever suffix a source prints', () => {
   expect(descriptionKey('The Phaeron’s Armoury', 'Mortality Shroud (Aura) (Upgrade)')).toBe(
     descriptionKey("The Phaeron's Armoury", 'Mortality Shroud'),
