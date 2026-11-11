@@ -1,5 +1,15 @@
 # praetorium
 
+## 0.231.11 (2026-11-11)
+
+### Patch Changes
+
+- 74760cf: The battlefield name in a battle now opens the full map with its measurement toggles, the same view as setup and the mission pages.
+- 7bb067d: After a battle ends, Simulate can pick destroyed units again, at full strength, to look back at a fight.
+- 5f94110: The simulator's model limit note no longer overlaps the leader row under it.
+- ef22d33: A roster unit's leaders and support units show as plain names in the simulator, since a saved roster fixes them.
+- 5f94110: The simulator's roster unit list shows a leader together with the unit it leads, as one choice.
+
 ## 0.231.10 (2026-11-11)
 
 ### Patch Changes
