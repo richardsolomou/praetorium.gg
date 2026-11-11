@@ -1,5 +1,15 @@
 # praetorium
 
+## 0.230.0 (2026-11-11)
+
+### Minor Changes
+
+- f2d2833: The filters on the Friends, Public and Played roster tabs now show how many lists each choice finds, including **0** for factions nobody has listed.
+
+### Patch Changes
+
+- f2d2833: Filtering played armies by **Against army** now also finds battles against that faction under an older rules version.
+
 ## 0.229.5 (2026-11-11)
 
 ### Patch Changes
