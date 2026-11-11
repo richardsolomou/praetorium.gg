@@ -592,6 +592,11 @@ export function ListBuilder({
     () => new Map(!priceFailed ? priced?.unitLimits?.map((unit) => [unit.id, unit.limit]) : []),
     [priceFailed, priced?.unitLimits],
   )
+  const limitUnlocks = useMemo(
+    () =>
+      new Map(!priceFailed ? priced?.unitLimits?.flatMap((unit) => (unit.unlockedBy ? [[unit.id, unit.unlockedBy] as const] : [])) : []),
+    [priceFailed, priced?.unitLimits],
+  )
   const units = priced?.units ?? NO_UNITS
   // Keep the saved automatic name visible while an edit is being priced.
   const storedAutomaticName = initial.automaticName ? initial.name : ''
@@ -794,7 +799,7 @@ export function ListBuilder({
     if (!samePriceContext(next.context, priceRequest.queryKey)) return
     const wanted = next.loadout ?? [{ entryId: next.entryId }]
     const outcome = wanted
-      .map((pick, at) => requestedUnit(pick.entryId, heldWith(held, wanted, at), unitLimits))
+      .map((pick, at) => requestedUnit(pick.entryId, heldWith(held, wanted, at), unitLimits, limitUnlocks))
       .find((answer) => answer.kind === 'refused')
     if (outcome?.kind === 'refused') {
       setRequestRefusal(outcome.message)
@@ -804,7 +809,7 @@ export function ListBuilder({
     else editor.current.add(next.entryId, next.link)
     reporting.current = { event: 'roster_unit_added', ...(next.loadout ? { reference: 'loadout' as const } : {}) }
     if (next.link) posthog.capture('roster_attachment_updated', { attached: true })
-  }, [editable, held, priceFailed, priceLoading, pricePending, priceRequest.queryKey, queuedAdds, unitLimits])
+  }, [editable, held, limitUnlocks, priceFailed, priceLoading, pricePending, priceRequest.queryKey, queuedAdds, unitLimits])
   const requestHandled = useRef(false)
   const requestedHeld = requested ? (held[requested.entryId] ?? 0) : 0
   const limitsKnown = Boolean(priced) && !pricePending && !priceFailed
@@ -817,7 +822,7 @@ export function ListBuilder({
       return
     }
     if (!editable) return
-    const outcome = requestedUnit(requested.entryId, requestedHeld, limitsKnown ? unitLimits : null)
+    const outcome = requestedUnit(requested.entryId, requestedHeld, limitsKnown ? unitLimits : null, limitUnlocks)
     if (outcome.kind === 'pending') return
     requestHandled.current = true
     if (outcome.kind === 'add') {
@@ -828,7 +833,7 @@ export function ListBuilder({
       posthog.capture('roster_unit_add_refused', { reason: outcome.reason, reference: 'datasheet' })
     }
     requested.onSettled()
-  }, [editable, limitsKnown, locked, requested, requestedHeld, unitLimits])
+  }, [editable, limitUnlocks, limitsKnown, locked, requested, requestedHeld, unitLimits])
   const inspect = useCallback(
     (previewCatalogueId: string, entryId: string, unitName: string) => {
       const nextPreview = { catalogueId: previewCatalogueId, entryId, name: unitName }
@@ -936,9 +941,15 @@ export function ListBuilder({
   const attachDiscovery = useMemo(
     () =>
       attachCandidates
-        ? { candidates: attachCandidates.filter((unit) => shownKind(unit.nonMatchedPlay, pickerFilters)), held, limits: unitLimits, room }
+        ? {
+            candidates: attachCandidates.filter((unit) => shownKind(unit.nonMatchedPlay, pickerFilters)),
+            held,
+            limits: unitLimits,
+            unlocks: limitUnlocks,
+            room,
+          }
         : null,
-    [attachCandidates, pickerFilters, held, unitLimits, room],
+    [attachCandidates, pickerFilters, held, limitUnlocks, unitLimits, room],
   )
   const cardRelationships = useCardRelationships(picks, units, attachDiscovery, embarks)
   const openSetup = () => {
@@ -1111,7 +1122,7 @@ export function ListBuilder({
         onRemove={drop}
         onDuplicate={duplicate}
         canDuplicate={!pricePending && canAddCopy(unit.entryId, held[unit.entryId] ?? 0, unitLimits)}
-        duplicateLimit={unitLimitMessage(unit.entryId, held[unit.entryId] ?? 0, unitLimits)}
+        duplicateLimit={unitLimitMessage(unit.entryId, held[unit.entryId] ?? 0, unitLimits, limitUnlocks)}
         onSaveLoadout={pricePending ? undefined : guest ? askForLoadoutAccount : me ? openSaveLoadout : undefined}
         onSaveAttachedUnit={
           pricePending || !joinedUnits(picks, picks[index]?.key ?? -1, catalogueId).length
@@ -1218,7 +1229,8 @@ export function ListBuilder({
     unit.toggles.some((toggle) => toggle.name === 'Warlord' && toggle.required && toggle.selected),
   )
   const inspectedEntryId = preview?.entryId ?? optimisticUnit?.entryId ?? null
-  const previewLimitMessage = preview && !priceFailed ? unitLimitMessage(preview.entryId, held[preview.entryId] ?? 0, unitLimits) : null
+  const previewLimitMessage =
+    preview && !priceFailed ? unitLimitMessage(preview.entryId, held[preview.entryId] ?? 0, unitLimits, limitUnlocks) : null
   const previewOver = preview && building ? pointsOver(attachCandidates?.find((unit) => unit.id === preview.entryId)?.points, room) : null
   const referenceRoute = reference?.entryId === inspectedEntryId ? reference.route : undefined
   const limitFailure = priceFailed ? (
@@ -1243,6 +1255,7 @@ export function ListBuilder({
           onPreview={previewUnit}
           inRoster={held}
           limits={unitLimits}
+          limitUnlocks={limitUnlocks}
           room={room}
           battleSize={limit}
           pointsBudget={pointsBudget}

@@ -111,13 +111,25 @@ export const batchFits = (
   before: readonly { entryId: string }[] = [],
 ) => batch.every((pick, at) => canAddCopy(pick.entryId, heldWith(held, batch, at, before), limits))
 
-export function unitLimitMessage(entryId: string, held: number, limits: ReadonlyMap<string, number | null>) {
+/** What each capped datasheet's limit grows with, such as "Khorne Battleline". */
+export type LimitUnlocks = ReadonlyMap<string, string>
+
+export function unitLimitMessage(
+  entryId: string,
+  held: number,
+  limits: ReadonlyMap<string, number | null>,
+  unlocks: LimitUnlocks = new Map(),
+) {
   const limit = limits.get(entryId)
   if (limit === undefined) return 'Checking unit limits…'
   if (limit === null || held < limit) return null
-  return limit === 0
-    ? 'No copies available with the current detachments and prerequisite units.'
-    : `Limit reached: ${held} of ${limit} permitted copies in the roster.`
+  const unlockedBy = unlocks.get(entryId)
+  if (limit === 0)
+    return unlockedBy
+      ? `Add a ${unlockedBy} unit to the roster first.`
+      : 'No copies available with the current detachments and prerequisite units.'
+  const reached = `Limit reached: ${held} of ${limit} permitted copies in the roster.`
+  return unlockedBy ? `${reached} More ${unlockedBy} units allow more.` : reached
 }
 
 /** What one more of a datasheet costs a roster that already holds `held` of it. */
@@ -130,10 +142,15 @@ export type AttachLink = { joins: number } | { joinedBy: number }
 type RequestedUnit = { kind: 'pending' } | { kind: 'add' } | { kind: 'refused'; reason: 'limit' | 'not_offered'; message: string }
 
 /** A unit asked for from outside the builder waits for the roster's own limits, then gets the picker's answer. */
-export function requestedUnit(entryId: string, held: number, limits: ReadonlyMap<string, number | null> | null): RequestedUnit {
+export function requestedUnit(
+  entryId: string,
+  held: number,
+  limits: ReadonlyMap<string, number | null> | null,
+  unlocks?: LimitUnlocks,
+): RequestedUnit {
   if (!limits) return { kind: 'pending' }
   if (canAddCopy(entryId, held, limits)) return { kind: 'add' }
-  const message = limits.has(entryId) ? unitLimitMessage(entryId, held, limits) : null
+  const message = limits.has(entryId) ? unitLimitMessage(entryId, held, limits, unlocks) : null
   return message
     ? { kind: 'refused', reason: 'limit', message }
     : { kind: 'refused', reason: 'not_offered', message: 'This roster’s army does not include that unit.' }

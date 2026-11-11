@@ -844,11 +844,25 @@ export function battleSizeSelection(index: CatalogueIndex, limit: number | null)
 
 /** Resolve roster-scoped limits with the full selection and battle size; `violations` remains the authority on legality. */
 export function rosterLimit(definition: Definition, index: CatalogueIndex, options: EvaluateOptions = {}): number | null {
+  return rosterAllowance(definition, index, options).limit
+}
+
+/**
+ * The roster limit, and what the binding cap counts to grow: a cap of "one per Khorne
+ * Battleline unit" names "Khorne Battleline", so a player told no copies are available
+ * learns what to add instead.
+ */
+export function rosterAllowance(
+  definition: Definition,
+  index: CatalogueIndex,
+  options: EvaluateOptions = {},
+): { limit: number | null; unlockedBy: string | null } {
   const census = new Census(0, options.modifierCache)
   const { root, node } = candidateContext(definition, index, options, census)
   const target = node.target
 
   let limit: number | null = null
+  let unlockedBy: string | null = null
   const held = (options.roster ?? [])
     .filter((selection) => selection.id === definition.id)
     .reduce((sum, selection) => sum + (selection.count ?? 1), 0)
@@ -861,7 +875,9 @@ export function rosterLimit(definition: Definition, index: CatalogueIndex, optio
     if (value < 0) return
     const measured = measure({ ...constraint, childId }, node, root, index, census)
     const copies = Math.max(0, held + value - (measured - 1))
-    limit = limit === null ? copies : Math.min(limit, copies)
+    if (limit !== null && copies >= limit) return
+    limit = copies
+    unlockedBy = unlockerOf(constraint, node, root, index, census, extra)
   }
 
   for (const constraint of sourcesOf(node).flatMap((source) => source.constraints ?? []))
@@ -878,7 +894,19 @@ export function rosterLimit(definition: Definition, index: CatalogueIndex, optio
     const extra = withGroupModifiers(category)
     for (const constraint of category.constraints ?? []) consider(constraint, category.id, extra)
   }
-  return limit
+  return { limit, unlockedBy }
+}
+
+function unlockerOf(constraint: Constraint, node: Node, root: Node, index: CatalogueIndex, census: Census, extra: readonly Modifier[]) {
+  for (const modifier of [...modifiersOf(node, census), ...extra]) {
+    if (modifier.field !== constraint.id || modifier.type !== 'increment' || !passes(modifier, node, root, index, census)) continue
+    for (const repeat of modifier.repeats ?? []) {
+      if (repeat.field !== 'selections' || !repeat.childId) continue
+      const name = index.categories.get(repeat.childId)?.name ?? index.definitions.get(repeat.childId)?.name
+      if (name) return name
+    }
+  }
+  return null
 }
 
 /**
