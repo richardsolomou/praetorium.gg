@@ -21,6 +21,7 @@ import { ImportBattles } from './ImportBattles'
 import { PageContent, PageHeader } from '../../components/Page'
 import { PageState } from '../../components/PageState'
 import { battlesFrom, battlesQuery, friendBattlesQuery, meQuery, publicBattlesQuery } from '../../queries'
+import { SavedCopyNotice } from '../../offline/SavedCopyNotice'
 
 const VIEWS: readonly [BattlesView, string][] = [
   ['mine', 'Mine'],
@@ -34,14 +35,13 @@ export function BattlesPage({ view: asked, search, order }: { view: BattlesView;
   const view = me ? asked : 'public'
   const filter = battleFilterOf(search)
   const filtered = battleFilterActive(filter)
-  const feed = useInfiniteQuery({
-    ...(view === 'mine'
+  const feedQuery =
+    view === 'mine'
       ? battlesQuery(filter, order)
       : view === 'friends'
         ? friendBattlesQuery(filter, order)
-        : publicBattlesQuery(filter, order)),
-    placeholderData: keepPreviousData,
-  })
+        : publicBattlesQuery(filter, order)
+  const feed = useInfiniteQuery({ ...feedQuery, placeholderData: keepPreviousData })
   const battles = battlesFrom(feed.data)
   const [deleting, setDeleting] = useState<Battle | null>(null)
   const navigate = useNavigate()
@@ -103,6 +103,7 @@ export function BattlesPage({ view: asked, search, order }: { view: BattlesView;
         ) : null}
       </PageHeader>
       <PageContent className="space-y-6">
+        <SavedCopyNotice queryKey={feedQuery.queryKey} onRetry={() => void feed.refetch()} />
         {battles.length || filtered ? (
           <BattleFilters
             view={view}

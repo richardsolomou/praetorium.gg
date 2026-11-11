@@ -1,4 +1,7 @@
-import { CancelledError } from '@tanstack/react-query'
+import { CancelledError, hashKey } from '@tanstack/react-query'
+import { posthog } from 'posthog-js'
+import { useSyncExternalStore } from 'react'
+import { isFetchNetworkFailure } from '../networkErrors'
 import { localClient, localEngine, localOwner } from './localRuntime'
 import { OfflineRefusal } from './offlineRefusal'
 
@@ -13,6 +16,53 @@ export function accountGuard() {
     if (localOwner()?.id !== owner || localEngine() !== engine) throw accountChanged()
   }
 }
+
+/** The static name a query key starts with, safe to send as an event property. */
+export const queryEventName = ([name]: readonly unknown[]) =>
+  typeof name === 'string' && /^[a-z][a-z-]{0,39}$/.test(name) ? name : 'other'
+
+/** Reads that answered online with the copy saved on this device, by key hash, with the attempts to refresh each since. */
+const savedCopies = new Map<string, { attempts: number; retry: ReturnType<typeof setTimeout> }>()
+const savedCopyListeners = new Set<() => void>()
+const subscribeSavedCopies = (listener: () => void) => {
+  savedCopyListeners.add(listener)
+  return () => void savedCopyListeners.delete(listener)
+}
+
+/** A failed online read shown from its saved copy is counted once, marked for its screen, and refreshed with backoff until one succeeds. */
+function showSavedCopy(key: readonly unknown[], error: unknown) {
+  if (typeof window === 'undefined') return
+  const hash = hashKey(key)
+  const shown = savedCopies.get(hash)
+  if (shown) clearTimeout(shown.retry)
+  else posthog.capture('saved_copy_shown', { query: queryEventName(key), reason: isFetchNetworkFailure(error) ? 'network' : 'error' })
+  const attempts = (shown?.attempts ?? -1) + 1
+  const retry = setTimeout(
+    () => void localClient()?.invalidateQueries({ queryKey: key, exact: true }),
+    Math.min(300_000, 15_000 * 2 ** attempts),
+  )
+  savedCopies.set(hash, { attempts, retry })
+  if (!shown) for (const listener of savedCopyListeners) listener()
+}
+
+function clearSavedCopy(key: readonly unknown[]) {
+  const hash = hashKey(key)
+  const shown = savedCopies.get(hash)
+  if (!shown) return
+  clearTimeout(shown.retry)
+  savedCopies.delete(hash)
+  for (const listener of savedCopyListeners) listener()
+}
+
+/** Whether the screen for `key` shows the copy saved on this device because the service did not answer while online. */
+export const isSavedCopy = (key: readonly unknown[]) => savedCopies.has(hashKey(key))
+
+export const useSavedCopy = (key: readonly unknown[]) =>
+  useSyncExternalStore(
+    subscribeSavedCopies,
+    () => isSavedCopy(key),
+    () => false,
+  )
 
 export const isOffline = () => typeof window !== 'undefined' && typeof navigator.onLine === 'boolean' && !navigator.onLine
 
@@ -33,10 +83,12 @@ export async function cachedRead<T>(
     const data = await online()
     if (key[0] !== 'me' && localOwner()?.id !== owner) throw accountChanged()
     if (key[0] !== 'me' && options.updateCache !== false) client?.setQueryData(key, data)
+    clearSavedCopy(key)
     return data
   } catch (error) {
-    if (cached !== undefined && localOwner()?.id === owner) return cached
-    throw error
+    if (cached === undefined || localOwner()?.id !== owner) throw error
+    showSavedCopy(key, error)
+    return cached
   }
 }
 
@@ -52,10 +104,13 @@ export async function cachedPage<T>(key: readonly unknown[], cursor: unknown, on
   try {
     const data = await online()
     if (localOwner()?.id !== owner) throw accountChanged()
+    // A refresh reads the first page before the rest, so only its success clears the mark an older page may set.
+    if (cursor == null) clearSavedCopy(key)
     return data
   } catch (error) {
-    if (page !== undefined && localOwner()?.id === owner) return page
-    throw error
+    if (page === undefined || localOwner()?.id !== owner) throw error
+    showSavedCopy(key, error)
+    return page
   }
 }
 
