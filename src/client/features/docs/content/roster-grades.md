@@ -2,41 +2,46 @@ Roster grades score what a roster can do on the table. Choose **Grade this roste
 
 ## How scores work
 
-Each measure scores out of 100 for where your list would place among lists that placed at 11th-edition tournaments, the way Lighthouse in Chrome scores a page against real websites. A 70 means your list does that job as well as or better than 70% of them. Measures are shares of your units, so they hold at any battle size.
+Each measure scores out of 100 for where your list would place among 11th-edition tournament lists of the same battle size, the way Lighthouse in Chrome scores a page against real websites. A 70 means your list does that job as well as or better than 70% of them.
+
+Tournament lists are 2,000 points. Smaller sizes are compared with random lists of the same size drawn from those lists' own units, and Onslaught with a tournament list joined to a 1,000-point draw from another list of its faction.
 
 Grades split the scores: 75 and above is an A, 40 a B, 10 a C, and below 10 a D. Each category is the average of its measures, and the overall score is the average of the four categories, so every category counts the same.
 
 ## What each category measures
 
+Counts reward every unit you add. Shares are weighted by points, so a cheap screen sways them no more than it costs.
+
 ### Board control
 
-- **Board presence** counts your units, each with whatever is attached to it, against the five objectives on the table. Eight or more is an A, six or seven a B, five a C and fewer a D.
-- **Hold objectives** is the share of your units with OC 10 or more, enough to contest an objective held by a five-model squad.
-- **Screens and actions** is the share of your units that cost 70 points or less, cheap enough to screen, take an action or sit on a home objective.
+- **Board presence** counts your units, each with whatever is attached to it.
+- **Hold objectives** counts your units with OC 10 or more, enough to contest an objective held by a five-model squad.
+- **Screens and actions** counts your units that cost 70 points or less, cheap enough to screen, take an action or sit on a home objective.
 
 ### Mobility
 
-- **Reach** is each unit's average chance to charge an enemy at the edge of its deployment zone by battle round two, using its Move, Scouts, Infiltrators, Deep Strike and charge bonuses. The gap is 20″ at King of the Colosseum and 24″ otherwise.
-- **Deployment options** is the share of your units that can deep strike, infiltrate or scout. A unit counts only when everything attached to it can too.
+- **Reach** is your points' average chance to charge an enemy at the edge of its deployment zone by battle round two, using each unit's Move, Scouts, Infiltrators, Deep Strike and charge bonuses. The gap is 20″ at King of the Colosseum and 24″ otherwise.
+- **Deployment options** is the share of your points that can deep strike, infiltrate or scout. A unit counts only when everything attached to it can too.
 
 ### Damage
 
-**Clear hordes**, **Kill elite infantry**, **Kill vehicles**, **Kill heavy armour** and **Kill monsters** are the share of your units that can, on their own, take half the wounds of 20 Termagants, a Chaos Terminator Squad, a Rhino, a Leman Russ Battle Tank or a Carnifex in one turn of shooting, fighting, or shooting then fighting.
+**Clear hordes**, **Kill elite infantry**, **Kill vehicles**, **Kill heavy armour** and **Kill monsters** add up how much of 20 Termagants, a Chaos Terminator Squad, a Rhino, a Leman Russ Battle Tank or a Carnifex each of your units takes in one turn of shooting, fighting, or shooting then fighting. A unit counts for at most one of the target, since it attacks one at a time. The units that take at least half of one alone are named.
 
-Heavy armour is left out at King of the Colosseum, which allows nothing above Toughness 9. Each side there may field only one Toughness 9 unit, so one unit that can kill vehicles or monsters scores a B and two an A.
+Heavy armour is left out at King of the Colosseum, which allows nothing above Toughness 9. Each side there may field only one Toughness 9 unit, so removing one vehicle or monster a turn scores a B and two an A.
 
 ### Durability
 
-- **Survive a volley** is the share of your units that stand through a turn of shooting from 10 Intercessors or 3 Eradicators with melta rifles at least half the time.
-- **Even spread** is the share of your points in your two costliest units. Under 40% is an A, under 50% a B, under 60% a C.
+- **Survive a volley** is how much of a unit's wounds a turn of shooting from 10 Intercessors or 3 Eradicators with melta rifles takes on average, weighted by points.
+- **Even spread** is the share of your points outside your two costliest units.
 
 ## Gaps
 
-A gap is named when nothing in your list can take half of a reference target on its own, something nearly every tournament list can do. A gap is worth knowing about, not always worth fixing: a list may give up one job for speed, bodies or another strength.
+A gap is named when nothing in your list can take half of a reference target on its own, and at least nine in ten tournament lists of its size can. A gap is worth knowing about, not always worth fixing: a list may give up one job for speed, bodies or another strength.
 
 ## Where it stops
 
 - Each unit fights at full strength with its saved wargear and its passive rules. Stratagems, conditional rules and abilities you switch on in the simulator stay off.
-- A rule the simulator cannot calculate is never guessed. Its measure says **Not calculated for** and names the unit, and the score leaves that measure out.
+- A rule the simulator cannot calculate is never guessed. Its measure says **Not calculated for** and names the unit; the measure scores only from the units it could calculate, or not at all if those take nothing.
+- Lists drawn for smaller sizes keep the tournament lists' unit sizes and ignore the Colosseum's Toughness limit.
 - Reach ignores terrain, transports and the opponent's own moves.
 - Grades need a connection, since Praetorium works them out.

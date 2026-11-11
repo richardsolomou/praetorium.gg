@@ -43,8 +43,8 @@ export function RosterGradesDialog({
         <DialogHeader>
           <DialogTitle>Roster grades</DialogTitle>
           <DialogDescription>
-            What {name || 'this roster'} can do on the table, scored against lists that place at tournaments. Scores describe the list, not
-            your odds of winning.
+            What {name || 'this roster'} can do on the table, scored against tournament lists of the same size. Scores describe the list,
+            not your odds of winning.
           </DialogDescription>
         </DialogHeader>
         <DialogBody className="gap-5">
@@ -201,13 +201,13 @@ function Gaps({ grades }: { grades: RosterGrades }) {
         </h3>
         <p className="text-sm text-bone">
           Nothing in this list can take half the wounds of {new Intl.ListFormat('en-GB', { type: 'disjunction' }).format(grades.missing)} on
-          its own, something nearly every list that places at a tournament can do.
+          its own, something nearly every tournament list this size can do.
         </p>
       </section>
     )
   const damage = grades.categories.find((category) => category.key === 'damage')?.rows ?? []
   if (damage.every((row) => row.grade && !row.notCalculated?.length))
-    return <p className="text-sm text-achieved">No gaps: every reference target has a unit that can deal with it.</p>
+    return <p className="text-sm text-achieved">No gaps: this list has a unit for every target tournament lists this size can deal with.</p>
   return null
 }
 

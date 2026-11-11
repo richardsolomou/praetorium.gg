@@ -82,22 +82,21 @@ export const unitTotal = (snapshot: CombatantSnapshot, kind: 'wounds' | 'objecti
 const numberIn = (names: readonly string[], pattern: RegExp) => Math.max(0, ...names.map((name) => Number(pattern.exec(name)?.[1] ?? 0)))
 
 /**
- * Whether one unit's shooting, fighting, or shooting then fighting takes half the target's wounds.
+ * The share of the target's wounds one unit takes in its shooting, fighting, or shooting then fighting, up to all of them.
  *
- * A phase the simulator refuses could have been the one that does it, so a shortfall beside a refusal is
- * not calculated rather than a no.
+ * A phase the simulator refuses could have done more, so a shortfall beside a refusal is not calculated rather than a guess.
  */
-function removesHalf(answer: CombatAnswer, wounds: number): boolean | null {
+function removed(answer: CombatAnswer, wounds: number): number | null {
   const phases = [answer.ranged, answer.melee, answer.combined]
-  const dealt = Math.max(0, ...phases.map((phase) => phase?.result?.meanDamage ?? 0))
-  if (dealt >= wounds / 2) return true
-  return phases.some((phase) => phase?.error && !phase.result) ? null : false
+  const share = Math.min(1, Math.max(0, ...phases.map((phase) => phase?.result?.meanDamage ?? 0)) / wounds)
+  if (share === 1) return 1
+  return phases.some((phase) => phase?.error && !phase.result) ? null : share
 }
 
-/** Whether a turn of the attacker's shooting leaves the unit standing at least half the time; null when it cannot be calculated. */
-function survives(answer: CombatAnswer): boolean | null {
+/** The share of the unit's wounds a turn of the attacker's shooting takes on average; null when it cannot be calculated. */
+function lost(answer: CombatAnswer, wounds: number): number | null {
   if (answer.ranged?.error && !answer.ranged.result) return null
-  return (answer.ranged?.result?.wipe ?? 0) < 0.5
+  return wounds ? Math.min(1, (answer.ranged?.result?.meanDamage ?? 0) / wounds) : 1
 }
 
 /**
@@ -170,13 +169,14 @@ export async function measureRosterUnits({
   const perHost = targets.length + references.attackers.length
   return hosts.map((host, index) => {
     const answered = answers.slice(index * perHost, (index + 1) * perHost)
-    const removes: Partial<Record<ReferenceTargetKey, boolean | null>> = {}
+    const removes: Partial<Record<ReferenceTargetKey, number | null>> = {}
     for (const target of gradedTargets(data.limit)) {
       const at = targets.findIndex((built) => built.key === target.key)
       // A reference unit the data cannot field leaves its row uncalculated for every unit.
-      removes[target.key] = at === -1 ? null : removesHalf(answered[at]!, targets[at]!.wounds)
+      removes[target.key] = at === -1 ? null : removed(answered[at]!, targets[at]!.wounds)
     }
-    const survived = answered.slice(targets.length).map(survives)
+    const wounds = unitTotal(host.snapshot, 'wounds')
+    const losses = answered.slice(targets.length).map((answer) => lost(answer, wounds))
     const formed = deployment.get(host.pickIndex)
     const abilities = [host.projection.selected, ...host.projection.companions.map((member) => member.selected)].map((sheet) =>
       sheet.abilities.filter((ability) => ability.kind === 'core').map((ability) => ability.name),
@@ -194,7 +194,7 @@ export async function measureRosterUnits({
       scouts: Number.isFinite(scouts) ? scouts : 0,
       chargeBonus: numberIn(abilities.flat(), /\+(\d+) to charge/i),
       removes,
-      survives: survived.includes(null) ? null : survived.length ? survived.every(Boolean) : null,
+      volleyLoss: losses.length && !losses.includes(null) ? losses.reduce<number>((total, loss) => total + loss!, 0) / losses.length : null,
     }
   })
 }

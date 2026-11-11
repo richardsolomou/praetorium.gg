@@ -10,8 +10,8 @@ const unit = (overrides: Partial<GradedUnit> = {}): GradedUnit => ({
   infiltrators: false,
   scouts: 0,
   chargeBonus: 0,
-  removes: { horde: true, elite: true, vehicle: true, heavyVehicle: true, monster: true },
-  survives: true,
+  removes: { horde: 1, elite: 1, vehicle: 1, heavyVehicle: 1, monster: 1 },
+  volleyLoss: 0.2,
   ...overrides,
 })
 
@@ -58,42 +58,43 @@ describe('gradeOf', () => {
   })
 })
 
+const categoryOf = (grades: ReturnType<typeof rosterGrades>, key: string) => grades.categories.find((category) => category.key === key)
+
 describe('rosterGrades', () => {
   it('leaves heavy armour out at King of the Colosseum', () => {
     expect(rowOf(rosterGrades([unit()], 600), 'heavyVehicle')).toBeUndefined()
   })
 
   it('names a reference target nothing in the list can take half of alone', () => {
-    const grades = rosterGrades([unit({ removes: { horde: true, elite: true, vehicle: false, monster: true } })], 600)
+    const grades = rosterGrades([unit({ removes: { horde: 1, elite: 1, vehicle: 0.4, heavyVehicle: 1, monster: 1 } })], 2000)
     expect(grades.missing).toEqual(['a Rhino'])
   })
 
   it('grades nothing for a row the simulator could not calculate', () => {
-    const grades = rosterGrades([unit({ removes: { horde: true, elite: true, vehicle: null, monster: true } })], 600)
+    const grades = rosterGrades([unit({ removes: { horde: 1, elite: 1, vehicle: null, heavyVehicle: 1, monster: 1 } })], 2000)
     expect(rowOf(grades, 'vehicle')?.grade).toBeNull()
   })
 
   it('does not call an uncalculated row missing', () => {
-    expect(rosterGrades([unit({ removes: { horde: true, elite: true, vehicle: null, monster: true } })], 600).missing).toEqual([])
+    const grades = rosterGrades([unit({ removes: { horde: 1, elite: 1, vehicle: null, heavyVehicle: 1, monster: 1 } })], 2000)
+    expect(grades.missing).toEqual([])
   })
 
-  it('rates one vehicle killer a B at King of the Colosseum, where the opponent has at most one Toughness 9 unit', () => {
-    const grades = rosterGrades(
-      [unit(), ...Array.from({ length: 7 }, () => unit({ removes: { horde: true, elite: true, vehicle: false, monster: true } }))],
-      600,
-    )
+  it('rates removing one vehicle a turn a B at King of the Colosseum, where the opponent has at most one Toughness 9 unit', () => {
+    const grades = rosterGrades([unit({ removes: { horde: 1, elite: 1, vehicle: 1, monster: 1 } })], 600)
     expect(rowOf(grades, 'vehicle')?.grade).toBe('B')
   })
 
-  it('grades five units for five objectives a C', () => {
-    expect(
-      rowOf(
-        rosterGrades(
-          Array.from({ length: 5 }, () => unit()),
-          600,
-        ),
-        'presence',
-      )?.grade,
-    ).toBe('C')
+  it('does not lower damage for a cheap unit that kills nothing', () => {
+    const killers = Array.from({ length: 6 }, () => unit({ points: 300 }))
+    const screen = unit({ points: 40, removes: { horde: 0, elite: 0, vehicle: 0, heavyVehicle: 0, monster: 0 }, volleyLoss: 1 })
+    expect(categoryOf(rosterGrades([...killers, screen], 2000), 'damage')?.score).toBe(
+      categoryOf(rosterGrades(killers, 2000), 'damage')?.score,
+    )
+  })
+
+  it('compares a small list with lists of its own size', () => {
+    const units = Array.from({ length: 5 }, () => unit({ points: 120 }))
+    expect(rowOf(rosterGrades(units, 600), 'presence')!.score!).toBeGreaterThan(rowOf(rosterGrades(units, 2000), 'presence')!.score!)
   })
 })
