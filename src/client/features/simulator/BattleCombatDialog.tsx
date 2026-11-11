@@ -24,7 +24,7 @@ export function BattleCombatDialog(props: Props) {
 function BattleMatchupPlanner({ view, selection, units }: Props & Pick<ComponentProps<typeof RosterCombatComparison>, 'units'>) {
   const armies = view.players
     .filter((player) => player.roster?.built?.picks?.length)
-    .map((player) => ({ player, roster: battleCombatRoster(player) }))
+    .map((player) => ({ player, roster: battleCombatRoster(player, view.status === 'finished') }))
   const first = armies.find(({ player }) => player.id === selection.playerId)
   const side = (own: boolean) =>
     armies.flatMap(({ player, roster }) => (roster && (player.side === first?.player.side) === own ? [player.id] : []))
@@ -53,7 +53,7 @@ function BattleMatchupPlanner({ view, selection, units }: Props & Pick<Component
 function BattleUnitCombatDialog({ view, selection }: Props) {
   const initialPlayer = view.players.find((player) => player.id === selection.playerId)
   const armies = view.players.flatMap((player) => {
-    const roster = battleCombatRoster(player)
+    const roster = battleCombatRoster(player, view.status === 'finished')
     return roster ? [{ player, roster }] : []
   })
   const firstArmies = armies.filter(({ player }) => player.side === initialPlayer?.side)

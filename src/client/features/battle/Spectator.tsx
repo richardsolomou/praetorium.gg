@@ -359,7 +359,15 @@ function SpectatorSide({
               <PlayerRatingChange view={view} playerId={army.playerId} />
             </h2>
             <ArmyIdentity army={army} className="mt-0.5" />
-            <ArmyRoster onSimulate={onSimulate} army={army} side={side} actionable={false} pending={false} send={ignoreCommand} />
+            <ArmyRoster
+              onSimulate={onSimulate}
+              army={army}
+              finished={view.status === 'finished'}
+              side={side}
+              actionable={false}
+              pending={false}
+              send={ignoreCommand}
+            />
           </div>
         ))}
       </div>

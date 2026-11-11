@@ -2,19 +2,24 @@ import type { BattleView } from '../../../core/battleView'
 import { sealedCombatRoster } from './rosterCombat'
 import type { CombatRoster } from './useCombatant'
 
-export function battleCombatRoster(player: Pick<BattleView['players'][number], 'roster' | 'units' | 'name'>): CombatRoster | null {
+/** Once the battle is over every unit can be simulated again, the destroyed ones at full strength, for looking back at a fight. */
+export function battleCombatRoster(
+  player: Pick<BattleView['players'][number], 'roster' | 'units' | 'name'>,
+  finished = false,
+): CombatRoster | null {
   const sealed = sealedCombatRoster(player.roster)
   if (!sealed) return null
   const units = sealed.picks.map((pick, index) => {
     const unit = player.units.find((candidate) => candidate.key === `${index}-${pick.entryId}`)
+    const restored = finished && unit?.destroyed
     return {
       key: unit?.key ?? `${index}-${pick.entryId}`,
       name: unit?.name ?? pick.entryId,
-      models: unit?.alive ?? 0,
+      models: restored ? unit.models : (unit?.alive ?? 0),
       startingModels: unit?.models ?? 0,
-      damage: unit?.damage ?? 0,
+      damage: restored ? 0 : (unit?.damage ?? 0),
       wounds: unit?.wounds,
-      available: Boolean(unit && !unit.destroyed && unit.alive > 0 && unit.formation === 'battlefield'),
+      available: Boolean(unit && (finished || (!unit.destroyed && unit.alive > 0 && unit.formation === 'battlefield'))),
     }
   })
   const pickIndex = units.findIndex((unit) => unit.available)
