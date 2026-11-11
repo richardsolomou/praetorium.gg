@@ -35,6 +35,44 @@ it('keeps the words the catalogue underlined without printing the tag', () => {
   expect(ruleMarkdown('- <ins>Or:</ins> With -2 to that **battle-shock roll**.')).toBe('- Or: With -2 to that **battle-shock roll**.')
 })
 
+it('reads lines the source opens with a square as bullets', () => {
+  expect(ruleMarkdown('Within range:\n\n■ Take the test on 3D6.\n▫ Add 1 to Strength.')).toBe(
+    'Within range:\n\n- Take the test on 3D6.\n- Add 1 to Strength.',
+  )
+})
+
+it('reads squares written along one line as bullets', () => {
+  expect(ruleMarkdown('Replace it with one of the following:  ◦ 1 heavy bolter ◦ 1 meltagun')).toBe(
+    'Replace it with one of the following:\n- 1 heavy bolter\n- 1 meltagun',
+  )
+})
+
+it('reads a square written straight after a sentence as a bullet', () => {
+  expect(ruleMarkdown('选择以下一个选项：◦ 1 火箭发射器')).toBe('选择以下一个选项：\n- 1 火箭发射器')
+})
+
+it('keeps an indented square under the bullet above it', () => {
+  expect(ruleMarkdown('▪ All of the following apply:\n  ▪ That unit is within a terrain area.')).toBe(
+    '- All of the following apply:\n  - That unit is within a terrain area.',
+  )
+})
+
+it('ends a list of squares at the first line that is not one', () => {
+  expect(ruleMarkdown('■ **0-1 Way Seeker**\n**Every model is equipped with:** shuriken pistol.')).toBe(
+    '- **0-1 Way Seeker**\n\n**Every model is equipped with:** shuriken pistol.',
+  )
+})
+
+it('reads a square the source opens a quote or bold run with as a bullet', () => {
+  expect(ruleMarkdown('Change to:\n‘• That unit is battle-shocked.\n**■ Profile –** Change M to 12".')).toBe(
+    'Change to:\n- ‘That unit is battle-shocked.\n- **Profile –** Change M to 12".',
+  )
+})
+
+it('leaves a square with nothing after it alone', () => {
+  expect(ruleMarkdown('▪\u00a0')).toBe('▪\u00a0')
+})
+
 it('marks a bracketed weapon ability so the page can link it', () => {
   expect(ruleMarkdown('Ranged weapons have [LETHAL HITS].')).toBe('Ranged weapons have **[LETHAL HITS]**.')
 })
