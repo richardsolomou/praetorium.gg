@@ -1,5 +1,15 @@
 # praetorium
 
+## 0.231.2 (2026-11-11)
+
+### Patch Changes
+
+- 10eaf9f: Damage grades count everything a unit can kill in a turn, so a unit that can take out several vehicles is no longer counted as one.
+- 408f868: Cheap screens and support units no longer lower a roster's damage and durability grades.
+- 10eaf9f: Roster grades follow a gentler curve: a typical tournament list scores about 70, and the strongest lists reach the 90s.
+- 0c8cfba: Roster grades mark a unit whose weapons or profile the simulator cannot read as not calculated, instead of counting it as dealing no damage or taking none.
+- 408f868: Roster grades compare a list with tournament lists of its own faction and battle size, so small lists and armies the simulator underrates are no longer marked down.
+
 ## 0.231.1 (2026-11-11)
 
 ### Patch Changes
