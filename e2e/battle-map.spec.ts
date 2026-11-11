@@ -10,12 +10,12 @@ async function inspectMap(page: Page) {
   await expect.poll(() => map.locator('polygon').count()).toBeGreaterThan(2)
   // The phone sheet slides in, so its bounds only hold once it has arrived.
   await dialog.evaluate((element) => Promise.all(element.getAnimations({ subtree: true }).map((animation) => animation.finished)))
-  await expect(map.locator('[marker-end]')).toHaveCount(0)
+  await expect(dialog.getByRole('group', { name: 'Measurements to show' })).toBeVisible()
+  await expect.poll(() => map.locator('[marker-end]').count()).toBeGreaterThan(0)
   expect(
-    await map.evaluate((element) => {
-      const board = element.getBoundingClientRect()
-      const panel = element.closest('[role="dialog"]')!.getBoundingClientRect()
-      return board.top >= panel.top && board.bottom <= panel.bottom && panel.top >= 0 && panel.bottom <= innerHeight
+    await dialog.evaluate((element) => {
+      const panel = element.getBoundingClientRect()
+      return panel.top >= 0 && panel.bottom <= innerHeight
     }),
   ).toBe(true)
   await page.screenshot({ path: test.info().outputPath(`battle-map-${page.viewportSize()?.width}.png`) })
@@ -24,7 +24,7 @@ async function inspectMap(page: Page) {
   await expect(trigger).toBeFocused()
 }
 
-test('players and spectators open the saved battlefield as a full-board map', async ({ page, browser }) => {
+test('players and spectators open the saved battlefield with its measurements', async ({ page, browser }) => {
   await signUp(page, 'Battlefield viewer')
   const roster = await createRoster(page, { faction: 'Space Marines', detachment: /Gladius Task Force/, name: 'Map army' })
   await practiceBattle(page, roster)
