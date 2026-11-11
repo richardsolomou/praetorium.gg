@@ -29,15 +29,13 @@ import {
   collectionCountsAsQuery,
   playerDefaultsQuery,
   opponentsQuery,
-  sealedEventQuery,
-  sealedEventRosterQuery,
 } from '../queries'
 import { refreshBattleFeed } from './refreshBattleFeed'
 import { prepareBattles } from './prepareBattles'
 import { prepareRosters } from './prepareRosters'
+import { prepareSealedEvents } from './prepareSealedEvents'
 import { ROSTER_LIBRARY_BATCH_SIZE } from '../../core/rosterLibrary'
 import { meKey } from '../queries/queryKeys'
-import { chunks } from '../../core/collections'
 
 /** How recent an answer a refresh keeps: the page's own reads and the realtime catch-up land just before it. */
 export const RECENT_ANSWER_MS = 60_000
@@ -112,25 +110,9 @@ export function AppPersistence() {
                 ),
                 refreshBattleFeed(client, friendBattlesQuery()),
                 client.query({ ...homeRostersQuery(), staleTime: Infinity }),
-                client.query({ ...sealedEventsQuery(), staleTime: Infinity }).then(async (sealedEvents) => {
-                  for (const sealedEvent of sealedEvents.filter((summary) => summary.personal)) {
-                    if (!stillSignedInAs(me.id)) break
-                    const saved = await client.query({ ...sealedEventQuery(sealedEvent.token), staleTime: Infinity })
-                    if (!saved) continue
-                    const entries = saved.entries.filter((entry) => entry.submitted && (saved.revealedAt || entry.userId === me.id))
-                    for (const batch of chunks(entries, 3)) {
-                      if (!stillSignedInAs(me.id)) break
-                      await Promise.allSettled(
-                        batch.map((entry) =>
-                          client.query({
-                            ...sealedEventRosterQuery(sealedEvent.token, saved.eventToken, entry.userId),
-                            staleTime: Infinity,
-                          }),
-                        ),
-                      )
-                    }
-                  }
-                }),
+                client
+                  .query({ ...sealedEventsQuery(), staleTime: Infinity })
+                  .then((sealedEvents) => prepareSealedEvents(client, sealedEvents, me.id, () => stillSignedInAs(me.id))),
                 client.query({ ...collectionQuery(), staleTime: Infinity }),
                 client.query({ ...collectionCountsQuery(), staleTime: Infinity }),
                 client.query({ ...collectionProgressQuery(), staleTime: Infinity }),
