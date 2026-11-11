@@ -277,6 +277,12 @@ export function CombatantCard({
               <div className="min-w-40 flex-1 [&_[data-slot=combobox-trigger]>span]:truncate">
                 {member.index === pickIndex ? (
                   unitPicker
+                ) : combatant.roster ? (
+                  // A saved roster's attached units are fixed, so they read as names rather than choices.
+                  <span className="flex h-8 min-w-0 items-center gap-1.5 px-2.5 text-bone" aria-label={`${side} ${member.name} unit`}>
+                    {factionIcon(picks.positioned[member.index]?.catalogueId ?? combatant.faction)}
+                    <span className="truncate">{member.name}</span>
+                  </span>
                 ) : (
                   <SearchableSelect
                     ariaLabel={`${side} ${member.name} unit`}
@@ -284,7 +290,7 @@ export function CombatantCard({
                     placeholder={member.name}
                     loading={!ready}
                     value={picks.positioned[member.index]?.entryId ?? ''}
-                    disabled={combatant.roster || !ready || optimizer.busy}
+                    disabled={!ready || optimizer.busy}
                     searchPlaceholder="Search leaders and support…"
                     onValueChange={(entryId) => combatant.replaceAttachment(member.index, entryId)}
                     groups={[
