@@ -522,6 +522,46 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
     enqueueReminderPrompt(momentPrompt)
   }
 
+  const activeScoringOpen = Boolean(
+    settlementRound === null &&
+    !needsDraw &&
+    !needsDrawAcknowledgement &&
+    view.advanceRequested &&
+    !view.scoringAcknowledged &&
+    !activeSecretMissionAction &&
+    due.length &&
+    active &&
+    activeScoringDraft,
+  )
+  const secretHandoffOpen = Boolean(
+    secretMissionActionSide &&
+    ((view.advanceRequested && activeSecretMissionAction && !needsDraw && !needsDrawAcknowledgement) || settlementSecretMissionAction),
+  )
+  const owedScoringOpen = Boolean(prompt === 'owed' && settlementSide && owedScoringDraft && !settlementSecretMissionAction)
+  const discardOpen = Boolean(
+    settlementRound === null &&
+    view.advanceRequested &&
+    (view.scoringAcknowledged || !due.length) &&
+    view.phase === 'end' &&
+    discardable.length &&
+    active,
+  )
+  const drawOpen = Boolean(prompt === 'draw' && active)
+  const missionChoiceOpen = Boolean(!prompt && missionChoice)
+  // Reminders wait behind whatever the player already has open, so a decision in progress is never covered.
+  const reminderShown =
+    reminderPrompt &&
+    !combatSelection &&
+    !(missedDraft && missedMoments.length) &&
+    !activeScoringOpen &&
+    !secretHandoffOpen &&
+    !owedScoringOpen &&
+    !discardOpen &&
+    !drawOpen &&
+    !missionChoiceOpen
+      ? reminderPrompt
+      : null
+
   return (
     <BattleMinimizeContext.Provider value={registerMinimized}>
       <main data-battle-tracker className="w-full space-y-3 px-3 pb-32 lg:pb-8">
@@ -689,16 +729,7 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
           </div>
         </div>
 
-        {settlementRound === null &&
-        !reminderPrompt &&
-        !needsDraw &&
-        !needsDrawAcknowledgement &&
-        view.advanceRequested &&
-        !view.scoringAcknowledged &&
-        !activeSecretMissionAction &&
-        due.length &&
-        active &&
-        activeScoringDraft ? (
+        {activeScoringOpen && active && activeScoringDraft ? (
           <ScoringDialog
             key={activeScoringDraft.key}
             initialAnswers={activeScoringDraft.initialAnswers}
@@ -721,10 +752,7 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
           />
         ) : null}
 
-        {secretMissionActionSide &&
-        !reminderPrompt &&
-        ((view.advanceRequested && activeSecretMissionAction && !needsDraw && !needsDrawAcknowledgement) ||
-          settlementSecretMissionAction) ? (
+        {secretHandoffOpen && secretMissionActionSide ? (
           <SecretMissionHandoff
             side={secretMissionActionSide}
             pending={pending}
@@ -737,7 +765,7 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
           />
         ) : null}
 
-        {!reminderPrompt && prompt === 'owed' && settlementSide && owedScoringDraft && !settlementSecretMissionAction ? (
+        {owedScoringOpen && settlementSide && owedScoringDraft ? (
           <ScoringDialog
             key={owedScoringDraft.key}
             initialAnswers={owedScoringDraft.initialAnswers}
@@ -755,13 +783,7 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
           />
         ) : null}
 
-        {settlementRound === null &&
-        !reminderPrompt &&
-        view.advanceRequested &&
-        (view.scoringAcknowledged || !due.length) &&
-        view.phase === 'end' &&
-        discardable.length &&
-        active ? (
+        {discardOpen && active ? (
           <DiscardSecondaryDialog
             side={active}
             keys={discardable}
@@ -776,7 +798,7 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
           />
         ) : null}
 
-        {!reminderPrompt && prompt === 'draw' && active ? (
+        {drawOpen && active ? (
           <DrawDialog
             key={turnKey}
             side={active}
@@ -792,7 +814,7 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
           />
         ) : null}
 
-        {!reminderPrompt && !prompt && missionChoice ? (
+        {missionChoiceOpen && missionChoice ? (
           <MissionSelectionDialog
             key={choiceKey(missionChoice)}
             view={view}
@@ -804,19 +826,19 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
           />
         ) : null}
 
-        {reminderPrompt ? (
+        {reminderShown ? (
           <ReminderDialog
-            reminders={reminderPrompt.reminders}
-            moment={reminderPrompt.moment}
-            confirmLabel={reminderPrompt.confirmLabel}
+            reminders={reminderShown.reminders}
+            moment={reminderShown.moment}
+            confirmLabel={reminderShown.confirmLabel}
             onDismiss={(reminders, scope) => {
-              const last = reminders.length === reminderPrompt.reminders.length
-              for (const reminder of reminders) rememberReminder(reminder.key, scope, reminderPrompt.context)
-              if (last && reminderPrompt.advanceAfterDismissal && sameMoment(reminderPrompt.context, momentOf(view))) advanceNow()
+              const last = reminders.length === reminderShown.reminders.length
+              for (const reminder of reminders) rememberReminder(reminder.key, scope, reminderShown.context)
+              if (last && reminderShown.advanceAfterDismissal && sameMoment(reminderShown.context, momentOf(view))) advanceNow()
             }}
             onDone={() => {
-              for (const reminder of reminderPrompt.reminders) rememberReminder(reminder.key, 'phase', reminderPrompt.context)
-              if (reminderPrompt.advanceAfterDismissal && sameMoment(reminderPrompt.context, momentOf(view))) advanceNow()
+              for (const reminder of reminderShown.reminders) rememberReminder(reminder.key, 'phase', reminderShown.context)
+              if (reminderShown.advanceAfterDismissal && sameMoment(reminderShown.context, momentOf(view))) advanceNow()
             }}
           />
         ) : null}

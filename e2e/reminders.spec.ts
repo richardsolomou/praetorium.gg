@@ -3,6 +3,7 @@ import { attach, expectNoHorizontalOverflow } from './builder.harness'
 import {
   advance,
   chooseBattlefield,
+  drawPrompt,
   createRoster,
   desktopContext,
   PRACTICE_OPPONENT,
@@ -242,13 +243,16 @@ test('round alerts fire once at both boundaries when your opponent takes the fir
 
   await startReminderBattle(page, roster, PRACTICE_OPPONENT)
 
+  // The round's alert waits behind the opening hand rather than covering it.
   const reminder = page.getByRole('dialog', { name: 'Battle reminder', exact: true })
+  await expect(drawPrompt(page)).toBeVisible()
+  await expect(reminder).toBeHidden()
+  await takeTheTurn(page)
   await expect(reminder.getByText('Start of round', { exact: true })).toBeVisible()
   await expect(reminder.getByRole('heading', { name: 'Battle Focus', exact: true })).toBeVisible()
   await fitsBothWidths(page)
   await page.setViewportSize(desktopContext.viewport)
   await reminder.getByRole('button', { name: 'Dismiss', exact: true }).click()
-  await takeTheTurn(page)
   await page.reload()
   await expect(page.getByRole('heading', { name: 'command phase' })).toBeVisible()
   await expect(reminder).toBeHidden()
@@ -269,6 +273,7 @@ test('round alerts fire once at both boundaries when your opponent takes the fir
   await expect(reminder.getByText('End of round', { exact: true })).toBeVisible()
   await reminder.getByRole('button', { name: 'Dismiss', exact: true }).click()
   await advance(page, { dismissReminders: false })
+  await takeTheTurn(page)
   await expect(reminder.getByText('Start of round', { exact: true })).toBeVisible()
   await expect(page.locator('[data-stat="round"]')).toHaveText('2')
 })
@@ -289,6 +294,7 @@ test('a detachment rule alert covers the whole army and fires in battle', async 
   await expect(page.getByLabel('Edit alert for Cold Fervour')).toBeVisible()
 
   await startReminderBattle(page, roster, PRACTICE_OPPONENT)
+  await takeTheTurn(page)
 
   const reminder = page.getByRole('dialog', { name: 'Battle reminder', exact: true })
   await expect(reminder.getByRole('heading', { name: 'Cold Fervour', exact: true })).toBeVisible()
