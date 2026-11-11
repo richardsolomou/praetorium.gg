@@ -46,7 +46,8 @@ export function RosterGradesDialog({
         <DialogHeader>
           <DialogTitle>Roster grades</DialogTitle>
           <DialogDescription>
-            What {name || 'this roster'} can do on the table, graded against lists that place at tournaments. Not a chance to win.
+            What {name || 'this roster'} can do on the table, graded against lists that place at tournaments. Grades describe the list, not
+            your odds of winning.
           </DialogDescription>
         </DialogHeader>
         <DialogBody className="gap-5">

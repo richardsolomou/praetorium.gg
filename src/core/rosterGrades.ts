@@ -1,5 +1,5 @@
 /**
- * Roster grades: what a roster can do on the table, graded A–D row by row, never a chance to win.
+ * Roster grades: what a roster can do on the table, graded A–D row by row, never a prediction of who wins.
  *
  * Rows that scale with the list are graded against the 10th, 40th and 75th percentiles of 3,006
  * 11th-edition tournament lists (2,000 points, events from 20 June to 8 November 2026) that import
