@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.231.8 (2026-11-11)
+
+### Patch Changes
+
+- 0b1e6ad: Search shows the results named after what you typed first, so searching "cover" opens on the Benefit of Cover rule instead of datasheets that mention it.
+
 ## 0.231.7 (2026-11-11)
 
 ### Patch Changes
