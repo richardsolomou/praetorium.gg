@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.231.0 (2026-11-11)
+
+### Minor Changes
+
+- cb33027: Roster grades score a list out of 100 on board control, mobility, damage and durability against lists that place at tournaments, and name the gaps worth knowing about; open them from **Grade this roster** in the roster menu or on its card in your rosters.
+
 ## 0.230.3 (2026-11-11)
 
 ### Patch Changes
