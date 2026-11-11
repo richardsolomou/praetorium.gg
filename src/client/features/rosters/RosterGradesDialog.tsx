@@ -175,9 +175,10 @@ function Scores({ grades }: { grades: RosterGrades }) {
 /** A ring whose arc is the score out of 100; it is dashed below a B so it reads without colour too. */
 function Gauge({ score, grade, large = false }: { score: number | null; grade: Grade | null; large?: boolean }) {
   const tone = grade ? GRADE_TONE[grade] : null
-  const width = large ? 7 : 9
+  // The ring is drawn in a 100-unit box, so the large gauge's thinner stroke keeps it as thick on screen as before.
+  const width = large ? 6 : 9
   return (
-    <span className={`relative grid place-items-center ${large ? 'size-24' : 'size-14'}`}>
+    <span className={`relative grid place-items-center ${large ? 'size-28' : 'size-14'}`}>
       <svg viewBox="0 0 100 100" aria-hidden className="absolute inset-0 -rotate-90">
         <circle cx="50" cy="50" r="42" fill="none" strokeWidth={width} className="stroke-edge" />
         {score !== null && tone ? (
