@@ -1,5 +1,13 @@
 # praetorium
 
+## 0.231.5 (2026-11-11)
+
+### Patch Changes
+
+- a19eb94: The builder's Share menu item shows whether the roster is private, unlisted or public.
+- a19eb94: Action and right-click menus use the same roomier, sentence-case rows everywhere.
+- a19eb94: The roster menus group their actions under Play, Edit, Share and Copy, in the same order in the builder and on the Rosters page.
+
 ## 0.231.4 (2026-11-11)
 
 ### Patch Changes
