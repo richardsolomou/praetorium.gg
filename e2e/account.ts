@@ -595,6 +595,19 @@ export async function selectOrdinaryMissions(prompt: Locator) {
  * Compact prompts leave the board accessible; journeys expecting a particular
  * settlement must wait for that prompt before calling this helper.
  */
+/**
+ * Skips the optional mission choices a random hand or a marker primary can open, which a test about something else
+ * meets by chance; tests about a choice answer it themselves before calling a turn helper.
+ */
+async function skipMissionChoices(page: Page) {
+  const choice = page.getByRole('dialog', { name: / · choices$/ })
+  for (let guard = 0; guard < 5 && (await choice.isVisible()); guard += 1) {
+    const name = await choice.getAttribute('aria-labelledby')
+    await choice.getByRole('button', { name: 'Skip', exact: true }).click()
+    await expect.poll(async () => (await choice.isVisible()) && (await choice.getAttribute('aria-labelledby')) === name).toBe(false)
+  }
+}
+
 export async function takeTheTurn(page: Page) {
   for (let guard = 0; guard < 3; guard += 1) {
     const seen = await Promise.race([
@@ -608,7 +621,7 @@ export async function takeTheTurn(page: Page) {
         .waitFor({ state: 'visible', timeout: 8_000 })
         .then(() => 'board'),
     ]).catch(() => 'board')
-    if (seen === 'board') return
+    if (seen === 'board') return skipMissionChoices(page)
     const prompt = seen === 'owed' ? owedPrompt(page) : drawPrompt(page)
     if (seen === 'drawn') await clearDrawPrompt(prompt)
     else {
@@ -626,10 +639,14 @@ export async function takeTheTurn(page: Page) {
  * its points as that moment passes. Each blocks the board until it is answered,
  * while application navigation remains available on compact screens.
  */
-export async function advance(page: Page, { dismissReminders = true }: { dismissReminders?: boolean } = {}) {
+export async function advance(
+  page: Page,
+  { dismissReminders = true, keepChoices = false }: { dismissReminders?: boolean; keepChoices?: boolean } = {},
+) {
   const reminder = page.getByRole('dialog', { name: /^Battle reminders?$/ })
   for (let guard = 0; guard < 3; guard += 1) {
     if (dismissReminders && (await dismissBattleReminder(page))) continue
+    if (!keepChoices) await skipMissionChoices(page)
     for (const [kind, prompt] of [
       ['owed', owedPrompt(page)],
       ['draw', drawPrompt(page)],
@@ -688,6 +705,7 @@ export async function advance(page: Page, { dismissReminders = true }: { dismiss
         await expect(owed).toBeHidden()
       }
       await expect.poll(() => phase.textContent()).not.toBe(before)
+      if (!keepChoices) await skipMissionChoices(page)
       break
     }
     if (guard === 2) throw new Error('Never reached the button that ends the phase')
