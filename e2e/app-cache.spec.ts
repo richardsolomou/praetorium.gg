@@ -71,8 +71,8 @@ test(
       .poll(async () => {
         const snapshot = JSON.parse((await savedState(page)) || 'null')
         return snapshot?.queries.some(
-          (query: { key: string[]; data: { points: number }[] }) =>
-            query.key[0] === 'saved-roster-page' && query.data.some((row) => `${row.points}/2000` === total),
+          (query: { key: string[]; data: { points: number } | null }) =>
+            query.key[0] === 'saved-roster-page' && `${query.data?.points}/2000` === total,
         )
       })
       .toBe(true)
