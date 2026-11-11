@@ -15,9 +15,9 @@ function nativeTools() {
 test('the native browser API registers, executes and removes Praetorium tools', async ({ page }) => {
   await page.goto('/')
   expect(await page.evaluate(() => typeof (document as Document & { modelContext?: NativeContext }).modelContext)).toBe('object')
-  await expect.poll(() => page.evaluate(nativeTools)).toHaveLength(11)
+  await expect.poll(() => page.evaluate(nativeTools)).toHaveLength(21)
   await signUp(page, uniqueName('Native agent'))
-  await expect.poll(() => page.evaluate(nativeTools)).toHaveLength(19)
+  await expect.poll(() => page.evaluate(nativeTools)).toHaveLength(47)
   const result = await page.evaluate(async () => {
     const context = (document as Document & { modelContext: NativeContext }).modelContext
     const tool = (await context.getTools()).find((entry) => entry.name === 'list_my_rosters')!
@@ -25,5 +25,5 @@ test('the native browser API registers, executes and removes Praetorium tools', 
   })
   expect(result.structuredContent.rosters).toEqual([])
   await signOut(page)
-  await expect.poll(() => page.evaluate(nativeTools)).toHaveLength(11)
+  await expect.poll(() => page.evaluate(nativeTools)).toHaveLength(21)
 })
