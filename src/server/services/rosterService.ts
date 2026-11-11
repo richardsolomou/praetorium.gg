@@ -12,7 +12,7 @@ import { optionalRulesFrom, readerRosterFromRow, rosterFromRow, rosterRow, waive
 import { detachmentIds } from '../../core/savedRoster'
 import { LOCKED_ROSTER_MESSAGE } from '../../core/rosterLock'
 import { currentRosterIds } from '../../core/retiredCatalogueIds'
-import type { RosterDiscoveryQuery } from '../../core/rosterDiscovery'
+import type { RosterAudience, RosterDiscoveryQuery } from '../../core/rosterDiscovery'
 import { UNIT_LOADOUTS_MAX, type UnitLoadout } from '../../core/unitLoadouts'
 
 type SavedPrep = {
@@ -154,6 +154,21 @@ export class RosterService {
       total,
       nextCursor,
     }
+  }
+
+  /** Every list an audience holds, grouped by the facts its filters count. A module older than counts refuses the read. */
+  async discoveryGroups(audience: RosterAudience, viewerId: string | null) {
+    const { groups } = await this.repository.discoverRosters({
+      audience,
+      viewerId,
+      sort: 'updated-desc',
+      catalogueIds: null,
+      detachmentIds: null,
+      before: null,
+      limit: 1,
+      tally: true,
+    })
+    return groups ?? []
   }
 
   /** An opaque roster id grants unlisted or public access; private access requires ownership, a friend's loan, or a named battle whose seated reader can already see the snapshot. */

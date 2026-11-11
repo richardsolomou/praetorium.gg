@@ -83,6 +83,13 @@ describe('playedArmies', () => {
   })
 })
 
+describe('playedArmies opponents', () => {
+  it('names the opposing family whichever rules version it fielded', () => {
+    const older = { ...built, catalogueId: 'mfm-14~orks' }
+    expect(battle('finished', [seat('kieran'), seat('sam', older)])[0]?.against).toEqual(['orks'])
+  })
+})
+
 describe('playedArmies outcome', () => {
   it('says the army that scored more won', () => {
     expect(battle('finished')[0]?.outcome.result).toBe('won')

@@ -35,7 +35,8 @@ async function filterTo(page: Page, choices: { faction: string; detachment: stri
     ['rules', 'Rules version', choices.rules],
   ] as const) {
     const pill = page.locator(`[data-filter="${filter}"]`)
-    const choice = page.getByRole('button', { name: option, exact: true })
+    // Once the tab is counted, a choice is also named with how many lists it finds, such as "Necrons 3".
+    const choice = page.getByRole('button', { name: new RegExp(`^${option}( \\d+)?$`) })
     await retryUntilVisible(choice, () => pill.getByRole('button', { name: label }).click())
     await choice.click()
     await expect(pill).toContainText(option, { timeout: 60_000 })

@@ -77,3 +77,13 @@ it('names the opposing army’s faction from the catalogue', async () => {
     (await service.playedArmies(null, undefined, factions)).armies[0]?.outcome.opponents.map((faction) => faction.displayName),
   ).toEqual(['Death Guard'])
 })
+
+it('counts every public army except those of battles the reader sat in, which their feed leaves out', async () => {
+  const { service } = fixture()
+  expect(await service.everyPlayedArmy(ALICE)).toEqual([])
+})
+
+it('counts every army of a public battle for a reader who did not sit in it', async () => {
+  const { service } = fixture()
+  expect((await service.everyPlayedArmy('reader'))?.map((army) => army.name)).toEqual(['Alice army', 'Bob army'])
+})

@@ -7,7 +7,7 @@ import {
   rosterDiscoveryQuerySchema,
   type RosterDiscoveryQuery,
 } from './rosterDiscovery'
-import { discoveryScope, inDiscoveryScope } from './rosterDiscoveryScope'
+import { againstFamilies, discoveryCounts, discoveryScope, inDiscoveryScope } from './rosterDiscoveryScope'
 
 type Row = {
   id: string
@@ -231,5 +231,36 @@ describe('roster discovery scope', () => {
     expect(inDiscoveryScope({ catalogueId: 'necrons', detachmentIds: ['awakened'] }, { detachment: only('hypercrypt') }, indexed)).toBe(
       false,
     )
+  })
+})
+
+describe('roster discovery counts', () => {
+  const tally = (rows: Row[], overrides: Partial<RosterDiscoveryQuery> = {}) =>
+    discoveryPage(rows, query({ tally: true, ...overrides })).groups?.reduce((total, group) => total + group.count, 0)
+
+  it('counts the whole audience, whatever the filters leave', () => {
+    expect(tally([row('necrons', 1), row('orks', 2, { catalogueId: 'orks' })], { catalogueIds: ['necrons'] })).toBe(2)
+  })
+
+  it("leaves the viewer's own rosters out of the public audience's counts", () => {
+    expect(tally([row('theirs', 1), row('mine', 2, { userId: 'viewer' })], { viewerId: 'viewer' })).toBe(1)
+  })
+
+  it('counts a rules version of a faction under its family', () => {
+    expect(
+      discoveryCounts([{ catalogueId: 'mfm-14~necrons', detachmentIds: [], limit: 2_000, disposition: null }], new Map()).faction,
+    ).toEqual({ necrons: 1 })
+  })
+})
+
+describe('played army opponents', () => {
+  const custodes = [{ id: '1f19-6509-d906-ca10', slug: 'adeptus-custodes' }]
+
+  it('reads an Against slug as its faction family', () => {
+    expect(againstFamilies({ in: ['adeptus-custodes'], out: [] }, custodes).in).toEqual(['1f19-6509-d906-ca10'])
+  })
+
+  it('keeps a slug the index does not know, so it matches nothing', () => {
+    expect(againstFamilies({ in: ['no-such-army'], out: [] }, custodes).in).toEqual(['no-such-army'])
   })
 })
