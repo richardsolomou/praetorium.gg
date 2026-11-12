@@ -82,6 +82,11 @@ it('counts a failed read by the name its key starts with', async () => {
   expect(capture).toHaveBeenCalledWith('query_load_failed', { query: 'faction', reason: 'error', offline: false })
 })
 
+it('counts a read that ran out of time as a timeout', async () => {
+  await failedRead(['release'], new DOMException('signal timed out', 'TimeoutError'))
+  expect(capture).toHaveBeenCalledWith('query_load_failed', { query: 'release', reason: 'timeout', offline: false })
+})
+
 it('does not count a read refused for a lapsed session', async () => {
   await failedRead(['me'], new Error(SIGN_IN_REQUIRED))
   expect(capture).not.toHaveBeenCalled()

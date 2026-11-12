@@ -48,8 +48,10 @@ export function createQueryClient() {
   return client
 }
 
+const isTimeout = (error: unknown) => error instanceof Error && error.name === 'TimeoutError'
+
 export function errorMessage(error: unknown, fallback = 'Something went wrong. Try again.') {
-  if (error instanceof Error && error.name === 'TimeoutError') return 'That took too long. Try again.'
+  if (isTimeout(error)) return 'That took too long. Try again.'
   return error instanceof Error && error.message ? error.message : fallback
 }
 
@@ -63,7 +65,7 @@ function reportQueryFailure(error: unknown, query: Pick<Query, 'queryKey'>) {
   if (typeof name === 'string' && SELF_REPORTED.has(name)) return
   posthog.capture('query_load_failed', {
     query: typeof name === 'string' && /^[a-z][a-z-]{0,39}$/.test(name) ? name : 'other',
-    reason: isFetchNetworkFailure(error) ? 'network' : 'error',
+    reason: isFetchNetworkFailure(error) ? 'network' : isTimeout(error) ? 'timeout' : 'error',
     offline: !navigator.onLine,
   })
 }
