@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.232.6 (2026-11-12)
+
+### Patch Changes
+
+- b9af5c0: The simulator's Cold Fervour adds +2 Strength to Destroyer Cult weapons once instead of twice, including a Cryptek with Murdermind.
+
 ## 0.232.5 (2026-11-12)
 
 ### Patch Changes
