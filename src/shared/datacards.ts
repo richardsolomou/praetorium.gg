@@ -964,10 +964,12 @@ export function compositionCount(lines: readonly string[]) {
   return `${count} ${maximum === 1 ? 'model' : 'models'}`
 }
 
-/** Codex-shaped entries print the transport rule as a special ability rather than in its own field. */
-function specialTransport(value: unknown): string | null {
+/** Some entries print the transport rule as a special or other ability rather than in its own field. */
+function abilityTransport(value: unknown): string | null {
   const abilities: unknown = value && typeof value === 'object' ? (value as Record<string, unknown>).abilities : null
-  const transport = records(abilities, 'special').find((ability) => localizedField(ability, 'name')?.toUpperCase() === 'TRANSPORT')
+  const transport = [...records(abilities, 'special'), ...records(abilities, 'other')].find(
+    (ability) => localizedField(ability, 'name')?.toUpperCase() === 'TRANSPORT',
+  )
   return localizedField(transport, 'description')
 }
 /** The heading the source gives a datasheet's starting wargear: a label the builder reads, not rules text. */
@@ -987,7 +989,7 @@ function datasheetDetails(value: unknown, texts: SourceTexts): DatasheetDetails 
   })
   const { lines, loadout } = composition(value, texts)
   const counted = composition(value, transformed).lines
-  const transport = localizedField(value, 'transport') ?? specialTransport(value)
+  const transport = localizedField(value, 'transport') ?? abilityTransport(value)
   const printedLoadout = localizedField(value, 'loadout')
   const capacity = transport ? printedTransport(prose(transport)) : null
   return {
