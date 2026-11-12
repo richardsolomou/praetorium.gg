@@ -3,7 +3,7 @@ import { cn } from '@/lib/utils'
 import { Pause, Timer } from 'lucide-react'
 import { type BattleClock, latestTurnRound } from '../../../core/battleClock'
 import type { BattleView } from '../../../core/battleView'
-import { isGuestSeat } from '../../../core/newBattle'
+import { hasProfile } from '../../../core/newBattle'
 import { battleResult } from '../../battleOutcome'
 import { completedSideRound } from './battleProgress'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
@@ -158,7 +158,7 @@ function SideScore({
             )
             return (
               <span key={army.playerId} className={`inline-flex min-w-0 items-center gap-x-1.5 ${end ? 'flex-row-reverse' : ''}`}>
-                {isGuestSeat(army.playerId) ? (
+                {!hasProfile(army.playerId) ? (
                   <span className={`inline-flex min-w-0 items-center gap-1.5 ${end ? 'flex-row-reverse' : ''}`}>{name}</span>
                 ) : (
                   <Link

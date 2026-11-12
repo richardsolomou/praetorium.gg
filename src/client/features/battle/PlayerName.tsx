@@ -1,6 +1,6 @@
 import { Link } from '@tanstack/react-router'
 import { cn } from '@/lib/utils'
-import { isGuestSeat } from '../../../core/newBattle'
+import { hasProfile, isGuestSeat } from '../../../core/newBattle'
 import type { Army, Side } from '../../sides'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { tint } from './battleTints'
@@ -20,7 +20,7 @@ export function SideDot({ side }: { side: number }) {
  */
 export function PlayerName({ army, linked = true }: { army: Army; linked?: boolean }) {
   const guest = isGuestSeat(army.playerId)
-  if (guest) linked = false
+  if (!hasProfile(army.playerId)) linked = false
   const inner = (
     <>
       <PlayerAvatar name={army.playerName} image={army.playerImage} className="size-6 text-xs" />

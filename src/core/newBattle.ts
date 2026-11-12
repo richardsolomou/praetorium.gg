@@ -24,6 +24,14 @@ export function isGuestSeat(playerId: string) {
   return playerId.startsWith(GUEST_SEAT)
 }
 
+/** The prefix of the sample battle's made-up players, which no account id carries either. */
+export const SAMPLE_SEAT = 'sample:'
+
+/** Whether a seat's player has a profile to open: guests and the sample battle's players have none. */
+export function hasProfile(playerId: string) {
+  return !isGuestSeat(playerId) && !playerId.startsWith(SAMPLE_SEAT)
+}
+
 /** A seat nobody signs in to that stands for no real opponent; a guest is also played by the table but is a real one. */
 export function isPracticeSeat(player: { id: string; automated: boolean }) {
   return player.automated && !isGuestSeat(player.id)

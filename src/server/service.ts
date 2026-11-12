@@ -1375,13 +1375,31 @@ export class PraetoriumService {
     const history = await this.mustFind(token)
     const current = await this.visibleScreen(history, userId, rules)
     if (current.kind === 'unavailable') return current
+    return this.replayFrames(history, current.kind === 'battle' ? userId! : SPECTATOR_ID, seqs, rules)
+  }
+
+  /**
+   * A finished battle that was never stored, read the way its first seat reads it.
+   * No table, feed or record can count it, since none of them reads anything but stored battles.
+   */
+  sampleScreen(history: BattleHistory, rules: BattleReadRules | null): SpectatorScreen {
+    const viewerId = history.players[0]!.id
+    const { view, clock, missions } = this.battleScreen(history, viewerId, rules)
+    const report = this.viewerReport(history, viewerId, rules)
+    return { kind: 'spectator', view, clock, missions, report, timeline: this.replayTimeline(history, report) }
+  }
+
+  sampleReplay(history: BattleHistory, seqs: readonly number[], rules: BattleReadRules | null) {
+    return this.replayFrames(history, history.players[0]!.id, seqs, rules)
+  }
+
+  private replayFrames(history: BattleHistory, viewerId: string, seqs: readonly number[], rules?: BattleReadRules | null) {
     const available = new Set(history.log.map((entry) => entry.seq))
     if (seqs.length < 1 || seqs.length > REPLAY_BATCH_SIZE || seqs.some((seq) => !Number.isInteger(seq) || !available.has(seq))) {
       throw new Response('no such battle event', { status: 404 })
     }
     const playerIds = history.players.map((player) => player.id)
     const sides = history.players.map((player) => player.side)
-    const viewerId = current.kind === 'battle' ? userId! : SPECTATOR_ID
     return {
       kind: 'replay-batch' as const,
       ...compactReplayFrames(

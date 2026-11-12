@@ -1,16 +1,9 @@
 import { createFileRoute, notFound } from '@tanstack/react-router'
 import { BattleNotFound } from '../client/features/battle/BattleNotFound'
 import { BattlePage } from '../client/features/battle/BattlePage'
-import {
-  battleQuery,
-  deploymentsQuery,
-  detachmentRulesQuery,
-  factionQuery,
-  gameReferencesQuery,
-  terrainReferencesQuery,
-} from '../client/queries'
+import { battleQuery, deploymentsQuery, factionQuery, gameReferencesQuery, terrainReferencesQuery } from '../client/queries'
 import { battlePreview, hiddenBattle, pageMeta, previewImage } from '../client/linkPreview'
-import { armyRulesRequest } from '../client/features/battle/sideRules'
+import { armyReads } from '../client/features/battle/sideRules'
 import { battleMatchupIds } from '../client/features/battle/battlefieldLayout'
 
 export const Route = createFileRoute('/battles/$token')({
@@ -37,16 +30,7 @@ export const Route = createFileRoute('/battles/$token')({
     await Promise.all([
       ...instanceData,
       ...(matchupIds.length ? [context.queryClient.query({ ...terrainReferencesQuery(matchupIds), staleTime: 'static' })] : []),
-      ...screen.view.players.flatMap((player) => {
-        const { catalogueId, detachmentNames } = armyRulesRequest(player.roster)
-        return catalogueId && detachmentNames.length
-          ? [context.queryClient.query({ ...detachmentRulesQuery(catalogueId, detachmentNames), staleTime: 'static' })]
-          : []
-      }),
-      // Each army's own faction, instead of every faction the instance knows.
-      ...[...new Set(screen.view.players.flatMap((player) => (player.roster?.built ? [player.roster.built.catalogueId] : [])))].map(
-        (catalogueId) => context.queryClient.query({ ...factionQuery(catalogueId), staleTime: 'static' }),
-      ),
+      ...armyReads(context.queryClient, screen.view),
     ])
     const factionName = (catalogueId: string) => context.queryClient.getQueryData(factionQuery(catalogueId).queryKey)?.displayName ?? null
     return { preview: battlePreview(screen.view, factionName) }
