@@ -62,3 +62,11 @@ it('fields a draft from an older build with the alerts it kept per unit, keyed b
   await submittedBattleCommand('guest:battle:0', { kind: 'attach-draft-roster', draft: { ...draft, prep } })
   expect(vi.mocked(frozenRoster).mock.lastCall?.[1].map((reminder) => reminder.key)).toEqual(['datasheet:shroud'])
 })
+
+it('drops a saved roster id sent with a pasted list, so the battle cannot read that roster', async () => {
+  const sent = { name: 'Pasted', text: '10 Intercessors', id: 'somebody-elses-roster' }
+  expect(await submittedBattleCommand('host', { kind: 'attach-roster', roster: sent })).toEqual({
+    kind: 'attach-roster',
+    roster: { name: 'Pasted', text: '10 Intercessors' },
+  })
+})

@@ -355,3 +355,26 @@ describe('a public roster fielded by a practice opponent', () => {
     expect(await published('private')).toBeNull()
   })
 })
+
+describe('a roster read through a battle that fielded it', () => {
+  const access = (roster: object) =>
+    new RosterService(
+      {
+        roster: vi.fn().mockResolvedValue(row),
+        usableRoster: vi.fn().mockResolvedValue(null),
+        battleHistoryByToken: vi.fn().mockResolvedValue({
+          players: [{ id: 'reader' }],
+          log: [{ command: { kind: 'attach-roster', roster: { name: 'Army', text: '', id: 'roster-1', ...roster } } }],
+        }),
+      } as unknown as RepositoryPort,
+      () => 0,
+    ).rosterAccess('roster-1', 'reader', 'battle')
+
+  it('opens a private list fielded from its owner’s library', async () => {
+    expect(await access({})).not.toBeNull()
+  })
+
+  it('closes a public list a practice opponent fielded once its owner makes it private', async () => {
+    expect(await access({ publishedBy: { id: 'user-1', name: 'Owner' } })).toBeNull()
+  })
+})

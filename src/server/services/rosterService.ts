@@ -201,7 +201,10 @@ export class RosterService {
   private async fieldedIn(token: string, userId: string, rosterId: string) {
     const history = await this.repository.battleHistoryByToken(token)
     if (!history?.players.some((player) => player.id === userId)) return false
-    return history.log.some((entry) => entry.command.kind === 'attach-roster' && entry.command.roster.id === rosterId)
+    // A public list a practice opponent fielded stays readable only while its owner keeps it public.
+    return history.log.some(
+      (entry) => entry.command.kind === 'attach-roster' && entry.command.roster.id === rosterId && !entry.command.roster.publishedBy,
+    )
   }
 
   async setRosterVisibility(userId: string, id: string, visibility: RosterVisibility) {

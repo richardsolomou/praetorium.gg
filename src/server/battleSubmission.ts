@@ -60,5 +60,10 @@ export async function submittedBattleCommand(userId: string, submitted: z.infer<
     if (!submitted.roster.id) throw new Response('choose a saved roster', { status: 400 })
     return { ...submitted, roster: (await rosterForUse(userId, submitted.roster.id, { lent: true })).snapshot }
   }
+  if (submitted.kind === 'attach-roster') {
+    // Only the server names where a list came from: a sent id would let the battle read that roster.
+    const { id: _id, lentBy: _lentBy, publishedBy: _publishedBy, ...roster } = submitted.roster
+    return { ...submitted, roster }
+  }
   return submitted
 }
