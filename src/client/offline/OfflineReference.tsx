@@ -8,7 +8,7 @@ import { offlineData, referenceData, setPublishedReference } from './runtime'
 import { applyReferenceData } from './referenceData'
 import { saveReference, savedReference, storePart, storesEvery } from './referenceStore'
 import { offlineAppVersion, offlineApplication, offlineReferenceVersion } from './download'
-import { refreshFailureReason } from './downloadFailure'
+import { failureName, refreshFailureReason } from './downloadFailure'
 import { cataloguesIn, cataloguesInUse } from './cataloguesInUse'
 import { PUBLIC_REFERENCE_QUERIES } from '../../contracts/appSnapshot'
 import type { OfflineReferenceData, OfflineReferenceVersion } from '../../contracts/offlineReference'
@@ -87,12 +87,14 @@ export function OfflineReference() {
       lastCheck.current = Date.now()
       const abort = new AbortController()
       controller = abort
+      let stage: 'manifest' | 'check' | 'parts' | 'application' | 'install' | 'save' = 'manifest'
       try {
         const signal = withTimeout(abort.signal, 15_000)
         const [manifest, version] = await Promise.all([offlineReferenceVersion(signal), offlineAppVersion(signal)])
         abort.signal.throwIfAborted()
         published = manifest
         setPublishedReference(manifest)
+        stage = 'check'
         const held = referenceData()
         const catalogues = cataloguesInUse(client)
         // Another tab may have saved rules versions this one never loaded, which must stay saved.
@@ -111,15 +113,18 @@ export function OfflineReference() {
           return
         }
         // Each part is stored as published, never decoded here, and one already stored is not fetched again.
+        stage = 'parts'
         const queue = [...partsInOrder(manifest, editions, catalogues)]
         await Promise.all(
           Array.from({ length: PARALLEL_PARTS }, async () => {
             for (let asset = queue.shift(); asset; asset = queue.shift()) await storePart(asset, abort.signal)
           }),
         )
+        stage = 'application'
         const data: OfflineReferenceData = { version: 2, savedAt: Date.now(), appRevision: version.revision, download: manifest, editions }
         const html = await offlineApplication(data, version, abort.signal, location.origin)
         abort.signal.throwIfAborted()
+        stage = 'install'
         if (supportsNativeOffline()) {
           if (!(await requestNativeOfflineSave({ html, savedAt: data.savedAt }))) throw new Error('Application bundle could not be saved')
         } else {
@@ -128,12 +133,18 @@ export function OfflineReference() {
           if (matchMedia('(display-mode: standalone)').matches) void navigator.storage?.persist?.().catch(() => false)
         }
         abort.signal.throwIfAborted()
+        stage = 'save'
         await saveReference(data, supportsNativeOffline() ? null : html)
         await applyReferenceData(client, data)
         posthog.capture('offline_reference_refreshed', { first: !held })
       } catch (error) {
         // A failed background refresh leaves the last complete download in use.
-        if (!abort.signal.aborted) posthog.capture('offline_reference_refresh_failed', { reason: refreshFailureReason(error) })
+        if (!abort.signal.aborted)
+          posthog.capture('offline_reference_refresh_failed', {
+            reason: refreshFailureReason(error),
+            stage,
+            error_type: failureName(error),
+          })
       } finally {
         // Stops the other download loops once one part fails, so a retry never fetches the same parts alongside them.
         abort.abort()
