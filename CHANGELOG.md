@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.232.5 (2026-11-12)
+
+### Patch Changes
+
+- fd9eb60: Anathema Psykana units can now embark in the Anathema Psykana Rhino.
+
 ## 0.232.4 (2026-11-11)
 
 ### Patch Changes
