@@ -31,7 +31,11 @@ export function mergeDetachmentRules(
   return [...cardRules, ...missing]
 }
 
-type EnhancementIndex = { byCardName: Map<string, SelectionEntry[]>; forced: Map<string, SelectionEntry[]> }
+type EnhancementIndex = {
+  byCardName: Map<string, SelectionEntry[]>
+  byDetachment: Map<string, SelectionEntry[]>
+  forced: Map<string, SelectionEntry[]>
+}
 
 const enhancementIndexes = new WeakMap<LoadedCatalogue, EnhancementIndex>()
 
@@ -84,6 +88,9 @@ export function detachmentCatalogueDetail(
   }
 }
 
+export const detachmentEnhancementNames = (loaded: LoadedCatalogue, detachmentName: string) =>
+  (enhancementIndex(loaded).byDetachment.get(detachmentName) ?? []).map((entry) => entry.name!)
+
 function enhancementIndex(loaded: LoadedCatalogue): EnhancementIndex {
   return remember(enhancementIndexes, loaded, () => {
     const upgrades = [...loaded.index.definitions.values()].filter((entry): entry is SelectionEntry => entry.type === 'upgrade')
@@ -101,7 +108,12 @@ function enhancementIndex(loaded: LoadedCatalogue): EnhancementIndex {
         forced.set(key, [...(forced.get(key) ?? []), entry])
       }
     }
-    return { byCardName, forced }
+    // BSData comments each enhancement with its detachment's name.
+    const byDetachment = groupBy(
+      upgrades.filter((entry) => entry.name && entry.comment),
+      (entry) => entry.comment!,
+    )
+    return { byCardName, byDetachment, forced }
   })
 }
 

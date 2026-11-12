@@ -2,7 +2,7 @@ import { attachmentErrors } from '../core/attach'
 import { attachedUnit, attachmentHost } from '../core/attachedUnits'
 import { hasTextTokens } from './sourceText'
 import { parsedAbilityGrants } from './catalogueAbilityGrants'
-import { type CombatRule, type CombatRuleJudge, judgedCombatRule } from '../core/combatRules'
+import { type CombatRule, type CombatRuleJudge, combatRuleProjected, judgedCombatRule } from '../core/combatRules'
 import { datasheetCharacteristicKind, datasheetProfileKind } from '../core/datasheetStructure'
 import { routeSlug } from '../core/slug'
 import { datasheetIn, datasheetAbilitiesIn } from './catalogue'
@@ -11,7 +11,7 @@ import type { Datasheet } from '../contracts/catalogue'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { describeDatasheetAbilities } from './datasheetDescriptions'
 import { detachmentReference } from './detachmentReference'
-import { detachmentCatalogueDetail, sameRuleName } from './catalogueDescriptions'
+import { detachmentCatalogueDetail, detachmentEnhancementNames, sameRuleName } from './catalogueDescriptions'
 import { buildRosterPick, rosterDatasheetContext } from './rosterDatasheetContext'
 import { type LoadedRules, rulesFaction } from './rules'
 import { selectedDetachmentRules } from './selectedDetachmentRules'
@@ -244,7 +244,7 @@ function rosterCombatRules(
         (kind) =>
           modelProfiles.length &&
           modelProfiles.every((profile) =>
-            profile.values.some((value) => datasheetCharacteristicKind(value.name) === kind && value.modifiers?.includes(rule.name)),
+            profile.values.some((value) => datasheetCharacteristicKind(value.name) === kind && combatRuleProjected(rule, value.modifiers)),
           ),
       ),
       models,
@@ -340,6 +340,8 @@ function rosterCombatRules(
               source: option.name,
               description,
               scope: 'detachment',
+              // The catalogue projects a detachment rule's always-on part under the detachment's name, or under the enhancement that brings a model into it.
+              appliedAs: [option.name, ...detachmentEnhancementNames(loaded, option.name)],
             },
             { origin: 'listed' },
           )
