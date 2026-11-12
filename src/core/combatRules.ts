@@ -32,6 +32,8 @@ export type CombatRule = {
   scope: 'unit' | 'attached' | 'nearby' | 'stratagem' | 'detachment'
   included?: boolean
   appliedDefences?: DatasheetCharacteristicKind[]
+  /** Other names the catalogue credits this rule's projected modifiers to, as a detachment's own name or one of its enhancements. */
+  appliedAs?: string[]
   models?: number
   keywords?: readonly string[]
   /** What a rule published as a token is judged against once a device loads its words. */
@@ -93,7 +95,11 @@ export type CombatRuleEffect = {
 }
 export type CombatRuleChoice = { label: string; effects: CombatRuleEffect[] }
 /** `source` names the unit whose ability it is, so a combined estimate can end it when that unit is destroyed (19.04). */
-export type ActiveCombatRule = { name: string; source?: string; effects: CombatRuleEffect[] }
+export type ActiveCombatRule = { name: string; source?: string; appliedAs?: readonly string[]; effects: CombatRuleEffect[] }
+
+/** Whether the catalogue already counts this rule in a characteristic, under its own name or one it credits the rule to. */
+export const combatRuleProjected = (rule: Pick<ActiveCombatRule, 'name' | 'appliedAs'>, modifiers: readonly string[] | undefined) =>
+  Boolean(modifiers?.some((source) => source === rule.name || rule.appliedAs?.includes(source)))
 
 export const combatRuleKey = (rule: CombatRule) => `${rule.source}:${rule.name}`
 
@@ -102,7 +108,9 @@ export function activeCombatRules(rules: readonly CombatRule[], choices: Readonl
     ...new Map(
       rules.flatMap((rule) => {
         const choice = combatRuleChoices(rule)[(choices[combatRuleKey(rule)] ?? combatRuleDefault(rule)) - 1]
-        return choice ? [[rule.name, { name: rule.name, source: rule.source, effects: choice.effects }] as const] : []
+        return choice
+          ? [[rule.name, { name: rule.name, source: rule.source, appliedAs: rule.appliedAs, effects: choice.effects }] as const]
+          : []
       }),
     ).values(),
   ]
@@ -421,7 +429,7 @@ export function combatRuleProfiles(
           if (effect.characteristic) {
             const modifier = effect.characteristic
             const original = profile.values.find((value) => datasheetCharacteristicKind(value.name) === modifier.kind)
-            if (effectRole !== role || !original?.modifiers?.includes(rule.name)) {
+            if (effectRole !== role || !combatRuleProjected(rule, original?.modifiers)) {
               const adjustment = adjustments.get(modifier.kind) ?? { positive: 0, negative: 0, exclusive: 0, sources: [] }
               if (modifier.set !== undefined) adjustment.set = modifier.set
               else if (modifier.nonCumulative) adjustment.exclusive = Math.min(adjustment.exclusive, modifier.add)

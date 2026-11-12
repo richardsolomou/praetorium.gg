@@ -407,6 +407,16 @@ describe('combat rule effects', () => {
     Object.assign(original, { value: '-2', baseValue: '-1', modifiers: ['Buff'] })
     expect(combatWeapons(combatRuleProfiles(sheet, [active], 'attacker', [], [active]), [], 'ranged')[0]?.weapon?.ap).toBe(-1)
   })
+  it('does not reapply a detachment rule the catalogue credits to an enhancement', () => {
+    const effects = combatRuleChoices(rule('Add 2 to the Strength characteristic of weapons equipped by models in this unit.'))[0]!.effects
+    const sheet = weapons()
+    Object.assign(
+      sheet.profiles[1]!.values.find((value) => value.name === 'S')!,
+      { value: '6', baseValue: '4', modifiers: ['Murdermind'] },
+    )
+    const active = { name: 'Cold Fervour', appliedAs: ['Cursed Legion', 'Murdermind'], effects }
+    expect(combatWeapons(combatRuleProfiles(sheet, [active], 'attacker'), [], 'melee')[0]?.weapon?.strength).toBe(6)
+  })
   it('sums opposing modifiers before clamping the final skill', () => {
     const attack = {
       name: 'Boost',
