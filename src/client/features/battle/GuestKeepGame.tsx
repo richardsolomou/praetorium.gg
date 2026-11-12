@@ -5,11 +5,12 @@ import { Button } from '@/components/ui/button'
 import { buttonClass } from '../../components/buttonClass'
 import { Problem } from '../../components/Problem'
 import type { BattleView } from '../../../core/battleView'
-import { claimGuest, requestFriend } from '../../functions'
-import { battleQuery, battlesQuery, friendshipsQuery, meQuery, reportKey } from '../../queries'
+import { claimGuest } from '../../functions'
+import { battleQuery, battlesQuery, meQuery, reportKey } from '../../queries'
 import { useClientValue } from '../../useClientValue'
 import { peekGuestDraft } from '../rosters/guestDraft'
 import { forgetGuestBattle } from '../battles/guestBattle'
+import { FriendAction } from '../friends/FriendAction'
 
 /**
  * What signing up gives a guest, offered once their game is over rather than while they play it, and the claim that
@@ -35,24 +36,12 @@ export function GuestKeepGame({ view, claimed, onClaimed }: { view: BattleView; 
       ])
     },
   })
-  const befriend = useMutation({
-    mutationFn: (userId: string) => requestFriend({ data: { userId } }),
-    onSuccess: () => {
-      posthog.capture('guest_battle_friend_requested')
-      return queryClient.invalidateQueries({ queryKey: friendshipsQuery().queryKey })
-    },
-  })
-
   if (claimed && me)
     return (
       <Panel title="This battle is in your record" data-guest="claimed">
         <p className="text-sm text-dim">It counts toward your record and, when it is public, the leaderboard.</p>
         <div className="flex flex-wrap gap-2">
-          {host ? (
-            <Button size="sm" disabled={befriend.isPending || befriend.isSuccess} onClick={() => befriend.mutate(host.id)}>
-              {befriend.isSuccess ? 'Friend request sent' : `Add ${host.name} as a friend`}
-            </Button>
-          ) : null}
+          {host ? <FriendAction person={host} event="guest_battle_friend_requested" /> : null}
           <Link to="/users/$userId" params={{ userId: me.id }} className={buttonClass({ variant: 'outline', size: 'sm' })}>
             See your record
           </Link>
@@ -62,7 +51,6 @@ export function GuestKeepGame({ view, claimed, onClaimed }: { view: BattleView; 
             </Link>
           ) : null}
         </div>
-        {befriend.error ? <Problem error={befriend.error} /> : null}
       </Panel>
     )
   if (me)

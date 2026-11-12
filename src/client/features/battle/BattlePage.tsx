@@ -5,6 +5,7 @@ import { FullPageState, PageLoading } from '../../components/PageState'
 import { Setup } from './setup/Setup'
 import { Spectator } from './Spectator'
 import { Tracker } from './Tracker'
+import { AfterBattle } from './AfterBattle'
 import { GuestKeepGame } from './GuestKeepGame'
 import { PracticeNextGame } from './PracticeNextGame'
 import { isGuestSeat, isPracticeSeat } from '../../../core/newBattle'
@@ -110,7 +111,9 @@ function FinishedBattle({ screen }: { screen: Extract<Awaited<ReturnType<typeof 
           <GuestKeepGame view={view} claimed={claimed} onClaimed={() => setClaimed(true)} />
         ) : practicedAlone(view) ? (
           <PracticeNextGame />
-        ) : null
+        ) : (
+          <AfterBattle view={view} />
+        )
       }
     />
   )
