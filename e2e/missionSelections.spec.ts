@@ -132,6 +132,8 @@ test('source matchup nominations survive undo and reload', async ({ page, browse
   await guards.getByRole('button', { name: 'Record choice', exact: true }).click()
   await expect(guards).toBeHidden()
   await expect(advanceButton(page)).toBeEnabled()
+  // The closed prompt's own undo stays in the page until its exit animation ends.
+  await expect(page.getByRole('dialog')).toHaveCount(0)
   await page.getByRole('button', { name: 'Undo latest action', exact: true }).click()
   await expect(guards).toBeVisible()
   const firstGuard = guards.getByRole('combobox', { name: /^Guard for / }).first()
