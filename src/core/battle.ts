@@ -75,6 +75,8 @@ export type Roster = {
   /** The saved list this came from, when it came from one. */ id?: string
   /** The friend who lent the saved list, named as they were when it was fielded. */
   lentBy?: { id: string; name: string }
+  /** Whose public list a practice opponent fields, named as they were when it was fielded. */
+  publishedBy?: { id: string; name: string }
   /** Player-authored prompts frozen with the army, hidden from the other side. */
   reminders?: RosterReminder[]
   remindersEnabled?: boolean
@@ -1112,6 +1114,7 @@ export type RefusalCode =
   | 'over-army-points'
   | 'allies-mismatch'
   | 'roster-size-mismatch'
+  | 'public-roster-practice-only'
   | 'score-by-name'
   | 'score-cap-battle'
   | 'score-cap-card'
@@ -1620,6 +1623,9 @@ export function commandRefusal(state: BattleState, by: PlayerId, command: Comman
       if (state.status === 'finished') return refuse('battle-over', 'the battle is over')
       // Correcting a list mid-battle stays allowed; bringing a different set of cards with it does not.
       if (state.status === 'playing' && command.prep) return refuse('cards-settled', 'cards are settled before the battle begins')
+      // A stranger's list stands in for an opponent nobody plays; a real seat fields its own or a friend's.
+      if (command.roster.publishedBy && !isPracticeSeat(player))
+        return refuse('public-roster-practice-only', 'only a practice opponent can field somebody else’s public list')
       const name = command.roster.name.trim()
       if (!name) return refuse('invalid-roster', 'name your army')
       if (name.length > ROSTER_NAME_MAX_LENGTH) return refuse('invalid-roster', 'that name is too long')

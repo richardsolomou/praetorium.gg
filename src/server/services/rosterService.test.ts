@@ -332,3 +332,26 @@ describe('saved unit loadouts', () => {
     expect(error instanceof Response && error.status).toBe(404)
   })
 })
+
+describe('a public roster fielded by a practice opponent', () => {
+  const published = (visibility: 'private' | 'unlisted' | 'public') =>
+    new RosterService(
+      {
+        roster: vi.fn().mockResolvedValue({ ...row, visibility }),
+        namesByIds: vi.fn().mockResolvedValue(new Map([['user-1', { id: 'user-1', name: 'Owner' }]])),
+      } as unknown as RepositoryPort,
+      () => 0,
+    ).publishedRoster('roster-1')
+
+  it('reads it without its owner’s preparation', async () => {
+    expect((await published('public'))?.roster.prep).toBeNull()
+  })
+
+  it('refuses an unlisted roster, which only its link shares', async () => {
+    expect(await published('unlisted')).toBeNull()
+  })
+
+  it('refuses a private roster', async () => {
+    expect(await published('private')).toBeNull()
+  })
+})

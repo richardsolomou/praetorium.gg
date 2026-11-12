@@ -487,6 +487,8 @@ export const rosterContentSchema = z
 export const saveRosterSchema = rosterContentSchema.overwrite(currentRosterIds)
 
 const attachSavedRosterSchema = z.object({ kind: z.literal('attach-saved-roster'), rosterId: id, playerId: id.optional() }).strict()
+/** Somebody's public list, fielded by a practice opponent without being copied into the player's library. */
+const attachPublicRosterSchema = z.object({ kind: z.literal('attach-public-roster'), rosterId: id, playerId: id }).strict()
 /** A guest has no saved lists, so they field the one this device is building, priced and frozen by the server, with this browser's alerts. */
 const attachDraftRosterSchema = z
   .object({
@@ -503,7 +505,7 @@ const attachDraftRosterSchema = z
 export const submitSchema = z.object({
   token,
   expectedSeq: z.number().int().min(0),
-  command: z.union([commandSchema, attachSavedRosterSchema, attachDraftRosterSchema]),
+  command: z.union([commandSchema, attachSavedRosterSchema, attachPublicRosterSchema, attachDraftRosterSchema]),
 })
 
 /** A Praetorium, BattleBase or New Recruit text export, which no roster comes close to filling. */

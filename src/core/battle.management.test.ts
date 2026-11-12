@@ -120,6 +120,30 @@ describe('battle management', () => {
     expect(validate(state, ALICE, { kind: 'end-battle', reason: 'conceded', concededBy: BOB })).toBe('a practice opponent cannot concede')
   })
 
+  describe('a public roster by somebody else', () => {
+    const published = (playerId: string): Command => ({
+      kind: 'attach-roster',
+      roster: { name: 'Their army', text: '10 Intercessors', publishedBy: { id: CAROL, name: 'Carol' } },
+      playerId,
+    })
+
+    it('is fielded by a practice opponent', () => {
+      expect(validate(reduceBattle(PLAYERS, [], undefined, [BOB]), ALICE, published(BOB))).toBeNull()
+    })
+
+    it('is refused for a real opponent', () => {
+      expect(validate(reduceBattle(PLAYERS, []), ALICE, published(BOB))).toBe(
+        'only a practice opponent can field somebody else’s public list',
+      )
+    })
+
+    it('is refused for the player’s own army', () => {
+      expect(validate(reduceBattle(PLAYERS, [], undefined, [BOB]), ALICE, published(ALICE))).toBe(
+        'only a practice opponent can field somebody else’s public list',
+      )
+    })
+  })
+
   it('records a guest conceding', () => {
     const guest = guestSeatId('battle', 0)
     const history = log(

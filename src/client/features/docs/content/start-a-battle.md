@@ -20,7 +20,7 @@ A friend needs an account and must already be on your friends list. If you have 
 
 A guest is listed under **No account**. Type their name. Guests can only sit across the table from you, never on your side.
 
-A practice opponent is listed under **Practice opponents**. You run their side with one of your own lists.
+A practice opponent is listed under **Practice opponents**. You run their side with one of your own lists or another player's public roster, which you can search by name, army or player under **Public rosters** when you choose their army. A public roster is fielded as it stands and never added to your rosters.
 
 If you're both entered in the same tournament, Praetorium asks **You are both in a tournament**. Choose the tournament to play it there with your sealed lists, or **Play it casually** to keep it out.
 

@@ -7,7 +7,7 @@ import { abilityRemindersFromRosters } from '../core/reminders'
 import { app } from './app'
 import type { PraetoriumService } from './service'
 import { captureBattleCommand } from './battleTelemetry'
-import { frozenRoster, rosterForUse } from './rosterUsage'
+import { frozenRoster, publishedRosterForUse, rosterForUse } from './rosterUsage'
 
 /** A battle command from a page or an agent, with the capture both share; durable sync has its own entry point. */
 export async function submitBattleCommand(
@@ -39,6 +39,10 @@ export async function submittedBattleCommand(userId: string, submitted: z.infer<
       painted: true,
       ...(submitted.playerId ? { playerId: submitted.playerId } : {}),
     }
+  }
+  if (submitted.kind === 'attach-public-roster') {
+    const roster = await publishedRosterForUse(userId, submitted.rosterId)
+    return { kind: 'attach-roster', roster, prep: null, painted: true, playerId: submitted.playerId }
   }
   if (submitted.kind === 'attach-draft-roster') {
     // An account fields what it saved, so the list it played stays in its library; a guest's list is theirs, not the host's.

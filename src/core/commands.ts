@@ -208,6 +208,7 @@ export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
       text: z.string().max(ROSTER_MAX_LENGTH),
       id: id.optional(),
       lentBy: z.object({ id, name: z.string().max(PROFILE_NAME_MAX_LENGTH) }).optional(),
+      publishedBy: z.object({ id, name: z.string().max(PROFILE_NAME_MAX_LENGTH) }).optional(),
       reminders: z.array(rosterReminderSchema).max(ROSTER_REMINDERS_MAX).optional(),
       remindersEnabled: z.boolean().optional(),
       built: z

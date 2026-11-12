@@ -8,14 +8,16 @@ import { OwnerLink } from './OwnerLink'
 
 export type LentRoster = Awaited<ReturnType<typeof rostersLentToMe>>[number]
 
-/** Rosters friends have lent this player: links in the library, choices when fielding an army. */
+/** Rosters friends have lent this player: links in the library, choices when fielding an army. Other players' public rosters read the same, credited to their owner. */
 export function LentRosterList({
   rosters,
+  credit = 'Lent by',
   selectedId = null,
   disabled = false,
   onChoose,
 }: {
-  rosters: readonly LentRoster[]
+  rosters: readonly Pick<LentRoster, 'summary' | 'owner' | 'points' | 'problem'>[]
+  credit?: string
   selectedId?: string | null
   disabled?: boolean
   onChoose?: (roster: SavedRoster) => void
@@ -58,7 +60,7 @@ export function LentRosterList({
               </Link>
             )}
             <p className="truncate border-t border-edge px-3 py-2 text-xs text-dim">
-              Lent by <OwnerLink owner={owner} />
+              {credit} <OwnerLink owner={owner} />
             </p>
           </li>
         )

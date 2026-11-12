@@ -257,6 +257,14 @@ export class RosterService {
     return lender ? { roster: readerRosterFromRow(usable.roster), lentBy: lender } : null
   }
 
+  /** A public list as any reader sees it, with its owner, for a practice opponent to field. */
+  async publishedRoster(id: string) {
+    const row = await this.repository.roster(id)
+    if (row?.visibility !== 'public') return null
+    const owner = await this.named(row.userId)
+    return owner ? { roster: readerRosterFromRow(row), publishedBy: owner } : null
+  }
+
   /** The friend lending this reader a roster they do not own. */
   private async lender(id: string, userId: string) {
     const lentBy = (await this.repository.usableRoster(id, userId))?.lentBy

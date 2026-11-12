@@ -37,11 +37,12 @@ import { Dialog, DialogBody, DialogContent, DialogDescription, DialogHeader, Dia
 import { rosterWaivers, WaiverConfirmDialog, WaiverNote } from '../../../components/FormatWaivers'
 import { BATTLE_SIZE_CONTROL, CHOOSABLE, CHOSEN, DispositionChip, SetupNote, SetupSidePanel, useDispositionNames } from './chrome'
 import { Problem } from '../../../components/Problem'
-import { isGuestSeat } from '../../../../core/newBattle'
+import { isGuestSeat, isPracticeSeat } from '../../../../core/newBattle'
 import type { RosterAttachment } from '../useCommand'
 import { GuestInvite } from '../GuestInvite'
 import { GuestRosterChooser } from './GuestRosterChooser'
 import { PasteOpponentList } from './PasteOpponentList'
+import { PublicRosterChoices } from './PublicRosterChoices'
 import { visitorFieldingReminders } from '../../rosters/visitorReminders'
 import { useHistoryDialog } from '../../../useHistoryDialog'
 import { SectionHeading } from '../../../components/SectionHeading'
@@ -140,6 +141,9 @@ export function ArmiesStep({ view, sides, send, attachRoster, pending, problem }
                     {/* What the army is, named the same way the battle will name it. */}
                     {army.roster ? <ArmyIdentity army={army} className="mt-0.5" /> : null}
                     {army.roster?.lentBy ? <span className="mt-0.5 block text-xs text-dim">Lent by {army.roster.lentBy.name}</span> : null}
+                    {army.roster?.publishedBy ? (
+                      <span className="mt-0.5 block text-xs text-dim">Public roster by {army.roster.publishedBy.name}</span>
+                    ) : null}
                     {army.roster ? (
                       <span className="mt-0.5 block text-xs text-dim">
                         {army.roster.built
@@ -285,6 +289,20 @@ export function ArmiesStep({ view, sides, send, attachRoster, pending, problem }
           else void attach(savedRoster)
         }}
         error={rosterQuery.error ? errorMessage(rosterQuery.error) : problem}
+        published={
+          choosing && isPracticeSeat({ id: choosing.playerId, automated: choosing.automated }) ? (
+            <PublicRosterChoices
+              limit={chooserLimit}
+              selectedId={choosing.rosterId}
+              disabled={pending}
+              onChoose={(publicRoster) =>
+                void attachRoster({ kind: 'attach-public-roster', rosterId: publicRoster.id, playerId: choosing.playerId }).then(
+                  (attached) => attached && closeChooser(),
+                )
+              }
+            />
+          ) : null
+        }
         pasted={
           choosing && isGuestSeat(choosing.playerId) ? (
             <PasteOpponentList
@@ -354,6 +372,7 @@ function RosterChooser({
   pending,
   onChoose,
   error,
+  published,
   pasted,
 }: {
   open: boolean
@@ -372,6 +391,8 @@ function RosterChooser({
   pending: boolean
   onChoose: (roster: SavedRoster, problem?: RosterProblem | null) => void
   error: string | null
+  /** Other players' public lists, which a practice opponent may field without the player copying one. */
+  published: ReactNode
   /** Where a list that is on nobody's account comes in, for a guest playing from someone else's device. */
   pasted: ReactNode
 }) {
@@ -393,11 +414,11 @@ function RosterChooser({
             {forArmy?.automated ? `Choose ${forArmy.playerName}’s roster` : 'Choose your roster'}
           </DialogTitle>
           <DialogDescription>
-            {/* A practice opponent owns no lists, so the army it brings comes from yours. */}
+            {/* A practice opponent owns no lists, so the army it brings is yours or somebody's public one. */}
             {forArmy?.automated
               ? pasted
                 ? 'Paste their list, or field one of yours for them. '
-                : 'One of your own lists, played by the side across the table. '
+                : 'One of your lists or a public one, played by the side across the table. '
               : ''}
             {requiredLimit === null
               ? 'Your rosters, most recently updated first.'
@@ -460,6 +481,8 @@ function RosterChooser({
               <LentRosterList rosters={lent} selectedId={selectedId} disabled={pending} onChoose={onChoose} />
             </>
           ) : null}
+          {/* After your own lists load, so the dialog's first focus lands on one rather than on this search box. */}
+          {loading ? null : published}
         </DialogBody>
       </DialogContent>
     </Dialog>

@@ -75,3 +75,11 @@ export async function withCurrentAlerts(roster: Roster, userId: string): Promise
   if (!priced || !sameUnits(priced.units)) return list
   return { ...list, reminders: frozenReminders(fieldingReminders(catalogue, rules, saved, priced.units, settings), priced.units) }
 }
+
+/** Anyone's public list, read as any reader reads it, for a practice opponent to field; the battle refuses it for a real seat. */
+export async function publishedRosterForUse(userId: string, rosterId: string) {
+  const published = await app().service.rosterService.publishedRoster(rosterId)
+  if (!published) throw new Response('this roster is not public', { status: 403 })
+  const settings = await app().repository.abilityRemindersByUser(userId)
+  return { ...(await frozenRoster(published.roster, settings)), publishedBy: published.publishedBy }
+}

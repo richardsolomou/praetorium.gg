@@ -152,8 +152,9 @@ export async function submit(args: Parameters<typeof server.submit>[0]): ReturnT
   // A service that never answers is treated like no connection, so the command is saved and synced later. If
   // it had landed after all, its expected sequence turns the replay into a conflict to review, never a second copy.
   let unreachable: unknown
-  // Only the service can price a pasted list, so it has no device copy to fall back on.
-  const serverOnly = submitSchema.safeParse(args.data).data?.command.kind === 'attach-draft-roster'
+  // Only the service can price a pasted list or read somebody else's public one, so neither has a device copy to fall back on.
+  const submittedKind = submitSchema.safeParse(args.data).data?.command.kind
+  const serverOnly = submittedKind === 'attach-draft-roster' || submittedKind === 'attach-public-roster'
   const answer =
     !playable || serverOnly || (navigator.onLine && !(await hasSyncableChanges(resource)))
       ? await server.submit({ ...args, data: { ...args.data, workspace: true } }).catch((error: unknown) => {

@@ -19,12 +19,14 @@ import { predictedBattle, savedBattleAt } from '../../offline/battleFunctions'
 import type { AbilityReminder } from '../../../core/reminders'
 import { asSentence } from '../../text'
 
-/** A list the server prices and freezes before it is attached: a saved one, or the draft a guest built on this device. */
+/** A list the server prices and freezes before it is attached: a saved one, a public one, or the draft a guest built on this device. */
 export type RosterAttachment =
   | { kind: 'attach-saved-roster'; rosterId: string; playerId?: string }
+  | { kind: 'attach-public-roster'; rosterId: string; playerId: string }
   | { kind: 'attach-draft-roster'; draft: RosterDraftInput; playerId?: string; reminders: AbilityReminder[] | undefined }
 type SubmittedCommand = Command | RosterAttachment
-const isRosterAttachment = (command: SubmittedCommand) => command.kind === 'attach-saved-roster' || command.kind === 'attach-draft-roster'
+const isRosterAttachment = (command: SubmittedCommand) =>
+  command.kind === 'attach-saved-roster' || command.kind === 'attach-public-roster' || command.kind === 'attach-draft-roster'
 export type SendCommand = (
   command: Command,
   /** `blocking: false` leaves other controls enabled while it is in flight, for presses meant to be repeated. */
