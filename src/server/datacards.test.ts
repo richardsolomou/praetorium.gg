@@ -813,6 +813,35 @@ it('reads a transport rule printed as a special ability', () => {
   )
 })
 
+it('reads a transport capacity printed among other abilities', () => {
+  directory = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-datacards-'))
+  fs.writeFileSync(
+    path.join(directory, 'test.json'),
+    JSON.stringify({
+      name: 'Test',
+      datasheets: [
+        {
+          name: { en: 'Anathema Psykana Rhino' },
+          abilities: {
+            other: [
+              {
+                name: { en: 'Transport' },
+                description: { en: 'This model has a transport capacity of 12 ANATHEMA PSYKANA INFANTRY models.' },
+              },
+            ],
+          },
+        },
+      ],
+      detachments: [],
+    }),
+  )
+
+  expect(loadWords(directory).factions.get('test')?.datasheetDetails.get('Anathema Psykana Rhino')?.transportCapacity?.main).toEqual({
+    capacity: 12,
+    carries: 'ANATHEMA PSYKANA INFANTRY',
+  })
+})
+
 it('reads transport rule markup as the markdown the app renders', () => {
   directory = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-datacards-'))
   fs.writeFileSync(
