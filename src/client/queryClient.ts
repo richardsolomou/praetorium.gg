@@ -2,7 +2,7 @@ import { offlineData } from './offline/runtime'
 import { MutationCache, QueryCache, type Query } from '@tanstack/react-query'
 import { posthog } from 'posthog-js'
 import { isSignedOut } from '../core/session'
-import { isFetchNetworkFailure } from './networkErrors'
+import { HttpStatusError, isFetchNetworkFailure } from './networkErrors'
 import { OfflineRefusal } from './offline/offlineRefusal'
 import { createQueryClient as configuredQueryClient } from 'ras-stack/query'
 import { captureAppSnapshot, restoreAppSnapshot } from './offline/appSnapshot'
@@ -66,6 +66,7 @@ function reportQueryFailure(error: unknown, query: Pick<Query, 'queryKey'>) {
   posthog.capture('query_load_failed', {
     query: typeof name === 'string' && /^[a-z][a-z-]{0,39}$/.test(name) ? name : 'other',
     reason: isFetchNetworkFailure(error) ? 'network' : isTimeout(error) ? 'timeout' : 'error',
+    ...(error instanceof HttpStatusError ? { status: error.status } : {}),
     offline: !navigator.onLine,
   })
 }
