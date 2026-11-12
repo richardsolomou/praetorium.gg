@@ -97,6 +97,16 @@ describe('naming a payout the source left unstructured', () => {
     expect(payoutLabel(tiers[1]!, tiers)).toBe('The higher payout.')
   })
 
+  it('names tiers that pay the same by where the card prints them', () => {
+    const tiers = [bare(3, 'purge'), bare(3, 'purge')]
+    expect(tiers.map((tier) => payoutLabel(tier, tiers))).toEqual(['The first payout.', 'The second payout.'])
+  })
+
+  it('names a counted payout by its count', () => {
+    const each = [{ ...bare(1, null), per: 'each' }]
+    expect(payoutLabel(each[0]!, each)).toBe('For each time it is met.')
+  })
+
   it('points at the card when a payout stands alone', () => {
     const only = [bare(5, null)]
     expect(payoutLabel(only[0]!, only)).toBe('As the card describes.')
