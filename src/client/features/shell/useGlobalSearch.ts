@@ -24,7 +24,11 @@ const subscribeOnline = (changed: () => void) => {
  */
 export function useGlobalSearch(trimmed: string, open = true) {
   const current = useSyncExternalStore(subscribeReference, downloadIsCurrent, () => false)
-  const online = useSyncExternalStore(subscribeOnline, () => navigator.onLine, () => true)
+  const online = useSyncExternalStore(
+    subscribeOnline,
+    () => navigator.onLine,
+    () => true,
+  )
   const downloaded = useSyncExternalStore(subscribeReference, searchIsDecoded, () => false)
   // The search index is decoded only once a player searches: it covers every faction.
   useEffect(() => {
