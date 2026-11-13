@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.241.0 (2026-11-13)
+
+### Minor Changes
+
+- 62dfe24: At the end of each battle round, and when the battle ends, the battle shows both sides' scores, how they were made and what the round added.
+
 ## 0.240.3 (2026-11-13)
 
 ### Patch Changes
