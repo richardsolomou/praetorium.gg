@@ -55,6 +55,7 @@ import { turnPrompt, type DueCard } from '../../scoring'
 import { dueForAdvance, dueFromTheirTurn, ScoringDialog, type ScoringAnswers } from './ScoringDialog'
 import { BattleCombatDialog, type BattleCombatSelection } from '../simulator/BattleCombatDialog'
 import { SidePanel } from './SidePanel'
+import { StratagemSheet } from './StratagemSheet'
 import { TurnControl } from './TurnControl'
 import { TwistName } from './MissionTwist'
 import { Report, reportPlayers } from './Report'
@@ -319,6 +320,8 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
   /** Which panel a narrow screen is showing, in the order the columns sit on a wide one. */
   const shown = (side: Side) => (side.isViewer ? 'yours' : 'theirs')
   const theirs = table.find((side) => !side.isViewer)
+  // The phone bar acts for the side its tab shows, and for the viewer's own side from the Battle tab.
+  const barSide = (focus === 'theirs' ? theirs : yours) ?? table[0]
   const settlementRound = view.settlementRound
   const turnKey = `${view.round}-${view.activePlayerId ?? ''}`
   const turnDraftKey = JSON.stringify([view.token, turnKey])
@@ -641,6 +644,20 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
               pending={pending || promptMinimized}
               onAdvance={advance}
               blockReason={promptMinimized ? 'Finish the open prompt to continue.' : blockReason}
+              shortcuts={
+                barSide && !view.settings.manual ? (
+                  <StratagemSheet
+                    view={view}
+                    side={barSide}
+                    coreKeys={coreKeysBySide.get(barSide.index) ?? EMPTY_KEYS}
+                    pending={pending || promptMinimized}
+                    send={sendAction}
+                    writtenFor={writtenFor}
+                    onRecordMissed={missedMoments.length ? recordMissedStratagem : undefined}
+                    className="lg:hidden"
+                  />
+                ) : null
+              }
               /*
                * `mb-0` because the column spaces its children with a bottom margin, and
                * a margin on a fixed box sits between it and the edge it is pinned to.
