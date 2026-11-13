@@ -20,6 +20,7 @@ import { StartRoster } from '../../rosters/ReferenceRosterActions'
 import { SectionHeading } from '../../../components/SectionHeading'
 import { RUNNER_COLUMNS } from '../runnerColumns'
 import { BackLink } from '../BackLink'
+import { FactionGames } from './FactionGames'
 
 export function FactionPage({ catalogueId }: { catalogueId: string }) {
   const { data: faction } = useQuery(factionQuery(catalogueId))
@@ -199,6 +200,7 @@ export function FactionPage({ catalogueId }: { catalogueId: string }) {
             })}
           </div>
         </section>
+        <FactionGames faction={faction} />
         {faction.edition ? (
           <details className="group part px-4 py-3">
             <summary className="rubric flex cursor-pointer items-center gap-2 hover:text-bone">
