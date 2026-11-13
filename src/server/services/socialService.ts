@@ -12,9 +12,7 @@ export class SocialService {
   ) {}
 
   /** Use one opponent list for both battle creation and its picker; friend search can include strangers and must not serve this path. */
-  async opponents(
-    userId: string,
-  ): Promise<{ id: string; name: string; image: string | null; colour: string | null }[]> {
+  async opponents(userId: string): Promise<{ id: string; name: string; image: string | null; colour: string | null }[]> {
     return sortedFriends(await this.repository.relationships(userId), userId).friends
   }
 
