@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.240.3 (2026-11-13)
+
+### Patch Changes
+
+- e87b6b8: Datasheet abilities, wargear abilities, enhancements and core rules now load their words from Game Datacards wherever it prints them, and from BSData only where it does not.
+
 ## 0.240.2 (2026-11-13)
 
 ### Patch Changes
