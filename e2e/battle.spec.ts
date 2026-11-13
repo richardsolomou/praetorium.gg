@@ -194,6 +194,29 @@ test('a double tap on the turn control ends one phase', async ({ page }) => {
   await expect(heading).toContainText('shooting phase')
 })
 
+test('a phone uses stratagems and gains CP from the bottom bar on any tab', async ({ page }) => {
+  await signUp(page, uniqueName('Phone stratagems'))
+  const roster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Phone stratagem roster' })
+  await practiceBattle(page, roster)
+  await startBattle(page)
+  await page.setViewportSize(PHONE)
+  await page.locator('.battle-focus-tabs').getByRole('tab', { name: 'Battle' }).click()
+
+  const open = page.locator('[data-turn-control]').getByRole('button', { name: /^Stratagems, \d+ CP$/ })
+  await open.click()
+  const sheet = page.getByRole('dialog', { name: 'Stratagems' })
+  const cp = sheet.locator('[data-stat="cp"]')
+  const before = Number(await cp.textContent())
+  await sheet.getByRole('button', { name: '+1 CP', exact: true }).click()
+  await expect(cp).toHaveText(String(before + 1))
+  await sheet.getByRole('button', { name: 'Use Command Re-roll', exact: true }).click()
+  await expect(cp).toHaveText(String(before))
+  await sheet.getByRole('button', { name: 'Back to the battle' }).click()
+  await expect(sheet).toBeHidden()
+  await expect(open).toHaveAccessibleName(`Stratagems, ${before} CP`)
+  await expectNoPageOverflow(page)
+})
+
 test('native battle controls leave the application tabs reachable', async ({ page }) => {
   await signUp(page, uniqueName('Native controls'))
   const roster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Native battle roster' })
