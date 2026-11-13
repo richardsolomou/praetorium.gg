@@ -39,9 +39,15 @@ function buildGameReferences(rules: BattleReadRules) {
   return {
     dispositions: dispositionDetails.map((disposition) => ({ ...disposition })),
     packs,
-    secondaries: rules.secondaries,
+    secondaries: rules.secondaries.map((card) => ({ ...card, slug: secondarySlug(rules.secondaries, card) })),
     deployments: rules.deployments,
   }
+}
+
+/** A secondary's URL segment: its name slug, or its source key where another card's name shares that slug. */
+function secondarySlug(secondaries: readonly { key: string; name: string }[], card: { key: string; name: string }) {
+  const slug = routeSlug(card.name)
+  return secondaries.some((other) => other !== card && routeSlug(other.name) === slug) ? card.key : slug
 }
 
 const cache = new WeakMap<BattleReadRules, ReturnType<typeof buildGameReferences>>()

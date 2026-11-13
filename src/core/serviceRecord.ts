@@ -28,7 +28,7 @@ export type StratagemPlay = {
 }
 
 /** A secondary card a side held, and the points the log banked against it. */
-export type CardPlay = { key: string; name: string; points: number; reference?: { packId: string } }
+export type CardPlay = { key: string; name: string; points: number; reference?: { packId: string; cardId: string } }
 
 /** The primary mission a side played. */
 type MissionPlay = { key: string; name: string; reference?: { packId: string; you: string; opponent: string } }

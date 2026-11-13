@@ -356,6 +356,7 @@ test('public reference data renders without client JavaScript', async ({ browser
   await expect(tacticalSecondary).toBeVisible()
   await expect(tacticalSecondary).not.toContainText('Fixed')
   const assassinationPath = (await fixedSecondary.getAttribute('href'))!
+  expect(assassinationPath).toBe('/missions/chapter-approved-2026-2027/secondaries/assassination')
   await expect(page.getByRole('heading', { name: 'Mission twists' })).toBeVisible()
   await expect(page).toHaveTitle(/Chapter Approved 2026-2027 missions — Praetorium/)
   await expectCanonical(page, '/missions/chapter-approved-2026-2027')
@@ -395,6 +396,7 @@ test('public reference data renders without client JavaScript', async ({ browser
   for (const published of [
     '/missions/chapter-approved-2026-2027/secondaries/assassination',
     '/mission-packs/chapter-approved-2026-2027/secondary-missions/assassination',
+    '/missions/chapter-approved-2026-2027/secondaries/56ceebfa-1be3-4520-a7cb-10b5e8b2a150',
   ]) {
     await page.goto(published)
     await expect(page).toHaveURL(assassinationPath)

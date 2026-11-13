@@ -113,7 +113,7 @@ export function MissionPackPage({ packId }: { packId: string }) {
               <Link
                 key={card.key}
                 to="/missions/$packId/secondaries/$cardId"
-                params={{ packId, cardId: card.key }}
+                params={{ packId, cardId: card.slug }}
                 className="flex min-h-11 w-full items-center justify-between gap-2 part px-3 py-2 text-left transition-colors hover:border-runner hover:bg-raised"
               >
                 <span className="font-semibold">{card.name}</span>

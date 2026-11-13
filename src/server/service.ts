@@ -1877,7 +1877,7 @@ function referencedPlays(
   const packId = digest.settings.missionPackId
   const packs = rules ? gameReferencesFor(rules).packs : []
   const pack = packs.find((candidate) => candidate.id === packId)
-  const cards = new Set(pack ? rules?.secondaries.map((card) => card.key) : [])
+  const cardSlugs = new Map(pack && rules ? gameReferencesFor(rules).secondaries.map((card) => [card.key, card.slug]) : [])
   return plays.map((play, index) => {
     const seat = digest.seats[index]!
     const allies = digest.seats.filter((candidate) => candidate.side === seat.side)
@@ -1900,7 +1900,10 @@ function referencedPlays(
         const reference = printedBy(use.detachment)
         return reference ? { ...use, reference } : use
       }),
-      cards: play.cards.map((card) => (packId && cards.has(card.key) ? { ...card, reference: { packId } } : card)),
+      cards: play.cards.map((card) => {
+        const cardId = cardSlugs.get(card.key)
+        return packId && cardId ? { ...card, reference: { packId, cardId } } : card
+      }),
       primary: mission
         ? {
             key: mission.id,

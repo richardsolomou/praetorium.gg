@@ -7,7 +7,7 @@ import { gameReferencesQuery } from '../../../queries'
 export function SecondaryMissionPage({ packId, cardId }: { packId: string; cardId: string }) {
   const { data } = useQuery(gameReferencesQuery())
   const pack = data?.packs.find((candidate) => candidate.id === packId)
-  const card = data?.secondaries.find((candidate) => candidate.key === cardId)
+  const card = data?.secondaries.find((candidate) => candidate.slug === cardId)
   if (!data || !pack || !card) return null
 
   return (
