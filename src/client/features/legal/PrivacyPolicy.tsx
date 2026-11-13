@@ -39,13 +39,13 @@ export function PrivacyPolicy() {
           the site stops offering it to you.
         </p>
         <p>
-          If you connect an MCP app, we store that app’s authorization, access grants and refresh tokens. You can revoke its access from
-          your profile’s security settings.
+          If you connect an AI assistant or another app over MCP, we store that app’s authorization, access grants and refresh tokens. You
+          can revoke its access from your profile’s security settings.
         </p>
         <p>
-          If you use a browser assistant, supported browsers can let it read game references and your saved rosters, collection, battles and
-          groups through your signed-in session. You review and approve proposed changes on the page. Information returned to the assistant
-          may be processed by its provider under that provider's privacy policy.
+          If you use an AI assistant in your browser, supported browsers can let it read game references and your saved rosters, collection,
+          battles and groups through your signed-in session. You review and approve proposed changes on the page. Information returned to
+          the assistant may be processed by its provider under that provider's privacy policy.
         </p>
         <p>
           If you allow notifications in the mobile app, we store that device's push token, its platform, and when it was last seen. Signing

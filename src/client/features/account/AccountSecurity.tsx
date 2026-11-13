@@ -230,7 +230,7 @@ export function AccountSecurity({ me, preferences }: { me: AccountIdentity; pref
       <section className="part p-5 md:p-7">
         <SectionHeading title="Connected apps" />
         <p className="text-sm text-dim">
-          Apps you have allowed to read or change your rosters, battles and events.{' '}
+          AI assistants and other apps you have allowed to read or change your rosters, battles and events.{' '}
           <Link to="/docs/$docId" params={{ docId: 'connect-an-assistant' }} className="text-info underline-offset-4 hover:underline">
             Connect Claude, ChatGPT or Gemini
           </Link>

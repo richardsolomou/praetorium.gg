@@ -1,4 +1,4 @@
-Your assistant only needs to sign in to work with your own rosters and battles. Everything else works without it.
+Your AI assistant, such as Claude or ChatGPT, only needs to sign in to work with your own rosters and battles. Everything else works without it.
 
 ## Connect your account
 

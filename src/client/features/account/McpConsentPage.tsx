@@ -21,7 +21,7 @@ export function McpConsentPage({
     error,
     run,
   } = useAuthAction({
-    failureMessage: () => 'Could not finish connecting. Start the connection again from your assistant.',
+    failureMessage: () => 'Could not finish connecting. Start the connection again from your AI assistant.',
   })
 
   const decide = async (accept: boolean) => {
