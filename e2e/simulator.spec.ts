@@ -673,7 +673,8 @@ test('automatic shooting and melee with stable edits', async ({ page }) => {
   const withMode = Number(await (await combatDamage(page, 'Shooting')).textContent())
   expect(withMode).toBeGreaterThan(0)
   await page.getByRole('tab', { name: /^Shooting/ }).click()
-  await expect(page.getByRole('button', { name: 'Cover (−1 BS)', exact: true })).toHaveAttribute('aria-pressed', 'false')
+  // Swapping back returns to this direction's own modifiers.
+  await expect(page.getByRole('button', { name: 'Cover (−1 BS)', exact: true })).toHaveAttribute('aria-pressed', 'true')
   await setStep(page, 'Feel No Pain', '5+')
   await expect(page.getByRole('region', { name: 'Defender', exact: true }).locator('[data-characteristic="FNP"] .readout')).toHaveText('5+')
   await expect(shooting).toHaveAttribute('aria-busy', 'false')
