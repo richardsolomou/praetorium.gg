@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.238.1 (2026-11-13)
+
+### Patch Changes
+
+- 3bfd526: Importing a New Recruit share link now counts the models New Recruit groups under a loadout, such as Jakhals taken as "8 chainblades".
+
 ## 0.238.0 (2026-11-13)
 
 ### Minor Changes
