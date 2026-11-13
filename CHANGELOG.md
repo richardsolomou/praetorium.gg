@@ -1,5 +1,13 @@
 # praetorium
 
+## 0.240.1 (2026-11-13)
+
+### Patch Changes
+
+- 2cdfbb0: Playing both sides now makes every place yours, named after the army you choose, including any ally you add, instead of seating a practice opponent.
+- 2cdfbb0: Add ally is now a dashed place under each side in battle setup, so it is easy to find.
+- 2cdfbb0: An empty ally place in battle setup now offers the battle link, so the ally can join it.
+
 ## 0.240.0 (2026-11-13)
 
 ### Minor Changes
