@@ -18,7 +18,7 @@ export function ArmyThreats({ army, side }: { army: Army; side: Side }) {
   const built = army.roster?.built
   const { rows, request } = survivingUnits(army.units, built?.picks)
   const query = combatantDatasheetsQuery({ catalogueId: built?.catalogueId ?? '', detachmentIds: built?.detachmentIds ?? [], ...request })
-  const reads = Boolean(built && query.enabled)
+  const reads = request.pickIndices.length > 0
   const { data, isError, isPending } = useQuery({ ...query, enabled: open && reads })
   if (!rows.length) return null
   const threats = armyThreats(rows, data)
