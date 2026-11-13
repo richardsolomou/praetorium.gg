@@ -150,7 +150,7 @@ import { countLabel } from '../../text'
 import { Problem } from '../../components/Problem'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { useAccountPrompt } from './AccountPrompt'
-import { CreateBattle } from '../battles/CreateBattle'
+import { useNewBattle } from '../battles/NewBattle'
 import { guestDraftOf, peekGuestDraft, writeGuestDraft } from './guestDraft'
 import { toggled, withMember } from '../../../core/collections'
 import { usePrintWhenReady } from './usePrintWhenReady'
@@ -300,7 +300,7 @@ export function ListBuilder({
   const [lending, setLending] = useState(false)
   const [grading, setGrading] = useState(false)
   const [returning, setReturning] = useState(false)
-  const [startingBattle, setStartingBattle] = useState(false)
+  const startBattle = useNewBattle()
   const [deleting, setDeleting] = useState(false)
   const [printInput, setPrintInput] = useState<RosterPrintInput | null>(null)
   const automaticPrint = useRef(false)
@@ -1334,8 +1334,8 @@ export function ListBuilder({
       size="sm"
       variant="outline"
       aria-label="Start a battle"
-      disabled={saving}
-      onClick={guest ? () => account.ask('battle') : () => setStartingBattle(true)}
+      disabled={saving || startBattle.isPending}
+      onClick={guest ? () => account.ask('battle') : () => startBattle.mutate({ rosterId: savedId ?? undefined })}
     >
       <Swords /> <span className="sm:hidden">Battle</span>
       <span className="max-sm:hidden">Start a battle</span>
@@ -2028,7 +2028,6 @@ export function ListBuilder({
       {savedId && (editable || locked) && !guest ? (
         <>
           <RosterLoanDialog rosterId={savedId} open={lending} onClose={() => setLending(false)} />
-          <CreateBattle rosterId={savedId} open={startingBattle} onOpenChange={setStartingBattle} />
         </>
       ) : null}
       {ownsSaved ? (

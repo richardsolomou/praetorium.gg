@@ -4,7 +4,6 @@ import {
   addUnit,
   expectNoHorizontalOverflow,
   attachRoster,
-  befriend,
   createBattle,
   createRoster,
   PRACTICE_OPPONENT,
@@ -279,9 +278,7 @@ test('a team matchup switches allied armies and carries both sides through a swa
   await addUnit(page, 'Intercessor Squad')
   const opponentRoster = await createRoster(page, { faction: 'Space Marines', detachment: /Gladius Task Force/, name: 'Opposing Marines' })
   await addUnit(page, 'Intercessor Squad')
-  await befriend(page, ally)
-  const url = await createBattle(page, { yourAlly: allyName, practice: true })
-  await ally.goto(url)
+  await createBattle(page, { yourAlly: ally, practice: true })
   await attachRoster(page, roster)
   await attachRoster(page, opponentRoster, { forPlayer: PRACTICE_OPPONENT })
   await attachRoster(ally, allyRoster)

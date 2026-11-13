@@ -2,19 +2,17 @@ import { expect, test } from './test'
 import { ROSTER_WIDE } from './builder.harness'
 import {
   advance,
-  attachRoster,
   createRoster,
-  PRACTICE_OPPONENT,
   setupStep,
   signUp,
   startBattle,
   uniqueName,
   visitorSetup,
   chooseFaction,
-  chooseOption,
   concede,
   openImport,
   PHONE,
+  practiceBattle,
 } from './account'
 import { guestDraft } from './storage'
 
@@ -123,13 +121,7 @@ test('a casual player practises a round, corrects an action and reviews the fini
   await page.goto('/rosters')
   await expect(page.getByRole('button', { name: 'Practise a game', exact: true })).toBeHidden()
   await page.screenshot({ path: testInfo.outputPath('roster-actions.png') })
-  await page.goto('/battles')
-  await page.getByRole('button', { name: 'New battle', exact: true }).first().click()
-  const dialog = page.getByRole('dialog', { name: 'Start a battle', exact: true })
-  await chooseOption(page, 'Opponent', PRACTICE_OPPONENT)
-  await dialog.getByRole('button', { name: 'Start battle', exact: true }).click()
-  await attachRoster(page, roster)
-  await attachRoster(page, roster, { forPlayer: PRACTICE_OPPONENT })
+  await practiceBattle(page, roster)
   // Both hands are dealt once both armies are in.
   await expect(page.locator('#setup-secondaries')).toHaveAttribute('data-complete', 'true')
   await setupStep(page, 'Secondaries')

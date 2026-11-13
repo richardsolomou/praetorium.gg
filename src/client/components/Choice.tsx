@@ -7,7 +7,7 @@ const COLUMNS: Record<number, string> = { 1: 'grid-cols-1', 2: 'grid-cols-2', 3:
 const WIDE_COLUMNS: Record<number, string> = { 2: 'sm:grid-cols-2', 3: 'sm:grid-cols-3' }
 
 /**
- * A small set of options laid out as cards, one of them pressed.
+ * A small set of options laid out as cards, one of them pressed, or none while `value` is null and nothing is chosen yet.
  *
  * By default the whole set sits across one row from `sm` and stacks below it, so a set
  * of three is never two cards and an orphan. `columns` fixes the grid at every width
@@ -23,7 +23,7 @@ export function Choice<T extends string>({
   onChange,
 }: {
   label: string
-  value: T
+  value: T | null
   options: ChoiceOption<T>[]
   columns?: 1 | 2 | 3
   disabled?: boolean

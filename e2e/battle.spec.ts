@@ -6,7 +6,6 @@ import {
   advanceButton,
   confirmScoring,
   attachRoster,
-  befriend,
   createBattle,
   createRoster,
   desktopContext,
@@ -379,7 +378,7 @@ test('a tactical hand pays out when the card says', async ({ browser }) => {
   await uploadAvatar(alice)
   const aliceRoster = await createRoster(alice, { faction: 'Death Guard', detachment: /Shamblerot Vectorium/, name: 'Death Guard' })
   await addUnit(alice, 'Lord of Virulence')
-  await setupBattle(alice, bob, { opponent: bobName, hostRoster: aliceRoster, guestRoster: bobRoster })
+  await setupBattle(alice, bob, { hostRoster: aliceRoster, guestRoster: bobRoster })
 
   const hand = alice.locator('[data-panel="player"]').filter({ hasText: 'Death Guard' }).locator('[data-secondary]')
   await expect(hand).toHaveCount(2)
@@ -629,11 +628,8 @@ test('paired secondary missions may be kept or put back as they are drawn', asyn
   const alice = await (await browser.newContext(desktopContext)).newPage()
   const bob = await (await browser.newContext(desktopContext)).newPage()
   const { bobName, aliceRoster, bobRoster } = await rosteredPlayers(alice, bob)
-  await befriend(alice, bob)
-  const url = await createBattle(alice, { opponent: bobName })
-  await bob.goto(url)
+  await createBattle(alice, { opponent: bob })
   await attachRoster(alice, aliceRoster)
-  await setupStep(bob, 'Armies')
   await attachRoster(bob, bobRoster)
   // The battlefield follows from both dispositions, so the host has to have seen both armies.
   await expect(alice.getByText(bobRoster, { exact: true }).first()).toBeVisible()
@@ -731,7 +727,6 @@ test('a secret mission chosen before they were retired is handed off before its 
   const bob = await (await browser.newContext(desktopContext)).newPage()
   const { aliceName, bobName, aliceRoster, bobRoster } = await rosteredPlayers(alice, bob)
   await setupBattle(alice, bob, {
-    opponent: bobName,
     hostRoster: aliceRoster,
     guestRoster: bobRoster,
     beforeStart: async () => {
@@ -871,7 +866,7 @@ test('a pass answered slowly leaves settling the empty turn to the device that g
   const bobRoster = await createRoster(bob, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Necrons' })
   await signUp(alice, uniqueName('Alice'))
   const aliceRoster = await createRoster(alice, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Necrons' })
-  await setupBattle(alice, bob, { opponent: bobName, hostRoster: aliceRoster, guestRoster: bobRoster })
+  await setupBattle(alice, bob, { hostRoster: aliceRoster, guestRoster: bobRoster })
   const token = lastPathSegment(alice.url())
   const { id } = await battleLog(alice)
   // A battle page reads the rules that show a pass ahead of the service only once the device has saved its download.

@@ -15,7 +15,6 @@
   "account.spec.ts › a player can edit their display name and profile picture": 3.8,
   "account.spec.ts › a player can permanently delete their account": 9.4,
   "account.spec.ts › a player can reject an incoming friend request": 12.6,
-  "account.spec.ts › a player without friends invites an opponent from the new battle dialog and then seats them": 9.5,
   "account.spec.ts › a seated battle signs the opponent in and drops them back into setup": 16.3,
   "account.spec.ts › account forms show the server error": 6.4,
   "account.spec.ts › an unverified account cannot forge a verification success message": 3.6,

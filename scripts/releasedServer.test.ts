@@ -23,6 +23,14 @@ const released = process.env.RELEASED_CHECKOUT
  * then writes it has no reason to make. A procedure missing from both the seed and this list fails the check below.
  */
 const UNREACHED = new Set([
+  'battle_by_invite',
+  'battle_draft_state',
+  'battle_invite',
+  'drafts_by_user',
+  'remove_battle_player',
+  'seat_battle_player',
+  'stop_battle_invite',
+  'sweep_drafts',
   'change_rosters',
   'claim_imported_battle',
   'external_accounts_by_user',

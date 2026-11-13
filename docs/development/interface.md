@@ -27,6 +27,7 @@
 
 ## Data shown to readers
 
+- Battle setup never folds a step: every step's body stays on the page, and one not reached yet is faded and `inert`. Choosing, changing and removing an army and its per-army settings live on the face-off cards (`src/client/features/battle/setup/FaceOff.tsx`), not in a step.
 - Frozen battle and sealed event snapshots show their recorded cards, totals, and version, never today's legality or warnings.
 - A copy names its source only while the reader may still open it (`rosterAccess`).
 - Link previews use the signed-out view and ignore the session; inaccessible images return `404` with `no-store`. Battles expose only the spectator view.

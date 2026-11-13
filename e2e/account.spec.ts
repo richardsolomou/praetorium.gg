@@ -3,9 +3,11 @@ import {
   befriend,
   choosePlayerDefault,
   chooseRosterDefault,
+  chooseTracking,
   createBattle,
   createRoster,
-  retryUntilVisible,
+  newBattle,
+  shareBattleLink,
   signUp,
   uniqueName,
   expectNoPageOverflow,
@@ -269,7 +271,8 @@ test('profile defaults apply to rosters while battles infer their format', async
   await page.keyboard.press('Escape')
 
   await createBattle(page, { practice: true })
-  await expect(page.locator('#setup-format').getByText('After the armies', { exact: true })).toBeVisible()
+  // A battle takes its size from the lists chosen for it, so the player default never asks for one.
+  await expect(page.locator('#setup-format').getByRole('combobox', { name: 'Battle size' })).toHaveCount(0)
 })
 
 test('a player can permanently delete their account', async ({ page }) => {
@@ -367,39 +370,6 @@ test('a one-time link connects a new player after they create an account and acc
 
   await inviterContext.close()
   await recipientContext.close()
-})
-
-test('a player without friends invites an opponent from the new battle dialog and then seats them', async ({ browser }) => {
-  const inviterContext = await browser.newContext({ permissions: ['clipboard-read', 'clipboard-write'] })
-  const recipientContext = await browser.newContext()
-  try {
-    const inviter = await inviterContext.newPage()
-    const recipient = await recipientContext.newPage()
-    const inviterName = uniqueName('Battle inviter')
-    const recipientName = uniqueName('Battle invitee')
-    await signUp(inviter, inviterName)
-    await signUp(recipient, recipientName)
-
-    await inviter.goto('/battles')
-    const dialog = inviter.getByRole('dialog', { name: 'Start a battle' })
-    await retryUntilVisible(dialog, () => inviter.getByRole('button', { name: 'New battle' }).click())
-    await dialog.getByRole('button', { name: 'Copy invite link', exact: true }).click()
-    await expect(dialog.getByRole('button', { name: 'Link copied', exact: true })).toBeVisible()
-    const inviteUrl = await inviter.evaluate(() => navigator.clipboard.readText())
-
-    await recipient.goto(inviteUrl)
-    await recipient.getByRole('button', { name: 'Accept invite' }).click()
-    await expect(recipient).toHaveURL(/\/friends$/)
-
-    await inviter.reload()
-    await retryUntilVisible(dialog, () => inviter.getByRole('button', { name: 'New battle' }).click())
-    await dialog.getByRole('combobox', { name: 'Opponent' }).click()
-    await expect(inviter.getByRole('option', { name: recipientName, exact: true })).toBeVisible()
-    await expect(dialog.getByRole('button', { name: /invite/i })).toHaveCount(0)
-  } finally {
-    await inviterContext.close()
-    await recipientContext.close()
-  }
 })
 
 test('a player can reject an incoming friend request', async ({ browser }) => {
@@ -503,14 +473,15 @@ test('a seated battle signs the opponent in and drops them back into setup', asy
   const bobName = uniqueName('Bob')
   const bob = await signUp(guest, bobName)
   await signUp(host, aliceName)
-  await befriend(host, guest)
   await signOut(guest)
   await expect(guest.getByRole('link', { name: 'Sign in' }).first()).toBeVisible()
 
-  const link = await createBattle(host, { opponent: bobName })
+  await newBattle(host)
+  await chooseTracking(host)
+  const link = await shareBattleLink(host)
 
   await guest.goto(link)
-  await guest.getByRole('main').getByRole('link', { name: 'Sign in' }).click()
+  await guest.getByRole('main').getByRole('link', { name: 'Sign in to join' }).click()
   await guest.waitForLoadState('networkidle')
   await guest.getByLabel('Email').fill(bob.email)
   await guest.getByLabel('Password').fill(bob.password)

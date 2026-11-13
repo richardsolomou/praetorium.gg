@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './test'
-import { savedArmy, setupStep, waitForRosterSave, openRosterSetup, practiceBattle, desktopContext } from './account'
+import { savedArmy, waitForRosterSave, openRosterSetup, practiceBattle, desktopContext } from './account'
 import { expectNoHorizontalOverflow } from './builder.harness'
 
 async function openArmy(page: Page, name: string) {
@@ -105,12 +105,10 @@ test('a custom points budget is validated, enforced, saved and fielded', async (
   })
 
   await practiceBattle(page, `${name} renamed`)
-  await setupStep(page, 'Armies')
-  const armies = page.getByRole('region', { name: 'Armies' })
+  const armies = page.locator('[data-face-off-side="0"]').locator('..')
   await atEachWidth(page, async (width) => {
-    await expect(page.getByRole('region', { name: 'Format' })).toContainText('Strike Force · 2,500-point budget')
-    await expect(armies.getByText(/of 2,500 points$/).first()).toBeVisible()
-    await expect(page.locator('#setup-armies')).toHaveAttribute('data-complete', 'true')
+    await expect(armies.getByText(/^[\d,]+ of 2,500 pts · /).first()).toBeVisible()
+    await expect(page.locator('#setup-mission')).toHaveAttribute('data-locked', 'false')
     await expectNoHorizontalOverflow(armies)
     await armies.screenshot({ path: test.info().outputPath(`budget-battle-${width}.png`) })
   })

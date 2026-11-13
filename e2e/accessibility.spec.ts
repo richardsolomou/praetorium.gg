@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './test'
-import { createRoster, setupStep, signUp, startBattle, expectNoPageOverflow, practiceBattle, chooseOption, PHONE } from './account'
+import { createRoster, setupStep, signUp, startBattle, expectNoPageOverflow, practiceBattle, PHONE } from './account'
 import { chooseCombatUnit, openCombatBreakdown } from './combat'
 import { expectNoHorizontalOverflow } from './builder.harness'
 
@@ -30,10 +30,15 @@ test('opening a battle is operable from the keyboard', async ({ page }) => {
   const newBattle = page.getByRole('button', { name: 'New battle' })
   await expect(newBattle).toBeFocused()
   await page.keyboard.press('Enter')
-  await expect(page.getByRole('dialog', { name: 'Start a battle' })).toBeVisible()
-  await chooseOption(page, 'Opponent', 'Practice Opponent')
-  await page.getByRole('button', { name: 'Start battle' }).click()
   await expect(page).toHaveURL(/\/battles\/[^/]+$/)
+  await expect(page.getByRole('heading', { name: /^Set up the battle/ })).toBeVisible()
+  // Setup answers from the keyboard too: the tracking choice opens the steps after it.
+  const guided = page.locator('#setup-format').getByRole('button', { name: /^Guided/ })
+  await expect(async () => {
+    await guided.focus()
+    await page.keyboard.press('Enter')
+    await expect(page.locator('#setup-opponent')).toHaveAttribute('data-locked', 'false', { timeout: 2_000 })
+  }).toPass({ timeout: 20_000 })
 })
 
 test('reduced motion removes meaningful transitions', async ({ page }) => {

@@ -13,7 +13,8 @@ import { battleFilterOf, type BattleListSearch, type BattlesView } from './battl
 import { NoFilterMatches } from '../../components/NoFilterMatches'
 import { BattleShelf } from './BattleShelf'
 import { MoreBattles } from './BattleFeedList'
-import { CreateBattle } from './CreateBattle'
+import { NewBattle } from './NewBattle'
+import { DraftResume } from './DraftResume'
 import { DeleteBattleDialog } from './DeleteBattle'
 import { ImportBattles } from './ImportBattles'
 import { PageContent, PageHeader } from '../../components/Page'
@@ -73,7 +74,7 @@ export function BattlesPage({ view: asked, search, order }: { view: BattlesView;
           me ? (
             <>
               {view === 'mine' ? <ImportBattles /> : null}
-              {view === 'mine' && !battles.length ? null : <CreateBattle />}
+              {view === 'mine' && !battles.length ? null : <NewBattle />}
             </>
           ) : (
             <Link to="/sign-in" search={{ next: '/battles' }} className={buttonClass()}>
@@ -111,6 +112,7 @@ export function BattlesPage({ view: asked, search, order }: { view: BattlesView;
             updating={feed.isPlaceholderData}
           />
         ) : null}
+        {view === 'mine' && !filtered ? <DraftResume /> : null}
         {matches ??
           (view === 'mine' ? (
             battles.length ? (
@@ -137,7 +139,7 @@ export function BattlesPage({ view: asked, search, order }: { view: BattlesView;
                 title="No battles yet."
                 explanation="Practise on your own, or add a friend and start a game together."
                 icon={Swords}
-                action={<CreateBattle />}
+                action={<NewBattle />}
               />
             )
           ) : view === 'friends' ? (

@@ -49,7 +49,7 @@ import { matchesSearch } from '../../text'
 import { RosterRow } from './RosterRow'
 import { RosterLoanDialog } from './RosterLoanDialog'
 import { SavedRosterGradesDialog } from './RosterGradesDialog'
-import { CreateBattle } from '../battles/CreateBattle'
+import { useNewBattle } from '../battles/NewBattle'
 import { type RosterShareChoices, RosterShareDialog } from './RosterShareDialog'
 import { rosterTitle } from './RosterSummary'
 import { RosterSelectionToolbar } from './RosterSelectionToolbar'
@@ -280,7 +280,7 @@ export function RosterLibraryPage({
   const [sharingId, setSharingId] = useState<string | null>(null)
   const sharing = saved.find((roster) => roster.id === sharingId) ?? null
   const [lendingId, setLendingId] = useState<string | null>(null)
-  const [battleRosterId, setBattleRosterId] = useState<string | null>(null)
+  const startBattle = useNewBattle()
   const [grading, setGrading] = useState<{ id: string; name: string } | null>(null)
   const [session, setEditing] = useWorkspaceState<EditingSession>(WORKSPACE_PATH, SETUP_STATE)
   const editing = saved.find((roster) => roster.id === session?.rosterId) ?? null
@@ -348,7 +348,7 @@ export function RosterLibraryPage({
         onEdit={() => setEditing({ rosterId: roster.id, draft: rosterSetupOf(roster) })}
         onShare={() => setSharingId(roster.id)}
         onLend={() => setLendingId(roster.id)}
-        onStartBattle={() => setBattleRosterId(roster.id)}
+        onStartBattle={() => startBattle.mutate({ rosterId: roster.id })}
         onGrade={() => setGrading({ id: roster.id, name: rosterTitle(roster, factionOf(roster), pageById.get(roster.id)?.label) })}
         onDelete={() => setDeleting({ rosters: [roster], together: false })}
         onNeedsAccount={guest ? account.ask : undefined}
@@ -702,7 +702,6 @@ export function RosterLibraryPage({
         />
       ) : null}
       {lendingId ? <RosterLoanDialog rosterId={lendingId} open onClose={() => setLendingId(null)} /> : null}
-      {battleRosterId ? <CreateBattle rosterId={battleRosterId} open onOpenChange={(open) => !open && setBattleRosterId(null)} /> : null}
       {grading ? <SavedRosterGradesDialog id={grading.id} guest={guest} name={grading.name} onClose={() => setGrading(null)} /> : null}
       <RosterExportDialog exported={actions.exportText} onClose={actions.clearExport} />
       <RosterExchangeDialog exchange={actions.exchangeCode} onClose={actions.clearExchange} />

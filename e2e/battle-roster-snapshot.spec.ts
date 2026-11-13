@@ -9,7 +9,8 @@ test('a fielded roster opens as the frozen read-only roster view', async ({ page
   const rosterId = lastPathSegment(page.url())
 
   const battleUrl = await practiceBattle(page, rosterName)
-  await expect(page.locator('#setup-armies')).toHaveAttribute('data-complete', 'true')
+  // Every army in opens the steps that wait on them.
+  await expect(page.locator('#setup-mission')).toHaveAttribute('data-locked', 'false')
   const token = lastPathSegment(battleUrl)
   await page.goto(`/rosters/${rosterId}?battle=${token}`)
   await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', 'noindex')

@@ -5,8 +5,10 @@ import {
   advanceButton,
   attachRoster,
   chooseBattlefield,
-  createBattle,
+  chooseTracking,
   createRoster,
+  newBattle,
+  playBothSides,
   PRACTICE_OPPONENT,
   signUp,
   startBattle,
@@ -20,18 +22,16 @@ test('track a battle', async ({ page }) => {
   await signUp(page, 'Aurelia')
   const roster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Necron army' })
 
-  await createBattle(page, {
-    practice: true,
-    beforeCreate: async (dialog) => {
-      await capture('track-a-battle-tracking', dialog, dialog.getByRole('group', { name: 'Tracking' }))
-      await page.getByRole('combobox', { name: 'Opponent' }).click()
-      const seats = page.locator('[data-slot="combobox-content"]')
-      await expect(seats.getByRole('option', { name: PRACTICE_OPPONENT, exact: true })).toBeVisible()
-      await capture('track-a-battle-new-battle', dialog, seats)
-      await page.keyboard.press('Escape')
-      await expect(seats).toBeHidden()
-    },
-  })
+  await newBattle(page)
+  await expect(page.locator('[data-face-off-side="1"]').getByRole('button', { name: 'Share a link' })).toBeVisible()
+  // The header and the first step, without the steps below it or the bar pinned over them.
+  const later = await page.addStyleTag({ content: 'main ol > li:not(:first-child), [data-setup-bar] { display: none !important; }' })
+  await capture('track-a-battle-new-battle', page.locator('main .max-w-5xl').first())
+  await later.evaluate((element) => element.remove())
+  const tracking = page.getByRole('region', { name: 'Tracking', exact: true })
+  await capture('track-a-battle-tracking', tracking, tracking.getByRole('group', { name: 'How you track it' }))
+  await chooseTracking(page)
+  await playBothSides(page)
 
   await attachRoster(page, roster)
   await attachRoster(page, roster, { forPlayer: PRACTICE_OPPONENT })

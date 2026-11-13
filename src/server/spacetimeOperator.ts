@@ -146,6 +146,7 @@ const productStat = z.object({
   practiceOpponent: z.boolean(),
 })
 const invite = z.object({ token: z.string(), inviterId: z.string() })
+const battleLink = z.object({ invite: z.string(), invitedIds: z.array(z.string()) })
 const acceptedInvite = z.union([z.enum(['missing', 'self', 'already-friends']), z.object({ inviterId: z.string() })])
 const onboarding = z.object({
   tasks: z.array(z.object({ task: z.string(), state: z.enum(['completed', 'skipped']) })),
@@ -515,6 +516,7 @@ export class SpacetimeOperator {
     initialCommands?: Command[]
     now: number
     fixtureKey?: string
+    draft?: boolean
     imported?: { source: ImportSource; sourceId: string; times: number[]; players: [string, string] }
   }) {
     return this.read(
@@ -530,11 +532,44 @@ export class SpacetimeOperator {
           initialCommands: input.initialCommands ?? [],
           now: input.now,
           ...(input.fixtureKey ? { fixtureKey: input.fixtureKey } : {}),
+          ...(input.draft ? { draft: true } : {}),
           imported: input.imported,
         }),
       ],
       battleSnapshot,
     )
+  }
+
+  async seatBattlePlayer(input: { battleId: string; userId: string; side: 0 | 1; by: string; invite?: string; now: number }) {
+    return this.read('seat_battle_player', [JSON.stringify(input)], z.enum(['joined', 'missing', 'not-yours', 'seated', 'started', 'full']))
+  }
+
+  async removeBattlePlayer(battleId: string, by: string, userId: string) {
+    return this.reply('remove_battle_player', [battleId, by, userId], z.boolean())
+  }
+
+  async battleInvite(battleId: string, by: string, link: string, inviteeId?: string) {
+    return this.read('battle_invite', [battleId, by, link, inviteeId ?? ''], battleLink.nullable())
+  }
+
+  async stopBattleInvite(battleId: string, by: string) {
+    return this.reply('stop_battle_invite', [battleId, by], z.boolean())
+  }
+
+  async battleDraftState(battleId: string) {
+    return this.read('battle_draft_state', [battleId], z.object({ draft: z.boolean(), invite: battleLink.nullable() }))
+  }
+
+  async battleByInvite(link: string) {
+    return (await this.read('battle_by_invite', [link], battleSnapshot.nullable())) ?? undefined
+  }
+
+  async draftsByUser(userId: string) {
+    return this.read('drafts_by_user', [userId, DIGEST_REVISION], battleFeedResult.shape.battles)
+  }
+
+  async sweepDrafts(before: number) {
+    return this.reply('sweep_drafts', [before], z.number().int().nonnegative())
   }
 
   async claimImportedBattle(input: { source: ImportSource; sourceId: string; userId: string; playerId: string }) {

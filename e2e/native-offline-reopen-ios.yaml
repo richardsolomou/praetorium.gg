@@ -11,7 +11,6 @@ appId: gg.praetorium
 - takeScreenshot: native-edit-after-cold-reopen
 - tapOn: Battles
 - tapOn: '(?is).*Practice Opponent.*'
-- tapOn: Armies
 - assertVisible: '(?i)Edited native army offline.*'
 - takeScreenshot: native-battle-after-cold-reopen
 - tapOn: More
