@@ -400,30 +400,40 @@ export function CombatSimulatorMatchup({
   }, [matchupKey])
   const [displayKey, setDisplayKey] = useState(matchupKey)
   if (attacker.ready && defender.ready && displayKey !== matchupKey) setDisplayKey(matchupKey)
-  const sides = { reversed, attacker: attacker.identity, defender: defender.identity }
-  const [settings, setSettings] = useState(() => ({ key: matchupKey, ...sides, value: initial?.matchup }))
+  type Stored = { key: string; attacker: string; defender: string; value?: MatchupSettings }
+  // Each direction keeps its own settings, so swapping back returns to the matchup the player set up.
+  const [settings, setSettings] = useState<Record<'forward' | 'reversed', Stored | undefined>>(() => ({
+    forward: undefined,
+    reversed: undefined,
+    [reversed ? 'reversed' : 'forward']: {
+      key: matchupKey,
+      attacker: attacker.identity,
+      defender: defender.identity,
+      value: initial?.matchup,
+    },
+  }))
+  const direction = reversed ? 'reversed' : 'forward'
   const reportSettings = useCallback(
     (value: MatchupSettings) => {
       if (displayKey !== matchupKey || activeMatchup.current !== matchupKey) return
       setSettings((current) =>
-        current.key === matchupKey && JSON.stringify(current.value) === JSON.stringify(value)
+        current[direction]?.key === matchupKey && JSON.stringify(current[direction]?.value) === JSON.stringify(value)
           ? current
-          : { key: matchupKey, reversed, attacker: attacker.identity, defender: defender.identity, value },
+          : { ...current, [direction]: { key: matchupKey, attacker: attacker.identity, defender: defender.identity, value } },
       )
     },
-    [matchupKey, displayKey, reversed, attacker.identity, defender.identity],
+    [matchupKey, displayKey, direction, attacker.identity, defender.identity],
   )
-  // Modifiers describe the situation, so they outlast a change of unit but not a swap of roles; weapon switches and allocation belong to the unit.
+  // Modifiers describe the situation, so they outlast a change of unit; weapon switches and allocation belong to the unit.
+  const stored = settings[direction]
   const carried =
-    settings.key === matchupKey
-      ? settings.value
-      : settings.reversed === reversed && settings.value
-        ? {
-            ...settings.value,
-            excluded: settings.attacker === sides.attacker ? settings.value.excluded : noExclusions(),
-            allocation: settings.defender === sides.defender ? settings.value.allocation : [],
-          }
-        : undefined
+    stored?.key === matchupKey
+      ? stored.value
+      : stored?.value && {
+          ...stored.value,
+          excluded: stored.attacker === attacker.identity ? stored.value.excluded : noExclusions(),
+          allocation: stored.defender === defender.identity ? stored.value.allocation : [],
+        }
   const matchup = {
     ...(carried ?? {
       adjustments: {},
