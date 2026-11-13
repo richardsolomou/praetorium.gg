@@ -18,14 +18,15 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { isEntryPoint } from './lib/entryPoint.ts'
 
-type SpecReport = { title: string; tests?: { results?: { status: string; duration: number }[] }[] }
+type Attachment = { name: string; path?: string }
+type SpecReport = { title: string; tests?: { results?: { status: string; duration: number; attachments?: Attachment[] }[] }[] }
 type Suite = { title: string; file: string; specs?: SpecReport[]; suites?: Suite[] }
-type Report = { suites: Suite[] }
+export type Report = { suites: Suite[] }
 type Durations = Record<string, number>
 
 const durationsFile = path.join(import.meta.dirname, '..', 'e2e', 'durations.json')
 
-function specsOf(report: Report) {
+export function specsOf(report: Report) {
   const specs: { title: string; spec: SpecReport }[] = []
   const walk = (suite: Suite, titlePath: string[]) => {
     for (const spec of suite.specs ?? []) specs.push({ title: [...titlePath, spec.title].join(' › '), spec })

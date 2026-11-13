@@ -10,10 +10,7 @@ import { execFileSync } from 'node:child_process'
 import { copyFileSync, mkdirSync, mkdtempSync, readdirSync, readFileSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-
-type Attachment = { name: string; path?: string }
-type Suite = { specs?: { tests: { results: { attachments: Attachment[] }[] }[] }[]; suites?: Suite[] }
-type Report = { config: { configFile: string }; suites: Suite[] }
+import { specsOf, type Report } from './e2eShard.ts'
 
 const run = process.argv[2]
 if (!run) throw new Error('usage: tsx scripts/e2eScreenshots.ts <run id>')
@@ -30,10 +27,12 @@ const downloaded = (runnerPath: string) => {
 }
 
 let copied = 0
-const walk = (suite: Suite, root: string) => {
-  for (const spec of suite.specs ?? [])
-    for (const test of spec.tests) {
-      const attachments = test.results.at(-1)?.attachments ?? []
+for (const reportFile of files.filter((file) => /e2e-report-\d+\.json$/.test(file))) {
+  const report = JSON.parse(readFileSync(reportFile, 'utf8')) as Report & { config: { configFile: string } }
+  const root = path.dirname(report.config.configFile)
+  for (const { spec } of specsOf(report))
+    for (const test of spec.tests ?? []) {
+      const attachments = test.results?.at(-1)?.attachments ?? []
       for (const actual of attachments.filter(({ name }) => name.endsWith('-actual.png'))) {
         const expected = attachments.find(({ name }) => name === actual.name.replace(/-actual\.png$/, '-expected.png'))
         const image = actual.path && downloaded(actual.path)
@@ -45,10 +44,5 @@ const walk = (suite: Suite, root: string) => {
         copied += 1
       }
     }
-  for (const child of suite.suites ?? []) walk(child, root)
-}
-for (const reportFile of files.filter((file) => /e2e-report-\d+\.json$/.test(file))) {
-  const report = JSON.parse(readFileSync(reportFile, 'utf8')) as Report
-  for (const suite of report.suites) walk(suite, path.dirname(report.config.configFile))
 }
 if (copied === 0) console.log(`run ${run} has no failed screenshot comparisons`)

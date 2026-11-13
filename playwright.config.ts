@@ -19,9 +19,11 @@ export default defineConfig({
   // A whole journey can pass 45 seconds on a loaded runner; this only stops a stuck test, and `expect.timeout` is the wait that matters.
   timeout: 120_000,
   // Live updates include a SpacetimeDB subscription and a refetch.
-  expect: { timeout: 15_000 },
-  // Screenshot baselines are the CI runner's renders alone, so they carry no project or platform suffix.
+  expect: { timeout: 15_000, toHaveScreenshot: { stylePath: path.join(import.meta.dirname, 'e2e/screenshot.css') } },
+  // Screenshot baselines are the Linux CI runner's renders alone (`just e2e-screenshots`), so they carry
+  // no project or platform suffix, and other platforms run the journeys without comparing pictures.
   snapshotPathTemplate: '{snapshotDir}/{testFileDir}/{testFileName}-snapshots/{arg}{ext}',
+  ignoreSnapshots: process.platform !== 'linux',
   reporter: process.env.CI ? 'github' : 'list',
   // Geometry is measured at rest: overlays and pages would otherwise still be moving when a check reads them.
   use: {

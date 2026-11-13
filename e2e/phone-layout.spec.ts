@@ -1,25 +1,17 @@
-import path from 'node:path'
 import { expect, test, type Page } from './test'
 import { PHONE, addUnit, advanceButton, createRoster, playerPanel, practiceBattle, signUp, startBattle } from './account'
 import { closePicker, openBuilder } from './builder.harness'
 
 /**
- * Pictures of the screens players open most on a phone, compared with baselines the Linux CI
- * runner took. The overflow checks elsewhere catch a page that scrolls sideways; these catch
- * clipping, overlap and broken stacking that stay inside the screen.
- *
- * Font rendering differs between machines, so baselines only come from CI: after a failed run,
- * `just e2e-screenshots <run id>` copies the images it took over the ones it expected.
+ * Pictures of the screens players open most on a phone, compared with baselines. The overflow
+ * checks elsewhere catch a page that scrolls sideways; these catch clipping, overlap and broken
+ * stacking that stay inside the screen.
  */
-test.skip(process.platform !== 'linux', 'The baselines are Linux renders; see `just e2e-screenshots`')
-
-const stylePath = path.join(import.meta.dirname, 'phone-layout.css')
 
 /** Compares the phone viewport with its baseline, masking the clocks and dates that differ on every run. */
 async function expectPhoneScreen(page: Page, name: string, { fullPage = false } = {}) {
   await expect(page).toHaveScreenshot(name, {
     fullPage,
-    stylePath,
     mask: [page.locator('time'), page.locator('.readout').filter({ hasText: /^[\d–]+:[\d:–]+$/ })],
   })
 }
