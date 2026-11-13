@@ -1,5 +1,17 @@
 # praetorium
 
+## 0.237.0 (2026-11-13)
+
+### Minor Changes
+
+- 4fdda58: A bell right of your account picture now lists your friend requests, new battles and group and tournament news on the website, and **More** › **Notifications** shows the same list in the app, read or unread on every device.
+
+### Patch Changes
+
+- d4abb97: Answering a friend request, joining a battle you were invited to, sealing a list, or accepting or declining an entry or group request marks its notification read on every device.
+- d4abb97: The app clears notifications you've read elsewhere from your phone and keeps the number on its icon to your unread ones.
+- d4abb97: Tapping a push notification marks that notification read.
+
 ## 0.236.0 (2026-11-13)
 
 ### Minor Changes
