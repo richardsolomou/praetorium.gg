@@ -358,7 +358,7 @@ export async function newBattle(page: Page) {
   return page.url()
 }
 
-/** Answers the Tracking step, which every step after it waits on in a draft. */
+/** Sets the Tracking step, Guided from the start, and waits for the Opponent step to open. */
 export async function chooseTracking(page: Page, tracking: 'Guided' | 'Manual' = 'Guided') {
   const choice = page.locator('#setup-format').getByRole('group', { name: 'How you track it' })
   const button = choice.getByRole('button', { name: new RegExp(`^${tracking}`) })
