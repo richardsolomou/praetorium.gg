@@ -8,7 +8,7 @@
 
 ## Development lifecycle
 
-- `.devcontainer` pins Node, pnpm, just, and the SpacetimeDB CLI; a Codespace or dev container needs only `just dev`. When a pin changes in `mise.toml`, `package.json`, or `Dockerfile.node`, change it in `.devcontainer/Dockerfile` too.
+- When a tool pin changes in `mise.toml`, `package.json`, or `Dockerfile.node`, change it in `.devcontainer/Dockerfile` too.
 - In a Codespace, open the forwarded port 3000 for the app.
 - Run `just dev` after any checkout, pull, or merge, and use the URL it prints; a stale lockfile leaves pages that never finish loading.
 - `just dev-status` reports, `just dev-stop` stops only this worktree's stack, `just dev-restart` reloads after product-module, startup, or catalogue changes, and `just teardown` runs once the branch's pull request has merged.
