@@ -2,6 +2,12 @@ A finished battle shows the result, the battle events and a timeline you can scr
 
 Battles between accounts count in each player's record. Practice battles count nowhere.
 
+## Your opponent
+
+Under the result of a battle between accounts, you see your record against your opponent so far, with a link to it on your profile. Practice battles show no record.
+
+If an account you played isn't your friend yet, you can add them, or accept their request, from there, so you can start battles with each other later.
+
 ## The leaderboard
 
 The [leaderboard](/leaderboard) rates everyone on every guided battle they've finished. Until you've finished 5 battles counted in a table, you're listed as not yet ranked. A rating drifts down while you don't play.
