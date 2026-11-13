@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.240.2 (2026-11-13)
+
+### Patch Changes
+
+- 84c7132: The record line after a battle names your opponent in their colour.
+
 ## 0.240.1 (2026-11-13)
 
 ### Patch Changes
