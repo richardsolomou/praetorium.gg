@@ -3,8 +3,8 @@ import { mkdtemp, readFile, realpath, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { promisify } from 'node:util'
-import { startLocalChild, stopLocalChildren } from './lib/localStack.ts'
-import { exited, startThrowawaySpacetime } from './lib/throwawaySpacetime.ts'
+import { childSucceeded, startLocalChild, stopLocalChildren } from './lib/localStack.ts'
+import { startThrowawaySpacetime } from './lib/throwawaySpacetime.ts'
 
 type VitestReport = { testResults: { name: string; assertionResults: { status: string; fullName: string }[] }[] }
 
@@ -21,7 +21,7 @@ function start(command: string, args: string[], environment = process.env) {
 
 async function run(command: string, args: string[], environment = process.env) {
   abort.signal.throwIfAborted()
-  await exited(start(command, args, environment), abort.signal)
+  await childSucceeded(start(command, args, environment), abort.signal)
 }
 
 /** Every test file gated on a live server; a new one joins this lane by reading the same variables. */

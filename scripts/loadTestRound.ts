@@ -4,7 +4,9 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { parseArgs } from 'node:util'
 import { reduceBattle, type Command, type Roster } from '../src/core/battle'
+import { GROUP_LEAGUE_PLAYERS_MAX, leagueDraw } from '../src/core/groupLeague'
 import { battleFoldArgs } from '../src/core/offlineBattle'
+import { SEALED_EVENT_MEMBER_MAX } from '../src/core/sealedEvent'
 import { user } from '../src/db/authSchema'
 import { SqliteAccountRepository } from '../src/server/accountRepository'
 import { localAuthDatabase } from '../src/server/localAuthDatabase'
@@ -45,15 +47,12 @@ if (
   ![tables, played, reads].every(Number.isInteger) ||
   tables < 1 ||
   played < 0 ||
-  reads < 1 ||
-  played + 1 > 2 * tables - 1
+  reads < 1
 )
-  throw new Error(
-    'Usage: pnpm exec tsx scripts/loadTestRound.ts [--scenario tournament|league|all] [--tables 16] [--played 3] [--reads 1]; --played stays below twice --tables less one',
-  )
-// The league caps its players at GROUP_LEAGUE_PLAYERS_MAX and a tournament at SEALED_EVENT_MEMBER_MAX.
-if (scenarios.includes('league') && tables > 16) throw new Error('A league seats at most 16 tables')
-if (tables > 64) throw new Error('A tournament seats at most 64 tables')
+  throw new Error('Usage: pnpm exec tsx scripts/loadTestRound.ts [--scenario tournament|league|all] [--tables 16] [--played 3] [--reads 1]')
+if (scenarios.includes('league') && 2 * tables > GROUP_LEAGUE_PLAYERS_MAX)
+  throw new Error(`A league seats at most ${GROUP_LEAGUE_PLAYERS_MAX / 2} tables`)
+if (2 * tables > SEALED_EVENT_MEMBER_MAX) throw new Error(`A tournament seats at most ${SEALED_EVENT_MEMBER_MAX / 2} tables`)
 
 const database = 'praetorium-load'
 const abort = new AbortController()
@@ -62,6 +61,9 @@ for (const signal of ['SIGINT', 'SIGTERM'] as const) process.on(signal, () => ab
 
 const fixtures = PREVIEW_ACCOUNTS.flatMap((account) => account.rosters).filter((roster) => roster.limit === 2_000)
 const players = Array.from({ length: 2 * tables }, (_, index) => `load-player-${index + 1}`)
+// The league draws the same circle method, so the tournament's seeded rounds never repeat a pairing either.
+const draw = leagueDraw(players, 1) as [string, string][][]
+if (played + 1 > draw.length) throw new Error(`--played stays below ${draw.length} with ${tables} tables`)
 let clock = Date.now()
 const now = () => ++clock
 
@@ -86,29 +88,18 @@ function snapshot(playerIndex: number): Roster {
   }
 }
 
-/** Round `round` of a round robin by the circle method, so no seeded round repeats a pairing. */
-function circlePairs(round: number): [string, string][] {
-  const [fixed, ...rest] = players
-  const turned = [...rest.slice((round - 1) % rest.length), ...rest.slice(0, (round - 1) % rest.length)]
-  const ring = [fixed!, ...turned]
-  return Array.from({ length: tables }, (_, table) => [ring[table]!, ring[ring.length - 1 - table]!])
-}
-
-function finished(aId: string, bId: string, table: number): Command[] {
+/** A table's battle: finished in a seeded round, still under way in the timed one. */
+function battleTail(aId: string, bId: string, table: number, round: number): Command[] {
   return [
     { kind: 'begin-battle', firstPlayerId: aId },
     { kind: 'score', category: 'primary', delta: 60 + (table % 20), playerId: aId },
     { kind: 'score', category: 'primary', delta: 40 + (table % 15), playerId: bId },
-    { kind: 'end-battle', reason: 'conceded', concededBy: table % 3 ? bId : aId },
+    ...(round > played ? [] : [{ kind: 'end-battle' as const, reason: 'conceded' as const, concededBy: table % 3 ? bId : aId }]),
   ]
 }
 
-function underWay(aId: string, bId: string, table: number): Command[] {
-  return finished(aId, bId, table).slice(0, -1)
-}
-
 function percentile(sorted: readonly number[], fraction: number) {
-  return sorted.length ? Math.round(sorted[Math.max(0, Math.ceil(fraction * sorted.length) - 1)]!) : null
+  return Math.round(sorted[Math.ceil(fraction * sorted.length) - 1]!)
 }
 
 async function measure(
@@ -121,13 +112,14 @@ async function measure(
     samples.set(operation, sample)
     const started = performance.now()
     try {
-      return await run()
+      const result = await run()
+      sample.durations.push(performance.now() - started)
+      return result
     } catch (error) {
+      sample.durations.push(performance.now() - started)
       sample.failures++
       sample.failure ??= error instanceof Response ? `HTTP ${error.status}: ${await error.text()}` : String(error)
       return undefined
-    } finally {
-      sample.durations.push(performance.now() - started)
     }
   }
   const started = performance.now()
@@ -159,9 +151,9 @@ try {
     root,
     worktree,
     database,
-    launch: (command, args) => {
+    launch: (command, args, kind) => {
       // The server logs every procedure call, which would drown the results; the build's output goes to stderr.
-      const child = startLocalChild(command, args, process.env, args[0] === 'start' ? 'ignore' : ['ignore', process.stderr, process.stderr])
+      const child = startLocalChild(command, args, process.env, kind === 'server' ? 'ignore' : ['ignore', process.stderr, process.stderr])
       children.push(child)
       return child
     },
@@ -218,7 +210,7 @@ try {
       })
       if (created) throw new Error(`The tournament could not be created: ${created}`)
       for (const [index, id] of players.entries()) {
-        await repository.joinSealedEvent(token, id, now(), 128, eventToken)
+        await repository.joinSealedEvent(token, id, now(), SEALED_EVENT_MEMBER_MAX, eventToken)
         const saved = (await repository.roster(`load-roster-${index + 1}`))!
         const sealed = await repository.submitSealedEventRoster({
           token,
@@ -236,17 +228,16 @@ try {
       const reveal = await repository.revealSealedEvent(token, owner, now(), eventToken)
       if (reveal.outcome !== 'revealed') throw new Error(`The tournament could not be revealed: ${reveal.outcome}`)
       for (let round = 1; round <= played + 1; round++) {
-        const pairs = circlePairs(round)
+        const pairs = draw[round - 1]!
         const paired = await repository.pairSealedEventRound({ token, eventToken, ownerId: owner, round, pairs })
         if (paired !== 'paired') throw new Error(`Round ${round} could not be paired: ${paired}`)
         for (const [table, [aId, bId]] of pairs.entries()) {
           const battleToken = `load-tournament-${round}-${table + 1}`
-          const tail = round > played ? underWay(aId, bId, table) : finished(aId, bId, table)
           await repository.createSealedEventBattle(
             { id: battleToken, token: battleToken, sealedEventToken: token, eventToken, userId: aId, userIds: [aId, bId], now: now() },
             (setup) => {
               const built = buildSealedEventBattle(setup, aId, bId, null, battleToken)
-              return { ...built, initialCommands: [...built.initialCommands, ...tail] }
+              return { ...built, initialCommands: [...built.initialCommands, ...battleTail(aId, bId, table, round)] }
             },
           )
         }
@@ -326,7 +317,7 @@ try {
               painted: true,
             })),
             { kind: 'set-battle-group', groupId: token },
-            ...(fixture.round > played ? underWay(aId, bId, fixture.table) : finished(aId, bId, fixture.table)),
+            ...battleTail(aId, bId, fixture.table, fixture.round),
           ],
           now: now(),
           fixtureKey: fixture.key,
@@ -350,8 +341,6 @@ try {
             }
           }),
       )
-      if (timedRound.length !== tables)
-        throw new Error(`Expected ${tables} league tables in round ${played + 1}, found ${timedRound.length}`)
       await measure(scenario, (timed) =>
         Promise.all([
           ...timedRound.map(async (table) => {

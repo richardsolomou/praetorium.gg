@@ -49,6 +49,16 @@ export function startLocalChild(command: string, args: string[], environment: No
   return spawn(command, args, { env: environment, stdio, detached: process.platform !== 'win32' })
 }
 
+export async function childSucceeded(child: ChildProcess, signal: AbortSignal) {
+  signal.throwIfAborted()
+  const status = await new Promise<number>((resolve, reject) => {
+    child.once('error', reject)
+    child.once('exit', (code) => resolve(code ?? 1))
+    signal.addEventListener('abort', () => reject(signal.reason as Error), { once: true })
+  })
+  if (status !== 0) throw new Error(`${child.spawnargs.join(' ')} exited with status ${status}`)
+}
+
 /** A fresh identity on a local SpacetimeDB server. */
 export async function localSpacetimeIdentity(url: string) {
   const response = await fetch(`${url}/v1/identity`, { method: 'POST' })
