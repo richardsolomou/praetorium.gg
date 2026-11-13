@@ -1,5 +1,5 @@
 import { Link } from '@tanstack/react-router'
-import { Check, QrCode, Trash2, UserRound, X } from 'lucide-react'
+import { Check, QrCode, Trash2, UserRound, UserRoundPlus, X } from 'lucide-react'
 import { Fragment, type ReactNode } from 'react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -38,13 +38,15 @@ export function FaceOff({
   /** Absent for a reader with no seat, who sees the armies without changing them. */
   controls?: {
     shared: boolean
+    /** The viewer holds every place, so an open one is about to be theirs rather than someone else's to join. */
+    playingAll: boolean
     busy: boolean
     send: (command: Command) => void
     onShare: () => void
     onChoose: (army: Army) => void
     /** Present for a side that can take another player. */
     onAddAlly: (side: number) => (() => void) | undefined
-    /** Present for a side whose empty place can go. */
+    /** Present for a side whose second place can go: an empty one, or one the viewer plays themselves. */
     onRemovePlace: (side: number) => (() => void) | undefined
     problems: (side: number) => string | undefined
   }
@@ -88,8 +90,17 @@ export function FaceOff({
                 {armies.map((army, at) => (
                   <span key={army.playerId} className="inline-flex min-w-0 items-center gap-x-2">
                     {at ? <span className="text-dim">&amp;</span> : null}
-                    <PlayerName army={army} />
-                    {army.automated && controls ? <span className="chip text-dim normal-case">Played by you</span> : null}
+                    <PlayerName
+                      army={army}
+                      badge={
+                        army.automated && controls ? (
+                          <span className="chip ml-1.5 align-middle text-dim normal-case">Played by you</span>
+                        ) : null
+                      }
+                    />
+                    {removePlace && !empty && at === armies.length - 1 ? (
+                      <RemovePlace label={`Remove ${army.playerName}’s place`} onClick={removePlace} busy={controls?.busy} />
+                    ) : null}
                   </span>
                 ))}
                 {Array.from({ length: empty }, (_, at) => (
@@ -105,15 +116,7 @@ export function FaceOff({
                       {emptyName(at)}
                     </span>
                     {removePlace ? (
-                      <Button
-                        variant="ghost"
-                        size="icon-xs"
-                        aria-label={`Remove the ${emptyName(at).toLowerCase()} place`}
-                        className="-ml-1 text-dim"
-                        onClick={removePlace}
-                      >
-                        <X />
-                      </Button>
+                      <RemovePlace label={`Remove the ${emptyName(at).toLowerCase()} place`} onClick={removePlace} busy={controls?.busy} />
                     ) : null}
                   </span>
                 ))}
@@ -145,7 +148,7 @@ export function FaceOff({
                     ))
                   : 'No army yet'}
               </span>
-              {controls && !armies.length && empty ? (
+              {controls && empty && !controls.playingAll ? (
                 controls.shared ? (
                   <span className="text-xs text-dim">Link shared · waiting for them to join</span>
                 ) : (
@@ -198,13 +201,13 @@ export function FaceOff({
               {problem ? <p className="text-xs text-discarded">{problem}</p> : null}
               {addAlly ? (
                 <Button
-                  variant="ghost"
-                  size="xs"
-                  className={cn('-mx-2 mt-auto text-dim', index ? 'self-end' : 'self-start')}
+                  variant="outline"
+                  size="sm"
+                  className="mt-auto self-stretch border-dashed border-runner-hi text-dim hover:text-bone"
                   disabled={controls?.busy}
                   onClick={addAlly}
                 >
-                  + Add ally
+                  <UserRoundPlus /> Add ally
                 </Button>
               ) : null}
             </div>
@@ -212,6 +215,14 @@ export function FaceOff({
         )
       })}
     </div>
+  )
+}
+
+function RemovePlace({ label, onClick, busy }: { label: string; onClick: () => void; busy?: boolean }) {
+  return (
+    <Button variant="ghost" size="icon-xs" aria-label={label} className="-ml-1 text-dim" disabled={busy} onClick={onClick}>
+      <X />
+    </Button>
   )
 }
 

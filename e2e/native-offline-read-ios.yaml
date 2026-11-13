@@ -30,9 +30,9 @@ appId: gg.praetorium
 - tapOn: Close
 - tapOn: Battles
 - assertVisible: YOUR BATTLES
-- assertVisible: '(?is).*Practice Opponent.*'
+- assertVisible: '(?is).*\bvs\b.*\bOpponent\b.*'
 - takeScreenshot: native-battles-offline
-- tapOn: '(?is).*Practice Opponent.*'
+- tapOn: '(?is).*\bvs\b.*\bOpponent\b.*'
 - tapOn: Choose army
 - tapOn: 'Edited native army offline.*'
 - assertVisible: 'Edited native army offline.*'

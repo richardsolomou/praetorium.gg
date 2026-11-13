@@ -334,9 +334,6 @@ export async function createRoster(
   return rosterName
 }
 
-/** The practice opponent every instance seats, named as the interface names it. */
-export const PRACTICE_OPPONENT = 'Practice Opponent'
-
 /** A battle's own page, as opposed to the battles list or a join link. */
 export const BATTLE_PAGE = /\/battles\/(?!join\/)[^/?#]+$/
 
@@ -403,21 +400,24 @@ export async function joinBattle(page: Page, link: string, side: 0 | 1) {
   }).toPass({ timeout: 30_000 })
 }
 
-/** Adds an empty ally place to a side from its face-off card. */
+/** Adds an ally place to a side from its face-off card: an empty one, or one of their own for a player playing every side. */
 export async function addAllyPlace(page: Page, side: 0 | 1) {
   const card = page.locator(`[data-face-off-side="${side}"]`)
-  const before = await card.locator('[data-open-place]').count()
+  const add = card.getByRole('button', { name: 'Add ally' })
+  const playingAll = await page.locator('[data-face-off-side="1"]').getByText('Played by you').first().isVisible()
+  // A side of two takes no more, so the button goes once the place is there, whoever fills it.
   await expect(async () => {
-    if ((await card.locator('[data-open-place]').count()) > before) return
-    await card.getByRole('button', { name: '+ Add ally' }).click({ timeout: 1_000 })
-    await expect(card.locator('[data-open-place]')).toHaveCount(before + 1, { timeout: 3_000 })
+    if (!(await add.isVisible())) return
+    await add.click({ timeout: 1_000 })
+    await expect(add).toBeHidden({ timeout: 3_000 })
   }).toPass({ timeout: 20_000 })
+  if (playingAll) await expect(card.locator('[data-open-place]')).toHaveCount(0, { timeout: 15_000 })
 }
 
-/** Has this player play the other side themselves, which seats the practice opponent across the table. */
+/** Has this player play every side themselves, which fills every open place with one of their own. */
 export async function playBothSides(page: Page) {
   const step = page.locator('#setup-opponent')
-  const seated = page.locator('[data-face-off-side="1"]').getByText(PRACTICE_OPPONENT)
+  const seated = page.locator('[data-face-off-side="1"]').getByText('Played by you')
   await expect(async () => {
     if (await seated.isVisible()) return
     await step.getByRole('button', { name: /^Play both sides/ }).click({ timeout: 1_000 })
@@ -426,7 +426,7 @@ export async function playBothSides(page: Page) {
 }
 
 /**
- * Opens a battle on a fresh draft, Guided unless `manual`, and fills its places: with the practice opponent, or with
+ * Opens a battle on a fresh draft, Guided unless `manual`, and fills its places: with the opener's own, or with
  * the players whose pages are given, who join through the shared link. The opener sits on the first side;
  * `yourAlly` joins them there, and `opponent`, `ally` and `secondOpponent` take the other side.
  */
@@ -464,11 +464,14 @@ export async function createBattle(
   return url
 }
 
-/** Opens a practice battle with the roster in both seats, or another roster for the practice opponent. */
+/**
+ * Opens a battle the player plays alone with the roster on both sides, or another roster across the table. The other
+ * side is then named after its roster.
+ */
 export async function practiceBattle(page: Page, roster: string, { opponentRoster = roster }: { opponentRoster?: string } = {}) {
   const url = await createBattle(page, { practice: true })
   await attachRoster(page, roster)
-  await attachRoster(page, opponentRoster, { forPlayer: PRACTICE_OPPONENT })
+  await attachRoster(page, opponentRoster, { side: 1 })
   return url
 }
 
@@ -524,13 +527,16 @@ export async function setupStep(page: Page, label: string | RegExp) {
   await expect(section).toBeInViewport()
 }
 
-/** Attaches a saved list to an army from its face-off card: your own by default, or a named one such as a practice opponent's. */
-export async function attachRoster(page: Page, name: string, { forPlayer }: { forPlayer?: string } = {}) {
-  const player = forPlayer ?? (await accountName(page))
-  const card = page.locator('[data-face-off-side]').filter({ hasText: player })
-  const chooser = card.getByRole('button', {
-    name: new RegExp(`^(Choose army|Choose ${escapeRegExp(player)}’s army|Change roster for ${escapeRegExp(player)})$`),
-  })
+/**
+ * Attaches a saved list to an army from its face-off card: your own by default, a named player's, or the first one
+ * still without a list on `side`, such as a place you play yourself, which is named after its list once it has one.
+ */
+export async function attachRoster(page: Page, name: string, { forPlayer, side }: { forPlayer?: string; side?: 0 | 1 } = {}) {
+  const player = side === undefined ? (forPlayer ?? (await accountName(page))) : undefined
+  const card =
+    player === undefined ? page.locator(`[data-face-off-side="${side}"]`) : page.locator('[data-face-off-side]').filter({ hasText: player })
+  const named = player === undefined ? '.+’s army' : `${escapeRegExp(player)}’s army|Change roster for ${escapeRegExp(player)}`
+  const chooser = card.getByRole('button', { name: new RegExp(`^(Choose army|Choose ${named})$`) })
   const attached = card.getByText(name, { exact: true }).first()
   const dialog = page.getByRole('dialog', { name: /roster$/ })
   const choice = dialog.getByRole('button', { name: new RegExp(`^${escapeRegExp(name)}\\b`) })
@@ -579,7 +585,7 @@ export async function confirmScoring(prompt: Locator, name: string | RegExp) {
   await prompt.getByRole('button', { name }).click()
 }
 
-/** The hand being dealt: this table's own, or the practice opponent's it is also playing. */
+/** The hand being dealt: this table's own, or that of a side it is also playing. */
 export const drawPrompt = (page: Page) => page.getByRole('dialog', { name: /secondary missions$/ })
 /** What the turn the other side just finished owed this one, asked as the turn arrives. */
 const owedPrompt = (page: Page) => page.getByRole('dialog', { name: /^Scoring end of (their turn|battle)/ })

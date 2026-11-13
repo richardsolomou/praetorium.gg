@@ -5,7 +5,6 @@ import {
   createBattle,
   createRoster,
   followLink,
-  PRACTICE_OPPONENT,
   setupBattle,
   signUp,
   uniqueName,
@@ -119,7 +118,7 @@ test('shows active practice battles to their player but not visitors', async ({ 
   await page.goto('/')
   await expect(page.getByRole('heading', { name: `Welcome back, ${name}` })).toBeVisible()
   const battlePath = new URL(battleUrl).pathname
-  await expect(page.locator('[data-battle-shelf="Your game"] a').filter({ hasText: PRACTICE_OPPONENT })).toHaveAttribute('href', battlePath)
+  await expect(page.locator('[data-battle-shelf="Your game"] a').filter({ hasText: roster })).toHaveAttribute('href', battlePath)
 
   const visitor = await browser.newContext()
   const guest = await visitor.newPage()

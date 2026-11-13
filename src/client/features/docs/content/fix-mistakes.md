@@ -18,6 +18,6 @@ Seated players can keep going offline if they've opened the battle online once. 
 
 A battle finishes when the fifth round's scoring is done.
 
-To stop early, open **Battle options** and choose **Concede battle**, or **Concede for [name]** for someone else. A concession is a loss for that side whatever the score. Practice opponents can't concede.
+To stop early, open **Battle options** and choose **Concede battle**, or **Concede for [name]** for someone else. A concession is a loss for that side whatever the score. In a battle you play alone, only your own side can concede.
 
 Only the person who created the battle can **Delete battle**. That removes it for everyone, for good.

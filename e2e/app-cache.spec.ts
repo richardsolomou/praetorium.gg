@@ -2,7 +2,6 @@ import { PUBLIC_APP_QUERIES } from '../src/contracts/appSnapshot'
 import { expect, test, type Page } from './test'
 import {
   createRoster,
-  PRACTICE_OPPONENT,
   retryUntilVisible,
   signInAsPreview,
   signUp,
@@ -45,7 +44,7 @@ test(
     const rosterPath = new URL(page.url()).pathname
     // Home and Battles list a battle once every army is in.
     const battlePath = new URL(await practiceBattle(page, roster)).pathname
-    await expect(page.getByText(PRACTICE_OPPONENT, { exact: true }).first()).toBeVisible()
+    await expect(page.getByText(roster, { exact: true }).first()).toBeVisible()
     await expect.poll(() => savedState(page)).toContain(JSON.stringify(['battle', lastPathSegment(page.url())]))
     await page.goto('/')
     await expect(page.getByRole('heading', { name: `Welcome back, ${player}` })).toBeVisible()
@@ -85,8 +84,8 @@ test(
     await reopened.setViewportSize(PHONE)
     await reopened.goto('/')
     await expect(reopened.getByRole('heading', { name: `Welcome back, ${player}` })).toBeVisible()
-    await expect(reopened.getByRole('main').getByText(roster, { exact: true })).toBeVisible()
-    await expect(reopened.getByRole('main').getByText(PRACTICE_OPPONENT, { exact: true }).first()).toBeVisible()
+    await expect(reopened.getByRole('main').getByText(roster, { exact: true }).first()).toBeVisible()
+    await expect(reopened.getByRole('main').locator(`a[href="${battlePath}"]`).first()).toBeVisible()
     await expect(reopened.getByRole('region', { name: 'Offline reference' })).toHaveCount(0)
     await expect(reopened.getByRole('button', { name: 'Refresh now' })).toHaveCount(0)
     await reopened.getByRole('button', { name: 'Search Praetorium', exact: true }).first().click()
@@ -106,7 +105,7 @@ test(
     await expect(reopened.getByRole('heading', { name: 'Battles', exact: true })).toBeVisible()
     await expect(reopened.getByRole('main').locator(`a[href="${battlePath}"]`).first()).toBeVisible()
     await reopened.goto(battlePath)
-    await expect(reopened.getByText(PRACTICE_OPPONENT, { exact: true }).first()).toBeVisible()
+    await expect(reopened.getByText(roster, { exact: true }).first()).toBeVisible()
     await reopened.goto('/')
     await context.setOffline(false)
     const other = await context.newPage()

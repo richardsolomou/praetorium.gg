@@ -7,7 +7,6 @@ import {
   chooseUnit,
   createBattle,
   createRoster,
-  PRACTICE_OPPONENT,
   signUp,
   takeTheTurn,
   uniqueName,
@@ -48,7 +47,7 @@ async function practiceBattleGuide(page: Page, name: string, width: number) {
   await createBattle(page, { practice: true })
   await next(page, 'Tracking and armies')
   await attachRoster(page, name)
-  await attachRoster(page, name, { forPlayer: PRACTICE_OPPONENT })
+  await attachRoster(page, name, { side: 1 })
   // Setup is one page: the guide moves on as the table answers, and with its own Next where nothing needs answering.
   await expect(prompt(page)).toContainText('Read your primary mission')
   await next(page, 'Read your primary mission')

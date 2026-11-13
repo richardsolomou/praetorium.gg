@@ -102,7 +102,7 @@ const attachSavedRoster = z
     rosterId: z.string().min(1).max(64).describe('A roster id from list_my_rosters, built for this battle size.'),
     playerId: z.string().min(1).max(64).optional().describe(PLAYER),
   })
-  .describe('Armies step: fields a saved roster on a seat, frozen as it is now. A practice opponent fields one of your rosters.')
+  .describe('Armies step: fields a saved roster on a seat, frozen as it is now. A place you play yourself fields one of your rosters.')
 
 /**
  * The commands an agent records, each with what it means. Narrower than the site's
@@ -555,17 +555,13 @@ export function registerBattleTools(server: AgentTools, userId: string | null) {
     {
       title: 'List who I can play',
       description:
-        'Lists who the signed-in player can seat in create_battle: friends (kind friend) and practice opponents run with one of your own rosters (kind practice), by id. Everyone at the table needs an account: someone without one signs up and becomes a friend first. Requires mcp:read.',
+        'Lists the friends the signed-in player can seat in create_battle, by id. Everyone at the table needs an account: someone without one signs up and becomes a friend first. To play a game alone, create_battle takes bothSides instead. Requires mcp:read.',
       inputSchema: {},
       annotations: READ_ONLY_TOOL,
     },
     () =>
       resultOf(async () => ({
-        opponents: (await app().service.socialService.opponents(owner())).map(({ id, name, automated }) => ({
-          id,
-          name,
-          kind: automated ? 'practice' : 'friend',
-        })),
+        opponents: (await app().service.socialService.opponents(owner())).map(({ id, name }) => ({ id, name })),
       })),
   )
   server.registerTool(
@@ -573,12 +569,21 @@ export function registerBattleTools(server: AgentTools, userId: string | null) {
     {
       title: 'Create a battle',
       description:
-        "Creates a battle in setup and returns its token. With nobody named it starts a draft with only you at the table, reusing your untouched draft with the same mission pack, and returns joinUrl: anyone with an account who opens it joins the open place, and the draft becomes a battle once every place is filled and every army chosen. opponentId seats one opponent from list_my_opponents for a duel; opponentIds seats one or two, and allyId seats a friend on your side, for a 2v1 or doubles. Every seat belongs to an account; to track a game alone, seat a practice opponent. limit is the battle size in points (1000, 2000, 3000, or 600 for King of the Colosseum); omit it to take the size from the rosters, as a draft always does. missionPackId is a mission pack id from list_reference. casual: true plays it outside a tournament both players are entered in. manual: true tracks by hand without mission cards, stratagems or CP automation. groupToken counts it for a group both players are in, and fixture names that group's league fixture. Then set it up with submit_battle_action, following get_my_battle's next. Requires mcp:write.",
-      inputSchema: createBattleSchema,
+        "Creates a battle in setup and returns its token. With nobody named it starts a draft with only you at the table, reusing your untouched draft with the same mission pack, and returns joinUrl: anyone with an account who opens it joins the open place, and the draft becomes a battle once every place is filled and every army chosen. opponentId seats one opponent from list_my_opponents for a duel; opponentIds seats one or two, and allyId seats a friend on your side, for a 2v1 or doubles. bothSides: true starts a duel you play alone instead: you hold both places and choose both armies from your own rosters, and it stays out of your record and the leaderboard. limit is the battle size in points (1000, 2000, 3000, or 600 for King of the Colosseum); omit it to take the size from the rosters, as a draft always does. missionPackId is a mission pack id from list_reference. casual: true plays it outside a tournament both players are entered in. manual: true tracks by hand without mission cards, stratagems or CP automation. groupToken counts it for a group both players are in, and fixture names that group's league fixture. Then set it up with submit_battle_action, following get_my_battle's next. Requires mcp:write.",
+      inputSchema: createBattleSchema.safeExtend({
+        bothSides: z.boolean().optional().describe('Play every side yourself, choosing every army from your own rosters.'),
+      }),
       annotations: WRITE,
     },
     (data) =>
       resultOf(async () => {
+        if (data.bothSides) {
+          if (data.opponentId || data.opponentIds || data.allyId || data.groupToken || data.limit || data.manual)
+            throw new Response('a battle played alone names nobody and takes its size from the lists', { status: 400 })
+          const { token } = await startDraftBattle(owner(), data.missionPackId)
+          await app().service.playBothSides(token, owner())
+          return { token, url: `/battles/${encodeURIComponent(token)}` }
+        }
         if (!data.opponentId && !data.opponentIds && !data.allyId && !data.groupToken) {
           // A draft's size follows its lists and its tracking is answered in setup, so nothing here would be kept.
           if (data.limit || data.manual)
@@ -587,8 +592,8 @@ export function registerBattleTools(server: AgentTools, userId: string | null) {
           const { invite } = await app().service.shareBattle(token, owner())
           return { token, draft: true, url: `/battles/${encodeURIComponent(token)}`, joinUrl: battleInvitePath(invite) }
         }
-        const { token, practice } = await productActions.createBattle(owner(), data)
-        return { token, practice, url: `/battles/${encodeURIComponent(token)}` }
+        const { token } = await productActions.createBattle(owner(), data)
+        return { token, url: `/battles/${encodeURIComponent(token)}` }
       }),
   )
   server.registerTool(

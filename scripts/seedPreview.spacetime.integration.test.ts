@@ -82,11 +82,11 @@ it.skipIf(!url || !databaseName || !token)(
       expect((await repository.battleHistoryByToken('preview-tournament-battle-duel'))?.players).toHaveLength(2)
       const replacementRepository = new SpacetimeRepository(new SqliteAccountRepository(replacement.database), product)
       expect((await replacementRepository.battleByToken('preview-casual-incursion'))?.players).toHaveLength(2)
-      expect(await product.practiceOpponentIds()).toEqual(['practice-opponent-1', 'practice-opponent-2'])
+      expect(await product.practiceOpponentIds()).toEqual(['practice-opponent-1', 'practice-opponent-2', 'practice-opponent-3'])
       const practiceCredentials = await database
         .select({ userId: authAccount.userId })
         .from(authAccount)
-        .where(inArray(authAccount.userId, ['practice-opponent-1', 'practice-opponent-2']))
+        .where(inArray(authAccount.userId, ['practice-opponent-1', 'practice-opponent-2', 'practice-opponent-3']))
       expect(practiceCredentials).toEqual([])
     } finally {
       vi.unstubAllEnvs()

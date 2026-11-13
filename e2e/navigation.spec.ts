@@ -1000,7 +1000,7 @@ test('a player can enter through the roster library and browse the product', asy
   await practiceBattle(page, rosterName)
   await page.getByRole('link', { name: 'Battles' }).click()
   await expect(page.locator('[data-battle-shelf="In progress"]')).toBeVisible()
-  await expect(page.getByText('Practice Opponent').first()).toBeVisible()
+  await expect(page.getByText(rosterName, { exact: true }).first()).toBeVisible()
   await page.screenshot({ path: test.info().outputPath('battle-library.png'), fullPage: true })
   await page.locator('[data-battle-shelf="In progress"] article').click({ button: 'right' })
   await page.getByRole('menuitem', { name: 'Delete battle' }).click()

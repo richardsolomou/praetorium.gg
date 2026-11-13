@@ -187,6 +187,23 @@ describe('the view', () => {
     })
   })
 
+  it('names a seat its creator plays after the army it brings, never after the account behind it', () => {
+    const state = reduceBattle(PLAYERS, log([ALICE, { ...roster('Orks of the Creator'), playerId: BOB } as Command]))
+    const seats = [
+      { id: ALICE, name: 'Alice' },
+      { id: BOB, name: 'Practice Opponent', automated: true },
+    ]
+    expect(battleView({ token: 'abc' }, seats, state, ALICE).players[1]!.name).toBe('Orks of the Creator')
+  })
+
+  it('names a seat its creator plays by its place until it has an army', () => {
+    const seats = [
+      { id: ALICE, name: 'Alice' },
+      { id: BOB, name: 'Practice Opponent', automated: true },
+    ]
+    expect(battleView({ token: 'abc' }, seats, reduceBattle(PLAYERS, []), ALICE).players[1]!.name).toBe('Opponent')
+  })
+
   it('hides only the fixed card held as an unrevealed Secret Mission', () => {
     const cards = [
       { key: 'secret', name: 'Hidden purpose' },

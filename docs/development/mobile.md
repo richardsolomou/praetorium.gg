@@ -26,7 +26,7 @@
 
 ## Notifications
 
-- Request permission only after the player chooses to. Notices exclude practice opponents and carry only what the recipient may read.
+- Request permission only after the player chooses to. Notices exclude the automated seats of a battle played alone and carry only what the recipient may read.
 - Every notice is kept for its recipients (`storeNotices`), then pushed, so the web bell, the app's list and push agree. A new kind needs only `noticeSubjectSchema` and `noticeMessage` in `src/core/notifications.ts`; a kind about something that can be deleted also needs a case in `noticeSubjectExists`. The list keeps the sealed event or group name from when the notice was sent, so a recipient who loses access never reads a later one.
 - The module marks a notice read where the action it asks for is handled (`resolveNotices`), so any page, the app and MCP clear it alike.
 - A push carries its stored notice as `noticeId` in its data and as `notice` in its path, which the opened page marks read; installed shells need no update for that. A shell with `notice-sync` takes the read ids and unread count after each refetch, dismisses delivered pushes for read notices and sets the icon badge. That is JavaScript in the shell, so it ships with the next `mobile.yml` delivery as an update, without a new binary.

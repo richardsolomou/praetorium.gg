@@ -1,6 +1,5 @@
 import { expect, test } from './test'
 import {
-  PRACTICE_OPPONENT,
   advance,
   attachRoster,
   createBattle,
@@ -28,7 +27,7 @@ test('a table keeps score by hand in a manually tracked battle', async ({ page }
   await expect(page.getByRole('region', { name: 'Battlefield', exact: true })).toHaveCount(0)
   await expect(page.getByRole('region', { name: 'Secondaries', exact: true })).toHaveCount(0)
   await attachRoster(page, roster)
-  await attachRoster(page, roster, { forPlayer: PRACTICE_OPPONENT })
+  await attachRoster(page, roster, { side: 1 })
   await expect(page.getByText('Not battle ready')).toHaveCount(0)
   await recordFirstTurn(page)
   await expectNoPageOverflow(page)
@@ -60,7 +59,7 @@ test('a table keeps score by hand in a manually tracked battle', async ({ page }
     .click()
   await expect(playerPanel(page, 0).locator('[data-stat="cp"]')).toHaveText('1')
   await playerPanel(page, 1)
-    .getByRole('button', { name: `Add 1 secondary VP for ${PRACTICE_OPPONENT}` })
+    .getByRole('button', { name: `Add 1 secondary VP for ${roster}` })
     .click()
   await expect(playerPanel(page, 1).locator('[data-stat="vp"]')).toHaveText('1')
 
@@ -94,7 +93,7 @@ test('a table keeps score by hand in a manually tracked battle', async ({ page }
   await expect(scoreboard(page).locator('[data-stat="round"]')).toHaveText('2')
   await expect(page.getByRole('dialog')).toHaveCount(0)
   await playerPanel(page, 1)
-    .getByRole('button', { name: `Add 5 primary VP for ${PRACTICE_OPPONENT}` })
+    .getByRole('button', { name: `Add 5 primary VP for ${roster}` })
     .click()
   await expect(playerPanel(page, 1).locator('[data-stat="vp"]')).toHaveText('6')
 
@@ -111,14 +110,14 @@ test('a table keeps score by hand in a manually tracked battle', async ({ page }
   await expect(scoreboard(page).locator('[data-stat="round"]')).toHaveText('5')
   await page.getByRole('button', { name: 'Pass the turn' }).click()
 
-  await expect(scoreboard(page)).toContainText(`${PRACTICE_OPPONENT} wins`)
+  await expect(scoreboard(page)).toContainText(`${roster} wins`)
   await expect(page.getByText('Battle replay')).toBeVisible()
   const facts = page.locator('dl').filter({ hasText: 'Tracking' }).first()
   await expect(facts).toContainText('Manual')
   for (const viewport of [desktopContext.viewport, phone]) {
     await page.setViewportSize(viewport)
     await page.reload()
-    await expect(scoreboard(page)).toContainText(`${PRACTICE_OPPONENT} wins`)
+    await expect(scoreboard(page)).toContainText(`${roster} wins`)
     await expectNoPageOverflow(page)
   }
 

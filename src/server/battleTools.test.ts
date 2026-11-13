@@ -75,7 +75,7 @@ it('submits a battle command with the current sequence and account identity', as
 })
 
 it('counts a battle an agent creates as a direct creation of that battle', async () => {
-  createBattle.mockResolvedValueOnce({ battleId: 'battle-id', token: 'battle-1', practice: false })
+  createBattle.mockResolvedValueOnce({ battleId: 'battle-id', token: 'battle-1' })
   await call('player-1', 'create_battle', { opponentId: 'opponent', casual: true })
   expect(capture.mock.calls.map(([, event, { battle_id, delivery, via }]) => [event, battle_id, delivery, via])).toEqual([
     ['battle_created', 'battle-id', 'direct', 'agent'],

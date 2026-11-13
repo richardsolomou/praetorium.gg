@@ -6,8 +6,11 @@ function serviceRecordingCreation() {
   const createBattle = vi.fn()
   const repository = {
     namesByIds: vi.fn().mockResolvedValue(new Map([['opponent', 'Opponent']])),
-    relationships: vi.fn().mockResolvedValue([]),
-    practiceOpponents: vi.fn().mockResolvedValue([{ id: 'opponent', name: 'Opponent', image: null }]),
+    relationships: vi
+      .fn()
+      .mockResolvedValue([
+        { otherId: 'opponent', otherName: 'Opponent', otherImage: null, acceptedAt: 1, requesterId: 'actor', addresseeId: 'opponent' },
+      ]),
     createBattle,
   } as unknown as RepositoryPort
   const service = new PraetoriumService(
@@ -54,7 +57,6 @@ function groupService(memberIds: string[]) {
   const repository = {
     namesByIds: vi.fn().mockResolvedValue(new Map([['stranger', 'Stranger']])),
     relationships: vi.fn().mockResolvedValue([]),
-    practiceOpponents: vi.fn().mockResolvedValue([]),
     groupByToken: vi.fn().mockResolvedValue({
       id: 'group-id',
       token: 'group',

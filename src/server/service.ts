@@ -1,6 +1,13 @@
 import { createHash } from 'node:crypto'
 import { byId, chunks, countBy } from '../core/collections'
-import { guestSeatId, newBattleSeats, type NewBattlePlayers, type CreateBattleInput } from '../core/newBattle'
+import {
+  guestSeatId,
+  isPracticeSeat,
+  newBattleSeats,
+  playedSeatName,
+  type NewBattlePlayers,
+  type CreateBattleInput,
+} from '../core/newBattle'
 import { type BattlebaseBattle, battlebaseBattleImport, battlebaseBattleSchema } from '../core/battlebaseBattle'
 import { matchingSealedEventBattles } from '../shared/sealedEventBattleOptions'
 import { battleSummary, type BattleFaction } from '../shared/battleSummary'
@@ -1220,8 +1227,7 @@ export class PraetoriumService {
       const members = new Set(group?.members.filter((member) => member.status === 'accepted').map((member) => member.userId))
       if (!group || !members.has(userId) || invited.some((id) => !members.has(id)))
         throw new Response('a group game is played between its members', { status: 403 })
-    } else if (invited.some((id) => !allowed.has(id)))
-      throw new Response('battle players must be your friends or a practice opponent', { status: 403 })
+    } else if (invited.some((id) => !allowed.has(id))) throw new Response('battle players must be your friends', { status: 403 })
     // The product database checks the rest of a fixture: its two players, both still in the league, and its group.
     const fixtureKey = typeof input === 'object' ? input.fixture : undefined
     const fixture = fixtureKey ? league?.fixtures.find((candidate) => candidate.key === fixtureKey) : undefined
@@ -1238,7 +1244,6 @@ export class PraetoriumService {
         throw new Response('start this matchup from its event page, or confirm a casual battle', { status: 409 })
       }
     }
-    const practice = invited.some((id) => allowed.get(id)?.automated)
     const token = offlineIdentifier('battleToken', randomToken)
     const id = offlineIdentifier('battleId', randomId)
     await this.repository.createBattle({
@@ -1266,7 +1271,7 @@ export class PraetoriumService {
       fixtureKey,
     })
     this.notifier.notify([{ kind: 'battle-created', actorId: userId, recipientIds: invited, battleToken: token, sealedEvent: false }])
-    return { battleId: id, token, practice }
+    return { battleId: id, token }
   }
 
   /**
@@ -1311,8 +1316,7 @@ export class PraetoriumService {
   /** Sends a friend the battle's link as a notice; they join through it like anyone else who opens it. */
   async inviteToBattle(token: string, userId: string, friendId: string) {
     const [seats, friends] = await Promise.all([this.mustSeat(token, userId), this.socialService.opponents(userId)])
-    if (!friends.some((friend) => friend.id === friendId && !friend.automated))
-      throw new Response('invite one of your friends', { status: 403 })
+    if (!friends.some((friend) => friend.id === friendId)) throw new Response('invite one of your friends', { status: 403 })
     if (seats.players.some((player) => player.id === friendId)) throw new Response('they are already in this battle', { status: 409 })
     const shared = await this.repository.battleInvite(seats.battle.id, userId, randomToken(), friendId)
     if (!shared) throw new Response('only a player in this battle can invite someone', { status: 403 })
@@ -1355,17 +1359,21 @@ export class PraetoriumService {
     const state = foldHistory(history)
     const seated = userId !== null && this.seated(history, userId)
     const host = history.players.find((player) => player.side === 0)
+    const seats = history.players.map((player) => ({
+      side: player.side,
+      army: state.players.find((candidate) => candidate.id === player.id)?.roster?.name,
+    }))
     return {
       // The battle itself is for the players in it: anyone else reaches it only by joining.
       token: seated ? history.battle.token : null,
       hostName: host?.name ?? null,
       sides: [0, 1].map((side) =>
         history.players
-          .filter((player) => player.side === side)
-          .map((player) => {
+          .flatMap((player, at) => (player.side === side ? [{ player, at }] : []))
+          .map(({ player, at }) => {
             const roster = state.players.find((candidate) => candidate.id === player.id)?.roster
             return {
-              name: player.name,
+              name: isPracticeSeat(player) ? playedSeatName(seats, at, host?.side ?? 0) : player.name,
               image: player.image ?? null,
               colour: player.colour ?? null,
               army: roster ? { name: roster.name, points: roster.built ? pointsSpent(roster.built) : null } : null,
@@ -1394,20 +1402,26 @@ export class PraetoriumService {
     return { battleId: history.battle.id, token: history.battle.token, joined: outcome === 'joined' }
   }
 
-  /** Seats a practice opponent in the open place, so the creator plays both sides on their own device. */
+  /**
+   * Fills every open place with a seat the creator plays, so one account holds every army on its own device. Those
+   * seats are automated accounts that sign in for nobody; a battle names them by the army they bring (`playedSeatName`).
+   */
   async playBothSides(token: string, userId: string) {
-    const [seats, practice] = await Promise.all([this.mustSeat(token, userId), this.repository.practiceOpponents()])
-    const seated = new Set(seats.players.map((player) => player.id))
-    const opponent = practice.find((candidate) => !seated.has(candidate.id))
-    if (!opponent) throw new Response('playing both sides is not available here', { status: 409 })
-    const outcome = await this.repository.seatBattlePlayer({
-      battleId: seats.battle.id,
-      userId: opponent.id,
-      side: 1,
-      by: userId,
-      now: this.clock(),
-    })
-    if (outcome !== 'joined') throw new Response(JOIN_REFUSALS[outcome === 'seated' ? 'full' : outcome], { status: 409 })
+    const [history, automated] = await Promise.all([this.mustSeatHistory(token, userId), this.repository.practiceOpponentIds()])
+    const seated = new Set(history.players.map((player) => player.id))
+    const free = automated.filter((id) => !seated.has(id))
+    const places = openPlaces(foldHistory(history)).flatMap((count, side) => Array.from({ length: count }, () => side as 0 | 1))
+    if (free.length < places.length) throw new Response('playing every side is not available here', { status: 409 })
+    for (const [at, side] of places.entries()) {
+      const outcome = await this.repository.seatBattlePlayer({
+        battleId: history.battle.id,
+        userId: free[at]!,
+        side,
+        by: userId,
+        now: this.clock(),
+      })
+      if (outcome !== 'joined') throw new Response(JOIN_REFUSALS[outcome === 'seated' ? 'full' : outcome], { status: 409 })
+    }
     return null
   }
 

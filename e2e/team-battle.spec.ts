@@ -4,7 +4,6 @@ import {
   chooseBattlefield,
   createBattle,
   createRoster,
-  PRACTICE_OPPONENT,
   recordFirstTurn,
   setupStep,
   signUp,
@@ -119,9 +118,12 @@ test('a 2v1 draws the allied pair as one side with one pool of everything', asyn
 test('a 2v1 opened from the allied side seats its opener with their ally and plays both detachments', async ({ browser }) => {
   const host = await (await browser.newContext()).newPage()
   const ally = await (await browser.newContext()).newPage()
+  const opponent = await (await browser.newContext()).newPage()
   const hostName = uniqueName('Captain')
   const allyName = uniqueName('Partner')
 
+  await signUp(opponent, uniqueName('Rival'))
+  const opponentRoster = await createRoster(opponent, { faction: 'Necrons', detachment: /Canoptek Court/, name: 'Opposing army' })
   await signUp(ally, allyName)
   const allyRoster = await createRoster(ally, {
     faction: 'Necrons',
@@ -136,12 +138,10 @@ test('a 2v1 opened from the allied side seats its opener with their ally and pla
     name: 'Host army',
     size: /Incursion/,
   })
-  // The seat nobody signs in to is fielded from this table's own library.
-  const practiceRoster = await createRoster(host, { faction: 'Necrons', detachment: /Canoptek Court/, name: 'Practice army' })
-  await createBattle(host, { yourAlly: ally, practice: true })
+  await createBattle(host, { yourAlly: ally, opponent })
 
   await attachRoster(host, hostRoster)
-  await attachRoster(host, practiceRoster, { forPlayer: PRACTICE_OPPONENT })
+  await attachRoster(opponent, opponentRoster)
   await attachRoster(ally, allyRoster)
   // The opener and the ally who joined them are one side, named as one.
   await expect(host.locator('[data-face-off-side="0"]')).toContainText(hostName)
@@ -163,9 +163,7 @@ test('a 2v1 opened from the allied side seats its opener with their ally and pla
   // Each ally's army reads as its own line, not as one sentence holding both of them.
   await expect(ours.getByRole('link', { name: /^Awakened Dynasty$/ })).toBeVisible()
   await expect(ours.getByRole('link', { name: /^Hypercrypt Legion$/ })).toBeVisible()
-  // A seat nobody signs in to is named after what it is. Nothing badges it a second
-  // time, and the format is the shape of the table rather than who is in it.
-  await expect(host.getByRole('main').getByText('practice', { exact: true })).toHaveCount(0)
+  // The format is the shape of the table rather than who is in it.
   await expect(host.getByRole('main')).toContainText('2v1')
   await expect(ours.getByRole('button', { name: /^About Protocol of the Eternal Revenant$/i })).toBeVisible()
   await expect(ours.getByRole('button', { name: /^About Reanimation Crypts$/i })).toBeVisible()

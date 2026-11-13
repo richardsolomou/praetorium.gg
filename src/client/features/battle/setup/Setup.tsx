@@ -1,5 +1,5 @@
 import { GuideHelp } from '../../onboarding/GuideHelp'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { Check, QrCode } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
@@ -38,7 +38,9 @@ import { advanceOnboarding } from '../../onboarding/onboarding'
 import { Battlefield } from './Battlefield'
 import { ArmyChooser } from './ArmiesStep'
 import { FaceOff } from './FaceOff'
-import { OpponentStep, useDraft, useShareBattle } from './OpponentStep'
+import { OpponentStep, playsEverySide, useDraft, usePlayEverySide, useShareBattle } from './OpponentStep'
+import { isPracticeSeat } from '../../../../core/newBattle'
+import { removeBattlePlayer } from '../../../functions'
 import { useHistoryDialog } from '../../../useHistoryDialog'
 import {
   BATTLE_SIZE_CONTROL,
@@ -65,6 +67,7 @@ import { tint } from '../battleTints'
 import type { OnboardingTarget } from '../../../onboardingTargets'
 import { attachedUnitList } from '../../../../core/attachedUnits'
 import { Choice } from '../../../components/Choice'
+import { Problem } from '../../../components/Problem'
 import { countLabel, formatList } from '../../../text'
 import { deploymentFor } from '../../../battleSummary'
 
@@ -181,8 +184,7 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
   const youHaveAnArmy = Boolean(yours?.armies.find((army) => army.isViewer)?.roster)
   /** Your own army while it has no list, which the bar offers to choose before anything else it can do. */
   const yourArmy = view.sealedEventToken ? undefined : yours?.armies.find((army) => army.isViewer && !army.roster)
-  // A practice opponent brings nothing on its own, so its list is one of the ones
-  // this table still owes before setup can move on.
+  // A place the viewer plays brings nothing on its own, so its list is one of the ones this table still owes.
   const owed = table.flatMap((side) => side.armies).filter((army) => (army.isViewer || army.automated) && !army.roster)
   const awaited = table.flatMap((side) => side.armies).filter((army) => !army.isViewer && !army.automated && !army.roster)
   const undecided = table.filter((side) => side.dispositionChoices.length > 1 && !side.disposition)
@@ -280,23 +282,26 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
     (chosenPack ?? { missions: references?.packs.flatMap((pack) => pack.missions) ?? [] }).missions.find((entry) => entry.id === missionId)
       ?.card ?? undefined
 
-  const configure = (settings: Partial<Omit<Extract<Command, { kind: 'configure-battle' }>, 'kind'>>) =>
-    send({
-      kind: 'configure-battle',
-      limit: view.settings.sizeFromRosters ? null : view.settings.limit,
-      missionPackId: view.settings.missionPackId,
-      terrainLayoutId: view.settings.terrainLayoutId,
-      twistId: view.settings.twistId,
-      teamBattle: view.settings.teamBattle,
-      playerCount: view.settings.playerCount,
-      // A 2v1 pair shares the battle size, so an older battle's points per army go once the table changes its format.
-      armyPoints: twoVsOne && !view.sealedEventToken ? null : (view.settings.armyPoints ?? null),
-      ...(view.settings.sharedArmyPoints ? { sharedArmyPoints: true } : {}),
-      sizeFromSides: true,
-      clockLimitMinutes: null,
-      ...(manual ? { manual: true } : {}),
-      ...settings,
-    })
+  const configure = (settings: Partial<Omit<Extract<Command, { kind: 'configure-battle' }>, 'kind'>>, then?: () => void) =>
+    send(
+      {
+        kind: 'configure-battle',
+        limit: view.settings.sizeFromRosters ? null : view.settings.limit,
+        missionPackId: view.settings.missionPackId,
+        terrainLayoutId: view.settings.terrainLayoutId,
+        twistId: view.settings.twistId,
+        teamBattle: view.settings.teamBattle,
+        playerCount: view.settings.playerCount,
+        // A 2v1 pair shares the battle size, so an older battle's points per army go once the table changes its format.
+        armyPoints: twoVsOne && !view.sealedEventToken ? null : (view.settings.armyPoints ?? null),
+        ...(view.settings.sharedArmyPoints ? { sharedArmyPoints: true } : {}),
+        sizeFromSides: true,
+        clockLimitMinutes: null,
+        ...(manual ? { manual: true } : {}),
+        ...settings,
+      },
+      then ? { complete: (appended) => appended && then() } : undefined,
+    )
 
   const sizeFixed = Boolean(view.sealedEventToken || (view.settings.sizeFromRosters && format.problem !== 'manual'))
   // A size taken from the rosters is only known once every list is in, which the next step asks for.
@@ -390,19 +395,39 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
   // The places are the table's to change only while it is set up through them, never in a sealed event.
   const changePlaces =
     places && !watching && !view.sealedEventToken
-      ? (side: number, by: 1 | -1) => {
+      ? (side: number, by: 1 | -1, then?: () => void) => {
           const counts = places.map((count, at) => (at === side ? count + by : count)) as [number, number]
           const players = counts[0] + counts[1]
           // Two allies facing one player share their side's points; a doubles army brings half.
-          configure({
-            places: counts,
-            playerCount: players as 2 | 3 | 4,
-            teamBattle: players > 2,
-            armyPoints: null,
-            sharedArmyPoints: players === 3,
-          })
+          configure(
+            {
+              places: counts,
+              playerCount: players as 2 | 3 | 4,
+              teamBattle: players > 2,
+              armyPoints: null,
+              sharedArmyPoints: players === 3,
+            },
+            then,
+          )
         }
       : null
+  /** Whoever plays every side holds an ally place they add too, and gives one up by leaving it before closing it. */
+  const playingAll = Boolean(places) && playsEverySide(view)
+  const fill = usePlayEverySide(view.token)
+  const dropPlace = useMutation({
+    mutationFn: async ({ side, playerId }: { side: number; playerId: string }) => {
+      await removeBattlePlayer({ data: { token: view.token, playerId } })
+      await queryClient.invalidateQueries({ queryKey: battleQuery(view.token).queryKey })
+      changePlaces?.(side, -1)
+    },
+  })
+  const removePlace = (side: number) => {
+    if (!changePlaces || places![side] !== 2) return undefined
+    if (open[side]) return () => changePlaces(side, -1)
+    const played =
+      playingAll && draft?.draft ? view.players.findLast((player) => player.side === side && isPracticeSeat(player)) : undefined
+    return played ? () => dropPlace.mutate({ side, playerId: played.id }) : undefined
+  }
   const share = () => {
     acceptTracking()
     if (!draft?.invite) shareLink.mutate()
@@ -468,20 +493,24 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
                   ? undefined
                   : {
                       shared: Boolean(draft?.invite),
-                      busy: busy || shareLink.isPending,
+                      playingAll,
+                      busy: busy || shareLink.isPending || fill.isPending || dropPlace.isPending,
                       send,
                       onShare: share,
                       onChoose: (army) => {
                         acceptTracking()
                         chooseRoster(army.playerId)
                       },
-                      onAddAlly: (side) => (changePlaces && places![side] === 1 ? () => changePlaces(side, 1) : undefined),
-                      onRemovePlace: (side) =>
-                        changePlaces && open[side] && places![side] === 2 ? () => changePlaces(side, -1) : undefined,
+                      onAddAlly: (side) =>
+                        changePlaces && places![side] === 1
+                          ? () => changePlaces(side, 1, playingAll ? () => fill.mutate() : undefined)
+                          : undefined,
+                      onRemovePlace: removePlace,
                       problems: (side) => (armyProblem?.side === side ? armyProblemText : undefined),
                     }
               }
             />
+            {dropPlace.error ? <Problem error={dropPlace.error} /> : null}
             {sizeLine ? (
               <p className={cn('relative text-center text-xs', sizeProblem ? 'text-discarded' : 'text-dim')}>{sizeLine}</p>
             ) : null}
@@ -592,21 +621,27 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
             <SpineStep
               {...step('opponent')}
               number={2}
-              name={watching || openCount > 1 ? 'Players' : 'Opponent'}
-              needed={openCount > 0 && !draft?.invite}
+              name={watching || view.players.length + openCount > 2 ? 'Players' : 'Opponent'}
+              needed={openCount > 0 && !draft?.invite && !playingAll}
               hint={
-                openCount === 0
-                  ? draft?.draft && view.viewerId === view.creatorId && view.players.length > 1
-                    ? 'You can remove them until everyone’s army is in.'
-                    : undefined
-                  : draft?.invite
-                    ? 'Waiting for them to open the link. Keep setting up meanwhile.'
-                    : openCount > 1
-                      ? `${openCount} players to join before the battle starts. One link is enough for all of them.`
-                      : 'Invite your opponent. The battle starts once they have joined.'
+                playingAll
+                  ? undefined
+                  : openCount === 0
+                    ? draft?.draft && view.viewerId === view.creatorId && view.players.length > 1
+                      ? 'You can remove them until everyone’s army is in.'
+                      : undefined
+                    : draft?.invite
+                      ? 'Waiting for them to open the link. Keep setting up meanwhile.'
+                      : openCount > 1
+                        ? `${openCount} players to join before the battle starts. One link is enough for all of them.`
+                        : yours && open[yours.index]
+                          ? 'Invite your ally. The battle starts once they have joined.'
+                          : 'Invite your opponent. The battle starts once they have joined.'
               }
               summary={
-                openCount ? (
+                playingAll ? (
+                  <span className="font-bold uppercase">You play every side</span>
+                ) : openCount ? (
                   <span className="text-dim">{openCount > 1 ? `${openCount} places open` : 'No opponent yet'}</span>
                 ) : (
                   <span className="font-bold uppercase">
@@ -615,7 +650,7 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
                 )
               }
             >
-              {places ? <OpponentStep view={view} open={openCount} draft={draft} /> : null}
+              {places ? <OpponentStep view={view} open={openCount} draft={draft} both={fill} /> : null}
             </SpineStep>
 
             <SpineStep

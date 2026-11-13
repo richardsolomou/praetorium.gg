@@ -1,4 +1,5 @@
 import { Link } from '@tanstack/react-router'
+import type { ReactNode } from 'react'
 import { cn } from '@/lib/utils'
 import { isGuestSeat } from '../../../core/newBattle'
 import type { Army, Side } from '../../sides'
@@ -15,19 +16,19 @@ export function SideDot({ side }: { side: number }) {
  *
  * One picture at one size wherever a seat is named — the side panel during a battle
  * and the strip above setup — so a player is recognised the same way from the first
- * screen of a game to the last. A guest has no profile to go to, so their name says
- * what they are instead.
+ * screen of a game to the last. A seat the table plays has no profile to go to, and a
+ * guest's name says what they are instead.
  */
-export function PlayerName({ army, linked = true }: { army: Army; linked?: boolean }) {
+export function PlayerName({ army, linked = true, badge }: { army: Army; linked?: boolean; badge?: ReactNode }) {
   const guest = isGuestSeat(army.playerId)
-  if (guest) linked = false
+  if (army.automated) linked = false
   const inner = (
     <>
       <PlayerAvatar name={army.playerName} image={army.playerImage} className="size-6 text-xs" />
       <span className={`break-words ${linked ? 'group-hover:underline' : ''}`}>
         {army.playerName}
         {/* Inside the name so it wraps with it rather than squeezing it in a narrow card. */}
-        {guest ? <span className="chip ml-1.5 align-middle">Guest</span> : null}
+        {guest ? <span className="chip ml-1.5 align-middle">Guest</span> : badge}
       </span>
     </>
   )

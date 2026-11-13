@@ -9,7 +9,6 @@ import {
   createBattle,
   createRoster,
   desktopContext,
-  PRACTICE_OPPONENT,
   setupBattle,
   setupStep,
   selectOrdinaryMissions,
@@ -296,7 +295,7 @@ test('showing every stratagem includes the ones for the other turn, refused', as
   await practiceBattle(page, roster)
   await startBattle(page)
 
-  const waiting = page.locator('[data-panel="player"]').filter({ hasText: PRACTICE_OPPONENT })
+  const waiting = playerPanel(page, 1)
   const insaneBravery = waiting.getByRole('button', { name: 'Use Insane Bravery' })
   await expect(insaneBravery).toHaveCount(0)
   await waiting.getByRole('button', { name: /not playable now$/ }).click()

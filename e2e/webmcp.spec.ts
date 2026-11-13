@@ -50,6 +50,14 @@ function call(page: Page, toolName: string, arguments_: object = {}) {
     { name: toolName, input: arguments_ },
   )
 }
+/** The token the latest approved create_battle answered with. */
+function createdToken(page: Page) {
+  return page.evaluate(
+    () =>
+      (window as unknown as { agentInspector: { results: { structuredContent?: { token?: string } }[] } }).agentInspector.results.at(-1)
+        ?.structuredContent?.token,
+  )
+}
 function start(page: Page, toolName: string, arguments_: object) {
   return page.evaluate(
     ({ name, input }) =>
@@ -76,23 +84,25 @@ test('declining a browser-agent write leaves saved data unchanged; approving wri
   await signUp(page, uniqueName('Approval'))
   await page.goto('/battles')
   await expect.poll(() => names(page)).toHaveLength(47)
-  const before = await call(page, 'list_my_battles')
-  await start(page, 'create_battle', { opponentId: 'practice-opponent-1', limit: 2000 })
+  // A battle played alone stays a draft until its armies are chosen, which Battles offers back.
+  const draft = page.getByRole('link', { name: /Continue your draft.* vs Opponent/ })
+  await start(page, 'create_battle', { bothSides: true })
   const dialog = page.getByRole('dialog', { name: 'Create a battle' })
   await expect(dialog).toBeVisible()
   await page.screenshot({ path: test.info().outputPath('webmcp-approval-desktop.png') })
   await page.setViewportSize(PHONE)
   await page.screenshot({ path: test.info().outputPath('webmcp-approval-phone.png') })
   await dialog.getByRole('button', { name: 'Decline', exact: true }).click()
-  expect(await call(page, 'list_my_battles')).toEqual(before)
-  await start(page, 'create_battle', { opponentId: 'practice-opponent-1', limit: 2000 })
+  await page.reload()
+  await expect(page.getByRole('heading', { name: 'Battles', exact: true })).toBeVisible()
+  await expect(draft).toHaveCount(0)
+  await expect.poll(() => names(page)).toHaveLength(47)
+  await start(page, 'create_battle', { bothSides: true })
   await dialog.getByRole('button', { name: 'Approve change', exact: true }).click()
   await expect(dialog).toBeHidden()
-  await expect(page.getByRole('link', { name: /Practice Opponent/ }).first()).toBeVisible()
-  const after = await call(page, 'list_my_battles')
-  expect(after).not.toEqual(before)
+  await expect(draft).toBeVisible()
   await page.reload()
-  await expect(page.getByRole('link', { name: /Practice Opponent/ }).first()).toBeVisible()
+  await expect(draft).toBeVisible()
 })
 
 test('browser agents save rosters, change visibility and append battle actions through the shared handlers', async ({ page }) => {
@@ -122,12 +132,13 @@ test('browser agents save rosters, change visibility and append battle actions t
   await expect(visibilityDialog).toBeHidden()
   const roster = (await call(page, 'get_my_roster', { id: rosters[0].id })).structuredContent!.roster as { visibility: string }
   expect(roster.visibility).toBe('public')
-  await start(page, 'create_battle', { opponentId: 'practice-opponent-1', limit: 2000 })
+  await start(page, 'create_battle', { bothSides: true })
   const createDialog = page.getByRole('dialog', { name: 'Create a battle' })
   await createDialog.getByRole('button', { name: 'Approve change', exact: true }).click()
   await expect(createDialog).toBeHidden()
-  const battles = (await call(page, 'list_my_battles')).structuredContent!.battles as { token: string }[]
-  const token = battles[0].token
+  // Played alone, the battle stays a draft until its armies are in, so it is read from the tool's own answer.
+  await expect.poll(() => createdToken(page)).toBeTruthy()
+  const token = (await createdToken(page))!
   const battle = (await call(page, 'get_my_battle', { token })).structuredContent!.battle as { view: { seq: number } }
   await start(page, 'submit_battle_action', { token, expectedSeq: battle.view.seq, command: { kind: 'set-painted', painted: true } })
   const actionDialog = page.getByRole('dialog', { name: 'Record a battle action' })
