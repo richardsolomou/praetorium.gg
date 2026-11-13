@@ -370,11 +370,6 @@ html:has([data-replay-timeline]) [data-web-app-footer] {
   padding-bottom: 5rem;
 }
 
-/* The setup bar is fixed over the page's end, so the footer leaves room for it. */
-html:has([data-setup-bar]) [data-web-app-footer] {
-  padding-bottom: 5rem;
-}
-
 html[data-native-shell='true'] [data-native-app-chrome],
 html[data-native-shell='true'] [data-mobile-app-header],
 html[data-native-shell='true'] [data-mobile-app-header-spacer],
