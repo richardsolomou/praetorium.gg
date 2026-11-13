@@ -613,6 +613,8 @@ export type BattleSettings = {
   twistId: string | null
   teamBattle: boolean
   playerCount: 2 | 3 | 4
+  /** How many players each side seats, set while the table is still filling; absent where the seats were filled at creation. */
+  places?: [number, number]
   /** What each army on a side may spend in a team battle, by side; absent splits the battle size evenly. */
   armyPoints?: number[]
   /** Doubles allies spend their side's points between them, in any split, rather than each army its own share; a 2v1 pair always does. */
@@ -911,6 +913,8 @@ export type Command =
       twistId: string | null
       teamBattle?: boolean
       playerCount?: 2 | 3 | 4
+      /** How many players each side seats, which the battle's open places are counted from. */
+      places?: [number, number]
       /** A team battle's points per army, by side; absent or null splits the battle size evenly. */
       armyPoints?: number[] | null
       sharedArmyPoints?: boolean
@@ -1303,8 +1307,32 @@ export type BattleState = {
  * is refused by the same rule the interface reads rather than by a separate one
  * that could come to disagree.
  */
-export function battleCapacity(settings: { teamBattle?: boolean; playerCount?: 2 | 3 | 4 }) {
+export function battleCapacity(settings: { teamBattle?: boolean; playerCount?: 2 | 3 | 4; places?: readonly number[] }) {
+  if (settings.places) return (settings.places[0]! + settings.places[1]!) as 2 | 3 | 4
   return settings.playerCount ?? (settings.teamBattle ? TEAM_BATTLE_PLAYERS : PLAYERS_PER_BATTLE)
+}
+
+/**
+ * The places on each side nobody has joined yet, by side.
+ *
+ * Only a battle that counts its places has any: one whose seats were all filled at creation is full by definition.
+ */
+export function openPlaces(state: { settings: Pick<BattleSettings, 'places'>; players: readonly { side: number }[] }): [number, number] {
+  const places = state.settings.places
+  if (!places) return [0, 0]
+  return [0, 1].map((side) => Math.max(0, places[side]! - state.players.filter((player) => player.side === side).length)) as [
+    number,
+    number,
+  ]
+}
+
+/** A battle still being put together: a place is open or an army is missing. Only setup has drafts. */
+export function stillFilling(state: {
+  status: string
+  settings: Pick<BattleSettings, 'places'>
+  players: readonly { side: number; roster: unknown }[]
+}) {
+  return state.status === 'setup' && (openPlaces(state).some(Boolean) || state.players.some((player) => !player.roster))
 }
 
 /**
@@ -1569,9 +1597,21 @@ export function commandRefusal(state: BattleState, by: PlayerId, command: Comman
         return refuse('sealed-event-sealed', 'this battle’s seats are sealed')
       if (command.playerCount !== undefined && command.playerCount !== 2 && command.playerCount !== 3 && command.playerCount !== 4)
         return refuse('unsupported-player-count', 'choose a supported player count')
-      if (battleCapacity(command) > PLAYERS_PER_BATTLE !== Boolean(command.teamBattle))
+      // A setup change that leaves the places out keeps the ones the table already has.
+      const places = command.places ?? state.settings.places
+      if (places) {
+        if (state.sealedEventToken) return refuse('sealed-event-sealed', 'this battle’s seats are sealed')
+        if (!places.every((count) => count === 1 || count === 2))
+          return refuse('unsupported-player-count', 'choose a supported player count')
+        if (command.playerCount !== undefined && command.playerCount !== battleCapacity({ places }))
+          return refuse('seat-count-mismatch', 'choose matching battle sides and seats')
+        if (state.players.some((candidate) => sidePlayers(state, candidate.side).length > places[candidate.side]!))
+          return refuse('too-few-seats', 'remove a player before removing their place')
+      }
+      if (battleCapacity({ ...command, places }) > PLAYERS_PER_BATTLE !== Boolean(command.teamBattle))
         return refuse('seat-count-mismatch', 'choose matching battle sides and seats')
-      if (battleCapacity(command) < state.players.length) return refuse('too-few-seats', 'choose enough seats for every player')
+      if (battleCapacity({ ...command, places }) < state.players.length)
+        return refuse('too-few-seats', 'choose enough seats for every player')
       if (command.limit !== null && !isGameSize(command.limit)) return refuse('unsupported-battle-size', 'choose a supported battle size')
       if (command.teamBattle && isKotcLimit(command.limit)) return refuse('unsupported-battle-size', 'choose a supported battle size')
       if (state.sealedEventToken && JSON.stringify(command.armyPoints ?? null) !== JSON.stringify(state.settings.armyPoints ?? null))
@@ -2086,6 +2126,14 @@ function apply(state: BattleState, by: PlayerId, command: Command, seq: number) 
   }
   const actor = state.players.find((candidate) => candidate.id === by)
   if (!actor) return
+  // A player removed from an open place before the start takes what was done for them with them, rather than handing it to whoever acted.
+  if (
+    state.settings.places &&
+    'playerId' in command &&
+    command.playerId &&
+    !state.players.some((candidate) => candidate.id === command.playerId)
+  )
+    return
   const player = targetArmy(state, actor, command)
 
   switch (command.kind) {
@@ -2094,6 +2142,7 @@ function apply(state: BattleState, by: PlayerId, command: Command, seq: number) 
       return
     case 'configure-battle': {
       const missionPackChanged = state.settings.missionPackId !== command.missionPackId
+      const places = command.places ?? state.settings.places
       state.settings = {
         limit: command.limit,
         ...(command.limit === null ? { sizeFromRosters: true } : {}),
@@ -2101,7 +2150,8 @@ function apply(state: BattleState, by: PlayerId, command: Command, seq: number) 
         terrainLayoutId: command.terrainLayoutId,
         twistId: command.twistId,
         teamBattle: command.teamBattle ?? false,
-        playerCount: battleCapacity(command),
+        playerCount: battleCapacity({ ...command, places }),
+        ...(places ? { places } : {}),
         ...(command.armyPoints ? { armyPoints: command.armyPoints } : {}),
         ...(command.sharedArmyPoints ? { sharedArmyPoints: true } : {}),
         ...(command.sizeFromSides ? { sizeFromSides: true } : {}),

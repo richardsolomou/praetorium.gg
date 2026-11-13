@@ -438,6 +438,11 @@ export function app(): App {
     // Also at start, because deploys can arrive more often than hourly and restart the timer.
     void checkSpacetimeBackup()
     setInterval(() => void checkSpacetimeBackup(), 60 * 60 * 1000).unref()
+    const sweepDrafts = () =>
+      void instance.service.sweepDrafts().catch((error: unknown) => {
+        reportServerFailure({ event: 'battle_draft_sweep_failed', error })
+      })
+    setInterval(sweepDrafts, 60 * 60 * 1000).unref()
     let thumbnailsPending = true
     let maintainingPhotos = false
     const maintainPhotos = async () => {

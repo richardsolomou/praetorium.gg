@@ -9,7 +9,8 @@ These tools need the player's Praetorium account. If a tool asks for sign-in, ex
 
 ## Create the battle
 
-1. Call `list_my_opponents`. Ask who they're playing: a friend or a practice opponent from that list by `id`. Every seat belongs to an account: an opponent without one signs up and accepts a friend invite first, and a game tracked alone uses a practice opponent.
+1. Call `list_my_opponents`. Ask who they're playing: a friend or a practice opponent from that list by `id`. Every seat belongs to an account, and a game tracked alone uses a practice opponent.
+   If their opponent will join with their own account, name nobody: `create_battle` starts a draft with only them and returns `joinUrl` to send to the opponent, who joins the open place by opening it.
 2. Ask for the battle size and mission pack (`list_reference` lists packs), and whether they want guided tracking (the default) or `manual`.
 3. Confirm the seats, size and pack, then call `create_battle`. Keep the `token` it returns.
 

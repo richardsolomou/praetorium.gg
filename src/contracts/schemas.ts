@@ -297,6 +297,11 @@ export const createBattleSchema = z
   .refine((value) => (value.allyId ? 1 : 0) + opposingSeats(value) <= 3, 'a battle seats four players at most')
   .refine((value) => !value.allyId || opposingSeats(value) > 0, 'an ally needs someone to play against')
 export const deleteBattleSchema = z.object({ token })
+export const startDraftSchema = z.object({ missionPackId: id.nullable().default(null) })
+export const battleInviteSchema = z.object({ invite: token })
+export const joinBattleSchema = z.object({ invite: token, side: z.union([z.literal(0), z.literal(1)]) })
+export const inviteToBattleSchema = z.object({ token, friendId: id })
+export const removeBattlePlayerSchema = z.object({ token, playerId: id })
 export const battlesPageSchema = z.object({
   before: battlesCursor.nullable().default(null),
 })

@@ -11,6 +11,8 @@ import {
   battleReport,
   friendBattles,
   friendships,
+  battleInvitation,
+  myDrafts,
   myBattles,
   openBattle,
   opponents,
@@ -39,6 +41,8 @@ import {
   battlesKey,
   friendBattlesKey,
   friendshipsKey,
+  battleInvitationKey,
+  myDraftsKey,
   opponentsKey,
   playerBattlesKey,
   playerProfileKey,
@@ -214,3 +218,9 @@ function battleSequence(value: unknown): number | null {
 
 export const reportQuery = (token: string, enabled: boolean) =>
   queryOptions({ queryKey: reportKey(token), queryFn: () => battleReport({ data: { token } }), enabled, staleTime: SSR_STALE_TIME })
+
+export const battleInvitationQuery = (invite: string) =>
+  queryOptions({ queryKey: battleInvitationKey(invite), queryFn: () => battleInvitation({ data: { invite } }), staleTime: SSR_STALE_TIME })
+
+/** The signed-in player's drafts, which New battle and Battles offer to continue rather than listing. */
+export const myDraftsQuery = () => queryOptions({ queryKey: myDraftsKey(), queryFn: () => myDrafts(), staleTime: SSR_STALE_TIME })

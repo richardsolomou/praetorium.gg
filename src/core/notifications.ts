@@ -9,7 +9,12 @@ import { z } from 'zod'
  * already watching is never one.
  */
 export type Notice = { actorId: string; recipientIds: readonly string[] } & (
-  | { kind: 'battle-created'; battleToken: string; sealedEvent: boolean }
+  | {
+      kind: 'battle-created'
+      battleToken: string
+      sealedEvent: boolean
+      /** The link an invited friend joins through, while their place is open. */ invite?: string
+    }
   | { kind: 'friend-requested' }
   | { kind: 'friend-accepted' }
   | {
@@ -53,6 +58,7 @@ export function noticeMessage(notice: Notice, names: { actor?: string; sealedEve
   const actor = names.actor ?? 'A player'
   switch (notice.kind) {
     case 'battle-created':
+      if (notice.invite) return { title: 'Battle invite', body: `${actor} invited you to a battle.`, path: battleInvitePath(notice.invite) }
       return {
         title: 'New battle',
         body: `${actor} started ${notice.sealedEvent ? 'a sealed-roster battle' : 'a battle'} with you.`,
@@ -101,6 +107,11 @@ export function noticeMessage(notice: Notice, names: { actor?: string; sealedEve
         path: `/groups/${encodeURIComponent(notice.groupToken)}`,
       }
   }
+}
+
+/** Where a battle's link joins it. */
+export function battleInvitePath(invite: string) {
+  return `/battles/join/${encodeURIComponent(invite)}`
 }
 
 function sealedEventPath(notice: { sealedEventToken: string; eventToken?: string }) {

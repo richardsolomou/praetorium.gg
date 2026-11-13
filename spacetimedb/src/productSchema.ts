@@ -86,6 +86,28 @@ const guestSeats = table(
   },
 )
 
+/**
+ * A battle still being put together, which every list leaves out until each place is filled and each army chosen.
+ * The row goes once that happens and never comes back, so a battle that has been listed stays listed.
+ */
+const battleDrafts = table(
+  { name: 'battle_drafts' },
+  {
+    battleId: t.string().primaryKey(),
+    userId: t.string().index('btree'),
+  },
+)
+
+/** The link that lets an account join a battle's open places, and the friends invited with it. */
+const battleInvites = table(
+  { name: 'battle_invites' },
+  {
+    battleId: t.string().primaryKey(),
+    invite: t.string().unique(),
+    invitedIds: t.array(t.string()),
+  },
+)
+
 const pushPreferences = table(
   { name: 'push_preferences' },
   {
@@ -863,6 +885,8 @@ export const productTables = {
   battleActivity,
   battleFinishes,
   battleStarts,
+  battleDrafts,
+  battleInvites,
   battleDigests,
   battleFeedOrder,
   battleFeedState,

@@ -19,6 +19,8 @@ import {
   withinArmyPoints,
   importedCommandRefusal,
   applyEntry,
+  openPlaces,
+  stillFilling,
   reduceBattle,
   validate,
   type FormatRuleId,
@@ -504,6 +506,8 @@ function deleteBattle(ctx: Context, battleId: string) {
   ctx.db.groupBattles.battleId.delete(battleId)
   ctx.db.battleImports.battleId.delete(battleId)
   for (const row of Array.from(ctx.db.importedSeats.battleId.filter(battleId))) ctx.db.importedSeats.key.delete(row.key)
+  ctx.db.battleDrafts.battleId.delete(battleId)
+  ctx.db.battleInvites.battleId.delete(battleId)
   ctx.db.battles.id.delete(battleId)
 }
 
@@ -1098,6 +1102,8 @@ const newBattle = z.strictObject({
       players: z.tuple([idInput, idInput]),
     })
     .optional(),
+  /** Started by its creator alone, with the other places open for players to join. */
+  draft: z.boolean().optional(),
   /** The group league fixture this battle plays, which it is linked to as it starts. */
   fixtureKey: z
     .string()
@@ -1107,6 +1113,79 @@ const newBattle = z.strictObject({
 
 export const createBattle = spacetime.procedure({ payload: t.string() }, t.string(), (ctx, { payload }) =>
   operatorTx(ctx, (tx) => createBattleIn(tx, [payload])),
+)
+
+export const seatBattlePlayer = spacetime.procedure({ payload: t.string() }, t.string(), (ctx, { payload }) =>
+  operatorTx(ctx, (tx) => seatPlayerIn(tx, [payload])),
+)
+
+export const removeBattlePlayer = spacetime.procedure(
+  { battleId: t.string(), by: t.string(), userId: t.string() },
+  t.bool(),
+  (ctx, input) => operatorTx(ctx, (tx) => removeBattlePlayerIn(tx, [input.battleId, input.by, input.userId])),
+)
+
+export const battleInvite = spacetime.procedure(
+  { battleId: t.string(), by: t.string(), invite: t.string(), inviteeId: t.string() },
+  t.string(),
+  // An empty invitee shares the link without inviting anyone through it.
+  (ctx, input) => operatorTx(ctx, (tx) => battleInviteIn(tx, [input.battleId, input.by, input.invite, input.inviteeId || undefined])),
+)
+
+export const stopBattleInvite = spacetime.procedure({ battleId: t.string(), by: t.string() }, t.bool(), (ctx, input) =>
+  operatorTx(ctx, (tx) => stopBattleInviteIn(tx, [input.battleId, input.by])),
+)
+
+/** Whether a battle is a draft, and the link and invitations that fill it. */
+export const battleDraftState = spacetime.procedure({ battleId: t.string() }, t.string(), (ctx, { battleId }) =>
+  operatorTx(ctx, (tx) => {
+    const invite = tx.db.battleInvites.battleId.find(battleId)
+    return productJson({
+      draft: Boolean(tx.db.battleDrafts.battleId.find(battleId)),
+      invite: invite ? { invite: invite.invite, invitedIds: invite.invitedIds } : null,
+    })
+  }),
+)
+
+/** The battle a link joins, as a seated player reads it, or null once the link is retired. */
+export const battleByInvite = spacetime.procedure({ invite: t.string() }, t.string(), (ctx, { invite }) =>
+  operatorTx(ctx, (tx) => {
+    const row = tx.db.battleInvites.invite.find(invite)
+    return productJson(row && tx.db.battles.id.find(row.battleId) ? battleData(tx, row.battleId) : null)
+  }),
+)
+
+/** The drafts a player sits in, most recently changed first, as a list reads them. */
+export const draftsByUser = spacetime.procedure({ userId: t.string(), revision: t.string() }, t.string(), (ctx, input) =>
+  operatorTx(ctx, (tx) => {
+    const drafts = Array.from(tx.db.battleUsers.userId.filter(input.userId)).flatMap((seat) => {
+      const battle = tx.db.battleDrafts.battleId.find(seat.battleId) && tx.db.battles.id.find(seat.battleId)
+      return battle ? [{ battle, at: lastActivity(tx, battle) }] : []
+    })
+    return productJson(
+      drafts
+        .sort((left, right) => (left.at > right.at ? -1 : left.at < right.at ? 1 : 0))
+        .slice(0, 10)
+        .map(({ battle, at }) => ({ ...battleCard(tx, battle.id, input.revision), at: safeNumber(at) })),
+    )
+  }),
+)
+
+/** Deletes drafts nobody has changed since `before`, and says how many. */
+export const sweepDrafts = spacetime.procedure({ before: t.u64() }, t.u32(), (ctx, { before }) =>
+  operatorTx(ctx, (tx) => {
+    let swept = 0
+    for (const { battleId } of Array.from(tx.db.battleDrafts.iter())) {
+      const battle = tx.db.battles.id.find(battleId)
+      // Someone joining is activity too, though it appends no command.
+      const joined = Array.from(tx.db.battleUsers.battleId.filter(battleId)).some((seat) => seat.joinedAt >= before)
+      if (battle && (joined || lastActivity(tx, battle) >= before)) continue
+      if (battle) deleteBattle(tx, battleId)
+      else tx.db.battleDrafts.battleId.delete(battleId)
+      swept += 1
+    }
+    return swept
+  }),
 )
 
 export const battleByToken = spacetime.procedure({ token: t.string() }, t.string(), (ctx, { token }) =>
@@ -1208,6 +1287,7 @@ export const battleFeed = spacetime.procedure({ payload: t.string() }, t.string(
     for (const battle of candidates()) {
       // The public feed's candidates arrive in feed order, so the page is whole once it holds one more than it shows.
       if (input.scope === 'public' && rows.length > input.limit) break
+      if (tx.db.battleDrafts.battleId.find(battle.id)) continue
       const seats = Array.from(tx.db.battleUsers.battleId.filter(battle.id))
       const seatIds = new Set(seats.map((seat) => seat.userId))
       const hasPractice = seats.some((seat) => Boolean(tx.db.practiceOpponents.userId.find(seat.userId)))
@@ -1905,6 +1985,7 @@ export const submitBattle = spacetime.procedure(
         applyEntry(state, { seq, by: input.userId, at: safeNumber(at), command: parsed.data })
       if (wasFinished || parsed.data.kind === 'undo' || state.status === 'finished') touchPublic(tx, 'standings')
       if (parsed.data.kind === 'set-battle-group' || parsed.data.kind === 'undo') indexGroupBattle(tx, input.battleId)
+      settleDraft(tx, input.battleId)
       return productJson({
         result: { outcome: 'appended', seq },
         ...(sync?.reportApplied ? { applied: true } : {}),
@@ -2109,7 +2190,8 @@ export const productStats = spacetime.procedure({ userIds: t.array(t.string()) }
       [...new Set(userIds)].map((userId) => ({
         userId,
         rosterCount: Array.from(tx.db.rosters.userId.filter(userId)).length,
-        battleCount: Array.from(tx.db.battleUsers.userId.filter(userId)).length,
+        battleCount: Array.from(tx.db.battleUsers.userId.filter(userId)).filter((seat) => !tx.db.battleDrafts.battleId.find(seat.battleId))
+          .length,
         tournamentCount: Array.from(tx.db.tournaments.ownerId.filter(userId)).length,
         friendCount: [...tx.db.friendships.requesterId.filter(userId), ...tx.db.friendships.addresseeId.filter(userId)].filter(
           (row) => row.acceptedAt !== undefined,
@@ -2292,7 +2374,7 @@ function onboardingData(ctx: Context, userId: string) {
     facts: {
       roster,
       friend,
-      battle: Boolean(ctx.db.battleUsers.userId.filter(userId).next().value),
+      battle: Array.from(ctx.db.battleUsers.userId.filter(userId)).some((seat) => !ctx.db.battleDrafts.battleId.find(seat.battleId)),
       tournament,
     },
   }
@@ -4809,7 +4891,13 @@ function insertBattle(
 function createBattleIn(tx: Context, args: unknown[]) {
   const [payload] = z.tuple([textArg]).parse(args)
   const battle = decodePayload(newBattle, payload, 'Invalid battle')
-  const { id, token, userId, allyIds, opponentIds, guestNames, initialCommands, now, imported } = battle
+  const { id, token, userId, allyIds, opponentIds, guestNames, initialCommands, now, imported, draft } = battle
+  if (draft) {
+    if (allyIds.length || opponentIds.length || guestNames.length || imported || battle.fixtureKey !== undefined)
+      throw new SenderError('Invalid battle seats')
+    const untouched = untouchedDraft(tx, userId, initialCommands)
+    if (untouched) return productJson(battleData(tx, untouched))
+  }
   const seats: BattleSeat[] = [
     { id: userId, side: 0 },
     ...allyIds.map((seatId) => ({ id: seatId, side: 0 })),
@@ -4818,7 +4906,7 @@ function createBattleIn(tx: Context, args: unknown[]) {
   ]
   if (
     seats.length > 4 ||
-    !seats.some((seat) => seat.side === 1) ||
+    (!draft && !seats.some((seat) => seat.side === 1)) ||
     [userId, ...allyIds, ...opponentIds].some(isGuestSeat) ||
     new Set(seats.map((seat) => seat.id)).size !== seats.length
   )
@@ -4862,6 +4950,7 @@ function createBattleIn(tx: Context, args: unknown[]) {
         : null),
   )
   if (initialCommands.some((command) => command.kind === 'set-battle-group')) indexGroupBattle(tx, id)
+  if (draft) tx.db.battleDrafts.insert({ battleId: id, userId })
   if (battle.fixtureKey !== undefined) {
     const { fixture, league } = openFixture(tx, battle.fixtureKey, battle)
     tx.db.roundPairings.key.update({ ...fixture, battleId: id })
@@ -4879,6 +4968,120 @@ function removeBattleIn(tx: Context, args: unknown[]) {
   if (!opener || opener.userId !== userId) return false
   deleteBattle(tx, battleId)
   return true
+}
+
+/** The player who opened a battle: the first to sit on its first side. */
+function battleOpener(ctx: Context, battleId: string) {
+  return Array.from(ctx.db.battleUsers.battleId.filter(battleId))
+    .filter((seat) => seat.side === 0)
+    .sort((left, right) => (left.joinedAt > right.joinedAt ? 1 : left.joinedAt < right.joinedAt ? -1 : 0))[0]?.userId
+}
+
+/** The draft a player opened with these same settings and has done nothing with yet, which starting another reuses rather than piling up. */
+function untouchedDraft(ctx: Context, userId: string, initialCommands: readonly Command[]) {
+  const opening = initialCommands.map((command) => JSON.stringify(command))
+  for (const { battleId } of ctx.db.battleDrafts.userId.filter(userId)) {
+    const seats = Array.from(ctx.db.battleUsers.battleId.filter(battleId))
+    const commands = Array.from(ctx.db.commands.battleId.filter(battleId), (command) => command.body)
+    if (seats.length === 1 && JSON.stringify(commands) === JSON.stringify(opening) && !ctx.db.battleInvites.battleId.find(battleId))
+      return battleId
+  }
+  return undefined
+}
+
+/** Lists a draft once every place is filled and every army chosen; a battle never goes back to being a draft. */
+function settleDraft(ctx: Context, battleId: string) {
+  if (!ctx.db.battleDrafts.battleId.find(battleId)) return
+  if (stillFilling(battleState(ctx, battleId).state)) return
+  ctx.db.battleDrafts.battleId.delete(battleId)
+  ctx.db.battleInvites.battleId.delete(battleId)
+  for (const seat of ctx.db.battleUsers.battleId.filter(battleId)) touchProduct(ctx, seat.userId, 'battles', 'onboarding')
+  touchBattle(ctx, battleId)
+}
+
+/** A seated account rather than a seat the table plays, which is who may share a battle's link. */
+function seatedAccount(ctx: Context, battleId: string, userId: string) {
+  const seat = ctx.db.battleUsers.key.find(JSON.stringify([battleId, userId]))
+  return Boolean(seat && seat.guestName === undefined && !ctx.db.practiceOpponents.userId.find(userId))
+}
+
+const seatPlayer = z.strictObject({
+  battleId: idInput,
+  userId: idInput,
+  side: z.union([z.literal(0), z.literal(1)]),
+  /** Who seats them: the player themselves through the battle's link, or its opener seating a practice opponent they play. */
+  by: idInput,
+  invite: idInput.optional(),
+  now: z.number().int().nonnegative(),
+})
+
+/** Seats an account in one of a battle's open places, or says why not. */
+function seatPlayerIn(tx: Context, args: unknown[]) {
+  const [payload] = z.tuple([textArg]).parse(args)
+  const input = decodePayload(seatPlayer, payload, 'Invalid seat')
+  if (isGuestSeat(input.userId)) throw new SenderError('Invalid user ID')
+  if (!tx.db.battles.id.find(input.battleId)) return productJson('missing')
+  if (input.by === input.userId) {
+    const invite = tx.db.battleInvites.battleId.find(input.battleId)
+    if (!invite || invite.invite !== input.invite) return productJson('missing')
+  } else if (battleOpener(tx, input.battleId) !== input.by || !tx.db.practiceOpponents.userId.find(input.userId))
+    return productJson('not-yours')
+  const { seats, state } = battleState(tx, input.battleId)
+  if (seats.some((seat) => seat.id === input.userId)) return productJson('seated')
+  if (state.status !== 'setup') return productJson('started')
+  if (!openPlaces(state)[input.side]) return productJson('full')
+  tx.db.battleUsers.insert({
+    key: JSON.stringify([input.battleId, input.userId]),
+    battleId: input.battleId,
+    userId: input.userId,
+    side: input.side,
+    joinedAt: BigInt(input.now),
+    guestName: undefined,
+    claimedSeat: undefined,
+  })
+  const invite = tx.db.battleInvites.battleId.find(input.battleId)
+  if (invite?.invitedIds.includes(input.userId))
+    tx.db.battleInvites.battleId.update({ ...invite, invitedIds: invite.invitedIds.filter((id) => id !== input.userId) })
+  for (const seat of [...seats, { id: input.userId }]) touchProduct(tx, seat.id, 'battles', 'onboarding')
+  touchBattle(tx, input.battleId)
+  settleDraft(tx, input.battleId)
+  return productJson('joined')
+}
+
+/** The opener takes a player back out of a battle that has not started, leaving their place open again. */
+function removeBattlePlayerIn(tx: Context, args: unknown[]) {
+  const [battleId, by, userId] = z.tuple([textArg, textArg, textArg]).parse(args)
+  // Only a draft: a listed battle's seats feed its results, and one named at creation has no place to reopen.
+  if (!tx.db.battleDrafts.battleId.find(battleId) || battleOpener(tx, battleId) !== by || by === userId) return false
+  const seat = tx.db.battleUsers.key.find(JSON.stringify([battleId, userId]))
+  if (!seat || seat.guestName !== undefined || battleState(tx, battleId).state.status !== 'setup') return false
+  touchBattleSeats(tx, battleId)
+  tx.db.battleUsers.key.delete(seat.key)
+  // The link they joined through would let them straight back in, so the creator shares a new one.
+  tx.db.battleInvites.battleId.delete(battleId)
+  touchBattle(tx, battleId)
+  return true
+}
+
+/** The battle's link, made the first time a seated player shares it, with any friend they invite through it. */
+function battleInviteIn(tx: Context, args: unknown[]) {
+  const [battleId, by, invite, inviteeId] = z.tuple([textArg, textArg, textArg, textArg.optional()]).parse(args)
+  if (!seatedAccount(tx, battleId, by) || !validId(invite) || (inviteeId !== undefined && !validId(inviteeId))) return productJson(null)
+  const current = tx.db.battleInvites.battleId.find(battleId)
+  const invitedIds = [...new Set([...(current?.invitedIds ?? []), ...(inviteeId ? [inviteeId] : [])])].slice(-8)
+  if (current) tx.db.battleInvites.battleId.update({ ...current, invitedIds })
+  else tx.db.battleInvites.insert({ battleId, invite, invitedIds })
+  touchBattleSeats(tx, battleId)
+  return productJson({ invite: current?.invite ?? invite, invitedIds })
+}
+
+/** Retires a battle's link and its invitations, so nobody else can join through them. */
+function stopBattleInviteIn(tx: Context, args: unknown[]) {
+  const [battleId, by] = z.tuple([textArg, textArg]).parse(args)
+  if (!seatedAccount(tx, battleId, by)) return false
+  const removed = tx.db.battleInvites.battleId.delete(battleId)
+  if (removed) touchBattleSeats(tx, battleId)
+  return removed
 }
 
 function requestFriendIn(tx: Context, args: unknown[]) {
