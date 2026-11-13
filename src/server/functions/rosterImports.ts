@@ -1,7 +1,7 @@
 import { createServerFn } from '@tanstack/react-start'
 import { getRequest } from '@tanstack/react-start/server'
 import { battlebaseRosterSchema, battlebaseTextRoster } from '../../core/battlebaseRoster'
-import { nameOf } from '../../core/catalogue'
+import { nameOf, resolve } from '../../core/catalogue'
 import { fromNewRecruitShare, newRecruitShareId } from '../../core/newRecruit'
 import type { TextRoster } from '../../core/textRoster'
 import { importableRostersSchema } from '../../contracts/schemas'
@@ -54,9 +54,11 @@ export const findImportableRosters = createServerFn({ method: 'POST' })
         }
       }
       // Entry ids are the same in every rules version, so the current catalogue names them all.
-      const named = (id: string) => {
+      const known = (id: string) => {
         const definition = loaded.index.definitions.get(id)
-        return definition && nameOf(definition, loaded.index.definitions)
+        return (
+          definition && { name: nameOf(definition, loaded.index.definitions), model: resolve(definition, loaded.index).type === 'model' }
+        )
       }
       // Every link is asked for at once and read in turn; a failed ask is answered in its turn.
       const asked = data.links.map((link) => {
@@ -68,7 +70,7 @@ export const findImportableRosters = createServerFn({ method: 'POST' })
       const rosters = inTurn(asked, async ({ link, id, share }) => {
         if (!id || !share) return { kind: 'unread' as const, key: link, problem: 'This is not a New Recruit share link.' }
         const opened = await share
-        const list = opened && fromNewRecruitShare(opened, named)
+        const list = opened && fromNewRecruitShare(opened, known)
         if (!list) return { kind: 'unread' as const, key: id, problem: 'This link does not open a list.' }
         return read(id, list, 'newrecruit')
       })

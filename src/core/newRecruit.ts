@@ -50,16 +50,17 @@ export type NewRecruitShare = z.infer<typeof newRecruitShareSchema>
  * choices beneath it is a model, a node with neither groups choices, and a leaf is a choice,
  * counted once when New Recruit leaves its amount out.
  *
- * `named` gives the catalogue's own name for a BattleScribe id, which reads a list New Recruit
- * shows in another language; New Recruit's label stands where the catalogue has no such id.
+ * `known` gives the catalogue's own name for a BattleScribe id, which reads a list New Recruit
+ * shows in another language, and whether it is a model; New Recruit's label stands where the
+ * catalogue has no such id.
  */
 export function fromNewRecruitShare(
   share: NewRecruitShare,
-  named: (id: string) => string | undefined = () => undefined,
+  known: (id: string) => { name: string; model: boolean } | undefined = () => undefined,
 ): TextRoster | null {
   const book = share.army.options[0]
   if (!book) return null
-  const label = (node: ShareNode) => (node.option_id && named(node.option_id)) || node.name
+  const label = (node: ShareNode) => (node.option_id && known(node.option_id)?.name) || node.name
   const forces = book.options
   const categories = forces.flatMap((force) => force.options)
   // A Crusade force keeps its setup in a Configuration entry under its Crusade Army category, beside a Configuration category of visibility toggles.
@@ -81,7 +82,9 @@ export function fromNewRecruitShare(
   // A bodyguard names the characters joining it, so each of them is attached to the bodyguard's entry.
   const bodyguards = new Map(nodes.flatMap((node, at) => (node.associated ?? []).map((link) => [link.uid, at + 1] as const)))
   // A list saved on older data can hold wargear since split up, as a "Bolt Rifle w/ Grenade Launcher"; the pieces under it say it all.
-  const bundleSinceSplit = (node: ShareNode) => node.option_id !== undefined && !named(node.option_id)
+  const bundleSinceSplit = (node: ShareNode) => node.option_id !== undefined && !known(node.option_id)
+  // A loadout choice can hold the models taking it, as "8 chainblades" holds eight Jakhals; only the catalogue tells it from a bundle on a model.
+  const holdsModels = (node: ShareNode) => node.options.some((child) => child.option_id !== undefined && known(child.option_id)?.model)
   const units = nodes.map((node, at): TextRosterUnit => {
     const selections: TextRosterUnit['selections'] = []
     let models = 0
@@ -93,7 +96,7 @@ export function fromNewRecruitShare(
         if (!child.options.length) {
           if (/^warlord$/i.test(label(child))) warlord = true
           else selections.push({ name: label(child), count: amount! * multiplier, ...(model ? { model } : {}) })
-        } else if (amount === undefined || bundleSinceSplit(child)) visit(child, model, (amount ?? 1) * multiplier)
+        } else if (amount === undefined || bundleSinceSplit(child) || holdsModels(child)) visit(child, model, (amount ?? 1) * multiplier)
         else if (!model) {
           models += amount * multiplier
           selections.push({ name: label(child), count: amount * multiplier })
