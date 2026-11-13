@@ -1296,7 +1296,7 @@ export type BattleState = {
   players: PlayerState[]
   /** Shared by the table, so a break counts against nobody's turn. */
   clockPaused: boolean
-  /** The side a switch handed the clock to in another side's turn; null gives it to the side taking the turn. */
+  /** The side a switch handed the clock to in this phase; null gives it to the side taking the turn. */
   clockSide: number | null
   /**
    * The newest command still standing. Undo reaches only this one, which keeps
@@ -2110,8 +2110,7 @@ export function commandRefusal(state: BattleState, by: PlayerId, command: Comman
     }
     case 'switch-clock': {
       if (state.status !== 'playing' || state.completionPending) return refuse('battle-not-running', 'the battle is not running')
-      if (!state.players.some((candidate) => candidate.side === command.side))
-        return refuse('unknown-side', 'that side is not in this battle')
+      if (!sidePlayers(state, command.side).length) return refuse('unknown-side', 'that side is not in this battle')
       if (command.side === clockSide(state)) return refuse('clock-unchanged', 'that side already has the clock')
       return null
     }
@@ -2536,8 +2535,7 @@ function apply(state: BattleState, by: PlayerId, command: Command, seq: number) 
       return
     }
     case 'switch-clock': {
-      const active = state.players.find((candidate) => candidate.id === state.activePlayerId)
-      state.clockSide = command.side === active?.side ? null : command.side
+      state.clockSide = command.side
       return
     }
     case 'undo': {
@@ -2858,7 +2856,6 @@ function drawCard(state: BattleState, player: PlayerState, card: Secondary, seq:
 
 function enterTurn(state: BattleState, playerId: PlayerId, settlementRound: number | null, seq: number) {
   state.activePlayerId = playerId
-  state.clockSide = null
   state.turnSeq = seq
   state.phase = 'command'
   const activeSide = state.players.find((candidate) => candidate.id === playerId)?.side

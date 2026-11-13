@@ -1,4 +1,4 @@
-import { applyEntry, clockSide, emptyBattle, reduceBattle, type BattleState, type LoggedCommand, type Phase, type PlayerId } from './battle'
+import { applyEntry, emptyBattle, reduceBattle, type BattleState, type LoggedCommand, type Phase, type PlayerId } from './battle'
 
 /**
  * The time on a side's clock in one phase of one battle round.
@@ -51,6 +51,7 @@ function walk(...[playerIds, log, playerSides, automatedPlayerIds = []]: Seats) 
   const advances = new Map<number, AdvanceTime>()
   let running: BattleClock['running'] = null
   let stood: Omit<ClockSpan, 'ms'> | null = null
+  let holder: number | null = null
   for (const [index, entry] of log.entries()) {
     if (running) {
       const key = `${running.side}:${running.round}:${running.phase}`
@@ -61,7 +62,7 @@ function walk(...[playerIds, log, playerSides, automatedPlayerIds = []]: Seats) 
     if (entry.command.kind === 'undo') state = reduceBattle(playerIds, log.slice(0, index + 1), playerSides, automatedPlayerIds)
     else applyEntry(state, entry)
     const at = position(state)
-    const holder = clockSide(state)
+    holder = at && (state.clockSide ?? at.side)
     if (stood && entry.command.kind === 'advance') {
       const { side, round, phase } = stood
       const turnEnded = !at || at.side !== side || at.round !== round
@@ -74,7 +75,7 @@ function walk(...[playerIds, log, playerSides, automatedPlayerIds = []]: Seats) 
     running = at && holder !== null && !state.clockPaused ? { ...at, side: holder, since: entry.at } : null
   }
   const limitMs = state.settings.clockLimitMinutes ? state.settings.clockLimitMinutes * 60_000 : null
-  return { clock: { spans: [...spans.values()], running, paused: state.clockPaused, holder: clockSide(state), limitMs }, advances }
+  return { clock: { spans: [...spans.values()], running, paused: state.clockPaused, holder, limitMs }, advances }
 }
 
 export const battleClock = (...seats: Seats): BattleClock => walk(...seats).clock

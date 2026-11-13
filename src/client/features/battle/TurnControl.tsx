@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { PHASES, type Command } from '../../../core/battle'
 import type { BattleClock } from '../../../core/battleClock'
+import { opposingSide } from '../../../core/battlePrimitives'
 import { type BattleView } from '../../../core/battleView'
 import { tint } from './battleTints'
 import { Elapsed } from './Elapsed'
@@ -96,7 +97,9 @@ export function TurnControl({ view, clock, send, pending, blockReason, onAdvance
           data-switch-clock
           className="w-full"
           disabled={pending}
-          onClick={() => send({ kind: 'switch-clock', side: clock.holder === activeSide ? 1 - activeSide : activeSide })}
+          onClick={() =>
+            send({ kind: 'switch-clock', side: clock.holder === activeSide ? (opposingSide(view, activeSide) ?? activeSide) : activeSide })
+          }
         >
           <ArrowLeftRight aria-hidden />
           {clock.holder === activeSide ? 'Hand the clock over for a reaction' : 'Hand the clock back'}

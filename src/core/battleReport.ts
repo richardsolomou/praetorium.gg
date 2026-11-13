@@ -10,7 +10,7 @@
  */
 
 import { type AdvanceTime, advanceTimes } from './battleClock'
-import { sameSide } from './battlePrimitives'
+import { sameSide, sidePlayers } from './battlePrimitives'
 import {
   type BattleMoment,
   type BattleState,
@@ -305,7 +305,7 @@ function describe(
     case 'resume-clock':
       return `${who} resumes the timer`
     case 'switch-clock': {
-      const holders = after.players.filter((candidate) => candidate.side === command.side)
+      const holders = sidePlayers(after, command.side)
       if (holders.some((candidate) => candidate.id === by)) return `${who} takes the clock`
       return `${who} hands the clock to ${holders.map((candidate) => named.get(candidate.id) ?? 'another player').join(' and ')}`
     }
