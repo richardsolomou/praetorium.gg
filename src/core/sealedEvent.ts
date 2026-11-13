@@ -69,8 +69,9 @@ export function alliedSealedEventRosterLimit(rosterLimit: number) {
 }
 
 /**
- * An organizer's points per army at a team event, by seat; null plays an even share of the battle size. With
- * `sharedPoints`, allies spend their pair's points between them in any split: 900 and 1,100 of 2,000.
+ * An organizer's points per army at a team event, by seat; null plays an even share of the battle size. A 2v1 pair, and
+ * doubles allies with `sharedPoints`, spend their pair's points between them in any split: 900 and 1,100 of 2,000.
+ * Only older 2v1 events carry `allyPoints`, which their pair still spends twice over.
  */
 export type SealedEventArmyPoints = { soloPoints: number | null; allyPoints: number | null; sharedPoints: boolean }
 
@@ -98,7 +99,7 @@ export function sealedEventArmyPointsError(format: TableShape, points: Partial<S
  */
 export function sealedEventRosterSplit(event: { format: TableShape; rosterLimit: number } & Partial<SealedEventArmyPoints>) {
   const ally = sealedEventSeatPoints(event, false)!
-  const pair = event.sharedPoints
+  const pair = sealedEventPairShares(event)
     ? `${(ally * 2).toLocaleString('en')} shared`
     : `${ally.toLocaleString('en')} + ${ally.toLocaleString('en')}`
   if (event.format === '2v1') return `${sealedEventSeatPoints(event, true)!.toLocaleString('en')} vs ${pair}`
@@ -152,13 +153,17 @@ export function sealedEventSeatRefusal(
   return within ? null : 'over-points'
 }
 
+/** Whether an event's pairs spend their points between them: always at a 2v1, and at doubles when the organizer says. */
+export const sealedEventPairShares = (event: { format: TableShape | null; sharedPoints?: boolean }) =>
+  event.format === '2v1' || (event.format === '2v2' && Boolean(event.sharedPoints))
+
 /** Whether a seated entrant splits their pair's points with an ally: an allied or doubles seat at an event that shares them. */
 export function sealedEventSharesPoints(
   event: { format: TableShape | null; rosterLimit: number | null; sharedPoints?: boolean },
   entry: { requiredLimit: number | null },
 ) {
-  if (!event.sharedPoints) return false
-  return event.format === '2v2' || (event.format === '2v1' && entry.requiredLimit !== null && entry.requiredLimit !== event.rosterLimit)
+  if (!sealedEventPairShares(event)) return false
+  return event.format === '2v2' || (entry.requiredLimit !== null && entry.requiredLimit !== event.rosterLimit)
 }
 
 export const SEALED_EVENT_NAME_MAX_LENGTH = 100

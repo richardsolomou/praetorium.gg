@@ -1,5 +1,11 @@
 import { z } from 'zod'
-import { isTeamFormat, effectiveSealedEventAllowances, sealedEventAllowanceOptions, sealedEventTableShape } from '../core/sealedEvent'
+import {
+  isTeamFormat,
+  effectiveSealedEventAllowances,
+  sealedEventAllowanceOptions,
+  sealedEventPairShares,
+  sealedEventTableShape,
+} from '../core/sealedEvent'
 import { leagueFixtureOverdue } from '../core/groupLeague'
 import { tokenSchema } from '../contracts/schemas'
 import { gameReferencesFor } from '../shared/gameReferences'
@@ -385,7 +391,7 @@ export function registerOrganisedPlayTools(server: AgentTools, userId: string | 
           pointsBudget: sealedEvent.pointsBudget,
           soloPoints: sealedEvent.soloPoints,
           allyPoints: sealedEvent.allyPoints,
-          alliesSplitPoints: sealedEvent.sharedPoints,
+          alliesSplitPoints: sealedEventPairShares(sealedEvent),
           allows: allows.map((option) => option.label),
           swissRounds: sealedEvent.rounds,
         },

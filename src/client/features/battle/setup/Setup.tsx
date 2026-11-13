@@ -25,6 +25,8 @@ import {
   rosterBattleFormat,
   pointsLabel,
   teamArmyProblems,
+  shortSides,
+  battleCapacity,
 } from '../../../../core/battle'
 import { ArmyPoints } from './ArmyPoints'
 import { battleGroupsQuery, deploymentsQuery, gameReferencesQuery, meQuery } from '../../../queries'
@@ -50,6 +52,7 @@ import {
   CHOOSABLE,
   CHOSEN,
   landOn,
+  SetupNote,
   SetupSidePanel,
   SideFocusProvider,
   useSideFocus,
@@ -191,7 +194,24 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
   const busy = pending || recording
 
   const team = view.settings.teamBattle
-  const budgetsDiffer = ready && !team && !pointsBudgetsAgree(view)
+  const twoVsOne = battleCapacity(view.settings) === 3
+  const budgetsDiffer = ready && !team && !view.settings.sizeFromSides && !pointsBudgetsAgree(view)
+  const short = shortSides(view)[0]
+  const sizeRule = `${
+    !view.settings.sizeFromSides
+      ? team
+        ? 'The biggest list sets the battle size.'
+        : 'Battle size follows your rosters. Each side brings the same points.'
+      : team
+        ? 'Each side plays to its lists added together, and the bigger side sets the battle size.'
+        : 'The bigger list sets the battle size.'
+  }${
+    !team
+      ? ''
+      : twoVsOne || view.settings.sharedArmyPoints
+        ? ' Allies spend their side’s points between them however they agree.'
+        : ' Each army spends up to its side’s points per army, and allies bring lists saved to the same total.'
+  }`
   const armyProblem = ready ? teamArmyProblems(view)[0] : undefined
   const sizeProblem =
     view.settings.limit !== null
@@ -212,7 +232,9 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
           ? format.problem === 'manual'
             ? 'Choose a battle size for text-only armies.'
             : format.problem === 'unsupported'
-              ? 'These roster formats do not make a supported battle size. Choose another format; allies split the points evenly.'
+              ? view.settings.sizeFromSides
+                ? `A side’s lists add up past the biggest battle size, ${pointsLabel(GAME_SIZES.at(-1)!.limit)}. Choose smaller lists.`
+                : 'These roster formats do not make a supported battle size. Choose another format; allies split the points evenly.'
               : format.problem === 'budget-mismatch'
                 ? BUDGET_MISMATCH
                 : 'Choose matching roster formats for each side.'
@@ -276,8 +298,10 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
       twistId: view.settings.twistId,
       teamBattle: view.settings.teamBattle,
       playerCount: view.settings.playerCount,
-      armyPoints: view.settings.armyPoints ?? null,
+      // A 2v1 pair shares the battle size, so an older battle's points per army go once the table changes its format.
+      armyPoints: twoVsOne && !view.sealedEventToken ? null : (view.settings.armyPoints ?? null),
       ...(view.settings.sharedArmyPoints ? { sharedArmyPoints: true } : {}),
+      sizeFromSides: true,
       clockLimitMinutes: null,
       ...(manual ? { manual: true } : {}),
       ...settings,
@@ -413,6 +437,12 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
               </p>
               {manual ? <p className="text-sm text-discarded">Manual tracking. {MANUAL_TRACKING_LIMITS}</p> : null}
             </div>
+            {short ? (
+              <SetupNote className="relative">
+                {sideName(table.find((side) => side.index === short.side)!)} brings {pointsLabel(short.points)} against{' '}
+                {short.against.toLocaleString('en')} and plays short.
+              </SetupNote>
+            ) : null}
             <FaceOff
               sides={table}
               battle={view.token}
@@ -504,7 +534,7 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
                     </div>
                   </fieldset>
                 ) : null}
-                {team && view.settings.limit !== null && !view.sealedEventToken ? (
+                {team && !twoVsOne && view.settings.limit !== null && !view.sealedEventToken ? (
                   <ArmyPoints
                     sides={table}
                     defaults={[0, 1].map((side) => evenArmyPoints(view, side)!)}
@@ -513,7 +543,7 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
                     onChange={(armyPoints) => configure({ armyPoints })}
                   />
                 ) : null}
-                {team && view.settings.limit !== null && !view.sealedEventToken ? (
+                {team && !twoVsOne && view.settings.limit !== null && !view.sealedEventToken ? (
                   <label htmlFor="battle-shared-points" className="flex items-start justify-between gap-3 sm:col-span-2">
                     <span>
                       <span className="block text-sm font-medium">Allies split their points</span>
@@ -573,13 +603,7 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
                   ? `Choose an army for ${formatList(owed.map((army) => army.playerName))}.`
                   : awaited.length
                     ? `Waiting for ${formatList(awaited.map((army) => army.playerName))} to choose an army.`
-                    : (sizeProblem ??
-                      (leaderless.length ? 'Choose whose Warlord leads each allied side.' : null) ??
-                      (team && view.settings.sharedArmyPoints
-                        ? 'The biggest list sets the battle size. Allies spend their side’s points between them however they agree.'
-                        : team
-                          ? 'The biggest list sets the battle size. Each army spends up to its side’s points per army, and allies bring lists saved to the same total.'
-                          : 'Battle size follows your rosters. Each side brings the same points.'))
+                    : (sizeProblem ?? (leaderless.length ? 'Choose whose Warlord leads each allied side.' : null) ?? sizeRule)
               }
             >
               {attachRoster ? (

@@ -386,6 +386,7 @@ export async function createBattle(args: Parameters<typeof server.createBattle>[
     twistId: null,
     teamBattle: players.length >= 3,
     playerCount: players.length,
+    sizeFromSides: true,
     clockLimitMinutes: null,
     ...(input.manual ? { manual: true } : {}),
   })

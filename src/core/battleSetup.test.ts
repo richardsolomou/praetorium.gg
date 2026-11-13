@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { battlePointsBudget, battleSizeText, type Command, reduceBattle, rosterBattleFormat, validate } from './battle'
+import { battlePointsBudget, battleSizeText, type Command, reduceBattle, rosterBattleFormat, shortSides, validate } from './battle'
 import { ALICE, BOB, CAROL, builtRoster, log, roster } from './battle.fixtures'
 
 const configure = (limit: number | null = null): Extract<Command, { kind: 'configure-battle' }> => ({
@@ -222,9 +222,9 @@ describe('team battle points', () => {
     expect(state.settings.limit).toBe(2000)
   })
 
-  it('refuses an army spending more than its side’s points per army', () => {
+  it('refuses a pair spending more than twice its points per army', () => {
     const state = table(teamBattle(2000, [1750, 800]), list(ALICE, 2000, 17), list(BOB, 1000, 9), list(CAROL, 1000, 8))
-    expect(validate(state, ALICE, begin)).toBe('an army spends more than its 800 points')
+    expect(validate(state, ALICE, begin)).toBe('allies spend more than their 1,600 points')
   })
 
   it('starts uneven sides within their own points per army', () => {
@@ -244,13 +244,120 @@ describe('team battle points', () => {
     expect(validate(state, ALICE, begin)).toBe('allies spend more than their 2,000 points')
   })
 
-  it('names each side’s points per army beside the battle size', () => {
+  it('reads an older pair’s points per ally as their shared total', () => {
     const state = table(teamBattle(2000, [1750, 800]), list(ALICE, 2000, 17), list(BOB, 1000, 8), list(CAROL, 1000, 8))
-    expect(battleSizeText(state)).toBe('Strike Force · 1,750 vs 800 + 800')
+    expect(battleSizeText(state)).toBe('Strike Force · 1,750 vs 1,600 shared')
   })
 
   it('refuses points per army for a duel', () => {
     const state = reduceBattle([ALICE, BOB], [])
     expect(validate(state, ALICE, { ...configure(2000), armyPoints: [1000, 1000] })).toBe('only a team battle sets points per army')
+  })
+})
+
+describe('battle size from each side’s lists', () => {
+  const sides = (playerCount: 2 | 3 | 4, limit: number | null = null) =>
+    ({ ...configure(limit), teamBattle: playerCount > 2, playerCount, sizeFromSides: true }) as Command
+  const duel = (...commands: [string, Command][]) => reduceBattle([ALICE, BOB], log([ALICE, sides(2)], ...commands))
+  const twoVsOne = (...commands: [string, Command][]) => reduceBattle([ALICE, BOB, CAROL], log([ALICE, sides(3)], ...commands), [0, 1, 1])
+  const begin: Command = { kind: 'begin-battle', firstPlayerId: ALICE }
+
+  it('lets the first list chosen set the size', () => {
+    expect(duel([ALICE, army(1000)]).settings.limit).toBe(1000)
+  })
+
+  it('plays a duel at the bigger list’s size', () => {
+    expect(duel([ALICE, army(1000)], [BOB, army(2000)]).settings.limit).toBe(2000)
+  })
+
+  it('starts a duel whose lists were built for different sizes', () => {
+    expect(validate(duel([ALICE, army(1000)], [BOB, army(2000)]), ALICE, begin)).toBeNull()
+  })
+
+  it('says which side brings fewer points', () => {
+    expect(shortSides(duel([ALICE, army(1000)], [BOB, army(2000)]))).toEqual([{ side: 0, points: 1000, against: 2000 }])
+  })
+
+  it('starts a duel whose lists bring different points budgets', () => {
+    expect(validate(duel([ALICE, army(2000, undefined, 1500)], [BOB, army(2000)]), ALICE, begin)).toBeNull()
+  })
+
+  it('still refuses a list built bigger than a size the table chose', () => {
+    const state = reduceBattle([ALICE, BOB], log([ALICE, sides(2, 1000)]))
+    expect(validate(state, ALICE, army(2000))).toBe('that roster does not match the battle size')
+  })
+
+  it('adds a pair’s lists together', () => {
+    expect(twoVsOne([ALICE, army(2000)], [BOB, army(1000)], [CAROL, army(1000)]).settings.limit).toBe(2000)
+  })
+
+  it('counts an ally who has not chosen at their partner’s list size', () => {
+    expect(twoVsOne([BOB, army(1000)]).settings.limit).toBe(2000)
+  })
+
+  it('plays a doubles side at its lists added together', () => {
+    const state = reduceBattle(
+      [ALICE, BOB, CAROL, 'dave'],
+      log([ALICE, sides(4)], [ALICE, army(1000)], [BOB, army(1000)], [CAROL, army(1000)], ['dave', army(1000)]),
+      [0, 0, 1, 1],
+    )
+    expect(state.settings.limit).toBe(2000)
+  })
+
+  it('counts allies’ bigger lists only up to the points they share', () => {
+    const state = reduceBattle(
+      [ALICE, BOB, CAROL],
+      log([ALICE, sides(3, 2000)], [ALICE, army(2000)], [BOB, army(2000)], [CAROL, army(2000)]),
+      [0, 1, 1],
+    )
+    expect(shortSides(state)).toEqual([])
+  })
+
+  it('finds no battle size for sides bigger than any', () => {
+    expect(rosterBattleFormat(twoVsOne([BOB, army(2000)])).problem).toBe('unsupported')
+  })
+})
+
+describe('2v1 points', () => {
+  const twoVsOne = (playerCount: 3 | 4, ...commands: Command[]) =>
+    reduceBattle(
+      [ALICE, BOB, CAROL, ...(playerCount === 4 ? ['dave'] : [])],
+      log(
+        [ALICE, { ...configure(2000), teamBattle: true, playerCount }],
+        ...commands.map((command) => [ALICE, command] as [string, Command]),
+      ),
+      playerCount === 4 ? [0, 0, 1, 1] : [0, 1, 1],
+    )
+  const spending = (playerId: string, units: number): Command => {
+    const command = army(units > 10 ? 2000 : 1000, playerId)
+    if (command.kind !== 'attach-roster' || !command.roster.built) throw new Error('Expected a built roster')
+    const built = command.roster.built
+    return {
+      ...command,
+      roster: {
+        ...command.roster,
+        built: { ...built, units: Array.from({ length: units }, (_, at) => ({ ...built.units[0]!, key: `u${at}` })) },
+      },
+    }
+  }
+  const begin: Command = { kind: 'begin-battle', firstPlayerId: ALICE }
+
+  it('lets a pair split its side’s points however it agrees', () => {
+    const state = twoVsOne(3, spending(ALICE, 20), spending(BOB, 11), spending(CAROL, 9))
+    expect(validate(state, ALICE, begin)).toBeNull()
+  })
+
+  it('refuses a pair spending past its side’s points together', () => {
+    const state = twoVsOne(3, spending(ALICE, 20), spending(BOB, 11), spending(CAROL, 10))
+    expect(validate(state, ALICE, begin)).toBe('allies spend more than their 2,000 points')
+  })
+
+  it('names the pair’s shared points beside the battle size', () => {
+    expect(battleSizeText(twoVsOne(3))).toBe('Strike Force · 2,000 vs 2,000 shared')
+  })
+
+  it('keeps each doubles army to half its side’s points', () => {
+    const state = twoVsOne(4, spending(ALICE, 11), spending(BOB, 9), spending(CAROL, 10), spending('dave', 10))
+    expect(validate(state, ALICE, begin)).toBe('an army spends more than its 1,000 points')
   })
 })

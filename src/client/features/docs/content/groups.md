@@ -36,11 +36,11 @@ Everyone seals a list in secret, then you reveal them together. An organizer set
 
 In a duel, any member seals a list. After the reveal, use **Play** beside the person you're playing that evening. Nobody has to play every participant.
 
-In solo vs pair and doubles, pick your side with **Join**, then seal a list for it. Each pair chooses its Force Disposition and whose Warlord leads before the reveal. Afterwards, **Start battle** sets up the one battle between the sides. Results go on the group's leaderboard.
+In solo vs pair and doubles, pick your side with **Join**, then seal a list for it. A solo vs pair game plays 2,000 against 2,000, with the pair spending its 2,000 between them however they agree. Each pair chooses its Force Disposition and whose Warlord leads before the reveal. Afterwards, **Start battle** sets up the one battle between the sides. Results go on the group's leaderboard.
 
 ### Before the reveal
 
-An organizer can change the game from **Edit** in its ⋯ menu. Once anyone seals a list, the format and battle size lock. Points per army, **Allies split their points** and house rules can still change as long as every sealed list still fits them.
+An organizer can change the game from **Edit** in its ⋯ menu. Once anyone seals a list, the format and battle size lock. The solo player's points, doubles points per army, **Allies split their points** and house rules can still change as long as every sealed list still fits them.
 
 **Remind players** notifies each player in the game who hasn't sealed yet, once a day.
 

@@ -33,6 +33,7 @@ it.each([undefined, null, 1000])('creates the initial format command atomically 
     twistId: null,
     teamBattle: false,
     playerCount: 2,
+    sizeFromSides: true,
     clockLimitMinutes: null,
   })
 })

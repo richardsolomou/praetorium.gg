@@ -28,6 +28,8 @@ import {
   readsSealedRoster,
   requiredSealedEventRosterLimit,
   sealedEventEntryPoints,
+  sealedEventRosterSplit,
+  sealedEventSharesPoints,
   sealedEventSeatRefusal,
   visibleSealedEventEntries,
   type SealedEventAllyEntry,
@@ -864,5 +866,25 @@ describe('isSealedEventOrganizer', () => {
 
   it('leaves out a signed-out reader', () => {
     expect(isSealedEventOrganizer(sealedEvent, ['admin'], null)).toBe(false)
+  })
+})
+
+describe('2v1 pair points', () => {
+  const event = { format: '2v1' as const, rosterLimit: 2_000, soloPoints: null, allyPoints: null }
+
+  it('shares the pair’s points without the organizer asking', () => {
+    expect(sealedEventSharesPoints(event, { requiredLimit: 1_000 })).toBe(true)
+  })
+
+  it('plays the pair at the event’s size against the solo player', () => {
+    expect(sealedEventRosterSplit(event)).toBe('2,000 vs 2,000 shared')
+  })
+
+  it('keeps an older event’s points per ally as the pair’s total', () => {
+    expect(sealedEventRosterSplit({ ...event, allyPoints: 800 })).toBe('2,000 vs 1,600 shared')
+  })
+
+  it('keeps doubles allies on their own points unless the organizer shares them', () => {
+    expect(sealedEventSharesPoints({ format: '2v2', rosterLimit: 2_000 }, { requiredLimit: 1_000 })).toBe(false)
   })
 })
