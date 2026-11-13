@@ -48,8 +48,9 @@ describe('a battle with open places', () => {
     const state = reduceBattle([ALICE], log([ALICE, draft()], [ALICE, roster('Mine')], [ALICE, forBob]), [0])
     expect(state.players[0]!.roster?.name).toBe('Mine')
   })
+
   it('keeps its open places through a setup change that leaves them out', () => {
-    const { places: _places, ...withoutPlaces } = draft([1, 1]) as Extract<Command, { kind: 'configure-battle' }>
+    const { places: _places, ...withoutPlaces } = draft([1, 1])
     const state = reduceBattle([ALICE], log([ALICE, draft()], [ALICE, { ...withoutPlaces, missionPackId: 'pack' }]), [0])
     expect(openPlaces(state)).toEqual([0, 1])
   })
