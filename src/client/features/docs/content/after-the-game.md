@@ -2,11 +2,11 @@ A finished battle shows the result, the battle events and a timeline you can scr
 
 Battles between accounts count in each player's record. A guest battle counts in your record, not on the leaderboard. Practice battles count nowhere.
 
-## Playing again
+## Your opponent
 
 Under the result of a battle between accounts, you see your record against your opponent so far, with a link to it on your profile. Guest and practice battles show no record.
 
-If an account you played isn't your friend yet, you can add them, or accept their request, from there. Once everyone at the table is your friend, **Rematch** starts a new battle with the same players on the same sides. It brings your saved roster as it is now, not the army frozen in the last battle; everyone else chooses theirs. Setup then starts again: the primary mission follows the armies' Force Dispositions, and you pick the battlefield as in any new battle. A guest gets a new seat under the same name, so share the new battle's link again if they play on their own device. A rematch never counts for a group or tournament.
+If an account you played isn't your friend yet, you can add them, or accept their request, from there, so you can start battles with each other later.
 
 ## The leaderboard
 

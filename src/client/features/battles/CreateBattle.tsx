@@ -1,17 +1,18 @@
 import { GuideHelp } from '../onboarding/GuideHelp'
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { Check, ChevronRight, Link2, Plus, UserRound } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { posthog } from 'posthog-js'
+import { isFetchNetworkFailure } from '../../networkErrors'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 import { TABLE_SHAPES, TABLE_SHAPE_LABELS, type TableShape } from '../../../core/tableShape'
 import { PROFILE_NAME_MAX_LENGTH } from '../../../core/profileName'
-import { createBattle, sealedEventBattleOptions } from '../../functions'
-import { opponentsQuery } from '../../queries'
+import { createBattle, sealedEventBattleOptions, submit } from '../../functions'
+import { battleQuery, opponentsQuery } from '../../queries'
 import { useStartBattle } from './useStartBattle'
 import { disambiguatedPlayerLabels } from '../../playerLabels'
 import { advanceOnboarding } from '../onboarding/onboarding'
@@ -102,8 +103,23 @@ export function CreateBattle({
   const guestIn = (seat: Seat) => seatedIn(seat) === guestChoice(seat)
   const guestName = (seat: Seat) => (guestNames[seat.id] ?? '').trim()
   const seated = seats.every((seat) => seatedIn(seat) && (!guestIn(seat) || guestName(seat)))
+  const queryClient = useQueryClient()
   const navigate = useNavigate()
-  const { defaultMissionPackId, bringRoster, openBattle } = useStartBattle()
+  const { defaultMissionPackId, openBattle } = useStartBattle()
+  /** Setup still offers the choice of army, so a roster the battle refuses here is only a step left to do there. */
+  const bringRoster = async (token: string, id: string) => {
+    try {
+      const screen = await queryClient.query(battleQuery(token))
+      if (screen?.kind !== 'battle') return
+      const attached = await submit({
+        data: { token, expectedSeq: screen.view.seq, command: { kind: 'attach-saved-roster', rosterId: id } },
+      })
+      queryClient.setQueryData(battleQuery(token).queryKey, attached.screen)
+    } catch (error) {
+      // The battle exists either way, and its setup shows the seat without an army.
+      posthog.capture('battle_roster_attach_failed', { reason: isFetchNetworkFailure(error) ? 'network' : 'error' })
+    }
+  }
   const create = useMutation({
     onMutate: (casual: boolean) =>
       posthog.capture('battle_creation_submitted', { format: shape, casual, manual: tracking === 'manual', ...source }),
