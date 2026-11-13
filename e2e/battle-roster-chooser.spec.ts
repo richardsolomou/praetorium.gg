@@ -159,3 +159,39 @@ test('closing a roster chooser restored by a reload leaves no history entry behi
   await page.goBack()
   await expect(page).toHaveURL(/\/support$/)
 })
+
+test('a roster chooser narrows to legal lists, says when nothing matches, and clears its search on Escape', async ({ page }) => {
+  const legal = 'Legal chooser army'
+  const overspent = 'Overspent chooser army'
+  const { userId, operator } = await savedArmy(page, 'Roster chooser filter', { name: legal, limit: 2000, pointsBudget: null })
+  const source = (await operator.roster('preview-necrons-cursed-skyshroud'))!
+  await operator.saveRoster({
+    ...source,
+    id: crypto.randomUUID(),
+    userId,
+    name: overspent,
+    automaticName: false,
+    visibility: 'private',
+    limit: 2000,
+    pointsBudget: 500,
+    now: Date.now(),
+  })
+  await page.goto(`/battles/${await strikeForceBattle(operator, userId, 'chooser-filter')}`)
+
+  const chooser = await openChooser(page)
+  await expect(chooser.locator(`[data-roster="${overspent}"]`)).toBeVisible()
+  const pill = chooser.locator('[data-filter="legality"]')
+  const choice = page.getByRole('button', { name: /^Legal$/ })
+  await retryUntilVisible(choice, () => pill.getByRole('button', { name: 'Legality' }).click())
+  await choice.click()
+  await page.keyboard.press('Escape')
+  await expect(chooser.locator(`[data-roster="${legal}"]`)).toBeVisible()
+  await expect(chooser.locator(`[data-roster="${overspent}"]`)).toHaveCount(0)
+
+  const search = chooser.getByRole('textbox', { name: 'Search rosters' })
+  await search.fill('no such army')
+  await expect(chooser).toContainText('No rosters match these filters.')
+  await search.press('Escape')
+  await expect(search).toHaveValue('')
+  await expect(chooser.locator(`[data-roster="${legal}"]`)).toBeVisible()
+})

@@ -37,7 +37,10 @@ export function SearchField({ value, onChange, placeholder, label, clearLabel, c
         value={value}
         onChange={(event) => onChange(event.target.value)}
         onKeyDown={(event) => {
-          if (event.key === 'Escape' && value) onChange('')
+          if (event.key !== 'Escape' || !value) return
+          // Kept from a dialog around the field, which would otherwise close on the same key.
+          event.stopPropagation()
+          onChange('')
         }}
         placeholder={placeholder}
         aria-label={label}
