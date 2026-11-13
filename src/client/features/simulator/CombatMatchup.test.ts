@@ -2,7 +2,7 @@ import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { expect, it } from 'vitest'
 import type { CombatAnswer, CombatantSnapshot } from '../../../core/combatMatchup'
-import { CombatMatchup, combatOutcomeEvent, withPenalisedHitRoll } from './CombatMatchup'
+import { CombatMatchup, combatOutcomeEvent, withManualModifiers, withPenalisedHitRoll } from './CombatMatchup'
 import { datasheetFixture } from '../../../core/datasheet.fixtures'
 
 it('records a partial estimate as a completion with its available phase', () => {
@@ -192,4 +192,18 @@ it('leaves the BS alone when the weapon still hits on it', () => {
 
 it('credits other modifiers alone when the penalty did not move the roll', () => {
   expect(withPenalisedHitRoll(rifle, { needed: 4, moved: false }).values[0]).toMatchObject({ value: '4+', modifiers: ['other modifiers'] })
+})
+
+it('shows a manual skill bonus as a better BS on the weapon card', () => {
+  expect(withManualModifiers(rifle, { skill: 1, strength: 2 }).values.map(({ value }) => value)).toEqual(['2+', '7'])
+})
+
+it('keeps a dice Damage at its dice when a minus outweighs its bonus', () => {
+  const melta = { ...rifle, values: [{ name: 'D', value: 'D6+1' }] }
+  expect(withManualModifiers(melta, { damage: -2 }).values[0]?.value).toBe('D6')
+})
+
+it('leaves a card unmarked when a modifier cannot move its value', () => {
+  const best = { ...rifle, values: [{ name: 'BS', value: '2+' }] }
+  expect(withManualModifiers(best, { skill: 1 }).values[0]).toEqual({ name: 'BS', value: '2+' })
 })

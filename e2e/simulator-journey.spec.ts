@@ -14,7 +14,7 @@ import {
 import { chooseCombatUnit, chooseRosterUnit, holdCombatCalculations, combatDamage } from './combat'
 import { decodeSimulatorState } from '../src/contracts/simulatorState'
 
-const pairing = 'Intercessor Squad vs Necron Warriors'
+const pairing = 'Intercessor Squad + Captain + Lieutenant vs Lychguard + Overlord'
 const history = '[aria-label="Recent simulations"]'
 
 test(
@@ -31,22 +31,22 @@ test(
     await gate.release()
     const recent = page.getByRole('region', { name: 'Recent simulations', exact: true })
     await expect(recent.getByRole('link', { name: pairing, exact: true })).toBeVisible()
-    await page.getByRole('button', { name: 'More attacker models', exact: true }).click()
-    await expect(page.getByLabel('Attacker models', { exact: true })).toHaveText('6')
+    await page.getByRole('button', { name: 'Fewer attacker models', exact: true }).click()
+    await expect(page.getByLabel('Attacker models', { exact: true })).toHaveText('9')
     await expect
       .poll(async () => {
         const url = new URL((await recent.getByRole('link', { name: pairing, exact: true }).getAttribute('href')) ?? '', 'http://localhost')
         return decodeSimulatorState(url.searchParams.get('s') ?? undefined)?.sides[0]?.pick.models
       })
-      .toBe(6)
+      .toBe(9)
     await expect(recent.getByRole('link')).toHaveCount(1)
     await page.reload()
-    await expect(page.getByLabel('Attacker models', { exact: true })).toHaveText('6')
+    await expect(page.getByLabel('Attacker models', { exact: true })).toHaveText('9')
     await page.goto('/simulator')
-    await retryUntilVisible(page.getByLabel('Attacker models', { exact: true }).filter({ hasText: '6' }), () =>
+    await retryUntilVisible(page.getByLabel('Attacker models', { exact: true }).filter({ hasText: '9' }), () =>
       recent.getByRole('link', { name: pairing, exact: true }).click(),
     )
-    await expect(page.getByRole('combobox', { name: 'Defender unit', exact: true })).toContainText('Necron Warriors')
+    await expect(page.getByRole('combobox', { name: 'Defender unit', exact: true })).toContainText('Lychguard')
     const other = await context.newPage()
     await other.goto('/')
     await expect(

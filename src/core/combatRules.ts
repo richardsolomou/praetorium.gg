@@ -554,33 +554,41 @@ export function combatRuleProfiles(
         const existingImprovement =
           kind === 'armour-penetration' && value.baseValue ? Math.min(0, Number(value.value) - Number(value.baseValue)) : 0
         const add = adjustment.positive + Math.min(adjustment.negative, adjustment.exclusive - existingImprovement)
-        const starting = adjustment.set === undefined ? value.value : String(adjustment.set)
-        let adjusted: string
-        if ((kind === 'attacks' || kind === 'damage') && !/^\d+$/.test(starting)) {
-          const dice = diceExpression(starting)
-          if (!dice || !dice.dice || dice.bonus + add < 0) return value
-          const bonus = dice.bonus + add
-          adjusted = `${dice.dice === 1 ? '' : dice.dice}D${dice.sides}${bonus ? `+${bonus}` : ''}`
-        } else {
-          if (!/^-?\d+\+?$/.test(starting)) return value
-          const next = Number(starting.replace('+', '')) + add
-          const bounded =
-            kind === 'armour-penetration'
-              ? Math.min(0, next)
-              : kind === 'ballistic-skill' || kind === 'weapon-skill'
-                ? Math.max(2, Math.min(6, next))
-                : Math.max(1, next)
-          adjusted = `${bounded}${value.value.endsWith('+') ? '+' : ''}`
-        }
-        return {
-          ...value,
-          value: adjusted,
-          baseValue: value.baseValue ?? value.value,
-          modifiers: [...new Set([...(value.modifiers ?? []), ...adjustment.sources])],
-        }
+        return adjustedCharacteristic(value, add, adjustment.sources, adjustment.set)
       })
       return { ...profile, values }
     }),
+  }
+}
+
+type Characteristic = Datasheet['profiles'][number]['values'][number]
+
+/** A weapon characteristic with `add` applied to its printed number and its sources recorded; a value it cannot apply to stays as it is. */
+export function adjustedCharacteristic(value: Characteristic, add: number, sources: readonly string[], set?: number): Characteristic {
+  const kind = datasheetCharacteristicKind(value.name)
+  const starting = set === undefined ? value.value : String(set)
+  let adjusted: string
+  if ((kind === 'attacks' || kind === 'damage') && !/^\d+$/.test(starting)) {
+    const dice = diceExpression(starting)
+    if (!dice || !dice.dice || dice.bonus + add < 0) return value
+    const bonus = dice.bonus + add
+    adjusted = `${dice.dice === 1 ? '' : dice.dice}D${dice.sides}${bonus ? `+${bonus}` : ''}`
+  } else {
+    if (!/^-?\d+\+?$/.test(starting)) return value
+    const next = Number(starting.replace('+', '')) + add
+    const bounded =
+      kind === 'armour-penetration'
+        ? Math.min(0, next)
+        : kind === 'ballistic-skill' || kind === 'weapon-skill'
+          ? Math.max(2, Math.min(6, next))
+          : Math.max(1, next)
+    adjusted = `${bounded}${value.value.endsWith('+') ? '+' : ''}`
+  }
+  return {
+    ...value,
+    value: adjusted,
+    baseValue: value.baseValue ?? value.value,
+    modifiers: [...new Set([...(value.modifiers ?? []), ...sources])],
   }
 }
 

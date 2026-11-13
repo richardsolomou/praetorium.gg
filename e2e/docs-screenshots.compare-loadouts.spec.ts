@@ -1,5 +1,5 @@
 import { expect, test } from './test'
-import { addUnit, createRoster, retryUntilVisible, signUp, chooseOption } from './account'
+import { addUnit, createRoster, signUp, chooseOption } from './account'
 import { closeCombatBreakdown, openCombatBreakdown, openCombatControls, combatSettled } from './combat'
 import { capture, docsScreenshots } from './docsScreenshots'
 
@@ -13,11 +13,7 @@ test('compare loadouts in the unit simulator', async ({ page }) => {
   const attacker = page.getByRole('region', { name: 'Attacker', exact: true })
 
   const addMember = page.getByRole('combobox', { name: 'Attacker add attached unit', exact: true })
-  const lieutenant = page.getByRole('option', { name: 'Lieutenant', exact: true })
-  await retryUntilVisible(lieutenant, () => addMember.click())
-  await lieutenant.click()
   await expect(attacker.locator('[data-combat-member="Lieutenant"]')).toBeVisible()
-  await combatSettled(page)
   await page.evaluate(() => window.scrollTo(0, 0))
   await capture('compare-loadouts-add-member', attacker, addMember)
 

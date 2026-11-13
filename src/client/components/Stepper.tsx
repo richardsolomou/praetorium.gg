@@ -23,6 +23,7 @@ export function Stepper({
   reasonBeside = false,
   choices,
   onChoose,
+  format = String,
 }: {
   label: string
   count: number | null
@@ -39,6 +40,7 @@ export function Stepper({
   reasonBeside?: boolean
   choices?: readonly number[]
   onChoose?: (count: number) => void
+  format?: (count: number) => string
 }) {
   const reasonId = useId()
   const reason = onAdd ? null : blocked
@@ -52,19 +54,25 @@ export function Stepper({
             aria-label={countLabel}
             className="readout flex h-6 w-8 items-center justify-center rounded-md border border-runner text-sm transition-colors outline-none hover:bg-input/50 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
           >
-            <SelectValue className="flex-none">{count}</SelectValue>
+            <SelectValue className="flex-none">{format(count)}</SelectValue>
           </SelectPrimitive.Trigger>
           <SelectContent className="min-w-16">
             {choices.map((choice) => (
               <SelectItem key={choice} value={choice} className="readout">
-                {choice}
+                {format(choice)}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
       ) : (
         <span className="readout text-center text-sm leading-6 select-none" aria-label={countLabel} aria-busy={loading}>
-          {loading ? <span aria-hidden className="inline-block h-4 w-5 animate-pulse bg-muted align-middle" /> : (count ?? '—')}
+          {loading ? (
+            <span aria-hidden className="inline-block h-4 w-5 animate-pulse bg-muted align-middle" />
+          ) : count === null ? (
+            '—'
+          ) : (
+            format(count)
+          )}
         </span>
       )}
       <CountButton label={`More ${label}`} repeat onClick={onAdd} describedBy={reason ? reasonId : undefined} />

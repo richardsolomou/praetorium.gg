@@ -259,7 +259,7 @@ export function CombatSimulator({
       <PageHeader
         title="Combat simulator"
         help={<GuideHelp task="simulator">First matchup guide</GuideHelp>}
-        description="Compare shooting and melee between units or whole rosters. Try an editable Intercessors vs Necron Warriors example, or choose your own matchup."
+        description="Compare shooting and melee between units or whole rosters. Try an editable example of led Intercessors against Lychguard, or choose your own matchup."
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <Button
@@ -400,18 +400,32 @@ export function CombatSimulatorMatchup({
   }, [matchupKey])
   const [displayKey, setDisplayKey] = useState(matchupKey)
   if (attacker.ready && defender.ready && displayKey !== matchupKey) setDisplayKey(matchupKey)
-  const [settings, setSettings] = useState(() => ({ key: matchupKey, value: initial?.matchup }))
+  const sides = { reversed, attacker: attacker.identity, defender: defender.identity }
+  const [settings, setSettings] = useState(() => ({ key: matchupKey, ...sides, value: initial?.matchup }))
   const reportSettings = useCallback(
     (value: MatchupSettings) => {
       if (displayKey !== matchupKey || activeMatchup.current !== matchupKey) return
       setSettings((current) =>
-        current.key === matchupKey && JSON.stringify(current.value) === JSON.stringify(value) ? current : { key: matchupKey, value },
+        current.key === matchupKey && JSON.stringify(current.value) === JSON.stringify(value)
+          ? current
+          : { key: matchupKey, reversed, attacker: attacker.identity, defender: defender.identity, value },
       )
     },
-    [matchupKey, displayKey],
+    [matchupKey, displayKey, reversed, attacker.identity, defender.identity],
   )
+  // Modifiers describe the situation, so they outlast a change of unit but not a swap of roles; weapon switches and allocation belong to the unit.
+  const carried =
+    settings.key === matchupKey
+      ? settings.value
+      : settings.reversed === reversed && settings.value
+        ? {
+            ...settings.value,
+            excluded: settings.attacker === sides.attacker ? settings.value.excluded : noExclusions(),
+            allocation: settings.defender === sides.defender ? settings.value.allocation : [],
+          }
+        : undefined
   const matchup = {
-    ...((settings.key === matchupKey ? settings.value : undefined) ?? {
+    ...(carried ?? {
       adjustments: {},
       excluded: noExclusions(),
       allocation: [],

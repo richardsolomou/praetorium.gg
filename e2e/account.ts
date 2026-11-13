@@ -195,6 +195,8 @@ export async function chooseUnit(page: Page, side: string, faction: string, name
   await search.fill(`${name} ${faction}`)
   const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
   await page.getByRole('option', { name: new RegExp(`^${escaped}, ${faction}(?:, \\d+ pts)?$`) }).click()
+  // The next pick looks for the same search box, so it must not find this one still closing.
+  await expect(search).toBeHidden()
 }
 
 export async function befriend(requester: Page, recipient: Page) {
