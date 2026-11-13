@@ -9,7 +9,7 @@ import {
   resolvedText,
   textTokensIn,
   withoutText,
-} from '../shared/sourceText'
+} from '../core/sourceText'
 import { textSources } from './functions'
 import { referenceQuery } from './queries/shared'
 import { type TextSourceChoice, reportTextLoadFailure, textSourceChoice, upstreamBytes, useTextSourceChoice } from './rulesText'

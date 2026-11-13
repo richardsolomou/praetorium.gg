@@ -23,8 +23,9 @@ import {
   transformed,
 } from '../shared/datacards'
 import { completeSteps, type Steps } from '../shared/steps'
-import { type SourceTexts, comparableText, textKey, textTokensIn } from '../shared/sourceText'
-import { type TextFacts, textFactsOf } from '../shared/textFacts'
+import { type SourceTexts, comparableText, textKey, textTokensIn } from '../core/sourceText'
+import { textFactsOf } from '../shared/textFacts'
+import type { TextFacts } from '../core/textFacts'
 import { publishedTexts } from './sourceTexts'
 export * from '../shared/datacards'
 const NO_SECTIONS: SectionProse = () => new Map()

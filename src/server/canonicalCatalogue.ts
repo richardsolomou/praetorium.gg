@@ -1,5 +1,4 @@
 import fs from 'node:fs'
-import { withDefinitionTokens } from './sourceTexts'
 import path from 'node:path'
 import { setImmediate as yieldToEventLoop } from 'node:timers/promises'
 import { replaceFileSync } from './replaceFile'
@@ -515,13 +514,10 @@ export function* canonicalCatalogueSteps(
     format: CANONICAL_CATALOGUE_FORMAT,
     compilerVersion: CANONICAL_CATALOGUE_COMPILER_VERSION,
     revisions: Object.fromEntries(Object.entries(revisions).toSorted(([left], [right]) => compareText(left, right))),
-    datasheets: withDefinitionTokens(
-      routedDatasheets.toSorted(
-        (left, right) => compareText(left.faction, right.faction) || compareText(left.name, right.name) || compareText(left.id, right.id),
-      ),
-      loaded.definitionTexts,
+    datasheets: routedDatasheets.toSorted(
+      (left, right) => compareText(left.faction, right.faction) || compareText(left.name, right.name) || compareText(left.id, right.id),
     ),
-    detachments: withDefinitionTokens(compileCanonicalDetachments(loaded, revisions, rules), loaded.definitionTexts),
+    detachments: compileCanonicalDetachments(loaded, revisions, rules),
     ruleDocuments: compileCanonicalRuleDocuments(rules?.ruleDocuments ?? [], revisions.datacards ?? 'unknown'),
     issues: issues.toSorted(
       (left, right) =>
@@ -542,7 +538,10 @@ export function canonicalCataloguePath(directory: string) {
 
 /** The rules a snapshot directory carries, read beside the catalogue already loaded from it. */
 export const snapshotRules = (directory: string, loaded: LoadedCatalogue) =>
-  loadRules(directory, { iconDirectory: path.join(directory, 'faction-icons'), loadedDatacards: loaded.datacards })
+  loadRules(directory, {
+    iconDirectory: path.join(directory, 'faction-icons'),
+    catalogue: loaded,
+  })
 
 /**
  * A snapshot's reference catalogue: the compiled one it packages, or one compiled from its

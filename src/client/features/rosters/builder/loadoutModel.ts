@@ -1,6 +1,8 @@
 import { escapeRegExp } from '../../../../core/text'
 import { groupBy, uniqueBy } from '../../../../core/collections'
 import type { Datasheet } from '../../../../contracts/catalogue'
+import type { CombatFacts } from '../../../../core/combatReading'
+import type { ReminderSuggestion } from '../../../../core/reminders'
 import { DEFAULT_WARGEAR } from '../../../../shared/datacards'
 import {
   modelFixedCount,
@@ -46,6 +48,8 @@ export type LoadoutChoice = {
     replacements?: { choiceKey: string; optionId: string }[]
     description?: string | null
     keywordRules?: Datasheet['keywordRules']
+    combat?: CombatFacts | null
+    reminder?: ReminderSuggestion
   }[]
 }
 

@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { toggled } from '../../core/collections'
-import { TEXT_SOURCES, type TextSource } from '../../shared/sourceText'
+import { TEXT_SOURCES, type TextSource } from '../../core/sourceText'
 import { TEXT_SOURCE_INFO, chooseTextSources, useTextSourceChoice } from '../rulesText'
 import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './Dialog'
 

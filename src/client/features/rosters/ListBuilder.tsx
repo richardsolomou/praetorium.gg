@@ -909,14 +909,18 @@ export function ListBuilder({
     onSelect: (subject: ReminderSubject) => {
       const key = reminderKey(subject)
       const description = loadedWords(subject.description ?? '') ?? ''
+      const suggested = subject.reminder ?? {
+        timings: suggestReminderTimings(description),
+        ...(suggestReminderWhileDestroyed(description) ? { whileDestroyed: true as const } : {}),
+      }
       resetAbilityAlert()
       setReminderDraft(
         abilityAlerts.settings.find((reminder) => reminder.key === key) ?? {
           key,
           ability: subject.name,
           description: subject.description ?? '',
-          timings: suggestReminderTimings(description),
-          ...(!armyReminder(subject) && suggestReminderWhileDestroyed(description) ? { whileDestroyed: true } : {}),
+          timings: suggested.timings,
+          ...(!armyReminder(subject) && suggested.whileDestroyed ? { whileDestroyed: true } : {}),
         },
       )
     },

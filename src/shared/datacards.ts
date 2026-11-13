@@ -5,8 +5,8 @@ import { PHASES, type Stratagem } from '../core/battle'
 import { routeSlug } from '../core/slug'
 import { catalogueFactionName } from './factionNames'
 import { countLabel, foldedText, joinKey } from '../core/text'
-import type { SourceTexts, TextTransform } from './sourceText'
-import type { TextFactsByKey } from './textFacts'
+import type { SourceTexts, TextTransform } from '../core/sourceText'
+import type { TextFactsByKey } from '../core/textFacts'
 import { type PrintedTransport, printedTransport } from '../core/transport'
 /**
  * What Game Datacards says: the shape of each datasheet, and every piece of rules

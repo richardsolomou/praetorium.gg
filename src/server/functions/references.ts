@@ -21,13 +21,8 @@ import { preparePicker } from '../rosterPicker'
 import { cacheUntilSnapshotChanges } from '../snapshotCache'
 import { memoUntilSnapshotChanges } from '../snapshotMemo'
 import { selectedBattleDetachmentData } from '../../shared/battleDetachmentData'
-import {
-  publishedDetachmentReference,
-  referenceDatasheetBySlug,
-  referenceFactionDatasheets,
-  referenceRuleIndex,
-  referenceRuleSection,
-} from '../referenceCatalogue'
+import { detachmentReference } from '../../shared/detachmentReference'
+import { referenceDatasheetBySlug, referenceFactionDatasheets, referenceRuleIndex, referenceRuleSection } from '../referenceCatalogue'
 import {
   combatLoadoutSchema,
   datasheetOfferedBySchema,
@@ -280,7 +275,7 @@ export const detachmentDetail = createServerFn({ method: 'GET' })
     snapshotRpc(async () => {
       const rules = await app().rulesFor(data.catalogueId)
       const catalogue = await app().catalogueFor(data.catalogueId)
-      return rules && catalogue ? publishedDetachmentReference(catalogue, rules, data.catalogueId, data.slug) : null
+      return rules && catalogue ? detachmentReference(catalogue, rules, data.catalogueId, data.slug) : null
     }),
   )
 

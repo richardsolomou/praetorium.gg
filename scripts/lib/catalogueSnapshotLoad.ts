@@ -4,7 +4,7 @@ import { loadRules } from '../../src/server/rules'
 export function loadSnapshot(directory: string) {
   const catalogue = loadCatalogue(directory)
   if (!catalogue) throw new Error(`Catalogue unavailable: ${directory}`)
-  return { catalogue, rules: loadRules(directory, { loadedDatacards: catalogue.datacards }) }
+  return { catalogue, rules: loadRules(directory, { catalogue }) }
 }
 
 export function loadSnapshotWithRules(directory: string) {

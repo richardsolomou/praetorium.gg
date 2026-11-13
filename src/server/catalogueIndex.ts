@@ -1,11 +1,13 @@
 import { hash } from 'node:crypto'
-import { publishedTexts } from './sourceTexts'
+import { withDefinitionTokens, withDefinitionTokensIn } from './sourceTexts'
+import { definitionTexts } from './definitionTexts'
+import type { TextFactsByKey } from '../core/textFacts'
 import fs from 'node:fs'
 import path from 'node:path'
 import { buildIndex, type CatalogueFile } from '../core/catalogue'
 import { editionCatalogueFiles, type CatalogueEdition } from '../core/catalogueEdition'
 import { catalogueReferencePolicySchema, datacardExclusions } from '../core/catalogueReferencePolicy'
-import { loadDatacardsSteps, paragraphsOf } from './datacards'
+import { type LoadedDatacards, loadDatacardsSteps } from './datacards'
 import { catalogueSections } from './catalogueSections'
 import { loadMfmSteps } from './mfm'
 import { readSharedJson } from './sharedJson'
@@ -31,64 +33,47 @@ export function* loadCatalogueSteps(directory = catalogueDirectory(), edition?: 
   if (!revision.definitions) return null
 
   const strings = new Map<string, string>()
-  const files: CatalogueFile[] = []
-  const paths = new Map<CatalogueFile, string>()
+  const read: { file: CatalogueFile; path: string }[] = []
   for (const name of fs.readdirSync(definitions).filter((entry) => entry.endsWith('.json'))) {
-    const file = readSharedJson(path.join(definitions, name), strings) as CatalogueFile
-    files.push(file)
-    paths.set(file, path.join(definitions, name))
+    read.push({ file: readSharedJson(path.join(definitions, name), strings) as CatalogueFile, path: path.join(definitions, name) })
     yield
   }
-  if (!files.length) return null
+  if (!read.length) return null
 
-  const selectedFiles = edition ? editionCatalogueFiles(files, edition) : files
+  // The catalogue reads its rules texts as tokens with their facts, as a device's catalogue does; only the server keeps the words.
+  const texts = definitionTexts(read)
   yield
-  const index = buildIndex(selectedFiles, catalogueRevision({ ...revision, ...(edition ? { edition: edition.id } : {}) }))
+  const files = texts.files.map(({ file }) => file)
+  const selectedFiles = edition ? editionCatalogueFiles(files, edition) : files
+  let cardFacts: TextFactsByKey | undefined
+  const textFacts: TextFactsByKey = { get: (key) => texts.fact(key) ?? cardFacts?.get(key) }
+  const index = buildIndex(selectedFiles, catalogueRevision({ ...revision, ...(edition ? { edition: edition.id } : {}) }), textFacts)
   yield
   // The cards name sections they do not describe, and the catalogue is where those words are.
-  const datacards = yield* loadDatacardsSteps(path.join(directory, 'datacards', '11th', 'gdc'), catalogueSections(index), strings)
+  const cards = yield* loadDatacardsSteps(path.join(directory, 'datacards', '11th', 'gdc'), catalogueSections(index, texts.words), strings)
+  cardFacts = cards.textFacts
+  const datacards = publishedDatacards(cards, texts.token)
   const policyFile = path.join(directory, 'reference-policy.json')
   const policy = fs.existsSync(policyFile) ? catalogueReferencePolicySchema.parse(JSON.parse(fs.readFileSync(policyFile, 'utf8'))) : null
   const loaded = catalogueFromIndex(index, selectedFiles, datacards)
   yield
   return {
     ...loaded,
-    definitionTexts: definitionTexts(paths),
+    definitions: texts,
     ...(policy ? { datacardExcludedCatalogueIds: datacardExclusions(policy.datacardExcludedCatalogueIds, edition) } : {}),
     mfm: yield* loadMfmSteps(directory),
     ...(edition ? { edition } : {}),
   }
 }
-export function catalogueRevision(revisions: Record<string, string>) {
-  return hash('sha256', JSON.stringify(Object.entries(revisions).sort(([left], [right]) => left.localeCompare(right))))
+
+/** Cards with the catalogue's words they quote swapped for the catalogue's tokens. */
+function publishedDatacards(cards: LoadedDatacards, token: (raw: string) => string | null): LoadedDatacards {
+  const published = withDefinitionTokens(cards, token)
+  const texts = (descriptions: ReadonlyMap<string, string>) =>
+    new Map([...descriptions].map(([key, text]) => [key, withDefinitionTokensIn(text, token)]))
+  return { ...published, armyRules: texts(cards.armyRules), enhancements: texts(cards.enhancements) }
 }
 
-/**
- * Each BSData rules text — a profile's characteristic or a rule's description — by its words,
- * published as a token naming the file that states it. Built when first asked: only what
- * the server publishes reads it.
- */
-function definitionTexts(paths: ReadonlyMap<CatalogueFile, string>) {
-  let tokens: Map<string, string> | undefined
-  return (raw: string) => {
-    if (!tokens) {
-      tokens = new Map()
-      for (const [file, location] of paths) {
-        const texts = publishedTexts(location)
-        const visit = (value: unknown, key?: string) => {
-          if (typeof value === 'string') {
-            if ((key === '$text' || key === 'description') && value.trim() && !tokens!.has(value)) {
-              tokens!.set(value, texts(value, 'plain'))
-              // A card that prints a table as an image quotes the catalogue's paragraphs for it.
-              for (const [at, paragraph] of paragraphsOf(value).entries())
-                if (paragraph !== value && !tokens!.has(paragraph)) tokens!.set(paragraph, texts(value, `para${at}`))
-            }
-          } else if (Array.isArray(value)) for (const entry of value) visit(entry)
-          else if (value && typeof value === 'object') for (const [field, entry] of Object.entries(value)) visit(entry, field)
-        }
-        visit(file)
-      }
-    }
-    return tokens.get(raw) ?? null
-  }
+export function catalogueRevision(revisions: Record<string, string>) {
+  return hash('sha256', JSON.stringify(Object.entries(revisions).sort(([left], [right]) => left.localeCompare(right))))
 }

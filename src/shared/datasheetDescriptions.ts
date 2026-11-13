@@ -1,4 +1,5 @@
 import { withoutFactionPrefix } from '../core/name'
+import { reminderIn } from './textFacts'
 import { canonicalDetachmentName } from '../core/detachmentName'
 import { routeSlug } from '../core/slug'
 import { ruleReferenceMatches, splitWeaponKeywords } from '../core/ruleReference'
@@ -64,17 +65,22 @@ export function describeDatasheetAbilitiesWithContributions(
     null
   const supplied = visibleAbilities.some((ability) => !ability.description && armyRule(ability.name))
   const rulesContributeAbilities = visibleAbilities.some((ability) => describedAbilityKind(ability, upgradeNames) === 'upgrade')
-  const describeAbility = (ability: (typeof visibleAbilities)[number]) => ({
-    ...ability,
-    name: withoutUpgrade(ability.name),
-    kind: describedAbilityKind(ability, upgradeNames),
-    description:
+  const describeAbility = (ability: (typeof visibleAbilities)[number]) => {
+    const description =
       ability.description ??
       armyRule(ability.name) ??
       (ability.kind === 'core' && ability.source
         ? (rulesNamed(loaded, [ability.name]).toSorted((left, right) => right.name.length - left.name.length)[0]?.description ?? null)
-        : null),
-  })
+        : null)
+    const reminder = description === null ? undefined : reminderIn(description, loaded.index.textFacts)
+    return {
+      ...ability,
+      name: withoutUpgrade(ability.name),
+      kind: describedAbilityKind(ability, upgradeNames),
+      description,
+      ...(reminder ? { reminder } : {}),
+    }
+  }
   const abilities = visibleAbilities.map(describeAbility)
   const weaponAbilityNames = weaponKeywords(sheet.profiles)
   const keywords = new Set(sheet.keywords.map((keyword) => routeSlug(withoutFactionPrefix(keyword))))

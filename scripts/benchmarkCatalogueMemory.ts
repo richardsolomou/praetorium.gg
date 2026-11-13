@@ -31,7 +31,7 @@ const runtime =
 let baseCatalogue: ReturnType<typeof loadCatalogue> | undefined
 let baseLoadedRules: LoadedRules | null | undefined
 const base = () => (baseCatalogue ??= loadCatalogue(directory))
-const baseRules = () => (baseLoadedRules ??= loadRules(directory, { loadedDatacards: base()?.datacards }))
+const baseRules = () => (baseLoadedRules ??= loadRules(directory, { catalogue: base() ?? undefined }))
 const versions = catalogueEditionLoaders(directory, base, baseRules, runtime)
 const started = performance.now()
 

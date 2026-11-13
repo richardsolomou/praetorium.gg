@@ -48,7 +48,7 @@ export type CatalogueRuntime = {
 }
 
 export function catalogueRuntimeFingerprint(directory: string) {
-  const fingerprint = createHash('sha256').update(`runtime-v5:canonical-${CANONICAL_CATALOGUE_COMPILER_VERSION}`)
+  const fingerprint = createHash('sha256').update(`runtime-v6:canonical-${CANONICAL_CATALOGUE_COMPILER_VERSION}`)
   for (const file of ['revision.json', 'composition.json', 'reference-policy.json']) {
     const target = path.join(directory, file)
     fingerprint.update(file).update(fs.existsSync(target) ? fs.readFileSync(target) : 'absent')

@@ -1,17 +1,17 @@
 import path from 'node:path'
 import { textSourceFiles } from '../../src/server/sourceTexts'
+import { publishedSearchIndex } from '../../src/server/globalSearch'
+import { downloadedDefinitionFacts } from '../../src/server/definitionTexts'
 import { hash } from 'node:crypto'
 import { gzipSync } from 'node:zlib'
 import { writeFile } from 'node:fs/promises'
-import { readdirSync, readFileSync } from 'node:fs'
 import type { CatalogueFile } from '../../src/core/catalogue'
 import { packRuntimeData, type RuntimeData } from '../../src/contracts/runtimeData'
 import { shareRuntimeData } from '../../src/contracts/sharedRuntimeData'
 import { referenceCatalogue } from '../../src/server/canonicalCatalogue'
 import { detachmentsOffering } from '../../src/shared/factionReferences'
+import { detachmentReference } from '../../src/shared/detachmentReference'
 import {
-  publishedDetachmentReference,
-  publishedFaction,
   referenceDatasheetBySlug,
   referenceFactionDatasheets,
   referenceRuleIndex,
@@ -74,6 +74,7 @@ export function sharedEdition(source: OfflineConstructionSource, base: OfflineCo
         index < 0 ? file : shareRuntimeData(file as unknown as RuntimeData, base.files[index] as unknown as RuntimeData, [String(index)])
       ) as CatalogueFile
     }),
+    definitionFacts: shareRuntimeData(source.definitionFacts!, base.definitionFacts!),
     datacards: shareRuntimeData(source.datacards, base.datacards),
     mfm: shareRuntimeData(source.mfm, base.mfm),
     rules: shareRuntimeData(source.rules, base.rules),
@@ -108,7 +109,7 @@ export async function writeReferenceBundle(outDir: string, directory: string, ru
   }
   const versioned = versions.factions()!
   const factions = versioned.factions.map((faction) => ({
-    ...publishedFaction(faction, versions.catalogueFor(faction.id)),
+    ...faction,
     icon: rules.factionIcons.get(routeSlug(faction.displayName)) ?? null,
   }))
   put(['faction-index'], {
@@ -123,7 +124,7 @@ export async function writeReferenceBundle(outDir: string, directory: string, ru
     if (!faction || queued.has(faction.id)) return
     queued.add(faction.id)
     referenceFactions.push({
-      ...publishedFaction(faction, versions.catalogueFor(faction.id)),
+      ...faction,
       icon: rules.factionIcons.get(routeSlug(faction.displayName)) ?? null,
     })
   }
@@ -154,7 +155,7 @@ export async function writeReferenceBundle(outDir: string, directory: string, ru
       if (detachment.referenceRoute?.catalogueId === faction.slug)
         put(
           ['detachment-detail', faction.id, detachment.slug],
-          publishedDetachmentReference(selectedCatalogue, selectedRules, faction.id, detachment.slug),
+          detachmentReference(selectedCatalogue, selectedRules, faction.id, detachment.slug),
         )
     }
   }
@@ -199,7 +200,7 @@ export async function writeReferenceBundle(outDir: string, directory: string, ru
       templates: rules.terrainTemplates,
     })
   put(['deployments'], rules.deployments)
-  const constructionFor = (target: string, selectedCatalogue: typeof catalogue, selectedRules: typeof rules) => ({
+  const constructionFor = (selectedCatalogue: typeof catalogue, selectedRules: typeof rules) => ({
     version: 1 as const,
     revision: selectedCatalogue.index.revision,
     ...(selectedCatalogue.edition ? { edition: selectedCatalogue.edition } : {}),
@@ -209,12 +210,12 @@ export async function writeReferenceBundle(outDir: string, directory: string, ru
         }
       : {}),
     files: constructionFilesForEdition(
-      readdirSync(path.join(target, 'definitions'))
-        .filter((name) => name.endsWith('.json'))
-        .sort()
-        .map((name): CatalogueFile => JSON.parse(readFileSync(path.join(target, 'definitions', name), 'utf8'))),
+      selectedCatalogue
+        .definitions!.files.toSorted((left, right) => (path.basename(left.path) < path.basename(right.path) ? -1 : 1))
+        .map(({ file }) => file),
       selectedCatalogue.edition,
     ),
+    definitionFacts: packRuntimeData(downloadedDefinitionFacts(selectedCatalogue)),
     datacards: packRuntimeData(selectedCatalogue.datacards),
     mfm: packRuntimeData(selectedCatalogue.mfm ?? null),
     rules: packRuntimeData({ ...selectedRules, terrainLayouts: [], terrainTemplates: [] }),
@@ -230,10 +231,10 @@ export async function writeReferenceBundle(outDir: string, directory: string, ru
   for (const [name, entries] of grouped) if (name) parts[name] = await write('reference', entries)
   const reference = {
     core: await write('reference', grouped.get(null) ?? []),
-    search: await write('reference', versions.searchIndex()!),
+    search: await write('reference', publishedSearchIndex(versions.searchIndex()!)),
     parts,
   }
-  const base = constructionFor(directory, catalogue, rules)
+  const base = constructionFor(catalogue, rules)
   const { rules: baseRules, ...baseCatalogue } = base
   const baseEditions: OfflineConstructionBase[] = []
   const editions: Record<string, string> = {}
@@ -246,7 +247,7 @@ export async function writeReferenceBundle(outDir: string, directory: string, ru
     else
       editions[edition.id] = await write(
         'construction',
-        sharedEdition(constructionFor(path.join(directory, 'editions', edition.id), selectedCatalogue, selectedRules), base),
+        sharedEdition(constructionFor(selectedCatalogue, selectedRules), base),
         MAX_CONSTRUCTION_PART_BYTES,
       )
   }

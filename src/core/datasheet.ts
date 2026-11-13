@@ -1,4 +1,5 @@
 import type { PrintedTransport } from './transport'
+import type { ReminderSuggestion } from './reminders'
 export type AbilityKind = 'core' | 'faction' | 'datasheet' | 'rule' | 'upgrade' | 'wargear'
 
 export type DatasheetRelationship = {
@@ -33,6 +34,8 @@ export type Datasheet = {
     kind: AbilityKind
     /** The keyword a granted ability is limited to, when only some models in the unit have it. */
     models?: string
+    /** What its text suggests for a reminder, recorded where the text is a token. */
+    reminder?: ReminderSuggestion
   }[]
   composition: string[]
   loadout: string | null

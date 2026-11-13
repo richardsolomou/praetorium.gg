@@ -84,7 +84,9 @@ describe.skipIf(!fs.existsSync(source))('Custodes codex', () => {
     (name) => {
       expect(
         digest(
-          datasheetIn(loaded, catalogueId, unit(name).id)!.abilities.find((ability) => ability.name === 'Anathema Psykana')?.description,
+          loaded.definitions!.words(
+            datasheetIn(loaded, catalogueId, unit(name).id)!.abilities.find((ability) => ability.name === 'Anathema Psykana')!.description!,
+          ),
         ),
       ).toBe(anathemaPsykana)
     },

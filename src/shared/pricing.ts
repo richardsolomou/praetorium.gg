@@ -35,7 +35,7 @@ import { detachmentPoints } from './detachmentPoints'
 import { choiceOptionsForPricing, mfmOptionAdjustment, mfmOptionPoints, mfmUnitFor, unitPointAdjustment } from './unitPoints'
 import { isUpgrade, mfmDetachmentFor, withoutUpgrade } from './mfm'
 import { deploymentRules } from './rosterDeployment'
-import { grantsReserveExemptionIn, reserveSelectorsIn } from './textFacts'
+import { combatFactsIn, grantsReserveExemptionIn, reminderIn, reserveSelectorsIn } from './textFacts'
 import { heldWargear, replacementKey, type ReplacementSource } from './heldWargear'
 import { factionRestrictionViolations, isCatalogueSelfContradiction, kotcViolations, warlordCountProblem } from './formatRestrictions'
 import type { LoadedCatalogue } from './catalogueIndex'
@@ -469,7 +469,7 @@ function calculateRoster(
     })
   const reserveExemptionSelectors = reserveSelectorsIn(
     detachmentSpecials.flatMap(({ detail }) => detail?.rules.map((rule) => rule.description) ?? []),
-    loaded.datacards.textFacts,
+    loaded.index.textFacts,
   )
   const enhancementDescriptions = new Map(detachmentSpecials.flatMap(({ described }) => [...described]))
   const budget = detachmentPointBudget(data.limit)
@@ -717,7 +717,16 @@ function calculateRoster(
           kind,
           options: choiceOptions.map((option) => {
             const description = findEnhancementDescription(enhancementDescriptions, chosen, option.name)
-            return { ...option, description, keywordRules: rulesReferencedIn(loaded, [description]) }
+            const combat = description === null ? undefined : combatFactsIn(description, loaded.index.textFacts)
+            const reminder = description === null ? undefined : reminderIn(description, loaded.index.textFacts)
+            return {
+              ...option,
+              description,
+              keywordRules: rulesReferencedIn(loaded, [description]),
+              // A device that holds no words judges the option in combat and suggests its reminder from these.
+              ...(combat === undefined ? {} : { combat }),
+              ...(reminder ? { reminder } : {}),
+            }
           }),
         }
       })
@@ -736,7 +745,7 @@ function calculateRoster(
       const strategicReserveExempt =
         reserveExemptionSelectors.some((selector) => matchesKeywordSelector(selector, unitKeywords)) ||
         selectedEnhancements.some((enhancement) =>
-          grantsReserveExemptionIn(findEnhancementDescription(enhancementDescriptions, chosen, enhancement), loaded.datacards.textFacts),
+          grantsReserveExemptionIn(findEnhancementDescription(enhancementDescriptions, chosen, enhancement), loaded.index.textFacts),
         )
       const wargear = heldWargear(models, choices, catalogued)
       const specialWargear = new Set(

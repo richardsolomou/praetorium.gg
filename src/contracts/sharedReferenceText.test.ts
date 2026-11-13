@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest'
 import { restoreReferenceText, shareReferenceText } from './sharedReferenceText'
-import { textToken } from '../shared/sourceText'
+import { textToken } from '../core/sourceText'
 
 it('shares repeated source tokens while retaining their distinct upstream file identities', () => {
   const current = textToken({ file: 'bbbbbbbb', transform: 'prose', hash: 'c'.repeat(16) })

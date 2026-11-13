@@ -1,4 +1,4 @@
-import { publishedFacts } from '../shared/sourceText'
+import { publishedFacts } from '../core/sourceText'
 
 const TAGS = /<\/?(?:b|i|u|k|ul|li|table|tbody|tr|td|th|appref)>/g
 

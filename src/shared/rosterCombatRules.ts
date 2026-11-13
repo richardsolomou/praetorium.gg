@@ -1,7 +1,9 @@
 import { attachmentErrors } from '../core/attach'
 import { attachedUnit, attachmentHost } from '../core/attachedUnits'
-import { hasTextTokens } from './sourceText'
+import { hasTextTokens } from '../core/sourceText'
 import { parsedAbilityGrants } from './catalogueAbilityGrants'
+import { abilityGrantsIn, combatFactsIn } from './textFacts'
+import { recordedCombatText } from '../core/combatReading'
 import { type CombatRule, type CombatRuleJudge, combatRuleProjected, judgedCombatRule } from '../core/combatRules'
 import { datasheetCharacteristicKind, datasheetProfileKind } from '../core/datasheetStructure'
 import { routeSlug } from '../core/slug'
@@ -237,6 +239,7 @@ function rosterCombatRules(
   ]
   const supportKeywords = [sheet.keywords]
   const models = context.unitSelections.find((unit) => unit.pickIndex === data.pickIndex)?.models
+  const recordedCombat = (description: string) => combatFactsIn(description, loaded.index.textFacts)
   const add = (rule: CombatRule, judge: Pick<CombatRuleJudge, 'origin' | 'attached'>) => {
     const placed: CombatRule = {
       ...rule,
@@ -251,10 +254,12 @@ function rosterCombatRules(
     }
     // Every unit's keywords are known only once the roster is read; `supportKeywords` fills as it is.
     const placement: CombatRuleJudge = { ...judge, keywords: sheet.keywords, unitKeywords, supportKeywords }
-    // A rule published as a token is judged where its words load (`readableRules`), against the same placement.
-    if (hasTextTokens(rule.description)) candidates.push({ ...placed, keywords: sheet.keywords, judge: placement })
+    const recorded = recordedCombat(rule.description)
+    // A token without combat facts is judged where its words load (`readableRules`), against the same placement.
+    if (recorded === undefined && hasTextTokens(rule.description))
+      candidates.push({ ...placed, keywords: sheet.keywords, judge: placement })
     else {
-      const judged = judgedCombatRule(placed, placement)
+      const judged = judgedCombatRule(placed, placement, recorded === undefined ? undefined : recordedCombatText(recorded))
       if (judged) candidates.push(judged)
     }
   }
@@ -270,7 +275,7 @@ function rosterCombatRules(
         // Projection applies a Feel No Pain as a core ability, and one limited to models with a keyword to those models alone.
         included:
           (ability.kind === 'core' && /^Feel No Pain [2-6]\+$/.test(ability.name)) ||
-          parsedAbilityGrants(ability.description, true, [], true).some(
+          parsedAbilityGrants(abilityGrantsIn(ability.description, loaded.index.textFacts), true, [], true).some(
             (grant) => grant.recipient === 'models' && /^Feel No Pain [2-6]\+$/.test(grant.name),
           ),
       },
@@ -325,13 +330,16 @@ function rosterCombatRules(
       )
     }
     for (const option of options) {
-      // A card's words are withheld as tokens; the catalogue's own copy of the same rule, where it has one, can be judged now.
+      // A card's words are withheld as tokens; the catalogue's own copy of the same rule, where it has one, records what they decide.
       const catalogued = detachmentCatalogueDetail(loaded, data.catalogueId, option.id, [])?.rules ?? []
       for (const rule of detachmentReference(loaded, rules, data.catalogueId, routeSlug(option.name))?.rules ?? []) {
-        const plain = catalogued.find(
-          (candidate) => sameRuleName(candidate.name, rule.name) && candidate.description && !hasTextTokens(candidate.description),
+        const judgeable = catalogued.find(
+          (candidate) =>
+            sameRuleName(candidate.name, rule.name) &&
+            candidate.description &&
+            (!hasTextTokens(candidate.description) || recordedCombat(candidate.description) !== undefined),
         )?.description
-        const description = rule.description && hasTextTokens(rule.description) ? (plain ?? rule.description) : rule.description
+        const description = rule.description && hasTextTokens(rule.description) ? (judgeable ?? rule.description) : rule.description
         if (description)
           add(
             {

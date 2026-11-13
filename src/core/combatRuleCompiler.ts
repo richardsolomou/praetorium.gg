@@ -93,6 +93,23 @@ function namedSections(description: string) {
   }
 }
 
+/** What a rule's words ask of its place in a roster: whether its unit's keywords cover a phrase or hold a keyword, and whether it is a psychic ability. */
+export type RuleQuestion = `covers:${string}` | `is:${string}` | 'psychic'
+
+/** A rule whose words' questions are answered for it, as they are while a text's facts are recorded. */
+export type AnsweredRule = CombatRule & { answers?: (question: RuleQuestion) => boolean }
+
+/** The answers a rule gives its words: those given it, else from its own keywords and name. */
+export function ruleAnswers(rule: Pick<AnsweredRule, 'keywords' | 'name' | 'answers'>): (question: RuleQuestion) => boolean {
+  if (rule.answers) return rule.answers
+  let known: string[] | undefined
+  return (question) => {
+    if (question === 'psychic') return /\(Psychic\)/i.test(rule.name)
+    known ??= (rule.keywords ?? []).map(combatTextKey)
+    return question.startsWith('is:') ? known.includes(question.slice(3)) : combatKeywordPhraseMatches(question.slice(7), known)
+  }
+}
+
 /** An army rule whose officers issue one of its named Orders to a unit, which then gains that Order's effect. */
 export const isOrdersRule = (description: string) =>
   /^If your Army Faction is [^,]+, OFFICER (?:models )?with this ability can issue Orders\./i.test(normalizeCombatText(description))
@@ -293,13 +310,12 @@ function compileRule(rule: CombatRule, enemy = false): { choices: CombatRuleChoi
   const hasKeywords = (phrase: string): boolean | null => {
     if (/^(?:friendly )?(?:unit|model)$/i.test(phrase.trim())) return true
     if (!rule.keywords) return null
-    const known = rule.keywords.map(combatTextKey)
+    const answer = ruleAnswers(rule)
     const matches = (part: string) =>
-      combatKeywordPhraseMatches(
-        combatTextKey(part)
+      answer(
+        `covers:${combatTextKey(part)
           .replace(/^(?:friendly|a|an) /, '')
-          .replace(/ (?:models?|units?)$/, ''),
-        known,
+          .replace(/ (?:models?|units?)$/, '')}`,
       )
     const excluded = /\(excluding (.+?)\)/i.exec(phrase)
     if (excluded && excluded[1]!.split(/,\s*|\s+and\s+|\s+or\s+/i).some(matches)) return false

@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { textToken } from '../shared/sourceText'
-import type { TextSource } from '../shared/sourceText'
+import { textToken } from '../core/sourceText'
+import type { TextSource } from '../core/sourceText'
 import { textSourceChoiceFrom } from './rulesText'
 import { loadTextFile, loadedText, loadedWords, registerTextSources, retryFailedTextFiles } from './sourceText'
 

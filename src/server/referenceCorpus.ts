@@ -1,5 +1,5 @@
 import { hash } from 'node:crypto'
-import { hasTextTokens, textPointersIn, type TextLocations } from '../shared/sourceText'
+import { hasTextTokens, textPointersIn, type TextLocations } from '../core/sourceText'
 import type { CanonicalCatalogue, CanonicalDatasheet, CanonicalDetachment } from '../contracts/catalogue'
 import { DISPOSITION_PACK_SECTION, type ReferenceDocument, type ReferenceSection } from '../contracts/reference'
 import type { RuleDocument, RuleEntry } from '../contracts/rules'

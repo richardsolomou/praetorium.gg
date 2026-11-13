@@ -1,5 +1,6 @@
 import { diceExpression, type CombatInput } from './combat'
 import type { CombatRule, CombatRuleChoice } from './combatRules'
+import { ruleAnswers } from './combatRuleCompiler'
 
 type MortalWounds = NonNullable<CombatInput['mortalWounds']>[number]
 
@@ -87,7 +88,7 @@ export function compileMortalRule(text: string, rule: CombatRule): CombatRuleCho
             rolls: 1,
             ...(charge?.[1] ? { perModel: true } : {}),
             outcomes: result,
-            ...(/\(Psychic\)/i.test(rule.name) ? { psychic: true } : {}),
+            ...(ruleAnswers(rule)('psychic') ? { psychic: true } : {}),
           },
         },
       ],

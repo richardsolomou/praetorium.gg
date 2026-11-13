@@ -15,7 +15,7 @@ import {
   upstreamUrl,
   withDefinitionTokens,
 } from './sourceTexts'
-import { resolvedText, textTokensIn } from '../shared/sourceText'
+import { resolvedText, textTokensIn } from '../core/sourceText'
 import { completeSteps } from '../shared/steps'
 
 const base = {
