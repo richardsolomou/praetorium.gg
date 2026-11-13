@@ -654,6 +654,83 @@ describe('groups', () => {
   })
 })
 
+describe('calendar feeds', () => {
+  function setup() {
+    const host = harness()
+    const command = (input: Record<string, unknown>) =>
+      module.groupCommand(host.procedure(host.operator), { payload: JSON.stringify({ token: 'group', ...input }) })
+    const details = { name: 'Group', description: '', visibility: 'private', admission: 'automatic' }
+    command({ op: 'create', id: 'group-id', ownerId: 'owner', now: NOW, ...details })
+    for (const userId of ['a', 'b', 'c']) command({ op: 'join', userId, now: NOW })
+    command({ op: 'league-draw', actorId: 'owner', leagueId: 'league', seed: 7, now: NOW })
+    for (const userId of ['a', 'b', 'c']) command({ op: 'league-join', userId, now: NOW })
+    command({ op: 'league-publish', actorId: 'owner', seed: 7, playerIds: ['a', 'b', 'c'], now: NOW })
+    command({ op: 'league-deadline', actorId: 'owner', round: 1, deadline: NOW + 1000 })
+    host.call(host.operator, (ctx) => {
+      insertTournament(ctx, { playsAt: BigInt(NOW + 2000), sealBy: BigInt(NOW + 1500) })
+      for (const [userId, status, droppedAt] of [
+        ['a', 'accepted', undefined],
+        ['b', 'pending', undefined],
+        ['c', 'accepted', 5n],
+      ] as const)
+        ctx.db.sealedEventEntries.insert({
+          key: JSON.stringify(['event', userId]),
+          eventId: 'event',
+          userId,
+          status,
+          joinedAt: 1n,
+          rosterId: undefined,
+          rosterName: undefined,
+          rosterSnapshot: undefined,
+          submittedAt: undefined,
+          requiredLimit: undefined,
+          teamId: undefined,
+          droppedAt,
+          checkedInAt: undefined,
+        })
+    })
+    const give = (userId: string, token = `feed-${userId}`) =>
+      host.call(host.operator, (ctx) => module.replaceCalendarFeed(ctx, { userId, token, now: BigInt(NOW) }))
+    const feed = (token: string) =>
+      JSON.parse(module.calendarFeed(host.procedure(host.operator), { token })) as {
+        leagues: { groupName: string; deadlines: (number | null)[] }[]
+        tournaments: { name: string; playsAt: number | null; sealBy: number | null }[]
+      } | null
+    return { ...host, command, give, feed }
+  }
+
+  it('lists a player’s league deadlines and tournament dates', () => {
+    const calendar = setup()
+    calendar.give('a')
+    expect(calendar.feed('feed-a')).toEqual({
+      leagues: [{ groupToken: 'group', groupName: 'Group', publishedAt: NOW, deadlines: [NOW + 1000, null, null] }],
+      tournaments: [{ token: 'sealed-event', name: 'Sealed event', playsAt: NOW + 2000, sealBy: NOW + 1500 }],
+    })
+  })
+
+  it('leaves out a withdrawn league player and a tournament they are not playing in', () => {
+    const calendar = setup()
+    calendar.command({ op: 'league-leave', userId: 'b' })
+    for (const userId of ['b', 'c']) calendar.give(userId)
+    expect([calendar.feed('feed-b'), calendar.feed('feed-c')?.tournaments]).toEqual([{ leagues: [], tournaments: [] }, []])
+  })
+
+  it('lists a tournament to its organizer', () => {
+    const calendar = setup()
+    calendar.give('organizer')
+    expect(calendar.feed('feed-organizer')?.tournaments.map((tournament) => tournament.name)).toEqual(['Sealed event'])
+  })
+
+  it('retires the old address when the player replaces it, and every address when the account is deleted', () => {
+    const calendar = setup()
+    calendar.give('a', 'old')
+    calendar.give('a', 'new')
+    expect([calendar.feed('old'), calendar.feed('new')?.leagues.length]).toEqual([null, 1])
+    calendar.call(calendar.operator, (ctx) => module.deleteUserData(ctx, { userId: 'a' }))
+    expect(calendar.feed('new')).toBeNull()
+  })
+})
+
 describe('group battles', () => {
   function setup(members: string[], initialCommands: unknown[] = []) {
     const host = harness()

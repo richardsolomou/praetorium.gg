@@ -13,6 +13,7 @@ import { AccountSecurity } from './AccountSecurity'
 import { captureAuthFailure } from './authFailureReason'
 import { PlayerDefaultsSettings } from './PlayerDefaultsSettings'
 import { PlayerColourPicker } from './PlayerColourPicker'
+import { CalendarFeedSettings } from './CalendarFeedSettings'
 import { PageContent, PageHeader } from '../../components/Page'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { SignInRequired } from '../../components/SignInRequired'
@@ -116,7 +117,7 @@ function ProfileForm({
     <main className="ph-no-capture w-full">
       <PageHeader
         title="Account settings"
-        description="Your name and picture, sign-in and roster defaults."
+        description="Your name and picture, sign-in, roster defaults and calendar link."
         media={
           <span className="grid size-12 shrink-0 place-items-center rounded-lg border border-edge-strong bg-sunken text-parchment">
             <UserRound className="size-5" aria-hidden />
@@ -225,8 +226,9 @@ function ProfileForm({
           preferences={
             <div className="part p-5 md:p-7">
               <SectionHeading title="Preferences" />
-              <div className="mt-4">
+              <div className="mt-4 space-y-6">
                 <PlayerDefaultsSettings />
+                <CalendarFeedSettings />
               </div>
             </div>
           }

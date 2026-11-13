@@ -234,6 +234,12 @@ export const PRODUCT_DOCS = [
     description: 'Who sees your battles, rosters and collection, data requests and permanent deletion.',
   },
   {
+    slug: 'calendar',
+    section: 'Account and app',
+    title: 'Add dates to your calendar',
+    description: 'League round deadlines and tournament dates in Google Calendar, Apple Calendar or Outlook.',
+  },
+  {
     slug: 'mobile-app',
     section: 'Account and app',
     title: 'Use the mobile app',

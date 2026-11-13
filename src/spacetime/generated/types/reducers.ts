@@ -27,6 +27,7 @@ import RemoveFavouriteDatasheetReducer from '../remove_favourite_datasheet_reduc
 import RemoveFavouriteDetachmentReducer from '../remove_favourite_detachment_reducer'
 import RemoveFavouriteFactionReducer from '../remove_favourite_faction_reducer'
 import RemoveFromCollectionReducer from '../remove_from_collection_reducer'
+import ReplaceCalendarFeedReducer from '../replace_calendar_feed_reducer'
 import ReplaceFriendInviteReducer from '../replace_friend_invite_reducer'
 import ReportCollectionPhotoReducer from '../report_collection_photo_reducer'
 import RevokeSessionReducer from '../revoke_session_reducer'
@@ -62,6 +63,7 @@ export type RemoveFavouriteDatasheetParams = __Infer<typeof RemoveFavouriteDatas
 export type RemoveFavouriteDetachmentParams = __Infer<typeof RemoveFavouriteDetachmentReducer>
 export type RemoveFavouriteFactionParams = __Infer<typeof RemoveFavouriteFactionReducer>
 export type RemoveFromCollectionParams = __Infer<typeof RemoveFromCollectionReducer>
+export type ReplaceCalendarFeedParams = __Infer<typeof ReplaceCalendarFeedReducer>
 export type ReplaceFriendInviteParams = __Infer<typeof ReplaceFriendInviteReducer>
 export type ReportCollectionPhotoParams = __Infer<typeof ReportCollectionPhotoReducer>
 export type RevokeSessionParams = __Infer<typeof RevokeSessionReducer>

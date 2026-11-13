@@ -55,6 +55,10 @@ export function PrivacyPolicy() {
           We keep the notifications we send you, such as a friend request or a new battle, so you can read them on the web and in the app:
           your 50 most recent, for up to 90 days. Each records who caused it, what it is about, when, and whether you have read it.
         </p>
+        <p>
+          If you get a calendar link, we store its secret address. Anyone with the address can read your league round deadlines and
+          tournament dates, with their names. Replacing or turning off the link, or deleting your account, removes the old address.
+        </p>
         <h3 className="text-sm tracking-label text-bone">Usage data</h3>
         <p>
           We measure how the product is used through PostHog: pages visited, buttons used, actions such as creating a roster, errors, and

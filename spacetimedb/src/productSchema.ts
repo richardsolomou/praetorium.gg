@@ -183,6 +183,16 @@ const friendInvites = table(
   },
 )
 
+/** A player's calendar feed address, at most one each; replacing it retires the old address. */
+const calendarFeeds = table(
+  { name: 'calendar_feeds' },
+  {
+    token: t.string().primaryKey(),
+    userId: t.string().unique(),
+    createdAt: t.u64(),
+  },
+)
+
 const commands = table(
   { name: 'commands' },
   {
@@ -879,6 +889,7 @@ export const productTables = {
   pushTokens,
   friendships,
   friendInvites,
+  calendarFeeds,
   commands,
   rosters,
   rosterLoans,
