@@ -1,9 +1,7 @@
 import { createHash } from 'node:crypto'
-import { constantTimeEqual } from 'better-auth/crypto'
 import { byId, chunks, countBy } from '../core/collections'
-import { guestSeatId, isGuestSeat, newBattleSeats, type NewBattlePlayers, type CreateBattleInput } from '../core/newBattle'
+import { guestSeatId, newBattleSeats, type NewBattlePlayers, type CreateBattleInput } from '../core/newBattle'
 import { type BattlebaseBattle, battlebaseBattleImport, battlebaseBattleSchema } from '../core/battlebaseBattle'
-import { guestSessionCurrent } from '../core/guestSession'
 import { matchingSealedEventBattles } from '../shared/sealedEventBattleOptions'
 import { battleSummary, type BattleFaction } from '../shared/battleSummary'
 import { battleFilterActive, matchesBattle, type BattleFilter, type BattleOrder } from '../core/battleFilter'
@@ -1179,7 +1177,7 @@ export class PraetoriumService {
   async createBattle(userId: string, input?: string | CreateBattleInput) {
     const settings =
       typeof input === 'object' ? { ...input, limit: input.limit ?? null } : { limit: null, missionPackId: null, manual: false }
-    const { allyIds, opponentIds, guestNames, invited } = newBattleSeats(input)
+    const { allyIds, opponentIds, invited } = newBattleSeats(input)
     // One query for everyone named rather than one apiece, and both reads at once:
     // who exists and who may be invited are independent questions.
     const [known, invitable] = await Promise.all([this.repository.namesByIds(invited), this.socialService.opponents(userId)])
@@ -1192,7 +1190,7 @@ export class PraetoriumService {
     const { group = null, league = null } = (groupToken && (await this.groupService.groupWithLeague(groupToken, userId))) || {}
     if (groupToken) {
       const members = new Set(group?.members.filter((member) => member.status === 'accepted').map((member) => member.userId))
-      if (!group || !members.has(userId) || guestNames.length || invited.some((id) => !members.has(id)))
+      if (!group || !members.has(userId) || invited.some((id) => !members.has(id)))
         throw new Response('a group game is played between its members', { status: 403 })
     } else if (invited.some((id) => !allowed.has(id)))
       throw new Response('battle players must be your friends or a practice opponent', { status: 403 })
@@ -1202,13 +1200,12 @@ export class PraetoriumService {
     if (fixtureKey && (!fixture || fixture.battleToken !== null || ![fixture.aId, fixture.bId].includes(userId)))
       throw new Response('this fixture is not yours to start, or has already started', { status: 409 })
     // How many chairs a battle has is `battleCapacity`'s to say, here as everywhere.
-    if (invited.length + guestNames.length >= battleCapacity({ teamBattle: true, playerCount: 4 }))
+    if (invited.length >= battleCapacity({ teamBattle: true, playerCount: 4 }))
       throw new Response('a battle seats four players at most', { status: 400 })
     // Every battle names its table. There is no opening a game and waiting to see
     // who turns up, so a battle without an opponent is not a battle yet.
-    if (!opponentIds.length && !guestNames.length) throw new Response('choose an opponent', { status: 400 })
-    // A sealed event seats its own entrants, so a table with a guest at it can only be casual.
-    if (!group && invited.length && !guestNames.length && (typeof input !== 'object' || !input.casual)) {
+    if (!opponentIds.length) throw new Response('choose an opponent', { status: 400 })
+    if (!group && invited.length && (typeof input !== 'object' || !input.casual)) {
       const sealedEventMatches = await this.sealedEventBattleOptions(userId, input)
       if (sealedEventMatches.length) {
         throw new Response('start this matchup from its event page, or confirm a casual battle', { status: 409 })
@@ -1223,7 +1220,6 @@ export class PraetoriumService {
       userId,
       allyIds,
       opponentIds,
-      guestNames,
       initialCommands: [
         {
           kind: 'configure-battle',
@@ -1231,8 +1227,8 @@ export class PraetoriumService {
           missionPackId: settings.manual ? null : settings.missionPackId,
           terrainLayoutId: null,
           twistId: null,
-          teamBattle: invited.length + guestNames.length >= 2,
-          playerCount: (invited.length + guestNames.length + 1) as 2 | 3 | 4,
+          teamBattle: invited.length >= 2,
+          playerCount: (invited.length + 1) as 2 | 3 | 4,
           sizeFromSides: true,
           clockLimitMinutes: null,
           ...(settings.manual ? { manual: true } : {}),
@@ -1548,58 +1544,6 @@ export class PraetoriumService {
     return { result, previous: history, history: { ...history, log }, application: applied === undefined ? {} : { applied } }
   }
 
-  /**
-   * The link a seated account shares so a guest plays their own side. `replace` retires the old link and any device
-   * that joined through it, so the table plays the seat again until someone opens the new one.
-   */
-  async guestInvite(token: string, userId: string, seatId: string, replace = false) {
-    const seats = await this.mustSeat(token, userId)
-    if (isGuestSeat(userId)) throw new Response('only a signed-in player can invite a guest', { status: 403 })
-    const seat = seats.players.find((player) => player.id === seatId && isGuestSeat(player.id))
-    if (!seat) throw new Response('no such guest in this battle', { status: 404 })
-    const invite = await this.repository[replace ? 'replaceGuestInvite' : 'guestInvite'](seats.battle.id, seatId, randomToken())
-    return { invite, joined: !replace && !seat.automated }
-  }
-
-  async guestInvitation(invite: string) {
-    const seat = await this.repository.guestSeatByInvite(invite)
-    return seat && { token: seat.token, seatId: seat.seatId, guestName: seat.guestName, hostName: seat.hostName, joined: seat.joined }
-  }
-
-  /** Seats this device in the guest's chair and returns the secret it will prove that with; the server keeps only its hash. */
-  async joinGuest(invite: string, userId: string | null) {
-    const seat = await this.repository.guestSeatByInvite(invite)
-    if (!seat) throw new Response('this invite is no longer available', { status: 404 })
-    if (userId && (await this.repository.battleByToken(seat.token))?.players.some((player) => player.id === userId))
-      throw new Response('you already have a seat in this battle', { status: 400 })
-    const secret = randomToken()
-    const joined = await this.repository.joinGuestSeat(invite, guestDeviceHash(secret), this.clock())
-    if (joined === 'missing') throw new Response('this invite is no longer available', { status: 404 })
-    if (joined === 'taken') throw new Response(`${seat.guestName} already joined on another device`, { status: 409 })
-    return { token: joined.token, seatId: joined.seatId, secret }
-  }
-
-  /** The guest seat a device's secret holds in this battle, or null once the host replaced the link or the session lapsed. */
-  async guestSeat(token: string, held: { seat: string; secret: string }) {
-    const device = await this.repository.guestDevice(held.seat)
-    if (!device || device.token !== token || !guestSessionCurrent(device.joinedAt, this.clock())) return null
-    return constantTimeEqual(device.deviceHash, guestDeviceHash(held.secret)) ? held.seat : null
-  }
-
-  /** Moves the guest seat this device played onto the account that has just signed in, once the battle is over. */
-  async claimGuest(token: string, userId: string, held: { seat: string; secret: string }) {
-    const device = await this.repository.guestDevice(held.seat)
-    if (!device || device.token !== token) throw new Response('this device is not playing that seat', { status: 403 })
-    const outcome = await this.repository.claimGuestSeat({
-      battleId: device.battleId,
-      seatId: held.seat,
-      userId,
-      deviceHash: guestDeviceHash(held.secret),
-      now: this.clock(),
-    })
-    if (outcome !== 'claimed') throw new Response(outcome, { status: 409 })
-  }
-
   /** Opening a battle stream is an authorization decision. */
   async userBattleId(token: string, userId: string) {
     const seats = await this.mustSeat(token, userId)
@@ -1727,11 +1671,6 @@ function referencedPlays(
         : play.primary,
     }
   })
-}
-
-/** What the service keeps of a guest device's secret, and what that device's realtime token names it by. */
-export function guestDeviceHash(secret: string) {
-  return createHash('sha256').update(secret).digest('hex')
 }
 
 /**

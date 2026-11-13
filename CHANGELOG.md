@@ -1,5 +1,21 @@
 # praetorium
 
+## 0.233.0 (2026-11-13)
+
+### Minor Changes
+
+- 6c0ab1c: Every seat in a new battle now belongs to an account, so each game counts for everyone who plays it; play both sides against a practice opponent to track a game on your own.
+
+### Patch Changes
+
+- 6c0ab1c: Battles you started against a guest before this change still open, replay and can be finished from your account.
+
+## 0.232.7 (2026-11-13)
+
+### Patch Changes
+
+- ae07278: Ability, wargear, and enhancement text loads again for devices that had not loaded it before.
+
 ## 0.232.6 (2026-11-12)
 
 ### Patch Changes

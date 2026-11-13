@@ -4,7 +4,6 @@ import { z } from 'zod'
 import { app } from '../app'
 import { currentUserId, forSignedIn, requireUserId } from '../playerSession'
 import { BATTLES_PAGE } from '../service'
-import { battleViewerId, requireBattleActor } from '../guestSession'
 import { submitBattleCommand } from '../battleSubmission'
 import { mutationRpc, rpc } from '../rpc'
 import {
@@ -153,22 +152,18 @@ export const openBattle = createServerFn({ method: 'GET' })
   .validator(tokenSchema)
   .handler(({ data }) =>
     rpc(async () => {
-      const userId = await battleViewerId(data.token)
+      const userId = await currentUserId()
       return orNull(async () => app().service.screen(data.token, userId, await app().rulesFor()))
     }),
   )
 
 export const replayBattleAt = createServerFn({ method: 'GET' })
   .validator(battleReplaySchema)
-  .handler(({ data }) =>
-    rpc(async () => app().service.replayAt(data.token, await battleViewerId(data.token), data.seq, await app().rulesFor())),
-  )
+  .handler(({ data }) => rpc(async () => app().service.replayAt(data.token, await currentUserId(), data.seq, await app().rulesFor())))
 
 export const replayBattleBatch = createServerFn({ method: 'GET' })
   .validator(battleReplayBatchSchema)
-  .handler(({ data }) =>
-    rpc(async () => app().service.replayBatch(data.token, await battleViewerId(data.token), data.seqs, await app().rulesFor())),
-  )
+  .handler(({ data }) => rpc(async () => app().service.replayBatch(data.token, await currentUserId(), data.seqs, await app().rulesFor())))
 
 export const sealedEventBattleOptions = createServerFn({ method: 'GET' })
   .validator(sealedEventBattleOptionsSchema)
@@ -189,8 +184,8 @@ export const deleteBattle = createServerFn({ method: 'POST' })
 
 export const submit = createServerFn({ method: 'POST' })
   .validator(submitSchema.extend({ workspace: z.boolean().optional() }))
-  .handler(({ data }) => mutationRpc(async () => submitBattleCommand(await requireBattleActor(data.token), data)))
+  .handler(({ data }) => mutationRpc(async () => submitBattleCommand(await requireUserId(), data)))
 
 export const battleReport = createServerFn({ method: 'GET' })
   .validator(tokenSchema)
-  .handler(({ data }) => rpc(async () => app().service.report(data.token, await requireBattleActor(data.token), await app().rulesFor())))
+  .handler(({ data }) => rpc(async () => app().service.report(data.token, await requireUserId(), await app().rulesFor())))

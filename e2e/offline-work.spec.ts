@@ -10,7 +10,6 @@ import {
   uniqueName,
   setupStep,
   retryUntilVisible,
-  attachRoster,
   startBattle,
   advance,
   openRosterSetup,
@@ -232,23 +231,6 @@ test('an offline practice battle and its commands survive reopening and sync tog
     kind: 'attach-roster',
     roster: { id: rosterId, name: 'Flight army' },
   })
-})
-
-test('a guest battle created offline keeps the guest’s seat when it syncs', async ({ page, context }) => {
-  test.setTimeout(240_000)
-  const { operator } = await savedArmy(page, 'Offline guest host', { name: 'Guest army' })
-  await warmBattleDialog(page)
-  await waitForOfflineApp(page)
-  await expectWorkSynced(page)
-  await context.setOffline(true)
-  const token = lastPathSegment(await createBattle(page, { guest: 'Offline Guest' }))
-  await attachRoster(page, 'Guest army', { forPlayer: 'Offline Guest' })
-  await context.setOffline(false)
-  await page.evaluate(() => window.dispatchEvent(new Event('online')))
-  await expectWorkSynced(page, { timeout: 30_000 })
-  const synced = (await operator.battleByToken(token))!
-  const guest = synced.seats.find((seat) => seat.guestName === 'Offline Guest')
-  expect(synced.log.find((entry) => entry.command.kind === 'attach-roster')?.command).toMatchObject({ playerId: guest?.id })
 })
 
 test('a battle link opened before its offline creation syncs opens once the battle arrives', async ({ page, context, browser }) => {

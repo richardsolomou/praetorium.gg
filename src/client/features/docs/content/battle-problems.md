@@ -40,10 +40,6 @@ Read the message under it. It's usually unfinished scoring from the previous tur
 
 Your action didn't go through. Check your connection, then try it again. If drawing secondary missions failed, choose **Draw at random** again.
 
-### The guest link says someone already joined
-
-Another device took the seat. Take the seat back and send the new link.
-
 ### "This battle is not open."
 
 Nobody is seated at the battle any more, so there is nothing to watch.
@@ -64,5 +60,4 @@ Praetorium only rebuilds an army when it finds every unit in it. Otherwise the a
 
 - Praetorium records what you tell it. It doesn't roll dice, check movement, range or line of sight, or judge whether a score was earned. In a manual battle it doesn't check scores or CP at all.
 - There's no computer opponent. A practice opponent is a side you play yourself.
-- Guests can't sit on your side or play in tournaments.
 - A finished battle can't be reopened from the app, except by a Swiss tournament's organizer from the tournament page.

@@ -30,7 +30,7 @@ Change access also lets it:
 
 It can't do anything only an organiser can, such as pairing rounds, letting players in or revealing lists, and it can't withdraw you from a tournament or league.
 
-Changes go through the same checks as the site. A battle needs an opponent who is a friend, a practice opponent or a named guest, and seats four players at most. A battle action is only recorded if nobody has added anything to the log since the assistant last read it, so it can't overwrite a move your opponent just made.
+Changes go through the same checks as the site. A battle needs an opponent who is a friend or a practice opponent, and seats four players at most. A battle action is only recorded if nobody has added anything to the log since the assistant last read it, so it can't overwrite a move your opponent just made.
 
 ## Revoke access
 

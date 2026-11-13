@@ -43,7 +43,6 @@ const cases = [
       player_count: 4,
       casual: true,
       manual: false,
-      guests: 0,
     },
   },
   {

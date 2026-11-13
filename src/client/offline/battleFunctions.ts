@@ -12,7 +12,7 @@ import { battleWorkspace } from '../../server/functions/offline'
 import type { BattleWorkspace } from '../../contracts/battleWorkspace'
 import type { LocalState } from '../../contracts/localState'
 import { commandSchema } from '../../core/commands'
-import { guestSeatId, isPracticeSeat } from '../../core/newBattle'
+import { isPracticeSeat } from '../../core/newBattle'
 import { createBattleSchema, rosterContentSchema, submitSchema } from '../../contracts/schemas'
 import { appendLocalCommand, resolveLocalDraw, localBattleState } from '../../core/offlineBattle'
 import { battleView } from '../../core/battleView'
@@ -152,12 +152,10 @@ export async function submit(args: Parameters<typeof server.submit>[0]): ReturnT
   // A service that never answers is treated like no connection, so the command is saved and synced later. If
   // it had landed after all, its expected sequence turns the replay into a conflict to review, never a second copy.
   let unreachable: unknown
-  // Only the service can price a pasted list, so it has no device copy to fall back on.
-  const serverOnly = submitSchema.safeParse(args.data).data?.command.kind === 'attach-draft-roster'
   const answer =
-    !playable || serverOnly || (navigator.onLine && !(await hasSyncableChanges(resource)))
+    !playable || (navigator.onLine && !(await hasSyncableChanges(resource)))
       ? await server.submit({ ...args, data: { ...args.data, workspace: true } }).catch((error: unknown) => {
-          if (!playable || serverOnly || !isFetchNetworkFailure(error)) throw error
+          if (!playable || !isFetchNetworkFailure(error)) throw error
           unreachable = error
           return null
         })
@@ -354,8 +352,7 @@ export async function createBattle(args: Parameters<typeof server.createBattle>[
   // A group game needs the server to check its players are members, so it is never started on the device alone.
   if (!localEngine() || !owner || !hasLocalConstruction() || args.data.groupToken) return server.createBattle(args)
   const input = createBattleSchema.parse(args.data)
-  const guestNames = input.guestNames ?? []
-  if (!input.casual && !guestNames.length) {
+  if (!input.casual) {
     const matches = await sealedEventBattleOptions({ data: input })
     if (matches.length) throw new Error('Start this matchup from its saved tournament, or choose a casual battle.')
   }
@@ -364,7 +361,7 @@ export async function createBattle(args: Parameters<typeof server.createBattle>[
   const allyIds = input.allyId ? [input.allyId] : []
   const invited = [...allyIds, ...opponentIds]
   if (
-    (!opponentIds.length && !guestNames.length) ||
+    !opponentIds.length ||
     invited.includes(owner.id) ||
     new Set(invited).size !== invited.length ||
     invited.some((id) => !opponents.some((player) => player.id === id))
@@ -376,7 +373,6 @@ export async function createBattle(args: Parameters<typeof server.createBattle>[
   const players = [
     { ...me, side: 0, automated: false },
     ...invited.map((id) => ({ ...opponents.find((player) => player.id === id)!, side: allyIds.includes(id) ? 0 : 1 })),
-    ...guestNames.map((name, at) => ({ id: guestSeatId(identifiers.battleId, at), name, image: null, side: 1, automated: true })),
   ]
   const command = commandSchema.parse({
     kind: 'configure-battle',
