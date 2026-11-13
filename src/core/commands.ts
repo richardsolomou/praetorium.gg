@@ -375,6 +375,7 @@ export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('advance'), playerId: id.optional() }),
   z.object({ kind: z.literal('pause-clock') }),
   z.object({ kind: z.literal('resume-clock') }),
+  z.object({ kind: z.literal('switch-clock'), side: z.number().int().min(0).max(1) }),
   z.object({
     kind: z.literal('end-battle'),
     reason: z.enum(['completed', 'finished-early', 'conceded']).optional(),

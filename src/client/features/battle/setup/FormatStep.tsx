@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { battleSizeOptionLabel, GAME_SIZES, isKotcLimit } from '../../../../core/battle'
 import type { BattleView } from '../../../../core/battleView'
-import { Choice } from '../../../components/Choice'
+import { Choice, type ChoiceOption } from '../../../components/Choice'
 import { SearchableSelect, type SearchableGroup } from '../../../components/SearchableSelect'
 import { gameReferencesQuery } from '../../../queries'
 import type { SendCommand } from '../useCommand'
@@ -22,7 +22,13 @@ const sizeOptions = (teamBattle: boolean): SearchableGroup[] => [
   },
 ]
 
-/** How the battle is tracked, its size, mission pack and group, which the whole table shares. */
+/** Each side's time for the whole battle; a tournament round usually gives each side half of it. */
+const CLOCK_LIMITS: ChoiceOption<string>[] = [
+  { value: '0', name: 'No limit', detail: 'Times each turn' },
+  ...[60, 75, 90, 105, 120].map((minutes) => ({ value: String(minutes), name: `${minutes} min`, detail: 'Each side' })),
+]
+
+/** How the battle is tracked, its size, mission pack, chess clock and group, which the whole table shares. */
 export function FormatStep({
   view,
   send,
@@ -111,6 +117,16 @@ export function FormatStep({
           </div>
         </fieldset>
       ) : null}
+      <div className="sm:col-span-2">
+        <Choice
+          label="Chess clock"
+          value={String(view.settings.clockLimitMinutes ?? 0)}
+          options={CLOCK_LIMITS}
+          columns={3}
+          disabled={busy}
+          onChange={(minutes) => configure({ clockLimitMinutes: Number(minutes) || null })}
+        />
+      </div>
       {view.sealedEventToken || manual ? null : <GroupChoice view={view} send={send} disabled={busy} className="sm:col-span-2" />}
     </div>
   )

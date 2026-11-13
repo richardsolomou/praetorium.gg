@@ -304,6 +304,11 @@ function describe(
       return `${who} pauses the timer`
     case 'resume-clock':
       return `${who} resumes the timer`
+    case 'switch-clock': {
+      const holders = after.players.filter((candidate) => candidate.side === command.side)
+      if (holders.some((candidate) => candidate.id === by)) return `${who} takes the clock`
+      return `${who} hands the clock to ${holders.map((candidate) => named.get(candidate.id) ?? 'another player').join(' and ')}`
+    }
     case 'end-battle': {
       if (command.reason !== 'conceded') return `${who} calls the battle early`
       const concedingPlayer = command.concededBy ? (named.get(command.concededBy) ?? 'another player') : who

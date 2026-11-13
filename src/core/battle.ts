@@ -621,6 +621,8 @@ export type BattleSettings = {
   sharedArmyPoints?: boolean
   /** The table keeps its own score: no mission pack, cards, caps, automatic CP or battle ready bonus. */
   manual?: boolean
+  /** The time each side has for the whole battle on its chess clock; absent means no limit. */
+  clockLimitMinutes?: number
 }
 
 const DEFAULT_SETTINGS: BattleSettings = {
@@ -1001,6 +1003,8 @@ export type Command =
   | ({ kind: 'advance' } & OnBehalfOf)
   | { kind: 'pause-clock' }
   | { kind: 'resume-clock' }
+  /** Hands the clock to a side, such as for a reaction in the other side's turn, until the phase ends. */
+  | { kind: 'switch-clock'; side: number }
   | { kind: 'end-battle'; reason?: BattleEndReason; concededBy?: PlayerId }
   | { kind: 'reopen-battle' }
   /** A tournament table's final score, for a game that wasn't tracked here. `vp` is each seat's total. */
@@ -1154,6 +1158,7 @@ export type RefusalCode =
   | 'unknown-player'
   | 'unknown-secondary'
   | 'unknown-setup-step'
+  | 'unknown-side'
   | 'unknown-stratagem'
   | 'unknown-terrain'
   | 'unknown-unit'
@@ -1291,6 +1296,8 @@ export type BattleState = {
   players: PlayerState[]
   /** Shared by the table, so a break counts against nobody's turn. */
   clockPaused: boolean
+  /** The side a switch handed the clock to in another side's turn; null gives it to the side taking the turn. */
+  clockSide: number | null
   /**
    * The newest command still standing. Undo reaches only this one, which keeps
    * the log linear: there is never a hole in the middle to reason about.
@@ -1419,6 +1426,7 @@ export function applyEntry(state: BattleState, entry: LoggedCommand) {
       'acknowledge-scoring',
       'pause-clock',
       'resume-clock',
+      'switch-clock',
       // Casualties are corrected through their own counters, so tapping one never takes Undo away from the last action.
       ...CASUALTY_COMMANDS,
     ].includes(entry.command.kind)
@@ -1508,6 +1516,7 @@ export function emptyBattle(
     undoable: null,
     seq: 0,
     clockPaused: false,
+    clockSide: null,
   }
 }
 
@@ -2099,6 +2108,13 @@ export function commandRefusal(state: BattleState, by: PlayerId, command: Comman
       if (!state.clockPaused) return refuse('clock-unchanged', 'the timer is already running')
       return null
     }
+    case 'switch-clock': {
+      if (state.status !== 'playing' || state.completionPending) return refuse('battle-not-running', 'the battle is not running')
+      if (!state.players.some((candidate) => candidate.side === command.side))
+        return refuse('unknown-side', 'that side is not in this battle')
+      if (command.side === clockSide(state)) return refuse('clock-unchanged', 'that side already has the clock')
+      return null
+    }
     case 'undo': {
       if (!state.undoable) return refuse('nothing-to-undo', 'there is nothing to undo')
       if (state.undoable.seq !== command.target) return refuse('undo-not-latest', 'only the last action can be undone')
@@ -2156,6 +2172,7 @@ function apply(state: BattleState, by: PlayerId, command: Command, seq: number) 
         ...(command.sharedArmyPoints ? { sharedArmyPoints: true } : {}),
         ...(command.sizeFromSides ? { sizeFromSides: true } : {}),
         ...(command.manual ? { manual: true } : {}),
+        ...(command.clockLimitMinutes ? { clockLimitMinutes: command.clockLimitMinutes } : {}),
       }
       if (missionPackChanged) {
         state.deploymentId = null
@@ -2467,6 +2484,8 @@ function apply(state: BattleState, by: PlayerId, command: Command, seq: number) 
     case 'advance': {
       state.advanceRequested = false
       state.scoringAcknowledged = false
+      // Ending a phase is the turn's own action, so a reaction's clock never carries into the next phase.
+      state.clockSide = null
       const next = PHASES.indexOf(state.phase) + 1
       if (next < PHASES.length) {
         if (state.phase === 'command' && state.pendingSettlement?.playerId === player.id) state.pendingSettlement = null
@@ -2514,6 +2533,11 @@ function apply(state: BattleState, by: PlayerId, command: Command, seq: number) 
     }
     case 'resume-clock': {
       state.clockPaused = false
+      return
+    }
+    case 'switch-clock': {
+      const active = state.players.find((candidate) => candidate.id === state.activePlayerId)
+      state.clockSide = command.side === active?.side ? null : command.side
       return
     }
     case 'undo': {
@@ -2812,6 +2836,13 @@ function finishBattle(state: BattleState, result: NonNullable<BattleState['resul
   state.result = result
   state.resumePlayerId = state.activePlayerId
   state.activePlayerId = null
+  state.clockSide = null
+}
+
+/** The side whose clock runs while the battle is in play, or null outside play. */
+export function clockSide(state: BattleState): number | null {
+  if (state.status !== 'playing' || state.completionPending) return null
+  return state.clockSide ?? state.players.find((candidate) => candidate.id === state.activePlayerId)?.side ?? null
 }
 
 /** Puts a card into the hand as the side's own deck holds it, and returns its key. */
@@ -2827,6 +2858,7 @@ function drawCard(state: BattleState, player: PlayerState, card: Secondary, seq:
 
 function enterTurn(state: BattleState, playerId: PlayerId, settlementRound: number | null, seq: number) {
   state.activePlayerId = playerId
+  state.clockSide = null
   state.turnSeq = seq
   state.phase = 'command'
   const activeSide = state.players.find((candidate) => candidate.id === playerId)?.side

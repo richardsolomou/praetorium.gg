@@ -1070,6 +1070,7 @@ describe('setup', () => {
       twistId: null,
       teamBattle: false,
       playerCount: 2,
+      clockLimitMinutes: 45,
     })
   })
 

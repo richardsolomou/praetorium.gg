@@ -1,6 +1,10 @@
-import { applyEntry, emptyBattle, reduceBattle, type BattleState, type LoggedCommand, type Phase, type PlayerId } from './battle'
+import { applyEntry, clockSide, emptyBattle, reduceBattle, type BattleState, type LoggedCommand, type Phase, type PlayerId } from './battle'
 
-/** The time a side spent in one phase of one battle round. */
+/**
+ * The time on a side's clock in one phase of one battle round.
+ *
+ * That is its own turn's time, plus any time a switch handed it the clock in the other side's turn.
+ */
 type ClockSpan = { side: number; round: number; phase: Phase; ms: number }
 
 export type BattleClock = {
@@ -9,6 +13,10 @@ export type BattleClock = {
   /** Where time is accruing since the latest command, or null while paused or outside play. */
   running: (Omit<ClockSpan, 'ms'> & { since: number }) | null
   paused: boolean
+  /** The side the clock belongs to now, paused or not, or null outside play. */
+  holder: number | null
+  /** The time each side has for the whole battle, or null when the table set no limit. */
+  limitMs: number | null
 }
 
 /** Whose turn and phase the battle is in, whether or not the timer is paused. */
@@ -53,6 +61,7 @@ function walk(...[playerIds, log, playerSides, automatedPlayerIds = []]: Seats) 
     if (entry.command.kind === 'undo') state = reduceBattle(playerIds, log.slice(0, index + 1), playerSides, automatedPlayerIds)
     else applyEntry(state, entry)
     const at = position(state)
+    const holder = clockSide(state)
     if (stood && entry.command.kind === 'advance') {
       const { side, round, phase } = stood
       const turnEnded = !at || at.side !== side || at.round !== round
@@ -62,9 +71,10 @@ function walk(...[playerIds, log, playerSides, automatedPlayerIds = []]: Seats) 
       })
     }
     stood = at
-    running = at && !state.clockPaused ? { ...at, since: entry.at } : null
+    running = at && holder !== null && !state.clockPaused ? { ...at, side: holder, since: entry.at } : null
   }
-  return { clock: { spans: [...spans.values()], running, paused: state.clockPaused }, advances }
+  const limitMs = state.settings.clockLimitMinutes ? state.settings.clockLimitMinutes * 60_000 : null
+  return { clock: { spans: [...spans.values()], running, paused: state.clockPaused, holder: clockSide(state), limitMs }, advances }
 }
 
 export const battleClock = (...seats: Seats): BattleClock => walk(...seats).clock
@@ -90,6 +100,11 @@ export function clockMs(clock: BattleClock, now: number | null, match: ClockMatc
   return (
     settledMs(clock.spans, match) + (clock.running && now !== null && runsIn(clock, match) ? Math.max(0, now - clock.running.since) : 0)
   )
+}
+
+/** The time a side has left on its clock at `now`, which goes below zero once it runs out, or null without a limit. */
+export function remainingMs(clock: BattleClock, now: number | null, side: number): number | null {
+  return clock.limitMs ? clock.limitMs - clockMs(clock, now, { side }) : null
 }
 
 /** The latest battle round in which a side has played, or null before its first turn. */

@@ -267,7 +267,7 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
         armyPoints: twoVsOne && !view.sealedEventToken ? null : (view.settings.armyPoints ?? null),
         ...(view.settings.sharedArmyPoints ? { sharedArmyPoints: true } : {}),
         sizeFromSides: true,
-        clockLimitMinutes: null,
+        clockLimitMinutes: view.settings.clockLimitMinutes ?? null,
         ...(manual ? { manual: true } : {}),
         ...settings,
       },

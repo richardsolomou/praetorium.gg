@@ -1,3 +1,4 @@
+import { ArrowLeftRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { PHASES, type Command } from '../../../core/battle'
@@ -84,6 +85,23 @@ export function TurnControl({ view, clock, send, pending, blockReason, onAdvance
           {label}
         </Button>
       </div>
+      {/*
+       * The chess clock, once the table set a limit. A reaction in the other side's turn
+       * takes time from the side reacting, and ending the phase hands the clock back.
+       */}
+      {clock.limitMs && active && clock.holder !== null ? (
+        <Button
+          variant="outline"
+          size="sm"
+          data-switch-clock
+          className="w-full"
+          disabled={pending}
+          onClick={() => send({ kind: 'switch-clock', side: clock.holder === activeSide ? 1 - activeSide : activeSide })}
+        >
+          <ArrowLeftRight aria-hidden />
+          {clock.holder === activeSide ? 'Hand the clock over for a reaction' : 'Hand the clock back'}
+        </Button>
+      ) : null}
       {blockReason ? (
         <p className="rounded-lg border border-discarded/50 bg-discarded/10 p-2 text-center text-xs text-discarded">{blockReason}</p>
       ) : null}

@@ -10,7 +10,7 @@ import type { Side } from '../../sides'
 import { PlayerTint } from './battleColours'
 import { SideNames } from './PlayerName'
 import { tint } from './battleTints'
-import { Elapsed } from './Elapsed'
+import { Elapsed, Remaining } from './Elapsed'
 
 type Props = { view: BattleView; clock: BattleClock; sides: Side[] }
 
@@ -137,7 +137,8 @@ function SideScore({
   const colours = tint(side.index)
   const end = align === 'end'
   const turnRound = clock && latestTurnRound(clock, side.index)
-  const paused = clock?.paused && side.isActive
+  const holds = clock?.holder === side.index
+  const paused = clock?.paused && holds
   return (
     <div data-side-score={side.index} className={cn('min-w-0', end ? 'order-3' : 'order-1', className)}>
       {/* Capped, or the round rail stretches across a wide column and stops reading as five rounds. */}
@@ -220,11 +221,19 @@ function SideScore({
         {clock ? (
           <p
             data-turn-time
-            className={`mt-1 flex items-center gap-1 text-2xs ${end ? 'justify-end' : ''} ${side.isActive ? 'text-bone' : 'text-dim'}`}
+            className={`mt-1 flex items-center gap-1 text-2xs ${end ? 'justify-end' : ''} ${holds ? 'text-bone' : 'text-dim'}`}
           >
             {paused ? <Pause aria-hidden className="size-3" /> : <Timer aria-hidden className="size-3" />}
             <span className="sr-only">{side.isActive ? (paused ? 'This turn, paused:' : 'This turn:') : 'Last turn:'}</span>
             <Elapsed clock={clock} match={turnRound === null ? { side: side.index } : { side: side.index, round: turnRound }} />
+            {/* The chess clock, once the table set a limit: what this side has left for the rest of the battle. */}
+            {clock.limitMs ? (
+              <>
+                <span aria-hidden>·</span>
+                <span className="sr-only">{holds ? 'Clock running, time left:' : 'Time left:'}</span>
+                <Remaining clock={clock} side={side.index} className="font-semibold" />
+              </>
+            ) : null}
           </p>
         ) : null}
       </div>

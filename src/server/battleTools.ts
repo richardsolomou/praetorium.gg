@@ -219,6 +219,9 @@ export const agentCommandSchema = z.discriminatedUnion('kind', [
   }),
   command('pause-clock', 'Pauses the shared battle clock.'),
   command('resume-clock', 'Resumes the shared battle clock.'),
+  command('switch-clock', 'Hands the chess clock to a side, such as for a reaction in the other side’s turn, until the phase ends.', {
+    side: 'The side index, 0 or 1, from players[].side.',
+  }),
   command('end-battle', 'Ends the battle early by concession; a full battle ends itself after the last turn.', {
     reason: 'conceded.',
     concededBy: 'The conceding player id.',
@@ -325,7 +328,7 @@ export async function agentBattleCommand(owner: string, token: string, sent: obj
       armyPoints: settings.armyPoints ?? null,
       ...(settings.sharedArmyPoints ? { sharedArmyPoints: true } : {}),
       sizeFromSides: true,
-      clockLimitMinutes: null,
+      clockLimitMinutes: settings.clockLimitMinutes ?? null,
       ...(manual ? { manual: true } : {}),
     })
   }
