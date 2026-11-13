@@ -64,7 +64,7 @@ export function useGlobalSearch(trimmed: string, open = true) {
     return {
       query: trimmed,
       typingSettled,
-      data: answered ? remote.data! : (localResults ?? []),
+      data: answered ? remote.data : (localResults ?? []),
       isPending: false,
       isFetching: false,
       isError: false,
