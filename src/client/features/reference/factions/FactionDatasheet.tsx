@@ -39,7 +39,7 @@ import { RuleText } from '../../../components/RuleText'
 import { PageContent, PageHeader } from '../../../components/Page'
 import { groupBy } from '../../../../core/collections'
 import { rulesVersionLabel } from '../../../../core/catalogueEdition'
-import { openFeedback } from '../../feedback/support'
+import { reportDataProblem } from '../../feedback/support'
 import { SectionHeading } from '../../../components/SectionHeading'
 
 export function FactionDatasheet() {
@@ -76,7 +76,7 @@ export function FactionDatasheet() {
               variant="ghost"
               size="sm"
               onClick={() =>
-                openFeedback({
+                reportDataProblem({
                   from: 'datasheet',
                   name: sheet.name,
                   faction: faction.displayName,

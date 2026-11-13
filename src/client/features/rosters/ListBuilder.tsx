@@ -46,7 +46,7 @@ import { RosterBuilderFooter } from './RosterBuilderFooter'
 import { type RosterVariant, RosterVariantMenu } from './RosterVariantMenu'
 import type { NamedRosterDifferences } from '../../../core/rosterDifferences'
 import { type CatalogueEdition, rulesVersionDetails, rulesVersionLabel } from '../../../core/catalogueEdition'
-import { openFeedback } from '../feedback/support'
+import { reportDataProblem } from '../feedback/support'
 import { armyAvailability } from './armyAvailability'
 import { RosterCombatDialog } from '../simulator/RosterCombatDialog'
 import { RosterPrintPack, type RosterPrintInput } from './RosterPrintPack'
@@ -393,10 +393,11 @@ export function ListBuilder({
   const openSaveAttachedUnit = useCallback((index: number) => setSavingLoadout({ index, whole: true }), [setSavingLoadout])
   const { ask: askAccount } = account
   const askForLoadoutAccount = useCallback(() => askAccount('loadout'), [askAccount])
-  const selection = useRef({ picks, updateLoadoutHistory, workspacePath })
+  const factions = factionIndex?.factions
+  const selection = useRef({ picks, updateLoadoutHistory, workspacePath, units, faction, factions })
   useLayoutEffect(() => {
-    selection.current = { picks, updateLoadoutHistory, workspacePath }
-  }, [picks, updateLoadoutHistory, workspacePath])
+    selection.current = { picks, updateLoadoutHistory, workspacePath, units, faction, factions }
+  }, [picks, updateLoadoutHistory, workspacePath, units, faction, factions])
   const detach = useCallback((index: number) => join(index, undefined), [join])
   const attach = useCallback(
     (index: number, direction: AttachDirection, choice: AttachChoice) => {
@@ -423,19 +424,14 @@ export function ListBuilder({
     },
     [setPreview, setSelected, setShowing],
   )
-  const reportable = useRef({ picks, units, faction, factions: factionIndex?.factions })
-  useLayoutEffect(() => {
-    reportable.current = { picks, units, faction, factions: factionIndex?.factions }
-  }, [picks, units, faction, factionIndex])
-  // Reads the roster through a ref so a change to it does not draw every unit card again.
   const reportUnit = useCallback(
     (index: number) => {
-      const { picks: currentPicks, units: currentUnits, faction: rosterFaction, factions } = reportable.current
+      const { picks: currentPicks, units: currentUnits, faction: rosterFaction, factions: books } = selection.current
       const unit = currentUnits[index]
       const unitCatalogueId = currentPicks[index]?.catalogueId ?? catalogueId
-      const book = rosterFaction?.id === unitCatalogueId ? rosterFaction : factions?.find((entry) => entry.id === unitCatalogueId)
+      const book = rosterFaction?.id === unitCatalogueId ? rosterFaction : books?.find((entry) => entry.id === unitCatalogueId)
       if (!unit || !book) return
-      openFeedback({
+      reportDataProblem({
         from: 'roster',
         name: unit.name,
         faction: book.displayName,

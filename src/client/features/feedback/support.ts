@@ -145,8 +145,9 @@ function openSupport(view: SupportView) {
   for (const listener of listeners) listener(view)
 }
 
-/** `record` names the datasheet a player reports from, so they need not describe which one. */
-export const openFeedback = (record?: ReportedRecord) => openSupport({ kind: 'compose', record })
+export const openFeedback = () => openSupport({ kind: 'compose' })
+/** Feedback that names the datasheet a player reports from, so they need not describe which one. */
+export const reportDataProblem = (record: ReportedRecord) => openSupport({ kind: 'compose', record })
 export const openConversations = () => openSupport({ kind: 'inbox' })
 export const openConversation = (ticketId: string) => openSupport({ kind: 'thread', ticketId })
 

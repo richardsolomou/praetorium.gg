@@ -24,7 +24,7 @@ export function Support({ conversation }: { conversation?: string }) {
         title="Support"
         description="Find an answer in the docs, or send us feedback and follow our replies here."
         actions={
-          <Button onClick={() => openFeedback()}>
+          <Button onClick={openFeedback}>
             <MessageSquareWarning /> Send feedback
           </Button>
         }
