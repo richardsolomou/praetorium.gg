@@ -58,7 +58,7 @@ export function AfterBattle({ view }: { view: BattleView }) {
         )}
         <p className="text-xs text-dim">
           {canRematch
-            ? 'A rematch seats the same players on the same sides. The mission is chosen again.'
+            ? 'A rematch seats the same players on the same sides, and setup starts again.'
             : strangers.length && seats
               ? 'Once you are friends, you can start a rematch from here.'
               : null}
