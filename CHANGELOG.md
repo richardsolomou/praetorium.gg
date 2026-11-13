@@ -1,5 +1,24 @@
 # praetorium
 
+## 0.236.0 (2026-11-13)
+
+### Minor Changes
+
+- 2ba7867: Add an ally to either side of a battle from setup, rather than choosing one against two or doubles before it opens.
+- 2ba7867: Battles offers to continue a draft you've started.
+- 6a512cb: Agents can start a battle with only you at the table and give you a link your opponent opens to join it with their account.
+- 2ba7867: The battle link shows who invited you and the battle size, and joins you on the side you chose as soon as you're signed in.
+- 2ba7867: New battle opens setup straight away, with just you at the table, and stays a draft out of your battles until everyone has joined with an army.
+- 2ba7867: Choose, change and remove armies, and set Battle ready, on the cards at the top of battle setup instead of a separate Armies step.
+- 2ba7867: Bring your opponent into a battle from setup by sharing a link or QR code, inviting a friend, or playing both sides yourself.
+
+### Patch Changes
+
+- 2ba7867: Whoever started a draft battle can remove a player who joined it, until everyone's army is in.
+- 2ba7867: Battle setup keeps every step open, fading the ones you haven't reached yet.
+- 2ba7867: Battle setup asks how you track the battle first, and says what Guided gives you.
+- 2ba7867: Battle setup no longer sets points per army by hand: a pair facing one player shares its side's points, and doubles armies bring half each.
+
 ## 0.235.1 (2026-11-13)
 
 ### Patch Changes
