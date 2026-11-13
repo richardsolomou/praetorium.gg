@@ -335,10 +335,98 @@ export async function createRoster(
 /** The practice opponent every instance seats, named as the interface names it. */
 export const PRACTICE_OPPONENT = 'Practice Opponent'
 
+/** A battle's own page, as opposed to the battles list or a join link. */
+export const BATTLE_PAGE = /\/battles\/(?!join\/)[^/?#]+$/
+
+const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+/** The signed-in player's account name, read from the account menu. */
+export async function accountName(page: Page) {
+  const label = await page.locator('button[aria-label^="Account menu for "]').first().getAttribute('aria-label')
+  if (!label) throw new Error('The page must be signed in.')
+  return label.replace('Account menu for ', '')
+}
+
+/** Opens setup on a fresh draft from the battles page, with only this player at the table. */
+export async function newBattle(page: Page) {
+  await page.goto('/battles')
+  await expect(async () => {
+    if (BATTLE_PAGE.test(new URL(page.url()).pathname)) return
+    await page.getByRole('button', { name: 'New battle', exact: true }).first().click({ timeout: 1_000 })
+    await page.waitForURL(BATTLE_PAGE, { timeout: 5_000 })
+  }).toPass({ timeout: 30_000 })
+  await expect(page.getByRole('heading', { name: /^Set up the battle/ })).toBeVisible()
+  return page.url()
+}
+
+/** Answers the Tracking step, which every step after it waits on in a draft. */
+export async function chooseTracking(page: Page, tracking: 'Guided' | 'Manual' = 'Guided') {
+  const choice = page.locator('#setup-format').getByRole('group', { name: 'How you track it' })
+  const button = choice.getByRole('button', { name: new RegExp(`^${tracking}`) })
+  const opponentStep = page.locator('#setup-opponent')
+  await expect(async () => {
+    if ((await opponentStep.getAttribute('data-locked')) === 'false' && (await button.getAttribute('aria-pressed')) === 'true') return
+    await button.click({ timeout: 1_000 })
+    await expect(opponentStep).toHaveAttribute('data-locked', 'false', { timeout: 3_000 })
+    await expect(button).toHaveAttribute('aria-pressed', 'true', { timeout: 3_000 })
+  }).toPass({ timeout: 20_000 })
+}
+
+/** Shares the battle's link from the Opponent step and returns it. */
+export async function shareBattleLink(page: Page) {
+  const step = page.locator('#setup-opponent')
+  const link = step.locator('p.font-mono')
+  await expect(async () => {
+    if (/^https?:/.test((await link.textContent({ timeout: 500 }).catch(() => '')) ?? '')) return
+    await step.getByRole('button', { name: 'Show the QR code and link' }).click({ timeout: 1_000 })
+    await expect(link).toHaveText(/^https?:/, { timeout: 3_000 })
+  }).toPass({ timeout: 20_000 })
+  return (await link.textContent())!.trim()
+}
+
+/** Opens a battle's link and joins it on `side`, choosing it where both sides have an open place. */
+export async function joinBattle(page: Page, link: string, side: 0 | 1) {
+  await page.goto(link)
+  await expect(page.getByRole('heading', { name: 'Join the battle' })).toBeVisible()
+  const place = page
+    .locator(`[data-join-side="${side}"]`)
+    .getByRole('button')
+    .filter({ hasText: /^(Open|You)$/ })
+    .first()
+  await expect(async () => {
+    if (BATTLE_PAGE.test(new URL(page.url()).pathname)) return
+    if ((await place.isEnabled()) && (await place.getAttribute('aria-pressed')) !== 'true') await place.click({ timeout: 1_000 })
+    await page.getByRole('button', { name: 'Join the battle', exact: true }).click({ timeout: 1_000 })
+    await page.waitForURL(BATTLE_PAGE, { timeout: 5_000 })
+  }).toPass({ timeout: 30_000 })
+}
+
+/** Adds an empty ally place to a side from its face-off card. */
+export async function addAllyPlace(page: Page, side: 0 | 1) {
+  const card = page.locator(`[data-face-off-side="${side}"]`)
+  const before = await card.locator('[data-open-place]').count()
+  await expect(async () => {
+    if ((await card.locator('[data-open-place]').count()) > before) return
+    await card.getByRole('button', { name: '+ Add ally' }).click({ timeout: 1_000 })
+    await expect(card.locator('[data-open-place]')).toHaveCount(before + 1, { timeout: 3_000 })
+  }).toPass({ timeout: 20_000 })
+}
+
+/** Has this player play the other side themselves, which seats the practice opponent across the table. */
+export async function playBothSides(page: Page) {
+  const step = page.locator('#setup-opponent')
+  const seated = page.locator('[data-face-off-side="1"]').getByText(PRACTICE_OPPONENT)
+  await expect(async () => {
+    if (await seated.isVisible()) return
+    await step.getByRole('button', { name: /^Play both sides/ }).click({ timeout: 1_000 })
+    await expect(seated).toBeVisible({ timeout: 5_000 })
+  }).toPass({ timeout: 30_000 })
+}
+
 /**
- * Opens a battle from the dialog, in whichever supported shape is asked for.
- *
- * `ally` puts the opener on the solo side; `yourAlly` puts them on the pair.
+ * Opens a battle on a fresh draft, Guided unless `manual`, and fills its places: with the practice opponent, or with
+ * the players whose pages are given, who join through the shared link. The opener sits on the first side;
+ * `yourAlly` joins them there, and `opponent`, `ally` and `secondOpponent` take the other side.
  */
 export async function createBattle(
   page: Page,
@@ -348,50 +436,30 @@ export async function createBattle(
     yourAlly,
     secondOpponent,
     practice = false,
-    beforeCreate,
+    manual = false,
   }: {
-    opponent?: string
-    ally?: string
-    yourAlly?: string
-    secondOpponent?: string
+    opponent?: Page
+    ally?: Page
+    yourAlly?: Page
+    secondOpponent?: Page
     practice?: boolean
-    beforeCreate?: (dialog: Locator) => Promise<void>
+    manual?: boolean
   } = {},
 ) {
-  await page.goto('/battles')
-  const dialog = page.getByRole('dialog', { name: 'Start a battle' })
-  await retryUntilVisible(dialog, () => page.getByRole('button', { name: 'New battle' }).click())
-  if (secondOpponent) await page.getByRole('button', { name: /^Doubles/ }).click()
-  else if (ally) {
-    await page.getByRole('button', { name: /^Solo vs pair/ }).click()
-    await page.getByRole('button', { name: /^I’m solo/ }).click()
-  } else if (yourAlly) {
-    await page.getByRole('button', { name: /^Solo vs pair/ }).click()
-    await page.getByRole('button', { name: /^I’m on the pair/ }).click()
+  const url = await newBattle(page)
+  await chooseTracking(page, manual ? 'Manual' : 'Guided')
+  if (practice) await playBothSides(page)
+  if (yourAlly) await addAllyPlace(page, 0)
+  if (ally || secondOpponent) await addAllyPlace(page, 1)
+  const joiners = [
+    ...(yourAlly ? [{ player: yourAlly, side: 0 as const }] : []),
+    ...[opponent, ally, secondOpponent].flatMap((player) => (player ? [{ player, side: 1 as const }] : [])),
+  ]
+  if (joiners.length) {
+    const link = await shareBattleLink(page)
+    for (const { player, side } of joiners) await joinBattle(player, link, side)
   }
-  if (yourAlly) {
-    await page.getByRole('combobox', { name: 'Your ally' }).click()
-    await page.getByRole('option', { name: yourAlly, exact: true }).click()
-  }
-  await page.getByRole('combobox', { name: secondOpponent || ally ? 'First opponent' : 'Opponent' }).click()
-  await page.getByRole('option', { name: practice ? PRACTICE_OPPONENT : opponent, exact: true }).click()
-  if (ally) {
-    await page.getByRole('combobox', { name: 'Second opponent' }).click()
-    await page.getByRole('option', { name: ally, exact: true }).click()
-  }
-  if (secondOpponent) {
-    await page.getByRole('combobox', { name: 'Second opponent' }).click()
-    await page.getByRole('option', { name: secondOpponent, exact: true }).click()
-  }
-  const matchup = page.getByLabel('Battle matchup')
-  await expect(matchup).toContainText('You')
-  for (const player of [yourAlly, opponent, ally, secondOpponent].filter((name): name is string => Boolean(name))) {
-    await expect(matchup).toContainText(player)
-  }
-  await beforeCreate?.(dialog)
-  await page.getByRole('button', { name: 'Start battle' }).click()
-  await page.waitForURL(/\/battles\/[^/]+$/)
-  return page.url()
+  return url
 }
 
 /** Opens a practice battle with the roster in both seats, or another roster for the practice opponent. */
@@ -403,8 +471,8 @@ export async function practiceBattle(page: Page, roster: string, { opponentRoste
 }
 
 /**
- * Presses a choice until the shared answer shows it, unless the table has already answered.
- * A setup step folds once it is settled, which takes the choice off the page and answers it too.
+ * Presses a choice until the shared answer shows it, unless the table has already answered
+ * or the battle does not play the step that asks it.
  */
 async function pressUntilChosen(choice: Locator, button: Locator) {
   const chosen = async () => !(await choice.isVisible()) || (await choice.locator('button[aria-pressed="true"]').count()) > 0
@@ -436,12 +504,9 @@ export async function recordFirstTurn(page: Page, firstSide?: string) {
   await chooseDefender(page)
   const step = page.locator('#setup-first-turn')
   const choice = page.getByRole('group', { name: 'First turn' })
-  // Folded once recorded, the step names the side on the spine instead of pressing its button.
   const recorded = async () =>
     (await step.getAttribute('data-complete')) === 'true' &&
-    (!firstSide ||
-      (await choice.getByRole('button', { name: firstSide, pressed: true }).isVisible()) ||
-      ((await step.textContent()) ?? '').includes(`${firstSide} takes the first turn`))
+    (!firstSide || (await choice.getByRole('button', { name: firstSide, pressed: true }).isVisible()))
   await expect(async () => {
     if (await recorded()) return
     await setupStep(page, 'First turn')
@@ -450,43 +515,33 @@ export async function recordFirstTurn(page: Page, firstSide?: string) {
   }).toPass({ timeout: 20_000 })
 }
 
-/** Brings a setup step into view, opening it if it has folded to its answer. */
-export async function setupStep(page: Page, label: string) {
+/** Brings a setup step into view; every step stays open, so this only scrolls. */
+export async function setupStep(page: Page, label: string | RegExp) {
   const section = page.getByRole('region', { name: label, exact: true })
-  const toggle = section.getByRole('heading').getByRole('button')
-  if ((await toggle.isEnabled()) && (await toggle.getAttribute('aria-expanded')) === 'false') {
-    // Dispatched rather than pressed: a guide's popover hangs over the step above the one it points at.
-    await toggle.dispatchEvent('click')
-    await expect(toggle).toHaveAttribute('aria-expanded', 'true')
-  }
   await section.scrollIntoViewIfNeeded()
   await expect(section).toBeInViewport()
 }
 
-/** Attaches a saved list to a seat: your own by default, or a named one such as a practice opponent's. */
+/** Attaches a saved list to an army from its face-off card: your own by default, or a named one such as a practice opponent's. */
 export async function attachRoster(page: Page, name: string, { forPlayer }: { forPlayer?: string } = {}) {
-  const chooser = forPlayer
-    ? page.getByRole('button', { name: new RegExp(`^(Choose|Change) roster for ${forPlayer}$`) })
-    : page.getByRole('button', { name: /^(Choose|Change) roster/ }).first()
-  const seat = page.getByRole('region', { name: 'Armies' }).locator('article').filter({ has: chooser }).first()
-  const attached = seat.getByText(name, { exact: true }).first()
+  const player = forPlayer ?? (await accountName(page))
+  const card = page.locator('[data-face-off-side]').filter({ hasText: player })
+  const chooser = card.getByRole('button', {
+    name: new RegExp(`^(Choose army|Choose ${escapeRegExp(player)}’s army|Change roster for ${escapeRegExp(player)})$`),
+  })
+  const attached = card.getByText(name, { exact: true }).first()
   const dialog = page.getByRole('dialog', { name: /roster$/ })
-  const choice = dialog.getByRole('button', { name: new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`) })
+  const choice = dialog.getByRole('button', { name: new RegExp(`^${escapeRegExp(name)}\\b`) })
   // Every choice stays disabled until the server answers, which can outlast a short wait on a
   // loaded runner; a stale shared setup redraws and leaves the chooser open to press again.
-  // The last army in settles the step, which folds it, so it is opened again to read the seat.
   await expect(async () => {
     if (!(await dialog.isVisible())) {
-      await setupStep(page, 'Armies')
       if (await attached.isVisible()) return
-      // A phone shows one side of an open step at a time.
-      const sides = page.getByRole('region', { name: 'Armies' }).getByRole('group', { name: 'Show side' })
-      if (forPlayer && (await sides.isVisible())) await sides.getByRole('button', { name: new RegExp(forPlayer) }).click()
-      await chooser.click({ timeout: 1_000 })
+      // Dispatched rather than pressed: a guide's popover can hang over the face-off.
+      await chooser.first().dispatchEvent('click', undefined, { timeout: 1_000 })
     }
     await choice.click({ timeout: 5_000 })
     await expect(dialog).toBeHidden({ timeout: 5_000 })
-    await setupStep(page, 'Armies')
     await expect(attached).toBeVisible({ timeout: 5_000 })
   }).toPass({ timeout: 30_000 })
   await expect(dialog).toBeHidden()
@@ -785,7 +840,7 @@ export async function twoPlayerBattle(alice: Page, bob: Page) {
   const bobRoster = await createRoster(bob, { faction: 'Death Guard', detachment: /Shamblerot Vectorium/, name: 'Death Guard' })
   await signUp(alice, aliceName)
   const aliceRoster = await createRoster(alice, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Necrons' })
-  const link = await setupBattle(alice, bob, { opponent: bobName, hostRoster: aliceRoster, guestRoster: bobRoster })
+  const link = await setupBattle(alice, bob, { hostRoster: aliceRoster, guestRoster: bobRoster })
   return { aliceName, bobName, link }
 }
 
@@ -793,22 +848,18 @@ export async function setupBattle(
   host: Page,
   guest: Page,
   {
-    opponent,
     hostRoster,
     guestRoster,
     beforeStart,
     openingSecondaries,
   }: {
-    opponent: string
     hostRoster: string
     guestRoster: string
     beforeStart?: () => Promise<void>
     openingSecondaries?: readonly string[]
   },
 ) {
-  await befriend(host, guest)
-  const url = await createBattle(host, { opponent })
-  await guest.goto(url)
+  const url = await createBattle(host, { opponent: guest })
   await attachRoster(host, hostRoster)
   await expect(guest.getByText(hostRoster, { exact: true }).first()).toBeVisible()
   await attachRoster(guest, guestRoster)

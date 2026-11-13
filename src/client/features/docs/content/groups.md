@@ -16,7 +16,7 @@ The owner can pick admins from the members in **Edit group**, in the group page'
 2. Pick a duel, solo vs pair or doubles, and who plays.
 3. Press **Start battle**.
 
-You can also pick the group under **Group** when you set up a battle anywhere else. It only shows when everyone in the battle is a member, and you can change it until the battle starts. Games with a guest or practice opponent can't count, and neither can manually tracked games.
+You can also pick the group under **Record for a group** in a battle's **Tracking** step. It only shows when everyone in the battle is a member, and you can change it until the battle starts. Games with a guest or where you play both sides can't count, and neither can manually tracked games.
 
 Ratings work as on the site-wide [leaderboard](/leaderboard): everyone starts at 1000, beating a higher-rated player gains more, a concession is a loss, and allies share their side's result, rated on their average. Group games still count on the site-wide leaderboard too.
 

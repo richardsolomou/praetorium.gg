@@ -307,10 +307,7 @@ test('a battle’s roster chooser tells a variant apart from its base', async ({
   })
 
   await createBattle(page, { practice: true })
-  await page
-    .getByRole('button', { name: /^Choose roster/ })
-    .first()
-    .click()
+  await page.locator('[data-face-off-side="0"]').getByRole('button', { name: 'Choose army', exact: true }).click()
   const chooser = page.getByRole('dialog', { name: 'Choose your roster' })
   const group = chooser.locator('[data-roster-group]')
   await expect(group.locator('[data-roster]')).toHaveCount(2)

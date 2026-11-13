@@ -59,5 +59,5 @@ Praetorium only rebuilds an army when it finds every unit in it. Otherwise the a
 ## Limits
 
 - Praetorium records what you tell it. It doesn't roll dice, check movement, range or line of sight, or judge whether a score was earned. In a manual battle it doesn't check scores or CP at all.
-- There's no computer opponent. A practice opponent is a side you play yourself.
+- There's no computer opponent. **Play both sides** means you play the other side yourself.
 - A finished battle can't be reopened from the app, except by a Swiss tournament's organizer from the tournament page.

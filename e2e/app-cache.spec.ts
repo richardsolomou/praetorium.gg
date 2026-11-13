@@ -1,7 +1,6 @@
 import { PUBLIC_APP_QUERIES } from '../src/contracts/appSnapshot'
 import { expect, test, type Page } from './test'
 import {
-  createBattle,
   createRoster,
   PRACTICE_OPPONENT,
   retryUntilVisible,
@@ -11,6 +10,7 @@ import {
   waitForRosterSave,
   signOut,
   PHONE,
+  practiceBattle,
 } from './account'
 import { lastPathSegment } from './storage'
 import { waitForOfflineApp } from './offline'
@@ -43,7 +43,8 @@ test(
     await signUp(page, player)
     const roster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Saved army' })
     const rosterPath = new URL(page.url()).pathname
-    const battlePath = new URL(await createBattle(page, { practice: true })).pathname
+    // Home and Battles list a battle once every army is in.
+    const battlePath = new URL(await practiceBattle(page, roster)).pathname
     await expect(page.getByText(PRACTICE_OPPONENT, { exact: true }).first()).toBeVisible()
     await expect.poll(() => savedState(page)).toContain(JSON.stringify(['battle', lastPathSegment(page.url())]))
     await page.goto('/')
@@ -90,7 +91,8 @@ test(
     await expect(reopened.getByRole('button', { name: 'Refresh now' })).toHaveCount(0)
     await reopened.getByRole('button', { name: 'Search Praetorium', exact: true }).first().click()
     await reopened.getByPlaceholder('Search everything…').fill(roster)
-    await reopened.getByRole('option').filter({ hasText: roster }).click()
+    // The battle fielding it is found too, named for both its armies.
+    await reopened.getByRole('option').filter({ hasText: roster }).filter({ hasNotText: ' vs ' }).click()
     await expect(reopened.getByLabel('List name')).toHaveValue(roster)
     await reopened.goto('/')
 
@@ -113,15 +115,17 @@ test(
       detachment: /Awakened Dynasty/,
       name: 'New army from another device',
     })
-    const newBattlePath = new URL(await createBattle(other, { practice: true })).pathname
+    const newBattlePath = new URL(await practiceBattle(other, newRoster)).pathname
     await reopened.evaluate(() => {
       ;(window as Window & { navigationMarker?: string }).navigationMarker = 'same app'
       window.dispatchEvent(new Event('online'))
     })
     await expect(reopened.getByRole('main').getByText(newRoster, { exact: true })).toBeVisible()
-    await expect(reopened.getByRole('main').locator(`a[href="${newBattlePath}"]`).first()).toBeVisible()
     expect(await reopened.evaluate(() => (window as Window & { navigationMarker?: string }).navigationMarker)).toBe('same app')
     await expect(reopened).toHaveURL('/')
+    // A battle starts on the server, not in this device's saved state, so a device that was offline reads it on its next load.
+    await reopened.goto('/battles')
+    await expect(reopened.getByRole('main').locator(`a[href="${newBattlePath}"]`).first()).toBeVisible()
     await reopened.setViewportSize({ width: 1440, height: 900 })
     await reopened.goto(rosterPath)
     await retryUntilVisible(other.locator('[data-roster="Renamed saved army"]'), async () => {

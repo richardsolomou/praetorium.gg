@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { Check, Crown, Pencil, Trash2, TriangleAlert } from 'lucide-react'
+import { Crown, Pencil, TriangleAlert } from 'lucide-react'
 import { useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { Button } from '@/components/ui/button'
@@ -13,55 +13,35 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import {
-  armyPointsFor,
-  sharedSidePoints,
-  armyPointsText,
-  fitsBattleSize,
-  PAINTED_ARMY_POINTS,
-  pointsBudgetOf,
-  pointsLabel,
-  type Command,
-} from '../../../../core/battle'
+import { fitsBattleSize, pointsBudgetOf, type Command } from '../../../../core/battle'
 import { type BattleView } from '../../../../core/battleView'
 import { errorMessage } from '../../../queryClient'
 import { rostersLentToMeQuery, savedRosterSummariesQuery, type QueryData } from '../../../queries'
 import { type Army, type Side, sideName } from '../../../sides'
-import { ArmyIdentity } from '../ArmyIdentity'
-import { rosterWaivers, WaiverConfirmDialog, WaiverNote } from '../../../components/FormatWaivers'
-import { CHOOSABLE, CHOSEN, DispositionChip, SetupNote, SetupSidePanel, useDispositionNames } from './chrome'
+import { rosterWaivers, WaiverConfirmDialog } from '../../../components/FormatWaivers'
+import { CHOOSABLE, CHOSEN } from './chrome'
 import type { RosterAttachment } from '../useCommand'
 import { RosterChooser } from './RosterChooser'
 import { useHistoryDialog } from '../../../useHistoryDialog'
-import { countLabel } from '../../../text'
-
-/** What a guest's army says when the table is only keeping score, since every army carries text for its opponent to read. */
-const SCORE_ONLY_TEXT = 'No list entered. This game only keeps score.'
 
 type SavedRoster = QueryData<typeof savedRosterSummariesQuery>[number]
 type Props = {
   view: BattleView
   sides: Side[]
-  send: (command: Command) => void
   attachRoster: (command: RosterAttachment) => Promise<boolean>
   pending: boolean
   problem: string | null
 }
 
-/**
- * Every army on the table, grouped by the side that fields it.
- *
- * A player only ever changes their own list, but everyone sees every list as soon as
- * it is attached — that is what makes the step worth doing together.
- */
 /** Whether this reader picks the list for an army: their own, or a practice opponent's, outside a sealed event. */
 export function canChooseFor(view: BattleView, army: Army) {
   return !view.sealedEventToken && (army.isViewer || army.automated)
 }
 
-export function ArmiesStep({ view, sides, send, attachRoster, pending, problem }: Props) {
+/** Choosing the list for an army, opened from its card in the face-off by `useHistoryDialog('choose-roster')`. */
+export function ArmyChooser({ view, sides, attachRoster, pending, problem }: Props) {
   /** The army the chooser is picking for, your own or a practice opponent's, by player id. */
-  const [choosingId, choose, closeChooser] = useHistoryDialog('choose-roster')
+  const [choosingId, , closeChooser] = useHistoryDialog('choose-roster')
   const choosing = sides.flatMap((side) => side.armies).find((army) => army.playerId === choosingId) ?? null
   /**
    * A chosen list that is not playing all of its format, held back for a confirmation.
@@ -80,7 +60,6 @@ export function ArmiesStep({ view, sides, send, attachRoster, pending, problem }
   const rosterQuery = useQuery(savedRosterSummariesQuery())
   const saved = (rosterQuery.data ?? []).filter((roster) => !roster.archived)
   const lentQuery = useQuery(rostersLentToMeQuery())
-  const nameDisposition = useDispositionNames()
   const team = view.settings.teamBattle
   // A size the rosters set is no filter, since any list may change it.
   const chooserLimit = view.settings.sizeFromRosters ? null : view.settings.limit
@@ -99,127 +78,7 @@ export function ArmiesStep({ view, sides, send, attachRoster, pending, problem }
     void attach(chosen)
   }
   return (
-    <div className="space-y-4">
-      {team && view.settings.limit !== null ? (
-        <SetupNote>
-          {[0, 1].some((side) => sharedSidePoints(view, side) !== null)
-            ? `${armyPointsText(view)} points. Allies split theirs however they agree.`
-            : `Each army spends up to ${armyPointsText(view)} points.`}
-        </SetupNote>
-      ) : null}
-      <div className="grid items-start gap-6 md:grid-cols-2">
-        {sides.map((side) => (
-          <SetupSidePanel key={side.index} side={side} named>
-            {side.armies.map((army) => (
-              <article
-                key={army.playerId}
-                className="space-y-2 not-first-of-type:border-t not-first-of-type:border-edge not-first-of-type:pt-3"
-              >
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                  <div className="min-w-0 flex-1">
-                    {side.armies.length > 1 ? <span className="eyebrow block">{army.playerName}</span> : null}
-                    {army.roster ? (
-                      <span className="block font-bold break-words uppercase">{army.roster.name}</span>
-                    ) : (
-                      <span className="block py-2 text-sm text-dim">No army chosen</span>
-                    )}
-                    {/* What the army is, named the same way the battle will name it. */}
-                    {army.roster ? <ArmyIdentity army={army} className="mt-0.5" /> : null}
-                    {army.roster?.lentBy ? <span className="mt-0.5 block text-xs text-dim">Lent by {army.roster.lentBy.name}</span> : null}
-                    {army.roster ? (
-                      <span className="mt-0.5 block text-xs text-dim">
-                        {army.roster.built
-                          ? `${countLabel(army.unitCount, 'unit')} · ${(army.points ?? 0).toLocaleString('en')} of ${pointsLabel(team ? (sharedSidePoints(view, side.index) ?? armyPointsFor(view, side.index) ?? pointsBudgetOf(army.roster.built)) : pointsBudgetOf(army.roster.built))}`
-                          : army.roster.text === SCORE_ONLY_TEXT
-                            ? 'Score only'
-                            : 'Imported army'}
-                      </span>
-                    ) : null}
-                    {/* Said under every army rather than only under your own: an opponent
-                        deciding whether to play this game needs the same fact its owner has. */}
-                    <WaiverNote rules={rosterWaivers(army.roster?.built)} />
-                  </div>
-                  {view.sealedEventToken ? (
-                    <span className="chip shrink-0 self-start text-achieved sm:self-auto">Sealed roster</span>
-                  ) : canChooseFor(view, army) ? (
-                    <div className="flex shrink-0 flex-wrap items-center gap-1">
-                      <Button
-                        variant={army.roster ? 'outline' : 'default'}
-                        size="sm"
-                        aria-label={`${army.roster ? 'Change' : 'Choose'} roster for ${army.playerName}`}
-                        onClick={() => choose(army.playerId)}
-                      >
-                        {army.roster ? 'Change roster' : 'Choose roster'}
-                      </Button>
-                      {/* Bringing the wrong list is as easy as bringing the right one, so the
-                        seat can be emptied as well as changed. */}
-                      {army.roster ? (
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          disabled={pending}
-                          aria-label={`Take away the roster for ${army.playerName}`}
-                          title="Take this army off the table"
-                          onClick={() => send({ kind: 'detach-roster', playerId: army.playerId })}
-                        >
-                          <Trash2 />
-                        </Button>
-                      ) : null}
-                    </div>
-                  ) : (
-                    <div className="flex shrink-0 flex-wrap items-center gap-1 self-start sm:self-auto">
-                      <span className={`chip ${army.roster ? 'text-achieved' : 'text-dim'}`}>{army.roster ? 'Ready' : 'Waiting'}</span>
-                    </div>
-                  )}
-                </div>
-                {/*
-                 * What the army brings to its side, in one row of chips: its disposition until
-                 * allies settle one, whose Warlord leads an allied side, and whether it is
-                 * painted. Anyone at the table may set either, because one device often stands
-                 * in for all of them.
-                 */}
-                {army.roster ? (
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    {side.armies.length === 1 || !side.disposition ? (
-                      <DispositionChip disposition={nameDisposition(army.roster.built?.disposition)} />
-                    ) : null}
-                    {side.warlordChoices.length > 1 && side.warlordChoices.includes(army.playerId) ? (
-                      <WarlordToggle side={side} army={army} send={send} />
-                    ) : null}
-                    {view.settings.manual ? null : (
-                      <Button
-                        variant="outline"
-                        size="xs"
-                        disabled={pending}
-                        aria-pressed={army.painted}
-                        className={`gap-1 ${army.painted ? CHOSEN : CHOOSABLE}`}
-                        aria-label={`${army.painted ? 'Remove' : 'Add'} the battle ready bonus for ${army.playerName}`}
-                        onClick={() => send({ kind: 'set-painted', painted: !army.painted, playerId: army.playerId })}
-                      >
-                        {army.painted ? <Check className="size-3" aria-hidden /> : null}
-                        Battle ready
-                      </Button>
-                    )}
-                  </div>
-                ) : null}
-              </article>
-            ))}
-            {side.armies.length > 1 && nameDisposition(side.disposition) ? (
-              <p className="flex flex-wrap items-center gap-2 text-xs text-dim">
-                Side plays <DispositionChip disposition={nameDisposition(side.disposition)} />
-              </p>
-            ) : null}
-            {/* The bonus is the side's and pays once, so an unpainted ally costs the whole side the bonus. */}
-            {view.settings.manual || !side.armies.some((army) => army.roster) ? null : (
-              <p className={`text-xs ${side.paintedPoints ? 'text-achieved' : 'text-dim'}`}>
-                {side.paintedPoints
-                  ? `Battle ready · +${side.paintedPoints} VP at the start of the battle`
-                  : `+${PAINTED_ARMY_POINTS} VP at the start of the battle once ${side.armies.length > 1 ? 'every army on this side is' : 'this army is'} battle ready`}
-              </p>
-            )}
-          </SetupSidePanel>
-        ))}
-      </div>
+    <>
       <RosterChooser
         open={choosing !== null}
         onOpenChange={(open) => !open && closeChooser()}
@@ -275,12 +134,11 @@ export function ArmiesStep({ view, sides, send, attachRoster, pending, problem }
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </>
   )
 }
 
-/** Allies field one Warlord between them, so each list's own offers to lead the side. */
-function WarlordToggle({ side, army, send }: { side: Side; army: Army; send: (command: Command) => void }) {
+export function WarlordToggle({ side, army, send }: { side: Side; army: Army; send: (command: Command) => void }) {
   const unit = army.units.find((candidate) => candidate.warlord)?.name ?? 'Warlord'
   const leads = side.warlord === army.playerId
   return (

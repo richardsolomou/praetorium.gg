@@ -129,7 +129,6 @@ test('roster reminders cover selected rules and advances from another device', a
   await expect(page.locator('[data-unit="Plasmancer"]').getByLabel('3 alerts set for Plasmancer')).toBeVisible()
 
   await setupBattle(page, opponent, {
-    opponent: opponentName,
     hostRoster: roster,
     guestRoster: opponentRoster,
     openingSecondaries: ['Cleanse', 'Assassination'],

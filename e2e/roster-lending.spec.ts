@@ -13,7 +13,6 @@ import {
   expectNoPageOverflow,
   PHONE,
   sealableRoster,
-  setupStep,
 } from './account'
 import type { Page } from '@playwright/test'
 
@@ -56,24 +55,18 @@ test('a friend fields a lent roster, and the battle keeps it after the loan ends
   await borrower.setViewportSize({ width: 1440, height: 900 })
 
   const battle = await createBattle(borrower, { practice: true })
-  await borrower
-    .getByRole('button', { name: /^Choose roster/ })
-    .first()
-    .click()
+  await borrower.locator('[data-face-off-side="0"]').getByRole('button', { name: 'Choose army', exact: true }).click()
   await borrower.getByRole('dialog', { name: /roster$/ }).screenshot({ path: test.info().outputPath('roster-lending-chooser.png') })
   await borrower.keyboard.press('Escape')
   await attachRoster(borrower, rosterName)
-  await setupStep(borrower, 'Armies')
-  const armies = borrower.getByRole('region', { name: 'Armies' })
-  await expect(armies.getByText(`Lent by ${ownerName}`)).toBeVisible()
+  await expect(borrower.locator('[data-face-off-side="0"]').getByText(`Lent by ${ownerName}`)).toBeVisible()
 
   await setLoan(owner, rosterUrl, borrowerName, false)
   await borrower.goto('/rosters')
   await expect(borrower.getByLabel('Loading roster count')).toHaveCount(0)
   await expect(borrower.locator('[data-lent-rosters]')).toHaveCount(0)
   await borrower.goto(battle)
-  await setupStep(borrower, 'Armies')
-  await expect(borrower.getByRole('region', { name: 'Armies' }).getByText(`Lent by ${ownerName}`)).toBeVisible()
+  await expect(borrower.locator('[data-face-off-side="0"]').getByText(`Lent by ${ownerName}`)).toBeVisible()
 })
 
 test('a borrower hands a lent roster back', async ({ browser }) => {

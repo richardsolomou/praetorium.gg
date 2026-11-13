@@ -31,6 +31,8 @@ import {
   type SubmitResult,
   openPlaces,
   stillFilling,
+  pointsBudgetOf,
+  pointsSpent,
 } from '../core/battle'
 import { playedArmies } from '../core/playedArmies'
 import { battleDigest, type BattleDigest } from '../core/battleDigest'
@@ -1323,7 +1325,7 @@ export class PraetoriumService {
       invite: {
         invite: state.invite.invite,
         invited: state.invite.invitedIds.flatMap((id) => {
-          const name = names.get(id)
+          const name = names.get(id)?.name
           return name ? [{ id, name }] : []
         }),
       },
@@ -1341,7 +1343,19 @@ export class PraetoriumService {
       // The battle itself is for the players in it: anyone else reaches it only by joining.
       token: seated ? history.battle.token : null,
       hostName: host?.name ?? null,
-      sides: [0, 1].map((side) => history.players.filter((player) => player.side === side).map((player) => ({ name: player.name }))),
+      sides: [0, 1].map((side) =>
+        history.players
+          .filter((player) => player.side === side)
+          .map((player) => {
+            const roster = state.players.find((candidate) => candidate.id === player.id)?.roster
+            return {
+              name: player.name,
+              image: player.image ?? null,
+              army: roster ? { name: roster.name, points: roster.built ? pointsSpent(roster.built) : null } : null,
+            }
+          }),
+      ),
+      ...invitedSize(state),
       open: openPlaces(state),
       started: state.status !== 'setup',
     }
@@ -1761,6 +1775,18 @@ export class PraetoriumService {
     if (!history) throw new Response('no such battle', { status: 404 })
     return history
   }
+}
+
+/**
+ * The battle's size and what each army brings, or what the biggest list chosen so far makes them, so whoever opens a
+ * link knows what to bring. Doubles armies bring half the battle's points; a pair facing one player shares them.
+ */
+function invitedSize(state: ReturnType<typeof foldHistory>): { limit: number | null; armyPoints: number | null } {
+  const doubles = state.settings.places?.every((count) => count === 2) ?? battleCapacity(state.settings) === 4
+  if (state.settings.limit !== null)
+    return { limit: state.settings.limit, armyPoints: doubles ? state.settings.limit / 2 : state.settings.limit }
+  const list = Math.max(0, ...state.players.flatMap((player) => (player.roster?.built ? [pointsBudgetOf(player.roster.built)] : [])))
+  return list ? { limit: list, armyPoints: doubles ? list / 2 : list } : { limit: null, armyPoints: null }
 }
 
 /** How long a draft nobody changes is kept: long enough for a game planned for next weekend. */

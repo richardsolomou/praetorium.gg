@@ -1,7 +1,6 @@
-import { expect, test, type Locator, type Page } from './test'
+import { expect, test, type Page } from './test'
 import {
   attachRoster,
-  befriend,
   chooseBattlefield,
   createBattle,
   createRoster,
@@ -16,40 +15,6 @@ import {
   PHONE,
   playerPanel,
 } from './account'
-import { productOperator, withAuthSql } from './storage'
-import { expectNoHorizontalOverflow } from './builder.harness'
-
-async function connectPlayers(requesterName: string, addresseeNames: string[]) {
-  const names = [requesterName, ...addresseeNames]
-  const players = await withAuthSql(
-    (database) =>
-      database.prepare(`SELECT id, name FROM user WHERE name IN (${names.map(() => '?').join(', ')})`).all(...names) as {
-        id: string
-        name: string
-      }[],
-  )
-  const requester = players.find((player) => player.name === requesterName)
-  const addressees = addresseeNames.map((name) => players.find((player) => player.name === name))
-  if (!requester || addressees.some((player) => !player)) throw new Error('The doubles test players are missing.')
-  const now = Date.now()
-  const product = await productOperator()
-  for (const [index, addressee] of addressees.entries()) {
-    await product.requestFriend(requester.id, addressee!.id, now + index)
-    await product.acceptFriend(requester.id, addressee!.id, now + index)
-  }
-}
-
-async function inspectBattleDialog(page: Page, dialog: Locator, screenshot: string) {
-  await expect(dialog.getByRole('button', { name: /^Solo vs pair/ })).toHaveCount(1)
-  await expect(dialog.getByRole('button', { name: '1v2', exact: true })).toHaveCount(0)
-  await expect(dialog.getByRole('button', { name: '2v1', exact: true })).toHaveCount(0)
-  await page.screenshot({ path: test.info().outputPath(`${screenshot}-desktop.png`), fullPage: true })
-  await page.setViewportSize(PHONE)
-  await expectNoPageOverflow(page)
-  await expectNoHorizontalOverflow(dialog.locator('[data-slot="dialog-body"]'))
-  await page.screenshot({ path: test.info().outputPath(`${screenshot}-phone.png`), fullPage: true })
-  await page.setViewportSize({ width: 1440, height: 900 })
-}
 
 // Three accounts and three devices, so it needs more room than a duel. Every army comes
 // from one catalogue on purpose: the shared container prices each faction it is shown.
@@ -85,36 +50,22 @@ test('a 2v1 draws the allied pair as one side with one pool of everything', asyn
   })
   await signUp(host, hostName)
   const hostRoster = await createRoster(host, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Host army' })
-  await befriend(host, ally)
-  await befriend(host, partner)
-
-  const url = await createBattle(host, {
-    opponent: allyName,
-    ally: partnerName,
-    beforeCreate: async (dialog) => {
-      await expect(dialog.getByRole('button', { name: /^I’m solo/ })).toHaveAttribute('aria-pressed', 'true')
-      await inspectBattleDialog(host, dialog, 'solo-vs-pair-solo')
-    },
-  })
-  await ally.goto(url)
-  await partner.goto(url)
+  await createBattle(host, { opponent: ally, ally: partner })
 
   await attachRoster(host, hostRoster)
   await expect(ally.getByText(hostRoster, { exact: true }).first()).toBeVisible()
   await attachRoster(ally, allyRoster)
   await expect(partner.getByText(allyRoster, { exact: true }).first()).toBeVisible()
   await attachRoster(partner, partnerRoster)
-  // Every army in settles the step, which folds it to its answer; open it to read the seats.
-  await setupStep(host, 'Armies')
-  await setupStep(ally, 'Armies')
-  // Setup groups the allies under one heading rather than listing three players flat.
-  const alliedNames = host.locator('[data-players]').filter({ hasText: allyName }).first()
-  await expect(alliedNames).toContainText(partnerName)
+  // Setup groups the allies on one side rather than listing three players flat.
+  const allied = host.locator('[data-face-off-side="1"]')
+  await expect(allied).toContainText(allyName)
+  await expect(allied).toContainText(partnerName)
   // The battlefield follows from both sides' dispositions, so the host has to have seen both armies first.
   await expect(host.getByText(allyRoster, { exact: true }).first()).toBeVisible()
   await expect(host.getByText(partnerRoster, { exact: true }).first()).toBeVisible()
-  // The pair shares its side's points, read in seat order, which says who is allied.
-  await expect(ally.getByText('2,000 vs 2,000 shared points. Allies split theirs however they agree.')).toBeVisible()
+  // The pair shares its side's points, which says who is allied.
+  await expect(ally.locator('[data-face-off-side="1"]').getByText(/ of 2,000 pts shared/)).toBeVisible()
 
   // Setting the table is done together, so one device can arrange an army it does not own.
   // Three devices are settling cards at once, so a press that loses that race is pressed again.
@@ -129,7 +80,6 @@ test('a 2v1 draws the allied pair as one side with one pool of everything', asyn
     await expect(bonus(host, 'Remove')).toBeVisible({ timeout: 3_000 })
   }).toPass({ timeout: 30_000 })
   await chooseBattlefield(host)
-  // Dealt cards settle the step, which folds it to its answer, so open it once they are.
   await expect(partner.locator('#setup-secondaries')).toHaveAttribute('data-complete', 'true')
   await setupStep(partner, 'Secondaries')
   // Any player at the table can referee either side's secondary choices.
@@ -188,30 +138,19 @@ test('a 2v1 opened from the allied side seats its opener with their ally and pla
   })
   // The seat nobody signs in to is fielded from this table's own library.
   const practiceRoster = await createRoster(host, { faction: 'Necrons', detachment: /Canoptek Court/, name: 'Practice army' })
-  await befriend(host, ally)
-
-  const url = await createBattle(host, {
-    yourAlly: allyName,
-    practice: true,
-    beforeCreate: async (dialog) => {
-      await expect(dialog.getByRole('button', { name: /^I’m on the pair/ })).toHaveAttribute('aria-pressed', 'true')
-      await inspectBattleDialog(host, dialog, 'solo-vs-pair-pair')
-    },
-  })
-  await ally.goto(url)
+  await createBattle(host, { yourAlly: ally, practice: true })
 
   await attachRoster(host, hostRoster)
   await attachRoster(host, practiceRoster, { forPlayer: PRACTICE_OPPONENT })
   await attachRoster(ally, allyRoster)
-  await setupStep(host, 'Armies')
-  await setupStep(ally, 'Armies')
-  // The opener and the ally they chose are one side, named as one.
-  await expect(host.locator('[data-players]').filter({ hasText: hostName }).first()).toContainText(allyName)
+  // The opener and the ally who joined them are one side, named as one.
+  await expect(host.locator('[data-face-off-side="0"]')).toContainText(hostName)
+  await expect(host.locator('[data-face-off-side="0"]')).toContainText(allyName)
   await expect(ally.getByText(hostRoster, { exact: true }).first()).toBeVisible()
   // The battlefield follows from both sides' dispositions, so the host has to have seen every army first.
   await expect(host.getByText(allyRoster, { exact: true }).first()).toBeVisible()
-  // Shared by the pair and whole for the side facing them, which is what says who is allied.
-  await expect(host.getByText('2,000 shared vs 2,000 points. Allies split theirs however they agree.')).toBeVisible()
+  // Shared by the pair, which is what says who is allied.
+  await expect(host.locator('[data-face-off-side="0"]').getByText(/ of 2,000 pts shared/)).toBeVisible()
 
   await chooseBattlefield(host)
   await startBattle(host, `${hostName} & ${allyName}`)
@@ -260,10 +199,7 @@ test('a manual 2v2 seats two armies on each side with one shared pool', async ({
       size: /Incursion/,
     })
   }
-  await connectPlayers(names[0], names.slice(1))
-
-  const url = await createBattle(host, { opponent: names[2], yourAlly: names[1], secondOpponent: names[3] })
-  await Promise.all(pages.slice(1).map((page) => page.goto(url)))
+  await createBattle(host, { opponent: pages[2], yourAlly: pages[1], secondOpponent: pages[3] })
   for (const [index, page] of pages.entries()) await attachRoster(page, rosters[index])
   await chooseBattlefield(host)
   await startBattle(host, `${names[0]} & ${names[1]}`)

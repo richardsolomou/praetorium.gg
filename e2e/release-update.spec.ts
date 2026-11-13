@@ -192,7 +192,7 @@ test('a stale page sends a queued battle command before a route change reloads i
   })
   await page.reload()
   await expect(page.getByRole('complementary', { name: 'Release update' })).toBeVisible()
-  await setupStep(page, 'Format')
+  await setupStep(page, 'Tracking')
   holding = true
   await page.getByRole('button', { name: /^Manual/ }).click()
   await sent

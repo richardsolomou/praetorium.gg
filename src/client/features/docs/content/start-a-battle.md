@@ -1,26 +1,37 @@
-Open [Battles](/battles) and choose **New battle**.
+Open [Battles](/battles) and choose **New battle**. Setup opens straight away with just you at the table, as a **Draft**.
 
-1. Pick a **Battle format**: **Duel** (1v1), **Solo vs pair** (2v1) or **Doubles** (2v2). For solo vs pair, also say which side you're on.
-2. Fill every seat with a friend or a practice opponent (see below).
+![Battle setup on a new draft: your card with Choose army, an empty Opponent card with Share a link, and the Tracking step.](screenshot:track-a-battle-new-battle 'A new battle starts as a draft')
 
-   ![The Start a battle dialog with the opponent list open, showing the practice opponents.](screenshot:track-a-battle-new-battle 'The seat list: friends, then practice opponents')
+1. Under **Tracking**, choose **Guided** or **Manual**. Choosing your army or sharing the link goes on with Guided.
+2. Choose your army on your card at the top. The first list chosen sets the battle size, and a bigger or smaller list changes it.
+3. Bring your opponent in under **Opponent** (see below).
+4. Answer the rest of setup and choose **Start battle**.
 
-3. Choose **Tracking**: **Guided** or **Manual**. You can still switch during setup.
-4. Choose **Start battle**.
+![The Tracking step with the Guided and Manual choices.](screenshot:track-a-battle-tracking 'Tracking: Guided or Manual')
 
-![The Start a battle dialog with the Guided and Manual tracking choices.](screenshot:track-a-battle-tracking 'Tracking: Guided or Manual')
+Every step stays on the page. The ones you haven't reached yet are faded until the step before them is done.
 
-One phone in the middle of the table is enough, because anyone at the table can answer for either side. Everyone seated can also use their own device.
+A draft stays out of your battles until everyone has joined and chosen an army. **Continue your draft** on [Battles](/battles) takes you back to it, and **New battle** reuses a draft you haven't touched yet. A draft nobody changes for 14 days is deleted.
 
-**Start a battle** on a saved roster in the builder puts that list on your seat. **Battle** next to a friend on [Friends](/friends) opens a duel with them already seated.
+One phone in the middle of the table is enough, because anyone at the table can answer for either side. Everyone who has joined can also use their own device.
 
-## Who can sit in a seat
+**Start a battle** on a saved roster in the builder or your library opens a draft with that list chosen. **Battle** next to a friend on [Friends](/friends) opens one with them already invited.
 
-Everyone at the table needs an account, so the game counts for each of you. A friend must already be on your friends list. If you have no friends yet, the dialog offers an invite link and QR code: they sign up from it, and you pick them once they've accepted. A list they built on their device before signing up is saved to their new account.
+## Bring your opponent in
 
-A practice opponent is listed under **Practice opponents**. You run their side with one of your own lists, which is how to track a game on your own. Practice games don't count anywhere.
+- **Share a link** shows a QR code and a link. Whoever opens it signs in, or makes an account, and joins. **Stop sharing** turns the link off.
+- **Invite a friend** sends a friend a notification they join from. If you're both in the same tournament, Praetorium offers to play your game there instead.
+- **Play both sides** lets you play the other side yourself on this device, with one of your own lists. It doesn't count on the [leaderboard](/leaderboard).
 
-If you're both entered in the same tournament, Praetorium asks **You are both in a tournament**. Choose the tournament to play it there with your sealed lists, or **Play it casually** to keep it out.
+Everyone in a battle has an account, so the result goes in both records.
+
+Until the battle stops being a draft, you can **Remove** a player who joined. Their place opens again and their link stops working.
+
+## Allies
+
+**+ Add ally** under a side adds a place for another player on that side, so a duel becomes one player against a pair, or doubles. The × next to an empty place takes it away. One link fills every open place, and whoever opens it picks a side when both have room.
+
+A pair against one player shares its side's points. In doubles each army brings half its side's points.
 
 ## Guided or manual tracking
 

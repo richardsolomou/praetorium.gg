@@ -1,7 +1,6 @@
 import { expect, type Locator, type Page, test } from './test'
 import {
   attachRoster,
-  befriend,
   createBattle,
   createRoster,
   signUp,
@@ -95,8 +94,7 @@ for (const [size, label] of [
     const opponentName = uniqueName('Opponent')
     const opponent = await (await browser.newContext(size)).newPage()
     await signUp(opponent, opponentName)
-    await befriend(owner, opponent)
-    const battle = await createBattle(owner, { opponent: opponentName })
+    const battle = await createBattle(owner, { opponent })
     await attachRoster(owner, roster)
     const token = lastPathSegment(battle)
     const fielded = `/rosters/${original}?battle=${token}`

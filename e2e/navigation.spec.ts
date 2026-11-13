@@ -18,6 +18,7 @@ import {
   signOut,
   nextFrames,
   PHONE,
+  practiceBattle,
 } from './account'
 import { catalogue } from './stackEnv'
 
@@ -985,6 +986,9 @@ test('a player can enter through the roster library and browse the product', asy
   await expect(gauss.getByText('5', { exact: true }).first()).toBeVisible()
   await expect(page.getByRole('button', { name: /modified from 5 by Cursed Legion/ })).toHaveCount(0)
   await page.screenshot({ path: test.info().outputPath('cursed-immortals-base-strength.png'), fullPage: true })
+  // An unnamed list goes by the name its placeholder shows.
+  const listName = page.getByLabel('List name')
+  const rosterName = (await listName.inputValue()) || (await listName.getAttribute('placeholder'))!
   await page.getByRole('link', { name: 'Rosters', exact: true }).click()
   await page.getByRole('button', { name: 'Import roster' }).click()
   await expect(page.getByRole('dialog', { name: 'Import roster' })).toBeVisible()
@@ -993,10 +997,7 @@ test('a player can enter through the roster library and browse the product', asy
   await page.getByRole('link', { name: 'Battles' }).click()
   await expect(page.getByRole('heading', { name: 'Battles', exact: true })).toBeVisible()
   await expect(page.getByText('No battles yet.')).toBeVisible()
-  await page.getByRole('button', { name: 'New battle' }).click()
-  await chooseOption(page, 'Opponent', 'Practice Opponent')
-  await page.getByRole('button', { name: 'Start battle' }).click()
-  await expect(page).toHaveURL(/\/battles\/[^/?]+$/)
+  await practiceBattle(page, rosterName)
   await page.getByRole('link', { name: 'Battles' }).click()
   await expect(page.locator('[data-battle-shelf="In progress"]')).toBeVisible()
   await expect(page.getByText('Practice Opponent').first()).toBeVisible()

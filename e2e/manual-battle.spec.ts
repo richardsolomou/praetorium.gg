@@ -23,15 +23,8 @@ test('a table keeps score by hand in a manually tracked battle', async ({ page }
   const host = uniqueName('Manual host')
   await signUp(page, host)
   const roster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Manual list' })
-  await createBattle(page, {
-    practice: true,
-    beforeCreate: async (dialog) => {
-      await dialog.getByRole('button', { name: /^Manual/ }).click()
-      await expect(dialog.getByText(/No mission cards, scoring prompts, caps/)).toBeVisible()
-    },
-  })
+  await createBattle(page, { practice: true, manual: true })
 
-  await expect(page.getByText(/^Manual tracking\. Scores and command points are whatever you enter/)).toBeVisible()
   await expect(page.getByRole('region', { name: 'Battlefield', exact: true })).toHaveCount(0)
   await expect(page.getByRole('region', { name: 'Secondaries', exact: true })).toHaveCount(0)
   await attachRoster(page, roster)

@@ -1,12 +1,10 @@
 import { expect, test } from './test'
 import {
   attachRoster,
-  befriend,
   chooseBattlefield,
   createBattle,
   desktopContext,
   retryUntilVisible,
-  setupStep,
   startBattle,
   addUnit,
   rosteredPlayers,
@@ -15,7 +13,7 @@ import {
 test('a built list is priced, deployed and tracked', async ({ browser }) => {
   const alice = await (await browser.newContext(desktopContext)).newPage()
   const bob = await (await browser.newContext(desktopContext)).newPage()
-  const { aliceName, bobName, aliceRoster, bobRoster } = await rosteredPlayers(alice, bob)
+  const { aliceName, aliceRoster, bobRoster } = await rosteredPlayers(alice, bob)
   await alice.getByLabel('Add a unit').fill('Plague Marines')
   await alice.getByRole('button', { name: 'Add Plague Marines', exact: true }).first().click()
   // The server prices the list, so the total follows the model count rather than changing with it.
@@ -35,15 +33,10 @@ test('a built list is priced, deployed and tracked', async ({ browser }) => {
   await expect.poll(points).toBeGreaterThan(atFive)
   await addUnit(alice, 'Lord of Virulence')
 
-  await befriend(alice, bob)
-  const link = await createBattle(alice, { opponent: bobName })
+  await createBattle(alice, { opponent: bob })
   await attachRoster(alice, aliceRoster)
-  await bob.goto(link)
   await attachRoster(bob, bobRoster)
   await expect(alice.getByText(bobRoster, { exact: true }).first()).toBeVisible()
-  // The last army in settles the step, which folds it to its answer.
-  await expect(alice.locator('#setup-armies')).toHaveAttribute('data-complete', 'true')
-  await setupStep(alice, 'Armies')
   // The bonus is a fact about the army, so it is set where the army is chosen — claimed
   // as the army arrives, and given back from the same place.
   // Bob's device still writes derived setup facts after his army appears, and a setup

@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './test'
-import { createBattle, PRACTICE_OPPONENT, retryUntilVisible, savedArmy, setupStep, chooseOption, PHONE } from './account'
+import { BATTLE_PAGE, createBattle, retryUntilVisible, savedArmy, chooseOption, PHONE } from './account'
 import type { SpacetimeOperator } from '../src/server/spacetimeOperator'
 
 /** A practice battle at 2,000 points, opened straight in the product, and its token. */
@@ -18,13 +18,14 @@ async function strikeForceBattle(operator: SpacetimeOperator, userId: string, pr
   return token
 }
 
+/** The viewer's own army on the face-off, which opens the chooser. */
+const yourArmy = (page: Page) => page.locator('[data-face-off-side="0"]')
+
 const openChooser = async (page: Page) => {
-  await setupStep(page, 'Armies')
   const chooser = page.getByRole('dialog', { name: 'Choose your roster' })
   await retryUntilVisible(chooser, () =>
-    page
-      .getByRole('button', { name: /^(Choose|Change) roster/ })
-      .first()
+    yourArmy(page)
+      .getByRole('button', { name: /^(Choose army|Change roster for )/ })
       .click(),
   )
   return chooser
@@ -69,7 +70,8 @@ test('choosing a roster the library reports over its limit names the problem and
   await expect(chooser).toBeVisible()
   await expect(chooser.getByText('fix roster errors')).toHaveCount(0)
   await page.keyboard.press('Escape')
-  await expect(page.getByRole('region', { name: 'Armies' }).locator('article').first()).toContainText('No army chosen')
+  await expect(chooser).toBeHidden()
+  await expect(yourArmy(page)).toContainText('No army yet')
 
   await (await openChooser(page)).locator(`[data-roster="${name}"]`).click()
   await refusal.getByRole('link', { name: 'Edit roster' }).click()
@@ -81,18 +83,13 @@ test('a battle started from a saved roster opens with that roster on the playerâ
   const { id } = await savedArmy(page, 'Battle from roster', { name })
   await page.goto(`/rosters/${id}`)
   await page.waitForLoadState('networkidle')
-  const dialog = page.getByRole('dialog', { name: 'Start a battle' })
-  await retryUntilVisible(dialog, () => page.getByRole('button', { name: 'Start a battle', exact: true }).click())
-  await chooseOption(page, 'Opponent', PRACTICE_OPPONENT)
-  await dialog.getByRole('button', { name: 'Start battle' }).click()
-  await page.waitForURL(/\/battles\/[^/]+$/)
+  await expect(async () => {
+    if (BATTLE_PAGE.test(new URL(page.url()).pathname)) return
+    await page.getByRole('button', { name: 'Start a battle', exact: true }).click({ timeout: 1_000 })
+    await page.waitForURL(BATTLE_PAGE, { timeout: 5_000 })
+  }).toPass({ timeout: 30_000 })
 
-  await setupStep(page, 'Armies')
-  const seat = page
-    .getByRole('region', { name: 'Armies' })
-    .locator('article')
-    .filter({ has: page.getByRole('button', { name: /^Change roster/ }) })
-  await expect(seat.getByText(name, { exact: true })).toBeVisible()
+  await expect(yourArmy(page).getByText(name, { exact: true })).toBeVisible()
 })
 
 /** Opens a battle on a phone, one history entry after another page, with one saved list for the battle size. */
@@ -118,10 +115,8 @@ test('going back on a phone closes the roster chooser and stays on the battle', 
   await expect(page.getByRole('dialog', { name: 'Choose your roster' })).toBeHidden()
   await expect(page).toHaveURL(battle)
 
-  const seat = page.getByRole('region', { name: 'Armies' }).locator('article').first()
   await (await openChooser(page)).locator(`[data-roster="${name}"]`).click()
-  await setupStep(page, 'Armies')
-  await expect(seat.getByText(name, { exact: true })).toBeVisible()
+  await expect(yourArmy(page).getByText(name, { exact: true })).toBeVisible()
   await expect(page).toHaveURL(battle)
 
   await page.goBack()

@@ -17,7 +17,7 @@ import {
   standingsQuery,
 } from '../../queries'
 import type { Battle } from '../battles/battle'
-import { CreateBattle } from '../battles/CreateBattle'
+import { NewBattle } from '../battles/NewBattle'
 import { DeleteBattleDialog } from '../battles/DeleteBattle'
 import { type ArmyUpdate, armySlugs } from './HomeArmyUpdates'
 import type { HomeRoster } from './HomeRosters'
@@ -80,7 +80,7 @@ export function Home() {
         }
         onboarding={onboarding}
         leaders={standings ? { rows: standings.overall.rows } : null}
-        newBattle={<CreateBattle />}
+        newBattle={<NewBattle />}
         notifications={me && !me.impersonatedBy ? <HomeNotifications /> : null}
         recentSimulations={<RecentSimulations surface="home" limit={3} />}
         onDelete={setDeleting}
