@@ -752,9 +752,7 @@ export function ListBuilder({
       >
         {/* A saved roster that can go on the table is the moment to say why the table is worth tracking here. */}
         {firstBattle && startBattleButton && (editable ? savedId : locked) && !frozen && priced && !illegal && !over ? (
-          <p data-tracker-pitch className="mt-1 max-w-prose text-xs text-dim">
-            {TRACKER_PITCH}
-          </p>
+          <p className="mt-1 max-w-prose text-xs text-dim">{TRACKER_PITCH}</p>
         ) : null}
         <RosterHeaderNotices
           editable={editable}
