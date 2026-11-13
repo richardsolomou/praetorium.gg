@@ -1,14 +1,1 @@
-[
-  {
-    "reason": "BSData names these detachment rules differently from the card that prints them (a placeholder \"New Rule\", the detachment's name, or one section of the card rule). The patches rename them to the card's name, so each now merges with the card rule instead of listing it twice.",
-    "entries": [
-      "chaos-space-marines / Creations of Bile rules: Creations of Bile",
-      "chaos-space-marines / Renegade Warband rules: Twisted Doctrine",
-      "chaos-space-marines / Renegade Warband rules: Vendetta",
-      "black-templars / Fist of the God-Emperor rules: New Rule",
-      "iron-hands / Medusa's Wrath rules: New Rule",
-      "raven-guard / Shadowmark Talon rules: Masters of Shadow",
-      "adeptus-mechanicus / Skitarii Hunter Cohort rules: Skitarii Hunter Cohort"
-    ]
-  }
-]
+[]
