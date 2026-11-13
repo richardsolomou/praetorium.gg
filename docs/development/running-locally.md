@@ -2,12 +2,14 @@
 
 ## Catalogue
 
-- `just dev` builds a missing catalogue from public sources; never ask for credentials or a rules-version choice.
+- `just dev` builds a missing catalogue from public sources without credentials; never ask for credentials or a rules-version choice. The first build takes some minutes.
 - `just catalogue-sync` needs `R2_*` credentials in the main checkout's ignored `.env.local` for an uncached snapshot.
 - Never edit the shared snapshot cache in place; `CATALOGUE_CACHE_DIR=off` gives worktree-local copies.
 
 ## Development lifecycle
 
+- `.devcontainer` pins Node, pnpm, just, and the SpacetimeDB CLI; a Codespace or dev container needs only `just dev`. When a pin changes in `mise.toml`, `package.json`, or `Dockerfile.node`, change it in `.devcontainer/Dockerfile` too.
+- In a Codespace, open the forwarded port 3000 for the app.
 - Run `just dev` after any checkout, pull, or merge, and use the URL it prints; a stale lockfile leaves pages that never finish loading.
 - `just dev-status` reports, `just dev-stop` stops only this worktree's stack, `just dev-restart` reloads after product-module, startup, or catalogue changes, and `just teardown` runs once the branch's pull request has merged.
 - Never kill a process by a shared port or a broad process-name match. On a collision with an explicit `LOCAL_*_PORT`, pick another free port.
