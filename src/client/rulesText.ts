@@ -107,8 +107,9 @@ export function textLoadFailure(error: unknown): TextLoadFailure {
   return { reason: isFetchNetworkFailure(error) ? 'network' : 'invalid' }
 }
 
-export function reportTextLoadFailure(source: TextSource | undefined, error: unknown) {
-  posthog.capture('rules_text_load_failed', { source, ...textLoadFailure(error) })
+/** Names the pinned file that failed: a public upstream address, so a missing one can be found and repinned. */
+export function reportTextLoadFailure(file: { source?: TextSource; url: string }, error: unknown) {
+  posthog.capture('rules_text_load_failed', { source: file.source, file_url: file.url, ...textLoadFailure(error) })
 }
 
 /**
@@ -149,8 +150,8 @@ export function useRuleText(text: RuleTextSource | null) {
     retry: 1,
   })
   useEffect(() => {
-    if (query.error) reportTextLoadFailure('game-datacards', query.error)
-  }, [query.error])
+    if (query.error && text) reportTextLoadFailure({ source: 'game-datacards', url: text.url }, query.error)
+  }, [query.error, text])
   // A copy loaded before the reader stopped loading stays cached, so the choice decides what shows.
   return { chosen, query, document: chosen ? (query.data ?? null) : null }
 }

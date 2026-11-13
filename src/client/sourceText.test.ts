@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { textToken } from '../core/sourceText'
 import type { TextSource } from '../core/sourceText'
 import { textSourceChoiceFrom } from './rulesText'
-import { loadTextFile, loadedText, loadedWords, registerTextSources, retryFailedTextFiles } from './sourceText'
+import { loadTextFile, loadedText, loadedWords, openedTextPage, registerTextSources, retryFailedTextFiles } from './sourceText'
 
 const capture = vi.hoisted(() => vi.fn())
 vi.mock('posthog-js', () => ({ posthog: { capture } }))
@@ -28,8 +28,8 @@ afterEach(() => {
 })
 
 const all = textSourceChoiceFrom('bsdata,game-datacards')
-const file = (id: string, source: TextSource = 'game-datacards') =>
-  registerTextSources({ [id]: { url: `https://raw.githubusercontent.com/owner/repo/sha/${id}.json`, source } })
+const fileUrl = (id: string) => `https://raw.githubusercontent.com/owner/repo/sha/${id}.json`
+const file = (id: string, source: TextSource = 'game-datacards') => registerTextSources({ [id]: { url: fileUrl(id), source } })
 
 describe('rules text on this device', () => {
   // Runs first: no file list has arrived yet, so the source a text needs is not known.
@@ -101,11 +101,16 @@ describe('a rules text file that fails to load', () => {
     expect(loadedText(`**Effect:** ${token('00000020')}`, all)).toEqual({ text: '**Effect:**', missing: 'failed' })
   })
 
-  it('reports why without the error message', async () => {
-    refuse(503)
+  it('reports why and which file, without the error message', async () => {
+    refuse(404)
     file('00000021', 'bsdata')
     await loadTextFile('00000021')
-    expect(capture).toHaveBeenCalledWith('rules_text_load_failed', { source: 'bsdata', reason: 'http', status: 503 })
+    expect(capture).toHaveBeenCalledWith('rules_text_load_failed', {
+      source: 'bsdata',
+      file_url: fileUrl('00000021'),
+      reason: 'http',
+      status: 404,
+    })
   })
 
   it('reports a dropped connection as a network failure', async () => {
@@ -117,7 +122,11 @@ describe('a rules text file that fails to load', () => {
     )
     file('00000022')
     await loadTextFile('00000022')
-    expect(capture).toHaveBeenCalledWith('rules_text_load_failed', { source: 'game-datacards', reason: 'network' })
+    expect(capture).toHaveBeenCalledWith('rules_text_load_failed', {
+      source: 'game-datacards',
+      file_url: fileUrl('00000022'),
+      reason: 'network',
+    })
   })
 
   it('does not ask again on its own', async () => {
@@ -127,6 +136,16 @@ describe('a rules text file that fails to load', () => {
     serve({ effect: { en: words } })
     await loadTextFile('00000023')
     expect(fetch).not.toHaveBeenCalled()
+  })
+
+  it('asks again once the reader opens another page', async () => {
+    refuse(503)
+    file('00000026')
+    await loadTextFile('00000026')
+    serve({ effect: { en: words } })
+    openedTextPage()
+    await loadTextFile('00000026')
+    expect(loadedText(token('00000026'), all)).toEqual({ text: words, missing: null })
   })
 
   it('keeps no copy of an answer that is not the file', async () => {
