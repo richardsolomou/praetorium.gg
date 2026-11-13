@@ -9,7 +9,10 @@ test.use({ rulesText: false })
 
 const coreRules = fs.readFileSync(path.join(catalogue, 'datacards', '11th', 'gdc', 'core', 'core_rules.json'), 'utf8')
 const prose = 'The principles of movement are explained here.'
-const ability = 'subtract 1 from that attack’s Damage characteristic'
+// An Overlord ability Game Datacards does not print. The catalogue publishes a string several files hold as the
+// first file's, and the Chaos Space Marines file holds this one too.
+const ability = 'one unit from your army with this ability can use it'
+const abilityFile = 'Chaos - Chaos Space Marines.json'
 
 const rulesPage = '/rules/core-rules/moving'
 const gapButtons = (page: Page) => page.getByRole('main').getByRole('button', { name: /^Rules text isn’t loaded\./ })
@@ -117,13 +120,13 @@ test('a datasheet gap opens the dialog and loads only the source turned on', asy
 })
 
 test('a source file that fails to load says so and loads when tried again', async ({ page }) => {
-  const necrons = fs.readFileSync(path.join(catalogue, 'definitions', 'Necrons.json'), 'utf8')
-  replaceUpstreamFile(page.context(), '/Necrons.json', 'Not the file')
+  const file = fs.readFileSync(path.join(catalogue, 'definitions', abilityFile), 'utf8')
+  replaceUpstreamFile(page.context(), `/${encodeURI(abilityFile)}`, 'Not the file')
   await setSource(page, 'BSData', true)
   await page.goto('/factions/necrons/datasheets/overlord')
   const failures = page.getByRole('main').getByText('Couldn’t load the rules text.')
   await expect(failures.first()).toBeVisible()
-  replaceUpstreamFile(page.context(), '/Necrons.json', necrons)
+  replaceUpstreamFile(page.context(), `/${encodeURI(abilityFile)}`, file)
   await page.getByRole('main').getByRole('button', { name: 'Try again' }).first().click()
   await expect(page.getByText(ability)).toBeVisible()
   await expect(failures).toHaveCount(0)

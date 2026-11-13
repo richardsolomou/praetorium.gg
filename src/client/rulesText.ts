@@ -23,13 +23,13 @@ export const TEXT_SOURCE_INFO: Record<TextSource, { name: string; repository: st
   bsdata: {
     name: 'BSData',
     repository: 'https://github.com/richardsolomou/wh40k-11e',
-    provides: 'Ability, wargear, and enhancement text from the faction catalogues.',
+    provides: 'Leader unit lists, army rules on datasheets, and ability text Game Datacards does not print.',
     licence: 'No licence stated.',
   },
   'game-datacards': {
     name: 'Game Datacards',
     repository: 'https://github.com/game-datacards/datasources',
-    provides: 'Core rules, stratagems, detachment rules, and mission text.',
+    provides: 'Datasheet and wargear abilities, enhancements, core rules, stratagems, detachment rules, and mission text.',
     licence: 'No licence stated.',
   },
 }

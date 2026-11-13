@@ -1,3 +1,4 @@
+import { hash } from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 import { routeSlug } from '../core/slug'
@@ -47,15 +48,17 @@ export function loadDatacards(
 
 /**
  * Tokens that record, as each is made, what the roster rules read from its words, so
- * those facts outlive the words.
+ * those facts outlive the words, and a digest of the words it shows.
  */
-function recording(texts: SourceTexts, facts: Map<string, TextFacts>): SourceTexts {
+function recording(texts: SourceTexts, facts: Map<string, TextFacts>, readings: Map<string, string>): SourceTexts {
   return (raw, transform) => {
     const published = texts(raw, transform)
     for (const token of textTokensIn(published)) {
       const key = textKey(token)
-      if (facts.has(key)) continue
-      const found = textFactsOf(transformed(raw, transform))
+      if (readings.has(key)) continue
+      const words = transformed(raw, transform)
+      readings.set(key, hash('sha256', words))
+      const found = textFactsOf(words)
       if (found) facts.set(key, found)
     }
     return published
@@ -69,7 +72,8 @@ export function* loadDatacardsSteps(
   textsFor: TextsFor = publishedTexts,
 ): Steps<LoadedDatacards> {
   const textFacts = new Map<string, TextFacts>()
-  const textsOf = (file: string) => recording(textsFor(file), textFacts)
+  const textReadings = new Map<string, string>()
+  const textsOf = (file: string) => recording(textsFor(file), textFacts, textReadings)
   const factions = new Map<string, FactionContent>()
   const detachmentRules = new Map<string, Map<string, Map<string, string>>>()
   const enhancements = new Map<string, Map<string, string>>()
@@ -94,6 +98,7 @@ export function* loadDatacardsSteps(
       armyRules: new Map(),
       constructionDetachments: new Map(),
       textFacts,
+      textReadings,
     }
   const files: (DatacardsFaction & { name: string; texts: SourceTexts })[] = []
   for (const fileName of fs.readdirSync(directory).filter((entry) => entry.endsWith('.json'))) {
@@ -203,6 +208,7 @@ export function* loadDatacardsSteps(
     armyRules: agreed(armyRules),
     constructionDetachments,
     textFacts,
+    textReadings,
   }
 }
 export function keywordAbilityDescriptions(directory: string, textsFor: TextsFor = publishedTexts) {

@@ -1,17 +1,19 @@
 import { hash } from 'node:crypto'
 import { withDefinitionTokens, withDefinitionTokensIn } from './sourceTexts'
 import { definitionTexts } from './definitionTexts'
+import { cardTwins } from './cardTwins'
 import type { TextFactsByKey } from '../core/textFacts'
 import fs from 'node:fs'
 import path from 'node:path'
 import { buildIndex, type CatalogueFile } from '../core/catalogue'
 import { editionCatalogueFiles, type CatalogueEdition } from '../core/catalogueEdition'
 import { catalogueReferencePolicySchema, datacardExclusions } from '../core/catalogueReferencePolicy'
-import { type LoadedDatacards, loadDatacardsSteps } from './datacards'
+import { type FactionContent, type LoadedDatacards, loadDatacardsSteps } from './datacards'
+import { remember } from '../core/collections'
 import { catalogueSections } from './catalogueSections'
 import { loadMfmSteps } from './mfm'
 import { readSharedJson } from './sharedJson'
-import { type LoadedCatalogue, catalogueFromIndex } from '../shared/catalogueIndex'
+import { type DefinitionTexts, type LoadedCatalogue, catalogueFromIndex } from '../shared/catalogueIndex'
 import { completeSteps, type Steps } from '../shared/steps'
 import { liveCatalogueRevision } from './liveCatalogue'
 import { readRevisions } from './catalogueSources'
@@ -43,27 +45,39 @@ export function* loadCatalogueSteps(directory = catalogueDirectory(), edition?: 
   // The catalogue reads its rules texts as tokens with their facts, as a device's catalogue does; only the server keeps the words.
   const texts = definitionTexts(read)
   yield
-  const files = texts.files.map(({ file }) => file)
-  const selectedFiles = edition ? editionCatalogueFiles(files, edition) : files
+  const revisionId = catalogueRevision({ ...revision, ...(edition ? { edition: edition.id } : {}) })
   let cardFacts: TextFactsByKey | undefined
-  const textFacts: TextFactsByKey = { get: (key) => texts.fact(key) ?? cardFacts?.get(key) }
-  const index = buildIndex(selectedFiles, catalogueRevision({ ...revision, ...(edition ? { edition: edition.id } : {}) }), textFacts)
-  yield
-  // The cards name sections they do not describe, and the catalogue is where those words are.
-  const cards = yield* loadDatacardsSteps(path.join(directory, 'datacards', '11th', 'gdc'), catalogueSections(index, texts.words), strings)
-  cardFacts = cards.textFacts
-  const datacards = publishedDatacards(cards, texts.token)
+  const indexOf = (source: DefinitionTexts) => {
+    const files = source.files.map(({ file }) => file)
+    const selected = edition ? editionCatalogueFiles(files, edition) : files
+    const textFacts: TextFactsByKey = { get: (key) => source.fact(key) ?? cardFacts?.get(key) }
+    return { index: buildIndex(selected, revisionId, textFacts), selected }
+  }
   const policyFile = path.join(directory, 'reference-policy.json')
   const policy = fs.existsSync(policyFile) ? catalogueReferencePolicySchema.parse(JSON.parse(fs.readFileSync(policyFile, 'utf8'))) : null
-  const loaded = catalogueFromIndex(index, selectedFiles, datacards)
-  yield
-  return {
-    ...loaded,
-    definitions: texts,
+  const catalogueOf = (source: DefinitionTexts, built: ReturnType<typeof indexOf>, datacards: LoadedDatacards): LoadedCatalogue => ({
+    ...catalogueFromIndex(built.index, built.selected, datacards),
+    definitions: source,
     ...(policy ? { datacardExcludedCatalogueIds: datacardExclusions(policy.datacardExcludedCatalogueIds, edition) } : {}),
-    mfm: yield* loadMfmSteps(directory),
     ...(edition ? { edition } : {}),
-  }
+  })
+  const own = indexOf(texts)
+  yield
+  // The cards name sections they do not describe, and the catalogue is where those words are.
+  const cards = yield* loadDatacardsSteps(
+    path.join(directory, 'datacards', '11th', 'gdc'),
+    catalogueSections(own.index, texts.words),
+    strings,
+  )
+  cardFacts = cards.textFacts
+  const datacards = publishedDatacards(cards, texts.token)
+  const twins = cardTwins(catalogueOf(texts, own, datacards))
+  yield
+  // Readers load a rule's words from the cards wherever they print it, and from the catalogue only where they do not.
+  const shown = texts.withTwins(twins)
+  const loaded = catalogueOf(shown, indexOf(shown), withoutTwinSearch(datacards))
+  yield
+  return { ...loaded, mfm: yield* loadMfmSteps(directory) }
 }
 
 /** Cards with the catalogue's words they quote swapped for the catalogue's tokens. */
@@ -72,6 +86,23 @@ function publishedDatacards(cards: LoadedDatacards, token: (raw: string) => stri
   const texts = (descriptions: ReadonlyMap<string, string>) =>
     new Map([...descriptions].map(([key, text]) => [key, withDefinitionTokensIn(text, token)]))
   return { ...published, armyRules: texts(cards.armyRules), enhancements: texts(cards.enhancements) }
+}
+
+/** Cards without their abilities and readings, which only found the catalogue texts' twins and which a device never reads. */
+function withoutTwinSearch(datacards: LoadedDatacards): LoadedDatacards {
+  const { textReadings: _, ...cards } = datacards
+  const stripped = new Map<FactionContent, FactionContent>()
+  const strip = (content: FactionContent) =>
+    remember(stripped, content, () => ({
+      ...content,
+      datasheetDetails: new Map(
+        [...content.datasheetDetails].map(([name, details]) => {
+          const { abilities: _abilities, ...shown } = details
+          return [name, shown]
+        }),
+      ),
+    }))
+  return { ...cards, factions: new Map([...cards.factions].map(([key, content]) => [key, strip(content)])) }
 }
 
 export function catalogueRevision(revisions: Record<string, string>) {
