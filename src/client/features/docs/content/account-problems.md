@@ -50,6 +50,10 @@ Without a password, deleting needs a recent sign-in. Sign out, sign back in with
 
 The app couldn't reach Praetorium and has nothing saved on the phone yet. Check that the phone's browser can open praetorium.gg, then return to the app and choose **Try again**.
 
+### Praetorium is slow or a page will not load
+
+Open [Status](/status). It shows whether Praetorium is working, and which release, army data and rules versions it serves. If it says Praetorium is working, check your connection and reload the page.
+
 ### "Sign-in did not finish"
 
 The sign-in window closed before handing you back, or its code expired. Return to Praetorium and try the provider again. If it keeps happening, install the latest version of the app, which **Update the app to link GitHub.** also asks for.

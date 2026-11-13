@@ -48,7 +48,11 @@ export function SupportAside() {
       </section>
 
       <p className="text-xs text-faint">
-        This page is running Praetorium <span className="readout text-dim">{version}</span>.
+        This page is running Praetorium <span className="readout text-dim">{version}</span>. To see if Praetorium is working, open{' '}
+        <Link to="/status" className="text-info hover:text-parchment">
+          Status
+        </Link>
+        .
       </p>
     </aside>
   )
