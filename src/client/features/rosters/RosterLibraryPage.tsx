@@ -21,7 +21,7 @@ import { CreateRoster } from './CreateRoster'
 import { buttonClass } from '../../components/buttonClass'
 import { useAccountPrompt } from './AccountPrompt'
 import { claimInput, GUEST_PATH, type GuestDraft, guestRosterSummary, readGuestDraft } from './guestDraft'
-import { GuestBattleLink, useGuestRosterRow } from './GuestRoster'
+import { useGuestRosterRow } from './GuestRoster'
 import { useNewRoster } from './newRoster'
 import { DEFAULT_ROSTER_ROWS, setRosterCookie, useRosterCookieChoice } from './rosterCookie'
 import { ROSTER_GROUPING_COOKIE, ROSTER_NOTICES_COOKIE, ROSTER_ROWS_COOKIE, ROSTER_SORT_COOKIE } from '../../../contracts/rosterCookies'
@@ -419,7 +419,6 @@ export function RosterLibraryPage({
             </Link>
           </div>
         )}
-        <GuestBattleLink />
         {importError ? <Problem>{importError}</Problem> : null}
         <RosterLibraryFilters
           search={search}

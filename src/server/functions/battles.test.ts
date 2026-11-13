@@ -2,7 +2,7 @@ import { beforeEach, expect, it, vi } from 'vitest'
 import { createBattle, submit } from './battles'
 import { createBattleSchema, submitSchema } from '../../contracts/schemas'
 
-const mocks = vi.hoisted(() => ({ actor: vi.fn(), capture: vi.fn(), createBattle: vi.fn(), submit: vi.fn(), submitWithWorkspace: vi.fn() }))
+const mocks = vi.hoisted(() => ({ capture: vi.fn(), createBattle: vi.fn(), submit: vi.fn(), submitWithWorkspace: vi.fn() }))
 
 vi.mock('@tanstack/react-start', () => {
   const builder = () => ({ validator: () => builder(), handler: (handler: unknown) => handler })
@@ -10,7 +10,6 @@ vi.mock('@tanstack/react-start', () => {
 })
 vi.mock('../rpc', () => ({ rpc: (work: () => unknown) => work(), mutationRpc: (work: () => unknown) => work() }))
 vi.mock('../playerSession', () => ({ requireUserId: async () => 'actor' }))
-vi.mock('../guestSession', () => ({ requireBattleActor: async () => mocks.actor() }))
 vi.mock('../app', () => ({
   app: () => ({ service: mocks, telemetry: { capture: mocks.capture }, rulesFor: async () => null }),
 }))
@@ -24,7 +23,6 @@ beforeEach(() => {
   vi.resetAllMocks()
   mocks.createBattle.mockResolvedValue({ battleId: 'battle-id', token: 'private-battle', practice: false })
   mocks.submit.mockResolvedValue({ result: { outcome: 'appended' }, battleId: 'battle-id' })
-  mocks.actor.mockReturnValue('actor')
 })
 
 it.each([
@@ -33,7 +31,6 @@ it.each([
   [{ opponentIds: ['opponent', 'second'] }, 3],
   [{ opponentIds: ['opponent'], allyId: 'ally' }, 3],
   [{ opponentIds: ['opponent', 'second'], allyId: 'ally' }, 4],
-  [{ opponentIds: ['opponent'], guestNames: ['Alex'], allyId: 'ally' }, 4],
 ])('counts the named players after battle creation for %j', async (players, count) => {
   await invokeCreate({ data: createBattleSchema.parse({ ...players, limit: 2000, casual: true }) })
   expect(mocks.capture.mock.calls).toEqual([
@@ -48,7 +45,6 @@ it.each([
         player_count: count,
         casual: true,
         manual: false,
-        guests: expect.any(Number),
       },
     ],
   ])
@@ -113,7 +109,7 @@ it('reports no preset size for an automatically configured battle', async () => 
     [
       'actor',
       'battle_created',
-      { delivery: 'direct', battle_id: 'battle-id', practice: false, limit: null, player_count: 2, casual: true, manual: false, guests: 0 },
+      { delivery: 'direct', battle_id: 'battle-id', practice: false, limit: null, player_count: 2, casual: true, manual: false },
     ],
   ])
 })
@@ -128,27 +124,6 @@ it('answers a device with the battle history from the same submission', async ()
   mocks.submitWithWorkspace.mockResolvedValue(answer)
   const data = { ...submitSchema.parse({ token: 'private-battle', expectedSeq: 2, command: { kind: 'reset-setup' } }), workspace: true }
   expect({ answer: await invokeSubmit({ data }), plain: mocks.submit.mock.calls.length }).toEqual({ answer, plain: 0 })
-})
-
-it('reports how many guests a battle seats', async () => {
-  await invokeCreate({ data: createBattleSchema.parse({ guestNames: ['Alex'], casual: true }) })
-  expect(mocks.capture.mock.calls[0]?.[2]).toMatchObject({ guests: 1 })
-})
-
-it('reports nothing about a guest playing their own seat', async () => {
-  mocks.actor.mockReturnValue('guest:battle:0')
-  await invokeSubmit({
-    data: submitSchema.parse({ token: 'private-battle', expectedSeq: 0, command: { kind: 'set-setup-step', step: 3 } }),
-  })
-  expect(mocks.capture).not.toHaveBeenCalled()
-})
-
-it('submits a guest command as the guest seat', async () => {
-  mocks.actor.mockReturnValue('guest:battle:0')
-  await invokeSubmit({
-    data: submitSchema.parse({ token: 'private-battle', expectedSeq: 0, command: { kind: 'set-setup-step', step: 3 } }),
-  })
-  expect(mocks.submit.mock.calls[0]?.[1]).toBe('guest:battle:0')
 })
 
 it('keeps the battle id it reports out of the submission answer', async () => {

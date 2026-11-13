@@ -993,11 +993,8 @@ function battleSeats(ctx: Context, battleId: string) {
     seats: rows.map((seat) => ({
       id: seat.userId,
       side: seat.side,
-      // A guest who joined on their own device plays their side; until then, or once the host takes it back, the table does.
-      automated:
-        seat.guestName !== undefined
-          ? ctx.db.guestSeats.seatId.find(seat.userId)?.deviceHash === undefined
-          : Boolean(ctx.db.practiceOpponents.userId.find(seat.userId)),
+      // Nobody signs in to a guest seat any more, so the table plays it, even one a guest's device once joined.
+      automated: seat.guestName !== undefined || Boolean(ctx.db.practiceOpponents.userId.find(seat.userId)),
       ...(seat.guestName !== undefined ? { guestName: seat.guestName } : {}),
     })),
   }

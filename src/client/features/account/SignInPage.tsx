@@ -34,23 +34,11 @@ const socialAuthErrorMessage = (error?: string) => {
  * An account is who you are here: battles, saved lists and every command in a log
  * point at it, and there is no other way to be anyone.
  */
-export function SignInPage({
-  error,
-  next,
-  reset,
-  join,
-  name: suggestedName,
-}: {
-  error?: string
-  next?: string
-  reset?: boolean
-  join?: boolean
-  name?: string
-}) {
+export function SignInPage({ error, next, reset, join }: { error?: string; next?: string; reset?: boolean; join?: boolean }) {
   const { data: options } = useQuery(signInOptionsQuery())
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [name, setName] = useState(suggestedName ?? '')
+  const [name, setName] = useState('')
   const guest = useClientValue(peekGuestDraft, null)
   const savingRoster = next === GUEST_PATH && Boolean(guest)
   const gateViewed = useRef(false)

@@ -3,11 +3,12 @@ import { PRODUCT_DOCS } from '../contracts/productDocs'
 import { DocPage } from '../client/features/docs/DocsPage'
 import { pageHead } from '../client/linkPreview'
 
-/** Slugs that moved, so links shared before the rename still land. */
+/** Slugs that moved or were folded into another page, so links shared before still land. */
 const MOVED: Record<string, string> = {
   'run-a-sealed-event': 'run-a-tournament',
   'play-in-a-sealed-event': 'play-in-a-tournament',
   'sealed-event-problems': 'tournament-problems',
+  'play-with-a-guest': 'start-a-battle',
 }
 
 export const Route = createFileRoute('/docs/$docId')({

@@ -1,13 +1,10 @@
 import type { Command } from '../core/battle'
 import type { z } from 'zod'
 import type { submitSchema } from '../contracts/schemas'
-import { randomUUID } from 'node:crypto'
-import { isGuestSeat } from '../core/newBattle'
-import { abilityRemindersFromRosters } from '../core/reminders'
 import { app } from './app'
 import type { PraetoriumService } from './service'
 import { captureBattleCommand } from './battleTelemetry'
-import { frozenRoster, rosterForUse } from './rosterUsage'
+import { rosterForUse } from './rosterUsage'
 
 /** A battle command from a page or an agent, with the capture both share; durable sync has its own entry point. */
 export async function submitBattleCommand(
@@ -24,8 +21,7 @@ export async function submitBattleCommand(
     command,
     await instance.rulesFor(),
   )
-  // A guest is nobody's person in analytics; their browser reports its own anonymous events.
-  if (!isGuestSeat(actorId)) await captureBattleCommand(actorId, battleId, command, answer, performance.now() - startedAt, 'direct')
+  await captureBattleCommand(actorId, battleId, command, answer, performance.now() - startedAt, 'direct')
   return answer
 }
 
@@ -39,18 +35,6 @@ export async function submittedBattleCommand(userId: string, submitted: z.infer<
       painted: true,
       ...(submitted.playerId ? { playerId: submitted.playerId } : {}),
     }
-  }
-  if (submitted.kind === 'attach-draft-roster') {
-    // An account fields what it saved, so the list it played stays in its library; a guest's list is theirs, not the host's.
-    if (!isGuestSeat(userId) && !(submitted.playerId && isGuestSeat(submitted.playerId)))
-      throw new Response('save the roster before fielding it', { status: 400 })
-    const { draft } = submitted
-    const roster = await frozenRoster(
-      { ...draft, id: draft.id ?? randomUUID(), waivedRules: draft.waivedRules ?? [], remindersEnabled: draft.prep?.remindersEnabled },
-      // A device on an older build still sends the per-unit alerts it kept in the draft.
-      submitted.reminders ?? abilityRemindersFromRosters([{ updatedAt: 0, reminders: draft.prep?.reminders ?? [] }]),
-    )
-    return { kind: 'attach-roster', roster, prep: null, painted: true, ...(submitted.playerId ? { playerId: submitted.playerId } : {}) }
   }
   if (submitted.kind === 'attach-roster' && submitted.roster.built) {
     if (!submitted.roster.id) throw new Response('choose a saved roster', { status: 400 })

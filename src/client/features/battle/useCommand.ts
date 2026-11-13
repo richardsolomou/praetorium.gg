@@ -1,9 +1,7 @@
 import { type QueryClient, useQueryClient } from '@tanstack/react-query'
 import { posthog } from 'posthog-js'
 import { type RefObject, useCallback, useEffect, useRef, useState } from 'react'
-import type { z } from 'zod'
 import type { Command, SubmitResult } from '../../../core/battle'
-import type { saveRosterSchema } from '../../../contracts/schemas'
 import { isRosterNotUsable } from '../../../core/rosterUse'
 import { OfflineRefusal } from '../../offline/offlineRefusal'
 import { isSignedOut } from '../../../core/session'
@@ -16,15 +14,12 @@ import { writeAppSnapshot } from '../../offline/appStorage'
 import { isFetchNetworkFailure } from '../../networkErrors'
 import { sendingBattleCommands } from '../../pendingWrites'
 import { predictedBattle, savedBattleAt } from '../../offline/battleFunctions'
-import type { AbilityReminder } from '../../../core/reminders'
 import { asSentence } from '../../text'
 
-/** A list the server prices and freezes before it is attached: a saved one, or the draft a guest built on this device. */
-export type RosterAttachment =
-  | { kind: 'attach-saved-roster'; rosterId: string; playerId?: string }
-  | { kind: 'attach-draft-roster'; draft: RosterDraftInput; playerId?: string; reminders: AbilityReminder[] | undefined }
+/** A saved list the server prices and freezes before it is attached. */
+export type RosterAttachment = { kind: 'attach-saved-roster'; rosterId: string; playerId?: string }
 type SubmittedCommand = Command | RosterAttachment
-const isRosterAttachment = (command: SubmittedCommand) => command.kind === 'attach-saved-roster' || command.kind === 'attach-draft-roster'
+const isRosterAttachment = (command: SubmittedCommand) => command.kind === 'attach-saved-roster'
 export type SendCommand = (
   command: Command,
   /** `blocking: false` leaves other controls enabled while it is in flight, for presses meant to be repeated. */
@@ -38,7 +33,6 @@ export type SendCommand = (
     complete?: (appended: boolean) => void
   },
 ) => void
-type RosterDraftInput = z.input<typeof saveRosterSchema>
 type QueuedCommand = {
   command: SubmittedCommand
   basedOn: number

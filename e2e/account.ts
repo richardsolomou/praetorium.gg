@@ -348,7 +348,6 @@ export async function createBattle(
     yourAlly,
     secondOpponent,
     practice = false,
-    guest,
     beforeCreate,
   }: {
     opponent?: string
@@ -356,8 +355,6 @@ export async function createBattle(
     yourAlly?: string
     secondOpponent?: string
     practice?: boolean
-    /** Seats a guest by this name in the first opposing seat. */
-    guest?: string
     beforeCreate?: (dialog: Locator) => Promise<void>
   } = {},
 ) {
@@ -377,8 +374,7 @@ export async function createBattle(
     await page.getByRole('option', { name: yourAlly, exact: true }).click()
   }
   await page.getByRole('combobox', { name: secondOpponent || ally ? 'First opponent' : 'Opponent' }).click()
-  await page.getByRole('option', { name: practice ? PRACTICE_OPPONENT : guest ? 'Guest' : opponent, exact: true }).click()
-  if (guest) await dialog.getByLabel('Guest’s name').fill(guest)
+  await page.getByRole('option', { name: practice ? PRACTICE_OPPONENT : opponent, exact: true }).click()
   if (ally) {
     await page.getByRole('combobox', { name: 'Second opponent' }).click()
     await page.getByRole('option', { name: ally, exact: true }).click()
@@ -389,7 +385,7 @@ export async function createBattle(
   }
   const matchup = page.getByLabel('Battle matchup')
   await expect(matchup).toContainText('You')
-  for (const player of [yourAlly, opponent, guest, ally, secondOpponent].filter((name): name is string => Boolean(name))) {
+  for (const player of [yourAlly, opponent, ally, secondOpponent].filter((name): name is string => Boolean(name))) {
     await expect(matchup).toContainText(player)
   }
   await beforeCreate?.(dialog)

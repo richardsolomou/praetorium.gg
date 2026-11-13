@@ -112,15 +112,6 @@ const battleSnapshot = z.object({
     }),
   ),
 })
-const guestInvitation = z.object({
-  battleId: z.string(),
-  token: z.string(),
-  seatId: z.string(),
-  guestName: z.string(),
-  hostId: z.string().nullable(),
-  joined: z.boolean(),
-})
-const joinedGuest = z.object({ battleId: z.string(), token: z.string(), seatId: z.string() })
 const feedCursor = z.object({ at: z.number().int(), id: z.string() })
 /** The release this server was built from, which keys the module's stored digests so a new release refolds each battle once. */
 const DIGEST_REVISION = process.env.GITHUB_SHA?.trim() || 'development'
@@ -564,34 +555,6 @@ export class SpacetimeOperator {
 
   async battleByToken(token: string) {
     return (await this.read('battle_by_token', [token], battleSnapshot.nullable())) ?? undefined
-  }
-
-  async guestInvite(battleId: string, seatId: string, link: string) {
-    return this.read('guest_invite', [battleId, seatId, link], z.string())
-  }
-
-  async replaceGuestInvite(battleId: string, seatId: string, link: string) {
-    return this.read('replace_guest_invite', [battleId, seatId, link], z.string())
-  }
-
-  async guestSeatByInvite(link: string) {
-    return this.read('guest_seat_by_invite', [link], guestInvitation.nullable())
-  }
-
-  async joinGuestSeat(link: string, deviceHash: string, now: number) {
-    return this.read('join_guest_seat', [link, deviceHash, now], z.union([z.enum(['missing', 'taken']), joinedGuest]))
-  }
-
-  async guestDevice(seatId: string) {
-    return this.read(
-      'guest_device',
-      [seatId],
-      z.object({ battleId: z.string(), token: z.string(), deviceHash: z.string(), joinedAt: z.number().int() }).nullable(),
-    )
-  }
-
-  async claimGuestSeat(input: { battleId: string; seatId: string; userId: string; deviceHash: string; now: number }) {
-    return this.read('claim_guest_seat', [input.battleId, input.seatId, input.userId, input.deviceHash, input.now], z.string())
   }
 
   async battleFeed(input: {

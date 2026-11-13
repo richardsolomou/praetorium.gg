@@ -1,13 +1,12 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Navigate } from '@tanstack/react-router'
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import { FullPageState, PageLoading } from '../../components/PageState'
 import { Setup } from './setup/Setup'
 import { Spectator } from './Spectator'
 import { Tracker } from './Tracker'
-import { GuestKeepGame } from './GuestKeepGame'
 import { PracticeNextGame } from './PracticeNextGame'
-import { isGuestSeat, isPracticeSeat } from '../../../core/newBattle'
+import { isPracticeSeat } from '../../../core/newBattle'
 import { celebrateVictory } from './victory'
 import { battleResult } from '../../battleOutcome'
 import { sides } from '../../sides'
@@ -89,8 +88,6 @@ const practicedAlone = ({ players, viewerId }: { players: readonly { id: string;
 
 function FinishedBattle({ screen }: { screen: Extract<Awaited<ReturnType<typeof openBattle>>, { kind: 'battle' }> }) {
   const { view, clock, missions } = screen
-  // Kept here, so the thanks outlasts the refetch that seats the account where the guest sat.
-  const [claimed, setClaimed] = useState(false)
   const won = useMemo(() => {
     const table = sides(view, missions)
     const result = battleResult(table, view)
@@ -105,13 +102,7 @@ function FinishedBattle({ screen }: { screen: Extract<Awaited<ReturnType<typeof 
       clock={clock}
       missions={missions}
       timeline={screen.timeline}
-      lead={
-        isGuestSeat(view.viewerId) || claimed ? (
-          <GuestKeepGame view={view} claimed={claimed} onClaimed={() => setClaimed(true)} />
-        ) : practicedAlone(view) ? (
-          <PracticeNextGame />
-        ) : null
-      }
+      lead={practicedAlone(view) ? <PracticeNextGame /> : null}
     />
   )
 }
