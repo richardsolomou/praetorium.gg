@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.240.0 (2026-11-13)
+
+### Minor Changes
+
+- a84d4ba: Every player now has their own colour, shown on their name everywhere and on their side in battles instead of red and blue. Choose yours under Player colour in account settings.
+
 ## 0.239.1 (2026-11-13)
 
 ### Patch Changes
