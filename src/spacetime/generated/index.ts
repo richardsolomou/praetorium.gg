@@ -94,6 +94,7 @@ import * as CancelFriendInviteProcedure from './cancel_friend_invite_procedure'
 import * as ChangeRostersProcedure from './change_rosters_procedure'
 import * as ClaimGuestSeatProcedure from './claim_guest_seat_procedure'
 import * as ClaimImportedBattleProcedure from './claim_imported_battle_procedure'
+import * as ClaimLeagueDeadlineRemindersProcedure from './claim_league_deadline_reminders_procedure'
 import * as ClaimStandingsRefreshProcedure from './claim_standings_refresh_procedure'
 import * as CollectionByUserProcedure from './collection_by_user_procedure'
 import * as CollectionPhotoProcedure from './collection_photo_procedure'
@@ -316,6 +317,11 @@ const proceduresSchema = __procedures(
   __procedureSchema('change_rosters', ChangeRostersProcedure.params, ChangeRostersProcedure.returnType),
   __procedureSchema('claim_guest_seat', ClaimGuestSeatProcedure.params, ClaimGuestSeatProcedure.returnType),
   __procedureSchema('claim_imported_battle', ClaimImportedBattleProcedure.params, ClaimImportedBattleProcedure.returnType),
+  __procedureSchema(
+    'claim_league_deadline_reminders',
+    ClaimLeagueDeadlineRemindersProcedure.params,
+    ClaimLeagueDeadlineRemindersProcedure.returnType,
+  ),
   __procedureSchema('claim_standings_refresh', ClaimStandingsRefreshProcedure.params, ClaimStandingsRefreshProcedure.returnType),
   __procedureSchema('collection_by_user', CollectionByUserProcedure.params, CollectionByUserProcedure.returnType),
   __procedureSchema('collection_photo', CollectionPhotoProcedure.params, CollectionPhotoProcedure.returnType),

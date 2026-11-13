@@ -68,3 +68,14 @@ export function leagueFixtureStatus(
 export function leagueFixtureOverdue(status: LeagueFixtureStatus, deadline: number | null, now: number) {
   return deadline !== null && now >= deadline && (status === 'open' || status === 'playing')
 }
+
+/** How long before a round's deadline its players with a game still to finish are reminded. */
+export const LEAGUE_DEADLINE_REMINDER_MS = 24 * 60 * 60 * 1000
+
+/**
+ * Whether a round's deadline reminder is due: the deadline is less than a day away, and no reminder went out for it. A
+ * moved deadline is a new one, so it gets its own reminder.
+ */
+export function leagueDeadlineReminderDue(deadline: number | null, remindedFor: number | null, now: number) {
+  return deadline !== null && deadline !== remindedFor && now < deadline && now >= deadline - LEAGUE_DEADLINE_REMINDER_MS
+}

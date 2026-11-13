@@ -33,6 +33,7 @@ export const noticeSubjectSchema = z.union([
     round: z.number().int().positive(),
   }),
   z.object({ kind: z.enum(['group-member-requested', 'group-member-accepted']), groupToken: token }),
+  z.object({ kind: z.literal('group-league-deadline-reminder'), groupToken: token, round: z.number().int().positive() }),
 ])
 
 export type NoticeSubject = z.infer<typeof noticeSubjectSchema>
@@ -119,6 +120,14 @@ export function noticeMessage(notice: StoredNotice, names: { actor?: string; sea
         body:
           notice.kind === 'group-member-requested' ? `${actor} asked to join. Let them in from the group page.` : 'You’re in the group.',
         path: `/groups/${encodeURIComponent(notice.groupToken)}`,
+      }
+    case 'group-league-deadline-reminder':
+      if (!names.group) return null
+      return {
+        title: names.group,
+        // As with the seal reminder, the deadline itself stays on the page, in the recipient's own timezone.
+        body: `Round ${notice.round} of the league ends soon. Finish your game before the deadline.`,
+        path: `/groups/${encodeURIComponent(notice.groupToken)}?tab=league`,
       }
   }
 }

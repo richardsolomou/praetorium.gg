@@ -30,7 +30,7 @@ If nothing has been saved on the phone yet, the app shows **Praetorium could not
 
 ## Notifications
 
-When notifications are available, Home shows **Get notified about your games**. Choose **Allow notifications** for new battles, friend requests and tournament updates, or **Not now** to hide the offer on that phone.
+When notifications are available, Home shows **Get notified about your games**. Choose **Allow notifications** for new battles, friend requests, tournament updates and league deadlines, or **Not now** to hide the offer on that phone.
 
 Tapping a notification opens its page and marks it read. Once you've read a notification anywhere, on the website or another phone, the app clears it from your phone's notification list the next time it updates, and the number on the app's icon counts only the ones you haven't read.
 

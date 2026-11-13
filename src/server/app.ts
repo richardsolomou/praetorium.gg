@@ -446,6 +446,13 @@ export function app(): App {
         reportServerFailure({ event: 'battle_draft_sweep_failed', error })
       })
     setInterval(sweepDrafts, 60 * 60 * 1000).unref()
+    // The module records each reminder as it hands it out, so a restart or a second server never sends one twice.
+    const remindLeagueDeadlines = () =>
+      void instance.service.groupService
+        .remindLeagueDeadlines()
+        .catch((error: unknown) => reportServerFailure({ event: 'league_deadline_reminders_failed', error }))
+    remindLeagueDeadlines()
+    setInterval(remindLeagueDeadlines, 60 * 60 * 1000).unref()
     let thumbnailsPending = true
     let maintainingPhotos = false
     const maintainPhotos = async () => {

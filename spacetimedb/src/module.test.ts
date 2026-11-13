@@ -12,6 +12,7 @@ import { UNIT_LOADOUT_NAME_MAX_LENGTH, UNIT_LOADOUTS_MAX } from '../../src/core/
 import { ABILITY_REMINDERS_MAX } from '../../src/core/reminders'
 import { SEALED_EVENT_REMINDER_COOLDOWN_MS } from '../../src/core/sealedEvent'
 import { NOTICE_RETENTION_MS, NOTICES_PER_USER } from '../../src/core/notificationConfig'
+import { LEAGUE_DEADLINE_REMINDER_MS } from '../../src/core/groupLeague'
 
 const ISSUER = 'https://praetorium.gg/api/auth'
 const AUDIENCE = 'praetorium'
@@ -863,7 +864,7 @@ describe('group leagues', () => {
     const fixtures = () =>
       (
         JSON.parse(module.groupByToken(host.procedure(host.operator), { token: 'group' })) as {
-          league: { fixtures: { key: string; aId: string; bId: string | null; battleToken: string | null }[] }
+          league: { fixtures: { key: string; round: number; aId: string; bId: string | null; battleToken: string | null }[] }
         }
       ).league.fixtures
     const start = (fixtureKey: string, userId: string, opponentId: string) =>
@@ -924,6 +925,30 @@ describe('group leagues', () => {
     const fixture = league.game()
     league.start(fixture.key, fixture.aId, fixture.bId!)
     expect(league.command({ op: 'league-draw', actorId: 'owner', leagueId: 'league', seed: 8, now: NOW })).toBe('published')
+  })
+
+  it('reminds the players of each unfinished game once before a round’s deadline, and again when it moves', () => {
+    const league = setup(['a', 'b', 'c', 'd'])
+    league.publish()
+    const deadline = NOW * 1000 + LEAGUE_DEADLINE_REMINDER_MS / 2
+    league.command({ op: 'league-deadline', actorId: 'owner', round: 1, deadline })
+    const withdrawn = league.fixtures().find((fixture) => fixture.round === 1)!
+    league.command({ op: 'league-leave', userId: withdrawn.aId })
+    const claim = () =>
+      JSON.parse(module.claimLeagueDeadlineReminders(league.host.procedure(league.host.operator), {})) as {
+        round: number
+        recipientIds: string[]
+      }[]
+    const first = claim()
+    const again = claim()
+    league.command({ op: 'league-deadline', actorId: 'owner', round: 1, deadline: deadline + 1000 })
+    const moved = claim()
+    const stillPlaying = ['a', 'b', 'c', 'd'].filter((id) => id !== withdrawn.aId && id !== withdrawn.bId).toSorted()
+    expect([first, again, moved].map((reminders) => reminders.map((one) => [one.round, one.recipientIds.toSorted()]))).toEqual([
+      [[1, stillPlaying]],
+      [],
+      [[1, stillPlaying]],
+    ])
   })
 
   it('refuses a fixture battle against someone else', () => {
