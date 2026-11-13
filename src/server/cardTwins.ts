@@ -1,32 +1,40 @@
+import { hash } from 'node:crypto'
 import { type Definition, profileDescription, targetOf } from '../core/catalogue'
-import { groupBy } from '../core/collections'
+import { RecentlyUsed, cachedIn, groupBy, remember } from '../core/collections'
 import { normalizeRuleReference } from '../core/ruleReference'
 import { routeSlug } from '../core/slug'
-import { textKey, textTokensIn, withoutText } from '../core/sourceText'
+import { type TextToken, textKey, textToken, textTokensIn, withoutText } from '../core/sourceText'
 import type { TextFacts } from '../core/textFacts'
-import { joinKey } from '../core/text'
+import { compareText, joinKey } from '../core/text'
 import { type LoadedCatalogue, datasheetsOf } from '../shared/catalogueIndex'
-import { detachmentCatalogueDetail, sameRuleName } from '../shared/catalogueDescriptions'
+import { catalogueEnhancement, enhancementTextOf, sameRuleName } from '../shared/catalogueDescriptions'
 import { detachmentNamed } from '../shared/factionReferences'
 import type { RuleCard } from '../shared/datacards'
 import { datacardOf } from '../shared/datasheetJoin'
 import { factionContentsOf } from '../shared/factionNames'
 import { textFactsOf } from '../shared/textFacts'
 
-/** The card printing a catalogue text's rule, by the catalogue text's `textKey`, and the rule names to list beside it. */
-export type CardTwin = { token: string; references: string[] }
+/** The card printing a catalogue text's rule, by the catalogue text's `textKey`: the token each shows, and the rule names to list beside it. */
+export type CardTwin = { own: string; token: string; references: string[] }
 
 /** A qualifier one source prints in an ability's name and the other as a flag or not at all: "(Aura)", "(Once per battle)". */
 const abilityKey = (name: string) => joinKey(name.replaceAll(/\s*\([^)]*\)/g, ''))
 
+const named = new WeakMap<readonly RuleCard[], Map<string, string | null>>()
+
 /** The card's text for a name, matched exactly or, failing that, as `sameRuleName` forgives a misspelling; null where that is ambiguous. */
-function cardNamed(cards: readonly RuleCard[], name: string) {
+const cardNamed = (cards: readonly RuleCard[], name: string) => cachedIn(named, cards, name, () => cardNamedIn(cards, name))
+
+function cardNamedIn(cards: readonly RuleCard[], name: string) {
   const key = abilityKey(name)
   const exact = cards.filter((card) => abilityKey(card.name) === key)
   const found = exact.length ? exact : cards.filter((card) => sameRuleName(card.name, name.replaceAll(/\s*\([^)]*\)/g, '')))
   const texts = new Set(found.map((card) => card.description))
   return texts.size === 1 ? found[0]!.description : null
 }
+
+/** What the rules read from each catalogue text, by its `textKey`: every rules version a server loads holds most of the same. */
+const readings = new RecentlyUsed<string, string>(8192)
 
 /**
  * Every catalogue rules text Game Datacards prints too, with the card's token to show in its place. The card token
@@ -41,8 +49,9 @@ export function cardTwins(loaded: LoadedCatalogue): Map<string, CardTwin> {
     return only && !others.length ? [{ key, own, printed, ...only }] : []
   })
   const facts = (key: string) => loaded.definitions?.fact(key)
+  const stated = (own: string) => textFactsOf(loaded.definitions?.words(own) ?? '')
   // Combat facts are read only for texts that share a card text: reading them is the slow part.
-  const reading = (key: string) => JSON.stringify([ruled(facts(key)), facts(key)?.combat])
+  const reading = (key: string) => remember(readings, key, () => hash('sha256', JSON.stringify([ruled(facts(key)), facts(key)?.combat])))
   return new Map(
     [...groupBy(sole, (twin) => twin.card).values()].flatMap((group) => {
       // Where catalogue texts sharing a card text read differently, the wording most datasheets print takes it.
@@ -56,9 +65,9 @@ export function cardTwins(loaded: LoadedCatalogue): Map<string, CardTwin> {
       // A card readers already saw alone keeps answering with its own facts there.
       if (shownAlone.has(cardKey)) return []
       const card = loaded.datacards.textFacts?.get(cardKey)
-      if (card && JSON.stringify(ruled(card)) !== JSON.stringify(ruled(textFactsOf(loaded.definitions?.words(own) ?? '') ?? {}))) return []
-      const references = [...new Set(most!.flatMap((twin) => facts(twin.key)?.references ?? []))]
-      return most!.map((twin) => [twin.key, { token, references }] as const)
+      if (card && JSON.stringify(ruled(card)) !== JSON.stringify(ruled(stated(own) ?? {}))) return []
+      const references = [...new Set(most!.flatMap((twin) => stated(twin.own)?.references ?? []))]
+      return most!.map((twin) => [twin.key, { own: twin.own, token, references }] as const)
     }),
   )
 }
@@ -82,13 +91,14 @@ const ruled = (facts: TextFacts | undefined) =>
 export function cardTwinCandidates(loaded: LoadedCatalogue) {
   const candidates = new Map<string, { own: string; printed: number; cards: Map<string, { card: string; token: string }> }>()
   const shownAlone = new Set<string>()
+  const soleTokens = new Map<string, TextToken | null>()
   const pair: Pair = (catalogueText, cardText) => {
     const [own] = catalogueText ? textTokensIn(catalogueText) : []
-    const card = cardText ? soleToken(cardText) : null
+    const card = cardText ? remember(soleTokens, cardText, () => soleToken(cardText)) : null
     if (card && !catalogueText) shownAlone.add(textKey(card))
     // Facts are recorded per token, so a card that assembles a rule from several texts cannot stand in for one.
     if (!own || !card || own.transform !== 'plain') return
-    const found = candidates.get(textKey(own)) ?? { own: catalogueText!, printed: 0, cards: new Map() }
+    const found = candidates.get(textKey(own)) ?? { own: textToken(own), printed: 0, cards: new Map() }
     found.printed += 1
     // Two files that print a card alike, but for a line break, print one text.
     const reading = loaded.datacards.textReadings?.get(textKey(card)) ?? textKey(card)
@@ -110,20 +120,20 @@ type Pair = (catalogueText: string | null | undefined, cardText: string | null |
 function datasheetAbilities(loaded: LoadedCatalogue, pair: Pair) {
   const { index } = loaded
   const core = (ruleId: string) => index.catalogues.get(index.ruleCatalogueOf.get(ruleId) ?? '')?.gameSystem
-  for (const book of loaded.factions)
-    for (const entryId of datasheetsOf(index, book.id)) {
-      const cards = datacardOf(loaded, book.id, entryId)?.details.abilities
-      if (!cards) continue
-      const ability = (name: string | undefined, text: string | null | undefined) => name && text && pair(text, cardNamed(cards, name))
+  // Books share most datasheets, and each walks the same entries.
+  const walked = new Map<string, (readonly [string | undefined, string | null | undefined])[]>()
+  const abilitiesOf = (entryId: string) =>
+    remember(walked, entryId, () => {
+      const found: (readonly [string | undefined, string | null | undefined])[] = []
       const own = (definition: Definition) => {
         for (const profile of [...(definition.profiles ?? []), ...(definition.infoGroups ?? []).flatMap((group) => group.profiles ?? [])])
-          if (profile.typeName === 'Abilities') ability(profile.name, profileDescription(profile))
+          if (profile.typeName === 'Abilities') found.push([profile.name, profileDescription(profile)])
         for (const link of definition.infoLinks ?? []) {
           const shared = index.shared.get(link.targetId)
           if (shared && 'characteristics' in shared && shared.typeName === 'Abilities')
-            ability(link.name ?? shared.name, profileDescription(shared))
+            found.push([link.name ?? shared.name, profileDescription(shared)])
           const rule = index.rules.get(link.targetId)
-          if (rule && !core(link.targetId)) ability(link.name ?? rule.name, rule.description)
+          if (rule && !core(link.targetId)) found.push([link.name ?? rule.name, rule.description])
         }
       }
       const visited = new Set<string>()
@@ -145,6 +155,13 @@ function datasheetAbilities(loaded: LoadedCatalogue, pair: Pair) {
           visit(child)
       }
       visit(index.definitions.get(entryId)!)
+      return found
+    })
+  for (const book of loaded.factions)
+    for (const entryId of datasheetsOf(index, book.id)) {
+      const cards = datacardOf(loaded, book.id, entryId)?.details.abilities
+      if (!cards) continue
+      for (const [name, text] of abilitiesOf(entryId)) if (name && text) pair(text, cardNamed(cards, name))
     }
 }
 
@@ -158,16 +175,11 @@ function enhancements(loaded: LoadedCatalogue, pair: Pair) {
         .flatMap((content) => [...content.enhancements.values()].map((cards) => [routeSlug(cards[0]!.detachment), cards] as const)),
     )
     for (const option of loaded.detachments.get(book.id)?.options ?? []) {
-      const cards = detachmentNamed(byDetachment, option.name)
-      if (!cards?.length) continue
-      const detail = detachmentCatalogueDetail(
-        loaded,
-        book.id,
-        option.id,
-        cards.map((card) => card.name),
-      )
-      for (const enhancement of detail?.enhancements ?? [])
-        pair(enhancement.description, cards.find((card) => card.name === enhancement.name)?.description)
+      const cards = detachmentNamed(byDetachment, option.name) ?? []
+      for (const name of cards.map((card) => card.name).toSorted(compareText)) {
+        const entry = catalogueEnhancement(loaded, book.id, option.name, name)
+        pair(entry && enhancementTextOf(entry), cards.find((card) => card.name === name)!.description)
+      }
     }
   }
 }

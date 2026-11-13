@@ -508,6 +508,8 @@ export function prose(text: string) {
     // A doubled bold run names one of several options a card lists, such as a Vow, so it stands on its own line.
     .replaceAll(/<b><b>([^<]*)<\/b><\/b>/g, '\n\n**$1**\n\n')
     .replaceAll(/<\/?(?:k|b)>/g, '**')
+    // One bold run closed and the next opened at once is one run, or Markdown prints the asterisks.
+    .replaceAll('****', '')
     .replaceAll(/<\/?(?:u|i)>/g, '')
     .replaceAll(/<br\s*\/?>/g, '\n')
     .replaceAll(/<\/?ul>/g, '\n')

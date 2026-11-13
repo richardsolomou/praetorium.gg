@@ -19,13 +19,13 @@ const keyOf = (token: string) => textKey(textTokensIn(token)[0]!)
 describe('a catalogue text shown as its card twin', () => {
   const texts = definitionTexts([{ file, path: 'definitions/book.json' }])
   const own = texts.token(words)!
-  const shown = texts.withTwins(new Map([[keyOf(own), { token: card, references: [] }]]))
+  const shown = texts.withTwins(new Map([[keyOf(own), { own, token: card, references: [] }]]))
 
   it('shows the card token in place of its own', () => {
     expect(JSON.stringify(shown.files[0]!.file)).toContain(card)
   })
 
   it('answers every rule with the catalogue text’s facts', () => {
-    expect(shown.fact(keyOf(card))).toEqual(texts.fact(keyOf(own)))
+    expect(shown.fact(keyOf(card))).toEqual({ ...texts.fact(keyOf(own)), reminder: { timings: [] } })
   })
 })

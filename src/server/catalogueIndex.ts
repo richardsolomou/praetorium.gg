@@ -47,35 +47,38 @@ export function* loadCatalogueSteps(directory = catalogueDirectory(), edition?: 
   yield
   const revisionId = catalogueRevision({ ...revision, ...(edition ? { edition: edition.id } : {}) })
   let cardFacts: TextFactsByKey | undefined
-  const indexOf = (source: DefinitionTexts) => {
-    const files = source.files.map(({ file }) => file)
-    const selected = edition ? editionCatalogueFiles(files, edition) : files
-    const textFacts: TextFactsByKey = { get: (key) => source.fact(key) ?? cardFacts?.get(key) }
-    return { index: buildIndex(selected, revisionId, textFacts), selected }
-  }
+  const indexOf = (source: DefinitionTexts, selected: CatalogueFile[]) =>
+    buildIndex(selected, revisionId, { get: (key) => source.fact(key) ?? cardFacts?.get(key) })
   const policyFile = path.join(directory, 'reference-policy.json')
   const policy = fs.existsSync(policyFile) ? catalogueReferencePolicySchema.parse(JSON.parse(fs.readFileSync(policyFile, 'utf8'))) : null
-  const catalogueOf = (source: DefinitionTexts, built: ReturnType<typeof indexOf>, datacards: LoadedDatacards): LoadedCatalogue => ({
-    ...catalogueFromIndex(built.index, built.selected, datacards),
-    definitions: source,
-    ...(policy ? { datacardExcludedCatalogueIds: datacardExclusions(policy.datacardExcludedCatalogueIds, edition) } : {}),
-    ...(edition ? { edition } : {}),
-  })
-  const own = indexOf(texts)
+  const files = texts.files.map(({ file }) => file)
+  const selected = edition ? editionCatalogueFiles(files, edition) : files
+  const index = indexOf(texts, selected)
   yield
   // The cards name sections they do not describe, and the catalogue is where those words are.
-  const cards = yield* loadDatacardsSteps(
-    path.join(directory, 'datacards', '11th', 'gdc'),
-    catalogueSections(own.index, texts.words),
-    strings,
-  )
+  const cards = yield* loadDatacardsSteps(path.join(directory, 'datacards', '11th', 'gdc'), catalogueSections(index, texts.words), strings)
   cardFacts = cards.textFacts
   const datacards = publishedDatacards(cards, texts.token)
-  const twins = cardTwins(catalogueOf(texts, own, datacards))
+  const ownTexts: LoadedCatalogue = {
+    ...catalogueFromIndex(index, selected, datacards),
+    definitions: texts,
+    ...(policy ? { datacardExcludedCatalogueIds: datacardExclusions(policy.datacardExcludedCatalogueIds, edition) } : {}),
+    ...(edition ? { edition } : {}),
+  }
+  const twins = cardTwins(ownTexts)
   yield
   // Readers load a rule's words from the cards wherever they print it, and from the catalogue only where they do not.
+  // The swap is made in the files already built, as renaming a rules version's books again would cost as much as the
+  // first time, and what the catalogue derives from them besides the index reads no text.
   const shown = texts.withTwins(twins)
-  const loaded = catalogueOf(shown, indexOf(shown), withoutTwinSearch(datacards))
+  const shownCards = withoutTwinSearch(datacards)
+  const loaded: LoadedCatalogue = {
+    ...ownTexts,
+    index: indexOf(shown, shown.shown(selected)),
+    definitions: shown,
+    factionContents: shownCards.factions,
+    datacards: shownCards,
+  }
   yield
   return { ...loaded, mfm: yield* loadMfmSteps(directory) }
 }

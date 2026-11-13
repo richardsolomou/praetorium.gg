@@ -21,13 +21,16 @@ const joins = new WeakMap<LoadedCatalogue, Map<string, DatacardJoin | null>>()
 /** Catalogue and datacard sources use different apostrophe and hyphen glyphs in otherwise identical names. */
 const comparable = (name: string) => normalizedName(plainDashes(plainQuotes(name.normalize('NFKC'))))
 
-function cardIn(content: FactionContent, name: string): DatasheetDetails | null {
+/** A datasheet name in every form a card may print it, read once however many files are asked. */
+const cardNames = (name: string) => normalizedNameVariants(comparable(name))
+
+function cardIn(content: FactionContent, names: readonly string[]): DatasheetDetails | null {
   const index = remember(
     cardIndexes,
     content,
     () => new Map([...content.datasheetDetails].map(([cardName, details]) => [comparable(cardName), details])),
   )
-  for (const candidate of normalizedNameVariants(comparable(name))) {
+  for (const candidate of names) {
     const card = index.get(candidate)
     if (card) return card
   }
@@ -44,17 +47,17 @@ function join(loaded: LoadedCatalogue, catalogueId: string, entryId: string): Da
   if (!entry || !book) return null
   const definition = targetOf(entry, loaded.index.definitions)
   if (loaded.datacardExcludedCatalogueIds?.has(loaded.index.catalogueOf.get(definition.id) ?? '')) return null
-  const name = nameOf(entry, loaded.index.definitions)
+  const names = cardNames(nameOf(entry, loaded.index.definitions))
   // An allied datasheet's card is in the file of the book it is borrowed from; the
   // book's own file, and the files of the books it is a supplement to, come after.
   const source = loaded.index.alliedDatasheets.get(catalogueId)?.get(entryId)?.name
   const nearby = [...new Set([...(source ? factionContentsOf(loaded, source) : []), ...factionContentsOf(loaded, book.name)])]
   for (const content of nearby) {
-    const card = cardIn(content, name)
+    const card = cardIn(content, names)
     if (card) return { details: card, own: true }
   }
   const cards = [...new Set(loaded.factionContents.values())].flatMap((content) =>
-    nearby.includes(content) ? [] : (cardIn(content, name) ?? []),
+    nearby.includes(content) ? [] : (cardIn(content, names) ?? []),
   )
   const agreed = cards.length > 0 && cards.every((card) => JSON.stringify(card) === JSON.stringify(cards[0]))
   return agreed ? { details: cards[0]!, own: false } : null
