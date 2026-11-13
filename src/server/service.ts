@@ -55,9 +55,9 @@ import { BattleFeedService } from './services/battleFeedService'
 import { StandingsService } from './services/standingsService'
 import { ProfileService } from './services/profileService'
 import { PreferencesService } from './services/preferencesService'
-import { foldHistory, mayWatch, mustFindBattle } from './services/battleHistory'
+import { foldHistory, mayWatch, mustFindBattle, isSeated } from './services/battleHistory'
 import { StandingsRefresh } from './standingsRefresh'
-import type { BattleCard, BattleHistory, BattleSeats, RepositoryPort } from './spacetimeRepository'
+import type { BattleCard, BattleHistory, RepositoryPort } from './spacetimeRepository'
 
 /**
  * `mission` is the viewer's, for the screens that are about them. `missions` is every
@@ -470,7 +470,7 @@ export class PraetoriumService {
   }
 
   private async visibleScreen(history: BattleHistory, userId: string | null, rules?: BattleReadRules | null): Promise<BattleScreen> {
-    const viewerId = userId && this.seated(history, userId) ? userId : SPECTATOR_ID
+    const viewerId = userId && isSeated(history, userId) ? userId : SPECTATOR_ID
     if (viewerId !== SPECTATOR_ID) return this.seatedScreen(history, viewerId, rules)
     const screen = this.battleScreen(history, viewerId, rules)
     // Everyone else either watches or is told no. Nobody arrives here to sit down:
@@ -734,21 +734,17 @@ export class PraetoriumService {
     }
   }
 
-  private seated(seats: BattleSeats, userId: string) {
-    return seats.players.some((player) => player.id === userId)
-  }
-
   /** Seats alone, for the callers that do not need the history. */
   private async mustSeat(token: string, userId: string) {
     const seats = await this.repository.battleByToken(token)
     if (!seats) throw new Response('no such battle', { status: 404 })
-    if (!this.seated(seats, userId)) throw new Response('you are not in this battle', { status: 403 })
+    if (!isSeated(seats, userId)) throw new Response('you are not in this battle', { status: 403 })
     return seats
   }
 
   private async mustSeatHistory(token: string, userId: string) {
     const history = await mustFindBattle(this.repository, token)
-    if (!this.seated(history, userId)) throw new Response('you are not in this battle', { status: 403 })
+    if (!isSeated(history, userId)) throw new Response('you are not in this battle', { status: 403 })
     return history
   }
 }

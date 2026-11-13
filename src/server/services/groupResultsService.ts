@@ -7,6 +7,7 @@ import type { BattlesCursor } from '../../contracts/battles'
 import type { BattleFaction } from '../../shared/battleSummary'
 import type { BattleCard, RepositoryPort } from '../spacetimeRepository'
 import type { BattleFeedService } from './battleFeedService'
+import { isSeated } from './battleHistory'
 import type { GroupService } from './groupService'
 import { swissMatches } from './sealedEventResultsService'
 
@@ -235,7 +236,7 @@ export class GroupResultsService {
   async battleGroups(token: string, viewerId: string | null) {
     const seats = await this.repository.battleByToken(token)
     if (!seats) throw new Response('no such battle', { status: 404 })
-    const seated = viewerId !== null && seats.players.some((player) => player.id === viewerId)
+    const seated = viewerId !== null && isSeated(seats, viewerId)
     const { current, options } = await this.repository.battleGroups(seats.battle.id)
     const summary = (group: { token: string; name: string }) => ({ token: group.token, name: group.name })
     return {

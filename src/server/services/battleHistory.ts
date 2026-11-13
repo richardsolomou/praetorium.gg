@@ -7,6 +7,10 @@ export function mayWatch(history: BattleSeats) {
   return history.players.length > 0
 }
 
+export function isSeated(seats: BattleSeats, userId: string) {
+  return seats.players.some((player) => player.id === userId)
+}
+
 export function foldHistory({ players, log }: BattleHistory) {
   return reduceBattle(...battleFoldArgs(players, log))
 }
