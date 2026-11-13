@@ -63,11 +63,7 @@ export function detachmentCatalogueDetail(
   const indexed = enhancementIndex(loaded)
   const enhancements = enhancementNames
     .map((name) => {
-      const candidates = indexed.byCardName.get(cardName(name)) ?? []
-      const entry =
-        unambiguous(candidates.filter((candidate) => candidate.comment === option.name)) ??
-        unambiguous(candidates.filter((candidate) => loaded.index.catalogueOf.get(candidate.id) === catalogueId)) ??
-        unambiguous(candidates)
+      const entry = catalogueEnhancement(loaded, catalogueId, option.name, name)
       return {
         name,
         points: entry?.costs?.find((cost) => cost.typeId === loaded.index.pointsTypeId)?.value ?? null,
@@ -88,6 +84,16 @@ export function detachmentCatalogueDetail(
     enhancements,
     forcedEnhancements,
   }
+}
+
+/** The catalogue's entry for an enhancement a detachment's card names, where one entry answers for it. */
+export function catalogueEnhancement(loaded: LoadedCatalogue, catalogueId: string, detachment: string, name: string) {
+  const candidates = enhancementIndex(loaded).byCardName.get(cardName(name)) ?? []
+  return (
+    unambiguous(candidates.filter((candidate) => candidate.comment === detachment)) ??
+    unambiguous(candidates.filter((candidate) => loaded.index.catalogueOf.get(candidate.id) === catalogueId)) ??
+    unambiguous(candidates)
+  )
 }
 
 export const detachmentEnhancementNames = (loaded: LoadedCatalogue, detachmentName: string) =>
@@ -147,12 +153,13 @@ function forcedFor(entry: SelectionEntry): Set<string> {
   return found
 }
 
-const descriptionOf = (entry: SelectionEntry) =>
+/** What a catalogue enhancement says, without the weapon profile a page prints beside it. */
+export const enhancementTextOf = (entry: SelectionEntry) =>
   entry.profiles?.flatMap((profile) => profile.characteristics ?? []).find((characteristic) => characteristic.name === 'Description')
     ?.$text ?? null
 
 function enhancementDescription(entry: SelectionEntry, loaded: LoadedCatalogue) {
-  const description = descriptionOf(entry)
+  const description = enhancementTextOf(entry)
   const linked = linkedEnhancementWeapon(entry, loaded.index)
   if (!description || !linked) return description
   const { weapon } = linked
@@ -165,7 +172,7 @@ function enhancementDescription(entry: SelectionEntry, loaded: LoadedCatalogue) 
 }
 
 function linkedEnhancementWeapon(entry: SelectionEntry, index: LoadedCatalogue['index']) {
-  const description = descriptionOf(entry)
+  const description = enhancementTextOf(entry)
   if (!description || !linksWeapon(description, index.textFacts)) return null
   const linked = (entry.entryLinks ?? []).flatMap((link) =>
     (index.definitions.get(link.targetId)?.profiles ?? [])
@@ -181,8 +188,8 @@ function linkedEnhancementWeapon(entry: SelectionEntry, index: LoadedCatalogue['
 }
 
 function unambiguous(entries: readonly SelectionEntry[]): SelectionEntry | null {
-  const described = entries.filter((entry) => descriptionOf(entry))
-  return new Set(described.map((entry) => comparableText(descriptionOf(entry)!))).size === 1 ? (described[0] ?? null) : null
+  const described = entries.filter((entry) => enhancementTextOf(entry))
+  return new Set(described.map((entry) => comparableText(enhancementTextOf(entry)!))).size === 1 ? (described[0] ?? null) : null
 }
 
 /**

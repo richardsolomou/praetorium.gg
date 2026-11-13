@@ -20,7 +20,8 @@ for (const { faction, sheet, ability, body } of cases) {
       await page.setViewportSize({ width, height: 900 })
       await page.goto(`/factions/${faction}/datasheets/${sheet}`)
       await page.waitForLoadState('networkidle')
-      await page.getByRole('button', { name: ability, exact: true }).click()
+      // An ability's words may name the rule as well as its chip, and either explains it.
+      await page.getByRole('button', { name: ability, exact: true }).first().click()
       await expect(page.getByRole('tooltip')).toContainText(body)
       await page.screenshot({ path: testInfo.outputPath(`tooltip-${width}.png`) })
     }

@@ -11,7 +11,7 @@ import { rosterCombatant, rosterProjectionCache } from './rosterCombatRules'
 import { rosterDatasheetSelections } from './rosterDatasheetContext'
 import type { LoadedRules } from './rules'
 import { hasTextTokens } from '../core/sourceText'
-import { movementToolsFrom, unitGenerationFrom } from './rosterGradeUtility'
+import { gradeReadingsIn } from './textFacts'
 
 export type CombatProjection = NonNullable<ReturnType<typeof rosterCombatant>>
 /** The words behind a rule's text tokens, or null when the snapshot does not hold them. */
@@ -241,11 +241,8 @@ export async function measureRosterUnits({
     const scouts = formed?.prebattleRules.includes('scouts')
       ? Math.min(...abilities.map((names) => numberIn(names, /^Scouts (\d+)/i)).filter(Boolean))
       : 0
-    const descriptions = [host.projection.selected, ...host.projection.companions.map((member) => member.selected)].flatMap((sheet) =>
-      sheet.abilities.map((ability) => {
-        const description = ability.description ?? ''
-        return hasTextTokens(description) ? (words(description) ?? '') : description
-      }),
+    const readings = [host.projection.selected, ...host.projection.companions.map((member) => member.selected)].flatMap((sheet) =>
+      sheet.abilities.map((ability) => gradeReadingsIn(ability.description ?? '', loaded.index.textFacts, words)),
     )
     return {
       name: [host.projection.selected.name, ...host.projection.companions.map((member) => member.selected.name)].join(' + '),
@@ -257,8 +254,8 @@ export async function measureRosterUnits({
       scouts: Number.isFinite(scouts) ? scouts : 0,
       chargeBonus: numberIn(abilities.flat(), /\+(\d+) to charge/i),
       removes,
-      unitGeneration: descriptions.flatMap(unitGenerationFrom),
-      movementTools: [...new Set(descriptions.flatMap(movementToolsFrom))],
+      unitGeneration: readings.flatMap((reading) => reading.unitGeneration),
+      movementTools: [...new Set(readings.flatMap((reading) => reading.movementTools))],
       volleyLoss:
         wounds !== null && losses.length && !losses.includes(null)
           ? losses.reduce<number>((total, loss) => total + loss!, 0) / losses.length

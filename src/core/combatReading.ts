@@ -103,8 +103,6 @@ export function combatFactsOf(words: string): CombatFacts | null {
         )
         if (tree) readings[placementKey({ scope, models, keywords: known ? [] : undefined })] = flattened(tree, leaf)
       }
-  const takesPart = (reading: CombatReading) =>
-    reading.compiled ? reading.compiled.choices.some((choice) => choice.effects.length) : reading.roles.length > 0
   if (!judging.orders && !leaves.some(takesPart)) return null
   return { judging, readings, leaves }
 }
@@ -154,6 +152,9 @@ function unquotedReading(reading: CombatReading, words: string): CombatReading {
   }
 }
 
+const takesPart = (reading: CombatReading) =>
+  reading.compiled ? reading.compiled.choices.some((choice) => choice.effects.length) : reading.roles.length > 0
+
 const NO_PART: CombatReading = { compiled: null, legacy: [], legacyDefault: 0, roles: [] }
 
 /** How judging reads a text it holds only the facts of; facts of null say the words take no part. */
@@ -172,6 +173,30 @@ export function combatReadingFor(facts: CombatFacts | null, rule: CombatRule): C
   let node = nodes[0]!
   while (typeof node !== 'number') node = nodes[answer(node[0]) ? node[1] : node[2]]!
   return withSource(facts.leaves[node]!, rule.source)
+}
+
+/**
+ * Whether these words give a rule's placement the reading recorded for it, as the words it was recorded from always
+ * do; another source's printing of the same rule may read otherwise. Readings that take no part agree.
+ */
+export function readsAsRecorded(rule: CombatRule, words: string) {
+  const reading = withSource(
+    unquotedReading(
+      combatReadingOf({
+        id: '',
+        name: '',
+        source: SOURCE,
+        description: words,
+        scope: rule.scope,
+        models: rule.models === 1 ? 1 : undefined,
+        ...(rule.keywords ? { keywords: [] } : {}),
+        answers: ruleAnswers(rule),
+      }),
+      words,
+    ),
+    rule.source,
+  )
+  return JSON.stringify(reading) === JSON.stringify(rule.reading) || (!takesPart(reading) && (!rule.reading || !takesPart(rule.reading)))
 }
 
 function withSource(reading: CombatReading, source: string): CombatReading {

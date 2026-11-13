@@ -44,6 +44,8 @@ export type DatasheetDetails = {
    * "Dainal Komelius" is the catalogue's "Dainal Kornelius", the name the card prints in German.
    */
   printedPieces?: string[][]
+  /** Each ability the card describes in words, by the name it prints, which the server matches to the catalogue's texts. */
+  abilities?: RuleCard[]
 }
 export type RuleCard = { name: string; description: string }
 /**
@@ -132,6 +134,8 @@ export type LoadedDatacards = {
   constructionDetachments: ReadonlyMap<string, readonly ConstructionDetachment[]>
   /** What the roster rules read from each published text, by `textKey`. */
   textFacts?: TextFactsByKey
+  /** A digest of the words each published text shows, by `textKey`, so texts that read alike are one; the server's alone. */
+  textReadings?: ReadonlyMap<string, string>
 }
 export type FactionRestrictions = {
   /** Lowercased datasheet names, each with the lowercased keyword that exempts a unit from it, if any. */
@@ -504,6 +508,8 @@ export function prose(text: string) {
     // A doubled bold run names one of several options a card lists, such as a Vow, so it stands on its own line.
     .replaceAll(/<b><b>([^<]*)<\/b><\/b>/g, '\n\n**$1**\n\n')
     .replaceAll(/<\/?(?:k|b)>/g, '**')
+    // One bold run closed and the next opened at once is one run, or Markdown prints the asterisks.
+    .replaceAll('****', '')
     .replaceAll(/<\/?(?:u|i)>/g, '')
     .replaceAll(/<br\s*\/?>/g, '\n')
     .replaceAll(/<\/?ul>/g, '\n')
@@ -972,6 +978,21 @@ function abilityTransport(value: unknown): string | null {
   )
   return localizedField(transport, 'description')
 }
+/** The abilities a card describes in words; its core and faction abilities it names only. */
+function describedAbilities(value: unknown, texts: SourceTexts): RuleCard[] {
+  const abilities: unknown = value && typeof value === 'object' ? (value as Record<string, unknown>).abilities : null
+  const damaged = abilities && typeof abilities === 'object' ? (abilities as Record<string, unknown>).damaged : null
+  const range = localizedField(damaged, 'range')
+  return [
+    ...['other', 'special', 'wargear'].flatMap((kind) => records(abilities, kind)),
+    ...records(abilities, 'primarch').flatMap((group) => records(group, 'abilities')),
+    ...(range && damaged ? [{ ...(damaged as Record<string, unknown>), name: { en: `Damaged: ${range}` } }] : []),
+  ].flatMap((ability) => {
+    const name = localizedField(ability, 'name')
+    const description = localizedField(ability, 'description')
+    return name && description ? [{ name, description: texts(description, 'prose') }] : []
+  })
+}
 /** The heading the source gives a datasheet's starting wargear: a label the builder reads, not rules text. */
 export const DEFAULT_WARGEAR = 'Default Wargear'
 /** Labels the source prints where it has no rules text to give, which pages read as labels. */
@@ -992,6 +1013,7 @@ function datasheetDetails(value: unknown, texts: SourceTexts): DatasheetDetails 
   const transport = localizedField(value, 'transport') ?? abilityTransport(value)
   const printedLoadout = localizedField(value, 'loadout')
   const capacity = transport ? printedTransport(prose(transport)) : null
+  const abilities = describedAbilities(value, texts)
   return {
     composition: lines,
     ...(counted.length ? { modelCount: compositionCount(counted) } : {}),
@@ -1024,6 +1046,7 @@ function datasheetDetails(value: unknown, texts: SourceTexts): DatasheetDetails 
     leaders: [],
     supporters: [],
     ...printedNamesOf(value),
+    ...(abilities.length ? { abilities } : {}),
   }
 }
 function displayBaseSize(baseSize: string | null): string | null {

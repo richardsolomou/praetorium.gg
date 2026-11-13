@@ -44,8 +44,11 @@ test('Custodes reference retains cards with unsupported battle timing', { tag: '
   const firstCard = stratagems.locator('article').first()
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 900 })
-    await firstCard.scrollIntoViewIfNeeded()
-    await expect(firstCard).toBeInViewport()
+    // Content loading above the cards can push the first one back out after it was scrolled to.
+    await expect(async () => {
+      await firstCard.scrollIntoViewIfNeeded()
+      await expect(firstCard).toBeInViewport({ timeout: 1000 })
+    }).toPass()
     await expectNoPageOverflow(page)
     await page.screenshot({ path: testInfo.outputPath(`guardians-stratagems-${width}.png`) })
   }

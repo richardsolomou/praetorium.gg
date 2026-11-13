@@ -5,6 +5,7 @@ Pins live in `catalogue/composition.json`, `catalogue/sources.json`, and `catalo
 ## Rules text
 
 - Never serve either source's rules text from the server in any form, construction data and the offline download included. Read Game Datacards strings through `SourceTexts` (`src/core/sourceText.ts`); the catalogue reads BSData's rules texts as tokens from load (`src/server/definitionTexts.ts`). Whatever a rule reads from words is recorded in `TextFacts` (`src/core/textFacts.ts`) and read through `readText` or `statedIn`, so the server and a device answer alike; `scripts/clientText.integration.test.ts` enforces this.
+- A catalogue text Game Datacards prints too is shown as the card's token, which carries the catalogue text's facts (`src/server/cardTwins.ts`). A token's loaded words can therefore be another source's printing of the rule: read its recorded facts, and re-read loaded words only where they read as recorded (`readsAsRecorded`).
 - Only the server reads BSData tokens back into words (`definitions.words`), to search what abilities do; such fields never leave it.
 - Snapshots contain rules text: publish them only to the private `praetorium-private` bucket.
 

@@ -1,6 +1,8 @@
 import { bracketedRuleReferences } from '../core/ruleReference'
 import { attachmentClaim, substitutedUnits } from '../core/attach'
 import { combatFactsOf } from '../core/combatReading'
+import { hasTextTokens, textKey, textTokensIn, withoutText } from '../core/sourceText'
+import { movementToolsFrom, unitGenerationFrom } from './rosterGradeUtility'
 import { suggestReminderTimings, suggestReminderWhileDestroyed } from '../core/reminders'
 import { readText, statedIn, type TextFacts, type TextFactsByKey, type WeaponAbilityGrant } from '../core/textFacts'
 import {
@@ -41,6 +43,8 @@ export function definitionFactsOf(words: string): TextFacts {
   const invulnerableSave = invulnerableSaveIn(words)
   const timings = suggestReminderTimings(words)
   const whileDestroyed = suggestReminderWhileDestroyed(words)
+  const unitGeneration = unitGenerationFrom(words)
+  const movementTools = movementToolsFrom(words)
   const stated = (statement: typeof grants) => statement.matched || statement.grants.length > 0
   const facts: TextFacts = {
     ...textFactsOf(words),
@@ -53,12 +57,27 @@ export function definitionFactsOf(words: string): TextFacts {
     ...(invulnerableSave ? { invulnerableSave } : {}),
     ...(/following weapon:\s*$/i.test(words) ? { linkedWeapon: true as const } : {}),
     ...(timings.length || whileDestroyed ? { reminder: { timings, ...(whileDestroyed ? { whileDestroyed: true as const } : {}) } } : {}),
+    ...(unitGeneration.length ? { unitGeneration } : {}),
+    ...(movementTools.length ? { movementTools } : {}),
   }
   let combat: TextFacts['combat']
   return Object.defineProperty(facts, 'combat', {
     enumerable: true,
     get: () => (combat === undefined ? (combat = combatFactsOf(words)) : combat),
   })
+}
+
+/**
+ * The units a text adds to its army and the movement it allows: recorded where the catalogue read the text, so a
+ * card printing the rule in other words answers alike, and read from the words of any other text it holds.
+ */
+export function gradeReadingsIn(text: string, facts: TextFactsByKey | undefined, words: (text: string) => string | null) {
+  const [token, ...rest] = textTokensIn(text)
+  const found = token && !rest.length && withoutText(text) === '' ? facts?.get(textKey(token)) : undefined
+  // Only the catalogue records combat for its texts, the cards never do.
+  if (found && 'combat' in found) return { unitGeneration: found.unitGeneration ?? [], movementTools: found.movementTools ?? [] }
+  const read = hasTextTokens(text) ? (words(text) ?? '') : text
+  return { unitGeneration: unitGenerationFrom(read), movementTools: movementToolsFrom(read) }
 }
 
 export const abilityGrantsIn = (text: string, facts: TextFactsByKey | undefined) =>

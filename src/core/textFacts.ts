@@ -1,6 +1,7 @@
 import type { AttachmentClaim } from './attach'
 import type { CombatFacts } from './combatReading'
 import type { ReminderSuggestion } from './reminders'
+import type { UnitGeneration } from './rosterGrades'
 import { hasTextTokens, textKey, textTokensIn, withoutText } from './sourceText'
 
 /**
@@ -30,6 +31,9 @@ export type TextFacts = {
   /** An enhancement that upgrades a weapon it names after "following weapon:". */
   linkedWeapon?: true
   reminder?: ReminderSuggestion
+  /** The units the text adds to its army, and the movement it allows, as the roster grades read them. */
+  unitGeneration?: UnitGeneration[]
+  movementTools?: string[]
   /** Null where the words take no part in combat. */
   combat?: CombatFacts | null
 }

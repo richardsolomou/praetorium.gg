@@ -875,6 +875,12 @@ it('puts the name of each option a card lists on its own line', () => {
   )
 })
 
+it('reads bold runs the source closes and opens at once as one run', () => {
+  expect(prose('have <k>[Devastating Wounds:</k> <b>non-</b><k>Monster/vehicle]</k>.')).toBe(
+    'have **[Devastating Wounds:** **non-Monster/vehicle]**.',
+  )
+})
+
 it('keys a card by its detachment and name, whatever suffix a source prints', () => {
   expect(descriptionKey('The Phaeron’s Armoury', 'Mortality Shroud (Aura) (Upgrade)')).toBe(
     descriptionKey("The Phaeron's Armoury", 'Mortality Shroud'),

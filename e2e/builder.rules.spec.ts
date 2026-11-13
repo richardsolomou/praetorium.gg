@@ -190,7 +190,9 @@ test('a unit upgrade shows the core ability it grants', async ({ page }) => {
 
   const loadout = page.locator('aside[aria-label="Loadout"]')
   await loadout.getByRole('button', { name: 'Select Enlivened Sentinels' }).click()
-  const scouts = loadout.getByRole('button', { name: 'Scouts 5"', exact: true })
+  // The upgrade's own words name the ability too; the chip is what marks it granted.
+  const coreAbilities = loadout.locator('section').filter({ has: page.getByRole('heading', { name: /^Core abilities/ }) })
+  const scouts = coreAbilities.getByRole('button', { name: 'Scouts 5"', exact: true })
   await expect(scouts).toHaveClass(/text-info/)
   await scouts.hover()
   await expect(page.getByRole('tooltip')).toContainText('Added by Enlivened Sentinels')

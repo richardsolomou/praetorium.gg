@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { CombatRule } from '../../../core/combatRules'
+import { combatFactsOf, combatReadingFor } from '../../../core/combatReading'
 import { textToken } from '../../../core/sourceText'
 import { loadTextFile, registerTextSources } from '../../sourceText'
 import { missingRuleText, readableRules } from './readableRules'
@@ -38,6 +39,35 @@ describe('rules the simulator can compile on this device', () => {
     registerTextSources({ '000000aa': { url: 'https://raw.githubusercontent.com/owner/repo/sha/rules.json', source: 'bsdata' } })
     await loadTextFile('000000aa')
     expect(readableRules([rule(tokenFor(words))]).map((read) => read.description)).toEqual([words])
+  })
+
+  describe('a rule recorded from the catalogue’s words', () => {
+    const shown = 'Each time a model in this unit makes an attack, re-roll a Wound roll of 1.'
+    const recorded = (description: string) => {
+      const placed = { ...rule(description), phases: undefined }
+      return { ...placed, reading: combatReadingFor(combatFactsOf(words), placed)! }
+    }
+    /** A file holding `text` alone, loaded from the source turned on, and the token naming the text in it. */
+    const loaded = async (file: string, text: string) => {
+      vi.stubGlobal('localStorage', { getItem: () => 'game-datacards' })
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async () => new Response(JSON.stringify({ effect: text }))),
+      )
+      registerTextSources({ [file]: { url: `https://raw.githubusercontent.com/owner/repo/sha/${file}.json`, source: 'game-datacards' } })
+      await loadTextFile(file)
+      return textToken({ file, transform: 'plain', hash: createHash('sha256').update(text).digest('hex').slice(0, 16) })
+    }
+
+    it('reads from loaded words that read as recorded', async () => {
+      const token = await loaded('000000cc', words)
+      expect(readableRules([recorded(token)])[0]?.description).toBe(words)
+    })
+
+    it('keeps its reading where the loaded words read otherwise', async () => {
+      const token = await loaded('000000dd', shown)
+      expect(readableRules([recorded(token)])[0]?.reading).toEqual(recorded(token).reading)
+    })
   })
 })
 

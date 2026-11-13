@@ -2,6 +2,7 @@ import type { CatalogueFile } from '../core/catalogue'
 import { datasheetProfileKind } from '../core/datasheetStructure'
 import { resolvedText, textKey, textToken, textTokensIn } from '../core/sourceText'
 import type { TextFacts } from '../core/textFacts'
+import { remember } from '../core/collections'
 import { paragraphsOf } from '../shared/datacards'
 import type { DefinitionTexts, LoadedCatalogue } from '../shared/catalogueIndex'
 import { rulesNamed } from '../shared/catalogueRules'
@@ -23,7 +24,9 @@ type Node = Record<string, unknown>
  * pages always published it. A paragraph of a text has a token of its own, as a card that prints a table as
  * an image quotes the catalogue's paragraphs for it.
  */
-export function definitionTexts(files: readonly { file: CatalogueFile; path: string }[]): DefinitionTexts {
+export function definitionTexts(
+  files: readonly { file: CatalogueFile; path: string }[],
+): DefinitionTexts & { withTwins: (twins: ReadonlyMap<string, { own: string; token: string; references: string[] }>) => TwinnedTexts } {
   const tokens = new Map<string, string>()
   const words = new Map<string, string>()
   // A statline's string takes part in which file names a string first, as published tokens always chose, but has no words to keep.
@@ -49,7 +52,6 @@ export function definitionTexts(files: readonly { file: CatalogueFile; path: str
     visitModifiers(file, textTypes, (raw) => register(raw, texts(raw, 'plain'), true))
   }
   const token = (raw: string) => tokens.get(raw) ?? null
-  const tokenized = files.map(({ file, path }) => ({ file: withRulesTokens(file, textTypes, (raw) => tokens.get(raw) ?? raw), path }))
   const facts = new Map<string, TextFacts>()
   const factsOf = (key: string) => {
     let found = facts.get(key)
@@ -57,13 +59,72 @@ export function definitionTexts(files: readonly { file: CatalogueFile; path: str
     if (!found && raw !== undefined) facts.set(key, (found = definitionFactsOf(raw)))
     return found
   }
-  return {
-    files: tokenized,
-    token,
-    words: (text) => resolvedText(text, (found) => words.get(textKey(found)) ?? null, textToken),
-    facts: () => new Map([...words.keys()].map((key) => [key, factsOf(key)!])),
-    fact: factsOf,
+  const tokenized = files.map(({ file, path }) => ({ file: withRulesTokens(file, textTypes, (raw) => tokens.get(raw) ?? raw), path }))
+  /**
+   * The definitions with each text that has a card twin showing the card's token instead. The card token reads back
+   * into the catalogue's words and carries the catalogue's facts, so every rule answers as it did from its own text.
+   */
+  const withTwins = (twins: ReadonlyMap<string, { own: string; token: string; references: string[] }>): TwinnedTexts => {
+    const twinOf = new Map([...twins].map(([key, twin]) => [textKey(textTokensIn(twin.token)[0]!), key]))
+    const ownKey = (key: string) => twinOf.get(key) ?? key
+    const twinFacts = new Map<string, TextFacts>()
+    const factOf = (key: string) => {
+      const own = twinOf.get(key)
+      if (own === undefined) return factsOf(key)
+      return remember(twinFacts, key, () => {
+        // Copied by descriptor so combat stays read only when asked.
+        const found = Object.defineProperties({}, Object.getOwnPropertyDescriptors(factsOf(own)!)) as TextFacts
+        const references = twins.get(own)!.references
+        if (references.length) found.references = references
+        else delete found.references
+        // A reader suggests a reminder from the words it shows where none is recorded, and those are the card's.
+        found.reminder ??= { timings: [] }
+        return found
+      })
+    }
+    const twinTokens = new Map([...twins.values()].map((twin) => [twin.own, twin.token]))
+    const shown = <T>(value: T): T => (twinTokens.size ? withTokensSwapped(value, twinTokens) : value)
+    let shownFiles: DefinitionTexts['files'] | undefined
+    return {
+      get files() {
+        return (shownFiles ??= shown(tokenized))
+      },
+      token,
+      words: (text) => resolvedText(text, (found) => words.get(ownKey(textKey(found))) ?? null, textToken),
+      facts: () => new Map([...words.keys(), ...twinOf.keys()].map((key) => [key, factOf(key)!])),
+      fact: factOf,
+      shown,
+    }
   }
+  const own = withTwins(new Map())
+  return { files: own.files, token, words: own.words, facts: own.facts, fact: own.fact, withTwins }
+}
+
+/** Definitions that show card twins' tokens, and the same swap for files already built from the definitions. */
+type TwinnedTexts = DefinitionTexts & { shown: <T>(value: T) => T }
+
+/** A value with every string `swaps` names replaced, sharing every part that holds none. */
+function withTokensSwapped<T>(value: T, swaps: ReadonlyMap<string, string>): T {
+  const visit = (entry: unknown): unknown => {
+    if (typeof entry === 'string') return swaps.get(entry) ?? entry
+    if (!entry || typeof entry !== 'object') return entry
+    if (Array.isArray(entry)) {
+      let next: unknown[] | undefined
+      for (let at = 0; at < entry.length; at++) {
+        const visited = visit(entry[at])
+        if (visited !== entry[at]) (next ??= [...entry])[at] = visited
+      }
+      return next ?? entry
+    }
+    let next: Node | undefined
+    for (const key in entry) {
+      const child = (entry as Node)[key]
+      const visited = visit(child)
+      if (visited !== child) (next ??= { ...(entry as Node) })[key] = visited
+    }
+    return next ?? entry
+  }
+  return visit(value) as T
 }
 
 /**
