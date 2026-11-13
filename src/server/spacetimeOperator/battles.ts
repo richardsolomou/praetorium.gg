@@ -47,7 +47,6 @@ const submission = z.object({
   log: battleSnapshot.shape.log,
 })
 
-/** Battles, their command logs, guest seats and imported battles. */
 export function withBattles<B extends SpacetimeBase>(Base: B) {
   return class BattleOperations extends Base {
     async battleForOperator(battleId: string) {

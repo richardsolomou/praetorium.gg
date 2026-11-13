@@ -4,6 +4,8 @@ import { ROSTER_LIBRARY_BATCH_SIZE, type RosterBatchAction } from '../../core/ro
 import { ROSTER_DISCOVERY_MAX_PAGE_SIZE, rosterDiscoveryCursorSchema, type RosterDiscoveryQuery } from '../../core/rosterDiscovery'
 import type { SpacetimeBase } from './client'
 
+// Module results drop fields this build does not know, so a replica still on the previous build keeps
+// reading after a newer module appends a column or result field.
 const rosterRow = z.object({
   id: z.string(),
   userId: z.string(),
@@ -63,7 +65,6 @@ type SaveRosterInput = {
   now: number
 }
 
-/** Saved rosters, their variants and loans. */
 export function withRosters<B extends SpacetimeBase>(Base: B) {
   return class RosterOperations extends Base {
     async roster(id: string) {

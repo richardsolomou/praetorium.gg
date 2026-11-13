@@ -25,7 +25,6 @@ const favouriteDetachmentRow = z.object({
 })
 const unitLoadoutRow = unitLoadoutSchema.extend({ id: z.string(), name: z.string(), catalogueId: z.string(), createdAt: z.number().int() })
 
-/** Favourites, saved loadouts, matchups, reminders, list filters and player defaults. */
 export function withPreferences<B extends SpacetimeBase>(Base: B) {
   return class PreferenceOperations extends Base {
     async favouriteFactionsByUser(userId: string) {

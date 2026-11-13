@@ -193,9 +193,8 @@ const visibleGroup = z.object({
   ownMember: groupMember.pick({ status: true, role: true }).nullable(),
 })
 
-/** Groups, leagues, tournaments and the sealed events they host. */
-export function withEvents<B extends SpacetimeBase>(Base: B) {
-  return class EventOperations extends Base {
+export function withGroupsAndTournaments<B extends SpacetimeBase>(Base: B) {
+  return class GroupAndTournamentOperations extends Base {
     sealedEventNames(tokens: readonly string[]) {
       return this.namesByToken('sealed_event_names', tokens)
     }

@@ -3,7 +3,7 @@ import { withAchievements } from './spacetimeOperator/achievements'
 import { withBattles } from './spacetimeOperator/battles'
 import { SpacetimeClient } from './spacetimeOperator/client'
 import { withCollection } from './spacetimeOperator/collection'
-import { withEvents } from './spacetimeOperator/events'
+import { withGroupsAndTournaments } from './spacetimeOperator/groupsAndTournaments'
 import { withNotifications } from './spacetimeOperator/notifications'
 import { withPreferences } from './spacetimeOperator/preferences'
 import { withRosters } from './spacetimeOperator/rosters'
@@ -11,7 +11,7 @@ import { withSocial } from './spacetimeOperator/social'
 import { withStandings } from './spacetimeOperator/standings'
 
 /** Each operation family lives in `./spacetimeOperator/`; this class composes them over one connection. */
-export class SpacetimeOperator extends withEvents(
+export class SpacetimeOperator extends withGroupsAndTournaments(
   withNotifications(
     withPreferences(withCollection(withRosters(withSocial(withAchievements(withStandings(withBattles(SpacetimeClient))))))),
   ),

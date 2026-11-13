@@ -10,7 +10,6 @@ import type { SpacetimeBase } from './client'
 
 const revision = z.number().int().nonnegative()
 
-/** Battle results, ratings and the standings refresh that folds them. */
 export function withStandings<B extends SpacetimeBase>(Base: B) {
   return class StandingsOperations extends Base {
     async claimStandingsRefresh(holder: string, results: string, ratings: string) {

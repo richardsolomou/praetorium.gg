@@ -4,10 +4,7 @@ import { withServerSpan } from '../../adapters/posthog'
 import { offlineContext, SYNC_PRODUCT_ACTIONS } from '../offlineContext'
 
 export const feedCursor = z.object({ at: z.number().int(), id: z.string() })
-/** A nullable procedure argument as SpacetimeDB's option type. */
-export const option = <T>(value: T | null) => (value === null ? { none: [] } : { some: value })
 
-/** The connection every operation family sends its procedures and reducers through. */
 export class SpacetimeClient {
   private readonly connection: SpacetimeConnection
 
@@ -31,8 +28,6 @@ export class SpacetimeClient {
     if (!token) throw new Error('SpacetimeDB operator token is required')
   }
 
-  // Module results drop fields this build does not know, so a replica still on the previous build keeps
-  // reading after a newer module appends a column or result field.
   /** A procedure returns its result as a JSON string. */
   protected async read<S extends z.ZodType>(name: string, arguments_: unknown[], schema: S): Promise<z.output<S>> {
     return schema.parse(JSON.parse(await this.reply(name, arguments_, z.string())))

@@ -1,7 +1,10 @@
 import { z } from 'zod'
 import { collectionProfileSchema } from '../../contracts/collection'
 import type { CollectionImportRow } from '../../core/collection'
-import { feedCursor, option, type SpacetimeBase } from './client'
+import { feedCursor, type SpacetimeBase } from './client'
+
+/** A nullable procedure argument as SpacetimeDB's option type. */
+const option = <T>(value: T | null) => (value === null ? { none: [] } : { some: value })
 
 const collectionRow = z.object({
   userId: z.string(),
@@ -16,7 +19,6 @@ const collectionRow = z.object({
 })
 const photoOwner = z.object({ userId: z.string(), entryId: z.string() })
 
-/** Collections and their photos, including photo moderation. */
 export function withCollection<B extends SpacetimeBase>(Base: B) {
   return class CollectionOperations extends Base {
     async collectionProfile(userId: string, viewerId: string | null) {

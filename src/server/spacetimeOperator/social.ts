@@ -18,7 +18,6 @@ const onboarding = z.object({
   facts: z.object({ roster: z.boolean(), friend: z.boolean(), battle: z.boolean(), tournament: z.boolean() }),
 })
 
-/** Friends, friend invites, practice opponents and onboarding. */
 export function withSocial<B extends SpacetimeBase>(Base: B) {
   return class SocialOperations extends Base {
     async friendshipsByUser(userId: string) {

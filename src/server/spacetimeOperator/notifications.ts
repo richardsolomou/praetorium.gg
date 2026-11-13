@@ -14,7 +14,6 @@ const storedNotice = noticeSubjectSchema.and(
   }),
 )
 
-/** Push notification consent and device tokens. */
 export function withNotifications<B extends SpacetimeBase>(Base: B) {
   return class NotificationOperations extends Base {
     async pushEnabled(userId: string) {

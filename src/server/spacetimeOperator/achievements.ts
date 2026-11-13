@@ -2,7 +2,6 @@ import { z } from 'zod'
 import { achievementFactsSchema, achievementStatusSchema } from '../../contracts/achievements'
 import type { SpacetimeBase } from './client'
 
-/** Earned achievements and the facts that award them. */
 export function withAchievements<B extends SpacetimeBase>(Base: B) {
   return class AchievementOperations extends Base {
     async achievementStatus(userId: string) {
