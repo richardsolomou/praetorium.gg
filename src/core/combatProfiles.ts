@@ -1,4 +1,4 @@
-import { groupBy, RecentlyUsed, remember } from './collections'
+import { groupBy, RecentlyUsed, remember, uniqueBy } from './collections'
 import type { Datasheet, DatasheetCharacteristicKind } from './datasheet'
 import { datasheetCharacteristicKind, datasheetProfileKind, datasheetProfilesByKind } from './datasheetStructure'
 import { combatEquipmentMatches, combatModelMatches, type CombatCarrier } from './combatLoadout'
@@ -330,10 +330,16 @@ export function combatPlan(
         const omitted = new Set<string>()
         for (const [kind, alternatives] of groups) {
           if (alternatives.length < 2 || kind === 'close-quarters') continue
+          // Alternatives that differ only in which targets they reach, as Lethal Hits and Lethal Hits: Non-Monster/Vehicle
+          // against Infantry, do the same here and are no choice.
+          const distinct = uniqueBy(alternatives, (word) => {
+            const { target, ...effect } = combatKeyword(word)!
+            return JSON.stringify(kind === 'anti' ? { ...effect, target } : effect)
+          })
           const selected = choose(
             `${phase}:ability:${profile.id}:${kind}`,
             `${profile.name} · Weapon ability`,
-            alternatives.map((word) => ({ value: word, label: word })),
+            distinct.map((word) => ({ value: word, label: word })),
           )
           alternatives.filter((word) => word !== selected).forEach((word) => omitted.add(word))
         }

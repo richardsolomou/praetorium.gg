@@ -103,6 +103,10 @@ describe('combat profiles', () => {
       errors: [],
     })
   })
+  it('offers no choice between instances of a weapon ability that do the same against the target', () => {
+    const carriers = [{ name: 'Model', models: 5, weapons: [{ name: 'Weapon', count: 5 }] }]
+    expect(combatPlan(sheet('Lethal Hits: Non-Monster/Vehicle, Lethal Hits'), carriers, ['Infantry'], 'ranged').choices).toEqual([])
+  })
   it('uses surviving weapon counts for both projection and attack selection', () => {
     const original = [{ name: 'Model', models: 5, weapons: [{ name: 'Weapon', count: 5 }] }]
     const survivors = [{ name: 'Model', models: 3, weapons: [{ name: 'Weapon', count: 3 }] }]

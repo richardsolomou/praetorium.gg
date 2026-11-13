@@ -28,6 +28,8 @@ export type OptimizeLoadoutAnswer = { optimized: LoadoutOptimization; error?: ne
 
 /** Candidates the page scores before calling a search incomplete. */
 const MAX_CANDIDATES = 20_000
+/** Candidates the page holds unscored before it stops reading the search. */
+const MAX_PENDING = 256
 /** How long a local search keeps climbing from random starts after its climb from the current loadout. */
 const LOCAL_SEARCH_MS = 10_000
 const RESTARTS = 20
@@ -164,14 +166,23 @@ export function useLoadoutOptimizer(combatant: Combatant) {
         let complete = false
         let streamError: unknown
         let wake: (() => void) | undefined
-        controller.signal.addEventListener('abort', () => wake?.(), { once: true })
+        let drained: (() => void) | undefined
+        controller.signal.addEventListener(
+          'abort',
+          () => {
+            wake?.()
+            drained?.()
+          },
+          { once: true },
+        )
         const process = (batch: LoadoutBatch & { error?: string }) => {
           if (batch.error) throw new Error(batch.error)
           discovered += batch.candidates.length
           local = batch.local
-          // States explored of those the unit's choices allow, or of those found once the search has found more.
+          // States found of those the unit's choices allow: finding one costs a projection, while expanding one is cheap
+          // and happens mostly at the end.
           const states = Math.max(batch.estimated ?? 0, batch.scheduled)
-          if (!local) setProgress((previous) => Math.max(previous, Math.min(99, Math.floor((batch.built / states) * 100))))
+          if (!local) setProgress((previous) => Math.max(previous, Math.min(99, Math.floor((batch.scheduled / states) * 100))))
           if (discovered > MAX_CANDIDATES) throw new Error(SEARCH_CUT_SHORT)
           space.candidates.push(...batch.candidates)
           complete = batch.done
@@ -182,12 +193,17 @@ export function useLoadoutOptimizer(combatant: Combatant) {
           try {
             const decoder = new TextDecoder()
             let buffer = ''
-            let received = 0
             while (current()) {
+              // A candidate in a full army carries every other unit's rules, so the page holds a bounded backlog and the
+              // search waits for scoring rather than the page holding the whole stream.
+              while (space.candidates.length >= MAX_PENDING && current())
+                await new Promise<void>((resolve) => {
+                  drained = resolve
+                })
+              drained = undefined
+              if (!current()) return
               const next = await reader.read()
               if (!current()) return
-              received += next.value?.byteLength ?? 0
-              if (received > 64 * 1024 * 1024) throw new Error(SEARCH_CUT_SHORT)
               buffer += decoder.decode(next.value, { stream: !next.done })
               let newline: number
               while ((newline = buffer.indexOf('\n')) >= 0) {
@@ -216,6 +232,7 @@ export function useLoadoutOptimizer(combatant: Combatant) {
             continue
           }
           const batch = space.candidates.splice(0, 16)
+          drained?.()
           const results = await Promise.all(
             workers.flatMap((worker, index) => {
               const candidates = batch.filter((_, at) => at % workers.length === index)
