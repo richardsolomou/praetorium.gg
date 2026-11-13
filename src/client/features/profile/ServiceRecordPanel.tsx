@@ -233,10 +233,17 @@ function Results({ record }: { record: ServiceRecord }) {
           <span className="text-rust">{record.lost}</span>
         </p>
         <p className="eyebrow mt-1 text-faint">Won · drawn · lost</p>
+        {/* Map Green, Dim and Rust fall close for red-green colour blindness, so each result also has its own form: won solid, drawn a thin line, lost hatched. */}
         <span className="mt-3 flex h-1.5 overflow-hidden bg-edge" aria-hidden>
           <span className="bg-achieved" style={{ width: share(record.won) }} />
-          <span className="bg-dim" style={{ width: share(record.drawn) }} />
-          <span className="bg-rust" style={{ width: share(record.lost) }} />
+          <span
+            className="bg-[linear-gradient(var(--color-dim),var(--color-dim))] bg-[length:100%_2px] bg-center bg-no-repeat"
+            style={{ width: share(record.drawn) }}
+          />
+          <span
+            className="bg-[repeating-linear-gradient(135deg,var(--color-rust)_0_2px,transparent_2px_4px)]"
+            style={{ width: share(record.lost) }}
+          />
         </span>
       </div>
       <div className="border-t border-edge p-4 md:border-t-0">
