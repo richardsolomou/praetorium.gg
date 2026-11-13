@@ -1,5 +1,5 @@
 import { hash } from 'node:crypto'
-import { withTextPointers, withoutText } from '../shared/sourceText'
+import { withTextPointers, withoutText } from '../core/sourceText'
 import { publishedTextLocations } from './publishedTextFiles'
 import { REFERENCE_KINDS, type ReferenceDocument, type ReferenceKind } from '../contracts/reference'
 import { app } from './app'

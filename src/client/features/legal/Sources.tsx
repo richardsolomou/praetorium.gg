@@ -1,4 +1,4 @@
-import { TEXT_SOURCES } from '../../../shared/sourceText'
+import { TEXT_SOURCES } from '../../../core/sourceText'
 import { TextSourceRow } from '../../components/TextSourcesDialog'
 import { chooseTextSource, useTextSourceChoice } from '../../rulesText'
 import { useHydrated } from '../../useClientValue'

@@ -14,11 +14,12 @@ import {
   combatDamageStateSelections,
   combatRuleChoices,
   combatRuleKey,
-  combatRuleRoles,
+  ruleRoles,
   combatRuleSelections,
   type CombatRule,
 } from '../core/combatRules'
 import { admitsHost, attachmentOf } from '../core/attach'
+import { unquotedLabel } from '../core/combatReading'
 import { combatUnitKeywords, type CombatMember } from '../core/combatUnit'
 import type { RosterPick } from '../core/roster'
 import { rosterPickSchema } from '../core/commands'
@@ -28,7 +29,7 @@ import { combatTarget } from '../core/combatProfiles'
 import { encodeSimulatorState } from '../contracts/simulatorState'
 import { joinKey } from '../core/text'
 import { fuzzyNameScore } from '../core/datasheetSearch'
-import { hasTextTokens } from '../shared/sourceText'
+import { hasTextTokens } from '../core/sourceText'
 import type { ToolErrorType } from '../contracts/agentTools'
 import { READ_ONLY_TOOL, structured, toolError, type AgentTools } from './agentTools'
 import { app } from './app'
@@ -474,31 +475,12 @@ export async function namedCombatant(faction: string, unit: string, models?: num
   }
 }
 
-const comparable = (text: string) =>
-  text
-    .replaceAll(/\*\*|\^\^|<\/?[a-z]+>/gi, '')
-    .replaceAll(/[‘’]/g, "'")
-    .replaceAll(/[“”]/g, '"')
-    .replaceAll(/\s+/g, ' ')
-    .trim()
-    .toLowerCase()
-
-/** A choice's label with each part that repeats a clause of the rule's words replaced, since agents get no rules text. */
-function unquoted(label: string, words: string) {
-  const text = comparable(words)
-  const quotes = (clause: string) => clause.split(' ').length >= 5 && text.includes(comparable(clause))
-  return label
-    .split(' · ')
-    .map((part) => (part.split(/ or /i).some(quotes) ? 'Condition the rule states' : part))
-    .join(' · ')
-}
-
 /** The rules a side can change and the recognised rules the calculation cannot apply. */
 function ruleSummary(side: Combatant, opponent: Combatant) {
   const keywords = combatUnitKeywords(opponent.snapshot)
   const options = (rule: CombatRule) =>
     combatRuleChoices(rule)
-      .map((choice, index) => ({ choice: index + 1, label: unquoted(choice.label, rule.description), effects: choice.effects }))
+      .map((choice, index) => ({ choice: index + 1, label: unquotedLabel(choice.label, rule.description), effects: choice.effects }))
       .filter((choice) => choice.effects.some((effect) => combatEffectAppliesTo(effect, side.role, keywords)))
       .map(({ choice, label }) => ({ choice, label }))
   return {
@@ -519,9 +501,9 @@ function ruleSummary(side: Combatant, opponent: Combatant) {
           !rule.included &&
           !rule.appliedDefences?.length &&
           !combatRuleChoices(rule).length &&
-          (combatRuleRoles(rule.description).includes(side.role) ||
+          (ruleRoles(rule).includes(side.role) ||
             // The snapshot does not hold this card's words, so what the rule does is unknown; a stratagem stays off anyway.
-            (rule.scope !== 'stratagem' && hasTextTokens(rule.description))),
+            (rule.scope !== 'stratagem' && !rule.reading && hasTextTokens(rule.description))),
       )
       .map((rule) => ({ id: rule.id, name: rule.name, source: rule.source, scope: rule.scope })),
   }

@@ -1,7 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { transformed } from '../shared/datacards'
-import { resolvedText } from '../shared/sourceText'
+import { resolvedText } from '../core/sourceText'
 import { stringsByHash } from './sourceTexts'
 
 /** Published text read back as a reader's browser reads it, from a JSON file or every JSON file under a directory. */

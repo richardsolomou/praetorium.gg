@@ -1,7 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { routeSlug } from '../core/slug'
-import { factionRestrictions, type LoadedDatacards, keywordAbilityDescriptions, loadDatacardsSteps } from './datacards'
+import { factionRestrictions, keywordAbilityDescriptions, loadDatacardsSteps } from './datacards'
 import { coreFromDatacards } from './rulesCards'
 import type { LoadedCards } from '../shared/rulesCards'
 import { factionsFromDatacards } from './datacardFactions'
@@ -11,8 +11,9 @@ import { kotcTerrain } from './kotcTerrain'
 import { fixedSecondaryCapsIn, twistsIn } from './missionTwists'
 import { readMissionPacks } from './missionPacks'
 import { loadRuleDocuments } from './rulesCore'
-import { catalogueDirectory } from './catalogueIndex'
+import { catalogueDirectory, type LoadedCatalogue } from './catalogueIndex'
 import { missingArmyRulesFromCatalogueSteps } from './catalogueArmyRules'
+import { withDefinitionTokens } from './sourceTexts'
 import { joinKey } from '../core/text'
 import { type LoadedRules } from '../shared/rules'
 import { completeSteps, type Steps } from '../shared/steps'
@@ -27,18 +28,19 @@ export function* loadRulesSteps(
     battlemasterDirectory = path.join(directory, 'battlemaster'),
     iconDirectory = fs.existsSync(path.join(directory, 'icons')) ? path.join(directory, 'icons') : path.join(directory, 'faction-icons'),
     datacardsDirectory = path.join(directory, 'datacards', '11th', 'gdc'),
-    loadedDatacards,
+    catalogue,
   }: {
     battlemasterDirectory?: string
     iconDirectory?: string
     datacardsDirectory?: string
-    /** The cards the catalogue already read, so one snapshot is parsed once. */
-    loadedDatacards?: LoadedDatacards
+    /** The catalogue already read, whose cards are parsed once and whose tokens the army rules read from its files take. */
+    catalogue?: Pick<LoadedCatalogue, 'datacards' | 'definitions'>
   } = {},
 ): Steps<LoadedRules | null> {
-  const datacards = loadedDatacards ?? (yield* loadDatacardsSteps(datacardsDirectory))
+  const datacards = catalogue?.datacards ?? (yield* loadDatacardsSteps(datacardsDirectory))
   const factions = factionsFromDatacards(datacards, iconDirectory)
-  const catalogueRules = yield* missingArmyRulesFromCatalogueSteps(path.join(directory, 'definitions'), datacards)
+  const missing = yield* missingArmyRulesFromCatalogueSteps(path.join(directory, 'definitions'), datacards)
+  const catalogueRules = catalogue?.definitions ? withDefinitionTokens(missing, catalogue.definitions.token) : missing
   const keywordRules = keywordAbilityDescriptions(datacardsDirectory)
   const supplementalArmyRules = new Map(catalogueRules)
   for (const content of new Set(datacards.factions.values())) {

@@ -37,7 +37,6 @@ import { loadCatalogueHistory } from './catalogueHistory'
 import type { CanonicalCatalogue } from '../contracts/catalogue'
 import type { CatalogueHistoryEntry } from '../core/catalogueHistory'
 import { combatUnitsFor } from '../shared/combatUnits'
-import { publishedFaction } from './referenceCatalogue'
 import type { CatalogueTranslations } from '../shared/catalogueTranslations'
 import { loadCatalogueTranslations } from './catalogueTranslations'
 import { removedNamesOf, type RemovedNames } from '../shared/importMismatch'
@@ -252,7 +251,7 @@ const hotReloadToken = {}
 function catalogueLoaders(directory: string) {
   const runtime = productionCatalogueRuntime(directory)
   const catalogue = memoize(() => loadCatalogue(directory))
-  const baseRules = stepwise(() => loadRulesSteps(directory, { loadedDatacards: catalogue()?.datacards }))
+  const baseRules = stepwise(() => loadRulesSteps(directory, { catalogue: catalogue() ?? undefined }))
   const rules = baseRules.get
   const editions = catalogueEditionLoaders(directory, catalogue, rules, runtime)
   function* construction(scope: ConstructionScope) {
@@ -307,7 +306,7 @@ function catalogueReads(getInstance: () => App, loaded: ReturnType<typeof catalo
     factionsFor: async () => editions.factions(),
     factionFor: async (catalogueId: string) => {
       const faction = editions.factionFor(catalogueId)
-      return faction ? publishedFaction(faction, editions.catalogueFor(faction.id)) : null
+      return faction ?? null
     },
     factionIconFor: async (id: string) => getInstance().rules()?.factionIcons.get(id) ?? null,
     searchIndexFor: async () => loaded.searchIndex(),

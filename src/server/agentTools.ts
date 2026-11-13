@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { withTextPointers, withoutTexts, type TextLocations } from '../shared/sourceText'
+import { withTextPointers, withoutTexts, type TextLocations } from '../core/sourceText'
 import { publishedTextLocations } from './publishedTextFiles'
 import { absoluteAgentLinks, absoluteAgentText } from './agentLinks'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'

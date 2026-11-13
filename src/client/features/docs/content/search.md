@@ -2,11 +2,11 @@ To find a faction, datasheet, detachment, mission or rule from anywhere on the s
 
 ## What it matches
 
-Datasheets match by name, keyword, ability, weapon, weapon keyword or wargear. When none of those match, search reads what units' abilities do, so `gain 1cp` finds units whose abilities give you a Command point. Each result names what matched.
+Datasheets match by name, keyword, ability, weapon, weapon keyword or wargear. When none of those match, search reads what units' abilities do, so `gain 1cp` finds units whose abilities give you a Command point. Each result names what matched. Reading what abilities do needs a connection: offline, search matches everything else.
 
 Detachments match by name, or by their rules, enhancements and stratagems. Rules match by name or by the number they're printed under, so you can type a number you see quoted on a card.
 
-If no datasheet matches, search offers **Close matches** for a misspelt name. The unit picker in the roster builder and each faction's datasheet list match the same way.
+If no datasheet matches, search offers **Close matches** for a misspelt name. Each faction's datasheet list matches the same way, and the unit picker in the roster builder matches everything but what abilities do.
 
 ## Filter a faction's datasheets
 

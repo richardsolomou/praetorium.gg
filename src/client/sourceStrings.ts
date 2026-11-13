@@ -1,4 +1,4 @@
-import { TEXT_HASH_LENGTH, sourceStrings } from '../shared/sourceText'
+import { TEXT_HASH_LENGTH, sourceStrings } from '../core/sourceText'
 
 export const hex = (digest: ArrayBuffer) => Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('')
 

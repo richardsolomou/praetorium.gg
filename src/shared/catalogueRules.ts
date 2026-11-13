@@ -2,17 +2,20 @@ import { normalizeRuleReference, ruleReferenceKeys } from '../core/ruleReference
 import type { LoadedCatalogue } from './catalogueIndex'
 import { referencesIn } from './textFacts'
 import { remember } from '../core/collections'
+import { comparableText } from '../core/sourceText'
 
 type RuleSource = {
-  index: Pick<LoadedCatalogue['index'], 'rules'>
-  datacards?: Pick<LoadedCatalogue['datacards'], 'keywordRules' | 'textFacts'>
+  index: Pick<LoadedCatalogue['index'], 'rules' | 'textFacts'>
+  datacards?: Pick<LoadedCatalogue['datacards'], 'keywordRules'>
 }
 
 export function rulesReferencedIn(loaded: RuleSource, texts: readonly (string | null)[]) {
-  return rulesNamed(loaded, referencesIn(texts, loaded.datacards?.textFacts))
+  return rulesNamed(loaded, referencesIn(texts, loaded.index.textFacts))
 }
 
-type NamedRule = { name: string; descriptions: Set<string>; order: number }
+/** A rule's wordings by what they say, so one rule copied into several files is one wording. */
+type NamedRule = { name: string; descriptions: Map<string, string>; order: number }
+const wording = (description: string) => [comparableText(description), description] as const
 const ruleNameIndexCache = new WeakMap<RuleSource, Map<string, NamedRule[]>>()
 
 function ruleNameIndex(loaded: RuleSource) {
@@ -25,12 +28,12 @@ function ruleNameIndex(loaded: RuleSource) {
       const bucket = index.get(key) ?? []
       if (!index.has(key)) index.set(key, bucket)
       const existing = bucket.find((candidate) => candidate.name === rule.name)
-      if (existing) existing.descriptions.add(rule.description)
-      else bucket.push({ name: rule.name, descriptions: new Set([rule.description]), order: order++ })
+      if (existing && !existing.descriptions.has(comparableText(rule.description))) existing.descriptions.set(...wording(rule.description))
+      else if (!existing) bucket.push({ name: rule.name, descriptions: new Map([wording(rule.description)]), order: order++ })
     }
     for (const rule of loaded.datacards?.keywordRules ?? []) {
       const key = normalizeRuleReference(rule.name)
-      if (!index.has(key)) index.set(key, [{ name: rule.name, descriptions: new Set([rule.description]), order: order++ }])
+      if (!index.has(key)) index.set(key, [{ name: rule.name, descriptions: new Map([wording(rule.description)]), order: order++ }])
     }
     return index
   })

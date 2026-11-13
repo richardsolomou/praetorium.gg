@@ -1,6 +1,14 @@
 import { combatUnitKeywords } from '../../../core/combatUnit'
 import { Button } from '@/components/ui/button'
-import { combatEffectAppliesTo, combatRuleAppliesTo, combatRuleChoices, combatRuleDefault } from '../../../core/combatRules'
+import {
+  type CombatRule,
+  combatEffectAppliesTo,
+  combatRuleAppliesTo,
+  combatRuleChoices,
+  combatRuleDefault,
+} from '../../../core/combatRules'
+import { combatReadingFor } from '../../../core/combatReading'
+import type { LoadoutUnit } from '../rosters/builder/loadoutModel'
 import { CombatRuleLabel } from './CombatRuleLabel'
 import { Choice, Toggle } from './CombatControls'
 import type { Combatant } from './useCombatant'
@@ -18,29 +26,25 @@ export function CombatBuffControls({ side, combatant, opponent }: { side: string
     ...(combatant.sheets.data?.companions ?? []).map((member) => ({ index: member.pickIndex, sheet: member.selected })),
   ]
   const enhancements = members.flatMap(({ index, sheet }) => {
-    const unit = combatant.price.data?.units[index]
+    const unit: LoadoutUnit | undefined = combatant.price.data?.units[index]
     if (!unit) return []
     return unit.choices.flatMap((choice) => {
       if (choice.kind !== 'enhancement' && choice.kind !== 'upgrade') return []
-      const options = choice.options.filter(
-        (option) =>
-          'description' in option &&
-          typeof option.description === 'string' &&
-          combatRuleAppliesTo(
-            {
-              id: option.id,
-              name: option.name,
-              source: choice.name,
-              scope: 'unit',
-              description: option.description,
-              included: sheet?.profiles.some((profile) => profile.values.some((value) => value.modifiers?.includes(option.name))),
-              models: unit.size.models,
-              keywords: sheet?.keywords,
-            },
-            role,
-            opposingKeywords,
-          ),
-      )
+      const options = choice.options.filter((option) => {
+        if (typeof option.description !== 'string') return false
+        const rule: CombatRule = {
+          id: option.id,
+          name: option.name,
+          source: choice.name,
+          scope: 'unit',
+          description: option.description,
+          included: sheet?.profiles.some((profile) => profile.values.some((value) => value.modifiers?.includes(option.name))),
+          models: unit.size.models,
+          keywords: sheet?.keywords,
+        }
+        const reading = option.combat === undefined ? null : combatReadingFor(option.combat, rule)
+        return combatRuleAppliesTo(reading ? { ...rule, reading } : rule, role, opposingKeywords)
+      })
       return options.length
         ? [{ ...choice, options, index, label: index === combatant.pickIndex ? choice.name : `${unit.name} ${choice.name.toLowerCase()}` }]
         : []

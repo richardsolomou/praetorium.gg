@@ -8,6 +8,7 @@ import type { FactionContent, LoadedDatacards } from './datacards'
 import { catalogueFactionName, factionDisplayName } from './factionNames'
 import type { MfmIndex } from './mfm'
 import type { CatalogueEdition } from '../core/catalogueEdition'
+import type { TextFacts } from '../core/textFacts'
 type CatalogueReference = { id: string; name: string; datasheets: number; detachments: number }
 type DetachmentOptions = { wrapperId: string; groupId: string; options: DetachmentOption[] }
 type DetachmentOption = { id: string; name: string; disposition: string | null }
@@ -22,11 +23,24 @@ export type LoadedCatalogue = {
   mfm?: MfmIndex | null
   /** Game Datacards, read once here and handed to the rules loader. */
   datacards: LoadedDatacards
-  /**
-   * The token a BSData rules text is published as, or null for a string no definitions file
-   * states. The catalogue computes from the words; only what it publishes carries tokens.
-   */
-  definitionTexts?: (raw: string) => string | null
+  /** The catalogue's own texts as the server read them from its files; a device's catalogue has none. */
+  definitions?: DefinitionTexts
+}
+/**
+ * The definitions' rules texts, which the catalogue holds as tokens: the files as read, each text's token and
+ * words, and what the rules read from them. Only the server holds them, and no answer carries the words.
+ */
+export type DefinitionTexts = {
+  /** Each file as the catalogue reads it, by where it was read from. */
+  files: readonly { file: CatalogueFile; path: string }[]
+  /** The token a string of the definitions, or a paragraph of one, is published as. */
+  token: (raw: string) => string | null
+  /** A text with the definitions' tokens read back into words, for what the server searches. */
+  words: (text: string) => string
+  /** What the rules read from one of the definitions' texts, by `textKey`, read when first asked. */
+  fact: (key: string) => TextFacts | undefined
+  /** The facts of every text the definitions hold, for a device that will hold no words. */
+  facts: () => ReadonlyMap<string, TextFacts>
 }
 export const DISPOSITIONS = new Set(['take-and-hold', 'disruption', 'purge-the-foe', 'priority-assets', 'reconnaissance'])
 const DETACHMENT_ENTRY = 'detachment'
