@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.238.2 (2026-11-13)
+
+### Patch Changes
+
+- aafacb5: Swapping attacker and defender in the simulator and back again now restores the modifiers you had set.
+
 ## 0.238.1 (2026-11-13)
 
 ### Patch Changes
