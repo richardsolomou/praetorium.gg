@@ -19,3 +19,13 @@ export function isFetchNetworkFailure(error: unknown): boolean {
   const message = typeErrorMessage(error)
   return message !== null && !isModuleLoadFailure(error) && FETCH_NETWORK_FAILURES.some((phrase) => message.includes(phrase))
 }
+
+/** A response the server answered with an error status, kept so failure reports can say which. */
+export class HttpStatusError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
+    super(message)
+  }
+}
