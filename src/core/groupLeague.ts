@@ -64,9 +64,14 @@ export function leagueFixtureStatus(
   return fixture.battle ? 'playing' : 'open'
 }
 
+/** A game its two players still have to finish. */
+export function leagueFixtureUnfinished(status: LeagueFixtureStatus) {
+  return status === 'open' || status === 'playing'
+}
+
 /** A game still to finish once its round's deadline has passed. */
 export function leagueFixtureOverdue(status: LeagueFixtureStatus, deadline: number | null, now: number) {
-  return deadline !== null && now >= deadline && (status === 'open' || status === 'playing')
+  return deadline !== null && now >= deadline && leagueFixtureUnfinished(status)
 }
 
 /** How long before a round's deadline its players with a game still to finish are reminded. */

@@ -97,6 +97,7 @@ import {
   leagueDeadlineReminderDue,
   leagueDraw,
   leagueFixtureStatus,
+  leagueFixtureUnfinished,
 } from '../../src/core/groupLeague'
 import { admitConnection, authConfiguration } from './admission'
 import {
@@ -761,7 +762,8 @@ function openFixture(
   return { fixture, league }
 }
 
-const leagueDeadlines = (league: LeagueRow) => (league.deadlines === undefined ? [] : (JSON.parse(league.deadlines) as (number | null)[]))
+const leagueRounds = (json: string | undefined) => (json === undefined ? [] : (JSON.parse(json) as (number | null)[]))
+const leagueDeadlines = (league: LeagueRow) => leagueRounds(league.deadlines)
 
 /** A group's league as every reader sees it; a draft's fixtures are drawn from its seed by whoever reads it. */
 function leagueRecord(ctx: Context, groupId: string) {
@@ -4962,33 +4964,26 @@ export const claimLeagueDeadlineReminders = spacetime.procedure({}, t.string(), 
     const now = safeNumber(nowMs(tx))
     const reminders: { groupToken: string; round: number; recipientIds: string[] }[] = []
     for (const league of Array.from(tx.db.groupLeagues.iter())) {
-      if (league.publishedAt === undefined) continue
+      if (league.publishedAt === undefined || league.deadlines === undefined) continue
       const deadlines = leagueDeadlines(league)
-      const reminded = league.remindedDeadlines === undefined ? [] : (JSON.parse(league.remindedDeadlines) as (number | null)[])
-      const due = deadlines.flatMap((deadline, index) =>
-        leagueDeadlineReminderDue(deadline, reminded[index] ?? null, now) ? [index + 1] : [],
-      )
+      const reminded = leagueRounds(league.remindedDeadlines)
+      const due = deadlines.map((deadline, index) => leagueDeadlineReminderDue(deadline, reminded[index] ?? null, now))
+      if (!due.includes(true)) continue
       const group = tx.db.groups.id.find(league.groupId)
-      if (!due.length || !group) continue
+      if (!group) continue
       const playing = new Set(leaguePlayers(tx, league.id).flatMap((row) => (row.withdrawn ? [] : [row.userId])))
-      const fixtures = roundPairings(tx, league.id)
-      for (const round of due) {
-        const recipientIds = fixtures.flatMap((fixture) => {
-          if (fixture.round !== round) return []
-          const battle =
-            fixture.battleId !== undefined && tx.db.battles.id.find(fixture.battleId)
-              ? ({ status: finishedAt(tx, fixture.battleId) === null ? 'playing' : 'finished' } as const)
-              : null
-          const status = leagueFixtureStatus({ aId: fixture.aId, bId: fixture.bId ?? null, battle }, (userId) => playing.has(userId))
-          return status === 'open' || status === 'playing' ? [fixture.aId, fixture.bId!] : []
-        })
-        if (recipientIds.length) reminders.push({ groupToken: group.token, round, recipientIds })
+      const recipients = new Map<number, string[]>()
+      for (const fixture of roundPairings(tx, league.id)) {
+        if (!due[fixture.round - 1]) continue
+        const battle = fixture.battleId === undefined ? null : ({ status: pairingFinished(tx, fixture) ? 'finished' : 'playing' } as const)
+        const status = leagueFixtureStatus({ aId: fixture.aId, bId: fixture.bId ?? null, battle }, (userId) => playing.has(userId))
+        if (leagueFixtureUnfinished(status))
+          recipients.set(fixture.round, [...(recipients.get(fixture.round) ?? []), fixture.aId, fixture.bId!])
       }
+      for (const [round, recipientIds] of recipients) reminders.push({ groupToken: group.token, round, recipientIds })
       tx.db.groupLeagues.id.update({
         ...league,
-        remindedDeadlines: JSON.stringify(
-          deadlines.map((deadline, index) => (due.includes(index + 1) ? deadline : (reminded[index] ?? null))),
-        ),
+        remindedDeadlines: JSON.stringify(deadlines.map((deadline, index) => (due[index] ? deadline : (reminded[index] ?? null)))),
       })
     }
     return productJson(reminders)
