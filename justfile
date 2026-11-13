@@ -78,6 +78,10 @@ test-integration *args:
 test-spacetime:
     pnpm test:spacetime
 
+# Time a busy round's end, every table reporting while every player reads the standings, against a throwaway SpacetimeDB
+load-test-round *args:
+    pnpm exec tsx scripts/loadTestRound.ts {{ args }}
+
 # Format, lint, database, catalogue pins, build, typecheck, all Vitest and Python tests
 check:
     pnpm check
