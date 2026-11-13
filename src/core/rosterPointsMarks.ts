@@ -9,7 +9,7 @@ import { remember } from './collections'
 export type RosterPointsMark = { rosterId: string; userId: string; updatedAt: number; points: number }
 export type StoredRosterPointsMark = RosterPointsMark & { revision: string }
 
-/** A page of marks the server stores in one transaction, one page of push recipients' lists. */
+/** The most marks one transaction stores. */
 export const ROSTER_POINTS_MARKS_MAX = 5_000
 
 export const rosterPointsMarksSchema = z

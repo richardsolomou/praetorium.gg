@@ -1,4 +1,5 @@
-import { rosterPointsChanges } from '../core/rosterPointsMarks'
+import { chunks } from '../core/collections'
+import { ROSTER_POINTS_MARKS_MAX, rosterPointsChanges } from '../core/rosterPointsMarks'
 import { NAMED_ROSTERS, type Notice } from '../core/notifications'
 import { app } from './app'
 import type { Notifier } from './pushNotifier'
@@ -33,10 +34,14 @@ export async function noticeRosterPointsChanges(
       if (points === null) return []
       return [{ rosterId: roster.id, userId: roster.userId, updatedAt: roster.updatedAt, points, name: roster.name || 'Unnamed roster' }]
     })
-    const previous = await repository.replaceRosterPointsMarks(
-      revision,
-      priced.map(({ name: _name, ...mark }) => mark),
-    )
+    const previous = []
+    for (const part of chunks(priced, ROSTER_POINTS_MARKS_MAX))
+      previous.push(
+        ...(await repository.replaceRosterPointsMarks(
+          revision,
+          part.map(({ name: _name, ...mark }) => mark),
+        )),
+      )
     notifier.notify(
       [...rosterPointsChanges(previous, priced, revision)].map(([userId, changed]): Notice => ({
         kind: 'roster-points-changed',
