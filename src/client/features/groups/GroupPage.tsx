@@ -216,7 +216,7 @@ function GroupScreen({
       <PageContent>
         {/* On a phone what's waiting on the reader leads and the members close the page; on a desktop both sit beside it. */}
         <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_18rem] lg:grid-rows-[auto_1fr]">
-          <div className="min-w-0 lg:col-start-2 lg:row-start-1">
+          <div className="min-w-0 empty:hidden lg:col-start-2 lg:row-start-1">
             {member && viewerId ? (
               <GroupNext
                 group={group}
@@ -546,7 +546,7 @@ function CurrentGames({
 
 /**
  * The one thing waiting on the reader across the whole group, in the order it holds them up: a battle they're in the
- * middle of, a list to seal, revealed lists to play, then their next league fixture.
+ * middle of, a list to seal, revealed lists to play, then their next league fixture; nothing when nothing is.
  */
 function GroupNext({
   group,
@@ -590,7 +590,7 @@ function GroupNext({
     </Button>
   )
 
-  let next: { context?: string; title: string; detail: string; action?: ReactNode }
+  let next: { context?: string; title: string; detail: string; action: ReactNode }
   if (battle) {
     const side = battle.sides[battle.playerIds.indexOf(viewerId)]
     const allies = battle.players.filter((_, index) => battle.playerIds[index] !== viewerId && battle.sides[index] === side)
@@ -648,12 +648,7 @@ function GroupNext({
       detail: 'Everyone who joins before it’s published plays every other player once.',
       action: goTo('league', undefined, 'See the league'),
     }
-  } else {
-    next = {
-      title: 'Nothing waiting on you',
-      detail: 'Play another member with New game. Every game you play for the group counts on the leaderboard.',
-    }
-  }
+  } else return null
   return (
     <section data-group-next aria-labelledby="group-next" className="part">
       <div className="space-y-3 p-4 sm:p-5">
