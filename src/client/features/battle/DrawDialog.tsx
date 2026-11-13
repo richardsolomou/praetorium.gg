@@ -8,7 +8,7 @@ import { type Side, sideName } from '../../sides'
 import type { WhenDrawn } from '../../../contracts/missions'
 import { redrawOffer } from './drawOffer'
 import { MissionDetailsDialog, MissionName, type MissionDetails, type ReferenceCard } from './MissionCards'
-import { CARD } from './battleTints'
+import { CARD, tint } from './battleTints'
 import { UndoLatest, type UndoTarget } from './UndoLatest'
 import { BattleDialogContent, BattlePromptDialog } from './BattlePromptDialog'
 import { countLabel } from '../../text'
@@ -48,6 +48,7 @@ export function DrawDialog({
   initialSelection,
   onSelectionChange,
 }: Props) {
+  const colours = tint(side.index)
   const held = side.secondaries.filter((card) => card.status === 'active')
   useSourceTexts(held.map((card) => publishedWhenDrawn(card.key)?.condition))
   // The condition is the card's own words, so it reads as those once they load and is named generically until then.
@@ -166,9 +167,9 @@ export function DrawDialog({
   return (
     <>
       <BattlePromptDialog open minimizedLabel={`Secondary missions · ${sideName(side)}`}>
-        <BattleDialogContent showCloseButton={false} minimizeDisabled={pending || (!paused && needsDraw)} className="border-discarded/60">
+        <BattleDialogContent showCloseButton={false} minimizeDisabled={pending || (!paused && needsDraw)} className={colours.border}>
           <DialogHeader>
-            <DialogTitle className="text-discarded">
+            <DialogTitle className={colours.text}>
               {side.isViewer ? 'Your secondary missions' : `${sideName(side)}’s secondary missions`}
             </DialogTitle>
             <DialogDescription>
@@ -192,7 +193,7 @@ export function DrawDialog({
                     return (
                       <li
                         key={card.key}
-                        className={`flex items-center justify-between gap-2 rounded-md px-2.5 py-1.5 ${chosen ? 'bg-parchment/10' : 'bg-sunken'}`}
+                        className={`flex items-center justify-between gap-2 rounded-md px-2.5 py-1.5 ${chosen ? colours.mark : 'bg-sunken'}`}
                       >
                         {cardName(card)}
                         <Button
@@ -200,7 +201,7 @@ export function DrawDialog({
                           size="xs"
                           aria-pressed={chosen}
                           aria-label={`${chosen ? 'Remove' : 'Select'} ${card.name}`}
-                          className={`shrink-0 ${chosen ? 'border-parchment text-parchment' : ''}`}
+                          className={`shrink-0 ${chosen ? colours.text : ''}`}
                           disabled={pending || (!chosen && selected.length >= owed)}
                           onClick={() => toggleSelected(card.key)}
                         >
@@ -255,7 +256,7 @@ export function DrawDialog({
                 ))}
               </>
             ) : null}
-            {!selecting && !paused && needsDraw ? <p className="text-sm text-discarded">Drawing…</p> : null}
+            {!selecting && !paused && needsDraw ? <p className={`text-sm ${colours.text}`}>Drawing…</p> : null}
           </DialogBody>
           <DialogFooter>
             <UndoLatest undo={undo} send={send} pending={pending} beforeUndo={resetForUndo} />

@@ -4,6 +4,7 @@ import { type Side, sideName } from '../../sides'
 import type { Command } from '../../../core/battle'
 import { UndoLatest, type UndoTarget } from './UndoLatest'
 import { BattleDialogContent, BattlePromptDialog } from './BattlePromptDialog'
+import { tint } from './battleTints'
 
 type Props = {
   side: Side
@@ -15,11 +16,12 @@ type Props = {
 }
 
 export function SecretMissionHandoff({ side, pending, onReveal, onCancel, undo, send }: Props) {
+  const colours = tint(side.index)
   return (
     <BattlePromptDialog open minimizedLabel={`Secret Mission · ${sideName(side)}`} onOpenChange={(open) => !open && onCancel?.()}>
-      <BattleDialogContent showCloseButton={Boolean(onCancel)} minimizeDisabled={pending}>
+      <BattleDialogContent showCloseButton={Boolean(onCancel)} minimizeDisabled={pending} className={colours.border}>
         <DialogHeader>
-          <DialogTitle>Secret Mission action · {sideName(side)}</DialogTitle>
+          <DialogTitle className={colours.text}>Secret Mission action · {sideName(side)}</DialogTitle>
           <DialogDescription>
             {side.played
               ? 'Reveal the face-down mission to continue.'

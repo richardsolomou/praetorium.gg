@@ -12,7 +12,7 @@ import type { Side } from '../../sides'
 import { hiddenNow, stratagemVisibleNow } from './stratagemVisibility'
 import { RuleText } from '../../components/RuleText'
 import type { StratagemText } from './MissionCards'
-import { CARD, CARD_NAME, CARD_NAME_LINK } from './battleTints'
+import { CARD, CARD_NAME, CARD_NAME_LINK, tint } from './battleTints'
 import { asSentence } from '../../text'
 import { DropdownMenuItem } from '../../components/Menu'
 
@@ -200,10 +200,10 @@ function StratagemCard({
         minimizedLabel="New Orders"
         resumeLabel="Return to New Orders"
       >
-        <BattleDialogContent className="border-parchment/60">
+        <BattleDialogContent className={tint(side.index).border}>
           <DialogHeader>
             <div className="flex items-center justify-between gap-3">
-              <DialogTitle className="text-parchment">New Orders</DialogTitle>
+              <DialogTitle className={tint(side.index).text}>New Orders</DialogTitle>
               <span className="chip shrink-0">{newOrdersCost ?? stratagem.cp} CP</span>
             </div>
             <DialogDescription>Pick an active secondary mission to discard. Its replacement will be drawn at random.</DialogDescription>
