@@ -20,6 +20,9 @@ export function isFetchNetworkFailure(error: unknown): boolean {
   return message !== null && !isModuleLoadFailure(error) && FETCH_NETWORK_FAILURES.some((phrase) => message.includes(phrase))
 }
 
+/** What a player reads when a request lost its connection, in place of the engine's own wording. */
+export const CONNECTION_LOST_MESSAGE = 'Your connection dropped. Try again when you are back online.'
+
 /** A response the server answered with an error status, kept so failure reports can say which. */
 export class HttpStatusError extends Error {
   constructor(

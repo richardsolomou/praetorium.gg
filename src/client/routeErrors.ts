@@ -2,7 +2,7 @@ import { CancelledError } from '@tanstack/react-query'
 import { posthog } from 'posthog-js'
 import { version } from '../../package.json'
 import { captureWhenLoaded } from '../posthog'
-import { isFetchNetworkFailure, isModuleLoadFailure } from './networkErrors'
+import { CONNECTION_LOST_MESSAGE, isFetchNetworkFailure, isModuleLoadFailure } from './networkErrors'
 import { OfflineRefusal } from './offline/offlineRefusal'
 import { newerRelease } from './releaseUpdate'
 import { readSessionValue, writeSessionValue } from './storedValue'
@@ -32,6 +32,7 @@ export function mayReloadCancelledLoad(now = Date.now()) {
 /** What a route error page tells the reader: its message when written for people, never a raw payload or markup. */
 export function routeErrorExplanation(error: unknown) {
   if (isModuleLoadFailure(error)) return 'Part of this page could not load. Check your connection, then reload to try again.'
+  if (isFetchNetworkFailure(error)) return CONNECTION_LOST_MESSAGE
   const message = error instanceof Error ? error.message.trim() : ''
   if (message && message.length <= 200 && !/^[[{<]/.test(message)) return message
   return 'This page could not load. Try again.'

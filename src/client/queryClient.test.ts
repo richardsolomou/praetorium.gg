@@ -2,7 +2,7 @@ import { afterEach, expect, it, vi } from 'vitest'
 import { createQueryClient, errorMessage } from './queryClient'
 import { writeAppSnapshot } from './offline/appStorage'
 import { SIGN_IN_REQUIRED } from '../core/session'
-import { HttpStatusError } from './networkErrors'
+import { CONNECTION_LOST_MESSAGE, HttpStatusError } from './networkErrors'
 
 const capture = vi.hoisted(() => vi.fn())
 vi.mock('posthog-js', () => ({ posthog: { capture } }))
@@ -100,4 +100,8 @@ it('does not count a read refused for a lapsed session', async () => {
 
 it('says a timed-out request took too long instead of quoting the browser', () => {
   expect(errorMessage(new DOMException('signal timed out', 'TimeoutError'))).toBe('That took too long. Try again.')
+})
+
+it.each(['Failed to fetch', 'Load failed'])('says the connection dropped instead of quoting the browser: %s', (message) => {
+  expect(errorMessage(new TypeError(message))).toBe(CONNECTION_LOST_MESSAGE)
 })
