@@ -522,6 +522,15 @@ export const RosterLoans = __t.object('RosterLoans', {
 })
 export type RosterLoans = __Infer<typeof RosterLoans>
 
+export const RosterPointsMarks = __t.object('RosterPointsMarks', {
+  rosterId: __t.string(),
+  userId: __t.string(),
+  revision: __t.string(),
+  updatedAt: __t.u64(),
+  points: __t.u32(),
+})
+export type RosterPointsMarks = __Infer<typeof RosterPointsMarks>
+
 export const RosterSync = __t.object('RosterSync', {
   id: __t.string(),
   userId: __t.string(),
