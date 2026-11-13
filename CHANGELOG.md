@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.235.1 (2026-11-13)
+
+### Patch Changes
+
+- cefccee: Search reads what units' abilities do only while online, and the roster builder's unit picker no longer matches it.
+
 ## 0.235.0 (2026-11-13)
 
 ### Minor Changes
