@@ -50,7 +50,21 @@ export function CombatBuffControls({ side, combatant, opponent }: { side: string
         : []
     })
   })
-  const rules = combatant.allRules.filter((rule) => combatRuleAppliesTo(rule, role, opposingKeywords))
+  const rules = combatant.allRules
+    .filter((rule) => combatRuleAppliesTo(rule, role, opposingKeywords))
+    .map((rule) => ({
+      rule,
+      choices: combatRuleChoices(rule)
+        .map((choice, index) => ({ ...choice, value: index + 1 }))
+        .filter((choice) => choice.effects.some((effect) => combatEffectAppliesTo(effect, role, opposingKeywords))),
+    }))
+  // Rules that only change a profile need no switch, so they sit apart from the ones a player turns on.
+  const ruleGroups = [
+    ['Abilities', rules.filter(({ rule, choices }) => choices.length && !['detachment', 'stratagem'].includes(rule.scope))],
+    ['Detachment', rules.filter(({ rule, choices }) => choices.length && rule.scope === 'detachment')],
+    ['Stratagems', rules.filter(({ rule, choices }) => choices.length && rule.scope === 'stratagem')],
+    ['Stats applied', rules.filter(({ choices }) => !choices.length)],
+  ] as const
   // Rules compile from their words, so unloaded ones are absent from the list above rather than off.
   const missingText = missingRuleText(combatant.sheets.data)
   return (
@@ -86,57 +100,61 @@ export function CombatBuffControls({ side, combatant, opponent }: { side: string
             />
           </div>
         ))}
-        {rules.map((rule, position) => {
-          const choices = combatRuleChoices(rule)
-            .map((choice, index) => ({ ...choice, value: index + 1 }))
-            .filter((choice) => choice.effects.some((effect) => combatEffectAppliesTo(effect, role, opposingKeywords)))
-          const selected = combatant.ruleSelections[rule.id] ?? combatRuleDefault(rule)
-          const labelContent = (
-            <CombatRuleLabel
-              side={side}
-              name={rule.name}
-              description={rule.description}
-              rules={combatant.sheets.data?.selected?.keywordRules}
-            />
-          )
-          return (
-            <div key={rule.id} className={`space-y-2 ${position || enhancements.length ? 'border-t border-edge pt-3' : ''}`}>
-              {choices.length === 1 ? (
-                <Toggle
-                  label={rule.name}
-                  labelContent={labelContent}
-                  ariaLabel={`${side} ${rule.name}`}
-                  checked={selected === choices[0]!.value}
-                  onChange={(checked) => combatant.selectRule(rule.id, checked ? choices[0]!.value : 0)}
-                />
-              ) : choices.length ? (
-                <Choice
-                  label={rule.name}
-                  labelContent={labelContent}
-                  ariaLabel={`${side} ${rule.name}`}
-                  value={String(selected)}
-                  onChange={(value) => combatant.selectRule(rule.id, Number(value))}
-                  choices={[['0', 'Off'], ...choices.map((choice) => [String(choice.value), choice.label] as const)]}
-                />
-              ) : (
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <h4 className="text-sm font-semibold">{labelContent}</h4>
-                  <span className="text-xs text-faint">Stats applied</span>
-                </div>
-              )}
-              <p className="text-xs text-faint">
-                {rule.source}
-                {choices.length === 1 && choices[0]!.label !== 'Active'
-                  ? ` · ${choices[0]!.label}`
-                  : rule.scope === 'nearby'
-                    ? ' · Check range'
-                    : rule.scope === 'attached'
-                      ? ' · Attached'
-                      : ''}
-              </p>
-            </div>
-          )
-        })}
+        {ruleGroups.map(([title, group]) =>
+          group.length ? (
+            <section key={title} aria-label={`${side} ${title.toLowerCase()}`} className="space-y-2 border-t border-edge pt-3">
+              <h4 className="eyebrow text-faint">{title}</h4>
+              {group.map(({ rule, choices }) => {
+                const selected = combatant.ruleSelections[rule.id] ?? combatRuleDefault(rule)
+                const labelContent = (
+                  <CombatRuleLabel
+                    side={side}
+                    name={rule.name}
+                    description={rule.description}
+                    rules={combatant.sheets.data?.selected?.keywordRules}
+                  />
+                )
+                const note = [
+                  rule.source,
+                  choices.length === 1 && choices[0]!.label !== 'Active'
+                    ? choices[0]!.label
+                    : rule.scope === 'nearby'
+                      ? 'Check range'
+                      : rule.scope === 'attached'
+                        ? 'Attached'
+                        : '',
+                ]
+                  .filter(Boolean)
+                  .join(' · ')
+                return (
+                  <div key={rule.id} className="min-w-0 space-y-0.5">
+                    {choices.length === 1 ? (
+                      <Toggle
+                        label={rule.name}
+                        labelContent={labelContent}
+                        ariaLabel={`${side} ${rule.name}`}
+                        checked={selected === choices[0]!.value}
+                        onChange={(checked) => combatant.selectRule(rule.id, checked ? choices[0]!.value : 0)}
+                      />
+                    ) : choices.length ? (
+                      <Choice
+                        label={rule.name}
+                        labelContent={labelContent}
+                        ariaLabel={`${side} ${rule.name}`}
+                        value={String(selected)}
+                        onChange={(value) => combatant.selectRule(rule.id, Number(value))}
+                        choices={[['0', 'Off'], ...choices.map((choice) => [String(choice.value), choice.label] as const)]}
+                      />
+                    ) : (
+                      <span className="text-sm">{labelContent}</span>
+                    )}
+                    {note ? <p className={`text-xs text-faint ${choices.length === 1 ? 'pl-11' : ''}`}>{note}</p> : null}
+                  </div>
+                )
+              })}
+            </section>
+          ) : null,
+        )}
         {combatant.sheets.isError ? (
           <Problem>
             Buffs could not load.{' '}

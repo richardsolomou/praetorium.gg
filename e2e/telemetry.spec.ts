@@ -488,7 +488,7 @@ test('example and recent matchup entry actions are attributed without their cont
   const events = await recordEvents(page)
   await page.getByRole('button', { name: 'Try an example', exact: true }).click()
   const recent = page.getByRole('region', { name: 'Recent simulations', exact: true })
-  const link = recent.getByRole('link', { name: 'Intercessor Squad vs Necron Warriors', exact: true })
+  const link = recent.getByRole('link', { name: 'Intercessor Squad + Captain + Lieutenant vs Lychguard + Overlord', exact: true })
   await expect(link).toBeVisible()
   await link.click()
   await page.getByRole('link', { name: 'Praetorium', exact: true }).click()

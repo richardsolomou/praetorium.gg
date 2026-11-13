@@ -1,10 +1,10 @@
-Switch on what's in effect in **Rules & buffs**, add anything else in **Manual modifiers**, then check **Calculation uses** to see what was counted.
+Switch on what's in effect in **Rules & buffs**, add anything else in **Manual modifiers**, then check **Calculation uses** to see what was counted. Both sections start open on a tablet or computer and closed on a phone.
 
 ## Rules & buffs
 
-This lists the rules on each side the simulator can calculate for this matchup, including those from attached units, enhancements and the detachment.
+This lists the rules on each side the simulator can calculate for this matchup, including those from attached units, enhancements and the detachment. Each side groups them under **Abilities**, **Detachment** and **Stratagems**, with the source and any condition under each rule's name.
 
-Always-on effects that only change a profile show **Stats applied**. Anything that depends on the table, like a target, a range, a stratagem or a once-per-battle ability, starts off. Switch it on when it's actually in effect.
+Always-on effects that only change a profile sit under **Stats applied**. Anything that depends on the table, like a target, a range, a stratagem or a once-per-battle ability, starts off. Switch it on when it's actually in effect.
 
 A rule marked **Check range** is an aura, so confirm the distance yourself.
 
@@ -12,14 +12,19 @@ A rule marked **Check range** is an aura, so confirm the distance yourself.
 
 Choose **All**, **Shooting** or **Melee**, then pick from these. A phase tab overrides **All**.
 
-- **Rolls**: hit and wound modifiers, re-rolls and critical thresholds.
+Values you count up or down, like a hit modifier or a Feel No Pain roll, are steppers: press **−** or **+**, tap the value to pick one directly, or tap the name to put the unit's own value back.
+
+- **Rolls**: hit and wound modifiers, and the rolls that score Critical Hits and Critical Wounds.
+- **Re-rolls**: re-roll 1s or every failed roll, to hit and to wound.
 - **Command Re-roll**: the stratagem, once in that phase, on a hit, wound, save or Attacks roll.
-- **Stats**: BS or WS, S, A, AP and D.
+- **Stats**: A, BS or WS, S, AP and D, from −6 to +6. The weapon cards show the changed values.
 - **Abilities**: Sustained Hits, Lethal Hits, Devastating Wounds and damage re-rolls.
 - **Situation**: **Cover (−1 BS)**, **Half range**, **Charged**, plus indirect fire and **Decline Lethal Hits** when a weapon has them. Conversion weapons score Critical Hits on 4+ unless **Half range** is on.
-- **Defender**: T and Sv changes, an invulnerable save, Feel No Pain, save re-rolls, **−1 Damage** and **Half damage**.
+- **Defender**: T and Sv, an invulnerable save, Feel No Pain, save re-rolls, **−1 Damage** and **Half damage**.
 
-A dimmed chip wouldn't change anything. Hover it to see why. **Reset** clears every modifier and weapon choice.
+A dimmed chip, or a stepper with a dashed border, wouldn't change anything. Hover it to see why. **Reset** clears every modifier and weapon choice.
+
+Modifiers stay on when you change either unit, so you can check one situation against several targets. Weapons you switched off stay off while the attacker is the same. Swapping attacker and defender clears the modifiers, since the roles change.
 
 ![Manual modifiers on the Shooting tab with Cover selected.](screenshot:compare-loadouts-modifiers 'The All, Shooting and Melee tabs choose which attacks a modifier affects')
 
