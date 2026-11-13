@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.232.7 (2026-11-13)
+
+### Patch Changes
+
+- ae07278: Ability, wargear, and enhancement text loads again for devices that had not loaded it before.
+
 ## 0.232.6 (2026-11-12)
 
 ### Patch Changes
