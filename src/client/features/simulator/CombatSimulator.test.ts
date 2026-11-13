@@ -174,3 +174,11 @@ it('starts a swapped matchup without the previous modifiers', () => {
   first.onSettingsChange!(settings)
   expect(swap(first).initialSettings?.adjustments).toEqual({})
 })
+
+it('restores the first direction’s modifiers when swapped back', () => {
+  const first = render()
+  first.onSettingsChange!(settings)
+  const swapped = swap(first)
+  swapped.onSettingsChange!({ ...settings, adjustments: {} })
+  expect(swap(swapped).initialSettings?.adjustments).toEqual(settings.adjustments)
+})

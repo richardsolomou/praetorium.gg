@@ -24,7 +24,7 @@ Values you count up or down, like a hit modifier or a Feel No Pain roll, are ste
 
 A dimmed chip, or a stepper with a dashed border, wouldn't change anything. Hover it to see why. **Reset** clears every modifier and weapon choice.
 
-Modifiers stay on when you change either unit, so you can check one situation against several targets. Weapons you switched off stay off while the attacker is the same. Swapping attacker and defender clears the modifiers, since the roles change.
+Modifiers stay on when you change either unit, so you can check one situation against several targets. Weapons you switched off stay off while the attacker is the same. Swapping attacker and defender starts the other direction with its own modifiers, since the roles change, and swapping back brings yours back.
 
 ![Manual modifiers on the Shooting tab with Cover selected.](screenshot:compare-loadouts-modifiers 'The All, Shooting and Melee tabs choose which attacks a modifier affects')
 
