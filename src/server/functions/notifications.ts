@@ -2,18 +2,19 @@ import { createServerFn } from '@tanstack/react-start'
 import { getRequest } from '@tanstack/react-start/server'
 import { app } from '../app'
 import { forSignedIn, requireUserId } from '../playerSession'
-import { registerPushDeviceRequest, unregisterPushDeviceRequest } from '../pushDevices'
+import { registerPushDeviceRequest, registerWebPushRequest, unregisterPushDeviceRequest, unregisterWebPushRequest } from '../pushDevices'
 import { mutationRpc, rpc } from '../rpc'
 import { captureMutation } from '../mutationTelemetry'
-import { pushDeviceSchema, pushTokenOnlySchema } from '../../contracts/schemas'
+import { pushDeviceSchema, pushTokenOnlySchema, webPushEndpointSchema } from '../../contracts/schemas'
 import { NOTICES_PER_USER } from '../../core/notificationConfig'
 import { z } from 'zod'
+import { webPushSubscriptionSchema } from '../../core/notifications'
 
-/** Whether this instance sends notifications. */
+/** Whether this instance sends notifications to the app, and the key a browser subscribes with when it sends them there too. */
 export const notificationSettings = createServerFn({ method: 'GET' }).handler(() =>
   rpc(async () => {
     await requireUserId()
-    return { available: app().push }
+    return { available: app().push, webPushKey: app().webPushKey }
   }),
 )
 
@@ -41,3 +42,11 @@ export const markNoticesRead = createServerFn({ method: 'POST' })
       return moved
     }),
   )
+
+export const registerWebPush = createServerFn({ method: 'POST' })
+  .validator(webPushSubscriptionSchema)
+  .handler(({ data }) => registerWebPushRequest(getRequest(), data))
+
+export const unregisterWebPush = createServerFn({ method: 'POST' })
+  .validator(webPushEndpointSchema)
+  .handler(({ data }) => unregisterWebPushRequest(getRequest(), data.endpoint))

@@ -43,11 +43,13 @@ import DeleteAbilityReminderReducer from './delete_ability_reminder_reducer'
 import DeletePushTokensReducer from './delete_push_tokens_reducer'
 import DeleteRosterReducer from './delete_roster_reducer'
 import DeleteUserDataReducer from './delete_user_data_reducer'
+import DeleteWebPushSubscriptionsReducer from './delete_web_push_subscriptions_reducer'
 import ForgetMatchupReducer from './forget_matchup_reducer'
 import KeepCollectionPhotoReducer from './keep_collection_photo_reducer'
 import QueueCollectionPhotoDeletionReducer from './queue_collection_photo_deletion_reducer'
 import RegisterPracticeOpponentReducer from './register_practice_opponent_reducer'
 import RegisterPushTokenReducer from './register_push_token_reducer'
+import RegisterWebPushSubscriptionReducer from './register_web_push_subscription_reducer'
 import RememberMatchupReducer from './remember_matchup_reducer'
 import RemoveCollectionPhotoReducer from './remove_collection_photo_reducer'
 import RemoveCollectionPhotoByIdReducer from './remove_collection_photo_by_id_reducer'
@@ -67,6 +69,7 @@ import SetCollectionPhotoLikeReducer from './set_collection_photo_like_reducer'
 import SetCollectionProgressReducer from './set_collection_progress_reducer'
 import SetCollectionWantedReducer from './set_collection_wanted_reducer'
 import UnregisterPushTokenReducer from './unregister_push_token_reducer'
+import UnregisterWebPushSubscriptionReducer from './unregister_web_push_subscription_reducer'
 import UnwatchBattleReducer from './unwatch_battle_reducer'
 import WatchBattleReducer from './watch_battle_reducer'
 
@@ -199,6 +202,7 @@ import * as SyncRosterProcedure from './sync_roster_procedure'
 import * as UnitLoadoutsByUserProcedure from './unit_loadouts_by_user_procedure'
 import * as UpdateOnboardingProcedure from './update_onboarding_procedure'
 import * as UsableRosterProcedure from './usable_roster_procedure'
+import * as WebPushTargetsProcedure from './web_push_targets_procedure'
 
 // Import all table schema definitions
 import MyAdminSignalsRow from './my_admin_signals_table'
@@ -264,11 +268,13 @@ const reducersSchema = __reducers(
   __reducerSchema('delete_push_tokens', DeletePushTokensReducer),
   __reducerSchema('delete_roster', DeleteRosterReducer),
   __reducerSchema('delete_user_data', DeleteUserDataReducer),
+  __reducerSchema('delete_web_push_subscriptions', DeleteWebPushSubscriptionsReducer),
   __reducerSchema('forget_matchup', ForgetMatchupReducer),
   __reducerSchema('keep_collection_photo', KeepCollectionPhotoReducer),
   __reducerSchema('queue_collection_photo_deletion', QueueCollectionPhotoDeletionReducer),
   __reducerSchema('register_practice_opponent', RegisterPracticeOpponentReducer),
   __reducerSchema('register_push_token', RegisterPushTokenReducer),
+  __reducerSchema('register_web_push_subscription', RegisterWebPushSubscriptionReducer),
   __reducerSchema('remember_matchup', RememberMatchupReducer),
   __reducerSchema('remove_collection_photo', RemoveCollectionPhotoReducer),
   __reducerSchema('remove_collection_photo_by_id', RemoveCollectionPhotoByIdReducer),
@@ -288,6 +294,7 @@ const reducersSchema = __reducers(
   __reducerSchema('set_collection_progress', SetCollectionProgressReducer),
   __reducerSchema('set_collection_wanted', SetCollectionWantedReducer),
   __reducerSchema('unregister_push_token', UnregisterPushTokenReducer),
+  __reducerSchema('unregister_web_push_subscription', UnregisterWebPushSubscriptionReducer),
   __reducerSchema('unwatch_battle', UnwatchBattleReducer),
   __reducerSchema('watch_battle', WatchBattleReducer),
 )
@@ -446,6 +453,7 @@ const proceduresSchema = __procedures(
   __procedureSchema('unit_loadouts_by_user', UnitLoadoutsByUserProcedure.params, UnitLoadoutsByUserProcedure.returnType),
   __procedureSchema('update_onboarding', UpdateOnboardingProcedure.params, UpdateOnboardingProcedure.returnType),
   __procedureSchema('usable_roster', UsableRosterProcedure.params, UsableRosterProcedure.returnType),
+  __procedureSchema('web_push_targets', WebPushTargetsProcedure.params, WebPushTargetsProcedure.returnType),
 )
 
 /** The remote SpacetimeDB module schema, both runtime and type information. */

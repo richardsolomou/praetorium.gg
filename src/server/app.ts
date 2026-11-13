@@ -30,6 +30,7 @@ import { profileUpdate } from './profile'
 import { PraetoriumService } from './service'
 import { emailDelivery } from '../adapters/email'
 import { pushSenderFromEnvironment } from '../adapters/push'
+import { webPushSenderFromEnvironment } from '../adapters/webPush'
 import { pushNotifier, silentNotifier, storingNotifier } from './pushNotifier'
 import { productionCatalogueRuntime } from './catalogueRuntime'
 import { referenceCatalogue } from './canonicalCatalogue'
@@ -91,6 +92,8 @@ export type App = {
   email: ReturnType<typeof emailDelivery>
   /** Whether this instance sends push notifications; nothing else depends on it. */
   push: boolean
+  /** The VAPID public key browsers subscribe with, or null when this instance sends no browser notifications. */
+  webPushKey: string | null
   telemetry: ReturnType<typeof serverTelemetry>
   /** Mirrors GitHub's sponsor list into auth storage; a no-op without `GITHUB_SPONSORS_TOKEN`. */
   githubSponsors: GithubSponsorRefresh
@@ -367,6 +370,7 @@ export function app(): App {
       accounts.replaceGithubSponsors(sponsors),
     )
     const push = pushSenderFromEnvironment((tokens) => repository.deletePushTokens(tokens))
+    const webPush = webPushSenderFromEnvironment((endpoints) => repository.deleteWebPushSubscriptions(endpoints))
     const collectionPhotos = collectionPhotoStore(repository, () => privateObjects())
     const screening = process.env.TYPESAFE_API_KEY?.trim() ? photoScreening(process.env.TYPESAFE_API_KEY.trim()) : null
     const startup = readiness((untilBuilt) => warm(instance, untilBuilt))
@@ -407,7 +411,7 @@ export function app(): App {
         repository,
         Date.now,
         randomInt,
-        storingNotifier(repository, push ? pushNotifier(repository, push) : silentNotifier),
+        storingNotifier(repository, push || webPush ? pushNotifier(repository, { app: push, web: webPush }) : silentNotifier),
         () => instance.battleFactionsFor(),
       ),
       auth,
@@ -424,6 +428,7 @@ export function app(): App {
       photoScreening: screening,
       ...catalogueFields(() => instance, loaded),
       push: Boolean(push),
+      webPushKey: webPush?.publicKey ?? null,
       sync: () => sync.state,
       telemetry,
       githubSponsors,

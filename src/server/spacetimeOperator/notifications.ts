@@ -1,9 +1,10 @@
 import { z } from 'zod'
 import type { PushPlatform } from '../../core/notificationConfig'
-import { type Notice, noticeSubjectSchema } from '../../core/notifications'
+import { type Notice, noticeSubjectSchema, type WebPushSubscription } from '../../core/notifications'
 import type { SpacetimeBase } from './client'
 
 const pushTarget = z.object({ userId: z.string(), token: z.string() })
+const webPushTarget = z.object({ userId: z.string(), endpoint: z.string(), p256dh: z.string(), auth: z.string() })
 const storedNotice = noticeSubjectSchema.and(
   z.object({
     id: z.string(),
@@ -39,6 +40,24 @@ export function withNotifications<B extends SpacetimeBase>(Base: B) {
     async pushTargets(userIds: readonly string[]) {
       if (!userIds.length) return []
       return this.read('push_targets', [[...new Set(userIds)]], z.array(pushTarget))
+    }
+
+    async registerWebPushSubscription(input: { userId: string; subscription: WebPushSubscription; now: number }) {
+      const { endpoint, p256dh, auth } = input.subscription
+      await this.call('register_web_push_subscription', [input.userId, endpoint, p256dh, auth, input.now])
+    }
+
+    async unregisterWebPushSubscription(userId: string, endpoint: string) {
+      await this.call('unregister_web_push_subscription', [userId, endpoint])
+    }
+
+    async deleteWebPushSubscriptions(endpoints: readonly string[]) {
+      if (endpoints.length) await this.call('delete_web_push_subscriptions', [[...new Set(endpoints)]])
+    }
+
+    async webPushTargets(userIds: readonly string[]) {
+      if (!userIds.length) return []
+      return this.read('web_push_targets', [[...new Set(userIds)]], z.array(webPushTarget))
     }
 
     /** Each notice's stored id by recipient, in the order given. */

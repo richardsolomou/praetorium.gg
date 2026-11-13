@@ -14,6 +14,7 @@ import { captureAuthFailure } from './authFailureReason'
 import { PlayerDefaultsSettings } from './PlayerDefaultsSettings'
 import { PlayerColourPicker } from './PlayerColourPicker'
 import { CalendarFeedSettings } from './CalendarFeedSettings'
+import { BrowserNotificationSettings } from './BrowserNotifications'
 import { PageContent, PageHeader } from '../../components/Page'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { SignInRequired } from '../../components/SignInRequired'
@@ -229,6 +230,7 @@ function ProfileForm({
               <div className="mt-4 space-y-6">
                 <PlayerDefaultsSettings />
                 <CalendarFeedSettings />
+                {me.impersonatedBy ? null : <BrowserNotificationSettings />}
               </div>
             </div>
           }

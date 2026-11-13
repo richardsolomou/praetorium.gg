@@ -20,6 +20,7 @@ import { clearSavedApp } from '../../offline/appStorage'
 import { reconcileAppAccount } from '../../offline/appSnapshot'
 import { setNativeAccountMenuOpen } from '../../nativeBridge'
 import { forgetThisDevice } from '../../pushNotifications'
+import { forgetThisBrowser } from '../../webPush'
 import { clearWatchBattle } from '../battle/useWatchBattle'
 import { meQuery } from '../../queries'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
@@ -44,7 +45,7 @@ function useAccountControls() {
       }
       const owner = me?.id
       // Forgotten while the session still exists, since the server only lets an account remove its own device.
-      await forgetThisDevice()
+      await Promise.all([forgetThisDevice(), forgetThisBrowser()])
       const result = await authClient.signOut()
       if (result.error) throw new Error('Sign-out failed. Your saved work is still on this device. Try again.')
       stopLocalRuntime()

@@ -377,6 +377,7 @@ async function readBack(repository: SpacetimeRepository, product: SpacetimeOpera
   await product.productStats(userIds)
   await product.pushTargets(userIds)
   await repository.claimLeagueDeadlineReminders()
+  await product.webPushTargets(userIds)
   await repository.practiceOpponents()
   await repository.publicBattles(page)
   await repository.discoverRosters(rosterDiscoveryQuerySchema.parse({ catalogueIds: null, detachmentIds: null, before: null, limit: 24 }))

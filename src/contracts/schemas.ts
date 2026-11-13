@@ -9,7 +9,7 @@ import { MAX_COLLECTION_DATASHEETS, MAX_COUNTS_AS } from '../core/collection'
 import { collectionCount, collectionModels } from './collection'
 import { PUSH_PLATFORMS } from '../core/notificationConfig'
 import { unitLoadoutNameSchema, unitLoadoutSchema } from '../core/unitLoadouts'
-import { pushTokenSchema } from '../core/notifications'
+import { pushTokenSchema, webPushSubscriptionSchema } from '../core/notifications'
 import {
   customPointsBudget,
   FORMAT_RULE_IDS,
@@ -319,6 +319,7 @@ export const listFilterPreferencesSchema = z.object({ scope: z.enum(LIST_FILTER_
 export const pushPreferenceSchema = z.object({ enabled: z.boolean() })
 export const pushDeviceSchema = z.object({ token: pushTokenSchema, platform: z.enum(PUSH_PLATFORMS) })
 export const pushTokenOnlySchema = z.object({ token: pushTokenSchema })
+export const webPushEndpointSchema = webPushSubscriptionSchema.pick({ endpoint: true })
 export const userSchema = z.object({ userId: id })
 export const playerSearchSchema = z.object({ query: z.string().trim().max(PLAYER_SEARCH_MAX_LENGTH) })
 export const friendSchema = z.object({ userId: id })

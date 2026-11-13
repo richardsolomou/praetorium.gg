@@ -42,6 +42,8 @@ export function nodeEnvironment(environment: NodeJS.ProcessEnv, target: 'staging
     'DISCORD_CLIENT_SECRET',
     'POSTHOG_EMAIL_API_KEY',
     'EXPO_PUSH_ACCESS_TOKEN',
+    'WEB_PUSH_PUBLIC_KEY',
+    'WEB_PUSH_PRIVATE_KEY',
     'POSTHOG_HOST',
     'POSTHOG_API_KEY',
     'POSTHOG_PROJECT_ID',

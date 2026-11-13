@@ -58,6 +58,28 @@ export const pushTokenSchema = z
   .max(256)
   .regex(/^Expo(?:nent)?PushToken\[[^[\]\s]+\]$/)
 
+/**
+ * The browser push services a subscription may name. The server posts to the endpoint
+ * a page hands it, so anything else would let a player point that post at any host.
+ */
+const PUSH_SERVICE_HOST =
+  /^(?:fcm\.googleapis\.com|(?:[a-z0-9-]+\.)*push\.services\.mozilla\.com|web\.push\.apple\.com|[a-z0-9-]+\.notify\.windows\.com)$/
+
+function isPushServiceUrl(endpoint: string) {
+  if (!URL.canParse(endpoint)) return false
+  const url = new URL(endpoint)
+  return url.protocol === 'https:' && !url.port && !url.username && !url.password && PUSH_SERVICE_HOST.test(url.hostname)
+}
+
+/** A browser's push subscription, with its keys as unpadded base64url. */
+export const webPushSubscriptionSchema = z.object({
+  endpoint: z.string().max(1024).refine(isPushServiceUrl, 'Not a browser push service'),
+  // A P-256 public key is 65 bytes and the authentication secret 16.
+  p256dh: z.string().regex(/^[\w-]{87}$/),
+  auth: z.string().regex(/^[\w-]{22}$/),
+})
+export type WebPushSubscription = z.infer<typeof webPushSubscriptionSchema>
+
 /** Who a notice is for: never the player who caused it. */
 export function noticeRecipients(notice: Notice): string[] {
   return [...new Set(notice.recipientIds)].filter((id) => id !== notice.actorId)

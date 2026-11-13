@@ -40,6 +40,7 @@ import { battleReport, type ReportEntry } from '../core/battleReport'
 import { battleClock, type BattleClock } from '../core/battleClock'
 import { battleLogThroughSeq, battleTimeline, type ReplayPoint } from '../core/battleReplay'
 import { compactReplayFrames } from '../core/replayFrames'
+import type { WebPushSubscription } from '../core/notifications'
 import { refuse } from '../core/battlePrimitives'
 import { REPLAY_BATCH_SIZE } from '../contracts/battles'
 import { type BattleMissionRules, type BattleReadRules, type LoadedRules } from './rules'
@@ -158,6 +159,10 @@ export class PraetoriumService {
 
   userById(id: string) {
     return this.repository.userById(id)
+  }
+
+  registerWebPushSubscription(userId: string, subscription: WebPushSubscription) {
+    return this.repository.registerWebPushSubscription({ userId, subscription, now: this.clock() })
   }
 
   async createBattle(userId: string, input?: string | CreateBattleInput) {

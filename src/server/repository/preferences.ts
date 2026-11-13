@@ -64,6 +64,22 @@ export function withPreferences<B extends RepositoryBase>(Base: B) {
       return this.product.pushTargets(...args)
     }
 
+    registerWebPushSubscription(...args: Parameters<SpacetimeOperator['registerWebPushSubscription']>) {
+      return this.product.registerWebPushSubscription(...args)
+    }
+
+    unregisterWebPushSubscription(...args: Parameters<SpacetimeOperator['unregisterWebPushSubscription']>) {
+      return this.product.unregisterWebPushSubscription(...args)
+    }
+
+    deleteWebPushSubscriptions(...args: Parameters<SpacetimeOperator['deleteWebPushSubscriptions']>) {
+      return this.product.deleteWebPushSubscriptions(...args)
+    }
+
+    webPushTargets(...args: Parameters<SpacetimeOperator['webPushTargets']>) {
+      return this.product.webPushTargets(...args)
+    }
+
     storeNotices(...args: Parameters<SpacetimeOperator['storeNotices']>) {
       return this.product.storeNotices(...args)
     }

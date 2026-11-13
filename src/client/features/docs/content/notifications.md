@@ -6,6 +6,16 @@ On a computer, the bell sits just right of your account picture at the bottom of
 
 In the mobile app, open **More** and choose **Notifications**. A dot on **More** means some are unread. The app can also send them to your phone as push notifications; see [Use the mobile app](/docs/mobile-app#notifications).
 
+## In your browser
+
+Your browser can show notifications while the site is closed, only in a browser where you turn them on and only while you're signed in there. When your browser can show them, Home shows **Get notified about your games**. Choose **Allow notifications**, then allow them when your browser asks. **Not now** hides the offer in that browser.
+
+You can also switch on **Notifications in this browser** under **Preferences** in [Account settings](/profile). The switch applies only to the browser you're using. Switching it off, or signing out, stops them in that browser; after you sign back in, turn them on again.
+
+On iPhone and iPad, Safari shows notifications only after you add praetorium.gg to your Home Screen. The Praetorium app is the simpler choice there.
+
+If the switch can't be changed and says your browser blocks notifications, you turned them down at the browser's prompt. Allow notifications for praetorium.gg in your browser's site settings, then reload the page.
+
 ## What you hear about
 
 - **Friends:** someone asks to be your friend, or accepts your request.
@@ -33,4 +43,4 @@ A notification says only what you could already see on the page it links to. If 
 
 Praetorium keeps your 50 most recent notifications, for up to 90 days, read or not. Deleting your account deletes them.
 
-You can't turn off kinds of notification on the web. Push notifications in the app are turned off in your phone's settings.
+You can't turn off kinds of notification. Browser notifications are turned off with the switch above, and push notifications in the app in your phone's settings.
