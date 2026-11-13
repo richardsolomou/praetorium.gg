@@ -1,5 +1,19 @@
 # praetorium
 
+## 0.238.0 (2026-11-13)
+
+### Minor Changes
+
+- 3a56c18: Rules & buffs in the simulator now groups each side's rules under Abilities, Detachment, Stratagems and Stats applied, and it opens with Manual modifiers on a tablet or computer.
+- 3a56c18: Weapon cards in the simulator now show the BS, WS, S, A, AP and D your manual modifiers give them.
+- 3a56c18: Manual modifiers in the simulator now stay on when you change the attacking or defending unit, so you can test the same situation against several targets.
+- 3a56c18: The simulator's example now shows Intercessors led by a Captain and supported by a Lieutenant against Lychguard and their Overlord, with a stratagem, an enhancement and half range in play.
+- 3a56c18: Hit, wound, critical, stat, Sustained Hits, invulnerable save and Feel No Pain modifiers in the simulator are now steppers: press − or +, pick a value, or tap the name to clear it.
+
+### Patch Changes
+
+- dd9252f: Pages and docs about assistants now say they mean AI assistants such as Claude or ChatGPT.
+
 ## 0.237.0 (2026-11-13)
 
 ### Minor Changes
