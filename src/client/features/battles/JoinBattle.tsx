@@ -106,6 +106,8 @@ export function JoinBattle({ invite, side: returning }: { invite: string; side?:
                   ))}
                   {Array.from({ length: invitation.open[index] }, (_, at) => {
                     const yours = side === index && at === 0
+                    // Only an account can take the place, so a visitor sees it as the one they will take once signed in.
+                    const taken = yours && Boolean(me)
                     return (
                       <button
                         key={at}
@@ -121,7 +123,7 @@ export function JoinBattle({ invite, side: returning }: { invite: string; side?:
                         )}
                         onClick={() => setChosen(index)}
                       >
-                        {yours ? (
+                        {taken ? (
                           <span className="grid size-6 shrink-0 place-items-center rounded-full bg-parchment text-parchment-ink">
                             <Check className="size-3.5" strokeWidth={3} aria-hidden />
                           </span>
@@ -133,7 +135,7 @@ export function JoinBattle({ invite, side: returning }: { invite: string; side?:
                             <UserRound className="size-3.5" />
                           </span>
                         )}
-                        <span className="min-w-0">{yours ? 'You' : 'Open'}</span>
+                        <span className="min-w-0">{taken ? 'You' : yours ? 'Your place' : 'Open'}</span>
                       </button>
                     )
                   })}

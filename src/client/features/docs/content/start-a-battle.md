@@ -29,7 +29,7 @@ Until the battle stops being a draft, you can **Remove** a player who joined. Th
 
 ## Allies
 
-**+ Add ally** under a side adds a place for another player on that side, so a duel becomes one player against a pair, or doubles. The × next to an empty place takes it away. One link fills every open place, and whoever opens it picks a side when both have room.
+**+ Add ally** under a side adds a place for another player on that side, so a duel becomes one player against a pair, or doubles. The × next to an empty place takes it away. One link fills every open place, and whoever opens it picks a side when both have room. A pair shares its points from the start, and until the ally chooses a list, they count as bringing one the size of their partner's.
 
 A pair against one player shares its side's points. In doubles each army brings half its side's points.
 

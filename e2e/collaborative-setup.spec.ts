@@ -79,7 +79,7 @@ test('battle setup stays shared and does not wait for the other device', async (
   await attachRoster(alice, incursionRoster)
   await expect(bob.getByText(incursionRoster, { exact: true }).first()).toBeVisible()
   // A smaller list plays short against the bigger one rather than holding the battle up.
-  const short = `${aliceName} brings 1,000 points against 2,000 and plays short.`
+  const short = `${aliceName} brings 1,000 points and plays short.`
   await expect(alice.getByText(short)).toBeVisible()
   await expect(bob.getByText(short)).toBeVisible()
   await expect(alice.getByText(/^A 2,000-point battle, set by /)).toBeVisible()

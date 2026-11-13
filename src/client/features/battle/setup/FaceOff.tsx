@@ -62,7 +62,7 @@ export function FaceOff({
         // An empty side is the opponent's until someone joins it; any other empty place is an ally's.
         const emptyName = (at: number) => (index !== viewerSide && !armies.length && at === 0 ? 'Opponent' : 'Ally')
         const unchosen = controls ? armies.find((army) => !army.roster && canChooseFor(view, army)) : undefined
-        const shared = side ? sharedSidePoints(view, index) : null
+        const shared = sharedSidePoints(view, index)
         const spent = chosen.reduce((total, army) => total + (army.roster?.built ? (army.points ?? 0) : 0), 0)
         const problem = controls?.problems(index)
         const addAlly = controls?.onAddAlly(index)
@@ -190,7 +190,7 @@ export function FaceOff({
                   ) : null}
                 </ArmyLine>
               ))}
-              {shared !== null && chosen.length ? (
+              {shared !== null ? (
                 <span className={cn('figure text-xs', spent > shared ? 'text-discarded' : 'text-dim')}>
                   {points(spent)} of {points(shared)} pts shared{spent > shared ? ` · ${points(spent - shared)} over` : ''}
                 </span>

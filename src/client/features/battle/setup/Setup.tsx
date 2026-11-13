@@ -14,7 +14,6 @@ import {
   battlePointsBudget,
   openPlaces,
   stillFilling,
-  pointsBudgetOf,
   FIXED_SECONDARIES,
   battleSizeLabel,
   battleSizeOptionLabel,
@@ -46,7 +45,6 @@ import {
   CHOOSABLE,
   CHOSEN,
   landOn,
-  SetupNote,
   SetupSidePanel,
   SideFocusProvider,
   SideSwitch,
@@ -237,7 +235,7 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
    * beside Start battle and the button itself both read this one list.
    */
   const remaining = [
-    ...(openCount ? [openCount > 1 ? `${openCount} players` : 'Opponent'] : []),
+    ...(openCount ? [openCount > 1 ? `${openCount} players` : view.players.some((player) => open[player.side]) ? 'Ally' : 'Opponent'] : []),
     ...owed.map((army) => (army.isViewer ? 'Your army' : `${army.playerName}’s army`)),
     ...awaited.map((army) => `${army.playerName}’s army`),
     ...(ready && view.settings.limit === null ? ['Battle size'] : []),
@@ -410,12 +408,8 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
     if (!draft?.invite) shareLink.mutate()
     land('opponent')
   }
-  /** The size the lists set, read from the first one in until every list is and the battle settles it. */
-  const chosenLimits = table.flatMap((side) =>
-    side.armies.flatMap((army) => (army.roster?.built ? [pointsBudgetOf(army.roster.built)] : [])),
-  )
-  const shownLimit = view.settings.limit ?? (chosenLimits.length ? Math.max(...chosenLimits) : null)
-  const firstList = table.flatMap((side) => side.armies).find((army) => army.roster?.built)?.roster?.name
+  const shownLimit = view.settings.limit ?? format.limit
+  const builtLists = table.flatMap((side) => side.armies).filter((army) => army.roster?.built)
   const deployment = deploymentFor(view.deploymentId, deployments)
   const group = groups?.current?.name
 
@@ -456,12 +450,6 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
                     : 'In the order the rules play it. Anyone at the table can answer for either side.'}
               </p>
             </div>
-            {short ? (
-              <SetupNote className="relative">
-                {sideName(table.find((side) => side.index === short.side)!)} brings {pointsLabel(short.points)} against{' '}
-                {short.against.toLocaleString('en')} and plays short.
-              </SetupNote>
-            ) : null}
             <FaceOff
               view={view}
               sides={table}
@@ -489,7 +477,11 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
             {shownLimit !== null && view.settings.sizeFromRosters ? (
               <p className={cn('relative text-center text-xs', sizeProblem ? 'text-discarded' : 'text-dim')}>
                 {sizeProblem ??
-                  `A ${shownLimit.toLocaleString('en')}-point battle, set by ${chosenLimits.length > 1 ? 'the bigger side' : firstList}. A bigger or smaller list changes it.`}
+                  `A ${shownLimit.toLocaleString('en')}-point battle, set by ${builtLists.length > 1 || team ? 'the bigger side' : builtLists[0]?.roster?.name}. ${
+                    short
+                      ? `${sideName(table.find((side) => side.index === short.side)!)} brings ${pointsLabel(short.points)} and plays short.`
+                      : 'A bigger or smaller list changes it.'
+                  }`}
               </p>
             ) : sizeProblem ? (
               <p className="relative text-center text-xs text-discarded">{sizeProblem}</p>
@@ -528,7 +520,7 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
                   <div className="sm:col-span-2">
                     <Choice
                       label="How you track it"
-                      value={manual ? 'manual' : 'guided'}
+                      value={trackingChosen ? (manual ? 'manual' : 'guided') : null}
                       options={[
                         {
                           value: 'guided',
