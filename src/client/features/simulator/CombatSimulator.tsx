@@ -259,7 +259,7 @@ export function CombatSimulator({
       <PageHeader
         title="Combat simulator"
         help={<GuideHelp task="simulator">First matchup guide</GuideHelp>}
-        description="Compare shooting and melee between units or whole rosters. Try an editable Intercessors vs Necron Warriors example, or choose your own matchup."
+        description="Compare shooting and melee between units or whole rosters. Try an editable example of led Intercessors against Lychguard, or choose your own matchup."
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <Button
@@ -400,18 +400,42 @@ export function CombatSimulatorMatchup({
   }, [matchupKey])
   const [displayKey, setDisplayKey] = useState(matchupKey)
   if (attacker.ready && defender.ready && displayKey !== matchupKey) setDisplayKey(matchupKey)
-  const [settings, setSettings] = useState(() => ({ key: matchupKey, value: initial?.matchup }))
+  type Stored = { key: string; attacker: string; defender: string; value?: MatchupSettings }
+  // Each direction keeps its own settings, so swapping back returns to the matchup the player set up.
+  const [settings, setSettings] = useState<Record<'forward' | 'reversed', Stored | undefined>>(() => ({
+    forward: undefined,
+    reversed: undefined,
+    [reversed ? 'reversed' : 'forward']: {
+      key: matchupKey,
+      attacker: attacker.identity,
+      defender: defender.identity,
+      value: initial?.matchup,
+    },
+  }))
+  const direction = reversed ? 'reversed' : 'forward'
   const reportSettings = useCallback(
     (value: MatchupSettings) => {
       if (displayKey !== matchupKey || activeMatchup.current !== matchupKey) return
       setSettings((current) =>
-        current.key === matchupKey && JSON.stringify(current.value) === JSON.stringify(value) ? current : { key: matchupKey, value },
+        current[direction]?.key === matchupKey && JSON.stringify(current[direction]?.value) === JSON.stringify(value)
+          ? current
+          : { ...current, [direction]: { key: matchupKey, attacker: attacker.identity, defender: defender.identity, value } },
       )
     },
-    [matchupKey, displayKey],
+    [matchupKey, displayKey, direction, attacker.identity, defender.identity],
   )
+  // Modifiers describe the situation, so they outlast a change of unit; weapon switches and allocation belong to the unit.
+  const stored = settings[direction]
+  const carried =
+    stored?.key === matchupKey
+      ? stored.value
+      : stored?.value && {
+          ...stored.value,
+          excluded: stored.attacker === attacker.identity ? stored.value.excluded : noExclusions(),
+          allocation: stored.defender === defender.identity ? stored.value.allocation : [],
+        }
   const matchup = {
-    ...((settings.key === matchupKey ? settings.value : undefined) ?? {
+    ...(carried ?? {
       adjustments: {},
       excluded: noExclusions(),
       allocation: [],

@@ -305,6 +305,7 @@ export function SpecialChoice({
     kind: choice.kind ?? 'upgrade',
     name: option.name,
     description: option.description,
+    ...(option.reminder ? { reminder: option.reminder } : {}),
   })
   const choose = (optionId: string) => onChoose(choice.key, optionId)
   if (!showOptions && !choice.chosen) return null

@@ -10,6 +10,8 @@ export type OfflineConstructionSource = {
   version: 1
   revision: string
   files: CatalogueFile[]
+  /** What the rules read from the texts `files` hold as tokens; a download saved before they were tokens has words instead. */
+  definitionFacts?: RuntimeData
   datacards: RuntimeData
   mfm: RuntimeData
   rules: RuntimeData

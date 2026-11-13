@@ -1,5 +1,5 @@
 import { transformed } from '../shared/datacards'
-import { resolvedText } from '../shared/sourceText'
+import { resolvedText } from '../core/sourceText'
 import type { ScannableTextLocations } from './referenceCorpus'
 import { readCatalogueComposition } from './catalogueComposition'
 import { catalogueDirectory } from './catalogueIndex'

@@ -1,5 +1,17 @@
 import { expect, test } from './test'
-import { befriend, createBattle, createRoster, setupBattle, signUp, uniqueName, expectNoPageOverflow, concede, scoreboard } from './account'
+import {
+  attachRoster,
+  befriend,
+  createBattle,
+  createRoster,
+  practiceBattle,
+  setupBattle,
+  signUp,
+  uniqueName,
+  expectNoPageOverflow,
+  concede,
+  scoreboard,
+} from './account'
 
 test('a visitor browses public battles and opens a spectator view on a phone and a desktop', async ({ page, browser }) => {
   const hostContext = await browser.newContext()
@@ -11,7 +23,7 @@ test('a visitor browses public battles and opens a spectator view on a phone and
   const guestRoster = await createRoster(opponent, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Guest list' })
   await signUp(host, uniqueName('Public host'))
   const hostRoster = await createRoster(host, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Host list' })
-  const battleUrl = await setupBattle(host, opponent, { opponent: opponentName, hostRoster, guestRoster })
+  const battleUrl = await setupBattle(host, opponent, { hostRoster, guestRoster })
   const battlePath = new URL(battleUrl).pathname
   for (const width of [390, 1440]) {
     await page.setViewportSize({ width, height: 900 })
@@ -40,35 +52,24 @@ test("a signed-in player's battles page lists their own, their friends' or every
   page,
   browser,
 }) => {
-  test.setTimeout(120_000)
+  test.setTimeout(180_000)
   const hostContext = await browser.newContext()
   const guestContext = await browser.newContext()
   const host = await hostContext.newPage()
   const guest = await guestContext.newPage()
-  const guestName = uniqueName('Watched guest')
-  await signUp(guest, guestName)
+  // A battle is listed once every army is in; until then it is its players' draft.
+  await signUp(guest, uniqueName('Watched guest'))
+  const guestRoster = await createRoster(guest, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Watched guest list' })
   await signUp(host, uniqueName('Watched host'))
-  await befriend(host, guest)
-  const watched = `[href="${new URL(await createBattle(host, { opponent: guestName })).pathname}"]`
+  const hostRoster = await createRoster(host, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Watched host list' })
+  const watched = `[href="${new URL(await createBattle(host, { opponent: guest })).pathname}"]`
+  await attachRoster(host, hostRoster)
+  await attachRoster(guest, guestRoster)
 
   await page.setViewportSize({ width: 1440, height: 900 })
   await signUp(page, uniqueName('Battle reader'))
-  const own = `[href="${
-    new URL(
-      await createBattle(page, {
-        practice: true,
-        beforeCreate: async (dialog) => {
-          for (const width of [1440, 390]) {
-            await page.setViewportSize({ width, height: 900 })
-            await expect(dialog.getByRole('button', { name: 'Start battle' })).toBeVisible()
-            await expect(dialog).not.toContainText('Battles are public by default')
-            await expect(dialog).not.toContainText('One device can record the whole game')
-          }
-          await page.setViewportSize({ width: 1440, height: 900 })
-        },
-      }),
-    ).pathname
-  }"]`
+  const roster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Reader list' })
+  const own = `[href="${new URL(await practiceBattle(page, roster)).pathname}"]`
   const sections = () => page.locator('main [data-battle-shelf], main [data-friends-empty]').evaluateAll((nodes) => nodes.length)
   const views = page.getByRole('navigation', { name: 'Battles' })
   await page.goto('/battles')

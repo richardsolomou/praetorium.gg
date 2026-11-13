@@ -32,6 +32,7 @@ Deletion can't be undone. It removes:
 - your collection, with its photos and wishlist
 - favourites
 - friendships and group memberships
+- notifications
 - tournament entries
 - tournaments you organise
 - groups you own, for every member: the group, its leaderboard and its hidden-list games

@@ -8,7 +8,15 @@ import { ROSTER_BATCH_ACTIONS, ROSTER_BATCH_CHANGES, ROSTER_BATCH_MAX, ROSTER_LI
 import { orderVariantGroup } from '../../src/core/rosterVariants'
 import { discoveryPage, rosterDiscoveryQuerySchema } from '../../src/core/rosterDiscovery'
 import { MAX_DATASHEET_PHOTOS, rankCollectionPhotos } from '../../src/core/collectionPhotos'
-import { DEFAULT_PUSH_NOTIFICATIONS, PUSH_TOKENS_PER_USER, PUSH_PLATFORMS } from '../../src/core/notificationConfig'
+import {
+  DEFAULT_PUSH_NOTIFICATIONS,
+  NOTICE_ID,
+  NOTICE_RETENTION_MS,
+  NOTICES_PER_USER,
+  PUSH_TOKENS_PER_USER,
+  PUSH_PLATFORMS,
+} from '../../src/core/notificationConfig'
+import { noticeRecipients, type NoticeSubject, noticeSubjectSchema, type StoredNotice } from '../../src/core/notifications'
 import {
   customPointsBudget,
   POINTS_BUDGET_MAX,
@@ -19,6 +27,8 @@ import {
   withinArmyPoints,
   importedCommandRefusal,
   applyEntry,
+  openPlaces,
+  stillFilling,
   reduceBattle,
   validate,
   type FormatRuleId,
@@ -278,6 +288,7 @@ type ProductScope =
   | 'battles'
   | 'simulator'
   | 'achievements'
+  | 'notifications'
 
 /** Scopes whose writes can change a player's medals. Battles move them through their stored results instead. */
 const ACHIEVEMENT_SCOPES = new Set<ProductScope>([
@@ -487,7 +498,8 @@ function touchEventById(ctx: Context, eventId: string) {
 function deleteBattle(ctx: Context, battleId: string) {
   const seats = Array.from(ctx.db.battleUsers.battleId.filter(battleId))
   const eventBattle = ctx.db.eventBattles.battleId.find(battleId)
-  for (const seat of seats) touchProduct(ctx, seat.userId, 'battles', 'onboarding')
+  for (const seat of seats) touchProduct(ctx, seat.userId, 'battles', 'onboarding', 'notifications')
+  resolveBattleNotices(ctx, battleId, [...seats.map((seat) => seat.userId), ...battleInvitees(ctx, battleId)])
   touchBattle(ctx, battleId)
   touchPublic(ctx, 'standings')
   touchAdmin(ctx)
@@ -504,6 +516,8 @@ function deleteBattle(ctx: Context, battleId: string) {
   ctx.db.groupBattles.battleId.delete(battleId)
   ctx.db.battleImports.battleId.delete(battleId)
   for (const row of Array.from(ctx.db.importedSeats.battleId.filter(battleId))) ctx.db.importedSeats.key.delete(row.key)
+  ctx.db.battleDrafts.battleId.delete(battleId)
+  ctx.db.battleInvites.battleId.delete(battleId)
   ctx.db.battles.id.delete(battleId)
 }
 
@@ -829,6 +843,7 @@ export const deleteUserData = spacetime.reducer({ userId: t.string() }, (ctx, { 
   for (const row of Array.from(ctx.db.externalAccounts.userId.filter(userId))) ctx.db.externalAccounts.key.delete(row.key)
   ctx.db.userOnboarding.userId.delete(userId)
   ctx.db.pushPreferences.userId.delete(userId)
+  for (const row of Array.from(ctx.db.notices.userId.filter(userId))) ctx.db.notices.id.delete(row.id)
   ctx.db.playerDefaults.userId.delete(userId)
   for (const row of Array.from(ctx.db.listFilterPreferences.userId.filter(userId))) ctx.db.listFilterPreferences.id.delete(row.id)
   for (const row of Array.from(ctx.db.sealedEventRosterSharing.userId.filter(userId))) ctx.db.sealedEventRosterSharing.key.delete(row.key)
@@ -993,11 +1008,8 @@ function battleSeats(ctx: Context, battleId: string) {
     seats: rows.map((seat) => ({
       id: seat.userId,
       side: seat.side,
-      // A guest who joined on their own device plays their side; until then, or once the host takes it back, the table does.
-      automated:
-        seat.guestName !== undefined
-          ? ctx.db.guestSeats.seatId.find(seat.userId)?.deviceHash === undefined
-          : Boolean(ctx.db.practiceOpponents.userId.find(seat.userId)),
+      // Nobody signs in to a guest seat any more, so the table plays it, even one a guest's device once joined.
+      automated: seat.guestName !== undefined || Boolean(ctx.db.practiceOpponents.userId.find(seat.userId)),
       ...(seat.guestName !== undefined ? { guestName: seat.guestName } : {}),
     })),
   }
@@ -1101,6 +1113,8 @@ const newBattle = z.strictObject({
       players: z.tuple([idInput, idInput]),
     })
     .optional(),
+  /** Started by its creator alone, with the other places open for players to join. */
+  draft: z.boolean().optional(),
   /** The group league fixture this battle plays, which it is linked to as it starts. */
   fixtureKey: z
     .string()
@@ -1110,6 +1124,79 @@ const newBattle = z.strictObject({
 
 export const createBattle = spacetime.procedure({ payload: t.string() }, t.string(), (ctx, { payload }) =>
   operatorTx(ctx, (tx) => createBattleIn(tx, [payload])),
+)
+
+export const seatBattlePlayer = spacetime.procedure({ payload: t.string() }, t.string(), (ctx, { payload }) =>
+  operatorTx(ctx, (tx) => seatPlayerIn(tx, [payload])),
+)
+
+export const removeBattlePlayer = spacetime.procedure(
+  { battleId: t.string(), by: t.string(), userId: t.string() },
+  t.bool(),
+  (ctx, input) => operatorTx(ctx, (tx) => removeBattlePlayerIn(tx, [input.battleId, input.by, input.userId])),
+)
+
+export const battleInvite = spacetime.procedure(
+  { battleId: t.string(), by: t.string(), invite: t.string(), inviteeId: t.string() },
+  t.string(),
+  // An empty invitee shares the link without inviting anyone through it.
+  (ctx, input) => operatorTx(ctx, (tx) => battleInviteIn(tx, [input.battleId, input.by, input.invite, input.inviteeId || undefined])),
+)
+
+export const stopBattleInvite = spacetime.procedure({ battleId: t.string(), by: t.string() }, t.bool(), (ctx, input) =>
+  operatorTx(ctx, (tx) => stopBattleInviteIn(tx, [input.battleId, input.by])),
+)
+
+/** Whether a battle is a draft, and the link and invitations that fill it. */
+export const battleDraftState = spacetime.procedure({ battleId: t.string() }, t.string(), (ctx, { battleId }) =>
+  operatorTx(ctx, (tx) => {
+    const invite = tx.db.battleInvites.battleId.find(battleId)
+    return productJson({
+      draft: Boolean(tx.db.battleDrafts.battleId.find(battleId)),
+      invite: invite ? { invite: invite.invite, invitedIds: invite.invitedIds } : null,
+    })
+  }),
+)
+
+/** The battle a link joins, as a seated player reads it, or null once the link is retired. */
+export const battleByInvite = spacetime.procedure({ invite: t.string() }, t.string(), (ctx, { invite }) =>
+  operatorTx(ctx, (tx) => {
+    const row = tx.db.battleInvites.invite.find(invite)
+    return productJson(row && tx.db.battles.id.find(row.battleId) ? battleData(tx, row.battleId) : null)
+  }),
+)
+
+/** The drafts a player sits in, most recently changed first, as a list reads them. */
+export const draftsByUser = spacetime.procedure({ userId: t.string(), revision: t.string() }, t.string(), (ctx, input) =>
+  operatorTx(ctx, (tx) => {
+    const drafts = Array.from(tx.db.battleUsers.userId.filter(input.userId)).flatMap((seat) => {
+      const battle = tx.db.battleDrafts.battleId.find(seat.battleId) && tx.db.battles.id.find(seat.battleId)
+      return battle ? [{ battle, at: lastActivity(tx, battle) }] : []
+    })
+    return productJson(
+      drafts
+        .sort((left, right) => (left.at > right.at ? -1 : left.at < right.at ? 1 : 0))
+        .slice(0, 10)
+        .map(({ battle, at }) => ({ ...battleCard(tx, battle.id, input.revision), at: safeNumber(at) })),
+    )
+  }),
+)
+
+/** Deletes drafts nobody has changed since `before`, and says how many. */
+export const sweepDrafts = spacetime.procedure({ before: t.u64() }, t.u32(), (ctx, { before }) =>
+  operatorTx(ctx, (tx) => {
+    let swept = 0
+    for (const { battleId } of Array.from(tx.db.battleDrafts.iter())) {
+      const battle = tx.db.battles.id.find(battleId)
+      // Someone joining is activity too, though it appends no command.
+      const joined = Array.from(tx.db.battleUsers.battleId.filter(battleId)).some((seat) => seat.joinedAt >= before)
+      if (battle && (joined || lastActivity(tx, battle) >= before)) continue
+      if (battle) deleteBattle(tx, battleId)
+      else tx.db.battleDrafts.battleId.delete(battleId)
+      swept += 1
+    }
+    return swept
+  }),
 )
 
 export const battleByToken = spacetime.procedure({ token: t.string() }, t.string(), (ctx, { token }) =>
@@ -1211,6 +1298,7 @@ export const battleFeed = spacetime.procedure({ payload: t.string() }, t.string(
     for (const battle of candidates()) {
       // The public feed's candidates arrive in feed order, so the page is whole once it holds one more than it shows.
       if (input.scope === 'public' && rows.length > input.limit) break
+      if (tx.db.battleDrafts.battleId.find(battle.id)) continue
       const seats = Array.from(tx.db.battleUsers.battleId.filter(battle.id))
       const seatIds = new Set(seats.map((seat) => seat.userId))
       const hasPractice = seats.some((seat) => Boolean(tx.db.practiceOpponents.userId.find(seat.userId)))
@@ -1908,6 +1996,7 @@ export const submitBattle = spacetime.procedure(
         applyEntry(state, { seq, by: input.userId, at: safeNumber(at), command: parsed.data })
       if (wasFinished || parsed.data.kind === 'undo' || state.status === 'finished') touchPublic(tx, 'standings')
       if (parsed.data.kind === 'set-battle-group' || parsed.data.kind === 'undo') indexGroupBattle(tx, input.battleId)
+      settleDraft(tx, input.battleId)
       return productJson({
         result: { outcome: 'appended', seq },
         ...(sync?.reportApplied ? { applied: true } : {}),
@@ -2112,7 +2201,8 @@ export const productStats = spacetime.procedure({ userIds: t.array(t.string()) }
       [...new Set(userIds)].map((userId) => ({
         userId,
         rosterCount: Array.from(tx.db.rosters.userId.filter(userId)).length,
-        battleCount: Array.from(tx.db.battleUsers.userId.filter(userId)).length,
+        battleCount: Array.from(tx.db.battleUsers.userId.filter(userId)).filter((seat) => !tx.db.battleDrafts.battleId.find(seat.battleId))
+          .length,
         tournamentCount: Array.from(tx.db.tournaments.ownerId.filter(userId)).length,
         friendCount: [...tx.db.friendships.requesterId.filter(userId), ...tx.db.friendships.addresseeId.filter(userId)].filter(
           (row) => row.acceptedAt !== undefined,
@@ -2295,7 +2385,7 @@ function onboardingData(ctx: Context, userId: string) {
     facts: {
       roster,
       friend,
-      battle: Boolean(ctx.db.battleUsers.userId.filter(userId).next().value),
+      battle: Array.from(ctx.db.battleUsers.userId.filter(userId)).some((seat) => !ctx.db.battleDrafts.battleId.find(seat.battleId)),
       tournament,
     },
   }
@@ -3635,6 +3725,173 @@ export const pushTargets = spacetime.procedure({ userIds: t.array(t.string()) },
   }),
 )
 
+/** Rows one write may add: a reveal tells every entrant of a large tournament at once. */
+const NOTICE_ROWS_PER_WRITE = 1_000
+
+const noticeWrite = z.object({
+  now: z.number().int().nonnegative(),
+  notices: z
+    .array(
+      noticeSubjectSchema.and(
+        z.object({
+          actorId: z.string().max(128),
+          recipientIds: z.array(z.string().max(128)).max(NOTICE_ROWS_PER_WRITE),
+          subjectName: z.string().max(200).optional(),
+        }),
+      ),
+    )
+    .max(100),
+})
+
+type NoticeRow = { id: bigint; at: bigint }
+
+function newestNoticeFirst(left: NoticeRow, right: NoticeRow) {
+  return right.at > left.at ? 1 : right.at < left.at ? -1 : right.id > left.id ? 1 : right.id < left.id ? -1 : 0
+}
+
+/** Keeps a player's newest notices within the limit and the retention, so the table never grows past what a list shows. */
+function pruneNotices(ctx: Context, userId: string, now: bigint) {
+  const cutoff = now - BigInt(NOTICE_RETENTION_MS)
+  Array.from(ctx.db.notices.userId.filter(userId))
+    .sort(newestNoticeFirst)
+    .forEach((row, index) => {
+      if (index >= NOTICES_PER_USER || row.at < cutoff) ctx.db.notices.id.delete(row.id)
+    })
+}
+
+/** Keeps each notice for its recipients, who see it on every device they sign in on; answers each notice's stored id by recipient. */
+export const storeNotices = spacetime.procedure({ payload: t.string() }, t.string(), (ctx, { payload }) =>
+  operatorTx(ctx, (tx) => {
+    const input = decodePayload(noticeWrite, payload, 'Invalid notices')
+    const now = BigInt(input.now)
+    const recipients = new Set<string>()
+    let rows = 0
+    const ids = input.notices.map(({ recipientIds, ...notice }) => {
+      const stored = JSON.stringify(notice)
+      const byRecipient: Record<string, string> = {}
+      for (const userId of noticeRecipients({ ...notice, recipientIds })) {
+        if (isGuestSeat(userId) || tx.db.practiceOpponents.userId.find(userId)) continue
+        if (++rows > NOTICE_ROWS_PER_WRITE) throw new SenderError('Too many notices')
+        byRecipient[userId] = String(tx.db.notices.insert({ id: 0n, userId, notice: stored, at: now, readAt: undefined }).id)
+        recipients.add(userId)
+      }
+      return byRecipient
+    })
+    for (const userId of recipients) {
+      pruneNotices(tx, userId, now)
+      touchProduct(tx, userId, 'notifications')
+    }
+    return productJson(ids)
+  }),
+)
+
+/** Whether the battle, sealed event or group a notice is about still exists. */
+function noticeSubjectExists(ctx: Context, notice: NoticeSubject) {
+  if (notice.kind === 'battle-created') return Boolean(ctx.db.battles.token.find(notice.battleToken))
+  if ('sealedEventToken' in notice) return Boolean(eventHost(ctx, notice.sealedEventToken))
+  if ('groupToken' in notice) return Boolean(ctx.db.groups.token.find(notice.groupToken))
+  return true
+}
+
+/** A player's notices, newest first, without those whose subject has gone; reading also drops the expired ones. */
+export const noticesByUser = spacetime.procedure({ userId: t.string(), now: t.u64() }, t.string(), (ctx, { userId, now }) =>
+  operatorTx(ctx, (tx) => {
+    pruneNotices(tx, userId, now)
+    return productJson(
+      Array.from(tx.db.notices.userId.filter(userId))
+        .sort(newestNoticeFirst)
+        .flatMap((row) => {
+          const notice = JSON.parse(row.notice) as NoticeSubject
+          return noticeSubjectExists(tx, notice) ? [{ ...notice, id: String(row.id), at: row.at, readAt: row.readAt }] : []
+        }),
+    )
+  }),
+)
+
+/** Marks read each of these players' unread notices that match, on every device: doing what a notice asks answers it. */
+function resolveNotices(ctx: Context, userIds: Iterable<string>, matches: (notice: StoredNotice) => boolean) {
+  for (const userId of new Set(userIds)) {
+    let moved = false
+    for (const row of Array.from(ctx.db.notices.userId.filter(userId))) {
+      if (row.readAt !== undefined || !matches(JSON.parse(row.notice) as StoredNotice)) continue
+      ctx.db.notices.id.update({ ...row, readAt: nowMs(ctx) })
+      moved = true
+    }
+    if (moved) touchProduct(ctx, userId, 'notifications')
+  }
+}
+
+/** Answers a friend request either player sent the other. */
+function resolveFriendRequests(ctx: Context, leftId: string, rightId: string) {
+  for (const [userId, actorId] of [
+    [leftId, rightId],
+    [rightId, leftId],
+  ] as const)
+    resolveNotices(ctx, [userId], (notice) => notice.kind === 'friend-requested' && notice.actorId === actorId)
+}
+
+/** Answers these players' notices about a battle, such as an invitation they joined or can no longer use. */
+function resolveBattleNotices(ctx: Context, battleId: string, userIds: Iterable<string>) {
+  const token = ctx.db.battles.id.find(battleId)?.token
+  if (token) resolveNotices(ctx, userIds, (notice) => notice.kind === 'battle-created' && notice.battleToken === token)
+}
+
+const battleInvitees = (ctx: Context, battleId: string) => ctx.db.battleInvites.battleId.find(battleId)?.invitedIds ?? []
+
+/** Retires a battle's link, answering the invitations sent through it. */
+function retireBattleInvite(ctx: Context, battleId: string) {
+  resolveBattleNotices(ctx, battleId, battleInvitees(ctx, battleId))
+  return ctx.db.battleInvites.battleId.delete(battleId)
+}
+
+/** Answers, for every organizer, these players' requests to join the group. */
+function resolveGroupRequests(ctx: Context, group: GroupRow, requesterIds: readonly string[]) {
+  const members = groupMemberRows(ctx, group)
+  const organizers = members.filter((member) => isGroupOrganizer(group, members, member.userId)).map((member) => member.userId)
+  resolveNotices(
+    ctx,
+    organizers,
+    (notice) => notice.kind === 'group-member-requested' && notice.groupToken === group.token && requesterIds.includes(notice.actorId),
+  )
+}
+
+const noticeAboutEvent = (ctx: Context, notice: StoredNotice, host: EventHost) =>
+  'sealedEventToken' in notice && namedHost(ctx, notice.sealedEventToken, notice.eventToken ?? '')?.event.id === host.event.id
+
+/** Answers, for every organizer, these players' requests to enter the event. */
+function resolveEntryRequests(ctx: Context, host: EventHost, requesterIds: readonly string[]) {
+  resolveNotices(
+    ctx,
+    hostOrganizerIds(ctx, host),
+    (notice) =>
+      notice.kind === 'sealed-event-entry-requested' && requesterIds.includes(notice.actorId) && noticeAboutEvent(ctx, notice, host),
+  )
+}
+
+/** Notices answered by sealing a list. */
+const SEAL_NOTICE_KINDS = new Set<StoredNotice['kind']>([
+  'sealed-event-entry-added',
+  'sealed-event-roster-reseal',
+  'sealed-event-roster-unsealed',
+  'sealed-event-roster-reminder',
+])
+
+export const markNoticesRead = spacetime.procedure({ userId: t.string(), ids: t.array(t.string()), now: t.u64() }, t.bool(), (ctx, input) =>
+  operatorTx(ctx, (tx) => {
+    if (input.ids.length > NOTICES_PER_USER) throw new SenderError('Too many notices')
+    let moved = false
+    for (const id of input.ids) {
+      if (!NOTICE_ID.test(id)) continue
+      const row = tx.db.notices.id.find(BigInt(id))
+      if (row?.userId !== input.userId || row.readAt !== undefined) continue
+      tx.db.notices.id.update({ ...row, readAt: input.now })
+      moved = true
+    }
+    if (moved) touchProduct(tx, input.userId, 'notifications')
+    return moved
+  }),
+)
+
 export const sealedEventNames = spacetime.procedure({ tokens: t.array(t.string()) }, t.string(), (ctx, { tokens }) =>
   operatorTx(ctx, (tx) => {
     if (tokens.length > 100) throw new SenderError('Too many sealed event names')
@@ -4477,6 +4734,7 @@ function groupCommandIn(tx: Context, args: unknown[]) {
     touchGroup(tx, group.id)
     tx.db.groupMembers.key.delete(memberKey(input.userId))
     leaveLeague(tx, group.id, input.userId)
+    resolveGroupRequests(tx, group, [input.userId])
     return productJson('left')
   }
   const league = tx.db.groupLeagues.groupId.find(group.id)
@@ -4517,7 +4775,9 @@ function groupCommandIn(tx: Context, args: unknown[]) {
       if (row) tx.db.groupMembers.key.update({ ...row, status: 'accepted' })
     }
     touchGroup(tx, group.id)
-    return productJson({ admitted: admitted.map((member) => member.userId) })
+    const admittedIds = admitted.map((member) => member.userId)
+    resolveGroupRequests(tx, group, admittedIds)
+    return productJson({ admitted: admittedIds })
   }
   if (input.op === 'delete') {
     deleteGroup(tx, group)
@@ -4530,6 +4790,7 @@ function groupCommandIn(tx: Context, args: unknown[]) {
     else tx.db.groupMembers.key.delete(row.key)
     touchGroup(tx, group.id)
     touchProduct(tx, input.userId, 'groups')
+    resolveGroupRequests(tx, group, [input.userId])
     return productJson(input.accept ? 'accepted' : 'rejected')
   }
   if (input.op === 'remove') {
@@ -4812,7 +5073,13 @@ function insertBattle(
 function createBattleIn(tx: Context, args: unknown[]) {
   const [payload] = z.tuple([textArg]).parse(args)
   const battle = decodePayload(newBattle, payload, 'Invalid battle')
-  const { id, token, userId, allyIds, opponentIds, guestNames, initialCommands, now, imported } = battle
+  const { id, token, userId, allyIds, opponentIds, guestNames, initialCommands, now, imported, draft } = battle
+  if (draft) {
+    if (allyIds.length || opponentIds.length || guestNames.length || imported || battle.fixtureKey !== undefined)
+      throw new SenderError('Invalid battle seats')
+    const untouched = untouchedDraft(tx, userId, initialCommands)
+    if (untouched) return productJson(battleData(tx, untouched))
+  }
   const seats: BattleSeat[] = [
     { id: userId, side: 0 },
     ...allyIds.map((seatId) => ({ id: seatId, side: 0 })),
@@ -4821,7 +5088,7 @@ function createBattleIn(tx: Context, args: unknown[]) {
   ]
   if (
     seats.length > 4 ||
-    !seats.some((seat) => seat.side === 1) ||
+    (!draft && !seats.some((seat) => seat.side === 1)) ||
     [userId, ...allyIds, ...opponentIds].some(isGuestSeat) ||
     new Set(seats.map((seat) => seat.id)).size !== seats.length
   )
@@ -4865,6 +5132,7 @@ function createBattleIn(tx: Context, args: unknown[]) {
         : null),
   )
   if (initialCommands.some((command) => command.kind === 'set-battle-group')) indexGroupBattle(tx, id)
+  if (draft) tx.db.battleDrafts.insert({ battleId: id, userId })
   if (battle.fixtureKey !== undefined) {
     const { fixture, league } = openFixture(tx, battle.fixtureKey, battle)
     tx.db.roundPairings.key.update({ ...fixture, battleId: id })
@@ -4882,6 +5150,121 @@ function removeBattleIn(tx: Context, args: unknown[]) {
   if (!opener || opener.userId !== userId) return false
   deleteBattle(tx, battleId)
   return true
+}
+
+/** The player who opened a battle: the first to sit on its first side. */
+function battleOpener(ctx: Context, battleId: string) {
+  return Array.from(ctx.db.battleUsers.battleId.filter(battleId))
+    .filter((seat) => seat.side === 0)
+    .sort((left, right) => (left.joinedAt > right.joinedAt ? 1 : left.joinedAt < right.joinedAt ? -1 : 0))[0]?.userId
+}
+
+/** The draft a player opened with these same settings and has done nothing with yet, which starting another reuses rather than piling up. */
+function untouchedDraft(ctx: Context, userId: string, initialCommands: readonly Command[]) {
+  const opening = initialCommands.map((command) => JSON.stringify(command))
+  for (const { battleId } of ctx.db.battleDrafts.userId.filter(userId)) {
+    const seats = Array.from(ctx.db.battleUsers.battleId.filter(battleId))
+    const commands = Array.from(ctx.db.commands.battleId.filter(battleId), (command) => command.body)
+    if (seats.length === 1 && JSON.stringify(commands) === JSON.stringify(opening) && !ctx.db.battleInvites.battleId.find(battleId))
+      return battleId
+  }
+  return undefined
+}
+
+/** Lists a draft once every place is filled and every army chosen; a battle never goes back to being a draft. */
+function settleDraft(ctx: Context, battleId: string) {
+  if (!ctx.db.battleDrafts.battleId.find(battleId)) return
+  if (stillFilling(battleState(ctx, battleId).state)) return
+  ctx.db.battleDrafts.battleId.delete(battleId)
+  retireBattleInvite(ctx, battleId)
+  for (const seat of ctx.db.battleUsers.battleId.filter(battleId)) touchProduct(ctx, seat.userId, 'battles', 'onboarding')
+  touchBattle(ctx, battleId)
+}
+
+/** A seated account rather than a seat the table plays, which is who may share a battle's link. */
+function seatedAccount(ctx: Context, battleId: string, userId: string) {
+  const seat = ctx.db.battleUsers.key.find(JSON.stringify([battleId, userId]))
+  return Boolean(seat && seat.guestName === undefined && !ctx.db.practiceOpponents.userId.find(userId))
+}
+
+const seatPlayer = z.strictObject({
+  battleId: idInput,
+  userId: idInput,
+  side: z.union([z.literal(0), z.literal(1)]),
+  /** Who seats them: the player themselves through the battle's link, or its opener seating a practice opponent they play. */
+  by: idInput,
+  invite: idInput.optional(),
+  now: z.number().int().nonnegative(),
+})
+
+/** Seats an account in one of a battle's open places, or says why not. */
+function seatPlayerIn(tx: Context, args: unknown[]) {
+  const [payload] = z.tuple([textArg]).parse(args)
+  const input = decodePayload(seatPlayer, payload, 'Invalid seat')
+  if (isGuestSeat(input.userId)) throw new SenderError('Invalid user ID')
+  if (!tx.db.battles.id.find(input.battleId)) return productJson('missing')
+  if (input.by === input.userId) {
+    const invite = tx.db.battleInvites.battleId.find(input.battleId)
+    if (!invite || invite.invite !== input.invite) return productJson('missing')
+  } else if (battleOpener(tx, input.battleId) !== input.by || !tx.db.practiceOpponents.userId.find(input.userId))
+    return productJson('not-yours')
+  const { seats, state } = battleState(tx, input.battleId)
+  if (seats.some((seat) => seat.id === input.userId)) return productJson('seated')
+  if (state.status !== 'setup') return productJson('started')
+  if (!openPlaces(state)[input.side]) return productJson('full')
+  tx.db.battleUsers.insert({
+    key: JSON.stringify([input.battleId, input.userId]),
+    battleId: input.battleId,
+    userId: input.userId,
+    side: input.side,
+    joinedAt: BigInt(input.now),
+    guestName: undefined,
+    claimedSeat: undefined,
+  })
+  const invite = tx.db.battleInvites.battleId.find(input.battleId)
+  if (invite?.invitedIds.includes(input.userId))
+    tx.db.battleInvites.battleId.update({ ...invite, invitedIds: invite.invitedIds.filter((id) => id !== input.userId) })
+  for (const seat of [...seats, { id: input.userId }]) touchProduct(tx, seat.id, 'battles', 'onboarding')
+  resolveBattleNotices(tx, input.battleId, [input.userId])
+  touchBattle(tx, input.battleId)
+  settleDraft(tx, input.battleId)
+  return productJson('joined')
+}
+
+/** The opener takes a player back out of a battle that has not started, leaving their place open again. */
+function removeBattlePlayerIn(tx: Context, args: unknown[]) {
+  const [battleId, by, userId] = z.tuple([textArg, textArg, textArg]).parse(args)
+  // Only a draft: a listed battle's seats feed its results, and one named at creation has no place to reopen.
+  if (!tx.db.battleDrafts.battleId.find(battleId) || battleOpener(tx, battleId) !== by || by === userId) return false
+  const seat = tx.db.battleUsers.key.find(JSON.stringify([battleId, userId]))
+  if (!seat || seat.guestName !== undefined || battleState(tx, battleId).state.status !== 'setup') return false
+  touchBattleSeats(tx, battleId)
+  tx.db.battleUsers.key.delete(seat.key)
+  // The link they joined through would let them straight back in, so the creator shares a new one.
+  retireBattleInvite(tx, battleId)
+  touchBattle(tx, battleId)
+  return true
+}
+
+/** The battle's link, made the first time a seated player shares it, with any friend they invite through it. */
+function battleInviteIn(tx: Context, args: unknown[]) {
+  const [battleId, by, invite, inviteeId] = z.tuple([textArg, textArg, textArg, textArg.optional()]).parse(args)
+  if (!seatedAccount(tx, battleId, by) || !validId(invite) || (inviteeId !== undefined && !validId(inviteeId))) return productJson(null)
+  const current = tx.db.battleInvites.battleId.find(battleId)
+  const invitedIds = [...new Set([...(current?.invitedIds ?? []), ...(inviteeId ? [inviteeId] : [])])].slice(-8)
+  if (current) tx.db.battleInvites.battleId.update({ ...current, invitedIds })
+  else tx.db.battleInvites.insert({ battleId, invite, invitedIds })
+  touchBattleSeats(tx, battleId)
+  return productJson({ invite: current?.invite ?? invite, invitedIds })
+}
+
+/** Retires a battle's link and its invitations, so nobody else can join through them. */
+function stopBattleInviteIn(tx: Context, args: unknown[]) {
+  const [battleId, by] = z.tuple([textArg, textArg]).parse(args)
+  if (!seatedAccount(tx, battleId, by)) return false
+  const removed = retireBattleInvite(tx, battleId)
+  if (removed) touchBattleSeats(tx, battleId)
+  return removed
 }
 
 function requestFriendIn(tx: Context, args: unknown[]) {
@@ -4905,6 +5288,7 @@ function acceptFriendIn(tx: Context, args: unknown[]) {
   if (!current || current.acceptedAt !== undefined) return false
   tx.db.friendships.key.update({ ...current, acceptedAt: now })
   touchFriends(tx, requesterId, addresseeId)
+  resolveFriendRequests(tx, requesterId, addresseeId)
   return true
 }
 
@@ -4914,6 +5298,7 @@ function rejectFriendIn(tx: Context, args: unknown[]) {
   if (!current || current.acceptedAt !== undefined) return false
   const deleted = tx.db.friendships.key.delete(current.key)
   if (deleted) touchFriends(tx, requesterId, addresseeId)
+  resolveFriendRequests(tx, requesterId, addresseeId)
   return deleted
 }
 
@@ -4923,6 +5308,7 @@ function removeFriendIn(tx: Context, args: unknown[]) {
   if (!current) return false
   const deleted = tx.db.friendships.key.delete(current.key)
   if (deleted) touchFriends(tx, current.requesterId, current.addresseeId)
+  resolveFriendRequests(tx, leftId, rightId)
   for (const [ownerId, borrowerId] of [
     [leftId, rightId],
     [rightId, leftId],
@@ -4972,6 +5358,7 @@ function acceptFriendInviteIn(tx: Context, args: unknown[]) {
   }
   tx.db.friendInvites.token.delete(token)
   touchFriends(tx, invite.inviterId, recipientId)
+  resolveFriendRequests(tx, invite.inviterId, recipientId)
   touchProduct(tx, invite.inviterId, 'invites')
   touchPublic(tx, 'invites')
   return productJson({ inviterId: invite.inviterId })
@@ -5451,6 +5838,7 @@ function sealedEventCommandIn(tx: Context, args: unknown[]) {
       if (details.admission === 'automatic' && host.tournament.admission === 'approval' && event.revealedAt === undefined)
         admitted = admitWaiting(tx, entries, details.playerLimit, () => true)
     }
+    resolveEntryRequests(tx, host, admitted)
     touchEvent(tx, host)
     return productJson({ admitted, ruleChanged: rule !== null })
   }
@@ -5621,6 +6009,7 @@ function sealedEventCommandIn(tx: Context, args: unknown[]) {
       chosen.has(entry.userId),
     )
     if (admitted.length) touchEvent(tx, host)
+    resolveEntryRequests(tx, host, admitted)
     return productJson({ admitted })
   }
   if (operation === 'add') {
@@ -5658,6 +6047,7 @@ function sealedEventCommandIn(tx: Context, args: unknown[]) {
       else insertSealedEventEntry(tx, event.id, userId, 'accepted', input.now)
     }
     if (added.length) touchEvent(tx, host)
+    resolveEntryRequests(tx, host, added)
     return productJson({ added })
   }
   if (operation === 'moderate') {
@@ -5707,6 +6097,7 @@ function sealedEventCommandIn(tx: Context, args: unknown[]) {
       })
     else tx.db.sealedEventEntries.key.update({ ...entry, status: input.status })
     touchEvent(tx, host)
+    resolveEntryRequests(tx, host, [input.userId])
     if (input.status === 'rejected') return productJson({ rejected: entry.status !== 'rejected', resealIds })
     return productJson(entry.status !== 'accepted' ? 'admitted' : 'updated')
   }
@@ -5937,6 +6328,7 @@ function sealedEventCommandIn(tx: Context, args: unknown[]) {
       submittedAt: BigInt(input.now),
     })
     touchEvent(tx, host)
+    resolveNotices(tx, [input.userId], (notice) => SEAL_NOTICE_KINDS.has(notice.kind) && noticeAboutEvent(tx, notice, host))
     return productJson({ outcome: 'sealed', format: event.format ?? null, requiredLimit })
   }
   if (operation === 'set-team-disposition' || operation === 'set-team-warlord') {

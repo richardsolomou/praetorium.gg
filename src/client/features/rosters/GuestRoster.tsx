@@ -1,10 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Link, useNavigate, useRouter } from '@tanstack/react-router'
+import { useNavigate, useRouter } from '@tanstack/react-router'
 import { useEffect, useRef, useState } from 'react'
 import { posthog } from 'posthog-js'
 import { listUnitCount } from '../../../core/attachedUnits'
 import { Button } from '@/components/ui/button'
-import { buttonClass } from '../../components/buttonClass'
 import { saveRoster } from '../../functions'
 import { PageState } from '../../components/PageState'
 import { factionQuery, invalidateSavedRosters, playerDefaultsQuery, priceQuery } from '../../queries'
@@ -27,7 +26,6 @@ import { ListBuilder } from './ListBuilder'
 import { RosterOutline } from './RosterPresentation'
 import { saveFailureReason } from './saveFailure'
 import { countLabel } from '../../text'
-import { useGuestBattle } from '../battles/guestBattle'
 import { normalisePicks } from './rosterPicks'
 import { adoptVisitorReminders, claimVisitorReminders } from './visitorReminders'
 import { rosterUseProblem } from '../../../core/rosterLegality'
@@ -143,7 +141,6 @@ export function GuestRoster({
           This browser is not keeping the list. Allow browser storage to save it; reloading will lose it.
         </p>
       ) : null}
-      <GuestBattleLink className="border-b" />
       <ListBuilder
         key={guest.id}
         prep={guest.draft.prep ?? NO_PREP}
@@ -265,20 +262,6 @@ export function ClaimGuestRoster({ guest, onDiscard }: { guest: GuestDraft; onDi
         </div>
       }
     />
-  )
-}
-
-/** The way back for a guest who left their battle to build the list they bring to it. */
-export function GuestBattleLink({ className = 'border' }: { className?: string }) {
-  const battle = useGuestBattle()
-  if (!battle) return null
-  return (
-    <div className={`flex flex-wrap items-center gap-2 border-primary/40 bg-primary/5 px-3 py-2 text-xs ${className}`}>
-      <p className="min-w-0 flex-1">This device keeps your list. Bring it to your battle when it is ready.</p>
-      <Link to="/battles/$token" params={{ token: battle }} className={buttonClass({ size: 'sm' })}>
-        Back to your battle
-      </Link>
-    </div>
   )
 }
 

@@ -280,9 +280,6 @@ test('cancelled creation forms report intent without submissions, and opening th
   const createRoster = page.getByRole('dialog', { name: 'Create roster' })
   await retryUntilVisible(createRoster, () => page.getByRole('button', { name: 'New roster', exact: true }).click())
   await createRoster.getByRole('button', { name: 'Cancel', exact: true }).click()
-  await page.locator('[data-web-app-chrome]').getByRole('link', { name: 'Battles', exact: true }).click()
-  await page.getByRole('button', { name: 'New battle', exact: true }).click()
-  await page.getByRole('dialog').getByRole('button', { name: 'Cancel', exact: true }).click()
   await page.locator('[data-web-app-chrome]').getByRole('link', { name: 'Tournaments', exact: true }).click()
   await page.getByRole('button', { name: 'New tournament', exact: true }).click()
   await page.getByRole('dialog').getByRole('button', { name: 'Cancel', exact: true }).click()
@@ -291,7 +288,6 @@ test('cancelled creation forms report intent without submissions, and opening th
     .poll(() => events.filter((event) => event.name.includes('_creation_') || event.name === 'combat_simulator_opened'))
     .toEqual([
       { name: 'roster_creation_started', properties: {} },
-      { name: 'battle_creation_started', properties: {} },
       { name: 'sealed_event_creation_started', properties: {} },
       { name: 'combat_simulator_opened', properties: { source: 'standalone' } },
     ])
@@ -492,7 +488,7 @@ test('example and recent matchup entry actions are attributed without their cont
   const events = await recordEvents(page)
   await page.getByRole('button', { name: 'Try an example', exact: true }).click()
   const recent = page.getByRole('region', { name: 'Recent simulations', exact: true })
-  const link = recent.getByRole('link', { name: 'Intercessor Squad vs Necron Warriors', exact: true })
+  const link = recent.getByRole('link', { name: 'Intercessor Squad + Captain + Lieutenant vs Lychguard + Overlord', exact: true })
   await expect(link).toBeVisible()
   await link.click()
   await page.getByRole('link', { name: 'Praetorium', exact: true }).click()

@@ -3,7 +3,7 @@ import { LegalLinks, LegalPage, LegalSection, PrivacyEmail } from './LegalPage'
 
 export function PrivacyPolicy() {
   return (
-    <LegalPage title="Privacy policy" updated="8 November 2026">
+    <LegalPage title="Privacy policy" updated="13 November 2026">
       <LegalSection title="Scope">
         <p>
           Praetorium builds Warhammer 40,000 army lists and tracks battles between the players seated at them. This policy covers the
@@ -27,29 +27,33 @@ export function PrivacyPolicy() {
           Saved rosters — their name, tags, detachment and unit picks — battle records, including the players, armies, setup choices, scores
           and actions recorded during a game, friendships, the friends you lend a roster to, datasheets in your collection with their owned,
           built and painted model counts and photos, your wishlist, favourites, the combat simulator matchups you last ran, practice
-          opponents you seat, the names you give guest opponents, the finished public BattleBase games you import, with their armies and
-          your opponents' BattleBase names, and the BattleBase account you link. A linked account puts you in your seat in any game imported
-          with you in it, whoever imports it. An imported game is a battle like any other: public, and in records and standings.
+          opponents you seat, the names of guest opponents in battles from before every seat needed an account, the finished public
+          BattleBase games you import, with their armies and your opponents' BattleBase names, and the BattleBase account you link. A linked
+          account puts you in your seat in any game imported with you in it, whoever imports it. An imported game is a battle like any
+          other: public, and in records and standings.
         </p>
         <h3 className="text-sm tracking-label text-bone">Technical data</h3>
         <p>
           Sessions record your IP address and browser user agent. Rate-limiting counters protect sign-in and other sensitive actions. A
-          cookie remembers the order you sort your rosters in on that device. If you join a battle as a guest, a cookie holds the seat's
-          secret on that device for up to 30 days; we keep only a hash of it. We note the last day your account opened the mobile app, so
+          cookie remembers the order you sort your rosters in on that device. We note the last day your account opened the mobile app, so
           the site stops offering it to you.
         </p>
         <p>
-          If you connect an MCP app, we store that app’s authorization, access grants and refresh tokens. You can revoke its access from
-          your profile’s security settings.
+          If you connect an AI assistant or another app over MCP, we store that app’s authorization, access grants and refresh tokens. You
+          can revoke its access from your profile’s security settings.
         </p>
         <p>
-          If you use a browser assistant, supported browsers can let it read game references and your saved rosters, collection, battles and
-          groups through your signed-in session. You review and approve proposed changes on the page. Information returned to the assistant
-          may be processed by its provider under that provider's privacy policy.
+          If you use an AI assistant in your browser, supported browsers can let it read game references and your saved rosters, collection,
+          battles and groups through your signed-in session. You review and approve proposed changes on the page. Information returned to
+          the assistant may be processed by its provider under that provider's privacy policy.
         </p>
         <p>
           If you allow notifications in the mobile app, we store that device's push token, its platform, and when it was last seen. Signing
           out or deleting your account removes it. You can turn notifications off in your device settings at any time.
+        </p>
+        <p>
+          We keep the notifications we send you, such as a friend request or a new battle, so you can read them on the web and in the app:
+          your 50 most recent, for up to 90 days. Each records who caused it, what it is about, when, and whether you have read it.
         </p>
         <h3 className="text-sm tracking-label text-bone">Usage data</h3>
         <p>
@@ -95,8 +99,7 @@ export function PrivacyPolicy() {
           </li>
           <li>Battles may appear on the home page and in your profile's battle record.</li>
           <li>
-            The leaderboard counts finished games. Games with a practice opponent, or with a guest who has not claimed the game with an
-            account, do not count.
+            The leaderboard counts finished games. Games with a practice opponent, or with a guest seat that has no account, do not count.
           </li>
           <li>
             Sealing a tournament roster makes a separate frozen copy. Before reveal, only its assigned allies who are accepted entrants can
@@ -142,9 +145,9 @@ export function PrivacyPolicy() {
           for a public group and to members for a private one.
         </p>
         <p>
-          You can permanently delete your account from your profile. This removes your profile, rosters, friendships, tournament entries,
-          tournaments you organize, group memberships, groups you own and every battle you played, including shared battles. Session records
-          expire on their own; usage data is kept by our analytics provider under its retention settings. The{' '}
+          You can permanently delete your account from your profile. This removes your profile, rosters, friendships, notifications,
+          tournament entries, tournaments you organize, group memberships, groups you own and every battle you played, including shared
+          battles. Session records expire on their own; usage data is kept by our analytics provider under its retention settings. The{' '}
           <Link to="/delete-account" className="text-info hover:text-parchment">
             account deletion page
           </Link>{' '}

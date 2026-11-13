@@ -1,6 +1,7 @@
 import { expect, test, type Page } from './test'
 import { z } from 'zod'
 import {
+  attachRoster,
   createBattle,
   createRoster,
   retryUntilVisible,
@@ -248,10 +249,13 @@ test('self-account deletion removes populated shared history and sealed entries 
     const opponentRosterId = lastPathSegment(opponent.url())
     const ownerCollection = await collectionAndFavourite(owner, ownerId)
     const opponentCollection = await seedCollection(opponentId, ownerCollection.entryId)
-    const finished = await setupBattle(owner, opponent, { opponent: opponentName, hostRoster: ownerRoster, guestRoster: opponentRoster })
+    const finished = await setupBattle(owner, opponent, { hostRoster: ownerRoster, guestRoster: opponentRoster })
     await concedeAndSync(owner)
-    const otherCreated = await createBattle(opponent, { opponent: ownerName })
-    const unrelated = await createBattle(opponent, { practice: true })
+    // Both listed rather than drafts, as every army is in.
+    const otherCreated = await createBattle(opponent, { opponent: owner })
+    await attachRoster(opponent, opponentRoster)
+    await attachRoster(owner, ownerRoster)
+    const unrelated = await practiceBattle(opponent, opponentRoster)
     const ownSealedEvent = await sealedEventFixture(ownerId, [ownerId])
     const otherSealedEvent = await sealedEventFixture(opponentId, [ownerId, opponentId])
     await sealThroughPage(owner, ownSealedEvent.token, ownerRoster)
@@ -348,7 +352,7 @@ test('saved public results leave cached rankings and viewer records after battle
       detachment: /Shamblerot Vectorium/,
       name: uniqueName('Record guest list'),
     })
-    const battle = await setupBattle(owner, opponent, { opponent: opponentName, hostRoster, guestRoster })
+    const battle = await setupBattle(owner, opponent, { hostRoster, guestRoster })
     await concedeAndSync(owner)
     await expectRecord(anonymous, ownerId, 1)
     await anonymous.goto('/leaderboard')

@@ -27,11 +27,17 @@ export function captureBattleCreated(
     battle_id: result.battleId,
     practice: result.practice,
     limit: data.limit,
-    player_count: 1 + (data.allyId ? 1 : 0) + (data.opponentIds?.length ?? (data.opponentId ? 1 : 0)) + (data.guestNames?.length ?? 0),
+    player_count: 1 + (data.allyId ? 1 : 0) + (data.opponentIds?.length ?? (data.opponentId ? 1 : 0)),
     casual: data.casual,
     manual: data.manual,
-    guests: data.guestNames?.length ?? 0,
   })
+}
+
+/** Starts a draft, or hands back the creator's untouched one; only a new draft is counted. */
+export async function startDraftBattle(userId: string, missionPackId: string | null) {
+  const result = await app().service.startDraft(userId, missionPackId)
+  if (!result.reused) await captureMutation(userId, 'battle_draft_started', { battle_id: result.battleId })
+  return result
 }
 
 export function captureSealedEventCreated(userId: string, data: z.output<typeof createSealedEventSchema>) {

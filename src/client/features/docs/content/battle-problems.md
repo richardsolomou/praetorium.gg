@@ -10,15 +10,19 @@ Your lists were built for different sizes or budgets. Pick lists built for the s
 
 ### "an army spends more than its … points"
 
-In a 2v1 or doubles battle each side has its own points per army, shown beside **Battle size**. Use **Set points per army**, switch on **Allies split their points**, or bring a list that spends less.
+In a doubles battle each army spends up to half its side's points, shown beside **Battle size**. Use **Set points per army**, switch on **Allies split their points**, or bring a list that spends less.
 
 ### "allies spend more than their … points"
 
-The two lists on a side cost more together than that side's points. Bring a list that spends less, or edit one.
+The two lists on a side cost more together than that side's points. A 2v1 pair always shares its side's points, so 2,000 against 2,000 means the pair's two lists spend 2,000 between them. Bring a list that spends less, or edit one.
+
+### "A side's lists add up past the biggest battle size"
+
+Each side plays to its lists added together, and the biggest battle size is 3,000 points. In a 2v1 the pair's lists add up, so two 2,000-point lists make 4,000. Bring smaller lists, such as two 1,000-point lists against a 2,000-point one.
 
 ### "choose lists saved to the same points total"
 
-Allies on one side bring lists saved to the same points total. Change one ally's list, or set its points total in the builder to match.
+In doubles, allies on one side bring lists saved to the same points total unless they split their points. Change one ally's list, or set its points total in the builder to match.
 
 ### The roster chooser says none of your saved rosters is built for the battle's points
 
@@ -35,10 +39,6 @@ Read the message under it. It's usually unfinished scoring from the previous tur
 ### "Check your connection and try again."
 
 Your action didn't go through. Check your connection, then try it again. If drawing secondary missions failed, choose **Draw at random** again.
-
-### The guest link says someone already joined
-
-Another device took the seat. Take the seat back and send the new link.
 
 ### "This battle is not open."
 
@@ -59,6 +59,5 @@ Praetorium only rebuilds an army when it finds every unit in it. Otherwise the a
 ## Limits
 
 - Praetorium records what you tell it. It doesn't roll dice, check movement, range or line of sight, or judge whether a score was earned. In a manual battle it doesn't check scores or CP at all.
-- There's no computer opponent. A practice opponent is a side you play yourself.
-- Guests can't sit on your side or play in tournaments.
+- There's no computer opponent. **Play both sides** means you play the other side yourself.
 - A finished battle can't be reopened from the app, except by a Swiss tournament's organizer from the tournament page.

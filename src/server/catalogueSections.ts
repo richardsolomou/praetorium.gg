@@ -6,7 +6,7 @@ import { joinKey } from '../core/text'
 import { remember } from '../core/collections'
 
 /** Fill an undescribed card section only from a complete matching entry in the same faction’s books; a title match alone can name unrelated wargear. */
-export function catalogueSections(index: CatalogueIndex): SectionProse {
+export function catalogueSections(index: CatalogueIndex, words: (text: string) => string = (text) => text): SectionProse {
   let named: ReadonlyMap<string, Definition[]> | undefined
   return ({ faction, entry, titles }) => {
     const found = new Map<string, string>()
@@ -14,9 +14,9 @@ export function catalogueSections(index: CatalogueIndex): SectionProse {
     const books = booksOf(index, faction)
     const keys = titles.map(joinKey)
     named ??= describedByName(index)
-    const covering = (entry === null ? [armyRuleProse(index, books)] : entryProse(index, books, named.get(joinKey(entry)) ?? [])).filter(
-      (prose) => keys.every((key) => prose.has(key)),
-    )
+    const covering = (
+      entry === null ? [armyRuleProse(index, books, words)] : entryProse(index, books, named.get(joinKey(entry)) ?? [], words)
+    ).filter((prose) => keys.every((key) => prose.has(key)))
     for (const [at, title] of titles.entries()) {
       const said = new Set(covering.map((prose) => prose.get(keys[at]!)!))
       if (said.size === 1) found.set(title, said.values().next().value!)
@@ -51,31 +51,32 @@ function describedByName(index: CatalogueIndex) {
   return named
 }
 
-const entryProse = (index: CatalogueIndex, books: ReadonlySet<string>, named: readonly Definition[]) =>
-  named.filter((definition) => books.has(index.catalogueOf.get(definition.id) ?? '')).map(sectionProse)
+const entryProse = (index: CatalogueIndex, books: ReadonlySet<string>, named: readonly Definition[], words: (text: string) => string) =>
+  named.filter((definition) => books.has(index.catalogueOf.get(definition.id) ?? '')).map((definition) => sectionProse(definition, words))
 
 /** The faction's own rules, unless two of its books word one differently. */
-function armyRuleProse(index: CatalogueIndex, books: ReadonlySet<string>) {
+function armyRuleProse(index: CatalogueIndex, books: ReadonlySet<string>, words: (text: string) => string) {
   const found = new Map<string, string>()
   const conflicting = new Set<string>()
   for (const rule of index.rules.values()) {
     if (!rule.name || rule.hidden || !rule.description || !books.has(index.ruleCatalogueOf.get(rule.id) ?? '')) continue
     const key = joinKey(rule.name)
-    if ((found.get(key) ?? rule.description) !== rule.description) conflicting.add(key)
-    found.set(key, rule.description)
+    const description = words(rule.description)
+    if ((found.get(key) ?? description) !== description) conflicting.add(key)
+    found.set(key, description)
   }
   for (const key of conflicting) found.delete(key)
   return found
 }
 
 /** What one entry says about each of the profiles and rules it names. */
-function sectionProse(definition: Definition) {
+function sectionProse(definition: Definition, words: (text: string) => string) {
   const found = new Map<string, string>()
   for (const profile of definition.profiles ?? []) {
     const description = profileDescription(profile)
-    if (profile.name && !profile.hidden && description) found.set(joinKey(profile.name), description)
+    if (profile.name && !profile.hidden && description) found.set(joinKey(profile.name), words(description))
   }
   for (const rule of definition.rules ?? [])
-    if (rule.name && !rule.hidden && rule.description) found.set(joinKey(rule.name), rule.description)
+    if (rule.name && !rule.hidden && rule.description) found.set(joinKey(rule.name), words(rule.description))
   return found
 }

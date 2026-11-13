@@ -33,13 +33,7 @@ appId: gg.praetorium
 - assertVisible: '(?is).*Practice Opponent.*'
 - takeScreenshot: native-battles-offline
 - tapOn: '(?is).*Practice Opponent.*'
-- tapOn: Armies
-- scrollUntilVisible:
-    element:
-      text: 'Choose roster.*'
-    direction: DOWN
-    centerElement: true
-- tapOn: 'Choose roster.*'
+- tapOn: Choose army
 - tapOn: 'Edited native army offline.*'
 - assertVisible: 'Edited native army offline.*'
 - takeScreenshot: native-battle-edited-offline

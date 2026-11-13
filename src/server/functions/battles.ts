@@ -4,15 +4,20 @@ import { z } from 'zod'
 import { app } from '../app'
 import { currentUserId, forSignedIn, requireUserId } from '../playerSession'
 import { BATTLES_PAGE } from '../service'
-import { battleViewerId, requireBattleActor } from '../guestSession'
 import { submitBattleCommand } from '../battleSubmission'
 import { mutationRpc, rpc } from '../rpc'
+import { captureMutation, startDraftBattle } from '../mutationTelemetry'
 import {
   battlesFeedSchema,
   battleReplaySchema,
   battleReplayBatchSchema,
   createBattleSchema,
   deleteBattleSchema,
+  battleInviteSchema,
+  inviteToBattleSchema,
+  joinBattleSchema,
+  removeBattlePlayerSchema,
+  startDraftSchema,
   sealedEventBattleOptionsSchema,
   playerBattlesSchema,
   playerProfileSchema,
@@ -153,22 +158,18 @@ export const openBattle = createServerFn({ method: 'GET' })
   .validator(tokenSchema)
   .handler(({ data }) =>
     rpc(async () => {
-      const userId = await battleViewerId(data.token)
+      const userId = await currentUserId()
       return orNull(async () => app().service.screen(data.token, userId, await app().rulesFor()))
     }),
   )
 
 export const replayBattleAt = createServerFn({ method: 'GET' })
   .validator(battleReplaySchema)
-  .handler(({ data }) =>
-    rpc(async () => app().service.replayAt(data.token, await battleViewerId(data.token), data.seq, await app().rulesFor())),
-  )
+  .handler(({ data }) => rpc(async () => app().service.replayAt(data.token, await currentUserId(), data.seq, await app().rulesFor())))
 
 export const replayBattleBatch = createServerFn({ method: 'GET' })
   .validator(battleReplayBatchSchema)
-  .handler(({ data }) =>
-    rpc(async () => app().service.replayBatch(data.token, await battleViewerId(data.token), data.seqs, await app().rulesFor())),
-  )
+  .handler(({ data }) => rpc(async () => app().service.replayBatch(data.token, await currentUserId(), data.seqs, await app().rulesFor())))
 
 export const sealedEventBattleOptions = createServerFn({ method: 'GET' })
   .validator(sealedEventBattleOptionsSchema)
@@ -189,8 +190,64 @@ export const deleteBattle = createServerFn({ method: 'POST' })
 
 export const submit = createServerFn({ method: 'POST' })
   .validator(submitSchema.extend({ workspace: z.boolean().optional() }))
-  .handler(({ data }) => mutationRpc(async () => submitBattleCommand(await requireBattleActor(data.token), data)))
+  .handler(({ data }) => mutationRpc(async () => submitBattleCommand(await requireUserId(), data)))
 
 export const battleReport = createServerFn({ method: 'GET' })
   .validator(tokenSchema)
-  .handler(({ data }) => rpc(async () => app().service.report(data.token, await requireBattleActor(data.token), await app().rulesFor())))
+  .handler(({ data }) => rpc(async () => app().service.report(data.token, await requireUserId(), await app().rulesFor())))
+
+/** A new battle with only its creator at the table, or their untouched draft. */
+export const startDraft = createServerFn({ method: 'POST' })
+  .validator(startDraftSchema)
+  .handler(({ data }) => mutationRpc(async () => startDraftBattle(await requireUserId(), data.missionPackId)))
+
+/** Whether a battle is still a draft, with its link and invitations for a player in it. */
+export const battleDraft = createServerFn({ method: 'GET' })
+  .validator(tokenSchema)
+  .handler(({ data }) => rpc(async () => app().service.battleDraft(data.token, await currentUserId())))
+
+export const shareBattle = createServerFn({ method: 'POST' })
+  .validator(tokenSchema)
+  .handler(({ data }) => mutationRpc(async () => app().service.shareBattle(data.token, await requireUserId())))
+
+export const stopSharingBattle = createServerFn({ method: 'POST' })
+  .validator(tokenSchema)
+  .handler(({ data }) => mutationRpc(async () => app().service.stopSharingBattle(data.token, await requireUserId())))
+
+export const inviteToBattle = createServerFn({ method: 'POST' })
+  .validator(inviteToBattleSchema)
+  .handler(({ data }) => mutationRpc(async () => app().service.inviteToBattle(data.token, await requireUserId(), data.friendId)))
+
+/** The battle a link joins, readable signed out so the page can say who invited them before they sign in. */
+export const battleInvitation = createServerFn({ method: 'GET' })
+  .validator(battleInviteSchema)
+  .handler(({ data }) => rpc(async () => app().service.battleInvitation(data.invite, await currentUserId())))
+
+export const joinBattle = createServerFn({ method: 'POST' })
+  .validator(joinBattleSchema)
+  .handler(({ data }) =>
+    mutationRpc(async () => {
+      const userId = await requireUserId()
+      const result = await app().service.joinBattle(data.invite, userId, data.side)
+      if (result.joined) await captureMutation(userId, 'battle_joined', { battle_id: result.battleId })
+      return { token: result.token }
+    }),
+  )
+
+export const playBothSides = createServerFn({ method: 'POST' })
+  .validator(tokenSchema)
+  .handler(({ data }) => mutationRpc(async () => app().service.playBothSides(data.token, await requireUserId())))
+
+export const removeBattlePlayer = createServerFn({ method: 'POST' })
+  .validator(removeBattlePlayerSchema)
+  .handler(({ data }) => mutationRpc(async () => app().service.removeBattlePlayer(data.token, await requireUserId(), data.playerId)))
+
+/** The drafts the signed-in player is in, which Battles offers to continue rather than listing. */
+export const myDrafts = createServerFn({ method: 'GET' }).handler(() =>
+  rpc(() =>
+    forSignedIn([], async (id) => {
+      const [rules, factions] = await Promise.all([app().rulesFor(), app().battleFactionsFor()])
+      return app().service.drafts(id, rules, factions)
+    }),
+  ),
+)

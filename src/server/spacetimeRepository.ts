@@ -308,6 +308,18 @@ export class SpacetimeRepository {
     return this.product.pushTargets(...args)
   }
 
+  storeNotices(...args: Parameters<SpacetimeOperator['storeNotices']>) {
+    return this.product.storeNotices(...args)
+  }
+
+  noticesByUser(...args: Parameters<SpacetimeOperator['noticesByUser']>) {
+    return this.product.noticesByUser(...args)
+  }
+
+  markNoticesRead(...args: Parameters<SpacetimeOperator['markNoticesRead']>) {
+    return this.product.markNoticesRead(...args)
+  }
+
   sealedEventNames(...args: Parameters<SpacetimeOperator['sealedEventNames']>) {
     return this.product.sealedEventNames(...args)
   }
@@ -1277,8 +1289,49 @@ export class SpacetimeRepository {
     return this.product.rostersLentTo(...args)
   }
 
+  /** The battle as created, which for a draft may be the untouched one its creator already had. */
   async createBattle(...args: Parameters<SpacetimeOperator['createBattle']>) {
-    await this.product.createBattle(...args)
+    return (await this.product.createBattle(...args)).battle
+  }
+
+  seatBattlePlayer(...args: Parameters<SpacetimeOperator['seatBattlePlayer']>) {
+    return this.product.seatBattlePlayer(...args)
+  }
+
+  removeBattlePlayer(...args: Parameters<SpacetimeOperator['removeBattlePlayer']>) {
+    return this.product.removeBattlePlayer(...args)
+  }
+
+  battleInvite(...args: Parameters<SpacetimeOperator['battleInvite']>) {
+    return this.product.battleInvite(...args)
+  }
+
+  stopBattleInvite(...args: Parameters<SpacetimeOperator['stopBattleInvite']>) {
+    return this.product.stopBattleInvite(...args)
+  }
+
+  battleDraftState(battleId: string) {
+    return this.product.battleDraftState(battleId)
+  }
+
+  async battleHistoryByInvite(invite: string) {
+    const snapshot = await this.product.battleByInvite(invite)
+    return snapshot ? this.battleHistory(snapshot) : undefined
+  }
+
+  async draftsByUser(userId: string): Promise<BattleCard[]> {
+    const rows = await this.product.draftsByUser(userId)
+    const profiles = await this.seatProfiles(rows)
+    return rows.map((row) => ({
+      battle: row.battle,
+      at: row.at,
+      players: row.seats.map((seat) => seatPlayer(profiles, seat)),
+      digest: row.digest,
+    }))
+  }
+
+  sweepDrafts(before: number) {
+    return this.product.sweepDrafts(before)
   }
 
   claimImportedBattle(...args: Parameters<SpacetimeOperator['claimImportedBattle']>) {
@@ -1299,34 +1352,6 @@ export class SpacetimeRepository {
 
   deleteBattle(...args: Parameters<SpacetimeOperator['deleteBattle']>) {
     return this.product.deleteBattle(...args)
-  }
-
-  guestInvite(...args: Parameters<SpacetimeOperator['guestInvite']>) {
-    return this.product.guestInvite(...args)
-  }
-
-  replaceGuestInvite(...args: Parameters<SpacetimeOperator['replaceGuestInvite']>) {
-    return this.product.replaceGuestInvite(...args)
-  }
-
-  /** The invitation with the name of the host who shared it, which is all its landing page shows. */
-  async guestSeatByInvite(invite: string) {
-    const seat = await this.product.guestSeatByInvite(invite)
-    if (!seat) return null
-    const host = seat.hostId ? (await this.accounts.profilesByIds([seat.hostId])).get(seat.hostId) : undefined
-    return { ...seat, hostName: host?.name ?? null }
-  }
-
-  joinGuestSeat(...args: Parameters<SpacetimeOperator['joinGuestSeat']>) {
-    return this.product.joinGuestSeat(...args)
-  }
-
-  guestDevice(...args: Parameters<SpacetimeOperator['guestDevice']>) {
-    return this.product.guestDevice(...args)
-  }
-
-  claimGuestSeat(...args: Parameters<SpacetimeOperator['claimGuestSeat']>) {
-    return this.product.claimGuestSeat(...args)
   }
 
   async battleByToken(token: string) {

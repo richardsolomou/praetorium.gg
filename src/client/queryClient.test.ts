@@ -2,6 +2,7 @@ import { afterEach, expect, it, vi } from 'vitest'
 import { createQueryClient, errorMessage } from './queryClient'
 import { writeAppSnapshot } from './offline/appStorage'
 import { SIGN_IN_REQUIRED } from '../core/session'
+import { HttpStatusError } from './networkErrors'
 
 const capture = vi.hoisted(() => vi.fn())
 vi.mock('posthog-js', () => ({ posthog: { capture } }))
@@ -80,6 +81,16 @@ const failedRead = async (key: unknown[], error: Error) => {
 it('counts a failed read by the name its key starts with', async () => {
   await failedRead(['faction', 'private-id'], new Error('Army data unavailable'))
   expect(capture).toHaveBeenCalledWith('query_load_failed', { query: 'faction', reason: 'error', offline: false })
+})
+
+it('counts a read that ran out of time as a timeout', async () => {
+  await failedRead(['release'], new DOMException('signal timed out', 'TimeoutError'))
+  expect(capture).toHaveBeenCalledWith('query_load_failed', { query: 'release', reason: 'timeout', offline: false })
+})
+
+it('counts a refused response with its status', async () => {
+  await failedRead(['release'], new HttpStatusError('Release check failed', 502))
+  expect(capture).toHaveBeenCalledWith('query_load_failed', { query: 'release', reason: 'error', status: 502, offline: false })
 })
 
 it('does not count a read refused for a lapsed session', async () => {

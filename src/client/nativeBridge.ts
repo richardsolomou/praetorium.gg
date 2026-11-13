@@ -17,6 +17,7 @@ type NativeCapability =
   | 'haptic-styles'
   | 'github-auth'
   | 'notifications'
+  | 'notice-sync'
   | 'offline-reference'
   | 'screen-cover'
   | 'share'
@@ -187,6 +188,11 @@ function nativePushAnswer(answer: NativeAnswer): NativePushAnswer | null {
 export async function requestNativePush(prompt: boolean, timeoutMs = prompt ? 120_000 : 10_000): Promise<NativePushAnswer | null> {
   const answer = await askNative('notifications', NATIVE_EVENTS.push, { type: 'native-push', prompt }, timeoutMs, nativePushAnswer)
   return typeof answer === 'string' ? null : answer
+}
+
+/** Tells the shell which notices are read, so it clears their delivered pushes, and how many are not, for its icon badge. */
+export function syncNativeNotices(readIds: readonly string[], unread: number) {
+  return send('notice-sync', { type: 'native-notices', readIds, unread })
 }
 
 export async function shareLink(url: string, title?: string): Promise<'copied' | 'shared'> {

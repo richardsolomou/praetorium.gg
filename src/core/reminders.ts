@@ -36,6 +36,8 @@ export const reminderTimingSchema = z
   ])
   .and(z.object({ firstRoundOnly: z.boolean().optional() }))
 export type ReminderTiming = z.infer<typeof reminderTimingSchema>
+/** The timings a text suggests for a reminder, and whether it acts when its unit is destroyed. */
+export type ReminderSuggestion = { timings: ReminderTiming[]; whileDestroyed?: true }
 
 export const rosterReminderSchema = z.object({
   key: z.string().min(1).max(240),
@@ -51,7 +53,14 @@ export type RosterReminder = z.infer<typeof rosterReminderSchema>
 export const abilityReminderSchema = rosterReminderSchema.omit({ unit: true })
 export type AbilityReminder = z.infer<typeof abilityReminderSchema>
 
-export type ReminderSubject = { id?: string; kind: string; name: string; description?: string | null }
+export type ReminderSubject = {
+  id?: string
+  kind: string
+  name: string
+  description?: string | null
+  /** What its text suggests, recorded where the text is a token. */
+  reminder?: ReminderSuggestion
+}
 
 /** Army and detachment rules apply to the whole army, so one alert covers every unit that shows them. */
 export function armyReminder(ability: ReminderSubject): boolean {

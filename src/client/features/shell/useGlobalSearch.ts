@@ -7,14 +7,28 @@ import { useSettled } from '../../useSettled'
 
 const downloadIsCurrent = () => Boolean(currentReference())
 const searchIsDecoded = () => Boolean(currentReference() && decodedSearch())
+const subscribeOnline = (changed: () => void) => {
+  window.addEventListener('online', changed)
+  window.addEventListener('offline', changed)
+  return () => {
+    window.removeEventListener('online', changed)
+    window.removeEventListener('offline', changed)
+  }
+}
 
 /**
  * Global search results for what the player typed. A download the service still publishes answers on
  * every keystroke, with the player's own rosters and battles from their loaded lists; anything else asks
- * the service once typing settles.
+ * the service once typing settles. Online, the service's answer replaces the download's once typing
+ * settles, because only the service searches what abilities and cards say.
  */
 export function useGlobalSearch(trimmed: string, open = true) {
   const current = useSyncExternalStore(subscribeReference, downloadIsCurrent, () => false)
+  const online = useSyncExternalStore(
+    subscribeOnline,
+    () => navigator.onLine,
+    () => true,
+  )
   const downloaded = useSyncExternalStore(subscribeReference, searchIsDecoded, () => false)
   // The search index is decoded only once a player searches: it covers every faction.
   useEffect(() => {
@@ -42,14 +56,15 @@ export function useGlobalSearch(trimmed: string, open = true) {
         : null,
     [local, trimmed, factionIndex, me, rosters, battles],
   )
-  const remote = useQuery({ ...globalSearchQuery(local ? '' : settled), placeholderData: keepPreviousData })
+  const remote = useQuery({ ...globalSearchQuery(local && !online ? '' : settled), placeholderData: keepPreviousData })
   // Results the player has stopped typing for, which are the ones worth reporting.
   const typingSettled = settled === trimmed
+  const answered = online && typingSettled && remote.data !== undefined && !remote.isPlaceholderData
   if (local)
     return {
       query: trimmed,
       typingSettled,
-      data: localResults ?? [],
+      data: answered ? remote.data : (localResults ?? []),
       isPending: false,
       isFetching: false,
       isError: false,

@@ -58,13 +58,16 @@ const queryFamilies = {
     'sealed-event-battles',
     'opponents',
     'achievement-news',
+    // A deleted sealed event or group takes its notices with it.
+    'notifications',
   ],
-  groups: ['groups', 'group', 'group-standings', 'group-league', 'battle-groups', 'achievement-news'],
+  groups: ['groups', 'group', 'group-standings', 'group-league', 'battle-groups', 'achievement-news', 'notifications'],
   // Standings and rankings change only when a battle finishes, which the public standings signal reports.
   battles: ['battles', 'public-battles', 'friend-battles', 'player-profile', 'sealed-event-battles', 'played-armies', 'battle-groups'],
   simulator: ['recent-matchups', 'achievement-news'],
   // Medals a player earns in battle, or by someone else's hand, such as a like.
   achievements: ['achievement-news', 'player-achievements'],
+  notifications: ['notifications'],
 } as const
 
 const publicQueryFamilies = {

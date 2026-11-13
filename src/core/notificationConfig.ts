@@ -6,3 +6,12 @@ export const PUSH_TOKENS_PER_USER = 10
 
 export const PUSH_PLATFORMS = ['ios', 'android'] as const
 export type PushPlatform = (typeof PUSH_PLATFORMS)[number]
+
+/** Notices one account keeps; a new one past this drops the oldest. */
+export const NOTICES_PER_USER = 50
+
+/** A stored notice's id as it travels outside the module: a decimal u64. */
+export const NOTICE_ID = /^\d{1,20}$/
+
+/** How long a notice stays listed, read or not. */
+export const NOTICE_RETENTION_MS = 90 * 24 * 60 * 60 * 1000

@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { CombatRule } from '../../../core/combatRules'
-import { textToken } from '../../../shared/sourceText'
+import { textToken } from '../../../core/sourceText'
 import { loadTextFile, registerTextSources } from '../../sourceText'
 import { missingRuleText, readableRules } from './readableRules'
 

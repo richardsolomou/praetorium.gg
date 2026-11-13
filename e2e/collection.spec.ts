@@ -1,8 +1,6 @@
 import { waitForOfflineApp } from './offline'
 import { expect, test, type Locator, type Page } from './test'
 import {
-  attachRoster,
-  createBattle,
   createRoster,
   retryUntilVisible,
   savedArmy,
@@ -12,6 +10,7 @@ import {
   waitForRosterSave,
   addUnit,
   PHONE,
+  practiceBattle,
 } from './account'
 import { expectNoHorizontalOverflow } from './builder.harness'
 import { productOperator, savedWork, expectWorkSynced } from './storage'
@@ -184,8 +183,7 @@ test('suggests datasheets fielded in a battle until they are added', async ({ pa
   await signUp(page, uniqueName('Fielded collection'))
   const roster = await createRoster(page, { faction: 'Death Guard', detachment: /Shamblerot Vectorium/, name: 'Fielded Guard' })
   await addUnit(page, 'Plague Marines')
-  await createBattle(page, { practice: true })
-  await attachRoster(page, roster)
+  await practiceBattle(page, roster)
   await page.goto('/collection')
   const suggestion = page.locator('[data-suggestion="Plague Marines"]')
   await expect(suggestion).toContainText('1 battle')

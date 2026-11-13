@@ -47,7 +47,7 @@ export const AREAS: Record<
   },
   'AI assistants': {
     icon: Bot,
-    summary: 'Ask Claude, ChatGPT or another assistant about units, points and matchups.',
+    summary: 'Ask Claude, ChatGPT or another AI assistant about units, points and matchups.',
   },
   'Account and app': {
     icon: UserRound,

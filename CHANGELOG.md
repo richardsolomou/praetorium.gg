@@ -1,5 +1,103 @@
 # praetorium
 
+## 0.238.2 (2026-11-13)
+
+### Patch Changes
+
+- aafacb5: Swapping attacker and defender in the simulator and back again now restores the modifiers you had set.
+
+## 0.238.1 (2026-11-13)
+
+### Patch Changes
+
+- 3bfd526: Importing a New Recruit share link now counts the models New Recruit groups under a loadout, such as Jakhals taken as "8 chainblades".
+
+## 0.238.0 (2026-11-13)
+
+### Minor Changes
+
+- 3a56c18: Rules & buffs in the simulator now groups each side's rules under Abilities, Detachment, Stratagems and Stats applied, and it opens with Manual modifiers on a tablet or computer.
+- 3a56c18: Weapon cards in the simulator now show the BS, WS, S, A, AP and D your manual modifiers give them.
+- 3a56c18: Manual modifiers in the simulator now stay on when you change the attacking or defending unit, so you can test the same situation against several targets.
+- 3a56c18: The simulator's example now shows Intercessors led by a Captain and supported by a Lieutenant against Lychguard and their Overlord, with a stratagem, an enhancement and half range in play.
+- 3a56c18: Hit, wound, critical, stat, Sustained Hits, invulnerable save and Feel No Pain modifiers in the simulator are now steppers: press − or +, pick a value, or tap the name to clear it.
+
+### Patch Changes
+
+- dd9252f: Pages and docs about assistants now say they mean AI assistants such as Claude or ChatGPT.
+
+## 0.237.0 (2026-11-13)
+
+### Minor Changes
+
+- 4fdda58: A bell right of your account picture now lists your friend requests, new battles and group and tournament news on the website, and **More** › **Notifications** shows the same list in the app, read or unread on every device.
+
+### Patch Changes
+
+- d4abb97: Answering a friend request, joining a battle you were invited to, sealing a list, or accepting or declining an entry or group request marks its notification read on every device.
+- d4abb97: The app clears notifications you've read elsewhere from your phone and keeps the number on its icon to your unread ones.
+- d4abb97: Tapping a push notification marks that notification read.
+
+## 0.236.0 (2026-11-13)
+
+### Minor Changes
+
+- 2ba7867: Add an ally to either side of a battle from setup, rather than choosing one against two or doubles before it opens.
+- 2ba7867: Battles offers to continue a draft you've started.
+- 6a512cb: Agents can start a battle with only you at the table and give you a link your opponent opens to join it with their account.
+- 2ba7867: The battle link shows who invited you and the battle size, and joins you on the side you chose as soon as you're signed in.
+- 2ba7867: New battle opens setup straight away, with just you at the table, and stays a draft out of your battles until everyone has joined with an army.
+- 2ba7867: Choose, change and remove armies, and set Battle ready, on the cards at the top of battle setup instead of a separate Armies step.
+- 2ba7867: Bring your opponent into a battle from setup by sharing a link or QR code, inviting a friend, or playing both sides yourself.
+
+### Patch Changes
+
+- 2ba7867: Whoever started a draft battle can remove a player who joined it, until everyone's army is in.
+- 2ba7867: Battle setup keeps every step open, fading the ones you haven't reached yet.
+- 2ba7867: Battle setup asks how you track the battle first, and says what Guided gives you.
+- 2ba7867: Battle setup no longer sets points per army by hand: a pair facing one player shares its side's points, and doubles armies bring half each.
+
+## 0.235.1 (2026-11-13)
+
+### Patch Changes
+
+- cefccee: Search reads what units' abilities do only while online, and the roster builder's unit picker no longer matches it.
+
+## 0.235.0 (2026-11-13)
+
+### Minor Changes
+
+- 6d5131c: A battle's size now follows the lists from the first one chosen, with each side playing to its lists added together, so two 1,000-point allies make a 2,000-point side.
+- 6d5131c: In a 2v1 battle the pair now always shares its side's points, so it plays 2,000 against 2,000 and the allies split their 2,000 however they agree.
+- 6d5131c: Solo vs pair tournaments and hidden-list games now always let the pair share its points, including games already set up.
+- 6d5131c: A duel between lists built for different sizes is no longer blocked: the bigger list sets the size and setup says which side plays short.
+
+## 0.234.0 (2026-11-13)
+
+### Minor Changes
+
+- a73bbd0: Choosing or sealing a roster can now be searched, filtered by faction, detachment, battle size, legality and points, and sorted, as in your roster library.
+
+### Patch Changes
+
+- a73bbd0: Pressing Escape in a search box inside a dialog clears the search instead of closing the dialog.
+
+## 0.233.0 (2026-11-13)
+
+### Minor Changes
+
+- 6c0ab1c: Every seat in a new battle now belongs to an account, so each game counts for everyone who plays it; play both sides against a practice opponent to track a game on your own.
+
+### Patch Changes
+
+- 6c0ab1c: Battles you started against a guest before this change still open, replay and can be finished from your account.
+
+## 0.232.7 (2026-11-13)
+
+### Patch Changes
+
+- ae07278: Ability, wargear, and enhancement text loads again for devices that had not loaded it before.
+
 ## 0.232.6 (2026-11-12)
 
 ### Patch Changes

@@ -4,7 +4,6 @@ import {
   advanceButton,
   addUnit,
   attachRoster,
-  befriend,
   chooseBattlefield,
   createBattle,
   createRoster,
@@ -80,9 +79,7 @@ test('source matchup nominations survive undo and reload', async ({ page, browse
     name: 'Purge nomination roster',
   })
   await addUnit(page, 'Immortals')
-  await befriend(page, guest)
-  const url = await createBattle(page, { opponent: guestName })
-  await guest.goto(url)
+  await createBattle(page, { opponent: guest })
   await attachRoster(page, hostRoster)
   await attachRoster(guest, guestRoster)
   await chooseBattlefield(page)

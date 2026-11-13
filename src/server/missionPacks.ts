@@ -1,6 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import type { SourceTexts, TextTransform } from '../shared/sourceText'
+import type { SourceTexts, TextTransform } from '../core/sourceText'
 import { publishedTexts } from './sourceTexts'
 import { records } from '../shared/datacards'
 

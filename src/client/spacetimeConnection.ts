@@ -31,8 +31,8 @@ export function maintainSpacetimeConnection<T>(options: {
   open: (issued: T, link: SpacetimeLink<T>) => Connection
   inactive: () => void
   report: (error: unknown) => void
-  /** Called once per outage, when a working connection first drops or fails; another follows only after it recovers. */
-  lost?: (how: 'interrupted' | 'failed') => void
+  /** Called once per outage, when a connection drops or fails; another follows only after it recovers. `wasUp` is whether a subscription ever applied. */
+  lost?: (how: 'interrupted' | 'failed', wasUp: boolean) => void
   /** Called when the subscription applies again after a loss, with how long it was down: a deploy's swap takes seconds. */
   restored?: (downMs: number) => void
   /** Whether tickets expire and need refreshing; otherwise every reconnect reuses the ticket the connection opened with. */
@@ -44,6 +44,7 @@ export function maintainSpacetimeConnection<T>(options: {
   let retryDelay = RETRY_MS
   let reported = false
   let lost = false
+  let wasUp = false
   let lostAt: number | undefined
   let unavailable = 0
   let connection: Connection | null = null
@@ -61,7 +62,7 @@ export function maintainSpacetimeConnection<T>(options: {
     if (lost) return
     lost = true
     lostAt = Date.now()
-    options.lost?.(how)
+    options.lost?.(how, wasUp)
   }
 
   const note = (error?: unknown) => {
@@ -103,6 +104,7 @@ export function maintainSpacetimeConnection<T>(options: {
       const isCurrent = () => active && attempt === generation
       const ready = () => {
         if (!isCurrent()) return
+        wasUp = true
         if (lostAt !== undefined) options.restored?.(Date.now() - lostAt)
         lostAt = undefined
         clearTimeout(recovery)

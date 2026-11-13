@@ -20,7 +20,7 @@ const SALT = randomBytes(32)
  * beyond their browser. The id is a daily hash of address and browser under a salt that dies with
  * the process: it counts distinct clients within a day without following anyone across days.
  */
-export function crawlerRequestEvent(request: Request, status: number, now = new Date()) {
+export function crawlerRequestEvent(request: Request, status: number, durationMs: number, now = new Date()) {
   if (request.method !== 'GET' && request.method !== 'HEAD') return null
   const url = new URL(request.url)
   if (!PUBLIC_PATH.test(url.pathname)) return null
@@ -42,6 +42,7 @@ export function crawlerRequestEvent(request: Request, status: number, now = new 
       ...(referrer ? { $referrer: referrer } : {}),
       method: request.method,
       status_code: status,
+      duration_ms: Math.round(durationMs),
     },
   }
 }

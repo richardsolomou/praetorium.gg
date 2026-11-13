@@ -155,3 +155,30 @@ it('keeps callbacks assigned to their owning side when identical unit identities
     secondWrites: (hooks.combatants[1]!.setWeaponPreferences as ReturnType<typeof vi.fn>).mock.calls,
   }).toEqual({ current: { second: 'second' }, adjustments: settings.adjustments, firstWrites: [[{ mode: 'old-side' }]], secondWrites: [] })
 })
+
+it('carries manual modifiers to a new target', () => {
+  render().onSettingsChange!(settings)
+  hooks.combatants[1]!.identity = 'third'
+  expect(render().initialSettings?.adjustments).toEqual(settings.adjustments)
+})
+
+it('keeps the attacker’s excluded weapons when only the target changes', () => {
+  render().onSettingsChange!({ ...settings, excluded: { ranged: ['bolter'], melee: [] }, allocation: ['Sergeant'] })
+  hooks.combatants[1]!.identity = 'third'
+  const { excluded, allocation } = render().initialSettings!
+  expect({ excluded, allocation }).toEqual({ excluded: { ranged: ['bolter'], melee: [] }, allocation: [] })
+})
+
+it('starts a swapped matchup without the previous modifiers', () => {
+  const first = render()
+  first.onSettingsChange!(settings)
+  expect(swap(first).initialSettings?.adjustments).toEqual({})
+})
+
+it('restores the first direction’s modifiers when swapped back', () => {
+  const first = render()
+  first.onSettingsChange!(settings)
+  const swapped = swap(first)
+  swapped.onSettingsChange!({ ...settings, adjustments: {} })
+  expect(swap(swapped).initialSettings?.adjustments).toEqual(settings.adjustments)
+})

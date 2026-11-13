@@ -7,7 +7,7 @@ import {
   type IndexedResult,
   type OwnSearchData,
 } from '../core/referenceSearch'
-import { withoutText } from '../shared/sourceText'
+import { withoutText } from '../core/sourceText'
 
 export type { GlobalSearchIndex, GlobalSearchResult }
 import { nameOf, targetOf } from '../core/catalogue'
@@ -21,9 +21,6 @@ import { gameReferencesFor } from '../shared/gameReferences'
 import { ruleIndexOf } from './rulesCore'
 import { factionReferenceHref } from '../core/factionReferenceRoute'
 import type { LoadedRules } from './rules'
-
-/** Search reads what a text says where it says it here; a token says nothing to search. */
-const searchable = <T extends string | null>(text: T) => (text === null ? text : withoutText(text)) as T
 
 type Sources = {
   catalogue: LoadedCatalogue | null
@@ -39,6 +36,9 @@ function globalSearchIndexFor(loaded: LoadedCatalogue, rules: LoadedRules | null
   const cached = globalSearchIndexes.get(loaded)
   if (!catalogueIds && cached?.rules === rules) return cached.index
 
+  // Search reads what a text says where the catalogue holds its words; a card's token says nothing to search.
+  const words = loaded.definitions?.words ?? ((text: string) => text)
+  const searchable = <T extends string | null>(text: T) => (text === null ? text : withoutText(words(text))) as T
   const factions: IndexedResult[] = []
   const detachments: IndexedDetachment[] = []
   const datasheets: IndexedDatasheet[] = []
@@ -93,7 +93,7 @@ function globalSearchIndexFor(loaded: LoadedCatalogue, rules: LoadedRules | null
     for (const entryId of datasheetsOf(loaded.index, faction.id)) {
       const entry = loaded.index.definitions.get(entryId)
       if (!entry || !isOfferedDatasheet(loaded.index, entry, true) || !isReferenceDatasheet(loaded, faction.id, entryId)) continue
-      const fields = datasheetSearchFieldsIn(loaded, faction.id, entryId)
+      const fields = datasheetSearchFieldsIn(loaded, faction.id, entryId, true)
       if (!fields) continue
       const name = nameOf(entry, loaded.index.definitions)
       datasheets.push({
@@ -120,6 +120,19 @@ function globalSearchIndexFor(loaded: LoadedCatalogue, rules: LoadedRules | null
 export function compiledGlobalSearchIndex(loaded: LoadedCatalogue, rules: LoadedRules | null, catalogueIds?: ReadonlySet<string>) {
   return globalSearchIndexFor(loaded, rules, catalogueIds)
 }
+
+/** The index without what abilities and cards say, which only the server searches: what a device downloads. */
+export const publishedSearchIndex = (index: GlobalSearchIndex): GlobalSearchIndex => ({
+  ...index,
+  datasheets: index.datasheets.map((datasheet) => {
+    const { abilityDescriptions, ...fields } = datasheet.fields
+    return abilityDescriptions ? { ...datasheet, fields } : datasheet
+  }),
+  detachments: index.detachments.map((detachment) => ({
+    ...detachment,
+    cards: detachment.cards?.map((card) => ({ ...card, description: null })),
+  })),
+})
 
 export async function searchEverything(query: string, sources: Sources): Promise<GlobalSearchResult[]> {
   const index = sources.catalogueIndex ?? (sources.catalogue ? globalSearchIndexFor(sources.catalogue, sources.rules) : null)

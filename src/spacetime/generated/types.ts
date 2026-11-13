@@ -58,6 +58,12 @@ export const BattleDigests = __t.object('BattleDigests', {
 })
 export type BattleDigests = __Infer<typeof BattleDigests>
 
+export const BattleDrafts = __t.object('BattleDrafts', {
+  battleId: __t.string(),
+  userId: __t.string(),
+})
+export type BattleDrafts = __Infer<typeof BattleDrafts>
+
 export const BattleFeedOrder = __t.object('BattleFeedOrder', {
   battleId: __t.string(),
   at: __t.u64(),
@@ -84,6 +90,13 @@ export const BattleImports = __t.object('BattleImports', {
   key: __t.string(),
 })
 export type BattleImports = __Infer<typeof BattleImports>
+
+export const BattleInvites = __t.object('BattleInvites', {
+  battleId: __t.string(),
+  invite: __t.string(),
+  invitedIds: __t.array(__t.string()),
+})
+export type BattleInvites = __Infer<typeof BattleInvites>
 
 export const BattleResults = __t.object('BattleResults', {
   battleId: __t.string(),
@@ -378,6 +391,15 @@ export type MyProductSignals = __Infer<typeof MyProductSignals>
 
 export const MySession = __t.object('MySession', {})
 export type MySession = __Infer<typeof MySession>
+
+export const Notices = __t.object('Notices', {
+  id: __t.u64(),
+  userId: __t.string(),
+  notice: __t.string(),
+  at: __t.u64(),
+  readAt: __t.option(__t.u64()),
+})
+export type Notices = __Infer<typeof Notices>
 
 export const PastGroupLeagues = __t.object('PastGroupLeagues', {
   id: __t.string(),

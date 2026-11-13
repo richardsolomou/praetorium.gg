@@ -1,6 +1,7 @@
 import { queryOptions } from '@tanstack/react-query'
 import { z } from 'zod'
 import { withTimeout } from '../abortSignals'
+import { HttpStatusError } from '../networkErrors'
 import { appReleaseNotes } from '../functions'
 
 export const releaseQuery = () =>
@@ -9,7 +10,7 @@ export const releaseQuery = () =>
     enabled: typeof window !== 'undefined',
     queryFn: async ({ signal }) => {
       const response = await fetch('/api/release', { cache: 'no-store', signal: withTimeout(signal, 10_000) })
-      if (!response.ok) throw new Error('Release check failed')
+      if (!response.ok) throw new HttpStatusError('Release check failed', response.status)
       return z.object({ version: z.string().regex(/^\d+\.\d+\.\d+$/) }).parse(await response.json())
     },
     refetchInterval: 60_000,

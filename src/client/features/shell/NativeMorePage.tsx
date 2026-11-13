@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Link, type LinkProps } from '@tanstack/react-router'
 import {
   ArrowUpRight,
+  Bell,
   BookOpen,
   Boxes,
   Calculator,
@@ -24,6 +25,7 @@ import { countLabel } from '../../text'
 import { useUnseenRelease } from './seenRelease'
 import { UnseenDot, unseenLabel } from './WhatsNew'
 import { COMMUNITY_LINKS, COMMUNITY_PAGES, FRIENDS_PAGE } from './CommunityLinks'
+import { useUnreadNotices } from '../notifications/Notifications'
 
 type MoreLink = { Icon: LucideIcon; label: string; to: LinkProps['to'] }
 type Tool = MoreLink & { description: string }
@@ -114,6 +116,7 @@ export function NativeMorePage() {
   const { tickets } = useSupportTickets()
   const unread = unreadReplies(tickets)
   const unseenRelease = useUnseenRelease()
+  const unreadNotices = useUnreadNotices(Boolean(me))
 
   return (
     <main className="w-full">
@@ -144,6 +147,13 @@ export function NativeMorePage() {
           </Group>
           {me ? (
             <Group id="more-account-heading" title="Your things">
+              <Link to="/notifications" className={rowClass}>
+                <Row
+                  icon={Bell}
+                  label="Notifications"
+                  status={unreadNotices ? <span className="chip text-parchment">{unreadNotices} unread</span> : null}
+                />
+              </Link>
               <Links links={ACCOUNT} />
               {me.role === 'admin' ? (
                 <Link to="/admin" className={rowClass}>

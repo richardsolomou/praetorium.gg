@@ -1,5 +1,7 @@
 import { expect, test, type Page } from './test'
 import {
+  attachRoster,
+  befriend,
   createBattle,
   createRoster,
   followLink,
@@ -11,6 +13,7 @@ import {
   PHONE,
   scoreboard,
   retryUntilVisible,
+  practiceBattle,
 } from './account'
 import { productSql, withAuthSql, battleIdFor } from './storage'
 import { NATIVE_BROWSER_BRIDGE_SCRIPT } from './native.harness'
@@ -109,7 +112,9 @@ test('offers a secondary account-creation button below sign-in', async ({ page }
 test('shows active practice battles to their player but not visitors', async ({ page, browser }) => {
   const name = uniqueName('Watcher')
   await signUp(page, name)
-  const battleUrl = await createBattle(page, { practice: true })
+  // A battle is listed once every army is in.
+  const roster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Watcher army' })
+  const battleUrl = await practiceBattle(page, roster)
 
   await page.goto('/')
   await expect(page.getByRole('heading', { name: `Welcome back, ${name}` })).toBeVisible()
@@ -315,7 +320,8 @@ test('orders the signed-in home page from the player outwards', async ({ browser
     await signUp(host, hostName)
     const hostRoster = await createRoster(host, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Host list' })
 
-    const played = await setupBattle(host, guest, { opponent: guestName, hostRoster, guestRoster })
+    await befriend(host, guest)
+    const played = await setupBattle(host, guest, { hostRoster, guestRoster })
     await host.getByRole('button', { name: 'Battle options' }).click()
     await host.getByRole('menuitem', { name: 'Concede battle' }).click()
     await host.getByRole('alertdialog').getByRole('button', { name: 'Concede battle' }).click()
@@ -332,7 +338,9 @@ test('orders the signed-in home page from the player outwards', async ({ browser
     await host.setViewportSize({ width: 1440, height: 900 })
 
     // A second table, still being set, so the live shelf and the history shelf are both on the page.
-    const going = await createBattle(host, { opponent: guestName })
+    const going = await createBattle(host, { opponent: guest })
+    await attachRoster(host, hostRoster)
+    await attachRoster(guest, guestRoster)
 
     await host.goto('/')
     await expect(host.getByRole('heading', { name: `Welcome back, ${hostName}` })).toBeVisible()

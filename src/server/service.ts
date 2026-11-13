@@ -1,9 +1,7 @@
 import { createHash } from 'node:crypto'
-import { constantTimeEqual } from 'better-auth/crypto'
 import { byId, chunks, countBy } from '../core/collections'
-import { guestSeatId, isGuestSeat, newBattleSeats, type NewBattlePlayers, type CreateBattleInput } from '../core/newBattle'
+import { guestSeatId, newBattleSeats, type NewBattlePlayers, type CreateBattleInput } from '../core/newBattle'
 import { type BattlebaseBattle, battlebaseBattleImport, battlebaseBattleSchema } from '../core/battlebaseBattle'
-import { guestSessionCurrent } from '../core/guestSession'
 import { matchingSealedEventBattles } from '../shared/sealedEventBattleOptions'
 import { battleSummary, type BattleFaction } from '../shared/battleSummary'
 import { battleFilterActive, matchesBattle, type BattleFilter, type BattleOrder } from '../core/battleFilter'
@@ -31,6 +29,10 @@ import {
   reduceBattle,
   sameRandomDraw,
   type SubmitResult,
+  openPlaces,
+  stillFilling,
+  pointsBudgetOf,
+  pointsSpent,
 } from '../core/battle'
 import { playedArmies } from '../core/playedArmies'
 import { battleDigest, type BattleDigest } from '../core/battleDigest'
@@ -76,7 +78,7 @@ import { archivedArmies } from '../core/archivedArmies'
 import { currentCatalogueFamilyId } from '../core/retiredCatalogueIds'
 import { type BattleMissionRules, type BattleReadRules, type LoadedRules } from './rules'
 import type { Mission } from '../shared/rulesCards'
-import { type Notifier, silentNotifier } from './pushNotifier'
+import { describeNotices, type Notifier, silentNotifier } from './pushNotifier'
 import { SealedEventService } from './services/sealedEventService'
 import { GroupService } from './services/groupService'
 import { RosterService } from './services/rosterService'
@@ -180,7 +182,15 @@ const PROFILE_BATTLE_PAGE = 25
  * round trip later, a page acts on a view it has already changed — sending a seq
  * from before its own command, or naming the wrong command to undo.
  */
-type SubmitAnswer = { result: SubmitResult; screen: SeatedScreen; battleId: string; applied?: boolean; finished?: BattleEndReason }
+type SubmitAnswer = {
+  result: SubmitResult
+  screen: SeatedScreen
+  battleId: string
+  applied?: boolean
+  finished?: BattleEndReason
+  /** Set when this command turned a draft into a battle: every place filled and every army chosen. */
+  filled?: true
+}
 type SubmitArgs = [
   token: string,
   userId: string,
@@ -677,6 +687,20 @@ export class PraetoriumService {
       (entryId) => entryId,
     )
     return [...uses].map(([entryId, battles]) => ({ entryId, battles })).toSorted((a, b) => b.battles - a.battles)
+  }
+
+  /** The signed-in player's notices, newest first, each in the words and with the page a push would carry. */
+  async notices(userId: string) {
+    const stored = await this.repository.noticesByUser(userId, this.clock())
+    const described = await describeNotices(this.repository, stored)
+    return stored.flatMap((notice, index) => {
+      const message = described[index]
+      return message ? [{ id: notice.id, kind: notice.kind, ...message, at: notice.at, read: notice.readAt !== null }] : []
+    })
+  }
+
+  markNoticesRead(userId: string, ids: readonly string[]) {
+    return this.repository.markNoticesRead(userId, ids, this.clock())
   }
 
   setPushEnabled(userId: string, enabled: boolean) {
@@ -1179,7 +1203,7 @@ export class PraetoriumService {
   async createBattle(userId: string, input?: string | CreateBattleInput) {
     const settings =
       typeof input === 'object' ? { ...input, limit: input.limit ?? null } : { limit: null, missionPackId: null, manual: false }
-    const { allyIds, opponentIds, guestNames, invited } = newBattleSeats(input)
+    const { allyIds, opponentIds, invited } = newBattleSeats(input)
     // One query for everyone named rather than one apiece, and both reads at once:
     // who exists and who may be invited are independent questions.
     const [known, invitable] = await Promise.all([this.repository.namesByIds(invited), this.socialService.opponents(userId)])
@@ -1192,7 +1216,7 @@ export class PraetoriumService {
     const { group = null, league = null } = (groupToken && (await this.groupService.groupWithLeague(groupToken, userId))) || {}
     if (groupToken) {
       const members = new Set(group?.members.filter((member) => member.status === 'accepted').map((member) => member.userId))
-      if (!group || !members.has(userId) || guestNames.length || invited.some((id) => !members.has(id)))
+      if (!group || !members.has(userId) || invited.some((id) => !members.has(id)))
         throw new Response('a group game is played between its members', { status: 403 })
     } else if (invited.some((id) => !allowed.has(id)))
       throw new Response('battle players must be your friends or a practice opponent', { status: 403 })
@@ -1202,13 +1226,11 @@ export class PraetoriumService {
     if (fixtureKey && (!fixture || fixture.battleToken !== null || ![fixture.aId, fixture.bId].includes(userId)))
       throw new Response('this fixture is not yours to start, or has already started', { status: 409 })
     // How many chairs a battle has is `battleCapacity`'s to say, here as everywhere.
-    if (invited.length + guestNames.length >= battleCapacity({ teamBattle: true, playerCount: 4 }))
+    if (invited.length >= battleCapacity({ teamBattle: true, playerCount: 4 }))
       throw new Response('a battle seats four players at most', { status: 400 })
-    // Every battle names its table. There is no opening a game and waiting to see
-    // who turns up, so a battle without an opponent is not a battle yet.
-    if (!opponentIds.length && !guestNames.length) throw new Response('choose an opponent', { status: 400 })
-    // A sealed event seats its own entrants, so a table with a guest at it can only be casual.
-    if (!group && invited.length && !guestNames.length && (typeof input !== 'object' || !input.casual)) {
+    // A battle started alone is a draft, which `startDraft` makes; this path seats its whole table.
+    if (!opponentIds.length) throw new Response('choose an opponent', { status: 400 })
+    if (!group && invited.length && (typeof input !== 'object' || !input.casual)) {
       const sealedEventMatches = await this.sealedEventBattleOptions(userId, input)
       if (sealedEventMatches.length) {
         throw new Response('start this matchup from its event page, or confirm a casual battle', { status: 409 })
@@ -1223,7 +1245,6 @@ export class PraetoriumService {
       userId,
       allyIds,
       opponentIds,
-      guestNames,
       initialCommands: [
         {
           kind: 'configure-battle',
@@ -1231,8 +1252,9 @@ export class PraetoriumService {
           missionPackId: settings.manual ? null : settings.missionPackId,
           terrainLayoutId: null,
           twistId: null,
-          teamBattle: invited.length + guestNames.length >= 2,
-          playerCount: (invited.length + guestNames.length + 1) as 2 | 3 | 4,
+          teamBattle: invited.length >= 2,
+          playerCount: (invited.length + 1) as 2 | 3 | 4,
+          sizeFromSides: true,
           clockLimitMinutes: null,
           ...(settings.manual ? { manual: true } : {}),
         },
@@ -1243,6 +1265,165 @@ export class PraetoriumService {
     })
     this.notifier.notify([{ kind: 'battle-created', actorId: userId, recipientIds: invited, battleToken: token, sealedEvent: false }])
     return { battleId: id, token, practice }
+  }
+
+  /**
+   * A new battle with only its creator at the table, which the other places join later. Starting another while the
+   * creator still has one they have done nothing with hands that one back instead of piling up drafts.
+   */
+  async startDraft(userId: string, missionPackId: string | null) {
+    const token = randomToken()
+    const id = randomId()
+    const battle = await this.repository.createBattle({
+      id,
+      token,
+      userId,
+      draft: true,
+      initialCommands: [
+        {
+          kind: 'configure-battle',
+          limit: null,
+          missionPackId,
+          terrainLayoutId: null,
+          twistId: null,
+          teamBattle: false,
+          playerCount: 2,
+          places: [1, 1],
+          sizeFromSides: true,
+          clockLimitMinutes: null,
+        },
+      ],
+      now: this.clock(),
+    })
+    return { battleId: battle.id, token: battle.token, reused: battle.id !== id }
+  }
+
+  /** The link that joins this battle's open places, made the first time it is shared. */
+  async shareBattle(token: string, userId: string) {
+    const seats = await this.mustSeat(token, userId)
+    const shared = await this.repository.battleInvite(seats.battle.id, userId, randomToken())
+    if (!shared) throw new Response('only a player in this battle can share it', { status: 403 })
+    return { invite: shared.invite }
+  }
+
+  /** Sends a friend the battle's link as a notice; they join through it like anyone else who opens it. */
+  async inviteToBattle(token: string, userId: string, friendId: string) {
+    const [seats, friends] = await Promise.all([this.mustSeat(token, userId), this.socialService.opponents(userId)])
+    if (!friends.some((friend) => friend.id === friendId && !friend.automated))
+      throw new Response('invite one of your friends', { status: 403 })
+    if (seats.players.some((player) => player.id === friendId)) throw new Response('they are already in this battle', { status: 409 })
+    const shared = await this.repository.battleInvite(seats.battle.id, userId, randomToken(), friendId)
+    if (!shared) throw new Response('only a player in this battle can invite someone', { status: 403 })
+    this.notifier.notify([
+      { kind: 'battle-created', actorId: userId, recipientIds: [friendId], battleToken: token, sealedEvent: false, invite: shared.invite },
+    ])
+    return { invite: shared.invite }
+  }
+
+  async stopSharingBattle(token: string, userId: string) {
+    const seats = await this.mustSeat(token, userId)
+    await this.repository.stopBattleInvite(seats.battle.id, userId)
+    return null
+  }
+
+  /** Whether a battle is still a draft, and to a seated player the link and the friends invited through it. */
+  async battleDraft(token: string, userId: string | null) {
+    const seats = await this.repository.battleByToken(token)
+    if (!seats) throw new Response('no such battle', { status: 404 })
+    const state = await this.repository.battleDraftState(seats.battle.id)
+    const seated = userId !== null && this.seated(seats, userId)
+    if (!seated || !state.invite) return { draft: state.draft, invite: null }
+    const names = await this.repository.namesByIds(state.invite.invitedIds)
+    return {
+      draft: state.draft,
+      invite: {
+        invite: state.invite.invite,
+        invited: state.invite.invitedIds.flatMap((id) => {
+          const name = names.get(id)?.name
+          return name ? [{ id, name }] : []
+        }),
+      },
+    }
+  }
+
+  /** Who is at the table a link joins and which places are open, so whoever opens it sees who they would play before joining. */
+  async battleInvitation(invite: string, userId: string | null) {
+    const history = await this.repository.battleHistoryByInvite(invite)
+    if (!history) return null
+    const state = foldHistory(history)
+    const seated = userId !== null && this.seated(history, userId)
+    const host = history.players.find((player) => player.side === 0)
+    return {
+      // The battle itself is for the players in it: anyone else reaches it only by joining.
+      token: seated ? history.battle.token : null,
+      hostName: host?.name ?? null,
+      sides: [0, 1].map((side) =>
+        history.players
+          .filter((player) => player.side === side)
+          .map((player) => {
+            const roster = state.players.find((candidate) => candidate.id === player.id)?.roster
+            return {
+              name: player.name,
+              image: player.image ?? null,
+              army: roster ? { name: roster.name, points: roster.built ? pointsSpent(roster.built) : null } : null,
+            }
+          }),
+      ),
+      ...invitedSize(state),
+      open: openPlaces(state),
+      started: state.status !== 'setup',
+    }
+  }
+
+  /** Joins an open place through the battle's link, on the side the player chose. */
+  async joinBattle(invite: string, userId: string, side: 0 | 1) {
+    const history = await this.repository.battleHistoryByInvite(invite)
+    if (!history) throw new Response('this link no longer joins a battle', { status: 404 })
+    const outcome = await this.repository.seatBattlePlayer({
+      battleId: history.battle.id,
+      userId,
+      side,
+      by: userId,
+      invite,
+      now: this.clock(),
+    })
+    if (outcome !== 'joined' && outcome !== 'seated') throw new Response(JOIN_REFUSALS[outcome], { status: 409 })
+    return { battleId: history.battle.id, token: history.battle.token, joined: outcome === 'joined' }
+  }
+
+  /** Seats a practice opponent in the open place, so the creator plays both sides on their own device. */
+  async playBothSides(token: string, userId: string) {
+    const [seats, practice] = await Promise.all([this.mustSeat(token, userId), this.repository.practiceOpponents()])
+    const seated = new Set(seats.players.map((player) => player.id))
+    const opponent = practice.find((candidate) => !seated.has(candidate.id))
+    if (!opponent) throw new Response('playing both sides is not available here', { status: 409 })
+    const outcome = await this.repository.seatBattlePlayer({
+      battleId: seats.battle.id,
+      userId: opponent.id,
+      side: 1,
+      by: userId,
+      now: this.clock(),
+    })
+    if (outcome !== 'joined') throw new Response(JOIN_REFUSALS[outcome === 'seated' ? 'full' : outcome], { status: 409 })
+    return null
+  }
+
+  /** The creator takes a player out before the battle starts, which opens their place again. */
+  async removeBattlePlayer(token: string, userId: string, playerId: string) {
+    const seats = await this.mustSeat(token, userId)
+    if (!(await this.repository.removeBattlePlayer(seats.battle.id, userId, playerId)))
+      throw new Response('only the player who started the battle can remove someone, before it starts', { status: 403 })
+    return null
+  }
+
+  /** The drafts a player is in, newest first, for the one place they are listed. */
+  async drafts(userId: string, rules?: BattleMissionRules | null, factions?: readonly BattleFaction[]) {
+    return this.battleSummaries(await this.repository.draftsByUser(userId), userId, rules, factions)
+  }
+
+  /** Deletes drafts nobody has touched for `DRAFT_RETENTION_MS`. */
+  sweepDrafts() {
+    return this.repository.sweepDrafts(this.clock() - DRAFT_RETENTION_MS)
   }
 
   /**
@@ -1445,7 +1626,14 @@ export class PraetoriumService {
     const [, userId, , , rules] = args
     const { result, previous, history, application } = await this.append(...args)
     const screen = this.seatedScreen(history, userId, rules)
-    return { result, screen, battleId: history.battle.id, ...application, ...finishing(result, previous, screen) }
+    return {
+      result,
+      screen,
+      battleId: history.battle.id,
+      ...application,
+      ...finishing(result, previous, screen),
+      ...filling(result, previous, history, screen),
+    }
   }
 
   /** The answer with the submitting device's copy of the history, so it is saved without a second download. */
@@ -1460,6 +1648,7 @@ export class PraetoriumService {
       battleId: history.battle.id,
       ...application,
       ...finishing(result, previous, screen),
+      ...filling(result, previous, history, screen),
     }
   }
 
@@ -1547,58 +1736,6 @@ export class PraetoriumService {
     return { result, previous: history, history: { ...history, log }, application: applied === undefined ? {} : { applied } }
   }
 
-  /**
-   * The link a seated account shares so a guest plays their own side. `replace` retires the old link and any device
-   * that joined through it, so the table plays the seat again until someone opens the new one.
-   */
-  async guestInvite(token: string, userId: string, seatId: string, replace = false) {
-    const seats = await this.mustSeat(token, userId)
-    if (isGuestSeat(userId)) throw new Response('only a signed-in player can invite a guest', { status: 403 })
-    const seat = seats.players.find((player) => player.id === seatId && isGuestSeat(player.id))
-    if (!seat) throw new Response('no such guest in this battle', { status: 404 })
-    const invite = await this.repository[replace ? 'replaceGuestInvite' : 'guestInvite'](seats.battle.id, seatId, randomToken())
-    return { invite, joined: !replace && !seat.automated }
-  }
-
-  async guestInvitation(invite: string) {
-    const seat = await this.repository.guestSeatByInvite(invite)
-    return seat && { token: seat.token, seatId: seat.seatId, guestName: seat.guestName, hostName: seat.hostName, joined: seat.joined }
-  }
-
-  /** Seats this device in the guest's chair and returns the secret it will prove that with; the server keeps only its hash. */
-  async joinGuest(invite: string, userId: string | null) {
-    const seat = await this.repository.guestSeatByInvite(invite)
-    if (!seat) throw new Response('this invite is no longer available', { status: 404 })
-    if (userId && (await this.repository.battleByToken(seat.token))?.players.some((player) => player.id === userId))
-      throw new Response('you already have a seat in this battle', { status: 400 })
-    const secret = randomToken()
-    const joined = await this.repository.joinGuestSeat(invite, guestDeviceHash(secret), this.clock())
-    if (joined === 'missing') throw new Response('this invite is no longer available', { status: 404 })
-    if (joined === 'taken') throw new Response(`${seat.guestName} already joined on another device`, { status: 409 })
-    return { token: joined.token, seatId: joined.seatId, secret }
-  }
-
-  /** The guest seat a device's secret holds in this battle, or null once the host replaced the link or the session lapsed. */
-  async guestSeat(token: string, held: { seat: string; secret: string }) {
-    const device = await this.repository.guestDevice(held.seat)
-    if (!device || device.token !== token || !guestSessionCurrent(device.joinedAt, this.clock())) return null
-    return constantTimeEqual(device.deviceHash, guestDeviceHash(held.secret)) ? held.seat : null
-  }
-
-  /** Moves the guest seat this device played onto the account that has just signed in, once the battle is over. */
-  async claimGuest(token: string, userId: string, held: { seat: string; secret: string }) {
-    const device = await this.repository.guestDevice(held.seat)
-    if (!device || device.token !== token) throw new Response('this device is not playing that seat', { status: 403 })
-    const outcome = await this.repository.claimGuestSeat({
-      battleId: device.battleId,
-      seatId: held.seat,
-      userId,
-      deviceHash: guestDeviceHash(held.secret),
-      now: this.clock(),
-    })
-    if (outcome !== 'claimed') throw new Response(outcome, { status: 409 })
-  }
-
   /** Opening a battle stream is an authorization decision. */
   async userBattleId(token: string, userId: string) {
     const seats = await this.mustSeat(token, userId)
@@ -1654,6 +1791,28 @@ export class PraetoriumService {
   }
 }
 
+/**
+ * The battle's size and what each army brings, or what the biggest list chosen so far makes them, so whoever opens a
+ * link knows what to bring. Doubles armies bring half the battle's points; a pair facing one player shares them.
+ */
+function invitedSize(state: ReturnType<typeof foldHistory>): { limit: number | null; armyPoints: number | null } {
+  const doubles = state.settings.places?.every((count) => count === 2) ?? battleCapacity(state.settings) === 4
+  if (state.settings.limit !== null)
+    return { limit: state.settings.limit, armyPoints: doubles ? state.settings.limit / 2 : state.settings.limit }
+  const list = Math.max(0, ...state.players.flatMap((player) => (player.roster?.built ? [pointsBudgetOf(player.roster.built)] : [])))
+  return list ? { limit: list, armyPoints: doubles ? list / 2 : list } : { limit: null, armyPoints: null }
+}
+
+/** How long a draft nobody changes is kept: long enough for a game planned for next weekend. */
+const DRAFT_RETENTION_MS = 14 * 24 * 60 * 60 * 1_000
+
+const JOIN_REFUSALS = {
+  missing: 'this link no longer joins a battle',
+  'not-yours': 'only the player who started the battle can do that',
+  started: 'this battle has already started',
+  full: 'everyone has already joined this battle',
+} as const
+
 function adminBattleSummary(history: BattleCard): AdminBattle {
   return {
     token: history.battle.token,
@@ -1669,6 +1828,14 @@ function adminBattleSummary(history: BattleCard): AdminBattle {
 function finishing(result: SubmitResult, previous: BattleHistory, screen: SeatedScreen): { finished?: BattleEndReason } {
   if (result.outcome !== 'appended' || screen.view.status !== 'finished' || !screen.view.result) return {}
   return foldHistory(previous).status === 'finished' ? {} : { finished: screen.view.result.reason }
+}
+
+/** Only a battle in setup can stop being a draft, so the folds run only there, where logs are short. */
+function filling(result: SubmitResult, previous: BattleHistory, history: BattleHistory, screen: SeatedScreen): { filled?: true } {
+  if (result.outcome !== 'appended' || screen.view.status !== 'setup') return {}
+  const after = foldHistory(history)
+  if (!after.settings.places || stillFilling(after)) return {}
+  return stillFilling(foldHistory(previous)) ? { filled: true } : {}
 }
 
 function foldHistory({ players, log }: BattleHistory) {
@@ -1726,11 +1893,6 @@ function referencedPlays(
         : play.primary,
     }
   })
-}
-
-/** What the service keeps of a guest device's secret, and what that device's realtime token names it by. */
-export function guestDeviceHash(secret: string) {
-  return createHash('sha256').update(secret).digest('hex')
 }
 
 /**

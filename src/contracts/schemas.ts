@@ -24,7 +24,7 @@ import {
   SECONDARIES_MAX,
   STRATAGEMS_MAX,
 } from '../core/battle'
-import { ABILITY_REMINDERS_MAX, abilityReminderSchema, rosterReminderSchema, ROSTER_REMINDERS_MAX } from '../core/reminders'
+import { abilityReminderSchema, rosterReminderSchema, ROSTER_REMINDERS_MAX } from '../core/reminders'
 import {
   commandSchema,
   detachmentIdSchema,
@@ -274,21 +274,18 @@ const newBattlePlayers = {
 export const sealedEventBattleOptionsSchema = z.object(newBattlePlayers)
 /** A roster read may name the battle that entitles the reader to it. */
 export const rosterInBattleSchema = z.object({ id, battle: token.optional() })
-const opposingSeats = (value: { opponentId?: string; opponentIds?: string[]; guestNames?: string[] }) =>
-  (value.opponentIds?.length ?? (value.opponentId ? 1 : 0)) + (value.guestNames?.length ?? 0)
+const opposingSeats = (value: { opponentId?: string; opponentIds?: string[] }) => value.opponentIds?.length ?? (value.opponentId ? 1 : 0)
 /**
  * Who is in a new battle, and on which side.
  *
  * `allyId` sits with the creator and `opponentIds` face them, so the same 2v1 can be
  * opened by either player of the allied pair. A 2v2 adds one ally and two opponents,
  * and the combined seat count is bounded rather than either side on its own.
- * `guestNames` seats opponents without an account on the opposing side.
  */
 export const createBattleSchema = z
   .object({
     ...newBattlePlayers,
     limit: z.number().int().refine(isGameSize).nullable().optional(),
-    guestNames: z.array(z.string().trim().min(1).max(PROFILE_NAME_MAX_LENGTH)).min(1).max(2).optional(),
     missionPackId: id.nullable().default(null),
     casual: z.boolean().default(false),
     manual: z.boolean().default(false),
@@ -300,6 +297,11 @@ export const createBattleSchema = z
   .refine((value) => (value.allyId ? 1 : 0) + opposingSeats(value) <= 3, 'a battle seats four players at most')
   .refine((value) => !value.allyId || opposingSeats(value) > 0, 'an ally needs someone to play against')
 export const deleteBattleSchema = z.object({ token })
+export const startDraftSchema = z.object({ missionPackId: id.nullable().default(null) })
+export const battleInviteSchema = z.object({ invite: token })
+export const joinBattleSchema = z.object({ invite: token, side: z.union([z.literal(0), z.literal(1)]) })
+export const inviteToBattleSchema = z.object({ token, friendId: id })
+export const removeBattlePlayerSchema = z.object({ token, playerId: id })
 export const battlesPageSchema = z.object({
   before: battlesCursor.nullable().default(null),
 })
@@ -323,9 +325,6 @@ export const friendSchema = z.object({ userId: id })
 /** Only a tour can be completed by saying so; every other task is folded from what the player did. */
 export const onboardingUpdateSchema = z.object({ operation: z.literal('complete'), task: z.enum(tourTaskIds) })
 export const friendInviteSchema = z.object({ token })
-/** A guest seat in a battle; `replace` retires its link and any device that joined through it. */
-export const guestInviteSchema = z.object({ token, playerId: id, replace: z.boolean().default(false) })
-export const guestInvitationSchema = z.object({ invite: token })
 /** A BattleBase username, as its profile URLs spell them. */
 export const battlebaseUsernameSchema = z.object({
   username: z
@@ -487,15 +486,6 @@ export const rosterContentSchema = z
 export const saveRosterSchema = rosterContentSchema.overwrite(currentRosterIds)
 
 const attachSavedRosterSchema = z.object({ kind: z.literal('attach-saved-roster'), rosterId: id, playerId: id.optional() }).strict()
-/** A guest has no saved lists, so they field the one this device is building, priced and frozen by the server, with this browser's alerts. */
-const attachDraftRosterSchema = z
-  .object({
-    kind: z.literal('attach-draft-roster'),
-    playerId: id.optional(),
-    draft: saveRosterSchema,
-    reminders: z.array(abilityReminderSchema).max(ABILITY_REMINDERS_MAX).optional(),
-  })
-  .strict()
 /**
  * `expectedSeq` is the client's claim about the history it has already seen.
  * Sending it is what makes a command conditional on nothing having happened since.
@@ -503,7 +493,7 @@ const attachDraftRosterSchema = z
 export const submitSchema = z.object({
   token,
   expectedSeq: z.number().int().min(0),
-  command: z.union([commandSchema, attachSavedRosterSchema, attachDraftRosterSchema]),
+  command: z.union([commandSchema, attachSavedRosterSchema]),
 })
 
 /** A Praetorium, BattleBase or New Recruit text export, which no roster comes close to filling. */

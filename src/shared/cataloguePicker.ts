@@ -117,7 +117,7 @@ export function detachmentUnitFacts(loaded: LoadedCatalogue, catalogueId: string
  */
 export function unitsIn(loaded: LoadedCatalogue, catalogueId: string, query: string, options: UnitListOptions = {}): UnitSummary[] {
   return searchDatasheetEntries(unitSummaries(loaded, catalogueId, options).get(), query.trim().toLowerCase(), (unit) =>
-    datasheetSearchFieldsIn(loaded, catalogueId, unit.id),
+    datasheetSearchFieldsIn(loaded, catalogueId, unit.id, true),
   )
 }
 

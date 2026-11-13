@@ -1,5 +1,5 @@
 import { cn } from '@/lib/utils'
-import type { TextSource } from '../../shared/sourceText'
+import type { TextSource } from '../../core/sourceText'
 import { TEXT_SOURCE_INFO } from '../rulesText'
 import { type MissingText, retryFailedTextFiles } from '../sourceText'
 import { useHydrated } from '../useClientValue'

@@ -4,6 +4,7 @@ import {
   isTeamFormat,
   alliedSealedEventRosterLimit,
   SEALED_EVENT_TEAM_ROSTER_LIMITS,
+  sealedEventPairShares,
   sealedEventSeatPoints,
   sealedEventSeatRefusal,
   type SealedEventArmyPoints,
@@ -181,7 +182,7 @@ export function buildSealedEventBattle(
       const built = rosters.get(playerId)?.built
       const solo = sealedEvent.format === '2v1' && sealedEvent.entries.find((entry) => entry.userId === playerId)?.requiredLimit === limit
       const partnerId = pairs.find((pair) => pair.includes(playerId))!.find((id) => id !== playerId)
-      const pair = sealedEvent.sharedPoints && !solo ? { partner: rosters.get(partnerId!)?.built ?? null } : undefined
+      const pair = sealedEventPairShares(sealedEvent) && !solo ? { partner: rosters.get(partnerId!)?.built ?? null } : undefined
       return !built || sealedEventSeatRefusal(built, limit, sealedEventSeatPoints(sealedEvent, solo)!, pair) !== null
     }
     if (participantIds.some(misfit)) throw new SealedEventBattleSetupError('a sealed roster does not fit its seat', 409)
@@ -196,11 +197,12 @@ export function buildSealedEventBattle(
       twistId: null,
       teamBattle: isTeamFormat(sealedEvent.format),
       playerCount: expectedPlayers,
+      sizeFromSides: true,
       // The creator's side sits first, so its seat's points do too.
       ...(isTeamFormat(sealedEvent.format)
         ? {
             armyPoints: [allyIds.length > 0, opponentIds.length > 1].map((pair) => sealedEventSeatPoints(sealedEvent, !pair)!),
-            ...(sealedEvent.sharedPoints ? { sharedArmyPoints: true } : {}),
+            ...(sealedEvent.format === '2v2' && sealedEvent.sharedPoints ? { sharedArmyPoints: true } : {}),
           }
         : {}),
       clockLimitMinutes: null,

@@ -4,6 +4,7 @@ import { callSpacetime, spacetimeDatabaseUrl, type SpacetimeConnection } from 'r
 import { withServerSpan } from '../adapters/posthog'
 import { offlineContext, SYNC_PRODUCT_ACTIONS } from './offlineContext'
 import { z } from 'zod'
+import { type Notice, noticeSubjectSchema } from '../core/notifications'
 import { achievementFactsSchema, achievementStatusSchema } from '../contracts/achievements'
 import {
   leaderboardSchema,
@@ -99,6 +100,15 @@ const favouriteDetachmentRow = z.object({
 })
 const unitLoadoutRow = unitLoadoutSchema.extend({ id: z.string(), name: z.string(), catalogueId: z.string(), createdAt: z.number().int() })
 const pushTarget = z.object({ userId: z.string(), token: z.string() })
+const storedNotice = noticeSubjectSchema.and(
+  z.object({
+    id: z.string(),
+    actorId: z.string(),
+    subjectName: z.string().optional(),
+    at: z.number().int(),
+    readAt: z.number().int().nullable(),
+  }),
+)
 const battleSnapshot = z.object({
   battle: z.object({ id: z.string(), token: z.string(), createdAt: z.number().int() }),
   seats: z.array(z.object({ id: z.string(), side: z.number().int(), automated: z.boolean(), guestName: z.string().optional() })),
@@ -112,15 +122,6 @@ const battleSnapshot = z.object({
     }),
   ),
 })
-const guestInvitation = z.object({
-  battleId: z.string(),
-  token: z.string(),
-  seatId: z.string(),
-  guestName: z.string(),
-  hostId: z.string().nullable(),
-  joined: z.boolean(),
-})
-const joinedGuest = z.object({ battleId: z.string(), token: z.string(), seatId: z.string() })
 const feedCursor = z.object({ at: z.number().int(), id: z.string() })
 /** The release this server was built from, which keys the module's stored digests so a new release refolds each battle once. */
 const DIGEST_REVISION = process.env.GITHUB_SHA?.trim() || 'development'
@@ -155,6 +156,7 @@ const productStat = z.object({
   practiceOpponent: z.boolean(),
 })
 const invite = z.object({ token: z.string(), inviterId: z.string() })
+const battleLink = z.object({ invite: z.string(), invitedIds: z.array(z.string()) })
 const acceptedInvite = z.union([z.enum(['missing', 'self', 'already-friends']), z.object({ inviterId: z.string() })])
 const onboarding = z.object({
   tasks: z.array(z.object({ task: z.string(), state: z.enum(['completed', 'skipped']) })),
@@ -524,6 +526,7 @@ export class SpacetimeOperator {
     initialCommands?: Command[]
     now: number
     fixtureKey?: string
+    draft?: boolean
     imported?: { source: ImportSource; sourceId: string; times: number[]; players: [string, string] }
   }) {
     return this.read(
@@ -539,11 +542,44 @@ export class SpacetimeOperator {
           initialCommands: input.initialCommands ?? [],
           now: input.now,
           ...(input.fixtureKey ? { fixtureKey: input.fixtureKey } : {}),
+          ...(input.draft ? { draft: true } : {}),
           imported: input.imported,
         }),
       ],
       battleSnapshot,
     )
+  }
+
+  async seatBattlePlayer(input: { battleId: string; userId: string; side: 0 | 1; by: string; invite?: string; now: number }) {
+    return this.read('seat_battle_player', [JSON.stringify(input)], z.enum(['joined', 'missing', 'not-yours', 'seated', 'started', 'full']))
+  }
+
+  async removeBattlePlayer(battleId: string, by: string, userId: string) {
+    return this.reply('remove_battle_player', [battleId, by, userId], z.boolean())
+  }
+
+  async battleInvite(battleId: string, by: string, link: string, inviteeId?: string) {
+    return this.read('battle_invite', [battleId, by, link, inviteeId ?? ''], battleLink.nullable())
+  }
+
+  async stopBattleInvite(battleId: string, by: string) {
+    return this.reply('stop_battle_invite', [battleId, by], z.boolean())
+  }
+
+  async battleDraftState(battleId: string) {
+    return this.read('battle_draft_state', [battleId], z.object({ draft: z.boolean(), invite: battleLink.nullable() }))
+  }
+
+  async battleByInvite(link: string) {
+    return (await this.read('battle_by_invite', [link], battleSnapshot.nullable())) ?? undefined
+  }
+
+  async draftsByUser(userId: string) {
+    return this.read('drafts_by_user', [userId, DIGEST_REVISION], battleFeedResult.shape.battles)
+  }
+
+  async sweepDrafts(before: number) {
+    return this.reply('sweep_drafts', [before], z.number().int().nonnegative())
   }
 
   async claimImportedBattle(input: { source: ImportSource; sourceId: string; userId: string; playerId: string }) {
@@ -564,34 +600,6 @@ export class SpacetimeOperator {
 
   async battleByToken(token: string) {
     return (await this.read('battle_by_token', [token], battleSnapshot.nullable())) ?? undefined
-  }
-
-  async guestInvite(battleId: string, seatId: string, link: string) {
-    return this.read('guest_invite', [battleId, seatId, link], z.string())
-  }
-
-  async replaceGuestInvite(battleId: string, seatId: string, link: string) {
-    return this.read('replace_guest_invite', [battleId, seatId, link], z.string())
-  }
-
-  async guestSeatByInvite(link: string) {
-    return this.read('guest_seat_by_invite', [link], guestInvitation.nullable())
-  }
-
-  async joinGuestSeat(link: string, deviceHash: string, now: number) {
-    return this.read('join_guest_seat', [link, deviceHash, now], z.union([z.enum(['missing', 'taken']), joinedGuest]))
-  }
-
-  async guestDevice(seatId: string) {
-    return this.read(
-      'guest_device',
-      [seatId],
-      z.object({ battleId: z.string(), token: z.string(), deviceHash: z.string(), joinedAt: z.number().int() }).nullable(),
-    )
-  }
-
-  async claimGuestSeat(input: { battleId: string; seatId: string; userId: string; deviceHash: string; now: number }) {
-    return this.read('claim_guest_seat', [input.battleId, input.seatId, input.userId, input.deviceHash, input.now], z.string())
   }
 
   async battleFeed(input: {
@@ -1165,6 +1173,20 @@ export class SpacetimeOperator {
   async pushTargets(userIds: readonly string[]) {
     if (!userIds.length) return []
     return this.read('push_targets', [[...new Set(userIds)]], z.array(pushTarget))
+  }
+
+  /** Each notice's stored id by recipient, in the order given. */
+  async storeNotices(notices: readonly (Notice & { subjectName?: string })[], now: number): Promise<Record<string, string>[]> {
+    if (!notices.length) return []
+    return this.read('store_notices', [JSON.stringify({ now, notices })], z.array(z.record(z.string(), z.string())))
+  }
+
+  async noticesByUser(userId: string, now: number) {
+    return this.read('notices_by_user', [userId, now], z.array(storedNotice))
+  }
+
+  async markNoticesRead(userId: string, ids: readonly string[], now: number) {
+    return this.reply('mark_notices_read', [userId, [...ids], now], z.boolean())
   }
 
   sealedEventNames(tokens: readonly string[]) {

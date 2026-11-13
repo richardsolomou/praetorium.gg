@@ -18,11 +18,11 @@ This tournament plays at its own points total. Build or copy a list to that tota
 
 ### "choose a roster that spends at most … points"
 
-In a 2v1 or doubles tournament each seat has its own points per army. When allies split their points, the number is what your pair has left after your ally's sealed list. Take units out until the list fits, or ask your ally to seal a smaller one.
+In a 2v1 the pair always shares its points, such as 2,000 between the two allies against a solo player's 2,000. In doubles each seat has its own points per army unless allies split their points. When they share, the number is what your pair has left after your ally's sealed list. Take units out until the list fits, or ask your ally to seal a smaller one.
 
 ### "your ally sealed a list saved to … points"
 
-Allies seal lists saved to the same points total, unless the tournament lets them split their points. Set your list's points total in the builder to match your ally's, or ask them to change theirs.
+Doubles allies seal lists saved to the same points total, unless the tournament lets them split their points. Set your list's points total in the builder to match your ally's, or ask them to change theirs.
 
 ### "wait for the organizer to give you a size or team"
 
@@ -34,7 +34,7 @@ You can't seal after the deadline. The organizer can move it until the reveal.
 
 ### The format, points or house rules can't be changed
 
-The format, battle size, pairing and points total lock once anyone seals a roster. Points per army, **Allies split their points** and house rules stay open until the reveal, but only to values every sealed roster still fits. If you see "a sealed list would no longer fit", ask that player to seal a roster that fits first.
+The format, battle size, pairing and points total lock once anyone seals a roster. The solo player's points, doubles points per army, **Allies split their points** and house rules stay open until the reveal, but only to values every sealed roster still fits. If you see "a sealed list would no longer fit", ask that player to seal a roster that fits first.
 
 Everything locks for good after the reveal. To play different rules, start a new tournament.
 
@@ -50,4 +50,3 @@ The next Swiss round pairs once every table in the current one has finished. If 
 
 - Praetorium checks lists against the tournament's format, points and house rules. Anything else you've agreed, such as painting or which books are in, is yours to check.
 - Team-wide limits in doubles, across both players' lists, aren't checked.
-- Guests can't play in tournaments.

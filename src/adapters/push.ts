@@ -8,7 +8,8 @@ import pRetry from 'p-retry'
 import { chunks } from '../core/collections'
 import { countServerMetric, reportServerFailure, requestOutcome } from './posthog'
 
-export type PushMessage = { to: string; title: string; body: string; path: string }
+/** `noticeId` is the stored notice the message is about, so the app can clear it once it's read anywhere. */
+export type PushMessage = { to: string; title: string; body: string; path: string; noticeId?: string }
 
 export type PushSender = { send: (messages: readonly PushMessage[]) => Promise<void> }
 
@@ -126,7 +127,7 @@ export function expoPushSender(options: PushSenderOptions): PushSender {
             to: message.to,
             title: message.title,
             body: message.body,
-            data: { path: message.path },
+            data: { path: message.path, ...(message.noticeId ? { noticeId: message.noticeId } : {}) },
             sound: 'default',
             ttl: TTL_SECONDS,
             channelId: 'default',

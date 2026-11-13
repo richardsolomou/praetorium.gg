@@ -1,16 +1,11 @@
 import { add } from './builder.harness'
 import { waitForOfflineApp } from './offline'
-import { expect, test, type Page } from './test'
+import { expect, test } from './test'
 import {
-  befriend,
-  createBattle,
   createRoster,
   confirmRosterSetup,
   signUp,
   uniqueName,
-  setupStep,
-  retryUntilVisible,
-  attachRoster,
   startBattle,
   advance,
   openRosterSetup,
@@ -27,15 +22,6 @@ import { chooseCombatUnit } from './combat'
 import type { LocalState } from '../src/contracts/localState'
 
 test.use({ actionTimeout: 15_000 })
-
-/** Opens and closes the New battle dialog once online, so its code is cached before the device goes offline. */
-async function warmBattleDialog(page: Page) {
-  await page.goto('/battles')
-  await retryUntilVisible(page.getByRole('combobox', { name: 'Opponent', exact: true }), () =>
-    page.getByRole('button', { name: 'New battle' }).click(),
-  )
-  await page.keyboard.press('Escape')
-}
 
 test('simulation and loadout optimization work in a cold offline application', async ({ page, context }) => {
   test.setTimeout(240_000)
@@ -194,17 +180,16 @@ test('a lost save response retains its identity and later edits sync in order', 
 test('an offline practice battle and its commands survive reopening and sync together', async ({ page, context }) => {
   test.setTimeout(240_000)
   const { id: rosterId, operator } = await savedArmy(page, 'Offline battle', { name: 'Flight army' })
-  await page.goto('/rosters')
-  await page.reload()
-  await expect(page.locator('[data-roster="Flight army"]')).toBeVisible()
-  await page.goto(`/rosters/${rosterId}`)
-  await expect(page.getByLabel('List name')).toHaveValue('Flight army')
-  await warmBattleDialog(page)
-  await waitForOfflineApp(page)
-  await expectWorkSynced(page)
-  await context.setOffline(true)
+  // A battle starts on the server as a draft, so only its setup and play happen offline.
   const url = await practiceBattle(page, 'Flight army')
   const token = lastPathSegment(url)
+  await waitForOfflineApp(page)
+  // Offline play refuses to continue from a saved history older than the screen, so it must catch up first.
+  const served = (await operator.battleByToken(token))!.log.length
+  await expect
+    .poll(async () => ((await savedWork(page))?.documents[`battle:${token}`]?.data as { log: unknown[] } | undefined)?.log.length)
+    .toBe(served)
+  await context.setOffline(true)
   await startBattle(page)
   await advance(page)
   await expect(page.getByRole('heading', { name: 'movement phase' })).toBeVisible()
@@ -222,7 +207,7 @@ test('an offline practice battle and its commands survive reopening and sync tog
   await reopened.goto(url)
   await expect(reopened.getByRole('heading', { name: 'movement phase' })).toBeVisible()
   await expect(reopened.getByRole('button', { name: 'Open Flight army' }).first()).toBeVisible()
-  expect(await operator.battleByToken(token)).toBeUndefined()
+  expect((await operator.battleByToken(token))!.log).toHaveLength(served)
   await context.setOffline(false)
   await reopened.evaluate(() => window.dispatchEvent(new Event('online')))
   await expectWorkSynced(reopened, { timeout: 30_000 })
@@ -232,48 +217,6 @@ test('an offline practice battle and its commands survive reopening and sync tog
     kind: 'attach-roster',
     roster: { id: rosterId, name: 'Flight army' },
   })
-})
-
-test('a guest battle created offline keeps the guest’s seat when it syncs', async ({ page, context }) => {
-  test.setTimeout(240_000)
-  const { operator } = await savedArmy(page, 'Offline guest host', { name: 'Guest army' })
-  await warmBattleDialog(page)
-  await waitForOfflineApp(page)
-  await expectWorkSynced(page)
-  await context.setOffline(true)
-  const token = lastPathSegment(await createBattle(page, { guest: 'Offline Guest' }))
-  await attachRoster(page, 'Guest army', { forPlayer: 'Offline Guest' })
-  await context.setOffline(false)
-  await page.evaluate(() => window.dispatchEvent(new Event('online')))
-  await expectWorkSynced(page, { timeout: 30_000 })
-  const synced = (await operator.battleByToken(token))!
-  const guest = synced.seats.find((seat) => seat.guestName === 'Offline Guest')
-  expect(synced.log.find((entry) => entry.command.kind === 'attach-roster')?.command).toMatchObject({ playerId: guest?.id })
-})
-
-test('a battle link opened before its offline creation syncs opens once the battle arrives', async ({ page, context, browser }) => {
-  test.setTimeout(240_000)
-  const opponentName = uniqueName('Early opponent')
-  const opponent = await (await browser.newContext()).newPage()
-  await signUp(opponent, opponentName)
-  await signUp(page, uniqueName('Offline host'))
-  await befriend(page, opponent)
-  await warmBattleDialog(page)
-  await waitForOfflineApp(page)
-  await expectWorkSynced(page)
-  await context.setOffline(true)
-  const url = await createBattle(page, { opponent: opponentName })
-  const token = lastPathSegment(url)
-  expect(await (await productOperator()).battleByToken(token)).toBeUndefined()
-
-  await opponent.goto(url)
-  await expect(opponent.getByRole('heading', { name: 'Nothing here' })).toBeVisible()
-  await context.setOffline(false)
-  await page.evaluate(() => window.dispatchEvent(new Event('online')))
-  await expectWorkSynced(page, { timeout: 30_000 })
-  // The link the opponent already opened finds the battle without a reload.
-  await expect(opponent.getByRole('heading', { name: 'Set up the battle' })).toBeVisible({ timeout: 30_000 })
-  await setupStep(opponent, 'Armies')
 })
 
 test('a battle conflict awaiting review does not stop connected play', async ({ page, context }) => {

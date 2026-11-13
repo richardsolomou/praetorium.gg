@@ -16,7 +16,7 @@ The owner can pick admins from the members in **Edit group**, in the group page'
 2. Pick a duel, solo vs pair or doubles, and who plays.
 3. Press **Start battle**.
 
-You can also pick the group under **Group** when you set up a battle anywhere else. It only shows when everyone in the battle is a member, and you can change it until the battle starts. Games with a guest or practice opponent can't count, and neither can manually tracked games.
+You can also pick the group under **Record for a group** in a battle's **Tracking** step. It only shows when everyone in the battle is a member, and you can change it until the battle starts. Games with a guest or where you play both sides can't count, and neither can manually tracked games.
 
 Ratings work as on the site-wide [leaderboard](/leaderboard): everyone starts at 1000, beating a higher-rated player gains more, a concession is a loss, and allies share their side's result, rated on their average. Group games still count on the site-wide leaderboard too.
 
@@ -36,11 +36,11 @@ Everyone seals a list in secret, then you reveal them together. An organizer set
 
 In a duel, any member seals a list. After the reveal, use **Play** beside the person you're playing that evening. Nobody has to play every participant.
 
-In solo vs pair and doubles, pick your side with **Join**, then seal a list for it. Each pair chooses its Force Disposition and whose Warlord leads before the reveal. Afterwards, **Start battle** sets up the one battle between the sides. Results go on the group's leaderboard.
+In solo vs pair and doubles, pick your side with **Join**, then seal a list for it. A solo vs pair game plays 2,000 against 2,000, with the pair spending its 2,000 between them however they agree. Each pair chooses its Force Disposition and whose Warlord leads before the reveal. Afterwards, **Start battle** sets up the one battle between the sides. Results go on the group's leaderboard.
 
 ### Before the reveal
 
-An organizer can change the game from **Edit** in its ⋯ menu. Once anyone seals a list, the format and battle size lock. Points per army, **Allies split their points** and house rules can still change as long as every sealed list still fits them.
+An organizer can change the game from **Edit** in its ⋯ menu. Once anyone seals a list, the format and battle size lock. The solo player's points, doubles points per army, **Allies split their points** and house rules can still change as long as every sealed list still fits them.
 
 **Remind players** notifies each player in the game who hasn't sealed yet, once a day.
 

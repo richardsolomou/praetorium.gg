@@ -5,6 +5,7 @@ import { scriptJson } from '../../src/contracts/embeddedReference'
 import { MAX_LOCAL_STATE_BYTES, parseLocalState, type LocalState } from '../../src/contracts/localState'
 
 import { HAPTICS, NATIVE_EVENTS, type Haptic, type NativeEvent } from '../../src/contracts/nativeBridge'
+import { NOTICE_ID, NOTICES_PER_USER } from '../../src/core/notificationConfig'
 import { MAX_WATCH_MESSAGE_BYTES, parseWatchBattle, type WatchBattle } from '../../src/contracts/watchBattle'
 
 /** The id a request carries so its answer can find it, and the local state epoch, which is shaped the same. */
@@ -27,6 +28,7 @@ export type NativeActionRequest =
   | { kind: 'open-window'; url: string }
   | { kind: 'print'; html: string }
   | { kind: 'push'; id: string; prompt: boolean }
+  | { kind: 'notices'; readIds: string[]; unread: number }
   | { kind: 'share'; title?: string; url: string }
 
 export function nativeAnswerScript(event: NativeEvent, detail: unknown) {
@@ -103,6 +105,17 @@ export function parseNativeActionRequest(message: string): NativeActionRequest |
     if (value.type === 'native-push' && isRequestId(value.id) && typeof value.prompt === 'boolean') {
       return { kind: 'push', id: value.id, prompt: value.prompt }
     }
+    if (
+      value.type === 'native-notices' &&
+      Array.isArray(value.readIds) &&
+      value.readIds.length <= NOTICES_PER_USER &&
+      value.readIds.every((id) => typeof id === 'string' && NOTICE_ID.test(id)) &&
+      Number.isSafeInteger(value.unread) &&
+      Number(value.unread) >= 0 &&
+      Number(value.unread) <= NOTICES_PER_USER
+    ) {
+      return { kind: 'notices', readIds: value.readIds as string[], unread: Number(value.unread) }
+    }
     if (value.type === 'native-share' && typeof value.url === 'string' && value.url.length <= MAX_SHARE_URL_LENGTH) {
       const decision = classifyNavigation(value.url)
       if (decision.kind !== 'internal') return null
@@ -116,7 +129,7 @@ export function parseNativeActionRequest(message: string): NativeActionRequest |
 }
 
 export const NATIVE_BRIDGE_SCRIPT = `(() => {
-  const capabilities = ['app-navigation', 'app-snapshot', 'local-state', 'back-gesture', 'battle-active', 'github-auth', 'haptic', 'haptic-styles', 'notifications', 'offline-reference', 'share'];
+  const capabilities = ['app-navigation', 'app-snapshot', 'local-state', 'back-gesture', 'battle-active', 'github-auth', 'haptic', 'haptic-styles', 'notice-sync', 'notifications', 'offline-reference', 'share'];
   window.PraetoriumNative = Object.freeze({ bridgeVersion: 3, capabilities });
   const disableZoom = () => {
     const viewport = document.querySelector('meta[name="viewport"]');

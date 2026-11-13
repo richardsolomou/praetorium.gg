@@ -17,6 +17,8 @@ import {
   chooseOption,
   PHONE,
   uploadAvatar,
+  chooseTracking,
+  newBattle,
   setupStep,
 } from './account'
 import {
@@ -546,7 +548,7 @@ test('a Swiss tournament pairs its rounds and ranks the tables by match points',
   await rounds.locator('[data-table="1"]').getByRole('button', { name: 'Start battle' }).click()
   await owner.waitForURL(/\/battles\/[^/]+$/)
   await expect(owner.getByText(/left/).first()).not.toContainText('Battlefield')
-  await owner.getByRole('button', { name: 'Battlefield', exact: true }).click()
+  await setupStep(owner, 'Battlefield')
   await expect(owner.getByText('The organizer set this battlefield.')).toBeVisible()
   await owner.screenshot({ path: testInfo.outputPath('swiss-fixed-battlefield.png'), fullPage: true })
 
@@ -1146,19 +1148,19 @@ test('an eligible casual matchup is directed through its sealed event', async ({
   await expect(owner.getByRole('button', { name: 'Start 1 vs 1 battle' })).toBeVisible()
   await expectWithinPage(owner)
 
-  await owner.goto('/battles')
-  await owner.getByRole('button', { name: 'New battle' }).waitFor()
+  await newBattle(owner)
   const events = await recordEvents(owner)
-  await owner.getByRole('button', { name: 'New battle' }).click()
-  const casual = owner.getByRole('dialog', { name: 'Start a battle' })
-  await chooseOption(owner, 'Opponent', entrantName)
-  await casual.getByRole('button', { name: 'Start battle' }).click()
-  const warning = owner.getByRole('dialog', { name: 'You are both in a tournament' })
-  await expect(warning.getByRole('button', { name: 'Play it casually' })).toBeVisible()
-  await expectWithinPage(owner, warning)
+  await chooseTracking(owner)
+  // Inviting a friend you share a tournament with offers that game instead.
+  const opponentStep = owner.locator('#setup-opponent')
+  await opponentStep.getByRole('button', { name: /^Invite a friend/ }).click()
+  await chooseOption(owner, 'Friend', entrantName)
+  const offer = opponentStep.getByRole('link', { name: new RegExp(sealedEventName) })
+  await expect(offer).toContainText('You are both in this tournament')
+  await expectWithinPage(owner, offer)
   await owner.setViewportSize(PHONE)
-  await expectWithinPage(owner, warning)
-  await warning.getByRole('button', { name: new RegExp(sealedEventName) }).click()
+  await expectWithinPage(owner, offer)
+  await offer.click()
 
   const sealedEventChooser = owner.getByRole('dialog', { name: 'Start 1 vs 1 battle' })
   await expect(sealedEventChooser).toBeVisible()
@@ -1754,14 +1756,13 @@ test('a 2v1 event assigns entrant sizes, filters rosters, and prepares a battle'
   await expect(battleChooser.getByRole('button', { name: 'Start battle' })).toBeEnabled()
   await battleChooser.getByRole('button', { name: 'Start battle' }).click()
   await expect(owner).toHaveURL(/\/battles\/[^/?]+$/)
-  // Sealed lists arrive attached, so the step has already folded to its answer.
-  await setupStep(owner, 'Armies')
-  const ownerSetup = owner.getByRole('region', { name: 'Armies' })
-  await expect(ownerSetup.locator('[data-players]').filter({ hasText: alliedName }).getByText(alliedName, { exact: true })).toHaveCount(2)
-  await expect(ownerSetup.locator('[data-players]').filter({ hasText: ownerName })).toHaveCount(1)
-  // The pair shows the one card it plays, not the two its lists chose.
-  await expect(ownerSetup.locator('p', { hasText: 'Side plays' })).toContainText('Priority Assets')
-  await expect(ownerSetup.getByText('Purge the Foe', { exact: true })).toHaveCount(0)
+  // Sealed lists arrive attached, each side's on its face-off card.
+  const ownerSides = owner.locator('[data-face-off-side]')
+  await expect(ownerSides.filter({ hasText: alliedName }).getByText(alliedName, { exact: true })).toHaveCount(2)
+  await expect(ownerSides.filter({ hasText: ownerName })).toHaveCount(1)
+  // The pair plays the one card the event settled, not the two its lists chose.
+  await expect(owner.locator('#setup-mission')).toContainText('Priority Assets')
+  await expect(owner.locator('main')).not.toContainText('Purge the Foe')
   const battleUrl = owner.url()
   const battlePath = new URL(battleUrl).pathname
 
@@ -1805,11 +1806,9 @@ test('a 2v1 event assigns entrant sizes, filters rosters, and prepares a battle'
   await expect(alliedBattleChooser.getByLabel('Opponent')).toContainText(ownerName)
   await alliedBattleChooser.getByRole('button', { name: 'Start battle' }).click()
   await expect(allied).toHaveURL(/\/battles\/[^/?]+$/)
-  // Sealed lists arrive attached, so the step has already folded to its answer.
-  await setupStep(allied, 'Armies')
-  const alliedSetup = allied.getByRole('region', { name: 'Armies' })
-  await expect(alliedSetup.locator('[data-players]').filter({ hasText: alliedName }).getByText(alliedName, { exact: true })).toHaveCount(2)
-  await expect(alliedSetup.locator('[data-players]').filter({ hasText: ownerName })).toHaveCount(1)
+  const alliedSides = allied.locator('[data-face-off-side]')
+  await expect(alliedSides.filter({ hasText: alliedName }).getByText(alliedName, { exact: true })).toHaveCount(2)
+  await expect(alliedSides.filter({ hasText: ownerName })).toHaveCount(1)
 
   const previewPath = `/api/previews${battlePath}`
   const publicPreview = await spectator.request.get(previewPath)
@@ -1831,7 +1830,7 @@ test('a 2v1 event assigns entrant sizes, filters rosters, and prepares a battle'
   expect((await feed()).battles).toHaveLength(1)
   await owner.setViewportSize({ width: 1440, height: 900 })
   await owner.goto(battleUrl)
-  await expect(owner.getByRole('region', { name: 'Armies' })).toBeVisible()
+  await expect(owner.locator('[data-face-off-side]')).toHaveCount(2)
   await allied.goto(sealedEventUrl)
   await expect(allied.locator(`a[href="${battlePath}"]`)).toBeVisible()
   expect((await feed(ownerId)).battles).toHaveLength(1)
@@ -2040,15 +2039,15 @@ test('a doubles event pairs teams, filters half-size rosters, and starts a four-
   await expectWithinPage(owner, battleChooser)
   await battleChooser.getByRole('button', { name: 'Start battle' }).click()
   await expect(owner).toHaveURL(/\/battles\/[^/?]+$/)
-  // Sealed lists arrive attached, so the step has already folded to its answer.
-  await setupStep(owner, 'Armies')
-  const sides = owner.getByRole('region', { name: 'Armies' }).locator('[data-players]')
+  // Sealed lists arrive attached, each side's on its face-off card.
+  const sides = owner.locator('[data-face-off-side]')
   await expect(sides).toHaveCount(2)
   await expect(sides.nth(0)).toContainText(names[0])
   await expect(sides.nth(0)).toContainText(names[1])
-  const doublesSetup = owner.getByRole('region', { name: 'Armies' })
-  await expect(doublesSetup.locator('p', { hasText: 'Side plays' })).toHaveText([/Priority Assets/, /Purge the Foe/])
-  await expect(doublesSetup.getByText('Take and Hold', { exact: true })).toHaveCount(0)
+  // Each pair plays the one card the event settled for its side.
+  await expect(owner.locator('#setup-mission')).toContainText('Priority Assets')
+  await expect(owner.locator('#setup-mission')).toContainText('Purge the Foe')
+  await expect(sides.getByText('Take and Hold', { exact: true })).toHaveCount(0)
   await expect(sides.nth(1)).toContainText(names[2])
   await expect(sides.nth(1)).toContainText(names[3])
   await expectWithinPage(owner)

@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils'
 import type { RuleLinks } from '../ruleLinks'
 import { parseRuleMarkup, type RuleInline, type RuleMarkupBlock } from '../ruleMarkup'
 import { useSourceText } from '../sourceText'
-import { type TextSource, hasTextTokens } from '../../shared/sourceText'
+import { type TextSource, hasTextTokens } from '../../core/sourceText'
 import { SourceTextPrompt } from './SourceTextPrompt'
 
 /**

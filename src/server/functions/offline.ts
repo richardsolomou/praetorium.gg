@@ -249,6 +249,7 @@ export const syncBattleCommand = createServerFn({ method: 'POST' })
           applied,
           battleId,
           finished,
+          filled,
           screen,
         } = await instance.service.submitWithWorkspace(data.token, player.id, data.expectedSeq, command, rules, {
           operationId: data.operationId,
@@ -256,7 +257,14 @@ export const syncBattleCommand = createServerFn({ method: 'POST' })
           recordedAt: data.recordedAt,
         })
         if (result.outcome !== 'appended' || applied === true)
-          await captureBattleCommand(player.id, battleId, command, { result, finished, screen }, performance.now() - startedAt, 'sync')
+          await captureBattleCommand(
+            player.id,
+            battleId,
+            command,
+            { result, finished, filled, screen },
+            performance.now() - startedAt,
+            'sync',
+          )
         if (result.outcome === 'stale')
           return unsynced(
             player.id,

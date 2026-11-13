@@ -9,7 +9,7 @@ import { CitedRules } from './CitedRules'
 import { RuleMarkup } from './RuleMarkup'
 import { SourceTextPrompt } from './SourceTextPrompt'
 import { useSourceText } from '../sourceText'
-import { hasTextTokens } from '../../shared/sourceText'
+import { hasTextTokens } from '../../core/sourceText'
 
 const noRules: KeywordRule[] = []
 const Rules = createContext<KeywordRule[]>(noRules)

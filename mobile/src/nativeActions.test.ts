@@ -98,6 +98,21 @@ describe('parseNativeActionRequest', () => {
       expect(parseNativeActionRequest(JSON.stringify({ version: 3, type: 'native-push', ...request }))).toBeNull()
     },
   )
+
+  it('accepts the read notices and unread count for the badge', () => {
+    expect(parseNativeActionRequest(JSON.stringify({ version: 3, type: 'native-notices', readIds: ['7'], unread: 2 }))).toEqual({
+      kind: 'notices',
+      readIds: ['7'],
+      unread: 2,
+    })
+  })
+
+  it.each([{ readIds: ['abc'], unread: 0 }, { readIds: [], unread: -1 }, { readIds: '7', unread: 0 }, { readIds: [] }])(
+    'rejects a notices update %j',
+    (update) => {
+      expect(parseNativeActionRequest(JSON.stringify({ version: 3, type: 'native-notices', ...update }))).toBeNull()
+    },
+  )
 })
 
 describe('nativeAnswerScript', () => {

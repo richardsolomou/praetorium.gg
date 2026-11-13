@@ -10,7 +10,7 @@ import { calculateRosterPrice } from './pricing'
 import { rosterCombatant, rosterProjectionCache } from './rosterCombatRules'
 import { rosterDatasheetSelections } from './rosterDatasheetContext'
 import type { LoadedRules } from './rules'
-import { hasTextTokens } from './sourceText'
+import { hasTextTokens } from '../core/sourceText'
 import { movementToolsFrom, unitGenerationFrom } from './rosterGradeUtility'
 
 export type CombatProjection = NonNullable<ReturnType<typeof rosterCombatant>>
@@ -45,7 +45,7 @@ const NO_CHOICES = { preferences: {}, excluded: { ranged: [], melee: [] }, alloc
 /** Each rule read from its words where they are held; a rule left as a token is reported as not calculated. */
 export const readRules = (unread: readonly CombatRule[], words: RuleWords) =>
   unread.flatMap((rule) => {
-    if (!hasTextTokens(rule.description)) return [rule]
+    if (rule.reading || !hasTextTokens(rule.description)) return [rule]
     const description = words(rule.description)
     return description === null ? [rule] : (readCombatRule(rule, description) ?? [])
   })

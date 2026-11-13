@@ -1,5 +1,6 @@
 import { countBy } from './collections'
 import { printedNumber } from './text'
+import type { TextFactsByKey } from './textFacts'
 
 /** Model the BattleScribe fields used for pricing, legality, and attachments; display-only fields stay outside core. */
 
@@ -327,6 +328,8 @@ export type CatalogueIndex = {
   battleSizes: Map<number, string>
   /** The data revision every roster and battle must pin, so two clients agree on legality. */
   revision: string
+  /** What the rules read from the texts the catalogue holds as tokens, which say nothing alone. */
+  textFacts?: TextFactsByKey
 }
 
 /**
@@ -336,7 +339,7 @@ export type CatalogueIndex = {
  * carries its own constraints and costs, so flattening it into its target at
  * index time would lose them.
  */
-export function buildIndex(files: readonly CatalogueFile[], revision: string): CatalogueIndex {
+export function buildIndex(files: readonly CatalogueFile[], revision: string, textFacts?: TextFactsByKey): CatalogueIndex {
   const definitions = new Map<string, Definition>()
   const costTypes = new Map<string, CostType>()
   const catalogues = new Map<string, { id: string; name: string; revision?: number; library?: boolean; gameSystem: boolean }>()
@@ -407,6 +410,7 @@ export function buildIndex(files: readonly CatalogueFile[], revision: string): C
     categories,
     battleSizes,
     revision,
+    ...(textFacts ? { textFacts } : {}),
   }
 }
 

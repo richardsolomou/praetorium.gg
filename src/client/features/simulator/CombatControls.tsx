@@ -1,5 +1,5 @@
 import type { CombatPhase } from '../../../core/combat'
-import { useState, type ReactNode } from 'react'
+import { useState, type ReactElement, type ReactNode } from 'react'
 import { Switch } from '@/components/ui/switch'
 import { Toggle as ToggleButton } from '@/components/ui/toggle'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -97,7 +97,6 @@ export function Chip({
   onChange: (checked: boolean) => void
   ineffectiveReason?: string
 }) {
-  const [explanationOpen, setExplanationOpen] = useState(false)
   const control = (
     <ToggleButton
       variant="outline"
@@ -111,23 +110,29 @@ export function Chip({
       {label}
     </ToggleButton>
   )
-  return ineffectiveReason ? (
-    <Tooltip open={explanationOpen} onOpenChange={setExplanationOpen}>
+  return <NoEffect reason={ineffectiveReason}>{control}</NoEffect>
+}
+
+/** Says why a control changes nothing, on hover, focus or tap, without taking the tap from the control. */
+export function NoEffect({ reason, children }: { reason?: string; children: ReactElement }) {
+  const [open, setOpen] = useState(false)
+  return reason ? (
+    <Tooltip open={open} onOpenChange={setOpen}>
       <TooltipTrigger
         closeOnClick={false}
-        render={control}
-        onMouseEnter={() => setExplanationOpen(true)}
-        onMouseLeave={() => setExplanationOpen(false)}
-        onFocus={() => setExplanationOpen(true)}
-        onBlur={() => setExplanationOpen(false)}
-        onClick={() => setExplanationOpen(true)}
+        render={children}
+        onMouseEnter={() => setOpen(true)}
+        onMouseLeave={() => setOpen(false)}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setOpen(false)}
+        onClick={() => setOpen(true)}
       />
       <TooltipContent role="tooltip" side="bottom">
-        No effect: {ineffectiveReason}
+        No effect: {reason}
       </TooltipContent>
     </Tooltip>
   ) : (
-    control
+    children
   )
 }
 

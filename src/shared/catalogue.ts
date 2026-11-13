@@ -11,7 +11,7 @@ import {
   type Profile,
   targetOf,
 } from '../core/catalogue'
-import { withoutText } from './sourceText'
+import { comparableText, withoutText } from '../core/sourceText'
 import { referenceAttachmentOf } from '../core/attach'
 import {
   flattenedModifiers,
@@ -37,14 +37,15 @@ import { datacardOf } from './datasheetJoin'
 import { mergeDetachmentRules } from './catalogueDescriptions'
 import { definitionTokens, displayRuleName, isConditionalModifier, modifiedProfileField } from './catalogueDisplay'
 import { relationshipFor, relationshipsFor } from './catalogueRelationships'
+import { deploymentAbilities, parseAbilityGrants, parsedAbilityGrants } from './catalogueAbilityGrants'
 import {
-  deploymentAbilities,
-  parseAbilityGrants,
-  parsedAbilityGrants,
-  titleCaseAbility,
-  weaponProfileTypes,
-} from './catalogueAbilityGrants'
-import { weaponGrantsIn } from './textFacts'
+  abilityGrantsIn,
+  invulnerableSaveOf,
+  ledWeaponGrantOf,
+  normalizedAbilityGrantsIn,
+  ownWeaponGrantOf,
+  weaponGrantsIn,
+} from './textFacts'
 import type { AbilityKind, Datasheet } from '../contracts/catalogue'
 
 export function toughnessOf(profiles: readonly { type: string; values: readonly { name: string; value: string }[] }[]): number | null {
@@ -164,9 +165,9 @@ function abilityProfileNames(definition: Definition, index: LoadedCatalogue['ind
   const names = new Set<string>()
   for (const profile of abilityProfilesOf(definition, index)) {
     const name = profile.name
-    const description = normalizedAbilityDescription(profile)
-    if (deploymentAbilities(name).length && description) {
-      const parsed = parseAbilityGrants(description, false, [name], true)
+    const description = profileDescription(profile)
+    if (deploymentAbilities(name).length && description?.trim()) {
+      const parsed = parseAbilityGrants(normalizedAbilityGrantsIn(description, index.textFacts), false, [name], true)
       if (parsed.matched && !parsed.grants.some((grant) => ruleReferenceMatches(grant.name, name))) continue
     }
     names.add(name)
@@ -200,19 +201,33 @@ export const abilityNamesIn = (loaded: LoadedCatalogue, catalogueId: string, ent
   ...new Set(walkRecord(loaded, catalogueId, entryId)?.abilities.map((ability) => ability.name) ?? []),
 ]
 
-export function datasheetSearchFieldsIn(loaded: LoadedCatalogue, catalogueId: string, entryId: string): DatasheetSearchFields | null {
+/**
+ * What a datasheet is found by, and with `effects` what its abilities say, for a search answered where it
+ * runs: those fields never leave it. The server reads its tokens back into words; a device holds none to read.
+ */
+export function datasheetSearchFieldsIn(
+  loaded: LoadedCatalogue,
+  catalogueId: string,
+  entryId: string,
+  effects = false,
+): DatasheetSearchFields | null {
   const walked = walkRecord(loaded, catalogueId, entryId)
   if (!walked) return null
   const weapons = walked.profiles.filter((profile) => profile.type === 'Ranged Weapons' || profile.type === 'Melee Weapons')
+  const words = effects ? (loaded.definitions?.words ?? ((text: string) => text)) : undefined
   return {
     name: walked.name,
     keywords: walked.keywords,
     abilities: [...new Set(walked.abilities.filter((ability) => ability.kind !== 'rule').map((ability) => ability.name))],
-    abilityDescriptions: walked.abilities.flatMap((ability) =>
-      (ability.kind === 'datasheet' || ability.kind === 'wargear' || ability.kind === 'upgrade') && ability.description
-        ? [{ name: ability.name, description: withoutText(ability.description) }]
-        : [],
-    ),
+    ...(words
+      ? {
+          abilityDescriptions: walked.abilities.flatMap((ability) =>
+            (ability.kind === 'datasheet' || ability.kind === 'wargear' || ability.kind === 'upgrade') && ability.description
+              ? [{ name: ability.name, description: withoutText(words(ability.description)) }]
+              : [],
+          ),
+        }
+      : {}),
     weapons: dedupeWeapons(weapons.map((weapon) => weapon.name)),
     weaponKeywords: [
       ...new Set(
@@ -799,7 +814,7 @@ function weaponAbilitiesFromDetachments(
     const rules = mergeDetachmentRules(catalogueRules, cardRules)
     for (const rule of rules) {
       if (!rule.description) continue
-      for (const grant of weaponGrantsIn(rule.description, loaded.datacards.textFacts)) {
+      for (const grant of weaponGrantsIn(rule.description, loaded.index.textFacts)) {
         if (!matchesKeywordSelector(grant.recipients, keywordNames)) continue
         if (grant.exclusions && matchesKeywordSelector(grant.exclusions, keywordNames)) continue
         const granted = { keyword: grant.keyword, source: rule.name, profileTypes: grant.profileTypes }
@@ -861,8 +876,9 @@ function grantedAbilitiesInAttachedUnit(
           (modifier) => modifier.type === 'add' && modifier.field === 'add-info' && isConditionalModifier(modifier),
         )
         for (const profile of abilityProfilesOf(source, index)) {
+          const description = profileDescription(profile)
           const grants = parsedAbilityGrants(
-            profileDescription(profile),
+            description && abilityGrantsIn(description, index.textFacts),
             companionIndexes.length > 0,
             linkedAbilities,
             !hasConditionalAbilityLink,
@@ -940,23 +956,10 @@ function weaponAbilitiesInSelectedUnit(
   for (const definition of definitionsInSelections(selections, [unitSelectionIndex], index)) {
     for (const source of definitionAndTarget(definition, index)) {
       for (const profile of abilityProfilesOf(source, index)) {
-        const description = normalizedAbilityDescription(profile)
-        const match = description?.match(
-          /^(?:(Ranged|Melee) )?weapons equipped by (?:the bearer|models in this unit|models in this model['’]s unit) have (?:the )?\[([^\]]+)\] ability\.$/iu,
-        )
-        const unitAttacks = !match
-          ? profileDescription(profile)
-              ?.normalize('NFKC')
-              .trim()
-              .match(/(?:^This unit['’]s|(?:^|\n\n)[A-Z][A-Z -]+ unit only\. This unit['’]s) (melee|ranged) attacks have \[([^\]]+)\]\.$/u)
-          : null
-        const grant = match ?? unitAttacks
+        const description = profileDescription(profile)
+        const grant = description ? ownWeaponGrantOf(description, index.textFacts) : null
         if (!grant) continue
-        const granted = {
-          keyword: grant[2]!.replace(/^[^:]+/, (name) => titleCaseAbility(name)),
-          source: profile.name,
-          profileTypes: weaponProfileTypes(grant[1]),
-        }
+        const granted = { keyword: grant.keyword, source: profile.name, profileTypes: grant.profileTypes }
         found.set(`${granted.keyword.toLowerCase()}:${granted.profileTypes.join(',')}:${granted.source}`, granted)
       }
     }
@@ -975,17 +978,10 @@ function weaponAbilitiesInAttachedUnit(
   for (const definition of definitionsInSelections(selections, [unitSelectionIndex, ...companionIndexes], index)) {
     for (const source of definitionAndTarget(definition, index)) {
       for (const profile of abilityProfilesOf(source, index)) {
-        const description = normalizedAbilityDescription(profile)
-        const match =
-          description?.match(
-            /^While this model is leading a unit, (?:(melee|ranged) )?weapons equipped by models in that unit have the \[([\p{L}\p{N} +'’\p{Pd}]+)\] ability\.$/iu,
-          ) ??
-          description?.match(
-            /^(?:(melee|ranged) )?weapons equipped by models in this model['’]s unit have the \[([\p{L}\p{N} +'’\p{Pd}]+)\] ability\.$/iu,
-          )
-        if (!match) continue
-        const keyword = titleCaseAbility(match[2]!)
-        const profileTypes = weaponProfileTypes(match[1])
+        const description = profileDescription(profile)
+        const grant = description ? ledWeaponGrantOf(description, index.textFacts) : null
+        if (!grant) continue
+        const { keyword, profileTypes } = grant
         found.set(`${profile.name}:${keyword}:${profileTypes.join(',')}`, { keyword, source: profile.name, profileTypes })
       }
     }
@@ -1003,7 +999,8 @@ function invulnerableSavesInSelectedUnit(
   for (const definition of definitionsInSelections(selections, [unitSelectionIndex], index)) {
     for (const source of definitionAndTarget(definition, index)) {
       for (const profile of abilityProfilesOf(source, index)) {
-        const value = normalizedAbilityDescription(profile)?.match(/^This model has an? (\d+\+) invulnerable save\.$/i)?.[1]
+        const description = profileDescription(profile)
+        const value = description && invulnerableSaveOf(description, index.textFacts)
         if (!value) continue
         const granted = { value, source: profile.name, originIds: definitionTokens(definition) }
         found.set(JSON.stringify(granted), granted)
@@ -1030,13 +1027,6 @@ function definitionsInSelections(
   }
   return [...found.values()]
 }
-
-const normalizedAbilityDescription = (profile: Profile) =>
-  profileDescription(profile)
-    ?.normalize('NFKC')
-    .replaceAll(/\*\*|\^\^/g, '')
-    .replaceAll(/\s+/g, ' ')
-    .trim()
 
 function addGrantedInvulnerableSave(
   values: Datasheet['profiles'][number]['values'],
@@ -1081,7 +1071,12 @@ function addGrantedWeaponAbilities(
 
 function uniqueProfiles(profiles: Datasheet['profiles']) {
   return uniqueBy(profiles, (profile) =>
-    JSON.stringify({ name: profile.name.toLowerCase(), type: profile.type, count: profile.count, values: profile.values }),
+    JSON.stringify({
+      name: profile.name.toLowerCase(),
+      type: profile.type,
+      count: profile.count,
+      values: profile.values.map((value) => ({ ...value, value: comparableText(value.value) })),
+    }),
   )
 }
 
@@ -1091,7 +1086,8 @@ function uniqueAbilities(abilities: Datasheet['abilities']) {
   )
   return uniqueBy(
     abilities.filter((ability) => ability.kind === 'wargear' || !wargearNames.has(ability.name.trim().toLowerCase())),
-    (ability) => JSON.stringify({ name: ability.name.toLowerCase(), description: ability.description }),
+    (ability) =>
+      JSON.stringify({ name: ability.name.toLowerCase(), description: ability.description && comparableText(ability.description) }),
   )
 }
 

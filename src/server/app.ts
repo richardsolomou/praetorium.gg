@@ -30,14 +30,13 @@ import { profileUpdate } from './profile'
 import { PraetoriumService } from './service'
 import { emailDelivery } from '../adapters/email'
 import { pushSenderFromEnvironment } from '../adapters/push'
-import { pushNotifier, silentNotifier } from './pushNotifier'
+import { pushNotifier, silentNotifier, storingNotifier } from './pushNotifier'
 import { productionCatalogueRuntime } from './catalogueRuntime'
 import { referenceCatalogue } from './canonicalCatalogue'
 import { loadCatalogueHistory } from './catalogueHistory'
 import type { CanonicalCatalogue } from '../contracts/catalogue'
 import type { CatalogueHistoryEntry } from '../core/catalogueHistory'
 import { combatUnitsFor } from '../shared/combatUnits'
-import { publishedFaction } from './referenceCatalogue'
 import type { CatalogueTranslations } from '../shared/catalogueTranslations'
 import { loadCatalogueTranslations } from './catalogueTranslations'
 import { removedNamesOf, type RemovedNames } from '../shared/importMismatch'
@@ -89,7 +88,6 @@ type App = {
   sync: () => SyncState
   auth: ReturnType<typeof createSqliteAuth>
   spacetimeToken: (headers: Headers) => Promise<string>
-  spacetimeGuestToken: (seatId: string, deviceHash: string) => Promise<string>
   email: ReturnType<typeof emailDelivery>
   /** Whether this instance sends push notifications; nothing else depends on it. */
   push: boolean
@@ -253,7 +251,7 @@ const hotReloadToken = {}
 function catalogueLoaders(directory: string) {
   const runtime = productionCatalogueRuntime(directory)
   const catalogue = memoize(() => loadCatalogue(directory))
-  const baseRules = stepwise(() => loadRulesSteps(directory, { loadedDatacards: catalogue()?.datacards }))
+  const baseRules = stepwise(() => loadRulesSteps(directory, { catalogue: catalogue() ?? undefined }))
   const rules = baseRules.get
   const editions = catalogueEditionLoaders(directory, catalogue, rules, runtime)
   function* construction(scope: ConstructionScope) {
@@ -308,7 +306,7 @@ function catalogueReads(getInstance: () => App, loaded: ReturnType<typeof catalo
     factionsFor: async () => editions.factions(),
     factionFor: async (catalogueId: string) => {
       const faction = editions.factionFor(catalogueId)
-      return faction ? publishedFaction(faction, editions.catalogueFor(faction.id)) : null
+      return faction ?? null
     },
     factionIconFor: async (id: string) => getInstance().rules()?.factionIcons.get(id) ?? null,
     searchIndexFor: async () => loaded.searchIndex(),
@@ -397,12 +395,15 @@ export function app(): App {
         }
       },
       repository,
-      service: new PraetoriumService(repository, Date.now, randomInt, push ? pushNotifier(repository, push) : silentNotifier, () =>
-        instance.battleFactionsFor(),
+      service: new PraetoriumService(
+        repository,
+        Date.now,
+        randomInt,
+        storingNotifier(repository, push ? pushNotifier(repository, push) : silentNotifier),
+        () => instance.battleFactionsFor(),
       ),
       auth,
       spacetimeToken: async (headers) => (await auth.api.getToken({ headers })).token,
-      spacetimeGuestToken: auth.spacetimeGuestToken,
       email,
       refreshCatalogue: () => {
         const next = catalogueDirectory()
@@ -440,6 +441,11 @@ export function app(): App {
     // Also at start, because deploys can arrive more often than hourly and restart the timer.
     void checkSpacetimeBackup()
     setInterval(() => void checkSpacetimeBackup(), 60 * 60 * 1000).unref()
+    const sweepDrafts = () =>
+      void instance.service.sweepDrafts().catch((error: unknown) => {
+        reportServerFailure({ event: 'battle_draft_sweep_failed', error })
+      })
+    setInterval(sweepDrafts, 60 * 60 * 1000).unref()
     let thumbnailsPending = true
     let maintainingPhotos = false
     const maintainPhotos = async () => {

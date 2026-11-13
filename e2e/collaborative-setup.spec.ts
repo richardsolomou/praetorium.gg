@@ -1,7 +1,6 @@
 import { expect, test } from './test'
 import {
   attachRoster,
-  befriend,
   chooseBattlefield,
   createBattle,
   createRoster,
@@ -32,9 +31,7 @@ test('battle setup stays shared and does not wait for the other device', async (
     name: 'Alice Incursion army',
     size: /Incursion/,
   })
-  await befriend(alice, bob)
-  const url = await createBattle(alice, { opponent: bobName })
-  await bob.goto(url)
+  const url = await createBattle(alice, { opponent: bob })
   const initialResponse = await alice.request.get(url)
   expect(await initialResponse.text()).not.toContain(aliceRoster)
   await alice.reload()
@@ -42,13 +39,15 @@ test('battle setup stays shared and does not wait for the other device', async (
   for (const name of ['Mission', 'Battlefield', 'Defender', 'Secondaries', 'Reserves', 'Deploy', 'First turn', 'Pre-battle rules']) {
     await expect(alice.getByRole('region', { name, exact: true })).toHaveAttribute('data-locked', 'true')
   }
-  await expect(alice.locator('#setup-format').getByText('After the armies', { exact: true })).toBeVisible()
+  // The lists set the battle's size, so Tracking asks for none.
+  await expect(alice.locator('#setup-format').getByRole('combobox', { name: 'Battle size' })).toHaveCount(0)
   await expect(alice.locator('[data-setup-bar]')).toContainText('Your army')
   // Setup is one page: nothing walks the table through its sections.
   await expect(alice.getByRole('button', { name: 'Next', exact: true })).toHaveCount(0)
-  await expect(alice.getByRole('region', { name: 'Armies' }).getByRole('button', { name: 'Choose roster' })).toBeVisible()
-  await setupStep(alice, 'Format')
-  await expect(alice.getByRole('group', { name: 'Mission pack' }).getByRole('button')).toHaveCount(1)
+  const aliceCard = alice.locator('[data-face-off-side="0"]')
+  await expect(aliceCard.getByRole('button', { name: 'Choose army', exact: true })).toBeVisible()
+  // With one mission pack there is nothing to choose.
+  await expect(alice.getByRole('group', { name: 'Mission pack' })).toHaveCount(0)
   await expect(alice.getByRole('button', { name: 'Reset setup' })).toHaveCount(0)
   await expect(alice.getByRole('button', { name: 'Delete battle' })).toHaveCount(0)
   await alice.setViewportSize(PHONE)
@@ -56,7 +55,7 @@ test('battle setup stays shared and does not wait for the other device', async (
   await alice.screenshot({ path: test.info().outputPath('setup-combined-phone.png'), fullPage: true })
   await alice.setViewportSize({ width: 1440, height: 900 })
 
-  await alice.getByRole('button', { name: 'Choose roster' }).click()
+  await aliceCard.getByRole('button', { name: 'Choose army', exact: true }).click()
   const rosterChooser = alice.getByRole('dialog', { name: 'Choose your roster' })
   await expect(rosterChooser.getByText(aliceRoster, { exact: true })).toBeVisible()
   await expect(rosterChooser.getByText(incursionRoster, { exact: true })).toBeVisible()
@@ -64,12 +63,11 @@ test('battle setup stays shared and does not wait for the other device', async (
   await expect(rosterChooser).toBeHidden()
   await attachRoster(alice, aliceRoster)
   await expect(bob.getByText(aliceRoster, { exact: true }).first()).toBeVisible()
-  await expect(alice.locator('#setup-armies')).toHaveAttribute('data-complete', 'false')
-  await expect(alice.locator('#setup-format').getByText('After the armies', { exact: true })).toBeVisible()
+  await expect(alice.locator('[data-setup-bar]')).toContainText(`${bobName}’s army`)
   await attachRoster(bob, bobRoster)
-  await expect(alice.getByText('Strike Force · 2,000 points', { exact: true })).toBeVisible()
-  await expect(bob.getByText('Strike Force · 2,000 points', { exact: true })).toBeVisible()
-  await expect(alice.locator('#setup-armies')).toHaveAttribute('data-complete', 'true')
+  await expect(alice.getByText(/^A 2,000-point battle, set by /)).toBeVisible()
+  await expect(bob.getByText(/^A 2,000-point battle, set by /)).toBeVisible()
+  await expect(alice.locator('[data-setup-bar]')).not.toContainText('army')
   await expect(alice.getByRole('region', { name: 'Defender', exact: true })).toHaveAttribute('data-locked', 'false')
   for (const name of ['Deploy', 'Pre-battle rules']) {
     await setupStep(alice, name)
@@ -80,22 +78,23 @@ test('battle setup stays shared and does not wait for the other device', async (
 
   await attachRoster(alice, incursionRoster)
   await expect(bob.getByText(incursionRoster, { exact: true }).first()).toBeVisible()
-  await expect(alice.getByText('Choose matching roster formats for each side.')).toBeVisible()
-  await expect(bob.getByText('Choose matching roster formats for each side.')).toBeVisible()
-  await expect(alice.getByRole('button', { name: 'Start battle', exact: true })).toBeDisabled()
-  await expect(alice.locator('[data-setup-bar]')).toContainText('Battle size')
+  // A smaller list plays short against the bigger one rather than holding the battle up.
+  const short = `${aliceName} brings 1,000 points and plays short.`
+  await expect(alice.getByText(short)).toBeVisible()
+  await expect(bob.getByText(short)).toBeVisible()
+  await expect(alice.getByText(/^A 2,000-point battle, set by /)).toBeVisible()
+  await expect(alice.locator('[data-setup-bar]')).not.toContainText('Battle size')
   await expect(alice.getByText(bobRoster, { exact: true }).first()).toBeVisible()
-  await expect(alice.getByText('0 units · 0 of 1,000 points', { exact: true })).toBeVisible()
-  await expect(alice.getByText('0 units · 0 of 2,000 points', { exact: true })).toBeVisible()
+  await expect(aliceCard.getByText('0 of 1,000 pts · 0 units', { exact: true })).toBeVisible()
+  await expect(alice.locator('[data-face-off-side="1"]').getByText('0 of 2,000 pts · 0 units', { exact: true })).toBeVisible()
   await alice.screenshot({ path: test.info().outputPath('setup-mismatched-desktop.png'), fullPage: true })
   await alice.setViewportSize(PHONE)
-  await alice.screenshot({ path: test.info().outputPath('setup-mismatched-phone.png'), fullPage: true })
+  await alice.screenshot({ path: test.info().outputPath('setup-short-phone.png'), fullPage: true })
   await alice.setViewportSize({ width: 1440, height: 900 })
   await attachRoster(alice, aliceRoster)
-  await expect(bob.getByText('Strike Force · 2,000 points', { exact: true })).toBeVisible()
+  await expect(bob.getByText(/^A 2,000-point battle, set by /)).toBeVisible()
 
-  await setupStep(alice, 'Armies')
-  await alice.getByRole('button', { name: 'Change roster' }).click()
+  await alice.getByRole('button', { name: `Change roster for ${aliceName}` }).click()
   const rosterChooserAgain = alice.getByRole('dialog', { name: 'Choose your roster' })
   await expect(rosterChooserAgain).toBeVisible()
   await expect(rosterChooserAgain.getByText('Necrons', { exact: true }).first()).toBeVisible()
@@ -137,9 +136,7 @@ test('battle setup stays shared and does not wait for the other device', async (
   await expect(alice.getByText('Your opponent got there first. Try that again.')).toBeHidden()
   await expect(bob.getByText('Your opponent got there first. Try that again.')).toBeHidden()
   await expect(alice.getByRole('region', { name: 'Deploy', exact: true })).toHaveAttribute('data-locked', 'false')
-  // Settled, the step folds to its answer; open it again to read both roles.
   await expect(bob.locator('#setup-defender')).toHaveAttribute('data-complete', 'true')
-  await setupStep(bob, 'Defender')
   await expect(defender).toContainText('Defender · deploys first')
   await expect(defenderChoice.getByRole('button', { name: new RegExp(bobName) })).toContainText('Attacker · deploys second')
   await bob.screenshot({ path: test.info().outputPath('setup-defender.png'), fullPage: true })
@@ -215,15 +212,12 @@ test('both devices settle mandatory tactical cards without racing', async ({ bro
   }
   await alice.locator('[data-unit="Overlord"]').getByRole('button', { name: 'Overlord', exact: true }).click()
   await makeWarlord(alice, 'Overlord')
-  await befriend(alice, bob)
-  const url = await createBattle(alice, { opponent: bobName })
-  await bob.goto(url)
+  await createBattle(alice, { opponent: bob })
 
   await attachRoster(alice, aliceRoster)
   await attachRoster(bob, bobRoster)
   await expect(alice.getByText(bobRoster, { exact: true }).first()).toBeVisible()
-  await expect(alice.getByText('King of the Colosseum · 600 points', { exact: true })).toBeVisible()
-  // Settling folds an untouched step, so it is opened only once the fixed battlefield has settled.
+  await expect(alice.getByText(/^A 600-point battle, set by /)).toBeVisible()
   await expect(alice.locator('#setup-battlefield')).toHaveAttribute('data-complete', 'true')
   await setupStep(alice, 'Battlefield')
   await expect(alice.getByRole('button', { name: /Select layout|Select random/ })).toHaveCount(0)

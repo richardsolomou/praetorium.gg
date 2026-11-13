@@ -8,15 +8,19 @@ const read = (url: string, headers: Record<string, string> = {}, method = 'GET')
   new Request(url, { method, headers: { 'user-agent': GPTBOT, 'x-forwarded-for': '203.0.113.7', ...headers } })
 
 it('records a datasheet read with the crawler it came from', () => {
-  expect(crawlerRequestEvent(read('https://praetorium.gg/factions/necrons/datasheets/overlord'), 200, DAY)?.properties).toMatchObject({
+  expect(crawlerRequestEvent(read('https://praetorium.gg/factions/necrons/datasheets/overlord'), 200, 0, DAY)?.properties).toMatchObject({
     $raw_user_agent: GPTBOT,
     $pathname: '/factions/necrons/datasheets/overlord',
     status_code: 200,
   })
 })
 
+it('records how long the read took', () => {
+  expect(crawlerRequestEvent(read('https://praetorium.gg/factions'), 200, 812.4, DAY)?.properties.duration_ms).toBe(812)
+})
+
 it('leaves the query string out of the recorded address', () => {
-  expect(crawlerRequestEvent(read('https://praetorium.gg/rules/core-rules?q=movement'), 200, DAY)?.properties.$current_url).toBe(
+  expect(crawlerRequestEvent(read('https://praetorium.gg/rules/core-rules?q=movement'), 200, 0, DAY)?.properties.$current_url).toBe(
     'https://praetorium.gg/rules/core-rules',
   )
 })
@@ -24,60 +28,60 @@ it('leaves the query string out of the recorded address', () => {
 it.each(['/battles/secret-token', '/rosters/abc123', '/users/someone', '/tournaments/token', '/invite/token', '/sign-in', '/_serverFn/x'])(
   'records nothing for %s, whose address can name a player or their data',
   (path) => {
-    expect(crawlerRequestEvent(read(`https://praetorium.gg${path}`), 200, DAY)).toBeNull()
+    expect(crawlerRequestEvent(read(`https://praetorium.gg${path}`), 200, 0, DAY)).toBeNull()
   },
 )
 
 it('records a read of the public army listing, whose address names nobody', () => {
-  expect(crawlerRequestEvent(read('https://praetorium.gg/rosters?view=public&faction=necrons'), 200, DAY)).not.toBeNull()
+  expect(crawlerRequestEvent(read('https://praetorium.gg/rosters?view=public&faction=necrons'), 200, 0, DAY)).not.toBeNull()
 })
 
 it('records the files crawlers read', () => {
-  expect(crawlerRequestEvent(read('https://praetorium.gg/llms.txt'), 200, DAY)).not.toBeNull()
+  expect(crawlerRequestEvent(read('https://praetorium.gg/llms.txt'), 200, 0, DAY)).not.toBeNull()
 })
 
 it('records a HEAD read', () => {
-  expect(crawlerRequestEvent(read('https://praetorium.gg/factions', {}, 'HEAD'), 200, DAY)).not.toBeNull()
+  expect(crawlerRequestEvent(read('https://praetorium.gg/factions', {}, 'HEAD'), 200, 0, DAY)).not.toBeNull()
 })
 
 it('records a read that failed', () => {
-  expect(crawlerRequestEvent(read('https://praetorium.gg/factions'), 503, DAY)?.properties.status_code).toBe(503)
+  expect(crawlerRequestEvent(read('https://praetorium.gg/factions'), 503, 0, DAY)?.properties.status_code).toBe(503)
 })
 
 it('records nothing for a request that is not a read', () => {
-  expect(crawlerRequestEvent(read('https://praetorium.gg/factions', {}, 'POST'), 200, DAY)).toBeNull()
+  expect(crawlerRequestEvent(read('https://praetorium.gg/factions', {}, 'POST'), 200, 0, DAY)).toBeNull()
 })
 
 it('cuts the referrer to its origin', () => {
   expect(
-    crawlerRequestEvent(read('https://praetorium.gg/factions', { referer: 'https://www.google.com/search?q=praetorium' }), 200, DAY)
+    crawlerRequestEvent(read('https://praetorium.gg/factions', { referer: 'https://www.google.com/search?q=praetorium' }), 200, 0, DAY)
       ?.properties.$referrer,
   ).toBe('https://www.google.com')
 })
 
 it('sends no address and no location', () => {
-  const properties = crawlerRequestEvent(read('https://praetorium.gg/factions'), 200, DAY)?.properties
+  const properties = crawlerRequestEvent(read('https://praetorium.gg/factions'), 200, 0, DAY)?.properties
   expect([properties && '$ip' in properties, properties?.$geoip_disable]).toEqual([false, true])
 })
 
 it('creates no person profile', () => {
-  expect(crawlerRequestEvent(read('https://praetorium.gg/factions'), 200, DAY)?.properties.$process_person_profile).toBe(false)
+  expect(crawlerRequestEvent(read('https://praetorium.gg/factions'), 200, 0, DAY)?.properties.$process_person_profile).toBe(false)
 })
 
 it('gives one client one id within a day', () => {
-  expect(crawlerRequestEvent(read('https://praetorium.gg/factions'), 200, DAY)?.distinctId).toBe(
-    crawlerRequestEvent(read('https://praetorium.gg/rules'), 200, DAY)?.distinctId,
+  expect(crawlerRequestEvent(read('https://praetorium.gg/factions'), 200, 0, DAY)?.distinctId).toBe(
+    crawlerRequestEvent(read('https://praetorium.gg/rules'), 200, 0, DAY)?.distinctId,
   )
 })
 
 it('gives the same client a new id the next day', () => {
-  expect(crawlerRequestEvent(read('https://praetorium.gg/factions'), 200, DAY)?.distinctId).not.toBe(
-    crawlerRequestEvent(read('https://praetorium.gg/factions'), 200, new Date('2026-10-03T12:00:00Z'))?.distinctId,
+  expect(crawlerRequestEvent(read('https://praetorium.gg/factions'), 200, 0, DAY)?.distinctId).not.toBe(
+    crawlerRequestEvent(read('https://praetorium.gg/factions'), 200, 0, new Date('2026-10-03T12:00:00Z'))?.distinctId,
   )
 })
 
 it('tells two addresses with the same browser apart', () => {
-  expect(crawlerRequestEvent(read('https://praetorium.gg/factions'), 200, DAY)?.distinctId).not.toBe(
-    crawlerRequestEvent(read('https://praetorium.gg/factions', { 'x-forwarded-for': '198.51.100.1' }), 200, DAY)?.distinctId,
+  expect(crawlerRequestEvent(read('https://praetorium.gg/factions'), 200, 0, DAY)?.distinctId).not.toBe(
+    crawlerRequestEvent(read('https://praetorium.gg/factions', { 'x-forwarded-for': '198.51.100.1' }), 200, 0, DAY)?.distinctId,
   )
 })

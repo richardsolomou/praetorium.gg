@@ -100,7 +100,7 @@ export function WebMcp() {
               ? 'Saving the approved change…'
               : failed
                 ? 'The change could not be confirmed.'
-                : 'Your assistant proposes this change. Check the details before approving it.'}
+                : 'Your AI assistant proposes this change. Check the details before approving it.'}
           </DialogDescription>
         </DialogHeader>
         <DialogBody>

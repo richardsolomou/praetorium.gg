@@ -5,6 +5,7 @@ import { jsonByteLength } from '../../core/json'
 import { unpackRuntimeData } from '../../contracts/runtimeData'
 import { catalogueFromIndex, type LoadedCatalogue } from '../../shared/catalogueIndex'
 import type { LoadedRules } from '../../shared/rules'
+import type { TextFacts } from '../../core/textFacts'
 import {
   isConstructionData,
   MAX_CONSTRUCTION_PART_BYTES,
@@ -25,8 +26,11 @@ const sharedSources = new WeakMap<OfflineConstructionBase | OfflineConstructionS
 
 export function buildConstruction(saved: OfflineConstructionSource) {
   const files = saved.edition ? editionCatalogueFiles(saved.files, saved.edition) : saved.files
-  const index = buildIndex(files, saved.revision)
   const datacards = unpackRuntimeData<LoadedCatalogue['datacards']>(saved.datacards)
+  const definitionFacts = saved.definitionFacts ? unpackRuntimeData<ReadonlyMap<string, TextFacts>>(saved.definitionFacts) : undefined
+  const index = buildIndex(files, saved.revision, {
+    get: (key) => definitionFacts?.get(key) ?? datacards.textFacts?.get(key),
+  })
   const catalogue = {
     ...catalogueFromIndex(index, files, datacards),
     datacardExcludedCatalogueIds: datacardExclusions(saved.datacardExcludedCatalogueIds, saved.edition),
@@ -56,6 +60,9 @@ export function constructionSource(source: OfflineConstructionData | undefined, 
           source.files as unknown as RuntimeData,
           budget,
         ) as unknown as OfflineConstructionSource['files'],
+        ...(selected.definitionFacts
+          ? { definitionFacts: restoreRuntimeData(selected.definitionFacts, source.definitionFacts!, budget) }
+          : {}),
         datacards: restoreRuntimeData(selected.datacards, source.datacards, budget),
         mfm: restoreRuntimeData(selected.mfm, source.mfm, budget),
         rules: restoreRuntimeData(selected.rules, source.rules, budget),

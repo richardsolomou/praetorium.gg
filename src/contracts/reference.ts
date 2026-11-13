@@ -1,4 +1,4 @@
-import type { TextPointer } from '../shared/sourceText'
+import type { TextPointer } from '../core/sourceText'
 
 export const REFERENCE_KINDS = ['datasheet', 'deployment', 'detachment', 'disposition', 'mission', 'rule', 'terrain'] as const
 export type ReferenceKind = (typeof REFERENCE_KINDS)[number]

@@ -1,4 +1,4 @@
-import { TEXT_SOURCES } from '../../../shared/sourceText'
+import { TEXT_SOURCES } from '../../../core/sourceText'
 import { TextSourceRow } from '../../components/TextSourcesDialog'
 import { chooseTextSource, useTextSourceChoice } from '../../rulesText'
 import { useHydrated } from '../../useClientValue'
@@ -41,7 +41,7 @@ export function Sources() {
         <LegalLinks>
           <li>
             Faction entries, constraints, modifiers, and costs from{' '}
-            <a href="https://github.com/BSData/wh40k-11e" className={linkClass}>
+            <a href="https://github.com/richardsolomou/wh40k-11e" className={linkClass}>
               BSData
             </a>
             .
@@ -55,7 +55,7 @@ export function Sources() {
           </li>
           <li>
             Current unit, wargear, detachment, enhancement, and upgrade prices from{' '}
-            <a href="https://github.com/BSData/wh40k-11e-mfm" className={linkClass}>
+            <a href="https://github.com/richardsolomou/wh40k-11e-mfm" className={linkClass}>
               BSData Munitorum Field Manual
             </a>
             .

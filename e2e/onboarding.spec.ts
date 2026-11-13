@@ -44,17 +44,9 @@ async function practiceBattleGuide(page: Page, name: string, width: number) {
   await page.goto('/battles')
   await page.setViewportSize({ width, height: 900 })
   await launch(page, '/battles', 'Battle guide')
-  await createBattle(page, {
-    practice: true,
-    beforeCreate: async () => {
-      await next(page, 'Table shape')
-      await next(page, 'Fill every seat')
-      await expect(prompt(page)).toContainText('Start the battle')
-    },
-  })
-  await expect(prompt(page)).toContainText('Battle size and mission pack')
-  await expect(page.locator('#setup-format').getByText('After the armies', { exact: true })).toBeVisible()
-  await next(page, 'Battle size and mission pack')
+  await expect(prompt(page)).toContainText('Open a table')
+  await createBattle(page, { practice: true })
+  await next(page, 'Tracking and armies')
   await attachRoster(page, name)
   await attachRoster(page, name, { forPlayer: PRACTICE_OPPONENT })
   // Setup is one page: the guide moves on as the table answers, and with its own Next where nothing needs answering.

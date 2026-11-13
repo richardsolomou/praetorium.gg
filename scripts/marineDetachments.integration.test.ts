@@ -2,7 +2,7 @@ import fs from 'node:fs'
 import { beforeAll, describe, expect, it } from 'vitest'
 import { referenceFactionId } from '../src/core/factionReferenceRoute'
 import { catalogueEditionLoaders } from '../src/server/catalogueEditions'
-import { publishedDetachmentReference } from '../src/server/referenceCatalogue'
+import { detachmentReference } from '../src/shared/detachmentReference'
 import { loadSnapshotWithRules } from './lib/catalogueSnapshotLoad'
 
 const directory = process.env.CATALOGUE_DIR ?? 'catalogue-data'
@@ -66,7 +66,7 @@ describe.skipIf(!fs.existsSync(directory))('Marine detachment reference ownershi
       const detachment = offered.find((candidate) => candidate.name === name)!
       expect(offered.map((candidate) => candidate.name)).not.toContain(absent)
       expect(detachment.referenceRoute).toEqual({ catalogueId: faction.slug, slug: detachment.slug })
-      expect(publishedDetachmentReference(versions.catalogueFor(id)!, versions.rulesFor(id)!, id, detachment.slug)?.name).toBe(name)
+      expect(detachmentReference(versions.catalogueFor(id)!, versions.rulesFor(id)!, id, detachment.slug)?.name).toBe(name)
     }
   })
 })

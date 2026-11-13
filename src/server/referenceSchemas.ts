@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { REFERENCE_KINDS } from '../contracts/reference'
-import { TEXT_SOURCES } from '../shared/sourceText'
+import { TEXT_SOURCES } from '../core/sourceText'
 import { REFERENCE_EXCERPT_MAX_LENGTH, REFERENCE_RESULT_MAX } from './referenceSearch'
 
 /** What the reference answers, shared by the MCP tools' output schemas and the OpenAPI document. */

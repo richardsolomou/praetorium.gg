@@ -10,6 +10,7 @@ import { restoreNativeTabScroll } from './nativeTabScroll'
 import { forgetTab, recallMoreTab, recallTab, rememberMoreTab, rememberTab, tabLocation } from './nativeTabs'
 import { compactChrome } from './useCompactChrome'
 import { withoutRecoveryKeys } from '../../routeErrors'
+import { useUnreadNotices } from '../notifications/Notifications'
 
 type Tab = { icon: ComponentType<{ className?: string }>; label: string; section: NativeSection; to: string }
 
@@ -61,6 +62,7 @@ export function NativeAppNavigation({
   state: unknown
 }) {
   const { data: me } = useQuery(meQuery())
+  const unreadNotices = useUnreadNotices(Boolean(me))
   const navigate = useNavigate()
   const router = useRouter()
   const navigation = nativeNavigation(path, search)
@@ -255,8 +257,14 @@ export function NativeAppNavigation({
           </Link>
         ))}
         <Link to="/more" className={`flex ${tabClass(moreActive)}`} aria-current={moreActive ? 'page' : undefined} onClick={openMore}>
-          <Ellipsis className="size-5" />
+          <span className="relative">
+            <Ellipsis className="size-5" />
+            {unreadNotices ? (
+              <span data-unread-notices aria-hidden className="absolute -top-0.5 -right-1 size-2 rounded-full bg-parchment" />
+            ) : null}
+          </span>
           <span className="max-w-full truncate">More</span>
+          {unreadNotices ? <span className="sr-only">, unread notifications</span> : null}
         </Link>
       </nav>
     </>

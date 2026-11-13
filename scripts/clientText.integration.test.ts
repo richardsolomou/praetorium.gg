@@ -6,16 +6,11 @@ import { beforeAll, describe, expect, it } from 'vitest'
 import { decodeReferencePart } from '../src/contracts/offlineReference'
 import { compileCanonicalCatalogueFromSnapshot, loadCanonicalCatalogue } from '../src/server/canonicalCatalogue'
 import { loadCatalogue } from '../src/server/catalogueIndex'
-import { compiledGlobalSearchIndex } from '../src/server/globalSearch'
-import {
-  publishedDetachmentReference,
-  publishedFaction,
-  referenceDatasheetBySlug,
-  referenceRuleIndex,
-  referenceRuleSection,
-} from '../src/server/referenceCatalogue'
+import { compiledGlobalSearchIndex, publishedSearchIndex } from '../src/server/globalSearch'
+import { referenceDatasheetBySlug, referenceRuleIndex, referenceRuleSection } from '../src/server/referenceCatalogue'
 import { loadRules } from '../src/server/rules'
 import { battleDetachmentData } from '../src/shared/battleDetachmentData'
+import { detachmentReference } from '../src/shared/detachmentReference'
 import { unitsIn } from '../src/shared/cataloguePicker'
 import { combatUnitsFor } from '../src/shared/combatUnits'
 import { factionIndexFor, factionsFor } from '../src/shared/factionReferences'
@@ -25,7 +20,7 @@ import { rosterCombatant } from '../src/shared/rosterCombatRules'
 import { rosterLoadoutDatasheets } from '../src/shared/rosterReads'
 import { checkoutReferenceKey } from './lib/checkoutReferenceKey'
 import { prepareReferenceBundle } from './lib/offlineReferenceCache'
-import { namesIn, normal, sourceProse, stringsIn } from './lib/sourceProse.fixtures'
+import { namesIn, normal, rulesTexts, sourceProse, stringsIn, textCharacteristicTypes } from './lib/sourceProse.fixtures'
 import { PUBLIC_REFERENCE_QUERIES } from '../src/contracts/appSnapshot'
 
 const isReferenceQueries = (value: unknown) =>
@@ -39,29 +34,32 @@ const root = exists ? fs.realpathSync(source) : source
 type Payload = { name: string; value: unknown }
 
 /**
- * What the browser receives, split by what it may carry. Every payload is free of Game
- * Datacards' words. Pages publish BSData's words as tokens too; what the device computes
- * from keeps them — construction reads for Leader attachments, grants and combat rules, and
- * the search index it matches queries against — and shows them only once the reader turns BSData on.
+ * What the browser receives: published pages, and the construction data a device computes from. Neither
+ * carries either source's rules text; the device computes from the facts recorded beside each token.
  */
 describe.skipIf(!exists)('what the browser gets from Praetorium', () => {
   const published: Payload[] = []
   const construction: Payload[] = []
   let datacards: Set<string>
   let definitions: Set<string>
+  let definitionRules: Set<string>
 
   beforeAll(async () => {
     const catalogue = loadCatalogue(root)!
-    const rules = loadRules(root, { iconDirectory: path.join(root, 'faction-icons'), loadedDatacards: catalogue.datacards })!
+    const rules = loadRules(root, { iconDirectory: path.join(root, 'faction-icons'), catalogue })!
     const canonical = loadCanonicalCatalogue(root) ?? compileCanonicalCatalogueFromSnapshot(catalogue, rules, root)
     const sources = { catalogue: () => catalogue, rules: () => rules, canonicalCatalogue: () => canonical }
     definitions = sourceProse(root, ['definitions'])
+    const definitionFiles = fs
+      .readdirSync(path.join(root, 'definitions'))
+      .map((name) => JSON.parse(fs.readFileSync(path.join(root, 'definitions', name), 'utf8')) as unknown)
+    const textTypes = textCharacteristicTypes(definitionFiles)
+    definitionRules = sourceProse(root, ['definitions'], (parsed) => rulesTexts(parsed, textTypes))
     // A card BSData prints word for word is BSData's text as well, which construction reads may carry.
     datacards = new Set([...sourceProse(root, ['datacards'])].filter((words) => !definitions.has(words)))
 
     published.push({ name: 'factionIndex', value: factionIndexFor(catalogue, rules) })
-    for (const faction of factionsFor(catalogue, rules).factions)
-      published.push({ name: `faction ${faction.id}`, value: publishedFaction(faction, catalogue) })
+    for (const faction of factionsFor(catalogue, rules).factions) published.push({ name: `faction ${faction.id}`, value: faction })
     published.push({ name: 'gameReferences', value: gameReferencesFor(rules) })
     published.push({ name: 'deployments', value: rules.deployments })
     published.push({ name: 'terrain', value: { layouts: rules.terrainLayouts, templates: rules.terrainTemplates } })
@@ -81,10 +79,10 @@ describe.skipIf(!exists)('what the browser gets from Praetorium', () => {
     for (const detachment of canonical.detachments)
       published.push({
         name: `detachmentDetail ${detachment.catalogueId}/${detachment.slug}`,
-        value: publishedDetachmentReference(catalogue, rules, detachment.catalogueId, detachment.slug),
+        value: detachmentReference(catalogue, rules, detachment.catalogueId, detachment.slug),
       })
 
-    construction.push({ name: 'searchIndex', value: compiledGlobalSearchIndex(catalogue, rules) })
+    construction.push({ name: 'searchIndex', value: publishedSearchIndex(compiledGlobalSearchIndex(catalogue, rules)) })
     construction.push({ name: 'combatUnits', value: combatUnitsFor(catalogue, rules) })
     for (const faction of factionsFor(catalogue, rules).factions) {
       const units = unitsIn(catalogue, faction.id, '', { factionCards: true })
@@ -159,7 +157,7 @@ describe.skipIf(!exists)('what the browser gets from Praetorium', () => {
     expect(leaks([...published, ...construction], datacards).slice(0, 20)).toEqual([])
   })
 
-  it('publishes no BSData rules text on reference payloads', { timeout: 120_000 }, () => {
-    expect(leaks(published, definitions).slice(0, 20)).toEqual([])
+  it('carries no BSData rules text anywhere', { timeout: 120_000 }, () => {
+    expect(leaks([...published, ...construction], definitionRules).slice(0, 20)).toEqual([])
   })
 })

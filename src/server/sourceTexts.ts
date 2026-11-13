@@ -13,7 +13,7 @@ import {
   sourceStrings,
   textToken,
   textTokensIn,
-} from '../shared/sourceText'
+} from '../core/sourceText'
 import type { Steps } from '../shared/steps'
 
 export type { SourceTexts }
@@ -250,14 +250,11 @@ const TOKENS_AND_WORDS = /(\u27E6[^\u27E7]*\u27E7)/
 const TEXT_PROFILE_KINDS = new Set(['rule', 'other', 'transport'])
 
 /**
- * A published value with every BSData rules text in its descriptions and rule-like profiles swapped for its token.
- *
- * A description is a definitions file's text as written, or Game Datacards tokens with such
- * text between them, or paragraphs of either; each piece the files state is swapped whole.
+ * A text with each piece the definitions state swapped for its token: a description is a definitions file's
+ * text as written, or Game Datacards tokens with such text between them, or paragraphs of either.
  */
-export function withDefinitionTokens<T>(value: T, token: ((raw: string) => string | null) | undefined): T {
-  if (!token) return value
-  const published = (text: string) =>
+export function withDefinitionTokensIn(text: string, token: (raw: string) => string | null) {
+  return (
     token(text) ??
     text
       .split(TOKENS_AND_WORDS)
@@ -270,18 +267,35 @@ export function withDefinitionTokens<T>(value: T, token: ((raw: string) => strin
               .join('\n\n'),
       )
       .join('')
+  )
+}
+
+/**
+ * A value with every BSData rules text in its descriptions and rule-like profiles swapped for its token,
+ * through the maps the loaders key their cards by.
+ */
+export function withDefinitionTokens<T>(value: T, token: (raw: string) => string | null): T {
+  // One card filed under several keys stays one card.
+  const copies = new WeakMap<object, unknown>()
   // A rule-like profile's characteristics are its rules text, where a unit or weapon profile's are numbers and keywords.
   const visit = (item: unknown, key?: string, ruleProfile = false): unknown => {
-    if (typeof item === 'string') return key === 'description' || (ruleProfile && key === 'value') ? published(item) : item
-    if (Array.isArray(item)) return item.map((entry) => visit(entry, undefined, ruleProfile))
-    if (item && typeof item === 'object' && Object.getPrototypeOf(item) === Object.prototype) {
+    if (typeof item === 'string')
+      return key === 'description' || (ruleProfile && key === 'value') ? withDefinitionTokensIn(item, token) : item
+    if (!item || typeof item !== 'object') return item
+    const copied = copies.get(item)
+    if (copied) return copied
+    let copy: unknown = item
+    if (Array.isArray(item)) copy = item.map((entry) => visit(entry, undefined, ruleProfile))
+    else if (item instanceof Map) copy = new Map([...item].map(([field, entry]) => [field, visit(entry, undefined, ruleProfile)]))
+    else if (Object.getPrototypeOf(item) === Object.prototype) {
       const record = item as Record<string, unknown>
       const rules = Array.isArray(record.values) && TEXT_PROFILE_KINDS.has(String(record.kind))
-      return Object.fromEntries(
+      copy = Object.fromEntries(
         Object.entries(record).map(([field, entry]) => [field, visit(entry, field, ruleProfile || (rules && field === 'values'))]),
       )
     }
-    return item
+    copies.set(item, copy)
+    return copy
   }
   return visit(value) as T
 }

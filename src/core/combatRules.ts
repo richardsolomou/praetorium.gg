@@ -18,6 +18,7 @@ import {
   labelledChoice,
   normalizeCombatText,
   ordersRecipient,
+  ruleAnswers,
   ruleSection,
 } from './combatRuleCompiler'
 import { datasheetCharacteristicKind, weaponPhase } from './datasheetStructure'
@@ -38,6 +39,18 @@ export type CombatRule = {
   keywords?: readonly string[]
   /** What a rule published as a token is judged against once a device loads its words. */
   judge?: CombatRuleJudge
+  /** What the rule's words decide for this placement, recorded where a token stands for them. */
+  reading?: CombatReading
+}
+/**
+ * What a rule's words decide in combat for one placement: the compiled choices, or the choices
+ * and default a rule the compiler cannot read falls back on, and the roles its words take.
+ */
+export type CombatReading = {
+  compiled: { choices: CombatRuleChoice[]; defaultChoice: number } | null
+  legacy: CombatRuleChoice[]
+  legacyDefault: number
+  roles: CombatRuleEffect['role'][]
 }
 /** A rule's place in a roster that its words decide whether and how it applies within. */
 export type CombatRuleJudge = {
@@ -155,29 +168,49 @@ export function combatDamageStateSelections(
 const weaponKey = (value: string) => combatTextKey(value).replace(/^the /, '')
 
 /** False only when the source's explicit keyword restriction rules the unit out. */
-export function combatRuleEligible(description: string, keywords: readonly string[], recipient?: string) {
+export const combatRuleEligible = (description: string, keywords: readonly string[], recipient?: string) =>
+  combatTargetAdmits(combatRuleTarget(description, recipient), keywords)
+
+/**
+ * The keywords a rule's words restrict it to: alternatives of keyword terms, and terms that rule a unit out.
+ * Null where the words name no restriction.
+ */
+export type CombatTarget = { excluded: string[]; allowed: string[][] }
+
+export function combatRuleTarget(description: string, recipient?: string): CombatTarget | null {
   description = description.replaceAll('^', '')
   const target = recipient ?? ruleSection(description, 'Target') ?? combatRuleRecipient(description)
-  if (!target) return true
-  const known = keywords.map(combatTextKey)
-  const matches = (phrase: string) => combatKeywordPhraseMatches(combatTextKey(phrase), known)
+  if (!target) return null
   const terms = (value: string) => {
     const bold = [...value.matchAll(/\*\*([^*]+)\*\*/g)].map((match) => match[1]!)
     return bold.length ? bold : [...value.matchAll(/\b[A-Z][A-Z0-9'’-]+(?:[ -][A-Z][A-Z0-9'’-]+)*\b/g)].map((match) => match[0])
   }
   const excluded = /\(excluding ([^)]+)\)/i.exec(target)
-  if (excluded && terms(excluded[1]!).some(matches)) return false
-  const allowed = target
-    .replace(excluded?.[0] ?? '\0', '')
-    .split(/\s+or\s+/i)
-    .map(terms)
-    .filter((alternative) => alternative.length)
-  return !allowed.length || allowed.some((alternative) => alternative.every(matches))
+  return {
+    excluded: excluded ? terms(excluded[1]!) : [],
+    allowed: target
+      .replace(excluded?.[0] ?? '\0', '')
+      .split(/\s+or\s+/i)
+      .map(terms)
+      .filter((alternative) => alternative.length),
+  }
 }
+
+export function combatTargetAdmits(target: CombatTarget | null, keywords: readonly string[]) {
+  if (!target) return true
+  const known = keywords.map(combatTextKey)
+  const matches = (phrase: string) => combatKeywordPhraseMatches(combatTextKey(phrase), known)
+  if (target.excluded.some(matches)) return false
+  return !target.allowed.length || target.allowed.some((alternative) => alternative.every(matches))
+}
+
+const compiledRule = (rule: CombatRule) => (rule.reading ? rule.reading.compiled : compileCombatRule(rule))
+/** The roles a rule's words take, as recorded for its placement where a token stands for them. */
+export const ruleRoles = (rule: CombatRule) => rule.reading?.roles ?? combatRuleRoles(rule.description)
 
 export function combatRuleChoices(rule: CombatRule): CombatRuleChoice[] {
   if (rule.included) return []
-  const compiled = compileCombatRule(rule)
+  const compiled = compiledRule(rule)
   if (compiled)
     return compiled.choices.map((choice) => ({
       ...choice,
@@ -196,6 +229,7 @@ export function combatRuleChoices(rule: CombatRule): CombatRuleChoice[] {
           : []
       }),
     }))
+  if (rule.reading) return rule.reading.legacy
   const written = normalizeCombatText(ruleSection(rule.description, 'Effect') ?? rule.description)
   const aura = /^While a friendly (.+?) unit(?: \(excluding .+?\))? is within (\d+)" of (?:this model|the bearer), (.+)$/i.exec(written)
   const selectedAlly =
@@ -226,7 +260,7 @@ export function combatRuleChoices(rule: CombatRule): CombatRuleChoice[] {
       text,
     )
   if (conditionalGrant && combatKeyword(conditionalGrant[2]!)) {
-    const hasKeyword = rule.keywords?.some((keyword) => combatTextKey(keyword) === combatTextKey(conditionalGrant[1]!))
+    const hasKeyword = rule.keywords && ruleAnswers(rule)(`is:${combatTextKey(conditionalGrant[1]!)}`)
     return [
       {
         label: [range, hasKeyword ? '' : 'Closest eligible target'].filter(Boolean).join(' · ') || 'Active',
@@ -317,34 +351,76 @@ export function combatRuleRoles(description: string): CombatRuleEffect['role'][]
 const REACHES_ATTACHED_UNIT =
   /leading a unit|this model's unit|bearer's unit|(?:a model|models) in (?:this|that) unit|this unit's (?:(?:ranged|melee) )?attacks|equipped by this unit|\battacks? (?:that )?targets? this unit|\bthis unit has\b/i
 
-/** A rule as it applies to a unit, judged from its words in its place in the roster, or null when it takes no part. */
-export function judgedCombatRule(rule: CombatRule, judge: CombatRuleJudge): CombatRule | null {
-  const { description } = rule
-  let scope = rule.scope
-  // Orders reach any unit an officer chooses, so every unit fields the army rule and officers' own copies step aside.
+/**
+ * What judging a rule's place in a roster reads of its words: whether it issues Orders and to whom, which
+ * units it reaches, and the keywords it restricts its recipients to.
+ */
+export type CombatJudging = {
+  orders?: { target: CombatTarget | null }
+  selectsOther?: true
+  leading?: true
+  reachesAttached?: true
+  recipient?: true
+  target: CombatTarget | null
+  recipientTarget?: CombatTarget | null
+}
+
+export function combatJudgingOf(description: string): CombatJudging {
   if (isOrdersRule(description)) {
     const recipient = ordersRecipient(description)
-    return judge.origin === 'army' && (!recipient || combatRuleEligible(description, judge.keywords, recipient))
-      ? { ...rule, keywords: judge.keywords }
-      : null
+    return { orders: { target: recipient ? combatRuleTarget(description, recipient) : null }, target: null }
   }
+  const recipient = combatRuleRecipient(description)
+  return {
+    ...(/select (?:one|a) other friendly/i.test(description) ? { selectsOther: true as const } : {}),
+    ...(/^While this model is leading a unit,/i.test(description) ? { leading: true as const } : {}),
+    ...(REACHES_ATTACHED_UNIT.test(printedPhrasing(normalizeCombatText(markedBullets(description))))
+      ? { reachesAttached: true as const }
+      : {}),
+    ...(recipient ? { recipient: true as const, recipientTarget: combatRuleTarget(description, recipient) } : {}),
+    target: combatRuleTarget(description),
+  }
+}
+
+/**
+ * How a rule's words are read while judging it: from the words themselves, or from what was recorded of them
+ * where a token stands for them, which gives each placement its reading or null where none was recorded.
+ */
+export type CombatText = { judging: CombatJudging; readingFor?: (rule: CombatRule) => CombatReading | null }
+
+/** A rule as it applies to a unit, judged from its words in its place in the roster, or null when it takes no part. */
+export function judgedCombatRule(
+  rule: CombatRule,
+  judge: CombatRuleJudge,
+  text: CombatText = { judging: combatJudgingOf(rule.description) },
+): CombatRule | null {
+  const { judging } = text
+  const read = (placed: CombatRule) => {
+    const reading = text.readingFor?.(placed)
+    return reading ? { ...placed, reading } : placed
+  }
+  let scope = rule.scope
+  // Orders reach any unit an officer chooses, so every unit fields the army rule and officers' own copies step aside.
+  if (judging.orders)
+    return judge.origin === 'army' && combatTargetAdmits(judging.orders.target, judge.keywords)
+      ? read({ ...rule, keywords: judge.keywords })
+      : null
   if (judge.origin === 'army') return null
   if (judge.origin === 'own') {
-    if (/select (?:one|a) other friendly/i.test(description)) return null
-    scope = judge.attached && /^While this model is leading a unit,/i.test(description) ? 'attached' : 'unit'
+    if (judging.selectsOther) return null
+    scope = judge.attached && judging.leading ? 'attached' : 'unit'
   } else if (judge.origin === 'support') {
-    const printed = printedPhrasing(normalizeCombatText(markedBullets(description)))
-    if (judge.attached && REACHES_ATTACHED_UNIT.test(printed)) scope = 'attached'
-    else if (combatRuleRecipient(description)) scope = 'nearby'
+    if (judge.attached && judging.reachesAttached) scope = 'attached'
+    else if (judging.recipient) scope = 'nearby'
     else return null
   }
-  const judged: CombatRule = { ...rule, scope, keywords: judge.keywords }
-  const recipient = scope === 'stratagem' ? combatRuleRecipient(description) : undefined
+  const judged = read({ ...rule, scope, keywords: judge.keywords })
   const eligible =
-    combatRuleEligible(description, scope === 'stratagem' ? judge.unitKeywords : judge.keywords) ||
-    (recipient !== undefined &&
-      combatRuleEligible(description, judge.keywords, recipient) &&
-      judge.supportKeywords.some((keywords) => combatRuleEligible(description, keywords)))
+    combatTargetAdmits(judging.target, scope === 'stratagem' ? judge.unitKeywords : judge.keywords) ||
+    (scope === 'stratagem' &&
+      judging.recipient !== undefined &&
+      combatTargetAdmits(judging.recipientTarget ?? null, judge.keywords) &&
+      judge.supportKeywords.some((keywords) => combatTargetAdmits(judging.target, keywords)))
   return combatRuleIsRelevant(judged) && eligible ? judged : null
 }
 
@@ -355,8 +431,8 @@ export function readCombatRule(rule: CombatRule, words: string): CombatRule | nu
 }
 
 function combatRuleIsRelevant(rule: CombatRule) {
-  const compiled = compileCombatRule(rule)
-  return compiled ? compiled.choices.some((choice) => choice.effects.length) : combatRuleRoles(rule.description).length > 0
+  const compiled = compiledRule(rule)
+  return compiled ? compiled.choices.some((choice) => choice.effects.length) : ruleRoles(rule).length > 0
 }
 
 export function combatEffectAppliesTo(effect: CombatRuleEffect, role: CombatRuleEffect['role'], opposingKeywords?: readonly string[]) {
@@ -364,21 +440,22 @@ export function combatEffectAppliesTo(effect: CombatRuleEffect, role: CombatRule
 }
 
 export function combatRuleAppliesTo(rule: CombatRule, role: CombatRuleEffect['role'], opposingKeywords?: readonly string[]) {
-  const compiled = compileCombatRule({ ...rule, included: false })
+  const compiled = compiledRule({ ...rule, included: false })
   if (compiled)
     return compiled.choices.some((choice) => choice.effects.some((effect) => combatEffectAppliesTo(effect, role, opposingKeywords)))
   const choices = combatRuleChoices({ ...rule, included: false })
   return (
     choices.some((choice) => choice.effects.some((effect) => combatEffectAppliesTo(effect, role, opposingKeywords))) ||
     (role === 'defender' && Boolean(rule.appliedDefences?.length)) ||
-    (Boolean(rule.included) && combatRuleRoles(rule.description).includes(role))
+    (Boolean(rule.included) && ruleRoles(rule).includes(role))
   )
 }
 
 export function combatRuleDefault(rule: CombatRule) {
   if (rule.included) return 0
-  const compiled = compileCombatRule(rule)
+  const compiled = compiledRule(rule)
   if (compiled) return compiled.defaultChoice
+  if (rule.reading) return rule.reading.legacyDefault
   if (!combatRuleChoices(rule).length) return 0
   const text = normalizeCombatText(rule.description)
   return (rule.scope === 'attached' && /^While this model is leading a unit, /i.test(text)) ||
@@ -477,33 +554,41 @@ export function combatRuleProfiles(
         const existingImprovement =
           kind === 'armour-penetration' && value.baseValue ? Math.min(0, Number(value.value) - Number(value.baseValue)) : 0
         const add = adjustment.positive + Math.min(adjustment.negative, adjustment.exclusive - existingImprovement)
-        const starting = adjustment.set === undefined ? value.value : String(adjustment.set)
-        let adjusted: string
-        if ((kind === 'attacks' || kind === 'damage') && !/^\d+$/.test(starting)) {
-          const dice = diceExpression(starting)
-          if (!dice || !dice.dice || dice.bonus + add < 0) return value
-          const bonus = dice.bonus + add
-          adjusted = `${dice.dice === 1 ? '' : dice.dice}D${dice.sides}${bonus ? `+${bonus}` : ''}`
-        } else {
-          if (!/^-?\d+\+?$/.test(starting)) return value
-          const next = Number(starting.replace('+', '')) + add
-          const bounded =
-            kind === 'armour-penetration'
-              ? Math.min(0, next)
-              : kind === 'ballistic-skill' || kind === 'weapon-skill'
-                ? Math.max(2, Math.min(6, next))
-                : Math.max(1, next)
-          adjusted = `${bounded}${value.value.endsWith('+') ? '+' : ''}`
-        }
-        return {
-          ...value,
-          value: adjusted,
-          baseValue: value.baseValue ?? value.value,
-          modifiers: [...new Set([...(value.modifiers ?? []), ...adjustment.sources])],
-        }
+        return adjustedCharacteristic(value, add, adjustment.sources, adjustment.set)
       })
       return { ...profile, values }
     }),
+  }
+}
+
+type Characteristic = Datasheet['profiles'][number]['values'][number]
+
+/** A weapon characteristic with `add` applied to its printed number and its sources recorded; a value it cannot apply to stays as it is. */
+export function adjustedCharacteristic(value: Characteristic, add: number, sources: readonly string[], set?: number): Characteristic {
+  const kind = datasheetCharacteristicKind(value.name)
+  const starting = set === undefined ? value.value : String(set)
+  let adjusted: string
+  if ((kind === 'attacks' || kind === 'damage') && !/^\d+$/.test(starting)) {
+    const dice = diceExpression(starting)
+    if (!dice || !dice.dice || dice.bonus + add < 0) return value
+    const bonus = dice.bonus + add
+    adjusted = `${dice.dice === 1 ? '' : dice.dice}D${dice.sides}${bonus ? `+${bonus}` : ''}`
+  } else {
+    if (!/^-?\d+\+?$/.test(starting)) return value
+    const next = Number(starting.replace('+', '')) + add
+    const bounded =
+      kind === 'armour-penetration'
+        ? Math.min(0, next)
+        : kind === 'ballistic-skill' || kind === 'weapon-skill'
+          ? Math.max(2, Math.min(6, next))
+          : Math.max(1, next)
+    adjusted = `${bounded}${value.value.endsWith('+') ? '+' : ''}`
+  }
+  return {
+    ...value,
+    value: adjusted,
+    baseValue: value.baseValue ?? value.value,
+    modifiers: [...new Set([...(value.modifiers ?? []), ...sources])],
   }
 }
 

@@ -95,6 +95,7 @@ export const LIST_FILTER_SCOPES = [
   'rosters:public',
   'rosters:played',
   'rosters:player',
+  'rosters:choose',
 ] as const
 export type ListFilterScope = (typeof LIST_FILTER_SCOPES)[number]
 

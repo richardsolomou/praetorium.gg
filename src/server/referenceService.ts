@@ -2,7 +2,7 @@ import type { CanonicalDatasheet, CanonicalDetachment, UnitSummary } from '../co
 import type { ReferenceDocument } from '../contracts/reference'
 import type { DatasheetRelationship } from '../core/datasheet'
 import { routeSlug } from '../core/slug'
-import { publishedFacts } from '../shared/sourceText'
+import { publishedFacts } from '../core/sourceText'
 import { byId, countBy, remember } from '../core/collections'
 import { catalogueEditionId } from '../core/catalogueEdition'
 import { joinKey } from '../core/text'

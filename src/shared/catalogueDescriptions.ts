@@ -1,9 +1,11 @@
 import { groupBy, remember } from '../core/collections'
-import type { Condition, Definition, ModifierGroup, SelectionEntry } from '../core/catalogue'
+import type { Condition, ModifierGroup, SelectionEntry } from '../core/catalogue'
 import { distance } from 'fastest-levenshtein'
 import { compareText, joinKey } from '../core/text'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { cardName, descriptionKey } from './datacards'
+import { linksWeapon } from './textFacts'
+import { comparableText } from '../core/sourceText'
 import type { DetachmentRulesDetail } from '../contracts/factions'
 
 type DetachmentCatalogueDetail = {
@@ -151,7 +153,7 @@ const descriptionOf = (entry: SelectionEntry) =>
 
 function enhancementDescription(entry: SelectionEntry, loaded: LoadedCatalogue) {
   const description = descriptionOf(entry)
-  const linked = linkedEnhancementWeapon(entry, loaded.index.definitions)
+  const linked = linkedEnhancementWeapon(entry, loaded.index)
   if (!description || !linked) return description
   const { weapon } = linked
   const values = weapon
@@ -162,10 +164,11 @@ function enhancementDescription(entry: SelectionEntry, loaded: LoadedCatalogue) 
   return `${description}\n\n**${weapon.name}** — ${values.join(' · ')}`
 }
 
-function linkedEnhancementWeapon(entry: SelectionEntry, definitions: ReadonlyMap<string, Definition>) {
-  if (!/following weapon:\s*$/i.test(descriptionOf(entry) ?? '')) return null
+function linkedEnhancementWeapon(entry: SelectionEntry, index: LoadedCatalogue['index']) {
+  const description = descriptionOf(entry)
+  if (!description || !linksWeapon(description, index.textFacts)) return null
   const linked = (entry.entryLinks ?? []).flatMap((link) =>
-    (definitions.get(link.targetId)?.profiles ?? [])
+    (index.definitions.get(link.targetId)?.profiles ?? [])
       .filter((profile) => profile.typeName === 'Melee Weapons' || profile.typeName === 'Ranged Weapons')
       .map((weapon) => ({ link, weapon })),
   )
@@ -179,7 +182,7 @@ function linkedEnhancementWeapon(entry: SelectionEntry, definitions: ReadonlyMap
 
 function unambiguous(entries: readonly SelectionEntry[]): SelectionEntry | null {
   const described = entries.filter((entry) => descriptionOf(entry))
-  return new Set(described.map(descriptionOf)).size === 1 ? (described[0] ?? null) : null
+  return new Set(described.map((entry) => comparableText(descriptionOf(entry)!))).size === 1 ? (described[0] ?? null) : null
 }
 
 /**

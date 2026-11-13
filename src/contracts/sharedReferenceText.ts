@@ -1,5 +1,5 @@
 import { jsonByteLength } from '../core/json'
-import { hasTextTokens } from '../shared/sourceText'
+import { hasTextTokens } from '../core/sourceText'
 
 const REFERENCE = '$praetoriumText'
 const MAX_TEXTS = 100_000

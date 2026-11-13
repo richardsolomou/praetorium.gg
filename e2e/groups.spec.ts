@@ -45,13 +45,13 @@ test('group members choose their group at battle setup', async ({ browser }, tes
 
   await joinGroup(member, groupUrl, memberName)
 
-  const battleUrl = await createBattle(owner, { opponent: memberName })
-  // A battle opens with its format already settled, folded to its answer, so the group is chosen from the opened step.
-  await setupStep(owner, 'Format')
-  const group = owner.getByRole('group', { name: 'Group', exact: true })
-  await expect(group.getByRole('button', { name: new RegExp(groupName) })).toBeVisible()
-  await group.getByRole('button', { name: new RegExp(groupName) }).click()
-  await expect(group.getByRole('button', { name: new RegExp(groupName) })).toHaveAttribute('aria-pressed', 'true')
+  const battleUrl = await createBattle(owner, { opponent: member })
+  await setupStep(owner, 'Tracking')
+  const group = owner.getByRole('combobox', { name: 'Record for a group' })
+  await expect(group).toHaveText(/No group/)
+  await retryUntilVisible(owner.getByRole('option', { name: groupName }), () => group.click())
+  await owner.getByRole('option', { name: groupName }).click()
+  await expect(group).toHaveText(new RegExp(groupName))
   await group.scrollIntoViewIfNeeded()
   await owner.screenshot({ path: testInfo.outputPath('group-setup.png') })
 
@@ -67,6 +67,8 @@ test('group members choose their group at battle setup', async ({ browser }, tes
     [second, { kind: 'end-battle', reason: 'conceded', concededBy: second }],
   ] as [string, Command][])
     await appendCommand(battleId, by, command)
+  // A log written by hand skips the step that lists a draft once every army is in.
+  await productSql`DELETE FROM battle_drafts WHERE battle_id = ${battleId}`
 
   await owner.goto(`${groupUrl}?tab=leaderboard`)
   const table = owner.locator('[data-standings]')

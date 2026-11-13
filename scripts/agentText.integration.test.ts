@@ -8,7 +8,7 @@ import { loadRules } from '../src/server/rules'
 import { recordIdsIn, textSourceFiles, textSourcePaths } from '../src/server/sourceTexts'
 import { combatUnitsFor } from '../src/shared/combatUnits'
 import { factionsFor } from '../src/shared/factionReferences'
-import { hasTextTokens, type TextPointer } from '../src/shared/sourceText'
+import { hasTextTokens, type TextPointer } from '../src/core/sourceText'
 import { namesIn, normal, sourceProse, stringsIn } from './lib/sourceProse.fixtures'
 
 const source = process.env.CATALOGUE_DIR ?? 'catalogue-data'
@@ -41,7 +41,7 @@ describe.skipIf(!exists)('what agents get from Praetorium', () => {
 
   beforeAll(async () => {
     const catalogue = loadCatalogue(root)!
-    const rules = loadRules(root, { iconDirectory: path.join(root, 'faction-icons'), loadedDatacards: catalogue.datacards })
+    const rules = loadRules(root, { iconDirectory: path.join(root, 'faction-icons'), catalogue })
     const canonical = loadCanonicalCatalogue(root) ?? compileCanonicalCatalogueFromSnapshot(catalogue, rules, root)
     snapshot.value = {
       sync: () => ({ status: 'ready' }),

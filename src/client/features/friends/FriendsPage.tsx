@@ -21,7 +21,7 @@ import { useNativeShare } from '../../nativeBridge'
 import { shareButtonLabel } from '../../useShareLink'
 import { Problem } from '../../components/Problem'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
-import { CreateBattle } from '../battles/CreateBattle'
+import { useNewBattle } from '../battles/NewBattle'
 import type { Facet } from '../../../core/serviceRecord'
 import { formatAgo } from '../../dates'
 import { countLabel } from '../../text'
@@ -36,7 +36,7 @@ export function FriendsPage() {
   const { data: profile } = useQuery({ ...playerProfileQuery(me?.id ?? ''), enabled: Boolean(me) })
   const [query, setQuery] = useState('')
   const [confirming, setConfirming] = useState<Confirming | null>(null)
-  const [battling, setBattling] = useState<Person | null>(null)
+  const startBattle = useNewBattle()
   const settledQuery = useSettled(query.trim())
   const search = playerSearchQuery(settledQuery)
   const { data: matches = [], isFetching } = useQuery({ ...search, placeholderData: keepPreviousData })
@@ -142,7 +142,7 @@ export function FriendsPage() {
                       friend={friend}
                       viewerId={me.id}
                       played={played.get(friend.id)}
-                      onBattle={() => setBattling(friend)}
+                      onBattle={() => startBattle.mutate({ friendId: friend.id })}
                       onRemove={() => setConfirming({ kind: 'remove', person: friend })}
                     />
                   ))}
@@ -166,13 +166,6 @@ export function FriendsPage() {
           </div>
         </div>
       </PageContent>
-      <CreateBattle
-        opponentId={battling?.id}
-        open={Boolean(battling)}
-        onOpenChange={(open) => {
-          if (!open) setBattling(null)
-        }}
-      />
       {confirming ? (
         <ConfirmDialog
           {...confirmationCopy(confirming)}

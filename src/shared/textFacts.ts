@@ -1,22 +1,17 @@
 import { bracketedRuleReferences } from '../core/ruleReference'
-import { titleCaseAbility, weaponProfileTypes } from './catalogueAbilityGrants'
-import { hasTextTokens, textKey, textTokensIn, withoutText } from './sourceText'
-
-/**
- * What the roster rules read from a rules text, kept beside its token.
- *
- * The server and a reader's device both price and judge rosters, and neither holds a
- * Game Datacards text once it is published as a token. So whatever the rules read from
- * such a text is read once, from the source's words, as the token is made, and travels
- * with the data: both sides then answer from the same facts, text loaded or not.
- */
-export type TextFacts = {
-  weaponGrants?: WeaponAbilityGrant[]
-  reserveSelectors?: string[]
-  reserveExemption?: true
-  references?: string[]
-}
-type WeaponAbilityGrant = { keyword: string; recipients: string; exclusions?: string; profileTypes: string[] }
+import { attachmentClaim, substitutedUnits } from '../core/attach'
+import { combatFactsOf } from '../core/combatReading'
+import { suggestReminderTimings, suggestReminderWhileDestroyed } from '../core/reminders'
+import { readText, statedIn, type TextFacts, type TextFactsByKey, type WeaponAbilityGrant } from '../core/textFacts'
+import {
+  abilityGrantStatement,
+  invulnerableSaveIn,
+  ledWeaponGrantIn,
+  normalizedAbilityText,
+  ownWeaponGrantIn,
+  titleCaseAbility,
+  weaponProfileTypes,
+} from './catalogueAbilityGrants'
 
 /** The facts one source text states, with nothing kept for a text that states none. */
 export function textFactsOf(words: string): TextFacts | null {
@@ -32,13 +27,86 @@ export function textFactsOf(words: string): TextFacts | null {
   return Object.keys(facts).length ? facts : null
 }
 
-export type TextFactsByKey = ReadonlyMap<string, TextFacts>
-
-/** A text's own words, where it has them, and the facts recorded for each token it carries. */
-function statedIn(text: string, facts: TextFactsByKey | undefined) {
-  if (!hasTextTokens(text)) return { words: text, recorded: [] }
-  return { words: withoutText(text), recorded: textTokensIn(text).flatMap((token) => facts?.get(textKey(token)) ?? []) }
+/**
+ * The facts a catalogue text states: those every text records, and what the catalogue's own readers take
+ * from its abilities and rules. `combat` is read only when asked, as it reads the words for every placement.
+ */
+export function definitionFactsOf(words: string): TextFacts {
+  const grants = abilityGrantStatement(words)
+  const normalizedGrants = abilityGrantStatement(normalizedAbilityText(words))
+  const attachment = attachmentClaim(words)
+  const substitutes = substitutedUnits(words)
+  const ownWeaponGrant = ownWeaponGrantIn(words)
+  const ledWeaponGrant = ledWeaponGrantIn(words)
+  const invulnerableSave = invulnerableSaveIn(words)
+  const timings = suggestReminderTimings(words)
+  const whileDestroyed = suggestReminderWhileDestroyed(words)
+  const stated = (statement: typeof grants) => statement.matched || statement.grants.length > 0
+  const facts: TextFacts = {
+    ...textFactsOf(words),
+    ...(attachment ? { attachment } : {}),
+    ...(substitutes.length ? { substitutes } : {}),
+    ...(stated(grants) ? { abilityGrants: grants } : {}),
+    ...(JSON.stringify(normalizedGrants) !== JSON.stringify(grants) ? { normalizedAbilityGrants: normalizedGrants } : {}),
+    ...(ownWeaponGrant ? { ownWeaponGrant } : {}),
+    ...(ledWeaponGrant ? { ledWeaponGrant } : {}),
+    ...(invulnerableSave ? { invulnerableSave } : {}),
+    ...(/following weapon:\s*$/i.test(words) ? { linkedWeapon: true as const } : {}),
+    ...(timings.length || whileDestroyed ? { reminder: { timings, ...(whileDestroyed ? { whileDestroyed: true as const } : {}) } } : {}),
+  }
+  let combat: TextFacts['combat']
+  return Object.defineProperty(facts, 'combat', {
+    enumerable: true,
+    get: () => (combat === undefined ? (combat = combatFactsOf(words)) : combat),
+  })
 }
+
+export const abilityGrantsIn = (text: string, facts: TextFactsByKey | undefined) =>
+  readText(text, facts, abilityGrantStatement, (found) => found.abilityGrants ?? { matched: false, grants: [] })
+
+/** The grants an ability's words state once normalised, as deployment abilities are compared. */
+export const normalizedAbilityGrantsIn = (text: string, facts: TextFactsByKey | undefined) =>
+  readText(
+    text,
+    facts,
+    (words) => abilityGrantStatement(normalizedAbilityText(words)),
+    (found) => found.normalizedAbilityGrants ?? found.abilityGrants ?? { matched: false, grants: [] },
+  )
+
+export const ownWeaponGrantOf = (text: string, facts: TextFactsByKey | undefined) =>
+  readText(text, facts, ownWeaponGrantIn, (found) => found.ownWeaponGrant ?? null)
+
+export const ledWeaponGrantOf = (text: string, facts: TextFactsByKey | undefined) =>
+  readText(text, facts, ledWeaponGrantIn, (found) => found.ledWeaponGrant ?? null)
+
+export const invulnerableSaveOf = (text: string, facts: TextFactsByKey | undefined) =>
+  readText(text, facts, invulnerableSaveIn, (found) => found.invulnerableSave ?? null)
+
+/** A catalogue text's combat facts, null where its words take no part; undefined for words, and tokens the catalogue records none for. */
+export const combatFactsIn = (text: string, facts: TextFactsByKey | undefined) =>
+  readText<TextFacts['combat']>(
+    text,
+    facts,
+    () => undefined,
+    (found) => found.combat,
+  )
+
+/** What a token's words suggest for a reminder, where they suggest anything. */
+export const reminderIn = (text: string, facts: TextFactsByKey | undefined) =>
+  readText<TextFacts['reminder']>(
+    text,
+    facts,
+    () => undefined,
+    (found) => found.reminder,
+  )
+
+export const linksWeapon = (text: string, facts: TextFactsByKey | undefined) =>
+  readText(
+    text,
+    facts,
+    (words) => /following weapon:\s*$/i.test(words),
+    (found) => Boolean(found.linkedWeapon),
+  )
 
 export function weaponGrantsIn(text: string | null, facts?: TextFactsByKey) {
   if (!text) return []

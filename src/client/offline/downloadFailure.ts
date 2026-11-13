@@ -11,3 +11,9 @@ export function refreshFailureReason(error: unknown) {
   if (error instanceof DOMException && error.name === 'QuotaExceededError') return 'storage'
   return 'error'
 }
+
+/** The error's class, such as a `DOMException` name, which says what failed without its message; anything else is `other`. */
+export function failureName(error: unknown) {
+  const name = typeof error === 'object' && error !== null ? (error as { name?: unknown }).name : undefined
+  return typeof name === 'string' && /^[A-Za-z]{1,64}$/.test(name) ? name : 'other'
+}

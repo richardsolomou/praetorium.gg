@@ -16,6 +16,7 @@ import {
 import type { EvaluationError, Selection } from './evaluate'
 import { normalizedName, withoutFactionPrefix } from './name'
 import { sameText } from './text'
+import { readText } from './textFacts'
 
 /** An ability titled "Leader" or a leading association establishes that role; other attachments default to support. */
 export type Attachment = {
@@ -260,23 +261,40 @@ const childrenOf = (definition: Definition): Definition[] => [
 
 function findAttachment(definition: Definition, index: CatalogueIndex): Attachment | null {
   for (const [title, text] of statements(definition, index)) {
-    const claim = CLAIM.exec(text)
+    const claim = readText(text, index.textFacts, attachmentClaim, (facts) => facts.attachment ?? null)
     if (!claim) continue
-    const named = names(text)
-    if (!named.length) continue
-    const categorized = named.flatMap((name) => [name, ...categoryTargets(name, index)])
-    const keywords = named.filter(isKeywordTarget).map(normalizedName)
+    const categorized = claim.names.flatMap((name) => [name, ...categoryTargets(name, index)])
+    const keywords = claim.names.filter(isKeywordTarget).map(normalizedName)
     const substitutions = attachmentSubstitutions(index)
     const targets = categorized.flatMap((name) => [name, ...(substitutions.get(normalizedName(name)) ?? [])])
-    const afterClaim = text.slice(claim.index + claim[0].length)
     return {
       kind: title.trim().toLowerCase() === 'leader' ? 'leader' : 'support',
       targets: uniqueNormalizedNames(targets),
       ...(keywords.length ? { keywords } : {}),
-      ...(REQUIRES_LEADER.test(afterClaim) ? { requiresLeader: true as const } : {}),
+      ...(claim.requiresLeader ? { requiresLeader: true as const } : {}),
     }
   }
   return null
+}
+
+/** Who a Leader or Support ability says its model can join, as its words list them. */
+export type AttachmentClaim = { names: string[]; requiresLeader?: true }
+
+export function attachmentClaim(text: string): AttachmentClaim | null {
+  const claim = CLAIM.exec(text)
+  if (!claim) return null
+  const named = names(text)
+  if (!named.length) return null
+  return { names: named, ...(REQUIRES_LEADER.test(text.slice(claim.index + claim[0].length)) ? { requiresLeader: true as const } : {}) }
+}
+
+/** The units a text lets a Leader join this unit in place of. */
+export function substitutedUnits(text: string): string[] {
+  const readable = text.replaceAll(/[\^*]/g, '').replaceAll('\u00a0', ' ').replaceAll(/\s+/g, ' ')
+  return [...readable.matchAll(GENERIC_SUBSTITUTION)].flatMap((match) => {
+    const base = match[1]?.replace(/\s+unit$/i, '').trim()
+    return base ? [base] : []
+  })
 }
 
 function attachmentSubstitutions(index: CatalogueIndex) {
@@ -287,10 +305,7 @@ function attachmentSubstitutions(index: CatalogueIndex) {
       if (definition.type !== 'unit' && target.type !== 'unit') continue
       const substitute = nameOf(definition, index.definitions)
       for (const [, text] of statements(definition, index)) {
-        const readable = text.replaceAll(/[\^*]/g, '').replaceAll('\u00a0', ' ').replaceAll(/\s+/g, ' ')
-        for (const match of readable.matchAll(GENERIC_SUBSTITUTION)) {
-          const base = match[1]?.replace(/\s+unit$/i, '').trim()
-          if (!base) continue
+        for (const base of readText(text, index.textFacts, substitutedUnits, (facts) => facts.substitutes ?? [])) {
           const substitutes = found.get(normalizedName(base)) ?? []
           if (!substitutes.some((name) => sameText(name, substitute))) substitutes.push(substitute)
           found.set(normalizedName(base), substitutes)
