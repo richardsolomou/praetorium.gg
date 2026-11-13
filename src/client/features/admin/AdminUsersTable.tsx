@@ -34,6 +34,7 @@ import { SearchField } from '../../components/SearchField'
 import { useDateFormatting } from '../../dates'
 import { countLabel } from '../../text'
 import { DropdownMenuCheckboxItem, DropdownMenuLabel } from '../../components/Menu'
+import { nameColour } from '../../playerName'
 
 type AdminTableMeta = { currentUserId: string; openedUserId?: string }
 const features = tableFeatures({
@@ -60,7 +61,9 @@ const columns: (ColumnDef<typeof features, AdminUser> & { meta: AdminColumnMeta 
           className="flex max-w-64 min-w-0 items-center gap-2.5 text-left"
         >
           <PlayerAvatar name={user.name} image={user.image} className="size-7 shrink-0 text-[0.625rem]" />
-          <span className="truncate font-bold">{user.name}</span>
+          <span className="truncate font-bold" style={nameColour(user)}>
+            {user.name}
+          </span>
         </button>
         {user.id === table.options.meta?.currentUserId ? <span className="chip shrink-0">You</span> : null}
       </span>

@@ -29,7 +29,7 @@ export function battleSummary(
     players,
   }: {
     battle: { token: string; createdAt: number }
-    players: { id: string; name: string; image?: string | null; automated: boolean }[]
+    players: { id: string; name: string; image?: string | null; colour?: string | null; automated: boolean }[]
   },
   digest: BattleDigest,
   viewerId: string | null,
@@ -44,7 +44,13 @@ export function battleSummary(
     round: digest.round,
     phase: digest.phase,
     players: players.map((player) => player.name),
-    playerDetails: players.map(({ id, name, image, automated }) => ({ id, name, image: image ?? null, automated })),
+    playerDetails: players.map(({ id, name, image, colour, automated }) => ({
+      id,
+      name,
+      image: image ?? null,
+      colour: colour ?? null,
+      automated,
+    })),
     playerIds: players.map((player) => player.id),
     sides: digest.seats.map((seat) => seat.side),
     armies: digest.seats.map((seat) => seat.army),

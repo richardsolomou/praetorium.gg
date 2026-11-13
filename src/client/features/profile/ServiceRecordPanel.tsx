@@ -29,6 +29,7 @@ import { FactionMark } from '../../components/FactionMark'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { SearchableSelect } from '../../components/SearchableSelect'
 import { percentLabel, countLabel } from '../../text'
+import { nameColour } from '../../playerName'
 
 /** Which dimension a control narrows, and how the address carries it. */
 type Dimension = { key: keyof PlayerProfileFilter; label: string; facet: keyof RecordFacets }
@@ -392,7 +393,9 @@ function CareerTables({ record }: { record: ServiceRecord }) {
             renderName={(row) => (
               <Link to="/users/$userId" params={{ userId: row.id }} className="flex min-w-0 items-center gap-2 hover:text-info">
                 <PlayerAvatar name={row.name} image={row.image} className="size-6 text-3xs" />
-                <span className="font-bold break-words uppercase">{row.name}</span>
+                <span className="font-bold break-words uppercase" style={nameColour(row)}>
+                  {row.name}
+                </span>
               </Link>
             )}
             columns={[...results, { label: 'Rate', cell: (row) => percentLabel(row.rate) }]}

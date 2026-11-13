@@ -70,7 +70,9 @@ function seatPlayer(
   seat: Snapshot['seats'][number],
 ): BattlePlayer {
   const profile =
-    seat.guestName === undefined ? profileOf(profiles, seat.id, 'Battle seat') : { id: seat.id, name: seat.guestName, image: null }
+    seat.guestName === undefined
+      ? profileOf(profiles, seat.id, 'Battle seat')
+      : { id: seat.id, name: seat.guestName, image: null, colour: null }
   return { ...profile, side: seat.side, automated: seat.automated }
 }
 
@@ -198,6 +200,7 @@ export class SpacetimeRepository {
           otherId,
           otherName: profile.name,
           otherImage: profile.image,
+          otherColour: profile.colour,
         }
       })
       .sort((left, right) => left.otherName.localeCompare(right.otherName))
@@ -229,7 +232,7 @@ export class SpacetimeRepository {
     if (!invite) return null
     const inviter = await this.accounts.profileByUserId(invite.inviterId)
     if (!inviter) return null
-    return { token, inviterId: inviter.id, inviterName: inviter.name, inviterImage: inviter.image }
+    return { token, inviterId: inviter.id, inviterName: inviter.name, inviterImage: inviter.image, inviterColour: inviter.colour }
   }
 
   replaceFriendInvite(...args: Parameters<SpacetimeOperator['replaceFriendInvite']>) {
@@ -508,7 +511,13 @@ export class SpacetimeRepository {
         token,
         tournament:
           tournament && owner
-            ? { ...tournamentDetails(tournament), adminIds: tournament.adminIds, ownerName: owner.name, ownerImage: owner.image }
+            ? {
+                ...tournamentDetails(tournament),
+                adminIds: tournament.adminIds,
+                ownerName: owner.name,
+                ownerImage: owner.image,
+                ownerColour: owner.colour,
+              }
             : null,
         group,
         personal,
@@ -641,7 +650,7 @@ export class SpacetimeRepository {
     const named = <T extends { userId: string }>(people: readonly T[]) =>
       people.flatMap((person) => {
         const profile = profiles.get(person.userId)
-        return profile ? [{ ...person, name: profile.name, image: profile.image }] : []
+        return profile ? [{ ...person, name: profile.name, image: profile.image, colour: profile.colour }] : []
       })
     return {
       ...record.group,
@@ -651,6 +660,7 @@ export class SpacetimeRepository {
       pastLeagues: record.pastLeagues.map((league) => ({ ...league, players: named(league.players) })),
       ownerName: owner.name,
       ownerImage: owner.image,
+      ownerColour: owner.colour,
       members: named(record.members),
     }
   }
@@ -660,7 +670,17 @@ export class SpacetimeRepository {
     const owners = await this.accounts.profilesByIds(rows.map((row) => row.group.ownerId))
     return rows.map(({ group, adminIds, memberCount, battleCount, lastBattleAt, ownMember }) => {
       const owner = profileOf(owners, group.ownerId, 'Group owner')
-      return { ...group, ownerName: owner.name, ownerImage: owner.image, adminIds, memberCount, battleCount, lastBattleAt, ownMember }
+      return {
+        ...group,
+        ownerName: owner.name,
+        ownerImage: owner.image,
+        ownerColour: owner.colour,
+        adminIds,
+        memberCount,
+        battleCount,
+        lastBattleAt,
+        ownMember,
+      }
     })
   }
 
@@ -674,7 +694,16 @@ export class SpacetimeRepository {
     return rows.flatMap(({ hostToken, hostName, ...rest }) => {
       const owner = owners.get(rest.userId)
       return owner
-        ? [{ ...rest, sealedEventToken: hostToken, sealedEventName: hostName, ownerName: owner.name, ownerImage: owner.image }]
+        ? [
+            {
+              ...rest,
+              sealedEventToken: hostToken,
+              sealedEventName: hostName,
+              ownerName: owner.name,
+              ownerImage: owner.image,
+              ownerColour: owner.colour,
+            },
+          ]
         : []
     })
   }
@@ -731,9 +760,10 @@ export class SpacetimeRepository {
               ...tournamentDetails(tournament),
               ownerName: owner.name,
               ownerImage: owner.image,
+              ownerColour: owner.colour,
               admins: tournament.adminIds.flatMap((id) => {
                 const admin = profiles.get(id)
-                return admin ? [{ id, name: admin.name, image: admin.image }] : []
+                return admin ? [{ id, name: admin.name, image: admin.image, colour: admin.colour }] : []
               }),
             }
           : null,
@@ -765,6 +795,7 @@ export class SpacetimeRepository {
           userId: entry.userId,
           name: profile.name,
           image: profile.image,
+          colour: profile.colour,
           status: entry.status,
           joinedAt: entry.joinedAt,
           submitted: entry.rosterSnapshot !== null,

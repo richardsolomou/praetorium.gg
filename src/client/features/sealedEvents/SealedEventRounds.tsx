@@ -18,6 +18,7 @@ import { TableBattlefield } from './TableBattlefield'
 import { ReportTableResult } from './ReportTableResult'
 import { RoundClock, SwapSeats } from './RoundTools'
 import { CheckIn, TiebreakChoice } from './CheckIn'
+import { nameColour } from '../../playerName'
 
 type Pairing = SealedEvent['pairings'][number]
 /** What the rounds read of a table's battle, which the sample tournament supplies without a real one. */
@@ -105,7 +106,7 @@ export function SealedEventRounds({
     const entry = entries.find((candidate) => candidate.userId === userId)
     return (
       <>
-        {entry ? label(entry) : 'A player'}
+        {entry ? <span style={nameColour({ id: entry.userId, colour: entry.colour })}>{label(entry)}</span> : 'A player'}
         {entry?.dropped ? <span className="chip ml-1.5 align-middle text-dim">Dropped</span> : null}
       </>
     )

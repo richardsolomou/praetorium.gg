@@ -12,6 +12,7 @@ import { PhotoLike } from './PhotoLike'
 import { PhotoLightbox } from './PhotoLightbox'
 import { Problem } from '../../components/Problem'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
+import { nameColour } from '../../playerName'
 
 /** Below a tall photo on a phone, focus is what brings the report field into view; stable, so a re-render never pulls focus back. */
 const focusOnMount = (field: HTMLElement | null) => field?.focus()
@@ -83,7 +84,13 @@ export function PhotoViewer({
         photo ? (
           <>
             From{' '}
-            <Link to="/users/$userId" params={{ userId: photo.owner.id }} search={{ tab: 'collection' }} className="text-info underline">
+            <Link
+              to="/users/$userId"
+              params={{ userId: photo.owner.id }}
+              search={{ tab: 'collection' }}
+              className="underline"
+              style={nameColour(photo.owner)}
+            >
               {photo.owner.name}
             </Link>
             ’s collection

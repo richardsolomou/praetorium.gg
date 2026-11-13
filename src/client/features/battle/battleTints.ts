@@ -12,7 +12,7 @@ const SIDE_TINTS = [
     line: '[--line-colour:var(--color-side-a)]',
     glow: 'ring-side-a/40',
     /** A control that acts for this side, so pressing it already says whose it is. */
-    fill: 'bg-side-a text-void hover:bg-side-a/80',
+    fill: 'bg-side-a-fill text-side-a-ink hover:bg-side-a-fill/80',
     /** The edge of a dialog that belongs to this side, read before its title is. */
     border: 'border-side-a/70',
     /** A choice recorded for this side, and the hint that pressing one will be. */
@@ -25,7 +25,7 @@ const SIDE_TINTS = [
     rail: 'bg-side-b',
     line: '[--line-colour:var(--color-side-b)]',
     glow: 'ring-side-b/40',
-    fill: 'bg-side-b text-void hover:bg-side-b/80',
+    fill: 'bg-side-b-fill text-side-b-ink hover:bg-side-b-fill/80',
     border: 'border-side-b/70',
     mark: 'border-side-b bg-side-b/15 text-side-b',
     hint: 'hover:border-side-b hover:text-side-b',

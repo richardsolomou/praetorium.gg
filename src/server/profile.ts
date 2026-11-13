@@ -1,4 +1,5 @@
 import { PROFILE_NAME_MAX_LENGTH } from '../core/profileName'
+import { isPlayerColour } from '../core/playerColours'
 import { isStoredProfileImageUrl, storeProfileImage } from './avatarStorage'
 
 type ProfileUpdate = Record<string, unknown>
@@ -19,6 +20,9 @@ export async function profileUpdate(input: ProfileUpdate): Promise<ProfileUpdate
       return { ok: false, error: `Keep your display name under ${PROFILE_NAME_MAX_LENGTH} characters.` }
     }
   }
+
+  if (data.colour !== undefined && data.colour !== null && !isPlayerColour(data.colour))
+    return { ok: false, error: 'Choose one of the offered colours.' }
 
   if (data.image !== undefined && data.image !== null) {
     if (typeof data.image !== 'string') return { ok: false, error: 'Choose a JPEG, PNG or WebP profile picture.' }

@@ -40,7 +40,7 @@ function fakeRepository({ refuse = false } = {}) {
         .filter(([, photo]) => photo.entryId === entryId)
         .map(([photoId, photo]) => ({ photoId, userId: photo.userId, at: 1, likes: 0, liked: false })),
     namesByIds: async (ids: readonly string[]) =>
-      new Map(ids.filter((id) => id !== 'deleted').map((id) => [id, { id, name: `Player ${id}` }] as const)),
+      new Map(ids.filter((id) => id !== 'deleted').map((id) => [id, { id, name: `Player ${id}`, colour: null }] as const)),
     collectionPhoto: async (photoId: string, viewerId: string | null) => {
       const photo = photos.get(photoId)
       return photo && (!photo.held || photo.userId === viewerId) ? { userId: photo.userId, entryId: photo.entryId } : null

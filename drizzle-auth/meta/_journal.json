@@ -36,6 +36,13 @@
       "when": 1794169037643,
       "tag": "0004_dark_jimmy_woo",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1794596812217,
+      "tag": "0005_player_colour",
+      "breakpoints": true
     }
   ]
 }

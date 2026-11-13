@@ -13,7 +13,7 @@ export function deploymentName(id: string | null, deployments: readonly { id: st
 
 type BattleSummary = {
   players: readonly string[]
-  playerDetails?: readonly { id: string; name: string; image: string | null; automated: boolean }[]
+  playerDetails?: readonly { id: string; name: string; image: string | null; colour?: string | null; automated: boolean }[]
   armies: readonly (string | null)[]
   factions?: readonly (StandingFaction | null)[]
   detachments: readonly string[][]
@@ -29,7 +29,7 @@ export type SummarySide = {
   armies: string[]
   detachments: string[]
   seats: {
-    player: { id: string; name: string; image: string | null; automated: boolean }
+    player: { id: string; name: string; image: string | null; colour?: string | null; automated: boolean }
     army: string | null
     faction: StandingFaction | null
     detachments: string[]

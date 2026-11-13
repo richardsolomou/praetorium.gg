@@ -5,6 +5,7 @@ import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { SearchableSelect } from '../../components/SearchableSelect'
 import { percentLabel } from '../../text'
 import { SectionHeading } from '../../components/SectionHeading'
+import { nameColour } from '../../playerName'
 
 /** One table of players: everybody, or everybody who has fielded one faction. */
 export type StandingsTable = { faction: StandingFaction | null; players: number; rows: readonly Standing[] }
@@ -38,7 +39,9 @@ export function Standings({
       <Link to="/users/$userId" params={{ userId: row.id }} className="group flex min-w-0 items-center gap-2.5">
         <PlayerAvatar name={row.name} image={row.image} className="size-7 shrink-0 text-3xs" />
         <span className="flex min-w-0 items-center gap-2.5 group-hover:text-parchment">
-          <span className="truncate text-[0.9375rem] font-bold">{row.name}</span>
+          <span className="truncate text-[0.9375rem] font-bold" style={nameColour(row)}>
+            {row.name}
+          </span>
           {row.id === viewerId ? (
             <span className="shrink-0 rounded-md bg-parchment px-1.5 py-px text-2xs font-bold tracking-label text-parchment-ink uppercase">
               You

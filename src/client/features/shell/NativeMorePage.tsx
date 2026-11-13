@@ -26,6 +26,7 @@ import { useUnseenRelease } from './seenRelease'
 import { UnseenDot, unseenLabel } from './WhatsNew'
 import { COMMUNITY_LINKS, COMMUNITY_PAGES, FRIENDS_PAGE } from './CommunityLinks'
 import { useUnreadNotices } from '../notifications/Notifications'
+import { nameColour } from '../../playerName'
 
 type MoreLink = { Icon: LucideIcon; label: string; to: LinkProps['to'] }
 type Tool = MoreLink & { description: string }
@@ -129,7 +130,9 @@ export function NativeMorePage() {
           >
             <PlayerAvatar name={me.name} image={me.image} className="size-11 shrink-0 text-base" />
             <span className="min-w-0 flex-1">
-              <span className="block truncate font-semibold">{me.name}</span>
+              <span className="block truncate font-semibold" style={nameColour(me)}>
+                {me.name}
+              </span>
               <span className="block text-xs text-dim">Profile and account</span>
             </span>
             <ChevronRight className="size-4 shrink-0 text-faint" aria-hidden />

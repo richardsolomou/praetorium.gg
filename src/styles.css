@@ -59,7 +59,11 @@
   --color-azure: #9bd0a9;
   --color-azure-ink: #0c2014;
   --color-side-a: #f57a7a;
+  --color-side-a-fill: #f57a7a;
+  --color-side-a-ink: #0f1113;
   --color-side-b: #5fc8ea;
+  --color-side-b-fill: #5fc8ea;
+  --color-side-b-ink: #0f1113;
   --color-achieved: #7cc48a;
   --color-discarded: #e3ab52;
   --color-rust: #d0625a;

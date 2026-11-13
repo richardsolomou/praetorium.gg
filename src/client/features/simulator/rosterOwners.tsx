@@ -9,8 +9,9 @@ import {
   rostersLentToMeQuery,
   savedRosterSummariesQuery,
 } from '../../queries'
+import { nameColour } from '../../playerName'
 
-export type RosterOwner = { name: string; image?: string | null }
+export type RosterOwner = { id?: string; name: string; image?: string | null; colour?: string | null }
 
 type FriendSealedEventRoster = {
   sealedEventToken: string
@@ -20,6 +21,7 @@ type FriendSealedEventRoster = {
   rosterName: string
   ownerName: string
   ownerImage?: string | null
+  ownerColour?: string | null
 }
 
 /** A friend's sealed list as the simulator links to it. */
@@ -46,7 +48,7 @@ export function rosterOwner(source: SimulatorRosterSource | undefined, known: Kn
   if (!source) return undefined
   if ('sealedEvent' in source) {
     const friend = known.people.find((candidate) => candidate.id === source.sealedEvent.userId)
-    return friend ? { name: friend.name, image: friend.image } : undefined
+    return friend ? { id: friend.id, name: friend.name, image: friend.image, colour: friend.colour } : undefined
   }
   if (known.me && known.saved.some((roster) => roster.id === source.id)) return known.me
   return known.friends.find(({ roster }) => roster.id === source.id)?.owner
@@ -100,7 +102,9 @@ export function OwnerName({ owner, className = '' }: { owner: RosterOwner; class
   return (
     <span className={`inline-flex min-w-0 items-center gap-1.5 ${className}`}>
       <OwnerAvatars owners={[owner]} />
-      <span className="truncate">{owner.name}</span>
+      <span className="truncate" style={owner.id ? nameColour({ id: owner.id, colour: owner.colour }) : undefined}>
+        {owner.name}
+      </span>
     </span>
   )
 }

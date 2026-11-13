@@ -26,6 +26,7 @@ import type { Facet } from '../../../core/serviceRecord'
 import { formatAgo } from '../../dates'
 import { countLabel } from '../../text'
 import { DropdownMenuItem } from '../../components/Menu'
+import { nameColour } from '../../playerName'
 
 type Person = { id: string; name: string; image?: string | null }
 type Confirming = { kind: 'remove' | 'reject' | 'cancel'; person: Person }
@@ -228,7 +229,12 @@ function FriendCard({
         <PlayerAvatar name={friend.name} image={friend.image} className="size-10 text-xs" />
       </Link>
       <div className="min-w-0 flex-1">
-        <Link to="/users/$userId" params={{ userId: friend.id }} className="block truncate font-bold uppercase hover:text-info">
+        <Link
+          to="/users/$userId"
+          params={{ userId: friend.id }}
+          className="block truncate font-bold uppercase hover:underline"
+          style={nameColour(friend)}
+        >
           {friend.name}
         </Link>
         {played ? (
@@ -379,7 +385,9 @@ function PersonRow({
     <div data-person={person.name} className="flex items-center justify-between gap-3 part p-3">
       <Link to="/users/$userId" params={{ userId: person.id }} className="flex min-w-0 items-center gap-3 hover:text-info">
         <PlayerAvatar name={person.name} image={person.image} className="size-9 text-xs" />
-        <span className="truncate font-bold uppercase">{person.name}</span>
+        <span className="truncate font-bold uppercase" style={nameColour(person)}>
+          {person.name}
+        </span>
       </Link>
       <span className="flex shrink-0 gap-1">
         <Button variant="outline" size="sm" disabled={pending} onClick={onAction}>

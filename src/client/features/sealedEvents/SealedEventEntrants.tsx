@@ -9,6 +9,7 @@ import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { formatList } from '../../text'
 import { useDispositionNames } from '../battle/setup/chrome'
 import { entrantGroups, type SealedEvent } from './sealedEvent'
+import { nameColour } from '../../playerName'
 
 /** One person in an event: who they are, where their entry stands, and whatever the reader may do about it. */
 export function EntrantRow({
@@ -35,7 +36,12 @@ export function EntrantRow({
     <>
       <PlayerAvatar name={entry.name} image={entry.image} className="size-9 text-xs" />
       <span className="min-w-0">
-        <span className="block truncate font-bold uppercase group-hover:underline">{label}</span>
+        <span
+          className="block truncate font-bold uppercase group-hover:underline"
+          style={nameColour({ id: entry.userId, colour: entry.colour })}
+        >
+          {label}
+        </span>
         {sealing ? null : <span className="block text-xs text-dim">{detail}</span>}
       </span>
     </>

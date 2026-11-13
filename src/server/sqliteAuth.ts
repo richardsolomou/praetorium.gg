@@ -1,3 +1,4 @@
+import { PLAYER_FIELDS } from '../core/playerFields'
 import { isPreviewIssuer } from './previewOidc'
 import { createHash } from 'node:crypto'
 import type { Account, GenericEndpointContext } from 'better-auth'
@@ -211,6 +212,7 @@ export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret
       accountLinking: { enabled: true, trustedProviders: [...SOCIAL_PROVIDERS], allowDifferentEmails: true },
     }),
     user: {
+      additionalFields: PLAYER_FIELDS,
       deleteUser: {
         enabled: true,
         beforeDelete: async (deleted) => {

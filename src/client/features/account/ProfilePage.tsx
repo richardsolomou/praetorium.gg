@@ -12,6 +12,7 @@ import { authClient } from '../../authClient'
 import { AccountSecurity } from './AccountSecurity'
 import { captureAuthFailure } from './authFailureReason'
 import { PlayerDefaultsSettings } from './PlayerDefaultsSettings'
+import { PlayerColourPicker } from './PlayerColourPicker'
 import { PageContent, PageHeader } from '../../components/Page'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { SignInRequired } from '../../components/SignInRequired'
@@ -68,6 +69,8 @@ function ProfileForm({
   const [imageDraft, setImage] = useState<string | null>()
   const name = nameDraft ?? me.name
   const image = imageDraft === undefined ? me.image : imageDraft
+  const [colourDraft, setColour] = useState<string | null>()
+  const colour = colourDraft === undefined ? me.colour : colourDraft
   const [imageError, setImageError] = useState<string | null>(null)
   const [preparing, setPreparing] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -75,16 +78,21 @@ function ProfileForm({
   const queryClient = useQueryClient()
   const submit = useAuthAction({ failureMessage: errorMessage })
 
-  const changed = name.trim() !== me.name || image !== me.image
+  const changed = name.trim() !== me.name || image !== me.image || colour !== me.colour
   const save = async () => {
     setSaved(false)
-    const submitted = { name: name.trim(), image }
+    const submitted = { name: name.trim(), image, colour }
     const result = await submit.run(() => authClient.updateUser(submitted))
     if (result.error) return
     await refreshProfileQueries(queryClient)
     setName((current) => (current?.trim() === submitted.name ? undefined : current))
     setImage((current) => (current === submitted.image ? undefined : current))
-    posthog.capture('profile_updated', { name_changed: name.trim() !== me.name, image_changed: image !== me.image })
+    setColour((current) => (current === submitted.colour ? undefined : current))
+    posthog.capture('profile_updated', {
+      name_changed: name.trim() !== me.name,
+      image_changed: image !== me.image,
+      colour_changed: colour !== me.colour,
+    })
     setSaved(true)
   }
 
@@ -180,6 +188,22 @@ function ProfileForm({
                 required
               />
               <p className="text-xs text-dim">Shown in battles, rosters and friend lists.</p>
+            </div>
+            <div className="space-y-2">
+              <PlayerColourPicker
+                userId={me.id}
+                name={name.trim() || me.name}
+                image={image}
+                colour={colour}
+                onChange={(next) => {
+                  setColour(next)
+                  setSaved(false)
+                }}
+              />
+              <p className="text-xs text-dim">
+                Your colour on your name and your side in battles. When two players’ colours are too alike, such as two blues, the player
+                who joined the battle gets another one for that game.
+              </p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="profile-email">Email</Label>

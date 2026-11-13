@@ -29,6 +29,7 @@ import { OPEN_SYNC_EVENT } from '../../offline/SyncStatus'
 import { countLabel } from '../../text'
 import { useUnseenRelease } from './seenRelease'
 import { DropdownMenuItem, MenuSection } from '../../components/Menu'
+import { nameColour } from '../../playerName'
 
 function useAccountControls() {
   const { data: me } = useQuery(meQuery())
@@ -100,7 +101,9 @@ function AccountMenuItems() {
         >
           <PlayerAvatar name={me.name} image={me.image} className="size-9 shrink-0 text-sm" />
           <span className="min-w-0">
-            <span className="block truncate text-sm font-semibold text-bone">{me.name}</span>
+            <span className="block truncate text-sm font-semibold" style={nameColour(me)}>
+              {me.name}
+            </span>
             <span className="block text-xs text-dim">View profile</span>
           </span>
         </DropdownMenuItem>

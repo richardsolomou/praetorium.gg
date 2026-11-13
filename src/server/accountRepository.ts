@@ -25,6 +25,7 @@ const adminUserColumns = {
   name: user.name,
   email: user.email,
   image: user.image,
+  colour: user.colour,
   role: user.role,
   emailVerified: user.emailVerified,
   twoFactorEnabled: user.twoFactorEnabled,
@@ -57,7 +58,11 @@ export class SqliteAccountRepository {
   }
 
   async profileByUserId(id: string) {
-    const [row] = await this.database.select({ id: user.id, name: user.name, image: user.image }).from(user).where(eq(user.id, id)).limit(1)
+    const [row] = await this.database
+      .select({ id: user.id, name: user.name, image: user.image, colour: user.colour })
+      .from(user)
+      .where(eq(user.id, id))
+      .limit(1)
     return row
   }
 
@@ -79,9 +84,9 @@ export class SqliteAccountRepository {
   }
 
   async namesByIds(ids: readonly string[]) {
-    if (!ids.length) return new Map<string, { id: string; name: string }>()
+    if (!ids.length) return new Map<string, { id: string; name: string; colour: string | null }>()
     const rows = await this.database
-      .select({ id: user.id, name: user.name })
+      .select({ id: user.id, name: user.name, colour: user.colour })
       .from(user)
       .where(inArray(user.id, [...new Set(ids)]))
     return byId(rows)
@@ -107,9 +112,9 @@ export class SqliteAccountRepository {
   }
 
   async profilesByIds(ids: readonly string[]) {
-    if (!ids.length) return new Map<string, { id: string; name: string; image: string | null }>()
+    if (!ids.length) return new Map<string, { id: string; name: string; image: string | null; colour: string | null }>()
     const rows = await this.database
-      .select({ id: user.id, name: user.name, image: user.image })
+      .select({ id: user.id, name: user.name, image: user.image, colour: user.colour })
       .from(user)
       .where(inArray(user.id, [...new Set(ids)]))
     return byId(rows)
@@ -183,7 +188,7 @@ export class SqliteAccountRepository {
   async searchPlayerRows(userId: string, query: string, after: { name: string; id: string } | null, limit: number) {
     if (limit < 1 || limit > 100) throw new Error('Invalid player search limit')
     return this.database
-      .select({ id: user.id, name: user.name, image: user.image })
+      .select({ id: user.id, name: user.name, image: user.image, colour: user.colour })
       .from(user)
       .where(
         and(

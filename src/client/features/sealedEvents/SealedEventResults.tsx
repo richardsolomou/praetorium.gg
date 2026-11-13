@@ -9,6 +9,7 @@ import { Problem } from '../../components/Problem'
 import { SectionHeading } from '../../components/SectionHeading'
 import { safeFileName } from '../../downloadFile'
 import { useExportText } from '../../useCopyText'
+import { nameColour } from '../../playerName'
 
 /**
  * An event's table from its finished battles: in open play wins, then draws, then victory points; in Swiss rounds
@@ -16,7 +17,9 @@ import { useExportText } from '../../useCopyText'
  *
  * Narrow columns let a phone show every one; anything narrower still scrolls inside the frame, as the leaderboard does.
  */
-export function SealedEventResults<Entry extends { userId: string; name: string; image: string | null; dropped?: boolean }>({
+export function SealedEventResults<
+  Entry extends { userId: string; name: string; image: string | null; colour?: string | null; dropped?: boolean },
+>({
   event,
   rows,
   swiss = false,
@@ -97,7 +100,12 @@ export function SealedEventResults<Entry extends { userId: string; name: string;
                 <>
                   <PlayerAvatar name={entry.name} image={entry.image} className="size-7 text-3xs max-sm:hidden" />
                   {/* A phone leaves the name too narrow to cut short, so it wraps there instead. */}
-                  <span className="min-w-0 font-bold break-words uppercase sm:truncate">{label(entry)}</span>
+                  <span
+                    className="min-w-0 font-bold break-words uppercase sm:truncate"
+                    style={nameColour({ id: entry.userId, colour: entry.colour })}
+                  >
+                    {label(entry)}
+                  </span>
                   {entry.dropped ? <span className="chip shrink-0 text-dim">Dropped</span> : null}
                 </>
               )

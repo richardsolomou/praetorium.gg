@@ -1,7 +1,7 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { CalendarClock, EllipsisVertical, LogOut, Send, Shuffle, Swords, Trash2, Trophy, UserPlus } from 'lucide-react'
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
@@ -28,6 +28,7 @@ import { SealedEventResults } from '../sealedEvents/SealedEventResults'
 import { useGroupRefresh, usePlayGroupGame, type Group } from './group'
 import { useMoment, inputMoment, momentFromInput } from '../../dates'
 import { DropdownMenuItem } from '../../components/Menu'
+import { nameColour } from '../../playerName'
 
 type League = NonNullable<Awaited<ReturnType<typeof groupLeague>>>
 type Fixture = League['fixtures'][number]
@@ -296,6 +297,10 @@ function Rounds({ group, league, viewerId, now }: { group: Group; league: League
   const moment = useMoment()
   const [editing, setEditing] = useState<number | null>(null)
   const names = new Map(league.players.map((player) => [player.userId, player]))
+  const playerName = (userId: string) => {
+    const player = names.get(userId)
+    return player ? <span style={nameColour({ id: userId, colour: player.colour })}>{player.name}</span> : 'A player'
+  }
   const rounds = [...new Set(league.fixtures.map((fixture) => fixture.round))].toSorted((a, b) => a - b)
   const unsettled = (round: number) =>
     league.fixtures.some((fixture) => fixture.round === round && (fixture.status === 'open' || fixture.status === 'playing'))
@@ -331,7 +336,7 @@ function Rounds({ group, league, viewerId, now }: { group: Group; league: League
                     <FixtureRow
                       key={fixture.table}
                       fixture={fixture}
-                      name={(userId) => names.get(userId)?.name ?? 'A player'}
+                      name={playerName}
                       viewerId={viewerId}
                       overdue={leagueFixtureOverdue(fixture.status, deadline, now)}
                       pending={play.isPending}
@@ -359,7 +364,7 @@ function FixtureRow({
   onPlay,
 }: {
   fixture: Fixture
-  name: (userId: string) => string
+  name: (userId: string) => ReactNode
   viewerId: string | null
   overdue: boolean
   pending: boolean

@@ -6,6 +6,7 @@ type Player = {
   id: string
   name: string
   image: string | null
+  colour: string | null
   email: string
   emailVerified: boolean
   role: 'admin' | 'user'
@@ -30,6 +31,7 @@ export function currentUser(request = getRequest()): Promise<Player | null> {
             id: session.user.id,
             name: session.user.name,
             image: session.user.image ?? null,
+            colour: session.user.colour ?? null,
             email: session.user.email,
             emailVerified: session.user.emailVerified,
             role: session.user.role === 'admin' ? ('admin' as const) : ('user' as const),

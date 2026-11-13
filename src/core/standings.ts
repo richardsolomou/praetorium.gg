@@ -20,7 +20,7 @@ export type StandingBattle = {
   status: BattleStatus
   playerIds: readonly string[]
   players: readonly string[]
-  playerDetails?: readonly { id: string; name: string; image?: string | null }[]
+  playerDetails?: readonly { id: string; name: string; image?: string | null; colour?: string | null }[]
   sides: readonly number[]
   scores: readonly number[]
   /** The army each seat brought, when it was built from a catalogue. */
@@ -34,6 +34,7 @@ export type Standing = {
   id: string
   name: string
   image: string | null
+  colour?: string | null
   battles: number
   won: number
   lost: number
@@ -237,14 +238,15 @@ function entry(entries: Map<string, Rated>, battle: StandingBattle, seat: number
   const id = battle.playerIds[seat]!
   const known = entries.get(id)
   if (known) return known
-  const created = newcomer(id, battle.players[seat] ?? 'Unknown player', battle.playerDetails?.[seat]?.image ?? null)
+  const details = battle.playerDetails?.[seat]
+  const created = newcomer(id, battle.players[seat] ?? 'Unknown player', details?.image ?? null, details?.colour ?? null)
   entries.set(id, created)
   return created
 }
 
 /** A player in a table before their first battle in it. */
-export function newcomer(id: string, name = '', image: string | null = null): Rated {
-  return { row: { id, name, image, battles: 0, won: 0, lost: 0, drawn: 0, rating: 0, points: 0, lastPlayed: 0 }, skill: rating() }
+export function newcomer(id: string, name = '', image: string | null = null, colour: string | null = null): Rated {
+  return { row: { id, name, image, colour, battles: 0, won: 0, lost: 0, drawn: 0, rating: 0, points: 0, lastPlayed: 0 }, skill: rating() }
 }
 
 function record(row: Standing, battle: StandingBattle, seat: number) {
