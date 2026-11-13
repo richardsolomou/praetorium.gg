@@ -309,7 +309,7 @@ describe('fromNewRecruitShare', () => {
   })
 
   it('names what it holds as the catalogue does, for a list New Recruit shows in another language', () => {
-    const named = (id: string) => ({ boy: 'Boy' })[id]
+    const named = (id: string) => ({ boy: { name: 'Boy', model: true } })[id]
     const share = shared()
     const boy = share.army.options[0]!.options[0]!.options[2]!.options[0]!.options[1]!.options[0]!
     Object.assign(boy, { name: 'Junge', option_id: 'boy' })
@@ -406,9 +406,27 @@ describe('fromNewRecruitShare', () => {
     })
 
     it('keeps a bundle the catalogue still offers', () => {
-      const named = (id: string) => ({ bundle: 'Slugga & Choppa' })[id]
+      const named = (id: string) => ({ bundle: { name: 'Slugga & Choppa', model: false } })[id]
       expect(fromNewRecruitShare(withBundle(), named)!.units[1]!.selections[1]).toEqual({ name: 'Slugga & Choppa', count: 1, model: 'Nob' })
     })
+  })
+
+  it('counts the models New Recruit groups under a loadout choice', () => {
+    const share = shared()
+    const boyz = share.army.options[0]!.options[0]!.options[2]!.options[0]!
+    boyz.options[1] = {
+      name: '9-18 Boyz',
+      options: [
+        {
+          name: '9 choppas',
+          option_id: 'choppas',
+          amount: 1,
+          options: [{ name: 'Boy', option_id: 'boy', amount: 9, options: [{ name: 'Choppa', amount: 1, options: [] }] }],
+        },
+      ],
+    }
+    const known = (id: string) => ({ choppas: { name: '9 choppas', model: false }, boy: { name: 'Boy', model: true } })[id]
+    expect(fromNewRecruitShare(share, known)!.units[1]!.models).toBe(10)
   })
 
   it('finds the list id in a share link', () => {
