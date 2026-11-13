@@ -12,7 +12,7 @@ afterEach(() => {
 
 async function request(url: string) {
   const { requestMiddleware } = await startInstance.getOptions()
-  const middleware = requestMiddleware?.[0]
+  const middleware = requestMiddleware?.[1]
   if (!middleware?.options.server) throw new Error('Missing canonical-host middleware')
   return middleware.options.server({
     request: new Request(url),
@@ -33,7 +33,7 @@ it('serves the health check on any hostname', async () => {
 
 async function served(url: string) {
   const { requestMiddleware } = await startInstance.getOptions()
-  const middleware = requestMiddleware?.[1]
+  const middleware = requestMiddleware?.[2]
   if (!middleware?.options.server) throw new Error('Missing crawler request middleware')
   const response = new Response('application', { status: 200 })
   return middleware.options.server({ request: new Request(url), next: () => ({ response }) } as never)
