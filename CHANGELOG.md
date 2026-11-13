@@ -1,5 +1,14 @@
 # praetorium
 
+## 0.235.0 (2026-11-13)
+
+### Minor Changes
+
+- 6d5131c: A battle's size now follows the lists from the first one chosen, with each side playing to its lists added together, so two 1,000-point allies make a 2,000-point side.
+- 6d5131c: In a 2v1 battle the pair now always shares its side's points, so it plays 2,000 against 2,000 and the allies split their 2,000 however they agree.
+- 6d5131c: Solo vs pair tournaments and hidden-list games now always let the pair share its points, including games already set up.
+- 6d5131c: A duel between lists built for different sizes is no longer blocked: the bigger list sets the size and setup says which side plays short.
+
 ## 0.234.0 (2026-11-13)
 
 ### Minor Changes
