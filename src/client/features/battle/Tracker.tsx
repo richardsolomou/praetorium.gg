@@ -827,7 +827,7 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
           />
         ) : null}
 
-        {roundSummary.mark ? <RoundSummary mark={roundSummary.mark} view={view} sides={table} onClose={roundSummary.close} /> : null}
+        <RoundSummary mark={roundSummary.mark} view={view} sides={table} onClose={roundSummary.close} />
 
         {reminderShown ? (
           <ReminderDialog

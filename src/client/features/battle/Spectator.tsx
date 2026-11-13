@@ -150,9 +150,7 @@ export function Spectator({
         </div>
 
         {combatSelection ? <BattleCombatDialog view={view} selection={combatSelection} onClose={() => setCombatSelection(null)} /> : null}
-        {roundSummary.mark ? (
-          <RoundSummary mark={roundSummary.mark} view={currentView} sides={liveTable} onClose={roundSummary.close} />
-        ) : null}
+        <RoundSummary mark={roundSummary.mark} view={currentView} sides={liveTable} onClose={roundSummary.close} />
         <Scoreboard view={view} clock={clock} sides={table} />
         {/* A finished game is when a reader is most likely to want their own, so it leads there and waits beside the facts while play goes on. */}
         {currentView.status === 'finished' ? (
