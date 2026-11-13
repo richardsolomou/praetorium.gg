@@ -40,6 +40,7 @@ const FEATURES = {
   terms: 'legal',
   sources: 'legal',
   more: 'navigation',
+  notifications: 'notifications',
 } as const
 
 export function telemetryFeature(pathname: string) {

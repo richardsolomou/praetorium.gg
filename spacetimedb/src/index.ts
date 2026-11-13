@@ -8,7 +8,14 @@ import { ROSTER_BATCH_ACTIONS, ROSTER_BATCH_CHANGES, ROSTER_BATCH_MAX, ROSTER_LI
 import { orderVariantGroup } from '../../src/core/rosterVariants'
 import { discoveryPage, rosterDiscoveryQuerySchema } from '../../src/core/rosterDiscovery'
 import { MAX_DATASHEET_PHOTOS, rankCollectionPhotos } from '../../src/core/collectionPhotos'
-import { DEFAULT_PUSH_NOTIFICATIONS, PUSH_TOKENS_PER_USER, PUSH_PLATFORMS } from '../../src/core/notificationConfig'
+import {
+  DEFAULT_PUSH_NOTIFICATIONS,
+  NOTICE_RETENTION_MS,
+  NOTICES_PER_USER,
+  PUSH_TOKENS_PER_USER,
+  PUSH_PLATFORMS,
+} from '../../src/core/notificationConfig'
+import { noticeRecipients, type NoticeSubject, noticeSubjectSchema } from '../../src/core/notifications'
 import {
   customPointsBudget,
   POINTS_BUDGET_MAX,
@@ -280,6 +287,7 @@ type ProductScope =
   | 'battles'
   | 'simulator'
   | 'achievements'
+  | 'notifications'
 
 /** Scopes whose writes can change a player's medals. Battles move them through their stored results instead. */
 const ACHIEVEMENT_SCOPES = new Set<ProductScope>([
@@ -489,7 +497,7 @@ function touchEventById(ctx: Context, eventId: string) {
 function deleteBattle(ctx: Context, battleId: string) {
   const seats = Array.from(ctx.db.battleUsers.battleId.filter(battleId))
   const eventBattle = ctx.db.eventBattles.battleId.find(battleId)
-  for (const seat of seats) touchProduct(ctx, seat.userId, 'battles', 'onboarding')
+  for (const seat of seats) touchProduct(ctx, seat.userId, 'battles', 'onboarding', 'notifications')
   touchBattle(ctx, battleId)
   touchPublic(ctx, 'standings')
   touchAdmin(ctx)
@@ -833,6 +841,7 @@ export const deleteUserData = spacetime.reducer({ userId: t.string() }, (ctx, { 
   for (const row of Array.from(ctx.db.externalAccounts.userId.filter(userId))) ctx.db.externalAccounts.key.delete(row.key)
   ctx.db.userOnboarding.userId.delete(userId)
   ctx.db.pushPreferences.userId.delete(userId)
+  for (const row of Array.from(ctx.db.notices.userId.filter(userId))) ctx.db.notices.id.delete(row.id)
   ctx.db.playerDefaults.userId.delete(userId)
   for (const row of Array.from(ctx.db.listFilterPreferences.userId.filter(userId))) ctx.db.listFilterPreferences.id.delete(row.id)
   for (const row of Array.from(ctx.db.sealedEventRosterSharing.userId.filter(userId))) ctx.db.sealedEventRosterSharing.key.delete(row.key)
@@ -3711,6 +3720,103 @@ export const pushTargets = spacetime.procedure({ userIds: t.array(t.string()) },
       for (const device of tx.db.pushTokens.userId.filter(userId)) targets.push({ userId, token: device.token })
     }
     return productJson(targets)
+  }),
+)
+
+/** Rows one write may add: a reveal tells every entrant of a large tournament at once. */
+const NOTICE_ROWS_PER_WRITE = 1_000
+
+const noticeWrite = z.object({
+  now: z.number().int().nonnegative(),
+  notices: z
+    .array(
+      noticeSubjectSchema.and(
+        z.object({
+          actorId: z.string().max(128),
+          recipientIds: z.array(z.string().max(128)).max(NOTICE_ROWS_PER_WRITE),
+          subjectName: z.string().max(200).optional(),
+        }),
+      ),
+    )
+    .max(100),
+})
+
+type NoticeRow = { id: bigint; at: bigint }
+
+function newestNoticeFirst(left: NoticeRow, right: NoticeRow) {
+  return right.at > left.at ? 1 : right.at < left.at ? -1 : right.id > left.id ? 1 : right.id < left.id ? -1 : 0
+}
+
+/** Keeps a player's newest notices within the limit and the retention, so the table never grows past what a list shows. */
+function pruneNotices(ctx: Context, userId: string, now: bigint) {
+  const cutoff = now - BigInt(NOTICE_RETENTION_MS)
+  Array.from(ctx.db.notices.userId.filter(userId))
+    .sort(newestNoticeFirst)
+    .forEach((row, index) => {
+      if (index >= NOTICES_PER_USER || row.at < cutoff) ctx.db.notices.id.delete(row.id)
+    })
+}
+
+/** Keeps each notice for its recipients, who see it on every device they sign in on. */
+export const storeNotices = spacetime.procedure({ payload: t.string() }, t.bool(), (ctx, { payload }) =>
+  operatorTx(ctx, (tx) => {
+    const input = decodePayload(noticeWrite, payload, 'Invalid notices')
+    const now = BigInt(input.now)
+    const recipients = new Set<string>()
+    let rows = 0
+    for (const { recipientIds, ...notice } of input.notices) {
+      const stored = JSON.stringify(notice)
+      for (const userId of noticeRecipients({ ...notice, recipientIds })) {
+        if (isGuestSeat(userId) || tx.db.practiceOpponents.userId.find(userId)) continue
+        if (++rows > NOTICE_ROWS_PER_WRITE) throw new SenderError('Too many notices')
+        tx.db.notices.insert({ id: 0n, userId, notice: stored, at: now, readAt: undefined })
+        recipients.add(userId)
+      }
+    }
+    for (const userId of recipients) {
+      pruneNotices(tx, userId, now)
+      touchProduct(tx, userId, 'notifications')
+    }
+    return rows > 0
+  }),
+)
+
+/** Whether the battle, sealed event or group a notice is about still exists. */
+function noticeSubjectExists(ctx: Context, notice: NoticeSubject) {
+  if (notice.kind === 'battle-created') return Boolean(ctx.db.battles.token.find(notice.battleToken))
+  if ('sealedEventToken' in notice) return Boolean(eventHost(ctx, notice.sealedEventToken))
+  if ('groupToken' in notice) return Boolean(ctx.db.groups.token.find(notice.groupToken))
+  return true
+}
+
+/** A player's notices, newest first, without those whose subject has gone; reading also drops the expired ones. */
+export const noticesByUser = spacetime.procedure({ userId: t.string(), now: t.u64() }, t.string(), (ctx, { userId, now }) =>
+  operatorTx(ctx, (tx) => {
+    pruneNotices(tx, userId, now)
+    return productJson(
+      Array.from(tx.db.notices.userId.filter(userId))
+        .sort(newestNoticeFirst)
+        .flatMap((row) => {
+          const notice = JSON.parse(row.notice) as NoticeSubject
+          return noticeSubjectExists(tx, notice) ? [{ ...notice, id: String(row.id), at: row.at, readAt: row.readAt }] : []
+        }),
+    )
+  }),
+)
+
+export const markNoticesRead = spacetime.procedure({ userId: t.string(), ids: t.array(t.string()), now: t.u64() }, t.bool(), (ctx, input) =>
+  operatorTx(ctx, (tx) => {
+    if (input.ids.length > NOTICES_PER_USER) throw new SenderError('Too many notices')
+    let moved = false
+    for (const id of input.ids) {
+      if (!/^\d{1,20}$/.test(id)) continue
+      const row = tx.db.notices.id.find(BigInt(id))
+      if (row?.userId !== input.userId || row.readAt !== undefined) continue
+      tx.db.notices.id.update({ ...row, readAt: input.now })
+      moved = true
+    }
+    if (moved) touchProduct(tx, input.userId, 'notifications')
+    return moved
   }),
 )
 

@@ -11,6 +11,7 @@ import spacetime, * as module from './index'
 import { UNIT_LOADOUT_NAME_MAX_LENGTH, UNIT_LOADOUTS_MAX } from '../../src/core/unitLoadouts'
 import { ABILITY_REMINDERS_MAX } from '../../src/core/reminders'
 import { SEALED_EVENT_REMINDER_COOLDOWN_MS } from '../../src/core/sealedEvent'
+import { NOTICE_RETENTION_MS, NOTICES_PER_USER } from '../../src/core/notificationConfig'
 
 const ISSUER = 'https://praetorium.gg/api/auth'
 const AUDIENCE = 'praetorium'
@@ -3490,5 +3491,94 @@ describe('derived standings and medals', () => {
       JSON.parse(module.claimStandingsRefresh(h.procedure(h.operator), { holder, results: '1', ratings: '1' })) as { state: string }
     claim('first')
     expect(claim('second').state).toBe('busy')
+  })
+})
+
+describe('notices', () => {
+  const DAY = 24 * 60 * 60 * 1000
+  const friendRequest = (actorId: string, recipientIds: string[]) => ({ kind: 'friend-requested', actorId, recipientIds })
+  const store = (h: ReturnType<typeof harness>, now: number, ...notices: object[]) =>
+    module.storeNotices(h.procedure(h.operator), { payload: JSON.stringify({ now, notices }) })
+  const listed = (h: ReturnType<typeof harness>, userId: string, now: number) =>
+    JSON.parse(module.noticesByUser(h.procedure(h.operator), { userId, now: BigInt(now) })) as {
+      id: string
+      actorId: string
+      at: number
+      readAt: number | null
+    }[]
+
+  it('keeps a notice for each recipient but not for the player who caused it', () => {
+    const h = harness()
+    store(h, 1, friendRequest('alice', ['alice', 'bob']))
+    expect([listed(h, 'alice', 1).length, listed(h, 'bob', 1).length]).toEqual([0, 1])
+  })
+
+  it('keeps no notices for a practice opponent', () => {
+    const h = harness()
+    h.call(h.operator, (ctx) => ctx.db.practiceOpponents.insert({ userId: 'practice' }))
+    store(h, 1, friendRequest('alice', ['practice']))
+    expect(listed(h, 'practice', 1)).toEqual([])
+  })
+
+  it('lists the newest notice first', () => {
+    const h = harness()
+    store(h, 1, friendRequest('alice', ['bob']))
+    store(h, 2, friendRequest('carol', ['bob']))
+    expect(listed(h, 'bob', 2).map((notice) => notice.actorId)).toEqual(['carol', 'alice'])
+  })
+
+  it('drops the oldest notice past the limit', () => {
+    const h = harness()
+    for (let at = 1; at <= NOTICES_PER_USER + 1; at++) store(h, at, friendRequest(`player-${at}`, ['bob']))
+    expect(listed(h, 'bob', NOTICES_PER_USER + 1).at(-1)?.actorId).toBe('player-2')
+  })
+
+  it('deletes a notice past its retention when the list is read', () => {
+    const h = harness()
+    store(h, 1, friendRequest('alice', ['bob']))
+    listed(h, 'bob', 1 + NOTICE_RETENTION_MS + DAY)
+    expect(h.call(h.operator, (ctx) => Array.from(ctx.db.notices.userId.filter('bob')).length)).toBe(0)
+  })
+
+  it('refuses a notice of a kind it does not know', () => {
+    const h = harness()
+    expect(() => store(h, 1, { kind: 'turn-started', actorId: 'alice', recipientIds: ['bob'] })).toThrow()
+  })
+
+  it('marks only the reader’s own notices read', () => {
+    const h = harness()
+    store(h, 1, friendRequest('alice', ['bob', 'carol']))
+    const [bobs] = listed(h, 'bob', 1)
+    const [carols] = listed(h, 'carol', 1)
+    module.markNoticesRead(h.procedure(h.operator), { userId: 'bob', ids: [bobs!.id, carols!.id], now: 5n })
+    expect([listed(h, 'bob', 5)[0]?.readAt, listed(h, 'carol', 5)[0]?.readAt]).toEqual([5, null])
+  })
+
+  it('lists a new-battle notice while the battle exists', () => {
+    const h = harness()
+    h.call(h.operator, (ctx) => ctx.db.battles.insert({ id: 'battle', token: 'kept', createdAt: 1n }))
+    store(h, 1, { kind: 'battle-created', actorId: 'alice', recipientIds: ['bob'], battleToken: 'kept', sealedEvent: false })
+    expect(listed(h, 'bob', 1)).toHaveLength(1)
+  })
+
+  it('stops listing a new-battle notice once the battle is deleted', () => {
+    const h = harness()
+    h.call(h.operator, (ctx) => ctx.db.battles.insert({ id: 'battle', token: 'gone', createdAt: 1n }))
+    store(h, 1, { kind: 'battle-created', actorId: 'alice', recipientIds: ['bob'], battleToken: 'gone', sealedEvent: false })
+    module.deleteBattleForOperator(h.procedure(h.operator), { battleId: 'battle' })
+    expect(listed(h, 'bob', 1)).toEqual([])
+  })
+
+  it('stops listing a group notice once the group is gone', () => {
+    const h = harness()
+    store(h, 1, { kind: 'group-member-accepted', actorId: 'alice', recipientIds: ['bob'], groupToken: 'gone', subjectName: 'Old name' })
+    expect(listed(h, 'bob', 1)).toEqual([])
+  })
+
+  it('deletes a player’s notices with their account', () => {
+    const h = harness()
+    store(h, 1, friendRequest('alice', ['bob']))
+    h.call(h.operator, (ctx) => module.deleteUserData(ctx, { userId: 'bob' }))
+    expect(listed(h, 'bob', 1)).toEqual([])
   })
 })

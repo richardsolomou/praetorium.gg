@@ -78,7 +78,7 @@ import { archivedArmies } from '../core/archivedArmies'
 import { currentCatalogueFamilyId } from '../core/retiredCatalogueIds'
 import { type BattleMissionRules, type BattleReadRules, type LoadedRules } from './rules'
 import type { Mission } from '../shared/rulesCards'
-import { type Notifier, silentNotifier } from './pushNotifier'
+import { describeNotices, type Notifier, silentNotifier } from './pushNotifier'
 import { SealedEventService } from './services/sealedEventService'
 import { GroupService } from './services/groupService'
 import { RosterService } from './services/rosterService'
@@ -687,6 +687,20 @@ export class PraetoriumService {
       (entryId) => entryId,
     )
     return [...uses].map(([entryId, battles]) => ({ entryId, battles })).toSorted((a, b) => b.battles - a.battles)
+  }
+
+  /** The signed-in player's notices, newest first, each in the words and with the page a push would carry. */
+  async notices(userId: string) {
+    const stored = await this.repository.noticesByUser(userId, this.clock())
+    const described = await describeNotices(this.repository, stored)
+    return stored.flatMap((notice, index) => {
+      const message = described[index]
+      return message ? [{ id: notice.id, kind: notice.kind, ...message, at: notice.at, read: notice.readAt !== null }] : []
+    })
+  }
+
+  markNoticesRead(userId: string, ids: readonly string[]) {
+    return this.repository.markNoticesRead(userId, ids, this.clock())
   }
 
   setPushEnabled(userId: string, enabled: boolean) {

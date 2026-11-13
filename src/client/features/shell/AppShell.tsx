@@ -23,13 +23,14 @@ import {
 } from 'lucide-react'
 import { postHogEnvironment } from 'ras-stack/posthog'
 import { PostHogBetterAuthIdentity, PostHogIntegration } from 'ras-stack/posthog/react'
-import { type ReactElement, useEffect, useLayoutEffect } from 'react'
+import { type ReactElement, useEffect, useLayoutEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { buttonClass } from '../../components/buttonClass'
 import { ROSTER_WORKSPACE, followRailState, setRailCollapsed, useRailCollapsed } from './railState'
 import { POSTHOG_BROWSER_OPTIONS, setImpersonating } from '../../../posthog'
 import { authClient } from '../../authClient'
 import { Account } from './Account'
+import { NotificationsButton } from '../notifications/Notifications'
 import { GlobalSearch, GlobalSearchProvider } from './GlobalSearch'
 import { TextSourcesDialog } from '../../components/TextSourcesDialog'
 import { ReleaseUpdateNotice } from './ReleaseUpdateNotice'
@@ -150,13 +151,14 @@ function SiteRail({ workspace }: { workspace: boolean }) {
   const collapsed = useRailCollapsed(workspace)
   const { data: me } = useQuery(meQuery())
   const Toggle = collapsed ? PanelLeftOpen : PanelLeftClose
+  const frame = useRef<HTMLDivElement>(null)
   return (
     <aside
       data-web-app-chrome
       data-print-hide
       className="sticky top-0 z-30 flex h-dvh w-(--app-rail) shrink-0 flex-col p-3 pr-0 transition-[width] duration-200 ease-out"
     >
-      <div className="flex min-h-0 flex-1 overflow-hidden rounded-2xl border-2 border-runner bg-void">
+      <div ref={frame} className="flex min-h-0 flex-1 overflow-hidden rounded-2xl border-2 border-runner bg-void">
         {/*
          * Laid out at the rail's target width at once, less the frame's padding and border,
          * so the frame animates around contents that stay put instead of sliding with its edge.
@@ -204,7 +206,10 @@ function SiteRail({ workspace }: { workspace: boolean }) {
                 <Toggle aria-hidden className="size-4.5" />
               </Button>
             </RailTooltip>
-            <Account className="size-8" />
+            <div className="flex items-center gap-1 in-data-[rail=collapsed]:flex-col-reverse">
+              {me ? <NotificationsButton beside={frame} /> : null}
+              <Account className="size-8" />
+            </div>
           </div>
         </div>
       </div>
@@ -357,6 +362,7 @@ export function AppShell() {
                       </Link>
                       <div className="ml-auto flex shrink-0 items-center gap-1">
                         <GlobalSearch compact />
+                        {me ? <NotificationsButton className="size-[44px]" /> : null}
                         <Account className="size-[44px]" />
                       </div>
                     </header>

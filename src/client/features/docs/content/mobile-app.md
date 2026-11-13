@@ -32,7 +32,7 @@ If nothing has been saved on the phone yet, the app shows **Praetorium could not
 
 When notifications are available, Home shows **Get notified about your games**. Choose **Allow notifications** for new battles, friend requests and tournament updates, or **Not now** to hide the offer on that phone.
 
-Turn them off in your phone's settings. Signing out stops them on that phone.
+Turn them off in your phone's settings. Signing out stops them on that phone. Every notification also stays under **More** › **Notifications**, where you can read it later; see [Notifications](/docs/notifications).
 
 ## During a battle
 

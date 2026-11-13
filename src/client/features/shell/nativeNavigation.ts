@@ -105,6 +105,7 @@ export function nativeNavigation(path: string, search: Record<string, unknown> =
   if (root === 'leaderboard') return { back: '/more', section: 'leaderboard', title: 'Leaderboard' }
   if (root === 'users') return { back: '/', title: 'Profile' }
   if (root === 'friends') return { back: '/', title: 'Friends' }
+  if (root === 'notifications') return { back: '/more', title: 'Notifications' }
   if (root === 'admin') return { back: '/profile', title: 'Admin' }
   if (root === 'sign-in') return { title: 'Account' }
   if (root === 'native-auth') return { title: 'Account' }

@@ -67,7 +67,9 @@ import * as LendRosterProcedure from '../lend_roster_procedure'
 import * as LinkExternalAccountProcedure from '../link_external_account_procedure'
 import * as ListFilterPreferencesProcedure from '../list_filter_preferences_procedure'
 import * as MarkAchievementsSeenProcedure from '../mark_achievements_seen_procedure'
+import * as MarkNoticesReadProcedure from '../mark_notices_read_procedure'
 import * as MigrateProductDataProcedure from '../migrate_product_data_procedure'
+import * as NoticesByUserProcedure from '../notices_by_user_procedure'
 import * as OnboardingByUserProcedure from '../onboarding_by_user_procedure'
 import * as OperatorHealthProcedure from '../operator_health_procedure'
 import * as OutdatedSealedEventEntriesForRosterProcedure from '../outdated_sealed_event_entries_for_roster_procedure'
@@ -118,6 +120,7 @@ import * as SetRosterVisibilityProcedure from '../set_roster_visibility_procedur
 import * as ShareBattleProcedure from '../share_battle_procedure'
 import * as SplitRosterVariantProcedure from '../split_roster_variant_procedure'
 import * as StopBattleInviteProcedure from '../stop_battle_invite_procedure'
+import * as StoreNoticesProcedure from '../store_notices_procedure'
 import * as SubmitBattleProcedure from '../submit_battle_procedure'
 import * as SweepDraftsProcedure from '../sweep_drafts_procedure'
 import * as SyncAchievementDefinitionsProcedure from '../sync_achievement_definitions_procedure'
@@ -250,8 +253,12 @@ export type ListFilterPreferencesArgs = __Infer<typeof ListFilterPreferencesProc
 export type ListFilterPreferencesResult = __Infer<typeof ListFilterPreferencesProcedure.returnType>
 export type MarkAchievementsSeenArgs = __Infer<typeof MarkAchievementsSeenProcedure.params>
 export type MarkAchievementsSeenResult = __Infer<typeof MarkAchievementsSeenProcedure.returnType>
+export type MarkNoticesReadArgs = __Infer<typeof MarkNoticesReadProcedure.params>
+export type MarkNoticesReadResult = __Infer<typeof MarkNoticesReadProcedure.returnType>
 export type MigrateProductDataArgs = __Infer<typeof MigrateProductDataProcedure.params>
 export type MigrateProductDataResult = __Infer<typeof MigrateProductDataProcedure.returnType>
+export type NoticesByUserArgs = __Infer<typeof NoticesByUserProcedure.params>
+export type NoticesByUserResult = __Infer<typeof NoticesByUserProcedure.returnType>
 export type OnboardingByUserArgs = __Infer<typeof OnboardingByUserProcedure.params>
 export type OnboardingByUserResult = __Infer<typeof OnboardingByUserProcedure.returnType>
 export type OperatorHealthArgs = __Infer<typeof OperatorHealthProcedure.params>
@@ -352,6 +359,8 @@ export type SplitRosterVariantArgs = __Infer<typeof SplitRosterVariantProcedure.
 export type SplitRosterVariantResult = __Infer<typeof SplitRosterVariantProcedure.returnType>
 export type StopBattleInviteArgs = __Infer<typeof StopBattleInviteProcedure.params>
 export type StopBattleInviteResult = __Infer<typeof StopBattleInviteProcedure.returnType>
+export type StoreNoticesArgs = __Infer<typeof StoreNoticesProcedure.params>
+export type StoreNoticesResult = __Infer<typeof StoreNoticesProcedure.returnType>
 export type SubmitBattleArgs = __Infer<typeof SubmitBattleProcedure.params>
 export type SubmitBattleResult = __Infer<typeof SubmitBattleProcedure.returnType>
 export type SweepDraftsArgs = __Infer<typeof SweepDraftsProcedure.params>

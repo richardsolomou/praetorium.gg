@@ -30,7 +30,7 @@ import { profileUpdate } from './profile'
 import { PraetoriumService } from './service'
 import { emailDelivery } from '../adapters/email'
 import { pushSenderFromEnvironment } from '../adapters/push'
-import { pushNotifier, silentNotifier } from './pushNotifier'
+import { pushNotifier, silentNotifier, storingNotifier } from './pushNotifier'
 import { productionCatalogueRuntime } from './catalogueRuntime'
 import { referenceCatalogue } from './canonicalCatalogue'
 import { loadCatalogueHistory } from './catalogueHistory'
@@ -395,8 +395,12 @@ export function app(): App {
         }
       },
       repository,
-      service: new PraetoriumService(repository, Date.now, randomInt, push ? pushNotifier(repository, push) : silentNotifier, () =>
-        instance.battleFactionsFor(),
+      service: new PraetoriumService(
+        repository,
+        Date.now,
+        randomInt,
+        storingNotifier(repository, push ? pushNotifier(repository, push) : silentNotifier),
+        () => instance.battleFactionsFor(),
       ),
       auth,
       spacetimeToken: async (headers) => (await auth.api.getToken({ headers })).token,

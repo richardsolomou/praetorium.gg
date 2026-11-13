@@ -27,6 +27,7 @@
 ## Notifications
 
 - Request permission only after the player chooses to. Notices exclude practice opponents and carry only what the recipient may read.
+- Every notice is kept for its recipients (`storeNotices`), then pushed, so the web bell, the app's list and push agree. A new kind needs only `noticeSubjectSchema` and `noticeMessage` in `src/core/notifications.ts`; a kind about something that can be deleted also needs a case in `noticeSubjectExists`. The list keeps the sealed event or group name from when the notice was sent, so a recipient who loses access never reads a later one.
 - The Watch follows the last live battle the phone opened, seated or spectated, until another battle replaces it or the account signs out (`clearWatchBattle`). Objectives and reminders come only from the phone, and only for a seated viewer.
 - While the phone is quiet, the Watch polls `/api/watch/battles/$token`. It is the one read outside server functions: it reuses `mayWatch` and returns counters a spectator already sees, never names, cards, or rules text. Its fields come from `watchLive`, which the phone's snapshot shares.
 - Keep the Watch snapshot at `version: 1` and add only optional fields; installed watches reject any other version, and older shells strip unknown keys.

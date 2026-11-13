@@ -4,6 +4,7 @@ import { callSpacetime, spacetimeDatabaseUrl, type SpacetimeConnection } from 'r
 import { withServerSpan } from '../adapters/posthog'
 import { offlineContext, SYNC_PRODUCT_ACTIONS } from './offlineContext'
 import { z } from 'zod'
+import { type Notice, noticeSubjectSchema } from '../core/notifications'
 import { achievementFactsSchema, achievementStatusSchema } from '../contracts/achievements'
 import {
   leaderboardSchema,
@@ -99,6 +100,15 @@ const favouriteDetachmentRow = z.object({
 })
 const unitLoadoutRow = unitLoadoutSchema.extend({ id: z.string(), name: z.string(), catalogueId: z.string(), createdAt: z.number().int() })
 const pushTarget = z.object({ userId: z.string(), token: z.string() })
+const storedNotice = noticeSubjectSchema.and(
+  z.object({
+    id: z.string(),
+    actorId: z.string(),
+    subjectName: z.string().optional(),
+    at: z.number().int(),
+    readAt: z.number().int().nullable(),
+  }),
+)
 const battleSnapshot = z.object({
   battle: z.object({ id: z.string(), token: z.string(), createdAt: z.number().int() }),
   seats: z.array(z.object({ id: z.string(), side: z.number().int(), automated: z.boolean(), guestName: z.string().optional() })),
@@ -1163,6 +1173,18 @@ export class SpacetimeOperator {
   async pushTargets(userIds: readonly string[]) {
     if (!userIds.length) return []
     return this.read('push_targets', [[...new Set(userIds)]], z.array(pushTarget))
+  }
+
+  async storeNotices(notices: readonly (Notice & { subjectName?: string })[], now: number) {
+    if (notices.length) await this.reply('store_notices', [JSON.stringify({ now, notices })], z.boolean())
+  }
+
+  async noticesByUser(userId: string, now: number) {
+    return this.read('notices_by_user', [userId, now], z.array(storedNotice))
+  }
+
+  async markNoticesRead(userId: string, ids: readonly string[], now: number) {
+    return this.reply('mark_notices_read', [userId, [...ids], now], z.boolean())
   }
 
   sealedEventNames(tokens: readonly string[]) {

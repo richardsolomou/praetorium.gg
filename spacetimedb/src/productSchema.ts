@@ -117,6 +117,18 @@ const pushPreferences = table(
   },
 )
 
+/** A notice kept for its recipient; `notice` is its subject and actor as JSON, named only when it is read. */
+const notices = table(
+  { name: 'notices' },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    userId: t.string().index('btree'),
+    notice: t.string(),
+    at: t.u64(),
+    readAt: t.option(t.u64()),
+  },
+)
+
 const listFilterPreferences = table(
   { name: 'list_filter_preferences' },
   {
@@ -859,6 +871,7 @@ export const productTables = {
   battleUsers,
   guestSeats,
   pushPreferences,
+  notices,
   listFilterPreferences,
   playerDefaults,
   pushTokens,

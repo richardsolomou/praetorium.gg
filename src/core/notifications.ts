@@ -1,5 +1,42 @@
 import { z } from 'zod'
 
+const SEALED_EVENT_KINDS = [
+  'sealed-event-entry-requested',
+  'sealed-event-entry-accepted',
+  'sealed-event-entry-added',
+  'sealed-event-entry-rejected',
+  'sealed-event-roster-reseal',
+  'sealed-event-revealed',
+  'sealed-event-roster-unsealed',
+  'sealed-event-roster-reminder',
+  'sealed-event-battlefield-set',
+  'sealed-event-battlefield-cleared',
+] as const
+
+const token = z.string().min(1).max(128)
+
+/** What a notice is about, as it is stored for its recipient. */
+export const noticeSubjectSchema = z.union([
+  z.object({
+    kind: z.literal('battle-created'),
+    battleToken: token,
+    sealedEvent: z.boolean(),
+    /** The link an invited friend joins through, while their place is open. */
+    invite: token.optional(),
+  }),
+  z.object({ kind: z.enum(['friend-requested', 'friend-accepted']) }),
+  z.object({ kind: z.enum(SEALED_EVENT_KINDS), sealedEventToken: token, eventToken: token.optional() }),
+  z.object({
+    kind: z.literal('sealed-event-round-paired'),
+    sealedEventToken: token,
+    eventToken: token.optional(),
+    round: z.number().int().positive(),
+  }),
+  z.object({ kind: z.enum(['group-member-requested', 'group-member-accepted']), groupToken: token }),
+])
+
+export type NoticeSubject = z.infer<typeof noticeSubjectSchema>
+
 /**
  * Something a player who is not looking may want to act on.
  *
@@ -8,33 +45,10 @@ import { z } from 'zod'
  * rare and asks something of its recipient; a command at a table everyone is
  * already watching is never one.
  */
-export type Notice = { actorId: string; recipientIds: readonly string[] } & (
-  | {
-      kind: 'battle-created'
-      battleToken: string
-      sealedEvent: boolean
-      /** The link an invited friend joins through, while their place is open. */ invite?: string
-    }
-  | { kind: 'friend-requested' }
-  | { kind: 'friend-accepted' }
-  | {
-      kind:
-        | 'sealed-event-entry-requested'
-        | 'sealed-event-entry-accepted'
-        | 'sealed-event-entry-added'
-        | 'sealed-event-entry-rejected'
-        | 'sealed-event-roster-reseal'
-        | 'sealed-event-revealed'
-        | 'sealed-event-roster-unsealed'
-        | 'sealed-event-roster-reminder'
-        | 'sealed-event-battlefield-set'
-        | 'sealed-event-battlefield-cleared'
-      sealedEventToken: string
-      eventToken?: string
-    }
-  | { kind: 'sealed-event-round-paired'; sealedEventToken: string; eventToken?: string; round: number }
-  | { kind: 'group-member-requested' | 'group-member-accepted'; groupToken: string }
-)
+export type Notice = { actorId: string; recipientIds: readonly string[] } & NoticeSubject
+
+/** A notice as its recipient keeps it. */
+export type StoredNotice = { actorId: string } & NoticeSubject
 
 type NoticeMessage = { title: string; body: string; path: string }
 
@@ -54,7 +68,7 @@ export function noticeRecipients(notice: Notice): string[] {
  * Only what the recipient can already read: a name any player may see, a sealed event
  * or group they entered, and a path the page behind it would show them anyway.
  */
-export function noticeMessage(notice: Notice, names: { actor?: string; sealedEvent?: string; group?: string }): NoticeMessage | null {
+export function noticeMessage(notice: StoredNotice, names: { actor?: string; sealedEvent?: string; group?: string }): NoticeMessage | null {
   const actor = names.actor ?? 'A player'
   switch (notice.kind) {
     case 'battle-created':
