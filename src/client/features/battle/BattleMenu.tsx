@@ -20,8 +20,8 @@ type Props = {
   onActionRemindersChange?: (enabled: boolean) => void
   /** Absent when no earlier phase can take a missed action. */
   onRecordMissed?: () => void
-  /** The page a streaming tool loads to lay this battle's score over the video; absent until the address is known. */
-  overlayUrl?: string
+  /** The battle whose stream overlay link the menu copies. */
+  token: string
   /** Shared by the table, unlike the reminders, so it is a command rather than a preference. */
   onTimerPausedChange: (paused: boolean) => void
   onConcede: (playerId: string) => void
@@ -41,7 +41,7 @@ export function BattleMenu({
   timerPaused,
   players,
   onActionRemindersChange,
-  overlayUrl,
+  token,
   onRecordMissed,
   onTimerPausedChange,
   onConcede,
@@ -77,9 +77,7 @@ export function BattleMenu({
           <DropdownMenuItem onClick={() => onTimerPausedChange(!timerPaused)}>
             {timerPaused ? 'Resume timer' : 'Pause timer'}
           </DropdownMenuItem>
-          {overlayUrl ? (
-            <DropdownMenuItem onClick={() => void copyOverlayLink(overlayUrl)}>Copy stream overlay link</DropdownMenuItem>
-          ) : null}
+          <DropdownMenuItem onClick={() => void copyOverlayLink(token)}>Copy stream overlay link</DropdownMenuItem>
           {endings.map((ending) => (
             <DropdownMenuItem key={ending.key} variant="destructive" onClick={() => setConfirming(ending)}>
               {ending.label}
@@ -120,9 +118,9 @@ export function BattleMenu({
   )
 }
 
-async function copyOverlayLink(url: string) {
+async function copyOverlayLink(token: string) {
   try {
-    await navigator.clipboard.writeText(url)
+    await navigator.clipboard.writeText(`${window.location.origin}/battles/${token}/overlay`)
     toast.success('Stream overlay link copied')
     posthog.capture('battle_overlay_link_copied')
   } catch (error) {

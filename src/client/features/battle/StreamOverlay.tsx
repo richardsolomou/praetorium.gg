@@ -11,8 +11,6 @@ import { tint } from './battleTints'
 
 /**
  * The score strip a streaming tool lays over its video: what a spectator sees, without the app around it.
- *
- * The page has no background of its own, so only the strip covers the stream.
  */
 export function StreamOverlay({ token }: { token: string }) {
   const { data: screen, isPending } = useQuery(battleQuery(token))
@@ -42,7 +40,7 @@ function OverlayStrip({ view, missions }: { view: BattleView; missions: readonly
   }, [table, view.players, view.status])
   const [first, second] = table
   return (
-    <main data-stream-overlay className="p-3">
+    <main className="p-3">
       <section
         aria-label="Battle score"
         className="mx-auto grid max-w-5xl grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-start gap-4 rounded-xl border border-edge bg-void/90 px-4 py-3"
@@ -82,11 +80,7 @@ function OverlayStatus({ view, table }: { view: BattleView; table: Side[] }) {
   return (
     <div className="self-center text-center">
       <p className="font-display text-xs font-semibold tracking-label text-dim uppercase">
-        Round{' '}
-        <span data-stat="round" className="figure text-base font-bold text-bone">
-          {view.round}
-        </span>{' '}
-        of {view.rounds}
+        Round <span className="figure text-base font-bold text-bone">{view.round}</span> of {view.rounds}
       </p>
       <p className="text-sm leading-tight font-bold uppercase">{view.phase} phase</p>
       <p className={cn('text-xs leading-tight font-semibold', active ? tint(active.side).text : 'text-dim')}>
@@ -104,7 +98,7 @@ function OverlaySide({ view, side, align }: { view: BattleView; side: Side; alig
     .filter((card) => card.status === 'active')
     .map((card) => ({ key: card.key, name: card.secret && !card.revealed ? 'Secret mission' : card.name }))
   return (
-    <div data-overlay-side={side.index} className={cn('min-w-0 space-y-1.5', end && 'text-right')}>
+    <div className={cn('min-w-0 space-y-1.5', end && 'text-right')}>
       <div>
         <p className={cn('truncate text-lg leading-tight font-bold uppercase', colours.text)}>{sideName(side)}</p>
         <p className="truncate text-xs text-dim">
@@ -119,13 +113,13 @@ function OverlaySide({ view, side, align }: { view: BattleView; side: Side; alig
       <dl className={cn('flex gap-4', end && 'justify-end')}>
         <div>
           <dt className="eyebrow">VP</dt>
-          <dd key={side.total} data-stat="vp" className="figure animate-figure text-4xl leading-none font-bold">
+          <dd key={side.total} className="figure animate-figure text-4xl leading-none font-bold">
             {side.total}
           </dd>
         </div>
         <div>
           <dt className="eyebrow">CP</dt>
-          <dd key={side.cp} data-stat="cp" className={cn('figure animate-figure text-4xl leading-none font-bold', colours.text)}>
+          <dd key={side.cp} className={cn('figure animate-figure text-4xl leading-none font-bold', colours.text)}>
             {side.cp}
           </dd>
         </div>

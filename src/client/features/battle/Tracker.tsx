@@ -65,7 +65,6 @@ import { BattlefieldFact } from './BattlefieldFact'
 import { BattleNote } from './BattleNote'
 import { MANUAL_TRACKING_LIMITS } from './manualTracking'
 import { errorMessage } from '../../queryClient'
-import { useOrigin } from '../../useOrigin'
 
 type Props = {
   view: BattleView
@@ -142,7 +141,6 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
   const [reminderPrompts, setReminderPrompts] = useState<ReminderPrompt[]>([])
   // Dismissals and preferences live in browser storage, so reminders wait for the browser's first render.
   const dismissalsReady = useHydrated()
-  const origin = useOrigin()
   const [promptMinimized, setPromptMinimized] = useState(false)
   const [skippedChoices, setSkippedChoices] = useState<ReadonlySet<string>>(new Set())
   const minimizedDialogs = useRef<string[]>([])
@@ -700,7 +698,7 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
                     pending={pending || promptMinimized || remove.isPending}
                     actionRemindersEnabled={actionRemindersEnabled}
                     timerPaused={clock.paused}
-                    overlayUrl={origin ? `${origin}/battles/${view.token}/overlay` : undefined}
+                    token={view.token}
                     onTimerPausedChange={(paused) => sendAction({ kind: paused ? 'pause-clock' : 'resume-clock' })}
                     players={view.players}
                     onActionRemindersChange={view.settings.manual ? undefined : updateActionReminders}

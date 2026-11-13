@@ -311,11 +311,12 @@ const OVERLAY_POSTHOG_OPTIONS = { ...POSTHOG_BROWSER_OPTIONS, disable_session_re
 
 export function AppShell() {
   const overlay = useLocation({ select: (location) => STREAM_OVERLAY.test(location.pathname) })
+  // Browser tests wait for this before interacting: a click before hydration does nothing.
+  useEffect(() => document.documentElement.setAttribute('data-hydrated', ''), [])
   return overlay ? <OverlayShell /> : <AppFrame />
 }
 
 function OverlayShell() {
-  useEffect(() => document.documentElement.setAttribute('data-hydrated', ''), [])
   return (
     <html lang="en" className="bg-transparent" suppressHydrationWarning>
       <head>
@@ -345,8 +346,6 @@ function AppFrame() {
   useSpacetimeLiveProduct(realtime, Boolean(me))
   useLayoutEffect(followTextSourceChoice, [])
   useLayoutEffect(() => followRailState(immersive), [immersive])
-  // Browser tests wait for this before interacting: a click before hydration does nothing.
-  useEffect(() => document.documentElement.setAttribute('data-hydrated', ''), [])
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
