@@ -1,5 +1,4 @@
 import { memo } from 'react'
-import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import type { SendCommand } from './useCommand'
 import type { BattleView } from '../../../core/battleView'
@@ -13,6 +12,7 @@ import { PrimaryMission, type ReferenceCard, SecondaryMissions, type StratagemTe
 import { Stratagems } from './Stratagems'
 import { tint } from './battleTints'
 import { ManualScore } from './ManualScore'
+import { CommandPoints } from './CommandPoints'
 
 type Props = {
   view: BattleView
@@ -124,18 +124,7 @@ export const SidePanel = memo(function SidePanel({
               {/* Chosen before the battle and paid as it begins, so the score above already holds it. */}
               {bonus ? <p className="mt-1 text-3xs text-achieved">Battle ready included</p> : null}
             </div>
-            <div className="min-w-0">
-              <p className="eyebrow">Command points</p>
-              <p key={side.cp} data-stat="cp" className={`figure animate-figure text-4xl leading-none font-bold ${colours.text}`}>
-                {side.cp}
-              </p>
-              <div className="mt-1 flex flex-wrap items-center gap-2">
-                <span className="readout text-3xs text-faint">
-                  {side.cpGained} gained · {side.cpSpent} used
-                </span>
-                <GainCp side={side} pending={pending} send={send} />
-              </div>
-            </div>
+            <CommandPoints side={side} pending={pending} send={send} />
           </div>
 
           {/* Across the whole panel, or its five round columns get squeezed into half of it. */}
@@ -171,19 +160,3 @@ export const SidePanel = memo(function SidePanel({
     </section>
   )
 })
-
-/** The side's one additional command point for the round. */
-export function GainCp({ side, pending, send }: { side: Side; pending: boolean; send: SendCommand }) {
-  return (
-    <Button
-      variant="secondary"
-      size="xs"
-      disabled={pending || !side.canGainCp}
-      title={side.canGainCp ? 'Gain one additional command point' : 'This side already gained its additional CP this round'}
-      aria-label={side.canGainCp ? '+1 CP' : 'Additional CP already gained this round'}
-      onClick={() => send({ kind: 'adjust-cp', delta: 1, playerId: side.captain.id })}
-    >
-      {side.canGainCp ? '+1 CP' : 'CP gain used'}
-    </Button>
-  )
-}

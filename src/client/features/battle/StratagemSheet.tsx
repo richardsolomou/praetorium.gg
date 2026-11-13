@@ -16,13 +16,13 @@ import type { BattleView } from '../../../core/battleView'
 import { type Side, sideName } from '../../sides'
 import { BattleMinimizeContext } from './BattlePromptDialog'
 import type { StratagemText } from './MissionCards'
-import { GainCp } from './SidePanel'
+import { CommandPoints } from './CommandPoints'
 import { Stratagems } from './Stratagems'
 import { tint } from './battleTints'
 import type { SendCommand } from './useCommand'
 
 type Props = {
-  view: BattleView
+  phase: BattleView['phase']
   side: Side
   coreKeys: ReadonlySet<string>
   pending: boolean
@@ -39,7 +39,7 @@ type Props = {
  * also opens them here over whichever tab is showing. The battle stays the one
  * authority: this draws the same controls the panel does.
  */
-export function StratagemSheet({ view, side, coreKeys, pending, send, writtenFor, onRecordMissed, className }: Props) {
+export function StratagemSheet({ phase, side, coreKeys, pending, send, writtenFor, onRecordMissed, className }: Props) {
   const colours = tint(side.index)
   return (
     <Dialog onOpenChange={(open) => open && posthog.capture('battle_stratagems_opened', { active: side.isActive })}>
@@ -63,16 +63,7 @@ export function StratagemSheet({ view, side, coreKeys, pending, send, writtenFor
           <DialogDescription>{sideName(side)}</DialogDescription>
         </DialogHeader>
         <DialogBody>
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-            <p className="eyebrow">Command points</p>
-            <p key={side.cp} data-stat="cp" className={`figure animate-figure text-2xl leading-none font-bold ${colours.text}`}>
-              {side.cp}
-            </p>
-            <span className="readout text-3xs text-faint">
-              {side.cpGained} gained · {side.cpSpent} used
-            </span>
-            <GainCp side={side} pending={pending} send={send} />
-          </div>
+          <CommandPoints side={side} pending={pending} send={send} />
           {/*
            * No minimizing from in here: the board is one tap away behind this sheet, and a
            * minimized card would leave the sheet open over it.
@@ -81,7 +72,7 @@ export function StratagemSheet({ view, side, coreKeys, pending, send, writtenFor
             {side.stratagems.length ? (
               <Stratagems
                 side={side}
-                phase={view.phase}
+                phase={phase}
                 coreKeys={coreKeys}
                 pending={pending}
                 send={send}

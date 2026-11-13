@@ -321,7 +321,7 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
   const shown = (side: Side) => (side.isViewer ? 'yours' : 'theirs')
   const theirs = table.find((side) => !side.isViewer)
   // The phone bar acts for the side its tab shows, and for the viewer's own side from the Battle tab.
-  const barSide = (focus === 'theirs' ? theirs : yours) ?? table[0]
+  const barSide = focus === 'theirs' ? theirs : yours
   const settlementRound = view.settlementRound
   const turnKey = `${view.round}-${view.activePlayerId ?? ''}`
   const turnDraftKey = JSON.stringify([view.token, turnKey])
@@ -647,7 +647,7 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
               shortcuts={
                 barSide && !view.settings.manual ? (
                   <StratagemSheet
-                    view={view}
+                    phase={view.phase}
                     side={barSide}
                     coreKeys={coreKeysBySide.get(barSide.index) ?? EMPTY_KEYS}
                     pending={pending || promptMinimized}
