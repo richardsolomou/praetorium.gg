@@ -1,4 +1,9 @@
 {
+  "accessibility-scan.spec.ts › a datasheet has no serious accessibility violations": 4,
+  "accessibility-scan.spec.ts › a practice battle has no serious accessibility violations": 18,
+  "accessibility-scan.spec.ts › a tournament has no serious accessibility violations": 7,
+  "accessibility-scan.spec.ts › home has no serious accessibility violations": 3,
+  "accessibility-scan.spec.ts › the roster builder has no serious accessibility violations": 10,
   "accessibility.spec.ts › a touch device › keeps reserve counts, the battle scoreboard and phase control readable at double text size": 16.6,
   "accessibility.spec.ts › a touch device › keeps simulator units, weapon headings and result figures apart at double text size": 9.1,
   "accessibility.spec.ts › a touch device › keeps the account menu on screen at double text size": 4.7,
