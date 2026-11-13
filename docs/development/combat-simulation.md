@@ -7,3 +7,4 @@ Engine: `src/core/combat*.ts`; server: `src/server/combat*.ts`; every entry poin
 - Other players' rosters open only through `sharedRoster` or `openSealedEventRoster`.
 - Effects compile from source clauses, never card names. Unsupported mechanics refuse calculation rather than approximate.
 - Compute exact distributions; never add phase probabilities or average damage. Timeouts and heuristic searches must not claim an exact optimum.
+- Roster grades place a list among the percentiles in `src/core/rosterGradeCalibration.ts`. Rebuild them with `just rosters-calibrate build` after changing a grade measure, a reference unit, or how lists are drawn; never edit the table by hand.

@@ -40,6 +40,10 @@ rosters-audit *args:
 rosters-normalise *args:
     node --env-file-if-exists=.env.local --import tsx scripts/productionRosters.ts normalise {{ args }}
 
+# Rebuild roster grade percentiles from fetched tournament lists (build --since --until), or check their age (check)
+rosters-calibrate *args:
+    pnpm exec tsx scripts/calibrateRosterGrades.ts {{ args }}
+
 # The native application against this worktree's running preview
 mobile *args:
     url="${EXPO_PUBLIC_APP_URL:-$(node --import tsx scripts/mobileAppUrl.ts ios)}" && EXPO_PUBLIC_APP_URL="$url" pnpm mobile {{ args }}

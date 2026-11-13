@@ -154,6 +154,10 @@ export function factionIndexFor(loaded: LoadedCatalogue, rules: LoadedRules | nu
   return cache.index
 }
 
+/** Each army's current rules, by the faction id the reference files them under. */
+export const currentFactionIdsOf = (factions: readonly { id: string; isDefault: boolean }[]) =>
+  new Set(factions.filter((faction) => faction.isDefault).map((faction) => faction.id))
+
 export function factionsFor(loaded: LoadedCatalogue, rules: LoadedRules | null | undefined, catalogueIds?: ReadonlySet<string>) {
   if (catalogueIds) return buildFactions(loaded, rules, catalogueIds)
   const cache = cacheFor(loaded, rules)

@@ -4,7 +4,6 @@ import { publishedTextLocations } from './publishedTextFiles'
 import { REFERENCE_KINDS, type ReferenceDocument, type ReferenceKind } from '../contracts/reference'
 import { app } from './app'
 import { datasheetRoute, referenceCorpusCooperatively, referenceDocumentMarkdown, type ReferenceCorpus } from './referenceCorpus'
-import { PRAETORIUM_GUIDE, praetoriumGuideMarkdown } from './referenceGuide'
 import {
   REFERENCE_FILTER_MAX_LENGTH,
   REFERENCE_QUERY_MAX_LENGTH,
@@ -31,6 +30,7 @@ import { ifNoneMatch } from './ifNoneMatch'
 import { fixedWindowRateLimit } from './rateLimit'
 import { catalogueEditionId } from '../core/catalogueEdition'
 import { datasheetPageBySlug } from '../core/datasheetSlug'
+import { currentFactionIdsOf } from '../shared/factionReferences'
 
 export const referenceRateLimit = fixedWindowRateLimit('too many reference requests', 120)
 const unitsRateLimit = fixedWindowRateLimit('too many reference requests', 60)
@@ -49,8 +49,7 @@ type ReferenceRecord = {
 
 /** Each army's current rules, by the faction id the reference files them under. */
 export async function currentFactionIds() {
-  const factions = (await app().factionsFor())?.factions ?? []
-  return new Set(factions.filter((faction) => faction.isDefault).map((faction) => faction.id))
+  return currentFactionIdsOf((await app().factionsFor())?.factions ?? [])
 }
 
 export async function activeReferenceCorpus(catalogueId?: string) {
@@ -166,6 +165,8 @@ export const referenceIndexResponse = rateLimited(async (request: Request) => {
 export const referenceGuideResponse = rateLimited(async (request: Request) => {
   const corpus = await activeReferenceCorpus()
   if (!corpus) return referenceUnavailable()
+  // The guide lists the agent skills, which only a Vite build can load, so a script fielding reference units never reads it.
+  const { PRAETORIUM_GUIDE, praetoriumGuideMarkdown } = await import('./referenceGuide')
   return referenceResponse(
     request,
     corpus.revision,

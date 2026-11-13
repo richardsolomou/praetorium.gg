@@ -1,6 +1,6 @@
 import type { PriceInput } from '../contracts/schemas'
-import { REFERENCE_ATTACKERS, gradedTargets, rosterGrades } from '../core/rosterGrades'
-import { measureRosterUnits, referenceTarget, unitTotal, type GradeReferences, type ReferenceUnit } from '../shared/rosterGradeMeasures'
+import { rosterGrades } from '../core/rosterGrades'
+import { gradeReferences, measureRosterUnits, referenceUnit } from '../shared/rosterGradeMeasures'
 import { app } from './app'
 import { combatCalculationPool } from './combatCalculationPool'
 import { namedCombatant } from './combatTools'
@@ -11,25 +11,8 @@ import { memoUntilSnapshotChanges } from './snapshotMemo'
 const BATCH = 4
 
 // Reference units are shared reference data, never a reader's roster, so one build serves every request.
-const referenceUnit = (key: string, unit: { faction: string; unit: string; models?: number; copies?: number }) =>
-  memoUntilSnapshotChanges('roster-grade-reference', key, async (): Promise<ReferenceUnit | null> => {
-    const snapshot = await namedCombatant(unit.faction, unit.unit, unit.models)
-    if (!snapshot) return null
-    if (unit.copies) return referenceTarget(snapshot, unit.copies)
-    const wounds = unitTotal(snapshot, 'wounds')
-    return wounds === null ? null : { snapshot, wounds }
-  })
-
-async function references(limit: number): Promise<GradeReferences> {
-  const [targets, attackers] = await Promise.all([
-    Promise.all(gradedTargets(limit).map(async (target) => [target.key, await referenceUnit(target.key, target)] as const)),
-    Promise.all(REFERENCE_ATTACKERS.map((attacker) => referenceUnit(attacker.key, attacker))),
-  ])
-  return {
-    targets: Object.fromEntries(targets.filter(([, unit]) => unit)),
-    attackers: attackers.filter((unit) => unit !== null),
-  }
-}
+const references = (limit: number) =>
+  gradeReferences(limit, (key, unit) => memoUntilSnapshotChanges('roster-grade-reference', key, () => referenceUnit(unit, namedCombatant)))
 
 /** The grades for a roster's current picks, from the exact simulator at full strength with passive rules only. */
 export async function calculateRosterGrades(data: PriceInput, signal: AbortSignal) {
