@@ -2,9 +2,11 @@ import { randomUUID } from 'node:crypto'
 import { expect, test } from './test'
 import {
   attachRoster,
+  chooseTracking,
   createBattle,
   createRoster,
   expectNoPageOverflow,
+  newBattle,
   playTurn,
   PHONE,
   retryUntilVisible,
@@ -15,6 +17,7 @@ import {
   uniqueName,
 } from './account'
 import { lastPathSegment, productOperator, userIdNamed } from './storage'
+import type { Command } from '../src/core/battle'
 
 const GUEST = 'Alex the Guest'
 
@@ -22,16 +25,15 @@ test('New battle seats only accounts and practice opponents', async ({ page }) =
   await signUp(page, uniqueName('Account host'))
   for (const viewport of [{ width: 1440, height: 900 }, PHONE]) {
     await page.setViewportSize(viewport)
-    await createBattle(page, {
-      practice: true,
-      beforeCreate: async (dialog) => {
-        await expect(dialog).toContainText('Everyone at the table needs an account')
-        await page.getByRole('combobox', { name: 'Opponent' }).click()
-        await expect(page.getByRole('option', { name: 'Guest', exact: true })).toHaveCount(0)
-        await page.screenshot({ path: test.info().outputPath(`new-battle-${viewport.width}.png`) })
-        await page.keyboard.press('Escape')
-      },
-    })
+    await newBattle(page)
+    await chooseTracking(page)
+    // The other side comes in by a link to an account, or is played from this device.
+    await expect(page.locator('#setup-opponent').getByRole('group', { name: 'How they join' }).getByRole('button')).toHaveText([
+      /^Share a link/,
+      /^Play both sides/,
+    ])
+    await expect(page.locator('main')).not.toContainText('Guest')
+    await page.screenshot({ path: test.info().outputPath(`new-battle-${viewport.width}.png`) })
   }
 })
 
@@ -44,19 +46,21 @@ test('a battle that seated a guest before every seat needed an account still ope
   // Configured as New battle configures any guided duel, then seated with a guest the way earlier releases stored one.
   const operator = await productOperator()
   const template = (await operator.battleByToken(lastPathSegment(await createBattle(page, { practice: true }))))!
+  // Older releases seated the whole table at creation, so their opening command counts no open places.
+  const { places: _places, ...configure } = template.log[0].command as Extract<Command, { kind: 'configure-battle' }>
   const token = randomUUID()
   await operator.createBattle({
     id: randomUUID(),
     token,
     userId: await userIdNamed(host),
     guestNames: [GUEST],
-    initialCommands: [template.log[0].command],
+    initialCommands: [configure],
     now: Date.now(),
   })
 
   await page.goto(`/battles/${token}`)
-  await expect(page.locator('[data-players="1"]').first()).toContainText(`${GUEST}Guest`)
-  await expect(page.locator('[data-players="1"] a[href^="/users/"]')).toHaveCount(0)
+  await expect(page.locator('[data-face-off-side="1"]')).toContainText(`${GUEST}Guest`)
+  await expect(page.locator('[data-face-off-side="1"] a[href^="/users/"]')).toHaveCount(0)
   await expect(page.getByRole('button', { name: /^Invite/ })).toHaveCount(0)
   await attachRoster(page, roster)
   await attachRoster(page, roster, { forPlayer: GUEST })
