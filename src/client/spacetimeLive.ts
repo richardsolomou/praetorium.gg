@@ -67,8 +67,13 @@ async function guestTicket(config: RealtimeConfig) {
 
 // A hidden tab's socket is often closed by the browser to save power, which is not an outage the player sees.
 const hidden = () => globalThis.document?.visibilityState === 'hidden'
-const lost = (how: 'interrupted' | 'failed') => posthog.capture('realtime_connection_lost', { how, hidden: hidden() })
-const restored = (downMs: number) => posthog.capture('realtime_connection_restored', { down_ms: Math.round(downMs), hidden: hidden() })
+/** Telemetry for one of the page's connections: the battle being viewed, or the product signals every page holds. */
+const outages = (kind: 'battle' | 'product') => ({
+  lost: (how: 'interrupted' | 'failed', wasUp: boolean) =>
+    posthog.capture('realtime_connection_lost', { how, hidden: hidden(), connection: kind, was_up: wasUp }),
+  restored: (downMs: number) =>
+    posthog.capture('realtime_connection_restored', { down_ms: Math.round(downMs), hidden: hidden(), connection: kind }),
+})
 
 function report(error: unknown) {
   if (isExpectedRealtimeDisconnect(error)) return
@@ -183,8 +188,7 @@ export function useSpacetimeLiveBattle(token: string) {
       },
       inactive: () => setSubscribed(false),
       report,
-      lost,
-      restored,
+      ...outages('battle'),
     })
     return () => {
       leaving = true
@@ -312,8 +316,7 @@ export function useSpacetimeLiveProduct(config: RealtimeConfig | null, signedIn:
       },
       inactive: () => setSubscribed(false),
       report,
-      lost,
-      restored,
+      ...outages('product'),
       // Host-issued anonymous tokens do not expire; issuing another creates a different identity.
       expires: signedIn,
     })

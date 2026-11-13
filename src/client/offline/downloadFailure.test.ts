@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest'
-import { DownloadRefused, refreshFailureReason } from './downloadFailure'
+import { DownloadRefused, failureName, refreshFailureReason } from './downloadFailure'
 
 it.each([
   [new TypeError('Failed to fetch'), 'network'],
@@ -9,4 +9,12 @@ it.each([
   [new Error('The reference version is invalid'), 'error'],
 ])('reports %s as %s', (error, reason) => {
   expect(refreshFailureReason(error)).toBe(reason)
+})
+
+it.each([
+  [new DOMException('Entry was not found', 'NotFoundError'), 'NotFoundError'],
+  [Object.assign(new Error('x'), { name: 'Cache put failed for /praetorium/part.json' }), 'other'],
+  ['thrown text', 'other'],
+])('names %s as %s without its message', (error, name) => {
+  expect(failureName(error)).toBe(name)
 })

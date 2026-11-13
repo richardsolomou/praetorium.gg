@@ -321,6 +321,9 @@ it('counts one lost connection per outage, until it has recovered', async () => 
   links[1]!.ready()
   await vi.advanceTimersByTimeAsync(30_000)
   links[1]!.failed()
-  expect(lost.mock.calls).toEqual([['interrupted'], ['failed']])
+  expect(lost.mock.calls).toEqual([
+    ['interrupted', false],
+    ['failed', true],
+  ])
   stop()
 })
