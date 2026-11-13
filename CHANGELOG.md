@@ -1,5 +1,15 @@
 # praetorium
 
+## 0.234.0 (2026-11-13)
+
+### Minor Changes
+
+- a73bbd0: Choosing or sealing a roster can now be searched, filtered by faction, detachment, battle size, legality and points, and sorted, as in your roster library.
+
+### Patch Changes
+
+- a73bbd0: Pressing Escape in a search box inside a dialog clears the search instead of closing the dialog.
+
 ## 0.233.0 (2026-11-13)
 
 ### Minor Changes
