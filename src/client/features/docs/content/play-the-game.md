@@ -14,6 +14,8 @@ Tactical cards are drawn when a turn needs them, at random or by selecting exact
 
 When a card asks you to pick objectives, they're named from the deployment: each player's **home**, the **centre**, an **expansion** nearer one player's zone, and a **flank** as near to both. On six-objective layouts, the centre pair is named by the side each sits on. Left and right are as seen from the zone of the player choosing.
 
+Once a round's last turn is scored, the screen shows each side's victory points with primary, secondary, battle ready and CP, what the round added, and the score of every round so far. Press anywhere to continue. When the battle ends, the same screen shows the result. Each device shows a round once, and anyone watching sees it too.
+
 In a manual battle, each side has **−1**, **+1** and **+5** buttons for primary and secondary, and **−1** and **+1** for CP.
 
 ## Command points and stratagems
