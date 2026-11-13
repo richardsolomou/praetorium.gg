@@ -9,7 +9,7 @@ In the mobile app, open **More** and choose **Notifications**. A dot on **More**
 ## What you hear about
 
 - **Friends:** someone asks to be your friend, or accepts your request.
-- **Battles:** someone starts a battle with you.
+- **Battles:** someone starts a battle with you, or a friend invites you to join theirs. An invitation opens the page where you join.
 - **Groups:** a player asks to join a group you run, or you're let into one.
 - **Tournaments and hidden-list games:** your entry is requested, accepted, added or declined; your sealed list needs sealing again; a reminder to seal before the deadline; the lists are revealed; a round is paired; or the organizer sets or clears your battlefield.
 
@@ -22,6 +22,7 @@ Choosing a notification opens its page and marks it read. **Mark all read** clea
 Doing what a notification asks also marks it read, wherever you do it:
 
 - accepting or declining a friend request;
+- joining a battle you were invited to. If the invitation can no longer be used, because the link was stopped or replaced or everyone's army is in, it's marked read too;
 - sealing your list, or sealing a replacement, for the event that asked you to;
 - accepting or declining a player's entry, if you run the tournament;
 - letting a player into your group or turning them away. Once one organizer answers a request, it's marked read for the others too.

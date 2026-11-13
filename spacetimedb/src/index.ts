@@ -499,6 +499,7 @@ function deleteBattle(ctx: Context, battleId: string) {
   const seats = Array.from(ctx.db.battleUsers.battleId.filter(battleId))
   const eventBattle = ctx.db.eventBattles.battleId.find(battleId)
   for (const seat of seats) touchProduct(ctx, seat.userId, 'battles', 'onboarding', 'notifications')
+  resolveBattleNotices(ctx, battleId, [...seats.map((seat) => seat.userId), ...battleInvitees(ctx, battleId)])
   touchBattle(ctx, battleId)
   touchPublic(ctx, 'standings')
   touchAdmin(ctx)
@@ -3829,6 +3830,20 @@ function resolveFriendRequests(ctx: Context, leftId: string, rightId: string) {
     resolveNotices(ctx, [userId], (notice) => notice.kind === 'friend-requested' && notice.actorId === actorId)
 }
 
+/** Answers these players' notices about a battle, such as an invitation they joined or can no longer use. */
+function resolveBattleNotices(ctx: Context, battleId: string, userIds: Iterable<string>) {
+  const token = ctx.db.battles.id.find(battleId)?.token
+  if (token) resolveNotices(ctx, userIds, (notice) => notice.kind === 'battle-created' && notice.battleToken === token)
+}
+
+const battleInvitees = (ctx: Context, battleId: string) => ctx.db.battleInvites.battleId.find(battleId)?.invitedIds ?? []
+
+/** Retires a battle's link, answering the invitations sent through it. */
+function retireBattleInvite(ctx: Context, battleId: string) {
+  resolveBattleNotices(ctx, battleId, battleInvitees(ctx, battleId))
+  return ctx.db.battleInvites.battleId.delete(battleId)
+}
+
 /** Answers, for every organizer, these players' requests to join the group. */
 function resolveGroupRequests(ctx: Context, group: GroupRow, requesterIds: readonly string[]) {
   const members = groupMemberRows(ctx, group)
@@ -5161,7 +5176,7 @@ function settleDraft(ctx: Context, battleId: string) {
   if (!ctx.db.battleDrafts.battleId.find(battleId)) return
   if (stillFilling(battleState(ctx, battleId).state)) return
   ctx.db.battleDrafts.battleId.delete(battleId)
-  ctx.db.battleInvites.battleId.delete(battleId)
+  retireBattleInvite(ctx, battleId)
   for (const seat of ctx.db.battleUsers.battleId.filter(battleId)) touchProduct(ctx, seat.userId, 'battles', 'onboarding')
   touchBattle(ctx, battleId)
 }
@@ -5210,6 +5225,7 @@ function seatPlayerIn(tx: Context, args: unknown[]) {
   if (invite?.invitedIds.includes(input.userId))
     tx.db.battleInvites.battleId.update({ ...invite, invitedIds: invite.invitedIds.filter((id) => id !== input.userId) })
   for (const seat of [...seats, { id: input.userId }]) touchProduct(tx, seat.id, 'battles', 'onboarding')
+  resolveBattleNotices(tx, input.battleId, [input.userId])
   touchBattle(tx, input.battleId)
   settleDraft(tx, input.battleId)
   return productJson('joined')
@@ -5225,7 +5241,7 @@ function removeBattlePlayerIn(tx: Context, args: unknown[]) {
   touchBattleSeats(tx, battleId)
   tx.db.battleUsers.key.delete(seat.key)
   // The link they joined through would let them straight back in, so the creator shares a new one.
-  tx.db.battleInvites.battleId.delete(battleId)
+  retireBattleInvite(tx, battleId)
   touchBattle(tx, battleId)
   return true
 }
@@ -5246,7 +5262,7 @@ function battleInviteIn(tx: Context, args: unknown[]) {
 function stopBattleInviteIn(tx: Context, args: unknown[]) {
   const [battleId, by] = z.tuple([textArg, textArg]).parse(args)
   if (!seatedAccount(tx, battleId, by)) return false
-  const removed = tx.db.battleInvites.battleId.delete(battleId)
+  const removed = retireBattleInvite(tx, battleId)
   if (removed) touchBattleSeats(tx, battleId)
   return removed
 }

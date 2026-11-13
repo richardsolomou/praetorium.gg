@@ -3690,6 +3690,73 @@ describe('notices', () => {
     expect(listed(h, 'organizer', NOW)[0]?.readAt).not.toBeNull()
   })
 
+  const invited = (...joiners: string[]) => {
+    const h = harness()
+    module.createBattle(h.procedure(h.operator), {
+      payload: JSON.stringify({
+        id: 'battle',
+        token: 'battle-token',
+        userId: 'alice',
+        allyIds: [],
+        opponentIds: [],
+        draft: true,
+        initialCommands: [
+          {
+            kind: 'configure-battle',
+            limit: null,
+            missionPackId: null,
+            terrainLayoutId: null,
+            twistId: null,
+            teamBattle: false,
+            playerCount: 2,
+            places: [1, 1],
+            clockLimitMinutes: null,
+          },
+        ],
+        now: NOW,
+      }),
+    })
+    module.battleInvite(h.procedure(h.operator), { battleId: 'battle', by: 'alice', invite: 'join-link', inviteeId: 'bob' })
+    store(h, NOW, {
+      kind: 'battle-created',
+      actorId: 'alice',
+      recipientIds: ['bob'],
+      battleToken: 'battle-token',
+      sealedEvent: false,
+      invite: 'join-link',
+    })
+    const join = (userId: string) =>
+      module.seatBattlePlayer(h.procedure(h.operator), {
+        payload: JSON.stringify({ battleId: 'battle', userId, side: 1, by: userId, invite: 'join-link', now: NOW }),
+      })
+    for (const joiner of joiners) join(joiner)
+    const bobsReadAt = () => h.call(h.operator, (ctx) => Array.from(ctx.db.notices.userId.filter('bob'))[0]?.readAt)
+    return { h, join, bobsReadAt }
+  }
+
+  it('keeps the join link of a battle invitation', () => {
+    const { h } = invited()
+    expect(listed(h, 'bob', NOW)[0]).toMatchObject({ invite: 'join-link' })
+  })
+
+  it('marks a battle invitation read once the friend joins', () => {
+    const { join, bobsReadAt } = invited()
+    join('bob')
+    expect(bobsReadAt()).not.toBeUndefined()
+  })
+
+  it('marks a battle invitation read once the creator removes a player and so retires its link', () => {
+    const { h, bobsReadAt } = invited('carol')
+    module.removeBattlePlayer(h.procedure(h.operator), { battleId: 'battle', by: 'alice', userId: 'carol' })
+    expect(bobsReadAt()).not.toBeUndefined()
+  })
+
+  it('marks a battle invitation read once its draft is deleted', () => {
+    const { h, bobsReadAt } = invited()
+    module.removeBattle(h.procedure(h.operator), { battleId: 'battle', userId: 'alice' })
+    expect(bobsReadAt()).not.toBeUndefined()
+  })
+
   it('deletes a player’s notices with their account', () => {
     const h = harness()
     store(h, 1, friendRequest('alice', ['bob']))
