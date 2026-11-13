@@ -1,0 +1,4 @@
+/* A toast, such as a new achievement, lands over whatever the screen shows. */
+[data-sonner-toaster] {
+  display: none !important;
+}

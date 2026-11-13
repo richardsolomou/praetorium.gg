@@ -61,8 +61,10 @@ export function selectSpecs(map: E2eMap, changes: readonly Change[], moves: Move
   const add = (indexes: readonly number[]) => indexes.forEach((index) => specs.add(map.specs[index]!))
   for (const { file, hunks } of changes) {
     if (unitTest.test(file) || !needsRuntimeChecks([file]) || file === 'e2e/durations.json') continue
-    if (/^e2e\/.+\.spec\.ts$/.test(file)) {
-      specs.add(file)
+    // A spec's screenshot baselines are read by that spec alone.
+    const ownSpec = /^(e2e\/.+\.spec\.ts)(?:-snapshots\/.+)?$/.exec(file)
+    if (ownSpec) {
+      specs.add(ownSpec[1]!)
       continue
     }
     // Only modules have comments and declarations `quietHunk` understands; a `*` line in Markdown is a list item.

@@ -20,6 +20,8 @@ export default defineConfig({
   timeout: 120_000,
   // Live updates include a SpacetimeDB subscription and a refetch.
   expect: { timeout: 15_000 },
+  // Screenshot baselines are the CI runner's renders alone, so they carry no project or platform suffix.
+  snapshotPathTemplate: '{snapshotDir}/{testFileDir}/{testFileName}-snapshots/{arg}{ext}',
   reporter: process.env.CI ? 'github' : 'list',
   // Geometry is measured at rest: overlays and pages would otherwise still be moving when a check reads them.
   use: {

@@ -23,6 +23,7 @@
 - Specs calling `browser.newContext()` import `test` from `e2e/test.ts` so contexts close.
 - Live battle pages never reach `networkidle`; scope assertions to `data-unit`, `data-roster`, and `data-person`.
 - Test titles must differ after punctuation is removed.
+- Screenshot baselines (`toHaveScreenshot`) come only from the Linux CI runner, because fonts render differently elsewhere. After a run fails a comparison, `just e2e-screenshots <run id>` copies the runner's images over the baselines; look at each one before committing it.
 
 ## Production roster copies
 

@@ -85,15 +85,16 @@ it('uses every spec that touched a file when the edited lines themselves changed
   })
 })
 
-it('runs a spec file the change edits, and skips unit tests and documentation', () => {
+it('runs a spec file the change edits or whose screenshot baselines it replaces, and skips unit tests and documentation', () => {
   expect(
     select([
       { file: 'e2e/roster.spec.ts', hunks: [hunk(1, 2)] },
+      { file: 'e2e/home.spec.ts-snapshots/home.png', hunks: null },
       { file: 'src/core/battle.test.ts', hunks: [hunk(1, 2)] },
       { file: 'docs/development/battles.md', hunks: [hunk(1, 2)] },
       { file: 'e2e/durations.json', hunks: [hunk(1, 2)] },
     ]),
-  ).toEqual({ all: false, specs: ['e2e/roster.spec.ts'] })
+  ).toEqual({ all: false, specs: ['e2e/home.spec.ts', 'e2e/roster.spec.ts'] })
 })
 
 it.each([
