@@ -90,6 +90,10 @@ function matchupName(table: Side[], nameDisposition: (id: string | null | undefi
 /** How often setup asks whether someone has joined an open place. */
 const JOIN_POLL_MS = 3_000
 const BUDGET_MISMATCH = 'Choose rosters with the same points budget for each side.'
+/** The steps a manually tracked battle does not play. */
+const MANUAL_SKIPS = new Set<SectionId>(['mission', 'battlefield', 'defender', 'secondaries', 'reserves', 'deploy', 'pre-battle'])
+/** Steps that record nothing the battle needs before it can begin. */
+const NOTHING_OWED = new Set<SectionId>(['reserves', 'deploy', 'pre-battle'])
 
 /**
  * Setting the table on one page, in the order the rules set it.
@@ -553,7 +557,6 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
                   busy={busy}
                   twists={twists}
                   twistId={view.settings.twistId}
-                  nameDisposition={nameDisposition}
                   primaryCardFor={primaryCardFor}
                   onRead={setReading}
                 />

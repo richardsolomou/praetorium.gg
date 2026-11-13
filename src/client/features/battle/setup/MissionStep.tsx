@@ -3,7 +3,7 @@ import type { Side } from '../../../sides'
 import type { SendCommand } from '../useCommand'
 import type { MissionDetails } from '../MissionCards'
 import type { Twist } from '../MissionTwist'
-import { SetupSidePanel } from './chrome'
+import { SetupSidePanel, useDispositionNames } from './chrome'
 import { SideDispositionChoice } from './SideDispositionChoice'
 import { TwistChoice } from './TwistChoice'
 import type { Configure } from './sections'
@@ -16,7 +16,6 @@ export function MissionStep({
   busy,
   twists,
   twistId,
-  nameDisposition,
   primaryCardFor,
   onRead,
 }: {
@@ -26,10 +25,10 @@ export function MissionStep({
   busy: boolean
   twists: readonly Twist[]
   twistId: string | null
-  nameDisposition: (id: string | null | undefined) => { id: string; name: string } | null
   primaryCardFor: (missionId: string) => MissionDetails['card'] | undefined
   onRead: (details: MissionDetails) => void
 }) {
+  const nameDisposition = useDispositionNames()
   return (
     <>
       <div className="grid items-start gap-6 md:grid-cols-2">
