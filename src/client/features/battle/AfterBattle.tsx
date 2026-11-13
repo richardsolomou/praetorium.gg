@@ -6,6 +6,7 @@ import { isGuestSeat, isPracticeSeat } from '../../../core/newBattle'
 import { friendshipsQuery, playerProfileQuery } from '../../queries'
 import { FriendAction } from '../friends/FriendAction'
 import { recordSummary } from '../profile/recordSummary'
+import { tint } from './battleTints'
 
 /**
  * Where a seated account now stands against the person they played, and the step towards being friends with the
@@ -34,7 +35,15 @@ export function AfterBattle({ view }: { view: BattleView }) {
           <Skeleton className="h-5 w-56" />
         ) : rival && against ? (
           <p className="text-sm font-semibold text-bone">
-            {against.battles > 1 ? `Against ${rival.name}: ${recordSummary(against)}` : `Your first battle against ${rival.name}.`}{' '}
+            {against.battles > 1 ? (
+              <>
+                Against <span className={tint(rival.side).text}>{rival.name}</span>: {recordSummary(against)}
+              </>
+            ) : (
+              <>
+                Your first battle against <span className={tint(rival.side).text}>{rival.name}</span>.
+              </>
+            )}{' '}
             <Link
               to="/users/$userId"
               params={{ userId: view.viewerId }}
