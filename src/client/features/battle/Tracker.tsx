@@ -49,6 +49,7 @@ import { DiscardSecondaryDialog } from './DiscardSecondaryDialog'
 import type { ReferenceCard, StratagemText } from './MissionCards'
 import { Scoreboard } from './Scoreboard'
 import { SecretMissionHandoff } from './SecretMissionHandoff'
+import { RoundSummary, useRoundSummary } from './RoundSummary'
 import { turnPrompt, type DueCard } from '../../scoring'
 import { dueForAdvance, dueFromTheirTurn, ScoringDialog, type ScoringAnswers } from './ScoringDialog'
 import { BattleCombatDialog, type BattleCombatSelection } from '../simulator/BattleCombatDialog'
@@ -526,7 +527,11 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
     enqueueReminderPrompt(momentPrompt)
   }
 
+  // The round just finished is summed up before the table is asked anything more.
+  const roundSummary = useRoundSummary(view)
+  const summaryOpen = Boolean(roundSummary.mark)
   const activeScoringOpen = Boolean(
+    !summaryOpen &&
     settlementRound === null &&
     !needsDraw &&
     !needsDrawAcknowledgement &&
@@ -538,11 +543,13 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
     activeScoringDraft,
   )
   const secretHandoffOpen = Boolean(
+    !summaryOpen &&
     secretMissionActionSide &&
     ((view.advanceRequested && activeSecretMissionAction && !needsDraw && !needsDrawAcknowledgement) || settlementSecretMissionAction),
   )
-  const owedScoringOpen = Boolean(prompt === 'owed' && settlementSide && owedScoringDraft && !settlementSecretMissionAction)
+  const owedScoringOpen = Boolean(!summaryOpen && prompt === 'owed' && settlementSide && owedScoringDraft && !settlementSecretMissionAction)
   const discardOpen = Boolean(
+    !summaryOpen &&
     settlementRound === null &&
     view.advanceRequested &&
     (view.scoringAcknowledged || !due.length) &&
@@ -550,8 +557,8 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
     discardable.length &&
     active,
   )
-  const drawOpen = Boolean(prompt === 'draw' && active)
-  const missionChoiceOpen = Boolean(!prompt && missionChoice)
+  const drawOpen = Boolean(!summaryOpen && prompt === 'draw' && active)
+  const missionChoiceOpen = Boolean(!summaryOpen && !prompt && missionChoice)
   // Reminders wait behind whatever the player already has open, so a decision in progress is never covered.
   const reminderShown =
     reminderPrompt &&
@@ -562,7 +569,8 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
     !owedScoringOpen &&
     !discardOpen &&
     !drawOpen &&
-    !missionChoiceOpen
+    !missionChoiceOpen &&
+    !summaryOpen
       ? reminderPrompt
       : null
 
@@ -818,6 +826,8 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
             onClose={() => setSkippedChoices((current) => new Set(current).add(choiceKey(missionChoice)))}
           />
         ) : null}
+
+        {roundSummary.mark ? <RoundSummary mark={roundSummary.mark} view={view} sides={table} onClose={roundSummary.close} /> : null}
 
         {reminderShown ? (
           <ReminderDialog

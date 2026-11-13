@@ -1,4 +1,4 @@
-import { expect, test } from './test'
+import { continuePastRoundSummaries, expect, roundSummary, test } from './test'
 import { playTurn, PHONE, scoreboard, twoPlayerBattle } from './account'
 import { battleLog } from './storage'
 
@@ -9,6 +9,8 @@ test('two phones finish a five-round battle in step', async ({ browser }) => {
   const alice = await aliceContext.newPage()
   const bob = await bobContext.newPage()
   const { aliceName, bobName } = await twoPlayerBattle(alice, bob)
+  // Bob's phone is left to sum up the rounds seeded while it was away, where the spec can read it.
+  await bob.removeLocatorHandler(roundSummary(bob))
 
   const playRound = async (round: number) => {
     await expect(scoreboard(alice).getByText(`${aliceName}’s turn`, { exact: true })).toBeVisible()
@@ -29,6 +31,11 @@ test('two phones finish a five-round battle in step', async ({ browser }) => {
   }
   await Promise.all([alice.reload(), bob.reload()])
   await expect(alice.locator('[data-stat="round"]')).toHaveText('5')
+  // Only the latest round, not each one missed.
+  await expect(bob.getByRole('dialog', { name: 'Round 3 complete' })).toBeVisible()
+  await bob.getByRole('button', { name: 'Continue to round 4' }).click()
+  await expect(roundSummary(bob)).toBeHidden()
+  continuePastRoundSummaries(bob)
   await playRound(5)
 
   // The scoreboard swaps the round for the outcome, and both phones read the same one.

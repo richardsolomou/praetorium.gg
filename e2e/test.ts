@@ -35,6 +35,15 @@ function awaitSettled(page: Page) {
   }
 }
 
+/**
+ * A battle covers itself with its scores whenever a round ends, on every device that saw the round
+ * played, so any press or check it covers continues it first. A spec about the summary removes this.
+ */
+export const roundSummary = (page: Page) => page.locator('[data-round-summary]')
+export function continuePastRoundSummaries(page: Page) {
+  void page.addLocatorHandler(roundSummary(page), (summary) => summary.getByRole('button').click())
+}
+
 /** Each upstream file the snapshot was built from, by the address a reader's browser loads it at. */
 let upstream: Map<string, string> | undefined
 function upstreamFiles() {
@@ -217,8 +226,8 @@ export const test = base.extend<{ closeOpenedContexts: void; recordCoverage: voi
   rulesText: [true, { option: true }],
   context: async ({ context, javaScriptEnabled, rulesText }, use) => {
     // Playwright opens this context through `browser.newContext`, which attaches the wait before this option is known.
-    context.off('page', awaitSettled)
-    if (javaScriptEnabled) context.on('page', awaitSettled)
+    context.off('page', awaitSettled).off('page', continuePastRoundSummaries)
+    if (javaScriptEnabled) context.on('page', awaitSettled).on('page', continuePastRoundSummaries)
     if (!rulesText) await startUnchosen(context)
     coverNewPages(context, javaScriptEnabled)
     await use(context)
@@ -230,7 +239,7 @@ export const test = base.extend<{ closeOpenedContexts: void; recordCoverage: voi
       const newContext = browser.newContext.bind(browser)
       browser.newContext = async (options) => {
         const context = await newContext(options)
-        if (options?.javaScriptEnabled !== false) context.on('page', awaitSettled)
+        if (options?.javaScriptEnabled !== false) context.on('page', awaitSettled).on('page', continuePastRoundSummaries)
         await serveRulesText(context)
         coverNewPages(context, options?.javaScriptEnabled !== false)
         return context
