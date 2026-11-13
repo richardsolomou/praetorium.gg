@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { type Command, commandRefusal, openPlaces, reduceBattle, stillFilling } from './battle'
-import { ALICE, BOB, CAROL, log, roster } from './battle.fixtures'
+import { type Command, commandRefusal, openPlaces, reduceBattle, sharedSidePoints, shortSides, stillFilling } from './battle'
+import { ALICE, BOB, CAROL, builtRoster, log, roster } from './battle.fixtures'
 
-const draft = (places: [number, number] = [1, 1]): Command => ({
+const draft = (places: [number, number] = [1, 1]): Extract<Command, { kind: 'configure-battle' }> => ({
   kind: 'configure-battle',
   limit: null,
   missionPackId: null,
@@ -53,4 +53,31 @@ describe('a battle with open places', () => {
     const state = reduceBattle([ALICE], log([ALICE, draft()], [ALICE, { ...withoutPlaces, missionPackId: 'pack' }]), [0])
     expect(openPlaces(state)).toEqual([0, 1])
   })
+  it('says no side plays short while a side is still empty', () => {
+    const state = reduceBattle([ALICE], log([ALICE, { ...draft(), sizeFromSides: true }], [ALICE, builtRoster('Mine', ['Unit'])]), [0])
+    expect(shortSides(state)).toEqual([])
+  })
+
+  it('sizes a pair with an open ally place as if the ally brought their partner’s list', () => {
+    const state = reduceBattle(
+      [ALICE, BOB],
+      log([ALICE, { ...draft([2, 1]), sizeFromSides: true }], [ALICE, incursion('Mine')], [BOB, incursion('Theirs')]),
+      [0, 1],
+    )
+    expect(state.settings.limit).toBe(2000)
+  })
+
+  it('shares a pair’s points while their ally place is still open', () => {
+    const state = reduceBattle(
+      [ALICE, BOB],
+      log([ALICE, { ...draft([2, 1]), sizeFromSides: true }], [ALICE, incursion('Mine')], [BOB, builtRoster('Theirs', ['Unit'])]),
+      [0, 1],
+    )
+    expect(sharedSidePoints(state, 0)).toBe(2000)
+  })
 })
+
+function incursion(name: string): Command {
+  const list = builtRoster(name, ['Unit']) as Extract<Command, { kind: 'attach-roster' }>
+  return { ...list, roster: { ...list.roster, built: { ...list.roster.built!, limit: 1000 } } }
+}

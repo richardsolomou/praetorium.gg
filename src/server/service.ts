@@ -1273,6 +1273,7 @@ export class PraetoriumService {
           teamBattle: false,
           playerCount: 2,
           places: [1, 1],
+          sizeFromSides: true,
           clockLimitMinutes: null,
         },
       ],

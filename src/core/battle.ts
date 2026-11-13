@@ -3115,9 +3115,13 @@ export function fitsBattleSize(settings: Pick<BattleSettings, 'limit' | 'teamBat
   return built.limit <= limit || !enforces(built.waivedRules, 'points-limit')
 }
 
+/** How many armies a side brings: its places when the battle counts them, so an ally still to join counts, else who sits there. */
+const sideArmies = (state: TableArmies & { settings?: Pick<BattleSettings, 'places'> }, side: number) =>
+  state.settings?.places?.[side] ?? sidePlayers(state, side).length
+
 /** An even share of the battle size for each army on a side, which a team battle plays unless the table sets its own. */
 export function evenArmyPoints(state: TableArmies & { settings: BattleSettings }, side: number): number | null {
-  const armies = sidePlayers(state, side).length
+  const armies = sideArmies(state, side)
   return state.settings.limit === null ? null : state.settings.limit / Math.max(1, armies)
 }
 
@@ -3137,7 +3141,7 @@ export const withinSharedArmyPoints = (armies: readonly Pick<TableBuilt, 'units'
 
 /** What a side's armies may spend together when they share their points, or null when each army spends its own. */
 export function sharedSidePoints(state: TableArmies & { settings: BattleSettings }, side: number): number | null {
-  const armies = sidePlayers(state, side).length
+  const armies = sideArmies(state, side)
   const points = armyPointsFor(state, side)
   const shares = state.settings.sharedArmyPoints || battleCapacity(state.settings) === 3
   return shares && armies > 1 && points !== null ? points * armies : null
@@ -3181,14 +3185,13 @@ const sideAllowances = (state: TableArmies): number[] =>
   state.players.flatMap((player) => (player.roster?.built ? [pointsBudgetOf(player.roster.built)] : []))
 
 /**
- * What each side's lists add up to, by side, with an ally who has not chosen yet counted at their partner's list. A side
+ * What each side's lists add up to, by side, with an ally who has not joined or chosen yet counted at their partner's list. A side
  * with no list yet adds up to nothing.
  */
-export function sidePoints(state: TableArmies): number[] {
+export function sidePoints(state: TableArmies & { settings?: Pick<BattleSettings, 'places'> }): number[] {
   return [0, 1].map((side) => {
-    const armies = sidePlayers(state, side)
-    const chosen = armies.flatMap((player) => (player.roster?.built ? [pointsBudgetOf(player.roster.built)] : []))
-    return chosen.length ? chosen.reduce((total, points) => total + points, 0) + chosen[0]! * (armies.length - chosen.length) : 0
+    const chosen = sidePlayers(state, side).flatMap((player) => (player.roster?.built ? [pointsBudgetOf(player.roster.built)] : []))
+    return chosen.length ? chosen.reduce((total, points) => total + points, 0) + chosen[0]! * (sideArmies(state, side) - chosen.length) : 0
   })
 }
 
@@ -3198,10 +3201,12 @@ export function sidePoints(state: TableArmies): number[] {
  */
 export function shortSides(state: TableArmies & { settings: BattleSettings }): { side: number; points: number; against: number }[] {
   const { limit, sizeFromSides, teamBattle } = state.settings
-  if (!sizeFromSides || limit === null || state.players.some((player) => !player.roster?.built)) return []
+  // A side nobody sits on yet has no lists to fall short with.
+  const unseated = [0, 1].some((side) => !sidePlayers(state, side).length)
+  if (!sizeFromSides || limit === null || unseated || state.players.some((player) => !player.roster?.built)) return []
   const allowance = (side: number) =>
     teamBattle
-      ? (sharedSidePoints(state, side) ?? armyPointsFor(state, side)! * sidePlayers(state, side).length)
+      ? (sharedSidePoints(state, side) ?? armyPointsFor(state, side)! * sideArmies(state, side))
       : (battlePointsBudget(state) ?? limit)
   const points = sidePoints(state).map((value, side) => Math.min(value, allowance(side)))
   const against = Math.max(...points)
@@ -3226,7 +3231,7 @@ function sideBattleFormat(state: TableArmies & { settings: BattleSettings }): Ro
   const totals = sidePoints(state)
   let limit = Math.max(...formats)
   for (const side of [0, 1]) {
-    if (sidePlayers(state, side).length < 2) continue
+    if (sideArmies(state, side) < 2) continue
     const size = GAME_SIZES.find((candidate) => !isKotcLimit(candidate.limit) && candidate.limit >= totals[side]!)
     if (!size) return { limit: null, problem: 'unsupported' }
     limit = Math.max(limit, size.limit)
@@ -3271,7 +3276,7 @@ export function armyPointsText(state: TableArmies & { settings: BattleSettings }
       const shared = sharedSidePoints(state, side)
       if (shared !== null) return `${shared.toLocaleString('en')} shared`
       const points = armyPointsFor(state, side)?.toLocaleString('en') ?? '?'
-      const armies = Math.max(1, sidePlayers(state, side).length)
+      const armies = Math.max(1, sideArmies(state, side))
       return Array.from({ length: armies }, () => points).join(' + ')
     })
     .join(' vs ')
