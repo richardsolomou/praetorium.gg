@@ -131,7 +131,9 @@ import * as LendRosterProcedure from './lend_roster_procedure'
 import * as LinkExternalAccountProcedure from './link_external_account_procedure'
 import * as ListFilterPreferencesProcedure from './list_filter_preferences_procedure'
 import * as MarkAchievementsSeenProcedure from './mark_achievements_seen_procedure'
+import * as MarkNoticesReadProcedure from './mark_notices_read_procedure'
 import * as MigrateProductDataProcedure from './migrate_product_data_procedure'
+import * as NoticesByUserProcedure from './notices_by_user_procedure'
 import * as OnboardingByUserProcedure from './onboarding_by_user_procedure'
 import * as OperatorHealthProcedure from './operator_health_procedure'
 import * as OutdatedSealedEventEntriesForRosterProcedure from './outdated_sealed_event_entries_for_roster_procedure'
@@ -182,6 +184,7 @@ import * as SetRosterVisibilityProcedure from './set_roster_visibility_procedure
 import * as ShareBattleProcedure from './share_battle_procedure'
 import * as SplitRosterVariantProcedure from './split_roster_variant_procedure'
 import * as StopBattleInviteProcedure from './stop_battle_invite_procedure'
+import * as StoreNoticesProcedure from './store_notices_procedure'
 import * as SubmitBattleProcedure from './submit_battle_procedure'
 import * as SweepDraftsProcedure from './sweep_drafts_procedure'
 import * as SyncAchievementDefinitionsProcedure from './sync_achievement_definitions_procedure'
@@ -354,7 +357,9 @@ const proceduresSchema = __procedures(
   __procedureSchema('link_external_account', LinkExternalAccountProcedure.params, LinkExternalAccountProcedure.returnType),
   __procedureSchema('list_filter_preferences', ListFilterPreferencesProcedure.params, ListFilterPreferencesProcedure.returnType),
   __procedureSchema('mark_achievements_seen', MarkAchievementsSeenProcedure.params, MarkAchievementsSeenProcedure.returnType),
+  __procedureSchema('mark_notices_read', MarkNoticesReadProcedure.params, MarkNoticesReadProcedure.returnType),
   __procedureSchema('migrate_product_data', MigrateProductDataProcedure.params, MigrateProductDataProcedure.returnType),
+  __procedureSchema('notices_by_user', NoticesByUserProcedure.params, NoticesByUserProcedure.returnType),
   __procedureSchema('onboarding_by_user', OnboardingByUserProcedure.params, OnboardingByUserProcedure.returnType),
   __procedureSchema('operator_health', OperatorHealthProcedure.params, OperatorHealthProcedure.returnType),
   __procedureSchema(
@@ -413,6 +418,7 @@ const proceduresSchema = __procedures(
   __procedureSchema('share_battle', ShareBattleProcedure.params, ShareBattleProcedure.returnType),
   __procedureSchema('split_roster_variant', SplitRosterVariantProcedure.params, SplitRosterVariantProcedure.returnType),
   __procedureSchema('stop_battle_invite', StopBattleInviteProcedure.params, StopBattleInviteProcedure.returnType),
+  __procedureSchema('store_notices', StoreNoticesProcedure.params, StoreNoticesProcedure.returnType),
   __procedureSchema('submit_battle', SubmitBattleProcedure.params, SubmitBattleProcedure.returnType),
   __procedureSchema('sweep_drafts', SweepDraftsProcedure.params, SweepDraftsProcedure.returnType),
   __procedureSchema(

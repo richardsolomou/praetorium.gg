@@ -240,6 +240,12 @@ export const PRODUCT_DOCS = [
     description: 'Getting the app, signing in, offline use, notifications, updates and the Apple Watch.',
   },
   {
+    slug: 'notifications',
+    section: 'Account and app',
+    title: 'Notifications',
+    description: 'What you hear about, where it shows on the web and in the app, and marking it read.',
+  },
+  {
     slug: 'filter-lists',
     section: 'Account and app',
     title: 'Filter battles and rosters',

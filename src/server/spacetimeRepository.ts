@@ -308,6 +308,18 @@ export class SpacetimeRepository {
     return this.product.pushTargets(...args)
   }
 
+  storeNotices(...args: Parameters<SpacetimeOperator['storeNotices']>) {
+    return this.product.storeNotices(...args)
+  }
+
+  noticesByUser(...args: Parameters<SpacetimeOperator['noticesByUser']>) {
+    return this.product.noticesByUser(...args)
+  }
+
+  markNoticesRead(...args: Parameters<SpacetimeOperator['markNoticesRead']>) {
+    return this.product.markNoticesRead(...args)
+  }
+
   sealedEventNames(...args: Parameters<SpacetimeOperator['sealedEventNames']>) {
     return this.product.sealedEventNames(...args)
   }

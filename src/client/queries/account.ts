@@ -18,6 +18,7 @@ import {
   adminCollectionPhotos,
   me,
   notificationSettings,
+  notices,
   onboardingProgress,
   listFilterPreferences,
   playerDefaults,
@@ -34,6 +35,7 @@ import {
   friendInviteKey,
   meKey,
   notificationSettingsKey,
+  noticesKey,
   onboardingKey,
   listFilterPreferencesKey,
   playerDefaultsKey,
@@ -60,6 +62,8 @@ export const meQuery = () =>
   })
 export const notificationSettingsQuery = () =>
   queryOptions({ queryKey: notificationSettingsKey(), queryFn: () => notificationSettings(), staleTime: SSR_STALE_TIME })
+/** The signed-in player's notices, which the module's notifications signal refreshes on every device. */
+export const noticesQuery = () => queryOptions({ queryKey: noticesKey(), queryFn: () => notices(), staleTime: SSR_STALE_TIME })
 export const listFilterPreferencesQuery = () =>
   queryOptions({ queryKey: listFilterPreferencesKey(), queryFn: () => listFilterPreferences(), staleTime: SSR_STALE_TIME })
 

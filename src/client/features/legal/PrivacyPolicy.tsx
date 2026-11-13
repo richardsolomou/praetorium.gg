@@ -51,6 +51,10 @@ export function PrivacyPolicy() {
           If you allow notifications in the mobile app, we store that device's push token, its platform, and when it was last seen. Signing
           out or deleting your account removes it. You can turn notifications off in your device settings at any time.
         </p>
+        <p>
+          We keep the notifications we send you, such as a friend request or a new battle, so you can read them on the web and in the app:
+          your 50 most recent, for up to 90 days. Each records who caused it, what it is about, when, and whether you have read it.
+        </p>
         <h3 className="text-sm tracking-label text-bone">Usage data</h3>
         <p>
           We measure how the product is used through PostHog: pages visited, buttons used, actions such as creating a roster, errors, and
@@ -141,9 +145,9 @@ export function PrivacyPolicy() {
           for a public group and to members for a private one.
         </p>
         <p>
-          You can permanently delete your account from your profile. This removes your profile, rosters, friendships, tournament entries,
-          tournaments you organize, group memberships, groups you own and every battle you played, including shared battles. Session records
-          expire on their own; usage data is kept by our analytics provider under its retention settings. The{' '}
+          You can permanently delete your account from your profile. This removes your profile, rosters, friendships, notifications,
+          tournament entries, tournaments you organize, group memberships, groups you own and every battle you played, including shared
+          battles. Session records expire on their own; usage data is kept by our analytics provider under its retention settings. The{' '}
           <Link to="/delete-account" className="text-info hover:text-parchment">
             account deletion page
           </Link>{' '}

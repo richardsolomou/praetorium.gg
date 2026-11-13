@@ -66,6 +66,7 @@ export const playerRostersKey = (userId: string) => ['player-rosters', userId]
 export const playerRankingsKey = (userId: string) => ['player-rankings', userId]
 export const playerAchievementsKey = (userId: string) => ['player-achievements', userId]
 export const newAchievementsKey = () => ['achievement-news']
+export const noticesKey = () => ['notifications']
 /** Without a player, every player's profile. */
 export const playerBattlesKey = (userId: string) => ['player-battles', userId]
 export const playerProfileKey = (...player: [userId: string, filter: PlayerProfileFilter] | []) => ['player-profile', ...player]

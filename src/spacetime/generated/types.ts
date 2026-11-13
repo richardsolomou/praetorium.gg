@@ -392,6 +392,15 @@ export type MyProductSignals = __Infer<typeof MyProductSignals>
 export const MySession = __t.object('MySession', {})
 export type MySession = __Infer<typeof MySession>
 
+export const Notices = __t.object('Notices', {
+  id: __t.u64(),
+  userId: __t.string(),
+  notice: __t.string(),
+  at: __t.u64(),
+  readAt: __t.option(__t.u64()),
+})
+export type Notices = __Infer<typeof Notices>
+
 export const PastGroupLeagues = __t.object('PastGroupLeagues', {
   id: __t.string(),
   groupId: __t.string(),
