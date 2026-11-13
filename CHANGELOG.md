@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.239.1 (2026-11-13)
+
+### Patch Changes
+
+- 43dc21b: Drawing secondaries, discarding a tactical hand, New Orders, Secret Mission handoffs and mission card choices now show in the colour of the player making the decision, like scoring does.
+
 ## 0.239.0 (2026-11-13)
 
 ### Minor Changes
