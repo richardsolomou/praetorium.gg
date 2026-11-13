@@ -1,6 +1,8 @@
 import { useReferenceFaction } from './useReferenceFaction'
 import { FactionReferenceLink } from '../../../components/FactionReferenceLink'
 import { useQuery } from '@tanstack/react-query'
+import { MessageSquareWarning } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 import { Link, useParams } from '@tanstack/react-router'
 import { FactionBreadcrumb } from './FactionBreadcrumb'
 import {
@@ -36,6 +38,8 @@ import { ProfileRules } from '../../rosters/ProfileRules'
 import { RuleText } from '../../../components/RuleText'
 import { PageContent, PageHeader } from '../../../components/Page'
 import { groupBy } from '../../../../core/collections'
+import { rulesVersionLabel } from '../../../../core/catalogueEdition'
+import { openFeedback } from '../../feedback/support'
 import { SectionHeading } from '../../../components/SectionHeading'
 
 export function FactionDatasheet() {
@@ -68,6 +72,22 @@ export function FactionDatasheet() {
             <AddToRoster faction={faction} entryId={sheet.id} name={sheet.name} />
             <DatasheetAddMenu entryId={sheet.id} name={sheet.name} />
             <SimulateDatasheet catalogueId={faction.id} entryId={sheet.id} />
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() =>
+                openFeedback({
+                  from: 'datasheet',
+                  name: sheet.name,
+                  faction: faction.displayName,
+                  rulesVersion: rulesVersionLabel(faction),
+                  catalogueId: faction.id,
+                  entryId: sheet.id,
+                })
+              }
+            >
+              <MessageSquareWarning /> Something wrong?
+            </Button>
           </div>
         }
       >

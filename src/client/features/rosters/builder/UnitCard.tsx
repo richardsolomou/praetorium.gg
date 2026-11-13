@@ -1,4 +1,4 @@
-import { BellRing, BookmarkPlus, Copy, Crown, EllipsisVertical, Plus, Unlink, Users, X } from 'lucide-react'
+import { BellRing, BookmarkPlus, Copy, Crown, EllipsisVertical, MessageSquareWarning, Plus, Unlink, Users, X } from 'lucide-react'
 import { type ReactNode, useId } from 'react'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -70,6 +70,8 @@ type Editing = {
   onSaveAttachedUnit?: () => void
   /** Present while this unit leads or supports another. */
   onDetach?: () => void
+  /** Opens feedback about this unit's datasheet. */
+  onReport?: () => void
   /** Units this one may join. */
   canJoin: AttachChoice[]
   onJoin: (choice: AttachChoice) => void
@@ -103,6 +105,7 @@ export function UnitCard({
   onSaveLoadout,
   onSaveAttachedUnit,
   onDetach,
+  onReport,
   joined = NONE,
   canJoin = NONE,
   onJoin = noop,
@@ -121,7 +124,7 @@ export function UnitCard({
     selected ? 'border-parchment inset-ring-1 inset-ring-parchment' : 'border-edge hover:border-runner-hi'
   }`
   const gate = selected ? 'current' : undefined
-  const actions = { onDuplicate, canDuplicate, duplicateLimit, onSaveLoadout, onSaveAttachedUnit, onDetach, onRemove }
+  const actions = { onDuplicate, canDuplicate, duplicateLimit, onSaveLoadout, onSaveAttachedUnit, onDetach, onReport, onRemove }
 
   // One target over the whole card, under everything on it. An enhancement, an
   // upgrade and who a unit is standing with are all things a player reads on the
@@ -452,6 +455,7 @@ function UnitActions({
   onSaveLoadout,
   onSaveAttachedUnit,
   onDetach,
+  onReport,
   onRemove,
 }: {
   parts: typeof DROPDOWN_PARTS | typeof CONTEXT_PARTS
@@ -461,6 +465,7 @@ function UnitActions({
   onSaveLoadout?: () => void
   onSaveAttachedUnit?: () => void
   onDetach?: () => void
+  onReport?: () => void
   onRemove: () => void
 }) {
   const limitId = useId()
@@ -500,6 +505,14 @@ function UnitActions({
           <Separator />
           <Item onClick={onDetach}>
             <Unlink /> Detach from unit
+          </Item>
+        </>
+      ) : null}
+      {onReport ? (
+        <>
+          <Separator />
+          <Item onClick={onReport}>
+            <MessageSquareWarning /> Something wrong?
           </Item>
         </>
       ) : null}

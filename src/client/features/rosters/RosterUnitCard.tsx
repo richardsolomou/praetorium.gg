@@ -35,6 +35,7 @@ type BuilderUnitCardProps = {
   onSaveLoadout?: (index: number) => void
   onSaveAttachedUnit?: (index: number) => void
   onDetach: (index: number) => void
+  onReport: (index: number) => void
   onAttach: (index: number, direction: AttachDirection, choice: AttachChoice) => void
   /** Starts the unit picked under `passengerKey` in the transport picked under `transportKey`, or on the battlefield. */
   onEmbark: (passengerKey: number, transportKey: number | undefined) => void
@@ -63,6 +64,7 @@ export const BuilderUnitCard = memo(function BuilderUnitCard({
   onSaveLoadout,
   onSaveAttachedUnit,
   onDetach,
+  onReport,
   onAttach,
   onEmbark,
 }: BuilderUnitCardProps) {
@@ -83,6 +85,7 @@ export const BuilderUnitCard = memo(function BuilderUnitCard({
       onSaveLoadout={onSaveLoadout && (() => onSaveLoadout(index))}
       onSaveAttachedUnit={onSaveAttachedUnit && (() => onSaveAttachedUnit(index))}
       onDetach={joined.some((row) => row.detach === index) ? () => onDetach(index) : undefined}
+      onReport={() => onReport(index)}
       joined={[
         ...joined.map((row) => ({ ...row, onAct: () => onDetach(row.detach) })),
         ...embarkRows(embark).map((row) => ({ ...row, onAct: () => onEmbark(row.passenger, undefined) })),

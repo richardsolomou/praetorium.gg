@@ -14,9 +14,40 @@ export const FEEDBACK_SURVEY = {
 
 export const FEEDBACK_MESSAGE_MAX_LENGTH = 2000
 
+/**
+ * The datasheet a data problem report is about, from its reference page or a roster's unit. Only the record's
+ * identity: nothing the player chose for it in their roster.
+ */
+export type ReportedRecord = {
+  from: 'datasheet' | 'roster'
+  name: string
+  faction: string
+  rulesVersion: string
+  catalogueId: string
+  entryId: string
+}
+
 /** The opening message of a feedback conversation; Support records the page and replay itself. */
-export function feedbackTicketMessage({ kind, message, screenshotUrl }: { kind: FeedbackKind; message: string; screenshotUrl?: string }) {
-  return [message.trim(), '', `${kind} · Praetorium ${version}`, ...(screenshotUrl ? [`Screenshot: ${screenshotUrl}`] : [])].join('\n')
+export function feedbackTicketMessage({
+  kind,
+  message,
+  screenshotUrl,
+  record,
+}: {
+  kind: FeedbackKind
+  message: string
+  screenshotUrl?: string
+  record?: ReportedRecord
+}) {
+  return [
+    message.trim(),
+    '',
+    `${kind} · Praetorium ${version}`,
+    ...(record
+      ? [`Datasheet: ${record.name} · ${record.faction} · ${record.rulesVersion}`, `Record: ${record.catalogueId} / ${record.entryId}`]
+      : []),
+    ...(screenshotUrl ? [`Screenshot: ${screenshotUrl}`] : []),
+  ].join('\n')
 }
 
 export function feedbackSurveyEvent({ kind, message }: { kind: FeedbackKind; message: string }) {

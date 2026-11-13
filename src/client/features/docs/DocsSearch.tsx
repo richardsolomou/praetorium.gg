@@ -10,7 +10,7 @@ import { countLabel } from '../../text'
 
 export function FeedbackLink({ children }: { children: ReactNode }) {
   return (
-    <button type="button" onClick={openFeedback} className={proseLink}>
+    <button type="button" onClick={() => openFeedback()} className={proseLink}>
       {children}
     </button>
   )

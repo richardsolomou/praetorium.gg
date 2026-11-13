@@ -66,6 +66,30 @@ describe('readTicketMessage', () => {
     expect(readTicketMessage(content)).toEqual({ body: 'Hi', kind: 'Problem', version, screenshot: true })
   })
 
+  it('names the reported datasheet without exposing its record ids', () => {
+    const content = feedbackTicketMessage({
+      kind: 'Problem',
+      message: 'Points are 10 too high',
+      screenshotUrl: 'https://praetorium.gg/api/feedback-screenshots/a',
+      record: {
+        from: 'roster',
+        name: 'Custodian Guard',
+        faction: 'Adeptus Custodes',
+        rulesVersion: 'Custodes codex · Preview',
+        catalogueId: 'preview~book',
+        entryId: 'entry-1',
+      },
+    })
+    expect(content).toContain('Record: preview~book / entry-1')
+    expect(readTicketMessage(content)).toEqual({
+      body: 'Points are 10 too high',
+      kind: 'Problem',
+      version,
+      datasheet: 'Custodian Guard · Adeptus Custodes · Custodes codex · Preview',
+      screenshot: true,
+    })
+  })
+
   it('leaves a message the app did not compose as it is', () => {
     expect(readTicketMessage('Thanks!\n\nIdea · elsewhere')).toEqual({ body: 'Thanks!\n\nIdea · elsewhere', screenshot: false })
   })

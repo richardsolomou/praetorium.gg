@@ -24,6 +24,10 @@ Press **Try again** once you're back online.
 
 Unlock it from the roster menu, or create a variant. The longer message "This roster is locked. Unlock it to change it, or keep your changes as a new roster." has the same fix.
 
+### A points value or datasheet looks wrong
+
+Choose **Something wrong?** on the datasheet page, or in the unit's menu in the builder. Feedback opens with the datasheet, faction and rules version filled in, so you only need to say what looks wrong and what your source says. Nothing else from your roster is sent.
+
 ## Limits
 
 - A roster holds at most 100 entries, and roster names are up to 80 characters.

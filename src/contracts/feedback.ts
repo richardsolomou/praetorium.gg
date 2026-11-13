@@ -5,13 +5,27 @@ import { imageDataUrlMaxLength } from '../core/base64'
 export const FEEDBACK_KINDS = ['Problem', 'Idea', 'Other'] as const
 export type FeedbackKind = (typeof FEEDBACK_KINDS)[number]
 
-const DETAILS = new RegExp(`\\n\\n(${FEEDBACK_KINDS.join('|')}) · Praetorium (\\S+)(\\nScreenshot: \\S+)?$`)
+const DETAILS = new RegExp(
+  `\\n\\n(${FEEDBACK_KINDS.join('|')}) · Praetorium (\\S+)(?:\\nDatasheet: (.+)\\nRecord: \\S+ / \\S+)?(\\nScreenshot: \\S+)?$`,
+)
 
 /** What the player wrote in an opening message, apart from the details `feedbackTicketMessage` appended. */
-export function readTicketMessage(content: string): { body: string; kind?: FeedbackKind; version?: string; screenshot: boolean } {
+export function readTicketMessage(content: string): {
+  body: string
+  kind?: FeedbackKind
+  version?: string
+  datasheet?: string
+  screenshot: boolean
+} {
   const details = DETAILS.exec(content)
   if (!details) return { body: content, screenshot: false }
-  return { body: content.slice(0, details.index), kind: details[1] as FeedbackKind, version: details[2], screenshot: Boolean(details[3]) }
+  return {
+    body: content.slice(0, details.index),
+    kind: details[1] as FeedbackKind,
+    version: details[2],
+    datasheet: details[3],
+    screenshot: Boolean(details[4]),
+  }
 }
 
 const SUBJECT_LENGTH = 72

@@ -45,7 +45,8 @@ import { type RosterDraft, rosterSetupOf } from './rosterDraft'
 import { RosterBuilderFooter } from './RosterBuilderFooter'
 import { type RosterVariant, RosterVariantMenu } from './RosterVariantMenu'
 import type { NamedRosterDifferences } from '../../../core/rosterDifferences'
-import { type CatalogueEdition, rulesVersionDetails } from '../../../core/catalogueEdition'
+import { type CatalogueEdition, rulesVersionDetails, rulesVersionLabel } from '../../../core/catalogueEdition'
+import { openFeedback } from '../feedback/support'
 import { armyAvailability } from './armyAvailability'
 import { RosterCombatDialog } from '../simulator/RosterCombatDialog'
 import { RosterPrintPack, type RosterPrintInput } from './RosterPrintPack'
@@ -421,6 +422,29 @@ export function ListBuilder({
       if (selectedKey !== undefined) updateHistory({ workspace: currentWorkspace, pane: 'loadout', selectedKey })
     },
     [setPreview, setSelected, setShowing],
+  )
+  const reportable = useRef({ picks, units, faction, factions: factionIndex?.factions })
+  useLayoutEffect(() => {
+    reportable.current = { picks, units, faction, factions: factionIndex?.factions }
+  }, [picks, units, faction, factionIndex])
+  // Reads the roster through a ref so a change to it does not draw every unit card again.
+  const reportUnit = useCallback(
+    (index: number) => {
+      const { picks: currentPicks, units: currentUnits, faction: rosterFaction, factions } = reportable.current
+      const unit = currentUnits[index]
+      const unitCatalogueId = currentPicks[index]?.catalogueId ?? catalogueId
+      const book = rosterFaction?.id === unitCatalogueId ? rosterFaction : factions?.find((entry) => entry.id === unitCatalogueId)
+      if (!unit || !book) return
+      openFeedback({
+        from: 'roster',
+        name: unit.name,
+        faction: book.displayName,
+        rulesVersion: rulesVersionLabel(book),
+        catalogueId: unitCatalogueId,
+        entryId: unit.entryId,
+      })
+    },
+    [catalogueId],
   )
   const reminders = useReminderEditor({ abilityAlerts, editable, catalogueId, detachmentIds, positioned, units })
   const { data: attachCandidates } = useQuery({
@@ -838,6 +862,7 @@ export function ListBuilder({
           onSaveLoadout={pricePending ? undefined : guest ? askForLoadoutAccount : me ? openSaveLoadout : undefined}
           onSaveAttachedUnit={pricePending ? undefined : guest ? askForLoadoutAccount : me ? openSaveAttachedUnit : undefined}
           onDetach={detach}
+          onReport={reportUnit}
           onAttach={attach}
           onEmbark={embark}
           onChooseUnit={openPicker}

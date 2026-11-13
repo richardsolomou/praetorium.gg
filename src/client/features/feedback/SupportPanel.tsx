@@ -66,11 +66,14 @@ export function SupportPanel() {
                 </Button>
               ) : null}
               <div className="space-y-1.5">
-                <DialogTitle>Send feedback</DialogTitle>
-                <DialogDescription>Tell us what went wrong or what you would like.</DialogDescription>
+                <DialogTitle>{shown.record ? 'Report a data problem' : 'Send feedback'}</DialogTitle>
+                <DialogDescription>
+                  {shown.record ? 'Tell us what looks wrong, and what the source says.' : 'Tell us what went wrong or what you would like.'}
+                </DialogDescription>
               </div>
             </DialogHeader>
             <FeedbackForm
+              record={shown.record}
               // The list loads again when Support starts answering or proves the account; once the player has written
               // something, showing it would replace the form and lose their message.
               onStarted={() => setView((current) => (current.kind === 'inbox' ? { kind: 'compose' } : current))}
