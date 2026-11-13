@@ -3866,3 +3866,70 @@ describe('notices', () => {
     expect(listed(h, 'bob', 1)).toEqual([])
   })
 })
+
+describe('roster points notices', () => {
+  function setup() {
+    const h = harness()
+    const save = (id: string, userId: string) =>
+      module.saveRoster(h.procedure(h.operator), {
+        payload: JSON.stringify({
+          id,
+          userId,
+          name: id,
+          automaticName: false,
+          catalogueId: 'catalogue-proof',
+          detachmentId: '[]',
+          disposition: null,
+          limit: 1_000,
+          picks: '[]',
+          prep: null,
+          tags: '[]',
+          waivedRules: '[]',
+          optionalRules: '[]',
+          borrowedDetachmentId: null,
+          baseRosterId: null,
+          visibility: 'private',
+          source: 'editable',
+          now: NOW,
+        }),
+      })
+    const device = (userId: string) =>
+      h.call(h.operator, (ctx) =>
+        module.registerPushToken(ctx, { userId, token: `ExpoPushToken[${userId}]`, platform: 'ios', now: BigInt(NOW) }),
+      )
+    for (const userId of ['owner', 'muted', 'offline']) save(`${userId}-list`, userId)
+    save('archived-list', 'owner')
+    module.setRosterArchived(h.procedure(h.operator), { id: 'archived-list', userId: 'owner', archived: true, now: BigInt(NOW + 1) })
+    device('owner')
+    device('muted')
+    module.setPushEnabled(h.procedure(h.operator), { userId: 'muted', enabled: false, now: BigInt(NOW) })
+    return h
+  }
+  const marks = (h: ReturnType<typeof harness>, revision: string, points: number) =>
+    JSON.parse(
+      module.replaceRosterPointsMarks(h.procedure(h.operator), {
+        revision,
+        marks: JSON.stringify([{ rosterId: 'owner-list', userId: 'owner', updatedAt: NOW, points }]),
+      }),
+    ) as { revision: string; points: number }[]
+
+  it('reads only the active lists of players a notice can reach', () => {
+    const h = setup()
+    const page = JSON.parse(module.pushRosters(h.procedure(h.operator), { after: '', limit: 100 })) as { rosters: { id: string }[] }
+    expect(page.rosters.map((roster) => roster.id)).toEqual(['owner-list'])
+  })
+
+  it('hands back the total each revision replaced, so a second run on the same revision compares nothing new', () => {
+    const h = setup()
+    expect(marks(h, 'old', 1000)).toEqual([])
+    expect(marks(h, 'new', 1015)).toMatchObject([{ revision: 'old', points: 1000 }])
+    expect(marks(h, 'new', 1015)).toMatchObject([{ revision: 'new', points: 1015 }])
+  })
+
+  it('forgets a list’s total with the list', () => {
+    const h = setup()
+    marks(h, 'old', 1000)
+    h.call(h.operator, (ctx) => module.deleteRoster(ctx, { id: 'owner-list', userId: 'owner' }))
+    expect(h.test.db.rosterPointsMarks.rosterId.find('owner-list')).toBeNull()
+  })
+})

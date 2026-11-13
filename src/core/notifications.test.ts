@@ -16,6 +16,30 @@ describe('notice recipients', () => {
 })
 
 describe('notice messages', () => {
+  it('gives one repriced list its new total and opens it', () => {
+    expect(
+      noticeMessage(
+        { kind: 'roster-points-changed', actorId: '', rosters: [{ id: 'a', name: 'Strike', from: 2000, to: 1985 }], count: 1 },
+        {},
+      ),
+    ).toEqual({ title: 'Points update', body: 'Strike is now 1,985 pts (−15 pts).', path: '/rosters/a' })
+  })
+
+  it('counts the repriced lists past the ones it names and opens the library', () => {
+    const roster = (id: string, from: number, to: number) => ({ id, name: id, from, to })
+    expect(
+      noticeMessage(
+        {
+          kind: 'roster-points-changed',
+          actorId: '',
+          rosters: [roster('A', 1000, 1010), roster('B', 500, 495)],
+          count: 3,
+        },
+        {},
+      ),
+    ).toEqual({ title: 'Points update', body: '3 of your lists changed: A (+10 pts), B (−5 pts), and 1 more.', path: '/rosters' })
+  })
+
   it('links a new battle to its page', () => {
     expect(noticeMessage({ kind: 'battle-created', actorId: 'alice', battleToken: 'abc', sealedEvent: false }, { actor: 'Alice' })).toEqual(
       { title: 'New battle', body: 'Alice started a battle with you.', path: '/battles/abc' },

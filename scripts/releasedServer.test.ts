@@ -58,6 +58,7 @@ const UNREACHED = new Set([
   'remove_friend',
   'rename_unit_loadout',
   'replace_guest_invite',
+  'replace_roster_points_marks',
   'save_ability_reminder',
   'save_unit_loadout',
   'set_player_defaults',

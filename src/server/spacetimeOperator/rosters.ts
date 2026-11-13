@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { ROSTER_SOURCES, ROSTER_VISIBILITIES, type RosterSource, type RosterVisibility } from '../../core/savedRoster'
 import { ROSTER_LIBRARY_BATCH_SIZE, type RosterBatchAction } from '../../core/rosterLibrary'
 import { ROSTER_DISCOVERY_MAX_PAGE_SIZE, rosterDiscoveryCursorSchema, type RosterDiscoveryQuery } from '../../core/rosterDiscovery'
+import type { RosterPointsMark } from '../../core/rosterPointsMarks'
 import type { SpacetimeBase } from './client'
 
 // Module results drop fields this build does not know, so a replica still on the previous build keeps
@@ -34,6 +35,14 @@ const rosterRow = z.object({
   source: z.enum(ROSTER_SOURCES),
   createdAt: z.number().int(),
   updatedAt: z.number().int(),
+})
+
+const rosterPointsMark = z.object({
+  rosterId: z.string(),
+  userId: z.string(),
+  revision: z.string(),
+  updatedAt: z.number().int(),
+  points: z.number().int(),
 })
 
 const rosterSummaryRow = rosterRow.omit({ userId: true, picks: true, prep: true, tags: true, copiedFromRosterId: true }).extend({
@@ -219,6 +228,15 @@ export function withRosters<B extends SpacetimeBase>(Base: B) {
 
     async rostersLentTo(userId: string) {
       return this.read('rosters_lent_to', [userId], z.array(lentRosterRow).max(1_000))
+    }
+
+    async pushRosters(after: string, limit: number) {
+      return this.read('push_rosters', [after, limit], z.object({ rosters: z.array(rosterRow), next: z.string().nullable() }))
+    }
+
+    async replaceRosterPointsMarks(catalogueRevision: string, marks: readonly RosterPointsMark[]) {
+      if (!marks.length) return []
+      return this.read('replace_roster_points_marks', [catalogueRevision, JSON.stringify(marks)], z.array(rosterPointsMark))
     }
   }
 }

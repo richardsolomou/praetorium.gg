@@ -81,6 +81,7 @@ import * as PlayerStandingsProcedure from '../player_standings_procedure'
 import * as PracticeOpponentIdsProcedure from '../practice_opponent_ids_procedure'
 import * as ProductStatsProcedure from '../product_stats_procedure'
 import * as PushEnabledProcedure from '../push_enabled_procedure'
+import * as PushRostersProcedure from '../push_rosters_procedure'
 import * as PushTargetsProcedure from '../push_targets_procedure'
 import * as RatingChangesProcedure from '../rating_changes_procedure'
 import * as RatingsBeforeProcedure from '../ratings_before_procedure'
@@ -92,6 +93,7 @@ import * as RemoveCalendarFeedProcedure from '../remove_calendar_feed_procedure'
 import * as RemoveFriendProcedure from '../remove_friend_procedure'
 import * as RenameUnitLoadoutProcedure from '../rename_unit_loadout_procedure'
 import * as ReplaceGuestInviteProcedure from '../replace_guest_invite_procedure'
+import * as ReplaceRosterPointsMarksProcedure from '../replace_roster_points_marks_procedure'
 import * as RequestFriendProcedure from '../request_friend_procedure'
 import * as RosterByIdProcedure from '../roster_by_id_procedure'
 import * as RosterGroupByUserProcedure from '../roster_group_by_user_procedure'
@@ -286,6 +288,8 @@ export type ProductStatsArgs = __Infer<typeof ProductStatsProcedure.params>
 export type ProductStatsResult = __Infer<typeof ProductStatsProcedure.returnType>
 export type PushEnabledArgs = __Infer<typeof PushEnabledProcedure.params>
 export type PushEnabledResult = __Infer<typeof PushEnabledProcedure.returnType>
+export type PushRostersArgs = __Infer<typeof PushRostersProcedure.params>
+export type PushRostersResult = __Infer<typeof PushRostersProcedure.returnType>
 export type PushTargetsArgs = __Infer<typeof PushTargetsProcedure.params>
 export type PushTargetsResult = __Infer<typeof PushTargetsProcedure.returnType>
 export type RatingChangesArgs = __Infer<typeof RatingChangesProcedure.params>
@@ -308,6 +312,8 @@ export type RenameUnitLoadoutArgs = __Infer<typeof RenameUnitLoadoutProcedure.pa
 export type RenameUnitLoadoutResult = __Infer<typeof RenameUnitLoadoutProcedure.returnType>
 export type ReplaceGuestInviteArgs = __Infer<typeof ReplaceGuestInviteProcedure.params>
 export type ReplaceGuestInviteResult = __Infer<typeof ReplaceGuestInviteProcedure.returnType>
+export type ReplaceRosterPointsMarksArgs = __Infer<typeof ReplaceRosterPointsMarksProcedure.params>
+export type ReplaceRosterPointsMarksResult = __Infer<typeof ReplaceRosterPointsMarksProcedure.returnType>
 export type RequestFriendArgs = __Infer<typeof RequestFriendProcedure.params>
 export type RequestFriendResult = __Infer<typeof RequestFriendProcedure.returnType>
 export type RosterByIdArgs = __Infer<typeof RosterByIdProcedure.params>

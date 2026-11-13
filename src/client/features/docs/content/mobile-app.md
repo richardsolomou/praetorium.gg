@@ -34,6 +34,8 @@ When notifications are available, Home shows **Get notified about your games**. 
 
 Tapping a notification opens its page and marks it read. Once you've read a notification anywhere, on the website or another phone, the app clears it from your phone's notification list the next time it updates, and the number on the app's icon counts only the ones you haven't read.
 
+When an army data update changes the points of a list you saved, you get one notification that names the lists and how many points each gained or lost. Archived lists are left out, and so is a list you changed shortly before the update. Open the notification to see the list, or your rosters when several changed.
+
 Turn them off in your phone's settings. Signing out stops them on that phone and clears the number on the icon. Every notification also stays under **More** › **Notifications**, where you can read it later; see [Notifications](/docs/notifications).
 
 ## During a battle
