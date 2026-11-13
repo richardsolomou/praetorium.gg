@@ -6,7 +6,6 @@ import {
   claimVisitorReminders,
   parseVisitorReminders,
   VISITOR_REMINDERS_KEY,
-  visitorFieldingReminders,
   writeVisitorReminders,
 } from './visitorReminders'
 
@@ -50,16 +49,6 @@ describe('adopting the alerts an older build kept in a visitor’s list', () => 
     writeVisitorReminders([])
     adoptVisitorReminders(legacy)
     expect(kept()).toEqual([])
-  })
-})
-
-describe('the alerts a visitor’s draft fields with', () => {
-  it('includes the ones the draft kept per unit', () => {
-    expect(visitorFieldingReminders(legacy)?.map((reminder) => reminder.key)).toEqual(['datasheet:shroud'])
-  })
-
-  it('leaves the choice to the server when this browser keeps none', () => {
-    expect(visitorFieldingReminders(undefined)).toBeUndefined()
   })
 })
 

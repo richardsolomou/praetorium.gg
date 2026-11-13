@@ -13,7 +13,7 @@ Publication is named sharing; there is no anonymous archive of private game stat
 - Frozen battle armies and sealed tournament and group rosters are never rewritten by saved edits, privacy changes, or deletion. Sealed rosters are visible to assigned allies before reveal and event readers after.
 - A reveal never publishes; an entrant may publish the original roster, never a copy.
 - An imported battle seats a player as their account only once they proved the source account is theirs; until then they are a guest.
-- A guest seat belongs to one device by HTTP-only cookie, stored as a hash, and ends after 30 days, on reclaim, claim, or battle deletion.
+- Every seat a player creates belongs to an account. Guest seats exist only on imported battles and on battles created before that, and no device signs in to one.
 - A reported collection photo is visible only to its owner and administrators until reviewed.
 - Account deletion removes rosters, loadouts, ability alerts, friendships, linked accounts on other trackers, entries, group memberships, owned tournaments and owned groups with their games, and every battle played. Tournament, hidden-list game and group deletion keep battles.
 - Revocable player-content images are `no-store`. Screenshots with roster or battle data stay out of Git.

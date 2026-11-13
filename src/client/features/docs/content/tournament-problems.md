@@ -50,4 +50,3 @@ The next Swiss round pairs once every table in the current one has finished. If 
 
 - Praetorium checks lists against the tournament's format, points and house rules. Anything else you've agreed, such as painting or which books are in, is yours to check.
 - Team-wide limits in doubles, across both players' lists, aren't checked.
-- Guests can't play in tournaments.

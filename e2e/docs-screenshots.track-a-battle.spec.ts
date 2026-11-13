@@ -26,7 +26,7 @@ test('track a battle', async ({ page }) => {
       await capture('track-a-battle-tracking', dialog, dialog.getByRole('group', { name: 'Tracking' }))
       await page.getByRole('combobox', { name: 'Opponent' }).click()
       const seats = page.locator('[data-slot="combobox-content"]')
-      await expect(seats.getByRole('option', { name: 'Guest' })).toBeVisible()
+      await expect(seats.getByRole('option', { name: PRACTICE_OPPONENT, exact: true })).toBeVisible()
       await capture('track-a-battle-new-battle', dialog, seats)
       await page.keyboard.press('Escape')
       await expect(seats).toBeHidden()
@@ -64,19 +64,4 @@ test('track a battle', async ({ page }) => {
   const scoring = page.getByRole('dialog', { name: /^Scoring end of turn/ })
   await expect(scoring).toBeVisible()
   await capture('track-a-battle-scoring', scoring, scoring.getByText('Did not score (or chose not to)').first().locator('..'))
-})
-
-test('invite a guest', async ({ page }) => {
-  await signUp(page, 'Aurelia')
-  const roster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Necron army' })
-  await createBattle(page, { guest: 'Marcus' })
-  await attachRoster(page, roster)
-  await page.getByRole('button', { name: 'Invite Marcus to play on their device' }).click()
-  const invite = page.getByRole('dialog', { name: 'Invite Marcus to play' })
-  await expect(invite.getByRole('img', { name: 'QR code for Marcus’s seat' })).toBeVisible()
-  // The test stack's own address would otherwise appear in the published image.
-  await invite
-    .getByText(/\/join\//)
-    .evaluate((element) => (element.textContent = element.textContent.replace(location.origin, 'https://praetorium.gg')))
-  await capture('track-a-battle-guest-invite', invite, invite.getByRole('button', { name: 'Copy link' }))
 })

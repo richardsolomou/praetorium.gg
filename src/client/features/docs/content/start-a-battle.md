@@ -1,9 +1,9 @@
 Open [Battles](/battles) and choose **New battle**.
 
 1. Pick a **Battle format**: **Duel** (1v1), **Solo vs pair** (2v1) or **Doubles** (2v2). For solo vs pair, also say which side you're on.
-2. Fill every seat with a friend, a guest or a practice opponent (see below).
+2. Fill every seat with a friend or a practice opponent (see below).
 
-   ![The Start a battle dialog with the opponent list open, showing Guest under No account and the practice opponents.](screenshot:track-a-battle-new-battle 'The seat list: guests and practice opponents')
+   ![The Start a battle dialog with the opponent list open, showing the practice opponents.](screenshot:track-a-battle-new-battle 'The seat list: friends, then practice opponents')
 
 3. Choose **Tracking**: **Guided** or **Manual**. You can still switch during setup.
 4. Choose **Start battle**.
@@ -16,11 +16,9 @@ One phone in the middle of the table is enough, because anyone at the table can 
 
 ## Who can sit in a seat
 
-A friend needs an account and must already be on your friends list. If you have no friends yet, the dialog offers an invite link and QR code. Pick them once they've accepted.
+Everyone at the table needs an account, so the game counts for each of you. A friend must already be on your friends list. If you have no friends yet, the dialog offers an invite link and QR code: they sign up from it, and you pick them once they've accepted. A list they built on their device before signing up is saved to their new account.
 
-A guest is listed under **No account**. Type their name. Guests can only sit across the table from you, never on your side.
-
-A practice opponent is listed under **Practice opponents**. You run their side with one of your own lists.
+A practice opponent is listed under **Practice opponents**. You run their side with one of your own lists, which is how to track a game on your own. Practice games don't count anywhere.
 
 If you're both entered in the same tournament, Praetorium asks **You are both in a tournament**. Choose the tournament to play it there with your sealed lists, or **Play it casually** to keep it out.
 

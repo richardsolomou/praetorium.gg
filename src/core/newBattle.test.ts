@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { guestSeatId, isGuestSeat, isPracticeSeat, newBattleSeats } from './newBattle'
+import { guestSeatId, isGuestSeat, isPracticeSeat } from './newBattle'
 
 describe('guest seats', () => {
   it('names a guest seat after the battle it sits in', () => {
@@ -24,18 +24,5 @@ describe('guest seats', () => {
 
   it('does not treat a signed-in player as practice', () => {
     expect(isPracticeSeat({ id: 'bob', automated: false })).toBe(false)
-  })
-
-  it('reads guest names off a new battle beside the accounts it seats', () => {
-    expect(newBattleSeats({ opponentIds: ['bob'], guestNames: ['Alex'] })).toEqual({
-      allyIds: [],
-      opponentIds: ['bob'],
-      guestNames: ['Alex'],
-      invited: ['bob'],
-    })
-  })
-
-  it('reads no guests off a battle that names none', () => {
-    expect(newBattleSeats('bob').guestNames).toEqual([])
   })
 })

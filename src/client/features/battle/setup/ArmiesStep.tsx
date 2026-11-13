@@ -2,7 +2,6 @@ import { useQuery } from '@tanstack/react-query'
 import { Check, Crown, Pencil, Trash2, TriangleAlert } from 'lucide-react'
 import { useState } from 'react'
 import { Link } from '@tanstack/react-router'
-import { posthog } from 'posthog-js'
 import { Button } from '@/components/ui/button'
 import { buttonClass } from '../../../components/buttonClass'
 import {
@@ -31,13 +30,8 @@ import { type Army, type Side, sideName } from '../../../sides'
 import { ArmyIdentity } from '../ArmyIdentity'
 import { rosterWaivers, WaiverConfirmDialog, WaiverNote } from '../../../components/FormatWaivers'
 import { CHOOSABLE, CHOSEN, DispositionChip, SetupNote, SetupSidePanel, useDispositionNames } from './chrome'
-import { isGuestSeat } from '../../../../core/newBattle'
 import type { RosterAttachment } from '../useCommand'
-import { GuestInvite } from '../GuestInvite'
-import { GuestRosterChooser } from './GuestRosterChooser'
 import { RosterChooser } from './RosterChooser'
-import { PasteOpponentList } from './PasteOpponentList'
-import { visitorFieldingReminders } from '../../rosters/visitorReminders'
 import { useHistoryDialog } from '../../../useHistoryDialog'
 import { countLabel } from '../../../text'
 
@@ -62,7 +56,7 @@ type Props = {
  */
 /** Whether this reader picks the list for an army: their own, or a practice opponent's, outside a sealed event. */
 export function canChooseFor(view: BattleView, army: Army) {
-  return !view.sealedEventToken && (army.isViewer || (army.automated && !isGuestSeat(view.viewerId)))
+  return !view.sealedEventToken && (army.isViewer || army.automated)
 }
 
 export function ArmiesStep({ view, sides, send, attachRoster, pending, problem }: Props) {
@@ -83,11 +77,9 @@ export function ArmiesStep({ view, sides, send, attachRoster, pending, problem }
     setConfirming(null)
     setOverLimit(null)
   }
-  /** A guest has no account, so no saved or lent lists: their army comes from this device's builder. */
-  const guest = isGuestSeat(view.viewerId)
-  const rosterQuery = useQuery({ ...savedRosterSummariesQuery(), enabled: !guest })
+  const rosterQuery = useQuery(savedRosterSummariesQuery())
   const saved = (rosterQuery.data ?? []).filter((roster) => !roster.archived)
-  const lentQuery = useQuery({ ...rostersLentToMeQuery(), enabled: !guest })
+  const lentQuery = useQuery(rostersLentToMeQuery())
   const nameDisposition = useDispositionNames()
   const team = view.settings.teamBattle
   // A size the rosters set is no filter, since any list may change it.
@@ -151,9 +143,6 @@ export function ArmiesStep({ view, sides, send, attachRoster, pending, problem }
                     <span className="chip shrink-0 self-start text-achieved sm:self-auto">Sealed roster</span>
                   ) : canChooseFor(view, army) ? (
                     <div className="flex shrink-0 flex-wrap items-center gap-1">
-                      {isGuestSeat(army.playerId) && !guest ? (
-                        <GuestInvite token={view.token} playerId={army.playerId} name={army.playerName} joined={false} />
-                      ) : null}
                       <Button
                         variant={army.roster ? 'outline' : 'default'}
                         size="sm"
@@ -162,23 +151,6 @@ export function ArmiesStep({ view, sides, send, attachRoster, pending, problem }
                       >
                         {army.roster ? 'Change roster' : 'Choose roster'}
                       </Button>
-                      {isGuestSeat(army.playerId) && !guest && view.settings.manual && !army.roster ? (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          disabled={pending}
-                          onClick={() => {
-                            posthog.capture('battle_guest_score_only')
-                            send({
-                              kind: 'attach-roster',
-                              roster: { name: `${army.playerName}’s army`, text: SCORE_ONLY_TEXT },
-                              playerId: army.playerId,
-                            })
-                          }}
-                        >
-                          Keep score only
-                        </Button>
-                      ) : null}
                       {/* Bringing the wrong list is as easy as bringing the right one, so the
                         seat can be emptied as well as changed. */}
                       {army.roster ? (
@@ -196,9 +168,6 @@ export function ArmiesStep({ view, sides, send, attachRoster, pending, problem }
                     </div>
                   ) : (
                     <div className="flex shrink-0 flex-wrap items-center gap-1 self-start sm:self-auto">
-                      {isGuestSeat(army.playerId) && !guest ? (
-                        <GuestInvite token={view.token} playerId={army.playerId} name={army.playerName} joined />
-                      ) : null}
                       <span className={`chip ${army.roster ? 'text-achieved' : 'text-dim'}`}>{army.roster ? 'Ready' : 'Waiting'}</span>
                     </div>
                   )}
@@ -251,18 +220,8 @@ export function ArmiesStep({ view, sides, send, attachRoster, pending, problem }
           </SetupSidePanel>
         ))}
       </div>
-      <GuestRosterChooser
-        open={guest && choosing !== null}
-        onOpenChange={(open) => !open && closeChooser()}
-        pending={pending}
-        problem={problem}
-        onChoose={(draft) => {
-          const reminders = visitorFieldingReminders(draft.prep?.reminders)
-          void attachRoster({ kind: 'attach-draft-roster', draft, reminders }).then((attached) => attached && closeChooser())
-        }}
-      />
       <RosterChooser
-        open={!guest && choosing !== null}
+        open={choosing !== null}
         onOpenChange={(open) => !open && closeChooser()}
         forArmy={choosing}
         rosters={eligible}
@@ -279,20 +238,6 @@ export function ArmiesStep({ view, sides, send, attachRoster, pending, problem }
           else void attach(savedRoster)
         }}
         error={rosterQuery.error ? errorMessage(rosterQuery.error) : problem}
-        pasted={
-          choosing && isGuestSeat(choosing.playerId) ? (
-            <PasteOpponentList
-              name={choosing.playerName}
-              limit={view.settings.limit}
-              pending={pending}
-              onUse={(draft) =>
-                void attachRoster({ kind: 'attach-draft-roster', draft, reminders: undefined, playerId: choosing.playerId }).then(
-                  (attached) => attached && closeChooser(),
-                )
-              }
-            />
-          ) : null
-        }
       />
       <WaiverConfirmDialog
         roster={confirming}

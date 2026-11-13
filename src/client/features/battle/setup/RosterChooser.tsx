@@ -1,5 +1,5 @@
 import { Link } from '@tanstack/react-router'
-import { type ReactNode, useRef } from 'react'
+import { useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { pointsLabel } from '../../../../core/battle'
@@ -31,7 +31,6 @@ export function RosterChooser({
   pending,
   onChoose,
   error,
-  pasted,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -49,8 +48,6 @@ export function RosterChooser({
   pending: boolean
   onChoose: (roster: SavedRoster, problem?: RosterProblem | null) => void
   error: string | null
-  /** Where a list that is on nobody's account comes in, for a guest playing from someone else's device. */
-  pasted: ReactNode
 }) {
   const changingSize = useRef(false)
   const filter = useRosterChoiceFilter({ rosters, lent })
@@ -72,17 +69,12 @@ export function RosterChooser({
           </DialogTitle>
           <DialogDescription>
             {/* A practice opponent owns no lists, so the army it brings comes from yours. */}
-            {forArmy?.automated
-              ? pasted
-                ? 'Paste their list, or field one of yours for them. '
-                : 'One of your own lists, played by the side across the table. '
-              : ''}
+            {forArmy?.automated ? 'One of your own lists, played by the side across the table. ' : ''}
             {requiredLimit === null ? 'Your rosters.' : `Rosters built for ${pointsLabel(requiredLimit)}${orSmaller ? ' or fewer' : ''}.`}
           </DialogDescription>
         </DialogHeader>
         <DialogBody>
           {error ? <Problem>{error}</Problem> : null}
-          {pasted}
           {loading ? null : filter.bar}
           {filter.failed ? (
             <Problem>Some rosters’ points and legality could not be checked, so this filter leaves them out.</Problem>

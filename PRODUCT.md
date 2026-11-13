@@ -15,13 +15,13 @@ web
 
 ## Product Purpose
 
-- Free army builder, combat simulator, battle tracker and rules reference that carries a game from list to final score, with 1v1, 2v1 and 2v2 games against friends, guests or a practice opponent, round-robin group leagues, and tournaments with secretly sealed lists.
+- Free army builder, combat simulator, battle tracker and rules reference that carries a game from list to final score, with 1v1, 2v1 and 2v2 games against friends or a practice opponent, with every seat an account, round-robin group leagues, and tournaments with secretly sealed lists.
 
 ## Positioning
 
 - Free and AGPL open source; nothing behind payment.
 - One place: builder, simulator, battles, groups, tournaments and reference share the same rosters and data.
-- Social play: friends, groups, tournaments, guest seats, spectating, public battles, leaderboard.
+- Social play: friends, groups, tournaments, spectating, public battles, leaderboard.
 
 ## Operating Context
 

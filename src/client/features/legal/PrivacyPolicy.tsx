@@ -3,7 +3,7 @@ import { LegalLinks, LegalPage, LegalSection, PrivacyEmail } from './LegalPage'
 
 export function PrivacyPolicy() {
   return (
-    <LegalPage title="Privacy policy" updated="8 November 2026">
+    <LegalPage title="Privacy policy" updated="13 November 2026">
       <LegalSection title="Scope">
         <p>
           Praetorium builds Warhammer 40,000 army lists and tracks battles between the players seated at them. This policy covers the
@@ -27,15 +27,15 @@ export function PrivacyPolicy() {
           Saved rosters — their name, tags, detachment and unit picks — battle records, including the players, armies, setup choices, scores
           and actions recorded during a game, friendships, the friends you lend a roster to, datasheets in your collection with their owned,
           built and painted model counts and photos, your wishlist, favourites, the combat simulator matchups you last ran, practice
-          opponents you seat, the names you give guest opponents, the finished public BattleBase games you import, with their armies and
-          your opponents' BattleBase names, and the BattleBase account you link. A linked account puts you in your seat in any game imported
-          with you in it, whoever imports it. An imported game is a battle like any other: public, and in records and standings.
+          opponents you seat, the names of guest opponents in battles from before every seat needed an account, the finished public
+          BattleBase games you import, with their armies and your opponents' BattleBase names, and the BattleBase account you link. A linked
+          account puts you in your seat in any game imported with you in it, whoever imports it. An imported game is a battle like any
+          other: public, and in records and standings.
         </p>
         <h3 className="text-sm tracking-label text-bone">Technical data</h3>
         <p>
           Sessions record your IP address and browser user agent. Rate-limiting counters protect sign-in and other sensitive actions. A
-          cookie remembers the order you sort your rosters in on that device. If you join a battle as a guest, a cookie holds the seat's
-          secret on that device for up to 30 days; we keep only a hash of it. We note the last day your account opened the mobile app, so
+          cookie remembers the order you sort your rosters in on that device. We note the last day your account opened the mobile app, so
           the site stops offering it to you.
         </p>
         <p>
@@ -95,8 +95,7 @@ export function PrivacyPolicy() {
           </li>
           <li>Battles may appear on the home page and in your profile's battle record.</li>
           <li>
-            The leaderboard counts finished games. Games with a practice opponent, or with a guest who has not claimed the game with an
-            account, do not count.
+            The leaderboard counts finished games. Games with a practice opponent, or with a guest seat that has no account, do not count.
           </li>
           <li>
             Sealing a tournament roster makes a separate frozen copy. Before reveal, only its assigned allies who are accepted entrants can
