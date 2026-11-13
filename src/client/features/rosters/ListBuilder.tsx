@@ -53,6 +53,7 @@ import type { CombatRoster } from '../simulator/useCombatant'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { useAccountPrompt } from './AccountPrompt'
 import { useNewBattle } from '../battles/NewBattle'
+import { TRACKER_PITCH, useFirstBattle } from '../battles/firstBattle'
 import { toggled, withMember } from '../../../core/collections'
 import { usePrintWhenReady } from './usePrintWhenReady'
 import { factionDisposition } from '../../components/rosterSetup'
@@ -197,6 +198,7 @@ export function ListBuilder({
   const [lending, setLending] = useState(false)
   const [grading, setGrading] = useState(false)
   const startBattle = useNewBattle()
+  const firstBattle = useFirstBattle()
   const [deleting, setDeleting] = useState(false)
   const [printInput, setPrintInput] = useState<RosterPrintInput | null>(null)
   const automaticPrint = useRef(false)
@@ -748,6 +750,12 @@ export function ListBuilder({
           />
         }
       >
+        {/* A saved roster that can go on the table is the moment to say why the table is worth tracking here. */}
+        {firstBattle && startBattleButton && (editable ? savedId : locked) && !frozen && priced && !illegal && !over ? (
+          <p data-tracker-pitch className="mt-1 max-w-prose text-xs text-dim">
+            {TRACKER_PITCH}
+          </p>
+        ) : null}
         <RosterHeaderNotices
           editable={editable}
           locked={locked}
