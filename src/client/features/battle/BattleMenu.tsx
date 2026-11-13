@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { EllipsisVertical } from 'lucide-react'
+import { posthog } from 'posthog-js'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
@@ -18,6 +20,8 @@ type Props = {
   onActionRemindersChange?: (enabled: boolean) => void
   /** Absent when no earlier phase can take a missed action. */
   onRecordMissed?: () => void
+  /** The page a streaming tool loads to lay this battle's score over the video; absent until the address is known. */
+  overlayUrl?: string
   /** Shared by the table, unlike the reminders, so it is a command rather than a preference. */
   onTimerPausedChange: (paused: boolean) => void
   onConcede: (playerId: string) => void
@@ -37,6 +41,7 @@ export function BattleMenu({
   timerPaused,
   players,
   onActionRemindersChange,
+  overlayUrl,
   onRecordMissed,
   onTimerPausedChange,
   onConcede,
@@ -72,6 +77,9 @@ export function BattleMenu({
           <DropdownMenuItem onClick={() => onTimerPausedChange(!timerPaused)}>
             {timerPaused ? 'Resume timer' : 'Pause timer'}
           </DropdownMenuItem>
+          {overlayUrl ? (
+            <DropdownMenuItem onClick={() => void copyOverlayLink(overlayUrl)}>Copy stream overlay link</DropdownMenuItem>
+          ) : null}
           {endings.map((ending) => (
             <DropdownMenuItem key={ending.key} variant="destructive" onClick={() => setConfirming(ending)}>
               {ending.label}
@@ -110,4 +118,15 @@ export function BattleMenu({
       ) : null}
     </>
   )
+}
+
+async function copyOverlayLink(url: string) {
+  try {
+    await navigator.clipboard.writeText(url)
+    toast.success('Stream overlay link copied')
+    posthog.capture('battle_overlay_link_copied')
+  } catch (error) {
+    posthog.captureException(error, { operation: 'copy_overlay_link' })
+    toast.error('Copy failed. Try again.')
+  }
 }
