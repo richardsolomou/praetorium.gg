@@ -98,12 +98,12 @@ export function RoundSummary({ mark, view, sides: table, onClose }: Props) {
             }}
           />
           <div aria-hidden className="construction-grid fixed" />
-          <div className="relative mx-auto flex min-h-full w-full max-w-5xl flex-col justify-center gap-6 px-4 pt-[calc(1.5rem+env(safe-area-inset-top))] pb-[calc(1.5rem+env(safe-area-inset-bottom))] sm:gap-10 sm:px-8">
+          <div className="relative mx-auto flex min-h-full w-full max-w-5xl flex-col overflow-x-clip justify-center gap-6 px-4 pt-[calc(1.5rem+env(safe-area-inset-top))] pb-[calc(1.5rem+env(safe-area-inset-bottom))] sm:gap-10 sm:px-8">
             <header className="text-center">
               {finished ? <p className="eyebrow">Battle over</p> : null}
               <DialogPrimitive.Title
                 className={cn(
-                  'mt-1 text-3xl leading-none font-bold text-balance uppercase sm:text-5xl',
+                  'mt-1 text-3xl leading-none font-bold text-balance break-words uppercase sm:text-5xl',
                   result?.kind === 'win' && tint(result.side.index).text,
                 )}
               >
@@ -114,12 +114,13 @@ export function RoundSummary({ mark, view, sides: table, onClose }: Props) {
               </DialogPrimitive.Description>
             </header>
 
-            <div className="grid grid-cols-2 items-start gap-x-4 gap-y-6 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:gap-x-8">
+            {/* Both sides share four rows, so a pair's two names above one score still leave the scores and their parts level. */}
+            <div className="grid grid-cols-2 grid-rows-[repeat(4,auto)] gap-x-4 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:gap-x-8">
               {table.map((side, position) => (
                 <SideTotals key={side.index} side={side} round={mark.round} end={position > 0} />
               ))}
               {/* Between the sides from `sm`; a phone keeps the height for the scores, and the title already names the round. */}
-              <div className="order-2 hidden justify-center self-center sm:flex">
+              <div className="order-2 row-span-4 hidden justify-center self-center sm:flex">
                 <div className="part grid min-w-36 place-items-center border-runner-hi px-5 py-5 text-center">
                   <span className="font-display text-2xs font-semibold tracking-label text-dim uppercase">
                     {finished ? 'Final' : 'Round'}
@@ -152,6 +153,7 @@ export function RoundSummary({ mark, view, sides: table, onClose }: Props) {
 
 function SideTotals({ side, round, end }: { side: Side; round: number; end: boolean }) {
   const colours = tint(side.index)
+  const team = side.armies.length > 1
   const gained = side.rounds.find((entry) => entry.round === round)?.total ?? 0
   const parts = [
     { label: 'Primary', value: side.primary },
@@ -163,33 +165,44 @@ function SideTotals({ side, round, end }: { side: Side; round: number; end: bool
     <section
       data-round-side={side.index}
       aria-label={sideName(side)}
-      className={cn('relative min-w-0', end ? 'order-3 text-right' : 'order-1')}
+      className={cn('relative isolate row-span-4 grid min-w-0 grid-rows-subgrid', end ? 'order-3 text-right' : 'order-1')}
     >
       <FactionWatermark army={side.armies[0]} end={end} />
-      <div className="relative">
-        <h2 className={cn('truncate text-lg leading-tight font-bold uppercase sm:text-3xl', colours.text)}>{sideName(side)}</h2>
+      {/* Each army of an allied side on its own line, smaller; a long name wraps rather than losing its end. */}
+      <ul className={cn('grid content-start', team && 'gap-1.5 sm:gap-2')}>
         {side.armies.map((army) => (
-          <FactionName key={army.playerId} army={army} />
+          <li key={army.playerId} className="min-w-0">
+            <p
+              className={cn(
+                'font-display leading-tight font-bold [overflow-wrap:anywhere] uppercase',
+                team ? 'text-sm sm:text-xl' : 'text-lg sm:text-3xl',
+                colours.text,
+              )}
+            >
+              {army.playerName}
+            </p>
+            <FactionName army={army} />
+          </li>
         ))}
-        <p className={cn('mt-3 flex items-baseline gap-2 sm:mt-5', end && 'flex-row-reverse')}>
-          <span className={cn('figure animate-figure text-7xl leading-[0.85] font-bold sm:text-9xl', colours.text)}>{side.total}</span>
-          <span className="font-display text-xs font-semibold tracking-label text-dim uppercase">VP</span>
-        </p>
-        <p className={cn('mt-2 flex items-baseline gap-1.5 text-sm', end && 'flex-row-reverse')}>
-          <span className={cn('figure rounded-md border px-1.5 font-bold', colours.mark)}>+{gained}</span>
-          <span className="text-dim">this round</span>
-        </p>
-        <dl className={cn('mt-4 grid gap-y-1.5 border-t border-edge pt-3 sm:mt-6 sm:flex sm:gap-x-6', end && 'sm:justify-end')}>
-          {parts.map((part) => (
-            <div key={part.label} className={cn('flex items-baseline justify-between gap-2 sm:block', end && 'flex-row-reverse')}>
-              <dt className="font-display text-3xs font-semibold tracking-label whitespace-nowrap text-dim uppercase sm:text-2xs">
-                {part.label}
-              </dt>
-              <dd className="figure text-lg leading-tight font-bold sm:text-2xl">{part.value}</dd>
-            </div>
-          ))}
-        </dl>
-      </div>
+      </ul>
+      <p className={cn('mt-3 flex items-baseline gap-2 sm:mt-5', end && 'flex-row-reverse')}>
+        <span className={cn('figure animate-figure text-7xl leading-[0.85] font-bold sm:text-9xl', colours.text)}>{side.total}</span>
+        <span className="font-display text-xs font-semibold tracking-label text-dim uppercase">VP</span>
+      </p>
+      <p className={cn('mt-2 flex items-baseline gap-1.5 text-sm', end && 'flex-row-reverse')}>
+        <span className={cn('figure rounded-md border px-1.5 font-bold', colours.mark)}>+{gained}</span>
+        <span className="text-dim">this round</span>
+      </p>
+      <dl className={cn('mt-4 grid gap-y-1.5 border-t border-edge pt-3 sm:mt-6 sm:flex sm:gap-x-6', end && 'sm:justify-end')}>
+        {parts.map((part) => (
+          <div key={part.label} className={cn('flex items-baseline justify-between gap-2 sm:block', end && 'flex-row-reverse')}>
+            <dt className="font-display text-3xs font-semibold tracking-label whitespace-nowrap text-dim uppercase sm:text-2xs">
+              {part.label}
+            </dt>
+            <dd className="figure text-lg leading-tight font-bold sm:text-2xl">{part.value}</dd>
+          </div>
+        ))}
+      </dl>
     </section>
   )
 }
@@ -203,7 +216,7 @@ function useFaction(army: Army | undefined) {
 function FactionName({ army }: { army: Army }) {
   const faction = useFaction(army)
   if (!faction) return null
-  return <p className="truncate text-xs text-dim sm:text-sm">{faction.displayName}</p>
+  return <p className="text-xs text-dim [overflow-wrap:anywhere] sm:text-sm">{faction.displayName}</p>
 }
 
 /** The side's faction emblem behind its score, faint enough that the numbers stay the only thing read. */
@@ -213,7 +226,10 @@ function FactionWatermark({ army, end }: { army: Army | undefined; end: boolean 
   return (
     <div
       aria-hidden
-      className={cn('pointer-events-none absolute -top-8 opacity-10 sm:-top-16', end ? '-right-10 sm:-right-24' : '-left-10 sm:-left-24')}
+      className={cn(
+        'pointer-events-none absolute -top-8 -z-10 opacity-10 sm:-top-16',
+        end ? '-right-10 sm:-right-24' : '-left-10 sm:-left-24',
+      )}
     >
       <FactionMark faction={{ ...faction, edition: null }} className="size-40 sm:size-80" />
     </div>
@@ -258,8 +274,12 @@ function RoundByRound({ sides: table, round, rounds }: { sides: Side[]; round: n
             const colours = tint(side.index)
             return (
               <tr key={side.index} className="border-t border-edge">
-                <th scope="row" className={cn('truncate py-2 text-left text-xs font-bold uppercase sm:text-sm', colours.text)}>
-                  {sideName(side)}
+                <th scope="row" className={cn('py-2 pr-1 text-left text-2xs leading-tight font-bold uppercase sm:text-sm', colours.text)}>
+                  {side.armies.map((army) => (
+                    <span key={army.playerId} className="block [overflow-wrap:anywhere]">
+                      {army.playerName}
+                    </span>
+                  ))}
                 </th>
                 {columns.map((column) => (
                   <td key={column} className={cn('figure py-2 text-sm sm:text-base', column <= round ? 'text-bone' : 'text-faint')}>
