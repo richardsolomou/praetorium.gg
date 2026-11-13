@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { Check, Crown, Pencil, Trash2, TriangleAlert } from 'lucide-react'
-import { type ReactNode, useRef, useState } from 'react'
+import { useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { posthog } from 'posthog-js'
 import { Button } from '@/components/ui/button'
@@ -14,7 +14,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { Skeleton } from '@/components/ui/skeleton'
 import {
   armyPointsFor,
   sharedSidePoints,
@@ -30,21 +29,16 @@ import { errorMessage } from '../../../queryClient'
 import { rostersLentToMeQuery, savedRosterSummariesQuery, type QueryData } from '../../../queries'
 import { type Army, type Side, sideName } from '../../../sides'
 import { ArmyIdentity } from '../ArmyIdentity'
-import { RosterChoices } from '../../rosters/RosterChoices'
-import type { RosterProblem } from '../../rosters/RosterSummary'
-import { LentRosterList, type LentRoster } from '../../rosters/LentRosters'
-import { Dialog, DialogBody, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../../../components/Dialog'
 import { rosterWaivers, WaiverConfirmDialog, WaiverNote } from '../../../components/FormatWaivers'
-import { BATTLE_SIZE_CONTROL, CHOOSABLE, CHOSEN, DispositionChip, SetupNote, SetupSidePanel, useDispositionNames } from './chrome'
-import { Problem } from '../../../components/Problem'
+import { CHOOSABLE, CHOSEN, DispositionChip, SetupNote, SetupSidePanel, useDispositionNames } from './chrome'
 import { isGuestSeat } from '../../../../core/newBattle'
 import type { RosterAttachment } from '../useCommand'
 import { GuestInvite } from '../GuestInvite'
 import { GuestRosterChooser } from './GuestRosterChooser'
+import { RosterChooser } from './RosterChooser'
 import { PasteOpponentList } from './PasteOpponentList'
 import { visitorFieldingReminders } from '../../rosters/visitorReminders'
 import { useHistoryDialog } from '../../../useHistoryDialog'
-import { SectionHeading } from '../../../components/SectionHeading'
 import { countLabel } from '../../../text'
 
 /** What a guest's army says when the table is only keeping score, since every army carries text for its opponent to read. */
@@ -337,132 +331,6 @@ export function ArmiesStep({ view, sides, send, attachRoster, pending, problem }
         </AlertDialogContent>
       </AlertDialog>
     </div>
-  )
-}
-
-function RosterChooser({
-  open,
-  onOpenChange,
-  forArmy,
-  rosters,
-  lent,
-  savedCount,
-  requiredLimit,
-  orSmaller,
-  selectedId,
-  loading,
-  pending,
-  onChoose,
-  error,
-  pasted,
-}: {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  forArmy: Army | null
-  rosters: SavedRoster[]
-  /** Rosters friends have lent this player, which they may field as their own army. */
-  lent: LentRoster[]
-  savedCount: number
-  requiredLimit: number | null
-  /** Whether a list built for a smaller size fits too, as it does in a team battle. */
-  orSmaller: boolean
-  /** The list already fielded by this army, matched by id: two lists can share a name. */
-  selectedId: string | null
-  loading: boolean
-  pending: boolean
-  onChoose: (roster: SavedRoster, problem?: RosterProblem | null) => void
-  error: string | null
-  /** Where a list that is on nobody's account comes in, for a guest playing from someone else's device. */
-  pasted: ReactNode
-}) {
-  const changingSize = useRef(false)
-  return (
-    <Dialog
-      open={open}
-      onOpenChange={onOpenChange}
-      // After the close, so the dialog's own focus return to its trigger does not take it back.
-      onOpenChangeComplete={(opened) => {
-        if (opened || !changingSize.current) return
-        changingSize.current = false
-        document.getElementById(BATTLE_SIZE_CONTROL)?.focus()
-      }}
-    >
-      <DialogContent size="md">
-        <DialogHeader>
-          <DialogTitle className="text-2xl">
-            {forArmy?.automated ? `Choose ${forArmy.playerName}’s roster` : 'Choose your roster'}
-          </DialogTitle>
-          <DialogDescription>
-            {/* A practice opponent owns no lists, so the army it brings comes from yours. */}
-            {forArmy?.automated
-              ? pasted
-                ? 'Paste their list, or field one of yours for them. '
-                : 'One of your own lists, played by the side across the table. '
-              : ''}
-            {requiredLimit === null
-              ? 'Your rosters, most recently updated first.'
-              : `Rosters built for ${pointsLabel(requiredLimit)}${orSmaller ? ' or fewer' : ''}, most recently updated first.`}
-          </DialogDescription>
-        </DialogHeader>
-        <DialogBody>
-          {error ? <Problem>{error}</Problem> : null}
-          {pasted}
-          <SectionHeading title="Rosters" count={rosters.length} className="mb-0" />
-          <div className="space-y-2">
-            {loading ? (
-              <div className="space-y-2" aria-label="Loading rosters">
-                {Array.from({ length: 3 }, (_, index) => (
-                  <div key={index} className="flex min-h-20 items-center gap-3 rounded-lg border border-edge bg-sunken p-3" aria-hidden>
-                    <div className="flex-1 space-y-2">
-                      <Skeleton className="h-4 w-1/3" />
-                      <Skeleton className="h-5 w-28" />
-                    </div>
-                    <Skeleton className="h-4 w-20" />
-                  </div>
-                ))}
-              </div>
-            ) : rosters.length ? (
-              <RosterChoices rosters={rosters} selectedId={selectedId} disabled={pending} onSelect={onChoose} />
-            ) : (
-              <div className="space-y-3 rounded-lg border border-edge bg-sunken p-4">
-                <p className="text-sm text-dim">
-                  {savedCount
-                    ? `None of your ${savedCount} saved rosters is built for ${pointsLabel(requiredLimit!)}${orSmaller ? ' or fewer' : ''}.`
-                    : 'You do not have a saved roster yet.'}
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {savedCount > 0 && requiredLimit !== null ? (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        changingSize.current = true
-                        onOpenChange(false)
-                      }}
-                    >
-                      Choose a different battle size
-                    </Button>
-                  ) : null}
-                  <Link
-                    to="/rosters"
-                    search={requiredLimit === null ? {} : { limit: requiredLimit }}
-                    className={buttonClass({ variant: 'outline', size: 'sm' })}
-                  >
-                    Open your roster library
-                  </Link>
-                </div>
-              </div>
-            )}
-          </div>
-          {lent.length ? (
-            <>
-              <SectionHeading title="Lent by friends" count={lent.length} className="mb-0" />
-              <LentRosterList rosters={lent} selectedId={selectedId} disabled={pending} onChoose={onChoose} />
-            </>
-          ) : null}
-        </DialogBody>
-      </DialogContent>
-    </Dialog>
   )
 }
 

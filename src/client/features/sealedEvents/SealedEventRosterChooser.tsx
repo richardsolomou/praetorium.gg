@@ -9,6 +9,8 @@ import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, Dia
 import { rostersLentToMeQuery, savedRosterSummariesQuery } from '../../queries'
 import { LentRosterList } from '../rosters/LentRosters'
 import { RosterChoices } from '../rosters/RosterChoices'
+import { useRosterChoiceFilter } from '../rosters/RosterChoiceFilter'
+import { NoFilterMatches } from '../../components/NoFilterMatches'
 import { SectionHeading } from '../../components/SectionHeading'
 import type { SavedRoster } from '../rosters/rosterLibrary'
 import { Problem } from '../../components/Problem'
@@ -50,6 +52,7 @@ export function RosterChooser({
   const rosters = (rosterQuery.data ?? []).filter((roster) => !roster.archived && fits(roster))
   const lent = (lentQuery.data ?? []).filter(({ summary }) => fits(summary))
   const choosable = [...rosters, ...lent.map(({ summary }) => summary)]
+  const filter = useRosterChoiceFilter({ rosters, lent })
   const size =
     requiredLimit === null
       ? null
@@ -61,7 +64,8 @@ export function RosterChooser({
   // Picking a roster and sealing it are two presses, because a seal is what every opponent reads at reveal.
   const [selectedId, setSelectedId] = useState<string | null>(null)
   if (!open && selectedId !== null) setSelectedId(null)
-  const selected = choosable.find((roster) => roster.id === selectedId)
+  // Only a list on screen may be sealed, so one a filter hides is no longer the choice.
+  const selected = [...filter.rosters, ...filter.lent.map(({ summary }) => summary)].find((roster) => roster.id === selectedId)
   const failed = error ? rosters.find((roster) => roster.id === failedRosterId) : undefined
 
   return (
@@ -88,23 +92,29 @@ export function RosterChooser({
               <Pencil /> <span className="truncate">Edit {failed.name}</span>
             </Link>
           ) : null}
-          {rosterQuery.isPending ? (
+          {rosterQuery.isPending ? null : filter.bar}
+          {filter.failed ? (
+            <Problem>Some rosters’ points and legality could not be checked, so this filter leaves them out.</Problem>
+          ) : null}
+          {rosterQuery.isPending || filter.pending ? (
             <RosterChooserSkeleton />
           ) : choosable.length ? (
             <>
-              {rosters.length ? (
+              {filter.rosters.length || filter.lent.length ? null : <NoFilterMatches>No rosters match these filters.</NoFilterMatches>}
+              {filter.rosters.length ? (
                 <RosterChoices
-                  rosters={rosters}
+                  rosters={filter.rosters}
+                  sort={filter.sort}
                   selectedId={selectedId}
                   disabled={pending}
                   onSelect={(roster) => setSelectedId(roster.id)}
                 />
               ) : null}
-              {lent.length ? (
+              {filter.lent.length ? (
                 <>
-                  <SectionHeading title="Lent by friends" count={lent.length} className="mb-0" />
+                  <SectionHeading title="Lent by friends" count={filter.lent.length} className="mb-0" />
                   <LentRosterList
-                    rosters={lent}
+                    rosters={filter.lent}
                     selectedId={selectedId}
                     disabled={pending}
                     onChoose={(roster) => setSelectedId(roster.id)}

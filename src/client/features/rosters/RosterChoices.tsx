@@ -8,7 +8,7 @@ import { factionIndexQuery } from '../../queries'
 import { useDispositionNames } from '../battle/setup/chrome'
 import type { SavedRoster } from './rosterLibrary'
 import { useRosterPages } from './rosterPages'
-import { sortRosters } from '../../../core/rosterSort'
+import { sortRosters, type RosterSort } from '../../../core/rosterSort'
 import { type RosterRowLayout, rosterRowFrame } from './RosterRow'
 import { type RosterProblem, RosterSummary, RosterVariantSummary, rosterTitle } from './RosterSummary'
 
@@ -20,12 +20,14 @@ import { type RosterProblem, RosterSummary, RosterVariantSummary, rosterTitle } 
 export function RosterChoices({
   rosters,
   selectedId,
+  sort,
   disabled = false,
   onSelect,
 }: {
   /** Already narrowed to the lists that may be chosen. */
   rosters: readonly SavedRoster[]
   selectedId: string | null
+  sort: RosterSort
   disabled?: boolean
   /** Passes what the library already knows is wrong with the list, if its row has been priced. */
   onSelect: (roster: SavedRoster, problem: RosterProblem | null) => void
@@ -33,8 +35,7 @@ export function RosterChoices({
   const [shownCount, setShownCount] = useState(ROSTER_LIBRARY_BATCH_SIZE)
   const { data: available, isPending: factionsLoading } = useQuery(factionIndexQuery())
   const nameDisposition = useDispositionNames()
-  // Recently updated first, the library's own default: its chosen order lives in a cookie scoped to `/rosters`.
-  const shown = variantGroups(sortRosters(rosters, 'updated-desc')).slice(0, shownCount)
+  const shown = variantGroups(sortRosters(rosters, sort)).slice(0, shownCount)
   const pages = useRosterPages(
     shown.map(({ roster }) => roster.id),
     true,
