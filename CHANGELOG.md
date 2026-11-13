@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.239.0 (2026-11-13)
+
+### Minor Changes
+
+- f439108: A finished battle against someone who isn't your friend yet offers to add them, or to accept their request.
+- f439108: A finished battle shows your record against your opponent, with a link to the full record against them.
+
 ## 0.238.3 (2026-11-13)
 
 ### Patch Changes
