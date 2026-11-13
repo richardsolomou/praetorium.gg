@@ -34,7 +34,7 @@ type UsableRoster = Parameters<typeof rosterSnapshot>[0] &
  * A list priced, checked, and frozen the way a battle fields it, whoever holds it, with its player's alerts. A sealed
  * list's points answer to its event instead, where allies who share points may spend past their own saved total.
  */
-export async function frozenRoster(saved: UsableRoster, settings: readonly AbilityReminder[], options: { sealing?: boolean } = {}) {
+async function frozenRoster(saved: UsableRoster, settings: readonly AbilityReminder[], options: { sealing?: boolean } = {}) {
   const catalogue = await requireCatalogue(saved.catalogueId)
   const rules = await app().rulesFor(saved.catalogueId)
   if (!rules) throw new Response('army rules data is not available', { status: 409 })

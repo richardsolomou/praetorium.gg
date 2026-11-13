@@ -1,7 +1,6 @@
 export * from './functions/accounts'
 export * from './functions/admin'
 export * from './functions/battles'
-export * from './functions/guests'
 export * from './functions/changes'
 export * from './functions/groups'
 export * from './functions/feedback'

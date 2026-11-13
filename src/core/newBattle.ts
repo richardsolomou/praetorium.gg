@@ -1,7 +1,5 @@
 export type NewBattlePlayers = { opponentId?: string; opponentIds?: string[]; allyId?: string }
 export type CreateBattleInput = NewBattlePlayers & {
-  /** Opponents without an account, seated by the name the creator gives them. */
-  guestNames?: string[]
   limit?: number | null
   missionPackId: string | null
   casual?: boolean
@@ -29,9 +27,8 @@ export function isPracticeSeat(player: { id: string; automated: boolean }) {
   return player.automated && !isGuestSeat(player.id)
 }
 
-export function newBattleSeats(input?: string | (NewBattlePlayers & { guestNames?: string[] })) {
+export function newBattleSeats(input?: string | NewBattlePlayers) {
   const opponentIds = typeof input === 'string' ? [input] : (input?.opponentIds ?? (input?.opponentId ? [input.opponentId] : []))
   const allyIds = typeof input === 'object' && input.allyId ? [input.allyId] : []
-  const guestNames = typeof input === 'object' ? (input.guestNames ?? []) : []
-  return { allyIds, opponentIds, guestNames, invited: [...allyIds, ...opponentIds] }
+  return { allyIds, opponentIds, invited: [...allyIds, ...opponentIds] }
 }

@@ -2311,13 +2311,6 @@ describe('guest devices', () => {
     expect(digest(h).status).toBe('finished')
   })
 
-  it('plays a guest’s side from their device once they join after a battle was last listed', () => {
-    const h = setup()
-    digest(h)
-    h.join(h.invite())
-    expect(digest(h).seats.find((seat) => seat.id === GUEST)?.automated).toBe(false)
-  })
-
   it('folds again for a release that did not fold the stored digest', () => {
     const h = setup()
     digest(h)
@@ -2364,16 +2357,9 @@ describe('guest devices', () => {
     expect(device()).toEqual({ battleId: 'battle', token: 'battle-token', deviceHash: 'a'.repeat(64), joinedAt: NOW * 1_000 })
   })
 
-  it('stops the table playing a guest who joined on their own device', () => {
+  it('keeps the table playing a guest seat a device joined', () => {
     const { invite, join, seat } = setup()
     join(invite())
-    expect(seat()?.automated).toBe(false)
-  })
-
-  it('hands the seat back to the table when the host replaces the invite', () => {
-    const { invite, join, seat } = setup()
-    join(invite())
-    invite(GUEST, true)
     expect(seat()?.automated).toBe(true)
   })
 

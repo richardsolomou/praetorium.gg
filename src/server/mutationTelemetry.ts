@@ -27,10 +27,9 @@ export function captureBattleCreated(
     battle_id: result.battleId,
     practice: result.practice,
     limit: data.limit,
-    player_count: 1 + (data.allyId ? 1 : 0) + (data.opponentIds?.length ?? (data.opponentId ? 1 : 0)) + (data.guestNames?.length ?? 0),
+    player_count: 1 + (data.allyId ? 1 : 0) + (data.opponentIds?.length ?? (data.opponentId ? 1 : 0)),
     casual: data.casual,
     manual: data.manual,
-    guests: data.guestNames?.length ?? 0,
   })
 }
 

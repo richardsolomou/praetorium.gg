@@ -138,12 +138,6 @@ export const PRODUCT_DOCS = [
     description: 'Armies, battle size, mission, battlefield and the rest of setup, in order.',
   },
   {
-    slug: 'play-with-a-guest',
-    section: 'Battles',
-    title: 'Play with a guest',
-    description: 'Invite an opponent without an account to play from their own phone.',
-  },
-  {
     slug: 'play-the-game',
     section: 'Battles',
     title: 'Play the game',

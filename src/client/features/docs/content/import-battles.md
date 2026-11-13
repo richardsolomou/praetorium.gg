@@ -29,4 +29,4 @@ A game only comes in once. Whichever of you imports first brings it in, and the 
 
 ## Where they count
 
-Imported games count in your record, on your profile and among public battles. They count on the [leaderboard](/leaderboard) once your opponent is in the battle too, as with any game against a guest.
+Imported games count in your record, on your profile and among public battles. They count on the [leaderboard](/leaderboard) once your opponent is in the battle too, the same as any game between two accounts.

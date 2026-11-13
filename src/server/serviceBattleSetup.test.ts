@@ -43,25 +43,6 @@ it('creates a manually tracked battle without a mission pack', async () => {
   expect(initialCommand()).toMatchObject({ missionPackId: null, manual: true })
 })
 
-it('seats a guest the creator names without a friendship', async () => {
-  const { service, created } = serviceRecordingCreation()
-  await service.createBattle('actor', { guestNames: ['Alex'], missionPackId: null, casual: true })
-  expect(created()).toMatchObject({ opponentIds: [], guestNames: ['Alex'] })
-})
-
-it('counts a guest among the players a battle seats', async () => {
-  const { service, initialCommand } = serviceRecordingCreation()
-  await service.createBattle('actor', { opponentId: 'opponent', guestNames: ['Alex'], missionPackId: null, casual: true })
-  expect(initialCommand()).toMatchObject({ teamBattle: true, playerCount: 3 })
-})
-
-it('does not report a guest battle as practice', async () => {
-  const { service } = serviceRecordingCreation()
-  expect(await service.createBattle('actor', { guestNames: ['Alex'], missionPackId: null, casual: true })).toMatchObject({
-    practice: false,
-  })
-})
-
 it('refuses a battle with nobody across the table', async () => {
   const { service } = serviceRecordingCreation()
   await expect(service.createBattle('actor', { missionPackId: null, casual: true })).rejects.toMatchObject({ status: 400 })

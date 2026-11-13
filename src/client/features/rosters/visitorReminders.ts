@@ -27,12 +27,6 @@ export function adoptVisitorReminders(legacy: readonly RosterReminder[] | undefi
   writeVisitorReminders(abilityRemindersFromRosters([{ updatedAt: 0, reminders: legacy }]))
 }
 
-/** The alerts a visitor's list fields with, or none for the server to read from the draft when this browser keeps none. */
-export function visitorFieldingReminders(legacy: readonly RosterReminder[] | undefined) {
-  adoptVisitorReminders(legacy)
-  return visitorReminders() ?? undefined
-}
-
 /**
  * Gives the account that saved a visitor's list the alerts this browser kept, without replacing ones it holds. Never
  * fails that save: it stops at the limit or the first refusal and keeps what it did not send in this browser.

@@ -1,6 +1,6 @@
 A finished battle shows the result, the battle events and a timeline you can scrub through turn by turn. Filter to **CP only** to check command point spending, and select a stratagem's name to read what it does. Watchers can scrub a live battle, and seated players get the replay once it's finished.
 
-Battles between accounts count in each player's record. A guest battle counts in your record, not on the leaderboard. Practice battles count nowhere.
+Battles between accounts count in each player's record. Practice battles count nowhere.
 
 ## The leaderboard
 
@@ -10,16 +10,12 @@ A concession counts as a loss, and allies share their side's result. In a team b
 
 Your battle list, your profile and every finished battle show how far each counted battle moved each player's rating. Your profile also charts your overall rating.
 
-## Guests keeping the game
-
-When the battle finishes, the guest's device shows **Keep this battle**. They choose **Create an account** or **I already have an account**, then **Add to my record**. It then counts as a game between two accounts, and on the leaderboard if it was guided. The account they use can't already be seated in that battle.
-
 ## Achievements
 
 Every profile has an **Achievements** tab, with the player's latest three medals at the top. Tap or hover a medal to see what earns it. Bronze medals are worth 10 points, silver 25, gold 50 and platinum 100, and the total shows under the player's name.
 
 - Battle achievements only count battles that count for the leaderboard, so guest and practice battles never earn them. A conceded win is never a close one, and a streak ends at any loss or draw.
-- **Recruiter** goes to the player whose guest created an account to add the battle to their record. Each guest counts once, and imported battles never count.
+- **Recruiter** went to the player whose guest created an account to add the battle to their record. Battles no longer seat guests, so it can't be earned any more, and anyone who earned it keeps it.
 - Group achievements count casual battles played for a group and the group's hidden-list games.
 - Tournament achievements need a Swiss tournament played to its last round.
 - **Admired** counts likes from other players on one collection photo.

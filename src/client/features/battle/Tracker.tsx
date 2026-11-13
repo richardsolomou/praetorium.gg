@@ -1,6 +1,4 @@
 import { GuideHelp } from '../onboarding/GuideHelp'
-import { isGuestSeat } from '../../../core/newBattle'
-import { GuestInvite } from './GuestInvite'
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { toast } from 'sonner'
@@ -687,19 +685,6 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
               <div data-onboarding="battle-live-report" className="border-t border-edge pt-3">
                 <div className="flex flex-wrap items-center justify-end gap-2">
                   <p className="eyebrow mr-auto shrink-0">Battle events</p>
-                  {isGuestSeat(view.viewerId)
-                    ? null
-                    : view.players
-                        .filter((player) => isGuestSeat(player.id))
-                        .map((player) => (
-                          <GuestInvite
-                            key={player.id}
-                            token={view.token}
-                            playerId={player.id}
-                            name={player.name}
-                            joined={!player.automated}
-                          />
-                        ))}
                   <BattleMenu
                     canDelete={view.creatorId === view.viewerId}
                     pending={pending || promptMinimized || remove.isPending}

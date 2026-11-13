@@ -23,11 +23,10 @@
   "import-a-roster-review": [1728, 960],
   "import-a-roster-shortfall": [1728, 1228],
   "track-a-battle-battle-options": [396, 368],
-  "track-a-battle-guest-invite": [1152, 1024],
-  "track-a-battle-new-battle": [1152, 1480],
+  "track-a-battle-new-battle": [1152, 1396],
   "track-a-battle-phase": [794, 264],
   "track-a-battle-scoring": [1728, 1384],
   "track-a-battle-setup-bar": [1440, 204],
   "track-a-battle-stratagems": [610, 1742],
-  "track-a-battle-tracking": [1152, 1480]
+  "track-a-battle-tracking": [1152, 1396]
 }
