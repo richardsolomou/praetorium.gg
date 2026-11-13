@@ -410,6 +410,14 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
   }
   const shownLimit = view.settings.limit ?? format.limit
   const builtLists = table.flatMap((side) => side.armies).filter((army) => army.roster?.built)
+  const shortText =
+    short && `${sideName(table.find((side) => side.index === short.side)!)} brings ${pointsLabel(short.points)} and plays short.`
+  /** One line under the cards: what stops the size, or the size the lists set and who plays short. */
+  const sizeLine =
+    sizeProblem ??
+    (shownLimit !== null && view.settings.sizeFromRosters
+      ? `A ${shownLimit.toLocaleString('en')}-point battle, set by ${builtLists.length > 1 || team ? 'the bigger side' : builtLists[0]?.roster?.name}. ${shortText || 'A bigger or smaller list changes it.'}`
+      : shortText)
   const deployment = deploymentFor(view.deploymentId, deployments)
   const group = groups?.current?.name
 
@@ -474,17 +482,8 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
                     }
               }
             />
-            {shownLimit !== null && view.settings.sizeFromRosters ? (
-              <p className={cn('relative text-center text-xs', sizeProblem ? 'text-discarded' : 'text-dim')}>
-                {sizeProblem ??
-                  `A ${shownLimit.toLocaleString('en')}-point battle, set by ${builtLists.length > 1 || team ? 'the bigger side' : builtLists[0]?.roster?.name}. ${
-                    short
-                      ? `${sideName(table.find((side) => side.index === short.side)!)} brings ${pointsLabel(short.points)} and plays short.`
-                      : 'A bigger or smaller list changes it.'
-                  }`}
-              </p>
-            ) : sizeProblem ? (
-              <p className="relative text-center text-xs text-discarded">{sizeProblem}</p>
+            {sizeLine ? (
+              <p className={cn('relative text-center text-xs', sizeProblem ? 'text-discarded' : 'text-dim')}>{sizeLine}</p>
             ) : null}
           </header>
 
