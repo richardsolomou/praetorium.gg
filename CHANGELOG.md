@@ -1,5 +1,13 @@
 # praetorium
 
+## 0.238.3 (2026-11-13)
+
+### Patch Changes
+
+- 6072f76: Optimizing a led unit inside a full army, such as Sternguard with a Lieutenant, finishes instead of stopping with "The full search could not finish."
+- 6072f76: The optimizer's progress bar moves steadily instead of sitting near 0% for most of the search.
+- 6072f76: The simulator no longer asks you to choose between two copies of a weapon ability that do the same against the target, such as Lethal Hits and Lethal Hits: Non-Monster/Vehicle against Infantry.
+
 ## 0.238.2 (2026-11-13)
 
 ### Patch Changes
