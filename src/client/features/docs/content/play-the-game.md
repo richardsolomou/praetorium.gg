@@ -32,6 +32,10 @@ Open **Army** under a player's name to see their units. Remove models and wounds
 
 **Simulate** opens the [combat simulator](/simulator) with the units still standing.
 
+## Threats
+
+**Threats** under an opponent's name lists their surviving units, furthest-reaching first. Each row shows the unit's **Move**, its longest ranged weapon's **Range**, and the **Total** of the two. An attached unit counts as one unit, at the Move of its slowest model. The list does not add Advance, charge distance, or abilities, and it shows no rules text. A unit in reserves or a transport shows where it is. A destroyed unit is left out. A list attached before battles kept loadouts shows its units without numbers.
+
 ## Notes, timer and reminders
 
 **Battle note** records a rules call or house rule in the battle log, up to 500 characters. Anyone who can watch the battle can read notes.
