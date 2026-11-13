@@ -35,20 +35,21 @@ function awaitSettled(page: Page) {
   }
 }
 
-/**
- * A battle covers itself with its scores whenever a round ends, on every device that saw the round
- * played, so any press or check it covers continues it first. A spec about the summary removes this.
- */
 export const roundSummary = (page: Page) => page.locator('[data-round-summary]')
-export function continuePastRoundSummaries(page: Page) {
-  // Pressed anywhere it closes, and it can close or remount while this runs, so a wait here must not outlast it.
-  void page.addLocatorHandler(roundSummary(page), (summary) =>
-    summary
-      .first()
-      .click({ position: { x: 4, y: 4 }, timeout: 5_000 })
-      .catch(() => {}),
-  )
-}
+
+/**
+ * A battle covers itself with its scores whenever a round ends, which would stand in front of every
+ * spec that plays across one. Each battle reads as having had every summary seen, unless a spec sets
+ * `showRoundSummaries` on the page's window first, as one about the summary does.
+ */
+const SEEN_ROUND_SUMMARIES = `(() => {
+  const getItem = Storage.prototype.getItem
+  Storage.prototype.getItem = function (key) {
+    if (!window.showRoundSummaries && typeof key === 'string' && key.startsWith('praetorium.round-summary.'))
+      return '{"round":99,"finished":true}'
+    return getItem.call(this, key)
+  }
+})()`
 
 /** Each upstream file the snapshot was built from, by the address a reader's browser loads it at. */
 let upstream: Map<string, string> | undefined
@@ -232,8 +233,8 @@ export const test = base.extend<{ closeOpenedContexts: void; recordCoverage: voi
   rulesText: [true, { option: true }],
   context: async ({ context, javaScriptEnabled, rulesText }, use) => {
     // Playwright opens this context through `browser.newContext`, which attaches the wait before this option is known.
-    context.off('page', awaitSettled).off('page', continuePastRoundSummaries)
-    if (javaScriptEnabled) context.on('page', awaitSettled).on('page', continuePastRoundSummaries)
+    context.off('page', awaitSettled)
+    if (javaScriptEnabled) context.on('page', awaitSettled)
     if (!rulesText) await startUnchosen(context)
     coverNewPages(context, javaScriptEnabled)
     await use(context)
@@ -245,7 +246,8 @@ export const test = base.extend<{ closeOpenedContexts: void; recordCoverage: voi
       const newContext = browser.newContext.bind(browser)
       browser.newContext = async (options) => {
         const context = await newContext(options)
-        if (options?.javaScriptEnabled !== false) context.on('page', awaitSettled).on('page', continuePastRoundSummaries)
+        if (options?.javaScriptEnabled !== false) context.on('page', awaitSettled)
+        await context.addInitScript({ content: SEEN_ROUND_SUMMARIES })
         await serveRulesText(context)
         coverNewPages(context, options?.javaScriptEnabled !== false)
         return context

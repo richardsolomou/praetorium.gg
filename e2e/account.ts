@@ -5,7 +5,6 @@ import { PHASES } from '../src/core/battle'
 import type { SpacetimeOperator } from '../src/server/spacetimeOperator'
 import { PREVIEW_EMAIL, PREVIEW_PASSWORD } from '../scripts/seedPreview'
 import { lastPathSegment, productOperator, savedWork, userIdFor } from './storage'
-import { roundSummary } from './test'
 
 export const desktopContext = { viewport: { width: 1440, height: 900 } } satisfies BrowserContextOptions
 
@@ -663,12 +662,8 @@ async function skipMissionChoices(page: Page) {
 }
 
 export async function takeTheTurn(page: Page) {
-  for (let guard = 0; guard < 4; guard += 1) {
+  for (let guard = 0; guard < 3; guard += 1) {
     const seen = await Promise.race([
-      // Settling a round's last turn sums the round up before its draw, and the board under it is hidden meanwhile.
-      roundSummary(page)
-        .waitFor({ state: 'visible', timeout: 8_000 })
-        .then(() => 'summary'),
       owedPrompt(page)
         .waitFor({ state: 'visible', timeout: 8_000 })
         .then(() => 'owed'),
@@ -680,10 +675,6 @@ export async function takeTheTurn(page: Page) {
         .then(() => 'board'),
     ]).catch(() => 'board')
     if (seen === 'board') return skipMissionChoices(page)
-    if (seen === 'summary') {
-      await expect(roundSummary(page)).toBeHidden()
-      continue
-    }
     const prompt = seen === 'owed' ? owedPrompt(page) : drawPrompt(page)
     if (seen === 'drawn') await clearDrawPrompt(prompt)
     else {
