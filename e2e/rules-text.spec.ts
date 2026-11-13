@@ -132,10 +132,10 @@ test('a source file that fails to load says so and loads when tried again', asyn
   await expect(failures).toHaveCount(0)
 })
 
-test('a gap names the source the reader left off and marks it in the dialog', async ({ page }) => {
+test('a gap opens the dialog with the source the reader left off marked', async ({ page }) => {
   await setSource(page, 'BSData', true)
   await page.goto(rulesPage)
-  await expect(ask(page)).toHaveAccessibleName('Rules text isn’t loaded. Turn on Game Datacards')
+  await expect(ask(page)).toHaveAccessibleName('Rules text isn’t loaded. Turn on external sources')
   await ask(page).click()
   await expect(dialog(page).getByText('Needed for the text you asked to load.')).toHaveCount(1)
   await loadFromDialog(page, ['Game Datacards'])

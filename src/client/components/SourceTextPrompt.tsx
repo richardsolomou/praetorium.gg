@@ -1,6 +1,5 @@
 import { cn } from '@/lib/utils'
 import type { TextSource } from '../../core/sourceText'
-import { TEXT_SOURCE_INFO } from '../rulesText'
 import { type MissingText, retryFailedTextFiles } from '../sourceText'
 import { useHydrated } from '../useClientValue'
 import { openTextSourcesDialog } from './TextSourcesDialog'
@@ -48,7 +47,7 @@ function TextFailed({ className }: { className?: string }) {
   )
 }
 
-/** Names the source this gap needs when it is known, so a reader who chose only the other source sees which one to add. */
+/** Opens the source choice on the source this gap needs, when it is known. */
 function TextAsk({ source, className, ...props }: { source?: TextSource; className?: string; 'data-text-gap-ask'?: boolean }) {
   return (
     <button
@@ -58,7 +57,7 @@ function TextAsk({ source, className, ...props }: { source?: TextSource; classNa
       {...props}
     >
       Rules text isn’t loaded.{' '}
-      <span className="text-info group-hover:text-bone">{source ? `Turn on ${TEXT_SOURCE_INFO[source].name}` : 'Choose sources'}</span>
+      <span className="text-info group-hover:text-bone">Turn on external sources</span>
     </button>
   )
 }
