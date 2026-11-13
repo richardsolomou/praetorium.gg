@@ -8,7 +8,7 @@ Open the repository in a GitHub Codespace or a dev container, then run `just dev
 
 To set up without a container, install Node 24.x, pnpm 12.13.0, just 1.59.0, and SpacetimeDB CLI 2.14.0, then run `just install` and `just dev`. Startup stops on any other SpacetimeDB CLI version.
 
-No credentials are needed: the first `just dev` builds the catalogue from public sources, which takes some minutes. See [running locally](docs/development/running-locally.md).
+No credentials are needed. See [running locally](docs/development/running-locally.md).
 
 ## Check a change
 
