@@ -56,8 +56,7 @@ function TextAsk({ source, className, ...props }: { source?: TextSource; classNa
       onClick={() => openTextSourcesDialog(source)}
       {...props}
     >
-      Rules text isn’t loaded.{' '}
-      <span className="text-info group-hover:text-bone">Turn on external sources</span>
+      Rules text isn’t loaded. <span className="text-info group-hover:text-bone">Turn on external sources</span>
     </button>
   )
 }
