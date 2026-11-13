@@ -41,7 +41,13 @@ function awaitSettled(page: Page) {
  */
 export const roundSummary = (page: Page) => page.locator('[data-round-summary]')
 export function continuePastRoundSummaries(page: Page) {
-  void page.addLocatorHandler(roundSummary(page), (summary) => summary.getByRole('button').click())
+  // Pressed anywhere it closes, and it can close or remount while this runs, so a wait here must not outlast it.
+  void page.addLocatorHandler(roundSummary(page), (summary) =>
+    summary
+      .first()
+      .click({ position: { x: 4, y: 4 }, timeout: 5_000 })
+      .catch(() => {}),
+  )
 }
 
 /** Each upstream file the snapshot was built from, by the address a reader's browser loads it at. */
