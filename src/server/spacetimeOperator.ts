@@ -1175,8 +1175,10 @@ export class SpacetimeOperator {
     return this.read('push_targets', [[...new Set(userIds)]], z.array(pushTarget))
   }
 
-  async storeNotices(notices: readonly (Notice & { subjectName?: string })[], now: number) {
-    if (notices.length) await this.reply('store_notices', [JSON.stringify({ now, notices })], z.boolean())
+  /** Each notice's stored id by recipient, in the order given. */
+  async storeNotices(notices: readonly (Notice & { subjectName?: string })[], now: number): Promise<Record<string, string>[]> {
+    if (!notices.length) return []
+    return this.read('store_notices', [JSON.stringify({ now, notices })], z.array(z.record(z.string(), z.string())))
   }
 
   async noticesByUser(userId: string, now: number) {

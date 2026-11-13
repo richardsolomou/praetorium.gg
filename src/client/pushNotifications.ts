@@ -1,6 +1,6 @@
 import { posthog } from 'posthog-js'
 import { registerPushDevice, unregisterPushDevice } from './functions'
-import { requestNativePush } from './nativeBridge'
+import { requestNativePush, syncNativeNotices } from './nativeBridge'
 
 /**
  * Bind this device to the signed-in account when the operating system allows it.
@@ -18,12 +18,13 @@ export async function registerThisDevice(prompt: boolean) {
 }
 
 /**
- * Stop this device receiving the signed-out account's notices.
+ * Stop this device receiving the signed-out account's notices, and clear the app's icon badge.
  *
  * Bounded and never throws, because signing out must not wait on the shell or
  * fail because the server could not be told.
  */
 export async function forgetThisDevice() {
+  syncNativeNotices([], 0)
   try {
     const answer = await requestNativePush(false, 3_000)
     if (answer?.status === 'granted') {

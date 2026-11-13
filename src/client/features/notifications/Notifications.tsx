@@ -1,11 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Link } from '@tanstack/react-router'
+import { Link, useRouterState } from '@tanstack/react-router'
 import { Bell } from 'lucide-react'
-import { type RefObject, useState } from 'react'
+import { type RefObject, useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from '@/components/ui/popover'
 import { formatAgo } from '../../dates'
 import { markNoticesRead } from '../../functions'
+import { syncNativeNotices } from '../../nativeBridge'
+import { NOTICE_ID } from '../../../core/notificationConfig'
 import { type QueryData, noticesQuery } from '../../queries'
 import { countLabel } from '../../text'
 import { useHydrated } from '../../useClientValue'
@@ -94,6 +96,31 @@ export function NoticeList({ onOpen }: { onOpen?: () => void }) {
       ))}
     </ul>
   )
+}
+
+/**
+ * Marks read the notice a push opened, which its page carries as `notice`, and keeps the app's delivered pushes and
+ * icon badge in step with the list, so reading a notice on any device clears it from the phone.
+ */
+export function NoticeSync() {
+  const { data: notices } = useQuery(noticesQuery())
+  const markRead = useMarkRead()
+  const opened = useRouterState({ select: (state) => (state.location.search as Record<string, unknown>).notice })
+  const marked = useRef(new Set<string>())
+  useEffect(() => {
+    const id = typeof opened === 'number' || typeof opened === 'string' ? String(opened) : null
+    if (!id || !NOTICE_ID.test(id) || marked.current.has(id)) return
+    marked.current.add(id)
+    markRead.mutate([id])
+  }, [opened, markRead])
+  useEffect(() => {
+    if (notices)
+      syncNativeNotices(
+        notices.filter((notice) => notice.read).map((notice) => notice.id),
+        notices.filter((notice) => !notice.read).length,
+      )
+  }, [notices])
+  return null
 }
 
 export function MarkAllRead() {

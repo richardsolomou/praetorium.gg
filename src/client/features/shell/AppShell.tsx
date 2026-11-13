@@ -30,7 +30,7 @@ import { ROSTER_WORKSPACE, followRailState, setRailCollapsed, useRailCollapsed }
 import { POSTHOG_BROWSER_OPTIONS, setImpersonating } from '../../../posthog'
 import { authClient } from '../../authClient'
 import { Account } from './Account'
-import { NotificationsButton } from '../notifications/Notifications'
+import { NoticeSync, NotificationsButton } from '../notifications/Notifications'
 import { GlobalSearch, GlobalSearchProvider } from './GlobalSearch'
 import { TextSourcesDialog } from '../../components/TextSourcesDialog'
 import { ReleaseUpdateNotice } from './ReleaseUpdateNotice'
@@ -190,10 +190,14 @@ function SiteRail({ workspace }: { workspace: boolean }) {
             />
           </div>
           {/*
-           * Folded, the column is the open row reversed: the toggle keeps the corner under the pointer
-           * so the rail opens again without moving, and the account stays next to it.
+           * Folded, the column keeps the open row's order: the toggle keeps the bottom corner under the pointer
+           * so the rail opens again without moving, with the account and bell above it.
            */}
-          <div className="mx-2.5 mt-2 flex items-center justify-between gap-1 border-t border-edge pt-2 in-data-[rail=collapsed]:flex-col-reverse">
+          <div className="mx-2.5 mt-2 flex items-center justify-between gap-1 border-t border-edge pt-2 in-data-[rail=collapsed]:flex-col">
+            <div className="flex items-center gap-1 in-data-[rail=collapsed]:flex-col">
+              <Account className="size-8" />
+              {me ? <NotificationsButton beside={frame} className="size-8" /> : null}
+            </div>
             <RailTooltip label="Expand navigation" collapsed={collapsed}>
               <Button
                 variant="ghost"
@@ -206,10 +210,6 @@ function SiteRail({ workspace }: { workspace: boolean }) {
                 <Toggle aria-hidden className="size-4.5" />
               </Button>
             </RailTooltip>
-            <div className="flex items-center gap-1 in-data-[rail=collapsed]:flex-col-reverse">
-              {me ? <NotificationsButton beside={frame} /> : null}
-              <Account className="size-8" />
-            </div>
           </div>
         </div>
       </div>
@@ -332,6 +332,7 @@ export function AppShell() {
               <PostHogBetterAuthIdentity authClient={authClient} properties={({ name, email }) => ({ name, email })} />
             )}
             {posthog && !impersonating && <SupportIdentity />}
+            {me && !impersonating ? <NoticeSync /> : null}
             <GlobalSearchProvider>
               {/*
                * The rail sits beside the page and the page decides its own width,

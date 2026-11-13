@@ -407,8 +407,30 @@ describe('what a sealed event allows', () => {
       host.call(host.operator, (ctx) => ctx.db.sealedEvents.id.update({ ...ctx.db.sealedEvents.id.find('event')!, ...fields }))
     const reveal = (now: number) => command({ op: 'reveal', ownerId: 'organizer', now })
     const remind = (now: number, ownerId = 'organizer') => command({ op: 'remind', ownerId, now })
-    return { seal, update, event, entry, set, reveal, remind }
+    return { host, seal, update, event, entry, set, reveal, remind }
   }
+
+  it('marks the seal-your-list notice read once the entrant seals', () => {
+    const sealedEvent = setup('[]')
+    const procedure = sealedEvent.host.procedure(sealedEvent.host.operator)
+    module.storeNotices(procedure, {
+      payload: JSON.stringify({
+        now: NOW,
+        notices: [
+          {
+            kind: 'sealed-event-roster-reminder',
+            actorId: 'organizer',
+            recipientIds: ['entrant'],
+            sealedEventToken: 'sealed-event',
+            eventToken: 'event',
+          },
+        ],
+      }),
+    })
+    sealedEvent.seal([])
+    const [notice] = JSON.parse(module.noticesByUser(procedure, { userId: 'entrant', now: BigInt(NOW) })) as { readAt: number | null }[]
+    expect(notice?.readAt).not.toBeNull()
+  })
 
   it('seals a list a friend has lent the entrant', () => {
     const sealedEvent = setup('[]')
@@ -3573,6 +3595,99 @@ describe('notices', () => {
     const h = harness()
     store(h, 1, { kind: 'group-member-accepted', actorId: 'alice', recipientIds: ['bob'], groupToken: 'gone', subjectName: 'Old name' })
     expect(listed(h, 'bob', 1)).toEqual([])
+  })
+
+  it('marks a friend request read once its recipient accepts it', () => {
+    const h = harness()
+    module.requestFriend(h.procedure(h.operator), { requesterId: 'alice', addresseeId: 'bob', now: 1n })
+    store(h, 1, friendRequest('alice', ['bob']))
+    module.acceptFriend(h.procedure(h.operator), { requesterId: 'alice', addresseeId: 'bob', now: 2n })
+    expect(listed(h, 'bob', 2)[0]?.readAt).not.toBeNull()
+  })
+
+  it('marks a friend request read once its recipient declines it', () => {
+    const h = harness()
+    module.requestFriend(h.procedure(h.operator), { requesterId: 'alice', addresseeId: 'bob', now: 1n })
+    store(h, 1, friendRequest('alice', ['bob']))
+    module.rejectFriend(h.procedure(h.operator), { requesterId: 'alice', addresseeId: 'bob' })
+    expect(listed(h, 'bob', 2)[0]?.readAt).not.toBeNull()
+  })
+
+  it('leaves another player’s friend request unread', () => {
+    const h = harness()
+    module.requestFriend(h.procedure(h.operator), { requesterId: 'alice', addresseeId: 'bob', now: 1n })
+    store(h, 1, friendRequest('carol', ['bob']))
+    module.acceptFriend(h.procedure(h.operator), { requesterId: 'alice', addresseeId: 'bob', now: 2n })
+    expect(listed(h, 'bob', 2)[0]?.readAt).toBeNull()
+  })
+
+  it('marks a join request read for every organizer once one of them answers it', () => {
+    const h = harness()
+    const group = (input: Record<string, unknown>) =>
+      module.groupCommand(h.procedure(h.operator), { payload: JSON.stringify({ token: 'group', ...input }) })
+    group({
+      op: 'create',
+      id: 'group-id',
+      ownerId: 'owner',
+      now: NOW,
+      name: 'Group',
+      description: '',
+      visibility: 'private',
+      admission: 'approval',
+    })
+    group({ op: 'join', userId: 'admin', now: NOW })
+    group({ op: 'moderate', actorId: 'owner', userId: 'admin', accept: true })
+    group({ op: 'set-admins', actorId: 'owner', userIds: ['admin'] })
+    group({ op: 'join', userId: 'player', now: NOW })
+    store(h, NOW, { kind: 'group-member-requested', actorId: 'player', recipientIds: ['owner', 'admin'], groupToken: 'group' })
+    group({ op: 'moderate', actorId: 'admin', userId: 'player', accept: false })
+    expect(listed(h, 'owner', NOW)[0]?.readAt).not.toBeNull()
+  })
+
+  it('marks an entry request read once the organizer accepts it', () => {
+    const h = harness()
+    h.call(h.operator, (ctx) => {
+      insertTournament(ctx)
+      ctx.db.tournaments.id.update({ ...ctx.db.tournaments.id.find('sealed-event')!, admission: 'approval' })
+    })
+    const command = (input: Record<string, unknown>) =>
+      module.sealedEventCommand(h.procedure(h.operator), {
+        payload: JSON.stringify({ token: 'sealed-event', eventToken: 'event', memberLimit: 128, ...input }),
+      })
+    command({ op: 'join', userId: 'entrant', now: NOW })
+    store(h, NOW, {
+      kind: 'sealed-event-entry-requested',
+      actorId: 'entrant',
+      recipientIds: ['organizer'],
+      sealedEventToken: 'sealed-event',
+      eventToken: 'event',
+    })
+    command({ op: 'moderate', ownerId: 'organizer', userId: 'entrant', status: 'accepted' })
+    expect(listed(h, 'organizer', NOW)[0]?.readAt).not.toBeNull()
+  })
+
+  it('marks an entry request read once the organizer adds that player', () => {
+    const h = harness()
+    h.call(h.operator, (ctx) => {
+      insertTournament(ctx)
+      ctx.db.tournaments.id.update({ ...ctx.db.tournaments.id.find('sealed-event')!, admission: 'approval' })
+    })
+    const command = (input: Record<string, unknown>) =>
+      module.sealedEventCommand(h.procedure(h.operator), {
+        payload: JSON.stringify({ token: 'sealed-event', eventToken: 'event', memberLimit: 128, ...input }),
+      })
+    module.requestFriend(h.procedure(h.operator), { requesterId: 'organizer', addresseeId: 'entrant', now: 1n })
+    module.acceptFriend(h.procedure(h.operator), { requesterId: 'organizer', addresseeId: 'entrant', now: 1n })
+    command({ op: 'join', userId: 'entrant', now: NOW })
+    store(h, NOW, {
+      kind: 'sealed-event-entry-requested',
+      actorId: 'entrant',
+      recipientIds: ['organizer'],
+      sealedEventToken: 'sealed-event',
+      eventToken: 'event',
+    })
+    command({ op: 'add', ownerId: 'organizer', userIds: ['entrant'], now: NOW })
+    expect(listed(h, 'organizer', NOW)[0]?.readAt).not.toBeNull()
   })
 
   it('deletes a player’s notices with their account', () => {

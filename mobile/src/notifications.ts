@@ -1,4 +1,5 @@
 import { APP_URL, classifyNavigation } from './navigation'
+import { NOTICE_ID } from '../../src/core/notificationConfig'
 
 const MAX_PATH_LENGTH = 2_048
 
@@ -18,4 +19,10 @@ export function notificationUrl(data: unknown): string | null {
   } catch {
     return null
   }
+}
+
+/** The stored notice a notification is about, from the id the server put in its data; null for one sent before notices had ids. */
+export function notificationNoticeId(data: unknown): string | null {
+  const id = data && typeof data === 'object' ? (data as Record<string, unknown>).noticeId : undefined
+  return typeof id === 'string' && NOTICE_ID.test(id) ? id : null
 }

@@ -72,7 +72,7 @@ import {
   parseNativeAuthRequest,
 } from './src/nativeAuth'
 import { completedPendingNativeAuth, parsePendingNativeAuth, pendingNativeAuth, type PendingNativeAuth } from './src/pendingNativeAuth'
-import { notificationUrl } from './src/notifications'
+import { notificationNoticeId, notificationUrl } from './src/notifications'
 import { pushAnswer } from './src/pushDevice'
 import { NATIVE_USER_AGENT } from './src/version'
 import { deleteSecureValue, getSecureValue, setSecureValue } from './src/secureStorage'
@@ -428,6 +428,17 @@ function AppShell() {
       case 'share':
         await Share.share({ message: action.url, url: action.url, title: action.title })
         break
+      case 'notices': {
+        await Notifications.setBadgeCountAsync(action.unread)
+        const read = new Set(action.readIds)
+        const delivered = await Notifications.getPresentedNotificationsAsync()
+        await Promise.all(
+          delivered
+            .filter((notification) => read.has(notificationNoticeId(notification.request.content.data) ?? ''))
+            .map((notification) => Notifications.dismissNotificationAsync(notification.request.identifier)),
+        )
+        break
+      }
     }
   }
 

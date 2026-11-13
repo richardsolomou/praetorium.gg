@@ -6,10 +6,17 @@ import { reportServerFailure } from '../adapters/posthog'
 /** Told about a notice after its write has committed. Never awaited by the request that caused it. */
 export type Notifier = { notify: (notices: readonly Notice[]) => void }
 
-/** Campaign tags on the page a notification opens, so the pageview records which kind of notice brought the player back. */
-export function campaignPath(path: string, kind: Notice['kind']) {
-  return `${path}${path.includes('?') ? '&' : '?'}utm_source=praetorium-app&utm_medium=push&utm_campaign=${kind}`
+/**
+ * Campaign tags on the page a notification opens, so the pageview records which kind of notice brought the player back,
+ * and the stored notice, which the page marks read.
+ */
+export function campaignPath(path: string, kind: Notice['kind'], noticeId?: string) {
+  const notice = noticeId ? `&notice=${noticeId}` : ''
+  return `${path}${path.includes('?') ? '&' : '?'}utm_source=praetorium-app&utm_medium=push&utm_campaign=${kind}${notice}`
 }
+
+/** A notice with its stored id for each recipient it was kept for. */
+type IdentifiedNotice = Notice & { noticeIds?: Readonly<Record<string, string>> }
 
 /** An instance without a push service sends nothing, and nothing else changes. */
 export const silentNotifier: Notifier = { notify: () => {} }
@@ -44,8 +51,8 @@ type NamingRepository = Pick<SpacetimeRepository, 'namesByIds' | 'sealedEventNam
 
 type PushRepository = Pick<SpacetimeRepository, 'pushTargets'> & NamingRepository
 
-export function pushNotifier(repository: PushRepository, sender: PushSender): Notifier {
-  async function deliver(notices: readonly Notice[]) {
+export function pushNotifier(repository: PushRepository, sender: PushSender) {
+  async function deliver(notices: readonly IdentifiedNotice[]) {
     const addressed = notices.map((notice) => ({ notice, recipients: noticeRecipients(notice) })).filter((one) => one.recipients.length)
     const targets = await repository.pushTargets(addressed.flatMap((one) => one.recipients))
     if (!targets.length) return
@@ -60,31 +67,36 @@ export function pushNotifier(repository: PushRepository, sender: PushSender): No
     const messages: PushMessage[] = addressed.flatMap(({ notice, recipients }, index) => {
       const message = described[index]
       if (!message) return []
-      const path = campaignPath(message.path, notice.kind)
-      return targets.filter((target) => recipients.includes(target.userId)).map((target) => ({ to: target.token, ...message, path }))
+      return targets
+        .filter((target) => recipients.includes(target.userId))
+        .map((target) => {
+          const noticeId = notice.noticeIds?.[target.userId]
+          return { to: target.token, ...message, path: campaignPath(message.path, notice.kind, noticeId), noticeId }
+        })
     })
     if (messages.length) await sender.send(messages)
   }
 
   return {
-    notify(notices) {
+    notify(notices: readonly IdentifiedNotice[]) {
       void deliver(notices).catch((error: unknown) => reportServerFailure({ event: 'push_notice_failed', error }, 'warn'))
     },
   }
 }
 
 /**
- * Keeps every notice in its recipients' lists, then hands it to push, so each device and the website show the same notices.
+ * Keeps every notice in its recipients' lists, then hands it to push with its stored ids, so each device and the website
+ * show the same notices and a push can be cleared once its notice is read. A notice that fails to store is still pushed.
  * The list keeps the sealed event's or group's name as it is now, so a recipient who later loses access never reads a newer one.
  */
 export function storingNotifier(
   repository: Pick<SpacetimeRepository, 'storeNotices'> & NamingRepository,
-  push: Notifier,
+  push: { notify: (notices: readonly IdentifiedNotice[]) => void },
   clock = Date.now,
 ): Notifier {
   async function store(notices: readonly Notice[]) {
     const subjects = await subjectNames(repository, notices)
-    await repository.storeNotices(
+    return repository.storeNotices(
       notices.map((notice, index) => ({ ...notice, subjectName: subjects[index] })),
       clock(),
     )
@@ -92,8 +104,12 @@ export function storingNotifier(
 
   return {
     notify(notices) {
-      void store(notices).catch((error: unknown) => reportServerFailure({ event: 'notice_store_failed', error }, 'warn'))
-      push.notify(notices)
+      void store(notices)
+        .catch((error: unknown) => {
+          reportServerFailure({ event: 'notice_store_failed', error }, 'warn')
+          return []
+        })
+        .then((ids) => push.notify(notices.map((notice, index) => ({ ...notice, noticeIds: ids[index] }))))
     },
   }
 }

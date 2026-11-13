@@ -10,12 +10,13 @@ import { discoveryPage, rosterDiscoveryQuerySchema } from '../../src/core/roster
 import { MAX_DATASHEET_PHOTOS, rankCollectionPhotos } from '../../src/core/collectionPhotos'
 import {
   DEFAULT_PUSH_NOTIFICATIONS,
+  NOTICE_ID,
   NOTICE_RETENTION_MS,
   NOTICES_PER_USER,
   PUSH_TOKENS_PER_USER,
   PUSH_PLATFORMS,
 } from '../../src/core/notificationConfig'
-import { noticeRecipients, type NoticeSubject, noticeSubjectSchema } from '../../src/core/notifications'
+import { noticeRecipients, type NoticeSubject, noticeSubjectSchema, type StoredNotice } from '../../src/core/notifications'
 import {
   customPointsBudget,
   POINTS_BUDGET_MAX,
@@ -3757,27 +3758,29 @@ function pruneNotices(ctx: Context, userId: string, now: bigint) {
     })
 }
 
-/** Keeps each notice for its recipients, who see it on every device they sign in on. */
-export const storeNotices = spacetime.procedure({ payload: t.string() }, t.bool(), (ctx, { payload }) =>
+/** Keeps each notice for its recipients, who see it on every device they sign in on; answers each notice's stored id by recipient. */
+export const storeNotices = spacetime.procedure({ payload: t.string() }, t.string(), (ctx, { payload }) =>
   operatorTx(ctx, (tx) => {
     const input = decodePayload(noticeWrite, payload, 'Invalid notices')
     const now = BigInt(input.now)
     const recipients = new Set<string>()
     let rows = 0
-    for (const { recipientIds, ...notice } of input.notices) {
+    const ids = input.notices.map(({ recipientIds, ...notice }) => {
       const stored = JSON.stringify(notice)
+      const byRecipient: Record<string, string> = {}
       for (const userId of noticeRecipients({ ...notice, recipientIds })) {
         if (isGuestSeat(userId) || tx.db.practiceOpponents.userId.find(userId)) continue
         if (++rows > NOTICE_ROWS_PER_WRITE) throw new SenderError('Too many notices')
-        tx.db.notices.insert({ id: 0n, userId, notice: stored, at: now, readAt: undefined })
+        byRecipient[userId] = String(tx.db.notices.insert({ id: 0n, userId, notice: stored, at: now, readAt: undefined }).id)
         recipients.add(userId)
       }
-    }
+      return byRecipient
+    })
     for (const userId of recipients) {
       pruneNotices(tx, userId, now)
       touchProduct(tx, userId, 'notifications')
     }
-    return rows > 0
+    return productJson(ids)
   }),
 )
 
@@ -3804,12 +3807,66 @@ export const noticesByUser = spacetime.procedure({ userId: t.string(), now: t.u6
   }),
 )
 
+/** Marks read each of these players' unread notices that match, on every device: doing what a notice asks answers it. */
+function resolveNotices(ctx: Context, userIds: Iterable<string>, matches: (notice: StoredNotice) => boolean) {
+  for (const userId of new Set(userIds)) {
+    let moved = false
+    for (const row of Array.from(ctx.db.notices.userId.filter(userId))) {
+      if (row.readAt !== undefined || !matches(JSON.parse(row.notice) as StoredNotice)) continue
+      ctx.db.notices.id.update({ ...row, readAt: nowMs(ctx) })
+      moved = true
+    }
+    if (moved) touchProduct(ctx, userId, 'notifications')
+  }
+}
+
+/** Answers a friend request either player sent the other. */
+function resolveFriendRequests(ctx: Context, leftId: string, rightId: string) {
+  for (const [userId, actorId] of [
+    [leftId, rightId],
+    [rightId, leftId],
+  ] as const)
+    resolveNotices(ctx, [userId], (notice) => notice.kind === 'friend-requested' && notice.actorId === actorId)
+}
+
+/** Answers, for every organizer, these players' requests to join the group. */
+function resolveGroupRequests(ctx: Context, group: GroupRow, requesterIds: readonly string[]) {
+  const members = groupMemberRows(ctx, group)
+  const organizers = members.filter((member) => isGroupOrganizer(group, members, member.userId)).map((member) => member.userId)
+  resolveNotices(
+    ctx,
+    organizers,
+    (notice) => notice.kind === 'group-member-requested' && notice.groupToken === group.token && requesterIds.includes(notice.actorId),
+  )
+}
+
+const noticeAboutEvent = (ctx: Context, notice: StoredNotice, host: EventHost) =>
+  'sealedEventToken' in notice && namedHost(ctx, notice.sealedEventToken, notice.eventToken ?? '')?.event.id === host.event.id
+
+/** Answers, for every organizer, these players' requests to enter the event. */
+function resolveEntryRequests(ctx: Context, host: EventHost, requesterIds: readonly string[]) {
+  resolveNotices(
+    ctx,
+    hostOrganizerIds(ctx, host),
+    (notice) =>
+      notice.kind === 'sealed-event-entry-requested' && requesterIds.includes(notice.actorId) && noticeAboutEvent(ctx, notice, host),
+  )
+}
+
+/** Notices answered by sealing a list. */
+const SEAL_NOTICE_KINDS = new Set<StoredNotice['kind']>([
+  'sealed-event-entry-added',
+  'sealed-event-roster-reseal',
+  'sealed-event-roster-unsealed',
+  'sealed-event-roster-reminder',
+])
+
 export const markNoticesRead = spacetime.procedure({ userId: t.string(), ids: t.array(t.string()), now: t.u64() }, t.bool(), (ctx, input) =>
   operatorTx(ctx, (tx) => {
     if (input.ids.length > NOTICES_PER_USER) throw new SenderError('Too many notices')
     let moved = false
     for (const id of input.ids) {
-      if (!/^\d{1,20}$/.test(id)) continue
+      if (!NOTICE_ID.test(id)) continue
       const row = tx.db.notices.id.find(BigInt(id))
       if (row?.userId !== input.userId || row.readAt !== undefined) continue
       tx.db.notices.id.update({ ...row, readAt: input.now })
@@ -4662,6 +4719,7 @@ function groupCommandIn(tx: Context, args: unknown[]) {
     touchGroup(tx, group.id)
     tx.db.groupMembers.key.delete(memberKey(input.userId))
     leaveLeague(tx, group.id, input.userId)
+    resolveGroupRequests(tx, group, [input.userId])
     return productJson('left')
   }
   const league = tx.db.groupLeagues.groupId.find(group.id)
@@ -4702,7 +4760,9 @@ function groupCommandIn(tx: Context, args: unknown[]) {
       if (row) tx.db.groupMembers.key.update({ ...row, status: 'accepted' })
     }
     touchGroup(tx, group.id)
-    return productJson({ admitted: admitted.map((member) => member.userId) })
+    const admittedIds = admitted.map((member) => member.userId)
+    resolveGroupRequests(tx, group, admittedIds)
+    return productJson({ admitted: admittedIds })
   }
   if (input.op === 'delete') {
     deleteGroup(tx, group)
@@ -4715,6 +4775,7 @@ function groupCommandIn(tx: Context, args: unknown[]) {
     else tx.db.groupMembers.key.delete(row.key)
     touchGroup(tx, group.id)
     touchProduct(tx, input.userId, 'groups')
+    resolveGroupRequests(tx, group, [input.userId])
     return productJson(input.accept ? 'accepted' : 'rejected')
   }
   if (input.op === 'remove') {
@@ -5211,6 +5272,7 @@ function acceptFriendIn(tx: Context, args: unknown[]) {
   if (!current || current.acceptedAt !== undefined) return false
   tx.db.friendships.key.update({ ...current, acceptedAt: now })
   touchFriends(tx, requesterId, addresseeId)
+  resolveFriendRequests(tx, requesterId, addresseeId)
   return true
 }
 
@@ -5220,6 +5282,7 @@ function rejectFriendIn(tx: Context, args: unknown[]) {
   if (!current || current.acceptedAt !== undefined) return false
   const deleted = tx.db.friendships.key.delete(current.key)
   if (deleted) touchFriends(tx, requesterId, addresseeId)
+  resolveFriendRequests(tx, requesterId, addresseeId)
   return deleted
 }
 
@@ -5229,6 +5292,7 @@ function removeFriendIn(tx: Context, args: unknown[]) {
   if (!current) return false
   const deleted = tx.db.friendships.key.delete(current.key)
   if (deleted) touchFriends(tx, current.requesterId, current.addresseeId)
+  resolveFriendRequests(tx, leftId, rightId)
   for (const [ownerId, borrowerId] of [
     [leftId, rightId],
     [rightId, leftId],
@@ -5278,6 +5342,7 @@ function acceptFriendInviteIn(tx: Context, args: unknown[]) {
   }
   tx.db.friendInvites.token.delete(token)
   touchFriends(tx, invite.inviterId, recipientId)
+  resolveFriendRequests(tx, invite.inviterId, recipientId)
   touchProduct(tx, invite.inviterId, 'invites')
   touchPublic(tx, 'invites')
   return productJson({ inviterId: invite.inviterId })
@@ -5757,6 +5822,7 @@ function sealedEventCommandIn(tx: Context, args: unknown[]) {
       if (details.admission === 'automatic' && host.tournament.admission === 'approval' && event.revealedAt === undefined)
         admitted = admitWaiting(tx, entries, details.playerLimit, () => true)
     }
+    resolveEntryRequests(tx, host, admitted)
     touchEvent(tx, host)
     return productJson({ admitted, ruleChanged: rule !== null })
   }
@@ -5927,6 +5993,7 @@ function sealedEventCommandIn(tx: Context, args: unknown[]) {
       chosen.has(entry.userId),
     )
     if (admitted.length) touchEvent(tx, host)
+    resolveEntryRequests(tx, host, admitted)
     return productJson({ admitted })
   }
   if (operation === 'add') {
@@ -5964,6 +6031,7 @@ function sealedEventCommandIn(tx: Context, args: unknown[]) {
       else insertSealedEventEntry(tx, event.id, userId, 'accepted', input.now)
     }
     if (added.length) touchEvent(tx, host)
+    resolveEntryRequests(tx, host, added)
     return productJson({ added })
   }
   if (operation === 'moderate') {
@@ -6013,6 +6081,7 @@ function sealedEventCommandIn(tx: Context, args: unknown[]) {
       })
     else tx.db.sealedEventEntries.key.update({ ...entry, status: input.status })
     touchEvent(tx, host)
+    resolveEntryRequests(tx, host, [input.userId])
     if (input.status === 'rejected') return productJson({ rejected: entry.status !== 'rejected', resealIds })
     return productJson(entry.status !== 'accepted' ? 'admitted' : 'updated')
   }
@@ -6243,6 +6312,7 @@ function sealedEventCommandIn(tx: Context, args: unknown[]) {
       submittedAt: BigInt(input.now),
     })
     touchEvent(tx, host)
+    resolveNotices(tx, [input.userId], (notice) => SEAL_NOTICE_KINDS.has(notice.kind) && noticeAboutEvent(tx, notice, host))
     return productJson({ outcome: 'sealed', format: event.format ?? null, requiredLimit })
   }
   if (operation === 'set-team-disposition' || operation === 'set-team-warlord') {

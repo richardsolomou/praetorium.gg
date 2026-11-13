@@ -8,4 +8,4 @@ import { TypeBuilder as __TypeBuilder, t as __t, type AlgebraicTypeType as __Alg
 export const params = {
   payload: __t.string(),
 }
-export const returnType = __t.bool()
+export const returnType = __t.string()
