@@ -8,6 +8,7 @@ import { sideName } from '../../sides'
 import { UndoLatest, type UndoTarget } from './UndoLatest'
 import { BattleDialogContent, BattlePromptDialog } from './BattlePromptDialog'
 import { withMember } from '../../../core/collections'
+import { tint } from './battleTints'
 
 export function DiscardSecondaryDialog({
   side,
@@ -39,14 +40,15 @@ export function DiscardSecondaryDialog({
   }
 
   const gainCp = selected.length > 0 && side.canGainCp
+  const colours = tint(side.index)
   const confirmLabel = selected.length === 0 ? 'Keep hand' : `Discard ${selected.length}${gainCp ? ' and gain 1 CP' : ''}`
 
   return (
     <BattlePromptDialog open minimizedLabel={`Discard missions · ${sideName(side)}`}>
-      <BattleDialogContent minimizeDisabled={pending} className="border-discarded/60">
+      <BattleDialogContent minimizeDisabled={pending} className={colours.border}>
         <DialogHeader className="px-(--dialog-actions) text-center">
-          <p className="eyebrow text-discarded">End of turn</p>
-          <DialogTitle>Discard tactical secondaries?</DialogTitle>
+          <p className={`eyebrow ${colours.text}`}>End of turn</p>
+          <DialogTitle className={colours.text}>Discard tactical secondaries?</DialogTitle>
           <DialogDescription>
             Discard any of {sideName(side)}’s tactical secondaries, or keep the hand.{' '}
             {side.canGainCp ? 'Discarding gains 1 CP, however many you discard.' : 'This side already gained its additional CP this round.'}
@@ -64,7 +66,7 @@ export function DiscardSecondaryDialog({
                   disabled={pending}
                   onClick={() => toggle(card.key)}
                   className={`flex w-full items-center justify-between gap-2 border px-3 py-2 text-left text-sm font-semibold ${
-                    chosen ? 'border-parchment bg-parchment/10 text-parchment' : 'border-edge bg-card text-bone hover:border-dim'
+                    chosen ? colours.mark : `border-edge bg-card text-bone ${colours.hint}`
                   }`}
                 >
                   <span>

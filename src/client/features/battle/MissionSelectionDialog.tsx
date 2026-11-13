@@ -20,6 +20,7 @@ import { missionUnitChoice, missionUnitChoiceKey } from './missionUnitChoice'
 import { UndoLatest } from './UndoLatest'
 import { withMember } from '../../../core/collections'
 import { MARKER_PLACEMENT_COPY } from './markerPlacementCopy'
+import { tint } from './battleTints'
 
 const markerValue = (marker: OperationMarker) => JSON.stringify([marker.playerId, marker.seq, marker.key])
 
@@ -43,7 +44,9 @@ export function MissionSelectionDialog({
 }) {
   const manualId = useId()
   const noteId = useId()
-  const records = view.players.find((player) => player.id === choice.playerId)?.missionSelections ?? []
+  const chooser = view.players.find((candidate) => candidate.id === choice.playerId)
+  const records = chooser?.missionSelections ?? []
+  const colours = tint(chooser?.side ?? 0)
   const latest = records.find(
     (record) => record.cardKey === choice.cardKey && record.occurrence === choice.occurrence && record.selection.kind === choice.kind,
   )
@@ -182,9 +185,9 @@ export function MissionSelectionDialog({
         if (!open) onClose()
       }}
     >
-      <BattleDialogContent minimizeDisabled={pending}>
+      <BattleDialogContent minimizeDisabled={pending} className={colours.border}>
         <DialogHeader>
-          <DialogTitle>{choice.cardName} · choices</DialogTitle>
+          <DialogTitle className={colours.text}>{choice.cardName} · choices</DialogTitle>
           <DialogDescription>
             {choice.kind === 'sensor-sweep' || choice.kind === 'surveil'
               ? 'Optional. Removes the chosen operation markers; scoring still asks you separately.'
