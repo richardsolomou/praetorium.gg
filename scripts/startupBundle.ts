@@ -15,9 +15,9 @@ import { gzipSync } from 'node:zlib'
 
 const GROWTH_LIMIT = 50 * 1024
 
-type Chunk = { raw: number; gzip: number }
+type Startup = { files: number; raw: number; gzip: number }
 
-async function startupChunks(output: string): Promise<Chunk[]> {
+async function measure(output: string): Promise<Startup> {
   const server = path.join(output, 'server')
   const manifest = readdirSync(server, { recursive: true, encoding: 'utf8' }).find((file) =>
     path.basename(file).startsWith('_tanstack-start-manifest'),
@@ -25,26 +25,27 @@ async function startupChunks(output: string): Promise<Chunk[]> {
   if (!manifest) throw new Error(`${server} has no TanStack Start manifest; run the production build first`)
   const { tsrStartManifest } = await import(pathToFileURL(path.join(server, manifest)).href)
   const preloads: (string | { href: string })[] = tsrStartManifest().routes.__root__.preloads
-  return preloads.map((preload) => {
-    const href = typeof preload === 'string' ? preload : preload.href
-    const source = readFileSync(path.join(output, 'public', href))
-    return { raw: source.length, gzip: gzipSync(source).length }
-  })
+  const startup = { files: preloads.length, raw: 0, gzip: 0 }
+  for (const preload of preloads) {
+    const source = readFileSync(path.join(output, 'public', typeof preload === 'string' ? preload : preload.href))
+    startup.raw += source.length
+    startup.gzip += gzipSync(source).length
+  }
+  return startup
 }
 
-const sum = (chunks: Chunk[], size: 'raw' | 'gzip') => chunks.reduce((total, chunk) => total + chunk[size], 0)
 const kb = (bytes: number) => `${Math.round(bytes / 1024).toLocaleString('en-US')} KB`
 const signedKb = (bytes: number) => `${bytes > 0 ? '+' : bytes < 0 ? '−' : '±'}${kb(Math.abs(bytes))}`
-const describe = (chunks: Chunk[]) => `${chunks.length} files, ${kb(sum(chunks, 'gzip'))} gzip (${kb(sum(chunks, 'raw'))} raw)`
+const describe = (startup: Startup) => `${startup.files} files, ${kb(startup.gzip)} gzip (${kb(startup.raw)} raw)`
 
 const [headOutput, baseOutput] = process.argv.slice(2)
 if (!headOutput) throw new Error('usage: node scripts/startupBundle.ts <output> [<base output>]')
-const head = await startupChunks(headOutput)
+const head = await measure(headOutput)
 if (!baseOutput) {
   console.log(`Every page preloads ${describe(head)}`)
 } else {
-  const base = await startupChunks(baseOutput)
-  const change = sum(head, 'gzip') - sum(base, 'gzip')
+  const base = await measure(baseOutput)
+  const change = head.gzip - base.gzip
   const failed = change > GROWTH_LIMIT
   const message = `What every page preloads changed by ${signedKb(change)} gzip, to ${describe(head)}.`
   const summary = [
@@ -55,8 +56,8 @@ if (!baseOutput) {
     '',
     '| Build | Files | Raw | Gzip |',
     '| --- | --- | --- | --- |',
-    `| Base | ${base.length} | ${kb(sum(base, 'raw'))} | ${kb(sum(base, 'gzip'))} |`,
-    `| This change | ${head.length} | ${kb(sum(head, 'raw'))} | ${kb(sum(head, 'gzip'))} |`,
+    `| Base | ${base.files} | ${kb(base.raw)} | ${kb(base.gzip)} |`,
+    `| This change | ${head.files} | ${kb(head.raw)} | ${kb(head.gzip)} |`,
     '',
   ].join('\n')
   console.log(summary)

@@ -5,7 +5,7 @@ Dependencies point inward: `routes → client → contracts → core`; `server f
 ## Placement
 
 - Page implementation lives in `src/client/features`; routes only compose. Query options live in `src/client/queries/<feature>.ts`.
-- Everything in a route file except its components, and everything the shell imports statically, ships in the bundle every page loads first. Keep search parsing and loader helpers in small modules apart from page components. CI's build lane reports how that bundle changes against the base and fails when it grows by more than 50 KB gzip; `node scripts/startupBundle.ts .output` measures a local build.
+- Everything in a route file except its components, and everything the shell imports statically, ships in the bundle every page loads first. Keep search parsing and loader helpers in small modules apart from page components. CI's build lane compares that bundle with the base through `scripts/startupBundle.ts` and fails on a large jump.
 - Components call `src/client/functions.ts`; transport calls stay in it and `src/client/offline`.
 - Never move a `createServerFn` file: its path is part of the production function ID, so older open clients break.
 - `src/core/battle.ts` owns the whole battle fold and validation; do not split it.
