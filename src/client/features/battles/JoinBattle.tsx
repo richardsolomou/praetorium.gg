@@ -14,6 +14,7 @@ import { battleSizeTitle } from '../../../core/battle'
 import { battleInvitePath } from '../../../core/notifications'
 import { tint } from '../battle/battleTints'
 import { CHOSEN } from '../battle/setup/chrome'
+import { nameColour } from '../../playerName'
 
 type Side = 0 | 1
 const SIDES = [0, 1] as const
@@ -151,7 +152,10 @@ export function JoinBattle({ invite, side: returning }: { invite: string; side?:
               <p className="flex items-center gap-2 text-sm">
                 <PlayerAvatar name={me.name} image={me.image ?? null} className="size-6 text-xs" />
                 <span>
-                  Joining as <span className="font-bold">{me.name}</span>
+                  Joining as{' '}
+                  <span className="font-bold" style={nameColour(me)}>
+                    {me.name}
+                  </span>
                 </span>
               </p>
               <Button

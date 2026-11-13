@@ -17,6 +17,7 @@ import type { OnboardingTarget } from '../../onboardingTargets'
 import type { Battle } from './battle'
 import { SectionHeading } from '../../components/SectionHeading'
 import { tint } from '../battle/battleTints'
+import { sideColours, sideVariables } from '../../../core/playerColours'
 import { ContextMenuItem, DropdownMenuItem } from '../../components/Menu'
 
 /**
@@ -75,6 +76,7 @@ export function BattleShelf({
             ...(battlefield ? [battlefield] : []),
             ...(battle.result?.reason && battle.result.reason !== 'completed' ? [BATTLE_ENDINGS[battle.result.reason]] : []),
           ].join(' · ')
+          const colours = sideColours([ours?.seats[0]?.player, theirs?.seats[0]?.player])
           const scored = battle.status !== 'setup'
           const a = ours?.score ?? 0
           const b = theirs?.score ?? 0
@@ -88,6 +90,7 @@ export function BattleShelf({
                   <article
                     data-gate={battle.status === 'playing' ? 'current' : battle.status === 'setup' ? 'pending' : undefined}
                     className="group part @container relative min-w-0 transition-colors hover:border-runner-hi hover:bg-raised"
+                    style={colours ? sideVariables(colours) : undefined}
                   />
                 }
               >

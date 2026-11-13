@@ -58,6 +58,7 @@ import { sealedEventSealingClosed } from '../../../core/sealedEvent'
 import { useNow } from '../../useNow'
 import { countLabel } from '../../text'
 import { GuideHelp } from '../onboarding/GuideHelp'
+import { nameColour } from '../../playerName'
 import { DropdownMenuItem } from '../../components/Menu'
 
 type Member = Group['members'][number]
@@ -201,8 +202,8 @@ function GroupScreen({
         <OrganizerLinks
           title="Run by"
           organizers={[
-            { id: group.ownerId, name: group.ownerName, image: group.ownerImage },
-            ...admins.map(({ userId, name, image }) => ({ id: userId, name, image })),
+            { id: group.ownerId, name: group.ownerName, image: group.ownerImage, colour: group.ownerColour },
+            ...admins.map(({ userId, name, image, colour }) => ({ id: userId, name, image, colour })),
           ]}
         />
         {invite.feedback ? (
@@ -791,7 +792,12 @@ function JoinRequests({ group }: { group: Group }) {
           <li key={member.userId} data-person={member.name} className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2 p-3">
             <Link to="/users/$userId" params={{ userId: member.userId }} className="group flex min-w-0 flex-1 items-center gap-2.5">
               <PlayerAvatar name={member.name} image={member.image} className="size-8 text-xs" />
-              <span className="truncate font-semibold group-hover:underline">{member.name}</span>
+              <span
+                className="truncate font-semibold group-hover:underline"
+                style={nameColour({ id: member.userId, colour: member.colour })}
+              >
+                {member.name}
+              </span>
             </Link>
             <div className="flex shrink-0 gap-2">
               <Button
@@ -856,7 +862,12 @@ function Members({ group, viewerId, isOwner }: { group: Group; viewerId: string 
             <li key={member.userId} data-person={member.name} className="flex min-h-12 min-w-0 items-center gap-2 py-1.5 pr-1.5 pl-3">
               <Link to="/users/$userId" params={{ userId: member.userId }} className="group flex min-w-0 flex-1 items-center gap-2.5">
                 <PlayerAvatar name={member.name} image={member.image} className="size-8 text-xs" />
-                <span className="truncate font-semibold group-hover:underline">{member.name}</span>
+                <span
+                  className="truncate font-semibold group-hover:underline"
+                  style={nameColour({ id: member.userId, colour: member.colour })}
+                >
+                  {member.name}
+                </span>
                 {member.userId === viewerId ? <span className="shrink-0 text-xs text-dim">you</span> : null}
               </Link>
               {role ? <span className="chip shrink-0">{role}</span> : null}

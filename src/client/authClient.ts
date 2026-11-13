@@ -1,11 +1,12 @@
 import { createAuthClient } from 'better-auth/react'
-import { adminClient, oneTimeTokenClient, twoFactorClient } from 'better-auth/client/plugins'
+import { adminClient, inferAdditionalFields, oneTimeTokenClient, twoFactorClient } from 'better-auth/client/plugins'
 import { oauthProviderClient } from '@better-auth/oauth-provider/client'
 import { holdingReload } from './pendingWrites'
+import { PLAYER_FIELDS } from '../core/playerFields'
 
 /** Same origin, so only the reload hold for account changes needs configuring. */
 export const authClient = createAuthClient({
-  plugins: [adminClient(), oneTimeTokenClient(), twoFactorClient(), oauthProviderClient()],
+  plugins: [inferAdditionalFields({ user: PLAYER_FIELDS }), adminClient(), oneTimeTokenClient(), twoFactorClient(), oauthProviderClient()],
   fetchOptions: {
     customFetchImpl: (input, init) => (init?.method && init.method !== 'GET' ? holdingReload(fetch(input, init)) : fetch(input, init)),
   },

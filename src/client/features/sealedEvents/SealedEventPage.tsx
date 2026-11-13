@@ -118,7 +118,10 @@ function SealedEventScreen({
         {tournament ? (
           <OrganizerLinks
             title="Organized by"
-            organizers={[{ id: tournament.ownerId, name: tournament.ownerName, image: tournament.ownerImage }, ...tournament.admins]}
+            organizers={[
+              { id: tournament.ownerId, name: tournament.ownerName, image: tournament.ownerImage, colour: tournament.ownerColour },
+              ...tournament.admins,
+            ]}
           />
         ) : null}
       </PageHeader>

@@ -22,6 +22,8 @@ export const user = sqliteTable(
     lastSeenAt: date('lastSeenAt'),
     /** When the player last opened the mobile app, to the day; Home stops offering the app while this is recent. */
     lastNativeAppAt: date('lastNativeAppAt'),
+    /** The `PLAYER_COLOURS` key the player chose for their name and side; null takes the one picked from their id. */
+    colour: text('colour'),
   },
   (table) => [
     index('user_role_idx').on(table.role),

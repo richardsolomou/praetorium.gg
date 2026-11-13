@@ -11,7 +11,7 @@ type Built = NonNullable<Roster['built']>
 /** One army a finished battle fielded, as discovery lists it: who played it, when, and under which rules. */
 export type PlayedArmy = {
   battle: string
-  player: { id: string; name: string }
+  player: { id: string; name: string; colour?: string | null }
   name: string
   catalogueId: string
   edition: Built['edition'] | null
@@ -47,21 +47,21 @@ type PlayedOutcome = {
  * Who may read the battle is the caller's question: this reads only what was fielded.
  */
 export function playedArmies(
-  history: { battle: { token: string; createdAt: number }; players: readonly { id: string; name: string }[] },
+  history: { battle: { token: string; createdAt: number }; players: readonly { id: string; name: string; colour?: string | null }[] },
   digest: Pick<BattleDigest, 'status' | 'lastCommandAt' | 'seats'>,
   summary: StandingBattle,
 ): PlayedArmy[] {
   if (digest.status !== 'finished') return []
-  const names = new Map(history.players.map((player) => [player.id, player.name]))
+  const seated = new Map(history.players.map((player) => [player.id, player]))
   const playedAt = digest.lastCommandAt ?? history.battle.createdAt
   return digest.seats.flatMap((seat) => {
     const { built } = seat
-    const name = names.get(seat.id)
-    if (seat.automated || !built || !seat.copied || !seat.unitCount || name === undefined) return []
+    const player = seated.get(seat.id)
+    if (seat.automated || !built || !seat.copied || !seat.unitCount || player === undefined) return []
     return [
       {
         battle: history.battle.token,
-        player: { id: seat.id, name },
+        player: { id: seat.id, name: player.name, colour: player.colour ?? null },
         name: seat.army!,
         catalogueId: built.catalogueId,
         edition: built.edition ?? null,

@@ -9,6 +9,7 @@ import { endRosterLoan, lendRoster } from '../../functions'
 import { friendshipsQuery, rosterLoansQuery, rostersLentToMeQuery } from '../../queries'
 import { errorMessage } from '../../queryClient'
 import { Problem } from '../../components/Problem'
+import { nameColour } from '../../playerName'
 
 /** The owner chooses which friends may view a roster, field it in their own battles, and seal it for an event. */
 export function RosterLoanDialog({ rosterId, open, onClose }: { rosterId: string; open: boolean; onClose: () => void }) {
@@ -96,7 +97,9 @@ function LoanRow({
     <li>
       <label htmlFor={switchId} className="flex items-center gap-3">
         <PlayerAvatar name={friend.name} image={friend.image} className="size-9 text-xs" />
-        <span className="min-w-0 flex-1 truncate font-bold uppercase">{friend.name}</span>
+        <span className="min-w-0 flex-1 truncate font-bold uppercase" style={nameColour(friend)}>
+          {friend.name}
+        </span>
         <Switch id={switchId} aria-label={`Lend to ${friend.name}`} checked={lent} disabled={pending} onCheckedChange={onChange} />
       </label>
     </li>

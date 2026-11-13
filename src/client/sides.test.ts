@@ -8,6 +8,7 @@ function player(overrides: Partial<ViewPlayer> & Pick<ViewPlayer, 'id' | 'side'>
   return {
     name: overrides.id,
     image: null,
+    colour: null,
     isViewer: false,
     automated: false,
     isActive: false,

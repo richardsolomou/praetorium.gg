@@ -24,6 +24,10 @@ describe('profileUpdate', () => {
     expect(await profileUpdate({ name: '   ' })).toEqual({ ok: false, error: 'Enter a display name.' })
   })
 
+  it('rejects a player colour outside the palette', async () => {
+    expect(await profileUpdate({ colour: 'gold' })).toEqual({ ok: false, error: 'Choose one of the offered colours.' })
+  })
+
   it('accepts a name change that leaves the picture undefined', async () => {
     expect(await profileUpdate({ name: 'Alice', image: undefined })).toEqual({ ok: true, data: { name: 'Alice', image: undefined } })
   })

@@ -8,6 +8,7 @@ import { FactionMark } from '../../components/FactionMark'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { SOURCE } from '../../projectLinks'
 import { AppBand } from './HomeApps'
+import { nameColour } from '../../playerName'
 
 /**
  * The one full-bleed moment on the page, for somebody who has never been here.
@@ -134,7 +135,7 @@ function HeroSide({ sideSummary, score, side }: { sideSummary?: SummarySide; sco
           <span className="min-w-0 text-lg leading-tight font-bold">
             {seats.length ? (
               seats.map(({ player }) => (
-                <span key={player.id || player.name} className="block break-words">
+                <span key={player.id || player.name} className="block break-words" style={player.id ? nameColour(player) : undefined}>
                   {player.name}
                 </span>
               ))

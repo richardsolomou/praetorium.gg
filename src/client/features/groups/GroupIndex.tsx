@@ -15,6 +15,7 @@ import { GroupSettingsDialog } from './GroupSettingsDialog'
 import { countLabel } from '../../text'
 import { GuideHelp } from '../onboarding/GuideHelp'
 import { advanceOnboarding } from '../onboarding/onboarding'
+import { nameColour } from '../../playerName'
 
 type GroupSummary = QueryData<typeof groupsQuery>[number]
 
@@ -82,7 +83,9 @@ function GroupShelf({ title, groups }: { title: string; groups: readonly GroupSu
                   ) : (
                     <p className="mt-1.5 flex min-w-0 items-center gap-1.5 text-sm text-dim">
                       <PlayerAvatar name={group.ownerName} image={group.ownerImage} className="size-5 text-3xs" />
-                      <span className="truncate">Run by {group.ownerName}</span>
+                      <span className="truncate">
+                        Run by <span style={nameColour({ id: group.ownerId, colour: group.ownerColour })}>{group.ownerName}</span>
+                      </span>
                     </p>
                   )}
                 </div>

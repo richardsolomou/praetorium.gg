@@ -43,6 +43,7 @@ import { Problem } from '../../components/Problem'
 import { countLabel, formatList } from '../../text'
 import { useCopyText } from '../../useCopyText'
 import { SectionHeading } from '../../components/SectionHeading'
+import { nameColour } from '../../playerName'
 
 type Role = AdminUser['role']
 type Section = 'profile' | 'access' | 'sign-in' | 'sessions' | 'connections'
@@ -106,7 +107,9 @@ export function AdminUserPanel({ user, current, onClose }: { user: AdminUser; cu
           <PlayerAvatar name={user.name} image={user.image} className="size-12 text-sm" />
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <DrawerTitle className="text-xl break-words">{user.name}</DrawerTitle>
+              <DrawerTitle className="text-xl break-words" style={nameColour(user)}>
+                {user.name}
+              </DrawerTitle>
               {isAdmin ? <span className="chip text-parchment">Admin</span> : null}
               {current ? <span className="chip">You</span> : null}
             </div>

@@ -3,6 +3,7 @@ import { ShelfLink } from '../../components/ShelfLink'
 import { isProvisional, type Standing } from '../../../core/standings'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { SectionHeading } from '../../components/SectionHeading'
+import { nameColour } from '../../playerName'
 
 /** How much of the leaderboard a visitor needs to see that people here are winning and losing. */
 const TOP = 5
@@ -31,7 +32,9 @@ export function HomeLeaders({ rows: all }: { rows: readonly Standing[] }) {
               <span className="part-tag">{place + 1}</span>
               <PlayerAvatar name={row.name} image={row.image} className="size-7 text-3xs" />
               <span className="min-w-0 flex-1">
-                <span className="block truncate font-bold">{row.name}</span>
+                <span className="block truncate font-bold" style={nameColour(row)}>
+                  {row.name}
+                </span>
                 <span className="block text-xs text-dim">
                   <span className="readout">{row.won}</span> {row.won === 1 ? 'win' : 'wins'}
                 </span>

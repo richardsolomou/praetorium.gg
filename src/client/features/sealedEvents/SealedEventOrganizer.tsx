@@ -35,6 +35,7 @@ import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { formatList, countLabel } from '../../text'
 import { useNativeShare } from '../../nativeBridge'
 import { shareButtonLabel } from '../../useShareLink'
+import { nameColour } from '../../playerName'
 
 /** Draws one entrant with whatever the reader may do about them; the organizer's controls ride in `controls`, and `last` closes the row. */
 type EntrantRowRenderer = (entry: SealedEventEntryView, detail: ReactNode, controls?: ReactNode, last?: ReactNode) => ReactNode
@@ -487,7 +488,7 @@ function AddPlayers({ sealedEvent, token }: { sealedEvent: SealedEvent; token: s
   const people = group
     ? groupRecord?.members
         .filter((member) => member.status === 'accepted')
-        .map((member) => ({ id: member.userId, name: member.name, image: member.image }))
+        .map((member) => ({ id: member.userId, name: member.name, image: member.image, colour: member.colour }))
     : friendships?.friends
   const accepted = new Set(sealedEvent.entries.filter((entry) => entry.status === 'accepted').map((entry) => entry.userId))
   const candidates = (people ?? []).filter((person) => !accepted.has(person.id))
@@ -559,7 +560,9 @@ function AddPlayers({ sealedEvent, token }: { sealedEvent: SealedEvent; token: s
                           onChange={() => setPicked(withMember(picked, person.id))}
                         />
                         <PlayerAvatar name={person.name} image={person.image} className="size-8 text-3xs" />
-                        <span className="min-w-0 truncate font-bold uppercase">{person.name}</span>
+                        <span className="min-w-0 truncate font-bold uppercase" style={nameColour(person)}>
+                          {person.name}
+                        </span>
                       </label>
                     </li>
                   )

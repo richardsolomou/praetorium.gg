@@ -2,6 +2,7 @@ import { Link } from '@tanstack/react-router'
 import { Eye, LockKeyhole } from 'lucide-react'
 import type { SealedEventAdmission, SealedEventVisibility } from '../../../core/sealedEvent'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
+import { nameColour } from '../../playerName'
 
 /** Who can find a sealed event or group. A card labels the icon; a page header already says it in words beside it. */
 export function VisibilityIcon({ visibility, labelled = false }: { visibility: SealedEventVisibility; labelled?: boolean }) {
@@ -25,7 +26,7 @@ export function OrganizerLinks({
   organizers,
 }: {
   title: string
-  organizers: readonly { id: string; name: string; image: string | null }[]
+  organizers: readonly { id: string; name: string; image: string | null; colour: string | null }[]
 }) {
   return (
     <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-dim">
@@ -33,7 +34,9 @@ export function OrganizerLinks({
       {organizers.map((organizer) => (
         <Link key={organizer.id} to="/users/$userId" params={{ userId: organizer.id }} className="group flex w-fit items-center gap-2">
           <PlayerAvatar name={organizer.name} image={organizer.image} className="size-7 text-3xs" />
-          <span className="text-bone group-hover:underline">{organizer.name}</span>
+          <span className="group-hover:underline" style={nameColour(organizer)}>
+            {organizer.name}
+          </span>
         </Link>
       ))}
     </div>

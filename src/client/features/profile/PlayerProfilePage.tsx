@@ -42,6 +42,7 @@ import {
   type RostersTab,
 } from './profileSearch'
 import type { PlayerProfileFilter } from '../../queries'
+import { nameColour } from '../../playerName'
 
 const battleSearch = ({ tab: _tab, order: _order, ...search }: BattlesTab): BattleListSearch => search
 const rosterSearch = ({ tab: _tab, ...search }: RostersTab): PlayerRosterSearch => search
@@ -108,12 +109,12 @@ export function PlayerProfilePage({ userId, search }: { userId: string; search: 
         title={
           profile.admin || profile.supporter ? (
             <span className="inline-flex flex-wrap items-center gap-x-3 gap-y-1">
-              {profile.name}
+              <span style={nameColour(profile)}>{profile.name}</span>
               {profile.admin ? <AdminBadge /> : null}
               {profile.supporter ? <SupporterBadge /> : null}
             </span>
           ) : (
-            profile.name
+            <span style={nameColour(profile)}>{profile.name}</span>
           )
         }
         description={record && (record.battles || !lists.length) ? recordSummary(record) : undefined}

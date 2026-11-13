@@ -15,6 +15,7 @@ import { EventSchedule } from './EventSchedule'
 import { SEALED_EVENT_CARD, SealedEventCardActions } from './SealedEventActions'
 import { sealedEventPhase, sealedEventPlayers } from './sealedEvent'
 import { sealedEventFormat } from '../../../core/sealedEvent'
+import { nameColour } from '../../playerName'
 
 export function SealedEventIndex() {
   const { data: me } = useQuery(meQuery())
@@ -101,7 +102,10 @@ function SealedEventShelf({
                 ) : (
                   <p className="mt-1.5 flex min-w-0 items-center gap-1.5 text-sm text-dim">
                     <PlayerAvatar name={tournament.ownerName} image={tournament.ownerImage} className="size-5 text-3xs" />
-                    <span className="truncate">Organized by {tournament.ownerName}</span>
+                    <span className="truncate">
+                      Organized by{' '}
+                      <span style={nameColour({ id: tournament.ownerId, colour: tournament.ownerColour })}>{tournament.ownerName}</span>
+                    </span>
                   </p>
                 )}
               </div>

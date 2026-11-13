@@ -349,7 +349,7 @@ export async function createSealedEvent(args: Parameters<typeof server.createSea
     eventId: crypto.randomUUID(),
     eventToken: crypto.randomUUID(),
   }
-  const me = localClient()!.getQueryData<{ id: string; name: string; image: string | null }>(meKey())!
+  const me = localClient()!.getQueryData<{ id: string; name: string; image: string | null; colour: string | null }>(meKey())!
   const now = Date.now()
   const draft: NonNullable<Awaited<ReturnType<typeof server.openSealedEvent>>> = {
     kind: 'tournament',
@@ -368,6 +368,7 @@ export async function createSealedEvent(args: Parameters<typeof server.createSea
       ownerId: me.id,
       ownerName: me.name,
       ownerImage: me.image,
+      ownerColour: me.colour,
       admins: [],
     },
     group: null,

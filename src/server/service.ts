@@ -459,11 +459,13 @@ export class PraetoriumService {
   }
 
   /** Names each row from its account, so a renamed player is shown under their current name. */
-  private async namedRows<T extends { id: string }>(rows: readonly T[]): Promise<(T & { name: string; image: string | null })[]> {
+  private async namedRows<T extends { id: string }>(
+    rows: readonly T[],
+  ): Promise<(T & { name: string; image: string | null; colour: string | null })[]> {
     const profiles = await this.repository.profilesByIds([...new Set(rows.map((row) => row.id))])
     return rows.map((row) => {
       const profile = profiles.get(row.id)
-      return { ...row, name: profile?.name ?? 'Unknown player', image: profile?.image ?? null }
+      return { ...row, name: profile?.name ?? 'Unknown player', image: profile?.image ?? null, colour: profile?.colour ?? null }
     })
   }
 
@@ -986,7 +988,7 @@ export class PraetoriumService {
         ...battle,
         players: battle.players.map((player) => {
           const profile = profiles.get(player.id)
-          return profile ? { ...player, name: profile.name, image: profile.image } : player
+          return profile ? { ...player, name: profile.name, image: profile.image, colour: profile.colour } : player
         }),
       })),
       partial,
@@ -1365,6 +1367,7 @@ export class PraetoriumService {
             return {
               name: player.name,
               image: player.image ?? null,
+              colour: player.colour ?? null,
               army: roster ? { name: roster.name, points: roster.built ? pointsSpent(roster.built) : null } : null,
             }
           }),

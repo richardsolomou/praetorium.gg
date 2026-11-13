@@ -145,7 +145,7 @@ export function RosterCombatComparison({
     })),
     ...sealedEventRosters.map((entry) => {
       const { sealedEvent } = friendSealedEventSource(entry)
-      const owner = { name: entry.ownerName, image: entry.ownerImage }
+      const owner = { id: entry.userId, name: entry.ownerName, image: entry.ownerImage, colour: entry.ownerColour }
       return {
         id: rosterSourceKey({ sealedEvent }),
         catalogueId: entry.catalogueId,

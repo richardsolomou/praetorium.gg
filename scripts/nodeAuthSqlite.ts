@@ -30,6 +30,10 @@ const migrations = [
     file: new URL('../drizzle-auth/0004_dark_jimmy_woo.sql', import.meta.url),
     applied: (database: DatabaseSync) => hasColumn(database, 'user', 'lastNativeAppAt'),
   },
+  {
+    file: new URL('../drizzle-auth/0005_player_colour.sql', import.meta.url),
+    applied: (database: DatabaseSync) => hasColumn(database, 'user', 'colour'),
+  },
 ]
 
 function applyMigrations(database: DatabaseSync) {

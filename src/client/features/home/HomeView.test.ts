@@ -178,8 +178,8 @@ describe('battle rows', () => {
 
   it("marks the player's own seat", () => {
     const playerDetails = [
-      { id: 'player', name: 'Alex', image: null, automated: false },
-      { id: 'opponent-a', name: 'Opponent a', image: null, automated: false },
+      { id: 'player', name: 'Alex', image: null, colour: null, automated: false },
+      { id: 'opponent-a', name: 'Opponent a', image: null, colour: null, automated: false },
     ]
     expect(text(render({ mine: [battle('a', { playerDetails })] }))).toMatch(/Alex You .*Opponent a(?! You)/)
   })

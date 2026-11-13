@@ -5,6 +5,7 @@ export type AdminUser = {
   name: string
   email: string
   image: string | null
+  colour: string | null
   role: 'admin' | 'user'
   emailVerified: boolean
   twoFactorEnabled: boolean

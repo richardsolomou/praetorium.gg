@@ -178,6 +178,7 @@ export type SealedEventEntryView = SealedEventRevealEntry & {
   checkedIn: boolean
   name: string
   image: string | null
+  colour: string | null
   joinedAt: number
   rosterName: string | null
   sealedLimit: number | null

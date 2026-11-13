@@ -19,6 +19,7 @@ import { dispositionIn } from '../battle/setup/chrome'
 import { SimulateButton, ViewRosterButton } from './SealedEventEntrants'
 import { DropEntrant } from './SealedEventDrop'
 import { UnsealRoster } from './SealedEventUnseal'
+import { nameColour } from '../../playerName'
 
 /** One titled side or team of rosters, or a duel's single untitled run. */
 export type ArmyGroup = { key: string; title?: string; detail?: string; entries: RevealedEntry[] }
@@ -184,7 +185,12 @@ export function RevealedLists({
         <PlayerAvatar name={entry.name} image={entry.image} className="size-8 text-2xs" />
         <span className="min-w-0 flex-1 basis-24">
           <span className="flex min-w-0 items-baseline gap-1.5">
-            <span className="truncate text-sm leading-tight font-bold uppercase">{named}</span>
+            <span
+              className="truncate text-sm leading-tight font-bold uppercase"
+              style={nameColour({ id: entry.userId, colour: entry.colour })}
+            >
+              {named}
+            </span>
             {entry.userId === viewerId ? <span className="eyebrow shrink-0 text-parchment">You</span> : null}
             {entry.dropped ? <span className="chip shrink-0 text-dim">Dropped</span> : null}
           </span>

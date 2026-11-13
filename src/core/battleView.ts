@@ -106,6 +106,8 @@ export type BattleView = {
     side: number
     name: string
     image: string | null
+    /** The colour the player chose, or null for the one worked out from their id. */
+    colour: string | null
     isViewer: boolean
     /** A seat nobody signs in to, so the players facing it are the ones who play it. */
     automated: boolean
@@ -216,7 +218,7 @@ export type BattleView = {
 
 export function battleView(
   battle: { token: string },
-  players: readonly { id: PlayerId; name: string; image?: string | null; automated?: boolean }[],
+  players: readonly { id: PlayerId; name: string; image?: string | null; colour?: string | null; automated?: boolean }[],
   state: BattleState,
   viewerId: PlayerId,
 ): BattleView {
@@ -275,6 +277,7 @@ export function battleView(
         side: player.side,
         name: named.get(player.id) ?? 'Unknown',
         image: players.find((identity) => identity.id === player.id)?.image ?? null,
+        colour: players.find((identity) => identity.id === player.id)?.colour ?? null,
         isViewer: player.id === viewerId,
         automated: automated.has(player.id),
         isActive: sameSide(state, state.activePlayerId, player.id),

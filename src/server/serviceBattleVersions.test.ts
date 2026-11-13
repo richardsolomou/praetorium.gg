@@ -14,8 +14,8 @@ it.each([{ id: 'preview', name: 'Custodes codex', status: 'preview' as const }, 
     const history: BattleHistory = {
       battle: { id: 'battle', token: 'token', createdAt: 0 },
       players: [
-        { id: ALICE, name: 'Alice', image: null, side: 0, automated: false },
-        { id: BOB, name: 'Bob', image: null, side: 1, automated: false },
+        { id: ALICE, name: 'Alice', image: null, colour: null, side: 0, automated: false },
+        { id: BOB, name: 'Bob', image: null, colour: null, side: 1, automated: false },
       ],
       log: log([ALICE, command]),
     }
@@ -46,8 +46,8 @@ it('names each listed battle by the version a device saves its copy at', async (
   const history: BattleHistory = {
     battle: { id: 'battle', token: 'token', createdAt: 0 },
     players: [
-      { id: ALICE, name: 'Alice', image: null, side: 0, automated: false },
-      { id: BOB, name: 'Bob', image: null, side: 1, automated: false },
+      { id: ALICE, name: 'Alice', image: null, colour: null, side: 0, automated: false },
+      { id: BOB, name: 'Bob', image: null, colour: null, side: 1, automated: false },
     ],
     // A removed player's commands leave gaps, so the version is the last seq rather than the count.
     log: log([ALICE, builtRoster('Custodes', ['Custodian Guard'])], [BOB, builtRoster('Orks', ['Boyz'])]).map((entry, index) => ({

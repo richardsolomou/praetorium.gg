@@ -47,6 +47,7 @@ import { useStartBattle } from '../battles/useStartBattle'
 import { warmLocalRules } from '../../offline/construction'
 import { afterPaint } from '../../afterPaint'
 import { DropdownMenuItem } from '../../components/Menu'
+import { nameColour } from '../../playerName'
 
 type Game = Group['games'][number]
 type Player = Game['players'][number]
@@ -257,7 +258,12 @@ export function GroupHiddenListGame({
         <PlayerAvatar name={name} image={person?.image ?? null} className="size-8 text-2xs" />
         <span className="min-w-0 flex-1 basis-24">
           <span className="flex min-w-0 items-baseline gap-1.5">
-            <span className="truncate text-sm leading-tight font-bold uppercase">{name}</span>
+            <span
+              className="truncate text-sm leading-tight font-bold uppercase"
+              style={nameColour({ id: player.userId, colour: person?.colour })}
+            >
+              {name}
+            </span>
             {player.userId === viewerId ? <span className="eyebrow shrink-0 text-parchment">You</span> : null}
           </span>
           {list ? <span className="mt-0.5 block truncate text-xs text-dim uppercase">{list}</span> : null}
@@ -555,7 +561,7 @@ function BattleResult({ battle, viewerId }: { battle: Battle; viewerId: string |
               {side.seats.map(({ player }, index) => (
                 <span key={player.id || player.name}>
                   {index ? <span className="font-normal text-faint"> &amp; </span> : null}
-                  {player.name}
+                  <span style={player.id && !sideLost(battle, side.index) ? nameColour(player) : undefined}>{player.name}</span>
                   {player.id === viewerId ? <span className="eyebrow ml-1.5 text-parchment">You</span> : null}
                 </span>
               ))}

@@ -142,7 +142,7 @@ type MissionRecord = Omit<Split, 'rate'> & { key: string; name: string; averageP
 
 type FactionRecord = Split & { faction: StandingFaction }
 
-type OpponentRecord = Split & { id: string; name: string; image: string | null }
+type OpponentRecord = Split & { id: string; name: string; image: string | null; colour: string | null }
 
 /** How many battles a card or stratagem has to appear in before it can be the best or the worst. */
 export const RECORD_SAMPLE = 3
@@ -460,7 +460,7 @@ function factionRecords(taken: readonly Appearance[]): FactionRecord[] {
 
 /** Results against each signed-in player on the other side, named as their most recent battle named them. */
 function opponentRecords(taken: readonly Appearance[]): OpponentRecord[] {
-  const rows = new Map<string, { name: string; image: string | null; against: Appearance[] }>()
+  const rows = new Map<string, { name: string; image: string | null; colour: string | null; against: Appearance[] }>()
   for (const { one } of newestFirst(taken)) {
     for (const seat of opposingSeats(one)) {
       const id = one.battle.playerIds[seat]
@@ -468,6 +468,7 @@ function opponentRecords(taken: readonly Appearance[]): OpponentRecord[] {
       const row = rows.get(id) ?? {
         name: one.battle.players[seat] ?? '',
         image: one.battle.playerDetails?.find((player) => player.id === id)?.image ?? null,
+        colour: one.battle.playerDetails?.find((player) => player.id === id)?.colour ?? null,
         against: [],
       }
       row.against.push(one)
@@ -475,7 +476,7 @@ function opponentRecords(taken: readonly Appearance[]): OpponentRecord[] {
     }
   }
   return [...rows]
-    .map(([id, { name, image, against }]) => ({ id, name, image, ...split(against) }))
+    .map(([id, { name, image, colour, against }]) => ({ id, name, image, colour, ...split(against) }))
     .toSorted((one, other) => other.battles - one.battles || other.rate - one.rate || one.name.localeCompare(other.name))
 }
 

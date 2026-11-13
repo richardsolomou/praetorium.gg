@@ -19,6 +19,7 @@ describe('whose roster a simulator side comes from', () => {
 
   it('is the friend for their sealed list, whether or not the simulator still lists it', () => {
     expect(rosterOwner({ sealedEvent: { token: 'tournament', eventToken: 'event', userId: 'cy' } }, known)).toEqual({
+      id: 'cy',
       name: 'Cy',
       image: null,
     })
