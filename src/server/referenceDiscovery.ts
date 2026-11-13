@@ -12,6 +12,7 @@ import { escapeHtml } from './escapeHtml'
 const PUBLIC_PAGES = [
   '/',
   '/battles',
+  '/battles/sample',
   '/factions',
   '/docs',
   '/leaderboard',

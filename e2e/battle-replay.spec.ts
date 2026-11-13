@@ -177,3 +177,12 @@ async function scrubToRound(slider: Locator, round: number) {
   }
   throw new Error(`the timeline never reached round ${round}`)
 }
+
+test('the sample battle opens finished and replays from its first event', async ({ page }) => {
+  await page.goto('/battles/sample')
+  await expect(page.getByRole('region', { name: 'Battle scoreboard' })).toContainText('Aurelia wins')
+  // Its players are made up, so no profile waits behind their names.
+  await expect(page.locator('a[href^="/users/"]')).toHaveCount(0)
+  await page.getByRole('slider', { name: 'Replay event' }).press('Home')
+  await expect(page.getByRole('region', { name: 'Battle scoreboard' })).toContainText('Round 0 of 5')
+})

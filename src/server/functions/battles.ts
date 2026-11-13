@@ -7,6 +7,9 @@ import { BATTLES_PAGE } from '../service'
 import { battleViewerId, requireBattleActor } from '../guestSession'
 import { submitBattleCommand } from '../battleSubmission'
 import { mutationRpc, rpc } from '../rpc'
+import { SAMPLE_RATING_CHANGES, sampleBattleHistory } from '../sampleBattle'
+import { SAMPLE_BATTLE_TOKEN } from '../../contracts/battles'
+import type { LoadedRules } from '../../shared/rules'
 import {
   battlesFeedSchema,
   battleReplaySchema,
@@ -147,27 +150,41 @@ export const markAchievementsSeen = createServerFn({ method: 'POST' })
 /** How far a finished battle moved each player's leaderboard rating, or null when it does not count. */
 export const battleRatingChanges = createServerFn({ method: 'GET' })
   .validator(tokenSchema)
-  .handler(({ data }) => rpc(async () => app().service.battleRatingChanges(data.token)))
+  .handler(({ data }) =>
+    rpc(async () => (data.token === SAMPLE_BATTLE_TOKEN ? SAMPLE_RATING_CHANGES : app().service.battleRatingChanges(data.token))),
+  )
+
+const sampleBattle = (rules: LoadedRules | null) => sampleBattleHistory(rules, app().catalogueFor)
 
 export const openBattle = createServerFn({ method: 'GET' })
   .validator(tokenSchema)
   .handler(({ data }) =>
     rpc(async () => {
+      const rules = await app().rulesFor()
+      if (data.token === SAMPLE_BATTLE_TOKEN) return app().service.sampleScreen(await sampleBattle(rules), rules)
       const userId = await battleViewerId(data.token)
-      return orNull(async () => app().service.screen(data.token, userId, await app().rulesFor()))
+      return orNull(async () => app().service.screen(data.token, userId, rules))
     }),
   )
 
 export const replayBattleAt = createServerFn({ method: 'GET' })
   .validator(battleReplaySchema)
   .handler(({ data }) =>
-    rpc(async () => app().service.replayAt(data.token, await battleViewerId(data.token), data.seq, await app().rulesFor())),
+    rpc(async () => {
+      const rules = await app().rulesFor()
+      if (data.token === SAMPLE_BATTLE_TOKEN) return app().service.sampleReplay(await sampleBattle(rules), [data.seq], rules).first
+      return app().service.replayAt(data.token, await battleViewerId(data.token), data.seq, rules)
+    }),
   )
 
 export const replayBattleBatch = createServerFn({ method: 'GET' })
   .validator(battleReplayBatchSchema)
   .handler(({ data }) =>
-    rpc(async () => app().service.replayBatch(data.token, await battleViewerId(data.token), data.seqs, await app().rulesFor())),
+    rpc(async () => {
+      const rules = await app().rulesFor()
+      if (data.token === SAMPLE_BATTLE_TOKEN) return app().service.sampleReplay(await sampleBattle(rules), data.seqs, rules)
+      return app().service.replayBatch(data.token, await battleViewerId(data.token), data.seqs, rules)
+    }),
   )
 
 export const sealedEventBattleOptions = createServerFn({ method: 'GET' })

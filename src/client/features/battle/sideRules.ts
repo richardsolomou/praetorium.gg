@@ -1,5 +1,7 @@
-import type { RosterView } from '../../../core/battleView'
+import type { QueryClient } from '@tanstack/react-query'
+import type { BattleView, RosterView } from '../../../core/battleView'
 import { builtDetachments } from '../../../core/battle'
+import { detachmentRulesQuery, factionQuery } from '../../queries'
 
 /**
  * What an army's rules are looked up by: the catalogue it was built from, and every
@@ -15,6 +17,21 @@ export function armyRulesRequest(roster: RosterView | null | undefined): { catal
     catalogueId: built?.catalogueId ?? '',
     detachmentNames: builtDetachments(built).map((detachment) => detachment.name),
   }
+}
+
+/** Each army's rules and its own faction, rather than every faction the instance knows, for a loader to start with the battle. */
+export function armyReads(queryClient: QueryClient, view: Pick<BattleView, 'players'>) {
+  return [
+    ...view.players.flatMap((player) => {
+      const { catalogueId, detachmentNames } = armyRulesRequest(player.roster)
+      return catalogueId && detachmentNames.length
+        ? [queryClient.query({ ...detachmentRulesQuery(catalogueId, detachmentNames), staleTime: 'static' })]
+        : []
+    }),
+    ...[...new Set(view.players.flatMap((player) => (player.roster?.built ? [player.roster.built.catalogueId] : [])))].map((catalogueId) =>
+      queryClient.query({ ...factionQuery(catalogueId), staleTime: 'static' }),
+    ),
+  ]
 }
 
 /** A stratagem's written card, read from whichever of the side's rule sets prints it. */
