@@ -70,7 +70,7 @@ const myBattlesSchema = battlesFeedSchema.extend({
       pack: facet('mission pack ids, as list_reference gives them'),
       deployment: facet('deployment ids'),
       type: facet(
-        'practice (against an automated opponent), guest, team, manual (table keeps its own score), organised (counts for a group or tournament)',
+        'practice (played alone, every side by you), guest, team, manual (table keeps its own score), organised (counts for a group or tournament)',
       ),
       period: battleFilterSchema.shape.period.describe('Only battles from the last 7d, 30d, 90d or 1y; overrides from and to.'),
       from: battleFilterSchema.shape.from.describe('First UTC day to include, YYYY-MM-DD.'),

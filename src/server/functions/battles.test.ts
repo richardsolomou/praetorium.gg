@@ -21,7 +21,7 @@ const invokeSubmit = submit as unknown as (input: {
 
 beforeEach(() => {
   vi.resetAllMocks()
-  mocks.createBattle.mockResolvedValue({ battleId: 'battle-id', token: 'private-battle', practice: false })
+  mocks.createBattle.mockResolvedValue({ battleId: 'battle-id', token: 'private-battle' })
   mocks.submit.mockResolvedValue({ result: { outcome: 'appended' }, battleId: 'battle-id' })
 })
 
@@ -40,7 +40,6 @@ it.each([
       {
         delivery: 'direct',
         battle_id: 'battle-id',
-        practice: false,
         limit: 2000,
         player_count: count,
         casual: true,
@@ -106,11 +105,7 @@ it('records the refusal code but not its message for a refused command', async (
 it('reports no preset size for an automatically configured battle', async () => {
   await invokeCreate({ data: createBattleSchema.parse({ opponentId: 'opponent', limit: null, casual: true }) })
   expect(mocks.capture.mock.calls).toEqual([
-    [
-      'actor',
-      'battle_created',
-      { delivery: 'direct', battle_id: 'battle-id', practice: false, limit: null, player_count: 2, casual: true, manual: false },
-    ],
+    ['actor', 'battle_created', { delivery: 'direct', battle_id: 'battle-id', limit: null, player_count: 2, casual: true, manual: false }],
   ])
 })
 

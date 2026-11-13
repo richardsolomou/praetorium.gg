@@ -64,12 +64,10 @@ export function RosterChooser({
     >
       <DialogContent size="md">
         <DialogHeader>
-          <DialogTitle className="text-2xl">
-            {forArmy?.automated ? `Choose ${forArmy.playerName}’s roster` : 'Choose your roster'}
-          </DialogTitle>
+          <DialogTitle className="text-2xl">{forArmy?.automated ? 'Choose a roster' : 'Choose your roster'}</DialogTitle>
           <DialogDescription>
-            {/* A practice opponent owns no lists, so the army it brings comes from yours. */}
-            {forArmy?.automated ? 'One of your own lists, played by the side across the table. ' : ''}
+            {/* Nobody signs in to a place the table plays, so the army it brings comes from the viewer's lists. */}
+            {forArmy?.automated ? 'One of your own lists, for a place you play. ' : ''}
             {requiredLimit === null ? 'Your rosters.' : `Rosters built for ${pointsLabel(requiredLimit)}${orSmaller ? ' or fewer' : ''}.`}
           </DialogDescription>
         </DialogHeader>

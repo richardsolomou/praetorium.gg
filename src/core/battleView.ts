@@ -34,6 +34,7 @@ import {
   undrawnSecondaries,
 } from './battle'
 import { battleUnitCounts } from './attachedUnits'
+import { isPracticeSeat, playedSeatName } from './newBattle'
 import { withoutUnitNotes } from './unitNotes'
 import {
   markedObjectives,
@@ -222,8 +223,17 @@ export function battleView(
   state: BattleState,
   viewerId: PlayerId,
 ): BattleView {
-  const named = new Map(players.map((player) => [player.id, player.name]))
   const automated = new Set(players.filter((player) => player.automated).map((player) => player.id))
+  const creatorSide = state.players.find((player) => player.id === players[0]?.id)?.side ?? 0
+  const seats = state.players.map((player) => ({ side: player.side, army: player.roster?.name }))
+  const named = new Map(
+    state.players.map((player, at) => [
+      player.id,
+      isPracticeSeat({ id: player.id, automated: automated.has(player.id) })
+        ? playedSeatName(seats, at, creatorSide)
+        : players.find((identity) => identity.id === player.id)?.name,
+    ]),
+  )
   return {
     token: battle.token,
     status: state.status,

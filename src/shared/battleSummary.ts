@@ -1,5 +1,6 @@
 import { type BattleState, builtDetachments } from '../core/battle'
 import type { BattleDigest } from '../core/battleDigest'
+import { isPracticeSeat, playedSeatName } from '../core/newBattle'
 import { matchupMission } from './battleRules'
 import type { BattleMissionRules } from './rules'
 import type { StandingFaction } from '../core/standings'
@@ -37,14 +38,19 @@ export function battleSummary(
   factionsById: ReadonlyMap<string, BattleFaction>,
 ) {
   const viewerSeat = digest.seats.find((seat) => seat.id === viewerId) ?? digest.seats.find((seat) => seat.side === 0)
+  const creatorSide = digest.seats.find((seat) => seat.id === players[0]?.id)?.side ?? 0
+  const named = players.map((player) => {
+    const at = digest.seats.findIndex((seat) => seat.id === player.id)
+    return isPracticeSeat(player) && at >= 0 ? { ...player, name: playedSeatName(digest.seats, at, creatorSide) } : player
+  })
   return {
     token: battle.token,
     createdAt: battle.createdAt,
     status: digest.status,
     round: digest.round,
     phase: digest.phase,
-    players: players.map((player) => player.name),
-    playerDetails: players.map(({ id, name, image, colour, automated }) => ({
+    players: named.map((player) => player.name),
+    playerDetails: named.map(({ id, name, image, colour, automated }) => ({
       id,
       name,
       image: image ?? null,

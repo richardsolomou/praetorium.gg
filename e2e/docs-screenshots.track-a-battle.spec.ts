@@ -9,7 +9,6 @@ import {
   createRoster,
   newBattle,
   playBothSides,
-  PRACTICE_OPPONENT,
   signUp,
   startBattle,
   playerPanel,
@@ -34,7 +33,7 @@ test('track a battle', async ({ page }) => {
   await playBothSides(page)
 
   await attachRoster(page, roster)
-  await attachRoster(page, roster, { forPlayer: PRACTICE_OPPONENT })
+  await attachRoster(page, roster, { side: 1 })
   await chooseBattlefield(page)
   const bar = page.locator('[data-setup-bar]')
   await expect(bar).toContainText('2 left')

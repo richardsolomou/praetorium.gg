@@ -12,14 +12,8 @@ export class SocialService {
   ) {}
 
   /** Use one opponent list for both battle creation and its picker; friend search can include strangers and must not serve this path. */
-  async opponents(
-    userId: string,
-  ): Promise<{ id: string; name: string; image: string | null; colour: string | null; automated: boolean }[]> {
-    const [relationships, practice] = await Promise.all([this.repository.relationships(userId), this.repository.practiceOpponents()])
-    return [
-      ...sortedFriends(relationships, userId).friends.map((friend) => ({ ...friend, automated: false })),
-      ...practice.map((opponent) => ({ ...opponent, automated: true })),
-    ]
+  async opponents(userId: string): Promise<{ id: string; name: string; image: string | null; colour: string | null }[]> {
+    return sortedFriends(await this.repository.relationships(userId), userId).friends
   }
 
   /**

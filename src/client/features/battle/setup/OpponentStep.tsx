@@ -6,6 +6,7 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import type { BattleView } from '../../../../core/battleView'
+import { isPracticeSeat } from '../../../../core/newBattle'
 import { battleInvitePath } from '../../../../core/notifications'
 import { Choice } from '../../../components/Choice'
 import { ConfirmDialog } from '../../../components/ConfirmDialog'
@@ -48,11 +49,38 @@ export function useShareBattle(token: string) {
   })
 }
 
+/** Whether the viewer started this battle and holds every other place in it themselves. */
+export const playsEverySide = (view: BattleView) =>
+  view.viewerId === view.creatorId && view.players.length > 1 && view.players.every((player) => player.isViewer || isPracticeSeat(player))
+
+/** Fills every open place with one the viewer plays, which the step offers and an ally added while playing every side needs. */
+export function usePlayEverySide(token: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: () => playBothSides({ data: { token } }),
+    onSuccess: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: battleQuery(token).queryKey }),
+        queryClient.invalidateQueries({ queryKey: battleDraftQuery(token).queryKey }),
+      ]),
+  })
+}
+
 /**
  * Who else is at the table and how the open places get filled: a link anyone signs in through, a friend's
  * notification, or the viewer playing the other side themselves.
  */
-export function OpponentStep({ view, open, draft }: { view: BattleView; open: number; draft: Draft | undefined }) {
+export function OpponentStep({
+  view,
+  open,
+  draft,
+  both,
+}: {
+  view: BattleView
+  open: number
+  draft: Draft | undefined
+  both: ReturnType<typeof usePlayEverySide>
+}) {
   const queryClient = useQueryClient()
   const token = view.token
   const refresh = () =>
@@ -61,31 +89,29 @@ export function OpponentStep({ view, open, draft }: { view: BattleView; open: nu
       queryClient.invalidateQueries({ queryKey: battleDraftQuery(token).queryKey }),
     ])
   const { data: friends = [] } = useQuery(opponentsQuery())
-  const people = friends.filter((friend) => !friend.automated && !view.players.some((player) => player.id === friend.id))
+  const people = friends.filter((friend) => !view.players.some((player) => player.id === friend.id))
   const share = useShareBattle(token)
   const stop = useMutation({ mutationFn: () => stopSharingBattle({ data: { token } }), onSuccess: refresh })
-  const both = useMutation({
-    mutationFn: () => playBothSides({ data: { token } }),
-    onSuccess: () => {
-      posthog.capture('battle_both_sides_played')
-      return refresh()
-    },
-  })
+  const playingAll = playsEverySide(view)
   const invite = draft?.invite ?? null
   const [chosenWay, setWay] = useState<Way | null>(null)
   // A battle started from a friend opens on the invite already sent.
   const others = view.players.filter((player) => !player.isViewer)
   const removable = Boolean(draft?.draft) && view.viewerId === view.creatorId
-  // Playing both sides fills the one place across the table, so it is offered only in a battle of two.
-  const alone = view.players.length === 1 && open === 1
+  // Playing both sides takes every open place, so it is offered only before anyone else has joined.
+  const alone = view.players.length === 1 && open > 0
   const ways = [
     { value: 'link' as const, name: 'Share a link', detail: 'A QR code or link. They sign in and join.' },
     ...(people.length ? [{ value: 'friend' as const, name: 'Invite a friend', detail: 'They get a notification and join from it.' }] : []),
-    ...(alone ? [{ value: 'both' as const, name: 'Play both sides', detail: 'You play their side on this device.' }] : []),
+    ...(alone
+      ? [{ value: 'both' as const, name: 'Play both sides', detail: 'You choose every army and play them all on this device.' }]
+      : []),
   ]
-  // A way the table no longer offers, such as playing both sides once an ally place opens, falls back to the link.
-  const way =
-    chosenWay && ways.some((option) => option.value === chosenWay) ? chosenWay : invite?.invited.length && people.length ? 'friend' : 'link'
+  // A way the table no longer offers falls back to the link, and so does playing both sides once it is undone.
+  const offered = chosenWay && ways.some((option) => option.value === chosenWay) && (chosenWay !== 'both' || both.isPending || both.error)
+  const way = offered ? chosenWay : invite?.invited.length && people.length ? 'friend' : 'link'
+  if (playingAll)
+    return <PlayingEverySide view={view} draft={Boolean(draft?.draft)} pending={both.isPending} error={both.error} onStopped={refresh} />
   return (
     <div className="space-y-4">
       {others.length ? <Joined view={view} removable={removable} onRemoved={refresh} /> : null}
@@ -100,7 +126,7 @@ export function OpponentStep({ view, open, draft }: { view: BattleView; open: nu
               disabled={both.isPending}
               onChange={(chosen) => {
                 setWay(chosen)
-                if (chosen === 'both') both.mutate()
+                if (chosen === 'both') both.mutate(undefined, { onSuccess: () => posthog.capture('battle_both_sides_played') })
               }}
             />
           ) : null}
@@ -110,7 +136,7 @@ export function OpponentStep({ view, open, draft }: { view: BattleView; open: nu
             both.error ? (
               <Problem error={both.error} />
             ) : (
-              <output className="block text-sm text-dim">Setting up their side…</output>
+              <output className="block text-sm text-dim">Setting up every side…</output>
             )
           ) : invite ? (
             <SharedLink invite={invite.invite} open={open} stopping={stop.isPending} onStop={() => stop.mutate()} />
@@ -122,6 +148,45 @@ export function OpponentStep({ view, open, draft }: { view: BattleView; open: nu
           {share.error ? <Problem error={share.error} /> : stop.error ? <Problem error={stop.error} /> : null}
         </>
       ) : null}
+    </div>
+  )
+}
+
+/** The viewer holds every place; going back to inviting players opens those places again. */
+function PlayingEverySide({
+  view,
+  draft,
+  pending,
+  error,
+  onStopped,
+}: {
+  view: BattleView
+  /** Places can only be given up while the battle is a draft. */
+  draft: boolean
+  pending: boolean
+  error: Error | null
+  onStopped: () => Promise<unknown>
+}) {
+  const played = view.players.filter((player) => !player.isViewer)
+  const stop = useMutation({
+    mutationFn: async () => {
+      for (const player of played) await removeBattlePlayer({ data: { token: view.token, playerId: player.id } })
+    },
+    onSettled: onStopped,
+  })
+  return (
+    <div className="space-y-3">
+      <p className="text-sm text-dim">
+        You play every side and choose every army on this device. A battle you play alone stays out of your record and the leaderboard.
+      </p>
+      {pending ? <output className="block text-sm text-dim">Adding your place…</output> : null}
+      {error ? <Problem error={error} /> : null}
+      {draft ? (
+        <Button variant="outline" size="sm" disabled={stop.isPending || pending} onClick={() => stop.mutate()}>
+          Invite players instead
+        </Button>
+      ) : null}
+      {stop.error ? <Problem error={stop.error} /> : null}
     </div>
   )
 }

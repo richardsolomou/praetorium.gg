@@ -40,6 +40,7 @@ const PREVIEW_WANDERER_PASSWORD = 'wanderer-wanderer-wanderer'
 const PRACTICE_OPPONENTS = [
   { id: 'practice-opponent-1', name: 'Practice Opponent' },
   { id: 'practice-opponent-2', name: 'Practice Opponent II' },
+  { id: 'practice-opponent-3', name: 'Practice Opponent III' },
 ] as const
 
 type PreviewRoster = {

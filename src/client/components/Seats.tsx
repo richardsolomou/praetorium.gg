@@ -25,8 +25,8 @@ export function seatLabel(id: string | null, labels: ReadonlyMap<string, string>
 /**
  * One row per seat a shape asks for.
  *
- * The caller says who may fill a seat, because that differs by surface — friends and
- * practice opponents when opening a battle by hand, entrants assigned a matching roster
+ * The caller says who may fill a seat, because that differs by surface — friends
+ * when opening a battle by hand, entrants assigned a matching roster
  * size in a sealed event. Who is already sitting somewhere is this component's business.
  */
 export function SeatRows({

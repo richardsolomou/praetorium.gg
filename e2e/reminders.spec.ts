@@ -6,7 +6,6 @@ import {
   drawPrompt,
   createRoster,
   desktopContext,
-  PRACTICE_OPPONENT,
   recordFirstTurn,
   setupBattle,
   setupStep,
@@ -240,7 +239,7 @@ test('round alerts fire once at both boundaries when your opponent takes the fir
   await expect(editor.getByText('Alert: End of round', { exact: true })).toBeVisible()
   await editor.getByRole('button', { name: 'Cancel', exact: true }).click()
 
-  await startReminderBattle(page, roster, PRACTICE_OPPONENT)
+  await startReminderBattle(page, roster, roster)
 
   // The round's alert waits behind the opening hand rather than covering it.
   const reminder = page.getByRole('dialog', { name: 'Battle reminder', exact: true })
@@ -292,7 +291,7 @@ test('a detachment rule alert covers the whole army and fires in battle', async 
   await page.locator('[data-unit="Immortals"]').getByRole('button', { name: 'Immortals', exact: true }).click()
   await expect(page.getByLabel('Edit alert for Cold Fervour')).toBeVisible()
 
-  await startReminderBattle(page, roster, PRACTICE_OPPONENT)
+  await startReminderBattle(page, roster, roster)
   await takeTheTurn(page)
 
   const reminder = page.getByRole('dialog', { name: 'Battle reminder', exact: true })

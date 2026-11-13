@@ -98,9 +98,7 @@ export function PrivacyPolicy() {
             see a face-down Secret Mission.
           </li>
           <li>Battles may appear on the home page and in your profile's battle record.</li>
-          <li>
-            The leaderboard counts finished games. Games with a practice opponent, or with a guest seat that has no account, do not count.
-          </li>
+          <li>The leaderboard counts finished games. Games you play alone, or with a guest seat that has no account, do not count.</li>
           <li>
             Sealing a tournament roster makes a separate frozen copy. Before reveal, only its assigned allies who are accepted entrants can
             read it; organizer status grants no extra access. Reveal makes accepted sealed rosters readable to anyone who can open that

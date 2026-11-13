@@ -3,10 +3,10 @@ import { expect, test, type Locator } from './test'
 import {
   addUnit,
   expectNoHorizontalOverflow,
+  addAllyPlace,
   attachRoster,
   createBattle,
   createRoster,
-  PRACTICE_OPPONENT,
   signUp,
   startBattle,
   uniqueName,
@@ -255,20 +255,17 @@ test('battle combat uses frozen loadouts and live casualties', async ({ page, br
   }
 })
 
-test('a team matchup switches allied armies and carries both sides through a swap', async ({ browser, page }) => {
-  const allyContext = await browser.newContext()
-  const ally = await allyContext.newPage()
-  const allyName = uniqueName('Ally')
+test('a team matchup switches allied armies and carries both sides through a swap', async ({ page }) => {
   const hostName = uniqueName('Captain')
-  await signUp(ally, allyName)
-  const allyRoster = await createRoster(ally, {
+  await signUp(page, hostName)
+  // A 2v1 played alone, so the ally's list comes from this player's own library too.
+  const allyRoster = await createRoster(page, {
     faction: 'Necrons',
     detachment: /Cursed Legion/,
     name: 'Allied Necrons',
     size: /Incursion/,
   })
-  await addUnit(ally, 'Canoptek Reanimator')
-  await signUp(page, hostName)
+  await addUnit(page, 'Canoptek Reanimator')
   const roster = await createRoster(page, {
     faction: 'Space Marines',
     detachment: /Gladius Task Force/,
@@ -278,15 +275,15 @@ test('a team matchup switches allied armies and carries both sides through a swa
   await addUnit(page, 'Intercessor Squad')
   const opponentRoster = await createRoster(page, { faction: 'Space Marines', detachment: /Gladius Task Force/, name: 'Opposing Marines' })
   await addUnit(page, 'Intercessor Squad')
-  await createBattle(page, { yourAlly: ally, practice: true })
+  await createBattle(page, { practice: true })
+  await addAllyPlace(page, 0)
   await attachRoster(page, roster)
-  await attachRoster(page, opponentRoster, { forPlayer: PRACTICE_OPPONENT })
-  await attachRoster(ally, allyRoster)
-  await expect(page.getByText(allyRoster, { exact: true }).first()).toBeVisible()
-  await startBattle(page, `${hostName} & ${allyName}`)
+  await attachRoster(page, allyRoster, { side: 0 })
+  await attachRoster(page, opponentRoster, { side: 1 })
+  await startBattle(page, `${hostName} & ${allyRoster}`)
   await page.getByRole('button', { name: `Simulate ${hostName}'s combat`, exact: true }).click()
   const simulator = page.getByRole('dialog', { name: 'Combat simulator', exact: true })
-  await chooseOption(page, 'First army', allyName)
+  await chooseOption(page, 'First army', allyRoster)
   await expect(simulator.getByRole('region', { name: 'Attacker', exact: true }).locator('[data-combat-member]').first()).toContainText(
     'Canoptek Reanimator',
   )
@@ -299,7 +296,6 @@ test('a team matchup switches allied armies and carries both sides through a swa
   )
   await expect(simulator.getByRole('region', { name: 'Defender', exact: true })).toContainText('4+')
   await simulator.getByRole('button', { name: 'Close', exact: true }).click()
-  await allyContext.close()
 })
 
 test('battle support auras respect the recipient, role, conditions, and living sources', async ({ page }) => {

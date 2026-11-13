@@ -33,14 +33,14 @@ type Props = {
   problem: string | null
 }
 
-/** Whether this reader picks the list for an army: their own, or a practice opponent's, outside a sealed event. */
+/** Whether this reader picks the list for an army: their own, or one at a place the table plays, outside a sealed event. */
 export function canChooseFor(view: BattleView, army: Army) {
   return !view.sealedEventToken && (army.isViewer || army.automated)
 }
 
 /** Choosing the list for an army, opened from its card in the face-off by `useHistoryDialog('choose-roster')`. */
 export function ArmyChooser({ view, sides, attachRoster, pending, problem }: Props) {
-  /** The army the chooser is picking for, your own or a practice opponent's, by player id. */
+  /** The army the chooser is picking for, your own or one the table plays, by player id. */
   const [choosingId, , closeChooser] = useHistoryDialog('choose-roster')
   const choosing = sides.flatMap((side) => side.armies).find((army) => army.playerId === choosingId) ?? null
   /**

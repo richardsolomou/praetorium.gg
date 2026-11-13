@@ -21,15 +21,15 @@ One phone in the middle of the table is enough, because anyone at the table can 
 
 - **Share a link** shows a QR code and a link. Whoever opens it signs in, or makes an account, and joins. **Stop sharing** turns the link off.
 - **Invite a friend** sends a friend a notification they join from. If you're both in the same tournament, Praetorium offers to play your game there instead.
-- **Play both sides** lets you play the other side yourself on this device, with one of your own lists. It doesn't count on the [leaderboard](/leaderboard).
+- **Play both sides** makes every place yours: you choose every army from your own lists and play them all on this device. Each place is named after the army you choose for it. **Invite players instead** gives the places back to the link until every army is chosen. A battle you play alone doesn't count in your record or on the [leaderboard](/leaderboard).
 
-Everyone in a battle has an account, so the result goes in both records.
+Otherwise everyone in a battle has their own account, so the result goes in every player's record.
 
 Until the battle stops being a draft, you can **Remove** a player who joined. Their place opens again and their link stops working.
 
 ## Allies
 
-**+ Add ally** under a side adds a place for another player on that side, so a duel becomes one player against a pair, or doubles. The × next to an empty place takes it away. One link fills every open place, and whoever opens it picks a side when both have room.
+**Add ally** under a side adds a place for another player on that side, so a duel becomes one player against a pair, or doubles. The × next to an empty place takes it away. One link fills every open place, and whoever opens it picks a side when both have room. When you play both sides, the new place is yours straight away: choose its army on the card, or take it away with its ×.
 
 A pair against one player shares its side's points, even before the ally joins. Until the ally chooses a list, they count as bringing one the size of their partner's. In doubles each army brings half its side's points.
 

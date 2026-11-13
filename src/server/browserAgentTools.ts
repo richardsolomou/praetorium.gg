@@ -86,6 +86,10 @@ export async function prepareBrowserAgentWrite(name: string, input: unknown, exp
       break
     }
     case 'create_battle': {
+      if ((normalized as { bothSides?: unknown }).bothSides === true) {
+        summary = 'Start a battle you play alone, choosing every army yourself.'
+        break
+      }
       const data = createBattleSchema.parse(normalized)
       const opponents = await instance.service.socialService.opponents(user.id)
       const ids = [...(data.allyId ? [data.allyId] : []), ...(data.opponentIds ?? (data.opponentId ? [data.opponentId] : []))]

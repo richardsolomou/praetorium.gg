@@ -21,7 +21,7 @@ import type { Command } from '../src/core/battle'
 
 const GUEST = 'Alex the Guest'
 
-test('New battle seats only accounts and practice opponents', async ({ page }) => {
+test('New battle seats only accounts', async ({ page }) => {
   await signUp(page, uniqueName('Account host'))
   for (const viewport of [{ width: 1440, height: 900 }, PHONE]) {
     await page.setViewportSize(viewport)

@@ -15,7 +15,7 @@ web
 
 ## Product Purpose
 
-- Free army builder, combat simulator, battle tracker and rules reference that carries a game from list to final score, with 1v1, 2v1 and 2v2 games against friends or a practice opponent, with every seat an account, round-robin group leagues, and tournaments with secretly sealed lists.
+- Free army builder, combat simulator, battle tracker and rules reference that carries a game from list to final score, with 1v1, 2v1 and 2v2 games against friends or played alone, with every seat an account, round-robin group leagues, and tournaments with secretly sealed lists.
 
 ## Positioning
 
