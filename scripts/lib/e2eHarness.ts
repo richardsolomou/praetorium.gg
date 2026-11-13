@@ -36,9 +36,13 @@ const accountedEntries = [
   'scripts/lib/checkoutReferenceKey.ts',
   'scripts/checkTerrain.ts',
 ]
-const workflow = '.github/workflows/ci.yml'
-// `changes` chooses the specs, so a change to how it scopes or selects needs every spec.
-const browserJobs = ['changes', 'browser-build', 'e2e-shard']
+// The CI jobs that run browser tests, by the workflow that holds them. `changes` chooses the specs,
+// so a change to how it scopes or selects needs every spec. Only these jobs are read, not their whole files.
+const browserJobs: Record<string, readonly string[]> = {
+  '.github/workflows/ci.yml': ['changes'],
+  '.github/workflows/ci-browser-build.yml': ['browser-build'],
+  '.github/workflows/ci-e2e.yml': ['e2e-shard'],
+}
 
 const modulePath = /\b(?:scripts|src|e2e|spacetimedb)\/[\w./-]+\.(?:ts|tsx|mts|mjs)\b/g
 const workflowPath = /\.github\/workflows\/[\w.-]+\.ya?ml\b/g
@@ -75,12 +79,14 @@ async function reachedFiles(root: string, stop: ReadonlySet<string>) {
       seen.add(name!)
       return [command, ...commands(command, seen)]
     })
-  const jobs = (parse(fs.readFileSync(path.join(root, workflow), 'utf8')) as { jobs: Record<string, unknown> }).jobs
-  const found = new Set([workflow])
+  const found = new Set(Object.keys(browserJobs))
   let pending = roots.flatMap((entry) => [...files(root, entry)]).filter((file) => !stop.has(file))
-  let texts = browserJobs.map((job) => {
-    if (!jobs[job]) throw new Error(`${workflow} has no ${job} job; update the browser jobs the harness reads`)
-    return JSON.stringify(jobs[job])
+  let texts = Object.entries(browserJobs).flatMap(([workflow, names]) => {
+    const jobs = (parse(fs.readFileSync(path.join(root, workflow), 'utf8')) as { jobs: Record<string, unknown> }).jobs
+    return names.map((job) => {
+      if (!jobs[job]) throw new Error(`${workflow} has no ${job} job; update the browser jobs the harness reads`)
+      return JSON.stringify(jobs[job])
+    })
   })
   while (pending.length > 0) {
     for (const file of pending) found.add(file)

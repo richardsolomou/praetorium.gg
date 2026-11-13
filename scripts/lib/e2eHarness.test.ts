@@ -24,7 +24,12 @@ beforeEach(() => {
   )
   write(
     '.github/workflows/ci.yml',
-    'jobs:\n  changes:\n    uses: ./.github/workflows/scope.yml\n  browser-build:\n    steps:\n      - run: pnpm prepare\n  e2e-shard:\n    steps:\n      - uses: ./.github/actions/stack\n  static:\n    steps:\n      - run: pnpm lint\n',
+    'jobs:\n  changes:\n    uses: ./.github/workflows/scope.yml\n  browser-build:\n    uses: ./.github/workflows/ci-browser-build.yml\n  static:\n    steps:\n      - run: pnpm lint\n',
+  )
+  write('.github/workflows/ci-browser-build.yml', 'jobs:\n  browser-build:\n    steps:\n      - run: pnpm prepare\n')
+  write(
+    '.github/workflows/ci-e2e.yml',
+    'jobs:\n  e2e-shard:\n    steps:\n      - uses: ./.github/actions/stack\n  e2e-map:\n    steps:\n      - run: tsx scripts/deploy.ts\n',
   )
   write('.github/workflows/scope.yml', 'jobs:\n  scope:\n    steps:\n      - run: node scripts/scope.ts\n')
   write('scripts/scope.ts', 'export {}\n')
@@ -47,6 +52,8 @@ afterEach(() => fs.rmSync(root, { recursive: true, force: true }))
 it('follows imports, named scripts, sibling workers and chained package scripts from the browser jobs', async () => {
   expect(await harnessFiles(root, [])).toEqual([
     '.github/actions/stack/action.yml',
+    '.github/workflows/ci-browser-build.yml',
+    '.github/workflows/ci-e2e.yml',
     '.github/workflows/ci.yml',
     '.github/workflows/scope.yml',
     'playwright.config.ts',

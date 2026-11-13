@@ -6,7 +6,7 @@ import { parse } from 'yaml'
 import { afterEach, expect, it } from 'vitest'
 
 const temporaryDirectories: string[] = []
-const workflow = parse(fs.readFileSync(path.join(import.meta.dirname, '../.github/workflows/ci.yml'), 'utf8')) as {
+const workflow = parse(fs.readFileSync(path.join(import.meta.dirname, '../.github/workflows/ci-coverage.yml'), 'utf8')) as {
   jobs: { coverage: { steps: { name?: string; run?: string }[] } }
 }
 const comparison = workflow.jobs.coverage.steps.find((step) => step.name === 'Compare snapshots')!.run!

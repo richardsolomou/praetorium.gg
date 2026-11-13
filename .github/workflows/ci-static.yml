@@ -1,0 +1,44 @@
+name: CI static
+
+on:
+  workflow_call:
+    inputs:
+      runtime:
+        description: Whether the change needs the runtime checks
+        type: boolean
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  static:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: richardsolomou/ras-stack/actions/setup-js@v1
+      - run: pnpm exec ras sync --check
+      - run: pnpm format:check
+      - run: pnpm lint
+      - run: pnpm docs:lint
+      - run: pnpm vocabulary:check
+      - run: pnpm changesets:check
+      - run: pnpm auth:db:check
+      - run: pnpm catalogue:check
+      - uses: ./.github/actions/setup-spacetime
+        if: inputs.runtime
+      - uses: richardsolomou/ras-stack/actions/check-spacetime-bindings@v1
+        if: inputs.runtime
+        with:
+          out-dir: src/spacetime/generated
+          format-command: pnpm exec oxfmt src/spacetime/generated
+      - uses: ./.github/actions/catalogue-sync
+        if: inputs.runtime
+        with:
+          r2-account-id: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          r2-access-key-id: ${{ secrets.PRIVATE_R2_ACCESS_KEY_ID }}
+          r2-secret-access-key: ${{ secrets.PRIVATE_R2_SECRET_ACCESS_KEY }}
+      - run: pnpm reference:evaluate
+        if: inputs.runtime
