@@ -21,7 +21,7 @@ Players see dates in their own timezone. After the **Seal rosters by** deadline 
 
 ### Changing things later
 
-Once anyone seals a roster, the format, battle size, pairing and points total lock. Points per army, **Allies split their points** and house rules can still change until the reveal, as long as every sealed roster still fits them. If one doesn't, ask its player to seal a roster that does. Everything else can change at any time from **Edit tournament**.
+Once anyone seals a roster, the format, battle size, pairing and points total lock. The solo player's points, doubles points per army, **Allies split their points** and house rules can still change until the reveal, as long as every sealed roster still fits them. If one doesn't, ask its player to seal a roster that does. Everything else can change at any time from **Edit tournament**.
 
 ## Fill it
 
@@ -93,9 +93,9 @@ If their table in the current round hasn't finished, their opponent takes it as 
 
 Choose **Solo vs pair** (2v1) or **Doubles** (2v2) under **Battle format**. Every roster is built at the **Points** size or a smaller one, unless it waives **Points limit** and your house rules allow that. Every list needs a Warlord, because allies choose whose leads.
 
-**Set points per army**, under **Points**, changes what each list may spend: the **Solo player** and **Each ally** in a 2v1, or **Each player** in doubles. Leave a box empty for an even share of the battle size, which is the full size for the solo player and half for everyone else. Allies seal lists saved to the same points total.
+In a 2v1 the pair shares the battle size, so it plays 2,000 against 2,000: the allies spend their 2,000 however they agree, such as 900 and 1,100. Their lists don't need the same points total, and a list may cost more than the points it was saved to, as long as the pair stays within its total. **Set the solo player's points**, under **Points**, gives the solo player a different total, such as 1,750 against the pair's 2,000.
 
-**Allies split their points** lets each pair spend its points however they agree, such as 900 and 1,100 of 2,000. Their lists don't need the same points total, and a list may cost more than the points it was saved to, as long as the pair stays within its total.
+In doubles, **Set points per army** changes what **Each player** may spend. Leave it empty for half the battle size. Allies seal lists saved to the same points total, unless you switch on **Allies split their points**, which lets each pair spend its points however they agree.
 
 Before the reveal, give each player in a 2v1 a solo or allied size and pair the allies. In doubles, pair everyone into teams of two. Each team then chooses its Force Disposition and whose Warlord leads. Changing a player's size or team clears the roster they sealed.
 

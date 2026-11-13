@@ -85,7 +85,7 @@ export function ArmiesStep({ view, sides, send, attachRoster, pending, problem }
   // A size the rosters set is no filter, since any list may change it.
   const chooserLimit = view.settings.sizeFromRosters ? null : view.settings.limit
   const fits = (roster: { limit: number; waivedRules?: readonly string[] | null }) =>
-    fitsBattleSize({ limit: chooserLimit, teamBattle: team }, roster)
+    fitsBattleSize({ ...view.settings, limit: chooserLimit }, roster)
   const eligible = saved.filter(fits)
   const lent = (lentQuery.data ?? []).filter(({ summary }) => fits(summary))
   const attach = async (savedRoster: SavedRoster) => {
@@ -102,7 +102,7 @@ export function ArmiesStep({ view, sides, send, attachRoster, pending, problem }
     <div className="space-y-4">
       {team && view.settings.limit !== null ? (
         <SetupNote>
-          {view.settings.sharedArmyPoints
+          {[0, 1].some((side) => sharedSidePoints(view, side) !== null)
             ? `${armyPointsText(view)} points. Allies split theirs however they agree.`
             : `Each army spends up to ${armyPointsText(view)} points.`}
         </SetupNote>

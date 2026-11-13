@@ -603,6 +603,11 @@ export type BattleEndReason = 'completed' | 'finished-early' | 'conceded' | 'rep
 export type BattleSettings = {
   limit: number | null
   sizeFromRosters?: boolean
+  /**
+   * Each side plays to its lists added together and the bigger side sets the size, so a side may play under it. Without
+   * it, as in older logs, a duel's lists match the size and a team battle takes its biggest list's.
+   */
+  sizeFromSides?: boolean
   missionPackId: string | null
   terrainLayoutId: string | null
   twistId: string | null
@@ -610,7 +615,7 @@ export type BattleSettings = {
   playerCount: 2 | 3 | 4
   /** What each army on a side may spend in a team battle, by side; absent splits the battle size evenly. */
   armyPoints?: number[]
-  /** Allies spend their side's points between them, in any split, rather than each army its own share. */
+  /** Doubles allies spend their side's points between them, in any split, rather than each army its own share; a 2v1 pair always does. */
   sharedArmyPoints?: boolean
   /** The table keeps its own score: no mission pack, cards, caps, automatic CP or battle ready bonus. */
   manual?: boolean
@@ -909,6 +914,7 @@ export type Command =
       /** A team battle's points per army, by side; absent or null splits the battle size evenly. */
       armyPoints?: number[] | null
       sharedArmyPoints?: boolean
+      sizeFromSides?: boolean
       clockLimitMinutes: number | null
       manual?: boolean
     }
@@ -1700,7 +1706,7 @@ export function commandRefusal(state: BattleState, by: PlayerId, command: Comman
       if (state.players.some((candidate) => candidate.roster?.built && !fitsBattleSize(state.settings, candidate.roster.built))) {
         return refuse('roster-size-mismatch', 'every roster must match the battle size')
       }
-      if (!state.settings.teamBattle && !pointsBudgetsAgree(state))
+      if (!state.settings.teamBattle && !state.settings.sizeFromSides && !pointsBudgetsAgree(state))
         return refuse('roster-format-mismatch', 'choose matching points budgets for each side')
       const armyProblem = teamArmyProblems(state)[0]
       if (armyProblem) return refuse(armyProblem.code, armyProblem.message)
@@ -2098,6 +2104,7 @@ function apply(state: BattleState, by: PlayerId, command: Command, seq: number) 
         playerCount: battleCapacity(command),
         ...(command.armyPoints ? { armyPoints: command.armyPoints } : {}),
         ...(command.sharedArmyPoints ? { sharedArmyPoints: true } : {}),
+        ...(command.sizeFromSides ? { sizeFromSides: true } : {}),
         ...(command.manual ? { manual: true } : {}),
       }
       if (missionPackChanged) {
@@ -3047,13 +3054,14 @@ type TableArmies = { players: readonly { side: number; roster: { built?: TableBu
 /**
  * Whether a built list may sit at this battle.
  *
- * A duel's lists are built at its size. A team battle's size is a ceiling instead, so an ally brings an Incursion list
- * to a Strike Force table, and only a list that waives its points limit may be built bigger.
+ * The size is a ceiling, so an ally brings an Incursion list to a Strike Force table, and only a list that waives its
+ * points limit may be built bigger. A duel in an older log, or at King of the Colosseum's fixed totals, plays lists built
+ * at exactly its size.
  */
-export function fitsBattleSize(settings: Pick<BattleSettings, 'limit' | 'teamBattle'>, built: TableBuilt): boolean {
+export function fitsBattleSize(settings: Pick<BattleSettings, 'limit' | 'teamBattle' | 'sizeFromSides'>, built: TableBuilt): boolean {
   const { limit, teamBattle } = settings
   if (limit === null) return true
-  if (!teamBattle) return built.limit === limit
+  if (!teamBattle && (!settings.sizeFromSides || isKotcLimit(limit) || isKotcLimit(built.limit))) return built.limit === limit
   return built.limit <= limit || !enforces(built.waivedRules, 'points-limit')
 }
 
@@ -3081,7 +3089,8 @@ export const withinSharedArmyPoints = (armies: readonly Pick<TableBuilt, 'units'
 export function sharedSidePoints(state: TableArmies & { settings: BattleSettings }, side: number): number | null {
   const armies = sidePlayers(state, side).length
   const points = armyPointsFor(state, side)
-  return state.settings.sharedArmyPoints && armies > 1 && points !== null ? points * armies : null
+  const shares = state.settings.sharedArmyPoints || battleCapacity(state.settings) === 3
+  return shares && armies > 1 && points !== null ? points * armies : null
 }
 
 type TeamArmyProblem = { code: 'over-army-points' | 'allies-mismatch'; side: number; message: string }
@@ -3121,11 +3130,63 @@ export function teamArmyProblems(state: TableArmies & { settings: BattleSettings
 const sideAllowances = (state: TableArmies): number[] =>
   state.players.flatMap((player) => (player.roster?.built ? [pointsBudgetOf(player.roster.built)] : []))
 
+/**
+ * What each side's lists add up to, by side, with an ally who has not chosen yet counted at their partner's list. A side
+ * with no list yet adds up to nothing.
+ */
+export function sidePoints(state: TableArmies): number[] {
+  return [0, 1].map((side) => {
+    const armies = sidePlayers(state, side)
+    const chosen = armies.flatMap((player) => (player.roster?.built ? [pointsBudgetOf(player.roster.built)] : []))
+    return chosen.length ? chosen.reduce((total, points) => total + points, 0) + chosen[0]! * (armies.length - chosen.length) : 0
+  })
+}
+
+/**
+ * Each side that may spend fewer points than the other, which plays short rather than being refused. A side counts its
+ * lists up to what it may spend at this table, so allies' lists saved bigger than their share never read as more.
+ */
+export function shortSides(state: TableArmies & { settings: BattleSettings }): { side: number; points: number; against: number }[] {
+  const { limit, sizeFromSides, teamBattle } = state.settings
+  if (!sizeFromSides || limit === null || state.players.some((player) => !player.roster?.built)) return []
+  const allowance = (side: number) =>
+    teamBattle
+      ? (sharedSidePoints(state, side) ?? armyPointsFor(state, side)! * sidePlayers(state, side).length)
+      : (battlePointsBudget(state) ?? limit)
+  const points = sidePoints(state).map((value, side) => Math.min(value, allowance(side)))
+  const against = Math.max(...points)
+  return points.flatMap((value, side) => (value < against ? [{ side, points: value, against }] : []))
+}
+
+type RosterFormat = { limit: number | null; problem: 'missing' | 'manual' | 'mismatch' | 'budget-mismatch' | 'unsupported' | null }
+
+/**
+ * The battle size the bigger side's lists make: a lone list its own format, and allies the smallest size their lists
+ * added together fit, so two Incursion lists make a Strike Force side. Known from the first list chosen.
+ */
+function sideBattleFormat(state: TableArmies & { settings: BattleSettings }): RosterFormat {
+  const chosen = state.players.flatMap((player) => (player.roster ? [player.roster] : []))
+  if (!chosen.length) return { limit: null, problem: 'missing' }
+  if (chosen.some((roster) => !roster.built)) return { limit: null, problem: 'manual' }
+  const formats = chosen.map((roster) => roster.built!.limit)
+  if (formats.some(isKotcLimit)) {
+    if (state.settings.teamBattle) return { limit: null, problem: 'unsupported' }
+    return formats.every((limit) => limit === formats[0]) ? { limit: formats[0]!, problem: null } : { limit: null, problem: 'mismatch' }
+  }
+  const totals = sidePoints(state)
+  let limit = Math.max(...formats)
+  for (const side of [0, 1]) {
+    if (sidePlayers(state, side).length < 2) continue
+    const size = GAME_SIZES.find((candidate) => !isKotcLimit(candidate.limit) && candidate.limit >= totals[side]!)
+    if (!size) return { limit: null, problem: 'unsupported' }
+    limit = Math.max(limit, size.limit)
+  }
+  return { limit, problem: null }
+}
+
 /** The battle size the armies' formats make; custom budgets never change it, they only have to agree. */
-export function rosterBattleFormat(state: TableArmies & { settings: BattleSettings }): {
-  limit: number | null
-  problem: 'missing' | 'manual' | 'mismatch' | 'budget-mismatch' | 'unsupported' | null
-} {
+export function rosterBattleFormat(state: TableArmies & { settings: BattleSettings }): RosterFormat {
+  if (state.settings.sizeFromSides) return sideBattleFormat(state)
   if (state.players.length !== battleCapacity(state.settings) || state.players.some((player) => !player.roster))
     return { limit: null, problem: 'missing' }
   if (state.players.some((player) => !player.roster?.built)) return { limit: null, problem: 'manual' }
@@ -3145,11 +3206,12 @@ export function rosterBattleFormat(state: TableArmies & { settings: BattleSettin
 /** Whether every built army at the table brings the same points allowance per side. */
 export const pointsBudgetsAgree = (state: TableArmies): boolean => new Set(sideAllowances(state)).size <= 1
 
-/** The points budget every built army at the table agrees on, when it is not the battle size's own total. */
+/** The points budget a duel plays to, when it is not the battle size's own total: the one both lists agree on, or the bigger list's. */
 export function battlePointsBudget(state: TableArmies & { settings: BattleSettings }): number | null {
   const allowances = sideAllowances(state)
-  if (state.settings.limit === null || state.settings.teamBattle || !allowances.length || !pointsBudgetsAgree(state)) return null
-  return customPointsBudget(state.settings.limit, allowances[0])
+  if (state.settings.limit === null || state.settings.teamBattle || !allowances.length) return null
+  if (state.settings.sizeFromSides) return customPointsBudget(state.settings.limit, Math.max(...allowances))
+  return pointsBudgetsAgree(state) ? customPointsBudget(state.settings.limit, allowances[0]) : null
 }
 
 /** A team battle's points per army as a table says them, side by side: "1,750 vs 800 + 800", or "2,000 vs 2,000 shared". */

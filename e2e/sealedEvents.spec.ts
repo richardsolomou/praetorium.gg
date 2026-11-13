@@ -1760,7 +1760,7 @@ test('a 2v1 event assigns entrant sizes, filters rosters, and prepares a battle'
   await expect(ownerSetup.locator('[data-players]').filter({ hasText: alliedName }).getByText(alliedName, { exact: true })).toHaveCount(2)
   await expect(ownerSetup.locator('[data-players]').filter({ hasText: ownerName })).toHaveCount(1)
   // The pair shows the one card it plays, not the two its lists chose.
-  await expect(ownerSetup.locator('p', { hasText: 'Side plays' })).toContainText('Priority Assets')
+  await expect(ownerSetup.locator('p', { hasText: /^Side plays/ })).toContainText('Priority Assets')
   await expect(ownerSetup.getByText('Purge the Foe', { exact: true })).toHaveCount(0)
   const battleUrl = owner.url()
   const battlePath = new URL(battleUrl).pathname
@@ -2047,7 +2047,7 @@ test('a doubles event pairs teams, filters half-size rosters, and starts a four-
   await expect(sides.nth(0)).toContainText(names[0])
   await expect(sides.nth(0)).toContainText(names[1])
   const doublesSetup = owner.getByRole('region', { name: 'Armies' })
-  await expect(doublesSetup.locator('p', { hasText: 'Side plays' })).toHaveText([/Priority Assets/, /Purge the Foe/])
+  await expect(doublesSetup.locator('p', { hasText: /^Side plays/ })).toHaveText([/Priority Assets/, /Purge the Foe/])
   await expect(doublesSetup.getByText('Take and Hold', { exact: true })).toHaveCount(0)
   await expect(sides.nth(1)).toContainText(names[2])
   await expect(sides.nth(1)).toContainText(names[3])

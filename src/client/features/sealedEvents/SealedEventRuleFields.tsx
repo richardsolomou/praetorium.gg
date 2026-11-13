@@ -53,8 +53,8 @@ const offeredAllowances = (rule: SealedEventRuleValue): SealedEventRuleValue => 
   rounds: rule.format === '1v1' ? rule.rounds : null,
   pointsBudget: rule.format === '1v1' && allowsPointsBudget(rule.rosterLimit) ? rule.pointsBudget : null,
   soloPoints: rule.format === '2v1' ? rule.soloPoints : null,
-  allyPoints: rule.format === '1v1' ? null : rule.allyPoints,
-  sharedPoints: rule.format !== '1v1' && rule.sharedPoints,
+  allyPoints: rule.format === '2v2' ? rule.allyPoints : null,
+  sharedPoints: rule.format === '2v2' && rule.sharedPoints,
 })
 
 /** What a team shape asks of an entrant's roster; a duel's points say it all. A tournament's organizer seats entrants, a group's players seat themselves. */
@@ -172,11 +172,11 @@ export function SealedEventRuleFields({
 }
 
 /**
- * What each army may spend at a team event, typed per seat: 1,750 for the solo player against 800 for each ally, say.
+ * What each army may spend at a team event. A 2v1 pair spends its side's points between them, so only the solo player
+ * may be set apart, to 1,750 against the pair's 2,000, say; doubles players take a number each and may share it.
  *
- * Most events play an even split, so it reads as one line until the organizer asks for the boxes or has set their own
- * numbers. A box left empty plays an even share of the battle size, which its placeholder shows. Sharing lets each pair
- * split its points however its players agree.
+ * Most events play the battle size on each side, so it reads as one line until the organizer asks for the boxes or has
+ * set their own numbers. A box left empty plays an even share of the battle size, which its placeholder shows.
  */
 function ArmyPointsFields({
   value,
@@ -187,23 +187,20 @@ function ArmyPointsFields({
   disabled: boolean
   onChange: (value: SealedEventRuleValue) => void
 }) {
-  const seats: { key: 'soloPoints' | 'allyPoints'; label: string; solo: boolean }[] =
-    value.format === '2v1'
-      ? [
-          { key: 'soloPoints', label: 'Solo player', solo: true },
-          { key: 'allyPoints', label: 'Each ally', solo: false },
-        ]
-      : [{ key: 'allyPoints', label: 'Each player', solo: false }]
+  const pairAlwaysShares = value.format === '2v1'
+  const seats: { key: 'soloPoints' | 'allyPoints'; label: string; solo: boolean }[] = pairAlwaysShares
+    ? [{ key: 'soloPoints', label: 'Solo player', solo: true }]
+    : [{ key: 'allyPoints', label: 'Each player', solo: false }]
   const error = sealedEventArmyPointsError(value.format, value)
   const [open, setOpen] = useState(false)
   const pairPoints = sealedEventSeatPoints(value, false)! * 2
-  const sharing = (
+  const splitExample = `such as ${(pairPoints / 2 - 100).toLocaleString('en')} and ${(pairPoints / 2 + 100).toLocaleString('en')}`
+  const sharing = pairAlwaysShares ? null : (
     <label htmlFor="sealed-event-shared-points" className="flex items-start justify-between gap-3 pt-2">
       <span>
         <span className="block text-sm font-medium">Allies split their points</span>
         <span className="block text-xs text-dim">
-          Each pair spends {pointsLabel(pairPoints)} between them however they agree, such as {(pairPoints / 2 - 100).toLocaleString('en')}{' '}
-          and {(pairPoints / 2 + 100).toLocaleString('en')}.
+          Each pair spends {pointsLabel(pairPoints)} between them however they agree, {splitExample}.
         </span>
       </span>
       <Switch
@@ -214,14 +211,16 @@ function ArmyPointsFields({
       />
     </label>
   )
+  const pairNote = pairAlwaysShares ? ` The pair splits theirs however they agree, ${splitExample}.` : ''
   if (!open && value.soloPoints === null && value.allyPoints === null)
     return (
       <>
         <p className="text-xs text-dim">
           {sealedEventRosterSplit(value)}
-          {value.sharedPoints ? '.' : ', an even split.'}{' '}
+          {pairAlwaysShares || value.sharedPoints ? '.' : ', an even split.'}
+          {pairNote}{' '}
           <Button variant="link" size="xs" className="h-auto px-0 text-xs text-info" disabled={disabled} onClick={() => setOpen(true)}>
-            Set points per army
+            {pairAlwaysShares ? 'Set the solo player’s points' : 'Set points per army'}
           </Button>
         </p>
         {sharing}
@@ -229,7 +228,7 @@ function ArmyPointsFields({
     )
   return (
     <div className="space-y-1.5 pt-2">
-      <p className="text-sm leading-none font-medium">Points per army</p>
+      <p className="text-sm leading-none font-medium">{pairAlwaysShares ? 'Solo player’s points' : 'Points per army'}</p>
       <div className="grid gap-2 sm:grid-cols-2">
         {seats.map((seat) => (
           <div key={seat.key} className="space-y-1">
@@ -252,8 +251,9 @@ function ArmyPointsFields({
       </div>
       {error ? <Problem className="text-xs">{asSentence(error)}</Problem> : null}
       <p className="text-xs text-dim">
-        Lists are built at the battle size or smaller and spend up to their seat’s points.
-        {value.sharedPoints ? '' : ' Allies bring lists saved to the same total.'}{' '}
+        {pairAlwaysShares
+          ? `${sealedEventRosterSplit(value)}. Lists are built at the battle size or smaller.${pairNote}`
+          : `Lists are built at the battle size or smaller and spend up to their seat’s points.${value.sharedPoints ? '' : ' Allies bring lists saved to the same total.'}`}{' '}
         <Button
           variant="link"
           size="xs"
@@ -264,7 +264,7 @@ function ArmyPointsFields({
             onChange({ ...value, soloPoints: null, allyPoints: null })
           }}
         >
-          Use an even split
+          {pairAlwaysShares ? 'Use the battle size' : 'Use an even split'}
         </Button>
       </p>
       {sharing}

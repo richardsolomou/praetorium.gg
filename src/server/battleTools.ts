@@ -57,7 +57,9 @@ const configureBattle = z
     limit: rosterLimitSchema
       .nullable()
       .optional()
-      .describe('Battle size in points: 1000, 2000 or 3000, or 600 for King of the Colosseum; null takes it from the rosters.'),
+      .describe(
+        'Battle size in points: 1000, 2000 or 3000, or 600 for King of the Colosseum; null takes it from the rosters, where each side plays to its lists added together and the bigger side sets the size.',
+      ),
     missionPackId: idSchema.nullable().optional().describe('A mission pack id from list_reference; null for none.'),
     twistId: idSchema.nullable().optional().describe('A twist id the chosen pack prints; null for none.'),
     manual: z.boolean().optional().describe('true tracks the battle by hand, without mission cards, stratagems or CP automation.'),
@@ -320,6 +322,7 @@ export async function agentBattleCommand(owner: string, token: string, sent: obj
       playerCount: settings.playerCount,
       armyPoints: settings.armyPoints ?? null,
       ...(settings.sharedArmyPoints ? { sharedArmyPoints: true } : {}),
+      sizeFromSides: true,
       clockLimitMinutes: null,
       ...(manual ? { manual: true } : {}),
     })

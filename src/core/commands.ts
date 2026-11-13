@@ -173,6 +173,7 @@ export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
     playerCount: z.union([z.literal(2), z.literal(3), z.literal(4)]).optional(),
     armyPoints: z.array(z.number().int().min(1).max(POINTS_BUDGET_MAX)).length(2).nullable().optional(),
     sharedArmyPoints: z.boolean().optional(),
+    sizeFromSides: z.boolean().optional(),
     clockLimitMinutes: z.number().int().min(5).max(300).nullable(),
     manual: z.boolean().optional(),
   }),

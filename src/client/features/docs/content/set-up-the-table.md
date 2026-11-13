@@ -29,13 +29,13 @@ On a phone, an open step shows one side at a time. Tap the other side's tab, or 
 
 ## Battle size and points
 
-The size follows your rosters' formats once every army is in. Imported text-only armies need you to choose it yourself.
+The size follows your rosters from the first list chosen. Each side plays to its lists added together, and the bigger side sets the size: two 1,000-point allies make a 2,000-point side. An ally who hasn't chosen yet counts at their partner's list size. Imported text-only armies need you to choose the size yourself.
 
-In a duel, both sides need the same points. In a 2v1 or doubles, the biggest list sets the size and every other list may be built at it or smaller. Each army spends an even share, shown beside it.
+A side whose lists add up to less than the other's plays short. Setup says so, but it doesn't stop you starting, so a 1,000-point list can play a 2,000-point one. No list may be built bigger than the battle size.
 
-**Set points per army** under the battle size gives each side its own number, such as 1,750 against 800 each. **Use an even split** goes back.
+In a 2v1, the pair shares its side's points however they agree, such as 900 and 1,100 of 2,000 against the solo player's 2,000.
 
-Allies bring lists saved to the same points total. With **Allies split their points** on, they share their side's points however they agree, such as 900 and 1,100 of 2,000.
+In doubles, each army spends up to half its side's points, shown beside it, and allies bring lists saved to the same points total. **Set points per army** under the battle size gives each side its own number, and **Use an even split** goes back. With **Allies split their points** on, allies share their side's points however they agree.
 
 ## Place the terrain
 

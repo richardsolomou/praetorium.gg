@@ -1229,6 +1229,7 @@ export class PraetoriumService {
           twistId: null,
           teamBattle: invited.length >= 2,
           playerCount: (invited.length + 1) as 2 | 3 | 4,
+          sizeFromSides: true,
           clockLimitMinutes: null,
           ...(settings.manual ? { manual: true } : {}),
         },
