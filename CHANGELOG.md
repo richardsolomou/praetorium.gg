@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.241.1 (2026-11-13)
+
+### Patch Changes
+
+- eef8e24: Missing rules text now offers to turn on external sources, and the source list shows which one it needs.
+
 ## 0.241.0 (2026-11-13)
 
 ### Minor Changes
