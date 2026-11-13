@@ -22,7 +22,7 @@ const CACHE = 'praetorium-rules-text-v1'
 export const TEXT_SOURCE_INFO: Record<TextSource, { name: string; repository: string; provides: string; licence: string }> = {
   bsdata: {
     name: 'BSData',
-    repository: 'https://github.com/BSData/wh40k-11e',
+    repository: 'https://github.com/richardsolomou/wh40k-11e',
     provides: 'Ability, wargear, and enhancement text from the faction catalogues.',
     licence: 'No licence stated.',
   },

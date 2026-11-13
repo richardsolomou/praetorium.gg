@@ -43,7 +43,7 @@
       },
       "sources": {
         "definitions": {
-          "repository": "BSData/wh40k-11e",
+          "repository": "richardsolomou/wh40k-11e",
           "branch": "main",
           "license": null,
           "description": "Community catalogues for Warhammer 40,000 11th edition. JSON, one file per faction.",
@@ -51,11 +51,11 @@
           "attribution": "Community catalogue data from BSData."
         },
         "points": {
-          "repository": "BSData/wh40k-11e-mfm",
+          "repository": "richardsolomou/wh40k-11e-mfm",
           "branch": "main",
           "path": "data",
           "license": "MIT",
-          "licenseUrl": "https://github.com/BSData/wh40k-11e-mfm/blob/main/LICENSE",
+          "licenseUrl": "https://github.com/richardsolomou/wh40k-11e-mfm/blob/main/LICENSE",
           "attribution": "Copyright 2026 BSData",
           "description": "Munitorum Field Manual 1.5 prices for units, detachments, enhancements, and upgrades.",
           "revision": "8e0e635674018969fdcfaa64e83d4153ebefad70"
@@ -194,7 +194,7 @@
       },
       "sources": {
         "definitions": {
-          "repository": "BSData/wh40k-11e",
+          "repository": "richardsolomou/wh40k-11e",
           "branch": "main",
           "license": null,
           "description": "Community catalogues for Warhammer 40,000 11th edition. JSON, one file per faction.",
@@ -202,11 +202,11 @@
           "attribution": "Community catalogue data from BSData."
         },
         "points": {
-          "repository": "BSData/wh40k-11e-mfm",
+          "repository": "richardsolomou/wh40k-11e-mfm",
           "branch": "main",
           "path": "data",
           "license": "MIT",
-          "licenseUrl": "https://github.com/BSData/wh40k-11e-mfm/blob/main/LICENSE",
+          "licenseUrl": "https://github.com/richardsolomou/wh40k-11e-mfm/blob/main/LICENSE",
           "attribution": "Copyright 2026 BSData",
           "description": "Munitorum Field Manual 1.5 prices for units, detachments, enhancements, and upgrades.",
           "revision": "8e0e635674018969fdcfaa64e83d4153ebefad70"
@@ -224,7 +224,7 @@
       "overlays": [
         {
           "source": "definitions",
-          "repository": "BSData/wh40k-11e",
+          "repository": "richardsolomou/wh40k-11e",
           "branch": "Space-Marine-Codex",
           "license": null,
           "description": "Community catalogues for Warhammer 40,000 11th edition. JSON, one file per faction.",
@@ -271,7 +271,7 @@
       },
       "sources": {
         "definitions": {
-          "repository": "BSData/wh40k-11e",
+          "repository": "richardsolomou/wh40k-11e",
           "branch": "main",
           "revision": "1b1ddfd2d064a9b5e7dbed7a63a2a4dd3aedfa29",
           "license": null,
@@ -279,11 +279,11 @@
           "description": "Community catalogues for Warhammer 40,000 11th edition. JSON, one file per faction."
         },
         "points": {
-          "repository": "BSData/wh40k-11e-mfm",
+          "repository": "richardsolomou/wh40k-11e-mfm",
           "branch": "main",
           "path": "data",
           "license": "MIT",
-          "licenseUrl": "https://github.com/BSData/wh40k-11e-mfm/blob/main/LICENSE",
+          "licenseUrl": "https://github.com/richardsolomou/wh40k-11e-mfm/blob/main/LICENSE",
           "attribution": "Copyright 2026 BSData",
           "description": "Munitorum Field Manual 1.5 prices for units, detachments, enhancements, and upgrades.",
           "revision": "8e0e635674018969fdcfaa64e83d4153ebefad70"
@@ -322,7 +322,7 @@
       },
       "sources": {
         "definitions": {
-          "repository": "BSData/wh40k-11e",
+          "repository": "richardsolomou/wh40k-11e",
           "branch": "main",
           "license": null,
           "description": "Community catalogues for Warhammer 40,000 11th edition. JSON, one file per faction.",
@@ -330,11 +330,11 @@
           "attribution": "Community catalogue data from BSData."
         },
         "points": {
-          "repository": "BSData/wh40k-11e-mfm",
+          "repository": "richardsolomou/wh40k-11e-mfm",
           "branch": "main",
           "path": "data",
           "license": "MIT",
-          "licenseUrl": "https://github.com/BSData/wh40k-11e-mfm/blob/main/LICENSE",
+          "licenseUrl": "https://github.com/richardsolomou/wh40k-11e-mfm/blob/main/LICENSE",
           "attribution": "Copyright 2026 BSData",
           "description": "Munitorum Field Manual 1.5 prices for units, detachments, enhancements, and upgrades.",
           "revision": "8e0e635674018969fdcfaa64e83d4153ebefad70"
@@ -373,7 +373,7 @@
       },
       "sources": {
         "definitions": {
-          "repository": "BSData/wh40k-11e",
+          "repository": "richardsolomou/wh40k-11e",
           "branch": "main",
           "license": null,
           "description": "Community catalogues for Warhammer 40,000 11th edition. JSON, one file per faction.",
@@ -385,7 +385,7 @@
           "branch": "main",
           "path": "data",
           "license": "MIT",
-          "licenseUrl": "https://github.com/BSData/wh40k-11e-mfm/blob/main/LICENSE",
+          "licenseUrl": "https://github.com/richardsolomou/wh40k-11e-mfm/blob/main/LICENSE",
           "attribution": "Copyright 2026 BSData",
           "description": "Munitorum Field Manual 1.5 prices for units, detachments, enhancements, and upgrades.",
           "revision": "8355616f483c15b3ff212953e10deddde7079fa1"
