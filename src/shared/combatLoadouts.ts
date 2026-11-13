@@ -183,6 +183,10 @@ export async function* combatLoadoutCandidates(
   const start = data.walk ? walked(data.walk) : { picks, units }
   const memberSelections = indexes.map((pickIndex) => context.unitSelections.find((unit) => unit.pickIndex === pickIndex))
   if (memberSelections.some((unit) => !unit)) throw new Error('The attached unit could not be loaded.')
+  const memberSelectionIndexes = new Set(memberSelections.map((unit) => unit!.selectionIndex))
+  // Read once per search: only the members' wargear changes, and reading every other unit per candidate makes a
+  // full army's search several times slower.
+  const outsideSupport = rosterProjectionCache().supportSources
   // The roster as built for a candidate, reusing the members just built and every other unit as the roster built it.
   const prepared = (built: BuiltUnit[]) => {
     const replaced = new Map(memberSelections.map((unit, at) => [unit!.selectionIndex, built[at]!]))
@@ -234,10 +238,10 @@ export async function* combatLoadoutCandidates(
     if (!isLegal) return
     const updates = new Map(indexes.map((pickIndex, at) => [pickIndex, resolved[at]!]))
     const roster = data.picks.map((pick, pickIndex) => updates.get(pickIndex) ?? pick)
-    const projected = rosterCombatant(loaded, rules, { ...data, picks: roster }, prepared(built), {
-      attachmentChoices: false,
-      cache: rosterProjectionCache(),
-    })
+    const cache = { supportSources: new Map(outsideSupport) }
+    const projected = rosterCombatant(loaded, rules, { ...data, picks: roster }, prepared(built), { attachmentChoices: false, cache })
+    for (const [selectionIndex, source] of cache.supportSources)
+      if (!memberSelectionIndexes.has(selectionIndex)) outsideSupport.set(selectionIndex, source)
     if (!projected) throw new Error('The attached unit could not be loaded.')
     if (projected.attachmentErrors.length) {
       if (seen.size === 1) throw new Error('The attached unit could not be evaluated legally.')
