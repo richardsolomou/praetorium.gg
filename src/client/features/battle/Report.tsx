@@ -14,10 +14,11 @@ import { armyRulesRequest, writtenStratagem } from './sideRules'
 import { StratagemDetails } from './Stratagems'
 import { formatDuration } from './turnTime'
 import { CARD_NAME_LINK, tint } from './battleTints'
+import { PlayerTint } from './battleColours'
 
 type ReportPlayer = { id: string; name: string; className: string }
 
-/** Names in the report take their side's tint; seats are ordered by side, so every device agrees on each player's colour. */
+/** Names in the report take their side's tint, under each player's own colour where the battle sets one. */
 export const reportPlayers = (players: readonly { id: string; name: string; side: number }[]): ReportPlayer[] =>
   players.map((player) => ({ id: player.id, name: player.name, className: tint(player.side).text }))
 
@@ -252,7 +253,7 @@ function colourNames(text: string, players: readonly ReportPlayer[]) {
   const named = players.filter((player) => player.name).toSorted((a, b) => b.name.length - a.name.length)
   if (!named.length) return text
 
-  const parts: (string | { key: string; name: string; className: string })[] = []
+  const parts: (string | { key: string; id: string; name: string; className: string })[] = []
   let rest = text
   let guard = 0
   while (rest && guard++ < 100) {
@@ -267,7 +268,7 @@ function colourNames(text: string, players: readonly ReportPlayer[]) {
     }
     if (!hit || at === -1) break
     if (at) parts.push(rest.slice(0, at))
-    parts.push({ key: `${hit.id}-${parts.length}`, name: hit.name, className: hit.className })
+    parts.push({ key: `${hit.id}-${parts.length}`, id: hit.id, name: hit.name, className: hit.className })
     rest = rest.slice(at + hit.name.length)
   }
   if (rest) parts.push(rest)
@@ -276,9 +277,9 @@ function colourNames(text: string, players: readonly ReportPlayer[]) {
     typeof part === 'string' ? (
       part
     ) : (
-      <span key={part.key} className={`font-semibold ${part.className}`}>
+      <PlayerTint key={part.key} playerId={part.id} className={`font-semibold ${part.className}`}>
         {part.name}
-      </span>
+      </PlayerTint>
     ),
   )
 }

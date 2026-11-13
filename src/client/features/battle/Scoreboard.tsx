@@ -6,7 +6,9 @@ import type { BattleView } from '../../../core/battleView'
 import { battleResult } from '../../battleOutcome'
 import { completedSideRound } from './battleProgress'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
-import { sideName, type Side } from '../../sides'
+import type { Side } from '../../sides'
+import { PlayerTint } from './battleColours'
+import { SideNames } from './PlayerName'
 import { tint } from './battleTints'
 import { Elapsed } from './Elapsed'
 
@@ -104,7 +106,10 @@ function Result({ view, sides }: Omit<Props, 'clock'>) {
   const colours = tint(winner.index)
   return (
     <h1 className="text-base leading-tight font-bold text-balance uppercase sm:text-lg">
-      <span className={colours.text}>{sideName(winner)}</span> <span className="text-dim">{result.verb}</span>{' '}
+      <span className={colours.text}>
+        <SideNames side={winner} />
+      </span>{' '}
+      <span className="text-dim">{result.verb}</span>{' '}
       {result.score ? (
         <span className="figure block text-2xl leading-none">{result.score}</span>
       ) : (
@@ -152,7 +157,9 @@ function SideScore({
             const name = (
               <>
                 <PlayerAvatar name={army.playerName} image={army.playerImage} className="size-5 text-3xs" />
-                <span className="min-w-0 truncate">{army.playerName}</span>
+                <PlayerTint playerId={army.playerId} className="min-w-0 truncate">
+                  {army.playerName}
+                </PlayerTint>
               </>
             )
             return (
@@ -183,14 +190,14 @@ function SideScore({
             {/* Keyed on the value, so a new score rises into place and draws the eye across the table. */}
             <span
               key={side.total}
-              className={`figure animate-figure text-3xl leading-none font-bold sm:text-5xl lg:text-4xl ${colours.text}`}
+              className={`figure animate-figure text-3xl leading-none font-bold sm:text-5xl lg:text-4xl ${colours.score}`}
             >
               {side.total}
             </span>
             <span className="font-display text-2xs font-semibold text-dim uppercase">vp</span>
           </span>
           <span className="flex items-baseline gap-1">
-            <span key={side.cp} className={`figure animate-figure text-lg leading-none font-bold ${colours.text}`}>
+            <span key={side.cp} className={`figure animate-figure text-lg leading-none font-bold ${colours.score}`}>
               {side.cp}
             </span>
             <span className="font-display text-2xs font-semibold text-dim uppercase">cp</span>

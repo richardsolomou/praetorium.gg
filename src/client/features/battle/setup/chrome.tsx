@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { SideNames } from '../PlayerName'
 import { ArrowLeft, ArrowRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -67,7 +68,9 @@ export function SideSwitch({ sides, renderSide }: { sides: Side[]; renderSide: (
             )}
             onClick={() => focus.show(side.index)}
           >
-            <span className={cn('block truncate text-xs font-bold tracking-label uppercase', tint(side.index).text)}>{sideName(side)}</span>
+            <span className={cn('block truncate text-xs font-bold tracking-label uppercase', tint(side.index).text)}>
+              <SideNames side={side} />
+            </span>
             <span className="block truncate text-xs">{renderSide(side)}</span>
             {shown ? null : (
               <span

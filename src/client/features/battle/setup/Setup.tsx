@@ -1,4 +1,5 @@
 import { GuideHelp } from '../../onboarding/GuideHelp'
+import { SideNames } from '../PlayerName'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { Check, QrCode } from 'lucide-react'
@@ -764,7 +765,9 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
                 <>
                   {defender ? (
                     <>
-                      <span className={`font-bold uppercase ${tint(defender.index).text}`}>{sideName(defender)}</span>
+                      <span className={`font-bold uppercase ${tint(defender.index).text}`}>
+                        <SideNames side={defender} />
+                      </span>
                       <span className="text-dim"> defends · deploys first</span>
                     </>
                   ) : (
@@ -837,7 +840,9 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
                 <>
                   {firstSide ? (
                     <>
-                      <span className={`font-bold uppercase ${tint(firstSide.index).text}`}>{sideName(firstSide)}</span>
+                      <span className={`font-bold uppercase ${tint(firstSide.index).text}`}>
+                        <SideNames side={firstSide} />
+                      </span>
                       <span className="text-dim"> takes the first turn</span>
                     </>
                   ) : (

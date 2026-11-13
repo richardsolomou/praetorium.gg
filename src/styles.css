@@ -808,6 +808,10 @@ html[data-native-app='true'] [data-battle-sticky-header] {
 }
 
 :root {
+  /* A side's colours run through every player on it; a side of one is its one colour. */
+  --side-a-blend: linear-gradient(90deg, var(--color-side-a), var(--color-side-a));
+  --side-b-blend: linear-gradient(90deg, var(--color-side-b), var(--color-side-b));
+
   /* The fixed phone header's height, which sticky bars and anchor targets clear; the desktop rail sits beside the page instead. */
   --app-header: 3rem;
 
@@ -1381,13 +1385,34 @@ html:active-view-transition-type(page) {
  * A segment of a line-form rail, such as a battle's phases or rounds: `data-line='done'` solid,
  * `now` doubled, `todo` dashed, `off` struck through.
  */
+/**
+ * A side's top edge, drawn as a background strip so a team side's blend follows the
+ * part's rounded corners, which a gradient border would square off.
+ */
+@utility edge-blend {
+  border-top-color: transparent;
+  background-image: var(--edge-blend);
+  background-size: 100% 2px;
+  background-repeat: no-repeat;
+  background-origin: border-box;
+}
+
+/** Text in a side's blend: a score that belongs to every player on the side. */
+@utility text-blend {
+  /* Only as wide as the figure, or a short one shows nothing past the first colour. */
+  width: fit-content;
+  background-image: var(--text-blend);
+  background-clip: text;
+  color: transparent;
+}
+
 @utility line-segment {
   display: block;
   height: 6px;
   border-radius: 2px;
 
   &[data-line='done'] {
-    background: var(--line-colour, var(--color-runner-hi));
+    background: var(--line-blend, var(--line-colour, var(--color-runner-hi)));
   }
 
   &[data-line='now'] {
@@ -1396,8 +1421,8 @@ html:active-view-transition-type(page) {
   }
 
   &[data-line='todo'] {
-    background: repeating-linear-gradient(90deg, var(--line-colour, var(--color-runner)) 0 5px, transparent 5px 8px) center / 100% 2px
-      no-repeat;
+    background: var(--line-blend, var(--line-colour, var(--color-runner))) center / 100% 2px no-repeat;
+    mask: repeating-linear-gradient(90deg, #000 0 5px, transparent 5px 8px);
   }
 
   &[data-line='off'] {
