@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { CircleAlert, CircleCheck, LoaderCircle, type LucideIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
-import type { ServiceStatus } from '../../../contracts/serviceStatus'
+import { STATUS_DESCRIPTION, type ServiceStatus } from '../../../contracts/serviceStatus'
 import { PageContent, PageHeader } from '../../components/Page'
 import { RulesVersionLabel } from '../../components/RulesVersionLabel'
 import { SectionHeading } from '../../components/SectionHeading'
@@ -19,29 +19,34 @@ const ARMY_DATA: Record<ServiceStatus['catalogue']['sync'], string> = {
 
 const linkClass = 'text-info hover:text-parchment'
 
+const CHECK: Record<'checking' | 'up' | 'down' | 'unreachable', { Icon: LucideIcon; tone: string; summary: string }> = {
+  checking: { Icon: LoaderCircle, tone: 'animate-spin text-dim', summary: 'Checking Praetorium…' },
+  up: { Icon: CircleCheck, tone: 'text-parchment', summary: 'Praetorium is working.' },
+  down: {
+    Icon: CircleAlert,
+    tone: 'text-discarded',
+    summary: 'Some parts of Praetorium are not working. Signing in, saving or battles can fail until this clears.',
+  },
+  unreachable: {
+    Icon: CircleAlert,
+    tone: 'text-side-a',
+    summary: 'Praetorium did not answer. Check your connection, then reload this page.',
+  },
+}
+
 export function Status() {
   const { data, isError, dataUpdatedAt } = useQuery(serviceStatusQuery())
   const moment = useMoment()
-  const [Icon, tone, summary]: [LucideIcon, string, string] = isError
-    ? [CircleAlert, 'text-side-a', 'Praetorium did not answer. Check your connection, then reload this page.']
-    : !data
-      ? [LoaderCircle, 'text-dim', 'Checking Praetorium…']
-      : data.up
-        ? [CircleCheck, 'text-parchment', 'Praetorium is working.']
-        : [
-            CircleAlert,
-            'text-discarded',
-            'Some parts of Praetorium are not working. Signing in, saving or battles can fail until this clears.',
-          ]
+  const { Icon, tone, summary } = CHECK[isError ? 'unreachable' : !data ? 'checking' : data.up ? 'up' : 'down']
   return (
     <main className="w-full">
-      <PageHeader title="Status" description="Whether Praetorium is working, and which release, army data and rules versions it serves." />
+      <PageHeader title="Status" description={STATUS_DESCRIPTION} />
       <PageContent>
         <div className="max-w-2xl space-y-10">
           <section aria-labelledby="service" className="space-y-2">
             <SectionHeading id="service" title="Service" />
             <output className="flex items-start gap-2 font-semibold text-bone">
-              <Icon className={`mt-0.5 size-5 shrink-0 ${tone} ${data || isError ? '' : 'animate-spin'}`} aria-hidden />
+              <Icon className={`mt-0.5 size-5 shrink-0 ${tone}`} aria-hidden />
               <span>{summary}</span>
             </output>
             {dataUpdatedAt ? (
@@ -59,20 +64,18 @@ export function Status() {
                   </Link>
                 </Detail>
                 <Detail term="Build">
-                  {data.commit ? (
+                  {data.commit && (
                     <a href={`${SOURCE}/commit/${data.commit}`} className={linkClass} target="_blank" rel="noreferrer noopener">
                       <span className="readout">{data.commit.slice(0, 7)}</span>
                     </a>
-                  ) : (
-                    'Not recorded'
                   )}
                 </Detail>
                 <Detail term="Army data">{ARMY_DATA[data.catalogue.sync]}</Detail>
                 <Detail term="Army data snapshot">
-                  {data.catalogue.snapshot ? <span className="readout">{data.catalogue.snapshot.slice(0, 12)}</span> : 'Not recorded'}
+                  {data.catalogue.snapshot && <span className="readout">{data.catalogue.snapshot.slice(0, 12)}</span>}
                 </Detail>
                 <Detail term="Rules versions">
-                  {data.rulesVersions.length ? (
+                  {data.rulesVersions.length > 0 && (
                     <ul className="space-y-1.5">
                       {data.rulesVersions.map(({ name, status, default: isDefault }) => (
                         <li key={name}>
@@ -80,8 +83,6 @@ export function Status() {
                         </li>
                       ))}
                     </ul>
-                  ) : (
-                    'Not recorded'
                   )}
                 </Detail>
               </dl>
@@ -105,7 +106,7 @@ function Detail({ term, children }: { term: string; children: ReactNode }) {
   return (
     <div className="grid gap-1 py-3 sm:grid-cols-[11rem_minmax(0,1fr)]">
       <dt className="text-dim">{term}</dt>
-      <dd className="min-w-0 text-bone">{children}</dd>
+      <dd className="min-w-0 text-bone">{children || 'Not recorded'}</dd>
     </div>
   )
 }
