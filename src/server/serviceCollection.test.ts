@@ -36,7 +36,7 @@ function fielded(battles: ReturnType<typeof battle>[], rosters: { catalogueId: s
     repository,
     () => 0,
     () => 0,
-  ).fieldedDatasheets(ALICE)
+  ).profileService.fieldedDatasheets(ALICE)
 }
 
 it('suggests nothing before the player has fielded an army', async () => {

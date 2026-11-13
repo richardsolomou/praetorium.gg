@@ -23,7 +23,7 @@ vi.mock('../app', () => ({
     factionIndexFor: mocks.factionIndexFor,
     factionFor: mocks.factionFor,
     service: {
-      playedArmy: mocks.playedArmy,
+      battleFeedService: { playedArmy: mocks.playedArmy },
       rosterService: {
         discoverRosters: mocks.discover,
         rostersLentTo: mocks.lent,

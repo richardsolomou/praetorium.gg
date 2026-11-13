@@ -3,7 +3,7 @@ import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
 import { app } from '../app'
 import { currentUserId, requireUserId } from '../playerSession'
-import { BATTLES_PAGE } from '../service'
+import { BATTLES_PAGE } from '../services/battleFeedService'
 import { mutationRpc, rpc } from '../rpc'
 import { captureMutation } from '../mutationTelemetry'
 import { captureBattleCommand } from '../battleTelemetry'
@@ -71,7 +71,7 @@ export const listSealedEventBattles = createServerFn({ method: 'GET' })
   .validator(sealedEventBattlesSchema)
   .handler(({ data }) =>
     rpc(async () => {
-      return app().service.sealedEventBattles(
+      return app().service.sealedEventResultsService.sealedEventBattles(
         data.token,
         data.eventToken,
         { limit: BATTLES_PAGE, before: data.before ?? undefined, filter: data.filter, order: data.order },
@@ -86,7 +86,7 @@ export const sealedEventResults = createServerFn({ method: 'GET' })
   .validator(sealedEventResultsSchema)
   .handler(({ data }) =>
     rpc(async () =>
-      app().service.sealedEventResults(
+      app().service.sealedEventResultsService.sealedEventResults(
         data.token,
         data.eventToken,
         await app().rulesFor(),
@@ -265,7 +265,7 @@ export const pairSealedEventRound = createServerFn({ method: 'POST' })
   .handler(({ data }) =>
     mutationRpc(async () => {
       const userId = await requireUserId()
-      const result = await app().service.pairSealedEventRound(data.token, data.eventToken, userId)
+      const result = await app().service.sealedEventResultsService.pairSealedEventRound(data.token, data.eventToken, userId)
       await captureMutation(userId, 'sealed_event_round_paired', { round: result.round })
       return result
     }),
@@ -368,7 +368,15 @@ export const reportTableResult = createServerFn({ method: 'POST' })
   .handler(({ data }) =>
     mutationRpc(async () => {
       const userId = await requireUserId()
-      await app().service.reportTableResult(data.token, data.eventToken, data.round, data.table, data.vp, data.missionPackId, userId)
+      await app().service.sealedEventResultsService.reportTableResult(
+        data.token,
+        data.eventToken,
+        data.round,
+        data.table,
+        data.vp,
+        data.missionPackId,
+        userId,
+      )
       await captureMutation(userId, 'sealed_event_result_reported', { round: data.round })
     }),
   )
@@ -379,7 +387,12 @@ export const reopenSwissTable = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const userId = await requireUserId()
       const startedAt = performance.now()
-      const { battleId, result } = await app().service.reopenSwissTable(data.token, data.eventToken, data.battleToken, userId)
+      const { battleId, result } = await app().service.sealedEventResultsService.reopenSwissTable(
+        data.token,
+        data.eventToken,
+        data.battleToken,
+        userId,
+      )
       await captureBattleCommand(userId, battleId, { kind: 'reopen-battle' }, { result }, performance.now() - startedAt, 'direct')
       if (result.outcome === 'refused') throw new Response(result.reason, { status: 409 })
       if (result.outcome === 'stale') throw new Response('the battle changed while it was being reopened, so try again', { status: 409 })

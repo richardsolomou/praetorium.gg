@@ -72,8 +72,10 @@ beforeEach(async () => {
   instance.current = {
     auth,
     service: {
-      registerPushDevice: async (userId: string, device: typeof DEVICE) => {
-        devices.set(device.token, userId)
+      preferencesService: {
+        registerPushDevice: async (userId: string, device: typeof DEVICE) => {
+          devices.set(device.token, userId)
+        },
       },
     },
     repository: {

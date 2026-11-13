@@ -83,15 +83,15 @@ export const productActions = {
     return null
   }),
   rememberMatchup: action(schemas.rememberMatchup, async (owner, data) => {
-    await app().service.rememberMatchup(owner, data)
+    await app().service.preferencesService.rememberMatchup(owner, data)
     return null
   }),
   forgetMatchup: action(schemas.forgetMatchup, async (owner, data) => {
-    await app().service.forgetMatchup(owner, data.shared)
+    await app().service.preferencesService.forgetMatchup(owner, data.shared)
     return null
   }),
   setAbilityReminder: action(schemas.setAbilityReminder, async (owner, data) => {
-    await app().service.setAbilityReminder(owner, data)
+    await app().service.preferencesService.setAbilityReminder(owner, data)
     await captureMutation(owner, 'ability_reminder_set', { timings: data.timings.length })
     return null
   }),
@@ -101,7 +101,7 @@ export const productActions = {
     return null
   }),
   setPlayerDefaults: action(schemas.setPlayerDefaults, async (owner, data) => {
-    const defaults = await app().service.setPlayerDefaults(owner, data)
+    const defaults = await app().service.preferencesService.setPlayerDefaults(owner, data)
     await captureMutation(owner, 'player_defaults_set', {
       roster_visibility: defaults.rosterVisibility,
       battle_size: defaults.battleSize,
@@ -110,7 +110,7 @@ export const productActions = {
   }),
   setPushNotifications: action(schemas.setPushNotifications, async (owner, data) => {
     const instance = app()
-    const enabled = await instance.service.setPushEnabled(owner, data.enabled)
+    const enabled = await instance.service.preferencesService.setPushEnabled(owner, data.enabled)
     await captureMutation(owner, 'push_notifications_updated', { enabled })
     return enabled
   }),

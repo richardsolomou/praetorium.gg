@@ -37,7 +37,7 @@ it.each([{ id: 'preview', name: 'Custodes codex', status: 'preview' as const }, 
       icon: null,
       edition: { id: 'preview', name: 'Custodes codex', status: 'released' },
     }
-    const answer = await service.battles(ALICE, undefined, undefined, [current])
+    const answer = await service.battleFeedService.battles(ALICE, undefined, undefined, [current])
     expect(answer.battles[0]?.factions[0]?.edition).toEqual(edition ?? null)
   },
 )
@@ -68,5 +68,5 @@ it('names each listed battle by the version a device saves its copy at', async (
     () => 0,
   )
   const { workspace } = await service.battleWorkspace('token', ALICE)
-  expect((await service.battles(ALICE)).battles[0]?.serverSeq).toBe(workspace.serverSeq)
+  expect((await service.battleFeedService.battles(ALICE)).battles[0]?.serverSeq).toBe(workspace.serverSeq)
 })

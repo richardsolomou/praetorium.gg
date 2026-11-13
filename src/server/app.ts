@@ -479,8 +479,8 @@ export function app(): App {
     void startup
       .ready()
       .then(async () => {
-        await instance.service.syncAchievementDefinitions()
-        await instance.service.refreshStandings()
+        await instance.service.standingsService.syncAchievementDefinitions()
+        await instance.service.standingsService.refreshStandings()
       })
       .catch((error: unknown) => reportServerFailure({ event: 'derived_tables_refresh_failed', error }))
     return instance

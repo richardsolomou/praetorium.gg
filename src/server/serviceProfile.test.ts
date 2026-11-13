@@ -16,7 +16,7 @@ function service(role: 'admin' | 'user', sponsorship: 'public' | 'private' | nul
 }
 
 it('shows both public supporter and admin status on an administrator profile', async () => {
-  expect(await service('admin', 'public').userProfile('player')).toEqual({
+  expect(await service('admin', 'public').profileService.userProfile('player')).toEqual({
     id: 'player',
     name: 'Player',
     image: null,
@@ -26,5 +26,5 @@ it('shows both public supporter and admin status on an administrator profile', a
 })
 
 it('keeps a private sponsorship off an ordinary public profile', async () => {
-  expect(await service('user', 'private').userProfile('player')).toMatchObject({ supporter: false, admin: false })
+  expect(await service('user', 'private').profileService.userProfile('player')).toMatchObject({ supporter: false, admin: false })
 })

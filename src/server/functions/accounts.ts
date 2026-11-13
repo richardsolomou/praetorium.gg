@@ -168,7 +168,7 @@ export const unlinkOwnAccount = createServerFn({ method: 'POST' })
 
 export const userProfile = createServerFn({ method: 'GET' })
   .validator(userSchema)
-  .handler(({ data }) => rpc(() => app().service.userProfile(data.userId)))
+  .handler(({ data }) => rpc(() => app().service.profileService.userProfile(data.userId)))
 
 export const opponents = createServerFn({ method: 'GET' }).handler(() =>
   rpc(() => forSignedIn([], (id) => app().service.socialService.opponents(id))),
@@ -228,7 +228,7 @@ export const collectionCounts = createServerFn({ method: 'GET' }).handler(() =>
 )
 
 export const fieldedDatasheets = createServerFn({ method: 'GET' }).handler(() =>
-  rpc(() => forSignedIn([], (id) => app().service.fieldedDatasheets(id))),
+  rpc(() => forSignedIn([], (id) => app().service.profileService.fieldedDatasheets(id))),
 )
 
 export const setCollectionModels = createServerFn({ method: 'POST' })

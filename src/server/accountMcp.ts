@@ -6,7 +6,8 @@ import { app } from './app'
 import { agentWrites } from './mutationTelemetry'
 import { rosterActions } from './rosterActions'
 import { rosterSummary } from './rosterTools'
-import { BATTLES_PAGE, type PraetoriumService } from './service'
+import type { PraetoriumService } from './service'
+import { BATTLES_PAGE } from './services/battleFeedService'
 import { battlesFeedSchema, playerProfileSchema, rosterIdSchema, rosterVisibilitySchema, saveRosterSchema } from '../contracts/schemas'
 
 export const ACCOUNT_MCP_SCOPES: Record<string, 'mcp:read' | 'mcp:write'> = {
@@ -80,7 +81,7 @@ const myBattlesSchema = battlesFeedSchema.extend({
   order: battlesFeedSchema.shape.order.describe('oldest for oldest first; omit for newest first.'),
 })
 
-type BattleSummary = Awaited<ReturnType<PraetoriumService['battles']>>['battles'][number]
+type BattleSummary = Awaited<ReturnType<PraetoriumService['battleFeedService']['battles']>>['battles'][number]
 
 /** A battle as an agent reads it: one entry per seat instead of parallel arrays, without images or sync versions. */
 function agentBattle(battle: BattleSummary, userId: string) {
@@ -193,7 +194,7 @@ export function registerAccountMcpTools(server: AgentTools, userId: string | nul
         const instance = app()
         const player = owner()
         const [rules, factions] = await Promise.all([instance.rulesFor(), instance.battleFactionsFor()])
-        const { battles, nextCursor } = await instance.service.battles(
+        const { battles, nextCursor } = await instance.service.battleFeedService.battles(
           player,
           rules,
           { limit: BATTLES_PAGE, before: before ?? undefined, filter, order },
@@ -217,8 +218,8 @@ export function registerAccountMcpTools(server: AgentTools, userId: string | nul
         const player = owner()
         const [rules, factions] = await Promise.all([instance.rulesFor(), instance.battleFactionsFor()])
         const [{ record, performance, facets }, rankings] = await Promise.all([
-          instance.service.playerProfile(player, player, filter, rules, factions),
-          instance.service.playerRankings(player),
+          instance.service.profileService.playerProfile(player, player, filter, rules, factions),
+          instance.service.standingsService.playerRankings(player),
         ])
         const totals = (rows: typeof performance.detachments) => rows.map(({ key, label, total }) => ({ key, label, ...total }))
         return {

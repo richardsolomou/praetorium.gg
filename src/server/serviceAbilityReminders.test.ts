@@ -9,7 +9,7 @@ const saving = (outcome: 'saved' | 'full') =>
     { saveAbilityReminder: vi.fn().mockResolvedValue(outcome) } as unknown as RepositoryPort,
     () => 0,
     () => 0,
-  ).setAbilityReminder('player', reminder)
+  ).preferencesService.setAbilityReminder('player', reminder)
 
 it('refuses an alert past the limit as a conflict', async () => {
   await expect(saving('full')).rejects.toMatchObject({ status: 409 })

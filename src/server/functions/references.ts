@@ -69,7 +69,7 @@ export const globalSearch = createServerFn({ method: 'GET' })
             const rules = await app().rulesFor()
             const [rosters, page] = await Promise.all([
               app().service.rosterService.savedRosterSummaries(userId),
-              app().service.battles(userId, rules, { limit: OWN_SEARCH_BATTLES }),
+              app().service.battleFeedService.battles(userId, rules, { limit: OWN_SEARCH_BATTLES }),
             ])
             return ownSearchLists(rosters, page.battles, (await app().factionsFor())?.factions ?? [])
           }),

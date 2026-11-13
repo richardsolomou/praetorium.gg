@@ -1,5 +1,4 @@
-import { createHash } from 'node:crypto'
-import { byId, chunks, countBy } from '../core/collections'
+import { byId } from '../core/collections'
 import {
   guestSeatId,
   isPracticeSeat,
@@ -10,15 +9,11 @@ import {
 } from '../core/newBattle'
 import { type BattlebaseBattle, battlebaseBattleImport, battlebaseBattleSchema } from '../core/battlebaseBattle'
 import { matchingSealedEventBattles } from '../shared/sealedEventBattleOptions'
-import { battleSummary, type BattleFaction } from '../shared/battleSummary'
-import { battleFilterActive, matchesBattle, type BattleFilter, type BattleOrder } from '../core/battleFilter'
-import { periodBounds } from '../core/listFilter'
-import type { PlayedArmy } from '../core/playedArmies'
+import type { BattleFaction } from '../shared/battleSummary'
 import { offlineIdentifier, offlineContext } from './offlineContext'
 import {
   withAuthoritativeAwards,
   hydrateAuthoritativeAwards,
-  matchupMission,
   resolvedMissionForSide,
   setupReferenceError,
   repairPrepReferenceError,
@@ -40,56 +35,28 @@ import {
   pointsBudgetOf,
   pointsSpent,
 } from '../core/battle'
-import { playedArmies } from '../core/playedArmies'
-import { battleDigest, type BattleDigest } from '../core/battleDigest'
-import type { RosterPick } from '../core/roster'
-import type { PlayerDefaults } from '../core/playerDefaults'
-import type { RecentMatchup } from '../core/recentMatchups'
-import { ABILITY_REMINDERS_FULL, type AbilityReminder } from '../core/reminders'
-import { simulatorPairing } from '../contracts/simulatorState'
 import { type BattleView, battleView } from '../core/battleView'
 import { battleReport, type ReportEntry } from '../core/battleReport'
 import { battleClock, type BattleClock } from '../core/battleClock'
 import { battleLogThroughSeq, battleTimeline, type ReplayPoint } from '../core/battleReplay'
 import { compactReplayFrames } from '../core/replayFrames'
-import {
-  filterBattles,
-  personalPerformance,
-  type RecordFilter,
-  recordFacets,
-  type SeatPlay,
-  seatPlays,
-  serviceRecord,
-} from '../core/serviceRecord'
-import { routeSlug } from '../core/slug'
-import type { PushPlatform } from '../core/notificationConfig'
-import {
-  battleOutcome,
-  OVERALL,
-  sideScore,
-  type RatingPoint,
-  type Standing,
-  type StandingBattle,
-  type StandingFaction,
-  standings,
-} from '../core/standings'
 import { refuse } from '../core/battlePrimitives'
-import { ACHIEVEMENTS, achievementPoints, achievements, type AchievementId, type EarnedAchievements } from '../core/achievements'
-import { swissPairings, swissStandings, type SwissMatch } from '../core/swiss'
-import { leagueDraw, leagueFixtureStatus } from '../core/groupLeague'
-import { SEALED_EVENT_RESULTS_BATTLE_LIMIT, sealedEventResults } from '../core/sealedEventResults'
-import { REPLAY_BATCH_SIZE, type BattlesCursor } from '../contracts/battles'
-import { gameReferencesFor } from '../shared/gameReferences'
-import { archivedArmies } from '../core/archivedArmies'
-import { currentCatalogueFamilyId } from '../core/retiredCatalogueIds'
+import { REPLAY_BATCH_SIZE } from '../contracts/battles'
 import { type BattleMissionRules, type BattleReadRules, type LoadedRules } from './rules'
 import type { Mission } from '../shared/rulesCards'
-import { describeNotices, type Notifier, silentNotifier } from './pushNotifier'
+import { type Notifier, silentNotifier } from './pushNotifier'
 import { SealedEventService } from './services/sealedEventService'
+import { SealedEventResultsService } from './services/sealedEventResultsService'
 import { GroupService } from './services/groupService'
+import { GroupResultsService } from './services/groupResultsService'
 import { RosterService } from './services/rosterService'
 import { SocialService } from './services/socialService'
-import { StandingsRefresh, storedBattle } from './standingsRefresh'
+import { BattleFeedService } from './services/battleFeedService'
+import { StandingsService } from './services/standingsService'
+import { ProfileService } from './services/profileService'
+import { PreferencesService } from './services/preferencesService'
+import { foldHistory, mayWatch, mustFindBattle } from './services/battleHistory'
+import { StandingsRefresh } from './standingsRefresh'
 import type { BattleCard, BattleHistory, BattleSeats, RepositoryPort } from './spacetimeRepository'
 
 /**
@@ -123,62 +90,7 @@ type SpectatorScreen = {
  */
 type BattleScreen = SeatedScreen | SpectatorScreen | { kind: 'unavailable' }
 
-/** One table of players: everybody, or everybody who has fielded one faction. */
-type StandingsTable = { faction: StandingFaction | null; players: number; rows: Standing[] }
-
-/** The overall table and a table per faction played. */
-type StandingsAnswer = { overall: StandingsTable; factions: (StandingsTable & { faction: StandingFaction })[] }
-
-/** One player's place in each table they appear in. */
-type PlayerRanking<T> = { faction: T; place: number; of: number; standing: Standing }
-type PlayerRankings = {
-  overall: PlayerRanking<null> | null
-  factions: PlayerRanking<StandingFaction>[]
-  /** The player's overall rating after each of their counted battles, oldest first. */
-  history: readonly RatingPoint[]
-}
-
 const SPECTATOR_ID = ''
-
-const ACHIEVEMENT_IDS = new Set<string>(ACHIEVEMENTS.map((achievement) => achievement.id))
-/** The medals on offer, so a check against other ones, such as a release still serving through a deploy, is not stored. */
-const ACHIEVEMENT_DEFINITIONS = createHash('sha256')
-  .update(JSON.stringify(ACHIEVEMENTS.map(({ id, metric, count }) => [id, metric, count])))
-  .digest('hex')
-  .slice(0, 16)
-type AchievementRows = { achievementId: AchievementId; earnedAt: number | null; seen: boolean }[]
-
-/** A page of the battle list. History grows for an account's lifetime; a page does not. */
-export const BATTLES_PAGE = 25
-/** A page of a home-page feed. Small: every row on it costs a folded log, and the page shows three at once. */
-const PUBLIC_BATTLES_PAGE = 10
-const PLAYED_ARMY_BATTLES = 12
-/** How far one filtered read walks a feed: enough to fill a page for most filters without tying up the product database. */
-const FILTER_SCAN_BATTLES = 50
-const FILTER_SCAN_PAGES = 6
-/** How long one public feed page serves repeated reads, such as a burst of tabs refetching after the same signal. */
-const PUBLIC_FEED_HOLD_MS = 5_000
-const PUBLIC_FEED_HELD_PAGES = 200
-/** How long one walk of the played armies serves every reader's counts; they move only as battles finish. */
-const PLAYED_COUNTS_HOLD_MS = 60_000
-/** The most public battles Played counts walk, in the feed's largest pages; past it the counts are left out rather than undercounted. */
-const PLAYED_COUNT_BATTLES = 500
-const PLAYED_COUNT_PAGES = 20
-
-/** Pages of 500 battles a group's table reads, newest first, before it rates only those. */
-const STANDINGS_PAGES = 20
-/** How many battles the group tables hold across every group, about 5 KB each; the group read longest ago is let go first. */
-const GROUP_BATTLES_HELD = STANDINGS_PAGES * SEALED_EVENT_RESULTS_BATTLE_LIMIT
-const GROUP_RECENT_BATTLES = 6
-/** How long one leaderboard read serves repeated reads, such as a burst of tabs refetching after the same signal. */
-const STANDINGS_HOLD_MS = 5_000
-
-/** How much of a table is sent. Nobody reads past this, and every faction played costs one. */
-const STANDINGS_ROWS = 50
-
-/** How many of a player's battles a profile folds, how many it lists, and its lists. */
-const PROFILE_BATTLE_LIMIT = 200
-const PROFILE_BATTLE_PAGE = 25
 
 /**
  * What a command answers: what happened to it, and what the battle now is.
@@ -208,1004 +120,44 @@ type SubmitArgs = [
 
 export class PraetoriumService {
   readonly sealedEventService: SealedEventService
+  readonly sealedEventResultsService: SealedEventResultsService
   readonly groupService: GroupService
+  readonly groupResultsService: GroupResultsService
   readonly rosterService: RosterService
   readonly socialService: SocialService
-  private readonly standingsRefresh: StandingsRefresh
-  /** Each player's medal check in progress, so a burst of reads checks once. */
-  private readonly achievementChecks = new Map<string, Promise<AchievementRows>>()
-  private definitionsSynced: Promise<boolean> | null = null
+  readonly battleFeedService: BattleFeedService
+  readonly standingsService: StandingsService
+  readonly profileService: ProfileService
+  readonly preferencesService: PreferencesService
 
   constructor(
     private readonly repository: RepositoryPort,
     private readonly clock: () => number,
     private readonly randomIndex: (limit: number) => number,
     private readonly notifier: Notifier = silentNotifier,
-    private readonly battleFactions: () => Promise<readonly BattleFaction[]> = async () => [],
+    battleFactions: () => Promise<readonly BattleFaction[]> = async () => [],
   ) {
+    const standingsRefresh = new StandingsRefresh(repository, battleFactions)
     this.sealedEventService = new SealedEventService(repository, clock, notifier)
     this.groupService = new GroupService(repository, clock, notifier)
     this.rosterService = new RosterService(repository, clock)
     this.socialService = new SocialService(repository, clock, notifier)
-    this.standingsRefresh = new StandingsRefresh(repository, battleFactions)
+    this.battleFeedService = new BattleFeedService(repository, clock, standingsRefresh)
+    this.sealedEventResultsService = new SealedEventResultsService(
+      repository,
+      clock,
+      notifier,
+      this.sealedEventService,
+      this.battleFeedService,
+    )
+    this.groupResultsService = new GroupResultsService(repository, clock, this.groupService, this.battleFeedService)
+    this.standingsService = new StandingsService(repository, clock, battleFactions, standingsRefresh, this.sealedEventResultsService)
+    this.profileService = new ProfileService(repository, this.battleFeedService)
+    this.preferencesService = new PreferencesService(repository, clock)
   }
-
-  private standingsHeld: { key: string; until: number; answer: Promise<StandingsAnswer> } | null = null
-  private readonly publicFeedHeld = new Map<string, { until: number; page: Promise<unknown> }>()
-  private playedArmiesHeld: { until: number; armies: Promise<{ seated: readonly string[]; army: PlayedArmy }[] | null> } | null = null
-  private readonly groupBattlesHeld = new Map<
-    string,
-    { revision: string; size: number; read: Promise<{ battles: BattleCard[]; partial: boolean }> }
-  >()
 
   userById(id: string) {
     return this.repository.userById(id)
-  }
-
-  /**
-   * A user's battles with their current state, read from each one's digest.
-   *
-   * The digests arrive with the seats, so the cost of this page does not grow by a
-   * round trip for every battle the player has ever opened.
-   */
-  async battles(
-    userId: string,
-    rules?: BattleMissionRules | null,
-    page?: { limit: number; before?: BattlesCursor; withUserId?: string; filter?: BattleFilter; order?: BattleOrder },
-    factions?: readonly BattleFaction[],
-  ) {
-    if (battleFilterActive(page?.filter)) {
-      const found = await this.filteredFeed((read) => this.repository.battlesByUser(userId, read), page, userId, rules, factions)
-      return { ...found, battles: await this.withRatingChanges(found.battles) }
-    }
-    const { battles: histories, nextCursor } = await this.repository.battlesByUser(userId, page)
-    return { battles: await this.withRatingChanges(this.battleSummaries(histories, userId, rules, factions)), nextCursor }
-  }
-
-  /**
-   * The battles anyone may watch, for the home page.
-   *
-   * Read with no viewer, the same as a sealed event's list: a reader with no
-   * seat is told what a spectator of any one of these would be told, and nothing
-   * in a summary is hidden from a spectator anyway.
-   */
-  async publicBattles(
-    viewerId: string | null,
-    rules?: BattleMissionRules | null,
-    page?: { limit?: number; before?: BattlesCursor; filter?: BattleFilter; order?: BattleOrder },
-    factions?: readonly BattleFaction[],
-  ) {
-    const limit = page?.limit ?? PUBLIC_BATTLES_PAGE
-    if (battleFilterActive(page?.filter))
-      return this.filteredFeed((read) => this.heldPublicFeed(viewerId, read), { ...page, limit }, viewerId, rules, factions)
-    const { battles: histories, nextCursor } = await this.heldPublicFeed(viewerId, { limit, before: page?.before, order: page?.order })
-    return { battles: this.battleSummaries(histories, viewerId, rules, factions), nextCursor }
-  }
-
-  /** Anyone can ask for this signed out and with any search text, so every reader's scan shares the one held read of each page. */
-  private heldPublicFeed(viewerId: string | null, page: { limit: number; before?: BattlesCursor; order?: BattleOrder }) {
-    const now = this.clock()
-    const key = JSON.stringify([viewerId, page.limit, page.before ?? null, page.order ?? null])
-    const read = () => this.repository.publicBattles({ ...page, viewerId })
-    const held = this.publicFeedHeld.get(key)
-    if (held && held.until > now) return held.page as ReturnType<typeof read>
-    const pending = read()
-    this.publicFeedHeld.set(key, { until: now + PUBLIC_FEED_HOLD_MS, page: pending })
-    pending.catch(() => this.publicFeedHeld.delete(key))
-    for (const [heldKey, entry] of this.publicFeedHeld)
-      if (entry.until <= now || this.publicFeedHeld.size > PUBLIC_FEED_HELD_PAGES) this.publicFeedHeld.delete(heldKey)
-    return pending
-  }
-
-  /**
-   * One page of a feed's matches, walking its stored order because whether a battle matches is only known from its digest.
-   *
-   * The walk is bounded, so a rare match can return a short or empty page; its cursor continues from where the walk stopped.
-   * `perspective` is whose seat a result or "their army" is read from, which on a profile is its player's rather than the reader's.
-   */
-  private async filteredFeed(
-    read: (page: { limit: number; before?: BattlesCursor; order?: BattleOrder }) => Promise<{
-      battles: BattleCard[]
-      nextCursor: BattlesCursor | null
-    }>,
-    page: { limit?: number; before?: BattlesCursor; filter?: BattleFilter; order?: BattleOrder } | undefined,
-    viewerId: string | null,
-    rules?: BattleMissionRules | null,
-    factions: readonly BattleFaction[] = [],
-    perspective: string | null = viewerId,
-  ) {
-    const filter = page?.filter ?? {}
-    const wanted = page!.limit ?? BATTLES_PAGE
-    const now = this.clock()
-    const bounds = periodBounds(filter, now)
-    const factionsById = byId(factions)
-    const kept: ReturnType<typeof battleSummary>[] = []
-    const order = page!.order
-    const edge = order === 'oldest' ? bounds.from : bounds.to
-    let cursor = page!.before ?? (edge === undefined ? undefined : { at: edge, id: '' })
-    const pastPeriod = (at: number) =>
-      order === 'oldest' ? bounds.to !== undefined && at >= bounds.to : bounds.from !== undefined && at < bounds.from
-    for (let walked = 0; walked < FILTER_SCAN_PAGES; walked++) {
-      const { battles, nextCursor } = await read({ limit: FILTER_SCAN_BATTLES, before: cursor, order })
-      for (const [index, history] of battles.entries()) {
-        const summary = battleSummary(history, history.digest, viewerId, rules, factionsById)
-        if (!matchesBattle(summary, filter, perspective, history.at, now)) continue
-        kept.push(summary)
-        if (kept.length === wanted)
-          return { battles: kept, nextCursor: index < battles.length - 1 || nextCursor ? { at: history.at, id: history.battle.id } : null }
-      }
-      if (!nextCursor || pastPeriod(nextCursor.at)) return { battles: kept, nextCursor: null }
-      cursor = nextCursor
-    }
-    return { battles: kept, nextCursor: cursor ?? null }
-  }
-
-  /**
-   * The armies finished public battles fielded, read without the feed's hold. A filtered read keeps walking older
-   * battles until it has a page of matches or reaches the walk's limit; its cursor continues either way.
-   */
-  async playedArmies(
-    viewerId: string | null,
-    before?: BattlesCursor,
-    factions: readonly BattleFaction[] = [],
-    accepts?: (armies: PlayedArmy[]) => PlayedArmy[] | Promise<PlayedArmy[]>,
-  ) {
-    const armies: PlayedArmy[] = []
-    const factionsById = byId(factions)
-    let cursor = before
-    for (let walked = 0; walked < (accepts ? FILTER_SCAN_PAGES : 1); walked++) {
-      const { battles: histories, nextCursor } = await this.repository.publicBattles({
-        limit: PLAYED_ARMY_BATTLES,
-        before: cursor,
-        viewerId,
-      })
-      const fielded = histories.flatMap((card) =>
-        playedArmies(card, card.digest, battleSummary(card, card.digest, null, null, factionsById)),
-      )
-      armies.push(...(accepts ? await accepts(fielded) : fielded))
-      cursor = nextCursor ?? undefined
-      if (!cursor || armies.length >= PLAYED_ARMY_BATTLES) break
-    }
-    return { armies, nextCursor: cursor ?? null }
-  }
-
-  /**
-   * Every army the public battles fielded, read from their digests, for the Played tab's counts; null when there are
-   * more battles than the walk reads. One walk serves every reader for a minute, less the battles a reader sat in,
-   * which their own feed leaves out.
-   */
-  async everyPlayedArmy(viewerId: string | null, factions: readonly BattleFaction[] = []) {
-    const now = this.clock()
-    if (!this.playedArmiesHeld || this.playedArmiesHeld.until <= now) {
-      const armies = this.walkPlayedArmies(factions)
-      this.playedArmiesHeld = { until: now + PLAYED_COUNTS_HOLD_MS, armies }
-      armies.catch(() => {
-        if (this.playedArmiesHeld?.armies === armies) this.playedArmiesHeld = null
-      })
-    }
-    const armies = await this.playedArmiesHeld.armies
-    return armies && armies.flatMap(({ seated, army }) => (viewerId && seated.includes(viewerId) ? [] : [army]))
-  }
-
-  private async walkPlayedArmies(factions: readonly BattleFaction[]) {
-    const factionsById = byId(factions)
-    const armies: { seated: readonly string[]; army: PlayedArmy }[] = []
-    let before: BattlesCursor | undefined
-    for (let page = 0; page < PLAYED_COUNT_PAGES; page++) {
-      const { battles, nextCursor } = await this.repository.publicBattles({ limit: PLAYED_COUNT_BATTLES, before, viewerId: null })
-      for (const card of battles) {
-        const seated = card.players.map((player) => player.id)
-        for (const army of playedArmies(card, card.digest, battleSummary(card, card.digest, null, null, factionsById)))
-          armies.push({ seated, army })
-      }
-      if (!nextCursor) return armies
-      before = nextCursor
-    }
-    return null
-  }
-
-  /** One army from a finished battle with the picks it fielded, or nothing. */
-  async playedArmy(token: string, playerId: string) {
-    const history = await this.repository.battleHistoryByToken(token)
-    if (!history || !this.mayWatch(history)) return null
-    const state = foldHistory(history)
-    const digest = battleDigest(state, history.log)
-    const army = playedArmies(history, digest, battleSummary(history, digest, null, null, new Map())).find(
-      (played) => played.player.id === playerId,
-    )
-    const picks = state.players.find((player) => player.id === playerId)?.roster?.built?.picks
-    return army && picks ? { ...army, picks } : null
-  }
-
-  /** The picks each army fielded, read from its battle's log; only the armies a page prices need them. */
-  async playedArmyPicks(armies: readonly PlayedArmy[]) {
-    const tokens = [...new Set(armies.map((army) => army.battle))]
-    const histories = await Promise.all(tokens.map((token) => this.repository.battleHistoryByToken(token)))
-    const picks = new Map<string, RosterPick[]>()
-    for (const history of histories) {
-      if (!history) continue
-      for (const player of foldHistory(history).players)
-        if (player.roster?.built?.picks) picks.set(`${history.battle.token}:${player.id}`, player.roster.built.picks)
-    }
-    return armies.map((army) => picks.get(`${army.battle}:${army.player.id}`) ?? [])
-  }
-
-  /** The battles this player's friends are in and they are not. */
-  async friendBattles(
-    userId: string,
-    rules?: BattleMissionRules | null,
-    page?: { limit?: number; before?: BattlesCursor; filter?: BattleFilter; order?: BattleOrder },
-    factions?: readonly BattleFaction[],
-  ) {
-    const limit = page?.limit ?? PUBLIC_BATTLES_PAGE
-    if (battleFilterActive(page?.filter))
-      return this.filteredFeed((read) => this.repository.battlesByFriends(userId, read), { ...page, limit }, userId, rules, factions)
-    const { battles: histories, nextCursor } = await this.repository.battlesByFriends(userId, {
-      limit,
-      before: page?.before,
-      order: page?.order,
-    })
-    return { battles: this.battleSummaries(histories, userId, rules, factions), nextCursor }
-  }
-
-  /** Brings the stored results and ratings up to the battles; reads call it first, so they never serve ratings older than a battle they could see. */
-  refreshStandings() {
-    return this.standingsRefresh.refresh()
-  }
-
-  /** Each army's table as a reader is shown it, keyed by the slug the stored ratings name it with. */
-  private async armyTables() {
-    const factions = await this.battleFactions()
-    return new Map(
-      factions.map(({ displayName, icon }) => {
-        const slug = routeSlug(displayName)
-        return [slug, { slug, displayName, icon }]
-      }),
-    )
-  }
-
-  /** Names each row from its account, so a renamed player is shown under their current name. */
-  private async namedRows<T extends { id: string }>(
-    rows: readonly T[],
-  ): Promise<(T & { name: string; image: string | null; colour: string | null })[]> {
-    const profiles = await this.repository.profilesByIds([...new Set(rows.map((row) => row.id))])
-    return rows.map((row) => {
-      const profile = profiles.get(row.id)
-      return { ...row, name: profile?.name ?? 'Unknown player', image: profile?.image ?? null, colour: profile?.colour ?? null }
-    })
-  }
-
-  async standings(): Promise<StandingsAnswer> {
-    const now = this.clock()
-    const key = await this.refreshStandings()
-    if (this.standingsHeld?.key === key && this.standingsHeld.until > now) return this.standingsHeld.answer
-    const read = async (): Promise<StandingsAnswer> => {
-      const armies = await this.armyTables()
-      // A player has a row in each table they played in, each with that table's record, so each table is named on its own.
-      const tables = await Promise.all(
-        (await this.repository.leaderboard(0, STANDINGS_ROWS)).map(async (table) => ({ ...table, rows: await this.namedRows(table.rows) })),
-      )
-      const overall = tables.find((table) => table.table === OVERALL)
-      return {
-        overall: { faction: null, players: overall?.players ?? 0, rows: overall?.rows ?? [] },
-        factions: tables
-          .flatMap((table) => {
-            const faction = table.table === OVERALL ? undefined : armies.get(table.table)
-            return faction ? [{ faction, seats: table.seats, players: table.players, rows: table.rows }] : []
-          })
-          .sort((one, other) => other.seats - one.seats || one.faction.displayName.localeCompare(other.faction.displayName))
-          .map(({ seats: _seats, ...table }) => table),
-      }
-    }
-    const answer = read()
-    this.standingsHeld = { key, until: now + STANDINGS_HOLD_MS, answer }
-    answer.catch(() => {
-      if (this.standingsHeld?.answer === answer) this.standingsHeld = null
-    })
-    return answer
-  }
-
-  /** Where one player sits in each table they are ranked in, read from the same stored ratings the leaderboard pages. */
-  async playerRankings(userId: string): Promise<PlayerRankings> {
-    await this.refreshStandings()
-    const { places, history } = await this.repository.playerStandings(userId, 0)
-    const [named] = await this.namedRows([{ id: userId }])
-    const armies = await this.armyTables()
-    const ranking = <T>(faction: T, place: (typeof places)[number]) => ({
-      faction,
-      place: place.place,
-      of: place.of,
-      standing: { ...place.standing, name: named!.name, image: named!.image },
-    })
-    const overall = places.find((place) => place.table === OVERALL)
-    return {
-      overall: overall ? ranking(null, overall) : null,
-      // Ordered by how much of this player's own record each army accounts for. The
-      // leaderboard's order is how much everybody has played it, which on a profile
-      // puts the army they brought once above the one they always bring.
-      factions: places
-        .flatMap((place) => {
-          const faction = place.table === OVERALL ? undefined : armies.get(place.table)
-          return faction ? [ranking(faction, place)] : []
-        })
-        .toSorted((one, other) => other.standing.battles - one.standing.battles || one.place - other.place),
-      history,
-    }
-  }
-
-  /**
-   * What a player has earned, as last checked. A write that could change it has the player checked again here, on the
-   * next read, rather than every player on every write.
-   */
-  async playerAchievements(userId: string): Promise<EarnedAchievements> {
-    const earned: Partial<Record<AchievementId, number | null>> = {}
-    for (const row of await this.checkedAchievements(userId)) earned[row.achievementId] = row.earnedAt
-    return { earned, points: achievementPoints(earned) }
-  }
-
-  /** The medals a player has earned and not yet been told of. */
-  async newAchievements(userId: string) {
-    return (await this.checkedAchievements(userId)).flatMap((row) => (row.seen ? [] : [{ id: row.achievementId, earnedAt: row.earnedAt }]))
-  }
-
-  /**
-   * Has every player checked again, quietly, once the medals on offer differ from the ones they were checked against.
-   * Once per process, and before any check: a check ahead of it would announce every medal a player already held.
-   */
-  syncAchievementDefinitions() {
-    this.definitionsSynced ??= this.repository.syncAchievementDefinitions(ACHIEVEMENT_DEFINITIONS).catch((error: unknown) => {
-      this.definitionsSynced = null
-      throw error
-    })
-    return this.definitionsSynced
-  }
-
-  private checkedAchievements(userId: string) {
-    const running = this.achievementChecks.get(userId)
-    if (running) return running
-    const check = this.checkAchievements(userId).finally(() => this.achievementChecks.delete(userId))
-    this.achievementChecks.set(userId, check)
-    return check
-  }
-
-  private async checkAchievements(userId: string): Promise<AchievementRows> {
-    await this.syncAchievementDefinitions()
-    // A finished battle reaches a player's revision only once the refresh stores its result.
-    await this.refreshStandings()
-    const status = await this.repository.achievementStatus(userId)
-    const known = (rows: typeof status.earned) =>
-      rows.filter((row): row is AchievementRows[number] => ACHIEVEMENT_IDS.has(row.achievementId))
-    if (status.revision === status.checked) return known(status.earned)
-    // Read after the revision, so a write landing during the check leaves the player to be checked again.
-    const { earned } = await this.earnedAchievements(userId)
-    const saved = await this.repository.saveAchievements({
-      userId,
-      revision: status.revision,
-      definitions: ACHIEVEMENT_DEFINITIONS,
-      earned: Object.entries(earned).map(([achievementId, earnedAt]) => ({ achievementId, earnedAt: earnedAt ?? null })),
-    })
-    return known(saved ? (await this.repository.achievementStatus(userId)).earned : status.earned)
-  }
-
-  /**
-   * What a player has earned, from their stored battle results and the facts the module reads.
-   *
-   * A tournament's winner is the top of the table its results page shows, read as an entrant so a private one counts.
-   */
-  private async earnedAchievements(userId: string) {
-    const factionsById = byId(await this.battleFactions())
-    const [stored, practice, facts] = await Promise.all([
-      this.repository.battleResultsByUser(userId),
-      this.repository.practiceOpponentIds(),
-      this.repository.achievementFacts(userId),
-    ])
-    const signups = new Map(
-      await Promise.all(
-        [...new Set(facts.recruits.map((claim) => claim.userId))].map(
-          async (id) => [id, (await this.repository.userById(id))?.createdAt.getTime()] as const,
-        ),
-      ),
-    )
-    const recruits = facts.recruits.flatMap((claim) => {
-      const signedUpAt = signups.get(claim.userId)
-      return signedUpAt === undefined ? [] : [{ ...claim, signedUpAt }]
-    })
-    const tournaments = await Promise.all(
-      facts.tournaments.map(async ({ token, eventToken, ...tournament }) => {
-        const table = tournament.played ? await this.sealedEventResults(token, eventToken, undefined, [], userId) : null
-        return { ...tournament, won: Boolean(table && !table.partial && table.swiss?.[0]?.userId === userId) }
-      }),
-    )
-    return achievements(
-      userId,
-      { ...facts, battles: stored.map((row) => storedBattle(row, factionsById)), recruits, tournaments },
-      practice,
-    )
-  }
-
-  /** Fold the record over the full bounded watchable set, while paginating only the battle list; practice games stay in history but not the record. */
-  async playerProfile(
-    userId: string,
-    viewerId: string | null,
-    filter: RecordFilter = {},
-    rules?: BattleReadRules | null,
-    factions: readonly BattleFaction[] = [],
-  ) {
-    const [seated, practice] = await Promise.all([
-      this.repository.battlesSeatedBy(userId, PROFILE_BATTLE_LIMIT, viewerId),
-      this.repository.practiceOpponents(),
-    ])
-    const practised = new Set(practice.map((opponent) => opponent.id))
-    const summaries = this.recordBattles(
-      seated.filter((history) => !history.players.some((player) => practised.has(player.id))),
-      viewerId,
-      rules,
-      factions,
-    )
-    // The facets are what the player has played, not what is left after narrowing —
-    // a control that empties itself as soon as it is used cannot be used twice.
-    const facets = recordFacets(summaries, userId)
-    const shown = filterBattles(summaries, userId, filter)
-    return {
-      record: serviceRecord(summaries, userId, filter),
-      performance: personalPerformance(summaries, userId, filter),
-      facets,
-      // What each side did is the record's to count, not the battle list's to carry.
-      battles: await this.withRatingChanges(shown.slice(0, PROFILE_BATTLE_PAGE).map(({ plays: _plays, ...battle }) => battle)),
-      played: shown.length,
-    }
-  }
-
-  /** One page of the battles a profile lists, read from the player's seat, without the practice games its record leaves out. */
-  async playerBattles(
-    userId: string,
-    viewerId: string | null,
-    page: { before?: BattlesCursor; filter?: BattleFilter; order?: BattleOrder },
-    rules?: BattleMissionRules | null,
-    factions: readonly BattleFaction[] = [],
-  ) {
-    const practised = new Set((await this.repository.practiceOpponents()).map((opponent) => opponent.id))
-    const found = await this.filteredFeed(
-      async (read) => {
-        const { battles, nextCursor } = await this.repository.battlesInProfile(userId, viewerId, read)
-        return { battles: battles.filter((history) => !history.players.some((player) => practised.has(player.id))), nextCursor }
-      },
-      page,
-      viewerId,
-      rules,
-      factions,
-      userId,
-    )
-    return { ...found, battles: await this.withRatingChanges(found.battles) }
-  }
-
-  /** Datasheets in the player's own armies across their recent battles, with how many battles each appeared in, except armies they have archived. */
-  async fieldedDatasheets(userId: string) {
-    const [seated, rosters] = await Promise.all([
-      this.repository.battlesSeatedBy(userId, PROFILE_BATTLE_LIMIT, userId),
-      this.repository.rostersByUser(userId),
-    ])
-    const archived = archivedArmies(rosters)
-    const uses = countBy(
-      seated.flatMap((history) => {
-        const seat = history.digest.seats.find((candidate) => candidate.id === userId)
-        if (seat?.built && archived.has(currentCatalogueFamilyId(seat.built.catalogueId))) return []
-        return seat?.fielded ?? []
-      }),
-      (entryId) => entryId,
-    )
-    return [...uses].map(([entryId, battles]) => ({ entryId, battles })).toSorted((a, b) => b.battles - a.battles)
-  }
-
-  /** The signed-in player's notices, newest first, each in the words and with the page a push would carry. */
-  async notices(userId: string) {
-    const stored = await this.repository.noticesByUser(userId, this.clock())
-    const described = await describeNotices(this.repository, stored)
-    return stored.flatMap((notice, index) => {
-      const message = described[index]
-      return message ? [{ id: notice.id, kind: notice.kind, ...message, at: notice.at, read: notice.readAt !== null }] : []
-    })
-  }
-
-  markNoticesRead(userId: string, ids: readonly string[]) {
-    return this.repository.markNoticesRead(userId, ids, this.clock())
-  }
-
-  setPushEnabled(userId: string, enabled: boolean) {
-    return this.repository.setPushEnabled(userId, enabled, this.clock())
-  }
-
-  setPlayerDefaults(userId: string, defaults: PlayerDefaults) {
-    return this.repository.setPlayerDefaults(userId, defaults, this.clock())
-  }
-
-  /** The standalone simulator pairings this player reopened most recently, newest first. */
-  async recentMatchups(userId: string): Promise<RecentMatchup[]> {
-    return (await this.repository.recentMatchupsByUser(userId)).map(({ shared, attacker, defender }) => ({ shared, attacker, defender }))
-  }
-
-  rememberMatchup(userId: string, matchup: RecentMatchup) {
-    const pairing = simulatorPairing(matchup.shared)
-    if (!pairing) throw new Error('Choose both units before remembering a matchup.')
-    return this.repository.rememberMatchup({ userId, pairing, ...matchup, now: this.clock() })
-  }
-
-  async forgetMatchup(userId: string, shared: string) {
-    const pairing = simulatorPairing(shared)
-    if (pairing) await this.repository.forgetMatchup(userId, pairing)
-  }
-
-  async setAbilityReminder(userId: string, reminder: AbilityReminder) {
-    if ((await this.repository.saveAbilityReminder(userId, reminder, this.clock())) === 'full')
-      throw new Response(ABILITY_REMINDERS_FULL, { status: 409 })
-  }
-
-  registerPushDevice(userId: string, device: { token: string; platform: PushPlatform }) {
-    return this.repository.registerPushToken({ userId, ...device, now: this.clock() })
-  }
-
-  /** Every battle with a seated player is open to watch; a table nobody sits at is not. */
-  private mayWatch(history: BattleSeats) {
-    return history.players.length > 0
-  }
-
-  async sealedEventBattles(
-    sealedEventToken: string,
-    eventToken: string,
-    page: { limit: number; before?: BattlesCursor; filter?: BattleFilter; order?: BattleOrder },
-    rules?: BattleMissionRules | null,
-    factions?: readonly BattleFaction[],
-    viewerId: string | null = null,
-  ) {
-    if (battleFilterActive(page.filter))
-      return this.filteredFeed(
-        async (read) => {
-          const found = await this.repository.battlesBySealedEvent(sealedEventToken, eventToken, { ...read, viewerId })
-          return { ...found, battles: found.battles.filter((history) => this.mayWatch(history)) }
-        },
-        page,
-        viewerId,
-        rules,
-        factions,
-      )
-    const { battles: histories, nextCursor } = await this.repository.battlesBySealedEvent(sealedEventToken, eventToken, {
-      ...page,
-      viewerId,
-    })
-    return {
-      battles: this.battleSummaries(
-        histories.filter((history) => this.mayWatch(history)),
-        viewerId,
-        rules,
-        factions,
-      ),
-      nextCursor,
-    }
-  }
-
-  /** A revealed event's results table and who has met whom, from the battles this reader may watch. */
-  async sealedEventResults(
-    sealedEventToken: string,
-    eventToken: string,
-    rules?: BattleMissionRules | null,
-    factions?: readonly BattleFaction[],
-    viewerId: string | null = null,
-  ) {
-    const sealedEvent = await this.sealedEventService.sealedEvent(sealedEventToken, viewerId, eventToken)
-    if (!sealedEvent?.revealedAt) return null
-    const { battles, nextCursor } = await this.sealedEventBattles(
-      sealedEventToken,
-      eventToken,
-      { limit: SEALED_EVENT_RESULTS_BATTLE_LIMIT },
-      rules,
-      factions,
-      viewerId,
-    )
-    const entrantIds = sealedEvent.entries.filter((entry) => entry.status === 'accepted').map((entry) => entry.userId)
-    return {
-      ...sealedEventResults(entrantIds, battles),
-      swiss:
-        sealedEvent.rounds === null
-          ? null
-          : swissStandings(
-              entrantIds,
-              swissMatches(sealedEvent.pairings, battles),
-              droppedIds(sealedEvent.entries),
-              sealedEvent.scheduleFirst,
-            ),
-      partial: nextCursor !== null,
-    }
-  }
-
-  /** Pairs the next Swiss round from the results so far. */
-  async pairSealedEventRound(sealedEventToken: string, eventToken: string | undefined, userId: string) {
-    const sealedEvent = await this.sealedEventService.sealedEvent(sealedEventToken, userId, eventToken)
-    if (!sealedEvent) throw new Response('no such tournament', { status: 404 })
-    if (sealedEvent.rounds === null || !sealedEvent.revealedAt) throw new Response('pair rounds once the rosters are out', { status: 409 })
-    const { battles, nextCursor } = await this.sealedEventBattles(
-      sealedEventToken,
-      sealedEvent.eventToken,
-      { limit: SEALED_EVENT_RESULTS_BATTLE_LIMIT },
-      null,
-      [],
-      userId,
-    )
-    // A battle past the read limit would read as unplayed and skew every score the pairing depends on.
-    if (nextCursor !== null) throw new Response('this tournament has too many battles to pair its next round', { status: 409 })
-    const players = sealedEvent.entries.filter((entry) => entry.status === 'accepted' && entry.submitted).map((entry) => entry.userId)
-    const matches = swissMatches(sealedEvent.pairings, battles)
-    const round = Math.max(0, ...sealedEvent.pairings.map((pairing) => pairing.round)) + 1
-    const result = await this.repository.pairSealedEventRound({
-      token: sealedEventToken,
-      eventToken: sealedEvent.eventToken,
-      ownerId: userId,
-      round,
-      pairs: swissPairings(players, matches, Math.random, droppedIds(sealedEvent.entries)),
-    })
-    if (result === 'paired') {
-      this.notifier.notify([
-        {
-          kind: 'sealed-event-round-paired',
-          actorId: userId,
-          recipientIds: players,
-          sealedEventToken,
-          eventToken: sealedEvent.eventToken,
-          round,
-        },
-      ])
-      return { round }
-    }
-    if (result === 'forbidden') throw new Response('only the organizer pairs rounds', { status: 403 })
-    if (result === 'not-ready') throw new Response('every table must finish its battle before the next round', { status: 409 })
-    if (result === 'missing') throw new Response('no such tournament', { status: 404 })
-    throw new Response('the round changed while it was being paired; try again', { status: 409 })
-  }
-
-  /**
-   * Reopens a finished Swiss table for one of its event's organizers, who need not have played it, so its players can
-   * correct the result. The standings follow the corrected result; no round is paired again.
-   */
-  async reopenSwissTable(sealedEventToken: string, eventToken: string | undefined, battleToken: string, userId: string) {
-    const sealedEvent = await this.sealedEventService.sealedEvent(sealedEventToken, userId, eventToken)
-    if (!sealedEvent) throw new Response('no such tournament', { status: 404 })
-    if (!sealedEvent.organizer) throw new Response('only the organizer can reopen a result', { status: 403 })
-    if (!sealedEvent.pairings.some((pairing) => pairing.battleToken === battleToken))
-      throw new Response('no such table in this tournament', { status: 404 })
-    const history = await this.mustFind(battleToken)
-    const { result } = await this.repository.submit({
-      battleId: history.battle.id,
-      userId,
-      expectedSeq: foldHistory(history).seq,
-      command: { kind: 'reopen-battle' },
-      now: this.clock(),
-      snapshot: { seats: history.players, log: history.log },
-      organizer: true,
-    })
-    return { battleId: history.battle.id, result }
-  }
-
-  /** Records a table's final score. A table nobody has started gets its battle now, seated as the pairing is. */
-  async reportTableResult(
-    sealedEventToken: string,
-    eventToken: string | undefined,
-    round: number,
-    table: number,
-    vp: [number, number],
-    missionPackId: string | null,
-    userId: string,
-  ) {
-    const sealedEvent = await this.sealedEventService.sealedEvent(sealedEventToken, userId, eventToken)
-    if (!sealedEvent) throw new Response('no such tournament', { status: 404 })
-    const pairing = sealedEvent.pairings.find((candidate) => candidate.round === round && candidate.table === table)
-    if (!pairing?.bId) throw new Response('no such table in this tournament', { status: 404 })
-    if (!sealedEvent.organizer && userId !== pairing.aId && userId !== pairing.bId)
-      throw new Response('only the organizer or the table’s players can report its score', { status: 403 })
-    const token =
-      pairing.battleToken ??
-      (
-        await this.sealedEventService.createSealedEventBattle(
-          pairing.aId,
-          sealedEventToken,
-          pairing.bId,
-          missionPackId,
-          sealedEvent.eventToken,
-        )
-      ).token
-    const history = await this.mustFind(token)
-    const { result } = await this.repository.submit({
-      battleId: history.battle.id,
-      userId,
-      expectedSeq: foldHistory(history).seq,
-      command: { kind: 'report-result', vp: { [pairing.aId]: vp[0], [pairing.bId]: vp[1] } },
-      now: this.clock(),
-      snapshot: { seats: history.players, log: history.log },
-      organizer: sealedEvent.organizer,
-    })
-    if (result.outcome === 'refused') throw new Response(result.reason, { status: 409 })
-    if (result.outcome === 'stale') throw new Response('the battle changed while the score was being saved, so try again', { status: 409 })
-  }
-
-  /**
-   * A group's standing table: every battle tagged for it, rated together, with rows for its current members only, so
-   * someone who leaves drops off and comes back with their record if they rejoin. A private group shows it to members alone.
-   */
-  async groupStandings(token: string, viewerId: string | null, factions: readonly BattleFaction[] = []) {
-    const { group, battlesRevision } = (await this.groupService.groupWithLeague(token, viewerId)) ?? {}
-    if (!group || battlesRevision === undefined) return null
-    const memberIds = new Set(group.members.filter((member) => member.status === 'accepted').map((member) => member.userId))
-    if (hiddenFromViewer(group, viewerId)) return null
-    const [{ battles: histories, partial }, practice] = await Promise.all([
-      this.heldGroupBattles(token, battlesRevision),
-      this.repository.practiceOpponents(),
-    ])
-    // Which hidden-list game each battle came from, so the page can name it and leave a game's battles inside its card.
-    const gameOf = new Map<string, string>()
-    const counted = this.battleSummaries(groupBattlesOf(group, histories, gameOf), viewerId, null, factions)
-    const tables = standings(counted, { exclude: practice.map((opponent) => opponent.id), now: this.clock() })
-    const rows = tables.overall.filter((row) => memberIds.has(row.id))
-    const recent = counted.filter((battle) => battle.status === 'finished').slice(0, GROUP_RECENT_BATTLES)
-    // The reader's own group battles still being set up or played, which is what they most likely came back for.
-    const active = viewerId ? counted.filter((battle) => battle.status !== 'finished' && battle.playerIds.includes(viewerId)) : []
-    return {
-      table: { faction: null, players: rows.length, rows },
-      finished: counted.filter((battle) => battle.status === 'finished').length,
-      recent,
-      active,
-      games: Object.fromEntries(
-        [...recent, ...active].flatMap((battle) => {
-          const game = gameOf.get(battle.token)
-          return game ? [[battle.token, game]] : []
-        }),
-      ),
-      // Hidden-list games with a battle still being set up or played, which stay current until it ends.
-      playing: [...new Set(counted.flatMap((battle) => (battle.status === 'finished' ? [] : (gameOf.get(battle.token) ?? []))))],
-      partial,
-    }
-  }
-
-  /**
-   * Every battle a group's table counts, read again only once `revision`, which the group read hands out, has moved; the
-   * seats are named afresh each time, so a renamed player shows under their new name.
-   */
-  private async heldGroupBattles(token: string, revision: string) {
-    let held = this.groupBattlesHeld.get(token)
-    this.groupBattlesHeld.delete(token)
-    if (held?.revision !== revision) {
-      const entry = { revision, size: 0, read: this.readGroupBattles(token) }
-      entry.read.then(
-        ({ battles }) => (entry.size = battles.length),
-        () => this.groupBattlesHeld.get(token) === entry && this.groupBattlesHeld.delete(token),
-      )
-      held = entry
-    }
-    // Reinserted last, so the first key is always the group read longest ago.
-    this.groupBattlesHeld.set(token, held)
-    const { battles, partial } = await held.read
-    let size = 0
-    for (const entry of this.groupBattlesHeld.values()) size += entry.size
-    for (const [oldest, entry] of this.groupBattlesHeld) {
-      if (size <= GROUP_BATTLES_HELD) break
-      size -= entry.size
-      this.groupBattlesHeld.delete(oldest)
-    }
-    const profiles = await this.repository.profilesByIds(battles.flatMap((battle) => battle.players.map((player) => player.id)))
-    return {
-      battles: battles.map((battle) => ({
-        ...battle,
-        players: battle.players.map((player) => {
-          const profile = profiles.get(player.id)
-          return profile ? { ...player, name: profile.name, image: profile.image, colour: profile.colour } : player
-        }),
-      })),
-      partial,
-    }
-  }
-
-  private async readGroupBattles(token: string) {
-    const battles: BattleCard[] = []
-    let before: BattlesCursor | undefined
-    for (let page = 0; page < STANDINGS_PAGES; page++) {
-      const { battles: found, nextCursor } = await this.repository.battlesByGroup(token, {
-        limit: SEALED_EVENT_RESULTS_BATTLE_LIMIT,
-        before,
-      })
-      battles.push(...found)
-      before = nextCursor ?? undefined
-      if (!before) break
-    }
-    return { battles, partial: before !== undefined }
-  }
-
-  /** One page of every battle played for a group, with the hidden-list game each came from; a private group shows them to members alone. */
-  async groupBattles(
-    token: string,
-    viewerId: string | null,
-    page: { before?: BattlesCursor; filter?: BattleFilter; order?: BattleOrder },
-    factions: readonly BattleFaction[] = [],
-  ) {
-    const group = await this.groupService.group(token, viewerId)
-    if (!group || hiddenFromViewer(group, viewerId)) return { battles: [], nextCursor: null, games: {} }
-    const gameOf = new Map<string, string>()
-    const found = await this.filteredFeed(
-      async (read) => {
-        const { battles, nextCursor } = await this.repository.battlesByGroup(token, read)
-        return { battles: groupBattlesOf(group, battles, gameOf), nextCursor }
-      },
-      page,
-      viewerId,
-      null,
-      factions,
-    )
-    return {
-      ...found,
-      games: Object.fromEntries(
-        found.battles.flatMap((battle) => (gameOf.has(battle.token) ? [[battle.token, gameOf.get(battle.token)!]] : [])),
-      ),
-    }
-  }
-
-  /**
-   * A group's league: who plays, each round's fixtures and the table, read from the battles its fixtures started. A
-   * draft's fixtures are its organizers' to review; a private group shows the league to members alone.
-   */
-  async groupLeague(token: string, viewerId: string | null, factions: readonly BattleFaction[] = []) {
-    const { group, league } = (await this.groupService.groupWithLeague(token, viewerId)) ?? {}
-    if (!group || !league || hiddenFromViewer(group, viewerId)) return null
-    const published = league.publishedAt !== null
-    const histories = published ? await this.repository.battlesByLeague(token) : []
-    const battles = this.battleSummaries(histories, viewerId, null, factions)
-    const byToken = new Map(battles.map((battle) => [battle.token, battle]))
-    const playing = new Set(league.players.filter((player) => !player.withdrawn).map((player) => player.userId))
-    const drawn = published
-      ? league.fixtures
-      : group.organizer
-        ? leagueDraw([...playing], league.seed).flatMap((tables, index) =>
-            tables.map(([aId, bId], at) => ({ key: null, round: index + 1, table: at + 1, aId, bId, battleToken: null })),
-          )
-        : []
-    const fixtures = drawn.map((fixture) => {
-      const battle = fixture.battleToken ? (byToken.get(fixture.battleToken) ?? null) : null
-      const score = (userId: string | null) =>
-        battle && userId ? sideScore(battle, battle.sides[battle.playerIds.indexOf(userId)] ?? -1) : 0
-      return {
-        ...fixture,
-        status: leagueFixtureStatus({ ...fixture, battle }, (userId) => playing.has(userId)),
-        battle: battle && { token: battle.token, status: battle.status, scores: [score(fixture.aId), score(fixture.bId)] as const },
-      }
-    })
-    return {
-      published,
-      // The seed decides the draw, so only the organizers reviewing a draft are given it.
-      seed: group.organizer && !published ? league.seed : null,
-      organizer: group.organizer,
-      players: league.players,
-      deadlines: league.deadlines,
-      fixtures,
-      table: published
-        ? swissStandings(
-            league.players.map((player) => player.userId),
-            swissMatches(
-              fixtures.filter((fixture) => fixture.status !== 'void'),
-              battles,
-            ),
-          )
-        : [],
-    }
-  }
-
-  /** A group's ended leagues as stored, which a private group shows to members alone. */
-  private async visiblePastLeagues(token: string, viewerId: string | null) {
-    const found = await this.groupService.groupWithLeague(token, viewerId)
-    if (!found) return null
-    const { group } = found
-    return hiddenFromViewer(group, viewerId) ? null : group.pastLeagues
-  }
-
-  /** A group's ended leagues, newest first, each named by the player who topped it. */
-  async groupPastLeagues(token: string, viewerId: string | null) {
-    const leagues = await this.visiblePastLeagues(token, viewerId)
-    return leagues && leagues.map(({ id, publishedAt, endedAt, players }) => ({ id, publishedAt, endedAt, players: players.length }))
-  }
-
-  /** One ended league's table, read from the battles its fixtures started, as a running league's is. */
-  async groupPastLeague(token: string, leagueId: string, viewerId: string | null, factions: readonly BattleFaction[] = []) {
-    const league = (await this.visiblePastLeagues(token, viewerId))?.find((candidate) => candidate.id === leagueId)
-    if (!league) return null
-    const battles = this.battleSummaries(await this.repository.battlesByLeague(token, leagueId), viewerId, null, factions)
-    const byToken = new Map(battles.map((battle) => [battle.token, battle]))
-    const playing = new Set(league.players.filter((player) => !player.withdrawn).map((player) => player.userId))
-    const fixtures = league.fixtures.filter((fixture) => {
-      const battle = fixture.battleToken ? (byToken.get(fixture.battleToken) ?? null) : null
-      return leagueFixtureStatus({ ...fixture, battle }, (userId) => playing.has(userId)) !== 'void'
-    })
-    return {
-      players: league.players,
-      table: swissStandings(
-        league.players.map((player) => player.userId),
-        swissMatches(fixtures, battles),
-      ),
-    }
-  }
-
-  /** The group a battle counts for, and for a seated player during setup the groups it could; a private group's name stays with its players. */
-  async battleGroups(token: string, viewerId: string | null) {
-    const seats = await this.repository.battleByToken(token)
-    if (!seats) throw new Response('no such battle', { status: 404 })
-    const seated = viewerId !== null && this.seated(seats, viewerId)
-    const { current, options } = await this.repository.battleGroups(seats.battle.id)
-    const summary = (group: { token: string; name: string }) => ({ token: group.token, name: group.name })
-    return {
-      current: current && (seated || current.visibility === 'public') ? summary(current) : null,
-      options: seated ? options.map((group) => ({ id: group.id, ...summary(group) })) : [],
-    }
-  }
-
-  /** How far one battle moved each player's overall rating, or null when the leaderboard does not count it. */
-  async battleRatingChanges(token: string) {
-    await this.refreshStandings()
-    return (await this.repository.ratingChanges([token]))[0]?.changes ?? null
-  }
-
-  /** Each battle with how far it moved each player's overall rating, from the leaderboard's stored ratings. */
-  private async withRatingChanges<T extends { token: string; status: string }>(
-    battles: T[],
-  ): Promise<(T & { ratingChanges?: Readonly<Record<string, number>> })[]> {
-    const finished = battles.flatMap((battle) => (battle.status === 'finished' ? [battle.token] : []))
-    if (finished.length) await this.refreshStandings()
-    const changes = new Map<string, Readonly<Record<string, number>>>()
-    for (const batch of chunks(finished, 500))
-      for (const row of await this.repository.ratingChanges(batch)) changes.set(row.token, row.changes)
-    return battles.map((battle) => {
-      const ratingChanges = changes.get(battle.token)
-      return ratingChanges ? { ...battle, ratingChanges } : battle
-    })
-  }
-
-  private battleSummaries(
-    histories: readonly BattleCard[],
-    viewerId: string | null,
-    rules?: BattleMissionRules | null,
-    factions: readonly BattleFaction[] = [],
-  ) {
-    const factionsById = byId(factions)
-    return histories.map((history) => battleSummary(history, history.digest, viewerId, rules, factionsById))
-  }
-
-  /**
-   * The battle list's summaries with what each side did with its resources, for a
-   * record, both read from the one digest.
-   */
-  private recordBattles(
-    histories: readonly BattleCard[],
-    viewerId: string | null,
-    rules: BattleReadRules | null | undefined,
-    factions: readonly BattleFaction[],
-  ) {
-    const factionsById = byId(factions)
-    return histories.map((history) => {
-      return {
-        ...battleSummary(history, history.digest, viewerId, rules, factionsById),
-        plays: referencedPlays(history.digest, seatPlays(history.digest, viewerId), rules, factionsById),
-      }
-    })
-  }
-
-  /**
-   * Someone's name and picture.
-   *
-   * Open to anybody, including a reader with no account. A name is already on
-   * every battle and on every row of the leaderboard, so gating the page that
-   * shows the same name behind a friendship only produced links that led
-   * nowhere; who a player is was never a secret the product was keeping.
-   */
-  async userProfile(userId: string) {
-    const [profile, sponsorship, admin] = await Promise.all([
-      this.repository.profileByUserId(userId),
-      this.repository.githubSponsorship(userId),
-      this.repository.isAdmin(userId),
-    ])
-    // A private sponsorship stays private: only its owner's settings say it.
-    return profile ? { ...profile, supporter: sponsorship === 'public', admin } : null
   }
 
   async createBattle(userId: string, input?: string | CreateBattleInput) {
@@ -1434,7 +386,7 @@ export class PraetoriumService {
 
   /** The drafts a player is in, newest first, for the one place they are listed. */
   async drafts(userId: string, rules?: BattleMissionRules | null, factions?: readonly BattleFaction[]) {
-    return this.battleSummaries(await this.repository.draftsByUser(userId), userId, rules, factions)
+    return this.battleFeedService.battleSummaries(await this.repository.draftsByUser(userId), userId, rules, factions)
   }
 
   /** Deletes drafts nobody has touched for `DRAFT_RETENTION_MS`. */
@@ -1513,7 +465,7 @@ export class PraetoriumService {
    * without a synced dataset.
    */
   async screen(token: string, userId: string | null, rules?: BattleReadRules | null): Promise<BattleScreen> {
-    const history = await this.mustFind(token)
+    const history = await mustFindBattle(this.repository, token)
     return this.visibleScreen(history, userId, rules)
   }
 
@@ -1523,7 +475,7 @@ export class PraetoriumService {
     const screen = this.battleScreen(history, viewerId, rules)
     // Everyone else either watches or is told no. Nobody arrives here to sit down:
     // the seats were filled when the battle was created.
-    if (!this.mayWatch(history)) return { kind: 'unavailable' }
+    if (!mayWatch(history)) return { kind: 'unavailable' }
     const report = this.viewerReport(history, SPECTATOR_ID, rules)
     return {
       kind: 'spectator',
@@ -1538,7 +490,7 @@ export class PraetoriumService {
   /** What a spectator would see of the battle's score and clock, without the report and timeline a watch polling it has no use for. */
   async liveBattle(token: string): Promise<{ view: BattleView; clock: BattleClock } | null> {
     const history = await this.repository.battleHistoryByToken(token)
-    if (!history || !this.mayWatch(history)) return null
+    if (!history || !mayWatch(history)) return null
     const { view, clock } = this.battleScreen(history, SPECTATOR_ID)
     return { view, clock }
   }
@@ -1569,7 +521,7 @@ export class PraetoriumService {
   }
 
   async replayBatch(token: string, userId: string | null, seqs: readonly number[], rules?: BattleReadRules | null) {
-    const history = await this.mustFind(token)
+    const history = await mustFindBattle(this.repository, token)
     const current = await this.visibleScreen(history, userId, rules)
     if (current.kind === 'unavailable') return current
     const available = new Set(history.log.map((entry) => entry.seq))
@@ -1795,14 +747,8 @@ export class PraetoriumService {
   }
 
   private async mustSeatHistory(token: string, userId: string) {
-    const history = await this.mustFind(token)
+    const history = await mustFindBattle(this.repository, token)
     if (!this.seated(history, userId)) throw new Response('you are not in this battle', { status: 403 })
-    return history
-  }
-
-  private async mustFind(token: string): Promise<BattleHistory> {
-    const history = await this.repository.battleHistoryByToken(token)
-    if (!history) throw new Response('no such battle', { status: 404 })
     return history
   }
 }
@@ -1844,111 +790,4 @@ function adminBattleSummary(history: BattleCard): AdminBattle {
 function finishing(result: SubmitResult, previous: BattleHistory, screen: SeatedScreen): { finished?: BattleEndReason } {
   if (result.outcome !== 'appended' || screen.view.status !== 'finished' || !screen.view.result) return {}
   return foldHistory(previous).status === 'finished' ? {} : { finished: screen.view.result.reason }
-}
-
-function foldHistory({ players, log }: BattleHistory) {
-  return reduceBattle(...battleFoldArgs(players, log))
-}
-
-/**
- * What each side played, joined to the reference page it is printed on.
- *
- * A link is attached only where the page answers: a detachment stratagem whose
- * detachment the fielding army's catalogue faction lists, a secondary the rules
- * carry in a pack they carry, and a primary whose matchup page resolves. The
- * primary is the one the battle screen shows, resolved from both sides'
- * dispositions, falling back to what `set-prep` recorded only where that fails.
- */
-function referencedPlays(
-  digest: BattleDigest,
-  plays: SeatPlay[],
-  rules: BattleReadRules | null | undefined,
-  factionsById: ReadonlyMap<string, BattleFaction>,
-): SeatPlay[] {
-  const packId = digest.settings.missionPackId
-  const packs = rules ? gameReferencesFor(rules).packs : []
-  const pack = packs.find((candidate) => candidate.id === packId)
-  const cardSlugs = new Map(pack && rules ? gameReferencesFor(rules).secondaries.map((card) => [card.key, card.slug]) : [])
-  return plays.map((play, index) => {
-    const seat = digest.seats[index]!
-    const allies = digest.seats.filter((candidate) => candidate.side === seat.side)
-    const printedBy = (detachment: string | undefined) => {
-      if (!detachment) return undefined
-      const faction = allies
-        .map((ally) => factionsById.get(ally.built?.catalogueId ?? ''))
-        .find((candidate) => candidate?.detachments?.some((listed) => listed.name === detachment))
-      const route = faction?.detachments?.find((listed) => listed.name === detachment)?.referenceRoute
-      return faction ? { catalogueId: route?.catalogueId ?? faction.slug, detachmentId: route?.slug ?? routeSlug(detachment) } : undefined
-    }
-    const { own: you, opposing: opponent } = seat.matchup
-    const mission = play.primary && rules && digest.status !== 'setup' ? matchupMission(rules, digest.settings, seat.matchup) : null
-    const matchup = pack?.missions.some(
-      (candidate) => candidate.id === mission?.id && candidate.matchups.some((pair) => pair[0]?.id === you && pair[1]?.id === opponent),
-    )
-    return {
-      ...play,
-      stratagems: play.stratagems.map((use) => {
-        const reference = printedBy(use.detachment)
-        return reference ? { ...use, reference } : use
-      }),
-      cards: play.cards.map((card) => {
-        const cardId = cardSlugs.get(card.key)
-        return packId && cardId ? { ...card, reference: { packId, cardId } } : card
-      }),
-      primary: mission
-        ? {
-            key: mission.id,
-            name: mission.name,
-            ...(matchup && packId && you && opponent ? { reference: { packId, you, opponent } } : {}),
-          }
-        : play.primary,
-    }
-  })
-}
-
-/**
- * The battles a group feed read that count for the group, noting in `gameOf` the hidden-list game each came from.
- * A game's battles name its event; one from before events were recorded on battles names only its sealed event, now this group.
- */
-function groupBattlesOf<History extends BattleCard>(
-  group: { id: string; token: string; games: readonly { token: string }[] },
-  histories: readonly History[],
-  gameOf: Map<string, string>,
-) {
-  const gameEvents = new Set(group.games.map((game) => game.token))
-  return histories.filter((history) => {
-    const state = history.digest
-    const fromGame = state.eventToken !== null && gameEvents.has(state.eventToken)
-    if (fromGame) gameOf.set(history.battle.token, state.eventToken!)
-    return state.groupId === group.id || fromGame || (state.eventToken === null && state.sealedEventToken === group.token)
-  })
-}
-
-const hiddenFromViewer = (group: { visibility: string; members: readonly { userId: string; status: string }[] }, viewerId: string | null) =>
-  group.visibility === 'private' && !group.members.some((member) => member.userId === viewerId && member.status === 'accepted')
-
-const droppedIds = (entries: readonly { userId: string; dropped: boolean }[]) =>
-  new Set(entries.filter((entry) => entry.dropped).map((entry) => entry.userId))
-
-/** Each paired table as a Swiss result, read from the battle it started; a table still playing has no outcome yet. */
-function swissMatches(
-  pairings: readonly { round: number; aId: string; bId: string | null; battleToken: string | null }[],
-  battles: readonly (StandingBattle & { token: string })[],
-): SwissMatch[] {
-  const byToken = new Map(battles.map((battle) => [battle.token, battle]))
-  return pairings.map((pairing) => {
-    const battle = pairing.battleToken ? byToken.get(pairing.battleToken) : undefined
-    if (!pairing.bId || battle?.status !== 'finished')
-      return { round: pairing.round, a: pairing.aId, b: pairing.bId, outcome: null, vp: [0, 0] }
-    const sideA = battle.sides[battle.playerIds.indexOf(pairing.aId)] ?? 0
-    const sideB = battle.sides[battle.playerIds.indexOf(pairing.bId)] ?? 1
-    const outcome = battleOutcome(battle, sideA)
-    return {
-      round: pairing.round,
-      a: pairing.aId,
-      b: pairing.bId,
-      outcome: outcome === 'won' ? 'a' : outcome === 'lost' ? 'b' : 'draw',
-      vp: [sideScore(battle, sideA), sideScore(battle, sideB)],
-    }
-  })
 }
