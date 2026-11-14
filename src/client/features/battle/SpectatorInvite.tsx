@@ -9,6 +9,7 @@ import { buttonClass } from '../../components/buttonClass'
 import type { BattleView } from '../../../core/battleView'
 import { meQuery, onboardingQuery } from '../../queries'
 import { subscribeStoredValues } from '../../storedValue'
+import { useHydrated } from '../../useClientValue'
 import { dismissSpectatorInvite, spectatorInviteOffer, spectatorInviteSuppressed } from './spectatorInviteState'
 
 const ACTION = 'max-sm:h-11'
@@ -24,7 +25,9 @@ export function SpectatorInvite({ view, className }: { view: BattleView; classNa
   const seated = view.players.some((player) => player.isViewer)
   const { data: me } = useQuery(meQuery())
   const { data: progress } = useQuery({ ...onboardingQuery(), enabled: Boolean(me) && !seated })
-  const offer = spectatorInviteOffer({ seated, me, progress })
+  // The restored offline cache can hold progress the server render lacked.
+  const hydrated = useHydrated()
+  const offer = spectatorInviteOffer({ seated, me, progress: hydrated ? progress : undefined })
   const suppressed = useSyncExternalStore(subscribeStoredValues, spectatorInviteSuppressed, () => false)
   const visible = offer !== null && !suppressed
   const signedIn = Boolean(me)
