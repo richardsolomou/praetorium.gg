@@ -1,5 +1,19 @@
 # praetorium
 
+## 0.246.0 (2026-11-14)
+
+### Minor Changes
+
+- 3cbfc22: With notifications on, the app now tells you when an army data update changes the points of a list you saved, and by how much.
+
+### Patch Changes
+
+- 1762c44: The links at the foot of each page are easier to tap.
+- 1762c44: A finished battle's losing side keeps its names and armies readable, with only its pictures and score faded.
+- 1762c44: A battle setup step that isn't open yet keeps its explanation readable.
+- 1762c44: Voice control and screen readers now name battle cards, unit attach and embark menus, terrain layouts, the event invite link and the datasheet list by the words they show.
+- 1762c44: The sponsor link on the home page is underlined, so it stands out without relying on colour.
+
 ## 0.245.0 (2026-11-14)
 
 ### Minor Changes
