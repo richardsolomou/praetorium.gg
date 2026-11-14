@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.247.6 (2026-11-14)
+
+### Patch Changes
+
+- 15ab06a: Live updates no longer drop out for a few seconds shortly after returning to Praetorium on a phone.
+
 ## 0.247.5 (2026-11-14)
 
 ### Patch Changes
