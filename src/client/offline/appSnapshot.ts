@@ -52,7 +52,6 @@ export function captureAppSnapshot(client: QueryClient): AppSnapshot | null {
       key: [...query.queryKey],
       data: query.state.data,
       updatedAt: query.state.dataUpdatedAt,
-      ...(query.state.isInvalidated ? { invalidated: true as const } : {}),
     }
     const size = jsonByteLength({ ...entry, data: null }) - 'null'.length + measuredBytes(entry.data)
     // The kilobyte held back covers the snapshot's own fields and separators, so the whole snapshot stays within the limit.
@@ -69,7 +68,8 @@ export function restoreAppSnapshot(client: QueryClient, snapshot: AppSnapshot) {
   for (const query of snapshot.queries) {
     if ((client.getQueryState(query.key)?.dataUpdatedAt ?? 0) >= query.updatedAt) continue
     client.setQueryData(query.key, query.data, { updatedAt: query.updatedAt })
-    if (query.invalidated) void client.invalidateQueries({ queryKey: query.key, exact: true }, { cancelRefetch: false })
+    // The last write before the page closed can outrun the snapshot it would have marked, so even a recent answer is fetched again once shown.
+    void client.invalidateQueries({ queryKey: query.key, exact: true }, { cancelRefetch: false })
   }
 }
 
