@@ -834,7 +834,7 @@ describe('a weapon that brings its model into the squad', () => {
   })
 })
 
-it('keeps default and fixed wargear before alternatives even after they are replaced', () => {
+it('lists ranged before melee wargear, defaults first within each, even after they are replaced', () => {
   const model: LoadoutModel = {
     name: 'Trooper',
     members: [],
@@ -858,7 +858,7 @@ it('keeps default and fixed wargear before alternatives even after they are repl
     weapon('Bolt carbine', 'Ranged Weapons'),
     weapon('Combat knife', 'Melee Weapons'),
   ]
-  expect(orderedModelWargear(model, choices, weapons).map((entry) => entry.name)).toEqual(['Bolt carbine', 'Combat knife', 'Plasma pistol'])
+  expect(orderedModelWargear(model, choices, weapons).map((entry) => entry.name)).toEqual(['Bolt carbine', 'Plasma pistol', 'Combat knife'])
 })
 
 it.each([

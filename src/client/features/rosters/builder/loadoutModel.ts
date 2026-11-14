@@ -288,22 +288,20 @@ export const defaultFirst = <T extends { default?: boolean }>(entries: readonly 
   entries.toSorted((one, other) => Number(Boolean(other.default)) - Number(Boolean(one.default)))
 
 export function orderedModelWargear(model: LoadoutModel, choices: readonly LoadoutChoice[], weapons: readonly WeaponProfileData[]) {
-  return defaultFirst(
-    ordered(
-      [
-        ...model.fixed.map((entry) => ({ name: entry.name, fixed: entry, default: true })),
-        ...model.rows.flatMap((row) => {
-          const pieces = modelRowPieces(row, model.rows)
-          return (row.separatePieces ? pieces.map((name) => ({ name, pieces: [name] })) : [{ name: row.name, pieces }]).map((entry) => ({
-            ...entry,
-            row,
-            default: loadoutRowSources(row, choices).some(({ option }) => option.default),
-          }))
-        }),
-      ],
-      weapons,
-      (entry) => ('row' in entry && !entry.row.separatePieces ? `choice:${entry.row.choiceKey}` : `wargear:${entry.name}`),
-    ),
+  return ordered(
+    defaultFirst([
+      ...model.fixed.map((entry) => ({ name: entry.name, fixed: entry, default: true })),
+      ...model.rows.flatMap((row) => {
+        const pieces = modelRowPieces(row, model.rows)
+        return (row.separatePieces ? pieces.map((name) => ({ name, pieces: [name] })) : [{ name: row.name, pieces }]).map((entry) => ({
+          ...entry,
+          row,
+          default: loadoutRowSources(row, choices).some(({ option }) => option.default),
+        }))
+      }),
+    ]),
+    weapons,
+    (entry) => ('row' in entry && !entry.row.separatePieces ? `choice:${entry.row.choiceKey}` : `wargear:${entry.name}`),
   )
 }
 
