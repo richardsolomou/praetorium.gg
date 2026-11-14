@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.247.4 (2026-11-14)
+
+### Patch Changes
+
+- 19326f7: A list name typed straight after reopening a roster no longer reverts to the old name.
+
 ## 0.247.3 (2026-11-14)
 
 ### Patch Changes
