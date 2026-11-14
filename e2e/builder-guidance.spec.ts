@@ -24,7 +24,7 @@ test(`a unit's attach menu adds and attaches a new leader, then offers only its 
     await closePickerOnPhone(page, width)
 
     const immortals = page.locator('[data-unit="Immortals"]')
-    await immortals.getByRole('button', { name: 'Attach a unit to Immortals', exact: true }).click()
+    await immortals.getByRole('button', { name: 'Attach unit: Immortals', exact: true }).click()
     const roster = attachMenu(page).getByRole('group', { name: 'In this roster' })
     const added = attachMenu(page).getByRole('group', { name: 'Add a new unit' })
     await expect(roster.getByRole('menuitem', { name: 'Overlord', exact: true })).toBeEnabled()
@@ -41,7 +41,7 @@ test(`a unit's attach menu adds and attaches a new leader, then offers only its 
     await expect(leader).toContainText('Immortals')
     await expect(immortals).toContainText('Imotekh the Stormlord')
 
-    await immortals.getByRole('button', { name: 'Attach a unit to Immortals', exact: true }).click()
+    await immortals.getByRole('button', { name: 'Attach unit: Immortals', exact: true }).click()
     await expect(added.getByRole('menuitem', { name: 'Add new Technomancer and attach', exact: true })).toBeEnabled()
     await expect(roster).toHaveCount(0)
     await expect(added.getByRole('menuitem', { name: 'Add new Overlord and attach', exact: true })).toHaveCount(0)
@@ -68,7 +68,7 @@ test('a unit whose only leader slot is full offers no attach menu', async ({ pag
     await closePickerOnPhone(page, width)
 
     const destroyers = page.locator('[data-unit="Skorpekh Destroyers"]')
-    const attachUnit = destroyers.getByRole('button', { name: 'Attach a unit to Skorpekh Destroyers', exact: true })
+    const attachUnit = destroyers.getByRole('button', { name: 'Attach unit: Skorpekh Destroyers', exact: true })
     await attachUnit.click()
     const added = attachMenu(page).getByRole('group', { name: 'Add a new unit' })
     await expect(added.getByRole('menuitem')).toHaveCount(1)
@@ -77,7 +77,7 @@ test('a unit whose only leader slot is full offers no attach menu', async ({ pag
     const lord = page.locator('[data-unit="Skorpekh Lord"]')
     await expect(destroyers).toContainText('Skorpekh Lord')
     await expect(attachUnit).toHaveCount(0)
-    await expect(lord.getByRole('button', { name: 'Attach Skorpekh Lord to unit', exact: true })).toHaveCount(0)
+    await expect(lord.getByRole('button', { name: 'Attach to unit: Skorpekh Lord', exact: true })).toHaveCount(0)
     await expectNoPageOverflow(page)
     await shot(destroyers, test.info().outputPath(`attach-full-skorpekh-${width}.png`))
     await page.reload()
@@ -95,7 +95,7 @@ test(`a character's attach menu adds and joins a new bodyguard`, async ({ page }
     await closePickerOnPhone(page, width)
 
     const overlord = page.locator('[data-unit="Overlord"]')
-    await overlord.getByRole('button', { name: 'Attach Overlord to unit', exact: true }).click()
+    await overlord.getByRole('button', { name: 'Attach to unit: Overlord', exact: true }).click()
     await expect(attachMenu(page).getByRole('group', { name: 'In this roster' })).toHaveCount(0)
     const immortals = attachMenu(page)
       .getByRole('group', { name: 'Add a new unit' })
@@ -107,7 +107,7 @@ test(`a character's attach menu adds and joins a new bodyguard`, async ({ page }
     await expect(page.locator('[data-unit="Immortals"]')).toHaveCount(1)
     await expect(overlord).toContainText('Leading')
     await expect(overlord).toContainText('Immortals')
-    await expect(overlord.getByRole('button', { name: 'Attach Overlord to unit', exact: true })).toHaveCount(0)
+    await expect(overlord.getByRole('button', { name: 'Attach to unit: Overlord', exact: true })).toHaveCount(0)
     await page.reload()
     await expect(page.locator('[data-unit="Immortals"]')).toHaveCount(1)
     await expect(overlord).toContainText('Immortals')
@@ -120,7 +120,7 @@ test('a Loyal Protector joins a Command Squad', async ({ page }) => {
   await addUnit(page, 'Ogryn Bodyguard')
 
   const ogryn = page.locator('[data-unit="Ogryn Bodyguard"]')
-  await ogryn.getByRole('button', { name: 'Attach Ogryn Bodyguard to unit', exact: true }).click()
+  await ogryn.getByRole('button', { name: 'Attach to unit: Ogryn Bodyguard', exact: true }).click()
   const squad = attachMenu(page)
     .getByRole('group', { name: 'Add a new unit' })
     .getByRole('menuitem', { name: 'Add new Cadian Command Squad and attach', exact: true })
@@ -135,7 +135,7 @@ test('a unit attaches a character already in the roster from its own card', asyn
   await openBuilder(page)
   await addUnit(page, 'Immortals')
   await addUnit(page, 'Overlord')
-  await page.locator('[data-unit="Immortals"]').getByRole('button', { name: 'Attach a unit to Immortals', exact: true }).click()
+  await page.locator('[data-unit="Immortals"]').getByRole('button', { name: 'Attach unit: Immortals', exact: true }).click()
   await waitForRosterSave(page, () =>
     attachMenu(page).getByRole('group', { name: 'In this roster' }).getByRole('menuitem', { name: 'Overlord', exact: true }).click(),
   )

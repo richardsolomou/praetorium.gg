@@ -126,12 +126,7 @@ export function AttachedUnitActions({
   return (
     <>
       {editable && canHost.length ? (
-        <AttachMenu
-          label="Attach unit"
-          ariaLabel={`Attach a unit to ${name}`}
-          choices={canHost}
-          onChoose={(choice) => onAttach?.(host, 'host', choice)}
-        />
+        <AttachMenu label="Attach unit" unit={name} choices={canHost} onChoose={(choice) => onAttach?.(host, 'host', choice)} />
       ) : null}
       {ridesIn ? (
         <JoinedRow
@@ -142,7 +137,7 @@ export function AttachedUnitActions({
       {editable && embark.canBoard.length ? (
         <EmbarkMenu
           label="Embark unit in transport"
-          ariaLabel={`Embark ${name} in transport`}
+          unit={name}
           choiceLabel={(choice) => `Embark ${name} in ${choice.name}`}
           choices={embark.canBoard}
           onChoose={(choice) => onEmbark?.(choice.passenger, choice.transport)}

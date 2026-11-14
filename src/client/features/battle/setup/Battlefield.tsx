@@ -144,7 +144,7 @@ export function Battlefield({ view, send, pending, allowedIds, matchup }: Props)
                   onClick={() => setInspecting(terrain.id)}
                 >
                   <span className="flex items-center gap-2">
-                    {singleColosseum ? null : <span className="text-lg font-bold">{label}</span>}
+                    {singleColosseum ? null : <span className="text-lg font-bold">{label} </span>}
                     <span className="min-w-0 flex-1 truncate text-sm text-dim transition-colors group-hover:text-bone">
                       {singleColosseum ? 'View setup measurements' : deployment.name}
                     </span>

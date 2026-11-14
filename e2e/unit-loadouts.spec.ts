@@ -117,7 +117,7 @@ test('an attached unit is saved and added to another roster already attached', a
   await expect(page.getByRole('menuitem', { name: 'Save attached unit' })).toHaveCount(0)
   await page.keyboard.press('Escape')
 
-  await immortals.getByRole('button', { name: `Attach a unit to ${UNIT}`, exact: true }).click()
+  await immortals.getByRole('button', { name: `Attach unit: ${UNIT}`, exact: true }).click()
   const inRoster = page.getByRole('menu').getByRole('group', { name: 'In this roster' })
   await waitForRosterSave(page, () => inRoster.getByRole('menuitem', { name: 'Overlord', exact: true }).click())
   const leader = page.locator('[data-unit="Overlord"]')

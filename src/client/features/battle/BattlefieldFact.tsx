@@ -41,7 +41,7 @@ export function BattlefieldFact({
             render={
               <button
                 type="button"
-                aria-label={`View ${deployment.name} battlefield`}
+                aria-label={value}
                 className="block max-w-full truncate text-left text-info underline underline-offset-2 hover:text-bone"
               />
             }

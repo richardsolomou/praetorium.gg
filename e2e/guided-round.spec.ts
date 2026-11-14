@@ -44,7 +44,7 @@ test('New Orders, discard CP and carried cards survive a complete two-player rou
   const ours = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'First army' })
   await setupBattle(page, opponent, { hostRoster: ours, guestRoster: theirs, openingSecondaries: ['Cleanse', 'Plunder'] })
   const side = playerPanel(page, 0)
-  await side.getByRole('button', { name: 'Use New Orders', exact: true }).click()
+  await side.getByRole('button', { name: /^Use New Orders for \d CP$/ }).click()
   await page
     .getByRole('dialog', { name: 'New Orders', exact: true })
     .getByRole('button', { name: 'Discard Cleanse and draw a replacement', exact: true })
@@ -78,9 +78,9 @@ test('New Orders, discard CP and carried cards survive a complete two-player rou
     await expect(guards).toBeHidden()
   }
   await expect(advanceButton(page)).toBeEnabled()
-  await expect(side.getByRole('button', { name: 'Use New Orders', exact: true })).toBeDisabled()
+  await expect(side.getByRole('button', { name: /^Use New Orders for \d CP$/ })).toBeDisabled()
   await page.reload()
-  await expect(side.getByRole('button', { name: 'Use New Orders', exact: true })).toBeDisabled()
+  await expect(side.getByRole('button', { name: /^Use New Orders for \d CP$/ })).toBeDisabled()
   await expect(side.locator('[data-stat="cp"]')).toHaveText('0')
   for (let phase = 0; phase < 5; phase += 1) await advance(page)
   await page.getByRole('button', { name: 'Pass the turn', exact: true }).click()
@@ -98,7 +98,7 @@ test('New Orders, discard CP and carried cards survive a complete two-player rou
   await takeTheTurn(page)
   await expect(side.locator('[data-secondary]')).toHaveCount(3)
   await expect(side.locator('[data-secondary]').filter({ hasText: 'Plunder' })).toBeVisible()
-  await expect(side.getByRole('button', { name: 'Use New Orders', exact: true })).toHaveAttribute(
+  await expect(side.getByRole('button', { name: /^Use New Orders for \d CP$/ })).toHaveAttribute(
     'title',
     'New Orders has been used this battle',
   )

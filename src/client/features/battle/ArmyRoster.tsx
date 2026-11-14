@@ -145,7 +145,7 @@ export function ArmyRoster({ army, side, finished, actionable, pending, blocked 
   return (
     <>
       <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
-        <Button variant="secondary" size="xs" className="max-w-full" onClick={() => setOpen(true)} aria-label={`Open ${roster.name}`}>
+        <Button variant="secondary" size="xs" className="max-w-full" onClick={() => setOpen(true)} aria-label={`Army: ${roster.name}`}>
           <Scroll aria-hidden /> Army
         </Button>
         {units.some(canSimulate) ? (

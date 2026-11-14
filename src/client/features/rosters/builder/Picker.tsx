@@ -461,31 +461,29 @@ const PickerRow = memo(function PickerRow({
       data-picker-unit={unit.name}
       className="flex flex-wrap items-center gap-1.5 part px-2.5 py-1.5 [contain:layout_style] [contain-intrinsic-size:auto_3.25rem] [content-visibility:auto]"
     >
-      <button
-        type="button"
-        className="flex min-w-12 flex-1 items-center gap-1.5 text-left hover:text-info"
-        aria-label={`View ${unit.name} datasheet`}
-        onClick={() => onPreview(unit.id, unit.name)}
-      >
-        <span className="min-w-0 flex-1">
-          <span className="block text-sm leading-tight font-semibold wrap-break-word">{unit.name}</span>
-          <DatasheetMatchReasons query={query} reasons={unit.matchReasons} fuzzy={unit.fuzzy} />
-          {unavailableReason ? (
-            <span id={limitId} className="mt-1 block text-2xs font-normal normal-case text-discarded">
-              {unavailableReason}
-            </span>
-          ) : null}
-          {held ? (
-            <span
-              id={unavailableReason ? undefined : limitId}
-              className={`readout block text-2xs ${full ? 'text-discarded' : 'text-faint'}`}
-            >
-              {held}
-              {limit === null ? '' : `/${limit}`} in roster
-            </span>
-          ) : null}
-        </span>
-      </button>
+      {/* Only the name is the button's text, so its name holds what it shows; its hit area still covers the row's details. */}
+      <div className="relative min-w-12 flex-1">
+        <button
+          type="button"
+          className="block text-left text-sm leading-tight font-semibold wrap-break-word after:absolute after:inset-0 hover:text-info"
+          aria-label={`View ${unit.name} datasheet`}
+          onClick={() => onPreview(unit.id, unit.name)}
+        >
+          {unit.name}
+        </button>
+        <DatasheetMatchReasons query={query} reasons={unit.matchReasons} fuzzy={unit.fuzzy} />
+        {unavailableReason ? (
+          <span id={limitId} className="mt-1 block text-2xs font-normal normal-case text-discarded">
+            {unavailableReason}
+          </span>
+        ) : null}
+        {held ? (
+          <span id={unavailableReason ? undefined : limitId} className={`readout block text-2xs ${full ? 'text-discarded' : 'text-faint'}`}>
+            {held}
+            {limit === null ? '' : `/${limit}`} in roster
+          </span>
+        ) : null}
+      </div>
       <span className="ml-auto flex max-w-full shrink-0 flex-wrap items-center justify-end gap-1.5">
         {onFavourite ? (
           <Toggle

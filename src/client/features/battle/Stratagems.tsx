@@ -189,7 +189,7 @@ function StratagemCard({
         className={`readout font-bold uppercase ${refusal ? 'bg-edge text-dim' : 'bg-azure text-void hover:bg-azure/80'}`}
         disabled={pending || refusal !== null}
         title={refusal ?? undefined}
-        aria-label={`Use ${stratagem.name}`}
+        aria-label={`Use ${stratagem.name} for ${stratagem.cp} CP`}
         onClick={() => use()}
       >
         {stratagem.cp} CP

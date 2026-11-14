@@ -4,13 +4,13 @@ import { addUnit, createRoster, practiceBattle, signUp, startBattle, uniqueName 
 
 /**
  * Fails on the serious and critical WCAG A and AA violations axe finds on the page as it stands.
- * Lesser findings and rules outside those levels are judged by eye, as before.
+ * Lesser findings and rules outside those levels are judged by eye.
  */
 async function expectNoSeriousViolations(page: Page) {
   const { violations } = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa']).analyze()
   const serious = violations
     .filter(({ impact }) => impact === 'serious' || impact === 'critical')
-    .map(({ id, help, nodes }) => ({ id, help, targets: nodes.map(({ target }) => target.join(' ')) }))
+    .map(({ id, help, nodes }) => ({ id, help, nodes: nodes.map(({ html }) => html) }))
   expect(serious).toEqual([])
 }
 

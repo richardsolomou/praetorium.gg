@@ -125,14 +125,14 @@ describe('mission scorecards', () => {
     input.side.secondaryMode = 'tactical'
     input.side.remainingSecondaries = [{ key: 'beacon', name: 'Beacon' }]
     const markup = secondaryMarkup(input)
-    expect(markup).toContain('aria-label="View remaining secondary missions (1)"')
+    expect(markup).toContain('Remaining deck')
   })
 
   it('does not offer a deck reference when the view withholds it', () => {
     const input = props()
     input.side.secondaryMode = 'tactical'
     const markup = secondaryMarkup(input)
-    expect(markup).not.toContain('View remaining secondary missions')
+    expect(markup).not.toContain('Remaining deck')
   })
 
   it('highlights the current round while the battle is in progress', () => {

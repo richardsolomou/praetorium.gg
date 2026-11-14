@@ -352,7 +352,7 @@ test('Murdermind lets a Chronomancer support Destroyer Cult units', async ({ pag
   await add(page, 'Chronomancer')
   await add(page, 'Lokhust Heavy Destroyers')
   const chronomancer = page.locator('[data-unit="Chronomancer"]')
-  const attachButton = chronomancer.getByRole('button', { name: 'Attach Chronomancer to unit' })
+  const attachButton = chronomancer.getByRole('button', { name: 'Attach to unit: Chronomancer' })
   const destroyers = page.getByRole('menu').getByRole('menuitem', { name: 'Lokhust Heavy Destroyers', exact: true })
   await expectNotAttachable(chronomancer, 'Chronomancer', 'Lokhust Heavy Destroyers')
 
@@ -558,11 +558,11 @@ test('the attachment menu stays inside the unopened three-column roster', async 
   await openBuilder(page, 'Space Marines', /Gladius Task Force/)
   for (const name of ['Captain', 'Ancient', 'Intercessor Squad', 'Assault Intercessor Squad', 'Hellblaster Squad']) await add(page, name)
 
-  await page.locator('[data-unit="Captain"]').getByRole('button', { name: 'Attach Captain to unit' }).click()
+  await page.locator('[data-unit="Captain"]').getByRole('button', { name: 'Attach to unit: Captain' }).click()
   await page.getByRole('menuitem', { name: 'Intercessor Squad', exact: true }).click()
 
   const ancient = page.locator('[data-unit="Ancient"]')
-  const attachButton = ancient.getByRole('button', { name: 'Attach Ancient to unit' })
+  const attachButton = ancient.getByRole('button', { name: 'Attach to unit: Ancient' })
   await expect(attachButton).toBeVisible()
   await expectNoHorizontalOverflow(page.locator('[data-slot="roster-units"]'))
   await expectNoPageOverflow(page)

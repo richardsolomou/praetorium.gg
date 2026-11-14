@@ -281,7 +281,7 @@ test('roster simulations inherit enhancements and attached-unit context', async 
   await lord.getByRole('button', { name: 'Overlord', exact: true }).click()
   const pane = page.locator('aside[aria-label="Loadout"]')
   await waitForRosterSave(page, () => pane.getByRole('button', { name: 'Select Destroyer Ankh', exact: true }).click())
-  await lord.getByRole('button', { name: 'Attach Overlord to unit' }).click()
+  await lord.getByRole('button', { name: 'Attach to unit: Overlord' }).click()
   await waitForRosterSave(page, () => page.getByRole('menuitem', { name: 'Immortals', exact: true }).click())
   await pane.getByRole('button', { name: 'Simulate combat', exact: true }).click()
   const simulator = page.getByRole('dialog', { name: 'Combat simulator', exact: true })

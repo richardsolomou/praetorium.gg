@@ -220,7 +220,7 @@ export function GlobalSearch({ compact = false, onClick, ...props }: { compact?:
   const search = useContext(GlobalSearchContext)
   if (!search) throw new Error('GlobalSearch must be rendered inside GlobalSearchProvider.')
 
-  return (
+  const button = (
     <Button
       data-onboarding="global-search"
       variant={compact ? 'ghost' : 'outline'}
@@ -239,12 +239,17 @@ export function GlobalSearch({ compact = false, onClick, ...props }: { compact?:
     >
       <Search className="size-4" />
       {compact ? null : <span className="flex-1 text-left text-xs">Search</span>}
-      {compact ? null : (
-        <KbdGroup aria-hidden>
-          <Kbd className="h-4 min-w-4 bg-sunken px-0.5 text-3xs text-faint">{search.shortcutModifier}</Kbd>
-          <Kbd className="h-4 min-w-4 bg-sunken px-0.5 text-3xs text-faint">K</Kbd>
-        </KbdGroup>
-      )}
     </Button>
+  )
+  if (compact) return button
+  return (
+    <div className="relative">
+      {button}
+      {/* Drawn over the button rather than inside it, so the button's visible text stays within its name for speech input. */}
+      <KbdGroup aria-hidden className="pointer-events-none absolute inset-y-0 right-3">
+        <Kbd className="h-4 min-w-4 bg-sunken px-0.5 text-3xs text-faint">{search.shortcutModifier}</Kbd>
+        <Kbd className="h-4 min-w-4 bg-sunken px-0.5 text-3xs text-faint">K</Kbd>
+      </KbdGroup>
+    </div>
   )
 }

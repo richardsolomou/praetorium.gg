@@ -1326,7 +1326,7 @@ test('each application tab returns to where it was left', async ({ browser }) =>
 test('a link into another tab goes back up that tab', async ({ page }) => {
   await page.setViewportSize(PHONE)
   await page.goto('/')
-  const battle = page.getByRole('link', { name: /^Watch / }).first()
+  const battle = page.locator('article a[href^="/battles/"]').first()
   const href = (await battle.getAttribute('href'))!
   await battle.click()
   await expect(page).toHaveURL(href)

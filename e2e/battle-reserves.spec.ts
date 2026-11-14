@@ -53,7 +53,7 @@ test('a unit arriving from reserves mid-battle becomes a combat target', async (
   const panel = playerPanel(page, 0)
   const simulate = panel.getByRole('button', { name: `Simulate ${player}'s combat`, exact: true })
   await expect(simulate).toHaveCount(0)
-  await panel.getByRole('button', { name: `Open ${roster}`, exact: true }).click()
+  await panel.getByRole('button', { name: `Army: ${roster}`, exact: true }).click()
   const army = page.locator('[data-army-roster]')
   await army.getByRole('button', { name: 'Set up Immortals on the battlefield', exact: true }).click()
   await expect(army.locator('[data-unit="Immortals"]')).not.toContainText('Strategic reserves')

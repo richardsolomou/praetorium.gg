@@ -88,7 +88,7 @@ test('a full saved army prints selected equipment, both detachments and every pa
   const player = playerPanel(page, 0)
   await expect(player.locator('[data-army-models]')).toHaveText('48/48')
   await player.locator('[data-army-models]').screenshot({ path: testInfo.outputPath('recorded-full-army-count.png') })
-  await player.getByRole('button', { name: `Open ${name}`, exact: true }).click()
+  await player.getByRole('button', { name: `Army: ${name}`, exact: true }).click()
   const recordedArmy = page.locator('[data-army-roster]')
   await expect(recordedArmy.locator('[data-unit]')).toHaveCount(13)
   await page.screenshot({ path: testInfo.outputPath('recorded-full-army.png') })

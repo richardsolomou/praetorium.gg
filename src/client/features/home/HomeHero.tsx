@@ -87,7 +87,6 @@ function HeroBattle({ battle }: { battle: Battle }) {
       params={{ token: battle.token }}
       data-home-featured
       className="group relative block w-full max-w-md overflow-hidden rounded-xl border border-edge bg-panel shadow-lifted transition-colors hover:border-runner-hi hover:bg-raised"
-      aria-label={`Watch ${battle.players.join(' versus ')}`}
     >
       <span className="flex h-1" aria-hidden>
         <span className="bg-side-a" style={{ width: `${share}%` }} />

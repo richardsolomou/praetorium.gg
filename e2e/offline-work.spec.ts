@@ -206,7 +206,7 @@ test('an offline practice battle and its commands survive reopening and sync tog
   const reopened = await context.newPage()
   await reopened.goto(url)
   await expect(reopened.getByRole('heading', { name: 'movement phase' })).toBeVisible()
-  await expect(reopened.getByRole('button', { name: 'Open Flight army' }).first()).toBeVisible()
+  await expect(reopened.getByRole('button', { name: 'Army: Flight army' }).first()).toBeVisible()
   expect((await operator.battleByToken(token))!.log).toHaveLength(served)
   await context.setOffline(false)
   await reopened.evaluate(() => window.dispatchEvent(new Event('online')))

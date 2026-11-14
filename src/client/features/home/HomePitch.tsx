@@ -79,7 +79,7 @@ export function HomeIncluded() {
           Every feature is free. Save lists and play with an account. Help keep it running:{' '}
           <a
             href={SPONSOR}
-            className="text-info underline-offset-4 hover:text-parchment hover:underline"
+            className="text-info underline underline-offset-4 hover:text-parchment"
             rel="noreferrer noopener"
             target="_blank"
           >

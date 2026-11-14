@@ -169,7 +169,7 @@ function TerrainLayout({
           }
         >
           <span className="flex items-center gap-2">
-            <span className="text-lg font-bold">{label}</span>
+            <span className="text-lg font-bold">{label} </span>
             <span className="min-w-0 flex-1 truncate text-sm text-dim transition-colors group-hover:text-bone">{description}</span>
             <Maximize2 className="size-4 shrink-0 text-dim transition-colors group-hover:text-info" aria-hidden />
           </span>
