@@ -1,5 +1,14 @@
 # praetorium
 
+## 0.241.3 (2026-11-14)
+
+### Patch Changes
+
+- 3988c2b: A new battle starts with Guided tracking already selected.
+- bfa064a: Secondary mission pages have readable addresses named after the card, and older links still open them.
+- 9b8b248: Battle setup no longer scrolls past the bottom of the page.
+- ec19912: In a battle with more than one player on a side, each player keeps their own colour, and the side's score blends them.
+
 ## 0.241.2 (2026-11-14)
 
 ### Patch Changes
