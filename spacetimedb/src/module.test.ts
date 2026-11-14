@@ -13,6 +13,7 @@ import { ABILITY_REMINDERS_MAX } from '../../src/core/reminders'
 import { SEALED_EVENT_REMINDER_COOLDOWN_MS } from '../../src/core/sealedEvent'
 import { NOTICE_RETENTION_MS, NOTICES_PER_USER } from '../../src/core/notificationConfig'
 import { LEAGUE_DEADLINE_REMINDER_MS } from '../../src/core/groupLeague'
+import { ROSTER_VERSIONS_KEPT } from '../../src/core/rosterVersions'
 
 const ISSUER = 'https://praetorium.gg/api/auth'
 const AUDIENCE = 'praetorium'
@@ -3939,5 +3940,123 @@ describe('roster points notices', () => {
     marks(h, 'old', 1000)
     h.call(h.operator, (ctx) => module.deleteRoster(ctx, { id: 'owner-list', userId: 'owner' }))
     expect(h.test.db.rosterPointsMarks.rosterId.find('owner-list')).toBeNull()
+  })
+})
+
+describe('roster history', () => {
+  const HOUR = 60 * 60 * 1000
+  const save = (h: ReturnType<typeof harness>, now: number, picks: string, name = 'Strike force') =>
+    module.saveRoster(h.procedure(h.operator), {
+      payload: JSON.stringify({
+        id: 'roster',
+        userId: 'owner',
+        name,
+        automaticName: false,
+        catalogueId: 'catalogue-proof',
+        detachmentId: '[]',
+        disposition: null,
+        limit: 1_000,
+        picks,
+        prep: null,
+        tags: '[]',
+        waivedRules: '[]',
+        optionalRules: '[]',
+        borrowedDetachmentId: null,
+        baseRosterId: null,
+        visibility: 'private',
+        source: 'editable',
+        now,
+      }),
+    })
+  const history = (h: ReturnType<typeof harness>, userId = 'owner') =>
+    JSON.parse(module.rosterHistory(h.procedure(h.operator), { rosterId: 'roster', userId })) as {
+      versions: { savedAt: number; picks: string }[]
+      battles: { token: string }[]
+    } | null
+  const ONE = '[{"entryId":"unit-proof"}]'
+  const TWO = '[{"entryId":"unit-proof"},{"entryId":"unit-proof"}]'
+
+  it('keeps the list a sitting left when a later sitting changes its army', () => {
+    const h = harness()
+    save(h, NOW, ONE)
+    save(h, NOW + HOUR, TWO)
+    expect(history(h)?.versions).toMatchObject([{ savedAt: NOW, picks: ONE }])
+  })
+
+  it('measures the sitting from the last save, not from locking or sharing the list', () => {
+    const h = harness()
+    save(h, NOW, ONE)
+    module.setRosterLocked(h.procedure(h.operator), { id: 'roster', userId: 'owner', locked: true, now: BigInt(NOW + 2 * HOUR) })
+    module.setRosterLocked(h.procedure(h.operator), { id: 'roster', userId: 'owner', locked: false, now: BigInt(NOW + 2 * HOUR) })
+    save(h, NOW + 2 * HOUR + 1, TWO)
+    expect(history(h)?.versions).toMatchObject([{ savedAt: NOW, picks: ONE }])
+  })
+
+  it('keeps nothing for saves within one sitting', () => {
+    const h = harness()
+    save(h, NOW, ONE)
+    save(h, NOW + HOUR - 1, TWO)
+    expect(history(h)?.versions).toEqual([])
+  })
+
+  it('keeps nothing when a later sitting only renames the list', () => {
+    const h = harness()
+    save(h, NOW, ONE)
+    save(h, NOW + HOUR, ONE, 'Renamed')
+    expect(history(h)?.versions).toEqual([])
+  })
+
+  it('drops the oldest version past the limit', () => {
+    const h = harness()
+    for (let sitting = 0; sitting <= ROSTER_VERSIONS_KEPT + 1; sitting++) save(h, NOW + sitting * HOUR, sitting % 2 ? TWO : ONE)
+    const versions = history(h)!.versions
+    expect([versions.length, versions.at(-1)?.savedAt]).toEqual([ROSTER_VERSIONS_KEPT, NOW + HOUR])
+  })
+
+  it('tells nobody but the owner', () => {
+    const h = harness()
+    save(h, NOW, ONE)
+    expect(history(h, 'stranger')).toBeNull()
+  })
+
+  it('goes with the roster', () => {
+    const h = harness()
+    save(h, NOW, ONE)
+    save(h, NOW + HOUR, TWO)
+    h.call(h.operator, (ctx) => module.deleteRoster(ctx, { id: 'roster', userId: 'owner' }))
+    expect(h.test.db.rosterVersions.count()).toBe(0n)
+  })
+
+  it('links the battles that still field the list, not one it was swapped out of', () => {
+    const h = harness()
+    save(h, NOW, ONE)
+    const battle = (id: string, rosterIds: string[]) => {
+      module.createBattle(h.procedure(h.operator), {
+        payload: JSON.stringify({
+          id,
+          token: `${id}-token`,
+          userId: 'owner',
+          allyIds: [],
+          opponentIds: ['opponent'],
+          guestNames: [],
+          initialCommands: [],
+          now: NOW,
+        }),
+      })
+      h.call(TestAuth.internal(), (ctx) => {
+        for (const [index, rosterId] of rosterIds.entries())
+          ctx.db.commands.insert({
+            key: JSON.stringify([id, index + 1]),
+            battleId: id,
+            seq: index + 1,
+            userId: 'owner',
+            at: BigInt(NOW),
+            body: JSON.stringify({ kind: 'attach-roster', roster: { name: 'Strike force', text: 'list', id: rosterId } }),
+          })
+      })
+    }
+    battle('fielded', ['roster'])
+    battle('swapped', ['roster', 'other'])
+    expect(history(h)?.battles.map((entry) => entry.token)).toEqual(['fielded-token'])
   })
 })

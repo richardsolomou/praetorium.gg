@@ -44,6 +44,7 @@ import { DueSealedEventRosters } from './DueSealedEventRosters'
 import { type RosterDraft, rosterSetupOf } from './rosterDraft'
 import { RosterBuilderFooter } from './RosterBuilderFooter'
 import { type RosterVariant, RosterVariantMenu } from './RosterVariantMenu'
+import { RosterHistoryDialog } from './RosterHistoryDialog'
 import type { NamedRosterDifferences } from '../../../core/rosterDifferences'
 import { type CatalogueEdition, rulesVersionDetails, rulesVersionLabel } from '../../../core/catalogueEdition'
 import { reportDataProblem } from '../feedback/support'
@@ -197,6 +198,7 @@ export function ListBuilder({
   const [compareTargets, setCompareTargets] = useState(false)
   const [reference, setReference] = useState<{ entryId: string; route: Datasheet['referenceRoute'] | undefined } | null>(null)
   const [lending, setLending] = useState(false)
+  const [viewingHistory, setViewingHistory] = useState(false)
   const [grading, setGrading] = useState(false)
   const startBattle = useNewBattle()
   const firstBattle = useFirstBattle()
@@ -681,18 +683,13 @@ export function ListBuilder({
     firstBattle && startBattleButton && (editable ? savedId : locked) && !frozen && priced && !illegal && !over ? (
       <p className="text-xs whitespace-nowrap text-dim max-2xl:hidden">{TRACKER_HINT}</p>
     ) : null
+  const variantSetup = {
+    factionName: faction?.displayName,
+    detachmentName: (id: string) => faction?.detachments.find((entry) => entry.id === id)?.name,
+    disposition: variantDisposition ? { id: variantDisposition.id, name: variantDisposition.name } : null,
+  }
   const variantMenu = savedId ? (
-    <RosterVariantMenu
-      current={savedId}
-      variants={variants}
-      differences={differences}
-      setup={{
-        factionName: faction?.displayName,
-        detachmentName: (id) => faction?.detachments.find((entry) => entry.id === id)?.name,
-        disposition: variantDisposition ? { id: variantDisposition.id, name: variantDisposition.name } : null,
-      }}
-      disabled={saving}
-    />
+    <RosterVariantMenu current={savedId} variants={variants} differences={differences} setup={variantSetup} disabled={saving} />
   ) : null
 
   const openCombat = (pickIndex: number, compare: boolean) => {
@@ -776,6 +773,7 @@ export function ListBuilder({
             onSetup={openSetup}
             onShare={() => setSharing(true)}
             onLend={() => setLending(true)}
+            onHistory={() => setViewingHistory(true)}
             onGrade={() => setGrading(true)}
             onDelete={() => setDeleting(true)}
             onTestTargets={() => openCombat(0, true)}
@@ -979,6 +977,16 @@ export function ListBuilder({
       {savedId && (editable || locked) && !guest ? (
         <>
           <RosterLoanDialog rosterId={savedId} open={lending} onClose={() => setLending(false)} />
+          {ownsSaved && me ? (
+            <RosterHistoryDialog
+              rosterId={savedId}
+              ownerId={me.id}
+              setup={variantSetup}
+              now={{ points, budget }}
+              open={viewingHistory}
+              onClose={() => setViewingHistory(false)}
+            />
+          ) : null}
         </>
       ) : null}
       {ownsSaved ? (

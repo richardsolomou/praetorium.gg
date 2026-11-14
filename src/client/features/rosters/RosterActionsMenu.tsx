@@ -9,6 +9,7 @@ import {
   GitBranchPlus,
   Group,
   HandHelping,
+  History,
   Lock,
   LockOpen,
   Pencil,
@@ -61,6 +62,7 @@ export function RosterActionsMenu({
   onSetup,
   onShare,
   onLend,
+  onHistory,
   onGrade,
   onDelete,
   onTestTargets,
@@ -92,6 +94,7 @@ export function RosterActionsMenu({
   onSetup: () => void
   onShare: () => void
   onLend: () => void
+  onHistory: () => void
   onGrade: () => void
   onDelete: () => void
   onTestTargets: () => void
@@ -109,6 +112,12 @@ export function RosterActionsMenu({
       {ownsSaved || guest ? <VisibilityTag visibility={visibility} /> : null}
     </DropdownMenuItem>
   )
+  const historyItem =
+    savedId && ownsSaved && !guest ? (
+      <DropdownMenuItem onClick={onHistory}>
+        <History /> History
+      </DropdownMenuItem>
+    ) : null
   const exportItem = (
     <DropdownMenuItem disabled={take.isPending || !hasUnits} onClick={() => take.mutate()}>
       <Download /> Export text
@@ -186,6 +195,7 @@ export function RosterActionsMenu({
             <DropdownMenuItem onClick={onSetup}>
               <Pencil /> Edit roster setup
             </DropdownMenuItem>
+            {historyItem}
             {savedId && !guest ? (
               <DropdownMenuItem disabled={saving || lockRoster.isPending} onClick={() => lockRoster.mutate(true)}>
                 <Lock /> Lock roster
@@ -289,6 +299,7 @@ export function RosterActionsMenu({
               <DropdownMenuItem disabled={lockRoster.isPending} onClick={() => lockRoster.mutate(false)}>
                 <LockOpen /> Unlock roster
               </DropdownMenuItem>
+              {historyItem}
             </MenuSection>
           ) : null}
           <MenuSection label="Share">

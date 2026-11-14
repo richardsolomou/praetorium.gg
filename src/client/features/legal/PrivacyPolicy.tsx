@@ -3,7 +3,7 @@ import { LegalLinks, LegalPage, LegalSection, PrivacyEmail } from './LegalPage'
 
 export function PrivacyPolicy() {
   return (
-    <LegalPage title="Privacy policy" updated="13 November 2026">
+    <LegalPage title="Privacy policy" updated="14 November 2026">
       <LegalSection title="Scope">
         <p>
           Praetorium builds Warhammer 40,000 army lists and tracks battles between the players seated at them. This policy covers the
@@ -24,13 +24,13 @@ export function PrivacyPolicy() {
         </p>
         <h3 className="text-sm tracking-label text-bone">Your content</h3>
         <p>
-          Saved rosters — their name, tags, detachment and unit picks — battle records, including the players, armies, setup choices, scores
-          and actions recorded during a game, friendships, the friends you lend a roster to, datasheets in your collection with their owned,
-          built and painted model counts and photos, your wishlist, favourites, the combat simulator matchups you last ran, practice
-          opponents you seat, the names of guest opponents in battles from before every seat needed an account, the finished public
-          BattleBase games you import, with their armies and your opponents' BattleBase names, and the BattleBase account you link. A linked
-          account puts you in your seat in any game imported with you in it, whoever imports it. An imported game is a battle like any
-          other: public, and in records and standings.
+          Saved rosters — their name, tags, detachment and unit picks, and earlier versions of them kept for you alone — battle records,
+          including the players, armies, setup choices, scores and actions recorded during a game, friendships, the friends you lend a
+          roster to, datasheets in your collection with their owned, built and painted model counts and photos, your wishlist, favourites,
+          the combat simulator matchups you last ran, practice opponents you seat, the names of guest opponents in battles from before every
+          seat needed an account, the finished public BattleBase games you import, with their armies and your opponents' BattleBase names,
+          and the BattleBase account you link. A linked account puts you in your seat in any game imported with you in it, whoever imports
+          it. An imported game is a battle like any other: public, and in records and standings.
         </p>
         <h3 className="text-sm tracking-label text-bone">Technical data</h3>
         <p>

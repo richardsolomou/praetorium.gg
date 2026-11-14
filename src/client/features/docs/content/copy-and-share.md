@@ -18,7 +18,9 @@ The **Build**/**View** switch in the header hides editing controls for reading a
 
 **Lend to a friend** lets a friend view the list, field it in their battles and seal it for a tournament or hidden-list game, without editing it. Your notes stay yours, and they can **Return it** at any time.
 
-**Archive** hides a list. **Delete** removes it for good. Copies in battles and tournaments are kept either way.
+**History** shows the list as you left it each time you came back and changed it, newest first, with what changed since then. Edits in one sitting count as one, and only the last 20 are kept. Each earlier version is priced with today's points for its rules version, next to the total now. The battles it was fielded in and the events it was sealed for are listed between them, with the points they were played or sealed at; open one to see that copy. History is only ever shown to you.
+
+**Archive** hides a list. **Delete** removes it and its history for good. Copies in battles and tournaments are kept either way.
 
 Locking, **Make its own roster** and changing several lists at once all need a connection.
 

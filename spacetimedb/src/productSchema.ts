@@ -243,6 +243,8 @@ const rosters = table(
     pointsBudget: t.option(t.u32()).default(undefined),
     copiedFromRosterId: t.option(t.string()).default(undefined),
     archived: t.option(t.bool()).default(undefined),
+    /** When a save last wrote the list, which sharing, locking, archiving and splitting leave alone; absent before history was kept. */
+    editedAt: t.option(t.u64()).default(undefined),
   },
 )
 
@@ -267,6 +269,30 @@ const rosterPointsRevisions = table(
   {
     revision: t.string().primaryKey(),
     order: t.u32(),
+  },
+)
+
+/**
+ * A list as a sitting left it, kept when a later sitting changed its army; `savedAt` is when that sitting last saved it.
+ * Private to its owner, and deleted with the roster.
+ */
+const rosterVersions = table(
+  { name: 'roster_versions' },
+  {
+    key: t.string().primaryKey(),
+    rosterId: t.string().index('btree'),
+    userId: t.string().index('btree'),
+    savedAt: t.u64(),
+    name: t.string(),
+    catalogueId: t.string(),
+    detachmentId: t.option(t.string()),
+    disposition: t.option(t.string()),
+    limit: t.u32(),
+    pointsBudget: t.option(t.u32()),
+    picks: t.string(),
+    waivedRules: t.string(),
+    optionalRules: t.string(),
+    borrowedDetachmentId: t.option(t.string()),
   },
 )
 
@@ -932,6 +958,7 @@ export const productTables = {
   commands,
   rosters,
   rosterLoans,
+  rosterVersions,
   rosterPointsMarks,
   rosterPointsRevisions,
   sealedEvents,

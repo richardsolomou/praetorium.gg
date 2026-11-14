@@ -134,6 +134,10 @@ export function withRosters<B extends RepositoryBase>(Base: B) {
       return this.product.rosterLoansByRoster(...args)
     }
 
+    rosterHistory(...args: Parameters<SpacetimeOperator['rosterHistory']>) {
+      return this.product.rosterHistory(...args)
+    }
+
     usableRoster(...args: Parameters<SpacetimeOperator['usableRoster']>) {
       return this.product.usableRoster(...args)
     }

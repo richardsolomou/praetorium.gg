@@ -2,10 +2,10 @@ import { type NamedRosterDifferences, type RosterUnitChange, rosterDifferences }
 import { byId } from '../core/collections'
 import { app } from './app'
 
-type Compared = Parameters<typeof rosterDifferences>[0] & { id: string; name: string; baseRosterId: string | null }
+type Compared = Parameters<typeof rosterDifferences>[0] & { id: string; name: string }
 
 /** How each variant differs from its group's base, with datasheets named from the current data. */
-export async function variantDifferences(userId: string, rosters: readonly Compared[]) {
+export async function variantDifferences(userId: string, rosters: readonly (Compared & { baseRosterId: string | null })[]) {
   const variants = rosters.filter((roster) => roster.baseRosterId)
   if (!variants.length) return new Map<string, NamedRosterDifferences>()
   const known = byId(rosters)
@@ -14,12 +14,13 @@ export async function variantDifferences(userId: string, rosters: readonly Compa
   const differences = new Map<string, NamedRosterDifferences>()
   for (const variant of variants) {
     const base = known.get(variant.baseRosterId!)
-    if (base) differences.set(variant.id, await named(base, variant))
+    if (base) differences.set(variant.id, await namedDifferences(base, variant))
   }
   return differences
 }
 
-async function named(base: Compared, variant: Compared): Promise<NamedRosterDifferences> {
+/** How `variant` differs from `base`, with datasheets named from the current data. */
+export async function namedDifferences(base: Compared, variant: Compared): Promise<NamedRosterDifferences> {
   const { added, removed, ...rest } = rosterDifferences(base, variant)
   const [before, after] = await Promise.all([app().catalogueFor(base.catalogueId), app().catalogueFor(variant.catalogueId)])
   const name = (loaded: typeof before) => (unit: RosterUnitChange) => ({

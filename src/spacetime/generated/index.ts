@@ -165,6 +165,7 @@ import * as ReplaceRosterPointsMarksProcedure from './replace_roster_points_mark
 import * as RequestFriendProcedure from './request_friend_procedure'
 import * as RosterByIdProcedure from './roster_by_id_procedure'
 import * as RosterGroupByUserProcedure from './roster_group_by_user_procedure'
+import * as RosterHistoryProcedure from './roster_history_procedure'
 import * as RosterLoansByRosterProcedure from './roster_loans_by_roster_procedure'
 import * as RosterSummariesByUserProcedure from './roster_summaries_by_user_procedure'
 import * as RostersByIdsProcedure from './rosters_by_ids_procedure'
@@ -410,6 +411,7 @@ const proceduresSchema = __procedures(
   __procedureSchema('request_friend', RequestFriendProcedure.params, RequestFriendProcedure.returnType),
   __procedureSchema('roster_by_id', RosterByIdProcedure.params, RosterByIdProcedure.returnType),
   __procedureSchema('roster_group_by_user', RosterGroupByUserProcedure.params, RosterGroupByUserProcedure.returnType),
+  __procedureSchema('roster_history', RosterHistoryProcedure.params, RosterHistoryProcedure.returnType),
   __procedureSchema('roster_loans_by_roster', RosterLoansByRosterProcedure.params, RosterLoansByRosterProcedure.returnType),
   __procedureSchema('roster_summaries_by_user', RosterSummariesByUserProcedure.params, RosterSummariesByUserProcedure.returnType),
   __procedureSchema('rosters_by_ids', RostersByIdsProcedure.params, RostersByIdsProcedure.returnType),

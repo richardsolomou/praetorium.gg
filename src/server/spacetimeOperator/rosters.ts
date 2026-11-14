@@ -37,6 +37,39 @@ const rosterRow = z.object({
   updatedAt: z.number().int(),
 })
 
+const rosterHistoryRead = z
+  .object({
+    versions: z.array(
+      z.object({
+        savedAt: z.number().int(),
+        name: z.string(),
+        catalogueId: z.string(),
+        detachmentId: z.string().nullable(),
+        disposition: z.string().nullable(),
+        limit: z.number().int(),
+        pointsBudget: z.number().int().nullable(),
+        picks: z.string(),
+        waivedRules: z.string(),
+        optionalRules: z.string(),
+        borrowedDetachmentId: z.string().nullable(),
+      }),
+    ),
+    battles: z.array(
+      z.object({ token: z.string(), createdAt: z.number().int(), status: z.string(), name: z.string(), points: z.number().nullable() }),
+    ),
+    events: z.array(
+      z.object({
+        token: z.string(),
+        eventToken: z.string(),
+        group: z.object({ token: z.string() }).nullable(),
+        title: z.string(),
+        sealedAt: z.number().int().nullable(),
+        points: z.number().nullable(),
+      }),
+    ),
+  })
+  .nullable()
+
 const rosterPointsMark = z.object({
   rosterId: z.string(),
   userId: z.string(),
@@ -220,6 +253,10 @@ export function withRosters<B extends SpacetimeBase>(Base: B) {
         [rosterId, ownerId],
         z.array(z.object({ borrowerId: z.string(), lentAt: z.number().int() })),
       )
+    }
+
+    async rosterHistory(rosterId: string, userId: string) {
+      return this.read('roster_history', [rosterId, userId], rosterHistoryRead)
     }
 
     async usableRoster(id: string, userId: string) {

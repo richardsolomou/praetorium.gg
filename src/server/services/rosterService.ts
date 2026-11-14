@@ -257,6 +257,19 @@ export class RosterService {
     return lender ? { roster: readerRosterFromRow(usable.roster), lentBy: lender } : null
   }
 
+  /**
+   * An owned roster's kept versions, read as saved rosters so the one pricing and legality authority reads them too, and
+   * the copies its battles and sealed events froze. Null for a roster this player does not own.
+   */
+  async rosterHistory(userId: string, rosterId: string) {
+    const [history, current] = await Promise.all([this.repository.rosterHistory(rosterId, userId), this.repository.roster(rosterId)])
+    if (!history || !current) return null
+    const versions = history.versions.map(({ savedAt, ...version }) =>
+      rosterFromRow({ ...current, ...version, automaticName: false, prep: null, createdAt: savedAt, updatedAt: savedAt }),
+    )
+    return { current: rosterFromRow(current), versions, battles: history.battles, events: history.events }
+  }
+
   /** The friend lending this reader a roster they do not own. */
   private async lender(id: string, userId: string) {
     const lentBy = (await this.repository.usableRoster(id, userId))?.lentBy

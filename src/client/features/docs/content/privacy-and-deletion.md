@@ -8,6 +8,8 @@ Battles are public. Anyone can find and watch your past and live battles, tourna
 
 Each roster has its own access: **Private**, **Unlisted** (anyone with the link) or **Public** (listed on your profile and for anyone to find). New rosters start **Public** unless you change **Roster visibility** under **Roster defaults**. Anyone can copy a public roster into their own rosters.
 
+A roster's history of earlier versions is only shown to you, whatever its access, and goes when you delete the roster.
+
 Making a roster private again stops its link working. Copies of it already played in battles or sealed in a tournament stay as they were.
 
 ## Collection
@@ -27,7 +29,7 @@ The [privacy policy](/privacy) lists what Praetorium stores and who it's shared 
 Deletion can't be undone. It removes:
 
 - your profile and sign-in methods
-- rosters and saved loadouts
+- rosters with their history, and saved loadouts
 - ability alerts
 - your collection, with its photos and wishlist
 - favourites

@@ -30,7 +30,7 @@ import { againstFamilies, discoveryCounts, discoveryScope, inDiscoveryScope, typ
 import { detachmentIds } from '../../core/savedRoster'
 import { rosterFaction } from '../../shared/rosterFaction'
 import { matchesPlayedArmy, playedArmyFilterActive, type PlayedArmy } from '../../core/playedArmies'
-import { variantDifferences } from '../rosterDifferences'
+import { namedDifferences, variantDifferences } from '../rosterDifferences'
 import { saveOwnedRoster } from '../saveOwnedRoster'
 import { rosterActions } from '../rosterActions'
 import { copiedArmy } from '../../core/rosterCopies'
@@ -38,7 +38,7 @@ import { currentCatalogueFamilyId, currentEntryId, currentRosterIds } from '../.
 import { byId, groupBy, chunks } from '../../core/collections'
 import type { RosterPick } from '../../core/roster'
 import { wishlistSuggestions as suggestFromRosters } from '../../core/wishlistSuggestions'
-import { ROSTER_NAME_MAX_LENGTH } from '../../core/battle'
+import { pointsBudgetOf, ROSTER_NAME_MAX_LENGTH } from '../../core/battle'
 import { rosterChangeWithoutPricing, rosterStatus, rosterVerdict } from '../rosterStatus'
 import {
   copyRosterSchema,
@@ -590,6 +590,37 @@ export const rosterLoans = createServerFn({ method: 'GET' })
     rpc(async () => {
       const userId = await requireUserId()
       return app().service.rosterService.rosterLoans(userId, data.id)
+    }),
+  )
+
+/**
+ * An owned roster's earlier versions, newest first, each priced and checked by today's data for the rules version it
+ * was saved under and compared with the list as it stands, and the copies its battles and sealed events froze.
+ */
+export const rosterHistory = createServerFn({ method: 'GET' })
+  .validator(rosterIdSchema)
+  .handler(({ data }) =>
+    rpc(async () => {
+      const userId = await requireUserId()
+      const history = await app().service.rosterService.rosterHistory(userId, data.id)
+      if (!history) throw new Response('you do not own this roster', { status: 403 })
+      const { current, versions } = history
+      const [totals, verdicts] = await Promise.all([cachedRosterTotalsFor(versions), cachedRosterVerdictsFor(versions)])
+      return {
+        name: current.name,
+        versions: await Promise.all(
+          versions.map(async (version, index) => ({
+            savedAt: version.updatedAt,
+            name: version.name,
+            points: totals[index]?.points ?? null,
+            budget: pointsBudgetOf(version),
+            problem: verdicts[index]!.problem,
+            changes: await namedDifferences(version, current),
+          })),
+        ),
+        battles: history.battles,
+        events: history.events,
+      }
     }),
   )
 

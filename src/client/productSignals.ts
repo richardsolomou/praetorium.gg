@@ -14,6 +14,7 @@ const queryFamilies = {
     'saved-roster-page',
     'saved-roster-changed-ids',
     'roster-changes',
+    'roster-history',
     'saved-roster-loadout-datasheets',
     'player-rosters',
     'player-profile',

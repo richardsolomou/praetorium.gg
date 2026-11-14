@@ -3,6 +3,7 @@ import { SenderError, schema, table, t, type InferSchema, type ProcedureCtx, typ
 import { detachmentIds, ROSTER_SOURCES, ROSTER_VISIBILITIES } from '../../src/core/savedRoster'
 import { migrateStoredRoster } from '../../src/core/savedRosterMigrations'
 import { lockedRosterRefusal, storedRosterContent } from '../../src/core/rosterLock'
+import { keepsRosterVersion, ROSTER_VERSIONS_KEPT } from '../../src/core/rosterVersions'
 import { listUnitCount } from '../../src/core/attachedUnits'
 import { ROSTER_BATCH_ACTIONS, ROSTER_BATCH_CHANGES, ROSTER_BATCH_MAX, ROSTER_LIBRARY_BATCH_SIZE } from '../../src/core/rosterLibrary'
 import { orderVariantGroup } from '../../src/core/rosterVariants'
@@ -863,6 +864,7 @@ export const deleteUserData = spacetime.reducer({ userId: t.string() }, (ctx, { 
   if (feed) ctx.db.calendarFeeds.token.delete(feed.token)
   for (const row of Array.from(ctx.db.webPushSubscriptions.userId.filter(userId))) ctx.db.webPushSubscriptions.endpoint.delete(row.endpoint)
   for (const row of Array.from(ctx.db.rosterPointsMarks.userId.filter(userId))) ctx.db.rosterPointsMarks.rosterId.delete(row.rosterId)
+  for (const row of Array.from(ctx.db.rosterVersions.userId.filter(userId))) ctx.db.rosterVersions.key.delete(row.key)
   for (const row of Array.from(ctx.db.friendships.requesterId.filter(userId))) {
     touchFriends(ctx, row.requesterId, row.addresseeId)
     ctx.db.friendships.key.delete(row.key)
@@ -2706,6 +2708,7 @@ function nextVersion(current: StoredRoster | null, now: bigint) {
 function deleteRosterRow(ctx: Context, roster: StoredRoster) {
   endLoans(ctx, roster.id)
   ctx.db.rosterPointsMarks.rosterId.delete(roster.id)
+  for (const row of Array.from(ctx.db.rosterVersions.rosterId.filter(roster.id))) ctx.db.rosterVersions.key.delete(row.key)
   ctx.db.rosters.id.delete(roster.id)
   touchProduct(ctx, roster.userId, 'rosters', 'onboarding')
   if (roster.visibility !== 'private') touchPublic(ctx, 'rosters')
@@ -2754,6 +2757,34 @@ function variantGroupOf(tx: Context, userId: string, baseRosterId: string) {
   return Array.from(tx.db.rosters.userId.filter(userId)).some((row) => row.baseRosterId === baseRosterId) ? baseRosterId : null
 }
 
+/** Keeps the stored list as a version when this save starts a new sitting that changes its army, dropping the oldest past the limit. */
+function keepRosterVersion(tx: Context, current: StoredRoster, input: ReturnType<typeof parseRoster>, now: bigint) {
+  const stored = migrateStoredRoster(current)
+  const next = storedRosterContent({ ...input, pointsBudget: savedPointsBudget(current, input) })
+  const editedAt = current.editedAt ?? current.updatedAt
+  if (!keepsRosterVersion(storedRosterContent(stored), safeNumber(editedAt), next, safeNumber(now))) return
+  const key = JSON.stringify([current.id, safeNumber(current.updatedAt)])
+  if (tx.db.rosterVersions.key.find(key)) return
+  tx.db.rosterVersions.insert({
+    key,
+    rosterId: current.id,
+    userId: current.userId,
+    savedAt: editedAt,
+    name: stored.name,
+    catalogueId: stored.catalogueId,
+    detachmentId: stored.detachmentId,
+    disposition: stored.disposition,
+    limit: stored.limit,
+    pointsBudget: stored.pointsBudget,
+    picks: stored.picks,
+    waivedRules: stored.waivedRules,
+    optionalRules: stored.optionalRules,
+    borrowedDetachmentId: stored.borrowedDetachmentId,
+  })
+  const kept = Array.from(tx.db.rosterVersions.rosterId.filter(current.id)).sort((left, right) => (left.savedAt < right.savedAt ? 1 : -1))
+  for (const row of kept.slice(ROSTER_VERSIONS_KEPT)) tx.db.rosterVersions.key.delete(row.key)
+}
+
 function saveRosterIn(tx: Context, input: ReturnType<typeof parseRoster>) {
   const current = tx.db.rosters.id.find(input.id)
   if (current?.userId !== undefined && current.userId !== input.userId) return 'forbidden'
@@ -2776,8 +2807,10 @@ function saveRosterIn(tx: Context, input: ReturnType<typeof parseRoster>) {
     visibility: input.visibility,
     source: input.source,
     updatedAt: nextVersion(current, now),
+    editedAt: nextVersion(current, now),
   }
   if (current) {
+    keepRosterVersion(tx, current, input, now)
     tx.db.rosters.id.update({ ...current, ...fields })
     touchProduct(tx, input.userId, 'rosters', 'onboarding')
     touchBorrowers(tx, input.id)
@@ -2992,6 +3025,68 @@ export const rosterLoansByRoster = spacetime.procedure({ rosterId: t.string(), o
         .filter((loan) => activeLoan(tx, loan.rosterId, loan.borrowerId))
         .map((loan) => ({ borrowerId: loan.borrowerId, lentAt: safeNumber(loan.lentAt) })),
     )
+  }),
+)
+
+/** The list a player's seat holds in a battle, read from its last attach or detach without folding the log. */
+function fieldedBy(tx: Context, battleId: string, userId: string) {
+  let last: { seq: number; roster: Roster | null } | null = null
+  for (const row of tx.db.commands.battleId.filter(battleId)) {
+    if (!row.body.includes('-roster"') || (last && last.seq > row.seq)) continue
+    const command = JSON.parse(row.body) as Command
+    if (command.kind !== 'attach-roster' && command.kind !== 'detach-roster') continue
+    if ((command.playerId ?? row.userId) !== userId) continue
+    last = { seq: row.seq, roster: command.kind === 'attach-roster' ? command.roster : null }
+  }
+  return last?.roster ?? null
+}
+
+/**
+ * An owned roster's kept versions, newest first, and the copies battles and sealed events froze of it. A battle counts
+ * once the list is still the owner's army in it, so a list swapped out during setup is not listed.
+ */
+export const rosterHistory = spacetime.procedure({ rosterId: t.string(), userId: t.string() }, t.string(), (ctx, { rosterId, userId }) =>
+  operatorTx(ctx, (tx) => {
+    if (!validId(rosterId) || !validId(userId)) throw new SenderError('Invalid roster lookup')
+    if (!ownedRoster(tx, rosterId, userId)) return productJson(null)
+    const versions = Array.from(tx.db.rosterVersions.rosterId.filter(rosterId))
+      .sort((left, right) => (left.savedAt < right.savedAt ? 1 : -1))
+      .map(({ key: _key, rosterId: _roster, userId: _user, ...version }) => version)
+    const quoted = JSON.stringify(rosterId)
+    const candidates = new Set<string>()
+    for (const command of tx.db.commands.userId.filter(userId)) {
+      if (command.body.includes('"attach-roster"') && command.body.includes(quoted)) candidates.add(command.battleId)
+    }
+    const battles = []
+    for (const battleId of candidates) {
+      const battle = tx.db.battles.id.find(battleId)
+      const fielded = battle && fieldedBy(tx, battleId, userId)
+      if (fielded?.id !== rosterId) continue
+      battles.push({
+        token: battle!.token,
+        createdAt: safeNumber(battle!.createdAt),
+        status: finishedAt(tx, battleId) !== null ? 'finished' : hasBegun(tx, battleId) ? 'playing' : 'setup',
+        name: fielded.name,
+        points: fielded.built ? pointsSpent(fielded.built) : null,
+      })
+    }
+    const events = []
+    for (const entry of tx.db.sealedEventEntries.userId.filter(userId)) {
+      if (entry.rosterId !== rosterId || entry.status !== 'accepted' || entry.rosterSnapshot === undefined) continue
+      const event = tx.db.sealedEvents.id.find(entry.eventId)
+      const host = event && hostOfEvent(tx, event)
+      const sealed = rosterSnapshotOrNull(entry.rosterSnapshot)
+      if (!host || !sealed) continue
+      events.push({
+        token: hostToken(host),
+        eventToken: host.event.token,
+        group: host.kind === 'group' ? { token: host.group.token } : null,
+        title: eventTitle(host),
+        sealedAt: entry.submittedAt === undefined ? null : safeNumber(entry.submittedAt),
+        points: sealed.built ? pointsSpent(sealed.built) : null,
+      })
+    }
+    return productJson({ versions, battles: battles.sort((left, right) => right.createdAt - left.createdAt), events })
   }),
 )
 

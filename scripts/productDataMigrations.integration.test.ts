@@ -21,7 +21,7 @@ export const seedMigrationFixture = spacetime.reducer({ broken: t.bool() }, (ctx
     userId: 'migration-owner', name: '', catalogueId: 'catalogue', disposition: undefined,
     detachmentId: 'first', limit: 2000, tags: '[]', waivedRules: '[]', optionalRules: '[]',
     borrowedDetachmentId: undefined, visibility: 'private', source: 'editable', createdAt: 1n, updatedAt: 2n,
-    automaticName: undefined, locked: undefined, baseRosterId: undefined, copiedFromRosterId: undefined, pointsBudget: undefined, archived: undefined,
+    automaticName: undefined, locked: undefined, baseRosterId: undefined, copiedFromRosterId: undefined, pointsBudget: undefined, archived: undefined, editedAt: undefined,
     picks: '[{"entryId":"unit","nickname":"Leader","note":"Hold home"}]',
     prep: '{"stratagems":[],"secondaries":[],"shareNotes":true,"remindersEnabled":false}',
   }

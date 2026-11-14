@@ -547,6 +547,24 @@ export const RosterSync = __t.object('RosterSync', {
 })
 export type RosterSync = __Infer<typeof RosterSync>
 
+export const RosterVersions = __t.object('RosterVersions', {
+  key: __t.string(),
+  rosterId: __t.string(),
+  userId: __t.string(),
+  savedAt: __t.u64(),
+  name: __t.string(),
+  catalogueId: __t.string(),
+  detachmentId: __t.option(__t.string()),
+  disposition: __t.option(__t.string()),
+  limit: __t.u32(),
+  pointsBudget: __t.option(__t.u32()),
+  picks: __t.string(),
+  waivedRules: __t.string(),
+  optionalRules: __t.string(),
+  borrowedDetachmentId: __t.option(__t.string()),
+})
+export type RosterVersions = __Infer<typeof RosterVersions>
+
 export const Rosters = __t.object('Rosters', {
   id: __t.string(),
   userId: __t.string(),
@@ -571,6 +589,7 @@ export const Rosters = __t.object('Rosters', {
   pointsBudget: __t.option(__t.u32()),
   copiedFromRosterId: __t.option(__t.string()),
   archived: __t.option(__t.bool()),
+  editedAt: __t.option(__t.u64()),
 })
 export type Rosters = __Infer<typeof Rosters>
 

@@ -435,6 +435,7 @@ async function readBack(repository: SpacetimeRepository, product: SpacetimeOpera
     for (const roster of rosters) {
       await repository.rosterGroupByUser(userId, roster.baseRosterId ?? roster.id)
       await repository.rosterLoansByRoster(roster.id, userId)
+      await repository.rosterHistory(roster.id, userId)
       await repository.usableRoster(roster.id, userId)
       await repository.outdatedSealedEventEntriesForRoster(userId, roster.id)
     }

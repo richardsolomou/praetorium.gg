@@ -31,6 +31,7 @@ import {
   unitBattleDetails,
   rosterAccess,
   rosterBootstrap,
+  rosterHistory,
   rosterLoans,
   rostersLentToMe,
   savedRosterLoadoutDatasheets,
@@ -404,6 +405,10 @@ export const rosterLoansQuery = (id: string) =>
     queryFn: ({ signal }) => rosterLoans({ data: { id }, signal }),
     staleTime: SSR_STALE_TIME,
   })
+
+/** An owned roster's earlier versions and the copies battles and sealed events froze of it. */
+export const rosterHistoryQuery = (id: string) =>
+  queryOptions({ queryKey: ['roster-history', id], queryFn: ({ signal }) => rosterHistory({ data: { id }, signal }) })
 
 /** Rosters friends have lent the signed-in player. */
 export const rostersLentToMeQuery = () =>

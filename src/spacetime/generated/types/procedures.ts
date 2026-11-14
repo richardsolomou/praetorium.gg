@@ -97,6 +97,7 @@ import * as ReplaceRosterPointsMarksProcedure from '../replace_roster_points_mar
 import * as RequestFriendProcedure from '../request_friend_procedure'
 import * as RosterByIdProcedure from '../roster_by_id_procedure'
 import * as RosterGroupByUserProcedure from '../roster_group_by_user_procedure'
+import * as RosterHistoryProcedure from '../roster_history_procedure'
 import * as RosterLoansByRosterProcedure from '../roster_loans_by_roster_procedure'
 import * as RosterSummariesByUserProcedure from '../roster_summaries_by_user_procedure'
 import * as RostersByIdsProcedure from '../rosters_by_ids_procedure'
@@ -320,6 +321,8 @@ export type RosterByIdArgs = __Infer<typeof RosterByIdProcedure.params>
 export type RosterByIdResult = __Infer<typeof RosterByIdProcedure.returnType>
 export type RosterGroupByUserArgs = __Infer<typeof RosterGroupByUserProcedure.params>
 export type RosterGroupByUserResult = __Infer<typeof RosterGroupByUserProcedure.returnType>
+export type RosterHistoryArgs = __Infer<typeof RosterHistoryProcedure.params>
+export type RosterHistoryResult = __Infer<typeof RosterHistoryProcedure.returnType>
 export type RosterLoansByRosterArgs = __Infer<typeof RosterLoansByRosterProcedure.params>
 export type RosterLoansByRosterResult = __Infer<typeof RosterLoansByRosterProcedure.returnType>
 export type RosterSummariesByUserArgs = __Infer<typeof RosterSummariesByUserProcedure.params>
