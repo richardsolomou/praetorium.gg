@@ -451,12 +451,15 @@ export function app(): App {
       void instance.winningLists.refresh().catch((error: unknown) => {
         reportServerFailure({ event: 'winning_lists_refresh_failed', error }, 'warn')
       })
-    // After the catalogue is ready, because the first refresh also starts the first import.
-    void startup
-      .ready()
-      .then(refreshWinningLists)
-      .catch(() => undefined)
-    setInterval(refreshWinningLists, 6 * 60 * 60 * 1000).unref()
+    // Previews, browser tests and CI each start with an empty cache, so only production and local development fetch.
+    if (deploymentHost() === 'praetorium.gg' || process.env.NODE_ENV === 'development') {
+      // After the catalogue is ready, because the first refresh also starts the first import.
+      void startup
+        .ready()
+        .then(refreshWinningLists)
+        .catch(() => undefined)
+      setInterval(refreshWinningLists, 6 * 60 * 60 * 1000).unref()
+    }
     // Also at start, because deploys can arrive more often than hourly and restart the timer.
     void checkSpacetimeBackup()
     setInterval(() => void checkSpacetimeBackup(), 60 * 60 * 1000).unref()

@@ -7,6 +7,7 @@ import { rosterUseProblem } from '../core/rosterLegality'
 import { calculateRosterPrice } from '../shared/pricing'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { fetchWithRetry } from './fetch'
+import { replaceFile } from './replaceFile'
 import { importRosterInput } from './rosterImport'
 
 const SOURCE = 'https://40kstats.tabletopbattles.com'
@@ -15,6 +16,8 @@ const WINDOW_DAYS = 60
 const HEADERS = { 'user-agent': 'praetorium.gg (+https://praetorium.gg)' }
 /** An import holds the event loop for about a seventh of a second, so a pause after each keeps requests answering. */
 const PAUSE_MS = 100
+/** A first fill downloads a few hundred lists, so they are spaced out rather than requested back to back. */
+const FETCH_PAUSE_MS = 250
 
 const LIST_ID = /^[0-9a-f]{32}$/
 const events = z.array(
@@ -58,6 +61,9 @@ export type WinningList = NonNullable<Verdict> & {
   event: { name: string; url: string | null; date: string; rounds: number | null; players: number | null }
 }
 
+/** Deploys start the new server before stopping the old one on the same volume, so a file is never left half-written. */
+const writeWhole = (file: string, text: string) => replaceFile(file, (temporary) => fs.writeFile(temporary, text))
+
 const listFile = (directory: string, id: string) => path.join(directory, 'lists', `${id}.txt`)
 const eventsFile = (directory: string) => path.join(directory, 'events.json')
 const verdictsFile = (directory: string) => path.join(directory, 'verdicts.json')
@@ -76,9 +82,13 @@ export async function refreshWinningLists(directory: string, now = Date.now()) {
   for (const { list } of recent.flatMap((event) => event.players)) {
     if (await fs.stat(listFile(directory, list)).catch(() => null)) continue
     const text = await fetchWithRetry(`${SOURCE}/data/lists/${list}.json`, { headers: HEADERS })
-    if (text.ok) await fs.writeFile(listFile(directory, list), await text.text())
+    if (text.ok) {
+      const body = await text.text()
+      await writeWhole(listFile(directory, list), body)
+    }
+    await sleep(FETCH_PAUSE_MS)
   }
-  await fs.writeFile(eventsFile(directory), JSON.stringify(recent))
+  await writeWhole(eventsFile(directory), JSON.stringify(recent))
 }
 
 /** A list's import, kept only when it has nothing to review and is legal: its verdict and the units it was read as. */
@@ -149,7 +159,7 @@ async function importableLists(directory: string, revision: string, now = Date.n
   // A cache written in an older shape fails the schema and is read as empty, so every list is imported again.
   const known: Record<string, Verdict> = kept?.revision === revision ? kept.lists : {}
   const since = windowStart(now)
-  const save = () => fs.writeFile(verdictsFile(directory), JSON.stringify({ revision, lists: known }))
+  const save = () => writeWhole(verdictsFile(directory), JSON.stringify({ revision, lists: known }))
   const found: WinningList[] = []
   let imported = 0
   for (const event of cached.filter((candidate) => candidate.date >= since))
