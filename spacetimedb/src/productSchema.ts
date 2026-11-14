@@ -205,6 +205,25 @@ const calendarFeeds = table(
   },
 )
 
+/**
+ * The Discord webhook a group or tournament posts its updates to, keyed by the group's or tournament's id. The address is
+ * a secret that can post as the channel, so it leaves the module only for the server to post to.
+ */
+const eventChannels = table(
+  { name: 'event_channels' },
+  {
+    hostId: t.string().primaryKey(),
+    url: t.string(),
+    /** The webhook's name in Discord when it was saved, which is how its organizers recognise it. */
+    name: t.string(),
+    createdAt: t.u64(),
+    /** Posts that failed in a row since the last one Discord took. */
+    failures: t.u32(),
+    /** Set once Discord refused the address or too many posts failed; nothing posts until an organizer saves it again. */
+    stoppedAt: t.option(t.u64()),
+  },
+)
+
 const commands = table(
   { name: 'commands' },
   {
@@ -929,6 +948,7 @@ export const productTables = {
   friendships,
   friendInvites,
   calendarFeeds,
+  eventChannels,
   commands,
   rosters,
   rosterLoans,

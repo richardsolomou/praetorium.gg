@@ -34,6 +34,7 @@ import { pushSenderFromEnvironment } from '../adapters/push'
 import { webPushSenderFromEnvironment } from '../adapters/webPush'
 import { pushNotifier, silentNotifier, storingNotifier } from './pushNotifier'
 import { noticeRosterPointsChanges } from './rosterPointsNotices'
+import { channelNotifier, EventChannels } from './eventChannels'
 import { productionCatalogueRuntime } from './catalogueRuntime'
 import { referenceCatalogue } from './canonicalCatalogue'
 import { loadCatalogueHistory } from './catalogueHistory'
@@ -376,7 +377,11 @@ export function app(): App {
     )
     const push = pushSenderFromEnvironment((tokens) => repository.deletePushTokens(tokens))
     const webPush = webPushSenderFromEnvironment((endpoints) => repository.deleteWebPushSubscriptions(endpoints))
-    const notifier = storingNotifier(repository, push || webPush ? pushNotifier(repository, { app: push, web: webPush }) : silentNotifier)
+    const channels = new EventChannels(repository, (...args) => instance.service.sealedEventResultsService.pairedRound(...args))
+    const notifier = channelNotifier(
+      storingNotifier(repository, push || webPush ? pushNotifier(repository, { app: push, web: webPush }) : silentNotifier),
+      channels,
+    )
     const collectionPhotos = collectionPhotoStore(repository, () => privateObjects())
     const screening = process.env.TYPESAFE_API_KEY?.trim() ? photoScreening(process.env.TYPESAFE_API_KEY.trim()) : null
     const startup = readiness((untilBuilt) => warm(instance, untilBuilt))
@@ -413,7 +418,7 @@ export function app(): App {
         }
       },
       repository,
-      service: new PraetoriumService(repository, Date.now, randomInt, notifier, () => instance.battleFactionsFor()),
+      service: new PraetoriumService(repository, Date.now, randomInt, notifier, () => instance.battleFactionsFor(), channels),
       auth,
       spacetimeToken: async (headers) => (await auth.api.getToken({ headers })).token,
       email,

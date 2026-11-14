@@ -90,6 +90,22 @@ export function withGroups<B extends RepositoryBase>(Base: B) {
       return this.product.groupCommand({ op: 'league-deadline', token, actorId, round, deadline }, z.enum(['set', 'missing', 'forbidden']))
     }
 
+    setEventChannel(...args: Parameters<SpacetimeOperator['setEventChannel']>) {
+      return this.product.setEventChannel(...args)
+    }
+
+    eventChannel(...args: Parameters<SpacetimeOperator['eventChannel']>) {
+      return this.product.eventChannel(...args)
+    }
+
+    eventChannelTarget(...args: Parameters<SpacetimeOperator['eventChannelTarget']>) {
+      return this.product.eventChannelTarget(...args)
+    }
+
+    recordEventChannelDelivery(...args: Parameters<SpacetimeOperator['recordEventChannelDelivery']>) {
+      return this.product.recordEventChannelDelivery(...args)
+    }
+
     claimLeagueDeadlineReminders() {
       return this.product.claimLeagueDeadlineReminders()
     }

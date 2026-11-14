@@ -96,6 +96,7 @@ export const groupStandingsKey = (token: string) => [...groupStandingsKeys(), to
 export const groupBattlesKey = (token: string) => [...groupStandingsKey(token), 'battles']
 export const groupLeagueKey = (token: string) => ['group-league', token]
 export const battleGroupsKey = (token: string) => ['battle-groups', token]
+export const eventChannelKey = (kind: 'group' | 'tournament', token: string) => ['event-channel', kind, token]
 export const sealedEventsKey = () => ['sealed-events']
 /** Every read under the sealed event, including its results. */
 export const sealedEventReadsKey = (token: string) => ['sealed-event', token]

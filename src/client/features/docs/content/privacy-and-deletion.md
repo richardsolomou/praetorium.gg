@@ -35,7 +35,7 @@ Deletion can't be undone. It removes:
 - notifications
 - tournament entries
 - tournaments you organise
-- groups you own, for every member: the group, its leaderboard and its hidden-list games
+- groups you own, for every member: the group, its leaderboard, its hidden-list games and its Discord channel
 - every battle you played, including games other players were in
 
 It can't reach copies other players have already made: rosters they copied, and anything they downloaded or captured.

@@ -174,6 +174,12 @@ export const PRODUCT_DOCS = [
     description: 'Joining a group, playing for its table, and hidden-list games.',
   },
   {
+    slug: 'discord',
+    section: 'Groups',
+    title: 'Post updates to Discord',
+    description: 'League results and deadlines, tournament pairings and standings, posted to a Discord channel.',
+  },
+  {
     slug: 'run-a-tournament',
     section: 'Tournaments',
     title: 'Run a tournament',

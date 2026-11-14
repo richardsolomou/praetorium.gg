@@ -18,6 +18,7 @@ import {
 } from '../../src/core/notificationConfig'
 import { noticeRecipients, type NoticeSubject, noticeSubjectSchema, type StoredNotice } from '../../src/core/notifications'
 import { rosterPointsMarksSchema } from '../../src/core/rosterPointsMarks'
+import { discordWebhookSchema, EVENT_CHANNEL_FAILURES_MAX, EVENT_CHANNEL_NAME_MAX_LENGTH } from '../../src/core/eventChannel'
 import {
   customPointsBudget,
   POINTS_BUDGET_MAX,
@@ -545,6 +546,7 @@ function deleteHost(ctx: Context, host: EventHost) {
     return
   }
   for (const row of Array.from(ctx.db.tournamentAdmins.tournamentId.filter(host.tournament.id))) ctx.db.tournamentAdmins.key.delete(row.key)
+  ctx.db.eventChannels.hostId.delete(host.tournament.id)
   ctx.db.tournaments.id.delete(host.tournament.id)
 }
 
@@ -672,6 +674,7 @@ function deleteGroup(ctx: Context, group: GroupRow) {
     ctx.db.pastGroupLeagues.id.delete(past.id)
   }
   touchGroup(ctx, group.id)
+  ctx.db.eventChannels.hostId.delete(group.id)
   for (const row of Array.from(ctx.db.groupMembers.groupId.filter(group.id))) ctx.db.groupMembers.key.delete(row.key)
   for (const row of Array.from(ctx.db.groupBattles.groupId.filter(group.id))) ctx.db.groupBattles.battleId.delete(row.battleId)
   ctx.db.groups.id.delete(group.id)
@@ -2426,6 +2429,113 @@ export const calendarFeed = spacetime.procedure({ token: t.string() }, t.string(
     }
     return productJson({ leagues, tournaments })
   }),
+)
+
+/** The group or tournament an organizer names by token, with everyone who runs it. */
+function channelHost(ctx: Context, kind: string, token: string) {
+  if (token.length > MAX_ID_LENGTH) throw new SenderError('Invalid token')
+  if (kind === 'group') {
+    const group = ctx.db.groups.token.find(token)
+    if (!group) return undefined
+    const members = groupMemberRows(ctx, group)
+    const organizerIds = members.filter((member) => isGroupOrganizer(group, members, member.userId)).map((member) => member.userId)
+    return { hostId: group.id, organizerIds }
+  }
+  if (kind !== 'tournament') throw new SenderError('Invalid channel host')
+  const tournament = ctx.db.tournaments.token.find(token)
+  return tournament && { hostId: tournament.id, organizerIds: [tournament.ownerId, ...tournamentAdminIds(ctx, tournament.id)] }
+}
+
+/** Saves or, with an empty address, removes the channel a group or tournament posts to. Saving again starts a stopped one. */
+export const setEventChannel = spacetime.procedure(
+  { kind: t.string(), token: t.string(), actorId: t.string(), url: t.string(), name: t.string(), now: t.u64() },
+  t.string(),
+  (ctx, input) =>
+    operatorTx(ctx, (tx) => {
+      const host = channelHost(tx, input.kind, input.token)
+      if (!host) return productJson('missing')
+      if (!host.organizerIds.includes(input.actorId)) return productJson('forbidden')
+      if (!input.url) return productJson(tx.db.eventChannels.hostId.delete(host.hostId) ? 'removed' : 'missing')
+      if (discordWebhookSchema.safeParse(input.url).data !== input.url || input.name.length > EVENT_CHANNEL_NAME_MAX_LENGTH)
+        throw new SenderError('Invalid Discord webhook')
+      tx.db.eventChannels.hostId.delete(host.hostId)
+      tx.db.eventChannels.insert({
+        hostId: host.hostId,
+        url: input.url,
+        name: input.name,
+        createdAt: input.now,
+        failures: 0,
+        stoppedAt: undefined,
+      })
+      return productJson('set')
+    }),
+)
+
+/** What an organizer may see of their channel, never the address that posts to it. */
+export const eventChannel = spacetime.procedure({ kind: t.string(), token: t.string(), actorId: t.string() }, t.string(), (ctx, input) =>
+  operatorTx(ctx, (tx) => {
+    const host = channelHost(tx, input.kind, input.token)
+    if (!host) return productJson('missing')
+    if (!host.organizerIds.includes(input.actorId)) return productJson('forbidden')
+    const channel = tx.db.eventChannels.hostId.find(host.hostId)
+    return productJson(channel ? { name: channel.name, stopped: channel.stoppedAt !== undefined } : null)
+  }),
+)
+
+/**
+ * Where an update about a group, a sealed event or a finished battle posts, for the server to post it: a tournament's own
+ * channel, or the group's for its league and hidden-list games. Null when there is none, it has stopped, or the battle
+ * plays for neither a league fixture nor a sealed event.
+ */
+export const eventChannelTarget = spacetime.procedure(
+  { subject: t.string(), token: t.string(), eventToken: t.string() },
+  t.string(),
+  (ctx, input) =>
+    operatorTx(ctx, (tx) => {
+      if (input.token.length > MAX_ID_LENGTH || input.eventToken.length > MAX_ID_LENGTH) throw new SenderError('Invalid token')
+      const target = (() => {
+        if (input.subject === 'group') {
+          const group = tx.db.groups.token.find(input.token)
+          return group && { hostId: group.id, name: group.name, league: true }
+        }
+        if (input.subject !== 'sealed-event' && input.subject !== 'battle') throw new SenderError('Invalid channel subject')
+        // A battle plays for a sealed event or a league fixture, both of which key their battles in `event_battles`.
+        const link = input.subject === 'battle' ? tx.db.eventBattles.battleId.find(input.token) : undefined
+        const event =
+          input.subject === 'sealed-event'
+            ? namedHost(tx, input.token, input.eventToken)?.event
+            : link && tx.db.sealedEvents.id.find(link.eventId)
+        const host = event && hostOfEvent(tx, event)
+        if (host) return { hostId: host.kind === 'tournament' ? host.tournament.id : host.group.id, name: eventTitle(host), league: false }
+        const league = link && tx.db.groupLeagues.id.find(link.eventId)
+        const group = league && tx.db.groups.id.find(league.groupId)
+        return group && { hostId: group.id, name: group.name, league: true }
+      })()
+      const channel = target && tx.db.eventChannels.hostId.find(target.hostId)
+      if (!target || !channel || channel.stoppedAt !== undefined) return productJson(null)
+      return productJson({ hostId: target.hostId, url: channel.url, name: target.name, league: target.league })
+    }),
+)
+
+/**
+ * Records how a post went. Only the address it went to counts, so a late answer never touches one an organizer has since
+ * replaced; Discord refusing the address, or too many failures in a row, stops the channel.
+ */
+export const recordEventChannelDelivery = spacetime.reducer(
+  { hostId: t.string(), url: t.string(), outcome: t.string(), now: t.u64() },
+  (ctx, input) => {
+    requireOperator(ctx)
+    const channel = ctx.db.eventChannels.hostId.find(input.hostId)
+    if (!channel || channel.url !== input.url || channel.stoppedAt !== undefined) return
+    if (input.outcome === 'sent') {
+      if (channel.failures) ctx.db.eventChannels.hostId.update({ ...channel, failures: 0 })
+      return
+    }
+    if (input.outcome !== 'failed' && input.outcome !== 'refused') throw new SenderError('Invalid delivery outcome')
+    const failures = channel.failures + 1
+    const stopped = input.outcome === 'refused' || failures >= EVENT_CHANNEL_FAILURES_MAX
+    ctx.db.eventChannels.hostId.update({ ...channel, failures, stoppedAt: stopped ? input.now : undefined })
+  },
 )
 
 export const acceptFriendInvite = spacetime.procedure(

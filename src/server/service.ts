@@ -58,6 +58,7 @@ import { ProfileService } from './services/profileService'
 import { PreferencesService } from './services/preferencesService'
 import { foldHistory, mayWatch, mustFindBattle, isSeated } from './services/battleHistory'
 import { StandingsRefresh } from './standingsRefresh'
+import { type BattleFinishListener, silentBattleFinishListener } from './eventChannels'
 import type { BattleCard, BattleHistory, RepositoryPort } from './spacetimeRepository'
 
 /**
@@ -137,6 +138,7 @@ export class PraetoriumService {
     private readonly randomIndex: (limit: number) => number,
     private readonly notifier: Notifier = silentNotifier,
     battleFactions: () => Promise<readonly BattleFaction[]> = async () => [],
+    private readonly battleFinishes: BattleFinishListener = silentBattleFinishListener,
   ) {
     const standingsRefresh = new StandingsRefresh(repository, battleFactions)
     this.sealedEventService = new SealedEventService(repository, clock, notifier)
@@ -150,6 +152,7 @@ export class PraetoriumService {
       notifier,
       this.sealedEventService,
       this.battleFeedService,
+      battleFinishes,
     )
     this.groupResultsService = new GroupResultsService(repository, clock, this.groupService, this.battleFeedService)
     this.standingsService = new StandingsService(repository, clock, battleFactions, standingsRefresh, this.sealedEventResultsService)
@@ -599,12 +602,14 @@ export class PraetoriumService {
     const [, userId, , , rules] = args
     const { result, previous, history, application, listed } = await this.append(...args)
     const screen = this.seatedScreen(history, userId, rules)
+    const finish = finishing(result, previous, screen)
+    if (finish.finished) this.battleFinishes.battleFinished(history.battle.id)
     return {
       result,
       screen,
       battleId: history.battle.id,
       ...application,
-      ...finishing(result, previous, screen),
+      ...finish,
       ...(listed ? { filled: listed } : {}),
     }
   }
@@ -614,13 +619,15 @@ export class PraetoriumService {
     const [, userId, , , rules] = args
     const { result, previous, history, application, listed } = await this.append(...args)
     const screen = this.seatedScreen(history, userId, rules)
+    const finish = finishing(result, previous, screen)
+    if (finish.finished) this.battleFinishes.battleFinished(history.battle.id)
     return {
       result,
       screen,
       workspace: this.workspace(history, userId),
       battleId: history.battle.id,
       ...application,
-      ...finishing(result, previous, screen),
+      ...finish,
       ...(listed ? { filled: listed } : {}),
     }
   }
@@ -776,6 +783,12 @@ const JOIN_REFUSALS = {
   full: 'everyone has already joined this battle',
 } as const
 
+/** How an appended command finished the battle, read from the folds on either side of it rather than from its kind. */
+function finishing(result: SubmitResult, previous: BattleHistory, screen: SeatedScreen): { finished?: BattleEndReason } {
+  if (result.outcome !== 'appended' || screen.view.status !== 'finished' || !screen.view.result) return {}
+  return foldHistory(previous).status === 'finished' ? {} : { finished: screen.view.result.reason }
+}
+
 function adminBattleSummary(history: BattleCard): AdminBattle {
   return {
     token: history.battle.token,
@@ -785,10 +798,4 @@ function adminBattleSummary(history: BattleCard): AdminBattle {
     round: history.digest.round,
     players: history.players.map(({ id, name, side }) => ({ id, name, side })),
   }
-}
-
-/** How an appended command finished the battle, read from the folds on either side of it rather than from its kind. */
-function finishing(result: SubmitResult, previous: BattleHistory, screen: SeatedScreen): { finished?: BattleEndReason } {
-  if (result.outcome !== 'appended' || screen.view.status !== 'finished' || !screen.view.result) return {}
-  return foldHistory(previous).status === 'finished' ? {} : { finished: screen.view.result.reason }
 }

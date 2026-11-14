@@ -60,6 +60,11 @@ export function PrivacyPolicy() {
           tournament dates, with their names. Replacing or turning off the link, or deleting your account, removes the old address.
         </p>
         <p>
+          If an organizer connects a Discord channel to a group or tournament, we store its webhook address and name, and post to it the
+          names and scores its linked pages already show, never before the reveal and never a list. Discord&apos;s own privacy policy covers
+          what it does with those posts. Removing the channel, or deleting the group or tournament, removes the address.
+        </p>
+        <p>
           If you turn on notifications in a browser, we store the address your browser's push service gave it, the keys that encrypt
           notifications for it, and when it was last seen. Turning them off, signing out or deleting your account removes them.
         </p>

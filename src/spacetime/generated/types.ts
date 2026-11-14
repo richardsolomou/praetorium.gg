@@ -246,6 +246,16 @@ export const EventBattles = __t.object('EventBattles', {
 })
 export type EventBattles = __Infer<typeof EventBattles>
 
+export const EventChannels = __t.object('EventChannels', {
+  hostId: __t.string(),
+  url: __t.string(),
+  name: __t.string(),
+  createdAt: __t.u64(),
+  failures: __t.u32(),
+  stoppedAt: __t.option(__t.u64()),
+})
+export type EventChannels = __Infer<typeof EventChannels>
+
 export const ExternalAccounts = __t.object('ExternalAccounts', {
   key: __t.string(),
   userId: __t.string(),

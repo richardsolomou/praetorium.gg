@@ -47,6 +47,7 @@ import DeleteWebPushSubscriptionsReducer from './delete_web_push_subscriptions_r
 import ForgetMatchupReducer from './forget_matchup_reducer'
 import KeepCollectionPhotoReducer from './keep_collection_photo_reducer'
 import QueueCollectionPhotoDeletionReducer from './queue_collection_photo_deletion_reducer'
+import RecordEventChannelDeliveryReducer from './record_event_channel_delivery_reducer'
 import RegisterPracticeOpponentReducer from './register_practice_opponent_reducer'
 import RegisterPushTokenReducer from './register_push_token_reducer'
 import RegisterWebPushSubscriptionReducer from './register_web_push_subscription_reducer'
@@ -113,6 +114,8 @@ import * as DeleteUnitLoadoutProcedure from './delete_unit_loadout_procedure'
 import * as DiscoverRostersProcedure from './discover_rosters_procedure'
 import * as DraftsByUserProcedure from './drafts_by_user_procedure'
 import * as EndRosterLoanProcedure from './end_roster_loan_procedure'
+import * as EventChannelProcedure from './event_channel_procedure'
+import * as EventChannelTargetProcedure from './event_channel_target_procedure'
 import * as ExternalAccountsByUserProcedure from './external_accounts_by_user_procedure'
 import * as FavouriteDatasheetsByUserProcedure from './favourite_datasheets_by_user_procedure'
 import * as FavouriteDetachmentsByUserProcedure from './favourite_detachments_by_user_procedure'
@@ -185,6 +188,7 @@ import * as SealedEventRosterSharingProcedure from './sealed_event_roster_sharin
 import * as SealedEventRostersProcedure from './sealed_event_rosters_procedure'
 import * as SealedEventsVisibleToProcedure from './sealed_events_visible_to_procedure'
 import * as SeatBattlePlayerProcedure from './seat_battle_player_procedure'
+import * as SetEventChannelProcedure from './set_event_channel_procedure'
 import * as SetListFilterPreferencesProcedure from './set_list_filter_preferences_procedure'
 import * as SetPlayerDefaultsProcedure from './set_player_defaults_procedure'
 import * as SetPushEnabledProcedure from './set_push_enabled_procedure'
@@ -274,6 +278,7 @@ const reducersSchema = __reducers(
   __reducerSchema('forget_matchup', ForgetMatchupReducer),
   __reducerSchema('keep_collection_photo', KeepCollectionPhotoReducer),
   __reducerSchema('queue_collection_photo_deletion', QueueCollectionPhotoDeletionReducer),
+  __reducerSchema('record_event_channel_delivery', RecordEventChannelDeliveryReducer),
   __reducerSchema('register_practice_opponent', RegisterPracticeOpponentReducer),
   __reducerSchema('register_push_token', RegisterPushTokenReducer),
   __reducerSchema('register_web_push_subscription', RegisterWebPushSubscriptionReducer),
@@ -346,6 +351,8 @@ const proceduresSchema = __procedures(
   __procedureSchema('discover_rosters', DiscoverRostersProcedure.params, DiscoverRostersProcedure.returnType),
   __procedureSchema('drafts_by_user', DraftsByUserProcedure.params, DraftsByUserProcedure.returnType),
   __procedureSchema('end_roster_loan', EndRosterLoanProcedure.params, EndRosterLoanProcedure.returnType),
+  __procedureSchema('event_channel', EventChannelProcedure.params, EventChannelProcedure.returnType),
+  __procedureSchema('event_channel_target', EventChannelTargetProcedure.params, EventChannelTargetProcedure.returnType),
   __procedureSchema('external_accounts_by_user', ExternalAccountsByUserProcedure.params, ExternalAccountsByUserProcedure.returnType),
   __procedureSchema(
     'favourite_datasheets_by_user',
@@ -434,6 +441,7 @@ const proceduresSchema = __procedures(
   __procedureSchema('sealed_event_rosters', SealedEventRostersProcedure.params, SealedEventRostersProcedure.returnType),
   __procedureSchema('sealed_events_visible_to', SealedEventsVisibleToProcedure.params, SealedEventsVisibleToProcedure.returnType),
   __procedureSchema('seat_battle_player', SeatBattlePlayerProcedure.params, SeatBattlePlayerProcedure.returnType),
+  __procedureSchema('set_event_channel', SetEventChannelProcedure.params, SetEventChannelProcedure.returnType),
   __procedureSchema('set_list_filter_preferences', SetListFilterPreferencesProcedure.params, SetListFilterPreferencesProcedure.returnType),
   __procedureSchema('set_player_defaults', SetPlayerDefaultsProcedure.params, SetPlayerDefaultsProcedure.returnType),
   __procedureSchema('set_push_enabled', SetPushEnabledProcedure.params, SetPushEnabledProcedure.returnType),

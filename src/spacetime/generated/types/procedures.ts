@@ -45,6 +45,8 @@ import * as DeleteUnitLoadoutProcedure from '../delete_unit_loadout_procedure'
 import * as DiscoverRostersProcedure from '../discover_rosters_procedure'
 import * as DraftsByUserProcedure from '../drafts_by_user_procedure'
 import * as EndRosterLoanProcedure from '../end_roster_loan_procedure'
+import * as EventChannelProcedure from '../event_channel_procedure'
+import * as EventChannelTargetProcedure from '../event_channel_target_procedure'
 import * as ExternalAccountsByUserProcedure from '../external_accounts_by_user_procedure'
 import * as FavouriteDatasheetsByUserProcedure from '../favourite_datasheets_by_user_procedure'
 import * as FavouriteDetachmentsByUserProcedure from '../favourite_detachments_by_user_procedure'
@@ -117,6 +119,7 @@ import * as SealedEventRosterSharingProcedure from '../sealed_event_roster_shari
 import * as SealedEventRostersProcedure from '../sealed_event_rosters_procedure'
 import * as SealedEventsVisibleToProcedure from '../sealed_events_visible_to_procedure'
 import * as SeatBattlePlayerProcedure from '../seat_battle_player_procedure'
+import * as SetEventChannelProcedure from '../set_event_channel_procedure'
 import * as SetListFilterPreferencesProcedure from '../set_list_filter_preferences_procedure'
 import * as SetPlayerDefaultsProcedure from '../set_player_defaults_procedure'
 import * as SetPushEnabledProcedure from '../set_push_enabled_procedure'
@@ -216,6 +219,10 @@ export type DraftsByUserArgs = __Infer<typeof DraftsByUserProcedure.params>
 export type DraftsByUserResult = __Infer<typeof DraftsByUserProcedure.returnType>
 export type EndRosterLoanArgs = __Infer<typeof EndRosterLoanProcedure.params>
 export type EndRosterLoanResult = __Infer<typeof EndRosterLoanProcedure.returnType>
+export type EventChannelArgs = __Infer<typeof EventChannelProcedure.params>
+export type EventChannelResult = __Infer<typeof EventChannelProcedure.returnType>
+export type EventChannelTargetArgs = __Infer<typeof EventChannelTargetProcedure.params>
+export type EventChannelTargetResult = __Infer<typeof EventChannelTargetProcedure.returnType>
 export type ExternalAccountsByUserArgs = __Infer<typeof ExternalAccountsByUserProcedure.params>
 export type ExternalAccountsByUserResult = __Infer<typeof ExternalAccountsByUserProcedure.returnType>
 export type FavouriteDatasheetsByUserArgs = __Infer<typeof FavouriteDatasheetsByUserProcedure.params>
@@ -360,6 +367,8 @@ export type SealedEventsVisibleToArgs = __Infer<typeof SealedEventsVisibleToProc
 export type SealedEventsVisibleToResult = __Infer<typeof SealedEventsVisibleToProcedure.returnType>
 export type SeatBattlePlayerArgs = __Infer<typeof SeatBattlePlayerProcedure.params>
 export type SeatBattlePlayerResult = __Infer<typeof SeatBattlePlayerProcedure.returnType>
+export type SetEventChannelArgs = __Infer<typeof SetEventChannelProcedure.params>
+export type SetEventChannelResult = __Infer<typeof SetEventChannelProcedure.returnType>
 export type SetListFilterPreferencesArgs = __Infer<typeof SetListFilterPreferencesProcedure.params>
 export type SetListFilterPreferencesResult = __Infer<typeof SetListFilterPreferencesProcedure.returnType>
 export type SetPlayerDefaultsArgs = __Infer<typeof SetPlayerDefaultsProcedure.params>

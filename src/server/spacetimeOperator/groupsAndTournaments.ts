@@ -10,6 +10,9 @@ import { GROUP_MEMBER_STATUSES, GROUP_ROLES } from '../../core/group'
 import { sealedEventRosterSharingSchema } from '../../contracts/sealedEventRosterSharing'
 import type { SpacetimeBase } from './client'
 
+/** Who a channel posts for: a group, for its league and hidden-list games, or a tournament. */
+export type EventChannelHost = 'group' | 'tournament'
+
 const tournament = z.object({
   token: z.string(),
   ownerId: z.string(),
@@ -227,6 +230,41 @@ export function withGroupsAndTournaments<B extends SpacetimeBase>(Base: B) {
         [],
         z.array(z.object({ groupToken: z.string(), round: z.number().int().positive(), recipientIds: z.array(z.string()) })),
       )
+    }
+
+    /** Saves the channel, or removes it when `channel` is null. */
+    async setEventChannel(input: {
+      kind: EventChannelHost
+      token: string
+      actorId: string
+      channel: { url: string; name: string } | null
+      now: number
+    }) {
+      return this.read(
+        'set_event_channel',
+        [input.kind, input.token, input.actorId, input.channel?.url ?? '', input.channel?.name ?? '', input.now],
+        z.enum(['set', 'removed', 'missing', 'forbidden']),
+      )
+    }
+
+    async eventChannel(kind: EventChannelHost, token: string, actorId: string) {
+      return this.read(
+        'event_channel',
+        [kind, token, actorId],
+        z.union([z.object({ name: z.string(), stopped: z.boolean() }).nullable(), z.enum(['missing', 'forbidden'])]),
+      )
+    }
+
+    async eventChannelTarget(subject: 'group' | 'sealed-event' | 'battle', token: string, eventToken?: string) {
+      return this.read(
+        'event_channel_target',
+        [subject, token, eventToken ?? ''],
+        z.object({ hostId: z.string(), url: z.string(), name: z.string(), league: z.boolean() }).nullable(),
+      )
+    }
+
+    async recordEventChannelDelivery(hostId: string, url: string, outcome: 'sent' | 'failed' | 'refused', now: number) {
+      await this.call('record_event_channel_delivery', [hostId, url, outcome, now])
     }
 
     async groupByToken(token: string) {

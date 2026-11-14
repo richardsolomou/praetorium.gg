@@ -12,7 +12,13 @@ import {
 } from '../../../core/sealedEvent'
 import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/Dialog'
 import { createHiddenListGame, createSealedEvent, setSealedEventAdmins, updateSealedEvent } from '../../functions'
-import { sealedEventQuery, sealedEventReadsKey, sealedEventsQuery, meQuery } from '../../queries'
+import { eventChannelKey, sealedEventQuery, sealedEventReadsKey, sealedEventsQuery, meQuery } from '../../queries'
+import {
+  DISCORD_CHANNEL_UNCHANGED,
+  DiscordChannelField,
+  discordChannelValid,
+  saveDiscordChannel,
+} from '../../components/DiscordChannelField'
 import { sealedEventFormValid, SealedEventFormFields, type SealedEventFormValue } from './SealedEventForm'
 import { eventLink, sealedEventNoun, type SealedEvent } from './sealedEvent'
 import { Problem } from '../../components/Problem'
@@ -110,6 +116,9 @@ function SettingsForm({
   const currentAdmins = sealedEvent?.tournament?.admins.map((admin) => admin.id) ?? []
   const [adminIds, setAdminIds] = useState(currentAdmins)
   const adminsChanged = !sameSet(adminIds, currentAdmins)
+  // A hidden-list game posts to its group's channel.
+  const channelHost = mode.kind === 'edit' && !hiddenListGame ? ({ kind: 'tournament', token: mode.token } as const) : null
+  const [channel, setChannel] = useState(DISCORD_CHANNEL_UNCHANGED)
   const seated =
     mode.kind === 'edit' && sealedEvent && !sealedEvent.revealedAt
       ? sealedEvent.entries.filter((entry) => entry.status === 'accepted').length
@@ -164,6 +173,8 @@ function SettingsForm({
               },
             })
           : createSealedEvent({ data: { ...details, format, rosterLimit, allowances, rounds, ...points, schedule, ownerPlays } })
+      // First, so a link Discord refuses leaves every other setting as it was.
+      if (channelHost) await saveDiscordChannel(channelHost, channel)
       await updateSealedEvent({
         data: {
           token: mode.token,
@@ -180,6 +191,7 @@ function SettingsForm({
       Promise.all([
         queryClient.invalidateQueries({ queryKey: sealedEventsQuery().queryKey }),
         sealedEvent ? queryClient.invalidateQueries({ queryKey: sealedEventReadsKey(sealedEvent.token) }) : null,
+        channelHost ? queryClient.invalidateQueries({ queryKey: eventChannelKey(channelHost.kind, channelHost.token) }) : null,
       ]),
     onSuccess: async (created) => {
       onClose()
@@ -254,6 +266,15 @@ function SettingsForm({
           {clearsAssignments ? (
             <p className="text-xs text-parchment">Changing the format clears every size and team you’ve handed out.</p>
           ) : null}
+          {channelHost ? (
+            <DiscordChannelField
+              host={channelHost}
+              posts="The reveal, each round’s pairings and standings, and results"
+              value={channel}
+              disabled={save.isPending}
+              onChange={setChannel}
+            />
+          ) : null}
           {save.isPending ? <output className="sr-only">{submit}</output> : null}
           {save.error ? <Problem error={save.error} /> : null}
         </DialogBody>
@@ -264,7 +285,7 @@ function SettingsForm({
           <Button
             data-onboarding="sealed-event-create"
             type="submit"
-            disabled={save.isPending || !sealedEventFormValid(value, seated, limitFormat, !hiddenListGame)}
+            disabled={save.isPending || !sealedEventFormValid(value, seated, limitFormat, !hiddenListGame) || !discordChannelValid(channel)}
           >
             {submit}
           </Button>

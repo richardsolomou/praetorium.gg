@@ -732,6 +732,127 @@ describe('calendar feeds', () => {
   })
 })
 
+describe('event channels', () => {
+  const WEBHOOK = `https://discord.com/api/webhooks/${'1'.repeat(18)}/${'t'.repeat(68)}`
+  const OTHER = `https://discord.com/api/webhooks/${'2'.repeat(18)}/${'u'.repeat(68)}`
+
+  function setup() {
+    const host = harness()
+    module.groupCommand(host.procedure(host.operator), {
+      payload: JSON.stringify({
+        op: 'create',
+        token: 'group',
+        id: 'group-id',
+        ownerId: 'owner',
+        name: 'Group',
+        description: '',
+        visibility: 'private',
+        admission: 'automatic',
+        now: NOW,
+      }),
+    })
+    host.call(host.operator, (ctx) => insertTournament(ctx))
+    const set = (kind: string, token: string, actorId: string, url = WEBHOOK) =>
+      JSON.parse(module.setEventChannel(host.procedure(host.operator), { kind, token, actorId, url, name: 'Results', now: BigInt(NOW) }))
+    const status = (kind: string, token: string, actorId: string) =>
+      JSON.parse(module.eventChannel(host.procedure(host.operator), { kind, token, actorId })) as unknown
+    const target = (subject: string, token: string) =>
+      JSON.parse(module.eventChannelTarget(host.procedure(host.operator), { subject, token, eventToken: '' })) as { url: string } | null
+    const deliver = (hostId: string, outcome: string, url = WEBHOOK) =>
+      host.call(host.operator, (ctx) => module.recordEventChannelDelivery(ctx, { hostId, url, outcome, now: BigInt(NOW) }))
+    return { ...host, set, status, target, deliver }
+  }
+
+  it('lets only an organizer save a channel', () => {
+    const channels = setup()
+    expect([channels.set('group', 'group', 'member'), channels.set('tournament', 'sealed-event', 'organizer')]).toEqual([
+      'forbidden',
+      'set',
+    ])
+  })
+
+  it('shows organizers the webhook’s name, never its address', () => {
+    const channels = setup()
+    channels.set('group', 'group', 'owner')
+    expect(channels.status('group', 'group', 'owner')).toEqual({ name: 'Results', stopped: false })
+  })
+
+  it('posts a group’s updates to its channel and a tournament’s to its own', () => {
+    const channels = setup()
+    channels.set('group', 'group', 'owner')
+    channels.set('tournament', 'sealed-event', 'organizer', OTHER)
+    expect([channels.target('group', 'group')?.url, channels.target('sealed-event', 'sealed-event')?.url]).toEqual([WEBHOOK, OTHER])
+  })
+
+  it('stops posting once Discord refuses the address, until an organizer saves it again', () => {
+    const channels = setup()
+    channels.set('group', 'group', 'owner')
+    channels.deliver('group-id', 'refused')
+    const stopped = channels.target('group', 'group')
+    channels.set('group', 'group', 'owner')
+    expect([stopped, channels.target('group', 'group')?.url]).toEqual([null, WEBHOOK])
+  })
+
+  it('never stops a replacement over a post to the address it replaced', () => {
+    const channels = setup()
+    channels.set('group', 'group', 'owner')
+    channels.set('group', 'group', 'owner', OTHER)
+    channels.deliver('group-id', 'refused')
+    expect(channels.target('group', 'group')?.url).toBe(OTHER)
+  })
+
+  it('stops after five failed posts in a row, counting from the last one Discord took', () => {
+    const channels = setup()
+    channels.set('group', 'group', 'owner')
+    const fail = (times: number) => Array.from({ length: times }, () => channels.deliver('group-id', 'failed'))
+    fail(4)
+    channels.deliver('group-id', 'sent')
+    fail(4)
+    const posting = channels.target('group', 'group')?.url
+    fail(1)
+    expect([posting, channels.target('group', 'group')]).toEqual([WEBHOOK, null])
+  })
+
+  it('posts a league fixture’s result to its group’s channel, and a battle for neither nowhere', () => {
+    const channels = setup()
+    const command = (input: Record<string, unknown>) =>
+      module.groupCommand(channels.procedure(channels.operator), { payload: JSON.stringify({ token: 'group', ...input }) })
+    for (const userId of ['a', 'b', 'c']) command({ op: 'join', userId, now: NOW })
+    command({ op: 'league-draw', actorId: 'owner', leagueId: 'league', seed: 7, now: NOW })
+    for (const userId of ['a', 'b', 'c']) command({ op: 'league-join', userId, now: NOW })
+    command({ op: 'league-publish', actorId: 'owner', seed: 7, playerIds: ['a', 'b', 'c'], now: NOW })
+    const { league } = JSON.parse(module.groupByToken(channels.procedure(channels.operator), { token: 'group' })) as {
+      league: { fixtures: { key: string; aId: string; bId: string | null }[] }
+    }
+    const fixture = league.fixtures.find((candidate) => candidate.bId !== null)!
+    for (const [id, fixtureKey] of [
+      ['fixture-battle', fixture.key],
+      ['other-battle', undefined],
+    ] as const)
+      module.createBattle(channels.procedure(channels.operator), {
+        payload: JSON.stringify({
+          id,
+          token: `token-${id}`,
+          userId: fixture.aId,
+          allyIds: [],
+          opponentIds: [fixture.bId],
+          initialCommands: [],
+          now: NOW,
+          ...(fixtureKey ? { fixtureKey, initialCommands: [{ kind: 'set-battle-group', groupId: 'group-id' }] } : {}),
+        }),
+      })
+    channels.set('group', 'group', 'owner')
+    expect([channels.target('battle', 'fixture-battle')?.url, channels.target('battle', 'other-battle')]).toEqual([WEBHOOK, null])
+  })
+
+  it('removes the channel with its group', () => {
+    const channels = setup()
+    channels.set('group', 'group', 'owner')
+    channels.call(channels.operator, (ctx) => module.deleteUserData(ctx, { userId: 'owner' }))
+    expect(channels.call(channels.operator, (ctx) => ctx.db.eventChannels.hostId.find('group-id'))).toBeNull()
+  })
+})
+
 describe('group battles', () => {
   function setup(members: string[], initialCommands: unknown[] = []) {
     const host = harness()

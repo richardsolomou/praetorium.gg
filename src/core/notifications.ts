@@ -196,7 +196,8 @@ export function battleInvitePath(invite: string) {
   return `/battles/join/${encodeURIComponent(invite)}`
 }
 
-function sealedEventPath(notice: { sealedEventToken: string; eventToken?: string }) {
+/** Where a notice about a tournament or a hidden-list game opens it. */
+export function sealedEventPath(notice: { sealedEventToken: string; eventToken?: string }) {
   const query = notice.eventToken ? `?event=${encodeURIComponent(notice.eventToken)}` : ''
   return `/tournaments/${encodeURIComponent(notice.sealedEventToken)}${query}`
 }

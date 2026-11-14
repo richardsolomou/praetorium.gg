@@ -13,7 +13,13 @@ import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, Dia
 import { AdminsField } from '../../components/AdminsField'
 import { Problem } from '../../components/Problem'
 import { createGroup, setGroupAdmins, updateGroup } from '../../functions'
-import { groupKey, groupsKey } from '../../queries'
+import { eventChannelKey, groupKey, groupsKey } from '../../queries'
+import {
+  DISCORD_CHANNEL_UNCHANGED,
+  DiscordChannelField,
+  discordChannelValid,
+  saveDiscordChannel,
+} from '../../components/DiscordChannelField'
 import type { Group } from './group'
 
 type Details = { name: string; description: string; visibility: SealedEventVisibility; admission: SealedEventAdmission }
@@ -51,6 +57,7 @@ function SettingsForm({ group, isOwner, onClose }: { group: Group | null; isOwne
   }))
   const currentAdmins = group?.members.filter((member) => member.role === 'admin').map((member) => member.userId) ?? []
   const [adminIds, setAdminIds] = useState(currentAdmins)
+  const [channel, setChannel] = useState(DISCORD_CHANNEL_UNCHANGED)
   const adminsChanged = !sameSet(adminIds, currentAdmins)
   const members =
     group?.members
@@ -60,6 +67,8 @@ function SettingsForm({ group, isOwner, onClose }: { group: Group | null; isOwne
     mutationKey: SAVE,
     mutationFn: async () => {
       if (!group) return createGroup({ data: value })
+      // First, so a link Discord refuses leaves every other setting as it was.
+      await saveDiscordChannel({ kind: 'group', token: group.token }, channel)
       await updateGroup({ data: { token: group.token, ...value } })
       if (isOwner && adminsChanged) await setGroupAdmins({ data: { token: group.token, userIds: adminIds } })
       return null
@@ -68,6 +77,7 @@ function SettingsForm({ group, isOwner, onClose }: { group: Group | null; isOwne
       Promise.all([
         queryClient.invalidateQueries({ queryKey: groupsKey() }),
         group ? queryClient.invalidateQueries({ queryKey: groupKey(group.token) }) : null,
+        group ? queryClient.invalidateQueries({ queryKey: eventChannelKey('group', group.token) }) : null,
       ]),
     onSuccess: async (created) => {
       onClose()
@@ -158,6 +168,15 @@ function SettingsForm({ group, isOwner, onClose }: { group: Group | null; isOwne
               }}
             />
           ) : null}
+          {group ? (
+            <DiscordChannelField
+              host={{ kind: 'group', token: group.token }}
+              posts="League results and deadline reminders, and each hidden-list game’s reveal and results,"
+              value={channel}
+              disabled={disabled}
+              onChange={setChannel}
+            />
+          ) : null}
           {save.isPending ? <output className="sr-only">{submit}</output> : null}
           {save.error ? <Problem error={save.error} /> : null}
         </DialogBody>
@@ -165,7 +184,7 @@ function SettingsForm({ group, isOwner, onClose }: { group: Group | null; isOwne
           <Button variant="outline" disabled={disabled} onClick={onClose}>
             Cancel
           </Button>
-          <Button data-onboarding="group-create" type="submit" disabled={disabled || !value.name.trim()}>
+          <Button data-onboarding="group-create" type="submit" disabled={disabled || !value.name.trim() || !discordChannelValid(channel)}>
             {submit}
           </Button>
         </DialogFooter>

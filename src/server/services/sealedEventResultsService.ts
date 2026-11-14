@@ -4,6 +4,7 @@ import { swissPairings, swissStandings, type SwissMatch } from '../../core/swiss
 import { SEALED_EVENT_RESULTS_BATTLE_LIMIT, sealedEventResults } from '../../core/sealedEventResults'
 import type { BattlesCursor } from '../../contracts/battles'
 import type { BattleFaction } from '../../shared/battleSummary'
+import type { BattleFinishListener } from '../eventChannels'
 import type { Notifier } from '../pushNotifier'
 import type { BattleMissionRules } from '../rules'
 import type { RepositoryPort } from '../spacetimeRepository'
@@ -18,6 +19,7 @@ export class SealedEventResultsService {
     private readonly notifier: Notifier,
     private readonly sealedEventService: SealedEventService,
     private readonly battleFeedService: BattleFeedService,
+    private readonly battleFinishes: BattleFinishListener,
   ) {}
 
   async sealedEventBattles(
@@ -75,16 +77,32 @@ export class SealedEventResultsService {
     const entrantIds = sealedEvent.entries.filter((entry) => entry.status === 'accepted').map((entry) => entry.userId)
     return {
       ...sealedEventResults(entrantIds, battles),
-      swiss:
-        sealedEvent.rounds === null
-          ? null
-          : swissStandings(
-              entrantIds,
-              swissMatches(sealedEvent.pairings, battles),
-              droppedIds(sealedEvent.entries),
-              sealedEvent.scheduleFirst,
-            ),
+      swiss: sealedEvent.rounds === null ? null : swissTable(sealedEvent, sealedEvent.pairings, battles),
       partial: nextCursor !== null,
+    }
+  }
+
+  /** A paired round's tables and the standings from the rounds before it, as `viewerId` reads them; the first round has none. */
+  async pairedRound(sealedEventToken: string, eventToken: string | undefined, round: number, viewerId: string) {
+    const sealedEvent = await this.sealedEventService.sealedEvent(sealedEventToken, viewerId, eventToken)
+    if (!sealedEvent?.revealedAt) return { tables: [], standings: [] }
+    const tables = sealedEvent.pairings.filter((pairing) => pairing.round === round).toSorted((a, b) => a.table - b.table)
+    if (round === 1) return { tables, standings: [] }
+    const { battles } = await this.sealedEventBattles(
+      sealedEventToken,
+      sealedEvent.eventToken,
+      { limit: SEALED_EVENT_RESULTS_BATTLE_LIMIT },
+      null,
+      [],
+      viewerId,
+    )
+    return {
+      tables,
+      standings: swissTable(
+        sealedEvent,
+        sealedEvent.pairings.filter((pairing) => pairing.round < round),
+        battles,
+      ),
     }
   }
 
@@ -194,7 +212,20 @@ export class SealedEventResultsService {
     })
     if (result.outcome === 'refused') throw new Response(result.reason, { status: 409 })
     if (result.outcome === 'stale') throw new Response('the battle changed while the score was being saved, so try again', { status: 409 })
+    this.battleFinishes.battleFinished(history.battle.id)
   }
+}
+
+type SwissPairing = Parameters<typeof swissMatches>[0][number]
+
+/** Every accepted entrant's Swiss standing from `pairings`' results. */
+function swissTable(
+  sealedEvent: { entries: readonly { userId: string; status: string; dropped: boolean }[]; scheduleFirst: boolean },
+  pairings: readonly SwissPairing[],
+  battles: Parameters<typeof swissMatches>[1],
+) {
+  const entrantIds = sealedEvent.entries.filter((entry) => entry.status === 'accepted').map((entry) => entry.userId)
+  return swissStandings(entrantIds, swissMatches(pairings, battles), droppedIds(sealedEvent.entries), sealedEvent.scheduleFirst)
 }
 
 const droppedIds = (entries: readonly { userId: string; dropped: boolean }[]) =>

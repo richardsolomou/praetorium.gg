@@ -101,4 +101,4 @@ Before the reveal, give each player in a 2v1 a solo or allied size and pair the 
 
 ## Organizers
 
-The owner can choose **Admins** from their friends in **Edit tournament**. Admins run the tournament like the owner but can't delete it. **Delete tournament** removes every entrant and sealed roster. Battles already started stay where they are.
+The owner can choose **Admins** from their friends in **Edit tournament**. Admins run the tournament like the owner but can't delete it. Either can [post its pairings and results to Discord](/docs/discord). **Delete tournament** removes every entrant and sealed roster. Battles already started stay where they are.

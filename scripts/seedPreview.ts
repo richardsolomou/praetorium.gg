@@ -460,8 +460,12 @@ async function readBack(repository: SpacetimeRepository, product: SpacetimeOpera
       groupTokens.add(group.token)
       await repository.groupByToken(group.token)
       await repository.battlesByGroup(group.token, page)
+      await repository.eventChannel('group', group.token, userId)
+      await repository.eventChannelTarget('group', group.token)
     }
   }
+  // Removing a channel nobody saved changes nothing, and no preview posts to a real Discord channel.
+  await repository.setEventChannel({ kind: 'group', token: 'preview-group', actorId: '', channel: null, now: Date.now() })
   await repository.sealedEventNames([...sealedEventTokens])
   await repository.groupNames([...groupTokens])
 }

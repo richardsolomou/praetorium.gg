@@ -1,9 +1,9 @@
 import { queryOptions } from '@tanstack/react-query'
-import { battleGroups, groupBattles, groupLeague, groupStandings, listGroups, openGroup } from '../functions'
+import { battleGroups, eventChannel, groupBattles, groupLeague, groupStandings, listGroups, openGroup } from '../functions'
 import { SSR_STALE_TIME } from './shared'
 import type { BattleFilter, BattleOrder } from '../../core/battleFilter'
 import { battleFeedQuery, feedKey } from './battles'
-import { battleGroupsKey, groupBattlesKey, groupKey, groupLeagueKey, groupsKey, groupStandingsKey } from './queryKeys'
+import { battleGroupsKey, eventChannelKey, groupBattlesKey, groupKey, groupLeagueKey, groupsKey, groupStandingsKey } from './queryKeys'
 
 export const groupsQuery = () => queryOptions({ queryKey: groupsKey(), queryFn: () => listGroups(), staleTime: SSR_STALE_TIME })
 
@@ -21,3 +21,7 @@ export const battleGroupsQuery = (token: string) =>
 
 export const groupBattlesQuery = (token: string, filter?: BattleFilter, order?: BattleOrder) =>
   battleFeedQuery(feedKey(groupBattlesKey(token), filter, order), (before) => groupBattles({ data: { token, before, filter, order } }))
+
+/** The Discord channel a group or tournament posts to, which only its organizers read. */
+export const eventChannelQuery = (kind: 'group' | 'tournament', token: string) =>
+  queryOptions({ queryKey: eventChannelKey(kind, token), queryFn: () => eventChannel({ data: { kind, token } }) })
