@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.247.5 (2026-11-14)
+
+### Patch Changes
+
+- 652c1fc: The roster editor no longer shows a Start a battle button; start one from the roster's menu in your library or from Battles.
+
 ## 0.247.4 (2026-11-14)
 
 ### Patch Changes
