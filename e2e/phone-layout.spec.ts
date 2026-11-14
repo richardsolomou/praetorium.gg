@@ -20,6 +20,12 @@ async function expectPhoneScreen(page: Page, name: string) {
 
 test('a battle in progress keeps its layout on a phone', async ({ page }) => {
   await signUp(page, 'Phone Player')
+  // The automatic colour follows the new account's random id, so the picture would change every run.
+  await page.goto('/profile')
+  await page.waitForLoadState('networkidle')
+  await page.getByTitle('Crimson', { exact: true }).click()
+  await page.getByRole('button', { name: 'Save profile' }).click()
+  await expect(page.getByText('Profile saved.')).toBeVisible()
   const roster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Phone roster' })
   await practiceBattle(page, roster)
   await startBattle(page, undefined, true, ['Cleanse', 'Centre Ground'])
