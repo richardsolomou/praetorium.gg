@@ -473,6 +473,8 @@ const groupLeagues = table(
     createdAt: t.u64(),
     publishedAt: t.option(t.u64()),
     deadlines: t.option(t.string()),
+    /** A JSON array, in step with `deadlines`, of the deadline each round's players were last reminded of, so each reminder goes out once. */
+    remindedDeadlines: t.option(t.string()).default(undefined),
   },
 )
 

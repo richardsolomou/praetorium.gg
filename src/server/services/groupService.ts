@@ -123,6 +123,13 @@ export class GroupService {
     throw new Response('only the group’s organizers can set deadlines', { status: 403 })
   }
 
+  /** Reminds each league player with a game still to finish that its round's deadline is near. */
+  async remindLeagueDeadlines() {
+    for (const { groupToken, round, recipientIds } of await this.repository.claimLeagueDeadlineReminders())
+      // No player sent it, so no recipient is left out as its sender.
+      this.notifier.notify([{ kind: 'group-league-deadline-reminder', actorId: '', recipientIds, groupToken, round }])
+  }
+
   async deleteLeague(token: string, actorId: string) {
     const result = await this.repository.deleteGroupLeague(token, actorId)
     if (result === 'deleted') return

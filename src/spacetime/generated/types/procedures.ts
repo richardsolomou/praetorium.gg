@@ -29,6 +29,7 @@ import * as CancelFriendInviteProcedure from '../cancel_friend_invite_procedure'
 import * as ChangeRostersProcedure from '../change_rosters_procedure'
 import * as ClaimGuestSeatProcedure from '../claim_guest_seat_procedure'
 import * as ClaimImportedBattleProcedure from '../claim_imported_battle_procedure'
+import * as ClaimLeagueDeadlineRemindersProcedure from '../claim_league_deadline_reminders_procedure'
 import * as ClaimStandingsRefreshProcedure from '../claim_standings_refresh_procedure'
 import * as CollectionByUserProcedure from '../collection_by_user_procedure'
 import * as CollectionPhotoProcedure from '../collection_photo_procedure'
@@ -180,6 +181,8 @@ export type ClaimGuestSeatArgs = __Infer<typeof ClaimGuestSeatProcedure.params>
 export type ClaimGuestSeatResult = __Infer<typeof ClaimGuestSeatProcedure.returnType>
 export type ClaimImportedBattleArgs = __Infer<typeof ClaimImportedBattleProcedure.params>
 export type ClaimImportedBattleResult = __Infer<typeof ClaimImportedBattleProcedure.returnType>
+export type ClaimLeagueDeadlineRemindersArgs = __Infer<typeof ClaimLeagueDeadlineRemindersProcedure.params>
+export type ClaimLeagueDeadlineRemindersResult = __Infer<typeof ClaimLeagueDeadlineRemindersProcedure.returnType>
 export type ClaimStandingsRefreshArgs = __Infer<typeof ClaimStandingsRefreshProcedure.params>
 export type ClaimStandingsRefreshResult = __Infer<typeof ClaimStandingsRefreshProcedure.returnType>
 export type CollectionByUserArgs = __Infer<typeof CollectionByUserProcedure.params>

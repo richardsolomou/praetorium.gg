@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { leagueDraw, leagueFixtureStatus } from './groupLeague'
+import { LEAGUE_DEADLINE_REMINDER_MS, leagueDeadlineReminderDue, leagueDraw, leagueFixtureStatus } from './groupLeague'
 
 const players = (count: number) => Array.from({ length: count }, (_, index) => `p${index}`)
 const pairKey = ([a, b]: [string, string | null]) => [a, b ?? 'bye'].toSorted().join('|')
@@ -49,5 +49,24 @@ describe('a withdrawn player’s fixtures', () => {
 
   it('keep the ones already finished', () => {
     expect(leagueFixtureStatus({ aId: 'b', bId: 'gone', battle: { status: 'finished' } }, stillPlaying)).toBe('finished')
+  })
+})
+
+describe('a round’s deadline reminder', () => {
+  const deadline = 10 * LEAGUE_DEADLINE_REMINDER_MS
+
+  it('waits until the deadline is less than a day away', () => {
+    expect(leagueDeadlineReminderDue(deadline, null, deadline - LEAGUE_DEADLINE_REMINDER_MS - 1)).toBe(false)
+    expect(leagueDeadlineReminderDue(deadline, null, deadline - LEAGUE_DEADLINE_REMINDER_MS)).toBe(true)
+  })
+
+  it('stops once the deadline has passed', () => {
+    expect(leagueDeadlineReminderDue(deadline, null, deadline)).toBe(false)
+  })
+
+  it('goes out once per deadline, and again after the deadline moves', () => {
+    const now = deadline - 1
+    expect(leagueDeadlineReminderDue(deadline, deadline, now)).toBe(false)
+    expect(leagueDeadlineReminderDue(deadline, deadline - 1000, now)).toBe(true)
   })
 })

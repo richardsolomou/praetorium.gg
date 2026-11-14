@@ -67,7 +67,7 @@ A league is a round robin: everyone who joins plays every other player once, one
 
 Only organizers see the draft fixtures. **Draw again** shuffles them, and the same draw stays until someone joins, leaves or it's drawn again. With an odd number of players, each player has one bye. Fixture games also count on the group's leaderboard.
 
-An organizer can set a deadline for each round. A game not finished by then shows as **Overdue**. Nothing is scored for it. To see the deadlines in your own calendar app, see [Add dates to your calendar](/docs/calendar).
+An organizer can set a deadline for each round. A game not finished by then shows as **Overdue**. Nothing is scored for it. About a day before a deadline, both players of each game in that round that isn't finished get a notification. A moved deadline sends a new one. To see the deadlines in your own calendar app, see [Add dates to your calendar](/docs/calendar).
 
 On the table, a win or a bye is worth 3 points and a draw 1. Ties are broken by victory points, then by the points of everyone you've played. Every bye counts from the start.
 

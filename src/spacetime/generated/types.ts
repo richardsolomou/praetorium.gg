@@ -316,6 +316,7 @@ export const GroupLeagues = __t.object('GroupLeagues', {
   createdAt: __t.u64(),
   publishedAt: __t.option(__t.u64()),
   deadlines: __t.option(__t.string()),
+  remindedDeadlines: __t.option(__t.string()),
 })
 export type GroupLeagues = __Infer<typeof GroupLeagues>
 

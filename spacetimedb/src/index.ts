@@ -90,7 +90,15 @@ import {
   type GroupMemberStatus,
   type GroupRole,
 } from '../../src/core/group'
-import { GROUP_LEAGUE_PLAYERS_MAX, GROUP_LEAGUE_PLAYERS_MIN, GROUP_LEAGUE_SEED_MAX, leagueDraw } from '../../src/core/groupLeague'
+import {
+  GROUP_LEAGUE_PLAYERS_MAX,
+  GROUP_LEAGUE_PLAYERS_MIN,
+  GROUP_LEAGUE_SEED_MAX,
+  leagueDeadlineReminderDue,
+  leagueDraw,
+  leagueFixtureStatus,
+  leagueFixtureUnfinished,
+} from '../../src/core/groupLeague'
 import { admitConnection, authConfiguration } from './admission'
 import {
   ABILITY_REMINDERS_MAX,
@@ -754,7 +762,8 @@ function openFixture(
   return { fixture, league }
 }
 
-const leagueDeadlines = (league: LeagueRow) => (league.deadlines === undefined ? [] : (JSON.parse(league.deadlines) as (number | null)[]))
+const leagueRounds = (json: string | undefined) => (json === undefined ? [] : (JSON.parse(json) as (number | null)[]))
+const leagueDeadlines = (league: LeagueRow) => leagueRounds(league.deadlines)
 
 /** A group's league as every reader sees it; a draft's fixtures are drawn from its seed by whoever reads it. */
 function leagueRecord(ctx: Context, groupId: string) {
@@ -4876,6 +4885,7 @@ function groupCommandIn(tx: Context, args: unknown[]) {
         createdAt: BigInt(input.now),
         publishedAt: undefined,
         deadlines: undefined,
+        remindedDeadlines: undefined,
       })
     touchGroup(tx, group.id)
     return productJson('drawn')
@@ -4942,6 +4952,42 @@ function groupCommandIn(tx: Context, args: unknown[]) {
 
 export const groupCommand = spacetime.procedure({ payload: t.string() }, t.string(), (ctx, { payload }) =>
   operatorTx(ctx, (tx) => groupCommandIn(tx, [payload])),
+)
+
+/**
+ * Takes every league round whose deadline reminder is due and records it as sent in the same transaction, so a reminder
+ * goes out once however many servers ask. Answers who to remind in each: both players of every game still open or being
+ * played. A round with nobody left to remind is still recorded.
+ */
+export const claimLeagueDeadlineReminders = spacetime.procedure({}, t.string(), (ctx) =>
+  operatorTx(ctx, (tx) => {
+    const now = safeNumber(nowMs(tx))
+    const reminders: { groupToken: string; round: number; recipientIds: string[] }[] = []
+    for (const league of Array.from(tx.db.groupLeagues.iter())) {
+      if (league.publishedAt === undefined || league.deadlines === undefined) continue
+      const deadlines = leagueDeadlines(league)
+      const reminded = leagueRounds(league.remindedDeadlines)
+      const due = deadlines.map((deadline, index) => leagueDeadlineReminderDue(deadline, reminded[index] ?? null, now))
+      if (!due.includes(true)) continue
+      const group = tx.db.groups.id.find(league.groupId)
+      if (!group) continue
+      const playing = new Set(leaguePlayers(tx, league.id).flatMap((row) => (row.withdrawn ? [] : [row.userId])))
+      const recipients = new Map<number, string[]>()
+      for (const fixture of roundPairings(tx, league.id)) {
+        if (!due[fixture.round - 1]) continue
+        const battle = fixture.battleId === undefined ? null : ({ status: pairingFinished(tx, fixture) ? 'finished' : 'playing' } as const)
+        const status = leagueFixtureStatus({ aId: fixture.aId, bId: fixture.bId ?? null, battle }, (userId) => playing.has(userId))
+        if (leagueFixtureUnfinished(status))
+          recipients.set(fixture.round, [...(recipients.get(fixture.round) ?? []), fixture.aId, fixture.bId!])
+      }
+      for (const [round, recipientIds] of recipients) reminders.push({ groupToken: group.token, round, recipientIds })
+      tx.db.groupLeagues.id.update({
+        ...league,
+        remindedDeadlines: JSON.stringify(deadlines.map((deadline, index) => (due[index] ? deadline : (reminded[index] ?? null)))),
+      })
+    }
+    return productJson(reminders)
+  }),
 )
 
 export const groupByToken = spacetime.procedure({ token: t.string() }, t.string(), (ctx, { token }) =>

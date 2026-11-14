@@ -643,6 +643,10 @@ export class SpacetimeRepository {
     return this.product.groupCommand({ op: 'league-deadline', token, actorId, round, deadline }, z.enum(['set', 'missing', 'forbidden']))
   }
 
+  claimLeagueDeadlineReminders() {
+    return this.product.claimLeagueDeadlineReminders()
+  }
+
   deleteGroupLeague(token: string, actorId: string) {
     return this.product.groupCommand({ op: 'league-delete', token, actorId }, z.enum(['deleted', 'missing', 'forbidden']))
   }
