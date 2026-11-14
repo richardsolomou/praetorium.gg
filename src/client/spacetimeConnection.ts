@@ -51,6 +51,7 @@ export function maintainSpacetimeConnection<T>(options: {
   let retry: ReturnType<typeof setTimeout> | undefined
   let recovery: ReturnType<typeof setTimeout> | undefined
   let refresh: ReturnType<typeof setTimeout> | undefined
+  let refreshAt: number | undefined
 
   const reportOnce = (error: unknown) => {
     if (reported) return
@@ -75,6 +76,28 @@ export function maintainSpacetimeConnection<T>(options: {
     }
   }
 
+  const renewConnection = () => {
+    if (!active || refreshAt === undefined) return
+    refreshAt = undefined
+    generation++
+    clearTimeout(refresh)
+    clearTimeout(recovery)
+    const previous = connection
+    connection = null
+    previous?.disconnect()
+    options.inactive()
+    void connect()
+  }
+
+  // A suspended page's timers stop while the token's expiry does not, so a page shown again reschedules the renewal by the clock.
+  const page = globalThis.document
+  const resumed = () => {
+    if (page.visibilityState !== 'visible' || refreshAt === undefined) return
+    clearTimeout(refresh)
+    refresh = setTimeout(renewConnection, refreshAt - Date.now())
+  }
+  page?.addEventListener('visibilitychange', resumed)
+
   const connect = async () => {
     const attempt = ++generation
     const failed = (error?: unknown) => {
@@ -82,6 +105,7 @@ export function maintainSpacetimeConnection<T>(options: {
       note(error)
       if (!isStubbedWebSocketRefusal(error)) loseOnce('failed')
       generation++
+      refreshAt = undefined
       clearTimeout(refresh)
       clearTimeout(recovery)
       retry = setTimeout(
@@ -136,22 +160,15 @@ export function maintainSpacetimeConnection<T>(options: {
       }
       connection = opened
       if (!expires) return
-      refresh = setTimeout(() => {
-        if (!active || attempt !== generation) return
-        generation++
-        clearTimeout(recovery)
-        const previous = connection
-        connection = null
-        previous?.disconnect()
-        options.inactive()
-        void connect()
-      }, TOKEN_REFRESH_MS)
+      refreshAt = Date.now() + TOKEN_REFRESH_MS
+      refresh = setTimeout(renewConnection, TOKEN_REFRESH_MS)
     } catch (error) {
       failed(error)
     }
   }
   void connect()
   return () => {
+    page?.removeEventListener('visibilitychange', resumed)
     active = false
     generation++
     clearTimeout(retry)

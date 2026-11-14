@@ -8,6 +8,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.restoreAllMocks()
+  vi.unstubAllGlobals()
   vi.useRealTimers()
 })
 
@@ -260,6 +261,32 @@ it('keeps a lasting ticket connected past the refresh interval', async () => {
   await vi.advanceTimersByTimeAsync(60 * 60 * 1_000)
   stop()
   expect(open).toHaveBeenCalledOnce()
+})
+
+/** A page whose timers stood still for `suspendedMs` while the clock, and the server's token expiry, moved on. */
+async function resumedAfter(suspendedMs: number) {
+  vi.useFakeTimers()
+  const page = Object.assign(new EventTarget(), { visibilityState: 'hidden' })
+  vi.stubGlobal('document', page)
+  const connected = await linked(async () => 'ticket')
+  vi.setSystemTime(Date.now() + suspendedMs)
+  page.visibilityState = 'visible'
+  page.dispatchEvent(new Event('visibilitychange'))
+  return connected
+}
+
+it('renews an overdue ticket as soon as a suspended page is shown again', async () => {
+  const { open, stop } = await resumedAfter(4 * 60 * 1_000)
+  await vi.advanceTimersByTimeAsync(0)
+  stop()
+  expect(open).toHaveBeenCalledTimes(2)
+})
+
+it('renews on time after a suspension shorter than the refresh interval', async () => {
+  const { open, stop } = await resumedAfter(3 * 60 * 1_000)
+  await vi.advanceTimersByTimeAsync(60 * 1_000)
+  stop()
+  expect(open).toHaveBeenCalledTimes(2)
 })
 
 it('reconnects the SDK with a lasting ticket instead of issuing another', async () => {
