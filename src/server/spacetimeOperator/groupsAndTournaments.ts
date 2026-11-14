@@ -221,6 +221,14 @@ export function withGroupsAndTournaments<B extends SpacetimeBase>(Base: B) {
       return this.read('sealed_events_visible_to', [userId ?? '', limit], z.array(visibleSealedEvent))
     }
 
+    async claimLeagueDeadlineReminders() {
+      return this.read(
+        'claim_league_deadline_reminders',
+        [],
+        z.array(z.object({ groupToken: z.string(), round: z.number().int().positive(), recipientIds: z.array(z.string()) })),
+      )
+    }
+
     async groupByToken(token: string) {
       return this.read('group_by_token', [token], groupRecord.nullable())
     }

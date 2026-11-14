@@ -30,14 +30,6 @@ export class SpacetimeOperator extends withGroupsAndTournaments(
     await this.call('delete_user_data', [userId])
   }
 
-  async claimLeagueDeadlineReminders() {
-    return this.read(
-      'claim_league_deadline_reminders',
-      [],
-      z.array(z.object({ groupToken: z.string(), round: z.number().int().positive(), recipientIds: z.array(z.string()) })),
-    )
-  }
-
   async syncReceipt(id: string, owner: string, fingerprint: string) {
     return this.read(
       'sync_receipt',
