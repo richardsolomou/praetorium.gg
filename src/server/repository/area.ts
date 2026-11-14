@@ -9,6 +9,9 @@ export class RepositoryArea {
   ) {}
 }
 
+/** A mixin's base must construct from any arguments; `SpacetimeRepository` keeps the area's own constructor. */
+export type RepositoryBase = new (...args: any[]) => RepositoryArea
+
 /** The account behind an id the product data names, which the auth database must still hold. */
 export function profileOf<T>(profiles: ReadonlyMap<string, T>, id: string, role: string): T {
   const profile = profiles.get(id)
