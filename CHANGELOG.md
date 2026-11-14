@@ -1,5 +1,15 @@
 # praetorium
 
+## 0.246.1 (2026-11-14)
+
+### Patch Changes
+
+- b62191c: A Stormtalon Gunship starts with its skyhammer missile launcher and a Scout Bike Squad sergeant with a bolt pistol again.
+- b62191c: Saved lists keep the Space Marines Legends datasheets that left the Munitorum Field Manual, marked as no longer legal, instead of losing them.
+- b62191c: Scout Squads count one combat knife per model and the Astraeus both of its storm bolters again.
+- b62191c: Saved lists keep options the datasheets now offer under new entries, such as the Acothyst's weapons, the Kill Tank's rokkit launchas and the Vanguard Veterans' storm shields.
+- b62191c: Tarantula Sentry Battery lists keep their number of turrets.
+
 ## 0.246.0 (2026-11-14)
 
 ### Minor Changes
