@@ -41,6 +41,7 @@ import { groupBy } from '../../../../core/collections'
 import { rulesVersionLabel } from '../../../../core/catalogueEdition'
 import { reportDataProblem } from '../../feedback/support'
 import { SectionHeading } from '../../../components/SectionHeading'
+import { FactionGames } from './FactionGames'
 
 export function FactionDatasheet() {
   const params = useParams({ strict: false })
@@ -134,6 +135,7 @@ export function FactionDatasheet() {
         <TransportReference transport={sheet.transport} profiles={structured.transport} abilities={abilities} rules={sheet.keywordRules} />
         <Relationships sheet={sheet} abilityIds={relationshipAbilityIds} />
         <DatasheetPhotos entryId={sheet.id} name={sheet.name} />
+        <FactionGames faction={faction} />
       </PageContent>
     </main>
   )

@@ -37,6 +37,8 @@ Until a battle begins, watchers see its setup instead: each side's army, mission
 
 Public and friends' games list the most recently played first. A battle nobody has started leaves those lists two days after its last change and returns once it begins. Its players still find it under their battles, and anyone with its link can still watch it.
 
+A faction's page and its datasheet pages show a few of the latest finished public games that field that faction. The section is not shown when there are none.
+
 ## Show the score on a stream
 
 To show a battle's score on a stream, choose **Battle options** > **Copy stream overlay link**, or add `/overlay` to the end of the battle's address. Add the link to your streaming software as a browser source. The overlay shows each side's names, armies, VP, CP and active secondary missions, and the round, phase and turn. It updates while you play. It has no background, so only the score strip covers your video. A secret mission stays face down until it is revealed.
