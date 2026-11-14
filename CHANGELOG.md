@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.246.2 (2026-11-14)
+
+### Patch Changes
+
+- c70f81d: The Status page names the army data snapshot Praetorium serves instead of saying it was not recorded.
+
 ## 0.246.1 (2026-11-14)
 
 ### Patch Changes
