@@ -1062,7 +1062,7 @@ async function orkLoadoutVariants(page: Page, width: number, opensInView: boolea
   await expect(loadout.getByLabel('Nob models', { exact: true })).toHaveText('1')
   await expect(loadout.locator('[data-equipped]').nth(0)).toContainText('Slugga')
   await expect(loadout.locator('[data-equipped]').nth(1)).toContainText('Shoota')
-  await expect(loadout.locator('[data-equipped]').nth(2)).toContainText('Choppa')
+  await expect(loadout.locator('[data-equipped]').nth(2)).toContainText('Big Shoota')
   await expect(loadout.getByText('Kustom Choppa and Kombi-skorcha', { exact: true })).toHaveCount(0)
   await waitForRosterSave(page, () => loadout.getByRole('button', { name: 'More Rokkit Launcha', exact: true }).click())
   await expect(boyz).toContainText('1x Rokkit Launcha')
