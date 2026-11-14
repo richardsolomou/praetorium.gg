@@ -4,7 +4,6 @@ import { OfflineReference } from '../../offline/OfflineReference'
 import { WebMcp } from '../agents/WebMcp'
 import { AppPersistence } from '../../offline/AppPersistence'
 import { SelectionHaptics } from './SelectionHaptics'
-import { version } from '../../../../package.json'
 import { useQuery } from '@tanstack/react-query'
 import { HeadContent, Link, Outlet, Scripts, useLocation } from '@tanstack/react-router'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
@@ -27,7 +26,7 @@ import { type ReactElement, useEffect, useLayoutEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { buttonClass } from '../../components/buttonClass'
 import { ROSTER_WORKSPACE, followRailState, setRailCollapsed, useRailCollapsed } from './railState'
-import { POSTHOG_BROWSER_OPTIONS, setImpersonating } from '../../../posthog'
+import { POSTHOG_BROWSER_OPTIONS, POSTHOG_SERVICE, setImpersonating } from '../../../posthog'
 import { authClient } from '../../authClient'
 import { Account } from './Account'
 import { NoticeSync, NotificationsButton } from '../notifications/Notifications'
@@ -56,7 +55,6 @@ const posthog = import.meta.env.PROD
       host: import.meta.env.VITE_POSTHOG_HOST,
     })
   : undefined
-const posthogService = { name: 'praetorium', version, environment: import.meta.env.MODE }
 
 const PRIMARY_LINKS = [
   { to: '/rosters', label: 'Rosters', Icon: ScrollText },
@@ -323,7 +321,7 @@ function OverlayShell() {
         <HeadContent />
       </head>
       <body>
-        <PostHogIntegration environment={posthog} options={OVERLAY_POSTHOG_OPTIONS} service={posthogService}>
+        <PostHogIntegration environment={posthog} options={OVERLAY_POSTHOG_OPTIONS} service={POSTHOG_SERVICE}>
           <Outlet />
         </PostHogIntegration>
         <Scripts />
@@ -353,7 +351,7 @@ function AppFrame() {
         {offlineData() ? <style dangerouslySetInnerHTML={{ __html: offlineAssets()?.css ?? '' }} /> : null}
       </head>
       <body className={immersive ? 'h-dvh overflow-hidden' : 'min-h-dvh'}>
-        <PostHogIntegration environment={posthog} options={POSTHOG_BROWSER_OPTIONS} service={posthogService}>
+        <PostHogIntegration environment={posthog} options={POSTHOG_BROWSER_OPTIONS} service={POSTHOG_SERVICE}>
           <TooltipProvider delay={250} closeDelay={100}>
             {posthog && me !== undefined && !impersonating && (
               <PostHogBetterAuthIdentity authClient={authClient} properties={({ name, email }) => ({ name, email })} />
