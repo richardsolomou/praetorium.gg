@@ -10,19 +10,30 @@ export { awardTotal } from '../core/scoring'
 
 export type { MissionAward } from '../core/scoring'
 
+const ORDINALS = ['first', 'second', 'third', 'fourth']
+
 /**
- * What to call a payout the source described only in the card's own words.
+ * What to call a payout while its condition's words are not loaded.
  *
- * Nothing is invented for it. Payouts in one group are tiers of the same thing, so
- * the one that pays less is the lower tier, and that much follows from the numbers.
- * What each tier asks for is left unknown rather than reconstructed.
+ * Nothing is invented for it, only what the numbers already say: payouts in one group
+ * are tiers of the same thing, ranked by what they pay or, when two pay the same, by
+ * where the card prints them, and a counted payout pays per time it is met. Anything
+ * else points back at the card.
  */
 export function payoutLabel(award: MissionAward, siblings: readonly MissionAward[]): string {
-  const tiers = siblings.filter((other) => alternatives(award, other) && conditionLabel(other) === null)
-  if (tiers.length === 2) {
-    const [lower] = tiers.toSorted((left, right) => left.vp - right.vp)
-    return award === lower ? 'The lower payout.' : 'The higher payout.'
+  const tiers = siblings.filter((other) => alternatives(award, other))
+  if (tiers.length > 1) {
+    if (new Set(tiers.map((tier) => tier.vp)).size < tiers.length) {
+      const ordinal = ORDINALS[tiers.indexOf(award)]
+      return ordinal ? `The ${ordinal} payout.` : 'As the card describes.'
+    }
+    const ranked = tiers.toSorted((left, right) => left.vp - right.vp)
+    const rank = ranked.indexOf(award)
+    if (rank === 0) return tiers.length === 2 ? 'The lower payout.' : 'The lowest payout.'
+    if (rank === tiers.length - 1) return tiers.length === 2 ? 'The higher payout.' : 'The highest payout.'
+    return 'A middle payout.'
   }
+  if (counted(award)) return 'For each time it is met.'
   return 'As the card describes.'
 }
 

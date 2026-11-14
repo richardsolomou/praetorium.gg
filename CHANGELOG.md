@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.246.3 (2026-11-14)
+
+### Patch Changes
+
+- 27a6d66: A mission card asks to turn on rules text once instead of in place of every condition and action.
+- 27a6d66: The scoring prompt names each payout by its points, such as the lower or higher payout, until rules text is turned on, and asks to turn it on once instead of on every row.
+
 ## 0.246.2 (2026-11-14)
 
 ### Patch Changes

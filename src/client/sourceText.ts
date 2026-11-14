@@ -124,6 +124,7 @@ export function registerTextSources(table: Readonly<Record<string, TextSourceFil
 export type MissingText = 'unchosen' | 'loading' | 'failed' | 'unavailable' | null
 /** Text as this device can show it, and the one source to turn on when that alone would load it. */
 type LoadedText = { text: string; missing: MissingText; needs?: TextSource }
+type TextGap = { missing: Exclude<MissingText, null>; needs?: TextSource }
 
 /**
  * The sources a text's tokens need that this device has not chosen: the one authority for
@@ -174,6 +175,21 @@ export function loadedText(text: string, choice = textSourceChoice()): LoadedTex
 export function loadedWords(text: string, choice = textSourceChoice()) {
   const loaded = loadedText(text, choice)
   return loaded.missing === null ? loaded.text : null
+}
+
+/**
+ * Why some of these texts are not shown yet, or null when every one is: a screen of many
+ * rules asks once, naming the source only when every gap needs the same one.
+ */
+export function textGap(texts: readonly (string | null | undefined)[], choice = textSourceChoice()): TextGap | null {
+  const gaps = texts.flatMap((text): TextGap[] => {
+    const { missing, needs } = text ? loadedText(text, choice) : { missing: null }
+    return missing && missing !== 'unavailable' ? [{ missing, needs }] : []
+  })
+  const unchosen = gaps.filter((gap) => gap.missing === 'unchosen')
+  const needs = unchosen[0]?.needs
+  if (unchosen.length) return { missing: 'unchosen', needs: unchosen.every((gap) => gap.needs === needs) ? needs : undefined }
+  return gaps.find((gap) => gap.missing === 'failed') ?? gaps[0] ?? null
 }
 
 const subscribe = (listener: () => void) => {
