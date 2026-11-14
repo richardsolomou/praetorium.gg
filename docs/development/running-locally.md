@@ -8,6 +8,8 @@
 
 ## Development lifecycle
 
+- When a tool pin changes in `mise.toml`, `package.json`, or `Dockerfile.node`, change it in `.devcontainer/Dockerfile` too.
+- In a Codespace, open the forwarded port 3000 for the app.
 - Run `just dev` after any checkout, pull, or merge, and use the URL it prints; a stale lockfile leaves pages that never finish loading.
 - `just dev-status` reports, `just dev-stop` stops only this worktree's stack, `just dev-restart` reloads after product-module, startup, or catalogue changes, and `just teardown` runs once the branch's pull request has merged.
 - Never kill a process by a shared port or a broad process-name match. On a collision with an explicit `LOCAL_*_PORT`, pick another free port.

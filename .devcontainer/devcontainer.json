@@ -1,0 +1,9 @@
+{
+  "name": "Praetorium",
+  "build": { "dockerfile": "Dockerfile" },
+  "remoteUser": "node",
+  "containerEnv": { "COREPACK_ENABLE_DOWNLOAD_PROMPT": "0" },
+  "postCreateCommand": "just install",
+  "forwardPorts": [3000],
+  "portsAttributes": { "3000": { "label": "Praetorium", "onAutoForward": "notify" } }
+}

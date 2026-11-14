@@ -1,0 +1,31 @@
+name: Dev container
+
+# The container pins tool versions separately from package.json and mise.toml, so the weekly run
+# catches a version bump that left it behind.
+on:
+  pull_request:
+    paths:
+      - .devcontainer/**
+      - .github/workflows/devcontainer.yml
+  schedule:
+    - cron: '41 5 * * 1'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  start:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v7
+      - name: Build the container and start the app without credentials
+        uses: devcontainers/ci@v0.3
+        with:
+          push: never
+          runCmd: just dev

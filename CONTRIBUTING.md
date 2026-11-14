@@ -4,7 +4,11 @@ Keep changes small, with tests for behavior that could realistically break. Disc
 
 ## Start the app
 
-Install Node 24.x, pnpm 12.13.0, just 1.59.0, and SpacetimeDB CLI 2.14.0, then run `just install` and `just dev`. No credentials are needed. See [running locally](docs/development/running-locally.md).
+Open the repository in a GitHub Codespace or a dev container, then run `just dev`. The container has the pinned tools and runs `just install` when it is created.
+
+To set up without a container, install Node 24.x, pnpm 12.13.0, just 1.59.0, and SpacetimeDB CLI 2.14.0, then run `just install` and `just dev`. Startup stops on any other CLI version.
+
+No credentials are needed. See [running locally](docs/development/running-locally.md).
 
 ## Check a change
 
