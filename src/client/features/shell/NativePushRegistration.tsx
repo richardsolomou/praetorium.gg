@@ -26,7 +26,7 @@ export function NativePushRegistration() {
   // A browser that already allowed notifications, and only that one, is bound the same way.
   useEffect(() => {
     if (!player || !webPushKey || !supportsWebPush()) return
-    void syncThisBrowser().catch((error: unknown) => posthog.captureException(error, { operation: 'web_push_registration' }))
+    void syncThisBrowser(webPushKey).catch((error: unknown) => posthog.captureException(error, { operation: 'web_push_registration' }))
   }, [player, webPushKey])
   return null
 }

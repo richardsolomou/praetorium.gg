@@ -112,6 +112,7 @@ describe('web push subscriptions', () => {
     'http://fcm.googleapis.com/fcm/send/abc',
     'https://fcm.googleapis.com:8443/fcm/send/abc',
     'https://user@fcm.googleapis.com/fcm/send/abc',
+    'https://fcm.googleapis.com@example.com/send',
     'https://fcm.googleapis.com.example.com/send',
     'https://localhost/push',
     'https://169.254.169.254/latest',

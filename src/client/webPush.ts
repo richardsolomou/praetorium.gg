@@ -85,11 +85,14 @@ export async function turnOffWebPush() {
 
 /**
  * Keep a subscribed browser bound to whoever is signed in, with its current endpoint,
- * since a browser may replace its subscription at any time.
+ * since a browser may replace its subscription at any time. One made with a key this instance no longer holds is dropped,
+ * since every push to it would be refused and never cleaned up.
  */
-export async function syncThisBrowser() {
+export async function syncThisBrowser(key: string) {
   const subscription = Notification.permission === 'granted' ? await browserSubscription() : null
-  if (subscription) await save(subscription)
+  if (!subscription) return
+  if (base64url(subscription.options.applicationServerKey) === key) await save(subscription)
+  else await subscription.unsubscribe()
 }
 
 /**

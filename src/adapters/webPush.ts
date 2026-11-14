@@ -68,6 +68,10 @@ export function webPushSenderFromEnvironment(
 function vapidKey(publicKey: string, privateKey: string): KeyObject {
   const point = fromBase64url(publicKey)
   if (point.length !== 65 || point[0] !== 4) throw new Error('WEB_PUSH_PUBLIC_KEY is not an uncompressed P-256 point')
+  // A JWK import accepts a private key with any public point, and push services would refuse every request it signs.
+  const derived = createECDH('prime256v1')
+  derived.setPrivateKey(fromBase64url(privateKey))
+  if (!derived.getPublicKey().equals(point)) throw new Error('WEB_PUSH_PRIVATE_KEY does not belong to WEB_PUSH_PUBLIC_KEY')
   return createPrivateKey({
     key: { kty: 'EC', crv: 'P-256', d: privateKey, x: base64url(point.subarray(1, 33)), y: base64url(point.subarray(33)) },
     format: 'jwk',
@@ -144,6 +148,8 @@ export function webPushSender(options: WebPushSenderOptions): WebPushSender {
               urgency: 'normal',
             },
             body: encryptPayload(payload, message.to),
+            // The endpoint was checked against the push services; a redirect could lead anywhere.
+            redirect: 'error',
             signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
           })
           countServerMetric('web_push.requests', requestOutcome(response.status))

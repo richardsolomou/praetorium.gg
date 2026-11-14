@@ -56,6 +56,16 @@ describe('web push sender', () => {
     ).toBeNull()
   })
 
+  it('stays off when the private key does not belong to the public one', () => {
+    expect(
+      webPushSenderFromEnvironment(() => undefined, {
+        APP_URL: 'https://praetorium.gg',
+        WEB_PUSH_PUBLIC_KEY: vapidKeys().publicKey,
+        WEB_PUSH_PRIVATE_KEY: vapidKeys().privateKey,
+      }),
+    ).toBeNull()
+  })
+
   it('encrypts the RFC 8291 example message to its published body', () => {
     const local = createECDH('prime256v1')
     local.setPrivateKey(bytes('yfWPiYE-n46HLnH0KqZOF1fJJU3MYrct3AELtAQ-oRw'))
