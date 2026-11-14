@@ -1,5 +1,25 @@
 # praetorium
 
+## 0.243.0 (2026-11-14)
+
+### Minor Changes
+
+- 76e198f: A battle can now run a chess clock: choose each side's time under **Chess clock** in setup, see the time each side has left on the scoreboard, and hand the clock to the other side for a reaction in your turn.
+- 2a0c26c: In a running battle, **Threats** under an opponent's name lists their surviving units by Move plus longest ranged weapon, so you can see what reaches you without opening each datasheet.
+- 3a4d05e: League players with a game still to finish get a notification about a day before the round’s deadline.
+- 8620afd: A new Status page, linked from Support, shows whether Praetorium is working and which release, army data and rules versions it serves.
+- d149cae: Choose **Something wrong?** on a datasheet, or in a roster unit's menu, to report a wrong points value or profile with the datasheet, faction and rules version already filled in.
+- 8f1654b: Streamers can add a live score overlay for a battle to their stream: choose **Copy stream overlay link** in the battle options.
+
+### Patch Changes
+
+- b204c34: Changing a roster to an archived rules version no longer fails with “That took too long” while the site is busy.
+- 7d3ebe3: The battle size list in roster setup is wide enough to show each size on one line.
+- c89cbce: When the connection drops during a load or a save, Praetorium now says so and asks you to try again when you are back online, instead of showing the browser's own message.
+- b204c34: Your rosters page shows a list’s current points straight after you edit it, instead of its total from before the edit.
+- 5351f0b: The results bar on a player's profile now shows draws as a thin line and losses as stripes, so players with red-green colour blindness can tell wins from losses.
+- be31474: Rules text that couldn't load now loads again when you come back to its page, without pressing Try again.
+
 ## 0.242.0 (2026-11-14)
 
 ### Minor Changes
