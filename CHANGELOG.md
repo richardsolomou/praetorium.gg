@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.247.2 (2026-11-14)
+
+### Patch Changes
+
+- c14456b: Reloading right after editing a roster no longer shows its old points on the rosters page.
+- 5c392be: Choosing a roster after you leave battle setup and come back now works the first time, instead of asking you to choose it again.
+
 ## 0.247.1 (2026-11-14)
 
 ### Patch Changes
