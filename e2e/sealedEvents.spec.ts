@@ -9,6 +9,7 @@ import {
   uniqueName,
   signUp,
   waitForRosterSave,
+  renameRoster,
   makeWarlord,
   sealableRoster,
   expectNoPageOverflow,
@@ -211,7 +212,7 @@ test('revealed rosters compare every unit using frozen loadouts and preserve sea
     })
     const editor = await ownerContext.newPage()
     await editor.goto(savedUrl)
-    await waitForRosterSave(editor, () => editor.getByLabel('List name').fill(name), name)
+    await renameRoster(editor, name)
     await editor.close()
     await owner.bringToFront()
     expect(
@@ -1027,13 +1028,13 @@ test('only a changed roster in an open sealed event offers replacement', async (
   await expect(page.getByLabel('List name')).toHaveValue('Original sealed event list')
   await expect(page.getByRole('button', { name: 'Sealed roster out of date' })).toHaveCount(0)
   await page.setViewportSize(PHONE)
-  await waitForRosterSave(page, () => page.getByLabel('List name').fill('Updated sealed event list'), 'Updated sealed event list')
+  await renameRoster(page, 'Updated sealed event list')
   const footer = page.locator('footer')
   const update = footer.getByRole('button', { name: 'Sealed roster out of date' })
   await expect(update).toBeVisible()
-  await waitForRosterSave(page, () => page.getByLabel('List name').fill('Original sealed event list'), 'Original sealed event list')
+  await renameRoster(page, 'Original sealed event list')
   await expect(update).toHaveCount(0)
-  await waitForRosterSave(page, () => page.getByLabel('List name').fill('Updated sealed event list'), 'Updated sealed event list')
+  await renameRoster(page, 'Updated sealed event list')
   await expect(update).toBeVisible()
   await expectNoPageOverflow(page)
   const footerHeight = (await footer.boundingBox())?.height
@@ -1079,7 +1080,7 @@ test('the organizer unseals a revealed roster so its entrant can seal a correcte
   await owner.reload()
   await revealEvent(owner)
   await owner.goto(organizerRosterUrl)
-  await waitForRosterSave(owner, () => owner.getByLabel('List name').fill('Organizer list revised'), 'Organizer list revised')
+  await renameRoster(owner, 'Organizer list revised')
   await expect(owner.getByRole('button', { name: 'Sealed roster out of date' })).toHaveCount(0)
   await owner.goto(sealedEventUrl.toString())
   // Revealed players show with their lists, which carry the organizer's unseal control; the entrant list is gone.

@@ -9,7 +9,7 @@ import {
   signUp,
   startBattle,
   uniqueName,
-  waitForRosterSave,
+  renameRoster,
   sealableRoster,
   practiceBattle,
   concede,
@@ -139,7 +139,7 @@ test('saved roster deletion preserves its actual sealed and fielded copies until
   expect(commandsBefore.some(({ body }) => JSON.stringify(body).includes('Skorpekh Lord'))).toBe(true)
 
   await page.goto(rosterUrl)
-  await waitForRosterSave(page, () => page.getByLabel('List name').fill('Changed saved roster'), 'Changed saved roster')
+  await renameRoster(page, 'Changed saved roster')
   await page.goto('/rosters')
   await chooseLibraryAction(page, 'Changed saved roster', 'Delete')
   const deletion = page.getByRole('alertdialog')

@@ -7,6 +7,7 @@ import {
   signUp,
   uniqueName,
   waitForRosterSave,
+  renameRoster,
   setRosterAccess,
   addUnit,
   PHONE,
@@ -103,7 +104,7 @@ for (const [width, label] of [
     await expect(reader.getByLabel('List name')).toHaveValue(`Copy of ${armyName}`)
     await expect(reader.locator('[data-roster-copied-from]')).toHaveText(`Copied from ${armyName} by ${ownerName}`)
     expect((await product.roster(copyId))?.copiedFromRosterId).toBe(sourceId)
-    await waitForRosterSave(reader, () => reader.getByLabel('List name').fill('Edited copy'), 'Edited copy')
+    await renameRoster(reader, 'Edited copy')
     await expect.poll(async () => (await product.roster(copyId))?.name).toBe('Edited copy')
     expect((await product.roster(copyId))?.picks).not.toContain(NOTE)
     expect(await product.roster(sourceId)).toEqual(source)

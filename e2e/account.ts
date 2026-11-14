@@ -1,5 +1,5 @@
 import { createHmac } from 'node:crypto'
-import type { BrowserContextOptions, Locator, Page, Request } from '@playwright/test'
+import type { BrowserContextOptions, Locator, Page, Request, Response } from '@playwright/test'
 import { expect, test } from '@playwright/test'
 import { PHASES } from '../src/core/battle'
 import type { SpacetimeOperator } from '../src/server/spacetimeOperator'
@@ -257,6 +257,31 @@ export async function waitForRosterSave(page: Page, action: () => Promise<unknow
   await expect(page.locator('[data-roster-builder]')).toHaveAttribute('data-saving', 'false')
 }
 
+/**
+ * Names the open roster and waits for a save that carries the name. Hydration can put the saved name back over one
+ * typed before it, which then never saves, so the name is typed again until a save carries it.
+ */
+export async function renameRoster(page: Page, name: string) {
+  const builder = page.locator('[data-roster-builder]')
+  await expect(builder).toHaveAttribute('data-saving', 'false')
+  let saved = false
+  const onResponse = (response: Response) => {
+    if (response.ok() && isRosterSave(response.request()) && response.request().postData()?.includes(name)) saved = true
+  }
+  // Whichever tab holds the sync lease sends the save, so listen across the whole context.
+  page.context().on('response', onResponse)
+  const field = page.getByLabel('List name')
+  try {
+    await expect(async () => {
+      if (!saved && (await field.inputValue()) !== name) await field.fill(name)
+      await expect.poll(() => saved, { timeout: 3_000 }).toBe(true)
+    }).toPass({ timeout: 30_000 })
+  } finally {
+    page.context().off('response', onResponse)
+  }
+  await expect(builder).toHaveAttribute('data-saving', 'false')
+}
+
 /** Saves an ability alert and waits for the account to accept it, so a battle fielded next carries it. */
 export async function saveAlert(editor: Locator, ability: string) {
   const saved = editor
@@ -325,7 +350,7 @@ export async function createRoster(
   await dialog.getByRole('button', { name: 'Create roster' }).click()
   await page.waitForURL(/\/rosters\/[^/]+$/)
   const rosterName = name ?? `${faction} roster`
-  await waitForRosterSave(page, () => page.getByLabel('List name').fill(rosterName), rosterName)
+  await renameRoster(page, rosterName)
   await page.reload()
   await expect(page.getByLabel('List name')).toHaveValue(rosterName)
   const picker = page.getByLabel('Add a unit')

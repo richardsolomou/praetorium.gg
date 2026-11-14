@@ -1,5 +1,5 @@
 import { expect, type Page, test } from './test'
-import { chooseRosterAction, retryUntilVisible, signUp, uniqueName, waitForRosterSave } from './account'
+import { chooseRosterAction, retryUntilVisible, signUp, uniqueName, renameRoster } from './account'
 import { expectNoHorizontalOverflow, shot } from './builder.harness'
 import { productOperator, userIdFor, guestDraft } from './storage'
 
@@ -72,7 +72,7 @@ for (const [width, label] of [
         .click()
       await reader.waitForURL((url) => /^\/rosters\/[^/]+$/.test(url.pathname))
       await expect(reader.getByLabel('List name')).toHaveValue(`Copy of ${ARMY}`)
-      await waitForRosterSave(reader, () => reader.getByLabel('List name').fill('Borrowed Warhost'), 'Borrowed Warhost')
+      await renameRoster(reader, 'Borrowed Warhost')
       if (width === 1440) {
         await chooseRosterAction(reader, 'Test targets')
         const simulator = reader.getByRole('dialog', { name: 'Test targets', exact: true })

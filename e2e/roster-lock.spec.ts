@@ -5,6 +5,7 @@ import {
   signUp,
   uniqueName,
   waitForRosterSave,
+  renameRoster,
   expectNoPageOverflow,
   chooseRosterAction,
   chooseLibraryAction,
@@ -65,7 +66,7 @@ test('a locked roster stays read-only until unlocked while its copies stay edita
   await chooseRosterAction(page, 'Create variant')
   await page.waitForURL((url) => !url.pathname.endsWith(id))
   const variantId = lastPathSegment(page.url())
-  await waitForRosterSave(page, () => page.getByLabel('List name').fill('Experimental variant'), 'Experimental variant')
+  await renameRoster(page, 'Experimental variant')
   await expect.poll(async () => (await operator.roster(variantId))?.name).toBe('Experimental variant')
   expect((await operator.roster(id))?.name).toBe(name)
 
@@ -73,7 +74,7 @@ test('a locked roster stays read-only until unlocked while its copies stay edita
   await page.getByRole('button', { name: 'Unlock', exact: true }).click()
   await expect(page.getByLabel('List name')).toHaveValue(name)
   await expect.poll(async () => (await operator.roster(id))?.locked).toBe(false)
-  await waitForRosterSave(page, () => page.getByLabel('List name').fill('Reworked list'), 'Reworked list')
+  await renameRoster(page, 'Reworked list')
   await expect.poll(async () => (await operator.roster(id))?.name).toBe('Reworked list')
 })
 
