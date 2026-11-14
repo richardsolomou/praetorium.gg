@@ -864,9 +864,9 @@ export const deleteUserData = spacetime.reducer({ userId: t.string() }, (ctx, { 
   for (const row of Array.from(ctx.db.webPushSubscriptions.userId.filter(userId))) ctx.db.webPushSubscriptions.endpoint.delete(row.endpoint)
   for (const row of Array.from(ctx.db.rosterPointsMarks.userId.filter(userId))) ctx.db.rosterPointsMarks.rosterId.delete(row.rosterId)
   for (const row of Array.from(ctx.db.friendships.requesterId.filter(userId))) {
-  touchFriends(ctx, row.requesterId, row.addresseeId)
-  ctx.db.friendships.key.delete(row.key)
-}
+    touchFriends(ctx, row.requesterId, row.addresseeId)
+    ctx.db.friendships.key.delete(row.key)
+  }
   for (const row of Array.from(ctx.db.friendships.addresseeId.filter(userId))) {
     touchFriends(ctx, row.requesterId, row.addresseeId)
     ctx.db.friendships.key.delete(row.key)

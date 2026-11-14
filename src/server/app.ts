@@ -372,10 +372,7 @@ export function app(): App {
     )
     const push = pushSenderFromEnvironment((tokens) => repository.deletePushTokens(tokens))
     const webPush = webPushSenderFromEnvironment((endpoints) => repository.deleteWebPushSubscriptions(endpoints))
-    const notifier = storingNotifier(
-      repository,
-      push || webPush ? pushNotifier(repository, { app: push, web: webPush }) : silentNotifier,
-    )
+    const notifier = storingNotifier(repository, push || webPush ? pushNotifier(repository, { app: push, web: webPush }) : silentNotifier)
     const collectionPhotos = collectionPhotoStore(repository, () => privateObjects())
     const screening = process.env.TYPESAFE_API_KEY?.trim() ? photoScreening(process.env.TYPESAFE_API_KEY.trim()) : null
     const startup = readiness((untilBuilt) => warm(instance, untilBuilt))
