@@ -81,8 +81,6 @@ const snapshotSchema = z.object({
         key: z.array(z.unknown()).min(1),
         data: z.unknown(),
         updatedAt: z.number().nonnegative(),
-        // A write since the answer arrived made it out of date; its age alone would read as fresh.
-        invalidated: z.literal(true).optional(),
       }),
     )
     .max(MAX_APP_SNAPSHOT_QUERIES),
