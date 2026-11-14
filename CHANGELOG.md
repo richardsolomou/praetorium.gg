@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.247.7 (2026-11-14)
+
+### Patch Changes
+
+- 4389f0e: A unit's loadout lists every ranged weapon before its melee weapons, instead of putting default melee weapons ahead of chosen guns.
+
 ## 0.247.6 (2026-11-14)
 
 ### Patch Changes
