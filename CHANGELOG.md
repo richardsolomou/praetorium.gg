@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.247.0 (2026-11-14)
+
+### Minor Changes
+
+- 3be527d: You can now get notifications in your browser for new battles, friend requests, and group and tournament updates.
+
 ## 0.246.3 (2026-11-14)
 
 ### Patch Changes
