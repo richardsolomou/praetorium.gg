@@ -24,7 +24,7 @@ You can bring in several lists at once from these apps.
 
 ## Import a top-four tournament list
 
-The **Top four** tab under [Rosters](/rosters?view=winning) shows lists that finished in the top four at Warhammer 40,000 tournaments outside Praetorium, as published by 40k Stats. It only shows lists that import with nothing to fix and are legal under today's points, however long ago they were played.
+The **Tournament lists** tab under [Rosters](/rosters?view=tournament-lists) shows lists that finished in the top four at Warhammer 40,000 tournaments outside Praetorium, as published by 40k Stats. It only shows lists that import with nothing to fix and are legal under today's points, however long ago they were played.
 
 1. Filter by faction, detachment, unit, placing, event size or date, or search for a list, event or unit.
 2. Choose a list to read it in full, unit by unit, without saving anything.

@@ -255,10 +255,10 @@ function TopFourLists({
       </ul>
       <Link
         to="/rosters"
-        search={{ view: 'winning', faction: faction.slug, unit: entryId }}
+        search={{ view: 'tournament-lists', faction: faction.slug, unit: entryId }}
         className="mt-2 inline-block text-sm text-dim underline decoration-runner-hi underline-offset-4 hover:text-bone"
       >
-        {lists.length > SHOWN_LISTS ? `All ${countLabel(lists.length, 'list')}` : 'Open on the Top four tab'}
+        {lists.length > SHOWN_LISTS ? `All ${countLabel(lists.length, 'list')}` : 'Open in Tournament lists'}
       </Link>
     </section>
   )

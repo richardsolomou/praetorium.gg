@@ -86,7 +86,13 @@ export const rosterDiscoveryCountsQuery = (view: RosterAudience | 'played') =>
 
 /** Recent tournament placings whose lists import cleanly; null lists while the server is still reading them. */
 export const winningListsQuery = () =>
-  queryOptions({ queryKey: ['winning-lists'], queryFn: () => winningLists(), staleTime: SSR_STALE_TIME })
+  queryOptions({
+    queryKey: ['winning-lists'],
+    queryFn: () => winningLists(),
+    staleTime: SSR_STALE_TIME,
+    // The first import after a deploy or rules change takes minutes, so an open tab picks up lists as they are checked.
+    refetchInterval: (query) => (query.state.data?.checking ? 15_000 : false),
+  })
 
 /** Where the top-four lists come from: placings at tournaments outside Praetorium. */
 export const TOP_FOUR_SOURCE_URL = 'https://40kstats.tabletopbattles.com/#t4'

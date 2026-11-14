@@ -14,7 +14,7 @@ export async function openWinningImport(
   posthog.capture('winning_list_import_opened', { placing: list.placing })
   await navigate({
     to: '/rosters',
-    search: { view: 'winning', ...search },
+    search: { view: 'tournament-lists', ...search },
     hash: new URLSearchParams({ d: encoded, src: '40kstats', listname: list.name }).toString(),
     resetScroll: false,
   })

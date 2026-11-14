@@ -200,7 +200,7 @@ test("a visitor's roster is listed on the rosters page as a saved one is", async
     'Friends',
     'Public',
     'Played',
-    'Top four',
+    'Tournament lists',
   ])
   await shotAtWidths(page, 'round4-visitor-rosters')
   await row.getByRole('link').click()

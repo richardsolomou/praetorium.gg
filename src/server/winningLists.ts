@@ -158,9 +158,14 @@ const readJson = async <T>(file: string, schema: z.ZodType<T>) => {
 /**
  * Every cached placing whose list imports with nothing to review and is legal under this catalogue revision, which
  * is what keeps a list built for rules since changed out, whatever its age. Verdicts are kept on disk per revision,
- * so a restart repeats no import and a day adds only new lists.
+ * so a restart repeats no import and a day adds only new lists. `progress` gets those found so far as it goes, newest
+ * events first, since the cache lists events that way.
  */
-async function importableLists(directory: string, revision: string): Promise<WinningList[] | null> {
+async function importableLists(
+  directory: string,
+  revision: string,
+  progress: (found: WinningList[]) => void = () => undefined,
+): Promise<WinningList[] | null> {
   const cached = await readJson(eventsFile(directory), events)
   if (!cached) return null
   const kept = await readJson(verdictsFile(directory), verdicts)
@@ -168,6 +173,7 @@ async function importableLists(directory: string, revision: string): Promise<Win
   const known: Record<string, Verdict> = kept?.revision === revision ? kept.lists : {}
   const save = () => writeWhole(verdictsFile(directory), JSON.stringify({ revision, lists: known }))
   const found: WinningList[] = []
+  const sorted = () => found.toSorted((left, right) => right.event.date.localeCompare(left.event.date) || left.placing - right.placing)
   let imported = 0
   for (const event of cached)
     for (const player of event.players) {
@@ -176,7 +182,10 @@ async function importableLists(directory: string, revision: string): Promise<Win
         if (text === null) continue
         known[player.list] = await importVerdict(text)
         // Saved as it goes, so a restart part way through carries on rather than starting again.
-        if (++imported % 25 === 0) await save()
+        if (++imported % 25 === 0) {
+          await save()
+          progress(sorted())
+        }
         await sleep(PAUSE_MS)
       }
       const list = known[player.list]
@@ -184,7 +193,7 @@ async function importableLists(directory: string, revision: string): Promise<Win
       found.push(placed(list, player.list, event, player))
     }
   await save()
-  return found.toSorted((left, right) => right.event.date.localeCompare(left.event.date) || left.placing - right.placing)
+  return sorted()
 }
 
 /**
@@ -222,16 +231,20 @@ export function unitLists(lists: readonly WinningList[], catalogueId: string, en
  * last finished answer straight away, or null before the first one, rather than waiting on any import.
  */
 export function winningListsStore(directory: string, catalogue: () => LoadedCatalogue | null, onError: (error: unknown) => void) {
-  let shown: { lists: WinningList[]; revision: string; version: number } | null = null
+  let shown: { lists: WinningList[]; revision: string; version: number; complete: boolean } | null = null
   let version = 0
   let running: Promise<void> | null = null
   const read = () => {
     const revision = catalogue()?.index.revision
-    if (!revision || running || (shown?.revision === revision && shown.version === version)) return
+    if (!revision || running || (shown?.complete && shown.revision === revision && shown.version === version)) return
     const reading = version
-    running = importableLists(directory, revision)
+    // Lists found so far stand in only for none or for an earlier partial read, never for a finished one.
+    const partial = (lists: WinningList[]) => {
+      if (!shown?.complete) shown = { lists, revision, version: reading, complete: false }
+    }
+    running = importableLists(directory, revision, partial)
       .then((lists) => {
-        if (lists) shown = { lists, revision, version: reading }
+        if (lists) shown = { lists, revision, version: reading, complete: true }
       })
       .catch(onError)
       .finally(() => {
@@ -239,18 +252,19 @@ export function winningListsStore(directory: string, catalogue: () => LoadedCata
       })
   }
   return {
+    /** The lists found so far, null before any, and whether the first import is still checking more. */
     lists: () => {
       read()
-      return shown?.lists ?? null
+      return { lists: shown?.lists ?? null, checking: !shown?.complete }
     },
-    /** Null until the first import finishes, so a reader can tell no lists from not knowing yet. */
+    /** Null until the first import finishes, since a count out of part of the lists would mark the wrong units. */
     unitCounts: (catalogueId: string) => {
       read()
-      return shown ? unitCounts(shown.lists, catalogueId) : null
+      return shown?.complete ? unitCounts(shown.lists, catalogueId) : null
     },
     unitLists: (catalogueId: string, entryId: string) => {
       read()
-      return shown ? unitLists(shown.lists, catalogueId, entryId) : null
+      return shown?.complete ? unitLists(shown.lists, catalogueId, entryId) : null
     },
     refresh: async () => {
       await refreshWinningLists(directory)

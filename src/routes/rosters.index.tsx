@@ -30,8 +30,10 @@ import { rosterStartSearch } from '../client/features/rosters/rosterStart'
 function rostersSearch(search: Record<string, unknown>): RostersSearch {
   const q = searchText(search.q, ROSTER_SEARCH_MAX_LENGTH)?.trim()
   const text = q ? { q } : {}
-  const view = ROSTER_VIEWS.find((known) => known === search.view)
-  if (view === 'winning') return { view, ...text, ...facetSearch(search, WINNING_FACETS), ...periodSearch(search) }
+  // `winning` is the tab's former id, which shared links still carry.
+  const requested = search.view === 'winning' ? 'tournament-lists' : search.view
+  const view = ROSTER_VIEWS.find((known) => known === requested)
+  if (view === 'tournament-lists') return { view, ...text, ...facetSearch(search, WINNING_FACETS), ...periodSearch(search) }
   if (view) {
     const sort = ROSTER_SORTS.find((known) => known !== 'updated-desc' && known === search.sort)
     return { view, ...text, ...facetSearch(search, DISCOVERY_FACETS), ...periodSearch(search), ...(sort ? { sort } : {}) }
@@ -50,7 +52,7 @@ export const Route = createFileRoute('/rosters/')({
     if (view) {
       const index = await context.queryClient.query({ ...factionIndexQuery(), staleTime: 'static' })
       const factions = index?.factions ?? []
-      if (view === 'winning') await context.queryClient.query({ ...winningListsQuery(), staleTime: 'static' })
+      if (view === 'tournament-lists') await context.queryClient.query({ ...winningListsQuery(), staleTime: 'static' })
       else if (view === 'played')
         await context.queryClient.infiniteQuery({ ...playedArmiesQuery(playedFilter(search, factions)), staleTime: 'static' })
       else
@@ -70,12 +72,12 @@ export const Route = createFileRoute('/rosters/')({
   head: ({ match }) =>
     pageHead(
       match.context.origin,
-      match.search.view === 'winning'
+      match.search.view === 'tournament-lists'
         ? {
             title: 'Top-four Warhammer 40,000 tournament lists',
             description:
               'Browse Warhammer 40,000 lists that finished in the top four at tournaments outside Praetorium and are still legal under today’s points, and import one as your own roster.',
-            path: '/rosters?view=winning',
+            path: '/rosters?view=tournament-lists',
           }
         : match.search.view === 'played'
           ? {

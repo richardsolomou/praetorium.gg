@@ -57,6 +57,7 @@ export function WinningListsPage({ search }: { search: WinningSearch }) {
   const [now] = useState(() => Date.now())
   const facets = facetsOf(search, WINNING_FACETS)
   const lists = result.data?.lists ?? null
+  const checking = result.data?.checking ?? true
 
   const families = factionFamilies(factions)
   const factionGroups = factionSelectGroups(
@@ -171,7 +172,7 @@ export function WinningListsPage({ search }: { search: WinningSearch }) {
   })
   const active = Object.values(search).some(Boolean)
   const choose = (next: WinningSearch) =>
-    void navigate({ to: '/rosters', search: { view: 'winning', ...next }, replace: true, resetScroll: false })
+    void navigate({ to: '/rosters', search: { view: 'tournament-lists', ...next }, replace: true, resetScroll: false })
 
   const create = useNewRoster()
   const draft = useClientValue(peekGuestDraft, null)
@@ -193,7 +194,7 @@ export function WinningListsPage({ search }: { search: WinningSearch }) {
           </>
         }
       >
-        <RosterViews view="winning" />
+        <RosterViews view="tournament-lists" />
       </PageHeader>
       <PageContent className="space-y-6">
         <FilterBar
@@ -239,27 +240,34 @@ export function WinningListsPage({ search }: { search: WinningSearch }) {
                   </Button>
                 }
               />
-            ) : result.isPending || lists === null ? (
+            ) : result.isPending || lists === null || (checking && !lists.length) ? (
               <PageState
                 headingLevel={2}
                 title="Checking top-four lists"
-                explanation="Tournament lists are being checked against today’s data. Try again shortly."
+                explanation="Tournament lists are being checked against today’s data. They appear here as they are checked."
                 icon={Trophy}
               />
             ) : shown.length ? (
-              <div className="runner gap-3 [--gate-x:1rem] [--gate-y:1.5rem] sm:[--gate-x:1.5rem]">
-                {shown.map(({ list, faction }) => (
-                  <WinningListCard
-                    key={list.id}
-                    list={list}
-                    faction={faction}
-                    dispositionName={references?.dispositions.find((entry) => entry.id === list.disposition)?.name}
-                    opening={open.isPending && open.variables?.id === list.id}
-                    disabled={open.isPending}
-                    onImport={another ?? (() => open.mutate(list))}
-                  />
-                ))}
-              </div>
+              <>
+                {checking ? (
+                  <p className="text-xs text-dim">
+                    Showing the lists checked so far. More appear as the rest are checked against today’s data.
+                  </p>
+                ) : null}
+                <div className="runner gap-3 [--gate-x:1rem] [--gate-y:1.5rem] sm:[--gate-x:1.5rem]">
+                  {shown.map(({ list, faction }) => (
+                    <WinningListCard
+                      key={list.id}
+                      list={list}
+                      faction={faction}
+                      dispositionName={references?.dispositions.find((entry) => entry.id === list.disposition)?.name}
+                      opening={open.isPending && open.variables?.id === list.id}
+                      disabled={open.isPending}
+                      onImport={another ?? (() => open.mutate(list))}
+                    />
+                  ))}
+                </div>
+              </>
             ) : active ? (
               <NoFilterMatches>No top-four lists match these filters</NoFilterMatches>
             ) : (
