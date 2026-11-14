@@ -288,7 +288,7 @@ export class PraetoriumService {
     const seats = await this.repository.battleByToken(token)
     if (!seats) throw new Response('no such battle', { status: 404 })
     const state = await this.repository.battleDraftState(seats.battle.id)
-    const seated = userId !== null && this.seated(seats, userId)
+    const seated = userId !== null && isSeated(seats, userId)
     if (!seated || !state.invite) return { draft: state.draft, invite: null }
     const names = await this.repository.namesByIds(state.invite.invitedIds)
     return {
@@ -308,7 +308,7 @@ export class PraetoriumService {
     const history = await this.repository.battleHistoryByInvite(invite)
     if (!history) return null
     const state = foldHistory(history)
-    const seated = userId !== null && this.seated(history, userId)
+    const seated = userId !== null && isSeated(history, userId)
     const host = history.players.find((player) => player.side === 0)
     const seats = history.players.map((player) => ({
       side: player.side,
