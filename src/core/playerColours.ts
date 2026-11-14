@@ -73,31 +73,46 @@ function apart(one: PlayerColour, other: PlayerColour) {
   return Math.hypot(a[0]! - b[0]!, a[1]! - b[1]!, a[2]! - b[2]!)
 }
 
+type Seated = Coloured & { side: number }
+
 /**
- * The two side colours for a table led by these players, or null to keep the stock
- * red and blue while a side is still empty.
+ * Every seated player's colour for one battle, and the side tokens that draw it, or
+ * null to keep the stock red and blue while a side is still empty.
  *
- * When both captains' colours are of one family, such as two blues, the first side keeps
- * its colour and the second takes the palette colour furthest from it, so every device
- * still agrees on who is which.
+ * Players keep their own colour unless an earlier seat already holds one of its family,
+ * such as two blues; then they take the free colour furthest from every one already
+ * held. Side 0 is seated first and each side in its seat order, so every device agrees
+ * on who is which. A side's single colour, for its controls and dialogs, is its first
+ * player's; its blend runs through all of its players' colours.
  */
-export function sideColours(captains: readonly [Coloured | undefined, Coloured | undefined]): [SideColour, SideColour] | null {
-  const [first, second] = captains
-  if (!first?.id || !second?.id) return null
-  const a = playerColour(first)
-  let b: PlayerColour = playerColour(second)
-  if (a.family === b.family) b = PLAYER_COLOURS.reduce<PlayerColour>((best, each) => (apart(a, each) > apart(a, best) ? each : best), b)
-  return [sideColour(a), sideColour(b)]
+export function battleColours(players: readonly Seated[]): { players: Map<string, SideColour>; variables: Record<string, string> } | null {
+  const seated = [0, 1].map((side) => players.filter((player) => player.side === side && player.id))
+  if (seated.some((side) => !side.length)) return null
+  const held: PlayerColour[] = []
+  const colours = new Map<string, SideColour>()
+  const sides = seated.map((side) =>
+    side.map((player) => {
+      let colour = playerColour(player)
+      const free = PLAYER_COLOURS.filter((each) => !held.some((other) => other.family === each.family))
+      if (free.length && !free.includes(colour)) {
+        const near = (each: PlayerColour) => Math.min(...held.map((other) => apart(each, other)))
+        colour = free.reduce((best, each) => (near(each) > near(best) ? each : best))
+      }
+      held.push(colour)
+      colours.set(player.id, sideColour(colour))
+      return colours.get(player.id)!
+    }),
+  )
+  return { players: colours, variables: Object.assign({}, ...sides.map((side, index) => sideVariables(index ? 'b' : 'a', side))) }
 }
 
-/** The side tokens a battle surface sets, so every tint under it draws in the players' colours. */
-export function sideVariables([a, b]: readonly [SideColour, SideColour]): Record<string, string> {
+/** The tokens one side sets, so every tint under it draws in its players' colours. */
+function sideVariables(name: 'a' | 'b', [first, ...rest]: readonly SideColour[]): Record<string, string> {
+  const stops = [first!, ...rest].map((colour) => colour.text)
   return {
-    '--color-side-a': a.text,
-    '--color-side-a-fill': a.fill,
-    '--color-side-a-ink': a.ink,
-    '--color-side-b': b.text,
-    '--color-side-b-fill': b.fill,
-    '--color-side-b-ink': b.ink,
+    [`--color-side-${name}`]: first!.text,
+    [`--color-side-${name}-fill`]: first!.fill,
+    [`--color-side-${name}-ink`]: first!.ink,
+    [`--side-${name}-blend`]: `linear-gradient(90deg, ${stops.length > 1 ? stops.join(', ') : `${stops[0]}, ${stops[0]}`})`,
   }
 }

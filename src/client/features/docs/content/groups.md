@@ -22,7 +22,7 @@ Ratings work as on the site-wide [leaderboard](/leaderboard): everyone starts at
 
 ## The group page
 
-**Up next for you**, beside the page on a computer and at its top on a phone, shows the one thing waiting on you: a battle you're playing, a list to seal, revealed lists to play, or your next league game.
+**Up next for you**, beside the page on a computer and at its top on a phone, shows the one thing waiting on you: a battle you're playing, a list to seal, revealed lists to play, or your next league game. It's hidden when nothing is waiting.
 
 The **Overview** tab has the current hidden-list game, your unfinished battles, **Recent games** and **Past hidden-list games**. **Battles** lists every game played for the group, with [filters](/docs/filter-lists). **Leaderboard** rates every game played for the group. **League** has the round robin, with its own table and fixtures.
 

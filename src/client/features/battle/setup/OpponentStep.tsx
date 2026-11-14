@@ -1,4 +1,5 @@
 import { type QueryClient, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { PlayerTint } from '../battleColours'
 import { Link } from '@tanstack/react-router'
 import { Bell, Check, ChevronRight, QrCode } from 'lucide-react'
 import { posthog } from 'posthog-js'
@@ -200,7 +201,9 @@ function Joined({ view, removable, onRemoved }: { view: BattleView; removable: b
           <li key={player.id} className="flex flex-wrap items-center justify-between gap-3">
             <span className={cn('inline-flex min-w-0 items-center gap-1.5 text-sm font-bold uppercase', tint(player.side).text)}>
               <PlayerAvatar name={player.name} image={player.image ?? null} className="size-6 text-xs" />
-              <span className="break-words">{player.name}</span>
+              <PlayerTint playerId={player.id} className="break-words">
+                {player.name}
+              </PlayerTint>
               {player.automated ? <span className="chip ml-1 align-middle text-dim normal-case">Played by you</span> : null}
             </span>
             {removable ? (

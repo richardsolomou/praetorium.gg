@@ -25,6 +25,7 @@ import { BattleCombatDialog, type BattleCombatSelection } from '../simulator/Bat
 import { ArmyRoster } from './ArmyRoster'
 import { PrimaryMission, type ReferenceCard, SecondaryMissions } from './MissionCards'
 import { Scoreboard } from './Scoreboard'
+import { RoundSummary, useRoundSummary } from './RoundSummary'
 import { TurnTimes } from './TurnTimes'
 import { tint } from './battleTints'
 import { Fact } from '../../components/Fact'
@@ -124,6 +125,9 @@ export function Spectator({
   const referenceFor = (key: string) => cardsByKey.get(key)
   useWatchBattle(currentView, currentClock, currentMissions, noReference, noPrompts)
   useSpectated(view, table)
+  // Follows the live battle, never a replayed moment, so scrubbing back through a game shows no summaries.
+  const roundSummary = useRoundSummary(currentView)
+  const liveTable = useMemo(() => sides(currentView, currentMissions), [currentMissions, currentView])
 
   return (
     <>
@@ -146,6 +150,7 @@ export function Spectator({
         </div>
 
         {combatSelection ? <BattleCombatDialog view={view} selection={combatSelection} onClose={() => setCombatSelection(null)} /> : null}
+        <RoundSummary mark={roundSummary.mark} view={currentView} sides={liveTable} onClose={roundSummary.close} />
         <Scoreboard view={view} clock={clock} sides={table} />
         {/* A finished game is when a reader is most likely to want their own, so it leads there and waits beside the facts while play goes on. */}
         {currentView.status === 'finished' ? (
@@ -385,7 +390,7 @@ function SpectatorSide({
             </div>
             <div className="min-w-0">
               <dt className="eyebrow">Command points</dt>
-              <dd key={side.cp} className={`figure animate-figure text-4xl leading-none font-bold ${colours.text}`}>
+              <dd key={side.cp} className={`figure animate-figure text-4xl leading-none font-bold ${colours.score}`}>
                 {side.cp}
               </dd>
             </div>

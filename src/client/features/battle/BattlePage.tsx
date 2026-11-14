@@ -11,7 +11,8 @@ import { isPracticeSeat } from '../../../core/newBattle'
 import { celebrateVictory } from './victory'
 import { battleResult } from '../../battleOutcome'
 import { sides } from '../../sides'
-import { sideColours, sideVariables } from '../../../core/playerColours'
+import { battleColours } from '../../../core/playerColours'
+import { BattleColoursProvider } from './battleColours'
 import { battleQuery, battlesQuery } from '../../queries'
 import { confirmedSeq, useCommand } from './useCommand'
 import { useSpacetimeLiveBattle } from '../../spacetimeLive'
@@ -32,25 +33,25 @@ export function BattlePage({ token }: { token: string }) {
   if (!screen) return <Navigate to="/battles" replace />
   if (screen.kind === 'unavailable')
     return <FullPageState title="This battle is not open" explanation="Nobody is seated at this battle, so there is nothing to watch." />
+  const colours = battleColours(screen.view.players)
   return (
-    <>
-      <SideColours players={screen.view.players} />
+    <BattleColoursProvider value={colours?.players ?? NO_COLOURS}>
+      {colours ? <SideColours variables={colours.variables} /> : null}
       {screen.kind === 'spectator' ? <WatchedBattle token={token} screen={screen} /> : <SeatedBattle token={token} screen={screen} />}
-    </>
+    </BattleColoursProvider>
   )
 }
 
+const NO_COLOURS = new Map()
+
 /**
- * Paints each side in its captain's own colour for as long as the battle is open.
+ * Paints each side in its players' colours for as long as the battle is open.
  *
  * Set on the root rather than a wrapper, because the battle's dialogs and its victory
  * confetti render outside the page and read the same side tokens.
  */
-function SideColours({ players }: { players: readonly { id: string; side: number; colour: string | null }[] }) {
-  const captain = (side: number) => players.find((player) => player.side === side)
-  const colours = sideColours([captain(0), captain(1)])
-  if (!colours) return null
-  const declarations = Object.entries(sideVariables(colours))
+function SideColours({ variables }: { variables: Record<string, string> }) {
+  const declarations = Object.entries(variables)
     .map(([name, value]) => `${name}:${value}`)
     .join(';')
   return <style>{`:root{${declarations}}`}</style>

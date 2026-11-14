@@ -57,10 +57,13 @@ export function FactionMark({
   faction,
   edition = faction.edition,
   size = 'md',
+  className,
 }: {
   faction: FactionPresentation
   edition?: FactionPresentation['edition']
   size?: 'sm' | 'md' | 'lg'
+  /** Sizes the mark in place of `size`. */
+  className?: string
 }) {
   const { slug: id, displayName: name, icon } = faction
   const colour = factionColour(id, name)
@@ -83,7 +86,7 @@ export function FactionMark({
       aria-hidden
       data-faction-mark={id}
       style={style}
-      className={`${size === 'lg' ? 'size-14' : size === 'sm' ? 'size-5' : 'size-9'} inline-block shrink-0`}
+      className={`${className ?? (size === 'lg' ? 'size-14' : size === 'sm' ? 'size-5' : 'size-9')} inline-block shrink-0`}
     />
   )
   return edition ? (

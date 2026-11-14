@@ -2,7 +2,7 @@ Open [Battles](/battles) and choose **New battle**. Setup opens straight away wi
 
 ![Battle setup on a new draft: your card with Choose army, an empty Opponent card with Share a link, and the Tracking step.](screenshot:track-a-battle-new-battle 'A new battle starts as a draft')
 
-1. Under **Tracking**, choose **Guided** or **Manual**. Choosing your army or sharing the link goes on with Guided.
+1. Under **Tracking**, keep **Guided**, which is already selected, or switch to **Manual**.
 2. Choose your army on your card at the top. The first list chosen sets the battle size, and a bigger or smaller list changes it.
 3. Bring your opponent in under **Opponent** (see below).
 4. Answer the rest of setup and choose **Start battle**.

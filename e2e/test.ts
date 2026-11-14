@@ -35,6 +35,22 @@ function awaitSettled(page: Page) {
   }
 }
 
+export const roundSummary = (page: Page) => page.locator('[data-round-summary]')
+
+/**
+ * A battle covers itself with its scores whenever a round ends, which would stand in front of every
+ * spec that plays across one. Each battle reads as having had every summary seen, unless a spec sets
+ * `showRoundSummaries` on the page's window first, as one about the summary does.
+ */
+const SEEN_ROUND_SUMMARIES = `(() => {
+  const getItem = Storage.prototype.getItem
+  Storage.prototype.getItem = function (key) {
+    if (!window.showRoundSummaries && typeof key === 'string' && key.startsWith('praetorium.round-summary.'))
+      return '{"round":99,"finished":true}'
+    return getItem.call(this, key)
+  }
+})()`
+
 /** Each upstream file the snapshot was built from, by the address a reader's browser loads it at. */
 let upstream: Map<string, string> | undefined
 function upstreamFiles() {
@@ -231,6 +247,7 @@ export const test = base.extend<{ closeOpenedContexts: void; recordCoverage: voi
       browser.newContext = async (options) => {
         const context = await newContext(options)
         if (options?.javaScriptEnabled !== false) context.on('page', awaitSettled)
+        await context.addInitScript({ content: SEEN_ROUND_SUMMARIES })
         await serveRulesText(context)
         coverNewPages(context, options?.javaScriptEnabled !== false)
         return context

@@ -1,4 +1,5 @@
 import { GuideHelp } from '../../onboarding/GuideHelp'
+import { SideNames } from '../PlayerName'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { Check, QrCode } from 'lucide-react'
@@ -329,11 +330,9 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
             })
           : battleSizeLabel(view.settings.limit, pointsBudget)
   const checked = (id: SectionId) => (view.setupChecked ?? []).includes(SECTION_IDS.indexOf(id))
-  // A battle that seated its table at creation chose its tracking there.
-  const trackingChosen = !places || checked('format')
   const armiesIn = view.settings.limit !== null && ready && !budgetsDiffer && !armyProblem && !leaderless.length
   const complete: Record<SectionId, boolean> = {
-    format: trackingChosen && (view.settings.limit !== null || sizeFixed) && (manual || Boolean(chosenPack)),
+    format: (view.settings.limit !== null || sizeFixed) && (manual || Boolean(chosenPack)),
     opponent: openCount === 0,
     mission: Boolean(mission) && !undecided.length,
     battlefield: Boolean(view.deploymentId),
@@ -345,9 +344,8 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
     'first-turn': Boolean(view.firstPlayerId),
     'pre-battle': Boolean(firstSide),
   }
-  /** Steps are reached in order: nothing after Tracking until it is chosen, nothing after Opponent until someone is on their way. */
-  const reached = (id: SectionId) =>
-    id === 'format' || (trackingChosen && (id === 'opponent' || complete.opponent || Boolean(draft?.invite)))
+  /** Steps are reached in order: nothing after Opponent until someone is on their way. */
+  const reached = (id: SectionId) => id === 'format' || id === 'opponent' || complete.opponent || Boolean(draft?.invite)
   const locked: Record<SectionId, boolean> = {
     format: false,
     opponent: !reached('opponent'),
@@ -386,10 +384,6 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
       if (ticking) land(SECTION_IDS.slice(SECTION_IDS.indexOf(id) + 1).find((later) => !skipped(later)))
     },
   })
-  /** Choosing an army or sharing the link goes on with the tracking as it stands, Guided unless changed. */
-  const acceptTracking = () => {
-    if (!trackingChosen) send({ kind: 'set-setup-checked', step: SECTION_IDS.indexOf('format'), checked: true })
-  }
   /** The first step the table still owes an answer to, which the bar takes the reader to. */
   const next = SECTION_IDS.find((id) => !locked[id] && !complete[id] && !NOTHING_OWED.has(id) && !skipped(id))
   const step = (id: SectionId) => ({
@@ -457,7 +451,6 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
     ]
   }
   const share = () => {
-    acceptTracking()
     if (!draft?.invite) shareLink.mutate()
     land('opponent')
   }
@@ -525,10 +518,7 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
                       busy: busy || shareLink.isPending || fill.isPending || dropPlace.isPending || giveBack.isPending,
                       send,
                       onShare: share,
-                      onChoose: (army) => {
-                        acceptTracking()
-                        chooseRoster(army.playerId)
-                      },
+                      onChoose: (army) => chooseRoster(army.playerId),
                       onAddAlly: (side) =>
                         changePlaces && places![side] === 1
                           ? () => changePlaces(side, 1, playingAll ? () => fill.mutate() : undefined)
@@ -552,15 +542,13 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
               number={1}
               name="Tracking"
               onboarding="battle-setup-size"
-              needed={trackingChosen && !complete.format}
+              needed={!complete.format}
               hint={
-                !trackingChosen
-                  ? undefined
-                  : !sizeFixed && view.settings.limit === null
-                    ? 'Choose the battle size.'
-                    : !manual && !chosenPack
-                      ? 'Choose a mission pack.'
-                      : undefined
+                !sizeFixed && view.settings.limit === null
+                  ? 'Choose the battle size.'
+                  : !manual && !chosenPack
+                    ? 'Choose a mission pack.'
+                    : undefined
               }
               summary={
                 <>
@@ -578,7 +566,7 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
                   <div className="sm:col-span-2">
                     <Choice
                       label="How you track it"
-                      value={trackingChosen ? (manual ? 'manual' : 'guided') : null}
+                      value={manual ? 'manual' : 'guided'}
                       options={[
                         {
                           value: 'guided',
@@ -602,7 +590,6 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
                               ? { manual: true, missionPackId: null, twistId: null, terrainLayoutId: null }
                               : { manual: false, missionPackId: references?.packs[0]?.id ?? null },
                           )
-                        acceptTracking()
                       }}
                     />
                   </div>
@@ -794,7 +781,9 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
                 <>
                   {defender ? (
                     <>
-                      <span className={`font-bold uppercase ${tint(defender.index).text}`}>{sideName(defender)}</span>
+                      <span className={`font-bold uppercase ${tint(defender.index).text}`}>
+                        <SideNames side={defender} />
+                      </span>
                       <span className="text-dim"> defends · deploys first</span>
                     </>
                   ) : (
@@ -867,7 +856,9 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
                 <>
                   {firstSide ? (
                     <>
-                      <span className={`font-bold uppercase ${tint(firstSide.index).text}`}>{sideName(firstSide)}</span>
+                      <span className={`font-bold uppercase ${tint(firstSide.index).text}`}>
+                        <SideNames side={firstSide} />
+                      </span>
                       <span className="text-dim"> takes the first turn</span>
                     </>
                   ) : (
@@ -926,13 +917,7 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
                 <QrCode /> Share a link
               </Button>
             ) : yourArmy && attachRoster ? (
-              <Button
-                className="h-11 shrink-0 px-5 text-base"
-                onClick={() => {
-                  acceptTracking()
-                  chooseRoster(yourArmy.playerId)
-                }}
-              >
+              <Button className="h-11 shrink-0 px-5 text-base" onClick={() => chooseRoster(yourArmy.playerId)}>
                 Choose your army
               </Button>
             ) : (

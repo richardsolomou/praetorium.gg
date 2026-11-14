@@ -1,6 +1,7 @@
 import { PHASES } from '../../../core/battle'
+import { SideNames } from './PlayerName'
 import type { BattleClock, ClockMatch } from '../../../core/battleClock'
-import { sideName, type Side } from '../../sides'
+import type { Side } from '../../sides'
 import { Elapsed } from './Elapsed'
 import { tint } from './battleTints'
 
@@ -29,7 +30,7 @@ export function TurnTimes({ clock, sides }: Props) {
             </th>
             {sides.map((side) => (
               <th key={side.index} scope="col" className={`truncate px-2 py-1.5 text-right font-semibold ${tint(side.index).text}`}>
-                {sideName(side)}
+                <SideNames side={side} />
               </th>
             ))}
           </tr>

@@ -1,5 +1,23 @@
 # praetorium
 
+## 0.241.2 (2026-11-14)
+
+### Patch Changes
+
+- 1e72e53: A group page no longer shows an empty "Nothing waiting on you" card when there's nothing for you to do.
+
+## 0.241.1 (2026-11-13)
+
+### Patch Changes
+
+- eef8e24: Missing rules text now offers to turn on external sources, and the source list shows which one it needs.
+
+## 0.241.0 (2026-11-13)
+
+### Minor Changes
+
+- 62dfe24: At the end of each battle round, and when the battle ends, the battle shows both sides' scores, how they were made and what the round added.
+
 ## 0.240.3 (2026-11-13)
 
 ### Patch Changes

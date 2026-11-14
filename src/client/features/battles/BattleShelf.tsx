@@ -17,7 +17,8 @@ import type { OnboardingTarget } from '../../onboardingTargets'
 import type { Battle } from './battle'
 import { SectionHeading } from '../../components/SectionHeading'
 import { tint } from '../battle/battleTints'
-import { sideColours, sideVariables } from '../../../core/playerColours'
+import { battleColours } from '../../../core/playerColours'
+import { BattleColoursProvider, PlayerTint } from '../battle/battleColours'
 import { ContextMenuItem, DropdownMenuItem } from '../../components/Menu'
 
 /**
@@ -76,7 +77,9 @@ export function BattleShelf({
             ...(battlefield ? [battlefield] : []),
             ...(battle.result?.reason && battle.result.reason !== 'completed' ? [BATTLE_ENDINGS[battle.result.reason]] : []),
           ].join(' · ')
-          const colours = sideColours([ours?.seats[0]?.player, theirs?.seats[0]?.player])
+          const colours = battleColours(
+            [ours, theirs].flatMap((side) => side?.seats.map(({ player }) => ({ ...player, side: side.index })) ?? []),
+          )
           const scored = battle.status !== 'setup'
           const a = ours?.score ?? 0
           const b = theirs?.score ?? 0
@@ -84,106 +87,118 @@ export function BattleShelf({
           const won = (side?: SummarySide) => side !== undefined && sideWon(battle, side.index)
           const faded = 'opacity-50'
           return (
-            <ContextMenu key={battle.token}>
-              <ContextMenuTrigger
-                render={
-                  <article
-                    data-gate={battle.status === 'playing' ? 'current' : battle.status === 'setup' ? 'pending' : undefined}
-                    className="group part @container relative min-w-0 transition-colors hover:border-runner-hi hover:bg-raised"
-                    style={colours ? sideVariables(colours) : undefined}
-                  />
-                }
-              >
-                <Link
-                  to="/battles/$token"
-                  params={{ token: battle.token }}
-                  aria-label={`${seat === -1 ? 'Watch' : 'Open'} ${battle.players.join(' versus ')}`}
-                  className="block min-w-0"
-                >
-                  <span className="grid min-w-0 items-center gap-3 px-4 pt-3 pb-2 @2xl:grid-cols-[minmax(0,1fr)_8.5rem_minmax(0,1fr)] @2xl:gap-4">
-                    <Side side={ours} won={won(ours)} viewerId={viewerId} className={cn('order-2 @2xl:order-none', lost(ours) && faded)} />
-                    <span className="order-1 flex items-center justify-between gap-3 @2xl:order-none @2xl:flex-col @2xl:justify-center @2xl:gap-1.5">
-                      {/* The stage in line form, so a shelf sorts by eye before the word is read: setup dashed, live doubled, over solid. */}
-                      <span data-battle-status={battle.status} className={`chip gap-1.5 ${stage.tint}`}>
-                        <span
-                          aria-hidden
-                          className="line-segment w-3.5 [--line-colour:currentColor]"
-                          data-line={battle.status === 'setup' ? 'todo' : battle.status === 'playing' ? 'now' : 'done'}
-                        />
-                        {stage.name}
-                      </span>
-                      {/* Stacked sides in a narrow card have nothing between them for "vs" to stand for. */}
-                      <span className={`figure text-3xl leading-none font-bold whitespace-nowrap ${scored ? '' : '@max-2xl:hidden'}`}>
-                        {scored ? (
-                          <>
-                            <span className={cn('text-side-a', lost(ours) && faded)}>{a}</span>
-                            <span className="px-1.5 text-xl text-faint">–</span>
-                            <span className={cn('text-side-b', lost(theirs) && faded)}>{b}</span>
-                          </>
-                        ) : (
-                          <span className="text-xl text-faint">vs</span>
-                        )}
-                      </span>
-                      {battle.status === 'playing' ? (
-                        <span className="text-2xs text-dim capitalize">
-                          Round {battle.round} · {battle.phase}
-                        </span>
-                      ) : null}
-                    </span>
-                    <Side
-                      side={theirs}
-                      won={won(theirs)}
-                      viewerId={viewerId}
-                      mirrored
-                      className={cn('order-3 @max-2xl:border-t @max-2xl:border-edge @max-2xl:pt-3 @2xl:order-none', lost(theirs) && faded)}
+            <BattleColoursProvider key={battle.token} value={colours?.players ?? NO_COLOURS}>
+              <ContextMenu>
+                <ContextMenuTrigger
+                  render={
+                    <article
+                      data-gate={battle.status === 'playing' ? 'current' : battle.status === 'setup' ? 'pending' : undefined}
+                      className="group part @container relative min-w-0 transition-colors hover:border-runner-hi hover:bg-raised"
+                      style={colours?.variables}
                     />
-                  </span>
-                  <span
-                    className={`flex min-w-0 items-center justify-between gap-3 pb-2.5 pl-4 text-2xs text-faint ${canDelete ? 'pr-10' : 'pr-4'}`}
+                  }
+                >
+                  <Link
+                    to="/battles/$token"
+                    params={{ token: battle.token }}
+                    aria-label={`${seat === -1 ? 'Watch' : 'Open'} ${battle.players.join(' versus ')}`}
+                    className="block min-w-0"
                   >
-                    <span className="truncate">{setting}</span>
-                    <span className="shrink-0">{date(battle.lastActivity)}</span>
-                  </span>
-                </Link>
-                {canDelete ? (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger
-                      render={
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          className="absolute right-1 bottom-0 size-7 opacity-60 group-hover:opacity-100"
-                          aria-label={`Actions for ${battle.players.join(' versus ')}`}
-                        />
-                      }
+                    <span className="grid min-w-0 items-center gap-3 px-4 pt-3 pb-2 @2xl:grid-cols-[minmax(0,1fr)_8.5rem_minmax(0,1fr)] @2xl:gap-4">
+                      <Side
+                        side={ours}
+                        won={won(ours)}
+                        viewerId={viewerId}
+                        className={cn('order-2 @2xl:order-none', lost(ours) && faded)}
+                      />
+                      <span className="order-1 flex items-center justify-between gap-3 @2xl:order-none @2xl:flex-col @2xl:justify-center @2xl:gap-1.5">
+                        {/* The stage in line form, so a shelf sorts by eye before the word is read: setup dashed, live doubled, over solid. */}
+                        <span data-battle-status={battle.status} className={`chip gap-1.5 ${stage.tint}`}>
+                          <span
+                            aria-hidden
+                            className="line-segment w-3.5 [--line-colour:currentColor]"
+                            data-line={battle.status === 'setup' ? 'todo' : battle.status === 'playing' ? 'now' : 'done'}
+                          />
+                          {stage.name}
+                        </span>
+                        {/* Stacked sides in a narrow card have nothing between them for "vs" to stand for. */}
+                        <span className={`figure text-3xl leading-none font-bold whitespace-nowrap ${scored ? '' : '@max-2xl:hidden'}`}>
+                          {scored ? (
+                            <>
+                              <span className={cn('text-side-a', lost(ours) && faded)}>{a}</span>
+                              <span className="px-1.5 text-xl text-faint">–</span>
+                              <span className={cn('text-side-b', lost(theirs) && faded)}>{b}</span>
+                            </>
+                          ) : (
+                            <span className="text-xl text-faint">vs</span>
+                          )}
+                        </span>
+                        {battle.status === 'playing' ? (
+                          <span className="text-2xs text-dim capitalize">
+                            Round {battle.round} · {battle.phase}
+                          </span>
+                        ) : null}
+                      </span>
+                      <Side
+                        side={theirs}
+                        won={won(theirs)}
+                        viewerId={viewerId}
+                        mirrored
+                        className={cn(
+                          'order-3 @max-2xl:border-t @max-2xl:border-edge @max-2xl:pt-3 @2xl:order-none',
+                          lost(theirs) && faded,
+                        )}
+                      />
+                    </span>
+                    <span
+                      className={`flex min-w-0 items-center justify-between gap-3 pb-2.5 pl-4 text-2xs text-faint ${canDelete ? 'pr-10' : 'pr-4'}`}
                     >
-                      <EllipsisVertical />
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem variant="destructive" onClick={() => onDelete?.(battle)}>
-                        <Trash2 /> Delete battle
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                ) : null}
-              </ContextMenuTrigger>
-              <ContextMenuContent>
-                <ContextMenuItem render={<Link to="/battles/$token" params={{ token: battle.token }} />}>
-                  <Eye /> Open battle
-                </ContextMenuItem>
-                {canDelete ? (
-                  <ContextMenuItem variant="destructive" onClick={() => onDelete?.(battle)}>
-                    <Trash2 /> Delete battle
+                      <span className="truncate">{setting}</span>
+                      <span className="shrink-0">{date(battle.lastActivity)}</span>
+                    </span>
+                  </Link>
+                  {canDelete ? (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger
+                        render={
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            className="absolute right-1 bottom-0 size-7 opacity-60 group-hover:opacity-100"
+                            aria-label={`Actions for ${battle.players.join(' versus ')}`}
+                          />
+                        }
+                      >
+                        <EllipsisVertical />
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem variant="destructive" onClick={() => onDelete?.(battle)}>
+                          <Trash2 /> Delete battle
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  ) : null}
+                </ContextMenuTrigger>
+                <ContextMenuContent>
+                  <ContextMenuItem render={<Link to="/battles/$token" params={{ token: battle.token }} />}>
+                    <Eye /> Open battle
                   </ContextMenuItem>
-                ) : null}
-              </ContextMenuContent>
-            </ContextMenu>
+                  {canDelete ? (
+                    <ContextMenuItem variant="destructive" onClick={() => onDelete?.(battle)}>
+                      <Trash2 /> Delete battle
+                    </ContextMenuItem>
+                  ) : null}
+                </ContextMenuContent>
+              </ContextMenu>
+            </BattleColoursProvider>
           )
         })}
       </div>
     </section>
   )
 }
+
+const NO_COLOURS = new Map()
 
 /** Everyone at one side of the table, each with their army; the far side mirrors so both read towards the score. */
 function Side({
@@ -211,9 +226,12 @@ function Side({
             <PlayerAvatar name={player.name} image={player.image} className="size-8 shrink-0 text-2xs" />
             <span className="min-w-0">
               <span className={`flex min-w-0 items-baseline gap-1.5 ${mirrored ? '@2xl:flex-row-reverse' : ''}`}>
-                <span className={cn('truncate font-sans text-[0.9375rem] leading-tight font-bold', side && tint(side.index).text)}>
+                <PlayerTint
+                  playerId={player.id}
+                  className={cn('truncate font-sans text-[0.9375rem] leading-tight font-bold', side && tint(side.index).text)}
+                >
                   {player.name}
-                </span>
+                </PlayerTint>
                 {player.id === viewerId ? <span className="eyebrow shrink-0 text-parchment">You</span> : null}
                 {won ? (
                   <span className="eyebrow flex shrink-0 items-center gap-1 self-center text-achieved">
