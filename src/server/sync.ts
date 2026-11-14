@@ -8,8 +8,9 @@ import { boundedBytes } from './boundedBody'
 import { fetchWithRetry } from './fetch'
 import { battlemasterObjectiveHosts } from './battlemasterObjectives'
 import { replaceDirectory } from './replaceDirectory'
+import type { SyncStatus } from '../contracts/serviceStatus'
 
-export type SyncState = { status: 'absent' | 'working' | 'ready' | 'failed'; detail: string | null }
+export type SyncState = { status: SyncStatus; detail: string | null }
 
 const battlemasterCatalogSchema = z.object({
   catalogKey: z.string(),
