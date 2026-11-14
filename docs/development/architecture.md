@@ -8,7 +8,7 @@ Dependencies point inward: `routes → client → contracts → core`; `server f
 - Everything in a route file except its components, and everything the shell imports statically, ships in the bundle every page loads first. Keep search parsing and loader helpers in small modules apart from page components. CI's build lane compares that bundle with the base through `scripts/startupBundle.ts` and fails on a large jump.
 - Components call `src/client/functions.ts`; transport calls stay in it and `src/client/offline`.
 - Never move a `createServerFn` file: its path is part of the production function ID, so older open clients break.
-- `src/core/battle.ts` owns the whole battle fold and validation; do not split it.
+- `src/core/battle.ts` owns the whole battle fold and validation (`commandRefusal` and `apply`); do not split those. The helpers it calls (`battlePhases`, `battleSeats`, `battleFormat`, `battleUnits`, `battleSides`, `battleSecondaries`, `battleMoments`) import only types from it, so no import cycle forms, and it re-exports their public names.
 - After changing `src/db/authSchema.ts` or `src/db/oauthSchema.ts`, run `pnpm auth:db:generate` to add the migration in `drizzle-auth/`.
 - Request adapters rebuild foreign `Request` objects from URL, fields, and body instead of `new Request(request)`.
 
