@@ -749,8 +749,3 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
     </main>
   )
 }
-
-/** The steps a manually tracked battle does not play. */
-const MANUAL_SKIPS = new Set<SectionId>(['mission', 'battlefield', 'defender', 'secondaries', 'reserves', 'deploy', 'pre-battle'])
-/** Steps that record nothing the battle needs before it can begin. */
-const NOTHING_OWED = new Set<SectionId>(['reserves', 'deploy', 'pre-battle'])
