@@ -1,4 +1,4 @@
-import { applyEntry, emptyBattle, reduceBattle, type BattleState, type LoggedCommand, type Phase, type PlayerId } from './battle'
+import { applyEntry, clockSide, emptyBattle, reduceBattle, type BattleState, type LoggedCommand, type Phase, type PlayerId } from './battle'
 
 /**
  * The time on a side's clock in one phase of one battle round.
@@ -62,7 +62,7 @@ function walk(...[playerIds, log, playerSides, automatedPlayerIds = []]: Seats) 
     if (entry.command.kind === 'undo') state = reduceBattle(playerIds, log.slice(0, index + 1), playerSides, automatedPlayerIds)
     else applyEntry(state, entry)
     const at = position(state)
-    holder = at && (state.clockSide ?? at.side)
+    holder = clockSide(state)
     if (stood && entry.command.kind === 'advance') {
       const { side, round, phase } = stood
       const turnEnded = !at || at.side !== side || at.round !== round
