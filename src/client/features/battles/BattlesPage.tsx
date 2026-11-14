@@ -112,7 +112,7 @@ export function BattlesPage({ view: asked, search, order }: { view: BattlesView;
             updating={feed.isPlaceholderData}
           />
         ) : null}
-        {view === 'mine' && !filtered ? <DraftResume /> : null}
+        {view === 'mine' && !filtered ? <DraftResume viewerId={me?.id} onDelete={setDeleting} /> : null}
         {matches ??
           (view === 'mine' ? (
             battles.length ? (

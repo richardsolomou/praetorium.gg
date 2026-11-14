@@ -61,6 +61,7 @@ export type BattleDigests = __Infer<typeof BattleDigests>
 export const BattleDrafts = __t.object('BattleDrafts', {
   battleId: __t.string(),
   userId: __t.string(),
+  listed: __t.bool(),
 })
 export type BattleDrafts = __Infer<typeof BattleDrafts>
 

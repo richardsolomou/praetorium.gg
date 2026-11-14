@@ -39,7 +39,16 @@ import { advanceOnboarding } from '../../onboarding/onboarding'
 import { Battlefield } from './Battlefield'
 import { ArmyChooser } from './ArmiesStep'
 import { FaceOff } from './FaceOff'
-import { OpponentStep, playsEverySide, useDraft, usePlayEverySide, useShareBattle } from './OpponentStep'
+import {
+  OpponentStep,
+  playsEverySide,
+  refreshTable,
+  RemovePlayerDialog,
+  useDraft,
+  useInvitePlayersInstead,
+  usePlayEverySide,
+  useShareBattle,
+} from './OpponentStep'
 import { isPracticeSeat } from '../../../../core/newBattle'
 import { removeBattlePlayer } from '../../../functions'
 import { useHistoryDialog } from '../../../useHistoryDialog'
@@ -418,9 +427,28 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
   const removePlace = (side: number) => {
     if (!changePlaces || places![side] !== 2) return undefined
     if (open[side]) return () => changePlaces(side, -1)
-    const played =
-      playingAll && draft?.draft ? view.players.findLast((player) => player.side === side && isPracticeSeat(player)) : undefined
+    const played = playingAll ? view.players.findLast((player) => player.side === side && isPracticeSeat(player)) : undefined
     return played ? () => dropPlace.mutate({ side, playerId: played.id }) : undefined
+  }
+  const refreshPlaces = () => refreshTable(queryClient, view.token)
+  const giveBack = useInvitePlayersInstead(view, refreshPlaces)
+  const [removing, setRemoving] = useState<{ id: string; name: string } | null>(null)
+  const played = view.players.filter((player) => !player.isViewer && isPracticeSeat(player)).length
+  /**
+   * Until the battle starts, the creator gives the places they play back to the link, all together so no table mixes
+   * played and invited places, or takes a joined player out.
+   */
+  const releases = (side: number) => {
+    if (!places || watching || view.sealedEventToken || view.viewerId !== view.creatorId) return []
+    const others = view.players.filter((player) => player.side === side && !player.isViewer)
+    return [
+      ...(others.some(isPracticeSeat)
+        ? [{ label: played > 1 ? 'Invite players instead' : 'Invite a player instead', run: () => giveBack.mutate() }]
+        : []),
+      ...others
+        .filter((player) => !isPracticeSeat(player))
+        .map((player) => ({ label: `Remove ${player.name}`, run: () => setRemoving(player) })),
+    ]
   }
   const share = () => {
     if (!draft?.invite) shareLink.mutate()
@@ -487,7 +515,7 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
                   : {
                       shared: Boolean(draft?.invite),
                       playingAll,
-                      busy: busy || shareLink.isPending || fill.isPending || dropPlace.isPending,
+                      busy: busy || shareLink.isPending || fill.isPending || dropPlace.isPending || giveBack.isPending,
                       send,
                       onShare: share,
                       onChoose: (army) => chooseRoster(army.playerId),
@@ -496,11 +524,13 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
                           ? () => changePlaces(side, 1, playingAll ? () => fill.mutate() : undefined)
                           : undefined,
                       onRemovePlace: removePlace,
+                      releases,
                       problems: (side) => (armyProblem?.side === side ? armyProblemText : undefined),
                     }
               }
             />
-            {dropPlace.error ? <Problem error={dropPlace.error} /> : null}
+            {dropPlace.error ? <Problem error={dropPlace.error} /> : giveBack.error ? <Problem error={giveBack.error} /> : null}
+            <RemovePlayerDialog token={view.token} player={removing} onClose={() => setRemoving(null)} onRemoved={refreshPlaces} />
             {sizeLine ? (
               <p className={cn('relative text-center text-xs', sizeProblem ? 'text-discarded' : 'text-dim')}>{sizeLine}</p>
             ) : null}
@@ -614,8 +644,8 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
                 playingAll
                   ? undefined
                   : openCount === 0
-                    ? draft?.draft && view.viewerId === view.creatorId && view.players.length > 1
-                      ? 'You can remove them until everyone’s army is in.'
+                    ? view.viewerId === view.creatorId && view.players.length > 1
+                      ? 'You can remove them until the battle starts.'
                       : undefined
                     : draft?.invite
                       ? 'Waiting for them to open the link. Keep setting up meanwhile.'

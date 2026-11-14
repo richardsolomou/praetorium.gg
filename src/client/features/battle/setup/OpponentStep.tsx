@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { type QueryClient, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { PlayerTint } from '../battleColours'
 import { Link } from '@tanstack/react-router'
 import { Bell, Check, ChevronRight, QrCode } from 'lucide-react'
@@ -41,6 +41,13 @@ export const useDraft = (token: string, table = '') => {
   return useQuery({ ...query, queryKey: [...query.queryKey, table] })
 }
 
+/** Reads the table and its draft state again after someone joins or leaves. */
+export const refreshTable = (queryClient: QueryClient, token: string) =>
+  Promise.all([
+    queryClient.invalidateQueries({ queryKey: battleQuery(token).queryKey }),
+    queryClient.invalidateQueries({ queryKey: battleDraftQuery(token).queryKey }),
+  ])
+
 /** Shares the battle's link, which the face-off and this step both offer. */
 export function useShareBattle(token: string) {
   const queryClient = useQueryClient()
@@ -54,16 +61,23 @@ export function useShareBattle(token: string) {
 export const playsEverySide = (view: BattleView) =>
   view.viewerId === view.creatorId && view.players.length > 1 && view.players.every((player) => player.isViewer || isPracticeSeat(player))
 
+/** Gives every place the viewer plays back to the link, which the step and each played place's card offer. */
+export function useInvitePlayersInstead(view: BattleView, onDone: () => Promise<unknown>) {
+  return useMutation({
+    mutationFn: async () => {
+      for (const player of view.players.filter((candidate) => !candidate.isViewer && isPracticeSeat(candidate)))
+        await removeBattlePlayer({ data: { token: view.token, playerId: player.id } })
+    },
+    onSettled: onDone,
+  })
+}
+
 /** Fills every open place with one the viewer plays, which the step offers and an ally added while playing every side needs. */
 export function usePlayEverySide(token: string) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: () => playBothSides({ data: { token } }),
-    onSuccess: () =>
-      Promise.all([
-        queryClient.invalidateQueries({ queryKey: battleQuery(token).queryKey }),
-        queryClient.invalidateQueries({ queryKey: battleDraftQuery(token).queryKey }),
-      ]),
+    onSuccess: () => refreshTable(queryClient, token),
   })
 }
 
@@ -84,11 +98,7 @@ export function OpponentStep({
 }) {
   const queryClient = useQueryClient()
   const token = view.token
-  const refresh = () =>
-    Promise.all([
-      queryClient.invalidateQueries({ queryKey: battleQuery(token).queryKey }),
-      queryClient.invalidateQueries({ queryKey: battleDraftQuery(token).queryKey }),
-    ])
+  const refresh = () => refreshTable(queryClient, token)
   const { data: friends = [] } = useQuery(opponentsQuery())
   const people = friends.filter((friend) => !view.players.some((player) => player.id === friend.id))
   const share = useShareBattle(token)
@@ -98,7 +108,7 @@ export function OpponentStep({
   const [chosenWay, setWay] = useState<Way | null>(null)
   // A battle started from a friend opens on the invite already sent.
   const others = view.players.filter((player) => !player.isViewer)
-  const removable = Boolean(draft?.draft) && view.viewerId === view.creatorId
+  const removable = view.viewerId === view.creatorId
   // Playing both sides takes every open place, so it is offered only before anyone else has joined.
   const alone = view.players.length === 1 && open > 0
   const ways = [
@@ -111,8 +121,7 @@ export function OpponentStep({
   // A way the table no longer offers falls back to the link, and so does playing both sides once it is undone.
   const offered = chosenWay && ways.some((option) => option.value === chosenWay) && (chosenWay !== 'both' || both.isPending || both.error)
   const way = offered ? chosenWay : invite?.invited.length && people.length ? 'friend' : 'link'
-  if (playingAll)
-    return <PlayingEverySide view={view} draft={Boolean(draft?.draft)} pending={both.isPending} error={both.error} onStopped={refresh} />
+  if (playingAll) return <PlayingEverySide view={view} pending={both.isPending} error={both.error} onStopped={refresh} />
   return (
     <div className="space-y-4">
       {others.length ? <Joined view={view} removable={removable} onRemoved={refresh} /> : null}
@@ -156,25 +165,16 @@ export function OpponentStep({
 /** The viewer holds every place; going back to inviting players opens those places again. */
 function PlayingEverySide({
   view,
-  draft,
   pending,
   error,
   onStopped,
 }: {
   view: BattleView
-  /** Places can only be given up while the battle is a draft. */
-  draft: boolean
   pending: boolean
   error: Error | null
   onStopped: () => Promise<unknown>
 }) {
-  const played = view.players.filter((player) => !player.isViewer)
-  const stop = useMutation({
-    mutationFn: async () => {
-      for (const player of played) await removeBattlePlayer({ data: { token: view.token, playerId: player.id } })
-    },
-    onSettled: onStopped,
-  })
+  const stop = useInvitePlayersInstead(view, onStopped)
   return (
     <div className="space-y-3">
       <p className="text-sm text-dim">
@@ -182,26 +182,17 @@ function PlayingEverySide({
       </p>
       {pending ? <output className="block text-sm text-dim">Adding your place…</output> : null}
       {error ? <Problem error={error} /> : null}
-      {draft ? (
-        <Button variant="outline" size="sm" disabled={stop.isPending || pending} onClick={() => stop.mutate()}>
-          Invite players instead
-        </Button>
-      ) : null}
+      <Button variant="outline" size="sm" disabled={stop.isPending || pending} onClick={() => stop.mutate()}>
+        Invite players instead
+      </Button>
       {stop.error ? <Problem error={stop.error} /> : null}
     </div>
   )
 }
 
-/** The players who have joined, whom the creator can remove while the battle is still a draft. */
+/** The players who have joined, whom the creator can remove until the battle starts. */
 function Joined({ view, removable, onRemoved }: { view: BattleView; removable: boolean; onRemoved: () => Promise<unknown> }) {
   const [removing, setRemoving] = useState<{ id: string; name: string } | null>(null)
-  const remove = useMutation({
-    mutationFn: (playerId: string) => removeBattlePlayer({ data: { token: view.token, playerId } }),
-    onSuccess: async () => {
-      setRemoving(null)
-      await onRemoved()
-    },
-  })
   return (
     <ul className="space-y-2">
       {view.players
@@ -222,19 +213,46 @@ function Joined({ view, removable, onRemoved }: { view: BattleView; removable: b
             ) : null}
           </li>
         ))}
-      <ConfirmDialog
-        open={removing !== null}
-        title={`Remove ${removing?.name ?? 'them'}?`}
-        description="Their place opens again and the link they used stops working. Share a new one to fill it."
-        cancel="Keep them"
-        confirm="Remove"
-        destructive
-        pending={remove.isPending}
-        error={remove.error}
-        onClose={() => setRemoving(null)}
-        onConfirm={() => removing && remove.mutate(removing.id)}
-      />
+      <RemovePlayerDialog token={view.token} player={removing} onClose={() => setRemoving(null)} onRemoved={onRemoved} />
     </ul>
+  )
+}
+
+/** The question asked before the creator takes a joined player out, from the Players step or the player's card. */
+export function RemovePlayerDialog({
+  token,
+  player,
+  onClose,
+  onRemoved,
+}: {
+  token: string
+  player: { id: string; name: string } | null
+  onClose: () => void
+  onRemoved: () => Promise<unknown>
+}) {
+  const remove = useMutation({
+    mutationFn: (playerId: string) => removeBattlePlayer({ data: { token, playerId } }),
+    onSuccess: async () => {
+      onClose()
+      await onRemoved()
+    },
+  })
+  return (
+    <ConfirmDialog
+      open={player !== null}
+      title={`Remove ${player?.name ?? 'them'}?`}
+      description="Their place opens again and the link they used stops working. Share a new one to fill it."
+      cancel="Keep them"
+      confirm="Remove"
+      destructive
+      pending={remove.isPending}
+      error={remove.error}
+      onClose={() => {
+        remove.reset()
+        onClose()
+      }}
+      onConfirm={() => player && remove.mutate(player.id)}
+    />
   )
 }
 

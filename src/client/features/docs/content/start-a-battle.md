@@ -11,7 +11,7 @@ Open [Battles](/battles) and choose **New battle**. Setup opens straight away wi
 
 Every step stays on the page. The ones you haven't reached yet are faded until the step before them is done.
 
-A draft stays out of your battles until everyone has joined and chosen an army. **Continue your draft** on [Battles](/battles) takes you back to it, and **New battle** reuses a draft you haven't touched yet. A draft nobody changes for 14 days is deleted.
+A draft stays out of your battles until everyone has joined and chosen an army. **Continue your draft** on [Battles](/battles) takes you back to it, and its **⋮** menu or a right-click deletes it. **New battle** reuses a draft you haven't touched yet. A draft nobody changes for 14 days is deleted.
 
 One phone in the middle of the table is enough, because anyone at the table can answer for either side. Everyone who has joined can also use their own device.
 
@@ -21,11 +21,11 @@ One phone in the middle of the table is enough, because anyone at the table can 
 
 - **Share a link** shows a QR code and a link. Whoever opens it signs in, or makes an account, and joins. **Stop sharing** turns the link off.
 - **Invite a friend** sends a friend a notification they join from. If you're both in the same tournament, Praetorium offers to play your game there instead.
-- **Play both sides** makes every place yours: you choose every army from your own lists and play them all on this device. Each place is named after the army you choose for it. **Invite players instead** gives the places back to the link until every army is chosen. A battle you play alone doesn't count in your record or on the [leaderboard](/leaderboard).
+- **Play both sides** makes every place yours: you choose every army from your own lists and play them all on this device. Each place is named after the army you choose for it. Until you start the battle, **Invite players instead** gives your places back to the link. Each place you play offers it on its card too. A battle you play alone doesn't count in your record or on the [leaderboard](/leaderboard).
 
 Otherwise everyone in a battle has their own account, so the result goes in every player's record.
 
-Until the battle stops being a draft, you can **Remove** a player who joined. Their place opens again and their link stops working.
+Until you start the battle, you can **Remove** a player who joined, in this step or on their card. Their place opens again and their link stops working. A battle with an open place is a draft again until someone fills it and chooses an army.
 
 ## Allies
 

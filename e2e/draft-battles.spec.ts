@@ -6,6 +6,7 @@ import {
   followLink,
   joinBattle,
   newBattle,
+  playBothSides,
   shareBattleLink,
   signUp,
   uniqueName,
@@ -51,5 +52,29 @@ test('a draft battle fills through its link and leaves the drafts once every arm
 
   await host.goto('/battles')
   await expect(host.locator(`[data-battle-shelf="In progress"] a[href="${path}"]`).first()).toBeVisible()
+  await expect(host.locator('[data-draft-resume]')).toHaveCount(0)
+})
+
+test('a place you play goes back to the link after its army is chosen, and a draft is deleted from its row', async ({ browser }) => {
+  const host = await (await browser.newContext()).newPage()
+  await signUp(host, uniqueName('Played host'))
+  const roster = await createRoster(host, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Both armies' })
+  await newBattle(host)
+  const draft = host.getByRole('heading', { name: /^Set up the battle/ }).getByText('Draft', { exact: true })
+  await chooseTracking(host)
+  await playBothSides(host)
+  await attachRoster(host, roster, { side: 0 })
+  await attachRoster(host, roster, { side: 1 })
+  await expect(draft).toHaveCount(0)
+
+  const theirs = host.locator('[data-face-off-side="1"]')
+  await theirs.getByRole('button', { name: 'Invite a player instead' }).click()
+  await expect(theirs.getByRole('button', { name: 'Share a link' })).toBeVisible()
+  await expect(draft).toBeVisible()
+
+  await host.goto('/battles')
+  await host.locator('[data-draft-resume]').click({ button: 'right' })
+  await host.getByRole('menuitem', { name: 'Delete battle' }).click()
+  await host.getByRole('alertdialog', { name: 'Delete battle?' }).getByRole('button', { name: 'Delete battle' }).click()
   await expect(host.locator('[data-draft-resume]')).toHaveCount(0)
 })

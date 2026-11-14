@@ -8,17 +8,21 @@ const url = process.env.SPACETIME_TEST_URL
 const database = process.env.SPACETIME_TEST_DATABASE
 const token = process.env.SPACETIME_TEST_OPERATOR_TOKEN
 
-const configure = (places: [number, number] = [1, 1]): Command => ({
-  kind: 'configure-battle',
-  limit: null,
-  missionPackId: null,
-  terrainLayoutId: null,
-  twistId: null,
-  teamBattle: places[0] + places[1] > 2,
-  playerCount: (places[0] + places[1]) as 2 | 3 | 4,
-  places,
-  clockLimitMinutes: null,
-})
+/** A battle's setup; `null` names its players at creation instead of counting places for them. */
+const configure = (places: [number, number] | null = [1, 1]): Command => {
+  const [first, second] = places ?? [1, 1]
+  return {
+    kind: 'configure-battle',
+    limit: null,
+    missionPackId: null,
+    terrainLayoutId: null,
+    twistId: null,
+    teamBattle: first + second > 2,
+    playerCount: (first + second) as 2 | 3 | 4,
+    ...(places ? { places } : {}),
+    clockLimitMinutes: null,
+  }
+}
 
 it.skipIf(!url || !database || !token)('keeps a draft out of every list until its last army is chosen', async () => {
   const operator = new SpacetimeOperator(url!, database!, token!)
@@ -93,6 +97,79 @@ it.skipIf(!url || !database || !token)('lets only the creator take a joined play
         now: Date.now(),
       }),
     ]).toEqual([false, true, [creatorId], 'missing'])
+  } finally {
+    await operator.deleteUserData(creatorId)
+  }
+})
+
+it.skipIf(!url || !database || !token)('keeps the players a battle named at creation, even once it counts places', async () => {
+  const operator = new SpacetimeOperator(url!, database!, token!)
+  const creatorId = randomUUID()
+  const opponentId = randomUUID()
+  const now = Date.now()
+  const { battle } = await operator.createBattle({
+    id: randomUUID(),
+    token: randomUUID(),
+    userId: creatorId,
+    opponentIds: [opponentId],
+    initialCommands: [configure(null)],
+    now,
+  })
+  try {
+    const counted = await operator.submit({ battleId: battle.id, userId: creatorId, expectedSeq: 1, command: configure(), now })
+    expect([counted.result.outcome, await operator.removeBattlePlayer(battle.id, creatorId, opponentId)]).toEqual(['appended', false])
+  } finally {
+    await operator.deleteUserData(creatorId)
+  }
+})
+
+it.skipIf(!url || !database || !token)('reopens a listed battle as a draft until its place fills again', async () => {
+  const operator = new SpacetimeOperator(url!, database!, token!)
+  const creatorId = randomUUID()
+  const firstId = randomUUID()
+  const secondId = randomUUID()
+  const now = Date.now()
+  const { battle } = await operator.createBattle({
+    id: randomUUID(),
+    token: randomUUID(),
+    userId: creatorId,
+    draft: true,
+    initialCommands: [configure()],
+    now,
+  })
+  try {
+    const join = async (userId: string) => {
+      const link = await operator.battleInvite(battle.id, creatorId, randomUUID())
+      await operator.seatBattlePlayer({ battleId: battle.id, userId, side: 1, by: userId, invite: link!.invite, now })
+    }
+    const send = async (by: string, command: Command) =>
+      operator.submit({
+        battleId: battle.id,
+        userId: by,
+        expectedSeq: (await operator.battleForOperator(battle.id)).log.length,
+        command,
+        now,
+      })
+    await join(firstId)
+    await send(creatorId, attachedRoster())
+    const first = await send(firstId, attachedRoster())
+    const removed = await operator.removeBattlePlayer(battle.id, creatorId, firstId)
+    const reopened = (await operator.battleDraftState(battle.id)).draft
+    await join(secondId)
+    const again = await send(secondId, attachedRoster())
+    expect({
+      first: first.listed,
+      removed,
+      reopened,
+      again: again.listed,
+      draft: (await operator.battleDraftState(battle.id)).draft,
+    }).toEqual({
+      first: true,
+      removed: true,
+      reopened: true,
+      again: undefined,
+      draft: false,
+    })
   } finally {
     await operator.deleteUserData(creatorId)
   }

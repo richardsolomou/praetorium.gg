@@ -88,13 +88,15 @@ const guestSeats = table(
 
 /**
  * A battle still being put together, which every list leaves out until each place is filled and each army chosen.
- * The row goes once that happens and never comes back, so a battle that has been listed stays listed.
+ * The row goes once that happens, and comes back if its creator reopens a place before the battle starts.
  */
 const battleDrafts = table(
   { name: 'battle_drafts' },
   {
     battleId: t.string().primaryKey(),
     userId: t.string().index('btree'),
+    /** Whether the battle was listed before it reopened, so filling it again does not count as a new battle. */
+    listed: t.bool().default(false),
   },
 )
 
