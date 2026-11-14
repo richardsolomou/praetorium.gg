@@ -98,6 +98,7 @@ export function RosterUnitShelves({
   onSaveLoadout,
   onSaveAttachedUnit,
   onDetach,
+  onReport,
   onAttach,
   onEmbark,
   onChooseUnit,
@@ -128,6 +129,7 @@ export function RosterUnitShelves({
   onSaveLoadout?: (index: number) => void
   onSaveAttachedUnit?: (index: number) => void
   onDetach: (index: number) => void
+  onReport: (index: number) => void
   onAttach: (index: number, direction: AttachDirection, choice: AttachChoice) => void
   onEmbark: (passengerKey: number, transportKey: number | undefined) => void
   onChooseUnit: () => void
@@ -182,6 +184,7 @@ export function RosterUnitShelves({
           onSaveAttachedUnit && joinedUnits(picks, picks[index]?.key ?? -1, catalogueId).length ? onSaveAttachedUnit : undefined
         }
         onDetach={onDetach}
+        onReport={onReport}
         onAttach={onAttach}
         onEmbark={onEmbark}
         editable={building}

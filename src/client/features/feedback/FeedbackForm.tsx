@@ -1,5 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ImagePlus, X } from 'lucide-react'
+import { posthog } from 'posthog-js'
 import { useCallback, useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -11,7 +12,7 @@ import { feedbackScreenshotPath, FEEDBACK_KINDS, type FeedbackKind } from '../..
 import { uploadFeedbackScreenshot } from '../../functions'
 import { NEW_ISSUE } from '../../projectLinks'
 import { meQuery } from '../../queries'
-import { FEEDBACK_MESSAGE_MAX_LENGTH, feedbackTicketMessage } from './feedback'
+import { FEEDBACK_MESSAGE_MAX_LENGTH, feedbackTicketMessage, type ReportedRecord } from './feedback'
 import { prepareFeedbackScreenshot } from './screenshot'
 import { refreshSupport, startConversation } from './support'
 import { Problem } from '../../components/Problem'
@@ -19,10 +20,12 @@ import { errorMessage } from '../../queryClient'
 
 /** A new conversation, sent from the page the player is on so its session replay shows what they were looking at. */
 export function FeedbackForm({
+  record,
   onStarted,
   onSent,
   onCancel,
 }: {
+  record?: ReportedRecord
   /** Called once the player has entered anything, so the panel keeps this form in place. */
   onStarted: () => void
   onSent: (ticketId: string, screenshotLost: boolean) => void
@@ -83,10 +86,12 @@ export function FeedbackForm({
           kind,
           message,
           screenshotUrl: file ? new URL(feedbackScreenshotPath(file), window.location.origin).href : undefined,
+          record,
         }),
         me ? undefined : email.trim() || undefined,
       )
       if (!sent) return setFailure('unavailable')
+      if (record) posthog.capture('data_problem_reported', { from: record.from })
       void refreshSupport(queryClient)
       onSent(sent.ticket_id, Boolean(screenshot && !file))
     } catch (error) {
@@ -105,6 +110,18 @@ export function FeedbackForm({
       }}
     >
       <DialogBody>
+        {record ? (
+          <div className="space-y-1.5">
+            <span className="eyebrow block">About</span>
+            <p className="part px-3 py-2 text-sm">
+              <span className="block text-bone">{record.name}</span>
+              <span className="block text-xs text-dim">
+                {record.faction} · {record.rulesVersion}
+              </span>
+            </p>
+            <p className="text-xs text-dim">We send this with your message so we can find the datasheet.</p>
+          </div>
+        ) : null}
         <Choice
           label="What kind of feedback?"
           value={kind}

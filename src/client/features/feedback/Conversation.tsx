@@ -276,9 +276,10 @@ function Bubble({
           )}
         >
           {read ? read.body : mine ? message.content : <TeamMessage content={message.content} />}
-          {read && (read.version || read.screenshot) ? (
+          {read && (read.version || read.datasheet || read.screenshot) ? (
             <span className="mt-2 flex flex-wrap gap-1.5 border-t border-edge pt-2 whitespace-normal">
               {read.version ? <span className="chip">Version {read.version}</span> : null}
+              {read.datasheet ? <span className="chip">{read.datasheet}</span> : null}
               {read.screenshot ? (
                 <span className="chip gap-1">
                   <ImageIcon className="size-3" aria-hidden /> Screenshot attached

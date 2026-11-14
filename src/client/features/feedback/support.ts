@@ -4,6 +4,7 @@ import { posthog } from 'posthog-js'
 import { useEffect, useSyncExternalStore } from 'react'
 import { supportIdentity } from '../../functions'
 import { meQuery, supportIdentityKey, supportKey, supportMessagesKey, supportTicketsKey, supportTicketsQuery } from '../../queries'
+import type { ReportedRecord } from './feedback'
 
 // A local dev server never loads PostHog, so it gets a stand-in with conversations to read; builds drop this.
 if (import.meta.env.MODE === 'development' && typeof window !== 'undefined') {
@@ -132,7 +133,7 @@ export function SupportIdentity() {
 }
 
 /** What the support panel shows: the player's conversations, a new message, or one conversation. */
-export type SupportView = { kind: 'inbox' } | { kind: 'compose' } | { kind: 'thread'; ticketId: string }
+export type SupportView = { kind: 'inbox' } | { kind: 'compose'; record?: ReportedRecord } | { kind: 'thread'; ticketId: string }
 
 const listeners = new Set<(view: SupportView) => void>()
 /** A request made before the panel listens, as a link opening a conversation on a fresh page load is. */
@@ -145,6 +146,8 @@ function openSupport(view: SupportView) {
 }
 
 export const openFeedback = () => openSupport({ kind: 'compose' })
+/** Feedback that names the datasheet a player reports from, so they need not describe which one. */
+export const reportDataProblem = (record: ReportedRecord) => openSupport({ kind: 'compose', record })
 export const openConversations = () => openSupport({ kind: 'inbox' })
 export const openConversation = (ticketId: string) => openSupport({ kind: 'thread', ticketId })
 
