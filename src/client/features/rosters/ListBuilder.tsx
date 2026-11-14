@@ -1,6 +1,6 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useMatch, useNavigate, useRouterState } from '@tanstack/react-router'
-import { SlidersHorizontal, Swords } from 'lucide-react'
+import { SlidersHorizontal } from 'lucide-react'
 import { posthog } from 'posthog-js'
 import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
@@ -53,8 +53,6 @@ import { RosterPrintPack, type RosterPrintInput } from './RosterPrintPack'
 import type { CombatRoster } from '../simulator/useCombatant'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { useAccountPrompt } from './AccountPrompt'
-import { useNewBattle } from '../battles/NewBattle'
-import { TRACKER_HINT, useFirstBattle } from '../battles/firstBattle'
 import { toggled, withMember } from '../../../core/collections'
 import { usePrintWhenReady } from './usePrintWhenReady'
 import { factionDisposition } from '../../components/rosterSetup'
@@ -198,8 +196,6 @@ export function ListBuilder({
   const [reference, setReference] = useState<{ entryId: string; route: Datasheet['referenceRoute'] | undefined } | null>(null)
   const [lending, setLending] = useState(false)
   const [grading, setGrading] = useState(false)
-  const startBattle = useNewBattle()
-  const firstBattle = useFirstBattle()
   const [deleting, setDeleting] = useState(false)
   const [printInput, setPrintInput] = useState<RosterPrintInput | null>(null)
   const automaticPrint = useRef(false)
@@ -663,24 +659,6 @@ export function ListBuilder({
 
   if (printInput) return <RosterPrintPack input={printInput} onClose={() => setPrintInput(null)} />
 
-  const startBattleButton = positioned.length ? (
-    <Button
-      size="sm"
-      variant="outline"
-      aria-label="Start a battle"
-      disabled={saving || startBattle.isPending}
-      onClick={guest ? () => account.ask('battle') : () => startBattle.mutate({ rosterId: savedId ?? undefined })}
-    >
-      <Swords /> <span className="sm:hidden">Battle</span>
-      <span className="max-sm:hidden">Start a battle</span>
-    </Button>
-  ) : null
-  // A saved roster that can go on the table is the moment to say why the table is worth tracking here; it sits in the
-  // action row's spare width, so the roster's own header stays as tall as ever.
-  const trackerHint =
-    firstBattle && startBattleButton && (editable ? savedId : locked) && !frozen && priced && !illegal && !over ? (
-      <p className="text-xs whitespace-nowrap text-dim max-2xl:hidden">{TRACKER_HINT}</p>
-    ) : null
   const variantMenu = savedId ? (
     <RosterVariantMenu
       current={savedId}
@@ -763,14 +741,6 @@ export function ListBuilder({
             visibility={visibility}
             variantCount={variants.length}
             actions={actions}
-            startBattle={
-              startBattleButton && (
-                <>
-                  {trackerHint}
-                  {startBattleButton}
-                </>
-              )
-            }
             variantMenu={variantMenu}
             onAsk={account.ask}
             onSetup={openSetup}

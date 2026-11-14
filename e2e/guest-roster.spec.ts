@@ -249,14 +249,6 @@ test("a visitor's account-only roster actions ask them to sign up", async ({ pag
   await expect(page.getByRole('dialog', { name: 'Make variants with an account' })).toBeVisible()
 })
 
-test('a visitor starting a battle from their roster is asked to sign up', async ({ page }) => {
-  await startGuestRoster(page)
-  await add(page, 'Necron Warriors')
-  await page.getByRole('button', { name: 'Start a battle', exact: true }).click()
-
-  await expect(page.getByRole('dialog', { name: 'Start battles with an account' })).toBeVisible()
-})
-
 test("a visitor's Friends tab offers an account rather than an empty list", async ({ page }) => {
   await page.goto('/rosters?view=friends')
 

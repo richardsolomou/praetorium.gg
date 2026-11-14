@@ -55,7 +55,6 @@ export function RosterActionsMenu({
   visibility,
   variantCount,
   actions: { take, duplicateRoster, splitVariant, createVariant, lockRoster, archiveRoster },
-  startBattle,
   variantMenu,
   onAsk,
   onSetup,
@@ -86,7 +85,6 @@ export function RosterActionsMenu({
   visibility: RosterVisibility
   variantCount: number
   actions: RosterActions
-  startBattle: ReactNode
   variantMenu: ReactNode
   onAsk: (reason: AccountReason) => void
   onSetup: () => void
@@ -163,7 +161,6 @@ export function RosterActionsMenu({
     </DropdownMenuItem>
   ) : null
 
-  // Starting a battle is the button beside this menu, so the menu offers only the other ways to play.
   const playSection =
     testTargets || gradeItem ? (
       <MenuSection label="Play">
@@ -174,7 +171,6 @@ export function RosterActionsMenu({
 
   return editable ? (
     <>
-      {savedId || guest ? startBattle : null}
       {variantMenu}
       <DropdownMenu>
         <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label="Roster actions" />}>
@@ -276,7 +272,6 @@ export function RosterActionsMenu({
     </>
   ) : (
     <>
-      {locked ? startBattle : null}
       {locked ? variantMenu : null}
       <DropdownMenu>
         <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label="Roster actions" />}>
