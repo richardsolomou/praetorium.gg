@@ -102,13 +102,17 @@ function maskPrivateUrlParams(text: string) {
   return text.replace(PRIVATE_URL_PARAM, '$1<MASKED>')
 }
 
-/** A server error flattened for the browser can take the page address as its stack, parameters and all. */
-export const maskExceptionUrls: BeforeSendFn = (event) => {
-  const list: unknown = event.properties.$exception_list
-  if (event.event !== '$exception' || !list) return event
-  const json = JSON.stringify(list)
+/**
+ * The SDK masks `$current_url` but not the referrer, which keeps the full address of the page before on this site, nor an
+ * exception's stack, which a server error flattened for the browser can take from the page address. Replay snapshots
+ * are left out: they are large, and their network addresses are masked as they are recorded.
+ */
+export const maskPrivateUrls: BeforeSendFn = (event) => {
+  if (event.event === '$snapshot') return event
+  const { properties, $set, $set_once } = event
+  const json = JSON.stringify({ properties, $set, $set_once })
   const masked = maskPrivateUrlParams(json)
-  return masked === json ? event : { ...event, properties: { ...event.properties, $exception_list: JSON.parse(masked) } }
+  return masked === json ? event : { ...event, ...JSON.parse(masked) }
 }
 
 /**
@@ -153,8 +157,15 @@ export const POSTHOG_BROWSER_OPTIONS = {
   capture_dead_clicks: true,
   mask_personal_data_properties: true,
   custom_personal_data_properties: PRIVATE_URL_PARAMS,
-  session_recording: { maskAllInputs: true },
-  before_send: [dropWhileImpersonating, dropUnactionableExceptions, maskExceptionUrls, browserEventContext],
+  session_recording: {
+    maskAllInputs: true,
+    // A mask function replaces the SDK's body scrubbing, so bodies and headers stay out of recordings.
+    recordBody: false,
+    recordHeaders: false,
+    // Network timing records every request's address, the page's own included.
+    maskCapturedNetworkRequestFn: (request) => ({ ...request, name: maskPrivateUrlParams(request.name) }),
+  },
+  before_send: [dropWhileImpersonating, dropUnactionableExceptions, maskPrivateUrls, browserEventContext],
   // Replaces the logs options the integration builds from `service`, so it names the service again.
   logs: {
     serviceName: POSTHOG_SERVICE.name,

@@ -321,7 +321,7 @@ function OverlayShell() {
         <HeadContent />
       </head>
       <body>
-        <PostHogIntegration environment={posthog} options={OVERLAY_POSTHOG_OPTIONS} service={posthogService}>
+        <PostHogIntegration environment={posthog} options={OVERLAY_POSTHOG_OPTIONS} service={POSTHOG_SERVICE}>
           <Outlet />
         </PostHogIntegration>
         <Scripts />

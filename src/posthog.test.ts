@@ -10,8 +10,8 @@ import {
   captureWhenLoaded,
   dropUnactionableExceptions,
   dropWhileImpersonating,
-  maskExceptionUrls,
   maskLogUrls,
+  maskPrivateUrls,
   setImpersonating,
   telemetryFeature,
 } from './posthog'
@@ -105,7 +105,7 @@ it('installs filtering and context on the SDK send boundary', () => {
   expect(POSTHOG_BROWSER_OPTIONS.before_send).toEqual([
     dropWhileImpersonating,
     dropUnactionableExceptions,
-    maskExceptionUrls,
+    maskPrivateUrls,
     browserEventContext,
   ])
   expect(POSTHOG_BROWSER_OPTIONS.logs).toMatchObject({ serviceName: 'praetorium', beforeSend: maskLogUrls })
@@ -141,9 +141,25 @@ it('masks consent request parameters in a captured console error', () => {
 it('masks consent request parameters in exception stack frames', () => {
   const frames = [{ filename: consentUrl, lineno: 1 }]
   const error = { ...event({ $exception_list: [{ type: 'Error', value: 'Failed', stacktrace: { frames } }] }), event: '$exception' }
-  expect(maskExceptionUrls(error)?.properties.$exception_list).toEqual([
+  expect(maskPrivateUrls(error)?.properties.$exception_list).toEqual([
     { type: 'Error', value: 'Failed', stacktrace: { frames: [{ filename: maskedConsentUrl, lineno: 1 }] } },
   ])
+})
+
+it('masks consent request parameters in the referrer of the page that follows sign-in', () => {
+  const signIn = consentUrl.replace('/mcp-consent', '/sign-in')
+  const pageview = { ...event({ $referrer: signIn }), $set_once: { $initial_referrer: signIn } }
+  expect(maskPrivateUrls(pageview)).toEqual({
+    ...event({ $referrer: maskedConsentUrl.replace('/mcp-consent', '/sign-in') }),
+    $set_once: { $initial_referrer: maskedConsentUrl.replace('/mcp-consent', '/sign-in') },
+  })
+})
+
+it('masks consent request parameters in the addresses a recording keeps of network requests', () => {
+  const request = { name: consentUrl, entryType: 'navigation' } as Parameters<
+    NonNullable<NonNullable<typeof POSTHOG_BROWSER_OPTIONS.session_recording.maskCapturedNetworkRequestFn>>
+  >[0]
+  expect(POSTHOG_BROWSER_OPTIONS.session_recording.maskCapturedNetworkRequestFn?.(request)?.name).toBe(maskedConsentUrl)
 })
 
 const exception = (value: string) => ({ ...event({ $exception_list: [{ type: 'Error', value }] }), event: '$exception' })
