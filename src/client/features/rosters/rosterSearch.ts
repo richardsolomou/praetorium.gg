@@ -8,7 +8,7 @@ import type { MissionReference } from './rosterStart'
 
 // Route search validation runs in the app's entry bundle, so these stay apart from the pages that render them.
 
-export const ROSTER_VIEWS = ['friends', 'public', 'played'] as const
+export const ROSTER_VIEWS = ['friends', 'public', 'played', 'winning'] as const
 type RosterView = (typeof ROSTER_VIEWS)[number]
 
 export const LIBRARY_FACETS = [
@@ -40,7 +40,13 @@ export type RosterDiscoverySearch = PeriodFilter & { q?: string; sort?: RosterSo
     Record<(typeof DISCOVERY_FACETS)[number], FacetAddress>
   >
 
-export type RostersSearch = RosterLibrarySearch & RosterDiscoverySearch & { view?: RosterView; new?: true; reference?: MissionReference }
+/** The Winning tab's filters: detachments by slug, so one shared by several chapters is one choice. */
+export const WINNING_FACETS = ['faction', 'detachment', 'disposition', 'placing', 'players'] as const
+export type WinningSearch = PeriodFilter & { q?: string } & Partial<Record<(typeof WINNING_FACETS)[number], FacetAddress>>
+
+export type RostersSearch = RosterLibrarySearch &
+  RosterDiscoverySearch &
+  WinningSearch & { view?: RosterView; new?: true; reference?: MissionReference }
 
 type IndexedFactions = NonNullable<QueryData<typeof factionIndexQuery>>['factions']
 

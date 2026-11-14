@@ -152,6 +152,11 @@ export async function decodeImportLinkText(encoded: string) {
   }
 }
 
+/** Army text as another site's import link carries it, so a list shown here opens the same import review. */
+export async function encodeImportLinkText(text: string) {
+  return toBase64Url(await transform(new TextEncoder().encode(text), new CompressionStream('deflate')))
+}
+
 async function transform(bytes: Uint8Array<ArrayBuffer>, stream: CompressionStream | DecompressionStream, limit = Infinity) {
   const reader = new Blob([bytes]).stream().pipeThrough(stream).getReader()
   const parts: Uint8Array[] = []

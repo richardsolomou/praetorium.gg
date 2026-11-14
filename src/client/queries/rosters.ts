@@ -20,6 +20,8 @@ import {
   datasheetOfferedBy,
   discoverRosters,
   discoverPlayedArmies,
+  winningList,
+  winningLists,
   rosterDiscoveryCounts,
   factionDatasheets,
   homeRosters,
@@ -78,6 +80,20 @@ export const rosterDiscoveryCountsQuery = (view: RosterAudience | 'played') =>
     queryKey: ['roster-discovery-counts', view],
     queryFn: () => rosterDiscoveryCounts({ data: { view } }),
     staleTime: SSR_STALE_TIME,
+  })
+
+/** Recent tournament placings whose lists import cleanly; null lists while the server is still reading them. */
+export const winningListsQuery = () =>
+  queryOptions({ queryKey: ['winning-lists'], queryFn: () => winningLists(), staleTime: SSR_STALE_TIME })
+
+/** One winning list as it imports today, with its units to read and its text to import. */
+export const winningListQuery = (id: string) =>
+  queryOptions({
+    queryKey: ['winning-list', id],
+    queryFn: () => winningList({ data: { id } }),
+    staleTime: SSR_STALE_TIME,
+    // The one failure is a list no longer shown, which asking again will not change.
+    retry: false,
   })
 
 /** Never saved for offline reading: a roster made private must leave the page on the next read. */

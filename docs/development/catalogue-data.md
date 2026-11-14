@@ -33,6 +33,11 @@ Pins live in `catalogue/composition.json`, `catalogue/sources.json`, and `catalo
 - `pointsBudget` changes only the points limit and strategic reserve limit.
 - Never hide upstream disagreements from `just points` or lower its match rate.
 
+## Winning lists
+
+- The Winning tab's lists are fetched from 40k Stats into `DATA_DIR/winning-lists` and imported on the web process in the background, paced between lists; never import them while answering a request.
+- Each list's import result is kept per catalogue revision, so changing what a result records must also change its stored shape, or old results are served.
+
 ## Roster migration
 
 Before changing sources or saved-selection construction, baseline production rosters:

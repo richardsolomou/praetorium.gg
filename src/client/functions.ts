@@ -995,6 +995,8 @@ export const playerBattles = (args: Parameters<typeof server.playerBattles>[0]) 
         args.data.userId,
       )
     : cachedPage(playerBattlesKey(args.data.userId), args.data.before, () => server.playerBattles(args))
+export const winningLists = () => server.winningLists()
+export const winningList = (args: Parameters<typeof server.winningList>[0]) => server.winningList(args)
 export const standings = () => cachedRead(standingsKey(), () => server.standings())
 export const playerRosters = (args: Parameters<typeof server.playerRosters>[0]) =>
   cachedRead(playerRostersKey(args.data.userId), () => server.playerRosters(args))

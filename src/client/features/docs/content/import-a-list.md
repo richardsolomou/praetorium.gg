@@ -22,6 +22,16 @@ You can bring in several lists at once from these apps.
 3. Lists that matched completely are ticked. Choose **Import 1 roster** or **Import 2 rosters**, whichever it says, to save them.
 4. A list with anything to check shows **Review**. **Back to the lists** returns to the others.
 
+## Import a winning list
+
+The **Winning** tab under [Rosters](/rosters?view=winning) shows top-four lists from recent tournaments, as 40k Stats publishes them. It only shows lists that import with nothing to fix and are legal under today's points.
+
+1. Filter by faction, detachment, placing, event size or date, or search for a list, event or unit.
+2. Choose a list to read it in full, unit by unit, without saving anything.
+3. Choose **Import** to open the usual review, then accept it to keep the list as your own roster.
+
+A list leaves the tab when a points or datasheet update means it no longer imports cleanly.
+
 ## What you can import
 
 - **Praetorium** text exports, exchange codes and QR links

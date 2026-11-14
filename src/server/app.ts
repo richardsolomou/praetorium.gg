@@ -1,6 +1,7 @@
 import { randomInt } from 'node:crypto'
 import { globalSingleton } from 'ras-stack/server'
 import os from 'node:os'
+import path from 'node:path'
 import { setTimeout as yieldToEventLoop } from 'node:timers/promises'
 import { deploymentHost, reportServerFailure, serverTelemetry } from '../adapters/posthog'
 import { catalogueDirectory, type LoadedCatalogue, loadCatalogue } from './catalogueIndex'
@@ -44,6 +45,7 @@ import { removedNamesOf, type RemovedNames } from '../shared/importMismatch'
 import { factionIndexFor, factionsFor } from '../shared/factionReferences'
 import { battleDetachmentData, type BattleDetachmentData } from '../shared/battleDetachmentData'
 import { githubSponsorRefresh, type GithubSponsorRefresh } from './githubSponsors'
+import { winningListsStore, type WinningListsStore } from './winningLists'
 import type { compiledGlobalSearchIndex } from './globalSearch'
 import { catalogueEditionLoaders, type ConstructionScope } from './catalogueEditions'
 import { reportRuntimeMetrics } from './runtimeMetrics'
@@ -97,6 +99,8 @@ export type App = {
   telemetry: ReturnType<typeof serverTelemetry>
   /** Mirrors GitHub's sponsor list into auth storage; a no-op without `GITHUB_SPONSORS_TOKEN`. */
   githubSponsors: GithubSponsorRefresh
+  /** Recent tournament placings whose lists import cleanly, cached from 40k Stats. */
+  winningLists: WinningListsStore
   /** Resolves after installed catalogue data has paid its one-time preparation cost. */
   ready: () => Promise<void>
   /** Builds what a faction's first request would otherwise build, a step at a time. */
@@ -432,6 +436,11 @@ export function app(): App {
       sync: () => sync.state,
       telemetry,
       githubSponsors,
+      winningLists: winningListsStore(
+        path.join(path.resolve(process.env.DATA_DIR ?? '/data'), 'winning-lists'),
+        () => instance.catalogue(),
+        (error) => reportServerFailure({ event: 'winning_lists_import_failed', error }),
+      ),
       ready: startup.ready,
     }
     // Everything read from the snapshot is read again from the one now on disk.
@@ -450,6 +459,19 @@ export function app(): App {
     if (githubSponsors.configured) {
       refreshSponsors()
       setInterval(refreshSponsors, 60 * 60 * 1000).unref()
+    }
+    const refreshWinningLists = () =>
+      void instance.winningLists.refresh().catch((error: unknown) => {
+        reportServerFailure({ event: 'winning_lists_refresh_failed', error }, 'warn')
+      })
+    // Previews, browser tests and CI each start with an empty cache, so only production and local development fetch.
+    if (deploymentHost() === 'praetorium.gg' || process.env.NODE_ENV === 'development') {
+      // After the catalogue is ready, because the first refresh also starts the first import.
+      void startup
+        .ready()
+        .then(refreshWinningLists)
+        .catch(() => undefined)
+      setInterval(refreshWinningLists, 6 * 60 * 60 * 1000).unref()
     }
     // Also at start, because deploys can arrive more often than hourly and restart the timer.
     void checkSpacetimeBackup()

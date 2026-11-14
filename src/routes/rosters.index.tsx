@@ -15,12 +15,13 @@ import {
   LIBRARY_FACETS,
   playedFilter,
   ROSTER_VIEWS,
+  WINNING_FACETS,
   type RostersSearch,
 } from '../client/features/rosters/rosterSearch'
 import { RostersRoute } from '../client/features/rosters/RostersRoute'
 import { ROSTER_SEARCH_MAX_LENGTH } from '../core/rosterDiscovery'
 import { ROSTER_SORTS } from '../core/rosterSort'
-import { discoveredRostersQuery, factionIndexQuery, meQuery, playedArmiesQuery } from '../client/queries'
+import { discoveredRostersQuery, factionIndexQuery, meQuery, playedArmiesQuery, winningListsQuery } from '../client/queries'
 import { pageHead } from '../client/linkPreview'
 import { PageLoading } from '../client/components/PageState'
 import { facetSearch, periodSearch, searchText } from '../client/searchParams'
@@ -30,6 +31,7 @@ function rostersSearch(search: Record<string, unknown>): RostersSearch {
   const q = searchText(search.q, ROSTER_SEARCH_MAX_LENGTH)?.trim()
   const text = q ? { q } : {}
   const view = ROSTER_VIEWS.find((known) => known === search.view)
+  if (view === 'winning') return { view, ...text, ...facetSearch(search, WINNING_FACETS), ...periodSearch(search) }
   if (view) {
     const sort = ROSTER_SORTS.find((known) => known !== 'updated-desc' && known === search.sort)
     return { view, ...text, ...facetSearch(search, DISCOVERY_FACETS), ...periodSearch(search), ...(sort ? { sort } : {}) }
@@ -48,7 +50,8 @@ export const Route = createFileRoute('/rosters/')({
     if (view) {
       const index = await context.queryClient.query({ ...factionIndexQuery(), staleTime: 'static' })
       const factions = index?.factions ?? []
-      if (view === 'played')
+      if (view === 'winning') await context.queryClient.query({ ...winningListsQuery(), staleTime: 'static' })
+      else if (view === 'played')
         await context.queryClient.infiniteQuery({ ...playedArmiesQuery(playedFilter(search, factions)), staleTime: 'static' })
       else
         await context.queryClient.infiniteQuery({
@@ -67,26 +70,33 @@ export const Route = createFileRoute('/rosters/')({
   head: ({ match }) =>
     pageHead(
       match.context.origin,
-      match.search.view === 'played'
+      match.search.view === 'winning'
         ? {
-            title: 'Played Warhammer 40,000 army lists',
+            title: 'Winning Warhammer 40,000 army lists',
             description:
-              'Browse Warhammer 40,000 armies from finished public battles, filter them by faction, detachment and rules version, and copy one to edit.',
-            path: '/rosters?view=played',
+              'Browse recent top-four Warhammer 40,000 tournament lists that import cleanly under today’s points, and import one as your own roster.',
+            path: '/rosters?view=winning',
           }
-        : match.search.view === 'public'
+        : match.search.view === 'played'
           ? {
-              title: 'Public Warhammer 40,000 army lists',
+              title: 'Played Warhammer 40,000 army lists',
               description:
-                'Browse Warhammer 40,000 army lists other players published, filter them by faction, detachment and rules version, and duplicate one to edit.',
-              path: '/rosters?view=public',
+                'Browse Warhammer 40,000 armies from finished public battles, filter them by faction, detachment and rules version, and copy one to edit.',
+              path: '/rosters?view=played',
             }
-          : {
-              title: 'Warhammer 40,000 army builder',
-              description:
-                'Build free Warhammer 40,000 army lists, check points and legality, compare variants, and share, print or export your saved rosters.',
-              path: '/rosters',
-            },
+          : match.search.view === 'public'
+            ? {
+                title: 'Public Warhammer 40,000 army lists',
+                description:
+                  'Browse Warhammer 40,000 army lists other players published, filter them by faction, detachment and rules version, and duplicate one to edit.',
+                path: '/rosters?view=public',
+              }
+            : {
+                title: 'Warhammer 40,000 army builder',
+                description:
+                  'Build free Warhammer 40,000 army lists, check points and legality, compare variants, and share, print or export your saved rosters.',
+                path: '/rosters',
+              },
     ),
   component: RosterLibraryRoute,
 })

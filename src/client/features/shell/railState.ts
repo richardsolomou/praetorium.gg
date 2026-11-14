@@ -3,7 +3,7 @@ import { readStoredValue, subscribeStoredValues, useStoredValue, writeStoredValu
 /** '1' keeps the rail folded and '0' open on every page; unset is automatic, folded only in the roster workspace. */
 const KEY = 'praetorium-rail-collapsed'
 
-export const ROSTER_WORKSPACE = /^\/rosters\/(?:new|import|(?!discover$)[^/]+(?:\/edit)?)$/
+export const ROSTER_WORKSPACE = /^\/rosters\/(?:new|import|winning\/[^/]+|(?!discover$)[^/]+(?:\/edit)?)$/
 
 /**
  * Runs in the document head before the first paint and marks the document `data-rail="collapsed"`
