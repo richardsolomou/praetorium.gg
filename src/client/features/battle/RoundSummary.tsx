@@ -12,6 +12,7 @@ import { readStoredValue, writeStoredValue } from '../../storedValue'
 import { useHydrated } from '../../useClientValue'
 import { tint } from './battleTints'
 import { PlayerTint } from './battleColours'
+import { SideNames } from './PlayerName'
 import { dueSummary, isBefore, parseRoundMark, roundSummaryStorageKey, sameMark, settledMark, type RoundMark } from './roundMarks'
 
 /**
@@ -86,11 +87,16 @@ function SummaryScreen({ mark, view, sides: table, onClose }: Omit<Props, 'mark'
   const result = finished ? battleResult(table, view) : null
   const [first, second] = table.toSorted((left, right) => right.total - left.total)
   const margin = first && second ? first.total - second.total : 0
-  const title = result
-    ? result.kind === 'win'
-      ? `${sideName(result.side)} ${result.verb}`
-      : result.detail
-    : `Round ${mark.round} complete`
+  const title =
+    result?.kind === 'win' ? (
+      <>
+        <SideNames side={result.side} /> {result.verb}
+      </>
+    ) : result ? (
+      result.detail
+    ) : (
+      `Round ${mark.round} complete`
+    )
   const standing =
     first && second
       ? margin === 0
@@ -119,12 +125,7 @@ function SummaryScreen({ mark, view, sides: table, onClose }: Omit<Props, 'mark'
         <div className="relative mx-auto flex min-h-full w-full max-w-5xl flex-col overflow-x-clip transition-transform duration-320 ease-(--ease-settle) group-data-ending-style/summary:translate-y-2 group-data-ending-style/summary:duration-160 group-data-ending-style/summary:ease-in group-data-starting-style/summary:translate-y-4 motion-reduce:transition-none justify-center gap-6 px-4 pt-[calc(1.5rem+env(safe-area-inset-top))] pb-[calc(1.5rem+env(safe-area-inset-bottom))] sm:gap-10 sm:px-8">
           <header className="text-center">
             {finished ? <p className="eyebrow">Battle over</p> : null}
-            <DialogPrimitive.Title
-              className={cn(
-                'mt-1 text-3xl leading-none font-bold text-balance break-words uppercase sm:text-5xl',
-                result?.kind === 'win' && tint(result.side.index).text,
-              )}
-            >
+            <DialogPrimitive.Title className="mt-1 text-3xl leading-none font-bold text-balance break-words uppercase sm:text-5xl">
               {title}
             </DialogPrimitive.Title>
             <DialogPrimitive.Description className="mt-2 text-sm text-dim sm:text-base">
