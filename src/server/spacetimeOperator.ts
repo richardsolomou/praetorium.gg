@@ -139,6 +139,8 @@ const battleFeedResult = z.object({
 })
 const submission = z.object({
   applied: z.boolean().optional(),
+  /** Set when the command listed a draft for the first time: every place filled and every army chosen. */
+  listed: z.literal(true).optional(),
   result: z.discriminatedUnion('outcome', [
     z.object({ outcome: z.literal('stale'), seq: z.number().int() }),
     z.object({ outcome: z.literal('refused'), reason: z.string() }),
@@ -666,13 +668,13 @@ export class SpacetimeOperator {
     },
     validateState?: (state: ReturnType<typeof reduceBattle>) => Refusal | null,
     resolveCommand: (state: ReturnType<typeof reduceBattle>, command: Command) => Command = (_, command) => command,
-  ): Promise<{ result: SubmitResult; log: LoggedCommand[]; applied?: boolean }> {
+  ): Promise<{ result: SubmitResult; log: LoggedCommand[]; applied?: boolean; listed?: true }> {
     const snapshot = input.snapshot ?? (await this.battleForOperator(input.battleId))
     const fold = (log: LoggedCommand[]) => reduceBattle(...battleFoldArgs(snapshot.seats, log))
     const state = fold(snapshot.log)
     const command = state.seq === input.expectedSeq ? commandSchema.parse(resolveCommand(state, input.command)) : input.command
     const externalRefusal = state.seq === input.expectedSeq ? (validateState?.(state) ?? null) : null
-    const { result, log, applied } = await this.read(
+    const { result, log, applied, listed } = await this.read(
       'submit_battle',
       [
         input.battleId,
@@ -689,7 +691,7 @@ export class SpacetimeOperator {
       ],
       submission,
     )
-    const application = applied === undefined ? {} : { applied }
+    const application = { ...(applied === undefined ? {} : { applied }), ...(listed ? { listed } : {}) }
     if (result.outcome !== 'refused') return { result, log, ...application }
     // The product database answers with a message only, so the code is read from the
     // same rules over the log it refused against, before the resolver touched any state.

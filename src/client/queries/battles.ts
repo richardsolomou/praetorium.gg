@@ -84,7 +84,7 @@ export const feedKey = (key: unknown[], filter?: BattleFilter, order?: BattleOrd
 export const battlesQuery = (filter?: BattleFilter, order?: BattleOrder) =>
   battleFeedQuery(feedKey(battlesKey(), filter, order), (before) => myBattles({ data: { before, filter, order } }))
 
-/** Takes a deleted battle off the player's list at once rather than after the refetch, which can take a second. */
+/** Takes a deleted battle off the player's list and drafts at once rather than after the refetch, which can take a second. */
 export function forgetBattle(queryClient: QueryClient, token: string) {
   queryClient.setQueryData<InfiniteData<Awaited<ReturnType<typeof myBattles>> | undefined>>(
     battlesKey(),
@@ -95,6 +95,10 @@ export function forgetBattle(queryClient: QueryClient, token: string) {
       },
   )
   void queryClient.invalidateQueries({ queryKey: battlesKey() })
+  queryClient.setQueryData<Awaited<ReturnType<typeof myDrafts>>>(myDraftsKey(), (drafts) =>
+    drafts?.filter((draft) => draft.token !== token),
+  )
+  void queryClient.invalidateQueries({ queryKey: myDraftsKey() })
 }
 
 export function battlesFrom(data: { pages: ({ battles: unknown[] } | undefined)[] } | undefined) {

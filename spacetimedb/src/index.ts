@@ -1996,9 +1996,10 @@ export const submitBattle = spacetime.procedure(
         applyEntry(state, { seq, by: input.userId, at: safeNumber(at), command: parsed.data })
       if (wasFinished || parsed.data.kind === 'undo' || state.status === 'finished') touchPublic(tx, 'standings')
       if (parsed.data.kind === 'set-battle-group' || parsed.data.kind === 'undo') indexGroupBattle(tx, input.battleId)
-      settleDraft(tx, input.battleId)
+      const listed = settleDraft(tx, input.battleId)
       return productJson({
         result: { outcome: 'appended', seq },
+        ...(listed ? { listed: true } : {}),
         ...(sync?.reportApplied ? { applied: true } : {}),
         log: [
           ...log,
@@ -5132,7 +5133,7 @@ function createBattleIn(tx: Context, args: unknown[]) {
         : null),
   )
   if (initialCommands.some((command) => command.kind === 'set-battle-group')) indexGroupBattle(tx, id)
-  if (draft) tx.db.battleDrafts.insert({ battleId: id, userId })
+  if (draft) tx.db.battleDrafts.insert({ battleId: id, userId, listed: false })
   if (battle.fixtureKey !== undefined) {
     const { fixture, league } = openFixture(tx, battle.fixtureKey, battle)
     tx.db.roundPairings.key.update({ ...fixture, battleId: id })
@@ -5171,14 +5172,15 @@ function untouchedDraft(ctx: Context, userId: string, initialCommands: readonly 
   return undefined
 }
 
-/** Lists a draft once every place is filled and every army chosen; a battle never goes back to being a draft. */
+/** Lists a draft once every place is filled and every army chosen, and says whether that is the first time it is listed. */
 function settleDraft(ctx: Context, battleId: string) {
-  if (!ctx.db.battleDrafts.battleId.find(battleId)) return
-  if (stillFilling(battleState(ctx, battleId).state)) return
+  const draft = ctx.db.battleDrafts.battleId.find(battleId)
+  if (!draft || stillFilling(battleState(ctx, battleId).state)) return false
   ctx.db.battleDrafts.battleId.delete(battleId)
   retireBattleInvite(ctx, battleId)
   for (const seat of ctx.db.battleUsers.battleId.filter(battleId)) touchProduct(ctx, seat.userId, 'battles', 'onboarding')
   touchBattle(ctx, battleId)
+  return !draft.listed
 }
 
 /** A seated account rather than a seat the table plays, which is who may share a battle's link. */
@@ -5231,17 +5233,26 @@ function seatPlayerIn(tx: Context, args: unknown[]) {
   return productJson('joined')
 }
 
-/** The opener takes a player back out of a battle that has not started, leaving their place open again. */
+/**
+ * The opener takes a player back out of a battle that has not started, leaving their place open again. A battle
+ * already listed goes back to being a draft until the place fills again.
+ */
 function removeBattlePlayerIn(tx: Context, args: unknown[]) {
   const [battleId, by, userId] = z.tuple([textArg, textArg, textArg]).parse(args)
-  // Only a draft: a listed battle's seats feed its results, and one named at creation has no place to reopen.
-  if (!tx.db.battleDrafts.battleId.find(battleId) || battleOpener(tx, battleId) !== by || by === userId) return false
+  if (battleOpener(tx, battleId) !== by || by === userId) return false
   const seat = tx.db.battleUsers.key.find(JSON.stringify([battleId, userId]))
-  if (!seat || seat.guestName !== undefined || battleState(tx, battleId).state.status !== 'setup') return false
+  if (!seat || seat.guestName !== undefined) return false
+  // Only a battle started alone has places to reopen: one that named its players, such as a league fixture, keeps
+  // them even if a later setup change counts places. One that has begun keeps its players too.
+  const opening = tx.db.commands.key.find(JSON.stringify([battleId, 1]))
+  if (!opening || !(JSON.parse(opening.body) as { places?: unknown }).places || battleState(tx, battleId).state.status !== 'setup')
+    return false
   touchBattleSeats(tx, battleId)
+  for (const player of tx.db.battleUsers.battleId.filter(battleId)) touchProduct(tx, player.userId, 'battles', 'onboarding')
   tx.db.battleUsers.key.delete(seat.key)
   // The link they joined through would let them straight back in, so the creator shares a new one.
   retireBattleInvite(tx, battleId)
+  if (!tx.db.battleDrafts.battleId.find(battleId)) tx.db.battleDrafts.insert({ battleId, userId: by, listed: true })
   touchBattle(tx, battleId)
   return true
 }

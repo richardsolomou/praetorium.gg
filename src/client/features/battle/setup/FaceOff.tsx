@@ -48,6 +48,8 @@ export function FaceOff({
     onAddAlly: (side: number) => (() => void) | undefined
     /** Present for a side whose second place can go: an empty one, or one the viewer plays themselves. */
     onRemovePlace: (side: number) => (() => void) | undefined
+    /** What gives this side's places back to the link before the battle starts. */
+    releases: (side: number) => { label: string; run: () => void }[]
     problems: (side: number) => string | undefined
   }
   /** Lets a reader with no seat open a list in place, as they would once the battle runs. */
@@ -69,6 +71,7 @@ export function FaceOff({
         const problem = controls?.problems(index)
         const addAlly = controls?.onAddAlly(index)
         const removePlace = controls?.onRemovePlace(index)
+        const releases = controls?.releases(index) ?? []
         return (
           <Fragment key={index}>
             {index ? (
@@ -199,6 +202,18 @@ export function FaceOff({
                 </span>
               ) : null}
               {problem ? <p className="text-xs text-discarded">{problem}</p> : null}
+              {releases.map((release) => (
+                <Button
+                  key={release.label}
+                  variant="ghost"
+                  size="sm"
+                  className="-mx-2 text-dim"
+                  disabled={controls?.busy}
+                  onClick={release.run}
+                >
+                  {release.label}
+                </Button>
+              ))}
               {addAlly ? (
                 <Button
                   variant="outline"

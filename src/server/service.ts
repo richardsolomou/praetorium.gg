@@ -37,7 +37,6 @@ import {
   sameRandomDraw,
   type SubmitResult,
   openPlaces,
-  stillFilling,
   pointsBudgetOf,
   pointsSpent,
 } from '../core/battle'
@@ -195,7 +194,7 @@ type SubmitAnswer = {
   battleId: string
   applied?: boolean
   finished?: BattleEndReason
-  /** Set when this command turned a draft into a battle: every place filled and every army chosen. */
+  /** Set when this command turned a draft into a battle for the first time: every place filled and every army chosen. */
   filled?: true
 }
 type SubmitArgs = [
@@ -1641,7 +1640,7 @@ export class PraetoriumService {
 
   async submit(...args: SubmitArgs): Promise<SubmitAnswer> {
     const [, userId, , , rules] = args
-    const { result, previous, history, application } = await this.append(...args)
+    const { result, previous, history, application, listed } = await this.append(...args)
     const screen = this.seatedScreen(history, userId, rules)
     return {
       result,
@@ -1649,14 +1648,14 @@ export class PraetoriumService {
       battleId: history.battle.id,
       ...application,
       ...finishing(result, previous, screen),
-      ...filling(result, previous, history, screen),
+      ...(listed ? { filled: listed } : {}),
     }
   }
 
   /** The answer with the submitting device's copy of the history, so it is saved without a second download. */
   async submitWithWorkspace(...args: SubmitArgs): Promise<SubmitAnswer & { workspace?: BattleWorkspace }> {
     const [, userId, , , rules] = args
-    const { result, previous, history, application } = await this.append(...args)
+    const { result, previous, history, application, listed } = await this.append(...args)
     const screen = this.seatedScreen(history, userId, rules)
     return {
       result,
@@ -1665,7 +1664,7 @@ export class PraetoriumService {
       battleId: history.battle.id,
       ...application,
       ...finishing(result, previous, screen),
-      ...filling(result, previous, history, screen),
+      ...(listed ? { filled: listed } : {}),
     }
   }
 
@@ -1690,7 +1689,7 @@ export class PraetoriumService {
     // The log comes back with the answer, so a refusal and a lost race both report
     // the state that refused them rather than the one the caller was holding —
     // and without a second read of a history the append had already in hand.
-    const { result, log, applied } = await this.repository.submit(
+    const { result, log, applied, listed } = await this.repository.submit(
       {
         battleId: history.battle.id,
         userId,
@@ -1750,7 +1749,7 @@ export class PraetoriumService {
         return { ...submitted, secondaries }
       },
     )
-    return { result, previous: history, history: { ...history, log }, application: applied === undefined ? {} : { applied } }
+    return { result, previous: history, history: { ...history, log }, application: applied === undefined ? {} : { applied }, listed }
   }
 
   /** Opening a battle stream is an authorization decision. */
@@ -1845,14 +1844,6 @@ function adminBattleSummary(history: BattleCard): AdminBattle {
 function finishing(result: SubmitResult, previous: BattleHistory, screen: SeatedScreen): { finished?: BattleEndReason } {
   if (result.outcome !== 'appended' || screen.view.status !== 'finished' || !screen.view.result) return {}
   return foldHistory(previous).status === 'finished' ? {} : { finished: screen.view.result.reason }
-}
-
-/** Only a battle in setup can stop being a draft, so the folds run only there, where logs are short. */
-function filling(result: SubmitResult, previous: BattleHistory, history: BattleHistory, screen: SeatedScreen): { filled?: true } {
-  if (result.outcome !== 'appended' || screen.view.status !== 'setup') return {}
-  const after = foldHistory(history)
-  if (!after.settings.places || stillFilling(after)) return {}
-  return stillFilling(foldHistory(previous)) ? { filled: true } : {}
 }
 
 function foldHistory({ players, log }: BattleHistory) {
