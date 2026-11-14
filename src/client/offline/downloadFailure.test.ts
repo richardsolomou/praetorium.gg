@@ -3,6 +3,7 @@ import { DownloadRefused, failureName, refreshFailureReason } from './downloadFa
 
 it.each([
   [new TypeError('Failed to fetch'), 'network'],
+  [new DOMException('Cache.put() encountered a network error', 'NetworkError'), 'network'],
   [new DownloadRefused('The reference download is unavailable'), 'refused'],
   [new DOMException('signal timed out', 'TimeoutError'), 'timeout'],
   [new DOMException('The quota has been exceeded', 'QuotaExceededError'), 'storage'],
