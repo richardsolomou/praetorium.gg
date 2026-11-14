@@ -40,6 +40,10 @@ Read the message under it. It's usually unfinished scoring from the previous tur
 
 Your action didn't go through. Check your connection, then try it again. If drawing secondary missions failed, choose **Draw at random** again.
 
+### A finished battle still shows as in progress in Battles
+
+Praetorium could not refresh the list, so it shows the copy saved on this device. A note above the list says so, and Praetorium tries again after a short time. Choose **Try again** to refresh it now. The result of the battle is already saved.
+
 ### "This battle is not open."
 
 Nobody is seated at the battle any more, so there is nothing to watch.

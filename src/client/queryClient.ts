@@ -4,6 +4,7 @@ import { posthog } from 'posthog-js'
 import { isSignedOut } from '../core/session'
 import { CONNECTION_LOST_MESSAGE, HttpStatusError, isFetchNetworkFailure } from './networkErrors'
 import { OfflineRefusal } from './offline/offlineRefusal'
+import { queryEventName } from './offline/reads'
 import { createQueryClient as configuredQueryClient } from 'ras-stack/query'
 import { captureAppSnapshot, restoreAppSnapshot } from './offline/appSnapshot'
 import { writeAppSnapshot } from './offline/appStorage'
@@ -65,7 +66,7 @@ function reportQueryFailure(error: unknown, query: Pick<Query, 'queryKey'>) {
   const [name] = query.queryKey
   if (typeof name === 'string' && SELF_REPORTED.has(name)) return
   posthog.capture('query_load_failed', {
-    query: typeof name === 'string' && /^[a-z][a-z-]{0,39}$/.test(name) ? name : 'other',
+    query: queryEventName(query.queryKey),
     reason: isFetchNetworkFailure(error) ? 'network' : isTimeout(error) ? 'timeout' : 'error',
     ...(error instanceof HttpStatusError ? { status: error.status } : {}),
     offline: !navigator.onLine,
