@@ -155,11 +155,16 @@ it('masks consent request parameters in the referrer of the page that follows si
   })
 })
 
-it('masks consent request parameters in the addresses a recording keeps of network requests', () => {
-  const request = { name: consentUrl, entryType: 'navigation' } as Parameters<
-    NonNullable<NonNullable<typeof POSTHOG_BROWSER_OPTIONS.session_recording.maskCapturedNetworkRequestFn>>
-  >[0]
-  expect(POSTHOG_BROWSER_OPTIONS.session_recording.maskCapturedNetworkRequestFn?.(request)?.name).toBe(maskedConsentUrl)
+it('masks consent request parameters in the console and network records of a replay', () => {
+  const page = { type: 2, data: { href: consentUrl } }
+  const consoleError = { type: 6, data: { plugin: 'rrweb/console@1', payload: { level: 'error', trace: [consentUrl] } } }
+  const navigation = { type: 6, data: { plugin: 'rrweb/network@1', payload: { requests: [{ name: consentUrl }] } } }
+  const snapshot = { ...event({ $snapshot_data: [page, consoleError, navigation] }), event: '$snapshot' }
+  expect(maskPrivateUrls(snapshot)?.properties.$snapshot_data).toEqual([
+    page,
+    { type: 6, data: { plugin: 'rrweb/console@1', payload: { level: 'error', trace: [maskedConsentUrl] } } },
+    { type: 6, data: { plugin: 'rrweb/network@1', payload: { requests: [{ name: maskedConsentUrl }] } } },
+  ])
 })
 
 const exception = (value: string) => ({ ...event({ $exception_list: [{ type: 'Error', value }] }), event: '$exception' })
