@@ -65,10 +65,16 @@ function reportQueryFailure(error: unknown, query: Pick<Query, 'queryKey'>) {
   if (typeof window === 'undefined' || isSignedOut(error) || error instanceof OfflineRefusal) return
   const [name] = query.queryKey
   if (typeof name === 'string' && SELF_REPORTED.has(name)) return
+  const reason = isFetchNetworkFailure(error) ? 'network' : isTimeout(error) ? 'timeout' : 'error'
   posthog.capture('query_load_failed', {
     query: queryEventName(query.queryKey),
-    reason: isFetchNetworkFailure(error) ? 'network' : isTimeout(error) ? 'timeout' : 'error',
-    ...(error instanceof HttpStatusError ? { status: error.status } : {}),
+    reason,
+    // Without a status, the class tells a malformed answer (SyntaxError, ZodError) from an unrecognised engine failure (TypeError); the message could carry data.
+    ...(error instanceof HttpStatusError
+      ? { status: error.status }
+      : reason === 'error'
+        ? { error_type: error instanceof Error ? error.name : typeof error }
+        : {}),
     offline: !navigator.onLine,
   })
 }
