@@ -218,18 +218,14 @@ export function UnitCard({
         <JoinedRow key={`${row.label}-${row.name}`} row={row} editable={editable} />
       ))}
 
-      {editable && canJoin.length ? (
-        <AttachMenu label="Attach to unit" ariaLabel={`Attach ${unit.name} to unit`} choices={canJoin} onChoose={onJoin} />
-      ) : null}
+      {editable && canJoin.length ? <AttachMenu label="Attach to unit" unit={unit.name} choices={canJoin} onChoose={onJoin} /> : null}
 
-      {editable && canHost.length ? (
-        <AttachMenu label="Attach unit" ariaLabel={`Attach a unit to ${unit.name}`} choices={canHost} onChoose={onHost} />
-      ) : null}
+      {editable && canHost.length ? <AttachMenu label="Attach unit" unit={unit.name} choices={canHost} onChoose={onHost} /> : null}
 
       {editable && canBoard.length ? (
         <EmbarkMenu
           label="Embark in transport"
-          ariaLabel={`Embark ${unit.name} in transport`}
+          unit={unit.name}
           choiceLabel={(choice) => `Embark ${unit.name} in ${choice.name}`}
           choices={canBoard}
           onChoose={onBoard}
@@ -239,7 +235,7 @@ export function UnitCard({
       {editable && canCarry.length ? (
         <EmbarkMenu
           label="Embark unit"
-          ariaLabel={`Embark a unit in ${unit.name}`}
+          unit={unit.name}
           choiceLabel={(choice) => `Embark ${choice.name} in ${unit.name}`}
           choices={canCarry}
           onChoose={onCarry}
@@ -307,12 +303,12 @@ export function JoinedRow({ row, editable }: { row: Joined; editable: boolean })
 
 export function AttachMenu({
   label,
-  ariaLabel,
+  unit,
   choices,
   onChoose,
 }: {
   label: string
-  ariaLabel: string
+  unit: string
   choices: AttachChoice[]
   onChoose: (choice: AttachChoice) => void
 }) {
@@ -320,7 +316,7 @@ export function AttachMenu({
   const roster = choices.filter((choice) => choice.kind === 'roster')
   const added = choices.filter((choice) => choice.kind === 'new')
   return (
-    <CardMenu label={label} ariaLabel={ariaLabel}>
+    <CardMenu label={label} unit={unit}>
       {roster.length ? (
         <DropdownMenuGroup>
           <DropdownMenuLabel>In this roster</DropdownMenuLabel>
@@ -364,20 +360,20 @@ export function AttachMenu({
 
 export function EmbarkMenu({
   label,
-  ariaLabel,
+  unit,
   choiceLabel,
   choices,
   onChoose,
 }: {
   label: string
-  ariaLabel: string
+  unit: string
   choiceLabel: (choice: EmbarkChoice) => string
   choices: EmbarkChoice[]
   onChoose: (choice: EmbarkChoice) => void
 }) {
   const id = useId()
   return (
-    <CardMenu label={label} ariaLabel={ariaLabel}>
+    <CardMenu label={label} unit={unit}>
       {choices.map((choice, at) => (
         <DropdownMenuItem
           key={choice.name}
@@ -402,8 +398,8 @@ export function EmbarkMenu({
   )
 }
 
-/** A card row opening a menu of what the unit can be paired with. */
-function CardMenu({ label, ariaLabel, children }: { label: string; ariaLabel: string; children: ReactNode }) {
+/** A card row opening a menu of what the unit can be paired with, named by its visible label first so speech input can reach it. */
+function CardMenu({ label, unit, children }: { label: string; unit: string; children: ReactNode }) {
   return (
     <div data-print-hide className={`${ROW} pointer-events-none relative z-10 [&_button]:pointer-events-auto`}>
       <DropdownMenu>
@@ -413,7 +409,7 @@ function CardMenu({ label, ariaLabel, children }: { label: string; ariaLabel: st
               variant="ghost"
               size="xs"
               className="!px-1 text-2xs tracking-label text-dim uppercase hover:bg-transparent hover:text-bone aria-expanded:text-bone"
-              aria-label={ariaLabel}
+              aria-label={`${label}: ${unit}`}
             />
           }
         >

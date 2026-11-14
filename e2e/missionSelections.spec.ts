@@ -217,7 +217,7 @@ test('Beacon asks for its unit when drawn, and a destroyed Beacon is locked and 
   await expect(side.getByText('Chosen at the table during the card’s timing.', { exact: true })).toBeVisible()
   const beacon = side.locator('[data-secondary]').filter({ has: page.getByRole('button', { name: 'Read Beacon', exact: true }) })
   await inspectChoices(page, beacon, 'Beacon')
-  await side.getByRole('button', { name: 'Open Beacon nomination roster', exact: true }).click()
+  await side.getByRole('button', { name: 'Army: Beacon nomination roster', exact: true }).click()
   const army = page.getByRole('dialog', { name: 'Beacon nomination roster', exact: true })
   await army.getByRole('button', { name: 'Mark Immortals destroyed', exact: true }).click()
   await army.getByRole('button', { name: 'Close', exact: true }).click()

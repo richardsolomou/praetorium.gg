@@ -212,7 +212,7 @@ async function editor(page: Page, context: 'standalone' | 'roster', companion: b
     await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/ })
     for (const name of ['Necron Warriors', 'Immortals', 'Overlord']) await addUnit(page, name)
     if (width < ROSTER_WIDE) await page.getByRole('dialog', { name: 'Add units' }).getByRole('button', { name: 'Close' }).click()
-    await page.locator('[data-unit="Overlord"]').getByRole('button', { name: 'Attach Overlord to unit', exact: true }).click()
+    await page.locator('[data-unit="Overlord"]').getByRole('button', { name: 'Attach to unit: Overlord', exact: true }).click()
     await waitForRosterSave(page, () => page.getByRole('menuitem', { name: 'Immortals', exact: true }).click())
     await page.locator('[data-unit="Immortals"]').getByRole('button', { name: 'Immortals', exact: true }).click()
     await page.locator('aside[aria-label="Loadout"]').getByRole('button', { name: 'Simulate combat', exact: true }).click()

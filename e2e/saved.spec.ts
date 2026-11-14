@@ -453,7 +453,7 @@ test('a saved list is reopened, duplicated, shared and published', async ({ brow
   await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/ })
   await add(page, 'Immortals')
   await add(page, 'Overlord')
-  await page.locator('[data-unit="Overlord"]').getByRole('button', { name: 'Attach Overlord to unit' }).click()
+  await page.locator('[data-unit="Overlord"]').getByRole('button', { name: 'Attach to unit: Overlord' }).click()
   await page.getByRole('menu').getByRole('menuitem', { name: 'Immortals', exact: true }).click()
   await expect(page.getByText('Leading')).toBeVisible()
   await page

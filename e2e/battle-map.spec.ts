@@ -2,7 +2,7 @@ import { expect, test, type Page } from './test'
 import { createRoster, retryUntilVisible, signUp, startBattle, practiceBattle, concede, PHONE } from './account'
 
 async function inspectMap(page: Page) {
-  const trigger = page.getByRole('button', { name: /^View .+ battlefield$/ })
+  const trigger = page.locator('dt:text-is("Battlefield") + dd').getByRole('button')
   const dialog = page.getByRole('dialog')
   await retryUntilVisible(dialog, () => trigger.click())
   const map = dialog.locator('svg[aria-label$="battlefield map"]')

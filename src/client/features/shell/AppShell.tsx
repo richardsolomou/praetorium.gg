@@ -281,7 +281,7 @@ function SiteFooter() {
       className="flex flex-col items-center gap-1.5 border-t border-edge px-4 py-4 text-center text-xs text-faint min-[1000px]:flex-row min-[1000px]:justify-between"
     >
       <p>Praetorium is an unofficial product, and is not in any way affiliated with or endorsed by Games Workshop.</p>
-      <p className="flex flex-wrap justify-center gap-x-3">
+      <p className="flex flex-wrap justify-center gap-x-3 *:inline-flex *:min-h-6 *:items-center">
         <Link to="/support" data-listed-in-more className="transition-colors hover:text-bone">
           Support
         </Link>

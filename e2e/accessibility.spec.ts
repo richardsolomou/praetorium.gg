@@ -105,7 +105,7 @@ test.describe('a touch device', () => {
     const overlaps = await row.evaluate((element) => {
       const bounds = (selector: string) => element.querySelector(selector)!.getBoundingClientRect()
       const edge = element.getBoundingClientRect().right
-      const name = element.querySelector('button span span')!.getBoundingClientRect()
+      const name = element.querySelector('button[aria-label$=" datasheet"]')!.getBoundingClientRect()
       const actions = [bounds('[aria-label^="Add Immortals to"]'), bounds('.chip'), bounds('[data-onboarding="picker-add"]')]
       return actions.some(
         (action) =>

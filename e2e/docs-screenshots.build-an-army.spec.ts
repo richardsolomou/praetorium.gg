@@ -41,7 +41,7 @@ test('build an army screenshots', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 })
 
   const list = page.locator('[data-onboarding="roster-list"]')
-  await page.locator('[data-unit="Ancient"]').getByRole('button', { name: 'Attach Ancient to unit' }).click()
+  await page.locator('[data-unit="Ancient"]').getByRole('button', { name: 'Attach to unit: Ancient' }).click()
   await capture('build-an-army-attach', list, page.getByRole('menu'))
   await page.keyboard.press('Escape')
 

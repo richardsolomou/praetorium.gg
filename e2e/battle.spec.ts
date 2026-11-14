@@ -152,7 +152,7 @@ test('Cleanse and Centre Ground prompt for scoring on the first turn', async ({ 
   await expect(side.locator('[data-missions]').getByText(/^(tactical|fixed)$/i)).toHaveCount(0)
   await page.setViewportSize({ width: 1440, height: 900 })
   await expectNoPageOverflow(page)
-  await side.getByRole('button', { name: 'View remaining secondary missions (16)' }).click()
+  await side.getByRole('button', { name: 'Remaining deck · 16' }).click()
   const remaining = page.getByRole('dialog', { name: 'Remaining secondary missions', exact: true })
   await expect(remaining.getByRole('button', { name: 'Read Cleanse', exact: true })).toHaveCount(0)
   await remaining.getByRole('button', { name: 'Read Beacon', exact: true }).click()
@@ -245,7 +245,7 @@ test('native battle controls leave the application tabs reachable', async ({ pag
   await expect.poll(async () => (await tabs.boundingBox())?.y).toBeGreaterThanOrEqual(0)
   await expect(advanceButton(page)).toBeDisabled()
 
-  await page.getByRole('button', { name: 'Open Native battle roster' }).click()
+  await page.getByRole('button', { name: 'Army: Native battle roster' }).click()
   const army = page.getByRole('dialog', { name: 'Native battle roster' })
   await expect(army).toBeVisible()
   await army.getByRole('button', { name: 'Minimize dialog' }).click()
@@ -413,7 +413,7 @@ test('a tactical hand pays out when the card says', async ({ browser }) => {
   await expect(scoreboard.getByRole('link', { name: aliceRoster, exact: true })).toHaveCount(0)
   await expect(scoreboard.getByRole('link', { name: aliceName })).toBeHidden()
   await expect(ownPanel.getByRole('link', { name: aliceRoster, exact: true })).toHaveCount(0)
-  await expect(ownPanel.getByRole('button', { name: `Open ${aliceRoster}`, exact: true })).toHaveText('Army')
+  await expect(ownPanel.getByRole('button', { name: `Army: ${aliceRoster}`, exact: true })).toHaveText('Army')
   const faction = ownPanel.getByRole('link', { name: 'Death Guard faction' })
   await expect(faction).toHaveAttribute('href', '/factions/death-guard/rules/mfm-1-6')
   await expect(faction.locator('[data-faction-mark="death-guard"]')).toBeVisible()
@@ -425,7 +425,7 @@ test('a tactical hand pays out when the card says', async ({ browser }) => {
   await expect(ownPanel.locator('[data-stat="cp"]')).toHaveText('1')
   const opponentUse = opponentPanel.locator('button[aria-label^="Use "]:not([disabled])').first()
   await expect(opponentUse).toBeVisible()
-  const stratagem = (await opponentUse.getAttribute('aria-label'))?.replace(/^Use /, '') ?? ''
+  const stratagem = (await opponentUse.getAttribute('aria-label'))?.replace(/^Use (.+) for \d+ CP$/, '$1') ?? ''
   await opponentUse.click()
   await expect(opponentPanel.locator('[data-stat="cp"]')).toHaveText('0')
   await expect(ownPanel.locator('[data-stat="cp"]')).toHaveText('0')
@@ -473,7 +473,7 @@ test('a tactical hand pays out when the card says', async ({ browser }) => {
   await expect(alice.getByText('Finish the open prompt to continue.')).toBeVisible()
   await expect(ownPanel.locator('[data-stat="cp"]')).toHaveText('0')
   await ownPanel
-    .getByRole('button', { name: /^Open / })
+    .getByRole('button', { name: /^Army: / })
     .first()
     .click()
   await expect(alice.locator('[data-army-roster] button[aria-label^="Mark "]').first()).toBeDisabled()
@@ -606,7 +606,7 @@ test('a tactical hand pays out when the card says', async ({ browser }) => {
   await alice.setViewportSize(PHONE)
   await expect(faction).toBeVisible()
   await expect(detachment).toBeVisible()
-  await expect(ownPanel.getByRole('button', { name: `Open ${aliceRoster}`, exact: true })).toBeVisible()
+  await expect(ownPanel.getByRole('button', { name: `Army: ${aliceRoster}`, exact: true })).toBeVisible()
   await expect(scoreboard.getByRole('link', { name: aliceName })).toBeVisible()
   const stratagemPosition = await ownPanel.locator('button[aria-label^="About "]').first().boundingBox()
   const primaryPosition = await ownPanel.locator('[data-stat="primary"]').boundingBox()

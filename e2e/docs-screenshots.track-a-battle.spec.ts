@@ -46,7 +46,7 @@ test('track a battle', async ({ page }) => {
   await capture('track-a-battle-phase', page.locator('[data-turn-control]'), advanceButton(page))
 
   const side = playerPanel(page, 0)
-  await capture('track-a-battle-stratagems', side, side.getByRole('button', { name: 'Use Command Re-roll', exact: true }))
+  await capture('track-a-battle-stratagems', side, side.getByRole('button', { name: 'Use Command Re-roll for 1 CP', exact: true }))
 
   await advance(page)
   await page.getByRole('button', { name: 'Battle options' }).click()

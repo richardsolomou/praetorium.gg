@@ -235,16 +235,7 @@ export function SecondaryMissions({ view, side, actionable, pending, send, refer
       ) : null}
       {side.secondaryMode === 'tactical' && side.remainingSecondaries.length > 0 ? (
         <BattlePromptDialog minimizedLabel="Remaining secondary missions">
-          <DialogTrigger
-            render={
-              <Button
-                variant="ghost"
-                size="xs"
-                className="text-azure"
-                aria-label={`View remaining secondary missions (${side.remainingSecondaries.length})`}
-              />
-            }
-          >
+          <DialogTrigger render={<Button variant="ghost" size="xs" className="text-azure" />}>
             Remaining deck · {side.remainingSecondaries.length}
           </DialogTrigger>
           <BattleDialogContent>

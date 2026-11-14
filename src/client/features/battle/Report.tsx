@@ -97,11 +97,14 @@ export function Report({
         <ToggleGroupItem value="all">All</ToggleGroupItem>
         <ToggleGroupItem value="cp">CP only</ToggleGroupItem>
       </ToggleGroup>
-      <div
+      <section
         data-battle-report-scroll
+        aria-label="Battle events"
+        // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Keyboard users need to scroll the event list.
+        tabIndex={0}
         ref={scroll}
         onScroll={(event) => (scrollTop.current = event.currentTarget.scrollTop)}
-        className="mt-3 h-72 overflow-x-hidden overflow-y-auto pr-1"
+        className="mt-3 h-72 overflow-x-hidden overflow-y-auto pr-1 focus-visible:outline-2 focus-visible:outline-primary"
         style={{ contain: 'layout' }}
       >
         {visible.length ? (
@@ -147,7 +150,7 @@ export function Report({
         ) : (
           <p className="text-xs text-dim">No command point events yet.</p>
         )}
-      </div>
+      </section>
       {reading && readingSide ? <StratagemDialog side={readingSide} used={reading} onClose={() => setReading(null)} /> : null}
     </>
   )

@@ -43,7 +43,7 @@ export function MissionStep({
                     <Button
                       variant="outline"
                       size="sm"
-                      aria-label={`Read ${side.mission.name}`}
+                      aria-label={`Read card for ${side.mission.name}`}
                       onClick={() => onRead({ name: side.mission!.name, card, type: 'Primary mission' })}
                     >
                       Read card

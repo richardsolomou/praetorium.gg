@@ -113,12 +113,12 @@ export function SpineStep({
             <span className={cn('min-w-0', current ? 'text-bone' : locked ? 'text-faint' : undefined)}>{name}</span>
           </h2>
         </div>
-        <div className={cn('pl-15 sm:pl-24', locked && 'opacity-50')}>
+        <div className="pl-15 sm:pl-24">
           {hint && !watching ? (
             <p className={cn('mt-0.5 max-w-prose text-sm text-balance', needed ? 'text-discarded' : 'text-dim')}>{hint}</p>
           ) : null}
-          {/* Only the controls go inert: the hint above says why the step isn't open yet. */}
-          <div id={`setup-${id}-body`} className="relative mt-3" inert={locked}>
+          {/* Only the controls go inert and fade: the hint above says why the step isn't open yet, so it stays readable. */}
+          <div id={`setup-${id}-body`} className={cn('relative mt-3', locked && 'opacity-50')} inert={locked}>
             {body ? (
               <div className={cn('relative', current ? 'rounded-2xl border-2 border-runner bg-panel shadow-lifted' : 'part')}>
                 {/* The step being answered is drawn out of the frame, joined back to the runner by its own sprue. */}

@@ -253,7 +253,7 @@ test('building reports embarks and the roster arrangement without naming units',
   const events = await recordEvents(page)
 
   const bar = page.getByRole('region', { name: 'Intercessor Squad', exact: true }).locator('[data-unit-actions]')
-  await bar.getByRole('button', { name: 'Embark Intercessor Squad in transport', exact: true }).click()
+  await bar.getByRole('button', { name: 'Embark unit in transport: Intercessor Squad', exact: true }).click()
   await waitForRosterSave(
     page,
     () => page.getByRole('menuitem', { name: 'Embark Intercessor Squad in Rhino', exact: true }).click(),

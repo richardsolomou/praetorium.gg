@@ -443,9 +443,9 @@ export function InvitePanel({ sealedEvent }: { sealedEvent: SealedEvent }) {
             ? 'Unlisted, so this link is the way in.'
             : 'Also listed on the tournaments page.'}
       </p>
+      {/* Named by everything it shows, link then action, so speech input can say any of it. */}
       <button
         type="button"
-        aria-label={shareLabel}
         disabled={!origin}
         className="group mt-3 block w-full rounded-lg border border-edge-strong bg-sunken text-left hover:border-info disabled:opacity-60"
         onClick={() => void invite.share()}
@@ -460,10 +460,13 @@ export function InvitePanel({ sealedEvent }: { sealedEvent: SealedEvent }) {
           </span>
         </span>
         <span
-          aria-hidden
           className={`flex items-center justify-center gap-1.5 border-t border-edge-strong px-3 py-2 text-xs font-semibold tracking-label uppercase group-hover:bg-raised pointer-coarse:min-h-11 ${invite.feedback === 'copied' || invite.feedback === 'shared' ? 'text-achieved' : 'text-parchment'}`}
         >
-          {invite.feedback === 'copied' || invite.feedback === 'shared' ? <Check className="size-3.5" /> : <Share2 className="size-3.5" />}
+          {invite.feedback === 'copied' || invite.feedback === 'shared' ? (
+            <Check className="size-3.5" aria-hidden />
+          ) : (
+            <Share2 className="size-3.5" aria-hidden />
+          )}
           {shareLabel}
         </span>
       </button>

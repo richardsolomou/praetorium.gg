@@ -7,7 +7,7 @@ for (const token of ['preview-casual-strike-force', 'preview-tournament-battle-d
     for (const width of [1440, 390]) {
       await page.setViewportSize({ width, height: 900 })
       await expect(page.locator('a[href*="?battle="]')).toHaveCount(0)
-      const open = page.getByRole('button', { name: /^Open / }).first()
+      const open = page.getByRole('button', { name: /^Army: / }).first()
       await expect(open).toHaveText('Army')
       const army = page.locator('[data-army-roster]')
       await retryUntilVisible(army, () => open.click())
@@ -71,7 +71,7 @@ for (const token of ['preview-casual-strike-force', 'preview-tournament-battle-d
 test('an unavailable loadout leaves the frozen army readable', async ({ page }) => {
   await page.goto('/battles/preview-casual-strike-force')
   const army = page.locator('[data-army-roster]')
-  await retryUntilVisible(army, () => page.getByRole('button', { name: 'Open Taktikal Stompa 2K' }).click())
+  await retryUntilVisible(army, () => page.getByRole('button', { name: 'Army: Taktikal Stompa 2K' }).click())
   await page.route('**/_serverFn/**', async (route) => {
     if (route.request().method() === 'POST') await route.abort()
     else await route.continue()
