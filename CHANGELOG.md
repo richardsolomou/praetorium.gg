@@ -1,5 +1,16 @@
 # praetorium
 
+## 0.244.0 (2026-11-14)
+
+### Minor Changes
+
+- 25805bd: Faction and datasheet pages show a few recent finished games that field that faction.
+- f708ffa: Rosters has a Winning tab of recent top-four tournament lists that you can read in full and import as your own.
+
+### Patch Changes
+
+- f708ffa: A list link opened on a roster tab other than Mine now opens its import review instead of closing it.
+
 ## 0.243.0 (2026-11-14)
 
 ### Minor Changes
