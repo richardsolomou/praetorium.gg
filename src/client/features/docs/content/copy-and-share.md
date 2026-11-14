@@ -6,7 +6,7 @@ In the library, choose **Share…** in a roster's menu. Under **Who can open it*
 - **Export text** gives you text to **Copy text** or **Download text**. See [Exchange codes and export](/docs/exchange-and-export) for what it holds.
 - **Print** prepares a compact two-column reference pack with a datasheet for each unit, then army and detachment rules, stratagems, and the abilities and weapon rules your units use.
 
-The **Build**/**View** switch in the header hides editing controls for reading at the table. **Start a battle** takes the list into a [battle](/docs/start-a-battle).
+The **Build**/**View** switch in the header hides editing controls for reading at the table.
 
 ## Variants, copies and locking
 

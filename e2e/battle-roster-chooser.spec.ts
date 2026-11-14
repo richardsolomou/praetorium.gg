@@ -80,14 +80,12 @@ test('choosing a roster the library reports over its limit names the problem and
 
 test('a battle started from a saved roster opens with that roster on the player’s seat', async ({ page }) => {
   const name = 'Roster-first army'
-  const { id } = await savedArmy(page, 'Battle from roster', { name })
-  await page.goto(`/rosters/${id}`)
+  await savedArmy(page, 'Battle from roster', { name })
+  await page.goto('/rosters')
   await page.waitForLoadState('networkidle')
-  await expect(async () => {
-    if (BATTLE_PAGE.test(new URL(page.url()).pathname)) return
-    await page.getByRole('button', { name: 'Start a battle', exact: true }).click({ timeout: 1_000 })
-    await page.waitForURL(BATTLE_PAGE, { timeout: 5_000 })
-  }).toPass({ timeout: 30_000 })
+  await page.getByRole('button', { name: `Actions for ${name}`, exact: true }).click()
+  await page.getByRole('menuitem', { name: 'Start a battle' }).click()
+  await page.waitForURL(BATTLE_PAGE)
 
   await expect(yourArmy(page).getByText(name, { exact: true })).toBeVisible()
 })
