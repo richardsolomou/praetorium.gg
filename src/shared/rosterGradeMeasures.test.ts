@@ -1,16 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { datasheetFixture } from '../core/datasheet.fixtures'
 import type { CombatantSnapshot } from '../core/combatMatchup'
-import { unitMove, unitTotal } from './rosterGradeMeasures'
-
-it('limits movement by the slowest model in the attached unit', () => {
-  const moving = (move: string): CombatantSnapshot => ({
-    sheet: datasheetFixture({ profiles: [{ id: move, name: 'Model', type: 'Unit', values: [{ name: 'M', value: move }] }] }),
-    models: 1,
-    carriers: [],
-  })
-  expect(unitMove({ ...moving('10'), companions: [moving('6')] })).toBe(6)
-})
+import { unitTotal } from './rosterGradeMeasures'
 
 const mixedUnit = (): CombatantSnapshot => ({
   sheet: datasheetFixture({

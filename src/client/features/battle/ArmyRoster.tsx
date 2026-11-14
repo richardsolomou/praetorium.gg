@@ -18,6 +18,7 @@ import { formationLabel } from './setup/chrome'
 import type { BattleCombatSelection } from '../simulator/BattleCombatDialog'
 import { tint } from './battleTints'
 import { ArmyLoadout } from './ArmyLoadout'
+import { ArmyThreats } from './ArmyThreats'
 
 type Props = {
   army: Army
@@ -148,6 +149,8 @@ export function ArmyRoster({ army, side, finished, actionable, pending, blocked 
         <Button variant="secondary" size="xs" className="max-w-full" onClick={() => setOpen(true)} aria-label={`Open ${roster.name}`}>
           <Scroll aria-hidden /> Army
         </Button>
+        {/* Read across the table mid-game, so only an opposing army in a running battle offers it. */}
+        {actionable && !finished && !side.isViewer ? <ArmyThreats army={army} side={side} /> : null}
         {units.some(canSimulate) ? (
           <Button variant="secondary" size="xs" onClick={() => simulate()} aria-label={`Simulate ${army.playerName}'s combat`}>
             <Calculator aria-hidden /> Simulate

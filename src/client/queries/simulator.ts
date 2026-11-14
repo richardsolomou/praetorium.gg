@@ -1,6 +1,6 @@
 import { queryOptions } from '@tanstack/react-query'
 import type { RosterPick } from '../../core/roster'
-import { combatantDatasheet, combatLoadouts, combatUnits, recentMatchups } from '../functions'
+import { combatantDatasheet, combatantDatasheets, combatLoadouts, combatUnits, recentMatchups } from '../functions'
 import { SSR_STALE_TIME } from './shared'
 import { combatUnitsKey, recentMatchupsKey } from './queryKeys'
 
@@ -25,6 +25,15 @@ export const combatantDatasheetQuery = (
         data: { catalogueId, entryId, detachmentIds: [...detachmentIds], picks: [...picks], pickIndex, inactivePicks: [...inactivePicks] },
       }),
     enabled: Boolean(catalogueId && entryId),
+    staleTime: Infinity,
+  })
+
+/** Several units of one list, read in a single request; `pickIndices` order the answer. */
+export const combatantDatasheetsQuery = (data: Parameters<typeof combatantDatasheets>[0]['data']) =>
+  queryOptions({
+    queryKey: ['combatant-datasheets', data],
+    queryFn: ({ signal }) => combatantDatasheets({ signal, data }),
+    enabled: data.pickIndices.length > 0,
     staleTime: Infinity,
   })
 

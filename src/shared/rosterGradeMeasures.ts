@@ -12,6 +12,7 @@ import { rosterDatasheetSelections } from './rosterDatasheetContext'
 import type { LoadedRules } from './rules'
 import { hasTextTokens } from '../core/sourceText'
 import { gradeReadingsIn } from './textFacts'
+import { unitMove } from '../core/unitReach'
 
 export type CombatProjection = NonNullable<ReturnType<typeof rosterCombatant>>
 /** The words behind a rule's text tokens, or null when the snapshot does not hold them. */
@@ -89,17 +90,6 @@ export function defaultSnapshot(projection: CombatProjection) {
   const selection = combatRuleSelections([...projection.rules, ...projection.companions.flatMap((member) => member.rules)], {})
   return combatantSnapshot(projection, selection)
 }
-
-/** The distance every model can move together, including slower attachments. */
-export const unitMove = (snapshot: CombatantSnapshot) =>
-  Math.min(
-    ...[snapshot, ...(snapshot.companions ?? [])].flatMap((member) => {
-      const profiles = datasheetProfilesByKind(member.sheet).unit
-      return profiles.length
-        ? profiles.map((profile) => Number.parseInt(profile.values.find((value) => value.kind === 'movement')?.value ?? '', 10) || 0)
-        : [0]
-    }),
-  )
 
 /** Every model's characteristic, summed over the unit and everything attached to it. */
 export function unitTotal(snapshot: CombatantSnapshot, kind: 'wounds' | 'objective-control'): number | null {
