@@ -412,12 +412,7 @@ export function app(): App {
         }
       },
       repository,
-      service: new PraetoriumService(
-        repository,
-        Date.now,
-        randomInt,
-        notifier,
-        () => instance.battleFactionsFor()),
+      service: new PraetoriumService(repository, Date.now, randomInt, notifier, () => instance.battleFactionsFor()),
       auth,
       spacetimeToken: async (headers) => (await auth.api.getToken({ headers })).token,
       email,

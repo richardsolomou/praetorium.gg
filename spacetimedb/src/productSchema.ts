@@ -261,6 +261,15 @@ const rosterPointsMarks = table(
   },
 )
 
+/** Each army-data revision that priced lists, in the order they first did; only the newest may replace a total. */
+const rosterPointsRevisions = table(
+  { name: 'roster_points_revisions' },
+  {
+    revision: t.string().primaryKey(),
+    order: t.u32(),
+  },
+)
+
 const rosterLoans = table(
   { name: 'roster_loans' },
   {
@@ -924,6 +933,7 @@ export const productTables = {
   rosters,
   rosterLoans,
   rosterPointsMarks,
+  rosterPointsRevisions,
   sealedEvents,
   tournaments,
   tournamentAdmins,

@@ -3817,14 +3817,29 @@ export const pushRosters = spacetime.procedure({ after: t.string(), limit: t.u32
   }),
 )
 
+/** Whether `revision` is the newest that priced lists, recording it as such when it has never priced any. */
+function newestPointsRevision(ctx: Context, revision: string) {
+  const revisions = Array.from(ctx.db.rosterPointsRevisions.iter())
+  const newest = revisions.reduce<(typeof revisions)[number] | undefined>(
+    (last, row) => (last && last.order > row.order ? last : row),
+    undefined,
+  )
+  if (newest?.revision === revision) return true
+  if (revisions.some((row) => row.revision === revision)) return false
+  ctx.db.rosterPointsRevisions.insert({ revision, order: (newest?.order ?? 0) + 1 })
+  return true
+}
+
 /**
  * Stores each list's total as `revision` prices it and returns the marks it replaced, in one transaction, so the
- * same update is compared, and its notice sent, at most once.
+ * same update is compared, and its notice sent, at most once. A revision a newer one has replaced, as after a rollback
+ * or on a server a deploy is retiring, changes nothing, so its players never hear the update reversed and then again.
  */
 export const replaceRosterPointsMarks = spacetime.procedure({ revision: t.string(), marks: t.string() }, t.string(), (ctx, input) =>
   operatorTx(ctx, (tx) => {
     if (!input.revision || input.revision.length > 200) throw new SenderError('Invalid points revision')
     const marks = decodePayload(rosterPointsMarksSchema, input.marks, 'Invalid points marks')
+    if (!newestPointsRevision(tx, input.revision)) return productJson([])
     const previous = []
     for (const mark of marks) {
       const roster = tx.db.rosters.id.find(mark.rosterId)

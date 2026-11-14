@@ -3926,6 +3926,14 @@ describe('roster points notices', () => {
     expect(marks(h, 'new', 1015)).toMatchObject([{ revision: 'new', points: 1015 }])
   })
 
+  it('leaves the totals alone for a revision a later one replaced, so a rollback or an old server sends no notices', () => {
+    const h = setup()
+    marks(h, 'old', 1000)
+    marks(h, 'new', 1015)
+    marks(h, 'old', 1000)
+    expect(marks(h, 'new', 1015)).toMatchObject([{ revision: 'new', points: 1015 }])
+  })
+
   it('forgets a list’s total with the list', () => {
     const h = setup()
     marks(h, 'old', 1000)
