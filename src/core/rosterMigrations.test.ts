@@ -69,6 +69,23 @@ it('keeps the Havoc Champion plasma gun after it becomes a link to the shared en
   })
 })
 
+it('keeps the Kill Tank pair of rokkit launchas when its weapon choice becomes a count of two', () => {
+  const key = 'bede-984a-c688-c3ca/db6a-f4c0-ff50-0154'
+  expect(currentPick({ entryId: '331d-9059-d87-480', choices: { [key]: '5113-76ee-1ef7-8ade' } })).toEqual({
+    entryId: '331d-9059-d87-480',
+    choices: {},
+    spreads: { [key]: { 'f2d6-b5c8-52d4-ed95': 2 } },
+  })
+})
+
+it('keeps the Acothyst hexrifle by choosing the alternative weapons it now sits under', () => {
+  const acothyst = 'a655-68e8-35ec-c7e2/19dd-6790-5ec9-7d3c/7cb2-d3db-a8d7-a332'
+  expect(currentPick({ entryId: '20c5-c1e3-ebe4-8fcc', choices: { [`${acothyst}/933e-eac4-95a9-d4d9`]: 'bebb-a94f-5c28-9384' } })).toEqual({
+    entryId: '20c5-c1e3-ebe4-8fcc',
+    choices: { [acothyst]: 'ba08-6388-37ae-9adb', [`${acothyst}/ba08-6388-37ae-9adb/933e-eac4-95a9-d4d9`]: 'bebb-a94f-5c28-9384' },
+  })
+})
+
 it('preserves split-loadout counts, model counts, and attachments through repeated migration', () => {
   const roster = {
     catalogueId: 'f89b-84e0-6e3b-f1e2',

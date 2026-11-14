@@ -7,7 +7,16 @@ import { catalogueEditionId, editionCatalogueId, editionFamilyId, picksForCatalo
 import { foldedEditionIds, migratedEditionId, migratedEditionPick, onFoldedEdition } from './editionMigrations'
 
 const replacementSchema = z.object({ id: z.string() })
-const optionSchema = z.object({ key: z.string(), id: z.string() })
+/**
+ * `count` turns a saved single choice into that many of the option, for a group that now holds several;
+ * `with` holds the choices a saved single choice's new key sits under, which the saved pick never made.
+ */
+const optionSchema = z.object({
+  key: z.string(),
+  id: z.string(),
+  count: z.number().int().positive().optional(),
+  with: z.record(z.string(), z.string()).optional(),
+})
 const retiredSourceSchema = z.object({
   catalogues: z.record(z.string(), replacementSchema),
   detachments: z.record(z.string(), replacementSchema),
@@ -123,12 +132,18 @@ function mappedPick(pick: RosterPick, sheets: typeof datasheets): RosterPick {
   if (!sheet) return { ...pick, ...allied }
   const option = (key: string, id: string) => sheet.choices?.[key]?.[id] ?? { key, id }
   const spreads: NonNullable<RosterPick['spreads']> = {}
+  const spread = (key: string, id: string, count: number) => {
+    spreads[key] = { ...spreads[key], [id]: (spreads[key]?.[id] ?? 0) + count }
+  }
   for (const [key, counts] of Object.entries(pick.spreads ?? {})) {
     for (const [id, count] of Object.entries(counts)) {
       const current = option(key, id)
-      spreads[current.key] = { ...spreads[current.key], [current.id]: (spreads[current.key]?.[current.id] ?? 0) + count }
+      spread(current.key, current.id, count)
     }
   }
+  const counted = Object.entries(pick.choices ?? {}).filter(([key, id]) => option(key, id).count)
+  for (const [key, id] of counted) spread(option(key, id).key, option(key, id).id, option(key, id).count!)
+  const parents: Record<string, string> = Object.assign({}, ...Object.entries(pick.choices ?? {}).map(([key, id]) => option(key, id).with))
   return {
     ...pick,
     ...allied,
@@ -136,8 +151,8 @@ function mappedPick(pick: RosterPick, sheets: typeof datasheets): RosterPick {
     ...(pick.choices
       ? {
           choices: Object.fromEntries(
-            Object.entries(pick.choices)
-              .filter(([key, id]) => !sheet.fixedChoices?.[key]?.includes(id))
+            [...Object.entries(parents).filter(([key]) => !pick.choices?.[key]), ...Object.entries(pick.choices)]
+              .filter(([key, id]) => !sheet.fixedChoices?.[key]?.includes(id) && !option(key, id).count)
               .map(([key, id]) => {
                 const current = option(key, id)
                 const existing = pick.choices?.[current.key]
@@ -148,7 +163,7 @@ function mappedPick(pick: RosterPick, sheets: typeof datasheets): RosterPick {
           ),
         }
       : {}),
-    ...(pick.spreads ? { spreads } : {}),
+    ...(pick.spreads || counted.length ? { spreads } : {}),
     ...(pick.toggles
       ? { toggles: Object.fromEntries(Object.entries(pick.toggles).map(([key, on]) => [sheet.toggles?.[key] ?? key, on])) }
       : {}),
