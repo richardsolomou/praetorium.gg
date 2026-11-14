@@ -5,7 +5,8 @@ export class DownloadRefused extends Error {}
 
 /** Why a background refresh failed, never the error's message. */
 export function refreshFailureReason(error: unknown) {
-  if (isFetchNetworkFailure(error)) return 'network'
+  // Chromium's Cache.put rejects with a NetworkError when the connection drops while it reads a part's body.
+  if (isFetchNetworkFailure(error) || (error instanceof DOMException && error.name === 'NetworkError')) return 'network'
   if (error instanceof DownloadRefused) return 'refused'
   if (error instanceof DOMException && error.name === 'TimeoutError') return 'timeout'
   if (error instanceof DOMException && error.name === 'QuotaExceededError') return 'storage'
