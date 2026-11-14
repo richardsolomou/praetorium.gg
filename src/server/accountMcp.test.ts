@@ -20,9 +20,9 @@ vi.mock('./publishedTextFiles', () => ({
 vi.mock('./app', () => ({
   app: () => ({
     service: {
-      battles,
-      playerProfile,
-      playerRankings,
+      battleFeedService: { battles },
+      profileService: { playerProfile },
+      standingsService: { playerRankings },
       sealedEventService: { ownRoster },
       rosterService: { setRosterVisibility },
     },

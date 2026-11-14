@@ -75,7 +75,7 @@ function product() {
       { exclude, now: NOW },
     )
   }
-  const tables = (answer: Awaited<ReturnType<typeof service.standings>>) => ({
+  const tables = (answer: Awaited<ReturnType<typeof service.standingsService.standings>>) => ({
     overall: answer.overall.rows,
     factions: answer.factions.map((table) => table.rows),
   })
@@ -91,12 +91,12 @@ it('rates the same after changes as a full replay of every log', async () => {
   await conceded('one', ALICE, BOB, NOW - 4_000)
   await conceded('two', BOB, CAROL, NOW - 3_000)
   await conceded('three', CAROL, ALICE, NOW - 2_000)
-  await service.standings()
+  await service.standingsService.standings()
   await reopen('one', ALICE, NOW - 1_000)
   await conceded('four', DAVE, ALICE, NOW)
   await operator.deleteBattle('two', BOB)
   names.set(CAROL, 'Caz')
-  expect(tables(await service.standings())).toEqual(replayed(await replay()))
+  expect(tables(await service.standingsService.standings())).toEqual(replayed(await replay()))
 })
 
 it('rates a battle finishing between rated ones the same as a full replay', async () => {
@@ -104,23 +104,23 @@ it('rates a battle finishing between rated ones the same as a full replay', asyn
   await conceded('one', ALICE, BOB, NOW - 4_000)
   await conceded('two', CAROL, ALICE, NOW - 2_000)
   await conceded('three', DAVE, ALICE, NOW)
-  await service.standings()
+  await service.standingsService.standings()
   await conceded('between', BOB, DAVE, NOW - 1_000)
-  expect(tables(await service.standings())).toEqual(replayed(await replay()))
+  expect(tables(await service.standingsService.standings())).toEqual(replayed(await replay()))
 })
 
 it('lists the same ratings as a full replay after a break from playing', async () => {
   const { service, conceded, replay, tables, replayed } = product()
   await conceded('one', ALICE, BOB, NOW - 200 * 24 * 60 * 60 * 1000)
   await conceded('two', CAROL, ALICE, NOW - 100 * 24 * 60 * 60 * 1000)
-  expect(tables(await service.standings())).toEqual(replayed(await replay()))
+  expect(tables(await service.standingsService.standings())).toEqual(replayed(await replay()))
 })
 
 it('lists each table with its own record for a player who fields several armies', async () => {
   const { service, conceded, replay, tables, replayed } = product()
   await conceded('one', ALICE, BOB, NOW - 2_000)
   await conceded('two', ALICE, CAROL, NOW - 1_000, 'necrons')
-  expect(tables(await service.standings())).toEqual(replayed(await replay()))
+  expect(tables(await service.standingsService.standings())).toEqual(replayed(await replay()))
 })
 
 it('places a player on their profile where the leaderboard lists them', async () => {
@@ -129,14 +129,14 @@ it('places a player on their profile where the leaderboard lists them', async ()
     await conceded(`alice-${game}`, ALICE, BOB, NOW - 4_000 + game)
     await conceded(`carol-${game}`, CAROL, ALICE, NOW - 2_000 + game)
   }
-  const { overall } = await service.standings()
-  expect((await service.playerRankings(ALICE)).overall?.place).toBe(overall.rows.findIndex((row) => row.id === ALICE) + 1)
+  const { overall } = await service.standingsService.standings()
+  expect((await service.standingsService.playerRankings(ALICE)).overall?.place).toBe(overall.rows.findIndex((row) => row.id === ALICE) + 1)
 })
 
 it('gives a player no place on their profile until they are ranked', async () => {
   const { service, conceded } = product()
   await conceded('one', ALICE, BOB, NOW)
-  expect((await service.playerRankings(ALICE)).overall).toBeNull()
+  expect((await service.standingsService.playerRankings(ALICE)).overall).toBeNull()
 })
 
 it('shows how far a battle moved each rating as a full replay does', async () => {
@@ -144,47 +144,49 @@ it('shows how far a battle moved each rating as a full replay does', async () =>
   await conceded('one', ALICE, BOB, NOW - 1_000)
   await conceded('two', CAROL, ALICE, NOW)
   const [battle, change] = [...(await replay()).changes].find(([summary]) => summary.token === 'two-token')!
-  expect(await service.battleRatingChanges('two-token')).toEqual(Object.fromEntries(battle.playerIds.map((id, seat) => [id, change[seat]])))
+  expect(await service.standingsService.battleRatingChanges('two-token')).toEqual(
+    Object.fromEntries(battle.playerIds.map((id, seat) => [id, change[seat]])),
+  )
 })
 
 it('stops rating battles against a player once they are a practice opponent', async () => {
   const { service, operator, conceded, replay, tables, replayed } = product()
   await conceded('one', ALICE, BOB, NOW - 1_000)
   await conceded('two', DAVE, ALICE, NOW)
-  await service.standings()
+  await service.standingsService.standings()
   await operator.registerPracticeOpponent(DAVE)
-  expect(tables(await service.standings())).toEqual(replayed(await replay([DAVE])))
+  expect(tables(await service.standingsService.standings())).toEqual(replayed(await replay([DAVE])))
 })
 
 it('announces a medal earned in a battle', async () => {
   const { service, conceded } = product()
-  await service.syncAchievementDefinitions()
+  await service.standingsService.syncAchievementDefinitions()
   await conceded('one', ALICE, BOB, NOW)
-  expect((await service.newAchievements(ALICE)).map((achievement) => achievement.id)).toContain('first-blood')
+  expect((await service.standingsService.newAchievements(ALICE)).map((achievement) => achievement.id)).toContain('first-blood')
 })
 
 it('announces a medal once', async () => {
   const { service, operator, conceded } = product()
-  await service.syncAchievementDefinitions()
+  await service.standingsService.syncAchievementDefinitions()
   await conceded('one', ALICE, BOB, NOW)
   await operator.markAchievementsSeen(
     ALICE,
-    (await service.newAchievements(ALICE)).map((achievement) => achievement.id),
+    (await service.standingsService.newAchievements(ALICE)).map((achievement) => achievement.id),
   )
-  expect(await service.newAchievements(ALICE)).toEqual([])
+  expect(await service.standingsService.newAchievements(ALICE)).toEqual([])
 })
 
 it('stores the medals a player held before medals were stored as already seen', async () => {
   const { service, conceded } = product()
   await conceded('one', ALICE, BOB, NOW)
-  await service.syncAchievementDefinitions()
-  expect(await service.newAchievements(ALICE)).toEqual([])
+  await service.standingsService.syncAchievementDefinitions()
+  expect(await service.standingsService.newAchievements(ALICE)).toEqual([])
 })
 
 it('announces a medal earned after the quiet first check', async () => {
   const { service, operator, conceded } = product()
   await conceded('one', ALICE, BOB, NOW)
-  await service.newAchievements(ALICE)
+  await service.standingsService.newAchievements(ALICE)
   await operator.registerPushToken({ userId: ALICE, token: 'device', platform: 'ios', now: NOW })
-  expect((await service.newAchievements(ALICE)).map((achievement) => achievement.id)).toEqual(['field-kit'])
+  expect((await service.standingsService.newAchievements(ALICE)).map((achievement) => achievement.id)).toEqual(['field-kit'])
 })

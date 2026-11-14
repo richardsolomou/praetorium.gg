@@ -26,7 +26,9 @@ export const unregisterPushDevice = createServerFn({ method: 'POST' })
   .handler(({ data }) => unregisterPushDeviceRequest(getRequest(), data.token))
 
 /** The signed-in player's notices, newest first; none signed out. */
-export const notices = createServerFn({ method: 'GET' }).handler(() => rpc(() => forSignedIn([], (id) => app().service.notices(id))))
+export const notices = createServerFn({ method: 'GET' }).handler(() =>
+  rpc(() => forSignedIn([], (id) => app().service.preferencesService.notices(id))),
+)
 
 /** The signed-in player has read these notices, on whichever device. */
 export const markNoticesRead = createServerFn({ method: 'POST' })
@@ -34,7 +36,7 @@ export const markNoticesRead = createServerFn({ method: 'POST' })
   .handler(({ data }) =>
     mutationRpc(async () => {
       const userId = await requireUserId()
-      const moved = await app().service.markNoticesRead(userId, data.ids)
+      const moved = await app().service.preferencesService.markNoticesRead(userId, data.ids)
       if (moved) await captureMutation(userId, 'notices_read', { count: data.ids.length })
       return moved
     }),

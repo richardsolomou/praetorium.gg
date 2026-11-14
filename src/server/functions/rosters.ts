@@ -201,7 +201,7 @@ export const rosterDiscoveryCounts = createServerFn({ method: 'GET' })
       const [viewerId, factionIndex] = await Promise.all([currentUserId(), instance.factionIndexFor()])
       const indexed = byId(factionIndex?.factions ?? [])
       if (view === 'played') {
-        const armies = await instance.service.everyPlayedArmy(viewerId, await instance.battleFactionsFor())
+        const armies = await instance.service.battleFeedService.everyPlayedArmy(viewerId, await instance.battleFactionsFor())
         return (
           armies &&
           discoveryCounts(
@@ -454,7 +454,7 @@ export const discoverPlayedArmies = createServerFn({ method: 'GET' })
         const priceable = armies.map((army) => ({ id: `${army.battle}:${army.player.id}`, updatedAt: army.playedAt }))
         const held = await heldRosterAssessments(priceable)
         const unpriced = armies.filter((_, index) => !held[index])
-        const picks = await instance.service.playedArmyPicks(unpriced)
+        const picks = await instance.service.battleFeedService.playedArmyPicks(unpriced)
         const priced = await cachedRosterAssessmentsFor(
           unpriced.map((army, index) => ({
             ...copiedArmy({ ...army, picks: picks[index]! }),
@@ -467,7 +467,7 @@ export const discoverPlayedArmies = createServerFn({ method: 'GET' })
         let next = 0
         return held.map((assessment) => assessment ?? priced[next++]!)
       }
-      const page = await instance.service.playedArmies(
+      const page = await instance.service.battleFeedService.playedArmies(
         viewerId,
         before ?? undefined,
         battleFactions,
@@ -496,7 +496,7 @@ export const discoverPlayedArmies = createServerFn({ method: 'GET' })
 
 /** An army from a finished battle, as a roster that would copy it; nothing is saved. */
 async function playedArmyCopy(data: { token: string; playerId: string }) {
-  const army = await app().service.playedArmy(data.token, data.playerId)
+  const army = await app().service.battleFeedService.playedArmy(data.token, data.playerId)
   if (!army) throw new Response('That army is no longer available to copy.', { status: 404 })
   const copy = copiedArmy(army)
   return rosterContentSchema.parse({

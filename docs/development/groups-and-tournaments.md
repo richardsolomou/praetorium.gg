@@ -42,14 +42,14 @@ The old words survive only where links already shared spell them: `/clubs/…` a
 Swiss is a Praetorium house format for one-on-one tournaments, not a copy of any named event pack, so it promises no compatibility with one. `src/core/swiss.ts` owns pairing and standings; each round's tables are rows of `round_pairings`.
 
 - Publishing: `pair-round` in `sealedEventCommand` (`spacetimedb/src/index.ts`) accepts only the next round, once every table of the last one has finished, with every sealed entrant seated once and at most one bye.
-- Pairing reads the tournament's battles through `pairSealedEventRound` in `src/server/service.ts` and refuses when that read is partial, since an unread battle would score as unplayed.
+- Pairing reads the tournament's battles through `pairSealedEventRound` in `src/server/services/sealedEventResultsService.ts` and refuses when that read is partial, since an unread battle would score as unplayed.
 - Starting a game: `src/shared/sealedEventBattle.ts` refuses a Swiss battle against anyone but the paired opponent.
 - Deleting a table's battle frees its pairing (`deleteBattle` in `spacetimedb/src/index.ts`), so the pair can start again.
 - Withdrawing and dropping: after reveal a player can withdraw themselves and an organizer can drop a no-show (`drop` in `sealedEventCommand`); a table with a dropped player counts as finished, so the next round can be paired without them.
 
 ## Groups
 
-`src/core/group.ts` owns decisions; `src/server/services/groupService.ts` owns operations, and the group table is `groupStandings` in `src/server/service.ts`.
+`src/core/group.ts` owns decisions; `src/server/services/groupService.ts` owns operations, and `src/server/services/groupResultsService.ts` owns the reads that fold its battles, such as the group table (`groupStandings`).
 
 - A battle counts for a group through `set-battle-group` in its log, which names the group's internal id: every battle is public, and a group's token is its invite link. A hidden-list game's battles count through the event its lock names.
 - `group_battles` indexes that choice for reads. The module rewrites it from the folded log on `set-battle-group` and `undo`, and the table still checks each log, so the log stays the authority.

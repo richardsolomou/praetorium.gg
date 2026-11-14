@@ -15,6 +15,7 @@ vi.mock('./app', () => ({
     service: {
       ...mocks.service,
       rosterService: mocks.service,
+      preferencesService: mocks.service,
       socialService: mocks.service,
       sealedEventService: mocks.service,
     },

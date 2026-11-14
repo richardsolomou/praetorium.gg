@@ -23,7 +23,7 @@ it('shows a player’s battles in their profile to an anonymous reader', async (
     () => 10,
     () => 0,
   )
-  expect((await service.playerProfile(ALICE, null)).played).toBe(1)
+  expect((await service.profileService.playerProfile(ALICE, null)).played).toBe(1)
 })
 
 it('shows how far the leaderboard says each profile battle moved each player’s rating', async () => {
@@ -44,7 +44,7 @@ it('shows how far the leaderboard says each profile battle moved each player’s
     () => 10,
     () => 0,
   )
-  const [battle] = (await service.playerProfile(ALICE, null)).battles
+  const [battle] = (await service.profileService.playerProfile(ALICE, null)).battles
 
   expect(battle?.ratingChanges).toEqual({ [ALICE]: -12, bob: 12 })
 })
@@ -75,7 +75,7 @@ function recordAgainst(opponent: { id: string; name: string }, practiceIds: stri
     () => 10,
     () => 0,
   )
-  return service.playerProfile(ALICE, null)
+  return service.profileService.playerProfile(ALICE, null)
 }
 
 it('counts a battle against a guest in the host’s record', async () => {
@@ -104,7 +104,7 @@ it('reads a profile battle’s result from its player’s seat, not the reader�
     () => 10,
     () => 0,
   )
-  const { battles } = await service.playerBattles(ALICE, null, { filter: { result: { in: ['lost'], out: [] } } })
+  const { battles } = await service.profileService.playerBattles(ALICE, null, { filter: { result: { in: ['lost'], out: [] } } })
 
   expect(battles.map((battle) => battle.token)).toEqual(['token'])
 })

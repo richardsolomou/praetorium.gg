@@ -18,8 +18,8 @@ async function pairRound(result: string) {
     pairings: [],
     entries: ['organizer', 'bob', 'carol'].map((userId) => ({ userId, status: 'accepted', submitted: true })),
   } as never)
-  vi.spyOn(service, 'sealedEventBattles').mockResolvedValue({ battles: [], nextCursor: null })
-  await service.pairSealedEventRound('tournament', 'event', 'organizer').catch(() => {})
+  vi.spyOn(service.sealedEventResultsService, 'sealedEventBattles').mockResolvedValue({ battles: [], nextCursor: null })
+  await service.sealedEventResultsService.pairSealedEventRound('tournament', 'event', 'organizer').catch(() => {})
   return notify
 }
 

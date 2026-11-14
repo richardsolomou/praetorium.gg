@@ -36,7 +36,7 @@ export const calculateCombatBatch = createServerFn({ method: 'POST' })
 
 /** Empty for a guest, whose matchups stay on their device. */
 export const recentMatchups = createServerFn({ method: 'GET' }).handler(() =>
-  rpc(() => forSignedIn([], (id) => app().service.recentMatchups(id))),
+  rpc(() => forSignedIn([], (id) => app().service.preferencesService.recentMatchups(id))),
 )
 
 export const rememberMatchup = createServerFn({ method: 'POST' })

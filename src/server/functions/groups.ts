@@ -26,14 +26,16 @@ export const openGroup = createServerFn({ method: 'GET' })
 
 export const groupStandings = createServerFn({ method: 'GET' })
   .validator(tokenSchema)
-  .handler(({ data }) => rpc(async () => app().service.groupStandings(data.token, await currentUserId(), await app().battleFactionsFor())))
+  .handler(({ data }) =>
+    rpc(async () => app().service.groupResultsService.groupStandings(data.token, await currentUserId(), await app().battleFactionsFor())),
+  )
 
 /** A page of every battle played for a group, narrowed as the battles page is. */
 export const groupBattles = createServerFn({ method: 'GET' })
   .validator(groupBattlesSchema)
   .handler(({ data }) =>
     rpc(async () =>
-      app().service.groupBattles(
+      app().service.groupResultsService.groupBattles(
         data.token,
         await currentUserId(),
         { before: data.before ?? undefined, filter: data.filter, order: data.order },
@@ -44,16 +46,20 @@ export const groupBattles = createServerFn({ method: 'GET' })
 
 export const groupLeague = createServerFn({ method: 'GET' })
   .validator(tokenSchema)
-  .handler(({ data }) => rpc(async () => app().service.groupLeague(data.token, await currentUserId(), await app().battleFactionsFor())))
+  .handler(({ data }) =>
+    rpc(async () => app().service.groupResultsService.groupLeague(data.token, await currentUserId(), await app().battleFactionsFor())),
+  )
 
 export const groupPastLeagues = createServerFn({ method: 'GET' })
   .validator(tokenSchema)
-  .handler(({ data }) => rpc(async () => app().service.groupPastLeagues(data.token, await currentUserId())))
+  .handler(({ data }) => rpc(async () => app().service.groupResultsService.groupPastLeagues(data.token, await currentUserId())))
 
 export const groupPastLeague = createServerFn({ method: 'GET' })
   .validator(tokenSchema.extend({ leagueId: z.string().min(1).max(128) }))
   .handler(({ data }) =>
-    rpc(async () => app().service.groupPastLeague(data.token, data.leagueId, await currentUserId(), await app().battleFactionsFor())),
+    rpc(async () =>
+      app().service.groupResultsService.groupPastLeague(data.token, data.leagueId, await currentUserId(), await app().battleFactionsFor()),
+    ),
   )
 
 export const drawGroupLeague = createServerFn({ method: 'POST' })
@@ -118,7 +124,7 @@ export const leaveGroupLeague = createServerFn({ method: 'POST' })
 
 export const battleGroups = createServerFn({ method: 'GET' })
   .validator(tokenSchema)
-  .handler(({ data }) => rpc(async () => app().service.battleGroups(data.token, await currentUserId())))
+  .handler(({ data }) => rpc(async () => app().service.groupResultsService.battleGroups(data.token, await currentUserId())))
 
 export const createGroup = createServerFn({ method: 'POST' })
   .validator(createGroupSchema)

@@ -54,7 +54,7 @@ const serviceOf = (repository: ReturnType<typeof repositoryFor>) =>
 const fixture = (options?: Parameters<typeof repositoryFor>[0]) => serviceOf(repositoryFor(options))
 
 const rows = async (service: PraetoriumService, viewerId: string | null = ALICE) =>
-  (await service.groupStandings('group', viewerId))?.table.rows.map((row) => row.id)
+  (await service.groupResultsService.groupStandings('group', viewerId))?.table.rows.map((row) => row.id)
 
 it('rates the battles chosen for the group', async () => {
   expect(await rows(fixture())).toEqual([ALICE, BOB])
@@ -110,11 +110,11 @@ it('names a player who renamed while the group’s battles are unchanged', async
   const service = serviceOf(repository)
   await rows(service)
   repository.profilesByIds.mockResolvedValue(new Map([[ALICE, { id: ALICE, name: 'Alicia', image: null }]]))
-  expect((await service.groupStandings('group', ALICE))?.table.rows[0]?.name).toBe('Alicia')
+  expect((await service.groupResultsService.groupStandings('group', ALICE))?.table.rows[0]?.name).toBe('Alicia')
 })
 
 it('hides a private group’s table from a non-member', async () => {
-  expect(await fixture().groupStandings('group', 'stranger')).toBeNull()
+  expect(await fixture().groupResultsService.groupStandings('group', 'stranger')).toBeNull()
 })
 
 it('shows a public group’s table to anyone', async () => {
@@ -122,18 +122,24 @@ it('shows a public group’s table to anyone', async () => {
 })
 
 it('lists a hidden-list game’s battle among the recent ones, named by its game', async () => {
-  expect((await fixture({ counted: lock('game', 'game') }).groupStandings('group', ALICE))?.games).toEqual({ token: 'game' })
+  expect((await fixture({ counted: lock('game', 'game') }).groupResultsService.groupStandings('group', ALICE))?.games).toEqual({
+    token: 'game',
+  })
 })
 
 it('keeps a hidden-list game current while one of its battles is still being played', async () => {
-  expect((await fixture({ counted: lock('game', 'game'), finished: false }).groupStandings('group', ALICE))?.playing).toEqual(['game'])
+  expect(
+    (await fixture({ counted: lock('game', 'game'), finished: false }).groupResultsService.groupStandings('group', ALICE))?.playing,
+  ).toEqual(['game'])
 })
 
 const listed = async (service: PraetoriumService, viewerId: string | null = ALICE) =>
-  (await service.groupBattles('group', viewerId, {})).battles.map((battle) => battle.token)
+  (await service.groupResultsService.groupBattles('group', viewerId, {})).battles.map((battle) => battle.token)
 
 it('lists the battles of the group’s games with the game each came from', async () => {
-  expect((await fixture({ counted: lock('game', 'game') }).groupBattles('group', ALICE, {})).games).toEqual({ token: 'game' })
+  expect((await fixture({ counted: lock('game', 'game') }).groupResultsService.groupBattles('group', ALICE, {})).games).toEqual({
+    token: 'game',
+  })
 })
 
 it('leaves a battle of another group out of the group’s list', async () => {

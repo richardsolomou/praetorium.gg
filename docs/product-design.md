@@ -18,4 +18,4 @@ Publication is named sharing; there is no anonymous archive of private game stat
 - Account deletion removes rosters, loadouts, ability alerts, notifications, the calendar link, friendships, linked accounts on other trackers, entries, group memberships, owned tournaments and owned groups with their games, and every battle played. Tournament, hidden-list game and group deletion keep battles.
 - Revocable player-content images are `no-store`. Screenshots with roster or battle data stay out of Git.
 
-Authorities: [`rosterAccess`](../src/server/services/rosterService.ts), [`rosterDiscovery.ts`](../src/core/rosterDiscovery.ts), [`PraetoriumService`](../src/server/service.ts), [`sealedEvent.ts`](../src/core/sealedEvent.ts), and deletion in [`spacetimedb/src/index.ts`](../spacetimedb/src/index.ts).
+Authorities: [`rosterAccess`](../src/server/services/rosterService.ts), [`rosterDiscovery.ts`](../src/core/rosterDiscovery.ts), [`PraetoriumService`](../src/server/service.ts) with its watch rule [`mayWatch`](../src/server/services/battleHistory.ts), [`sealedEvent.ts`](../src/core/sealedEvent.ts), and deletion in [`spacetimedb/src/index.ts`](../spacetimedb/src/index.ts).

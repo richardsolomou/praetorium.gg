@@ -13,7 +13,8 @@ import { READ_ONLY_TOOL, structured, type AgentTools } from './agentTools'
 import { app } from './app'
 import { agentWrites, captureMutation } from './mutationTelemetry'
 import { productActions } from './productActions'
-import { BATTLES_PAGE, type PraetoriumService } from './service'
+import type { PraetoriumService } from './service'
+import { BATTLES_PAGE } from './services/battleFeedService'
 
 // Other players see each write, and a reseal or reported score replaces what stood before.
 const WRITE = { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: true } as const
@@ -42,7 +43,7 @@ async function currentPackId() {
   return rules ? (gameReferencesFor(rules).packs[0]?.id ?? null) : null
 }
 
-type Battle = Awaited<ReturnType<PraetoriumService['battles']>>['battles'][number]
+type Battle = Awaited<ReturnType<PraetoriumService['battleFeedService']['battles']>>['battles'][number]
 
 /** A battle as an organised-play answer needs it: who sits where and the score, without armies or images. */
 const tableBattle = (battle: Battle) => ({
@@ -211,8 +212,8 @@ export function registerOrganisedPlayTools(server: AgentTools, userId: string | 
       const factions = await instance.battleFactionsFor()
       const [found, standings, league] = await Promise.all([
         instance.service.groupService.group(groupToken, me),
-        instance.service.groupStandings(groupToken, me, factions),
-        instance.service.groupLeague(groupToken, me, factions),
+        instance.service.groupResultsService.groupStandings(groupToken, me, factions),
+        instance.service.groupResultsService.groupLeague(groupToken, me, factions),
       ])
       if (!found) throw new Response('No group has this token.', { status: 404 })
       const own = found.members.find((member) => member.userId === me)
@@ -336,8 +337,8 @@ export function registerOrganisedPlayTools(server: AgentTools, userId: string | 
       const [rules, factions] = await Promise.all([instance.rulesFor(), instance.battleFactionsFor()])
       const [results, mine] = revealed
         ? await Promise.all([
-            instance.service.sealedEventResults(sealedEvent.token, sealedEvent.eventToken, rules, factions, me),
-            instance.service.sealedEventBattles(
+            instance.service.sealedEventResultsService.sealedEventResults(sealedEvent.token, sealedEvent.eventToken, rules, factions, me),
+            instance.service.sealedEventResultsService.sealedEventBattles(
               sealedEvent.token,
               sealedEvent.eventToken,
               { limit: BATTLES_PAGE, filter: { player: { in: [me], out: [] } } },
@@ -605,7 +606,7 @@ export function registerOrganisedPlayTools(server: AgentTools, userId: string | 
         if (!table) throw new Response('You have no table in that round. Read get_my_event for your table.', { status: 404 })
         if (!table.bId) throw new Response('A bye has no score to report.', { status: 409 })
         const vp: [number, number] = table.aId === owner ? [yourScore, opponentScore] : [opponentScore, yourScore]
-        await app().service.reportTableResult(
+        await app().service.sealedEventResultsService.reportTableResult(
           sealedEvent.token,
           sealedEvent.eventToken,
           table.round,

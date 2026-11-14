@@ -40,12 +40,16 @@ it('refuses a battle screen for a table nobody sits at', async () => {
 
 it('retains a sealed event battle in an anonymous event feed', async () => {
   const { service } = fixture(true)
-  expect((await service.sealedEventBattles('tournament', 'event', { limit: 25 })).battles.map((battle) => battle.token)).toEqual(['token'])
+  expect(
+    (await service.sealedEventResultsService.sealedEventBattles('tournament', 'event', { limit: 25 })).battles.map(
+      (battle) => battle.token,
+    ),
+  ).toEqual(['token'])
 })
 
 it('passes the event reader to the repository so access is filtered before pagination', async () => {
   const { service, repository } = fixture(true)
-  await service.sealedEventBattles('tournament', 'event', { limit: 25 }, undefined, undefined, 'reader')
+  await service.sealedEventResultsService.sealedEventBattles('tournament', 'event', { limit: 25 }, undefined, undefined, 'reader')
   expect(repository.battlesBySealedEvent).toHaveBeenCalledWith('tournament', 'event', { limit: 25, viewerId: 'reader' })
 })
 

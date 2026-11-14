@@ -13,9 +13,11 @@ vi.mock('./app', () => ({
   app: () => ({
     service: {
       sealedEventService: { sealedEvent },
-      reportTableResult,
-      sealedEventResults: async () => ({ rows: [], swiss: [], partial: false }),
-      sealedEventBattles: async () => ({ battles: [], nextCursor: null }),
+      sealedEventResultsService: {
+        reportTableResult,
+        sealedEventResults: async () => ({ rows: [], swiss: [], partial: false }),
+        sealedEventBattles: async () => ({ battles: [], nextCursor: null }),
+      },
     },
     telemetry: { capture: vi.fn() },
     rulesFor: async () => null,

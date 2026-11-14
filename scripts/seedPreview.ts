@@ -371,8 +371,8 @@ async function readBack(repository: SpacetimeRepository, product: SpacetimeOpera
   const page = { limit: 100 }
   const service = new PraetoriumService(repository, Date.now, () => 0)
   await product.health()
-  await service.syncAchievementDefinitions()
-  await service.standings()
+  await service.standingsService.syncAchievementDefinitions()
+  await service.standingsService.standings()
   await repository.battlesByIds((await repository.battleChanges(0)).battleIds.slice(0, 500))
   await product.productStats(userIds)
   await product.pushTargets(userIds)
@@ -403,7 +403,7 @@ async function readBack(repository: SpacetimeRepository, product: SpacetimeOpera
     await repository.pushEnabled(userId)
     // Reaches the notice procedures without adding any: a notice never goes to the player who caused it.
     await repository.storeNotices([{ kind: 'friend-accepted', actorId: userId, recipientIds: [userId] }], Date.now())
-    await service.notices(userId)
+    await service.preferencesService.notices(userId)
     await repository.markNoticesRead(userId, [], Date.now())
     await repository.recentMatchupsByUser(userId)
     await repository.abilityRemindersByUser(userId)
@@ -413,10 +413,10 @@ async function readBack(repository: SpacetimeRepository, product: SpacetimeOpera
     await repository.favouriteDatasheetsByUser(userId)
     await repository.collectionProfile(userId, userId)
     await repository.achievementFacts(userId)
-    await service.playerRankings(userId)
+    await service.standingsService.playerRankings(userId)
     await repository.markAchievementsSeen(
       userId,
-      (await service.newAchievements(userId)).map((achievement) => achievement.id),
+      (await service.standingsService.newAchievements(userId)).map((achievement) => achievement.id),
     )
     await repository.collectionWishesByUser(userId)
     for (const entry of await repository.collectionByUser(userId)) await repository.datasheetPhotos(entry.entryId, userId, 100)
@@ -439,7 +439,7 @@ async function readBack(repository: SpacetimeRepository, product: SpacetimeOpera
     await repository.battlesByFriends(userId, page)
     for (const { battle, players } of battles) {
       await repository.battleGroups(battle.id)
-      await service.battleRatingChanges(battle.token)
+      await service.standingsService.battleRatingChanges(battle.token)
       await product.battleForOperator(battle.id)
       await repository.sealedEventBattleCandidates(
         userId,

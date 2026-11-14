@@ -8,9 +8,8 @@ import { Route as detachmentImage } from '../routes/api/previews/detachments.$ca
 const { service } = vi.hoisted(() => ({
   service: {
     screen: vi.fn(),
-    userProfile: vi.fn(),
-    playerProfile: vi.fn(),
-    playerRankings: vi.fn(),
+    profileService: { userProfile: vi.fn(), playerProfile: vi.fn() },
+    standingsService: { playerRankings: vi.fn() },
     rosterService: { rosterAccess: vi.fn() },
   },
 }))
@@ -92,7 +91,7 @@ describe('crawler preview access', () => {
   })
 
   it('does not reveal a missing player', async () => {
-    service.userProfile.mockResolvedValue(null)
+    service.profileService.userProfile.mockResolvedValue(null)
     expect((await fetchImage(playerImage, { userId: 'missing-player' })).status).toBe(404)
   })
 })

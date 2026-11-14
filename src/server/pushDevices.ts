@@ -16,7 +16,7 @@ export function registerPushDeviceRequest(request: Request, device: z.infer<type
     const player = await requireUser(request)
     // An administrator's phone must not start receiving the impersonated player's notices.
     if (player.impersonatedBy) throw new Response('stop impersonating to register this device', { status: 403 })
-    await app().service.registerPushDevice(player.id, device)
+    await app().service.preferencesService.registerPushDevice(player.id, device)
     return null
   }, request)
 }
