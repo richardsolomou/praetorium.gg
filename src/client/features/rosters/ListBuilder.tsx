@@ -53,7 +53,7 @@ import type { CombatRoster } from '../simulator/useCombatant'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { useAccountPrompt } from './AccountPrompt'
 import { useNewBattle } from '../battles/NewBattle'
-import { TRACKER_PITCH, useFirstBattle } from '../battles/firstBattle'
+import { TRACKER_HINT, useFirstBattle } from '../battles/firstBattle'
 import { toggled, withMember } from '../../../core/collections'
 import { usePrintWhenReady } from './usePrintWhenReady'
 import { factionDisposition } from '../../components/rosterSetup'
@@ -655,6 +655,12 @@ export function ListBuilder({
       <span className="max-sm:hidden">Start a battle</span>
     </Button>
   ) : null
+  // A saved roster that can go on the table is the moment to say why the table is worth tracking here; it sits in the
+  // action row's spare width, so the roster's own header stays as tall as ever.
+  const trackerHint =
+    firstBattle && startBattleButton && (editable ? savedId : locked) && !frozen && priced && !illegal && !over ? (
+      <p className="text-xs whitespace-nowrap text-dim max-2xl:hidden">{TRACKER_HINT}</p>
+    ) : null
   const variantMenu = savedId ? (
     <RosterVariantMenu
       current={savedId}
@@ -737,7 +743,14 @@ export function ListBuilder({
             visibility={visibility}
             variantCount={variants.length}
             actions={actions}
-            startBattle={startBattleButton}
+            startBattle={
+              startBattleButton && (
+                <>
+                  {trackerHint}
+                  {startBattleButton}
+                </>
+              )
+            }
             variantMenu={variantMenu}
             onAsk={account.ask}
             onSetup={openSetup}
@@ -750,10 +763,6 @@ export function ListBuilder({
           />
         }
       >
-        {/* A saved roster that can go on the table is the moment to say why the table is worth tracking here. */}
-        {firstBattle && startBattleButton && (editable ? savedId : locked) && !frozen && priced && !illegal && !over ? (
-          <p className="mt-1 max-w-prose text-xs text-dim">{TRACKER_PITCH}</p>
-        ) : null}
         <RosterHeaderNotices
           editable={editable}
           locked={locked}
