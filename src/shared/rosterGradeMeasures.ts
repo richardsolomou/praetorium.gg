@@ -4,7 +4,7 @@ import { combatMatchup, strongestWeaponPreferences, type CombatAnswer, type Comb
 import { combatRuleSelections, readCombatRule, type CombatRule } from '../core/combatRules'
 import { datasheetProfilesByKind } from '../core/datasheetStructure'
 import { combatModelMatches } from '../core/combatLoadout'
-import { gradedTargets, type GradedUnit, type ReferenceTargetKey } from '../core/rosterGrades'
+import { REFERENCE_ATTACKERS, gradedTargets, type GradedUnit, type ReferenceTargetKey } from '../core/rosterGrades'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { calculateRosterPrice } from './pricing'
 import { rosterCombatant, rosterProjectionCache } from './rosterCombatRules'
@@ -33,6 +33,36 @@ export function referenceTarget(snapshot: CombatantSnapshot, copies: number): Re
   const models = snapshot.models * copies
   const wounds = unitTotal(snapshot, 'wounds')
   return wounds === null ? null : { snapshot: { ...snapshot, models, startingModels: models }, wounds }
+}
+
+/** A reference target or attacker as `rosterGrades` names it; a target fields `copies` of itself. */
+type ReferenceSpec = { faction: string; unit: string; models?: number; copies?: number }
+
+/** The reference units a battle size grades against, each built by `build`, leaving out any the data cannot field. */
+export async function gradeReferences(
+  limit: number,
+  build: (key: string, unit: ReferenceSpec) => Promise<ReferenceUnit | null>,
+): Promise<GradeReferences> {
+  const [targets, attackers] = await Promise.all([
+    Promise.all(gradedTargets(limit).map(async (target) => [target.key, await build(target.key, target)] as const)),
+    Promise.all(REFERENCE_ATTACKERS.map((attacker) => build(attacker.key, attacker))),
+  ])
+  return {
+    targets: Object.fromEntries(targets.filter(([, unit]) => unit)),
+    attackers: attackers.filter((unit) => unit !== null),
+  }
+}
+
+/** A reference unit from the snapshot `field` gives for it, stacked into its copies when it is a target. */
+export async function referenceUnit(
+  unit: ReferenceSpec,
+  field: (faction: string, unit: string, models?: number) => Promise<CombatantSnapshot | null>,
+): Promise<ReferenceUnit | null> {
+  const snapshot = await field(unit.faction, unit.unit, unit.models)
+  if (!snapshot) return null
+  if (unit.copies) return referenceTarget(snapshot, unit.copies)
+  const wounds = unitTotal(snapshot, 'wounds')
+  return wounds === null ? null : { snapshot, wounds }
 }
 
 /**

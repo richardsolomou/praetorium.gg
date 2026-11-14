@@ -7,7 +7,7 @@
  * spots, such as stratagems and conditional rules, fall unevenly across factions.
  */
 import { isKotcLimit } from './battle'
-import { EXPECTED_TOOLS, PEERS, type CalibratedSize } from './rosterGradeCalibration'
+import { EXPECTED_TOOLS, PEERS, type CalibratedSize, type Peers } from './rosterGradeCalibration'
 
 export type Grade = 'A' | 'B' | 'C' | 'D'
 export type ReferenceTargetKey = 'horde' | 'elite' | 'vehicle' | 'heavyVehicle' | 'monster'
@@ -112,7 +112,7 @@ export const CATEGORIES: readonly { key: string; label: string; metrics: readonl
   { key: 'durability', label: 'Durability', metrics: ['survive', 'spread'] },
 ]
 
-const calibratedSize = (limit: number): CalibratedSize =>
+export const calibratedSize = (limit: number): CalibratedSize =>
   isKotcLimit(limit)
     ? 600
     : ([1000, 2000, 3000] as const).reduce((nearest, size) => (Math.abs(size - limit) < Math.abs(nearest - limit) ? size : nearest))
@@ -285,6 +285,42 @@ function gradeMeasures(units: readonly GradedUnit[], limit: number) {
 const colosseumCapped = (limit: number, key: ReferenceTargetKey) => isKotcLimit(limit) && (key === 'vehicle' || key === 'monster')
 
 /**
+ * The values a list is placed by, null where it has none: every measure for a list with no units, and a damage
+ * total of nothing beside units the simulator cannot calculate, since those could only add to it.
+ */
+export function scoredMeasures(units: readonly GradedUnit[], limit: number): Partial<Record<MetricKey, number | null>> {
+  if (!units.length) return {}
+  const measures: Partial<Record<MetricKey, number | null>> = gradeMeasures(units, limit)
+  for (const target of gradedTargets(limit))
+    if (!units.some((unit) => (unit.removes[target.key] ?? 0) > 0) && units.some((unit) => unit.removes[target.key] === null))
+      measures[target.key] = null
+  return measures
+}
+
+/**
+ * Where a list places among its peers: each measure's percentile, each category's average of those and its
+ * percentile, and the average category percentile. The calibration places tournament lists the same way, so a
+ * peer group without category or overall percentiles yet leaves those null.
+ */
+export function placement(
+  units: readonly GradedUnit[],
+  limit: number,
+  peers: Pick<Peers, 'measures'> & Partial<Pick<Peers, 'categories'>>,
+) {
+  const measures: Partial<Record<MetricKey, number | null>> = {}
+  for (const [key, value] of Object.entries(scoredMeasures(units, limit)) as [MetricKey, number | null][]) {
+    const quantiles = peers.measures[key]
+    measures[key] = quantiles && value !== null ? percentileOf(value, quantiles) : null
+  }
+  const categories = CATEGORIES.map((category) => {
+    const average = mean(category.metrics.map((key) => measures[key] ?? null))
+    const quantiles = peers.categories?.[category.key]
+    return { key: category.key, average, percentile: average === null || !quantiles ? null : percentileOf(average, quantiles) }
+  })
+  return { measures, categories, overall: mean(categories.map(({ percentile }) => percentile)) }
+}
+
+/**
  * The catalogue's own tournament lists, then its parent's, as "Imperium - Adeptus Astartes" for a chapter, and
  * every faction's last; a top-level name such as "Imperium" spans too many armies to compare with.
  */
@@ -302,14 +338,9 @@ export function rosterGrades(units: readonly GradedUnit[], limit: number, catalo
   const size = calibratedSize(limit)
   const { peers, label: peerLabel } = peerGroup(size, catalogueName)
   const measures = gradeMeasures(units, limit)
-  const score = (key: MetricKey, value: number | null | undefined) => {
-    const quantiles = peers.measures[key]
-    return quantiles && value !== null && value !== undefined && units.length ? percentileOf(value, quantiles) : null
-  }
-  // Categories average the measures' percentiles, not their scores, as the calibration does.
-  const percentiles = new Map<MetricKey, number | null>()
+  const placed = placement(units, limit, peers)
+  const score = (key: MetricKey) => placed.measures[key] ?? null
   const row = (key: MetricKey, label: string, percentile: number | null, detail: string, extra: Partial<GradeRow> = {}): GradeRow => {
-    percentiles.set(key, percentile)
     const shown = display(percentile)
     return { key, label, score: shown, grade: gradeOf(shown), detail, ...extra }
   }
@@ -327,11 +358,11 @@ export function rosterGrades(units: readonly GradedUnit[], limit: number, catalo
   )
   const gap = deploymentGap(limit)
   const rows: GradeRow[] = [
-    row('presence', 'Board presence', score('presence', measures.presence), `${unitCount(units.length)} for ${OBJECTIVES} objectives`),
+    row('presence', 'Board presence', score('presence'), `${unitCount(units.length)} for ${OBJECTIVES} objectives`),
     row(
       'hold',
       'Hold objectives',
-      score('hold', measures.hold),
+      score('hold'),
       measures.hold === null
         ? "No unit's objective control could be counted"
         : `${unitCount(holders.length)} with OC ${SQUAD_OC} or more, enough to contest a five-model squad`,
@@ -340,7 +371,7 @@ export function rosterGrades(units: readonly GradedUnit[], limit: number, catalo
     row(
       'screens',
       'Screens and actions',
-      score('screens', measures.screens),
+      score('screens'),
       `${unitCount(cheap.length)} at ${CHEAP_UNIT_POINTS} points or less, cheap enough to screen or do actions`,
       { units: named(cheap) },
     ),
@@ -358,13 +389,13 @@ export function rosterGrades(units: readonly GradedUnit[], limit: number, catalo
     row(
       'reach',
       'Charge reach',
-      score('reach', measures.reach),
+      score('reach'),
       `${percent(measures.reach)} of your points can charge across the ${gap}″ gap by round two, on average`,
     ),
     row(
       'deployment',
       'Deployment options',
-      score('deployment', measures.deployment),
+      score('deployment'),
       `${percent(measures.deployment)} of your points can deep strike, infiltrate or scout`,
       { units: named(early) },
     ),
@@ -385,13 +416,11 @@ export function rosterGrades(units: readonly GradedUnit[], limit: number, catalo
     const removed = units.reduce((sum, unit) => sum + (unit.removes[target.key] ?? 0), 0)
     const alone = units.filter((unit) => (unit.removes[target.key] ?? 0) >= 0.5)
     const notCalculated = named(units.filter((unit) => unit.removes[target.key] === null))
-    const value = score(target.key, measures[target.key])
     rows.push(
       row(
         target.key,
         target.label,
-        // Units the simulator cannot calculate could only add to the total, so a total of nothing beside them is no score.
-        removed > 0 || !notCalculated.length ? value : null,
+        score(target.key),
         `Your units together remove ${removed.toFixed(1)} ${target.many} a turn${alone.length ? '. These take half of one alone:' : ''}`,
         { units: named(alone), ...(notCalculated.length ? { notCalculated } : {}) },
       ),
@@ -403,28 +432,21 @@ export function rosterGrades(units: readonly GradedUnit[], limit: number, catalo
     row(
       'survive',
       'Survive a volley',
-      score('survive', measures.survive),
+      score('survive'),
       measures.survive === null
         ? 'No unit could be measured against a volley'
         : `A volley from ${formatAttackers()} takes ${percent(1 - measures.survive)} of a unit's wounds, on average by points`,
       unknown.length ? { notCalculated: unknown } : {},
     ),
-    row(
-      'spread',
-      'Even spread',
-      score('spread', measures.spread),
-      `Your two costliest units are ${percent(1 - (measures.spread ?? 1))} of the points`,
-    ),
+    row('spread', 'Even spread', score('spread'), `Your two costliest units are ${percent(1 - (measures.spread ?? 1))} of the points`),
   )
-  const categories = CATEGORIES.map((category) => {
+  const categories = CATEGORIES.map((category, index) => {
     const members = rows.filter((candidate) => category.metrics.includes(candidate.key))
-    const average = mean(members.map((member) => percentiles.get(member.key) ?? null))
-    const percentile = average === null ? null : percentileOf(average, peers.categories[category.key]!)
-    const shown = display(percentile)
-    return { percentile, category: { key: category.key, label: category.label, score: shown, grade: gradeOf(shown), rows: members } }
+    const shown = display(placed.categories[index]!.percentile)
+    return { key: category.key, label: category.label, score: shown, grade: gradeOf(shown), rows: members }
   })
-  const overall = mean(categories.map(({ percentile }) => percentile))
-  const shown = categories.flatMap(({ category }) => (category.score === null ? [] : [category.score]))
+  const overall = placed.overall
+  const shown = categories.flatMap((category) => (category.score === null ? [] : [category.score]))
   // Lists that place usually stand out somewhere, so one middling at everything ranks low among them; it still
   // never reads as worse than its weakest category or better than its strongest.
   const total =
@@ -432,7 +454,7 @@ export function rosterGrades(units: readonly GradedUnit[], limit: number, catalo
   return {
     score: total,
     grade: gradeOf(total),
-    categories: categories.map(({ category }) => category),
+    categories,
     missing,
     comparedWith: peerLabel,
   }

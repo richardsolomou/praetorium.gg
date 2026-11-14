@@ -32,7 +32,7 @@ import { fuzzyNameScore } from '../core/datasheetSearch'
 import { hasTextTokens } from '../core/sourceText'
 import type { ToolErrorType } from '../contracts/agentTools'
 import { READ_ONLY_TOOL, structured, toolError, type AgentTools } from './agentTools'
-import { app } from './app'
+import { app, type App } from './app'
 import { combatantSnapshot, readRules, withReadRules } from '../shared/rosterGradeMeasures'
 import {
   applyOptimizedLoadout,
@@ -187,15 +187,34 @@ function outcome(result: CombatResult) {
   }
 }
 
-/** The unit a faction's lists can take by the id, slug, reference id or name an agent gives, refusing one they cannot. */
-export async function namedUnit(corpus: ReferenceCorpus, factionName: string, unitName: string) {
+/** Where the simulator reads catalogues: the server's, or a snapshot a script loaded. */
+export type CombatCatalogues = Pick<App, 'catalogueFor' | 'rulesFor' | 'combatUnitsFor'> & {
+  currentFactionIds: () => Promise<ReadonlySet<string>>
+}
+
+function serverCatalogues(): CombatCatalogues {
   const instance = app()
+  return {
+    catalogueFor: (catalogueId) => instance.catalogueFor(catalogueId),
+    rulesFor: (catalogueId) => instance.rulesFor(catalogueId),
+    combatUnitsFor: () => instance.combatUnitsFor(),
+    currentFactionIds: () => currentFactionIds(),
+  }
+}
+
+/** The unit a faction's lists can take by the id, slug, reference id or name an agent gives, refusing one they cannot. */
+export async function namedUnit(
+  corpus: ReferenceCorpus,
+  factionName: string,
+  unitName: string,
+  catalogues: CombatCatalogues = serverCatalogues(),
+) {
   const faction = referenceFaction(corpus, factionName)
   if (!faction) throw new CombatRefusal([`No faction is named ${factionName}; use a name or id from list_factions.`], 'not_found')
   const [loaded, rules, current] = await Promise.all([
-    instance.catalogueFor(faction.id),
-    instance.rulesFor(faction.id),
-    currentFactionIds(),
+    catalogues.catalogueFor(faction.id),
+    catalogues.rulesFor(faction.id),
+    catalogues.currentFactionIds(),
   ])
   if (!loaded) throw new CombatRefusal([REFERENCE_UNAVAILABLE], 'unavailable')
   // The units list_units offers with Legends and Crucible included, so a chapter fields the codex units its lists can take.
@@ -236,10 +255,10 @@ export async function namedUnit(corpus: ReferenceCorpus, factionName: string, un
 }
 
 /** The picks a side names, refusing a faction the simulator does not offer or a unit its lists cannot take. */
-async function sidePicks(corpus: ReferenceCorpus, side: SideInput) {
-  const shelves = await app().combatUnitsFor()
+async function sidePicks(corpus: ReferenceCorpus, side: SideInput, catalogues: CombatCatalogues) {
+  const shelves = await catalogues.combatUnitsFor()
   const resolve = async (factionName: string, unitName: string) => {
-    const found = await namedUnit(corpus, factionName, unitName)
+    const found = await namedUnit(corpus, factionName, unitName, catalogues)
     if (!shelves.some((shelf) => shelf.catalogueId === found.faction.id))
       throw new CombatRefusal([`The simulator does not offer ${found.faction.name}.`], 'not_found')
     return found
@@ -369,10 +388,9 @@ export function detachmentId(loaded: LoadedCatalogue, catalogueId: string, detac
 }
 
 /** One side at the health named for it, with the rules it brings and the choices an agent can make about them. */
-async function combatant(corpus: ReferenceCorpus, side: SideInput, role: Role) {
-  const named = await sidePicks(corpus, side)
-  const instance = app()
-  const [loaded, rules] = await Promise.all([instance.catalogueFor(named.catalogueId), instance.rulesFor(named.catalogueId)])
+async function combatant(corpus: ReferenceCorpus, side: SideInput, role: Role, catalogues: CombatCatalogues = serverCatalogues()) {
+  const named = await sidePicks(corpus, side, catalogues)
+  const [loaded, rules] = await Promise.all([catalogues.catalogueFor(named.catalogueId), catalogues.rulesFor(named.catalogueId)])
   if (!loaded) throw new CombatRefusal([REFERENCE_UNAVAILABLE], 'unavailable')
   const detachmentIds = side.detachment ? [detachmentId(loaded, named.catalogueId, side.detachment)] : []
   const joined = joinedPicks(loaded, named.catalogueId, detachmentIds, named.picks)
@@ -463,12 +481,20 @@ async function combatant(corpus: ReferenceCorpus, side: SideInput, role: Role) {
 
 type Combatant = Awaited<ReturnType<typeof combatant>>
 
-/** A named faction's unit at full strength with its passive rules, or null when the reference data cannot field it. */
-export async function namedCombatant(faction: string, unit: string, models?: number): Promise<CombatantSnapshot | null> {
-  const corpus = await activeReferenceCorpus()
+/**
+ * A named faction's unit at full strength with its passive rules, or null when the reference data cannot field it.
+ * A script passes the snapshot it loaded in place of the server's.
+ */
+export async function namedCombatant(
+  faction: string,
+  unit: string,
+  models?: number,
+  source?: { corpus: ReferenceCorpus; catalogues: CombatCatalogues },
+): Promise<CombatantSnapshot | null> {
+  const corpus = source ? source.corpus : await activeReferenceCorpus()
   if (!corpus) return null
   try {
-    return (await combatant(corpus, { faction, unit, ...(models ? { models } : {}) }, 'defender')).snapshot
+    return (await combatant(corpus, { faction, unit, ...(models ? { models } : {}) }, 'defender', source?.catalogues)).snapshot
   } catch (error) {
     if (error instanceof CombatRefusal) return null
     throw error

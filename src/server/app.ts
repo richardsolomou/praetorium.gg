@@ -49,7 +49,7 @@ import { reportRuntimeMetrics } from './runtimeMetrics'
 import type { BattleFaction } from '../shared/battleSummary'
 import { type Steps, stepThrough, stepwise } from '../shared/steps'
 
-type App = {
+export type App = {
   refreshCatalogue: () => void
   hotReloadToken?: object
   health: () => Promise<void>

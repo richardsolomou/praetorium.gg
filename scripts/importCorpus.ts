@@ -17,16 +17,8 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { parseArgs } from 'node:util'
-import { liveCatalogueRevision } from '../src/server/liveCatalogue'
-import { loadCatalogueHistory } from '../src/server/catalogueHistory'
-import { removedNamesOf } from '../src/shared/importMismatch'
-import { loadCatalogueTranslations } from '../src/server/catalogueTranslations'
-import { importRosterFile } from '../src/shared/rosterFiles'
-import { loadSnapshot } from './lib/catalogueSnapshotLoad'
-import { CORPUS_ROOT, fetchSource, SOURCES, type Listing } from './lib/importCorpusSources'
-import { compilerFingerprint } from './lib/compilerSources'
-import { refreshLiveCatalogue } from './lib/liveCatalogue'
-import { prepareLiveRevision } from './lib/liveCatalogueRefresh'
+import { CORPUS_ROOT, fetchSource, SOURCES } from './lib/importCorpusSources'
+import { importCorpusLists, liveCorpusCatalogue } from './lib/importCorpusLists'
 
 const { values, positionals } = parseArgs({
   allowPositionals: true,
@@ -45,56 +37,21 @@ if (command === 'fetch') {
   const out = values.out
   const source = values.source ?? '40kstats'
   const pinned = path.resolve(process.env.CATALOGUE_DIR ?? 'catalogue-data')
-  const catalogueDirectory = values.live ? await liveCatalogue(pinned) : pinned
+  const catalogueDirectory = values.live ? await liveCorpusCatalogue(pinned) : pinned
   run(target ?? path.join(CORPUS_ROOT, source), since, out, catalogueDirectory)
 } else throw new Error(`Unknown command ${command}: use fetch or run`)
 
-async function liveCatalogue(pinned: string) {
-  const compiler = await compilerFingerprint()
-  const root = path.join(CORPUS_ROOT, 'live', compiler)
-  // The first revision is a copy of the pin, which the bootstrap reads from CATALOGUE_DIR.
-  process.env.CATALOGUE_DIR = pinned
-  if (!liveCatalogueRevision(root)) await refreshLiveCatalogue(root, prepareLiveRevision(root, compiler, { bootstrap: true }))
-  await refreshLiveCatalogue(root, prepareLiveRevision(root, compiler))
-  const live = liveCatalogueRevision(root)
-  if (!live) throw new Error('No live catalogue was prepared')
-  return path.join(live.directory, 'catalogue')
-}
-
 function run(directory: string, since: string | undefined, out: string | undefined, catalogueDirectory: string) {
-  const indexFile = path.join(directory, 'index.json')
-  const listed: Listing[] = fs.existsSync(indexFile) ? JSON.parse(fs.readFileSync(indexFile, 'utf8')) : []
-  const byId = new Map(listed.map((listing) => [listing.list, listing]))
-  const ids = fs
-    .readdirSync(directory)
-    .filter((name) => name.endsWith('.txt'))
-    .map((name) => name.slice(0, -4))
-    .filter((id) => !since || (byId.get(id)?.date ?? '') >= since)
-  const { catalogue, rules } = loadSnapshot(catalogueDirectory)
-  const translations = loadCatalogueTranslations(catalogueDirectory)
-  const removed = removedNamesOf(loadCatalogueHistory(catalogueDirectory) ?? [])
-
-  const results = ids.map((id) => {
-    const listing = byId.get(id) ?? { list: id }
-    const imported = importRosterFile(
-      { file: fs.readFileSync(path.join(directory, `${id}.txt`), 'utf8') },
-      catalogue,
-      undefined,
-      rules,
-      translations,
-      removed,
-    )
-    return {
-      ...listing,
-      format: imported.format,
-      catalogue: imported.catalogueName,
-      units: imported.units.length,
-      unknown: imported.unknown,
-      unplaced: imported.unplaced,
-      reportedPoints: imported.reportedPoints,
-      currentPoints: imported.currentPoints,
-    }
-  })
+  const results = importCorpusLists([directory], { since }, catalogueDirectory).lists.map(({ listing, imported }) => ({
+    ...listing,
+    format: imported.format,
+    catalogue: imported.catalogueName,
+    units: imported.units.length,
+    unknown: imported.unknown,
+    unplaced: imported.unplaced,
+    reportedPoints: imported.reportedPoints,
+    currentPoints: imported.currentPoints,
+  }))
   if (out) fs.writeFileSync(out, JSON.stringify(results, null, 1))
 
   const issues = new Map<string, Set<string>>()
