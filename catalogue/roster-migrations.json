@@ -152,5 +152,74 @@
         }
       }
     }
+  },
+  "chaosLegionariesHavocsWeapons": {
+    "fromSnapshot": "73669b75ec4f7a2b6147407dd61b955ff68fba9ecc9f08ee36d29a51ee2cf8cd",
+    "toSnapshot": "cb58aafbf6fed5cbd0868176ca194feee58e11c7bda504ad07e16d567337d716",
+    "reason": "Keep the Legionaries' flamer and plasma gun after the live refresh linked shared, collective entries in their place (0a18-5adf-b1ad-a9a8, e7a1-a59a-f7e0-91da) and the fork restored the original entries, and keep the Havoc Champion's flamer and plasma gun after wh40k-11e@1f71b4b replaced them with links to the shared entries.",
+    "catalogues": {},
+    "detachments": {},
+    "datasheets": {
+      "db9f-5b64-ba4-dcd7": {
+        "id": "db9f-5b64-ba4-dcd7",
+        "choices": {
+          "8ff0-d411-a894-83b8/e32f-a7e9-6e5c-f2b3/2c78-2c88-4fc1-2f25": {
+            "0a18-5adf-b1ad-a9a8": {
+              "key": "8ff0-d411-a894-83b8/e32f-a7e9-6e5c-f2b3/2c78-2c88-4fc1-2f25",
+              "id": "aad4-5ec4-cc9e-115f"
+            },
+            "e7a1-a59a-f7e0-91da": {
+              "key": "8ff0-d411-a894-83b8/e32f-a7e9-6e5c-f2b3/2c78-2c88-4fc1-2f25",
+              "id": "b455-5fb4-7ce4-72dc"
+            }
+          }
+        }
+      },
+      "80e0-6782-c260-779a": {
+        "id": "80e0-6782-c260-779a",
+        "choices": {
+          "8ff0-d411-a894-83b8/e32f-a7e9-6e5c-f2b3/2c78-2c88-4fc1-2f25": {
+            "0a18-5adf-b1ad-a9a8": {
+              "key": "8ff0-d411-a894-83b8/e32f-a7e9-6e5c-f2b3/2c78-2c88-4fc1-2f25",
+              "id": "aad4-5ec4-cc9e-115f"
+            },
+            "e7a1-a59a-f7e0-91da": {
+              "key": "8ff0-d411-a894-83b8/e32f-a7e9-6e5c-f2b3/2c78-2c88-4fc1-2f25",
+              "id": "b455-5fb4-7ce4-72dc"
+            }
+          }
+        }
+      },
+      "fafa-8442-d6ef-4788": {
+        "id": "fafa-8442-d6ef-4788",
+        "choices": {
+          "7664-c6bb-fce5-f057/89fc-64b1-5372-fdc6/347f-861e-edda-76c6": {
+            "841-f169-aff1-fd43": {
+              "key": "7664-c6bb-fce5-f057/89fc-64b1-5372-fdc6/347f-861e-edda-76c6",
+              "id": "fc07-d7f9-b91a-1f9f"
+            },
+            "dc0b-cdb9-4123-782": {
+              "key": "7664-c6bb-fce5-f057/89fc-64b1-5372-fdc6/347f-861e-edda-76c6",
+              "id": "3e2c-fab6-50eb-bcee"
+            }
+          }
+        }
+      },
+      "2cfb-f8e0-576b-db68": {
+        "id": "2cfb-f8e0-576b-db68",
+        "choices": {
+          "7664-c6bb-fce5-f057/89fc-64b1-5372-fdc6/347f-861e-edda-76c6": {
+            "841-f169-aff1-fd43": {
+              "key": "7664-c6bb-fce5-f057/89fc-64b1-5372-fdc6/347f-861e-edda-76c6",
+              "id": "fc07-d7f9-b91a-1f9f"
+            },
+            "dc0b-cdb9-4123-782": {
+              "key": "7664-c6bb-fce5-f057/89fc-64b1-5372-fdc6/347f-861e-edda-76c6",
+              "id": "3e2c-fab6-50eb-bcee"
+            }
+          }
+        }
+      }
+    }
   }
 }

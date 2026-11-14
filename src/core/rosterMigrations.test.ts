@@ -53,6 +53,22 @@ it('keeps the Invader ATV multi-melta choice under the added squad wrapper', () 
   })
 })
 
+it('keeps a Legionary flamer saved while the live refresh linked the shared collective one', () => {
+  const key = '8ff0-d411-a894-83b8/e32f-a7e9-6e5c-f2b3/2c78-2c88-4fc1-2f25'
+  expect(
+    currentPick({ entryId: 'db9f-5b64-ba4-dcd7', spreads: { [key]: { '0a18-5adf-b1ad-a9a8': 1, 'e9cb-69af-41c7-3e59': 1 } } }).spreads,
+  ).toEqual({
+    [key]: { 'aad4-5ec4-cc9e-115f': 1, 'e9cb-69af-41c7-3e59': 1 },
+  })
+})
+
+it('keeps the Havoc Champion plasma gun after it becomes a link to the shared entry', () => {
+  const key = '7664-c6bb-fce5-f057/89fc-64b1-5372-fdc6/347f-861e-edda-76c6'
+  expect(currentPick({ entryId: 'fafa-8442-d6ef-4788', choices: { [key]: 'dc0b-cdb9-4123-782' } }).choices).toEqual({
+    [key]: '3e2c-fab6-50eb-bcee',
+  })
+})
+
 it('preserves split-loadout counts, model counts, and attachments through repeated migration', () => {
   const roster = {
     catalogueId: 'f89b-84e0-6e3b-f1e2',
