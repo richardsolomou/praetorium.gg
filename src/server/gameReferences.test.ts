@@ -25,3 +25,22 @@ describe('game references built from a stale rules object', () => {
     ])
   })
 })
+
+describe('secondary mission slugs', () => {
+  const slugs = (names: string[]) =>
+    gameReferencesFor({
+      missions: new Map(),
+      primaries: [],
+      secondaries: names.map((name, index) => ({ key: `key-${index}`, name })),
+      deployments: [],
+      attribution: null,
+    } as unknown as LoadedRules).secondaries.map((card) => card.slug)
+
+  it('use the name slug when no other card shares it', () => {
+    expect(slugs(['Behind Enemy Lines'])).toEqual(['behind-enemy-lines'])
+  })
+
+  it('fall back to the source key when names share a slug', () => {
+    expect(slugs(['Assassination', 'Variant - Assassination'])).toEqual(['key-0', 'key-1'])
+  })
+})

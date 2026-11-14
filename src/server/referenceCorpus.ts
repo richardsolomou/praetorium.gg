@@ -213,7 +213,7 @@ function secondaryDocuments(
   const pack = references.packs[0]
   if (!pack) return []
   return references.secondaries.map((card) => {
-    const url = `/missions/${pack.id}/secondaries/${card.key}`
+    const url = `/missions/${pack.id}/secondaries/${card.slug}`
     return {
       id: `mission:secondary:${card.key}`,
       kind: 'mission',

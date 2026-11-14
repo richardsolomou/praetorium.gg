@@ -481,7 +481,7 @@ function RecordTable<T>({
 
 function CardName({ card }: { card: CardRecord }) {
   return card.reference ? (
-    <Link to="/missions/$packId/secondaries/$cardId" params={{ packId: card.reference.packId, cardId: card.key }} className={NAME_LINK}>
+    <Link to="/missions/$packId/secondaries/$cardId" params={card.reference} className={NAME_LINK}>
       {card.name}
     </Link>
   ) : (
