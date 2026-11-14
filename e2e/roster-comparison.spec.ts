@@ -278,6 +278,7 @@ for (const width of [1440, 390]) {
       'Test targets',
       'Grade this roster',
       'Edit roster setup',
+      'History',
       'Lock roster',
       /Share…\s*Public/,
       'Export text',
