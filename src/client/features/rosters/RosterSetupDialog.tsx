@@ -284,7 +284,7 @@ export function RosterSetupDialog({
     .toSorted((left, right) => Number(Boolean(right.isDefault)) - Number(Boolean(left.isDefault)))
 
   const toggleDetachment = (id: string) => {
-    advanceOnboarding('roster', 'roster-detachment', 'roster-name')
+    advanceOnboarding('roster', 'roster-detachment', 'roster-create')
     const ids = draft.detachmentIds.includes(id)
       ? draft.detachmentIds.filter((candidate) => candidate !== id)
       : singleDetachment
@@ -349,7 +349,7 @@ export function RosterSetupDialog({
   const description = (
     <>
       {mode === 'create'
-        ? 'Set the roster identity and army rules before adding units.'
+        ? 'Choose the army and its rules before adding units.'
         : mode === 'convert'
           ? 'Convert this roster to another rules version. Your units and choices are kept and checked against its rules.'
           : 'Set the roster identity and the rules that shape its available units.'}
@@ -610,46 +610,54 @@ export function RosterSetupDialog({
         </fieldset>
       ) : null}
 
-      <div data-onboarding="setup-name">
-        <Label className="eyebrow block" htmlFor="setup-name">
-          Roster name
-        </Label>
-        <Input
-          id="setup-name"
-          disabled={mode === 'convert'}
-          value={draft.name}
-          onChange={(event) => changeDraft({ ...draft, name: event.target.value })}
-          placeholder={placeholder}
-          maxLength={ROSTER_NAME_MAX_LENGTH}
-          className="mt-1 h-11 text-base"
-        />
-        <p className="mt-1.5 text-xs text-dim">Leave this empty to name the list from your army.</p>
-      </div>
+      {/* A new roster is named from its army until the builder's List name renames it. */}
+      {mode === 'create' ? null : (
+        <div>
+          <Label className="eyebrow block" htmlFor="setup-name">
+            Roster name
+          </Label>
+          <Input
+            id="setup-name"
+            disabled={mode === 'convert'}
+            value={draft.name}
+            onChange={(event) => changeDraft({ ...draft, name: event.target.value })}
+            placeholder={placeholder}
+            maxLength={ROSTER_NAME_MAX_LENGTH}
+            className="mt-1 h-11 text-base"
+          />
+          <p className="mt-1.5 text-xs text-dim">Leave this empty to name the list from your army.</p>
+        </div>
+      )}
 
-      <div>
-        <Label className="eyebrow block" htmlFor="setup-visibility">
-          Access
-        </Label>
-        <Select
-          disabled={guest || mode === 'convert'}
-          value={draft.visibility}
-          onValueChange={(visibility: RosterVisibility | null) => changeDraft({ ...draft, visibility: visibility ?? 'private' })}
-        >
-          <SelectTrigger id="setup-visibility" aria-describedby="setup-visibility-reach" className="mt-1 h-11 w-full">
-            <SelectValue>{(visibility: unknown) => VISIBILITY_NAME[visibility as RosterVisibility] ?? VISIBILITY_NAME.private}</SelectValue>
-          </SelectTrigger>
-          <SelectContent>
-            {ROSTER_VISIBILITIES.map((visibility) => (
-              <SelectItem key={visibility} value={visibility}>
-                {VISIBILITY_DETAIL[visibility]}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <p id="setup-visibility-reach" className="mt-1.5 text-xs text-dim">
-          {guest ? 'Only you, on this device. Sign in to share it by link or publicly.' : VISIBILITY_REACH[draft.visibility]}
-        </p>
-      </div>
+      {/* A visitor's draft stays on their device, and signing up gives it the account's default access. */}
+      {guest ? null : (
+        <div>
+          <Label className="eyebrow block" htmlFor="setup-visibility">
+            Access
+          </Label>
+          <Select
+            disabled={mode === 'convert'}
+            value={draft.visibility}
+            onValueChange={(visibility: RosterVisibility | null) => changeDraft({ ...draft, visibility: visibility ?? 'private' })}
+          >
+            <SelectTrigger id="setup-visibility" aria-describedby="setup-visibility-reach" className="mt-1 h-11 w-full">
+              <SelectValue>
+                {(visibility: unknown) => VISIBILITY_NAME[visibility as RosterVisibility] ?? VISIBILITY_NAME.private}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {ROSTER_VISIBILITIES.map((visibility) => (
+                <SelectItem key={visibility} value={visibility}>
+                  {VISIBILITY_DETAIL[visibility]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p id="setup-visibility-reach" className="mt-1.5 text-xs text-dim">
+            {VISIBILITY_REACH[draft.visibility]}
+          </p>
+        </div>
+      )}
     </div>
   )
   const actions = (

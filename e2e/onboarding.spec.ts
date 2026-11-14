@@ -166,10 +166,9 @@ test('the first-army guide stops after adding a unit', async ({ page }) => {
   if ((await dispositions.count()) > 1) await dispositions.first().click()
   for (const width of [1440, ROSTER_WIDE]) {
     await page.setViewportSize({ width, height: 900 })
-    await expect(prompt(page)).toContainText('Name it, or leave it')
+    await expect(prompt(page)).toContainText('Create the roster')
   }
   await page.setViewportSize(desktopContext.viewport)
-  await next(page, 'Name it, or leave it')
   await dialog.getByRole('button', { name: 'Create roster' }).click()
   await next(page, 'The unit picker')
   await page.getByLabel('Add a unit').fill('Captain')

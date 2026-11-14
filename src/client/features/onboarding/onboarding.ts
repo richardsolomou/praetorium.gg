@@ -53,7 +53,6 @@ export const onboardingStepIds = [
   'roster-faction',
   'roster-size',
   'roster-detachment',
-  'roster-name',
   'roster-create',
   'roster-picker',
   'roster-search',
@@ -352,19 +351,7 @@ export const ONBOARDING_UI: Record<OnboardingStepId, OnboardingStep> = {
     description:
       'Each detachment costs DP and brings rules, enhancements, and stratagems. Keep DP used within your budget. Its icon opens the reference before you commit.',
     placement: 'right',
-    next: 'roster-name',
-  },
-  'roster-name': {
-    task: 'roster',
-    target: 'setup-name',
-    page: 'rosters',
-    href: '/rosters',
-    title: 'Name it, or leave it',
-    description:
-      'An empty name means the roster names itself from its army. If setup offers more than one Force disposition, choose one above before creating the roster; it helps decide your primary mission in battle.',
-    placement: 'right',
     next: 'roster-create',
-    nextLabel: 'Next',
   },
   'roster-create': {
     task: 'roster',
@@ -372,7 +359,8 @@ export const ONBOARDING_UI: Record<OnboardingStepId, OnboardingStep> = {
     page: 'rosters',
     href: '/rosters',
     title: 'Create the roster',
-    description: 'This opens the builder, where units are added and priced against the limit you just set.',
+    description:
+      'If setup offers more than one Force disposition, choose one first; it helps decide your primary mission. Creating opens the builder, where you add units and can rename the roster.',
     placement: 'top',
     next: 'roster-picker',
   },

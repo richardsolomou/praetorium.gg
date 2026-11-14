@@ -166,6 +166,23 @@ test('a list left on the device can be discarded after signing in', async ({ pag
   await expect(page.getByRole('heading', { name: 'No rosters yet' })).toBeVisible()
 })
 
+test('a visitor with no roster is offered both ways in, and told the device limit only once they keep one', async ({ page }) => {
+  const limit = page.getByText('Without an account, this device keeps one roster.', { exact: false })
+  await page.goto('/rosters')
+  await page.waitForLoadState('networkidle')
+  await expect(page.getByRole('heading', { name: 'No rosters yet' })).toBeVisible()
+  await expect(limit).toHaveCount(0)
+  await page.getByRole('button', { name: 'Import a list', exact: true }).click()
+  await expect(page.getByRole('dialog', { name: 'Import roster', exact: true })).toBeVisible()
+  await page.keyboard.press('Escape')
+  await page.getByRole('link', { name: 'Build a roster', exact: true }).click()
+  await expect(page.getByRole('dialog', { name: 'Create roster' })).toBeVisible()
+
+  await startGuestRoster(page)
+  await page.goto('/rosters')
+  await expect(limit).toBeVisible()
+})
+
 test("a visitor's roster is listed on the rosters page as a saved one is", async ({ page }) => {
   await startGuestRoster(page)
   await add(page, 'Necron Warriors')
