@@ -201,6 +201,11 @@ export function catalogueEditionLoaders(
   const compiling = new Map<string, Promise<CanonicalCatalogue>>()
   const compileCooperatively = (key: string, steps: () => CanonicalCatalogueSteps) =>
     remember(compiling, key, () => completeStepsCooperatively(steps()).finally(() => compiling.delete(key)))
+  const loadForRequest = async (catalogueId: string) => {
+    const editionId = catalogueEditionId(resolve(catalogueId))
+    const pending = editionId && !cache.has(editionId) ? contextLoad(editionId) : null
+    if (pending) await completeStepsCooperatively(stepThrough(pending))
+  }
   const defaults = () =>
     new Set(
       allFactions()
@@ -211,7 +216,8 @@ export function catalogueEditionLoaders(
    * Loads editions and, from a compiled runtime, each faction's reference list and then its picker, a step at a time:
    * `serving` covers the base catalogue and default editions that most requests read, `others` every other edition.
    *
-   * Editions load first because a request for one still loading finishes it at once, holding every other request.
+   * Editions load first because a faction list or battle index that reads one still loading finishes it at once,
+   * holding every other request; catalogue and rules reads load it between requests instead.
    * Reference lists come next because every faction and datasheet page reads one.
    */
   function* construction(scope: ConstructionScope): Steps<void> {
@@ -284,8 +290,13 @@ export function catalogueEditionLoaders(
      */
     pageCanonical: <T>(id: string, selected: T | null | undefined, current: () => T) =>
       selected ?? (catalogueEditionId(resolve(id)) ? null : current()),
+    /** Loads the rules version a request reads between other requests, sharing the load with every other read of it. */
+    loadForRequest,
     /** Compiles a missing catalogue between other requests, sharing one compile among concurrent reads of it. */
-    canonicalForRequest: async (id: string) => canonical(id, compileCooperatively),
+    canonicalForRequest: async (id: string) => {
+      await loadForRequest(id)
+      return canonical(id, compileCooperatively)
+    },
     /** Every edition catalogue compiled or read so far, keyed as the snapshot packages them. */
     canonicalEntries: () => [
       ...[...baseCanonical].map(([catalogueId, catalogue]) => [`base:${catalogueId}`, catalogue] as const),

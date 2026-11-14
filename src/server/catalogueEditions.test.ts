@@ -224,6 +224,19 @@ it('shares an edition load in progress with a request for it', () => {
   expect(mocks.loadCatalogue).toHaveBeenCalledTimes(1)
 })
 
+it('serves other requests while loading an edition a request reads', async () => {
+  const loaded = versions(['child'])
+  const edition = mocks.loadCatalogue()
+  const order: string[] = []
+  mocks.loadCatalogue.mockImplementation(() => {
+    order.push('loaded')
+    return edition
+  })
+  setImmediate(() => order.push('other request'))
+  await loaded.loadForRequest('codex~child')
+  expect(order).toEqual(['other request', 'loaded'])
+})
+
 /** What each construction scope built, in order, with the `codex` edition promoted to the default or not. */
 function builtByScope(promoted: boolean) {
   const loaded = versions(['child'], promoted, { read: () => new Map() } as unknown as CatalogueRuntime)

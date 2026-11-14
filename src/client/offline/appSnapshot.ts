@@ -48,7 +48,12 @@ export function captureAppSnapshot(client: QueryClient): AppSnapshot | null {
     )
     .sort((a, b) => Number(b.queryKey[0] === 'me') - Number(a.queryKey[0] === 'me') || b.state.dataUpdatedAt - a.state.dataUpdatedAt)
   for (const query of candidates) {
-    const entry = { key: [...query.queryKey], data: query.state.data, updatedAt: query.state.dataUpdatedAt }
+    const entry = {
+      key: [...query.queryKey],
+      data: query.state.data,
+      updatedAt: query.state.dataUpdatedAt,
+      ...(query.state.isInvalidated ? { invalidated: true as const } : {}),
+    }
     const size = jsonByteLength({ ...entry, data: null }) - 'null'.length + measuredBytes(entry.data)
     // The kilobyte held back covers the snapshot's own fields and separators, so the whole snapshot stays within the limit.
     if (bytes + size > MAX_APP_SNAPSHOT_BYTES - 1024 || queries.length === MAX_APP_SNAPSHOT_QUERIES) continue
@@ -62,8 +67,9 @@ export function restoreAppSnapshot(client: QueryClient, snapshot: AppSnapshot) {
   const current = client.getQueryData(meKey()) as { id?: string; impersonatedBy?: string | null } | null | undefined
   if (current !== undefined && (current?.id !== (snapshot.owner ?? undefined) || current?.impersonatedBy)) return
   for (const query of snapshot.queries) {
-    if ((client.getQueryState(query.key)?.dataUpdatedAt ?? 0) < query.updatedAt)
-      client.setQueryData(query.key, query.data, { updatedAt: query.updatedAt })
+    if ((client.getQueryState(query.key)?.dataUpdatedAt ?? 0) >= query.updatedAt) continue
+    client.setQueryData(query.key, query.data, { updatedAt: query.updatedAt })
+    if (query.invalidated) void client.invalidateQueries({ queryKey: query.key, exact: true }, { cancelRefetch: false })
   }
 }
 

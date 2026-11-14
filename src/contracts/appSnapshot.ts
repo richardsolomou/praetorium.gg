@@ -76,7 +76,15 @@ const snapshotSchema = z.object({
   version: z.literal(1),
   owner: z.string().min(1).max(256).nullable(),
   queries: z
-    .array(z.object({ key: z.array(z.unknown()).min(1), data: z.unknown(), updatedAt: z.number().nonnegative() }))
+    .array(
+      z.object({
+        key: z.array(z.unknown()).min(1),
+        data: z.unknown(),
+        updatedAt: z.number().nonnegative(),
+        // A write since the answer arrived made it out of date; its age alone would read as fresh.
+        invalidated: z.literal(true).optional(),
+      }),
+    )
     .max(MAX_APP_SNAPSHOT_QUERIES),
 })
 export type AppSnapshot = z.infer<typeof snapshotSchema>

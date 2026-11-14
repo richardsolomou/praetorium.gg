@@ -1,6 +1,6 @@
 import { loadSavedQuery, partsReachable, referenceData, subscribeReference } from './runtime'
 import { readPart } from './referenceStore'
-import { calculationRead } from './calculationRead'
+import { calculationRead, SERVER_ONLY_TIMEOUT_MS } from './calculationRead'
 import { deviceConstructionRead } from './constructionWorker'
 import { SERVER_READS, type ConstructionReadData, type ConstructionReadName } from './constructionReads'
 import { buildConstruction, constructionSource, loadConstructionData, runConstructionRead } from './constructionSource'
@@ -152,7 +152,7 @@ export function constructionRead<K extends ConstructionReadName, T>(
         throw error ?? new Error('Download this army’s rules online before using them offline.')
       },
       signal,
-      serverTimeoutMs,
+      hasLocalConstruction() ? serverTimeoutMs : SERVER_ONLY_TIMEOUT_MS,
     )
   const device = typeof window === 'undefined' || SERVER_READS.has(name) ? null : deviceConstructionRead(name, data, catalogueId)
   if (!device) return remote()

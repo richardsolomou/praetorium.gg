@@ -293,6 +293,19 @@ it('does not ask the server for a cancelled read the device failed', async () =>
   expect(online).not.toHaveBeenCalled()
 })
 
+it('waits longer for the server when the device has no downloaded rules to answer with', async () => {
+  connect()
+  mocks.reference.mockReturnValue(undefined)
+  mocks.device.mockReturnValue(null)
+  const timeout = vi.spyOn(AbortSignal, 'timeout')
+  try {
+    await details(() => Promise.resolve('server'))
+    expect(timeout.mock.calls[0]).toEqual([30_000])
+  } finally {
+    timeout.mockRestore()
+  }
+})
+
 it('keeps exports on the server, which records them, while the device could answer', async () => {
   connect()
   mocks.device.mockReturnValue(Promise.resolve('device'))

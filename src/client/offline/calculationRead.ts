@@ -1,6 +1,12 @@
 import { withTimeout } from '../abortSignals'
 import { isOffline } from './reads'
 
+/**
+ * How long a read waits for the server when the device has no downloaded rules to answer with instead: a slow answer
+ * still beats the error it would otherwise become, and a cold rules version takes seconds on a busy server.
+ */
+export const SERVER_ONLY_TIMEOUT_MS = 30_000
+
 export async function calculationRead<T>(
   online: (signal?: AbortSignal) => Promise<T>,
   local: (error?: unknown) => T | Promise<T>,
