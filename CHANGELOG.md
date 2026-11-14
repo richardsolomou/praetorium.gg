@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.241.4 (2026-11-14)
+
+### Patch Changes
+
+- a95c0b0: Your draft on Battles can be deleted from its menu or with a right-click.
+- a95c0b0: Until a battle starts, a place you play can go back to the invite link even after you chose its army.
+
 ## 0.241.3 (2026-11-14)
 
 ### Patch Changes
