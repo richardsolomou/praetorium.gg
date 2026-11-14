@@ -1,5 +1,19 @@
 # praetorium
 
+## 0.245.0 (2026-11-14)
+
+### Minor Changes
+
+- 2dcabf1: Until you have played your first battle, the places you start one now say what tracking it here does for you.
+
+### Patch Changes
+
+- 6abaaa9: Corrected keywords on 50 datasheets, such as Explosives in place of Grenades on many Space Marine units and Frame on large models.
+- 6abaaa9: Corrected stat lines on 10 datasheets, such as the Apothecary Biologis's Objective Control and the Avenger Strike Fighter's Move.
+- 6abaaa9: Corrected weapon profiles on 66 datasheets, such as kill team plasma incinerators, the Lieutenant's plasma pistol and the Land Raider Crusader's multi-melta.
+- a2d42d0: Legionaries with two different heavy or special weapons, such as a Havoc autocannon and a missile launcher, keep both when a list is imported or built.
+- a2d42d0: Belial's datasheet now lists Terminator Assault Squad, and the Captain in Terminator Armour's lists Wolf Guard Terminators, among the units they can lead.
+
 ## 0.244.0 (2026-11-14)
 
 ### Minor Changes
