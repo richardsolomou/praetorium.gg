@@ -445,6 +445,7 @@ export function RosterSetupDialog({
               groups={BATTLE_SIZE_GROUPS}
               onValueChange={changeSize}
               placeholder="Battle size"
+              popupClassName="min-w-[min(22rem,var(--available-width))]"
               className="h-11 min-w-0 flex-1"
             />
             {allowsPointsBudget(draft.limit) ? (
