@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { noticeMessage, noticeRecipients, pushTokenSchema } from './notifications'
+import { noticeMessage, noticeRecipients, pushTokenSchema, webPushSubscriptionSchema } from './notifications'
 
 describe('notice recipients', () => {
   it('never includes the player who caused the notice', () => {
@@ -94,4 +94,30 @@ describe('push tokens', () => {
       expect(pushTokenSchema.safeParse(token).success).toBe(false)
     },
   )
+})
+
+describe('web push subscriptions', () => {
+  const keys = { p256dh: `B${'a'.repeat(86)}`, auth: 'b'.repeat(22) }
+
+  it.each([
+    'https://fcm.googleapis.com/fcm/send/abc:def',
+    'https://updates.push.services.mozilla.com/wpush/v2/abc',
+    'https://web.push.apple.com/QGuQ',
+    'https://wns2-par02p.notify.windows.com/w/?token=abc',
+  ])('accepts %s', (endpoint) => {
+    expect(webPushSubscriptionSchema.safeParse({ endpoint, ...keys }).success).toBe(true)
+  })
+
+  it.each([
+    'http://fcm.googleapis.com/fcm/send/abc',
+    'https://fcm.googleapis.com:8443/fcm/send/abc',
+    'https://user@fcm.googleapis.com/fcm/send/abc',
+    'https://fcm.googleapis.com@example.com/send',
+    'https://fcm.googleapis.com.example.com/send',
+    'https://localhost/push',
+    'https://169.254.169.254/latest',
+    'not a url',
+  ])('refuses an endpoint outside the browser push services: %s', (endpoint) => {
+    expect(webPushSubscriptionSchema.safeParse({ endpoint, ...keys }).success).toBe(false)
+  })
 })

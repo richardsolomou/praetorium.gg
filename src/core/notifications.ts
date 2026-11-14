@@ -58,6 +58,22 @@ export const pushTokenSchema = z
   .max(256)
   .regex(/^Expo(?:nent)?PushToken\[[^[\]\s]+\]$/)
 
+/**
+ * An endpoint on a browser push service. The server posts to the endpoint a page hands it, so anything else would let
+ * a player point that post at any host; matched as text because the SpacetimeDB module, which imports this file, has no `URL`.
+ */
+const PUSH_SERVICE_ENDPOINT =
+  /^https:\/\/(?:fcm\.googleapis\.com|(?:[a-z0-9-]+\.)*push\.services\.mozilla\.com|web\.push\.apple\.com|[a-z0-9-]+\.notify\.windows\.com)\/[^\s]*$/
+
+/** A browser's push subscription, with its keys as unpadded base64url. */
+export const webPushSubscriptionSchema = z.object({
+  endpoint: z.string().max(1024).regex(PUSH_SERVICE_ENDPOINT, 'Not a browser push service'),
+  // A P-256 public key is 65 bytes and the authentication secret 16.
+  p256dh: z.string().regex(/^[\w-]{87}$/),
+  auth: z.string().regex(/^[\w-]{22}$/),
+})
+export type WebPushSubscription = z.infer<typeof webPushSubscriptionSchema>
+
 /** Who a notice is for: never the player who caused it. */
 export function noticeRecipients(notice: Notice): string[] {
   return [...new Set(notice.recipientIds)].filter((id) => id !== notice.actorId)

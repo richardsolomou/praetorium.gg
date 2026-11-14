@@ -731,3 +731,13 @@ export const WatchedBattles = __t.object('WatchedBattles', {
   battleId: __t.string(),
 })
 export type WatchedBattles = __Infer<typeof WatchedBattles>
+
+export const WebPushSubscriptions = __t.object('WebPushSubscriptions', {
+  endpoint: __t.string(),
+  userId: __t.string(),
+  p256Dh: __t.string(),
+  auth: __t.string(),
+  createdAt: __t.u64(),
+  lastSeenAt: __t.u64(),
+})
+export type WebPushSubscriptions = __Infer<typeof WebPushSubscriptions>

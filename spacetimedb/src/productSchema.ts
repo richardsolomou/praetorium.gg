@@ -163,6 +163,18 @@ const pushTokens = table(
   },
 )
 
+const webPushSubscriptions = table(
+  { name: 'web_push_subscriptions' },
+  {
+    endpoint: t.string().primaryKey(),
+    userId: t.string().index('btree'),
+    p256dh: t.string(),
+    auth: t.string(),
+    createdAt: t.u64(),
+    lastSeenAt: t.u64(),
+  },
+)
+
 const friendships = table(
   { name: 'friendships' },
   {
@@ -889,6 +901,7 @@ export const productTables = {
   listFilterPreferences,
   playerDefaults,
   pushTokens,
+  webPushSubscriptions,
   friendships,
   friendInvites,
   calendarFeeds,

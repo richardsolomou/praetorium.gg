@@ -3,6 +3,7 @@ import { app } from './app'
 import { requireUser, requireUserId } from './playerSession'
 import { mutationRpc } from './rpc'
 import type { pushDeviceSchema } from '../contracts/schemas'
+import type { WebPushSubscription } from '../core/notifications'
 
 /**
  * Bind this device to the signed-in account.
@@ -24,6 +25,23 @@ export function registerPushDeviceRequest(request: Request, device: z.infer<type
 export function unregisterPushDeviceRequest(request: Request, token: string) {
   return mutationRpc(async () => {
     await app().repository.unregisterPushToken(await requireUserId(request), token)
+    return null
+  }, request)
+}
+
+/** Bind this browser to the signed-in account, under the same rules as an app device. */
+export function registerWebPushRequest(request: Request, subscription: WebPushSubscription) {
+  return mutationRpc(async () => {
+    const player = await requireUser(request)
+    if (player.impersonatedBy) throw new Response('stop impersonating to turn on notifications here', { status: 403 })
+    await app().service.registerWebPushSubscription(player.id, subscription)
+    return null
+  }, request)
+}
+
+export function unregisterWebPushRequest(request: Request, endpoint: string) {
+  return mutationRpc(async () => {
+    await app().repository.unregisterWebPushSubscription(await requireUserId(request), endpoint)
     return null
   }, request)
 }

@@ -1,4 +1,5 @@
 import type { PushMessage, PushSender } from '../adapters/push'
+import type { WebPushMessage, WebPushSender } from '../adapters/webPush'
 import { type Notice, type NoticeSubject, type StoredNotice, noticeMessage, noticeRecipients } from '../core/notifications'
 import type { SpacetimeRepository } from './spacetimeRepository'
 import { reportServerFailure } from '../adapters/posthog'
@@ -10,9 +11,9 @@ export type Notifier = { notify: (notices: readonly Notice[]) => void }
  * Campaign tags on the page a notification opens, so the pageview records which kind of notice brought the player back,
  * and the stored notice, which the page marks read.
  */
-export function campaignPath(path: string, kind: Notice['kind'], noticeId?: string) {
+export function campaignPath(path: string, kind: Notice['kind'], noticeId?: string, medium: 'push' | 'web-push' = 'push') {
   const notice = noticeId ? `&notice=${noticeId}` : ''
-  return `${path}${path.includes('?') ? '&' : '?'}utm_source=praetorium-app&utm_medium=push&utm_campaign=${kind}${notice}`
+  return `${path}${path.includes('?') ? '&' : '?'}utm_source=praetorium-app&utm_medium=${medium}&utm_campaign=${kind}${notice}`
 }
 
 /** A notice with its stored id for each recipient it was kept for. */
@@ -49,13 +50,18 @@ export async function describeNotices(repository: Pick<SpacetimeRepository, 'nam
 
 type NamingRepository = Pick<SpacetimeRepository, 'namesByIds' | 'sealedEventNames' | 'groupNames'>
 
-type PushRepository = Pick<SpacetimeRepository, 'pushTargets'> & NamingRepository
+type PushRepository = Pick<SpacetimeRepository, 'pushTargets' | 'webPushTargets'> & NamingRepository
 
-export function pushNotifier(repository: PushRepository, sender: PushSender) {
+/** Sends each notice to the recipient's app devices and browsers, through whichever senders this instance has. */
+export function pushNotifier(repository: PushRepository, senders: { app: PushSender | null; web: WebPushSender | null }) {
   async function deliver(notices: readonly IdentifiedNotice[]) {
     const addressed = notices.map((notice) => ({ notice, recipients: noticeRecipients(notice) })).filter((one) => one.recipients.length)
-    const targets = await repository.pushTargets(addressed.flatMap((one) => one.recipients))
-    if (!targets.length) return
+    const recipientIds = addressed.flatMap((one) => one.recipients)
+    const [devices, browsers] = await Promise.all([
+      senders.app ? repository.pushTargets(recipientIds) : [],
+      senders.web ? repository.webPushTargets(recipientIds) : [],
+    ])
+    if (!devices.length && !browsers.length) return
     const subjects = await subjectNames(
       repository,
       addressed.map(({ notice }) => notice),
@@ -64,17 +70,26 @@ export function pushNotifier(repository: PushRepository, sender: PushSender) {
       repository,
       addressed.map(({ notice }, index) => ({ ...notice, subjectName: subjects[index] })),
     )
-    const messages: PushMessage[] = addressed.flatMap(({ notice, recipients }, index) => {
+    const appMessages: PushMessage[] = []
+    const webMessages: WebPushMessage[] = []
+    addressed.forEach(({ notice, recipients }, index) => {
       const message = described[index]
-      if (!message) return []
-      return targets
-        .filter((target) => recipients.includes(target.userId))
-        .map((target) => {
-          const noticeId = notice.noticeIds?.[target.userId]
-          return { to: target.token, ...message, path: campaignPath(message.path, notice.kind, noticeId), noticeId }
-        })
+      if (!message) return
+      for (const device of devices) {
+        if (!recipients.includes(device.userId)) continue
+        const noticeId = notice.noticeIds?.[device.userId]
+        appMessages.push({ to: device.token, ...message, path: campaignPath(message.path, notice.kind, noticeId), noticeId })
+      }
+      for (const { userId, ...subscription } of browsers) {
+        if (!recipients.includes(userId)) continue
+        const noticeId = notice.noticeIds?.[userId]
+        webMessages.push({ to: subscription, ...message, path: campaignPath(message.path, notice.kind, noticeId, 'web-push') })
+      }
     })
-    if (messages.length) await sender.send(messages)
+    await Promise.all([
+      appMessages.length ? senders.app?.send(appMessages) : undefined,
+      webMessages.length ? senders.web?.send(webMessages) : undefined,
+    ])
   }
 
   return {

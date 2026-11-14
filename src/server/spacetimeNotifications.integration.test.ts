@@ -36,3 +36,28 @@ it.skipIf(!url || !database || !token)(
     }
   },
 )
+
+it.skipIf(!url || !database || !token)('bounds browsers and moves a browser to the account that registers it last', async () => {
+  const store = new SpacetimeOperator(url!, database!, token!)
+  const userId = randomUUID()
+  const otherId = randomUUID()
+  const keys = { p256dh: `B${'a'.repeat(86)}`, auth: 'b'.repeat(22) }
+  const endpoints = Array.from(
+    { length: PUSH_TOKENS_PER_USER + 1 },
+    (_unused, index) => `https://fcm.googleapis.com/fcm/send/${userId}-${index}`,
+  )
+  try {
+    for (const [index, endpoint] of endpoints.entries())
+      await store.registerWebPushSubscription({ userId, subscription: { endpoint, ...keys }, now: index + 1 })
+    const kept = await store.webPushTargets([userId])
+    expect(kept).toHaveLength(PUSH_TOKENS_PER_USER)
+    expect(kept.some((target) => target.endpoint === endpoints[0])).toBe(false)
+    await store.unregisterWebPushSubscription(otherId, endpoints[1]!)
+    expect((await store.webPushTargets([userId])).some((target) => target.endpoint === endpoints[1])).toBe(true)
+    await store.registerWebPushSubscription({ userId: otherId, subscription: { endpoint: endpoints[1]!, ...keys }, now: 100 })
+    expect((await store.webPushTargets([userId])).some((target) => target.endpoint === endpoints[1])).toBe(false)
+    expect(await store.webPushTargets([otherId])).toEqual([{ userId: otherId, endpoint: endpoints[1], ...keys }])
+  } finally {
+    await store.deleteWebPushSubscriptions(endpoints)
+  }
+})

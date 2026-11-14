@@ -59,6 +59,10 @@ export function PrivacyPolicy() {
           If you get a calendar link, we store its secret address. Anyone with the address can read your league round deadlines and
           tournament dates, with their names. Replacing or turning off the link, or deleting your account, removes the old address.
         </p>
+        <p>
+          If you turn on notifications in a browser, we store the address your browser's push service gave it, the keys that encrypt
+          notifications for it, and when it was last seen. Turning them off, signing out or deleting your account removes them.
+        </p>
         <h3 className="text-sm tracking-label text-bone">Usage data</h3>
         <p>
           We measure how the product is used through PostHog: pages visited, buttons used, actions such as creating a roster, errors, and
@@ -130,6 +134,10 @@ export function PrivacyPolicy() {
           <li>
             Expo, with Apple or Google, to deliver the notifications you allow. A notification carries its title, text, and the page it
             opens.
+          </li>
+          <li>
+            Your browser's push service, such as Google, Mozilla, Apple or Microsoft, to deliver the browser notifications you allow. The
+            notification is encrypted so only your browser can read it.
           </li>
         </LegalLinks>
       </LegalSection>

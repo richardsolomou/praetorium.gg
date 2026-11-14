@@ -15,11 +15,13 @@ import DeleteAbilityReminderReducer from '../delete_ability_reminder_reducer'
 import DeletePushTokensReducer from '../delete_push_tokens_reducer'
 import DeleteRosterReducer from '../delete_roster_reducer'
 import DeleteUserDataReducer from '../delete_user_data_reducer'
+import DeleteWebPushSubscriptionsReducer from '../delete_web_push_subscriptions_reducer'
 import ForgetMatchupReducer from '../forget_matchup_reducer'
 import KeepCollectionPhotoReducer from '../keep_collection_photo_reducer'
 import QueueCollectionPhotoDeletionReducer from '../queue_collection_photo_deletion_reducer'
 import RegisterPracticeOpponentReducer from '../register_practice_opponent_reducer'
 import RegisterPushTokenReducer from '../register_push_token_reducer'
+import RegisterWebPushSubscriptionReducer from '../register_web_push_subscription_reducer'
 import RememberMatchupReducer from '../remember_matchup_reducer'
 import RemoveCollectionPhotoReducer from '../remove_collection_photo_reducer'
 import RemoveCollectionPhotoByIdReducer from '../remove_collection_photo_by_id_reducer'
@@ -39,6 +41,7 @@ import SetCollectionPhotoLikeReducer from '../set_collection_photo_like_reducer'
 import SetCollectionProgressReducer from '../set_collection_progress_reducer'
 import SetCollectionWantedReducer from '../set_collection_wanted_reducer'
 import UnregisterPushTokenReducer from '../unregister_push_token_reducer'
+import UnregisterWebPushSubscriptionReducer from '../unregister_web_push_subscription_reducer'
 import UnwatchBattleReducer from '../unwatch_battle_reducer'
 import WatchBattleReducer from '../watch_battle_reducer'
 
@@ -51,11 +54,13 @@ export type DeleteAbilityReminderParams = __Infer<typeof DeleteAbilityReminderRe
 export type DeletePushTokensParams = __Infer<typeof DeletePushTokensReducer>
 export type DeleteRosterParams = __Infer<typeof DeleteRosterReducer>
 export type DeleteUserDataParams = __Infer<typeof DeleteUserDataReducer>
+export type DeleteWebPushSubscriptionsParams = __Infer<typeof DeleteWebPushSubscriptionsReducer>
 export type ForgetMatchupParams = __Infer<typeof ForgetMatchupReducer>
 export type KeepCollectionPhotoParams = __Infer<typeof KeepCollectionPhotoReducer>
 export type QueueCollectionPhotoDeletionParams = __Infer<typeof QueueCollectionPhotoDeletionReducer>
 export type RegisterPracticeOpponentParams = __Infer<typeof RegisterPracticeOpponentReducer>
 export type RegisterPushTokenParams = __Infer<typeof RegisterPushTokenReducer>
+export type RegisterWebPushSubscriptionParams = __Infer<typeof RegisterWebPushSubscriptionReducer>
 export type RememberMatchupParams = __Infer<typeof RememberMatchupReducer>
 export type RemoveCollectionPhotoParams = __Infer<typeof RemoveCollectionPhotoReducer>
 export type RemoveCollectionPhotoByIdParams = __Infer<typeof RemoveCollectionPhotoByIdReducer>
@@ -75,5 +80,6 @@ export type SetCollectionPhotoLikeParams = __Infer<typeof SetCollectionPhotoLike
 export type SetCollectionProgressParams = __Infer<typeof SetCollectionProgressReducer>
 export type SetCollectionWantedParams = __Infer<typeof SetCollectionWantedReducer>
 export type UnregisterPushTokenParams = __Infer<typeof UnregisterPushTokenReducer>
+export type UnregisterWebPushSubscriptionParams = __Infer<typeof UnregisterWebPushSubscriptionReducer>
 export type UnwatchBattleParams = __Infer<typeof UnwatchBattleReducer>
 export type WatchBattleParams = __Infer<typeof WatchBattleReducer>

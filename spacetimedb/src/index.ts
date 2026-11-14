@@ -860,6 +860,7 @@ export const deleteUserData = spacetime.reducer({ userId: t.string() }, (ctx, { 
   for (const row of Array.from(ctx.db.pushTokens.userId.filter(userId))) ctx.db.pushTokens.token.delete(row.token)
   const feed = ctx.db.calendarFeeds.userId.find(userId)
   if (feed) ctx.db.calendarFeeds.token.delete(feed.token)
+  for (const row of Array.from(ctx.db.webPushSubscriptions.userId.filter(userId))) ctx.db.webPushSubscriptions.endpoint.delete(row.endpoint)
   for (const row of Array.from(ctx.db.friendships.requesterId.filter(userId))) {
     touchFriends(ctx, row.requesterId, row.addresseeId)
     ctx.db.friendships.key.delete(row.key)
@@ -3790,6 +3791,65 @@ export const pushTargets = spacetime.procedure({ userIds: t.array(t.string()) },
     for (const userId of new Set(userIds)) {
       if (tx.db.practiceOpponents.userId.find(userId)) continue
       for (const device of tx.db.pushTokens.userId.filter(userId)) targets.push({ userId, token: device.token })
+    }
+    return productJson(targets)
+  }),
+)
+
+/** A browser subscription; its endpoint was checked against the browser push services before it got here. */
+export const registerWebPushSubscription = spacetime.reducer(
+  { userId: t.string(), endpoint: t.string(), p256dh: t.string(), auth: t.string(), now: t.u64() },
+  (ctx, input) => {
+    requireOperator(ctx)
+    if (
+      !validId(input.userId) ||
+      !input.endpoint.startsWith('https://') ||
+      input.endpoint.length > 1_024 ||
+      input.p256dh.length !== 87 ||
+      input.auth.length !== 22
+    ) {
+      throw new SenderError('Invalid web push subscription')
+    }
+    const current = ctx.db.webPushSubscriptions.endpoint.find(input.endpoint)
+    const row = {
+      endpoint: input.endpoint,
+      userId: input.userId,
+      p256dh: input.p256dh,
+      auth: input.auth,
+      createdAt: current?.createdAt ?? input.now,
+      lastSeenAt: input.now,
+    }
+    if (current) ctx.db.webPushSubscriptions.endpoint.update(row)
+    else ctx.db.webPushSubscriptions.insert(row)
+    const browsers = Array.from(ctx.db.webPushSubscriptions.userId.filter(input.userId)).sort(
+      (left, right) =>
+        (right.lastSeenAt > left.lastSeenAt ? 1 : right.lastSeenAt < left.lastSeenAt ? -1 : 0) ||
+        right.endpoint.localeCompare(left.endpoint),
+    )
+    for (const browser of browsers.slice(PUSH_TOKENS_PER_USER)) ctx.db.webPushSubscriptions.endpoint.delete(browser.endpoint)
+  },
+)
+
+export const unregisterWebPushSubscription = spacetime.reducer({ userId: t.string(), endpoint: t.string() }, (ctx, input) => {
+  requireOperator(ctx)
+  if (ctx.db.webPushSubscriptions.endpoint.find(input.endpoint)?.userId === input.userId)
+    ctx.db.webPushSubscriptions.endpoint.delete(input.endpoint)
+})
+
+export const deleteWebPushSubscriptions = spacetime.reducer({ endpoints: t.array(t.string()) }, (ctx, { endpoints }) => {
+  requireOperator(ctx)
+  if (endpoints.length > 1_000) throw new SenderError('Too many web push subscriptions')
+  for (const endpoint of new Set(endpoints)) ctx.db.webPushSubscriptions.endpoint.delete(endpoint)
+})
+
+export const webPushTargets = spacetime.procedure({ userIds: t.array(t.string()) }, t.string(), (ctx, { userIds }) =>
+  operatorTx(ctx, (tx) => {
+    if (userIds.length > 100) throw new SenderError('Too many notification recipients')
+    const targets: { userId: string; endpoint: string; p256dh: string; auth: string }[] = []
+    for (const userId of new Set(userIds)) {
+      if (tx.db.practiceOpponents.userId.find(userId)) continue
+      for (const browser of tx.db.webPushSubscriptions.userId.filter(userId))
+        targets.push({ userId, endpoint: browser.endpoint, p256dh: browser.p256dh, auth: browser.auth })
     }
     return productJson(targets)
   }),

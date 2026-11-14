@@ -249,7 +249,7 @@ export const PRODUCT_DOCS = [
     slug: 'notifications',
     section: 'Account and app',
     title: 'Notifications',
-    description: 'What you hear about, where it shows on the web and in the app, and marking it read.',
+    description: 'What you hear about, where it shows on the web and in the app, browser notifications, and marking it read.',
   },
   {
     slug: 'filter-lists',

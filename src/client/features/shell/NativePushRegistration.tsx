@@ -3,6 +3,7 @@ import { posthog } from 'posthog-js'
 import { useEffect } from 'react'
 import { supportsNativePush } from '../../nativeBridge'
 import { registerThisDevice } from '../../pushNotifications'
+import { supportsWebPush, syncThisBrowser } from '../../webPush'
 import { meQuery, notificationSettingsQuery } from '../../queries'
 
 /**
@@ -17,9 +18,15 @@ export function NativePushRegistration() {
   const player = me && !me.impersonatedBy ? me.id : null
   const { data: settings } = useQuery({ ...notificationSettingsQuery(), enabled: Boolean(player) })
   const available = Boolean(settings?.available)
+  const webPushKey = settings?.webPushKey
   useEffect(() => {
     if (!player || !available || !supportsNativePush()) return
     void registerThisDevice(false).catch((error: unknown) => posthog.captureException(error, { operation: 'push_registration' }))
   }, [player, available])
+  // A browser that already allowed notifications, and only that one, is bound the same way.
+  useEffect(() => {
+    if (!player || !webPushKey || !supportsWebPush()) return
+    void syncThisBrowser(webPushKey).catch((error: unknown) => posthog.captureException(error, { operation: 'web_push_registration' }))
+  }, [player, webPushKey])
   return null
 }

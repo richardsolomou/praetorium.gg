@@ -134,6 +134,7 @@ import * as SyncRosterProcedure from '../sync_roster_procedure'
 import * as UnitLoadoutsByUserProcedure from '../unit_loadouts_by_user_procedure'
 import * as UpdateOnboardingProcedure from '../update_onboarding_procedure'
 import * as UsableRosterProcedure from '../usable_roster_procedure'
+import * as WebPushTargetsProcedure from '../web_push_targets_procedure'
 
 export type AbilityRemindersByUserArgs = __Infer<typeof AbilityRemindersByUserProcedure.params>
 export type AbilityRemindersByUserResult = __Infer<typeof AbilityRemindersByUserProcedure.returnType>
@@ -391,3 +392,5 @@ export type UpdateOnboardingArgs = __Infer<typeof UpdateOnboardingProcedure.para
 export type UpdateOnboardingResult = __Infer<typeof UpdateOnboardingProcedure.returnType>
 export type UsableRosterArgs = __Infer<typeof UsableRosterProcedure.params>
 export type UsableRosterResult = __Infer<typeof UsableRosterProcedure.returnType>
+export type WebPushTargetsArgs = __Infer<typeof WebPushTargetsProcedure.params>
+export type WebPushTargetsResult = __Infer<typeof WebPushTargetsProcedure.returnType>
