@@ -7,15 +7,57 @@ import { OfflineRefusal } from './offline/offlineRefusal'
 import { newerRelease } from './releaseUpdate'
 import { readSessionValue, writeSessionValue } from './storedValue'
 
+/**
+ * The router's lazy route component reloads the page itself the first time an import fails with a given message in a
+ * tab, and records the message under this session key first. A render before the page unloads then throws the same
+ * error to the error page, so the failure that page sees is already recovering. Safari's message names no module,
+ * so one key covers every failed import in the tab.
+ */
+const ROUTER_RELOAD_PREFIX = 'tanstack_router_reload:'
+
+function routerReloadKeys() {
+  try {
+    return new Set(Object.keys(sessionStorage).filter((key) => key.startsWith(ROUTER_RELOAD_PREFIX)))
+  } catch {
+    return new Set<string>()
+  }
+}
+
+/** Keys from reloads before this page loaded, whose failures the router now leaves to the error page. */
+const earlierRouterReloads = typeof window === 'undefined' ? new Set<string>() : routerReloadKeys()
+
+/** Whether the router has started a reload of this page for `error`, which recovers it without the reader's help. */
+export function routerReloading(error: unknown) {
+  if (!isModuleLoadFailure(error)) return false
+  const key = ROUTER_RELOAD_PREFIX + (error as Error).message
+  return readSessionValue(key) !== null && !earlierRouterReloads.has(key)
+}
+
+/** Set while the router's reload is in flight, so the reloaded page can report how it ended. */
+const ROUTER_RECOVERY_SESSION_KEY = 'praetorium.router-module-reload'
+
 /** React passes errors caught by a route's error page only to console.error, so report them here. */
 export function reportRouteError(error: unknown) {
+  if (routerReloading(error)) {
+    if (readSessionValue(ROUTER_RECOVERY_SESSION_KEY) === null)
+      posthog.capture('route_recovery_started', { failure_kind: 'module_load', trigger: 'router' })
+    writeSessionValue(ROUTER_RECOVERY_SESSION_KEY, '1')
+    return
+  }
   const attempt = typeof window === 'undefined' ? 0 : moduleRecoveryAttempt(window.location.href)
+  if (isModuleLoadFailure(error) && readSessionValue(ROUTER_RECOVERY_SESSION_KEY) !== null) {
+    writeSessionValue(ROUTER_RECOVERY_SESSION_KEY, null)
+    posthog.capture('route_recovery_failed', { failure_kind: 'module_load', trigger: 'router' })
+  }
   if (attempt && isModuleLoadFailure(error))
     posthog.capture('route_recovery_failed', { failure_kind: 'module_load', recovery_attempt: attempt })
   if (!isFetchNetworkFailure(error) && !(error instanceof CancelledError) && !(error instanceof OfflineRefusal))
     posthog.captureException(error, {
       operation: 'route',
-      ...(isModuleLoadFailure(error) ? { failure_kind: 'module_load', recovery_attempt: attempt } : {}),
+      // Without it each release's minified frames start a new issue for the same failure.
+      ...(isModuleLoadFailure(error)
+        ? { failure_kind: 'module_load', recovery_attempt: attempt, $exception_fingerprint: 'route-module-load' }
+        : {}),
     })
 }
 
@@ -158,7 +200,10 @@ export function withoutRecoveryKeys(href: string) {
 const storedStaleBuildMarker = () => parseStaleBuildMarker(readSessionValue(STALE_BUILD_SESSION_KEY))
 
 export const routeRecoveryPending = (href: string) =>
-  moduleRecoveryAttempt(href) > 0 || staleBuildMarker(href) !== null || storedStaleBuildMarker() !== null
+  moduleRecoveryAttempt(href) > 0 ||
+  staleBuildMarker(href) !== null ||
+  storedStaleBuildMarker() !== null ||
+  readSessionValue(ROUTER_RECOVERY_SESSION_KEY) !== null
 
 /** Removes the recovery keys a rendered route resolves; a reload that still runs an older build keeps its key, so the cap holds. */
 export function completedRouteRecovery(href: string, current = version) {
@@ -167,6 +212,10 @@ export function completedRouteRecovery(href: string, current = version) {
   if (moduleAttempt) {
     url.searchParams.delete(RECOVERY_PARAM)
     captureWhenLoaded('route_recovery_completed', { failure_kind: 'module_load', recovery_attempt: moduleAttempt })
+  }
+  if (readSessionValue(ROUTER_RECOVERY_SESSION_KEY) !== null) {
+    writeSessionValue(ROUTER_RECOVERY_SESSION_KEY, null)
+    captureWhenLoaded('route_recovery_completed', { failure_kind: 'module_load', trigger: 'router' })
   }
   const inAddress = staleBuildMarker(href)
   const stale = inAddress ?? storedStaleBuildMarker()
