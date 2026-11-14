@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest'
 import type { UnitState } from '../../../core/battle'
 import { datasheetFixture } from '../../../core/datasheet.fixtures'
-import { armyThreats, survivingUnits } from './armyThreats'
+import { armyThreats, survivingUnits, threatReach } from './threats'
 
 const unit = (index: number, entryId: string, extra: Partial<UnitState> = {}): UnitState => ({
   key: `${index}-${entryId}`,
@@ -47,5 +47,15 @@ it('puts the furthest-reaching unit first and a unit without a datasheet last', 
     ['bikes', 12, 24],
     ['squad', 6, 24],
     ['old', null, null],
+  ])
+})
+
+it('gives a unit off the battlefield no total and lists it after the units on it', () => {
+  const units = [unit(0, 'reserve', { formation: 'deep-strike' }), unit(1, 'squad')]
+  const { rows } = survivingUnits(units, [{ entryId: 'reserve' }, { entryId: 'squad' }])
+  const threats = armyThreats(rows, [projection('12"', '24"'), projection('6"', '24"')])
+  expect(threats.map((threat) => [threat.name, threatReach(threat)])).toEqual([
+    ['squad', 30],
+    ['reserve', null],
   ])
 })

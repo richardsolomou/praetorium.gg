@@ -68,5 +68,9 @@ export function armyThreats(rows: ReturnType<typeof survivingUnits>['rows'], pro
   return threats.toSorted((first, second) => (threatReach(second) ?? -1) - (threatReach(first) ?? -1))
 }
 
-/** How far a unit's shooting reaches after a normal move. */
-export const threatReach = (threat: Threat) => (threat.move === null ? null : threat.move + (threat.range ?? 0))
+/**
+ * How far a unit's shooting reaches after a normal move, or null for a unit off the battlefield,
+ * whose reach depends on where it arrives or disembarks rather than on its Move.
+ */
+export const threatReach = (threat: Threat) =>
+  threat.move === null || threat.formation !== 'battlefield' ? null : threat.move + (threat.range ?? 0)

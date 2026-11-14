@@ -8,7 +8,7 @@ import { Problem } from '../../components/Problem'
 import { combatantDatasheetsQuery } from '../../queries'
 import type { Army, Side } from '../../sides'
 import { BattleDialogContent, BattlePromptDialog } from './BattlePromptDialog'
-import { armyThreats, survivingUnits, threatReach } from './armyThreats'
+import { armyThreats, survivingUnits, threatReach } from './threats'
 import { formationLabel } from './setup/chrome'
 import { tint } from './battleTints'
 
@@ -47,8 +47,8 @@ export function ArmyThreats({ army, side }: { army: Army; side: Side }) {
           <DialogHeader>
             <DialogTitle>Threats</DialogTitle>
             <DialogDescription>
-              {army.playerName}'s surviving units, sorted by Move plus their longest ranged weapon. Advance, charge and abilities are not
-              added.
+              {army.playerName}'s surviving units, sorted by Move plus their longest ranged weapon. Advance, charges, terrain and abilities
+              are not counted, and a unit in reserves or a transport has no total until it is on the battlefield.
             </DialogDescription>
           </DialogHeader>
           <DialogBody>
@@ -75,7 +75,7 @@ export function ArmyThreats({ army, side }: { army: Army; side: Side }) {
                   <tr key={threat.key} data-threat={threat.name} className="border-b border-edge last:border-0">
                     <th scope="row" className="px-2 py-1.5 text-left font-normal">
                       <span className="mr-1.5">{threat.name}</span>
-                      {/* Off the table it reaches nothing until it arrives, which is worth seeing beside the number. */}
+                      {/* Off the table it reaches nothing until it arrives, so it shows where it is in place of a total. */}
                       {threat.formation === 'battlefield' ? null : <span className="chip">{formationLabel(threat.formation)}</span>}
                     </th>
                     <Inches value={threat.move} loading={loading} />
