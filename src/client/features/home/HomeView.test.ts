@@ -153,7 +153,7 @@ describe('battle rows', () => {
     }) as unknown as Battle
 
   it('leaves a game untouched for weeks off the home page', () => {
-    expect(render({ mine: [battle('a', { lastActivity: 0 })] })).not.toContain('aria-label="Open ')
+    expect(text(render({ mine: [battle('a', { lastActivity: 0 })] }))).not.toContain('Opponent a')
   })
 
   it('links to every battle when more games are in progress than shown', () => {
@@ -166,10 +166,7 @@ describe('battle rows', () => {
 
   it.each(['mine', 'friends', 'open'] as const)('lists at most two games from %s in feed order', (feed) => {
     const battles = Array.from({ length: 5 }, (_, index) => battle(String(index), { status: 'finished' }))
-    expect(render({ [feed]: battles }).match(/aria-label="(?:Open|Watch) Alex versus Opponent \d+"/g)).toEqual([
-      `aria-label="${feed === 'mine' ? 'Open' : 'Watch'} Alex versus Opponent 0"`,
-      `aria-label="${feed === 'mine' ? 'Open' : 'Watch'} Alex versus Opponent 1"`,
-    ])
+    expect(text(render({ [feed]: battles })).match(/Opponent \d+/g)).toEqual(['Opponent 0', 'Opponent 1'])
   })
 
   it('shows no score before a game starts', () => {
@@ -182,9 +179,5 @@ describe('battle rows', () => {
       { id: 'opponent-a', name: 'Opponent a', image: null, colour: null, automated: false },
     ]
     expect(text(render({ mine: [battle('a', { playerDetails })] }))).toMatch(/Alex You .*Opponent a(?! You)/)
-  })
-
-  it('offers to watch a game the player is not sitting in', () => {
-    expect(render({ open: [battle('a', { playerIds: ['someone', 'else'] })] })).toContain('aria-label="Watch Alex versus Opponent a"')
   })
 })

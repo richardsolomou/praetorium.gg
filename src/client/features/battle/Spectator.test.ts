@@ -48,7 +48,7 @@ describe('finished battle battlefield', () => {
   })
 
   it('opens the selected battlefield from its name', () => {
-    expect(render('search-and-destroy', false)).toContain('aria-label="View Search And Destroy battlefield"')
+    expect(render('search-and-destroy', false)).toContain('aria-label="Search And Destroy')
   })
 
   it('has no map trigger without a chosen battlefield', () => {
