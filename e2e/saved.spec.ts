@@ -157,7 +157,7 @@ test('automatic roster names are saved with edits and a player can override or r
   await expect(name).toHaveValue('')
   await expect(name).toHaveAttribute('placeholder', 'AD 2K - Immortals')
 
-  await waitForRosterSave(page, () => name.fill('My Necrons'), 'My Necrons')
+  await renameRoster(page, 'My Necrons')
   await page.reload()
   await expect(name).toHaveValue('My Necrons')
   await waitForRosterSave(page, async () => {
@@ -165,7 +165,7 @@ test('automatic roster names are saved with edits and a player can override or r
   })
   await page.reload()
   await expect(name).toHaveValue('My Necrons')
-  await waitForRosterSave(page, () => name.fill(''))
+  await renameRoster(page, '')
   await page.reload()
   await expect(name).toHaveValue('')
   await expect(name).toHaveAttribute('placeholder', "AD 2K - C'tan")
