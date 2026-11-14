@@ -26,140 +26,67 @@ concurrency:
 permissions:
   contents: read
 
-env:
-  FULL_E2E: ${{ github.event_name != 'pull_request' }}
-
 # `just check` runs these lanes in sequence locally; CI runs them side by side so the fast ones answer first.
+# Each lane's steps live in its own `ci-<lane>.yml`. GitHub names a called workflow's checks `<caller> / <job>`,
+# so the short job after each lane reports it under the name the main branch requires, and skips when it skips.
 jobs:
   changes:
     uses: ./.github/workflows/ci-scope.yml
 
-  static:
+  static-lane:
     needs: changes
+    uses: ./.github/workflows/ci-static.yml
+    with:
+      runtime: ${{ needs.changes.outputs.runtime == 'true' }}
+    secrets: inherit
+
+  static:
+    needs: static-lane
+    if: ${{ !cancelled() && needs.static-lane.result != 'skipped' }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-      - uses: richardsolomou/ras-stack/actions/setup-js@v1
-      - run: pnpm exec ras sync --check
-      - run: pnpm format:check
-      - run: pnpm lint
-      - run: pnpm docs:lint
-      - run: pnpm vocabulary:check
-      - run: pnpm changesets:check
-      - run: pnpm auth:db:check
-      - run: pnpm catalogue:check
-      - uses: ./.github/actions/setup-spacetime
-        if: needs.changes.outputs.runtime == 'true'
-      - uses: richardsolomou/ras-stack/actions/check-spacetime-bindings@v1
-        if: needs.changes.outputs.runtime == 'true'
-        with:
-          out-dir: src/spacetime/generated
-          format-command: pnpm exec oxfmt src/spacetime/generated
-      - uses: ./.github/actions/catalogue-sync
-        if: needs.changes.outputs.runtime == 'true'
-        with:
-          r2-account-id: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
-          r2-access-key-id: ${{ secrets.PRIVATE_R2_ACCESS_KEY_ID }}
-          r2-secret-access-key: ${{ secrets.PRIVATE_R2_SECRET_ACCESS_KEY }}
-      - run: pnpm reference:evaluate
-        if: needs.changes.outputs.runtime == 'true'
+      - run: test '${{ needs.static-lane.result }}' = success
+
+  unit-lane:
+    needs: changes
+    if: needs.changes.outputs.runtime == 'true'
+    uses: ./.github/workflows/ci-unit.yml
+    secrets: inherit
 
   unit:
-    needs: changes
-    if: needs.changes.outputs.runtime == 'true'
+    needs: unit-lane
+    if: ${{ !cancelled() && needs.unit-lane.result != 'skipped' }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-      - uses: richardsolomou/ras-stack/actions/setup-js@v1
-      - uses: ./.github/actions/catalogue-sync
-        with:
-          r2-account-id: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
-          r2-access-key-id: ${{ secrets.PRIVATE_R2_ACCESS_KEY_ID }}
-          r2-secret-access-key: ${{ secrets.PRIVATE_R2_SECRET_ACCESS_KEY }}
-      # `scripts/releasedServer.test.ts` runs the released server against this module. A merge without a changeset
-      # deploys without a tag, so production's own revision header names the released server. Retries outlast a deploy's swap.
-      - name: Check out the revision production runs
-        run: |
-          live="$(curl --silent --show-error --fail --retry 20 --retry-delay 15 --max-time 30 --head https://praetorium.gg/api/health | tr -d '\r' | sed -n 's/^x-praetorium-revision: //Ip')"
-          git worktree add --detach "$RUNNER_TEMP/released" "${live:?production sent no revision}"
-      - run: pnpm test:unit
-        env:
-          RELEASED_CHECKOUT: ${{ runner.temp }}/released
+      - run: test '${{ needs.unit-lane.result }}' = success
+
+  integration-lane:
+    needs: changes
+    if: needs.changes.outputs.runtime == 'true'
+    uses: ./.github/workflows/ci-integration.yml
+    secrets: inherit
 
   integration:
-    needs: changes
-    if: needs.changes.outputs.runtime == 'true'
+    needs: integration-lane
+    if: ${{ !cancelled() && needs.integration-lane.result != 'skipped' }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: richardsolomou/ras-stack/actions/setup-js@v1
-      - uses: ./.github/actions/catalogue-sync
-        with:
-          r2-account-id: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
-          r2-access-key-id: ${{ secrets.PRIVATE_R2_ACCESS_KEY_ID }}
-          r2-secret-access-key: ${{ secrets.PRIVATE_R2_SECRET_ACCESS_KEY }}
-      # The build lane audits publication after generating the offline bundle once.
-      - uses: ./.github/actions/setup-spacetime
-        id: spacetime
-      - run: pnpm test:integration --exclude scripts/clientText.integration.test.ts
-        env:
-          SPACETIME_BIN: ${{ steps.spacetime.outputs.cli-path }}
-      - run: pnpm test:spacetime
-        env:
-          SPACETIME_BIN: ${{ steps.spacetime.outputs.cli-path }}
-      - run: pnpm test:python
+      - run: test '${{ needs.integration-lane.result }}' = success
 
-  build:
+  build-lane:
     # The browser-test build compiles and shares a new catalogue first, so this lane restores it rather than compiling it a second time.
     needs: [changes, browser-build]
     if: ${{ !cancelled() && needs.changes.outputs.runtime == 'true' }}
-    runs-on: ubuntu-latest
-    # A catalogue runtime or offline reference that no build has shared yet is uploaded under its key for every later build and deployment.
-    env:
-      R2_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
-      ASSETS_R2_ACCESS_KEY_ID: ${{ secrets.CATALOGUE_R2_ACCESS_KEY_ID }}
-      ASSETS_R2_SECRET_ACCESS_KEY: ${{ secrets.CATALOGUE_R2_SECRET_ACCESS_KEY }}
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          # The startup bundle check builds the merge commit's first parent too.
-          fetch-depth: 2
-      - uses: richardsolomou/ras-stack/actions/setup-js@v1
-      - uses: ./.github/actions/catalogue-sync
-        with:
-          r2-account-id: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
-          r2-access-key-id: ${{ secrets.PRIVATE_R2_ACCESS_KEY_ID }}
-          r2-secret-access-key: ${{ secrets.PRIVATE_R2_SECRET_ACCESS_KEY }}
-      - name: Fingerprint the catalogue runtime
-        id: runtime
-        run: echo "key=$(pnpm exec tsx scripts/catalogueRuntimeKey.ts)" >> "$GITHUB_OUTPUT"
-      - name: Restore the compiled catalogue runtime
-        uses: actions/cache@v6
-        with:
-          path: ~/.cache/praetorium/runtime
-          key: catalogue-runtime-${{ steps.runtime.outputs.key }}
-      - run: pnpm build
-      - run: pnpm typecheck
-      - run: pnpm exec vitest run --config vitest.integration.config.ts scripts/clientText.integration.test.ts
-      # Nothing else fails when a route file or the shell pulls page code into what every page preloads.
-      # The base skips the offline reference, which changes no client chunk.
-      - name: Compare the startup bundle with the base
-        if: github.event_name == 'pull_request'
-        env:
-          CATALOGUE_RUNTIME_FETCH: 'true'
-        run: |
-          set -euo pipefail
-          base="$RUNNER_TEMP/startup-base"
-          # As in `ci-scope.yml`, the merge commit's first parent is the base it merged into.
-          git worktree add --detach "$base" "$(git rev-parse HEAD^1)"
-          (cd "$base" && pnpm install --frozen-lockfile && pnpm exec ras build)
-          node scripts/startupBundle.ts .output "$base/.output"
+    uses: ./.github/workflows/ci-build.yml
+    secrets: inherit
 
-  # A compiler change makes the release compile production's live catalogue for minutes before its replica can start, so this prepares and shares it while the pull request is reviewed. Only releases publish the live catalogue itself.
+  build:
+    needs: build-lane
+    if: ${{ !cancelled() && needs.build-lane.result != 'skipped' }}
+    runs-on: ubuntu-latest
+    steps:
+      - run: test '${{ needs.build-lane.result }}' = success
+
   live-catalogue:
     needs: [changes, browser-build]
     if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && needs.browser-build.outputs.runtime-cached != 'true'
@@ -180,178 +107,26 @@ jobs:
   browser-build:
     needs: changes
     if: needs.changes.outputs.runtime == 'true'
-    name: Browser-test build
-    runs-on: ubuntu-latest
-    env:
-      R2_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
-      ASSETS_R2_ACCESS_KEY_ID: ${{ secrets.CATALOGUE_R2_ACCESS_KEY_ID }}
-      ASSETS_R2_SECRET_ACCESS_KEY: ${{ secrets.CATALOGUE_R2_SECRET_ACCESS_KEY }}
-    outputs:
-      node-version: ${{ steps.node.outputs.version }}
-      runner-count: ${{ steps.runners.outputs.count }}
-      runtime-cached: ${{ steps.runtime-cache.outputs.cache-hit }}
-      runners: ${{ steps.runners.outputs.runners }}
-      specs: ${{ steps.runners.outputs.specs }}
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          # Selection compares the change with the coverage map's revision.
-          fetch-depth: ${{ env.FULL_E2E == 'true' && 1 || 0 }}
-      - uses: richardsolomou/ras-stack/actions/setup-js@v1
-        with:
-          install: 'false'
-      - name: Record the build's Node version
-        id: node
-        run: node -p "'version=' + process.version" >> "$GITHUB_OUTPUT"
-      - uses: ./.github/actions/e2e-dependencies
-      # The daily coverage run saves the map under its revision; the newest one is restored.
-      - name: Restore the latest coverage map
-        if: env.FULL_E2E != 'true'
-        uses: actions/cache/restore@v6
-        with:
-          path: e2e-map.json
-          key: e2e-map-${{ github.sha }}
-          restore-keys: e2e-map-
-      - uses: ./.github/actions/catalogue-sync
-        with:
-          r2-account-id: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
-          r2-access-key-id: ${{ secrets.PRIVATE_R2_ACCESS_KEY_ID }}
-          r2-secret-access-key: ${{ secrets.PRIVATE_R2_SECRET_ACCESS_KEY }}
-      - name: Require the terrain geometry
-        run: pnpm catalogue:terrain
-      - name: Fingerprint the browser-test build
-        id: browser-build
-        run: echo "key=$(pnpm exec tsx scripts/browserTestBuildKey.ts)" >> "$GITHUB_OUTPUT"
-      - name: Restore the browser-test build
-        uses: actions/cache@v6
-        with:
-          path: data-dev/e2e-build
-          key: ${{ runner.os }}-${{ runner.arch }}-browser-build-${{ steps.browser-build.outputs.key }}
-      - name: Fingerprint the catalogue runtime
-        id: runtime
-        run: echo "key=$(pnpm exec tsx scripts/catalogueRuntimeKey.ts)" >> "$GITHUB_OUTPUT"
-      - name: Restore the compiled catalogue runtime
-        id: runtime-cache
-        uses: actions/cache@v6
-        with:
-          path: ~/.cache/praetorium/runtime
-          key: catalogue-runtime-${{ steps.runtime.outputs.key }}
-      - name: Build or restore the browser-test build
-        run: pnpm exec tsx scripts/browserTestBuild.ts
-      - uses: ./.github/actions/verify-browser-build
-      # Selection compares the build's compiled catalogue with the coverage run's.
-      - name: Choose the end-to-end specs
-        id: select
-        env:
-          HEAD_SHA: ${{ github.sha }}
-          E2E_MAP: e2e-map.json
-        run: |
-          if [ "$FULL_E2E" = true ]; then
-            printf 'specs=all\nreason=every spec runs outside pull requests\n' >> "$GITHUB_OUTPUT"
-          else
-            # As in `ci-scope.yml`, the merge commit's first parent is the base it merged into.
-            BASE_SHA="$(git rev-parse "$HEAD_SHA^1")" node scripts/e2eSelect.ts
-          fi
-      - name: Choose the browser runners
-        id: runners
-        env:
-          SELECTED: ${{ steps.select.outputs.specs }}
-          REASON: ${{ steps.select.outputs.reason }}
-          FULL: ${{ env.FULL_E2E }}
-          # The account runs 20 jobs at once and the other lanes hold about six while the runners
-          # start, so a 16th runner waits for a slot instead of finishing sooner.
-          MAX: ${{ inputs.e2e-runners || '14' }}
-        run: |
-          set -euo pipefail
-          runners="$(node scripts/e2eShard.ts --runners "$SELECTED" "$MAX")"
-          {
-            echo "specs=$SELECTED"
-            echo "runners=$runners"
-            echo "count=$(node -p 'JSON.parse(process.argv[1]).length' "$runners")"
-          } >> "$GITHUB_OUTPUT"
-          {
-            if [ "$FULL" = true ]; then echo '### Every end-to-end spec runs'; else echo '### Only the affected end-to-end specs run'; fi
-            echo "$REASON; this run uses $(node -p 'JSON.parse(process.argv[1]).length' "$runners") of $MAX runners."
-            if [ "$SELECTED" != all ]; then node -p 'JSON.parse(process.argv[1]).map((spec) => "- " + spec).join("\n")' "$SELECTED"; fi
-          } >> "$GITHUB_STEP_SUMMARY"
-      - uses: actions/upload-artifact@v7
-        with:
-          name: browser-test-build
-          path: data-dev/e2e-build
-          include-hidden-files: true
-          retention-days: 7
+    uses: ./.github/workflows/ci-browser-build.yml
+    with:
+      e2e-runners: ${{ inputs.e2e-runners }}
+    secrets: inherit
 
-  e2e-shard:
-    name: E2E runner ${{ matrix.runner }} of ${{ needs.browser-build.outputs.runner-count }}
-    needs: [browser-build]
+  e2e-lane:
+    needs: browser-build
     if: needs.browser-build.outputs.runner-count != '0'
-    strategy:
-      fail-fast: false
-      matrix:
-        runner: ${{ fromJSON(needs.browser-build.outputs.runners) }}
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - uses: ./.github/actions/browser-test-stack
-        id: stack
-        # Catalogue snapshots are private, read only by the catalogue sync inside this action.
-        with:
-          node-version: ${{ needs.browser-build.outputs.node-version }}
-          r2-account-id: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
-          r2-access-key-id: ${{ secrets.PRIVATE_R2_ACCESS_KEY_ID }}
-          r2-secret-access-key: ${{ secrets.PRIVATE_R2_SECRET_ACCESS_KEY }}
-      - name: Run the E2E shard
-        env:
-          E2E_SHARD: ${{ matrix.runner }}
-          E2E_RUNNERS: ${{ needs.browser-build.outputs.runner-count }}
-          E2E_SPECS: ${{ needs.browser-build.outputs.specs != 'all' && needs.browser-build.outputs.specs || '' }}
-          E2E_COVERAGE_DIR: ${{ (github.event_name == 'schedule' || inputs.coverage) && format('{0}/e2e-coverage', runner.temp) || '' }}
-          SPACETIME_BIN: ${{ steps.stack.outputs.spacetime-bin }}
-          PLAYWRIGHT_STARTUP_REPORT: e2e-startup-${{ matrix.runner }}.json
-        run: |
-          set -euo pipefail
-          PLAYWRIGHT_JSON_OUTPUT_NAME="$RUNNER_TEMP/e2e-tests.json" pnpm exec playwright test --list --reporter=json > /dev/null
-          node --import tsx scripts/e2eShard.ts "$RUNNER_TEMP/e2e-tests.json" "$E2E_SHARD" "$E2E_RUNNERS" > "$RUNNER_TEMP/e2e-shard.txt"
-          PLAYWRIGHT_PORT="$((4170 + E2E_SHARD))" \
-            PLAYWRIGHT_OUTPUT_DIR="test-results-$E2E_SHARD" \
-            PLAYWRIGHT_JSON_OUTPUT_NAME="e2e-report-$E2E_SHARD.json" \
-            pnpm exec playwright test --test-list="$RUNNER_TEMP/e2e-shard.txt" --reporter=github,json
-      - name: Report browser-test startup
-        if: success() || failure()
-        run: |
-          if test -f "e2e-startup-${{ matrix.runner }}.json"; then
-            echo 'Browser-test startup (seconds):' >> "$GITHUB_STEP_SUMMARY"
-            cat "e2e-startup-${{ matrix.runner }}.json" >> "$GITHUB_STEP_SUMMARY"
-          fi
-      - if: github.event_name == 'schedule' || inputs.coverage
-        uses: actions/upload-artifact@v7
-        with:
-          name: e2e-coverage-${{ matrix.runner }}
-          path: ${{ runner.temp }}/e2e-coverage
-          retention-days: 2
-          if-no-files-found: error
-      # `just e2e-durations <run id>` rebalances the runners from these reports.
-      - if: success() || failure()
-        uses: actions/upload-artifact@v7
-        with:
-          name: e2e-report-${{ matrix.runner }}
-          path: e2e-report-${{ matrix.runner }}.json
-          retention-days: 30
-          if-no-files-found: ignore
-      # A test that passes on retry still leaves its failed attempt's trace here; screenshots
-      # that passing tests write are not worth an upload.
-      - if: failure() || (success() && hashFiles(format('test-results-{0}/**/trace.zip', matrix.runner)) != '')
-        uses: actions/upload-artifact@v7
-        with:
-          name: playwright-results-${{ matrix.runner }}
-          path: |
-            test-results
-            test-results-*
-          retention-days: 7
+    uses: ./.github/workflows/ci-e2e.yml
+    with:
+      node-version: ${{ needs.browser-build.outputs.node-version }}
+      runner-count: ${{ needs.browser-build.outputs.runner-count }}
+      runners: ${{ needs.browser-build.outputs.runners }}
+      specs: ${{ needs.browser-build.outputs.specs }}
+      coverage: ${{ github.event_name == 'schedule' || inputs.coverage == true }}
+    secrets: inherit
 
   e2e:
     if: always()
-    needs: [changes, browser-build, e2e-shard]
+    needs: [changes, browser-build, e2e-lane]
     runs-on: ubuntu-latest
     steps:
       - name: Require every E2E runner
@@ -360,253 +135,31 @@ jobs:
           test '${{ needs.changes.result }}' = success
           test '${{ needs.browser-build.result }}' = success
           # A change no spec exercises runs no browser runner.
-          test '${{ needs.e2e-shard.result }}' = success || { test '${{ needs.browser-build.outputs.runner-count }}' = 0 && test '${{ needs.e2e-shard.result }}' = skipped; }
+          test '${{ needs.e2e-lane.result }}' = success || { test '${{ needs.browser-build.outputs.runner-count }}' = 0 && test '${{ needs.e2e-lane.result }}' = skipped; }
 
-  e2e-map:
-    if: github.event_name == 'schedule' || inputs.coverage
-    needs: [browser-build, e2e-shard]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - uses: richardsolomou/ras-stack/actions/setup-js@v1
-      - uses: actions/download-artifact@v8
-        with:
-          name: browser-test-build
-          path: data-dev/e2e-build
-      - uses: actions/download-artifact@v8
-        with:
-          pattern: e2e-coverage-*
-          path: e2e-coverage
-      - run: pnpm exec tsx scripts/e2eMap.ts data-dev/e2e-build "$GITHUB_SHA" e2e-map.json e2e-coverage/*
-      - uses: actions/cache/save@v6
-        with:
-          path: e2e-map.json
-          key: e2e-map-${{ github.sha }}
+  points-lane:
+    needs: changes
+    if: needs.changes.outputs.runtime == 'true'
+    uses: ./.github/workflows/ci-points.yml
+    secrets: inherit
 
   points:
+    needs: points-lane
+    if: ${{ !cancelled() && needs.points-lane.result != 'skipped' }}
+    runs-on: ubuntu-latest
+    steps:
+      - run: test '${{ needs.points-lane.result }}' = success
+
+  coverage-lane:
     needs: changes
     if: needs.changes.outputs.runtime == 'true'
-    runs-on: ubuntu-latest
-    env:
-      HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-      - uses: richardsolomou/ras-stack/actions/setup-js@v1
-      - uses: ./.github/actions/catalogue-sync
-        with:
-          r2-account-id: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
-          r2-access-key-id: ${{ secrets.PRIVATE_R2_ACCESS_KEY_ID }}
-          r2-secret-access-key: ${{ secrets.PRIVATE_R2_SECRET_ACCESS_KEY }}
-      - name: Choose a compatible comparison revision
-        id: comparison
-        run: |
-          set -euo pipefail
-          # The event's base SHA goes stale once the base branch moves; the merge commit's first parent is what it merges into.
-          base_sha="$(git rev-parse "$GITHUB_SHA^1")"
-          head_sha="$GITHUB_SHA"
-          if ! git diff --quiet "$base_sha" "$GITHUB_SHA" -- catalogue.json; then
-            base_sha="$(git rev-parse "$HEAD_SHA^")"
-            head_sha="$HEAD_SHA"
-          fi
-          echo "sha=$base_sha" >> "$GITHUB_OUTPUT"
-          echo "head-sha=$head_sha" >> "$GITHUB_OUTPUT"
-      # Definitions and the points reference can publish at different times. Run
-      # both revisions against one snapshot and report absolute source baselines.
-      # A new snapshot needs a preceding code revision able to read its source format.
-      - name: Pin the catalogue snapshot
-        run: cp -a catalogue-data catalogue-data.pinned
-      - name: Measure the base
-        env:
-          CATALOGUE_BASELINES: report
-        run: |
-          set -euo pipefail
-          git checkout --quiet --force '${{ steps.comparison.outputs.sha }}'
-          pnpm install --frozen-lockfile
-          rm -rf catalogue-data && cp -a catalogue-data.pinned catalogue-data
-          pnpm catalogue:descriptions
-          pnpm catalogue:points | tee base-points.txt
-      - name: Measure the head
-        env:
-          CATALOGUE_BASELINES: report
-        run: |
-          set -euo pipefail
-          git checkout --quiet --force '${{ steps.comparison.outputs.head-sha }}'
-          pnpm install --frozen-lockfile
-          rm -rf catalogue-data && cp -a catalogue-data.pinned catalogue-data
-          pnpm catalogue:descriptions
-          pnpm catalogue:points | tee head-points.txt
-      - name: Require no points regression
-        run: |
-          set -euo pipefail
-          base_matched=$(sed -n 's/^matched: *\([0-9]*\).*/\1/p' base-points.txt)
-          base_checked=$(sed -n 's/^evaluated: *\([0-9]*\).*/\1/p' base-points.txt)
-          head_matched=$(sed -n 's/^matched: *\([0-9]*\).*/\1/p' head-points.txt)
-          head_checked=$(sed -n 's/^evaluated: *\([0-9]*\).*/\1/p' head-points.txt)
-          : "${base_matched:?missing base matched count}"
-          : "${base_checked:?missing base evaluated count}"
-          : "${head_matched:?missing head matched count}"
-          : "${head_checked:?missing head evaluated count}"
-          echo "base: $base_matched of $base_checked"
-          echo "head: $head_matched of $head_checked"
-          test "$head_checked" -ge 1500
-          test "$((head_matched * base_checked))" -ge "$((base_matched * head_checked))"
-
-  coverage-data:
-    needs: changes
-    if: needs.changes.outputs.runtime == 'true'
-    # A dropped field still renders, so it throws no exception and moves no event
-    # count. This job snapshots what the app can say about the data before and
-    # after the change and fails when the change drops any of it.
-    runs-on: ubuntu-latest
-    outputs:
-      base-sha: ${{ steps.revisions.outputs.base-sha }}
-      head-sha: ${{ steps.revisions.outputs.head-sha }}
-      needed: ${{ steps.scope.outputs.needed }}
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-      - name: Resolve compared revisions
-        id: revisions
-        env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha || github.sha }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-        run: |
-          set -euo pipefail
-          base_sha="$(git rev-parse "$GITHUB_SHA^1")"
-          if ! git diff --quiet "$BASE_SHA" "$HEAD_SHA" -- catalogue.json; then
-            base_sha="$(git rev-parse "$HEAD_SHA^")"
-          fi
-          {
-            echo "base-sha=$base_sha"
-            echo "head-sha=$GITHUB_SHA"
-          } >> "$GITHUB_OUTPUT"
-      - uses: richardsolomou/ras-stack/actions/setup-js@v1
-      - name: Decide whether the change can move the snapshot
-        id: scope
-        env:
-          BASE_SHA: ${{ steps.revisions.outputs.base-sha }}
-          HEAD_SHA: ${{ steps.revisions.outputs.head-sha }}
-        run: |
-          if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
-            node scripts/catalogueCoverageScope.ts
-          else
-            echo needed=true >> "$GITHUB_OUTPUT"
-          fi
-      - uses: ./.github/actions/catalogue-sync
-        if: steps.scope.outputs.needed == 'true'
-        with:
-          r2-account-id: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
-          r2-access-key-id: ${{ secrets.PRIVATE_R2_ACCESS_KEY_ID }}
-          r2-secret-access-key: ${{ secrets.PRIVATE_R2_SECRET_ACCESS_KEY }}
-      # Both snapshots must read one revision.json, or an upstream change between
-      # the runs reads back as a phantom loss.
-      - if: steps.scope.outputs.needed == 'true'
-        uses: actions/upload-artifact@v7
-        with:
-          name: coverage-catalogue
-          path: catalogue-data
-          retention-days: 1
-          compression-level: 1
-          include-hidden-files: true
-          if-no-files-found: error
-
-  coverage-snapshot:
-    needs: [coverage-data]
-    if: needs.coverage-data.outputs.needed == 'true'
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      # Coverage finishes minutes before the browser runners, so two at a time leaves their
-      # starting slots free; the head parts come first because the base ones are usually cached.
-      max-parallel: 2
-      matrix:
-        # Main's snapshot usually restores from the cache that `coverage-baseline.yml` fills
-        # part by part, but a pull request pushed just after main moved computes it here.
-        include:
-          - revision: head
-            sha: ${{ needs.coverage-data.outputs.head-sha }}
-            file: head-0.json
-            part: 0/2
-          - revision: head
-            sha: ${{ needs.coverage-data.outputs.head-sha }}
-            file: head-1.json
-            part: 1/2
-          - revision: base
-            sha: ${{ needs.coverage-data.outputs.base-sha }}
-            file: base-0.json
-            part: 0/2
-          - revision: base
-            sha: ${{ needs.coverage-data.outputs.base-sha }}
-            file: base-1.json
-            part: 1/2
-    steps:
-      # Each snapshot installs the dependencies of the revision it measures, so a
-      # dependency bump is compared honestly instead of running both sides on the
-      # head's node_modules, which is where a parser bump would drop fields unseen.
-      - uses: actions/checkout@v7
-        with:
-          ref: ${{ matrix.sha }}
-      - uses: richardsolomou/ras-stack/actions/setup-js@v1
-      - uses: actions/download-artifact@v8
-        with:
-          name: coverage-catalogue
-          path: catalogue-data
-      - name: Restore the base snapshot
-        if: matrix.revision == 'base'
-        id: base-cache
-        uses: actions/cache@v6
-        with:
-          path: ${{ matrix.file }}
-          key: catalogue-coverage-${{ matrix.sha }}-${{ matrix.file }}-${{ hashFiles('catalogue-data/.snapshot.json') }}
-      - name: Snapshot the ${{ matrix.revision }}
-        if: matrix.revision == 'head' || steps.base-cache.outputs.cache-hit != 'true'
-        run: pnpm catalogue:coverage:parallel ${{ matrix.file }} --part ${{ matrix.part }}
-      - uses: actions/upload-artifact@v7
-        with:
-          name: coverage-${{ matrix.file }}
-          path: ${{ matrix.file }}
-          retention-days: 1
-          if-no-files-found: error
+    uses: ./.github/workflows/ci-coverage.yml
+    secrets: inherit
 
   coverage:
     # A failed scope decision still fails here, because no snapshot ran.
-    if: always() && needs.changes.outputs.runtime != 'false' && needs.coverage-data.outputs.needed != 'false'
-    needs: [changes, coverage-data, coverage-snapshot]
+    if: always() && needs.changes.outputs.runtime != 'false' && needs.coverage-lane.outputs.needed != 'false'
+    needs: [changes, coverage-lane]
     runs-on: ubuntu-latest
-    env:
-      BASE_SHA: ${{ needs.coverage-data.outputs.base-sha }}
-      HEAD_SHA: ${{ needs.coverage-data.outputs.head-sha }}
     steps:
-      - name: Require both snapshots
-        run: test '${{ needs.coverage-snapshot.result }}' = success
-      - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-      - uses: richardsolomou/ras-stack/actions/setup-js@v1
-      - uses: actions/download-artifact@v8
-        with:
-          name: coverage-catalogue
-          path: catalogue-data
-      - uses: actions/download-artifact@v8
-        with:
-          pattern: coverage-*.json
-          merge-multiple: true
-      - name: Compare snapshots
-        run: |
-          set -euo pipefail
-          jq -s 'add' base-0.json base-1.json > base.json
-          jq -s 'add' head-0.json head-1.json > head.json
-          accepted=()
-          if [[ "$(git rev-parse -q --verify "$BASE_SHA:catalogue" || true)" != "$(git rev-parse "$HEAD_SHA:catalogue")" ]]; then
-            accepted=(--accept catalogue/accepted-coverage-losses.json)
-          fi
-          pnpm catalogue:coverage:compare base.json head.json "${accepted[@]}" | tee coverage.txt
-      - name: Require no lost coverage
-        run: |
-          set -euo pipefail
-          lost=$(sed -n 's/^## lost (\([0-9]*\)).*/\1/p' coverage.txt)
-          echo "lost: ${lost:-unknown}"
-          test "${lost:-1}" -eq 0
+      - run: test '${{ needs.coverage-lane.result }}' = success

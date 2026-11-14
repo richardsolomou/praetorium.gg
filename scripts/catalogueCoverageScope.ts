@@ -19,7 +19,7 @@ const coverageEntries = [
 const inputs = [
   /^catalogue(?:\.json|\/)/,
   /^(?:package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|mise\.toml)$/,
-  /^\.github\/workflows\/ci\.yml$/,
+  /^\.github\/workflows\/ci(?:-coverage)?\.yml$/,
 ]
 
 export function needsCatalogueCoverage(files: readonly string[], reached: ReadonlySet<string>) {

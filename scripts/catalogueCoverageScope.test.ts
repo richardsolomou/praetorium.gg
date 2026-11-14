@@ -19,6 +19,7 @@ it.each([
   'pnpm-workspace.yaml',
   'mise.toml',
   '.github/workflows/ci.yml',
+  '.github/workflows/ci-coverage.yml',
 ])('runs for %s, which the snapshot reads outside its imports', (file) => {
   expect(needsCatalogueCoverage([file], reached)).toBe(true)
 })

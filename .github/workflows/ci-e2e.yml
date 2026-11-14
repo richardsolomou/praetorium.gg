@@ -1,0 +1,112 @@
+name: CI e2e
+
+on:
+  workflow_call:
+    inputs:
+      node-version:
+        type: string
+        required: true
+      runner-count:
+        type: string
+        required: true
+      runners:
+        type: string
+        required: true
+      specs:
+        type: string
+        required: true
+      coverage:
+        description: Record the coverage map that pull requests choose specs from
+        type: boolean
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  e2e-shard:
+    name: E2E runner ${{ matrix.runner }} of ${{ inputs.runner-count }}
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: ${{ fromJSON(inputs.runners) }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/browser-test-stack
+        id: stack
+        # Catalogue snapshots are private, read only by the catalogue sync inside this action.
+        with:
+          node-version: ${{ inputs.node-version }}
+          r2-account-id: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          r2-access-key-id: ${{ secrets.PRIVATE_R2_ACCESS_KEY_ID }}
+          r2-secret-access-key: ${{ secrets.PRIVATE_R2_SECRET_ACCESS_KEY }}
+      - name: Run the E2E shard
+        env:
+          E2E_SHARD: ${{ matrix.runner }}
+          E2E_RUNNERS: ${{ inputs.runner-count }}
+          E2E_SPECS: ${{ inputs.specs != 'all' && inputs.specs || '' }}
+          E2E_COVERAGE_DIR: ${{ inputs.coverage && format('{0}/e2e-coverage', runner.temp) || '' }}
+          SPACETIME_BIN: ${{ steps.stack.outputs.spacetime-bin }}
+          PLAYWRIGHT_STARTUP_REPORT: e2e-startup-${{ matrix.runner }}.json
+        run: |
+          set -euo pipefail
+          PLAYWRIGHT_JSON_OUTPUT_NAME="$RUNNER_TEMP/e2e-tests.json" pnpm exec playwright test --list --reporter=json > /dev/null
+          node --import tsx scripts/e2eShard.ts "$RUNNER_TEMP/e2e-tests.json" "$E2E_SHARD" "$E2E_RUNNERS" > "$RUNNER_TEMP/e2e-shard.txt"
+          PLAYWRIGHT_PORT="$((4170 + E2E_SHARD))" \
+            PLAYWRIGHT_OUTPUT_DIR="test-results-$E2E_SHARD" \
+            PLAYWRIGHT_JSON_OUTPUT_NAME="e2e-report-$E2E_SHARD.json" \
+            pnpm exec playwright test --test-list="$RUNNER_TEMP/e2e-shard.txt" --reporter=github,json
+      - name: Report browser-test startup
+        if: success() || failure()
+        run: |
+          if test -f "e2e-startup-${{ matrix.runner }}.json"; then
+            echo 'Browser-test startup (seconds):' >> "$GITHUB_STEP_SUMMARY"
+            cat "e2e-startup-${{ matrix.runner }}.json" >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - if: inputs.coverage
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-coverage-${{ matrix.runner }}
+          path: ${{ runner.temp }}/e2e-coverage
+          retention-days: 2
+          if-no-files-found: error
+      # `just e2e-durations <run id>` rebalances the runners from these reports.
+      - if: success() || failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-report-${{ matrix.runner }}
+          path: e2e-report-${{ matrix.runner }}.json
+          retention-days: 30
+          if-no-files-found: ignore
+      # A test that passes on retry still leaves its failed attempt's trace here; screenshots
+      # that passing tests write are not worth an upload.
+      - if: failure() || (success() && hashFiles(format('test-results-{0}/**/trace.zip', matrix.runner)) != '')
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-results-${{ matrix.runner }}
+          path: |
+            test-results
+            test-results-*
+          retention-days: 7
+
+  e2e-map:
+    if: inputs.coverage
+    needs: [e2e-shard]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: richardsolomou/ras-stack/actions/setup-js@v1
+      - uses: actions/download-artifact@v8
+        with:
+          name: browser-test-build
+          path: data-dev/e2e-build
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: e2e-coverage-*
+          path: e2e-coverage
+      - run: pnpm exec tsx scripts/e2eMap.ts data-dev/e2e-build "$GITHUB_SHA" e2e-map.json e2e-coverage/*
+      - uses: actions/cache/save@v6
+        with:
+          path: e2e-map.json
+          key: e2e-map-${{ github.sha }}
