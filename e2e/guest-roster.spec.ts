@@ -195,7 +195,7 @@ test("a visitor's roster is listed on the rosters page as a saved one is", async
   await expect(row).toContainText('Necrons')
   await expect(row).toContainText('1 unit')
   await expect(row.getByText(/^\d+\/\d+$/)).toBeVisible()
-  await expect(page.getByRole('navigation', { name: 'Rosters' }).getByRole('link')).toHaveText(['Mine', 'Friends', 'Public', 'Played'])
+  await expect(page.getByRole('navigation', { name: 'Rosters' }).getByRole('link')).toHaveText(['Mine', 'Friends', 'Public', 'Played', 'Winning'])
   await shotAtWidths(page, 'round4-visitor-rosters')
   await row.getByRole('link').click()
   await expect(page).toHaveURL(builder)
