@@ -23,6 +23,7 @@ import { BATTLE_DIGEST_VERSION, type BattleDigest } from '../core/battleDigest'
 import { ROSTER_LIBRARY_BATCH_SIZE } from '../core/rosterLibrary'
 import { ROSTER_DISCOVERY_MAX_PAGE_SIZE, rosterDiscoveryCursorSchema, type RosterDiscoveryQuery } from '../core/rosterDiscovery'
 import type { PlayerDefaults } from '../core/playerDefaults'
+import type { CalendarFeedDates } from '../core/calendarFeed'
 import type { BattleOrder } from '../core/battleFilter'
 import { listPreferencesSchema, type ListFilterScope, type ListPreferences } from '../core/listFilter'
 import { playerDefaultsSchema } from '../contracts/schemas'
@@ -160,6 +161,12 @@ const productStat = z.object({
 const invite = z.object({ token: z.string(), inviterId: z.string() })
 const battleLink = z.object({ invite: z.string(), invitedIds: z.array(z.string()) })
 const acceptedInvite = z.union([z.enum(['missing', 'self', 'already-friends']), z.object({ inviterId: z.string() })])
+const calendarFeedDates = z.object({
+  leagues: z.array(
+    z.object({ groupToken: z.string(), groupName: z.string(), publishedAt: z.number(), deadlines: z.array(z.number().nullable()) }),
+  ),
+  tournaments: z.array(z.object({ token: z.string(), name: z.string(), playsAt: z.number().nullable(), sealBy: z.number().nullable() })),
+}) satisfies z.ZodType<CalendarFeedDates>
 const onboarding = z.object({
   tasks: z.array(z.object({ task: z.string(), state: z.enum(['completed', 'skipped']) })),
   facts: z.object({ roster: z.boolean(), friend: z.boolean(), battle: z.boolean(), tournament: z.boolean() }),
@@ -747,6 +754,22 @@ export class SpacetimeOperator {
 
   async cancelFriendInvite(inviterId: string) {
     return this.reply('cancel_friend_invite', [inviterId], z.boolean())
+  }
+
+  async calendarFeedByUser(userId: string) {
+    return this.read('calendar_feed_by_user', [userId], z.string().nullable())
+  }
+
+  async replaceCalendarFeed(userId: string, token: string, now: number) {
+    await this.call('replace_calendar_feed', [userId, token, now])
+  }
+
+  async removeCalendarFeed(userId: string) {
+    return this.reply('remove_calendar_feed', [userId], z.boolean())
+  }
+
+  async calendarFeed(token: string) {
+    return this.read('calendar_feed', [token], calendarFeedDates.nullable())
   }
 
   async acceptFriendInvite(token: string, recipientId: string, now: number) {

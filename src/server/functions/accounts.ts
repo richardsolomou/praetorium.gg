@@ -1,6 +1,7 @@
 import { productActions, signedInAction } from '../productActions'
 import { groupCollection } from '../../core/collection'
 import { createServerFn } from '@tanstack/react-start'
+import { randomToken } from 'ras-stack/auth'
 import { getRequest, getRequestHeaders } from '@tanstack/react-start/server'
 import {
   collectionPhotoIdSchema,
@@ -84,6 +85,36 @@ export const playerDefaults = createServerFn({ method: 'GET' }).handler(() =>
 export const setPlayerDefaults = createServerFn({ method: 'POST' })
   .validator(playerDefaultsSchema)
   .handler(({ data }) => signedInAction(productActions.setPlayerDefaults, data))
+
+/** The player's calendar feed token, or null while they have none or an administrator is impersonating them. */
+export const calendarFeedToken = createServerFn({ method: 'GET' }).handler(() =>
+  rpc(async () => {
+    const player = await currentUser()
+    return player && !player.impersonatedBy ? app().repository.calendarFeedByUser(player.id) : null
+  }),
+)
+
+/** Gives the player a new calendar feed address, which retires any address they had. */
+export const replaceCalendarFeed = createServerFn({ method: 'POST' }).handler(() =>
+  mutationRpc(async () => {
+    const player = await requireUser()
+    // The address keeps working after impersonation ends, so an administrator must not take one away.
+    if (player.impersonatedBy) throw new Response('stop impersonating to change the calendar feed', { status: 403 })
+    const replaced = (await app().repository.calendarFeedByUser(player.id)) !== null
+    const token = randomToken()
+    await app().repository.replaceCalendarFeed(player.id, token, Date.now())
+    await captureMutation(player.id, 'calendar_feed_created', { replaced })
+    return token
+  }),
+)
+
+export const removeCalendarFeed = createServerFn({ method: 'POST' }).handler(() =>
+  mutationRpc(async () => {
+    const userId = await requireUserId()
+    if (await app().repository.removeCalendarFeed(userId)) await captureMutation(userId, 'calendar_feed_removed')
+    return null
+  }),
+)
 
 export const accountMethods = createServerFn({ method: 'GET' }).handler(() =>
   rpc(async () => {

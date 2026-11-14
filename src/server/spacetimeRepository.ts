@@ -239,6 +239,22 @@ export class SpacetimeRepository {
     return this.product.replaceFriendInvite(...args)
   }
 
+  calendarFeedByUser(...args: Parameters<SpacetimeOperator['calendarFeedByUser']>) {
+    return this.product.calendarFeedByUser(...args)
+  }
+
+  replaceCalendarFeed(...args: Parameters<SpacetimeOperator['replaceCalendarFeed']>) {
+    return this.product.replaceCalendarFeed(...args)
+  }
+
+  removeCalendarFeed(...args: Parameters<SpacetimeOperator['removeCalendarFeed']>) {
+    return this.product.removeCalendarFeed(...args)
+  }
+
+  calendarFeed(...args: Parameters<SpacetimeOperator['calendarFeed']>) {
+    return this.product.calendarFeed(...args)
+  }
+
   cancelFriendInvite(...args: Parameters<SpacetimeOperator['cancelFriendInvite']>) {
     return this.product.cancelFriendInvite(...args)
   }

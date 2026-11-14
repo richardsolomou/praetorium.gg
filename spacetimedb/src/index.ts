@@ -849,6 +849,8 @@ export const deleteUserData = spacetime.reducer({ userId: t.string() }, (ctx, { 
   for (const row of Array.from(ctx.db.sealedEventRosterSharing.userId.filter(userId))) ctx.db.sealedEventRosterSharing.key.delete(row.key)
   touchPublic(ctx, 'collection')
   for (const row of Array.from(ctx.db.pushTokens.userId.filter(userId))) ctx.db.pushTokens.token.delete(row.token)
+  const feed = ctx.db.calendarFeeds.userId.find(userId)
+  if (feed) ctx.db.calendarFeeds.token.delete(feed.token)
   for (const row of Array.from(ctx.db.friendships.requesterId.filter(userId))) {
     touchFriends(ctx, row.requesterId, row.addresseeId)
     ctx.db.friendships.key.delete(row.key)
@@ -2354,6 +2356,64 @@ export const replaceFriendInvite = spacetime.reducer({ inviterId: t.string(), to
 
 export const cancelFriendInvite = spacetime.procedure({ inviterId: t.string() }, t.bool(), (ctx, { inviterId }) =>
   operatorTx(ctx, (tx) => cancelFriendInviteIn(tx, [inviterId])),
+)
+
+export const calendarFeedByUser = spacetime.procedure({ userId: t.string() }, t.string(), (ctx, { userId }) =>
+  operatorTx(ctx, (tx) => productJson(tx.db.calendarFeeds.userId.find(userId)?.token)),
+)
+
+export const replaceCalendarFeed = spacetime.reducer({ userId: t.string(), token: t.string(), now: t.u64() }, (ctx, input) => {
+  requireOperator(ctx)
+  if (!validId(input.userId) || !validId(input.token)) throw new SenderError('Invalid calendar feed')
+  const current = ctx.db.calendarFeeds.userId.find(input.userId)
+  if (current) ctx.db.calendarFeeds.token.delete(current.token)
+  ctx.db.calendarFeeds.insert({ token: input.token, userId: input.userId, createdAt: input.now })
+})
+
+export const removeCalendarFeed = spacetime.procedure({ userId: t.string() }, t.bool(), (ctx, { userId }) =>
+  operatorTx(ctx, (tx) => {
+    const current = tx.db.calendarFeeds.userId.find(userId)
+    return current ? tx.db.calendarFeeds.token.delete(current.token) : false
+  }),
+)
+
+/**
+ * The dates a calendar feed lists for its player: each round deadline of a published league they still play in, and the
+ * play day and roster deadline of each tournament they run or entered and still play in. Only these dates and the names
+ * the player already sees leave the module, never another player's entry or availability.
+ */
+export const calendarFeed = spacetime.procedure({ token: t.string() }, t.string(), (ctx, { token }) =>
+  operatorTx(ctx, (tx) => {
+    if (token.length > MAX_ID_LENGTH) throw new SenderError('Invalid calendar feed')
+    const feed = tx.db.calendarFeeds.token.find(token)
+    if (!feed) return productJson(null)
+    const { userId } = feed
+    const leagues = []
+    for (const player of tx.db.groupLeaguePlayers.userId.filter(userId)) {
+      if (player.withdrawn) continue
+      const league = tx.db.groupLeagues.id.find(player.leagueId)
+      if (league?.publishedAt === undefined) continue
+      const group = tx.db.groups.id.find(league.groupId)
+      if (!group || tx.db.groupMembers.key.find(JSON.stringify([group.id, userId]))?.status !== 'accepted') continue
+      leagues.push({ groupToken: group.token, groupName: group.name, publishedAt: league.publishedAt, deadlines: leagueDeadlines(league) })
+    }
+    const tournamentIds = new Set<string>()
+    for (const row of tx.db.tournaments.ownerId.filter(userId)) tournamentIds.add(row.id)
+    for (const row of tx.db.tournamentAdmins.userId.filter(userId)) tournamentIds.add(row.tournamentId)
+    for (const entry of tx.db.sealedEventEntries.userId.filter(userId)) {
+      if (entry.status !== 'accepted' || entry.droppedAt !== undefined) continue
+      const tournament = tx.db.tournaments.eventId.find(entry.eventId)
+      if (tournament) tournamentIds.add(tournament.id)
+    }
+    const tournaments = []
+    for (const id of tournamentIds) {
+      const tournament = tx.db.tournaments.id.find(id)
+      const event = tournament && tx.db.sealedEvents.id.find(tournament.eventId)
+      if (!event) continue
+      tournaments.push({ token: tournament.token, name: tournament.name, playsAt: event.playsAt ?? null, sealBy: event.sealBy ?? null })
+    }
+    return productJson({ leagues, tournaments })
+  }),
 )
 
 export const acceptFriendInvite = spacetime.procedure(

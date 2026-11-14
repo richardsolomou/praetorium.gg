@@ -1,3 +1,4 @@
+import { randomToken } from 'ras-stack/auth'
 import { hash } from 'node:crypto'
 import path from 'node:path'
 import { eq } from 'drizzle-orm'
@@ -387,6 +388,9 @@ async function readBack(repository: SpacetimeRepository, product: SpacetimeOpera
   for (const userId of userIds) {
     await repository.relationships(userId)
     await repository.friendInviteByInviter(userId)
+    const calendarFeed = await repository.calendarFeedByUser(userId)
+    if (calendarFeed) await repository.calendarFeed(calendarFeed)
+    else await repository.replaceCalendarFeed(userId, randomToken(), Date.now())
     await repository.onboardingProgress(userId)
     await repository.playerDefaults(userId)
     await repository.setListFilterPreferences(

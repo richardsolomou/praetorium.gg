@@ -53,6 +53,7 @@ const UNREACHED = new Set([
   'migrate_product_data',
   'ratings_before',
   'reject_friend',
+  'remove_calendar_feed',
   'remove_battle',
   'remove_friend',
   'rename_unit_loadout',

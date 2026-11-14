@@ -7,6 +7,7 @@ import {
   abilityReminders,
   accountMethods,
   activeFriendInvite,
+  calendarFeedToken,
   adminPlayerBattles,
   adminUserConnections,
   adminUserSessions,
@@ -85,6 +86,8 @@ export const friendInviteQuery = (token: string) =>
   })
 export const accountMethodsQuery = () =>
   queryOptions({ queryKey: ['account-methods'], queryFn: () => accountMethods(), staleTime: SSR_STALE_TIME })
+export const calendarFeedQuery = () =>
+  queryOptions({ queryKey: ['calendar-feed'], queryFn: () => calendarFeedToken(), staleTime: SSR_STALE_TIME })
 export const githubSponsorshipQuery = () =>
   queryOptions({ queryKey: ['github-sponsorship'], queryFn: () => githubSponsorship(), staleTime: SSR_STALE_TIME })
 /**

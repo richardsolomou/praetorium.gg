@@ -23,6 +23,8 @@ import * as BattleInviteProcedure from '../battle_invite_procedure'
 import * as BattleResultsAfterProcedure from '../battle_results_after_procedure'
 import * as BattleResultsByUserProcedure from '../battle_results_by_user_procedure'
 import * as BattlesForOperatorProcedure from '../battles_for_operator_procedure'
+import * as CalendarFeedProcedure from '../calendar_feed_procedure'
+import * as CalendarFeedByUserProcedure from '../calendar_feed_by_user_procedure'
 import * as CancelFriendInviteProcedure from '../cancel_friend_invite_procedure'
 import * as ChangeRostersProcedure from '../change_rosters_procedure'
 import * as ClaimGuestSeatProcedure from '../claim_guest_seat_procedure'
@@ -85,6 +87,7 @@ import * as RecentMatchupsByUserProcedure from '../recent_matchups_by_user_proce
 import * as RejectFriendProcedure from '../reject_friend_procedure'
 import * as RemoveBattleProcedure from '../remove_battle_procedure'
 import * as RemoveBattlePlayerProcedure from '../remove_battle_player_procedure'
+import * as RemoveCalendarFeedProcedure from '../remove_calendar_feed_procedure'
 import * as RemoveFriendProcedure from '../remove_friend_procedure'
 import * as RenameUnitLoadoutProcedure from '../rename_unit_loadout_procedure'
 import * as ReplaceGuestInviteProcedure from '../replace_guest_invite_procedure'
@@ -165,6 +168,10 @@ export type BattleResultsByUserArgs = __Infer<typeof BattleResultsByUserProcedur
 export type BattleResultsByUserResult = __Infer<typeof BattleResultsByUserProcedure.returnType>
 export type BattlesForOperatorArgs = __Infer<typeof BattlesForOperatorProcedure.params>
 export type BattlesForOperatorResult = __Infer<typeof BattlesForOperatorProcedure.returnType>
+export type CalendarFeedArgs = __Infer<typeof CalendarFeedProcedure.params>
+export type CalendarFeedResult = __Infer<typeof CalendarFeedProcedure.returnType>
+export type CalendarFeedByUserArgs = __Infer<typeof CalendarFeedByUserProcedure.params>
+export type CalendarFeedByUserResult = __Infer<typeof CalendarFeedByUserProcedure.returnType>
 export type CancelFriendInviteArgs = __Infer<typeof CancelFriendInviteProcedure.params>
 export type CancelFriendInviteResult = __Infer<typeof CancelFriendInviteProcedure.returnType>
 export type ChangeRostersArgs = __Infer<typeof ChangeRostersProcedure.params>
@@ -289,6 +296,8 @@ export type RemoveBattleArgs = __Infer<typeof RemoveBattleProcedure.params>
 export type RemoveBattleResult = __Infer<typeof RemoveBattleProcedure.returnType>
 export type RemoveBattlePlayerArgs = __Infer<typeof RemoveBattlePlayerProcedure.params>
 export type RemoveBattlePlayerResult = __Infer<typeof RemoveBattlePlayerProcedure.returnType>
+export type RemoveCalendarFeedArgs = __Infer<typeof RemoveCalendarFeedProcedure.params>
+export type RemoveCalendarFeedResult = __Infer<typeof RemoveCalendarFeedProcedure.returnType>
 export type RemoveFriendArgs = __Infer<typeof RemoveFriendProcedure.params>
 export type RemoveFriendResult = __Infer<typeof RemoveFriendProcedure.returnType>
 export type RenameUnitLoadoutArgs = __Infer<typeof RenameUnitLoadoutProcedure.params>

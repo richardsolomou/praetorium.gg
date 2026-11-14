@@ -55,6 +55,7 @@ import RemoveFavouriteDatasheetReducer from './remove_favourite_datasheet_reduce
 import RemoveFavouriteDetachmentReducer from './remove_favourite_detachment_reducer'
 import RemoveFavouriteFactionReducer from './remove_favourite_faction_reducer'
 import RemoveFromCollectionReducer from './remove_from_collection_reducer'
+import ReplaceCalendarFeedReducer from './replace_calendar_feed_reducer'
 import ReplaceFriendInviteReducer from './replace_friend_invite_reducer'
 import ReportCollectionPhotoReducer from './report_collection_photo_reducer'
 import RevokeSessionReducer from './revoke_session_reducer'
@@ -87,6 +88,8 @@ import * as BattleInviteProcedure from './battle_invite_procedure'
 import * as BattleResultsAfterProcedure from './battle_results_after_procedure'
 import * as BattleResultsByUserProcedure from './battle_results_by_user_procedure'
 import * as BattlesForOperatorProcedure from './battles_for_operator_procedure'
+import * as CalendarFeedProcedure from './calendar_feed_procedure'
+import * as CalendarFeedByUserProcedure from './calendar_feed_by_user_procedure'
 import * as CancelFriendInviteProcedure from './cancel_friend_invite_procedure'
 import * as ChangeRostersProcedure from './change_rosters_procedure'
 import * as ClaimGuestSeatProcedure from './claim_guest_seat_procedure'
@@ -149,6 +152,7 @@ import * as RecentMatchupsByUserProcedure from './recent_matchups_by_user_proced
 import * as RejectFriendProcedure from './reject_friend_procedure'
 import * as RemoveBattleProcedure from './remove_battle_procedure'
 import * as RemoveBattlePlayerProcedure from './remove_battle_player_procedure'
+import * as RemoveCalendarFeedProcedure from './remove_calendar_feed_procedure'
 import * as RemoveFriendProcedure from './remove_friend_procedure'
 import * as RenameUnitLoadoutProcedure from './rename_unit_loadout_procedure'
 import * as ReplaceGuestInviteProcedure from './replace_guest_invite_procedure'
@@ -271,6 +275,7 @@ const reducersSchema = __reducers(
   __reducerSchema('remove_favourite_detachment', RemoveFavouriteDetachmentReducer),
   __reducerSchema('remove_favourite_faction', RemoveFavouriteFactionReducer),
   __reducerSchema('remove_from_collection', RemoveFromCollectionReducer),
+  __reducerSchema('replace_calendar_feed', ReplaceCalendarFeedReducer),
   __reducerSchema('replace_friend_invite', ReplaceFriendInviteReducer),
   __reducerSchema('report_collection_photo', ReportCollectionPhotoReducer),
   __reducerSchema('revoke_session', RevokeSessionReducer),
@@ -305,6 +310,8 @@ const proceduresSchema = __procedures(
   __procedureSchema('battle_results_after', BattleResultsAfterProcedure.params, BattleResultsAfterProcedure.returnType),
   __procedureSchema('battle_results_by_user', BattleResultsByUserProcedure.params, BattleResultsByUserProcedure.returnType),
   __procedureSchema('battles_for_operator', BattlesForOperatorProcedure.params, BattlesForOperatorProcedure.returnType),
+  __procedureSchema('calendar_feed', CalendarFeedProcedure.params, CalendarFeedProcedure.returnType),
+  __procedureSchema('calendar_feed_by_user', CalendarFeedByUserProcedure.params, CalendarFeedByUserProcedure.returnType),
   __procedureSchema('cancel_friend_invite', CancelFriendInviteProcedure.params, CancelFriendInviteProcedure.returnType),
   __procedureSchema('change_rosters', ChangeRostersProcedure.params, ChangeRostersProcedure.returnType),
   __procedureSchema('claim_guest_seat', ClaimGuestSeatProcedure.params, ClaimGuestSeatProcedure.returnType),
@@ -379,6 +386,7 @@ const proceduresSchema = __procedures(
   __procedureSchema('reject_friend', RejectFriendProcedure.params, RejectFriendProcedure.returnType),
   __procedureSchema('remove_battle', RemoveBattleProcedure.params, RemoveBattleProcedure.returnType),
   __procedureSchema('remove_battle_player', RemoveBattlePlayerProcedure.params, RemoveBattlePlayerProcedure.returnType),
+  __procedureSchema('remove_calendar_feed', RemoveCalendarFeedProcedure.params, RemoveCalendarFeedProcedure.returnType),
   __procedureSchema('remove_friend', RemoveFriendProcedure.params, RemoveFriendProcedure.returnType),
   __procedureSchema('rename_unit_loadout', RenameUnitLoadoutProcedure.params, RenameUnitLoadoutProcedure.returnType),
   __procedureSchema('replace_guest_invite', ReplaceGuestInviteProcedure.params, ReplaceGuestInviteProcedure.returnType),

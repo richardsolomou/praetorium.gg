@@ -137,6 +137,13 @@ export const Battles = __t.object('Battles', {
 })
 export type Battles = __Infer<typeof Battles>
 
+export const CalendarFeeds = __t.object('CalendarFeeds', {
+  token: __t.string(),
+  userId: __t.string(),
+  createdAt: __t.u64(),
+})
+export type CalendarFeeds = __Infer<typeof CalendarFeeds>
+
 export const Collection = __t.object('Collection', {
   key: __t.string(),
   userId: __t.string(),

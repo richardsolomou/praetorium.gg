@@ -15,7 +15,7 @@ Publication is named sharing; there is no anonymous archive of private game stat
 - An imported battle seats a player as their account only once they proved the source account is theirs; until then they are a guest.
 - Every seat a player creates belongs to an account. Guest seats exist only on imported battles and on battles created before that, and no device signs in to one.
 - A reported collection photo is visible only to its owner and administrators until reviewed.
-- Account deletion removes rosters, loadouts, ability alerts, notifications, friendships, linked accounts on other trackers, entries, group memberships, owned tournaments and owned groups with their games, and every battle played. Tournament, hidden-list game and group deletion keep battles.
+- Account deletion removes rosters, loadouts, ability alerts, notifications, the calendar link, friendships, linked accounts on other trackers, entries, group memberships, owned tournaments and owned groups with their games, and every battle played. Tournament, hidden-list game and group deletion keep battles.
 - Revocable player-content images are `no-store`. Screenshots with roster or battle data stay out of Git.
 
 Authorities: [`rosterAccess`](../src/server/services/rosterService.ts), [`rosterDiscovery.ts`](../src/core/rosterDiscovery.ts), [`PraetoriumService`](../src/server/service.ts), [`sealedEvent.ts`](../src/core/sealedEvent.ts), and deletion in [`spacetimedb/src/index.ts`](../spacetimedb/src/index.ts).
