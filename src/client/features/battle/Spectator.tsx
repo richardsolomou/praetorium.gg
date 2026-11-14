@@ -390,7 +390,7 @@ function SpectatorSide({
             </div>
             <div className="min-w-0">
               <dt className="eyebrow">Command points</dt>
-              <dd key={side.cp} className={`figure animate-figure text-4xl leading-none font-bold ${colours.text}`}>
+              <dd key={side.cp} className={`figure animate-figure text-4xl leading-none font-bold ${colours.score}`}>
                 {side.cp}
               </dd>
             </div>

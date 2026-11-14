@@ -126,7 +126,7 @@ export const SidePanel = memo(function SidePanel({
             </div>
             <div className="min-w-0">
               <p className="eyebrow">Command points</p>
-              <p key={side.cp} data-stat="cp" className={`figure animate-figure text-4xl leading-none font-bold ${colours.text}`}>
+              <p key={side.cp} data-stat="cp" className={`figure animate-figure text-4xl leading-none font-bold ${colours.score}`}>
                 {side.cp}
               </p>
               <div className="mt-1 flex flex-wrap items-center gap-2">

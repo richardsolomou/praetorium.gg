@@ -6,10 +6,12 @@
 const SIDE_TINTS = [
   {
     text: 'text-side-a',
-    edge: 'border-t-side-a',
-    rail: 'bg-side-a',
+    /** A figure the whole side owns, such as its score, in every one of its players' colours. */
+    score: 'text-blend [--text-blend:var(--side-a-blend)]',
+    edge: 'edge-blend [--edge-blend:var(--side-a-blend)]',
+    rail: 'bg-side-a bg-(image:--side-a-blend)',
     /** The colour a line-form rail draws in for this side. */
-    line: '[--line-colour:var(--color-side-a)]',
+    line: '[--line-colour:var(--color-side-a)] [--line-blend:var(--side-a-blend)]',
     glow: 'ring-side-a/40',
     /** A control that acts for this side, so pressing it already says whose it is. */
     fill: 'bg-side-a-fill text-side-a-ink hover:bg-side-a-fill/80',
@@ -21,9 +23,10 @@ const SIDE_TINTS = [
   },
   {
     text: 'text-side-b',
-    edge: 'border-t-side-b',
-    rail: 'bg-side-b',
-    line: '[--line-colour:var(--color-side-b)]',
+    score: 'text-blend [--text-blend:var(--side-b-blend)]',
+    edge: 'edge-blend [--edge-blend:var(--side-b-blend)]',
+    rail: 'bg-side-b bg-(image:--side-b-blend)',
+    line: '[--line-colour:var(--color-side-b)] [--line-blend:var(--side-b-blend)]',
     glow: 'ring-side-b/40',
     fill: 'bg-side-b-fill text-side-b-ink hover:bg-side-b-fill/80',
     border: 'border-side-b/70',

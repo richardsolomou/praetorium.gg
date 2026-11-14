@@ -1,10 +1,11 @@
 import { Link } from '@tanstack/react-router'
-import type { ReactNode } from 'react'
+import { Fragment, type ReactNode } from 'react'
 import { cn } from '@/lib/utils'
 import { isGuestSeat } from '../../../core/newBattle'
 import type { Army, Side } from '../../sides'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { tint } from './battleTints'
+import { PlayerTint } from './battleColours'
 
 /** A side's colour, where its name is not on screen to carry it. */
 export function SideDot({ side }: { side: number }) {
@@ -25,11 +26,11 @@ export function PlayerName({ army, linked = true, badge }: { army: Army; linked?
   const inner = (
     <>
       <PlayerAvatar name={army.playerName} image={army.playerImage} className="size-6 text-xs" />
-      <span className={`break-words ${linked ? 'group-hover:underline' : ''}`}>
+      <PlayerTint playerId={army.playerId} className={`break-words ${linked ? 'group-hover:underline' : ''}`}>
         {army.playerName}
         {/* Inside the name so it wraps with it rather than squeezing it in a narrow card. */}
         {guest ? <span className="chip ml-1.5 align-middle">Guest</span> : badge}
-      </span>
+      </PlayerTint>
     </>
   )
   // Unlinked where the card around it is already a control: a link inside a button is
@@ -40,6 +41,16 @@ export function PlayerName({ army, linked = true, badge }: { army: Army; linked?
       {inner}
     </Link>
   )
+}
+
+/** A side named the way `sideName` writes it, each player in their own colour. */
+export function SideNames({ side }: { side: { armies: readonly { playerId: string; playerName: string }[] } }) {
+  return side.armies.map((army, at) => (
+    <Fragment key={army.playerId}>
+      {at ? <span className="text-dim"> &amp; </span> : null}
+      <PlayerTint playerId={army.playerId}>{army.playerName}</PlayerTint>
+    </Fragment>
+  ))
 }
 
 /**
