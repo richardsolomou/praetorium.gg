@@ -243,8 +243,8 @@ try {
         }
       }
       // A running server has already refreshed the ratings and read the table, so the burst times only this round's change.
-      await service.refreshStandings()
-      await service.sealedEventResults(token, eventToken, null, [], owner)
+      await service.standingsService.refreshStandings()
+      await service.sealedEventResultsService.sealedEventResults(token, eventToken, null, [], owner)
       const pairings = (await repository.sealedEventByToken(token, owner, eventToken))!.pairings.filter(
         (pairing) => pairing.round === played + 1,
       )
@@ -252,12 +252,22 @@ try {
         Promise.all([
           ...pairings.map(async (pairing, index) => {
             await timed('report result', () =>
-              service.reportTableResult(token, eventToken, pairing.round, pairing.table, [70, 50 + (index % 20)], null, pairing.aId),
+              service.sealedEventResultsService.reportTableResult(
+                token,
+                eventToken,
+                pairing.round,
+                pairing.table,
+                [70, 50 + (index % 20)],
+                null,
+                pairing.aId,
+              ),
             )
-            await timed('rating changes', () => service.battleRatingChanges(pairing.battleToken!))
+            await timed('rating changes', () => service.standingsService.battleRatingChanges(pairing.battleToken!))
           }),
           ...Array.from({ length: reads }, () =>
-            players.map((id) => timed('tournament results', () => service.sealedEventResults(token, eventToken, null, [], id))),
+            players.map((id) =>
+              timed('tournament results', () => service.sealedEventResultsService.sealedEventResults(token, eventToken, null, [], id)),
+            ),
           ).flat(),
         ]),
       )
@@ -323,9 +333,9 @@ try {
           fixtureKey: fixture.key,
         })
       }
-      await service.refreshStandings()
-      await service.groupStandings(token, owner, [])
-      await service.groupLeague(token, owner, [])
+      await service.standingsService.refreshStandings()
+      await service.groupResultsService.groupStandings(token, owner, [])
+      await service.groupResultsService.groupLeague(token, owner, [])
       // Each table's sequence as its players' screens hold it before they end the battle.
       const timedRound = await Promise.all(
         leagueFixtures
@@ -352,12 +362,12 @@ try {
               })
               if (result.outcome !== 'appended') throw new Error(`The battle refused its end: ${JSON.stringify(result)}`)
             })
-            await timed('rating changes', () => service.battleRatingChanges(table.token))
+            await timed('rating changes', () => service.standingsService.battleRatingChanges(table.token))
           }),
           ...Array.from({ length: reads }, () =>
             players.flatMap((id) => [
-              timed('group standings', () => service.groupStandings(token, id, [])),
-              timed('group league', () => service.groupLeague(token, id, [])),
+              timed('group standings', () => service.groupResultsService.groupStandings(token, id, [])),
+              timed('group league', () => service.groupResultsService.groupLeague(token, id, [])),
             ]),
           ).flat(),
         ]),
