@@ -1,6 +1,15 @@
-import { expect, test } from './test'
+import { expect, test, type Page } from './test'
 import { addUnit, chooseRosterAction, createRoster, expectNoPageOverflow, PHONE, signUp } from './account'
 import { attach } from './builder.harness'
+
+/** Grading simulates every unit against benchmark lists, which on a busy runner outlasts the usual wait. */
+async function openGrades(page: Page) {
+  await chooseRosterAction(page, 'Grade this roster')
+  const dialog = page.getByRole('dialog', { name: 'Roster grades', exact: true })
+  await expect(dialog).toBeVisible()
+  await expect(dialog.getByRole('status', { name: 'Grading this roster' })).toBeHidden({ timeout: 60_000 })
+  return dialog
+}
 
 test('grades a mixed model unit using its combined wounds', async ({ page }) => {
   await signUp(page, 'Mixed model grades')
@@ -11,8 +20,7 @@ test('grades a mixed model unit using its combined wounds', async ({ page }) => 
     size: /King of the Colosseum/,
   })
   await addUnit(page, 'Accursed Cultists')
-  await chooseRosterAction(page, 'Grade this roster')
-  const dialog = page.getByRole('dialog', { name: 'Roster grades', exact: true })
+  const dialog = await openGrades(page)
   await expect(dialog.locator('[data-grade-row="survive"]')).toContainText("takes 57% of a unit's wounds")
   await expect(dialog).toContainText('Nearby units’ auras, returning models and stratagems are not included.')
   await page.screenshot({ path: test.info().outputPath('mixed-unit-grades-desktop.png') })
@@ -31,8 +39,7 @@ test('shows shooting and kill triggered unit generation without scoring it', asy
   })
   await addUnit(page, 'Biovores')
   await addUnit(page, 'Parasite of Mortrex')
-  await chooseRosterAction(page, 'Grade this roster')
-  const dialog = page.getByRole('dialog', { name: 'Roster grades', exact: true })
+  const dialog = await openGrades(page)
   const generation = dialog.locator('[data-grade-row="generation"]')
   await expect(generation).toContainText('SPORE MINES (uses shooting; once per turn across your army)')
   await expect(generation).toContainText('Ripper Swarms (requires a qualifying kill)')
@@ -59,8 +66,7 @@ test('updates leader weapon grants when a Prime joins and leaves Hormagaunts', a
   await attach(page, 'Tyranid Prime with Lash Whip', 'Hormagaunts')
   await expect(weapon).toContainText('Sustained Hits 1')
   await weapon.screenshot({ path: test.info().outputPath('prime-grants-sustained-hits.png') })
-  await chooseRosterAction(page, 'Grade this roster')
-  const dialog = page.getByRole('dialog', { name: 'Roster grades', exact: true })
+  const dialog = await openGrades(page)
   const movement = dialog.locator('[data-grade-row="movement"]')
   await expect(movement).toContainText('Advance and charge')
   await expect(dialog).toContainText('Charge & deployment')

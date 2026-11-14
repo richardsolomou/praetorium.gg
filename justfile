@@ -203,6 +203,10 @@ e2e-durations +runs:
     for run in {{ runs }}; do gh run download "$run" --pattern 'e2e-report-*' --dir "${TMPDIR:-/tmp}/praetorium-e2e-reports-$run"; done
     pnpm exec tsx scripts/e2eShard.ts --record $(for run in {{ runs }}; do ls "${TMPDIR:-/tmp}/praetorium-e2e-reports-$run"/*/*.json; done)
 
+# Replace the screenshot baselines with the images a CI run's failed comparisons took
+e2e-screenshots run:
+    pnpm exec tsx scripts/e2eScreenshots.ts {{ run }}
+
 # Build the native watch companion and capture its three screens with debug demo data
 watch-simulator:
     pnpm exec tsx scripts/watchSimulator.ts
