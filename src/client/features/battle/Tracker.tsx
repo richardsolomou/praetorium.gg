@@ -698,6 +698,7 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
                     pending={pending || promptMinimized || remove.isPending}
                     actionRemindersEnabled={actionRemindersEnabled}
                     timerPaused={clock.paused}
+                    token={view.token}
                     onTimerPausedChange={(paused) => sendAction({ kind: paused ? 'pause-clock' : 'resume-clock' })}
                     players={view.players}
                     onActionRemindersChange={view.settings.manual ? undefined : updateActionReminders}

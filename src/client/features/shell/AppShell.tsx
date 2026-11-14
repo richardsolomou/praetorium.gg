@@ -303,7 +303,36 @@ function SiteFooter() {
   )
 }
 
+/** A stream overlay is laid over someone's video, so it brings neither the app around it nor a background of its own. */
+const STREAM_OVERLAY = /^\/battles\/[^/]+\/overlay\/?$/
+
+// A browser source stays open for a whole game with nobody using it, so there is no session worth replaying.
+const OVERLAY_POSTHOG_OPTIONS = { ...POSTHOG_BROWSER_OPTIONS, disable_session_recording: true }
+
 export function AppShell() {
+  const overlay = useLocation({ select: (location) => STREAM_OVERLAY.test(location.pathname) })
+  // Browser tests wait for this before interacting: a click before hydration does nothing.
+  useEffect(() => document.documentElement.setAttribute('data-hydrated', ''), [])
+  return overlay ? <OverlayShell /> : <AppFrame />
+}
+
+function OverlayShell() {
+  return (
+    <html lang="en" className="bg-transparent" suppressHydrationWarning>
+      <head>
+        <HeadContent />
+      </head>
+      <body>
+        <PostHogIntegration environment={posthog} options={OVERLAY_POSTHOG_OPTIONS} service={posthogService}>
+          <Outlet />
+        </PostHogIntegration>
+        <Scripts />
+      </body>
+    </html>
+  )
+}
+
+function AppFrame() {
   const location = useLocation()
   const path = location.pathname
   const immersive = ROSTER_WORKSPACE.test(path)
@@ -317,8 +346,6 @@ export function AppShell() {
   useSpacetimeLiveProduct(realtime, Boolean(me))
   useLayoutEffect(followTextSourceChoice, [])
   useLayoutEffect(() => followRailState(immersive), [immersive])
-  // Browser tests wait for this before interacting: a click before hydration does nothing.
-  useEffect(() => document.documentElement.setAttribute('data-hydrated', ''), [])
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
