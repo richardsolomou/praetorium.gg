@@ -136,6 +136,10 @@ catalogue-history-seed *args:
 descriptions:
     pnpm catalogue:descriptions
 
+# List where the snapshot's datasheets disagree with Game Datacards (pin and HEAD) and 40kdc-data (HEAD), into data-dev/drift/
+drift:
+    pnpm exec tsx scripts/catalogueDrift.ts
+
 # Price every datasheet against the Munitorum. A ratchet: it may not go down
 points:
     pnpm catalogue:points

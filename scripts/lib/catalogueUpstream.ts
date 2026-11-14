@@ -1,7 +1,38 @@
 import { execFileSync } from 'node:child_process'
+import fs from 'node:fs'
+import path from 'node:path'
 import { catalogueSourcesSchema, type CatalogueSourceConfig, type SourceName } from '../../src/server/catalogueSources'
 import { catalogueCompositionSchema, type CatalogueComposition } from '../../src/server/catalogueComposition'
-import { battlemasterCatalogue } from '../../src/server/sync'
+import { battlemasterCatalogue, fetchInto } from '../../src/server/sync'
+import { userCacheRoot } from './catalogueCache'
+
+/** The commit a GitHub branch points at now. */
+export function upstreamHead(repository: string, branch: string) {
+  const ref = `refs/heads/${branch}`
+  const result = execFileSync('git', ['ls-remote', '--exit-code', `https://github.com/${repository}.git`, ref], {
+    encoding: 'utf8',
+    timeout: 20_000,
+    env: { ...process.env, GIT_TERMINAL_PROMPT: '0' },
+  })
+    .trim()
+    .split(/\s+/)
+  const head = result[0]
+  if (!head || !/^[a-f0-9]{40}$/.test(head) || result[1] !== ref || result.length !== 2)
+    throw new Error(`invalid upstream commit for ${repository}@${branch}`)
+  return head
+}
+
+/** A source's files at one commit, fetched once into the per-user cache, which keeps only the latest commit fetched. */
+export async function cachedUpstream(repository: string, revision: string, sourcePath?: string) {
+  const parent = path.join(userCacheRoot(), 'upstream-sources', repository.replace('/', '__'))
+  const directory = path.join(parent, revision)
+  if (!fs.existsSync(directory)) {
+    await fetchInto(repository, revision, directory, sourcePath)
+    for (const other of fs.readdirSync(parent))
+      if (other !== revision) fs.rmSync(path.join(parent, other), { recursive: true, force: true })
+  }
+  return sourcePath ? path.join(directory, sourcePath) : directory
+}
 
 export async function resolveCatalogueUpstream(
   sources: CatalogueSourceConfig,
@@ -24,21 +55,8 @@ export async function resolveCatalogueUpstream(
   }
   const resolve = <T extends CatalogueSourceConfig['definitions']>(source: T, label: string): T => {
     const key = `${source.repository}@${source.branch}`
-    let head = heads.get(key)
-    if (!head) {
-      const ref = `refs/heads/${source.branch}`
-      const result = execFileSync('git', ['ls-remote', '--exit-code', `https://github.com/${source.repository}.git`, ref], {
-        encoding: 'utf8',
-        timeout: 20_000,
-        env: { ...process.env, GIT_TERMINAL_PROMPT: '0' },
-      })
-        .trim()
-        .split(/\s+/)
-      head = result[0]
-      if (!head || !/^[a-f0-9]{40}$/.test(head) || result[1] !== ref || result.length !== 2)
-        throw new Error(`invalid upstream commit for ${key}`)
-      heads.set(key, head)
-    }
+    const head = heads.get(key) ?? upstreamHead(source.repository, source.branch)
+    heads.set(key, head)
     return { ...source, revision: revision(label, source.revision, head) }
   }
   const nextSources = catalogueSourcesSchema.parse({
