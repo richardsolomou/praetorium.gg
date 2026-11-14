@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.241.6 (2026-11-14)
+
+### Patch Changes
+
+- 27dcb0f: The First turn step in battle setup now says which earlier step it waits on.
+
 ## 0.241.5 (2026-11-14)
 
 ### Patch Changes
