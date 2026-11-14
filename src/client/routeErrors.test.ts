@@ -8,6 +8,7 @@ const client = vi.hoisted(() => ({ captureException, capture, __loaded: true }))
 vi.mock('posthog-js', () => ({ posthog: client }))
 
 import { POSTHOG_BROWSER_OPTIONS } from '../posthog'
+import { CONNECTION_LOST_MESSAGE } from './networkErrors'
 import { OfflineRefusal } from './offline/offlineRefusal'
 import {
   completedRouteRecovery,
@@ -85,6 +86,10 @@ it.each([
   'not an error',
 ])('hides a raw route error behind a retry message: %s', (error) => {
   expect(routeErrorExplanation(error)).toBe('This page could not load. Try again.')
+})
+
+it('says the connection dropped instead of quoting the browser', () => {
+  expect(routeErrorExplanation(new TypeError('Load failed'))).toBe(CONNECTION_LOST_MESSAGE)
 })
 
 it('explains a failed route import without assuming a deploy caused it', () => {

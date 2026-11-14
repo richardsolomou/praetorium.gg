@@ -2,7 +2,7 @@ import { offlineData } from './offline/runtime'
 import { MutationCache, QueryCache, type Query } from '@tanstack/react-query'
 import { posthog } from 'posthog-js'
 import { isSignedOut } from '../core/session'
-import { HttpStatusError, isFetchNetworkFailure } from './networkErrors'
+import { CONNECTION_LOST_MESSAGE, HttpStatusError, isFetchNetworkFailure } from './networkErrors'
 import { OfflineRefusal } from './offline/offlineRefusal'
 import { createQueryClient as configuredQueryClient } from 'ras-stack/query'
 import { captureAppSnapshot, restoreAppSnapshot } from './offline/appSnapshot'
@@ -52,6 +52,7 @@ const isTimeout = (error: unknown) => error instanceof Error && error.name === '
 
 export function errorMessage(error: unknown, fallback = 'Something went wrong. Try again.') {
   if (isTimeout(error)) return 'That took too long. Try again.'
+  if (isFetchNetworkFailure(error)) return CONNECTION_LOST_MESSAGE
   return error instanceof Error && error.message ? error.message : fallback
 }
 
