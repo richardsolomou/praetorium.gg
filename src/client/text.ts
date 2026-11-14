@@ -13,4 +13,9 @@ export const signedLabel = (value: number) => `${value > 0 ? '+' : value < 0 ? '
 
 export const percentLabel = (rate: number) => `${Math.round(rate * 100)}%`
 
+const ORDINAL = new Intl.PluralRules('en-GB', { type: 'ordinal' })
+const SUFFIX: Partial<Record<Intl.LDMLPluralRule, string>> = { one: 'st', two: 'nd', few: 'rd' }
+/** A finishing place, such as "1st" or "3rd". */
+export const placingLabel = (placing: number) => `${placing}${SUFFIX[ORDINAL.select(placing)] ?? 'th'}`
+
 export { matchesSearch } from '../core/text'

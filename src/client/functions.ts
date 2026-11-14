@@ -188,6 +188,8 @@ export const playerBattles = (args: Parameters<typeof server.playerBattles>[0]) 
     : cachedPage(playerBattlesKey(args.data.userId), args.data.before, () => server.playerBattles(args))
 export const winningLists = () => server.winningLists()
 export const winningList = (args: Parameters<typeof server.winningList>[0]) => server.winningList(args)
+export const topFourUnitCounts = (args: Parameters<typeof server.topFourUnitCounts>[0]) => server.topFourUnitCounts(args)
+export const topFourUnitLists = (args: Parameters<typeof server.topFourUnitLists>[0]) => server.topFourUnitLists(args)
 export const standings = () => cachedRead(standingsKey(), () => server.standings())
 export const playerRosters = (args: Parameters<typeof server.playerRosters>[0]) =>
   cachedRead(playerRostersKey(args.data.userId), () => server.playerRosters(args))

@@ -11,7 +11,7 @@ import { countLabel } from '../../text'
 import { ListBuilder } from './ListBuilder'
 import { NO_PREP } from './rosterDraft'
 import { openWinningImport } from './winningListImport'
-import { placingLabel } from './WinningListsPage'
+import { placingLabel } from '../../text'
 
 /** A winning list read in the roster screen before anyone imports it, with the way to import it. */
 export function WinningListRoster({ id }: { id: string }) {
@@ -32,7 +32,7 @@ export function WinningListRoster({ id }: { id: string }) {
         icon={Trophy}
         action={
           <Link to="/rosters" search={{ view: 'winning' }} className={buttonClass({ variant: 'outline' })}>
-            <ArrowLeft /> Winning lists
+            <ArrowLeft /> Top four
           </Link>
         }
       />
@@ -53,7 +53,7 @@ export function WinningListRoster({ id }: { id: string }) {
             router.history.back()
           }}
         >
-          <ArrowLeft /> Winning lists
+          <ArrowLeft /> Top four
         </Link>
         <span className="chip shrink-0">{placingLabel(list.placing)}</span>
         <span className="shrink-0">{list.record}</span>

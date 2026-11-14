@@ -40,8 +40,8 @@ export type RosterDiscoverySearch = PeriodFilter & { q?: string; sort?: RosterSo
     Record<(typeof DISCOVERY_FACETS)[number], FacetAddress>
   >
 
-/** The Winning tab's filters: detachments by slug, so one shared by several chapters is one choice. */
-export const WINNING_FACETS = ['faction', 'detachment', 'disposition', 'placing', 'players'] as const
+/** The Top four tab's filters: detachments by slug, so one shared by several chapters is one choice; units by datasheet id. */
+export const WINNING_FACETS = ['faction', 'detachment', 'unit', 'disposition', 'placing', 'players'] as const
 export type WinningSearch = PeriodFilter & { q?: string } & Partial<Record<(typeof WINNING_FACETS)[number], FacetAddress>>
 
 export type RostersSearch = RosterLibrarySearch &

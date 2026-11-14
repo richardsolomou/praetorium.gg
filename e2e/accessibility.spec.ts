@@ -242,6 +242,6 @@ test.describe('a touch device', () => {
       ),
     )
     await page.goto('/rosters?view=winning')
-    await expect(page.getByRole('navigation', { name: 'Rosters' }).getByRole('link', { name: 'Winning' })).toBeInViewport({ ratio: 0.99 })
+    await expect(page.getByRole('navigation', { name: 'Rosters' }).getByRole('link', { name: 'Top four' })).toBeInViewport({ ratio: 0.99 })
   })
 })

@@ -72,9 +72,9 @@ export const Route = createFileRoute('/rosters/')({
       match.context.origin,
       match.search.view === 'winning'
         ? {
-            title: 'Winning Warhammer 40,000 army lists',
+            title: 'Top-four Warhammer 40,000 tournament lists',
             description:
-              'Browse recent top-four Warhammer 40,000 tournament lists that import cleanly under today’s points, and import one as your own roster.',
+              'Browse Warhammer 40,000 lists that finished in the top four at tournaments outside Praetorium and are still legal under today’s points, and import one as your own roster.',
             path: '/rosters?view=winning',
           }
         : match.search.view === 'played'

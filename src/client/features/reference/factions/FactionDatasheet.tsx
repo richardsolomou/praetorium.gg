@@ -25,7 +25,7 @@ import {
   weaponProfileGroups,
   weaponProfileMode,
 } from '../../../datasheet'
-import { datasheetSlugQuery, referenceChangesQuery } from '../../../queries'
+import { datasheetSlugQuery, referenceChangesQuery, TOP_FOUR_SOURCE_URL, topFourUnitListsQuery } from '../../../queries'
 import { changeDetail } from '../../../catalogueChanges'
 import { useDateFormatting } from '../../../dates'
 import { FactionMark, factionColour } from '../../../components/FactionMark'
@@ -41,6 +41,7 @@ import { groupBy } from '../../../../core/collections'
 import { rulesVersionLabel } from '../../../../core/catalogueEdition'
 import { reportDataProblem } from '../../feedback/support'
 import { SectionHeading } from '../../../components/SectionHeading'
+import { countLabel, placingLabel } from '../../../text'
 import { FactionGames } from './FactionGames'
 
 export function FactionDatasheet() {
@@ -131,6 +132,7 @@ export function FactionDatasheet() {
         <Abilities abilities={abilities} rules={sheet.keywordRules} />
         <ProfileRules profiles={sheet.profiles} rules={sheet.keywordRules} />
         <UnitConfiguration sheet={sheet} rules={sheet.keywordRules} />
+        <TopFourLists faction={faction} entryId={sheet.id} name={sheet.name} />
         <PointsChanges faction={faction} slug={sheet.slug} />
         <TransportReference transport={sheet.transport} profiles={structured.transport} abilities={abilities} rules={sheet.keywordRules} />
         <Relationships sheet={sheet} abilityIds={relationshipAbilityIds} />
@@ -190,6 +192,76 @@ export function Abilities({ abilities, rules }: { abilities: DisplayAbility[]; r
       </section>
     )
   })
+}
+
+const SHOWN_LISTS = 5
+
+/** The faction's top-four tournament lists that field this datasheet: how many, how they take it, and the newest few. */
+function TopFourLists({
+  faction,
+  entryId,
+  name,
+}: {
+  faction: { id: string; slug: string; displayName: string }
+  entryId: string
+  name: string
+}) {
+  const { data } = useQuery(topFourUnitListsQuery(faction.id, entryId))
+  const { date } = useDateFormatting()
+  if (!data?.lists.length) return null
+  const { lists, of } = data
+  const tallied = (values: readonly number[]) =>
+    [...groupBy(values, (value) => value)].toSorted(([left], [right]) => left - right).map(([value, all]) => [value, all.length] as const)
+  const copies = tallied(lists.map((list) => list.models.length))
+  const sizes = tallied(lists.flatMap((list) => list.models))
+  return (
+    <section id="top-four-lists">
+      <SectionHeading title="Top-four tournament lists" count={lists.length} />
+      <p className="text-sm text-dim">
+        {lists.length} of the {of} {faction.displayName} lists that finished top four at tournaments outside Praetorium take {name}. The
+        lists come from{' '}
+        <a href={TOP_FOUR_SOURCE_URL} target="_blank" rel="noreferrer" className="underline">
+          40k Stats
+        </a>
+        .
+      </p>
+      <dl className="mt-3 grid gap-x-6 gap-y-1 text-sm sm:grid-cols-[auto_1fr]">
+        <dt className="eyebrow self-center">Copies</dt>
+        <dd className="readout text-bone">{copies.map(([count, taking]) => `${count}× in ${countLabel(taking, 'list')}`).join(' · ')}</dd>
+        {sizes.length > 1 ? (
+          <>
+            <dt className="eyebrow self-center">Unit size</dt>
+            <dd className="readout text-bone">
+              {sizes.map(([models, units]) => `${countLabel(models, 'model')} in ${countLabel(units, 'unit')}`).join(' · ')}
+            </dd>
+          </>
+        ) : null}
+      </dl>
+      <ul className="mt-3 runner gap-1.5 [--gate-y:1.25rem]">
+        {lists.slice(0, SHOWN_LISTS).map((list) => (
+          <li key={list.id}>
+            <Link
+              to="/rosters/winning/$listId"
+              params={{ listId: list.id }}
+              className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 part px-4 py-2 text-sm hover:border-runner-hi hover:bg-raised"
+            >
+              <span className="chip shrink-0">{placingLabel(list.placing)}</span>
+              <span className="min-w-0 flex-1 truncate font-semibold">{list.event.name}</span>
+              {list.models.length > 1 ? <span className="readout text-xs text-dim">{list.models.length}×</span> : null}
+              <span className="readout text-xs text-dim">{date(Date.parse(list.event.date))}</span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+      <Link
+        to="/rosters"
+        search={{ view: 'winning', faction: faction.slug, unit: entryId }}
+        className="mt-2 inline-block text-sm text-dim underline decoration-runner-hi underline-offset-4 hover:text-bone"
+      >
+        {lists.length > SHOWN_LISTS ? `All ${countLabel(lists.length, 'list')}` : 'Open on the Top four tab'}
+      </Link>
+    </section>
+  )
 }
 
 function UnitConfiguration({ sheet, rules }: { sheet: Datasheet; rules: KeywordRule[] }) {

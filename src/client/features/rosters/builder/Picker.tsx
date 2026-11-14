@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { EllipsisVertical, Heart, Plus, type LucideIcon } from 'lucide-react'
+import { EllipsisVertical, Heart, Plus, Trophy, type LucideIcon } from 'lucide-react'
 import { Fragment, memo, useId, useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -14,9 +14,10 @@ import type { RosterPick } from '../../../../core/roster'
 import { SearchField } from '../../../components/SearchField'
 import { ACCOUNT_FILTERS, type AccountFilter, FilterChip } from '../../../components/FilterChip'
 import { DatasheetMatchReasons } from '../../../components/DatasheetMatchReasons'
+import { HoverTooltip } from '../../../components/HoverTooltip'
 import { useFavouriteDatasheets } from '../../../favouriteDatasheets'
 import { searchDatasheetEntries } from '../../../../core/datasheetSearch'
-import { collectionCountsAsQuery, collectionQuery, meQuery, unitsQuery } from '../../../queries'
+import { collectionCountsAsQuery, collectionQuery, meQuery, topFourUnitCountsQuery, unitsQuery } from '../../../queries'
 import { usableDatasheets } from '../../../../core/collection'
 import { shortName } from './factions'
 import { GROUPS, shelvesOf } from '../../../unitGroups'
@@ -106,6 +107,7 @@ export const Picker = memo(function Picker({
   const signedIn = Boolean(me)
   const collectionResult = useQuery({ ...collectionQuery(), enabled: enabled && signedIn })
   const countsAsResult = useQuery({ ...collectionCountsAsQuery(), enabled: enabled && signedIn })
+  const topFour = useQuery({ ...topFourUnitCountsQuery(catalogueId), enabled: enabled && Boolean(catalogueId) }).data
   const found = useMemo(() => searchDatasheetEntries(unitsResult.data ?? [], query, (unit) => unit.search), [unitsResult.data, query])
   const owned = collectionResult.data
   const countsAs = countsAsResult.data
@@ -291,6 +293,7 @@ export const Picker = memo(function Picker({
                                 limit={limits.has(unit.id) ? limits.get(unit.id)! : unit.limit}
                                 unavailableReason={limits.get(unit.id) === 0 ? unitLimitMessage(unit.id, held, limits, limitUnlocks) : null}
                                 held={held}
+                                topFour={commonInTopFour(topFour, unit.id)}
                                 full={full}
                                 over={pointsOver(nextCopyPoints(unit, held), room)}
                                 favourite={favourites.has(unit.id)}
@@ -405,6 +408,12 @@ export const Picker = memo(function Picker({
   )
 })
 
+/** A unit at least a quarter of the faction's top-four lists take, marked so the common choices stand out. */
+function commonInTopFour(counts: { lists: number; units: Record<string, number> } | null | undefined, entryId: string) {
+  const lists = counts?.units[entryId] ?? 0
+  return counts && lists * 4 >= counts.lists && lists ? { lists, of: counts.lists } : null
+}
+
 function PickerSkeleton() {
   return (
     <div className="space-y-2 py-2" aria-label="Loading units">
@@ -429,6 +438,8 @@ type PickerRowProps = {
   /** The roster's own limit where it has one, which can differ from the book's. */
   limit: number | null
   held: number
+  /** How many of the faction's top-four tournament lists field it, out of how many, when enough do to mark it. */
+  topFour: { lists: number; of: number } | null
   full: boolean
   /** Points beyond the list's room, marked on the price alone so the row keeps its height; never blocks the add. */
   over: number | null
@@ -445,6 +456,7 @@ const PickerRow = memo(function PickerRow({
   unit,
   limit,
   held,
+  topFour,
   full,
   over,
   favourite,
@@ -497,6 +509,16 @@ const PickerRow = memo(function PickerRow({
           >
             <Heart className={`size-3.5 ${favourite ? 'fill-rust text-rust' : 'text-faint hover:text-dim'}`} />
           </Toggle>
+        ) : null}
+        {topFour ? (
+          <HoverTooltip
+            title={`In ${topFour.lists} of ${topFour.of} top-four lists`}
+            body="Lists that finished top four at Warhammer 40,000 tournaments outside Praetorium, as published by 40k Stats."
+            label={`${unit.name} is in ${topFour.lists} of ${topFour.of} top-four tournament lists`}
+            className="size-6 shrink-0 text-faint no-underline hover:text-dim"
+          >
+            <Trophy className="size-3.5" />
+          </HoverTooltip>
         ) : null}
         <PointsChip points={nextCopyPoints(unit, held)} over={over} />
         <Button

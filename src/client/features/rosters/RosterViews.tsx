@@ -9,7 +9,7 @@ const VIEWS: readonly [RosterView, string][] = [
   ['friends', 'Friends'],
   ['public', 'Public'],
   ['played', 'Played'],
-  ['winning', 'Winning'],
+  ['winning', 'Top four'],
 ]
 
 /** The rosters page tabs, the same for a visitor, whose Friends tab says what an account adds. */
