@@ -10,7 +10,7 @@ Work down the steps until the bar at the bottom reads **Ready**, then choose **S
 6. **Secondaries.** Each side picks **Tactical** (cards drawn during the battle) or **Fixed** (missions selected now and kept all game). Allies share one hand.
 7. **Reserves.** Move units into strategic reserves or deep strike, or embark them in transports. Anything you leave alone starts on the battlefield. Units your roster [starts embarked](/docs/set-up-a-unit#start-units-embarked) are already inside. If a transport can't fit one, a note says so and that unit starts on the battlefield.
 8. **Deploy.** Tap each unit as it goes down. **To place** and **Placed** narrow the list. The ticks stay on the device you tapped them on. Tick the step when both armies are down.
-9. **First turn.** Roll off and record who goes first.
+9. **First turn.** Roll off and record who goes first. Until the defender is chosen (or, in a manual battle, the armies), the step says what it waits on.
 10. **Pre-battle rules.** Resolve them at the table, then choose **Start battle** to open the first Command phase.
 
 Manual battles skip the mission, battlefield, defender, secondaries, reserves, deployment and pre-battle steps.
