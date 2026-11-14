@@ -2,14 +2,15 @@
  * Rebuilds `src/core/rosterGradeCalibration.ts`, the percentiles roster grades place a list among, from the
  * tournament lists `scripts/importCorpus.ts` fetches, and says when the committed table is too old.
  *
- *   pnpm exec tsx scripts/importCorpus.ts fetch 40kstats
- *   pnpm exec tsx scripts/calibrateRosterGrades.ts build --since 2026-06-20 --until 2026-11-08 [--source 40kstats] [--live] [directory]
+ *   pnpm exec tsx scripts/importCorpus.ts fetch
+ *   pnpm exec tsx scripts/calibrateRosterGrades.ts build --since 2026-06-20 --until 2026-11-08 [--source lexmechanic ...] [--live] [directory]
  *   pnpm exec tsx scripts/calibrateRosterGrades.ts check [--max-age 90]
  *
- * Only 2,000-point lists from events in the window that import cleanly count. Each is measured as the server
- * measures a saved roster, and the other battle sizes are drawn from its measured units with a seed from its
- * list id, so the same corpus, window and catalogue rebuild the same table. `--live` measures against the
- * catalogue a release would serve, as `importCorpus.ts` does.
+ * It reads every source's cache unless `--source` or a directory names fewer, since no one source has enough lists
+ * to give most factions a peer group. Only 2,000-point lists from events in the window that import cleanly count.
+ * Each is measured as the server measures a saved roster, and the other battle sizes are drawn from its measured
+ * units with a seed from its list id, so the same corpus, window and catalogue rebuild the same table. `--live`
+ * measures against the catalogue a release would serve, as `importCorpus.ts` does.
  */
 import fs from 'node:fs'
 import path from 'node:path'
@@ -27,7 +28,7 @@ import { CombatAnswerCache } from '../src/shared/combatAnswerCache'
 import { currentFactionIdsOf } from '../src/shared/factionReferences'
 import { gradeReferences, measureRosterUnits, referenceUnit } from '../src/shared/rosterGradeMeasures'
 import { importCorpusLists, liveCorpusCatalogue } from './lib/importCorpusLists'
-import { CORPUS_ROOT } from './lib/importCorpusSources'
+import { CORPUS_ROOT, SOURCES } from './lib/importCorpusSources'
 import { CALIBRATION_FILE, calibrationSource } from './lib/rosterGradeCalibrationSource'
 
 const DAY = 24 * 60 * 60 * 1000
@@ -37,7 +38,7 @@ const { values, positionals } = parseArgs({
   options: {
     since: { type: 'string' },
     until: { type: 'string' },
-    source: { type: 'string' },
+    source: { type: 'string', multiple: true },
     live: { type: 'boolean' },
     'max-age': { type: 'string' },
   },
@@ -48,7 +49,7 @@ if (command === 'build') {
   const { since, until } = values
   if (!since || !until || !/^\d{4}-\d{2}-\d{2}$/.test(since) || !/^\d{4}-\d{2}-\d{2}$/.test(until))
     throw new Error('Pass the window of event dates as --since YYYY-MM-DD --until YYYY-MM-DD')
-  await build(target ?? path.join(CORPUS_ROOT, values.source ?? '40kstats'), since, until)
+  await build(target ? [target] : (values.source ?? SOURCES).map((source) => path.join(CORPUS_ROOT, source)), since, until)
 } else if (command === 'check') {
   const maxAge = Number(values['max-age'] ?? 90)
   const age = Math.floor((Date.now() - Date.parse(CALIBRATED.until)) / DAY)
@@ -60,10 +61,10 @@ if (command === 'build') {
   } else console.log(`Roster grades are calibrated against events up to ${CALIBRATED.until}, ${age} days ago.`)
 } else throw new Error('Usage: calibrateRosterGrades.ts build --since YYYY-MM-DD --until YYYY-MM-DD [directory] | check')
 
-async function build(corpusDirectory: string, since: string, until: string) {
+async function build(corpusDirectories: readonly string[], since: string, until: string) {
   const pinned = path.resolve(process.env.CATALOGUE_DIR ?? 'catalogue-data')
   const directory = values.live ? await liveCorpusCatalogue(pinned) : pinned
-  const { catalogue, rules, lists } = importCorpusLists(corpusDirectory, { since, until }, directory)
+  const { catalogue, rules, lists } = importCorpusLists(corpusDirectories, { since, until }, directory)
   // The server's rule words and reference units read the snapshot this script loaded, not a running server's.
   delete process.env.CATALOGUE_LIVE_DIR
   process.env.CATALOGUE_DIR = directory

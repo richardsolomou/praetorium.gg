@@ -42,7 +42,7 @@ if (command === 'fetch') {
 } else throw new Error(`Unknown command ${command}: use fetch or run`)
 
 function run(directory: string, since: string | undefined, out: string | undefined, catalogueDirectory: string) {
-  const results = importCorpusLists(directory, { since }, catalogueDirectory).lists.map(({ listing, imported }) => ({
+  const results = importCorpusLists([directory], { since }, catalogueDirectory).lists.map(({ listing, imported }) => ({
     ...listing,
     format: imported.format,
     catalogue: imported.catalogueName,

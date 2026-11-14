@@ -27,30 +27,36 @@ export async function liveCorpusCatalogue(pinned: string) {
   return path.join(live.directory, 'catalogue')
 }
 
-/** Every `.txt` list in a corpus directory from events in the window, imported against the catalogue in `catalogueDirectory`. */
-export function importCorpusLists(directory: string, window: { since?: string; until?: string }, catalogueDirectory: string) {
-  const indexFile = path.join(directory, 'index.json')
-  const listed: Listing[] = fs.existsSync(indexFile) ? JSON.parse(fs.readFileSync(indexFile, 'utf8')) : []
-  const byId = new Map(listed.map((listing) => [listing.list, listing]))
+/**
+ * Every `.txt` list in the corpus directories from events in the window, imported against the catalogue in
+ * `catalogueDirectory`. Sources republish one another, so a list whose text another already gave is read once.
+ */
+export function importCorpusLists(directories: readonly string[], window: { since?: string; until?: string }, catalogueDirectory: string) {
   const inWindow = (date = '') => (!window.since || date >= window.since) && (!window.until || (date !== '' && date <= window.until))
-  const ids = fs
-    .readdirSync(directory)
-    .filter((name) => name.endsWith('.txt'))
-    .map((name) => name.slice(0, -4))
-    .filter((id) => inWindow(byId.get(id)?.date))
+  const seen = new Set<string>()
+  const files = directories.flatMap((directory) => {
+    const indexFile = path.join(directory, 'index.json')
+    const listed: Listing[] = fs.existsSync(indexFile) ? JSON.parse(fs.readFileSync(indexFile, 'utf8')) : []
+    const byId = new Map(listed.map((listing) => [listing.list, listing]))
+    return fs
+      .readdirSync(directory)
+      .filter((name) => name.endsWith('.txt'))
+      .map((name) => name.slice(0, -4))
+      .filter((id) => inWindow(byId.get(id)?.date))
+      .flatMap((id) => {
+        const file = fs.readFileSync(path.join(directory, `${id}.txt`), 'utf8')
+        const text = file.replace(/\s+/g, ' ').trim().toLowerCase()
+        if (seen.has(text)) return []
+        seen.add(text)
+        return [{ listing: byId.get(id) ?? { list: id }, file }]
+      })
+  })
   const { catalogue, rules } = loadSnapshot(catalogueDirectory)
   const translations = loadCatalogueTranslations(catalogueDirectory)
   const removed = removedNamesOf(loadCatalogueHistory(catalogueDirectory) ?? [])
-  const lists = ids.map((id) => ({
-    listing: byId.get(id) ?? { list: id },
-    imported: importRosterFile(
-      { file: fs.readFileSync(path.join(directory, `${id}.txt`), 'utf8') },
-      catalogue,
-      undefined,
-      rules,
-      translations,
-      removed,
-    ),
+  const lists = files.map(({ listing, file }) => ({
+    listing,
+    imported: importRosterFile({ file }, catalogue, undefined, rules, translations, removed),
   }))
   return { catalogue, rules, lists }
 }
