@@ -8,10 +8,12 @@ import { closePicker, openBuilder } from './builder.harness'
  * stacking that stay inside the screen.
  */
 
-/** Compares the phone viewport with its baseline, masking the clocks and dates that differ on every run. */
-async function expectPhoneScreen(page: Page, name: string, { fullPage = false } = {}) {
+/**
+ * Compares the phone viewport with its baseline, masking the clocks and dates that differ on every run. Only the
+ * viewport: a full page stamps the fixed navigation mid-page and takes in data a catalogue update changes.
+ */
+async function expectPhoneScreen(page: Page, name: string) {
   await expect(page).toHaveScreenshot(name, {
-    fullPage,
     mask: [page.locator('time'), page.locator('.readout').filter({ hasText: /^[\d–]+:[\d:–]+$/ })],
   })
 }
@@ -45,5 +47,5 @@ test('a datasheet keeps its layout on a phone', async ({ page }) => {
   await page.goto('/factions/space-marines/datasheets/eradicator-squad-with-melta-rifles')
   await page.waitForLoadState('networkidle')
   await expect(page.locator('tbody[aria-label="melta rifle profiles"]')).toBeVisible()
-  await expectPhoneScreen(page, 'datasheet.png', { fullPage: true })
+  await expectPhoneScreen(page, 'datasheet.png')
 })
