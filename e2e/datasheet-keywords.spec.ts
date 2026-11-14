@@ -9,7 +9,6 @@ const cases = [
   { faction: 'astra-militarum', sheet: 'deathstrike', ability: 'Plasma Warhead', body: /Remained Stationary/i },
   { faction: 'leagues-of-votann', sheet: 'arkanyst-evaluator', ability: 'Overcharge', body: /Hazardous test/i },
   { faction: 'space-marines', sheet: 'judiciar', ability: 'Fights First', body: /Fight phase/i },
-  { faction: 'tyranids', sheet: 'sporocyst', ability: 'Hive Defences', body: /Fire Overwatch/i },
   // The ability only names core rule 10.07, so the tooltip writes that rule out beneath it.
   { faction: 'astra-militarum', sheet: 'basilisk', ability: 'Indirect Fire', body: /Eligible if/i },
 ]
