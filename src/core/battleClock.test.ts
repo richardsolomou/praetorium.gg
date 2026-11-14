@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { type Command, type LoggedCommand, reduceBattle, validate } from './battle'
-import { advanceTimes, battleClock, clockMs, latestTurnRound } from './battleClock'
+import { advanceTimes, battleClock, clockMs, latestTurnRound, remainingMs } from './battleClock'
 import { ALICE, BOB, PLAYERS, advance, log, started, turns } from './battle.fixtures'
 
 const MINUTE = 60_000
@@ -13,6 +13,13 @@ const clockOf = (...entries: [string, Command][]) => battleClock(PLAYERS, minute
 const advancesOf = (...entries: [string, Command][]) => advanceTimes(PLAYERS, minutes(log(...entries)))
 
 const score: Command = { kind: 'score', category: 'primary', delta: 1 }
+
+const toBob: Command = { kind: 'switch-clock', side: 1 }
+
+const limited = (clockLimitMinutes: number): [string, Command] => [
+  ALICE,
+  { kind: 'configure-battle', limit: null, missionPackId: null, terrainLayoutId: null, twistId: null, clockLimitMinutes },
+]
 
 /** Bob's first turn undone back into Alice's end phase, which she then ends again as seq 14. */
 const rewound = (): [string, Command][] => [
@@ -136,5 +143,47 @@ describe('pausing the timer', () => {
       log(...started(), [ALICE, { kind: 'pause-clock' }], [ALICE, { kind: 'end-battle' }], [ALICE, { kind: 'reopen-battle' }]),
     )
     expect(state.clockPaused).toBe(false)
+  })
+})
+
+describe('switching the clock', () => {
+  it('gives the time to the side it names', () => {
+    const clock = clockOf(...started(), [BOB, toBob], [BOB, score], [BOB, { kind: 'switch-clock', side: 0 }])
+    expect([clockMs(clock, null, { side: 0 }), clockMs(clock, null, { side: 1 })]).toEqual([MINUTE, 2 * MINUTE])
+  })
+
+  it('hands the clock back when the phase ends', () => {
+    expect(clockOf(...started(), [BOB, toBob], [ALICE, advance()]).running?.side).toBe(0)
+  })
+
+  it('leaves a reaction out of the phase time the advance reports', () => {
+    expect(advancesOf(...started(), [BOB, toBob], [ALICE, advance()]).get(5)).toEqual({ phase: MINUTE, turn: null })
+  })
+
+  it('is refused for the side that already has the clock', () => {
+    expect(validate(reduceBattle(PLAYERS, log(...started())), ALICE, { kind: 'switch-clock', side: 0 })).toBe(
+      'that side already has the clock',
+    )
+  })
+
+  it('is not what undo takes back', () => {
+    const state = reduceBattle(PLAYERS, log(...started(), [ALICE, advance()], [BOB, toBob]))
+    expect(state.undoable?.kind).toBe('advance')
+  })
+})
+
+describe('the clock limit', () => {
+  it('counts each side’s time down from the limit', () => {
+    const clock = clockOf(limited(90), ...started(), [ALICE, advance()])
+    expect(remainingMs(clock, 10 * MINUTE, 0)).toBe(83 * MINUTE)
+  })
+
+  it('goes past zero once a side runs out', () => {
+    const clock = clockOf(limited(5), ...started())
+    expect(remainingMs(clock, 13 * MINUTE, 0)).toBe(-5 * MINUTE)
+  })
+
+  it('is absent unless the table set one', () => {
+    expect(remainingMs(clockOf(...started()), 10 * MINUTE, 0)).toBeNull()
   })
 })

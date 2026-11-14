@@ -26,7 +26,9 @@ test('a draft battle fills through its link and leaves the drafts once every arm
   const draft = host.getByRole('heading', { name: /^Set up the battle/ }).getByText('Draft', { exact: true })
   await expect(draft).toBeVisible()
   // Guided is chosen from the start, so the Opponent step is open without answering Tracking.
-  await expect(host.locator('#setup-format').getByRole('button', { pressed: true })).toHaveText(/^Guided/)
+  await expect(
+    host.locator('#setup-format').getByRole('group', { name: 'How you track it' }).getByRole('button', { pressed: true }),
+  ).toHaveText(/^Guided/)
   await expect(host.locator('#setup-opponent')).toHaveAttribute('data-locked', 'false')
   await chooseTracking(host)
   // Without friends, the opponent comes through a link, or the host plays both sides.
