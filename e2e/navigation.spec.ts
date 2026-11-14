@@ -867,7 +867,9 @@ test('a player can enter through the roster library and browse the product', asy
   await expect(page.getByRole('heading', { name: 'Rosters', exact: true, level: 1 })).toBeVisible()
   const rendered = await page.request.get('/rosters')
   expect(await rendered.text()).toContain('Build, import, organize, and share your armies')
-  await expect(page.getByText('Create one, or import a list from another app.')).toBeVisible()
+  await expect(
+    page.getByText("Build one from your faction's datasheets, or bring in a list you already made in another app."),
+  ).toBeVisible()
   await page.getByRole('button', { name: 'Battle size', exact: true }).click()
   await page.getByRole('button', { name: /^Incursion/ }).click()
   await expect(page).toHaveURL('/rosters?limit=1000')

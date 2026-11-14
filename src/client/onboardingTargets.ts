@@ -24,7 +24,6 @@ export const onboardingTargets = [
   'setup-faction',
   'setup-size',
   'setup-detachments',
-  'setup-name',
   'setup-create',
   'roster-picker',
   'picker-search',

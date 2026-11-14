@@ -4,7 +4,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Link, useLocation, useNavigate } from '@tanstack/react-router'
 import { Check, Copy, FileUp, LoaderCircle, TriangleAlert } from 'lucide-react'
 import { posthog } from 'posthog-js'
-import { type ReactNode, useEffect, useRef, useState } from 'react'
+import { type ReactNode, type Ref, useEffect, useImperativeHandle, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -112,9 +112,17 @@ function ReviewRow({ label, name, children }: { label: string; name: string; chi
 
 /**
  * `onImport` keeps the list somewhere other than the account, such as a visitor's device; `blocked` replaces importing
- * for a visitor who already keeps their one list there, including an import a scanned code opened.
+ * for a visitor who already keeps their one list there, including an import a scanned code opened. `ref` lets another control on the page open it.
  */
-export function RosterImport({ onImport, blocked }: { onImport?: (imported: MatchedImport) => void; blocked?: () => void }) {
+export function RosterImport({
+  onImport,
+  blocked,
+  ref,
+}: {
+  onImport?: (imported: MatchedImport) => void
+  blocked?: () => void
+  ref?: Ref<{ show: () => void }>
+}) {
   const [open, setOpen] = useState(false)
   const [mode, setMode] = useState<'text' | RosterApp>('text')
   /** A list found in another app and opened for review, which pasted text never fills. */
@@ -299,6 +307,7 @@ export function RosterImport({ onImport, blocked }: { onImport?: (imported: Matc
     setRefusal(null)
     setOpen(true)
   }
+  useImperativeHandle(ref, () => ({ show }))
 
   return (
     <>

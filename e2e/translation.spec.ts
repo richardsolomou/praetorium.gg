@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './test'
-import { chooseUnit, openImport, retryUntilVisible, signUp, uniqueName, visitorSetup } from './account'
+import { chooseUnit, openImport, retryUntilVisible, signUp, uniqueName, visitorSetup, waitForRosterSave } from './account'
 
 async function replaceTranslatedText(page: Page) {
   await page.evaluate(() => {
@@ -42,11 +42,14 @@ test('a translated signed-in roster dialog keeps working through creation', asyn
   await faction.click()
   await page.getByRole('option', { name: 'Necrons', exact: true }).click()
   await expect(faction).toContainText('Necrons')
-  await dialog.getByLabel('Roster name', { exact: true }).fill('Translated army')
   await dialog.getByRole('button', { name: 'Select Awakened Dynasty', exact: true }).click()
   await dialog.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Take and Hold', exact: true }).click()
   await dialog.getByRole('button', { name: 'Create roster', exact: true }).click()
-  await expect(page.getByRole('textbox', { name: 'List name', exact: true })).toHaveValue('Translated army')
+  await waitForRosterSave(
+    page,
+    () => page.getByRole('textbox', { name: 'List name', exact: true }).fill('Translated army'),
+    'Translated army',
+  )
   await page.reload()
   await expect(page.getByRole('textbox', { name: 'List name', exact: true })).toHaveValue('Translated army')
   await page.screenshot({ path: test.info().outputPath('translated-saved-roster.png'), fullPage: true })

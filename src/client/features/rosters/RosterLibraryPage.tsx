@@ -1,8 +1,8 @@
 import { GuideHelp } from '../onboarding/GuideHelp'
 import { useQuery } from '@tanstack/react-query'
 import { Link, useNavigate } from '@tanstack/react-router'
-import { useEffect, useState, type ReactNode } from 'react'
-import { ChevronDown, ScrollText } from 'lucide-react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { ChevronDown, FileUp, Plus, ScrollText } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -274,6 +274,7 @@ export function RosterLibraryPage({
   // A visitor keeps one list; making another asks them to sign up first.
   const another = guest ? () => account.ask('another-roster') : undefined
   const { keepImported, saveError: importError } = useNewRoster()
+  const importer = useRef<{ show: () => void }>(null)
   // Rosters chosen together are deleted in one action; a row's own Delete goes through the single path.
   const [deleting, setDeleting] = useState<{ rosters: SavedRoster[]; together: boolean } | null>(null)
   // Held by id, so the dialog reads each visibility change back from the library rather than a stale copy.
@@ -394,7 +395,7 @@ export function RosterLibraryPage({
         description="Build, import, organize, and share your armies, or find one your friends and other players made public."
         actions={
           <>
-            <RosterImport onImport={me ? undefined : keepImported} blocked={another} />
+            <RosterImport onImport={me ? undefined : keepImported} blocked={another} ref={importer} />
             <CreateRoster
               factionOptions={available?.factions ?? []}
               limit={facets.limit?.in.length === 1 ? Number(facets.limit.in[0]) : undefined}
@@ -411,7 +412,8 @@ export function RosterLibraryPage({
       </PageHeader>
 
       <PageContent className="space-y-6">
-        {me ? null : (
+        {/* Said once the visitor has the list it limits, so a first look at the page is not a restriction. */}
+        {me || !(guest || device?.pending) ? null : (
           <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border border-edge bg-sunken px-3 py-2 text-sm text-dim">
             <p className="min-w-0 flex-1">Without an account, this device keeps one roster. Sign up free to keep as many as you like.</p>
             <Link to="/sign-in" search={{ next: GUEST_PATH, join: true }} className={buttonClass({ size: 'sm' })}>
@@ -583,8 +585,24 @@ export function RosterLibraryPage({
               <PageState
                 headingLevel={2}
                 title="No rosters yet"
-                explanation="Create one, or import a list from another app."
+                explanation="Build one from your faction's datasheets, or bring in a list you already made in another app."
                 icon={ScrollText}
+                action={
+                  <div className="grid w-full gap-4 sm:grid-cols-2">
+                    <div className="grid justify-items-center gap-2">
+                      <Link to="/rosters/new" className={buttonClass({ className: 'w-full' })}>
+                        <Plus /> Build a roster
+                      </Link>
+                      <p className="text-xs text-faint">Pick a faction, then add units</p>
+                    </div>
+                    <div className="grid justify-items-center gap-2">
+                      <Button variant="outline" className="w-full" onClick={() => importer.current?.show()}>
+                        <FileUp /> Import a list
+                      </Button>
+                      <p className="text-xs text-faint">From the official app or New Recruit</p>
+                    </div>
+                  </div>
+                }
               />
             )}
           </div>

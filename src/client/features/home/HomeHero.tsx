@@ -38,7 +38,7 @@ export function HomeHero({ battle }: { battle?: Battle }) {
             they end up with a second account.
           */}
           <div className="mt-6 grid grid-cols-2 gap-3 sm:mt-8 sm:flex sm:flex-wrap sm:items-center">
-            <Link to="/rosters" className={buttonClass({ size: 'lg', className: 'col-span-2' })}>
+            <Link to="/rosters/new" className={buttonClass({ size: 'lg', className: 'col-span-2' })}>
               Build an army
             </Link>
             <Link to="/sign-in" search={{ next: undefined, join: true }} className={buttonClass({ variant: 'outline', size: 'lg' })}>

@@ -1,4 +1,4 @@
-Open [Rosters](/rosters), choose **New roster**, fill in the setup dialog and choose **Create roster**. You don't need an account. For a walkthrough of setup and your first unit, press the question mark in the top corner of the Rosters page to open the **Build guide**.
+Choose **Build an army** on the home page, or **New roster** on [Rosters](/rosters), then fill in the setup dialog and choose **Create roster**. You don't need an account. For a walkthrough of setup and your first unit, press the question mark in the top corner of the Rosters page to open the **Build guide**.
 
 ## Fill in the setup
 
@@ -6,8 +6,9 @@ Open [Rosters](/rosters), choose **New roster**, fill in the setup dialog and ch
 2. Pick a **Battle size**: **King of the Colosseum · 600 points**, **Incursion · 1,000 points**, **Strike Force · 2,000 points** or **Onslaught · 3,000 points**.
 3. Pick up to three **Detachments**, or one at King of the Colosseum. **Find a detachment** filters by name or Force disposition.
 4. Pick a **Force disposition** if your detachments offer several. It decides your primary mission in battle.
-5. Add a **Roster name**, or leave it empty and the list is named from your army.
-6. Set **Access**: **Private**, **Unlisted** (anyone with the link) or **Public** (listed on your profile and for anyone to find).
+5. With an account, set **Access**: **Private**, **Unlisted** (anyone with the link) or **Public** (listed on your profile and for anyone to find).
+
+The new roster is named from its army. Change it in **List name** at the top of the builder.
 
 If something's missing, the dialog says so, such as **Choose a detachment.** or **Choose a Force disposition.**
 

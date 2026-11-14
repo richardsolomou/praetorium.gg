@@ -162,11 +162,11 @@ test('explains how it works before public activity and opens an account-free mat
   await expect(page.getByRole('heading', { name: 'Combat simulator', exact: true })).toBeVisible()
 })
 
-test("a visitor's first action opens the builder without an account", async ({ page }) => {
+test("a visitor's first action opens the roster setup without an account", async ({ page }) => {
   await page.goto('/')
   await followLink(page.getByRole('link', { name: 'Build an army', exact: true }), '/rosters')
 
-  await expect(page).toHaveURL('/rosters')
+  await expect(page.getByRole('dialog', { name: 'Create roster' })).toBeVisible()
 })
 
 test('creating an account from the home page opens the sign-up form', async ({ page }) => {
