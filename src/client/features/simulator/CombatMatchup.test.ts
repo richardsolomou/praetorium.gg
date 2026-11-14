@@ -2,7 +2,9 @@ import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { expect, it } from 'vitest'
 import type { CombatAnswer, CombatantSnapshot } from '../../../core/combatMatchup'
-import { CombatMatchup, combatOutcomeEvent, withManualModifiers, withPenalisedHitRoll } from './CombatMatchup'
+import { CombatMatchup } from './CombatMatchup'
+import { withManualModifiers, withPenalisedHitRoll } from './PhaseWeapons'
+import { combatOutcomeEvent } from './useCombatOutcome'
 import { datasheetFixture } from '../../../core/datasheet.fixtures'
 
 it('records a partial estimate as a completion with its available phase', () => {
