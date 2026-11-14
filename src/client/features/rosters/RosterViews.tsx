@@ -1,5 +1,5 @@
 import { Link } from '@tanstack/react-router'
-import { pageLinkTabClass, pageLinkTabsClass } from '../../components/PageTabs'
+import { pageLinkTabClass, PageLinkTabs } from '../../components/PageTabs'
 import type { RosterAudience } from '../../../core/rosterDiscovery'
 
 export type RosterView = 'mine' | RosterAudience | 'played' | 'winning'
@@ -15,18 +15,19 @@ const VIEWS: readonly [RosterView, string][] = [
 /** The rosters page tabs, the same for a visitor, whose Friends tab says what an account adds. */
 export function RosterViews({ view }: { view: RosterView }) {
   return (
-    <nav aria-label="Rosters" className={pageLinkTabsClass}>
+    <PageLinkTabs label="Rosters">
       {VIEWS.map(([section, label]) => (
         <Link
           key={section}
           to="/rosters"
           search={section === 'mine' ? {} : { view: section }}
+          activeOptions={{ exact: true }}
           aria-current={view === section ? 'page' : undefined}
           className={pageLinkTabClass(view === section)}
         >
           {label}
         </Link>
       ))}
-    </nav>
+    </PageLinkTabs>
   )
 }

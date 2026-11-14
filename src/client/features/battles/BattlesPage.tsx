@@ -1,5 +1,5 @@
 import { GuideHelp } from '../onboarding/GuideHelp'
-import { pageLinkTabClass, pageLinkTabsClass } from '../../components/PageTabs'
+import { pageLinkTabClass, PageLinkTabs } from '../../components/PageTabs'
 import { keepPreviousData, useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { Swords, Users } from 'lucide-react'
@@ -86,19 +86,20 @@ export function BattlesPage({ view: asked, search, order }: { view: BattlesView;
         help={me ? <GuideHelp task="battle">Battle guide</GuideHelp> : null}
       >
         {me ? (
-          <nav aria-label="Battles" className={pageLinkTabsClass}>
+          <PageLinkTabs label="Battles">
             {VIEWS.map(([section, label]) => (
               <Link
                 key={section}
                 to="/battles"
                 search={{ view: section === 'mine' ? undefined : section }}
+                activeOptions={{ exact: true }}
                 aria-current={view === section ? 'page' : undefined}
                 className={pageLinkTabClass(view === section)}
               >
                 {label}
               </Link>
             ))}
-          </nav>
+          </PageLinkTabs>
         ) : null}
       </PageHeader>
       <PageContent className="space-y-6">
