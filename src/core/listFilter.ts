@@ -94,6 +94,7 @@ export const LIST_FILTER_SCOPES = [
   'rosters:friends',
   'rosters:public',
   'rosters:played',
+  'rosters:winning',
   'rosters:player',
   'rosters:choose',
 ] as const

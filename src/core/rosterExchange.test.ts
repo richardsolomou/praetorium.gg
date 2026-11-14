@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { toBase64Url } from './base64'
 import {
   decodeImportLinkText,
+  encodeImportLinkText,
   decodeRosterExchange,
   encodeRosterExchange,
   isRosterExchangeCode,
@@ -170,13 +170,8 @@ describe('roster exchange codes', () => {
 })
 
 describe('decodeImportLinkText', () => {
-  const linkPayload = async (text: string) => {
-    const stream = new Blob([new TextEncoder().encode(text)]).stream().pipeThrough(new CompressionStream('deflate'))
-    return toBase64Url(new Uint8Array(await new Response(stream).arrayBuffer()))
-  }
-
   it('reads the text an "Open in" link compresses', async () => {
-    expect(await decodeImportLinkText(await linkPayload("T'au Empire (2000 points)\n• Kroot – Carnívoros"))).toBe(
+    expect(await decodeImportLinkText(await encodeImportLinkText("T'au Empire (2000 points)\n• Kroot – Carnívoros"))).toBe(
       "T'au Empire (2000 points)\n• Kroot – Carnívoros",
     )
   })

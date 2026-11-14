@@ -52,7 +52,10 @@ export function importedSetup(imported: MatchedImport, defaultLimit: number) {
 const CODE_HASH = 'code='
 const LIST_HASH = 'd='
 /** The sites whose import links are credited by name; any other sender is unnamed, since a link can claim to be from anyone. */
-const LINK_SITES = new Map([['listhammer', 'Listhammer']])
+const LINK_SITES = new Map([
+  ['listhammer', 'Listhammer'],
+  ['40kstats', '40k Stats'],
+])
 
 type Submission = { file: string; link?: { name: string | null; site: string | null } }
 
@@ -260,7 +263,7 @@ export function RosterImport({
     const scanned = hash.startsWith(CODE_HASH)
     if ((!scanned && !hash.startsWith(LIST_HASH)) || consumed.current === hash) return
     consumed.current = hash
-    void navigate({ to: '.', hash: '', replace: true, resetScroll: false })
+    void navigate({ to: '.', search: true, hash: '', replace: true, resetScroll: false })
     const params = new URLSearchParams(hash)
     const site = LINK_SITES.get(params.get('src') ?? '') ?? null
     posthog.capture('roster_import_started', scanned ? { input: 'exchange-link' } : { input: 'list-link', from: site ?? 'other' })
