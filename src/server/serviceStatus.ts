@@ -5,6 +5,7 @@ import { app } from './app'
 import { readCatalogueComposition } from './catalogueComposition'
 import { catalogueDirectory } from './catalogueIndex'
 import { installedSnapshot } from './catalogueSnapshot'
+import { liveCatalogueRevision } from './liveCatalogue'
 
 /** A starting server waits on its catalogue inside the health check, and the status page answers before then. */
 const HEALTH_TIMEOUT_MS = 5_000
@@ -40,7 +41,7 @@ async function read(): Promise<ServiceStatus> {
     up: await passes(instance.health),
     release: version,
     commit: process.env.GITHUB_SHA?.trim() || null,
-    catalogue: { sync: instance.sync().status, snapshot: installedSnapshot(directory)?.id ?? null },
+    catalogue: { sync: instance.sync().status, snapshot: liveCatalogueRevision()?.id ?? installedSnapshot(directory)?.id ?? null },
     rulesVersions: rulesVersions(directory),
   }
 }
