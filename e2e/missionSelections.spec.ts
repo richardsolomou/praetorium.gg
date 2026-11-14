@@ -123,9 +123,12 @@ test('source matchup nominations survive undo and reload', async ({ page, browse
     .click()
   await guest.setViewportSize({ width: 390, height: 900 })
   await expect.poll(async () => (await target.boundingBox())?.x).toBe(0)
+  // Each side records against the battle as its page last saw it, so it waits to see the other side's latest choice first.
+  await expect(guest.getByText('1 condemned unit · fallback', { exact: true })).toBeAttached()
   await target.getByRole('button', { name: 'Record choice', exact: true }).click()
   await expect(target).toBeHidden()
   await expect(guards).toBeVisible()
+  await expect(page.locator('details p').filter({ hasText: /'s expansion$/ })).toBeAttached()
   await guards.getByRole('button', { name: 'Record choice', exact: true }).click()
   await expect(guards).toBeHidden()
   await expect(advanceButton(page)).toBeEnabled()
