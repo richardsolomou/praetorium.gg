@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.247.3 (2026-11-14)
+
+### Patch Changes
+
+- 8f7adae: Battles now says when it shows an older copy of your games because it could not refresh, and tries again, so a finished game no longer looks like it is still in progress.
+
 ## 0.247.2 (2026-11-14)
 
 ### Patch Changes
