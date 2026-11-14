@@ -26,6 +26,10 @@
 - Live battle pages never reach `networkidle`; scope assertions to `data-unit`, `data-roster`, and `data-person`.
 - Test titles must differ after punctuation is removed.
 
+## Load test
+
+- `just load-test-round` times the end of a busy tournament round and group league round against a throwaway SpacetimeDB, with options in `scripts/loadTestRound.ts`. Timings depend on the machine, so compare a change with a run of `main` on the same machine.
+
 ## Production roster copies
 
 - `just rosters-fetch` exports production selections; `just rosters-import` copies that snapshot into the local preview account. Keep snapshots in ignored `data-dev/` and credentials out of commands and tracked files.

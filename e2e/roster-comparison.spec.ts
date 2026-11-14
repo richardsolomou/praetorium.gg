@@ -111,10 +111,11 @@ test('new rosters compare customizable mixed-faction benchmarks and retain the t
   const detail = page.getByRole('dialog', { name: 'Combat simulator', exact: true }).last()
   await expect(detail.getByRole('combobox', { name: 'Defender unit', exact: true })).toContainText('Necron Warriors')
   await expect(detail.getByLabel('Defender models', { exact: true })).toHaveText('20')
-  // Its finished simulation may earn an achievement whose toast lands over Close and stays while the pointer rests on it.
+  // Its finished simulation may earn an achievement whose toast lands over either dialog's Close, so both close by key.
   await page.keyboard.press('Escape')
   await expect(detail.getByRole('combobox', { name: 'Defender unit', exact: true })).toBeHidden()
-  await dialog.getByRole('button', { name: 'Close', exact: true }).click()
+  await page.keyboard.press('Escape')
+  await expect(dialog).toBeHidden()
   await page.reload()
   await chooseRosterAction(page, 'Test targets')
   dialog = page.getByRole('dialog', { name: 'Test targets', exact: true })

@@ -1,6 +1,6 @@
 import { createServer, type Server } from 'node:net'
 import { randomUUID } from 'node:crypto'
-import { execFileSync, spawn, type ChildProcess } from 'node:child_process'
+import { execFileSync, spawn, type ChildProcess, type StdioOptions } from 'node:child_process'
 import { cp, symlink } from 'node:fs/promises'
 import path from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
@@ -45,8 +45,18 @@ export async function localTestEnvironment(kind: 'e2e' | 'native-auth-ios', envi
   }
 }
 
-export function startLocalChild(command: string, args: string[], environment: NodeJS.ProcessEnv) {
-  return spawn(command, args, { env: environment, stdio: 'inherit', detached: process.platform !== 'win32' })
+export function startLocalChild(command: string, args: string[], environment: NodeJS.ProcessEnv, stdio: StdioOptions = 'inherit') {
+  return spawn(command, args, { env: environment, stdio, detached: process.platform !== 'win32' })
+}
+
+export async function childSucceeded(child: ChildProcess, signal: AbortSignal) {
+  signal.throwIfAborted()
+  const status = await new Promise<number>((resolve, reject) => {
+    child.once('error', reject)
+    child.once('exit', (code) => resolve(code ?? 1))
+    signal.addEventListener('abort', () => reject(signal.reason as Error), { once: true })
+  })
+  if (status !== 0) throw new Error(`${child.spawnargs.join(' ')} exited with status ${status}`)
 }
 
 /** A fresh identity on a local SpacetimeDB server. */
