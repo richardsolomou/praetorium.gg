@@ -96,7 +96,11 @@ export function withBattles<B extends SpacetimeBase>(Base: B) {
     }
 
     async seatBattlePlayer(input: { battleId: string; userId: string; side: 0 | 1; by: string; invite?: string; now: number }) {
-      return this.read('seat_battle_player', [JSON.stringify(input)], z.enum(['joined', 'missing', 'not-yours', 'seated', 'started', 'full']))
+      return this.read(
+        'seat_battle_player',
+        [JSON.stringify(input)],
+        z.enum(['joined', 'missing', 'not-yours', 'seated', 'started', 'full']),
+      )
     }
 
     async removeBattlePlayer(battleId: string, by: string, userId: string) {
