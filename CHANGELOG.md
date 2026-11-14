@@ -1,5 +1,18 @@
 # praetorium
 
+## 0.242.0 (2026-11-14)
+
+### Minor Changes
+
+- 5921eb6: You can now see your league round deadlines and tournament dates in your own calendar app: get a calendar link under Account settings.
+
+### Patch Changes
+
+- f14d6af: **Build an army** on the home page now opens the roster setup straight away.
+- f14d6af: An empty Rosters page now offers to build a roster or import a list, and only mentions the one-roster limit without an account once you have one.
+- f14d6af: Without an account, the roster setup no longer shows an Access choice that read "Public" for a list only your device keeps.
+- f14d6af: Creating a roster no longer asks for a name: it is named from your army, and you can rename it in the builder.
+
 ## 0.241.6 (2026-11-14)
 
 ### Patch Changes
