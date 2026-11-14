@@ -39,7 +39,7 @@ import { orderVariantGroup, variantName } from '../core/rosterVariants'
 import type { LocalState } from '../contracts/localState'
 import { playerDefaults } from './offline/actionFunctions'
 import { localRosterAssessment } from './offline/rosterAssessment'
-import { calculationRead } from './offline/calculationRead'
+import { calculationRead, SERVER_ONLY_TIMEOUT_MS } from './offline/calculationRead'
 import { withTimeout } from './abortSignals'
 import {
   armyUpdatesKey,
@@ -762,6 +762,7 @@ export async function savedRosterPage(args: Parameters<typeof server.savedRoster
       return undefined
     },
     args.signal,
+    hasLocalConstruction() ? undefined : SERVER_ONLY_TIMEOUT_MS,
   )
   assertAccount()
   const state = await engine.storage.read()
@@ -807,6 +808,7 @@ export async function homeRosters(args?: { signal?: AbortSignal }): ReturnType<t
       return undefined
     },
     args?.signal,
+    hasLocalConstruction() ? undefined : SERVER_ONLY_TIMEOUT_MS,
   )
   assertAccount()
   const state = await engine.storage.read()

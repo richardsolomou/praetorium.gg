@@ -123,3 +123,13 @@ it('clears non-persisted private reads as well as saved ones on account changes'
   reconcileAppAccount(client, null)
   expect(client.getQueryData(['admin', 'sessions'])).toBeUndefined()
 })
+
+it('restores a response a write made out of date as one to fetch again', async () => {
+  const saved = new QueryClient()
+  saved.setQueryData(['me'], { id: 'alice' })
+  saved.setQueryData(['saved-roster-page', 'army'], { points: 0 })
+  await saved.invalidateQueries({ queryKey: ['saved-roster-page'] })
+  const opened = new QueryClient()
+  restoreAppSnapshot(opened, parseAppSnapshot(JSON.parse(JSON.stringify(captureAppSnapshot(saved))))!)
+  expect(opened.getQueryState(['saved-roster-page', 'army'])?.isInvalidated).toBe(true)
+})

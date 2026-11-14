@@ -175,8 +175,9 @@ const nextTurn = () => yieldToEventLoop(0, undefined, { ref: false })
  * requests in between, until a sync swap replaces these loaders.
  *
  * With `untilBuilt`, the returned promise also waits for the serving build, every edition's loading, and the reference
- * corpus; `readiness` decides when. A request for an edition still loading finishes the load at once, holding every
- * other request. Pricing the other editions takes minutes and few requests read them, so that stays in the background.
+ * corpus; `readiness` decides when. A faction list or battle index that reads an edition still loading finishes the load
+ * at once, holding every other request. Pricing the other editions takes minutes and few requests read them, so that
+ * stays in the background.
  */
 export async function warm(
   instance: Pick<App, 'searchIndexFor' | 'canonicalCatalogue' | 'combatUnits' | 'catalogue' | 'construction'>,
@@ -275,14 +276,21 @@ function catalogueLoaders(directory: string) {
 function catalogueReads(getInstance: () => App, loaded: ReturnType<typeof catalogueLoaders>) {
   const { editions } = loaded
   return {
-    catalogueFor: async (catalogueId: string) => editions.catalogueFor(catalogueId),
+    catalogueFor: async (catalogueId: string) => {
+      await editions.loadForRequest(catalogueId)
+      return editions.catalogueFor(catalogueId)
+    },
     canonicalCatalogueFor: async (catalogueId?: string) =>
       catalogueId
         ? editions.pageCanonical(catalogueId, await editions.canonicalForRequest(catalogueId), () => getInstance().canonicalCatalogue())
         : getInstance().canonicalCatalogue(),
-    rulesFor: async (catalogueId?: string) => editions.rulesFor(catalogueId),
+    rulesFor: async (catalogueId?: string) => {
+      if (catalogueId) await editions.loadForRequest(catalogueId)
+      return editions.rulesFor(catalogueId)
+    },
     battleFactionsFor: async () => editions.battleFactions(),
     battleDetachmentDataFor: async (catalogueId: string) => {
+      await editions.loadForRequest(catalogueId)
       const catalogue = editions.catalogueFor(catalogueId)
       const rules = editions.rulesFor(catalogueId)
       return catalogue && rules ? battleDetachmentData(catalogue, rules, catalogueId) : null
