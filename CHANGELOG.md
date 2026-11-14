@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.241.2 (2026-11-14)
+
+### Patch Changes
+
+- 1e72e53: A group page no longer shows an empty "Nothing waiting on you" card when there's nothing for you to do.
+
 ## 0.241.1 (2026-11-13)
 
 ### Patch Changes
