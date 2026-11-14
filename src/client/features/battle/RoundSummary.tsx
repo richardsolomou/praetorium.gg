@@ -11,6 +11,7 @@ import { sideName, type Army, type Side } from '../../sides'
 import { readStoredValue, writeStoredValue } from '../../storedValue'
 import { useHydrated } from '../../useClientValue'
 import { tint } from './battleTints'
+import { PlayerTint } from './battleColours'
 import { dueSummary, isBefore, parseRoundMark, roundSummaryStorageKey, sameMark, settledMark, type RoundMark } from './roundMarks'
 
 /**
@@ -198,14 +199,14 @@ function SideTotals({ side, round, end }: { side: Side; round: number; end: bool
                 colours.text,
               )}
             >
-              {army.playerName}
+              <PlayerTint playerId={army.playerId}>{army.playerName}</PlayerTint>
             </p>
             <FactionName army={army} />
           </li>
         ))}
       </ul>
       <p className={cn('mt-3 flex items-baseline gap-2 sm:mt-5', end && 'flex-row-reverse')}>
-        <span className={cn('figure animate-figure text-7xl leading-[0.85] font-bold sm:text-9xl', colours.text)}>{side.total}</span>
+        <span className={cn('figure animate-figure text-7xl leading-[0.85] font-bold sm:text-9xl', colours.score)}>{side.total}</span>
         <span className="font-display text-xs font-semibold tracking-label text-dim uppercase">VP</span>
       </p>
       <p className={cn('mt-2 flex items-baseline gap-1.5 text-sm', end && 'flex-row-reverse')}>
@@ -295,9 +296,9 @@ function RoundByRound({ sides: table, round, rounds }: { sides: Side[]; round: n
               <tr key={side.index} className="border-t border-edge">
                 <th scope="row" className={cn('py-2 pr-1 text-left text-2xs leading-tight font-bold uppercase sm:text-sm', colours.text)}>
                   {side.armies.map((army) => (
-                    <span key={army.playerId} className="block [overflow-wrap:anywhere]">
+                    <PlayerTint key={army.playerId} playerId={army.playerId} className="block [overflow-wrap:anywhere]">
                       {army.playerName}
-                    </span>
+                    </PlayerTint>
                   ))}
                 </th>
                 {columns.map((column) => (
@@ -305,7 +306,9 @@ function RoundByRound({ sides: table, round, rounds }: { sides: Side[]; round: n
                     {column <= round ? (side.rounds.find((entry) => entry.round === column)?.total ?? 0) : '–'}
                   </td>
                 ))}
-                <td className={cn('figure py-2 text-base font-bold sm:text-lg', colours.text)}>{side.total}</td>
+                <td className="figure py-2 text-base font-bold sm:text-lg">
+                  <span className={colours.score}>{side.total}</span>
+                </td>
               </tr>
             )
           })}
