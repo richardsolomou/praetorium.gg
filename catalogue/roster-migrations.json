@@ -155,7 +155,7 @@
   },
   "chaosLegionariesHavocsWeapons": {
     "fromSnapshot": "73669b75ec4f7a2b6147407dd61b955ff68fba9ecc9f08ee36d29a51ee2cf8cd",
-    "toSnapshot": "761a70430551057dc3bef39fb302cbe0ec913f2ff4a446981ba9bf44e75a8674",
+    "toSnapshot": "cb58aafbf6fed5cbd0868176ca194feee58e11c7bda504ad07e16d567337d716",
     "reason": "Keep the Legionaries' flamer and plasma gun after the live refresh linked shared, collective entries in their place (0a18-5adf-b1ad-a9a8, e7a1-a59a-f7e0-91da) and the fork restored the original entries, and keep the Havoc Champion's flamer and plasma gun after wh40k-11e@1f71b4b replaced them with links to the shared entries.",
     "catalogues": {},
     "detachments": {},
