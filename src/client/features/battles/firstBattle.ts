@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { meQuery, onboardingQuery } from '../../queries'
+import { useHydrated } from '../../useClientValue'
 
 /** What tracking a game here does that paper at the table does not, said where a battle starts. */
 export const TRACKER_PITCH =
@@ -10,10 +11,12 @@ export const TRACKER_HINT = 'Track games here: your CP, stratagem checks, score 
 
 /**
  * Whether the player has yet to sit at a battle here, so has not seen what the tracker does.
- * False until their progress arrives, so a player with games behind them never sees the pitch flash in.
+ * False until their progress arrives, so a player with games behind them never sees the pitch flash in,
+ * and while hydrating, because the restored offline cache can hold progress the server render lacked.
  */
 export function useFirstBattle() {
+  const hydrated = useHydrated()
   const { data: me } = useQuery(meQuery())
   const { data: progress } = useQuery({ ...onboardingQuery(), enabled: Boolean(me) })
-  return Boolean(me && progress && !progress.completedTasks.includes('battle'))
+  return Boolean(hydrated && me && progress && !progress.completedTasks.includes('battle'))
 }
