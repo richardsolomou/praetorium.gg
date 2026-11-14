@@ -4,7 +4,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it, vi } from 'vitest'
 import type { MissionAward } from '../missionText'
 import { MissionCardReference } from './MissionCardReference'
-import { textToken } from '../../shared/sourceText'
+import { textToken } from '../../core/sourceText'
 
 // These render a reader who has chosen to load rules text; `RuleText.test.ts` covers one who has not.
 vi.mock('../rulesText', async (original) => {

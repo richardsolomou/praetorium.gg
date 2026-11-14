@@ -1,9 +1,9 @@
 import { Link } from '@tanstack/react-router'
-import { pageLinkTabClass, pageLinkTabsClass } from '../../components/PageTabs'
+import { pageLinkTabClass, PageLinkTabs } from '../../components/PageTabs'
 
 export function UpdatesNavigation({ current }: { current: 'app' | 'data' }) {
   return (
-    <nav aria-label="Updates" className={pageLinkTabsClass}>
+    <PageLinkTabs label="Updates">
       {(
         [
           ['app', '/whats-new', "What's new"],
@@ -19,6 +19,6 @@ export function UpdatesNavigation({ current }: { current: 'app' | 'data' }) {
           {label}
         </Link>
       ))}
-    </nav>
+    </PageLinkTabs>
   )
 }

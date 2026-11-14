@@ -88,6 +88,8 @@ test('search intent requires a usable query and survives clearing it without rec
   await expect.poll(() => events.find((event) => event.name === 'global_search_result_opened')?.properties.search_started).toBe(true)
   await expect(page).toHaveURL('/factions')
   await expect(page.getByRole('heading', { name: 'Factions', exact: true })).toBeVisible()
+  // The picked result's palette is still animating out, and reopening onto it would skip the click.
+  await expect(search).not.toBeVisible()
   await open()
   await search.fill('private search')
   await expect.poll(started).toHaveLength(3)

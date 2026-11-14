@@ -1,7 +1,6 @@
 import { expect, test, type Page } from './test'
 import { createRoster, setupStep, signUp, startBattle, expectNoPageOverflow, practiceBattle, PHONE } from './account'
 import { chooseCombatUnit, openCombatBreakdown } from './combat'
-import { expectNoHorizontalOverflow } from './builder.harness'
 
 // Controls transition their font size, so measuring before the transitions finish reads the old layout.
 async function doubleText(page: Page) {
@@ -229,7 +228,7 @@ test.describe('a touch device', () => {
     expect(outside).toBe(false)
   })
 
-  test('wraps page tabs inside the screen at double text size', async ({ page }) => {
+  test('keeps page tabs inside the screen at double text size, scrolled to the current one', async ({ page }) => {
     await signUp(page, 'Tabs')
     await page.locator('[data-mobile-app-header]').getByRole('button', { name: 'Account menu for Tabs' }).click()
     await page.getByRole('menuitem', { name: 'My profile' }).click()
@@ -237,10 +236,12 @@ test.describe('a touch device', () => {
     await doubleText(page)
     await expectNoPageOverflow(page)
 
-    await page.goto('/rosters')
-    const views = page.getByRole('navigation', { name: 'Rosters' })
-    await expect(views).toBeVisible()
-    await doubleText(page)
-    await expectNoHorizontalOverflow(views)
+    await page.addInitScript(() =>
+      addEventListener('DOMContentLoaded', () =>
+        document.head.append(Object.assign(document.createElement('style'), { textContent: 'html { font-size: 200% }' })),
+      ),
+    )
+    await page.goto('/rosters?view=winning')
+    await expect(page.getByRole('navigation', { name: 'Rosters' }).getByRole('link', { name: 'Winning' })).toBeInViewport({ ratio: 0.99 })
   })
 })
