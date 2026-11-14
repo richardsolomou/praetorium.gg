@@ -8,6 +8,7 @@ import { battleQuery, factionQuery } from '../../queries'
 import { formatName, sideName, sides, type Army, type Side, type SideMission } from '../../sides'
 import { useSpacetimeLiveBattle } from '../../spacetimeLive'
 import { tint } from './battleTints'
+import { PaintedBattle, PlayerTint } from './battleColours'
 
 /**
  * The score strip a streaming tool lays over its video: what a spectator sees, without the app around it.
@@ -40,16 +41,18 @@ function OverlayStrip({ view, missions }: { view: BattleView; missions: readonly
   }, [table, view.players, view.status])
   const [first, second] = table
   return (
-    <main className="p-3">
-      <section
-        aria-label="Battle score"
-        className="mx-auto grid max-w-5xl grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-start gap-4 rounded-xl border border-edge bg-void/90 px-4 py-3"
-      >
-        {first ? <OverlaySide view={view} side={first} align="start" /> : <div />}
-        <OverlayStatus view={view} table={table} />
-        {second ? <OverlaySide view={view} side={second} align="end" /> : <div />}
-      </section>
-    </main>
+    <PaintedBattle players={view.players}>
+      <main className="p-3">
+        <section
+          aria-label="Battle score"
+          className="mx-auto grid max-w-5xl grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-start gap-4 rounded-xl border border-edge bg-void/90 px-4 py-3"
+        >
+          {first ? <OverlaySide view={view} side={first} align="start" /> : <div />}
+          <OverlayStatus view={view} table={table} />
+          {second ? <OverlaySide view={view} side={second} align="end" /> : <div />}
+        </section>
+      </main>
+    </PaintedBattle>
   )
 }
 
@@ -100,7 +103,14 @@ function OverlaySide({ view, side, align }: { view: BattleView; side: Side; alig
   return (
     <div className={cn('min-w-0 space-y-1.5', end && 'text-right')}>
       <div>
-        <p className={cn('truncate text-lg leading-tight font-bold uppercase', colours.text)}>{sideName(side)}</p>
+        <p className={cn('truncate text-lg leading-tight font-bold uppercase', colours.text)}>
+          {side.armies.map((army, index) => (
+            <span key={army.playerId}>
+              {index ? ' & ' : null}
+              <PlayerTint playerId={army.playerId}>{army.playerName}</PlayerTint>
+            </span>
+          ))}
+        </p>
         <p className="truncate text-xs text-dim">
           {side.armies.map((army, index) => (
             <span key={army.playerId}>
