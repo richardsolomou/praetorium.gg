@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest'
-import { dateReleaseHeadings, parseReleaseNotes } from './releaseNotes'
+import { dateReleaseHeadings, parseReleaseNotes, recentChangelog, recentReleaseNotes } from './releaseNotes'
 
 const changelog = `# praetorium
 
@@ -43,6 +43,17 @@ it('stops at the requested number of releases', () => {
 it('skips a release with no changes for players', () => {
   const quiet = changelog.replace('## 0.133.0', '## 0.133.2\n\n### Patch Changes\n\n## 0.133.0')
   expect(parseReleaseNotes(quiet, 2).map((release) => release.version)).toEqual(['0.133.1', '0.133.0'])
+})
+
+it('keeps every release from the newest release days', () => {
+  expect(recentReleaseNotes(changelog, 1).map((release) => release.version)).toEqual(['0.133.1'])
+  expect(recentReleaseNotes(changelog, 2).map((release) => release.version)).toEqual(['0.133.1', '0.133.0', '0.132.9'])
+})
+
+it.each([1, 2])('cuts the changelog to the releases from the newest %i release days', (days) => {
+  const recent = recentChangelog(changelog, days)
+  expect(recentReleaseNotes(recent, days)).toEqual(recentReleaseNotes(changelog, days))
+  expect(parseReleaseNotes(recent, Infinity)).toEqual(recentReleaseNotes(changelog, days))
 })
 
 it('dates only the headings that have no date yet', () => {

@@ -8,7 +8,8 @@ import { factionHistory, recentReferenceChanges } from '../catalogueChangeLog'
 import { changeLogPage, installedHistory } from '../catalogueChangePages'
 import { historyAnchor } from '../catalogueHistory'
 import { rpc } from '../rpc'
-import { parseReleaseNotes } from '../../core/releaseNotes'
+import { RELEASE_DAYS, recentReleaseNotes } from '../../core/releaseNotes'
+// The build bundles only the newest releases of this file: see scripts/lib/recentChangelogPlugin.ts.
 import changelog from '../../../CHANGELOG.md?raw'
 
 /** The index of data updates the installed snapshot carries, a page at a time. Nobody needs an account to read them. */
@@ -61,11 +62,7 @@ export const armyUpdates = createServerFn({ method: 'GET' })
     }),
   )
 
-/** How many release days What's new lists, enough to cover the weekly notice when it is a few days late. */
-const RELEASE_DAYS = 14
-const allReleaseNotes = parseReleaseNotes(changelog, Infinity)
-const releaseDays = new Set([...new Set(allReleaseNotes.map((note) => note.date))].slice(0, RELEASE_DAYS))
-const releaseNotes = allReleaseNotes.filter((note) => releaseDays.has(note.date))
+const releaseNotes = recentReleaseNotes(changelog, RELEASE_DAYS)
 
 /** The app's own release notes, kept apart from the game-data updates above. */
 export const appReleaseNotes = createServerFn({ method: 'GET' }).handler(() => rpc(async () => releaseNotes))

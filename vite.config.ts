@@ -1,4 +1,5 @@
 import { offlineAppPlugin } from './scripts/lib/offlineAppPlugin.ts'
+import { recentChangelogPlugin } from './scripts/lib/recentChangelogPlugin.ts'
 import { loadEnv } from 'vite'
 import path from 'node:path'
 import { defineViteConfig } from 'ras-stack/vite'
@@ -37,7 +38,7 @@ export default defineViteConfig(({ mode }) => {
       proxy: proxy?.vite,
       ...(process.env.LOCAL_VITE_ORIGIN ? { ws: { clientPort: Number(process.env.LOCAL_APP_PORT ?? 3000) } } : {}),
     },
-    plugins: [offlineAppPlugin()],
+    plugins: [recentChangelogPlugin(), offlineAppPlugin()],
     ras: {
       start: { serverFns: { disableCsrfMiddlewareWarning: true } },
       posthog: {
