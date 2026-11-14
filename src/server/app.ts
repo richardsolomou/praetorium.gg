@@ -446,12 +446,12 @@ export function app(): App {
         reportServerFailure({ event: 'battle_draft_sweep_failed', error })
       })
     setInterval(sweepDrafts, 60 * 60 * 1000).unref()
-    // The module records each reminder as it hands it out, so a restart or a second server never sends one twice.
+    // The module records each reminder as it hands it out, so a restart or a second server never sends one twice; a claim
+    // whose answer is lost is never sent, so the first one waits out the startup load rather than risk the call timing out.
     const remindLeagueDeadlines = () =>
       void instance.service.groupService
         .remindLeagueDeadlines()
         .catch((error: unknown) => reportServerFailure({ event: 'league_deadline_reminders_failed', error }))
-    remindLeagueDeadlines()
     setInterval(remindLeagueDeadlines, 60 * 60 * 1000).unref()
     let thumbnailsPending = true
     let maintainingPhotos = false
@@ -478,6 +478,7 @@ export function app(): App {
         host: deploymentHost() ?? 'unknown',
       })
     if (sync.state.status === 'ready') startup.warm()
+    void startup.ready().then(remindLeagueDeadlines)
     void startup
       .ready()
       .then(maintainPhotos)
