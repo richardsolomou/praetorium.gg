@@ -221,5 +221,208 @@
         }
       }
     }
+  },
+  "droppedEntryIds": {
+    "fromSnapshot": "73669b75ec4f7a2b6147407dd61b955ff68fba9ecc9f08ee36d29a51ee2cf8cd",
+    "toSnapshot": "761a70430551057dc3bef39fb302cbe0ec913f2ff4a446981ba9bf44e75a8674",
+    "reason": "Keep the options saved lists hold after the definitions replaced them with new entries: the Plague Champion plasma gun, the Nemesis Claw flamer and plasma gun, the Vanguard Veteran Squad [Legends] storm shields and sergeant heirloom weapon, the Acothyst's weapons now that they replace its twin torturer's tools, the Scout Bike Squad [Legends] sergeant power weapon, the Stormtalon Gunship [Legends] skyhammer missile launcher, the Venerable Dreadnought [Legends] missile launcher, the Kill Tank [Legends] rokkit launchas and skorchas, and the Darkflight Pursuit upgrades on the Legends Stormhawk, Stormraven and Stormtalon, which now come through the shared Enhancements group.",
+    "catalogues": {},
+    "detachments": {},
+    "datasheets": {
+      "e6a1-e532-1801-ceb1": {
+        "id": "e6a1-e532-1801-ceb1",
+        "choices": {
+          "3235-1aa0-6433-6bd2/eac3-68d4-2b29-62ba/c314-a789-d7f4-b07e": {
+            "e887-9459-7793-497d": {
+              "key": "3235-1aa0-6433-6bd2/eac3-68d4-2b29-62ba/c314-a789-d7f4-b07e",
+              "id": "0c29-00dc-4a3c-4839"
+            }
+          }
+        }
+      },
+      "20c5-c1e3-ebe4-8fcc": {
+        "id": "20c5-c1e3-ebe4-8fcc",
+        "choices": {
+          "a655-68e8-35ec-c7e2/19dd-6790-5ec9-7d3c/7cb2-d3db-a8d7-a332/933e-eac4-95a9-d4d9": {
+            "aa43-7dde-bd80-a2f7": {
+              "key": "a655-68e8-35ec-c7e2/19dd-6790-5ec9-7d3c/7cb2-d3db-a8d7-a332/ba08-6388-37ae-9adb/933e-eac4-95a9-d4d9",
+              "id": "aa43-7dde-bd80-a2f7",
+              "with": {
+                "a655-68e8-35ec-c7e2/19dd-6790-5ec9-7d3c/7cb2-d3db-a8d7-a332": "ba08-6388-37ae-9adb"
+              }
+            },
+            "bebb-a94f-5c28-9384": {
+              "key": "a655-68e8-35ec-c7e2/19dd-6790-5ec9-7d3c/7cb2-d3db-a8d7-a332/ba08-6388-37ae-9adb/933e-eac4-95a9-d4d9",
+              "id": "bebb-a94f-5c28-9384",
+              "with": {
+                "a655-68e8-35ec-c7e2/19dd-6790-5ec9-7d3c/7cb2-d3db-a8d7-a332": "ba08-6388-37ae-9adb"
+              }
+            },
+            "538c-7a06-2bfd-ac92": {
+              "key": "a655-68e8-35ec-c7e2/19dd-6790-5ec9-7d3c/7cb2-d3db-a8d7-a332/ba08-6388-37ae-9adb/933e-eac4-95a9-d4d9",
+              "id": "538c-7a06-2bfd-ac92",
+              "with": {
+                "a655-68e8-35ec-c7e2/19dd-6790-5ec9-7d3c/7cb2-d3db-a8d7-a332": "ba08-6388-37ae-9adb"
+              }
+            },
+            "6306-67b2-e496-90b7": {
+              "key": "a655-68e8-35ec-c7e2/19dd-6790-5ec9-7d3c/7cb2-d3db-a8d7-a332/ba08-6388-37ae-9adb/933e-eac4-95a9-d4d9",
+              "id": "6306-67b2-e496-90b7",
+              "with": {
+                "a655-68e8-35ec-c7e2/19dd-6790-5ec9-7d3c/7cb2-d3db-a8d7-a332": "ba08-6388-37ae-9adb"
+              }
+            },
+            "6fd7-f37d-62c4-4912": {
+              "key": "a655-68e8-35ec-c7e2/19dd-6790-5ec9-7d3c/7cb2-d3db-a8d7-a332/ba08-6388-37ae-9adb/933e-eac4-95a9-d4d9",
+              "id": "6fd7-f37d-62c4-4912",
+              "with": {
+                "a655-68e8-35ec-c7e2/19dd-6790-5ec9-7d3c/7cb2-d3db-a8d7-a332": "ba08-6388-37ae-9adb"
+              }
+            }
+          },
+          "a655-68e8-35ec-c7e2/19dd-6790-5ec9-7d3c/7cb2-d3db-a8d7-a332/785c-b40c-8fda-d182": {
+            "6603-7cfe-6fa3-165a": {
+              "key": "a655-68e8-35ec-c7e2/19dd-6790-5ec9-7d3c/7cb2-d3db-a8d7-a332/ba08-6388-37ae-9adb/785c-b40c-8fda-d182",
+              "id": "6603-7cfe-6fa3-165a",
+              "with": {
+                "a655-68e8-35ec-c7e2/19dd-6790-5ec9-7d3c/7cb2-d3db-a8d7-a332": "ba08-6388-37ae-9adb"
+              }
+            },
+            "279f-0b29-8de1-ac3c": {
+              "key": "a655-68e8-35ec-c7e2/19dd-6790-5ec9-7d3c/7cb2-d3db-a8d7-a332/ba08-6388-37ae-9adb/785c-b40c-8fda-d182",
+              "id": "279f-0b29-8de1-ac3c",
+              "with": {
+                "a655-68e8-35ec-c7e2/19dd-6790-5ec9-7d3c/7cb2-d3db-a8d7-a332": "ba08-6388-37ae-9adb"
+              }
+            }
+          }
+        }
+      },
+      "f89d-80b7-730f-0d1b": {
+        "id": "f89d-80b7-730f-0d1b",
+        "choices": {
+          "ba84-53a5-716c-bc48/57b0-18a4-ceb0-2def/e2c1-6079-26be-b720": {
+            "28f7-c1cc-3438-cf4c": {
+              "key": "ba84-53a5-716c-bc48/57b0-18a4-ceb0-2def/e2c1-6079-26be-b720",
+              "id": "3ac1-1fc5-a540-3545"
+            },
+            "f7dc-a17d-aece-165a": {
+              "key": "ba84-53a5-716c-bc48/57b0-18a4-ceb0-2def/e2c1-6079-26be-b720",
+              "id": "5bff-7a73-0fe8-2102"
+            }
+          }
+        }
+      },
+      "aa6a-a87a-8ec3-6aa5": {
+        "id": "aa6a-a87a-8ec3-6aa5",
+        "choices": {
+          "758c-bb5-490e-4b36/6942-e38d-5ae0-be75/93f9-8b4c-83e4-e7ff": {
+            "3215-5e-8e7e-efb8": {
+              "key": "758c-bb5-490e-4b36/6942-e38d-5ae0-be75/93f9-8b4c-83e4-e7ff",
+              "id": "f215-60a0-2077-7594"
+            }
+          },
+          "758c-bb5-490e-4b36/9348-7c8e-2c30-dc83/1944-f0c4-324e-722e": {
+            "37d3-43c3-f18a-d5f9": {
+              "key": "758c-bb5-490e-4b36/9348-7c8e-2c30-dc83/1944-f0c4-324e-722e",
+              "id": "75ab-dc8f-bb6c-adfd"
+            }
+          }
+        },
+        "fixedChoices": {
+          "758c-bb5-490e-4b36/6942-e38d-5ae0-be75/6dc9-3494-9724-c104": ["6dc9-3494-9724-c104"]
+        }
+      },
+      "8650-9036-5842-d423": {
+        "id": "8650-9036-5842-d423",
+        "choices": {
+          "a316-c527-1045-d875/ee98-d09b-4f48-5ae4/d880-f154-6f34-4dd3": {
+            "2fe1-d3db-9200-3b47": {
+              "key": "a316-c527-1045-d875/ee98-d09b-4f48-5ae4/d880-f154-6f34-4dd3",
+              "id": "ec80-4e8c-0bd4-6831"
+            }
+          }
+        }
+      },
+      "73f7-4630-43be-e095": {
+        "id": "73f7-4630-43be-e095",
+        "choices": {
+          "e2c8-5dc3-007d-7ac0/38e4-a899-1d7c-369d": {
+            "a1d5-fc81-d4ef-d6c3": {
+              "key": "e2c8-5dc3-007d-7ac0/38e4-a899-1d7c-369d",
+              "id": "9761-cbbc-5627-ab4a"
+            }
+          },
+          "cf44-ec31-599d-0eed": {
+            "bc1d-8912-2b9c-7f32": {
+              "key": "1bee-6e86-e7f6-a7c7/d694-22cb-3e41-5b45",
+              "id": "bc1d-8912-2b9c-7f32"
+            },
+            "d395-b051-384b-57d6": {
+              "key": "1bee-6e86-e7f6-a7c7/d694-22cb-3e41-5b45",
+              "id": "d395-b051-384b-57d6"
+            }
+          }
+        }
+      },
+      "98e6-9432-712c-d0b1": {
+        "id": "98e6-9432-712c-d0b1",
+        "choices": {
+          "64cf-0a6d-9986-5270/4583-77f7-39d5-6d4b": {
+            "2325-d78f-1336-1d5f": {
+              "key": "64cf-0a6d-9986-5270/4583-77f7-39d5-6d4b",
+              "id": "7cfc-ff0c-437f-1c6c"
+            }
+          }
+        }
+      },
+      "331d-9059-d87-480": {
+        "id": "331d-9059-d87-480",
+        "choices": {
+          "bede-984a-c688-c3ca/db6a-f4c0-ff50-0154": {
+            "5113-76ee-1ef7-8ade": {
+              "key": "bede-984a-c688-c3ca/db6a-f4c0-ff50-0154",
+              "id": "f2d6-b5c8-52d4-ed95",
+              "count": 2
+            },
+            "18dc-d4b9-d4a8-ddd0": {
+              "key": "bede-984a-c688-c3ca/db6a-f4c0-ff50-0154",
+              "id": "a927-6517-791f-3d96",
+              "count": 2
+            }
+          }
+        }
+      },
+      "b8d1-94bf-bbad-c41e": {
+        "id": "b8d1-94bf-bbad-c41e",
+        "choices": {
+          "4185-df23-e82c-5004": {
+            "bc1d-8912-2b9c-7f32": {
+              "key": "f945-5f6a-2d55-e975/d694-22cb-3e41-5b45",
+              "id": "bc1d-8912-2b9c-7f32"
+            },
+            "d395-b051-384b-57d6": {
+              "key": "f945-5f6a-2d55-e975/d694-22cb-3e41-5b45",
+              "id": "d395-b051-384b-57d6"
+            }
+          }
+        }
+      },
+      "6a36-465-ee24-331b": {
+        "id": "6a36-465-ee24-331b",
+        "choices": {
+          "76cb-ac8d-30ed-a44c": {
+            "bc1d-8912-2b9c-7f32": {
+              "key": "138e-643f-0921-f138/d694-22cb-3e41-5b45",
+              "id": "bc1d-8912-2b9c-7f32"
+            },
+            "d395-b051-384b-57d6": {
+              "key": "138e-643f-0921-f138/d694-22cb-3e41-5b45",
+              "id": "d395-b051-384b-57d6"
+            }
+          }
+        }
+      }
+    }
   }
 }

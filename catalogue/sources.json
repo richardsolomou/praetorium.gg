@@ -4,7 +4,7 @@
     "branch": "main",
     "license": null,
     "description": "Community catalogues for Warhammer 40,000 11th edition. JSON, one file per faction.",
-    "revision": "627c4526b3a7028c698a5b1383b3ac8e8cf9a7ec",
+    "revision": "c45517f08b8c284682c265cfe8caa8d24c4cf61f",
     "attribution": "Community catalogue data from BSData."
   },
   "points": {
