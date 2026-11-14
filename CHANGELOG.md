@@ -1,5 +1,13 @@
 # praetorium
 
+## 0.247.1 (2026-11-14)
+
+### Patch Changes
+
+- ad5a208: Page tab bars on narrow screens scroll sideways instead of wrapping onto a second line.
+
+  Opening a page on a tab that doesn't fit on screen scrolls its tab bar to show it.
+
 ## 0.247.0 (2026-11-14)
 
 ### Minor Changes
