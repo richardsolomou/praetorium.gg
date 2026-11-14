@@ -161,14 +161,14 @@ function markersInSource() {
   return found
 }
 
-/** Every screen the guide can point at, read once as one string. */
+/** Every screen and hook the guide can point at or be advanced from, read once as one string. */
 function readSource() {
   const parts: string[] = []
   const walk = (directory: string) => {
     for (const entry of readdirSync(directory, { withFileTypes: true })) {
       const path = join(directory, entry.name)
       if (entry.isDirectory()) walk(path)
-      else if (entry.name.endsWith('.tsx')) parts.push(readFileSync(path, 'utf8'))
+      else if (/(?<!\.test)\.tsx?$/.test(entry.name)) parts.push(readFileSync(path, 'utf8'))
     }
   }
   walk(join(import.meta.dirname, '..', '..'))

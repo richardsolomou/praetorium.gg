@@ -15,8 +15,7 @@ import type { FrozenRoster } from './ListBuilder'
 import type { KeyedPick } from './rosterPicks'
 import type { useRosterPrice } from './useRosterPrice'
 
-// The embark judgement and the add queue read refs while rendering and settle state once a price lands; their behavior
-// is unchanged from when they were part of ListBuilder.
+// The embark judgement and the add queue read refs while rendering and settle state once a price lands.
 // oxlint-disable react/refs, react/set-state-in-effect, react/memo-dependencies
 
 /**
