@@ -80,7 +80,17 @@ const failedRead = async (key: unknown[], error: Error) => {
 
 it('counts a failed read by the name its key starts with', async () => {
   await failedRead(['faction', 'private-id'], new Error('Army data unavailable'))
-  expect(capture).toHaveBeenCalledWith('query_load_failed', { query: 'faction', reason: 'error', offline: false })
+  expect(capture).toHaveBeenCalledWith('query_load_failed', { query: 'faction', reason: 'error', error_type: 'Error', offline: false })
+})
+
+it('names the class of an unexplained failure, never its message', async () => {
+  await failedRead(['release'], Object.assign(new Error('Unexpected token < in JSON'), { name: 'SyntaxError' }))
+  expect(capture).toHaveBeenCalledWith('query_load_failed', {
+    query: 'release',
+    reason: 'error',
+    error_type: 'SyntaxError',
+    offline: false,
+  })
 })
 
 it('counts a read that ran out of time as a timeout', async () => {
@@ -90,7 +100,12 @@ it('counts a read that ran out of time as a timeout', async () => {
 
 it('counts a refused response with its status', async () => {
   await failedRead(['release'], new HttpStatusError('Release check failed', 502))
-  expect(capture).toHaveBeenCalledWith('query_load_failed', { query: 'release', reason: 'error', status: 502, offline: false })
+  expect(capture).toHaveBeenCalledWith('query_load_failed', {
+    query: 'release',
+    reason: 'error',
+    status: 502,
+    offline: false,
+  })
 })
 
 it('does not count a read refused for a lapsed session', async () => {
