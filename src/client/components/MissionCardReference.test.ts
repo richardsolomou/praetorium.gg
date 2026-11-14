@@ -1,13 +1,15 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it, vi } from 'vitest'
 import type { MissionAward } from '../missionText'
 import { MissionCardReference } from './MissionCardReference'
+import { textToken } from '../../shared/sourceText'
 
 // These render a reader who has chosen to load rules text; `RuleText.test.ts` covers one who has not.
 vi.mock('../rulesText', async (original) => {
   const actual = await original<typeof import('../rulesText')>()
-  return { ...actual, useTextSourceChoice: () => actual.textSourceChoiceFrom('bsdata,game-datacards') }
+  return { ...actual, useTextSourceChoice: vi.fn(() => actual.textSourceChoiceFrom('bsdata,game-datacards')) }
 })
 
 const trigger = {
@@ -29,9 +31,12 @@ const award = (vp: number, criteria: string, group: string | null): MissionAward
   cumulative: false,
 })
 
+const render = (card: ReturnType<typeof createElement>) =>
+  renderToStaticMarkup(createElement(QueryClientProvider, { client: new QueryClient() }, card))
+
 describe('mission card reference', () => {
   it('shows the card instructions and labels alternative and additional objectives', () => {
-    const markup = renderToStaticMarkup(
+    const markup = render(
       createElement(MissionCardReference, {
         card: {
           name: 'Reconnaissance Sweep',
@@ -58,7 +63,7 @@ describe('mission card reference', () => {
 
   it('uses the relationship label instead of legacy plus marks on a cumulative payout', () => {
     const cumulative = { ...award(2, 'For each of those objectives.', null), cumulative: true }
-    const markup = renderToStaticMarkup(
+    const markup = render(
       createElement(MissionCardReference, {
         card: {
           name: 'Take and Hold',
@@ -76,7 +81,7 @@ describe('mission card reference', () => {
   })
 
   it('shows an end-of-battle payout without battle-round or turn qualifiers', () => {
-    const markup = renderToStaticMarkup(
+    const markup = render(
       createElement(MissionCardReference, {
         card: {
           name: 'Vanguard Operation',
@@ -107,7 +112,7 @@ describe('mission card reference', () => {
     restriction: null,
   }
   const withAction = () =>
-    renderToStaticMarkup(createElement(MissionCardReference, { card: { name: 'Secure Asset', text: null, awards: [], actions: [action] } }))
+    render(createElement(MissionCardReference, { card: { name: 'Secure Asset', text: null, awards: [], actions: [action] } }))
 
   it('prints every line the pack states for an action the card names', () => {
     const markup = withAction()
@@ -120,5 +125,26 @@ describe('mission card reference', () => {
 
   it('leaves out an action line the pack does not state', () => {
     expect(withAction()).not.toContain('Restriction:')
+  })
+
+  it('asks for unloaded rules text once and names each payout from its numbers', async () => {
+    const { useTextSourceChoice, textSourceChoiceFrom } = await import('../rulesText')
+    vi.mocked(useTextSourceChoice).mockReturnValue(textSourceChoiceFrom(''))
+    const words = (hash: string) => textToken({ file: '0123abcd', transform: 'prose', hash })
+    const markup = render(
+      createElement(MissionCardReference, {
+        card: {
+          name: 'Take and Hold',
+          text: null,
+          awards: [award(3, words('0'.repeat(16)), 'hold'), award(6, words('1'.repeat(16)), 'hold')],
+        },
+      }),
+    )
+    vi.mocked(useTextSourceChoice).mockReset()
+    expect([markup.match(/isn’t loaded/g)?.length, markup.includes('The lower payout.'), markup.includes('The higher payout.')]).toEqual([
+      1,
+      true,
+      true,
+    ])
   })
 })

@@ -8,6 +8,8 @@ Every player has their own colour, shown on their name across Praetorium and in 
 
 In a guided battle, ending a phase where a card scores opens a scoring prompt. Press what the board paid on each card, or **Did not score (or chose not to)**. The next player's turn waits until this is finished. At the end of the fifth round, the final prompt ends with **Finish battle**.
 
+Until you turn on rules text, each payout is named by its points instead of the card's words: the lower or higher of two payouts, or one counted for each time it is met. **Turn on Game Datacards** at the top of the prompt shows the card's conditions.
+
 ![The end-of-turn scoring prompt listing the primary and two secondary cards, each with its awards and a Did not score row.](screenshot:track-a-battle-scoring "Did not score (or chose not to), under a card's awards")
 
 Tactical cards are drawn when a turn needs them, at random or by selecting exact cards. Discarding tactical cards at the end of your turn gains 1 CP.

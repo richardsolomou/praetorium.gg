@@ -113,20 +113,22 @@ test('source matchup nominations survive undo and reload', async ({ page, browse
   await expect(punishment.getByRole('button', { name: 'Record choice', exact: true })).toBeDisabled()
   await punishment.getByRole('switch', { name: 'I confirm no enemy unit meets either qualification' }).click()
   await punishment.getByRole('button', { name: 'Record choice', exact: true }).click()
+  // Each seat presses only once its screen holds the other's latest command: a press from an older screen answers stale.
+  await expect(guest.getByText('1 condemned unit · fallback', { exact: true })).toBeAttached()
   await expect(target).toBeVisible()
   const targetObjectives = target.getByRole('group', { name: 'Tempting target objective', exact: true })
   await expect(targetObjectives.getByRole('button', { name: /'s home$/ })).toHaveCount(0)
   await expect(target.getByRole('button', { name: 'Record choice', exact: true })).toBeDisabled()
-  await targetObjectives
-    .getByRole('button', { name: /'s expansion$/ })
-    .first()
-    .click()
+  const objective = targetObjectives.getByRole('button', { name: /'s expansion$/ }).first()
+  const objectiveName = (await objective.textContent())!
+  await objective.click()
   await guest.setViewportSize({ width: 390, height: 900 })
   await expect.poll(async () => (await target.boundingBox())?.x).toBe(0)
   // Each side records against the battle as its page last saw it, so it waits to see the other side's latest choice first.
   await expect(guest.getByText('1 condemned unit · fallback', { exact: true })).toBeAttached()
   await target.getByRole('button', { name: 'Record choice', exact: true }).click()
   await expect(target).toBeHidden()
+  await expect(page.locator('details li').getByText(objectiveName, { exact: true })).toBeAttached()
   await expect(guards).toBeVisible()
   await expect(page.locator('details p').filter({ hasText: /'s expansion$/ })).toBeAttached()
   await guards.getByRole('button', { name: 'Record choice', exact: true }).click()
