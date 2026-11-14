@@ -125,9 +125,9 @@ export function BattleShelf({
                         <span className={`figure text-3xl leading-none font-bold whitespace-nowrap ${scored ? '' : '@max-2xl:hidden'}`}>
                           {scored ? (
                             <>
-                              <span className={cn('text-side-a', lost(ours) && faded)}>{a}</span>
+                              <span className={cn(tint(0).score, lost(ours) && faded)}>{a}</span>
                               <span className="px-1.5 text-xl text-faint">–</span>
-                              <span className={cn('text-side-b', lost(theirs) && faded)}>{b}</span>
+                              <span className={cn(tint(1).score, lost(theirs) && faded)}>{b}</span>
                             </>
                           ) : (
                             <span className="text-xl text-faint">vs</span>
