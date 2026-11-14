@@ -4,7 +4,7 @@ import {
   confirmRosterSetup,
   retryUntilVisible,
   signUp,
-  waitForRosterSave,
+  renameRoster,
   expectNoPageOverflow,
   openRosterSetup,
   chooseFaction,
@@ -122,7 +122,7 @@ async function custodesRoster(page: Page, archived?: string) {
   await chooseDetachment(dialog, 'Aquilan Shield')
   await dialog.getByRole('button', { name: 'Create roster', exact: true }).click()
   await page.waitForURL(/\/rosters\/[^/]+$/)
-  await waitForRosterSave(page, () => page.getByLabel('List name').fill('Same Custodes roster'), 'Same Custodes roster')
+  await renameRoster(page, 'Same Custodes roster')
   if (archived) {
     // Retired versions are offered only when changing an existing roster.
     const conversion = await openRosterSetup(page)

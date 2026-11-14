@@ -15,6 +15,7 @@ import { BattleShelf } from './BattleShelf'
 import { MoreBattles } from './BattleFeedList'
 import { NewBattle } from './NewBattle'
 import { DraftResume } from './DraftResume'
+import { TRACKER_PITCH } from './firstBattle'
 import { DeleteBattleDialog } from './DeleteBattle'
 import { ImportBattles } from './ImportBattles'
 import { PageContent, PageHeader } from '../../components/Page'
@@ -137,7 +138,7 @@ export function BattlesPage({ view: asked, search, order }: { view: BattlesView;
               <PageState
                 headingLevel={2}
                 title="No battles yet."
-                explanation="Practise on your own, or add a friend and start a game together."
+                explanation={`${TRACKER_PITCH} You can also practise on your own first.`}
                 icon={Swords}
                 action={<NewBattle />}
               />

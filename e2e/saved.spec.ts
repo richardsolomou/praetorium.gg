@@ -10,6 +10,7 @@ import {
   signUp,
   uniqueName,
   waitForRosterSave,
+  renameRoster,
   expectNoPageOverflow,
   openRosterSetup,
   recordSaves,
@@ -137,7 +138,7 @@ test('opening an unchanged list saves nothing, and an edit still saves', async (
   await page.waitForLoadState('networkidle')
   expect(saves).toEqual([])
 
-  await waitForRosterSave(page, () => page.getByLabel('List name').fill(`${rosterName} edited`), `${rosterName} edited`)
+  await renameRoster(page, `${rosterName} edited`)
   expect(saves).toHaveLength(1)
 })
 
@@ -343,7 +344,7 @@ test('a connected legacy shell roster follows other tabs without replacing an un
   await expect(viewer.getByLabel('List name')).toHaveValue('Live roster')
   await viewer.getByRole('button', { name: 'View', exact: true }).click()
 
-  await waitForRosterSave(page, () => page.getByLabel('List name').fill('Updated live roster'), 'Updated live roster')
+  await renameRoster(page, 'Updated live roster')
   await expect(viewer.getByLabel('List name')).toHaveValue('Updated live roster')
 
   await viewer.getByRole('button', { name: 'Build', exact: true }).click()
@@ -371,7 +372,7 @@ test('a connected legacy shell roster follows other tabs without replacing an un
   try {
     await viewer.getByLabel('List name').fill('Local unsaved edit')
     await expect.poll(() => localSaveStarted).toBe(true)
-    await waitForRosterSave(page, () => page.getByLabel('List name').fill('Changed elsewhere'), 'Changed elsewhere')
+    await renameRoster(page, 'Changed elsewhere')
     await expect.poll(() => remoteUpdateFetched).toBe(true)
     await expect(viewer.getByLabel('List name')).toHaveValue('Local unsaved edit')
   } finally {
@@ -468,7 +469,7 @@ test('a saved list is reopened, duplicated, shared and published', async ({ brow
   const priced = await total.innerText()
 
   // The name is offered, not demanded; this one is overridden on purpose.
-  await waitForRosterSave(page, () => page.getByLabel('List name').fill('Nurgle 2k'), 'Nurgle 2k')
+  await renameRoster(page, 'Nurgle 2k')
 
   await page.getByRole('link', { name: 'Rosters' }).click()
   // The library prices every list in one answer, so each row asks for nothing of its own.

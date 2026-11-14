@@ -1005,12 +1005,14 @@ async function orkLoadoutVariants(page: Page, width: number, opensInView: boolea
   await expect(page.getByRole('tooltip').getByRole('listitem')).toHaveCount(5)
   await page.keyboard.press('Escape')
 
+  // The previous tooltip can still be closing as this one opens, so read this one by its own text.
+  const lethalHits = page.getByRole('tooltip').filter({ hasText: /automatically wound/i })
   await loadout.getByRole('button', { name: 'LETHAL HITS: non-MONSTER/VEHICLE', exact: true }).first().click()
-  await expect(page.getByRole('tooltip')).toContainText(/automatically wound/i)
+  await expect(lethalHits).toBeVisible()
   await page.keyboard.press('Escape')
-  await expect(page.getByRole('tooltip')).toBeHidden()
+  await expect(lethalHits).toBeHidden()
   await loadout.getByRole('button', { name: 'LETHAL HITS: non-MONSTER/VEHICLE', exact: true }).first().press('Enter')
-  await expect(page.getByRole('tooltip')).toContainText(/automatically wound/i)
+  await expect(lethalHits).toBeVisible()
   await page.keyboard.press('Escape')
 
   const pair = 'Big Skorcha and Kustom Choppa'
@@ -1041,10 +1043,12 @@ async function orkLoadoutVariants(page: Page, width: number, opensInView: boolea
   await page.reload()
   await expect(card).toBeVisible()
   await expect(page.locator('[data-slot="skeleton"]')).toHaveCount(0)
-  if (width >= 1000 || !(await loadout.getByRole('button', { name: 'Back to roster' }).isVisible())) {
-    await card.getByRole('button', { name: /^Nobz/ }).click()
-  }
-  await expect(loadout.getByLabel('Nob models', { exact: true })).toHaveText('5')
+  // A phone may reopen the loadout over the roster once the page restores, so open it only while it is not showing.
+  const nobs = loadout.getByLabel('Nob models', { exact: true })
+  await expect(async () => {
+    if (!(await nobs.isVisible())) await card.getByRole('button', { name: /^Nobz/ }).click({ timeout: 2_000 })
+    await expect(nobs).toHaveText('5', { timeout: 2_000 })
+  }).toPass({ timeout: 30_000 })
   await expect(loadout.getByLabel(`${pair} count`, { exact: true })).toHaveText('1')
   await waitForRosterSave(page, () => loadout.getByRole('button', { name: `Fewer ${pair}`, exact: true }).click())
   await expect(profiles.locator('[data-equipped]')).toHaveAttribute('data-equipped', 'false')

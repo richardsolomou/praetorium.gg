@@ -1,5 +1,13 @@
 import { expect, test, type Page } from './test'
-import { confirmRosterSetup, retryUntilVisible, signUp, waitForRosterSave, expectNoPageOverflow, chooseOption } from './account'
+import {
+  confirmRosterSetup,
+  retryUntilVisible,
+  signUp,
+  waitForRosterSave,
+  renameRoster,
+  expectNoPageOverflow,
+  chooseOption,
+} from './account'
 import { lastPathSegment, seedRoster } from './storage'
 
 /** Opens the conversion the rules notice offers and chooses the current rules version. */
@@ -34,7 +42,7 @@ test('fixed Sternguard equipment survives migration, saving and reload', { tag: 
   await expect(unit).toContainText('105')
   await expect(page.getByText(/a saved choice is no longer available/)).toHaveCount(0)
   await expect(page.getByText(/a detachment that is no longer available/)).toHaveCount(0)
-  await waitForRosterSave(page, () => page.getByLabel('List name').fill('Fixed Sternguard saved'), 'Fixed Sternguard saved')
+  await renameRoster(page, 'Fixed Sternguard saved')
   await page.reload()
   await expect(unit).toContainText('Artificer Firearm')
   await expect(unit).toContainText('105')

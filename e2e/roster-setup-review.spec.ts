@@ -256,8 +256,11 @@ test('native-v3 lost save acknowledgement cannot overwrite a later source edit o
   await expect(review.getByRole('alert')).toBeVisible()
   await expect.poll(async () => (await operator.roster(id))!.name).toBe('Unacknowledged candidate')
   await second.reload()
-  await second.getByLabel('List name').fill('Later source edit')
-  await expect.poll(async () => (await operator.roster(id))!.name).toBe('Later source edit')
+  // A name typed before the reloaded page hydrates is lost, so type it again until it saves.
+  await expect(async () => {
+    await second.getByLabel('List name').fill('Later source edit')
+    await expect.poll(async () => (await operator.roster(id))!.name, { timeout: 5_000 }).toBe('Later source edit')
+  }).toPass({ timeout: 30_000 })
   const beforeRetry = (await operator.roster(id))!
   await review.getByRole('button', { name: 'Confirm changes' }).click()
   await expect(review.getByRole('alert')).toContainText('changed after your review')

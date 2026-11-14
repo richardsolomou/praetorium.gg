@@ -1,5 +1,5 @@
 import { expect, test } from './test'
-import { signUp, waitForRosterSave, addUnit, chooseFaction, visitorSetup } from './account'
+import { signUp, renameRoster, addUnit, chooseFaction, visitorSetup } from './account'
 import { capture, docsScreenshots } from './docsScreenshots'
 
 docsScreenshots()
@@ -15,7 +15,7 @@ test('build an army screenshots', async ({ page }) => {
 
   await setup.getByRole('button', { name: 'Create roster' }).click()
   await page.waitForURL(/\/rosters\/[^/]+$/)
-  await waitForRosterSave(page, () => page.getByLabel('List name').fill('Gladius strike force'), 'Gladius strike force')
+  await renameRoster(page, 'Gladius strike force')
 
   const picker = page.getByLabel('Add a unit')
   if (!(await picker.isVisible())) await page.getByRole('button', { name: 'Add units', exact: true }).click()
