@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.241.5 (2026-11-14)
+
+### Patch Changes
+
+- 3e61d7a: A battle card's score blends the colours of everyone on each side.
+
 ## 0.241.4 (2026-11-14)
 
 ### Patch Changes
