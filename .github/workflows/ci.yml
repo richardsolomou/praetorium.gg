@@ -125,6 +125,9 @@ jobs:
       ASSETS_R2_SECRET_ACCESS_KEY: ${{ secrets.CATALOGUE_R2_SECRET_ACCESS_KEY }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          # The startup bundle check builds the merge commit's first parent too.
+          fetch-depth: 2
       - uses: richardsolomou/ras-stack/actions/setup-js@v1
       - uses: ./.github/actions/catalogue-sync
         with:
@@ -142,6 +145,19 @@ jobs:
       - run: pnpm build
       - run: pnpm typecheck
       - run: pnpm exec vitest run --config vitest.integration.config.ts scripts/clientText.integration.test.ts
+      # Nothing else fails when a route file or the shell pulls page code into what every page preloads.
+      # The base skips the offline reference, which changes no client chunk.
+      - name: Compare the startup bundle with the base
+        if: github.event_name == 'pull_request'
+        env:
+          CATALOGUE_RUNTIME_FETCH: 'true'
+        run: |
+          set -euo pipefail
+          base="$RUNNER_TEMP/startup-base"
+          # As in `ci-scope.yml`, the merge commit's first parent is the base it merged into.
+          git worktree add --detach "$base" "$(git rev-parse HEAD^1)"
+          (cd "$base" && pnpm install --frozen-lockfile && pnpm exec ras build)
+          node scripts/startupBundle.ts .output "$base/.output"
 
   # A compiler change makes the release compile production's live catalogue for minutes before its replica can start, so this prepares and shares it while the pull request is reviewed. Only releases publish the live catalogue itself.
   live-catalogue:
