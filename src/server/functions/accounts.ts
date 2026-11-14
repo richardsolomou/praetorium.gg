@@ -86,9 +86,12 @@ export const setPlayerDefaults = createServerFn({ method: 'POST' })
   .validator(playerDefaultsSchema)
   .handler(({ data }) => signedInAction(productActions.setPlayerDefaults, data))
 
-/** The player's calendar feed token, or null while they have none. */
+/** The player's calendar feed token, or null while they have none or an administrator is impersonating them. */
 export const calendarFeedToken = createServerFn({ method: 'GET' }).handler(() =>
-  rpc(() => forSignedIn(null, (id) => app().repository.calendarFeedByUser(id))),
+  rpc(async () => {
+    const player = await currentUser()
+    return player && !player.impersonatedBy ? app().repository.calendarFeedByUser(player.id) : null
+  }),
 )
 
 /** Gives the player a new calendar feed address, which retires any address they had. */
