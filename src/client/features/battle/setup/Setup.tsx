@@ -851,7 +851,7 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
                 manual
                   ? armiesIn
                     ? 'Roll off. The winner takes the first turn.'
-                    : 'Once the battle size and armies are chosen, roll off. The winner takes the first turn.'
+                    : 'Once the armies are chosen, roll off. The winner takes the first turn.'
                   : view.attackerId
                     ? 'Once both armies are deployed, roll off. The winner takes the first turn.'
                     : 'Once the defender is chosen and both armies are deployed, roll off. The winner takes the first turn.'
