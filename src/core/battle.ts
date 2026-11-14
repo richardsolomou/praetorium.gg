@@ -9,43 +9,168 @@
  * No IO and no framework imports belong in this file.
  */
 
-import { groupBy } from './collections'
-import { nicknamedUnit } from './unitNotes'
-import { attachedUnitList, attachedHost, attachedUnits } from './attachedUnits'
+import { attachedUnits } from './attachedUnits'
 import { refuse, sameSide, sidePlayers } from './battlePrimitives'
 import { isGuestSeat, isPracticeSeat } from './newBattle'
-import { appliesInMode, cardsDue, cardsDueFromTheirTurn, finalAwardTotal, type MissionAward } from './scoring'
+import { finalAwardTotal, type MissionAward } from './scoring'
 import type { UnitGroup } from './unitGroups'
 import type { RosterPick } from './roster'
 import type { RosterReminder } from './reminders'
 import { correctStratagemTiming } from './stratagemCorrections'
-import { teamDisposition, teamDispositionChoices } from './teamDisposition'
-import { teamWarlord, teamWarlordChoices } from './teamWarlord'
-import { countedIn, type Passenger, type PrintedTransport, type TransportLoad, transportLoad, transportRule } from './transport'
+import type { PrintedTransport } from './transport'
 import type { CatalogueEdition } from './catalogueEdition'
 import type { MissionSelection, MissionSelectionKind } from './missionSelections'
 import { applyMissionSelection, missionSelectionRefusal, recordBeaconDestruction, type SavedMissionSelection } from './missionSelections'
+import { PHASES, type Phase, type TurnScope, BATTLE_ROUNDS } from './battlePhases'
+import { PLAYERS_PER_BATTLE, battleCapacity } from './battleSeats'
+import {
+  DETACHMENTS_MAX,
+  isGameSize,
+  isKotcLimit,
+  validArmyPoints,
+  ARMY_POINTS_ERROR,
+  type FormatRuleId,
+  detachmentPointsError,
+  fitsBattleSize,
+  teamArmyProblems,
+  rosterBattleFormat,
+  pointsBudgetsAgree,
+} from './battleFormat'
+import {
+  type UnitFormation,
+  embarkedCapacityError,
+  unitFormationRefusal,
+  redeploysToReserves,
+  movedReserveError,
+  strategicReserveSideError,
+  changedFormation,
+  fieldedUnits,
+  startingEmbarks,
+  disembarkPassengers,
+  unitWoundsLeft,
+  casualtyOutcome,
+} from './battleUnits'
+import {
+  sideDisposition,
+  sideDispositionChoices,
+  sideWarlord,
+  sideWarlordChoices,
+  sideCaptain,
+  namesAnotherArmy,
+  commandTarget,
+  targetArmy,
+} from './battleSides'
+import {
+  mayNameSecondary,
+  sideOwes,
+  secondaryDrawTarget,
+  undrawnSecondaries,
+  activeTacticalSecondaries,
+  scoringDue,
+  atBattleEnd,
+  secretSettlementActionPlayerId,
+} from './battleSecondaries'
+import { playedMoment, momentOrder, missedMomentRefusal, missedScoreRefusal } from './battleMoments'
 
-/** The phases of a battle round, in the order 11th edition plays them. */
-export const PHASES = ['command', 'movement', 'shooting', 'charge', 'fight', 'end'] as const
-
-export type Phase = (typeof PHASES)[number]
-
-/** Whose turn a stratagem or reminder applies in. */
-export const TURN_SCOPES = ['your-turn', 'opponent-turn', 'either'] as const
-
-export type TurnScope = (typeof TURN_SCOPES)[number]
-
-export const BATTLE_ROUNDS = 5
+export { PHASES, type Phase, TURN_SCOPES, type TurnScope, BATTLE_ROUNDS } from './battlePhases'
+export { battleCapacity, openPlaces, stillFilling } from './battleSeats'
+export {
+  DETACHMENTS_MAX,
+  DEFAULT_GAME_LIMIT,
+  GAME_SIZES,
+  isGameSize,
+  detachmentPointBudget,
+  isKotcLimit,
+  POINTS_BUDGET_MIN,
+  POINTS_BUDGET_MAX,
+  validArmyPoints,
+  ARMY_POINTS_ERROR,
+  allowsPointsBudget,
+  pointsBudgetError,
+  customPointsBudget,
+  pointsBudgetOf,
+  pointsLabel,
+  pointsSize,
+  battleSizeName,
+  battleSizeTitle,
+  battleSizeOptionLabel,
+  battleSizeLabel,
+  FORMAT_RULE_IDS,
+  type FormatRuleId,
+  type FormatRule,
+  enforces,
+  detachmentLimit,
+  formatDatasheetLimit,
+  kotcDatasheetRepeatable,
+  formatRules,
+  waivedFormatRules,
+  kotcUnitExclusions,
+  BORROWED_DISPOSITION_BUDGET,
+  OPTIONAL_RULE_IDS,
+  type OptionalRuleId,
+  type OptionalRule,
+  plays,
+  optionalRules,
+  pickedOptionalRules,
+  borrowedDispositionError,
+  detachmentPointsError,
+  fitsBattleSize,
+  evenArmyPoints,
+  armyPointsFor,
+  pointsSpent,
+  withinArmyPoints,
+  withinSharedArmyPoints,
+  sharedSidePoints,
+  teamArmyProblems,
+  sidePoints,
+  shortSides,
+  rosterBattleFormat,
+  pointsBudgetsAgree,
+  battlePointsBudget,
+  armyPointsText,
+  battleSizeText,
+} from './battleFormat'
+export {
+  UNIT_FORMATIONS,
+  type UnitFormation,
+  strategicReserveLimit,
+  strategicReservePoints,
+  transportLabel,
+  transportLoadOf,
+  transportAboard,
+  canTransport,
+  strategicReserveSideTotals,
+  unitFormationRefusal,
+  fieldedUnits,
+  startingEmbarks,
+  startingEmbarkRefusal,
+  casualtyOutcome,
+} from './battleUnits'
+export {
+  sideDisposition,
+  sideDispositionChoices,
+  sideWarlord,
+  sideWarlordChoices,
+  sideCaptain,
+  commandTarget,
+  commandArmy,
+  scoringTarget,
+} from './battleSides'
+export {
+  sideOwes,
+  secondaryDrawTarget,
+  undrawnSecondaries,
+  sameRandomDraw,
+  scoringDue,
+  atBattleEnd,
+  secretSettlementActionPlayerId,
+  mayNameCard,
+} from './battleSecondaries'
+export { missedMoments } from './battleMoments'
 
 const COMMAND_PHASE_CP = 1
 
-const PLAYERS_PER_BATTLE = 2
-const TEAM_BATTLE_PLAYERS = 3
 export const ROSTER_NAME_MAX_LENGTH = 80
-
-/** How many detachments one roster may hold whatever its size says, and so how many names a pooled card may name. */
-export const DETACHMENTS_MAX = 3
 
 /**
  * The longest label naming where a stratagem came from.
@@ -186,255 +311,6 @@ export type SubmittedUnit = {
   embarkedSpace?: number
 }
 
-export const UNIT_FORMATIONS = ['battlefield', 'strategic-reserves', 'deep-strike', 'embarked'] as const
-export type UnitFormation = (typeof UNIT_FORMATIONS)[number]
-
-export const strategicReserveLimit = (pointsLimit: number) => pointsLimit / 2
-const startsInStrategicReserves = (formation: UnitFormation) => formation === 'strategic-reserves' || formation === 'deep-strike'
-
-type ReserveUnit = Pick<
-  UnitState,
-  'key' | 'attachedTo' | 'formation' | 'embarkedIn' | 'points' | 'strategicReserveExempt' | 'postDeploymentReserve'
->
-
-/** Deep Strike changes an ingress move; the unit still starts in Strategic Reserves. */
-export function strategicReservePoints(units: readonly ReserveUnit[]): number {
-  const byKey = new Map(units.map((unit) => [unit.key, unit]))
-  return [...groupBy(units, (unit) => attachedHost(units, unit).key).values()].reduce((total, attached) => {
-    const reserved = attached.filter(
-      (unit) =>
-        startsInStrategicReserves(unit.formation) ||
-        (unit.embarkedIn && startsInStrategicReserves(byKey.get(unit.embarkedIn)?.formation ?? 'battlefield')),
-    )
-    if (reserved.some((unit) => unit.strategicReserveExempt || unit.postDeploymentReserve)) return total
-    return total + reserved.reduce((points, unit) => points + unit.points, 0)
-  }, 0)
-}
-
-export function transportLabel(units: readonly Pick<UnitState, 'key' | 'name' | 'nickname'>[], key: string): string | null {
-  const transport = units.find((unit) => unit.key === key)
-  if (!transport) return null
-  const matching = units.filter((unit) => unit.name === transport.name)
-  const name = matching.length > 1 ? `${transport.name} #${matching.findIndex((unit) => unit.key === key) + 1}` : transport.name
-  return nicknamedUnit(name, transport.nickname)
-}
-
-/** What a transport holds if these passengers ride in it, or why they cannot. */
-export function transportLoadOf(
-  transport: Pick<UnitState, 'transportRule' | 'transportCapacity' | 'wargear'> | undefined,
-  passengers: readonly (Passenger & Partial<Pick<UnitState, 'key' | 'attachedTo' | 'embarksWithBodyguard' | 'embarkedSpace'>>)[],
-): TransportLoad | Refusal {
-  const rule = transportRule(transport?.transportCapacity ?? transport?.transportRule, transport?.wargear)
-  if (!rule) return refuse('transport-capacity-unknown', 'this transport has no known model capacity')
-  return transportLoad(
-    rule,
-    passengers.map((passenger) => {
-      const bodyguard = passenger.embarksWithBodyguard && passengers.find((candidate) => candidate.key === passenger.attachedTo)
-      if (!bodyguard || !bodyguard.keywords) return passenger
-      return { ...passenger, ridesAs: bodyguard.keywords, ...(passenger.embarkedSpace ? { space: passenger.embarkedSpace } : {}) }
-    }),
-  )
-}
-
-/** How full a transport is with these passengers, as a player reads it, or null when its capacity is unknown. */
-export function transportAboard(
-  transport: Pick<UnitState, 'transportRule' | 'transportCapacity' | 'wargear'> | undefined,
-  passengers: readonly Passenger[],
-): string | null {
-  const load = transportLoadOf(transport, passengers)
-  if (!Array.isArray(load)) return null
-  if (load.length === 1) return `${load[0]!.used}/${load[0]!.capacity} ${countedIn(load[0]!)}`
-  if (load.some((pool) => pool.units))
-    return load.map((pool) => `${pool.used}/${pool.capacity} ${pool.carries} ${countedIn(pool)}`).join(', ')
-  return `${load.map((pool) => `${pool.used}/${pool.capacity} ${pool.carries}`).join(', ')} models`
-}
-
-const loadRefusal = (load: TransportLoad | Refusal): Refusal | null => (Array.isArray(load) ? null : load)
-
-function embarkedCapacityError(units: readonly UnitState[], unit: UnitState, nextAlive: number): Refusal | null {
-  if (!unit.embarkedIn || nextAlive <= unit.alive) return null
-  const transport = units.find((candidate) => candidate.key === unit.embarkedIn)
-  const aboard = units.filter((candidate) => candidate.embarkedIn === unit.embarkedIn)
-  return loadRefusal(
-    transportLoadOf(
-      transport,
-      aboard.map((candidate) => (candidate === unit ? { ...unit, alive: nextAlive } : candidate)),
-    ),
-  )
-}
-
-export const canTransport = (unit: Pick<UnitState, 'transport' | 'group'>): boolean => unit.transport === true || unit.group === 'transport'
-
-export function strategicReserveSideTotals(
-  armies: readonly { units: readonly ReserveUnit[]; roster: ReserveRoster }[],
-): { points: number; limit: number } | null {
-  const limits = armies.map((army) => army.roster?.built?.strategicReserveLimit)
-  if (limits.some((limit) => limit === undefined)) return null
-  return {
-    points: armies.reduce((total, army) => total + strategicReservePoints(army.units), 0),
-    limit: limits.reduce<number>((total, limit) => total + (limit ?? 0), 0),
-  }
-}
-
-/** The fields of an army that its formations are judged against, shared by the battle state and its view. */
-type FormationArmy = { side: number; units: readonly UnitState[]; roster: ReserveRoster }
-type ReserveRoster = { built?: { strategicReserveLimit?: number } | null } | null
-type FormationTable = Pick<BattleState, 'status' | 'firstPlayerId'> & { players: readonly FormationArmy[] }
-
-/**
- * Why one of the army's units cannot move to a formation, or null when it can.
- *
- * `validate` refuses `set-unit-formation` with this, and the setup screen asks it of
- * the battle view to disable what the server would refuse.
- */
-export function unitFormationRefusal(
-  state: FormationTable,
-  player: FormationArmy,
-  command: Pick<Extract<Command, { kind: 'set-unit-formation' }>, 'unitKey' | 'formation' | 'transportKey'>,
-): Refusal | null {
-  const attached = attachedUnits(player.units, command.unitKey)
-  if (command.formation === 'embarked') {
-    if (!command.transportKey) return refuse('invalid-transport', 'choose a transport for the embarked unit')
-    const transport = player.units.find((unit) => unit.key === command.transportKey)
-    if (!transport || !canTransport(transport) || transport.attachedTo || transport.destroyed || transport.formation === 'embarked')
-      return refuse('invalid-transport', 'choose a transport in this army')
-    if (attached.some((unit) => unit.key === transport.key || canTransport(unit)))
-      return refuse('invalid-transport', 'a transport cannot embark in another transport')
-    if (attached.some((unit) => unit.destroyed)) return refuse('invalid-transport', 'a destroyed unit cannot embark')
-    const moving = new Set(attached.map((unit) => unit.key))
-    const aboard = player.units.filter((unit) => unit.embarkedIn === transport.key && !moving.has(unit.key))
-    const refusal = loadRefusal(transportLoadOf(transport, [...aboard, ...attached]))
-    if (refusal) return refusal
-  } else if (command.transportKey) {
-    return refuse('invalid-transport', 'only an embarked unit can name a transport')
-  }
-  // Asked of the whole attached unit, because a deployment ability needs every
-  // model in it: a character who can deep strike cannot take a bodyguard unit
-  // that cannot with him.
-  if (
-    !['battlefield', 'strategic-reserves', 'embarked'].includes(command.formation) &&
-    !attached.every((unit) => unit.formationOptions?.includes(command.formation))
-  ) {
-    return refuse('formation-unsupported', 'the roster data does not support that formation')
-  }
-  if (state.status !== 'setup') return null
-  return movedReserveError(
-    state,
-    player,
-    attached,
-    command.formation,
-    redeploysToReserves(state, attached, command.formation),
-    command.transportKey,
-  )
-}
-
-/** Whether units deployed at the roll-off are being sent to reserves, which the rules count as redeploying them. */
-function redeploysToReserves(
-  state: Pick<BattleState, 'status' | 'firstPlayerId'>,
-  attached: readonly UnitState[],
-  formation: UnitFormation,
-) {
-  return (
-    state.status === 'setup' &&
-    Boolean(state.firstPlayerId) &&
-    formation === 'strategic-reserves' &&
-    attached.every((unit) => unit.deployedAtRollOff && unit.formation === 'battlefield')
-  )
-}
-
-/** The side's reserve refusal once these units move to a formation. */
-function movedReserveError(
-  state: FormationTable,
-  player: FormationArmy,
-  attached: readonly UnitState[],
-  formation: UnitFormation,
-  redeployed = false,
-  transportKey?: string,
-): Refusal | null {
-  const keys = new Set(attached.map((unit) => unit.key))
-  const changed = player.units.map((unit) => (keys.has(unit.key) ? changedFormation(unit, formation, redeployed, transportKey) : unit))
-  return strategicReserveSideError(state, player, changed)
-}
-
-function strategicReserveSideError(state: FormationTable, player: FormationArmy, changed?: readonly ReserveUnit[]): Refusal | null {
-  const armies = sidePlayers(state, player.side)
-  const totals = strategicReserveSideTotals(armies)
-  if (!totals) return null
-  const points = changed ? totals.points - strategicReservePoints(player.units) + strategicReservePoints(changed) : totals.points
-  // Old logs may already be over the limit. A change that reduces their total must
-  // stay legal so the table can repair the setup one unit at a time.
-  if (changed && points <= totals.points) return null
-  return points > totals.limit
-    ? refuse(
-        'reserves-over-limit',
-        armies.length > 1 ? `over this side's ${totals.limit} pt reserve limit` : `over the ${totals.limit} pt reserve limit`,
-      )
-    : null
-}
-
-function changedFormation(unit: UnitState, formation: UnitFormation, redeployed = false, transportKey?: string): UnitState {
-  const remainsInReserves = startsInStrategicReserves(unit.formation) && startsInStrategicReserves(formation)
-  return {
-    ...unit,
-    formation,
-    embarkedIn: formation === 'embarked' ? transportKey : undefined,
-    startingEmbarkRefused: undefined,
-    deployed: formation === 'battlefield',
-    postDeploymentReserve: startsInStrategicReserves(formation) && (redeployed || (remainsInReserves && unit.postDeploymentReserve)),
-  }
-}
-
-/** A frozen list's units as they stand when it is attached: on the battlefield, unhurt. */
-export const fieldedUnits = (submitted: readonly SubmittedUnit[]): UnitState[] =>
-  submitted.map((unit) =>
-    Object.assign({ destroyed: false, deployed: true, formation: 'battlefield' as const, alive: unit.models, damage: 0 }, unit),
-  )
-
-/**
- * The army with every unit its list starts embarked put in its transport, in list order.
- * A unit `unitFormationRefusal` would not let in stays where it was, with the reason.
- *
- * Judged against the frozen army rather than trusted from the builder: the rules
- * version, a transport's wargear or an attached character can change what fits.
- * The builder names the units an edit just changed in `edited`; their attached units
- * are judged last, so the unit that grew is the one left out rather than another passenger.
- */
-export function startingEmbarks(fielded: readonly UnitState[], edited: readonly string[] = []): UnitState[] {
-  const units = fielded.map((unit) => ({ ...unit }))
-  const table = settingUp(units)
-  const changed = new Set(edited)
-  const wasEdited = ({ host, joined }: { host: UnitState; joined: readonly UnitState[] }) =>
-    [host, ...joined].some((unit) => changed.has(unit.key))
-  const attached = attachedUnitList(units)
-  for (const { host } of [...attached.filter((unit) => !wasEdited(unit)), ...attached.filter(wasEdited)]) {
-    const transportKey = host.startsEmbarkedIn
-    if (!transportKey) continue
-    const refusal = unitFormationRefusal(table, table.players[0], { unitKey: host.key, formation: 'embarked', transportKey })
-    if (refusal) host.startingEmbarkRefused = refusal.message
-    else for (const unit of attachedUnits(units, host.key)) Object.assign(unit, changedFormation(unit, 'embarked', false, transportKey))
-  }
-  return units
-}
-
-/** Why this unit cannot start in that transport alongside what the rest of the list starts in it. */
-export function startingEmbarkRefusal(fielded: readonly UnitState[], unitKey: string, transportKey: string): Refusal | null {
-  const moving = new Set(attachedUnits(fielded, unitKey).map((unit) => unit.key))
-  const units = startingEmbarks(fielded.map((unit) => (moving.has(unit.key) ? { ...unit, startsEmbarkedIn: undefined } : unit)))
-  const table = settingUp(units)
-  return unitFormationRefusal(table, table.players[0], { unitKey, formation: 'embarked', transportKey })
-}
-
-/** One army alone at a table being set, with no reserve limit to judge since embarking in a deployed transport adds none. */
-const settingUp = (units: readonly UnitState[]) =>
-  ({ status: 'setup', firstPlayerId: null, players: [{ side: 0, units, roster: null }] }) as const satisfies FormationTable
-
-function disembarkPassengers(units: UnitState[], transport: UnitState): void {
-  if (!transport.destroyed || !canTransport(transport)) return
-  for (const passenger of units.filter((unit) => unit.embarkedIn === transport.key)) {
-    Object.assign(passenger, changedFormation(passenger, 'battlefield'))
-  }
-}
-
 /** A unit's standing in the battle. Attached rosters begin on the battlefield. */
 export type UnitState = SubmittedUnit & {
   destroyed: boolean
@@ -462,46 +338,6 @@ export type UnitState = SubmittedUnit & {
    * know: there is nothing for a wound to be counted against.
    */
   damage: number
-}
-
-/** What is left of a unit, in wounds, which is the one number both halves fold to. */
-function unitWoundsLeft(unit: UnitState): number | null {
-  return unit.wounds ? unit.alive * unit.wounds - unit.damage : null
-}
-
-type CasualtyCommand = Extract<Command, { kind: 'set-unit' | 'wound-unit' | 'damage-unit' }>
-
-/** What is left of a unit after one casualty command, which the fold and the roster's pending presses both read. */
-export function casualtyOutcome(unit: UnitState, command: CasualtyCommand): Pick<UnitState, 'alive' | 'damage' | 'destroyed'> {
-  switch (command.kind) {
-    // The three stay in step in both directions: a unit brought back is whole again,
-    // and a unit that is gone has nothing left standing to be carrying a wound.
-    case 'set-unit':
-      return { destroyed: command.destroyed, alive: command.destroyed ? 0 : unit.models, damage: 0 }
-    // The model that was carrying the damage is the one that just left, and a model
-    // returning to the unit arrives whole, so either way nothing is still wounded.
-    // Losing the last model is losing the unit: one event, not two states that could
-    // contradict each other.
-    case 'wound-unit': {
-      const alive = unit.alive + command.delta
-      return { alive, damage: 0, destroyed: alive === 0 }
-    }
-    case 'damage-unit': {
-      const left = unitWoundsLeft(unit)
-      if (left === null || !unit.wounds) return unit
-      /*
-       * Wounds are the whole of it, and the models fall out of the arithmetic.
-       *
-       * Damage lands on one model until that model is gone and then moves to the next,
-       * so what a unit has left is a single number of wounds and where the model line
-       * falls inside it is division. Keeping the two as separate counters to be nudged
-       * in step is how they end up disagreeing.
-       */
-      const remaining = left + command.delta
-      const alive = Math.ceil(remaining / unit.wounds)
-      return { alive, damage: alive * unit.wounds - remaining, destroyed: alive === 0 }
-    }
-  }
 }
 
 /**
@@ -587,9 +423,6 @@ export const SCORE_SETTLEMENT_MAX = SECONDARY_HISTORY_MAX + 1
 export type SecondaryMode = 'fixed' | 'tactical'
 
 export const SECONDARY_MODES: SecondaryMode[] = ['tactical', 'fixed']
-/** How many tactical cards a side draws at the top of each of its own turns. Unresolved cards from earlier turns are kept alongside them, not replaced. */
-const TACTICAL_HAND_SIZE = 2
-
 type BattlePrep = {
   stratagems: Stratagem[]
   secondaries: Secondary[]
@@ -656,247 +489,6 @@ export function sidePaintedPoints(state: BattleState, side: number): number {
   if (state.settings.manual) return 0
   const seated = sidePlayers(state, side)
   return seated.length && seated.every((player) => player.painted) ? PAINTED_ARMY_POINTS : 0
-}
-
-const KOTC_LIMITS = [600] as const
-/**
- * Sizes King of the Colosseum was offered at before and is no longer built at.
- *
- * A size that stops being offered does not stop being played: rosters saved at it and
- * battles already running on it keep their construction rules, their datasheet caps and
- * their tactical-only secondaries, because dropping them would quietly rewrite a list
- * its owner cannot rebuild.
- */
-const RETIRED_KOTC_LIMITS = [500] as const
-export const DEFAULT_GAME_LIMIT = 2000
-
-/** The matched-play game sizes, smallest first; saved rosters and battle commands store these limits, so mission-pack size records never replace them. */
-export const GAME_SIZES = [
-  ...KOTC_LIMITS.map((limit) => ({ name: 'King of the Colosseum', limit, detachmentPoints: null })),
-  { name: 'Incursion', limit: 1000, detachmentPoints: 2 },
-  { name: 'Strike Force', limit: 2000, detachmentPoints: 3 },
-  { name: 'Onslaught', limit: 3000, detachmentPoints: null },
-] as const
-
-export const isGameSize = (limit: number | null) => GAME_SIZES.some((size) => size.limit === limit)
-export const detachmentPointBudget = (limit: number) => GAME_SIZES.find((size) => size.limit === limit)?.detachmentPoints ?? null
-export const isKotcLimit = (limit: number | null): boolean =>
-  limit !== null && [...KOTC_LIMITS, ...RETIRED_KOTC_LIMITS].some((candidate) => candidate === limit)
-
-/**
- * Bounds of a points budget agreed in place of a battle size's points total.
- *
- * The game system data offers this override inside its battle size with a 500-point
- * minimum and no maximum; the maximum is the saved roster contract's own bound.
- */
-export const POINTS_BUDGET_MIN = 500
-export const POINTS_BUDGET_MAX = 10_000
-
-/** Points for one army in a team battle: any whole number up to the roster contract's bound. */
-export const validArmyPoints = (points: number) => Number.isInteger(points) && points >= 1 && points <= POINTS_BUDGET_MAX
-export const ARMY_POINTS_ERROR = `choose between 1 and ${POINTS_BUDGET_MAX.toLocaleString('en')} points per army`
-
-/** King of the Colosseum fixes its points total, so only the core battle sizes take a custom budget. */
-export const allowsPointsBudget = (limit: number | null): boolean => limit !== null && !isKotcLimit(limit) && isGameSize(limit)
-
-export function pointsBudgetError(limit: number, requested: number | null | undefined): string | null {
-  const budget = customPointsBudget(limit, requested)
-  if (budget === null) return null
-  if (!allowsPointsBudget(limit)) return 'This battle size has a fixed points total.'
-  if (!Number.isInteger(budget)) return 'Enter a whole number of points.'
-  if (budget < POINTS_BUDGET_MIN || budget > POINTS_BUDGET_MAX)
-    return `Choose between ${POINTS_BUDGET_MIN} and ${POINTS_BUDGET_MAX.toLocaleString('en')} points.`
-  return null
-}
-
-/** A budget equal to the battle size's own total is no custom budget at all. */
-export const customPointsBudget = (limit: number, budget: number | null | undefined): number | null =>
-  budget === null || budget === undefined || budget === limit ? null : budget
-
-/** What a roster may spend: its custom budget, or else its battle size's points total. */
-export const pointsBudgetOf = (roster: { limit: number; pointsBudget?: number | null }): number => roster.pointsBudget ?? roster.limit
-
-export const pointsLabel = (points: number): string => `${points.toLocaleString('en')} points`
-
-/** "2,000-point", as in a 2,000-point army. */
-export const pointsSize = (points: number): string => `${points.toLocaleString('en')}-point`
-
-export const battleSizeName = (limit: number): string => GAME_SIZES.find((size) => size.limit === limit)?.name ?? pointsLabel(limit)
-
-/** A standard size's name, or plain "Battle" for any other limit. */
-export const battleSizeTitle = (limit: number): string => GAME_SIZES.find((size) => size.limit === limit)?.name ?? 'Battle'
-
-export const battleSizeOptionLabel = (size: { name: string; limit: number }): string => `${size.name} · ${pointsLabel(size.limit)}`
-
-/** The battle size whose limits apply, and beside it any custom points budget. */
-export const battleSizeLabel = (limit: number, pointsBudget?: number | null): string =>
-  pointsBudget === null || pointsBudget === undefined
-    ? battleSizeName(limit)
-    : `${battleSizeName(limit)} · ${pointsSize(pointsBudget)} budget`
-
-/** Name every waivable format restriction here so legality and picker filtering read the same roster waiver. */
-export const FORMAT_RULE_IDS = [
-  'points-limit',
-  'detachments',
-  'detachment-points',
-  'warlord',
-  'kotc-infantry',
-  'kotc-warlord',
-  'kotc-epic-heroes',
-  'kotc-toughness',
-  'kotc-datasheet-copies',
-] as const
-
-export type FormatRuleId = (typeof FORMAT_RULE_IDS)[number]
-export type FormatRule = { id: FormatRuleId; label: string; hint: string }
-
-/** Whether a rule still applies, given what the roster has waived. */
-export const enforces = (waived: readonly string[] | null | undefined, rule: FormatRuleId) => !waived?.includes(rule)
-
-export const detachmentLimit = (limit: number, waived: readonly string[] = []) =>
-  isKotcLimit(limit) && enforces(waived, 'detachments') ? 1 : DETACHMENTS_MAX
-
-/** The format-specific cap for copies of one datasheet, before catalogue limits are applied. */
-export const formatDatasheetLimit = (limit: number, repeatable: boolean, waived: readonly string[] = []) =>
-  isKotcLimit(limit) && enforces(waived, 'kotc-datasheet-copies') ? (repeatable ? 2 : 1) : null
-
-const hasUnitKeyword = (keywords: readonly string[], wanted: string) =>
-  keywords.some((keyword) => keyword.trim().toLocaleLowerCase() === wanted)
-
-export const kotcDatasheetRepeatable = (keywords: readonly string[]) =>
-  hasUnitKeyword(keywords, 'battleline') || hasUnitKeyword(keywords, 'dedicated transport')
-
-/** What this battle size restricts, in the order a player reads it. */
-export function formatRules(limit: number | null, pointsBudget?: number | null): FormatRule[] {
-  if (limit === null) return []
-  const pointsLimit: FormatRule = {
-    id: 'points-limit',
-    label: 'Points limit',
-    hint: `The roster costs at most ${pointsLabel(pointsBudget ?? limit)}`,
-  }
-  if (isKotcLimit(limit)) {
-    return [
-      pointsLimit,
-      { id: 'detachments', label: 'One detachment', hint: 'The roster is built from exactly one detachment' },
-      { id: 'kotc-infantry', label: 'Two Infantry units', hint: 'The roster holds at least two Infantry units' },
-      { id: 'kotc-warlord', label: 'Character Warlord', hint: 'Exactly one Character unit is named as the Warlord' },
-      { id: 'kotc-epic-heroes', label: 'No Epic Heroes', hint: 'Datasheets with the Epic Hero keyword may not be taken' },
-      { id: 'kotc-toughness', label: 'Toughness cap', hint: 'Nothing above Toughness 9, and at most one Toughness 9 unit' },
-      {
-        id: 'kotc-datasheet-copies',
-        label: 'Datasheet copies',
-        hint: `At most ${formatDatasheetLimit(limit, false)} of each datasheet, or ${formatDatasheetLimit(limit, true)} for Battleline and Dedicated Transports`,
-      },
-    ]
-  }
-  const warlord: FormatRule = { id: 'warlord', label: 'Warlord', hint: 'Exactly one Character unit is named as the Warlord' }
-  const budget = detachmentPointBudget(limit)
-  return budget === null
-    ? [pointsLimit, warlord]
-    : [
-        pointsLimit,
-        { id: 'detachment-points', label: 'Detachment points', hint: `Detachments cost at most ${budget} DP together` },
-        warlord,
-      ]
-}
-
-/**
- * The restrictions a roster's own battle size imposes that it is not playing.
- *
- * The one answer to "is this list built to its format?", so the builder, the roster
- * chooser, a sealed event's sealing dialog and the opponent's view of an attached army all
- * say the same thing about the same list. Waivers a size does not impose are not
- * counted: an id kept from another size restricts nothing here.
- */
-export const waivedFormatRules = (
-  limit: number | null,
-  waived: readonly string[] | undefined,
-  pointsBudget?: number | null,
-): FormatRule[] => formatRules(limit, pointsBudget).filter((rule) => !enforces(waived, rule.id))
-
-export function kotcUnitExclusions(
-  unit: { keywords: readonly string[]; toughness: number | null },
-  waived: readonly string[] = [],
-): string[] {
-  return [
-    ...(enforces(waived, 'kotc-epic-heroes') && hasUnitKeyword(unit.keywords, 'epic hero') ? ['does not allow Epic Heroes'] : []),
-    ...(enforces(waived, 'kotc-toughness') && unit.toughness !== null && unit.toughness > 9
-      ? [`does not allow Toughness ${unit.toughness}`]
-      : []),
-  ]
-}
-
-/**
- * The detachment points the borrowed-disposition optional rule gives a roster to spend.
- *
- * Homebrew, and deliberately not the format's own economy. King of the Colosseum sets no
- * detachment point limit at all — a roster takes any one detachment at any cost — and
- * spends detachment points instead as the bid that decides who picks the twist. This
- * budget exists only inside the optional rule, so a roster whose detachment already costs
- * this much has nothing to borrow with and is told so rather than shown an empty choice.
- */
-export const BORROWED_DISPOSITION_BUDGET = 3
-
-/**
- * The homebrew a battle size can be played with, and the mirror of `FORMAT_RULE_IDS`.
- *
- * A format rule is played until a roster waives it; a optional rule is not played until a
- * roster picks it. Neither is ever inferred from the list in front of it, so nobody is
- * handed a rule their group did not agree to play, and a size that offers no homebrew
- * offers nothing to switch on.
- */
-export const OPTIONAL_RULE_IDS = ['kotc-borrowed-disposition'] as const
-
-export type OptionalRuleId = (typeof OPTIONAL_RULE_IDS)[number]
-export type OptionalRule = { id: OptionalRuleId; label: string; hint: string }
-
-/** Whether a roster picked a optional rule, which is the only way one is played. */
-export const plays = (picked: readonly string[] | undefined, rule: OptionalRuleId) => Boolean(picked?.includes(rule))
-
-/** What homebrew this battle size offers, in the order a player reads it. */
-export function optionalRules(limit: number | null): OptionalRule[] {
-  if (!isKotcLimit(limit)) return []
-  return [
-    {
-      id: 'kotc-borrowed-disposition',
-      label: 'Borrowed disposition',
-      hint: `Spend what your detachment leaves unspent, out of a house allowance of ${BORROWED_DISPOSITION_BUDGET} DP, to play another detachment's Force Disposition`,
-    },
-  ]
-}
-
-/** The homebrew a roster is playing that its own battle size offers. */
-export const pickedOptionalRules = (limit: number | null, picked: readonly string[] | undefined): OptionalRule[] =>
-  optionalRules(limit).filter((rule) => plays(picked, rule.id))
-
-/** A borrowed disposition requires an explicit optional-rule choice and a known price; it grants no rules, enhancements, or stratagems from that detachment. */
-export function borrowedDispositionError(
-  limit: number | null,
-  picked: readonly string[] | undefined,
-  own: { points: number | null } | null,
-  borrowed: { points: number | null } | null,
-): string | null {
-  if (!borrowed) return null
-  if (!isKotcLimit(limit)) return 'Only a King of the Colosseum roster may borrow another detachment’s Force Disposition.'
-  if (!plays(picked, 'kotc-borrowed-disposition')) return 'This roster is not playing the borrowed disposition optional rule.'
-  if (!own || own.points === null || borrowed.points === null)
-    return 'One of these detachments has no points value, so the borrowed disposition cannot be paid for.'
-  const spent = own.points + borrowed.points
-  return spent > BORROWED_DISPOSITION_BUDGET
-    ? `This combination costs ${spent} DP; the borrowed disposition rule allows ${BORROWED_DISPOSITION_BUDGET} DP.`
-    : null
-}
-
-export function detachmentPointsError(
-  detachments: readonly { points: number | null }[],
-  allowance: number | null,
-  waived: readonly string[] = [],
-): string | null {
-  if (detachments.length <= 1 || allowance === null || !enforces(waived, 'detachment-points')) return null
-  const spent = detachments.reduce((total, detachment) => total + (detachment.points ?? 0), 0)
-  return spent > allowance
-    ? `This combination costs ${spent} DP; multiple detachments at this battle size may cost at most ${allowance} DP.`
-    : null
 }
 
 type OnBehalfOf = { playerId?: PlayerId }
@@ -1305,41 +897,6 @@ export type BattleState = {
   undoable: { seq: number; by: PlayerId; kind: Command['kind'] } | null
   /** The highest seq in the log, undone commands included. The concurrency token. */
   seq: number
-}
-
-/**
- * How many players a battle seats.
- *
- * Its own settings decide it, and only here, so a third player following the link
- * is refused by the same rule the interface reads rather than by a separate one
- * that could come to disagree.
- */
-export function battleCapacity(settings: { teamBattle?: boolean; playerCount?: 2 | 3 | 4; places?: readonly number[] }) {
-  if (settings.places) return (settings.places[0]! + settings.places[1]!) as 2 | 3 | 4
-  return settings.playerCount ?? (settings.teamBattle ? TEAM_BATTLE_PLAYERS : PLAYERS_PER_BATTLE)
-}
-
-/**
- * The places on each side nobody has joined yet, by side.
- *
- * Only a battle that counts its places has any: one whose seats were all filled at creation is full by definition.
- */
-export function openPlaces(state: { settings: Pick<BattleSettings, 'places'>; players: readonly { side: number }[] }): [number, number] {
-  const places = state.settings.places
-  if (!places) return [0, 0]
-  return [0, 1].map((side) => Math.max(0, places[side]! - state.players.filter((player) => player.side === side).length)) as [
-    number,
-    number,
-  ]
-}
-
-/** A battle still being put together: a place is open or an army is missing. Only setup has drafts. */
-export function stillFilling(state: {
-  status: string
-  settings: Pick<BattleSettings, 'places'>
-  players: readonly { side: number; roster: unknown }[]
-}) {
-  return state.status === 'setup' && (openPlaces(state).some(Boolean) || state.players.some((player) => !player.roster))
 }
 
 /**
@@ -2683,72 +2240,6 @@ function applyStratagemUse(state: BattleState, player: PlayerState, stratagem: S
   player.uses.push({ key: stratagem.key, name: stratagem.name, cp: spent, round: moment.round, phase: moment.phase, turn: moment.turn })
 }
 
-/**
- * The moment being played, or null outside play.
- *
- * Moments are ordered by `momentOrder`, so an action recorded late can be placed
- * against the moments since without storing a second clock.
- */
-function playedMoment(state: BattleState): BattleMoment | null {
-  return state.status === 'playing' && state.round > 0 && state.activePlayerId
-    ? { round: state.round, phase: state.phase, turn: state.activePlayerId }
-    : null
-}
-
-function momentOrder(state: BattleState, moment: BattleMoment): number {
-  const turn = sameSide(state, moment.turn, state.firstPlayerId ?? '') ? 0 : 1
-  return ((moment.round - 1) * 2 + turn) * PHASES.length + PHASES.indexOf(moment.phase)
-}
-
-/**
- * The earlier moments a missed action may name: this battle round and the one before.
- *
- * Bounded so a correction stays within what the table can still remember, and so the
- * usage limits, CP and card holdings it is judged against stay those of a recent turn.
- */
-export function missedMoments(state: BattleState): BattleMoment[] {
-  const now = playedMoment(state)
-  if (!now || !state.firstPlayerId) return []
-  const second = state.players.find((player) => !sameSide(state, player.id, state.firstPlayerId ?? ''))?.id
-  const turns = [state.firstPlayerId, ...(second ? [second] : [])]
-  const latest = momentOrder(state, now)
-  return [...new Set([Math.max(1, state.round - 1), state.round])]
-    .flatMap((round) => turns.flatMap((turn) => PHASES.map((phase) => ({ round, phase, turn }))))
-    .filter((moment) => momentOrder(state, moment) < latest)
-}
-
-function missedMomentRefusal(state: BattleState, moment: BattleMoment): Refusal | null {
-  return missedMoments(state).some(
-    (candidate) => candidate.round === moment.round && candidate.phase === moment.phase && sameSide(state, candidate.turn, moment.turn),
-  )
-    ? null
-    : refuse('missed-moment', 'a missed action belongs to an earlier phase of this battle round or the previous one')
-}
-
-function missedScoreRefusal(
-  state: BattleState,
-  by: PlayerId,
-  player: PlayerState,
-  command: Extract<Command, { kind: 'score-settlement' }>,
-  moment: BattleMoment,
-): Refusal | null {
-  const refusal = missedMomentRefusal(state, moment)
-  if (refusal) return refusal
-  if (command.round !== undefined) return refuse('missed-unsupported', 'a missed score names its moment rather than a settlement round')
-  for (const score of command.scores) {
-    if (score.category === 'primary') {
-      if (score.final) return refuse('missed-unsupported', 'end-of-battle points cannot be recorded late')
-      continue
-    }
-    if (!mayNameSecondary(state, by, player, score.key)) return refuse('unknown-secondary', 'that is not one of your secondaries')
-    if (player.secondaryStatus[score.key] !== 'active')
-      return refuse('missed-unsupported', 'only a secondary mission still held can be scored late')
-    if ((player.secondaryDrawnAt[score.key] ?? -1) > momentOrder(state, moment))
-      return refuse('missed-unsupported', 'that secondary mission had not been drawn yet')
-  }
-  return null
-}
-
 /** The fewest CP the side held from the end of a moment until now, which a missed spend may not exceed. */
 function fewestCpSince(state: BattleState, player: PlayerState, moment: BattleMoment): number {
   const from = momentOrder(state, moment)
@@ -2876,447 +2367,6 @@ function enterTurn(state: BattleState, playerId: PlayerId, settlementRound: numb
     player.additionalSecondaryDrawsThisTurn = 0
     player.secondariesToReview = []
   }
-}
-
-/**
- * The Force Disposition a side plays, which decides the primary it is set.
- *
- * Where two allies' lists chose different cards and the side has not said which it
- * plays, the answer is nothing at all — taking the first seat's card would have
- * played one ally's choice for both of them without ever saying so.
- */
-export function sideDisposition(state: BattleState, side: number): string | null {
-  const disposition = teamDisposition(
-    sidePlayers(state, side).map((player) => player.roster),
-    state.sideDispositions[side] ?? null,
-  )
-  // A battle already being played is never left without a mission. Setup refuses to
-  // start one until each side has said, so this only answers for battles begun before
-  // the question was asked — and it answers what they were already being played on.
-  if (disposition || state.status === 'setup') return disposition
-  return sideCaptain(state, side).roster?.built?.disposition ?? null
-}
-
-/** The cards a side could play, which is what it is asked to choose between. */
-export function sideDispositionChoices(state: BattleState, side: number): string[] {
-  return teamDispositionChoices(sidePlayers(state, side).map((player) => player.roster))
-}
-
-/** The player whose Warlord leads a side; null while allies have not said which of their Warlords it is. */
-export function sideWarlord(state: BattleState, side: number): PlayerId | null {
-  return teamWarlord(sidePlayers(state, side), state.sideWarlords[side] ?? null)
-}
-
-/** The players on a side whose lists name a Warlord, which allies choose between. */
-export function sideWarlordChoices(state: BattleState, side: number): PlayerId[] {
-  return teamWarlordChoices(sidePlayers(state, side))
-}
-
-export function sideCaptain(state: BattleState, side: number): PlayerState {
-  return state.players.find((player) => player.side === side)!
-}
-
-/** Whether the command names an army other than the one recording it. */
-function namesAnotherArmy(command: Command, actor: PlayerState): boolean {
-  return 'playerId' in command && Boolean(command.playerId) && command.playerId !== actor.id
-}
-
-function armyCommand(command: Command): boolean {
-  return [
-    'attach-roster',
-    'detach-roster',
-    'set-unit',
-    'wound-unit',
-    'damage-unit',
-    'deploy-unit',
-    'set-unit-formation',
-    'set-painted',
-  ].includes(command.kind)
-}
-
-/** The player a command names, or whoever sent it. */
-export function commandTarget(command: Command, by: PlayerId): PlayerId {
-  return 'playerId' in command && command.playerId ? command.playerId : by
-}
-
-/** Resolves the army once for both choosing cards from its deck and recording the draw. */
-export function commandArmy(state: BattleState, by: PlayerId, command: Command): PlayerState | undefined {
-  const actor = state.players.find((candidate) => candidate.id === by)
-  return actor ? targetArmy(state, actor, command) : undefined
-}
-
-/**
- * The army a command acts on.
- *
- * Live actions may name another player, while commands without a target retain the
- * actor-based meaning used by existing log entries.
- */
-function targetArmy(state: BattleState, actor: PlayerState, command: Command): PlayerState {
-  const named = 'playerId' in command && command.playerId ? command.playerId : null
-  const target = (named ? state.players.find((candidate) => candidate.id === named) : undefined) ?? actor
-  return armyCommand(command) ? target : sideCaptain(state, target.side)
-}
-
-/**
- * The side a score command would credit, resolved the same way `validate` does.
- *
- * Exported for the score-cap check, which needs the mission pack and so cannot live
- * in this IO-free file: resolving the target stays made in one place even so.
- */
-export function scoringTarget(
-  state: BattleState,
-  by: PlayerId,
-  command: Command,
-):
-  | (Pick<
-      PlayerState,
-      'side' | 'primary' | 'secondary' | 'primaryByRound' | 'secondaryByRound' | 'finalPrimary' | 'secondaryMode' | 'scored'
-    > & {
-      disposition: string | null
-    })
-  | null {
-  const actor = state.players.find((candidate) => candidate.id === by)
-  if (!actor) return null
-  const target = targetArmy(state, actor, command)
-  return {
-    side: target.side,
-    disposition: sideDisposition(state, target.side),
-    primary: target.primary,
-    secondary: target.secondary,
-    primaryByRound: target.primaryByRound,
-    finalPrimary: target.finalPrimary,
-    secondaryByRound: target.secondaryByRound,
-    secondaryMode: target.secondaryMode,
-    scored: target.scored,
-  }
-}
-
-function mayNameSecondary(state: BattleState, by: PlayerId, player: PlayerState, key: string): boolean {
-  if (!player.secondaries.some((secondary) => secondary.key === key)) return false
-  return mayNameCard(state, by, player, key)
-}
-
-/**
- * What the active side still owes before the turn moves on, or null.
- *
- * The same answer whoever asks: drawing, putting a card back and discarding one are
- * all named in the log to both sides, so the only thing held back is a card played
- * face down, an opt-in card in fixed play that only its own side can answer.
- */
-export function sideOwes(state: BattleState, player: PlayerState): 'settlement' | 'cards' | 'secret' | null {
-  if (state.phase === 'command' && state.pendingSettlement?.playerId === player.id) return 'settlement'
-  if (
-    state.phase === 'command' &&
-    player.secondaryMode === 'tactical' &&
-    player.secondariesDrawnThisTurn.length < secondaryDrawTarget(player) &&
-    undrawnSecondaries(player).length
-  ) {
-    return 'cards'
-  }
-  if (state.phase === 'end' && player.secretSecondary && !player.secretRevealed) return 'secret'
-  return null
-}
-
-export function secondaryDrawTarget(player: PlayerState): number {
-  return TACTICAL_HAND_SIZE + player.additionalSecondaryDrawsThisTurn
-}
-
-/** The cards still in a side's deck. */
-export function undrawnSecondaries(player: Pick<PlayerState, 'secondaryDeck' | 'secondaries'>): Secondary[] {
-  return (player.secondaryDeck ?? []).filter((candidate) => !player.secondaries.some((secondary) => secondary.key === candidate.key))
-}
-
-/**
- * Whether a random secondary draw worked out from `before` deals the same hand against `after`.
- *
- * The service picks a random draw's cards, so the commands appended since only change
- * the draw when they move the turn or this army's hand or deck. Anything else, such as
- * the opponent spending CP in the same Command Phase, leaves the draw as its player saw it.
- */
-export function sameRandomDraw(before: BattleState, after: BattleState, by: PlayerId, command: Command): boolean {
-  if (command.kind !== 'draw-secondaries' || command.selected) return false
-  const facts = (state: BattleState) => {
-    const player = commandArmy(state, by, command)
-    return (
-      player &&
-      JSON.stringify([
-        state.status,
-        state.round,
-        state.phase,
-        state.activePlayerId,
-        state.turnSeq,
-        player.id,
-        player.secondaryMode,
-        player.secondaries.map((secondary) => [secondary.key, player.secondaryStatus[secondary.key]]),
-        player.secondariesDrawnThisTurn,
-        player.secondariesToReview,
-        secondaryDrawTarget(player),
-        player.secondaryDeck?.map((secondary) => secondary.key),
-      ])
-    )
-  }
-  const drawn = facts(before)
-  return drawn !== undefined && drawn === facts(after)
-}
-
-/** The cards in hand still in play, apart from a secret mission. */
-function activeTacticalSecondaries(player: PlayerState): Secondary[] {
-  return player.secondaries.filter(
-    (secondary) => secondary.key !== player.secretSecondary && player.secondaryStatus[secondary.key] === 'active',
-  )
-}
-
-/** A secondary as scoring reads it: only the awards its side's way of playing pays. */
-function dueSecondary(player: PlayerState, secondary: Secondary, awards: MissionAward[]) {
-  return { ...secondary, category: 'secondary' as const, awards: awards.filter((award) => appliesInMode(award, player.secondaryMode)) }
-}
-
-export function scoringDue(state: BattleState, player: PlayerState) {
-  const primary = player.primaryCard?.awards
-    ? [{ ...player.primaryCard, category: 'primary' as const, awards: player.primaryCard.awards }]
-    : []
-  const secondaries = player.secondaries.flatMap((secondary) => {
-    if (player.secondaryStatus[secondary.key] !== 'active' || !secondary.awards) return []
-    return [dueSecondary(player, secondary, secondary.awards)]
-  })
-  return cardsDue(
-    {
-      phase: state.phase,
-      round: state.round,
-      rounds: BATTLE_ROUNDS,
-      endOfBattle: atBattleEnd(state) && player.finalPrimary === 0,
-    },
-    true,
-    [...primary, ...secondaries],
-    [],
-    player.secondaryMode,
-  )
-}
-
-export function atBattleEnd(state: BattleState): boolean {
-  return (
-    state.status === 'playing' &&
-    state.phase === 'end' &&
-    state.round === BATTLE_ROUNDS &&
-    (state.completionPending ||
-      (state.pendingSettlement === null &&
-        state.activePlayerId !== null &&
-        !sameSide(state, state.activePlayerId, state.firstPlayerId ?? '')))
-  )
-}
-
-export function secretSettlementActionPlayerId(state: BattleState): PlayerId | null {
-  const pending = state.pendingSettlement
-  const player = pending ? state.players.find((candidate) => candidate.id === pending.playerId) : undefined
-  const key = player?.secretSecondary
-  if (!pending || !player || !key || player.secretRevealed || player.secondaryStatus[key] !== 'active') return null
-  const secondary = player.secondaries.find((candidate) => candidate.key === key)
-  if (!secondary?.awards) return player.id
-  const due = cardsDueFromTheirTurn(pending.round, BATTLE_ROUNDS, [dueSecondary(player, secondary, secondary.awards)], [key])
-  return due.length ? player.id : null
-}
-
-/** Whether a card may be named to this viewer, or is being held face down from them. */
-export function mayNameCard(state: BattleState, viewerId: PlayerId | null, player: PlayerState, key: string): boolean {
-  return player.secretSecondary !== key || player.secretRevealed || sameSide(state, viewerId, player.id)
-}
-
-type TableBuilt = {
-  limit: number
-  pointsBudget?: number | null
-  waivedRules?: readonly string[] | null
-  units?: readonly { points: number }[]
-}
-/** `units` is the army as fielded, which a battle view carries beside a list whose own units it leaves out. */
-type TableArmies = { players: readonly { side: number; roster: { built?: TableBuilt } | null; units?: readonly { points: number }[] }[] }
-
-/**
- * Whether a built list may sit at this battle.
- *
- * The size is a ceiling, so an ally brings an Incursion list to a Strike Force table, and only a list that waives its
- * points limit may be built bigger. A duel in an older log, or at King of the Colosseum's fixed totals, plays lists built
- * at exactly its size.
- */
-export function fitsBattleSize(settings: Pick<BattleSettings, 'limit' | 'teamBattle' | 'sizeFromSides'>, built: TableBuilt): boolean {
-  const { limit, teamBattle } = settings
-  if (limit === null) return true
-  if (!teamBattle && (!settings.sizeFromSides || isKotcLimit(limit) || isKotcLimit(built.limit))) return built.limit === limit
-  return built.limit <= limit || !enforces(built.waivedRules, 'points-limit')
-}
-
-/** How many armies a side brings: its places when the battle counts them, so an ally still to join counts, else who sits there. */
-const sideArmies = (state: TableArmies & { settings?: Pick<BattleSettings, 'places'> }, side: number) =>
-  state.settings?.places?.[side] ?? sidePlayers(state, side).length
-
-/** An even share of the battle size for each army on a side, which a team battle plays unless the table sets its own. */
-export function evenArmyPoints(state: TableArmies & { settings: BattleSettings }, side: number): number | null {
-  const armies = sideArmies(state, side)
-  return state.settings.limit === null ? null : state.settings.limit / Math.max(1, armies)
-}
-
-/** What each army on a side may spend in a team battle. */
-export const armyPointsFor = (state: TableArmies & { settings: BattleSettings }, side: number): number | null =>
-  state.settings.armyPoints?.[side] ?? evenArmyPoints(state, side)
-
-export const pointsSpent = (built: Pick<TableBuilt, 'units'>) => built.units?.reduce((total, unit) => total + unit.points, 0) ?? 0
-
-/** Whether a list spends no more than the points its army may, unless it waives its points limit. */
-export const withinArmyPoints = (built: Pick<TableBuilt, 'units' | 'waivedRules'>, points: number) =>
-  !enforces(built.waivedRules, 'points-limit') || pointsSpent(built) <= points
-
-/** Whether allies who share their points spend no more than `total` between them; a list that waives its points limit is not counted. */
-export const withinSharedArmyPoints = (armies: readonly Pick<TableBuilt, 'units' | 'waivedRules'>[], total: number) =>
-  armies.reduce((spent, built) => spent + (enforces(built.waivedRules, 'points-limit') ? pointsSpent(built) : 0), 0) <= total
-
-/** What a side's armies may spend together when they share their points, or null when each army spends its own. */
-export function sharedSidePoints(state: TableArmies & { settings: BattleSettings }, side: number): number | null {
-  const armies = sideArmies(state, side)
-  const points = armyPointsFor(state, side)
-  const shares = state.settings.sharedArmyPoints || battleCapacity(state.settings) === 3
-  return shares && armies > 1 && points !== null ? points * armies : null
-}
-
-type TeamArmyProblem = { code: 'over-army-points' | 'allies-mismatch'; side: number; message: string }
-
-/**
- * What stops a team battle's armies from playing, side by side.
- *
- * Each army spends no more than its side's points per army, unless it waives its points limit, and allies bring lists
- * saved to the same points total so neither half of a side is the bigger one. Allies who share their points may split
- * them any way, so only their total counts.
- */
-export function teamArmyProblems(state: TableArmies & { settings: BattleSettings }): TeamArmyProblem[] {
-  if (!state.settings.teamBattle || state.settings.limit === null) return []
-  return [0, 1].flatMap((side) => {
-    const armies = state.players.flatMap((player) =>
-      player.side === side && player.roster?.built ? [{ ...player.roster.built, units: player.units ?? player.roster.built.units }] : [],
-    )
-    const points = armyPointsFor(state, side)
-    const shared = sharedSidePoints(state, side)
-    const problems: TeamArmyProblem[] = []
-    if (
-      shared !== null ? !withinSharedArmyPoints(armies, shared) : points !== null && armies.some((army) => !withinArmyPoints(army, points))
-    )
-      problems.push({
-        code: 'over-army-points',
-        side,
-        message:
-          shared !== null ? `allies spend more than their ${pointsLabel(shared)}` : `an army spends more than its ${pointsLabel(points!)}`,
-      })
-    if (shared === null && new Set(armies.map(pointsBudgetOf)).size > 1)
-      problems.push({ code: 'allies-mismatch', side, message: 'allies bring lists saved to the same points total' })
-    return problems
-  })
-}
-
-/** Each built army's points allowance, which a duel's two lists agree on. */
-const sideAllowances = (state: TableArmies): number[] =>
-  state.players.flatMap((player) => (player.roster?.built ? [pointsBudgetOf(player.roster.built)] : []))
-
-/**
- * What each side's lists add up to, by side, with an ally who has not joined or chosen yet counted at their partner's list. A side
- * with no list yet adds up to nothing.
- */
-export function sidePoints(state: TableArmies & { settings?: Pick<BattleSettings, 'places'> }): number[] {
-  return [0, 1].map((side) => {
-    const chosen = sidePlayers(state, side).flatMap((player) => (player.roster?.built ? [pointsBudgetOf(player.roster.built)] : []))
-    return chosen.length ? chosen.reduce((total, points) => total + points, 0) + chosen[0]! * (sideArmies(state, side) - chosen.length) : 0
-  })
-}
-
-/**
- * Each side that may spend fewer points than the other, which plays short rather than being refused. A side counts its
- * lists up to what it may spend at this table, so allies' lists saved bigger than their share never read as more.
- */
-export function shortSides(state: TableArmies & { settings: BattleSettings }): { side: number; points: number; against: number }[] {
-  const { limit, sizeFromSides, teamBattle } = state.settings
-  // A side nobody sits on yet has no lists to fall short with.
-  const unseated = [0, 1].some((side) => !sidePlayers(state, side).length)
-  if (!sizeFromSides || limit === null || unseated || state.players.some((player) => !player.roster?.built)) return []
-  const allowance = (side: number) =>
-    teamBattle
-      ? (sharedSidePoints(state, side) ?? armyPointsFor(state, side)! * sideArmies(state, side))
-      : (battlePointsBudget(state) ?? limit)
-  const points = sidePoints(state).map((value, side) => Math.min(value, allowance(side)))
-  const against = Math.max(...points)
-  return points.flatMap((value, side) => (value < against ? [{ side, points: value, against }] : []))
-}
-
-type RosterFormat = { limit: number | null; problem: 'missing' | 'manual' | 'mismatch' | 'budget-mismatch' | 'unsupported' | null }
-
-/**
- * The battle size the bigger side's lists make: a lone list its own format, and allies the smallest size their lists
- * added together fit, so two Incursion lists make a Strike Force side. Known from the first list chosen.
- */
-function sideBattleFormat(state: TableArmies & { settings: BattleSettings }): RosterFormat {
-  const chosen = state.players.flatMap((player) => (player.roster ? [player.roster] : []))
-  if (!chosen.length) return { limit: null, problem: 'missing' }
-  if (chosen.some((roster) => !roster.built)) return { limit: null, problem: 'manual' }
-  const formats = chosen.map((roster) => roster.built!.limit)
-  if (formats.some(isKotcLimit)) {
-    if (state.settings.teamBattle) return { limit: null, problem: 'unsupported' }
-    return formats.every((limit) => limit === formats[0]) ? { limit: formats[0]!, problem: null } : { limit: null, problem: 'mismatch' }
-  }
-  const totals = sidePoints(state)
-  let limit = Math.max(...formats)
-  for (const side of [0, 1]) {
-    if (sideArmies(state, side) < 2) continue
-    const size = GAME_SIZES.find((candidate) => !isKotcLimit(candidate.limit) && candidate.limit >= totals[side]!)
-    if (!size) return { limit: null, problem: 'unsupported' }
-    limit = Math.max(limit, size.limit)
-  }
-  return { limit, problem: null }
-}
-
-/** The battle size the armies' formats make; custom budgets never change it, they only have to agree. */
-export function rosterBattleFormat(state: TableArmies & { settings: BattleSettings }): RosterFormat {
-  if (state.settings.sizeFromSides) return sideBattleFormat(state)
-  if (state.players.length !== battleCapacity(state.settings) || state.players.some((player) => !player.roster))
-    return { limit: null, problem: 'missing' }
-  if (state.players.some((player) => !player.roster?.built)) return { limit: null, problem: 'manual' }
-  const limits = state.players.map((player) => player.roster!.built!.limit)
-  if (state.settings.teamBattle) {
-    // The biggest list sets a team battle's size, which every other list may be built at or below.
-    const limit = Math.max(...limits)
-    return isKotcLimit(limit) ? { limit: null, problem: 'unsupported' } : { limit, problem: null }
-  }
-  const limit = limits[0]
-  if (!limits.every((value) => value === limit)) return { limit: null, problem: 'mismatch' }
-  const size = GAME_SIZES.find((candidate) => candidate.limit === limit)
-  if (!size) return { limit: null, problem: 'unsupported' }
-  return pointsBudgetsAgree(state) ? { limit: size.limit, problem: null } : { limit: null, problem: 'budget-mismatch' }
-}
-
-/** Whether every built army at the table brings the same points allowance per side. */
-export const pointsBudgetsAgree = (state: TableArmies): boolean => new Set(sideAllowances(state)).size <= 1
-
-/** The points budget a duel plays to, when it is not the battle size's own total: the one both lists agree on, or the bigger list's. */
-export function battlePointsBudget(state: TableArmies & { settings: BattleSettings }): number | null {
-  const allowances = sideAllowances(state)
-  if (state.settings.limit === null || state.settings.teamBattle || !allowances.length) return null
-  if (state.settings.sizeFromSides) return customPointsBudget(state.settings.limit, Math.max(...allowances))
-  return pointsBudgetsAgree(state) ? customPointsBudget(state.settings.limit, allowances[0]) : null
-}
-
-/** A team battle's points per army as a table says them, side by side: "1,750 vs 800 + 800", or "2,000 vs 2,000 shared". */
-export function armyPointsText(state: TableArmies & { settings: BattleSettings }): string {
-  return [0, 1]
-    .map((side) => {
-      const shared = sharedSidePoints(state, side)
-      if (shared !== null) return `${shared.toLocaleString('en')} shared`
-      const points = armyPointsFor(state, side)?.toLocaleString('en') ?? '?'
-      const armies = Math.max(1, sideArmies(state, side))
-      return Array.from({ length: armies }, () => points).join(' + ')
-    })
-    .join(' vs ')
-}
-
-/** A battle's size as its screens name it: its points, or its size beside the custom budget its armies agree on. */
-export function battleSizeText(state: TableArmies & { settings: BattleSettings }): string | null {
-  if (!state.settings.limit) return null
-  if (state.settings.teamBattle) return `${battleSizeName(state.settings.limit)} · ${armyPointsText(state)}`
-  const budget = battlePointsBudget(state)
-  return budget === null ? pointsLabel(state.settings.limit) : battleSizeLabel(state.settings.limit, budget)
 }
 
 function inferBattleSize(state: BattleState) {
