@@ -141,5 +141,13 @@ export function withRosters<B extends RepositoryBase>(Base: B) {
     rostersLentTo(...args: Parameters<SpacetimeOperator['rostersLentTo']>) {
       return this.product.rostersLentTo(...args)
     }
+
+    pushRosters(...args: Parameters<SpacetimeOperator['pushRosters']>) {
+      return this.product.pushRosters(...args)
+    }
+
+    replaceRosterPointsMarks(...args: Parameters<SpacetimeOperator['replaceRosterPointsMarks']>) {
+      return this.product.replaceRosterPointsMarks(...args)
+    }
   }
 }

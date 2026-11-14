@@ -21,6 +21,7 @@ If the switch can't be changed and says your browser blocks notifications, you t
 - **Friends:** someone asks to be your friend, or accepts your request.
 - **Battles:** someone starts a battle with you, or a friend invites you to join theirs. An invitation opens the page where you join.
 - **Groups:** a player asks to join a group you run, or you're let into one; and a reminder a day before a league round's deadline while your game in it is unfinished.
+- **Lists:** an army data update changes the points of a list you saved, if notifications are on in the app on your phone.
 - **Tournaments and hidden-list games:** your entry is requested, accepted, added or declined; your sealed list needs sealing again; a reminder to seal before the deadline; the lists are revealed; a round is paired; or the organizer sets or clears your battlefield.
 
 What happens at the table during a game, such as turns and scoring, never sends a notification. Neither does anything you did yourself.

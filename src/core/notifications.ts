@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { ROSTER_NAME_MAX_LENGTH } from './battle'
 
 const SEALED_EVENT_KINDS = [
   'sealed-event-entry-requested',
@@ -14,6 +15,9 @@ const SEALED_EVENT_KINDS = [
 ] as const
 
 const token = z.string().min(1).max(128)
+
+/** How many lists a points notice names before it counts the rest. */
+export const NAMED_ROSTERS = 2
 
 /** What a notice is about, as it is stored for its recipient. */
 export const noticeSubjectSchema = z.union([
@@ -34,6 +38,22 @@ export const noticeSubjectSchema = z.union([
   }),
   z.object({ kind: z.enum(['group-member-requested', 'group-member-accepted']), groupToken: token }),
   z.object({ kind: z.literal('group-league-deadline-reminder'), groupToken: token, round: z.number().int().positive() }),
+  /** An army-data update changed the totals of `count` lists the recipient saved; it keeps only the ones it names. */
+  z.object({
+    kind: z.literal('roster-points-changed'),
+    rosters: z
+      .array(
+        z.object({
+          id: token,
+          name: z.string().max(ROSTER_NAME_MAX_LENGTH),
+          from: z.number().int().nonnegative(),
+          to: z.number().int().nonnegative(),
+        }),
+      )
+      .min(1)
+      .max(NAMED_ROSTERS),
+    count: z.number().int().positive(),
+  }),
 ])
 
 export type NoticeSubject = z.infer<typeof noticeSubjectSchema>
@@ -145,6 +165,29 @@ export function noticeMessage(notice: StoredNotice, names: { actor?: string; sea
         body: `Round ${notice.round} of the league ends soon. Finish your game before the deadline.`,
         path: `/groups/${encodeURIComponent(notice.groupToken)}?tab=league`,
       }
+    case 'roster-points-changed':
+      return rosterPointsMessage(notice.rosters, notice.count)
+  }
+}
+
+type RosterPointsChange = { name: string; from: number; to: number }
+
+function rosterPointsMessage(rosters: readonly (RosterPointsChange & { id: string })[], count: number): NoticeMessage | null {
+  const [only] = rosters
+  if (!only) return null
+  const change = ({ from, to }: RosterPointsChange) => `${to > from ? '+' : '−'}${Math.abs(to - from)} pts`
+  if (count === 1)
+    return {
+      title: 'Points update',
+      body: `${only.name} is now ${only.to.toLocaleString('en')} pts (${change(only)}).`,
+      path: `/rosters/${encodeURIComponent(only.id)}`,
+    }
+  const named = rosters.map((roster) => `${roster.name} (${change(roster)})`)
+  const rest = count - named.length
+  return {
+    title: 'Points update',
+    body: `${count} of your lists changed: ${named.join(', ')}${rest ? `, and ${rest} more` : ''}.`,
+    path: '/rosters',
   }
 }
 

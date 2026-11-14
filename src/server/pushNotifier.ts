@@ -44,7 +44,11 @@ async function subjectNames(repository: Pick<SpacetimeRepository, 'sealedEventNa
 export async function describeNotices(repository: Pick<SpacetimeRepository, 'namesByIds'>, notices: readonly NamedNotice[]) {
   const names = await repository.namesByIds(notices.map((notice) => notice.actorId))
   return notices.map((notice) =>
-    noticeMessage(notice, { actor: names.get(notice.actorId)?.name, sealedEvent: notice.subjectName, group: notice.subjectName }),
+    noticeMessage(notice, {
+      actor: notice.actorId ? names.get(notice.actorId)?.name : undefined,
+      sealedEvent: notice.subjectName,
+      group: notice.subjectName,
+    }),
   )
 }
 

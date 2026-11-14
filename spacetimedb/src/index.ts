@@ -17,6 +17,7 @@ import {
   PUSH_PLATFORMS,
 } from '../../src/core/notificationConfig'
 import { noticeRecipients, type NoticeSubject, noticeSubjectSchema, type StoredNotice } from '../../src/core/notifications'
+import { rosterPointsMarksSchema } from '../../src/core/rosterPointsMarks'
 import {
   customPointsBudget,
   POINTS_BUDGET_MAX,
@@ -861,6 +862,7 @@ export const deleteUserData = spacetime.reducer({ userId: t.string() }, (ctx, { 
   const feed = ctx.db.calendarFeeds.userId.find(userId)
   if (feed) ctx.db.calendarFeeds.token.delete(feed.token)
   for (const row of Array.from(ctx.db.webPushSubscriptions.userId.filter(userId))) ctx.db.webPushSubscriptions.endpoint.delete(row.endpoint)
+  for (const row of Array.from(ctx.db.rosterPointsMarks.userId.filter(userId))) ctx.db.rosterPointsMarks.rosterId.delete(row.rosterId)
   for (const row of Array.from(ctx.db.friendships.requesterId.filter(userId))) {
     touchFriends(ctx, row.requesterId, row.addresseeId)
     ctx.db.friendships.key.delete(row.key)
@@ -2703,6 +2705,7 @@ function nextVersion(current: StoredRoster | null, now: bigint) {
 
 function deleteRosterRow(ctx: Context, roster: StoredRoster) {
   endLoans(ctx, roster.id)
+  ctx.db.rosterPointsMarks.rosterId.delete(roster.id)
   ctx.db.rosters.id.delete(roster.id)
   touchProduct(ctx, roster.userId, 'rosters', 'onboarding')
   if (roster.visibility !== 'private') touchPublic(ctx, 'rosters')
@@ -3793,6 +3796,62 @@ export const pushTargets = spacetime.procedure({ userIds: t.array(t.string()) },
       for (const device of tx.db.pushTokens.userId.filter(userId)) targets.push({ userId, token: device.token })
     }
     return productJson(targets)
+  }),
+)
+
+/**
+ * The active lists of a page of players a notice can reach, after `after` in id order: they have a device, have not
+ * turned notifications off, and are not a practice opponent.
+ */
+export const pushRosters = spacetime.procedure({ after: t.string(), limit: t.u32() }, t.string(), (ctx, { after, limit }) =>
+  operatorTx(ctx, (tx) => {
+    if (limit < 1 || limit > 100) throw new SenderError('Invalid push roster page')
+    const userIds = [...new Set(Array.from(tx.db.pushTokens.iter(), (device) => device.userId))]
+      .filter((userId) => userId > after)
+      .filter((userId) => !tx.db.practiceOpponents.userId.find(userId))
+      .filter((userId) => tx.db.pushPreferences.userId.find(userId)?.enabled ?? DEFAULT_PUSH_NOTIFICATIONS)
+      .sort()
+    const page = userIds.slice(0, limit)
+    const rosters = page.flatMap((userId) => Array.from(tx.db.rosters.userId.filter(userId)).filter((row) => !row.archived))
+    return productJson({ rosters, next: userIds.length > limit ? page.at(-1)! : null })
+  }),
+)
+
+/** Whether `revision` is the newest that priced lists, recording it as such when it has never priced any. */
+function newestPointsRevision(ctx: Context, revision: string) {
+  const revisions = Array.from(ctx.db.rosterPointsRevisions.iter())
+  const newest = revisions.reduce<(typeof revisions)[number] | undefined>(
+    (last, row) => (last && last.order > row.order ? last : row),
+    undefined,
+  )
+  if (newest?.revision === revision) return true
+  if (revisions.some((row) => row.revision === revision)) return false
+  ctx.db.rosterPointsRevisions.insert({ revision, order: (newest?.order ?? 0) + 1 })
+  return true
+}
+
+/**
+ * Stores each list's total as `revision` prices it and returns the marks it replaced, in one transaction, so the
+ * same update is compared, and its notice sent, at most once. A revision a newer one has replaced, as after a rollback
+ * or on a server a deploy is retiring, changes nothing, so its players never hear the update reversed and then again.
+ */
+export const replaceRosterPointsMarks = spacetime.procedure({ revision: t.string(), marks: t.string() }, t.string(), (ctx, input) =>
+  operatorTx(ctx, (tx) => {
+    if (!input.revision || input.revision.length > 200) throw new SenderError('Invalid points revision')
+    const marks = decodePayload(rosterPointsMarksSchema, input.marks, 'Invalid points marks')
+    if (!newestPointsRevision(tx, input.revision)) return productJson([])
+    const previous = []
+    for (const mark of marks) {
+      const roster = tx.db.rosters.id.find(mark.rosterId)
+      if (roster?.userId !== mark.userId) continue
+      const current = tx.db.rosterPointsMarks.rosterId.find(mark.rosterId)
+      const row = { ...mark, revision: input.revision, updatedAt: BigInt(mark.updatedAt) }
+      if (current) {
+        previous.push(current)
+        tx.db.rosterPointsMarks.rosterId.update(row)
+      } else tx.db.rosterPointsMarks.insert(row)
+    }
+    return productJson(previous)
   }),
 )
 

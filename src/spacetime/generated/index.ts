@@ -149,6 +149,7 @@ import * as PlayerStandingsProcedure from './player_standings_procedure'
 import * as PracticeOpponentIdsProcedure from './practice_opponent_ids_procedure'
 import * as ProductStatsProcedure from './product_stats_procedure'
 import * as PushEnabledProcedure from './push_enabled_procedure'
+import * as PushRostersProcedure from './push_rosters_procedure'
 import * as PushTargetsProcedure from './push_targets_procedure'
 import * as RatingChangesProcedure from './rating_changes_procedure'
 import * as RatingsBeforeProcedure from './ratings_before_procedure'
@@ -160,6 +161,7 @@ import * as RemoveCalendarFeedProcedure from './remove_calendar_feed_procedure'
 import * as RemoveFriendProcedure from './remove_friend_procedure'
 import * as RenameUnitLoadoutProcedure from './rename_unit_loadout_procedure'
 import * as ReplaceGuestInviteProcedure from './replace_guest_invite_procedure'
+import * as ReplaceRosterPointsMarksProcedure from './replace_roster_points_marks_procedure'
 import * as RequestFriendProcedure from './request_friend_procedure'
 import * as RosterByIdProcedure from './roster_by_id_procedure'
 import * as RosterGroupByUserProcedure from './roster_group_by_user_procedure'
@@ -392,6 +394,7 @@ const proceduresSchema = __procedures(
   __procedureSchema('practice_opponent_ids', PracticeOpponentIdsProcedure.params, PracticeOpponentIdsProcedure.returnType),
   __procedureSchema('product_stats', ProductStatsProcedure.params, ProductStatsProcedure.returnType),
   __procedureSchema('push_enabled', PushEnabledProcedure.params, PushEnabledProcedure.returnType),
+  __procedureSchema('push_rosters', PushRostersProcedure.params, PushRostersProcedure.returnType),
   __procedureSchema('push_targets', PushTargetsProcedure.params, PushTargetsProcedure.returnType),
   __procedureSchema('rating_changes', RatingChangesProcedure.params, RatingChangesProcedure.returnType),
   __procedureSchema('ratings_before', RatingsBeforeProcedure.params, RatingsBeforeProcedure.returnType),
@@ -403,6 +406,7 @@ const proceduresSchema = __procedures(
   __procedureSchema('remove_friend', RemoveFriendProcedure.params, RemoveFriendProcedure.returnType),
   __procedureSchema('rename_unit_loadout', RenameUnitLoadoutProcedure.params, RenameUnitLoadoutProcedure.returnType),
   __procedureSchema('replace_guest_invite', ReplaceGuestInviteProcedure.params, ReplaceGuestInviteProcedure.returnType),
+  __procedureSchema('replace_roster_points_marks', ReplaceRosterPointsMarksProcedure.params, ReplaceRosterPointsMarksProcedure.returnType),
   __procedureSchema('request_friend', RequestFriendProcedure.params, RequestFriendProcedure.returnType),
   __procedureSchema('roster_by_id', RosterByIdProcedure.params, RosterByIdProcedure.returnType),
   __procedureSchema('roster_group_by_user', RosterGroupByUserProcedure.params, RosterGroupByUserProcedure.returnType),

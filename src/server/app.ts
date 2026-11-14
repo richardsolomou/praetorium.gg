@@ -33,6 +33,7 @@ import { emailDelivery } from '../adapters/email'
 import { pushSenderFromEnvironment } from '../adapters/push'
 import { webPushSenderFromEnvironment } from '../adapters/webPush'
 import { pushNotifier, silentNotifier, storingNotifier } from './pushNotifier'
+import { noticeRosterPointsChanges } from './rosterPointsNotices'
 import { productionCatalogueRuntime } from './catalogueRuntime'
 import { referenceCatalogue } from './canonicalCatalogue'
 import { loadCatalogueHistory } from './catalogueHistory'
@@ -375,6 +376,7 @@ export function app(): App {
     )
     const push = pushSenderFromEnvironment((tokens) => repository.deletePushTokens(tokens))
     const webPush = webPushSenderFromEnvironment((endpoints) => repository.deleteWebPushSubscriptions(endpoints))
+    const notifier = storingNotifier(repository, push || webPush ? pushNotifier(repository, { app: push, web: webPush }) : silentNotifier)
     const collectionPhotos = collectionPhotoStore(repository, () => privateObjects())
     const screening = process.env.TYPESAFE_API_KEY?.trim() ? photoScreening(process.env.TYPESAFE_API_KEY.trim()) : null
     const startup = readiness((untilBuilt) => warm(instance, untilBuilt))
@@ -411,13 +413,7 @@ export function app(): App {
         }
       },
       repository,
-      service: new PraetoriumService(
-        repository,
-        Date.now,
-        randomInt,
-        storingNotifier(repository, push || webPush ? pushNotifier(repository, { app: push, web: webPush }) : silentNotifier),
-        () => instance.battleFactionsFor(),
-      ),
+      service: new PraetoriumService(repository, Date.now, randomInt, notifier, () => instance.battleFactionsFor()),
       auth,
       spacetimeToken: async (headers) => (await auth.api.getToken({ headers })).token,
       email,
@@ -526,6 +522,23 @@ export function app(): App {
         await instance.service.standingsService.refreshStandings()
       })
       .catch((error: unknown) => reportServerFailure({ event: 'derived_tables_refresh_failed', error }))
+    // Hourly as well as at start, since a sync can swap the army data in without a restart.
+    if (push) {
+      let noticing = false
+      const noticePointsChanges = () => {
+        if (noticing) return
+        noticing = true
+        void startup
+          .ready()
+          .then(() => noticeRosterPointsChanges(repository, notifier))
+          .catch((error: unknown) => reportServerFailure({ event: 'roster_points_notice_failed', error }))
+          .finally(() => {
+            noticing = false
+          })
+      }
+      noticePointsChanges()
+      setInterval(noticePointsChanges, 60 * 60 * 1000).unref()
+    }
     return instance
   }
   const instance = globalSingleton('praetorium.app', createApp)

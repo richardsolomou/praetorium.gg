@@ -246,6 +246,30 @@ const rosters = table(
   },
 )
 
+/**
+ * Each push recipient's list total as the army-data `revision` priced it, for the list as saved at `updatedAt`. The next
+ * revision compares against it to tell the owner which totals its update changed, and replacing it records that it did.
+ */
+const rosterPointsMarks = table(
+  { name: 'roster_points_marks' },
+  {
+    rosterId: t.string().primaryKey(),
+    userId: t.string().index('btree'),
+    revision: t.string(),
+    updatedAt: t.u64(),
+    points: t.u32(),
+  },
+)
+
+/** Each army-data revision that priced lists, in the order they first did; only the newest may replace a total. */
+const rosterPointsRevisions = table(
+  { name: 'roster_points_revisions' },
+  {
+    revision: t.string().primaryKey(),
+    order: t.u32(),
+  },
+)
+
 const rosterLoans = table(
   { name: 'roster_loans' },
   {
@@ -908,6 +932,8 @@ export const productTables = {
   commands,
   rosters,
   rosterLoans,
+  rosterPointsMarks,
+  rosterPointsRevisions,
   sealedEvents,
   tournaments,
   tournamentAdmins,
