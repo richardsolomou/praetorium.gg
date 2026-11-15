@@ -27,16 +27,16 @@ export function loadRosterSource(queryClient: QueryClient, source: SimulatorRost
 
 /** A roster's address, or a list's address in a battle, pasted from anywhere the app runs. */
 export function linkedRosterSource(text: string): SimulatorRosterSource | null {
-  let url: URL
+  // Anything pasted is read here on every keystroke, so text that is not a usable address reads as no link rather than throwing.
   try {
-    url = new URL(text.trim(), 'https://praetorium.invalid')
+    const url = new URL(text.trim(), 'https://praetorium.invalid')
+    const id = /^\/rosters\/([^/]+)\/?$/.exec(url.pathname)?.[1]
+    if (!id) return null
+    const battle = url.searchParams.get('battle')
+    return battle ? { battle: { token: battle, playerId: decodeURIComponent(id) } } : { id: decodeURIComponent(id) }
   } catch {
     return null
   }
-  const id = /^\/rosters\/([^/]+)\/?$/.exec(url.pathname)?.[1]
-  if (!id) return null
-  const battle = url.searchParams.get('battle')
-  return battle ? { battle: { token: battle, playerId: decodeURIComponent(id) } } : { id: decodeURIComponent(id) }
 }
 
 /**
