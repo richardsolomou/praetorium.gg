@@ -761,6 +761,83 @@ describe('attachment legality', () => {
     ).toBe('cannot be attached to Cadian Shock Troops, which already has 1 Command Squad')
   })
 
+  describe('a leader that joins a unit already led', () => {
+    const leader = (id: string, name: string, categoryLinks?: { id: string; targetId: string; name: string }[]) => ({
+      id,
+      name,
+      type: 'model' as const,
+      ...(categoryLinks ? { categoryLinks } : {}),
+      profiles: [ability('Leader', 'This model can be attached to the following units: POXWALKERS, PLAGUE MARINES')],
+    })
+    const raisedBy = (childId: string) => ({
+      id: 'poxwalkers',
+      name: 'POXWALKERS',
+      type: 'unit' as const,
+      constraints: [{ id: 'leader-limit', childName: 'Leader', field: 'associations', scope: 'self', type: 'max' as const, value: 1 }],
+      modifiers: [
+        {
+          field: 'leader-limit',
+          type: 'set' as const,
+          value: 2,
+          conditions: [{ childId, field: 'associations', scope: 'self', type: 'atLeast' as const, value: 1 }],
+        },
+      ],
+    })
+    const index = indexOf({
+      sharedSelectionEntries: [
+        leader('typhus', 'Typhus'),
+        leader('blightbringer', 'Noxious Blightbringer', [
+          { id: 'blightbringer-category-link', targetId: 'blightbringer-category', name: 'Noxious Blightbringer' },
+        ]),
+        leader('plaguecaster', 'Malignant Plaguecaster'),
+        raisedBy('blightbringer'),
+        { ...raisedBy('blightbringer-category'), id: 'plague-marines', name: 'PLAGUE MARINES' },
+      ],
+    })
+    const messages = (units: { entryId: string; attachedTo?: number }[]) =>
+      attachmentErrors(units, index).map((error) => `${error.entryName}: ${error.message}`)
+
+    it('takes a second leader beside it', () => {
+      expect(
+        messages([{ entryId: 'typhus', attachedTo: 2 }, { entryId: 'blightbringer', attachedTo: 2 }, { entryId: 'poxwalkers' }]),
+      ).toEqual([])
+    })
+
+    it('takes a second leader before it', () => {
+      expect(
+        messages([{ entryId: 'blightbringer', attachedTo: 2 }, { entryId: 'typhus', attachedTo: 2 }, { entryId: 'poxwalkers' }]),
+      ).toEqual([])
+    })
+
+    it('is named by its keyword too', () => {
+      const units = [{ entryId: 'typhus', attachedTo: 2 }, { entryId: 'blightbringer', attachedTo: 2 }, { entryId: 'plague-marines' }]
+      expect(attachmentErrors(units, index)).toEqual([])
+    })
+
+    it('leaves two other leaders refused', () => {
+      expect(
+        messages([{ entryId: 'typhus', attachedTo: 2 }, { entryId: 'plaguecaster', attachedTo: 2 }, { entryId: 'poxwalkers' }]),
+      ).toEqual(['Malignant Plaguecaster: cannot lead POXWALKERS, which is already led by Typhus'])
+    })
+
+    it('cannot join beside another of itself', () => {
+      expect(
+        messages([{ entryId: 'blightbringer', attachedTo: 2 }, { entryId: 'blightbringer', attachedTo: 2 }, { entryId: 'poxwalkers' }]),
+      ).toEqual(['Noxious Blightbringer: cannot lead POXWALKERS, which is already led by Noxious Blightbringer'])
+    })
+
+    it('makes room for only one more', () => {
+      expect(
+        messages([
+          { entryId: 'typhus', attachedTo: 3 },
+          { entryId: 'blightbringer', attachedTo: 3 },
+          { entryId: 'plaguecaster', attachedTo: 3 },
+          { entryId: 'poxwalkers' },
+        ]),
+      ).toEqual(['Malignant Plaguecaster: cannot lead POXWALKERS, which already has 2 Leaders'])
+    })
+  })
+
   it('allows one leader and one support, then refuses another of either kind', () => {
     const leader = (id: string, name: string) => ({
       id,
