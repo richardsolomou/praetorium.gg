@@ -2,4 +2,4 @@
 'praetorium.gg': patch
 ---
 
-Empty Notifications, Battles and Rosters pages now look alike, and Rosters hides its filters until there is something to filter.
+Empty Notifications and Battles pages now look like the other empty pages.
