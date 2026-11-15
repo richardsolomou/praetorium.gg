@@ -74,7 +74,7 @@ import {
   matchesSealedRoster,
   requiredSealedEventRosterLimit,
 } from '../../src/core/sealedEvent'
-import { commandSchema, parseRosterSnapshot, rosterPickSchema, rosterSnapshotOrNull } from '../../src/core/commands'
+import { clockLimitMinutes, commandSchema, parseRosterSnapshot, rosterPickSchema, rosterSnapshotOrNull } from '../../src/core/commands'
 import { SWISS_ROUNDS_MAX, swissResultLocked } from '../../src/core/swiss'
 import { compareStandings, currentRating, isProvisional } from '../../src/core/standings'
 import type { SyncProductActionName } from '../../src/core/syncProductActions'
@@ -775,6 +775,7 @@ function leagueRecord(ctx: Context, groupId: string) {
     createdAt: league.createdAt,
     publishedAt: league.publishedAt ?? null,
     deadlines: leagueDeadlines(league),
+    clockLimitMinutes: league.clockLimitMinutes ?? null,
     players: leaguePlayers(ctx, league.id).map((row) => ({ userId: row.userId, withdrawn: row.withdrawn })),
     fixtures: roundPairings(ctx, league.id).map((pairing) => pairingView(ctx, pairing)),
   }
@@ -1067,6 +1068,31 @@ function battleState(ctx: Context, battleId: string) {
     seats.filter((seat) => seat.automated).map((seat) => seat.id),
   )
   return { seats, log, state }
+}
+
+/** Appends a command an event's organizer sends to one of its battles, as `commandRefusal`'s `organizer` allows. */
+function appendOrganizerCommand(
+  ctx: Context,
+  { battleId, seats, state }: { battleId: string } & ReturnType<typeof battleState>,
+  by: string,
+  command: Command,
+) {
+  const seq = state.seq + 1
+  ctx.db.commands.insert({ key: JSON.stringify([battleId, seq]), battleId, seq, userId: by, at: nowMs(ctx), body: JSON.stringify(command) })
+  for (const seat of seats) touchProduct(ctx, seat.id, 'battles')
+  touchBattle(ctx, battleId)
+}
+
+/** Brings a battle still in setup to its event's chess clock limit; one already begun keeps the clock it started with. */
+function fixClock(ctx: Context, battleId: string, minutes: number | null, by: string) {
+  if (hasBegun(ctx, battleId)) return
+  const battle = { battleId, ...battleState(ctx, battleId) }
+  const fixed = battle.state.clockFixed ? (battle.state.settings.clockLimitMinutes ?? null) : null
+  if (fixed !== minutes) appendOrganizerCommand(ctx, battle, by, { kind: 'fix-clock', minutes })
+}
+
+function fixClocks(ctx: Context, eventId: string, minutes: number | null, by: string) {
+  for (const { battleId } of Array.from(ctx.db.eventBattles.eventId.filter(eventId))) fixClock(ctx, battleId, minutes, by)
 }
 
 /**
@@ -4864,6 +4890,7 @@ const groupCommandInput = z.discriminatedUnion('op', [
     deadline: sealedEventTimeInput.nullable(),
   }),
   z.object({ op: z.literal('league-delete'), token: idInput, actorId: idInput }),
+  z.object({ op: z.literal('league-clock'), token: idInput, actorId: idInput, minutes: clockLimitMinutes.nullable() }),
 ])
 
 function groupMembersOf(ctx: Context, groupId: string) {
@@ -5005,6 +5032,7 @@ function groupCommandIn(tx: Context, args: unknown[]) {
         publishedAt: undefined,
         deadlines: undefined,
         remindedDeadlines: undefined,
+        clockLimitMinutes: undefined,
       })
     touchGroup(tx, group.id)
     return productJson('drawn')
@@ -5040,6 +5068,13 @@ function groupCommandIn(tx: Context, args: unknown[]) {
     const deadlines = Array.from({ length: rounds }, (_, index) => saved[index] ?? null)
     deadlines[input.round - 1] = input.deadline
     tx.db.groupLeagues.id.update({ ...league, deadlines: JSON.stringify(deadlines) })
+    touchGroup(tx, group.id)
+    return productJson('set')
+  }
+  if (input.op === 'league-clock') {
+    if (!league) return productJson('missing')
+    tx.db.groupLeagues.id.update({ ...league, clockLimitMinutes: input.minutes ?? undefined })
+    fixClocks(tx, league.id, input.minutes, input.actorId)
     touchGroup(tx, group.id)
     return productJson('set')
   }
@@ -5346,23 +5381,26 @@ function createBattleIn(tx: Context, args: unknown[]) {
     if (linked && linked !== userId) seatExternalPlayer(tx, opponent!, linked, id)
     return productJson(battleData(tx, id))
   }
+  const opened = battle.fixtureKey === undefined ? undefined : openFixture(tx, battle.fixtureKey, battle)
   // A hidden-list game started from its group is tagged at birth, for players who all belong to it.
   insertBattle(
     tx,
     { id, token, now, by: userId, seats },
     initialCommands,
     (state, command) =>
-      validate(state, userId, command) ??
+      validate(state, userId, command, command.kind === 'fix-clock' && opened !== undefined) ??
       (command.kind === 'set-battle-group' && command.groupId && !battleGroupIds(tx, battleData(tx, id).seats).includes(command.groupId)
         ? GROUP_MEMBERS_ONLY
         : null),
   )
   if (initialCommands.some((command) => command.kind === 'set-battle-group')) indexGroupBattle(tx, id)
   if (draft) tx.db.battleDrafts.insert({ battleId: id, userId, listed: false })
-  if (battle.fixtureKey !== undefined) {
-    const { fixture, league } = openFixture(tx, battle.fixtureKey, battle)
+  if (opened) {
+    const { fixture, league } = opened
     tx.db.roundPairings.key.update({ ...fixture, battleId: id })
     tx.db.eventBattles.insert({ battleId: id, eventId: league.id })
+    // The server built the fixture's clock from an earlier read, so the league's limit now is the one that holds.
+    fixClock(tx, id, league.clockLimitMinutes ?? null, userId)
     touchGroup(tx, league.groupId)
   }
   return productJson(battleData(tx, id))
@@ -5818,6 +5856,7 @@ function sealedEventCommandIn(tx: Context, args: unknown[]) {
         allyPoints: sealedEventArmyPointsInput.default(null),
         sharedPoints: z.boolean().default(false),
         schedule: sealedEventScheduleInput.default({ playsAt: null, sealBy: null }),
+        clockLimitMinutes: clockLimitMinutes.nullable().default(null),
         now: sealedEventTimeInput,
       }),
       value,
@@ -5877,6 +5916,7 @@ function sealedEventCommandIn(tx: Context, args: unknown[]) {
       remindedAt: undefined,
       roundEndsAt: undefined,
       scheduleFirst: undefined,
+      clockLimitMinutes: input.clockLimitMinutes ?? undefined,
       sharedPoints: input.sharedPoints || undefined,
     })
     if (input.ownerPlays) insertSealedEventEntry(tx, input.eventId, input.ownerId, 'accepted', input.now)
@@ -5979,6 +6019,8 @@ function sealedEventCommandIn(tx: Context, args: unknown[]) {
         rule: sealedEventRuleInput.nullable().default(null),
         // Absent from an older client, which leaves the date and the roster deadline as they stand.
         schedule: sealedEventScheduleInput.optional(),
+        // Absent from an older client, which leaves the chess clock as it stands.
+        clockLimitMinutes: clockLimitMinutes.nullable().optional(),
       }),
       value,
     )
@@ -6060,6 +6102,10 @@ function sealedEventCommandIn(tx: Context, args: unknown[]) {
         playsAt: input.schedule.playsAt === null ? undefined : BigInt(input.schedule.playsAt),
         sealBy: input.schedule.sealBy === null ? undefined : BigInt(input.schedule.sealBy),
       })
+    }
+    if (input.clockLimitMinutes !== undefined && input.clockLimitMinutes !== (event.clockLimitMinutes ?? null)) {
+      tx.db.sealedEvents.id.update({ ...tx.db.sealedEvents.id.find(event.id)!, clockLimitMinutes: input.clockLimitMinutes ?? undefined })
+      fixClocks(tx, event.id, input.clockLimitMinutes, ownerId)
     }
     let admitted: string[] = []
     if (details && host.kind === 'tournament') {
@@ -6187,19 +6233,7 @@ function sealedEventCommandIn(tx: Context, args: unknown[]) {
     const battles = battleIds.map((battleId) => ({ battleId, ...battleState(tx, battleId) }))
     // Clearing has no command to send a battle, so a table already sat down at keeps a battlefield.
     if (battles.some(({ state }) => state.status !== 'setup' || !command)) return productJson('started')
-    for (const { battleId, seats, state } of battles) {
-      const seq = state.seq + 1
-      tx.db.commands.insert({
-        key: JSON.stringify([battleId, seq]),
-        battleId,
-        seq,
-        userId: ownerId,
-        at: nowMs(tx),
-        body: JSON.stringify(command),
-      })
-      for (const seat of seats) touchProduct(tx, seat.id, 'battles')
-      touchBattle(tx, battleId)
-    }
+    if (command) for (const battle of battles) appendOrganizerCommand(tx, battle, ownerId, command)
     const key = JSON.stringify([event.id, input.round, input.table])
     const row = command && { key, eventId: event.id, round: input.round, table: input.table, ...input.battlefield! }
     if (!row) tx.db.eventBattlefields.key.delete(key)
@@ -6740,9 +6774,11 @@ function sealedEventCommandIn(tx: Context, args: unknown[]) {
       (state, command) =>
         command.kind === 'set-battle-group'
           ? 'a group is chosen during setup'
-          : validate(state, input.userId, command, command.kind === 'fix-battlefield'),
+          : validate(state, input.userId, command, command.kind === 'fix-battlefield' || command.kind === 'fix-clock'),
     )
     tx.db.eventBattles.insert({ battleId: input.id, eventId: event.id })
+    // The server built the battle's clock from an earlier read, so the event's limit now is the one that holds.
+    fixClock(tx, input.id, event.clockLimitMinutes ?? null, input.userId)
     if (pairing && event.rounds !== undefined) tx.db.roundPairings.key.update({ ...pairing, battleId: input.id })
     touchEvent(tx, host)
     return productJson(true)

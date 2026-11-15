@@ -90,6 +90,10 @@ export function withGroups<B extends RepositoryBase>(Base: B) {
       return this.product.groupCommand({ op: 'league-deadline', token, actorId, round, deadline }, z.enum(['set', 'missing', 'forbidden']))
     }
 
+    setGroupLeagueClock(token: string, actorId: string, minutes: number | null) {
+      return this.product.groupCommand({ op: 'league-clock', token, actorId, minutes }, z.enum(['set', 'missing', 'forbidden']))
+    }
+
     claimLeagueDeadlineReminders() {
       return this.product.claimLeagueDeadlineReminders()
     }

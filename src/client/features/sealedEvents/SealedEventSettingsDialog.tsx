@@ -100,6 +100,7 @@ function SettingsForm({
     sharedPoints: sealedEvent?.sharedPoints ?? false,
     playsAt: sealedEvent?.playsAt ?? null,
     sealBy: sealedEvent?.sealBy ?? null,
+    clockLimitMinutes: sealedEvent?.clockLimitMinutes ?? null,
   }))
   const { data: me } = useQuery(meQuery())
   // Whoever opens the form, owner or admin, is the organizer it asks about.
@@ -146,8 +147,20 @@ function SettingsForm({
       if (mode.kind === 'create') posthog.capture('sealed_event_creation_failed', { reason: 'request', group: hiddenListGame })
     },
     mutationFn: async () => {
-      const { format, rosterLimit, allowances, rounds, pointsBudget, soloPoints, allyPoints, sharedPoints, playsAt, sealBy, ...details } =
-        value
+      const {
+        format,
+        rosterLimit,
+        allowances,
+        rounds,
+        pointsBudget,
+        soloPoints,
+        allyPoints,
+        sharedPoints,
+        playsAt,
+        sealBy,
+        clockLimitMinutes,
+        ...details
+      } = value
       const schedule = { playsAt, sealBy }
       const points = { pointsBudget, soloPoints, allyPoints, sharedPoints }
       if (mode.kind === 'create')
@@ -161,15 +174,19 @@ function SettingsForm({
                 allowances,
                 ...points,
                 schedule,
+                clockLimitMinutes,
               },
             })
-          : createSealedEvent({ data: { ...details, format, rosterLimit, allowances, rounds, ...points, schedule, ownerPlays } })
+          : createSealedEvent({
+              data: { ...details, format, rosterLimit, allowances, rounds, ...points, schedule, clockLimitMinutes, ownerPlays },
+            })
       await updateSealedEvent({
         data: {
           token: mode.token,
           // A group's hidden-list game has no details of its own.
           ...(hiddenListGame ? {} : details),
           schedule,
+          clockLimitMinutes,
           ...(ruleLock || !ruleChanged ? {} : { rule: { format, rosterLimit, allowances, rounds, ...points } }),
         },
       })

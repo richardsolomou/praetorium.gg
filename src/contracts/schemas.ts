@@ -24,6 +24,7 @@ import {
   SECONDARIES_MAX,
   STRATAGEMS_MAX,
 } from '../core/battle'
+import { clockLimitMinutes } from '../core/commands'
 import { abilityReminderSchema, rosterReminderSchema, ROSTER_REMINDERS_MAX } from '../core/reminders'
 import {
   commandSchema,
@@ -135,6 +136,7 @@ export const createSealedEventSchema = z
     ...sealedEventRuleFields,
     ownerPlays: z.boolean().default(false),
     schedule: sealedEventSchedule.optional(),
+    clockLimitMinutes: clockLimitMinutes.nullable().default(null),
   })
   .superRefine(validateSealedEventRule)
 /** A group's casual hidden-list game: no name, visibility, admission or limit of its own, and no Swiss rounds. */
@@ -145,6 +147,7 @@ export const createHiddenListGameSchema = z
     ...sealedEventRuleFields,
     rounds: z.null().optional(),
     schedule: sealedEventSchedule.optional(),
+    clockLimitMinutes: clockLimitMinutes.nullable().default(null),
   })
   .superRefine(validateSealedEventRule)
 const tournamentDetailKeys = Object.keys(tournamentFields) as (keyof typeof tournamentFields)[]
@@ -159,6 +162,7 @@ export const updateSealedEventSchema = z
       .superRefine(validateSealedEventRule)
       .optional(),
     schedule: sealedEventSchedule.optional(),
+    clockLimitMinutes: clockLimitMinutes.nullable().optional(),
   })
   .refine((value) => new Set(tournamentDetailKeys.map((key) => value[key] === undefined)).size === 1, {
     message: 'send every tournament detail or none',
@@ -254,6 +258,7 @@ export const publishGroupLeagueSchema = z.object({
   seed: z.number().int().min(0).max(GROUP_LEAGUE_SEED_MAX),
   playerIds: z.array(id).max(GROUP_LEAGUE_PLAYERS_MAX),
 })
+export const groupLeagueClockSchema = z.object({ token, minutes: clockLimitMinutes.nullable() })
 export const groupLeagueDeadlineSchema = z.object({
   token,
   round: z.number().int().min(1).max(GROUP_LEAGUE_PLAYERS_MAX),

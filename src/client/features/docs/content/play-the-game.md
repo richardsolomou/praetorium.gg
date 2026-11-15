@@ -46,6 +46,6 @@ Open **Army** under a player's name to see their units. Remove models and wounds
 
 ## Chess clock
 
-The scoreboard shows how long each side's latest turn took. To give each side a time limit, choose 60 to 120 minutes under **Chess clock** in setup. The scoreboard then also shows the time each side has left, and counts past zero in red when a side runs out. Running out of time does not change the score.
+The scoreboard shows how long each side's latest turn took. To give each side a time limit, choose 60 to 120 minutes under **Chess clock** in setup. The scoreboard then also shows the time each side has left, and counts past zero in red when a side runs out. Running out of time does not change the score. When a tournament, hidden-list game or league sets the chess clock for every battle, setup shows its time and you can't change it.
 
 With a limit set, **Hand the clock over for a reaction** under the phase button gives the clock to the other side, such as while they use a stratagem or fight in your turn. **Hand the clock back** returns it. Ending the phase also gives the clock back to the side taking the turn.

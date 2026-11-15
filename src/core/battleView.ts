@@ -192,6 +192,8 @@ export type BattleView = {
   deploymentId: string | null
   /** The organizer chose the battlefield, so the setup only shows it. */
   battlefieldFixed: boolean
+  /** The organizer set the chess clock limit, so the setup only shows it. */
+  clockFixed: boolean
   sealedEventToken: string | null
   eventToken: string | null
   groupId: string | null
@@ -371,6 +373,7 @@ export function battleView(
     guides: { primary: PRIMARY_GUIDE, secondary: SECONDARY_GUIDE },
     deploymentId: state.deploymentId,
     battlefieldFixed: state.battlefieldFixed,
+    clockFixed: state.clockFixed,
     sealedEventToken: state.sealedEventToken,
     eventToken: state.eventToken,
     groupId: state.groupId,

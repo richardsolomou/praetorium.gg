@@ -356,6 +356,7 @@ export async function createSealedEvent(args: Parameters<typeof server.createSea
     battlefields: [],
     roundEndsAt: null,
     scheduleFirst: false,
+    clockLimitMinutes: input.clockLimitMinutes,
     token: identifiers.tournamentToken,
     eventToken: identifiers.eventToken,
     createdAt: now,

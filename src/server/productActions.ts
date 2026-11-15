@@ -219,9 +219,14 @@ export const productActions = {
     await captureMutation(owner, 'sealed_event_side_chosen', { side: result.side })
     return null
   }),
-  updateSealedEvent: action(schemas.updateSealedEvent, async (owner, { token, rule, schedule, ...details }) => {
+  updateSealedEvent: action(schemas.updateSealedEvent, async (owner, { token, rule, schedule, clockLimitMinutes, ...details }) => {
     const tournament = details.name === undefined ? undefined : (details as Required<typeof details>)
-    const { ruleChanged } = await app().service.sealedEventService.updateSealedEvent(token, owner, { details: tournament, rule, schedule })
+    const { ruleChanged } = await app().service.sealedEventService.updateSealedEvent(token, owner, {
+      details: tournament,
+      rule,
+      schedule,
+      clockLimitMinutes,
+    })
     if (tournament)
       await captureMutation(owner, 'tournament_updated', {
         visibility: tournament.visibility,

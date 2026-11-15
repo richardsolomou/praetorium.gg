@@ -123,6 +123,13 @@ export class GroupService {
     throw new Response('only the group’s organizers can set deadlines', { status: 403 })
   }
 
+  async setLeagueClock(token: string, actorId: string, minutes: number | null) {
+    const result = await this.repository.setGroupLeagueClock(token, actorId, minutes)
+    if (result === 'set') return
+    if (result === 'missing') throw new Response('this group has no league', { status: 404 })
+    throw new Response('only the group’s organizers can set the league’s chess clock', { status: 403 })
+  }
+
   /** Reminds each league player with a game still to finish that its round's deadline is near. */
   async remindLeagueDeadlines() {
     for (const { groupToken, round, recipientIds } of await this.repository.claimLeagueDeadlineReminders())

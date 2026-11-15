@@ -33,6 +33,8 @@ import { PROFILE_NAME_MAX_LENGTH } from './profileName'
 
 const id = z.string().min(1).max(64)
 const rosterLimit = z.number().int().min(0).max(POINTS_BUDGET_MAX)
+/** Each side's time for the whole battle on its chess clock. */
+export const clockLimitMinutes = z.number().int().min(5).max(300)
 const name = z.string().min(1).max(ROSTER_NAME_MAX_LENGTH)
 export { id as idSchema, name as nameSchema, rosterLimit as rosterLimitSchema }
 export const detachmentIdSchema = z.string().min(1).max(128)
@@ -175,7 +177,7 @@ export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
     armyPoints: z.array(z.number().int().min(1).max(POINTS_BUDGET_MAX)).length(2).nullable().optional(),
     sharedArmyPoints: z.boolean().optional(),
     sizeFromSides: z.boolean().optional(),
-    clockLimitMinutes: z.number().int().min(5).max(300).nullable(),
+    clockLimitMinutes: clockLimitMinutes.nullable(),
     manual: z.boolean().optional(),
   }),
   z.object({ kind: z.literal('reset-setup') }),
@@ -301,6 +303,7 @@ export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('set-deployment'), patternId: id.nullable() }),
   z.object({ kind: z.literal('set-battlefield'), patternId: id, terrainLayoutId: id }),
   z.object({ kind: z.literal('fix-battlefield'), patternId: id, terrainLayoutId: id }),
+  z.object({ kind: z.literal('fix-clock'), minutes: clockLimitMinutes.nullable() }),
   z.object({ kind: z.literal('report-result'), vp: z.record(id, z.number().int().min(0).max(999)) }),
   z.object({
     kind: z.literal('use-stratagem'),

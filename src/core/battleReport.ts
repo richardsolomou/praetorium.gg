@@ -175,6 +175,8 @@ function describe(
     case 'set-battlefield':
     case 'fix-battlefield':
       return `The battlefield is ${deployments.get(command.patternId) ?? titled(command.patternId)}`
+    case 'fix-clock':
+      return command.minutes ? `Each side has ${command.minutes} minutes on the chess clock` : 'The chess clock has no limit'
     case 'deploy-unit': {
       const unit = player?.units.find((candidate) => candidate.key === command.unitKey)?.name ?? 'a unit'
       if (targetId === by) return command.deployed ? `${who} put ${unit} on the table` : `${who} held ${unit} in reserve`

@@ -289,6 +289,7 @@ export function registerOrganisedPlayTools(server: AgentTools, userId: string | 
         })),
         league: league && {
           published: league.published,
+          clockLimitMinutes: league.clockLimitMinutes,
           players: league.players.map((entry) => ({ id: entry.userId, name: entry.name, withdrawn: entry.withdrawn })),
           table: league.table.map((row, at) => ({
             place: at + 1,
@@ -395,6 +396,7 @@ export function registerOrganisedPlayTools(server: AgentTools, userId: string | 
           alliesSplitPoints: sealedEventPairShares(sealedEvent),
           allows: allows.map((option) => option.label),
           swissRounds: sealedEvent.rounds,
+          clockLimitMinutes: sealedEvent.clockLimitMinutes,
         },
         playsAt: iso(sealedEvent.playsAt),
         sealBy: iso(sealedEvent.sealBy),

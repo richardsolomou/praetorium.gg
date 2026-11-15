@@ -83,6 +83,40 @@ describe('an organizer-set battlefield', () => {
   })
 })
 
+describe('an organizer-set chess clock', () => {
+  const fixed = { kind: 'fix-clock', minutes: 90 } as const
+  const configure = (clockLimitMinutes: number | null): Command => ({
+    kind: 'configure-battle',
+    limit: null,
+    missionPackId: null,
+    terrainLayoutId: null,
+    twistId: null,
+    clockLimitMinutes,
+  })
+
+  it('stops a player setting it', () => {
+    expect(validate(reduceBattle(PLAYERS, []), ALICE, fixed)).toBe('only the organizer can set this chess clock')
+  })
+
+  it('applies the limit without a seated sender', () => {
+    const after = reduceBattle(PLAYERS, log(['organizer', fixed]))
+    expect([after.settings.clockLimitMinutes, after.clockFixed]).toEqual([90, true])
+  })
+
+  it('refuses a setup change to the limit', () => {
+    expect(validate(reduceBattle(PLAYERS, log(['organizer', fixed])), ALICE, configure(60))).toBe('the organizer set this chess clock')
+  })
+
+  it('hands the choice back when the organizer lifts it', () => {
+    const after = reduceBattle(PLAYERS, log(['organizer', fixed], ['organizer', { kind: 'fix-clock', minutes: null }]))
+    expect(validate(after, ALICE, configure(60))).toBeNull()
+  })
+
+  it('refuses changes once the battle has started', () => {
+    expect(validate(reduceBattle(PLAYERS, log(...started())), 'organizer', fixed, true)).toBe('the battle has started')
+  })
+})
+
 describe('battle management', () => {
   it('requires a conceding player for a concession', () => {
     const state = reduceBattle(PLAYERS, log(...started()))
