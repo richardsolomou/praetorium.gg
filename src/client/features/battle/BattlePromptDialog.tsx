@@ -139,16 +139,7 @@ export function BattleDialogContent({
     </Button>
   ) : null
   return sheet ? (
-    <SheetContent
-      data-battle-dialog-content
-      actions={actions}
-      showCloseButton={showCloseButton}
-      // Above the application tabs, which a prompt leaves reachable.
-      className={cn(
-        'pb-0 data-[swipe-axis=y]:[--drawer-content-max-height:calc(100dvh-4rem-var(--app-header)-env(safe-area-inset-top)-env(safe-area-inset-bottom))] data-[swipe-direction=down]:bottom-[calc(4rem+env(safe-area-inset-bottom))]',
-        className,
-      )}
-    >
+    <SheetContent data-battle-dialog-content actions={actions} showCloseButton={showCloseButton} className={cn(className)}>
       {children}
     </SheetContent>
   ) : (

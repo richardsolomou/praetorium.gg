@@ -76,7 +76,8 @@ export function DialogContent({
 /**
  * `DialogContent` as a drawer rising from the foot of the screen, sized to its content, for a phone held in one hand.
  * Its header and footer stay put while the body scrolls, and a swipe down closes it. The dialog's title, description
- * and close button work inside it, because a drawer is a dialog underneath.
+ * and close button work inside it, because a drawer is a dialog underneath. It stands on the application tabs, which
+ * stay in reach, so its drawer is non-modal.
  */
 export function SheetContent({
   actions,
@@ -88,8 +89,9 @@ export function SheetContent({
   return (
     <DrawerContent
       {...props}
+      data-sheet
       className={cn(
-        'border-edge bg-panel pb-[env(safe-area-inset-bottom)] data-[swipe-axis=y]:[--drawer-content-max-height:calc(100dvh-var(--app-header)-env(safe-area-inset-top)-1rem)]',
+        'border-edge bg-panel data-[swipe-axis=y]:[--drawer-content-max-height:calc(100dvh-4rem-var(--app-header)-env(safe-area-inset-top)-env(safe-area-inset-bottom))] data-[swipe-direction=down]:bottom-[calc(4rem+env(safe-area-inset-bottom))]',
         ACTIONS_INSET[Number(Boolean(actions)) + Number(showCloseButton)],
         className,
       )}

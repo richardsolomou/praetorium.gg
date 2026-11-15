@@ -37,7 +37,7 @@ export function StratagemSheet({
   const side = sides.find((each) => each.index === chosen) ?? opened
   const colours = tint(side.index)
   return (
-    <Drawer showSwipeHandle onOpenChange={(open) => open && setChosen(null)}>
+    <Drawer modal={false} showSwipeHandle onOpenChange={(open) => open && setChosen(null)}>
       <DrawerTrigger
         render={
           <Button
