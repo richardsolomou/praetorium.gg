@@ -182,7 +182,7 @@ function SideScore({
         </p>
         <p className={`readout flex flex-wrap items-baseline gap-x-2.5 sm:mt-1 ${end ? 'flex-row-reverse' : ''}`}>
           {/* Whose score this is without its colour, on a phone where the names above are only read aloud. */}
-          <span aria-hidden className={cn('flex self-center sm:hidden', end ? '-space-x-1 space-x-reverse' : '-space-x-1')}>
+          <span aria-hidden className="flex -space-x-1 self-center sm:hidden">
             {side.armies.map((army) => (
               <PlayerAvatar
                 key={army.playerId}
