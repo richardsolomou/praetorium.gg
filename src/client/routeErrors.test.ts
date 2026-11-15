@@ -137,9 +137,15 @@ it.each([
   new Error('[{"code":"unrecognized_keys","keys":["pointsBudget"],"path":[],"message":"Unrecognized key: \\"pointsBudget\\""}]'),
   new Error('<!DOCTYPE html><html><body>Bad gateway</body></html>'),
   new Error('x'.repeat(201)),
+  new Error('Invariant failed: expected content-type header to be set'),
   'not an error',
 ])('hides a raw route error behind a retry message: %s', (error) => {
   expect(routeErrorExplanation(error)).toBe('This page could not load. Try again.')
+})
+
+it("says the page isn't saved while the device is offline", () => {
+  vi.spyOn(navigator, 'onLine', 'get').mockReturnValueOnce(false)
+  expect(routeErrorExplanation(new TypeError('Load failed'))).toMatch(/^You're offline/)
 })
 
 it('says the connection dropped instead of quoting the browser', () => {
