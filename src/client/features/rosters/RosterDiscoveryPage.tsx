@@ -269,6 +269,11 @@ export function RosterDiscoveryPage({ view, search }: { view: RosterAudience | '
         ) : (
           <section>
             <h2 className="rubric border-b border-edge pb-2">{view === 'friends' ? "Friends' public rosters" : 'Public rosters'}</h2>
+            <p className="mt-2 text-xs text-dim">
+              {view === 'friends'
+                ? 'Rosters your friends made public, to open or duplicate as your own.'
+                : 'Rosters players made public, to open or duplicate as your own.'}
+            </p>
             <div className="mt-2 space-y-3">
               {signedOutFriends ? (
                 <PageState

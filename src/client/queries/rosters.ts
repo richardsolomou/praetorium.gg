@@ -20,6 +20,8 @@ import {
   datasheetOfferedBy,
   discoverRosters,
   discoverPlayedArmies,
+  topFourUnitCounts,
+  topFourUnitLists,
   winningList,
   winningLists,
   rosterDiscoveryCounts,
@@ -84,7 +86,32 @@ export const rosterDiscoveryCountsQuery = (view: RosterAudience | 'played') =>
 
 /** Recent tournament placings whose lists import cleanly; null lists while the server is still reading them. */
 export const winningListsQuery = () =>
-  queryOptions({ queryKey: ['winning-lists'], queryFn: () => winningLists(), staleTime: SSR_STALE_TIME })
+  queryOptions({
+    queryKey: ['winning-lists'],
+    queryFn: () => winningLists(),
+    staleTime: SSR_STALE_TIME,
+    // The first import after a deploy or rules change takes minutes, so an open tab picks up lists as they are checked.
+    refetchInterval: (query) => (query.state.data?.checking ? 15_000 : false),
+  })
+
+/** Where the top-four lists come from: placings at tournaments outside Praetorium. */
+export const TOP_FOUR_SOURCE_URL = 'https://40kstats.tabletopbattles.com/#t4'
+
+/** How many of a faction's top-four lists field each datasheet; null while the server is still reading them. */
+export const topFourUnitCountsQuery = (catalogueId: string) =>
+  queryOptions({
+    queryKey: ['top-four-unit-counts', catalogueId],
+    queryFn: () => topFourUnitCounts({ data: { catalogueId } }),
+    staleTime: SSR_STALE_TIME,
+  })
+
+/** A faction's top-four lists that field one datasheet, newest first; null while the server is still reading them. */
+export const topFourUnitListsQuery = (catalogueId: string, entryId: string) =>
+  queryOptions({
+    queryKey: ['top-four-unit-lists', catalogueId, entryId],
+    queryFn: () => topFourUnitLists({ data: { catalogueId, entryId } }),
+    staleTime: SSR_STALE_TIME,
+  })
 
 /** One winning list as it imports today, with its units to read and its text to import. */
 export const winningListQuery = (id: string) =>

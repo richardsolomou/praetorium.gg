@@ -3,6 +3,7 @@ import path from 'node:path'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { z } from 'zod'
 import { listUnitCount } from '../core/attachedUnits'
+import { currentCatalogueFamilyId } from '../core/retiredCatalogueIds'
 import { rosterUseProblem } from '../core/rosterLegality'
 import { calculateRosterPrice } from '../shared/pricing'
 import type { LoadedCatalogue } from './catalogueIndex'
@@ -11,8 +12,6 @@ import { replaceFile } from './replaceFile'
 import { importRosterInput } from './rosterImport'
 
 const SOURCE = 'https://40kstats.tabletopbattles.com'
-/** Older placings are almost all on data a points update has since replaced, and would only fail to import. */
-const WINDOW_DAYS = 60
 const HEADERS = { 'user-agent': 'praetorium.gg (+https://praetorium.gg)' }
 /** An import holds the event loop for about a seventh of a second, so a pause after each keeps requests answering. */
 const PAUSE_MS = 100
@@ -45,8 +44,8 @@ const verdictSchema = z
     disposition: z.string().nullable(),
     limit: z.number().int(),
     unitCount: z.number().int(),
-    /** Each datasheet's name once, so a search can find lists by what they field. */
-    datasheets: z.array(z.string()),
+    /** Each datasheet once with every copy's model count, so a search can find lists by what they field and a tally can count them. */
+    datasheets: z.array(z.object({ id: z.string(), name: z.string(), models: z.array(z.number().int()) })),
     points: z.number(),
     reportedPoints: z.number().nullable(),
   })
@@ -67,19 +66,17 @@ const writeWhole = (file: string, text: string) => replaceFile(file, (temporary)
 const listFile = (directory: string, id: string) => path.join(directory, 'lists', `${id}.txt`)
 const eventsFile = (directory: string) => path.join(directory, 'events.json')
 const verdictsFile = (directory: string) => path.join(directory, 'verdicts.json')
-const windowStart = (now: number) => new Date(now - WINDOW_DAYS * 86_400_000).toISOString().slice(0, 10)
 
 /**
  * Brings the cache up to date with 40k Stats' published top-four placings: the event index each time,
  * and only the lists the cache does not hold, one at a time.
  */
-export async function refreshWinningLists(directory: string, now = Date.now()) {
+export async function refreshWinningLists(directory: string) {
   const response = await fetchWithRetry(`${SOURCE}/data/reports/topfour.json`, { headers: HEADERS })
   if (!response.ok) throw new Error(`40k Stats placings answered ${response.status}`)
-  const since = windowStart(now)
-  const recent = events.parse(await response.json()).filter((event) => event.date >= since)
+  const placings = events.parse(await response.json())
   await fs.mkdir(path.join(directory, 'lists'), { recursive: true })
-  for (const { list } of recent.flatMap((event) => event.players)) {
+  for (const { list } of placings.flatMap((event) => event.players)) {
     if (await fs.stat(listFile(directory, list)).catch(() => null)) continue
     const text = await fetchWithRetry(`${SOURCE}/data/lists/${list}.json`, { headers: HEADERS })
     if (text.ok) {
@@ -88,7 +85,7 @@ export async function refreshWinningLists(directory: string, now = Date.now()) {
     }
     await sleep(FETCH_PAUSE_MS)
   }
-  await writeWhole(eventsFile(directory), JSON.stringify(recent))
+  await writeWhole(eventsFile(directory), JSON.stringify(placings))
 }
 
 /** A list's import, kept only when it has nothing to review and is legal: its verdict and the units it was read as. */
@@ -112,10 +109,20 @@ async function importWinningList(text: string) {
     limit,
     unitCount: listUnitCount(result.units.map((unit) => ({ attachedTo: 'attachedTo' in unit ? unit.attachedTo : undefined }))),
     points: priced.points,
-    datasheets: [...new Set(priced.units.map((unit) => unit.name))],
+    datasheets: fielded(priced.units),
     reportedPoints: result.reportedPoints,
   }
   return { verdict, units: result.units }
+}
+
+function fielded(units: readonly { entryId: string; name: string; size: { models: number } }[]) {
+  const datasheets = new Map<string, { id: string; name: string; models: number[] }>()
+  for (const unit of units) {
+    const datasheet = datasheets.get(unit.entryId) ?? { id: unit.entryId, name: unit.name, models: [] }
+    datasheet.models.push(unit.size.models)
+    datasheets.set(unit.entryId, datasheet)
+  }
+  return [...datasheets.values()]
 }
 
 const importVerdict = async (text: string): Promise<Verdict> => (await importWinningList(text))?.verdict ?? null
@@ -149,27 +156,36 @@ const readJson = async <T>(file: string, schema: z.ZodType<T>) => {
 }
 
 /**
- * Every cached placing in the window whose list imports with nothing to review and is legal under this catalogue
- * revision. Verdicts are kept on disk per revision, so a restart repeats no import and a day adds only new lists.
+ * Every cached placing whose list imports with nothing to review and is legal under this catalogue revision, which
+ * is what keeps a list built for rules since changed out, whatever its age. Verdicts are kept on disk per revision,
+ * so a restart repeats no import and a day adds only new lists. `progress` gets those found so far as it goes, newest
+ * events first, since the cache lists events that way.
  */
-async function importableLists(directory: string, revision: string, now = Date.now()): Promise<WinningList[] | null> {
+async function importableLists(
+  directory: string,
+  revision: string,
+  progress: (found: WinningList[]) => void = () => undefined,
+): Promise<WinningList[] | null> {
   const cached = await readJson(eventsFile(directory), events)
   if (!cached) return null
   const kept = await readJson(verdictsFile(directory), verdicts)
   // A cache written in an older shape fails the schema and is read as empty, so every list is imported again.
   const known: Record<string, Verdict> = kept?.revision === revision ? kept.lists : {}
-  const since = windowStart(now)
   const save = () => writeWhole(verdictsFile(directory), JSON.stringify({ revision, lists: known }))
   const found: WinningList[] = []
+  const sorted = () => found.toSorted((left, right) => right.event.date.localeCompare(left.event.date) || left.placing - right.placing)
   let imported = 0
-  for (const event of cached.filter((candidate) => candidate.date >= since))
+  for (const event of cached)
     for (const player of event.players) {
       if (!(player.list in known)) {
         const text = await fs.readFile(listFile(directory, player.list), 'utf8').catch(() => null)
         if (text === null) continue
         known[player.list] = await importVerdict(text)
         // Saved as it goes, so a restart part way through carries on rather than starting again.
-        if (++imported % 25 === 0) await save()
+        if (++imported % 25 === 0) {
+          await save()
+          progress(sorted())
+        }
         await sleep(PAUSE_MS)
       }
       const list = known[player.list]
@@ -177,7 +193,37 @@ async function importableLists(directory: string, revision: string, now = Date.n
       found.push(placed(list, player.list, event, player))
     }
   await save()
-  return found.toSorted((left, right) => right.event.date.localeCompare(left.event.date) || left.placing - right.placing)
+  return sorted()
+}
+
+/**
+ * How many of a faction's lists field each datasheet, counting a list once however many copies it takes. A faction
+ * is its family, so a list imported under one rules version counts towards a roster built under another.
+ */
+const factionLists = (lists: readonly WinningList[], catalogueId: string) => {
+  const family = currentCatalogueFamilyId(catalogueId)
+  return lists.filter((list) => currentCatalogueFamilyId(list.catalogueId) === family)
+}
+
+export function unitCounts(lists: readonly WinningList[], catalogueId: string) {
+  const faction = factionLists(lists, catalogueId)
+  const units: Record<string, number> = {}
+  for (const list of faction) for (const { id } of list.datasheets) units[id] = (units[id] ?? 0) + 1
+  return { lists: faction.length, units }
+}
+
+/** The faction's lists that field one datasheet, newest first, each with its copies' model counts, out of how many. */
+export function unitLists(lists: readonly WinningList[], catalogueId: string, entryId: string) {
+  const faction = factionLists(lists, catalogueId)
+  return {
+    of: faction.length,
+    lists: faction.flatMap(({ datasheets, ...list }) => {
+      const datasheet = datasheets.find((candidate) => candidate.id === entryId)
+      return datasheet
+        ? [{ id: list.id, name: list.name, placing: list.placing, record: list.record, event: list.event, models: datasheet.models }]
+        : []
+    }),
+  }
 }
 
 /**
@@ -185,16 +231,20 @@ async function importableLists(directory: string, revision: string, now = Date.n
  * last finished answer straight away, or null before the first one, rather than waiting on any import.
  */
 export function winningListsStore(directory: string, catalogue: () => LoadedCatalogue | null, onError: (error: unknown) => void) {
-  let shown: { lists: WinningList[]; revision: string; version: number } | null = null
+  let shown: { lists: WinningList[]; revision: string; version: number; complete: boolean } | null = null
   let version = 0
   let running: Promise<void> | null = null
   const read = () => {
     const revision = catalogue()?.index.revision
-    if (!revision || running || (shown?.revision === revision && shown.version === version)) return
+    if (!revision || running || (shown?.complete && shown.revision === revision && shown.version === version)) return
     const reading = version
-    running = importableLists(directory, revision)
+    // Lists found so far stand in only for none or for an earlier partial read, never for a finished one.
+    const partial = (lists: WinningList[]) => {
+      if (!shown?.complete) shown = { lists, revision, version: reading, complete: false }
+    }
+    running = importableLists(directory, revision, partial)
       .then((lists) => {
-        if (lists) shown = { lists, revision, version: reading }
+        if (lists) shown = { lists, revision, version: reading, complete: true }
       })
       .catch(onError)
       .finally(() => {
@@ -202,9 +252,19 @@ export function winningListsStore(directory: string, catalogue: () => LoadedCata
       })
   }
   return {
+    /** The lists found so far, null before any, and whether the first import is still checking more. */
     lists: () => {
       read()
-      return shown?.lists ?? null
+      return { lists: shown?.lists ?? null, checking: !shown?.complete }
+    },
+    /** Null until the first import finishes, since a count out of part of the lists would mark the wrong units. */
+    unitCounts: (catalogueId: string) => {
+      read()
+      return shown?.complete ? unitCounts(shown.lists, catalogueId) : null
+    },
+    unitLists: (catalogueId: string, entryId: string) => {
+      read()
+      return shown?.complete ? unitLists(shown.lists, catalogueId, entryId) : null
     },
     refresh: async () => {
       await refreshWinningLists(directory)

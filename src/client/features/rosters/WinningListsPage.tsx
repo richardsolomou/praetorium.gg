@@ -15,10 +15,10 @@ import { FilterBar, type FilterDimension } from '../../components/FilterBar'
 import { NoFilterMatches } from '../../components/NoFilterMatches'
 import { useFavouriteFactions } from '../../favouriteFactions'
 import { winningList } from '../../functions'
-import { factionIndexQuery, gameReferencesQuery, meQuery, type QueryData, winningListsQuery } from '../../queries'
+import { factionIndexQuery, gameReferencesQuery, meQuery, type QueryData, TOP_FOUR_SOURCE_URL, winningListsQuery } from '../../queries'
 import { errorMessage } from '../../queryClient'
 import { facetsOf, periodSearch } from '../../searchParams'
-import { countLabel } from '../../text'
+import { countLabel, placingLabel } from '../../text'
 import { useClientValue } from '../../useClientValue'
 import { useAccountPrompt } from './AccountPrompt'
 import { factionSelectGroups } from './builder/factions'
@@ -33,11 +33,6 @@ import { openWinningImport } from './winningListImport'
 import { WINNING_FACETS, type WinningSearch } from './rosterSearch'
 
 type WinningList = NonNullable<QueryData<typeof winningListsQuery>['lists']>[number]
-
-const SOURCE_URL = 'https://40kstats.tabletopbattles.com/#t4'
-const ORDINAL = new Intl.PluralRules('en-GB', { type: 'ordinal' })
-const SUFFIX: Partial<Record<Intl.LDMLPluralRule, string>> = { one: 'st', two: 'nd', few: 'rd' }
-export const placingLabel = (placing: number) => `${placing}${SUFFIX[ORDINAL.select(placing)] ?? 'th'}`
 
 const PLACING_GROUPS = ungrouped([1, 2, 3, 4].map((placing) => ({ label: placingLabel(placing), value: String(placing) })))
 const PLAYER_BANDS = [
@@ -62,6 +57,7 @@ export function WinningListsPage({ search }: { search: WinningSearch }) {
   const [now] = useState(() => Date.now())
   const facets = facetsOf(search, WINNING_FACETS)
   const lists = result.data?.lists ?? null
+  const checking = result.data?.checking ?? true
 
   const families = factionFamilies(factions)
   const factionGroups = factionSelectGroups(
@@ -91,12 +87,22 @@ export function WinningListsPage({ search }: { search: WinningSearch }) {
         facets.detachment,
         detachments.map((detachment) => detachment.slug),
       ) &&
+      facetMatches(
+        facets.unit,
+        list.datasheets.map((datasheet) => datasheet.id),
+      ) &&
       facetMatches(facets.disposition, list.disposition ? [list.disposition] : []) &&
       facetMatches(facets.placing, [String(list.placing)]) &&
       facetMatches(facets.players, [playersBand(list.event.players)]) &&
       withinPeriod(Date.parse(list.event.date), bounds) &&
       (!query ||
-        [list.name, list.event.name, faction?.displayName ?? '', ...detachments.map((detachment) => detachment.name), ...list.datasheets]
+        [
+          list.name,
+          list.event.name,
+          faction?.displayName ?? '',
+          ...detachments.map((detachment) => detachment.name),
+          ...list.datasheets.map((datasheet) => datasheet.name),
+        ]
           .join('\n')
           .toLocaleLowerCase()
           .includes(query)),
@@ -111,6 +117,16 @@ export function WinningListsPage({ search }: { search: WinningSearch }) {
   ]
     .map(([value, label]) => ({ value, label }))
     .toSorted((left, right) => left.label.localeCompare(right.label))
+  // Units follow the factions chosen too, so the choices are what those lists field.
+  const unitChoices = [
+    ...new Map(
+      read
+        .filter(({ family }) => facetMatches(factionFacet, [family]))
+        .flatMap(({ list }) => list.datasheets.map((datasheet) => [datasheet.id, datasheet.name] as const)),
+    ),
+  ]
+    .map(([value, label]) => ({ value, label }))
+    .toSorted((left, right) => left.label.localeCompare(right.label))
   const dimensions: FilterDimension[] = [
     { key: 'faction', label: 'Faction', groups: factionGroups, pinned: true },
     {
@@ -119,6 +135,7 @@ export function WinningListsPage({ search }: { search: WinningSearch }) {
       pinned: true,
       groups: ungrouped(detachmentChoices),
     },
+    { key: 'unit', label: 'Unit', pinned: true, groups: ungrouped(unitChoices) },
     { key: 'placing', label: 'Placing', pinned: true, groups: PLACING_GROUPS },
     { key: 'players', label: 'Event size', pinned: true, groups: PLAYERS_GROUPS },
     {
@@ -136,6 +153,7 @@ export function WinningListsPage({ search }: { search: WinningSearch }) {
   const counts = new Map([
     tally('faction', ({ family }) => [family]),
     tally('detachment', ({ detachments }) => detachments.map((detachment) => detachment.slug)),
+    tally('unit', ({ list }) => list.datasheets.map((datasheet) => datasheet.id)),
     tally('placing', ({ list }) => [String(list.placing)]),
     tally('players', ({ list }) => [playersBand(list.event.players)]),
     tally('disposition', ({ list }) => (list.disposition ? [list.disposition] : [])),
@@ -154,7 +172,7 @@ export function WinningListsPage({ search }: { search: WinningSearch }) {
   })
   const active = Object.values(search).some(Boolean)
   const choose = (next: WinningSearch) =>
-    void navigate({ to: '/rosters', search: { view: 'winning', ...next }, replace: true, resetScroll: false })
+    void navigate({ to: '/rosters', search: { view: 'tournament-lists', ...next }, replace: true, resetScroll: false })
 
   const create = useNewRoster()
   const draft = useClientValue(peekGuestDraft, null)
@@ -176,7 +194,7 @@ export function WinningListsPage({ search }: { search: WinningSearch }) {
           </>
         }
       >
-        <RosterViews view="winning" />
+        <RosterViews view="tournament-lists" />
       </PageHeader>
       <PageContent className="space-y-6">
         <FilterBar
@@ -201,54 +219,61 @@ export function WinningListsPage({ search }: { search: WinningSearch }) {
         {open.isError ? <Problem>Could not open that list: {errorMessage(open.error)}</Problem> : null}
         {create.saveError ? <Problem>{create.saveError}</Problem> : null}
         <section>
-          <h2 className="rubric border-b border-edge pb-2">Winning lists</h2>
+          <h2 className="rubric border-b border-edge pb-2">Top-four tournament lists</h2>
           <p className="mt-2 text-xs text-dim">
-            Top-four lists from recent tournaments, as{' '}
-            <a href={SOURCE_URL} target="_blank" rel="noreferrer" className="underline">
+            Lists that finished top four at Warhammer 40,000 tournaments outside Praetorium, as published by{' '}
+            <a href={TOP_FOUR_SOURCE_URL} target="_blank" rel="noreferrer" className="underline">
               40k Stats
-            </a>{' '}
-            publishes them. Only lists that import with nothing to fix and are legal under today’s data are shown.
+            </a>
+            . Only lists legal under today’s data are shown, so a rules change can remove one.
           </p>
           <div className="mt-2 space-y-3">
             {result.isError ? (
               <PageState
                 headingLevel={2}
-                title="Could not load winning lists"
-                explanation="The winning lists could not be loaded. Try again."
+                title="Could not load top-four lists"
+                explanation="The top-four lists could not be loaded. Try again."
                 action={
                   <Button variant="outline" onClick={() => void result.refetch()} disabled={result.isFetching}>
                     Try again
                   </Button>
                 }
               />
-            ) : result.isPending || lists === null ? (
+            ) : result.isPending || lists === null || (checking && !lists.length) ? (
               <PageState
                 headingLevel={2}
-                title="Checking winning lists"
-                explanation="Recent tournament lists are being checked against today’s data. Try again shortly."
+                title="Checking top-four lists"
+                explanation="Tournament lists are being checked against today’s data. They appear here as they are checked."
                 icon={Trophy}
               />
             ) : shown.length ? (
-              <div className="runner gap-3 [--gate-x:1rem] [--gate-y:1.5rem] sm:[--gate-x:1.5rem]">
-                {shown.map(({ list, faction }) => (
-                  <WinningListCard
-                    key={list.id}
-                    list={list}
-                    faction={faction}
-                    dispositionName={references?.dispositions.find((entry) => entry.id === list.disposition)?.name}
-                    opening={open.isPending && open.variables?.id === list.id}
-                    disabled={open.isPending}
-                    onImport={another ?? (() => open.mutate(list))}
-                  />
-                ))}
-              </div>
+              <>
+                {checking ? (
+                  <p className="text-xs text-dim">
+                    Showing the lists checked so far. More appear as the rest are checked against today’s data.
+                  </p>
+                ) : null}
+                <div className="runner gap-3 [--gate-x:1rem] [--gate-y:1.5rem] sm:[--gate-x:1.5rem]">
+                  {shown.map(({ list, faction }) => (
+                    <WinningListCard
+                      key={list.id}
+                      list={list}
+                      faction={faction}
+                      dispositionName={references?.dispositions.find((entry) => entry.id === list.disposition)?.name}
+                      opening={open.isPending && open.variables?.id === list.id}
+                      disabled={open.isPending}
+                      onImport={another ?? (() => open.mutate(list))}
+                    />
+                  ))}
+                </div>
+              </>
             ) : active ? (
-              <NoFilterMatches>No winning lists match these filters</NoFilterMatches>
+              <NoFilterMatches>No top-four lists match these filters</NoFilterMatches>
             ) : (
               <PageState
                 headingLevel={2}
-                title="No winning lists yet."
-                explanation="Recent tournament lists appear here once they import cleanly."
+                title="No top-four lists yet."
+                explanation="Tournament lists appear here once they import cleanly."
                 icon={Trophy}
               />
             )}

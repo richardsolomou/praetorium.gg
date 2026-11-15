@@ -241,7 +241,9 @@ test.describe('a touch device', () => {
         document.head.append(Object.assign(document.createElement('style'), { textContent: 'html { font-size: 200% }' })),
       ),
     )
-    await page.goto('/rosters?view=winning')
-    await expect(page.getByRole('navigation', { name: 'Rosters' }).getByRole('link', { name: 'Winning' })).toBeInViewport({ ratio: 0.99 })
+    await page.goto('/rosters?view=tournament-lists')
+    await expect(page.getByRole('navigation', { name: 'Rosters' }).getByRole('link', { name: 'Tournament lists' })).toBeInViewport({
+      ratio: 0.99,
+    })
   })
 })

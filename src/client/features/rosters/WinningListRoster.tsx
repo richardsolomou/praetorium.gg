@@ -11,7 +11,7 @@ import { countLabel } from '../../text'
 import { ListBuilder } from './ListBuilder'
 import { NO_PREP } from './rosterDraft'
 import { openWinningImport } from './winningListImport'
-import { placingLabel } from './WinningListsPage'
+import { placingLabel } from '../../text'
 
 /** A winning list read in the roster screen before anyone imports it, with the way to import it. */
 export function WinningListRoster({ id }: { id: string }) {
@@ -31,8 +31,8 @@ export function WinningListRoster({ id }: { id: string }) {
         explanation="This list no longer imports cleanly under today’s data, or it has left the window."
         icon={Trophy}
         action={
-          <Link to="/rosters" search={{ view: 'winning' }} className={buttonClass({ variant: 'outline' })}>
-            <ArrowLeft /> Winning lists
+          <Link to="/rosters" search={{ view: 'tournament-lists' }} className={buttonClass({ variant: 'outline' })}>
+            <ArrowLeft /> Tournament lists
           </Link>
         }
       />
@@ -44,7 +44,7 @@ export function WinningListRoster({ id }: { id: string }) {
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-edge px-3 py-2 text-xs text-dim">
         <Link
           to="/rosters"
-          search={{ view: 'winning' }}
+          search={{ view: 'tournament-lists' }}
           className={buttonClass({ variant: 'ghost', size: 'sm' })}
           onClick={(event) => {
             // Opened from the list, going back returns to it exactly as it was left: its filters, search and place.
@@ -53,7 +53,7 @@ export function WinningListRoster({ id }: { id: string }) {
             router.history.back()
           }}
         >
-          <ArrowLeft /> Winning lists
+          <ArrowLeft /> Tournament lists
         </Link>
         <span className="chip shrink-0">{placingLabel(list.placing)}</span>
         <span className="shrink-0">{list.record}</span>

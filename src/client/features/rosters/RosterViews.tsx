@@ -2,14 +2,14 @@ import { Link } from '@tanstack/react-router'
 import { pageLinkTabClass, PageLinkTabs } from '../../components/PageTabs'
 import type { RosterAudience } from '../../../core/rosterDiscovery'
 
-export type RosterView = 'mine' | RosterAudience | 'played' | 'winning'
+export type RosterView = 'mine' | RosterAudience | 'played' | 'tournament-lists'
 
 const VIEWS: readonly [RosterView, string][] = [
   ['mine', 'Mine'],
   ['friends', 'Friends'],
   ['public', 'Public'],
   ['played', 'Played'],
-  ['winning', 'Winning'],
+  ['tournament-lists', 'Tournament lists'],
 ]
 
 /** The rosters page tabs, the same for a visitor, whose Friends tab says what an account adds. */

@@ -33,7 +33,7 @@ export function RostersRoute({
 }) {
   const { data: me } = useQuery(meQuery())
   const [{ ready, guest }, setGuest] = useGuestDraft(hinted)
-  if (view === 'winning') return <WinningListsPage search={search} />
+  if (view === 'tournament-lists') return <WinningListsPage search={search} />
   if (view) return <RosterDiscoveryPage view={view} search={{ ...search, sort: listSort }} />
   if (me && !ready && hinted) return <BuilderFrame />
   if (me && guest) return <ClaimGuestRoster key={guest.id} guest={guest} onDiscard={() => setGuest(null)} />
