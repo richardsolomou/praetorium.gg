@@ -625,24 +625,7 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
               : 'max-w-7xl lg:grid-cols-[minmax(0,1fr)_minmax(19rem,22rem)_minmax(0,1fr)]'
           }`}
         >
-          {table.map((side) => (
-            <SidePanel
-              key={side.index}
-              view={view}
-              side={side}
-              onSimulate={setCombatSelection}
-              coreKeys={coreKeysBySide.get(side.index) ?? EMPTY_KEYS}
-              pending={pending || promptMinimized}
-              blocked={promptMinimized}
-              send={sendAction}
-              referenceFor={referenceFor}
-              writtenFor={writtenFor}
-              guides={guidesFor(side)}
-              onRecordMissed={missedMoments.length ? recordMissedStratagem : undefined}
-              className={`${focus === shown(side) ? '' : 'hidden lg:block'} ${side.index === 0 ? 'lg:col-start-1' : 'lg:col-start-3'} lg:row-start-1`}
-            />
-          ))}
-
+          {/* The centre column comes first, so a slow connection streams the phase bar before both armies; `lg` places every column itself. */}
           <div className="min-w-0 space-y-3 lg:col-start-2 lg:row-start-1">
             {/*
              * One instance, moved by CSS rather than rendered twice: ending a phase is the
@@ -750,6 +733,24 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
               ) : null}
             </section>
           </div>
+
+          {table.map((side) => (
+            <SidePanel
+              key={side.index}
+              view={view}
+              side={side}
+              onSimulate={setCombatSelection}
+              coreKeys={coreKeysBySide.get(side.index) ?? EMPTY_KEYS}
+              pending={pending || promptMinimized}
+              blocked={promptMinimized}
+              send={sendAction}
+              referenceFor={referenceFor}
+              writtenFor={writtenFor}
+              guides={guidesFor(side)}
+              onRecordMissed={missedMoments.length ? recordMissedStratagem : undefined}
+              className={`${focus === shown(side) ? '' : 'hidden lg:block'} ${side.index === 0 ? 'lg:col-start-1' : 'lg:col-start-3'} lg:row-start-1`}
+            />
+          ))}
         </div>
 
         {activeScoringOpen && active && activeScoringDraft ? (

@@ -9,6 +9,7 @@ import { type BattleView } from '../../../core/battleView'
 import { tint } from './battleTints'
 import { Elapsed } from './Elapsed'
 import { UndoLatest } from './UndoLatest'
+import { useHydrated } from '../../useClientValue'
 
 type Props = {
   view: BattleView
@@ -45,7 +46,9 @@ export function TurnControl({ view, clock, send, pending, blockReason, onAdvance
   const active = view.players.find((player) => player.isActive)
   const activeSide = active?.side ?? 0
   const at = PHASES.indexOf(view.phase)
-  const label = view.phase === 'end' ? 'Pass the turn' : `End the ${view.phase} phase`
+  // Drawn by the server before the page can act, so until then it says why a press would do nothing.
+  const hydrated = useHydrated()
+  const label = !hydrated ? 'Connecting…' : view.phase === 'end' ? 'Pass the turn' : `End the ${view.phase} phase`
 
   return (
     <section data-onboarding="battle-live-turn" data-turn-control className={cn('space-y-2', className)}>
@@ -84,7 +87,8 @@ export function TurnControl({ view, clock, send, pending, blockReason, onAdvance
         <Button
           variant="default"
           className={`h-auto min-h-11 min-w-0 flex-1 rounded-xl text-center font-display text-sm font-bold whitespace-normal ${tint(activeSide).fill}`}
-          disabled={pending || Boolean(blockReason)}
+          disabled={!hydrated || pending || Boolean(blockReason)}
+          aria-busy={!hydrated || undefined}
           onClick={onAdvance}
         >
           {label}
