@@ -14,7 +14,7 @@ colors:
   rust: '#d0625a'
   chart-blue: '#9db6d4'
   admin-violet: '#b9a0df'
-  supporter-gold: '#d9b76e'
+  supporter-gold: '#e8cf86'
   measure-terrain: '#c39bff'
   measure-lines: '#f57fd8'
   measure-edges: '#f4e25c'
