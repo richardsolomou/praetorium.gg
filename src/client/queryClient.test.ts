@@ -108,6 +108,11 @@ it('counts a refused response with its status', async () => {
   })
 })
 
+it('does not count a release check the connection dropped', async () => {
+  await failedRead(['release'], new TypeError('Load failed'))
+  expect(capture).not.toHaveBeenCalled()
+})
+
 it('does not count a read refused for a lapsed session', async () => {
   await failedRead(['me'], new Error(SIGN_IN_REQUIRED))
   expect(capture).not.toHaveBeenCalled()
