@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.249.0 (2026-11-15)
+
+### Minor Changes
+
+- e904ab4: A group's Overview now shows how the group plays: games played, battles in play this week, its most played armies, the top of the leaderboard with recent form, the league's progress and table, compact recent results and head-to-head records.
+
 ## 0.248.1 (2026-11-15)
 
 ### Patch Changes
