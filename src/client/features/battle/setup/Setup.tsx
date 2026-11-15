@@ -571,7 +571,7 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
               needed={ready && !view.deploymentId}
               hint={
                 kotc
-                  ? 'The terrain and objectives always go in the same places.'
+                  ? 'Play in the Colosseum or on a Combat Patrol battlefield. Each sets the deployment zones and terrain for both sides.'
                   : view.deploymentId
                     ? 'One shared choice sets the deployment zones and the terrain for both sides.'
                     : 'Choose a layout. It sets the deployment zones and the terrain for both sides.'

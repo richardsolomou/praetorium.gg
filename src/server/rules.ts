@@ -8,6 +8,7 @@ import { factionsFromDatacards } from './datacardFactions'
 import { dispositionsFromDatacards, missionCardsFromDatacards, missionsFromDatacards } from './datacardMissions'
 import { terrainFromDatacards } from './datacardTerrain'
 import { kotcTerrain } from './kotcTerrain'
+import { combatPatrolTerrain } from './combatPatrolTerrain'
 import { fixedSecondaryCapsIn, twistsIn } from './missionTwists'
 import { readMissionPacks } from './missionPacks'
 import { loadRuleDocuments } from './rulesCore'
@@ -62,11 +63,13 @@ export function* loadRulesSteps(
   yield
   const { terrainLayouts, deployments } = terrainFromDatacards(packs, battlemasterDirectory)
   yield
-  const kotc = kotcTerrain(datacardsDirectory)
-  if (kotc) {
+  for (const kotc of kotcTerrain(datacardsDirectory)) {
     deployments.push(kotc.deployment)
     terrainLayouts.push(kotc.layout)
   }
+  const patrol = combatPatrolTerrain(packs, battlemasterDirectory)
+  deployments.push(...patrol.deployments)
+  terrainLayouts.push(...patrol.terrainLayouts)
   const dispositionDetails = dispositionsFromDatacards(packs)
 
   // The dataset is optional, and an instance without its two headline parts has

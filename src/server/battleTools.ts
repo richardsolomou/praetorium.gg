@@ -16,7 +16,7 @@ import {
 import type { BattleView } from '../core/battleView'
 import { commandSchema, idSchema, rosterLimitSchema } from '../core/commands'
 import { sideStratagems } from '../core/sideStratagems'
-import { KOTC_MATCHUP_ID } from '../contracts/terrain'
+import { KOTC_BATTLEFIELD_MATCHUP_IDS } from '../contracts/terrain'
 import { terrainMatchupIds } from '../contracts/terrainReference'
 import { createBattleSchema, submitSchema, tokenSchema } from '../contracts/schemas'
 import { selectedBattleDetachmentData } from '../shared/battleDetachmentData'
@@ -434,7 +434,7 @@ function battlefields(view: BattleView, rules: LoadedRules, missions: { mission:
   const dispositions = [...new Set(view.players.map((player) => player.side))].flatMap(
     (side) => view.players.find((player) => player.side === side)?.disposition ?? [],
   )
-  const matchups = new Set(kotc ? [KOTC_MATCHUP_ID] : terrainMatchupIds(dispositions))
+  const matchups = new Set(kotc ? KOTC_BATTLEFIELD_MATCHUP_IDS : terrainMatchupIds(dispositions))
   const allowed = missions.flatMap(({ mission }) => mission?.deploymentIds ?? [])
   return rules.terrainLayouts.flatMap((terrain) => {
     const deployment = rules.deployments.find((candidate) => candidate.id === terrain.deploymentId)

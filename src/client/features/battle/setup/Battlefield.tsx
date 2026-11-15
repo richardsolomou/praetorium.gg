@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { isKotcLimit } from '../../../../core/battle'
+import { groupBy } from '../../../../core/collections'
 import type { BattleView } from '../../../../core/battleView'
 import { deploymentsQuery, terrainReferencesQuery } from '../../../queries'
 import { battleMatchupIds } from '../battlefieldLayout'
@@ -82,7 +83,9 @@ export function Battlefield({ view, send, pending, allowedIds, matchup }: Props)
       <div className="flex flex-wrap items-start justify-between gap-3">
         {/* Named like the panel above it, so the two questions the step asks look alike. */}
         <div className="min-w-0">
-          <p className="eyebrow">{matchup && !singleColosseum ? `Layouts for ${matchup}` : 'Deployment and terrain layout'}</p>
+          <p className="eyebrow">
+            {kotc ? 'King of the Colosseum battlefields' : matchup ? `Layouts for ${matchup}` : 'Deployment and terrain layout'}
+          </p>
           {singleColosseum ? (
             <p className="mt-0.5 max-w-2xl text-sm text-dim">
               The Colosseum battlefield is fixed. Use the enlarged map to place its terrain and objectives.
@@ -112,70 +115,79 @@ export function Battlefield({ view, send, pending, allowedIds, matchup }: Props)
       ) : !options.length ? (
         <p className="mt-3 text-sm text-dim">No combined battlefield layouts match these armies and mission.</p>
       ) : (
-        // A phone swipes between the layouts rather than scrolling past three full boards.
-        <div
-          className={
-            singleColosseum
-              ? 'mt-3 flex justify-center'
-              : '-mx-3 mt-3 flex snap-x snap-mandatory scroll-px-3 gap-3 overflow-x-auto px-3 pb-1 sm:mx-0 sm:grid sm:grid-cols-3 sm:overflow-visible sm:px-0 sm:pb-0'
-          }
-        >
-          {options.map(({ terrain, deployment }, index) => {
-            const selected = view.settings.terrainLayoutId === terrain.id && view.deploymentId === deployment.id
-            const label = String.fromCharCode(65 + index)
-            return (
-              <article
-                key={terrain.id}
-                className={`flex h-full flex-col border bg-panel p-3 transition-colors max-sm:w-4/5 max-sm:shrink-0 max-sm:snap-start ${singleColosseum ? 'w-full max-w-md border-edge' : selected ? CHOSEN : 'border-edge hover:border-info'}`}
-              >
-                {/*
-                 * The board opens the board, the way the mission pack pages do it. A third of a
-                 * column cannot hold the measurements the exact geometry carries, so this draws
-                 * the plain one and a press enlarges it.
-                 */}
-                <button
-                  type="button"
-                  className="group block w-full flex-1 text-left focus-visible:ring-2 focus-visible:ring-info focus-visible:outline-none"
-                  aria-label={
-                    singleColosseum
-                      ? 'Enlarge Colosseum battlefield'
-                      : `Enlarge terrain layout ${label}: ${deployment.name} battlefield with ${terrain.name}`
-                  }
-                  onClick={() => setInspecting(terrain.id)}
+        // A phone swipes between the layouts rather than scrolling past three full boards. Each matchup gets its own row,
+        // so the square Colosseums don't stretch to the height of the portrait Combat Patrol boards.
+        [...groupBy(options, (option) => option.terrain.matchupId).values()].map((row) => (
+          <div
+            key={row[0]!.terrain.matchupId}
+            className={
+              singleColosseum
+                ? 'mt-3 flex justify-center'
+                : '-mx-3 mt-3 flex snap-x snap-mandatory scroll-px-3 gap-3 overflow-x-auto px-3 pb-1 sm:mx-0 sm:grid sm:grid-cols-3 sm:overflow-visible sm:px-0 sm:pb-0'
+            }
+          >
+            {row.map(({ terrain, deployment }, index) => {
+              const selected = view.settings.terrainLayoutId === terrain.id && view.deploymentId === deployment.id
+              // The Colosseum and Combat Patrol name their own battlefields, Combat Patrol's lettered already.
+              const label = kotc ? null : String.fromCharCode(65 + index)
+              return (
+                <article
+                  key={terrain.id}
+                  className={`flex h-full flex-col border bg-panel p-3 transition-colors max-sm:w-4/5 max-sm:shrink-0 max-sm:snap-start ${singleColosseum ? 'w-full max-w-md border-edge' : selected ? CHOSEN : 'border-edge hover:border-info'}`}
                 >
-                  <span className="flex items-center gap-2">
-                    {singleColosseum ? null : <span className="text-lg font-bold">{label} </span>}
-                    <span className="min-w-0 flex-1 truncate text-sm text-dim transition-colors group-hover:text-bone">
-                      {singleColosseum ? 'View setup measurements' : deployment.name}
-                    </span>
-                    <Maximize2 className="size-4 shrink-0 text-dim transition-colors group-hover:text-info" aria-hidden />
-                  </span>
-                  <TerrainBoard
-                    layout={terrain}
-                    deployment={deployment}
-                    templates={references?.templates ?? []}
-                    className="mt-2 w-full"
-                    ariaLabel={`Layout ${label}: ${deployment.name} battlefield with ${terrain.name}`}
-                  />
-                </button>
-                {!singleColosseum && !fixedByOrganizer ? (
-                  <Button
-                    variant={selected ? 'secondary' : 'outline'}
-                    className="mt-3 w-full"
-                    disabled={!terrain.geometry || pending}
-                    aria-label={`${selected ? 'Selected' : 'Select'} layout ${label}: ${deployment.name}`}
-                    onClick={() => {
-                      if (!pending) send({ kind: 'set-battlefield', patternId: deployment.id, terrainLayoutId: terrain.id })
-                    }}
+                  {/*
+                   * The board opens the board, the way the mission pack pages do it. A third of a
+                   * column cannot hold the measurements the exact geometry carries, so this draws
+                   * the plain one and a press enlarges it.
+                   */}
+                  <button
+                    type="button"
+                    className="group flex w-full flex-1 flex-col text-left focus-visible:ring-2 focus-visible:ring-info focus-visible:outline-none"
+                    aria-label={
+                      singleColosseum
+                        ? 'Enlarge Colosseum battlefield'
+                        : label
+                          ? `Enlarge terrain layout ${label}: ${deployment.name} battlefield with ${terrain.name}`
+                          : `Enlarge ${deployment.name} battlefield`
+                    }
+                    onClick={() => setInspecting(terrain.id)}
                   >
-                    {selected ? <Check /> : null}
-                    {selected ? 'Selected' : terrain.geometry ? 'Select' : 'Loading'}
-                  </Button>
-                ) : null}
-              </article>
-            )
-          })}
-        </div>
+                    <span className="flex items-center gap-2">
+                      {label ? <span className="text-lg font-bold">{label} </span> : null}
+                      <span className="min-w-0 flex-1 truncate text-sm text-dim transition-colors group-hover:text-bone">
+                        {singleColosseum ? 'View setup measurements' : deployment.name}
+                      </span>
+                      <Maximize2 className="size-4 shrink-0 text-dim transition-colors group-hover:text-info" aria-hidden />
+                    </span>
+                    <TerrainBoard
+                      layout={terrain}
+                      deployment={deployment}
+                      templates={references?.templates ?? []}
+                      className="mt-2 w-full"
+                      ariaLabel={
+                        label ? `Layout ${label}: ${deployment.name} battlefield with ${terrain.name}` : `${deployment.name} battlefield`
+                      }
+                    />
+                  </button>
+                  {!singleColosseum && !fixedByOrganizer ? (
+                    <Button
+                      variant={selected ? 'secondary' : 'outline'}
+                      className="mt-3 w-full"
+                      disabled={!terrain.geometry || pending}
+                      aria-label={`${selected ? 'Selected' : 'Select'} ${label ? `layout ${label}: ` : ''}${deployment.name}`}
+                      onClick={() => {
+                        if (!pending) send({ kind: 'set-battlefield', patternId: deployment.id, terrainLayoutId: terrain.id })
+                      }}
+                    >
+                      {selected ? <Check /> : null}
+                      {selected ? 'Selected' : terrain.geometry ? 'Select' : 'Loading'}
+                    </Button>
+                  ) : null}
+                </article>
+              )
+            })}
+          </div>
+        ))
       )}
       {fixed && !fixedSelected && !pending && attemptedSeq === view.seq ? (
         <Button

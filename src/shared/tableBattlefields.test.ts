@@ -31,3 +31,13 @@ it('leaves out a deployment only one side’s mission allows, whichever side is 
 it('offers nothing when an army has not settled on a disposition', () => {
   expect(tableBattlefields(rules(layout('match', 'purge-vs-recon')), ['recon', null], 2000, null).options).toEqual([])
 })
+
+it('offers a 600-point table the Colosseum and Combat Patrol layouts whatever the armies', () => {
+  const { options } = tableBattlefields(
+    rules(layout('arena', 'king-of-the-colosseum'), layout('patrol', 'combat-patrol'), layout('match', 'purge-vs-recon')),
+    ['recon', null],
+    600,
+    null,
+  )
+  expect(options.map((option) => option.terrainLayoutId)).toEqual(['arena', 'patrol'])
+})

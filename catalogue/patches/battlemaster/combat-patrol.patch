@@ -1,0 +1,181 @@
+diff --git a/battlemaster/combat-patrol/deployments.json b/battlemaster/combat-patrol/deployments.json
+new file mode 100644
+index 0000000..3e2da4b
+--- /dev/null
++++ b/battlemaster/combat-patrol/deployments.json
+@@ -0,0 +1,65 @@
++{
++  "format": "praetorium.combat-patrol-deployments.v1",
++  "deployments": [
++    {
++      "name": "Combat Patrol Deployment A",
++      "attacker": [
++        { "x": 33, "y": 15 },
++        { "x": 44, "y": 15 },
++        { "x": 44, "y": 30 },
++        { "x": 33, "y": 30 }
++      ],
++      "defender": [
++        { "x": 0, "y": 0 },
++        { "x": 11, "y": 0 },
++        { "x": 11, "y": 15 },
++        { "x": 0, "y": 15 }
++      ],
++      "attackerTerritory": [
++        { "x": 22, "y": 0 },
++        { "x": 44, "y": 0 },
++        { "x": 44, "y": 30 },
++        { "x": 22, "y": 30 }
++      ]
++    },
++    {
++      "name": "Combat Patrol Deployment B",
++      "attacker": [
++        { "x": 28, "y": 30 },
++        { "x": 44, "y": 0 },
++        { "x": 44, "y": 30 }
++      ],
++      "defender": [
++        { "x": 0, "y": 0 },
++        { "x": 16, "y": 0 },
++        { "x": 0, "y": 30 }
++      ],
++      "attackerTerritory": [
++        { "x": 22, "y": 0 },
++        { "x": 44, "y": 0 },
++        { "x": 44, "y": 30 },
++        { "x": 22, "y": 30 }
++      ]
++    },
++    {
++      "name": "Combat Patrol Deployment C",
++      "attacker": [
++        { "x": 33, "y": 15 },
++        { "x": 44, "y": 15 },
++        { "x": 44, "y": 30 },
++        { "x": 22, "y": 30 }
++      ],
++      "defender": [
++        { "x": 0, "y": 0 },
++        { "x": 22, "y": 0 },
++        { "x": 11, "y": 15 },
++        { "x": 0, "y": 15 }
++      ],
++      "attackerTerritory": [
++        { "x": 0, "y": 30 },
++        { "x": 44, "y": 0 },
++        { "x": 44, "y": 30 }
++      ]
++    }
++  ]
++}
+diff --git a/battlemaster/combat-patrol/terrain-objectives.json b/battlemaster/combat-patrol/terrain-objectives.json
+new file mode 100644
+index 0000000..9e41e1f
+--- /dev/null
++++ b/battlemaster/combat-patrol/terrain-objectives.json
+@@ -0,0 +1,78 @@
++{
++  "format": "praetorium.terrain-objectives.v1",
++  "battlemasterRevision": "0106ac33756477c960b7d90521b673ca2935fe5f480bc6687c6f3ac41d78d1b3",
++  "entries": [
++    {
++      "layoutId": "terrain-2292f555-ae39-4e29-9c08-7d6132859d42",
++      "layoutKey": "cb2f710aa4d3aa8b",
++      "area": "area-1",
++      "name": "BigRect EF Corner 01"
++    },
++    {
++      "layoutId": "terrain-2292f555-ae39-4e29-9c08-7d6132859d42",
++      "layoutKey": "cb2f710aa4d3aa8b",
++      "area": "area-6",
++      "name": "BigRect EF Corner 01"
++    },
++    {
++      "layoutId": "terrain-2292f555-ae39-4e29-9c08-7d6132859d42",
++      "layoutKey": "cb2f710aa4d3aa8b",
++      "area": "area-3",
++      "name": "SmallRect GH 01"
++    },
++    {
++      "layoutId": "terrain-2292f555-ae39-4e29-9c08-7d6132859d42",
++      "layoutKey": "cb2f710aa4d3aa8b",
++      "area": "area-8",
++      "name": "SmallRect GH 01"
++    },
++    {
++      "layoutId": "terrain-0af82b74-a566-4b7b-b58e-e56150dc934b",
++      "layoutKey": "db37cb3226923eac",
++      "area": "area-7",
++      "name": "BigRect RF Corner 02"
++    },
++    {
++      "layoutId": "terrain-0af82b74-a566-4b7b-b58e-e56150dc934b",
++      "layoutKey": "db37cb3226923eac",
++      "area": "area-2",
++      "name": "BigRect RF Corner 02"
++    },
++    {
++      "layoutId": "terrain-0af82b74-a566-4b7b-b58e-e56150dc934b",
++      "layoutKey": "db37cb3226923eac",
++      "area": "area-1",
++      "name": "SmallRect Generator"
++    },
++    {
++      "layoutId": "terrain-0af82b74-a566-4b7b-b58e-e56150dc934b",
++      "layoutKey": "db37cb3226923eac",
++      "area": "area-6",
++      "name": "SmallRect Generator"
++    },
++    {
++      "layoutId": "terrain-59855f0c-868c-4000-9f6b-52299cafb3fc",
++      "layoutKey": "94a8f8c15778162f",
++      "area": "area-2",
++      "name": "BigRect CD Corner L 01"
++    },
++    {
++      "layoutId": "terrain-59855f0c-868c-4000-9f6b-52299cafb3fc",
++      "layoutKey": "94a8f8c15778162f",
++      "area": "area-7",
++      "name": "BigRect CD Corner L 01"
++    },
++    {
++      "layoutId": "terrain-59855f0c-868c-4000-9f6b-52299cafb3fc",
++      "layoutKey": "94a8f8c15778162f",
++      "area": "area-6",
++      "name": "SmallRect AB 02"
++    },
++    {
++      "layoutId": "terrain-59855f0c-868c-4000-9f6b-52299cafb3fc",
++      "layoutKey": "94a8f8c15778162f",
++      "area": "area-10",
++      "name": "SmallRect AB 02"
++    }
++  ]
++}
+diff --git a/battlemaster/combat-patrol/terrain-positions.json b/battlemaster/combat-patrol/terrain-positions.json
+new file mode 100644
+index 0000000..8aed5a4
+--- /dev/null
++++ b/battlemaster/combat-patrol/terrain-positions.json
+@@ -0,0 +1,20 @@
++{
++  "format": "praetorium.terrain-position-corrections.v1",
++  "battlemasterRevision": "0106ac33756477c960b7d90521b673ca2935fe5f480bc6687c6f3ac41d78d1b3",
++  "entries": [
++    {
++      "layoutId": "terrain-59855f0c-868c-4000-9f6b-52299cafb3fc",
++      "layoutKey": "94a8f8c15778162f",
++      "area": "area-6",
++      "name": "SmallRect AB 02",
++      "origin": { "x": -5, "y": -9 }
++    },
++    {
++      "layoutId": "terrain-59855f0c-868c-4000-9f6b-52299cafb3fc",
++      "layoutKey": "94a8f8c15778162f",
++      "area": "area-10",
++      "name": "SmallRect AB 02",
++      "origin": { "x": 5, "y": 9 }
++    }
++  ]
++}
