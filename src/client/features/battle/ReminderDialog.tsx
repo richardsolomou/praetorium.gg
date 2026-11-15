@@ -23,8 +23,8 @@ export function ReminderDialog({
 }) {
   const groups = groupedReminders(reminders)
   return (
-    <BattlePromptDialog open minimizedLabel="Battle reminders">
-      <BattleDialogContent sheet showCloseButton={false}>
+    <BattlePromptDialog open sheet onSwipeDown={onDone} minimizedLabel="Battle reminders">
+      <BattleDialogContent showCloseButton={false}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <BellRing className="size-4 text-parchment" /> Battle {groups.length === 1 ? 'reminder' : 'reminders'}

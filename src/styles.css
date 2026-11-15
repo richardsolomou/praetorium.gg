@@ -326,17 +326,6 @@ html[data-native-app='true'] [data-native-app-content][data-immersive='true'] {
     padding-bottom: 0;
   }
 
-  /* A sheet rises from the thumb and stops at its content, leaving the scoreboard in view above it; after the battle prompt rule it overrides. */
-  html [data-slot='dialog-content'][data-sheet] {
-    top: auto;
-    bottom: calc(4rem + env(safe-area-inset-bottom));
-    height: auto;
-    max-height: calc(100dvh - 4rem - var(--app-header) - env(safe-area-inset-top) - env(safe-area-inset-bottom));
-    padding-top: 0;
-    border-top-width: 1px;
-    border-radius: 1rem 1rem 0 0;
-  }
-
   /* Battle prompts are non-modal here, so nothing else stops a swipe on one scrolling the page behind it. */
   html:has([data-battle-dialog-content]) {
     overflow: hidden;
