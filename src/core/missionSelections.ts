@@ -56,7 +56,8 @@ export type MissionSelection =
   | { kind: MarkerPlacementKind; targets: MissionObjectiveRef[]; confirmed: boolean }
   | { kind: 'surveil'; markers: MissionMarkerRef[] }
 
-export type SavedMissionUnit = MissionUnitRef & { name: string; memberKeys: string[] }
+/** `joined` names the leaders and support attached to the unit called `name`, which the game counts as one unit with it. */
+export type SavedMissionUnit = MissionUnitRef & { name: string; joined: string[]; memberKeys: string[] }
 export type SavedMissionSelection = {
   cardKey: string
   cardName: string
@@ -213,6 +214,7 @@ export function missionUnitCandidates(state: BattleState, side: number, battlefi
               unitKey: host.key,
               rosterSeq: player.rosterSeq!,
               name: host.name,
+              joined: joined.map((unit) => unit.name),
               memberKeys: members.map((unit) => unit.key),
             },
           ]
@@ -257,7 +259,9 @@ function savedUnit(state: BattleState, ref: MissionUnitRef): SavedMissionUnit | 
   if (!player || player.rosterSeq !== ref.rosterSeq) return null
   const members = attachedUnits(player.units, ref.unitKey)
   const host = members[0]
-  return host?.key === ref.unitKey ? { ...ref, name: host.name, memberKeys: members.map((unit) => unit.key) } : null
+  return host?.key === ref.unitKey
+    ? { ...ref, name: host.name, joined: members.slice(1).map((unit) => unit.name), memberKeys: members.map((unit) => unit.key) }
+    : null
 }
 
 const validObjective = (objective: MissionObjectiveRef) =>

@@ -16,7 +16,7 @@ import { battleMatchupIds, battlefieldLayout } from './battlefieldLayout'
 import { BattleDialogContent, BattlePromptDialog } from './BattlePromptDialog'
 import type { ReferenceCard } from './MissionCards'
 import { MissionCardReference } from '../../components/MissionCardReference'
-import { missionUnitChoice, missionUnitChoiceKey } from './missionUnitChoice'
+import { joinedLine, missionUnitChoice, missionUnitChoiceKey, missionUnitName } from './missionUnitChoice'
 import { UndoLatest } from './UndoLatest'
 import { withMember } from '../../../core/collections'
 import { MARKER_PLACEMENT_COPY } from './markerPlacementCopy'
@@ -106,10 +106,18 @@ export function MissionSelectionDialog({
   const named = manualName.trim()
   const manual = named ? { key: `manual-${named.toLocaleLowerCase()}`, name: named } : null
   const pickedObjective = objectives.find((candidate) => candidate.key === objective) ?? (!objectives.length ? manual : null)
-  const unitOptions = choice.units.map((unit) => ({
-    value: missionUnitChoiceKey(unit),
-    label: `${view.players.find((player) => player.id === unit.playerId)?.name ?? 'Army'} · ${unit.name}`,
-  }))
+  const unitOptions = choice.units.map((unit) => {
+    const army = view.players.find((player) => player.id === unit.playerId)?.name ?? 'Army'
+    return {
+      value: missionUnitChoiceKey(unit),
+      label: `${army} · ${missionUnitName(unit)}`,
+      content: unit.joined.length ? (
+        <span className="truncate">
+          {army} · {unit.name} <span className="text-dim">{joinedLine(unit)}</span>
+        </span>
+      ) : undefined,
+    }
+  })
   const ref = (key: string) => missionUnitChoice(choice.units, key)
   let selection: MissionSelection | null = null
   if (choice.kind === 'punishment' && !choice.units.length)
