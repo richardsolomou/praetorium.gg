@@ -220,6 +220,6 @@ test('faction index cards and logo tooltips work with touch', async ({ browser }
   await page.screenshot({ path: test.info().outputPath('custodes-touch-tooltip.png') })
   await expectNoHorizontalOverflow(page.locator('body'))
   await page.goto('/factions/adeptus-custodes/rules/unknown-version')
-  await expect(page.getByRole('heading', { name: 'Nothing here', exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Not in the current data', exact: true })).toBeVisible()
   await context.close()
 })

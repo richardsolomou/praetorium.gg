@@ -1392,7 +1392,7 @@ test('a tab forgets a page that no longer exists', async ({ page }) => {
   )
   const sections = page.getByRole('navigation', { name: 'Application sections' })
   await sections.getByRole('link', { name: 'Rosters' }).click()
-  await expect(page.getByRole('heading', { name: 'Nothing here' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'No such roster' })).toBeVisible()
   await sections.getByRole('link', { name: 'Factions' }).click()
   await expect(page).toHaveURL('/factions')
   await sections.getByRole('link', { name: 'Rosters' }).click()

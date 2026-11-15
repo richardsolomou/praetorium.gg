@@ -196,7 +196,7 @@ for (const [path, name] of [
   test(`${name} returns a real rules 404`, async ({ page }, testInfo) => {
     const response = await page.goto(path)
     expect(response?.status()).toBe(404)
-    await expect(page.getByRole('heading', { name: 'Nothing here', exact: true })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Not in the current data', exact: true })).toBeVisible()
     if (path === '/rules/%24documentId') await page.screenshot({ path: testInfo.outputPath('invalid-rules.png') })
   })
 }

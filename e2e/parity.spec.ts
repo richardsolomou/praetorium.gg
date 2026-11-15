@@ -145,7 +145,7 @@ test('a private roster can be shared and made private again', async ({ browser }
   await expect(unshare.getByRole('radio', { name: /^Private/ })).toBeChecked()
   await expect(row.getByText('Private').filter({ visible: true })).toBeVisible()
   await anonymous.reload()
-  await expect(anonymous.getByRole('heading', { name: 'Nothing here' })).toBeVisible()
+  await expect(anonymous.getByRole('heading', { name: 'No such roster' })).toBeVisible()
   expect((await anonymous.request.get(previewPath)).status()).toBe(404)
   await page.setViewportSize({ width: 390, height: 900 })
   await page.goto('/privacy')

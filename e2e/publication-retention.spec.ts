@@ -192,7 +192,7 @@ test('saved roster deletion preserves its actual sealed and fielded copies until
   expect(await productSql`SELECT user_id FROM sealed_event_entries WHERE event_id = ${sealedEvent.eventId}`).toEqual([])
   expect(await battleCommands(battleId)).toEqual(commandsBefore)
   await page.goto(sealedUrl)
-  await expect(page.getByRole('heading', { name: 'Nothing here', exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'No such roster', exact: true })).toBeVisible()
   await page.goto(`/rosters/${rosterId}?battle=${lastPathSegment(battleUrl)}`)
   await expect(page.getByLabel('List name')).toHaveValue(rosterName)
   await deleteBattle(page, battleUrl)
@@ -206,7 +206,7 @@ test('saved roster deletion preserves its actual sealed and fielded copies until
     )
     .toEqual([[], []])
   await page.goto(battleUrl)
-  await expect(page.getByRole('heading', { name: 'Nothing here', exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'No such battle', exact: true })).toBeVisible()
 
   for (const width of [390, 1440]) {
     await page.setViewportSize({ width, height: 900 })
@@ -321,7 +321,7 @@ test('self-account deletion removes populated shared history and sealed entries 
       await expect(opponent.locator(`a[href="${new URL(deleted).pathname}"]`)).toHaveCount(0)
     }
     await opponent.goto(finished)
-    await expect(opponent.getByRole('heading', { name: 'Nothing here', exact: true })).toBeVisible()
+    await expect(opponent.getByRole('heading', { name: 'No such battle', exact: true })).toBeVisible()
     await anonymous.reload()
     await expect(anonymous.getByRole('heading', { name: 'No such player' })).toBeVisible()
     await expectRecord(opponent, opponentId, 0)
