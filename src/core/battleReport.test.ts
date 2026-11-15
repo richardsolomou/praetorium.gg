@@ -59,7 +59,7 @@ describe('the account of the battle', () => {
 
     expect(
       text(
-        battleReport(NAMES, history, undefined, undefined, undefined, {
+        battleReport(NAMES, history, undefined, undefined, {
           deployments: [{ id: 'search-and-destroy', name: 'Search and Destroy' }],
         }),
       ),
@@ -208,7 +208,7 @@ describe('the account of the battle', () => {
       [ALICE, { kind: 'use-stratagem', key: 's1', playerId: CAROL }],
     )
 
-    expect(text(battleReport([...NAMES, { id: CAROL, name: 'Carol' }], history, [ALICE, BOB, CAROL], ALICE, [0, 1, 1]))).toContain(
+    expect(text(battleReport([...NAMES, { id: CAROL, name: 'Carol' }], history, [ALICE, BOB, CAROL], [0, 1, 1]))).toContain(
       'Alice uses Carol’s Grenade for 1 CP',
     )
   })

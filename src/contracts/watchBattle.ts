@@ -42,7 +42,7 @@ const watchBattleSchema = z.object({
       z.object({
         id: shortText,
         name: shortText,
-        kind: z.enum(['Primary', 'Secondary', 'Secret']),
+        kind: z.enum(['Primary', 'Secondary']),
         points: z.number().int().min(0).max(1_000_000),
         summary: z.string().max(1800),
       }),

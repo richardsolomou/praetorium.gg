@@ -81,28 +81,14 @@ describe('watch battle snapshot', () => {
     expect(parseWatchBattle(project(screen()))?.liveUrl).toBe('https://praetorium.test/api/watch/battles/battle')
   })
 
-  it('never includes the opposing hidden mission or deck', () => {
-    const secret = { key: 'secret', name: 'Hidden purpose' }
-    const value = screen([
-      ...started(),
-      [BOB, { kind: 'set-prep', stratagems: [], secondaries: [], secondaryDeck: [secret], primary: null, secondaryMode: 'fixed' }],
-      [ALICE, { kind: 'select-secret', playerId: BOB, secondary: secret }],
-    ])
-    expect(JSON.stringify(project(value))).not.toContain('Hidden purpose')
-  })
-
-  it('shows the owner their private objective', () => {
-    const secret = { key: 'secret', name: 'Hidden purpose' }
+  it('shows the owner their own objective', () => {
+    const card = { key: 'purpose', name: 'Purpose' }
     const value = screen(
-      [
-        ...started(),
-        [BOB, { kind: 'set-prep', stratagems: [], secondaries: [], secondaryDeck: [secret], primary: null, secondaryMode: 'fixed' }],
-        [ALICE, { kind: 'select-secret', playerId: BOB, secondary: secret }],
-      ],
+      [...started(), [BOB, { kind: 'set-prep', stratagems: [], secondaries: [card], primary: null, secondaryMode: 'fixed' }]],
       BOB,
     )
     expect(project(value)?.objectives).toEqual([
-      { id: 'secret', name: 'Hidden purpose', kind: 'Secret', points: 0, summary: 'Check the full card on your iPhone.' },
+      { id: 'purpose', name: 'Purpose', kind: 'Secondary', points: 0, summary: 'Check the full card on your iPhone.' },
     ])
   })
 

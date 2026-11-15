@@ -4,7 +4,7 @@
 
 Publication is named sharing; there is no anonymous archive of private game statistics. The [privacy policy](../src/client/features/legal/PrivacyPolicy.tsx) and the publish and delete controls state these boundaries before acting.
 
-- Battles (screen, replay, feed, metadata) and profiles are public. Spectators never see a face-down Secret Mission or a control.
+- Battles (screen, replay, feed, metadata) and profiles are public. Spectators read a battle but get no controls to change it.
 - Rosters start public. Sharing a private roster makes it unlisted; private revokes every shared read.
 - Discovery shows only public rosters and drops them on the next read after a privacy change or deletion. The Played tab shows frozen armies from finished non-practice battles.
 - Lent rosters go to chosen friends, read-only, without notes or preparation; revoking, unfriending, or deletion ends the loan.

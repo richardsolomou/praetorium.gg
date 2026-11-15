@@ -51,12 +51,11 @@ import { isFetchNetworkFailure } from '../networkErrors'
 import { battleKey, battlesKey, meKey, opponentsKey, reportKey } from '../queries/queryKeys'
 import { battleFilterActive, matchesBattle, type BattleFilter } from '../../core/battleFilter'
 
-const workspaceReport = ({ players, log }: BattleWorkspace, viewerId: string, rules: LoadedRules | undefined) =>
+const workspaceReport = ({ players, log }: BattleWorkspace, rules: LoadedRules | undefined) =>
   foldReport(
     players,
     log,
     players.map((player) => player.id),
-    viewerId,
     players.map((player) => player.side),
     rules,
   )
@@ -74,7 +73,7 @@ export function workspaceScreen(
     mission: rules ? resolvedMissionForSide(state, rules, side) : null,
   }))
   const viewerSide = workspace.players.find((player) => player.id === viewerId)?.side
-  const report = state.status === 'finished' ? workspaceReport(workspace, viewerId, rules) : []
+  const report = state.status === 'finished' ? workspaceReport(workspace, rules) : []
   const labels = new Map(report.map((entry) => [entry.seq, entry.text]))
   return {
     kind: 'battle',
@@ -315,7 +314,7 @@ async function unsyncedWorkspace(token: string) {
 export async function battleReport(args: Parameters<typeof server.battleReport>[0]): ReturnType<typeof server.battleReport> {
   const workspace = await unsyncedWorkspace(args.data.token)
   return workspace
-    ? workspaceReport(workspace, localOwner()!.id, (await loadLocalRules())?.rules)
+    ? workspaceReport(workspace, (await loadLocalRules())?.rules)
     : cachedRead(reportKey(args.data.token), () => server.battleReport(args))
 }
 export async function replayBattleAt(args: Parameters<typeof server.replayBattleAt>[0]): ReturnType<typeof server.replayBattleAt> {
@@ -328,7 +327,7 @@ export async function replayBattleAt(args: Parameters<typeof server.replayBattle
     view: screen.view,
     clock: { ...screen.clock, running: null },
     missions: screen.missions,
-    report: workspaceReport(prefix, localOwner()!.id, localRules()?.rules),
+    report: workspaceReport(prefix, localRules()?.rules),
   }
 }
 

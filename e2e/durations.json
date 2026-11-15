@@ -64,7 +64,6 @@
   "battle-simulator.spec.ts › battle support auras respect the recipient, role, conditions, and living sources": 35.3,
   "battle-simulator.spec.ts › the battle matchup planner uses live survivors, isolates experiments, and refreshes after another tab records casualties": 36.7,
   "battle-simulator.spec.ts › unit-level equipment remains an explicit survivor choice after a casualty": 18.8,
-  "battle.spec.ts › a fixed secret mission is handed off before its scoring prompt": 50.3,
   "battle.spec.ts › a running battle restores mission prompts when its tactical prep is missing": 19.1,
   "battle.spec.ts › a tactical hand pays out when the card says": 64.4,
   "battle.spec.ts › Cleanse and Centre Ground prompt for scoring on the first turn": 19.1,
