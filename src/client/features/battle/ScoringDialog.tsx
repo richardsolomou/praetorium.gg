@@ -234,7 +234,7 @@ export function ScoringDialog({
 
   return (
     <BattlePromptDialog open minimizedLabel={`Scoring · ${sideName(side)}`} onOpenChange={(open) => !open && onCancel?.()}>
-      <BattleDialogContent minimizeDisabled={pending} size="md" className={colours.border}>
+      <BattleDialogContent sheet minimizeDisabled={pending} size="md" className={colours.border}>
         <DialogHeader>
           <DialogTitle className={colours.text}>
             Scoring {moment} points · {sideName(side)}
@@ -334,9 +334,25 @@ export function ScoringDialog({
               Back
             </Button>
           ) : null}
-          <Button className={colours.fill} disabled={pending || unanswered > 0} onClick={confirm}>
-            {unanswered ? `${unanswered} to answer` : confirmLabel}
-          </Button>
+          {/* Answers only what is still open, so pressing through stays two deliberate presses. */}
+          {unanswered ? (
+            <Button
+              variant="outline"
+              disabled={pending}
+              onClick={() =>
+                recordAnswers({
+                  ...answers,
+                  ...Object.fromEntries(due.filter((card) => !answers[card.key]).map((card) => [card.key, card.awards.map(() => 0)])),
+                })
+              }
+            >
+              {unanswered === due.length ? 'Nothing scored' : 'Nothing else scored'}
+            </Button>
+          ) : (
+            <Button className={colours.fill} disabled={pending} onClick={confirm}>
+              {confirmLabel}
+            </Button>
+          )}
         </DialogFooter>
       </BattleDialogContent>
     </BattlePromptDialog>
@@ -403,6 +419,7 @@ function AwardRow({
             reasonBeside
             choices={limit === null ? undefined : modelCountChoices({ min: 0, max: limit })}
             onChoose={(chosen) => !pending && onAnswer(chosen)}
+            touch
           />
           <span className={`chip shrink-0 ${times > 0 ? tone.mark : 'border-runner'}`}>{awardTotal(award, times)} VP</span>
         </>
@@ -443,7 +460,7 @@ function Chip({
       aria-label={ariaLabel}
       disabled={pending}
       onClick={onPress}
-      className={`chip shrink-0 px-2 py-1 ${chosen ? tone.mark : `border-runner ${tone.hint}`}`}
+      className={`chip min-h-11 min-w-14 shrink-0 justify-center px-2 ${chosen ? tone.mark : `border-runner ${tone.hint}`}`}
     >
       {label}
     </button>
