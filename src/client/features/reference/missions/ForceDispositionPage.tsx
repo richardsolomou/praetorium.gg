@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { BackLink } from '../BackLink'
 import { Skeleton } from '@/components/ui/skeleton'
+import { dispositionTone } from '../../../components/rosterSetup'
 import { dispositionDetachmentsQuery, gameReferencesQuery } from '../../../queries'
 import { FactionMark } from '../../../components/FactionMark'
 import { PageContent, PageHeader } from '../../../components/Page'
@@ -45,7 +46,7 @@ export function ForceDispositionPage({ dispositionId }: { dispositionId: string 
                   params={{ packId: pack.id, you: dispositionId, opponent: opponent.id }}
                   className="grid min-h-11 grid-cols-[minmax(0,10rem)_minmax(0,1fr)] items-center gap-3 part px-3 py-2 transition-colors hover:border-runner hover:bg-raised sm:grid-cols-[12rem_minmax(0,1fr)]"
                 >
-                  <span className={`chip justify-self-start`}>vs {opponent.name}</span>
+                  <span className={`chip justify-self-start ${dispositionTone(opponent.id)}`}>vs {opponent.name}</span>
                   <span className="min-w-0 font-semibold break-words">{mission.name}</span>
                 </Link>
               ))}

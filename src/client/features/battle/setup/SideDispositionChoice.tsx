@@ -1,6 +1,6 @@
 import { cn } from '@/lib/utils'
 import type { Command } from '../../../../core/battle'
-import { dispositionChip } from '../../../components/rosterSetup'
+import { dispositionTone } from '../../../components/rosterSetup'
 import { formatList } from '../../../text'
 import { type Side, sideName } from '../../../sides'
 import { DispositionChip } from './chrome'
@@ -46,7 +46,7 @@ export function SideDispositionChoice({
             aria-pressed={chosen}
             aria-label={`Play ${named} for ${sideName(side)}`}
             title={broughtBy.length ? `Brought by ${formatList(broughtBy)}` : undefined}
-            className={cn('chip cursor-pointer transition-colors', dispositionChip(chosen), !chosen && 'opacity-70 hover:opacity-100')}
+            className={cn('chip cursor-pointer transition-colors', dispositionTone(id, chosen), !chosen && 'opacity-70 hover:opacity-100')}
             onClick={() => send({ kind: 'set-side-disposition', side: side.index, disposition: id })}
           >
             {named}
