@@ -16,7 +16,7 @@ import {
   FIXED_SECONDARIES,
   isKotcLimit,
 } from '../core/battle'
-import { KOTC_MATCHUP_ID } from '../contracts/terrain'
+import { KOTC_BATTLEFIELD_MATCHUP_IDS } from '../contracts/terrain'
 import { terrainMatchupIds } from '../contracts/terrainReference'
 import type { MissionAward } from '../core/scoring'
 import type { MissionSelectionKind } from '../core/missionSelections'
@@ -135,10 +135,10 @@ export function setupReferenceError(state: ReturnType<typeof reduceBattle>, rule
   const kotc = isKotcLimit(state.settings.limit)
   if (!kotc && missions.some((mission) => mission?.deploymentIds.length && !mission.deploymentIds.includes(deploymentId)))
     return refuse('deployment-mismatch', 'that deployment does not match the mission')
-  if (!state.settings.terrainLayoutId) return kotc ? refuse('missing-terrain', 'choose the Colosseum battlefield') : null
+  if (!state.settings.terrainLayoutId) return kotc ? refuse('missing-terrain', 'choose a battlefield') : null
   const terrain = rules.terrainLayouts.find((layout) => layout.id === state.settings.terrainLayoutId)
   if (!terrain) return refuse('unknown-terrain', 'that terrain layout is not available')
-  const matchups = new Set(kotc ? [KOTC_MATCHUP_ID] : one && two ? terrainMatchupIds([one, two]) : [])
+  const matchups = new Set(kotc ? KOTC_BATTLEFIELD_MATCHUP_IDS : one && two ? terrainMatchupIds([one, two]) : [])
   if (matchups.size && !matchups.has(terrain.matchupId)) return refuse('terrain-mismatch', 'that terrain layout does not match the armies')
   if (terrain.deploymentId && terrain.deploymentId !== state.deploymentId)
     return refuse('terrain-mismatch', 'that terrain layout does not match the deployment')

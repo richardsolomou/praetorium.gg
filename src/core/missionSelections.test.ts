@@ -10,9 +10,8 @@ import {
   type MissionSelectionKind,
 } from './missionSelections'
 import { battleView } from './battleView'
-import { appendLocalCommand, localBattleState, visibleBattleLog } from './offlineBattle'
+import { appendLocalCommand, localBattleState } from './offlineBattle'
 import { commandSchema } from './commands'
-import { battleReport } from './battleReport'
 
 const primary = { key: 'punishment', name: 'Punishment', selection: 'punishment' as const }
 const guard = { key: 'guards', name: 'Burden of Trust', selection: 'guards' as const }
@@ -403,31 +402,6 @@ describe('source-backed mission selections', () => {
     expect(view.missionChoices?.find((choice) => choice.kind === 'tempting-target')?.canChoose).toBe(true)
   })
 
-  it('does not offer a hidden mission’s choice to the opponent or spectator', () => {
-    let entries = history()
-    const prep = entries[2]!.command
-    if (prep.kind !== 'set-prep' || !prep.primary) throw new Error('expected prepared primary')
-    delete prep.primary.selection
-    const players = NAMES.map((player, side) => ({ ...player, side, automated: false }))
-    // Secret missions are refused now, but a battle that chose one before still folds it.
-    entries = [
-      ...entries,
-      { seq: entries.length + 1, by: ALICE, command: { kind: 'select-secret', secondary: guard }, at: entries.at(-1)?.at ?? 0 },
-    ]
-    for (const command of [
-      { kind: 'draw-secondaries', secondaries: [target, beacon] },
-      { kind: 'acknowledge-draw' },
-      { kind: 'set-secondary-status', key: target.key, status: 'discarded' },
-    ] as Command[])
-      entries = appendLocalCommand(players, entries, ALICE, command, entries.length)
-    const battle = reduceBattle(PLAYERS, entries)
-    expect(
-      [ALICE, BOB, 'spectator'].map((viewer) =>
-        battleView({ token: 'test' }, NAMES, battle, viewer).missionChoices?.some((choice) => choice.cardKey === guard.key),
-      ),
-    ).toEqual([true, false, false])
-  })
-
   it('clears nomination work after saving each choice through the offline command flow', () => {
     const players = NAMES.map((player, side) => ({ ...player, side, automated: false }))
     let entries = history([
@@ -561,42 +535,6 @@ describe('source-backed mission selections', () => {
       [ALICE, { kind: 'undo', target: 7 }],
     )
     expect(commandRefusal(battle, ALICE, chooseBeacon)).toBeNull()
-  })
-
-  it('hides private nomination payloads and notes in downloaded secret history', () => {
-    const privateCard = { ...beacon, key: 'private-card', name: 'Private identity' }
-    const entries = history([
-      [ALICE, { kind: 'select-secret', secondary: privateCard }],
-      [
-        ALICE,
-        {
-          kind: 'select-mission',
-          cardKey: privateCard.key,
-          occurrence: 5,
-          selection: { kind: 'beacon', unit: own, note: 'Private table note' },
-        },
-      ],
-    ])
-    const players = NAMES.map((player, side) => ({ ...player, side, automated: false }))
-    expect(JSON.stringify(visibleBattleLog(players, entries, BOB))).not.toMatch(/Private identity|Private table note|rosterSeq/)
-  })
-
-  it('keeps historical nomination details hidden before a later secret reveal', () => {
-    const secret = { ...beacon, key: 'secret-beacon', name: 'Hidden identity' }
-    const entries = history([
-      [ALICE, { kind: 'select-secret', secondary: secret }],
-      [
-        ALICE,
-        { kind: 'select-mission', cardKey: secret.key, occurrence: 5, selection: { kind: 'beacon', unit: own, note: 'Hidden note' } },
-      ],
-      [ALICE, { kind: 'reveal-secret' }],
-    ])
-    const players = NAMES.map((player, side) => ({ ...player, side, automated: false }))
-    const prefix = visibleBattleLog(players, entries, BOB).slice(0, 6)
-    expect({
-      records: battleView({ token: 'test' }, players, localBattleState(players, prefix), BOB).players[0]!.missionSelections,
-      report: battleReport(NAMES, prefix, PLAYERS, BOB).at(-1)?.text,
-    }).toEqual({ records: [], report: 'Alice records choices for a secret mission' })
   })
 
   it('round trips unit identity and independent table facts through stored JSON', () => {

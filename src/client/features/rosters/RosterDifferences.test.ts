@@ -2,6 +2,7 @@ import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import type { NamedRosterDifferences } from '../../../core/rosterDifferences'
+import { dispositionTone } from '../../components/rosterSetup'
 import { RosterDifferenceChips } from './RosterDifferences'
 
 const none: NamedRosterDifferences = {
@@ -59,6 +60,10 @@ describe('the chips naming what a variant changes', () => {
         loadouts: 2,
       }),
     ).toEqual(['+ Hypercrypt Legion', 'Purge the Foe', '+ 1 unit : Lychguard', '2 loadouts'])
+  })
+
+  it('colours a changed disposition as every disposition chip is coloured', () => {
+    expect(markup({ setup: ['disposition'] })).toContain(dispositionTone('purge-the-foe'))
   })
 
   it('does not call a variant that only changed its size unchanged', () => {

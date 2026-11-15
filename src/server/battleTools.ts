@@ -4,7 +4,6 @@ import {
   builtDetachments,
   FIXED_SECONDARIES,
   isKotcLimit,
-  mayNameCard,
   scoringDue,
   secondaryDrawTarget,
   sideCaptain,
@@ -17,7 +16,7 @@ import {
 import type { BattleView } from '../core/battleView'
 import { commandSchema, idSchema, rosterLimitSchema } from '../core/commands'
 import { sideStratagems } from '../core/sideStratagems'
-import { KOTC_MATCHUP_ID } from '../contracts/terrain'
+import { KOTC_BATTLEFIELD_MATCHUP_IDS } from '../contracts/terrain'
 import { terrainMatchupIds } from '../contracts/terrainReference'
 import { createBattleSchema, submitSchema, tokenSchema } from '../contracts/schemas'
 import { selectedBattleDetachmentData } from '../shared/battleDetachmentData'
@@ -213,7 +212,6 @@ export const agentCommandSchema = z.discriminatedUnion('kind', [
     destroyed: 'Whether the unit is destroyed.',
     ...PLAYER_FIELD,
   }),
-  command('reveal-secret', 'Reveals a side’s secret mission.', PLAYER_FIELD),
   command('add-note', 'Adds a note, such as a rules call, to the battle log. Anyone who can watch the battle reads it.', {
     text: 'The note.',
   }),
@@ -436,7 +434,7 @@ function battlefields(view: BattleView, rules: LoadedRules, missions: { mission:
   const dispositions = [...new Set(view.players.map((player) => player.side))].flatMap(
     (side) => view.players.find((player) => player.side === side)?.disposition ?? [],
   )
-  const matchups = new Set(kotc ? [KOTC_MATCHUP_ID] : terrainMatchupIds(dispositions))
+  const matchups = new Set(kotc ? KOTC_BATTLEFIELD_MATCHUP_IDS : terrainMatchupIds(dispositions))
   const allowed = missions.flatMap(({ mission }) => mission?.deploymentIds ?? [])
   return rules.terrainLayouts.flatMap((terrain) => {
     const deployment = rules.deployments.find((candidate) => candidate.id === terrain.deploymentId)
@@ -521,12 +519,7 @@ export function battleNext(
       you: view.players.some((player) => player.isViewer && player.side === active.side),
     },
     settlement: settlement && { playerId: settlement.playerId, name: named.get(settlement.playerId), round: settlement.round },
-    // Raw state holds the opponent's unrevealed secret mission; the view hides it, so this must too.
-    scoringDue: active
-      ? scoringDue(state, active)
-          .filter((card) => mayNameCard(state, owner, active, card.key))
-          .map(({ key, name, category }) => ({ key, name, category }))
-      : [],
+    scoringDue: active ? scoringDue(state, active).map(({ key, name, category }) => ({ key, name, category })) : [],
     allowed: commands.filter((probe) => !probe.refusal).map((probe) => probe.kind),
     advanceRefusal: commands.find((probe) => probe.kind === 'advance')?.refusal ?? null,
     stratagems: view.players

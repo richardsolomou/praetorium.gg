@@ -1,7 +1,7 @@
 import { refuse, sameSide } from './battlePrimitives'
 import type { PlayerId, BattleMoment, Command, Refusal, PlayerState, BattleState } from './battle'
 import { PHASES } from './battlePhases'
-import { mayNameSecondary } from './battleSecondaries'
+import { holdsSecondary } from './battleSecondaries'
 
 /**
  * The moment being played, or null outside play.
@@ -60,7 +60,7 @@ export function missedScoreRefusal(
       if (score.final) return refuse('missed-unsupported', 'end-of-battle points cannot be recorded late')
       continue
     }
-    if (!mayNameSecondary(state, by, player, score.key)) return refuse('unknown-secondary', 'that is not one of your secondaries')
+    if (!holdsSecondary(player, score.key)) return refuse('unknown-secondary', 'that is not one of your secondaries')
     if (player.secondaryStatus[score.key] !== 'active')
       return refuse('missed-unsupported', 'only a secondary mission still held can be scored late')
     if ((player.secondaryDrawnAt[score.key] ?? -1) > momentOrder(state, moment))

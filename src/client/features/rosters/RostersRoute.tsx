@@ -11,10 +11,10 @@ import type { keptRosterSort } from './rosterSort'
 /**
  * A player's library, or a visitor's one list on this device on the same page; either may instead ask for friends' or
  * public rosters. Signing up comes back here, and a player arriving with a visitor's list still on the device has it
- * saved first. `new` opens the setup for another roster, as `/rosters/new` asks.
+ * saved first. `new` opens the setup for another roster, as `/rosters/new` asks, and `import` opens the import dialog.
  */
 export function RostersRoute({
-  search: { view, new: starting, reference, sort: listSort, ...search },
+  search: { view, new: starting, reference, import: importing, sort: listSort, ...search },
   guestDraft: hinted,
   sort,
   grouping,
@@ -45,6 +45,7 @@ export function RostersRoute({
       notices={notices}
       rows={rows}
       starting={starting && ready}
+      importing={importing && ready}
       reference={reference}
       device={{ guest, pending: !ready && hinted, onChange: setGuest }}
     />

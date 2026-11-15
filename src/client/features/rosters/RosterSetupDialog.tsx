@@ -47,7 +47,7 @@ import { SearchableSelect, type SearchableGroup } from '../../components/Searcha
 import { PointsTotalError, PointsTotalInput } from '../../components/PointsTotalInput'
 import { factionSelectGroups } from './builder/factions'
 import { OptionalRulesDialog } from './OptionalRulesDialog'
-import { detachmentRefusal, dispositionsFor } from '../../components/rosterSetup'
+import { detachmentRefusal, dispositionsFor, dispositionTone } from '../../components/rosterSetup'
 import { useFavouriteFactions } from '../../favouriteFactions'
 import { favouriteDetachmentsFirst, useFavouriteDetachments } from '../../favouriteDetachments'
 import { FavouriteDetachmentToggle } from '../reference/factions/FavouriteDetachmentToggle'
@@ -603,7 +603,7 @@ export function RosterSetupDialog({
                   className={`flex min-h-12 items-center gap-3 rounded-lg border px-3 text-left transition-colors ${chosen ? 'border-parchment bg-parchment/6 inset-ring-1 inset-ring-parchment' : 'border-edge bg-sunken hover:border-runner-hi'}`}
                 >
                   <ChoiceMark chosen={chosen} />
-                  <span className={`chip`}>{entry.name}</span>
+                  <span className={`chip ${dispositionTone(entry.id)}`}>{entry.name}</span>
                 </button>
               )
             })}
@@ -817,7 +817,7 @@ function DetachmentSummary({ detachment }: { detachment: Detachment }) {
       <span className="block text-sm leading-tight font-semibold text-bone">{detachment.name}</span>
       <span className="mt-1.5 flex flex-wrap gap-1">
         {detachment.dispositions.map((entry) => (
-          <span key={entry.id} className={`chip`}>
+          <span key={entry.id} className={`chip ${dispositionTone(entry.id)}`}>
             {entry.name}
           </span>
         ))}

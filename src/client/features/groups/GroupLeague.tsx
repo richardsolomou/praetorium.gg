@@ -15,7 +15,6 @@ import {
   deleteGroupLeague,
   drawGroupLeague,
   groupPastLeague,
-  groupPastLeagues,
   joinGroupLeague,
   leaveGroupLeague,
   publishGroupLeague,
@@ -23,7 +22,7 @@ import {
   setGroupLeagueDeadline,
   type groupLeague,
 } from '../../functions'
-import { groupLeagueQuery } from '../../queries'
+import { groupLeagueQuery, groupPastLeaguesQuery } from '../../queries'
 import { countLabel, formatList } from '../../text'
 import { useNow } from '../../useNow'
 import { SealedEventResults } from '../sealedEvents/SealedEventResults'
@@ -58,10 +57,7 @@ export function GroupLeague({ group, viewerId, member }: { group: Group; viewerI
 /** Ended leagues stay readable, so a group can run one after another and look back on them. */
 function PastLeagues({ group }: { group: Group }) {
   const [opened, setOpened] = useState<string | null>(null)
-  const { data: leagues } = useQuery({
-    queryKey: [...groupLeagueQuery(group.token).queryKey, 'past'],
-    queryFn: () => groupPastLeagues({ data: { token: group.token } }),
-  })
+  const { data: leagues } = useQuery(groupPastLeaguesQuery(group.token))
   const { data: table } = useQuery({
     queryKey: [...groupLeagueQuery(group.token).queryKey, 'past', opened],
     enabled: opened !== null,

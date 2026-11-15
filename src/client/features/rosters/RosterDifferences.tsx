@@ -2,6 +2,7 @@ import { ArrowLeftRight } from 'lucide-react'
 import type { ComponentProps, ReactNode } from 'react'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { type NamedRosterDifferences, sameRoster } from '../../../core/rosterDifferences'
+import { dispositionTone } from '../../components/rosterSetup'
 import { countLabel } from '../../text'
 
 type UnitChange = NamedRosterDifferences['added'][number]
@@ -104,7 +105,11 @@ export function RosterDifferenceChips({ differences, setup }: { differences: Nam
   const chips = [
     changed.has('faction') && setup.factionName ? <Chip key="faction">{setup.factionName}</Chip> : null,
     ...(changed.has('detachment') ? detachmentChips(differences, setup) : []),
-    changed.has('disposition') && setup.disposition ? <Chip key="disposition">{setup.disposition.name}</Chip> : null,
+    changed.has('disposition') && setup.disposition ? (
+      <Chip key="disposition" tone={dispositionTone(setup.disposition.id)}>
+        {setup.disposition.name}
+      </Chip>
+    ) : null,
     changed.has('rules') ? <Chip key="rules">Rules changed</Chip> : null,
     differences.added.length ? <UnitCount key="+" sign="+" changes={differences.added} /> : null,
     differences.removed.length ? <UnitCount key="−" sign="−" changes={differences.removed} /> : null,

@@ -47,24 +47,34 @@ const MAX_BATTLEMASTER_TOTAL_BYTES = 64 * 1024 * 1024
 // The 45-layout catalogue is about 42 KB; this leaves room for it to grow twentyfold.
 const MAX_BATTLEMASTER_CATALOG_BYTES = 1024 * 1024
 
-/** The live layout catalogue for `source` and the revision that pins it. */
 async function boundedDownload(url: URL, label: string, limit: number) {
   const response = await fetchWithRetry(url)
   if (!response.ok) throw new Error(`${label} answered ${response.status}`)
   return boundedBytes(response, limit, `${label} exceeds ${limit} bytes`)
 }
 
-export async function battlemasterCatalogue(source: BattlemasterSource) {
+/** The mission packs `source` names, Chapter Approved first: its layouts sit at the directory root, any other pack's in a folder named after the pack. */
+const missionPacks = (source: BattlemasterSource) => [source.missionPack, ...(source.combatPatrolPack ? [source.combatPatrolPack] : [])]
+
+async function packCatalogue(source: BattlemasterSource, missionPack: string) {
   const url = new URL('/v1.1/public/tts/layouts', source.baseUrl)
   url.searchParams.set('owner', source.owner)
-  url.searchParams.set('missionPack', source.missionPack)
+  url.searchParams.set('missionPack', missionPack)
   url.searchParams.set('text', '0')
-  const body = parseJson(await boundedDownload(url, 'catalog', MAX_BATTLEMASTER_CATALOG_BYTES))
+  const body = parseJson(await boundedDownload(url, `${missionPack} catalog`, MAX_BATTLEMASTER_CATALOG_BYTES))
   if (!battlemasterCatalogSchema.safeParse(body).success) throw new Error('catalog has an unexpected shape')
   // The validated body itself, not the parsed copy, keeps every served field in its order for catalog.json.
   const catalog = body as BattlemasterCatalog
   if (!catalog.catalogKey || !catalog.layouts.length) throw new Error('catalog is empty')
-  return { catalog, revision: hash('sha256', catalog.catalogKey) }
+  return catalog
+}
+
+/** The live layout catalogue of each of `source`'s packs, and the revision that pins them. */
+export async function battlemasterCatalogue(source: BattlemasterSource) {
+  const catalogs: { missionPack: string; catalog: BattlemasterCatalog }[] = []
+  for (const missionPack of missionPacks(source)) catalogs.push({ missionPack, catalog: await packCatalogue(source, missionPack) })
+  // A source naming Chapter Approved alone keeps the revision its snapshots were published under.
+  return { catalogs, revision: hash('sha256', catalogs.map(({ catalog }) => catalog.catalogKey).join('\n')) }
 }
 
 /**
@@ -77,29 +87,36 @@ export async function fetchBattlemasterInto(
   target: string,
   cacheRoot = process.env.CATALOGUE_BATTLEMASTER_CACHE?.trim() || null,
 ) {
-  const { catalog, revision } = await battlemasterCatalogue(source)
+  const { catalogs, revision } = await battlemasterCatalogue(source)
   if (revision !== source.revision) throw new Error('catalog does not match the pinned revision')
 
   const cache = cacheRoot ? path.join(cacheRoot, source.revision) : null
   const staging = `${target}.incoming`
   fs.rmSync(staging, { recursive: true, force: true })
-  fs.mkdirSync(path.join(staging, 'layouts'), { recursive: true })
-  fs.writeFileSync(path.join(staging, 'catalog.json'), `${JSON.stringify(catalog)}\n`)
   let total = 0
   let downloaded = false
 
-  for (const entry of catalog.layouts) {
-    if (!/^terrain-[0-9a-f-]+$/.test(entry.id)) throw new Error(`unsafe layout id ${entry.id}`)
-    if (!/^[0-9a-f-]+$/.test(entry.owner)) throw new Error(`unsafe owner id for ${entry.id}`)
-    const layout = (cache && cachedLayout(cache, entry, source.baseUrl)) || ((downloaded = true), await downloadLayout(source, entry))
-    if (layout.detail.length > MAX_BATTLEMASTER_FILE_BYTES) throw new Error(`${entry.id} exceeds ${MAX_BATTLEMASTER_FILE_BYTES} bytes`)
-    if (layout.lite.length > MAX_BATTLEMASTER_FILE_BYTES)
-      throw new Error(`${entry.id} objective layout exceeds ${MAX_BATTLEMASTER_FILE_BYTES} bytes`)
-    total += layout.detail.length + layout.lite.length
-    if (total > MAX_BATTLEMASTER_TOTAL_BYTES) throw new Error(`layouts exceed ${MAX_BATTLEMASTER_TOTAL_BYTES} bytes`)
-    battlemasterObjectiveHosts(parseJson(layout.detail), parseJson(layout.lite), entry.id)
-    fs.writeFileSync(path.join(staging, 'layouts', `${entry.id}.json`), layout.detail)
-    fs.writeFileSync(path.join(staging, 'layouts', `${entry.id}.lite.json`), layout.lite)
+  for (const { missionPack, catalog } of catalogs) {
+    const folder = missionPack === source.missionPack ? '' : missionPack
+    fs.mkdirSync(path.join(staging, folder, 'layouts'), { recursive: true })
+    fs.writeFileSync(path.join(staging, folder, 'catalog.json'), `${JSON.stringify(catalog)}\n`)
+    for (const entry of catalog.layouts) {
+      if (!/^terrain-[0-9a-f-]+$/.test(entry.id)) throw new Error(`unsafe layout id ${entry.id}`)
+      if (!/^[0-9a-f-]+$/.test(entry.owner)) throw new Error(`unsafe owner id for ${entry.id}`)
+      const layout =
+        (cache && cachedLayout(path.join(cache, folder), entry, source.baseUrl)) ||
+        ((downloaded = true), await downloadLayout(source, entry))
+      for (const file of [layout.detail, layout.lite]) {
+        if (file && file.length > MAX_BATTLEMASTER_FILE_BYTES) throw new Error(`${entry.id} exceeds ${MAX_BATTLEMASTER_FILE_BYTES} bytes`)
+        total += file?.length ?? 0
+      }
+      if (total > MAX_BATTLEMASTER_TOTAL_BYTES) throw new Error(`layouts exceed ${MAX_BATTLEMASTER_TOTAL_BYTES} bytes`)
+      fs.writeFileSync(path.join(staging, folder, 'layouts', `${entry.id}.json`), layout.detail)
+      if (layout.lite) {
+        battlemasterObjectiveHosts(parseJson(layout.detail), parseJson(layout.lite), entry.id)
+        fs.writeFileSync(path.join(staging, folder, 'layouts', `${entry.id}.lite.json`), layout.lite)
+      }
+    }
   }
 
   if (cache && downloaded) {
@@ -110,7 +127,8 @@ export async function fetchBattlemasterInto(
   replaceDirectory(staging, target)
 }
 
-type BattlemasterLayout = { detail: Uint8Array; lite: Uint8Array }
+/** A layout's detail, and for a Chapter Approved slot the objective layout that places its markers. */
+type BattlemasterLayout = { detail: Uint8Array; lite: Uint8Array | null }
 
 const parseJson = (bytes: Uint8Array) => JSON.parse(new TextDecoder().decode(bytes)) as unknown
 
@@ -118,8 +136,11 @@ const parseJson = (bytes: Uint8Array) => JSON.parse(new TextDecoder().decode(byt
 function cachedLayout(cache: string, entry: BattlemasterCatalog['layouts'][number], baseUrl: string): BattlemasterLayout | null {
   try {
     const detail = new Uint8Array(fs.readFileSync(path.join(cache, 'layouts', `${entry.id}.json`)))
-    const lite = new Uint8Array(fs.readFileSync(path.join(cache, 'layouts', `${entry.id}.lite.json`)))
-    return battlemasterDetailMatches(entry, parseJson(detail) as BattlemasterDetail, baseUrl) ? { detail, lite } : null
+    const parsed = parseJson(detail) as BattlemasterDetail
+    const lite = parsed.layout?.chapterApprovedSlot
+      ? new Uint8Array(fs.readFileSync(path.join(cache, 'layouts', `${entry.id}.lite.json`)))
+      : null
+    return battlemasterDetailMatches(entry, parsed, baseUrl) ? { detail, lite } : null
   } catch {
     return null
   }
@@ -132,7 +153,7 @@ async function downloadLayout(source: BattlemasterSource, entry: BattlemasterCat
   const parsed = parseJson(detail) as BattlemasterDetail
   if (!battlemasterDetailMatches(entry, parsed, source.baseUrl)) throw new Error(`${entry.id} changed during sync`)
   const slot = parsed.layout?.chapterApprovedSlot
-  if (!slot) throw new Error(`${entry.id} has no Chapter Approved slot`)
+  if (!slot) return { detail, lite: null }
   const liteUrl = new URL('/v1/public/tts/chapter-approved-layout-lite', source.baseUrl)
   for (const [key, value] of Object.entries({
     owner: source.owner,

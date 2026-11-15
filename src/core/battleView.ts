@@ -4,7 +4,6 @@ import {
   type BattleEndReason,
   type BattleSettings,
   type BattleState,
-  mayNameCard,
   sideDisposition,
   sideDispositionChoices,
   sideWarlord,
@@ -16,14 +15,11 @@ import {
   SECONDARY_GUIDE,
   secondaryDrawTarget,
   type TurnScope,
-  scoringDue,
-  secretSettlementActionPlayerId,
   type Secondary,
   type SecondaryMode,
   type SecondaryStatus,
   type Phase,
   sideCaptain,
-  sideOwes,
   type StratagemLimit,
   type UnitState,
   validate,
@@ -166,8 +162,6 @@ export type BattleView = {
       points: number
       rounds: number[]
       status: SecondaryStatus
-      secret: boolean
-      revealed: boolean
       beaconLost?: true
     }[]
     primaryCard: Secondary | null
@@ -198,7 +192,6 @@ export type BattleView = {
   sealedEventToken: string | null
   eventToken: string | null
   groupId: string | null
-  secretMissionActionPlayerId: PlayerId | null
   /** The earlier moments a missed action may still be recorded for, oldest first; absent from older servers. */
   missedMoments?: BattleMoment[]
   /** The latest active command any seated player may take back. */
@@ -215,9 +208,8 @@ export type BattleView = {
  * from `battle.ts` for that reason: what a player may see is one question with one
  * answer, and it is easier to hold to when it has a file of its own.
  *
- * Cards, lists and points are public to both players. Only an unrevealed Secret
- * Mission and the deck state that would identify it are held back here, along with
- * each player's personal reminders and unit notes.
+ * Cards, lists and points are public to both players. Only each player's personal
+ * reminders and unit notes are held back here.
  */
 
 export function battleView(
@@ -265,23 +257,21 @@ export function battleView(
       : state.players
           .filter((player) => sideCaptain(state, player.side).id === player.id)
           .flatMap((player) =>
-            openMissionSelections(state, player)
-              .filter((prompt) => mayNameCard(state, viewerId, player, prompt.cardKey))
-              .map((prompt) => ({
-                ...prompt,
-                playerId: player.id,
-                canChoose: playsSide(state, viewerId, prompt.chooserSide),
-                units: missionUnitCandidates(
-                  state,
-                  prompt.kind === 'punishment' ? (opposingSide(state, player.side) ?? -1) : player.side,
-                  prompt.kind !== 'beacon',
-                ),
-                ...(prompt.kind === 'sensor-sweep' ? { markers: remainingOperationMarkers(state) } : {}),
-                ...(prompt.kind === 'surveil'
-                  ? { markers: remainingOperationMarkers(state).filter((marker) => marker.playerId !== player.id) }
-                  : {}),
-                marked: markedObjectives(player, prompt.cardKey, prompt.kind),
-              })),
+            openMissionSelections(state, player).map((prompt) => ({
+              ...prompt,
+              playerId: player.id,
+              canChoose: playsSide(state, viewerId, prompt.chooserSide),
+              units: missionUnitCandidates(
+                state,
+                prompt.kind === 'punishment' ? (opposingSide(state, player.side) ?? -1) : player.side,
+                prompt.kind !== 'beacon',
+              ),
+              ...(prompt.kind === 'sensor-sweep' ? { markers: remainingOperationMarkers(state) } : {}),
+              ...(prompt.kind === 'surveil'
+                ? { markers: remainingOperationMarkers(state).filter((marker) => marker.playerId !== player.id) }
+                : {}),
+              marked: markedObjectives(player, prompt.cardKey, prompt.kind),
+            })),
           ),
     players: state.players.map((player) => {
       const resources = sideCaptain(state, player.side)
@@ -334,42 +324,26 @@ export function battleView(
           refusalAtAnyCost: validate(state, player.id, { kind: 'use-stratagem', key: stratagem.key, cp: 0 }),
         })),
         primaryCard: resources.primaryCard,
-        missionSelections: resources.missionSelections
-          .filter((saved) => mayNameCard(state, viewerId, resources, saved.cardKey))
-          .map((saved) => ({
-            ...saved,
-            units: saved.units.map((unit) => ({ ...unit, status: savedMissionUnitStatus(state, unit) })),
-          })),
+        missionSelections: resources.missionSelections.map((saved) => ({
+          ...saved,
+          units: saved.units.map((unit) => ({ ...unit, status: savedMissionUnitStatus(state, unit) })),
+        })),
         finalPrimary: resources.finalPrimary,
         secondaryMode: resources.secondaryMode,
         secondaryDeckReady: Boolean(resources.secondaryDeck?.length),
-        secondariesDrawnThisTurn: resources.secondariesDrawnThisTurn.map((key) =>
-          mayNameCard(state, viewerId, resources, key) ? key : 'secret',
-        ),
+        secondariesDrawnThisTurn: resources.secondariesDrawnThisTurn,
         secondaryDrawTarget: secondaryDrawTarget(resources),
-        secondariesToReview: resources.secondariesToReview.map((key) => (mayNameCard(state, viewerId, resources, key) ? key : 'secret')),
-        /**
-         * A face-down card is identifiable from what disappeared from its public deck.
-         */
-        remainingSecondaries:
-          !resources.secretSecondary || resources.secretRevealed || playsSide(state, viewerId, player.side)
-            ? undrawnSecondaries(resources)
-            : [],
-        secondaries: resources.secondaries.map((secondary) => {
-          // The one thing in the game that is genuinely hidden, masked in one place.
-          const nameable = mayNameCard(state, viewerId, resources, secondary.key)
-          return {
-            key: nameable ? secondary.key : 'secret',
-            name: nameable ? secondary.name : 'Secret mission',
-            awards: nameable ? secondary.awards : undefined,
-            points: resources.scored[secondary.key] ?? 0,
-            rounds: (resources.scoredByRound[secondary.key] ?? Array(BATTLE_ROUNDS).fill(0)).slice(0, BATTLE_ROUNDS),
-            status: resources.secondaryStatus[secondary.key] ?? 'active',
-            secret: resources.secretSecondary === secondary.key,
-            revealed: resources.secretSecondary !== secondary.key || resources.secretRevealed,
-            ...(nameable && beaconLost(resources, secondary.key) ? { beaconLost: true as const } : {}),
-          }
-        }),
+        secondariesToReview: resources.secondariesToReview,
+        remainingSecondaries: undrawnSecondaries(resources),
+        secondaries: resources.secondaries.map((secondary) => ({
+          key: secondary.key,
+          name: secondary.name,
+          awards: secondary.awards,
+          points: resources.scored[secondary.key] ?? 0,
+          rounds: (resources.scoredByRound[secondary.key] ?? Array(BATTLE_ROUNDS).fill(0)).slice(0, BATTLE_ROUNDS),
+          status: resources.secondaryStatus[secondary.key] ?? 'active',
+          ...(beaconLost(resources, secondary.key) ? { beaconLost: true as const } : {}),
+        })),
       }
     }),
     guides: { primary: PRIMARY_GUIDE, secondary: SECONDARY_GUIDE },
@@ -379,7 +353,6 @@ export function battleView(
     sealedEventToken: state.sealedEventToken,
     eventToken: state.eventToken,
     groupId: state.groupId,
-    secretMissionActionPlayerId: secretMissionActionPlayerId(state),
     missedMoments: state.settings.manual ? [] : missedMoments(state),
     undoable: state.undoable?.seq ?? null,
     undoableDraw:
@@ -404,14 +377,4 @@ function viewRoster(roster: Roster | null, units: readonly UnitState[], own: boo
   if (!roster.built) return { ...visible, ...privateFields }
   const { units: _frozen, picks, ...built } = roster.built
   return { ...visible, ...privateFields, built: { ...built, ...(picks ? { picks: own ? picks : withoutUnitNotes(picks) } : {}) } }
-}
-
-function secretMissionActionPlayerId(state: BattleState): PlayerId | null {
-  if (state.pendingSettlement) return secretSettlementActionPlayerId(state)
-  const active = state.activePlayerId ? state.players.find((player) => player.id === state.activePlayerId) : undefined
-  const player = active ? sideCaptain(state, active.side) : undefined
-  if (!player?.secretSecondary || player.secretRevealed) return null
-  return sideOwes(state, player) === 'secret' || scoringDue(state, player).some((card) => card.key === player.secretSecondary)
-    ? player.id
-    : null
 }

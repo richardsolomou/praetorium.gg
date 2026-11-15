@@ -19,7 +19,7 @@ import {
   repairPrepReferenceError,
   scoringCapError,
 } from '../shared/battleRules'
-import { battleFoldArgs, restoreOpaqueBattleKeys, visibleBattleLog } from '../core/offlineBattle'
+import { battleFoldArgs, visibleBattleLog } from '../core/offlineBattle'
 import type { BattleWorkspace } from '../contracts/battleWorkspace'
 import { randomId, randomToken } from 'ras-stack/auth'
 import type { AdminBattle } from '../admin'
@@ -495,7 +495,7 @@ export class PraetoriumService {
     // Everyone else either watches or is told no. Nobody arrives here to sit down:
     // the seats were filled when the battle was created.
     if (!mayWatch(history)) return { kind: 'unavailable' }
-    const report = this.viewerReport(history, SPECTATOR_ID, rules)
+    const report = this.viewerReport(history, rules)
     return {
       kind: 'spectator',
       view: screen.view,
@@ -514,12 +514,11 @@ export class PraetoriumService {
     return { view, clock }
   }
 
-  private viewerReport(history: BattleHistory, viewerId: string, rules?: BattleReadRules | null) {
+  private viewerReport(history: BattleHistory, rules?: BattleReadRules | null) {
     return battleReport(
       history.players,
       history.log,
       history.players.map((player) => player.id),
-      viewerId,
       history.players.map((player) => player.side),
       rules,
     )
@@ -562,7 +561,7 @@ export class PraetoriumService {
             // A past moment is read back, so nothing in it keeps counting.
             clock: { ...frame.clock, running: null },
             missions: frame.missions,
-            report: battleReport(history.players, log, playerIds, viewerId, sides, rules),
+            report: battleReport(history.players, log, playerIds, sides, rules),
           }
         }),
       ),
@@ -572,7 +571,7 @@ export class PraetoriumService {
   /** A readable account of the battle. Derived from the log, so nothing is stored for it. */
   async report(token: string, userId: string, rules?: BattleReadRules | null) {
     const history = await this.mustSeatHistory(token, userId)
-    return this.viewerReport(history, userId, rules)
+    return this.viewerReport(history, rules)
   }
 
   /** The seated screen with the fold it was drawn from, so a reader can ask `validate` what the battle accepts next. */
@@ -641,7 +640,6 @@ export class PraetoriumService {
 
   private async append(...[token, userId, expectedSeq, command, rules, sync]: SubmitArgs) {
     const history = await this.mustSeatHistory(token, userId)
-    if (sync) command = restoreOpaqueBattleKeys(history.players, history.log, command)
     if (command.kind === 'lock-sealed-event-rosters') throw new Response('sealed roster locks are created by the server', { status: 403 })
     // The product database refuses a non-member too; asking first gives the refusal its code.
     const groupId = command.kind === 'set-battle-group' ? command.groupId : null
@@ -732,7 +730,7 @@ export class PraetoriumService {
   private seatedScreen(history: BattleHistory, userId: string, rules?: BattleReadRules | null): SeatedScreen {
     const screen = this.battleScreen(history, userId, rules)
     return screen.view.status === 'finished'
-      ? { ...screen, timeline: this.replayTimeline(history, this.viewerReport(history, userId, rules)) }
+      ? { ...screen, timeline: this.replayTimeline(history, this.viewerReport(history, rules)) }
       : screen
   }
 

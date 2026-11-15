@@ -1,0 +1,161 @@
+diff --git a/datacards/11th/gdc/kotc-1.json b/datacards/11th/gdc/kotc-1.json
+new file mode 100644
+index 0000000..e6b96e6
+--- /dev/null
++++ b/datacards/11th/gdc/kotc-1.json
+@@ -0,0 +1,155 @@
++{
++  "format": "praetorium.kotc.v1",
++  "id": "king-of-the-colosseum-1",
++  "name": "King of the Colosseum 1.0",
++  "publisher": "https://playontabletop.com/kotc/",
++  "boardIn": 36,
++  "deploymentDepthIn": 9,
++  "terrainDiagram": "https://cdn.shopify.com/s/files/1/0491/7225/0789/files/3x3BattlefieldColosseumWebcart.png",
++  "objectiveDiagram": "https://playontabletop.com/wp-content/uploads/2024/05/king-colosseum-rules-page-5.jpg",
++  "wallThicknessIn": 0.5,
++  "arena": {
++    "radiusIn": 13,
++    "wallArcsDeg": [
++      [281, 346],
++      [14, 81],
++      [101, 167],
++      [195, 259]
++    ],
++    "objectiveInsetIn": 6
++  },
++  "pieces": [
++    {
++      "name": "North inner ruin",
++      "mirrors": ["none"],
++      "parts": [
++        {
++          "name": "Ruin",
++          "material": "dense",
++          "walls": [
++            [
++              { "x": 18.15, "y": 9.5 },
++              { "x": 18.15, "y": 13.35 },
++              { "x": 22.6, "y": 13.35 }
++            ]
++          ]
++        }
++      ]
++    },
++    {
++      "name": "East inner ruin",
++      "mirrors": ["none"],
++      "parts": [
++        {
++          "name": "Ruin",
++          "material": "dense",
++          "walls": [
++            [
++              { "x": 27.2, "y": 18.2 },
++              { "x": 22.7, "y": 18.2 },
++              { "x": 22.7, "y": 22.8 }
++            ]
++          ]
++        }
++      ]
++    },
++    {
++      "name": "South inner ruin",
++      "mirrors": ["none"],
++      "parts": [
++        {
++          "name": "Ruin",
++          "material": "dense",
++          "walls": [
++            [
++              { "x": 13.1, "y": 22.5 },
++              { "x": 17.85, "y": 22.5 },
++              { "x": 17.85, "y": 27.3 }
++            ]
++          ]
++        }
++      ]
++    },
++    {
++      "name": "West inner ruin",
++      "mirrors": ["none"],
++      "parts": [
++        {
++          "name": "Ruin",
++          "material": "dense",
++          "walls": [
++            [
++              { "x": 9.2, "y": 16.85 },
++              { "x": 13.55, "y": 16.85 },
++              { "x": 13.55, "y": 12.4 }
++            ]
++          ]
++        }
++      ]
++    },
++    {
++      "name": "North-east ruin",
++      "mirrors": ["none"],
++      "parts": [
++        {
++          "name": "Ruin",
++          "material": "dense",
++          "walls": [
++            [
++              { "x": 31, "y": 4.8 },
++              { "x": 35.5, "y": 4.8 }
++            ]
++          ]
++        }
++      ]
++    },
++    {
++      "name": "South-east ruin",
++      "mirrors": ["none"],
++      "parts": [
++        {
++          "name": "Ruin",
++          "material": "dense",
++          "walls": [
++            [
++              { "x": 30.4, "y": 31.05 },
++              { "x": 34.9, "y": 31.05 }
++            ]
++          ]
++        }
++      ]
++    },
++    {
++      "name": "South-west ruin",
++      "mirrors": ["none"],
++      "parts": [
++        {
++          "name": "Ruin",
++          "material": "dense",
++          "walls": [
++            [
++              { "x": 1, "y": 31 },
++              { "x": 5.9, "y": 31 }
++            ]
++          ]
++        }
++      ]
++    },
++    {
++      "name": "North-west ruin",
++      "mirrors": ["none"],
++      "parts": [
++        {
++          "name": "Ruin",
++          "material": "dense",
++          "walls": [
++            [
++              { "x": 0.6, "y": 4.85 },
++              { "x": 5.3, "y": 4.85 }
++            ]
++          ]
++        }
++      ]
++    }
++  ]
++}

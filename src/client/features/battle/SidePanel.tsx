@@ -59,7 +59,6 @@ export const SidePanel = memo(function SidePanel({
   const cards = {
     view,
     side,
-    actionable: true,
     pending,
     send,
     referenceFor,

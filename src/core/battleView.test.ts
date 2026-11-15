@@ -204,40 +204,6 @@ describe('the view', () => {
     expect(battleView({ token: 'abc' }, seats, reduceBattle(PLAYERS, []), ALICE).players[1]!.name).toBe('Opponent')
   })
 
-  it('hides only the fixed card held as an unrevealed Secret Mission', () => {
-    const cards = [
-      { key: 'secret', name: 'Hidden purpose' },
-      { key: 'spare', name: 'Spare purpose' },
-    ]
-    const state = reduceBattle(
-      PLAYERS,
-      log(
-        ...started(),
-        [
-          BOB,
-          {
-            kind: 'set-prep',
-            stratagems: [],
-            secondaries: [],
-            secondaryDeck: cards,
-            primary: null,
-            secondaryMode: 'fixed',
-          },
-        ],
-        [ALICE, { kind: 'select-secret', playerId: BOB, secondary: cards[0]! }],
-      ),
-    )
-
-    expect(battleView({ token: 'abc' }, NAMES, state, ALICE).players[1]).toMatchObject({
-      remainingSecondaries: [],
-      secondaries: [{ key: 'secret', name: 'Secret mission', secret: true, revealed: false }],
-    })
-    expect(battleView({ token: 'abc' }, NAMES, state, BOB).players[1]).toMatchObject({
-      remainingSecondaries: [cards[1]],
-      secondaries: [{ key: 'secret', name: 'Hidden purpose', secret: true, revealed: false }],
-    })
-  })
-
   it('offers the latest undo to both players', () => {
     const state = reduceBattle(PLAYERS, log(...started(), [ALICE, { kind: 'score', category: 'primary', delta: 5 }]))
     expect(battleView({ token: 'abc' }, NAMES, state, BOB)).toMatchObject({ undoable: state.undoable?.seq, undoableDraw: false })

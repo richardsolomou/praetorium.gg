@@ -31,6 +31,7 @@ type Layout = {
     id?: string
     layoutKey?: string
     links?: { page?: string }
+    board?: { widthIn?: number; heightIn?: number }
     chapterApprovedSlot?: { archetypeA: string; archetypeB: string; slotIndex: number }
     chapterApprovedDeploymentKey?: number
   }
@@ -78,6 +79,64 @@ function labelCorrection(directory: string, id: string, raw: Layout): LabelCorre
   )
     throw new Error(`terrain label correction does not match ${id}`)
   return correction
+}
+
+/**
+ * This layout's entries in a Praetorium file written against the Battlemaster catalogue beside it, each naming
+ * one of its footprints by index and name; none where the file or the layout's entries are absent.
+ */
+function footprintEntries<T extends { layoutId: string; layoutKey: string; area: string; name: string }>(
+  directory: string,
+  fileName: string,
+  format: string,
+  id: string,
+  raw: Layout,
+): (T & { index: number })[] {
+  const file = path.join(directory, fileName)
+  if (!fs.existsSync(file)) return []
+  const document = JSON.parse(fs.readFileSync(file, 'utf8')) as { format?: string; battlemasterRevision?: string; entries?: T[] }
+  if (document.format !== format || !matchesBattlemaster(directory, document.battlemasterRevision) || !Array.isArray(document.entries))
+    throw new Error(`${fileName} does not match the Battlemaster source`)
+  return document.entries
+    .filter((entry) => entry.layoutId === id)
+    .map((entry) => {
+      const index = /^area-[1-9]\d*$/.test(entry.area) ? Number(entry.area.slice(5)) - 1 : -1
+      if (entry.layoutKey !== raw.layout?.layoutKey) throw new Error(`${fileName} is stale for ${id}`)
+      if (raw.terrain?.[index]?.name !== entry.name) throw new Error(`${fileName} does not match ${id}`)
+      return { ...entry, index }
+    })
+}
+
+/**
+ * `raw` with footprints moved to where the printed map measures them, for layouts whose
+ * Battlemaster placement disagrees with the publisher's.
+ */
+function correctPositions(directory: string, id: string, raw: Layout): Layout {
+  const corrections = footprintEntries<{ layoutId: string; layoutKey: string; area: string; name: string; origin: Point }>(
+    directory,
+    'terrain-positions.json',
+    'praetorium.terrain-position-corrections.v1',
+    id,
+    raw,
+  )
+  if (!corrections.length) return raw
+  const terrain = [...raw.terrain!]
+  for (const { index, origin } of corrections) {
+    if (!Number.isFinite(origin?.x) || !Number.isFinite(origin?.y)) throw new Error(`terrain position correction does not match ${id}`)
+    terrain[index] = { ...terrain[index]!, footprint: { ...terrain[index]!.footprint, origin } }
+  }
+  return { ...raw, terrain }
+}
+
+/** Objectives on the footprints a layout without a Chapter Approved objective layout names, each at its footprint's centre. */
+function namedObjectives(directory: string, id: string, raw: Layout, board: TerrainGeometry['board']) {
+  const objectives: (TerrainGeometry['areas'][number]['objective'] | undefined)[] = []
+  for (const { index } of footprintEntries(directory, 'terrain-objectives.json', 'praetorium.terrain-objectives.v1', id, raw)) {
+    const footprint = raw.terrain![index]!.footprint
+    const centre = { x: footprint.widthIn / 2, y: footprint.heightIn / 2 }
+    objectives[index] = { position: boardPoint(centre, board, footprint), group: null }
+  }
+  return objectives
 }
 
 /** Each footprint's terrain area group, keyed by footprint index; footprints that are a terrain area on their own are absent. */
@@ -130,6 +189,8 @@ export function battlemasterGeometry(directory: string, id: string): TerrainGeom
     liteFile,
     path.join(directory, 'terrain-labels.json'),
     path.join(directory, 'terrain-areas.json'),
+    path.join(directory, 'terrain-positions.json'),
+    path.join(directory, 'terrain-objectives.json'),
     path.join(directory, 'catalog.json'),
   ])
     source.update(fs.existsSync(input) ? fs.readFileSync(input) : '').update('\0')
@@ -142,19 +203,24 @@ export function battlemasterGeometry(directory: string, id: string): TerrainGeom
 }
 
 function readGeometry(directory: string, id: string, file: string, liteFile: string): TerrainGeometry | null {
-  const raw = JSON.parse(fs.readFileSync(file, 'utf8')) as Layout
-  if (!raw.terrain?.length || !matches(raw.layout, id)) return null
+  const served = JSON.parse(fs.readFileSync(file, 'utf8')) as Layout
+  if (!served.terrain?.length || !matches(served.layout, id)) return null
+  const raw = correctPositions(directory, id, served)
+  const board = { width: served.layout?.board?.widthIn ?? 60, height: served.layout?.board?.heightIn ?? 44 }
+  const at = (point: Point, area: Footprint, part?: Part) => boardPoint(point, board, area, part)
   const correction = labelCorrection(directory, id, raw)
   const groups = terrainAreaGroups(directory, id, raw)
-  const objectives = fs.existsSync(liteFile) ? battlemasterObjectiveHosts(raw, JSON.parse(fs.readFileSync(liteFile, 'utf8')), id) : []
+  const objectives = fs.existsSync(liteFile)
+    ? battlemasterObjectiveHosts(served, JSON.parse(fs.readFileSync(liteFile, 'utf8')), id)
+    : namedObjectives(directory, id, raw, board)
   return {
-    board: { width: 60, height: 44 },
-    areas: raw.terrain.map((area, at) => {
-      const points = area.outline.points.map((point) => boardPoint(point, area.footprint))
+    board,
+    areas: raw.terrain!.map((area, index) => {
+      const points = area.outline.points.map((point) => at(point, area.footprint))
       const name = area.name === correction?.areaName ? area.name.replace(new RegExp(`\\b${correction.from}\\b`), correction.to) : area.name
       const letters = name.match(/\b(?:AB|CD|EF|GH)\b/g) ?? []
       return {
-        id: area.id ?? `area-${at + 1}`,
+        id: area.id ?? `area-${index + 1}`,
         name,
         points,
         markers: letters.flatMap((label) => {
@@ -167,19 +233,19 @@ function readGeometry(directory: string, id: string, file: string, liteFile: str
             x: (Math.min(...partPoints.map((point) => point.x)) + Math.max(...partPoints.map((point) => point.x))) / 2,
             y: (Math.min(...partPoints.map((point) => point.y)) + Math.max(...partPoints.map((point) => point.y))) / 2,
           }
-          return [{ label, position: boardPoint(centre, area.footprint, part) }]
+          return [{ label, position: at(centre, area.footprint, part) }]
         }),
-        objective: objectives[at] ?? null,
-        group: groups.get(at) ?? null,
-        measurements: placementMeasurements(area),
+        objective: objectives[index] ?? null,
+        group: groups.get(index) ?? null,
+        measurements: placementMeasurements(area, board),
         parts: area.parts.map((part, partIndex) => ({
-          id: part.id ?? `area-${at + 1}-part-${partIndex + 1}`,
+          id: part.id ?? `area-${index + 1}-part-${partIndex + 1}`,
           name: part.name,
           material: part.material,
-          roof: part.outline?.points.map((point) => boardPoint(point, area.footprint, part)) ?? null,
+          roof: part.outline?.points.map((point) => at(point, area.footprint, part)) ?? null,
           walls: part.walls.map((wall, wallIndex) => ({
-            id: wall.id ?? `area-${at + 1}-part-${partIndex + 1}-wall-${wallIndex + 1}`,
-            points: wall.points.map((point) => boardPoint(point, area.footprint, part)),
+            id: wall.id ?? `area-${index + 1}-part-${partIndex + 1}-wall-${wallIndex + 1}`,
+            points: wall.points.map((point) => at(point, area.footprint, part)),
             thickness: wall.thicknessIn,
           })),
         })),
@@ -188,7 +254,7 @@ function readGeometry(directory: string, id: string, file: string, liteFile: str
   }
 }
 
-function placementMeasurements(area: Area): TerrainGeometry['areas'][number]['measurements'] {
+function placementMeasurements(area: Area, board: TerrainGeometry['board']): TerrainGeometry['areas'][number]['measurements'] {
   if (!area.outline.points.length) return []
   const footprint = area.footprint
   const corners = [
@@ -203,17 +269,17 @@ function placementMeasurements(area: Area): TerrainGeometry['areas'][number]['me
           ? candidate
           : nearest,
       )
-      return Math.hypot(point.x - corner.x, point.y - corner.y) <= 0.01 ? [{ index, point: boardPoint(point, footprint) }] : []
+      return Math.hypot(point.x - corner.x, point.y - corner.y) <= 0.01 ? [{ index, point: boardPoint(point, board, footprint) }] : []
     })
-    .filter(({ point }) => point.x >= 0 && point.x <= 60 && point.y >= 0 && point.y <= 44)
+    .filter(({ point }) => point.x >= 0 && point.x <= board.width && point.y >= 0 && point.y <= board.height)
   if (!corners.length) return []
 
   const centre = {
     x: corners.reduce((total, { point }) => total + point.x, 0) / corners.length,
     y: corners.reduce((total, { point }) => total + point.y, 0) / corners.length,
   }
-  const edgeX = centre.x < 30 ? 0 : 60
-  const edgeY = centre.y < 22 ? 0 : 44
+  const edgeX = centre.x < board.width / 2 ? 0 : board.width
+  const edgeY = centre.y < board.height / 2 ? 0 : board.height
   const anchor = corners.reduce((nearest, corner) =>
     Math.abs(corner.point.x - edgeX) + Math.abs(corner.point.y - edgeY) <
     Math.abs(nearest.point.x - edgeX) + Math.abs(nearest.point.y - edgeY)
@@ -245,7 +311,7 @@ function matches(layout: Layout['layout'], id: string) {
   return Boolean(layout?.links?.page && URL.parse(layout.links.page)?.pathname.endsWith(`/${id}`))
 }
 
-function boardPoint(point: Point, area: Footprint, part?: Part): Point {
+function boardPoint(point: Point, board: TerrainGeometry['board'], area: Footprint, part?: Part): Point {
   let placed = point
   if (part) {
     placed = {
@@ -257,7 +323,7 @@ function boardPoint(point: Point, area: Footprint, part?: Part): Point {
   }
   placed = rotate(placed, area.rotationDeg)
   placed = { x: placed.x + area.origin.x, y: placed.y + area.origin.y }
-  return { x: Math.round((placed.x + 30) * 1000) / 1000, y: Math.round((22 - placed.y) * 1000) / 1000 }
+  return { x: Math.round((placed.x + board.width / 2) * 1000) / 1000, y: Math.round((board.height / 2 - placed.y) * 1000) / 1000 }
 }
 
 function rotate(point: Point, degrees: number): Point {

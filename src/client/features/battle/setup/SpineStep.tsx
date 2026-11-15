@@ -79,7 +79,8 @@ export function SpineStep({
           aria-hidden
           data-line={line}
           className={cn(
-            'absolute top-13 bottom-1 left-6 -translate-x-1/2 sm:top-15 sm:left-[2.375rem]',
+            // A phone gives the step's body the full width, so the runner only hangs beside it from `sm` up.
+            'absolute top-15 bottom-1 left-[2.375rem] -translate-x-1/2 max-sm:hidden',
             line === 'done' && 'w-0.5 rounded-full bg-parchment/45',
             line === 'now' && 'w-1.5 origin-top animate-draw-down border-x-2 border-parchment',
             line === 'todo' && 'w-0.5 bg-[repeating-linear-gradient(180deg,var(--color-runner-hi)_0_5px,transparent_5px_10px)]',
@@ -113,7 +114,7 @@ export function SpineStep({
             <span className={cn('min-w-0', current ? 'text-bone' : locked ? 'text-faint' : undefined)}>{name}</span>
           </h2>
         </div>
-        <div className="pl-15 sm:pl-24">
+        <div className="sm:pl-24">
           {hint && !watching ? (
             <p className={cn('mt-0.5 max-w-prose text-sm text-balance', needed ? 'text-bone' : 'text-dim')}>{hint}</p>
           ) : null}
@@ -126,9 +127,12 @@ export function SpineStep({
                   <>
                     <span
                       aria-hidden
-                      className="absolute -top-5 -left-[2.375rem] h-9 w-[2.25rem] rounded-bl-xl border-b-2 border-l-2 border-runner sm:-left-[3.75rem] sm:w-[3.625rem]"
+                      className="absolute -top-5 -left-[3.75rem] h-9 w-[3.625rem] rounded-bl-xl border-b-2 border-l-2 border-runner max-sm:hidden"
                     />
-                    <span aria-hidden className="absolute top-2.5 -left-1.5 size-2.5 rounded-full bg-parchment ring-3 ring-void" />
+                    <span
+                      aria-hidden
+                      className="absolute top-2.5 -left-1.5 size-2.5 rounded-full bg-parchment ring-3 ring-void max-sm:hidden"
+                    />
                   </>
                 ) : null}
                 {sides && renderSide ? <SideSwitch sides={sides} renderSide={renderSide} /> : null}

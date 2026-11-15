@@ -8,7 +8,7 @@ import { battleSizeLabel, type FormatRule } from '../../../core/battle'
 import type { OnboardingTarget } from '../../onboardingTargets'
 import { FactionLabel, type FactionPresentation } from '../../components/FactionMark'
 import { WaiverChip } from '../../components/FormatWaivers'
-import { factionDisposition } from '../../components/rosterSetup'
+import { dispositionTone, factionDisposition } from '../../components/rosterSetup'
 import type { CatalogueEdition } from '../../../core/catalogueEdition'
 import { countLabel } from '../../text'
 
@@ -215,12 +215,12 @@ export function RosterHeader({
                   <Link
                     to="/force-dispositions/$dispositionId"
                     params={{ dispositionId: knownDisposition.id }}
-                    className={`chip shrink-0 hover:text-bone`}
+                    className={`chip shrink-0 hover:text-bone ${dispositionTone(knownDisposition.id)}`}
                   >
                     {knownDisposition.name}
                   </Link>
                 ) : (
-                  <span className={`chip shrink-0`}>{disposition}</span>
+                  <span className={`chip shrink-0 ${dispositionTone(disposition)}`}>{disposition}</span>
                 )}
               </span>
             ) : null}

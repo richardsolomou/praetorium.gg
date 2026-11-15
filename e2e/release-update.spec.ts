@@ -41,8 +41,7 @@ test('release notice waits for a new version and refreshes only on request', asy
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 900 })
     await expect(notice).toBeVisible()
-    await expect(notice).toHaveText('Praetorium has been updated.Refresh')
-    await expect(notice.getByRole('button')).toHaveCount(1)
+    await expect(notice).toHaveText('Praetorium has been updated.RefreshLater')
     const bounds = await notice.boundingBox()
     expect(Math.abs(bounds!.x + bounds!.width / 2 - width / 2)).toBeLessThan(1)
     if (width === 390) {
@@ -58,6 +57,20 @@ test('release notice waits for a new version and refreshes only on request', asy
   await notice.getByRole('button', { name: 'Refresh', exact: true }).click()
   await expect(page.getByRole('link', { name: 'Army builder', exact: true })).toBeVisible()
   await expect(notice).toHaveCount(0)
+})
+
+test('a dismissed release notice stays away until a later release', async ({ page }) => {
+  let served = '99.0.0'
+  await serveRelease(page, () => served)
+  await page.clock.install()
+  await page.goto('/')
+  const notice = page.getByRole('complementary', { name: 'Release update' })
+  await notice.getByRole('button', { name: 'Later', exact: true }).click()
+  await page.clock.runFor(60_000)
+  await expect(notice).toHaveCount(0)
+  served = '99.0.1'
+  await page.clock.runFor(60_000)
+  await expect(notice).toBeVisible()
 })
 
 test('failed release checks leave the page usable without an update notice', async ({ page }) => {

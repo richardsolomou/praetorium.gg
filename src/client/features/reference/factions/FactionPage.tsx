@@ -8,6 +8,7 @@ import { discoveredRostersQuery, factionIndexQuery, factionQuery } from '../../.
 import { FavouriteDetachmentToggle } from './FavouriteDetachmentToggle'
 import { FavouriteFactionToggle } from './FavouriteFactionToggle'
 import { FactionMark, factionColour } from '../../../components/FactionMark'
+import { dispositionTone } from '../../../components/rosterSetup'
 import { RuleText } from '../../../components/RuleText'
 import { PageContent, PageHeader } from '../../../components/Page'
 import { SearchableSelect } from '../../../components/SearchableSelect'
@@ -168,7 +169,7 @@ export function FactionPage({ catalogueId }: { catalogueId: string }) {
                     {detachment.reference?.dispositions.length || detachment.points !== null ? (
                       <span className="mt-2 flex flex-wrap gap-1">
                         {detachment.reference?.dispositions.map((disposition) => (
-                          <span key={disposition} className={`chip`}>
+                          <span key={disposition} className={`chip ${dispositionTone(disposition)}`}>
                             {disposition}
                           </span>
                         ))}

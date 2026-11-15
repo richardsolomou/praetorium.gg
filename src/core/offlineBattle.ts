@@ -1,5 +1,4 @@
-import { sameSide, playsSide } from './battlePrimitives'
-import { mayNameCard, reduceBattle, commandArmy, undrawnSecondaries, validate, type Command, type LoggedCommand } from './battle'
+import { reduceBattle, commandArmy, undrawnSecondaries, validate, type Command, type LoggedCommand } from './battle'
 import { rosterWithoutUnitNotes } from './unitNotes'
 
 type Players = { id: string; name: string; side: number; automated: boolean }[]
@@ -16,47 +15,13 @@ export function battleFoldArgs(seats: readonly { id: string; side: number; autom
 
 export function visibleBattleLog(players: Players, log: readonly LoggedCommand[], viewerId: string): LoggedCommand[] {
   const state = localBattleState(players, log)
-  const hidden = new Map<string, string>()
-  const hiddenSides = new Set<number>()
-  for (const entry of log) {
-    if (entry.command.kind !== 'select-secret') continue
-    const target = commandArmy(state, entry.by, entry.command)
-    if (!target || sameSide(state, viewerId, target.id)) continue
-    const key = entry.command.secondary.key
-    if (target.secretSecondary === key && mayNameCard(state, viewerId, target, key)) continue
-    hidden.set(key, `secret-${target.side}-${entry.seq}`)
-    hiddenSides.add(target.side)
-  }
-  const clean = (value: unknown): unknown => {
-    if (typeof value === 'string') return hidden.get(value) ?? value
-    if (Array.isArray(value)) return value.map(clean)
-    if (!value || typeof value !== 'object') return value
-    const record = value as Record<string, unknown>
-    if (typeof record.key === 'string' && hidden.has(record.key)) return { key: hidden.get(record.key), name: 'Secret Mission' }
-    return Object.fromEntries(Object.entries(record).map(([key, item]) => [hidden.get(key) ?? key, clean(item)]))
-  }
   return log.map((entry) => {
+    if (entry.command.kind !== 'attach-roster' || commandArmy(state, entry.by, entry.command)?.id === viewerId) return entry
     const command = structuredClone(entry.command)
-    const target = commandArmy(state, entry.by, command)
-    if (
-      (command.kind === 'set-prep' || command.kind === 'attach-roster') &&
-      target &&
-      hiddenSides.has(target.side) &&
-      !playsSide(state, viewerId, target.side)
-    ) {
-      if (command.kind === 'set-prep') delete command.secondaryDeck
-      else if (command.prep) delete command.prep.secondaryDeck
-    }
-    if (command.kind === 'attach-roster' && target?.id !== viewerId) {
-      delete command.roster.reminders
-      delete command.roster.remindersEnabled
-      command.roster = rosterWithoutUnitNotes(command.roster)
-    }
-    if (command.kind === 'select-mission' && hidden.has(command.cardKey)) {
-      command.selection = { kind: 'beacon', unit: null, note: '' }
-      command.occurrence = 1
-    }
-    return { ...entry, command: clean(command) as Command }
+    delete command.roster.reminders
+    delete command.roster.remindersEnabled
+    command.roster = rosterWithoutUnitNotes(command.roster)
+    return { ...entry, command }
   })
 }
 
@@ -96,21 +61,4 @@ export function appendLocalCommand(
   const refusal = validate(state, viewerId, command)
   if (refusal) throw new Error(refusal)
   return [...log, { seq: state.seq + 1, by: viewerId, command, at: Math.max(at, log.at(-1)?.at ?? 0) }]
-}
-
-export function restoreOpaqueBattleKeys(players: Players, log: readonly LoggedCommand[], command: Command): Command {
-  const state = localBattleState(players, log)
-  const keys = new Map<string, string>()
-  for (const entry of log) {
-    if (entry.command.kind !== 'select-secret') continue
-    const target = commandArmy(state, entry.by, entry.command)
-    if (target) keys.set(`secret-${target.side}-${entry.seq}`, entry.command.secondary.key)
-  }
-  const restore = (value: unknown): unknown => {
-    if (typeof value === 'string') return keys.get(value) ?? value
-    if (Array.isArray(value)) return value.map(restore)
-    if (!value || typeof value !== 'object') return value
-    return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, restore(item)]))
-  }
-  return restore(command) as Command
 }

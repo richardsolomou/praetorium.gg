@@ -61,14 +61,13 @@ import {
   targetArmy,
 } from './battleSides'
 import {
-  mayNameSecondary,
+  holdsSecondary,
   sideOwes,
   secondaryDrawTarget,
   undrawnSecondaries,
   activeTacticalSecondaries,
   scoringDue,
   atBattleEnd,
-  secretSettlementActionPlayerId,
 } from './battleSecondaries'
 import { playedMoment, momentOrder, missedMomentRefusal, missedScoreRefusal } from './battleMoments'
 
@@ -156,16 +155,7 @@ export {
   commandArmy,
   scoringTarget,
 } from './battleSides'
-export {
-  sideOwes,
-  secondaryDrawTarget,
-  undrawnSecondaries,
-  sameRandomDraw,
-  scoringDue,
-  atBattleEnd,
-  secretSettlementActionPlayerId,
-  mayNameCard,
-} from './battleSecondaries'
+export { sideOwes, secondaryDrawTarget, undrawnSecondaries, sameRandomDraw, scoringDue, atBattleEnd } from './battleSecondaries'
 export { missedMoments } from './battleMoments'
 
 const COMMAND_PHASE_CP = 1
@@ -584,6 +574,7 @@ export type Command =
   | ({ kind: 'select-mission'; cardKey: string; occurrence: number; selection: MissionSelection } & OnBehalfOf)
   | ({ kind: 'acknowledge-draw' } & OnBehalfOf)
   | ({ kind: 'acknowledge-scoring' } & OnBehalfOf)
+  /** Only in logs from before secret missions were retired: the card folds as an ordinary draw, and its reveal as nothing. */
   | ({ kind: 'select-secret'; secondary: Secondary } & OnBehalfOf)
   | ({ kind: 'reveal-secret' } & OnBehalfOf)
   | { kind: 'begin-battle'; firstPlayerId: PlayerId; attackerId?: PlayerId }
@@ -628,8 +619,6 @@ const GUIDED_COMMANDS: ReadonlySet<Command['kind']> = new Set([
   'draw-secondaries',
   'acknowledge-draw',
   'acknowledge-scoring',
-  'select-secret',
-  'reveal-secret',
   'resolve-tactical-hand',
   'settle-opponent-turn',
   'request-advance',
@@ -703,7 +692,6 @@ export type RefusalCode =
   | 'mission-cards-unprepared'
   | 'no-active-secondaries'
   | 'no-roster'
-  | 'no-secret'
   | 'not-end-of-turn'
   | 'not-enough-cp'
   | 'not-seated'
@@ -731,9 +719,6 @@ export type RefusalCode =
   | 'secondary-history-full'
   | 'secondary-not-active'
   | 'secret-missions-unsupported'
-  | 'secret-owed'
-  | 'secret-revealed'
-  | 'secret-unrevealed'
   | 'settlement-owed'
   | 'stratagem-limit'
   | 'stratagem-wrong-phase'
@@ -826,8 +811,6 @@ export type PlayerState = {
   secondaryByRound: number[]
   scoredByRound: Record<string, number[]>
   secondaryStatus: Record<string, SecondaryStatus>
-  secretSecondary: string | null
-  secretRevealed: boolean
   painted: boolean
   corrections: { cp: number; primary: number; secondary: number }
   correctionByRound: { primary: number[]; secondary: number[] }
@@ -1040,8 +1023,6 @@ function freshPlayer(id: PlayerId, side: number, automated: boolean): PlayerStat
     secondaryByRound: Array(BATTLE_ROUNDS).fill(0),
     scoredByRound: {},
     secondaryStatus: {},
-    secretSecondary: null,
-    secretRevealed: false,
     painted: false,
     corrections: { cp: 0, primary: 0, secondary: 0 },
     correctionByRound: { primary: Array(BATTLE_ROUNDS).fill(0), secondary: Array(BATTLE_ROUNDS).fill(0) },
@@ -1390,8 +1371,6 @@ export function commandRefusal(state: BattleState, by: PlayerId, command: Comman
     case 'settle-opponent-turn': {
       if (state.status !== 'playing') return refuse('battle-not-running', 'the battle is not running')
       if (!state.pendingSettlement) return refuse('nothing-to-settle', 'there is no previous turn to settle')
-      if (secretSettlementActionPlayerId(state))
-        return refuse('secret-unrevealed', 'reveal the secret mission before settling the previous turn')
       return null
     }
     case 'request-advance': {
@@ -1426,7 +1405,6 @@ export function commandRefusal(state: BattleState, by: PlayerId, command: Comman
       const owed = sideOwes(state, player)
       if (owed === 'settlement') return refuse('settlement-owed', 'settle the previous turn before ending the command phase')
       if (owed === 'cards') return refuse('cards-owed', 'draw every card owed before ending the command phase')
-      if (owed === 'secret') return refuse('secret-owed', 'reveal or discard the secret mission before ending the turn')
       if (state.phase === 'command' && player.secondariesToReview.length && !state.drawAcknowledged) {
         return refuse('draw-unreviewed', 'review the new secondary missions before ending the command phase')
       }
@@ -1559,7 +1537,7 @@ export function commandRefusal(state: BattleState, by: PlayerId, command: Comman
     }
     case 'score-secondary': {
       if (state.status !== 'playing') return refuse('battle-not-running', 'the battle is not running')
-      if (!mayNameSecondary(state, by, player, command.key)) return refuse('unknown-secondary', 'that is not one of your secondaries')
+      if (!holdsSecondary(player, command.key)) return refuse('unknown-secondary', 'that is not one of your secondaries')
       if (!Number.isInteger(command.delta) || command.delta === 0) return refuse('invalid-amount', 'victory points move in whole steps')
       if ((player.scored[command.key] ?? 0) + command.delta < 0) return refuse('below-zero', 'that would go below zero')
       return null
@@ -1610,13 +1588,13 @@ export function commandRefusal(state: BattleState, by: PlayerId, command: Comman
         }
         if (keys.has(score.key)) return refuse('invalid-settlement', 'record each secondary once per settlement')
         keys.add(score.key)
-        if (!mayNameSecondary(state, by, player, score.key)) return refuse('unknown-secondary', 'that is not one of your secondaries')
+        if (!holdsSecondary(player, score.key)) return refuse('unknown-secondary', 'that is not one of your secondaries')
       }
       return null
     }
     case 'set-secondary-status': {
       if (state.status !== 'playing') return refuse('battle-not-running', 'the battle is not running')
-      if (!mayNameSecondary(state, by, player, command.key)) return refuse('unknown-secondary', 'that is not one of your secondaries')
+      if (!holdsSecondary(player, command.key)) return refuse('unknown-secondary', 'that is not one of your secondaries')
       return null
     }
     case 'draw-secondary': {
@@ -1667,15 +1645,9 @@ export function commandRefusal(state: BattleState, by: PlayerId, command: Comman
       if (state.drawAcknowledged) return refuse('hand-acknowledged', 'the hand has already been acknowledged')
       return null
     }
-    // No supported mission pack has secret missions; older battles still fold and reveal the ones they chose.
     case 'select-secret':
+    case 'reveal-secret':
       return refuse('secret-missions-unsupported', 'secret missions are not part of any supported mission pack')
-    case 'reveal-secret': {
-      if (state.status !== 'playing') return refuse('battle-not-running', 'the battle is not running')
-      if (!player.secretSecondary) return refuse('no-secret', 'you have no secret mission')
-      if (player.secretRevealed) return refuse('secret-revealed', 'the secret mission is already revealed')
-      return null
-    }
     case 'pause-clock': {
       if (state.status !== 'playing') return refuse('battle-not-running', 'the battle is not running')
       if (state.clockPaused) return refuse('clock-unchanged', 'the timer is already paused')
@@ -1950,7 +1922,6 @@ function apply(state: BattleState, by: PlayerId, command: Command, seq: number) 
         applySecondaryScore(player, score.key, score.delta, round)
         if (score.status) {
           player.secondaryStatus = { ...player.secondaryStatus, [score.key]: score.status }
-          if (score.key === player.secretSecondary) player.secretRevealed = true
         }
       }
       if (state.advanceRequested && !command.missed) state.scoringAcknowledged = true
@@ -1962,7 +1933,6 @@ function apply(state: BattleState, by: PlayerId, command: Command, seq: number) 
       // replacement in.
       const wasActive = (player.secondaryStatus[command.key] ?? 'active') === 'active'
       player.secondaryStatus = { ...player.secondaryStatus, [command.key]: command.status }
-      if (command.key === player.secretSecondary && command.status !== 'active') player.secretRevealed = true
       if (wasActive && command.status !== 'active') {
         player.secondariesDrawnThisTurn = player.secondariesDrawnThisTurn.filter((key) => key !== command.key)
         player.secondariesToReview = player.secondariesToReview.filter((key) => key !== command.key)
@@ -1992,15 +1962,11 @@ function apply(state: BattleState, by: PlayerId, command: Command, seq: number) 
       state.scoringAcknowledged = true
       return
     }
-    case 'select-secret': {
-      player.secretSecondary = drawCard(state, player, command.secondary, seq)
-      player.secretRevealed = false
+    case 'select-secret':
+      drawCard(state, player, command.secondary, seq)
       return
-    }
-    case 'reveal-secret': {
-      player.secretRevealed = true
+    case 'reveal-secret':
       return
-    }
     case 'begin-battle': {
       state.status = 'playing'
       state.round = 1
@@ -2175,8 +2141,6 @@ function applyPrep(player: PlayerState, prep: BattlePrep | null | undefined) {
   player.secondaryMode = chosen.secondaryMode
   player.secondaryDeck = deck
   player.secondaryStatus = Object.fromEntries(player.secondaries.map((secondary) => [secondary.key, 'active']))
-  player.secretSecondary = null
-  player.secretRevealed = false
   const kept = Object.fromEntries(
     Object.entries(player.scored).filter(([key]) => player.secondaries.some((secondary) => secondary.key === key)),
   )
@@ -2213,8 +2177,7 @@ function canRepairPlayingPrep(player: PlayerState, prep: BattlePrep) {
   if (player.secondaryMode !== prep.secondaryMode || !sameKeys(prep.stratagems, player.stratagems)) return false
   if (player.primaryCard && prep.primary?.key !== player.primaryCard.key) return false
   if (player.secondaryMode === 'tactical') return player.secondaries.length === 0 && prep.secondaries.length === 0
-  const fixedSecondaries = player.secondaries.filter((secondary) => secondary.key !== player.secretSecondary)
-  return sameKeys(prep.secondaries, fixedSecondaries)
+  return sameKeys(prep.secondaries, player.secondaries)
 }
 
 /** Whether a stratagem's allowance is spent at a moment. `turn` and `phase` reset as play moves on. */

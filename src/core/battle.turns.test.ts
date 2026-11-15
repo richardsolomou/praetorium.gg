@@ -348,15 +348,6 @@ describe('the turn sequence', () => {
     expect(redrawn.drawAcknowledged).toBe(false)
   })
 
-  it('lets one seated player reveal the other side’s Secret Mission', () => {
-    const selected = reduceBattle(
-      PLAYERS,
-      log(...started(), [ALICE, { kind: 'select-secret', playerId: BOB, secondary: { key: 'secret', name: 'Hidden purpose' } }]),
-    )
-
-    expect(validate(selected, ALICE, { kind: 'reveal-secret', playerId: BOB })).toBeNull()
-  })
-
   it('lets anyone at the table draw for a side but refuses to skip the draw', () => {
     const history = log(
       [ALICE, roster('Ultramarines')],
@@ -434,40 +425,6 @@ describe('the turn sequence', () => {
     expect(validate(state, CAROL, { kind: 'settle-opponent-turn' })).toBeNull()
   })
 
-  it('does not settle an unrevealed mission whose timing is unknown', () => {
-    const state = reduceBattle(
-      PLAYERS,
-      log(...started(), [BOB, { kind: 'select-secret', secondary: { key: 'secret', name: 'Hidden purpose' } }], ...turns(6, ALICE)),
-    )
-
-    for (const player of [ALICE, BOB]) {
-      expect(validate(state, player, { kind: 'settle-opponent-turn' })).toBe('reveal the secret mission before settling the previous turn')
-    }
-  })
-
-  it('settles a hidden mission that has no opponent-turn award', () => {
-    const award = {
-      vp: 5,
-      per: null,
-      mode: null,
-      max: null,
-      group: null,
-      cumulative: false,
-      criteria: 'Hold the objective.',
-      trigger: { timing: 'end-of-turn', phase: null, playerTurn: 'your-turn', roundMin: null, roundMax: null },
-    }
-    const state = reduceBattle(
-      PLAYERS,
-      log(
-        ...started(),
-        [BOB, { kind: 'select-secret', secondary: { key: 'secret', name: 'Hidden purpose', awards: [award] } }],
-        ...turns(6, ALICE),
-      ),
-    )
-
-    expect(validate(state, ALICE, { kind: 'settle-opponent-turn' })).toBeNull()
-  })
-
   it('reports settlement bookkeeping without changing the undo target', () => {
     const history = log(...started(), ...turns(6, ALICE), [BOB, { kind: 'settle-opponent-turn' }])
     const state = reduceBattle(PLAYERS, history)
@@ -513,19 +470,6 @@ describe('the turn sequence', () => {
     expect(battleView({ token: 'abc' }, named, state, CAROL).players.find((player) => player.id === CAROL)?.remainingSecondaries).toEqual([
       { key: 'a', name: 'Area Denial' },
     ])
-  })
-
-  it('refuses to pass the turn until the active side settles its hidden mission', () => {
-    const history = log(
-      ...started(),
-      [ALICE, { kind: 'select-secret', secondary: { key: 'secret-a', name: 'Hold the Line' } }],
-      ...turns(5, ALICE),
-    )
-    const state = reduceBattle(PLAYERS, history)
-
-    expect(validate(state, BOB, { kind: 'request-advance', playerId: ALICE })).toBeNull()
-    expect(validate(state, BOB, { kind: 'advance', playerId: ALICE })).toBe('reveal or discard the secret mission before ending the turn')
-    expect(battleView({ token: 'abc' }, NAMES, state, BOB).players[0]?.secondaries[0]?.name).toBe('Secret mission')
   })
 
   it('preserves target-less team advances already stored in the log', () => {

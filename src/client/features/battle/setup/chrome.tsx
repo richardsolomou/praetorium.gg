@@ -9,6 +9,7 @@ import { gameReferencesQuery } from '../../../queries'
 import { sideName, type Side } from '../../../sides'
 import { tint } from '../battleTints'
 import { SidePlayers } from '../PlayerName'
+import { dispositionTone } from '../../../components/rosterSetup'
 import { capitalised } from '../../../../core/text'
 
 /**
@@ -196,7 +197,7 @@ export const dispositionIn = <T extends { id: string }>(
 export function DispositionChip({ disposition, className = '' }: { disposition: { id: string; name: string } | null; className?: string }) {
   if (!disposition) return null
   return (
-    <span data-disposition={disposition.id} className={cn('chip', className)}>
+    <span data-disposition={disposition.id} className={cn('chip', dispositionTone(disposition.id), className)}>
       {disposition.name}
     </span>
   )

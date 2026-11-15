@@ -1,5 +1,62 @@
 # praetorium
 
+## 0.252.1 (2026-11-15)
+
+### Patch Changes
+
+- 75761f4: New Recruit lists exported with the official app's header now import with their faction, detachments and battle size.
+
+## 0.252.0 (2026-11-15)
+
+### Minor Changes
+
+- 9e75bac: King of the Colosseum games can be played on the three Combat Patrol battlefields.
+- 9e75bac: King of the Colosseum games can be played in the original Colosseum 1.0 as well as 2.0.
+
+## 0.251.0 (2026-11-15)
+
+### Minor Changes
+
+- 4e8ed30: The home page gives lists and games equal space, with the features most worth knowing about on each side.
+- 4e8ed30: Until your first battle, **Start a battle** in a roster's menu says what tracking a game here does for you.
+
+### Patch Changes
+
+- 4e8ed30: On your home page, **Build a roster** and **New battle** now sit side by side with equal weight.
+- 4e8ed30: **Try importing a list** on the home page now opens the import dialog straight away.
+
+## 0.250.1 (2026-11-15)
+
+### Patch Changes
+
+- 42d9413: On a phone, a list opened from a battle prompt no longer hides its last options under the bottom tabs.
+- 2e6e6cc: The "Praetorium has been updated" notice has a Later button, since the new version loads on your next page anyway.
+
+## 0.250.0 (2026-11-15)
+
+### Minor Changes
+
+- d8f5900: Home now links to Praetorium in ChatGPT and Claude beside the app store badges.
+
+## 0.249.1 (2026-11-15)
+
+### Patch Changes
+
+- 99d1b64: Undoing back into a phase shows that phase's battle alerts again.
+
+## 0.249.0 (2026-11-15)
+
+### Minor Changes
+
+- e904ab4: A group's Overview now shows how the group plays: games played, battles in play this week, its most played armies, the top of the leaderboard with recent form, the league's progress and table, compact recent results and head-to-head records.
+
+## 0.248.1 (2026-11-15)
+
+### Patch Changes
+
+- 8a334f5: Battle setup on a phone uses the full screen width for each step, so side names, missions and layouts no longer squeeze or cut off.
+- 8a334f5: The "Played by you" label on a battle's army card no longer breaks over two lines on a phone.
+
 ## 0.248.0 (2026-11-15)
 
 ### Minor Changes

@@ -1,69 +1,105 @@
 import { Link } from '@tanstack/react-router'
-import { Bell, Calculator, ClipboardPaste, Code, Crosshair, Heart, Layers3, LockKeyhole, RotateCcw, Swords, Users } from 'lucide-react'
+import {
+  Bell,
+  Boxes,
+  ClipboardCheck,
+  ClipboardPaste,
+  Code,
+  Crosshair,
+  Heart,
+  RefreshCw,
+  RotateCcw,
+  Swords,
+  Trophy,
+  Users,
+  WandSparkles,
+} from 'lucide-react'
 import { buttonClass } from '../../components/buttonClass'
 import { SOURCE, SPONSOR } from '../../projectLinks'
 
-const FEATURES = [
+const COLUMNS = [
   {
-    icon: Calculator,
-    title: 'Combat simulator',
-    text: 'Compare loadouts and see shooting and melee odds before committing.',
+    heading: 'Lists',
+    features: [
+      {
+        icon: WandSparkles,
+        title: 'Optimize your wargear',
+        text: 'Find the loadout that does most against a target, or run one whole list against another.',
+      },
+      {
+        icon: ClipboardCheck,
+        title: 'Roster grades',
+        text: 'Score a list out of 100 against tournament lists of the same faction and size, and see what it lacks.',
+      },
+      {
+        icon: Trophy,
+        title: 'Tournament lists',
+        text: 'Browse top-four lists from recent events that are still legal today, and copy one to edit.',
+      },
+      {
+        icon: RefreshCw,
+        title: 'Points updates',
+        text: 'Saved lists a points or datasheet update changed are flagged, so nothing is out of date on game day.',
+      },
+      {
+        icon: Boxes,
+        title: 'Your collection',
+        text: 'Mark the models you own and filter the builder to them.',
+      },
+    ],
   },
   {
-    icon: Layers3,
-    title: 'Unlimited lists & variants',
-    text: 'Check points and legality. Compare variants, share, print and export.',
-  },
-  {
-    icon: Bell,
-    title: 'Ability reminders',
-    text: 'Private reminders for your abilities, timed to phases, turns and rounds.',
-  },
-  {
-    icon: Swords,
-    title: 'Live battle tracking',
-    text: 'Track phases, scores, CP, stratagems, casualties and turn times together.',
-  },
-  {
-    icon: Users,
-    title: 'Team & practice games',
-    text: 'Play 1v1, 2v1 or 2v2 with friends, or practise solo.',
-  },
-  {
-    icon: LockKeyhole,
-    title: 'Sealed-roster tournaments',
-    text: 'Approve entries, reveal lists together and play with the sealed armies.',
-  },
-  {
-    icon: Crosshair,
-    title: 'King of the Colosseum',
-    text: 'Build and battle at 600 points with the format’s own limits and battlefield.',
-  },
-  {
-    icon: RotateCcw,
-    title: 'Battle replay & stats',
-    text: 'Revisit each turn. Track your results by detachment, mission and battle size.',
+    heading: 'Games',
+    features: [
+      {
+        icon: Bell,
+        title: 'Ability reminders',
+        text: 'Your abilities come up in the phase they apply to, only on your screen.',
+      },
+      {
+        icon: RotateCcw,
+        title: 'Replay and record',
+        text: 'Every turn is kept, so a disagreement can be settled afterwards. Games against friends count in your record.',
+      },
+      {
+        icon: Swords,
+        title: 'Play your way',
+        text: 'Play 1v1, 2v1 or 2v2 with friends, or a practice game on your own to learn the tracker.',
+      },
+      {
+        icon: Users,
+        title: 'Groups, leagues and tournaments',
+        text: 'Keep a running table with your group, or run a tournament where everyone seals a list first.',
+      },
+      {
+        icon: Crosshair,
+        title: 'King of the Colosseum',
+        text: 'The 600-point format, with its own limits in the builder and its own battlefield at the table.',
+      },
+    ],
   },
 ]
 
 export function HomeFeatures() {
-  const half = Math.ceil(FEATURES.length / 2)
   return (
     <section data-home-features>
-      <h2 className="text-2xl leading-none sm:text-3xl">Built for your next battle</h2>
-      <div className="mt-5 grid gap-x-10 md:grid-cols-2">
-        {[FEATURES.slice(0, half), FEATURES.slice(half)].map((column) => (
-          <ul key={column[0]?.title} className="runner [--gate-y:1.5rem]">
-            {column.map(({ icon: Icon, title, text }) => (
-              <li key={title} className="min-w-0 border-b border-edge py-3.5 pl-2 last:border-0">
-                <h3 className="flex items-center gap-2 font-sans text-base leading-tight font-bold normal-case">
-                  <Icon className="size-4 shrink-0 text-dim" aria-hidden />
-                  {title}
-                </h3>
-                <p className="mt-1 text-sm leading-relaxed text-dim">{text}</p>
-              </li>
-            ))}
-          </ul>
+      <h2 className="text-2xl leading-none sm:text-3xl">For your lists and your games</h2>
+      <div className="mt-5 grid gap-x-10 gap-y-6 md:grid-cols-2">
+        {COLUMNS.map(({ heading, features }) => (
+          <div key={heading} className="min-w-0">
+            <h3 className="eyebrow text-faint">{heading}</h3>
+            <ul className="runner mt-2 [--gate-y:1.5rem]">
+              {features.map(({ icon: Icon, title, text }) => (
+                <li key={title} className="min-w-0 border-b border-edge py-3.5 pl-2 last:border-0">
+                  <h4 className="flex items-center gap-2 font-sans text-base leading-tight font-bold normal-case">
+                    <Icon className="size-4 shrink-0 text-dim" aria-hidden />
+                    {title}
+                  </h4>
+                  <p className="mt-1 text-sm leading-relaxed text-dim">{text}</p>
+                </li>
+              ))}
+            </ul>
+          </div>
         ))}
       </div>
     </section>
@@ -95,10 +131,10 @@ export function HomeIncluded() {
         <ClipboardPaste className="size-6 text-info" aria-hidden />
         <h2 className="mt-4 text-2xl leading-none text-balance">Bring your existing lists</h2>
         <p className="mt-2 font-rules text-sm leading-relaxed text-dim">
-          Paste a Games Workshop text export from BattleBase or New Recruit, or a Praetorium exchange code. Review any unmatched units or
-          options.
+          Paste a list from the official app, New Recruit, BattleBase and others, or a Praetorium exchange code. Review any unmatched units
+          or options.
         </p>
-        <Link to="/rosters" className={buttonClass({ variant: 'outline', className: 'mt-5 w-full' })}>
+        <Link to="/rosters" search={{ import: true }} className={buttonClass({ variant: 'outline', className: 'mt-5 w-full' })}>
           Try importing a list
         </Link>
       </aside>
@@ -113,8 +149,8 @@ export function HomeClosing() {
       <div className="relative mx-auto flex w-full max-w-6xl flex-col gap-6 px-5 py-10 sm:px-6 md:flex-row md:items-end md:justify-between md:py-16">
         <div>
           <h2 className="text-4xl leading-[0.9] sm:text-6xl">
-            Bring your
-            <span className="block">next game.</span>
+            Build a list.
+            <span className="block">Play the game.</span>
           </h2>
           <p className="mt-5 max-w-md font-rules text-dim">Free to use, and open source.</p>
         </div>

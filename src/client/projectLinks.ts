@@ -25,3 +25,7 @@ export const ANDROID_BETA: { group: string; optIn: string } | undefined = {
   group: 'https://groups.google.com/g/praetorium-android-beta/about',
   optIn: 'https://play.google.com/apps/testing/gg.praetorium',
 }
+
+export const CLAUDE_DIRECTORY = 'https://claude.ai/directory/praetorium'
+
+export const CHATGPT_DIRECTORY = 'https://chatgpt.com/plugins/plugin_asdk_app_6adb29330cd08191b5833c45b0fffc79'
