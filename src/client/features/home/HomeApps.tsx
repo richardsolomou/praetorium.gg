@@ -56,12 +56,11 @@ function AssistantButtons() {
             href={href}
             rel="noreferrer noopener"
             target="_blank"
-            aria-label={`${verb} ${name}`}
             className="inline-flex h-10 items-center gap-2 rounded-[7px] border border-runner bg-panel pr-3 pl-2 transition-colors hover:border-runner-hi"
           >
             <img src={logo} alt="" width={24} height={24} className="size-6" />
             <span className="grid leading-none">
-              <span className="text-2xs text-dim">{verb}</span>
+              <span className="text-2xs text-dim">{verb}</span>{' '}
               <span className="font-display text-base leading-tight font-semibold">{name}</span>
             </span>
           </a>
