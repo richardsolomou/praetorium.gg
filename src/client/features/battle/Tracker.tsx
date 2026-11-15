@@ -626,7 +626,8 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
           }`}
         >
           {/* The centre column comes first, so a slow connection streams the phase bar before both armies; `lg` places every column itself. */}
-          <div className="min-w-0 space-y-3 lg:col-start-2 lg:row-start-1">
+          {/* Only its battle section lays out below `lg`, where the phase bar is pinned, so the column itself takes no row. */}
+          <div className="min-w-0 space-y-3 max-lg:contents lg:col-start-2 lg:row-start-1">
             {/*
              * One instance, moved by CSS rather than rendered twice: ending a phase is the
              * most-pressed control in the game, so on a phone it sits under the thumb all
@@ -891,7 +892,8 @@ const heldKeys = (side: Side | undefined) => (side?.secondaries ?? []).filter((c
 
 /**
  * A sideways swipe across the panels steps between the tabs, which sit at the top of a phone, out of the thumb's reach.
- * A swipe that starts in something that scrolls sideways is left to it.
+ * A swipe that starts in something that scrolls sideways is left to it, and so is one in a dialog: React passes a
+ * portal's touches up through its owners, though the dialog is drawn elsewhere.
  */
 function useSwipe(onStep: (step: 1 | -1) => void) {
   const start = useRef<{ x: number; y: number } | null>(null)
@@ -902,6 +904,7 @@ function useSwipe(onStep: (step: 1 | -1) => void) {
       start.current =
         touch &&
         event.touches.length === 1 &&
+        event.currentTarget.contains(target) &&
         !target.closest('[data-swipe-ignore], input, textarea, [role="slider"]') &&
         !scrollsSideways(target)
           ? { x: touch.clientX, y: touch.clientY }
