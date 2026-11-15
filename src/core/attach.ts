@@ -9,6 +9,7 @@ import {
   definitionAndTarget,
   groupCounts,
   type InfoGroup,
+  type Modifier,
   nameOf,
   type Profile,
   targetOf,
@@ -28,6 +29,8 @@ export type Attachment = {
 }
 export type AttachmentLimits = Record<Attachment['kind'], number> & {
   categories: Record<string, { name: string; maximum: number }>
+  /** A higher limit while one of `by` is attached, as a Noxious Blightbringer lets Poxwalkers take a second Leader. */
+  raises?: { kind: Attachment['kind']; maximum: number; by: string[] }[]
 }
 
 const CLAIM = /can be attached to the following units?/i
@@ -56,12 +59,21 @@ export function attachmentLimitsOf(definition: Definition, index: CatalogueIndex
     .filter((constraint) => {
       return constraint.field === 'associations' && constraint.scope === 'self' && constraint.type === 'max'
     })
+  const ofKind = (kind: Attachment['kind']) =>
+    constraints.filter((constraint) => normalizedName(constraintName(constraint, index)) === kind)
   const maximum = (kind: Attachment['kind']) => {
-    const limits = constraints.flatMap((constraint) =>
-      normalizedName(constraintName(constraint, index)) === kind ? [constraint.value] : [],
-    )
+    const limits = ofKind(kind).map((constraint) => constraint.value)
     return limits.length ? Math.min(...limits) : 1
   }
+  const modifiers = sources.flatMap((source) => source.modifiers ?? [])
+  const raises = (['leader', 'support'] as const).flatMap((kind) =>
+    ofKind(kind).flatMap((constraint) =>
+      modifiers.flatMap((modifier) => {
+        const by = modifier.field === constraint.id && modifier.type === 'set' ? raisingAttachments(modifier) : null
+        return by && typeof modifier.value === 'number' ? [{ kind, maximum: modifier.value, by }] : []
+      }),
+    ),
+  )
   const categories: AttachmentLimits['categories'] = {}
   for (const constraint of constraints) {
     const name = constraintName(constraint, index)
@@ -70,15 +82,34 @@ export function attachmentLimitsOf(definition: Definition, index: CatalogueIndex
     const existing = categories[key]
     categories[key] = { name, maximum: Math.min(existing?.maximum ?? Number.POSITIVE_INFINITY, constraint.value) }
   }
-  return { leader: maximum('leader'), support: maximum('support'), categories }
+  return { leader: maximum('leader'), support: maximum('support'), categories, ...(raises.length ? { raises } : {}) }
 }
 
+/** The units whose attachment the modifier waits on, or null when it waits on anything else. */
+function raisingAttachments(modifier: Modifier): string[] | null {
+  const groups = modifier.conditionGroups ?? []
+  const [group] = groups
+  const conditions =
+    groups.length === 0 && modifier.conditions?.length === 1
+      ? modifier.conditions
+      : groups.length === 1 && !modifier.conditions?.length && group?.type === 'or' && !group.conditionGroups?.length
+        ? (group.conditions ?? [])
+        : []
+  const attached = (condition: Condition) =>
+    condition.field === 'associations' &&
+    condition.scope === 'self' &&
+    Boolean(condition.childId) &&
+    ((condition.type === 'atLeast' && condition.value === 1) || (condition.type === 'greaterThan' && condition.value === 0))
+  return conditions.length && conditions.every(attached) ? conditions.map((condition) => `id:${condition.childId}`) : null
+}
+
+/** The ids and categories a host's association limits can name this unit by. */
 function attachmentCategoriesOf(definition: Definition, index: CatalogueIndex): string[] {
   const sources = definitionAndTarget(definition, index)
   return [
     ...new Set(
       sources.flatMap((source) =>
-        (source.categoryLinks ?? []).flatMap((category) => [
+        [{ targetId: source.id, name: undefined }, ...(source.categoryLinks ?? [])].flatMap((category) => [
           `id:${category.targetId}`,
           ...(category.name ? [`name:${normalizedName(category.name)}`] : []),
         ]),
@@ -433,7 +464,15 @@ export function attachmentRefusals<T extends AttachmentParty>(
   if (joiner.unattachable) refusals.push({ rule: 'unattachable' })
   const limits = host.attachmentLimits ?? { leader: 1, support: 1, categories: {} }
   const same = occupants.filter((other) => other.attachment?.kind === attachment.kind)
-  if (same.length >= limits[attachment.kind]) return [...refusals, { rule: 'full', limit: limits[attachment.kind], holder: same[0]! }]
+  const named = new Set([joiner, ...occupants].flatMap((party) => party.attachmentCategories ?? []))
+  const raised = (limits.raises ?? []).filter(
+    (raise) => raise.kind === attachment.kind && raise.maximum > limits[attachment.kind] && raise.by.some((key) => named.has(key)),
+  )
+  const allowed = Math.max(limits[attachment.kind], ...raised.map((raise) => raise.maximum))
+  // A datasheet that raises the limit says two of the same Leader still cannot share a unit, which the data does not record.
+  const twin = raised.length ? same.find((other) => sameText(other.name, joiner.name)) : undefined
+  if (twin) return [...refusals, { rule: 'full', limit: 1, holder: twin }]
+  if (same.length >= allowed) return [...refusals, { rule: 'full', limit: allowed, holder: same[0]! }]
   const fullCategory = (joiner.attachmentCategories ?? []).flatMap((category) => {
     const limit = limits.categories[category]
     return limit && occupants.filter((other) => other.attachmentCategories?.includes(category)).length >= limit.maximum ? [limit] : []
