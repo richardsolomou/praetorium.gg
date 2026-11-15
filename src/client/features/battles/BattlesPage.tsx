@@ -139,7 +139,7 @@ export function BattlesPage({ view: asked, search, order }: { view: BattlesView;
             ) : (
               <PageState
                 headingLevel={2}
-                title="No battles yet."
+                title="No battles yet"
                 explanation={`${TRACKER_PITCH} You can also practise on your own first.`}
                 icon={Swords}
                 action={<NewBattle />}

@@ -1,12 +1,12 @@
 The main button ends the current phase (**End the command phase**, **End the movement phase** and so on), then reads **Pass the turn** from the end phase. On a phone, switch between **Your side**, **Battle** and **Opponent**.
 
-Every player has their own colour, shown on their name across Praetorium and in battles, where a side's score blends the colours of everyone on it. Choose yours under **Player colour** in [account settings](/profile), or leave it on **Automatic**. If two players' colours are too alike, such as two blues, the player who joined the battle later gets a different one for that game.
+Every player has their own colour, shown on their name across Praetorium and in battles, where a side's score blends the colours of everyone on it. Choose yours under **Player colour** in [account settings](/profile), or leave it on **Automatic**. If two players' colours are too alike, such as two blues or a pair a colour-blind player can't tell apart, the player who joined the battle later gets a different one for that game.
 
 ![The phase strip at the command phase above the End the command phase button and the undo arrow.](screenshot:track-a-battle-phase 'The phase button')
 
 ## Scoring
 
-In a guided battle, ending a phase where a card scores opens a scoring prompt. Press what the board paid on each card, or **Did not score (or chose not to)**. The next player's turn waits until this is finished. At the end of the fifth round, the final prompt ends with **Finish battle**.
+In a guided battle, ending a phase where a card scores opens a scoring prompt. Press what the board paid on each card, or **Did not score (or chose not to)**. The next player's turn waits until this is finished. **Nothing scored** answers every card you haven't touched. What you've pressed stays if you leave the battle to check a rule and come back, even without a connection, until the scoring is confirmed or undone. Every phone at the battle shows the same presses, and any of them can carry on. At the end of the fifth round, the final prompt ends with **Finish battle**.
 
 Until you turn on rules text, each payout is named by its points instead of the card's words: the lower or higher of two payouts, or one counted for each time it is met. **Turn on Game Datacards** at the top of the prompt shows the card's conditions.
 
@@ -25,6 +25,8 @@ In a manual battle, each side has **−1**, **+1** and **+5** buttons for primar
 Guided battles give each side its Command phase CP automatically. **+1 CP** records your one extra command point for the round, then reads **CP gain used**. Discarding a secondary for CP uses the same allowance.
 
 To use a stratagem, press its cost button, for example **2 CP**. If the cost depends on the board, the **⋮** beside it lets you spend a different amount. A greyed-out stratagem shows why on hover: wrong phase, wrong turn, not enough CP, or its use limit is already spent.
+
+On a phone, the CP figure beside the phase button opens the stratagems you can play now, for whichever side's tab is open, with **+1 CP** beside the command points at the top. Use the buttons at its foot to switch sides. Swipe sideways across the battle to move between **Your side**, **Battle** and **Opponent**.
 
 ![A player's panel with victory points, command points, +1 CP, mission cards and stratagems, each stratagem with a 1 CP button.](screenshot:track-a-battle-stratagems "A stratagem's cost button")
 

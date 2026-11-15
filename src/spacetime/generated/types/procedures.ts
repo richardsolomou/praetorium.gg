@@ -107,7 +107,9 @@ import * as SaveAchievementsProcedure from '../save_achievements_procedure'
 import * as SaveBattleResultsProcedure from '../save_battle_results_procedure'
 import * as SaveRatingStepsProcedure from '../save_rating_steps_procedure'
 import * as SaveRosterProcedure from '../save_roster_procedure'
+import * as SaveScoringDraftProcedure from '../save_scoring_draft_procedure'
 import * as SaveUnitLoadoutProcedure from '../save_unit_loadout_procedure'
+import * as ScoringDraftsProcedure from '../scoring_drafts_procedure'
 import * as SealedEventAddressProcedure from '../sealed_event_address_procedure'
 import * as SealedEventBattleCandidatesProcedure from '../sealed_event_battle_candidates_procedure'
 import * as SealedEventByTokenProcedure from '../sealed_event_by_token_procedure'
@@ -340,8 +342,12 @@ export type SaveRatingStepsArgs = __Infer<typeof SaveRatingStepsProcedure.params
 export type SaveRatingStepsResult = __Infer<typeof SaveRatingStepsProcedure.returnType>
 export type SaveRosterArgs = __Infer<typeof SaveRosterProcedure.params>
 export type SaveRosterResult = __Infer<typeof SaveRosterProcedure.returnType>
+export type SaveScoringDraftArgs = __Infer<typeof SaveScoringDraftProcedure.params>
+export type SaveScoringDraftResult = __Infer<typeof SaveScoringDraftProcedure.returnType>
 export type SaveUnitLoadoutArgs = __Infer<typeof SaveUnitLoadoutProcedure.params>
 export type SaveUnitLoadoutResult = __Infer<typeof SaveUnitLoadoutProcedure.returnType>
+export type ScoringDraftsArgs = __Infer<typeof ScoringDraftsProcedure.params>
+export type ScoringDraftsResult = __Infer<typeof ScoringDraftsProcedure.returnType>
 export type SealedEventAddressArgs = __Infer<typeof SealedEventAddressProcedure.params>
 export type SealedEventAddressResult = __Infer<typeof SealedEventAddressProcedure.returnType>
 export type SealedEventBattleCandidatesArgs = __Infer<typeof SealedEventBattleCandidatesProcedure.params>

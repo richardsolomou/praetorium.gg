@@ -271,7 +271,7 @@ function Bubble({
         <div
           className={cn(
             'border px-3 py-2 text-sm leading-relaxed break-words whitespace-pre-wrap',
-            mine ? 'border-edge-strong bg-raised text-bone' : 'border-info/35 bg-panel text-bone',
+            mine ? 'border-runner bg-raised text-bone' : 'border-info/35 bg-panel text-bone',
             sending && 'opacity-60',
           )}
         >

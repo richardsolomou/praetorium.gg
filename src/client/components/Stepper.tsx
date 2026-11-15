@@ -24,6 +24,7 @@ export function Stepper({
   choices,
   onChoose,
   format = String,
+  touch = false,
 }: {
   label: string
   count: number | null
@@ -41,18 +42,22 @@ export function Stepper({
   choices?: readonly number[]
   onChoose?: (count: number) => void
   format?: (count: number) => string
+  /** 44px targets, for a stepper pressed one-handed at the table. */
+  touch?: boolean
 }) {
   const reasonId = useId()
   const reason = onAdd ? null : blocked
   const stepper = (
-    <span className="relative grid shrink-0 grid-cols-[1.5rem_2rem_1.5rem] items-center gap-1">
-      <CountButton label={`Fewer ${label}`} decrease repeat onClick={onRemove} />
+    <span
+      className={`relative grid shrink-0 items-center gap-1 ${touch ? 'grid-cols-[2.75rem_2.5rem_2.75rem]' : 'grid-cols-[1.5rem_2rem_1.5rem]'}`}
+    >
+      <CountButton label={`Fewer ${label}`} decrease repeat touch={touch} onClick={onRemove} />
       {count !== null && !loading && choices?.length && onChoose ? (
         <Select value={count} onValueChange={(chosen) => chosen !== null && chosen !== count && onChoose(chosen)}>
           {/* The generated trigger always appends a chevron, which leaves no room in the stepper's narrow middle cell. */}
           <SelectPrimitive.Trigger
             aria-label={countLabel}
-            className="readout flex h-6 w-8 items-center justify-center rounded-md border border-runner text-sm transition-colors outline-none hover:bg-input/50 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+            className={`readout flex ${touch ? 'h-11 w-10' : 'h-6 w-8'} items-center justify-center rounded-md border border-runner text-sm transition-colors outline-none hover:bg-input/50 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50`}
           >
             <SelectValue className="flex-none">{format(count)}</SelectValue>
           </SelectPrimitive.Trigger>
@@ -75,7 +80,7 @@ export function Stepper({
           )}
         </span>
       )}
-      <CountButton label={`More ${label}`} repeat onClick={onAdd} describedBy={reason ? reasonId : undefined} />
+      <CountButton label={`More ${label}`} repeat touch={touch} onClick={onAdd} describedBy={reason ? reasonId : undefined} />
       {reason && !reasonBeside ? <BlockedReason id={reasonId}>{reason}</BlockedReason> : null}
     </span>
   )
@@ -107,11 +112,13 @@ export function CountButton({
   label,
   decrease = false,
   repeat = false,
+  touch = false,
   onClick,
   describedBy,
 }: {
   label: string
   decrease?: boolean
+  touch?: boolean
   /** Holding the button keeps stepping until it is released or the step runs out. */
   repeat?: boolean
   onClick?: () => void
@@ -140,7 +147,7 @@ export function CountButton({
     <Button
       variant="outline"
       size="icon-sm"
-      className={`size-6 ${repeat ? 'touch-manipulation [-webkit-touch-callout:none]' : ''} ${onClick ? color : ''}`}
+      className={`${touch ? 'size-11' : 'size-6'} ${repeat ? 'touch-manipulation [-webkit-touch-callout:none]' : ''} ${onClick ? color : ''}`}
       aria-label={label}
       aria-describedby={describedBy}
       disabled={!onClick}

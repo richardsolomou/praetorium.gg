@@ -2208,6 +2208,124 @@ describe('battle changes', () => {
   })
 })
 
+describe('scoring drafts', () => {
+  const moment = (phase: string, since: number) => JSON.stringify(['turn', since, 'creator', phase])
+  function playing() {
+    const host = harness()
+    module.createBattle(host.procedure(host.operator), {
+      payload: JSON.stringify({
+        id: 'battle',
+        token: 'battle-token',
+        userId: 'creator',
+        allyIds: [],
+        opponentIds: ['opponent'],
+        initialCommands: [],
+        now: NOW,
+      }),
+    })
+    host.call(TestAuth.internal(), (ctx) =>
+      ctx.db.commands.insert({
+        key: JSON.stringify(['battle', 1]),
+        battleId: 'battle',
+        seq: 1,
+        userId: 'creator',
+        at: BigInt(NOW),
+        body: JSON.stringify({ kind: 'begin-battle', firstPlayerId: 'creator' }),
+      }),
+    )
+    let seq = 1
+    // Every step must land, so a refused command or a stale save cannot leave the drafts empty for the wrong reason.
+    const submit = (body: Record<string, unknown>) => {
+      const { result } = JSON.parse(
+        module.submitBattle(host.procedure(host.operator), {
+          battleId: 'battle',
+          userId: 'creator',
+          expectedSeq: seq,
+          body: JSON.stringify(body),
+          now: BigInt(NOW),
+          externalRefusal: '',
+        }),
+      ) as { result: { outcome: string; seq?: number } }
+      expect(result).toEqual({ outcome: 'appended', seq: seq + 1 })
+      seq += 1
+    }
+    const send = (userId: string, phase: string, since: number, answers: Record<string, number[]> = { primary: [1, 0] }) =>
+      (
+        JSON.parse(
+          module.saveScoringDraft(host.procedure(host.operator), {
+            battleId: 'battle',
+            userId,
+            body: JSON.stringify({ moment: moment(phase, since), playerId: 'creator', answers }),
+          }),
+        ) as { outcome: string }
+      ).outcome
+    const save = (userId: string, phase: string, since: number, answers?: Record<string, number[]>) =>
+      expect(send(userId, phase, since, answers)).toBe('saved')
+    const drafts = () =>
+      (JSON.parse(module.scoringDrafts(host.procedure(host.operator), { battleId: 'battle' })) as { answers: unknown }[]).map(
+        (draft) => draft.answers,
+      )
+    return { submit, send, save, drafts }
+  }
+
+  it('keeps one draft per prompt, holding whatever either phone pressed last', () => {
+    const battle = playing()
+    battle.save('creator', 'command', 1, { primary: [1, 0] })
+    battle.save('opponent', 'command', 1, { primary: [0, 1] })
+    expect(battle.drafts()).toEqual([{ primary: [0, 1] }])
+  })
+
+  it('keeps the answers through a command that leaves the moment as it was', () => {
+    const battle = playing()
+    battle.save('creator', 'command', 1)
+    battle.submit({ kind: 'pause-clock' })
+    expect(battle.drafts()).toHaveLength(1)
+  })
+
+  it('keeps the answers when a missed score is recorded for an earlier moment', () => {
+    const battle = playing()
+    battle.submit({ kind: 'advance', playerId: 'creator' })
+    battle.save('opponent', 'movement', 2)
+    battle.submit({
+      kind: 'score-settlement',
+      playerId: 'creator',
+      scores: [{ category: 'primary', delta: 1 }],
+      missed: { round: 1, phase: 'command', turn: 'creator' },
+    })
+    expect(battle.drafts()).toHaveLength(1)
+  })
+
+  it('drops the answers once the phase they were for ends', () => {
+    const battle = playing()
+    battle.save('opponent', 'command', 1)
+    battle.submit({ kind: 'advance', playerId: 'creator' })
+    expect(battle.drafts()).toEqual([])
+  })
+
+  it('drops the answers when an undo moves the battle back past their moment', () => {
+    const battle = playing()
+    battle.submit({ kind: 'advance', playerId: 'creator' })
+    battle.save('creator', 'movement', 2)
+    battle.submit({ kind: 'undo', target: 2 })
+    expect(battle.drafts()).toEqual([])
+  })
+
+  it('refuses answers sent for a phase that was undone and played again', () => {
+    const battle = playing()
+    battle.submit({ kind: 'advance', playerId: 'creator' })
+    battle.submit({ kind: 'undo', target: 2 })
+    battle.submit({ kind: 'advance', playerId: 'creator' })
+    expect([battle.send('creator', 'movement', 2), battle.drafts()]).toEqual(['stale', []])
+  })
+
+  it('leaves the stored answers alone when another device sends ones for a moment already left', () => {
+    const battle = playing()
+    battle.submit({ kind: 'advance', playerId: 'creator' })
+    battle.save('creator', 'movement', 2)
+    expect([battle.send('opponent', 'command', 1), battle.drafts()]).toEqual(['stale', [{ primary: [1, 0] }]])
+  })
+})
+
 describe('battle commands', () => {
   const creator = 'creator'
   const create = (procedure: ReturnType<typeof harness>['procedure'], operator: TestAuth, initialCommands: unknown[] = []) =>

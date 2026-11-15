@@ -25,7 +25,7 @@ describe('terrain areas', () => {
   const outlines = (areas: TerrainGeometry['areas']) =>
     renderToStaticMarkup(
       createElement(TerrainBoard, { layout: { name: 'Test layout', pieces: [], geometry: { board, areas } }, templates: [] }),
-    ).match(/<g class="stroke-azure"/g)?.length
+    ).match(/<g class="stroke-parchment"/g)?.length
 
   it('outlines footprints of one terrain area together', () => {
     expect(outlines([footprint('area-1', 10, 'area-1'), footprint('area-2', 14, 'area-1')])).toBe(1)

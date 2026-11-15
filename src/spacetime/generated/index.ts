@@ -175,7 +175,9 @@ import * as SaveAchievementsProcedure from './save_achievements_procedure'
 import * as SaveBattleResultsProcedure from './save_battle_results_procedure'
 import * as SaveRatingStepsProcedure from './save_rating_steps_procedure'
 import * as SaveRosterProcedure from './save_roster_procedure'
+import * as SaveScoringDraftProcedure from './save_scoring_draft_procedure'
 import * as SaveUnitLoadoutProcedure from './save_unit_loadout_procedure'
+import * as ScoringDraftsProcedure from './scoring_drafts_procedure'
 import * as SealedEventAddressProcedure from './sealed_event_address_procedure'
 import * as SealedEventBattleCandidatesProcedure from './sealed_event_battle_candidates_procedure'
 import * as SealedEventByTokenProcedure from './sealed_event_by_token_procedure'
@@ -210,6 +212,7 @@ import * as WebPushTargetsProcedure from './web_push_targets_procedure'
 import MyAdminSignalsRow from './my_admin_signals_table'
 import MyBattleSignalsRow from './my_battle_signals_table'
 import MyProductSignalsRow from './my_product_signals_table'
+import MyScoringDraftSignalsRow from './my_scoring_draft_signals_table'
 import MySessionRow from './my_session_table'
 import PublicProductSignalsRow from './public_product_signals_table'
 
@@ -240,6 +243,14 @@ const tablesSchema = __schema({
       constraints: [],
     },
     MyProductSignalsRow,
+  ),
+  myScoringDraftSignals: __table(
+    {
+      name: 'my_scoring_draft_signals',
+      indexes: [],
+      constraints: [],
+    },
+    MyScoringDraftSignalsRow,
   ),
   mySession: __table(
     {
@@ -420,7 +431,9 @@ const proceduresSchema = __procedures(
   __procedureSchema('save_battle_results', SaveBattleResultsProcedure.params, SaveBattleResultsProcedure.returnType),
   __procedureSchema('save_rating_steps', SaveRatingStepsProcedure.params, SaveRatingStepsProcedure.returnType),
   __procedureSchema('save_roster', SaveRosterProcedure.params, SaveRosterProcedure.returnType),
+  __procedureSchema('save_scoring_draft', SaveScoringDraftProcedure.params, SaveScoringDraftProcedure.returnType),
   __procedureSchema('save_unit_loadout', SaveUnitLoadoutProcedure.params, SaveUnitLoadoutProcedure.returnType),
+  __procedureSchema('scoring_drafts', ScoringDraftsProcedure.params, ScoringDraftsProcedure.returnType),
   __procedureSchema('sealed_event_address', SealedEventAddressProcedure.params, SealedEventAddressProcedure.returnType),
   __procedureSchema(
     'sealed_event_battle_candidates',

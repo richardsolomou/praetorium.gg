@@ -166,7 +166,7 @@ function UnitRow({ unit, rule, placed, onToggle }: { unit: Standing; rule: Rule;
         {onToggle ? (
           <span
             aria-hidden
-            className={`flex size-4 shrink-0 items-center justify-center rounded-sm border ${placed ? 'border-parchment bg-parchment text-parchment-ink' : 'border-edge-strong'}`}
+            className={`flex size-4 shrink-0 items-center justify-center rounded-sm border ${placed ? 'border-parchment bg-parchment text-parchment-ink' : 'border-runner'}`}
           >
             {placed ? <Check className="size-3" strokeWidth={3} /> : null}
           </span>

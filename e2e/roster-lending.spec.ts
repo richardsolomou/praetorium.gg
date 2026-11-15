@@ -41,7 +41,7 @@ test('a friend fields a lent roster, and the battle keeps it after the loan ends
   await befriend(owner, borrower)
 
   await borrower.goto(rosterUrl)
-  await expect(borrower.getByRole('heading', { name: 'Nothing here' })).toBeVisible()
+  await expect(borrower.getByRole('heading', { name: 'No such roster' })).toBeVisible()
 
   await setLoan(owner, rosterUrl, borrowerName, true)
   await borrower.goto('/rosters')

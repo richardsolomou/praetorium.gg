@@ -221,8 +221,8 @@ importers:
         specifier: 0.223.0
         version: 0.223.0(@opentelemetry/api@1.9.1)
       '@posthog/mcp':
-        specifier: 1.1.0
-        version: 1.1.0(@modelcontextprotocol/sdk@1.32.2(supports-color@8.1.1)(zod@4.6.7))(posthog-node@5.61.2(@opentelemetry/api@1.9.1))
+        specifier: 1.2.2
+        version: 1.2.2(@modelcontextprotocol/sdk@1.32.2(supports-color@8.1.1)(zod@4.6.7))(posthog-node@5.61.2(@opentelemetry/api@1.9.1))
       '@posthog/react':
         specifier: 1.11.3
         version: 1.11.3(@types/react@19.3.0)(posthog-js@1.445.3(@types/react@19.3.0)(react@19.3.0))(react@19.3.0)
@@ -284,8 +284,8 @@ importers:
         specifier: ^6.2.15
         version: 6.2.15
       lucide-react:
-        specifier: ^1.67.0
-        version: 1.67.0(@types/react@19.3.0)(react@19.3.0)
+        specifier: ^1.70.0
+        version: 1.70.0(@types/react@19.3.0)(react@19.3.0)
       next-themes:
         specifier: ^0.4.6
         version: 0.4.6(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
@@ -351,8 +351,8 @@ importers:
         specifier: 1.64.0
         version: 1.64.0
       '@posthog/cli':
-        specifier: 0.19.0
-        version: 0.19.0
+        specifier: 0.20.0
+        version: 0.20.0
       '@posthog/rollup-plugin':
         specifier: 1.6.2
         version: 1.6.2(rollup@4.63.2)
@@ -480,8 +480,8 @@ importers:
         specifier: ~58.0.7
         version: 58.0.7(expo@58.0.23(@babel/core@7.29.7(supports-color@8.1.1))(react-dom@19.3.0(react@19.3.0))(react-native-webview@14.0.1(react-native@0.88.1(@babel/core@7.29.7(supports-color@8.1.1))(@types/react@19.3.0)(react@19.3.0)(supports-color@8.1.1))(react@19.3.0))(react-native@0.88.1(@babel/core@7.29.7(supports-color@8.1.1))(@types/react@19.3.0)(react@19.3.0)(supports-color@8.1.1))(react@19.3.0)(supports-color@8.1.1)(typescript@6.0.3))(react-native@0.88.1(@babel/core@7.29.7(supports-color@8.1.1))(@types/react@19.3.0)(react@19.3.0)(supports-color@8.1.1))
       posthog-react-native:
-        specifier: ^4.86.0
-        version: 4.86.0(84223c89b54519fba172f8990111ae89)
+        specifier: ^4.87.0
+        version: 4.87.0(84223c89b54519fba172f8990111ae89)
       react:
         specifier: 19.3.0
         version: 19.3.0
@@ -496,8 +496,8 @@ importers:
         version: 14.0.1(react-native@0.88.1(@babel/core@7.29.7(supports-color@8.1.1))(@types/react@19.3.0)(react@19.3.0)(supports-color@8.1.1))(react@19.3.0)
     devDependencies:
       '@posthog/cli':
-        specifier: ^0.19.0
-        version: 0.19.0
+        specifier: ^0.20.0
+        version: 0.20.0
       '@types/react':
         specifier: ~19.3.0
         version: 19.3.0
@@ -2502,19 +2502,19 @@ packages:
     engines: {node: '>=14.14', npm: '>=6'}
     hasBin: true
 
-  '@posthog/cli@0.19.0':
-    resolution: {integrity: sha512-2fh0UepeCIjyW9MJR0lpMfxaGIgQMj30nI8Nn+wR78Rghk9kJMolxwmh2XaQkOKws4IpuV3y3G2dF2BW8D22iQ==}
+  '@posthog/cli@0.20.0':
+    resolution: {integrity: sha512-HX4o9ddrCdFnDDGrNlqmg2kDLs/04u4fAzFTmTFuLDY54rRbWjyHURNqPQsSjQ2gYGdcfr2clxOV5Lm7LdvAvw==}
     engines: {node: '>=14.14', npm: '>=6'}
     hasBin: true
 
   '@posthog/core@1.63.1':
     resolution: {integrity: sha512-LcUSRUM8zoTdwQFH1kWDQDMOFwiFjJ2lVxOOtpOwp6ezcHdr94KjO84YcoEeYtMuIFVMjasDFWyrOuuMAAg52g==}
 
-  '@posthog/core@1.67.0':
-    resolution: {integrity: sha512-Fuswh9+eX8GgE6bm5h+peQbpzRS79O17rkbop7q7MwiGxFr+WJ5s6lHecTC/U+VEgnH9eb/lgEjHY+44/Ruh3Q==}
+  '@posthog/core@1.68.0':
+    resolution: {integrity: sha512-5kjPcLquzj47qBGn52+7RRXrJJvrTHaRKgxV9izYPFzoVFEftFqSXYZF/ug+yialxDU73dR9apyi+mSaAeaXPw==}
 
-  '@posthog/mcp@1.1.0':
-    resolution: {integrity: sha512-bdNqaRF02D/hamVxF9QUPlkNBeJCi5X3YUHYWGEQbtNZngH5hQxVkdsE8jQHt0rexZ7PVKT4Jn0GOP+E4tr9eA==}
+  '@posthog/mcp@1.2.2':
+    resolution: {integrity: sha512-rO8KP8ZvknCWudkvdPMedJ5aZA1v0D06zjMHJXuLQ8g0doNngEYJ2l8ffNOPyQ+rOTli0Q2PlFXYRim5arzRtg==}
     engines: {node: ^20.20.0 || >=22.22.0}
     peerDependencies:
       '@modelcontextprotocol/sdk': '>=1.26.0'
@@ -2553,8 +2553,8 @@ packages:
   '@posthog/types@1.419.0':
     resolution: {integrity: sha512-XX7zRYt/vK8AzaD6V+oDquAzacZf5exJv971dja9En8Qf6g84Qvc3rpT0w6hDYYLWrjaSSkdjFfvvoXI0ouJDg==}
 
-  '@posthog/types@1.423.0':
-    resolution: {integrity: sha512-4gzXyyXKN6mktVoQQkeIlgAva054P99sUSvVGHd0/mDBYuk3gz2ZDHhPOP5C1j2cl+7Dtu2BeBJr4LfILptm/w==}
+  '@posthog/types@1.425.1':
+    resolution: {integrity: sha512-mh7jyQ5lN+XCeOnMdYkBEFtO/G0TxeLOKTWNH6E6OZjxS4nVM0Tb2xQt+FG5DCFM9qzL2HmuX6A793TwlJVDvw==}
 
   '@react-native/asset-utils@0.88.1':
     resolution: {integrity: sha512-BLb5FF7NgggGYiCsA7KKkK2qFhn0K+6iGXOI+4Ucd+G7Robzw9Gt4WsWwxLt+Od+G+/hyqfz8ASokyWFZ6VcLw==}
@@ -5759,8 +5759,8 @@ packages:
   lru-cache@5.1.1:
     resolution: {integrity: sha512-KpNARQA3Iwv+jTA0utUVVbrh+Jlrr1Fv0e56GGzAFOXN7dk/FviaDW8LHmK52DlcH4WP2n6gI8vN1aesBFgo9w==}
 
-  lucide-react@1.67.0:
-    resolution: {integrity: sha512-z7kd21YNm/Gw3E7mTnq5dTuvV+yc+OEwA//oDENSG1SbZ/NVgKdjxALJFNdGoC0Ji7HaJR2Dha9ev7VUPxy9CQ==}
+  lucide-react@1.70.0:
+    resolution: {integrity: sha512-gCTPPN1MlQUBtUgdsUv+0CAUj+X8hifRUiRBw4E5v7lvDIOIpx0EZezdGQMSimS8pKA6esvullJub4GYr0mCHA==}
     peerDependencies:
       '@types/react': '*'
       react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
@@ -6304,8 +6304,8 @@ packages:
       rxjs:
         optional: true
 
-  posthog-react-native@4.86.0:
-    resolution: {integrity: sha512-gnFiVb9gTGh6gr0+zdTvkiEXFf13LdL2bbkKvUmARixgnluqOmN9rTI544O871PamFKNoY9fybQtvMda2ekNng==}
+  posthog-react-native@4.87.0:
+    resolution: {integrity: sha512-Rd5lKK7Hba9DxxeHqJFF7Y1a0B48xtzvgSdituaDcIqeB/JmRHlgNhpT/ToX31HS3aIDc8JG5Wv138OUSO7Olw==}
     hasBin: true
     peerDependencies:
       '@posthog/react-native-plugin': '>= 2.12.7'
@@ -9244,7 +9244,7 @@ snapshots:
     dependencies:
       detect-libc: 2.1.2
 
-  '@posthog/cli@0.19.0':
+  '@posthog/cli@0.20.0':
     dependencies:
       detect-libc: 2.1.2
 
@@ -9252,13 +9252,13 @@ snapshots:
     dependencies:
       '@posthog/types': 1.419.0
 
-  '@posthog/core@1.67.0':
+  '@posthog/core@1.68.0':
     dependencies:
-      '@posthog/types': 1.423.0
+      '@posthog/types': 1.425.1
 
-  '@posthog/mcp@1.1.0(@modelcontextprotocol/sdk@1.32.2(supports-color@8.1.1)(zod@4.6.7))(posthog-node@5.61.2(@opentelemetry/api@1.9.1))':
+  '@posthog/mcp@1.2.2(@modelcontextprotocol/sdk@1.32.2(supports-color@8.1.1)(zod@4.6.7))(posthog-node@5.61.2(@opentelemetry/api@1.9.1))':
     dependencies:
-      '@posthog/core': 1.67.0
+      '@posthog/core': 1.68.0
       posthog-node: 5.61.2(@opentelemetry/api@1.9.1)
     optionalDependencies:
       '@modelcontextprotocol/sdk': 1.32.2(supports-color@8.1.1)(zod@4.6.7)
@@ -9288,7 +9288,7 @@ snapshots:
 
   '@posthog/types@1.419.0': {}
 
-  '@posthog/types@1.423.0': {}
+  '@posthog/types@1.425.1': {}
 
   '@react-native/asset-utils@0.88.1': {}
 
@@ -12400,7 +12400,7 @@ snapshots:
     dependencies:
       yallist: 3.1.1
 
-  lucide-react@1.67.0(@types/react@19.3.0)(react@19.3.0):
+  lucide-react@1.70.0(@types/react@19.3.0)(react@19.3.0):
     dependencies:
       react: 19.3.0
     optionalDependencies:
@@ -13249,11 +13249,11 @@ snapshots:
     optionalDependencies:
       '@opentelemetry/api': 1.9.1
 
-  posthog-react-native@4.86.0(84223c89b54519fba172f8990111ae89):
+  posthog-react-native@4.87.0(84223c89b54519fba172f8990111ae89):
     dependencies:
       '@babel/runtime': 7.29.10
-      '@posthog/core': 1.67.0
-      '@posthog/types': 1.423.0
+      '@posthog/core': 1.68.0
+      '@posthog/types': 1.425.1
     optionalDependencies:
       '@posthog/react-native-plugin': 2.13.1(react-native@0.88.1(@babel/core@7.29.7(supports-color@8.1.1))(@types/react@19.3.0)(react@19.3.0)(supports-color@8.1.1))(react@19.3.0)
       expo-application: 58.1.2(expo@58.0.23(@babel/core@7.29.7(supports-color@8.1.1))(react-dom@19.3.0(react@19.3.0))(react-native-webview@14.0.1(react-native@0.88.1(@babel/core@7.29.7(supports-color@8.1.1))(@types/react@19.3.0)(react@19.3.0)(supports-color@8.1.1))(react@19.3.0))(react-native@0.88.1(@babel/core@7.29.7(supports-color@8.1.1))(@types/react@19.3.0)(react@19.3.0)(supports-color@8.1.1))(react@19.3.0)(supports-color@8.1.1)(typescript@6.0.3))

@@ -38,6 +38,7 @@ import {
   type LoggedCommand,
 } from '../../src/core/battle'
 import { BATTLE_DIGEST_VERSION, battleDigest, type BattleDigest } from '../../src/core/battleDigest'
+import { scoringDraftSchema, scoringMoment } from '../../src/core/scoringDraft'
 import { teamDispositionChoices } from '../../src/core/teamDisposition'
 import { DEFAULT_PLAYER_DEFAULTS, isPlayerDefaults } from '../../src/core/playerDefaults'
 import { BATTLE_ORDERS } from '../../src/core/battleFilter'
@@ -514,6 +515,7 @@ function deleteBattle(ctx: Context, battleId: string) {
   touchAdmin(ctx)
   if (eventBattle) touchEventById(ctx, eventBattle.eventId)
   for (const row of Array.from(ctx.db.watchedBattles.battleId.filter(battleId))) ctx.db.watchedBattles.key.delete(row.key)
+  dropScoringDrafts(ctx, battleId)
   for (const row of Array.from(ctx.db.commands.battleId.filter(battleId))) ctx.db.commands.key.delete(row.key)
   for (const seat of seats) ctx.db.battleUsers.key.delete(seat.key)
   for (const row of Array.from(ctx.db.guestSeats.battleId.filter(battleId))) ctx.db.guestSeats.seatId.delete(row.seatId)
@@ -1001,6 +1003,26 @@ export const myBattleSignals = spacetime.view(
   },
 )
 
+/**
+ * When each watched battle's scoring drafts last changed. A view of its own, because a bundle decodes a view's rows by
+ * the shape it was built with, so a column added to `my_battle_signals` would break every tab opened before a deploy.
+ * Drafts are only dropped by a command, which `my_battle_signals` already reports.
+ */
+export const myScoringDraftSignals = spacetime.view(
+  { name: 'my_scoring_draft_signals', public: true },
+  t.array(t.row('ScoringDraftSignal', { battleId: t.string().primaryKey(), updatedAt: t.u64() })),
+  (ctx) => {
+    const session = viewerSession(ctx)
+    if (!session) return []
+    return Array.from(ctx.db.watchedBattles.subject.filter(session.subject)).flatMap(({ battleId }) => {
+      if (!ctx.db.battleUsers.key.find(JSON.stringify([battleId, session.userId]))) return []
+      let updatedAt = 0n
+      for (const draft of ctx.db.scoringDrafts.battleId.filter(battleId)) if (draft.updatedAt > updatedAt) updatedAt = draft.updatedAt
+      return [{ battleId, updatedAt }]
+    })
+  },
+)
+
 /** What an offline command carries so its retry lands once; the stored body keeps it under `$sync`. */
 const battleSyncSchema = z.object({
   operationId: z.uuid(),
@@ -1070,6 +1092,15 @@ function battleState(ctx: Context, battleId: string) {
   return { seats, log, state }
 }
 
+/** Drops every scoring draft of the battle, except those written for `keep`, so a draft never outlives its prompt. */
+function dropScoringDrafts(ctx: Context, battleId: string, keep: string | null = null) {
+  for (const draft of Array.from(ctx.db.scoringDrafts.battleId.filter(battleId)))
+    if (keep === null || scoringDraftSchema.safeParse(JSON.parse(draft.body)).data?.moment !== keep)
+      ctx.db.scoringDrafts.key.delete(draft.key)
+}
+
+const hasScoringDrafts = (ctx: Context, battleId: string) => !ctx.db.scoringDrafts.battleId.filter(battleId).next().done
+
 /** Appends a command an event's organizer sends to one of its battles, as `commandRefusal`'s `organizer` allows. */
 function appendOrganizerCommand(
   ctx: Context,
@@ -1081,6 +1112,7 @@ function appendOrganizerCommand(
   ctx.db.commands.insert({ key: JSON.stringify([battleId, seq]), battleId, seq, userId: by, at: nowMs(ctx), body: JSON.stringify(command) })
   for (const seat of seats) touchProduct(ctx, seat.id, 'battles')
   touchBattle(ctx, battleId)
+  dropScoringDrafts(ctx, battleId)
 }
 
 /** Brings a battle still in setup to its event's chess clock limit; one already begun keeps the clock it started with. */
@@ -1185,6 +1217,48 @@ export const battleInvite = spacetime.procedure(
 
 export const stopBattleInvite = spacetime.procedure({ battleId: t.string(), by: t.string() }, t.bool(), (ctx, input) =>
   operatorTx(ctx, (tx) => stopBattleInviteIn(tx, [input.battleId, input.by])),
+)
+
+/**
+ * Keeps the answers to the scoring prompt open now for `draft.playerId`'s side, from whichever seated phone pressed
+ * last. Answers written for a moment the battle has already left, such as ones a device kept while offline after the
+ * scoring landed, answer `stale` and leave the stored draft alone.
+ */
+export const saveScoringDraft = spacetime.procedure(
+  { battleId: t.string(), userId: t.string(), body: t.string() },
+  t.string(),
+  (ctx, input) =>
+    operatorTx(ctx, (tx) => {
+      if (input.body.length > 16_000) throw new SenderError('Scoring draft is too large')
+      const draft = decodePayload(scoringDraftSchema, input.body, 'Invalid scoring draft')
+      if (!tx.db.battleUsers.key.find(JSON.stringify([input.battleId, input.userId]))) throw new SenderError('Battle unavailable')
+      const { state } = battleState(tx, input.battleId)
+      if (!state.players.some((player) => player.id === draft.playerId)) throw new SenderError('Battle unavailable')
+      if (scoringMoment(state) !== draft.moment) return productJson({ outcome: 'stale' })
+      const key = JSON.stringify([input.battleId, draft.playerId])
+      const row = {
+        key,
+        battleId: input.battleId,
+        playerId: draft.playerId,
+        body: JSON.stringify(draft),
+        updatedAt: tx.timestamp.microsSinceUnixEpoch,
+      }
+      if (tx.db.scoringDrafts.key.find(key)) tx.db.scoringDrafts.key.update(row)
+      else tx.db.scoringDrafts.insert(row)
+      return productJson({ outcome: 'saved', updatedAt: safeNumber(row.updatedAt) })
+    }),
+)
+
+/** The unconfirmed scoring answers in a battle, one draft per side's prompt, with when each was last written. */
+export const scoringDrafts = spacetime.procedure({ battleId: t.string() }, t.string(), (ctx, { battleId }) =>
+  operatorTx(ctx, (tx) =>
+    productJson(
+      Array.from(tx.db.scoringDrafts.battleId.filter(battleId)).flatMap((row) => {
+        const draft = scoringDraftSchema.safeParse(JSON.parse(row.body))
+        return draft.success ? [{ ...draft.data, updatedAt: safeNumber(row.updatedAt) }] : []
+      }),
+    ),
+  ),
 )
 
 /** Whether a battle is a draft, and the link and invitations that fill it. */
@@ -2036,6 +2110,17 @@ export const submitBattle = spacetime.procedure(
         applyEntry(state, { seq, by: input.userId, at: safeNumber(at), command: parsed.data })
       if (wasFinished || parsed.data.kind === 'undo' || state.status === 'finished') touchPublic(tx, 'standings')
       if (parsed.data.kind === 'set-battle-group' || parsed.data.kind === 'undo') indexGroupBattle(tx, input.battleId)
+      if (hasScoringDrafts(tx, input.battleId)) {
+        const folded = wasFinished || parsed.data.kind === 'undo' ? battleState(tx, input.battleId).state : state
+        // Scoring that lands, even at the same moment, answers the prompt the drafts were for; a missed score recorded
+        // for an earlier moment does not.
+        const command = parsed.data
+        const answered =
+          command.kind === 'acknowledge-scoring' ||
+          command.kind === 'settle-opponent-turn' ||
+          (command.kind === 'score-settlement' && !command.missed)
+        dropScoringDrafts(tx, input.battleId, answered ? null : scoringMoment(folded))
+      }
       const listed = settleDraft(tx, input.battleId)
       return productJson({
         result: { outcome: 'appended', seq },

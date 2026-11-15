@@ -3,6 +3,7 @@ import { IMPORT_SOURCES, type ImportSource } from '../../core/importSources'
 import { commandRefusal, reduceBattle, type Command, type LoggedCommand, type Refusal, type SubmitResult } from '../../core/battle'
 import { commandSchema } from '../../core/commands'
 import { battleFoldArgs } from '../../core/offlineBattle'
+import { type ScoringDraft, scoringDraftSchema } from '../../core/scoringDraft'
 import { BATTLE_DIGEST_VERSION, type BattleDigest } from '../../core/battleDigest'
 import type { BattleOrder } from '../../core/battleFilter'
 import { feedCursor, type SpacetimeBase } from './client'
@@ -117,6 +118,21 @@ export function withBattles<B extends SpacetimeBase>(Base: B) {
 
     async battleDraftState(battleId: string) {
       return this.read('battle_draft_state', [battleId], z.object({ draft: z.boolean(), invite: battleLink.nullable() }))
+    }
+
+    async saveScoringDraft(battleId: string, userId: string, draft: ScoringDraft) {
+      return this.read(
+        'save_scoring_draft',
+        [battleId, userId, JSON.stringify(draft)],
+        z.discriminatedUnion('outcome', [
+          z.object({ outcome: z.literal('saved'), updatedAt: z.number().int() }),
+          z.object({ outcome: z.literal('stale') }),
+        ]),
+      )
+    }
+
+    async scoringDrafts(battleId: string) {
+      return this.read('scoring_drafts', [battleId], z.array(scoringDraftSchema.extend({ updatedAt: z.number().int() })))
     }
 
     async battleByInvite(link: string) {

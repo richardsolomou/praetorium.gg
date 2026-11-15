@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { Stepper } from '../../components/Stepper'
 import { Button } from '@/components/ui/button'
 import { DialogBody, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/Dialog'
@@ -48,7 +47,8 @@ type Props = {
    */
   round: number
   undo: UndoTarget
-  initialAnswers?: ScoringAnswers
+  /** What has been pressed so far, on this phone or another seated one. */
+  answers: ScoringAnswers
   onAnswersChange: (answers: ScoringAnswers) => void
 }
 
@@ -77,10 +77,9 @@ export function ScoringDialog({
   onCancel,
   round,
   undo,
-  initialAnswers,
+  answers,
   onAnswersChange,
 }: Props) {
-  const [answers, setAnswers] = useState<ScoringAnswers>(() => initialAnswers ?? {})
   const conditions = due.flatMap((card) => card.awards.map(conditionLabel))
   const { choice } = useSourceTexts(conditions)
   // Asked once for the whole prompt: a row each would bury the payouts under identical lines.
@@ -182,15 +181,11 @@ export function ScoringDialog({
     return [`${whose} ${label} cap is ${limit.cap} VP, and ${limit.room} VP of it is left — the other ${over} VP does not score.`]
   })
 
-  const recordAnswers = (next: ScoringAnswers) => {
-    setAnswers(next)
-    onAnswersChange(next)
-  }
   const answer = (card: DueCard, at: number, times: number) => {
     const taken = answerFor(card)
     const chosen = card.awards[at]
     if (!chosen) return
-    recordAnswers({
+    onAnswersChange({
       ...answers,
       [card.key]: card.awards.map((award, index) => (index === at ? times : alternatives(chosen, award) ? 0 : (taken[index] ?? 0))),
     })
@@ -315,7 +310,7 @@ export function ScoringDialog({
                       pending={pending}
                       tone={colours}
                       ariaLabel={`${card.name} scored nothing`}
-                      onPress={() => recordAnswers({ ...answers, [card.key]: card.awards.map(() => 0) })}
+                      onPress={() => onAnswersChange({ ...answers, [card.key]: card.awards.map(() => 0) })}
                     />
                   </div>
                 </div>
@@ -334,9 +329,25 @@ export function ScoringDialog({
               Back
             </Button>
           ) : null}
-          <Button className={colours.fill} disabled={pending || unanswered > 0} onClick={confirm}>
-            {unanswered ? `${unanswered} to answer` : confirmLabel}
-          </Button>
+          {/* Answers only what is still open, so pressing through stays two deliberate presses. */}
+          {unanswered ? (
+            <Button
+              variant="outline"
+              disabled={pending}
+              onClick={() =>
+                onAnswersChange({
+                  ...answers,
+                  ...Object.fromEntries(due.filter((card) => !answers[card.key]).map((card) => [card.key, card.awards.map(() => 0)])),
+                })
+              }
+            >
+              {unanswered === due.length ? 'Nothing scored' : 'Nothing else scored'}
+            </Button>
+          ) : (
+            <Button className={colours.fill} disabled={pending} onClick={confirm}>
+              {confirmLabel}
+            </Button>
+          )}
         </DialogFooter>
       </BattleDialogContent>
     </BattlePromptDialog>
@@ -372,7 +383,7 @@ function AwardRow({
     <div className="flex items-center gap-3 px-3 py-2">
       {join ? (
         <span
-          className="chip shrink-0 border-edge-strong px-1 text-faint"
+          className="chip shrink-0 border-runner px-1 text-faint"
           aria-label={join === 'or' ? 'Alternative objective' : 'Additional objective'}
         >
           {join}
@@ -403,8 +414,9 @@ function AwardRow({
             reasonBeside
             choices={limit === null ? undefined : modelCountChoices({ min: 0, max: limit })}
             onChoose={(chosen) => !pending && onAnswer(chosen)}
+            touch
           />
-          <span className={`chip shrink-0 ${times > 0 ? tone.mark : 'border-edge-strong'}`}>{awardTotal(award, times)} VP</span>
+          <span className={`chip shrink-0 ${times > 0 ? tone.mark : 'border-runner'}`}>{awardTotal(award, times)} VP</span>
         </>
       ) : (
         <Chip
@@ -443,7 +455,7 @@ function Chip({
       aria-label={ariaLabel}
       disabled={pending}
       onClick={onPress}
-      className={`chip shrink-0 px-2 py-1 ${chosen ? tone.mark : `border-edge-strong ${tone.hint}`}`}
+      className={`chip min-h-11 min-w-14 shrink-0 justify-center px-2 ${chosen ? tone.mark : `border-runner ${tone.hint}`}`}
     >
       {label}
     </button>

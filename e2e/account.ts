@@ -683,7 +683,7 @@ export async function selectOrdinaryMissions(prompt: Locator) {
  * Skips the optional mission choices a random hand or a marker primary can open, which a test about something else
  * meets by chance; tests about a choice answer it themselves before calling a turn helper.
  */
-async function skipMissionChoices(page: Page) {
+export async function skipMissionChoices(page: Page) {
   const choice = page.getByRole('dialog', { name: / · choices$/ })
   for (let guard = 0; guard < 5 && (await choice.isVisible()); guard += 1) {
     const name = await choice.getAttribute('aria-labelledby')

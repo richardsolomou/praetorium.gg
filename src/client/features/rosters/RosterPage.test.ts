@@ -10,6 +10,6 @@ vi.mock('@tanstack/react-query', async (original) => ({
 
 it('shows an unavailable roster when access is revoked after its route loaded', () => {
   expect(renderToStaticMarkup(createElement(RosterPage, { id: 'roster', editable: false, snapshot: false }))).toContain(
-    'This roster does not exist or you no longer have access to it.',
+    'This roster was deleted, or you no longer have access to it.',
   )
 })

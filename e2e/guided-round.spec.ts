@@ -11,6 +11,7 @@ import {
   takeTheTurn,
   uniqueName,
   playerPanel,
+  skipMissionChoices,
 } from './account'
 import { battleCommands, battleLog, lastPathSegment, battleIdFor } from './storage'
 import type { Command } from '../src/core/battle'
@@ -80,7 +81,11 @@ test('New Orders, discard CP and carried cards survive a complete two-player rou
   await expect(advanceButton(page)).toBeEnabled()
   await expect(side.getByRole('button', { name: /^Use New Orders for \d CP$/ })).toBeDisabled()
   await page.reload()
-  await expect(side.getByRole('button', { name: /^Use New Orders for \d CP$/ })).toBeDisabled()
+  // A Beacon drawn as the replacement asks for its unit again on a fresh page.
+  const newOrders = side.getByRole('button', { name: /^Use New Orders for \d CP$/ })
+  await expect(newOrders.or(page.getByRole('dialog', { name: / · choices$/ })).first()).toBeVisible()
+  await skipMissionChoices(page)
+  await expect(newOrders).toBeDisabled()
   await expect(side.locator('[data-stat="cp"]')).toHaveText('0')
   for (let phase = 0; phase < 5; phase += 1) await advance(page)
   await page.getByRole('button', { name: 'Pass the turn', exact: true }).click()
@@ -149,15 +154,12 @@ test('both sides settle source final awards beyond round caps through cold offli
       .poll(() =>
         finalTurn.evaluate((element) => {
           const box = element.getBoundingClientRect()
-          return box.left >= 0 && box.right <= innerWidth && (innerWidth > 859 || (box.top === 0 && box.bottom <= innerHeight - 64))
+          return box.left >= 0 && box.right <= innerWidth && (innerWidth > 859 || (box.top >= 0 && box.bottom <= innerHeight - 64))
         }),
       )
       .toBe(true)
   }
   await page.reload()
-  await expect(finalTurn.locator('[data-slot="dialog-footer"] output')).toHaveAccessibleName('Scoring 0 VP')
-  await primary.getByRole('button', { name: 'Gather Intel plus 4', exact: true }).click()
-  await claimFinalAwards(primary)
   await expect(finalTurn.locator('[data-slot="dialog-footer"] output')).toHaveAccessibleName('Scoring 10 VP')
   await waitForOfflineApp(page)
   const url = page.url()

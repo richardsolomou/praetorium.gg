@@ -100,6 +100,22 @@ const battleDrafts = table(
   },
 )
 
+/**
+ * The unconfirmed answers to the scoring prompt open now for one player's side, shared by every seated phone so they
+ * survive leaving the battle and any phone can carry on pressing. Not battle state: the row goes as soon as the battle
+ * leaves the moment it was written for.
+ */
+const scoringDrafts = table(
+  { name: 'scoring_drafts' },
+  {
+    key: t.string().primaryKey(),
+    battleId: t.string().index('btree'),
+    playerId: t.string(),
+    body: t.string(),
+    updatedAt: t.u64(),
+  },
+)
+
 /** The link that lets an account join a battle's open places, and the friends invited with it. */
 const battleInvites = table(
   { name: 'battle_invites' },
@@ -957,6 +973,7 @@ export const productTables = {
   battleFinishes,
   battleStarts,
   battleDrafts,
+  scoringDrafts,
   battleInvites,
   battleDigests,
   battleFeedOrder,

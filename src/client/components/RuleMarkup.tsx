@@ -127,13 +127,13 @@ function Inlines({ content, links }: { content: RuleInline[]; links: RuleLinks }
         )
       case 'underline':
         return (
-          <u key={key} className="underline decoration-edge-strong underline-offset-2">
+          <u key={key} className="underline decoration-runner underline-offset-2">
             <Inlines content={inline.children} links={links} />
           </u>
         )
       case 'keyword':
         return (
-          <span key={key} className="font-semibold text-azure">
+          <span key={key} className="font-semibold text-parchment">
             <Inlines content={inline.children} links={links} />
           </span>
         )

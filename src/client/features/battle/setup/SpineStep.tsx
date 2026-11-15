@@ -116,7 +116,7 @@ export function SpineStep({
         </div>
         <div className="sm:pl-24">
           {hint && !watching ? (
-            <p className={cn('mt-0.5 max-w-prose text-sm text-balance', needed ? 'text-discarded' : 'text-dim')}>{hint}</p>
+            <p className={cn('mt-0.5 max-w-prose text-sm text-balance', needed ? 'text-bone' : 'text-dim')}>{hint}</p>
           ) : null}
           {/* Only the controls go inert and fade: the hint above says why the step isn't open yet, so it stays readable. */}
           <div id={`setup-${id}-body`} className={cn('relative mt-3', locked && 'opacity-50')} inert={locked}>

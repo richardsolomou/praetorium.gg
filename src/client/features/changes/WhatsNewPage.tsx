@@ -155,7 +155,7 @@ function Day({
           {releases.toReversed().map((release) => (
             <span
               key={release.version}
-              className={`w-1.5 ${release.features.length ? 'bg-parchment' : 'bg-edge-strong'}`}
+              className={`w-1.5 ${release.features.length ? 'bg-parchment' : 'bg-runner'}`}
               style={{
                 height: `${(Math.min(release.features.length + release.fixes.length, STRIP_CHANGES) / STRIP_CHANGES) * 100}%`,
                 minHeight: '0.25rem',
@@ -181,7 +181,7 @@ function Release({ release, fresh }: { release: ReleaseNote; fresh: boolean }) {
     <li id={`release-${release.version}`} className="relative scroll-mt-header pt-2 pb-1 pl-5 sm:pl-6">
       <span
         aria-hidden
-        className={`absolute top-[0.85rem] -left-[0.22rem] size-1.5 rotate-45 ${fresh ? 'bg-parchment' : release.features.length ? 'bg-bone' : 'bg-edge-strong'}`}
+        className={`absolute top-[0.85rem] -left-[0.22rem] size-1.5 rotate-45 ${fresh ? 'bg-parchment' : release.features.length ? 'bg-bone' : 'bg-runner'}`}
       />
       <h3 className={`figure text-xs font-normal normal-case ${fresh ? 'text-parchment' : 'text-faint'}`}>{release.version}</h3>
       <ul className="mt-1">

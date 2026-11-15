@@ -71,7 +71,7 @@ function Screenshot({ src, alt, caption }: { src: unknown; alt: string; caption?
             <button
               type="button"
               aria-label={`Enlarge screenshot: ${alt}`}
-              className="block w-fit max-w-full cursor-zoom-in rounded-lg border border-edge bg-sunken p-2 transition-colors hover:border-edge-strong"
+              className="block w-fit max-w-full cursor-zoom-in rounded-lg border border-edge bg-sunken p-2 transition-colors hover:border-runner"
             />
           }
         >
@@ -286,7 +286,7 @@ export function DocPage({ doc }: { doc: ProductDoc }) {
                         to="/docs/$docId"
                         params={{ docId: entry.slug }}
                         aria-current={entry.slug === doc.slug ? 'page' : undefined}
-                        className={`block border-l py-1 pl-3 transition-colors ${entry.slug === doc.slug ? 'border-parchment font-semibold text-bone' : 'border-edge text-dim hover:border-edge-strong hover:text-bone'}`}
+                        className={`block border-l py-1 pl-3 transition-colors ${entry.slug === doc.slug ? 'border-parchment font-semibold text-bone' : 'border-edge text-dim hover:border-runner hover:text-bone'}`}
                       >
                         {entry.title}
                       </Link>

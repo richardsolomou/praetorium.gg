@@ -4,7 +4,8 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent } from '../../components/Dialog'
 import { useCompactChrome } from '../shell/useCompactChrome'
 
-type Props = Omit<ComponentProps<typeof Dialog>, 'defaultOpen' | 'modal' | 'disablePointerDismissal'> & {
+type Props = Omit<ComponentProps<typeof Dialog>, 'defaultOpen' | 'modal' | 'disablePointerDismissal' | 'onOpenChange'> & {
+  onOpenChange?: (open: boolean) => void
   minimizedLabel: string
   resumeLabel?: string
 }
@@ -35,6 +36,12 @@ export function BattlePromptDialog({ children, open, onOpenChange, minimizedLabe
     [id, register],
   )
 
+  const shown = (open ?? internalOpen) && !inspecting
+  const change = (next: boolean) => {
+    if (open === undefined) setInternalOpen(next)
+    onOpenChange?.(next)
+  }
+
   return (
     // Marked only while open, so a closed prompt mounted beside other dialogs does not reshape them.
     <div
@@ -45,13 +52,10 @@ export function BattlePromptDialog({ children, open, onOpenChange, minimizedLabe
       <InspectContext.Provider value={register ? inspect : null}>
         <Dialog
           {...props}
-          open={(open ?? internalOpen) && !inspecting}
+          open={shown}
           modal={!applicationNavigation}
           disablePointerDismissal={applicationNavigation}
-          onOpenChange={(next, details) => {
-            if (open === undefined) setInternalOpen(next)
-            onOpenChange?.(next, details)
-          }}
+          onOpenChange={(next) => change(next)}
         >
           {children}
         </Dialog>
@@ -60,7 +64,7 @@ export function BattlePromptDialog({ children, open, onOpenChange, minimizedLabe
         <div
           data-minimized-battle-prompt
           style={{ marginBottom: `${stackIndex * 4.5}rem` }}
-          className="fixed right-3 left-[calc(var(--app-chrome-left)+0.75rem)] z-50 flex items-center justify-between gap-3 rounded-lg border border-edge-strong bg-panel p-2 shadow-xl lg:inset-x-auto lg:right-4 lg:bottom-4"
+          className="fixed right-3 left-[calc(var(--app-chrome-left)+0.75rem)] z-50 flex items-center justify-between gap-3 rounded-lg border border-runner bg-panel p-2 shadow-xl lg:inset-x-auto lg:right-4 lg:bottom-4"
         >
           <div className="min-w-0 pl-1">
             <p className="truncate text-sm font-semibold">{minimizedLabel}</p>
@@ -80,28 +84,25 @@ export function BattlePromptDialog({ children, open, onOpenChange, minimizedLabe
 export function BattleDialogContent({
   children,
   minimizeDisabled = false,
+  className,
+  showCloseButton,
   ...props
 }: ComponentProps<typeof DialogContent> & { minimizeDisabled?: boolean }) {
   const inspect = useContext(InspectContext)
-  return (
-    <DialogContent
-      {...props}
-      data-battle-dialog-content
-      actions={
-        inspect ? (
-          <Button
-            variant="outline"
-            size="icon-sm"
-            aria-label="Minimize dialog"
-            title="Minimize dialog"
-            disabled={minimizeDisabled}
-            onClick={inspect}
-          >
-            <Minus />
-          </Button>
-        ) : null
-      }
+  const actions = inspect ? (
+    <Button
+      variant="outline"
+      size="icon-sm"
+      aria-label="Minimize dialog"
+      title="Minimize dialog"
+      disabled={minimizeDisabled}
+      onClick={inspect}
     >
+      <Minus />
+    </Button>
+  ) : null
+  return (
+    <DialogContent {...props} className={className} showCloseButton={showCloseButton} data-battle-dialog-content actions={actions}>
       {children}
     </DialogContent>
   )

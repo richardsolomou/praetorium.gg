@@ -181,7 +181,14 @@ it.each(['product', 'battle'] as const)('recovers a %s subscription after socket
     subscribe: vi.fn(),
   }
   socket.connected!({
-    db: { mySession: signal, myBattleSignals: signal, myProductSignals: signal, myAdminSignals: signal, publicProductSignals: signal },
+    db: {
+      mySession: signal,
+      myBattleSignals: signal,
+      myScoringDraftSignals: signal,
+      myProductSignals: signal,
+      myAdminSignals: signal,
+      publicProductSignals: signal,
+    },
     subscriptionBuilder: () => subscription,
     reducers: { watchBattle: vi.fn(async () => {}) },
   })
@@ -232,6 +239,7 @@ function apply(rows: { product?: { scope: string; revision: bigint }[]; battle?:
   const db = {
     mySession: table(),
     myBattleSignals: table(rows.battle),
+    myScoringDraftSignals: table(),
     myProductSignals: table(rows.product),
     myAdminSignals: table(),
     publicProductSignals: table(),

@@ -140,7 +140,7 @@ test('a roster still waiting to sync opens in a new tab and a missing one shows 
   await tab.goto(`/rosters/${id}`)
   await expect(tab.getByLabel('List name')).toHaveValue(name)
   await tab.goto(`/rosters/${crypto.randomUUID()}`)
-  await expect(tab.getByRole('heading', { name: 'Nothing here' })).toBeVisible()
+  await expect(tab.getByRole('heading', { name: 'No such roster' })).toBeVisible()
 })
 
 test('a lost save response retains its identity and later edits sync in order', async ({ page, context }) => {

@@ -128,7 +128,7 @@ function ResultList({
                   aria-setsize={results.length}
                   tabIndex={-1}
                   onClick={() => onSelect(row.result)}
-                  className="group flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left hover:bg-raised aria-selected:bg-raised aria-selected:inset-ring-1 aria-selected:inset-ring-edge-strong"
+                  className="group flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left hover:bg-raised aria-selected:bg-raised aria-selected:inset-ring-1 aria-selected:inset-ring-runner"
                 >
                   {content}
                 </button>

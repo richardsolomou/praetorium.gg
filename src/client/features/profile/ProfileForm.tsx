@@ -9,7 +9,7 @@ const FORM = 5
 const RESULT = {
   won: { letter: 'W', tint: 'border-achieved/60 bg-achieved/15 text-achieved' },
   lost: { letter: 'L', tint: 'border-rust/60 bg-rust/15 text-rust' },
-  drawn: { letter: 'D', tint: 'border-edge-strong bg-raised text-dim' },
+  drawn: { letter: 'D', tint: 'border-runner bg-raised text-dim' },
 } as const
 
 /**
@@ -85,7 +85,7 @@ export function ProfileForm({
         <Link
           to="/leaderboard"
           search={{ faction: undefined }}
-          className="flex [&>span]:transition-colors [&>span]:hover:border-edge-strong [&>span]:hover:bg-raised"
+          className="flex [&>span]:transition-colors [&>span]:hover:border-runner [&>span]:hover:bg-raised"
         >
           <Fact label="Leaderboard">
             <span className="figure text-sm font-bold text-bone">
@@ -100,7 +100,7 @@ export function ProfileForm({
           to="/users/$userId"
           params={{ userId }}
           search={{ tab: 'achievements' }}
-          className="flex [&>span]:transition-colors [&>span]:hover:border-edge-strong [&>span]:hover:bg-raised"
+          className="flex [&>span]:transition-colors [&>span]:hover:border-runner [&>span]:hover:bg-raised"
         >
           <Fact label="Achievements">
             <span className="figure text-sm font-bold text-bone">

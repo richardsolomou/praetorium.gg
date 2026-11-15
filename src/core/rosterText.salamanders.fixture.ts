@@ -109,3 +109,50 @@ Redemptor Dreadnought (170 Points)
 • 1x Redemptor Fist
 
 Exported with App Version: v2.8.1 (1), Data Version: v995`
+
+/** New Recruit export under the official app's header, supplied in an automatic import failure report on 15 November 2026 (v38.3). */
+export const salamandersNewRecruitAppHeader = `2k Salamanders - Fighting (1,990 Points)
+
+Space Marines
+Salamanders
+Ironclad Champions, Ironstorm Spearhead, and Terminator Storm Force (3 Detachment Points)
+Purge the Foe
+Strike Force (2,000 Points)
+
+Char1: 1x Captain in Terminator Armour (115 pts): Warlord, Combi-weapon, Relic Fist
+Enhancement: Corporeum Reliquary (+25 pts)
+Leading Terminator Assault Squad
+Char2: 1x Librarian in Terminator Armour (100 pts): Force weapon, Smite, Storm bolter
+Enhancement: Champion of the First Company (+20 pts)
+Leading Terminator Squad
+
+5x Intercessor Squad (85 pts)
+• 1x Intercessor Sergeant: Bolt pistol, Bolt Rifle, Knives and Fists
+• 4x Intercessor: 4 with Bolt pistol, Bolt Rifle, Knives and Fists
+
+1x Gladiator Lancer (185 pts): Armoured Hull, Defensive Array, Lancer Laser Destroyer
+Enhancement: Redoubtable Machine Spirit (Upgrade) (+25 pts)
+1x Gladiator Lancer (185 pts): Armoured Hull, Defensive Array, Lancer Laser Destroyer
+Enhancement: Redoubtable Machine Spirit (Upgrade) (+25 pts)
+1x Redemptor Dreadnought (210 pts): Redemptor Fist, Heavy Onslaught Gatling Cannon, Onslaught gatling cannon, Storm Bolters
+Enhancement: Artificer Sarcophagus (Upgrade) (+40 pts)
+1x Redemptor Dreadnought (210 pts): Redemptor Fist, Heavy Onslaught Gatling Cannon, Onslaught gatling cannon, Storm Bolters
+Enhancement: Artificer Sarcophagus (Upgrade) (+40 pts)
+5x Scout Squad (65 pts)
+• 1x Scout Sergeant: Bolt pistol, Combat Knife, Boltgun
+• 4x Scouts: 4 with Bolt pistol, Boltgun, Combat Knife
+5x Scout Squad (65 pts)
+• 1x Scout Sergeant: Bolt pistol, Combat Knife, Boltgun
+• 4x Scouts: 4 with Bolt pistol, Boltgun, Combat Knife
+10x Terminator Assault Squad (390 pts)
+• 1x Assault Terminator Sergeant: Storm Shield, Thunder Hammer
+• 9x Assault Terminator: 9 with Storm Shield, Thunder Hammer
+  Attached to Captain in Terminator Armour
+10x Terminator Squad (380 pts)
+• 9x Terminator
+    1 with Power fist, Heavy Flamer
+    8 with Power fist, Storm bolter
+• 1x Terminator Sergeant: Storm bolter, Power fist
+  Attached to Librarian in Terminator Armour
+
+Created with newrecruit.eu v38.3`

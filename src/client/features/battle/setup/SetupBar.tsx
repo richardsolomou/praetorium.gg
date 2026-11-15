@@ -34,7 +34,7 @@ export function SetupBar({
             <p className="line-clamp-2 text-sm text-destructive">{problem}</p>
           ) : remaining.length ? (
             <a href={next ? `#setup-${next}` : undefined} className="block min-w-0 hover:text-bone">
-              <span className="figure block text-xs font-bold text-discarded uppercase">{remaining.length} left</span>
+              <span className="figure block text-xs font-bold text-bone uppercase">{remaining.length} left</span>
               <span className="block truncate text-xs text-dim">{remaining.join(' · ')}</span>
             </a>
           ) : (

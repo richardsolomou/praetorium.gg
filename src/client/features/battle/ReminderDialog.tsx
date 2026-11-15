@@ -37,26 +37,7 @@ export function ReminderDialog({
             <article key={reminder.key} className="part p-3">
               <div className="flex items-start justify-between gap-3">
                 <h3 className="text-sm font-semibold text-bone">{reminder.ability}</h3>
-                <DropdownMenu>
-                  <DropdownMenuTrigger
-                    render={
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-7 shrink-0 px-2 text-xs"
-                        aria-label={`Hide ${reminder.ability} for a period`}
-                      />
-                    }
-                  >
-                    Hide for…
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-40">
-                    <DropdownMenuItem onClick={() => onDismiss(members, 'phase')}>This phase</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => onDismiss(members, 'turn')}>This turn</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => onDismiss(members, 'round')}>This round</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => onDismiss(members, 'battle')}>This battle</DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                {groups.length > 1 ? <HideFor ability={reminder.ability} onHide={(scope) => onDismiss(members, scope)} /> : null}
               </div>
               {units ? <p className="eyebrow mt-1">{units}</p> : null}
               {reminder.description ? (
@@ -68,10 +49,47 @@ export function ReminderDialog({
           ))}
         </DialogBody>
 
-        <DialogFooter>
+        {/* One reminder's Hide for… sits beside the button that closes it, both under the thumb. */}
+        <DialogFooter className="flex-row justify-end gap-2">
+          {groups.length === 1 ? (
+            <HideFor ability={groups[0]!.reminder.ability} onHide={(scope) => onDismiss(groups[0]!.members, scope)} footer />
+          ) : null}
           <Button onClick={onDone}>{confirmLabel}</Button>
         </DialogFooter>
       </BattleDialogContent>
     </BattlePromptDialog>
+  )
+}
+
+function HideFor({
+  ability,
+  onHide,
+  footer = false,
+}: {
+  ability: string
+  onHide: (scope: ReminderDismissalScope) => void
+  footer?: boolean
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <Button
+            variant="outline"
+            size={footer ? 'default' : 'sm'}
+            className={footer ? undefined : 'h-7 shrink-0 px-2 text-xs'}
+            aria-label={`Hide ${ability} for a period`}
+          />
+        }
+      >
+        Hide for…
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-40">
+        <DropdownMenuItem onClick={() => onHide('phase')}>This phase</DropdownMenuItem>
+        <DropdownMenuItem onClick={() => onHide('turn')}>This turn</DropdownMenuItem>
+        <DropdownMenuItem onClick={() => onHide('round')}>This round</DropdownMenuItem>
+        <DropdownMenuItem onClick={() => onHide('battle')}>This battle</DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   )
 }

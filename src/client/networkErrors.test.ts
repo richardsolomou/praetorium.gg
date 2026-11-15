@@ -1,5 +1,11 @@
 import { expect, it } from 'vitest'
-import { isFetchNetworkFailure, isModuleLoadFailure } from './networkErrors'
+import {
+  HttpStatusError,
+  isFetchNetworkFailure,
+  isModuleLoadFailure,
+  SERVER_UNANSWERED_MESSAGE,
+  serverFunctionFetch,
+} from './networkErrors'
 
 it.each([
   new TypeError('Failed to fetch'),
@@ -30,4 +36,20 @@ it.each([
 
 it('does not treat a dropped fetch as a failed chunk load', () => {
   expect(isModuleLoadFailure(new TypeError('Failed to fetch'))).toBe(false)
+})
+
+const answering = (response: Response) => serverFunctionFetch('/_serverFn/x', {}, () => Promise.resolve(response))
+
+it("says Praetorium didn't answer instead of quoting a proxy's error page", async () => {
+  const page = new Response('<html><body>502 Bad Gateway</body></html>', { status: 502, headers: { 'content-type': 'text/html' } })
+  await expect(answering(page)).rejects.toThrow(SERVER_UNANSWERED_MESSAGE)
+})
+
+it('keeps the status of an answer that is not the service', async () => {
+  await expect(answering(new Response(null, { status: 503 }))).rejects.toBeInstanceOf(HttpStatusError)
+})
+
+it('passes on the error a server function sent', async () => {
+  const sent = new Response('{}', { status: 500, headers: { 'content-type': 'application/json', 'x-tss-serialized': 'true' } })
+  await expect(answering(sent)).resolves.toBe(sent)
 })

@@ -36,7 +36,12 @@ export function DialogContent({
   className,
   children,
   ...props
-}: ComponentProps<typeof GeneratedDialogContent> & { size?: keyof typeof SIZES; fill?: boolean; fit?: boolean; actions?: ReactNode }) {
+}: ComponentProps<typeof GeneratedDialogContent> & {
+  size?: keyof typeof SIZES
+  fill?: boolean
+  fit?: boolean
+  actions?: ReactNode
+}) {
   return (
     <GeneratedDialogContent
       {...props}

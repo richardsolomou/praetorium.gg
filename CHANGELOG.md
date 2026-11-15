@@ -1,5 +1,35 @@
 # praetorium
 
+## 0.252.2 (2026-11-15)
+
+### Patch Changes
+
+- 8ed3bae: On a slow connection, a battle now shows its phase button straight away, reading Connecting… until it can be pressed.
+- 727fc94: Two players whose colours would look the same to a colour-blind player are now given colours that look different.
+- 216a8fa: A scoring prompt's confirm button now turns grey until every card is answered, instead of showing a faded side colour that looked pressable.
+- 9ecbd3c: Achieved and best marks are a deeper green, so they no longer look like buttons and the current selection.
+- 80517ac: Empty Notifications and Battles pages now look like the other empty pages.
+- ee7e43e: Missing battles, rosters, groups and rules now say what is missing and link back to the list they belong to.
+- e539502: On a slow connection, a thin green line under the header now shows a page is loading, and a roster that is still opening keeps the app header.
+- ca7dc2d: A page that fails to load now says whether you're offline, never shows internal error text, and offers a way back to the list it belongs to.
+- 7ea46ce: On phones, messages now appear at the bottom of the screen above the tab bar and battle controls, instead of covering the scoreboard and dialog titles.
+- 40c2279: A single battle reminder now puts Hide for… beside Dismiss.
+- a0c100e: The round summary now lines up both sides' scores when only one side has Battle ready points.
+- 1586b7b: On phones, each score on the battle scoreboard now shows its players' pictures or initials, so it doesn't rely on colour alone.
+- 4f5e7e6: Scoring prompts have larger buttons on phones, and one press answers every card that scored nothing.
+- 9e9dc8b: When Praetorium can't be reached during an update, battle actions and pages now say so plainly instead of showing a raw error page.
+- 65a484b: Battle setup's remaining steps are now shown in plain text instead of the warning colour.
+- 1620e31: On phones, your command points now sit beside the phase button and open the stratagems you can play now, with +1 CP, without scrolling.
+- 4f3efae: The supporter mark is a lighter gold, so it no longer reads as a warning.
+- c120725: On phones, swipe sideways to move between your side, the battle and your opponent, and switch sides inside the stratagems panel without reaching for the tabs at the top.
+- 8ee98c3: On the terrain board, mat positions are now square markers and edge distances arrows, so the two stay apart for colour-blind players.
+
+## 0.252.1 (2026-11-15)
+
+### Patch Changes
+
+- 75761f4: New Recruit lists exported with the official app's header now import with their faction, detachments and battle size.
+
 ## 0.252.0 (2026-11-15)
 
 ### Minor Changes
