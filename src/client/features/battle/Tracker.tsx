@@ -20,6 +20,7 @@ import {
 import { appliesInMode, type MissionAward } from '../../missionText'
 import { automaticAttemptsExhausted, claimAutomaticAttempt } from './automaticAttempts'
 import type { SendCommand } from './useCommand'
+import { useScoringDrafts } from './scoringDrafts'
 import {
   parseReminderDismissals,
   pruneReminderDismissals,
@@ -159,8 +160,8 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
     },
     [promptMinimized, send],
   )
-  // Answers in progress survive a dialog closing for a reminder or a minimised prompt.
-  const [scoringDrafts, setScoringDrafts] = useState<ReadonlyMap<string, { signature: string; answers: ScoringAnswers }>>(new Map())
+  // Answers in progress survive a dialog closing, leaving the battle and a lost connection, and show on the other phones.
+  const scoringDrafts = useScoringDrafts(view)
   const [drawDrafts, setDrawDrafts] = useState<ReadonlyMap<string, DrawSelection>>(new Map())
   const [discardDrafts, setDiscardDrafts] = useState<ReadonlyMap<string, string[]>>(new Map())
   const reminderPrompt = reminderPrompts[0] ?? null
@@ -359,11 +360,11 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
   const scoringDraft = (side: Side, round: number, moment: string, cards: readonly DueCard[]) => {
     const id = JSON.stringify([view.token, side.captain.id, round, moment])
     const signature = JSON.stringify(cards.map((card) => [card.key, card.awards]))
-    const saved = scoringDrafts.get(id)
     return {
       key: `${id}:${signature}`,
-      initialAnswers: saved?.signature === signature ? saved.answers : undefined,
-      onAnswersChange: (answers: ScoringAnswers) => setScoringDrafts((current) => new Map(current).set(id, { signature, answers })),
+      initialAnswers: answersFor(cards, scoringDrafts.ownAnswers(side.captain.id)),
+      peers: scoringDrafts.peerAnswers(side.captain.id).map((peer) => ({ ...peer, answers: answersFor(cards, peer.answers) ?? {} })),
+      onAnswersChange: (answers: ScoringAnswers) => scoringDrafts.save(side.captain.id, answers),
     }
   }
   const activeNeedsReferences = needsCardReferences(active)
@@ -758,6 +759,7 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
           <ScoringDialog
             key={activeScoringDraft.key}
             initialAnswers={activeScoringDraft.initialAnswers}
+            peers={activeScoringDraft.peers}
             onAnswersChange={activeScoringDraft.onAnswersChange}
             side={active}
             due={due}
@@ -794,6 +796,7 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
           <ScoringDialog
             key={owedScoringDraft.key}
             initialAnswers={owedScoringDraft.initialAnswers}
+            peers={owedScoringDraft.peers}
             onAnswersChange={owedScoringDraft.onAnswersChange}
             side={settlementSide}
             due={owedCards}
@@ -873,6 +876,17 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
         ) : null}
       </main>
     </BattleMinimizeContext.Provider>
+  )
+}
+
+/** Restored answers for the cards still due, each only while the card still asks the same number of payouts. */
+function answersFor(cards: readonly DueCard[], saved: ScoringAnswers | undefined): ScoringAnswers | undefined {
+  if (!saved) return undefined
+  return Object.fromEntries(
+    cards.flatMap((card) => {
+      const answer = saved[card.key]
+      return answer?.length === card.awards.length ? [[card.key, answer]] : []
+    }),
   )
 }
 

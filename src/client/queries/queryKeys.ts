@@ -84,6 +84,7 @@ export const battleInvitationKey = (invite: string) => ['battle-invitation', inv
 export const myDraftsKey = () => ['my-drafts']
 export const battleDraftKey = (token: string) => ['battle-draft', token]
 export const reportKey = (token: string) => ['report', token]
+export const scoringDraftsKey = (token: string) => ['scoring-drafts', token]
 /** Without a sequence, every replayed point of the battle. */
 export const battleReplayKey = (token: string, seq?: number) =>
   seq === undefined ? ['battle-replay', token] : ['battle-replay', token, seq]

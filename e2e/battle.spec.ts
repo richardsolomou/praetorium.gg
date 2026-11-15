@@ -507,6 +507,9 @@ test('a tactical hand pays out when the card says', async ({ browser }) => {
   await expect(scoring).toBeHidden()
   await advance(alice)
   await alice.getByRole('button', { name: 'Pass the turn' }).click()
+  // Undoing back past the prompt drops what was pressed on it.
+  await expect(scoring.locator('[data-slot="dialog-footer"] output')).toHaveAccessibleName('Scoring 0 VP')
+  await answer.click()
   await expect(scoring.locator('[data-slot="dialog-footer"] output')).toHaveAccessibleName(`Scoring ${scored} VP`)
 
   // Hold Bob's first submission so Alice deterministically wins this race.

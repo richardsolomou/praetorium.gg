@@ -26,6 +26,8 @@ import { MissionSelectionRecords } from './MissionSelectionRecord'
 import { BattleDialogContent, BattlePromptDialog } from './BattlePromptDialog'
 import { tint } from './battleTints'
 import { UndoLatest, type UndoTarget } from './UndoLatest'
+import { PlayerTint } from './battleColours'
+import type { PeerAnswers } from './scoringDrafts'
 
 /** Which side a prompt is recording for, in the colours it wears to say so. */
 type Tone = ReturnType<typeof tint>
@@ -49,6 +51,8 @@ type Props = {
   round: number
   undo: UndoTarget
   initialAnswers?: ScoringAnswers
+  /** What the other players have pressed on this prompt and not confirmed, shown beside this device's own answers. */
+  peers?: readonly PeerAnswers[]
   onAnswersChange: (answers: ScoringAnswers) => void
 }
 
@@ -56,6 +60,7 @@ type Props = {
 export type ScoringAnswers = Record<string, number[]>
 
 const CATEGORIES = ['primary', 'secondary'] as const
+const NO_PEERS: readonly PeerAnswers[] = []
 
 /**
  * What each card asks, at the moment it asks it.
@@ -78,9 +83,16 @@ export function ScoringDialog({
   round,
   undo,
   initialAnswers,
+  peers = NO_PEERS,
   onAnswersChange,
 }: Props) {
   const [answers, setAnswers] = useState<ScoringAnswers>(() => initialAnswers ?? {})
+  // Answers saved elsewhere can arrive after the prompt opens; they fill it only while nothing has been pressed here.
+  const [restored, setRestored] = useState(initialAnswers)
+  if (initialAnswers !== restored) {
+    setRestored(initialAnswers)
+    if (initialAnswers && !Object.keys(answers).length) setAnswers(initialAnswers)
+  }
   const conditions = due.flatMap((card) => card.awards.map(conditionLabel))
   const { choice } = useSourceTexts(conditions)
   // Asked once for the whole prompt: a row each would bury the payouts under identical lines.
@@ -92,7 +104,8 @@ export function ScoringDialog({
   // A card counts once the player has pressed something on it, nothing scored included, so none is settled by default.
   const unanswered = due.filter((card) => !answers[card.key]).length
   const answerFor = (card: DueCard) => answers[card.key] ?? card.awards.map(() => 0)
-  const claimedFor = (card: DueCard) => card.awards.reduce((total, award, at) => total + awardTotal(award, answerFor(card)[at] ?? 0), 0)
+  const claimedFor = (card: DueCard, times = answerFor(card)) =>
+    card.awards.reduce((total, award, at) => total + awardTotal(award, times[at] ?? 0), 0)
   const finalClaimedFor = (card: DueCard) =>
     card.awards.reduce(
       (total, award, at) => total + (award.trigger.timing === 'end-of-battle' ? awardTotal(award, answerFor(card)[at] ?? 0) : 0),
@@ -134,6 +147,14 @@ export function ScoringDialog({
   const total = settled.reduce((sum, entry) => sum + entry.scoring, 0)
   const finalScoring = settled.reduce((sum, entry) => sum + (entry.finalScoring ?? 0), 0)
   const finalClaimed = due.filter((card) => card.category === 'primary').reduce((sum, card) => sum + finalClaimedFor(card), 0)
+  const peerTotal = (peer: PeerAnswers) => due.reduce((sum, card) => sum + claimedFor(card, peer.answers[card.key] ?? []), 0)
+  const peersPressing = (card: DueCard, at: number | 'none') =>
+    peers.flatMap((peer) => {
+      const times = peer.answers[card.key]
+      if (!times) return []
+      if (at === 'none') return times.every((count) => count === 0) ? [{ peer, times: 0 }] : []
+      return (times[at] ?? 0) > 0 ? [{ peer, times: times[at] ?? 0 }] : []
+    })
   const finalAwardsDue = due.some((card) => card.awards.some((award) => award.trigger.timing === 'end-of-battle'))
 
   // Only the categories this prompt can actually pay into, so a round cap is stated
@@ -243,6 +264,14 @@ export function ScoringDialog({
 
         <DialogBody className="gap-3">
           <DialogDescription>Press what the board actually paid on each card.</DialogDescription>
+          {peers.map((peer) => (
+            <p key={peer.userId} data-peer-answers={peer.userId} className="text-sm text-dim">
+              <PlayerTint playerId={peer.userId} className="font-semibold">
+                {peer.name}
+              </PlayerTint>{' '}
+              <span>has {peerTotal(peer)} VP marked, not yet confirmed.</span>
+            </p>
+          ))}
           {gap ? <SourceTextPrompt missing={gap.missing} source={gap.needs} /> : null}
           {finalAwardsDue ? (
             <p className="text-sm text-dim">Final awards: {finalScoring} VP. Round limits do not apply; the battle limit still applies.</p>
@@ -302,13 +331,17 @@ export function ScoringDialog({
                       condition={readable(award)}
                       join={payoutJoin(award, card.awards[at - 1])}
                       times={taken[at] ?? 0}
+                      peers={peersPressing(card, at)}
                       pending={pending}
                       tone={colours}
                       onAnswer={(times) => answer(card, at, times)}
                     />
                   ))}
                   <div className="flex items-center gap-3 px-3 py-2">
-                    <span className="min-w-0 flex-1 text-sm text-dim">Did not score (or chose not to)</span>
+                    <span className="min-w-0 flex-1 text-sm text-dim">
+                      Did not score (or chose not to)
+                      <PeerPresses presses={peersPressing(card, 'none')} counted={false} />
+                    </span>
                     <Chip
                       label="0 VP"
                       chosen={Boolean(answers[card.key]) && taken.every((times) => times === 0)}
@@ -366,6 +399,7 @@ function AwardRow({
   condition,
   join,
   times,
+  peers,
   pending,
   tone,
   onAnswer,
@@ -377,6 +411,7 @@ function AwardRow({
   /** Whether this replaces the payout above or can score alongside it. */
   join: 'or' | 'plus' | null
   times: number
+  peers: readonly PeerPress[]
   pending: boolean
   /** The side these points go to, so every mark in the prompt names the same one. */
   tone: Tone
@@ -406,6 +441,7 @@ function AwardRow({
             {award.vp} VP each{award.max === null ? '' : `, up to ${award.max} VP`}
           </span>
         ) : null}
+        <PeerPresses presses={peers} counted={counted(award)} />
       </span>
       {counted(award) ? (
         <>
@@ -435,6 +471,24 @@ function AwardRow({
       )}
     </div>
   )
+}
+
+type PeerPress = { peer: PeerAnswers; times: number }
+
+/** Another player's unconfirmed mark, read-only and dashed like anything still pending. */
+function PeerPresses({ presses, counted: isCounted }: { presses: readonly PeerPress[]; counted: boolean }) {
+  return presses.map(({ peer, times }) => (
+    <span
+      key={peer.userId}
+      data-peer-press={peer.userId}
+      className="mt-1 flex w-fit rounded-sm border border-dashed border-runner-hi px-1 text-3xs text-dim"
+    >
+      <PlayerTint playerId={peer.userId} className="font-semibold">
+        {peer.name}
+      </PlayerTint>
+      <span>&nbsp;marked {isCounted ? `×${times}` : 'this'}</span>
+    </span>
+  ))
 }
 
 /** The payout itself is the control: pressing the number is how it is claimed. */
