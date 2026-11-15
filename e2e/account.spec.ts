@@ -17,6 +17,7 @@ import {
   signOut,
   chooseLibraryAction,
   PHONE,
+  expandStep,
 } from './account'
 
 /**
@@ -273,6 +274,7 @@ test('profile defaults apply to rosters while battles infer their format', async
 
   await createBattle(page, { practice: true })
   // A battle takes its size from the lists chosen for it, so the player default never asks for one.
+  await expandStep(page, 'format')
   await expect(page.locator('#setup-format').getByRole('combobox', { name: 'Battle size' })).toHaveCount(0)
 })
 

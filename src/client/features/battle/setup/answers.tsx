@@ -26,13 +26,28 @@ function Answer({ value, detail, tone }: { value: ReactNode; detail?: ReactNode;
 export function MissionAnswer({
   side,
   nameDisposition,
+  onRead,
 }: {
   side: Side
   nameDisposition: (id: string | null | undefined) => { id: string; name: string } | null
+  /** Opens the mission's card, where the pack prints one. */
+  onRead?: () => void
 }) {
   const disposition = nameDisposition(side.disposition)?.name
   if (!side.mission) return <Answer value={side.dispositionChoices.length > 1 ? 'Choose a disposition' : 'No mission yet'} tone="quiet" />
-  return <Answer value={side.mission.name} detail={disposition} />
+  const name = onRead ? (
+    <button
+      type="button"
+      aria-label={`Read card for ${side.mission.name}`}
+      className="cursor-pointer text-inherit uppercase underline decoration-dotted underline-offset-4 hover:text-bone"
+      onClick={onRead}
+    >
+      {side.mission.name}
+    </button>
+  ) : (
+    side.mission.name
+  )
+  return <Answer value={name} detail={disposition} />
 }
 
 export function SecondariesAnswer({ side, ready }: { side: Side; ready: boolean }) {

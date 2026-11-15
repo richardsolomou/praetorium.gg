@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { Check, Maximize2, Shuffle } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ComponentProps } from 'react'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { isKotcLimit } from '../../../../core/battle'
@@ -202,19 +202,65 @@ export function Battlefield({ view, send, pending, allowedIds, matchup }: Props)
       {options.some((option) => !option.terrain.geometry) ? (
         <Problem className="mt-2 text-xs">Terrain labels and measurements are still loading. Those layouts cannot be selected yet.</Problem>
       ) : null}
-      <Dialog open={Boolean(inspected)} onOpenChange={(open) => !open && setInspecting(null)}>
-        {inspected ? (
-          <TerrainLayoutDialogContent
-            title={inspected.deployment.name}
-            description={`${inspected.terrain.name} terrain and deployment zones.`}
-            layout={inspected.terrain}
-            deployment={inspected.deployment}
-            templates={references?.templates ?? []}
-            ariaLabel={`${inspected.deployment.name} battlefield with ${inspected.terrain.name}`}
-          />
-        ) : null}
-      </Dialog>
+      <BattlefieldDialog option={inspected} templates={references?.templates ?? []} onClose={() => setInspecting(null)} />
     </section>
+  )
+}
+
+type DialogProps = ComponentProps<typeof TerrainLayoutDialogContent>
+type LayoutOption = { terrain: DialogProps['layout']; deployment: NonNullable<DialogProps['deployment']> }
+
+function BattlefieldDialog({
+  option,
+  templates,
+  onClose,
+}: {
+  option: LayoutOption | undefined
+  templates: DialogProps['templates']
+  onClose: () => void
+}) {
+  return (
+    <Dialog open={Boolean(option)} onOpenChange={(open) => !open && onClose()}>
+      {option ? (
+        <TerrainLayoutDialogContent
+          title={option.deployment.name}
+          description={`${option.terrain.name} terrain and deployment zones.`}
+          layout={option.terrain}
+          deployment={option.deployment}
+          templates={templates}
+          ariaLabel={`${option.deployment.name} battlefield with ${option.terrain.name}`}
+        />
+      ) : null}
+    </Dialog>
+  )
+}
+
+/** The chosen battlefield's name, which enlarges it with its measurements while the step is collapsed. */
+export function ChosenBattlefield({ view }: { view: BattleView }) {
+  const [open, setOpen] = useState(false)
+  const { data: deployments } = useQuery(deploymentsQuery())
+  const { data: references } = useQuery(terrainReferencesQuery(battleMatchupIds(view)))
+  const deployment = deployments?.find((pattern) => pattern.id === view.deploymentId)
+  const terrain = references?.layouts.find((layout) => layout.id === view.settings.terrainLayoutId)
+  if (!deployment) return <span className="text-dim">No layout yet</span>
+  if (!terrain?.geometry) return <span className="font-bold uppercase">{deployment.name}</span>
+  return (
+    <>
+      <button
+        type="button"
+        aria-label={`Enlarge ${deployment.name} battlefield`}
+        className="inline-flex cursor-pointer items-center gap-1.5 font-bold uppercase underline decoration-dotted underline-offset-4 hover:text-bone"
+        onClick={() => setOpen(true)}
+      >
+        {deployment.name}
+        <Maximize2 className="size-3.5 shrink-0 text-dim" aria-hidden />
+      </button>
+      <BattlefieldDialog
+        option={open ? { terrain, deployment } : undefined}
+        templates={references?.templates ?? []}
+        onClose={() => setOpen(false)}
+      />
+    </>
   )
 }
 

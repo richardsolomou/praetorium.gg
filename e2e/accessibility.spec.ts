@@ -31,7 +31,9 @@ test('opening a battle is operable from the keyboard', async ({ page }) => {
   await page.keyboard.press('Enter')
   await expect(page).toHaveURL(/\/battles\/[^/]+$/)
   await expect(page.getByRole('heading', { name: /^Set up the battle/ })).toBeVisible()
-  // Setup answers from the keyboard too: the tracking choice opens the steps after it.
+  // Setup answers from the keyboard too: the settled Tracking step expands, and its choice opens the steps after it.
+  await page.getByRole('button', { name: 'Expand Tracking' }).focus()
+  await page.keyboard.press('Enter')
   const guided = page.locator('#setup-format').getByRole('button', { name: /^Guided/ })
   await expect(async () => {
     await guided.focus()
