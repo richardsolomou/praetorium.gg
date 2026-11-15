@@ -1,4 +1,5 @@
 import { ArrowLeftRight } from 'lucide-react'
+import { type ReactNode, useLayoutEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { PHASES, type Command } from '../../../core/battle'
@@ -8,6 +9,7 @@ import { type BattleView } from '../../../core/battleView'
 import { tint } from './battleTints'
 import { Elapsed } from './Elapsed'
 import { UndoLatest } from './UndoLatest'
+import { useHydrated } from '../../useClientValue'
 
 type Props = {
   view: BattleView
@@ -18,6 +20,8 @@ type Props = {
   blockReason: string | null
   /** Opens the scoring prompt when this advance settles a card, and advances when it does not. */
   onAdvance: () => void
+  /** A control that sits before Undo, such as a phone's command points. */
+  before?: ReactNode
   className?: string
 }
 
@@ -38,14 +42,29 @@ const SHORT: Record<(typeof PHASES)[number], string> = {
  * panels stay the same shape and their numbers line up across the table whichever
  * side is taking the turn.
  */
-export function TurnControl({ view, clock, send, pending, blockReason, onAdvance, className = '' }: Props) {
+export function TurnControl({ view, clock, send, pending, blockReason, onAdvance, before, className = '' }: Props) {
   const active = view.players.find((player) => player.isActive)
   const activeSide = active?.side ?? 0
   const at = PHASES.indexOf(view.phase)
-  const label = view.phase === 'end' ? 'Pass the turn' : `End the ${view.phase} phase`
+  // Drawn by the server before the page can act, so until then it says why a press would do nothing.
+  const hydrated = useHydrated()
+  const label = !hydrated ? 'Connecting…' : view.phase === 'end' ? 'Pass the turn' : `End the ${view.phase} phase`
+  const section = useRef<HTMLElement>(null)
+  // Its height changes with a block reason, the clock button and text size, and phone toasts stand on top of it.
+  useLayoutEffect(() => {
+    const element = section.current
+    if (!element) return
+    const root = document.documentElement.style
+    const observer = new ResizeObserver(() => root.setProperty('--turn-control-height', `${element.offsetHeight}px`))
+    observer.observe(element)
+    return () => {
+      observer.disconnect()
+      root.removeProperty('--turn-control-height')
+    }
+  }, [])
 
   return (
-    <section data-onboarding="battle-live-turn" data-turn-control className={cn('space-y-2', className)}>
+    <section ref={section} data-onboarding="battle-live-turn" data-turn-control className={cn('space-y-2', className)}>
       {/* Phases done solid, the one being played doubled, the rest dashed, in the colour of the side whose turn it is. */}
       <ol className={cn('grid grid-cols-6 gap-1', tint(activeSide).line)} aria-label={`${view.phase} phase`}>
         {PHASES.map((phase, index) => (
@@ -69,7 +88,9 @@ export function TurnControl({ view, clock, send, pending, blockReason, onAdvance
           </li>
         ))}
       </ol>
-      <div className="flex items-stretch gap-2">
+      {/* Wraps the phase button onto its own row when large text leaves it too little width. */}
+      <div className="flex flex-wrap items-stretch gap-2">
+        {before}
         <UndoLatest compact className="h-auto min-h-11 shrink-0 rounded-xl px-3.5" undo={view} send={send} pending={pending} />
         {/*
          * Tinted to whichever side is taking the turn, like the phase rail above it.
@@ -79,8 +100,9 @@ export function TurnControl({ view, clock, send, pending, blockReason, onAdvance
          */}
         <Button
           variant="default"
-          className={`h-auto min-h-11 min-w-0 flex-1 rounded-xl text-center font-display text-sm font-bold whitespace-normal ${tint(activeSide).fill}`}
-          disabled={pending || Boolean(blockReason)}
+          className={`h-auto min-h-11 min-w-40 flex-1 rounded-xl text-center font-display text-sm font-bold whitespace-normal ${tint(activeSide).fill}`}
+          disabled={!hydrated || pending || Boolean(blockReason)}
+          aria-busy={!hydrated || undefined}
           onClick={onAdvance}
         >
           {label}

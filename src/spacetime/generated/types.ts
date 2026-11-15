@@ -399,6 +399,9 @@ export type MyProductSignal = __Infer<typeof MyProductSignal>
 export const MyProductSignals = __t.object('MyProductSignals', {})
 export type MyProductSignals = __Infer<typeof MyProductSignals>
 
+export const MyScoringDraftSignals = __t.object('MyScoringDraftSignals', {})
+export type MyScoringDraftSignals = __Infer<typeof MyScoringDraftSignals>
+
 export const MySession = __t.object('MySession', {})
 export type MySession = __Infer<typeof MySession>
 
@@ -585,6 +588,21 @@ export const RoundPairings = __t.object('RoundPairings', {
   battleId: __t.option(__t.string()),
 })
 export type RoundPairings = __Infer<typeof RoundPairings>
+
+export const ScoringDraftSignal = __t.object('ScoringDraftSignal', {
+  battleId: __t.string(),
+  updatedAt: __t.u64(),
+})
+export type ScoringDraftSignal = __Infer<typeof ScoringDraftSignal>
+
+export const ScoringDrafts = __t.object('ScoringDrafts', {
+  key: __t.string(),
+  battleId: __t.string(),
+  playerId: __t.string(),
+  body: __t.string(),
+  updatedAt: __t.u64(),
+})
+export type ScoringDrafts = __Infer<typeof ScoringDrafts>
 
 export const SealedEventEntries = __t.object('SealedEventEntries', {
   key: __t.string(),

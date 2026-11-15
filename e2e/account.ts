@@ -383,8 +383,15 @@ export async function newBattle(page: Page) {
   return page.url()
 }
 
+/** Opens a setup step that collapsed once the table settled it, and keeps it open until the page reloads. */
+export async function expandStep(page: Page, id: string) {
+  const expand = page.locator(`#setup-${id}`).getByRole('button', { name: /^Expand / })
+  if (await expand.isVisible()) await expand.click()
+}
+
 /** Sets the Tracking step, Guided from the start, and waits for the Opponent step to open. */
 export async function chooseTracking(page: Page, tracking: 'Guided' | 'Manual' = 'Guided') {
+  await expandStep(page, 'format')
   const choice = page.locator('#setup-format').getByRole('group', { name: 'How you track it' })
   const button = choice.getByRole('button', { name: new RegExp(`^${tracking}`) })
   const opponentStep = page.locator('#setup-opponent')
@@ -534,9 +541,12 @@ export async function recordFirstTurn(page: Page, firstSide?: string) {
   await chooseDefender(page)
   const step = page.locator('#setup-first-turn')
   const choice = page.getByRole('group', { name: 'First turn' })
-  const recorded = async () =>
-    (await step.getAttribute('data-complete')) === 'true' &&
-    (!firstSide || (await choice.getByRole('button', { name: firstSide, pressed: true }).isVisible()))
+  const recorded = async () => {
+    if ((await step.getAttribute('data-complete')) !== 'true') return false
+    if (!firstSide) return true
+    await expandStep(page, 'first-turn')
+    return choice.getByRole('button', { name: firstSide, pressed: true }).isVisible()
+  }
   await expect(async () => {
     if (await recorded()) return
     await setupStep(page, 'First turn')
@@ -545,11 +555,13 @@ export async function recordFirstTurn(page: Page, firstSide?: string) {
   }).toPass({ timeout: 20_000 })
 }
 
-/** Brings a setup step into view; every step stays open, so this only scrolls. */
+/** Brings a setup step into view, expanded even when settled, which keeps it open until the page reloads. */
 export async function setupStep(page: Page, label: string | RegExp) {
   const section = page.getByRole('region', { name: label, exact: true })
   await section.scrollIntoViewIfNeeded()
   await expect(section).toBeInViewport()
+  const expand = section.getByRole('button', { name: /^Expand / })
+  if (await expand.isVisible()) await expand.click()
 }
 
 /**
@@ -683,7 +695,7 @@ export async function selectOrdinaryMissions(prompt: Locator) {
  * Skips the optional mission choices a random hand or a marker primary can open, which a test about something else
  * meets by chance; tests about a choice answer it themselves before calling a turn helper.
  */
-async function skipMissionChoices(page: Page) {
+export async function skipMissionChoices(page: Page) {
   const choice = page.getByRole('dialog', { name: / · choices$/ })
   for (let guard = 0; guard < 5 && (await choice.isVisible()); guard += 1) {
     const name = await choice.getAttribute('aria-labelledby')

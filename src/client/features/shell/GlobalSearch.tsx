@@ -228,7 +228,7 @@ export function GlobalSearch({ compact = false, onClick, ...props }: { compact?:
       className={
         compact
           ? 'size-[44px] shrink-0 text-dim hover:bg-raised hover:text-info'
-          : 'h-9 w-full justify-start gap-2 border-edge-strong bg-raised px-3 text-dim hover:border-info hover:bg-raised hover:text-bone'
+          : 'h-9 w-full justify-start gap-2 border-runner bg-raised px-3 text-dim hover:border-info hover:bg-raised hover:text-bone'
       }
       aria-label="Search Praetorium"
       {...props}

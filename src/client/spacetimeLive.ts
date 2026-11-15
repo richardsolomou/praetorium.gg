@@ -17,7 +17,7 @@ import { setLiveProductRefresh } from './liveProductRefresh'
 import { isExpectedRealtimeDisconnect, RealtimeHttpError } from './realtimeErrors'
 import { withTimeout } from './abortSignals'
 import { battleCommandsSettled } from './pendingWrites'
-import { meKey, realtimeModeKey, reportKey } from './queries/queryKeys'
+import { meKey, realtimeModeKey, reportKey, scoringDraftsKey } from './queries/queryKeys'
 
 /** The SpacetimeDB proxy on the page's own origin, which a local server may have named by another host. */
 const browserUri = (uri: string) => new URL(new URL(uri).pathname, window.location.origin).toString()
@@ -122,15 +122,18 @@ export function useSpacetimeLiveBattle(token: string) {
         const held = queryClient.getQueryData(battleQuery(token).queryKey) as { kind?: string; view?: { seq?: number } } | undefined
         if (held?.kind === 'battle' && typeof held.view?.seq === 'number' && held.view.seq >= seq) {
           void queryClient.invalidateQueries({ queryKey: battlesQuery().queryKey })
+          void queryClient.invalidateQueries({ queryKey: scoringDraftsKey(token) })
           return
         }
       }
       void queryClient.invalidateQueries({ queryKey: battleQuery(token).queryKey })
       void queryClient.invalidateQueries({ queryKey: battlesQuery().queryKey })
       void queryClient.invalidateQueries({ queryKey: reportKey(token) })
+      void queryClient.invalidateQueries({ queryKey: scoringDraftsKey(token) })
     },
     [queryClient, token],
   )
+  const refreshDrafts = useCallback(() => void queryClient.invalidateQueries({ queryKey: scoringDraftsKey(token) }), [queryClient, token])
 
   useEffect(() => {
     let leaving = false
@@ -157,6 +160,12 @@ export function useSpacetimeLiveBattle(token: string) {
             current.db.myBattleSignals.onUpdate((_context, _previous, row) => {
               if (row.battleId === battleId) refresh(row.seq)
             })
+            current.db.myScoringDraftSignals.onInsert((_context, row) => {
+              if (row.battleId === battleId) refreshDrafts()
+            })
+            current.db.myScoringDraftSignals.onUpdate((_context, _previous, row) => {
+              if (row.battleId === battleId) refreshDrafts()
+            })
             // The row leaves when the battle is deleted or this player loses their seat, so the screen asks again.
             current.db.myBattleSignals.onDelete((_context, row) => {
               if (row.battleId === battleId) refresh()
@@ -171,7 +180,7 @@ export function useSpacetimeLiveBattle(token: string) {
                 void current.reducers.watchBattle({ battleId }).catch(report)
               })
               .onError((context) => failed(new Error(context.event?.message || 'Battle subscription failed')))
-              .subscribe([tables.mySession, tables.myBattleSignals])
+              .subscribe([tables.mySession, tables.myBattleSignals, tables.myScoringDraftSignals])
           })
           .build()
         return {
@@ -194,7 +203,7 @@ export function useSpacetimeLiveBattle(token: string) {
       leaving = true
       stop()
     }
-  }, [refresh, token])
+  }, [refresh, refreshDrafts, token])
 
   useEffect(() => {
     if (subscribed) return

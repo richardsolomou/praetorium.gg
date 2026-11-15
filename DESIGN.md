@@ -5,16 +5,15 @@ colors:
   field-green: '#9bd0a9'
   field-green-ink: '#0c2014'
   side-a-red: '#f57a7a'
-  side-a-ink: '#2b0505'
+  side-a-ink: '#0f1113'
   side-b-blue: '#5fc8ea'
-  side-b-ink: '#021c27'
-  danger-ink: '#2a0d0d'
+  side-b-ink: '#0f1113'
   signal-amber: '#e3ab52'
-  map-green: '#7cc48a'
+  map-green: '#4fbf6a'
   rust: '#d0625a'
   chart-blue: '#9db6d4'
   admin-violet: '#b9a0df'
-  supporter-gold: '#d9b76e'
+  supporter-gold: '#e8cf86'
   measure-terrain: '#c39bff'
   measure-lines: '#f57fd8'
   measure-edges: '#f4e25c'
@@ -139,8 +138,8 @@ components:
 
 ## Colors
 
-- Code names: Field Green is `parchment` and `azure` (`primary` and `ring` in generated components), Side A Red also `destructive`, Map Green `achieved`, Signal Amber `discarded`, Chart Blue `info`, Admin Violet `admin`, Supporter Gold `supporter`; Void is the page, Panel `panel`, Runner `runner` (and `edge-strong`).
-- One job per colour, always paired with a label or line form: Field Green action, selection, focus, current and success; Side A/B red and blue the two sides (red also danger, destructive actions and input errors), which a battle and its battle-list card repaint in each side's first player's colour, with every name in its own player's colour (`PlayerTint`) and a side's score, top edge and rails in a blend through all its players' colours, the same colour every player's name wears outside battles through `nameColour` (`src/core/playerColours.ts`: a fixed palette whose neighbours differ in lightness or chroma as well as hue, kept clear of amber, gold and Bone; each colour has a text form readable on Panel and a fill, deep under Bone ink where the text form is too light to carry it, through `side-a-fill` and `side-a-ink`; the player's choice or one from their id, with any player moved off a colour whose family someone seated earlier already holds); Map Green achieved or best; Amber warnings and discarded; Rust losses, which red-green colour blindness pulls close to Map Green, so a won, drawn or lost mark also carries its letter, word or form; violet and gold role marks; `measure-*` the terrain board's distances, one per thing measured from, in hues the board itself never uses.
+- Code names: Field Green is `parchment` (`primary` and `ring` in generated components), Side A Red also `destructive`, Map Green `achieved`, Signal Amber `discarded`, Chart Blue `info`, Admin Violet `admin`, Supporter Gold `supporter`; Void is the page, Panel `panel`, Runner `runner`.
+- One job per colour, always paired with a label or line form: Field Green action, selection, focus and current; Side A/B red and blue the two sides (red also danger, destructive actions and input errors), which a battle and its battle-list card repaint in each side's first player's colour, with every name in its own player's colour (`PlayerTint`) and a side's score, top edge and rails in a blend through all its players' colours, the same colour every player's name wears outside battles through `nameColour` (`src/core/playerColours.ts`: a fixed palette whose neighbours differ in lightness or chroma as well as hue, kept clear of amber, gold and Bone; each colour has a text form readable on Panel and a fill, deep under Bone ink where the text form is too light to carry it, through `side-a-fill` and `side-a-ink`; the player's choice or one from their id, with any player moved off a colour whose family someone seated earlier already holds, or that protanopia, deuteranopia or tritanopia would make look the same as one); Map Green achieved, best and success, deeper and more saturated than Field Green so a result never reads as a control; Amber warnings and discarded, never a step still to do (Bone says what comes next); Rust losses, which red-green colour blindness pulls close to Map Green, so a won, drawn or lost mark also carries its letter, word or form; Chart Blue links and secondary information; violet and gold role marks; `measure-*` the terrain board's distances, one per thing measured from, in hues the board itself never uses.
 - Achievement medals carry their own bronze, silver, gold and platinum metals (`AchievementBadge.tsx`), used nowhere else; a medal not yet earned is the same medal in grey.
 - Neutrals: Void page; Masthead the page's opening band; Panel cards, parts, dialogs, menus; Raised tooltips, popovers, tab lists, disabled primary; Sunken dialog action strips and phone bars; Edge hairlines; Runner rails, gates, chip borders and scrollbars, Runner Hi pending gates and hovered scrollbars.
 

@@ -125,7 +125,7 @@ test('faction cards open current rules and the rules version menu lists every ve
         await retryUntilVisible(page.getByRole('option').first(), () => page.getByRole('combobox', { name: 'Rules version' }).click())
         await expect(page.getByRole('option')).toHaveCount(faction.versions)
         await expect(page.getByRole('option').first().locator('[data-rules-status="current"]')).toHaveText('Current')
-        await expect(page.getByRole('option').first().locator('[data-rules-status="current"]')).toHaveCSS('color', 'rgb(124, 196, 138)')
+        await expect(page.getByRole('option').first().locator('[data-rules-status="current"]')).toHaveCSS('color', 'rgb(79, 191, 106)')
       }
       await expectNoPageOverflow(page)
       await page.screenshot({ path: test.info().outputPath(`rules-chips-${faction.slug}-${width}.png`) })

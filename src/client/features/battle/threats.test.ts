@@ -31,7 +31,7 @@ it('asks for each surviving unit once, with a leader whose bodyguard is gone sta
   const units = [unit(0, 'squad'), unit(1, 'captain', { attachedTo: '0-squad' }), unit(2, 'tank', { destroyed: true }), unit(3, 'bikes')]
   const picks = [{ entryId: 'squad' }, { entryId: 'captain', attachedTo: 0 }, { entryId: 'tank' }, { entryId: 'bikes' }]
   const { rows, request } = survivingUnits(units, picks)
-  expect(rows.map((row) => row.name)).toEqual(['squad + captain', 'bikes'])
+  expect(rows.map((row) => row.name)).toEqual(['squad with captain', 'bikes'])
   expect(request).toMatchObject({ pickIndices: [0, 3], inactivePicks: [2] })
 
   const alone = survivingUnits([{ ...units[0]!, destroyed: true }, units[1]!], picks)

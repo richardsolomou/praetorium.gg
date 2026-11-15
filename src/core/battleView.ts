@@ -94,6 +94,7 @@ export type BattleView = {
   settlementPlayerId: PlayerId | null
   advanceRequested: boolean
   scoringAcknowledged: boolean
+  momentSeq: number
   drawAcknowledged: boolean
   settings: BattleSettings
   result: { reason: BattleEndReason; concededBy: PlayerId | null } | null
@@ -247,6 +248,7 @@ export function battleView(
     settlementPlayerId: state.pendingSettlement?.playerId ?? null,
     advanceRequested: state.advanceRequested,
     scoringAcknowledged: state.scoringAcknowledged,
+    momentSeq: state.momentSeq,
     drawAcknowledged: state.drawAcknowledged,
     settings: state.settings,
     result: state.result,

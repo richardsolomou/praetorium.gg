@@ -23,11 +23,11 @@ import {
   battleCapacity,
 } from '../../../../core/battle'
 import { battleCommandsSettled } from '../../../pendingWrites'
-import { battleGroupsQuery, battleQuery, deploymentsQuery, gameReferencesQuery } from '../../../queries'
+import { battleGroupsQuery, battleQuery, gameReferencesQuery } from '../../../queries'
 import { fixedHandShort, missionCardsReady, type Side, type SideMission, sideName, sideOf, sides as foldSides } from '../../../sides'
 import type { RosterAttachment, SendCommand } from '../useCommand'
 import { advanceOnboarding } from '../../onboarding/onboarding'
-import { Battlefield } from './Battlefield'
+import { Battlefield, ChosenBattlefield } from './Battlefield'
 import { ArmyChooser } from './ArmiesStep'
 import { FaceOff } from './FaceOff'
 import {
@@ -55,7 +55,6 @@ import { BattleCombatDialog, type BattleCombatSelection } from '../../simulator/
 import { tint } from '../battleTints'
 import { Problem } from '../../../components/Problem'
 import { formatList } from '../../../text'
-import { deploymentFor } from '../../../battleSummary'
 import { MissionAnswer, PrebattleAnswer, ReservesAnswer, SecondariesAnswer } from './answers'
 import { FormatStep } from './FormatStep'
 import { MissionStep } from './MissionStep'
@@ -109,7 +108,6 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
   const skipped = (id: SectionId) => manual && MANUAL_SKIPS.has(id)
   const yours = table.find((side) => side.isViewer)
   const { data: references } = useQuery(gameReferencesQuery())
-  const { data: deployments } = useQuery(deploymentsQuery())
   const { data: groups } = useQuery(battleGroupsQuery(view.token))
   const nameDisposition = useDispositionNames()
   const attacker = sideOf(table, view.attackerId)
@@ -128,6 +126,9 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
   const [combatSelection, setCombatSelection] = useState<BattleCombatSelection | null>(null)
   /** The mission card a matchup panel has been asked to read out, if any. */
   const [reading, setReading] = useState<MissionDetails | null>(null)
+  /** Steps this reader has folded or opened by hand; the rest are collapsed once settled. */
+  const [folding, setFolding] = useState<Partial<Record<SectionId, boolean>>>({})
+  const collapse = (id: SectionId, folded: boolean) => setFolding((current) => ({ ...current, [id]: folded }))
   // The chooser opens over the page from an army's card.
   const [, chooseRoster] = useHistoryDialog('choose-roster')
   // A draft is listed once its table fills, and joining or leaving changes who sees its link, so either reads it again.
@@ -342,7 +343,8 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
     onCheck: () => {
       const ticking = !settled[id]
       send({ kind: 'set-setup-checked', step: SECTION_IDS.indexOf(id), checked: ticking })
-      if (ticking) land(SECTION_IDS.slice(SECTION_IDS.indexOf(id) + 1).find((later) => !skipped(later)))
+      collapse(id, ticking)
+      if (ticking) land(SECTION_IDS.slice(SECTION_IDS.indexOf(id) + 1).find((later) => !skipped(later) && !settled[later]))
     },
   })
   /** The first step the table still owes an answer to, which the bar takes the reader to. */
@@ -355,6 +357,8 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
     current: next === id,
     skipped: skipped(id),
     watching,
+    collapsed: folding[id] ?? settled[id],
+    onCollapsedChange: (folded: boolean) => collapse(id, folded),
   })
   // The places are the table's to change only while it is set up through them, never in a sealed event.
   const changePlaces =
@@ -425,7 +429,6 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
     (shownLimit !== null && view.settings.sizeFromRosters
       ? `A ${shownLimit.toLocaleString('en')}-point battle, set by ${builtLists.length > 1 || team ? 'the bigger side' : builtLists[0]?.roster?.name}. ${shortText || 'A bigger or smaller list changes it.'}`
       : shortText)
-  const deployment = deploymentFor(view.deploymentId, deployments)
   const group = groups?.current?.name
 
   return (
@@ -535,7 +538,17 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
               name="Mission"
               onboarding="battle-setup-mission"
               sides={table}
-              renderSide={(side) => <MissionAnswer side={side} nameDisposition={nameDisposition} />}
+              renderSide={(side) => {
+                const primary = side.mission
+                const card = primary ? primaryCardFor(primary.id) : undefined
+                return (
+                  <MissionAnswer
+                    side={side}
+                    nameDisposition={nameDisposition}
+                    onRead={primary && card ? () => setReading({ name: primary.name, card, type: 'Primary mission' }) : undefined}
+                  />
+                )
+              }}
               needed={ready && undecided.length > 0}
               hint={
                 !youHaveAnArmy
@@ -576,15 +589,7 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
                     ? 'One shared choice sets the deployment zones and the terrain for both sides.'
                     : 'Choose a layout. It sets the deployment zones and the terrain for both sides.'
               }
-              summary={
-                <>
-                  {deployment ? (
-                    <span className="font-bold uppercase">{deployment.name}</span>
-                  ) : (
-                    <span className="text-dim">No layout yet</span>
-                  )}
-                </>
-              }
+              summary={<ChosenBattlefield view={view} />}
             >
               {youHaveAnArmy ? (
                 <Battlefield

@@ -13,6 +13,7 @@ import {
   battleReplayBatchSchema,
   createBattleSchema,
   deleteBattleSchema,
+  saveScoringDraftSchema,
   battleInviteSchema,
   inviteToBattleSchema,
   joinBattleSchema,
@@ -191,6 +192,14 @@ export const deleteBattle = createServerFn({ method: 'POST' })
 export const submit = createServerFn({ method: 'POST' })
   .validator(submitSchema.extend({ workspace: z.boolean().optional() }))
   .handler(({ data }) => mutationRpc(async () => submitBattleCommand(await requireUserId(), data)))
+
+export const saveScoringDraft = createServerFn({ method: 'POST' })
+  .validator(saveScoringDraftSchema)
+  .handler(({ data }) => mutationRpc(async () => app().service.saveScoringDraft(data.token, await requireUserId(), data.draft)))
+
+export const scoringDrafts = createServerFn({ method: 'GET' })
+  .validator(tokenSchema)
+  .handler(({ data }) => rpc(async () => app().service.scoringDrafts(data.token, await requireUserId())))
 
 export const battleReport = createServerFn({ method: 'GET' })
   .validator(tokenSchema)

@@ -48,13 +48,13 @@ ARG BUILDARCH
 # ADD cannot retry, and GitHub's release downloads return intermittent 504s.
 RUN set -eu; \
     case "$BUILDARCH" in \
-      amd64) target=x86_64 checksum=2d8950dc3c67910aa80aa7612efddb5ee6ed53c443573f617b3ad65fef2aa084 ;; \
-      arm64) target=aarch64 checksum=d7ef1efcd40776b80d60d962d02d3ad80aa94d9dce2bbe5993920d054cfb2113 ;; \
+      amd64) target=x86_64 checksum=67a3c99c19abc4ba58b4ab999b309b3c5899602b3f0f7ae75e296335c174c82b ;; \
+      arm64) target=aarch64 checksum=5be10038649944d1711ee4b88888301f7b88463024d72ea68cd32e039510fae7 ;; \
       *) echo "Unsupported build architecture: $BUILDARCH" >&2; exit 1 ;; \
     esac; \
     curl --fail --location --proto '=https' --tlsv1.2 --retry 8 --retry-delay 10 --retry-all-errors --max-time 60 \
       --output /tmp/spacetime.tar.gz \
-      "https://github.com/clockworklabs/SpacetimeDB/releases/download/v2.14.0/spacetime-$target-unknown-linux-gnu.tar.gz"; \
+      "https://github.com/clockworklabs/SpacetimeDB/releases/download/v2.14.1/spacetime-$target-unknown-linux-gnu.tar.gz"; \
     echo "$checksum  /tmp/spacetime.tar.gz" | sha256sum -c -; \
     tar -xzf /tmp/spacetime.tar.gz -C /tmp spacetimedb-cli; \
     /tmp/spacetimedb-cli build -p spacetimedb; \

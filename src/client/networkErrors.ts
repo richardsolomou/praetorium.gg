@@ -32,3 +32,18 @@ export class HttpStatusError extends Error {
     super(message)
   }
 }
+
+/** What a player reads when something other than Praetorium answered, such as a proxy during a deploy. */
+export const SERVER_UNANSWERED_MESSAGE = "Praetorium didn't answer. Try again in a moment."
+
+/**
+ * Server functions answer in JSON or their own serialized frames, errors included; any other failed or untyped answer came
+ * from something in front of the service, so its body (often an HTML error page) is never shown as a message.
+ */
+export async function serverFunctionFetch(input: RequestInfo | URL, init?: RequestInit, send: typeof fetch = fetch) {
+  const response = await send(input, init)
+  const type = response.headers.get('content-type')
+  const fromService = response.headers.has('x-tss-serialized') || response.headers.get('x-tss-raw') === 'true' || type?.includes('json')
+  if (fromService || (response.ok && type)) return response
+  throw new HttpStatusError(SERVER_UNANSWERED_MESSAGE, response.status)
+}

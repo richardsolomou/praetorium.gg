@@ -1,3 +1,5 @@
+import { formatList } from './text'
+
 type UnitKey = string | number
 type Attached<Key extends UnitKey> = { key: Key; attachedTo?: Key }
 
@@ -66,6 +68,12 @@ export function attachedUnitList<T extends Deployable<UnitKey>>(units: readonly 
     ]
   })
 }
+
+/** The leaders and support standing with a unit, as a player reads them after its name. */
+export const joinedWith = (joined: readonly string[]) => `with ${formatList(joined)}`
+
+/** An attached unit in words: the unit the others joined, then who joined it. */
+export const attachedUnitName = (name: string, joined: readonly string[]) => (joined.length ? `${name} ${joinedWith(joined)}` : name)
 
 export const attachedUnitCount = (units: readonly Attached<UnitKey>[]) => attachedUnitList(units).length
 

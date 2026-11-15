@@ -1,6 +1,7 @@
-import { Check } from 'lucide-react'
+import { Check, ChevronDown } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { cn } from '@/lib/utils'
+import { Button } from '@/components/ui/button'
 import type { Side } from '../../../sides'
 import type { OnboardingTarget } from '../../../onboardingTargets'
 import { tint } from '../battleTints'
@@ -10,9 +11,9 @@ import type { SectionId } from './sections'
 /**
  * One step of setup, hung from the spine.
  *
- * Every step stays open, so the whole of setup reads at once; one not reached yet is faded and can't be used. Without
- * controls to show, as for a reader with no seat or a step waiting on the armies, it reads as its answer: one line
- * for a choice the table shares, or a cell either side of the spine for one each side makes.
+ * Every step opens, so the whole of setup reads at once; one not reached yet is faded and can't be used. Without
+ * controls to show, as for a reader with no seat, a step waiting on the armies, or one the player has collapsed, it
+ * reads as its answer: one line for a choice the table shares, or a cell either side of the spine for one each side makes.
  */
 export function SpineStep({
   watching = false,
@@ -24,6 +25,8 @@ export function SpineStep({
   settled,
   locked,
   current,
+  collapsed,
+  onCollapsedChange,
   needed = false,
   hint,
   onboarding,
@@ -47,6 +50,9 @@ export function SpineStep({
   locked: boolean
   /** The first step still owed an answer. */
   current: boolean
+  /** Folded to its answer by this device's reader. */
+  collapsed: boolean
+  onCollapsedChange: (collapsed: boolean) => void
   /** Whether the hint names something the table still owes, rather than describing the step. */
   needed?: boolean
   hint?: string
@@ -61,7 +67,8 @@ export function SpineStep({
   children: ReactNode
 }) {
   if (skipped) return null
-  const body = watching ? null : children
+  const body = watching || collapsed ? null : children
+  const reopens = collapsed && !watching && !locked
   const tick = watching ? undefined : check
   // The runner down from the step's number says where the table is: settled solid, the step owed now doubled, the rest dashed.
   const line = settled ? 'done' : current ? 'now' : locked ? 'locked' : 'todo'
@@ -113,13 +120,36 @@ export function SpineStep({
           <h2 id={`setup-${id}-title`} className="flex min-h-11 min-w-0 flex-1 items-center text-lg normal-case sm:text-xl">
             <span className={cn('min-w-0', current ? 'text-bone' : locked ? 'text-faint' : undefined)}>{name}</span>
           </h2>
+          {watching || !children ? null : (
+            <Button
+              variant="ghost"
+              size="icon-lg"
+              className="size-11 shrink-0 text-dim"
+              aria-expanded={!collapsed}
+              aria-controls={`setup-${id}-body`}
+              aria-label={collapsed ? `Expand ${name}` : `Collapse ${name}`}
+              onClick={() => onCollapsedChange(!collapsed)}
+            >
+              <ChevronDown aria-hidden className={cn('size-5 transition-transform', collapsed && '-rotate-90')} />
+            </Button>
+          )}
         </div>
         <div className="sm:pl-24">
           {hint && !watching ? (
-            <p className={cn('mt-0.5 max-w-prose text-sm text-balance', needed ? 'text-discarded' : 'text-dim')}>{hint}</p>
+            <p className={cn('mt-0.5 max-w-prose text-sm text-balance', needed ? 'text-bone' : 'text-dim')}>{hint}</p>
           ) : null}
-          {/* Only the controls go inert and fade: the hint above says why the step isn't open yet, so it stays readable. */}
-          <div id={`setup-${id}-body`} className={cn('relative mt-3', locked && 'opacity-50')} inert={locked}>
+          {/*
+           * Only the controls go inert and fade: the hint above says why the step isn't open yet, so it stays readable.
+           * A collapsed answer is a mouse shortcut back to the step; the chevron is the keyboard's way, and a control drawn
+           * inside the answer, such as a mission's card, keeps its own press.
+           */}
+          <div
+            id={`setup-${id}-body`}
+            className={cn('relative mt-3', locked && 'opacity-50', reopens && 'cursor-pointer')}
+            inert={locked}
+            role="presentation"
+            onClick={reopens ? (event) => !(event.target as Element).closest('button') && onCollapsedChange(false) : undefined}
+          >
             {body ? (
               <div className={cn('relative', current ? 'rounded-2xl border-2 border-runner bg-panel shadow-lifted' : 'part')}>
                 {/* The step being answered is drawn out of the frame, joined back to the runner by its own sprue. */}

@@ -10,7 +10,7 @@
 - Web features check the specific capability in `src/client/nativeBridge.ts`, not `bridgeVersion`, and keep older installed shells usable.
 - Do not add native battle state or a separate fetch path; refetch through the web handlers.
 - On iOS, a back swipe previews the screen as it was drawn when its history entry was left, and WebKit skips entries a script added without a recent tap. Each tab keeps its own back stack: a reopened tab or a link into another tab pushes that tab's parents, and history pushed this way draws each screen from timers started during the tap only behind the `screen-cover` freeze; without it, the parents join history undrawn so they never flash past, at the cost of their swipe previews.
-- Haptics come from the four feels in `src/contracts/nativeBridge.ts`, each with one job; a shell without `haptic-styles` gets only the old confirmation, for `light` and `success`. Links other than the tab bar, menus and dialogs stay silent.
+- Haptics come from the four feels in `src/contracts/nativeBridge.ts`, each with one job; a shell without `haptic-styles` gets only the old confirmation, for `light` and `success`. Every enabled control ticks `selection` on press from one document listener (`PressHaptics`), so components add only the outcome feels.
 
 ## Authentication
 

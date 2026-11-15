@@ -60,12 +60,16 @@ export function errorMessage(error: unknown, fallback = 'Something went wrong. T
 /** Rules text reports its own failures with the source that failed. */
 const SELF_REPORTED = new Set(['rules-text'])
 
+/** The release check polls unseen and retries within a minute, and the app shell cuts its connection whenever the system sign-in sheet opens. */
+const UNREPORTED_WHEN_DISCONNECTED = new Set(['release'])
+
 /** Counts each read that failed, by the static name its key starts with; a signed-out or offline refusal is an answer, not a failure. */
 function reportQueryFailure(error: unknown, query: Pick<Query, 'queryKey'>) {
   if (typeof window === 'undefined' || isSignedOut(error) || error instanceof OfflineRefusal) return
   const [name] = query.queryKey
   if (typeof name === 'string' && SELF_REPORTED.has(name)) return
   const reason = isFetchNetworkFailure(error) ? 'network' : isTimeout(error) ? 'timeout' : 'error'
+  if (reason === 'network' && typeof name === 'string' && UNREPORTED_WHEN_DISCONNECTED.has(name)) return
   posthog.capture('query_load_failed', {
     query: queryEventName(query.queryKey),
     reason,

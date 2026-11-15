@@ -12,6 +12,7 @@ import {
   expectNoPageOverflow,
   addUnit,
   PHONE,
+  expandStep,
 } from './account'
 
 test('battle setup stays shared and does not wait for the other device', async ({ browser }) => {
@@ -40,6 +41,7 @@ test('battle setup stays shared and does not wait for the other device', async (
     await expect(alice.getByRole('region', { name, exact: true })).toHaveAttribute('data-locked', 'true')
   }
   // The lists set the battle's size, so Tracking asks for none.
+  await expandStep(alice, 'format')
   await expect(alice.locator('#setup-format').getByRole('combobox', { name: 'Battle size' })).toHaveCount(0)
   await expect(alice.locator('[data-setup-bar]')).toContainText('Your army')
   // Setup is one page: nothing walks the table through its sections.
@@ -137,6 +139,8 @@ test('battle setup stays shared and does not wait for the other device', async (
   await expect(bob.getByText('Your opponent got there first. Try that again.')).toBeHidden()
   await expect(alice.getByRole('region', { name: 'Deploy', exact: true })).toHaveAttribute('data-locked', 'false')
   await expect(bob.locator('#setup-defender')).toHaveAttribute('data-complete', 'true')
+  // Settling the step collapses it, so it is opened again to read both answers.
+  await setupStep(bob, 'Defender')
   await expect(defender).toContainText('Defender · deploys first')
   await expect(defenderChoice.getByRole('button', { name: new RegExp(bobName) })).toContainText('Attacker · deploys second')
   await bob.screenshot({ path: test.info().outputPath('setup-defender.png'), fullPage: true })

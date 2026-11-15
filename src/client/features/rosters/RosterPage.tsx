@@ -5,6 +5,9 @@ import { ListBuilder } from './ListBuilder'
 import { NO_PREP } from './rosterDraft'
 import { battleQuery, sealedEventRosterQuery, rosterAccessQuery } from '../../queries'
 import { FullPageState } from '../../components/PageState'
+import { pageSection, SectionLink } from '../../components/pageSections'
+
+const rosters = pageSection('/rosters')
 
 export function RosterPage({
   id,
@@ -51,7 +54,13 @@ export function RosterPage({
       <BattleRosterSnapshot roster={fielded} print={print} simulatorSource={{ battle: { token: battle, playerId: player.id } }} />
     ) : null
   if (access === null)
-    return <FullPageState title="Nothing here" explanation="This roster does not exist or you no longer have access to it." />
+    return (
+      <FullPageState
+        title={rosters.missing}
+        explanation={rosters.explanation}
+        action={<SectionLink section={rosters} variant="default" />}
+      />
+    )
   if (!roster) return null
   return (
     <main className="flex h-full w-full min-w-0 max-w-full flex-col overflow-x-hidden">
