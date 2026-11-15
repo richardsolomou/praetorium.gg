@@ -169,7 +169,7 @@ export function SetupSidePanel({
  * so they share one ring, one tint and one weight.
  */
 export const CHOSEN = 'border-parchment bg-parchment/10 ring-1 ring-parchment'
-export const CHOOSABLE = 'border-edge hover:border-edge-strong'
+export const CHOOSABLE = 'border-edge hover:border-runner'
 
 /** The battle size control, which the roster chooser hands focus to when no list fits the size. */
 export const BATTLE_SIZE_CONTROL = 'battle-size'

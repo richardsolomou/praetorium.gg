@@ -256,7 +256,7 @@ function ExactTerrainGeometry({ geometry, detailed }: { geometry: TerrainGeometr
     <>
       {/* Each footprint's fill covers the inner half of its doubled outline, so footprints of one area show only their shared perimeter. */}
       {[...terrainAreas].map(([key, footprints]) => (
-        <g key={key} className="stroke-azure" opacity=".9">
+        <g key={key} className="stroke-parchment" opacity=".9">
           {footprints.map((area) => (
             <polygon key={area.id} points={svgPoints(area.points)} fill="none" strokeWidth={detailed ? '.36' : '.5'} />
           ))}
@@ -336,7 +336,7 @@ function TerrainAnnotations({
       {detailed
         ? terrainAreaJoins(geometry).map((join) => (
             <g key={`${join.x}-${join.y}`} transform={`translate(${join.x} ${join.y}) rotate(${flipped ? -90 : 90})`}>
-              <circle r=".8" className="fill-raised stroke-azure" strokeWidth=".14" />
+              <circle r=".8" className="fill-raised stroke-parchment" strokeWidth=".14" />
               <g transform="scale(.05) translate(-12 -12)" fill="none" className="stroke-bone" strokeWidth="2.4" strokeLinecap="round">
                 <path d={eyePath} />
                 <circle cx="12" cy="12" r="3" />
@@ -686,7 +686,7 @@ function TerrainPieceShape({
       <polygon
         points={points}
         fill={piece.type === 'area' ? undefined : `url(#${terrainPatternId})`}
-        className={piece.type === 'area' ? 'fill-raised/90 stroke-azure' : 'stroke-bone'}
+        className={piece.type === 'area' ? 'fill-raised/90 stroke-parchment' : 'stroke-bone'}
         strokeWidth={piece.type === 'area' ? (detailed ? '.18' : '.25') : '.28'}
       />
       {(template.features ?? []).map((feature) => (

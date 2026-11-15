@@ -97,7 +97,7 @@ export function ModelCounter({
           if (event.key === 'Enter') event.currentTarget.blur()
           if (event.key === 'Escape') setDraft(countText)
         }}
-        className={`readout h-6 min-w-0 rounded-sm border border-edge-strong bg-transparent text-center outline-none [appearance:textfield] focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none ${compact ? 'col-span-2 row-start-1 w-full px-0 text-xs @[18rem]:col-span-1 @[18rem]:row-auto' : 'w-14 px-1 text-sm'}`}
+        className={`readout h-6 min-w-0 rounded-sm border border-runner bg-transparent text-center outline-none [appearance:textfield] focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none ${compact ? 'col-span-2 row-start-1 w-full px-0 text-xs @[18rem]:col-span-1 @[18rem]:row-auto' : 'w-14 px-1 text-sm'}`}
       />
       <CountButton
         label={`More ${label} models`}

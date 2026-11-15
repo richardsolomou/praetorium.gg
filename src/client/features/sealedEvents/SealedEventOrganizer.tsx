@@ -410,7 +410,7 @@ function SizeToggle({
   onAssign: (side: 'solo' | 'allied') => void
 }) {
   return (
-    <fieldset className="inline-flex border border-edge-strong">
+    <fieldset className="inline-flex border border-runner">
       <legend className="sr-only">Size for {label}</legend>
       {(['solo', 'allied'] as const).map((option) => (
         <button
@@ -447,7 +447,7 @@ export function InvitePanel({ sealedEvent }: { sealedEvent: SealedEvent }) {
       <button
         type="button"
         disabled={!origin}
-        className="group mt-3 block w-full rounded-lg border border-edge-strong bg-sunken text-left hover:border-info disabled:opacity-60"
+        className="group mt-3 block w-full rounded-lg border border-runner bg-sunken text-left hover:border-info disabled:opacity-60"
         onClick={() => void invite.share()}
       >
         <span className="flex items-center gap-2.5 px-3 py-2.5">
@@ -460,7 +460,7 @@ export function InvitePanel({ sealedEvent }: { sealedEvent: SealedEvent }) {
           </span>
         </span>
         <span
-          className={`flex items-center justify-center gap-1.5 border-t border-edge-strong px-3 py-2 text-xs font-semibold tracking-label uppercase group-hover:bg-raised pointer-coarse:min-h-11 ${invite.feedback === 'copied' || invite.feedback === 'shared' ? 'text-achieved' : 'text-parchment'}`}
+          className={`flex items-center justify-center gap-1.5 border-t border-runner px-3 py-2 text-xs font-semibold tracking-label uppercase group-hover:bg-raised pointer-coarse:min-h-11 ${invite.feedback === 'copied' || invite.feedback === 'shared' ? 'text-achieved' : 'text-parchment'}`}
         >
           {invite.feedback === 'copied' || invite.feedback === 'shared' ? (
             <Check className="size-3.5" aria-hidden />

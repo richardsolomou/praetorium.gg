@@ -106,7 +106,7 @@ export function TerrainLayoutDialogContent({ title, description, layout, deploym
         </div>
         <div className="flex flex-wrap gap-x-5 gap-y-2 border-y border-edge py-2 text-xs text-dim">
           <span className="flex items-center gap-2">
-            <span className="size-3 border border-azure bg-raised" /> Terrain area footprint
+            <span className="size-3 border border-parchment bg-raised" /> Terrain area footprint
           </span>
           {joinedFootprints ? (
             <span className="flex items-center gap-2">

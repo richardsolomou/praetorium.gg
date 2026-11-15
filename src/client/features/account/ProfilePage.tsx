@@ -120,7 +120,7 @@ function ProfileForm({
         title="Account settings"
         description="Your name and picture, sign-in, roster defaults and calendar link."
         media={
-          <span className="grid size-12 shrink-0 place-items-center rounded-lg border border-edge-strong bg-sunken text-parchment">
+          <span className="grid size-12 shrink-0 place-items-center rounded-lg border border-runner bg-sunken text-parchment">
             <UserRound className="size-5" aria-hidden />
           </span>
         }

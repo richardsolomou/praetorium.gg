@@ -5,7 +5,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { usePressTooltip } from './HoverTooltip'
 
 const appearances = {
-  retired: { Icon: Archive, colour: 'border-edge-strong text-dim' },
+  retired: { Icon: Archive, colour: 'border-runner text-dim' },
   preview: { Icon: FlaskConical, colour: 'border-discarded/40 text-discarded' },
 }
 

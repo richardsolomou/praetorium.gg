@@ -374,7 +374,7 @@ function AppFrame() {
                     <header
                       data-mobile-app-header
                       data-print-hide
-                      className="fixed inset-x-0 top-0 z-30 hidden h-12 items-center border-b border-edge-strong bg-sunken/95 px-2 backdrop-blur"
+                      className="fixed inset-x-0 top-0 z-30 hidden h-12 items-center border-b border-runner bg-sunken/95 px-2 backdrop-blur"
                     >
                       <Link
                         to="/"
