@@ -1,4 +1,5 @@
 import { ArrowLeftRight } from 'lucide-react'
+import type { ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { PHASES, type Command } from '../../../core/battle'
@@ -18,6 +19,8 @@ type Props = {
   blockReason: string | null
   /** Opens the scoring prompt when this advance settles a card, and advances when it does not. */
   onAdvance: () => void
+  /** A control that sits before Undo, such as a phone's command points. */
+  before?: ReactNode
   className?: string
 }
 
@@ -38,7 +41,7 @@ const SHORT: Record<(typeof PHASES)[number], string> = {
  * panels stay the same shape and their numbers line up across the table whichever
  * side is taking the turn.
  */
-export function TurnControl({ view, clock, send, pending, blockReason, onAdvance, className = '' }: Props) {
+export function TurnControl({ view, clock, send, pending, blockReason, onAdvance, before, className = '' }: Props) {
   const active = view.players.find((player) => player.isActive)
   const activeSide = active?.side ?? 0
   const at = PHASES.indexOf(view.phase)
@@ -70,6 +73,7 @@ export function TurnControl({ view, clock, send, pending, blockReason, onAdvance
         ))}
       </ol>
       <div className="flex items-stretch gap-2">
+        {before}
         <UndoLatest compact className="h-auto min-h-11 shrink-0 rounded-xl px-3.5" undo={view} send={send} pending={pending} />
         {/*
          * Tinted to whichever side is taking the turn, like the phase rail above it.

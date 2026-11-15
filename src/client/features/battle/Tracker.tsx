@@ -55,6 +55,7 @@ import { dueForAdvance, dueFromTheirTurn, ScoringDialog, type ScoringAnswers } f
 import { BattleCombatDialog, type BattleCombatSelection } from '../simulator/BattleCombatDialog'
 import { SidePanel } from './SidePanel'
 import { TurnControl } from './TurnControl'
+import { StratagemSheet } from './StratagemSheet'
 import { TwistName } from './MissionTwist'
 import { Report, reportPlayers } from './Report'
 import { SideDot } from './PlayerName'
@@ -318,6 +319,8 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
   /** Which panel a narrow screen is showing, in the order the columns sit on a wide one. */
   const shown = (side: Side) => (side.isViewer ? 'yours' : 'theirs')
   const theirs = table.find((side) => !side.isViewer)
+  // The side whose tab is open spends from the bar, so one phone running both sides reaches either.
+  const spender = (focus === 'theirs' ? theirs : yours) ?? table[0]
   const settlementRound = view.settlementRound
   const turnKey = `${view.round}-${view.activePlayerId ?? ''}`
   const turnDraftKey = JSON.stringify([view.token, turnKey])
@@ -646,6 +649,19 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
               send={sendAction}
               pending={pending || promptMinimized}
               onAdvance={advance}
+              before={
+                spender && !view.settings.manual && view.status === 'playing' ? (
+                  <StratagemSheet
+                    view={view}
+                    side={spender}
+                    coreKeys={coreKeysBySide.get(spender.index) ?? EMPTY_KEYS}
+                    pending={pending || promptMinimized}
+                    send={sendAction}
+                    writtenFor={(key) => writtenFor(spender, key)}
+                    onRecordMissed={missedMoments.length ? (key) => recordMissedStratagem(spender, key) : undefined}
+                  />
+                ) : null
+              }
               blockReason={promptMinimized ? 'Finish the open prompt to continue.' : blockReason}
               /*
                * `mb-0` because the column spaces its children with a bottom margin, and

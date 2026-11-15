@@ -26,6 +26,8 @@ Guided battles give each side its Command phase CP automatically. **+1 CP** reco
 
 To use a stratagem, press its cost button, for example **2 CP**. If the cost depends on the board, the **⋮** beside it lets you spend a different amount. A greyed-out stratagem shows why on hover: wrong phase, wrong turn, not enough CP, or its use limit is already spent.
 
+On a phone, the CP figure beside the phase button opens the stratagems you can play now, with **+1 CP**, for whichever side's tab is open.
+
 ![A player's panel with victory points, command points, +1 CP, mission cards and stratagems, each stratagem with a 1 CP button.](screenshot:track-a-battle-stratagems "A stratagem's cost button")
 
 ## Casualties
