@@ -1,5 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
+import { Bell } from 'lucide-react'
 import { PageContent, PageHeader } from '../../components/Page'
+import { PageState } from '../../components/PageState'
 import { SignInRequired } from '../../components/SignInRequired'
 import { meQuery } from '../../queries'
 import { MarkAllRead, NoticeList } from './Notifications'
@@ -16,9 +18,17 @@ export function NotificationsPage() {
         actions={<MarkAllRead />}
       />
       <PageContent>
-        <div className="part overflow-hidden">
-          <NoticeList />
-        </div>
+        <NoticeList
+          className="part overflow-hidden"
+          empty={
+            <PageState
+              headingLevel={2}
+              title="Nothing new"
+              explanation="Friend requests, new battles, and news from your groups and tournaments show up here."
+              icon={Bell}
+            />
+          }
+        />
       </PageContent>
     </main>
   )

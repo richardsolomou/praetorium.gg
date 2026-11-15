@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useRouterState } from '@tanstack/react-router'
 import { Bell } from 'lucide-react'
-import { type RefObject, useEffect, useRef, useState } from 'react'
+import { type ReactNode, type RefObject, useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from '@/components/ui/popover'
 import { formatAgo } from '../../dates'
@@ -43,7 +43,8 @@ function useMarkRead() {
 }
 
 /** Every notice the player has, newest first, each linking to the page it is about. */
-export function NoticeList({ onOpen }: { onOpen?: () => void }) {
+/** `empty` and `className` let a page draw its own empty state and frame around the list the bell shows bare. */
+export function NoticeList({ onOpen, empty, className = '' }: { onOpen?: () => void; empty?: ReactNode; className?: string }) {
   const { data: notices, isPending, isError, refetch } = useQuery(noticesQuery())
   const markRead = useMarkRead()
   const hydrated = useHydrated()
@@ -59,13 +60,15 @@ export function NoticeList({ onOpen }: { onOpen?: () => void }) {
     )
   if (!notices.length)
     return (
-      <div className="px-3 py-6 text-center text-sm text-dim">
-        <p className="font-semibold text-bone">Nothing new</p>
-        <p className="mt-1 text-balance">Friend requests, new battles, and news from your groups and tournaments show up here.</p>
-      </div>
+      empty ?? (
+        <div className="px-3 py-6 text-center text-sm text-dim">
+          <p className="font-semibold text-bone">Nothing new</p>
+          <p className="mt-1 text-balance">Friend requests, new battles, and news from your groups and tournaments show up here.</p>
+        </div>
+      )
     )
   return (
-    <ul data-notice-list className="divide-y divide-edge">
+    <ul data-notice-list className={`divide-y divide-edge ${className}`}>
       {notices.map((notice) => (
         <li key={notice.id}>
           <Link

@@ -422,33 +422,36 @@ export function RosterLibraryPage({
           </div>
         )}
         {importError ? <Problem>{importError}</Problem> : null}
-        <RosterLibraryFilters
-          search={search}
-          facets={facets}
-          rosters={saved}
-          factions={available?.factions ?? []}
-          favourites={favourites}
-          count={filtered && !libraryPending ? shown.length : null}
-          onChange={(next) => void navigate({ to: '/rosters', search: next, replace: true, resetScroll: false })}
-          sort={
-            <>
-              <RosterSortMenu
-                value={selectedSort}
-                onChange={(chosen) => {
-                  setSelectedSort(chosen)
-                  keepRosterSort(chosen)
-                }}
-              />
-              <RosterGroupMenu
-                value={selectedGrouping}
-                onChange={(chosen) => {
-                  setSelectedGrouping(chosen)
-                  keepRosterGrouping(chosen)
-                }}
-              />
-            </>
-          }
-        />
+        {/* Filters wait for something to filter, so a first visit leads with what to do. */}
+        {saved.length || filtered || libraryPending ? (
+          <RosterLibraryFilters
+            search={search}
+            facets={facets}
+            rosters={saved}
+            factions={available?.factions ?? []}
+            favourites={favourites}
+            count={filtered && !libraryPending ? shown.length : null}
+            onChange={(next) => void navigate({ to: '/rosters', search: next, replace: true, resetScroll: false })}
+            sort={
+              <>
+                <RosterSortMenu
+                  value={selectedSort}
+                  onChange={(chosen) => {
+                    setSelectedSort(chosen)
+                    keepRosterSort(chosen)
+                  }}
+                />
+                <RosterGroupMenu
+                  value={selectedGrouping}
+                  onChange={(chosen) => {
+                    setSelectedGrouping(chosen)
+                    keepRosterGrouping(chosen)
+                  }}
+                />
+              </>
+            }
+          />
+        ) : null}
         {actions.lock.isError ? <Problem error={actions.lock.error} /> : null}
         {actions.split.isError ? <Problem error={actions.split.error} /> : null}
         {actions.exchange.isError ? <Problem>Could not make an exchange code: {errorMessage(actions.exchange.error)}</Problem> : null}
