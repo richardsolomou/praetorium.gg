@@ -35,7 +35,11 @@ test('a locked roster stays read-only until unlocked while its copies stay edita
     await page.keyboard.type(' edited')
     await expect(listName).toHaveValue(name)
     await expect(page.getByLabel('Add a unit')).toHaveCount(0)
-    await expect(page.getByRole('button', { name: 'Unit actions for Immortals' })).toHaveCount(0)
+    // A locked list keeps only what leaves it unchanged, such as saving a loadout.
+    await page.getByRole('button', { name: 'Unit actions for Immortals' }).first().click()
+    await expect(page.getByRole('menuitem', { name: 'Save loadout' })).toBeVisible()
+    await expect(page.getByRole('menuitem', { name: 'Delete unit' })).toHaveCount(0)
+    await page.keyboard.press('Escape')
     expect((await operator.roster(id))?.locked).toBe(true)
     await expectNoPageOverflow(page)
     await page.screenshot({ path: test.info().outputPath(`locked-builder-${width}.png`) })
