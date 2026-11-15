@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { battleColours, playerColour } from './playerColours'
+import { apart, battleColours, LEAST_APART, PLAYER_COLOURS, playerColour } from './playerColours'
 
 const text = (players: Parameters<typeof battleColours>[0]) => [...battleColours(players)!.players.values()].map((colour) => colour.text)
 
@@ -17,9 +17,9 @@ describe('battleColours', () => {
     expect(
       text([
         { id: 'one', side: 0, colour: 'azure' },
-        { id: 'two', side: 1, colour: 'emerald' },
+        { id: 'two', side: 1, colour: 'crimson' },
       ]),
-    ).toEqual(['oklch(0.78 0.13 235)', 'oklch(0.78 0.15 158)'])
+    ).toEqual(['oklch(0.78 0.13 235)', 'oklch(0.7 0.19 22)'])
   })
 
   it('keeps a teammate in their own colour rather than their captain’s', () => {
@@ -64,6 +64,17 @@ describe('battleColours', () => {
       ].map((colour) => colour.ink),
     ).toEqual(['var(--color-bone)', 'var(--color-void)'])
   })
+})
+
+const pairs = PLAYER_COLOURS.flatMap((one, index) => PLAYER_COLOURS.slice(index + 1).map((other) => [one, other] as const))
+
+it.each(pairs.map(([one, other]) => [one.key, other.key]))('seats %s against %s in colours every eye can tell apart', (one, other) => {
+  const seated = battleColours([
+    { id: 'one', side: 0, colour: one },
+    { id: 'two', side: 1, colour: other },
+  ])!.players
+  const colours = [...seated.values()].map((colour) => PLAYER_COLOURS.find((each) => `oklch(${each.text.join(' ')})` === colour.text)!)
+  expect(apart(colours[0]!, colours[1]!)).toBeGreaterThanOrEqual(LEAST_APART)
 })
 
 describe('playerColour', () => {

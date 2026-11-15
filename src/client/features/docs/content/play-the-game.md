@@ -1,6 +1,6 @@
 The main button ends the current phase (**End the command phase**, **End the movement phase** and so on), then reads **Pass the turn** from the end phase. On a phone, switch between **Your side**, **Battle** and **Opponent**.
 
-Every player has their own colour, shown on their name across Praetorium and in battles, where a side's score blends the colours of everyone on it. Choose yours under **Player colour** in [account settings](/profile), or leave it on **Automatic**. If two players' colours are too alike, such as two blues, the player who joined the battle later gets a different one for that game.
+Every player has their own colour, shown on their name across Praetorium and in battles, where a side's score blends the colours of everyone on it. Choose yours under **Player colour** in [account settings](/profile), or leave it on **Automatic**. If two players' colours are too alike, such as two blues or a pair a colour-blind player can't tell apart, the player who joined the battle later gets a different one for that game.
 
 ![The phase strip at the command phase above the End the command phase button and the undo arrow.](screenshot:track-a-battle-phase 'The phase button')
 
