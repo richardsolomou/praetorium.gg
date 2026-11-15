@@ -1,5 +1,13 @@
 # praetorium
 
+## 0.253.1 (2026-11-15)
+
+### Patch Changes
+
+- 95c8676: Collapse any battle setup step to its answer, and click the answer to open it again.
+- 95c8676: Open a mission's card or the battlefield's measurements from a collapsed setup step.
+- 95c8676: Settled battle setup steps start collapsed, and ticking one collapses it and moves to the next step still to settle.
+
 ## 0.253.0 (2026-11-15)
 
 ### Minor Changes
