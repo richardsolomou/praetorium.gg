@@ -133,7 +133,7 @@ export function HomeView({
             }
           />
         </div>
-        {me.usesApp ? null : <HomeAppCredits dismissable />}
+        <HomeAppCredits dismissable stores={!me.usesApp} />
       </main>
     )
   }
@@ -205,7 +205,7 @@ function Welcome({
         </div>
         {stats ? <div className="max-sm:hidden">{stats}</div> : null}
       </div>
-      {offerApp ? <AppBand dismissable /> : null}
+      <AppBand dismissable stores={offerApp} />
     </section>
   )
 }
