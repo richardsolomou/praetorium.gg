@@ -60,11 +60,29 @@ const source = () => ({
   ],
 })
 
-const load = (value: Record<string, unknown>) => {
+const loadAll = (files: Record<string, Record<string, unknown>>) => {
   directory = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-kotc-'))
-  fs.writeFileSync(path.join(directory, 'kotc.json'), JSON.stringify(value))
+  for (const [name, value] of Object.entries(files)) fs.writeFileSync(path.join(directory, name), JSON.stringify(value))
   return kotcTerrain(directory)
 }
+const load = (value: Record<string, unknown>) => loadAll({ 'kotc.json': value })[0] ?? null
+const first = () => ({
+  ...source(),
+  id: 'kotc-1',
+  name: 'King of the Colosseum 1.0',
+  deploymentDepthIn: 9,
+  objectiveRadiusIn: undefined,
+  arena: {
+    radiusIn: 13,
+    wallArcsDeg: [
+      [281, 346],
+      [14, 81],
+      [101, 167],
+      [195, 259],
+    ],
+    objectiveInsetIn: 6,
+  },
+})
 const inside = (point: { x: number; y: number }, zone: { x: number; y: number }[]) =>
   point.x >= Math.min(...zone.map((entry) => entry.x)) &&
   point.x <= Math.max(...zone.map((entry) => entry.x)) &&
@@ -226,4 +244,47 @@ it('rejects a piece beyond the board', () => {
 
 it('rejects an objective range that reaches the arena centre', () => {
   expect(load({ ...source(), objectiveRadiusIn: 13 })).toBeNull()
+})
+
+it('reads the current Colosseum before the one it replaced', () => {
+  expect(loadAll({ 'kotc-1.json': first(), 'kotc.json': source() }).map(({ layout }) => layout.name)).toEqual([
+    'King of the Colosseum 2.0',
+    'King of the Colosseum 1.0',
+  ])
+})
+
+it('puts the first Colosseum’s outer objectives in the gaps between its walls', () => {
+  const [colosseum] = loadAll({ 'kotc-1.json': first() })
+  const walls = colosseum!.layout.geometry!.areas.filter((area) => area.name === 'Arena wall')
+  const inPolygon = (point: { x: number; y: number }, polygon: { x: number; y: number }[]) =>
+    polygon.reduce((crossed, a, index) => {
+      const b = polygon[(index + 1) % polygon.length]!
+      return a.y > point.y !== b.y > point.y && point.x < ((b.x - a.x) * (point.y - a.y)) / (b.y - a.y) + a.x ? !crossed : crossed
+    }, false)
+  // Where the line from the centre through each outer objective meets the wall circle.
+  const onCircle = colosseum!.deployment.objectives.flatMap((objective) => {
+    const distance = Math.hypot(objective.x - 18, objective.y - 18)
+    return distance ? [{ x: 18 + ((objective.x - 18) * 13) / distance, y: 18 + ((objective.y - 18) * 13) / distance }] : []
+  })
+  expect({
+    gaps: onCircle.length,
+    blocked: onCircle.filter((point) => walls.some((wall) => inPolygon(point, wall.points))),
+  }).toEqual({ gaps: 4, blocked: [] })
+})
+
+it('measures each of the first Colosseum’s gap objectives from its edge and the centre', () => {
+  const [colosseum] = loadAll({ 'kotc-1.json': first() })
+  const [, ...outer] = colosseum!.deployment.objectives
+  const reaching = (objective: { x: number; y: number }) =>
+    colosseum!.layout
+      .geometry!.areas.flatMap((area) => area.measurements)
+      .filter(({ to, approximate }) => !approximate && to.x === objective.x && to.y === objective.y)
+      .map(({ from, to }) => Math.round(Math.hypot(to.x - from.x, to.y - from.y)))
+      .sort((a, b) => a - b)
+  expect(outer.map(reaching)).toEqual([
+    [6, 12, 18],
+    [6, 12],
+    [6, 12],
+    [6, 12, 18],
+  ])
 })

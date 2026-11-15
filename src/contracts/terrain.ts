@@ -1,6 +1,9 @@
 export type Point = { x: number; y: number }
 
 export const KOTC_MATCHUP_ID = 'king-of-the-colosseum'
+export const COMBAT_PATROL_MATCHUP_ID = 'combat-patrol'
+/** A King of the Colosseum game is played in the Colosseum, or on a Combat Patrol battlefield of the same size of army. */
+export const KOTC_BATTLEFIELD_MATCHUP_IDS = [KOTC_MATCHUP_ID, COMBAT_PATROL_MATCHUP_ID]
 
 export type TerrainPiece = {
   id: string

@@ -1,4 +1,4 @@
-import { KOTC_MATCHUP_ID, type TerrainLayout } from '../../../contracts/terrain'
+import { KOTC_BATTLEFIELD_MATCHUP_IDS, type TerrainLayout } from '../../../contracts/terrain'
 import { terrainMatchupIds } from '../../../contracts/terrainReference'
 import { isKotcLimit } from '../../../core/battle'
 import type { BattleView } from '../../../core/battleView'
@@ -31,7 +31,7 @@ type MatchupView = {
 
 /** The terrain matchups a battle's layouts come from: every seat on a side carries that side's card, so a 2v1 still plays one pair. */
 export function battleMatchupIds(view: MatchupView): string[] {
-  if (isKotcLimit(view.settings.limit)) return [KOTC_MATCHUP_ID]
+  if (isKotcLimit(view.settings.limit)) return KOTC_BATTLEFIELD_MATCHUP_IDS
   const sides = [...new Set(view.players.map((player) => player.side))]
   return terrainMatchupIds(sides.flatMap((side) => view.players.find((player) => player.side === side)?.disposition ?? []))
 }

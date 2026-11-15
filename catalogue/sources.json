@@ -88,9 +88,10 @@
     "baseUrl": "https://battlemaster.online",
     "owner": "superwutz",
     "missionPack": "chapter-approved-2026",
+    "combatPatrolPack": "combat-patrol",
     "license": null,
     "attribution": "Terrain geometry provided by Battlemaster",
-    "description": "Exact public terrain-area, roof, and wall geometry for Chapter Approved layouts.",
-    "revision": "4ac21244c7bde9a3be8ee2faa6dc44d639606c32788570e3b244d93291997a82"
+    "description": "Exact public terrain-area, roof, and wall geometry for Chapter Approved and Combat Patrol layouts.",
+    "revision": "acabfa43bd2d7cabfc868789ff01c1d2f467e770baf1b77a5bf4c301ed3ab4e7"
   }
 }
