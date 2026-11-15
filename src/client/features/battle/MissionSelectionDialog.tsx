@@ -197,7 +197,7 @@ export function MissionSelectionDialog({
         <DialogBody>
           {staleUnits ? (
             <div className="space-y-2">
-              <p className="text-sm">A selected unit or roster changed. Choose again before saving.</p>
+              <p className="text-sm">A selected unit or list changed. Choose again before saving.</p>
               <Button
                 size="sm"
                 variant="outline"

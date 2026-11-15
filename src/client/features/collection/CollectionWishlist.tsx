@@ -143,9 +143,7 @@ export function CollectionWishlist({ datasheets }: { datasheets: ReadonlyMap<str
             <h3 id="wish-suggestions-heading" className="rubric text-bone">
               Popular in your armies
             </h3>
-            <p className="mt-1 text-xs text-dim">
-              What other players field in the armies you build most, and none of your rosters use yet.
-            </p>
+            <p className="mt-1 text-xs text-dim">What other players field in the armies you build most, and none of your lists use yet.</p>
           </div>
           <CollectionCardGrid>
             {suggestions.map(({ entryId, rosters, of, sheet }) => (
@@ -154,7 +152,7 @@ export function CollectionWishlist({ datasheets }: { datasheets: ReadonlyMap<str
                 data-wish-suggestion={sheet.name}
                 name={sheet.name}
                 sheet={sheet}
-                description={`In ${rosters} of ${countLabel(of, `recent public ${sheet.faction} roster`)}`}
+                description={`In ${rosters} of ${countLabel(of, `recent public ${sheet.faction} list`)}`}
                 action={
                   <Button
                     size="sm"

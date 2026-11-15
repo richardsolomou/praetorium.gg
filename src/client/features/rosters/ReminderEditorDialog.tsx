@@ -95,7 +95,7 @@ export function ReminderEditorDialog({
             <DialogTitle>{draft.ability}</DialogTitle>
             <DialogDescription>
               Choose when this alert appears during a battle. It applies to{' '}
-              {unitAbility ? 'every unit with this ability' : 'every army with this rule'} in all your rosters.
+              {unitAbility ? 'every unit with this ability' : 'every army with this rule'} in all your lists.
             </DialogDescription>
           </DialogHeader>
 

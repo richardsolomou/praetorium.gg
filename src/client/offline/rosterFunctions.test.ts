@@ -149,7 +149,7 @@ it("copies another player's readable roster into the reader's own list", async (
 
 it("refuses a variant of another player's roster", async () => {
   await readOthersRoster()
-  await expect(copyRoster({ data: { id: 'published', variant: true } })).rejects.toThrow('You do not own this roster.')
+  await expect(copyRoster({ data: { id: 'published', variant: true } })).rejects.toThrow('You do not own this list.')
 })
 
 it('asks for a connection before locking a roster saved on the device', async () => {

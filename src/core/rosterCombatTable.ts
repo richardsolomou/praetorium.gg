@@ -10,7 +10,7 @@ export type RosterCombatSummary = Record<CombatPhase | 'combined', { result?: Pi
 export function rosterCombatIndices(picks: readonly RosterPick[]) {
   for (const [index, pick] of picks.entries()) {
     if (pick.attachedTo !== undefined && (!picks[pick.attachedTo] || picks[attachmentHost(picks, index)]!.attachedTo !== undefined))
-      throw new Error('Fix the roster’s invalid attachment before comparing it.')
+      throw new Error('Fix the list’s invalid attachment before comparing it.')
   }
   return picks.flatMap((pick, index) => (pick.attachedTo === undefined ? [index] : []))
 }

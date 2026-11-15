@@ -406,7 +406,7 @@ describe('a unit a reference page asks the builder to add', () => {
     expect(requestedUnit('squad', 3, limits)).toEqual({
       kind: 'refused',
       reason: 'limit',
-      message: 'Limit reached: 3 of 3 permitted copies in the roster.',
+      message: 'Limit reached: 3 of 3 permitted copies in the list.',
     })
   })
 
@@ -426,7 +426,7 @@ it('explains a requested unit blocked by current construction prerequisites', ()
 
 it('names the unit that unlocks a datasheet the roster cannot take yet', () => {
   expect(unitLimitMessage('ally', 0, new Map([['ally', 0]]), new Map([['ally', 'Khorne Battleline']]))).toBe(
-    'Add a Khorne Battleline unit to the roster first.',
+    'Add a Khorne Battleline unit to the list first.',
   )
 })
 

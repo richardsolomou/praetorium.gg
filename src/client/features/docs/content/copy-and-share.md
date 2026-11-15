@@ -1,6 +1,6 @@
 ## Share, export and print
 
-In the library, choose **Share…** in a roster's menu. Under **Who can open it**, pick **Private**, **Unlisted** or **Public**. It changes straight away. You can also change **Access** in **Edit roster setup**.
+In the library, choose **Share…** in a list's menu. Under **Who can open it**, pick **Private**, **Unlisted** or **Public**. It changes straight away. You can also change **Access** in **Edit list setup**.
 
 - **Copy link** (**Share link** on a phone) copies the list's address. On a private list the button reads **Make unlisted and copy**, and makes it Unlisted first.
 - **Export text** gives you text to **Copy text** or **Download text**. See [Exchange codes and export](/docs/exchange-and-export) for what it holds.
@@ -10,17 +10,17 @@ The **Build**/**View** switch in the header hides editing controls for reading a
 
 ## Variants, copies and locking
 
-**Create variant** makes a copy grouped with this list. The variants icon in the header shows **Changes from** the base list and switches between variants. **Make its own roster** takes a variant out of the group. If the base leaves, the oldest remaining variant becomes the base.
+**Create variant** makes a copy grouped with this list. The variants icon in the header shows **Changes from** the base list and switches between variants. **Make its own list** takes a variant out of the group. If the base leaves, the oldest remaining variant becomes the base.
 
-**Duplicate** makes an independent copy. On someone else's list it's **Duplicate to my rosters**, and the copy notes where it came from.
+**Duplicate** makes an independent copy. On someone else's list it's **Duplicate to my lists**, and the copy notes where it came from.
 
-**Lock roster** stops edits until you **Unlock** it. You can still share, export, print and take it to battle.
+**Lock list** stops edits until you **Unlock** it. You can still share, export, print and take it to battle.
 
 **Lend to a friend** lets a friend view the list, field it in their battles and seal it for a tournament or hidden-list game, without editing it. Your notes stay yours, and they can **Return it** at any time.
 
 **Archive** hides a list. **Delete** removes it for good. Copies in battles and tournaments are kept either way.
 
-Locking, **Make its own roster** and changing several lists at once all need a connection.
+Locking, **Make its own list** and changing several lists at once all need a connection.
 
 ## Change several lists at once
 

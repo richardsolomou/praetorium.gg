@@ -121,7 +121,7 @@ it('saves the exact reviewed candidate and forwards its source, owner and server
 it('keeps a refused reviewed library save as a failure', async () => {
   reads.sharedRoster.mockResolvedValue(source)
   const review = await reviewRosterSetup('saved', { ...setup, limit: 1000 })
-  reads.saveRoster.mockRejectedValue(new Error('This roster changed after your review.'))
+  reads.saveRoster.mockRejectedValue(new Error('This list changed after your review.'))
   await expect(action().mutationFn(review)).rejects.toThrow('changed after your review')
 })
 

@@ -56,7 +56,7 @@ test('battle setup stays shared and does not wait for the other device', async (
   await alice.setViewportSize({ width: 1440, height: 900 })
 
   await aliceCard.getByRole('button', { name: 'Choose army', exact: true }).click()
-  const rosterChooser = alice.getByRole('dialog', { name: 'Choose your roster' })
+  const rosterChooser = alice.getByRole('dialog', { name: 'Choose your list' })
   await expect(rosterChooser.getByText(aliceRoster, { exact: true })).toBeVisible()
   await expect(rosterChooser.getByText(incursionRoster, { exact: true })).toBeVisible()
   await alice.keyboard.press('Escape')
@@ -94,8 +94,8 @@ test('battle setup stays shared and does not wait for the other device', async (
   await attachRoster(alice, aliceRoster)
   await expect(bob.getByText(/^A 2,000-point battle, set by /)).toBeVisible()
 
-  await alice.getByRole('button', { name: `Change roster for ${aliceName}` }).click()
-  const rosterChooserAgain = alice.getByRole('dialog', { name: 'Choose your roster' })
+  await alice.getByRole('button', { name: `Change list for ${aliceName}` }).click()
+  const rosterChooserAgain = alice.getByRole('dialog', { name: 'Choose your list' })
   await expect(rosterChooserAgain).toBeVisible()
   await expect(rosterChooserAgain.getByText('Necrons', { exact: true }).first()).toBeVisible()
   await expect(rosterChooserAgain.getByText('Awakened Dynasty', { exact: true }).first()).toBeVisible()

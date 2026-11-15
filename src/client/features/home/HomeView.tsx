@@ -199,7 +199,7 @@ function Welcome({
           <div className="flex flex-wrap gap-2">
             {newBattle}
             <Link to="/rosters/new" className={buttonClass({ variant: 'outline' })}>
-              Build a roster
+              Build a list
             </Link>
           </div>
         </div>

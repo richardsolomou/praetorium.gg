@@ -60,7 +60,7 @@ export function RosterVariantMenu({
               className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-raised aria-[current=page]:text-bone"
             >
               <Check className={`size-3.5 shrink-0 ${variant.id === current ? '' : 'invisible'}`} aria-hidden />
-              <span className="min-w-0 flex-1 truncate">{variant.name || 'Unnamed roster'}</span>
+              <span className="min-w-0 flex-1 truncate">{variant.name || 'Unnamed list'}</span>
               {index === 0 ? <span className="eyebrow">Base</span> : null}
             </Link>
           ))}

@@ -32,16 +32,16 @@ The simulator works rules out from their wording, which your browser loads from 
 
 Check **Calculation uses**. If a chip is dimmed, hover it for the reason.
 
-### The roster comparison stopped partway
+### The list comparison stopped partway
 
 It has a five-minute limit and can be cancelled. Completed pairings are kept. Press **Retry** to finish.
 
-### "Sign in and save both rosters to compare them here."
+### "Sign in and save both lists to compare them here."
 
-Roster comparisons use saved lists. Sign in, then save or [import](/docs/import-a-list) the lists.
+List comparisons use saved lists. Sign in, then save or [import](/docs/import-a-list) the lists.
 
 ## Limits
 
 - The simulator doesn't know range, line of sight, positioning or which stratagems you've used. You turn those on.
 - Rules it can't calculate are left out or named. It never guesses, so a result with a rule missing isn't the full picture.
-- It calculates one attacking unit against one target. The roster comparison doesn't plan targets across your army.
+- It calculates one attacking unit against one target. The list comparison doesn't plan targets across your army.

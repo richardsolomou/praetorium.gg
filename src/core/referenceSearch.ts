@@ -15,7 +15,7 @@ import { pointsLabel } from './battle'
 
 export type GlobalSearchResult = {
   id: string
-  group: 'Pages' | 'Factions' | 'Datasheets' | 'Detachments' | 'Missions' | 'Rules' | 'Your rosters' | 'Your battles'
+  group: 'Pages' | 'Factions' | 'Datasheets' | 'Detachments' | 'Missions' | 'Rules' | 'Your lists' | 'Your battles'
   label: string
   detail: string
   href: string
@@ -181,7 +181,7 @@ const SEARCH_GROUPS: GlobalSearchResult['group'][] = [
   'Detachments',
   'Missions',
   'Rules',
-  'Your rosters',
+  'Your lists',
   'Your battles',
 ]
 
@@ -254,7 +254,7 @@ function searchOwn(query: string, mine: OwnSearchData | null): GlobalSearchResul
     if (!matches(name)) continue
     results.push({
       id: `roster:${roster.id}`,
-      group: 'Your rosters',
+      group: 'Your lists',
       label: name,
       detail: pointsLabel(roster.limit),
       href: `/rosters/${roster.id}`,
@@ -271,5 +271,5 @@ function searchOwn(query: string, mine: OwnSearchData | null): GlobalSearchResul
       href: `/battles/${battle.token}`,
     })
   }
-  return ['Your rosters', 'Your battles'].flatMap((group) => results.filter((result) => result.group === group).slice(0, 12))
+  return ['Your lists', 'Your battles'].flatMap((group) => results.filter((result) => result.group === group).slice(0, 12))
 }

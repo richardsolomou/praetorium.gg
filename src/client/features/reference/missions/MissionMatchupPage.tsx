@@ -38,7 +38,7 @@ export function MissionMatchupPage({ packId, you, opponent }: { packId: string; 
         title={`${yourDisposition.name} vs ${opponentDisposition.name}`}
         actions={
           <Link to="/rosters/new" search={{ reference: 'mission-matchup' }} className={buttonClass()}>
-            Build a roster
+            Build a list
           </Link>
         }
       >

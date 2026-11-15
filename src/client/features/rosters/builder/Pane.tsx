@@ -152,7 +152,7 @@ export function Pane({
           ref={closeButton}
           variant="ghost"
           size="icon"
-          aria-label={variant === 'loadout' ? (backLabel ?? 'Back to roster') : 'Close'}
+          aria-label={variant === 'loadout' ? (backLabel ?? 'Back to list') : 'Close'}
           className={`absolute top-0.5 ${variant === 'loadout' ? 'left-0 size-11 roster-split:hidden' : 'right-2'}`}
           onClick={onClose}
         >

@@ -35,5 +35,5 @@ export function RosterPicker({
   groups,
   ...props
 }: Omit<ComponentProps<typeof SearchableSelect>, 'groups' | 'placeholder'> & { groups: readonly RosterGroup[] }) {
-  return <SearchableSelect {...props} placeholder="Choose a roster" groups={useRosterGroups(groups)} />
+  return <SearchableSelect {...props} placeholder="Choose a list" groups={useRosterGroups(groups)} />
 }

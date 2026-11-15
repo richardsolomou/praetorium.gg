@@ -11,7 +11,7 @@ const SQUAD = 'Intercessor Squad'
 /** The roster's cards, with the picker or loadout put away on a phone. */
 async function cards(page: Page) {
   await closePicker(page)
-  const back = page.locator('[data-pane="loadout"]').getByRole('button', { name: 'Back to roster' })
+  const back = page.locator('[data-pane="loadout"]').getByRole('button', { name: 'Back to list' })
   if (await back.isVisible()) await back.click()
   await page.waitForLoadState('networkidle')
   return { squad: page.locator(`[data-unit="${SQUAD}"]`), rhino: page.locator('[data-unit="Rhino"]') }

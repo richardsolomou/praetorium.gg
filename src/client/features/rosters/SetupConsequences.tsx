@@ -122,7 +122,7 @@ export function SetupConsequences({ review, guest }: { review: Review; guest: bo
   if (units.some((unit) => unit.status === 'Needs review')) warnings.push('Some units could not be checked.')
 
   return (
-    <div className="space-y-5 text-sm" aria-label="Roster change preview">
+    <div className="space-y-5 text-sm" aria-label="List change preview">
       <div
         className={`flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 rounded-lg border border-edge bg-raised px-3 py-2 ${overBudget ? 'text-destructive' : ''}`}
       >
@@ -152,7 +152,7 @@ export function SetupConsequences({ review, guest }: { review: Review; guest: bo
               </ul>
             </div>
           ) : null}
-          <p className="text-xs text-dim">Illegal units stay in the roster for you to fix.</p>
+          <p className="text-xs text-dim">Illegal units stay in the list for you to fix.</p>
         </section>
       ) : (
         <p className="text-achieved">No reported legality problems.</p>

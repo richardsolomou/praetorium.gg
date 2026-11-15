@@ -98,7 +98,7 @@ export function RosterChoices({
           disabled={pages.results.some((result) => !result.isSuccess)}
           onClick={() => setShownCount((count) => count + ROSTER_LIBRARY_BATCH_SIZE)}
         >
-          Show more rosters
+          Show more lists
         </Button>
       ) : null}
     </div>

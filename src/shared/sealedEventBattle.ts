@@ -91,20 +91,20 @@ export function buildSealedEventBattle(
 ) {
   const invited = [opponentId, allyId, secondOpponentId].filter((id): id is string => Boolean(id))
 
-  if (sealedEvent.revealedAt === null) throw new SealedEventBattleSetupError('reveal the rosters before starting a battle', 409)
+  if (sealedEvent.revealedAt === null) throw new SealedEventBattleSetupError('reveal the lists before starting a battle', 409)
   if (sealedEvent.rounds !== null && !sealedEvent.paired)
     throw new SealedEventBattleSetupError('play the opponent you were paired with this round, once the round is paired', 409)
   const expectedPlayers = sealedEvent.format === '2v2' ? 4 : sealedEvent.format === '2v1' ? 3 : 2
   if (sealedEvent.format === '2v2' && !SEALED_EVENT_TEAM_ROSTER_LIMITS.some((candidate) => candidate === sealedEvent.rosterLimit)) {
-    throw new SealedEventBattleSetupError('sealed rosters use an unsupported doubles battle size', 409)
+    throw new SealedEventBattleSetupError('sealed lists use an unsupported doubles battle size', 409)
   }
   if (sealedEvent.format === '1v1' || sealedEvent.format === null) {
     if (sealedEvent.entries.length !== expectedPlayers || invited.length !== expectedPlayers - 1)
-      throw new SealedEventBattleSetupError('choose accepted entrants with sealed rosters', 403)
+      throw new SealedEventBattleSetupError('choose accepted entrants with sealed lists', 403)
   }
   const rosters = new Map(
     sealedEvent.entries.map((entry) => {
-      if (!entry.snapshot) throw new Error('accepted entrant has no roster snapshot')
+      if (!entry.snapshot) throw new Error('accepted entrant has no list snapshot')
       return [entry.userId, parseRosterSnapshot(entry.snapshot)] as const
     }),
   )
@@ -129,15 +129,15 @@ export function buildSealedEventBattle(
   const opponentRoster = rosters.get(opponentIds[0]!)
   const limit = sealedEvent.format === null ? ownRoster?.built?.limit : sealedEvent.rosterLimit
   if (!ownRoster || !opponentRoster || limit === null || limit === undefined)
-    throw new SealedEventBattleSetupError('sealed rosters use an invalid battle size', 409)
+    throw new SealedEventBattleSetupError('sealed lists use an invalid battle size', 409)
   if (
     sealedEvent.format !== '2v1' &&
     sealedEvent.format !== '2v2' &&
     (ownRoster.built?.limit !== limit || opponentRoster.built?.limit !== limit)
   ) {
-    throw new SealedEventBattleSetupError('sealed rosters must use the same battle size', 409)
+    throw new SealedEventBattleSetupError('sealed lists must use the same battle size', 409)
   }
-  if (!isGameSize(limit)) throw new SealedEventBattleSetupError('sealed rosters use an unsupported battle size', 409)
+  if (!isGameSize(limit)) throw new SealedEventBattleSetupError('sealed lists use an unsupported battle size', 409)
 
   if (sealedEvent.format === '2v1') {
     const requirements = new Map(sealedEvent.entries.map((entry) => [entry.userId, entry.requiredLimit]))
@@ -185,7 +185,7 @@ export function buildSealedEventBattle(
       const pair = sealedEventPairShares(sealedEvent) && !solo ? { partner: rosters.get(partnerId!)?.built ?? null } : undefined
       return !built || sealedEventSeatRefusal(built, limit, sealedEventSeatPoints(sealedEvent, solo)!, pair) !== null
     }
-    if (participantIds.some(misfit)) throw new SealedEventBattleSetupError('a sealed roster does not fit its seat', 409)
+    if (participantIds.some(misfit)) throw new SealedEventBattleSetupError('a sealed list does not fit its seat', 409)
   }
 
   const initialCommands: Command[] = [

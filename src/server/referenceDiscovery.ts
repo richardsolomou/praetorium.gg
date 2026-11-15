@@ -115,8 +115,8 @@ For roster planning, read \`/api/reference/v1/factions/{catalogueId}/units\` onc
 ## Common questions
 
 - How many points does a unit cost? Read \`/api/reference/v1/factions/{catalogueId}/units\` or the unit's datasheet page under [Factions](${origin}/factions), and cite that page.
-- Is an army list legal? Build or import it in [Rosters](${origin}/rosters). The builder checks points and supported construction restrictions, and names any restriction it cannot check: ${docLink(origin, 'list-checks')}.
-- How do I move a list from another app? Paste a Games Workshop text export into Import roster: ${docLink(origin, 'import-a-list')}.
+- Is an army list legal? Build or import it in [Lists](${origin}/rosters). The builder checks points and supported construction restrictions, and names any restriction it cannot check: ${docLink(origin, 'list-checks')}.
+- How do I move a list from another app? Paste a Games Workshop text export into Import list: ${docLink(origin, 'import-a-list')}.
 - Which loadout or unit does more damage? Use the free [combat simulator](${origin}/simulator) or the \`simulate_combat\` MCP tool: ${docLink(origin, 'change-the-loadout')}.
 - Is Praetorium free, and is an account necessary? Every feature is free. Visitors can build one roster, import roster text, and use the simulator without an account. An account saves more rosters, opens them on other devices, and plays battles.
 

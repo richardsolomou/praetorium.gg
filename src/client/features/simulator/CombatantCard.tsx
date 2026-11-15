@@ -262,7 +262,7 @@ export function CombatantCard({
       {combatant.roster && !(rosters && combatant.rosterName && combatant.shared) ? (
         <div className="mb-3 flex h-8 min-w-0 items-center gap-2 text-sm text-dim" aria-label={`${side} faction`}>
           {selectedFaction ? <FactionLabel faction={selectedFaction} /> : 'Loading faction…'}
-          <span className="ml-auto text-xs text-faint">{battleUnit ? 'Battle' : 'Roster'}</span>
+          <span className="ml-auto text-xs text-faint">{battleUnit ? 'Battle' : 'List'}</span>
         </div>
       ) : null}
       <div className="min-h-8 space-y-2">
@@ -554,7 +554,7 @@ function RosterCaption({
   rosters: RosterNavigation
 }) {
   return (
-    <div className="flex min-w-0 flex-wrap items-center gap-2 text-xs text-dim" aria-label={`${side} roster`}>
+    <div className="flex min-w-0 flex-wrap items-center gap-2 text-xs text-dim" aria-label={`${side} list`}>
       <span className="flex min-w-0 flex-1 basis-56 items-center gap-2">
         <ScrollText className="size-4 shrink-0 text-info" aria-hidden />
         <span className="min-w-0 truncate">
@@ -563,7 +563,7 @@ function RosterCaption({
         </span>
       </span>
       {rosters.owner ? <OwnerName owner={rosters.owner} className="ml-auto shrink-0" /> : null}
-      <ControlTooltip label="Use this unit without the roster">
+      <ControlTooltip label="Use this unit without the list">
         <Button
           variant="ghost"
           size="icon-sm"

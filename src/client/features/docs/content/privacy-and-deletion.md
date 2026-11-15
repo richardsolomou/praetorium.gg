@@ -1,14 +1,14 @@
-Your name, picture and profile page are public, and your email is private. Battles and your collection are public too, and each roster has its own access.
+Your name, picture and profile page are public, and your email is private. Battles and your collection are public too, and each list has its own access.
 
 ## Battles
 
 Battles are public. Anyone can find and watch your past and live battles, tournament games included. Finished guided battles count on the leaderboard once every seat belongs to an account, except practice battles and games entered with **Enter score**. Spectators can't change anything or see a face-down Secret Mission.
 
-## Rosters
+## Lists
 
-Each roster has its own access: **Private**, **Unlisted** (anyone with the link) or **Public** (listed on your profile and for anyone to find). New rosters start **Public** unless you change **Roster visibility** under **Roster defaults**. Anyone can copy a public roster into their own rosters.
+Each list has its own access: **Private**, **Unlisted** (anyone with the link) or **Public** (listed on your profile and for anyone to find). New lists start **Public** unless you change **List visibility** under **List defaults**. Anyone can copy a public list into their own lists.
 
-Making a roster private again stops its link working. Copies of it already played in battles or sealed in a tournament stay as they were.
+Making a list private again stops its link working. Copies of it already played in battles or sealed in a tournament stay as they were.
 
 ## Collection
 
@@ -27,7 +27,7 @@ The [privacy policy](/privacy) lists what Praetorium stores and who it's shared 
 Deletion can't be undone. It removes:
 
 - your profile and sign-in methods
-- rosters and saved loadouts
+- lists and saved loadouts
 - ability alerts
 - your collection, with its photos and wishlist
 - favourites
@@ -38,6 +38,6 @@ Deletion can't be undone. It removes:
 - groups you own, for every member: the group, its leaderboard and its hidden-list games
 - every battle you played, including games other players were in
 
-It can't reach copies other players have already made: rosters they copied, and anything they downloaded or captured.
+It can't reach copies other players have already made: lists they copied, and anything they downloaded or captured.
 
 If you can't sign in, the [Delete account](/delete-account) page explains how to ask by email instead.

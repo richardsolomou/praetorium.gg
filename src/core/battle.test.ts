@@ -189,7 +189,7 @@ describe('setup', () => {
     ['remove a sealed roster', { kind: 'detach-roster' }],
     ['reset sealed rosters', { kind: 'reset-setup' }],
   ])('refuses to %s', (_action, command) => {
-    expect(validate(sealedEventBattle(), ALICE, command)).toBe('these rosters are sealed')
+    expect(validate(sealedEventBattle(), ALICE, command)).toBe('these lists are sealed')
   })
 
   it('refuses to change a sealed battle size', () => {
@@ -683,7 +683,7 @@ describe('setup', () => {
 
   it('offers the borrowed disposition optional rule only at King of the Colosseum', () => {
     expect(borrowedDispositionError(2000, ['kotc-borrowed-disposition'], { points: 1 }, { points: 1 })).toBe(
-      'Only a King of the Colosseum roster may borrow another detachment\u2019s Force Disposition.',
+      'Only a King of the Colosseum list may borrow another detachment\u2019s Force Disposition.',
     )
   })
 
@@ -693,7 +693,7 @@ describe('setup', () => {
 
   it('refuses a borrow the roster never picked the optional rule for', () => {
     expect(borrowedDispositionError(600, [], { points: 1 }, { points: 1 })).toBe(
-      'This roster is not playing the borrowed disposition optional rule.',
+      'This list is not playing the borrowed disposition optional rule.',
     )
   })
 
@@ -744,7 +744,7 @@ describe('setup', () => {
 
   it('names a custom budget in the points limit while the battle size keeps its detachment points', () => {
     expect(formatRules(2000, 1500).map((rule) => rule.hint)).toEqual([
-      'The roster costs at most 1,500 points',
+      'The list costs at most 1,500 points',
       'Detachments cost at most 3 DP together',
       'Exactly one Character unit is named as the Warlord',
     ])
@@ -940,7 +940,7 @@ describe('setup', () => {
         [BOB, roster('Death Guard')],
       ),
     )
-    expect(validate(state, ALICE, { kind: 'begin-battle', firstPlayerId: ALICE })).toBe('every roster must match the battle size')
+    expect(validate(state, ALICE, { kind: 'begin-battle', firstPlayerId: ALICE })).toBe('every list must match the battle size')
   })
 
   it('refuses a replacement roster at the wrong configured size', () => {
@@ -963,7 +963,7 @@ describe('setup', () => {
         [ALICE, { kind: 'begin-battle', firstPlayerId: ALICE }],
       ),
     )
-    expect(validate(state, ALICE, builtRoster('Strike force', ['Intercessors']))).toBe('that roster does not match the battle size')
+    expect(validate(state, ALICE, builtRoster('Strike force', ['Intercessors']))).toBe('that list does not match the battle size')
   })
 
   it('refuses multiple detachments over the battle-size allowance', () => {

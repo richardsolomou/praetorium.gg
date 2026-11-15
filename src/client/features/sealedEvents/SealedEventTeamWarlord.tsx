@@ -33,8 +33,8 @@ export function TeamWarlordPanel({
       <SectionHeading id="team-warlord" title="Team Warlord" className="mb-0" />
       <p className="mt-1 text-xs text-dim">
         {team.warlord
-          ? 'This Warlord leads your team. You can change it until the rosters are revealed.'
-          : 'Each roster names its own Warlord, and your team fields one. Choose whose before the rosters are revealed.'}
+          ? 'This Warlord leads your team. You can change it until the lists are revealed.'
+          : 'Each list names its own Warlord, and your team fields one. Choose whose before the lists are revealed.'}
       </p>
       <fieldset className="mt-3 grid gap-2">
         <legend className="sr-only">Whose Warlord leads your team</legend>

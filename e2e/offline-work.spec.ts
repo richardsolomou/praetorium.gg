@@ -131,7 +131,7 @@ test('a roster still waiting to sync opens in a new tab and a missing one shows 
   await dialog.getByRole('button', { name: /^Select Awakened Dynasty$/ }).click()
   const dispositions = dialog.getByRole('group', { name: 'Force disposition' }).getByRole('button')
   if ((await dispositions.count()) > 1) await dispositions.first().click()
-  await dialog.getByRole('button', { name: 'Create roster' }).click()
+  await dialog.getByRole('button', { name: 'Create list' }).click()
   await page.waitForURL(/\/rosters\/[^/]+$/)
   const id = lastPathSegment(page.url())
   const name = await page.getByLabel('List name').inputValue()

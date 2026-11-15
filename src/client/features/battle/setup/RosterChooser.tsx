@@ -64,21 +64,19 @@ export function RosterChooser({
     >
       <DialogContent size="md">
         <DialogHeader>
-          <DialogTitle className="text-2xl">{forArmy?.automated ? 'Choose a roster' : 'Choose your roster'}</DialogTitle>
+          <DialogTitle className="text-2xl">{forArmy?.automated ? 'Choose a list' : 'Choose your list'}</DialogTitle>
           <DialogDescription>
             {/* Nobody signs in to a place the table plays, so the army it brings comes from the viewer's lists. */}
             {forArmy?.automated ? 'One of your own lists, for a place you play. ' : ''}
-            {requiredLimit === null ? 'Your rosters.' : `Rosters built for ${pointsLabel(requiredLimit)}${orSmaller ? ' or fewer' : ''}.`}
+            {requiredLimit === null ? 'Your lists.' : `Lists built for ${pointsLabel(requiredLimit)}${orSmaller ? ' or fewer' : ''}.`}
           </DialogDescription>
         </DialogHeader>
         <DialogBody>
           {error ? <Problem>{error}</Problem> : null}
           {loading ? null : filter.bar}
-          {filter.failed ? (
-            <Problem>Some rosters’ points and legality could not be checked, so this filter leaves them out.</Problem>
-          ) : null}
+          {filter.failed ? <Problem>Some lists’ points and legality could not be checked, so this filter leaves them out.</Problem> : null}
           {loading || filter.pending ? (
-            <div className="space-y-2" aria-label="Loading rosters">
+            <div className="space-y-2" aria-label="Loading lists">
               {Array.from({ length: 3 }, (_, index) => (
                 <div key={index} className="flex min-h-20 items-center gap-3 rounded-lg border border-edge bg-sunken p-3" aria-hidden>
                   <div className="flex-1 space-y-2">
@@ -91,12 +89,12 @@ export function RosterChooser({
             </div>
           ) : !rosters.length ? (
             <>
-              <SectionHeading title="Rosters" count={0} className="mb-0" />
+              <SectionHeading title="Lists" count={0} className="mb-0" />
               <div className="space-y-3 rounded-lg border border-edge bg-sunken p-4">
                 <p className="text-sm text-dim">
                   {savedCount
-                    ? `None of your ${savedCount} saved rosters is built for ${pointsLabel(requiredLimit!)}${orSmaller ? ' or fewer' : ''}.`
-                    : 'You do not have a saved roster yet.'}
+                    ? `None of your ${savedCount} saved lists is built for ${pointsLabel(requiredLimit!)}${orSmaller ? ' or fewer' : ''}.`
+                    : 'You do not have a saved list yet.'}
                 </p>
                 <div className="flex flex-wrap gap-2">
                   {savedCount > 0 && requiredLimit !== null ? (
@@ -116,19 +114,19 @@ export function RosterChooser({
                     search={requiredLimit === null ? {} : { limit: requiredLimit }}
                     className={buttonClass({ variant: 'outline', size: 'sm' })}
                   >
-                    Open your roster library
+                    Open your list library
                   </Link>
                 </div>
               </div>
-              {lent.length && !filter.lent.length ? <NoFilterMatches>No lent rosters match these filters.</NoFilterMatches> : null}
+              {lent.length && !filter.lent.length ? <NoFilterMatches>No lent lists match these filters.</NoFilterMatches> : null}
             </>
           ) : filter.rosters.length ? (
             <>
-              <SectionHeading title="Rosters" count={filter.rosters.length} className="mb-0" />
+              <SectionHeading title="Lists" count={filter.rosters.length} className="mb-0" />
               <RosterChoices rosters={filter.rosters} sort={filter.sort} selectedId={selectedId} disabled={pending} onSelect={onChoose} />
             </>
           ) : filter.lent.length ? null : (
-            <NoFilterMatches>No rosters match these filters.</NoFilterMatches>
+            <NoFilterMatches>No lists match these filters.</NoFilterMatches>
           )}
           {filter.lent.length && !filter.pending ? (
             <>

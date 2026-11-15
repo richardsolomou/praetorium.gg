@@ -9,8 +9,8 @@ import { NO_ROOM_MESSAGE, TOO_MANY_CHANGES_MESSAGE } from '../../offline/syncEng
 type SaveFailureReason = 'locked' | 'deleted' | 'account' | 'storage' | 'network' | 'invalid' | 'other'
 
 // The lowercase messages are thrown by the server (src/server/services/rosterService.ts), which the client cannot import.
-const DELETED = new Set([DELETED_ROSTER_MESSAGE, 'the saved roster is no longer available'])
-const ACCOUNT = new Set([SIGN_IN_REQUIRED, SIGN_IN_TO_SAVE_MESSAGE, 'you do not own this roster'])
+const DELETED = new Set([DELETED_ROSTER_MESSAGE, 'the saved list is no longer available'])
+const ACCOUNT = new Set([SIGN_IN_REQUIRED, SIGN_IN_TO_SAVE_MESSAGE, 'you do not own this list'])
 const STORAGE = new Set([STORAGE_LIMIT_MESSAGE, NO_ROOM_MESSAGE, TOO_MANY_CHANGES_MESSAGE, SAVING_ELSEWHERE_MESSAGE])
 
 /** A save failure as one of a few telemetry reasons, never the message itself. */

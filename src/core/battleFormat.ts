@@ -119,13 +119,13 @@ export function formatRules(limit: number | null, pointsBudget?: number | null):
   const pointsLimit: FormatRule = {
     id: 'points-limit',
     label: 'Points limit',
-    hint: `The roster costs at most ${pointsLabel(pointsBudget ?? limit)}`,
+    hint: `The list costs at most ${pointsLabel(pointsBudget ?? limit)}`,
   }
   if (isKotcLimit(limit)) {
     return [
       pointsLimit,
-      { id: 'detachments', label: 'One detachment', hint: 'The roster is built from exactly one detachment' },
-      { id: 'kotc-infantry', label: 'Two Infantry units', hint: 'The roster holds at least two Infantry units' },
+      { id: 'detachments', label: 'One detachment', hint: 'The list is built from exactly one detachment' },
+      { id: 'kotc-infantry', label: 'Two Infantry units', hint: 'The list holds at least two Infantry units' },
       { id: 'kotc-warlord', label: 'Character Warlord', hint: 'Exactly one Character unit is named as the Warlord' },
       { id: 'kotc-epic-heroes', label: 'No Epic Heroes', hint: 'Datasheets with the Epic Hero keyword may not be taken' },
       { id: 'kotc-toughness', label: 'Toughness cap', hint: 'Nothing above Toughness 9, and at most one Toughness 9 unit' },
@@ -224,8 +224,8 @@ export function borrowedDispositionError(
   borrowed: { points: number | null } | null,
 ): string | null {
   if (!borrowed) return null
-  if (!isKotcLimit(limit)) return 'Only a King of the Colosseum roster may borrow another detachment’s Force Disposition.'
-  if (!plays(picked, 'kotc-borrowed-disposition')) return 'This roster is not playing the borrowed disposition optional rule.'
+  if (!isKotcLimit(limit)) return 'Only a King of the Colosseum list may borrow another detachment’s Force Disposition.'
+  if (!plays(picked, 'kotc-borrowed-disposition')) return 'This list is not playing the borrowed disposition optional rule.'
   if (!own || own.points === null || borrowed.points === null)
     return 'One of these detachments has no points value, so the borrowed disposition cannot be paid for.'
   const spent = own.points + borrowed.points

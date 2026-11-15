@@ -9,7 +9,7 @@ describe('native application navigation', () => {
     expect(nativeNavigation(path, { rules: 'custodes-11e' }).back).toBe(href)
   })
   it.each([
-    ['/rosters', { section: 'rosters', title: 'Rosters' }],
+    ['/rosters', { section: 'rosters', title: 'Lists' }],
     ['/battles', { section: 'battles', title: 'Battles' }],
     ['/factions', { section: 'factions', title: 'Factions' }],
     ['/', { section: 'home', title: 'Praetorium' }],
@@ -29,7 +29,7 @@ describe('native application navigation', () => {
   })
 
   it.each([
-    ['/rosters/army-id', { back: '/rosters', section: 'rosters', title: 'Roster' }],
+    ['/rosters/army-id', { back: '/rosters', section: 'rosters', title: 'List' }],
     ['/battles/battle-id', { back: '/battles', section: 'battles', title: 'Battle' }],
     ['/tournaments/sealed-event-id', { back: '/tournaments', section: 'events', title: 'Tournament' }],
     ['/groups/group-id/games/game-id', { back: '/groups/group-id', section: 'events', title: 'Hidden-list game' }],

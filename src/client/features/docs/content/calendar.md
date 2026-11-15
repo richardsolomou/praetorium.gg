@@ -10,7 +10,7 @@ Add your league round deadlines and tournament dates to the calendar app you alr
 ## What the calendar shows
 
 - Each round deadline an organizer set in a league you play in.
-- The roster deadline and the play day of each tournament you entered or run.
+- The list deadline and the play day of each tournament you entered or run.
 
 Each date is one moment, such as 19:00 on the deadline day, shown in your calendar's timezone. Hidden-list games don't appear.
 

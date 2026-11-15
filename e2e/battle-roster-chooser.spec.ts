@@ -22,10 +22,10 @@ async function strikeForceBattle(operator: SpacetimeOperator, userId: string, pr
 const yourArmy = (page: Page) => page.locator('[data-face-off-side="0"]')
 
 const openChooser = async (page: Page) => {
-  const chooser = page.getByRole('dialog', { name: 'Choose your roster' })
+  const chooser = page.getByRole('dialog', { name: 'Choose your list' })
   await retryUntilVisible(chooser, () =>
     yourArmy(page)
-      .getByRole('button', { name: /^(Choose army|Change roster for )/ })
+      .getByRole('button', { name: /^(Choose army|Change list for )/ })
       .click(),
   )
   return chooser
@@ -63,18 +63,18 @@ test('choosing a roster the library reports over its limit names the problem and
   await row.click()
   const refusal = page.getByRole('alertdialog', { name: 'This list is over its points limit' })
   await expect(refusal).toContainText(`${name} costs more than its 500-point limit.`)
-  await expect(refusal).not.toContainText('fix roster errors')
+  await expect(refusal).not.toContainText('fix list errors')
 
   await refusal.getByRole('button', { name: 'Choose another' }).click()
   await expect(refusal).toBeHidden()
   await expect(chooser).toBeVisible()
-  await expect(chooser.getByText('fix roster errors')).toHaveCount(0)
+  await expect(chooser.getByText('fix list errors')).toHaveCount(0)
   await page.keyboard.press('Escape')
   await expect(chooser).toBeHidden()
   await expect(yourArmy(page)).toContainText('No army yet')
 
   await (await openChooser(page)).locator(`[data-roster="${name}"]`).click()
-  await refusal.getByRole('link', { name: 'Edit roster' }).click()
+  await refusal.getByRole('link', { name: 'Edit list' }).click()
   await expect(page).toHaveURL(new RegExp(`/rosters/${id}$`))
 })
 
@@ -106,11 +106,11 @@ test('going back on a phone closes the roster chooser and stays on the battle', 
 
   await openChooser(page)
   await page.goBack()
-  await expect(page.getByRole('dialog', { name: 'Choose your roster' })).toBeHidden()
+  await expect(page.getByRole('dialog', { name: 'Choose your list' })).toBeHidden()
   await expect(page).toHaveURL(battle)
 
   await (await openChooser(page)).getByRole('button', { name: 'Close' }).click()
-  await expect(page.getByRole('dialog', { name: 'Choose your roster' })).toBeHidden()
+  await expect(page.getByRole('dialog', { name: 'Choose your list' })).toBeHidden()
   await expect(page).toHaveURL(battle)
 
   await (await openChooser(page)).locator(`[data-roster="${name}"]`).click()
@@ -132,7 +132,7 @@ test('going back on a phone from a roster’s confirmation closes it with the ch
   await expect(refusal).toBeVisible()
   await page.goBack()
   await expect(page).toHaveURL(battle)
-  await expect(page.getByRole('dialog', { name: 'Choose your roster' })).toBeHidden()
+  await expect(page.getByRole('dialog', { name: 'Choose your list' })).toBeHidden()
   await expect(refusal).toBeHidden()
 })
 
@@ -141,7 +141,7 @@ test('closing a roster chooser restored by a reload leaves no history entry behi
 
   await openChooser(page)
   await page.reload()
-  const chooser = page.getByRole('dialog', { name: 'Choose your roster' })
+  const chooser = page.getByRole('dialog', { name: 'Choose your list' })
   // A press before hydration does nothing, so close until the chooser goes.
   await expect(async () => {
     await chooser.getByRole('button', { name: 'Close' }).click()
@@ -181,9 +181,9 @@ test('a roster chooser narrows to legal lists, says when nothing matches, and cl
   await expect(chooser.locator(`[data-roster="${legal}"]`)).toBeVisible()
   await expect(chooser.locator(`[data-roster="${overspent}"]`)).toHaveCount(0)
 
-  const search = chooser.getByRole('textbox', { name: 'Search rosters' })
+  const search = chooser.getByRole('textbox', { name: 'Search lists' })
   await search.fill('no such army')
-  await expect(chooser).toContainText('No rosters match these filters.')
+  await expect(chooser).toContainText('No lists match these filters.')
   await search.press('Escape')
   await expect(search).toHaveValue('')
   await expect(chooser.locator(`[data-roster="${legal}"]`)).toBeVisible()

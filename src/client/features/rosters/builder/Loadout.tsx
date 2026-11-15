@@ -120,7 +120,7 @@ export function Loadout({
   if (!unit) {
     return (
       <div className="flex h-full items-center justify-center p-6">
-        <p className="max-w-52 text-center text-xs text-faint">Select a unit from the roster to see its loadout.</p>
+        <p className="max-w-52 text-center text-xs text-faint">Select a unit from the list to see its loadout.</p>
       </div>
     )
   }

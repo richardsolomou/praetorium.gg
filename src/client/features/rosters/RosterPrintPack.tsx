@@ -86,8 +86,7 @@ export function RosterPrintPack({ input, onClose }: { input: RosterPrintInput; o
         )
         units.push(...batch)
       }
-      if (units.length !== input.picks.length)
-        throw new Error('Some roster selections could not be built. Review the roster before printing.')
+      if (units.length !== input.picks.length) throw new Error('Some list selections could not be built. Review the list before printing.')
       signal.throwIfAborted()
       const checked = await client.query({
         ...priceQuery(
@@ -103,7 +102,7 @@ export function RosterPrintPack({ input, onClose }: { input: RosterPrintInput; o
         staleTime: 0,
       })
       if (!checked || checked.revision !== input.price.revision || checked.points !== input.price.points)
-        throw new Error('The army data changed while preparing the pack. Return to the roster and print again.')
+        throw new Error('The army data changed while preparing the pack. Return to the list and print again.')
       return { faction, detachments, cards, groups: attachedUnitList(units) }
     },
   })
@@ -158,7 +157,7 @@ export function RosterPrintPack({ input, onClose }: { input: RosterPrintInput; o
       <div className="space-y-3 p-4" data-print-hide>
         <p role={isError ? 'alert' : 'status'}>
           {isError
-            ? 'The complete battle reference pack could not be prepared. Retry or return to your roster.'
+            ? 'The complete battle reference pack could not be prepared. Retry or return to your list.'
             : 'Preparing battle reference pack…'}
         </p>
         {isError ? (
@@ -167,7 +166,7 @@ export function RosterPrintPack({ input, onClose }: { input: RosterPrintInput; o
           </Button>
         ) : null}
         <Button variant="outline" onClick={onClose}>
-          Return to roster
+          Return to list
         </Button>
       </div>
     )
@@ -176,7 +175,7 @@ export function RosterPrintPack({ input, onClose }: { input: RosterPrintInput; o
   const referencedRules = referencedRulesOf(data)
   const warnings = [
     ...(input.draft ? ['Unsaved draft on this device.'] : []),
-    ...(input.price.errors.length ? ['Resolve roster validation messages before playing this list.'] : []),
+    ...(input.price.errors.length ? ['Fix the validation messages before playing this list.'] : []),
     ...(input.price.points > pointsBudgetOf(input) ? ['Over the points limit.'] : []),
     ...(input.price.unhandled.length ? ['Some restrictions could not be checked. Read the source rules before playing.'] : []),
     ...waivedFormatRules(input.limit, input.waivedRules, input.pointsBudget).map((rule) => `Waived rule: ${rule.label}`),
@@ -189,7 +188,7 @@ export function RosterPrintPack({ input, onClose }: { input: RosterPrintInput; o
     <div className="min-h-0 flex-1 overflow-y-auto" data-roster-print-screen>
       <div className="flex gap-2 p-3" data-print-hide>
         <Button variant="outline" onClick={onClose}>
-          Return to roster
+          Return to list
         </Button>
         <Button disabled={gap !== null} onClick={() => window.print()}>
           Print battle reference pack
@@ -199,7 +198,7 @@ export function RosterPrintPack({ input, onClose }: { input: RosterPrintInput; o
       <div data-battle-reference-pack>
         <header className="pack-masthead">
           <p className="pack-kicker">Battle reference pack</p>
-          <h1>{input.name || 'Roster'}</h1>
+          <h1>{input.name || 'List'}</h1>
           <p className="pack-headline">
             {data.faction.displayName} ·{' '}
             {input.price.detachments
@@ -227,10 +226,10 @@ export function RosterPrintPack({ input, onClose }: { input: RosterPrintInput; o
             <span className="break-all">{input.price.revision}</span> ·{' '}
             {input.url ? (
               <>
-                <a href={input.url}>{input.url}</a> (keeps the roster’s access restrictions)
+                <a href={input.url}>{input.url}</a> (keeps the list’s access restrictions)
               </>
             ) : (
-              'Draft on this device; save it for a roster link'
+              'Draft on this device; save it for a list link'
             )}
             . Records the army at printing time; reference data can change.
           </p>

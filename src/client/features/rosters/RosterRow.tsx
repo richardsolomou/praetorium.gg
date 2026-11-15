@@ -232,12 +232,12 @@ function RosterActionItems({
           <Swords /> Start a battle
         </Item>
         <Item disabled={!roster.unitCount} onClick={onGrade}>
-          <ClipboardCheck /> Grade this roster
+          <ClipboardCheck /> Grade this list
         </Item>
       </MenuSection>
       <MenuSection label="Edit">
         <Item disabled={roster.locked} onClick={onEdit}>
-          <Pencil /> Edit roster setup
+          <Pencil /> Edit list setup
         </Item>
         <Item
           disabled={actions.lock.isPending}
@@ -245,11 +245,11 @@ function RosterActionItems({
         >
           {roster.locked ? (
             <>
-              <LockOpen /> Unlock roster
+              <LockOpen /> Unlock list
             </>
           ) : (
             <>
-              <Lock /> Lock roster
+              <Lock /> Lock list
             </>
           )}
         </Item>
@@ -272,7 +272,7 @@ function RosterActionItems({
         </Item>
         {grouped ? (
           <Item disabled={actions.split.isPending} onClick={() => actions.split.mutate(roster.id)}>
-            <Unlink /> Make its own roster
+            <Unlink /> Make its own list
           </Item>
         ) : null}
         <Item disabled={actions.duplicate.isPending} onClick={orAccount('another-roster', () => actions.duplicate.mutate(roster))}>

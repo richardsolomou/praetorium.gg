@@ -39,7 +39,7 @@ export const detachmentIdSchema = z.string().min(1).max(128)
 // Descriptions are for agents, who build picks from get_unit_options without seeing the builder.
 export const rosterPickSchema = z.object({
   entryId: id.describe('Unit id from list_units or get_unit_options.'),
-  catalogueId: id.optional().describe("The unit's own catalogue when it differs from the roster's; usually omitted."),
+  catalogueId: id.optional().describe("The unit's own catalogue when it differs from the list's; usually omitted."),
   models: z.number().int().min(1).max(60).optional().describe('Unit size; defaults to the minimum.'),
   choices: z
     .record(z.string().max(400), id)
@@ -388,7 +388,7 @@ export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
 
 export function parseRosterSnapshot(snapshot: string): Roster {
   const command = commandSchema.parse({ kind: 'attach-roster', roster: JSON.parse(snapshot) })
-  if (command.kind !== 'attach-roster') throw new Error('expected a roster snapshot')
+  if (command.kind !== 'attach-roster') throw new Error('expected a list snapshot')
   return command.roster
 }
 

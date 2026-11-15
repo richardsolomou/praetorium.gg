@@ -14,27 +14,27 @@ test('import a roster', async ({ page }) => {
   await signUp(page, 'Docs importer')
   const dialog = await openImport(page)
 
-  const pasted = dialog.getByLabel('Roster text')
+  const pasted = dialog.getByLabel('List text')
   await pasted.fill(necronsWithMistakes)
   await pasted.evaluate((element) => {
     element.blur()
     element.scrollTop = 0
   })
-  await capture('import-a-roster-paste', dialog, dialog.getByRole('button', { name: 'Import pasted roster', exact: true }))
+  await capture('import-a-roster-paste', dialog, dialog.getByRole('button', { name: 'Import pasted list', exact: true }))
 
-  await dialog.getByRole('button', { name: 'Import pasted roster', exact: true }).click()
+  await dialog.getByRole('button', { name: 'Import pasted list', exact: true }).click()
   const importAnyway = dialog.getByRole('button', { name: 'Import anyway', exact: true })
   await expect(importAnyway).toBeVisible()
   await capture('import-a-roster-shortfall', dialog, importAnyway)
 
   await dialog.getByRole('button', { name: 'Edit pasted text', exact: true }).click()
-  await dialog.getByLabel('Roster text').fill(necronsOfficial)
-  await dialog.getByRole('button', { name: 'Import pasted roster', exact: true }).click()
+  await dialog.getByLabel('List text').fill(necronsOfficial)
+  await dialog.getByRole('button', { name: 'Import pasted list', exact: true }).click()
   const points = dialog.locator('[data-import-figure="reported"]')
   await expect(points).toBeVisible()
   await capture('import-a-roster-review', dialog, points)
 
-  await dialog.getByRole('button', { name: 'Import roster', exact: true }).click()
+  await dialog.getByRole('button', { name: 'Import list', exact: true }).click()
   await page.waitForURL(/\/rosters\/[^/]+$/)
   await expect(page.locator('[data-unit]')).toHaveCount(7)
 
@@ -45,7 +45,7 @@ test('import a roster', async ({ page }) => {
   await exchange.getByRole('button', { name: 'Close' }).first().click()
 
   await chooseRosterAction(page, 'Export text')
-  const exported = page.getByRole('dialog', { name: 'Export roster' })
+  const exported = page.getByRole('dialog', { name: 'Export list' })
   await expect(exported.locator('pre')).toContainText('Nekrosor Ammentar')
   await capture('import-a-roster-export-text', exported, exported.getByRole('button', { name: 'Copy text' }))
 })

@@ -66,11 +66,11 @@ export async function savedArmy(
 /** Chooses the visibility new rosters, copies and imports start with, and waits until it leaves the device. */
 export async function chooseRosterDefault(page: Page, name: 'Private' | 'Unlisted' | 'Public') {
   await page.goto('/profile')
-  await choosePlayerDefault(page, 'Roster visibility', name)
+  await choosePlayerDefault(page, 'List visibility', name)
 }
 
 /** Presses a profile default on the open profile page until it reads as pressed, and waits until it leaves the device. */
-export async function choosePlayerDefault(page: Page, setting: 'Roster visibility' | 'Battle size', name: string) {
+export async function choosePlayerDefault(page: Page, setting: 'List visibility' | 'Battle size', name: string) {
   const group = page.getByRole('group', { name: setting })
   const choice = new RegExp(`^${name}`)
   await retryUntilVisible(group.getByRole('button', { name: choice, pressed: true }), () =>
@@ -125,8 +125,8 @@ export async function retryUntilVisible(outcome: Locator, action: () => Promise<
 export async function visitorSetup(page: Page) {
   await page.goto('/rosters')
   await page.waitForLoadState('networkidle')
-  const setup = page.getByRole('dialog', { name: 'Create roster' })
-  await retryUntilVisible(setup, () => page.getByRole('button', { name: 'New roster', exact: true }).click())
+  const setup = page.getByRole('dialog', { name: 'Create list' })
+  await retryUntilVisible(setup, () => page.getByRole('button', { name: 'New list', exact: true }).click())
   return setup
 }
 
@@ -144,7 +144,7 @@ export async function chooseRosterAction(page: Page, item: string | RegExp) {
     return
   }
   const choice = page.getByRole('menuitem', { name: item, exact: true })
-  await retryUntilVisible(choice, () => page.getByRole('button', { name: 'Roster actions', exact: true }).click())
+  await retryUntilVisible(choice, () => page.getByRole('button', { name: 'List actions', exact: true }).click())
   await choice.click()
 }
 
@@ -160,8 +160,8 @@ export async function openRosterShare(page: Page) {
 /** Opens the import dialog from the rosters page once its text box answers. */
 export async function openImport(page: Page) {
   await page.goto('/rosters')
-  const dialog = page.getByRole('dialog', { name: 'Import roster', exact: true })
-  await retryUntilVisible(dialog.getByLabel('Roster text'), () => page.getByRole('button', { name: 'Import roster', exact: true }).click())
+  const dialog = page.getByRole('dialog', { name: 'Import list', exact: true })
+  await retryUntilVisible(dialog.getByLabel('List text'), () => page.getByRole('button', { name: 'Import list', exact: true }).click())
   return dialog
 }
 
@@ -335,8 +335,8 @@ export async function createRoster(
   { faction, detachment, name, size, rules }: { faction: string; detachment: RegExp; name?: string; size?: RegExp; rules?: string },
 ) {
   await page.goto('/rosters')
-  const dialog = page.getByRole('dialog', { name: 'Create roster' })
-  await retryUntilVisible(dialog, () => page.getByRole('button', { name: 'New roster', exact: true }).click())
+  const dialog = page.getByRole('dialog', { name: 'Create list' })
+  await retryUntilVisible(dialog, () => page.getByRole('button', { name: 'New list', exact: true }).click())
   await chooseFaction(dialog, faction)
   if (rules) {
     await dialog.getByRole('combobox', { name: 'Rules version' }).click()
@@ -347,7 +347,7 @@ export async function createRoster(
   await dialog.getByRole('button', { name: new RegExp(`^Select (?:${detachment.source})$`, detachment.flags) }).click()
   const dispositions = dialog.getByRole('group', { name: 'Force disposition' }).getByRole('button')
   if ((await dispositions.count()) > 1) await dispositions.first().click()
-  await dialog.getByRole('button', { name: 'Create roster' }).click()
+  await dialog.getByRole('button', { name: 'Create list' }).click()
   await page.waitForURL(/\/rosters\/[^/]+$/)
   const rosterName = name ?? `${faction} roster`
   await renameRoster(page, rosterName)
@@ -560,10 +560,10 @@ export async function attachRoster(page: Page, name: string, { forPlayer, side }
   const player = side === undefined ? (forPlayer ?? (await accountName(page))) : undefined
   const card =
     player === undefined ? page.locator(`[data-face-off-side="${side}"]`) : page.locator('[data-face-off-side]').filter({ hasText: player })
-  const named = player === undefined ? '.+’s army' : `${escapeRegExp(player)}’s army|Change roster for ${escapeRegExp(player)}`
+  const named = player === undefined ? '.+’s army' : `${escapeRegExp(player)}’s army|Change list for ${escapeRegExp(player)}`
   const chooser = card.getByRole('button', { name: new RegExp(`^(Choose army|Choose ${named})$`) })
   const attached = card.getByText(name, { exact: true }).first()
-  const dialog = page.getByRole('dialog', { name: /roster$/ })
+  const dialog = page.getByRole('dialog', { name: /list$/ })
   const choice = dialog.getByRole('button', { name: new RegExp(`^${escapeRegExp(name)}\\b`) })
   // Every choice stays disabled until the server answers, which can outlast a short wait on a
   // loaded runner; a stale shared setup redraws and leaves the chooser open to press again.
@@ -850,7 +850,7 @@ export async function startVisitorRoster(page: Page) {
   await chooseFaction(setup, 'Necrons')
   await setup.getByRole('button', { name: /^Select (?:Awakened Dynasty)$/ }).click()
   await setup.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Take and Hold' }).click()
-  await setup.getByRole('button', { name: 'Create roster' }).click()
+  await setup.getByRole('button', { name: 'Create list' }).click()
   await page.waitForURL(/\/rosters\/[^/]+$/)
 }
 
@@ -909,9 +909,9 @@ export async function setupBattle(
 }
 
 export async function confirmRosterSetup(dialog: Locator) {
-  await dialog.getByRole('button', { name: /^(Review changes|Convert roster)$/ }).click()
-  const review = dialog.page().getByRole('dialog', { name: 'Review roster changes' })
-  await expect(review.getByLabel('Roster change preview')).toBeVisible()
+  await dialog.getByRole('button', { name: /^(Review changes|Convert list)$/ }).click()
+  const review = dialog.page().getByRole('dialog', { name: 'Review list changes' })
+  await expect(review.getByLabel('List change preview')).toBeVisible()
   await review.getByRole('button', { name: 'Confirm changes', exact: true }).click()
   await expect(review).toBeHidden()
 }
@@ -963,8 +963,8 @@ export async function chooseRulesVersion(setup: Locator, rules: string, detachme
 }
 
 export async function openRosterSetup(page: Page) {
-  await chooseRosterAction(page, 'Edit roster setup')
-  return page.getByRole('dialog', { name: 'Edit roster setup' })
+  await chooseRosterAction(page, 'Edit list setup')
+  return page.getByRole('dialog', { name: 'Edit list setup' })
 }
 
 /** Changes who can open the roster and waits until the saved roster says so. */

@@ -1,4 +1,4 @@
-The [simulator](/simulator) calculates exact odds for one unit attacking another. You don't need an account. Signing in adds your saved rosters and recent simulations.
+The [simulator](/simulator) calculates exact odds for one unit attacking another. You don't need an account. Signing in adds your saved lists and recent simulations.
 
 1. Open [Simulator](/simulator).
 2. On the **Attacker** side, use **Choose a unit** and search any faction's datasheets.
@@ -21,10 +21,10 @@ Use the detachment button beside the unit's loadout and tick one or more. A deta
 
 The side gets those detachments' rules, and their stratagems and enhancements join the buffs you can turn on. Choosing a unit from another faction clears them.
 
-## Use a unit from a roster
+## Use a unit from a list
 
-When you're signed in, choose a roster under **Attacking with** or **Defending with**, then one of its units. The unit picker on the card also starts with **From a roster**.
+When you're signed in, choose a list under **Attacking with** or **Defending with**, then one of its units. The unit picker on the card also starts with **From a list**.
 
-That side keeps the roster's detachment, enhancements, attachments and army rules. Attachments come from the list itself, so you can't add or remove members there. The **×** on the roster line keeps the unit and its loadout but drops the roster.
+That side keeps the list's detachment, enhancements, attachments and army rules. Attachments come from the list itself, so you can't add or remove members there. The **×** on the list line keeps the unit and its loadout but drops the list.
 
-As well as **Your rosters**, you can pick from **Friends' rosters** (their public lists), **Lent by friends** and **Friends' sealed rosters**. Sealed lists appear once a tournament or group hidden-list game you can see is revealed, and stay while it's still on: a hidden-list game until it moves to past games, a Swiss tournament until its last round is played.
+As well as **Your lists**, you can pick from **Friends' lists** (their public lists), **Lent by friends** and **Friends' sealed lists**. Sealed lists appear once a tournament or group hidden-list game you can see is revealed, and stay while it's still on: a hidden-list game until it moves to past games, a Swiss tournament until its last round is played.

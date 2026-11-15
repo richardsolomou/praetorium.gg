@@ -2804,7 +2804,7 @@ function saveRosterIn(tx: Context, input: ReturnType<typeof parseRoster>) {
 }
 
 export const saveRoster = spacetime.procedure({ payload: t.string() }, t.string(), (ctx, { payload }) => {
-  if (payload.length > 1_200_000) throw new SenderError('Roster is too large')
+  if (payload.length > 1_200_000) throw new SenderError('List is too large')
   const input = parseRoster(payload)
   return operatorTx(ctx, (tx) => {
     return saveRosterIn(tx, input)
@@ -2812,7 +2812,7 @@ export const saveRoster = spacetime.procedure({ payload: t.string() }, t.string(
 })
 
 export const syncRoster = spacetime.procedure({ payload: t.string() }, t.string(), (ctx, { payload }) => {
-  if (payload.length > 1_250_000) throw new SenderError('Roster is too large')
+  if (payload.length > 1_250_000) throw new SenderError('List is too large')
   const parsed = decodePayload(
     z.object({
       row: z.string().max(1_200_000),
@@ -2829,7 +2829,7 @@ export const syncRoster = spacetime.procedure({ payload: t.string() }, t.string(
     const current = tx.db.rosters.id.find(input.id)
     const receipt = tx.db.rosterSync.id.find(input.id)
     if ((current && current.userId !== input.userId) || (receipt && receipt.userId !== input.userId))
-      return productJson({ outcome: 'refused', cause: 'not-owned', message: 'You do not own this roster.' })
+      return productJson({ outcome: 'refused', cause: 'not-owned', message: 'You do not own this list.' })
     if (receipt?.operationId === parsed.operationId) {
       if (receipt.fingerprint !== parsed.fingerprint) throw new SenderError('Operation ID reused for a different edit')
       return productJson({ outcome: 'applied', version: safeNumber(receipt.version), deleted: receipt.deleted, lifecycle: null })
@@ -2842,9 +2842,9 @@ export const syncRoster = spacetime.procedure({ payload: t.string() }, t.string(
           ? {
               outcome: 'conflict',
               cause: parsed.expectedVersion === null ? 'exists' : 'stale',
-              message: 'This roster changed on another device.',
+              message: 'This list changed on another device.',
             }
-          : { outcome: 'conflict', cause: 'deleted', message: 'This roster was deleted on another device.' },
+          : { outcome: 'conflict', cause: 'deleted', message: 'This list was deleted on another device.' },
       )
     let lifecycle: 'created' | 'deleted' | null = null
     if (parsed.deleted) {
@@ -2854,7 +2854,7 @@ export const syncRoster = spacetime.procedure({ payload: t.string() }, t.string(
       }
     } else {
       const saved = saveRosterIn(tx, input)
-      if (saved === 'forbidden') return productJson({ outcome: 'refused', cause: 'not-owned', message: 'You do not own this roster.' })
+      if (saved === 'forbidden') return productJson({ outcome: 'refused', cause: 'not-owned', message: 'You do not own this list.' })
       if (saved === 'inserted') lifecycle = 'created'
     }
     const version = parsed.deleted ? BigInt(input.now) : tx.db.rosters.id.find(input.id)!.updatedAt
@@ -4569,7 +4569,7 @@ function sealedEventRosterSharingState(tx: Context, event: SealedEventRow, userI
       prompt: !tx.db.sealedEventRosterSharing.key.find(key) && roster.visibility !== 'public',
       roster: {
         id: roster.id,
-        name: roster.name || entry.rosterName || 'Your saved roster',
+        name: roster.name || entry.rosterName || 'Your saved list',
         visibility: roster.visibility,
         updatedAt: safeNumber(roster.updatedAt),
       },

@@ -110,7 +110,7 @@ export function RosterCombatComparison({
       },
     },
     ...(currentRoster
-      ? [{ id: 'current', label: 'Current roster', catalogueId: currentRoster.catalogueId, load: async () => [currentRoster] }]
+      ? [{ id: 'current', label: 'Current list', catalogueId: currentRoster.catalogueId, load: async () => [currentRoster] }]
       : []),
     ...activeRosters.map((roster) => ({
       id: roster.id,
@@ -121,12 +121,12 @@ export function RosterCombatComparison({
       ),
       load: async (signal: AbortSignal) => {
         const data = await sharedRoster({ data: { id: roster.id }, signal })
-        if (!data) throw new Error('This roster is no longer available.')
+        if (!data) throw new Error('This list is no longer available.')
         return [{ ...data, pickIndex: 0 }]
       },
     })),
     ...[
-      ...friendRosters.map((entry) => ({ ...entry, group: "Friends' rosters" })),
+      ...friendRosters.map((entry) => ({ ...entry, group: "Friends' lists" })),
       ...lentRosters.map((entry) => ({ ...entry, group: 'Lent by friends' })),
     ].map(({ roster, owner, group }) => ({
       id: roster.id,
@@ -139,7 +139,7 @@ export function RosterCombatComparison({
       )} · ${owner.name}`,
       load: async (signal: AbortSignal) => {
         const data = await sharedRoster({ data: { id: roster.id }, signal })
-        if (!data) throw new Error('This roster is no longer available.')
+        if (!data) throw new Error('This list is no longer available.')
         return [{ ...data, pickIndex: 0, owner }]
       },
     })),
@@ -149,7 +149,7 @@ export function RosterCombatComparison({
       return {
         id: rosterSourceKey({ sealedEvent }),
         catalogueId: entry.catalogueId,
-        group: "Friends' sealed rosters",
+        group: "Friends' sealed lists",
         owners: [owner],
         label: friendSealedEventLabel(entry),
         load: async (signal: AbortSignal) => {
@@ -159,7 +159,7 @@ export function RosterCombatComparison({
               signal,
             }),
           )
-          if (!roster) throw new Error('This revealed roster has no saved loadouts available to simulate.')
+          if (!roster) throw new Error('This revealed list has no saved loadouts available to simulate.')
           return [{ ...roster, owner }]
         },
       }
@@ -271,11 +271,11 @@ export function RosterCombatComparison({
           return benchmarkRosters([{ key: id, catalogueId: unit.catalogueId, entryId: unit.entryId, name: unit.name }], catalogue.data)
         }
         const roster = await units?.fielding?.loadRoster(unit.key)
-        if (!roster) throw new Error('This roster is no longer available.')
+        if (!roster) throw new Error('This list is no longer available.')
         return [{ ...roster, pickIndex: unit.pickIndex, only: true }]
       }
       const load = async (ids: readonly string[]) => {
-        if (!ids.length) throw new Error('Choose an attacking roster and a defending roster.')
+        if (!ids.length) throw new Error('Choose an attacking list and a defending list.')
         const rosters = structuredClone(
           (
             await Promise.all(
@@ -393,8 +393,8 @@ export function RosterCombatComparison({
   const choices: RosterCombatSource[] = [...(units ? [{ id: SINGLE_UNIT, label: 'Single unit', load: async () => [] }] : []), ...options]
   const pickerGroups = [
     { label: 'Units and targets', options: choices.filter((source) => single(source.id)) },
-    ...[undefined, "Friends' rosters", 'Lent by friends', "Friends' sealed rosters"].map((group) => ({
-      label: group ?? (sources ? 'Revealed rosters' : 'Your rosters'),
+    ...[undefined, "Friends' lists", 'Lent by friends', "Friends' sealed lists"].map((group) => ({
+      label: group ?? (sources ? 'Revealed lists' : 'Your lists'),
       options: choices.filter((source) => !single(source.id) && source.group === group),
     })),
   ].map((group) => ({ ...group, options: group.options.map((source) => ({ ...source, icon: icon(source) })) }))
@@ -450,7 +450,7 @@ export function RosterCombatComparison({
       </>
     )
   return (
-    <section aria-label="Roster comparison" className={cn('min-w-0 space-y-3 p-3 sm:p-4', units && 'part')}>
+    <section aria-label="List comparison" className={cn('min-w-0 space-y-3 p-3 sm:p-4', units && 'part')}>
       <div className="space-y-2 border-b border-edge pb-3">
         {sides}
         {!sources && usingBenchmarks ? (
@@ -466,10 +466,10 @@ export function RosterCombatComparison({
       </div>
       {storageProblem ? <Problem className="text-xs">{storageProblem}</Problem> : null}
       {!sources && !currentRoster && !me.isPending && !me.data ? (
-        <p className="text-sm text-dim">Sign in and save both rosters to compare them here.</p>
+        <p className="text-sm text-dim">Sign in and save both lists to compare them here.</p>
       ) : null}
       {!sources && me.data && saved.isSuccess && !currentRoster && options.every((source) => source.id === BENCHMARKS) ? (
-        <p className="text-sm text-dim">Save or import two rosters to start comparing targets.</p>
+        <p className="text-sm text-dim">Save or import two lists to start comparing targets.</p>
       ) : null}
       {readError ? (
         <Problem>
@@ -510,7 +510,7 @@ export function RosterCombatComparison({
       </p>
       {!comparison && !running && !ready ? (
         <p className="border border-dashed border-edge p-4 text-center text-sm text-dim">
-          Choose rosters for both sides. Add more than one roster to a side to fight a doubles or 2v1 game together.
+          Choose lists for both sides. Add more than one list to a side to fight a doubles or 2v1 game together.
         </p>
       ) : null}
       {comparison ? (

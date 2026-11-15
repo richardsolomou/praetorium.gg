@@ -262,7 +262,7 @@ export function SealedEventView({
   const status: Status = revealReady
     ? {
         ...entryCard,
-        action: { label: 'Reveal all rosters', icon: <Eye />, reveal: true, onClick: () => setRevealing(true) },
+        action: { label: 'Reveal all lists', icon: <Eye />, reveal: true, onClick: () => setRevealing(true) },
         secondary: entryCard.action && 'onClick' in entryCard.action ? entryCard.action : undefined,
       }
     : entryCard
@@ -489,7 +489,7 @@ export function SealedEventView({
       <WaiverConfirmDialog
         roster={sealing}
         noun="roster"
-        consequence="this roster may not be legal here. The organizer and every opponent see what it waives at reveal."
+        consequence="this list may not be legal here. The organizer and every opponent see what it waives at reveal."
         confirmLabel="Seal it anyway"
         pending={submit.isPending}
         onCancel={() => setSealing(null)}
@@ -583,23 +583,23 @@ export function entryStatus({
     ? `Only ${allies.length > 2 ? `${allies.length} allies` : formatList(allies)} can see it before the reveal.`
     : 'Hidden until the reveal.'
   if (!ownEntry || ownEntry.status !== 'accepted') {
-    if (revealed && isOrganizer) return { title: 'The rosters are out', detail: `You run this ${noun} without a roster of your own.` }
+    if (revealed && isOrganizer) return { title: 'The lists are out', detail: `You run this ${noun} without a list of your own.` }
     if (revealed)
       return {
-        title: 'The rosters are out',
-        detail: `Everyone here sealed a roster in secret, the rosters opened together, and now they play each other. ${organizerName(sealedEvent)} runs it.`,
+        title: 'The lists are out',
+        detail: `Everyone here sealed a list in secret, the lists opened together, and now they play each other. ${organizerName(sealedEvent)} runs it.`,
         action: signedIn && !sealedEvent.group ? { label: 'Start your own tournament', to: '/tournaments' } : undefined,
       }
     if (!signedIn) return { title: 'Registration is open', action: { label: 'Sign in to join', to: '/sign-in' }, steps: steps('join') }
     if (ownEntry?.status === 'pending')
       return { title: 'Waiting for approval', detail: `${organizerName(sealedEvent)} will let you in.`, steps: steps('join') }
-    if (sealingClosed) return { title: 'Entry has closed', detail: 'The roster deadline has passed.' }
+    if (sealingClosed) return { title: 'Entry has closed', detail: 'The list deadline has passed.' }
     const rejoin = ownEntry?.status === 'rejected'
     if (registrationFull) return { title: rejoin ? `You are not in this ${noun}` : `This ${noun} is full` }
     if (isOrganizer && !rejoin)
       return {
         title: 'You are not playing',
-        detail: `You run this ${noun} without a roster of your own.`,
+        detail: `You run this ${noun} without a list of your own.`,
         action: { label: 'Join as a player', icon: <UserPlus />, variant: 'outline', pending: joining, onClick: join },
       }
     return {
@@ -634,43 +634,43 @@ export function entryStatus({
   const size = points ? `${pointsSize(points)} ` : ''
   if (!revealed && !ownEntry.submitted && sealingClosed)
     return {
-      title: 'The roster deadline has passed',
+      title: 'The list deadline has passed',
       detail: 'Nobody can seal now, so you sit this one out.',
       steps: steps('seal'),
     }
   if (!ownEntry.submitted)
     return {
-      title: revealed ? 'Seal another roster' : `Seal your ${size}roster`,
-      detail: revealed ? 'The organizer unsealed your roster.' : [hidden, sealBy ? `Seal by ${sealBy}.` : null].filter(Boolean).join(' '),
-      action: { label: 'Choose a roster', icon: <FileLock2 />, onClick: choose },
+      title: revealed ? 'Seal another list' : `Seal your ${size}list`,
+      detail: revealed ? 'The organizer unsealed your list.' : [hidden, sealBy ? `Seal by ${sealBy}.` : null].filter(Boolean).join(' '),
+      action: { label: 'Choose a list', icon: <FileLock2 />, onClick: choose },
       steps: steps('seal'),
     }
   // The pair's card is the one thing left to do before the reveal, so it leads the card until it is chosen.
   if (!revealed && ownEntry.team && ownEntry.team.choices.length > 1 && !ownEntry.team.disposition)
     return {
       title: 'Choose your team’s Force Disposition',
-      detail: 'Your team plays one card. Choose it below before the rosters are revealed.',
-      action: { label: 'Swap roster', variant: 'outline', onClick: choose },
+      detail: 'Your team plays one card. Choose it below before the lists are revealed.',
+      action: { label: 'Swap list', variant: 'outline', onClick: choose },
       steps: steps('reveal'),
     }
   if (!revealed && ownEntry.team && ownEntry.team.warlordChoices.length > 1 && !ownEntry.team.warlord)
     return {
       title: 'Choose your team’s Warlord',
-      detail: 'Each roster names its own Warlord and your team fields one. Choose whose below before the rosters are revealed.',
-      action: { label: 'Swap roster', variant: 'outline', onClick: choose },
+      detail: 'Each list names its own Warlord and your team fields one. Choose whose below before the lists are revealed.',
+      action: { label: 'Swap list', variant: 'outline', onClick: choose },
       steps: steps('reveal'),
     }
   if (!revealed)
     return {
-      title: 'Your roster is sealed',
+      title: 'Your list is sealed',
       detail: hidden,
       sealed: true,
-      action: { label: 'Swap roster', variant: 'outline', onClick: choose },
+      action: { label: 'Swap list', variant: 'outline', onClick: choose },
       steps: steps('reveal'),
     }
-  if (!ownSideSealed) return { title: 'Waiting for your teammate', detail: 'They are sealing another roster.', steps: steps('seal') }
+  if (!ownSideSealed) return { title: 'Waiting for your teammate', detail: 'They are sealing another list.', steps: steps('seal') }
   return {
-    title: 'The rosters are out',
+    title: 'The lists are out',
     detail: playDetail,
     action: resume
       ? { label: 'Resume battle', battle: resume }

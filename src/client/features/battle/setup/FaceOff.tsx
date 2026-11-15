@@ -276,7 +276,7 @@ function ArmyLine({
       <WaiverNote rules={rosterWaivers(roster.built)} />
       {/* Anyone at the table may set these, because one device often stands in for all of them. */}
       <div className={cn('flex flex-wrap items-center gap-1.5', mirrored && 'justify-end')}>
-        {view.sealedEventToken ? <span className="chip text-achieved">Sealed roster</span> : null}
+        {view.sealedEventToken ? <span className="chip text-achieved">Sealed list</span> : null}
         {side.armies.length === 1 || !side.disposition ? (
           <DispositionChip disposition={nameDisposition(roster.built?.disposition)} />
         ) : null}
@@ -301,14 +301,14 @@ function ArmyLine({
         ) : null}
         {mine ? (
           <>
-            <Button variant="outline" size="xs" aria-label={`Change roster for ${army.playerName}`} onClick={() => controls.onChoose(army)}>
+            <Button variant="outline" size="xs" aria-label={`Change list for ${army.playerName}`} onClick={() => controls.onChoose(army)}>
               Change
             </Button>
             <Button
               variant="ghost"
               size="icon-xs"
               disabled={controls.busy}
-              aria-label={`Take away the roster for ${army.playerName}`}
+              aria-label={`Take away the list for ${army.playerName}`}
               title="Take this army off the table"
               onClick={() => controls.send({ kind: 'detach-roster', playerId: army.playerId })}
             >

@@ -31,7 +31,7 @@ async function openUnit(page: Page) {
 }
 
 async function backToRoster(page: Page) {
-  const back = page.getByRole('button', { name: 'Back to roster' })
+  const back = page.getByRole('button', { name: 'Back to list' })
   if (await back.isVisible()) await back.click()
 }
 

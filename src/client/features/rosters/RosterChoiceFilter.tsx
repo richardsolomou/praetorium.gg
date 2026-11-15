@@ -119,10 +119,10 @@ export function useRosterChoiceFilter({ rosters, lent }: { rosters: readonly Sav
       all.length > 1 || Object.values(address).some(Boolean) ? (
         <FilterBar
           scope="rosters:choose"
-          label="Roster"
+          label="List"
           query={search.q ?? ''}
           onQuery={(next) => setSearch({ ...search, q: next.trim() || undefined })}
-          placeholder="Search rosters…"
+          placeholder="Search lists…"
           maxQueryLength={ROSTER_SEARCH_MAX_LENGTH}
           dimensions={dimensions}
           value={facets}
@@ -130,7 +130,7 @@ export function useRosterChoiceFilter({ rosters, lent }: { rosters: readonly Sav
           address={address}
           onApply={(next) => setSearch({ ...next, sort: search.sort })}
           sort={<RosterSortMenu value={sort} onChange={(next) => setSearch({ ...search, sort: next })} />}
-          summary={countLabel(count, 'roster')}
+          summary={countLabel(count, 'list')}
         />
       ) : null,
   }

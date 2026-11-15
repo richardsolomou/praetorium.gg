@@ -1,4 +1,4 @@
-To find a faction, datasheet, detachment, mission or rule from anywhere on the site, choose **Search** at the top of the side menu (the magnifier at the top on a phone), or press ⌘K on a Mac or Ctrl+K elsewhere. Once you're signed in, it finds your own rosters and recent battles too.
+To find a faction, datasheet, detachment, mission or rule from anywhere on the site, choose **Search** at the top of the side menu (the magnifier at the top on a phone), or press ⌘K on a Mac or Ctrl+K elsewhere. Once you're signed in, it finds your own lists and recent battles too.
 
 ## What it matches
 
@@ -6,7 +6,7 @@ Datasheets match by name, keyword, ability, weapon, weapon keyword or wargear. W
 
 Detachments match by name, or by their rules, enhancements and stratagems. Rules match by name or by the number they're printed under, so you can type a number you see quoted on a card.
 
-If no datasheet matches, search offers **Close matches** for a misspelt name. Each faction's datasheet list matches the same way, and the unit picker in the roster builder matches everything but what abilities do.
+If no datasheet matches, search offers **Close matches** for a misspelt name. Each faction's datasheet list matches the same way, and the unit picker in the list builder matches everything but what abilities do.
 
 ## Filter a faction's datasheets
 

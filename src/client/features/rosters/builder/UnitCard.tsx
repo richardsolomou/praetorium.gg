@@ -319,7 +319,7 @@ export function AttachMenu({
     <CardMenu label={label} unit={unit}>
       {roster.length ? (
         <DropdownMenuGroup>
-          <DropdownMenuLabel>In this roster</DropdownMenuLabel>
+          <DropdownMenuLabel>In this list</DropdownMenuLabel>
           {roster.map((choice) => (
             <DropdownMenuItem key={choice.key} onClick={() => onChoose(choice)}>
               {choice.name}

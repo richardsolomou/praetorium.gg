@@ -42,7 +42,7 @@ export function OptionalRulesDialog({
         <DialogHeader>
           <DialogTitle className="text-2xl">Optional rules</DialogTitle>
           <DialogDescription>
-            Homebrew this battle size can be played with. None of it is on unless this roster picks it, and what it picks is shown wherever
+            Homebrew this battle size can be played with. None of it is on unless this list picks it, and what it picks is shown wherever
             the list is read.
           </DialogDescription>
         </DialogHeader>
@@ -115,7 +115,7 @@ export function OptionalRulesDialog({
                 </div>
               ) : (
                 <p className="py-2 text-sm text-dim">
-                  This roster has no detachment points left over, so there is no disposition it can borrow.
+                  This list has no detachment points left over, so there is no disposition it can borrow.
                 </p>
               )}
               {borrowedError ? <Problem className="mt-2">{borrowedError}</Problem> : null}

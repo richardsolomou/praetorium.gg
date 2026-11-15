@@ -137,7 +137,7 @@ export function RosterAppImport({
                 {find.isPending ? <LoaderCircle className="animate-spin" /> : <Search />} Find
               </Button>
             </div>
-            <p className="text-xs text-dim">Anyone’s public rosters, yours or another player’s.</p>
+            <p className="text-xs text-dim">Anyone’s public lists, yours or another player’s.</p>
           </>
         ) : (
           <>
@@ -170,7 +170,7 @@ export function RosterAppImport({
       ) : null}
       {find.error ? <Problem error={find.error} /> : null}
       {find.data && !find.data.found ? <Problem>No BattleBase player is called {username.trim()}.</Problem> : null}
-      {rosters && !rosters.length ? <p className="text-sm text-dim">{username.trim()} has no public rosters.</p> : null}
+      {rosters && !rosters.length ? <p className="text-sm text-dim">{username.trim()} has no public lists.</p> : null}
       {rosters?.length ? (
         <ul className="space-y-1.5" aria-label="Lists found">
           {rosters.map((found) => {
@@ -226,7 +226,7 @@ export function RosterAppImport({
       {onImport && rosters?.length ? (
         <Button className="w-full" disabled={!picked.length || working} onClick={() => onImport(picked)}>
           {working ? <LoaderCircle className="animate-spin" /> : <Copy />}
-          {picked.length ? `Import ${countLabel(picked.length, 'roster')}` : 'Choose rosters to import'}
+          {picked.length ? `Import ${countLabel(picked.length, 'list')}` : 'Choose lists to import'}
         </Button>
       ) : null}
     </div>

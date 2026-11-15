@@ -67,7 +67,7 @@ export function CreateRoster({
   return (
     <>
       <Button data-onboarding="create-roster" onClick={begin}>
-        <Plus /> New roster
+        <Plus /> New list
       </Button>
       <RosterSetupDialog
         // The dialog reads its value once, so defaults that arrive later start it again.

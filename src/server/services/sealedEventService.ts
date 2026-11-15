@@ -169,7 +169,7 @@ export class SealedEventService {
     }
     if (result === 'missing') throw new Response('no such event', { status: 404 })
     if (result === 'closed')
-      throw new Response('this event is closed to new players: its rosters are out or past their deadline', { status: 409 })
+      throw new Response('this event is closed to new players: its lists are out or past their deadline', { status: 409 })
     if (result === 'full') throw new Response('this event is full', { status: 409 })
     if (result === 'members-only') throw new Response('only the group’s members can play its hidden-list games', { status: 403 })
     return result
@@ -245,10 +245,10 @@ export class SealedEventService {
       this.notifySealedEvent('sealed-event-roster-reseal', ownerId, result.resealIds, token, eventToken)
       return { requiredLimit }
     }
-    if (result === 'forbidden') throw new Response('only the organizer can assign roster sizes', { status: 403 })
-    if (result === 'closed') throw new Response('roster sizes cannot change after reveal', { status: 409 })
-    if (result === 'wrong-format') throw new Response('1v1 roster sizes are assigned automatically', { status: 409 })
-    if (result === 'wrong-limit') throw new Response('choose a roster size configured for this event', { status: 400 })
+    if (result === 'forbidden') throw new Response('only the organizer can assign list sizes', { status: 403 })
+    if (result === 'closed') throw new Response('list sizes cannot change after reveal', { status: 409 })
+    if (result === 'wrong-format') throw new Response('1v1 list sizes are assigned automatically', { status: 409 })
+    if (result === 'wrong-limit') throw new Response('choose a list size configured for this event', { status: 400 })
     throw new Response('no such accepted event entrant', { status: 404 })
   }
 
@@ -289,7 +289,7 @@ export class SealedEventService {
     eventToken?: string,
   ) {
     const command = commandSchema.parse({ kind: 'attach-roster', roster: snapshot })
-    if (command.kind !== 'attach-roster') throw new Error('expected a roster snapshot')
+    if (command.kind !== 'attach-roster') throw new Error('expected a list snapshot')
     const { id: _savedRosterId, ...sealed } = command.roster
     const result = await this.repository.submitSealedEventRoster({
       token,
@@ -312,19 +312,19 @@ export class SealedEventService {
         },
       )
     if (result.outcome === 'wrong-limit')
-      throw new Response('choose a roster built for this event’s battle size; a team event takes smaller ones too', { status: 409 })
+      throw new Response('choose a list built for this event’s battle size; a team event takes smaller ones too', { status: 409 })
     if (result.outcome === 'invalid-warlords') throw new Response(sealedEventWarlordRefusal(snapshot), { status: 409 })
     if (result.outcome === 'disallowed') throw new Response(result.message, { status: 409 })
-    if (result.outcome === 'past-deadline') throw new Response('the roster deadline has passed', { status: 409 })
+    if (result.outcome === 'past-deadline') throw new Response('the list deadline has passed', { status: 409 })
     if (result.outcome === 'wrong-budget')
-      throw new Response(`choose a roster built to this event’s ${result.pointsBudget.toLocaleString('en')} points`, { status: 409 })
+      throw new Response(`choose a list built to this event’s ${result.pointsBudget.toLocaleString('en')} points`, { status: 409 })
     if (result.outcome === 'over-points')
-      throw new Response(`choose a roster that spends at most ${result.points.toLocaleString('en')} points`, { status: 409 })
+      throw new Response(`choose a list that spends at most ${result.points.toLocaleString('en')} points`, { status: 409 })
     if (result.outcome === 'ally-mismatch')
       throw new Response(`your ally sealed a list saved to ${pointsLabel(result.pointsBudget)}; choose one saved to the same total`, {
         status: 409,
       })
-    throw new Response('the roster could not be sealed; check your entry and roster, then try again', { status: 409 })
+    throw new Response('the list could not be sealed; check your entry and list, then try again', { status: 409 })
   }
 
   /** Records the one Force Disposition a fixed pair plays, before reveal shows them the other side. */
@@ -355,7 +355,7 @@ export class SealedEventService {
       return
     }
     if (result.outcome === 'invalid-warlords')
-      throw new Response('each sealed roster must select exactly one eligible Warlord before reveal', { status: 409 })
+      throw new Response('each sealed list must select exactly one eligible Warlord before reveal', { status: 409 })
     throw new Response('wait for every accepted list and every pair’s Force Disposition and Warlord before reveal', { status: 409 })
   }
 
@@ -379,9 +379,9 @@ export class SealedEventService {
       this.notifySealedEvent('sealed-event-roster-unsealed', ownerId, [userId], token, eventToken)
       return
     }
-    if (result === 'forbidden') throw new Response('only the organizer can unseal a roster', { status: 403 })
-    if (result === 'not-revealed') throw new Response('an entrant can swap their own roster until reveal', { status: 409 })
-    throw new Response('no such revealed event roster', { status: 404 })
+    if (result === 'forbidden') throw new Response('only the organizer can unseal a list', { status: 403 })
+    if (result === 'not-revealed') throw new Response('an entrant can swap their own list until reveal', { status: 409 })
+    throw new Response('no such revealed event list', { status: 404 })
   }
 
   /** Takes a revealed Swiss entrant out of every later round: themselves, or anyone when an organizer asks. */
@@ -389,7 +389,7 @@ export class SealedEventService {
     const result = await this.repository.dropSealedEventEntrant({ token, eventToken, ownerId, userId, now: this.clock() })
     if (result === 'dropped') return
     if (result === 'forbidden') throw new Response('only the organizer can drop another player', { status: 403 })
-    if (result === 'closed') throw new Response('players drop out of Swiss rounds once the rosters are out', { status: 409 })
+    if (result === 'closed') throw new Response('players drop out of Swiss rounds once the lists are out', { status: 409 })
     throw new Response('no such player in this event', { status: 404 })
   }
 
@@ -649,7 +649,7 @@ function eventRule(rule: EventRuleInput) {
   const format = sealedEventTableShape(rule.format)
   const rosterLimit = rule.rosterLimit ?? SEALED_EVENT_DEFAULT_ROSTER_LIMIT
   if (format !== '1v1' && !SEALED_EVENT_TEAM_ROSTER_LIMITS.some((limit) => limit === rosterLimit)) {
-    throw new Response(`choose a supported ${format} roster size`, { status: 400 })
+    throw new Response(`choose a supported ${format} list size`, { status: 400 })
   }
   if (rule.rounds != null && format !== '1v1') throw new Response('Swiss rounds pair duels only', { status: 400 })
   const pointsBudgetProblem =
@@ -679,8 +679,8 @@ function tooFewPlaces(format: TableShape) {
 
 function rosterSharingResult(result: Awaited<ReturnType<RepositoryPort['updateSealedEventRosterSharing']>>) {
   if (typeof result !== 'string') return result
-  if (result === 'stale') throw new Response('Your roster changed. Check the sharing options and try again.', { status: 409 })
-  throw new Response('Only your own submitted roster can be shared after reveal.', { status: 409 })
+  if (result === 'stale') throw new Response('Your list changed. Check the sharing options and try again.', { status: 409 })
+  throw new Response('Only your own submitted list can be shared after reveal.', { status: 409 })
 }
 
 /** A sealed list as anyone but its owner reads it: without the owner's reminders or unit notes. */

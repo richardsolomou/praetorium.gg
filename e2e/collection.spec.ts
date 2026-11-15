@@ -814,7 +814,7 @@ test('the wishlist suggests unowned datasheets other players field that none of 
   await savedArmy(page, 'Wishlist suggestions', { name: 'Without Immortals', picks: JSON.stringify(picks) })
   await page.goto('/collection')
   const suggestion = page.locator('[data-wish-suggestion="Immortals"]')
-  await expect(suggestion).toContainText(/In \d+ of \d+ recent public Necrons rosters?/)
+  await expect(suggestion).toContainText(/In \d+ of \d+ recent public Necrons lists?/)
   await expect(page.locator('[data-wish-suggestion="Necron Warriors"]')).toHaveCount(0)
   await addDatasheet(page, 'Immortals', 'Necrons')
   await expect(suggestion).toBeHidden()

@@ -4,7 +4,7 @@ import type { AgentToolDescriptor } from '../../../contracts/agentTools'
 
 const tool: AgentToolDescriptor = {
   name: 'save_roster',
-  title: 'Save roster',
+  title: 'Save list',
   description: '',
   inputSchema: {},
   readOnly: false,

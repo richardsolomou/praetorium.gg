@@ -137,7 +137,7 @@ export function WaiverConfirmDialog<Roster extends WaivingRoster>({
               data-slot="button"
               className={buttonClass({ variant: 'outline', className: 'sm:mr-auto' })}
             >
-              <Pencil /> Edit roster
+              <Pencil /> Edit list
             </Link>
           ) : null}
           <AlertDialogCancel disabled={pending}>Choose another</AlertDialogCancel>

@@ -72,13 +72,13 @@ export function RosterChooser({
     <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
       <DialogContent size="md">
         <DialogHeader>
-          <DialogTitle className="text-2xl">Seal a roster</DialogTitle>
+          <DialogTitle className="text-2xl">Seal a list</DialogTitle>
           <DialogDescription>
             {size === null
               ? 'Hidden until the reveal. You can swap it until then.'
               : seatPoints !== null
-                ? `Your rosters built for ${battleSizeName(requiredLimit!)} or smaller, ${shared ? `sharing ${pointsLabel(seatPoints * 2)} with your ally` : `spending up to ${pointsLabel(seatPoints)}`}. Hidden until the reveal; you can swap it until then.`
-                : `Your ${size} rosters. Hidden until the reveal; you can swap it until then.`}
+                ? `Your lists built for ${battleSizeName(requiredLimit!)} or smaller, ${shared ? `sharing ${pointsLabel(seatPoints * 2)} with your ally` : `spending up to ${pointsLabel(seatPoints)}`}. Hidden until the reveal; you can swap it until then.`
+                : `Your ${size} lists. Hidden until the reveal; you can swap it until then.`}
           </DialogDescription>
         </DialogHeader>
         <DialogBody>
@@ -93,14 +93,12 @@ export function RosterChooser({
             </Link>
           ) : null}
           {rosterQuery.isPending ? null : filter.bar}
-          {filter.failed ? (
-            <Problem>Some rosters’ points and legality could not be checked, so this filter leaves them out.</Problem>
-          ) : null}
+          {filter.failed ? <Problem>Some lists’ points and legality could not be checked, so this filter leaves them out.</Problem> : null}
           {rosterQuery.isPending || filter.pending ? (
             <RosterChooserSkeleton />
           ) : choosable.length ? (
             <>
-              {filter.rosters.length || filter.lent.length ? null : <NoFilterMatches>No rosters match these filters.</NoFilterMatches>}
+              {filter.rosters.length || filter.lent.length ? null : <NoFilterMatches>No lists match these filters.</NoFilterMatches>}
               {filter.rosters.length ? (
                 <RosterChoices
                   rosters={filter.rosters}
@@ -124,9 +122,9 @@ export function RosterChooser({
             </>
           ) : (
             <div className="space-y-3">
-              <p className="py-2 text-sm text-dim">{size === null ? 'No rosters to seal yet.' : `No ${size} rosters to seal yet.`}</p>
+              <p className="py-2 text-sm text-dim">{size === null ? 'No lists to seal yet.' : `No ${size} lists to seal yet.`}</p>
               <Link to="/rosters" search={requiredLimit === null ? {} : { limit: requiredLimit }} className={buttonClass()}>
-                {size === null ? 'Go to rosters' : `Build a ${size} roster`}
+                {size === null ? 'Go to lists' : `Build a ${size} list`}
               </Link>
             </div>
           )}
@@ -138,7 +136,7 @@ export function RosterChooser({
             </Button>
             <Button className="max-w-full min-w-0" disabled={!selected || pending} onClick={() => selected && onChoose(selected)}>
               <FileLock2 />
-              <span className="truncate">{pending ? 'Sealing…' : selected ? `Seal ${selected.name}` : 'Choose a roster to seal'}</span>
+              <span className="truncate">{pending ? 'Sealing…' : selected ? `Seal ${selected.name}` : 'Choose a list to seal'}</span>
             </Button>
           </DialogFooter>
         ) : null}
@@ -149,7 +147,7 @@ export function RosterChooser({
 
 function RosterChooserSkeleton() {
   return (
-    <div className="space-y-2" aria-label="Loading rosters">
+    <div className="space-y-2" aria-label="Loading lists">
       {Array.from({ length: 3 }, (_, index) => (
         <div key={index} className="flex min-h-20 items-center gap-3 part p-3" aria-hidden>
           <div className="flex-1 space-y-2">

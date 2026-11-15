@@ -184,7 +184,7 @@ export async function sharedRoster(args: Parameters<typeof server.sharedRoster>[
   return access?.roster ?? null
 }
 
-export const DELETED_ROSTER_MESSAGE = 'This roster was deleted. Save it as a new roster.'
+export const DELETED_ROSTER_MESSAGE = 'This list was deleted. Save it as a new list.'
 
 export async function saveRoster(
   args: Parameters<typeof server.saveRoster>[0],
@@ -198,7 +198,7 @@ export async function saveRoster(
   if (!localEngine()) {
     if (!reviewed) return server.saveRoster(args)
     if (!serverReview || !owner || !args.data.id)
-      throw new Error('Saved changes are not ready on this device. Reload the roster before reviewing it again.')
+      throw new Error('Saved changes are not ready on this device. Reload the list before reviewing it again.')
     const answer = await syncRoster({
       signal: args.signal ?? AbortSignal.timeout(15_000),
       data: { ...serverReview, owner, roster: { ...args.data, id: args.data.id } },
@@ -208,7 +208,7 @@ export async function saveRoster(
     const saved = await server.sharedRoster({ data: { id: args.data.id }, signal: args.signal ?? AbortSignal.timeout(15_000) })
     if (localOwner()?.id !== owner) throw new Error('The account changed after this review. Reload before continuing.')
     if (!saved || saved.updatedAt !== answer.version)
-      throw new Error('This roster changed after your review. Go back, reload it and review the changes again.')
+      throw new Error('This list changed after your review. Go back, reload it and review the changes again.')
     requireReviewedRoster(saved, saveRosterSchema.parse(args.data))
     return { id: args.data.id, updatedAt: answer.version }
   }
@@ -278,7 +278,7 @@ export async function saveRoster(
     },
   )
   if (!previous && navigator.onLine) await attemptLocalSync()
-  if (localOwner()?.id !== owner) throw new Error('The account changed while saving this roster.')
+  if (localOwner()?.id !== owner) throw new Error('The account changed while saving this list.')
   return { id: input.id, updatedAt: now }
 }
 
@@ -286,8 +286,8 @@ export async function copyRoster(args: Parameters<typeof server.copyRoster>[0]):
   const owner = localOwner()?.id
   if (!localEngine()) return server.copyRoster(args)
   const access = await rosterAccess({ data: { id: args.data.id } })
-  if (!access) throw new Error('That roster could not be loaded.')
-  if (args.data.variant && !access.editable) throw new Error('You do not own this roster.')
+  if (!access) throw new Error('That list could not be loaded.')
+  if (args.data.variant && !access.editable) throw new Error('You do not own this list.')
   const roster = access.roster
   const summaries = await savedRosterSummaries()
   const baseId = roster.baseRosterId ?? roster.id
@@ -310,7 +310,7 @@ export async function copyRoster(args: Parameters<typeof server.copyRoster>[0]):
     baseRosterId: args.data.variant ? baseId : null,
     copiedFromRosterId: args.data.variant ? null : roster.id,
   }
-  if (localOwner()?.id !== owner) throw new Error('The account changed before this roster could be copied.')
+  if (localOwner()?.id !== owner) throw new Error('The account changed before this list could be copied.')
   const result = await saveRoster({ data: input })
   return { id: result.id, visibility: rosterVisibility }
 }
@@ -407,7 +407,7 @@ export async function setRosterVisibility(
   const owner = localOwner()?.id
   if (!localEngine()) return server.setRosterVisibility(args)
   const roster = await rosterAccess({ data: { id: args.data.id } })
-  if (!roster?.editable) throw new Error('You do not own this roster.')
+  if (!roster?.editable) throw new Error('You do not own this list.')
   if (localOwner()?.id !== owner) throw new Error('The account changed before these edits could be saved.')
   await saveRoster({ data: { ...draftFor(roster.roster), visibility: args.data.visibility } })
   return null
@@ -418,10 +418,10 @@ export async function shareSealedEventRoster(
 ): ReturnType<typeof server.shareSealedEventRoster> {
   const owner = localOwner()?.id
   const resource = `roster:${args.data.rosterId}`
-  if (!navigator.onLine) throw new Error('Connect to the internet to share your sealed roster.')
+  if (!navigator.onLine) throw new Error('Connect to the internet to share your sealed list.')
   if (await hasLocalChanges(resource)) {
     await syncLocalWork()
-    if (await hasLocalChanges(resource)) throw new Error('This roster has changes waiting to sync. Sync or review them first.')
+    if (await hasLocalChanges(resource)) throw new Error('This list has changes waiting to sync. Sync or review them first.')
   }
   if (localOwner()?.id !== owner) throw accountChanged()
   const result = await server.shareSealedEventRoster(args)
@@ -466,7 +466,7 @@ async function serverAcceptedRoster<Saved extends { updatedAt: LocalRoster['upda
   if (localEngine()) {
     if (!navigator.onLine) throw new Error(`Connect to the internet to ${action}.`)
     if (await hasLocalChanges(resource)) await syncLocalWork()
-    if (await hasLocalChanges(resource)) throw new Error('This roster has changes waiting to sync. Sync or review them first.')
+    if (await hasLocalChanges(resource)) throw new Error('This list has changes waiting to sync. Sync or review them first.')
   }
   const saved = await send()
   const local = await localDocument<LocalRoster | null>(resource)
@@ -475,17 +475,17 @@ async function serverAcceptedRoster<Saved extends { updatedAt: LocalRoster['upda
 }
 
 export function setRosterLocked(args: Parameters<typeof server.setRosterLocked>[0]): ReturnType<typeof server.setRosterLocked> {
-  return serverAcceptedRoster(args.data.id, 'lock or unlock this roster', () => server.setRosterLocked(args), { locked: args.data.locked })
+  return serverAcceptedRoster(args.data.id, 'lock or unlock this list', () => server.setRosterLocked(args), { locked: args.data.locked })
 }
 
 export function setRosterArchived(args: Parameters<typeof server.setRosterArchived>[0]): ReturnType<typeof server.setRosterArchived> {
-  return serverAcceptedRoster(args.data.id, 'archive or unarchive this roster', () => server.setRosterArchived(args), {
+  return serverAcceptedRoster(args.data.id, 'archive or unarchive this list', () => server.setRosterArchived(args), {
     archived: args.data.archived,
   })
 }
 
 export function splitRosterVariant(args: Parameters<typeof server.splitRosterVariant>[0]): ReturnType<typeof server.splitRosterVariant> {
-  return serverAcceptedRoster(args.data.id, 'make this variant its own roster', () => server.splitRosterVariant(args), {
+  return serverAcceptedRoster(args.data.id, 'make this variant its own list', () => server.splitRosterVariant(args), {
     baseRosterId: null,
   })
 }
@@ -498,9 +498,9 @@ export async function changeRosters(args: Parameters<typeof server.changeRosters
   const owner = localOwner()?.id
   const waiting = async () => (await Promise.all(args.data.ids.map((id) => hasLocalChanges(`roster:${id}`)))).some(Boolean)
   if (localEngine()) {
-    if (!navigator.onLine) throw new Error('Connect to the internet to change several rosters at once.')
+    if (!navigator.onLine) throw new Error('Connect to the internet to change several lists at once.')
     if (await waiting()) await syncLocalWork()
-    if (await waiting()) throw new Error('Some of these rosters have changes waiting to sync. Sync or review them first.')
+    if (await waiting()) throw new Error('Some of these lists have changes waiting to sync. Sync or review them first.')
   }
   const saved = await server.changeRosters(args)
   const { action } = args.data
@@ -526,7 +526,7 @@ export async function savedRosterLoadoutDatasheets(
   const local = !args.data.battle ? await localDocument<LocalRoster | null>(resource) : undefined
   const inputFor = (roster: LocalRoster) => {
     const pick = roster.picks[args.data.pickIndex]
-    if (!pick) throw new Error('This unit is no longer in the roster.')
+    if (!pick) throw new Error('This unit is no longer in the list.')
     return {
       catalogueId: roster.catalogueId,
       entryId: pick.entryId,

@@ -29,7 +29,7 @@ export function SupportAside() {
           </Channel>
           <Channel icon={Bug} href={NEW_ISSUE} label="Public issue tracker">
             Report a problem in public. Include what you expected, what happened, the page address, your device, operating system and
-            Praetorium version. Never include a password, two-factor secret, recovery code or private roster link.
+            Praetorium version. Never include a password, two-factor secret, recovery code or private list link.
           </Channel>
           <Channel icon={Mail} href={`mailto:${PRIVACY_EMAIL}`} label={PRIVACY_EMAIL}>
             For a private account, privacy or deletion request.

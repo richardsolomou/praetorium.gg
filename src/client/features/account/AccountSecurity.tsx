@@ -230,7 +230,7 @@ export function AccountSecurity({ me, preferences }: { me: AccountIdentity; pref
       <section className="part p-5 md:p-7">
         <SectionHeading title="Connected apps" />
         <p className="text-sm text-dim">
-          AI assistants and other apps you have allowed to read or change your rosters, battles and events.{' '}
+          AI assistants and other apps you have allowed to read or change your lists, battles and events.{' '}
           <Link to="/docs/$docId" params={{ docId: 'connect-an-assistant' }} className="text-info underline-offset-4 hover:underline">
             Connect Claude, ChatGPT or Gemini
           </Link>
@@ -250,8 +250,8 @@ export function AccountSecurity({ me, preferences }: { me: AccountIdentity; pref
                 icon={<ConnectedAppIcon name={connection.name} />}
                 title={connection.name}
                 detail={[
-                  connection.scopes.includes('mcp:read') ? 'Read rosters, battles and events' : null,
-                  connection.scopes.includes('mcp:write') ? 'Change rosters, battles and events' : null,
+                  connection.scopes.includes('mcp:read') ? 'Read lists, battles and events' : null,
+                  connection.scopes.includes('mcp:write') ? 'Change lists, battles and events' : null,
                 ]
                   .filter(Boolean)
                   .join(' · ')}
@@ -270,7 +270,7 @@ export function AccountSecurity({ me, preferences }: { me: AccountIdentity; pref
         <SectionHeading title="Delete account" className="text-destructive" />
         <div className="mt-4 flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-dim">
-            Permanently deletes your rosters, friendships, tournaments, the groups you own and every battle you played.
+            Permanently deletes your lists, friendships, tournaments, the groups you own and every battle you played.
           </p>
           <Button variant="destructive" disabled={!methods} onClick={() => setDialog('delete-account')}>
             <Trash2 /> Delete account
@@ -305,7 +305,7 @@ export function AccountSecurity({ me, preferences }: { me: AccountIdentity; pref
       {dialog === 'delete-account' ? (
         <AccountDialog
           title="Delete your account"
-          description="This cannot be undone. Your rosters, friendships, tournament entries, the groups you own and every battle you played will be deleted."
+          description="This cannot be undone. Your lists, friendships, tournament entries, the groups you own and every battle you played will be deleted."
           onClose={() => setDialog(undefined)}
         >
           <DeleteAccountForm hasPassword={hasPassword} />
@@ -619,7 +619,7 @@ function RevokeConnectionDialog({
   return (
     <ConfirmDialog
       title={`Revoke ${connection.name}?`}
-      description={`${connection.name} can no longer read or change your rosters, battles and events. Connect it again to give it access.`}
+      description={`${connection.name} can no longer read or change your lists, battles and events. Connect it again to give it access.`}
       cancel="Keep access"
       confirm="Revoke access"
       pendingLabel="Revoking…"

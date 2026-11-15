@@ -3,19 +3,19 @@ Work down the steps until the bar at the bottom reads **Ready**, then choose **S
 ![The setup bar reading 2 left, Defender and First turn, beside a greyed-out Start battle button.](screenshot:track-a-battle-setup-bar 'Start battle, locked until nothing is left')
 
 1. **Format.** Set the battle size, the mission pack, guided or manual tracking and the [chess clock](/docs/play-the-game#chess-clock), plus the group when you share one. [Points rules](/docs/set-up-the-table#battle-size-and-points) are below.
-2. **Armies.** Choose **Choose army** under your name at the top, or **Choose roster** on each seat. You see your saved rosters built for the battle size, plus any **Lent by friends**, and can search, filter and sort them as in your roster library. Press **Battle ready** under an army to get +10 VP at the start of the battle. Allies only get it once every army on their side is battle ready. A side of allies presses the crowned Warlord under the army whose Warlord leads it.
+2. **Armies.** Choose **Choose army** under your name at the top, or **Choose list** on each seat. You see your saved lists built for the battle size, plus any **Lent by friends**, and can search, filter and sort them as in your list library. Press **Battle ready** under an army to get +10 VP at the start of the battle. Allies only get it once every army on their side is battle ready. A side of allies presses the crowned Warlord under the army whose Warlord leads it.
 3. **Mission.** Each side's primary comes from its Force Disposition against its opponent's. An allied side with more than one disposition on offer picks one.
 4. **Battlefield.** Pick a layout. It sets the deployment zones and terrain for both sides. Open it to [place the terrain](/docs/set-up-the-table#place-the-terrain).
 5. **Defender.** Roll off at the table, then record who defends. The defender deploys first.
 6. **Secondaries.** Each side picks **Tactical** (cards drawn during the battle) or **Fixed** (missions selected now and kept all game). Allies share one hand.
-7. **Reserves.** Move units into strategic reserves or deep strike, or embark them in transports. Anything you leave alone starts on the battlefield. Units your roster [starts embarked](/docs/set-up-a-unit#start-units-embarked) are already inside. If a transport can't fit one, a note says so and that unit starts on the battlefield.
+7. **Reserves.** Move units into strategic reserves or deep strike, or embark them in transports. Anything you leave alone starts on the battlefield. Units your list [starts embarked](/docs/set-up-a-unit#start-units-embarked) are already inside. If a transport can't fit one, a note says so and that unit starts on the battlefield.
 8. **Deploy.** Tap each unit as it goes down. **To place** and **Placed** narrow the list. The ticks stay on the device you tapped them on. Tick the step when both armies are down.
 9. **First turn.** Roll off and record who goes first. Until the defender is chosen (or, in a manual battle, the armies), the step says what it waits on.
 10. **Pre-battle rules.** Resolve them at the table, then choose **Start battle** to open the first Command phase.
 
 Manual battles skip the mission, battlefield, defender, secondaries, reserves, deployment and pre-battle steps.
 
-The battle keeps each army as it was when you attached it. Editing or deleting the saved roster afterwards doesn't change this battle.
+The battle keeps each army as it was when you attached it. Editing or deleting the saved list afterwards doesn't change this battle.
 
 ## Using the setup page
 
@@ -29,7 +29,7 @@ On a phone, an open step shows one side at a time. Tap the other side's tab, or 
 
 ## Battle size and points
 
-The size follows your rosters from the first list chosen. Each side plays to its lists added together, and the bigger side sets the size: two 1,000-point allies make a 2,000-point side. An ally who hasn't chosen yet counts at their partner's list size. Imported text-only armies need you to choose the size yourself.
+The size follows your lists from the first list chosen. Each side plays to its lists added together, and the bigger side sets the size: two 1,000-point allies make a 2,000-point side. An ally who hasn't chosen yet counts at their partner's list size. Imported text-only armies need you to choose the size yourself.
 
 A side whose lists add up to less than the other's plays short. Setup says so, but it doesn't stop you starting, so a 1,000-point list can play a 2,000-point one. No list may be built bigger than the battle size.
 

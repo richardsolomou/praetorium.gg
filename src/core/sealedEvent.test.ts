@@ -769,7 +769,7 @@ describe('what an event allows', () => {
 
   it('describes a 2v1 restriction at the solo size its single player builds to', () => {
     expect(sealedEventAllowanceOptions('2v1', 2_000).find((option) => option.id === 'points-limit')?.hint).toBe(
-      'The roster costs at most 2,000 points',
+      'The list costs at most 2,000 points',
     )
   })
 

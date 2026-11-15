@@ -1,6 +1,6 @@
 Press **+** on a unit's row to add it. To read the datasheet first, choose the unit's name, then **Add to list**. On smaller screens, open the picker with **Add units**.
 
-The picker shows every datasheet your faction and detachments allow, with allied units in a collapsed section at the end. Each row shows the price and how many you hold, such as **2/3 in roster**. A trophy marks units that at least a quarter of your faction's [top-four tournament lists](/rosters?view=tournament-lists) take. These are lists from tournaments outside Praetorium, as published by 40k Stats. Press the trophy to see how many. A datasheet's page lists the ones that take it.
+The picker shows every datasheet your faction and detachments allow, with allied units in a collapsed section at the end. Each row shows the price and how many you hold, such as **2/3 in list**. A trophy marks units that at least a quarter of your faction's [top-four tournament lists](/rosters?view=tournament-lists) take. These are lists from tournaments outside Praetorium, as published by 40k Stats. Press the trophy to see how many. A datasheet's page lists the ones that take it.
 
 ## Find a unit
 

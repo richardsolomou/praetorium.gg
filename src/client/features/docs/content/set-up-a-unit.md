@@ -14,7 +14,7 @@ The first eligible unit you add becomes your Warlord. To move it, press **Warlor
 
 ## Names and notes
 
-**Custom name** renames the unit, up to 40 characters, so you can tell two copies apart. Anyone who can read the roster sees it, including your opponent in a battle and the text export.
+**Custom name** renames the unit, up to 40 characters, so you can tell two copies apart. Anyone who can read the list sees it, including your opponent in a battle and the text export.
 
 The **Note** box holds up to 500 characters that only you can see. Exports and other readers never get it.
 
@@ -22,34 +22,34 @@ The **Note** box holds up to 500 characters that only you can see. Exports and o
 
 Open a card's menu, or right-click it, for **Duplicate unit**, **Save loadout** and **Delete unit**.
 
-**Save loadout** keeps the model count, wargear and custom name, up to 100 per account. It appears beneath its datasheet in the picker for any roster of the same army. Enhancements, upgrades, Warlord and attachments aren't kept.
+**Save loadout** keeps the model count, wargear and custom name, up to 100 per account. It appears beneath its datasheet in the picker for any list of the same army. Enhancements, upgrades, Warlord and attachments aren't kept.
 
 A unit with characters attached also offers **Save attached unit**. It gets its own row in its bodyguard's section of the picker, and adding it brings the units back already attached.
 
 ## Attach Leaders and Support units
 
-You attach from the roster cards, not the picker.
+You attach from the list cards, not the picker.
 
 1. On a Leader or Support unit, choose **Attach to unit**. On a Bodyguard unit, choose **Attach unit**.
-2. Pick a unit under **In this roster**, or use **Add a new unit** to add the datasheet and attach it in one step.
+2. Pick a unit under **In this list**, or use **Add a new unit** to add the datasheet and attach it in one step.
 
 Units at their copy limit are greyed out with the reason. A Leader may stand on its own, but a Support unit must be attached to a Bodyguard.
 
-![An Ancient's Attach to unit menu listing an Intercessor Squad in the roster and new squads with their prices.](screenshot:build-an-army-attach 'The Attach to unit menu, with In this roster and Add a new unit')
+![An Ancient's Attach to unit menu showing an Intercessor Squad in the list and new squads with their prices.](screenshot:build-an-army-attach 'The Attach to unit menu, with In this list and Add a new unit')
 
 To undo it, use **Remove** on the card showing **Leading** or **Supporting**, or **Detach** on the Bodyguard. A joined unit's menu (**⋮** or right-click) also has **Detach from unit**.
 
-An attached unit sits on its Bodyguard's shelf, which counts it as one unit. To put each card back on its role shelf, untick **Group attached units** under **Display** in the roster's menu. That's saved on this device for every roster.
+An attached unit sits on its Bodyguard's shelf, which counts it as one unit. To put each card back on its role shelf, untick **Group attached units** under **Display** in the list's menu. That's saved on this device for every list.
 
 Supported unit-wide weapon grants appear on the attached unit's weapon profiles automatically, including Alpha Warrior's **Sustained Hits 1**. Detaching the source removes its grant from the Bodyguard's profiles.
 
 ## Start units embarked
 
-You embark from the roster cards too. On a unit, choose **Embark in transport**. On a transport, choose **Embark unit**. An attached unit has **Embark unit in transport** below its cards. A transport the unit can't fit in, or whose capacity can't be read, is greyed out with the reason.
+You embark from the list cards too. On a unit, choose **Embark in transport**. On a transport, choose **Embark unit**. An attached unit has **Embark unit in transport** below its cards. A transport the unit can't fit in, or whose capacity can't be read, is greyed out with the reason.
 
 Once aboard, the unit's card shows **Embarked in** (or **Unit embarked in** for an attached unit) with **Remove**, and the transport has **Disembark**. To move a unit to another transport, remove it first. A Leader or Support unit embarks with the unit it joined.
 
-If a change means a unit no longer fits, such as a bigger squad or a Leader joining it, it goes back to the battlefield and a brief message says why. If the transport itself changes, the units added to the roster last go back first.
+If a change means a unit no longer fits, such as a bigger squad or a Leader joining it, it goes back to the battlefield and a brief message says why. If the transport itself changes, the units added to the list last go back first.
 
 Battle setup starts the unit in that transport, and you can still change it there.
 
@@ -57,6 +57,6 @@ Battle setup starts the unit in that transport, and you can still change it ther
 
 Press the bell beside an ability, rule or chosen enhancement, then choose when the alert appears, such as the start of your Shooting phase. The alert suggests a time from the rule's wording for you to check.
 
-An alert covers every unit with that ability in all your rosters, and in battle one reminder names them all. You can keep up to 200. Signed in, your account keeps them. Otherwise this browser does, and saving your list to an account brings them along.
+An alert covers every unit with that ability in all your lists, and in battle one reminder names them all. You can keep up to 200. Signed in, your account keeps them. Otherwise this browser does, and saving your list to an account brings them along.
 
 A battle keeps the alerts its armies started with, so changing one later doesn't change a battle under way. Sealing a list doesn't seal your alerts, so a tournament or group battle uses the alerts you have when it starts. Alerts for phases that pass while the battle isn't open show when you return to it on the same device. An alert due while you're scoring, drawing secondaries or answering another prompt waits until you've finished it. An ability that differs between rules versions may need its alert set again.

@@ -113,7 +113,7 @@ test('a page built before the deployed release loads its next route from the new
   await page.evaluate(() => Object.assign(window, { previousDocument: true }))
   await page.getByRole('link', { name: 'Army builder', exact: true }).click()
   await expect(page).toHaveURL(staleBuildMarker)
-  await expect(page.getByRole('heading', { name: 'Rosters', exact: true }).first()).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Lists', exact: true }).first()).toBeVisible()
   expect(await page.evaluate(() => 'previousDocument' in window)).toBe(false)
 })
 
@@ -126,8 +126,8 @@ test('a stale page reopens a tab where the reader left it', async ({ page }) => 
   const tabs = page.locator('[data-native-app-tabs]')
   await expect(page.getByRole('heading', { name: 'Factions', exact: true })).toBeVisible()
   await page.evaluate(() => window.scrollTo(0, 1200))
-  await tabs.getByRole('link', { name: 'Rosters', exact: true }).click()
-  await expect(page.getByRole('heading', { name: 'Rosters', exact: true }).first()).toBeVisible()
+  await tabs.getByRole('link', { name: 'Lists', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Lists', exact: true }).first()).toBeVisible()
   served = '99.0.0'
   await page.clock.runFor(60_000)
   await expect(page.getByRole('complementary', { name: 'Release update' })).toBeVisible()
@@ -197,8 +197,8 @@ test('a stale page sends a queued battle command before a route change reloads i
   await page.getByRole('button', { name: /^Manual/ }).click()
   await sent
   await page.evaluate(() => Object.assign(window, { previousDocument: true }))
-  await page.getByRole('link', { name: 'Rosters', exact: true }).first().click()
-  await expect(page.getByRole('heading', { name: 'Rosters', exact: true }).first()).toBeVisible()
+  await page.getByRole('link', { name: 'Lists', exact: true }).first().click()
+  await expect(page.getByRole('heading', { name: 'Lists', exact: true }).first()).toBeVisible()
   expect(await page.evaluate(() => 'previousDocument' in window)).toBe(true)
   holding = false
   release()

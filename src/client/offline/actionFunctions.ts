@@ -467,7 +467,7 @@ export async function submitSealedEventRoster(
   const construction = roster ? await localConstruction(roster.catalogueId) : null
   if (!roster || !construction) {
     if (navigator.onLine) return server.submitSealedEventRoster(args)
-    throw new OfflineRefusal('Save this roster and army data on this device before sealing it offline.')
+    throw new OfflineRefusal('Save this list and army data on this device before sealing it offline.')
   }
   const priced = calculateRosterPrice(savedRosterPriceInput(roster), construction.catalogue, construction.rules)
   if (!priced) throw new Error('Army data is unavailable.')

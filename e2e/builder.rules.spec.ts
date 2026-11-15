@@ -129,7 +129,7 @@ test('unit upgrades stay separate from character enhancements', async ({ page })
   await shot(card, test.info().outputPath('deepening-madness-upgrade.png'))
 
   await chooseRosterAction(page, 'Export text')
-  const exportDialog = page.getByRole('dialog', { name: 'Export roster' })
+  const exportDialog = page.getByRole('dialog', { name: 'Export list' })
   await expect(exportDialog).toContainText('Enhancement: Deepening Madness')
   await shot(exportDialog, test.info().outputPath('deepening-madness-export.png'))
   await exportDialog.getByRole('button', { name: 'Close' }).click()
@@ -209,7 +209,7 @@ test('weapon swaps keep fixed profiles stable while saving', async ({ page }) =>
   const loadout = page.locator('aside[aria-label="Loadout"]')
   for (const width of [1600, 390]) {
     await page.setViewportSize({ width, height: 900 })
-    if (width === 390) await loadout.getByRole('button', { name: 'Back to roster', exact: true }).click()
+    if (width === 390) await loadout.getByRole('button', { name: 'Back to list', exact: true }).click()
     await page.locator('[data-unit="Tomb Blades"]').getByRole('button', { name: 'Tomb Blades', exact: true }).click()
     await expect(loadout.getByRole('heading', { name: 'Equipped melee weapons 3', exact: true })).toBeVisible()
     const initialHeadings = await loadout

@@ -1,4 +1,4 @@
-Choose **Build an army** on the home page, or **New roster** on [Rosters](/rosters), then fill in the setup dialog and choose **Create roster**. You don't need an account. For a walkthrough of setup and your first unit, press the question mark in the top corner of the Rosters page to open the **Build guide**.
+Choose **Build an army** on the home page, or **New list** on [Lists](/rosters), then fill in the setup dialog and choose **Create list**. You don't need an account. For a walkthrough of setup and your first unit, press the question mark in the top corner of the Lists page to open the **Build guide**.
 
 ## Fill in the setup
 
@@ -8,13 +8,13 @@ Choose **Build an army** on the home page, or **New roster** on [Rosters](/roste
 4. Pick a **Force disposition** if your detachments offer several. It decides your primary mission in battle.
 5. With an account, set **Access**: **Private**, **Unlisted** (anyone with the link) or **Public** (listed on your profile and for anyone to find).
 
-The new roster is named from its army. Change it in **List name** at the top of the builder.
+The new list is named from its army. Change it in **List name** at the top of the builder.
 
 If something's missing, the dialog says so, such as **Choose a detachment.** or **Choose a Force disposition.**
 
-![The Create roster dialog for Space Marines with Strike Force, Gladius Task Force and the Take and Hold Force disposition chosen.](screenshot:build-an-army-setup 'The Force disposition choice in the Create roster dialog')
+![The Create list dialog for Space Marines with Strike Force, Gladius Task Force and the Take and Hold Force disposition chosen.](screenshot:build-an-army-setup 'The Force disposition choice in the Create list dialog')
 
-You can also start with **Start a roster** on a faction or detachment page, or **Add to roster** on a datasheet.
+You can also start with **Start a list** on a faction or detachment page, or **Add to list** on a datasheet.
 
 ## Detachment points
 
@@ -22,10 +22,10 @@ The counter shows **DP used** against your allowance: 2 DP at Incursion, 3 DP at
 
 ## Your own points limit
 
-The box beside the battle size takes a points limit from 500 to 10,000. Leave it empty for the size's full points. It changes only the points ceiling, and the named size still sets every other limit. A tournament can set its own total for every roster, and King of the Colosseum has a fixed total.
+The box beside the battle size takes a points limit from 500 to 10,000. Leave it empty for the size's full points. It changes only the points ceiling, and the named size still sets every other limit. A tournament can set its own total for every list, and King of the Colosseum has a fixed total.
 
 ## Without an account
 
-This browser keeps one private roster for you. **Save roster** in the footer takes you through creating an account or signing in, then returns you to your army. The draft stays on this device until saving succeeds.
+This browser keeps one private list for you. **Save list** in the footer takes you through creating an account or signing in, then returns you to your army. The draft stays on this device until saving succeeds.
 
 Variants, saved loadouts, sharing, locking, lending and battles need an account.

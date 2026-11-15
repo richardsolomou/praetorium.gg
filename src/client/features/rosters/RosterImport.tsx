@@ -175,7 +175,7 @@ export function RosterImport({
       posthog.capture('roster_import_saved', { source: imported[0]?.source, bulk: true, rosters: imported.length })
       await invalidateSavedRosters(queryClient)
       setOpen(false)
-      toast(`Imported ${countLabel(imported.length, 'roster')}.`)
+      toast(`Imported ${countLabel(imported.length, 'list')}.`)
     },
   })
 
@@ -315,7 +315,7 @@ export function RosterImport({
   return (
     <>
       <Button data-onboarding="roster-import" variant="outline" onClick={show}>
-        <FileUp /> Import roster
+        <FileUp /> Import list
       </Button>
       <Dialog open={open} onOpenChange={(next) => !working && setOpen(next)}>
         <DialogContent
@@ -329,7 +329,7 @@ export function RosterImport({
           }
         >
           <DialogHeader>
-            <DialogTitle className="text-2xl">Import roster</DialogTitle>
+            <DialogTitle className="text-2xl">Import list</DialogTitle>
             <DialogDescription>
               {review
                 ? 'Review the matched list and any missing choices before continuing.'
@@ -421,7 +421,7 @@ export function RosterImport({
                 disabled={working}
                 options={[
                   { value: 'text', name: 'Pasted text', detail: 'An export or exchange code' },
-                  { value: 'battlebase', name: 'BattleBase', detail: 'A player’s public rosters' },
+                  { value: 'battlebase', name: 'BattleBase', detail: 'A player’s public lists' },
                   { value: 'newrecruit', name: 'New Recruit', detail: 'Share links' },
                 ]}
                 onChange={(next) => {
@@ -440,7 +440,7 @@ export function RosterImport({
               ) : (
                 <div className="space-y-2">
                   <Label htmlFor="roster-text" className="eyebrow">
-                    Roster text or exchange code
+                    List text or exchange code
                   </Label>
                   <Textarea
                     data-onboarding="import-input"
@@ -459,7 +459,7 @@ export function RosterImport({
                       bring.reset()
                       setRefusal(refuseRosterFile(format, 'file'))
                     }}
-                    placeholder="Paste Games Workshop roster text or an exchange code…"
+                    placeholder="Paste Games Workshop list text or an exchange code…"
                     className="h-52 min-h-52 field-sizing-fixed resize-none overflow-y-auto font-mono text-xs"
                     disabled={working}
                     maxLength={200_000}
@@ -473,7 +473,7 @@ export function RosterImport({
                     }}
                   >
                     {working ? <LoaderCircle className="animate-spin" /> : <Copy />}
-                    Import pasted roster
+                    Import pasted list
                   </Button>
                 </div>
               )}
@@ -514,7 +514,7 @@ export function RosterImport({
                 </Button>
                 <Button disabled={working} onClick={() => accept(review)}>
                   {keep.isPending ? <LoaderCircle className="animate-spin" /> : matchedAll ? <Copy /> : <TriangleAlert />}
-                  {onImport ? 'Open imported draft' : matchedAll ? 'Import roster' : 'Import anyway'}
+                  {onImport ? 'Open imported draft' : matchedAll ? 'Import list' : 'Import anyway'}
                 </Button>
               </>
             ) : null}

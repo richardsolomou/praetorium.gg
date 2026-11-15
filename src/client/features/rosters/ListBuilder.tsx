@@ -320,7 +320,7 @@ export function ListBuilder({
   // An owner can change who opens a saved list, locked or not; a visitor is asked to sign up first.
   const ownsSaved = Boolean(savedId) && !battle && ((editable && !guest) || locked)
   const rosterShare: RosterShareChoices = {
-    title: shownName || 'Roster',
+    title: shownName || 'List',
     visibility,
     onVisibility: guest
       ? () => account.ask('share')
@@ -685,7 +685,7 @@ export function ListBuilder({
       ...setup,
       picks: positioned,
       pickIndex,
-      ...(savedId ? { saved: { source: { id: savedId }, name: shownName || 'Roster' } } : {}),
+      ...(savedId ? { saved: { source: { id: savedId }, name: shownName || 'List' } } : {}),
     })
   }
 
@@ -776,12 +776,12 @@ export function ListBuilder({
 
       <div className="hidden px-3 py-2 text-xs print:block">
         <p>
-          {guest ? 'Draft on this device' : 'Roster'} · {points}/{budget} points
+          {guest ? 'Draft on this device' : 'List'} · {points}/{budget} points
         </p>
-        {!frozen && illegal ? <p>Resolve roster validation messages before playing this roster.</p> : null}
+        {!frozen && illegal ? <p>Fix the validation messages before playing this list.</p> : null}
         {!frozen && over ? <p>Over the points limit.</p> : null}
         {!frozen && priced?.unhandled.length ? <p>Some restrictions could not be checked. Read the source rules before playing.</p> : null}
-        {waivedRules.length ? <p>Some construction rules are waived; check the roster setup.</p> : null}
+        {waivedRules.length ? <p>Some construction rules are waived; check the list setup.</p> : null}
       </div>
 
       <RosterBody threeColumn={editable}>
@@ -954,10 +954,10 @@ export function ListBuilder({
       {ownsSaved ? (
         <ConfirmDialog
           open={deleting}
-          title={`Delete ${shownName || 'this roster'}?`}
-          description="This removes the saved roster for good. Frozen copies in battles and tournaments are kept."
-          cancel="Keep roster"
-          confirm="Delete roster"
+          title={`Delete ${shownName || 'this list'}?`}
+          description="This removes the saved list for good. Frozen copies in battles and tournaments are kept."
+          cancel="Keep list"
+          confirm="Delete list"
           pendingLabel="Deleting…"
           destructive
           pending={removeRoster.isPending}

@@ -28,7 +28,7 @@ export function calendarEntries({ leagues, tournaments }: CalendarFeedDates, ori
       entries.push({
         uid: `tournament-${tournament.token}-rosters@${host}`,
         at: tournament.sealBy,
-        summary: `${tournament.name}: rosters due`,
+        summary: `${tournament.name}: lists due`,
         url,
       })
     if (tournament.playsAt !== null)

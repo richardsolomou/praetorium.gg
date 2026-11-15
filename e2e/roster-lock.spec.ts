@@ -13,7 +13,7 @@ import {
 } from './account'
 import { productOperator, savedWork, lastPathSegment, expectWorkSynced } from './storage'
 
-const LOCKED = 'This roster is locked. Unlock it to change it, or keep your changes as a new roster.'
+const LOCKED = 'This list is locked. Unlock it to change it, or keep your changes as a new list.'
 
 test('a locked roster stays read-only until unlocked while its copies stay editable', async ({ page }) => {
   test.setTimeout(180_000)
@@ -25,7 +25,7 @@ test('a locked roster stays read-only until unlocked while its copies stay edita
     await add(page, 'Immortals')
   })
 
-  await chooseRosterAction(page, 'Lock roster')
+  await chooseRosterAction(page, 'Lock list')
   const listName = page.getByLabel('List name')
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 900 })
@@ -49,8 +49,8 @@ test('a locked roster stays read-only until unlocked while its copies stay edita
     await expect(row.getByText('Locked', { exact: true })).toBeVisible()
     await page.screenshot({ path: test.info().outputPath(`locked-library-${width}.png`) })
     await row.getByRole('button', { name: `Actions for ${name}` }).click()
-    await expect(page.getByRole('menuitem', { name: 'Edit roster setup' })).toBeDisabled()
-    await expect(page.getByRole('menuitem', { name: 'Unlock roster' })).toBeEnabled()
+    await expect(page.getByRole('menuitem', { name: 'Edit list setup' })).toBeDisabled()
+    await expect(page.getByRole('menuitem', { name: 'Unlock list' })).toBeEnabled()
     await page.screenshot({ path: test.info().outputPath(`locked-row-menu-${width}.png`) })
     if (width === 390) {
       await page.keyboard.press('Escape')
@@ -95,7 +95,7 @@ test('an edit queued offline is refused visibly after another device locks the r
     const other = await otherDevice.newPage()
     await other.goto('/rosters')
     const row = other.locator(`[data-roster="${name}"]`)
-    await chooseLibraryAction(other, name, 'Lock roster')
+    await chooseLibraryAction(other, name, 'Lock list')
     await expect(row.getByText('Locked', { exact: true })).toBeVisible()
   } finally {
     await otherDevice.close()
@@ -114,7 +114,7 @@ test('an edit queued offline is refused visibly after another device locks the r
   await expect.poll(async () => (await review.boundingBox())?.width).toBe(390)
   await page.screenshot({ path: test.info().outputPath('locked-refusal-review-390.png') })
 
-  await review.getByRole('button', { name: 'Keep as a new roster' }).click()
+  await review.getByRole('button', { name: 'Keep as a new list' }).click()
   await page.getByRole('alertdialog').getByRole('button', { name: 'Discard changes' }).click()
   await expectWorkSynced(page)
   await page.keyboard.press('Escape')

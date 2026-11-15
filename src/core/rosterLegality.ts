@@ -17,7 +17,7 @@ export function rosterProblems(
   const budget = pointsBudgetOf(roster)
   const overLimit = priced.points > budget && enforces(roster.waivedRules, 'points-limit')
   return [
-    ...(overLimit ? [{ kind: 'over-limit' as const, message: `roster has ${priced.points} points, over its ${budget}-point limit` }] : []),
+    ...(overLimit ? [{ kind: 'over-limit' as const, message: `list has ${priced.points} points, over its ${budget}-point limit` }] : []),
     ...[priced.detachmentError, priced.dispositionError, ...priced.errors.map((error) => `${error.entryName}: ${error.message}`)]
       .filter((message): message is string => Boolean(message))
       .map((message) => ({ kind: 'not-legal' as const, message })),

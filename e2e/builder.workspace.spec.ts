@@ -175,9 +175,9 @@ test('a three-point detachment lets the player choose either disposition', async
 
   const dispositions = dialog.getByRole('group', { name: 'Force disposition' })
   await expect(dispositions.getByRole('button')).toHaveText(['Take and Hold', 'Priority Assets'])
-  await expect(dialog.getByRole('button', { name: 'Create roster' })).toBeDisabled()
+  await expect(dialog.getByRole('button', { name: 'Create list' })).toBeDisabled()
   await dispositions.getByRole('button', { name: 'Priority Assets' }).click()
-  await dialog.getByRole('button', { name: 'Create roster' }).click()
+  await dialog.getByRole('button', { name: 'Create list' }).click()
   await page.waitForURL(/\/rosters\/[^/]+$/)
   await expect(page.locator('[data-slot="roster-meta"]').getByRole('link', { name: 'Priority Assets' })).toBeVisible()
   await page.reload()
@@ -271,7 +271,7 @@ test('the roster tab comes back to the unit it was left on', { tag: '@catalogue'
   await expect(page).toHaveURL('/battles')
 
   // The tab mounts straight onto the open pane, with nothing of the roster's behind it.
-  await sections.getByRole('link', { name: 'Rosters' }).click()
+  await sections.getByRole('link', { name: 'Lists' }).click()
   await expect(page).toHaveURL(`${rosterUrl}#roster-pane`)
   await expect(loadout).toBeVisible()
 
@@ -280,7 +280,7 @@ test('the roster tab comes back to the unit it was left on', { tag: '@catalogue'
   await sections.getByRole('link', { name: 'Battles' }).click()
   await expect(page).toHaveURL('/battles')
   await page.setViewportSize({ width: 1194, height: 834 })
-  await sections.getByRole('link', { name: 'Rosters' }).click()
+  await sections.getByRole('link', { name: 'Lists' }).click()
   await expect(page).toHaveURL(rosterUrl)
   await expect(loadout).toBeVisible()
   await expect(loadout).not.toHaveCSS('position', 'fixed')
@@ -309,7 +309,7 @@ test('a unit that moved while the roster was open does not eject the roster tab'
   await sections.getByRole('link', { name: 'Battles' }).click()
   await expect(page).toHaveURL('/battles')
 
-  await sections.getByRole('link', { name: 'Rosters' }).click()
+  await sections.getByRole('link', { name: 'Lists' }).click()
   await expect(page).toHaveURL((url) => url.pathname === new URL(rosterUrl).pathname)
   await expect(page.locator('[data-unit="Lychguard"]')).toBeVisible()
 
@@ -330,12 +330,12 @@ test('native roster details use pane history without adding a route back action'
   const sections = page.getByRole('navigation', { name: 'Application sections' })
   await expect(page.getByRole('banner', { name: 'Application' })).toHaveCount(0)
   await expect(sections).toBeVisible()
-  await expect(sections.getByRole('link', { name: 'Rosters' })).toHaveAttribute('aria-current', 'page')
+  await expect(sections.getByRole('link', { name: 'Lists' })).toHaveAttribute('aria-current', 'page')
 
   await unitButton.click()
   const loadout = page.locator('aside[aria-label="Loadout"]')
   await expect(loadout).toBeVisible()
-  const back = loadout.getByRole('button', { name: 'Back to roster' })
+  const back = loadout.getByRole('button', { name: 'Back to list' })
   await expect(back).toBeFocused()
   const backBox = await back.boundingBox()
   expect(backBox?.x).toBe(0)
@@ -518,7 +518,7 @@ test('the roster workspace preserves picker and read-only state', async ({ page 
   await expect(loadout.getByRole('heading', { name: 'Attachments' })).toBeVisible()
 
   await page.setViewportSize(PHONE)
-  await loadout.getByRole('button', { name: 'Back to roster' }).click()
+  await loadout.getByRole('button', { name: 'Back to list' }).click()
   await expect(page.getByRole('button', { name: 'Add units', exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Add units', exact: true }).click()
   const compactPicker = page.getByRole('dialog', { name: 'Add units' })
@@ -663,7 +663,7 @@ test('King of the Colosseum creation keeps exactly one detachment selected', asy
   await expect(dialog.getByRole('button', { name: 'Select Awakened Dynasty', pressed: false })).toBeVisible()
   await expect(dialog.getByRole('button', { name: 'Select Cryptek Conclave', pressed: true })).toBeVisible()
 
-  await dialog.getByRole('button', { name: 'Create roster' }).click()
+  await dialog.getByRole('button', { name: 'Create list' }).click()
   await page.waitForURL(/\/rosters\/[^/]+$/)
   await expect(page.getByText('King of the Colosseum', { exact: true })).toBeVisible()
   await expect(page.getByRole('link', { name: 'King of the Colosseum' })).toHaveCount(0)
@@ -674,15 +674,15 @@ test('King of the Colosseum creation keeps exactly one detachment selected', asy
   await page.getByLabel('Add a unit').fill('Chronomancer')
   const addChronomancer = page.getByRole('button', { name: 'Add Chronomancer', exact: true })
   await addChronomancer.click()
-  await expect(page.getByText('1/1 in roster')).toBeVisible()
+  await expect(page.getByText('1/1 in list')).toBeVisible()
   await expect(addChronomancer).toBeDisabled()
   await page.getByLabel('Add a unit').fill('Immortals')
   const addImmortals = page.getByRole('button', { name: 'Add Immortals', exact: true })
   await addImmortals.click()
-  await expect(page.getByText('1/2 in roster')).toBeVisible()
+  await expect(page.getByText('1/2 in list')).toBeVisible()
   await expect(addImmortals).toBeEnabled()
   await addImmortals.click()
-  await expect(page.getByText('2/2 in roster')).toBeVisible()
+  await expect(page.getByText('2/2 in list')).toBeVisible()
   await expect(addImmortals).toBeDisabled()
 
   /*
@@ -719,7 +719,7 @@ test('King of the Colosseum creation keeps exactly one detachment selected', asy
   await page.setViewportSize(PHONE)
   await page.getByRole('button', { name: 'Add units', exact: true }).click()
   const mobilePicker = page.getByRole('dialog', { name: 'Add units' })
-  await expect(mobilePicker.getByText('2/2 in roster')).toBeVisible()
+  await expect(mobilePicker.getByText('2/2 in list')).toBeVisible()
 })
 
 test('a waived format restriction cannot widen the mobile roster', async ({ page }) => {
@@ -750,7 +750,7 @@ test('a waived format restriction cannot widen the mobile roster', async ({ page
   await expectInsideHorizontalBounds(loadout, loadout.locator('[data-slot="unit-profile"] > div:first-child > div'))
   await expectInsideHorizontalBounds(loadout, loadout.locator('[data-slot="datasheet-content"] [class*="grid-cols-6"] > div'))
 
-  await loadout.getByRole('button', { name: 'Back to roster' }).click()
+  await loadout.getByRole('button', { name: 'Back to list' }).click()
   await expectNoPageOverflow(page)
 })
 

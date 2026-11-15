@@ -113,10 +113,10 @@ export function PlayerRosters({
       {rosters.length > 1 ? (
         <FilterBar
           scope="rosters:player"
-          label="Roster"
+          label="List"
           query={search.q ?? ''}
           onQuery={(next) => onChange({ ...search, q: next.trim() || undefined })}
-          placeholder="Search rosters…"
+          placeholder="Search lists…"
           maxQueryLength={ROSTER_SEARCH_MAX_LENGTH}
           dimensions={dimensions}
           value={facets}
@@ -124,7 +124,7 @@ export function PlayerRosters({
           address={address}
           onApply={(next) => onChange({ ...next, sort })}
           sort={<RosterSortMenu value={sort ?? 'updated-desc'} onChange={(next) => onChange({ ...search, sort: next })} />}
-          summary={countLabel(shown.length, 'roster')}
+          summary={countLabel(shown.length, 'list')}
         />
       ) : null}
       {shown.length ? (
@@ -149,7 +149,7 @@ export function PlayerRosters({
           ))}
         </div>
       ) : (
-        <NoFilterMatches>No rosters match these filters.</NoFilterMatches>
+        <NoFilterMatches>No lists match these filters.</NoFilterMatches>
       )}
     </section>
   )

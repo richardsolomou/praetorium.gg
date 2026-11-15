@@ -37,7 +37,7 @@ test('Custodes codex presentation', async ({ page, context }) => {
     await page.screenshot({ path: test.info().outputPath(`custodes-setup-${viewport.width}.png`) })
   }
   await page.setViewportSize(desktopContext.viewport)
-  await setup.getByRole('button', { name: 'Create roster' }).click()
+  await setup.getByRole('button', { name: 'Create list' }).click()
   await page.waitForURL(/\/rosters\/[^/]+$/)
   const builder = page.url()
   await add(page, 'Allarus Custodians')
@@ -57,7 +57,7 @@ test('Custodes codex presentation', async ({ page, context }) => {
   await page.screenshot({ path: test.info().outputPath(`custodes-loadout-${desktopContext.viewport.width}.png`) })
 
   await page.setViewportSize(phone)
-  await page.getByRole('button', { name: 'Back to roster', exact: true }).click()
+  await page.getByRole('button', { name: 'Back to list', exact: true }).click()
   await page.getByRole('button', { name: 'Add units', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Add Allarus Custodians', exact: true }).first()).toBeVisible()
   await page.getByRole('button', { name: 'Close', exact: true }).click()
@@ -73,7 +73,7 @@ test('Custodes codex presentation', async ({ page, context }) => {
   await expectNoHorizontalOverflow(page.locator('body'))
   await page.locator('[data-slot="unit-profile"]').scrollIntoViewIfNeeded()
   await page.screenshot({ path: test.info().outputPath(`custodes-loadout-${phone.width}.png`) })
-  await page.getByRole('button', { name: 'Back to roster', exact: true }).click()
+  await page.getByRole('button', { name: 'Back to list', exact: true }).click()
   await page.setViewportSize(desktopContext.viewport)
   await expect
     .poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('praetorium.guest-draft') ?? 'null')?.draft.picks[0]?.models))
@@ -142,7 +142,7 @@ test('converts the saved roster in place and restores its current choices', asyn
   const id = lastPathSegment(page.url())
   const operator = await productOperator()
   async function destination(label: string, detachment: string) {
-    const dialog = page.getByRole('dialog', { name: 'Edit roster setup' })
+    const dialog = page.getByRole('dialog', { name: 'Edit list setup' })
     await chooseRulesVersion(dialog, label, detachment)
     await expect(dialog.getByRole('button', { name: 'Review changes', exact: true })).toBeEnabled()
     return dialog
@@ -157,8 +157,8 @@ test('converts the saved roster in place and restores its current choices', asyn
   const row = page.locator('[data-roster="Conversion roster"]')
   await expect(row).toContainText('180/2000')
   await expect(row.locator('[data-rules-version]')).toHaveCount(0)
-  await chooseLibraryAction(page, 'Conversion roster', 'Edit roster setup')
-  const versions = page.getByRole('dialog', { name: 'Edit roster setup' }).getByRole('combobox', { name: 'Rules version' })
+  await chooseLibraryAction(page, 'Conversion roster', 'Edit list setup')
+  const versions = page.getByRole('dialog', { name: 'Edit list setup' }).getByRole('combobox', { name: 'Rules version' })
   await versions.click()
   await expect(page.getByRole('option', { name: 'MFM 1.5 · Archived', exact: true })).toBeVisible()
   // The preview folded into the codex, so a roster saved on it would read as current rules.
@@ -168,7 +168,7 @@ test('converts the saved roster in place and restores its current choices', asyn
   let dialog = await destination('MFM 1.5 · Archived', 'Shield Host')
   await dialog.getByRole('button', { name: 'Cancel', exact: true }).click()
   expect((await operator.roster(id))?.catalogueId).toBe(original.catalogueId)
-  await chooseLibraryAction(page, 'Conversion roster', 'Edit roster setup')
+  await chooseLibraryAction(page, 'Conversion roster', 'Edit list setup')
   dialog = await destination('MFM 1.5 · Archived', 'Shield Host')
   await dialog.screenshot({ path: test.info().outputPath('custodes-convert-dialog.png') })
   await confirmRosterSetup(dialog)
@@ -186,7 +186,7 @@ test('converts the saved roster in place and restores its current choices', asyn
   await page.goto(`/rosters/${id}`)
   await expect(page.getByLabel('List name')).toHaveValue('Conversion roster')
   await expect(page.locator('[data-rules-version]')).toHaveAttribute('aria-label', 'Rules version: MFM 1.5 · Archived')
-  await chooseRosterAction(page, 'Edit roster setup')
+  await chooseRosterAction(page, 'Edit list setup')
   dialog = await destination('MFM 1.6 · Current', 'Aquilan Shield')
   await confirmRosterSetup(dialog)
   await expect(dialog).not.toBeVisible()

@@ -112,7 +112,7 @@ const sealedEventRuleFields = {
 const sealedEventSchedule = z
   .object({ playsAt: z.number().int().min(0).nullable(), sealBy: z.number().int().min(0).nullable() })
   .refine(({ playsAt, sealBy }) => playsAt === null || sealBy === null || sealBy <= playsAt, {
-    message: 'set the roster deadline before the date it is played',
+    message: 'set the list deadline before the date it is played',
     path: ['sealBy'],
   })
 function validateSealedEventRule(
@@ -122,7 +122,7 @@ function validateSealedEventRule(
   const armyPointsProblem = sealedEventArmyPointsError(value.format, value)
   if (armyPointsProblem) context.addIssue({ code: 'custom', path: ['allyPoints'], message: armyPointsProblem })
   if (isTeamFormat(value.format) && !SEALED_EVENT_TEAM_ROSTER_LIMITS.some((limit) => limit === value.rosterLimit)) {
-    context.addIssue({ code: 'custom', path: ['rosterLimit'], message: `choose a supported ${value.format} roster size` })
+    context.addIssue({ code: 'custom', path: ['rosterLimit'], message: `choose a supported ${value.format} list size` })
   }
   if (value.rounds != null && value.format !== '1v1')
     context.addIssue({ code: 'custom', path: ['rounds'], message: 'Swiss rounds pair duels only' })

@@ -1194,7 +1194,7 @@ export function commandRefusal(state: BattleState, by: PlayerId, command: Comman
       return null
     }
     case 'reset-setup':
-      if (state.sealedEventToken) return refuse('sealed-event-sealed', 'these rosters are sealed')
+      if (state.sealedEventToken) return refuse('sealed-event-sealed', 'these lists are sealed')
       return state.status === 'setup' ? null : refuse('battle-started', 'the battle has started')
     case 'set-setup-step':
     case 'set-setup-checked':
@@ -1228,7 +1228,7 @@ export function commandRefusal(state: BattleState, by: PlayerId, command: Comman
         : refuse('warlord-not-brought', 'that army is not on this side or names no Warlord')
     }
     case 'attach-roster': {
-      if (state.sealedEventToken) return refuse('sealed-event-sealed', 'these rosters are sealed')
+      if (state.sealedEventToken) return refuse('sealed-event-sealed', 'these lists are sealed')
       if (state.status === 'finished') return refuse('battle-over', 'the battle is over')
       // Correcting a list mid-battle stays allowed; bringing a different set of cards with it does not.
       if (state.status === 'playing' && command.prep) return refuse('cards-settled', 'cards are settled before the battle begins')
@@ -1239,7 +1239,7 @@ export function commandRefusal(state: BattleState, by: PlayerId, command: Comman
       if (command.roster.text.length > ROSTER_MAX_LENGTH) return refuse('invalid-roster', 'that list is too long')
       const built = command.roster.built
       if ((state.status !== 'setup' || !state.settings.sizeFromRosters) && built && !fitsBattleSize(state.settings, built))
-        return refuse('roster-size-mismatch', 'that roster does not match the battle size')
+        return refuse('roster-size-mismatch', 'that list does not match the battle size')
       if (built?.detachmentPointBudget !== undefined) {
         const detachmentError = detachmentPointsError(built.detachments ?? [], built.detachmentPointBudget)
         if (detachmentError) return refuse('invalid-detachments', 'invalid detachment combination')
@@ -1251,7 +1251,7 @@ export function commandRefusal(state: BattleState, by: PlayerId, command: Comman
       return null
     }
     case 'detach-roster': {
-      if (state.sealedEventToken) return refuse('sealed-event-sealed', 'these rosters are sealed')
+      if (state.sealedEventToken) return refuse('sealed-event-sealed', 'these lists are sealed')
       // Correcting a list mid-battle stays allowed, because a corrected list is still
       // an army. Taking one away is not: the units on the table would have nothing
       // behind them, so a seat is only emptied while the table is being set.
@@ -1269,8 +1269,8 @@ export function commandRefusal(state: BattleState, by: PlayerId, command: Comman
       return null
     case 'lock-sealed-event-rosters':
       if (state.status !== 'setup') return refuse('battle-started', 'the battle has started')
-      if (state.sealedEventToken) return refuse('sealed-event-sealed', 'the rosters are already sealed')
-      if (!state.players.every((candidate) => candidate.roster)) return refuse('missing-roster', 'every player needs a sealed roster')
+      if (state.sealedEventToken) return refuse('sealed-event-sealed', 'the lists are already sealed')
+      if (!state.players.every((candidate) => candidate.roster)) return refuse('missing-roster', 'every player needs a sealed list')
       if (command.dispositions?.every(({ side, disposition }) => sideDispositionChoices(state, side).includes(disposition)) === false)
         return refuse('disposition-not-brought', 'that force disposition is not one this side brought')
       return command.warlords?.every(({ side, playerId }) => sideWarlordChoices(state, side).includes(playerId)) === false
@@ -1294,7 +1294,7 @@ export function commandRefusal(state: BattleState, by: PlayerId, command: Comman
           ? refuse('missing-roster', 'every army needs a list')
           : refuse('missing-roster', 'both armies need a list')
       if (state.settings.sizeFromRosters && state.settings.limit === null)
-        return refuse('roster-format-mismatch', 'choose matching roster formats for each side')
+        return refuse('roster-format-mismatch', 'choose matching list formats for each side')
       if (!state.players.some((candidate) => candidate.id === command.firstPlayerId))
         return refuse('unknown-player', 'that player is not in this battle')
       // A side of allies plays one Force Disposition, and it decides the primary each
@@ -1310,7 +1310,7 @@ export function commandRefusal(state: BattleState, by: PlayerId, command: Comman
       if (command.attackerId && !state.players.some((candidate) => candidate.id === command.attackerId))
         return refuse('unknown-player', 'that attacker is not in this battle')
       if (state.players.some((candidate) => candidate.roster?.built && !fitsBattleSize(state.settings, candidate.roster.built))) {
-        return refuse('roster-size-mismatch', 'every roster must match the battle size')
+        return refuse('roster-size-mismatch', 'every list must match the battle size')
       }
       if (!state.settings.teamBattle && !state.settings.sizeFromSides && !pointsBudgetsAgree(state))
         return refuse('roster-format-mismatch', 'choose matching points budgets for each side')

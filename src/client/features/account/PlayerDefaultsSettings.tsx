@@ -38,12 +38,12 @@ export function PlayerDefaultsSettings() {
   return (
     <section className="grid gap-3 lg:grid-cols-[16rem_minmax(0,1fr)] lg:gap-8">
       <div>
-        <h3 className="text-base">Roster defaults</h3>
-        <p className="mt-1 text-sm text-dim">What a new roster starts with. You can change both when you create one.</p>
+        <h3 className="text-base">List defaults</h3>
+        <p className="mt-1 text-sm text-dim">What a new list starts with. You can change both when you create one.</p>
       </div>
       <div className="space-y-3">
         <Choice
-          label="Roster visibility"
+          label="List visibility"
           value={defaults.rosterVisibility}
           options={VISIBILITIES}
           onChange={(rosterVisibility) => save.mutate({ ...defaults, rosterVisibility })}

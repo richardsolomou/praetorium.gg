@@ -436,7 +436,7 @@ async function setUpHiddenListGame(page: Page) {
 
 /** Seals a saved roster from the group page's hidden-list game card, which also enters its player. */
 async function sealFromGroup(page: Page, game: Locator, rosterName: string) {
-  const chooser = page.getByRole('dialog', { name: 'Seal a roster' })
+  const chooser = page.getByRole('dialog', { name: 'Seal a list' })
   await retryUntilVisible(chooser, () => game.getByRole('button', { name: /^(Seal|Swap) your list$/ }).click({ timeout: 1_000 }))
   await chooser.locator(`[data-roster="${rosterName}"]`).click()
   await chooser.getByRole('button', { name: `Seal ${rosterName}` }).click()

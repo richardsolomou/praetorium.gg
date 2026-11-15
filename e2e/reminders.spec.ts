@@ -384,7 +384,7 @@ test('an alert set in one roster follows the player into another and fires in ba
   await addBarge('First alerts')
   await page.getByLabel('Set alert for Resurrection orb').click()
   const editor = page.getByRole('dialog', { name: 'Resurrection orb', exact: true })
-  await expect(editor).toContainText('every unit with this ability in all your rosters')
+  await expect(editor).toContainText('every unit with this ability in all your lists')
   await saveAlert(editor, 'Resurrection orb')
   await expect(page.locator(`[data-unit="${unit}"]`).getByLabel(`1 alert set for ${unit}`)).toBeVisible()
 

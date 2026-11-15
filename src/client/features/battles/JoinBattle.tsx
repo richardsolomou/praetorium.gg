@@ -166,7 +166,7 @@ export function JoinBattle({ invite, side: returning }: { invite: string; side?:
                 {join.isPending ? 'Joining…' : side === null ? 'Choose a side first' : 'Join the battle'}
               </Button>
               {join.error ? <Problem error={join.error} /> : null}
-              <p className="text-xs text-pretty text-dim">The battle goes in your record, and you bring one of your saved rosters.</p>
+              <p className="text-xs text-pretty text-dim">The battle goes in your record, and you bring one of your saved lists.</p>
             </>
           ) : (
             <>

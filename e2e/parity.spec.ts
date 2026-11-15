@@ -27,8 +27,8 @@ const offerNativeShare = (page: Page) =>
   })
 
 test('roster visibility controls search indexing and public URL variants', async ({ page }) => {
-  await signUp(page, uniqueName('Search roster'))
-  await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Search roster' })
+  await signUp(page, uniqueName('Search list'))
+  await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Search list' })
   const path = new URL(page.url()).pathname
 
   await setRosterAccess(page, 'Unlisted — anyone with the link', 'unlisted')
@@ -47,7 +47,7 @@ test('a private roster can be shared and made private again', async ({ browser }
   const page = await context.newPage()
   await signUp(page, uniqueName('Sharer'))
   await page.goto('/profile')
-  await expect(page.getByRole('group', { name: 'Roster visibility' }).getByRole('button', { name: /^Public/ })).toHaveAttribute(
+  await expect(page.getByRole('group', { name: 'List visibility' }).getByRole('button', { name: /^Public/ })).toHaveAttribute(
     'aria-pressed',
     'true',
   )
@@ -70,8 +70,8 @@ test('a private roster can be shared and made private again', async ({ browser }
   await page.setViewportSize({ width: 1440, height: 900 })
   await privateSetup.getByRole('button', { name: 'Cancel', exact: true }).click()
   await page.getByRole('link', { name: 'Awakened Dynasty', exact: true }).click()
-  await page.getByRole('button', { name: 'Start a roster', exact: true }).click()
-  const referenceSetup = page.getByRole('dialog', { name: 'Create roster' })
+  await page.getByRole('button', { name: 'Start a list', exact: true }).click()
+  const referenceSetup = page.getByRole('dialog', { name: 'Create list' })
   await expect(referenceSetup.getByRole('combobox', { name: 'Access' }).locator('[data-slot="select-value"]')).toHaveText('Private')
   await expect(referenceSetup).toContainText('You, friends you lend it to, and seated players through a battle using this list')
   await page.setViewportSize({ width: 390, height: 900 })
@@ -80,7 +80,7 @@ test('a private roster can be shared and made private again', async ({ browser }
   await page.setViewportSize({ width: 1440, height: 900 })
   await referenceSetup.getByRole('button', { name: 'Cancel', exact: true }).click()
   await page.goto('/profile')
-  const privateDefault = page.getByRole('group', { name: 'Roster visibility' }).getByRole('button', { name: /^Private/ })
+  const privateDefault = page.getByRole('group', { name: 'List visibility' }).getByRole('button', { name: /^Private/ })
   await expect(privateDefault).toContainText('You, friends you lend it to, and seated players through a battle using this list')
   await expect(privateDefault).toHaveAttribute('aria-pressed', 'true')
   await page.goto('/rosters')
@@ -91,8 +91,8 @@ test('a private roster can be shared and made private again', async ({ browser }
   const row = page.locator('[data-roster="Shareable roster"]')
 
   await page.setViewportSize({ width: 390, height: 900 })
-  await chooseLibraryAction(page, 'Shareable roster', 'Edit roster setup')
-  const librarySetup = page.getByRole('dialog', { name: 'Edit roster setup' })
+  await chooseLibraryAction(page, 'Shareable roster', 'Edit list setup')
+  const librarySetup = page.getByRole('dialog', { name: 'Edit list setup' })
   await expect(librarySetup.getByRole('combobox', { name: 'Access' }).locator('[data-slot="select-value"]')).toHaveText('Private')
   await expect(librarySetup).toContainText('You, friends you lend it to, and seated players through a battle using this list')
   await librarySetup.locator('#setup-visibility-reach').scrollIntoViewIfNeeded()
@@ -105,7 +105,7 @@ test('a private roster can be shared and made private again', async ({ browser }
     await page.getByRole('menuitem', { name: /^Share…/ }).click()
     const dialog = page.getByRole('dialog', { name: 'Share Shareable roster' })
     await expect(dialog.getByRole('radio', { name: /^Private/ })).toBeChecked()
-    await expect(dialog).toContainText('Copying it makes the roster unlisted.')
+    await expect(dialog).toContainText('Copying it makes the list unlisted.')
     await expect(dialog.getByRole('button', { name: 'Make unlisted and copy', exact: true })).toBeInViewport()
     await page.keyboard.press('Escape')
     await expect(dialog).toBeHidden()
@@ -178,7 +178,7 @@ test('editable detail waits for public access to save before sharing', async ({ 
   await setup.getByRole('combobox', { name: 'Access' }).click()
   await page.getByRole('option', { name: 'Unlisted — anyone with the link' }).click()
   await setup.getByRole('button', { name: 'Review changes' }).click()
-  const review = page.getByRole('dialog', { name: 'Review roster changes' })
+  const review = page.getByRole('dialog', { name: 'Review list changes' })
   try {
     await review.getByRole('button', { name: 'Confirm changes' }).click()
     await saveStarted

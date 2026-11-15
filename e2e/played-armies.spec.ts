@@ -41,7 +41,7 @@ for (const [width, label] of [
       const reader = await (await browser.newContext({ viewport })).newPage()
       await signUp(reader, uniqueName('Scout'))
       await reader.goto('/rosters')
-      await reader.getByRole('navigation', { name: 'Rosters' }).getByRole('link', { name: 'Played', exact: true }).click()
+      await reader.getByRole('navigation', { name: 'Lists' }).getByRole('link', { name: 'Played', exact: true }).click()
       await expect(reader).toHaveURL(/\/rosters\?view=played$/)
       const card = playedArmy(reader, playerName)
       await expect(card).toContainText('Legal')
@@ -56,8 +56,7 @@ for (const [width, label] of [
       await outcome.getByRole('link', { name: 'Open battle' }).click()
       await expect(reader).toHaveURL(new RegExp(`/battles/${token}$`))
       // On a phone the battle opens in the Battles tab, so the Rosters tab, not going back, returns to the list.
-      if (width === 390)
-        await reader.getByRole('navigation', { name: 'Application sections' }).getByRole('link', { name: 'Rosters' }).click()
+      if (width === 390) await reader.getByRole('navigation', { name: 'Application sections' }).getByRole('link', { name: 'Lists' }).click()
       else await reader.goBack()
       await expect(reader).toHaveURL(/\/rosters\?view=played$/)
 
@@ -76,7 +75,7 @@ for (const [width, label] of [
       if (width === 1440) {
         await chooseRosterAction(reader, 'Test targets')
         const simulator = reader.getByRole('dialog', { name: 'Test targets', exact: true })
-        await expect(simulator.getByRole('group', { name: 'Attacking with', exact: true })).toContainText('Current roster')
+        await expect(simulator.getByRole('group', { name: 'Attacking with', exact: true })).toContainText('Current list')
         await expect(simulator).toContainText(/(\d+) \/ \1 matchups · Complete/, { timeout: 120_000 })
         await shot(simulator, test.info().outputPath(`played-army-simulate-${label}.png`))
         await simulator.getByRole('button', { name: 'Close', exact: true }).click()
@@ -100,5 +99,5 @@ test('a visitor copies a played army as the one roster their device keeps, and i
   await page.goto('/rosters?view=played')
   await retryUntilVisible(card, () => page.getByRole('button', { name: 'Show more armies' }).click({ timeout: 1_000 }))
   await card.getByRole('button', { name: `Duplicate ${ARMY}` }).click()
-  await expect(page.getByRole('dialog', { name: 'Keep more than one roster' })).toBeVisible()
+  await expect(page.getByRole('dialog', { name: 'Keep more than one list' })).toBeVisible()
 })

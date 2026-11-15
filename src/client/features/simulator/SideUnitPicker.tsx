@@ -83,9 +83,9 @@ export function SideUnitPicker({
         {...catalogue}
         header={
           rosterCount ? (
-            <LevelLink onClick={() => go({ kind: 'rosters' })} detail={countLabel(rosterCount, 'roster')}>
+            <LevelLink onClick={() => go({ kind: 'rosters' })} detail={countLabel(rosterCount, 'list')}>
               <ScrollText className="size-4 text-info" aria-hidden />
-              From a roster
+              From a list
             </LevelLink>
           ) : undefined
         }
@@ -102,7 +102,7 @@ export function SideUnitPicker({
       <RosterPicker
         key={levelKey}
         {...shared}
-        searchPlaceholder="Search rosters…"
+        searchPlaceholder="Search lists…"
         value={rosters.current ?? ''}
         header={
           <LevelLink onClick={() => go({ kind: 'units' })}>
@@ -128,7 +128,7 @@ export function SideUnitPicker({
         rosters ? (
           <LevelLink onClick={() => go({ kind: 'rosters' })}>
             <ChevronLeft className="size-4 text-info" aria-hidden />
-            Rosters
+            Lists
           </LevelLink>
         ) : undefined
       }
@@ -204,8 +204,8 @@ export function RosterUnits({
   return (
     <SearchableSelect
       {...props}
-      searchPlaceholder="Search this roster…"
-      emptyText={waiting ? 'Loading roster…' : opened.data === null ? 'This roster could not be opened.' : 'No units match.'}
+      searchPlaceholder="Search this list…"
+      emptyText={waiting ? 'Loading list…' : opened.data === null ? 'This list could not be opened.' : 'No units match.'}
       value={selected ?? (onWhole ? WHOLE : '')}
       onValueChange={(value) =>
         value === WHOLE ? onWhole?.() : onChoose(Number(value), items.find((item) => item.value === value)?.label ?? '')
@@ -215,11 +215,11 @@ export function RosterUnits({
           ? [
               {
                 label: '',
-                items: [{ value: WHOLE, label: 'The whole roster', icon: <ScrollText className="size-4 text-info" aria-hidden /> }],
+                items: [{ value: WHOLE, label: 'The whole list', icon: <ScrollText className="size-4 text-info" aria-hidden /> }],
               },
             ]
           : []),
-        { label: 'Roster units', items },
+        { label: 'Units in this list', items },
       ]}
     />
   )

@@ -34,7 +34,7 @@ The code is too old to open. Ask for a new code.
 
 ### The code uses "a rules version that is not available here"
 
-Ask the sender to move the roster onto a current rules version, or to send **Export text** instead.
+Ask the sender to move the list onto a current rules version, or to send **Export text** instead.
 
 ### The import says the exported codex version isn't available
 

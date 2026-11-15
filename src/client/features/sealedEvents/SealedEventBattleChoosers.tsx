@@ -44,7 +44,7 @@ export function OneOnOneBattleChooser({
     <BattleChooserDialog
       open={open}
       title={startBattleLabel('1v1')}
-      description="Pick who you are playing. Both sealed rosters are added for you."
+      description="Pick who you are playing. Both sealed lists are added for you."
       pending={pending}
       error={error}
       ready={Boolean(chosen)}
@@ -217,7 +217,7 @@ export function DoublesBattleChooser({
     <BattleChooserDialog
       open={open}
       title={startBattleLabel('2v2')}
-      description="Pick the team you are playing. Your teammate and all four sealed rosters are added for you."
+      description="Pick the team you are playing. Your teammate and all four sealed lists are added for you."
       pending={pending}
       error={error}
       ready={Boolean(chosen)}

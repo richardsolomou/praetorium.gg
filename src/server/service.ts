@@ -628,7 +628,7 @@ export class PraetoriumService {
   private async append(...[token, userId, expectedSeq, command, rules, sync]: SubmitArgs) {
     const history = await this.mustSeatHistory(token, userId)
     if (sync) command = restoreOpaqueBattleKeys(history.players, history.log, command)
-    if (command.kind === 'lock-sealed-event-rosters') throw new Response('sealed roster locks are created by the server', { status: 403 })
+    if (command.kind === 'lock-sealed-event-rosters') throw new Response('sealed list locks are created by the server', { status: 403 })
     // The product database refuses a non-member too; asking first gives the refusal its code.
     const groupId = command.kind === 'set-battle-group' ? command.groupId : null
     const groupRefusal =

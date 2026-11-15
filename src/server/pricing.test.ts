@@ -426,7 +426,7 @@ describe('force disposition', () => {
         loaded,
         rulesWithout,
       )?.detachmentError,
-    ).toBe('This roster has a detachment that is no longer available. Choose a current detachment.')
+    ).toBe('This list has a detachment that is no longer available. Choose a current detachment.')
   })
 
   it('does not price a saved roster from a replaced faction as legal', () => {
@@ -436,7 +436,7 @@ describe('force disposition', () => {
     expect(
       calculateRosterPrice({ catalogueId: 'cat', detachmentIds: [], disposition: null, limit: 2_000, units: [] }, loaded, rulesWithout)
         ?.detachmentError,
-    ).toBe('This roster uses a replaced faction catalogue. Choose a current faction and detachment.')
+    ).toBe('This list uses a replaced faction catalogue. Choose a current faction and detachment.')
   })
 
   it('prices profiled detachments from their catalogue DP costs', () => {

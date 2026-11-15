@@ -21,7 +21,7 @@ async function priceSetup(draft: RosterDraft) {
   const price = await priceRoster({
     data: { catalogueId, detachmentIds, disposition, borrowedDetachmentId, limit, units, waivedRules, optionalRules },
   })
-  if (!price) throw new Error('The rules needed to review this roster are unavailable.')
+  if (!price) throw new Error('The rules needed to review this list are unavailable.')
   return price
 }
 
@@ -30,12 +30,12 @@ export async function reviewRosterSetup(source: RosterDraft | string, setup: Ros
   const serverOnly = Boolean(ownerId && !localEngine())
   const id = typeof source === 'string' ? source : source.id
   const loaded = typeof source === 'string' || serverOnly ? (id ? await sharedRoster({ data: { id } }) : null) : null
-  if (typeof source === 'string' && !loaded) throw new Error('This roster is no longer available.')
+  if (typeof source === 'string' && !loaded) throw new Error('This list is no longer available.')
   const original =
     typeof source === 'string' ? rosterContentSchema.parse({ ...loaded, name: loaded!.automaticName ? '' : loaded!.name }) : source
   let serverSave: ReviewedServerSave | undefined
   if (serverOnly) {
-    if (!loaded) throw new Error('This roster is no longer available.')
+    if (!loaded) throw new Error('This list is no longer available.')
     requireReviewedRoster(loaded, original)
     serverSave = { expectedVersion: loaded.updatedAt, operationId: crypto.randomUUID() }
   }

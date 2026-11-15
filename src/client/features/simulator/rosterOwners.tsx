@@ -31,7 +31,7 @@ export const friendSealedEventSource = ({ sealedEventToken: token, eventToken, u
 
 /** A friend's sealed list named by list, player and tournament. */
 export const friendSealedEventLabel = (entry: FriendSealedEventRoster) =>
-  [entry.rosterName || 'Sealed roster', entry.ownerName, entry.sealedEventName].join(' · ')
+  [entry.rosterName || 'Sealed list', entry.ownerName, entry.sealedEventName].join(' · ')
 
 type KnownRosters = {
   me: RosterOwner | null | undefined

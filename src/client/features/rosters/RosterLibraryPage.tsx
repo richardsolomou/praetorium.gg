@@ -384,14 +384,14 @@ export function RosterLibraryPage({
         setDeleting(null)
       }}
     >
-      {deletingCount === 1 ? 'Delete roster' : `Delete ${countLabel(deletingCount, 'roster')}`}
+      {deletingCount === 1 ? 'Delete list' : `Delete ${countLabel(deletingCount, 'list')}`}
     </AlertDialogAction>
   )
 
   return (
     <main className="w-full">
       <PageHeader
-        title="Rosters"
+        title="Lists"
         description="Build, import, organize, and share your armies, or find one your friends and other players made public."
         actions={
           <>
@@ -415,7 +415,7 @@ export function RosterLibraryPage({
         {/* Said once the visitor has the list it limits, so a first look at the page is not a restriction. */}
         {me || !(guest || device?.pending) ? null : (
           <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border border-edge bg-sunken px-3 py-2 text-sm text-dim">
-            <p className="min-w-0 flex-1">Without an account, this device keeps one roster. Sign up free to keep as many as you like.</p>
+            <p className="min-w-0 flex-1">Without an account, this device keeps one list. Sign up free to keep as many as you like.</p>
             <Link to="/sign-in" search={{ next: GUEST_PATH, join: true }} className={buttonClass({ size: 'sm' })}>
               Create an account
             </Link>
@@ -455,9 +455,9 @@ export function RosterLibraryPage({
 
         <section>
           <div className="rubric flex items-baseline gap-3 border-b border-edge pb-2">
-            <h2 className="mr-auto">Rosters</h2>
+            <h2 className="mr-auto">Lists</h2>
             {libraryPending ? (
-              <Skeleton className="h-4 w-5" aria-label="Loading roster count" />
+              <Skeleton className="h-4 w-5" aria-label="Loading list count" />
             ) : libraryError ? (
               <span className="readout">—</span>
             ) : (
@@ -479,12 +479,12 @@ export function RosterLibraryPage({
             <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs font-semibold text-discarded">
               {olderNotice ? (
                 <Link to="/rosters" search={{ updates: 'older' }} className="hover:text-bone">
-                  {olderLists} {olderLists === 1 ? 'roster uses' : 'rosters use'} older rules
+                  {olderLists} {olderLists === 1 ? 'list uses' : 'lists use'} older rules
                 </Link>
               ) : null}
               {changedNotice ? (
                 <Link to="/rosters" search={{ updates: 'changed' }} className="hover:text-bone">
-                  {countLabel(changedLists, 'roster')} changed by a data update
+                  {countLabel(changedLists, 'list')} changed by a data update
                 </Link>
               ) : null}
             </div>
@@ -508,8 +508,8 @@ export function RosterLibraryPage({
             {libraryError ? (
               <PageState
                 headingLevel={2}
-                title="Could not load rosters"
-                explanation="The roster library could not be loaded. Try again."
+                title="Could not load lists"
+                explanation="The list library could not be loaded. Try again."
                 action={
                   <Button
                     variant="outline"
@@ -523,7 +523,7 @@ export function RosterLibraryPage({
             ) : libraryPending ? (
               <div className="runner gap-3 [--gate-x:1rem] [--gate-y:1.5rem] sm:[--gate-x:1.5rem]">
                 <output className="sr-only" data-gate="none">
-                  Loading your rosters…
+                  Loading your lists…
                 </output>
                 <RosterLibrarySkeleton rows={unfiltered ? rows : DEFAULT_ROSTER_ROWS} />
               </div>
@@ -564,7 +564,7 @@ export function RosterLibraryPage({
                       void Promise.all(pageResults.filter((result) => result.isError).map((result) => result.refetch()))
                     }}
                   >
-                    Retry roster points and legality
+                    Retry list points and legality
                   </Button>
                 ) : null}
                 {more ? (
@@ -573,25 +573,25 @@ export function RosterLibraryPage({
                     disabled={pageResults.some((result) => !result.isSuccess)}
                     onClick={() => setPage({ key: pageKey, visibleCount: visibleCount + ROSTER_LIBRARY_BATCH_SIZE })}
                   >
-                    Show more rosters
+                    Show more lists
                   </Button>
                 ) : null}
               </>
             ) : saved.length ? (
               <NoFilterMatches>
-                {archived.length ? 'Every roster here is archived. Archived rosters are listed below.' : 'No rosters match these filters'}
+                {archived.length ? 'Every list here is archived. Archived lists appear below.' : 'No lists match these filters'}
               </NoFilterMatches>
             ) : (
               <PageState
                 headingLevel={2}
-                title="No rosters yet"
+                title="No lists yet"
                 explanation="Build one from your faction's datasheets, or bring in a list you already made in another app."
                 icon={ScrollText}
                 action={
                   <div className="grid w-full gap-4 sm:grid-cols-2">
                     <div className="grid justify-items-center gap-2">
                       <Link to="/rosters/new" className={buttonClass({ className: 'w-full' })}>
-                        <Plus /> Build a roster
+                        <Plus /> Build a list
                       </Link>
                       <p className="text-xs text-faint">Pick a faction, then add units</p>
                     </div>
@@ -637,23 +637,23 @@ export function RosterLibraryPage({
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              Delete {deletingCount === 1 ? deleting?.rosters[0]?.name : countLabel(deletingCount, 'roster')}?
+              Delete {deletingCount === 1 ? deleting?.rosters[0]?.name : countLabel(deletingCount, 'list')}?
             </AlertDialogTitle>
             <AlertDialogDescription>
               {guest
-                ? 'This removes the roster from this device for good. A copy you brought to a battle is kept there.'
+                ? 'This removes the list from this device for good. A copy you brought to a battle is kept there.'
                 : deletingCount === 1
                   ? archivable
-                    ? 'Deleting removes the roster for good; archiving hides it until you unarchive it. Frozen copies in battles and tournaments are kept either way.'
-                    : 'This removes the saved roster for good. Frozen copies in battles and tournaments are kept.'
+                    ? 'Deleting removes the list for good; archiving hides it until you unarchive it. Frozen copies in battles and tournaments are kept either way.'
+                    : 'This removes the saved list for good. Frozen copies in battles and tournaments are kept.'
                   : archivable
-                    ? 'Deleting removes these rosters for good; archiving hides them until you unarchive them. Frozen copies in battles and tournaments are kept either way.'
-                    : 'This removes these saved rosters for good. Frozen copies in battles and tournaments are kept.'}
+                    ? 'Deleting removes these lists for good; archiving hides them until you unarchive them. Frozen copies in battles and tournaments are kept either way.'
+                    : 'This removes these saved lists for good. Frozen copies in battles and tournaments are kept.'}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             {archivable ? deleteAction : null}
-            <AlertDialogCancel>{deletingCount === 1 ? 'Keep roster' : 'Keep rosters'}</AlertDialogCancel>
+            <AlertDialogCancel>{deletingCount === 1 ? 'Keep list' : 'Keep lists'}</AlertDialogCancel>
             {archivable ? (
               <AlertDialogAction
                 onClick={() => {
@@ -666,7 +666,7 @@ export function RosterLibraryPage({
                   setDeleting(null)
                 }}
               >
-                {deletingCount === 1 ? 'Archive roster' : `Archive ${countLabel(unarchived.length, 'roster')}`}
+                {deletingCount === 1 ? 'Archive list' : `Archive ${countLabel(unarchived.length, 'list')}`}
               </AlertDialogAction>
             ) : (
               deleteAction
@@ -696,7 +696,7 @@ export function RosterLibraryPage({
           saveError={actions.update.isError ? errorMessage(actions.update.error) : undefined}
           canKeepOriginal={!guest}
           onSave={async (_setup, review, options) => {
-            if (!review) throw new Error('Review the roster before saving changes.')
+            if (!review) throw new Error('Review the list before saving changes.')
             const id = options?.keepOriginal ? (await actions.convertAsVariant.mutateAsync(review)).id : editing.id
             if (!options?.keepOriginal) await actions.update.mutateAsync(review)
             setEditing(null)
@@ -830,10 +830,10 @@ function RosterLibraryFilters({
   return (
     <FilterBar
       scope="rosters:mine"
-      label="Roster"
+      label="List"
       query={search.q ?? ''}
       onQuery={(next) => onChange({ ...search, q: next.trim() || undefined })}
-      placeholder="Search your rosters…"
+      placeholder="Search your lists…"
       maxQueryLength={ROSTER_SEARCH_MAX_LENGTH}
       dimensions={dimensions}
       value={facets}
@@ -846,7 +846,7 @@ function RosterLibraryFilters({
       address={search}
       onApply={onChange}
       sort={sort}
-      summary={count === null ? null : countLabel(count, 'roster')}
+      summary={count === null ? null : countLabel(count, 'list')}
     />
   )
 }

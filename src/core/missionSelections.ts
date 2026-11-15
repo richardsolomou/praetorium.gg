@@ -283,7 +283,7 @@ export function missionSelectionRefusal(state: BattleState, by: string, player: 
   for (const ref of refs) {
     const army = state.players.find((candidate) => candidate.id === ref.playerId)
     const unit = savedUnit(state, ref)
-    if (!unit || army?.side !== expectedSide) return refuse('mission-selection-unit', 'choose a unit from the required army and roster')
+    if (!unit || army?.side !== expectedSide) return refuse('mission-selection-unit', 'choose a unit from the required army and list')
     if (kind !== 'beacon' && savedMissionUnitStatus(state, unit) !== 'battlefield')
       return refuse('mission-selection-unit', 'choose a standing unit on the battlefield')
   }

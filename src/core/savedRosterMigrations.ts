@@ -29,7 +29,7 @@ export function migrateStoredRoster<
   },
 >(row: T) {
   if (row.picks.length > 1_000_000 || (row.prep?.length ?? 0) > 100_000 || (row.detachmentId?.length ?? 0) > 1_000)
-    throw new Error('Saved roster exceeds migration limits')
+    throw new Error('Saved list exceeds migration limits')
   const picks = z.array(z.record(z.string(), z.unknown())).parse(JSON.parse(row.picks))
   const prep = row.prep ? z.record(z.string(), z.unknown()).parse(JSON.parse(row.prep)) : null
   const folded = onFoldedEdition(row.catalogueId)

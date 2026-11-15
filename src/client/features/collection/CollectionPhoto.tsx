@@ -57,7 +57,7 @@ export function CollectionPhoto({
             <DialogTitle>Your {name}</DialogTitle>
             <DialogDescription>
               Add up to {MAX_DATASHEET_PHOTOS} photos of your own models. Anyone who can see your collection sees them on your profile, on
-              this datasheet’s page and in their rosters.
+              this datasheet’s page and in their lists.
             </DialogDescription>
           </DialogHeader>
           <DialogBody>

@@ -71,14 +71,14 @@ export function useRosterActions({
   const take = useMutation({
     mutationFn: () =>
       exportRoster({
-        data: exportInput({ ...setup, picks: annotated }, shownName || 'Roster'),
+        data: exportInput({ ...setup, picks: annotated }, shownName || 'List'),
       }),
     onSuccess: (exported) => setExportText(exported),
   })
 
   const exchange = useMutation({
     mutationFn: async () => {
-      const exchangeName = shownName || 'Roster'
+      const exchangeName = shownName || 'List'
       const code = await encodeRosterExchange({ ...setup, name: exchangeName, points, picks: annotated })
       return { name: exchangeName, code }
     },
@@ -155,7 +155,7 @@ export function useRosterActions({
     mutationFn: async (promote: boolean) => {
       if (editable && !applied()) await saveDraft()
       if (promote) await access.mutateAsync('unlisted')
-      return shareLink(`${window.location.origin}${workspacePath}`, shownName || 'Roster')
+      return shareLink(`${window.location.origin}${workspacePath}`, shownName || 'List')
     },
     onSuccess: (_, promote) => posthog.capture('roster_shared', { visibility_changed: promote }),
     onError: (error) => posthog.captureException(error, { operation: 'roster_share' }),

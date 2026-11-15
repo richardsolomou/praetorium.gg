@@ -339,8 +339,8 @@ export function OrganizerEntrants({ sealedEvent, token, row }: { sealedEvent: Se
                   ? accepted.find((entry) => entry.teamId === removing.teamId && entry.userId !== removing.userId)
                   : undefined
                 return teammate && removing
-                  ? `This also unpairs ${label(teammate)} and clears both their sealed rosters. ${label(removing)} has to join again and seal another roster to come back.`
-                  : 'Their sealed roster goes with them. They have to join again and seal another to come back.'
+                  ? `This also unpairs ${label(teammate)} and clears both their sealed lists. ${label(removing)} has to join again and seal another list to come back.`
+                  : 'Their sealed list goes with them. They have to join again and seal another to come back.'
               })(),
               cancel: 'Keep entrant',
               confirm: 'Remove entrant',
@@ -360,8 +360,8 @@ export function OrganizerEntrants({ sealedEvent, token, row }: { sealedEvent: Se
       </ConfirmDialog>
       <ConfirmDialog
         open={reassigning !== null}
-        title={`Change ${reassigning ? label(reassigning.entry) : ''}’s roster size?`}
-        description="Their sealed roster is cleared. They have to seal one at the new size before you can reveal."
+        title={`Change ${reassigning ? label(reassigning.entry) : ''}’s list size?`}
+        description="Their sealed list is cleared. They have to seal one at the new size before you can reveal."
         cancel="Keep current size"
         confirm="Change size"
         pendingLabel="Changing…"
@@ -370,11 +370,11 @@ export function OrganizerEntrants({ sealedEvent, token, row }: { sealedEvent: Se
         onClose={() => setReassigning(null)}
         onConfirm={() => reassigning && assign.mutate({ userId: reassigning.entry.userId, requiredLimit: reassigning.requiredLimit })}
       >
-        {assign.isPending ? <output className="sr-only">Changing roster size…</output> : null}
+        {assign.isPending ? <output className="sr-only">Changing list size…</output> : null}
       </ConfirmDialog>
       <ConfirmDialog
         open={clearing !== null}
-        title="Clear sealed doubles rosters?"
+        title="Clear sealed doubles lists?"
         description={
           <>
             This clears the sealed {clearing?.sealed.length === 1 ? 'list' : 'lists'} for{' '}
@@ -382,7 +382,7 @@ export function OrganizerEntrants({ sealedEvent, token, row }: { sealedEvent: Se
           </>
         }
         cancel="Keep current teams"
-        confirm="Change team and clear rosters"
+        confirm="Change team and clear lists"
         pendingLabel="Clearing…"
         pending={assignTeam.isPending}
         error={assignTeam.error}
@@ -417,7 +417,7 @@ function SizeToggle({
           key={option}
           type="button"
           aria-pressed={side === option}
-          aria-label={`Assign ${label} ${option === 'solo' ? 'a solo' : 'an allied'} roster`}
+          aria-label={`Assign ${label} ${option === 'solo' ? 'a solo' : 'an allied'} list`}
           disabled={pending}
           className={`h-8 min-w-16 px-3 text-xs font-semibold tracking-label uppercase disabled:cursor-wait disabled:opacity-60 pointer-coarse:h-11 ${side === option ? 'bg-parchment text-parchment-ink' : 'text-dim hover:bg-raised hover:text-bone'}`}
           onClick={() => onAssign(option)}

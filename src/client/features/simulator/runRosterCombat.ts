@@ -40,9 +40,9 @@ export async function runRosterCombat({
     )
   const rows = unitIndices(attackingRosters)
   const columns = unitIndices(defendingRosters)
-  if (!rows.length || !columns.length) throw new Error('Choose two rosters with units to compare.')
+  if (!rows.length || !columns.length) throw new Error('Choose two lists with units to compare.')
   if (rows.length * columns.length > MAX_ROSTER_MATCHUPS)
-    throw new Error(`Compare at most ${MAX_ROSTER_MATCHUPS.toLocaleString('en')} pairings at a time. Choose smaller rosters.`)
+    throw new Error(`Compare at most ${MAX_ROSTER_MATCHUPS.toLocaleString('en')} pairings at a time. Choose smaller lists.`)
   const prepare = async (rosters: readonly CombatRoster[], indices: { rosterIndex: number; pickIndex: number }[]) => {
     type Projection = Awaited<ReturnType<typeof combatantDatasheets>>[number] | { error: string }
     const projections: Projection[][] = []
@@ -82,7 +82,7 @@ export async function runRosterCombat({
       positions[rosterIndex]! += 1
       const owner = roster.owner ? { owner: roster.owner } : {}
       try {
-        if (!data) throw new Error('This unit could not be loaded under the roster’s selected rules.')
+        if (!data) throw new Error('This unit could not be loaded under the list’s selected rules.')
         if ('error' in data) throw new Error(data.error)
         if (pick.models !== undefined && data.models !== pick.models)
           throw new Error(`This unit cannot field ${pick.models} models under its selected rules. Use a legal model count.`)

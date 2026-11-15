@@ -22,12 +22,12 @@ const STAGES: Record<SampleStage, { label: string; explanation: string }> = {
   sealed: {
     label: 'Sealed lists',
     explanation:
-      'Each player seals one of their saved rosters at the tournament’s points. Until the reveal nobody sees another player’s list, and that includes the organizer: Marcus can see who has sealed, never what. A player can swap their roster until then.',
+      'Each player seals one of their saved lists at the tournament’s points. Until the reveal nobody sees another player’s list, and that includes the organizer: Marcus can see who has sealed, never what. A player can swap their list until then.',
   },
   reveal: {
     label: 'Reveal',
     explanation:
-      'Once every roster is in, the organizer or any player opens them all at once. The lists are fixed from then on, and nobody new can join.',
+      'Once every list is in, the organizer or any player opens them all at once. The lists are fixed from then on, and nobody new can join.',
   },
   rounds: {
     label: 'Rounds',

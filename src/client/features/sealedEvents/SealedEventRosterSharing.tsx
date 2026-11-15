@@ -35,19 +35,19 @@ export function SealedEventRosterSharing({ token, eventToken, userId }: { token:
   return (
     <section
       data-sealed-event-sharing
-      aria-label="Roster sharing"
+      aria-label="List sharing"
       className="mb-6 flex flex-col gap-3 part border-info/40 p-4 md:flex-row md:items-center md:gap-6"
     >
       <div className="flex min-w-0 flex-1 gap-3">
         <Info className="mt-0.5 size-5 shrink-0 text-info" aria-hidden />
         <div className="min-w-0">
-          <h2 className="text-base font-semibold text-bone">Share your sealed roster?</h2>
+          <h2 className="text-base font-semibold text-bone">Share your sealed list?</h2>
           <p className="mt-1 text-sm break-words text-dim">
-            Let anyone find and copy <span className="font-medium text-bone">{data.roster.name}</span> from your profile and Public Rosters.
-            Your notes stay private.
+            Let anyone find and copy <span className="font-medium text-bone">{data.roster.name}</span> from your profile and the public
+            lists. Your notes stay private.
           </p>
           <p className="mt-2 text-xs text-dim">
-            Publishes your saved roster, including changes since sealing and future edits. You can make it private again in Rosters.
+            Publishes your saved list, including changes since sealing and future edits. You can make it private again in Lists.
           </p>
           {save.error ? <Problem className="mt-2" error={save.error} /> : null}
         </div>

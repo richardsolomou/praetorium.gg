@@ -236,8 +236,8 @@ export function ClaimGuestRoster({ guest, onDiscard }: { guest: GuestDraft; onDi
     return (
       <PageState
         headingLevel={1}
-        title="Save the roster you started?"
-        explanation={`${units ? `You built a roster with ${countLabel(units, 'unit')}` : 'You started a roster'} on this device before signing in. Save it to your rosters, or discard it.`}
+        title="Save the list you started?"
+        explanation={`${units ? `You built a list with ${countLabel(units, 'unit')}` : 'You started a list'} on this device before signing in. Save it to your lists, or discard it.`}
         action={
           <div className="flex flex-wrap justify-center gap-2">
             <Button onClick={() => setConfirming(false)}>Save it</Button>
@@ -251,7 +251,7 @@ export function ClaimGuestRoster({ guest, onDiscard }: { guest: GuestDraft; onDi
   return (
     <PageState
       headingLevel={1}
-      title="Your roster is not saved yet"
+      title="Your list is not saved yet"
       explanation={`It is still here to try again. ${errorMessage(claim.error)}`}
       action={
         <div className="flex flex-wrap justify-center gap-2">

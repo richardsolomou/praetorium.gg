@@ -121,7 +121,7 @@ export function CombatSimulator({
   const missingRoster =
     !loadingRoster && Boolean(sides?.some(({ side, roster }, index) => linked?.sides[index]?.roster && (!side || !roster)))
   // The emptied side leaves the link on its next change, so the notice is kept until another link opens.
-  if (missingRoster && !problem) setProblem('A roster in this simulation is no longer available, so its side is empty.')
+  if (missingRoster && !problem) setProblem('A list in this simulation is no longer available, so its side is empty.')
   const restore = (value: string) => {
     const initial = decodeSimulatorState(value)
     if (!initial) return
@@ -169,7 +169,7 @@ export function CombatSimulator({
     const side = await rosterUnitSide(key, pickIndex)
     if (request !== rosterRequests.current[index]) return
     if (side) setSide(index, side)
-    else setProblem('That roster could not be opened.')
+    else setProblem('That list could not be opened.')
   }
   const swapped = linked?.swapped ?? false
   /** What a side fields in the unit matchup, as the side pickers name it. */
@@ -184,7 +184,7 @@ export function CombatSimulator({
           kind: 'roster',
           key: rosterSourceKey(side.roster),
           pickIndex: side.roster.pickIndex,
-          name: `${name} · ${sides?.[index]?.roster?.saved?.name ?? 'Roster'}`,
+          name: `${name} · ${sides?.[index]?.roster?.saved?.name ?? 'List'}`,
         })
       : unitChoiceId({ kind: 'datasheet', catalogueId: side.catalogueId, entryId: side.pick.entryId, name })
   }
@@ -205,16 +205,16 @@ export function CombatSimulator({
       shared: encodeSimulatorState({ v: 1, sides: [first ?? null, second ?? null], swapped: false }),
     }))
     setComparingRosters(false)
-    setProblem(first === undefined || second === undefined ? 'That roster could not be opened.' : null)
+    setProblem(first === undefined || second === undefined ? 'That list could not be opened.' : null)
   }
   const rosterGroups = [
-    { label: 'Opened rosters', options: otherRosters },
+    { label: 'Opened lists', options: otherRosters },
     {
-      label: 'Your rosters',
+      label: 'Your lists',
       options: savedRosters.map((roster) => ({ id: roster.id, label: titled(roster), catalogueId: roster.catalogueId })),
     },
     {
-      label: "Friends' rosters",
+      label: "Friends' lists",
       options: friendRosters.map(({ roster, owner }) => ({
         id: roster.id,
         label: `${titled(roster)} · ${owner.name}`,
@@ -230,7 +230,7 @@ export function CombatSimulator({
       })),
     },
     {
-      label: "Friends' sealed rosters",
+      label: "Friends' sealed lists",
       options: sealedEventRosters.map((entry) => ({
         id: rosterSourceKey(friendSealedEventSource(entry)),
         label: friendSealedEventLabel(entry),
@@ -259,7 +259,7 @@ export function CombatSimulator({
       <PageHeader
         title="Combat simulator"
         help={<GuideHelp task="simulator">First matchup guide</GuideHelp>}
-        description="Compare shooting and melee between units or whole rosters. Try an editable example of led Intercessors against Lychguard, or choose your own matchup."
+        description="Compare shooting and melee between units or whole lists. Try an editable example of led Intercessors against Lychguard, or choose your own matchup."
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <Button
@@ -295,7 +295,7 @@ export function CombatSimulator({
               <div className="mt-4 space-y-6">
                 {problem ? <output className="block text-sm text-dim">{problem}</output> : null}
                 {loadingRoster ? (
-                  <p className="part p-4 text-sm text-dim">Loading roster…</p>
+                  <p className="part p-4 text-sm text-dim">Loading list…</p>
                 ) : (
                   <CombatSimulatorMatchup
                     key={session.key}

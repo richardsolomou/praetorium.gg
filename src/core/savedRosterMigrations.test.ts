@@ -49,7 +49,7 @@ it.each([
   { field: 'prep', value: 'x'.repeat(100_001) },
   { field: 'detachmentId', value: 'x'.repeat(1_001) },
 ])('bounds $field before parsing stored data', ({ field, value }) => {
-  expect(() => migrateStoredRoster({ ...row, [field]: value })).toThrow('Saved roster exceeds migration limits')
+  expect(() => migrateStoredRoster({ ...row, [field]: value })).toThrow('Saved list exceeds migration limits')
 })
 
 it('removes retired fields from a saved device document without altering its current content', () => {

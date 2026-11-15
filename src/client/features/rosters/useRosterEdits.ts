@@ -136,7 +136,7 @@ export function useRosterEdits({
   const queueAdd = (entryId: string, extra: { link?: AttachLink; loadout?: readonly RosterPick[] }) => {
     const adding = extra.loadout ?? [{ entryId }]
     const exceedsRoster = (queuedPicks: readonly unknown[]) => picks.length + queuedPicks.length + adding.length > 100
-    setRequestRefusal(exceedsRoster(queuedAdds.flatMap((entry) => entry.loadout ?? [entry])) ? 'A roster can hold up to 100 units.' : null)
+    setRequestRefusal(exceedsRoster(queuedAdds.flatMap((entry) => entry.loadout ?? [entry])) ? 'A list can hold up to 100 units.' : null)
     setQueuedAdds((current) => {
       const queuedPicks = current.flatMap((entry) => entry.loadout ?? [entry])
       if (exceedsRoster(queuedPicks) || !batchFits(adding, held, unitLimits, queuedPicks)) return current
@@ -180,7 +180,7 @@ export function useRosterEdits({
     if (!requested || requestHandled.current) return
     if (locked) {
       requestHandled.current = true
-      setRequestRefusal('This roster is locked. Unlock it to add units.')
+      setRequestRefusal('This list is locked. Unlock it to add units.')
       requested.onSettled()
       return
     }

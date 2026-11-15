@@ -22,7 +22,7 @@ it('keeps only the eight most recent results', () => {
   expect(withRecentSearch(recent, result('newest')).map(({ id }) => id)).toEqual(['newest', ...recent.slice(0, 7).map(({ id }) => id)])
 })
 
-it.each(['Your rosters', 'Your battles'] as const)('does not remember %s, which belong to the signed-in player', (group) => {
+it.each(['Your lists', 'Your battles'] as const)('does not remember %s, which belong to the signed-in player', (group) => {
   expect(withRecentSearch([], result('private', group))).toEqual([])
 })
 

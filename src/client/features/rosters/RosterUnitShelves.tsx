@@ -245,8 +245,8 @@ export function RosterUnitShelves({
           ))}
         </>
       ) : loading ? (
-        <output className="block py-3" aria-label="Loading roster units">
-          <span className="sr-only">Loading roster units…</span>
+        <output className="block py-3" aria-label="Loading list units">
+          <span className="sr-only">Loading list units…</span>
           <Skeleton className="mb-3 h-4 w-28" />
           <span className="grid gap-2">
             {picks.map((pick) => (
@@ -265,7 +265,7 @@ export function RosterUnitShelves({
           </Button>
         </div>
       ) : (
-        <p className="py-6 text-sm text-faint">This roster has no units.</p>
+        <p className="py-6 text-sm text-faint">This list has no units.</p>
       )}
       {showReadiness && units.length ? (
         <RosterReadiness

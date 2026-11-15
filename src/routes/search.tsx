@@ -18,7 +18,7 @@ export const Route = createFileRoute('/search')({
   head: ({ match }) =>
     pageHead(match.context.origin, {
       title: 'Search Praetorium',
-      description: 'Search factions, datasheets, detachments, missions, rules, rosters and battles.',
+      description: 'Search factions, datasheets, detachments, missions, rules, lists and battles.',
       path: '/search',
       noindex: true,
     }),

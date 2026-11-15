@@ -18,7 +18,7 @@ export function HomeWaiting({ rostersDue, friendRequests }: { rostersDue: readon
           <li key={sealedEvent.token}>
             <Link {...eventLink(sealedEvent)} className={ROW}>
               <Row icon={<ScrollText className="size-4 text-discarded" aria-hidden />}>
-                <span className="font-bold text-bone">{eventFullName(sealedEvent)}</span> needs your roster
+                <span className="font-bold text-bone">{eventFullName(sealedEvent)}</span> needs your list
               </Row>
             </Link>
           </li>

@@ -23,5 +23,5 @@ describe('search shortcut label', () => {
 
 describe('matchingPages', () => {
   it('finds the builder and its doc after typing', () =>
-    expect(matchingPages('build').map((page) => page.label)).toEqual(['New roster', 'What the builder checks', 'Builder problems']))
+    expect(matchingPages('build').map((page) => page.label)).toEqual(['New list', 'What the builder checks', 'Builder problems']))
 })

@@ -20,13 +20,13 @@ Anyone can watch battles and see the leaderboard. Groups keep a running leaderbo
 
 ## Scope
 
-Praetorium does not provide matchmaking, chat, or rules written by this project. An account is required to start a battle or to keep a list, though not to play as an invited guest, watch a battle, read the leaderboard, or try the roster builder.
+Praetorium does not provide matchmaking, chat, or rules written by this project. An account is required to start a battle or to keep a list, though not to play as an invited guest, watch a battle, read the leaderboard, or try the list builder.
 
 This repository contains source pins and authored correction patches in `catalogue/`, but no fetched upstream catalogues, copied rules prose, or generated snapshots. The service uses verified snapshots from the configured community sources.
 
 ## Use
 
-[praetorium.gg](https://praetorium.gg/?utm_source=github&utm_medium=profile&utm_campaign=readme) is the supported service and the easiest way to use Praetorium. It keeps the community rules data current and saves your rosters and battles.
+[praetorium.gg](https://praetorium.gg/?utm_source=github&utm_medium=profile&utm_campaign=readme) is the supported service and the easiest way to use Praetorium. It keeps the community rules data current and saves your lists and battles.
 
 The public reference is available without an account: [faction datasheets](https://praetorium.gg/factions?utm_source=github&utm_medium=profile&utm_campaign=readme), [missions](https://praetorium.gg/missions?utm_source=github&utm_medium=profile&utm_campaign=readme), and [rules](https://praetorium.gg/rules?utm_source=github&utm_medium=profile&utm_campaign=readme). Each page reads the service's verified community data snapshot.
 

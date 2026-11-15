@@ -133,8 +133,8 @@ export function useEntrantGroups<T extends SealedEventEntryView>(
 }
 
 export function sealStatus(entry: Pick<SealedEventEntryView, 'submitted'>, revealed: boolean) {
-  if (revealed) return entry.submitted ? 'Roster revealed' : 'No roster'
-  return entry.submitted ? 'Roster sealed' : 'No roster yet'
+  if (revealed) return entry.submitted ? 'List revealed' : 'No list'
+  return entry.submitted ? 'List sealed' : 'No list yet'
 }
 
 export function ViewRosterButton({
@@ -150,13 +150,13 @@ export function ViewRosterButton({
 }) {
   return (
     <IconAction
-      tooltip="View roster"
+      tooltip="View list"
       trigger={
         <Link
           to="/rosters/$id"
           params={{ id: userId }}
           search={{ sealedEvent: token, event: eventToken }}
-          aria-label={`View ${label}’s roster`}
+          aria-label={`View ${label}’s list`}
           className={buttonClass({ variant: 'ghost', size: 'icon-sm', className: 'text-dim hover:text-info pointer-coarse:size-11' })}
         />
       }

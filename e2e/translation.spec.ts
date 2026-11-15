@@ -35,8 +35,8 @@ for (const width of [1440, 390])
 test('a translated signed-in roster dialog keeps working through creation', async ({ page }) => {
   await signUp(page, uniqueName('Translated setup'))
   await page.goto('/rosters')
-  const dialog = page.getByRole('dialog', { name: 'Create roster', exact: true })
-  await retryUntilVisible(dialog, () => page.getByRole('button', { name: 'New roster', exact: true }).click())
+  const dialog = page.getByRole('dialog', { name: 'Create list', exact: true })
+  await retryUntilVisible(dialog, () => page.getByRole('button', { name: 'New list', exact: true }).click())
   await replaceTranslatedText(page)
   const faction = dialog.getByRole('combobox', { name: 'Faction', exact: true })
   await faction.click()
@@ -44,7 +44,7 @@ test('a translated signed-in roster dialog keeps working through creation', asyn
   await expect(faction).toContainText('Necrons')
   await dialog.getByRole('button', { name: 'Select Awakened Dynasty', exact: true }).click()
   await dialog.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Take and Hold', exact: true }).click()
-  await dialog.getByRole('button', { name: 'Create roster', exact: true }).click()
+  await dialog.getByRole('button', { name: 'Create list', exact: true }).click()
   await waitForRosterSave(
     page,
     () => page.getByRole('textbox', { name: 'List name', exact: true }).fill('Translated army'),
@@ -88,9 +88,9 @@ test('a translated rosters page survives an import button changing the icon besi
   await signUp(page, uniqueName('Translated import'))
   const dialog = await openImport(page)
   await page.waitForLoadState('networkidle')
-  await dialog.getByLabel('Roster text').fill('Not a roster')
+  await dialog.getByLabel('List text').fill('Not a roster')
   await replaceTranslatedText(page)
-  await dialog.getByRole('button', { name: 'Import pasted roster', exact: true }).click()
+  await dialog.getByRole('button', { name: 'Import pasted list', exact: true }).click()
   await expect(dialog.getByRole('alert')).toBeVisible()
   await expect(page.locator('[data-route-error]')).toHaveCount(0)
 })

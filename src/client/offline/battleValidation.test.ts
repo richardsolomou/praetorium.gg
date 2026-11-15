@@ -167,7 +167,7 @@ it('freezes no alerts on a device that never read them', async () => {
 
 it('refuses an over-points roster offline before saving a battle command', async () => {
   prepare(1_001)
-  await expect(attach()).rejects.toThrow('roster has 1001 points, over its 1000-point limit')
+  await expect(attach()).rejects.toThrow('list has 1001 points, over its 1000-point limit')
   expect(mocks.queue).not.toHaveBeenCalled()
 })
 

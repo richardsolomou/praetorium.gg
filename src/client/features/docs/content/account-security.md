@@ -35,4 +35,4 @@ To switch it off, choose **Turn off**, confirm your password and choose **Turn o
 
 ## Connected apps
 
-**Connected apps** lists AI assistants and other apps you've allowed to read or change your rosters and battles. Choose **Revoke access** to disconnect one. See [Let an assistant use your account](/docs/assistant-account).
+**Connected apps** shows the AI assistants and other apps you've allowed to read or change your lists and battles. Choose **Revoke access** to disconnect one. See [Let an assistant use your account](/docs/assistant-account).

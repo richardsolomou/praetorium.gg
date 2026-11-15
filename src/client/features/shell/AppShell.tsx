@@ -57,7 +57,7 @@ const posthog = import.meta.env.PROD
   : undefined
 
 const PRIMARY_LINKS = [
-  { to: '/rosters', label: 'Rosters', Icon: ScrollText },
+  { to: '/rosters', label: 'Lists', Icon: ScrollText },
   { to: '/battles', label: 'Battles', Icon: Swords },
   { to: '/simulator', label: 'Simulator', Icon: Calculator },
   { to: '/collection', label: 'Collection', Icon: Boxes },

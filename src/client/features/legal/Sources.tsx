@@ -92,7 +92,7 @@ export function Sources() {
         <p>Each source retains its rights in its work. Praetorium does not claim ownership of the source data.</p>
         <p>
           Praetorium can publish sourced catalogue additions before community datasets include them. Unreleased rules versions are labelled
-          Preview and selected per roster. Released rules remain the default.
+          Preview and selected per list. Released rules remain the default.
         </p>
       </LegalSection>
 

@@ -600,7 +600,7 @@ describe('battle management', () => {
       [
         'refuses a formation the roster data does not support',
         { kind: 'set-unit-formation', unitKey: 'u2', formation: 'deep-strike', playerId: ALICE },
-        'the roster data does not support that formation',
+        'the list data does not support that formation',
       ],
       ['allows freeing reserve points', { kind: 'set-unit-formation', unitKey: 'u1', formation: 'battlefield', playerId: ALICE }, null],
     ])('%s', (_, command, refusal) => {
@@ -881,7 +881,7 @@ describe('battle management', () => {
     const state = reduceBattle(PLAYERS, log([ALICE, builtRoster('Ultramarines', ['Intercessors'])]))
 
     expect(validate(state, ALICE, { kind: 'set-unit-formation', unitKey: 'u0', formation: 'deep-strike' })).toBe(
-      'the roster data does not support that formation',
+      'the list data does not support that formation',
     )
   })
 
@@ -911,7 +911,7 @@ describe('battle management', () => {
     const state = reduceBattle(PLAYERS, log([ALICE, attachedRoster({ marines: [], lord: ['deep-strike'] })]))
 
     expect(validate(state, ALICE, { kind: 'set-unit-formation', unitKey: 'u1', formation: 'deep-strike' })).toBe(
-      'the roster data does not support that formation',
+      'the list data does not support that formation',
     )
   })
 

@@ -68,7 +68,7 @@ export function useNewRoster(reference?: RosterReference) {
 /** A visitor's copy of a list they can read, kept on this device as their one roster. */
 export async function copyRosterToDevice(id: string) {
   const roster = await sharedRoster({ data: { id } })
-  if (!roster) throw new Error('That roster could not be loaded.')
+  if (!roster) throw new Error('That list could not be loaded.')
   const { id: _source, ...draft } = savedDraft(roster, roster.prep ?? NO_PREP)
   const kept = guestDraftOf({ ...draft, name: draft.name ? `Copy of ${draft.name}`.slice(0, ROSTER_NAME_MAX_LENGTH) : '' })
   if (!writeGuestDraft(kept)) throw new Error('This browser is not keeping lists.')

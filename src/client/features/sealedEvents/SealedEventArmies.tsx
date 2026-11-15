@@ -83,8 +83,8 @@ export function SealedEventArmies({
       const rosters = entries.map((entry): BundledRoster => {
         const player = label(entry)
         const roster = sealed.get(entry.userId)
-        if (roster === undefined) return { player, absent: 'No roster yet. The organizer unsealed it for a replacement.' }
-        if (roster === null) return { player, absent: 'This roster can’t be shown.' }
+        if (roster === undefined) return { player, absent: 'No list yet. The organizer unsealed it for a replacement.' }
+        if (roster === null) return { player, absent: 'This list can’t be shown.' }
         const catalogueId = roster.built?.catalogueId ?? ''
         const faction = entry.armyFaction?.displayName ?? factionFor(factions, catalogueId)?.displayName ?? catalogueId
         return { player, roster, faction }
@@ -98,7 +98,7 @@ export function SealedEventArmies({
       })
       posthog.capture('sealed_event_rosters_exported', { rosters: sealed.size })
       await exportText(text, {
-        name: `${safeFileName(event, 'event')}-rosters.txt`,
+        name: `${safeFileName(event, 'event')}-lists.txt`,
         type: 'text/plain;charset=utf-8',
         operation: 'sealed_event_rosters_export_copy',
       })
@@ -108,7 +108,7 @@ export function SealedEventArmies({
     <section data-sealed-event-armies aria-labelledby="sealed-event-armies">
       <div className="mb-2 flex min-h-8 flex-wrap items-end justify-between gap-x-3 gap-y-1 border-b border-edge pb-2">
         <h2 id="sealed-event-armies" className="rubric shrink-0">
-          The rosters
+          The lists
         </h2>
         <div className="ml-auto flex items-center gap-3">
           {revealedBy ? <p className="text-xs text-dim">Revealed by {revealedBy}</p> : null}
@@ -119,7 +119,7 @@ export function SealedEventArmies({
               disabled={exported.isPending || (native && !preloaded.data)}
               onClick={() => exported.mutate()}
             >
-              <Download /> {native ? (copied ? 'Copied rosters' : 'Copy rosters') : 'Export rosters'}
+              <Download /> {native ? (copied ? 'Copied lists' : 'Copy lists') : 'Export lists'}
             </Button>
           )}
         </div>
@@ -210,9 +210,9 @@ export function RevealedLists({
                 </span>
               </>
             ) : entry.submitted ? (
-              'This roster can’t be shown.'
+              'This list can’t be shown.'
             ) : (
-              'No roster yet. The organizer unsealed it for a replacement.'
+              'No list yet. The organizer unsealed it for a replacement.'
             )}
           </span>
         </span>

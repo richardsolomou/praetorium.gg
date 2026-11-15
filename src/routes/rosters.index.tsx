@@ -76,7 +76,7 @@ export const Route = createFileRoute('/rosters/')({
         ? {
             title: 'Top-four Warhammer 40,000 tournament lists',
             description:
-              'Browse Warhammer 40,000 lists that finished in the top four at tournaments outside Praetorium and are still legal under today’s points, and import one as your own roster.',
+              'Browse Warhammer 40,000 lists that finished in the top four at tournaments outside Praetorium and are still legal under today’s points, and import one as your own list.',
             path: '/rosters?view=tournament-lists',
           }
         : match.search.view === 'played'
@@ -96,7 +96,7 @@ export const Route = createFileRoute('/rosters/')({
             : {
                 title: 'Warhammer 40,000 army builder',
                 description:
-                  'Build free Warhammer 40,000 army lists, check points and legality, compare variants, and share, print or export your saved rosters.',
+                  'Build free Warhammer 40,000 army lists, check points and legality, compare variants, and share, print or export your saved lists.',
                 path: '/rosters',
               },
     ),

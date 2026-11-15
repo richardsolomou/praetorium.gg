@@ -88,7 +88,7 @@ export function PlayerProfilePage({ userId, search }: { userId: string; search: 
   const lists = published?.rosters ?? []
   // Many players only build lists. With no battle to count, their lists lead and the record is not offered.
   const battled = Boolean(data?.facets.factions.length)
-  const rosterTab = lists.length ? [{ value: 'rosters' as const, label: 'Rosters', count: lists.length }] : []
+  const rosterTab = lists.length ? [{ value: 'rosters' as const, label: 'Lists', count: lists.length }] : []
   const tabs = [
     ...(battled || !lists.length
       ? [

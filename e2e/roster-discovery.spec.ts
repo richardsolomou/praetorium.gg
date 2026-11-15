@@ -24,12 +24,12 @@ async function addNotedUnit(page: Page) {
   await page.locator(`[data-unit="${UNIT}"]`).getByRole('button', { name: UNIT, exact: true }).click()
   const fields = page.getByRole('region', { name: 'Note' })
   await waitForRosterSave(page, () => fields.getByRole('textbox', { name: 'Note', exact: true }).fill(NOTE), NOTE)
-  const back = page.getByRole('button', { name: 'Back to roster' })
+  const back = page.getByRole('button', { name: 'Back to list' })
   if (await back.isVisible()) await back.click()
 }
 
 async function filterTo(page: Page, choices: { faction: string; detachment: string; rules: string }) {
-  await expect(page.getByRole('heading', { name: 'Public rosters', exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Public lists', exact: true })).toBeVisible()
   for (const [filter, label, option] of [
     ['faction', 'Faction', choices.faction],
     ['detachment', 'Detachment', choices.detachment],
@@ -58,7 +58,7 @@ for (const [width, label] of [
     const ownerName = uniqueName('Publisher')
     await signUp(owner, ownerName)
     await owner.goto('/rosters')
-    await expect(owner.getByRole('navigation', { name: 'Rosters' }).getByRole('link', { name: 'Mine' })).toHaveAttribute(
+    await expect(owner.getByRole('navigation', { name: 'Lists' }).getByRole('link', { name: 'Mine' })).toHaveAttribute(
       'aria-current',
       'page',
     )
@@ -74,7 +74,7 @@ for (const [width, label] of [
     const reader = await (await browser.newContext({ viewport })).newPage()
     await signUp(reader, uniqueName('Finder'))
     await reader.goto('/rosters')
-    await reader.getByRole('navigation', { name: 'Rosters' }).getByRole('link', { name: 'Public', exact: true }).click()
+    await reader.getByRole('navigation', { name: 'Lists' }).getByRole('link', { name: 'Public', exact: true }).click()
     await expect(reader).toHaveURL(/\/rosters\?view=public$/)
     await filterTo(reader, { faction: 'Necrons', detachment: 'Awakened Dynasty', rules: 'Current' })
     await expect(reader).toHaveURL(/faction=necrons/)
@@ -92,7 +92,7 @@ for (const [width, label] of [
       await reader.goto(`/rosters/${sourceId}`)
       await chooseRosterAction(reader, 'Test targets')
       const simulator = reader.getByRole('dialog', { name: 'Test targets', exact: true })
-      await expect(simulator.getByRole('group', { name: 'Attacking with', exact: true })).toContainText('Current roster')
+      await expect(simulator.getByRole('group', { name: 'Attacking with', exact: true })).toContainText('Current list')
       await simulator.getByRole('button', { name: 'Close', exact: true }).click()
       expect(await product.roster(sourceId)).toEqual(source)
       await reader.goBack()
@@ -114,7 +114,7 @@ for (const [width, label] of [
     await setRosterAccess(owner, 'Private', 'private')
     await expect(card).toHaveCount(0)
     await reader.reload()
-    await expect(reader.getByRole('heading', { name: 'Public rosters', exact: true })).toBeVisible()
+    await expect(reader.getByRole('heading', { name: 'Public lists', exact: true })).toBeVisible()
     await expect(card).toHaveCount(0)
     await reader.goto(`/rosters/${copyId}`)
     await expect(reader.getByLabel('List name')).toHaveValue('Edited copy')
@@ -128,7 +128,7 @@ test('a faction page leads to its public armies, and a filter none match explain
   await page.getByRole('link', { name: 'Public armies' }).click()
   await expect(page).toHaveURL(/\/rosters\?view=public&faction=necrons$/)
   await page.goto('/rosters?view=public&rules=preview&faction=necrons')
-  await expect(page.getByText('No public rosters match these filters')).toBeVisible()
+  await expect(page.getByText('No public lists match these filters')).toBeVisible()
   await expectNoHorizontalOverflow(page.locator('main'))
   await shot(page.locator('main'), test.info().outputPath('roster-discovery-empty-phone.png'))
   await page.getByRole('button', { name: 'Clear filters' }).click()
@@ -137,7 +137,7 @@ test('a faction page leads to its public armies, and a filter none match explain
 
 test('the old discovery address keeps its filters on the public rosters', async ({ page }) => {
   await page.goto('/rosters/discover?faction=necrons&rules=current')
-  await expect(page.getByRole('heading', { name: 'Public rosters', level: 2 })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Public lists', level: 2 })).toBeVisible()
   const search = new URL(page.url()).searchParams
   expect([new URL(page.url()).pathname, search.get('view'), search.get('faction'), search.get('rules')]).toEqual([
     '/rosters',
@@ -168,7 +168,7 @@ test("a friend's public roster is listed to friends, and a player's own stays of
   await filterTo(owner, { faction: 'Necrons', detachment: 'Awakened Dynasty', rules: 'Current' })
   await friend.goto(owner.url())
   await expect(friend.locator(`[data-discovered-roster="${armyName}"]`)).toBeVisible()
-  await expect(owner.getByRole('heading', { name: 'Public rosters', exact: true })).toBeVisible()
+  await expect(owner.getByRole('heading', { name: 'Public lists', exact: true })).toBeVisible()
   await expect(owner.locator(`[data-discovered-roster="${armyName}"]`)).toHaveCount(0)
 })
 
@@ -199,7 +199,7 @@ for (const [width, label] of [
     // A visitor, since a player's own rosters stay off the public list.
     const page = await (await browser.newContext({ viewport })).newPage()
     await page.goto('/rosters?view=public')
-    const more = page.getByRole('button', { name: 'Show more rosters' })
+    const more = page.getByRole('button', { name: 'Show more lists' })
     await expect(more).toBeAttached()
     await page.mouse.move(width / 2, 400)
     await expect(async () => {
@@ -237,7 +237,7 @@ test('a public roster is found by its legality and not by another', async ({ bro
   await visitor.goto('/rosters?view=public&legality=legal')
   await expect(listed).toBeVisible()
   await visitor.goto('/rosters?view=public&legality=!legal')
-  await expect(visitor.getByRole('heading', { name: 'Public rosters', exact: true })).toBeVisible()
+  await expect(visitor.getByRole('heading', { name: 'Public lists', exact: true })).toBeVisible()
   await expect(listed).toHaveCount(0)
 })
 

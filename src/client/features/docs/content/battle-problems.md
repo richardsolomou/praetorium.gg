@@ -4,7 +4,7 @@
 
 The bar beside it lists what's left.
 
-### "Choose rosters with the same points budget for each side."
+### "Choose lists with the same points budget for each side."
 
 Your lists were built for different sizes or budgets. Pick lists built for the same points, or edit one.
 
@@ -24,13 +24,13 @@ Each side plays to its lists added together, and the biggest battle size is 3,00
 
 In doubles, allies on one side bring lists saved to the same points total unless they split their points. Change one ally's list, or set its points total in the builder to match.
 
-### The roster chooser says none of your saved rosters is built for the battle's points
+### The list chooser says none of your saved lists is built for the battle's points
 
-The battle size is already set by the other armies. Choose **Choose a different battle size** or build a list for it in [Rosters](/rosters).
+The battle size is already set by the other armies. Choose **Choose a different battle size** or build a list for it in [Lists](/rosters).
 
 ### "This list waives a rule."
 
-The roster skips a rule of its battle size. You can **Bring it anyway**, and everyone at the table sees what it waives.
+The list skips a rule of its battle size. You can **Bring it anyway**, and everyone at the table sees what it waives.
 
 ### The phase button is blocked
 

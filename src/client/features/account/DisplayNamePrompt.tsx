@@ -39,7 +39,7 @@ function DisplayNameDialog() {
         >
           <DialogHeader>
             <DialogTitle>Choose a display name</DialogTitle>
-            <DialogDescription>Other players see it in battles, rosters and friend lists.</DialogDescription>
+            <DialogDescription>Other players see it in battles, on your lists and among their friends.</DialogDescription>
           </DialogHeader>
           <DialogBody>
             <div className="space-y-2">

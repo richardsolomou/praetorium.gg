@@ -13,7 +13,7 @@ import { fixedWindowRateLimit } from '../rateLimit'
 import { importParsedList } from '../rosterImport'
 import { inTurn, mutationRpc } from '../rpc'
 
-const rateLimit = fixedWindowRateLimit('too many roster searches', 10)
+const rateLimit = fixedWindowRateLimit('too many list searches', 10)
 
 /**
  * The lists another app holds that can be imported, each read and matched the way a pasted list
@@ -48,7 +48,7 @@ export const findImportableRosters = createServerFn({ method: 'POST' })
             }
             const list = parsed?.success ? battlebaseTextRoster(parsed.data, names) : null
             if (!list)
-              return { kind: 'unread' as const, key: roster.id, problem: 'BattleBase’s data no longer names everything in this roster.' }
+              return { kind: 'unread' as const, key: roster.id, problem: 'BattleBase’s data no longer names everything in this list.' }
             return read(roster.id, list, 'battlebase')
           }),
         }

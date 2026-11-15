@@ -35,14 +35,14 @@ export function RosterExchangeDialog({ exchange, onClose }: { exchange: RosterEx
         <DialogHeader>
           <DialogTitle>Exchange code</DialogTitle>
           <DialogDescription>
-            Another player can {fits ? 'scan this or paste the code' : 'paste this code'} into Import roster to review and keep their own
-            copy. Your roster stays unchanged.
+            Another player can {fits ? 'scan this or paste the code' : 'paste this code'} into Import list to review and keep their own
+            copy. Your list stays unchanged.
           </DialogDescription>
         </DialogHeader>
         <DialogBody>
           {!fits && link ? (
             <output className="text-sm text-discarded">
-              This roster is too long for a reliable QR code. Copy the code and send it instead.
+              This list is too long for a reliable QR code. Copy the code and send it instead.
             </output>
           ) : failed ? (
             <Problem>Could not make a QR code. Copy the code and send it instead.</Problem>

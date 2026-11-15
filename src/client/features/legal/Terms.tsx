@@ -7,7 +7,7 @@ export function Terms() {
       <LegalSection title="The service">
         <p>
           Praetorium at praetorium.gg helps you build Warhammer 40,000 army lists and track games between the players seated at them. You
-          can use the builder, simulator and public reference without an account. Sign in to save rosters to the service or start battles.
+          can use the builder, simulator and public reference without an account. Sign in to save lists to the service or start battles.
           These terms cover that service.
         </p>
         <p>By creating an account you agree to these terms. If you do not agree, do not use the service.</p>
@@ -26,8 +26,8 @@ export function Terms() {
           <li>Use Praetorium lawfully, and play fair with the people you seat.</li>
           <li>Do not attack, overload, scrape at scale, or otherwise interfere with the service or other players' use of it.</li>
           <li>
-            Do not try to reach content you are not entitled to — another player's private rosters, battles you are not seated in, or
-            anyone's account.
+            Do not try to reach content you are not entitled to — another player's private lists, battles you are not seated in, or anyone's
+            account.
           </li>
           <li>Do not misrepresent yourself as Praetorium, its operator, or Games Workshop.</li>
         </LegalLinks>
@@ -37,8 +37,8 @@ export function Terms() {
         <p>
           Your lists stay yours. You grant us only the licence needed to store, price and display them to the people entitled to see them:
           you, the players seated opposite you, and anyone you share an unlisted or public list with. You are responsible for the names,
-          tags and text you type. You can export any roster at any time. Deleting a saved roster removes the saved list, while frozen copies
-          in battles and tournaments remain as described in the{' '}
+          tags and text you type. You can export any list at any time. Deleting a saved list removes the saved list, while frozen copies in
+          battles and tournaments remain as described in the{' '}
           <Link to="/privacy" className="text-info hover:text-parchment">
             privacy policy
           </Link>

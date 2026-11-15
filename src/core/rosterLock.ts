@@ -1,7 +1,7 @@
 import { canonicalJson } from './text'
 import { detachmentIds } from './savedRoster'
 
-export const LOCKED_ROSTER_MESSAGE = 'This roster is locked. Unlock it to change it, or keep your changes as a new roster.'
+export const LOCKED_ROSTER_MESSAGE = 'This list is locked. Unlock it to change it, or keep your changes as a new list.'
 
 /** Everything a save can change on a roster apart from who can read it. */
 export type RosterContent = {

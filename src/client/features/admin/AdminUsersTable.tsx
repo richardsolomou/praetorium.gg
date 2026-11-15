@@ -83,7 +83,7 @@ const columns: (ColumnDef<typeof features, AdminUser> & { meta: AdminColumnMeta 
     cell: ({ row }) =>
       row.original.role === 'admin' ? <span className="chip text-parchment">Admin</span> : <span className="text-dim">Player</span>,
   },
-  numberColumn('rosters', 'Rosters', (user) => user.rosterCount),
+  numberColumn('rosters', 'Lists', (user) => user.rosterCount),
   numberColumn('battles', 'Battles', (user) => user.battleCount),
   numberColumn('friends', 'Friends', (user) => user.friendCount),
   numberColumn('sealedEvents', 'Tournaments', (user) => user.sealedEventCount),

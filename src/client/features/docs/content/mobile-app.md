@@ -1,4 +1,4 @@
-The Praetorium app opens the same site as praetorium.gg, with the same account, rosters and battles. Sign in with the account you use on the web and everything is already there.
+The Praetorium app opens the same site as praetorium.gg, with the same account, lists and battles. Sign in with the account you use on the web and everything is already there.
 
 ## Get the app
 
@@ -20,7 +20,7 @@ Account settings open from your name at the top of the **More** tab. **Sign out*
 
 ## Use it offline
 
-Once Praetorium has finished loading on your phone, your saved rosters, the reference, the simulator and battles you've opened keep working without a connection. New pages and other players' updates need a connection.
+Once Praetorium has finished loading on your phone, your saved lists, the reference, the simulator and battles you've opened keep working without a connection. New pages and other players' updates need a connection.
 
 If the app can't reach Praetorium when it opens, it shows the copy saved on your phone. While the phone is offline, a bar at the top reads **Offline · Saved data**.
 
@@ -34,13 +34,13 @@ When notifications are available, Home shows **Get notified about your games**. 
 
 Tapping a notification opens its page and marks it read. Once you've read a notification anywhere, on the website or another phone, the app clears it from your phone's notification list the next time it updates, and the number on the app's icon counts only the ones you haven't read.
 
-When an army data update changes the points of a list you saved, you get one notification that names the lists and how many points each gained or lost. Archived lists are left out, and so is a list you changed shortly before the update. Open the notification to see the list, or your rosters when several changed.
+When an army data update changes the points of a list you saved, you get one notification that names the lists and how many points each gained or lost. Archived lists are left out, and so is a list you changed shortly before the update. Open the notification to see the list, or your lists when several changed.
 
 Turn them off in your phone's settings. Signing out stops them on that phone and clears the number on the icon. Every notification also stays under **More** › **Notifications**, where you can read it later; see [Notifications](/docs/notifications).
 
 ## During a battle
 
-The screen stays awake while a battle you're seated in is open. The phone also answers your touch, with a tick or tap as you act and a warning when an action is refused or a roster goes over its points limit.
+The screen stays awake while a battle you're seated in is open. The phone also answers your touch, with a tick or tap as you act and a warning when an action is refused or a list goes over its points limit.
 
 ## Apple Watch
 

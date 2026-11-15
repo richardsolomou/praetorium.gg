@@ -37,7 +37,7 @@ export async function submittedBattleCommand(userId: string, submitted: z.infer<
     }
   }
   if (submitted.kind === 'attach-roster' && submitted.roster.built) {
-    if (!submitted.roster.id) throw new Response('choose a saved roster', { status: 400 })
+    if (!submitted.roster.id) throw new Response('choose a saved list', { status: 400 })
     return { ...submitted, roster: (await rosterForUse(userId, submitted.roster.id, { lent: true })).snapshot }
   }
   return submitted

@@ -166,7 +166,7 @@ export function RosterDiscoveryPage({ view, search }: { view: RosterAudience | '
   })
   const shown = result.data?.pages.flatMap((page) => page.rosters) ?? []
   const total = result.data?.pages[0]?.total ?? null
-  const listed = played ? 'played armies' : view === 'friends' ? "friends' public rosters" : 'public rosters'
+  const listed = played ? 'played armies' : view === 'friends' ? "friends' public lists" : 'public lists'
 
   const queryClient = useQueryClient()
   const create = useNewRoster()
@@ -198,7 +198,7 @@ export function RosterDiscoveryPage({ view, search }: { view: RosterAudience | '
   return (
     <main className="w-full">
       <PageHeader
-        title="Rosters"
+        title="Lists"
         description="Build, import, organize, and share your armies, or find one your friends and other players made public."
         actions={
           <>
@@ -212,10 +212,10 @@ export function RosterDiscoveryPage({ view, search }: { view: RosterAudience | '
       <PageContent className="space-y-6">
         <FilterBar
           scope={`rosters:${view}`}
-          label="Roster"
+          label="List"
           query={search.q ?? ''}
           onQuery={(next) => choose({ ...search, q: next.trim() || undefined })}
-          placeholder={played ? 'Search armies, players, detachments…' : 'Search roster names and players…'}
+          placeholder={played ? 'Search armies, players, detachments…' : 'Search list names and players…'}
           maxQueryLength={ROSTER_SEARCH_MAX_LENGTH}
           dimensions={counted}
           value={facets}
@@ -250,11 +250,11 @@ export function RosterDiscoveryPage({ view, search }: { view: RosterAudience | '
             (played ? playedResult : result).isPlaceholderData
               ? 'Updating…'
               : !played && active > 0 && total !== null
-                ? countLabel(total, 'roster')
+                ? countLabel(total, 'list')
                 : null
           }
         />
-        {duplicate.isError ? <Problem>Could not duplicate that roster: {errorMessage(duplicate.error)}</Problem> : null}
+        {duplicate.isError ? <Problem>Could not duplicate that list: {errorMessage(duplicate.error)}</Problem> : null}
         {copyPlayed.isError ? <Problem>Could not copy that army: {errorMessage(copyPlayed.error)}</Problem> : null}
         {create.saveError ? <Problem>{create.saveError}</Problem> : null}
 
@@ -268,13 +268,13 @@ export function RosterDiscoveryPage({ view, search }: { view: RosterAudience | '
           />
         ) : (
           <section>
-            <h2 className="rubric border-b border-edge pb-2">{view === 'friends' ? "Friends' public rosters" : 'Public rosters'}</h2>
+            <h2 className="rubric border-b border-edge pb-2">{view === 'friends' ? "Friends' public lists" : 'Public lists'}</h2>
             <div className="mt-2 space-y-3">
               {signedOutFriends ? (
                 <PageState
                   headingLevel={2}
                   title="See what your friends are building"
-                  explanation="With a free account, your friends' public rosters appear here, ready to open or duplicate."
+                  explanation="With a free account, your friends' public lists appear here, ready to open or duplicate."
                   icon={Users}
                   action={
                     <div className="flex flex-wrap justify-center gap-2">
@@ -290,7 +290,7 @@ export function RosterDiscoveryPage({ view, search }: { view: RosterAudience | '
               ) : result.isError && !shown.length ? (
                 <PageState
                   headingLevel={2}
-                  title="Could not load rosters"
+                  title="Could not load lists"
                   explanation={`The ${listed} could not be loaded. Try again.`}
                   action={
                     <Button variant="outline" onClick={() => void result.refetch()} disabled={result.isFetching}>
@@ -305,7 +305,7 @@ export function RosterDiscoveryPage({ view, search }: { view: RosterAudience | '
                 </div>
               ) : shown.length || result.hasNextPage ? (
                 <>
-                  {shown.length ? null : <NoFilterMatches>None of the rosters searched so far match.</NoFilterMatches>}
+                  {shown.length ? null : <NoFilterMatches>None of the lists searched so far match.</NoFilterMatches>}
                   {shown.length ? (
                     <div className="runner gap-3 [--gate-x:1rem] [--gate-y:1.5rem] sm:[--gate-x:1.5rem]">
                       {shown.map((entry) => (
@@ -322,7 +322,7 @@ export function RosterDiscoveryPage({ view, search }: { view: RosterAudience | '
                   ) : null}
                   {result.hasNextPage ? (
                     <Button variant="outline" disabled={result.isFetchingNextPage} onClick={() => void result.fetchNextPage()}>
-                      {result.isFetchingNextPage ? 'Loading…' : 'Show more rosters'}
+                      {result.isFetchingNextPage ? 'Loading…' : 'Show more lists'}
                     </Button>
                   ) : null}
                 </>
@@ -332,8 +332,8 @@ export function RosterDiscoveryPage({ view, search }: { view: RosterAudience | '
                 <div data-friends-empty>
                   <PageState
                     headingLevel={2}
-                    title="No friends' rosters yet."
-                    explanation="Rosters your friends make public appear here."
+                    title="No friends' lists yet."
+                    explanation="Lists your friends make public appear here."
                     icon={Users}
                     action={
                       <Link to="/friends" className={buttonClass({ variant: 'outline' })}>
@@ -345,11 +345,11 @@ export function RosterDiscoveryPage({ view, search }: { view: RosterAudience | '
               ) : (
                 <PageState
                   headingLevel={2}
-                  title={me ? 'No other public rosters yet.' : 'No public rosters yet.'}
+                  title={me ? 'No other public lists yet.' : 'No public lists yet.'}
                   explanation={
                     me
-                      ? "Other players' public rosters appear here; your own are under Mine."
-                      : 'Players list a roster here by choosing Public in its roster setup.'
+                      ? "Other players' public lists appear here; your own are under Mine."
+                      : 'A list appears here once its player chooses Public in its list setup.'
                   }
                   icon={ScrollText}
                 />

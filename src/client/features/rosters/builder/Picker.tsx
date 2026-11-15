@@ -62,7 +62,7 @@ export type PickerFilter = 'fit' | 'limit' | AccountFilter | NonMatchedPlayKind
 
 const FILTERS: { id: PickerFilter; label: string; hint: string; icon?: LucideIcon; empty?: string }[] = [
   { id: 'fit', label: 'Points fit', hint: 'Hide anything that would not fit in the points left' },
-  { id: 'limit', label: 'Unit limit', hint: 'Hide anything the roster already holds as many of as it may' },
+  { id: 'limit', label: 'Unit limit', hint: 'Hide anything the list already holds as many of as it may' },
   ...ACCOUNT_FILTERS,
   { id: 'legends', label: 'Legends', hint: 'Show Legends datasheets' },
   { id: 'crucible', label: 'Crucible', hint: 'Show Crucible datasheets' },
@@ -391,7 +391,7 @@ export const Picker = memo(function Picker({
       <ConfirmDialog
         open={deleting !== null}
         title={`Delete saved ${loadoutNoun(deleting)}?`}
-        description={`${deleting?.name ?? `This ${loadoutNoun(deleting)}`} leaves your saved loadouts. Rosters that already use it keep their units.`}
+        description={`${deleting?.name ?? `This ${loadoutNoun(deleting)}`} leaves your saved loadouts. Lists that already use it keep their units.`}
         cancel={`Keep ${loadoutNoun(deleting)}`}
         confirm={`Delete ${loadoutNoun(deleting)}`}
         pendingLabel="Deleting…"
@@ -492,7 +492,7 @@ const PickerRow = memo(function PickerRow({
         {held ? (
           <span id={unavailableReason ? undefined : limitId} className={`readout block text-2xs ${full ? 'text-discarded' : 'text-faint'}`}>
             {held}
-            {limit === null ? '' : `/${limit}`} in roster
+            {limit === null ? '' : `/${limit}`} in list
           </span>
         ) : null}
       </div>
@@ -527,7 +527,7 @@ const PickerRow = memo(function PickerRow({
           size="icon-sm"
           className="shrink-0"
           aria-label={`Add ${unit.name}`}
-          title="Add to roster"
+          title="Add to list"
           disabled={full}
           aria-describedby={full && (unavailableReason || held) ? limitId : undefined}
           onClick={() => onAdd(unit.id)}

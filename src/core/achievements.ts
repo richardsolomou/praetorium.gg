@@ -57,18 +57,18 @@ const ROUT_MARGIN = 50
 
 /** First steps across the app first, then each series in order from its first medal to its last. */
 export const ACHIEVEMENTS = [
-  { id: 'first-list', name: 'First List', tier: 'bronze', metric: 'rosters', count: 1, goal: 'Build a roster.' },
-  { id: 'armoury', name: 'Armoury', tier: 'silver', metric: 'rosters', count: 10, goal: 'Build 10 rosters.' },
-  { id: 'published', name: 'Published', tier: 'bronze', metric: 'published', count: 1, goal: 'Publish a roster for everyone to see.' },
-  { id: 'showcase', name: 'Showcase', tier: 'silver', metric: 'published', count: 10, goal: 'Publish 10 rosters for everyone to see.' },
-  { id: 'lend-lease', name: 'Lend-Lease', tier: 'silver', metric: 'loans', count: 1, goal: 'Lend one of your rosters to a friend.' },
+  { id: 'first-list', name: 'First List', tier: 'bronze', metric: 'rosters', count: 1, goal: 'Build a list.' },
+  { id: 'armoury', name: 'Armoury', tier: 'silver', metric: 'rosters', count: 10, goal: 'Build 10 lists.' },
+  { id: 'published', name: 'Published', tier: 'bronze', metric: 'published', count: 1, goal: 'Publish a list for everyone to see.' },
+  { id: 'showcase', name: 'Showcase', tier: 'silver', metric: 'published', count: 10, goal: 'Publish 10 lists for everyone to see.' },
+  { id: 'lend-lease', name: 'Lend-Lease', tier: 'silver', metric: 'loans', count: 1, goal: 'Lend one of your lists to a friend.' },
   {
     id: 'battle-ready',
     name: 'Battle Ready',
     tier: 'bronze',
     metric: 'listed-battles',
     count: 1,
-    goal: 'Play a leaderboard battle with an army from your rosters.',
+    goal: 'Play a leaderboard battle with an army from your lists.',
   },
   { id: 'augury', name: 'Augury', tier: 'bronze', metric: 'simulations', count: 1, goal: 'Run a combat simulation.' },
   { id: 'drill', name: 'Drill', tier: 'bronze', metric: 'practice', count: 1, goal: 'Finish a practice battle.' },

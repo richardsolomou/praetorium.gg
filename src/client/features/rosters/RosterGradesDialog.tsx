@@ -55,9 +55,9 @@ export function RosterGradesDialog({
     <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
       <DialogContent size="md">
         <DialogHeader>
-          <DialogTitle>Roster grades</DialogTitle>
+          <DialogTitle>List grades</DialogTitle>
           <DialogDescription>
-            What {name || 'this roster'} can do on the table, scored against tournament lists of the same faction and size. Scores describe
+            What {name || 'this list'} can do on the table, scored against tournament lists of the same faction and size. Scores describe
             the list, not your odds of winning.
           </DialogDescription>
         </DialogHeader>
@@ -77,8 +77,8 @@ export function RosterGradesDialog({
           ) : grades.isError || failed ? (
             <Problem>Grades could not be worked out right now. They need a connection to Praetorium; try again in a moment.</Problem>
           ) : (
-            <output className="grid gap-5" aria-label="Grading this roster">
-              <span className="sr-only">Grading this roster…</span>
+            <output className="grid gap-5" aria-label="Grading this list">
+              <span className="sr-only">Grading this list…</span>
               <Skeleton className="h-40 rounded-xl" />
               <div className="grid gap-5 md:grid-cols-2">
                 {[0, 1, 2, 3].map((key) => (

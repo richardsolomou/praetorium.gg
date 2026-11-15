@@ -14,7 +14,7 @@ export const PRODUCT_DOCS = [
     slug: 'start-a-list',
     section: 'Army lists',
     title: 'Start a list',
-    description: 'Create a roster: faction, battle size, detachments and Force disposition.',
+    description: 'Create a list: faction, battle size, detachments and Force disposition.',
   },
   {
     slug: 'add-units',
@@ -37,7 +37,7 @@ export const PRODUCT_DOCS = [
   {
     slug: 'roster-grades',
     section: 'Army lists',
-    title: 'Read your roster grades',
+    title: 'Read your list grades',
     description: 'How the scores work, what each category measures, and where they stop.',
   },
   {
@@ -87,7 +87,7 @@ export const PRODUCT_DOCS = [
     slug: 'set-up-a-matchup',
     section: 'Combat simulator',
     title: 'Set up a matchup',
-    description: 'Choose an attacker and a defender, add Leaders, or use a whole roster on one side.',
+    description: 'Choose an attacker and a defender, add Leaders, or use a whole list on one side.',
   },
   {
     slug: 'change-the-loadout',
@@ -110,13 +110,13 @@ export const PRODUCT_DOCS = [
   {
     slug: 'simulate-from-a-roster',
     section: 'Combat simulator',
-    title: 'Simulate from a roster or battle',
-    description: 'Start the simulator from a roster, a battle in progress or a tournament list.',
+    title: 'Simulate from a list or battle',
+    description: 'Start the simulator from a saved list, a battle in progress or a revealed tournament list.',
   },
   {
     slug: 'compare-rosters',
     section: 'Combat simulator',
-    title: 'Compare whole rosters',
+    title: 'Compare whole lists',
     description: 'Run every unit in one list against every unit in another.',
   },
   {
@@ -183,7 +183,7 @@ export const PRODUCT_DOCS = [
     slug: 'play-in-a-tournament',
     section: 'Tournaments',
     title: 'Play in a tournament',
-    description: 'Join, seal a roster in secret, then play the other entrants after the reveal.',
+    description: 'Join, seal a list in secret, then play the other entrants after the reveal.',
   },
   {
     slug: 'tournament-problems',
@@ -207,7 +207,7 @@ export const PRODUCT_DOCS = [
     slug: 'assistant-account',
     section: 'AI assistants',
     title: 'Let an AI assistant use your account',
-    description: 'Read or change access to your rosters and battles, and how to revoke it.',
+    description: 'Read or change access to your lists and battles, and how to revoke it.',
   },
   {
     slug: 'assistant-problems',
@@ -231,7 +231,7 @@ export const PRODUCT_DOCS = [
     slug: 'privacy-and-deletion',
     section: 'Account and app',
     title: 'Privacy and deleting your account',
-    description: 'Who sees your battles, rosters and collection, data requests and permanent deletion.',
+    description: 'Who sees your battles, lists and collection, data requests and permanent deletion.',
   },
   {
     slug: 'calendar',
@@ -254,7 +254,7 @@ export const PRODUCT_DOCS = [
   {
     slug: 'filter-lists',
     section: 'Account and app',
-    title: 'Filter battles and rosters',
+    title: 'Filter battles and lists',
     description: 'Search, combine filters, rule things out and save the views you use.',
   },
   {

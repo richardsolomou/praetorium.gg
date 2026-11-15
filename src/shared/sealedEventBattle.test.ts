@@ -79,7 +79,7 @@ describe('2v1 sealed event battles', () => {
       { ...entrant('ally', 1_000, 'take-and-hold', 'pair'), snapshot: roster(3_000, 'take-and-hold') },
       entrant('partner', 1_000, 'purge-the-foe', 'pair'),
     ])
-    expect(() => build(oversized, 'solo', 'ally')).toThrow('a sealed roster does not fit its seat')
+    expect(() => build(oversized, 'solo', 'ally')).toThrow('a sealed list does not fit its seat')
   })
 
   it('refuses an ally who is not the creator’s partner', () => {

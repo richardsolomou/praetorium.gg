@@ -13,8 +13,8 @@ async function setBudget(page: Page, budget: string) {
   const setup = await openRosterSetup(page)
   await setup.getByLabel('Points limit').fill(budget)
   await setup.getByRole('button', { name: 'Review changes' }).click()
-  const review = page.getByRole('dialog', { name: 'Review roster changes' })
-  await expect(review.getByLabel('Roster change preview')).toBeVisible()
+  const review = page.getByRole('dialog', { name: 'Review list changes' })
+  await expect(review.getByLabel('List change preview')).toBeVisible()
   return review
 }
 

@@ -147,7 +147,7 @@ test('explains how it works before public activity and opens an account-free mat
     'Ability reminders',
     'Live battle tracking',
     'Team & practice games',
-    'Sealed-roster tournaments',
+    'Sealed-list tournaments',
     'King of the Colosseum',
     'Battle replay & stats',
   ]) {
@@ -166,7 +166,7 @@ test("a visitor's first action opens the roster setup without an account", async
   await page.goto('/')
   await followLink(page.getByRole('link', { name: 'Build an army', exact: true }), '/rosters')
 
-  await expect(page.getByRole('dialog', { name: 'Create roster' })).toBeVisible()
+  await expect(page.getByRole('dialog', { name: 'Create list' })).toBeVisible()
 })
 
 test('creating an account from the home page opens the sign-up form', async ({ page }) => {
@@ -181,7 +181,7 @@ test('importing from the home page opens the guest builder', async ({ page }) =>
   await followLink(page.getByRole('link', { name: 'Try importing a list' }), '/rosters')
 
   await expect(page).toHaveURL('/rosters')
-  await expect(page.getByRole('button', { name: 'Import roster', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Import list', exact: true })).toBeVisible()
 })
 
 test('the home page links to GitHub Sponsors', async ({ page }) => {

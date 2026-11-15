@@ -59,7 +59,7 @@ test('the mobile website uses application navigation below 860 pixels', async ({
   await expect(mobileHeader.getByRole('button', { name: 'Account menu' })).toBeVisible()
   await expect(primary).toBeHidden()
   await expect(sections).toBeVisible()
-  await expect(sections.getByRole('link')).toHaveText(['Home', 'Rosters', 'Battles', 'Factions', 'More'])
+  await expect(sections.getByRole('link')).toHaveText(['Home', 'Lists', 'Battles', 'Factions', 'More'])
   await expect(sections.getByRole('link', { name: 'Home' })).toHaveAttribute('aria-current', 'page')
   await page.screenshot({ path: test.info().outputPath('navigation-phone.png'), fullPage: true })
 
@@ -90,7 +90,7 @@ test('the mobile website uses application navigation below 860 pixels', async ({
   await page.keyboard.press('Escape')
   await expect(page.getByPlaceholder('Search everything…')).toHaveCount(0)
 
-  await sections.getByRole('link', { name: 'Rosters' }).click()
+  await sections.getByRole('link', { name: 'Lists' }).click()
   await expect(page.getByRole('button', { name: 'Go back' })).toHaveCount(0)
   await page.setViewportSize({ width: 320, height: 568 })
   await expectNoPageOverflow(page)
@@ -112,7 +112,7 @@ test('the mobile website uses application navigation below 860 pixels', async ({
   await page.setViewportSize({ width: 860, height: 844 })
   const reference = page.getByRole('navigation', { name: 'Reference' })
   await expect(reference.getByRole('link')).toHaveText(['Factions', 'Missions', 'Rules'])
-  await expect(primary.getByRole('link')).toHaveText(['Rosters', 'Battles', 'Simulator', 'Collection'])
+  await expect(primary.getByRole('link')).toHaveText(['Lists', 'Battles', 'Simulator', 'Collection'])
   await expect(page.getByRole('navigation', { name: 'Community' }).getByRole('link')).toHaveText([
     'Groups',
     'Tournaments',
@@ -122,7 +122,7 @@ test('the mobile website uses application navigation below 860 pixels', async ({
   ])
   await expect(webRail).toHaveJSProperty('scrollWidth', await webRail.evaluate((rail) => rail.clientWidth))
   await page.setViewportSize({ width: 910, height: 844 })
-  await expect(primary.getByRole('link', { name: 'Rosters' }).locator('svg')).toHaveCount(1)
+  await expect(primary.getByRole('link', { name: 'Lists' }).locator('svg')).toHaveCount(1)
   await expect(reference.getByRole('link', { name: 'Missions' }).locator('svg')).toHaveCount(1)
   await page.screenshot({ path: test.info().outputPath('navigation-desktop-910.png') })
   await reference.getByRole('link', { name: 'Missions' }).click()
@@ -224,7 +224,7 @@ document.addEventListener('DOMContentLoaded', () => { document.documentElement.d
   await expect(sections).toBeVisible()
   await expect(sections.getByRole('link', { name: 'Factions' })).toHaveAttribute('aria-current', 'page')
   await expect(sections.getByRole('link', { name: 'Battles' })).toBeVisible()
-  await expect(sections.getByRole('link', { name: 'Rosters' })).toBeVisible()
+  await expect(sections.getByRole('link', { name: 'Lists' })).toBeVisible()
   await expect(sections.getByRole('link', { name: 'Home' })).toBeVisible()
   expect((await more.boundingBox())?.width).toBeGreaterThanOrEqual(44)
   expect(hydrationErrors).toEqual([])
@@ -665,21 +665,21 @@ test('account libraries share their page width and fit a phone', async ({ page }
 
   const widths: number[] = []
   for (const [path, heading] of [
-    ['/rosters', 'Rosters'],
+    ['/rosters', 'Lists'],
     ['/battles', 'Battles'],
     ['/friends', 'Friends'],
   ]) {
     await page.goto(path)
     await expect(page.getByRole('heading', { name: heading, exact: true, level: 1 })).toBeVisible()
-    if (path === '/rosters') await expect(page.getByLabel('Loading roster count')).toHaveCount(0)
+    if (path === '/rosters') await expect(page.getByLabel('Loading list count')).toHaveCount(0)
     widths.push((await page.locator('main').boundingBox())?.width ?? 0)
   }
   expect(new Set(widths).size).toBe(1)
   await page.goto('/rosters')
-  await expect(page.getByRole('heading', { name: 'Rosters', exact: true, level: 1 })).toBeVisible()
-  await expect(page.getByLabel('Loading roster count')).toHaveCount(0)
+  await expect(page.getByRole('heading', { name: 'Lists', exact: true, level: 1 })).toBeVisible()
+  await expect(page.getByLabel('Loading list count')).toHaveCount(0)
   const heroRail = await page.locator('main > header').first().locator('div.relative').last().boundingBox()
-  const contentRail = await page.getByLabel('Roster filters').locator('..').boundingBox()
+  const contentRail = await page.getByLabel('List filters').locator('..').boundingBox()
   expect(Math.abs((heroRail?.width ?? 0) - (contentRail?.width ?? 0))).toBeLessThan(4)
   await page.screenshot({ path: test.info().outputPath('account-library-desktop.png'), fullPage: true })
   const footer = await page.locator('footer').boundingBox()
@@ -859,12 +859,12 @@ test('a player can enter through the roster library and browse the product', asy
   const reference = page.getByRole('navigation', { name: 'Reference' })
   // Signed out, the library is the same page, holding the one roster a visitor keeps without an account.
   await page.goto('/rosters')
-  await expect(page.getByRole('heading', { name: 'No rosters yet' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'No lists yet' })).toBeVisible()
 
   await signUp(page, 'Alice')
   await page.goto('/rosters')
 
-  await expect(page.getByRole('heading', { name: 'Rosters', exact: true, level: 1 })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Lists', exact: true, level: 1 })).toBeVisible()
   const rendered = await page.request.get('/rosters')
   expect(await rendered.text()).toContain('Build, import, organize, and share your armies')
   await expect(
@@ -888,8 +888,8 @@ test('a player can enter through the roster library and browse the product', asy
   await expect(page.getByRole('button', { name: 'Sort: Recently updated' })).toBeVisible()
   expect((await page.context().cookies()).some((cookie) => cookie.name === 'praetorium_roster_sort')).toBe(false)
   await page.screenshot({ path: test.info().outputPath('roster-library.png'), fullPage: true })
-  await page.getByRole('button', { name: 'New roster', exact: true }).click()
-  const dialog = page.getByRole('dialog', { name: 'Create roster' })
+  await page.getByRole('button', { name: 'New list', exact: true }).click()
+  const dialog = page.getByRole('dialog', { name: 'Create list' })
   await expect(dialog).toBeVisible()
   await expect(dialog.getByRole('combobox', { name: 'Access' }).locator('[data-slot="select-value"]')).toHaveText('Public')
   await expect(dialog).toContainText('Listed on your profile and for anyone to find')
@@ -898,7 +898,7 @@ test('a player can enter through the roster library and browse the product', asy
   await page.setViewportSize(PHONE)
   await page.screenshot({ path: test.info().outputPath('create-roster-dialog-phone.png'), fullPage: true })
   await page.setViewportSize({ width: 1280, height: 720 })
-  await expect(dialog.getByRole('button', { name: 'Create roster' })).toBeDisabled()
+  await expect(dialog.getByRole('button', { name: 'Create list' })).toBeDisabled()
   await dialog.getByRole('combobox', { name: 'Faction' }).click()
   await page.getByPlaceholder('Search factions…').fill('Necr')
   await expect(page.getByRole('option', { name: 'Necrons', exact: true })).toBeVisible()
@@ -914,7 +914,7 @@ test('a player can enter through the roster library and browse the product', asy
   await page.getByRole('option', { name: 'Necrons', exact: true }).click()
   await expect(dialog.getByRole('combobox', { name: 'Battle size' })).toContainText('Strike Force')
   await expect(dialog.getByText('0/3 DP used')).toBeVisible()
-  await expect(dialog.getByRole('button', { name: 'Create roster' })).toBeDisabled()
+  await expect(dialog.getByRole('button', { name: 'Create list' })).toBeDisabled()
   await dialog.getByRole('button', { name: 'Select Awakened Dynasty' }).click()
   await expect(dialog.getByText('3/3 DP used')).toBeVisible()
   await expect(dialog.getByRole('button', { name: 'Take and Hold', exact: true })).toBeVisible()
@@ -924,17 +924,17 @@ test('a player can enter through the roster library and browse the product', asy
   // One scroll can land short of the end while the dialog is still laying out at the new height.
   await expect(async () => {
     await body.evaluate((element) => element.scrollTo({ top: element.scrollHeight }))
-    await expect(dialog.getByRole('button', { name: 'Create roster' })).toBeInViewport({ timeout: 1_000 })
+    await expect(dialog.getByRole('button', { name: 'Create list' })).toBeInViewport({ timeout: 1_000 })
   }).toPass()
   await chooseOption(page, 'Battle size', /^Onslaught/)
   await dialog.getByRole('button', { name: 'Select Cryptek Conclave' }).click()
-  await expect(dialog.getByRole('button', { name: 'Create roster' })).toBeDisabled()
+  await expect(dialog.getByRole('button', { name: 'Create list' })).toBeDisabled()
   await dialog.getByRole('button', { name: 'Priority Assets', exact: true }).click()
-  await expect(dialog.getByRole('button', { name: 'Create roster' })).toBeEnabled()
+  await expect(dialog.getByRole('button', { name: 'Create list' })).toBeEnabled()
   await dialog.getByRole('button', { name: 'Select Cryptek Conclave', pressed: true }).click()
   await chooseOption(page, 'Battle size', /^Strike Force/)
   await dialog.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Take and Hold' }).click()
-  await dialog.getByRole('button', { name: 'Create roster' }).click()
+  await dialog.getByRole('button', { name: 'Create list' }).click()
   await expect(page).toHaveURL(/\/rosters\/[^/]+$/)
   await expect(page.getByRole('heading', { name: /Edit Necrons — Awakened Dynasty/ })).toHaveCount(0)
   await expect(page.getByRole('link', { name: 'Necrons', exact: true })).toBeVisible()
@@ -955,7 +955,7 @@ test('a player can enter through the roster library and browse the product', asy
   await expectNoPageScroll(page)
   await page.screenshot({ path: test.info().outputPath('roster-editor-phone.png') })
   await page.setViewportSize({ width: 1600, height: 900 })
-  await chooseRosterAction(page, 'Edit roster setup')
+  await chooseRosterAction(page, 'Edit list setup')
   // An outside click closes only the dialog on top: the reference first, then the setup beneath it.
   await setup.getByRole('button', { name: 'View Cryptek Conclave detachment reference', exact: true }).click()
   const detachmentReference = page.getByRole('dialog', { name: 'Cryptek Conclave', exact: true })
@@ -965,7 +965,7 @@ test('a player can enter through the roster library and browse the product', asy
   await expect(setup).toBeVisible()
   await page.mouse.click(10, 450)
   await expect(setup).toBeHidden()
-  await chooseRosterAction(page, 'Edit roster setup')
+  await chooseRosterAction(page, 'Edit list setup')
   await setup.getByRole('button', { name: 'Select Cryptek Conclave', pressed: true }).click()
   await setup.getByRole('button', { name: 'Select Cursed Legion' }).click()
   await confirmRosterSetup(setup)
@@ -993,9 +993,9 @@ test('a player can enter through the roster library and browse the product', asy
   // An unnamed list goes by the name its placeholder shows.
   const listName = page.getByLabel('List name')
   const rosterName = (await listName.inputValue()) || (await listName.getAttribute('placeholder'))!
-  await page.getByRole('link', { name: 'Rosters', exact: true }).click()
-  await page.getByRole('button', { name: 'Import roster' }).click()
-  await expect(page.getByRole('dialog', { name: 'Import roster' })).toBeVisible()
+  await page.getByRole('link', { name: 'Lists', exact: true }).click()
+  await page.getByRole('button', { name: 'Import list' }).click()
+  await expect(page.getByRole('dialog', { name: 'Import list' })).toBeVisible()
   await page.keyboard.press('Escape')
 
   await page.getByRole('link', { name: 'Battles' }).click()
@@ -1050,18 +1050,18 @@ test('a player can enter through the roster library and browse the product', asy
   const serverRenderedFavourites = await (await page.request.get('/factions')).text()
   expect(serverRenderedFavourites).toMatch(/data-shelf="Favourites"[\s\S]+data-faction="Necrons"/)
   await page.screenshot({ path: test.info().outputPath('faction-index.png'), fullPage: true })
-  await page.getByRole('link', { name: 'Rosters' }).click()
-  await page.getByRole('button', { name: 'New roster', exact: true }).click()
-  await page.getByRole('dialog', { name: 'Create roster' }).getByRole('combobox', { name: 'Faction' }).click()
+  await page.getByRole('link', { name: 'Lists' }).click()
+  await page.getByRole('button', { name: 'New list', exact: true }).click()
+  await page.getByRole('dialog', { name: 'Create list' }).getByRole('combobox', { name: 'Faction' }).click()
   const favourites = page.getByRole('group').filter({ has: page.getByText('Favourites', { exact: true }) })
   await expect(favourites.getByRole('option').first()).toHaveText('Necrons')
   await expect(page.getByRole('option').first()).toHaveText('Necrons')
   await expect(page.getByRole('option').first().locator('[data-faction-mark]')).toBeVisible()
   await page.getByRole('option').first().click()
   await expect(
-    page.getByRole('dialog', { name: 'Create roster' }).getByRole('combobox', { name: 'Faction' }).locator('[data-faction-mark]'),
+    page.getByRole('dialog', { name: 'Create list' }).getByRole('combobox', { name: 'Faction' }).locator('[data-faction-mark]'),
   ).toBeVisible()
-  await page.getByRole('dialog', { name: 'Create roster' }).getByRole('combobox', { name: 'Faction' }).click()
+  await page.getByRole('dialog', { name: 'Create list' }).getByRole('combobox', { name: 'Faction' }).click()
   await page.keyboard.press('Escape')
   await page.keyboard.press('Escape')
   await reference.getByRole('link', { name: 'Factions' }).click()
@@ -1200,7 +1200,7 @@ test('a guest roster stays within the native mobile builder viewport', async ({ 
   await chooseFaction(setup, 'Necrons')
   await page.getByRole('button', { name: 'Select Awakened Dynasty' }).click()
   await page.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Take and Hold' }).click()
-  await page.getByRole('button', { name: 'Create roster' }).click()
+  await page.getByRole('button', { name: 'Create list' }).click()
 
   const content = page.locator('[data-native-app-content]')
   await expect(content).toHaveAttribute('data-immersive', 'true')
@@ -1391,10 +1391,10 @@ test('a tab forgets a page that no longer exists', async ({ page }) => {
     sessionStorage.setItem('praetorium.native-tab:rosters', JSON.stringify({ href: '/rosters/deleted-roster', scrollY: 0, regions: {} })),
   )
   const sections = page.getByRole('navigation', { name: 'Application sections' })
-  await sections.getByRole('link', { name: 'Rosters' }).click()
+  await sections.getByRole('link', { name: 'Lists' }).click()
   await expect(page.getByRole('heading', { name: 'Nothing here' })).toBeVisible()
   await sections.getByRole('link', { name: 'Factions' }).click()
   await expect(page).toHaveURL('/factions')
-  await sections.getByRole('link', { name: 'Rosters' }).click()
+  await sections.getByRole('link', { name: 'Lists' }).click()
   await expect(page).toHaveURL('/rosters')
 })

@@ -15,12 +15,12 @@ export function nativeNavigation(path: string, search: Record<string, unknown> =
   const [root, id, child, detail] = segments
 
   if (root === 'rosters') {
-    if (!id) return { section: 'rosters', title: 'Rosters' }
+    if (!id) return { section: 'rosters', title: 'Lists' }
     if (typeof search.battle === 'string') {
       return {
         back: `/battles/${search.battle}`,
         section: 'rosters',
-        title: 'Roster',
+        title: 'List',
       }
     }
     if (typeof search.sealedEvent === 'string') {
@@ -28,10 +28,10 @@ export function nativeNavigation(path: string, search: Record<string, unknown> =
       return {
         back: `/tournaments/${search.sealedEvent}${event}`,
         section: 'rosters',
-        title: 'Roster',
+        title: 'List',
       }
     }
-    return { back: '/rosters', section: 'rosters', title: 'Roster' }
+    return { back: '/rosters', section: 'rosters', title: 'List' }
   }
   if (root === 'battles') {
     return id ? { back: '/battles', section: 'battles', title: 'Battle' } : { section: 'battles', title: 'Battles' }

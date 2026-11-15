@@ -490,9 +490,9 @@ function calculateRoster(
     ]),
   )
   const detachmentError = !loaded.factions.some((faction) => faction.id === data.catalogueId)
-    ? 'This roster uses a replaced faction catalogue. Choose a current faction and detachment.'
+    ? 'This list uses a replaced faction catalogue. Choose a current faction and detachment.'
     : chosen.length !== data.detachmentIds.length
-      ? 'This roster has a detachment that is no longer available. Choose a current detachment.'
+      ? 'This list has a detachment that is no longer available. Choose a current detachment.'
       : detachmentPointsError(purchased, budget, data.waivedRules)
 
   const { picked, forceSelections, roster } = rosterForces(loaded, data, detachmentSelection, unitCache ?? sharedBuiltUnitsFor(loaded))

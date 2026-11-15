@@ -9,7 +9,7 @@ test('new rosters compare customizable mixed-faction benchmarks and retain the t
   await addUnit(page, 'Terminator Squad')
   await chooseRosterAction(page, 'Test targets')
   let dialog = page.getByRole('dialog', { name: 'Test targets', exact: true })
-  await expect(dialog.getByRole('group', { name: 'Attacking with', exact: true })).toContainText('Current roster')
+  await expect(dialog.getByRole('group', { name: 'Attacking with', exact: true })).toContainText('Current list')
   await expect(dialog.getByRole('group', { name: 'Defending with', exact: true })).toContainText('Benchmark targets')
   const benchmarks = dialog.getByRole('region', { name: 'Benchmark targets', exact: true })
   const tokens = benchmarks.getByRole('button', { name: /^Edit .+ benchmark$/ })
@@ -57,7 +57,7 @@ test('new rosters compare customizable mixed-faction benchmarks and retain the t
     const observation = {
       loading: false,
       observer: new MutationObserver(() => {
-        observation.loading ||= /Loading roster units|Calculating…/.test(element.textContent ?? '')
+        observation.loading ||= /Loading list units|Calculating…/.test(element.textContent ?? '')
       }),
     }
     observation.observer.observe(element, { childList: true, subtree: true, characterData: true })
@@ -198,7 +198,7 @@ test('long matchup tables keep target headings and attacker names visible while 
 })
 
 test('saved rosters compare every pairing, reverse direction, and open isolated adjustments', async ({ page }) => {
-  await signUp(page, 'Roster comparison')
+  await signUp(page, 'List comparison')
   await createRoster(page, { faction: 'Necrons', detachment: /Cursed Legion/, name: 'Attacking Necrons' })
   await addUnit(page, 'Immortals')
   await addUnit(page, 'Skorpekh Destroyers')
@@ -209,7 +209,7 @@ test('saved rosters compare every pairing, reverse direction, and open isolated 
   const defenderUrl = page.url()
   await page.goto('/simulator')
   await chooseWholeRoster(page, 'Attacking with', 'Attacking Necrons')
-  const comparison = page.getByRole('region', { name: 'Roster comparison' })
+  const comparison = page.getByRole('region', { name: 'List comparison' })
   const firstGate = await holdCombatCalculations(page)
   await chooseWholeRoster(page, 'Defending with', 'Defending Marines')
   await firstGate.waitForStart()
@@ -272,13 +272,13 @@ for (const width of [1440, 390]) {
     await createRoster(page, { faction: 'Necrons', detachment: /Cursed Legion/, name: 'Menu roster' })
     if (width === 390) await page.getByRole('dialog').getByRole('button', { name: 'Close', exact: true }).click()
     await expect(page.getByRole('button', { name: 'Test targets', exact: true })).toHaveCount(0)
-    await page.getByRole('button', { name: 'Roster actions', exact: true }).click()
+    await page.getByRole('button', { name: 'List actions', exact: true }).click()
     const menu = page.getByRole('menu')
     await expect(menu.getByRole('menuitem')).toHaveText([
       'Test targets',
-      'Grade this roster',
-      'Edit roster setup',
-      'Lock roster',
+      'Grade this list',
+      'Edit list setup',
+      'Lock list',
       /Share…\s*Public/,
       'Export text',
       'Lend to a friend',
@@ -288,7 +288,7 @@ for (const width of [1440, 390]) {
       'Delete',
     ])
     await expect(menu.getByRole('menuitem', { name: 'Test targets', exact: true })).toHaveAttribute('aria-disabled', 'true')
-    await expect(menu.getByRole('menuitem', { name: 'Grade this roster', exact: true })).toHaveAttribute('aria-disabled', 'true')
+    await expect(menu.getByRole('menuitem', { name: 'Grade this list', exact: true })).toHaveAttribute('aria-disabled', 'true')
     // Grouped under headings; a list with no attached unit has nothing to display differently.
     await expect(menu.getByRole('group')).toHaveText([/^Play/, /^Edit/, /^Share/, /^Copy/])
     await expect(menu.getByRole('separator')).toHaveCount(1)
@@ -298,9 +298,9 @@ for (const width of [1440, 390]) {
     await page.getByRole('button', { name: 'Actions for Menu roster', exact: true }).click()
     await expect(menu.getByRole('menuitem')).toHaveText([
       'Start a battle',
-      'Grade this roster',
-      'Edit roster setup',
-      'Lock roster',
+      'Grade this list',
+      'Edit list setup',
+      'Lock list',
       /Share…\s*Public/,
       'Export text',
       'Lend to a friend',
@@ -323,5 +323,5 @@ for (const width of [1440, 390]) {
 /** Fields a whole roster on one side of the standalone simulator, which first lists the roster's units. */
 async function chooseWholeRoster(page: Page, side: 'Attacking with' | 'Defending with', roster: string) {
   await chooseOption(page, side, roster)
-  await page.getByRole('option', { name: 'The whole roster', exact: true }).click()
+  await page.getByRole('option', { name: 'The whole list', exact: true }).click()
 }

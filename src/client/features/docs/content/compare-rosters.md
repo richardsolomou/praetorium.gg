@@ -1,14 +1,14 @@
 To run every unit in one list against every unit in another:
 
 1. Open the [simulator](/simulator).
-2. Under **Attacking with**, choose a roster, then **The whole roster**.
+2. Under **Attacking with**, choose a list, then **The whole list**.
 3. Do the same under **Defending with**.
 
 The table fills in as soon as both sides are chosen. **Cancel** stops it and keeps the finished pairings.
 
 Pairings start at full health, or current health in a battle. Supported always-on rules apply. Cover, range bonuses and conditional buffs stay off. Where a model chooses between weapons or weapon profiles, each pairing uses the one that does most against that target.
 
-**Test targets** in the roster menu (**Roster actions**) opens the same table for the list you're editing.
+**Test targets** in the list menu (**List actions**) opens the same table for the list you're editing.
 
 ## Read the table
 
@@ -18,16 +18,16 @@ Pairings start at full health, or current health in a battle. Supported always-o
 
 **✕** in a cell's corner crosses off that pairing, and the highlight moves to the next best option. **Clear** brings them all back.
 
-![A Necron roster compared against the benchmark targets.](screenshot:compare-loadouts-rosters 'Show chooses the figure each cell displays')
+![A Necron list compared against the benchmark targets.](screenshot:compare-loadouts-rosters 'Show chooses the figure each cell displays')
 
 ## Doubles and solo against a pair
 
-**Add roster** puts more than one roster on a side, and **×** takes one out. You can mix your own lists, friends' lists and sealed lists.
+**Add list** puts more than one list on a side, and **×** takes one out. You can mix your own lists, friends' lists and sealed lists.
 
 Opened from a tournament or hidden-list game, each side starts with its players' lists. The table starts on **Shooting + melee** with the best attacker for each target highlighted.
 
 ## Benchmarks
 
-Pick **Benchmark targets** for either side to test against a set of units instead of a roster. The starter set runs from light infantry up to heavy tanks. Praetorium picked it, and it isn't an official or competitive list.
+Pick **Benchmark targets** for either side to test against a set of units instead of a list. The starter set runs from light infantry up to heavy tanks. Praetorium picked it, and it isn't an official or competitive list.
 
 **Add unit** adds up to 50 units from any faction. Click a unit to change its model count, move it in the table or remove it. The reset button brings the starter set back. Your set is saved in this browser only.

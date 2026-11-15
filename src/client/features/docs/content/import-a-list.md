@@ -3,32 +3,32 @@ Paste a list from another army builder and Praetorium rebuilds it with its own p
 ## Import a list
 
 1. In the other app, use its text export and copy everything from the list title down. The faction, detachment and battle size lines decide which army and battle size you get.
-2. Open [Rosters](/rosters) and choose **Import roster**.
-3. Paste into **Roster text or exchange code** and choose **Import pasted roster**.
+2. Open [Lists](/rosters) and choose **Import list**.
+3. Paste into **List text or exchange code** and choose **Import pasted list**.
 4. Read the [review](/docs/import-review), then accept it.
 
-![The Import roster dialog with an official-app Necrons export pasted into Roster text or exchange code.](screenshot:import-a-roster-paste 'Import pasted roster')
+![The Import list dialog with an official-app Necrons export pasted into List text or exchange code.](screenshot:import-a-roster-paste 'Import pasted list')
 
 Stuck? The **Import guide** help button at the top of the dialog walks you through it.
 
-If you're not signed in, you get a draft kept on this device. **Save roster** takes you through signing in to keep it.
+If you're not signed in, you get a draft kept on this device. **Save list** takes you through signing in to keep it.
 
 ## Import from BattleBase or New Recruit
 
 You can bring in several lists at once from these apps.
 
-1. Open [Rosters](/rosters) and choose **Import roster**.
-2. For **BattleBase**, enter a username and choose **Find**. You get that player's public rosters, so make a private roster public on BattleBase first. For **New Recruit**, paste one or more share links, one per line, and choose **Find lists**.
-3. Lists that matched completely are ticked. Choose **Import 1 roster** or **Import 2 rosters**, whichever it says, to save them.
+1. Open [Lists](/rosters) and choose **Import list**.
+2. For **BattleBase**, enter a username and choose **Find**. You get that player's public lists, so make a private list public on BattleBase first. For **New Recruit**, paste one or more share links, one per line, and choose **Find lists**.
+3. Lists that matched completely are ticked. Choose **Import 1 list** or **Import 2 lists**, whichever it says, to save them.
 4. A list with anything to check shows **Review**. **Back to the lists** returns to the others.
 
 ## Import a top-four tournament list
 
-The **Tournament lists** tab under [Rosters](/rosters?view=tournament-lists) shows lists that finished in the top four at Warhammer 40,000 tournaments outside Praetorium, as published by 40k Stats. It only shows lists that import with nothing to fix and are legal under today's points, however long ago they were played.
+The **Tournament lists** tab under [Lists](/rosters?view=tournament-lists) shows lists that finished in the top four at Warhammer 40,000 tournaments outside Praetorium, as published by 40k Stats. It only shows lists that import with nothing to fix and are legal under today's points, however long ago they were played.
 
 1. Filter by faction, detachment, unit, placing, event size or date, or search for a list, event or unit.
 2. Choose a list to read it in full, unit by unit, without saving anything.
-3. Choose **Import** to open the usual review, then accept it to keep the list as your own roster.
+3. Choose **Import** to open the usual review, then accept it to keep the list as your own list.
 
 A list leaves the tab when a points or datasheet update means it no longer imports cleanly.
 

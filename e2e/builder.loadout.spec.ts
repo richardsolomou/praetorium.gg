@@ -153,7 +153,7 @@ test('the filters narrow the book to what is worth taking', async ({ browser, pa
   // One at a time on purpose: each click re-prices the list, and the next click's
   // effect is only meaningful once the previous one has landed.
   for (let taken = 0; taken < 3; taken++) await waitForRosterSave(page, () => lychguard.click())
-  await expect(page.getByText('3/3 in roster')).toBeVisible()
+  await expect(page.getByText('3/3 in list')).toBeVisible()
   await expect(lychguard).toBeDisabled()
   await page.getByRole('button', { name: 'View Lychguard datasheet' }).click()
   await expect(page.getByRole('button', { name: 'Add to list' })).toBeDisabled()
@@ -192,11 +192,11 @@ test('the filters narrow the book to what is worth taking', async ({ browser, pa
     await confirmRosterSetup(setup)
   }
   await playAt(/^Incursion/)
-  await expect(page.getByText('3/2 in roster')).toBeVisible()
-  await expect(page.getByText('Roster is not legal')).toBeAttached()
+  await expect(page.getByText('3/2 in list')).toBeVisible()
+  await expect(page.getByText('List is not legal')).toBeAttached()
   await expect(lychguard).toBeDisabled()
   await playAt(/King of the Colosseum/)
-  await expect(page.getByText('3/1 in roster')).toBeVisible()
+  await expect(page.getByText('3/1 in list')).toBeVisible()
   await expect(page.getByText('Lychguard: allows at most 1 of this datasheet, has 3')).toBeVisible()
   await expect(lychguard).toBeDisabled()
   await playAt(/^Incursion/)
@@ -299,7 +299,7 @@ test("attached units are drawn together on their bodyguard's shelf by default", 
   await attach(page, 'Plasmancer', 'Immortals')
 
   const toggleTogether = async (checked: boolean) => {
-    await page.getByRole('button', { name: 'Roster actions' }).click()
+    await page.getByRole('button', { name: 'List actions' }).click()
     const item = page.getByRole('menuitemcheckbox', { name: 'Group attached units' })
     await expect(item).toHaveAttribute('aria-checked', String(!checked))
     await item.click()
@@ -589,7 +589,7 @@ test('mobile roster sheets move directly between units, loadout and datasheet', 
   await expect(loadout.getByRole('heading', { name: 'Immortals' })).toBeVisible()
   await expect(loadout.getByText('Infantry', { exact: true })).toBeVisible()
 
-  await loadout.getByRole('button', { name: 'Back to roster' }).click()
+  await loadout.getByRole('button', { name: 'Back to list' }).click()
   await page.getByRole('button', { name: 'Add units' }).click()
   const picker = page.getByRole('dialog', { name: 'Add units' })
   await picker.getByLabel('Add a unit').fill('Imotekh the Stormlord')
@@ -651,7 +651,7 @@ test('a model-specific weapon has the same count on its roster card and loadout'
   await expect(loadout.getByLabel('Master-crafted Power Weapon count')).toHaveText('5')
   await expect(card).toContainText('5x Master-crafted Power Weapon')
 
-  await loadout.getByRole('button', { name: 'Back to roster' }).click()
+  await loadout.getByRole('button', { name: 'Back to list' }).click()
   await expectNoPageOverflow(page)
 })
 
@@ -845,7 +845,7 @@ test('independent weapon choices are edited separately when the catalogue stores
   await expectNoHorizontalOverflow(loadout)
 
   await page.setViewportSize(PHONE)
-  await loadout.getByRole('button', { name: 'Back to roster' }).click()
+  await loadout.getByRole('button', { name: 'Back to list' }).click()
   await expectNoPageOverflow(page)
   await expectNoHorizontalOverflow(page.locator('[data-slot="roster-units"]'))
   await page.locator('[data-unit="Canoptek Wraiths"]').getByRole('button', { name: 'Canoptek Wraiths', exact: true }).click()
@@ -980,7 +980,7 @@ async function orkLoadoutVariants(page: Page, width: number, opensInView: boolea
   await add(page, 'Nobz')
   await add(page, 'Boyz')
   if (width < 1000) await page.getByRole('dialog').getByRole('button', { name: 'Close' }).click()
-  const mode = page.getByRole('group', { name: 'Roster mode' })
+  const mode = page.getByRole('group', { name: 'List mode' })
   await expect(mode.getByRole('button', { name: 'View', exact: true })).toHaveAttribute('aria-pressed', String(opensInView))
   if (opensInView) await mode.getByRole('button', { name: 'Build', exact: true }).click()
   await expectNoPageOverflow(page)
@@ -1054,7 +1054,7 @@ async function orkLoadoutVariants(page: Page, width: number, opensInView: boolea
   await expect(profiles.locator('[data-equipped]')).toHaveAttribute('data-equipped', 'false')
   await expect(card).toContainText('5x Kustom Shoota')
   await expect(card).not.toContainText('Big Skorcha')
-  if (width < 1000) await loadout.getByRole('button', { name: 'Back to roster' }).click()
+  if (width < 1000) await loadout.getByRole('button', { name: 'Back to list' }).click()
 
   const boyz = page.locator('[data-unit="Boyz"]')
   await boyz.getByRole('button', { name: /^Boyz/ }).click()
@@ -1113,7 +1113,7 @@ async function orkLoadoutVariants(page: Page, width: number, opensInView: boolea
   await expect(boyz).not.toContainText('Big Choppa')
   await expect(loadout.getByRole('button', { name: 'Fewer Kustom Choppa', exact: true })).toBeDisabled()
   await expect(loadout.getByRole('button', { name: 'Fewer Kombi-skorcha', exact: true })).toBeDisabled()
-  if (width < 1000) await loadout.getByRole('button', { name: 'Back to roster' }).click()
+  if (width < 1000) await loadout.getByRole('button', { name: 'Back to list' }).click()
   await page.getByRole('button', { name: 'View', exact: true }).click()
   if (width < 1000) await boyz.getByRole('button', { name: /^Boyz/ }).click()
   await expect(loadout.getByLabel('Kustom Choppa count', { exact: true })).toHaveText('1')
@@ -1162,7 +1162,7 @@ test('Plague Marine cards and exports omit replaced default wargear', async ({ p
   await expect(card).not.toContainText('Boltgun')
 
   await chooseRosterAction(page, 'Export text')
-  const exported = page.getByRole('dialog', { name: 'Export roster' }).locator('pre')
+  const exported = page.getByRole('dialog', { name: 'Export list' }).locator('pre')
   await expect(exported).toContainText('4x Plague knives')
   await expect(exported).not.toContainText('Boltgun')
 })
@@ -1221,7 +1221,7 @@ test('Death Guard champions expose their legal wargear', async ({ page }) => {
   await expect(deathshroud).toContainText('4x Plaguespurt gauntlet')
   await expect(deathshroud).toContainText('3x Manreaper')
 
-  await loadout.getByRole('button', { name: 'Back to roster' }).click()
+  await loadout.getByRole('button', { name: 'Back to list' }).click()
   await page.getByRole('button', { name: 'Add units' }).click()
   await add(page, 'Plague Marines')
   await page.getByRole('dialog').getByRole('button', { name: 'Close' }).click()

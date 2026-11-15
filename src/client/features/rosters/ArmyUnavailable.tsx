@@ -22,8 +22,8 @@ export function ArmyUnavailable({
         <p className="eyebrow">{retired ? 'Army book replaced' : 'Army data unavailable'}</p>
         <p className="mt-2 text-sm text-dim">
           {retired
-            ? 'Choose a current faction and detachment to rebuild this roster.'
-            : 'Army data could not be loaded. Your roster is unchanged.'}
+            ? 'Choose a current faction and detachment to rebuild this list.'
+            : 'Army data could not be loaded. Your list is unchanged.'}
         </p>
         {retired && editable ? <Button onClick={onChooseFaction}>Choose current faction</Button> : null}
         {retired ? null : (

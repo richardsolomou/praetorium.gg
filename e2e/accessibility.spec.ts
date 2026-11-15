@@ -242,7 +242,7 @@ test.describe('a touch device', () => {
       ),
     )
     await page.goto('/rosters?view=tournament-lists')
-    await expect(page.getByRole('navigation', { name: 'Rosters' }).getByRole('link', { name: 'Tournament lists' })).toBeInViewport({
+    await expect(page.getByRole('navigation', { name: 'Lists' }).getByRole('link', { name: 'Tournament lists' })).toBeInViewport({
       ratio: 0.99,
     })
   })

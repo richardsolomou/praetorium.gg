@@ -185,7 +185,7 @@ export function WinningListsPage({ search }: { search: WinningSearch }) {
   return (
     <main className="w-full">
       <PageHeader
-        title="Rosters"
+        title="Lists"
         description="Build, import, organize, and share your armies, or find one your friends and other players made public."
         actions={
           <>

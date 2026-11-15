@@ -18,7 +18,7 @@ import { rosterProblems } from '../core/rosterLegality'
 export async function rosterForUse(userId: string, rosterId: string, options: { lent?: boolean; sealing?: boolean } = {}) {
   const usable = await app().service.rosterService.usableRoster(userId, rosterId)
   if (!usable || (usable.lentBy && !options.lent)) {
-    throw new Response(options.lent ? 'this roster is not yours or lent to you' : 'you do not own this roster', { status: 403 })
+    throw new Response(options.lent ? 'this list is not yours or lent to you' : 'you do not own this list', { status: 403 })
   }
   const { roster: saved, lentBy } = usable
   // The player fielding a list brings their own alerts, a borrowed list included.

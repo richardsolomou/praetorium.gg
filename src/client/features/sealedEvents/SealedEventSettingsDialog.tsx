@@ -115,7 +115,7 @@ function SettingsForm({
       ? sealedEvent.entries.filter((entry) => entry.status === 'accepted').length
       : 0
   const ruleLock =
-    mode.kind === 'edit' && sealedEvent?.revealedAt ? `The rosters are out; start a new ${noun} to play a different format.` : null
+    mode.kind === 'edit' && sealedEvent?.revealedAt ? `The lists are out; start a new ${noun} to play a different format.` : null
   const shapeLock =
     mode.kind === 'edit' && sealedEvent?.entries.some((entry) => entry.submitted)
       ? `Format and size are locked now that a list is sealed. ${isTeamFormat(current) ? 'Points per army and house rules' : 'House rules'} can still change, as long as every sealed list still fits them.`
@@ -197,7 +197,7 @@ function SettingsForm({
         'Members seal a list in secret, then you reveal them together. Its battles count on the group’s leaderboard.'
       ) : (
         <>
-          Everyone seals a roster in secret, then you reveal them together.{' '}
+          Everyone seals a list in secret, then you reveal them together.{' '}
           <Link to="/tournaments/sample" className="text-bone underline hover:text-info">
             See a sample tournament
           </Link>

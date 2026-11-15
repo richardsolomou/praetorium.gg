@@ -133,7 +133,7 @@ function SealedEventActionDialogs({ actions }: { actions: SealedEventActionsCont
       <ConfirmDialog
         open={actions.deleting}
         title={actions.sealedEvent.tournament ? `Delete ${actions.sealedEvent.tournament.name}?` : `Delete this ${actions.noun}?`}
-        description="Every entrant and sealed roster goes with it, for good. Battles already started from it stay where they are."
+        description="Every entrant and sealed list goes with it, for good. Battles already started from it stay where they are."
         cancel={`Keep ${actions.noun}`}
         confirm={`Delete ${actions.noun}`}
         pendingLabel="Deleting…"

@@ -22,7 +22,7 @@ export function RosterLoanDialog({ rosterId, open, onClose }: { rosterId: string
     mutationFn: ({ borrowerId, lend }: { borrowerId: string; lend: boolean }) =>
       (lend ? lendRoster : endRosterLoan)({ data: { id: rosterId, borrowerId } }),
     onMutate: () => setProblem(null),
-    onError: (error) => setProblem(errorMessage(error, 'Could not change who can borrow this roster. Try again.')),
+    onError: (error) => setProblem(errorMessage(error, 'Could not change who can borrow this list. Try again.')),
     onSettled: () =>
       Promise.all([
         queryClient.invalidateQueries({ queryKey: rosterLoansQuery(rosterId).queryKey }),
@@ -37,7 +37,7 @@ export function RosterLoanDialog({ rosterId, open, onClose }: { rosterId: string
         <DialogHeader>
           <DialogTitle>Lend to a friend</DialogTitle>
           <DialogDescription>
-            A friend can view this roster, field it in their battles and seal it for an event, but not edit it. Your unit notes and battle
+            A friend can view this list, field it in their battles and seal it for an event, but not edit it. Your unit notes and battle
             preparation stay yours.
           </DialogDescription>
         </DialogHeader>
@@ -56,7 +56,7 @@ export function RosterLoanDialog({ rosterId, open, onClose }: { rosterId: string
             <Problem>Could not load your friends. Try again.</Problem>
           ) : listed.length === 0 ? (
             <p className="text-sm text-dim">
-              You can lend a roster only to a friend.{' '}
+              You can lend a list only to a friend.{' '}
               <Link to="/friends" className="underline">
                 Add friends
               </Link>

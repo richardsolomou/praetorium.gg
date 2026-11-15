@@ -16,7 +16,7 @@ type Tab = { icon: ComponentType<{ className?: string }>; label: string; section
 
 const PRIMARY_TABS: readonly Tab[] = [
   { icon: House, label: 'Home', section: 'home', to: '/' },
-  { icon: ScrollText, label: 'Rosters', section: 'rosters', to: '/rosters' },
+  { icon: ScrollText, label: 'Lists', section: 'rosters', to: '/rosters' },
   { icon: Swords, label: 'Battles', section: 'battles', to: '/battles' },
   { icon: UsersRound, label: 'Factions', section: 'factions', to: '/factions' },
 ]

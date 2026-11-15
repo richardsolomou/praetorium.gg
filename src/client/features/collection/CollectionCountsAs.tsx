@@ -73,7 +73,7 @@ function CountsAsChoice({
         <DialogHeader>
           <DialogTitle>What else can these {name} models be?</DialogTitle>
           <DialogDescription>
-            Tick the datasheets these models can stand in for, such as the other builds of a magnetised kit. Your rosters count each model
+            Tick the datasheets these models can stand in for, such as the other builds of a magnetised kit. Your lists count each model
             once, wherever it goes. This never changes points or legality.
           </DialogDescription>
         </DialogHeader>

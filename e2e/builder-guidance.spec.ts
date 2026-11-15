@@ -25,7 +25,7 @@ test(`a unit's attach menu adds and attaches a new leader, then offers only its 
 
     const immortals = page.locator('[data-unit="Immortals"]')
     await immortals.getByRole('button', { name: 'Attach unit: Immortals', exact: true }).click()
-    const roster = attachMenu(page).getByRole('group', { name: 'In this roster' })
+    const roster = attachMenu(page).getByRole('group', { name: 'In this list' })
     const added = attachMenu(page).getByRole('group', { name: 'Add a new unit' })
     await expect(roster.getByRole('menuitem', { name: 'Overlord', exact: true })).toBeEnabled()
     const imotekh = added.getByRole('menuitem', { name: 'Add new Imotekh the Stormlord and attach', exact: true })
@@ -96,7 +96,7 @@ test(`a character's attach menu adds and joins a new bodyguard`, async ({ page }
 
     const overlord = page.locator('[data-unit="Overlord"]')
     await overlord.getByRole('button', { name: 'Attach to unit: Overlord', exact: true }).click()
-    await expect(attachMenu(page).getByRole('group', { name: 'In this roster' })).toHaveCount(0)
+    await expect(attachMenu(page).getByRole('group', { name: 'In this list' })).toHaveCount(0)
     const immortals = attachMenu(page)
       .getByRole('group', { name: 'Add a new unit' })
       .getByRole('menuitem', { name: 'Add new Immortals and attach', exact: true })
@@ -137,7 +137,7 @@ test('a unit attaches a character already in the roster from its own card', asyn
   await addUnit(page, 'Overlord')
   await page.locator('[data-unit="Immortals"]').getByRole('button', { name: 'Attach unit: Immortals', exact: true }).click()
   await waitForRosterSave(page, () =>
-    attachMenu(page).getByRole('group', { name: 'In this roster' }).getByRole('menuitem', { name: 'Overlord', exact: true }).click(),
+    attachMenu(page).getByRole('group', { name: 'In this list' }).getByRole('menuitem', { name: 'Overlord', exact: true }).click(),
   )
   await expect(page.locator('[data-unit="Overlord"]')).toContainText('Leading')
   await expect(page.locator('[data-unit]')).toHaveCount(2)

@@ -4,9 +4,9 @@ Praetorium checks your list as you edit. The footer shows your points against th
 
 Problems appear in a red list in the footer, such as "must be attached to a Bodyguard unit" or "cannot lead Intercessor Squad, which is already led by…". The first eight are shown. If a unit holds choices its datasheet no longer offers, **Reset options** clears them.
 
-![The roster footer showing 215/2000 points and the error "Ancient: must be attached to a Bodyguard unit".](screenshot:build-an-army-validation 'The red list of problems in the footer')
+![The list footer showing 215/2000 points and the error "Ancient: must be attached to a Bodyguard unit".](screenshot:build-an-army-validation 'The red list of problems in the footer')
 
-Detachment or disposition problems appear under the roster header with **Review setup** or **Choose one**.
+Detachment or disposition problems appear under the list header with **Review setup** or **Choose one**.
 
 **Could not check every rule** lists restrictions Praetorium can't evaluate. They aren't marked legal, so check them yourself before playing.
 

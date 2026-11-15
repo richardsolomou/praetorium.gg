@@ -34,7 +34,7 @@ export async function submitSealedEventRoster(owner: string, data: z.output<type
     ) ||
       (await app().catalogueFor(saved.catalogueId))?.index.revision !== data.catalogueRevision)
   )
-    throw new Response('This roster or its army data changed after you chose to seal it. Review the saved action before sealing again.', {
+    throw new Response('This list or its army data changed after you chose to seal it. Review the saved action before sealing again.', {
       status: 409,
     })
   const result = await app().service.sealedEventService.submitSealedEventRoster(data.token, owner, saved, snapshot, data.eventToken)

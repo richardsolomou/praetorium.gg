@@ -125,7 +125,7 @@ export function WebMcp() {
             </dl>
           </details>
           {proposal.error ? (
-            <Problem>{proposal.error} Check the saved roster or battle before asking your assistant to try again.</Problem>
+            <Problem>{proposal.error} Check the saved list or battle before asking your assistant to try again.</Problem>
           ) : null}
         </DialogBody>
         <DialogFooter>

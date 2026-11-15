@@ -15,7 +15,7 @@ A draft stays out of your battles until everyone has joined and chosen an army. 
 
 One phone in the middle of the table is enough, because anyone at the table can answer for either side. Everyone who has joined can also use their own device.
 
-**Start a battle** from a roster's menu in your library opens a draft with that list chosen. **Battle** next to a friend on [Friends](/friends) opens one with them already invited.
+**Start a battle** from a list's menu in your library opens a draft with that list chosen. **Battle** next to a friend on [Friends](/friends) opens one with them already invited.
 
 ## Bring your opponent in
 

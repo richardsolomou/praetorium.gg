@@ -21,7 +21,7 @@ async function openRostersToImport(page: Page, name: string) {
   await page.goto('/rosters')
   // Pressing Import before hydration does nothing.
   await page.waitForLoadState('networkidle')
-  await page.getByRole('button', { name: 'Import roster', exact: true }).waitFor()
+  await page.getByRole('button', { name: 'Import list', exact: true }).waitFor()
   return recordEvents(page)
 }
 
@@ -129,9 +129,9 @@ test('a failed search reports an error rather than a successful empty search', a
 
 test('an unmatched import reports one failed attempt and no completed save', async ({ page }) => {
   const events = await openRostersToImport(page, 'Import analytics')
-  await page.getByRole('button', { name: 'Import roster', exact: true }).click()
-  await page.getByLabel('Roster text').fill('private unmatched roster')
-  await page.getByRole('button', { name: 'Import pasted roster' }).click()
+  await page.getByRole('button', { name: 'Import list', exact: true }).click()
+  await page.getByLabel('List text').fill('private unmatched roster')
+  await page.getByRole('button', { name: 'Import pasted list' }).click()
   await expect
     .poll(() => events)
     .toEqual([
@@ -158,9 +158,9 @@ test('an unmatched import reports one failed attempt and no completed save', asy
 
 test('a New Recruit link that cannot be opened asks for the exported text and reports no list contents', async ({ page }) => {
   const events = await openRostersToImport(page, 'Import link analytics')
-  await page.getByRole('button', { name: 'Import roster', exact: true }).click()
-  await page.getByLabel('Roster text').fill('https://www.newrecruit.eu/app/list/AbC123xyz')
-  await page.getByRole('button', { name: 'Import pasted roster' }).click()
+  await page.getByRole('button', { name: 'Import list', exact: true }).click()
+  await page.getByLabel('List text').fill('https://www.newrecruit.eu/app/list/AbC123xyz')
+  await page.getByRole('button', { name: 'Import pasted list' }).click()
   await expect(page.getByText('export the list as text and paste the text here.')).toBeVisible()
   await expect
     .poll(() => events)
@@ -173,9 +173,9 @@ test('a New Recruit link that cannot be opened asks for the exported text and re
 
 test('a pasted roster file asks for the exported text and reports only its format', async ({ page }) => {
   const events = await openRostersToImport(page, 'Import file analytics')
-  await page.getByRole('button', { name: 'Import roster', exact: true }).click()
-  await page.getByLabel('Roster text').fill('<?xml version="1.0"?>\n<roster name="Private roster file">')
-  await page.getByRole('button', { name: 'Import pasted roster' }).click()
+  await page.getByRole('button', { name: 'Import list', exact: true }).click()
+  await page.getByLabel('List text').fill('<?xml version="1.0"?>\n<roster name="Private roster file">')
+  await page.getByRole('button', { name: 'Import pasted list' }).click()
   await expect(page.getByText('That looks like a .ros roster file')).toBeVisible()
   await expect
     .poll(() => events)
@@ -194,8 +194,8 @@ test('a connected legacy shell import reports saving only after the write succee
   await page.route('**/_serverFn/**', (route) =>
     isRosterSave(route.request()) ? route.fulfill({ status: 503, body: 'save unavailable' }) : route.continue(),
   )
-  await page.getByRole('button', { name: 'Import roster', exact: true }).click()
-  await page.getByLabel('Roster text').fill(`Private imported army (2000 Points)
+  await page.getByRole('button', { name: 'Import list', exact: true }).click()
+  await page.getByLabel('List text').fill(`Private imported army (2000 Points)
 
 Necrons
 Awakened Dynasty
@@ -207,12 +207,12 @@ Technomancer (70 Points)
   • Warlord
 
 Exported with BattleBase, Data Version: v20260812`)
-  await page.getByRole('button', { name: 'Import pasted roster' }).click()
-  await page.getByRole('dialog', { name: 'Import roster', exact: true }).getByRole('button', { name: 'Import roster', exact: true }).click()
+  await page.getByRole('button', { name: 'Import pasted list' }).click()
+  await page.getByRole('dialog', { name: 'Import list', exact: true }).getByRole('button', { name: 'Import list', exact: true }).click()
   await expect.poll(() => events.at(-1)).toEqual({ name: 'roster_import_save_failed', properties: { reason: 'request' } })
   expect(events.filter((event) => event.name === 'roster_import_saved')).toEqual([])
   await page.unroute('**/_serverFn/**')
-  await page.getByRole('dialog', { name: 'Import roster', exact: true }).getByRole('button', { name: 'Import roster', exact: true }).click()
+  await page.getByRole('dialog', { name: 'Import list', exact: true }).getByRole('button', { name: 'Import list', exact: true }).click()
   await expect
     .poll(() => events.filter((event) => event.name === 'roster_import_saved'))
     .toEqual([{ name: 'roster_import_saved', properties: { source: 'battlebase', pick_count: 1 } }])
@@ -222,8 +222,8 @@ Exported with BattleBase, Data Version: v20260812`)
 
 test('a matched import reports review only for unmatched entries', async ({ page }) => {
   const events = await openRostersToImport(page, 'Import review analytics')
-  await page.getByRole('button', { name: 'Import roster', exact: true }).click()
-  await page.getByLabel('Roster text').fill(`Private imported army (2000 Points)
+  await page.getByRole('button', { name: 'Import list', exact: true }).click()
+  await page.getByLabel('List text').fill(`Private imported army (2000 Points)
 
 Necrons
 Awakened Dynasty
@@ -240,7 +240,7 @@ Private unknown unit (100 Points)
   • 1x Private weapon
 
 Exported with BattleBase, Data Version: v20260812`)
-  await page.getByRole('button', { name: 'Import pasted roster' }).click()
+  await page.getByRole('button', { name: 'Import pasted list' }).click()
   await expect
     .poll(() => events.filter((event) => event.name === 'roster_import_review_required'))
     .toEqual([{ name: 'roster_import_review_required', properties: { missing_count: 1, unplaced_count: 0 } }])
@@ -262,7 +262,7 @@ test('building reports embarks and the roster arrangement without naming units',
     'embarkedIn',
   )
   await waitForRosterSave(page, () => bar.getByRole('button', { name: 'Remove', exact: true }).click(), 'embarkedIn')
-  await page.getByRole('button', { name: 'Roster actions' }).click()
+  await page.getByRole('button', { name: 'List actions' }).click()
   await page.getByRole('menuitemcheckbox', { name: 'Group attached units' }).click()
 
   await expect
@@ -277,10 +277,10 @@ test('building reports embarks and the roster arrangement without naming units',
 test('cancelled creation forms report intent without submissions, and opening the simulator reports its source', async ({ page }) => {
   await signUp(page, uniqueName('Feature analytics'))
   await page.goto('/rosters')
-  await page.getByRole('button', { name: 'New roster', exact: true }).waitFor()
+  await page.getByRole('button', { name: 'New list', exact: true }).waitFor()
   const events = await recordEvents(page)
-  const createRoster = page.getByRole('dialog', { name: 'Create roster' })
-  await retryUntilVisible(createRoster, () => page.getByRole('button', { name: 'New roster', exact: true }).click())
+  const createRoster = page.getByRole('dialog', { name: 'Create list' })
+  await retryUntilVisible(createRoster, () => page.getByRole('button', { name: 'New list', exact: true }).click())
   await createRoster.getByRole('button', { name: 'Cancel', exact: true }).click()
   await page.locator('[data-web-app-chrome]').getByRole('link', { name: 'Tournaments', exact: true }).click()
   await page.getByRole('button', { name: 'New tournament', exact: true }).click()
@@ -332,11 +332,11 @@ test('a datasheet reader who starts a roster or the simulator is attributed to t
   await page.goto('/factions/necrons/datasheets/imotekh-the-stormlord')
   await page.waitForLoadState('networkidle')
   const events = await recordEvents(page)
-  await page.getByRole('button', { name: 'Add to roster', exact: true }).click()
-  const setup = page.getByRole('dialog', { name: 'Create roster' })
+  await page.getByRole('button', { name: 'Add to list', exact: true }).click()
+  const setup = page.getByRole('dialog', { name: 'Create list' })
   await setup.getByRole('button', { name: 'Select Awakened Dynasty' }).click()
   await setup.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Take and Hold' }).click()
-  await setup.getByRole('button', { name: 'Create roster' }).click()
+  await setup.getByRole('button', { name: 'Create list' }).click()
   await expect
     .poll(() =>
       events.filter((event) =>
@@ -367,15 +367,15 @@ for (const [reference, path, signedIn, width] of [
     await page.goto(path)
     await page.waitForLoadState('networkidle')
     const events = await recordEvents(page)
-    const setup = page.getByRole('dialog', { name: 'Create roster' })
-    await page.getByRole('link', { name: 'Build a roster', exact: true }).click()
+    const setup = page.getByRole('dialog', { name: 'Create list' })
+    await page.getByRole('link', { name: 'Build a list', exact: true }).click()
     await expect(setup).toBeVisible()
     await expect(page).toHaveURL(/\/rosters$/)
     await chooseFaction(setup, 'Necrons')
     await setup.getByRole('button', { name: 'Select Awakened Dynasty' }).click()
     await setup.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Take and Hold' }).click()
     await page.screenshot({ path: testInfo.outputPath(`${reference}-setup.png`) })
-    await setup.getByRole('button', { name: 'Create roster', exact: true }).click()
+    await setup.getByRole('button', { name: 'Create list', exact: true }).click()
     await expect(page.getByRole('heading', { name: 'Add your first unit', exact: true })).toBeVisible()
     if (width < 768) await page.getByRole('button', { name: 'Add units', exact: true }).click()
     await expect(page.getByLabel('Add a unit')).toBeVisible()
@@ -408,10 +408,10 @@ test('cancelling a mission setup does not attribute a later generic setup to it'
   await page.goto('/missions/chapter-approved-2026-2027')
   await page.waitForLoadState('networkidle')
   const events = await recordEvents(page)
-  await page.getByRole('link', { name: 'Build a roster', exact: true }).click()
-  const setup = page.getByRole('dialog', { name: 'Create roster' })
+  await page.getByRole('link', { name: 'Build a list', exact: true }).click()
+  const setup = page.getByRole('dialog', { name: 'Create list' })
   await setup.getByRole('button', { name: 'Cancel', exact: true }).click()
-  await page.getByRole('button', { name: 'New roster', exact: true }).click()
+  await page.getByRole('button', { name: 'New list', exact: true }).click()
   await expect(setup).toBeVisible()
   await expect
     .poll(() => events.filter((event) => event.name === 'roster_creation_started'))
@@ -428,10 +428,10 @@ for (const units of [[], ['Necron Warriors'], ['Necron Warriors', 'Overlord']]) 
     await setup.getByRole('button', { name: 'Select Awakened Dynasty' }).click()
     await setup.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Take and Hold' }).click()
     const events = await recordEvents(page)
-    await setup.getByRole('button', { name: 'Create roster' }).click()
+    await setup.getByRole('button', { name: 'Create list' }).click()
     await expect(page.getByLabel('Add a unit')).toBeVisible()
     for (const unit of units) await add(page, unit)
-    const save = page.getByRole('button', { name: 'Save roster', exact: true })
+    const save = page.getByRole('button', { name: 'Save list', exact: true })
     if (!units.length) {
       await expect(save).toBeDisabled()
       return
@@ -444,14 +444,14 @@ for (const units of [[], ['Necron Warriors'], ['Necron Warriors', 'Overlord']]) 
       .poll(() => events.filter((event) => event.name === 'guest_roster_save_gate_viewed'))
       .toEqual([{ name: 'guest_roster_save_gate_viewed', properties: { unit_count: units.length, action: 'create' } }])
     if (units.length === 1) {
-      await page.getByRole('button', { name: 'Create account and save roster', exact: true }).click()
+      await page.getByRole('button', { name: 'Create account and save list', exact: true }).click()
       await expect
         .poll(() => events.filter((event) => event.name === 'guest_roster_save_validation_failed').map((event) => event.properties.field))
         .toEqual(['name', 'email', 'password'])
       expect(events.filter((event) => event.name === 'account_authentication_started')).toEqual([])
       await page.getByRole('button', { name: 'I already have an account', exact: true }).click()
       await expect.poll(() => events.filter((event) => event.name === 'guest_roster_save_gate_viewed').length).toBe(1)
-      await page.getByRole('link', { name: 'Back to your roster', exact: true }).click()
+      await page.getByRole('link', { name: 'Back to your list', exact: true }).click()
       await expect(page.locator('[data-unit="Necron Warriors"]').first()).toBeVisible()
       expect(events.filter((event) => event.name === 'guest_roster_save_gate_interacted').map((event) => event.properties.action)).toEqual([
         'switch_to_sign_in',

@@ -77,7 +77,7 @@ export function RosterBuilderFooter({
               {over
                 ? 'Over the points limit'
                 : illegal
-                  ? 'Roster is not legal'
+                  ? 'List is not legal'
                   : points > limit
                     ? 'Points limit switched off'
                     : 'Within the points limit'}
@@ -88,7 +88,7 @@ export function RosterBuilderFooter({
             className={`figure text-2xl leading-none font-bold sm:text-3xl ${over ? 'text-destructive' : 'text-bone'}`}
           >
             {loading ? (
-              <span aria-label="Loading roster points">…</span>
+              <span aria-label="Loading list points">…</span>
             ) : (
               // Keyed on the value, so each unit added or removed answers with the total rising into place.
               <span key={points} className="inline-block animate-figure">
@@ -125,15 +125,15 @@ export function RosterBuilderFooter({
             </Button>
           ) : null}
           {onSave ? (
-            <Button size="sm" className="max-sm:min-h-11" onClick={onSave} disabled={!hasUnits} aria-label="Save roster">
-              Save<span className="max-sm:hidden"> roster</span>
+            <Button size="sm" className="max-sm:min-h-11" onClick={onSave} disabled={!hasUnits} aria-label="Save list">
+              Save<span className="max-sm:hidden"> list</span>
             </Button>
           ) : null}
         </span>
       </div>
       {onSave && hasUnits ? (
         <p className="mt-1 text-right text-2xs text-dim">
-          Kept on this device. Choose Save roster, create an account or sign in, then return to your saved army.
+          Kept on this device. Choose Save list, create an account or sign in, then return to your saved army.
         </p>
       ) : null}
       {editable && saveFailed ? (

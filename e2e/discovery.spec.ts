@@ -27,7 +27,7 @@ test('Terms account requirements match public guest tools', async ({ page }, tes
   const service = page.locator('main section').filter({ has: page.getByRole('heading', { name: 'The service', exact: true }) })
   await atEachWidth(async (width) => {
     await expect(service.locator('p').first()).toContainText('You can use the builder, simulator and public reference without an account.')
-    await expect(service.locator('p').first()).toContainText('Sign in to save rosters to the service or start battles.')
+    await expect(service.locator('p').first()).toContainText('Sign in to save lists to the service or start battles.')
     await expectNoPageOverflow(page)
     await page.screenshot({ path: testInfo.outputPath(`guest-terms-${width}.png`) })
   })
@@ -37,7 +37,7 @@ test('Terms account requirements match public guest tools', async ({ page }, tes
   await atEachWidth(() => expect(tryBuilder).toBeVisible())
   await tryBuilder.click()
   await expect(page).toHaveURL('/rosters')
-  await atEachWidth(() => expect(page.getByRole('dialog', { name: 'Create roster' })).toBeVisible())
+  await atEachWidth(() => expect(page.getByRole('dialog', { name: 'Create list' })).toBeVisible())
 
   await page.goto('/simulator')
   await atEachWidth(async () => {

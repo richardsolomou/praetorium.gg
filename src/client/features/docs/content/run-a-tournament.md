@@ -1,4 +1,4 @@
-Set up the tournament, get players in, wait for everyone to seal a roster in secret, then reveal the rosters together so people can play. The usual one-on-one tournament comes first. Swiss rounds and team formats follow.
+Set up the tournament, get players in, wait for everyone to seal a list in secret, then reveal the lists together so people can play. The usual one-on-one tournament comes first. Swiss rounds and team formats follow.
 
 To see one first, open the [sample tournament](/tournaments/sample). For a one-off inside a [group](/docs/groups), use a hidden-list game, which seals the same way and starts from the group page.
 
@@ -6,38 +6,38 @@ To see one first, open the [sample tournament](/tournaments/sample). For a one-o
 
 1. Press **New tournament** on [Tournaments](/tournaments) and give it a name.
 2. Under **Battle format**, choose **Duel**.
-3. Under **Points**, choose the battle size. To play it at its own total, such as Incursion at 750 points, type the total in the box beside it. Only rosters built to that total can be sealed.
+3. Under **Points**, choose the battle size. To play it at its own total, such as Incursion at 750 points, type the total in the box beside it. Only lists built to that total can be sealed.
 4. Under **Pairing**, choose **Open play** to let players pick who to play, as often as they like, or **Swiss rounds** to pair each round yourself and set how many there are.
 5. Under **House rules**, allow anything beyond matched play. Everything off is matched play.
-6. Add **Played on** and **Seal rosters by** dates if you want them.
+6. Add **Played on** and **Seal lists by** dates if you want them.
 7. Turn on **I'm playing too** if you're also playing.
 8. Press **Create tournament**.
 
 In **House rules**, untick a restriction, such as **Points limit** or **Warlord**, to let lists switch it off. Tick **Legends** or **Crucible** to let lists include those datasheets. A list that needs anything you left off can't be sealed.
 
-Players see dates in their own timezone. After the **Seal rosters by** deadline nobody can seal or join, and anyone without a sealed roster sits the tournament out and no longer holds up the reveal. You can move either date until the reveal.
+Players see dates in their own timezone. After the **Seal lists by** deadline nobody can seal or join, and anyone without a sealed list sits the tournament out and no longer holds up the reveal. You can move either date until the reveal.
 
 **More options** holds **Details**, a **Player limit**, **Who can find it** (**Private link**, or **Public** to list it on the tournaments page) and **Who gets in** (**Anyone who joins**, or **You approve**).
 
 ### Changing things later
 
-Once anyone seals a roster, the format, battle size, pairing and points total lock. The solo player's points, doubles points per army, **Allies split their points** and house rules can still change until the reveal, as long as every sealed roster still fits them. If one doesn't, ask its player to seal a roster that does. Everything else can change at any time from **Edit tournament**.
+Once anyone seals a list, the format, battle size, pairing and points total lock. The solo player's points, doubles points per army, **Allies split their points** and house rules can still change until the reveal, as long as every sealed list still fits them. If one doesn't, ask its player to seal a list that does. Everything else can change at any time from **Edit tournament**.
 
 ## Fill it
 
-Share the invite link from **Invite players**, or use **Add friends** to enter friends directly. If you approve each player, answer the requests in the entrant list. **Remove entrant** takes a player out, along with their sealed roster.
+Share the invite link from **Invite players**, or use **Add friends** to enter friends directly. If you approve each player, answer the requests in the entrant list. **Remove entrant** takes a player out, along with their sealed list.
 
-While rosters are still owed, press **Remind players** under the reveal countdown. It notifies each accepted player who hasn't sealed, on devices where they allowed notifications. You can send one a day.
+While lists are still owed, press **Remind players** under the reveal countdown. It notifies each accepted player who hasn't sealed, on devices where they allowed notifications. You can send one a day.
 
 ## Reveal and play
 
-When everyone is in and sealed, press **Reveal all rosters**. Every list opens at once and entry closes. Anyone playing can do this, and it can't be undone. Before the reveal, players can read their own list and their assigned ally's. Being the organizer gives no extra access. If the button is greyed out, **Before you can reveal** lists what's left.
+When everyone is in and sealed, press **Reveal all lists**. Every list opens at once and entry closes. Anyone playing can do this, and it can't be undone. Before the reveal, players can read their own list and their assigned ally's. Being the organizer gives no extra access. If the button is greyed out, **Before you can reveal** shows what's left.
 
 Players then start their tournament battles from the tournament page, and finished battles fill the results table.
 
-If a revealed roster has a mistake, press the unseal button on that player's roster row, then **Unseal roster**, so they can seal a corrected one. Battles already started keep the roster they began with.
+If a revealed list has a mistake, press the unseal button on that player's list row, then **Unseal list**, so they can seal a corrected one. Battles already started keep the list they began with.
 
-Anyone who can see the revealed rosters and results can save them. **Export rosters** writes every list as it was sealed into one text file, and **Export CSV** saves the results table. A saved file can't be recalled later.
+Anyone who can see the revealed lists and results can save them. **Export lists** writes every list as it was sealed into one text file, and **Export CSV** saves the results table. A saved file can't be recalled later.
 
 ## Swiss rounds
 
@@ -57,7 +57,7 @@ Before round 1, you can put strength of schedule ahead of total victory points. 
 
 ### Check players in
 
-Once the rosters are out, players can press **Check in** before round 1, and you can check anyone in from the list. It's optional. If some players don't arrive, press **Drop not checked in** so they aren't paired.
+Once the lists are out, players can press **Check in** before round 1, and you can check anyone in from the entrant list. It's optional. If some players don't arrive, press **Drop not checked in** so they aren't paired.
 
 ### Change the pairings and run the clock
 
@@ -85,20 +85,20 @@ The battle continues from its last turn, and its players correct the score and f
 
 ### Drop a player
 
-If a player leaves or doesn't show, press the drop button on their roster row, then **Drop player**. They aren't paired again and can't rejoin. Their results stay in the table, including in their opponents' strength of schedule. Players can withdraw themselves the same way.
+If a player leaves or doesn't show, press the drop button on their list row, then **Drop player**. They aren't paired again and can't rejoin. Their results stay in the table, including in their opponents' strength of schedule. Players can withdraw themselves the same way.
 
 If their table in the current round hasn't finished, their opponent takes it as a bye, so the next round can be paired. A battle already started at that table stays in the battle list but no longer counts for the round.
 
 ## Team tournaments
 
-Choose **Solo vs pair** (2v1) or **Doubles** (2v2) under **Battle format**. Every roster is built at the **Points** size or a smaller one, unless it waives **Points limit** and your house rules allow that. Every list needs a Warlord, because allies choose whose leads.
+Choose **Solo vs pair** (2v1) or **Doubles** (2v2) under **Battle format**. Every list is built at the **Points** size or a smaller one, unless it waives **Points limit** and your house rules allow that. Every list needs a Warlord, because allies choose whose leads.
 
 In a 2v1 the pair shares the battle size, so it plays 2,000 against 2,000: the allies spend their 2,000 however they agree, such as 900 and 1,100. Their lists don't need the same points total, and a list may cost more than the points it was saved to, as long as the pair stays within its total. **Set the solo player's points**, under **Points**, gives the solo player a different total, such as 1,750 against the pair's 2,000.
 
 In doubles, **Set points per army** changes what **Each player** may spend. Leave it empty for half the battle size. Allies seal lists saved to the same points total, unless you switch on **Allies split their points**, which lets each pair spend its points however they agree.
 
-Before the reveal, give each player in a 2v1 a solo or allied size and pair the allies. In doubles, pair everyone into teams of two. Each team then chooses its Force Disposition and whose Warlord leads. Changing a player's size or team clears the roster they sealed.
+Before the reveal, give each player in a 2v1 a solo or allied size and pair the allies. In doubles, pair everyone into teams of two. Each team then chooses its Force Disposition and whose Warlord leads. Changing a player's size or team clears the list they sealed.
 
 ## Organizers
 
-The owner can choose **Admins** from their friends in **Edit tournament**. Admins run the tournament like the owner but can't delete it. **Delete tournament** removes every entrant and sealed roster. Battles already started stay where they are.
+The owner can choose **Admins** from their friends in **Edit tournament**. Admins run the tournament like the owner but can't delete it. **Delete tournament** removes every entrant and sealed list. Battles already started stay where they are.

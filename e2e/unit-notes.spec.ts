@@ -38,7 +38,7 @@ async function annotate(page: Page, card: Locator, field: 'Custom name' | 'Note'
   await squadButton(card).click()
   const fields = page.getByRole('region', { name: 'Custom name and note' })
   await waitForRosterSave(page, () => fields.getByRole('textbox', { name: field, exact: true }).fill(value), value)
-  const back = page.getByRole('button', { name: 'Back to roster' })
+  const back = page.getByRole('button', { name: 'Back to list' })
   if (await back.isVisible()) await back.click()
 }
 
@@ -60,7 +60,7 @@ for (const [size, label] of [
     await squadButton(cards.nth(1)).click()
     await expect(owner.getByRole('switch', { name: /Share unit notes/ })).toHaveCount(0)
     await shot(owner.getByRole('region', { name: 'Custom name and note' }), test.info().outputPath(`unit-annotation-fields-${label}.png`))
-    const back = owner.getByRole('button', { name: 'Back to roster' })
+    const back = owner.getByRole('button', { name: 'Back to list' })
     if (await back.isVisible()) await back.click()
     await annotate(owner, cards.nth(1), 'Custom name', 'Rot Bravo')
     await annotate(owner, cards.nth(1), 'Note', BRAVO_NOTE)
@@ -73,7 +73,7 @@ for (const [size, label] of [
     await shot(owner.locator('[data-roster-builder]'), test.info().outputPath(`unit-annotation-cards-${label}.png`))
 
     await chooseRosterAction(owner, 'Export text')
-    const exported = owner.getByRole('dialog', { name: 'Export roster' })
+    const exported = owner.getByRole('dialog', { name: 'Export list' })
     await expect(exported.locator('pre')).toContainText('• Custom name: Rot Alpha')
     await expect(exported.locator('pre')).toContainText('• Custom name: Rot Bravo')
     await expect(exported.locator('pre')).not.toContainText(ALPHA_NOTE)
@@ -88,7 +88,7 @@ for (const [size, label] of [
     await expect(pack).toContainText(`Note ${ALPHA_NOTE}`)
     await expect(pack).toContainText(`Note ${BRAVO_NOTE}`)
     await shot(pack.locator('.pack-unit').first(), test.info().outputPath(`unit-note-print-${label}.png`))
-    await owner.getByRole('button', { name: 'Return to roster' }).click()
+    await owner.getByRole('button', { name: 'Return to list' }).click()
 
     const original = lastPathSegment(owner.url())
     const opponentName = uniqueName('Opponent')

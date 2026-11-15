@@ -128,7 +128,7 @@ export function AdminUserPanel({ user, current, onClose }: { user: AdminUser; cu
             <Fact label="Joined" value={dates.date(user.createdAt)} />
             <Fact label="Last seen" value={user.lastSeenAt ? dates.date(user.lastSeenAt) : 'Never'} />
             <Fact label="Friends" value={String(user.friendCount)} />
-            <Fact label="Rosters" value={String(user.rosterCount)} />
+            <Fact label="Lists" value={String(user.rosterCount)} />
             <Fact label="Battles" value={String(user.battleCount)} />
             <Fact label="Tournaments run" value={String(user.sealedEventCount)} />
           </dl>
@@ -448,7 +448,7 @@ function confirmationCopy(user: AdminUser, confirming: Confirming) {
     case 'connection':
       return {
         title: `Revoke ${confirming.name}?`,
-        description: `${confirming.name} can no longer read or change ${user.name}’s rosters, battles and events. They can connect it again.`,
+        description: `${confirming.name} can no longer read or change ${user.name}’s lists, battles and events. They can connect it again.`,
         cancel: 'Keep access',
         confirm: 'Revoke',
         pendingLabel: 'Revoking…',
@@ -600,7 +600,7 @@ function CopyButton({ value, label }: { value: string; label: string }) {
 
 function deletionImpact(user: AdminUser) {
   const parts = [
-    user.rosterCount ? countLabel(user.rosterCount, 'roster') : '',
+    user.rosterCount ? countLabel(user.rosterCount, 'list') : '',
     user.battleCount ? countLabel(user.battleCount, 'battle') : '',
     user.sealedEventCount ? countLabel(user.sealedEventCount, 'tournament they organize', 'tournaments they organize') : '',
   ].filter(Boolean)

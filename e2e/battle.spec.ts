@@ -257,7 +257,7 @@ test('native battle controls leave the application tabs reachable', async ({ pag
   await page.getByRole('button', { name: 'Return to prompt' }).click()
   await expect(scoring).toBeVisible()
 
-  await applicationTabs.getByRole('link', { name: 'Rosters' }).click()
+  await applicationTabs.getByRole('link', { name: 'Lists' }).click()
   await expect(page).toHaveURL(/\/rosters/)
   await applicationTabs.getByRole('link', { name: 'Battles' }).click()
   await expect(page).toHaveURL(battleUrl)

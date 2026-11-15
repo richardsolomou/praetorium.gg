@@ -92,7 +92,7 @@ export class SealedEventResultsService {
   async pairSealedEventRound(sealedEventToken: string, eventToken: string | undefined, userId: string) {
     const sealedEvent = await this.sealedEventService.sealedEvent(sealedEventToken, userId, eventToken)
     if (!sealedEvent) throw new Response('no such tournament', { status: 404 })
-    if (sealedEvent.rounds === null || !sealedEvent.revealedAt) throw new Response('pair rounds once the rosters are out', { status: 409 })
+    if (sealedEvent.rounds === null || !sealedEvent.revealedAt) throw new Response('pair rounds once the lists are out', { status: 409 })
     const { battles, nextCursor } = await this.sealedEventBattles(
       sealedEventToken,
       sealedEvent.eventToken,

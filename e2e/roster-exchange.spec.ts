@@ -19,7 +19,7 @@ const phone = { viewport: PHONE }
 /** The roster's exported text without its Exported with footer. */
 async function exportedText(page: Page) {
   await chooseRosterAction(page, 'Export text')
-  const dialog = page.getByRole('dialog', { name: 'Export roster' })
+  const dialog = page.getByRole('dialog', { name: 'Export list' })
   const text = await dialog.locator('pre').innerText()
   await dialog.getByRole('button', { name: 'Close' }).click()
   return text.replace(/^.*Exported with.*$/m, '')
@@ -72,13 +72,13 @@ test('an exchange code carries a roster to another account and to a visitor', as
   const recipient = await (await browser.newContext(phone)).newPage()
   await signUp(recipient, 'Exchange recipient')
   await recipient.goto(`/rosters#code=${code}`)
-  const review = recipient.getByRole('dialog', { name: 'Import roster', exact: true })
+  const review = recipient.getByRole('dialog', { name: 'Import list', exact: true })
   await expect(review).toContainText('2 of 2 matched entries')
   await expect(review).toContainText('preparation and reminders are not included')
   await expect(review.getByRole('alert')).toHaveCount(0)
   expect(new URL(recipient.url()).hash).toBe('')
   await shot(review, test.info().outputPath('roster-exchange-review-phone.png'))
-  await review.getByRole('button', { name: 'Import roster', exact: true }).click()
+  await review.getByRole('button', { name: 'Import list', exact: true }).click()
   await recipient.waitForURL(/\/rosters\/[^/]+$/)
   await recipient.reload()
   const received = await exportedText(recipient)
@@ -87,11 +87,11 @@ test('an exchange code carries a roster to another account and to a visitor', as
   // Importing the same code again makes a second, separate copy.
   await recipient.setViewportSize(desktopContext.viewport)
   const again = await openImport(recipient)
-  await again.getByLabel('Roster text').fill(code)
-  await again.getByRole('button', { name: 'Import pasted roster', exact: true }).click()
+  await again.getByLabel('List text').fill(code)
+  await again.getByRole('button', { name: 'Import pasted list', exact: true }).click()
   await expect(again).toContainText('2 of 2 matched entries')
   await shot(again, test.info().outputPath('roster-exchange-review-desktop.png'))
-  await again.getByRole('button', { name: 'Import roster', exact: true }).click()
+  await again.getByRole('button', { name: 'Import list', exact: true }).click()
   await recipient.waitForURL(/\/rosters\/[^/]+$/)
   await recipient.goto('/rosters')
   await expect(recipient.locator(`[data-roster="${name}"]`)).toHaveCount(2)
@@ -106,7 +106,7 @@ test('an exchange code carries a roster to another account and to a visitor', as
   // A visitor opens the same link and gets a local draft, no account involved.
   const visitor = await (await browser.newContext(phone)).newPage()
   await visitor.goto(`/rosters#code=${code}`)
-  const draft = visitor.getByRole('dialog', { name: 'Import roster', exact: true })
+  const draft = visitor.getByRole('dialog', { name: 'Import list', exact: true })
   await expect(draft).toContainText('2 of 2 matched entries')
   await draft.getByRole('button', { name: 'Open imported draft', exact: true }).click()
   await expect(visitor.locator('[data-unit="Immortals"]')).toHaveCount(1)
@@ -124,7 +124,7 @@ test('an exchange code carries a roster to another account and to a visitor', as
   await visitor.goto(`/rosters#code=${code}`)
   await expect(draft).toContainText('2 of 2 matched entries')
   await draft.getByRole('button', { name: 'Open imported draft', exact: true }).click()
-  const prompt = visitor.getByRole('dialog', { name: 'Keep more than one roster' })
+  const prompt = visitor.getByRole('dialog', { name: 'Keep more than one list' })
   await expect(prompt).toBeVisible()
   await shot(prompt, test.info().outputPath('roster-exchange-guest-draft-notice-phone.png'))
   expect(await guestDraft(visitor)).toBe(kept)
@@ -157,8 +157,8 @@ test('damaged, unsupported and unavailable exchange codes explain why they canno
     if (width === 'desktop') await signUp(page, 'Exchange damaged')
     const dialog = await openImport(page)
     for (const { code, reason } of cases) {
-      await dialog.getByLabel('Roster text').fill(code)
-      await dialog.getByRole('button', { name: 'Import pasted roster', exact: true }).click()
+      await dialog.getByLabel('List text').fill(code)
+      await dialog.getByRole('button', { name: 'Import pasted list', exact: true }).click()
       await expect(dialog.getByRole('alert')).toContainText(reason)
     }
     await shot(dialog, test.info().outputPath(`roster-exchange-unavailable-${width}.png`))
@@ -186,7 +186,7 @@ Exported with New Recruit v36.50, Data Version: v27
 `
   const name = 'Ann & Bo + 100% - GT #2 - Listhammer'
   await page.goto(`/import?d=${deflateSync(list).toString('base64url')}&src=listhammer&listname=${encodeURIComponent(name)}`)
-  const review = page.getByRole('dialog', { name: 'Import roster', exact: true })
+  const review = page.getByRole('dialog', { name: 'Import list', exact: true })
   await expect(review.getByRole('heading', { name })).toBeVisible()
   await expect(review).toContainText('Sent from Listhammer')
   await expect(review).toContainText('1 of 1 matched entry')
@@ -209,10 +209,10 @@ test('a roster too long for a QR code still offers its exchange code', async ({ 
   ).split('|')
   const text = `Long army (999 Points)\n\nNecrons\nAwakened Dynasty\nForce Disposition: Take and Hold\nStrike Force (2,000 Points)\n\nOTHER DATASHEETS\n\n${units.map((unit) => `${unit} (10 Points)\n\n`).join('')}Exported with Praetorium.gg vtest\n`
   const dialog = await openImport(page)
-  await dialog.getByLabel('Roster text').fill(text)
-  await dialog.getByRole('button', { name: 'Import pasted roster', exact: true }).click()
+  await dialog.getByLabel('List text').fill(text)
+  await dialog.getByRole('button', { name: 'Import pasted list', exact: true }).click()
   await expect(dialog).toContainText(`${units.length} of ${units.length} matched entries`)
-  await dialog.getByRole('button', { name: /^Import (roster|anyway)$/ }).click()
+  await dialog.getByRole('button', { name: /^Import (list|anyway)$/ }).click()
   await page.waitForURL(/\/rosters\/[^/]+$/)
 
   await page.goto('/rosters')
@@ -225,7 +225,7 @@ test('a roster too long for a QR code still offers its exchange code', async ({ 
   await exchange.getByRole('button', { name: 'Close' }).click()
 
   const again = await openImport(page)
-  await again.getByLabel('Roster text').fill(code)
-  await again.getByRole('button', { name: 'Import pasted roster', exact: true }).click()
+  await again.getByLabel('List text').fill(code)
+  await again.getByRole('button', { name: 'Import pasted list', exact: true }).click()
   await expect(again).toContainText(`${units.length} of ${units.length} matched entries`)
 })

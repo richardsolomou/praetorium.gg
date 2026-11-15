@@ -188,7 +188,7 @@ function confirmationCopy({ kind, person }: Confirming) {
     case 'remove':
       return {
         title: `Remove ${person.name}?`,
-        description: "You stop seeing each other's friends-only battles, and rosters you lent each other go back to their owners.",
+        description: "You stop seeing each other's friends-only battles, and lists you lent each other go back to their owners.",
         cancel: 'Keep friend',
         confirm: 'Remove friend',
       }

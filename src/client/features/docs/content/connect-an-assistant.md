@@ -1,10 +1,10 @@
-Connect Praetorium to Claude, ChatGPT, Gemini or another AI assistant and you can ask it about units, points, detachments and missions, plan a list, and run the combat simulator. It uses the same data as the site and links back to the page it read. You don't need an account for any of that. With your permission, it can also read and change your saved rosters and battles.
+Connect Praetorium to Claude, ChatGPT, Gemini or another AI assistant and you can ask it about units, points, detachments and missions, plan a list, and run the combat simulator. It uses the same data as the site and links back to the page it read. You don't need an account for any of that. With your permission, it can also read and change your saved lists and battles.
 
 ## Turn it on in your assistant
 
 ### Claude
 
-Open [Praetorium in Claude's connector directory](https://claude.ai/directory/praetorium) and connect it. Claude asks you to sign in only when it needs your rosters or battles.
+Open [Praetorium in Claude's connector directory](https://claude.ai/directory/praetorium) and connect it. Claude asks you to sign in only when it needs your lists or battles.
 
 ### ChatGPT
 
@@ -29,11 +29,11 @@ Check that your assistant lists Praetorium's tools, and turn the connector on fo
 
 The answer should come with a link to the Immortals datasheet. Open it before you rely on the number, especially for anything you'll take to a game or a tournament.
 
-## Using your rosters and battles
+## Using your lists and battles
 
-The first time the assistant needs your rosters or battles, it opens this page on Praetorium so you can choose what it may do. [Let an assistant use your account](/docs/assistant-account) explains each permission and how to revoke them.
+The first time the assistant needs your lists or battles, it opens this page on Praetorium so you can choose what it may do. [Let an assistant use your account](/docs/assistant-account) explains each permission and how to revoke them.
 
-![The Connect to Praetorium page, where Claude asks to read and edit rosters and battles, with Allow access and Cancel.](screenshot:assistant-consent 'Connect to Praetorium, the first time an assistant needs your account')
+![The Connect to Praetorium page, where Claude asks to read and edit lists and battles, with Allow access and Cancel.](screenshot:assistant-consent 'Connect to Praetorium, the first time an assistant needs your account')
 
 ## Why answers link instead of quoting rules
 

@@ -1,4 +1,4 @@
-The review shows how your list came across before anything is saved. If everything matched, choose **Import roster**, or **Open imported draft** if you're not signed in.
+The review shows how your list came across before anything is saved. If everything matched, choose **Import list**, or **Open imported draft** if you're not signed in.
 
 ## Reading the review
 

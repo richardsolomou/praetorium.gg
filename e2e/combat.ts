@@ -85,7 +85,7 @@ export async function chooseRosterUnit(page: Page, side: string, roster: string 
 
 /** Opens a side's unit picker at the list of rosters. */
 export async function openRosterList(page: Page, side: string) {
-  const fromRoster = page.getByRole('button', { name: /^From a roster/ })
+  const fromRoster = page.getByRole('button', { name: /^From a list/ })
   await retryUntilVisible(fromRoster, () => page.getByRole('combobox', { name: `${side} unit`, exact: true }).click())
   await fromRoster.click()
 }

@@ -8,7 +8,7 @@ export const Route = createFileRoute('/tournaments/')({
   head: ({ match }) =>
     pageHead(match.context.origin, {
       title: 'Tournaments',
-      description: 'Collect sealed rosters for a tournament, then reveal every accepted list together.',
+      description: 'Collect sealed lists for a tournament, then reveal every accepted list together.',
       path: '/tournaments',
     }),
   component: SealedEventIndex,

@@ -1,8 +1,8 @@
-## From a roster
+## From a list
 
-Choose **Simulate combat** on a selected unit in the roster builder. The unit keeps its detachment, enhancements and attachments. Nothing you change there is saved to the list, but the pairing joins your **Recent simulations**, so you can reopen it from the simulator or home page.
+Choose **Simulate combat** on a selected unit in the list builder. The unit keeps its detachment, enhancements and attachments. Nothing you change there is saved to the list, but the pairing joins your **Recent simulations**, so you can reopen it from the simulator or home page.
 
-On someone else's roster, it opens the main simulator with their unit defending, so you can attack it with one of your own.
+On someone else's list, it opens the main simulator with their unit defending, so you can attack it with one of your own.
 
 ## From a battle
 
@@ -16,7 +16,7 @@ The pairing joins your **Recent simulations** too, but it reopens at full streng
 
 Once armies are revealed and you've submitted your own list, **Simulate** beside another entrant's army compares the two lists. In a doubles or 2v1 event, it sits on the other pair or side and compares your side's lists against theirs.
 
-## Without a roster
+## Without a list
 
 Open [Combat simulator](/simulator) and choose **First matchup guide**. This also works without an account.
 

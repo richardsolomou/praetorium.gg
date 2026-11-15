@@ -14,7 +14,7 @@ export function RosterRulesNotice({
   if (!current && edition?.status !== 'retired') return null
   return (
     <p data-roster-rules-notice className="mt-1 text-xs text-discarded">
-      This roster uses {edition?.name ?? 'an earlier rules version'}.{' '}
+      This list uses {edition?.name ?? 'an earlier rules version'}.{' '}
       {current
         ? `${current} is the current rules version. Convert rules version to review points and legality changes.`
         : 'Convert rules version to check current points and legality.'}{' '}

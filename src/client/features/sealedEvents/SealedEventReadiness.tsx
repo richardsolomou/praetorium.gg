@@ -73,9 +73,9 @@ export function SealedEventReadiness({
       ? 'Everyone in has sealed'
       : 'Everyone has sealed'
     : accepted.length
-      ? `${sealed.length} of ${accepted.length} rosters sealed`
+      ? `${sealed.length} of ${accepted.length} lists sealed`
       : 'Nobody is in yet'
-  const revealNow = mayReveal ? 'You can open the rosters now' : 'Anyone playing can open the rosters now'
+  const revealNow = mayReveal ? 'You can open the lists now' : 'Anyone playing can open the lists now'
   const readyLine = openPlaces > 0 ? `${openPlaces} of ${playerLimit} places are still open. ${revealNow}.` : `${revealNow}.`
   const detail = [
     waiting.length ? `Waiting on ${namesPhrase(waiting.map(label))}.` : null,
@@ -114,7 +114,7 @@ export function SealedEventReadiness({
         <h2 id="sealed-event-readiness-heading" className="text-xl leading-tight font-bold uppercase">
           {title}
         </h2>
-        <p className="mt-1.5 text-sm text-dim">{detail || 'Rosters stay hidden, even from the organizer.'}</p>
+        <p className="mt-1.5 text-sm text-dim">{detail || 'Lists stay hidden, even from the organizer.'}</p>
       </div>
       {accepted.length ? (
         <div>
@@ -203,16 +203,16 @@ export function RevealRostersDialog({
   return (
     <ConfirmDialog
       open={open}
-      title="Reveal every roster?"
+      title="Reveal every list?"
       description={
         <>
-          {accepted.length === 1 ? 'The sealed roster opens' : `All ${accepted.length} sealed rosters open`} for everyone who can open this
+          {accepted.length === 1 ? 'The sealed list opens' : `All ${accepted.length} sealed lists open`} for everyone who can open this
           page, and nobody else can join. {pending ? `${countLabel(pending, 'request')} still waiting will be turned down. ` : ''}
           You cannot undo this.
         </>
       }
       cancel="Keep them sealed"
-      confirm="Reveal all rosters"
+      confirm="Reveal all lists"
       pendingLabel="Revealing…"
       pending={reveal.isPending}
       error={reveal.error}
@@ -222,7 +222,7 @@ export function RevealRostersDialog({
       }}
       onConfirm={() => reveal.mutate()}
     >
-      {reveal.isPending ? <output className="sr-only">Revealing rosters…</output> : null}
+      {reveal.isPending ? <output className="sr-only">Revealing lists…</output> : null}
     </ConfirmDialog>
   )
 }

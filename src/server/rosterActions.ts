@@ -20,7 +20,7 @@ export const rosterActions = {
   },
   async copy(owner: string, data: z.infer<typeof copyRosterSchema>) {
     const copied = await copySavedRoster(owner, data.id, data.variant, data.setup)
-    if (!copied) throw new Response('roster not found', { status: 404 })
+    if (!copied) throw new Response('list not found', { status: 404 })
     await captureRosterCreated(app(), owner, copied.data, { variant: data.variant })
     return { id: copied.id, visibility: copied.data.visibility }
   },

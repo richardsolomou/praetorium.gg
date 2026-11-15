@@ -21,7 +21,7 @@ export function SearchPage({ query }: { query: string }) {
 
   return (
     <main className="w-full">
-      <PageHeader title="Search" description="Find factions, datasheets, rules, rosters and battles." />
+      <PageHeader title="Search" description="Find factions, datasheets, rules, lists and battles." />
       <PageContent>
         <search>
           <Input

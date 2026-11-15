@@ -34,8 +34,8 @@ Exported with BattleBase, Data Version: v20260812`
 
 test('a guest reviews, imports and saves their first list', async ({ page }, testInfo) => {
   const dialog = await openImport(page)
-  await dialog.getByLabel('Roster text').fill(rosterText)
-  await dialog.getByRole('button', { name: 'Import pasted roster', exact: true }).click()
+  await dialog.getByLabel('List text').fill(rosterText)
+  await dialog.getByRole('button', { name: 'Import pasted list', exact: true }).click()
   await expect(dialog).toContainText('1 of 1 matched entry')
   for (const width of [1440, 1280, 390]) {
     await page.setViewportSize({ width, height: 900 })
@@ -47,7 +47,7 @@ test('a guest reviews, imports and saves their first list', async ({ page }, tes
   await expect.poll(() => guestDraft(page)).toContain('"picks":[{')
   await page.reload()
   await expect(page.locator('[data-unit="Immortals"]')).toHaveCount(1)
-  const save = page.getByRole('button', { name: 'Save roster', exact: true })
+  const save = page.getByRole('button', { name: 'Save list', exact: true })
   for (const width of [1440, 1100, 390]) {
     await page.setViewportSize({ width, height: 900 })
     if (width < ROSTER_WIDE) {
@@ -71,20 +71,20 @@ test('a guest reviews, imports and saves their first list', async ({ page }, tes
 
 test('an import names a missing unit and lets the guest correct the text before opening a draft', async ({ page }) => {
   const dialog = await openImport(page)
-  await dialog.getByLabel('Roster text').fill(rosterText.replace('Immortals (65 Points)', 'Imaginary unit (65 Points)'))
-  await dialog.getByRole('button', { name: 'Import pasted roster', exact: true }).click()
+  await dialog.getByLabel('List text').fill(rosterText.replace('Immortals (65 Points)', 'Imaginary unit (65 Points)'))
+  await dialog.getByRole('button', { name: 'Import pasted list', exact: true }).click()
   await expect(dialog.getByRole('alert')).toContainText('Imaginary unit')
   await expect.poll(() => guestDraft(page)).toBe('')
   await dialog.getByRole('button', { name: 'Edit pasted text', exact: true }).click()
-  await dialog.getByLabel('Roster text').fill(rosterText)
-  await dialog.getByRole('button', { name: 'Import pasted roster', exact: true }).click()
+  await dialog.getByLabel('List text').fill(rosterText)
+  await dialog.getByRole('button', { name: 'Import pasted list', exact: true }).click()
   await dialog.getByRole('button', { name: 'Open imported draft', exact: true }).click()
   await expect(page.locator('[data-unit="Immortals"]')).toHaveCount(1)
 })
 
 test('the first roster names each missing setup choice', async ({ page }, testInfo) => {
   const setup = await visitorSetup(page)
-  const start = setup.getByRole('button', { name: 'Create roster', exact: true })
+  const start = setup.getByRole('button', { name: 'Create list', exact: true })
   await expect(start).toHaveAccessibleDescription('Choose your faction.')
   await chooseFaction(setup, 'Necrons')
   await expect(start).toHaveAccessibleDescription('Choose a detachment.')
@@ -208,13 +208,13 @@ test('a saved long roster prints every card without clipping or editing controls
   const dialog = await openImport(page)
   const entry = rosterText.slice(rosterText.indexOf('Immortals ('), rosterText.indexOf('Exported with'))
   const longRoster = rosterText.replace(entry, entry.repeat(12))
-  await dialog.getByLabel('Roster text').fill(longRoster)
-  await dialog.getByRole('button', { name: 'Import pasted roster', exact: true }).click()
-  await dialog.getByRole('button', { name: 'Import roster', exact: true }).click()
+  await dialog.getByLabel('List text').fill(longRoster)
+  await dialog.getByRole('button', { name: 'Import pasted list', exact: true }).click()
+  await dialog.getByRole('button', { name: 'Import list', exact: true }).click()
   await expect(page.locator('[data-unit="Immortals"]')).toHaveCount(12)
   await page.emulateMedia({ media: 'print' })
   const units = page.locator('[data-slot="roster-units"]')
   await expect.poll(() => units.evaluate((element) => element.scrollHeight - element.clientHeight)).toBe(0)
-  await expect(page.getByRole('button', { name: 'Roster actions', exact: true })).toBeHidden()
+  await expect(page.getByRole('button', { name: 'List actions', exact: true })).toBeHidden()
   await page.screenshot({ path: testInfo.outputPath('printed-roster.png'), fullPage: true })
 })

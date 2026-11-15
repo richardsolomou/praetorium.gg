@@ -126,9 +126,9 @@ export function unitLimitMessage(
   const unlockedBy = unlocks.get(entryId)
   if (limit === 0)
     return unlockedBy
-      ? `Add a ${unlockedBy} unit to the roster first.`
+      ? `Add a ${unlockedBy} unit to the list first.`
       : 'No copies available with the current detachments and prerequisite units.'
-  const reached = `Limit reached: ${held} of ${limit} permitted copies in the roster.`
+  const reached = `Limit reached: ${held} of ${limit} permitted copies in the list.`
   return unlockedBy ? `${reached} More ${unlockedBy} units allow more.` : reached
 }
 
@@ -153,7 +153,7 @@ export function requestedUnit(
   const message = limits.has(entryId) ? unitLimitMessage(entryId, held, limits, unlocks) : null
   return message
     ? { kind: 'refused', reason: 'limit', message }
-    : { kind: 'refused', reason: 'not_offered', message: 'This roster’s army does not include that unit.' }
+    : { kind: 'refused', reason: 'not_offered', message: 'This list’s army does not include that unit.' }
 }
 
 /**

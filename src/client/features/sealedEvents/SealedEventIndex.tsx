@@ -148,6 +148,6 @@ function ownEntryStatus(entry: { status: 'pending' | 'accepted' | 'rejected'; su
   if (entry.status === 'pending') return { label: 'Waiting for approval', tint: 'text-dim' }
   if (entry.status === 'rejected') return { label: 'Not in this tournament', tint: 'text-faint' }
   if (entry.submitted)
-    return revealed ? { label: 'Rosters revealed', tint: 'text-achieved' } : { label: 'Your roster is sealed', tint: 'text-achieved' }
-  return revealed ? { label: 'No roster', tint: 'text-faint' } : { label: 'Seal your roster', tint: 'text-discarded' }
+    return revealed ? { label: 'Lists revealed', tint: 'text-achieved' } : { label: 'Your list is sealed', tint: 'text-achieved' }
+  return revealed ? { label: 'No list', tint: 'text-faint' } : { label: 'Seal your list', tint: 'text-discarded' }
 }

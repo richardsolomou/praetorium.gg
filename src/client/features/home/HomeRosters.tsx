@@ -27,7 +27,7 @@ export type HomeRoster = {
 export function HomeRosters({ rosters, count, changed }: { rosters: readonly HomeRoster[]; count: number; changed: number }) {
   return (
     <section data-home-rosters>
-      <SectionHeading title="Your rosters" count={count} />
+      <SectionHeading title="Your lists" count={count} />
       {rosters.length ? (
         <ul className="runner gap-2">
           {rosters.map(({ roster, faction, points, label, problem }) => (
@@ -59,7 +59,7 @@ export function HomeRosters({ rosters, count, changed }: { rosters: readonly Hom
         </p>
       )}
       <p className="mt-3 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-        <ShelfLink to="/rosters">All my rosters</ShelfLink>
+        <ShelfLink to="/rosters">All my lists</ShelfLink>
         {changed ? (
           <Link to="/rosters" search={{ updates: 'changed' }} className="text-xs font-semibold text-discarded hover:text-bone">
             {countLabel(changed, 'list')} changed by a data update

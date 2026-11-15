@@ -71,7 +71,7 @@ it('refuses a reviewed save when durable account storage is unavailable before d
   stopLocalRuntime()
   const result = await saveRoster({ data: { ...original, limit: 1000 } }, original).catch((error: Error) => error.message)
   expect({ result, writes: mocks.directSave.mock.calls.length }).toEqual({
-    result: 'Saved changes are not ready on this device. Reload the roster before reviewing it again.',
+    result: 'Saved changes are not ready on this device. Reload the list before reviewing it again.',
     writes: 0,
   })
 })

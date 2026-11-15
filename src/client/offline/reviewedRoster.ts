@@ -19,5 +19,5 @@ function rosterSaveKey(value: unknown) {
 export function requireReviewedRoster(current: unknown, expected: RosterInput) {
   const baseline = rosterSaveKey(expected)
   if (baseline === null || rosterSaveKey(current) !== baseline)
-    throw new Error('This roster changed after your review. Go back, reload it and review the changes again.')
+    throw new Error('This list changed after your review. Go back, reload it and review the changes again.')
 }

@@ -24,7 +24,7 @@ Finish signing in on the same browser the request opened in, then let it return 
 
 You, or something else, revoked the app under **Connected apps**. Disconnect and reconnect Praetorium in your assistant to sign in again.
 
-### It can see my rosters but can't change them
+### It can see my lists but can't change them
 
 The connection only has read access. Revoke it, then reconnect and allow the change access when the assistant asks for it.
 
@@ -47,5 +47,5 @@ The public server allows about 120 requests a minute from one internet address. 
 - Praetorium doesn't check the assistant's reasoning. Anything it concludes from the data is the assistant's own.
 - There's no rules wording. You'll need the linked source for exact text.
 - The simulator tool covers one unit, with up to two attached units, against one unit at full strength, with default loadouts. It uses a detachment's rules, an enhancement or a nearby unit's aura only if you name it. Its simulator link leaves nearby units out.
-- The assistant can't edit an unsaved roster in your browser, delete rosters, or change tournament entries. It only sees your own rosters and battles you're seated in.
-- An assistant's own provider sees what Praetorium returns to it, including your roster and battle details when you've connected your account.
+- The assistant can't edit an unsaved list in your browser, delete lists, or change tournament entries. It only sees your own lists and battles you're seated in.
+- An assistant's own provider sees what Praetorium returns to it, including your list and battle details when you've connected your account.

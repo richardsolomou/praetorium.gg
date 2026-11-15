@@ -13,7 +13,7 @@ test('build an army screenshots', async ({ page }) => {
   await dispositions.getByRole('button').first().click()
   await capture('build-an-army-setup', setup, dispositions)
 
-  await setup.getByRole('button', { name: 'Create roster' }).click()
+  await setup.getByRole('button', { name: 'Create list' }).click()
   await page.waitForURL(/\/rosters\/[^/]+$/)
   await renameRoster(page, 'Gladius strike force')
 
@@ -46,11 +46,11 @@ test('build an army screenshots', async ({ page }) => {
   await page.keyboard.press('Escape')
 
   await page.setViewportSize({ width: 760, height: 620 })
-  await loadout.getByRole('button', { name: 'Back to roster', exact: true }).click()
+  await loadout.getByRole('button', { name: 'Back to list', exact: true }).click()
   await expect(loadout).toBeHidden()
   const footer = page.locator('footer').filter({ hasText: 'must be attached to a Bodyguard unit' })
   await capture('build-an-army-validation', footer, footer.locator('ul'))
 
-  await page.getByRole('button', { name: 'Roster actions', exact: true }).click()
-  await capture('build-an-army-roster-menu', page.locator('main'), page.getByRole('menuitem', { name: 'Edit roster setup', exact: true }))
+  await page.getByRole('button', { name: 'List actions', exact: true }).click()
+  await capture('build-an-army-roster-menu', page.locator('main'), page.getByRole('menuitem', { name: 'Edit list setup', exact: true }))
 })

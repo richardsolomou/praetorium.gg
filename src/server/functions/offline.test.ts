@@ -223,7 +223,7 @@ it('retries an accepted captured roster after its source was deleted without rec
 it('refuses a new captured roster attachment when the ownership evidence is missing', async () => {
   const result = await invoke({ data: input() })
   expect({ result, writes: mocks.submitWithWorkspace.mock.calls.length }).toEqual({
-    result: { outcome: 'refused', message: 'You do not own the captured roster.' },
+    result: { outcome: 'refused', message: 'You do not own the captured list.' },
     writes: 0,
   })
 })
@@ -322,7 +322,7 @@ it('rejects an over-points captured roster even when its submitted snapshot clai
     id: 'roster',
   }
   expect({ result: await invoke({ data: { ...data, capturedRoster } }), writes: mocks.submitWithWorkspace.mock.calls.length }).toEqual({
-    result: { outcome: 'refused', message: 'roster has 1001 points, over its 1000-point limit' },
+    result: { outcome: 'refused', message: 'list has 1001 points, over its 1000-point limit' },
     writes: 0,
   })
 })

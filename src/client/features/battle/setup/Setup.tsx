@@ -89,7 +89,7 @@ function matchupName(table: Side[], nameDisposition: (id: string | null | undefi
 
 /** How often setup asks whether someone has joined an open place. */
 const JOIN_POLL_MS = 3_000
-const BUDGET_MISMATCH = 'Choose rosters with the same points budget for each side.'
+const BUDGET_MISMATCH = 'Choose lists with the same points budget for each side.'
 /** The steps a manually tracked battle does not play. */
 const MANUAL_SKIPS = new Set<SectionId>(['mission', 'battlefield', 'defender', 'secondaries', 'reserves', 'deploy', 'pre-battle'])
 /** Steps that record nothing the battle needs before it can begin. */
@@ -197,10 +197,10 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
             : format.problem === 'unsupported'
               ? view.settings.sizeFromSides
                 ? `A side’s lists add up past the biggest battle size, ${pointsLabel(GAME_SIZES.at(-1)!.limit)}. Choose smaller lists.`
-                : 'These roster formats do not make a supported battle size. Choose another format; allies split the points evenly.'
+                : 'These list formats do not make a supported battle size. Choose another format; allies split the points evenly.'
               : format.problem === 'budget-mismatch'
                 ? BUDGET_MISMATCH
-                : 'Choose matching roster formats for each side.'
+                : 'Choose matching list formats for each side.'
           : 'Choose a battle size to continue.'
 
   /**

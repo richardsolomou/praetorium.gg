@@ -260,7 +260,7 @@ test('profile defaults apply to rosters while battles infer their format', async
   await chooseRosterDefault(page, 'Unlisted')
   await choosePlayerDefault(page, 'Battle size', 'Incursion')
   await page.reload()
-  const visibility = page.getByRole('group', { name: 'Roster visibility' })
+  const visibility = page.getByRole('group', { name: 'List visibility' })
   const size = page.getByRole('group', { name: 'Battle size' })
   await expect(visibility.getByRole('button', { name: /^Unlisted/ })).toHaveAttribute('aria-pressed', 'true')
   await expect(size.getByRole('button', { name: /^Incursion/ })).toHaveAttribute('aria-pressed', 'true')
@@ -459,11 +459,11 @@ test('a list saved under an account is there on another device', async ({ browse
 
   await chooseLibraryAction(elsewhere, 'Kept list', 'Delete')
   await expect(elsewhere.getByRole('alertdialog', { name: 'Delete Kept list?' })).toBeVisible()
-  await elsewhere.getByRole('button', { name: 'Keep roster' }).click()
+  await elsewhere.getByRole('button', { name: 'Keep list' }).click()
   await expect(elsewhere.getByRole('link', { name: /Kept list/ })).toBeVisible()
 
   await chooseLibraryAction(elsewhere, 'Kept list', 'Delete')
-  await elsewhere.getByRole('button', { name: 'Delete roster' }).click()
+  await elsewhere.getByRole('button', { name: 'Delete list' }).click()
   await expect(elsewhere.getByRole('link', { name: /Kept list/ })).toBeHidden()
 })
 

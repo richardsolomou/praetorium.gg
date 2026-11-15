@@ -92,7 +92,7 @@ export function StartRoster({
           setOpen(true)
         }}
       >
-        <Plus /> {closing ? 'Build a list' : 'Start a roster'}
+        <Plus /> {closing ? 'Build a list' : 'Start a list'}
       </Button>
       <StartRosterDialog
         open={open}
@@ -164,22 +164,20 @@ export function AddToRoster({ faction, entryId, name }: { faction: RosterSetupFa
   return (
     <>
       <Button size="sm" onClick={open}>
-        <Plus /> Add to roster
+        <Plus /> Add to list
       </Button>
       <Dialog open={choosing} onOpenChange={(next) => !next && setStep('closed')}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Add {name} to a roster</DialogTitle>
+            <DialogTitle>Add {name} to a list</DialogTitle>
             <DialogDescription>
-              {canStart
-                ? `Choose a roster that can take it, or start a new ${faction.displayName} roster.`
-                : 'Choose a roster that can take it.'}
+              {canStart ? `Choose a list that can take it, or start a new ${faction.displayName} list.` : 'Choose a list that can take it.'}
             </DialogDescription>
           </DialogHeader>
           <DialogBody className="gap-1" aria-busy={loading}>
             {failed ? (
               <Problem className="text-xs">
-                Your rosters could not be loaded.{' '}
+                Your lists could not be loaded.{' '}
                 <Button
                   variant="link"
                   size="xs"
@@ -200,7 +198,7 @@ export function AddToRoster({ faction, entryId, name }: { faction: RosterSetupFa
                   <RosterChoice
                     id={guestDraft.id}
                     entryId={entryId}
-                    title={guestDraft.draft.name || 'Your unsaved roster'}
+                    title={guestDraft.draft.name || 'Your unsaved list'}
                     detail={`${factionName(guestDraft.draft.catalogueId)?.displayName ?? ''} · ${rulesVersion(guestDraft.draft.catalogueId)} · ${pointsBudgetOf(guestDraft.draft)} pts · not saved yet`}
                   />
                 ) : null}
@@ -218,7 +216,7 @@ export function AddToRoster({ faction, entryId, name }: { faction: RosterSetupFa
                 })}
                 {!rosters.length && !draftTakesIt ? (
                   <p className="text-sm text-dim">
-                    {me ? 'None of your rosters can take this unit yet.' : 'Your unsaved roster cannot take this unit.'}
+                    {me ? 'None of your lists can take this unit yet.' : 'Your unsaved list cannot take this unit.'}
                   </p>
                 ) : null}
               </>
@@ -227,7 +225,7 @@ export function AddToRoster({ faction, entryId, name }: { faction: RosterSetupFa
           {canStart ? (
             <DialogFooter>
               <Button onClick={startNew}>
-                <Plus /> New {faction.displayName} roster
+                <Plus /> New {faction.displayName} list
               </Button>
             </DialogFooter>
           ) : null}

@@ -3,12 +3,12 @@ import { isRosterNotUsable, ROSTER_NOT_USABLE } from './rosterUse'
 
 describe('isRosterNotUsable', () => {
   it('recognises the refusal once it has crossed the wire', () => {
-    expect(isRosterNotUsable(new Error(`${ROSTER_NOT_USABLE}: roster has 2005 points, over its 2000-point limit`))).toBe(true)
+    expect(isRosterNotUsable(new Error(`${ROSTER_NOT_USABLE}: list has 2005 points, over its 2000-point limit`))).toBe(true)
     expect(isRosterNotUsable(new Error(`${ROSTER_NOT_USABLE}: Pick a disposition.`))).toBe(true)
   })
 
   it('leaves another refusal alone', () => {
-    expect(isRosterNotUsable(new Error('you do not own this roster'))).toBe(false)
+    expect(isRosterNotUsable(new Error('you do not own this list'))).toBe(false)
     expect(isRosterNotUsable(new Error('army data is not available'))).toBe(false)
   })
 

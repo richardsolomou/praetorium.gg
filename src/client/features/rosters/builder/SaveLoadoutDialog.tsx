@@ -55,8 +55,8 @@ export function SaveLoadoutDialog({ picks, units, index, whole, catalogueId, onC
       title={`Save ${noun}`}
       description={
         whole
-          ? 'Keeps these units with their model counts, wargear and custom names, so you can add them already attached to any roster of this army. Enhancements, Warlord and notes stay in this roster.'
-          : 'Keeps this unit’s model count, wargear and custom name so you can add it to any roster of this army. Enhancements, Warlord, notes and attachments stay in this roster.'
+          ? 'Keeps these units with their model counts, wargear and custom names, so you can add them already attached to any list of this army. Enhancements, Warlord and notes stay in this list.'
+          : 'Keeps this unit’s model count, wargear and custom name so you can add it to any list of this army. Enhancements, Warlord, notes and attachments stay in this list.'
       }
       initialName={name}
       submit={`Save ${noun}`}

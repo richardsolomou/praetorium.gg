@@ -329,7 +329,7 @@ export function RosterSetupDialog({
     })
   }
 
-  const title = mode === 'create' ? 'Create roster' : mode === 'convert' ? 'Convert rules version' : 'Edit roster setup'
+  const title = mode === 'create' ? 'Create list' : mode === 'convert' ? 'Convert rules version' : 'Edit list setup'
   const missingId = useId()
   const missing = !draft.catalogueId
     ? 'Choose your faction.'
@@ -351,8 +351,8 @@ export function RosterSetupDialog({
       {mode === 'create'
         ? 'Choose the army and its rules before adding units.'
         : mode === 'convert'
-          ? 'Convert this roster to another rules version. Your units and choices are kept and checked against its rules.'
-          : 'Set the roster identity and the rules that shape its available units.'}
+          ? 'Convert this list to another rules version. Your units and choices are kept and checked against its rules.'
+          : 'Set the list identity and the rules that shape its available units.'}
       {guest ? (
         <>
           {' '}
@@ -473,7 +473,7 @@ export function RosterSetupDialog({
         </div>
         {unavailableDetachmentIds.length ? (
           <Problem className="mt-2 rounded-lg border border-destructive/60 bg-destructive/10 p-3">
-            This roster has {unavailableDetachmentIds.length === 1 ? 'a detachment' : 'detachments'} that this faction no longer offers.
+            This list has {unavailableDetachmentIds.length === 1 ? 'a detachment' : 'detachments'} that this faction no longer offers.
             <Button
               variant="ghost"
               size="xs"
@@ -615,7 +615,7 @@ export function RosterSetupDialog({
       {mode === 'create' ? null : (
         <div>
           <Label className="eyebrow block" htmlFor="setup-name">
-            Roster name
+            List name
           </Label>
           <Input
             id="setup-name"
@@ -665,7 +665,7 @@ export function RosterSetupDialog({
     <>
       {saveError || reviewing.isError || confirming.isError ? (
         <Problem className="mr-auto self-center">
-          Could not save roster: {saveError ?? errorMessage(reviewing.error ?? confirming.error)}
+          Could not save list: {saveError ?? errorMessage(reviewing.error ?? confirming.error)}
         </Problem>
       ) : missing ? (
         <output className="mr-auto self-center text-sm text-discarded">
@@ -715,9 +715,9 @@ export function RosterSetupDialog({
                   ? 'Creating…'
                   : 'Saving…'
                 : mode === 'create'
-                  ? 'Create roster'
+                  ? 'Create list'
                   : mode === 'convert'
-                    ? 'Convert roster'
+                    ? 'Convert list'
                     : reviewSource
                       ? 'Review changes'
                       : 'Save changes'}
@@ -750,7 +750,7 @@ export function RosterSetupDialog({
       <Dialog open={open} onOpenChange={(next) => !confirming.isPending && onOpenChange(next)}>
         <DialogContent size="md">
           <DialogHeader>
-            <DialogTitle className="text-2xl">{review ? 'Review roster changes' : title}</DialogTitle>
+            <DialogTitle className="text-2xl">{review ? 'Review list changes' : title}</DialogTitle>
             <DialogDescription>{review ? 'Check the changes before saving.' : description}</DialogDescription>
           </DialogHeader>
           <DialogBody>
@@ -762,7 +762,7 @@ export function RosterSetupDialog({
                     <span>
                       <span className="block text-sm font-semibold">Keep the original</span>
                       <span className="block text-xs text-dim">
-                        Leave this roster on its current rules and save the converted roster as a variant.
+                        Leave this list on its current rules and save the converted list as a variant.
                       </span>
                     </span>
                     <Switch id={keepOriginalId} checked={keepOriginal} disabled={confirming.isPending} onCheckedChange={setKeepOriginal} />

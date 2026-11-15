@@ -57,7 +57,7 @@ function explain(result: SubmitResult, setup: boolean, command: SubmittedCommand
   if (result.outcome === 'appended') return null
   // A roster choice leaves its chooser open, unchanged, so it has to say why.
   if (result.outcome === 'stale' && setup)
-    return isRosterAttachment(command) ? 'The setup changed while that was saving. Choose the roster again.' : null
+    return isRosterAttachment(command) ? 'The setup changed while that was saving. Choose the list again.' : null
   // Shared setup redraws from the winner; live controls remain available to retry.
   if (result.outcome === 'stale') return 'Your opponent got there first. Try that again.'
   return asSentence(result.reason)

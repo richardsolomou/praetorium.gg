@@ -69,14 +69,14 @@ export function useRosterSetupEditor({
     mutationFn: async (review: RosterSetupReview) => {
       requireReviewedRoster(draft, review.source)
       if (guest) {
-        if (!guest.onReviewedChange(review.candidate, review.source)) throw new Error('This browser could not keep the reviewed roster.')
+        if (!guest.onReviewedChange(review.candidate, review.source)) throw new Error('This browser could not keep the reviewed list.')
         return { updatedAt: Date.now() }
       }
       return saveRoster({ data: review.candidate }, review.source, review.ownerId, review.serverSave)
     },
   })
   const applySetup = async (saved: RosterSetup, review?: RosterSetupReview, options?: { keepOriginal: boolean }) => {
-    if (!review) throw new Error('Review the roster before saving changes.')
+    if (!review) throw new Error('Review the list before saving changes.')
     if (options?.keepOriginal) {
       const { id } = await convertAsVariantOf(review)
       setSetupDraft(null)

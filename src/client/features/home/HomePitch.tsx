@@ -31,7 +31,7 @@ const FEATURES = [
   },
   {
     icon: LockKeyhole,
-    title: 'Sealed-roster tournaments',
+    title: 'Sealed-list tournaments',
     text: 'Approve entries, reveal lists together and play with the sealed armies.',
   },
   {

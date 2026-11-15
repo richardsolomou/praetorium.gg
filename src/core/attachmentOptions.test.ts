@@ -96,11 +96,11 @@ describe('roster units that could join a roster unit', () => {
 
 describe('whether an attach menu is offered', () => {
   it('hides a menu whose every choice is unavailable', () => {
-    expect(availableChoices([{ reason: 'Limit reached: 1 of 1 permitted copies in the roster.' }])).toEqual([])
+    expect(availableChoices([{ reason: 'Limit reached: 1 of 1 permitted copies in the list.' }])).toEqual([])
   })
 
   it('keeps unavailable choices beside an available one', () => {
-    const choices = [{ reason: null }, { reason: 'Limit reached: 1 of 1 permitted copies in the roster.' }]
+    const choices = [{ reason: null }, { reason: 'Limit reached: 1 of 1 permitted copies in the list.' }]
     expect(availableChoices(choices)).toBe(choices)
   })
 

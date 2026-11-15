@@ -70,7 +70,7 @@ export function MatchupSidePicker({
     return faction ? <FactionMark faction={faction} size="sm" /> : undefined
   }
   const labelOf = (id: string) =>
-    parseUnitChoice(id)?.name ?? items.flatMap((group) => group.items).find((item) => item.value === id)?.label ?? 'Roster'
+    parseUnitChoice(id)?.name ?? items.flatMap((group) => group.items).find((item) => item.value === id)?.label ?? 'List'
   const rosterUnit = (key: string) => (pickIndex: number, name: string) =>
     onAdd(unitChoiceId({ kind: 'roster', key, pickIndex, name: `${name} · ${labelOf(key)}` }))
   if (value.length < 2 && !value.some((id) => !single(id))) {
@@ -80,7 +80,7 @@ export function MatchupSidePicker({
       ariaLabel,
       loading,
       defaultOpen: level !== null,
-      placeholder: value[0] ? labelOf(value[0]) : 'Choose units or rosters',
+      placeholder: value[0] ? labelOf(value[0]) : 'Choose units or lists',
       onOpenChange: (open: boolean, reason: string) => {
         if (!open && reason !== 'item-press') setLevel(null)
       },
@@ -92,7 +92,7 @@ export function MatchupSidePicker({
     const back = (
       <LevelLink onClick={() => setLevel({ kind: 'list' })}>
         <ChevronLeft className="size-4 text-info" aria-hidden />
-        Units and rosters
+        Units and lists
       </LevelLink>
     )
     const current = parseUnitChoice(value[0] ?? '')
@@ -188,9 +188,9 @@ export function MatchupSidePicker({
         )
       })}
       <SearchableSelect
-        ariaLabel={`${ariaLabel}: add roster`}
-        placeholder="Add roster"
-        searchPlaceholder="Search rosters…"
+        ariaLabel={`${ariaLabel}: add list`}
+        placeholder="Add list"
+        searchPlaceholder="Search lists…"
         value=""
         groups={items.map((group) => ({
           ...group,
@@ -200,7 +200,7 @@ export function MatchupSidePicker({
         align="start"
         trigger={
           <span className="flex items-center gap-1.5">
-            <Plus className="size-4" aria-hidden /> Add roster
+            <Plus className="size-4" aria-hidden /> Add list
           </span>
         }
         className="h-8 w-auto border-dashed px-2.5 text-dim"

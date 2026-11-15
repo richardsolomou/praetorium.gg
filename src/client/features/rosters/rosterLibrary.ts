@@ -51,7 +51,7 @@ export function useRosterActions(origin: string, device?: DeviceRoster | null) {
     const kept = onDevice(roster)
     if (kept) return claimInput(kept.guest)
     const complete = await sharedRoster({ data: { id: roster.id } })
-    if (!complete) throw new Error('That roster could not be loaded.')
+    if (!complete) throw new Error('That list could not be loaded.')
     return complete
   }
 
@@ -129,7 +129,7 @@ export function useRosterActions(origin: string, device?: DeviceRoster | null) {
     mutationFn: async (review: RosterSetupReview) => {
       const kept = onDevice(review.candidate)
       if (!kept) return saveRoster({ data: review.candidate }, review.source, review.ownerId, review.serverSave)
-      if (!keepReviewedDraft(kept.guest, review.candidate, review.source)) throw new Error('This browser could not keep the roster.')
+      if (!keepReviewedDraft(kept.guest, review.candidate, review.source)) throw new Error('This browser could not keep the list.')
       kept.onChanged()
       return null
     },
@@ -163,7 +163,7 @@ export function useRosterActions(origin: string, device?: DeviceRoster | null) {
           await access.mutateAsync({ id: roster.id, visibility: 'private' })
         } catch (rollbackError) {
           posthog.captureException(rollbackError, { operation: 'roster_share_rollback' })
-          problem = `${problem}. The roster could not be made private again: ${errorMessage(rollbackError)}`
+          problem = `${problem}. The list could not be made private again: ${errorMessage(rollbackError)}`
         }
       }
       setShareProblem(problem)
@@ -204,7 +204,7 @@ export type DeviceRoster = { guest: GuestDraft; points: number | null; onChanged
 
 /** A reviewed conversion saved beside its original, which keeps its rules version. */
 export async function convertAsVariantOf(review: RosterSetupReview) {
-  if (!review.source.id) throw new Error('Save this roster before keeping a converted copy.')
+  if (!review.source.id) throw new Error('Save this list before keeping a converted copy.')
   const copied = await copyRoster({ data: { id: review.source.id, variant: true, setup: review.candidate } })
   posthog.capture('roster_duplicated', { unit_count: review.candidate.picks.length, variant: true, converted: true })
   return copied

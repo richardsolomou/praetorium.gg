@@ -191,7 +191,7 @@ export function matchParsedRoster(
   translations: CatalogueTranslations = NO_TRANSLATIONS,
   removed: RemovedNames = NO_REMOVALS,
 ) {
-  if (parsed.units.length > 100) throw new Error('An imported roster can contain at most 100 entries.')
+  if (parsed.units.length > 100) throw new Error('An imported list can contain at most 100 entries.')
   return importTextRoster(parsed, loaded, factionNames, translations, removed)
 }
 

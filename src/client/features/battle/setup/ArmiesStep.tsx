@@ -127,7 +127,7 @@ export function ArmyChooser({ view, sides, attachRoster, pending, problem }: Pro
                 data-slot="button"
                 className={buttonClass({ variant: 'outline', className: 'sm:mr-auto' })}
               >
-                <Pencil /> Edit roster
+                <Pencil /> Edit list
               </Link>
             ) : null}
             <AlertDialogCancel>Choose another</AlertDialogCancel>

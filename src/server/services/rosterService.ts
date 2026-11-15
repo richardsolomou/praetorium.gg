@@ -102,7 +102,7 @@ export class RosterService {
       userId,
       now,
     })
-    if (!saved) throw new Response('you do not own this roster', { status: 403 })
+    if (!saved) throw new Response('you do not own this list', { status: 403 })
     if (saved === 'locked') throw new Response(LOCKED_ROSTER_MESSAGE, { status: 409 })
     return { id, created: saved === 'inserted', updatedAt: await this.storedUpdatedAt(id, userId) }
   }
@@ -206,38 +206,38 @@ export class RosterService {
 
   async setRosterVisibility(userId: string, id: string, visibility: RosterVisibility) {
     if (!(await this.repository.setRosterVisibility(id, userId, visibility, this.clock()))) {
-      throw new Response('you do not own this roster', { status: 403 })
+      throw new Response('you do not own this list', { status: 403 })
     }
   }
 
   async setRosterLocked(userId: string, id: string, locked: boolean) {
     if (!(await this.repository.setRosterLocked(id, userId, locked, this.clock())))
-      throw new Response('you do not own this roster', { status: 403 })
+      throw new Response('you do not own this list', { status: 403 })
     return { updatedAt: await this.storedUpdatedAt(id, userId) }
   }
 
   async setRosterArchived(userId: string, id: string, archived: boolean) {
     if (!(await this.repository.setRosterArchived(id, userId, archived, this.clock())))
-      throw new Response('you do not own this roster', { status: 403 })
+      throw new Response('you do not own this list', { status: 403 })
     return { updatedAt: await this.storedUpdatedAt(id, userId) }
   }
 
   /** Takes a list out of its variant group, so it stands on its own in the library. */
   async splitRosterVariant(userId: string, id: string) {
     if (!(await this.repository.splitRosterVariant(id, userId, this.clock())))
-      throw new Response('you do not own this roster', { status: 403 })
+      throw new Response('you do not own this list', { status: 403 })
     return { updatedAt: await this.storedUpdatedAt(id, userId) }
   }
 
   async changeRosters(userId: string, ids: readonly string[], action: RosterBatchAction) {
     const saved = await this.repository.changeRosters(ids, userId, action, this.clock())
-    if (!saved) throw new Response('you do not own every one of these rosters', { status: 403 })
+    if (!saved) throw new Response('you do not own every one of these lists', { status: 403 })
     return saved
   }
 
   private async storedUpdatedAt(id: string, userId: string) {
     const stored = await this.repository.roster(id)
-    if (!stored || stored.userId !== userId) throw new Response('the saved roster is no longer available', { status: 409 })
+    if (!stored || stored.userId !== userId) throw new Response('the saved list is no longer available', { status: 409 })
     return stored.updatedAt
   }
 
@@ -270,14 +270,14 @@ export class RosterService {
 
   async lendRoster(ownerId: string, rosterId: string, borrowerId: string) {
     const outcome = await this.repository.lendRoster(rosterId, ownerId, borrowerId, this.clock())
-    if (outcome === 'forbidden') throw new Response('you do not own this roster', { status: 403 })
-    if (outcome === 'not-friends') throw new Response('you can only lend a roster to a friend', { status: 409 })
-    if (outcome === 'too-many') throw new Response('this roster is lent to too many players', { status: 409 })
+    if (outcome === 'forbidden') throw new Response('you do not own this list', { status: 403 })
+    if (outcome === 'not-friends') throw new Response('you can only lend a list to a friend', { status: 409 })
+    if (outcome === 'too-many') throw new Response('this list is lent to too many players', { status: 409 })
   }
 
   /** The owner revokes a loan, or the borrower hands it back. */
   async endRosterLoan(userId: string, rosterId: string, borrowerId: string) {
-    if (!(await this.repository.endRosterLoan(rosterId, userId, borrowerId))) throw new Response('this roster is not lent', { status: 404 })
+    if (!(await this.repository.endRosterLoan(rosterId, userId, borrowerId))) throw new Response('this list is not lent', { status: 404 })
   }
 
   async rosterLoans(ownerId: string, rosterId: string) {

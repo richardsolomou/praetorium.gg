@@ -46,10 +46,10 @@ describe('notice messages', () => {
     )
   })
 
-  it('says a battle started from a sealed event is a sealed-roster battle', () => {
+  it('says a battle started from a sealed event is a sealed-list battle', () => {
     expect(
       noticeMessage({ kind: 'battle-created', actorId: 'alice', battleToken: 'abc', sealedEvent: true }, { actor: 'Alice' })?.body,
-    ).toBe('Alice started a sealed-roster battle with you.')
+    ).toBe('Alice started a sealed-list battle with you.')
   })
 
   it('tells a player an organizer added them to seal a list in that event', () => {
@@ -78,7 +78,7 @@ describe('notice messages', () => {
       ),
     ).toEqual({
       title: 'Autumn tournament',
-      body: 'The organizer unsealed your roster. Seal a replacement.',
+      body: 'The organizer unsealed your list. Seal a replacement.',
       path: '/tournaments/tournament?event=event',
     })
   })

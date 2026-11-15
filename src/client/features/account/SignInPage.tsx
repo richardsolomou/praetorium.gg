@@ -120,11 +120,11 @@ export function SignInPage({ error, next, reset, join }: { error?: string; next?
       <AuthAside heading="Your armies and battles, ready when you are." caption="Build. Plan. Play." />
       <section className="grid md:items-center">
         <div className="mr-auto w-full max-w-lg px-5 py-8 sm:p-8 lg:p-12">
-          <h1 className="text-4xl leading-none">{savingRoster ? 'Save your roster' : joining ? 'Join Praetorium' : 'Welcome back'}</h1>
+          <h1 className="text-4xl leading-none">{savingRoster ? 'Save your list' : joining ? 'Join Praetorium' : 'Welcome back'}</h1>
           {savingRoster || joining ? (
             <p className="mt-3 text-sm text-dim">
               {savingRoster
-                ? 'Create a free account or sign in. Your roster will be saved to that account, then you will return to your army. Until saving succeeds, the draft stays on this device.'
+                ? 'Create a free account or sign in. Your list will be saved to that account, then you will return to your army. Until saving succeeds, the draft stays on this device.'
                 : 'Save your army lists and play battles with friends. Free.'}
             </p>
           ) : null}
@@ -135,7 +135,7 @@ export function SignInPage({ error, next, reset, join }: { error?: string; next?
               className="mt-3 inline-block text-sm text-info underline underline-offset-2"
               onClick={() => posthog.capture('guest_roster_save_gate_interacted', { action: 'return_to_draft' })}
             >
-              Back to your roster
+              Back to your list
             </Link>
           ) : null}
           {callbackError ? (
@@ -202,8 +202,8 @@ export function SignInPage({ error, next, reset, join }: { error?: string; next?
                 <Button type="submit" className="h-11 w-full text-base" disabled={submit.busy}>
                   {savingRoster
                     ? joining
-                      ? 'Create account and save roster'
-                      : 'Sign in and save roster'
+                      ? 'Create account and save list'
+                      : 'Sign in and save list'
                     : joining
                       ? 'Create account'
                       : 'Sign in'}

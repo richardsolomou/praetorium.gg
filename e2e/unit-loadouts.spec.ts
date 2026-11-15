@@ -27,7 +27,7 @@ for (const [width, label] of [
     const fields = page.getByRole('region', { name: 'Note' })
     await waitForRosterSave(page, () => fields.getByRole('textbox', { name: 'Note', exact: true }).fill(NOTE), NOTE)
     await waitForRosterSave(page, () => fields.getByRole('textbox', { name: 'Custom name', exact: true }).fill(NICKNAME), NICKNAME)
-    const back = page.getByRole('button', { name: 'Back to roster' })
+    const back = page.getByRole('button', { name: 'Back to list' })
     if (await back.isVisible()) await back.click()
 
     await page
@@ -75,7 +75,7 @@ for (const [width, label] of [
     await search.fill('')
 
     const retired = page.locator(`[data-saved-loadout="${RETIRED}"]`)
-    await expect(retired).toContainText('This roster’s army does not include that unit.')
+    await expect(retired).toContainText('This list’s army does not include that unit.')
     await expect(retired.getByRole('button', { name: `Add saved loadout ${RETIRED}` })).toBeDisabled()
     const picker = page.locator('div[data-onboarding="roster-picker"]')
     await expectNoHorizontalOverflow(picker)
@@ -118,7 +118,7 @@ test('an attached unit is saved and added to another roster already attached', a
   await page.keyboard.press('Escape')
 
   await immortals.getByRole('button', { name: `Attach unit: ${UNIT}`, exact: true }).click()
-  const inRoster = page.getByRole('menu').getByRole('group', { name: 'In this roster' })
+  const inRoster = page.getByRole('menu').getByRole('group', { name: 'In this list' })
   await waitForRosterSave(page, () => inRoster.getByRole('menuitem', { name: 'Overlord', exact: true }).click())
   const leader = page.locator('[data-unit="Overlord"]')
   await expect(leader).toContainText('Leader')

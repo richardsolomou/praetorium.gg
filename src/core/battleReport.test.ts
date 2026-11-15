@@ -99,7 +99,7 @@ describe('the account of the battle', () => {
       teamBattle: false,
       clockLimitMinutes: null,
     }
-    expect(text(battleReport(NAMES, log([ALICE, configure])))).toEqual(['Alice sets up a battle sized by its rosters'])
+    expect(text(battleReport(NAMES, log([ALICE, configure])))).toEqual(['Alice sets up a battle sized by its lists'])
   })
 
   it('marks a new round', () => {

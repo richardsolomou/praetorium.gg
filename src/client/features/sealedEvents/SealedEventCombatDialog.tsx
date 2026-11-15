@@ -33,7 +33,7 @@ export function SealedEventCombatDialog({
 }) {
   const sealed = async (userId: string, signal: AbortSignal) => {
     const roster = sealedCombatRoster(await openSealedEventRoster({ data: { token, eventToken, userId }, signal }))
-    if (!roster) throw new Error('This revealed roster has no saved loadouts available to simulate.')
+    if (!roster) throw new Error('This revealed list has no saved loadouts available to simulate.')
     return roster
   }
   const ownerOf = (userId: string) => entries.find((entry) => entry.userId === userId)?.owner

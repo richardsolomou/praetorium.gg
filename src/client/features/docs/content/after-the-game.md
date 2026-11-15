@@ -25,7 +25,7 @@ Every profile has an **Achievements** tab, with the player's latest three medals
 - Group achievements count casual battles played for a group and the group's hidden-list games.
 - Tournament achievements need a Swiss tournament played to its last round.
 - **Admired** counts likes from other players on one collection photo.
-- Some medals count private things like rosters, friends and simulations. The medal shows you reached the count, never the details.
+- Some medals count private things like lists, friends and simulations. The medal shows you reached the count, never the details.
 - Painting medals count models your collection marks painted, so they show no date.
 - Undo or delete the battle that earned an achievement and it goes too.
 

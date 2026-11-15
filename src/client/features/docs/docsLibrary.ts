@@ -18,12 +18,12 @@ export const AREAS: Record<
   'Army lists': {
     icon: ScrollText,
     summary: 'Build a list, set up its units and keep it legal.',
-    action: { to: '/rosters', label: 'Open Rosters' },
+    action: { to: '/rosters', label: 'Open Lists' },
   },
   Imports: {
     icon: FileInput,
     summary: 'Bring lists in from other apps, and share them back out.',
-    action: { to: '/rosters', label: 'Open Rosters' },
+    action: { to: '/rosters', label: 'Open Lists' },
   },
   'Combat simulator': {
     icon: Calculator,
@@ -42,7 +42,7 @@ export const AREAS: Record<
   },
   Tournaments: {
     icon: Trophy,
-    summary: 'Seal rosters in secret, reveal them together, then play each other.',
+    summary: 'Seal lists in secret, reveal them together, then play each other.',
     action: { to: '/tournaments', label: 'Open Tournaments' },
   },
   'AI assistants': {

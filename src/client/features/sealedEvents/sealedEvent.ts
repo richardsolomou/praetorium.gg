@@ -127,8 +127,8 @@ export function entryProgress(sealedEvent: Pick<SealedEvent, 'format' | 'group'>
   const stages: { stage: EntryStage; label: string }[] = [
     { stage: 'join', label: `Join the ${sealedEventNoun(sealedEvent).noun}` },
     ...(assignment ? [{ stage: 'assign' as const, label: assignment }] : []),
-    { stage: 'seal', label: 'Seal your roster' },
-    { stage: 'reveal', label: 'Rosters revealed' },
+    { stage: 'seal', label: 'Seal your list' },
+    { stage: 'reveal', label: 'Lists revealed' },
     { stage: 'play', label: 'Play your games' },
   ]
   const current = stages.findIndex((candidate) => candidate.stage === stage)
@@ -210,7 +210,7 @@ export function sealedEventPlayers(sealedEvent: Host, accepted: number) {
 
 /** Where the open event stands for someone not in it: still taking players, full, or past its reveal. */
 export function sealedEventPhase(sealedEvent: Host & { revealedAt: number | null }, accepted: number, occupied: number) {
-  if (sealedEvent.revealedAt) return { label: 'Rosters revealed', tint: 'text-achieved' }
+  if (sealedEvent.revealedAt) return { label: 'Lists revealed', tint: 'text-achieved' }
   return sealedEventRegistrationFull(entryRules(sealedEvent), accepted, occupied)
     ? { label: 'Registration full', tint: 'text-dim' }
     : { label: 'Registration open', tint: 'text-parchment' }
@@ -234,11 +234,11 @@ export function sealedEventNextStep(
       recruiting: 'Share the invite link. This format needs more players before you can reveal.',
       sizing: 'Size players below: at least one solo and two allied.',
       pairing: `Pair ${shape === '2v1' ? 'the allies' : 'players into teams'} below.`,
-      sealing: 'Players seal their rosters. Nobody sees another list, you included, until the reveal.',
-      choosing: 'Each team chooses its Force Disposition. Then you can reveal the rosters.',
-      ready: 'Reveal the rosters. That opens every list at once and closes entry.',
+      sealing: 'Players seal their lists. Nobody sees another list, you included, until the reveal.',
+      choosing: 'Each team chooses its Force Disposition. Then you can reveal the lists.',
+      ready: 'Reveal the lists. That opens every list at once and closes entry.',
       playing: 'Players start their battles from this page. Finished ones fill the results table.',
-      results: `To play again with fresh rosters, start a new ${sealedEventNoun(sealedEvent).noun}.`,
+      results: `To play again with fresh lists, start a new ${sealedEventNoun(sealedEvent).noun}.`,
     }[stage]
   return (stage === 'playing' || stage === 'results') && viewer.canPlay
     ? `Start a ${TABLE_SHAPE_LABELS[shape].count} battle from your card. Finished battles fill the results table.`

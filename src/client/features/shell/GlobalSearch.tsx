@@ -127,7 +127,7 @@ export function GlobalSearchProvider({ children }: { children: ReactNode }) {
         >
           <DialogTitle className="sr-only">Search Praetorium</DialogTitle>
           <DialogDescription className="sr-only">
-            Search pages, factions, datasheets and their rules, detachments, missions, rosters and battles.
+            Search pages, factions, datasheets and their rules, detachments, missions, lists and battles.
           </DialogDescription>
           <div className="flex min-h-0 flex-col bg-popover">
             <div className="flex items-center gap-1 border-b border-edge p-2">

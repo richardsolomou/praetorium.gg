@@ -43,7 +43,7 @@ describe('battle size from saved rosters', () => {
 
   it('refuses to start an uneven matchup', () => {
     const state = reduceBattle([ALICE, BOB], log([ALICE, configure()], [ALICE, army(600)], [BOB, army(1000)]))
-    expect(validate(state, ALICE, { kind: 'begin-battle', firstPlayerId: ALICE })).toBe('choose matching roster formats for each side')
+    expect(validate(state, ALICE, { kind: 'begin-battle', firstPlayerId: ALICE })).toBe('choose matching list formats for each side')
   })
 
   it('lets a player replace their army after the format was inferred', () => {
@@ -125,7 +125,7 @@ describe('battle size from saved rosters', () => {
       [ALICE, BOB],
       log([ALICE, configure()], [ALICE, army(1000)], [BOB, army(1000)], [ALICE, { kind: 'begin-battle', firstPlayerId: ALICE }]),
     )
-    expect(validate(state, ALICE, army(2000))).toBe('that roster does not match the battle size')
+    expect(validate(state, ALICE, army(2000))).toBe('that list does not match the battle size')
   })
 
   it('keeps historical unconfigured battles unchanged', () => {
@@ -148,7 +148,7 @@ describe('battle size from saved rosters', () => {
 
   it('keeps explicit sizes fixed when a player changes their army', () => {
     const state = reduceBattle([ALICE, BOB], log([ALICE, configure(2000)], [ALICE, army(2000)], [BOB, army(2000)]))
-    expect(validate(state, ALICE, army(1000))).toBe('that roster does not match the battle size')
+    expect(validate(state, ALICE, army(1000))).toBe('that list does not match the battle size')
   })
 
   it('keeps the battle size from the formats when both armies agree on a custom points budget', () => {
@@ -209,7 +209,7 @@ describe('team battle points', () => {
 
   it('refuses a list built bigger than the battle size', () => {
     const state = table(teamBattle(2000))
-    expect(validate(state, ALICE, list(BOB, 3000, 5))).toBe('that roster does not match the battle size')
+    expect(validate(state, ALICE, list(BOB, 3000, 5))).toBe('that list does not match the battle size')
   })
 
   it('accepts a bigger list that waives its points limit', () => {
@@ -284,7 +284,7 @@ describe('battle size from each side’s lists', () => {
 
   it('still refuses a list built bigger than a size the table chose', () => {
     const state = reduceBattle([ALICE, BOB], log([ALICE, sides(2, 1000)]))
-    expect(validate(state, ALICE, army(2000))).toBe('that roster does not match the battle size')
+    expect(validate(state, ALICE, army(2000))).toBe('that list does not match the battle size')
   })
 
   it('adds a pair’s lists together', () => {

@@ -10,8 +10,8 @@ export function PrivacyPolicy() {
           service at praetorium.gg.
         </p>
         <p>
-          An account is required to save rosters to the service or play battles. A roster you try without an account stays in browser
-          storage on that device, shared by its tabs and surviving reloads. You can save it to your account or discard it.
+          An account is required to save lists to the service or play battles. A list you try without an account stays in browser storage on
+          that device, shared by its tabs and surviving reloads. You can save it to your account or discard it.
         </p>
       </LegalSection>
 
@@ -24,8 +24,8 @@ export function PrivacyPolicy() {
         </p>
         <h3 className="text-sm tracking-label text-bone">Your content</h3>
         <p>
-          Saved rosters — their name, tags, detachment and unit picks — battle records, including the players, armies, setup choices, scores
-          and actions recorded during a game, friendships, the friends you lend a roster to, datasheets in your collection with their owned,
+          Saved lists — their name, tags, detachment and unit picks — battle records, including the players, armies, setup choices, scores
+          and actions recorded during a game, friendships, the friends you lend a list to, datasheets in your collection with their owned,
           built and painted model counts and photos, your wishlist, favourites, the combat simulator matchups you last ran, practice
           opponents you seat, the names of guest opponents in battles from before every seat needed an account, the finished public
           BattleBase games you import, with their armies and your opponents' BattleBase names, and the BattleBase account you link. A linked
@@ -35,15 +35,15 @@ export function PrivacyPolicy() {
         <h3 className="text-sm tracking-label text-bone">Technical data</h3>
         <p>
           Sessions record your IP address and browser user agent. Rate-limiting counters protect sign-in and other sensitive actions. A
-          cookie remembers the order you sort your rosters in on that device. We note the last day your account opened the mobile app, so
-          the site stops offering it to you.
+          cookie remembers the order you sort your lists in on that device. We note the last day your account opened the mobile app, so the
+          site stops offering it to you.
         </p>
         <p>
           If you connect an AI assistant or another app over MCP, we store that app’s authorization, access grants and refresh tokens. You
           can revoke its access from your profile’s security settings.
         </p>
         <p>
-          If you use an AI assistant in your browser, supported browsers can let it read game references and your saved rosters, collection,
+          If you use an AI assistant in your browser, supported browsers can let it read game references and your saved lists, collection,
           battles and groups through your signed-in session. You review and approve proposed changes on the page. Information returned to
           the assistant may be processed by its provider under that provider's privacy policy.
         </p>
@@ -65,7 +65,7 @@ export function PrivacyPolicy() {
         </p>
         <h3 className="text-sm tracking-label text-bone">Usage data</h3>
         <p>
-          We measure how the product is used through PostHog: pages visited, buttons used, actions such as creating a roster, errors, and
+          We measure how the product is used through PostHog: pages visited, buttons used, actions such as creating a list, errors, and
           session replays. Measurements include counts, durations and outcomes — never list contents, search text or the details of actions
           recorded during a battle. Replays show how pages are used, but form inputs are masked and account, security and administration
           screens are not recorded. Only signed-in visitors get an identified profile, which carries their account name and email address so
@@ -82,7 +82,7 @@ export function PrivacyPolicy() {
       <LegalSection title="How we use it">
         <LegalLinks>
           <li>To run accounts: authentication, optional two-factor sign-in, password reset.</li>
-          <li>To deliver the product: showing your rosters, running battles, seating players, and sending the notifications you allow.</li>
+          <li>To deliver the product: showing your lists, running battles, seating players, and sending the notifications you allow.</li>
           <li>To keep the service safe: rate limiting, abuse prevention, account administration.</li>
           <li>To improve it: seeing which features are used and fixing what breaks.</li>
         </LegalLinks>
@@ -92,9 +92,9 @@ export function PrivacyPolicy() {
         <LegalLinks>
           <li>Players seated in a battle see that battle's record, including its frozen copies of the armies played.</li>
           <li>
-            Saved rosters start public unless you choose another default or access level. An unlisted roster can be read by anyone holding
-            its link; a public roster is also listed on your profile and in public rosters, where any player can duplicate it into their own
-            rosters. Private access requires ownership or a seat in the named battle where the roster was attached.
+            Saved lists start public unless you choose another default or access level. Anyone holding an unlisted list's link can read it;
+            a public list also appears on your profile and under public lists, where any player can duplicate it into their own. Private
+            access requires ownership or a seat in the named battle where the list was attached.
           </li>
           <li>Your name, profile picture and profile page are public.</li>
           <li>
@@ -108,13 +108,13 @@ export function PrivacyPolicy() {
           <li>Battles may appear on the home page and in your profile's battle record.</li>
           <li>The leaderboard counts finished games. Games you play alone, or with a guest seat that has no account, do not count.</li>
           <li>
-            Sealing a tournament roster makes a separate frozen copy. Before reveal, only its assigned allies who are accepted entrants can
-            read it; organizer status grants no extra access. Reveal makes accepted sealed rosters readable to anyone who can open that
+            Sealing a tournament list makes a separate frozen copy. Before reveal, only its assigned allies who are accepted entrants can
+            read it; organizer status grants no extra access. Reveal makes accepted sealed lists readable to anyone who can open that
             tournament.
           </li>
         </LegalLinks>
         <p>
-          Returning a saved roster to private revokes its shared link. It does not revoke copies already frozen in a battle or revealed
+          Returning a saved list to private revokes its shared link. It does not revoke copies already frozen in a battle or revealed
           tournament. We do not maintain a separate anonymous statistical archive of private games. Copies someone has already downloaded or
           captured cannot be recalled.
         </p>
@@ -148,14 +148,14 @@ export function PrivacyPolicy() {
 
       <LegalSection title="Retention and deletion">
         <p>
-          Deleting a saved roster removes the saved list, but keeps the frozen copies already used in battles or sealed in tournaments. Only
-          a battle's creator can delete it; deletion removes its record and its contribution to public rankings. Deleting a tournament
-          removes its entries and sealed rosters, while battles already played keep their own copies. Deleting a group removes its
-          memberships and table; its battles stay. A group's table shows the results of battles its members chose the group for, to anyone
-          for a public group and to members for a private one.
+          Deleting a saved list removes it, but keeps the frozen copies already used in battles or sealed in tournaments. Only a battle's
+          creator can delete it; deletion removes its record and its contribution to public rankings. Deleting a tournament removes its
+          entries and sealed lists, while battles already played keep their own copies. Deleting a group removes its memberships and table;
+          its battles stay. A group's table shows the results of battles its members chose the group for, to anyone for a public group and
+          to members for a private one.
         </p>
         <p>
-          You can permanently delete your account from your profile. This removes your profile, rosters, friendships, notifications,
+          You can permanently delete your account from your profile. This removes your profile, lists, friendships, notifications,
           tournament entries, tournaments you organize, group memberships, groups you own and every battle you played, including shared
           battles. Session records expire on their own; usage data is kept by our analytics provider under its retention settings. The{' '}
           <Link to="/delete-account" className="text-info hover:text-parchment">

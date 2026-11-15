@@ -82,8 +82,8 @@ async function sealedEventFixture(ownerId: string, members: string[]) {
 
 async function sealThroughPage(page: Page, sealedEventToken: string, rosterName: string) {
   await page.goto(`/tournaments/${sealedEventToken}`)
-  const chooser = page.getByRole('dialog', { name: 'Seal a roster' })
-  await retryUntilVisible(chooser, () => page.getByRole('button', { name: 'Choose a roster', exact: true }).click())
+  const chooser = page.getByRole('dialog', { name: 'Seal a list' })
+  await retryUntilVisible(chooser, () => page.getByRole('button', { name: 'Choose a list', exact: true }).click())
   await chooser.locator(`[data-roster="${rosterName}"]`).click()
   await chooser.getByRole('button', { name: `Seal ${rosterName}`, exact: true }).click()
   await expect(chooser).toBeHidden()
@@ -144,10 +144,10 @@ test('saved roster deletion preserves its actual sealed and fielded copies until
   await chooseLibraryAction(page, 'Changed saved roster', 'Delete')
   const deletion = page.getByRole('alertdialog')
   await expect(deletion).toContainText('Frozen copies in battles and tournaments are kept')
-  await deletion.getByRole('button', { name: 'Keep roster', exact: true }).click()
+  await deletion.getByRole('button', { name: 'Keep list', exact: true }).click()
   expect(await productSql`SELECT id FROM rosters WHERE id = ${rosterId}`).toEqual([{ id: rosterId }])
   await chooseLibraryAction(page, 'Changed saved roster', 'Delete')
-  await deletion.getByRole('button', { name: 'Delete roster', exact: true }).click()
+  await deletion.getByRole('button', { name: 'Delete list', exact: true }).click()
   await expect.poll(() => productSql`SELECT id FROM rosters WHERE id = ${rosterId}`).toEqual([])
   expect(await battleCommands(battleId)).toEqual(commandsBefore)
   expect(await sealedCopy()).toEqual(sealedBefore)
@@ -156,13 +156,13 @@ test('saved roster deletion preserves its actual sealed and fielded copies until
   await page.goto(`/rosters/${userId}?league=${sealedEvent.token}&event=${sealedEvent.eventToken}`)
   await expect(page.locator('[data-unit="Skorpekh Lord"]')).toBeVisible()
   await page.goto(`/tournaments/${sealedEvent.token}`)
-  const viewSealed = page.getByRole('link', { name: `View ${name}’s roster`, exact: true })
-  const reveal = page.getByRole('alertdialog', { name: 'Reveal every roster?' })
+  const viewSealed = page.getByRole('link', { name: `View ${name}’s list`, exact: true })
+  const reveal = page.getByRole('alertdialog', { name: 'Reveal every list?' })
   await retryUntilVisible(reveal, () =>
-    page.locator('[data-entry-status]').getByRole('button', { name: 'Reveal all rosters', exact: true }).click(),
+    page.locator('[data-entry-status]').getByRole('button', { name: 'Reveal all lists', exact: true }).click(),
   )
   await expect(viewSealed).toHaveCount(0)
-  await reveal.getByRole('button', { name: 'Reveal all rosters', exact: true }).click()
+  await reveal.getByRole('button', { name: 'Reveal all lists', exact: true }).click()
   await expect(viewSealed).toBeVisible()
   const sealedUrl = await viewSealed.getAttribute('href')
   if (!sealedUrl) throw new Error('Missing revealed roster link')

@@ -320,7 +320,7 @@ describe('loadout loading state', () => {
     const markup = loadoutMarkup(null, [], true)
 
     expect(markup).toContain('aria-label="Loading loadout"')
-    expect(markup).not.toContain('Select a unit from the roster')
+    expect(markup).not.toContain('Select a unit from the list')
   })
 })
 

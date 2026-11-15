@@ -29,9 +29,9 @@ test('the roster library reserves its rows while the first page loads', async ({
   const firstFrame = await firstFrameContext.newPage()
   await firstFrame.goto('/rosters')
   const firstFrameRubric = firstFrame.locator('main section').last().locator('.rubric')
-  await expect(firstFrameRubric.getByText('Rosters', { exact: true })).toBeVisible()
-  await expect(firstFrameRubric.getByLabel('Loading roster count')).toBeVisible()
-  await expect(firstFrame.getByRole('button', { name: 'New roster', exact: true })).toBeVisible()
+  await expect(firstFrameRubric.getByText('Lists', { exact: true })).toBeVisible()
+  await expect(firstFrameRubric.getByLabel('Loading list count')).toBeVisible()
+  await expect(firstFrame.getByRole('button', { name: 'New list', exact: true })).toBeVisible()
   await expect(firstFrame.getByLabel('Loading roster creation options')).toHaveCount(0)
   await firstFrame.screenshot({ path: test.info().outputPath('loading-roster-library-no-js.png'), fullPage: true })
   await firstFrame.setViewportSize(PHONE)
@@ -53,16 +53,16 @@ test('the roster library reserves its rows while the first page loads', async ({
       await route.continue()
     })
 
-    await page.getByRole('link', { name: 'Rosters', exact: true }).click()
-    await expect(page.getByRole('heading', { name: 'Rosters', exact: true, level: 1 })).toBeVisible()
+    await page.getByRole('link', { name: 'Lists', exact: true }).click()
+    await expect(page.getByRole('heading', { name: 'Lists', exact: true, level: 1 })).toBeVisible()
     const libraryRubric = page.locator('main section').last().locator('.rubric')
-    await expect(libraryRubric.getByText('Rosters', { exact: true })).toBeVisible()
-    await expect(libraryRubric.getByLabel('Loading roster count')).toBeVisible()
-    const createRosterButton = page.getByRole('button', { name: 'New roster', exact: true })
+    await expect(libraryRubric.getByText('Lists', { exact: true })).toBeVisible()
+    await expect(libraryRubric.getByLabel('Loading list count')).toBeVisible()
+    const createRosterButton = page.getByRole('button', { name: 'New list', exact: true })
     await expect(createRosterButton).toBeVisible()
     await expect(page.getByLabel('Loading roster creation options')).toHaveCount(0)
     await createRosterButton.click()
-    await expect(page.getByRole('heading', { name: 'Create roster' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Create list' })).toBeVisible()
     await page.keyboard.press('Escape')
     await page.screenshot({ path: test.info().outputPath('loading-roster-library.png'), fullPage: true })
     await page.setViewportSize(PHONE)
@@ -108,7 +108,7 @@ test('the roster library counts every saved list and prices more rows on demand'
   await page.reload()
   await expect(count).toHaveText('21')
   await expect(page.locator('[data-roster]')).toHaveCount(20)
-  await page.getByRole('button', { name: 'Show more rosters' }).click()
+  await page.getByRole('button', { name: 'Show more lists' }).click()
   await expect(page.locator('[data-roster]')).toHaveCount(21)
   await expect(
     page
@@ -116,11 +116,11 @@ test('the roster library counts every saved list and prices more rows on demand'
       .last()
       .getByText(/^\d+\/2000$/),
   ).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Show more rosters' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Show more lists' })).toHaveCount(0)
   await page.getByRole('button', { name: 'Sort: Recently updated' }).click()
   await page.getByRole('menuitemradio', { name: 'A to Z' }).click()
   await expect(page.locator('[data-roster]')).toHaveCount(20)
-  await expect(page.getByRole('button', { name: 'Show more rosters' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Show more lists' })).toBeVisible()
   await page.setViewportSize(PHONE)
   await expectNoPageOverflow(page)
   await page.screenshot({ path: test.info().outputPath('roster-library-paged-phone.png') })
@@ -309,7 +309,7 @@ test('a battle’s roster chooser tells a variant apart from its base', async ({
 
   await createBattle(page, { practice: true })
   await page.locator('[data-face-off-side="0"]').getByRole('button', { name: 'Choose army', exact: true }).click()
-  const chooser = page.getByRole('dialog', { name: 'Choose your roster' })
+  const chooser = page.getByRole('dialog', { name: 'Choose your list' })
   const group = chooser.locator('[data-roster-group]')
   await expect(group.locator('[data-roster]')).toHaveCount(2)
   const variant = group.locator('[data-roster="Dynasty 2k · 2"]')
@@ -327,7 +327,7 @@ test('a battle’s roster chooser tells a variant apart from its base', async ({
   await expect(chooser).toBeHidden()
 
   await attachRoster(page, 'Dynasty 2k · 2')
-  await page.getByRole('button', { name: 'Change roster' }).click()
+  await page.getByRole('button', { name: 'Change list' }).click()
   await expect(chooser.locator('[data-roster="Dynasty 2k · 2"]')).toHaveAttribute('aria-pressed', 'true')
   await expect(chooser.locator('[data-roster="Dynasty 2k"]')).toHaveAttribute('aria-pressed', 'false')
 })
@@ -399,8 +399,8 @@ test('the roster library reprices a saved list edited in another tab', async ({ 
 test('a visitor opening the roster library sees the rosters page with nothing kept yet', async ({ page }) => {
   await page.goto('/rosters')
 
-  await expect(page.getByRole('heading', { name: 'No rosters yet' })).toBeVisible()
-  await expect(page.getByLabel(/^Loading roster/)).toHaveCount(0)
+  await expect(page.getByRole('heading', { name: 'No lists yet' })).toBeVisible()
+  await expect(page.getByLabel(/^Loading list/)).toHaveCount(0)
 })
 
 test('a roster saved on the root ID of a current book opens its builder from the first frame', async ({ browser, page }) => {
@@ -430,10 +430,10 @@ test('a failed roster library read is not shown as an empty library', async ({ p
   await page.goto('/leaderboard')
   await page.route('**/_serverFn/**', (route) => route.abort('failed'))
 
-  await page.getByRole('link', { name: 'Rosters', exact: true }).click()
+  await page.getByRole('link', { name: 'Lists', exact: true }).click()
 
-  await expect(page.getByRole('heading', { name: 'Could not load rosters' })).toBeVisible({ timeout: 15_000 })
-  await expect(page.getByRole('heading', { name: 'No rosters yet' })).toHaveCount(0)
+  await expect(page.getByRole('heading', { name: 'Could not load lists' })).toBeVisible({ timeout: 15_000 })
+  await expect(page.getByRole('heading', { name: 'No lists yet' })).toHaveCount(0)
   await expect(page.getByRole('button', { name: 'Try again' })).toBeVisible()
 })
 
@@ -471,7 +471,7 @@ test('a saved list is reopened, duplicated, shared and published', async ({ brow
   // The name is offered, not demanded; this one is overridden on purpose.
   await renameRoster(page, 'Nurgle 2k')
 
-  await page.getByRole('link', { name: 'Rosters' }).click()
+  await page.getByRole('link', { name: 'Lists' }).click()
   // The library prices every list in one answer, so each row asks for nothing of its own.
   await expect(page.locator('[data-roster="Nurgle 2k"]')).toContainText('220/2000')
   await page.getByRole('link', { name: /Nurgle 2k/ }).click()
@@ -540,8 +540,8 @@ test('a saved list is reopened, duplicated, shared and published', async ({ brow
   await expect(printedRoster.locator('html')).toHaveAttribute('data-print-called', 'true')
   await printedRoster.close()
 
-  await chooseLibraryAction(page, 'Copy of Nurgle 2k', 'Edit roster setup')
-  const setup = page.getByRole('dialog', { name: 'Edit roster setup' })
+  await chooseLibraryAction(page, 'Copy of Nurgle 2k', 'Edit list setup')
+  const setup = page.getByRole('dialog', { name: 'Edit list setup' })
   await setup.getByRole('combobox', { name: 'Access' }).click()
   await page.getByRole('option', { name: 'Unlisted — anyone with the link' }).click()
   const promoted = page.waitForResponse((response) => response.ok() && Boolean(response.request().postData()?.includes('"unlisted"')))
@@ -550,8 +550,8 @@ test('a saved list is reopened, duplicated, shared and published', async ({ brow
 
   // Public reads exactly as unlisted does. What it adds is being listed on the
   // owner's profile, which is the only place the two values look different.
-  await chooseLibraryAction(page, 'Copy of Nurgle 2k', 'Edit roster setup')
-  const publishing = page.getByRole('dialog', { name: 'Edit roster setup' })
+  await chooseLibraryAction(page, 'Copy of Nurgle 2k', 'Edit list setup')
+  const publishing = page.getByRole('dialog', { name: 'Edit list setup' })
   await publishing.getByRole('combobox', { name: 'Access' }).click()
   await page.getByRole('option', { name: 'Public — listed on your profile' }).click()
   const published = page.waitForResponse((response) => response.ok() && Boolean(response.request().postData()?.includes('"public"')))
@@ -560,7 +560,7 @@ test('a saved list is reopened, duplicated, shared and published', async ({ brow
 
   await page.getByRole('button', { name: 'Account menu for Alice' }).click()
   await page.getByRole('menuitem', { name: 'My profile' }).click()
-  const rostersTab = page.getByRole('tab', { name: /rosters/i })
+  const rostersTab = page.getByRole('tab', { name: /lists/i })
   await expect(async () => {
     await rostersTab.click()
     await expect(page.locator('[data-player-rosters]')).toBeVisible({ timeout: 1000 })
@@ -569,8 +569,8 @@ test('a saved list is reopened, duplicated, shared and published', async ({ brow
 
   // Back to unlisted, so the rest of this test reads the link the way it did before.
   await page.goto('/rosters')
-  await chooseLibraryAction(page, 'Copy of Nurgle 2k', 'Edit roster setup')
-  const reverting = page.getByRole('dialog', { name: 'Edit roster setup' })
+  await chooseLibraryAction(page, 'Copy of Nurgle 2k', 'Edit list setup')
+  const reverting = page.getByRole('dialog', { name: 'Edit list setup' })
   await reverting.getByRole('combobox', { name: 'Access' }).click()
   await page.getByRole('option', { name: 'Unlisted — anyone with the link' }).click()
   const relisted = page.waitForResponse((response) => response.ok() && Boolean(response.request().postData()?.includes('"unlisted"')))
@@ -582,8 +582,8 @@ test('a saved list is reopened, duplicated, shared and published', async ({ brow
   await firstFrame.goto(sharedUrl)
   await expect(firstFrame.locator('[data-unit="Immortals"]')).toBeVisible()
   await expect(firstFrame.locator('[data-unit="Overlord"]')).toBeVisible()
-  await expect(firstFrame.getByText('This roster has no units.')).toHaveCount(0)
-  await expect(firstFrame.getByLabel('Loading roster units')).toHaveCount(0)
+  await expect(firstFrame.getByText('This list has no units.')).toHaveCount(0)
+  await expect(firstFrame.getByLabel('Loading list units')).toHaveCount(0)
   await firstFrameContext.close()
 
   const guestContext = await browser.newContext({ viewport: { width: 1600, height: 900 } })
@@ -593,7 +593,7 @@ test('a saved list is reopened, duplicated, shared and published', async ({ brow
   await expect(guest.getByLabel('List name')).toHaveValue('Copy of Nurgle 2k')
   await expect(guest.getByLabel('List name')).toHaveAttribute('readonly', '')
   const duplicateHere = guest.getByRole('menuitem', { name: 'Duplicate to this device' })
-  await retryUntilVisible(duplicateHere, () => guest.getByRole('button', { name: 'Roster actions' }).click())
+  await retryUntilVisible(duplicateHere, () => guest.getByRole('button', { name: 'List actions' }).click())
   await guest.getByRole('menuitem', { name: 'Share…' }).click()
   const guestShare = guest.getByRole('dialog', { name: /^Share / })
   await expect(guestShare.getByRole('button', { name: /^Export text/ })).toBeVisible()
@@ -615,7 +615,7 @@ test('a saved list is reopened, duplicated, shared and published', async ({ brow
   await guest.getByRole('button', { name: 'Immortals', exact: true }).click()
   const guestLoadout = guest.locator('aside[aria-label="Loadout"]')
   await expect(guestLoadout.getByLabel('Loading loadout')).toBeVisible()
-  await expect(guestLoadout.getByText('Select a unit from the roster to see its loadout.')).toHaveCount(0)
+  await expect(guestLoadout.getByText('Select a unit from the list to see its loadout.')).toHaveCount(0)
   releaseLoadout()
   await expect(guestLoadout.getByText('Gauss blaster', { exact: true }).first()).toBeVisible()
   await guest.unroute('**/_serverFn/**')
@@ -630,8 +630,8 @@ test('a saved list is reopened, duplicated, shared and published', async ({ brow
   await expectNoPageOverflow(guest)
   await expectNoHorizontalOverflow(guestLoadout)
   await guest.screenshot({ path: test.info().outputPath('shared-roster-read-only-phone.png'), fullPage: true })
-  await guestLoadout.getByRole('button', { name: 'Back to roster' }).click()
-  await guest.getByRole('button', { name: 'Roster actions' }).click()
+  await guestLoadout.getByRole('button', { name: 'Back to list' }).click()
+  await guest.getByRole('button', { name: 'List actions' }).click()
   await expect(guest.getByRole('menuitem', { name: 'Duplicate to this device' })).toBeVisible()
   await expectNoPageOverflow(guest)
   await guest.screenshot({ path: test.info().outputPath('shared-roster-actions-phone.png'), fullPage: true })
@@ -639,7 +639,7 @@ test('a saved list is reopened, duplicated, shared and published', async ({ brow
 
   await signUp(guest, uniqueName('Reader'))
   await guest.goto(sharedUrl)
-  await chooseRosterAction(guest, 'Duplicate to my rosters')
+  await chooseRosterAction(guest, 'Duplicate to my lists')
   await expect.poll(() => guest.url()).not.toBe(sharedUrl)
   await expect(guest).toHaveURL(/\/rosters\/[^/]+$/)
   await expect(guest.getByLabel('List name')).toHaveValue('Copy of Copy of Nurgle 2k')

@@ -182,7 +182,7 @@ it('runs a saved datasheet filter in an already open hosted page after connectiv
 it('keeps private search results available online when public reference data is saved', async () => {
   vi.stubGlobal('window', { PraetoriumReferenceCache: saved })
   vi.stubGlobal('navigator', { onLine: true })
-  const results = [{ id: 'roster:1', group: 'Your rosters' as const, label: 'My army', detail: 'Necrons', href: '/rosters/1' }]
+  const results = [{ id: 'roster:1', group: 'Your lists' as const, label: 'My army', detail: 'Necrons', href: '/rosters/1' }]
   vi.spyOn(functions, 'globalSearch').mockResolvedValue(results)
   expect(await client.query(globalSearchQuery('army'))).toEqual(results)
 })

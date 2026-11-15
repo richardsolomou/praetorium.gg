@@ -2,7 +2,7 @@ import { battleSizeTitle, builtDetachments, pointsSpent, type Roster } from './b
 import { gwTextGroup, gwTextVersionLines, toGwText } from './gwText'
 import { textNickname } from './textRoster'
 
-export const SEALED_COPIES_NOTICE = 'Sealed copies as revealed; later edits to players’ saved rosters are not included.'
+export const SEALED_COPIES_NOTICE = 'Sealed copies as revealed; later edits to players’ saved lists are not included.'
 
 /** An entrant's sealed list, or why the file has none of theirs, so nobody drops out unnoticed. */
 export type BundledRoster = { player: string } & ({ roster: Roster; faction: string } | { absent: string })

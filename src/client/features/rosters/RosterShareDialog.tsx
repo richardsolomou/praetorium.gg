@@ -120,7 +120,7 @@ export function RosterShareDialog({ open, onClose, ...share }: RosterShareChoice
               <div className="flex items-stretch gap-2">
                 <input
                   readOnly
-                  aria-label="Roster link"
+                  aria-label="List link"
                   value={share.link}
                   onFocus={(event) => event.currentTarget.select()}
                   className="h-9 min-w-0 flex-1 truncate rounded-lg border border-edge bg-sunken px-3 font-mono text-xs text-dim data-[private]:text-faint"
@@ -137,8 +137,8 @@ export function RosterShareDialog({ open, onClose, ...share }: RosterShareChoice
               </div>
               <p className="text-xs text-dim">
                 {isPrivate
-                  ? 'Nobody else can open this link while the roster is private. Copying it makes the roster unlisted.'
-                  : 'Anyone with this link can read the roster, but only its owner can change it.'}
+                  ? 'Nobody else can open this link while the list is private. Copying it makes the list unlisted.'
+                  : 'Anyone with this link can read the list, but only its owner can change it.'}
               </p>
               {share.copyProblem ? <Problem>{share.copyProblem}</Problem> : null}
             </section>

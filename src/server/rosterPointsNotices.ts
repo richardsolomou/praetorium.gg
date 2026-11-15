@@ -32,7 +32,7 @@ export async function noticeRosterPointsChanges(
     const priced = rosters.flatMap((roster, index) => {
       const { points } = assessments[index]!
       if (points === null) return []
-      return [{ rosterId: roster.id, userId: roster.userId, updatedAt: roster.updatedAt, points, name: roster.name || 'Unnamed roster' }]
+      return [{ rosterId: roster.id, userId: roster.userId, updatedAt: roster.updatedAt, points, name: roster.name || 'Unnamed list' }]
     })
     const previous = []
     for (const part of chunks(priced, ROSTER_POINTS_MARKS_MAX))

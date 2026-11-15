@@ -201,7 +201,7 @@ async function holdLoadoutReplies(page: Page, memberIndex: number) {
   }
 }
 
-async function editor(page: Page, context: 'standalone' | 'roster', companion: boolean, width: number) {
+async function editor(page: Page, context: 'standalone' | 'list', companion: boolean, width: number) {
   await page.setViewportSize({ width, height: 1000 })
   if (context === 'standalone') {
     await page.goto('/simulator')
@@ -228,8 +228,8 @@ async function editor(page: Page, context: 'standalone' | 'roster', companion: b
 const editors = [
   { context: 'standalone', companion: false, width: 390 },
   { context: 'standalone', companion: true, width: 1440 },
-  { context: 'roster', companion: false, width: 1440 },
-  { context: 'roster', companion: true, width: 390 },
+  { context: 'list', companion: false, width: 1440 },
+  { context: 'list', companion: true, width: 390 },
 ] as const
 
 for (const { context, companion, width } of editors) {

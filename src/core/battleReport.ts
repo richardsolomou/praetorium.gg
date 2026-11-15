@@ -131,7 +131,7 @@ function describe(
       // The twist is named by its pack's own id, which this file has no way to read
       // back into a name — `src/core` holds no game data. The log records that one is
       // in play; the battle facts name it from the pack.
-      return `${who} ${command.limit === null ? 'sets up a battle sized by its rosters' : `sets a ${pointsSize(command.limit)} battle`}${command.twistId ? ' with a mission twist' : ''}${command.manual ? ', tracked manually' : ''}`
+      return `${who} ${command.limit === null ? 'sets up a battle sized by its lists' : `sets a ${pointsSize(command.limit)} battle`}${command.twistId ? ' with a mission twist' : ''}${command.manual ? ', tracked manually' : ''}`
     case 'reset-setup':
       return `${who} resets battle setup`
     case 'set-setup-step':
@@ -155,7 +155,7 @@ function describe(
       // whose seat was emptied rather than what used to be in it.
       return `${who} took ${whose} army off the table`
     case 'lock-sealed-event-rosters':
-      return 'The rosters are sealed for this battle'
+      return 'The lists are sealed for this battle'
     case 'set-battle-group':
       return command.groupId ? 'The battle counts for a group' : 'The battle no longer counts for a group'
     case 'set-prep': {

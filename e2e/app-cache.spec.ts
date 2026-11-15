@@ -95,7 +95,7 @@ test(
     await expect(reopened.getByLabel('List name')).toHaveValue(roster)
     await reopened.goto('/')
 
-    await reopened.getByRole('navigation', { name: 'Application sections' }).getByRole('link', { name: 'Rosters', exact: true }).click()
+    await reopened.getByRole('navigation', { name: 'Application sections' }).getByRole('link', { name: 'Lists', exact: true }).click()
     await expect(reopened.getByLabel('List name')).toHaveValue(roster)
     await reopened.goto('/rosters')
     await expect(reopened.locator(`[data-roster="${roster}"]`).getByText(total, { exact: true }).first()).toBeVisible()

@@ -120,7 +120,7 @@ async function custodesRoster(page: Page, archived?: string) {
   const dialog = await visitorSetup(page)
   await chooseFaction(dialog, 'Adeptus Custodes')
   await chooseDetachment(dialog, 'Aquilan Shield')
-  await dialog.getByRole('button', { name: 'Create roster', exact: true }).click()
+  await dialog.getByRole('button', { name: 'Create list', exact: true }).click()
   await page.waitForURL(/\/rosters\/[^/]+$/)
   await renameRoster(page, 'Same Custodes roster')
   if (archived) {
@@ -149,8 +149,8 @@ test('reference roster choices distinguish saved rules versions', async ({ page 
   const archived = await custodesRoster(page, 'MFM 1.5 · Archived')
   await page.goto('/factions/adeptus-custodes/rules/mfm-1-6/datasheets/allarus-custodians')
   await page.waitForLoadState('networkidle')
-  await page.getByRole('button', { name: 'Add to roster', exact: true }).click()
-  const chooser = page.getByRole('dialog', { name: 'Add Allarus Custodians to a roster', exact: true })
+  await page.getByRole('button', { name: 'Add to list', exact: true }).click()
+  const chooser = page.getByRole('dialog', { name: 'Add Allarus Custodians to a list', exact: true })
   const archivedChoice = chooser.locator(`a[href^="${archived}?"]`)
   for (const viewport of [desktopContext.viewport, phone]) {
     await page.setViewportSize(viewport)

@@ -42,7 +42,7 @@ export function MissionPackPage({ packId }: { packId: string }) {
         help={<GuideHelp task="reference">Search help</GuideHelp>}
         actions={
           <Link to="/rosters/new" search={{ reference: 'mission-pack' }} className={buttonClass()}>
-            Build a roster
+            Build a list
           </Link>
         }
       >

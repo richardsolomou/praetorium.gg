@@ -192,7 +192,7 @@ export const syncBattleCommand = createServerFn({ method: 'POST' })
             return unsynced(
               player.id,
               'battle-command',
-              { outcome: 'refused' as const, message: 'You do not own the captured roster.' },
+              { outcome: 'refused' as const, message: 'You do not own the captured list.' },
               'roster-not-owned',
             )
           // A device that predates custom budgets captured none; the saved roster's own budget applies.
@@ -205,7 +205,7 @@ export const syncBattleCommand = createServerFn({ method: 'POST' })
               'battle-command',
               {
                 outcome: 'conflict' as const,
-                message: 'Army data changed while you were offline. Your played roster is saved on this device; review it before syncing.',
+                message: 'Army data changed while you were offline. Your played list is saved on this device; review it before syncing.',
               },
               'roster-rules-changed',
             )

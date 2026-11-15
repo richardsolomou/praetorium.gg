@@ -39,8 +39,8 @@ export type TextRosterUnit = {
 
 /** What to call a list that does not name itself: its army and, when the text gives them, its points. */
 export function defaultListName(faction: string, points: number | null | undefined) {
-  const army = faction.split(' - ').at(-1)?.trim() || 'Imported roster'
-  return points === null || points === undefined ? `${army} roster` : `${army} ${points}pts`
+  const army = faction.split(' - ').at(-1)?.trim() || 'Imported list'
+  return points === null || points === undefined ? `${army} list` : `${army} ${points}pts`
 }
 
 export type AttachedGroup = { leaders: TextRosterUnit[]; bodyguard: TextRosterUnit }

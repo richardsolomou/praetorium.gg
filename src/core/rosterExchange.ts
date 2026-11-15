@@ -60,7 +60,7 @@ export class RosterExchangeError extends Error {
 }
 
 export const ROSTER_EXCHANGE_RULES_UNAVAILABLE =
-  'This roster uses a rules version that is not available here. Ask the sender to convert it to a current rules version, or to send army text instead.'
+  'This list uses a rules version that is not available here. Ask the sender to convert it to a current rules version, or to send army text instead.'
 
 const malformed = () =>
   new RosterExchangeError('malformed', 'This exchange code is incomplete or damaged. Copy the whole code again or scan its QR code.')
@@ -68,7 +68,7 @@ const malformed = () =>
 const oversized = () =>
   new RosterExchangeError(
     'oversized',
-    `This exchange code is longer than ${ROSTER_EXCHANGE_MAX_CODE_LENGTH.toLocaleString('en')} characters, the most a roster code can be.`,
+    `This exchange code is longer than ${ROSTER_EXCHANGE_MAX_CODE_LENGTH.toLocaleString('en')} characters, the most a list code can be.`,
   )
 
 export async function encodeRosterExchange(roster: {
@@ -135,7 +135,7 @@ export async function decodeRosterExchange(text: string): Promise<RosterExchange
   if (raw && typeof raw === 'object' && 'picks' in raw && Array.isArray(raw.picks) && raw.picks.length > MAX_PICKS)
     throw new RosterExchangeError(
       'oversized',
-      `This exchange code holds ${raw.picks.length} entries; a roster can contain at most ${MAX_PICKS}.`,
+      `This exchange code holds ${raw.picks.length} entries; a list can contain at most ${MAX_PICKS}.`,
     )
   const parsed = exchangeSchema.safeParse(raw)
   if (!parsed.success) throw malformed()
@@ -169,7 +169,7 @@ async function transform(bytes: Uint8Array<ArrayBuffer>, stream: CompressionStre
       if (size > limit)
         throw new RosterExchangeError(
           'oversized',
-          `This exchange code expands beyond ${Math.round(limit / 1000)} KB, more than any roster holds.`,
+          `This exchange code expands beyond ${Math.round(limit / 1000)} KB, more than any list holds.`,
         )
       parts.push(value)
     }

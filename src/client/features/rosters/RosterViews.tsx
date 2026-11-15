@@ -15,7 +15,7 @@ const VIEWS: readonly [RosterView, string][] = [
 /** The rosters page tabs, the same for a visitor, whose Friends tab says what an account adds. */
 export function RosterViews({ view }: { view: RosterView }) {
   return (
-    <PageLinkTabs label="Rosters">
+    <PageLinkTabs label="Lists">
       {VIEWS.map(([section, label]) => (
         <Link
           key={section}

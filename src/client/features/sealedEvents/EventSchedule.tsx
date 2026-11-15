@@ -11,7 +11,7 @@ export function EventSchedule({ event, className }: { event: { playsAt: number |
       <CalendarDays className="mr-1.5 inline size-3.5 align-[-0.15em]" aria-hidden />
       {[
         event.playsAt === null ? null : `Played ${moment(event.playsAt)}`,
-        event.sealBy === null ? null : `Rosters due ${moment(event.sealBy)}`,
+        event.sealBy === null ? null : `Lists due ${moment(event.sealBy)}`,
       ]
         .filter(Boolean)
         .join(' · ')}

@@ -8,21 +8,21 @@ const DATASHEET = '/factions/necrons/datasheets/imotekh-the-stormlord'
 async function addFromDatasheet(page: Page, datasheet = DATASHEET) {
   await page.goto(datasheet)
   await page.waitForLoadState('networkidle')
-  await page.getByRole('button', { name: 'Add to roster', exact: true }).click()
+  await page.getByRole('button', { name: 'Add to list', exact: true }).click()
 }
 
 /** Finishes the roster setup a datasheet's Add to roster opened, on a detachment and Take and Hold. */
 async function createFromSetup(page: Page, detachment: string) {
-  const setup = page.getByRole('dialog', { name: 'Create roster' })
+  const setup = page.getByRole('dialog', { name: 'Create list' })
   await setup.getByRole('button', { name: `Select ${detachment}`, exact: true }).click()
   await setup.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Take and Hold', exact: true }).click()
-  await setup.getByRole('button', { name: 'Create roster', exact: true }).click()
+  await setup.getByRole('button', { name: 'Create list', exact: true }).click()
 }
 
 /** A reader of one datasheet reaches the builder with that unit, under the roster's own limits. */
 test('a visitor starts a roster from a datasheet and is told when it cannot take another copy', async ({ page }) => {
   await addFromDatasheet(page)
-  const setup = page.getByRole('dialog', { name: 'Create roster' })
+  const setup = page.getByRole('dialog', { name: 'Create list' })
   await expect(setup.getByRole('combobox', { name: 'Faction' })).toHaveText(/Necrons/)
   await createFromSetup(page, 'Awakened Dynasty')
   await expect(page).toHaveURL(/\/rosters\/[^/]+$/)
@@ -32,30 +32,30 @@ test('a visitor starts a roster from a datasheet and is told when it cannot take
 
   await addFromDatasheet(page)
   await page
-    .getByRole('dialog', { name: 'Add Imotekh the Stormlord to a roster' })
-    .getByRole('link', { name: /Your unsaved roster/ })
+    .getByRole('dialog', { name: 'Add Imotekh the Stormlord to a list' })
+    .getByRole('link', { name: /Your unsaved list/ })
     .click()
   await expect(page.getByRole('alert').filter({ hasText: 'The unit was not added' })).toHaveText(
-    'The unit was not added. Limit reached: 1 of 1 permitted copies in the roster.',
+    'The unit was not added. Limit reached: 1 of 1 permitted copies in the list.',
   )
   await expect(page.locator('[data-unit]').filter({ hasText: 'Imotekh the Stormlord' })).toHaveCount(1)
 })
 
 test('a visitor starts a roster from a faction page with that faction chosen', async ({ page }) => {
   await page.goto('/factions/necrons')
-  const setup = page.getByRole('dialog', { name: 'Create roster' })
-  await retryUntilVisible(setup, () => page.getByRole('button', { name: 'Start a roster', exact: true }).click())
+  const setup = page.getByRole('dialog', { name: 'Create list' })
+  await retryUntilVisible(setup, () => page.getByRole('button', { name: 'Start a list', exact: true }).click())
   await expect(setup.getByRole('combobox', { name: 'Faction' })).toHaveText(/Necrons/)
 })
 
 test('a mission page opens a new roster setup on the rosters page', async ({ page }) => {
   await page.goto('/missions/chapter-approved-2026-2027')
-  const setup = page.getByRole('dialog', { name: 'Create roster' })
-  await retryUntilVisible(setup, () => page.getByRole('link', { name: 'Build a roster' }).click())
+  const setup = page.getByRole('dialog', { name: 'Create list' })
+  await retryUntilVisible(setup, () => page.getByRole('link', { name: 'Build a list' }).click())
   await expect(page).toHaveURL(/\/rosters$/)
   await setup.getByRole('button', { name: 'Cancel', exact: true }).click()
   await page.reload()
-  await expect(page.getByRole('button', { name: 'New roster' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'New list' })).toBeVisible()
   await expect(setup).toBeHidden()
 })
 
@@ -100,7 +100,7 @@ test('partial Eradicator squads retain their copy-tier prices through reload, vi
   await page.getByRole('button', { name: 'View', exact: true }).click()
   await expect(page.getByText('675/2000', { exact: true })).toBeVisible()
   await chooseRosterAction(page, 'Export text')
-  const exported = page.getByRole('dialog', { name: 'Export roster' }).locator('pre')
+  const exported = page.getByRole('dialog', { name: 'Export list' }).locator('pre')
   await expect(exported).toContainText('675 Points')
   await expect(exported).toContainText(`${name} (245 Points)`)
 })
@@ -127,12 +127,12 @@ for (const [width, name, slug, weapon] of [
     await expect(ranged).toHaveText(`5× ${weapon}`)
     await expect(stock).toHaveText('5× Gun Stock')
     await expect.poll(() => guestDraft(page)).toContain('"models":5')
-    if (width === 390) await page.getByRole('button', { name: 'Back to roster', exact: true }).click()
+    if (width === 390) await page.getByRole('button', { name: 'Back to list', exact: true }).click()
     await page.reload()
     await card.getByRole('button', { name, exact: true }).click()
     await expect(ranged).toBeVisible()
     await expect(stock).toBeVisible()
-    if (width === 390) await page.getByRole('button', { name: 'Back to roster', exact: true }).click()
+    if (width === 390) await page.getByRole('button', { name: 'Back to list', exact: true }).click()
     await page.getByRole('button', { name: 'View', exact: true }).click()
     await card.getByRole('button', { name, exact: true }).click()
     await expect(ranged).toBeVisible()
@@ -157,11 +157,11 @@ for (const width of [1440, 390]) {
     await rifles.screenshot({ path: testInfo.outputPath('melta-rifle-editor.png') })
     await multi.screenshot({ path: testInfo.outputPath('multi-melta-editor.png') })
     await expect.poll(() => guestDraft(page)).toContain('"picks":[{')
-    if (width === 390) await page.getByRole('button', { name: 'Back to roster', exact: true }).click()
+    if (width === 390) await page.getByRole('button', { name: 'Back to list', exact: true }).click()
     await page.reload()
     await card.getByRole('button', { name, exact: true }).click()
     await expect(rifles.getByText('HUNTER:Monster/Vehicle', { exact: true })).toBeVisible()
-    if (width === 390) await page.getByRole('button', { name: 'Back to roster', exact: true }).click()
+    if (width === 390) await page.getByRole('button', { name: 'Back to list', exact: true }).click()
     await page.getByRole('button', { name: 'View', exact: true }).click()
     await card.getByRole('button', { name, exact: true }).click()
     await expect(rifles.getByText('HUNTER:Monster/Vehicle', { exact: true })).toBeVisible()

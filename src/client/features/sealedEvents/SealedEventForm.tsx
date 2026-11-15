@@ -241,7 +241,7 @@ export function sealedEventFormValid(value: SealedEventFormValue, seated: number
 }
 
 const scheduleProblem = ({ playsAt, sealBy }: Pick<SealedEventFormValue, 'playsAt' | 'sealBy'>) =>
-  playsAt !== null && sealBy !== null && sealBy > playsAt ? 'Set the roster deadline before the date it’s played.' : null
+  playsAt !== null && sealBy !== null && sealBy > playsAt ? 'Set the list deadline before the date it’s played.' : null
 
 /** When the event is played and when rosters must be sealed by, both optional and open to change until the reveal. */
 function ScheduleFields({
@@ -272,7 +272,7 @@ function ScheduleFields({
           />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor={`${idPrefix}-seal-by`}>{tournament ? 'Seal rosters by' : 'Lists due'}</Label>
+          <Label htmlFor={`${idPrefix}-seal-by`}>{tournament ? 'Seal lists by' : 'Lists due'}</Label>
           <Input
             id={`${idPrefix}-seal-by`}
             type="datetime-local"
@@ -286,7 +286,7 @@ function ScheduleFields({
       <p className={`text-xs ${problem ? 'text-destructive' : 'text-dim'}`}>
         {problem ??
           (tournament
-            ? 'Both optional. After the deadline nobody can seal, and anyone without a sealed roster sits the event out.'
+            ? 'Both optional. After the deadline nobody can seal, and anyone without a sealed list sits the event out.'
             : 'Both optional. After the deadline nobody can seal, and anyone who hasn’t sealed doesn’t play.')}
       </p>
     </div>

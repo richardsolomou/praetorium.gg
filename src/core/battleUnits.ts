@@ -134,7 +134,7 @@ export function unitFormationRefusal(
     !['battlefield', 'strategic-reserves', 'embarked'].includes(command.formation) &&
     !attached.every((unit) => unit.formationOptions?.includes(command.formation))
   ) {
-    return refuse('formation-unsupported', 'the roster data does not support that formation')
+    return refuse('formation-unsupported', 'the list data does not support that formation')
   }
   if (state.status !== 'setup') return null
   return movedReserveError(

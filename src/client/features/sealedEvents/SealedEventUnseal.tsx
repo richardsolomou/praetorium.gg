@@ -21,13 +21,13 @@ export function UnsealRoster({ token, eventToken, userId, label }: { token: stri
   return (
     <>
       <IconAction
-        tooltip="Unseal roster"
+        tooltip="Unseal list"
         trigger={
           <Button
             variant="ghost"
             size="icon-sm"
             className="text-dim hover:text-discarded pointer-coarse:size-11"
-            aria-label={`Unseal ${label}’s roster`}
+            aria-label={`Unseal ${label}’s list`}
             disabled={unseal.isPending}
             onClick={() => {
               unseal.reset()
@@ -40,10 +40,10 @@ export function UnsealRoster({ token, eventToken, userId, label }: { token: stri
       </IconAction>
       <ConfirmDialog
         open={confirming}
-        title={`Unseal ${label}’s roster?`}
-        description="Their revealed roster is discarded and they can seal another one. Battles already started keep the roster they were created with."
+        title={`Unseal ${label}’s list?`}
+        description="Their revealed list is discarded and they can seal another one. Battles already started keep the list they were created with."
         cancel="Keep it sealed"
-        confirm="Unseal roster"
+        confirm="Unseal list"
         pendingLabel="Unsealing…"
         pending={unseal.isPending}
         error={unseal.error}
@@ -53,7 +53,7 @@ export function UnsealRoster({ token, eventToken, userId, label }: { token: stri
         }}
         onConfirm={() => unseal.mutate()}
       >
-        {unseal.isPending ? <output className="sr-only">Unsealing roster…</output> : null}
+        {unseal.isPending ? <output className="sr-only">Unsealing list…</output> : null}
       </ConfirmDialog>
     </>
   )

@@ -1,4 +1,4 @@
-You can build one list, browse the reference and run the simulator without an account. You need one to save rosters, start battles, join tournaments and add friends. Accounts are free and for players aged 13 and over.
+You can build one list, browse the reference and run the simulator without an account. You need one to save lists, start battles, join tournaments and add friends. Accounts are free and for players aged 13 and over.
 
 ## Create an account
 
@@ -9,7 +9,7 @@ You can build one list, browse the reference and run the simulator without an ac
 
 To skip the password, choose **Continue with Apple**, **Continue with Google**, **Continue with Discord** or **Continue with GitHub** instead.
 
-Your name is what other players see in battles, rosters and friend lists. You can change it later under **Display name** in [Account settings](/profile). If you hide your name when signing up with Apple, Praetorium asks you to choose one. Your email stays private.
+Your name is what other players see in battles, on your lists and among their friends. You can change it later under **Display name** in [Account settings](/profile). If you hide your name when signing up with Apple, Praetorium asks you to choose one. Your email stays private.
 
 When you sign up with a password, Praetorium sends you a verification email. You can play without verifying, but see [Verify your email](/docs/account-security#verify-your-email) for why it's worth doing.
 

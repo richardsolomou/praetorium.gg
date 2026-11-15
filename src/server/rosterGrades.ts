@@ -18,7 +18,7 @@ const references = (limit: number) =>
 export async function calculateRosterGrades(data: PriceInput, signal: AbortSignal) {
   const instance = app()
   const [loaded, rules] = await Promise.all([instance.catalogueFor(data.catalogueId), instance.rulesFor(data.catalogueId)])
-  if (!loaded) throw new Error('This roster’s army data is unavailable.')
+  if (!loaded) throw new Error('This list’s army data is unavailable.')
   const units = await measureRosterUnits({
     loaded,
     rules,

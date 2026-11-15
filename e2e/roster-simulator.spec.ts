@@ -162,7 +162,7 @@ test('Aeldari weapon buffs calculate their named and existing-ability effects', 
   await blitz.click()
   await expect.poll(async () => Number(await damage.textContent())).toBe(baseline)
   await simulator.getByRole('button', { name: 'Close', exact: true }).click()
-  await page.getByRole('button', { name: 'Back to roster', exact: true }).click()
+  await page.getByRole('button', { name: 'Back to list', exact: true }).click()
   await expect(page.locator('[data-unit="Asurmen"]')).toBeVisible()
 })
 
@@ -223,7 +223,7 @@ test('roster simulations preserve the saved loadout', async ({ browser, page }) 
       await noOverflow(page)
       await loadout.getByRole('button', { name: 'Close', exact: true }).click()
       await simulator.getByRole('button', { name: 'Close', exact: true }).click()
-      if (width < ROSTER_SPLIT) await pane.getByRole('button', { name: 'Back to roster', exact: true }).click()
+      if (width < ROSTER_SPLIT) await pane.getByRole('button', { name: 'Back to list', exact: true }).click()
       continue
     }
     await expect(shooting).toContainText('5× ➤ Bolt Rifle - Focused Fire')

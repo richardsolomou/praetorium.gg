@@ -277,9 +277,7 @@ function TransportBoarding({
             </PopoverTrigger>
             <PopoverContent align="end" className="max-h-[min(28rem,70dvh)] w-[min(24rem,calc(100vw-2rem))] overflow-y-auto">
               <PopoverTitle>Embark in {name}</PopoverTitle>
-              <PopoverDescription>
-                {aboard === null ? 'Model capacity unavailable for this roster.' : `${aboard} aboard`}
-              </PopoverDescription>
+              <PopoverDescription>{aboard === null ? 'Model capacity unavailable for this list.' : `${aboard} aboard`}</PopoverDescription>
               <div className="space-y-1.5">
                 {candidates.map((unit) => {
                   const embarked = unit.host.embarkedIn === transport.key

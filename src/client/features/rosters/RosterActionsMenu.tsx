@@ -98,7 +98,7 @@ export function RosterActionsMenu({
   const splitItem =
     savedId && variantCount > 1 ? (
       <DropdownMenuItem disabled={splitVariant.isPending} onClick={() => splitVariant.mutate(savedId)}>
-        <Unlink /> Make its own roster
+        <Unlink /> Make its own list
       </DropdownMenuItem>
     ) : null
   const shareItem = (
@@ -157,7 +157,7 @@ export function RosterActionsMenu({
   ) : null
   const gradeItem = gradesAvailable ? (
     <DropdownMenuItem disabled={!hasUnits} onClick={onGrade}>
-      <ClipboardCheck /> Grade this roster
+      <ClipboardCheck /> Grade this list
     </DropdownMenuItem>
   ) : null
 
@@ -173,22 +173,22 @@ export function RosterActionsMenu({
     <>
       {variantMenu}
       <DropdownMenu>
-        <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label="Roster actions" />}>
+        <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label="List actions" />}>
           <EllipsisVertical />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-max">
           {playSection}
           <MenuSection label="Edit">
             <DropdownMenuItem onClick={onSetup}>
-              <Pencil /> Edit roster setup
+              <Pencil /> Edit list setup
             </DropdownMenuItem>
             {savedId && !guest ? (
               <DropdownMenuItem disabled={saving || lockRoster.isPending} onClick={() => lockRoster.mutate(true)}>
-                <Lock /> Lock roster
+                <Lock /> Lock list
               </DropdownMenuItem>
             ) : guest ? (
               <DropdownMenuItem onClick={() => onAsk('lock')}>
-                <Lock /> Lock roster
+                <Lock /> Lock list
               </DropdownMenuItem>
             ) : null}
           </MenuSection>
@@ -249,7 +249,7 @@ export function RosterActionsMenu({
                 variant="outline"
                 size="sm"
                 spacing={0}
-                aria-label="Roster mode"
+                aria-label="List mode"
               >
                 <ToggleGroupItem
                   value="build"
@@ -274,7 +274,7 @@ export function RosterActionsMenu({
     <>
       {locked ? variantMenu : null}
       <DropdownMenu>
-        <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label="Roster actions" />}>
+        <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label="List actions" />}>
           <EllipsisVertical />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-max">
@@ -282,7 +282,7 @@ export function RosterActionsMenu({
           {locked ? (
             <MenuSection label="Edit">
               <DropdownMenuItem disabled={lockRoster.isPending} onClick={() => lockRoster.mutate(false)}>
-                <LockOpen /> Unlock roster
+                <LockOpen /> Unlock list
               </DropdownMenuItem>
             </MenuSection>
           ) : null}
@@ -308,7 +308,7 @@ export function RosterActionsMenu({
               </>
             ) : signedIn ? (
               <DropdownMenuItem disabled={duplicateRoster.isPending || !hasUnits} onClick={() => duplicateRoster.mutate()}>
-                <Copy /> Duplicate to my rosters
+                <Copy /> Duplicate to my lists
               </DropdownMenuItem>
             ) : (
               <DropdownMenuItem

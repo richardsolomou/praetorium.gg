@@ -112,7 +112,7 @@ export function noticeMessage(notice: StoredNotice, names: { actor?: string; sea
       if (notice.invite) return { title: 'Battle invite', body: `${actor} invited you to a battle.`, path: battleInvitePath(notice.invite) }
       return {
         title: 'New battle',
-        body: `${actor} started ${notice.sealedEvent ? 'a sealed-roster battle' : 'a battle'} with you.`,
+        body: `${actor} started ${notice.sealedEvent ? 'a sealed-list battle' : 'a battle'} with you.`,
         path: `/battles/${encodeURIComponent(notice.battleToken)}`,
       }
     case 'friend-requested':
@@ -136,8 +136,8 @@ export function noticeMessage(notice: StoredNotice, names: { actor?: string; sea
         'sealed-event-entry-added': `${actor} added you as a player. Seal your list.`,
         'sealed-event-entry-rejected': 'The organizer declined your entry.',
         'sealed-event-roster-reseal': 'Your sealed list was cleared after a size or team change. Seal a replacement.',
-        'sealed-event-revealed': 'The rosters are out. Start your battles.',
-        'sealed-event-roster-unsealed': 'The organizer unsealed your roster. Seal a replacement.',
+        'sealed-event-revealed': 'The lists are out. Start your battles.',
+        'sealed-event-roster-unsealed': 'The organizer unsealed your list. Seal a replacement.',
         // The recipient's timezone is unknown here, so the deadline stays on the page they open.
         'sealed-event-roster-reminder': 'Seal your list before the deadline.',
         'sealed-event-battlefield-set': 'The organizer set your battlefield. Take a look before the game.',

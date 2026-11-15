@@ -5,7 +5,7 @@
  * so the 409 status does not reach the browser. The prefix is all a browser has to
  * recognise the refusal by, so it is named once here for both sides of the wire.
  */
-export const ROSTER_NOT_USABLE = 'fix roster errors before using it'
+export const ROSTER_NOT_USABLE = 'fix list errors before using it'
 
 /**
  * Whether a rejection is the server refusing a roster that is over its limit or not legal.

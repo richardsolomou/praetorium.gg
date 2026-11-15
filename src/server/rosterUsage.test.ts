@@ -38,7 +38,7 @@ it('rejects catalogue legality errors', () => {
 })
 
 it('rejects rosters over their points limit', () => {
-  expect(rosterUseError({ ...priced, points: 2_005 }, { limit: 2_000 })).toBe('roster has 2005 points, over its 2000-point limit')
+  expect(rosterUseError({ ...priced, points: 2_005 }, { limit: 2_000 })).toBe('list has 2005 points, over its 2000-point limit')
 })
 
 it('allows an over-points roster that waived the points limit', () => {
@@ -98,7 +98,7 @@ it('rejects a saved roster with an obsolete detachment when it is used', async (
     (response: Response) => response.text(),
   )
   expect(message).toBe(
-    'fix roster errors before using it: This roster has a detachment that is no longer available. Choose a current detachment.',
+    'fix list errors before using it: This list has a detachment that is no longer available. Choose a current detachment.',
   )
 })
 
@@ -182,7 +182,7 @@ it('seals a roster over its own points limit, which its event checks instead', a
 
 it('rejects a roster over its custom points budget though within its battle size', () => {
   expect(rosterUseError({ ...priced, points: 1_505 }, { limit: 2_000, pointsBudget: 1_500 })).toBe(
-    'roster has 1505 points, over its 1500-point limit',
+    'list has 1505 points, over its 1500-point limit',
   )
 })
 
@@ -242,7 +242,7 @@ it('leaves the lender off a snapshot of an owned roster', async () => {
 it('refuses a lent roster where only owned rosters may be used', async () => {
   lentFrom({ id: 'owner', name: 'Owner' })
   const message = await rosterForUse('borrower', 'roster').catch((response: Response) => response.text())
-  expect(message).toBe('you do not own this roster')
+  expect(message).toBe('you do not own this list')
 })
 
 it('refuses a roster that is neither owned nor lent', async () => {

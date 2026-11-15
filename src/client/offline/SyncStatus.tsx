@@ -159,7 +159,7 @@ export function SyncStatus() {
     if (!roster) return
     setBusy(true)
     try {
-      await saveRoster({ data: { ...roster, id: undefined, name: `${roster.name || 'Roster'} (offline copy)`.slice(0, 80) } })
+      await saveRoster({ data: { ...roster, id: undefined, name: `${roster.name || 'List'} (offline copy)`.slice(0, 80) } })
       posthog.capture('offline_work_resolved', { action: 'kept-copy' })
       setDiscard(resource)
     } catch (error) {
@@ -216,8 +216,8 @@ export function SyncStatus() {
           <DialogHeader>
             <DialogTitle>Saved changes</DialogTitle>
             <DialogDescription>
-              Edits are saved on this device until they sync; invitations, tournament admissions, roster sealing and reveals take effect
-              once the server accepts them. {supportsNativeLocalState() ? 'Keep this app installed' : 'Keep this browser’s site data'} until
+              Edits are saved on this device until they sync; invitations, tournament admissions, list sealing and reveals take effect once
+              the server accepts them. {supportsNativeLocalState() ? 'Keep this app installed' : 'Keep this browser’s site data'} until
               then.
             </DialogDescription>
           </DialogHeader>
@@ -251,7 +251,7 @@ export function SyncStatus() {
                   <div className="flex flex-wrap gap-2">
                     {failed && resource.startsWith('roster:') && document ? (
                       <Button size="sm" variant="outline" disabled={busy} onClick={() => void keepCopy(resource)}>
-                        Keep as a new roster
+                        Keep as a new list
                       </Button>
                     ) : null}
                     {failed ? (
@@ -280,7 +280,7 @@ export function SyncStatus() {
               </div>
             ) : null}
             <p className="text-xs text-dim">
-              Saved rosters, references, simulations and downloaded battles work offline; new screens and other players’ updates need a
+              Saved lists, references, simulations and downloaded battles work offline; new screens and other players’ updates need a
               connection.
             </p>
           </DialogBody>

@@ -20,7 +20,7 @@ export function RosterExportDialog({ exported, onClose }: { exported: RosterText
   }
   const download = () => {
     if (!text || !exported) return
-    downloadFile(`${safeFileName(exported.name, 'roster')}-readable.txt`, text, 'text/plain;charset=utf-8')
+    downloadFile(`${safeFileName(exported.name, 'list')}-readable.txt`, text, 'text/plain;charset=utf-8')
     posthog.capture('roster_export_downloaded', { format: 'readable' })
   }
 
@@ -36,8 +36,8 @@ export function RosterExportDialog({ exported, onClose }: { exported: RosterText
     >
       <DialogContent size="md">
         <DialogHeader>
-          <DialogTitle>Export roster</DialogTitle>
-          <DialogDescription>Copy or save your roster as readable text.</DialogDescription>
+          <DialogTitle>Export list</DialogTitle>
+          <DialogDescription>Copy or save your list as readable text.</DialogDescription>
         </DialogHeader>
         <DialogBody>
           <p className="mb-3 text-xs text-dim">
@@ -47,7 +47,7 @@ export function RosterExportDialog({ exported, onClose }: { exported: RosterText
           {exported?.omittedUnitCount ? (
             <Problem className="mb-3">
               {exported.omittedUnitCount} unresolved {exported.omittedUnitCount === 1 ? 'entry is' : 'entries are'} omitted. Resolve them in
-              the builder before submitting this roster.
+              the builder before submitting this list.
             </Problem>
           ) : null}
           <pre className="whitespace-pre-wrap wrap-anywhere rounded-lg border border-edge bg-sunken p-3 text-xs select-text">{text}</pre>

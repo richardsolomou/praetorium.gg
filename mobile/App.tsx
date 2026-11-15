@@ -447,7 +447,7 @@ function AppShell() {
     if (!action) return false
     void handleNativeAction(action).catch((error) => {
       captureNativeException(`native_${action.kind.replace('-', '_')}`, error)
-      if (action.kind === 'print') Alert.alert('Could not print', 'The system print service could not open this roster.')
+      if (action.kind === 'print') Alert.alert('Could not print', 'The system print service could not open this list.')
       if (action.kind === 'share') Alert.alert('Could not share', 'The system share sheet could not open this link.')
     })
     return true

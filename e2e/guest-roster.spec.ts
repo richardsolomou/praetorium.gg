@@ -73,8 +73,8 @@ test("a visitor's list survives a reload and a new tab", async ({ page, context 
 
   // The server cannot see the draft, only the cookie saying there is one, so its rosters page holds a row rather than saying there are none.
   const firstFrame = await (await page.request.get('/rosters')).text()
-  expect(firstFrame).toContain('Loading your rosters')
-  expect(firstFrame).not.toContain('No rosters yet')
+  expect(firstFrame).toContain('Loading your lists')
+  expect(firstFrame).not.toContain('No lists yet')
   await page.reload()
   await expect(page.locator('[data-unit="Necron Warriors"]').first()).toBeVisible()
 
@@ -109,7 +109,7 @@ test('a visitor starting a list is told when storage refuses it, and stays on th
       },
     })
   })
-  await setup.getByRole('button', { name: 'Create roster' }).click()
+  await setup.getByRole('button', { name: 'Create list' }).click()
 
   await expect(setup).toContainText('This browser is not keeping lists')
   expect(new URL(page.url()).pathname).toBe('/rosters')
@@ -123,13 +123,13 @@ test('signing up keeps the list a visitor built', async ({ page }) => {
   await expect(page.locator('[data-stat="points"]')).not.toHaveText(/^0\//)
   const id = lastPathSegment(page.url())
 
-  await page.getByRole('button', { name: 'Save roster' }).click()
+  await page.getByRole('button', { name: 'Save list' }).click()
   await page.waitForURL(/\/sign-in\?next=%2Frosters&join=true$/)
   await page.waitForLoadState('networkidle')
   await page.getByLabel('Your name').fill(uniqueName('Visitor'))
   await page.getByLabel('Email').fill(`visitor-${crypto.randomUUID()}@example.test`)
   await page.getByLabel('Password').fill('a-long-enough-password')
-  await page.getByRole('button', { name: 'Create account and save roster' }).click()
+  await page.getByRole('button', { name: 'Create account and save list' }).click()
 
   await page.waitForURL(new RegExp(`/rosters/${id}$`))
   await expect(page.locator('[data-unit="Necron Warriors"]').first()).toBeVisible()
@@ -147,7 +147,7 @@ test('signing in later asks before saving a list left on the device', async ({ p
   await signUp(page, uniqueName('Returning'))
 
   await page.goto('/rosters')
-  await expect(page.getByRole('heading', { name: 'Save the roster you started?' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Save the list you started?' })).toBeVisible()
   expect(saves).toEqual([])
   await page.getByRole('button', { name: 'Save it' }).click()
   await page.waitForURL(/\/rosters\/[^/]+$/)
@@ -163,20 +163,20 @@ test('a list left on the device can be discarded after signing in', async ({ pag
   await page.goto('/rosters')
   await page.getByRole('button', { name: 'Discard it' }).click()
   await page.reload()
-  await expect(page.getByRole('heading', { name: 'No rosters yet' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'No lists yet' })).toBeVisible()
 })
 
 test('a visitor with no roster is offered both ways in, and told the device limit only once they keep one', async ({ page }) => {
-  const limit = page.getByText('Without an account, this device keeps one roster.', { exact: false })
+  const limit = page.getByText('Without an account, this device keeps one list.', { exact: false })
   await page.goto('/rosters')
   await page.waitForLoadState('networkidle')
-  await expect(page.getByRole('heading', { name: 'No rosters yet' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'No lists yet' })).toBeVisible()
   await expect(limit).toHaveCount(0)
   await page.getByRole('button', { name: 'Import a list', exact: true }).click()
-  await expect(page.getByRole('dialog', { name: 'Import roster', exact: true })).toBeVisible()
+  await expect(page.getByRole('dialog', { name: 'Import list', exact: true })).toBeVisible()
   await page.keyboard.press('Escape')
-  await page.getByRole('link', { name: 'Build a roster', exact: true }).click()
-  await expect(page.getByRole('dialog', { name: 'Create roster' })).toBeVisible()
+  await page.getByRole('link', { name: 'Build a list', exact: true }).click()
+  await expect(page.getByRole('dialog', { name: 'Create list' })).toBeVisible()
 
   await startGuestRoster(page)
   await page.goto('/rosters')
@@ -195,7 +195,7 @@ test("a visitor's roster is listed on the rosters page as a saved one is", async
   await expect(row).toContainText('Necrons')
   await expect(row).toContainText('1 unit')
   await expect(row.getByText(/^\d+\/\d+$/)).toBeVisible()
-  await expect(page.getByRole('navigation', { name: 'Rosters' }).getByRole('link')).toHaveText([
+  await expect(page.getByRole('navigation', { name: 'Lists' }).getByRole('link')).toHaveText([
     'Mine',
     'Friends',
     'Public',
@@ -215,13 +215,13 @@ test('a visitor keeping a roster is asked to sign up for a second one', async ({
   const kept = await guestDraft(page)
   await page.goto('/rosters')
   await page.waitForLoadState('networkidle')
-  const prompt = page.getByRole('dialog', { name: 'Keep more than one roster' })
+  const prompt = page.getByRole('dialog', { name: 'Keep more than one list' })
 
-  await retryUntilVisible(prompt, () => page.getByRole('button', { name: 'New roster', exact: true }).click())
+  await retryUntilVisible(prompt, () => page.getByRole('button', { name: 'New list', exact: true }).click())
   await expect(prompt.getByRole('link', { name: 'Create an account' })).toHaveAttribute('href', '/sign-in?next=%2Frosters&join=true')
   await shotAtWidths(page, 'round4-second-roster')
   await page.keyboard.press('Escape')
-  await page.getByRole('button', { name: 'Import roster' }).click()
+  await page.getByRole('button', { name: 'Import list' }).click()
   await expect(prompt).toBeVisible()
   await page.keyboard.press('Escape')
   await page.getByRole('button', { name: /^Actions for / }).click()
@@ -229,7 +229,7 @@ test('a visitor keeping a roster is asked to sign up for a second one', async ({
   await expect(prompt).toBeVisible()
   await page.keyboard.press('Escape')
   await page.goto('/rosters?view=public')
-  await expect(page.getByRole('heading', { name: 'Public rosters' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Public lists' })).toBeVisible()
 
   expect([await guestDraft(page), saves]).toEqual([kept, []])
 })
@@ -275,7 +275,7 @@ test("a visitor's list for an army the data no longer holds can be started again
   await expect(page.getByRole('heading', { name: 'This army is not available' })).toBeVisible()
   await page.getByRole('button', { name: 'Start a new list' }).click()
   await page.waitForURL(/\/rosters$/)
-  await expect(page.getByRole('heading', { name: 'No rosters yet' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'No lists yet' })).toBeVisible()
 })
 
 for (const width of [1440, 390]) {
@@ -285,12 +285,12 @@ for (const width of [1440, 390]) {
     await chooseFaction(setup, 'Chaos Knights')
     await setup.getByRole('button', { name: 'Select Infernal Lance' }).click()
     await setup.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Priority Assets' }).click()
-    await setup.getByRole('button', { name: 'Create roster' }).click()
+    await setup.getByRole('button', { name: 'Create list' }).click()
     if (width < ROSTER_WIDE) await page.getByRole('button', { name: 'Add units', exact: true }).click()
     await page.getByLabel('Add a unit').fill('Beasts of Nurgle')
     await page.getByRole('button', { name: 'Toggle Daemons Library' }).click()
     await expect(page.getByRole('button', { name: 'Add Beasts of Nurgle', exact: true })).toBeDisabled()
-    await expect(page.locator('[data-picker-unit="Beasts of Nurgle"]')).toContainText('Add a Nurgle Battleline unit to the roster first.')
+    await expect(page.locator('[data-picker-unit="Beasts of Nurgle"]')).toContainText('Add a Nurgle Battleline unit to the list first.')
     await page.getByLabel('Add a unit').fill('Nurglings')
     await page.getByRole('button', { name: 'Add Nurglings', exact: true }).click()
     await page.getByLabel('Add a unit').fill('Beasts of Nurgle')
@@ -304,20 +304,20 @@ for (const width of [1440, 390]) {
     await page.getByLabel('Add a unit').fill('Beasts of Nurgle')
     await expect(page.getByRole('button', { name: 'Add Beasts of Nurgle', exact: true })).toBeDisabled()
     await expect(page.locator('[data-picker-unit="Beasts of Nurgle"]')).not.toContainText('Limit reached')
-    await expect(page.locator('[data-picker-unit="Beasts of Nurgle"]')).toContainText('1/1 in roster')
+    await expect(page.locator('[data-picker-unit="Beasts of Nurgle"]')).toContainText('1/1 in list')
     await expect(page.locator('[data-picker-unit="Beasts of Nurgle"]')).not.toContainText('construction rules')
     await page.screenshot({ path: test.info().outputPath(`allied-limits-${width}.png`) })
     if (width < ROSTER_WIDE) await page.getByRole('button', { name: 'Close', exact: true }).click()
-    await page.getByRole('button', { name: 'Save roster', exact: true }).click()
-    await expect(page.getByRole('heading', { name: 'Save your roster' })).toBeVisible()
+    await page.getByRole('button', { name: 'Save list', exact: true }).click()
+    await expect(page.getByRole('heading', { name: 'Save your list' })).toBeVisible()
     await page.screenshot({ path: test.info().outputPath(`guest-save-${width}.png`), fullPage: true })
-    await page.getByRole('link', { name: 'Back to your roster' }).click()
+    await page.getByRole('link', { name: 'Back to your list' }).click()
     await expect(page.locator('[data-unit="Beasts of Nurgle"]')).toBeVisible()
     const edit = await openRosterSetup(page)
     await chooseOption(page, 'Battle size', /^Onslaught/)
     await edit.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Priority Assets', exact: true }).click()
     await edit.getByRole('button', { name: 'Review changes' }).click()
-    const review = page.getByRole('dialog', { name: 'Review roster changes' })
+    const review = page.getByRole('dialog', { name: 'Review list changes' })
     const unchanged = review.locator('details')
     await expect(unchanged.locator('summary')).toHaveText('2 unchanged units')
     await expect(unchanged).not.toHaveAttribute('open')
@@ -344,7 +344,7 @@ test('saving a guest roster does not discard it when browser storage is unavaila
       },
     }),
   )
-  await page.getByRole('button', { name: 'Save roster', exact: true }).click()
+  await page.getByRole('button', { name: 'Save list', exact: true }).click()
   await expect(page.getByRole('alert')).toContainText('Allow browser storage to save it')
   await expect(page.locator('[data-unit="Necron Warriors"]')).toBeVisible()
 })
@@ -397,7 +397,7 @@ for (const width of [1440, 390]) {
       await more.click()
       await expect.poll(() => intercepted).toBe(true)
       if (width < ROSTER_WIDE) {
-        await page.getByRole('button', { name: 'Back to roster', exact: true }).click()
+        await page.getByRole('button', { name: 'Back to list', exact: true }).click()
         await page.getByRole('button', { name: 'Add units', exact: true }).click()
       }
       const picker = page.locator('div[data-onboarding="roster-picker"]')

@@ -61,7 +61,7 @@ export function RosterHeaderNotices({
       ) : null}
       {lockRoster.isError ? <Problem error={lockRoster.error} className="mt-1 text-xs" /> : null}
       {!editable && duplicateRoster.isError ? (
-        <Problem className="mt-1 text-xs">That roster could not be duplicated. Try again.</Problem>
+        <Problem className="mt-1 text-xs">That list could not be duplicated. Try again.</Problem>
       ) : null}
       {createVariant.isError ? <Problem className="mt-1 text-xs">The variant could not be created. Try again.</Problem> : null}
       {splitVariant.isError ? <Problem error={splitVariant.error} className="mt-1 text-xs" /> : null}
@@ -159,7 +159,7 @@ function LentBy({ rosterId, borrowerId, lender }: { rosterId: string; borrowerId
       </Button>
       <ConfirmDialog
         open={returning}
-        title={`Return ${lender.name}’s roster?`}
+        title={`Return ${lender.name}’s list?`}
         description={`You can no longer field it in your battles. Only ${lender.name} can lend it to you again.`}
         cancel="Keep it"
         confirm="Return it"

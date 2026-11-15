@@ -4,10 +4,10 @@ import { attach } from './builder.harness'
 
 /** Grading simulates every unit against benchmark lists, which on a busy runner outlasts the usual wait. */
 async function openGrades(page: Page) {
-  await chooseRosterAction(page, 'Grade this roster')
-  const dialog = page.getByRole('dialog', { name: 'Roster grades', exact: true })
+  await chooseRosterAction(page, 'Grade this list')
+  const dialog = page.getByRole('dialog', { name: 'List grades', exact: true })
   await expect(dialog).toBeVisible()
-  await expect(dialog.getByRole('status', { name: 'Grading this roster' })).toBeHidden({ timeout: 60_000 })
+  await expect(dialog.getByRole('status', { name: 'Grading this list' })).toBeHidden({ timeout: 60_000 })
   return dialog
 }
 

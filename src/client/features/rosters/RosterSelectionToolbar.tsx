@@ -75,11 +75,11 @@ export function RosterSelectionToolbar({
   return (
     <div
       role="toolbar"
-      aria-label="Selected rosters"
+      aria-label="Selected lists"
       className="sticky top-(--app-header) z-10 mt-2 flex flex-wrap items-center gap-2 rounded-lg border border-edge bg-sunken px-3 py-2"
     >
       <output className="mr-auto text-sm text-dim">
-        {selected.length ? `${countLabel(selected.length, 'roster')} selected` : 'Choose rosters to change together.'}
+        {selected.length ? `${countLabel(selected.length, 'list')} selected` : 'Choose lists to change together.'}
       </output>
       {selected.length ? (
         <>

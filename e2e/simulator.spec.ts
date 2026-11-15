@@ -633,7 +633,7 @@ test('automatic shooting and melee with stable edits', async ({ page }) => {
   await loadoutCalculation.waitForStart()
   await expect(heading).toBeVisible()
   await expect(mode).toBeVisible()
-  await expect(loadout.getByText('Select a unit from the roster to see its loadout.')).toHaveCount(0)
+  await expect(loadout.getByText('Select a unit from the list to see its loadout.')).toHaveCount(0)
   await atWidths(page, widths, async (width) => {
     await page.screenshot({ path: test.info().outputPath(`simulator-loadout-updating-${width}.png`), fullPage: true })
   })

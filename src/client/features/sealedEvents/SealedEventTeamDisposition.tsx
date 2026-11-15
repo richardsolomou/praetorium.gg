@@ -35,8 +35,8 @@ export function TeamDispositionPanel({
       <SectionHeading id="team-disposition" title="Team Force Disposition" className="mb-0" />
       <p className="mt-1 text-xs text-dim">
         {team.disposition
-          ? 'Your team plays this card. You can change it until the rosters are revealed.'
-          : 'Your team plays one, from any card either roster offers. Choose it before the rosters are revealed.'}
+          ? 'Your team plays this card. You can change it until the lists are revealed.'
+          : 'Your team plays one, from any card either list offers. Choose it before the lists are revealed.'}
       </p>
       <fieldset className="mt-3 grid gap-2">
         <legend className="sr-only">Force Disposition your team plays</legend>

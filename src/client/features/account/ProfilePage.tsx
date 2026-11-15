@@ -118,7 +118,7 @@ function ProfileForm({
     <main className="ph-no-capture w-full">
       <PageHeader
         title="Account settings"
-        description="Your name and picture, sign-in, roster defaults and calendar link."
+        description="Your name and picture, sign-in, list defaults and calendar link."
         media={
           <span className="grid size-12 shrink-0 place-items-center rounded-lg border border-edge-strong bg-sunken text-parchment">
             <UserRound className="size-5" aria-hidden />
@@ -189,7 +189,7 @@ function ProfileForm({
                 autoComplete="nickname"
                 required
               />
-              <p className="text-xs text-dim">Shown in battles, rosters and friend lists.</p>
+              <p className="text-xs text-dim">Shown in battles, on your lists and among your friends.</p>
             </div>
             <div className="space-y-2">
               <PlayerColourPicker

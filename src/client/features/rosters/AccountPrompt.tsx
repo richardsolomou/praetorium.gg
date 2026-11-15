@@ -9,13 +9,13 @@ import { GUEST_PATH } from './guestDraft'
 export type AccountReason = 'another-roster' | 'variant' | 'loadout' | 'share' | 'lock' | 'archive' | 'lend' | 'battle'
 
 const TITLE: Record<AccountReason, string> = {
-  'another-roster': 'Keep more than one roster',
+  'another-roster': 'Keep more than one list',
   variant: 'Make variants with an account',
   loadout: 'Save loadouts with an account',
-  share: 'Share rosters with an account',
-  lock: 'Lock rosters with an account',
-  archive: 'Archive rosters with an account',
-  lend: 'Lend rosters with an account',
+  share: 'Share lists with an account',
+  lock: 'Lock lists with an account',
+  archive: 'Archive lists with an account',
+  lend: 'Lend lists with an account',
   battle: 'Start battles with an account',
 }
 
@@ -32,16 +32,16 @@ function AccountPrompt({ reason, onClose }: { reason: AccountReason | null; onCl
         <DialogHeader>
           <DialogTitle className="text-2xl">{reason ? TITLE[reason] : null}</DialogTitle>
           <DialogDescription>
-            Without an account, this device keeps one roster. Create a free account and it moves into it. You also get:
+            Without an account, this device keeps one list. Create a free account and it moves into it. You also get:
           </DialogDescription>
         </DialogHeader>
         <DialogBody>
           <ul className="list-disc space-y-1 pl-5 text-sm text-dim">
-            <li>As many rosters as you like, with variants to compare builds</li>
-            <li>Saved unit loadouts to add again in any roster</li>
+            <li>As many lists as you like, with variants to compare builds</li>
+            <li>Saved unit loadouts to add again in any list</li>
             <li>Links to share them, and lending to friends</li>
             <li>Locking and archiving to keep your library tidy</li>
-            <li>Your rosters and battles on any device</li>
+            <li>Your lists and battles on any device</li>
             <li>Your own record, a place on the leaderboard and tournament results</li>
           </ul>
           <div className="flex flex-wrap gap-2">

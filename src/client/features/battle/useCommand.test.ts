@@ -37,7 +37,7 @@ it('says why a roster choice did not stick when setup changed underneath it', as
   writeAppSnapshot.mockResolvedValue(undefined)
   const setProblem = vi.fn()
   await drain({ setProblem, queued: { current: [{ command: { kind: 'attach-saved-roster', rosterId: 'r' } as never, basedOn: 0 }] } })
-  expect(setProblem).toHaveBeenLastCalledWith('The setup changed while that was saving. Choose the roster again.')
+  expect(setProblem).toHaveBeenLastCalledWith('The setup changed while that was saving. Choose the list again.')
 })
 
 describe('the command queue after a failed command', () => {
