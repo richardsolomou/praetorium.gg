@@ -221,12 +221,11 @@ export function WinningListsPage({ search }: { search: WinningSearch }) {
         <section>
           <h2 className="rubric border-b border-edge pb-2">Top-four tournament lists</h2>
           <p className="mt-2 text-xs text-dim">
-            Lists that finished in the top four at Warhammer 40,000 tournaments outside Praetorium, as published by{' '}
+            Lists that finished top four at Warhammer 40,000 tournaments outside Praetorium, as published by{' '}
             <a href={TOP_FOUR_SOURCE_URL} target="_blank" rel="noreferrer" className="underline">
               40k Stats
             </a>
-            . A list is shown while it imports with nothing to fix and is legal under today’s data, so it leaves when a rules change breaks
-            it.
+            . Only lists legal under today’s data are shown, so a rules change can remove one.
           </p>
           <div className="mt-2 space-y-3">
             {result.isError ? (
