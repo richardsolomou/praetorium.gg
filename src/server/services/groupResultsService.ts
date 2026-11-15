@@ -1,4 +1,5 @@
 import { leagueDraw, leagueFixtureStatus } from '../../core/groupLeague'
+import { groupSummary } from '../../core/groupSummary'
 import type { BattleFilter, BattleOrder } from '../../core/battleFilter'
 import { sideScore, standings } from '../../core/standings'
 import { swissStandings } from '../../core/swiss'
@@ -46,7 +47,8 @@ export class GroupResultsService {
     // Which hidden-list game each battle came from, so the page can name it and leave a game's battles inside its card.
     const gameOf = new Map<string, string>()
     const counted = this.battleFeedService.battleSummaries(groupBattlesOf(group, histories, gameOf), viewerId, null, factions)
-    const tables = standings(counted, { exclude: practice.map((opponent) => opponent.id), now: this.clock() })
+    const exclude = practice.map((opponent) => opponent.id)
+    const tables = standings(counted, { exclude, now: this.clock() })
     const rows = tables.overall.filter((row) => memberIds.has(row.id))
     const recent = counted.filter((battle) => battle.status === 'finished').slice(0, GROUP_RECENT_BATTLES)
     // The reader's own group battles still being set up or played, which is what they most likely came back for.
@@ -54,6 +56,7 @@ export class GroupResultsService {
     return {
       table: { faction: null, players: rows.length, rows },
       finished: counted.filter((battle) => battle.status === 'finished').length,
+      summary: groupSummary(counted, { members: memberIds, exclude, now: this.clock() }),
       recent,
       active,
       games: Object.fromEntries(

@@ -1,6 +1,13 @@
 import { createFileRoute, notFound } from '@tanstack/react-router'
 import { GroupPage } from '../client/features/groups/GroupPage'
-import { groupQuery, groupLeagueQuery, groupStandingsQuery, deploymentsQuery, sealedEventQuery } from '../client/queries'
+import {
+  groupQuery,
+  groupLeagueQuery,
+  groupPastLeaguesQuery,
+  groupStandingsQuery,
+  deploymentsQuery,
+  sealedEventQuery,
+} from '../client/queries'
 import { GROUP_TABS, type GroupTab } from '../client/features/groups/group'
 import { searchText } from '../client/searchParams'
 import { parseBattlesSearch, type BattlesSearch } from '../client/features/battles/battleSearch'
@@ -24,6 +31,7 @@ export const Route = createFileRoute('/groups/$token')({
       context.queryClient.query({ ...groupQuery(params.token), staleTime: 'static' }),
       context.queryClient.query({ ...groupStandingsQuery(params.token), staleTime: 'static' }).catch(() => null),
       context.queryClient.query({ ...groupLeagueQuery(params.token), staleTime: 'static' }).catch(() => null),
+      context.queryClient.query({ ...groupPastLeaguesQuery(params.token), staleTime: 'static' }).catch(() => null),
       context.queryClient.query({ ...deploymentsQuery(), staleTime: 'static' }).catch(() => null),
     ])
     if (!group) throw notFound()
