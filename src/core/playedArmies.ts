@@ -107,14 +107,26 @@ const PLAYED_FACETS = ['faction', 'detachment', 'rules', 'size', 'disposition', 
 export const playedArmyFilterActive = (filter: PlayedArmyFilter) =>
   Boolean(filter.q || filter.period || filter.from || filter.to || PLAYED_FACETS.some((key) => facetActive(filter[key])))
 
-/** The parts of a played-army filter that are not about its catalogue, which `inDiscoveryScope` answers. */
-export function matchesPlayedArmy(army: PlayedArmy, filter: PlayedArmyFilter, now: number) {
+/**
+ * The parts of a played-army filter that are not about its catalogue, which `inDiscoveryScope` answers. The search also
+ * reads the army's faction, named by the caller, and each opponent as "vs Orks".
+ */
+export function matchesPlayedArmy(army: PlayedArmy, filter: PlayedArmyFilter, now: number, faction?: string) {
   return (
     withinPeriod(army.playedAt, periodBounds(filter, now)) &&
     facetMatches(filter.size, [String(army.limit)]) &&
     facetMatches(filter.disposition, army.disposition ? [army.disposition] : []) &&
     facetMatches(filter.result, [army.outcome.result]) &&
     facetMatches(filter.against, army.against) &&
-    (!filter.q || matchesSearch([army.name, army.player.name, ...army.detachments].join(' '), filter.q))
+    (!filter.q || matchesArmySearch(army, filter.q, faction))
   )
+}
+
+/** Words after "vs" name an opponent, so "vs Orks" never finds an Ork army that played someone else. */
+function matchesArmySearch(army: PlayedArmy, q: string, faction: string | undefined) {
+  const [own = '', against] = q.split(/(?:^|\s)vs(?:\s|$)/i)
+  const opponents = army.outcome.opponents.map(({ displayName }) => displayName)
+  const ownText = [army.name, army.player.name, faction ?? '', ...army.detachments].join(' ')
+  if (against === undefined) return matchesSearch([ownText, ...opponents].join(' '), q)
+  return matchesSearch(ownText, own) && (!against.trim() || opponents.some((opponent) => matchesSearch(opponent, against)))
 }

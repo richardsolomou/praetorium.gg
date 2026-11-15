@@ -41,13 +41,15 @@ type KnownRosters = {
 }
 
 /**
- * Whose roster a simulator side comes from: the player's own, a friend's listed or lent roster, or a friend's sealed list,
- * whether or not its event is still on. A roster opened by someone else's link is unknown.
+ * Whose roster a simulator side comes from: the player's own, a friend's listed or lent roster, a friend's sealed list,
+ * whether or not its event is still on, or the player's own or a friend's list in a battle. A roster opened by someone else's link is unknown.
  */
 export function rosterOwner(source: SimulatorRosterSource | undefined, known: KnownRosters): RosterOwner | undefined {
   if (!source) return undefined
-  if ('sealedEvent' in source) {
-    const friend = known.people.find((candidate) => candidate.id === source.sealedEvent.userId)
+  if ('sealedEvent' in source || 'battle' in source) {
+    const userId = 'battle' in source ? source.battle.playerId : source.sealedEvent.userId
+    if (known.me?.id === userId) return known.me
+    const friend = known.people.find((candidate) => candidate.id === userId)
     return friend ? { id: friend.id, name: friend.name, image: friend.image, colour: friend.colour } : undefined
   }
   if (known.me && known.saved.some((roster) => roster.id === source.id)) return known.me

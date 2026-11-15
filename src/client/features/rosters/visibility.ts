@@ -8,7 +8,7 @@ export const VISIBILITY_NAME: Record<RosterVisibility, string> = {
 }
 
 export const VISIBILITY_REACH: Record<RosterVisibility, string> = {
-  private: 'You, friends you lend it to, and seated players through a battle using this list',
+  private: 'You and friends you lend it to. A battle still shows the list as it was fielded',
   unlisted: 'Anyone with the link',
   public: 'Listed on your profile and for anyone to find',
 }

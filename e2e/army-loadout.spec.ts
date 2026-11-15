@@ -6,9 +6,9 @@ for (const token of ['preview-casual-strike-force', 'preview-tournament-battle-d
     await page.goto(`/battles/${token}`)
     for (const width of [1440, 390]) {
       await page.setViewportSize({ width, height: 900 })
-      await expect(page.locator('a[href*="?battle="]')).toHaveCount(0)
-      const open = page.getByRole('button', { name: /^Army: / }).first()
-      await expect(open).toHaveText('Army')
+      await expect(page.getByRole('link', { name: /^Roster: / }).first()).toHaveAttribute('href', new RegExp(`\\?battle=${token}$`))
+      const open = page.getByRole('button', { name: /^Units: / }).first()
+      await expect(open).toHaveText('Units')
       const army = page.locator('[data-army-roster]')
       await retryUntilVisible(army, () => open.click())
       await expect(army.getByRole('button', { name: /^Simulate/ }).first()).toBeVisible()
@@ -71,7 +71,7 @@ for (const token of ['preview-casual-strike-force', 'preview-tournament-battle-d
 test('an unavailable loadout leaves the frozen army readable', async ({ page }) => {
   await page.goto('/battles/preview-casual-strike-force')
   const army = page.locator('[data-army-roster]')
-  await retryUntilVisible(army, () => page.getByRole('button', { name: 'Army: Taktikal Stompa 2K' }).click())
+  await retryUntilVisible(army, () => page.getByRole('button', { name: 'Units: Taktikal Stompa 2K' }).click())
   await page.route('**/_serverFn/**', async (route) => {
     if (route.request().method() === 'POST') await route.abort()
     else await route.continue()

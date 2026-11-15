@@ -277,8 +277,6 @@ const newBattlePlayers = {
   allyId: id.optional(),
 }
 export const sealedEventBattleOptionsSchema = z.object(newBattlePlayers)
-/** A roster read may name the battle that entitles the reader to it. */
-export const rosterInBattleSchema = z.object({ id, battle: token.optional() })
 const opposingSeats = (value: { opponentId?: string; opponentIds?: string[] }) => value.opponentIds?.length ?? (value.opponentId ? 1 : 0)
 /**
  * Who is in a new battle, and on which side.
@@ -442,7 +440,7 @@ export const combatLoadoutSchema = z
     walk: z.object({ seed: z.number().int().min(0).max(2_147_483_647), steps: z.number().int().min(1).max(16) }).optional(),
   })
   .overwrite(currentRosterIds)
-export const savedRosterDatasheetSchema = rosterInBattleSchema.extend({ pickIndex: z.number().int().min(0).max(99) })
+export const savedRosterDatasheetSchema = z.object({ id, pickIndex: z.number().int().min(0).max(99) })
 export const datasheetSlugSchema = z.object({ catalogueId, slug })
 
 /** The datasheets of one army, asked about together because a list is attached in one go. */

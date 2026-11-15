@@ -27,7 +27,7 @@ test('an army is read and its losses recorded without leaving the battle', async
   expect(brought).toBeGreaterThan(1)
   await expect(models).toHaveText(`${brought}/${brought}`)
 
-  await panel.getByRole('button', { name: `Army: ${roster}` }).click()
+  await panel.getByRole('button', { name: `Units: ${roster}` }).click()
   const army = page.locator('[data-army-roster]')
   const squad = army.locator('[data-army-list] [data-unit="Plague Marines"]')
   await squad.getByRole('button', { name: 'Plague Marines', exact: true }).click()
@@ -36,7 +36,7 @@ test('an army is read and its losses recorded without leaving the battle', async
   await expect(loadout).toContainText('Boltgun')
   await expect(loadout.getByRole('combobox')).toHaveCount(0)
   await army.getByRole('button', { name: 'Minimize dialog' }).click()
-  await page.getByRole('button', { name: 'Return to army' }).click()
+  await page.getByRole('button', { name: 'Return to units' }).click()
   await expect(loadout.locator('[data-slot="unit-profile"]')).toBeVisible()
 
   // Casualty presses count ahead of the service, so a squad can be tapped down while a write is in flight.
@@ -97,7 +97,7 @@ test('a multi-wound model is tracked in wounds, and losing them all takes the mo
   const { roster } = await guardBattle(page, 'Wounds', 'Wounded Guard')
 
   const panel = playerPanel(page, 0)
-  await panel.getByRole('button', { name: `Army: ${roster}` }).click()
+  await panel.getByRole('button', { name: `Units: ${roster}` }).click()
   const army = page.locator('[data-army-roster]')
   const squad = army.locator('[data-army-list] [data-unit="Plague Marines"]')
   const drone = army.locator('[data-army-list] [data-unit="Foetid Bloat-drone"]')

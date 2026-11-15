@@ -204,7 +204,7 @@ it('rejects an old account batch rather than giving it to the new account', asyn
 
 it('does not calculate clean downloaded roster projections when restoring work online', () => {
   projectLocalState(state)
-  expect({ bootstrap: client.getQueryData(['roster-bootstrap', 'army', null]), rules: vi.mocked(buildIndex).mock.calls.length }).toEqual({
+  expect({ bootstrap: client.getQueryData(['roster-bootstrap', 'army']), rules: vi.mocked(buildIndex).mock.calls.length }).toEqual({
     bootstrap: undefined,
     rules: 0,
   })

@@ -27,13 +27,17 @@ test('a fielded roster opens as the frozen read-only roster view', async ({ page
   await expect(page.locator('[data-stat="points"]')).toContainText('/2000')
   await expect(page.locator('[data-unit="Lord of Virulence"]')).toContainText('Lord of Virulence')
   const unit = page.locator('[data-unit="Lord of Virulence"]')
+  // A reader may report the unit, never change the list.
+  await unit.getByRole('button', { name: 'Unit actions for Lord of Virulence' }).click()
+  await expect(page.getByRole('menuitem', { name: 'Something wrong?' })).toBeVisible()
+  await expect(page.getByRole('menuitem', { name: 'Delete unit' })).toHaveCount(0)
+  await page.keyboard.press('Escape')
   await unit.getByRole('button', { name: 'Lord of Virulence', exact: true }).click()
   const loadout = page.locator('[data-pane="loadout"]')
   await expect(loadout).toBeVisible()
   await expect(page.locator('[data-slot="unit-profile"]')).toBeVisible()
   await expect(page.getByRole('link', { name: 'Open full datasheet in a new tab' })).toBeVisible()
   await expect(page.locator('pre')).toHaveCount(0)
-  await expect(page.getByRole('button', { name: /Unit actions/ })).toHaveCount(0)
 
   await page.goBack()
   await expect(page).toHaveURL(rosterUrl)

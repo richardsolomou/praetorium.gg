@@ -97,6 +97,7 @@ export const SidePanel = memo(function SidePanel({
              * battle open the same army with nothing to press.
              */}
             <ArmyRoster
+              token={view.token}
               onSimulate={onSimulate}
               army={army}
               finished={view.status === 'finished'}

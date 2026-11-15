@@ -35,6 +35,10 @@ export type SearchableOption = {
   /** Visual label; search and accessible names still use `label`. */
   content?: ReactNode
   detail?: string
+  /** A second line in the list, such as when and against whom; the name above it wraps rather than truncating. */
+  description?: string
+  /** Found by a search elsewhere, such as on the server, so it stays listed whatever was typed. */
+  found?: boolean
 }
 export type SearchableGroup = { label: string; items: SearchableOption[] }
 /** Options listed under no heading. */
@@ -61,13 +65,17 @@ type Props = {
   align?: 'start' | 'end'
   /** Renders only the visible rows, for lists too long to mount at once. */
   virtualized?: boolean
-  /** Shown when no option matches, such as while the options are still loading. */
+  /** Shown when no option matches, such as while the options are still loading; empty shows nothing. */
   emptyText?: string
   /** Pinned between the search box and the list, such as a way to another list. */
   header?: ReactNode
+  /** A line under the header saying what the search box finds, for a list that searches beyond its options. */
+  note?: string
   /** Opens on mount, for a list that replaces another while the reader moves between levels. */
   defaultOpen?: boolean
   onOpenChange?: (open: boolean, reason: ComboboxPrimitive.Root.ChangeEventReason) => void
+  /** What the reader types into the search box, for a list that also searches elsewhere. */
+  onSearchChange?: (text: string) => void
 }
 
 export function SearchableSelect({
@@ -88,8 +96,10 @@ export function SearchableSelect({
   virtualized = false,
   emptyText = 'No matches.',
   header,
+  note,
   defaultOpen,
   onOpenChange,
+  onSearchChange,
 }: Props) {
   const options = useMemo(() => groups.flatMap((group) => group.items.map((option) => ({ ...option, group: group.label }))), [groups])
   const selected = options.find((option) => option.value === value) ?? null
@@ -110,6 +120,7 @@ export function SearchableSelect({
       itemToStringValue={(option) => option.value}
       isItemEqualToValue={(option, candidate) => option.value === candidate.value}
       defaultOpen={defaultOpen}
+      onInputValueChange={onSearchChange ? (text) => onSearchChange(text) : undefined}
       onOpenChange={(open, details) => {
         if (open && !virtualized) requestAnimationFrame(() => centreSelected(list.current))
         onOpenChange?.(open, details.reason)
@@ -145,7 +156,8 @@ export function SearchableSelect({
       >
         <ComboboxInput placeholder={searchPlaceholder} showTrigger={false} />
         {header}
-        <ComboboxEmpty className="text-dim">{emptyText}</ComboboxEmpty>
+        {note ? <p className="border-b border-edge px-2.5 py-2 text-xs text-dim">{note}</p> : null}
+        {emptyText ? <ComboboxEmpty className="text-dim">{emptyText}</ComboboxEmpty> : null}
         <ComboboxList ref={list} className={virtualized ? 'max-h-none overflow-visible p-0' : undefined}>
           {virtualized ? (
             <VirtualOptions handle={virtual} selected={value} />
@@ -158,7 +170,7 @@ export function SearchableSelect({
                     <ComboboxItem
                       key={option.value}
                       value={option}
-                      aria-label={[option.label, option.detail].filter(Boolean).join(', ')}
+                      aria-label={[option.label, option.detail, option.description].filter(Boolean).join(', ')}
                       className="data-highlighted:bg-edge"
                     >
                       <OptionContent option={option} />
@@ -188,7 +200,8 @@ function centreSelected(container: HTMLElement | null) {
 }
 
 /** A row's detail can name what it holds, such as a unit's leaders, so search reads it too. */
-const matchesOption = (option: SearchableOption, query: string) => matchesSearch(`${option.label} ${option.detail ?? ''}`, query)
+const matchesOption = (option: SearchableOption, query: string) =>
+  option.found === true || matchesSearch(`${option.label} ${option.detail ?? ''} ${option.description ?? ''}`, query)
 /** Every search word must appear in the option or its group, so a faction name narrows a long flat list. */
 const matchesGroupedOption = (option: GroupedOption, query: string) => matchesSearch(`${option.label} ${option.group}`, query)
 
@@ -271,6 +284,16 @@ function VirtualOptions({ handle, selected }: { handle: RefObject<VirtualList | 
 }
 
 function OptionContent({ option }: { option: SearchableOption }) {
+  if (option.description)
+    return (
+      <span className="flex min-w-0 flex-1 items-start gap-1.5">
+        {option.icon ? <span className="mt-0.5 shrink-0">{option.icon}</span> : null}
+        <span className="min-w-0 flex-1">
+          <span className="block break-words">{option.label}</span>
+          <span className="block text-xs break-words text-dim">{option.description}</span>
+        </span>
+      </span>
+    )
   return (
     <>
       <OptionLabel option={option} />

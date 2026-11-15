@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { playedArmies } from './playedArmies'
+import { matchesPlayedArmy, playedArmies } from './playedArmies'
 import { copiedArmy } from './rosterCopies'
 import type { DigestSeat } from './battleDigest'
 import type { StandingBattle } from './standings'
@@ -87,6 +87,22 @@ describe('playedArmies opponents', () => {
   it('names the opposing family whichever rules version it fielded', () => {
     const older = { ...built, catalogueId: 'mfm-14~orks' }
     expect(battle('finished', [seat('kieran'), seat('sam', older)])[0]?.against).toEqual(['orks'])
+  })
+})
+
+describe('matchesPlayedArmy search', () => {
+  const [army] = battle('finished')
+
+  it('finds an army by its own faction', () => {
+    expect(matchesPlayedArmy(army!, { q: 'Necrons' }, 0, 'Necrons')).toBe(true)
+  })
+
+  it('finds an army by the faction it played against', () => {
+    expect(matchesPlayedArmy(army!, { q: 'vs Orks' }, 0)).toBe(true)
+  })
+
+  it('reads the faction after vs as the opponent, not the army', () => {
+    expect(matchesPlayedArmy(army!, { q: 'vs Necrons' }, 0, 'Necrons')).toBe(false)
   })
 })
 

@@ -172,7 +172,7 @@ export class RosterService {
   }
 
   /** An opaque roster id grants unlisted or public access; private access requires ownership, a friend's loan, or a named battle whose seated reader can already see the snapshot. */
-  async rosterAccess(id: string, userId: string | null = null, token: string | null = null) {
+  async rosterAccess(id: string, userId: string | null = null) {
     const row = await this.repository.roster(id)
     if (!row) return null
     if (row.userId === userId) return { roster: rosterFromRow(row, true), editable: true }
@@ -180,9 +180,7 @@ export class RosterService {
     // until somebody decides it should not be.
     if (row.visibility === 'unlisted' || row.visibility === 'public') return { roster: readerRosterFromRow(row), editable: false }
     const lender = userId ? await this.lender(id, userId) : null
-    if (lender) return { roster: readerRosterFromRow(row), editable: false, lentBy: lender }
-    if (!userId || !token) return null
-    return (await this.fieldedIn(token, userId, id)) ? { roster: readerRosterFromRow(row), editable: false } : null
+    return lender ? { roster: readerRosterFromRow(row), editable: false, lentBy: lender } : null
   }
 
   /** The roster a copy was made from, named only while this reader may still open it. */
@@ -193,15 +191,8 @@ export class RosterService {
     return row && owner ? { id, name: row.name, ownerId: row.userId, ownerName: owner.name } : null
   }
 
-  async sharedRoster(id: string, userId: string | null = null, token: string | null = null) {
-    return (await this.rosterAccess(id, userId, token))?.roster ?? null
-  }
-
-  /** Whether a reader shares a battle with the list they are asking about. */
-  private async fieldedIn(token: string, userId: string, rosterId: string) {
-    const history = await this.repository.battleHistoryByToken(token)
-    if (!history?.players.some((player) => player.id === userId)) return false
-    return history.log.some((entry) => entry.command.kind === 'attach-roster' && entry.command.roster.id === rosterId)
+  async sharedRoster(id: string, userId: string | null = null) {
+    return (await this.rosterAccess(id, userId))?.roster ?? null
   }
 
   async setRosterVisibility(userId: string, id: string, visibility: RosterVisibility) {

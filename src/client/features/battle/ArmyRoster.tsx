@@ -1,7 +1,8 @@
-import { Calculator, ChevronLeft, Minus, Plus, Scroll } from 'lucide-react'
+import { Calculator, ChevronLeft, Minus, Plus, Scroll, Shield } from 'lucide-react'
+import { Link } from '@tanstack/react-router'
 import { ControlTooltip } from '../../components/ControlTooltip'
 import { useRef, useState } from 'react'
-import { Button } from '@/components/ui/button'
+import { Button, buttonVariants } from '@/components/ui/button'
 import { DialogBody, DialogDescription, DialogHeader, DialogTitle } from '../../components/Dialog'
 import { BattleDialogContent, BattlePromptDialog } from './BattlePromptDialog'
 import { casualtyOutcome, type Command, transportLabel, type UnitState } from '../../../core/battle'
@@ -32,6 +33,8 @@ type Props = {
   /** A parked prompt holds every battle-changing control, casualties included, until it is resumed or closed. */
   blocked?: boolean
   send: SendCommand
+  /** The battle whose frozen copy of this army the Roster link opens. */
+  token: string
 }
 
 type CasualtyCommand = Parameters<typeof casualtyOutcome>[1]
@@ -73,7 +76,7 @@ function usePendingCasualties(units: readonly UnitState[], send: SendCommand) {
 }
 
 /** Show the frozen roster from the battle log in place, with current losses; either seated side can record either army’s losses. */
-export function ArmyRoster({ army, side, finished, actionable, pending, blocked = false, send, onSimulate }: Props) {
+export function ArmyRoster({ army, side, finished, actionable, pending, blocked = false, send, onSimulate, token }: Props) {
   const [open, setOpen] = useState(false)
   const [selectedKey, setSelectedKey] = useState<string | null>(null)
   const [destroyedOpen, setDestroyedOpen] = useState(false)
@@ -146,9 +149,19 @@ export function ArmyRoster({ army, side, finished, actionable, pending, blocked 
   return (
     <>
       <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
-        <Button variant="secondary" size="xs" className="max-w-full" onClick={() => setOpen(true)} aria-label={`Army: ${roster.name}`}>
-          <Scroll aria-hidden /> Army
+        {/* Units is the army as it stands on the table; Roster is the list as it was fielded, with its points and wargear. */}
+        <Button variant="secondary" size="xs" onClick={() => setOpen(true)} aria-label={`Units: ${roster.name}`}>
+          <Shield aria-hidden /> Units
         </Button>
+        <Link
+          to="/rosters/$id"
+          params={{ id: army.playerId }}
+          search={{ battle: token }}
+          className={buttonVariants({ variant: 'secondary', size: 'xs' })}
+          aria-label={`Roster: ${roster.name}`}
+        >
+          <Scroll aria-hidden /> Roster
+        </Link>
         {/* Read across the table mid-game, so only an opposing army in a running battle offers it. */}
         {actionable && !finished && !side.isViewer ? <ArmyThreats army={army} side={side} /> : null}
         {units.some(canSimulate) ? (
@@ -178,8 +191,8 @@ export function ArmyRoster({ army, side, finished, actionable, pending, blocked 
           // Minimizing keeps the unit being read; closing starts the next look from the army.
           if (!next) setSelectedKey(null)
         }}
-        minimizedLabel={`${army.playerName} · ${roster.name}`}
-        resumeLabel="Return to army"
+        minimizedLabel={`${army.playerName}'s units`}
+        resumeLabel="Return to units"
       >
         <BattleDialogContent data-army-roster size={sheets ? 'lg' : 'md'} fill={sheets} className={tint(side.index).border}>
           <DialogHeader className={`flex-row items-center gap-2 py-3 ${selected ? 'max-[859px]:pl-2' : ''}`}>
@@ -188,7 +201,7 @@ export function ArmyRoster({ army, side, finished, actionable, pending, blocked 
                 variant="ghost"
                 size="icon-sm"
                 className="shrink-0 min-[860px]:hidden"
-                aria-label={`Back to ${roster.name}`}
+                aria-label={`Back to ${army.playerName}'s units`}
                 onClick={() => setSelectedKey(null)}
               >
                 <ChevronLeft aria-hidden />
@@ -197,11 +210,11 @@ export function ArmyRoster({ army, side, finished, actionable, pending, blocked 
             <div className="min-w-0 space-y-1.5">
               {/* A compact screen shows the datasheet without its card, so the header names the unit and the army it is in. */}
               <DialogTitle className="truncate">
-                <span className={selected ? 'max-[859px]:hidden' : ''}>{roster.name}</span>
+                <span className={selected ? 'max-[859px]:hidden' : ''}>{army.playerName}'s units</span>
                 {selected ? <span className="min-[860px]:hidden">{selected.name}</span> : null}
               </DialogTitle>
               <DialogDescription render={<div />}>
-                <ArmyIdentity army={army} leading={army.playerName} className={selected ? 'max-[859px]:hidden' : ''} />
+                <ArmyIdentity army={army} leading={roster.name} className={selected ? 'max-[859px]:hidden' : ''} />
                 {selected ? <span className="block truncate text-2xs text-dim min-[860px]:hidden">{roster.name}</span> : null}
               </DialogDescription>
             </div>
@@ -261,7 +274,6 @@ function BattleUnit({
       unit={{
         entryId: unit.entryId ?? unit.key,
         name: unit.name,
-        points: unit.points,
         wargear: unit.wargear ?? [],
         attachment: null,
         enhancements: unit.enhancements ?? [],

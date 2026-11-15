@@ -18,7 +18,10 @@ export type MatchupSettings = z.infer<typeof matchupSettingsSchema>
 
 const savedRosterSource = z.object({ id: idSchema })
 const sealedEventRosterSource = z.object({ sealedEvent: z.object({ token: idSchema, eventToken: idSchema, userId: idSchema }) })
-export type SimulatorRosterSource = z.infer<typeof savedRosterSource> | z.infer<typeof sealedEventRosterSource>
+/** A player's list as a battle froze it, which anyone who may watch the battle may read, however its saved roster is shared. */
+const battleRosterSource = z.object({ battle: z.object({ token: idSchema, playerId: idSchema }) })
+export const simulatorRosterSourceSchema = z.union([savedRosterSource, sealedEventRosterSource, battleRosterSource])
+export type SimulatorRosterSource = z.infer<typeof simulatorRosterSourceSchema>
 const pickIndexSchema = z.int().min(0).max(500)
 
 const sideSchema = z.object({
@@ -42,7 +45,11 @@ const sideSchema = z.object({
         value && typeof value === 'object' && 'league' in value
           ? (({ league, ...rest }) => ({ ...rest, sealedEvent: league }))(value)
           : value,
-      z.union([savedRosterSource.extend({ pickIndex: pickIndexSchema }), sealedEventRosterSource.extend({ pickIndex: pickIndexSchema })]),
+      z.union([
+        savedRosterSource.extend({ pickIndex: pickIndexSchema }),
+        sealedEventRosterSource.extend({ pickIndex: pickIndexSchema }),
+        battleRosterSource.extend({ pickIndex: pickIndexSchema }),
+      ]),
     )
     .optional(),
 })
@@ -50,9 +57,17 @@ export type SimulatorSide = z.infer<typeof sideSchema>
 
 /** Identifies a side's roster, whichever kind it is. */
 export function rosterSourceKey(source: SimulatorRosterSource) {
-  return 'id' in source
-    ? source.id
-    : JSON.stringify(['sealed-event', source.sealedEvent.token, source.sealedEvent.eventToken, source.sealedEvent.userId])
+  if ('id' in source) return source.id
+  if ('battle' in source) return JSON.stringify(['battle', source.battle.token, source.battle.playerId])
+  return JSON.stringify(['sealed-event', source.sealedEvent.token, source.sealedEvent.eventToken, source.sealedEvent.userId])
+}
+
+/** The source a `rosterSourceKey` names, so any roster a picker lists can be loaded from its key alone. */
+export function rosterSourceFromKey(sourceKey: string): SimulatorRosterSource {
+  if (!sourceKey.startsWith('[')) return { id: sourceKey }
+  const [kind, ...parts] = JSON.parse(sourceKey) as string[]
+  if (kind === 'battle') return { battle: { token: parts[0]!, playerId: parts[1]! } }
+  return { sealedEvent: { token: parts[0]!, eventToken: parts[1]!, userId: parts[2]! } }
 }
 
 /** Everything a shared simulator link restores; the first side attacks unless swapped. */

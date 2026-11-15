@@ -215,7 +215,7 @@ export function RosterDiscoveryPage({ view, search }: { view: RosterAudience | '
           label="Roster"
           query={search.q ?? ''}
           onQuery={(next) => choose({ ...search, q: next.trim() || undefined })}
-          placeholder={played ? 'Search armies, players, detachments…' : 'Search roster names and players…'}
+          placeholder={played ? 'Search armies, players, factions, opponents…' : 'Search rosters, players, factions, detachments…'}
           maxQueryLength={ROSTER_SEARCH_MAX_LENGTH}
           dimensions={counted}
           value={facets}

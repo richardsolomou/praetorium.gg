@@ -1,11 +1,13 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useEffectEvent, useMemo, useRef, useState, type ReactNode } from 'react'
 import { ArrowLeftRight, Crosshair, Swords } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import { combatUnitsQuery, factionIndexQuery } from '../../queries'
+import { battleQuery, combatUnitsQuery, factionIndexQuery } from '../../queries'
 import { openSealedEventRoster, sharedRoster } from '../../functions'
-import { rosterSourceKey } from '../../../contracts/simulatorState'
+import { rosterSourceFromKey, rosterSourceKey, type SimulatorRosterSource } from '../../../contracts/simulatorState'
+import { loadRosterSource } from './rosterSearch'
+import type { RosterOption } from './RosterPicker'
 import { sealedCombatRoster } from './rosterCombat'
 import { errorMessage } from '../../queryClient'
 import { useStoredValue, writeStoredValue } from '../../storedValue'
@@ -98,6 +100,48 @@ export function RosterCombatComparison({
   const defaults = defaultBenchmarkTargets(catalogue.data ?? [])
   const savedTargets = targetsLoaded ? storedTargets : null
   const targets = savedTargets ?? defaults.targets
+  // Rosters a picker's search found and the reader chose, kept for as long as this comparison is open.
+  const [found, setFound] = useState<RosterOption[]>([])
+  const queryClient = useQueryClient()
+  const fieldedIn = currentRoster?.saved && 'battle' in currentRoster.saved.source ? currentRoster.saved.source.battle : null
+  const battle = useQuery({ ...battleQuery(fieldedIn?.token ?? ''), enabled: Boolean(fieldedIn) })
+  const battleView = battle.data && battle.data.kind !== 'unavailable' ? battle.data.view : undefined
+  const battleArmies = (battleView?.players ?? []).flatMap((player) => {
+    if (!fieldedIn || player.id === fieldedIn.playerId || !player.roster?.built?.picks?.length) return []
+    const source = { battle: { token: fieldedIn.token, playerId: player.id } }
+    return [
+      {
+        key: rosterSourceKey(source),
+        source,
+        name: `${player.roster.name} · ${player.name}`,
+        catalogueId: player.roster.built.catalogueId,
+      },
+    ]
+  })
+  // The roster on screen is "Current roster", and the player's and friends' rosters are listed under their own names.
+  const listed = new Set([
+    ...(currentRoster?.saved ? [rosterSourceKey(currentRoster.saved.source)] : []),
+    ...activeRosters.map(({ id }) => id),
+    ...friendRosters.map(({ roster }) => roster.id),
+    ...lentRosters.map(({ roster }) => roster.id),
+    ...battleArmies.map(({ key }) => key),
+  ])
+  const searchListed = new Set([
+    ...listed,
+    ...found.map(({ id }) => id),
+    ...sealedEventRosters.map((entry) => rosterSourceKey(friendSealedEventSource(entry))),
+  ])
+  const sourceOption = (group: string, key: string, source: SimulatorRosterSource, name: string, catalogueId: string) => ({
+    id: key,
+    catalogueId,
+    group,
+    label: name,
+    load: async () => {
+      const roster = await loadRosterSource(queryClient, source)
+      if (!roster) throw new Error('This roster is no longer available.')
+      return [roster]
+    },
+  })
   const options: RosterCombatSource[] = sources ?? [
     {
       id: BENCHMARKS,
@@ -143,6 +187,10 @@ export function RosterCombatComparison({
         return [{ ...data, pickIndex: 0, owner }]
       },
     })),
+    ...battleArmies.map(({ key, source, name, catalogueId }) => sourceOption('This battle', key, source, name, catalogueId)),
+    ...found.flatMap(({ id, label, catalogueId }) =>
+      listed.has(id) ? [] : [sourceOption('Found rosters', id, rosterSourceFromKey(id), label, catalogueId ?? '')],
+    ),
     ...sealedEventRosters.map((entry) => {
       const { sealedEvent } = friendSealedEventSource(entry)
       const owner = { id: entry.userId, name: entry.ownerName, image: entry.ownerImage, colour: entry.ownerColour }
@@ -393,7 +441,7 @@ export function RosterCombatComparison({
   const choices: RosterCombatSource[] = [...(units ? [{ id: SINGLE_UNIT, label: 'Single unit', load: async () => [] }] : []), ...options]
   const pickerGroups = [
     { label: 'Units and targets', options: choices.filter((source) => single(source.id)) },
-    ...[undefined, "Friends' rosters", 'Lent by friends', "Friends' sealed rosters"].map((group) => ({
+    ...[undefined, 'This battle', 'Found rosters', "Friends' rosters", 'Lent by friends', "Friends' sealed rosters"].map((group) => ({
       label: group ?? (sources ? 'Revealed rosters' : 'Your rosters'),
       options: choices.filter((source) => !single(source.id) && source.group === group),
     })),
@@ -417,6 +465,8 @@ export function RosterCombatComparison({
             single={single}
             unitId={SINGLE_UNIT}
             units={units?.fielding}
+            searchListed={sources ? undefined : searchListed}
+            onFound={(option) => setFound((current) => [...current.filter(({ id }) => id !== option.id), option])}
             onAdd={(id) => add(side, id)}
             onRemove={(id) => remove(side, id)}
             loading={!sources && Boolean(me.data) && saved.isPending}
@@ -465,11 +515,11 @@ export function RosterCombatComparison({
         ) : null}
       </div>
       {storageProblem ? <Problem className="text-xs">{storageProblem}</Problem> : null}
-      {!sources && !currentRoster && !me.isPending && !me.data ? (
-        <p className="text-sm text-dim">Sign in and save both rosters to compare them here.</p>
+      {!sources && !currentRoster && !me.isPending && !me.data && !reversible ? (
+        <p className="text-sm text-dim">Search other players' rosters or paste a roster link, or sign in to use your own.</p>
       ) : null}
-      {!sources && me.data && saved.isSuccess && !currentRoster && options.every((source) => source.id === BENCHMARKS) ? (
-        <p className="text-sm text-dim">Save or import two rosters to start comparing targets.</p>
+      {!sources && me.data && saved.isSuccess && !currentRoster && !reversible && options.every((source) => source.id === BENCHMARKS) ? (
+        <p className="text-sm text-dim">Search other players' rosters or paste a roster link, or save or import your own.</p>
       ) : null}
       {readError ? (
         <Problem>

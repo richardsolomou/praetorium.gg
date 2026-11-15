@@ -36,9 +36,9 @@ Check **Calculation uses**. If a chip is dimmed, hover it for the reason.
 
 It has a five-minute limit and can be cancelled. Completed pairings are kept. Press **Retry** to finish.
 
-### "Sign in and save both rosters to compare them here."
+### "Search other players' rosters or paste a roster link…"
 
-Roster comparisons use saved lists. Sign in, then save or [import](/docs/import-a-list) the lists.
+You have no rosters of your own to pick yet. Type in **Attacking with** or **Defending with** to find other players' public rosters and armies from finished battles, or paste a roster link. To use your own lists, sign in, then save or [import](/docs/import-a-list) them.
 
 ## Limits
 

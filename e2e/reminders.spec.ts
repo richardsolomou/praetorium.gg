@@ -205,7 +205,7 @@ test('roster reminders cover selected rules and advances from another device', a
     await opponentReminder.getByRole('button', { name: 'Dismiss', exact: true }).click()
   }
   await playerPanel(opponent, 0)
-    .getByRole('button', { name: `Army: ${roster}` })
+    .getByRole('button', { name: `Units: ${roster}` })
     .click()
   await opponent.locator('[data-army-roster] [data-unit="Plasmancer"]').getByRole('button', { name: 'Mark Plasmancer destroyed' }).click()
   await expect(reminder).toBeHidden()
