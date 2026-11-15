@@ -3,6 +3,9 @@ import { useRouter } from '@tanstack/react-router'
 import { useEffect } from 'react'
 import { FullPageState } from '../../components/PageState'
 import { battleArrivalQuery } from '../../queries'
+import { pageSection, SectionLink } from '../../components/pageSections'
+
+const battles = pageSection('/battles')
 
 /**
  * A battle link the service does not know yet. A battle created on a device reaches the
@@ -16,9 +19,6 @@ export function BattleNotFound({ token }: { token: string }) {
     if (screen) void router.invalidate({ filter: (match) => match.routeId === '/battles/$token' })
   }, [router, screen])
   return (
-    <FullPageState
-      title="Nothing here"
-      explanation="This page does not exist or its current data is unavailable. Check the link and try again."
-    />
+    <FullPageState title={battles.missing} explanation={battles.explanation} action={<SectionLink section={battles} variant="default" />} />
   )
 }

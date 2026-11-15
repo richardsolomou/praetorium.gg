@@ -132,16 +132,7 @@ export const SidePanel = memo(function SidePanel({
                 <span className="readout text-3xs text-faint">
                   {side.cpGained} gained · {side.cpSpent} used
                 </span>
-                <Button
-                  variant="secondary"
-                  size="xs"
-                  disabled={pending || !side.canGainCp}
-                  title={side.canGainCp ? 'Gain one additional command point' : 'This side already gained its additional CP this round'}
-                  aria-label={side.canGainCp ? '+1 CP' : 'Additional CP already gained this round'}
-                  onClick={() => send({ kind: 'adjust-cp', delta: 1, playerId: side.captain.id })}
-                >
-                  {side.canGainCp ? '+1 CP' : 'CP gain used'}
-                </Button>
+                <GainCp side={side} pending={pending} send={send} />
               </div>
             </div>
           </div>
@@ -179,3 +170,20 @@ export const SidePanel = memo(function SidePanel({
     </section>
   )
 })
+
+/** The one additional command point a side can gain each round. */
+export function GainCp({ side, pending, send, className }: Pick<Props, 'side' | 'pending' | 'send'> & { className?: string }) {
+  return (
+    <Button
+      variant="secondary"
+      size="xs"
+      className={className}
+      disabled={pending || !side.canGainCp}
+      title={side.canGainCp ? 'Gain one additional command point' : 'This side already gained its additional CP this round'}
+      aria-label={side.canGainCp ? '+1 CP' : 'Additional CP already gained this round'}
+      onClick={() => send({ kind: 'adjust-cp', delta: 1, playerId: side.captain.id })}
+    >
+      {side.canGainCp ? '+1 CP' : 'CP gain used'}
+    </Button>
+  )
+}

@@ -316,7 +316,7 @@ export function GroupHiddenListGame({
                 {!revealed && entry.side
                   ? Array.from({ length: Math.max(0, entry.places - entry.players.length) }, (_, index) => (
                       <li key={`open-${index}`} className="flex min-w-0 items-center gap-3 px-4 py-1.5">
-                        <span aria-hidden className="size-8 shrink-0 rounded-full border border-dashed border-edge-strong" />
+                        <span aria-hidden className="size-8 shrink-0 rounded-full border border-dashed border-runner" />
                         <span className="min-w-0 flex-1 text-sm text-faint">Open seat</span>
                         {index === 0 && mayTakeSeat && !seated ? (
                           <Button

@@ -85,7 +85,7 @@ export function Stratagems({ side, phase, coreKeys, pending, send, writtenFor, o
         <Button
           variant="ghost"
           size="xs"
-          className="h-auto min-h-6 max-w-full py-1 text-left whitespace-normal text-azure"
+          className="h-auto min-h-6 max-w-full py-1 text-left whitespace-normal text-parchment"
           onClick={() => setShowAll(true)}
         >
           Show {hidden} not playable now
@@ -95,7 +95,7 @@ export function Stratagems({ side, phase, coreKeys, pending, send, writtenFor, o
         <Button
           variant="ghost"
           size="xs"
-          className="h-auto min-h-6 max-w-full py-1 text-left whitespace-normal text-azure"
+          className="h-auto min-h-6 max-w-full py-1 text-left whitespace-normal text-parchment"
           onClick={() => setShowAll(false)}
         >
           Only playable now
@@ -161,7 +161,11 @@ function StratagemCard({
       </BattlePromptDialog>
       {/* Some stratagems cost more or less depending on what is on the board, so the price is a choice. */}
       <DropdownMenu>
-        <DropdownMenuTrigger render={<Button variant="ghost" size="icon-xs" disabled={pending} aria-label={`${stratagem.name} options`} />}>
+        <DropdownMenuTrigger
+          render={
+            <Button variant="ghost" size="icon-xs" className="max-lg:size-11" disabled={pending} aria-label={`${stratagem.name} options`} />
+          }
+        >
           <EllipsisVertical />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-64">
@@ -186,7 +190,7 @@ function StratagemCard({
         </DropdownMenuContent>
       </DropdownMenu>
       <Button
-        className={`readout font-bold uppercase ${refusal ? 'bg-edge text-dim' : 'bg-azure text-void hover:bg-azure/80'}`}
+        className={`readout font-bold uppercase max-lg:h-11 max-lg:min-w-14 ${refusal ? 'bg-edge text-dim' : 'bg-parchment text-void hover:bg-parchment/80'}`}
         disabled={pending || refusal !== null}
         title={refusal ?? undefined}
         aria-label={`Use ${stratagem.name} for ${stratagem.cp} CP`}

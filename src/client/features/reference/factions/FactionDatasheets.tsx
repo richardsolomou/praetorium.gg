@@ -215,7 +215,7 @@ function KeywordFilter({
       <ComboboxTrigger
         aria-label="Keywords"
         className={`inline-flex h-7 items-center gap-1 rounded-sm border px-1.5 text-2xs font-semibold tracking-label uppercase transition-colors ${
-          chosen.size ? 'border-parchment bg-parchment/15 text-parchment' : 'border-edge-strong text-dim hover:border-dim hover:text-bone'
+          chosen.size ? 'border-parchment bg-parchment/15 text-parchment' : 'border-runner text-dim hover:border-dim hover:text-bone'
         }`}
       >
         {chosen.size ? `Keywords · ${chosen.size}` : 'Keywords'}

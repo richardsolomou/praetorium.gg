@@ -171,7 +171,7 @@ function ImportReview({
                     {row.status === 'ambiguous' ? (
                       <select
                         aria-label={`Which ${row.name} row ${row.line} means`}
-                        className="h-8 w-full rounded-lg border border-edge-strong bg-sunken px-2 text-sm sm:w-auto"
+                        className="h-8 w-full rounded-lg border border-runner bg-sunken px-2 text-sm sm:w-auto"
                         value={choices[row.line] ?? ''}
                         onChange={(event) => setChoices((previous) => ({ ...previous, [row.line]: event.target.value }))}
                       >

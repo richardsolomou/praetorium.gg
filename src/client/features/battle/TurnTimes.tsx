@@ -37,7 +37,7 @@ export function TurnTimes({ clock, sides }: Props) {
         </thead>
         <tbody>
           {rows.map((row) => (
-            <tr key={row.key} className={`border-b border-edge last:border-0 ${row.divided ? 'border-t border-t-edge-strong' : ''}`}>
+            <tr key={row.key} className={`border-b border-edge last:border-0 ${row.divided ? 'border-t border-t-runner' : ''}`}>
               <th scope="row" className={`px-2 py-1 text-left capitalize ${row.key === 'total' ? 'font-bold' : 'font-normal text-dim'}`}>
                 {row.label}
               </th>

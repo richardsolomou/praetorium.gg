@@ -44,7 +44,6 @@
   --color-raised: #1b2328;
   --color-sunken: #090d0f;
   --color-edge: #28323a;
-  --color-edge-strong: #3a4650;
   --color-runner: #3a4650;
   --color-runner-hi: #55636e;
   --color-bone: #e7ece9;
@@ -55,15 +54,14 @@
   --color-parchment-ink: #0c2014;
   --color-info: #9db6d4;
   --color-admin: #b9a0df;
-  --color-supporter: #d9b76e;
-  --color-azure: #9bd0a9;
+  --color-supporter: #e8cf86;
   --color-side-a: #f57a7a;
   --color-side-a-fill: #f57a7a;
   --color-side-a-ink: #0f1113;
   --color-side-b: #5fc8ea;
   --color-side-b-fill: #5fc8ea;
   --color-side-b-ink: #0f1113;
-  --color-achieved: #7cc48a;
+  --color-achieved: #4fbf6a;
   --color-discarded: #e3ab52;
   --color-rust: #d0625a;
   --color-measure-terrain: #c39bff;
@@ -98,10 +96,20 @@
   --animate-draw-down: draw-down 420ms var(--ease-settle);
   --animate-strike: strike 320ms var(--ease-settle);
   --animate-figure: figure 260ms var(--ease-settle);
+  --animate-navigate: navigate 8s 300ms var(--ease-settle) both;
 
   @keyframes draw {
     from {
       scale: 0 1;
+    }
+  }
+
+  @keyframes navigate {
+    from {
+      scale: 0 1;
+    }
+    to {
+      scale: 0.9 1;
     }
   }
 
@@ -353,6 +361,24 @@ html[data-native-app='true'] [data-native-app-content][data-immersive='true'] {
 
   html:not([data-native-app='true']) [data-replay-timeline] {
     bottom: calc(4rem + env(safe-area-inset-bottom));
+  }
+
+  html:not([data-native-app='true']) {
+    --toast-bottom: calc(5rem + env(safe-area-inset-bottom));
+  }
+
+  html:has([data-setup-bar]) {
+    --toast-bottom: calc(9rem + env(safe-area-inset-bottom));
+  }
+
+  /* `TurnControl` reports its own height, which a block reason, the clock button or large text can more than double. */
+  html:has([data-turn-control]) {
+    --toast-bottom: calc(4.5rem + var(--turn-control-height, 4.5rem) + env(safe-area-inset-bottom));
+  }
+
+  /* The round summary covers the bars and keeps room at its foot for a toast, so its button is never under one. */
+  html:has([data-round-summary]) {
+    --toast-bottom: calc(1rem + env(safe-area-inset-bottom));
   }
 
   html:not([data-native-app='true']) [data-turn-control],
@@ -814,6 +840,9 @@ html[data-native-app='true'] [data-battle-sticky-header] {
   /* The fixed phone header's height, which sticky bars and anchor targets clear; the desktop rail sits beside the page instead. */
   --app-header: 3rem;
 
+  /* Phone toasts rise from the foot, above the tab bar and any bar pinned over it, so they never cover the state at the top. */
+  --toast-bottom: calc(1rem + env(safe-area-inset-bottom));
+
   /* The construction grid's lines and their pitches, shared by every layer that draws it. */
   --construction-grid-lines:
     linear-gradient(to right, color-mix(in srgb, var(--color-bone) 6%, transparent) 1px, transparent 1px),
@@ -927,7 +956,7 @@ html[data-native-app='true'] [data-battle-sticky-header] {
   }
 
   :focus-visible {
-    outline: 2px solid var(--color-azure);
+    outline: 2px solid var(--color-parchment);
     outline-offset: 2px;
   }
 
@@ -1023,7 +1052,7 @@ html[data-native-app='true'] [data-battle-sticky-header] {
 
 /* A disabled primary action drops its green; faded green on slate reads as a smudge, not as unavailable. */
 [data-slot='button'].bg-primary:is(:disabled, [data-disabled]) {
-  border-color: var(--color-edge-strong);
+  border-color: var(--color-runner);
   background-color: var(--color-raised);
   color: var(--color-faint);
   opacity: 1;
@@ -1038,7 +1067,7 @@ html[data-native-app='true'] [data-battle-sticky-header] {
 
 /* A tooltip is a small raised part, not the inverted pill the component ships. */
 [data-slot='tooltip-content'] {
-  border: 1px solid var(--color-edge-strong);
+  border: 1px solid var(--color-runner);
   border-radius: var(--radius-md);
   background-color: var(--color-raised);
   color: var(--color-bone);

@@ -56,7 +56,7 @@ export function AchievementsPanel({ achievements }: { achievements: EarnedAchiev
                 body={<p>{achievement.goal}</p>}
                 note={`${worth} · ${status}`}
                 label={`${achievement.name}, ${at === undefined ? 'not earned' : 'earned'}`}
-                className={`h-full w-full flex-col justify-start gap-1 border px-1 pt-2 pb-1.5 no-underline transition-colors hover:border-edge-strong hover:bg-raised ${at === undefined ? 'border-edge/60 bg-sunken/40' : 'border-edge bg-sunken'}`}
+                className={`h-full w-full flex-col justify-start gap-1 border px-1 pt-2 pb-1.5 no-underline transition-colors hover:border-runner hover:bg-raised ${at === undefined ? 'border-edge/60 bg-sunken/40' : 'border-edge bg-sunken'}`}
               >
                 <AchievementBadge
                   metric={achievement.metric}

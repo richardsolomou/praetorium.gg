@@ -1000,7 +1000,7 @@ test('a player can enter through the roster library and browse the product', asy
 
   await page.getByRole('link', { name: 'Battles' }).click()
   await expect(page.getByRole('heading', { name: 'Battles', exact: true })).toBeVisible()
-  await expect(page.getByText('No battles yet.')).toBeVisible()
+  await expect(page.getByText('No battles yet', { exact: true })).toBeVisible()
   await practiceBattle(page, rosterName)
   await page.getByRole('link', { name: 'Battles' }).click()
   await expect(page.locator('[data-battle-shelf="In progress"]')).toBeVisible()
@@ -1009,7 +1009,7 @@ test('a player can enter through the roster library and browse the product', asy
   await page.locator('[data-battle-shelf="In progress"] article').click({ button: 'right' })
   await page.getByRole('menuitem', { name: 'Delete battle' }).click()
   await page.getByRole('alertdialog').getByRole('button', { name: 'Delete battle' }).click()
-  await expect(page.getByText('No battles yet.')).toBeVisible()
+  await expect(page.getByText('No battles yet', { exact: true })).toBeVisible()
 
   await reference.getByRole('link', { name: 'Factions' }).click()
   await expect(page.locator('[data-shelf="Chaos"]')).toBeVisible()
@@ -1392,7 +1392,7 @@ test('a tab forgets a page that no longer exists', async ({ page }) => {
   )
   const sections = page.getByRole('navigation', { name: 'Application sections' })
   await sections.getByRole('link', { name: 'Rosters' }).click()
-  await expect(page.getByRole('heading', { name: 'Nothing here' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'No such roster' })).toBeVisible()
   await sections.getByRole('link', { name: 'Factions' }).click()
   await expect(page).toHaveURL('/factions')
   await sections.getByRole('link', { name: 'Rosters' }).click()

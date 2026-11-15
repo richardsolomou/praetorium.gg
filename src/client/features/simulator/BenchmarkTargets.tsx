@@ -42,7 +42,7 @@ export function BenchmarkTargets({
             <PopoverTrigger
               disabled={disabled}
               aria-label={`Edit ${label}`}
-              className="flex h-8 max-w-full min-w-0 items-center gap-1.5 part px-2 text-sm hover:border-edge-strong hover:bg-raised focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50 data-popup-open:border-edge-strong data-popup-open:bg-raised"
+              className="flex h-8 max-w-full min-w-0 items-center gap-1.5 part px-2 text-sm hover:border-runner hover:bg-raised focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50 data-popup-open:border-runner data-popup-open:bg-raised"
             >
               {faction ? <FactionMark faction={faction} size="sm" /> : null}
               <span className="truncate">{target.name}</span>

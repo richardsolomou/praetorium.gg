@@ -5,7 +5,7 @@ import { WebMcp } from '../agents/WebMcp'
 import { AppPersistence } from '../../offline/AppPersistence'
 import { SelectionHaptics } from './SelectionHaptics'
 import { useQuery } from '@tanstack/react-query'
-import { HeadContent, Link, Outlet, Scripts, useLocation } from '@tanstack/react-router'
+import { HeadContent, Link, Outlet, Scripts, useLocation, useRouterState } from '@tanstack/react-router'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import {
   ArrowUpRight,
@@ -36,6 +36,8 @@ import { ReleaseUpdateNotice } from './ReleaseUpdateNotice'
 import { AchievementToasts } from '../profile/AchievementToasts'
 import { WhatsNewLink, WhatsNewNotice } from './WhatsNew'
 import { Toaster } from '@/components/ui/sonner'
+import { NavigationProgress } from './NavigationProgress'
+import { useMediaQuery } from '../../useMediaQuery'
 import { ImpersonationBanner } from './ImpersonationBanner'
 import { NativeAppNavigation } from './NativeAppNavigation'
 import { NativePushRegistration } from './NativePushRegistration'
@@ -333,7 +335,10 @@ function OverlayShell() {
 function AppFrame() {
   const location = useLocation()
   const path = location.pathname
-  const immersive = ROSTER_WORKSPACE.test(path)
+  // Decided by the page on screen, so a roster still loading keeps the header it was opened from.
+  const shownPath = useRouterState({ select: (state) => state.resolvedLocation?.pathname ?? state.location.pathname })
+  const immersive = ROSTER_WORKSPACE.test(shownPath)
+  const phone = useMediaQuery('(max-width: 859px)')
   const { data: me } = useQuery(meQuery())
   const signingIn = AUTH_PAGES.has(path)
   const frontDoor = signingIn || (path === '/' && me === null)
@@ -372,7 +377,7 @@ function AppFrame() {
                     <header
                       data-mobile-app-header
                       data-print-hide
-                      className="fixed inset-x-0 top-0 z-30 hidden h-12 items-center border-b border-edge-strong bg-sunken/95 px-2 backdrop-blur"
+                      className="fixed inset-x-0 top-0 z-30 hidden h-12 items-center border-b border-runner bg-sunken/95 px-2 backdrop-blur"
                     >
                       <Link
                         to="/"
@@ -425,7 +430,14 @@ function AppFrame() {
                 {/* An administrator viewing as a player must not use up the player's announcements. */}
                 {me && !impersonating && <AchievementToasts userId={me.id} />}
                 {immersive || /^\/battles\/[^/]+/.test(path) ? null : <WhatsNewNotice />}
-                <Toaster theme="dark" position="top-center" containerAriaLabel="Messages" />
+                <NavigationProgress />
+                <Toaster
+                  theme="dark"
+                  position={phone ? 'bottom-center' : 'top-center'}
+                  offset={{ bottom: 'var(--toast-bottom)' }}
+                  mobileOffset={{ bottom: 'var(--toast-bottom)' }}
+                  containerAriaLabel="Messages"
+                />
               </div>
             </GlobalSearchProvider>
           </TooltipProvider>

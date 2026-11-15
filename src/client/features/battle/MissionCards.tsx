@@ -99,7 +99,7 @@ function MissionChoices({
           key={choice.kind}
           size="xs"
           variant="ghost"
-          className="text-azure"
+          className="text-parchment"
           disabled={pending}
           onClick={() => setOpenKind(choice.kind)}
         >
@@ -216,13 +216,13 @@ export function SecondaryMissions({ view, side, pending, send, referenceFor, gui
         })}
       </ul>
       {resolved.length ? (
-        <Button variant="ghost" size="xs" className="text-azure" onClick={() => setShowResolved(!showingResolved)}>
+        <Button variant="ghost" size="xs" className="text-parchment" onClick={() => setShowResolved(!showingResolved)}>
           {showingResolved ? 'Hide resolved missions' : `Show ${countLabel(resolved.length, 'resolved mission')}`}
         </Button>
       ) : null}
       {side.secondaryMode === 'tactical' && side.remainingSecondaries.length > 0 ? (
         <BattlePromptDialog minimizedLabel="Remaining secondary missions">
-          <DialogTrigger render={<Button variant="ghost" size="xs" className="text-azure" />}>
+          <DialogTrigger render={<Button variant="ghost" size="xs" className="text-parchment" />}>
             Remaining deck · {side.remainingSecondaries.length}
           </DialogTrigger>
           <BattleDialogContent>
@@ -287,7 +287,7 @@ function RoundScores({
               aria-current={current ? 'step' : undefined}
             >
               {labels ? (
-                <span aria-hidden="true" className={`block text-3xs ${current ? 'font-semibold text-azure' : 'text-faint'}`}>
+                <span aria-hidden="true" className={`block text-3xs ${current ? 'font-semibold text-parchment' : 'text-faint'}`}>
                   R{round}
                 </span>
               ) : null}

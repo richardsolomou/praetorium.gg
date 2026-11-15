@@ -7,6 +7,7 @@ import { writesPending } from '../pendingWrites'
 import { checkedStaleBuildRelease } from '../releaseUpdate'
 import { mayReloadCancelledLoad, reloadModuleRoute, reloadStaleBuild, routeErrorExplanation, routerReloading } from '../routeErrors'
 import { FullPageState } from './PageState'
+import { pageSection, SectionLink } from './pageSections'
 
 /**
  * A loader that joined a read whose last viewer unmounted mid-flight sees it cancelled, not failed, so the route loads
@@ -16,6 +17,7 @@ import { FullPageState } from './PageState'
  */
 export function RouteError({ error }: ErrorComponentProps) {
   const router = useRouter()
+  const section = pageSection(router?.state.location.pathname ?? '/')
   const [reload] = useState(() => error instanceof CancelledError && mayReloadCancelledLoad())
   const [reloadingModules, setReloadingModules] = useState(false)
   const [unloading] = useState(() => routerReloading(error))
@@ -40,30 +42,33 @@ export function RouteError({ error }: ErrorComponentProps) {
       title="Something went wrong"
       explanation={routeErrorExplanation(error)}
       action={
-        isModuleLoadFailure(error) ? (
-          <Button
-            data-route-error
-            disabled={reloadingModules}
-            onClick={() => {
-              setReloadingModules(true)
-              void reloadModuleRoute()
-            }}
-          >
-            Reload
-          </Button>
-        ) : (
-          <Button
-            data-route-error
-            onClick={() =>
-              void checkedStaleBuildRelease(router.options.context.queryClient).then((release) => {
-                if (release) reloadStaleBuild(release, 'try_again')
-                else void router.invalidate()
-              })
-            }
-          >
-            Try again
-          </Button>
-        )
+        <div className="flex flex-wrap justify-center gap-2">
+          {isModuleLoadFailure(error) ? (
+            <Button
+              data-route-error
+              disabled={reloadingModules}
+              onClick={() => {
+                setReloadingModules(true)
+                void reloadModuleRoute()
+              }}
+            >
+              Reload
+            </Button>
+          ) : (
+            <Button
+              data-route-error
+              onClick={() =>
+                void checkedStaleBuildRelease(router.options.context.queryClient).then((release) => {
+                  if (release) reloadStaleBuild(release, 'try_again')
+                  else void router.invalidate()
+                })
+              }
+            >
+              Try again
+            </Button>
+          )}
+          <SectionLink section={section} />
+        </div>
       }
     />
   )

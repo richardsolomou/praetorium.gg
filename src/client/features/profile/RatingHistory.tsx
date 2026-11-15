@@ -67,11 +67,11 @@ export function RatingHistory({ points }: { points: readonly RatingPoint[] }) {
               y1={y(START)}
               y2={y(START)}
               vectorEffect="non-scaling-stroke"
-              className="stroke-edge-strong"
+              className="stroke-runner"
               strokeDasharray="4 4"
             />
             {pointed === null ? null : (
-              <line x1={x(at)} x2={x(at)} y1="0" y2="100" vectorEffect="non-scaling-stroke" className="stroke-edge-strong" />
+              <line x1={x(at)} x2={x(at)} y1="0" y2="100" vectorEffect="non-scaling-stroke" className="stroke-runner" />
             )}
             <polyline
               points={[START, ...ratings].map((rating, index) => `${x(index)},${y(rating)}`).join(' ')}

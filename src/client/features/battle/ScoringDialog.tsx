@@ -334,9 +334,25 @@ export function ScoringDialog({
               Back
             </Button>
           ) : null}
-          <Button className={colours.fill} disabled={pending || unanswered > 0} onClick={confirm}>
-            {unanswered ? `${unanswered} to answer` : confirmLabel}
-          </Button>
+          {/* Answers only what is still open, so pressing through stays two deliberate presses. */}
+          {unanswered ? (
+            <Button
+              variant="outline"
+              disabled={pending}
+              onClick={() =>
+                recordAnswers({
+                  ...answers,
+                  ...Object.fromEntries(due.filter((card) => !answers[card.key]).map((card) => [card.key, card.awards.map(() => 0)])),
+                })
+              }
+            >
+              {unanswered === due.length ? 'Nothing scored' : 'Nothing else scored'}
+            </Button>
+          ) : (
+            <Button className={colours.fill} disabled={pending} onClick={confirm}>
+              {confirmLabel}
+            </Button>
+          )}
         </DialogFooter>
       </BattleDialogContent>
     </BattlePromptDialog>
@@ -372,7 +388,7 @@ function AwardRow({
     <div className="flex items-center gap-3 px-3 py-2">
       {join ? (
         <span
-          className="chip shrink-0 border-edge-strong px-1 text-faint"
+          className="chip shrink-0 border-runner px-1 text-faint"
           aria-label={join === 'or' ? 'Alternative objective' : 'Additional objective'}
         >
           {join}
@@ -403,8 +419,9 @@ function AwardRow({
             reasonBeside
             choices={limit === null ? undefined : modelCountChoices({ min: 0, max: limit })}
             onChoose={(chosen) => !pending && onAnswer(chosen)}
+            touch
           />
-          <span className={`chip shrink-0 ${times > 0 ? tone.mark : 'border-edge-strong'}`}>{awardTotal(award, times)} VP</span>
+          <span className={`chip shrink-0 ${times > 0 ? tone.mark : 'border-runner'}`}>{awardTotal(award, times)} VP</span>
         </>
       ) : (
         <Chip
@@ -443,7 +460,7 @@ function Chip({
       aria-label={ariaLabel}
       disabled={pending}
       onClick={onPress}
-      className={`chip shrink-0 px-2 py-1 ${chosen ? tone.mark : `border-edge-strong ${tone.hint}`}`}
+      className={`chip min-h-11 min-w-14 shrink-0 justify-center px-2 ${chosen ? tone.mark : `border-runner ${tone.hint}`}`}
     >
       {label}
     </button>

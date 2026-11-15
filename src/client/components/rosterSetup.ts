@@ -18,8 +18,8 @@ const dispositionTones: Record<string, { quiet: string; strong: string }> = {
     strong: 'border-side-b bg-side-b/25 text-bone',
   },
   reconnaissance: {
-    quiet: 'border-azure/60 bg-azure/10 text-azure',
-    strong: 'border-azure bg-azure/25 text-bone',
+    quiet: 'border-parchment/60 bg-parchment/10 text-parchment',
+    strong: 'border-parchment bg-parchment/25 text-bone',
   },
   'priority-assets': {
     quiet: 'border-discarded/60 bg-discarded/10 text-discarded',
@@ -30,7 +30,7 @@ const dispositionTones: Record<string, { quiet: string; strong: string }> = {
 export function dispositionTone(id: string, selected = false) {
   const key = routeSlug(id)
   const tone = dispositionTones[key]
-  return tone ? (selected ? tone.strong : tone.quiet) : selected ? 'border-azure bg-raised text-bone' : 'border-edge bg-sunken text-dim'
+  return tone ? (selected ? tone.strong : tone.quiet) : selected ? 'border-parchment bg-raised text-bone' : 'border-edge bg-sunken text-dim'
 }
 
 export function dispositionsFor(

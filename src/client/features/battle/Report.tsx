@@ -141,7 +141,12 @@ export function Report({
             ))}
             {hidden > 0 ? (
               <li>
-                <Button variant="ghost" size="xs" className="mt-1 text-azure" onClick={() => setShownCount((current) => current + WINDOW)}>
+                <Button
+                  variant="ghost"
+                  size="xs"
+                  className="mt-1 text-parchment"
+                  onClick={() => setShownCount((current) => current + WINDOW)}
+                >
                   Show earlier events ({hidden} more)
                 </Button>
               </li>

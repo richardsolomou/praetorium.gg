@@ -6,6 +6,7 @@ import { crawlerRequestEvent } from './server/crawlerRequests'
 import { publicPageLoad, signedSessionCookie } from './server/publicPageLoad'
 import { publicRead, sharedPageCache } from './server/sharedPageCache'
 import { pendingWriteMiddleware } from './client/pendingWrites'
+import { serverFunctionFetch } from './client/networkErrors'
 
 /** Loaded on first use, so the route tree stays out of this module's client copy and its unit tests. */
 let routePattern: Promise<(pathname: string) => string> | undefined
@@ -58,6 +59,7 @@ const publicPageLoadMiddleware = createMiddleware({ type: 'request' }).server(as
 )
 
 export const startInstance = createStart(() => ({
+  serverFns: { fetch: (input, init) => serverFunctionFetch(input, init) },
   // Names each server function on its trace span and request metrics.
   functionMiddleware: [serverFunctionIdentityMiddleware(), pendingWriteMiddleware],
   requestMiddleware: [

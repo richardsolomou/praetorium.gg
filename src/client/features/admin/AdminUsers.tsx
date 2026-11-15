@@ -56,7 +56,7 @@ export function AdminUsers({
         title="Administration"
         description="Change a player’s access, help them sign in, delete their account, or review players’ photos."
         media={
-          <span className="grid size-12 shrink-0 place-items-center rounded-lg border border-edge-strong bg-sunken text-parchment">
+          <span className="grid size-12 shrink-0 place-items-center rounded-lg border border-runner bg-sunken text-parchment">
             <ShieldCheck className="size-5" aria-hidden />
           </span>
         }
