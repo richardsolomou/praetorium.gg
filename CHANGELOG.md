@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.250.0 (2026-11-15)
+
+### Minor Changes
+
+- d8f5900: Home now links to Praetorium in ChatGPT and Claude beside the app store badges.
+
 ## 0.249.1 (2026-11-15)
 
 ### Patch Changes
