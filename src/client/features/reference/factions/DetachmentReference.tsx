@@ -4,7 +4,6 @@ import type { ReactNode } from 'react'
 import { routeSlug } from '../../../../core/slug'
 import { detachmentDetailQuery } from '../../../queries'
 import { RuleText } from '../../../components/RuleText'
-import { dispositionTone } from '../../../components/rosterSetup'
 import { FactionMark, factionColour, type FactionPresentation } from '../../../components/FactionMark'
 import { FavouriteDetachmentToggle } from './FavouriteDetachmentToggle'
 import { PageState } from '../../../components/PageState'
@@ -76,7 +75,7 @@ export function DetachmentReference({
                 key={disposition}
                 to="/force-dispositions/$dispositionId"
                 params={{ dispositionId: routeSlug(disposition) }}
-                className={`chip hover:text-bone ${dispositionTone(disposition)}`}
+                className={`chip hover:text-bone`}
               >
                 {disposition}
               </Link>

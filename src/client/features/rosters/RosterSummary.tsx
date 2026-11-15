@@ -5,7 +5,6 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 import { FactionLabel, type FactionPresentation } from '../../components/FactionMark'
 import { rosterWaivers, WaiverChip } from '../../components/FormatWaivers'
-import { dispositionTone } from '../../components/rosterSetup'
 import type { NamedRosterDifferences } from '../../../core/rosterDifferences'
 import { CornerDownRight, Lock } from 'lucide-react'
 import { RosterDifferenceChips, type VariantSetup } from './RosterDifferences'
@@ -117,9 +116,7 @@ export function RosterSummary({
             {name}
           </span>
         ))}
-        {roster.disposition && dispositionName ? (
-          <span className={`chip ${dispositionTone(roster.disposition)}`}>{dispositionName}</span>
-        ) : null}
+        {roster.disposition && dispositionName ? <span className={`chip`}>{dispositionName}</span> : null}
         <WaiverChip rules={waivers} />
         {showLock && roster.locked ? <LockedChip /> : null}
         <RosterUpdateChips updates={updates} />

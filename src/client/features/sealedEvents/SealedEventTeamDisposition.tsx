@@ -1,6 +1,6 @@
 import { useMutation } from '@tanstack/react-query'
 import { Check } from 'lucide-react'
-import { dispositionTone } from '../../components/rosterSetup'
+import { dispositionChip } from '../../components/rosterSetup'
 import { setSealedEventTeamDisposition } from '../../functions'
 import { useDispositionNames } from '../battle/setup/chrome'
 import { useSealedEventRefresh } from './sealedEvent'
@@ -51,7 +51,7 @@ export function TeamDispositionPanel({
               onClick={() => {
                 if (!chosen) choose.mutate(id)
               }}
-              className={`flex min-h-12 items-center justify-between border px-3 text-left font-bold uppercase disabled:cursor-wait ${dispositionTone(id, chosen)}`}
+              className={`flex min-h-12 items-center justify-between border px-3 text-left font-bold uppercase disabled:cursor-wait ${dispositionChip(chosen)}`}
             >
               {name}
               <span
