@@ -80,7 +80,7 @@ export function Home() {
         }
         onboarding={onboarding}
         leaders={standings ? { rows: standings.overall.rows } : null}
-        newBattle={<NewBattle />}
+        newBattle={<NewBattle variant="outline" />}
         notifications={me && !me.impersonatedBy ? <HomeNotifications /> : null}
         recentSimulations={<RecentSimulations surface="home" limit={3} />}
         onDelete={setDeleting}

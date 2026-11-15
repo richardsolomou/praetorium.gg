@@ -142,14 +142,16 @@ test('explains how it works before public activity and opens an account-free mat
 
   const features = page.locator('[data-home-features]')
   for (const name of [
-    'Combat simulator',
-    'Unlimited lists & variants',
+    'Roster grades',
+    'Optimize your wargear',
+    'Tournament lists',
+    'Points updates',
+    'Your collection',
+    'Play your way',
     'Ability reminders',
-    'Live battle tracking',
-    'Team & practice games',
-    'Sealed-roster tournaments',
+    'Replay and record',
+    'Groups, leagues and tournaments',
     'King of the Colosseum',
-    'Battle replay & stats',
   ]) {
     await expect(features.getByRole('heading', { name, exact: true })).toBeVisible()
   }
@@ -176,12 +178,11 @@ test('creating an account from the home page opens the sign-up form', async ({ p
   await expect(page.getByRole('heading', { name: 'Join Praetorium' })).toBeVisible()
 })
 
-test('importing from the home page opens the guest builder', async ({ page }) => {
+test('importing from the home page opens the import dialog', async ({ page }) => {
   await page.goto('/')
-  await followLink(page.getByRole('link', { name: 'Try importing a list' }), '/rosters')
+  await followLink(page.getByRole('link', { name: 'Try importing a list' }), /\/rosters/)
 
-  await expect(page).toHaveURL('/rosters')
-  await expect(page.getByRole('button', { name: 'Import roster', exact: true })).toBeVisible()
+  await expect(page.getByRole('dialog', { name: 'Import roster', exact: true })).toBeVisible()
 })
 
 test('the home page links to GitHub Sponsors', async ({ page }) => {

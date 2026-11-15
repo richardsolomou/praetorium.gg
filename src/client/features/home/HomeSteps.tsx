@@ -15,8 +15,8 @@ const STEPS = [
     action: 'Open the simulator',
   },
   {
-    title: 'Play and keep score',
-    text: 'Score, CP, missions and casualties, tracked on both players’ phones.',
+    title: 'Track the game',
+    text: 'Adds your CP, checks your stratagems and asks what each card scored.',
     link: '/battles' as const,
     action: 'See the battle tracker',
   },
