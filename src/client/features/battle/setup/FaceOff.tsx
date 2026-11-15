@@ -97,7 +97,7 @@ export function FaceOff({
                       army={army}
                       badge={
                         army.automated && controls ? (
-                          <span className="chip ml-1.5 align-middle text-dim normal-case">Played by you</span>
+                          <span className="chip ml-1.5 align-middle whitespace-nowrap text-dim normal-case">Played by you</span>
                         ) : null
                       }
                     />
