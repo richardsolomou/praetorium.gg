@@ -24,7 +24,12 @@ const objectiveLayout = {
 function sources() {
   return {
     ...catalogueSources,
-    battlemaster: { ...catalogueSources.battlemaster, revision: createHash('sha256').update(catalogKey).digest('hex') },
+    // One Chapter Approved catalog stands in for Battlemaster, so the source names no other pack.
+    battlemaster: {
+      ...catalogueSources.battlemaster,
+      combatPatrolPack: undefined,
+      revision: createHash('sha256').update(catalogKey).digest('hex'),
+    },
     icons: { ...catalogueSources.icons, icons: { 'test-faction': 'test/icon.svg' } },
   }
 }
