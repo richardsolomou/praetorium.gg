@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.249.1 (2026-11-15)
+
+### Patch Changes
+
+- 99d1b64: Undoing back into a phase shows that phase's battle alerts again.
+
 ## 0.249.0 (2026-11-15)
 
 ### Minor Changes
