@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogBody, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../../components/Dialog'
+import { DialogBody, DialogDescription, DialogHeader, DialogTitle, Drawer, DrawerTrigger, SheetContent } from '../../components/Dialog'
 import type { BattleView } from '../../../core/battleView'
 import { type Side, sideName } from '../../sides'
 import type { StratagemText } from './MissionCards'
@@ -37,8 +37,8 @@ export function StratagemSheet({
   const side = sides.find((each) => each.index === chosen) ?? opened
   const colours = tint(side.index)
   return (
-    <Dialog onOpenChange={(open) => open && setChosen(null)}>
-      <DialogTrigger
+    <Drawer showSwipeHandle onOpenChange={(open) => open && setChosen(null)}>
+      <DrawerTrigger
         render={
           <Button
             variant="outline"
@@ -50,13 +50,17 @@ export function StratagemSheet({
       >
         <span className={`figure text-lg leading-none font-bold ${tint(opened.index).score}`}>{opened.cp}</span>
         <span className="font-display text-2xs font-semibold text-dim uppercase">CP</span>
-      </DialogTrigger>
-      <DialogContent sheet className={colours.border}>
+      </DrawerTrigger>
+      <SheetContent className={colours.border}>
         <DialogHeader>
           <DialogTitle className={colours.text}>Stratagems · {sideName(side)}</DialogTitle>
-          <DialogDescription>
-            {side.cp} CP · {side.cpGained} gained, {side.cpSpent} used
-          </DialogDescription>
+          {/* Up here rather than in the footer, where a thumb reaching to close the drawer would press it by mistake. */}
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <DialogDescription>
+              {side.cp} CP · {side.cpGained} gained, {side.cpSpent} used
+            </DialogDescription>
+            <GainCp side={side} pending={pending} send={send} />
+          </div>
         </DialogHeader>
         <DialogBody className="gap-3">
           {side.stratagems.length ? null : <p className="text-sm text-dim">This army has no stratagems to play.</p>}
@@ -70,9 +74,9 @@ export function StratagemSheet({
             onRecordMissed={onRecordMissed && ((key) => onRecordMissed(side, key))}
           />
         </DialogBody>
-        <div className="flex shrink-0 items-center gap-2 border-t border-edge p-3">
-          {sides.length > 1 ? (
-            <fieldset className="flex min-w-0 flex-1 gap-1">
+        {sides.length > 1 ? (
+          <div className="shrink-0 border-t border-edge p-3">
+            <fieldset className="flex min-w-0 gap-1">
               <legend className="sr-only">Spend for</legend>
               {sides.map((each) => (
                 <Button
@@ -86,10 +90,9 @@ export function StratagemSheet({
                 </Button>
               ))}
             </fieldset>
-          ) : null}
-          <GainCp side={side} pending={pending} send={send} className="ml-auto h-11 min-w-24 rounded-xl text-sm" />
-        </div>
-      </DialogContent>
-    </Dialog>
+          </div>
+        ) : null}
+      </SheetContent>
+    </Drawer>
   )
 }
