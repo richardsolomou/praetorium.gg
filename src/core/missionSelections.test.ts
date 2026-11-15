@@ -252,7 +252,7 @@ describe('source-backed mission selections', () => {
 
   it('freezes the selected group name and original membership in the saved flow', () => {
     expect(state([ALICE, condemn]).players[0]!.missionSelections[0]!.units).toEqual([
-      { ...enemy, name: 'Plague Marines', memberKeys: ['u0', 'u1'] },
+      { ...enemy, name: 'Plague Marines', joined: ['Lord of Contagion'], memberKeys: ['u0', 'u1'] },
     ])
   })
 
