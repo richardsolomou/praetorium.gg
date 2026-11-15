@@ -350,6 +350,14 @@ html[data-native-app='true'] [data-native-app-content][data-immersive='true'] {
     bottom: calc(4rem + env(safe-area-inset-bottom));
   }
 
+  html:not([data-native-app='true']) {
+    --toast-bottom: calc(5rem + env(safe-area-inset-bottom));
+  }
+
+  html:has([data-turn-control], [data-setup-bar]) {
+    --toast-bottom: calc(9rem + env(safe-area-inset-bottom));
+  }
+
   html:not([data-native-app='true']) [data-turn-control],
   html:not([data-native-app='true']) [data-pane='loadout'],
   html:not([data-native-app='true']) [data-setup-bar] {
@@ -808,6 +816,9 @@ html[data-native-app='true'] [data-battle-sticky-header] {
 
   /* The fixed phone header's height, which sticky bars and anchor targets clear; the desktop rail sits beside the page instead. */
   --app-header: 3rem;
+
+  /* Phone toasts rise from the foot, above the tab bar and any bar pinned over it, so they never cover the state at the top. */
+  --toast-bottom: calc(1rem + env(safe-area-inset-bottom));
 
   /* The construction grid's lines and their pitches, shared by every layer that draws it. */
   --construction-grid-lines:

@@ -36,6 +36,7 @@ import { ReleaseUpdateNotice } from './ReleaseUpdateNotice'
 import { AchievementToasts } from '../profile/AchievementToasts'
 import { WhatsNewLink, WhatsNewNotice } from './WhatsNew'
 import { Toaster } from '@/components/ui/sonner'
+import { useMediaQuery } from '../../useMediaQuery'
 import { ImpersonationBanner } from './ImpersonationBanner'
 import { NativeAppNavigation } from './NativeAppNavigation'
 import { NativePushRegistration } from './NativePushRegistration'
@@ -334,6 +335,7 @@ function AppFrame() {
   const location = useLocation()
   const path = location.pathname
   const immersive = ROSTER_WORKSPACE.test(path)
+  const phone = useMediaQuery('(max-width: 859px)')
   const { data: me } = useQuery(meQuery())
   const signingIn = AUTH_PAGES.has(path)
   const frontDoor = signingIn || (path === '/' && me === null)
@@ -425,7 +427,13 @@ function AppFrame() {
                 {/* An administrator viewing as a player must not use up the player's announcements. */}
                 {me && !impersonating && <AchievementToasts userId={me.id} />}
                 {immersive || /^\/battles\/[^/]+/.test(path) ? null : <WhatsNewNotice />}
-                <Toaster theme="dark" position="top-center" containerAriaLabel="Messages" />
+                <Toaster
+                  theme="dark"
+                  position={phone ? 'bottom-center' : 'top-center'}
+                  offset={{ bottom: 'var(--toast-bottom)' }}
+                  mobileOffset={{ bottom: 'var(--toast-bottom)' }}
+                  containerAriaLabel="Messages"
+                />
               </div>
             </GlobalSearchProvider>
           </TooltipProvider>
