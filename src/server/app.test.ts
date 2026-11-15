@@ -96,6 +96,19 @@ it('prepares the reference after the editions load and before answering startup 
   expect(stepsAtPrepare).toBe(1_000)
 })
 
+it('starts the slow cold reads once every edition is loaded, without holding readiness for them', async () => {
+  const loaded = construction(1_000)
+  let stepsAtStart = 0
+  let finish = () => {}
+  const read = new Promise<void>((resolve) => (finish = resolve))
+  await warm({ ...projections(), construction: (scope) => (scope === 'editions-loaded' ? loaded : construction(0)).steps() }, true, () => {
+    stepsAtStart = loaded.progress.steps
+    return read
+  })
+  finish()
+  expect(stepsAtStart).toBe(1_000)
+})
+
 it('leaves pricing the other editions until the reference is prepared', async () => {
   const others = construction(1_000)
   let pricedDuringPrepare = 0

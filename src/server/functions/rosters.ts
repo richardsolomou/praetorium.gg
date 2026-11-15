@@ -3,16 +3,11 @@ import { setImmediate as yieldToEventLoop } from 'node:timers/promises'
 import { changesTouching } from '../../core/catalogueChanges'
 import { historySince } from '../../core/catalogueHistory'
 import { app } from '../app'
+import { playedArmiesPage } from '../playedArmiesPage'
 import { requireCatalogue } from '../requireCatalogue'
 import { currentUserId, forSignedIn, requireUserId } from '../playerSession'
 import { calculateRosterPrice } from '../../shared/pricing'
-import {
-  cachedRosterAssessmentsFor,
-  cachedRosterPrice,
-  cachedRosterTotalsFor,
-  cachedRosterVerdictsFor,
-  heldRosterAssessments,
-} from '../rosterPrices'
+import { cachedRosterAssessmentsFor, cachedRosterPrice, cachedRosterTotalsFor, cachedRosterVerdictsFor } from '../rosterPrices'
 import { mutationRpc, rpc } from '../rpc'
 import { exportRosterFile, pricedDispositionNames } from '../../shared/rosterFiles'
 import { importRosterInput } from '../rosterImport'
@@ -26,10 +21,9 @@ import {
   ROSTER_DISCOVERY_MAX_PAGE_SIZE,
   ROSTER_DISCOVERY_PAGE_SIZE,
 } from '../../core/rosterDiscovery'
-import { againstFamilies, discoveryCounts, discoveryScope, inDiscoveryScope, type DiscoveryCounts } from '../../core/rosterDiscoveryScope'
+import { discoveryCounts, discoveryScope, inDiscoveryScope, type DiscoveryCounts } from '../../core/rosterDiscoveryScope'
 import { detachmentIds } from '../../core/savedRoster'
 import { rosterFaction } from '../../shared/rosterFaction'
-import { matchesPlayedArmy, playedArmyFilterActive, type PlayedArmy } from '../../core/playedArmies'
 import { variantDifferences } from '../rosterDifferences'
 import { saveOwnedRoster } from '../saveOwnedRoster'
 import { rosterActions } from '../rosterActions'
@@ -436,63 +430,7 @@ export const saveRoster = createServerFn({ method: 'POST' })
  */
 export const discoverPlayedArmies = createServerFn({ method: 'GET' })
   .validator(playedArmiesSchema)
-  .handler(({ data: { before, ...filter } }) =>
-    rpc(async () => {
-      const instance = app()
-      const [viewerId, factionIndex, battleFactions] = await Promise.all([
-        currentUserId(),
-        instance.factionIndexFor(),
-        instance.battleFactionsFor(),
-      ])
-      const factions = factionIndex?.factions ?? []
-      if (!discoveryScope(filter, factions)) return { armies: [], nextCursor: null }
-      const indexed = byId(factions)
-      const played = filter.against ? { ...filter, against: againstFamilies(filter.against, factions) } : filter
-      const now = Date.now()
-      // Most armies were priced by an earlier read under this catalogue, so only the rest have their battles' logs read for picks.
-      const assess = async (armies: PlayedArmy[]) => {
-        const priceable = armies.map((army) => ({ id: `${army.battle}:${army.player.id}`, updatedAt: army.playedAt }))
-        const held = await heldRosterAssessments(priceable)
-        const unpriced = armies.filter((_, index) => !held[index])
-        const picks = await instance.service.battleFeedService.playedArmyPicks(unpriced)
-        const priced = await cachedRosterAssessmentsFor(
-          unpriced.map((army, index) => ({
-            ...copiedArmy({ ...army, picks: picks[index]! }),
-            id: `${army.battle}:${army.player.id}`,
-            updatedAt: army.playedAt,
-            optionalRules: [],
-            borrowedDetachmentId: null,
-          })),
-        )
-        let next = 0
-        return held.map((assessment) => assessment ?? priced[next++]!)
-      }
-      const page = await instance.service.battleFeedService.playedArmies(
-        viewerId,
-        before ?? undefined,
-        battleFactions,
-        playedArmyFilterActive(filter)
-          ? async (armies) => {
-              const fit = armies.filter((army) => inDiscoveryScope(army.copied, filter, indexed) && matchesPlayedArmy(army, played, now))
-              if (!rosterAssessmentFilterActive(filter)) return fit
-              const assessments = await assess(fit)
-              return fit.filter((_, index) =>
-                matchesRosterAssessment(filter, { points: assessments[index]!.points, problem: assessments[index]!.verdict.problem }),
-              )
-            }
-          : undefined,
-      )
-      const assessments = await assess(page.armies)
-      return {
-        armies: page.armies.map(({ copied: _copied, ...army }, index) => ({
-          ...army,
-          points: assessments[index]!.points,
-          problem: assessments[index]!.verdict.problem,
-        })),
-        nextCursor: page.nextCursor,
-      }
-    }),
-  )
+  .handler(({ data }) => rpc(async () => playedArmiesPage(await currentUserId(), data)))
 
 /** An army from a finished battle, as a roster that would copy it; nothing is saved. */
 async function playedArmyCopy(data: { token: string; playerId: string }) {
