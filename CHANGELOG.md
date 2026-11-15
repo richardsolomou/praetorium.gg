@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.252.1 (2026-11-15)
+
+### Patch Changes
+
+- 75761f4: New Recruit lists exported with the official app's header now import with their faction, detachments and battle size.
+
 ## 0.252.0 (2026-11-15)
 
 ### Minor Changes
