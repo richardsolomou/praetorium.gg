@@ -96,10 +96,20 @@
   --animate-draw-down: draw-down 420ms var(--ease-settle);
   --animate-strike: strike 320ms var(--ease-settle);
   --animate-figure: figure 260ms var(--ease-settle);
+  --animate-navigate: navigate 8s 300ms var(--ease-settle) both;
 
   @keyframes draw {
     from {
       scale: 0 1;
+    }
+  }
+
+  @keyframes navigate {
+    from {
+      scale: 0 1;
+    }
+    to {
+      scale: 0.9 1;
     }
   }
 
