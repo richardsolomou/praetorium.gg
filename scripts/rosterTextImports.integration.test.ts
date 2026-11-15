@@ -19,7 +19,7 @@ import { necronsOfficial } from '../src/core/rosterText.necrons.fixture'
 import { blackTemplarsNewRecruit } from '../src/core/rosterText.blackTemplars.fixture'
 import { chaosSpaceMarinesNewRecruit } from '../src/core/rosterText.chaosSpaceMarines.fixture'
 import { bloodAngelsOfficial } from '../src/core/rosterText.bloodAngels.fixture'
-import { salamandersOfficial } from '../src/core/rosterText.salamanders.fixture'
+import { salamandersNewRecruitAppHeader, salamandersOfficial } from '../src/core/rosterText.salamanders.fixture'
 import { spaceWolvesFortyKApp, spaceWolvesFortyKAppGrouped, spaceWolvesOfficial } from '../src/core/rosterText.spaceWolves.fixture'
 import { agentsFortyKApp } from '../src/core/rosterText.agents.fixture'
 import { spaceMarinesFortyKAppMarkdown } from '../src/core/rosterText.spaceMarines.fixture'
@@ -1268,6 +1268,21 @@ Exported with App Version: v2.8.0 (2), Data Version: v981`).mismatches,
       attached: 4,
       mismatches: [],
       points: '1435 for 1435',
+    })
+  })
+
+  it.each([
+    ['with', salamandersNewRecruitAppHeader],
+    ['without', salamandersNewRecruitAppHeader.replace(/\n+Created with .*$/, '')],
+  ])('imports the reported New Recruit Salamanders roster under the official-app header %s its footer', (_footer, file) => {
+    expect(summary(file)).toEqual({
+      format: 'newrecruit',
+      faction: 'Imperium - Adeptus Astartes - Salamanders',
+      detachments: 3,
+      units: '11 of 11',
+      attached: 2,
+      mismatches: [],
+      points: '1990 for 1990',
     })
   })
 

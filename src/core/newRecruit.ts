@@ -153,13 +153,14 @@ const SETUP = {
 const leaves = (node: ShareNode): ShareNode[] => (node.options.length ? node.options.flatMap((child) => leaves(child)) : [node])
 
 export function fromNewRecruitText(input: string): TextRoster | null {
+  const lines = input.replaceAll('\r', '').split('\n')
+  const faction = metadata(lines, 'FACTION KEYWORD')
   const newRecruit = /Created with newrecruit\.eu/i.test(input)
-  const native =
-    /^\+ FACTION KEYWORD:/m.test(input) && (/Exported with Praetorium\.gg/i.test(input) || (!newRecruit && /^\+ ROSTER NAME:/m.test(input)))
+  const native = faction !== null && (/Exported with Praetorium\.gg/i.test(input) || (!newRecruit && /^\+ ROSTER NAME:/m.test(input)))
+  const setup = faction === null ? appSetup(lines) : null
+  if (setup) return { ...setup, units: newRecruitUnits(lines) }
   if (!newRecruit && !native) return null
 
-  const lines = input.replaceAll('\r', '').split('\n')
-  const faction = metadata(lines, 'FACTION KEYWORD') ?? ''
   const rawDetachment = metadata(lines, 'DETACHMENT')
   const detachment = (native ? rawDetachment : rawDetachment?.replace(/\s+\([^()]+\)\s*$/, '')) ?? null
   const disposition = metadata(lines, 'FORCE DISPOSITION')
@@ -167,11 +168,7 @@ export function fromNewRecruitText(input: string): TextRoster | null {
   const total = points ? printedNumber(points) : null
   const battleSize = metadata(lines, 'BATTLE SIZE')?.match(/^([\d,]+)pts(?:\s+\((.+)\))?$/i)
   const explicitLimit = battleSize?.[1]
-  const limit = explicitLimit
-    ? printedNumber(explicitLimit)
-    : total === null
-      ? null
-      : (GAME_SIZES.find((size) => size.limit >= total)?.limit ?? total)
+  const limit = explicitLimit ? printedNumber(explicitLimit) : sizeFor(total)
   const warlord = metadata(lines, 'WARLORD')?.replace(/^Char\d+:\s*/i, '') ?? null
   const units = newRecruitUnits(lines, native)
 
@@ -181,14 +178,47 @@ export function fromNewRecruitText(input: string): TextRoster | null {
   }
 
   return {
-    name: metadata(lines, 'ROSTER NAME') ?? defaultListName(faction, total),
+    name: metadata(lines, 'ROSTER NAME') ?? defaultListName(faction ?? '', total),
     ...(total !== null ? { reportedPoints: total } : {}),
-    faction,
+    faction: faction ?? '',
     detachment: detachment === 'No detachment' ? null : detachment,
     disposition,
     limit,
     ...(battleSize?.[2] ? { sizeName: battleSize[2] } : {}),
     units,
+  }
+}
+
+const sizeFor = (total: number | null) => (total === null ? null : (GAME_SIZES.find((size) => size.limit >= total)?.limit ?? total))
+
+const appPoints = /^(.+?)\s+\(([\d,]+) Points\)$/i
+const detachmentPoints = /\s*\(\d+ Detachment Points?\)$/i
+
+/**
+ * The official app's setup, which New Recruit can write over its own units, with or without its footer: the title, the
+ * faction under any parent faction, the detachments priced in their own points, the disposition, and the battle size.
+ */
+function appSetup(lines: readonly string[]): Omit<TextRoster, 'units'> | null {
+  const firstUnit = lines.findIndex((line) => unitHeader.test(line.trim()))
+  const head = lines.slice(0, Math.max(0, firstUnit)).map((line) => line.trim())
+  const detachmentAt = head.findLastIndex((line) => detachmentPoints.test(line))
+  if (detachmentAt < 0) return null
+  const priced = head.map((line) => line.match(appPoints))
+  const titleAt = priced.findIndex((match, at) => match && at < detachmentAt)
+  const sizeAt = priced.findIndex((match, at) => match && at > detachmentAt)
+  const title = priced[titleAt]
+  const size = priced[sizeAt]
+  const faction = head.slice(titleAt + 1, detachmentAt).findLast(Boolean) ?? ''
+  const total = title ? printedNumber(title[2]!) : null
+  const between = head.slice(detachmentAt + 1, size ? sizeAt : undefined).filter(Boolean)
+  return {
+    name: title?.[1] ?? defaultListName(faction, total),
+    ...(total !== null ? { reportedPoints: total } : {}),
+    faction,
+    detachment: head[detachmentAt]!.replace(detachmentPoints, ''),
+    disposition: between.length === 1 ? between[0]! : null,
+    limit: size ? printedNumber(size[2]!) : sizeFor(total),
+    ...(size ? { sizeName: size[1]! } : {}),
   }
 }
 
