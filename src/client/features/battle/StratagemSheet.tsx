@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogBody, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../../components/Dialog'
 import type { BattleView } from '../../../core/battleView'
@@ -14,7 +15,8 @@ import type { SendCommand } from './useCommand'
  */
 export function StratagemSheet({
   view,
-  side,
+  sides,
+  side: opened,
   coreKeys,
   pending,
   send,
@@ -22,27 +24,31 @@ export function StratagemSheet({
   onRecordMissed,
 }: {
   view: BattleView
+  sides: readonly Side[]
+  /** The side it opens on; a phone running both sides switches inside the sheet. */
   side: Side
-  coreKeys: ReadonlySet<string>
+  coreKeys: (side: Side) => ReadonlySet<string>
   pending: boolean
   send: SendCommand
-  writtenFor: (key: string) => StratagemText | undefined
-  onRecordMissed?: (key: string) => void
+  writtenFor: (side: Side, key: string) => StratagemText | undefined
+  onRecordMissed?: (side: Side, key: string) => void
 }) {
+  const [chosen, setChosen] = useState<number | null>(null)
+  const side = sides.find((each) => each.index === chosen) ?? opened
   const colours = tint(side.index)
   return (
-    <Dialog>
+    <Dialog onOpenChange={(open) => open && setChosen(null)}>
       <DialogTrigger
         render={
           <Button
             variant="outline"
             data-stratagem-sheet
             className="h-auto min-h-11 shrink-0 gap-1 rounded-xl px-3 lg:hidden"
-            aria-label={`Stratagems for ${sideName(side)}, ${side.cp} CP`}
+            aria-label={`Stratagems for ${sideName(opened)}, ${opened.cp} CP`}
           />
         }
       >
-        <span className={`figure text-lg leading-none font-bold ${colours.score}`}>{side.cp}</span>
+        <span className={`figure text-lg leading-none font-bold ${tint(opened.index).score}`}>{opened.cp}</span>
         <span className="font-display text-2xs font-semibold text-dim uppercase">CP</span>
       </DialogTrigger>
       <DialogContent sheet className={colours.border}>
@@ -53,18 +59,35 @@ export function StratagemSheet({
           </DialogDescription>
         </DialogHeader>
         <DialogBody className="gap-3">
+          {side.stratagems.length ? null : <p className="text-sm text-dim">This army has no stratagems to play.</p>}
           <Stratagems
             side={side}
             phase={view.phase}
-            coreKeys={coreKeys}
+            coreKeys={coreKeys(side)}
             pending={pending}
             send={send}
-            writtenFor={writtenFor}
-            onRecordMissed={onRecordMissed}
+            writtenFor={(key) => writtenFor(side, key)}
+            onRecordMissed={onRecordMissed && ((key) => onRecordMissed(side, key))}
           />
         </DialogBody>
-        <div className="flex shrink-0 justify-end border-t border-edge p-3">
-          <GainCp side={side} pending={pending} send={send} className="h-11 min-w-24 rounded-xl text-sm" />
+        <div className="flex shrink-0 items-center gap-2 border-t border-edge p-3">
+          {sides.length > 1 ? (
+            <fieldset className="flex min-w-0 flex-1 gap-1">
+              <legend className="sr-only">Spend for</legend>
+              {sides.map((each) => (
+                <Button
+                  key={each.index}
+                  variant="outline"
+                  aria-pressed={each.index === side.index}
+                  className={`h-11 min-w-0 flex-1 rounded-xl ${each.index === side.index ? tint(each.index).mark : ''}`}
+                  onClick={() => setChosen(each.index)}
+                >
+                  <span className="truncate">{each.isViewer ? 'You' : sideName(each)}</span>
+                </Button>
+              ))}
+            </fieldset>
+          ) : null}
+          <GainCp side={side} pending={pending} send={send} className="ml-auto h-11 min-w-24 rounded-xl text-sm" />
         </div>
       </DialogContent>
     </Dialog>

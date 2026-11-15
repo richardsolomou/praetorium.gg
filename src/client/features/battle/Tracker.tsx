@@ -2,7 +2,7 @@ import { GuideHelp } from '../onboarding/GuideHelp'
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { toast } from 'sonner'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { type TouchEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { readStoredValue, useStoredValue, writeStoredValue } from '../../storedValue'
 import { useHydrated } from '../../useClientValue'
 import { Button } from '@/components/ui/button'
@@ -319,6 +319,11 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
   /** Which panel a narrow screen is showing, in the order the columns sit on a wide one. */
   const shown = (side: Side) => (side.isViewer ? 'yours' : 'theirs')
   const theirs = table.find((side) => !side.isViewer)
+  const swipe = useSwipe((step) => {
+    const views = oneSided ? VIEWS.slice(0, 2) : VIEWS
+    const next = views[views.indexOf(focus) + step]
+    if (next) setFocus(next)
+  })
   // The side whose tab is open spends from the bar, so one phone running both sides reaches either.
   const spender = (focus === 'theirs' ? theirs : yours) ?? table[0]
   const settlementRound = view.settlementRound
@@ -613,6 +618,7 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
         </div>
 
         <div
+          {...swipe}
           className={`mx-auto grid items-start gap-3 ${
             oneSided
               ? 'max-w-5xl lg:grid-cols-[minmax(0,1fr)_minmax(19rem,22rem)]'
@@ -653,12 +659,13 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
                 spender && !view.settings.manual && view.status === 'playing' ? (
                   <StratagemSheet
                     view={view}
+                    sides={table}
                     side={spender}
-                    coreKeys={coreKeysBySide.get(spender.index) ?? EMPTY_KEYS}
+                    coreKeys={(side) => coreKeysBySide.get(side.index) ?? EMPTY_KEYS}
                     pending={pending || promptMinimized}
                     send={sendAction}
-                    writtenFor={(key) => writtenFor(spender, key)}
-                    onRecordMissed={missedMoments.length ? (key) => recordMissedStratagem(spender, key) : undefined}
+                    writtenFor={writtenFor}
+                    onRecordMissed={missedMoments.length ? recordMissedStratagem : undefined}
                   />
                 ) : null
               }
@@ -880,3 +887,38 @@ const discardableSecondaries = (side: Side) =>
 
 /** The cards a side was holding, as keys, so a later hand can be told from this one. */
 const heldKeys = (side: Side | undefined) => (side?.secondaries ?? []).filter((card) => card.status === 'active').map((card) => card.key)
+
+/**
+ * A sideways swipe across the panels steps between the tabs, which sit at the top of a phone, out of the thumb's reach.
+ * A swipe that starts in something that scrolls sideways is left to it.
+ */
+function useSwipe(onStep: (step: 1 | -1) => void) {
+  const start = useRef<{ x: number; y: number } | null>(null)
+  return {
+    onTouchStart: (event: TouchEvent) => {
+      const touch = event.touches[0]
+      const target = event.target as Element
+      start.current =
+        touch &&
+        event.touches.length === 1 &&
+        !target.closest('[data-swipe-ignore], input, textarea, [role="slider"]') &&
+        !scrollsSideways(target)
+          ? { x: touch.clientX, y: touch.clientY }
+          : null
+    },
+    onTouchEnd: (event: TouchEvent) => {
+      const from = start.current
+      const touch = event.changedTouches[0]
+      start.current = null
+      if (!from || !touch) return
+      const [dx, dy] = [touch.clientX - from.x, touch.clientY - from.y]
+      if (Math.abs(dx) >= 64 && Math.abs(dx) > 2 * Math.abs(dy)) onStep(dx < 0 ? 1 : -1)
+    },
+  }
+}
+
+function scrollsSideways(target: Element | null) {
+  for (let node = target; node && node !== document.body; node = node.parentElement)
+    if (node.scrollWidth > node.clientWidth && /auto|scroll/.test(getComputedStyle(node).overflowX)) return true
+  return false
+}
