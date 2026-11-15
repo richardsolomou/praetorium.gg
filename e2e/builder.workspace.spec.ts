@@ -510,7 +510,10 @@ test('the roster workspace preserves picker and read-only state', async ({ page 
   // The owner keeps the picker while viewing the roster without its card or loadout controls.
   await expect(page.getByLabel('Add a unit')).toBeVisible()
   await expect(page.getByRole('button', { name: 'Add Immortals', exact: true }).first()).toBeVisible()
-  await expect(page.getByRole('button', { name: /Unit actions for Immortals/ })).toHaveCount(0)
+  await page.getByRole('button', { name: /Unit actions for Immortals/ }).first().click()
+  await expect(page.getByRole('menuitem', { name: 'Something wrong?' })).toBeVisible()
+  await expect(page.getByRole('menuitem', { name: 'Delete unit' })).toHaveCount(0)
+  await page.keyboard.press('Escape')
   await page.locator('[data-unit="Immortals"]').getByRole('button', { name: 'Immortals', exact: true }).click()
   await expect(page.getByRole('button', { name: /More models in Immortals/ })).toHaveCount(0)
   // What the datasheet says about the unit is a fact about it, not an edit.
