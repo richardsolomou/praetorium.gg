@@ -99,14 +99,6 @@ describe('battle command input', () => {
 })
 
 describe('saved roster datasheet input', () => {
-  it('accepts a roster id, battle entitlement, and bounded selected pick', () => {
-    expect(savedRosterDatasheetSchema.parse({ id: 'roster', battle: 'battle', pickIndex: 16 })).toEqual({
-      id: 'roster',
-      battle: 'battle',
-      pickIndex: 16,
-    })
-  })
-
   it('rejects out-of-range pick indexes', () => {
     expect(savedRosterDatasheetSchema.safeParse({ id: 'roster', pickIndex: 100 }).success).toBe(false)
   })

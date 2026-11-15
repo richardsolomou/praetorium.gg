@@ -24,6 +24,8 @@ Pairings start at full health, or current health in a battle. Supported always-o
 
 **Add roster** puts more than one roster on a side, and **×** takes one out. You can mix your own lists, friends' lists and sealed lists.
 
+To use a list that isn't yours, type in the picker's search: it also finds other players' public rosters and armies from finished battles. Or paste a link to a roster, or to a list from a battle's **Roster**, which also works for unlisted rosters and battles still being played. That lets you set two other players' lists against each other. Opened from a battle's **Roster**, the other armies in that battle are under **This battle**.
+
 Opened from a tournament or hidden-list game, each side starts with its players' lists. The table starts on **Shooting + melee** with the best attacker for each target highlighted.
 
 ## Benchmarks

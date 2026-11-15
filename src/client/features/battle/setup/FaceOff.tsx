@@ -185,6 +185,7 @@ export function FaceOff({
                 >
                   {onSimulate ? (
                     <ArmyRoster
+                      token={view.token}
                       army={army}
                       side={side!}
                       finished={false}

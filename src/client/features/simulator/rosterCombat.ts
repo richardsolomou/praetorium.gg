@@ -7,6 +7,8 @@ import { combatAtHealth } from '../../../core/combatSurvivors'
 import type { CombatRoster } from './useCombatant'
 import type { RosterOwner } from './rosterOwners'
 import type { BuiltRoster } from '../../../core/battle'
+import type { BattleView } from '../../../core/battleView'
+import { fieldedRoster, fieldingPlayer } from '../rosters/fieldedRoster'
 
 type ProjectedCombatant = NonNullable<Awaited<ReturnType<typeof combatantDatasheet>>>
 export type RosterCombatUnit = {
@@ -18,6 +20,18 @@ export type RosterCombatUnit = {
   snapshot: CombatantSnapshot | null
   live?: boolean
   error?: string
+}
+
+/** A player's list as their battle froze it, at full strength, named with the player who fielded it. */
+export function battleCombatRoster(screen: { kind: string; view?: BattleView } | null | undefined, rosterOrPlayerId: string) {
+  const view = screen?.kind === 'unavailable' ? undefined : screen?.view
+  const player = view ? fieldingPlayer(view, rosterOrPlayerId) : undefined
+  const fielded = view ? fieldedRoster(view, rosterOrPlayerId) : null
+  return {
+    roster: sealedCombatRoster(fielded),
+    name: fielded && player ? `${fielded.name} · ${player.name}` : '',
+    playerId: player?.id,
+  }
 }
 
 /** A sealed list at full strength, starting from its first unit; null when it kept no loadouts. */

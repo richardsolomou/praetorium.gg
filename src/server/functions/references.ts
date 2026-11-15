@@ -197,7 +197,7 @@ export const savedRosterLoadoutDatasheets = createServerFn({ method: 'GET' })
     rpc(async () => {
       const startedAt = performance.now()
       const userId = await currentUserId()
-      const roster = await app().service.rosterService.sharedRoster(data.id, userId, data.battle ?? null)
+      const roster = await app().service.rosterService.sharedRoster(data.id, userId)
       const pick = roster?.picks[data.pickIndex]
       const loaded = await app().catalogueFor(roster?.catalogueId ?? '')
       if (!roster || !pick || !loaded) return null

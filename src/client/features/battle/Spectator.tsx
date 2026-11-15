@@ -364,6 +364,7 @@ function SpectatorSide({
             </h2>
             <ArmyIdentity army={army} className="mt-0.5" />
             <ArmyRoster
+              token={view.token}
               onSimulate={onSimulate}
               army={army}
               finished={view.status === 'finished'}

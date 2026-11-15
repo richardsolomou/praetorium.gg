@@ -22,7 +22,8 @@ import { ContextMenuItem, DropdownMenuItem, DropdownMenuLabel } from '../../../c
 type BuiltUnit = {
   entryId: string
   name: string
-  points: number
+  /** Left out where the card shows a unit in play rather than what it costs. */
+  points?: number
   modelCount?: number
   wargear: { name: string; count: number }[]
   attachment: Attachment | null
@@ -124,7 +125,9 @@ export function UnitCard({
     selected ? 'border-parchment inset-ring-1 inset-ring-parchment' : 'border-edge hover:border-runner-hi'
   }`
   const gate = selected ? 'current' : undefined
-  const actions = { onDuplicate, canDuplicate, duplicateLimit, onSaveLoadout, onSaveAttachedUnit, onDetach, onReport, onRemove }
+  const actions = { editable, onDuplicate, canDuplicate, duplicateLimit, onSaveLoadout, onSaveAttachedUnit, onDetach, onReport, onRemove }
+  // A reader keeps what only touches their own library or a report: saving the loadout and saying something is wrong.
+  const hasActions = editable || Boolean(onSaveLoadout || onSaveAttachedUnit || onReport)
 
   // One target over the whole card, under everything on it. An enhancement, an
   // upgrade and who a unit is standing with are all things a player reads on the
@@ -144,8 +147,8 @@ export function UnitCard({
       ) : null}
       <div className="flow-root px-2.5 py-2">
         <span className="pointer-events-none relative z-10 float-right ml-2 flex shrink-0 items-center gap-1.5 [&_button]:pointer-events-auto">
-          <span className="chip">{unit.points} pts</span>
-          {editable ? (
+          {unit.points === undefined ? null : <span className="chip">{unit.points} pts</span>}
+          {hasActions ? (
             <span data-print-hide>
               <DropdownMenu>
                 <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label={`Unit actions for ${unit.name}`} />}>
@@ -255,7 +258,7 @@ export function UnitCard({
     </>
   )
 
-  if (!editable) {
+  if (!hasActions) {
     return (
       <div data-unit={unit.name} data-gate={gate} className={cardClassName}>
         {card}
@@ -445,6 +448,7 @@ const CONTEXT_PARTS = { Item: ContextMenuItem, Separator: ContextMenuSeparator }
 
 function UnitActions({
   parts: { Item, Separator },
+  editable,
   onDuplicate,
   canDuplicate,
   duplicateLimit,
@@ -455,6 +459,7 @@ function UnitActions({
   onRemove,
 }: {
   parts: typeof DROPDOWN_PARTS | typeof CONTEXT_PARTS
+  editable: boolean
   onDuplicate: () => void
   canDuplicate: boolean
   duplicateLimit: string | null
@@ -466,6 +471,30 @@ function UnitActions({
 }) {
   const limitId = useId()
   const limit = canDuplicate ? null : duplicateLimit
+  const saving = Boolean(onSaveLoadout || onSaveAttachedUnit)
+  if (!editable)
+    return (
+      <>
+        {onSaveLoadout ? (
+          <Item onClick={onSaveLoadout}>
+            <BookmarkPlus /> Save loadout
+          </Item>
+        ) : null}
+        {onSaveAttachedUnit ? (
+          <Item onClick={onSaveAttachedUnit}>
+            <Users /> Save attached unit
+          </Item>
+        ) : null}
+        {onReport ? (
+          <>
+            {saving ? <Separator /> : null}
+            <Item onClick={onReport}>
+              <MessageSquareWarning /> Something wrong?
+            </Item>
+          </>
+        ) : null}
+      </>
+    )
   return (
     <>
       <Item
@@ -485,7 +514,7 @@ function UnitActions({
           ) : null}
         </span>
       </Item>
-      {onSaveLoadout || onSaveAttachedUnit ? <Separator /> : null}
+      {saving ? <Separator /> : null}
       {onSaveLoadout ? (
         <Item onClick={onSaveLoadout}>
           <BookmarkPlus /> Save loadout

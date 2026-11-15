@@ -82,7 +82,7 @@ describe('crawler preview access', () => {
   it('reads a roster as an unauthenticated visitor', async () => {
     service.rosterService.rosterAccess.mockResolvedValue(null)
     await fetchImage(rosterImage, { id: 'public-roster' })
-    expect(service.rosterService.rosterAccess).toHaveBeenCalledWith('public-roster', null, null)
+    expect(service.rosterService.rosterAccess).toHaveBeenCalledWith('public-roster', null)
   })
 
   it('does not reveal a roster without visitor access', async () => {

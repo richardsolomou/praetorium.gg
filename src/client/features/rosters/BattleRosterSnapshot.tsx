@@ -55,6 +55,7 @@ export function BattleRosterSnapshot({
           snapshotEdition={built.edition ?? null}
           editable={false}
           resolvePersistedRoster={false}
+          fielded
           simulatorSource={simulatorSource}
           print={print}
           frozen={reading.frozen}

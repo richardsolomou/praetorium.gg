@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { fieldedRoster } from './fieldedRoster'
+import { fieldedRoster, fieldingPlayer } from './fieldedRoster'
 import { BattleRosterSnapshot } from './BattleRosterSnapshot'
 import { ListBuilder } from './ListBuilder'
 import { NO_PREP } from './rosterDraft'
@@ -35,8 +35,11 @@ export function RosterPage({
     ...sealedEventRosterQuery(sealedEvent ?? '', event ?? '', id),
     enabled: Boolean(sealedEventSnapshot && sealedEvent),
   })
-  const { data: access } = useQuery({ ...rosterAccessQuery(id, battle), enabled: !snapshot })
+  const { data: access } = useQuery({ ...rosterAccessQuery(id), enabled: !snapshot })
   const roster = access?.roster
+  const view = battle && screen && screen.kind !== 'unavailable' ? screen.view : undefined
+  const fielded = view ? fieldedRoster(view, id) : null
+  const player = view ? fieldingPlayer(view, id) : undefined
 
   if (sealedEventSnapshot)
     return sealed ? (
@@ -46,10 +49,10 @@ export function RosterPage({
         simulatorSource={sealedEvent && event ? { sealedEvent: { token: sealedEvent, eventToken: event, userId: id } } : undefined}
       />
     ) : null
-  if (snapshot && battle && screen && screen.kind !== 'unavailable') {
-    const fielded = fieldedRoster(screen.view, id)
-    return fielded ? <BattleRosterSnapshot roster={fielded} print={print} /> : null
-  }
+  if (snapshot && battle && view)
+    return fielded && player ? (
+      <BattleRosterSnapshot roster={fielded} print={print} simulatorSource={{ battle: { token: battle, playerId: player.id } }} />
+    ) : null
   if (access === null)
     return (
       <FullPageState
@@ -69,8 +72,7 @@ export function RosterPage({
         editable={editable && !roster.locked}
         locked={editable && roster.locked}
         print={print}
-        battle={battle}
-        simulatorSource={access.editable || battle ? undefined : { id: roster.id }}
+        simulatorSource={access.editable ? undefined : { id: roster.id }}
         variants={access.variants}
         differences={access.differences}
         copiedFrom={access.copiedFrom ?? null}

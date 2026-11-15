@@ -44,7 +44,11 @@ export async function playedArmiesPage(viewerId: string | null, { before, ...fil
     battleFactions,
     playedArmyFilterActive(filter)
       ? async (armies) => {
-          const fit = armies.filter((army) => inDiscoveryScope(army.copied, filter, indexed) && matchesPlayedArmy(army, played, now))
+          const fit = armies.filter(
+            (army) =>
+              inDiscoveryScope(army.copied, filter, indexed) &&
+              matchesPlayedArmy(army, played, now, (indexed.get(army.catalogueId) ?? indexed.get(army.copied.catalogueId))?.displayName),
+          )
           if (!rosterAssessmentFilterActive(filter)) return fit
           const assessments = await assess(fit)
           return fit.filter((_, index) =>

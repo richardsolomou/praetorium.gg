@@ -32,7 +32,9 @@ On a phone, the CP figure beside the phase button opens the stratagems you can p
 
 ## Casualties
 
-Open **Army** under a player's name to see their units. Remove models and wounds as they go, or mark a unit **Destroyed**. Units in reserves or transports show **Arrive** or **Disembark**.
+Open **Units** under a player's name to see their units. Remove models and wounds as they go, or mark a unit **Destroyed**. Units in reserves or transports show **Arrive** or **Disembark**.
+
+**Roster** opens the list exactly as they fielded it, with its points and wargear, even when they keep the saved roster private. Players and spectators can both open it.
 
 **Simulate** opens the [combat simulator](/simulator) with the units still standing.
 

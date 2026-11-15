@@ -21,7 +21,7 @@ import {
   ROSTER_DISCOVERY_MAX_PAGE_SIZE,
   ROSTER_DISCOVERY_PAGE_SIZE,
 } from '../../core/rosterDiscovery'
-import { discoveryCounts, discoveryScope, inDiscoveryScope, type DiscoveryCounts } from '../../core/rosterDiscoveryScope'
+import { discoveryCounts, discoveryScope, inDiscoveryScope, namedArmyIds, type DiscoveryCounts } from '../../core/rosterDiscoveryScope'
 import { detachmentIds } from '../../core/savedRoster'
 import { rosterFaction } from '../../shared/rosterFaction'
 import { variantDifferences } from '../rosterDifferences'
@@ -42,7 +42,6 @@ import {
   rosterIdSchema,
   rosterDiscoverySchema,
   rosterIdsSchema,
-  rosterInBattleSchema,
   rosterArchiveSchema,
   rosterSplitSchema,
   rosterBatchSchema,
@@ -257,6 +256,7 @@ export const discoverRosters = createServerFn({ method: 'GET' })
           owners: filter.owner,
           q: filter.q,
           namedOwnerIds,
+          ...(filter.q ? namedArmyIds(filter.q, factions) : {}),
           audience,
           viewerId,
           sort,
@@ -285,13 +285,13 @@ export const discoverRosters = createServerFn({ method: 'GET' })
   )
 
 export const sharedRoster = createServerFn({ method: 'GET' })
-  .validator(rosterInBattleSchema)
-  .handler(({ data }) => rpc(async () => app().service.rosterService.sharedRoster(data.id, await currentUserId(), data.battle ?? null)))
+  .validator(rosterIdSchema)
+  .handler(({ data }) => rpc(async () => app().service.rosterService.sharedRoster(data.id, await currentUserId())))
 
 /** A reader's access to a roster, with the variant group its owner can switch between. */
-async function accessToRoster(data: { id: string; battle?: string }) {
+async function accessToRoster(data: { id: string }) {
   const userId = await currentUserId()
-  const access = await app().service.rosterService.rosterAccess(data.id, userId, data.battle ?? null)
+  const access = await app().service.rosterService.rosterAccess(data.id, userId)
   if (!access) return null
   const copiedFrom = await app().service.rosterService.copySource(access.roster.copiedFromRosterId, userId)
   if (!access.editable || !userId) return { lentBy: null, ...access, variants: [], differences: null, copiedFrom }
@@ -302,14 +302,14 @@ async function accessToRoster(data: { id: string; battle?: string }) {
   return { lentBy: null, ...access, variants, differences: differences.get(access.roster.id) ?? null, copiedFrom }
 }
 
-async function accessibleRoster(data: { id: string; battle?: string }) {
+async function accessibleRoster(data: { id: string }) {
   const access = await accessToRoster(data)
   if (!access) return null
   return { ...access, faction: await app().factionFor(access.roster.catalogueId) }
 }
 
 export const rosterAccess = createServerFn({ method: 'GET' })
-  .validator(rosterInBattleSchema)
+  .validator(rosterIdSchema)
   .handler(({ data }) => rpc(() => accessibleRoster(data)))
 
 /**
@@ -391,7 +391,7 @@ async function changesSinceSaved(
 }
 
 export const rosterBootstrap = createServerFn({ method: 'GET' })
-  .validator(rosterInBattleSchema)
+  .validator(rosterIdSchema)
   .handler(({ data }) =>
     rpc(async () => {
       const access = await accessToRoster(data)
@@ -406,10 +406,10 @@ export const rosterBootstrap = createServerFn({ method: 'GET' })
   )
 
 export const rosterChanges = createServerFn({ method: 'GET' })
-  .validator(rosterInBattleSchema)
+  .validator(rosterIdSchema)
   .handler(({ data }) =>
     rpc(async () => {
-      const roster = await app().service.rosterService.sharedRoster(data.id, await currentUserId(), data.battle ?? null)
+      const roster = await app().service.rosterService.sharedRoster(data.id, await currentUserId())
       return roster ? changesSinceSaved(roster, await cachedRosterPrice(roster)) : []
     }),
   )

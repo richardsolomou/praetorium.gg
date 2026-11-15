@@ -250,18 +250,18 @@ export const loadoutDatasheetsQuery = (
   detachmentIds: readonly string[],
   picks: readonly RosterPick[],
   pickIndex: number | null,
-  persistedRoster?: { id: string; battle?: string },
+  persistedRoster?: { id: string },
 ) =>
   queryOptions({
     queryKey: persistedRoster
-      ? ['saved-roster-loadout-datasheets', persistedRoster.id, persistedRoster.battle ?? null, pickIndex]
+      ? ['saved-roster-loadout-datasheets', persistedRoster.id, pickIndex]
       : ['loadout-datasheets', catalogueId, entryId, detachmentIds, picks, pickIndex],
     queryFn: async ({ signal }) => {
       const startedAt = performance.now()
       const result =
         persistedRoster && pickIndex !== null
           ? await savedRosterLoadoutDatasheets({
-              data: { id: persistedRoster.id, ...(persistedRoster.battle ? { battle: persistedRoster.battle } : {}), pickIndex },
+              data: { id: persistedRoster.id, pickIndex },
               signal,
             })
           : await loadoutDatasheets({
@@ -436,9 +436,9 @@ export const rosterLoansQuery = (id: string) =>
 export const rostersLentToMeQuery = () =>
   queryOptions({ queryKey: ['rosters-lent-to-me'], queryFn: ({ signal }) => rostersLentToMe({ signal }), staleTime: SSR_STALE_TIME })
 
-export const rosterAccessQuery = (id: string, battle?: string) =>
+export const rosterAccessQuery = (id: string) =>
   queryOptions({
-    queryKey: rosterAccessKey(id, battle),
-    queryFn: ({ signal }) => rosterAccess({ data: { id, ...(battle ? { battle } : {}) }, signal }),
+    queryKey: rosterAccessKey(id),
+    queryFn: ({ signal }) => rosterAccess({ data: { id }, signal }),
     staleTime: SSR_STALE_TIME,
   })

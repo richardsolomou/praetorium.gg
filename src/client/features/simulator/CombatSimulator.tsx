@@ -21,16 +21,18 @@ import {
   encodeSimulatorState,
   type MatchupSettings,
   type SimulatorSide,
+  rosterSourceFromKey,
   rosterSourceKey,
   type SimulatorRosterSource,
   type SimulatorState,
 } from '../../../contracts/simulatorState'
-import { combatUnitsQuery, factionIndexQuery, sealedEventRosterQuery, sharedRosterQuery } from '../../queries'
+import { battleQuery, combatUnitsQuery, factionIndexQuery, sealedEventRosterQuery, sharedRosterQuery } from '../../queries'
 import type { LocalRoster } from '../../offline/localRuntime'
 import { rosterTitle } from '../rosters/RosterSummary'
 import { exampleMatchup, useMatchupHistory } from './matchupHistory'
 import { RecentSimulations } from './RecentSimulations'
-import { sealedCombatRoster } from './rosterCombat'
+import { battleCombatRoster, sealedCombatRoster } from './rosterCombat'
+import { loadRosterSource } from './rosterSearch'
 import { friendSealedEventLabel, friendSealedEventSource, useRosterOwners, useSimulatorRosters } from './rosterOwners'
 
 /** A link's roster side with that roster's current contents; null when the roster or its unit is gone. */
@@ -88,15 +90,19 @@ export function CombatSimulator({
   const linkedSealedEvents = new Map(
     linkedSources.flatMap((source) => ('sealedEvent' in source ? [[rosterSourceKey(source), source.sealedEvent]] : [])),
   )
+  const linkedBattles = [...new Set(linkedSources.flatMap((source) => ('battle' in source ? [source.battle.token] : [])))]
   const linkedRosters = useQueries({ queries: linkedIds.map((id) => sharedRosterQuery(id)) })
   const linkedSealedEventRosters = useQueries({
     queries: [...linkedSealedEvents.values()].map(({ token, eventToken, userId }) => sealedEventRosterQuery(token, eventToken, userId)),
   })
+  const linkedBattleScreens = useQueries({ queries: linkedBattles.map((token) => battleQuery(token)) })
   const linkedRoster = (source: SimulatorRosterSource) => {
     if ('id' in source) {
       const roster = linkedRosters[linkedIds.indexOf(source.id)]?.data
       return { roster: savedCombatRoster(roster), name: roster ? titled({ ...roster, unitCount: roster.picks.length }) : '' }
     }
+    if ('battle' in source)
+      return battleCombatRoster(linkedBattleScreens[linkedBattles.indexOf(source.battle.token)]?.data, source.battle.playerId)
     const roster = linkedSealedEventRosters[[...linkedSealedEvents.keys()].indexOf(rosterSourceKey(source))]?.data
     return { roster: sealedCombatRoster(roster), name: roster?.name ?? '' }
   }
@@ -117,7 +123,7 @@ export function CombatSimulator({
     const { roster, name } = linkedRoster(source)
     return listed.has(key) || !roster ? [] : [{ id: key, label: name, catalogueId: roster.catalogueId }]
   })
-  const loadingRoster = [...linkedRosters, ...linkedSealedEventRosters].some((query) => query.isPending)
+  const loadingRoster = [...linkedRosters, ...linkedSealedEventRosters, ...linkedBattleScreens].some((query) => query.isPending)
   const missingRoster =
     !loadingRoster && Boolean(sides?.some(({ side, roster }, index) => linked?.sides[index]?.roster && (!side || !roster)))
   // The emptied side leaves the link on its next change, so the notice is kept until another link opens.
@@ -142,27 +148,14 @@ export function CombatSimulator({
     setComparingRosters(false)
     setProblem(null)
   }
-  const rosterSource = (key: string): SimulatorRosterSource => {
-    const linkedSealedEvent = linkedSealedEvents.get(key)
-    return sealedEventSources.get(key) ?? (linkedSealedEvent ? { sealedEvent: linkedSealedEvent } : { id: key })
-  }
-  const loadRoster = (key: string) => {
-    const source = rosterSource(key)
-    return (
-      'sealedEvent' in source
-        ? queryClient
-            .query(sealedEventRosterQuery(source.sealedEvent.token, source.sealedEvent.eventToken, source.sealedEvent.userId))
-            .then(sealedCombatRoster)
-        : queryClient.query(sharedRosterQuery(key)).then(savedCombatRoster)
-    ).catch(() => null)
-  }
+  const loadRoster = (key: string) => loadRosterSource(queryClient, rosterSourceFromKey(key))
   /** A roster's unit as a side, or null when the roster or unit is gone. */
   const rosterUnitSide = async (key: string, pickIndex: number): Promise<SimulatorSide | null> => {
     const roster = await loadRoster(key)
     const chosen = roster?.picks[pickIndex]
     if (!roster || !chosen) return null
     const { attachedTo: _attachedTo, note: _note, ...pick } = chosen
-    return { catalogueId: roster.catalogueId, pick, rules: {}, roster: { ...rosterSource(key), pickIndex } }
+    return { catalogueId: roster.catalogueId, pick, rules: {}, roster: { ...rosterSourceFromKey(key), pickIndex } }
   }
   const chooseRosterUnit = async (index: 0 | 1, key: string, pickIndex: number) => {
     const request = ++rosterRequests.current[index]
@@ -238,8 +231,7 @@ export function CombatSimulator({
       })),
     },
   ]
-  const rosterNavigation = (index: 0 | 1): RosterNavigation | undefined => {
-    if (!rosterGroups.some((group) => group.options.length)) return undefined
+  const rosterNavigation = (index: 0 | 1): RosterNavigation => {
     const fielded = sides?.[index]?.roster?.saved
     return {
       groups: rosterGroups,

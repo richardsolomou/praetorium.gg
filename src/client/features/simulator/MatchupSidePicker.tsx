@@ -8,7 +8,8 @@ import { SearchableSelect } from '../../components/SearchableSelect'
 import { UnitPicker } from '../../components/UnitPicker'
 import { factionFor } from '../../factions'
 import { factionIndexQuery } from '../../queries'
-import { type RosterGroup, useRosterGroups } from './RosterPicker'
+import { NOTHING_LISTED, type RosterGroup, type RosterOption, useRosterGroups } from './RosterPicker'
+import { useRosterSearch } from './rosterSearch'
 import { LevelLink, RosterUnits } from './SideUnitPicker'
 import type { CombatRoster } from './useCombatant'
 
@@ -47,6 +48,8 @@ export function MatchupSidePicker({
   loading,
   units,
   unitId,
+  searchListed,
+  onFound,
   onAdd,
   onRemove,
 }: {
@@ -59,10 +62,20 @@ export function MatchupSidePicker({
   units?: UnitSources
   /** The choice that opens the datasheet level. */
   unitId: string
+  /** Also searches other players' rosters, leaving out these listed ones. */
+  searchListed?: ReadonlySet<string>
+  /** A roster the search found was chosen, so its owner can keep listing it once the search is gone. */
+  onFound?: (option: RosterOption) => void
   onAdd: (id: string) => void
   onRemove: (id: string) => void
 }) {
-  const items = useRosterGroups(groups)
+  const search = useRosterSearch(searchListed ?? NOTHING_LISTED, Boolean(searchListed))
+  const items = useRosterGroups([...groups, ...search.groups])
+  const searching = searchListed ? search.props : {}
+  const keepFound = (id: string) => {
+    const found = search.groups.flatMap((group) => group.options).find((option) => option.id === id)
+    if (found) onFound?.(found)
+  }
   const factions = useQuery(factionIndexQuery())
   const [level, setLevel] = useState<Level | null>(null)
   const factionIcon = (catalogueId: string | undefined) => {
@@ -138,7 +151,9 @@ export function MatchupSidePicker({
         {...shared}
         groups={items}
         value={value[0] ?? ''}
+        {...searching}
         onValueChange={(id) => {
+          keepFound(id)
           if (units && id === unitId) setLevel({ kind: 'datasheets' })
           else if (units && !single(id)) setLevel({ kind: 'roster', key: id })
           else choose(id)
@@ -196,7 +211,11 @@ export function MatchupSidePicker({
           ...group,
           items: group.items.filter((item) => !value.includes(item.value) && !single(item.value)),
         }))}
-        onValueChange={onAdd}
+        {...searching}
+        onValueChange={(id) => {
+          keepFound(id)
+          onAdd(id)
+        }}
         align="start"
         trigger={
           <span className="flex items-center gap-1.5">

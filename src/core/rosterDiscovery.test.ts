@@ -7,7 +7,7 @@ import {
   rosterDiscoveryQuerySchema,
   type RosterDiscoveryQuery,
 } from './rosterDiscovery'
-import { againstFamilies, discoveryCounts, discoveryScope, inDiscoveryScope } from './rosterDiscoveryScope'
+import { againstFamilies, discoveryCounts, discoveryScope, inDiscoveryScope, namedArmyIds } from './rosterDiscoveryScope'
 
 type Row = {
   id: string
@@ -113,6 +113,24 @@ describe('roster discovery filters', () => {
   it('leaves out a roster without a detachment when one is requested', () => {
     expect(ids([row('none', 1, { detachmentId: null })], { detachmentIds: ['awakened'] })).toEqual([])
   })
+
+  it('finds a roster by a faction the search names', () => {
+    expect(
+      ids([row('necrons', 2, { name: 'Tuesday list' }), row('orks', 1, { name: 'Tuesday list', catalogueId: 'orks' })], {
+        q: 'Orks',
+        namedCatalogueIds: ['orks'],
+      }),
+    ).toEqual(['orks'])
+  })
+
+  it('finds a roster by a detachment the search names', () => {
+    expect(
+      ids([row('awakened', 2), row('other', 1, { detachmentId: '["awakened","hypercrypt"]' })], {
+        q: 'Hypercrypt',
+        namedDetachmentIds: ['hypercrypt'],
+      }),
+    ).toEqual(['other'])
+  })
 })
 
 describe('roster assessment filters', () => {
@@ -209,6 +227,15 @@ describe('roster discovery scope', () => {
 
   it('asks for the saved IDs a replaced book was stored under', () => {
     expect(discoveryScope({ faction: only(ultramarines.current) }, factions)?.catalogueIds).toContain(ultramarines.retired)
+  })
+
+  it('names the saved IDs a replaced book was stored under when the search finds its faction', () => {
+    const named = factions.map((faction) => ({
+      ...faction,
+      displayName: faction.id.endsWith('necrons') ? 'Necrons' : 'Ultramarines',
+      detachments: [],
+    }))
+    expect(namedArmyIds('ultramarines', named).namedCatalogueIds).toContain(ultramarines.retired)
   })
 
   it('asks for no book when no faction is chosen', () => {

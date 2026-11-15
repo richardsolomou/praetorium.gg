@@ -37,7 +37,7 @@ type Props = {
   showOptions?: boolean
   reference?: ReactElement<{ providedSheet?: Datasheet | null }>
   /** A persisted read-only roster can be resolved without sending its picks. */
-  persistedRoster?: { id: string; battle?: string }
+  persistedRoster?: { id: string }
   reminders?: ReminderControls
   /** Something to say beside an option, such as what it would do in a combat simulation. */
   optionNote?: OptionNote

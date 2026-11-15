@@ -4,6 +4,8 @@ import {
   decodeSimulatorState,
   encodeSimulatorState,
   rosterMatchup,
+  rosterSourceFromKey,
+  rosterSourceKey,
   simulatorPairing,
   type SimulatorState,
 } from './simulatorState'
@@ -166,4 +168,20 @@ it('defends with a unit from another player’s roster and leaves the attacker t
     null,
     { catalogueId: 'necrons', pick, rules: {}, roster: { id: 'roster-1', pickIndex: 4 } },
   ])
+})
+
+describe('roster source keys', () => {
+  it.each([
+    { id: 'roster-1' },
+    { battle: { token: 'battle-1', playerId: 'player-1' } },
+    { sealedEvent: { token: 's', eventToken: 'e', userId: 'u' } },
+  ])('name the source they came from: %j', (source) => expect(rosterSourceFromKey(rosterSourceKey(source))).toEqual(source))
+})
+
+describe('battle roster sides', () => {
+  const battle = { token: 'battle-1', playerId: 'player-1' }
+  it('restore the fielded list and unit they name', () => {
+    const fromBattle: SimulatorState = { ...state, sides: [{ ...state.sides[0]!, roster: { battle, pickIndex: 2 } }, state.sides[1]] }
+    expect(decodeSimulatorState(encodeSimulatorState(fromBattle))?.sides[0]?.roster).toEqual({ battle, pickIndex: 2 })
+  })
 })

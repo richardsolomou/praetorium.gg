@@ -32,7 +32,7 @@ describe('roster datasheet queries', () => {
     const picks = [{ entryId: 'unit' }]
     const query = loadoutDatasheetsQuery('catalogue', 'unit', ['detachment'], picks, 0, { id: 'roster' })
 
-    expect(query.queryKey).toEqual(['saved-roster-loadout-datasheets', 'roster', null, 0])
+    expect(query.queryKey).toEqual(['saved-roster-loadout-datasheets', 'roster', 0])
   })
 
   it('keeps draft roster contents in the editable query key', () => {

@@ -114,8 +114,8 @@ type Props = {
   /** The owner's own lock: the list reads as it does to anyone else, while unlocking and copying stay on offer. */
   locked?: boolean
   print?: boolean
-  /** A battle token may entitle a read-only viewer to resolve a private roster. */
-  battle?: string
+  /** A list as a battle or sealed event holds it, which its reader may open even when the saved roster is private. */
+  fielded?: boolean
   /** Another player's list, which the standalone simulator can reopen, so Simulate defends with it there. */
   simulatorSource?: SimulatorRosterSource
   /** Resolve read-only details by saved id; false when the supplied picks are themselves the snapshot. */
@@ -168,7 +168,7 @@ export function ListBuilder({
   editable = true,
   locked = false,
   print = false,
-  battle,
+  fielded = false,
   simulatorSource,
   resolvePersistedRoster = true,
   guest,
@@ -298,7 +298,7 @@ export function ListBuilder({
   usePrintWhenReady(printReady && frozenReference)
   const actions = useRosterActions({
     savedId,
-    battle,
+    fielded,
     signedIn: Boolean(me),
     setup,
     setSetup,
@@ -318,7 +318,7 @@ export function ListBuilder({
   const [sharing, setSharing] = useState(false)
   const origin = useOrigin()
   // An owner can change who opens a saved list, locked or not; a visitor is asked to sign up first.
-  const ownsSaved = Boolean(savedId) && !battle && ((editable && !guest) || locked)
+  const ownsSaved = Boolean(savedId) && !fielded && ((editable && !guest) || locked)
   const rosterShare: RosterShareChoices = {
     title: shownName || 'Roster',
     visibility,
@@ -332,7 +332,7 @@ export function ListBuilder({
     choosing: access.isPending ? access.variables : null,
     visibilityNote: guest ? 'Sign in to share it by link or publicly.' : undefined,
     visibilityError: access.isError ? access.error : undefined,
-    link: savedId && !battle && origin ? `${origin}${workspacePath}` : null,
+    link: savedId && !fielded && origin ? `${origin}${workspacePath}` : null,
     onCopy: () => share.mutate(visibility === 'private'),
     copied: share.data ?? null,
     copying: share.isPending,
@@ -615,7 +615,7 @@ export function ListBuilder({
       editable={building}
       controlsDisabled={loadoutConstraintsPending}
       showOptions={building}
-      persistedRoster={editable || !resolvePersistedRoster ? undefined : { id: savedId, ...(battle ? { battle } : {}) }}
+      persistedRoster={editable || !resolvePersistedRoster ? undefined : { id: savedId }}
       reminders={building && selected !== null ? reminders.controls : undefined}
       header={
         building && selected !== null && selectedPick ? (
@@ -685,7 +685,8 @@ export function ListBuilder({
       ...setup,
       picks: positioned,
       pickIndex,
-      ...(savedId ? { saved: { source: { id: savedId }, name: shownName || 'Roster' } } : {}),
+      // A fielded list is simulated as its battle froze it, never through the saved roster, which may since have changed or gone private.
+      ...(simulatorSource || savedId ? { saved: { source: simulatorSource ?? { id: savedId }, name: shownName || 'Roster' } } : {}),
     })
   }
 

@@ -606,7 +606,11 @@ test('a saved list is reopened, duplicated, shared and published', async ({ brow
   const guestUnits = guest.locator('[data-slot="roster-units"]')
   await expect(guestUnits.getByText('Characters', { exact: true }).locator('..')).toContainText(/Characters\s*\d+ pts\s*1/)
   await expect(guestUnits.getByText('Battleline', { exact: true }).locator('..')).toContainText(/Battleline\s*\d+ pts\s*1/)
-  await expect(guest.getByLabel('Unit actions for Immortals')).toHaveCount(0)
+  // A reader can report the unit or save its loadout, never change the list.
+  await guest.getByLabel('Unit actions for Immortals').first().click()
+  await expect(guest.getByRole('menuitem', { name: 'Something wrong?' })).toBeVisible()
+  await expect(guest.getByRole('menuitem', { name: 'Delete unit' })).toHaveCount(0)
+  await guest.keyboard.press('Escape')
   const { promise: loadoutHeld, resolve: releaseLoadout } = Promise.withResolvers<void>()
   await guest.route('**/_serverFn/**', async (route) => {
     await loadoutHeld

@@ -8,7 +8,7 @@ Battles are public. Anyone can find and watch your past and live battles, tourna
 
 Each roster has its own access: **Private**, **Unlisted** (anyone with the link) or **Public** (listed on your profile and for anyone to find). New rosters start **Public** unless you change **Roster visibility** under **Roster defaults**. Anyone can copy a public roster into their own rosters.
 
-Making a roster private again stops its link working. Copies of it already played in battles or sealed in a tournament stay as they were.
+Making a roster private again stops its link working. Copies of it already played in battles or sealed in a tournament stay as they were. Anyone who can watch a battle can open the list each player fielded in it, whatever the saved roster's access.
 
 ## Collection
 

@@ -105,7 +105,7 @@ it.each([
     saved: (state.documents['roster:army']?.data as typeof original)?.name,
     version: state.documents['roster:army']?.serverVersion,
     returned: result?.roster.name,
-    cached: client.getQueryData<{ roster: typeof original }>([key, 'army', null])?.roster.name,
+    cached: client.getQueryData<{ roster: typeof original }>([key, 'army'])?.roster.name,
   }).toEqual({ saved: 'New', version: 2, returned: 'New', cached: 'New' })
 })
 it('keeps a newly acknowledged roster when an older summary list arrives', async () => {
@@ -151,7 +151,7 @@ it.each([
   const result = await loading
   expect({
     returned: result?.roster.name,
-    cached: client.getQueryData<{ roster: typeof original }>([key, 'army', null])?.roster.name,
+    cached: client.getQueryData<{ roster: typeof original }>([key, 'army'])?.roster.name,
   }).toEqual({ returned: 'New', cached: 'New' })
 })
 

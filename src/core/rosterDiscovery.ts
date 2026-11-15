@@ -6,7 +6,7 @@ import { matchesSearch } from './text'
 
 export const ROSTER_DISCOVERY_PAGE_SIZE = 24
 export const ROSTER_DISCOVERY_MAX_PAGE_SIZE = 50
-const ROSTER_DISCOVERY_MAX_SCOPE_IDS = 1_000
+export const ROSTER_DISCOVERY_MAX_SCOPE_IDS = 1_000
 
 export const ROSTER_AUDIENCES = ['public', 'friends'] as const
 export type RosterAudience = (typeof ROSTER_AUDIENCES)[number]
@@ -93,9 +93,11 @@ export const rosterDiscoveryQuerySchema = z.strictObject({
   sizes: facetSchema,
   dispositions: facetSchema,
   owners: facetSchema,
-  /** Matches a roster's name, or any roster of `namedOwnerIds`, whose names only the account database holds. */
+  /** Matches a roster's name, or any roster of a named owner, faction or detachment, whose names this database does not hold. */
   q,
   namedOwnerIds: z.array(id).max(ROSTER_DISCOVERY_MAX_SCOPE_IDS).optional(),
+  namedCatalogueIds: z.array(id).max(ROSTER_DISCOVERY_MAX_SCOPE_IDS).optional(),
+  namedDetachmentIds: z.array(id).max(ROSTER_DISCOVERY_MAX_SCOPE_IDS).optional(),
   before: rosterDiscoveryCursorSchema.nullable(),
   limit: z.number().int().min(1).max(ROSTER_DISCOVERY_MAX_PAGE_SIZE),
   /** Also tally the whole audience, which a tab's filter counts read; a web build older than counts leaves it out. */
@@ -138,6 +140,12 @@ export function discoveryPage<
   const detachments = query.detachmentIds && new Set(query.detachmentIds)
   const excludedDetachments = new Set(query.excludedDetachmentIds)
   const namedOwners = new Set(query.namedOwnerIds)
+  const namedCatalogues = new Set(query.namedCatalogueIds)
+  const namedDetachments = new Set(query.namedDetachmentIds)
+  const named = (row: T) =>
+    namedOwners.has(row.userId) ||
+    namedCatalogues.has(row.catalogueId) ||
+    detachmentIds(row.detachmentId).some((saved) => namedDetachments.has(saved))
   const order = compareRosters(query.sort)
   const { before } = query
   const after = before && { id: before.id, name: before.name, limit: before.limit, createdAt: before.createdAt, updatedAt: before.at }
@@ -167,7 +175,7 @@ export function discoveryPage<
     if (!facetMatches(query.sizes, [String(row.limit)])) continue
     if (!facetMatches(query.dispositions, row.disposition ? [row.disposition] : [])) continue
     if (!facetMatches(query.owners, [row.userId])) continue
-    if (query.q && !namedOwners.has(row.userId) && !matchesSearch(row.name, query.q)) continue
+    if (query.q && !named(row) && !matchesSearch(row.name, query.q)) continue
     total += 1
     // A cursor from a build that paged only by update time carries no name, so its own roster is matched by ID.
     if (after && (row.id === after.id || order(row, after) <= 0)) continue

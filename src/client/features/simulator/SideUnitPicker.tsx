@@ -82,8 +82,9 @@ export function SideUnitPicker({
         searchPlaceholder="Search units…"
         {...catalogue}
         header={
-          rosterCount ? (
-            <LevelLink onClick={() => go({ kind: 'rosters' })} detail={countLabel(rosterCount, 'roster')}>
+          // Any player's public roster can be searched for, so the way in is there even with none listed.
+          rosters ? (
+            <LevelLink onClick={() => go({ kind: 'rosters' })} detail={rosterCount ? countLabel(rosterCount, 'roster') : undefined}>
               <ScrollText className="size-4 text-info" aria-hidden />
               From a roster
             </LevelLink>
@@ -111,6 +112,7 @@ export function SideUnitPicker({
           </LevelLink>
         }
         groups={rosters.groups}
+        searchListed={new Set(rosters.groups.flatMap((group) => group.options.map(({ id }) => id)))}
         onValueChange={(key) => go({ kind: 'roster', key })}
       />
     )

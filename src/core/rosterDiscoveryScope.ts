@@ -1,7 +1,8 @@
 import { rulesVersionDetails, type CatalogueEdition } from './catalogueEdition'
 import { currentCatalogueFamilyId, savedCatalogueIds, savedDetachmentIds } from './retiredCatalogueIds'
 import { facetActive, facetMatches, type Facet } from './listFilter'
-import type { RosterDiscoveryFilter, RulesVersionStatus } from './rosterDiscovery'
+import { ROSTER_DISCOVERY_MAX_SCOPE_IDS, type RosterDiscoveryFilter, type RulesVersionStatus } from './rosterDiscovery'
+import { matchesSearch } from './text'
 
 type IndexedFaction = {
   id: string
@@ -28,6 +29,28 @@ export function discoveryScope(filter: ArmyFilter, factions: readonly IndexedFac
     catalogueIds: catalogueIds && savedCatalogueIds(catalogueIds),
     detachmentIds: filter.detachment?.in.length ? savedDetachmentIds([...filter.detachment.in]) : null,
     excludedDetachmentIds: filter.detachment?.out.length ? savedDetachmentIds([...filter.detachment.out]) : [],
+  }
+}
+
+/**
+ * The saved IDs of every faction and detachment whose name holds the whole search, for the product database, which
+ * holds no names. A faction named under one rules version is found under all of them, as the Faction filter finds it.
+ * Only a non-empty list is set, so a module published before these fields still reads the query.
+ */
+export function namedArmyIds(
+  q: string,
+  factions: readonly (IndexedFaction & { displayName: string; detachments: readonly { id: string; name: string }[] })[],
+) {
+  const families = new Set(
+    factions.filter((faction) => matchesSearch(faction.displayName, q)).map(({ id }) => currentCatalogueFamilyId(id)),
+  )
+  const catalogueIds = savedCatalogueIds(factions.filter(({ id }) => families.has(currentCatalogueFamilyId(id))).map(({ id }) => id))
+  const detachmentIds = savedDetachmentIds([
+    ...new Set(factions.flatMap((faction) => faction.detachments.filter(({ name }) => matchesSearch(name, q)).map(({ id }) => id))),
+  ])
+  return {
+    ...(catalogueIds.length ? { namedCatalogueIds: catalogueIds.slice(0, ROSTER_DISCOVERY_MAX_SCOPE_IDS) } : {}),
+    ...(detachmentIds.length ? { namedDetachmentIds: detachmentIds.slice(0, ROSTER_DISCOVERY_MAX_SCOPE_IDS) } : {}),
   }
 }
 

@@ -30,7 +30,7 @@ type Setup = Omit<RosterSetup, 'name'>
 /** What the roster's menus do to the list as a whole: copy, lock, archive, delete, share, and export it. */
 export function useRosterActions({
   savedId,
-  battle,
+  fielded,
   signedIn,
   setup,
   setSetup,
@@ -47,7 +47,7 @@ export function useRosterActions({
   saveDraft,
 }: {
   savedId: string
-  battle?: string
+  fielded: boolean
   signedIn: boolean
   setup: Setup
   setSetup: Dispatch<SetStateAction<Setup>>
@@ -90,7 +90,7 @@ export function useRosterActions({
   const duplicateRoster = useMutation({
     scope: { id: 'roster-autosave' },
     mutationFn: async () => {
-      if (savedId && !battle && signedIn) return copyRoster({ data: { id: savedId, variant: false } })
+      if (savedId && !fielded && signedIn) return copyRoster({ data: { id: savedId, variant: false } })
       const copy = {
         ...setup,
         name: listName ? `Copy of ${listName}`.slice(0, ROSTER_NAME_MAX_LENGTH) : '',

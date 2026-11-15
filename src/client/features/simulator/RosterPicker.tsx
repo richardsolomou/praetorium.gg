@@ -4,8 +4,10 @@ import { ScrollText } from 'lucide-react'
 import { SearchableSelect, type SearchableGroup } from '../../components/SearchableSelect'
 import { FactionMark } from '../../components/FactionMark'
 import { factionIndexQuery } from '../../queries'
+import { useRosterSearch } from './rosterSearch'
 
-type RosterOption = { id: string; label: string; catalogueId?: string; icon?: ReactNode }
+/** `found` marks a roster a search found elsewhere, which the typed text need not match by name. */
+export type RosterOption = { id: string; label: string; catalogueId?: string; icon?: ReactNode; description?: string; found?: boolean }
 export type RosterGroup = { label: string; options: readonly RosterOption[] }
 
 /** Each option marked with its faction; an option without one shows its own icon. */
@@ -20,6 +22,8 @@ export function useRosterGroups(groups: readonly RosterGroup[]): SearchableGroup
         return {
           value: option.id,
           label: option.label,
+          description: option.description,
+          found: option.found,
           icon: faction ? (
             <FactionMark faction={faction} size="sm" />
           ) : (
@@ -30,10 +34,24 @@ export function useRosterGroups(groups: readonly RosterGroup[]): SearchableGroup
     }))
 }
 
-/** Chooses a roster by name. */
+/** Chooses a roster by name, and with `searchListed` also searches other players' rosters, leaving out the listed ones. */
 export function RosterPicker({
   groups,
+  searchListed,
   ...props
-}: Omit<ComponentProps<typeof SearchableSelect>, 'groups' | 'placeholder'> & { groups: readonly RosterGroup[] }) {
-  return <SearchableSelect {...props} placeholder="Choose a roster" groups={useRosterGroups(groups)} />
+}: Omit<ComponentProps<typeof SearchableSelect>, 'groups' | 'placeholder'> & {
+  groups: readonly RosterGroup[]
+  searchListed?: ReadonlySet<string>
+}) {
+  const search = useRosterSearch(searchListed ?? NOTHING_LISTED, Boolean(searchListed))
+  return (
+    <SearchableSelect
+      {...props}
+      placeholder="Choose a roster"
+      groups={useRosterGroups([...groups, ...search.groups])}
+      {...(searchListed ? search.props : {})}
+    />
+  )
 }
+
+export const NOTHING_LISTED: ReadonlySet<string> = new Set()
