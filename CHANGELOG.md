@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.247.8 (2026-11-15)
+
+### Patch Changes
+
+- c612eb6: Tournament, hidden-list game and league organizers can set one chess clock limit for every battle, which players can't change in setup.
+
 ## 0.247.7 (2026-11-14)
 
 ### Patch Changes
