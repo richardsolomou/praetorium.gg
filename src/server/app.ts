@@ -190,6 +190,8 @@ const nextTurn = () => yieldToEventLoop(0, undefined, { ref: false })
 export async function warm(
   instance: Pick<App, 'searchIndexFor' | 'canonicalCatalogue' | 'combatUnits' | 'catalogue' | 'construction'>,
   untilBuilt = false,
+  /** Reads that are slow cold and want every edition loaded, started once they are and never awaited. */
+  afterEditions: () => Promise<unknown> = async () => undefined,
 ) {
   await nextTurn()
   try {
@@ -211,8 +213,16 @@ export async function warm(
   const editionsLoaded = serving.then(() => inBackground(construction('editions-loaded'), current)).catch(failed)
   const prepared = untilBuilt ? editionsLoaded.then(prepareReference) : editionsLoaded
   void prepared.then(() => inBackground(construction('others'), current)).catch(failed)
+  void editionsLoaded.then(afterEditions)
   if (untilBuilt) await prepared
 }
+
+// The Played tab's first page reads each battle's log and prices each army under its rules version, which takes
+// seconds cold, so the first reader after a start or catalogue swap finds it held instead.
+const warmPlayedArmies = () =>
+  import('./playedArmiesPage')
+    .then(({ playedArmiesPage }) => playedArmiesPage(null, { before: null }))
+    .catch((error: unknown) => reportServerFailure({ event: 'played_armies_warm_failed', error }, 'warn'))
 
 const prepareReference = () =>
   import('./referenceApi')
@@ -379,7 +389,7 @@ export function app(): App {
     const notifier = storingNotifier(repository, push || webPush ? pushNotifier(repository, { app: push, web: webPush }) : silentNotifier)
     const collectionPhotos = collectionPhotoStore(repository, () => privateObjects())
     const screening = process.env.TYPESAFE_API_KEY?.trim() ? photoScreening(process.env.TYPESAFE_API_KEY.trim()) : null
-    const startup = readiness((untilBuilt) => warm(instance, untilBuilt))
+    const startup = readiness((untilBuilt) => warm(instance, untilBuilt, warmPlayedArmies))
     const loaded = catalogueLoaders(catalogueDataDirectory)
     const authOptions = {
       environment: process.env,
