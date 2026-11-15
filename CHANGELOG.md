@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.250.1 (2026-11-15)
+
+### Patch Changes
+
+- 42d9413: On a phone, a list opened from a battle prompt no longer hides its last options under the bottom tabs.
+- 2e6e6cc: The "Praetorium has been updated" notice has a Later button, since the new version loads on your next page anyway.
+
 ## 0.250.0 (2026-11-15)
 
 ### Minor Changes
