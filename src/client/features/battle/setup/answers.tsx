@@ -13,7 +13,7 @@ function Answer({ value, detail, tone }: { value: ReactNode; detail?: ReactNode;
       <span
         className={cn(
           'block font-bold break-words uppercase',
-          tone === 'needed' ? 'text-discarded' : tone === 'quiet' ? 'font-normal text-dim normal-case' : undefined,
+          tone === 'needed' ? 'text-bone' : tone === 'quiet' ? 'font-normal text-dim normal-case' : undefined,
         )}
       >
         {value}
