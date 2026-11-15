@@ -150,7 +150,6 @@ export function CountButton({
       onClick={(event) => {
         if (!press.click(event.detail) || !onClick) return
         onClick()
-        requestNativeHaptic('selection')
       }}
     >
       {decrease ? <Minus strokeWidth={2.5} /> : <Plus strokeWidth={2.5} />}
