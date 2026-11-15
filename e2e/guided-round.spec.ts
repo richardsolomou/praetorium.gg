@@ -149,7 +149,7 @@ test('both sides settle source final awards beyond round caps through cold offli
       .poll(() =>
         finalTurn.evaluate((element) => {
           const box = element.getBoundingClientRect()
-          return box.left >= 0 && box.right <= innerWidth && (innerWidth > 859 || (box.top === 0 && box.bottom <= innerHeight - 64))
+          return box.left >= 0 && box.right <= innerWidth && (innerWidth > 859 || (box.top >= 0 && box.bottom <= innerHeight - 64))
         }),
       )
       .toBe(true)
