@@ -85,8 +85,12 @@ export function Sources() {
             King of the Colosseum battlefield diagrams from{' '}
             <a href="https://playontabletop.com/kotc/" className={linkClass}>
               Play On Tabletop
-            </a>
-            .
+            </a>{' '}
+            and the mat{' '}
+            <a href="https://store.frontlinegaming.org/products/flg-mats-king-of-the-colosseum" className={linkClass}>
+              Frontline Gaming
+            </a>{' '}
+            prints for it.
           </li>
         </LegalLinks>
         <p>Each source retains its rights in its work. Praetorium does not claim ownership of the source data.</p>

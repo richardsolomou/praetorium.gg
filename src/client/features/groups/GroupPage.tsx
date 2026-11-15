@@ -52,6 +52,7 @@ import { memberNameOf, useGroupRefresh, usePlayGroupGame, type Group, type Group
 import { GroupSettingsDialog } from './GroupSettingsDialog'
 import { GroupHiddenListGame, unplayedOpponents } from './GroupHiddenListGame'
 import { GroupLeague } from './GroupLeague'
+import { GroupAtAGlance, HeadToHead, LeagueOverview, RecentResults, StandingsSnapshot } from './GroupOverview'
 import { hiddenListGameOpen } from '../../../core/group'
 import { leagueFixtureOverdue } from '../../../core/groupLeague'
 import { sealedEventSealingClosed } from '../../../core/sealedEvent'
@@ -238,15 +239,20 @@ function GroupScreen({
             <Tabs value={current} className="flex-col gap-0" onValueChange={(value) => showTab(value as GroupTab)}>
               <PageTabsList data-onboarding="group-tabs" tabs={tabs} />
               <TabsContent value="overview" className="mt-6 space-y-8">
+                {table ? <GroupAtAGlance token={group.token} table={table} /> : null}
                 <UpNext group={group} open={open} live={live} table={table} viewerId={viewerId} highlight={highlight} label={label} />
-                <RecentGames
-                  table={table}
-                  viewerId={viewerId}
-                  member={member}
-                  quiet={!open.length && !live.length}
-                  label={label}
-                  onAll={() => showTab('battles')}
-                />
+                {table ? <StandingsSnapshot table={table} viewerId={viewerId} onAll={() => showTab('leaderboard')} /> : null}
+                <LeagueOverview token={group.token} league={league} members={group.members} now={now} onShow={showTab} />
+                {table ? (
+                  <RecentResults
+                    table={table}
+                    member={member}
+                    quiet={!open.length && !live.length}
+                    label={label}
+                    onAll={() => showTab('battles')}
+                  />
+                ) : null}
+                {table ? <HeadToHead summary={table.summary} members={group.members} /> : null}
                 <PastHiddenListGames group={group} games={past} viewerId={viewerId} highlight={highlight} />
               </TabsContent>
               <TabsContent value="battles" className="mt-6">
@@ -665,51 +671,6 @@ function GroupNext({
         {next.action}
         {play.error ? <Problem error={play.error} /> : null}
       </div>
-    </section>
-  )
-}
-
-/** The group's latest finished battles of every kind; a group with nothing on and nothing played says how to start. */
-function RecentGames({
-  table,
-  viewerId,
-  member,
-  quiet,
-  label,
-  onAll,
-}: {
-  table: GroupTable | null | undefined
-  viewerId: string | null
-  member: boolean
-  /** Whether nothing else is on, with no open hidden-list game to show above. */
-  quiet: boolean
-  label: (battle: Battle) => string
-  onAll: () => void
-}) {
-  if (!table) return null
-  if (table.recent.length)
-    return (
-      <section>
-        <SectionHeading
-          title="Recent games"
-          action={
-            table.finished > table.recent.length ? (
-              <Button variant="ghost" size="sm" onClick={onAll}>
-                All games <ArrowRight />
-              </Button>
-            ) : null
-          }
-        />
-        <BattleShelf name="Group games" battles={table.recent} viewerId={viewerId ?? undefined} label={label} />
-      </section>
-    )
-  if (!quiet || table.active.length) return null
-  return (
-    <section>
-      <SectionHeading title="Recent games" />
-      <p className="text-sm text-dim">
-        {member ? 'No games yet. Start the first with New game.' : 'No games yet. Members’ games show up here.'}
-      </p>
     </section>
   )
 }

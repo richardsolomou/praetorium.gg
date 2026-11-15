@@ -218,16 +218,17 @@ test('both devices settle mandatory tactical cards without racing', async ({ bro
   await attachRoster(bob, bobRoster)
   await expect(alice.getByText(bobRoster, { exact: true }).first()).toBeVisible()
   await expect(alice.getByText(/^A 600-point battle, set by /)).toBeVisible()
-  await expect(alice.locator('#setup-battlefield')).toHaveAttribute('data-complete', 'true')
   await setupStep(alice, 'Battlefield')
-  await expect(alice.getByRole('button', { name: /Select layout|Select random/ })).toHaveCount(0)
-  const card = alice.getByRole('button', { name: 'Enlarge Colosseum battlefield' }).locator('xpath=..')
-  const grid = card.locator('xpath=..')
-  const cardBox = await card.boundingBox()
-  const gridBox = await grid.boundingBox()
-  expect(cardBox && gridBox && Math.abs(cardBox.x + cardBox.width / 2 - gridBox.x - gridBox.width / 2)).toBeLessThan(2)
+  const battlefields = [
+    'King of the Colosseum 2.0',
+    'King of the Colosseum 1.0',
+    ...['A', 'B', 'C'].map((letter) => `Combat Patrol Deployment ${letter}`),
+  ]
+  for (const name of battlefields) await expect(alice.getByRole('button', { name: `Select ${name}`, exact: true })).toBeVisible()
+  await alice.getByRole('button', { name: 'Select King of the Colosseum 2.0', exact: true }).click()
+  await expect(alice.locator('#setup-battlefield')).toHaveAttribute('data-complete', 'true')
   await alice.screenshot({ path: test.info().outputPath('setup-colosseum-battlefield.png'), fullPage: true })
-  await alice.getByRole('button', { name: 'Enlarge Colosseum battlefield' }).click()
+  await alice.getByRole('button', { name: 'Enlarge King of the Colosseum 2.0 battlefield' }).click()
   await expect(alice.getByRole('dialog').getByRole('img')).toBeVisible()
   await expect(alice.getByRole('dialog').getByText('Deployment depth')).toBeVisible()
   await expect(alice.getByRole('dialog').locator('line[marker-end]')).toHaveCount(28)
@@ -255,7 +256,7 @@ test('both devices settle mandatory tactical cards without racing', async ({ bro
   await alice.setViewportSize({ width: 1440, height: 900 })
   await setupStep(bob, 'Battlefield')
   await expect(bob.locator('#setup-battlefield')).toHaveAttribute('data-complete', 'true')
-  await expect(bob.getByRole('button', { name: /Select layout|Select random/ })).toHaveCount(0)
+  await expect(bob.getByRole('button', { name: 'Selected King of the Colosseum 2.0', exact: true })).toBeVisible()
   await setupStep(alice, 'Secondaries')
   await expect(alice.getByRole('region', { name: 'Secondaries' }).getByText(aliceName, { exact: true })).toHaveCount(1)
   await expect(alice.getByRole('region', { name: 'Secondaries' }).getByText(bobName, { exact: true })).toHaveCount(1)

@@ -22,6 +22,7 @@ import { ContextMenu, ContextMenuContent, ContextMenuSeparator, ContextMenuTrigg
 import { DropdownMenu, DropdownMenuContent, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import type { NamedRosterDifferences } from '../../../core/rosterDifferences'
 import { VisibilityTag } from './VisibilityTag'
+import { TRACKER_HINT, useFirstBattle } from '../battles/firstBattle'
 import type { RosterActions, SavedRoster } from './rosterLibrary'
 import type { AccountReason } from './AccountPrompt'
 import {
@@ -117,6 +118,7 @@ export function RosterRow({
     onGrade,
     onDelete,
     onNeedsAccount,
+    legal: points != null && !pointsLoading && !problem,
   }
 
   return (
@@ -208,6 +210,7 @@ function RosterActionItems({
   onGrade,
   onDelete,
   onNeedsAccount,
+  legal,
 }: {
   Item: typeof DropdownMenuItem | typeof ContextMenuItem
   Separator: typeof DropdownMenuSeparator | typeof ContextMenuSeparator
@@ -223,7 +226,10 @@ function RosterActionItems({
   onGrade: () => void
   onDelete: () => void
   onNeedsAccount?: (reason: AccountReason) => void
+  /** Priced and fieldable under the current army data, so ready to take to the table. */
+  legal: boolean
 }) {
+  const firstBattle = useFirstBattle()
   const orAccount = (reason: AccountReason, action: () => void) => (onNeedsAccount ? () => onNeedsAccount(reason) : action)
   return (
     <>
@@ -231,6 +237,7 @@ function RosterActionItems({
         <Item disabled={!roster.unitCount} onClick={orAccount('battle', onStartBattle)}>
           <Swords /> Start a battle
         </Item>
+        {legal && firstBattle ? <p className="max-w-60 px-2 pb-1 pl-8 text-xs text-dim">{TRACKER_HINT}</p> : null}
         <Item disabled={!roster.unitCount} onClick={onGrade}>
           <ClipboardCheck /> Grade this roster
         </Item>

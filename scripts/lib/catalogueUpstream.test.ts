@@ -36,9 +36,7 @@ beforeEach(() => {
   vi.mocked(execFileSync)
     .mockReset()
     .mockImplementation((_command, args) => `${latest}\t${(args as string[]).at(-1)}`)
-  vi.mocked(battlemasterCatalogue)
-    .mockReset()
-    .mockResolvedValue({ catalog: { catalogKey: 'current', layouts: [] }, revision: terrain })
+  vi.mocked(battlemasterCatalogue).mockReset().mockResolvedValue({ catalogs: [], revision: terrain })
 })
 
 it('resolves all root sources and active rules while retaining historical pins', async () => {

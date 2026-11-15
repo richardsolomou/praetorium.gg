@@ -214,6 +214,11 @@ html:has([data-battle-prompt]) [data-native-app-tabs] {
   z-index: 60;
 }
 
+/* Popups size themselves to the viewport, so one opened from a battle prompt goes over the tabs instead of running its end under them. */
+html:has([data-battle-prompt]) [role='presentation'][data-side] {
+  z-index: 70;
+}
+
 @media (max-width: 1023px) {
   [data-battle-sticky-header] [data-scoreboard] {
     position: static;

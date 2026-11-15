@@ -6,18 +6,17 @@ import { KOTC_MATCHUP_ID, type Deployment, type Point, type TerrainGeometry, typ
 const BOARD_IN = 36
 const point = z.object({ x: z.number().min(0).max(BOARD_IN), y: z.number().min(0).max(BOARD_IN) })
 const wall = z.array(point).min(2).max(12)
-const sourceSchema = z.object({
+const bearing = z.number().min(-360).max(360)
+const baseSchema = z.object({
   format: z.literal('praetorium.kotc.v1'),
   id: z.string().regex(/^[a-z0-9-]+$/),
   name: z.string().trim().min(1),
   publisher: z.literal('https://playontabletop.com/kotc/'),
   boardIn: z.literal(BOARD_IN),
-  deploymentDepthIn: z.literal(8),
+  deploymentDepthIn: z.number().int().min(6).max(12),
   objectiveDiagram: z.string().refine(publisherImage),
   terrainDiagram: z.string().refine(publisherImage),
   wallThicknessIn: z.number().positive().max(2),
-  arena: z.object({ radiusIn: z.number().positive().max(16), wallHalfAngleDeg: z.number().positive().max(45) }),
-  objectiveRadiusIn: z.number().positive().max(6),
   pieces: z
     .array(
       z.object({
@@ -43,22 +42,50 @@ const sourceSchema = z.object({
     .min(1)
     .max(8),
 })
+const sourceSchema = z.union([
+  // The four outer objectives stand on walls centred on them.
+  baseSchema.extend({
+    arena: z.object({ radiusIn: z.number().positive().max(16), wallHalfAngleDeg: z.number().positive().max(45) }),
+    objectiveRadiusIn: z.number().positive().max(6),
+  }),
+  // Impassable walls run between four gaps, each holding an outer objective `objectiveInsetIn` from its board edge.
+  baseSchema.extend({
+    arena: z.object({
+      radiusIn: z.number().positive().max(16),
+      wallArcsDeg: z.array(z.tuple([bearing, bearing])).length(4),
+      objectiveInsetIn: z
+        .number()
+        .positive()
+        .max(BOARD_IN / 2),
+    }),
+  }),
+])
 type Source = z.infer<typeof sourceSchema>
+type WalledSource = Extract<Source, { objectiveRadiusIn: number }>
 type Area = TerrainGeometry['areas'][number]
 
+/** The current Colosseum first, then the one it replaced. */
+const FILES = ['kotc.json', 'kotc-1.json']
+
 /**
- * The Colosseum as Play On Tabletop prints it, north at the top, turned into the
+ * The Colosseums as Play On Tabletop prints them, north at the top, turned into the
  * landscape board frame every other layout uses.
  *
- * The publisher prints only the board size and deployment depth; the arena radius,
- * objective range and piece outlines are traced from its diagrams, so the layout says so.
+ * The publisher prints only the board size, deployment depth and, for the first Colosseum, the objective
+ * positions; the arena radius, objective range and piece outlines are traced from diagrams, so the layout says so.
  */
-export function kotcTerrain(directory: string): { deployment: Deployment; layout: TerrainLayout } | null {
-  const file = path.join(directory, 'kotc.json')
-  if (!fs.existsSync(file)) return null
-  const parsed = sourceSchema.safeParse(JSON.parse(fs.readFileSync(file, 'utf8')))
-  if (!parsed.success || parsed.data.objectiveRadiusIn >= parsed.data.arena.radiusIn) return null
-  const source = parsed.data
+export function kotcTerrain(directory: string): { deployment: Deployment; layout: TerrainLayout }[] {
+  return FILES.flatMap((name) => {
+    const file = path.join(directory, name)
+    if (!fs.existsSync(file)) return []
+    const parsed = sourceSchema.safeParse(JSON.parse(fs.readFileSync(file, 'utf8')))
+    if (!parsed.success) return []
+    if ('objectiveRadiusIn' in parsed.data && parsed.data.objectiveRadiusIn >= parsed.data.arena.radiusIn) return []
+    return [colosseum(parsed.data)]
+  })
+}
+
+function colosseum(source: Source): { deployment: Deployment; layout: TerrainLayout } {
   const depth = source.deploymentDepthIn
   const deploymentId = `deployment-${source.id}`
   return {
@@ -76,7 +103,7 @@ export function kotcTerrain(directory: string): { deployment: Deployment; layout
         },
       ],
       attackerTerritory: null,
-      objectives: [],
+      objectives: 'objectiveRadiusIn' in source ? [] : gapObjectives(source).map(landscape),
     },
     layout: {
       id: source.id,
@@ -86,7 +113,10 @@ export function kotcTerrain(directory: string): { deployment: Deployment; layout
       variant: null,
       deploymentId,
       pieces: [],
-      geometry: { board: { width: BOARD_IN, height: BOARD_IN }, areas: [...objectiveAreas(source), ...pieceAreas(source)] },
+      geometry: {
+        board: { width: BOARD_IN, height: BOARD_IN },
+        areas: [...('objectiveRadiusIn' in source ? objectiveAreas(source) : gapWalls(source)), ...pieceAreas(source)],
+      },
       publisherObjectiveUrl: source.objectiveDiagram,
       publisherTerrainUrl: source.terrainDiagram,
       publisherUrl: source.publisher,
@@ -94,8 +124,68 @@ export function kotcTerrain(directory: string): { deployment: Deployment; layout
   }
 }
 
+/** The centre objective, then one in each gap, north first and then clockwise. */
+function gapObjectives(source: Source): Point[] {
+  const inset = 'objectiveInsetIn' in source.arena ? source.arena.objectiveInsetIn : 0
+  const middle = BOARD_IN / 2
+  return [
+    { x: middle, y: middle },
+    { x: middle, y: inset },
+    { x: BOARD_IN - inset, y: middle },
+    { x: middle, y: BOARD_IN - inset },
+    { x: inset, y: middle },
+  ]
+}
+
+/**
+ * Each impassable stretch of arena wall between two gaps, as a terrain area the width of the wall. The objectives
+ * are markers rather than terrain, so each wall carries the printed placement of the gap objective it starts at,
+ * the way 2.0's walls carry theirs.
+ */
+function gapWalls(source: Source): Area[] {
+  if (!('wallArcsDeg' in source.arena)) return []
+  const centre = { x: BOARD_IN / 2, y: BOARD_IN / 2 }
+  const { radiusIn, wallArcsDeg } = source.arena
+  const half = source.wallThicknessIn / 2
+  const [, north, east, south, west] = gapObjectives(source) as [Point, Point, Point, Point, Point]
+  const exact = (from: Point, to: Point) => ({ from: landscape(from), to: landscape(to) })
+  const guides = [
+    { direction: -90, measurements: [exact({ x: 18, y: 0 }, north), exact(centre, north), exact({ x: 0, y: north.y }, north)] },
+    { direction: 0, measurements: [exact({ x: BOARD_IN, y: 18 }, east), exact(centre, east)] },
+    { direction: 90, measurements: [exact({ x: 18, y: BOARD_IN }, south), exact(centre, south)] },
+    { direction: 180, measurements: [exact({ x: 0, y: 18 }, west), exact(centre, west), exact({ x: west.x, y: 0 }, west)] },
+  ]
+  return wallArcsDeg.map(([from, to], index) => {
+    const id = `arena-wall-${index + 1}`
+    const end = to < from ? to + 360 : to
+    const gap = guides.reduce((nearest, guide) =>
+      (from - guide.direction + 360) % 360 < (from - nearest.direction + 360) % 360 ? guide : nearest,
+    )
+    // Each deployment depth is drawn beside the wall that starts at its home objective, where 2.0 draws it too.
+    const depth =
+      gap.direction === -90
+        ? [exact({ x: 8, y: 0 }, { x: 8, y: source.deploymentDepthIn })]
+        : gap.direction === 90
+          ? [exact({ x: BOARD_IN - 8, y: BOARD_IN }, { x: BOARD_IN - 8, y: BOARD_IN - source.deploymentDepthIn })]
+          : []
+    return area(id, 'Arena wall', [...arc(centre, radiusIn + half, from, end), ...arc(centre, radiusIn - half, end, from)], {
+      objective: null,
+      measurements: [...gap.measurements, ...depth],
+      parts: [
+        {
+          id: `${id}-wall`,
+          name: 'Impassable arena wall',
+          material: 'dense',
+          roof: null,
+          walls: [{ id: `${id}-wall-1`, points: arc(centre, radiusIn, from, end).map(landscape), thickness: source.wallThicknessIn }],
+        },
+      ],
+    })
+  })
+}
+
 /** Four objectives sit on the arena walls, outside the arena, and the fifth is the open centre. */
-function objectiveAreas(source: Source): Area[] {
+function objectiveAreas(source: WalledSource): Area[] {
   const centre = { x: BOARD_IN / 2, y: BOARD_IN / 2 }
   const { radiusIn, wallHalfAngleDeg } = source.arena
   const range = source.objectiveRadiusIn
@@ -256,12 +346,12 @@ function rectangle(left: number, top: number, right: number, bottom: number): Po
 const clamp = (value: number) => Math.min(BOARD_IN, Math.max(0, value))
 const round = (value: number) => Math.round(value * 1000) / 1000
 
+/** An image Play On Tabletop published, or the printed mat Frontline Gaming makes with it. */
 function publisherImage(value: unknown): value is string {
   const url = typeof value === 'string' ? URL.parse(value) : null
+  if (url?.protocol !== 'https:' || !/\.(png|jpg)$/.test(url.pathname)) return false
   return (
-    url?.protocol === 'https:' &&
-    url.hostname === 'playontabletop.com' &&
-    url.pathname.startsWith('/wp-content/uploads/') &&
-    url.pathname.endsWith('.png')
+    (url.hostname === 'playontabletop.com' && url.pathname.startsWith('/wp-content/uploads/')) ||
+    (url.hostname === 'cdn.shopify.com' && url.pathname.startsWith('/s/files/1/0491/7225/0789/files/'))
   )
 }

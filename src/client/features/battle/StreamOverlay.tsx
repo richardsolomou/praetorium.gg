@@ -96,10 +96,7 @@ function OverlayStatus({ view, table }: { view: BattleView; table: Side[] }) {
 function OverlaySide({ view, side, align }: { view: BattleView; side: Side; align: 'start' | 'end' }) {
   const colours = tint(side.index)
   const end = align === 'end'
-  // A seated player who opens their own overlay still sees their secret mission named; the stream must not.
-  const cards = side.secondaries
-    .filter((card) => card.status === 'active')
-    .map((card) => ({ key: card.key, name: card.secret && !card.revealed ? 'Secret mission' : card.name }))
+  const cards = side.secondaries.filter((card) => card.status === 'active')
   return (
     <div className={cn('min-w-0 space-y-1.5', end && 'text-right')}>
       <div>

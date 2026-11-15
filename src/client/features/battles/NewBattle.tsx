@@ -48,10 +48,11 @@ export function useNewBattle() {
   })
 }
 
-export function NewBattle() {
+export function NewBattle({ variant }: { variant?: 'outline' }) {
   const start = useNewBattle()
   return (
     <Button
+      variant={variant}
       data-onboarding="create-battle"
       disabled={start.isPending}
       onClick={() => {

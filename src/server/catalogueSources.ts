@@ -20,6 +20,8 @@ const battlemasterSourceSchema = z.object({
   baseUrl: z.literal('https://battlemaster.online'),
   owner: z.string().min(1),
   missionPack: z.literal('chapter-approved-2026'),
+  // Optional because snapshots published before it record their sources without it.
+  combatPatrolPack: z.literal('combat-patrol').optional(),
   license: z.string().min(1).nullable(),
   licenseUrl: z.url().optional(),
   attribution: z.string().min(1),

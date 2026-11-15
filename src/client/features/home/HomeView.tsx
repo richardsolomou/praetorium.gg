@@ -133,7 +133,7 @@ export function HomeView({
             }
           />
         </div>
-        {me.usesApp ? null : <HomeAppCredits dismissable />}
+        <HomeAppCredits dismissable stores={!me.usesApp} />
       </main>
     )
   }
@@ -197,15 +197,15 @@ function Welcome({
         <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
           <h1 className="text-3xl leading-none text-balance sm:text-5xl">{firstName ? `${greeting}, ${firstName}` : greeting}</h1>
           <div className="flex flex-wrap gap-2">
-            {newBattle}
             <Link to="/rosters/new" className={buttonClass({ variant: 'outline' })}>
               Build a roster
             </Link>
+            {newBattle}
           </div>
         </div>
         {stats ? <div className="max-sm:hidden">{stats}</div> : null}
       </div>
-      {offerApp ? <AppBand dismissable /> : null}
+      <AppBand dismissable stores={offerApp} />
     </section>
   )
 }

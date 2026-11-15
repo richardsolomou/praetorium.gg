@@ -46,7 +46,7 @@ export type WinningSearch = PeriodFilter & { q?: string } & Partial<Record<(type
 
 export type RostersSearch = RosterLibrarySearch &
   RosterDiscoverySearch &
-  WinningSearch & { view?: RosterView; new?: true; reference?: MissionReference }
+  WinningSearch & { view?: RosterView; new?: true; reference?: MissionReference; import?: true }
 
 type IndexedFactions = NonNullable<QueryData<typeof factionIndexQuery>>['factions']
 

@@ -1,5 +1,5 @@
 import type { Route } from '@playwright/test'
-import { expect, test, type Locator, type Page } from './test'
+import { expect, test } from './test'
 import {
   advance,
   retryUntilVisible,
@@ -10,7 +10,6 @@ import {
   createRoster,
   desktopContext,
   setupBattle,
-  setupStep,
   selectOrdinaryMissions,
   signUp,
   startBattle,
@@ -308,6 +307,7 @@ test('the final opponent-turn settlement completes before the battle ends', asyn
   await startBattle(page)
 
   const { append, first: firstPlayerId, second: opponentId } = await battleLog(page)
+  // An older log's secret mission folds as an ordinary card, which stands in here for one scored in the opponent's turn.
   await append(firstPlayerId, {
     kind: 'select-secret',
     secondary: {
@@ -345,17 +345,14 @@ test('the final opponent-turn settlement completes before the battle ends', asyn
   const activeHeight = (await scoreboard.boundingBox())?.height
   await page.getByRole('button', { name: 'Pass the turn' }).click()
   const activeScoring = page.getByRole('dialog', { name: /^Scoring end of turn points/ })
-  const handoff = page.getByRole('dialog', { name: /Secret Mission action/ })
-  await expect(activeScoring.or(handoff).first()).toBeVisible()
-  if (await activeScoring.isVisible()) await confirmScoring(activeScoring, 'Pass the turn')
   const discard = page.getByRole('dialog', { name: 'Discard tactical secondaries?' })
-  await expect(discard.or(handoff).first()).toBeVisible()
+  const settlement = page.getByRole('dialog', { name: /^Scoring end of battle points/ })
+  await expect(activeScoring.or(discard).or(settlement).first()).toBeVisible()
+  if (await activeScoring.isVisible()) await confirmScoring(activeScoring, 'Pass the turn')
+  await expect(discard.or(settlement).first()).toBeVisible()
   if (await discard.isVisible()) await discard.getByRole('button', { name: 'Keep hand' }).click()
 
-  await expect(handoff).toBeVisible()
   await expect(scoreboard).not.toContainText('Result')
-  await handoff.getByRole('button', { name: 'Reveal and continue' }).click()
-  const settlement = page.getByRole('dialog', { name: /^Scoring end of battle points/ })
   await expect(settlement.locator('[data-due="final-secret"]')).toContainText('Final Vigil')
   await settlement.locator('[data-due="final-secret"]').getByRole('button', { name: 'plus 5' }).click()
   await confirmScoring(settlement, 'Finish battle')
@@ -718,142 +715,6 @@ test('paired secondary missions may be kept or put back as they are drawn', asyn
   await expect(prompt).toBeVisible()
   await expect(prompt.locator('[data-drawn]')).toHaveCount(0)
   await expect(prompt.getByRole('button', { name: 'Select missions' })).toBeVisible()
-})
-
-test('a secret mission chosen before they were retired is handed off before its scoring prompt', async ({ browser }) => {
-  const alice = await (await browser.newContext(desktopContext)).newPage()
-  const bob = await (await browser.newContext(desktopContext)).newPage()
-  const { aliceName, bobName, aliceRoster, bobRoster } = await rosteredPlayers(alice, bob)
-  await setupBattle(alice, bob, {
-    hostRoster: aliceRoster,
-    guestRoster: bobRoster,
-    beforeStart: async () => {
-      // Any player at the table can choose either side's secondaries.
-      const chooseFixed = async (page: Page, side: number) => {
-        await setupStep(page, 'Secondaries')
-        const prep = page.getByRole('group', { name: 'Secondary play' }).nth(side).locator('..')
-        const fixed = prep.getByRole('button', { name: 'Fixed' })
-        const press = async (button: Locator) => {
-          await expect(async () => {
-            await expect(button).toBeEnabled({ timeout: 1_000 })
-            if ((await button.getAttribute('aria-pressed')) === 'true') return
-            await button.click({ timeout: 1_000 })
-            await expect(button).toBeEnabled({ timeout: 3_000 })
-            await expect(button).toHaveAttribute('aria-pressed', 'true', { timeout: 1_000 })
-          }).toPass({ timeout: 10_000 })
-        }
-        await press(fixed)
-        await press(prep.getByRole('button', { name: /^(Select|Remove) Engage on All Fronts$/i }))
-        await press(prep.getByRole('button', { name: /^(Select|Remove) Bring It Down$/ }))
-        await expect(prep).toHaveAttribute('data-secondary-deck-ready', 'true')
-      }
-      await chooseFixed(alice, 0)
-      await chooseFixed(alice, 1)
-      await alice.reload()
-      await setupStep(alice, 'Secondaries')
-      // Fixed choices remain editable after reloading.
-      const hands = alice.getByRole('region', { name: 'Secondaries' }).locator('[data-secondary-deck-ready="true"]')
-      await expect(hands).toHaveCount(2)
-      for (const side of [0, 1]) {
-        await expect(hands.nth(side).getByRole('button', { name: /^Fixed/ })).toHaveAttribute('aria-pressed', 'true')
-        await expect(hands.nth(side)).toContainText(/Engage on All Fronts/i)
-        await expect(hands.nth(side)).toContainText(/Bring It Down/i)
-      }
-    },
-  })
-
-  for (let phase = 0; phase < 5; phase += 1) await advance(alice)
-  await advanceButton(alice).click()
-  const scoring = alice.getByRole('dialog', { name: /^Scoring end of turn points/ })
-  // What the round still allows is stated while the player is choosing, not only once
-  // a cap has already eaten something.
-  await expect(scoring).toContainText(/Secondary missions 0\/15 this round/)
-  const fronts = scoring.locator('[data-due]').filter({ hasText: /Engage on All Fronts/i })
-  // Two tiers of one thing rather than two payouts, each asking in the mission pack's own words.
-  await expect(fronts).toContainText('or')
-  await expect(fronts).toContainText('presence in three table quarters')
-  await expect(fronts).toContainText('presence in four table quarters')
-  // The keywords the pack marks up are drawn as keywords rather than printed with their asterisks.
-  await expect(fronts.getByText('presence').first()).toBeVisible()
-  await expect(fronts).not.toContainText('**')
-  await confirmScoring(scoring, 'Pass the turn')
-  const openingOwed = alice.getByRole('dialog', { name: /^Scoring end of their turn points/ })
-  await expect(openingOwed).toBeVisible()
-  await confirmScoring(openingOwed, 'Take the turn')
-  await expect(openingOwed).toBeHidden()
-  await expect(bob.getByRole('heading', { name: 'command phase' })).toBeVisible()
-
-  // No supported mission pack offers secret missions any more, so these stand in for a battle that chose them earlier.
-  const { id, append, first: aliceId, second: bobId } = await battleLog(alice)
-  const deckCard = async (playerId: string, name: string) => {
-    const decks = (await battleCommands(id)).flatMap(({ by, body }) =>
-      body.kind === 'set-prep' && (body.playerId ?? by) === playerId && body.secondaryDeck ? [body.secondaryDeck] : [],
-    )
-    const card = decks.at(-1)?.find((candidate) => candidate.name === name)
-    if (!card) throw new Error(`${name} is not in the deck`)
-    return { key: card.key, name: card.name }
-  }
-  await append(aliceId, { kind: 'select-secret', secondary: await deckCard(aliceId, 'Assassination') })
-  await append(bobId, { kind: 'select-secret', secondary: await deckCard(bobId, 'Beacon') })
-  await Promise.all([alice.reload(), bob.reload()])
-  const alicePanel = alice.locator('[data-panel="player"]').filter({ hasText: aliceName })
-  await expect(alicePanel.locator('[data-secondary]').filter({ hasText: 'Assassination' })).toContainText('secret')
-  const bobPanel = bob.locator('[data-panel="player"]').filter({ hasText: bobName })
-  await expect(bob.locator('[data-panel="player"]').filter({ hasText: aliceName }).locator('[data-secondary="secret"]')).toContainText(
-    'Secret mission',
-  )
-  await expect(bobPanel.locator('[data-secondary]').filter({ hasText: 'Beacon' })).toContainText('secret')
-
-  for (let phase = 0; phase < 5; phase += 1) await advance(bob)
-  await bob.getByRole('button', { name: 'Pass the turn' }).click()
-  const bobAction = bob.getByRole('dialog', { name: `Secret Mission action · ${bobName}` })
-  const sharedBobAction = alice.getByRole('dialog', { name: `Secret Mission action · ${bobName}` })
-  await expect(bobAction).toBeVisible()
-  await expect(sharedBobAction).toBeVisible()
-  await expect(bobAction.getByRole('button', { name: 'Undo latest action' })).toBeEnabled()
-  await expect(bob.getByRole('dialog', { name: /^Scoring / })).toHaveCount(0)
-  await bobAction.getByRole('button', { name: 'Minimize dialog' }).click()
-  await expect(bob.locator('[data-turn-control]').getByRole('button', { name: 'Undo latest action' })).toBeDisabled()
-  await expect(bob.getByRole('button', { name: 'Battle options' })).toBeDisabled()
-  await bob.getByRole('button', { name: 'Return to prompt' }).click()
-  await expect(bobAction).toBeVisible()
-  await bobAction.getByRole('button', { name: 'Back' }).click()
-  await expect(bobAction).toBeHidden()
-  await expect(bob.getByRole('button', { name: 'Pass the turn' })).toBeVisible()
-
-  await bob.getByRole('button', { name: 'Pass the turn' }).click()
-  await expect(bobAction).toBeVisible()
-  await bobAction.getByRole('button', { name: 'Reveal and continue' }).click()
-  const bobScoring = bob.getByRole('dialog', { name: /^Scoring end of turn points/ })
-  await expect(bobScoring).toBeVisible()
-  await confirmScoring(bobScoring, 'Pass the turn')
-
-  const aliceAction = alice.getByRole('dialog', { name: `Secret Mission action · ${aliceName}` })
-  const sharedAliceAction = bob.getByRole('dialog', { name: `Secret Mission action · ${aliceName}` })
-  await expect(aliceAction).toBeVisible()
-  await expect(sharedAliceAction).toContainText(`Hand this device to ${aliceName}`)
-  await expect(sharedAliceAction.getByRole('button', { name: 'Back' })).toHaveCount(0)
-  await expect(sharedAliceAction.getByRole('button', { name: 'Close' })).toHaveCount(0)
-  await expect(bob.getByText('Assassination', { exact: true })).toHaveCount(0)
-  await expect(bob.getByRole('dialog', { name: /^Scoring / })).toHaveCount(0)
-
-  await sharedAliceAction.getByRole('button', { name: 'Reveal and continue' }).click()
-  // Assassination pays at the end of either turn, so what Bob's turn owed Alice is
-  // settled as the turn comes back.
-  const owed = alice.getByRole('dialog', { name: /^Scoring end of their turn points/ })
-  const refereeing = bob.getByRole('dialog', { name: /^Scoring end of their turn points/ })
-  await expect(refereeing.locator('[data-due]').filter({ hasText: 'Assassination' })).toBeVisible()
-  await expect(refereeing).toContainText(aliceName)
-  await expect(owed.getByRole('button', { name: 'Undo latest action' })).toBeEnabled()
-  await expect(owed.locator('[data-due]').filter({ hasText: 'Assassination' })).toContainText(
-    'For each enemy CHARACTER model destroyed this turn.',
-  )
-  // The allowance belongs to the round the ended turn was in, which the battle has
-  // already moved out of, so it still reads as untouched rather than as the new round's.
-  await expect(owed).toContainText(/Secondary missions 0\/15 this round/)
-  await confirmScoring(refereeing, 'Take the turn')
-  await expect(owed).toBeHidden()
-  await expect(alice.getByRole('dialog')).toHaveCount(0)
 })
 
 test('a pass answered slowly leaves settling the empty turn to the device that got there first', async ({ browser }) => {

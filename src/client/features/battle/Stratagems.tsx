@@ -127,7 +127,7 @@ function StratagemCard({
 }) {
   const [newOrdersCost, setNewOrdersCost] = useState<number | null>(null)
   const newOrders = isNewOrders(stratagem)
-  const replaceable = newOrders ? side.secondaries.filter((secondary) => !secondary.secret && secondary.status === 'active') : []
+  const replaceable = newOrders ? side.secondaries.filter((secondary) => secondary.status === 'active') : []
   const replacement = side.remainingSecondaries[0]
   const newOrdersRefusal = newOrders
     ? side.secondaryMode !== 'tactical'

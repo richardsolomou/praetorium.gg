@@ -120,6 +120,31 @@ it('replaces a stale cached layout with the downloaded one', async () => {
   expect(JSON.parse(fs.readFileSync(cached, 'utf8')).layout.layoutKey).toBe('current')
 })
 
+it('writes a Combat Patrol layout into its own folder without an objective layout', async () => {
+  const patrolId = 'terrain-fedcba98-7654-3210-fedc-ba9876543210'
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (input: URL) => {
+      if (input.pathname === '/v1.1/public/tts/layouts') {
+        return input.searchParams.get('missionPack') === 'combat-patrol'
+          ? Response.json({ catalogKey: 'patrol-key', layouts: [{ id: patrolId, owner: '0123', layoutKey: 'current' }] })
+          : Response.json({ catalogKey: 'catalog-key', layouts: [{ id: layoutId, owner: '0123', layoutKey: 'current' }] })
+      }
+      if (input.pathname.endsWith(patrolId)) return Response.json({ layout: { id: patrolId, layoutKey: 'current' }, terrain: [] })
+      if (input.pathname.startsWith('/v1/public/data/layouts/')) return Response.json(layoutDetail('current'))
+      return Response.json(layoutLite)
+    }),
+  )
+  const source = {
+    ...battlemaster,
+    combatPatrolPack: 'combat-patrol' as const,
+    revision: createHash('sha256').update('catalog-key\npatrol-key').digest('hex'),
+  }
+  await fetchBattlemasterInto(source, path.join(directory, 'target'), null)
+
+  expect(fs.readdirSync(path.join(directory, 'target', 'combat-patrol', 'layouts'))).toEqual([`${patrolId}.json`])
+})
+
 it('refuses an oversized Battlemaster catalogue', async () => {
   vi.stubGlobal(
     'fetch',

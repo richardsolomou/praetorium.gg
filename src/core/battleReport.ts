@@ -10,7 +10,7 @@
  */
 
 import { type AdvanceTime, advanceTimes } from './battleClock'
-import { sameSide, sidePlayers } from './battlePrimitives'
+import { sidePlayers } from './battlePrimitives'
 import {
   type BattleMoment,
   type BattleState,
@@ -22,7 +22,6 @@ import {
   type PlayerId,
   type PlayerState,
   replay,
-  mayNameCard,
   pointsSize,
   transportLabel,
 } from './battle'
@@ -53,7 +52,6 @@ export function battleReport(
   players: readonly { id: PlayerId; name: string }[],
   log: readonly LoggedCommand[],
   playerIds: readonly PlayerId[] = players.map((player) => player.id),
-  viewerId?: PlayerId,
   playerSides?: readonly number[],
   references?: BattleReportReferences | null,
 ): ReportEntry[] {
@@ -65,7 +63,7 @@ export function battleReport(
   let returned: { entry: ReportEntry; targetId: PlayerId; by: PlayerId } | null = null
 
   for (const { entry, before, army } of replay(state, log)) {
-    const described = describe(entry.command, state, before, entry.by, army, named, deployments, viewerId)
+    const described = describe(entry.command, state, before, entry.by, army, named, deployments)
     if (!described) continue
     const missed = 'missed' in entry.command && entry.command.missed ? missedLabel(entry.command.missed, named) : undefined
     const text = missed ? `${described}${missed}` : described
@@ -118,7 +116,6 @@ function describe(
   player: PlayerState | undefined,
   named: Map<PlayerId, string>,
   deployments: ReadonlyMap<string, string>,
-  viewerId?: PlayerId,
 ): string | null {
   const who = named.get(by) ?? 'Someone'
   // Setting the table can be done for someone else, so a line names the army it changed.
@@ -243,8 +240,7 @@ function describe(
       const scores = command.scores.map((score) => {
         if (score.category === 'primary') return `${score.delta} primary VP`
         const secondary = player?.secondaries.find((candidate) => candidate.key === score.key)
-        const hidden = player && !mayNameCard(after, viewerId ?? null, player, score.key)
-        return `${score.delta} VP on ${hidden ? 'a secret mission' : (secondary?.name ?? 'a secondary')}`
+        return `${score.delta} VP on ${secondary?.name ?? 'a secondary'}`
       })
       return `${who} settles ${scores.join(', ')}${forTarget}`
     }
@@ -264,13 +260,11 @@ function describe(
       return `${who} cancels the phase advance${forTarget}`
     case 'score-secondary': {
       const secondary = player?.secondaries.find((candidate) => candidate.key === command.key)
-      const name = player && !mayNameCard(after, viewerId ?? null, player, command.key) ? 'a secret mission' : secondary?.name
-      return `${who} scores ${command.delta} on ${name ?? 'a secondary'}${forTarget}`
+      return `${who} scores ${command.delta} on ${secondary?.name ?? 'a secondary'}${forTarget}`
     }
     case 'set-secondary-status': {
       const secondary = player?.secondaries.find((candidate) => candidate.key === command.key)
-      const hidden = player && !mayNameCard(after, viewerId ?? null, player, command.key)
-      const name = hidden ? 'a secret mission' : (secondary?.name ?? 'a secondary')
+      const name = secondary?.name ?? 'a secondary'
       // Putting a card back is not giving up on it: it goes back in the deck to be drawn again, not to the bin.
       if (command.status === 'returned') return `${who} puts ${name} back in the deck${forTarget}`
       return `${who} marks ${name} ${command.status}${forTarget}`
@@ -278,16 +272,10 @@ function describe(
     case 'draw-secondary':
     case 'draw-secondaries':
       return `${who} ${drawDescription(command, player)}${forTarget}`
-    case 'select-secret': {
-      const selected = player?.secondaries.find((secondary) => secondary.key === command.secondary.key)?.name ?? 'a secret mission'
-      return sameSide(after, viewerId ?? null, targetId)
-        ? `${who} selects ${selected} as a secret mission${forTarget}`
-        : `${who} selects a secret mission${forTarget}`
-    }
-    case 'reveal-secret': {
-      const secondary = player?.secondaries.find((candidate) => candidate.key === player.secretSecondary)
-      return `${who} reveals ${secondary?.name ?? 'a secret mission'}${forTarget}`
-    }
+    case 'select-secret':
+      return `${who} draws ${command.secondary.name}${forTarget}`
+    case 'reveal-secret':
+      return null
     // Running casualty counts, not events: the roster shows what is left.
     case 'set-unit':
     case 'wound-unit':
@@ -298,9 +286,7 @@ function describe(
         player?.primaryCard?.key === command.cardKey
           ? player.primaryCard
           : player?.secondaries.find((candidate) => candidate.key === command.cardKey)
-      const name =
-        player && mayNameCard(after, viewerId ?? null, player, command.cardKey) ? (card?.name ?? 'a mission') : 'a secret mission'
-      return `${who} records choices for ${name}`
+      return `${who} records choices for ${card?.name ?? 'a mission'}`
     }
     case 'pause-clock':
       return `${who} pauses the timer`

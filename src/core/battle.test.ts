@@ -876,33 +876,6 @@ describe('setup', () => {
     expect(validate(missing, ALICE, { ...repair, secondaries: [secret] })).toBe('cards are settled before the battle begins')
   })
 
-  it('restores a fixed deck without resetting a selected secret or settled score', () => {
-    const fixed = { key: 'fixed', name: 'Behind Enemy Lines' }
-    const secret = { key: 'secret', name: 'Hold the Line' }
-    const prep: Command = { kind: 'set-prep', stratagems: [], secondaries: [fixed], primary: null, secondaryMode: 'fixed' }
-    const history: [string, Command][] = [
-      [ALICE, roster('Ultramarines')],
-      [BOB, roster('Death Guard')],
-      [ALICE, prep],
-      [ALICE, { kind: 'begin-battle', firstPlayerId: ALICE }],
-      [ALICE, { kind: 'select-secret', secondary: secret }],
-      [ALICE, { kind: 'score-secondary', key: fixed.key, delta: 4 }],
-      [ALICE, { kind: 'set-secondary-status', key: fixed.key, status: 'discarded' }],
-    ]
-    const missing = reduceBattle(PLAYERS, log(...history))
-    const repair: Command = { ...prep, secondaryDeck: [fixed, secret] }
-    const restored = reduceBattle(PLAYERS, log(...history, [ALICE, repair]))
-
-    expect(validate(missing, ALICE, repair)).toBeNull()
-    expect(restored.players[0]).toMatchObject({
-      secondaries: [fixed, secret],
-      secondaryStatus: { fixed: 'discarded', secret: 'active' },
-      secretSecondary: secret.key,
-      secretRevealed: false,
-      scored: { fixed: 4 },
-    })
-  })
-
   it('refuses cards carried in with a replacement list', () => {
     const state = reduceBattle(PLAYERS, log(...started()))
     const command: Command = {

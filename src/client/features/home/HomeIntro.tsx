@@ -11,11 +11,24 @@ export function HomeIntro() {
     <section className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
       <div>
         <h2 className="text-2xl leading-none sm:text-3xl">Read the datasheets</h2>
-        <p className="mt-3 font-rules text-dim">Units, points and detachments for every faction.</p>
+        <p className="mt-3 font-rules text-dim">
+          Units, points and detachments for every faction, and the primary mission for every matchup.
+        </p>
       </div>
       <div className="flex shrink-0 flex-wrap items-center gap-x-5 gap-y-3">
         <Link to="/factions" className={buttonClass({ variant: 'outline' })}>
           Browse factions
+        </Link>
+        <Link to="/missions" className={buttonClass({ variant: 'outline' })}>
+          Missions
+        </Link>
+        <Link
+          to="/docs/$docId"
+          params={{ docId: 'connect-an-assistant' }}
+          className="inline-flex items-center gap-1 text-sm font-semibold text-bone/85 hover:text-parchment"
+        >
+          <span>Ask an AI assistant</span>
+          <ChevronRight className="size-4" aria-hidden />
         </Link>
         <Link to="/docs" className="inline-flex items-center gap-1 text-sm font-semibold text-bone/85 hover:text-parchment">
           <span>Read the docs</span>

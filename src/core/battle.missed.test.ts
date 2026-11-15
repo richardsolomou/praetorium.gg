@@ -270,18 +270,6 @@ describe('missed scores', () => {
     }
     expect(refusal(history, command)).toBeNull()
   })
-
-  it('keep a secret mission’s name from the opponent', () => {
-    const secret = { key: 'secret', name: 'Hidden Vigil' }
-    const history = accepted(armed([ALICE, { kind: 'select-secret', secondary: secret }], ...roundTwo()), {
-      kind: 'score-settlement',
-      scores: [{ category: 'secondary', key: secret.key, delta: 3 }],
-      missed: at(1, 'end'),
-    })
-    expect(battleReport(NAMES, log(...history), PLAYERS, BOB).at(-1)?.text).toBe(
-      'Alice settles 3 VP on a secret mission, recorded late for round 1, Alice’s end phase',
-    )
-  })
 })
 
 describe('missed actions in the record', () => {
