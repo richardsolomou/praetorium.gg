@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.248.1 (2026-11-15)
+
+### Patch Changes
+
+- 8a334f5: Battle setup on a phone uses the full screen width for each step, so side names, missions and layouts no longer squeeze or cut off.
+- 8a334f5: The "Played by you" label on a battle's army card no longer breaks over two lines on a phone.
+
 ## 0.248.0 (2026-11-15)
 
 ### Minor Changes
