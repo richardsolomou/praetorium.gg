@@ -1,7 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRouter } from '@tanstack/react-router'
 import { posthog } from 'posthog-js'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { releaseQuery } from '../../queries'
@@ -13,7 +13,9 @@ import { offlineData } from '../../offline/runtime'
 export function ReleaseUpdateNotice() {
   const router = useRouter()
   const release = useQuery(releaseQuery())
-  const outdated = Boolean(staleBuildRelease(useQueryClient()))
+  const latest = staleBuildRelease(useQueryClient())
+  const outdated = Boolean(latest)
+  const [dismissed, setDismissed] = useState<string | null>(null)
   useEffect(() => {
     if (outdated) retireDeviceConstruction()
   }, [outdated])
@@ -40,13 +42,17 @@ export function ReleaseUpdateNotice() {
         </Button>
       </FloatingNotice>
     )
-  if (!outdated) return null
+  // The next page change loads the new release anyway, so a dismissed notice stays away until a later one lands.
+  if (!latest || latest === dismissed) return null
   return (
     <FloatingNotice aria-label="Release update" data-release-update>
       <span className="px-2 font-medium text-bone">Praetorium has been updated.</span>
       <Button size="sm" onClick={() => window.location.reload()}>
         <RefreshCw />
         Refresh
+      </Button>
+      <Button size="sm" variant="ghost" onClick={() => setDismissed(latest)}>
+        Later
       </Button>
     </FloatingNotice>
   )
