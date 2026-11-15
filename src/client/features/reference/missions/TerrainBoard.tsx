@@ -501,13 +501,13 @@ function MatCoordinates({
       ))}
       {labels.map(({ portrait, text, label, size }) => (
         <g key={`${portrait.x}-${portrait.y}`}>
-          <circle cx={portrait.x} cy={portrait.y} r=".22" className={measurementColours.mat.fill} />
+          {/* Square where edge distances are round, since protanopia sees their lime and yellow as one. */}
+          <rect x={portrait.x - 0.22} y={portrait.y - 0.22} width=".44" height=".44" className={measurementColours.mat.fill} />
           <rect
             x={label.x - size.width / 2}
             y={label.y - size.height / 2}
             width={size.width}
             height={size.height}
-            rx=".14"
             className={measurementColours.mat.fill}
           />
           <text x={label.x} y={label.y} textAnchor="middle" dominantBaseline="middle" className="fill-void" fontSize=".9" fontWeight="700">

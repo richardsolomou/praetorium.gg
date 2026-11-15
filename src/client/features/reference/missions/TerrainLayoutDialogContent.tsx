@@ -1,4 +1,4 @@
-import { Eye, Square, SquareCheck } from 'lucide-react'
+import { Eye, MoveRight, Square, SquareCheck } from 'lucide-react'
 import { posthog } from 'posthog-js'
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
@@ -156,12 +156,12 @@ export function TerrainLayoutDialogContent({ title, description, layout, deploym
           ) : null}
           {placing ? (
             <span className="flex items-center gap-2">
-              <span className="size-2 rounded-full bg-measure-edges" /> Board edge distance · long ones read off the mat's edge ruler
+              <MoveRight aria-hidden className="size-3 text-measure-edges" /> Board edge distance · long ones read off the mat's edge ruler
             </span>
           ) : null}
           {show.includes('mat') ? (
             <span className="flex items-center gap-2">
-              <span className="size-2 rounded-full bg-measure-mat" /> Across from the left edge · up from the bottom edge
+              <span className="size-2 bg-measure-mat" /> Across from the left edge · up from the bottom edge
             </span>
           ) : null}
           {show.includes('published') && measurements.some((measurement) => !measurement.approximate) ? (
