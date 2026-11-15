@@ -1,5 +1,16 @@
 # praetorium
 
+## 0.253.0 (2026-11-15)
+
+### Minor Changes
+
+- 7e05c06: In the phone app, every button, link and menu item now gives a light tap of feedback when pressed.
+
+### Patch Changes
+
+- 6bc5aa2: Every phone at a battle now shows the same presses on a scoring prompt, and any of them can carry on pressing before it's confirmed.
+- 6bc5aa2: What you've pressed on a scoring prompt now stays when you leave the battle and come back.
+
 ## 0.252.2 (2026-11-15)
 
 ### Patch Changes
