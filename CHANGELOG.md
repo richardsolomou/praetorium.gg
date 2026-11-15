@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.253.2 (2026-11-15)
+
+### Patch Changes
+
+- d340ec5: Mission choices such as Beacon and Burden of Trust name the leaders and support attached to each unit.
+
 ## 0.253.1 (2026-11-15)
 
 ### Patch Changes
