@@ -1,5 +1,5 @@
 import { queryOptions } from '@tanstack/react-query'
-import { battleGroups, groupBattles, groupLeague, groupStandings, listGroups, openGroup } from '../functions'
+import { battleGroups, groupBattles, groupLeague, groupPastLeagues, groupStandings, listGroups, openGroup } from '../functions'
 import { SSR_STALE_TIME } from './shared'
 import type { BattleFilter, BattleOrder } from '../../core/battleFilter'
 import { battleFeedQuery, feedKey } from './battles'
@@ -15,6 +15,14 @@ export const groupStandingsQuery = (token: string) =>
 
 export const groupLeagueQuery = (token: string) =>
   queryOptions({ queryKey: groupLeagueKey(token), queryFn: () => groupLeague({ data: { token } }), staleTime: SSR_STALE_TIME })
+
+/** Keyed under the league so refreshing the league refreshes them too. */
+export const groupPastLeaguesQuery = (token: string) =>
+  queryOptions({
+    queryKey: [...groupLeagueKey(token), 'past'],
+    queryFn: () => groupPastLeagues({ data: { token } }),
+    staleTime: SSR_STALE_TIME,
+  })
 
 export const battleGroupsQuery = (token: string) =>
   queryOptions({ queryKey: battleGroupsKey(token), queryFn: () => battleGroups({ data: { token } }), staleTime: SSR_STALE_TIME })
