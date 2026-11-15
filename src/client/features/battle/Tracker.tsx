@@ -521,7 +521,9 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
       )
     : null
   const momentSignature = momentPrompt && JSON.stringify([momentPrompt.context, momentPrompt.reminders.map((reminder) => reminder.key)])
+  // Forgotten once a moment has nothing due, so undoing back into an alerted moment alerts again.
   const [queuedMoment, setQueuedMoment] = useState<string | null>(null)
+  if (!momentPrompt && queuedMoment !== null) setQueuedMoment(null)
   if (dismissalsReady && !reminderPrompt && momentPrompt && momentSignature !== queuedMoment) {
     setQueuedMoment(momentSignature)
     enqueueReminderPrompt(momentPrompt)

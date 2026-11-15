@@ -276,6 +276,37 @@ test('round alerts fire once at both boundaries when your opponent takes the fir
   await expect(page.locator('[data-stat="round"]')).toHaveText('2')
 })
 
+test('a start-of-phase alert shows again after undoing back into its phase', async ({ page }) => {
+  await signUp(page, uniqueName('Undo alerts'))
+  const roster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Undo alerts' })
+  await addUnit(page, 'Plasmancer')
+  await page
+    .getByRole('button', { name: /^Plasmancer/ })
+    .first()
+    .click()
+  await makeWarlord(page, 'Plasmancer')
+  await addUnit(page, 'Immortals')
+  await waitForRosterSave(page, () => attach(page, 'Plasmancer', 'Immortals'))
+  await page.getByLabel('Set alert for Living Lightning').click()
+  await saveAlert(page.getByRole('dialog', { name: 'Living Lightning' }), 'Living Lightning')
+
+  await practiceBattle(page, roster)
+  await startBattle(page)
+  await turnOffActionReminders(page)
+  await advance(page, { dismissReminders: false })
+  await advance(page, { dismissReminders: false })
+  const reminder = page.getByRole('dialog', { name: 'Battle reminder', exact: true })
+  await expect(reminder.getByRole('heading', { name: 'Living Lightning', exact: true })).toBeVisible()
+  await reminder.getByRole('button', { name: 'Dismiss', exact: true }).click()
+  await advance(page, { dismissReminders: false })
+  await expect(page.getByRole('heading', { name: 'charge phase' })).toBeVisible()
+  await page.getByRole('button', { name: 'Undo latest action', exact: true }).click()
+
+  await expect(reminder.getByRole('heading', { name: 'Living Lightning', exact: true })).toBeVisible()
+  await reminder.getByRole('button', { name: 'Dismiss', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'shooting phase' })).toBeVisible()
+})
+
 test('a detachment rule alert covers the whole army and fires in battle', async ({ page }) => {
   await signUp(page, uniqueName('Detachment alerts'))
   const roster = await createRoster(page, { faction: 'Necrons', detachment: /Cursed Legion/, name: 'Detachment rule alerts' })
