@@ -27,5 +27,6 @@ export const PREVIEW_SIZE = { width: 1200, height: 630 } as const
 export const SITE = {
   name: 'Praetorium',
   title: 'Warhammer 40,000 army builder and battle tracker',
-  description: 'Build Warhammer 40,000 armies and track your games from setup to final score.',
+  description:
+    'Build and check Warhammer 40,000 army lists, then track your games with CP, stratagem checks, scoring and a replay of every turn.',
 } as const

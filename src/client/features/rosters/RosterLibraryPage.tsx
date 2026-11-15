@@ -1,7 +1,7 @@
 import { GuideHelp } from '../onboarding/GuideHelp'
 import { useQuery } from '@tanstack/react-query'
 import { Link, useNavigate } from '@tanstack/react-router'
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useEffectEvent, useRef, useState, type ReactNode } from 'react'
 import { ChevronDown, FileUp, Plus, ScrollText } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
@@ -113,6 +113,7 @@ export function RosterLibraryPage({
   rows = DEFAULT_ROSTER_ROWS,
   starting,
   reference,
+  importing,
   device,
 }: {
   search: RosterLibrarySearch
@@ -124,6 +125,7 @@ export function RosterLibraryPage({
   rows?: number
   starting?: boolean
   reference?: MissionReference
+  importing?: boolean
   device?: DeviceLibrary
 }) {
   const [selectedSort, setSelectedSort] = useRosterCookieChoice(sort, ROSTER_SORT_COOKIE, keptRosterSort)
@@ -275,6 +277,13 @@ export function RosterLibraryPage({
   const another = guest ? () => account.ask('another-roster') : undefined
   const { keepImported, saveError: importError } = useNewRoster()
   const importer = useRef<{ show: () => void }>(null)
+  const arriveImporting = useEffectEvent(() => {
+    importer.current?.show()
+    void navigate({ to: '/rosters', search, replace: true })
+  })
+  useEffect(() => {
+    if (importing) arriveImporting()
+  }, [importing])
   // Rosters chosen together are deleted in one action; a row's own Delete goes through the single path.
   const [deleting, setDeleting] = useState<{ rosters: SavedRoster[]; together: boolean } | null>(null)
   // Held by id, so the dialog reads each visibility change back from the library rather than a stale copy.
