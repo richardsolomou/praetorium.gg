@@ -28,6 +28,8 @@ const UNREACHED = new Set([
   'battle_invite',
   'drafts_by_user',
   'remove_battle_player',
+  'save_scoring_draft',
+  'scoring_drafts',
   'seat_battle_player',
   'stop_battle_invite',
   'sweep_drafts',

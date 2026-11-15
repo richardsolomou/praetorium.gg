@@ -833,6 +833,8 @@ export type BattleState = {
   phase: Phase
   activePlayerId: PlayerId | null
   turnSeq: number
+  /** The command that brought the battle to its current round, turn, phase and owed settlement, so a phase undone and played again is a new moment. */
+  momentSeq: number
   firstPlayerId: PlayerId | null
   attackerId: PlayerId | null
   /**
@@ -941,12 +943,17 @@ export function* replay(state: BattleState, log: readonly LoggedCommand[]): Gene
   }
 }
 
+const turnMoment = (state: BattleState) =>
+  JSON.stringify([state.round, state.activePlayerId, state.phase, state.pendingSettlement?.round, state.pendingSettlement?.playerId])
+
 /** Commands that change what is left of a unit, which the table corrects by pressing the opposite control. */
 const CASUALTY_COMMANDS: readonly Command['kind'][] = ['set-unit', 'wound-unit', 'damage-unit']
 
 /** Applies one command that is standing when it is folded, and records whether undo may name it. */
 export function applyEntry(state: BattleState, entry: LoggedCommand) {
+  const moment = turnMoment(state)
   apply(state, entry.by, entry.command, entry.seq)
+  if (turnMoment(state) !== moment) state.momentSeq = entry.seq
   recordBeaconDestruction(state)
   const now = playedMoment(state)
   if (now) {
@@ -1036,6 +1043,7 @@ export function emptyBattle(
     phase: 'command',
     activePlayerId: null,
     turnSeq: 0,
+    momentSeq: 0,
     firstPlayerId: null,
     attackerId: null,
     sideDispositions: {},

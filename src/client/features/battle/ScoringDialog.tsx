@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { Stepper } from '../../components/Stepper'
 import { Button } from '@/components/ui/button'
 import { DialogBody, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/Dialog'
@@ -48,7 +47,8 @@ type Props = {
    */
   round: number
   undo: UndoTarget
-  initialAnswers?: ScoringAnswers
+  /** What has been pressed so far, on this phone or another seated one. */
+  answers: ScoringAnswers
   onAnswersChange: (answers: ScoringAnswers) => void
 }
 
@@ -77,10 +77,9 @@ export function ScoringDialog({
   onCancel,
   round,
   undo,
-  initialAnswers,
+  answers,
   onAnswersChange,
 }: Props) {
-  const [answers, setAnswers] = useState<ScoringAnswers>(() => initialAnswers ?? {})
   const conditions = due.flatMap((card) => card.awards.map(conditionLabel))
   const { choice } = useSourceTexts(conditions)
   // Asked once for the whole prompt: a row each would bury the payouts under identical lines.
@@ -182,15 +181,11 @@ export function ScoringDialog({
     return [`${whose} ${label} cap is ${limit.cap} VP, and ${limit.room} VP of it is left — the other ${over} VP does not score.`]
   })
 
-  const recordAnswers = (next: ScoringAnswers) => {
-    setAnswers(next)
-    onAnswersChange(next)
-  }
   const answer = (card: DueCard, at: number, times: number) => {
     const taken = answerFor(card)
     const chosen = card.awards[at]
     if (!chosen) return
-    recordAnswers({
+    onAnswersChange({
       ...answers,
       [card.key]: card.awards.map((award, index) => (index === at ? times : alternatives(chosen, award) ? 0 : (taken[index] ?? 0))),
     })
@@ -315,7 +310,7 @@ export function ScoringDialog({
                       pending={pending}
                       tone={colours}
                       ariaLabel={`${card.name} scored nothing`}
-                      onPress={() => recordAnswers({ ...answers, [card.key]: card.awards.map(() => 0) })}
+                      onPress={() => onAnswersChange({ ...answers, [card.key]: card.awards.map(() => 0) })}
                     />
                   </div>
                 </div>
@@ -340,7 +335,7 @@ export function ScoringDialog({
               variant="outline"
               disabled={pending}
               onClick={() =>
-                recordAnswers({
+                onAnswersChange({
                   ...answers,
                   ...Object.fromEntries(due.filter((card) => !answers[card.key]).map((card) => [card.key, card.awards.map(() => 0)])),
                 })

@@ -52,6 +52,14 @@ export function withBattles<B extends RepositoryBase>(Base: B) {
       return this.product.battleDraftState(battleId)
     }
 
+    saveScoringDraft(...args: Parameters<SpacetimeOperator['saveScoringDraft']>) {
+      return this.product.saveScoringDraft(...args)
+    }
+
+    scoringDrafts(battleId: string) {
+      return this.product.scoringDrafts(battleId)
+    }
+
     async battleHistoryByInvite(invite: string) {
       const snapshot = await this.product.battleByInvite(invite)
       return snapshot ? this.battleHistory(snapshot) : undefined
