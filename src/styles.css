@@ -373,8 +373,18 @@ html[data-native-app='true'] [data-native-app-content][data-immersive='true'] {
     --toast-bottom: calc(5rem + env(safe-area-inset-bottom));
   }
 
-  html:has([data-turn-control], [data-setup-bar]) {
+  html:has([data-setup-bar]) {
     --toast-bottom: calc(9rem + env(safe-area-inset-bottom));
+  }
+
+  /* `TurnControl` reports its own height, which a block reason, the clock button or large text can more than double. */
+  html:has([data-turn-control]) {
+    --toast-bottom: calc(4.5rem + var(--turn-control-height, 4.5rem) + env(safe-area-inset-bottom));
+  }
+
+  /* The round summary covers the bars and keeps room at its foot for a toast, so its button is never under one. */
+  html:has([data-round-summary]) {
+    --toast-bottom: calc(1rem + env(safe-area-inset-bottom));
   }
 
   html:not([data-native-app='true']) [data-turn-control],
