@@ -74,9 +74,10 @@ export function mayReloadCancelledLoad(now = Date.now()) {
 /** What a route error page tells the reader: its message when written for people, never a raw payload or markup. */
 export function routeErrorExplanation(error: unknown) {
   if (isModuleLoadFailure(error)) return 'Part of this page could not load. Check your connection, then reload to try again.'
-  if (typeof navigator !== 'undefined' && !navigator.onLine)
-    return "You're offline, and this page isn't saved on this device. It opens once you're back online."
-  if (isFetchNetworkFailure(error)) return CONNECTION_LOST_MESSAGE
+  if (isFetchNetworkFailure(error))
+    return typeof navigator !== 'undefined' && !navigator.onLine
+      ? "You're offline, and this page isn't saved on this device. It opens once you're back online."
+      : CONNECTION_LOST_MESSAGE
   const message = error instanceof Error ? error.message.trim() : ''
   // The router's own assertions read as code, not as anything a player can act on.
   if (message && message.length <= 200 && !/^[[{<]/.test(message) && !/^invariant failed/i.test(message)) return message
