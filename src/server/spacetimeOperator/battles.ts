@@ -121,11 +121,18 @@ export function withBattles<B extends SpacetimeBase>(Base: B) {
     }
 
     async saveScoringDraft(battleId: string, userId: string, draft: ScoringDraft) {
-      return this.read('save_scoring_draft', [battleId, userId, JSON.stringify(draft)], z.enum(['saved', 'stale']))
+      return this.read(
+        'save_scoring_draft',
+        [battleId, userId, JSON.stringify(draft)],
+        z.discriminatedUnion('outcome', [
+          z.object({ outcome: z.literal('saved'), updatedAt: z.number().int() }),
+          z.object({ outcome: z.literal('stale') }),
+        ]),
+      )
     }
 
     async scoringDrafts(battleId: string) {
-      return this.read('scoring_drafts', [battleId], z.array(scoringDraftSchema.extend({ userId: z.string() })))
+      return this.read('scoring_drafts', [battleId], z.array(scoringDraftSchema.extend({ updatedAt: z.number().int() })))
     }
 
     async battleByInvite(link: string) {

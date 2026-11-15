@@ -2249,28 +2249,37 @@ describe('scoring drafts', () => {
       expect(result).toEqual({ outcome: 'appended', seq: seq + 1 })
       seq += 1
     }
-    const send = (userId: string, phase: string, since: number) =>
-      JSON.parse(
-        module.saveScoringDraft(host.procedure(host.operator), {
-          battleId: 'battle',
-          userId,
-          body: JSON.stringify({ moment: moment(phase, since), playerId: 'creator', answers: { primary: [1, 0] } }),
-        }),
-      ) as string
-    const save = (userId: string, phase: string, since: number) => expect(send(userId, phase, since)).toBe('saved')
+    const send = (userId: string, phase: string, since: number, answers: Record<string, number[]> = { primary: [1, 0] }) =>
+      (
+        JSON.parse(
+          module.saveScoringDraft(host.procedure(host.operator), {
+            battleId: 'battle',
+            userId,
+            body: JSON.stringify({ moment: moment(phase, since), playerId: 'creator', answers }),
+          }),
+        ) as { outcome: string }
+      ).outcome
+    const save = (userId: string, phase: string, since: number, answers?: Record<string, number[]>) =>
+      expect(send(userId, phase, since, answers)).toBe('saved')
     const drafts = () =>
-      (JSON.parse(module.scoringDrafts(host.procedure(host.operator), { battleId: 'battle' })) as { userId: string }[])
-        .map((draft) => draft.userId)
-        .toSorted()
+      (JSON.parse(module.scoringDrafts(host.procedure(host.operator), { battleId: 'battle' })) as { answers: unknown }[]).map(
+        (draft) => draft.answers,
+      )
     return { submit, send, save, drafts }
   }
 
-  it('keeps each player’s answers through a command that leaves the moment as it was', () => {
+  it('keeps one draft per prompt, holding whatever either phone pressed last', () => {
+    const battle = playing()
+    battle.save('creator', 'command', 1, { primary: [1, 0] })
+    battle.save('opponent', 'command', 1, { primary: [0, 1] })
+    expect(battle.drafts()).toEqual([{ primary: [0, 1] }])
+  })
+
+  it('keeps the answers through a command that leaves the moment as it was', () => {
     const battle = playing()
     battle.save('creator', 'command', 1)
-    battle.save('opponent', 'command', 1)
     battle.submit({ kind: 'pause-clock' })
-    expect(battle.drafts()).toEqual(['creator', 'opponent'])
+    expect(battle.drafts()).toHaveLength(1)
   })
 
   it('keeps the answers when a missed score is recorded for an earlier moment', () => {
@@ -2283,7 +2292,7 @@ describe('scoring drafts', () => {
       scores: [{ category: 'primary', delta: 1 }],
       missed: { round: 1, phase: 'command', turn: 'creator' },
     })
-    expect(battle.drafts()).toEqual(['opponent'])
+    expect(battle.drafts()).toHaveLength(1)
   })
 
   it('drops the answers once the phase they were for ends', () => {
@@ -2313,7 +2322,7 @@ describe('scoring drafts', () => {
     const battle = playing()
     battle.submit({ kind: 'advance', playerId: 'creator' })
     battle.save('creator', 'movement', 2)
-    expect([battle.send('creator', 'command', 1), battle.drafts()]).toEqual(['stale', ['creator']])
+    expect([battle.send('opponent', 'command', 1), battle.drafts()]).toEqual(['stale', [{ primary: [1, 0] }]])
   })
 })
 

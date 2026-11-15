@@ -362,8 +362,7 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
     const signature = JSON.stringify(cards.map((card) => [card.key, card.awards]))
     return {
       key: `${id}:${signature}`,
-      initialAnswers: answersFor(cards, scoringDrafts.ownAnswers(side.captain.id)),
-      peers: scoringDrafts.peerAnswers(side.captain.id).map((peer) => ({ ...peer, answers: answersFor(cards, peer.answers) ?? {} })),
+      answers: answersFor(cards, scoringDrafts.answers(side.captain.id)),
       onAnswersChange: (answers: ScoringAnswers) => scoringDrafts.save(side.captain.id, answers),
     }
   }
@@ -758,8 +757,7 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
         {activeScoringOpen && active && activeScoringDraft ? (
           <ScoringDialog
             key={activeScoringDraft.key}
-            initialAnswers={activeScoringDraft.initialAnswers}
-            peers={activeScoringDraft.peers}
+            answers={activeScoringDraft.answers}
             onAnswersChange={activeScoringDraft.onAnswersChange}
             side={active}
             due={due}
@@ -795,8 +793,7 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
         {owedScoringOpen && settlementSide && owedScoringDraft ? (
           <ScoringDialog
             key={owedScoringDraft.key}
-            initialAnswers={owedScoringDraft.initialAnswers}
-            peers={owedScoringDraft.peers}
+            answers={owedScoringDraft.answers}
             onAnswersChange={owedScoringDraft.onAnswersChange}
             side={settlementSide}
             due={owedCards}
@@ -879,9 +876,9 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
   )
 }
 
-/** Restored answers for the cards still due, each only while the card still asks the same number of payouts. */
-function answersFor(cards: readonly DueCard[], saved: ScoringAnswers | undefined): ScoringAnswers | undefined {
-  if (!saved) return undefined
+/** Pressed answers for the cards still due, each only while the card still asks the same number of payouts. */
+function answersFor(cards: readonly DueCard[], saved: ScoringAnswers | undefined): ScoringAnswers {
+  if (!saved) return {}
   return Object.fromEntries(
     cards.flatMap((card) => {
       const answer = saved[card.key]

@@ -2,4 +2,4 @@
 'praetorium.gg': patch
 ---
 
-The other players in a battle now see what you press on a scoring prompt before you confirm it.
+Every phone at a battle now shows the same presses on a scoring prompt, and any of them can carry on pressing before it's confirmed.

@@ -598,7 +598,7 @@ export type ScoringDraftSignal = __Infer<typeof ScoringDraftSignal>
 export const ScoringDrafts = __t.object('ScoringDrafts', {
   key: __t.string(),
   battleId: __t.string(),
-  userId: __t.string(),
+  playerId: __t.string(),
   body: __t.string(),
   updatedAt: __t.u64(),
 })

@@ -290,13 +290,13 @@ export class PraetoriumService {
     return null
   }
 
-  /** Keeps a seated player's unconfirmed scoring answers, unless the battle has already left the moment they answer. */
+  /** Keeps the unconfirmed answers to a side's scoring prompt, unless the battle has already left the moment they answer. */
   async saveScoringDraft(token: string, userId: string, draft: ScoringDraft) {
     const seats = await this.mustSeat(token, userId)
-    return { outcome: await this.repository.saveScoringDraft(seats.battle.id, userId, draft) }
+    return this.repository.saveScoringDraft(seats.battle.id, userId, draft)
   }
 
-  /** What every seated player has pressed on the scoring prompt open now and not yet confirmed. */
+  /** What has been pressed on each side's scoring prompt open now and not yet confirmed. */
   async scoringDrafts(token: string, userId: string) {
     const seats = await this.mustSeat(token, userId)
     return this.repository.scoringDrafts(seats.battle.id)

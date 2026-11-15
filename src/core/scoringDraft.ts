@@ -28,7 +28,7 @@ export const scoringDraftAnswersSchema = z
   .record(z.string().min(1).max(128), z.array(z.number().int().min(0).max(100)).max(MAX_DRAFT_AWARDS))
   .refine((answers) => Object.keys(answers).length <= MAX_DRAFT_CARDS, 'too many cards')
 
-/** One player's unconfirmed answers to the scoring prompt open for `playerId`'s side at `moment`. */
+/** The unconfirmed answers to the scoring prompt open for `playerId`'s side at `moment`, whichever phone pressed them. */
 export const scoringDraftSchema = z.strictObject({
   moment: z.string().min(1).max(256),
   playerId: z.string().min(1).max(128),

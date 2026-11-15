@@ -1,13 +1,12 @@
 import { expect, test } from './test'
 import { advance, createRoster, desktopContext, PHONE, setupBattle, signUp, uniqueName } from './account'
 
-test('a half-answered scoring prompt shows on the other phone and survives leaving the battle', async ({ page, browser }) => {
+test('both phones press the same scoring prompt, and the presses survive leaving the battle', async ({ page, browser }) => {
   test.setTimeout(180_000)
   const opponent = await (await browser.newContext(desktopContext)).newPage()
   await signUp(opponent, uniqueName('Draft opponent'))
   const theirs = await createRoster(opponent, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Watching army' })
-  const hostName = uniqueName('Draft host')
-  await signUp(page, hostName)
+  await signUp(page, uniqueName('Draft host'))
   const ours = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Scoring army' })
   const battleUrl = await setupBattle(page, opponent, { hostRoster: ours, guestRoster: theirs })
   for (const phone of [page, opponent]) await phone.setViewportSize(PHONE)
@@ -15,23 +14,36 @@ test('a half-answered scoring prompt shows on the other phone and survives leavi
   await page.getByRole('button', { name: 'Pass the turn', exact: true }).click()
 
   const scoring = page.getByRole('dialog', { name: /^Scoring end of turn points/ })
-  const answer = scoring.getByRole('button', { name: /plus \d+$/ }).first()
-  const scored = Number((await answer.innerText()).replace(/[^0-9]/g, ''))
-  await answer.click()
-  const total = scoring.locator('[data-slot="dialog-footer"] output')
-  await expect(total).toHaveAccessibleName(`Scoring ${scored} VP`)
-
   const watching = opponent.getByRole('dialog', { name: /^Scoring end of turn points/ })
-  await expect(watching.locator('[data-peer-answers]')).toContainText(`${hostName} has ${scored} VP marked, not yet confirmed.`)
-  await expect(watching.locator('[data-peer-press]')).toHaveText(`${hostName} marked this`)
-  await expect(watching.locator('[data-slot="dialog-footer"] output')).toHaveAccessibleName('Scoring 0 VP')
-  await page.screenshot({ path: test.info().outputPath('answering-phone.png') })
-  await opponent.screenshot({ path: test.info().outputPath('watching-phone.png') })
+  const card = (dialog: typeof scoring, index: number) => dialog.locator('[data-due]').nth(index)
+  const payout = (dialog: typeof scoring, index: number) =>
+    card(dialog, index)
+      .getByRole('button', { name: /plus \d+$/ })
+      .first()
+  const vp = async (button: ReturnType<typeof payout>) => Number((await button.innerText()).replace(/[^0-9]/g, ''))
+  const total = (dialog: typeof scoring) => dialog.locator('[data-slot="dialog-footer"] output')
+
+  const first = payout(scoring, 0)
+  const scored = await vp(first)
+  await first.click()
+  await expect(total(scoring)).toHaveAccessibleName(`Scoring ${scored} VP`)
+  await expect(payout(watching, 0)).toHaveAttribute('aria-pressed', 'true')
+  await expect(total(watching)).toHaveAccessibleName(`Scoring ${scored} VP`)
+
+  // Every card can be answered as not scored, whatever its payouts look like.
+  await card(watching, 1)
+    .getByRole('button', { name: /scored nothing$/ })
+    .click()
+  await expect(card(scoring, 1)).toHaveAttribute('data-answered', '')
+  await expect(total(scoring)).toHaveAccessibleName(`Scoring ${scored} VP`)
+  await page.screenshot({ path: test.info().outputPath('scoring-phone.png') })
+  await opponent.screenshot({ path: test.info().outputPath('other-phone.png') })
 
   const sections = page.getByRole('navigation', { name: 'Application sections' })
   await sections.getByRole('link', { name: 'Factions' }).click()
   await expect(page).toHaveURL('/factions')
   await sections.getByRole('link', { name: 'Battles' }).click()
   await expect(page).toHaveURL(battleUrl)
-  await expect(total).toHaveAccessibleName(`Scoring ${scored} VP`)
+  await expect(card(scoring, 1)).toHaveAttribute('data-answered', '')
+  await expect(total(scoring)).toHaveAccessibleName(`Scoring ${scored} VP`)
 })

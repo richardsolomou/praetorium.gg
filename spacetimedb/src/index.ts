@@ -1220,9 +1220,9 @@ export const stopBattleInvite = spacetime.procedure({ battleId: t.string(), by: 
 )
 
 /**
- * Keeps a player's answers to the scoring prompt open now. Answers written for a moment the battle has already left,
- * such as ones a device kept while offline after the scoring landed, answer `stale`; the stored draft, which may be
- * another of the player's devices answering the current prompt, stays.
+ * Keeps the answers to the scoring prompt open now for `draft.playerId`'s side, from whichever seated phone pressed
+ * last. Answers written for a moment the battle has already left, such as ones a device kept while offline after the
+ * scoring landed, answer `stale` and leave the stored draft alone.
  */
 export const saveScoringDraft = spacetime.procedure(
   { battleId: t.string(), userId: t.string(), body: t.string() },
@@ -1231,29 +1231,31 @@ export const saveScoringDraft = spacetime.procedure(
     operatorTx(ctx, (tx) => {
       if (input.body.length > 16_000) throw new SenderError('Scoring draft is too large')
       const draft = decodePayload(scoringDraftSchema, input.body, 'Invalid scoring draft')
-      const key = JSON.stringify([input.battleId, input.userId])
-      if (!tx.db.battleUsers.key.find(key)) throw new SenderError('Battle unavailable')
-      if (scoringMoment(battleState(tx, input.battleId).state) !== draft.moment) return productJson('stale')
+      if (!tx.db.battleUsers.key.find(JSON.stringify([input.battleId, input.userId]))) throw new SenderError('Battle unavailable')
+      const { state } = battleState(tx, input.battleId)
+      if (!state.players.some((player) => player.id === draft.playerId)) throw new SenderError('Battle unavailable')
+      if (scoringMoment(state) !== draft.moment) return productJson({ outcome: 'stale' })
+      const key = JSON.stringify([input.battleId, draft.playerId])
       const row = {
         key,
         battleId: input.battleId,
-        userId: input.userId,
+        playerId: draft.playerId,
         body: JSON.stringify(draft),
         updatedAt: tx.timestamp.microsSinceUnixEpoch,
       }
       if (tx.db.scoringDrafts.key.find(key)) tx.db.scoringDrafts.key.update(row)
       else tx.db.scoringDrafts.insert(row)
-      return productJson('saved')
+      return productJson({ outcome: 'saved', updatedAt: safeNumber(row.updatedAt) })
     }),
 )
 
-/** Every seated player's unconfirmed scoring answers in a battle. */
+/** The unconfirmed scoring answers in a battle, one draft per side's prompt, with when each was last written. */
 export const scoringDrafts = spacetime.procedure({ battleId: t.string() }, t.string(), (ctx, { battleId }) =>
   operatorTx(ctx, (tx) =>
     productJson(
       Array.from(tx.db.scoringDrafts.battleId.filter(battleId)).flatMap((row) => {
         const draft = scoringDraftSchema.safeParse(JSON.parse(row.body))
-        return draft.success ? [{ userId: row.userId, ...draft.data }] : []
+        return draft.success ? [{ ...draft.data, updatedAt: safeNumber(row.updatedAt) }] : []
       }),
     ),
   ),
