@@ -136,7 +136,13 @@ function SummaryScreen({ mark, view, sides: table, onClose }: Omit<Props, 'mark'
           {/* Both sides share four rows, so a pair's two names above one score still leave the scores and their parts level. */}
           <div className="grid grid-cols-2 grid-rows-[repeat(4,auto)] gap-x-4 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:gap-x-8">
             {table.map((side, position) => (
-              <SideTotals key={side.index} side={side} round={mark.round} end={position > 0} />
+              <SideTotals
+                key={side.index}
+                side={side}
+                round={mark.round}
+                end={position > 0}
+                battleReady={table.some((each) => each.paintedPoints)}
+              />
             ))}
             {/* Between the sides from `sm`; a phone keeps the height for the scores, and the title already names the round. */}
             <div className="order-2 row-span-4 hidden justify-center self-center sm:flex">
@@ -167,14 +173,15 @@ function SummaryScreen({ mark, view, sides: table, onClose }: Omit<Props, 'mark'
   )
 }
 
-function SideTotals({ side, round, end }: { side: Side; round: number; end: boolean }) {
+/** `battleReady` when any side scores it, so both sides list the same parts on the same lines. */
+function SideTotals({ side, round, end, battleReady }: { side: Side; round: number; end: boolean; battleReady: boolean }) {
   const colours = tint(side.index)
   const team = side.armies.length > 1
   const gained = side.rounds.find((entry) => entry.round === round)?.total ?? 0
   const parts = [
     { label: 'Primary', value: side.primary },
     { label: 'Secondary', value: side.secondary },
-    ...(side.paintedPoints ? [{ label: 'Battle ready', value: side.paintedPoints }] : []),
+    ...(battleReady ? [{ label: 'Battle ready', value: side.paintedPoints || '–' }] : []),
     { label: 'CP', value: side.cp },
   ]
   return (
