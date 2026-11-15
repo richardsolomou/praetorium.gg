@@ -2,12 +2,12 @@ import type { MissionSelectionView } from '../../../core/battleView'
 import { isMarkerPlacement } from '../../../core/missionSelections'
 import { countLabel } from '../../text'
 import { MARKER_PLACEMENT_COPY } from './markerPlacementCopy'
-import { missionUnitName } from './missionUnitChoice'
+import { attachedUnitName } from '../../../core/attachedUnits'
 
 function RecordedUnit({ unit }: { unit: MissionSelectionView['units'][number] | undefined }) {
   return (
     <>
-      {unit ? missionUnitName(unit) : 'Recorded unit'}
+      {unit ? attachedUnitName(unit.name, unit.joined) : 'Recorded unit'}
       {unit && unit.status !== 'battlefield' ? <span className="text-faint"> ({unit.status})</span> : null}
     </>
   )

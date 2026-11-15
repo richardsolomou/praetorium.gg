@@ -1,7 +1,7 @@
 import { Check } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { z } from 'zod'
-import { attachedUnitList } from '../../../../core/attachedUnits'
+import { attachedUnitList, joinedWith } from '../../../../core/attachedUnits'
 import { FilterChip } from '../../../components/FilterChip'
 import type { Army, Side } from '../../../sides'
 import { parseStored, useStoredValue, writeStoredValue } from '../../../storedValue'
@@ -173,9 +173,7 @@ function UnitRow({ unit, rule, placed, onToggle }: { unit: Standing; rule: Rule;
         ) : null}
         <span className="min-w-0">
           <span className="block truncate text-sm font-semibold">{host.name}</span>
-          {joined.length ? (
-            <span className="block text-3xs text-dim">with {joined.map((character) => character.name).join(', ')}</span>
-          ) : null}
+          {joined.length ? <span className="block text-3xs text-dim">{joinedWith(joined.map((character) => character.name))}</span> : null}
         </span>
       </span>
       {unit.prebattleRules.includes(rule) ? (

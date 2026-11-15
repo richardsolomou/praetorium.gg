@@ -1,4 +1,4 @@
-import { attachedUnitList, type AttachedUnit } from '../../../../core/attachedUnits'
+import { attachedUnitList, attachedUnitName, type AttachedUnit } from '../../../../core/attachedUnits'
 import { transportLabel } from '../../../../core/battle'
 import { nicknamedUnit } from '../../../../core/unitNotes'
 import type { Army } from '../../../sides'
@@ -30,5 +30,8 @@ export function reserveUnitLabel(units: AttachedUnit<Army['units'][number]>[], u
       units.map((entry) => entry.host),
       unit.host.key,
     ) ?? unit.host.name
-  return unit.joined.length ? `${name} with ${unit.joined.map((entry) => nicknamedUnit(entry.name, entry.nickname)).join(', ')}` : name
+  return attachedUnitName(
+    name,
+    unit.joined.map((entry) => nicknamedUnit(entry.name, entry.nickname)),
+  )
 }

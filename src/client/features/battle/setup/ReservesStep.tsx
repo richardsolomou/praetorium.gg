@@ -2,7 +2,7 @@ import { MapPin } from 'lucide-react'
 import { useId, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverDescription, PopoverTitle, PopoverTrigger } from '@/components/ui/popover'
-import type { AttachedUnit } from '../../../../core/attachedUnits'
+import { joinedWith, type AttachedUnit } from '../../../../core/attachedUnits'
 import {
   canTransport,
   type Command,
@@ -177,9 +177,7 @@ function UnitFormationRow({
         <span className="min-w-0">
           <span className="block text-sm font-semibold">{host.name}</span>
           {/* Named rather than counted, because which character is with them is the fact. */}
-          {joined.length ? (
-            <span className="block text-3xs text-dim">with {joined.map((character) => character.name).join(', ')}</span>
-          ) : null}
+          {joined.length ? <span className="block text-3xs text-dim">{joinedWith(joined.map((character) => character.name))}</span> : null}
         </span>
         {unit.prebattleRules.length ? (
           <span className="text-3xs text-discarded uppercase">{unit.prebattleRules.map(formationLabel).join(' · ')}</span>

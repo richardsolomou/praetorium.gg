@@ -16,7 +16,8 @@ import { battleMatchupIds, battlefieldLayout } from './battlefieldLayout'
 import { BattleDialogContent, BattlePromptDialog } from './BattlePromptDialog'
 import type { ReferenceCard } from './MissionCards'
 import { MissionCardReference } from '../../components/MissionCardReference'
-import { joinedLine, missionUnitChoice, missionUnitChoiceKey, missionUnitName } from './missionUnitChoice'
+import { missionUnitChoice, missionUnitChoiceKey } from './missionUnitChoice'
+import { attachedUnitName, joinedWith } from '../../../core/attachedUnits'
 import { UndoLatest } from './UndoLatest'
 import { withMember } from '../../../core/collections'
 import { MARKER_PLACEMENT_COPY } from './markerPlacementCopy'
@@ -110,10 +111,10 @@ export function MissionSelectionDialog({
     const army = view.players.find((player) => player.id === unit.playerId)?.name ?? 'Army'
     return {
       value: missionUnitChoiceKey(unit),
-      label: `${army} · ${missionUnitName(unit)}`,
+      label: `${army} · ${attachedUnitName(unit.name, unit.joined)}`,
       content: unit.joined.length ? (
         <span className="truncate">
-          {army} · {unit.name} <span className="text-dim">{joinedLine(unit)}</span>
+          {army} · {unit.name} <span className="text-dim">{joinedWith(unit.joined)}</span>
         </span>
       ) : undefined,
     }

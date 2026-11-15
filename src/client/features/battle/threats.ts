@@ -1,4 +1,4 @@
-import { attachedUnitList } from '../../../core/attachedUnits'
+import { attachedUnitList, attachedUnitName } from '../../../core/attachedUnits'
 import type { UnitFormation, UnitState } from '../../../core/battle'
 import type { Datasheet } from '../../../core/datasheet'
 import type { RosterPick } from '../../../core/roster'
@@ -34,7 +34,10 @@ export function survivingUnits(units: readonly UnitState[], picks: readonly Rost
   const active = picks.map((_, index) => standing.some((unit) => pickOf(unit) === index))
   const rows = attachedUnitList(standing).map(({ host, joined }) => ({
     key: host.key,
-    name: [host, ...joined].map((unit) => unit.name).join(' + '),
+    name: attachedUnitName(
+      host.name,
+      joined.map((unit) => unit.name),
+    ),
     formation: host.formation,
     pickIndex: pickOf(host),
   }))
