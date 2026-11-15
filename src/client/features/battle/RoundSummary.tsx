@@ -1,6 +1,7 @@
 import { Dialog as DialogPrimitive } from '@base-ui/react/dialog'
 import { useQuery } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
+import { setRoundSummaryShowing } from './roundSummaryShowing'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import type { BattleView } from '../../../core/battleView'
@@ -70,6 +71,10 @@ export function RoundSummary({ mark: next, view, sides, onClose }: Props) {
   // Held through the closing transition, so what fades out is what was shown rather than nothing.
   const [mark, setMark] = useState(next)
   if (next && !(mark && sameMark(mark, next))) setMark(next)
+  useEffect(() => {
+    setRoundSummaryShowing(Boolean(next))
+    return () => setRoundSummaryShowing(false)
+  }, [next])
   // The root stays mounted while closed, because a dialog that mounts already open skips its entering transition.
   return (
     <DialogPrimitive.Root
@@ -122,7 +127,7 @@ function SummaryScreen({ mark, view, sides: table, onClose }: Omit<Props, 'mark'
           }}
         />
         <div aria-hidden className="construction-grid fixed" />
-        <div className="relative mx-auto flex min-h-full w-full max-w-5xl flex-col overflow-x-clip transition-transform duration-320 ease-(--ease-settle) group-data-ending-style/summary:translate-y-2 group-data-ending-style/summary:duration-160 group-data-ending-style/summary:ease-in group-data-starting-style/summary:translate-y-4 motion-reduce:transition-none justify-center gap-6 px-4 pt-[calc(1.5rem+env(safe-area-inset-top))] pb-[calc(6rem+env(safe-area-inset-bottom))] min-[860px]:pb-[calc(1.5rem+env(safe-area-inset-bottom))] sm:gap-10 sm:px-8">
+        <div className="relative mx-auto flex min-h-full w-full max-w-5xl flex-col overflow-x-clip transition-transform duration-320 ease-(--ease-settle) group-data-ending-style/summary:translate-y-2 group-data-ending-style/summary:duration-160 group-data-ending-style/summary:ease-in group-data-starting-style/summary:translate-y-4 motion-reduce:transition-none justify-center gap-6 px-4 pt-[calc(1.5rem+env(safe-area-inset-top))] pb-[calc(9rem+env(safe-area-inset-bottom))] min-[860px]:pb-[calc(1.5rem+env(safe-area-inset-bottom))] sm:gap-10 sm:px-8">
           <header className="text-center">
             {finished ? <p className="eyebrow">Battle over</p> : null}
             <DialogPrimitive.Title className="mt-1 text-3xl leading-none font-bold text-balance break-words uppercase sm:text-5xl">

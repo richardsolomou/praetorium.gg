@@ -1,23 +1,28 @@
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { toast } from 'sonner'
 import { ACHIEVEMENTS } from '../../../core/achievements'
 import { markAchievementsSeen } from '../../functions'
 import { requestNativeHaptic } from '../../nativeBridge'
 import { newAchievementsQuery } from '../../queries'
 import { AchievementBadge } from './AchievementBadge'
+import { useRoundSummaryShowing } from '../battle/roundSummaryShowing'
 
 /**
  * Toasts each medal the signed-in player earns, with a way to their achievements tab. The server remembers which they
- * have been told of, so a medal is announced once across every device.
+ * have been told of, so a medal is announced once across every device. A battle's medals arrive as its final summary
+ * opens, so they wait until it closes rather than stacking over its button.
  */
 export function AchievementToasts({ userId }: { userId: string }) {
   const { data } = useQuery(newAchievementsQuery())
   const navigate = useNavigate()
+  const held = useRoundSummaryShowing()
+  const announced = useRef(new Set<string>())
   useEffect(() => {
-    if (!data?.length) return
-    const fresh = new Set(data.map((achievement) => achievement.id))
+    const fresh = new Set(data?.map((achievement) => achievement.id).filter((id) => !announced.current.has(id)))
+    if (held || !fresh.size) return
+    for (const id of fresh) announced.current.add(id)
     requestNativeHaptic('success')
     for (const achievement of ACHIEVEMENTS.filter((one) => fresh.has(one.id)))
       toast(`Achievement earned: ${achievement.name}`, {
@@ -34,6 +39,6 @@ export function AchievementToasts({ userId }: { userId: string }) {
         },
       })
     void markAchievementsSeen({ data: { achievementIds: [...fresh] } })
-  }, [data, userId, navigate])
+  }, [data, held, userId, navigate])
   return null
 }
