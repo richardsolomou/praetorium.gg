@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.252.0 (2026-11-15)
+
+### Minor Changes
+
+- 9e75bac: King of the Colosseum games can be played on the three Combat Patrol battlefields.
+- 9e75bac: King of the Colosseum games can be played in the original Colosseum 1.0 as well as 2.0.
+
 ## 0.251.0 (2026-11-15)
 
 ### Minor Changes
