@@ -347,7 +347,6 @@ function SpectatorSide({
   const cardProps = {
     view,
     side,
-    actionable: false,
     pending: false,
     send: ignoreCommand,
     referenceFor,

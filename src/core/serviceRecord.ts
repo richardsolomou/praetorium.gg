@@ -3,7 +3,7 @@
 import { groupBy } from './collections'
 import { isGuestSeat } from './newBattle'
 import { routeSlug } from './slug'
-import { type PlayerId, pointsLabel } from './battle'
+import { pointsLabel } from './battle'
 import type { BattleDigest } from './battleDigest'
 import {
   battleOutcome,
@@ -40,17 +40,13 @@ export type SeatPlay = { cpSpent: number; stratagems: readonly StratagemPlay[]; 
  * Each seat's stratagems, cards and primary, read off a battle's digest.
  *
  * The fold has already skipped every undone command, so an undone stratagem was
- * never used here. A card put back the moment it was drawn was never held, and a
- * face-down Secret Mission this reader may not name is left out altogether rather
- * than counted under another name: a digest's `secret` is `mayNameCard` asked of
- * no viewer, so a record cannot name a card the battle itself withholds.
+ * never used here, and a card put back the moment it was drawn was never held.
  */
-export function seatPlays(digest: BattleDigest, viewerId: PlayerId | null): SeatPlay[] {
-  const viewerSide = digest.seats.find((seat) => seat.id === viewerId)?.side
+export function seatPlays(digest: BattleDigest): SeatPlay[] {
   return digest.seats.map((seat) => ({
     cpSpent: seat.cpSpent,
     stratagems: seat.stratagems,
-    cards: seat.cards.filter((card) => !card.secret || seat.side === viewerSide).map(({ key, name, points }) => ({ key, name, points })),
+    cards: seat.cards,
     primary: seat.primaryCard,
   }))
 }

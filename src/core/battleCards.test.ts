@@ -559,74 +559,6 @@ describe('secondaries', () => {
     expect(validate(state, ALICE, { kind: 'draw-secondaries', secondaries: [cards[1]!] })).toBeNull()
   })
 
-  it('keeps a secret mission active when resolving the tactical hand', () => {
-    const before = tacticalEnd(
-      [ALICE, { kind: 'select-secret', secondary: { key: 'secret', name: 'Hold the Line' } }],
-      [ALICE, { kind: 'resolve-tactical-hand', keys: ['a'] }],
-    )
-
-    expect(alice(before)?.secondaryStatus).toMatchObject({ a: 'discarded', secret: 'active' })
-    expect(validate(before, ALICE, { kind: 'resolve-tactical-hand', keys: ['a'] })).toBe(
-      'there are no active tactical secondaries to resolve',
-    )
-  })
-
-  it('withhold a secret mission from the opponent until it is revealed', () => {
-    const history = log(...started(), [ALICE, { kind: 'select-secret', secondary: { key: 'secret-a', name: 'Hold the Line' } }])
-    const state = reduceBattle(PLAYERS, history)
-
-    expect(battleView({ token: 'abc' }, NAMES, state, BOB).players[0]?.secondaries[0]?.name).toBe('Secret mission')
-    expect(battleView({ token: 'abc' }, NAMES, state, ALICE).players[0]?.secondaries[0]?.name).toBe('Hold the Line')
-  })
-
-  it('reveal a secret mission when it is achieved', () => {
-    const history = log(
-      ...started(),
-      [ALICE, { kind: 'select-secret', secondary: { key: 'secret-a', name: 'Hold the Line' } }],
-      [ALICE, { kind: 'set-secondary-status', key: 'secret-a', status: 'achieved' }],
-    )
-
-    expect(battleView({ token: 'abc' }, NAMES, reduceBattle(PLAYERS, history), BOB).players[0]?.secondaries[0]?.name).toBe('Hold the Line')
-  })
-
-  it('redact a secret mission from the opponent report', () => {
-    const history = log(...started(), [ALICE, { kind: 'select-secret', secondary: { key: 'secret-a', name: 'Hold the Line' } }])
-
-    expect(text(battleReport(NAMES, history, PLAYERS, BOB))).toContain('Alice selects a secret mission')
-    expect(text(battleReport(NAMES, history, PLAYERS, BOB)).join(' ')).not.toContain('Hold the Line')
-  })
-
-  it('let an opponent reveal a secret mission from the device refereeing the battle', () => {
-    const state = reduceBattle(
-      PLAYERS,
-      log(...started(), [ALICE, { kind: 'select-secret', secondary: { key: 'secret-a', name: 'Hold the Line' } }]),
-    )
-
-    expect(validate(state, BOB, { kind: 'reveal-secret', playerId: ALICE })).toBeNull()
-  })
-
-  it('give the same answer when an opponent guesses a hidden or absent secondary key', () => {
-    const state = reduceBattle(
-      PLAYERS,
-      log(...started(), [ALICE, { kind: 'select-secret', secondary: { key: 'secret-a', name: 'Hold the Line' } }]),
-    )
-    const hidden = validate(state, BOB, { kind: 'score-secondary', key: 'secret-a', delta: 5, playerId: ALICE })
-    const absent = validate(state, BOB, { kind: 'score-secondary', key: 'secret-b', delta: 5, playerId: ALICE })
-
-    expect(hidden).toBe(absent)
-  })
-
-  it('hide secondary status keys from an opponent too', () => {
-    const state = reduceBattle(
-      PLAYERS,
-      log(...started(), [ALICE, { kind: 'select-secret', secondary: { key: 'secret-a', name: 'Hold the Line' } }]),
-    )
-    const hidden = validate(state, BOB, { kind: 'set-secondary-status', key: 'secret-a', status: 'achieved', playerId: ALICE })
-    const absent = validate(state, BOB, { kind: 'set-secondary-status', key: 'secret-b', status: 'achieved', playerId: ALICE })
-
-    expect(hidden).toBe(absent)
-  })
-
   it('draw replacements only for tactical missions', () => {
     const tactical: [string, Command] = [
       ALICE,
@@ -731,61 +663,7 @@ describe('secondaries', () => {
     expect(battleView({ token: 'abc' }, NAMES, state, BOB).players[0]?.remainingSecondaries).toEqual(cards)
   })
 
-  it('says an unrevealed secret is outstanding without naming it to the opponent', () => {
-    const state = reduceBattle(
-      PLAYERS,
-      log(...started(), [ALICE, { kind: 'select-secret', secondary: { key: 'secret-a', name: 'Hold the Line' } }], ...turns(5, ALICE)),
-    )
-
-    for (const viewer of [ALICE, BOB]) {
-      const view = battleView({ token: 'abc' }, NAMES, state, viewer)
-      expect(view.secretMissionActionPlayerId).toBe(ALICE)
-    }
-  })
-
-  it('offers a handoff when a hidden mission is due to score', () => {
-    const award = {
-      vp: 5,
-      per: null,
-      mode: null,
-      max: null,
-      group: null,
-      cumulative: false,
-      criteria: 'Hold the objective.',
-      trigger: { timing: 'end-of-phase', phase: 'command', playerTurn: 'your-turn', roundMin: null, roundMax: null },
-    }
-    const state = reduceBattle(
-      PLAYERS,
-      log(...started(), [ALICE, { kind: 'select-secret', secondary: { key: 'secret-a', name: 'Hold the Line', awards: [award] } }]),
-    )
-
-    expect(battleView({ token: 'abc' }, NAMES, state, BOB).secretMissionActionPlayerId).toBe(ALICE)
-  })
-
-  it('offers a handoff when the upcoming side has a hidden opponent-turn settlement', () => {
-    const award = {
-      vp: 5,
-      per: null,
-      mode: null,
-      max: null,
-      group: null,
-      cumulative: false,
-      criteria: 'Hold the objective.',
-      trigger: { timing: 'end-of-turn', phase: null, playerTurn: 'opponent-turn', roundMin: null, roundMax: null },
-    }
-    const state = reduceBattle(
-      PLAYERS,
-      log(
-        ...started(),
-        [BOB, { kind: 'select-secret', secondary: { key: 'secret-a', name: 'Hold the Line', awards: [award] } }],
-        ...turns(6, ALICE),
-      ),
-    )
-
-    expect(battleView({ token: 'abc' }, NAMES, state, ALICE).secretMissionActionPlayerId).toBe(BOB)
-  })
-
-  it('reveals and scores a final-round secret before completing the battle', () => {
+  it('replays a secret mission from an older log as an ordinary card that keeps its score', () => {
     const secret = {
       key: 'secret-a',
       name: 'Hold the Line',
@@ -803,7 +681,6 @@ describe('secondaries', () => {
       ],
     }
     const rounds = Array.from({ length: 5 }, () => [...turns(6, ALICE), ...turns(6, BOB)]).flat()
-    const waiting = reduceBattle(PLAYERS, log(...started(), [ALICE, { kind: 'select-secret', secondary: secret }], ...rounds))
     const finished = reduceBattle(
       PLAYERS,
       log(
@@ -816,33 +693,11 @@ describe('secondaries', () => {
       ),
     )
 
-    expect(waiting.status).toBe('playing')
-    expect(battleView({ token: 'abc' }, NAMES, waiting, BOB).secretMissionActionPlayerId).toBe(ALICE)
-    expect(finished).toMatchObject({ status: 'finished', result: { reason: 'completed' } })
-    expect(alice(finished)?.scored[secret.key]).toBe(5)
-  })
-
-  it('keeps a hidden owner-turn mission secret during opponent-turn settlement', () => {
-    const award = {
-      vp: 5,
-      per: null,
-      mode: null,
-      max: null,
-      group: null,
-      cumulative: false,
-      criteria: 'Hold the objective.',
-      trigger: { timing: 'end-of-turn', phase: null, playerTurn: 'your-turn', roundMin: null, roundMax: null },
-    }
-    const state = reduceBattle(
-      PLAYERS,
-      log(
-        ...started(),
-        [BOB, { kind: 'select-secret', secondary: { key: 'secret-a', name: 'Hold the Line', awards: [award] } }],
-        ...turns(6, ALICE),
-      ),
-    )
-
-    expect(battleView({ token: 'abc' }, NAMES, state, ALICE).secretMissionActionPlayerId).toBeNull()
+    expect([
+      finished.status,
+      alice(finished)?.scored[secret.key],
+      battleView({ token: 'abc' }, NAMES, finished, BOB).players[0]?.secondaries[0]?.name,
+    ]).toEqual(['finished', 5, 'Hold the Line'])
   })
 
   it('refuses a new secret mission, which no supported mission pack has', () => {
@@ -851,6 +706,12 @@ describe('secondaries', () => {
     expect(commandRefusal(state, ALICE, { kind: 'select-secret', secondary: { key: 'secret-a', name: 'Hold the Line' } })?.code).toBe(
       'secret-missions-unsupported',
     )
+  })
+
+  it('refuses to reveal a secret mission, which older logs replay as an ordinary card', () => {
+    const state = reduceBattle(PLAYERS, log(...started()))
+
+    expect(commandRefusal(state, ALICE, { kind: 'reveal-secret' })?.code).toBe('secret-missions-unsupported')
   })
 
   it('lets legacy tactical battles continue without an authoritative deck', () => {
@@ -1047,7 +908,7 @@ describe('secondaries', () => {
     expect(state.players[0]?.secondaries[0]?.name).toBe('Behind Enemy Lines')
   })
 
-  it('uses the deck name when a secret payload is altered', () => {
+  it('uses the deck name when an older secret mission payload is altered', () => {
     const state = reduceBattle(
       PLAYERS,
       log(

@@ -3,7 +3,7 @@ import { LegalLinks, LegalPage, LegalSection, PrivacyEmail } from './LegalPage'
 
 export function PrivacyPolicy() {
   return (
-    <LegalPage title="Privacy policy" updated="13 November 2026">
+    <LegalPage title="Privacy policy" updated="15 November 2026">
       <LegalSection title="Scope">
         <p>
           Praetorium builds Warhammer 40,000 army lists and tracks battles between the players seated at them. This policy covers the
@@ -102,8 +102,7 @@ export function PrivacyPolicy() {
             pages. A photo another player reports is hidden from everyone but you until an administrator reviews it.
           </li>
           <li>
-            Battles are public: anyone can watch past and live battles, including tournament battles. Spectators cannot change a battle or
-            see a face-down Secret Mission.
+            Battles are public: anyone can watch past and live battles, including tournament battles. Spectators cannot change a battle.
           </li>
           <li>Battles may appear on the home page and in your profile's battle record.</li>
           <li>The leaderboard counts finished games. Games you play alone, or with a guest seat that has no account, do not count.</li>

@@ -35,16 +35,15 @@ export type DigestSeat = {
   /** The Force Dispositions this seat's side and the side it faces play, which choose its mission. */
   matchup: { own: string | null; opposing: string | null }
   stratagems: { key: string; name: string; cp: number; detachment?: string }[]
-  /** Every card the seat held and kept, with what it scored; `secret` is one only its own side may name. */
-  cards: { key: string; name: string; points: number; secret: boolean }[]
+  /** Every card the seat held and kept, with what it scored. */
+  cards: { key: string; name: string; points: number }[]
   primaryCard: { key: string; name: string } | null
 }
 
 /**
  * A battle as everything outside it reads it: one fold of its log, small enough for a list to read hundreds.
  *
- * Every reader of a battle it is not playing builds from this, so its answers match the battle's own. It names no
- * viewer, so readers apply who may see a secret card themselves.
+ * Every reader of a battle it is not playing builds from this, so its answers match the battle's own.
  */
 export type BattleDigest = Pick<
   BattleState,
@@ -118,12 +117,7 @@ export function battleDigest(state: BattleState, log: readonly Pick<LoggedComman
         }),
         cards: [...new Map(player.secondaries.map((secondary) => [secondary.key, secondary])).values()]
           .filter((secondary) => player.secondaryStatus[secondary.key] !== 'returned')
-          .map(({ key, name }) => ({
-            key,
-            name,
-            points: player.scored[key] ?? 0,
-            secret: player.secretSecondary === key && !player.secretRevealed,
-          })),
+          .map(({ key, name }) => ({ key, name, points: player.scored[key] ?? 0 })),
         primaryCard: player.primaryCard ? { key: player.primaryCard.key, name: player.primaryCard.name } : null,
       }
     }),

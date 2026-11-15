@@ -39,9 +39,7 @@ export function watchBattle(
   const cards = yours
     ? [
         ...(yours.primaryCard ? [{ ...yours.primaryCard, kind: 'Primary' as const, points: yours.primary }] : []),
-        ...yours.secondaries
-          .filter((card) => card.status === 'active')
-          .map((card) => ({ ...card, kind: card.secret ? ('Secret' as const) : ('Secondary' as const) })),
+        ...yours.secondaries.filter((card) => card.status === 'active').map((card) => ({ ...card, kind: 'Secondary' as const })),
       ]
     : []
   const reminders = (yours ? prompts : []).flatMap((prompt) =>

@@ -167,7 +167,7 @@ describe('writing mission-card setup', () => {
 
 describe('the order a hand is drawn in', () => {
   const card = (key: string, status: 'active' | 'achieved' | 'discarded' | 'returned') =>
-    ({ key, name: key, status, points: 0, secret: false, revealed: false }) as ViewPlayer['secondaries'][number]
+    ({ key, name: key, status, points: 0, rounds: [] }) as ViewPlayer['secondaries'][number]
   const hand = (...cards: ViewPlayer['secondaries']) => sides(view([player({ id: 'you', side: 0, secondaries: cards })]))[0]?.secondaries
 
   it('lifts a card that is still in play above one that is done', () => {
@@ -230,15 +230,15 @@ describe('the mission a side is held to', () => {
     expect(missionCardsReady(ready!)).toBe(true)
 
     ready!.secondaryMode = 'fixed'
-    ready!.secondaries = [{ key: 'a', name: 'A', points: 0, rounds: [], status: 'active', secret: false, revealed: true }]
+    ready!.secondaries = [{ key: 'a', name: 'A', points: 0, rounds: [], status: 'active' }]
     expect(missionCardsReady(ready!)).toBe(false)
-    ready!.secondaries.push({ key: 'b', name: 'B', points: 0, rounds: [], status: 'active', secret: false, revealed: true })
+    ready!.secondaries.push({ key: 'b', name: 'B', points: 0, rounds: [], status: 'active' })
     expect(missionCardsReady(ready!)).toBe(true)
   })
 })
 
 describe('a fixed hand short of its cards', () => {
-  const card = (key: string) => ({ key, name: key, points: 0, rounds: [], status: 'active' as const, secret: false, revealed: true })
+  const card = (key: string) => ({ key, name: key, points: 0, rounds: [], status: 'active' as const })
 
   it('is short with no fixed cards chosen', () => {
     expect(fixedHandShort({ secondaryMode: 'fixed', secondaries: [] })).toBe(true)

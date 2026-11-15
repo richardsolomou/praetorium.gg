@@ -121,7 +121,7 @@ export class ProfileService {
     return histories.map((history) => {
       return {
         ...battleSummary(history, history.digest, viewerId, rules, factionsById),
-        plays: referencedPlays(history.digest, seatPlays(history.digest, viewerId), rules, factionsById),
+        plays: referencedPlays(history.digest, seatPlays(history.digest), rules, factionsById),
       }
     })
   }

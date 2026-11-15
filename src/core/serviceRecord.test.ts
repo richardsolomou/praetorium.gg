@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { battleDigest } from './battleDigest'
 import { type Command, reduceBattle } from './battle'
-import { ALICE, BOB, log, PLAYERS, started } from './battle.fixtures'
+import { ALICE, log, PLAYERS, started } from './battle.fixtures'
 import { guestSeatId } from './newBattle'
 import {
   type CardPlay,
@@ -60,10 +60,10 @@ const allied = (over: Partial<RecordBattle> = {}): RecordBattle =>
     ...over,
   })
 
-/** Folds a log as the profile does, read by `viewer`. */
-const folded = (viewer: string | null, ...entries: [string, Command][]) => {
+/** Folds a log as the profile does. */
+const folded = (...entries: [string, Command][]) => {
   const logged = log(...entries)
-  return seatPlays(battleDigest(reduceBattle(PLAYERS, logged), logged), viewer)
+  return seatPlays(battleDigest(reduceBattle(PLAYERS, logged), logged))
 }
 
 const STRATAGEM = { key: 'grenade', name: 'Grenade', cp: 1, limit: 'unlimited' as const }
@@ -383,13 +383,13 @@ describe('stratagems in a record', () => {
   })
 
   it('does not count a stratagem whose use was undone', () => {
-    const plays = folded(ALICE, ...armed([ALICE, { kind: 'use-stratagem', key: 'grenade' }], [ALICE, { kind: 'undo', target: 6 }]))
+    const plays = folded(...armed([ALICE, { kind: 'use-stratagem', key: 'grenade' }], [ALICE, { kind: 'undo', target: 6 }]))
 
     expect(serviceRecord([duel({ plays })], 'alice').stratagems).toEqual([])
   })
 
   it('counts what the board made a stratagem cost rather than its printed price', () => {
-    const plays = folded(ALICE, ...armed([ALICE, { kind: 'use-stratagem', key: 'grenade', cp: 3 }]))
+    const plays = folded(...armed([ALICE, { kind: 'use-stratagem', key: 'grenade', cp: 3 }]))
 
     expect(serviceRecord([duel({ plays })], 'alice').stratagems[0]).toMatchObject({ name: 'Grenade', uses: 1, cp: 3 })
   })
@@ -413,7 +413,6 @@ describe('command points in a record', () => {
 
   it('reads the spend the fold recorded, net of anything undone', () => {
     const plays = folded(
-      ALICE,
       ...armed(
         [ALICE, { kind: 'use-stratagem', key: 'grenade' }],
         [ALICE, { kind: 'use-stratagem', key: 'grenade', cp: 2 }],
@@ -559,32 +558,6 @@ describe('secondary cards read off a folded battle', () => {
     { key: 'hidden', name: 'Hidden purpose' },
     { key: 'open', name: 'Open purpose' },
   ]
-  const secretly = (...more: [string, Command][]): [string, Command][] => [
-    ...started(),
-    [BOB, { kind: 'set-prep', stratagems: [], secondaries: [deck[1]!], secondaryDeck: deck, primary: null, secondaryMode: 'fixed' }],
-    [BOB, { kind: 'select-secret', secondary: deck[0]! }],
-    [BOB, { kind: 'score-secondary', key: 'hidden', delta: 6 }],
-    ...more,
-  ]
-  const bobsCards = (viewer: string | null, entries: [string, Command][]) =>
-    serviceRecord([duel({ plays: folded(viewer, ...entries) })], 'bob').cards.map((card) => card.key)
-
-  it('leaves a face-down Secret Mission out of the record a stranger reads', () => {
-    expect(bobsCards(null, secretly())).toEqual(['open'])
-  })
-
-  it('leaves a face-down Secret Mission out of the record its opponent reads', () => {
-    expect(bobsCards(ALICE, secretly())).toEqual(['open'])
-  })
-
-  it('counts a face-down Secret Mission in the record its own side reads', () => {
-    expect(bobsCards(BOB, secretly())).toEqual(['hidden', 'open'])
-  })
-
-  it('counts a Secret Mission once it has been revealed', () => {
-    expect(bobsCards(null, secretly([BOB, { kind: 'reveal-secret' }]))).toEqual(['hidden', 'open'])
-  })
-
   it('does not count a card put back the moment it was drawn', () => {
     const entries: [string, Command][] = [
       ...started(),
@@ -593,7 +566,7 @@ describe('secondary cards read off a folded battle', () => {
       [ALICE, { kind: 'set-secondary-status', key: 'hidden', status: 'returned' }],
     ]
 
-    expect(serviceRecord([duel({ plays: folded(ALICE, ...entries) })], 'alice').cards.map((card) => card.key)).toEqual(['open'])
+    expect(serviceRecord([duel({ plays: folded(...entries) })], 'alice').cards.map((card) => card.key)).toEqual(['open'])
   })
 })
 

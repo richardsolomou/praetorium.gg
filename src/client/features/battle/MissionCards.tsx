@@ -27,7 +27,6 @@ export type StratagemText = { type: string | null; description: string | null; k
 type Props = {
   view: BattleView
   side: Side
-  actionable: boolean
   pending: boolean
   send: (command: Command) => void
   referenceFor: (key: string) => ReferenceCard | undefined
@@ -123,7 +122,7 @@ function MissionChoices({
   )
 }
 
-export function SecondaryMissions({ view, side, actionable, pending, send, referenceFor, guides }: Props) {
+export function SecondaryMissions({ view, side, pending, send, referenceFor, guides }: Props) {
   const [showResolved, setShowResolved] = useState<boolean | null>(null)
   const showingResolved = showResolved ?? view.status === 'finished'
   // A card put back into the deck was never really held, so it does not belong in this list at all.
@@ -168,7 +167,6 @@ export function SecondaryMissions({ view, side, actionable, pending, send, refer
                         : undefined
                     }
                   />
-                  {secondary.secret ? <span className="chip text-discarded">{secondary.revealed ? 'revealed' : 'secret'}</span> : null}
                 </div>
                 {tacticalActive ? (
                   <span className="readout shrink-0 text-sm font-bold text-dim">
@@ -213,17 +211,6 @@ export function SecondaryMissions({ view, side, actionable, pending, send, refer
                   </span>
                 </div>
               )}
-              {actionable && secondary.secret && !secondary.revealed ? (
-                <Button
-                  variant="ghost"
-                  size="xs"
-                  className="text-azure"
-                  disabled={pending}
-                  onClick={() => send({ kind: 'reveal-secret', playerId: side.captain.id })}
-                >
-                  Reveal
-                </Button>
-              ) : null}
             </li>
           )
         })}
