@@ -1,5 +1,17 @@
 # praetorium
 
+## 0.251.0 (2026-11-15)
+
+### Minor Changes
+
+- 4e8ed30: The home page gives lists and games equal space, with the features most worth knowing about on each side.
+- 4e8ed30: Until your first battle, **Start a battle** in a roster's menu says what tracking a game here does for you.
+
+### Patch Changes
+
+- 4e8ed30: On your home page, **Build a roster** and **New battle** now sit side by side with equal weight.
+- 4e8ed30: **Try importing a list** on the home page now opens the import dialog straight away.
+
 ## 0.250.1 (2026-11-15)
 
 ### Patch Changes
