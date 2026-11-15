@@ -6,7 +6,7 @@ Every player has their own colour, shown on their name across Praetorium and in 
 
 ## Scoring
 
-In a guided battle, ending a phase where a card scores opens a scoring prompt. Press what the board paid on each card, or **Did not score (or chose not to)**. The next player's turn waits until this is finished. **Nothing scored** answers every card you haven't touched. On a phone the prompt rises from the bottom of the screen. Swipe it down to set it aside while you check the board, then press **Return to prompt**. Swipe a battle reminder down to dismiss it. At the end of the fifth round, the final prompt ends with **Finish battle**.
+In a guided battle, ending a phase where a card scores opens a scoring prompt. Press what the board paid on each card, or **Did not score (or chose not to)**. The next player's turn waits until this is finished. **Nothing scored** answers every card you haven't touched. At the end of the fifth round, the final prompt ends with **Finish battle**.
 
 Until you turn on rules text, each payout is named by its points instead of the card's words: the lower or higher of two payouts, or one counted for each time it is met. **Turn on Game Datacards** at the top of the prompt shows the card's conditions.
 
@@ -26,7 +26,7 @@ Guided battles give each side its Command phase CP automatically. **+1 CP** reco
 
 To use a stratagem, press its cost button, for example **2 CP**. If the cost depends on the board, the **⋮** beside it lets you spend a different amount. A greyed-out stratagem shows why on hover: wrong phase, wrong turn, not enough CP, or its use limit is already spent.
 
-On a phone, the CP figure beside the phase button opens the stratagems you can play now, for whichever side's tab is open, with **+1 CP** beside the command points at the top. Swipe it down to close, and use the buttons at its foot to switch sides. Swipe sideways across the battle to move between **Your side**, **Battle** and **Opponent**.
+On a phone, the CP figure beside the phase button opens the stratagems you can play now, for whichever side's tab is open, with **+1 CP** beside the command points at the top. Use the buttons at its foot to switch sides. Swipe sideways across the battle to move between **Your side**, **Battle** and **Opponent**.
 
 ![A player's panel with victory points, command points, +1 CP, mission cards and stratagems, each stratagem with a 1 CP button.](screenshot:track-a-battle-stratagems "A stratagem's cost button")
 

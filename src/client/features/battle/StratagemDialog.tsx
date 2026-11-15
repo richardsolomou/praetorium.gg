@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { DialogBody, DialogDescription, DialogHeader, DialogTitle, Drawer, DrawerTrigger, SheetContent } from '../../components/Dialog'
+import { Dialog, DialogBody, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../../components/Dialog'
 import type { BattleView } from '../../../core/battleView'
 import { type Side, sideName } from '../../sides'
 import type { StratagemText } from './MissionCards'
@@ -13,7 +13,7 @@ import type { SendCommand } from './useCommand'
  * A side's command points beside the phase button on a phone, opening what it can spend them on now. Spending CP is the
  * most common press after ending a phase, and the panel lists stratagems a screen and a half down, past both missions.
  */
-export function StratagemSheet({
+export function StratagemDialog({
   view,
   sides,
   side: opened,
@@ -25,7 +25,7 @@ export function StratagemSheet({
 }: {
   view: BattleView
   sides: readonly Side[]
-  /** The side it opens on; a phone running both sides switches inside the sheet. */
+  /** The side it opens on; a phone running both sides switches inside the dialog. */
   side: Side
   coreKeys: (side: Side) => ReadonlySet<string>
   pending: boolean
@@ -37,12 +37,11 @@ export function StratagemSheet({
   const side = sides.find((each) => each.index === chosen) ?? opened
   const colours = tint(side.index)
   return (
-    <Drawer modal={false} showSwipeHandle onOpenChange={(open) => open && setChosen(null)}>
-      <DrawerTrigger
+    <Dialog onOpenChange={(open) => open && setChosen(null)}>
+      <DialogTrigger
         render={
           <Button
             variant="outline"
-            data-stratagem-sheet
             className="h-auto min-h-11 shrink-0 gap-1 rounded-xl px-3 lg:hidden"
             aria-label={`Stratagems for ${sideName(opened)}, ${opened.cp} CP`}
           />
@@ -50,11 +49,11 @@ export function StratagemSheet({
       >
         <span className={`figure text-lg leading-none font-bold ${tint(opened.index).score}`}>{opened.cp}</span>
         <span className="font-display text-2xs font-semibold text-dim uppercase">CP</span>
-      </DrawerTrigger>
-      <SheetContent className={colours.border}>
+      </DialogTrigger>
+      <DialogContent className={colours.border}>
         <DialogHeader>
           <DialogTitle className={colours.text}>Stratagems · {sideName(side)}</DialogTitle>
-          {/* Up here rather than in the footer, where a thumb reaching to close the drawer would press it by mistake. */}
+          {/* Beside the count it changes, not in the footer, where it reads as a way back and has no undo. */}
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
             <DialogDescription>
               {side.cp} CP · {side.cpGained} gained, {side.cpSpent} used
@@ -92,7 +91,7 @@ export function StratagemSheet({
             </fieldset>
           </div>
         ) : null}
-      </SheetContent>
-    </Drawer>
+      </DialogContent>
+    </Dialog>
   )
 }

@@ -55,7 +55,7 @@ import { dueForAdvance, dueFromTheirTurn, ScoringDialog, type ScoringAnswers } f
 import { BattleCombatDialog, type BattleCombatSelection } from '../simulator/BattleCombatDialog'
 import { SidePanel } from './SidePanel'
 import { TurnControl } from './TurnControl'
-import { StratagemSheet } from './StratagemSheet'
+import { StratagemDialog } from './StratagemDialog'
 import { TwistName } from './MissionTwist'
 import { Report, reportPlayers } from './Report'
 import { SideDot } from './PlayerName'
@@ -641,7 +641,7 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
               onAdvance={advance}
               before={
                 spender && !view.settings.manual && view.status === 'playing' ? (
-                  <StratagemSheet
+                  <StratagemDialog
                     view={view}
                     sides={table}
                     side={spender}

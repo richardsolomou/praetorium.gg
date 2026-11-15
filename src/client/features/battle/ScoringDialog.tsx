@@ -233,7 +233,7 @@ export function ScoringDialog({
   const colours = tint(side.index)
 
   return (
-    <BattlePromptDialog open sheet minimizedLabel={`Scoring · ${sideName(side)}`} onOpenChange={(open) => !open && onCancel?.()}>
+    <BattlePromptDialog open minimizedLabel={`Scoring · ${sideName(side)}`} onOpenChange={(open) => !open && onCancel?.()}>
       <BattleDialogContent minimizeDisabled={pending} size="md" className={colours.border}>
         <DialogHeader>
           <DialogTitle className={colours.text}>

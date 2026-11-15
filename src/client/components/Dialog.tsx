@@ -7,11 +7,9 @@ import {
   DialogContent as GeneratedDialogContent,
   DialogHeader as GeneratedDialogHeader,
 } from '@/components/ui/dialog'
-import { DrawerContent } from '@/components/ui/drawer'
 import { cn } from '@/lib/utils'
 
 export { Dialog, DialogClose, DialogDescription, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
-export { Drawer, DrawerTrigger } from '@/components/ui/drawer'
 
 const SIZES = {
   sm: 'sm:max-w-lg',
@@ -70,44 +68,6 @@ export function DialogContent({
         </div>
       ) : null}
     </GeneratedDialogContent>
-  )
-}
-
-/**
- * `DialogContent` as a drawer rising from the foot of the screen, sized to its content, for a phone held in one hand.
- * Its header and footer stay put while the body scrolls, and a swipe down closes it. The dialog's title, description
- * and close button work inside it, because a drawer is a dialog underneath. It stands on the application tabs, which
- * stay in reach, so its drawer is non-modal.
- */
-export function SheetContent({
-  actions,
-  showCloseButton = true,
-  className,
-  children,
-  ...props
-}: ComponentProps<typeof DrawerContent> & { actions?: ReactNode; showCloseButton?: boolean }) {
-  return (
-    <DrawerContent
-      {...props}
-      data-sheet
-      className={cn(
-        'border-edge bg-panel data-[swipe-axis=y]:[--drawer-content-max-height:calc(100dvh-4rem-var(--app-header)-env(safe-area-inset-top)-env(safe-area-inset-bottom))] data-[swipe-direction=down]:bottom-[calc(4rem+env(safe-area-inset-bottom))]',
-        ACTIONS_INSET[Number(Boolean(actions)) + Number(showCloseButton)],
-        className,
-      )}
-    >
-      {children}
-      {actions || showCloseButton ? (
-        <div className="absolute top-5 right-2 flex gap-2">
-          {actions}
-          {showCloseButton ? (
-            <DialogClose render={<Button variant="ghost" size="icon-sm" aria-label="Close" />}>
-              <XIcon />
-            </DialogClose>
-          ) : null}
-        </div>
-      ) : null}
-    </DrawerContent>
   )
 }
 
